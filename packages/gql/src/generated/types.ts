@@ -867,7 +867,7 @@ export interface Mutation {
    * purchase while the app is running with an active billing connection; always
    * reconcile with getAvailablePurchases when the app resumes.
    * Does not require the billing client to be initialized (no Play Billing version requirement).
-   * Planned OpenIAP availability: Spec 2.5.0 / openiap-google 2.5.0.
+   * Available in OpenIAP Spec 2.4.2 / openiap-google 2.5.0.
    * Android counterpart of presentCodeRedemptionSheetIOS.
    * Returns true when the redemption flow was launched, or false when the current
    * store flavor does not provide an equivalent redemption flow.

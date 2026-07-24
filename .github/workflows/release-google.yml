@@ -177,13 +177,9 @@ jobs:
 
     - name: Update version in openiap-versions.json
       if: steps.version.outputs.skip_version_commit != 'true'
-      working-directory: packages/google
       env:
         VERSION: ${{ steps.version.outputs.version }}
-      run: |
-        # Update version in openiap-versions.json
-        jq --arg version "$VERSION" '.google = $version' ../../openiap-versions.json > temp.json
-        mv temp.json ../../openiap-versions.json
+      run: node scripts/release-branch-policy.mjs update-native google "$VERSION"
 
     - name: Sync version files
       if: steps.version.outputs.skip_version_commit != 'true'
@@ -233,7 +229,8 @@ jobs:
 
               # Re-sync package metadata and docs copy after merge
               git show HEAD:openiap-versions.json > /tmp/upstream-openiap-versions.json
-              jq --arg version "$VERSION" '.google = $version' /tmp/upstream-openiap-versions.json > openiap-versions.json
+              cp /tmp/upstream-openiap-versions.json openiap-versions.json
+              node scripts/release-branch-policy.mjs update-native google "$VERSION"
               ./scripts/sync-versions.sh
               git add openiap-versions.json packages/*/openiap-versions.json
               git add packages/docs/src/generated/version-metadata.json
@@ -242,6 +239,21 @@ jobs:
 
               GIT_EDITOR=true git rebase --continue || { echo "❌ Rebase continue failed"; exit 1; }
             fi
+
+            # A clean rebase can combine independent Apple and Google bumps
+            # that both retained the old floor. Re-derive from the rebased
+            # native pair before every push, then amend only if convergence
+            # changed the version commit.
+            node scripts/release-branch-policy.mjs update-native google "$VERSION"
+            ./scripts/sync-versions.sh
+            git add openiap-versions.json packages/*/openiap-versions.json
+            git add packages/docs/src/generated/version-metadata.json
+            git add packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
+            git add libraries/godot-iap/addons/godot-iap/android/GodotIap.gdap
+            if ! git diff --staged --quiet; then
+              git commit --amend --no-edit
+            fi
+            node scripts/release-branch-policy.mjs assert-floor
 
             if git push origin "HEAD:$RELEASE_BRANCH"; then
               echo "✅ Successfully pushed version update"

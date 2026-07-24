@@ -4893,7 +4893,7 @@ public interface MutationResolver
     /// <summary>purchase while the app is running with an active billing connection; always</summary>
     /// <summary>reconcile with getAvailablePurchases when the app resumes.</summary>
     /// <summary>Does not require the billing client to be initialized (no Play Billing version requirement).</summary>
-    /// <summary>Planned OpenIAP availability: Spec 2.5.0 / openiap-google 2.5.0.</summary>
+    /// <summary>Available in OpenIAP Spec 2.4.2 / openiap-google 2.5.0.</summary>
     /// <summary>Android counterpart of presentCodeRedemptionSheetIOS.</summary>
     /// <summary>Returns true when the redemption flow was launched, or false when the current</summary>
     /// <summary>store flavor does not provide an equivalent redemption flow.</summary>

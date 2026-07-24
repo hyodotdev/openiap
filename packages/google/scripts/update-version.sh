@@ -25,28 +25,9 @@ if [[ ! -f "$VERSIONS_FILE" ]]; then
     exit 1
 fi
 
-# Update openiap-versions.json without dropping other version fields
-if command -v jq &> /dev/null; then
-    tmp_file="${VERSIONS_FILE}.tmp"
-    jq --arg version "$VERSION" '.google = $version' "$VERSIONS_FILE" > "$tmp_file"
-    mv "$tmp_file" "$VERSIONS_FILE"
-elif command -v python3 &> /dev/null; then
-    VERSION="$VERSION" VERSIONS_FILE="$VERSIONS_FILE" python3 - <<'PY'
-import json
-import os
-
-versions_file = os.environ["VERSIONS_FILE"]
-with open(versions_file, "r", encoding="utf-8") as f:
-    data = json.load(f)
-data["google"] = os.environ["VERSION"]
-with open(versions_file, "w", encoding="utf-8") as f:
-    json.dump(data, f, indent=2)
-    f.write("\n")
-PY
-else
-    echo "Error: jq or python3 is required to update openiap-versions.json" >&2
-    exit 1
-fi
+# Update the native key and derived spec floor atomically.
+node "$REPO_ROOT/scripts/release-branch-policy.mjs" \
+    update-native google "$VERSION"
 
 "$REPO_ROOT/scripts/sync-versions.sh"
 

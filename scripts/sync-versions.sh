@@ -10,6 +10,11 @@ REPO_ROOT="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 cd "$REPO_ROOT"
 
+# Version propagation must never normalize an invalid manifest implicitly.
+# Native version writers update their native key and the derived spec together;
+# every other caller must fix the canonical manifest before syncing copies.
+node scripts/release-branch-policy.mjs assert-floor
+
 echo "📦 Syncing version files..."
 
 sync_package_json_version() {

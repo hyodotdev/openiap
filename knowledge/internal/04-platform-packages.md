@@ -26,9 +26,9 @@ Version is managed in `openiap-versions.json`:
 
 ```json
 {
-  "spec": "2.0.1",
-  "google": "2.1.3",
-  "apple": "2.1.6"
+  "spec": "2.4.2",
+  "google": "2.5.0",
+  "apple": "2.4.2"
 }
 ```
 
@@ -38,8 +38,11 @@ Version is managed in `openiap-versions.json`:
 2. Run `cd packages/gql && bun run generate`.
 3. Run `cd packages/apple && swift test` to verify compatibility.
 
-Change the `"spec"` version only when the release train explicitly requests a
-version bump; type regeneration itself does not require one.
+`"spec"` must always equal the lower semantic version of `"google"` and
+`"apple"`. Do not bump or edit it directly in feature work or for type
+regeneration. Native version writers derive the floor atomically when Google or
+Apple changes; sync only verifies and propagates that value. Release-state,
+docs, and parity audits reject drift.
 
 **To bump Apple package version:**
 
@@ -369,10 +372,11 @@ maps OpenIAP product queries, purchases, restore calls, and fulfillment to
   results and opt-in add-on subscriptions for selected partners. Do not expose
   those as generally available OpenIAP features without an end-to-end contract.
 
-### Updating openiap-gql Version
+### Updating openiap-gql Types and Derived Version
 
-1. Update the canonical schema and change `openiap-versions.json` only when an
-   explicitly coordinated release requests a new `spec` version.
+1. Update the canonical schema without directly changing the `spec` version.
+   Native version writers keep `spec` equal to the lower semantic version of
+   `google` and `apple`; sync fails instead of silently repairing drift.
 2. Run `cd packages/gql && bun run generate` from the monorepo root.
 3. Compile ALL THREE flavors to verify:
    ```bash

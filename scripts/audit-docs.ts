@@ -35,6 +35,7 @@ import { readdir } from 'node:fs/promises';
 import { join, relative, resolve } from 'node:path';
 import ts from 'typescript';
 import { GENERATED_SYNC_MANIFEST } from '../packages/gql/generated-sync-manifest.mjs';
+import { assertSpecMatchesNativeFloor } from './release-branch-policy.mjs';
 
 const REPO_ROOT = resolve(import.meta.dir, '..');
 const DOC_ROOTS = [resolve(REPO_ROOT, 'packages/docs/src/pages/docs/apis'), resolve(REPO_ROOT, 'packages/docs/src/pages/docs/types')];
@@ -1081,6 +1082,18 @@ function auditVersionMetadata(): Drift[] {
 
   const rootVersions = readJsonRecord(ROOT_VERSIONS_FILE, drifts, 'R10', 'openiap-versions.json');
   const docsVersions = readJsonRecord(DOC_VERSIONS_FILE, drifts, 'R10', 'packages/docs/openiap-versions.json');
+  if (rootVersions) {
+    try {
+      assertSpecMatchesNativeFloor(rootVersions);
+    } catch (error) {
+      drifts.push({
+        file: ROOT_VERSIONS_FILE,
+        line: 1,
+        rule: 'R10',
+        message: error instanceof Error ? error.message : 'OpenIAP Spec must match the native version floor.',
+      });
+    }
+  }
   if (rootVersions && docsVersions) {
     const rootJson = JSON.stringify(rootVersions);
     const docsJson = JSON.stringify(docsVersions);

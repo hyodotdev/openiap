@@ -1,23 +1,23 @@
 #!/usr/bin/env bun
-import { readFileSync, writeFileSync } from 'node:fs';
+import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { dirname } from 'node:path';
 import { execSync } from 'node:child_process';
+import { updateNativeVersion } from './release-branch-policy.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 const rootDir = resolve(__dirname, '..');
 
 const args = process.argv.slice(2);
-const target = args[0]; // 'spec', 'google', or 'apple'
+const target = args[0]; // 'google' or 'apple'
 const bumpType = args[1]; // 'major', 'minor', 'patch', or specific version like '1.2.3'
 
 if (!target || !bumpType) {
   console.error('Usage: bun scripts/bump-version.mjs <target> <type>');
   console.error('');
   console.error('Targets:');
-  console.error('  spec     - Bump spec (gql/docs) version');
   console.error('  google   - Bump google (Android) only');
   console.error('  apple    - Bump apple (iOS) only');
   console.error('');
@@ -28,9 +28,15 @@ if (!target || !bumpType) {
   console.error('  x.x.x    - Set specific version');
   console.error('');
   console.error('Examples:');
-  console.error('  bun scripts/bump-version.mjs spec minor   # Bump spec version');
   console.error('  bun scripts/bump-version.mjs google patch # Bump google version');
   console.error('  bun scripts/bump-version.mjs apple 1.5.0  # Set apple version to 1.5.0');
+  process.exit(1);
+}
+
+if (target !== 'google' && target !== 'apple') {
+  console.error(
+    `❌ Unknown target: ${target}. The spec is derived from the lower native version and cannot be bumped independently.`,
+  );
   process.exit(1);
 }
 
@@ -70,25 +76,11 @@ console.log(`  google: ${versions.google}`);
 console.log(`  apple:  ${versions.apple}`);
 console.log('');
 
-// Determine what to bump
-const targets = [target];
-const bumpedVersions = {};
-
-for (const t of targets) {
-  if (!versions[t]) {
-    console.error(`❌ Unknown target: ${t}`);
-    process.exit(1);
-  }
-
-  const currentVersion = versions[t];
-  const newVersion = bumpVersion(currentVersion, bumpType);
-  versions[t] = newVersion;
-  bumpedVersions[t] = newVersion;
-  console.log(`✅ ${t.padEnd(10)} ${currentVersion} → ${newVersion}`);
-}
-
-// Write updated versions
-writeFileSync(versionsPath, JSON.stringify(versions, null, 2) + '\n');
+const currentVersion = versions[target];
+const newVersion = bumpVersion(currentVersion, bumpType);
+const bumpedVersions = updateNativeVersion(target, newVersion, rootDir);
+console.log(`✅ ${target.padEnd(10)} ${currentVersion} → ${newVersion}`);
+console.log(`✅ ${'spec'.padEnd(10)} derived → ${bumpedVersions.spec}`);
 
 console.log('\n📝 Updated openiap-versions.json');
 console.log('');
@@ -106,9 +98,7 @@ try {
 const releaseTag =
   target === 'apple'
     ? bumpedVersions.apple
-    : target === 'google'
-      ? `google-${bumpedVersions.google}`
-      : `docs-${bumpedVersions.spec}`;
+    : `google-${bumpedVersions.google}`;
 
 console.log('\n💡 Next steps:');
 console.log('  1. Review changes: git diff');

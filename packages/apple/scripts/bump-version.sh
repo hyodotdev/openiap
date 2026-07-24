@@ -68,30 +68,9 @@ esac
 
 echo "New version: $NEW_VERSION"
 
-# Update openiap-versions.json
-if command -v jq &> /dev/null; then
-    tmp_file="${VERSIONS_FILE}.tmp"
-    jq --arg version "$NEW_VERSION" '.apple = $version' "$VERSIONS_FILE" > "$tmp_file"
-    mv "$tmp_file" "$VERSIONS_FILE"
-    echo "✅ Updated openiap-versions.json"
-elif command -v python3 &> /dev/null; then
-    VERSION="$NEW_VERSION" VERSIONS_FILE="$VERSIONS_FILE" python3 - <<'PY'
-import json
-import os
-
-versions_file = os.environ["VERSIONS_FILE"]
-with open(versions_file, 'r', encoding='utf-8') as f:
-    data = json.load(f)
-data['apple'] = os.environ["VERSION"]
-with open(versions_file, 'w', encoding='utf-8') as f:
-    json.dump(data, f, indent=2)
-    f.write('\n')
-PY
-    echo "✅ Updated openiap-versions.json (using python3)"
-else
-    echo "❌ Error: jq or python3 is required to update openiap-versions.json"
-    exit 1
-fi
+# Update the native key and derived spec floor atomically.
+node "$REPO_ROOT/scripts/release-branch-policy.mjs" \
+    update-native apple "$NEW_VERSION"
 
 "$REPO_ROOT/scripts/sync-versions.sh"
 

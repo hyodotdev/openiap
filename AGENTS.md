@@ -85,11 +85,11 @@ openiap/
 - `libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt` - Synced from GQL
 - `libraries/maui-iap/src/OpenIap.Maui/Types.cs` - Synced from GQL
 - `openiap-versions.json` - Tracks only `spec`, `google`, and `apple`. Google
-  and Apple are CI-managed; the spec may be bumped directly in a feature PR
-  when explicitly requested, together with `packages/gql/package.json`.
-  For an explicitly coordinated stable native/spec train, use the
-  maintainer-selected native train version as the requested spec target;
-  otherwise never infer or auto-align versions.
+  and Apple are CI-managed. `spec` must equal the lower semantic version of
+  `google` and `apple`; it is never bumped directly in a feature PR or docs
+  deployment. Native version writers update their native key and the derived
+  `spec` atomically, then the sync workflow propagates package metadata.
+  Release-state, docs, parity, and sync audits reject floor drift.
 
 Framework library package versions (React Native, Expo, Flutter, Godot, KMP,
 MAUI) live in their own package metadata / release workflows. Do not add

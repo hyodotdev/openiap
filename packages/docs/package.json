@@ -1,7 +1,7 @@
 {
   "name": "@hyodotdev/openiap-docs",
   "private": true,
-  "version": "2.5.1",
+  "version": "2.4.2",
   "type": "module",
   "scripts": {
     "dev": "bunx vite",

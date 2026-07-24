@@ -7,6 +7,10 @@ package at a time and verify the public registry before starting the next one.
 
 - `main` contains stable package metadata only. Run stable package releases,
   production docs deployment, and the Docs release workflow from `main`.
+- `spec` is derived as the lower semantic version of `google` and `apple`.
+  Never bump `spec` directly in a feature PR, release command, or docs
+  deployment. Native version writers derive it atomically; sync verifies and
+  propagates it.
 - `next` is an on-demand prerelease integration branch. Run `-rc.*` and npm
   `next` releases from `next` only.
 - `next` may be absent between prerelease trains. Create it from current `main`
@@ -36,10 +40,12 @@ node --test scripts/release-branch-policy.test.mjs
 1. Read `AGENTS.md` and `knowledge/internal/06-git-deployment.md`.
 2. Confirm the target package metadata from its SSOT; do not infer versions
    from `openiap-versions.json` for framework libraries.
-3. Fetch the target branch and tags, confirm a clean worktree, and inspect
+3. Confirm `spec = min(google, apple)` on stable `main`; stop if the floor
+   invariant or any derived spec/package metadata is out of sync.
+4. Fetch the target branch and tags, confirm a clean worktree, and inspect
    active release runs.
-4. Run the focused package checks and the relevant monorepo audits.
-5. Confirm required repository secrets exist without printing secret values.
+5. Run the focused package checks and the relevant monorepo audits.
+6. Confirm required repository secrets exist without printing secret values.
 
 ```bash
 git fetch origin main --tags
@@ -101,7 +107,9 @@ For a multi-package release train, use this order when affected:
 9. `npm run deploy`, then `release.yml` with `version=current`
 
 Fetch latest `main` before each dependent workflow so every release starts from
-the prior stable version commit. Do not dispatch the full list in parallel.
+the prior stable version commit. After an Apple or Google release, confirm the
+native workflow has derived and synchronized the spec floor before dispatching
+the next package or docs release. Do not dispatch the full list in parallel.
 
 ## Verification Sources
 

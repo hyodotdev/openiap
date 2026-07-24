@@ -19,6 +19,7 @@ import { afterEach, test } from 'node:test';
 import { GENERATED_SYNC_MANIFEST } from '../generated-sync-manifest.mjs';
 
 const repositoryRoot = resolve(import.meta.dirname, '../../..');
+const FIXTURE_SPEC_VERSION = '9.8.7';
 const generatedHeaderSource = readFileSync(resolve(repositoryRoot, 'packages/gql/codegen/core/generated-header.ts'), 'utf8');
 const headerGuidance = [...generatedHeaderSource.matchAll(/`\$\{commentPrefix\} ([^`\r\n]+)`/g)]
   .map((match) => match[1])
@@ -176,7 +177,10 @@ function createIsolatedCheckout(definition, { withVersions = true } = {}) {
   writeFileSync(join(binDirectory, 'curl'), fakeCurlSource);
   chmodSync(join(binDirectory, 'curl'), 0o755);
   if (withVersions) {
-    writeFileSync(join(packageRoot, 'openiap-versions.json'), `${JSON.stringify({ spec: '2.5.0' }, null, 2)}\n`);
+    writeFileSync(
+      join(packageRoot, 'openiap-versions.json'),
+      `${JSON.stringify({ spec: FIXTURE_SPEC_VERSION }, null, 2)}\n`,
+    );
   }
 
   return {
@@ -260,7 +264,7 @@ test('standalone refreshers validate and atomically replace in isolation', () =>
     assert.equal(statSync(checkout.isolatedTarget).mode & 0o777, 0o644);
     assert.equal(
       readFileSync(checkout.curlLog, 'utf8'),
-      `https://raw.githubusercontent.com/hyodotdev/openiap/docs-2.5.0/${checkout.manifestTarget}`,
+      `https://raw.githubusercontent.com/hyodotdev/openiap/docs-${FIXTURE_SPEC_VERSION}/${checkout.manifestTarget}`,
     );
     assertNoRefreshTemps(checkout);
 
@@ -298,12 +302,12 @@ test('Node refreshers keep explicit tag overrides independent of metadata', () =
     writeFileSync(checkout.isolatedTarget, 'preserve-me\n', { mode: 0o644 });
 
     const override = runRefresher(definition, checkout, {
-      args: ['--tag', 'gql-v2.5.0'],
+      args: ['--tag', `gql-v${FIXTURE_SPEC_VERSION}`],
     });
     assert.equal(override.status, 0, `${definition.scriptPath}\n${override.stderr}`);
     assert.equal(
       readFileSync(checkout.curlLog, 'utf8'),
-      `https://raw.githubusercontent.com/hyodotdev/openiap/docs-2.5.0/${checkout.manifestTarget}`,
+      `https://raw.githubusercontent.com/hyodotdev/openiap/docs-${FIXTURE_SPEC_VERSION}/${checkout.manifestTarget}`,
     );
 
     const expected = readFileSync(checkout.isolatedTarget, 'utf8');

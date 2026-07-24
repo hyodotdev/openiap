@@ -214,6 +214,12 @@ outside `packages/docs`. Vercel uploads the docs package root, so imports such
 as `../../../../libraries/expo-iap/package.json?raw` pass locally but fail in
 Vercel builds.
 
+The root `openiap-versions.json` is also a version contract, not three
+independent counters. `spec` must equal the semantic-version minimum of
+`google` and `apple`. Native version writers derive that floor atomically;
+`scripts/sync-versions.sh` refuses an inconsistent manifest instead of
+silently normalizing it.
+
 Framework package versions and Android SDK constants used by docs must flow
 through `packages/docs/src/generated/version-metadata.json`, which is generated
 by `scripts/sync-versions.sh` from the real SSOT files:
@@ -225,8 +231,9 @@ by `scripts/sync-versions.sh` from the real SSOT files:
 - MAUI: `libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj`
 - Google Android SDK / Play Billing: `packages/google/openiap/build.gradle.kts`
 
-`bun run audit:docs` fails if this generated metadata drifts from the SSOT
-files or if `versioning.ts` reintroduces raw imports outside `packages/docs`.
+`bun run audit:docs` fails if the spec/native floor invariant is broken, this
+generated metadata drifts from the SSOT files, or `versioning.ts` reintroduces
+raw imports outside `packages/docs`.
 
 ### R11 — Active code examples reject recurring phantom API shapes
 

@@ -125,7 +125,9 @@ Native modules must be released before framework libraries:
 
 ### Prerelease
 
-All workflows support version bumps: `patch` / `minor` / `major` / `rc` / `promote`
+Native and framework package workflows support their documented version bump
+modes (`patch` / `minor` / `major` / `rc` / `promote`). The Docs workflow is
+`current`-only because the Spec version is derived from the native floor.
 
 - `major` + prerelease checkbox -- X.0.0-rc.1
 - `rc` -- X.0.0-rc.2 (increment prerelease)
@@ -134,9 +136,13 @@ All workflows support version bumps: `patch` / `minor` / `major` / `rc` / `promo
 ### Version Management
 
 - `openiap-versions.json` tracks only `spec`, `google`, and `apple` versions.
+- `spec` is derived as the semantic-version minimum of `google` and `apple`;
+  never bump it independently.
 - Framework library versions live in each library's package metadata and release workflow.
-- `./scripts/sync-versions.sh` syncs native/docs version metadata and replays
-  the canonical manifest copies; it does not regenerate schema types.
+- Native version writers update their native key and the derived `spec`
+  atomically. `./scripts/sync-versions.sh` then verifies that invariant and
+  propagates the canonical manifest; it does not derive the floor or regenerate
+  schema types.
 
 ## 5. CI/CD
 
@@ -165,8 +171,8 @@ These files are generated and synchronized by `bun run generate` in
 - `libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt`
 - `libraries/maui-iap/src/OpenIap.Maui/Types.cs`
 - `openiap-versions.json` -- Tracks only `spec`, `google`, and `apple`;
-  Google/Apple are CI-managed, while `spec` changes only on an explicit
-  coordinated request
+  Google/Apple are native-workflow-managed, while `spec` is their derived
+  semantic-version minimum and is never bumped independently
 
 To regenerate:
 

@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { GENERATED_SYNC_MANIFEST } from "../packages/gql/generated-sync-manifest.mjs";
 import { collectGeneratedSyncDrift } from "../packages/gql/scripts/verify-generated-sync.mjs";
+import { assertSpecMatchesNativeFloor } from "./release-branch-policy.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 execFileSync(
@@ -21,6 +22,14 @@ execFileSync(
 const failures = [];
 
 const EXPO_EXAMPLE_ROOT = "libraries/expo-iap/example";
+
+function checkNativeSpecVersionFloor() {
+  try {
+    assertSpecMatchesNativeFloor(readJson("openiap-versions.json"));
+  } catch (error) {
+    fail(error instanceof Error ? error.message : String(error));
+  }
+}
 
 // Built via concatenation so repo-wide TO-DO searches don't flag these
 // forbidden-pattern needles as real code debt.
@@ -3377,7 +3386,6 @@ function checkFrameworkDependencyHygiene() {
     ".github/workflows/ci.yml",
     ".github/workflows/ci-expo-iap.yml",
     ".github/workflows/release-expo.yml",
-    ".github/workflows/release.yml",
   ]) {
     expectIncludes(
       bunWorkflow,
@@ -3394,7 +3402,6 @@ function checkFrameworkDependencyHygiene() {
     ".github/workflows/ci.yml",
     ".github/workflows/ci-expo-iap.yml",
     ".github/workflows/release-expo.yml",
-    ".github/workflows/release.yml",
   ]) {
     expectIncludes(
       bunInstallWorkflow,
@@ -3421,8 +3428,8 @@ function checkFrameworkDependencyHygiene() {
     "packages/google/scripts/update-version.sh",
     [
       'REPO_ROOT="$(cd "${SCRIPT_DIR}/../../.." && pwd)"',
-      "jq --arg version \"$VERSION\" '.google = $version'",
-      'data["google"] = os.environ["VERSION"]',
+      'node "$REPO_ROOT/scripts/release-branch-policy.mjs"',
+      'update-native google "$VERSION"',
       '"$REPO_ROOT/scripts/sync-versions.sh"',
       "packages/*/openiap-versions.json",
       "packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json",
@@ -3435,6 +3442,7 @@ function checkFrameworkDependencyHygiene() {
       'cat > "$VERSIONS_FILE"',
       '"spec": "$SPEC_VERSION"',
       '"google": "$VERSION"',
+      "'.google = $version'",
       "sed -i",
     ],
     "Google update-version must not rewrite openiap-versions.json or use platform sed",
@@ -3446,8 +3454,8 @@ function checkFrameworkDependencyHygiene() {
       "jq -er '.apple | select(type == \"string\" and length > 0)'",
       'python3 - "${VERSIONS_FILE}"',
       'raise SystemExit(f"missing apple in {path}")',
-      "jq --arg version \"$NEW_VERSION\" '.apple = $version'",
-      "data['apple'] = os.environ[\"VERSION\"]",
+      'node "$REPO_ROOT/scripts/release-branch-policy.mjs"',
+      'update-native apple "$NEW_VERSION"',
       '"$REPO_ROOT/scripts/sync-versions.sh"',
       "packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json",
       'git commit -m "chore(apple): bump version to $NEW_VERSION"',
@@ -3473,25 +3481,30 @@ function checkFrameworkDependencyHygiene() {
       "set -euo pipefail",
       'VERCEL_CLI_VERSION="54.0.0"',
       'npm install -g "vercel@$VERCEL_CLI_VERSION"',
-      'if [ -z "${1:-}" ]; then',
+      'if [ -n "${1:-}" ] && [ "$1" != "$VERSION" ]; then',
       "if ! ./scripts/sync-versions.sh; then",
       "if ! bun run typecheck; then",
       "if ! bun run build; then",
       "if ! vercel --prod; then",
-      'git commit -m "chore(spec): bump version to $VERSION"',
+      "release-branch-policy.mjs assert-floor",
       "release-branch-policy.mjs guard docs current false",
       "git fetch --no-tags origin main",
       "LOCAL_HEAD=$(git rev-parse HEAD)",
       "REMOTE_HEAD=$(git rev-parse origin/main)",
-      "git pull --rebase origin main",
-      "git push origin HEAD:main",
-      "packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json",
+      "OpenIAP Spec cannot be bumped independently",
+      "Version metadata was not synchronized on main",
     ],
-    "deploy script commit message",
+    "deploy script derived spec policy",
   );
   expectNotIncludes(
     "scripts/deploy.sh",
-    ["npm install -g vercel", "if [ $? -ne 0 ]; then"],
+    [
+      "npm install -g vercel",
+      "if [ $? -ne 0 ]; then",
+      "'.spec = $version'",
+      'git commit -m "chore(spec)',
+      "git push origin HEAD:main",
+    ],
     "deploy script must not install a floating Vercel CLI",
   );
   expectIncludes(
@@ -3629,25 +3642,33 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     ".github/workflows/release.yml",
     [
-      'git commit -m "chore(docs): bump version to $VERSION"',
-      "jq --arg version \"$VERSION\" '.spec = $version'",
-      "git show HEAD:openiap-versions.json > /tmp/upstream-openiap-versions.json",
-      "./scripts/sync-versions.sh",
-      "packages/docs/src/generated/version-metadata.json",
-      'if git rev-parse "$TAG_NAME" >/dev/null 2>&1; then',
-      "Tag $TAG_NAME already exists",
-      "packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json",
+      "Release the native-derived current spec version",
+      "release-branch-policy.mjs guard docs",
+      "release-branch-policy.mjs assert-floor",
+      "Native-derived spec version",
+      'if git rev-parse --verify "refs/tags/$TAG_NAME" >/dev/null 2>&1; then',
+      'TAG_COMMIT=$(git rev-parse "refs/tags/$TAG_NAME^{commit}")',
+      "HEAD_COMMIT=$(git rev-parse HEAD)",
+      "A released spec tag is immutable",
+      "allowing an idempotent rerun",
     ],
-    "docs release workflow commit message",
+    "docs release workflow derived spec policy",
   );
   expectNotIncludes(
     ".github/workflows/release.yml",
-    ["git pull --rebase origin main || true"],
-    "docs release workflow must not hide version rebase conflicts",
+    [
+      "git pull --rebase origin main",
+      "git commit",
+      "'.spec = $version'",
+      "- patch",
+      "- minor",
+      "- major",
+    ],
+    "docs release workflow must not mutate the derived spec",
   );
-  for (const releaseWorkflow of [
-    ".github/workflows/release-apple.yml",
-    ".github/workflows/release-google.yml",
+  for (const [releaseWorkflow, nativePackage] of [
+    [".github/workflows/release-apple.yml", "apple"],
+    [".github/workflows/release-google.yml", "google"],
   ]) {
     expectIncludes(
       releaseWorkflow,
@@ -3658,9 +3679,24 @@ function checkFrameworkDependencyHygiene() {
         "./scripts/sync-versions.sh",
         "packages/docs/src/generated/version-metadata.json",
         "packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json",
+        `update-native ${nativePackage} "$VERSION"`,
+        "clean rebase can combine independent Apple and Google bumps",
+        "git commit --amend --no-edit",
+        "release-branch-policy.mjs assert-floor",
       ],
       `${releaseWorkflow} must commit package metadata synced from openiap-versions.json`,
     );
+    const releaseWorkflowSource = read(releaseWorkflow);
+    if (
+      releaseWorkflowSource.split(`update-native ${nativePackage} "$VERSION"`)
+        .length -
+        1 !==
+      3
+    ) {
+      fail(
+        `${releaseWorkflow} must derive the spec in its normal, rebase-conflict, and pre-push convergence paths`,
+      );
+    }
     expectNotIncludes(
       releaseWorkflow,
       [
@@ -3955,12 +3991,12 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     "scripts/bump-version.mjs",
     [
-      "const currentVersion = versions[t];",
+      "const currentVersion = versions[target];",
       "${currentVersion} → ${newVersion}",
       "chore(version): bump <target> to X.X.X",
       "target === 'apple'",
+      "updateNativeVersion",
       "`google-${bumpedVersions.google}`",
-      "`docs-${bumpedVersions.spec}`",
     ],
     "root bump-version output",
   );
@@ -3986,7 +4022,13 @@ function checkFrameworkDependencyHygiene() {
   );
   expectNotIncludes(
     "scripts/bump-version.mjs",
-    ["chore: bump version", "${versions[t]} → ${newVersion}", "git tag vX.X.X"],
+    [
+      "chore: bump version",
+      "${versions[t]} → ${newVersion}",
+      "git tag vX.X.X",
+      "`docs-${bumpedVersions.spec}`",
+      "Bump spec (gql/docs) version",
+    ],
     "root bump-version output must be accurate and conventional",
   );
   expectNotIncludes(
@@ -6051,6 +6093,7 @@ function checkReleaseNoteGroupingGuidance() {
 }
 
 checkLibraryCoverageRegistry();
+checkNativeSpecVersionFloor();
 checkExpoSsotRegistry();
 checkE2eExampleIds();
 checkGeneratedTypeSync();

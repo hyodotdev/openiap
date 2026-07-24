@@ -16,20 +16,26 @@ VERCEL_CLI_VERSION="54.0.0"
 echo -e "${BLUE}🚀 OpenIAP Deployment Script${NC}"
 echo ""
 
-# Read current version from openiap-versions.json. If no explicit version is
-# supplied, deploy the spec version already recorded there.
+# The shared spec is derived from the lower Apple/Google native version.
+# Production deployment may only publish that already-recorded floor.
+if ! node scripts/release-branch-policy.mjs assert-floor; then
+    echo -e "${RED}❌ Refusing to deploy inconsistent version metadata${NC}"
+    exit 1
+fi
+
 CURRENT_VERSION=$(jq -r '.spec // empty' openiap-versions.json)
 if [ -z "$CURRENT_VERSION" ]; then
     echo -e "${RED}❌ Error: Could not read .spec from openiap-versions.json${NC}"
     exit 1
 fi
 
-if [ -z "${1:-}" ]; then
-    VERSION=$CURRENT_VERSION
-    echo -e "${BLUE}📦 No version supplied; using openiap-versions.json spec: $VERSION${NC}"
-else
-    VERSION=$1
+VERSION=$CURRENT_VERSION
+if [ -n "${1:-}" ] && [ "$1" != "$VERSION" ]; then
+    echo -e "${RED}❌ Error: OpenIAP Spec cannot be bumped independently${NC}"
+    echo -e "${YELLOW}Expected the native version floor $VERSION, received $1${NC}"
+    exit 1
 fi
+echo -e "${BLUE}📦 Using derived OpenIAP Spec version: $VERSION${NC}"
 
 # Validate version format
 if [[ "$VERSION" == v* ]] || [[ "$VERSION" == gql-* ]]; then
@@ -108,16 +114,7 @@ if [[ ! $REPLY =~ ^[Yy]$ ]]; then
 fi
 
 echo ""
-echo -e "${BLUE}📦 Step 1: Preparing version files...${NC}"
-
-# Update spec/docs version in openiap-versions.json
-if [ "$VERSION" != "$CURRENT_VERSION" ]; then
-    jq --arg version "$VERSION" '.spec = $version' openiap-versions.json > openiap-versions.tmp
-    mv openiap-versions.tmp openiap-versions.json
-    echo -e "${GREEN}✅ Updated openiap-versions.json${NC}"
-else
-    echo -e "${GREEN}✅ openiap-versions.json already uses spec $VERSION${NC}"
-fi
+echo -e "${BLUE}📦 Step 1: Verifying synchronized version files...${NC}"
 
 # Sync version files from root to packages
 echo -e "${BLUE}📦 Syncing version files to packages...${NC}"
@@ -126,16 +123,11 @@ if ! ./scripts/sync-versions.sh; then
     exit 1
 fi
 
-# Commit version changes if there are any
-if [[ -n $(git status -s openiap-versions.json packages/*/openiap-versions.json packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json packages/docs/src/generated/version-metadata.json 2>/dev/null) ]]; then
-    echo -e "${BLUE}📝 Committing version changes...${NC}"
-    git add openiap-versions.json packages/*/openiap-versions.json
-    git add packages/docs/src/generated/version-metadata.json
-    git add packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
-    git commit -m "chore(spec): bump version to $VERSION"
-    git pull --rebase origin main
-    git push origin HEAD:main
-    echo -e "${GREEN}✅ Version changes committed and pushed${NC}"
+if [[ -n $(git status -s) ]]; then
+    echo -e "${RED}❌ Version metadata was not synchronized on main${NC}"
+    echo -e "${YELLOW}Commit the canonical native-derived metadata before deploying.${NC}"
+    git status -s
+    exit 1
 fi
 
 echo ""
@@ -170,7 +162,7 @@ echo ""
 echo -e "${GREEN}🎉 Deployment completed successfully!${NC}"
 echo ""
 echo -e "${BLUE}📋 Summary:${NC}"
-echo -e "   ✅ Version files synced (spec: $VERSION)"
+echo -e "   ✅ Version files verified (derived spec: $VERSION)"
 echo -e "   ✅ Documentation deployed to Vercel"
 echo ""
 echo -e "${BLUE}ℹ️  To create a GitHub release, run the Release workflow manually:${NC}"

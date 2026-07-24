@@ -22,12 +22,8 @@ interface Note {
   element: React.ReactNode;
 }
 
-const generatedContractReleases = [
-  ['OpenIAP Spec 2.5.1', 'docs-2.5.1'],
-] as const;
-
 const androidOfferCodeReleases = [
-  ['OpenIAP Spec 2.5.0', 'docs-2.5.0'],
+  ['OpenIAP Spec 2.4.2', 'docs-2.4.2'],
   ['openiap-apple 2.4.2', '2.4.2'],
   ['openiap-google 2.5.0', 'google-2.5.0'],
   ['react-native-iap 15.6.0', 'react-native-iap-15.6.0'],
@@ -90,136 +86,6 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
-    // July 24, 2026 - OpenIAP Spec 2.5.1 offer docs and generated-contract consistency
-    {
-      id: 'spec-2-5-1-offer-docs-codegen-ssot-2026-07-24',
-      date: new Date('2026-07-24'),
-      element: (
-        <div
-          key="spec-2-5-1-offer-docs-codegen-ssot-2026-07-24"
-          style={noteCardStyle}
-        >
-          <AnchorLink
-            id="spec-2-5-1-offer-docs-codegen-ssot-2026-07-24"
-            level="h4"
-          >
-            July 24, 2026 - OpenIAP Spec 2.5.1 offer documentation and
-            generated-contract consistency
-          </AnchorLink>
-
-          <p
-            style={{
-              marginBottom: '1rem',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            Publishes a backward-compatible documentation and generated-contract
-            patch from{' '}
-            <a
-              href="https://github.com/hyodotdev/openiap/issues/249"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="external-link"
-            >
-              issue #249
-            </a>{' '}
-            and{' '}
-            <a
-              href="https://github.com/hyodotdev/openiap/pull/250"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="external-link"
-            >
-              PR #250
-            </a>
-            . Native and framework runtime APIs, wire values, and installable
-            package versions are unchanged.
-          </p>
-
-          <h5 style={{ margin: '0 0 0.5rem 0' }}>Offer documentation</h5>
-          <ul
-            style={{
-              marginBottom: '1rem',
-              paddingLeft: '1.25rem',
-              fontSize: '0.9rem',
-            }}
-          >
-            <li>
-              <code>DiscountOffer</code> is documented as the standardized shape
-              for Android one-time product purchase options and offers. It is
-              not an iOS discount type and is not the subscription-offer model.
-            </li>
-            <li>
-              Subscription products consistently point to{' '}
-              <code>SubscriptionOffer</code>, while Android one-time products
-              read <code>ProductAndroid.discountOffers</code>. Legacy
-              platform-specific fields retain precise deprecation guidance.
-            </li>
-            <li>
-              Examples, type references, search data, and LLM exports now use
-              the same canonical field names and offer-page routes.
-            </li>
-          </ul>
-
-          <h5 style={{ margin: '0 0 0.5rem 0' }}>
-            Generated-contract consistency
-          </h5>
-          <ul
-            style={{
-              marginBottom: '1rem',
-              paddingLeft: '1.25rem',
-              fontSize: '0.9rem',
-            }}
-          >
-            <li>
-              GraphQL schema inventory and deprecation reasons now come from
-              canonical SDL directives, custom input shapes from shared
-              contracts, supported languages from the plugin registry, and
-              generated sources and synchronized targets from the sync manifest.
-            </li>
-            <li>
-              Generation and CI fail closed on tracked or untracked drift, and
-              version-pinned framework refreshers consume the versioned{' '}
-              <code>docs-2.5.1</code> source snapshot.
-            </li>
-            <li>
-              Generated TypeScript, Swift, Kotlin, Dart, GDScript, and C# docs
-              carry the same offer and deprecation metadata without changing the
-              public wire contract.
-            </li>
-          </ul>
-
-          <div
-            style={{
-              paddingTop: '1rem',
-              borderTop: '1px solid var(--border-color)',
-            }}
-          >
-            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
-            <ul
-              style={{
-                margin: 0,
-                paddingLeft: '1.25rem',
-                fontSize: '0.9rem',
-              }}
-            >
-              {generatedContractReleases.map(([label, tag]) => (
-                <li key={tag}>
-                  <a
-                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      ),
-    },
-
     // July 23, 2026 - IAPKit webhook deduplication and ASC review automation
     {
       id: 'iapkit-webhook-dedup-asc-review-automation-2026-07-23',
@@ -383,17 +249,20 @@ function Releases() {
       ),
     },
 
-    // July 23, 2026 - OpenIAP Spec 2.5.0 and Android offer-code redemption
+    // July 24, 2026 - OpenIAP Spec 2.4.2 stable train and offer contracts
     {
-      id: 'android-offer-code-redemption-2026-07-23',
-      date: new Date('2026-07-23'),
+      id: 'spec-2-4-2-stable-train-offer-contracts-2026-07-24',
+      date: new Date('2026-07-24'),
       element: (
         <div
-          key="android-offer-code-redemption-2026-07-23"
+          key="spec-2-4-2-stable-train-offer-contracts-2026-07-24"
           style={noteCardStyle}
         >
-          <AnchorLink id="android-offer-code-redemption-2026-07-23" level="h4">
-            July 23, 2026 - OpenIAP Spec 2.5.0 and Android offer-code redemption
+          <AnchorLink
+            id="spec-2-4-2-stable-train-offer-contracts-2026-07-24"
+            level="h4"
+          >
+            July 24, 2026 - OpenIAP Spec 2.4.2 stable train and offer contracts
           </AnchorLink>
 
           <p
@@ -402,8 +271,7 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            Publishes OpenIAP Spec 2.5.0 and coordinated stable package releases
-            for{' '}
+            Publishes the coordinated stable package train for{' '}
             <Link to="/docs/apis/android/open-redeem-offer-code-android">
               <code>openRedeemOfferCodeAndroid</code>
             </Link>{' '}
@@ -416,10 +284,14 @@ function Releases() {
             >
               PR #243
             </a>
-            {'. '}The additive Android-only API opens Google Play&apos;s offer
-            or promo-code redemption surface without requiring an initialized
-            billing client, preserves explicit unsupported-store results, and
-            carries the same contract through every maintained framework SDK.
+            {'. '}OpenIAP Spec 2.4.2 is the semantic-version floor shared by
+            openiap-apple 2.4.2 and openiap-google 2.5.0. This release corrects
+            the spec/docs version label to that floor without changing native or
+            framework package versions. The additive Android-only API opens
+            Google Play&apos;s offer or promo-code redemption surface without
+            requiring an initialized billing client, preserves explicit
+            unsupported-store results, and carries the same contract through
+            every maintained framework SDK.
           </p>
 
           <h5 style={{ margin: '0 0 0.5rem 0' }}>
@@ -433,7 +305,7 @@ function Releases() {
             }}
           >
             <li>
-              <strong>OpenIAP Spec 2.5.0</strong> - adds the Android-only{' '}
+              <strong>OpenIAP Spec 2.4.2</strong> - adds the Android-only{' '}
               <code>openRedeemOfferCodeAndroid</code> mutation returning{' '}
               <code>true</code> when the redemption surface launches and{' '}
               <code>false</code> when the active store flavor has no equivalent
@@ -462,6 +334,54 @@ function Releases() {
               outside the app. <code>showManageSubscriptionsIOS</code> remains
               unsupported on macOS because a browser flow cannot report which
               purchases changed.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Offer documentation and generated contracts
+          </h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <a
+                href="https://github.com/hyodotdev/openiap/issues/249"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                Issue #249
+              </a>{' '}
+              and{' '}
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/250"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                PR #250
+              </a>{' '}
+              clarify <code>DiscountOffer</code> as the Android one-time product
+              offer shape, keep subscription products on{' '}
+              <code>SubscriptionOffer</code>, and align examples, type
+              references, search data, and LLM exports.
+            </li>
+            <li>
+              Schema inventory and deprecation reasons come from canonical SDL,
+              custom input shapes from shared contracts, supported languages
+              from the plugin registry, and synchronized targets from the
+              generated sync manifest.
+            </li>
+            <li>
+              Generation and CI fail closed on tracked or untracked drift.
+              Version-pinned framework refreshers consume the corrected{' '}
+              <code>docs-2.4.2</code> source snapshot across TypeScript, Swift,
+              Kotlin, Dart, GDScript, and C# without changing runtime APIs or
+              wire values.
             </li>
           </ul>
 
@@ -583,10 +503,11 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            The documentation publishes the Android API reference, updates the
-            cross-SDK offer-code guide and examples, and clarifies the macOS
-            subscription-management and refund fallbacks. The separate hosted
-            IAPKit deployments are documented in the{' '}
+            The documentation publishes the Android API reference, canonical
+            offer-model guidance, generated-contract metadata, cross-SDK
+            offer-code examples, and the macOS subscription-management and
+            refund fallbacks. The separate hosted IAPKit deployments are
+            documented in the{' '}
             <Link to="/docs/updates/releases#iapkit-webhook-dedup-asc-review-automation-2026-07-23">
               July 23 IAPKit entry
             </Link>{' '}

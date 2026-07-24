@@ -6928,7 +6928,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Open the Google Play offer/promo code redemption flow so the user can enter a code. On Google Play builds, launches the Play Store redeem page (https://play.google.com/redeem). A purchase listener can receive the redeemed purchase while the app is running with an active billing connection; always reconcile with getAvailablePurchases when the app resumes. Does not require the billing client to be initialized (no Play Billing version requirement). Planned OpenIAP availability: Spec 2.5.0 / openiap-google 2.5.0. Android counterpart of presentCodeRedemptionSheetIOS. Returns true when the redemption flow was launched, or false when the current store flavor does not provide an equivalent redemption flow. See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
+	## Open the Google Play offer/promo code redemption flow so the user can enter a code. On Google Play builds, launches the Play Store redeem page (https://play.google.com/redeem). A purchase listener can receive the redeemed purchase while the app is running with an active billing connection; always reconcile with getAvailablePurchases when the app resumes. Does not require the billing client to be initialized (no Play Billing version requirement). Available in OpenIAP Spec 2.4.2 / openiap-google 2.5.0. Android counterpart of presentCodeRedemptionSheetIOS. Returns true when the redemption flow was launched, or false when the current store flavor does not provide an equivalent redemption flow. See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
 	class openRedeemOfferCodeAndroidField:
 		const name = "openRedeemOfferCodeAndroid"
 		const snake_name = "open_redeem_offer_code_android"
@@ -7305,7 +7305,7 @@ static func launch_external_link_android_args(params: LaunchExternalLinkParamsAn
 			args["params"] = params
 	return args
 
-## Open the Google Play offer/promo code redemption flow so the user can enter a code. On Google Play builds, launches the Play Store redeem page (https://play.google.com/redeem). A purchase listener can receive the redeemed purchase while the app is running with an active billing connection; always reconcile with getAvailablePurchases when the app resumes. Does not require the billing client to be initialized (no Play Billing version requirement). Planned OpenIAP availability: Spec 2.5.0 / openiap-google 2.5.0. Android counterpart of presentCodeRedemptionSheetIOS. Returns true when the redemption flow was launched, or false when the current store flavor does not provide an equivalent redemption flow. See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
+## Open the Google Play offer/promo code redemption flow so the user can enter a code. On Google Play builds, launches the Play Store redeem page (https://play.google.com/redeem). A purchase listener can receive the redeemed purchase while the app is running with an active billing connection; always reconcile with getAvailablePurchases when the app resumes. Does not require the billing client to be initialized (no Play Billing version requirement). Available in OpenIAP Spec 2.4.2 / openiap-google 2.5.0. Android counterpart of presentCodeRedemptionSheetIOS. Returns true when the redemption flow was launched, or false when the current store flavor does not provide an equivalent redemption flow. See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
 static func open_redeem_offer_code_android_args() -> Dictionary:
 	return {}
 

@@ -209,13 +209,9 @@ verified, run the stable Docs workflow without another version bump:
 gh workflow run release.yml --ref main -f version=current
 ```
 
-`npm run deploy` uses the current `spec` value from
-`openiap-versions.json`. To deploy a different spec version, pass it
-explicitly:
-
-```bash
-npm run deploy -- 2.1.0
-```
+`npm run deploy` uses the current native-derived `spec` value from
+`openiap-versions.json`. It rejects any explicit argument that differs from the
+native floor; docs deployment is not a version-bump path.
 
 ---
 
@@ -288,19 +284,13 @@ Version ownership is split:
 
 - Apple releases update `apple` version
 - Google releases update `google` version
-- The shared spec can be bumped directly in a feature PR when the maintainer
-  explicitly requests the target version. Update both `spec` and
-  `packages/gql/package.json`, then run `./scripts/sync-versions.sh`.
-- Deploy script (`npm run deploy`) uses the current `spec` version by default,
-  and updates `spec` only when an explicit version is passed
-
-When a maintainer explicitly declares a stable native/spec release train and
-selects its native train version, use that version as the requested spec target.
-Manually set only the root `spec` field and `packages/gql/package.json`, then run
-`./scripts/sync-versions.sh` to refresh derived copies; the `apple` and `google`
-fields remain release-workflow-owned. This is not standing lockstep versioning:
-without that explicit train instruction, do not infer or auto-align `spec` from
-native package versions.
+- The shared `spec` is always the lower semantic version of `google` and
+  `apple`
+- Native version writers update their native key and derive `spec` atomically;
+  sync then verifies the invariant and refreshes `packages/gql/package.json`,
+  `packages/docs/package.json`, and other derived copies
+- Production docs deployment consumes the derived current `spec`; it must not
+  accept an independently selected spec version
 
 Release workflows write stable values on `main` and prerelease values on
 `next`. Manual edits are not a substitute for selecting the correct workflow
@@ -312,17 +302,16 @@ The manifest is only for the shared spec and native platform packages:
 `kmp-iap`, `maui-iap`) must stay in each library's own package metadata and
 release workflow, not as extra keys in `openiap-versions.json`.
 
-Manual Google or Apple edits will cause version conflicts and deployment
-issues. Use their GitHub Actions workflows. A direct spec edit is the explicit
-exception above.
+Manual Google, Apple, or spec edits will cause version conflicts and deployment
+issues. Use the native GitHub Actions workflows and repository sync automation.
 
 **Why this matters:** If a feature PR sets `apple: "2.1.1"` manually, and then CI auto-bumps on release, CI sees "current is 2.1.1" and bumps to 2.1.2 — skipping 2.1.1 entirely. The published tag becomes 2.1.2 with no 2.1.1 ever existing.
 
-**Rule:** Feature PRs must never touch `google` or `apple`. Version bumps happen
-via:
+**Rule:** Feature PRs must never touch `spec`, `google`, or `apple`. Stable
+version changes happen via:
 
 1. Release workflows (Apple Release, Google Release)
-2. A maintainer-requested direct `spec` bump paired with
-   `packages/gql/package.json`
-3. Deploy script (`npm run deploy`, optionally `npm run deploy <version>`)
+2. Native version automation that derives `spec = min(google, apple)`, followed
+   by sync propagation
+3. Deploy script (`npm run deploy`) using the already-derived spec
 4. CI auto-bump after merge where configured
