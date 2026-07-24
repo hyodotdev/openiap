@@ -98,17 +98,11 @@ describe('ExpoIapModule proxy', () => {
     expect(requireNativeModule).toHaveBeenCalledWith('ExpoIapOnside');
   });
 
-  it('does not repeatedly load a missing ExpoIapOnside module', () => {
-    const expoIapModule = {
-      ERROR_CODES: {},
-      fetchProducts: jest.fn(),
-      verifyPurchase: jest.fn(),
-    };
+  it('fails closed without repeatedly loading a missing ExpoIapOnside module', () => {
     const requireNativeModule = jest.fn((name: string) => {
       if (name === 'ExpoIapOnside') {
         throw new Error("Cannot find native module 'ExpoIapOnside'");
       }
-      if (name === 'ExpoIap') return expoIapModule;
       throw new Error(`Cannot find native module '${name}'`);
     });
 
@@ -122,35 +116,28 @@ describe('ExpoIapModule proxy', () => {
 
     const ExpoIapModule = loadExpoIapModule();
 
-    expect(ExpoIapModule.USING_ONSIDE_SDK).toBe(false);
-    expect(ExpoIapModule.fetchProducts).toBe(expoIapModule.fetchProducts);
-    expect(ExpoIapModule.verifyPurchase).toBe(expoIapModule.verifyPurchase);
+    expect(() => ExpoIapModule.USING_ONSIDE_SDK).toThrow();
+    expect(() => ExpoIapModule.USING_ONSIDE_SDK).toThrow();
     expect(requireNativeModule.mock.calls.map(([name]) => name)).toEqual([
       'ExpoIapOnside',
-      'ExpoIap',
     ]);
   });
 
-  it('falls back to ExpoIap for methods missing from ExpoIapOnside', () => {
+  it('fails closed for methods missing from ExpoIapOnside', () => {
     const onsideModule = {
       ERROR_CODES: {},
       requestPurchase: jest.fn(),
     };
-    const expoIapModule = {
-      ERROR_CODES: {},
-      getStorefront: jest.fn(),
-      verifyPurchase: jest.fn(),
-    };
+    const requireNativeModule = jest.fn((name: string) => {
+      if (name === 'ExpoIapOnside') return onsideModule;
+      throw new Error(`Cannot find native module '${name}'`);
+    });
 
     jest.doMock('../onside', () => ({
       installedFromOnside: true,
     }));
     jest.doMock('expo-modules-core', () => ({
-      requireNativeModule: jest.fn((name: string) => {
-        if (name === 'ExpoIapOnside') return onsideModule;
-        if (name === 'ExpoIap') return expoIapModule;
-        throw new Error(`Cannot find native module '${name}'`);
-      }),
+      requireNativeModule,
       UnavailabilityError: class UnavailabilityError extends Error {},
     }));
 
@@ -158,30 +145,8 @@ describe('ExpoIapModule proxy', () => {
 
     expect(ExpoIapModule.USING_ONSIDE_SDK).toBe(true);
     expect(ExpoIapModule.requestPurchase).toBe(onsideModule.requestPurchase);
-    expect(ExpoIapModule.verifyPurchase).toBe(expoIapModule.verifyPurchase);
-    expect(ExpoIapModule.getStorefront).toBe(expoIapModule.getStorefront);
-  });
-
-  it('surfaces non-missing ExpoIap fallback errors', () => {
-    const onsideModule = {
-      ERROR_CODES: {},
-      requestPurchase: jest.fn(),
-    };
-
-    jest.doMock('../onside', () => ({
-      installedFromOnside: true,
-    }));
-    jest.doMock('expo-modules-core', () => ({
-      requireNativeModule: jest.fn((name: string) => {
-        if (name === 'ExpoIapOnside') return onsideModule;
-        if (name === 'ExpoIap') throw new Error('native init failed');
-        throw new Error(`Cannot find native module '${name}'`);
-      }),
-      UnavailabilityError: class UnavailabilityError extends Error {},
-    }));
-
-    const ExpoIapModule = loadExpoIapModule();
-
-    expect(() => ExpoIapModule.verifyPurchase).toThrow('native init failed');
+    expect(() => ExpoIapModule.verifyPurchase()).toThrow();
+    expect(() => ExpoIapModule.getActiveSubscriptions()).toThrow();
+    expect(requireNativeModule).toHaveBeenCalledTimes(1);
   });
 });

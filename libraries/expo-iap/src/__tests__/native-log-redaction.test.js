@@ -88,6 +88,50 @@ describe('native log redaction', () => {
     expect(onsideModule).toContain('code: .serviceError');
   });
 
+  it('keeps Onside purchases aligned with the canonical iOS payload', () => {
+    const onsideModule = readRepoFile('ios/onside/OnsideIapModule.swift');
+    const iosHelper = readRepoFile('ios/ExpoIapHelper.swift');
+
+    expect(onsideModule).toContain('dictionary["store"] = "unknown"');
+    expect(onsideModule).toMatch(
+      /if product\.subscriptionPeriod == nil \{\s+dictionary\["currentPlanId"\] = NSNull\(\)\s+\} else \{\s+dictionary\["currentPlanId"\] = product\.productIdentifier/,
+    );
+    expect(onsideModule).toContain('dictionary["quantity"] = 1');
+    expect(onsideModule).toContain('dictionary["quantityIOS"] = 1');
+    expect(onsideModule).toContain(
+      'dictionary["type"] = isSubscription ? "subs" : "in-app"',
+    );
+    expect(onsideModule).toContain(
+      'dictionary["typeIOS"] = isSubscription ? "auto-renewable-subscription" : "non-consumable"',
+    );
+    expect(onsideModule).toContain(
+      'dictionary["subscriptionPeriodUnitIOS"] = subscriptionPeriod.unit',
+    );
+    expect(onsideModule).toMatch(
+      /switch request\.type \?\? \.inApp \{\s+case \.subs:\s+return product\.subscriptionPeriod != nil\s+case \.inApp:\s+return product\.subscriptionPeriod == nil\s+case \.all:\s+return true/,
+    );
+    expect(onsideModule).toContain('dictionary["environmentIOS"] = NSNull()');
+    expect(onsideModule).toContain(
+      'dictionary["countryCodeIOS"] = transaction.storefront.countryCode',
+    );
+    expect(onsideModule).toContain(
+      'dictionary["subscriptionGroupIdIOS"] = product.subscriptionGroupIdentifier',
+    );
+    expect(onsideModule).toMatch(
+      /dictionary\["originalTransactionIdentifierIOS"\] =\s+transaction\.originalTransactionIdentifier/,
+    );
+    expect(onsideModule).not.toContain(
+      'dictionary["environmentIOS"] = transaction.storefront.id',
+    );
+    expect(onsideModule).toMatch(/case \.restored:\s+return "purchased"/);
+    expect(onsideModule).toMatch(/case \.failed:\s+return "unknown"/);
+    expect(onsideModule).not.toContain('return "restored"');
+    expect(onsideModule).not.toContain('return "failed"');
+    expect(iosHelper).toMatch(
+      /guard let raw = rawValue\?\.trimmingCharacters[\s\S]*?else \{\s+return \.inApp\s+\}/,
+    );
+  });
+
   it('does not log raw IAPKit request bodies in the Apple core package', () => {
     const appleModule = readFileSync(
       resolve(rootDir, '../../packages/apple/Sources/OpenIapModule.swift'),

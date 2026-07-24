@@ -6,7 +6,6 @@ type NativeIapModuleName = 'ExpoIapVega' | 'ExpoIapOnside' | 'ExpoIap';
 const ONSIDE_MARKETPLACE_ID = 'com.onside.marketplace-app';
 
 let cached: {module: any; name: NativeIapModuleName} | null = null;
-let expoIapFallback: any | null | undefined;
 let onsideModuleUnavailable = false;
 
 function getResolved(): {module: any; name: NativeIapModuleName} {
@@ -28,9 +27,7 @@ function getResolved(): {module: any; name: NativeIapModuleName} {
       return 'ExpoIapVega';
     }
 
-    return shouldUseOnsideModule() && !onsideModuleUnavailable
-      ? 'ExpoIapOnside'
-      : 'ExpoIap';
+    return shouldUseOnsideModule() ? 'ExpoIapOnside' : 'ExpoIap';
   }
 
   function resolveNativeModule(): {
@@ -49,6 +46,12 @@ function getResolved(): {module: any; name: NativeIapModuleName} {
     }
 
     if (shouldUseOnsideModule()) {
+      if (onsideModuleUnavailable) {
+        throw new UnavailabilityError(
+          'expo-iap',
+          'The Onside marketplace build does not contain ExpoIapOnside. Rebuild with ios.onside.enabled instead of routing purchases through Apple StoreKit.',
+        );
+      }
       try {
         return {
           module: requireNativeModule('ExpoIapOnside'),
@@ -59,6 +62,10 @@ function getResolved(): {module: any; name: NativeIapModuleName} {
           throw error;
         }
         onsideModuleUnavailable = true;
+        throw new UnavailabilityError(
+          'expo-iap',
+          'The Onside marketplace build does not contain ExpoIapOnside. Rebuild with ios.onside.enabled instead of routing purchases through Apple StoreKit.',
+        );
       }
     }
 
@@ -82,24 +89,6 @@ function isMissingModuleError(error: unknown, moduleName: string): boolean {
   }
 
   return false;
-}
-
-function getExpoIapFallbackModule(): any | null {
-  if (expoIapFallback !== undefined) {
-    return expoIapFallback;
-  }
-
-  try {
-    expoIapFallback = requireNativeModule('ExpoIap');
-  } catch (error) {
-    if (isMissingModuleError(error, 'ExpoIap')) {
-      expoIapFallback = null;
-    } else {
-      throw error;
-    }
-  }
-
-  return expoIapFallback;
 }
 
 export const NATIVE_ERROR_CODES: Record<string, unknown> = new Proxy(
@@ -138,6 +127,11 @@ export default new Proxy({} as any, {
       return value;
     }
 
-    return getExpoIapFallbackModule()?.[prop];
+    return () => {
+      throw new UnavailabilityError(
+        'expo-iap',
+        `The Onside marketplace does not support ${String(prop)}. The call was not routed through Apple StoreKit.`,
+      );
+    };
   },
 });

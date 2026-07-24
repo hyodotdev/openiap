@@ -71,6 +71,7 @@ interface VegaProduct {
 interface VegaReceipt {
   cancelDate?: Date | number | string | null;
   deferredDate?: Date | number | string | null;
+  deferredSku?: string | null;
   isCancelled?: boolean | null;
   isDeferred?: boolean | null;
   productType?: unknown;
@@ -700,19 +701,20 @@ function mapReceipt(
   const receiptId = receipt.receiptId ?? '';
   const productId = productIdOverride ?? getReceiptSku(receipt);
   const type = productTypeToOpenIap(receipt.productType ?? fallbackProductType);
-  const isPending = Boolean(receipt.isDeferred);
   const isCanceled = Boolean(receipt.isCancelled || receipt.cancelDate);
-  const isActive = !isCanceled && !isPending;
+  const isActive = !isCanceled;
 
   return {
     id: receiptId,
     productId,
     transactionDate: toTimestamp(receipt.purchaseDate),
     purchaseToken: receiptId,
+    currentPlanId: type === 'subs' ? (receipt.termSku ?? productId) : null,
+    ids: productId ? [productId] : [],
     platform: 'android',
     store: 'amazon',
     quantity: 1,
-    purchaseState: isPending ? 'pending' : isActive ? 'purchased' : 'unknown',
+    purchaseState: isActive ? 'purchased' : 'unknown',
     isAutoRenewing: type === 'subs' && isActive,
     transactionId: receiptId,
     autoRenewingAndroid: type === 'subs' && isActive,
@@ -723,7 +725,11 @@ function mapReceipt(
     obfuscatedAccountIdAndroid: null,
     obfuscatedProfileIdAndroid: null,
     developerPayloadAndroid: null,
-    isSuspendedAndroid: Boolean(receipt.isDeferred),
+    isSuspendedAndroid: false,
+    pendingPurchaseUpdateAndroid:
+      receipt.isDeferred && receipt.deferredSku
+        ? {products: [receipt.deferredSku], purchaseToken: receiptId}
+        : null,
   };
 }
 
@@ -956,16 +962,14 @@ export function createExpoIapVegaModule(
   };
 
   const getAvailableItems = async (
-    options?: PurchaseOptions,
+    _options?: PurchaseOptions,
   ): Promise<Purchase[]> => {
-    const includeSuspended = Boolean(options?.includeSuspendedAndroid ?? false);
     const receipts = await getPurchaseUpdateReceipts();
     await hydrateProductTypesForReceipts(receipts);
     return receipts
       .filter((receipt) => {
         const isCanceled = Boolean(receipt.isCancelled || receipt.cancelDate);
-        if (isCanceled) return false;
-        return includeSuspended || !receipt.isDeferred;
+        return !isCanceled;
       })
       .map((receipt) =>
         mapReceipt(
@@ -1026,7 +1030,7 @@ export function createExpoIapVegaModule(
 
     for (const receipt of receipts) {
       const isCanceled = Boolean(receipt.isCancelled || receipt.cancelDate);
-      if (isCanceled || receipt.isDeferred) continue;
+      if (isCanceled) continue;
 
       const purchaseTimestamp = toTimestamp(receipt.purchaseDate);
       if (
@@ -1449,8 +1453,8 @@ export function createExpoIapVegaModule(
                   }
                 ).autoRenewingAndroid ?? null)
               : null,
-          basePlanIdAndroid: purchase.productId,
-          currentPlanId: purchase.productId,
+          basePlanIdAndroid: purchase.currentPlanId ?? purchase.productId,
+          currentPlanId: purchase.currentPlanId ?? purchase.productId,
           purchaseTokenAndroid: purchase.purchaseToken ?? null,
         }));
     },
