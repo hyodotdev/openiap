@@ -376,6 +376,17 @@ describe('generated compatibility', () => {
             expectedOwners.push(...(unionOwners.get(entry.parentName) ?? []));
           }
         }
+        if (
+          file === 'Types.kt' &&
+          (entry.parentName === 'Query' ||
+            entry.parentName === 'Mutation' ||
+            entry.parentName === 'Subscription')
+        ) {
+          // Kotlin exposes root operations through both the suspending
+          // operation interface and an optional handler bundle. Both are
+          // consumer-facing declarations and must warn consistently.
+          expectedOwners.push(`${entry.parentName}Handlers`);
+        }
         const expectedSymbols = [expectedGeneratedSymbol(file, entry)];
         if (
           file === 'types.gd' &&

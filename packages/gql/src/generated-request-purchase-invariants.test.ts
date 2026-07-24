@@ -6,6 +6,22 @@ function generated(name: string): string {
 }
 
 describe('RequestPurchaseProps generated invariants', () => {
+  it('serializes canonical apple and google platform keys in Dart', () => {
+    const dart = generated('types.dart');
+    expect(dart).toContain(
+      "if (props.apple != null) 'apple': props.apple!.toJson()",
+    );
+    expect(dart).toContain(
+      "if (props.google != null) 'google': props.google!.toJson()",
+    );
+    expect(dart).not.toContain(
+      "if (props.apple != null) 'ios': props.apple!.toJson()",
+    );
+    expect(dart).not.toContain(
+      "if (props.google != null) 'android': props.google!.toJson()",
+    );
+  });
+
   it('rejects zero or two branches in Kotlin and Swift decoders', () => {
     expect(generated('Types.kt')).toContain(
       'require((purchaseJson == null) != (subscriptionJson == null))',

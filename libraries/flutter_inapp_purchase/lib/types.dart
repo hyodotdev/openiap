@@ -5216,8 +5216,8 @@ class _InAppPurchase extends RequestPurchaseProps {
   Map<String, dynamic> toJson() {
     return {
       'requestPurchase': {
-        if (props.apple != null) 'ios': props.apple!.toJson(),
-        if (props.google != null) 'android': props.google!.toJson(),
+        if (props.apple != null) 'apple': props.apple!.toJson(),
+        if (props.google != null) 'google': props.google!.toJson(),
       },
       'type': ProductQueryType.InApp.toJson(),
       if (props.useAlternativeBilling != null) 'useAlternativeBilling': props.useAlternativeBilling,
@@ -5237,8 +5237,8 @@ class _SubsPurchase extends RequestPurchaseProps {
   Map<String, dynamic> toJson() {
     return {
       'requestSubscription': {
-        if (props.apple != null) 'ios': props.apple!.toJson(),
-        if (props.google != null) 'android': props.google!.toJson(),
+        if (props.apple != null) 'apple': props.apple!.toJson(),
+        if (props.google != null) 'google': props.google!.toJson(),
       },
       'type': ProductQueryType.Subs.toJson(),
       if (props.useAlternativeBilling != null) 'useAlternativeBilling': props.useAlternativeBilling,

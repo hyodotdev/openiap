@@ -153,6 +153,20 @@ describe('deprecation documentation transformation', () => {
     expect(legacyBillingMode?.values[0]?.description).toBe(
       'Legacy choice.\n@deprecated Use MODERN instead. Scheduled for removal in OpenIAP 3.0.',
     );
+
+    const kotlin = new KotlinPlugin({ outputPath: 'Types.kt' }).generate(schema);
+    expect(kotlin).toContain(
+      '@Deprecated("Use DiscountOffer instead. Scheduled for removal in OpenIAP 3.0.", ReplaceWith("DiscountOffer"))\npublic data class LegacyOffer(',
+    );
+    expect(kotlin).toContain(
+      '    @Deprecated("Use id instead. Scheduled for removal in OpenIAP 3.0.", ReplaceWith("id"))\n    val legacyId:',
+    );
+    expect(kotlin).toContain(
+      '@Deprecated("Use BillingProgram instead. Scheduled for removal in OpenIAP 3.0.", ReplaceWith("BillingProgram"))\npublic enum class LegacyBillingMode',
+    );
+    expect(kotlin).toContain(
+      '    @Deprecated("Use MODERN instead. Scheduled for removal in OpenIAP 3.0.", ReplaceWith("Modern"))\n    Legacy("legacy")',
+    );
   });
 
   it('preserves type-level reasons on operation roots', () => {
@@ -169,6 +183,38 @@ describe('deprecation documentation transformation', () => {
     expect(new GDScriptPlugin({ outputPath: 'types.gd' }).generate(schema)).toContain(
       '## Legacy query root. @deprecated Use the replacement root. Scheduled for removal in OpenIAP 3.0.\nclass Query:',
     );
+    expect(new KotlinPlugin({ outputPath: 'Types.kt' }).generate(schema)).toContain(
+      '@Deprecated("Use the replacement root. Scheduled for removal in OpenIAP 3.0.")\npublic interface Query',
+    );
+  });
+
+  it('escapes Kotlin string templates in deprecation messages', () => {
+    const schema = transform(`
+      type Legacy @openiapDeprecated(reason: "Use $modern instead. Scheduled for removal in OpenIAP 3.0.") {
+        value: String
+      }
+    `);
+
+    const kotlin = new KotlinPlugin({ outputPath: 'Types.kt' }).generate(schema);
+    expect(kotlin).toContain(
+      '@Deprecated("Use \\$modern instead. Scheduled for removal in OpenIAP 3.0.")',
+    );
+    expect(kotlin).not.toContain('@Deprecated("Use $modern instead.');
+  });
+
+  it('emits blank Kotlin KDoc lines without trailing whitespace', () => {
+    const schema = transform(`
+      """First paragraph.
+
+      Second paragraph."""
+      type Example {
+        value: String
+      }
+    `);
+
+    const kotlin = new KotlinPlugin({ outputPath: 'Types.kt' }).generate(schema);
+    expect(kotlin).toContain(' * First paragraph.\n *\n * Second paragraph.');
+    expect(kotlin).not.toMatch(/[ \t]+$/m);
   });
 
   it('preserves operation argument reasons in every custom generator', () => {
@@ -191,6 +237,30 @@ describe('deprecation documentation transformation', () => {
     for (const plugin of plugins) {
       expect(plugin.generate(schema)).toContain('@deprecated Use modern instead.');
     }
+    const kotlin = new KotlinPlugin({ outputPath: 'Types.kt' }).generate(schema);
+    expect(kotlin).toContain('@deprecated Use modern instead.');
+    expect(kotlin).toContain(
+      'suspend fun value(legacy: String? = null): String?',
+    );
+    expect(kotlin).not.toContain('@Deprecated("Use modern instead.');
+  });
+
+  it('warns on Kotlin operation handlers without unsafe ReplaceWith code', () => {
+    const schema = transform(`
+      type Query {
+        legacy(value: String!): String @deprecated(reason: "Use modern instead. Scheduled for removal in OpenIAP 3.0.")
+        modern(options: String!): String
+      }
+    `);
+
+    const kotlin = new KotlinPlugin({ outputPath: 'Types.kt' }).generate(schema);
+    const warning =
+      '@Deprecated("Use modern instead. Scheduled for removal in OpenIAP 3.0.")';
+    expect(kotlin).toContain(`${warning}\n    suspend fun legacy(`);
+    expect(kotlin).toContain(`${warning}\n    val legacy: QueryLegacyHandler?`);
+    expect(kotlin).not.toContain(
+      '@Deprecated("Use modern instead. Scheduled for removal in OpenIAP 3.0.", ReplaceWith("modern"))',
+    );
   });
 
   it('preserves reasons on custom VoidResult declarations', () => {
@@ -210,6 +280,9 @@ describe('deprecation documentation transformation', () => {
     for (const plugin of plugins) {
       expect(plugin.generate(schema)).toContain('@deprecated Use the operation return value instead.');
     }
+    expect(new KotlinPlugin({ outputPath: 'Types.kt' }).generate(schema)).toContain(
+      '@Deprecated("Use the operation return value instead. Scheduled for removal in OpenIAP 3.0.")\npublic typealias VoidResult = Unit',
+    );
   });
 
   it('preserves reasons on result-union variants', () => {
@@ -233,6 +306,9 @@ describe('deprecation documentation transformation', () => {
     for (const plugin of plugins) {
       expect(plugin.generate(schema)).toContain('@deprecated Use modern instead.');
     }
+    expect(new KotlinPlugin({ outputPath: 'Types.kt' }).generate(schema)).toContain(
+      '@Deprecated("Use modern instead. Scheduled for removal in OpenIAP 3.0.", ReplaceWith("modern"))',
+    );
   });
 
   it('fails closed when a custom input gains an unhandled field', () => {
