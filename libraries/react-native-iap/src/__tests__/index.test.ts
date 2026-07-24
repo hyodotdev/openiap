@@ -1850,13 +1850,23 @@ describe('Public API (src/index.ts)', () => {
             renewalInfoIOS: {
               willAutoRenew: true,
               autoRenewPreference: 'subscription1',
-              expirationIntent: null,
-              gracePeriodExpiresAt: null,
-              offerType: null,
-              originalTransactionId: 'trans1',
+              commitmentInfo: {
+                commitmentAutoRenewProductId: 'subscription1',
+                commitmentAutoRenewStatus: true,
+                commitmentRenewalBillingPlanType: 'monthly',
+                commitmentRenewalDate: Date.now() + 86400000,
+                commitmentRenewalPrice: 9.99,
+              },
+              pendingUpgradeProductId: 'subscription2',
+              expirationReason: null,
+              isInBillingRetry: false,
+              gracePeriodExpirationDate: null,
               priceIncreaseStatus: null,
+              renewalBillingPlanType: 'monthly',
+              renewalOfferType: 'promotional',
+              renewalOfferId: 'summer-offer',
+              jsonRepresentation: '{"source":"storekit"}',
               renewalDate: Date.now() + 86400000,
-              signedDate: Date.now(),
             },
           },
         ];
@@ -1875,6 +1885,14 @@ describe('Public API (src/index.ts)', () => {
             isActive: true,
             renewalInfoIOS: expect.objectContaining({
               willAutoRenew: true,
+              commitmentInfo: expect.objectContaining({
+                commitmentAutoRenewProductId: 'subscription1',
+              }),
+              pendingUpgradeProductId: 'subscription2',
+              renewalBillingPlanType: 'monthly',
+              renewalOfferType: 'promotional',
+              renewalOfferId: 'summer-offer',
+              jsonRepresentation: '{"source":"storekit"}',
             }),
           }),
         );

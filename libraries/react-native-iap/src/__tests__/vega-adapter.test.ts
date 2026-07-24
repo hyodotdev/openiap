@@ -249,12 +249,14 @@ describe('Amazon Vega adapter', () => {
         purchaseToken: 'receipt-1',
         currentPlanId: null,
         store: 'amazon',
+        transactionId: 'receipt-1',
       }),
     ]);
     expect(listener).toHaveBeenCalledWith(
       expect.objectContaining({
         productId: 'coins_100',
         purchaseToken: 'receipt-1',
+        transactionId: 'receipt-1',
       }),
     );
 
@@ -972,6 +974,10 @@ describe('Amazon Vega adapter', () => {
       'receipt-page-1',
       'receipt-page-2',
     ]);
+    expect(purchases.map((purchase) => purchase.transactionId)).toEqual([
+      'receipt-page-1',
+      'receipt-page-2',
+    ]);
   });
 
   it('treats Amazon parser-only purchase update errors as no updates', async () => {
@@ -1123,14 +1129,16 @@ describe('Amazon Vega adapter', () => {
     expect(service.getProductData.mock.calls[1]?.[0].skus).toHaveLength(1);
   });
 
-  it('excludes suspended purchases unless requested', async () => {
+  it('keeps deferred subscription changes active and exposes the upcoming plan', async () => {
     const service = createService();
     service.getPurchaseUpdates.mockResolvedValue({
       responseCode: 1,
       receiptList: [
         {
           receiptId: 'deferred-sub',
-          sku: 'premium_monthly',
+          sku: 'premium',
+          termSku: 'premium_monthly',
+          deferredSku: 'premium_yearly',
           productType: 3,
           isDeferred: true,
         },
@@ -1139,21 +1147,19 @@ describe('Amazon Vega adapter', () => {
     const module = createVegaIapModule(service);
 
     await expect(
-      module.getAvailablePurchases({
-        android: {type: 'subs', includeSuspended: false},
-      }),
-    ).resolves.toEqual([]);
-
-    await expect(
-      module.getAvailablePurchases({
-        android: {type: 'subs', includeSuspended: true},
-      }),
+      module.getAvailablePurchases({android: {type: 'subs'}}),
     ).resolves.toEqual([
       expect.objectContaining({
         id: 'deferred-sub',
-        isAutoRenewing: false,
-        isSuspendedAndroid: true,
-        purchaseState: 'pending',
+        productId: 'premium',
+        currentPlanId: 'premium_monthly',
+        isAutoRenewing: true,
+        isSuspendedAndroid: false,
+        pendingPurchaseUpdateAndroid: {
+          products: ['premium_yearly'],
+          purchaseToken: 'deferred-sub',
+        },
+        purchaseState: 'purchased',
       }),
     ]);
   });

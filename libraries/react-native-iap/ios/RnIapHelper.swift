@@ -392,6 +392,7 @@ enum RnIapHelper {
 
         return NitroPurchase(
             id: dictionary["id"] as? String ?? "",
+            transactionId: wrapString(dictionary["transactionId"] as? String),
             productId: dictionary["productId"] as? String ?? "",
             transactionDate: doubleValue(dictionary["transactionDate"]) ?? 0,
             purchaseToken: wrapString(dictionary["purchaseToken"] as? String),
@@ -489,8 +490,8 @@ enum RnIapHelper {
             priceIncreaseStatus: wrapString(dictionary["priceIncreaseStatus"] as? String),
             renewalBillingPlanType: (dictionary["renewalBillingPlanType"] as? String)
                 .flatMap(SubscriptionBillingPlanTypeIOS.init(fromString:)),
-            renewalOfferType: wrapString(dictionary["offerType"] as? String),
-            renewalOfferId: wrapString(dictionary["offerIdentifier"] as? String),
+            renewalOfferType: wrapString(dictionary["renewalOfferType"] as? String),
+            renewalOfferId: wrapString(dictionary["renewalOfferId"] as? String),
             jsonRepresentation: wrapString(dictionary["jsonRepresentation"] as? String)
         )
     }

@@ -470,8 +470,9 @@ export function convertNitroPurchaseToPurchase(
       isAutoRenewing: Boolean(nitroPurchase.isAutoRenewing),
       currentPlanId: toNullableString(nitroPurchase.currentPlanId),
       ids: nitroPurchase.ids ?? null,
-      // PurchaseIOS requires both id and transactionId (they are the same value)
-      transactionId: nitroPurchase.id,
+      // PurchaseIOS requires a transaction ID; legacy native payloads used id.
+      transactionId:
+        toNullableString(nitroPurchase.transactionId) ?? nitroPurchase.id,
       advancedCommerceInfoIOS: nitroPurchase.advancedCommerceInfoIOS ?? null,
       billingPlanTypeIOS: nitroPurchase.billingPlanTypeIOS ?? null,
       commitmentInfoIOS: nitroPurchase.commitmentInfoIOS ?? null,
@@ -525,6 +526,20 @@ export function convertNitroPurchaseToPurchase(
     return iosPurchase;
   }
 
+  const explicitAndroidTransactionId = toNullableString(
+    nitroPurchase.transactionId,
+  );
+  const legacyAndroidId = toNullableString(nitroPurchase.id);
+  const androidPurchaseToken = toNullableString(
+    nitroPurchase.purchaseToken ?? nitroPurchase.purchaseTokenAndroid,
+  );
+  const androidTransactionId =
+    explicitAndroidTransactionId ??
+    (legacyAndroidId != null &&
+    (store !== STORE_GOOGLE || legacyAndroidId !== androidPurchaseToken)
+      ? legacyAndroidId
+      : null);
+
   const androidPurchase: PurchaseAndroid = {
     id: nitroPurchase.id,
     productId: nitroPurchase.productId,
@@ -538,8 +553,9 @@ export function convertNitroPurchaseToPurchase(
     isAutoRenewing: Boolean(nitroPurchase.isAutoRenewing),
     currentPlanId: toNullableString(nitroPurchase.currentPlanId),
     ids: nitroPurchase.ids ?? null,
-    // PurchaseAndroid has optional transactionId (may differ from id/orderId)
-    transactionId: toNullableString(nitroPurchase.id),
+    // Android id falls back to purchaseToken when Play has no orderId, so do
+    // not synthesize a transactionId from it.
+    transactionId: androidTransactionId,
     autoRenewingAndroid: toNullableBoolean(
       nitroPurchase.autoRenewingAndroid ?? nitroPurchase.isAutoRenewing,
     ),
