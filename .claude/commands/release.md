@@ -3,6 +3,13 @@
 Use this workflow for stable or prerelease package deployment. Release one
 package at a time and verify the public registry before starting the next one.
 
+## Public GitHub Language Guard
+
+Before creating release notes, changelog entries, GitHub Release text, or public
+release comments, apply the English-only communication policy in
+`knowledge/internal/06-git-deployment.md#public-github-communication-language`.
+Inspect the complete public payload before publishing it.
+
 ## Branch Contract
 
 - `main` contains stable package metadata only. Run stable package releases,

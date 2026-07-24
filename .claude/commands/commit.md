@@ -30,6 +30,13 @@ Complete workflow: branch → commit → push → PR
 
 ## Complete Workflow
 
+### Public GitHub Language Guard
+
+Before creating or editing commits or a pull request, apply the English-only
+public communication policy in
+`knowledge/internal/06-git-deployment.md#public-github-communication-language`.
+Inspect the complete commit message, PR title, and PR body before sending them.
+
 ### Internal Workflow Guard
 
 If the staged changes only touch internal agent/workflow files, do not push or

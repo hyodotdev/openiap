@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-07-24T10:45:15.086Z
+> Last updated: 2026-07-24T12:20:10.956Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -1712,6 +1712,29 @@ Godot, KMP, or MAUI versions; that manifest tracks only `spec`, `google`, and
 
 > **Priority: MANDATORY**
 > Follow these conventions for all commits and deployments.
+
+## Public GitHub Communication Language
+
+OpenIAP is a public open-source project. All repository-authored public GitHub
+communication **must be written in English**, regardless of the language used
+in a private maintainer conversation.
+
+This rule covers:
+
+- issue and pull request titles, bodies, and comments
+- inline review replies and review summaries
+- GitHub Discussions and maintainer-authored label or milestone descriptions
+- commit messages, changelogs, release notes, and GitHub Release text
+
+Code identifiers, command-only bot triggers, logs, and directly quoted reporter
+text may remain in their original form when accuracy requires it. Any
+surrounding explanation or response must still be English.
+
+Before any GitHub write through the CLI, API, browser, or automation, inspect
+the complete title/body payload and confirm that all repository-authored prose
+is English. When non-English repository-authored text is found in the active
+work scope, edit the existing artifact in place when possible instead of adding
+a duplicate translation.
 
 ## Git Commit Message Format
 
