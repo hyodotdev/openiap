@@ -283,28 +283,18 @@ function Product() {
                     </tr>
                     <tr>
                       <td>
-                        <code>oneTimePurchaseOfferDetailsAndroid</code>
+                        <code style={{ textDecoration: 'line-through' }}>
+                          oneTimePurchaseOfferDetailsAndroid
+                        </code>
                       </td>
                       <td>
-                        Array of one-time purchase offers. Each offer contains:{' '}
-                        <code>formattedPrice</code>,{' '}
-                        <code>priceAmountMicros</code>,{' '}
-                        <code>priceCurrencyCode</code>, <code>offerToken</code>,{' '}
-                        <code>discountDisplayInfo</code> (discount info),{' '}
-                        <code>fullPriceMicros</code> (original price),{' '}
-                        <code>validTimeWindow</code>,{' '}
-                        <code>limitedQuantityInfo</code>,{' '}
-                        <code>preorderDetailsAndroid</code>,{' '}
-                        <code>rentalDetailsAndroid</code>. See{' '}
-                        <Link to="/docs/features/discount">Discounts</Link>.
-                        Requires{' '}
-                        <a
-                          href="https://developer.android.com/google/play/billing/release-notes#8-0-0"
-                          target="_blank"
-                          rel="noopener noreferrer"
-                        >
-                          Billing Library 8.0+
-                        </a>
+                        <strong>Deprecated.</strong> Legacy Android-native
+                        one-time purchase offer details. Use{' '}
+                        <code>discountOffers</code> and the standardized{' '}
+                        <Link to="/docs/types/discount-offer">
+                          <code>DiscountOffer</code>
+                        </Link>{' '}
+                        shape instead.
                       </td>
                     </tr>
                     <tr>
@@ -340,11 +330,13 @@ function Product() {
                         <code>discountOffers</code>
                       </td>
                       <td>
-                        Cross-platform array of{' '}
+                        Standardized Android one-time product purchase options
+                        and offers as{' '}
                         <Link to="/docs/types/discount-offer">
                           <code>DiscountOffer</code>
                         </Link>{' '}
-                        — unified discount metadata.
+                        entries. Populated from Google Play Billing 8.0+{' '}
+                        <code>OneTimePurchaseOfferDetails</code>.
                       </td>
                     </tr>
                     <tr>

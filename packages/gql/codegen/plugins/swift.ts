@@ -5,6 +5,7 @@
  */
 
 import { CodegenPlugin, type CodegenPluginConfig } from './base-plugin.js';
+import { generatedFileHeader } from '../core/generated-header.js';
 import type {
   IRSchema,
   IREnum,
@@ -17,15 +18,7 @@ import type {
   IRField,
   IROperationField,
 } from '../core/types.js';
-import {
-  SWIFT_KEYWORDS,
-  GRAPHQL_TO_SWIFT,
-  toLowerCamelCase,
-  toKebabCase,
-  capitalize,
-  PLATFORM_TYPE_DEFAULTS,
-  ERROR_CODE_LEGACY_ALIASES,
-} from '../core/utils.js';
+import { SWIFT_KEYWORDS, GRAPHQL_TO_SWIFT, requireGraphQLScalarMapping, toLowerCamelCase, capitalize } from '../core/utils.js';
 
 export class SwiftPlugin extends CodegenPlugin {
   readonly name = 'swift';
@@ -43,7 +36,7 @@ export class SwiftPlugin extends CodegenPlugin {
   // ============================================================================
 
   mapScalar(name: string): string {
-    return GRAPHQL_TO_SWIFT[name] ?? 'String';
+    return requireGraphQLScalarMapping(GRAPHQL_TO_SWIFT, name, 'Swift');
   }
 
   mapType(type: IRType): string {
@@ -75,10 +68,7 @@ export class SwiftPlugin extends CodegenPlugin {
   // ============================================================================
 
   generateHeader(): void {
-    this.emit('// ============================================================================');
-    this.emit('// AUTO-GENERATED TYPES — DO NOT EDIT DIRECTLY');
-    this.emit('// Run `bun run generate` after updating any *.graphql schema file.');
-    this.emit('// ============================================================================');
+    for (const line of generatedFileHeader()) this.emit(line);
     this.emit('');
     this.emit('import Foundation');
     this.emit('');
@@ -100,11 +90,14 @@ export class SwiftPlugin extends CodegenPlugin {
 
     // Add custom initializer for ErrorCode to handle legacy aliases
     if (irEnum.isErrorCode) {
-      // Legacy aliases: old error codes that map to new ones
-      const legacyAliases: Record<string, string> = {
-        'receipt-failed': 'purchaseVerificationFailed',
-        'ReceiptFailed': 'purchaseVerificationFailed',
-      };
+      // The transformer owns legacy alias mapping in the IR. Build the reverse
+      // lookup here so this emitter never duplicates compatibility literals.
+      const legacyAliases = new Map(
+        irEnum.values.flatMap((value) => {
+          const targetCase = this.escapeKeyword(this.enumValueCase(value.name));
+          return value.legacyAliases.map((alias) => [alias, targetCase] as const);
+        }),
+      );
 
       this.emit('');
       this.emit('    /// Custom initializer to handle both kebab-case and camelCase error codes');
@@ -119,7 +112,7 @@ export class SwiftPlugin extends CodegenPlugin {
         const camelCaseName = value.name.charAt(0).toUpperCase() + value.name.slice(1);
 
         // Check if this case is a legacy alias that should map to another case
-        const aliasTarget = legacyAliases[rawValue] || legacyAliases[camelCaseName];
+        const aliasTarget = legacyAliases.get(rawValue) ?? legacyAliases.get(camelCaseName);
 
         if (aliasTarget && aliasTarget === caseName) {
           // This case IS the target - just use normal handling
@@ -174,6 +167,7 @@ export class SwiftPlugin extends CodegenPlugin {
   generateObject(irObject: IRObject): void {
     // Handle VoidResult
     if (irObject.name === 'VoidResult') {
+      this.generateDocComment(irObject.description);
       this.emit('public typealias VoidResult = Void');
       this.emit('');
       return;
@@ -198,13 +192,10 @@ export class SwiftPlugin extends CodegenPlugin {
       const propertyType = this.getPropertyType(field.type);
       const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
 
-      // Handle platform defaults
-      const defaults = PLATFORM_TYPE_DEFAULTS[irObject.name];
+      const schemaDefault = this.buildDefaultValueExpression(field);
       let defaultValue = '';
-      if (defaults && field.name === 'platform') {
-        defaultValue = ` = .${defaults.platform}`;
-      } else if (defaults && field.name === 'type') {
-        defaultValue = ` = .${defaults.type === 'in-app' ? 'inApp' : 'subs'}`;
+      if (schemaDefault) {
+        defaultValue = ` = ${schemaDefault}`;
       } else if (field.type.nullable) {
         // Default nullable properties to nil so the synthesized memberwise
         // initializer can omit them — existing call sites that construct
@@ -230,10 +221,9 @@ export class SwiftPlugin extends CodegenPlugin {
     this.emit(`public enum ${irObject.name} {`);
 
     // Sort entries alphabetically
-    const sortedEntries = [...irObject.resultUnionEntries!].sort((a, b) =>
-      a.fieldName.localeCompare(b.fieldName)
-    );
+    const sortedEntries = [...irObject.resultUnionEntries!].sort((a, b) => a.fieldName.localeCompare(b.fieldName));
     for (const entry of sortedEntries) {
+      this.generateDocComment(entry.description, '    ');
       const caseName = this.escapeKeyword(this.enumValueCase(entry.fieldName));
       const payloadType = this.getPropertyType(entry.type);
       this.emit(`    case ${caseName}(${payloadType})`);
@@ -308,6 +298,8 @@ export class SwiftPlugin extends CodegenPlugin {
       case 'RequestPurchaseProps':
         this.generateRequestPurchaseProps(irInput);
         break;
+      default:
+        throw new Error(`${irInput.name} is marked as a custom input without a Swift generator strategy.`);
     }
   }
 
@@ -337,13 +329,13 @@ export class SwiftPlugin extends CodegenPlugin {
   }
 
   private generateDiscountOfferInputIOS(irInput: IRInput): void {
+    const fields = this.requireCustomInputFields(irInput);
     this.generateDocComment(irInput.description);
     this.emit('public struct DiscountOfferInputIOS: Codable {');
-    this.emit('    public var identifier: String');
-    this.emit('    public var keyIdentifier: String');
-    this.emit('    public var nonce: String');
-    this.emit('    public var signature: String');
-    this.emit('    public var timestamp: Double');
+    for (const field of fields) {
+      this.generateDocComment(field.description, '    ');
+      this.emit(`    public var ${field.name}: ${this.getPropertyType(field.type)}`);
+    }
     this.emit('');
     this.emit('    public init(identifier: String, keyIdentifier: String, nonce: String, signature: String, timestamp: Double) {');
     this.emit('        self.identifier = identifier');
@@ -392,10 +384,13 @@ export class SwiftPlugin extends CodegenPlugin {
   }
 
   private generateRequestPurchaseProps(irInput: IRInput): void {
+    const [requestPurchase, requestSubscription, type, useAlternativeBilling] = this.requireCustomInputFields(irInput);
     this.generateDocComment(irInput.description);
     this.emit('public struct RequestPurchaseProps: Codable {');
     this.emit('    public var request: Request');
+    this.generateDocComment(type.description, '    ');
     this.emit('    public var type: ProductQueryType');
+    this.generateDocComment(useAlternativeBilling.description, '    ');
     this.emit('    public var useAlternativeBilling: Bool?');
     this.emit('');
     this.emit('    public init(request: Request, type: ProductQueryType? = nil, useAlternativeBilling: Bool? = nil) {');
@@ -425,14 +420,20 @@ export class SwiftPlugin extends CodegenPlugin {
     this.emit('        let decodedType = try container.decodeIfPresent(ProductQueryType.self, forKey: .type)');
     this.emit('        self.useAlternativeBilling = try container.decodeIfPresent(Bool.self, forKey: .useAlternativeBilling)');
     this.emit('        let purchase = try container.decodeIfPresent(RequestPurchasePropsByPlatforms.self, forKey: .requestPurchase)');
-    this.emit('        let subscription = try container.decodeIfPresent(RequestSubscriptionPropsByPlatforms.self, forKey: .requestSubscription)');
+    this.emit(
+      '        let subscription = try container.decodeIfPresent(RequestSubscriptionPropsByPlatforms.self, forKey: .requestSubscription)',
+    );
     this.emit('        guard (purchase == nil) != (subscription == nil) else {');
-    this.emit('            throw DecodingError.dataCorruptedError(forKey: .requestPurchase, in: container, debugDescription: "RequestPurchaseProps requires exactly one of requestPurchase or requestSubscription.")');
+    this.emit(
+      '            throw DecodingError.dataCorruptedError(forKey: .requestPurchase, in: container, debugDescription: "RequestPurchaseProps requires exactly one of requestPurchase or requestSubscription.")',
+    );
     this.emit('        }');
     this.emit('        if let purchase {');
     this.emit('            let finalType = decodedType ?? .inApp');
     this.emit('            guard finalType == .inApp else {');
-    this.emit('                throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "type must be IN_APP when requestPurchase is provided")');
+    this.emit(
+      '                throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "type must be IN_APP when requestPurchase is provided")',
+    );
     this.emit('            }');
     this.emit('            self.request = .purchase(purchase)');
     this.emit('            self.type = finalType');
@@ -441,13 +442,17 @@ export class SwiftPlugin extends CodegenPlugin {
     this.emit('        if let subscription {');
     this.emit('            let finalType = decodedType ?? .subs');
     this.emit('            guard finalType == .subs else {');
-    this.emit('                throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "type must be SUBS when requestSubscription is provided")');
+    this.emit(
+      '                throw DecodingError.dataCorruptedError(forKey: .type, in: container, debugDescription: "type must be SUBS when requestSubscription is provided")',
+    );
     this.emit('            }');
     this.emit('            self.request = .subscription(subscription)');
     this.emit('            self.type = finalType');
     this.emit('            return');
     this.emit('        }');
-    this.emit('        throw DecodingError.dataCorruptedError(forKey: .requestPurchase, in: container, debugDescription: "RequestPurchaseProps branch validation failed.")');
+    this.emit(
+      '        throw DecodingError.dataCorruptedError(forKey: .requestPurchase, in: container, debugDescription: "RequestPurchaseProps branch validation failed.")',
+    );
     this.emit('    }');
     this.emit('');
     this.emit('    public func encode(to encoder: Encoder) throws {');
@@ -463,7 +468,9 @@ export class SwiftPlugin extends CodegenPlugin {
     this.emit('    }');
     this.emit('');
     this.emit('    public enum Request {');
+    this.generateDocComment(requestPurchase.description, '        ');
     this.emit('        case purchase(RequestPurchasePropsByPlatforms)');
+    this.generateDocComment(requestSubscription.description, '        ');
     this.emit('        case subscription(RequestSubscriptionPropsByPlatforms)');
     this.emit('    }');
     this.emit('}');
@@ -628,12 +635,10 @@ export class SwiftPlugin extends CodegenPlugin {
     this.emit(`public protocol ${protocolName} {`);
 
     // Sort fields alphabetically and filter _placeholder
-    const sortedFields = irOperation.fields
-      .filter((f) => f.name !== '_placeholder')
-      .sort((a, b) => a.name.localeCompare(b.name));
+    const sortedFields = irOperation.fields.filter((f) => f.name !== '_placeholder').sort((a, b) => a.name.localeCompare(b.name));
 
     for (const field of sortedFields) {
-      this.generateDocComment(field.description, '    ');
+      this.generateDocComment(this.operationFieldDescription(field), '    ');
       const returnType = this.getOperationReturnType(field);
 
       if (field.args.length === 0) {
@@ -661,9 +666,7 @@ export class SwiftPlugin extends CodegenPlugin {
 
   private generateOperationHelpers(irOperation: IROperation): void {
     // Sort fields alphabetically and filter _placeholder
-    const sortedFields = irOperation.fields
-      .filter((f) => f.name !== '_placeholder')
-      .sort((a, b) => a.name.localeCompare(b.name));
+    const sortedFields = irOperation.fields.filter((f) => f.name !== '_placeholder').sort((a, b) => a.name.localeCompare(b.name));
 
     if (sortedFields.length === 0) return;
 

@@ -6,6 +6,7 @@
  */
 
 import { CodegenPlugin, type CodegenPluginConfig } from './base-plugin.js';
+import { generatedFileHeader } from '../core/generated-header.js';
 import type {
   IRSchema,
   IREnum,
@@ -18,13 +19,7 @@ import type {
   IRField,
   IROperationField,
 } from '../core/types.js';
-import {
-  DART_KEYWORDS,
-  GRAPHQL_TO_DART,
-  toPascalCasePreserveIOS,
-  toKebabCase,
-  PLATFORM_TYPE_DEFAULTS,
-} from '../core/utils.js';
+import { DART_KEYWORDS, GRAPHQL_TO_DART, requireGraphQLScalarMapping, toPascalCasePreserveIOS } from '../core/utils.js';
 
 export class DartPlugin extends CodegenPlugin {
   readonly name = 'dart';
@@ -32,11 +27,6 @@ export class DartPlugin extends CodegenPlugin {
   readonly keywords = DART_KEYWORDS;
 
   private schema!: IRSchema;
-  private enumNames = new Set<string>();
-  private objectNames = new Set<string>();
-  private inputNames = new Set<string>();
-  private unionNames = new Set<string>();
-  private interfaceNames = new Set<string>();
 
   constructor(config: CodegenPluginConfig) {
     super(config);
@@ -47,7 +37,7 @@ export class DartPlugin extends CodegenPlugin {
   // ============================================================================
 
   mapScalar(name: string): string {
-    return GRAPHQL_TO_DART[name] ?? 'dynamic';
+    return requireGraphQLScalarMapping(GRAPHQL_TO_DART, name, 'Dart');
   }
 
   mapType(type: IRType): string {
@@ -80,13 +70,6 @@ export class DartPlugin extends CodegenPlugin {
 
   generate(schema: IRSchema): string {
     this.schema = schema;
-
-    // Build type name sets for reference
-    for (const e of schema.enums) this.enumNames.add(e.name);
-    for (const o of schema.objects) this.objectNames.add(o.name);
-    for (const i of schema.inputs) this.inputNames.add(i.name);
-    for (const u of schema.unions) this.unionNames.add(u.name);
-    for (const i of schema.interfaces) this.interfaceNames.add(i.name);
 
     this.lines = [];
     this.generateHeader();
@@ -155,10 +138,7 @@ export class DartPlugin extends CodegenPlugin {
   }
 
   generateHeader(): void {
-    this.emit('// ============================================================================');
-    this.emit('// AUTO-GENERATED TYPES — DO NOT EDIT DIRECTLY');
-    this.emit('// Run `bun run generate` after updating any *.graphql schema file.');
-    this.emit('// ============================================================================');
+    for (const line of generatedFileHeader()) this.emit(line);
     this.emit('');
     this.emit('// ignore_for_file: unused_element, unused_field');
     this.emit('');
@@ -240,6 +220,7 @@ export class DartPlugin extends CodegenPlugin {
   generateObject(irObject: IRObject): void {
     // Handle VoidResult
     if (irObject.name === 'VoidResult') {
+      this.generateDocComment(irObject.description);
       this.emit('typedef VoidResult = void;');
       this.emit('');
       return;
@@ -260,9 +241,7 @@ export class DartPlugin extends CodegenPlugin {
     const implementsTargets = [...irObject.interfaces, ...otherUnions];
 
     const extendsClause = baseUnion ? ` extends ${baseUnion}` : '';
-    const implementsClause = implementsTargets.length > 0
-      ? ` implements ${implementsTargets.join(', ')}`
-      : '';
+    const implementsClause = implementsTargets.length > 0 ? ` implements ${implementsTargets.join(', ')}` : '';
 
     this.emit(`class ${irObject.name}${extendsClause}${implementsClause} {`);
     this.emit(`  const ${irObject.name}({`);
@@ -272,21 +251,9 @@ export class DartPlugin extends CodegenPlugin {
 
     // Constructor parameters
     for (const field of sortedFields) {
-      const defaults = PLATFORM_TYPE_DEFAULTS[irObject.name];
-      let defaultValue = '';
-
-      if (defaults) {
-        if (field.name === 'platform') {
-          const platformEnum = defaults.platform === 'ios' ? 'IapPlatform.IOS' : 'IapPlatform.Android';
-          defaultValue = ` = ${platformEnum}`;
-        } else if (field.name === 'type') {
-          const typeEnum = defaults.type === 'in-app' ? 'ProductType.InApp' : 'ProductType.Subs';
-          defaultValue = ` = ${typeEnum}`;
-        }
-      }
-
-      if (defaultValue) {
-        this.emit(`    this.${this.escapeKeyword(field.name)}${defaultValue},`);
+      const schemaDefault = this.buildDefaultValueExpression(field);
+      if (schemaDefault) {
+        this.emit(`    this.${this.escapeKeyword(field.name)} = ${schemaDefault},`);
       } else if (field.type.nullable) {
         this.emit(`    this.${this.escapeKeyword(field.name)},`);
       } else {
@@ -295,8 +262,9 @@ export class DartPlugin extends CodegenPlugin {
     }
 
     // Special handling for PurchaseAndroid and PurchaseIOS
-    const needsAlternativeBilling = (irObject.name === 'PurchaseAndroid' || irObject.name === 'PurchaseIOS')
-      && !sortedFields.some(f => f.name === 'isAlternativeBilling');
+    const needsAlternativeBilling =
+      (irObject.name === 'PurchaseAndroid' || irObject.name === 'PurchaseIOS') &&
+      !sortedFields.some((f) => f.name === 'isAlternativeBilling');
     if (needsAlternativeBilling) {
       this.emit('    this.isAlternativeBilling,');
     }
@@ -358,10 +326,9 @@ export class DartPlugin extends CodegenPlugin {
     this.emit('');
 
     // Sort entries alphabetically
-    const sortedEntries = [...irObject.resultUnionEntries!].sort((a, b) =>
-      a.fieldName.localeCompare(b.fieldName)
-    );
+    const sortedEntries = [...irObject.resultUnionEntries!].sort((a, b) => a.fieldName.localeCompare(b.fieldName));
     for (const entry of sortedEntries) {
+      this.generateDocComment(entry.description);
       const className = `${irObject.name}${toPascalCasePreserveIOS(entry.fieldName)}`;
       const valueType = this.getPropertyType(entry.type);
       this.emit(`class ${className} extends ${irObject.name} {`);
@@ -377,17 +344,20 @@ export class DartPlugin extends CodegenPlugin {
   // ============================================================================
 
   generateInput(irInput: IRInput): void {
-    // Handle PurchaseInput alias
-    if (irInput.name === 'PurchaseInput') {
-      this.emit('typedef PurchaseInput = Purchase;');
-      this.emit('');
-      return;
-    }
-
-    // Handle RequestPurchaseProps special case
-    if (irInput.name === 'RequestPurchaseProps') {
-      this.generateRequestPurchaseProps(irInput);
-      return;
+    if (irInput.isCustomType) {
+      switch (irInput.customTypeKind) {
+        case 'PurchaseInput':
+          this.emit('typedef PurchaseInput = Purchase;');
+          this.emit('');
+          return;
+        case 'RequestPurchaseProps':
+          this.generateRequestPurchaseProps(irInput);
+          return;
+        case 'DiscountOfferInputIOS':
+          break;
+        default:
+          throw new Error(`${irInput.name} is marked as a custom input without a Dart generator strategy.`);
+      }
     }
 
     this.generateDocComment(irInput.description);
@@ -423,11 +393,7 @@ export class DartPlugin extends CodegenPlugin {
     this.emit(`  factory ${irInput.name}.fromJson(Map<String, dynamic> json) {`);
     this.emit(`    return ${irInput.name}(`);
     for (const field of sortedFields) {
-      const jsonExpr = this.buildFromJsonExpression(
-        field.type,
-        `json['${field.name}']`,
-        this.buildDefaultValueExpression(field)
-      );
+      const jsonExpr = this.buildFromJsonExpression(field.type, `json['${field.name}']`, this.buildDefaultValueExpression(field));
       this.emit(`      ${this.escapeKeyword(field.name)}: ${jsonExpr},`);
     }
     this.emit('    );');
@@ -449,47 +415,43 @@ export class DartPlugin extends CodegenPlugin {
   }
 
   private generateRequestPurchaseProps(irInput: IRInput): void {
+    const [requestPurchase, requestSubscription, , useAlternativeBilling] = this.requireCustomInputFields(irInput);
     this.generateDocComment(irInput.description);
 
     // Find the platform-specific types from schema
-    const purchaseByPlatforms = this.schema.inputs.find(i => i.name === 'RequestPurchasePropsByPlatforms');
-    const subsByPlatforms = this.schema.inputs.find(i => i.name === 'RequestSubscriptionPropsByPlatforms');
+    const purchaseByPlatforms = this.schema.inputs.find((i) => i.name === 'RequestPurchasePropsByPlatforms');
+    const subsByPlatforms = this.schema.inputs.find((i) => i.name === 'RequestSubscriptionPropsByPlatforms');
 
-    // Log warnings if fallback types are used (schema drift detection)
     if (!purchaseByPlatforms) {
-      console.warn('[dart] RequestPurchasePropsByPlatforms not found in schema, using fallback types');
+      throw new Error('RequestPurchasePropsByPlatforms is required by the Dart custom generator.');
     }
     if (!subsByPlatforms) {
-      console.warn('[dart] RequestSubscriptionPropsByPlatforms not found in schema, using fallback types');
+      throw new Error('RequestSubscriptionPropsByPlatforms is required by the Dart custom generator.');
     }
 
     const appleName = 'apple';
     const googleName = 'google';
-    const appleType = purchaseByPlatforms?.fields.find(f => f.name === 'apple')
-      ? this.mapType(purchaseByPlatforms.fields.find(f => f.name === 'apple')!.type)
-      : 'RequestPurchaseIosProps';
-    const googleType = purchaseByPlatforms?.fields.find(f => f.name === 'google')
-      ? this.mapType(purchaseByPlatforms.fields.find(f => f.name === 'google')!.type)
-      : 'RequestPurchaseAndroidProps';
-    const appleSubsType = subsByPlatforms?.fields.find(f => f.name === 'apple')
-      ? this.mapType(subsByPlatforms.fields.find(f => f.name === 'apple')!.type)
-      : 'RequestSubscriptionIosProps';
-    const googleSubsType = subsByPlatforms?.fields.find(f => f.name === 'google')
-      ? this.mapType(subsByPlatforms.fields.find(f => f.name === 'google')!.type)
-      : 'RequestSubscriptionAndroidProps';
+    const appleType = this.mapType(this.requireField(purchaseByPlatforms, appleName).type);
+    const googleType = this.mapType(this.requireField(purchaseByPlatforms, googleName).type);
+    const appleSubsType = this.mapType(this.requireField(subsByPlatforms, appleName).type);
+    const googleSubsType = this.mapType(this.requireField(subsByPlatforms, googleName).type);
 
     this.emit('sealed class RequestPurchaseProps {');
     this.emit('  const RequestPurchaseProps._();');
     this.emit('');
+    this.generateDocComment(requestPurchase.description, '  ');
     this.emit('  const factory RequestPurchaseProps.inApp(({');
     this.emit(`    ${appleType}? ${appleName},`);
     this.emit(`    ${googleType}? ${googleName},`);
+    this.generateDocComment(useAlternativeBilling.description, '    ');
     this.emit('    bool? useAlternativeBilling,');
     this.emit('  }) props) = _InAppPurchase;');
     this.emit('');
+    this.generateDocComment(requestSubscription.description, '  ');
     this.emit('  const factory RequestPurchaseProps.subs(({');
     this.emit(`    ${appleSubsType}? ${appleName},`);
     this.emit(`    ${googleSubsType}? ${googleName},`);
+    this.generateDocComment(useAlternativeBilling.description, '    ');
     this.emit('    bool? useAlternativeBilling,');
     this.emit('  }) props) = _SubsPurchase;');
     this.emit('');
@@ -553,9 +515,7 @@ export class DartPlugin extends CodegenPlugin {
 
     // Find shared interfaces
     const sharedInterfaces = irUnion.sharedInterfaces || [];
-    const implementsClause = sharedInterfaces.length > 0
-      ? ` implements ${sharedInterfaces.join(', ')}`
-      : '';
+    const implementsClause = sharedInterfaces.length > 0 ? ` implements ${sharedInterfaces.join(', ')}` : '';
 
     this.emit(`sealed class ${irUnion.name}${implementsClause} {`);
     this.emit(`  const ${irUnion.name}();`);
@@ -571,7 +531,7 @@ export class DartPlugin extends CodegenPlugin {
     const nestedUnionWrappers = new Map<string, string>();
 
     for (const member of irUnion.members) {
-      const nestedUnion = this.schema.unions.find(u => u.name === member.name);
+      const nestedUnion = this.schema.unions.find((u) => u.name === member.name);
       if (nestedUnion) {
         // This member is a union - add its concrete members
         for (const nestedMember of nestedUnion.members) {
@@ -603,7 +563,7 @@ export class DartPlugin extends CodegenPlugin {
     if (sharedInterfaces.length > 0) {
       this.emit('');
       for (const interfaceName of sharedInterfaces) {
-        const iface = this.schema.interfaces.find(i => i.name === interfaceName);
+        const iface = this.schema.interfaces.find((i) => i.name === interfaceName);
         if (iface) {
           // Sort fields alphabetically
           const sortedFields = [...iface.fields].sort((a, b) => a.name.localeCompare(b.name));
@@ -647,12 +607,10 @@ export class DartPlugin extends CodegenPlugin {
     this.emit(`abstract class ${interfaceName} {`);
 
     // Sort fields alphabetically and filter _placeholder
-    const sortedFields = irOperation.fields
-      .filter((f) => f.name !== '_placeholder')
-      .sort((a, b) => a.name.localeCompare(b.name));
+    const sortedFields = irOperation.fields.filter((f) => f.name !== '_placeholder').sort((a, b) => a.name.localeCompare(b.name));
 
     for (const field of sortedFields) {
-      this.generateDocComment(field.description, '  ');
+      this.generateDocComment(this.operationFieldDescription(field), '  ');
       const returnType = this.getOperationReturnType(field);
 
       if (field.args.length === 0) {
@@ -662,12 +620,12 @@ export class DartPlugin extends CodegenPlugin {
 
       // Check if we should expand params
       const expandableParams = ['params', 'options', 'config', 'props'];
-      const expandableArg = field.args.find(arg => expandableParams.includes(arg.name));
+      const expandableArg = field.args.find((arg) => expandableParams.includes(arg.name));
 
       if (expandableArg && expandableArg.type.name) {
-        const inputType = this.schema.inputs.find(i => i.name === expandableArg.type.name);
+        const inputType = this.schema.inputs.find((i) => i.name === expandableArg.type.name);
         if (inputType && inputType.name !== 'RequestPurchaseProps') {
-          const otherArgs = field.args.filter(arg => arg !== expandableArg);
+          const otherArgs = field.args.filter((arg) => arg !== expandableArg);
           this.emit(`  Future<${returnType}> ${this.escapeKeyword(field.name)}({`);
 
           // Sort expanded fields alphabetically
@@ -721,9 +679,7 @@ export class DartPlugin extends CodegenPlugin {
     this.emit('');
 
     // Sort fields alphabetically and filter _placeholder
-    const sortedFields = irOperation.fields
-      .filter((f) => f.name !== '_placeholder')
-      .sort((a, b) => a.name.localeCompare(b.name));
+    const sortedFields = irOperation.fields.filter((f) => f.name !== '_placeholder').sort((a, b) => a.name.localeCompare(b.name));
 
     for (const field of sortedFields) {
       const pascalField = toPascalCasePreserveIOS(field.name);
@@ -737,12 +693,12 @@ export class DartPlugin extends CodegenPlugin {
 
       // Check if we should expand params
       const expandableParams = ['params', 'options', 'config', 'props'];
-      const expandableArg = field.args.find(arg => expandableParams.includes(arg.name));
+      const expandableArg = field.args.find((arg) => expandableParams.includes(arg.name));
 
       if (expandableArg && expandableArg.type.name) {
-        const inputType = this.schema.inputs.find(i => i.name === expandableArg.type.name);
+        const inputType = this.schema.inputs.find((i) => i.name === expandableArg.type.name);
         if (inputType && inputType.name !== 'RequestPurchaseProps') {
-          const otherArgs = field.args.filter(arg => arg !== expandableArg);
+          const otherArgs = field.args.filter((arg) => arg !== expandableArg);
           this.emit(`typedef ${aliasName} = Future<${returnType}> Function({`);
 
           // Sort expanded fields alphabetically
@@ -818,21 +774,10 @@ export class DartPlugin extends CodegenPlugin {
   }
 
   private getOperationReturnType(field: IROperationField): string {
-    // Handle VoidResult
-    if (field.returnType.name === 'VoidResult') {
+    if (field.resolvedReturnType.name === 'Void') {
       return 'void'; // void cannot be nullable in Dart
     }
-
-    // Handle single-field wrapper types (e.g., ProductsArgs -> List<Product>)
-    if (field.returnType.name && field.returnType.name.endsWith('Args')) {
-      const wrapperObj = this.schema.objects.find(o => o.name === field.returnType.name);
-      if (wrapperObj && wrapperObj.fields.length === 1) {
-        const innerType = this.getPropertyType(wrapperObj.fields[0].type);
-        return field.returnType.nullable ? `${innerType}?` : innerType;
-      }
-    }
-
-    return this.getPropertyType(field.returnType);
+    return this.getPropertyType(field.resolvedReturnType);
   }
 
   private buildFromJsonExpression(type: IRType, sourceExpr: string, defaultExpression?: string | null): string {
@@ -855,9 +800,7 @@ export class DartPlugin extends CodegenPlugin {
           if (defaultExpression) {
             return `${sourceExpr} == null ? ${defaultExpression} : (${sourceExpr} as num).toDouble()`;
           }
-          return type.nullable
-            ? `(${sourceExpr} as num?)?.toDouble()`
-            : `(${sourceExpr} as num).toDouble()`;
+          return type.nullable ? `(${sourceExpr} as num?)?.toDouble()` : `(${sourceExpr} as num).toDouble()`;
         case 'Int':
           if (defaultExpression) {
             return `${sourceExpr} == null ? ${defaultExpression} : ${sourceExpr} as int`;

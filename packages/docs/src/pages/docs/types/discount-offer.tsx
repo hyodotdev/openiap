@@ -12,9 +12,9 @@ function DiscountOffer() {
     <div className="doc-page">
       <SEO
         title="DiscountOffer"
-        description="DiscountOffer type definition and field reference."
+        description="Android one-time product DiscountOffer type definition and field reference."
         path="/docs/types/discount-offer"
-        keywords="DiscountOffer, OpenIAP types, Discount Offer"
+        keywords="DiscountOffer, OpenIAP types, Google Play, one-time product offer"
       />
       <h1>DiscountOffer</h1>
       <section>
@@ -22,42 +22,30 @@ function DiscountOffer() {
           DiscountOffer
         </AnchorLink>
         <p>
-          Unified discount-offer type covering both subscription discounts (
-          <code>Introductory</code>, <code>Promotional</code>) and one-time
-          product offers (<code>OneTime</code>, Android only on Google Play
-          Billing Library 8.0+). For iOS-specific WinBack offers see{' '}
-          <Link to="/docs/types/ios/discount-offer-ios">DiscountOfferIOS</Link>;
-          iOS does not support one-time product discounts.
+          <code>DiscountOffer</code> is the standardized representation of a
+          Google Play one-time product purchase option or offer. OpenIAP
+          populates <code>ProductAndroid.discountOffers</code> from{' '}
+          <code>ProductDetails.getOneTimePurchaseOfferDetailsList()</code> on
+          Google Play Billing Library 8.0+.
         </p>
         <p>
-          Cross-platform discount-offer envelope. <strong>iOS:</strong> maps to
-          a signed <code>Product.SubscriptionOffer</code> (
-          <a
-            href="https://developer.apple.com/documentation/storekit/product/subscriptionoffer"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Apple docs
-          </a>
-          ). <strong>Android:</strong> maps to a Play{' '}
-          <code>SubscriptionOfferDetails</code> entry (
-          <a
-            href="https://developer.android.com/reference/com/android/billingclient/api/ProductDetails.SubscriptionOfferDetails"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Google docs
-          </a>
-          ).
+          Each entry maps to{' '}
+          <code>ProductDetails.OneTimePurchaseOfferDetails</code> and has the
+          wire type <code>one-time</code>. Subscription introductory and
+          promotional offers use{' '}
+          <Link to="/docs/types/subscription-offer">
+            <code>SubscriptionOffer</code>
+          </Link>{' '}
+          instead. iOS does not populate <code>DiscountOffer</code>.
         </p>
         <p className="type-link">
           <strong>Native references:</strong>{' '}
           <a
-            href="https://developer.android.com/google/play/billing/subscriptions#discount-offer"
+            href="https://developer.android.com/google/play/billing/one-time-product-multi-purchase-options-offers"
             target="_blank"
             rel="noopener noreferrer"
           >
-            Google · Discounted offers
+            Google · Multiple purchase options and offers for one-time products
           </a>
           {' · '}
           <a
@@ -126,9 +114,13 @@ function DiscountOffer() {
                 <code>DiscountOfferType!</code>
               </td>
               <td>
-                Type of offer: <code>Introductory</code>,{' '}
-                <code>Promotional</code>, or <code>OneTime</code> (Android-only
-                Play Billing 8.0+ feature).
+                Always <code>one-time</code> for <code>DiscountOffer</code>{' '}
+                entries. The shared enum's <code>introductory</code> and{' '}
+                <code>promotional</code> variants are used by{' '}
+                <Link to="/docs/types/subscription-offer">
+                  <code>SubscriptionOffer</code>
+                </Link>
+                .
               </td>
             </tr>
           </tbody>
@@ -201,7 +193,10 @@ function DiscountOffer() {
               <td>
                 <code>String</code>
               </td>
-              <td>Formatted discount amount (e.g., "$5.00 OFF")</td>
+              <td>
+                Localized discount amount including the currency symbol (e.g.,
+                "$5.00")
+              </td>
             </tr>
             <tr>
               <td>
@@ -270,32 +265,29 @@ function DiscountOffer() {
             typescript: (
               <CodeBlock language="typescript">{`interface DiscountOffer {
   // Common fields
-  id: string | null;
+  id?: string | null;
   displayPrice: string;
   price: number;
   currency: string;
   type: DiscountOfferType;
 
   // Android-specific fields
-  offerTokenAndroid?: string;
-  offerTagsAndroid?: string[];
-  fullPriceMicrosAndroid?: string;
-  percentageDiscountAndroid?: number;
-  discountAmountMicrosAndroid?: string;
-  formattedDiscountAmountAndroid?: string;
-  validTimeWindowAndroid?: ValidTimeWindowAndroid;
-  limitedQuantityInfoAndroid?: LimitedQuantityInfoAndroid;
-  preorderDetailsAndroid?: PreorderDetailsAndroid;
-  rentalDetailsAndroid?: RentalDetailsAndroid;
-  purchaseOptionIdAndroid?: string;
+  offerTokenAndroid?: string | null;
+  offerTagsAndroid?: string[] | null;
+  fullPriceMicrosAndroid?: string | null;
+  percentageDiscountAndroid?: number | null;
+  discountAmountMicrosAndroid?: string | null;
+  formattedDiscountAmountAndroid?: string | null;
+  validTimeWindowAndroid?: ValidTimeWindowAndroid | null;
+  limitedQuantityInfoAndroid?: LimitedQuantityInfoAndroid | null;
+  preorderDetailsAndroid?: PreorderDetailsAndroid | null;
+  rentalDetailsAndroid?: RentalDetailsAndroid | null;
+  purchaseOptionIdAndroid?: string | null;
 }
 
-enum DiscountOfferType {
-  Introductory = 'Introductory',
-  Promotional = 'Promotional',
-  WinBack = 'WinBack',    // iOS 18+
-  OneTime = 'OneTime',
-}`}</CodeBlock>
+type DiscountOfferType = 'introductory' | 'promotional' | 'one-time';
+
+// DiscountOffer instances currently use only 'one-time'.`}</CodeBlock>
             ),
             swift: (
               <CodeBlock language="swift">{`struct DiscountOffer: Codable {
@@ -321,16 +313,15 @@ enum DiscountOfferType {
 }
 
 enum DiscountOfferType: String, Codable {
-    case introductory = "Introductory"
-    case promotional = "Promotional"
-    case winBack = "WinBack"    // iOS 18+
-    case oneTime = "OneTime"
+    case introductory = "introductory"
+    case promotional = "promotional"
+    case oneTime = "one-time"
 }`}</CodeBlock>
             ),
             kotlin: (
               <CodeBlock language="kotlin">{`data class DiscountOffer(
     // Common fields
-    val id: String?,
+    val id: String? = null,
     val displayPrice: String,
     val price: Double,
     val currency: String,
@@ -350,11 +341,10 @@ enum DiscountOfferType: String, Codable {
     val purchaseOptionIdAndroid: String? = null
 )
 
-enum class DiscountOfferType {
-    Introductory,
-    Promotional,
-    WinBack,    // iOS 18+
-    OneTime
+enum class DiscountOfferType(val rawValue: String) {
+    Introductory("introductory"),
+    Promotional("promotional"),
+    OneTime("one-time")
 }`}</CodeBlock>
             ),
             dart: (
@@ -400,10 +390,12 @@ enum class DiscountOfferType {
 }
 
 enum DiscountOfferType {
-  introductory,
-  promotional,
-  winBack,    // iOS 18+
-  oneTime,
+  Introductory('introductory'),
+  Promotional('promotional'),
+  OneTime('one-time');
+
+  const DiscountOfferType(this.value);
+  final String value;
 }`}</CodeBlock>
             ),
             csharp: (
@@ -445,29 +437,28 @@ public enum DiscountOfferType
               <CodeBlock language="gdscript">{`class_name DiscountOffer
 
 # Common fields
-var id: String
-var display_price: String
-var price: float
-var currency: String
+var id: Variant = null
+var display_price: String = ""
+var price: float = 0.0
+var currency: String = ""
 var type: DiscountOfferType
 
 # Android-specific fields
-var offer_token_android: String
-var offer_tags_android: Array[String]
-var full_price_micros_android: String
-var percentage_discount_android: int
-var discount_amount_micros_android: String
-var formatted_discount_amount_android: String
+var offer_token_android: Variant = null
+var offer_tags_android: Array[String] = []
+var full_price_micros_android: Variant = null
+var percentage_discount_android: Variant = null
+var discount_amount_micros_android: Variant = null
+var formatted_discount_amount_android: Variant = null
 var valid_time_window_android: ValidTimeWindowAndroid
 var limited_quantity_info_android: LimitedQuantityInfoAndroid
 var preorder_details_android: PreorderDetailsAndroid
 var rental_details_android: RentalDetailsAndroid
-var purchase_option_id_android: String
+var purchase_option_id_android: Variant = null
 
 enum DiscountOfferType {
     INTRODUCTORY,
     PROMOTIONAL,
-    WIN_BACK,    # iOS 18+
     ONE_TIME
 }`}</CodeBlock>
             ),

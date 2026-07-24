@@ -18,10 +18,22 @@ files live in `src/` and are split into common (`type.graphql`, `api.graphql`), 
 taxonomy (`error.graphql`), and platform-specific (`*-ios.graphql`, `*-android.graphql`)
 definitions.
 
-To keep every consumer in sync, code generation helpers are provided for
-TypeScript, Swift, Kotlin, Dart, GDScript, and C#. Each section below explains
-the tooling, commands, and output locations. Update the schema files first, then
-rerun the appropriate generator for your target language.
+The repository-owned generator is the only supported generation path for
+TypeScript, Swift, Kotlin, Dart, GDScript, and C#. It understands OpenIAP's
+code-generation SDL extensions (including nested union wrappers and comment
+markers), validates their ownership, and keeps every published SDK copy in
+sync. Update the schema files first, then run `bun run generate`.
+
+TypeScript uses graphql-codegen followed by guarded AST post-processing. The
+other five outputs use the strict parser, shared IR transformer, and language
+plugins under `codegen/`. Both paths consume the same schema inventory,
+marker/deprecation metadata, and typed custom-input contracts. Platform copies
+are distributed through `generated-sync-manifest.mjs`; do not add a second
+copy list or generator entrypoint.
+
+`# => Union` is a closed wrapper contract: it may only annotate a non-root
+object with one or more nullable result fields. Invalid owners, empty wrappers,
+and required fields stop every language generator.
 
 Generated outputs:
 
@@ -38,95 +50,16 @@ Generated outputs:
 
 Uses [`@graphql-codegen/cli`](https://www.the-guild.dev/graphql/codegen).
 
-1. Ensure Node 18+ is installed.
+1. Install the repository-pinned Bun version.
 2. Install dependencies once from the monorepo root: `bun install --frozen-lockfile`
-3. Generate types: `bun run generate:ts`
-4. Generated output: `src/generated/types.ts`
+3. Run the complete canonical pipeline: `bun run generate`
+4. Generated TypeScript output: `src/generated/types.ts`
 
 Configuration lives in `codegen.ts`. The script merges every SDL file and
 emits a schema-first type layer that mirrors the documented shapes.
-
----
-
-## Dart
-
-Uses [`graphql_codegen`](https://pub.dev/packages/graphql_codegen) with
-`build_runner`. A ready-to-use package scaffold is located in
-`generators/dart/`.
-
-1. Install Dart 3.0+.
-2. `cd generators/dart`
-3. Fetch dependencies: `dart pub get`
-4. Add your `.graphql` operation documents under `lib/` or `graphql/`.
-5. Generate code: `dart run build_runner build`
-6. Generated output: `generators/dart/lib/generated/`
-
-The `pubspec.yaml` and `build.yaml` already point the generator at the shared
-schema files in `../src`. Customize package name, output path, and scalars as
-needed for your application.
-
----
-
-## Swift
-
-Relies on the official [Apollo iOS CLI](https://www.apollographql.com/docs/ios/)
-for schema codegen. A helper script is provided in `generators/swift/`.
-
-1. Install the CLI (one time): `brew install apollo-ios-cli`
-2. Run the helper: `generators/swift/generate-swift.sh`
-3. Generated output: `generators/swift/Generated/`
-
-The script passes every SDL file to the CLI and emits an embedded module named
-`OpenIAPGraphQL`. Adjust the script flags to fit your Xcode project (e.g.
-`--module-type swiftPackage` or supply operation files via `--operation-paths`).
-
----
-
-## Kotlin
-
-Recommended tooling is [Apollo Kotlin](https://www.apollographql.com/docs/kotlin).
-Use the Gradle plugin inside your Android project to consume the schema. Add a
-codegen module (e.g. `:openiap-graphql`) and configure it as follows:
-
-```kotlin
-plugins {
-  id("com.apollographql.apollo3") version "4.0.0"
-}
-
-apollo {
-  service("openIap") {
-    packageName.set("dev.openiap.graphql")
-    schemaFiles.from(
-      file("../../src/type.graphql"),
-      file("../../src/type-ios.graphql"),
-      file("../../src/type-android.graphql"),
-      file("../../src/api.graphql"),
-      file("../../src/api-ios.graphql"),
-      file("../../src/api-android.graphql"),
-    )
-    // Point to your .graphql operations inside the module
-    srcDir("src/main/graphql")
-  }
-}
-
-dependencies {
-  implementation("com.apollographql.apollo3:apollo-runtime:4.0.0")
-}
-```
-
-Then run `./gradlew :openiap-graphql:generateApolloSources` to regenerate the
-models. Keep your query/mutation documents under `src/main/graphql` inside that
-module.
-
-If you prefer to consume the pre-generated `src/generated/Types.kt` models from
-this repo (via `npm run generate:kotlin`), add the JSON serialization runtime to
-your Gradle module:
-
-```kotlin
-dependencies {
-  implementation("org.jetbrains.kotlinx:kotlinx-serialization-json:1.7.3")
-}
-```
+`generate:ts` remains an internal diagnostic stage of the complete command;
+do not commit its partial output without the final native generation and
+manifest sync stages.
 
 ---
 
@@ -134,10 +67,16 @@ dependencies {
 
 - Treat the SDL files in `src/` as the canonical schema. Commit schema updates
   before shipping generated code.
-- Regenerate types whenever you change schema shape or add operations:
-  `bun run generate` for all languages, or `bun run generate:<language>` for a
-  single target (`ts`, `swift`, `kotlin`, `dart`, `gdscript`, `csharp`).
+- Do not feed the SDL directly to general-purpose GraphQL client generators.
+  `ProductOrSubscription` intentionally composes generated union wrappers, so
+  the SDL is an OpenIAP code-generation DSL rather than a portable executable
+  GraphQL service schema.
+- Regenerate with `bun run generate` whenever you change schema shape,
+  generator code, or operations. The `generate:<language>` commands are
+  diagnostic plugin entry points; before committing, always finish with the
+  complete command so every manifest target is synchronized.
 - If you introduce custom scalars, make sure to extend the respective generator
   config/plugin so they map to the desired native types.
-- Use version control to keep generated artifacts out of long-lived diffs unless
-  they are part of the published SDKs.
+- Commit every changed generated and synchronized artifact with its schema or
+  generator change. The pre-commit and CI gates regenerate from scratch and
+  reject unstaged or non-reproducible output drift.

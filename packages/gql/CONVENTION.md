@@ -4,6 +4,19 @@ This repo standardizes schema and identifier naming to improve clarity across pl
 
 ## Files
 
+- `schema-files.mjs` is the ordered production schema inventory SSOT. Generator
+  code must import it directly. Do not add parallel schema lists or external
+  generator manifests.
+- `schema-source-utils.mjs` owns source identity normalization and block-string
+  line detection shared by every SDL metadata extractor.
+- `schema-markers.mjs` is the only parser for `# Future` and `# => Union`.
+- `schema-deprecations.mjs` is the only extractor and validator for canonical
+  deprecation metadata.
+- `custom-input-contracts.ts` is the typed shape/default SSOT for every input
+  that a generator projects or aliases specially. Plugins must not maintain
+  parallel field lists.
+- `generated-sync-manifest.mjs` is the only generated source/target path map
+  used by platform sync and commit-time drift checks.
 - `src/type.graphql`: common cross‑platform SDL only.
 - `src/type-ios.graphql`: iOS‑specific SDL only.
 - `src/type-android.graphql`: Android‑specific SDL only.
@@ -55,6 +68,11 @@ This repo standardizes schema and identifier naming to improve clarity across pl
 ## Unions
 
 - Cross‑platform unions combine platform types (e.g., `Product = ProductAndroid | ProductIOS`).
+- `ProductOrSubscription` intentionally composes the generated `Product` and
+  `ProductSubscription` union wrappers. This nested-union form is an OpenIAP
+  code-generation DSL extension, not a portable executable GraphQL service
+  schema. Use `bun run generate`; do not feed these SDL files directly to
+  general-purpose client generators.
 - When a wrapper object should behave like a union in generated code (e.g.,
   `FetchProductsResult`, `RequestPurchaseResult`), precede the type definition
   with a `# => Union` comment in the SDL:
@@ -67,9 +85,12 @@ This repo standardizes schema and identifier naming to improve clarity across pl
   }
   ```
 
-  The codegen scripts detect this marker and flatten the wrapper into the
-  appropriate union type in TypeScript/Dart/Swift/Kotlin outputs while keeping
-  the SDL schema intact.
+  A marked wrapper must be a non-root object with at least one field, and every
+  field must be nullable so exactly one result branch can be represented.
+  Query, Mutation, Subscription, empty wrappers, and wrappers with required
+  fields are rejected. The shared transformer then flattens the wrapper into
+  the appropriate union type in TypeScript/Dart/Swift/Kotlin outputs while
+  keeping the SDL schema intact.
 
 - Only `*Args` wrapper inputs (and `VoidResult`) are collapsed to inline
   scalars in generated clients. Structural wrappers (e.g.,
@@ -100,10 +121,18 @@ This repo standardizes schema and identifier naming to improve clarity across pl
 
 - Enum values are API‑visible; changing them is a breaking change.
 - Keep platform suffixes consistent to avoid ambiguity in codegen and resolvers.
+- Use standard `@deprecated(reason: "...")` only on fields, arguments, input
+  fields, and enum values. Named types use the project-scoped
+  `@openiapDeprecated(reason: "...")` directive declared in `schema.graphql`.
+  Descriptions must not duplicate either directive as an `@deprecated` tag.
+  When an object implements a deprecated interface field, the interface owns
+  the canonical reason, but every concrete field must repeat that exact
+  directive because GraphQL introspection does not inherit field metadata.
+  The IR transformer rejects an omitted or conflicting concrete projection
+  and emits only one generated deprecation tag per concrete field.
 - Resolver fields (Query/Mutation) model asynchronous behavior. The docs refer
   to these as `Future`. Use a `# Future` inline comment in the SDL to make that
-  intent explicit for documentation tooling, even though the generated
-  TypeScript types currently expose their raw GraphQL types.
+  intent explicit for documentation tooling and generated Promise signatures.
   - When feeding new APIs into the openiap.dev docs, always add this `# Future`
     comment so the codegen post-processing rewrites the generated types to
     return `Promise<…>` and the documentation stays accurate.
@@ -112,24 +141,28 @@ This repo standardizes schema and identifier naming to improve clarity across pl
 
 ## Code Generation Architecture
 
-The GQL package uses an **IR-based (Intermediate Representation)** code generation system.
+The GQL package uses a guarded TypeScript lane and an IR-based native/framework
+lane over the same schema inventory and contract metadata.
 
 ### Generation Flow
 
 ```text
 GraphQL Schema (src/*.graphql)
          ↓
-    [1] Parser (codegen/core/parser.ts)
+    Inventory + metadata + custom-input contracts
          ↓
-    [2] Transformer → IR (codegen/core/transformer.ts)
-         ↓
-    [3] Language Plugins (codegen/plugins/*.ts)
-         ↓
-    Generated Files (src/generated/*)
-         ↓
-    [4] Sync (scripts/sync-to-platforms.mjs)
-         ↓
-    Platform Packages (packages/apple, packages/google)
+    ┌────────────────────────────┬─────────────────────────────┐
+    │ TypeScript                 │ Native/framework languages  │
+    │ graphql-codegen            │ strict parser → IR          │
+    │ + guarded post-processor   │ → Swift/Kotlin/Dart/         │
+    │                            │   GDScript/C# plugins        │
+    └────────────────────────────┴─────────────────────────────┘
+                          ↓
+              Generated Files (src/generated/*)
+                          ↓
+      generated-sync-manifest.mjs → sync-to-platforms.mjs
+                          ↓
+ Apple, Google, RN, Expo, Flutter, Godot, KMP, and MAUI copies
 ```
 
 ### Directory Structure
@@ -141,6 +174,7 @@ codegen/
 │   ├── types.ts          # IR type definitions
 │   ├── parser.ts         # GraphQL schema parser
 │   ├── transformer.ts    # AST → IR transformer
+│   ├── generated-header.ts # Shared generated-file banner
 │   └── utils.ts          # Case conversion, keyword escaping
 └── plugins/
     ├── base-plugin.ts    # Abstract base class
@@ -178,7 +212,8 @@ codegen/
 # Generate all platform types
 bun run generate
 
-# Generate specific platform
+# Diagnostic single-plugin generation (always finish with `bun run generate`
+# before committing so every manifest target is synchronized)
 bun run generate:swift
 bun run generate:kotlin
 bun run generate:dart

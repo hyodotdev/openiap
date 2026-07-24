@@ -216,28 +216,28 @@ For detailed code conventions, naming standards, and implementation guidelines, 
 
 ### Updating OpenIAP Types
 
-The generated TypeScript definitions in `src/types.ts` come from the [OpenIAP](https://github.com/hyodotdev/openiap) release artifacts. Never edit this file by hand. When the schema changes or you need to pull newer types:
+The generated TypeScript definitions in `src/types.ts` come from the platform-ready file committed in the [OpenIAP](https://github.com/hyodotdev/openiap) raw `docs-${spec}` tag. Never edit this file by hand. When the schema changes or you need to pull newer published types:
 
-- Run `bun run generate:types` to download the latest pinned release and overwrite `src/types.ts`.
-- To target a specific release, pass the tag: `bun run generate:types --tag <version>`.
+- Run `bun run generate:types` to download the version pinned by `openiap-versions.json`, validate it, and atomically replace `src/types.ts`.
+- To target a specific published spec, pass its version: `bun run generate:types --tag <version>` (the script resolves it to `docs-<version>`).
 - Commit the updated file alongside any related schema or documentation changes.
 
 Always ensure the repository builds and tests succeed after regenerating the types.
 
 ## 🔢 OpenIAP Version Management
 
-All native and type-generation version numbers are sourced from `openiap-versions.json` at the repository root:
+The native dependency and OpenIAP specification versions are sourced from `openiap-versions.json` at the repository root:
 
 - `apple` → iOS Pod dependency (`ios/ExpoIap.podspec`).
 - `google` → Android artifact (`android/build.gradle`, Expo config plugin).
-- `gql` → GraphQL type generator (`scripts/update-types.mjs`).
+- `spec` → published OpenIAP specification/types release (`scripts/update-types.mjs`).
 
 When bumping dependencies:
 
 1. Update the relevant fields in `openiap-versions.json`.
 2. For iOS changes, run `cd ios && pod install` (and commit the Pod.lock if required by the workflow).
 3. For Android, re-run Gradle (`bun run android`) so the new artifact is pulled down.
-4. When the `gql` value changes, run `bun run generate:types` to refresh `src/types.ts`.
+4. When the `spec` value changes, run `bun run generate:types` to refresh `src/types.ts` from the matching raw `docs-${spec}` tag.
 5. Commit the updated JSON, regenerated files, and any resulting lockfile changes together.
 
 If the JSON file is missing or malformed, build scripts (Gradle, Podspec, the type generator) will fail fast — fix the JSON rather than hard-coding version strings in multiple locations.

@@ -55,12 +55,10 @@ libraries/maui-iap/
 ## Auto-generated files (DO NOT EDIT)
 
 - [`src/OpenIap.Maui/Types.cs`](src/OpenIap.Maui/Types.cs) — synced from
-  `packages/gql/src/generated/Types.cs` by
-  [`scripts/sync-versions.sh`](../../scripts/sync-versions.sh) and the gql
-  package's `bun run sync` step. Regenerate with:
+  `packages/gql/src/generated/Types.cs` by the GQL manifest pipeline.
+  Regenerate with:
   ```bash
   cd packages/gql && bun run generate
-  cd ../.. && bash scripts/sync-versions.sh
   ```
 
 ## Naming conventions (C#)
@@ -212,14 +210,13 @@ dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj
 
 1. Regenerate types if `packages/gql/src/*.graphql` changed:
    `cd packages/gql && bun run generate`
-2. Run `bash scripts/sync-versions.sh` from repo root.
-3. Run the shared compile checks:
+2. Run the shared compile checks:
    `dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0`
    and `dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0`.
-4. Run `tests/OpenIap.Maui.ContractTests` for both net9.0 and net10.0 and
+3. Run `tests/OpenIap.Maui.ContractTests` for both net9.0 and net10.0 and
    `dotnet test tests/OpenIap.Maui.Tests/OpenIap.Maui.Tests.csproj -p:TargetFrameworks=net9.0`
    using the commands in [Build & test](#build--test).
-5. Verify `Types.cs` matches `packages/gql/src/generated/Types.cs`
+4. Verify `Types.cs` matches `packages/gql/src/generated/Types.cs`
    byte-for-byte (the sync should keep them in lockstep).
 
 ## Contributing

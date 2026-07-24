@@ -6,25 +6,9 @@
  */
 
 import { CodegenPlugin, type CodegenPluginConfig } from './base-plugin.js';
-import type {
-  IRSchema,
-  IREnum,
-  IRInterface,
-  IRObject,
-  IRInput,
-  IRUnion,
-  IROperation,
-  IRType,
-  IRField,
-  IROperationField,
-} from '../core/types.js';
-import {
-  GDSCRIPT_KEYWORDS,
-  GRAPHQL_TO_GDSCRIPT,
-  toSnakeCase,
-  toConstantCase,
-  toKebabCase,
-} from '../core/utils.js';
+import { generatedFileHeader } from '../core/generated-header.js';
+import type { IRSchema, IREnum, IRInterface, IRObject, IRInput, IRUnion, IROperation, IRType, IRField } from '../core/types.js';
+import { GDSCRIPT_KEYWORDS, GRAPHQL_TO_GDSCRIPT, requireGraphQLScalarMapping, toSnakeCase, toConstantCase } from '../core/utils.js';
 
 export class GDScriptPlugin extends CodegenPlugin {
   readonly name = 'gdscript';
@@ -52,7 +36,7 @@ export class GDScriptPlugin extends CodegenPlugin {
   // ============================================================================
 
   mapScalar(name: string): string {
-    return GRAPHQL_TO_GDSCRIPT[name] ?? 'Variant';
+    return requireGraphQLScalarMapping(GRAPHQL_TO_GDSCRIPT, name, 'GDScript');
   }
 
   mapType(type: IRType): string {
@@ -131,18 +115,13 @@ export class GDScriptPlugin extends CodegenPlugin {
     return this.buildSchemaDefaultForType(field.type, field.defaultValue);
   }
 
-  private buildSchemaDefaultForType(
-    type: IRType,
-    defaultValue: unknown,
-  ): string | null {
+  private buildSchemaDefaultForType(type: IRType, defaultValue: unknown): string | null {
     // Lists recurse per element (e.g. `[TRANSACTIONAL]` in the schema must
     // become `[InAppMessageCategoryAndroid.TRANSACTIONAL]`, not `[]`) —
     // mirrors buildDefaultValueForType in the Kotlin/Swift/Dart plugins.
     if (type.kind === 'list') {
       if (!Array.isArray(defaultValue)) return null;
-      const items = defaultValue.map((value) =>
-        this.buildSchemaDefaultForType(type.elementType!, value),
-      );
+      const items = defaultValue.map((value) => this.buildSchemaDefaultForType(type.elementType!, value));
       if (items.some((item) => item === null)) return null;
       return `[${items.join(', ')}]`;
     }
@@ -155,10 +134,7 @@ export class GDScriptPlugin extends CodegenPlugin {
       if (typeof defaultValue === 'string') {
         return JSON.stringify(defaultValue);
       }
-      if (
-        typeof defaultValue === 'number' ||
-        typeof defaultValue === 'boolean'
-      ) {
+      if (typeof defaultValue === 'number' || typeof defaultValue === 'boolean') {
         return String(defaultValue);
       }
     }
@@ -250,7 +226,7 @@ export class GDScriptPlugin extends CodegenPlugin {
       this.emit('# Query Types');
       this.emit('# ============================================================================');
       this.emit('');
-      const queryOp = schema.operations.find(op => op.name === 'Query');
+      const queryOp = schema.operations.find((op) => op.name === 'Query');
       if (queryOp) {
         this.generateOperation(queryOp);
       }
@@ -259,7 +235,7 @@ export class GDScriptPlugin extends CodegenPlugin {
       this.emit('# Mutation Types');
       this.emit('# ============================================================================');
       this.emit('');
-      const mutationOp = schema.operations.find(op => op.name === 'Mutation');
+      const mutationOp = schema.operations.find((op) => op.name === 'Mutation');
       if (mutationOp) {
         this.generateOperation(mutationOp);
       }
@@ -287,11 +263,8 @@ export class GDScriptPlugin extends CodegenPlugin {
   }
 
   generateHeader(): void {
-    this.emit('# ============================================================================');
-    this.emit('# AUTO-GENERATED TYPES — DO NOT EDIT DIRECTLY');
+    for (const line of generatedFileHeader('#')) this.emit(line);
     this.emit('# Generated from OpenIAP GraphQL schema (https://openiap.dev)');
-    this.emit('# Run `bun run generate` to regenerate this file.');
-    this.emit('# ============================================================================');
     this.emit('# Usage: const Types = preload("types.gd")');
     this.emit('#        var store: Types.IapStore = Types.IapStore.APPLE');
     this.emit('# ============================================================================');
@@ -345,10 +318,8 @@ export class GDScriptPlugin extends CodegenPlugin {
   }
 
   private getEnumUnknownFallback(typeName: string): string | null {
-    const irEnum = this.schema.enums.find(e => e.name === typeName);
-    const unknown = irEnum?.values.find(
-      (value) => value.name.toLowerCase() === 'unknown' || value.rawValue.toLowerCase() === 'unknown'
-    );
+    const irEnum = this.schema.enums.find((e) => e.name === typeName);
+    const unknown = irEnum?.values.find((value) => value.name.toLowerCase() === 'unknown' || value.rawValue.toLowerCase() === 'unknown');
     return unknown ? `${typeName}.${this.enumValueCase(unknown.name)}` : null;
   }
 
@@ -371,26 +342,6 @@ export class GDScriptPlugin extends CodegenPlugin {
     this.emit(`${indent}\t${target} = enum_str`);
   }
 
-  private emitEnumListFromDictAssignment(indent: string, target: string, typeName: string, sourceExpression: string): void {
-    const enumReverseLookup = toConstantCase(typeName) + '_FROM_STRING';
-    const fallback = this.getEnumUnknownFallback(typeName);
-
-    this.emit(`${indent}var arr: Array[${typeName}] = []`);
-    this.emit(`${indent}for item in ${sourceExpression}:`);
-    if (fallback) {
-      this.emit(`${indent}\tif item is String:`);
-      this.emit(`${indent}\t\tarr.append(${enumReverseLookup}.get(item, ${fallback}))`);
-      this.emit(`${indent}\telse:`);
-      this.emit(`${indent}\t\tarr.append(item)`);
-    } else {
-      this.emit(`${indent}\tif item is String and ${enumReverseLookup}.has(item):`);
-      this.emit(`${indent}\t\tarr.append(${enumReverseLookup}[item])`);
-      this.emit(`${indent}\telse:`);
-      this.emit(`${indent}\t\tarr.append(item)`);
-    }
-    this.emit(`${indent}${target} = arr`);
-  }
-
   private emitEnumListToDictAssignment(indent: string, graphqlName: string, fieldName: string, typeName: string): void {
     const enumConstName = toConstantCase(typeName) + '_VALUES';
 
@@ -404,16 +355,14 @@ export class GDScriptPlugin extends CodegenPlugin {
   }
 
   private isEnumList(type: IRType): boolean {
-    return type.kind === 'list' &&
-      !!type.elementType &&
-      (type.elementType.kind === 'enum' || this.enumNames.has(type.elementType.name!));
+    return type.kind === 'list' && !!type.elementType && (type.elementType.kind === 'enum' || this.enumNames.has(type.elementType.name!));
   }
 
   // ============================================================================
   // Interfaces (not used in GDScript, but required by base class)
   // ============================================================================
 
-  generateInterface(irInterface: IRInterface): void {
+  generateInterface(_irInterface: IRInterface): void {
     // GDScript doesn't have interfaces, skip
   }
 
@@ -431,13 +380,14 @@ export class GDScriptPlugin extends CodegenPlugin {
     } else {
       // Field declarations
       for (const field of fields) {
-        if (field.description) {
-          this.emit(`\t## ${field.description.split('\n')[0]}`);
-        }
+        this.generateDocComment(field.description, '\t');
         const gdType = this.mapType(field.type);
         const fieldName = this.getGdscriptFieldName(field.name, irObject.name);
+        const schemaDefaultValue = this.getSchemaDefaultValue(field);
         const defaultValue = this.getDefaultValue(field.type);
-        if (field.type.nullable && this.usesNullableVariant(field.type)) {
+        if (schemaDefaultValue !== null) {
+          this.emit(`\tvar ${fieldName}: ${gdType} = ${schemaDefaultValue}`);
+        } else if (field.type.nullable && this.usesNullableVariant(field.type)) {
           // Nullable value types are emitted as untyped Variant so they can
           // actually hold `null`. Typed GDScript properties cannot hold
           // null, so declaring e.g. `var foo: String = ""` collapses the
@@ -498,12 +448,7 @@ export class GDScriptPlugin extends CodegenPlugin {
     }
   }
 
-  private generateListFromDictAssignment(
-    type: IRType,
-    graphqlName: string,
-    fieldName: string,
-    indent = '\t\t\t'
-  ): void {
+  private generateListFromDictAssignment(type: IRType, graphqlName: string, fieldName: string, indent = '\t\t\t'): void {
     const elementType = type.elementType!;
     const elementTypeName = elementType.name!;
     const gdElementType = this.mapType(elementType);
@@ -642,9 +587,17 @@ export class GDScriptPlugin extends CodegenPlugin {
   // ============================================================================
 
   generateInput(irInput: IRInput): void {
-    if (irInput.name === 'RequestPurchaseProps') {
-      this.generateRequestPurchasePropsInput(irInput);
-      return;
+    if (irInput.isCustomType) {
+      switch (irInput.customTypeKind) {
+        case 'RequestPurchaseProps':
+          this.generateRequestPurchasePropsInput(irInput);
+          return;
+        case 'PurchaseInput':
+        case 'DiscountOfferInputIOS':
+          break;
+        default:
+          throw new Error(`${irInput.name} is marked as a custom input without a GDScript generator strategy.`);
+      }
     }
 
     this.generateDocComment(irInput.description);
@@ -656,9 +609,7 @@ export class GDScriptPlugin extends CodegenPlugin {
     } else {
       // Field declarations
       for (const field of fields) {
-        if (field.description) {
-          this.emit(`\t## ${field.description.split('\n')[0]}`);
-        }
+        this.generateDocComment(field.description, '\t');
         const gdType = this.mapType(field.type);
         const fieldName = this.getGdscriptFieldName(field.name, irInput.name);
         const schemaDefaultValue = this.getSchemaDefaultValue(field);
@@ -704,25 +655,30 @@ export class GDScriptPlugin extends CodegenPlugin {
    * reject ambiguous/mismatched dictionaries before they cross a native bridge.
    */
   private generateRequestPurchasePropsInput(irInput: IRInput): void {
+    const [requestPurchase, requestSubscription, type, useAlternativeBilling] = this.requireCustomInputFields(irInput);
     this.generateDocComment(irInput.description);
     this.emit('class RequestPurchaseProps:');
-    this.emit('\t## Per-platform purchase request props');
+    this.generateDocComment(requestPurchase.description, '\t');
     this.emit('\tvar request: RequestPurchasePropsByPlatforms');
-    this.emit('\t## Per-platform subscription request props');
+    this.generateDocComment(requestSubscription.description, '\t');
     this.emit('\tvar request_subscription: RequestSubscriptionPropsByPlatforms');
-    this.emit('\t## Explicit purchase type hint (defaults to in-app)');
+    this.generateDocComment(type.description, '\t');
     this.emit('\tvar type: ProductQueryType = ProductQueryType.IN_APP');
-    this.emit('\t## @deprecated Use enableBillingProgramAndroid in InitConnectionConfig instead.');
+    this.generateDocComment(useAlternativeBilling.description, '\t');
     this.emit('\tvar use_alternative_billing: Variant = null');
     this.emit('');
-    this.emit('\tstatic func in_app(platforms: RequestPurchasePropsByPlatforms, use_alternative_billing_value: Variant = null) -> RequestPurchaseProps:');
+    this.emit(
+      '\tstatic func in_app(platforms: RequestPurchasePropsByPlatforms, use_alternative_billing_value: Variant = null) -> RequestPurchaseProps:',
+    );
     this.emit('\t\tvar obj = RequestPurchaseProps.new()');
     this.emit('\t\tobj.request = platforms');
     this.emit('\t\tobj.type = ProductQueryType.IN_APP');
     this.emit('\t\tobj.use_alternative_billing = use_alternative_billing_value');
     this.emit('\t\treturn obj');
     this.emit('');
-    this.emit('\tstatic func subs(platforms: RequestSubscriptionPropsByPlatforms, use_alternative_billing_value: Variant = null) -> RequestPurchaseProps:');
+    this.emit(
+      '\tstatic func subs(platforms: RequestSubscriptionPropsByPlatforms, use_alternative_billing_value: Variant = null) -> RequestPurchaseProps:',
+    );
     this.emit('\t\tvar obj = RequestPurchaseProps.new()');
     this.emit('\t\tobj.request_subscription = platforms');
     this.emit('\t\tobj.type = ProductQueryType.SUBS');
@@ -738,10 +694,14 @@ export class GDScriptPlugin extends CodegenPlugin {
     this.emit('\t\tvar obj = RequestPurchaseProps.new()');
     this.emit('\t\tif has_purchase:');
     this.emit('\t\t\tvar purchase_value = data["requestPurchase"]');
-    this.emit('\t\t\tobj.request = RequestPurchasePropsByPlatforms.from_dict(purchase_value) if purchase_value is Dictionary else purchase_value');
+    this.emit(
+      '\t\t\tobj.request = RequestPurchasePropsByPlatforms.from_dict(purchase_value) if purchase_value is Dictionary else purchase_value',
+    );
     this.emit('\t\telse:');
     this.emit('\t\t\tvar subscription_value = data["requestSubscription"]');
-    this.emit('\t\t\tobj.request_subscription = RequestSubscriptionPropsByPlatforms.from_dict(subscription_value) if subscription_value is Dictionary else subscription_value');
+    this.emit(
+      '\t\t\tobj.request_subscription = RequestSubscriptionPropsByPlatforms.from_dict(subscription_value) if subscription_value is Dictionary else subscription_value',
+    );
     this.emit('\t\tvar expected_type = ProductQueryType.IN_APP if has_purchase else ProductQueryType.SUBS');
     this.emit('\t\tobj.type = expected_type');
     this.emit('\t\tif data.has("type") and data["type"] != null:');
@@ -768,7 +728,9 @@ export class GDScriptPlugin extends CodegenPlugin {
     this.emit('\t\tif has_purchase:');
     this.emit('\t\t\tdict["requestPurchase"] = request.to_dict() if request.has_method("to_dict") else request');
     this.emit('\t\telse:');
-    this.emit('\t\t\tdict["requestSubscription"] = request_subscription.to_dict() if request_subscription.has_method("to_dict") else request_subscription');
+    this.emit(
+      '\t\t\tdict["requestSubscription"] = request_subscription.to_dict() if request_subscription.has_method("to_dict") else request_subscription',
+    );
     this.emit('\t\tdict["type"] = PRODUCT_QUERY_TYPE_VALUES.get(type, type)');
     this.emit('\t\tif use_alternative_billing != null:');
     this.emit('\t\t\tdict["useAlternativeBilling"] = use_alternative_billing');
@@ -833,7 +795,7 @@ export class GDScriptPlugin extends CodegenPlugin {
   // Unions (not used directly in GDScript)
   // ============================================================================
 
-  generateUnion(irUnion: IRUnion): void {
+  generateUnion(_irUnion: IRUnion): void {
     // GDScript doesn't have unions, use Variant
   }
 
@@ -842,6 +804,7 @@ export class GDScriptPlugin extends CodegenPlugin {
   // ============================================================================
 
   generateOperation(irOperation: IROperation): void {
+    this.generateDocComment(irOperation.description);
     this.emit(`class ${irOperation.name}:`);
     // Use schema field order, don't filter _placeholder
     const fields = irOperation.fields;
@@ -850,9 +813,7 @@ export class GDScriptPlugin extends CodegenPlugin {
       this.emit('\tpass');
     } else {
       for (const field of fields) {
-        if (field.description) {
-          this.emit(`\t## ${field.description.split('\n')[0]}`);
-        }
+        this.generateDocComment(field.description, '\t');
 
         this.emit(`\tclass ${field.name}Field:`);
         this.emit(`\t\tconst name = "${field.name}"`);
@@ -864,9 +825,7 @@ export class GDScriptPlugin extends CodegenPlugin {
           for (const arg of field.args) {
             const argType = this.mapType(arg.type);
             const argSnakeName = this.escapeKeyword(toSnakeCase(arg.name));
-            if (arg.description) {
-              this.emit(`\t\t\t## ${arg.description.split('\n')[0]}`);
-            }
+            this.generateDocComment(arg.description, '\t\t\t');
             if (arg.type.nullable) {
               this.emit(`\t\t\tvar ${argSnakeName}: Variant = null`);
             } else {
@@ -882,12 +841,7 @@ export class GDScriptPlugin extends CodegenPlugin {
             if (arg.type.kind === 'list') {
               this.generateListFromDictAssignment(arg.type, arg.name, argSnakeName, '\t\t\t\t\t');
             } else if (arg.type.kind === 'enum') {
-              this.emitEnumFromDictAssignment(
-                '\t\t\t\t\t',
-                `obj.${argSnakeName}`,
-                arg.type.name!,
-                `data["${arg.name}"]`
-              );
+              this.emitEnumFromDictAssignment('\t\t\t\t\t', `obj.${argSnakeName}`, arg.type.name!, `data["${arg.name}"]`);
             } else {
               this.emit(`\t\t\t\t\tobj.${argSnakeName} = data["${arg.name}"]`);
             }
@@ -922,9 +876,8 @@ export class GDScriptPlugin extends CodegenPlugin {
         }
 
         // Return type info
-        const returnTypeName = field.returnType.kind === 'list'
-          ? field.returnType.elementType?.name || 'Variant'
-          : field.returnType.name || 'Variant';
+        const returnTypeName =
+          field.returnType.kind === 'list' ? field.returnType.elementType?.name || 'Variant' : field.returnType.name || 'Variant';
         const isArray = field.returnType.kind === 'list';
         this.emit(`\t\tconst return_type = "${returnTypeName}"`);
         this.emit(`\t\tconst is_array = ${isArray}`);
@@ -935,14 +888,12 @@ export class GDScriptPlugin extends CodegenPlugin {
   }
 
   private generateApiHelpers(irOperation: IROperation): void {
-    const fields = irOperation.fields.filter(f => f.name !== '_placeholder');
+    const fields = irOperation.fields.filter((f) => f.name !== '_placeholder');
 
     for (const field of fields) {
       const snakeName = toSnakeCase(field.name);
 
-      if (field.description) {
-        this.emit(`## ${field.description.split('\n')[0]}`);
-      }
+      this.generateDocComment(field.description);
 
       // Build parameters
       const params: string[] = [];

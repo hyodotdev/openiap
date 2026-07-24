@@ -57,8 +57,8 @@ final allPurchases = await iap.getAvailablePurchases(
 ### Generated Files
 
 - `lib/types.dart` is generated from the OpenIAP GraphQL schema (`packages/gql`). Never edit it by hand.
-- In monorepo: run `./scripts/sync-versions.sh` from the repo root to sync types from `packages/gql/src/generated/types.dart`.
-- Standalone: run `./scripts/generate-type.sh` to download from GitHub Releases.
+- In monorepo: run `cd packages/gql && bun run generate` from the repo root to regenerate every language and sync every manifest target.
+- Standalone: run `./scripts/generate-type.sh` to validate and atomically install the platform-ready `lib/types.dart` file from the raw `docs-${spec}` tag pinned by `openiap-versions.json`.
 - If the generation script fails, fix the schema in `packages/gql/` instead of patching the output manually.
 
 ### Using `lib/types.dart`

@@ -13,9 +13,11 @@ import type {
   IRInput,
   IRUnion,
   IROperation,
+  IROperationField,
   IRType,
   IRField,
 } from '../core/types.js';
+import { CUSTOM_INPUT_CONTRACTS } from '../../custom-input-contracts.js';
 
 // ============================================================================
 // Plugin Interface
@@ -166,15 +168,6 @@ export abstract class CodegenPlugin {
   }
 
   /**
-   * Add multiple lines to the output
-   */
-  protected emitLines(lines: string[]): void {
-    for (const line of lines) {
-      this.emit(line);
-    }
-  }
-
-  /**
    * Add a section comment
    */
   protected addSectionComment(title: string): void {
@@ -196,10 +189,7 @@ export abstract class CodegenPlugin {
   /**
    * Generate documentation comment
    */
-  protected generateDocComment(
-    description: string | undefined,
-    indent: string = ''
-  ): void {
+  protected generateDocComment(description: string | undefined, indent: string = ''): void {
     // Override in subclasses for language-specific doc comments
     if (!description) return;
     for (const line of description.split(/\r?\n/)) {
@@ -208,44 +198,60 @@ export abstract class CodegenPlugin {
   }
 
   /**
-   * Check if a type is nullable
+   * Keep operation argument docs attached to the resolver declaration. Most
+   * target languages inline GraphQL arguments as method parameters instead of
+   * generating a separate Args type, so dropping these descriptions would
+   * also drop directive-owned deprecation guidance.
    */
-  protected isNullable(type: IRType): boolean {
-    return type.nullable;
+  protected operationFieldDescription(field: IROperationField): string | undefined {
+    const argumentDescriptions = field.args
+      .filter((arg) => arg.description)
+      .map((arg) => `Parameter ${arg.name}: ${arg.description!.replace(/\s+/g, ' ').trim()}`);
+    return [field.description, ...argumentDescriptions].filter((value): value is string => Boolean(value)).join('\n') || undefined;
   }
 
   /**
-   * Get the element type for a list type
+   * Resolve a schema field used by a custom generator path. Custom shapes must
+   * fail closed instead of silently dropping metadata when the schema drifts.
    */
-  protected getListElementType(type: IRType): IRType | undefined {
-    return type.kind === 'list' ? type.elementType : undefined;
+  protected requireField(container: { name: string; fields: IRField[] }, fieldName: string): IRField {
+    const field = container.fields.find((candidate) => candidate.name === fieldName);
+    if (!field) {
+      throw new Error(`${container.name}.${fieldName} is required by the custom generator.`);
+    }
+    return field;
   }
 
   /**
-   * Check if type is a scalar
+   * Resolve an entire custom shape and reject additive schema drift. A custom
+   * generator that silently omits a new field creates a phantom cross-language
+   * contract, so every custom shape must opt into its exact supported fields.
    */
-  protected isScalar(type: IRType): boolean {
-    return type.kind === 'scalar';
+  protected requireExactFields(container: { name: string; fields: IRField[] }, fieldNames: readonly string[]): IRField[] {
+    const fields = fieldNames.map((fieldName) => this.requireField(container, fieldName));
+    const expected = new Set(fieldNames);
+    const unexpected = container.fields.map((field) => field.name).filter((fieldName) => !expected.has(fieldName));
+    if (unexpected.length > 0 || container.fields.length !== fields.length) {
+      throw new Error(
+        `${container.name} custom generator fields drifted; expected ${fieldNames.join(', ')}, found ${container.fields.map((field) => field.name).join(', ')}.`,
+      );
+    }
+    return fields;
   }
 
   /**
-   * Check if type is an enum
+   * Resolve a custom input in canonical contract order. Language plugins own
+   * rendering only; the field set and order live in CUSTOM_INPUT_CONTRACTS.
    */
-  protected isEnum(type: IRType): boolean {
-    return type.kind === 'enum';
-  }
-
-  /**
-   * Check if type is a list
-   */
-  protected isList(type: IRType): boolean {
-    return type.kind === 'list';
-  }
-
-  /**
-   * Get the base type name for a named type
-   */
-  protected getTypeName(type: IRType): string | undefined {
-    return type.name;
+  protected requireCustomInputFields(irInput: IRInput): IRField[] {
+    const customTypeKind = irInput.customTypeKind;
+    if (!customTypeKind || irInput.name !== customTypeKind) {
+      throw new Error(`${irInput.name} custom generator requires a matching customTypeKind discriminator.`);
+    }
+    const contract = CUSTOM_INPUT_CONTRACTS[customTypeKind];
+    return this.requireExactFields(
+      irInput,
+      contract.map((field) => field.name),
+    );
   }
 }

@@ -170,14 +170,18 @@ function Introduction() {
           </p>
           <div className="intro-code-output">
             <pre>
-              {`packages/apple/Sources/Models/Types.swift    # Swift types
-packages/google/openiap/src/main/java/dev/hyo/openiap/Types.kt  # Kotlin types
-src/generated/types.ts                       # TypeScript types
-src/generated/types.dart                     # Dart types
-src/generated/types.gd                       # GDScript types
-libraries/maui-iap/src/OpenIap.Maui/Types.cs # C# / MAUI types`}
+              {`packages/gql/src/generated/types.ts    # TypeScript
+packages/gql/src/generated/Types.swift   # Swift
+packages/gql/src/generated/Types.kt      # Kotlin
+packages/gql/src/generated/types.dart    # Dart
+packages/gql/src/generated/types.gd      # GDScript
+packages/gql/src/generated/Types.cs      # C# / .NET`}
             </pre>
           </div>
+          <p className="intro-text">
+            The canonical sync manifest then distributes these files to Apple,
+            Google, React Native, Expo, Flutter, Godot, KMP, and MAUI.
+          </p>
 
           <h3>Native Modules</h3>
           <p className="intro-text">

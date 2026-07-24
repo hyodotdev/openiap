@@ -1,6 +1,6 @@
 // ============================================================================
 // AUTO-GENERATED TYPES — DO NOT EDIT DIRECTLY
-// Run `npm run generate` after updating any *.graphql schema file.
+// Refresh this file with the generated-types workflow documented for your checkout.
 // ============================================================================
 
 export interface ActiveSubscription {
@@ -30,9 +30,9 @@ export interface ActiveSubscription {
   transactionDate: number;
   transactionId: string;
   /**
-   * @deprecated iOS only - use daysUntilExpirationIOS instead.
    * Whether the subscription will expire soon (within 7 days).
    * Consider using daysUntilExpirationIOS for more precise control.
+   * @deprecated iOS only - use daysUntilExpirationIOS instead.
    */
   willExpireSoon?: (boolean | null);
 }
@@ -90,8 +90,8 @@ export interface AdvancedCommerceRefundIOS {
 /**
  * Alternative billing mode for Android
  * Controls which billing system is used
- * @deprecated Use enableBillingProgramAndroid with BillingProgramAndroid instead.
  * Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only.
+ * @deprecated Use enableBillingProgramAndroid with BillingProgramAndroid instead.
  */
 export type AlternativeBillingModeAndroid = 'none' | 'user-choice' | 'alternative-only';
 
@@ -327,8 +327,8 @@ export interface DiscountDisplayInfoAndroid {
 
 /**
  * Discount information returned from the store.
+ * @see https://openiap.dev/docs/types/subscription-offer
  * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
- * @see https://openiap.dev/docs/types#subscription-offer
  */
 export interface DiscountIOS {
   identifier: string;
@@ -343,12 +343,13 @@ export interface DiscountIOS {
 
 /**
  * Standardized one-time product discount offer.
- * Provides a unified interface for one-time purchase discounts across platforms.
+ * Provides a platform-neutral OpenIAP shape for Google Play one-time product
+ * purchase options and offers.
  *
- * Currently supported on Android (Google Play Billing 8.0+).
- * iOS does not support one-time purchase discounts in the same way.
+ * Currently populated only on Android (Google Play Billing 8.0+).
+ * iOS does not populate this type.
  *
- * @see https://openiap.dev/docs/features/discount
+ * @see https://openiap.dev/docs/types/discount-offer
  */
 export interface DiscountOffer {
   /** Currency code (ISO 4217, e.g., "USD") */
@@ -360,7 +361,7 @@ export interface DiscountOffer {
   discountAmountMicrosAndroid?: (string | null);
   /** Formatted display price string (e.g., "$4.99") */
   displayPrice: string;
-  /** [Android] Formatted discount amount string (e.g., "$5.00 OFF"). */
+  /** [Android] Formatted discount amount including its currency sign (e.g., "$5.00"). */
   formattedDiscountAmountAndroid?: (string | null);
   /**
    * [Android] Original full price in micro-units before discount.
@@ -406,7 +407,11 @@ export interface DiscountOffer {
   purchaseOptionIdAndroid?: (string | null);
   /** [Android] Rental details if this is a rental offer. */
   rentalDetailsAndroid?: (RentalDetailsAndroid | null);
-  /** Type of discount offer */
+  /**
+   * Offer category. DiscountOffer currently represents Android one-time product
+   * offers and is populated as OneTime. Introductory and Promotional are used by
+   * SubscriptionOffer.
+   */
   type: DiscountOfferType;
   /**
    * [Android] Valid time window for the offer.
@@ -417,8 +422,8 @@ export interface DiscountOffer {
 
 /**
  * iOS DiscountOffer (output type).
+ * @see https://openiap.dev/docs/types/subscription-offer
  * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
- * @see https://openiap.dev/docs/types#subscription-offer
  */
 export interface DiscountOfferIOS {
   /** Discount identifier */
@@ -484,8 +489,11 @@ export enum ErrorCode {
   PurchaseVerificationFinishFailed = 'purchase-verification-finish-failed',
   PurchaseVerificationFinished = 'purchase-verification-finished',
   QueryProduct = 'query-product',
+  /** @deprecated Use PurchaseVerificationFailed instead */
   ReceiptFailed = 'receipt-failed',
+  /** @deprecated Use PurchaseVerificationFinished instead */
   ReceiptFinished = 'receipt-finished',
+  /** @deprecated Use PurchaseVerificationFinishFailed instead */
   ReceiptFinishedFailed = 'receipt-finished-failed',
   RemoteError = 'remote-error',
   ServiceDisconnected = 'service-disconnected',
@@ -517,8 +525,8 @@ export type ExternalLinkTypeAndroid = 'unspecified' | 'link-to-digital-content-o
 
 /**
  * External offer availability result (Android)
- * @deprecated Use BillingProgramAvailabilityResultAndroid with isBillingProgramAvailableAsync instead
  * Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
+ * @deprecated Use BillingProgramAvailabilityResultAndroid with isBillingProgramAvailableAsync instead
  */
 export interface ExternalOfferAvailabilityResultAndroid {
   /** Whether external offers are available for the user */
@@ -527,8 +535,8 @@ export interface ExternalOfferAvailabilityResultAndroid {
 
 /**
  * External offer reporting details (Android)
- * @deprecated Use BillingProgramReportingDetailsAndroid with createBillingProgramReportingDetailsAsync instead
  * Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
+ * @deprecated Use BillingProgramReportingDetailsAndroid with createBillingProgramReportingDetailsAsync instead
  */
 export interface ExternalOfferReportingDetailsAndroid {
   /** External transaction token for reporting external offer transactions */
@@ -675,8 +683,8 @@ export interface InitConnectionConfig {
   /**
    * Alternative billing mode for Android
    * If not specified, defaults to NONE (standard Google Play billing)
-   * @deprecated Use enableBillingProgramAndroid instead.
    * Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only.
+   * @deprecated Use enableBillingProgramAndroid instead.
    */
   alternativeBillingModeAndroid?: (AlternativeBillingModeAndroid | null);
   /**
@@ -891,11 +899,8 @@ export interface Mutation {
   /**
    * Buy the currently promoted product.
    *
-   * @deprecated Use promotedProductListenerIOS to receive the productId,
-   * then call requestPurchase with that SKU instead. In StoreKit 2,
-   * promoted products can be purchased directly via the standard purchase flow.
    * See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
-   * @deprecated Use promotedProductListenerIOS + requestPurchase instead
+   * @deprecated Use promotedProductListenerIOS to receive the productId, then call requestPurchase with that SKU instead. In StoreKit 2, promoted products can be purchased directly via the standard purchase flow.
    */
   requestPurchaseOnPromotedProductIOS: Promise<boolean>;
   /**
@@ -969,8 +974,6 @@ export interface Mutation {
   verifyPurchaseWithProvider: Promise<VerifyPurchaseWithProviderResult>;
 }
 
-
-
 export type MutationAcknowledgePurchaseAndroidArgs = string;
 
 export type MutationBeginRefundRequestIosArgs = string;
@@ -982,14 +985,12 @@ export interface MutationCreateBillingProgramReportingDetailsAndroidArgs {
   program: BillingProgramAndroid;
 }
 
-
 export type MutationDeepLinkToSubscriptionsArgs = (DeepLinkOptions | null) | undefined;
 
 export interface MutationFinishTransactionArgs {
   isConsumable?: (boolean | null);
   purchase: PurchaseInput;
 }
-
 
 export type MutationInitConnectionArgs = (InitConnectionConfig | null) | undefined;
 
@@ -999,22 +1000,7 @@ export type MutationLaunchExternalLinkAndroidArgs = LaunchExternalLinkParamsAndr
 
 export type MutationPresentExternalPurchaseLinkIosArgs = string;
 
-export type MutationRequestPurchaseArgs =
-  | {
-      /** Per-platform purchase request props */
-      request: RequestPurchasePropsByPlatforms;
-      type: 'in-app';
-      /** Use alternative billing (Google Play alternative billing, Apple external purchase link) */
-      useAlternativeBilling?: boolean | null;
-    }
-  | {
-      /** Per-platform subscription request props */
-      request: RequestSubscriptionPropsByPlatforms;
-      type: 'subs';
-      /** Use alternative billing (Google Play alternative billing, Apple external purchase link) */
-      useAlternativeBilling?: boolean | null;
-    };
-
+export type MutationRequestPurchaseArgs = RequestPurchaseProps;
 
 export type MutationShowBillingProgramInformationDialogAndroidArgs = BillingProgramInformationDialogParamsAndroid;
 
@@ -1093,9 +1079,9 @@ export interface ProductAndroid extends ProductCommon {
   debugDescription?: (string | null);
   description: string;
   /**
-   * Standardized discount offers for one-time products.
-   * Cross-platform type with Android-specific fields using suffix.
-   * @see https://openiap.dev/docs/types#discount-offer
+   * Standardized Android one-time product purchase options and offers.
+   * Native metadata uses Android-suffixed fields.
+   * @see https://openiap.dev/docs/types/discount-offer
    */
   discountOffers?: (DiscountOffer[] | null);
   displayName?: (string | null);
@@ -1105,8 +1091,7 @@ export interface ProductAndroid extends ProductCommon {
   /**
    * One-time purchase offer details including discounts (Android)
    * Returns all eligible offers. Available in Google Play Billing Library 8.0+
-   * @deprecated Use discountOffers instead for cross-platform compatibility.
-   * @deprecated Use discountOffers instead
+   * @deprecated Use the standardized discountOffers field instead.
    */
   oneTimePurchaseOfferDetailsAndroid?: (ProductAndroidOneTimePurchaseOfferDetail[] | null);
   platform: 'android';
@@ -1119,15 +1104,12 @@ export interface ProductAndroid extends ProductCommon {
    * Available in Google Play Billing Library 8.0.0+
    */
   productStatusAndroid?: (ProductStatusAndroid | null);
-  /**
-   * @deprecated Use subscriptionOffers instead for cross-platform compatibility.
-   * @deprecated Use subscriptionOffers instead
-   */
+  /** @deprecated Use subscriptionOffers instead for cross-platform compatibility. */
   subscriptionOfferDetailsAndroid?: (ProductSubscriptionAndroidOfferDetails[] | null);
   /**
    * Standardized subscription offers.
    * Cross-platform type with Android-specific fields using suffix.
-   * @see https://openiap.dev/docs/types#subscription-offer
+   * @see https://openiap.dev/docs/types/subscription-offer
    */
   subscriptionOffers?: (SubscriptionOffer[] | null);
   title: string;
@@ -1137,8 +1119,8 @@ export interface ProductAndroid extends ProductCommon {
 /**
  * One-time purchase offer details (Android).
  * Available in Google Play Billing Library 8.0+
- * @deprecated Use the standardized DiscountOffer type instead for cross-platform compatibility.
- * @see https://openiap.dev/docs/types#discount-offer
+ * @see https://openiap.dev/docs/types/discount-offer
+ * @deprecated Use the standardized DiscountOffer type for Android one-time offers.
  */
 export interface ProductAndroidOneTimePurchaseOfferDetail {
   /**
@@ -1209,16 +1191,13 @@ export interface ProductIOS extends ProductCommon {
    * monthly subscriptions with a 12-month commitment.
    */
   pricingTermsIOS?: (SubscriptionPricingTermsIOS[] | null);
-  /**
-   * @deprecated Use subscriptionOffers instead for cross-platform compatibility.
-   * @deprecated Use subscriptionOffers instead
-   */
+  /** @deprecated Use subscriptionOffers instead for cross-platform compatibility. */
   subscriptionInfoIOS?: (SubscriptionInfoIOS | null);
   /**
    * Standardized subscription offers.
    * Cross-platform type with iOS-specific fields using suffix.
    * Note: iOS does not support one-time product discounts.
-   * @see https://openiap.dev/docs/types#subscription-offer
+   * @see https://openiap.dev/docs/types/subscription-offer
    */
   subscriptionOffers?: (SubscriptionOffer[] | null);
   title: string;
@@ -1250,9 +1229,8 @@ export interface ProductSubscriptionAndroid extends ProductCommon {
   debugDescription?: (string | null);
   description: string;
   /**
-   * Standardized discount offers for one-time products.
-   * Cross-platform type with Android-specific fields using suffix.
-   * @see https://openiap.dev/docs/types#discount-offer
+   * Nullable compatibility field. Google Play does not return one-time purchase
+   * offer details for subscription products; use subscriptionOffers below.
    */
   discountOffers?: (DiscountOffer[] | null);
   displayName?: (string | null);
@@ -1260,10 +1238,9 @@ export interface ProductSubscriptionAndroid extends ProductCommon {
   id: string;
   nameAndroid: string;
   /**
-   * One-time purchase offer details including discounts (Android)
-   * Returns all eligible offers. Available in Google Play Billing Library 8.0+
-   * @deprecated Use discountOffers instead for cross-platform compatibility.
-   * @deprecated Use discountOffers instead
+   * Legacy nullable compatibility field. Google Play does not populate one-time
+   * purchase offer details for subscription products.
+   * @deprecated One-time offers belong to ProductAndroid.discountOffers; subscriptions use subscriptionOffers.
    */
   oneTimePurchaseOfferDetailsAndroid?: (ProductAndroidOneTimePurchaseOfferDetail[] | null);
   platform: 'android';
@@ -1276,15 +1253,12 @@ export interface ProductSubscriptionAndroid extends ProductCommon {
    * Available in Google Play Billing Library 8.0.0+
    */
   productStatusAndroid?: (ProductStatusAndroid | null);
-  /**
-   * @deprecated Use subscriptionOffers instead for cross-platform compatibility.
-   * @deprecated Use subscriptionOffers instead
-   */
+  /** @deprecated Use subscriptionOffers instead for cross-platform compatibility. */
   subscriptionOfferDetailsAndroid: ProductSubscriptionAndroidOfferDetails[];
   /**
    * Standardized subscription offers.
    * Cross-platform type with Android-specific fields using suffix.
-   * @see https://openiap.dev/docs/types#subscription-offer
+   * @see https://openiap.dev/docs/types/subscription-offer
    */
   subscriptionOffers: SubscriptionOffer[];
   title: string;
@@ -1293,8 +1267,8 @@ export interface ProductSubscriptionAndroid extends ProductCommon {
 
 /**
  * Subscription offer details (Android).
+ * @see https://openiap.dev/docs/types/subscription-offer
  * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
- * @see https://openiap.dev/docs/types#subscription-offer
  */
 export interface ProductSubscriptionAndroidOfferDetails {
   basePlanId: string;
@@ -1314,10 +1288,7 @@ export interface ProductSubscriptionIOS extends ProductCommon {
   currency: string;
   debugDescription?: (string | null);
   description: string;
-  /**
-   * @deprecated Use subscriptionOffers instead for cross-platform compatibility.
-   * @deprecated Use subscriptionOffers instead
-   */
+  /** @deprecated Use subscriptionOffers instead for cross-platform compatibility. */
   discountsIOS?: (DiscountIOS[] | null);
   displayName?: (string | null);
   displayNameIOS: string;
@@ -1339,15 +1310,12 @@ export interface ProductSubscriptionIOS extends ProductCommon {
   pricingTermsIOS?: (SubscriptionPricingTermsIOS[] | null);
   /** App Store subscription group identifier for intro-offer eligibility checks. */
   subscriptionGroupIdIOS?: (string | null);
-  /**
-   * @deprecated Use subscriptionOffers for offer metadata and subscriptionGroupIdIOS for the App Store subscription group identifier.
-   * @deprecated Use subscriptionOffers for offers and subscriptionGroupIdIOS for group ID
-   */
+  /** @deprecated Use subscriptionOffers for offer metadata and subscriptionGroupIdIOS for the App Store subscription group identifier. */
   subscriptionInfoIOS?: (SubscriptionInfoIOS | null);
   /**
    * Standardized subscription offers.
    * Cross-platform type with iOS-specific fields using suffix.
-   * @see https://openiap.dev/docs/types#subscription-offer
+   * @see https://openiap.dev/docs/types/subscription-offer
    */
   subscriptionOffers?: (SubscriptionOffer[] | null);
   subscriptionPeriodNumberIOS?: (string | null);
@@ -1670,8 +1638,6 @@ export interface Query {
   validateReceiptIOS: Promise<VerifyPurchaseResultIOS>;
 }
 
-
-
 export type QueryCurrentEntitlementIosArgs = string;
 
 export type QueryFetchProductsArgs = ProductRequest;
@@ -1832,15 +1798,23 @@ export type RequestPurchaseProps =
   | {
       /** Per-platform purchase request props */
       request: RequestPurchasePropsByPlatforms;
+      /** Explicit purchase type hint (defaults to in-app) */
       type: 'in-app';
-      /** Use alternative billing (Google Play alternative billing, Apple external purchase link) */
+      /**
+       * This flag only logs debug info and has no effect on the purchase flow.
+       * @deprecated Use enableBillingProgramAndroid in InitConnectionConfig instead.
+       */
       useAlternativeBilling?: boolean | null;
     }
   | {
       /** Per-platform subscription request props */
       request: RequestSubscriptionPropsByPlatforms;
+      /** Explicit purchase type hint (defaults to in-app) */
       type: 'subs';
-      /** Use alternative billing (Google Play alternative billing, Apple external purchase link) */
+      /**
+       * This flag only logs debug info and has no effect on the purchase flow.
+       * @deprecated Use enableBillingProgramAndroid in InitConnectionConfig instead.
+       */
       useAlternativeBilling?: boolean | null;
     };
 
@@ -1892,7 +1866,7 @@ export interface RequestSubscriptionAndroidProps {
   purchaseToken?: (string | null);
   /**
    * Replacement mode for subscription changes
-   * @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+)
+   * @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+).
    */
   replacementMode?: (number | null);
   /** List of subscription SKUs */
@@ -2098,8 +2072,6 @@ export interface Subscription {
   userChoiceBillingAndroid: UserChoiceBillingDetails;
 }
 
-
-
 export type SubscriptionPurchaseUpdatedArgs = (PurchaseUpdatedListenerOptions | null) | undefined;
 
 export type SubscriptionBillingPlanTypeIOS = 'unknown' | 'monthly' | 'up-front';
@@ -2126,8 +2098,7 @@ export interface SubscriptionInfoIOS {
  * - iOS: Introductory offers, promotional offers with server-side signatures
  * - Android: Offer tokens with pricing phases
  *
- * @see https://openiap.dev/docs/types/ios#discount-offer
- * @see https://openiap.dev/docs/types/android#subscription-offer
+ * @see https://openiap.dev/docs/types/subscription-offer
  */
 export interface SubscriptionOffer {
   /**
@@ -2201,8 +2172,8 @@ export interface SubscriptionOffer {
 
 /**
  * iOS subscription offer details.
+ * @see https://openiap.dev/docs/types/subscription-offer
  * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
- * @see https://openiap.dev/docs/types#subscription-offer
  */
 export interface SubscriptionOfferIOS {
   displayPrice: string;
@@ -2516,44 +2487,6 @@ export interface WinBackOfferInputIOS {
   /** The win-back offer ID from App Store Connect */
   offerId: string;
 }
-// -- Query helper types (auto-generated)
-export type QueryArgsMap = {
-  canPresentExternalPurchaseNoticeIOS: never;
-  currentEntitlementIOS: QueryCurrentEntitlementIosArgs;
-  fetchProducts: QueryFetchProductsArgs;
-  getActiveSubscriptions: QueryGetActiveSubscriptionsArgs;
-  getAllTransactionsIOS: never;
-  getAppTransactionIOS: never;
-  getAvailablePurchases: QueryGetAvailablePurchasesArgs;
-  getBillingChoiceInfoAndroid: QueryGetBillingChoiceInfoAndroidArgs;
-  getExternalPurchaseCustomLinkTokenIOS: QueryGetExternalPurchaseCustomLinkTokenIosArgs;
-  getPendingTransactionsIOS: never;
-  getPromotedProductIOS: never;
-  getReceiptDataIOS: never;
-  getStorefront: never;
-  getStorefrontIOS: never;
-  getTransactionJwsIOS: QueryGetTransactionJwsIosArgs;
-  hasActiveSubscriptions: QueryHasActiveSubscriptionsArgs;
-  isEligibleForExternalPurchaseCustomLinkIOS: never;
-  isEligibleForIntroOfferIOS: QueryIsEligibleForIntroOfferIosArgs;
-  isTransactionVerifiedIOS: QueryIsTransactionVerifiedIosArgs;
-  latestTransactionIOS: QueryLatestTransactionIosArgs;
-  subscriptionStatusIOS: QuerySubscriptionStatusIosArgs;
-  validateReceiptIOS: QueryValidateReceiptIosArgs;
-};
-
-export type QueryField<K extends keyof Query> =
-  QueryArgsMap[K] extends never
-    ? () => NonNullable<Query[K]>
-    : undefined extends QueryArgsMap[K]
-      ? (args?: QueryArgsMap[K]) => NonNullable<Query[K]>
-      : (args: QueryArgsMap[K]) => NonNullable<Query[K]>;
-
-export type QueryFieldMap = {
-  [K in keyof Query]?: QueryField<K>;
-};
-// -- End query helper types
-
 // -- Mutation helper types (auto-generated)
 export type MutationArgsMap = {
   acknowledgePurchaseAndroid: MutationAcknowledgePurchaseAndroidArgs;
@@ -2598,6 +2531,44 @@ export type MutationFieldMap = {
   [K in keyof Mutation]?: MutationField<K>;
 };
 // -- End mutation helper types
+
+// -- Query helper types (auto-generated)
+export type QueryArgsMap = {
+  canPresentExternalPurchaseNoticeIOS: never;
+  currentEntitlementIOS: QueryCurrentEntitlementIosArgs;
+  fetchProducts: QueryFetchProductsArgs;
+  getActiveSubscriptions: QueryGetActiveSubscriptionsArgs;
+  getAllTransactionsIOS: never;
+  getAppTransactionIOS: never;
+  getAvailablePurchases: QueryGetAvailablePurchasesArgs;
+  getBillingChoiceInfoAndroid: QueryGetBillingChoiceInfoAndroidArgs;
+  getExternalPurchaseCustomLinkTokenIOS: QueryGetExternalPurchaseCustomLinkTokenIosArgs;
+  getPendingTransactionsIOS: never;
+  getPromotedProductIOS: never;
+  getReceiptDataIOS: never;
+  getStorefront: never;
+  getStorefrontIOS: never;
+  getTransactionJwsIOS: QueryGetTransactionJwsIosArgs;
+  hasActiveSubscriptions: QueryHasActiveSubscriptionsArgs;
+  isEligibleForExternalPurchaseCustomLinkIOS: never;
+  isEligibleForIntroOfferIOS: QueryIsEligibleForIntroOfferIosArgs;
+  isTransactionVerifiedIOS: QueryIsTransactionVerifiedIosArgs;
+  latestTransactionIOS: QueryLatestTransactionIosArgs;
+  subscriptionStatusIOS: QuerySubscriptionStatusIosArgs;
+  validateReceiptIOS: QueryValidateReceiptIosArgs;
+};
+
+export type QueryField<K extends keyof Query> =
+  QueryArgsMap[K] extends never
+    ? () => NonNullable<Query[K]>
+    : undefined extends QueryArgsMap[K]
+      ? (args?: QueryArgsMap[K]) => NonNullable<Query[K]>
+      : (args: QueryArgsMap[K]) => NonNullable<Query[K]>;
+
+export type QueryFieldMap = {
+  [K in keyof Query]?: QueryField<K>;
+};
+// -- End query helper types
 
 // -- Subscription helper types (auto-generated)
 export type SubscriptionArgsMap = {

@@ -9,12 +9,9 @@ enum ErrorCode {
   RemoteError
   NetworkError
   ServiceError
-  # @deprecated Use PurchaseVerificationFailed instead
-  ReceiptFailed
-  # @deprecated Use PurchaseVerificationFinished instead
-  ReceiptFinished
-  # @deprecated Use PurchaseVerificationFinishFailed instead
-  ReceiptFinishedFailed
+  ReceiptFailed @deprecated(reason: "Use PurchaseVerificationFailed instead")
+  ReceiptFinished @deprecated(reason: "Use PurchaseVerificationFinished instead")
+  ReceiptFinishedFailed @deprecated(reason: "Use PurchaseVerificationFinishFailed instead")
   PurchaseVerificationFailed
   PurchaseVerificationFinished
   PurchaseVerificationFinishFailed

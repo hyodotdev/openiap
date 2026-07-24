@@ -1,5 +1,14 @@
 # Root GraphQL types
 
+"""
+OpenIAP code-generation metadata for deprecating named schema types.
+Standard GraphQL @deprecated remains reserved for fields, arguments, input
+fields, and enum values.
+"""
+directive @openiapDeprecated(
+  reason: String!
+) on OBJECT | INTERFACE | UNION | ENUM | INPUT_OBJECT
+
 type Query {
   _placeholder: Boolean
 }

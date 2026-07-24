@@ -80,7 +80,7 @@ function SubscriptionProduct() {
           <code>debugDescription</code>,{' '}
           <code style={{ textDecoration: 'line-through' }}>platform</code> (
           <strong>Deprecated.</strong>)), plus the subscription-only override
-          and the cross-platform offer arrays below.
+          and standardized subscription offer array below.
         </p>
 
         <table className="doc-table">
@@ -116,21 +116,6 @@ function SubscriptionProduct() {
               <td>
                 Cross-platform offer list. Populated from StoreKit 2 promotional
                 offers on iOS and from Play Billing offer details on Android.
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <code>discountOffers</code>
-              </td>
-              <td>
-                <Link to="/docs/types/discount-offer">
-                  <code>DiscountOffer[]</code>
-                </Link>
-              </td>
-              <td>
-                Cross-platform discount list (introductory pricing, promo
-                codes). Always present in the schema; iOS-only stores may return
-                an empty array.
               </td>
             </tr>
           </tbody>
@@ -281,6 +266,14 @@ function SubscriptionProduct() {
                   ProductSubscriptionAndroid
                 </AnchorLink>
                 <p>Additional fields available on Android subscriptions:</p>
+                <p>
+                  The generated Android shape retains a nullable{' '}
+                  <code>discountOffers</code> compatibility field, but Google
+                  Play only returns one-time purchase offer details for{' '}
+                  <code>in-app</code> products. It is not subscription discount
+                  metadata; use <code>subscriptionOffers</code> for
+                  subscriptions.
+                </p>
                 <table className="doc-table">
                   <thead>
                     <tr>

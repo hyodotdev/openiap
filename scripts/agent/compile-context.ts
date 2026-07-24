@@ -18,6 +18,11 @@ import * as fs from "fs";
 import * as path from "path";
 import { glob } from "glob";
 import chalk from "chalk";
+import {
+  CONTEXT_OUTPUTS,
+  CONTEXT_SOURCES,
+  ROOT_LLMS_SYMLINKS,
+} from "./context-files.js";
 
 // ============================================================================
 // Configuration
@@ -30,15 +35,16 @@ const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 
 const CONFIG = {
   projectRoot: path.resolve(scriptDir, "../.."),
-  knowledgeRoot: path.resolve(scriptDir, "../../knowledge"),
-  outputDir: path.resolve(scriptDir, "../../knowledge/_claude-context"),
-  outputFile: "context.md",
+  knowledgeRoot: path.resolve(
+    scriptDir,
+    "../..",
+    CONTEXT_SOURCES.knowledgeRoot,
+  ),
+  outputPath: path.resolve(scriptDir, "../..", CONTEXT_OUTPUTS.context),
   // LLMs.txt output (for AI assistants on web)
-  llmsOutputDir: path.resolve(scriptDir, "../../packages/docs/public"),
-  rootLlmsSymlinks: {
-    "llms.txt": "packages/docs/public/llms.txt",
-    "llms-full.txt": "packages/docs/public/llms-full.txt",
-  },
+  llmsQuickPath: path.resolve(scriptDir, "../..", CONTEXT_OUTPUTS.llmsQuick),
+  llmsFullPath: path.resolve(scriptDir, "../..", CONTEXT_OUTPUTS.llmsFull),
+  rootLlmsSymlinks: ROOT_LLMS_SYMLINKS,
 };
 
 type LlmsVersions = {
@@ -75,34 +81,34 @@ function readRegexVersion(
 
 function readInstallationVersions(): LlmsVersions {
   const openiapVersions = readJsonFile<{ apple: string; google: string }>(
-    "openiap-versions.json",
+    CONTEXT_SOURCES.openiapVersions,
   );
 
   return {
     apple: openiapVersions.apple,
     google: openiapVersions.google,
     flutter: readRegexVersion(
-      "libraries/flutter_inapp_purchase/pubspec.yaml",
+      CONTEXT_SOURCES.flutterPackage,
       /^version:\s*([^\s]+)/m,
       "flutter_inapp_purchase",
     ),
     godot: readRegexVersion(
-      "libraries/godot-iap/addons/godot-iap/plugin.cfg",
+      CONTEXT_SOURCES.godotPackage,
       /^version="([^"]+)"$/m,
       "godot-iap",
     ),
     kmp: readRegexVersion(
-      "libraries/kmp-iap/gradle.properties",
+      CONTEXT_SOURCES.kmpPackage,
       /^libraryVersion=(.+)$/m,
       "kmp-iap",
     ),
     maui: readRegexVersion(
-      "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
+      CONTEXT_SOURCES.mauiPackage,
       /<PackageVersion>([^<]+)<\/PackageVersion>/,
       "OpenIap.Maui",
     ),
     mauiPackageId: readRegexVersion(
-      "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
+      CONTEXT_SOURCES.mauiPackage,
       /<PackageId>([^<]+)<\/PackageId>/,
       "OpenIap.Maui package id",
     ),
@@ -170,7 +176,7 @@ async function generateLlmsTxt(): Promise<{ quick: number; full: number }> {
 
   // Read all external API docs
   const externalFiles = await glob(
-    path.join(CONFIG.knowledgeRoot, "external/**/*.md"),
+    path.join(CONFIG.projectRoot, CONTEXT_SOURCES.externalKnowledgeGlob),
     { absolute: true },
   );
 
@@ -500,7 +506,7 @@ await ((QueryResolver)iap).FetchProductsAsync(new ProductRequest
   }
 
   const kitQuickReference = fs.readFileSync(
-    path.join(CONFIG.projectRoot, "packages/kit/public/llms.txt"),
+    path.join(CONFIG.projectRoot, CONTEXT_SOURCES.kitQuickReference),
     "utf-8",
   );
   fullContent += kitQuickReference.trimEnd();
@@ -753,6 +759,7 @@ interface PurchaseError {
 ### Android
 - acknowledgePurchaseAndroid() - Acknowledge purchase
 - consumePurchaseAndroid() - Consume for re-purchase
+- openRedeemOfferCodeAndroid() - Open Play offer-code redemption page
 
 ## Purchase Flow Summary
 
@@ -774,15 +781,9 @@ interface PurchaseError {
 
   // The website serves packages/docs/public. Root files are symlinks to avoid
   // drift between local repository readers and deployed docs.
-  fs.mkdirSync(CONFIG.llmsOutputDir, { recursive: true });
-  writeGeneratedFileIfChanged(
-    path.join(CONFIG.llmsOutputDir, "llms.txt"),
-    quickContent,
-  );
-  writeGeneratedFileIfChanged(
-    path.join(CONFIG.llmsOutputDir, "llms-full.txt"),
-    fullContent,
-  );
+  fs.mkdirSync(path.dirname(CONFIG.llmsQuickPath), { recursive: true });
+  writeGeneratedFileIfChanged(CONFIG.llmsQuickPath, quickContent);
+  writeGeneratedFileIfChanged(CONFIG.llmsFullPath, fullContent);
   for (const [filename, targetPath] of Object.entries(
     CONFIG.rootLlmsSymlinks,
   )) {
@@ -812,8 +813,8 @@ export async function compileContext(): Promise<void> {
   console.log(chalk.gray(`\nKnowledge Root: ${CONFIG.knowledgeRoot}`));
 
   // Ensure output directory exists
-  if (!fs.existsSync(CONFIG.outputDir)) {
-    fs.mkdirSync(CONFIG.outputDir, { recursive: true });
+  if (!fs.existsSync(path.dirname(CONFIG.outputPath))) {
+    fs.mkdirSync(path.dirname(CONFIG.outputPath), { recursive: true });
   }
 
   let output = `# OpenIAP Project Context
@@ -843,7 +844,7 @@ These rules define OpenIAP's development philosophy.
 `;
 
   const internalFiles = await glob(
-    path.join(CONFIG.knowledgeRoot, "internal/**/*.md"),
+    path.join(CONFIG.projectRoot, CONTEXT_SOURCES.internalKnowledgeGlob),
     { absolute: true },
   );
 
@@ -877,7 +878,7 @@ Use this documentation for API details, but **ALWAYS adapt patterns to match Int
 `;
 
   const externalFiles = await glob(
-    path.join(CONFIG.knowledgeRoot, "external/**/*.md"),
+    path.join(CONFIG.projectRoot, CONTEXT_SOURCES.externalKnowledgeGlob),
     { absolute: true },
   );
 
@@ -937,7 +938,7 @@ openiap/
   // Write Output
   // =========================================================================
 
-  const outputPath = path.join(CONFIG.outputDir, CONFIG.outputFile);
+  const outputPath = CONFIG.outputPath;
   writeGeneratedFileIfChanged(outputPath, output);
 
   // =========================================================================
@@ -965,14 +966,8 @@ openiap/
     chalk.white(`  llms-full.txt:  ${(llmsStats.full / 1024).toFixed(1)} KB`),
   );
   console.log(chalk.green(`\n  ✓ Output: ${outputPath}`));
-  console.log(
-    chalk.green(`  ✓ Output: ${path.join(CONFIG.llmsOutputDir, "llms.txt")}`),
-  );
-  console.log(
-    chalk.green(
-      `  ✓ Output: ${path.join(CONFIG.llmsOutputDir, "llms-full.txt")}`,
-    ),
-  );
+  console.log(chalk.green(`  ✓ Output: ${CONFIG.llmsQuickPath}`));
+  console.log(chalk.green(`  ✓ Output: ${CONFIG.llmsFullPath}`));
   for (const [filename, targetPath] of Object.entries(
     CONFIG.rootLlmsSymlinks,
   )) {

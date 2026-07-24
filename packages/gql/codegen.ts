@@ -1,30 +1,19 @@
 import { CodegenConfig } from '@graphql-codegen/cli';
+import { generatedFileHeader } from './codegen/core/generated-header.js';
+import { GRAPHQL_TO_TYPESCRIPT } from './codegen/core/utils.js';
+import { GENERATED_SYNC_MANIFEST, gqlPackageRelativePath } from './generated-sync-manifest.mjs';
+import { SCHEMA_FILE_NAMES } from './schema-files.mjs';
+
+const typescriptOutputPath = gqlPackageRelativePath(GENERATED_SYNC_MANIFEST.typescript.source);
 
 const config: CodegenConfig = {
-  schema: [
-    'src/schema.graphql',
-    'src/type.graphql',
-    'src/type-ios.graphql',
-    'src/type-android.graphql',
-    'src/api.graphql',
-    'src/api-ios.graphql',
-    'src/api-android.graphql',
-    'src/error.graphql',
-    'src/event.graphql',
-    'src/webhook.graphql',
-  ],
+  schema: SCHEMA_FILE_NAMES.map((fileName) => `src/${fileName}`),
   generates: {
-    'src/generated/types.ts': {
+    [typescriptOutputPath]: {
       plugins: [
         {
           add: {
-            content: [
-              '// ============================================================================',
-              '// AUTO-GENERATED TYPES — DO NOT EDIT DIRECTLY',
-              '// Run `npm run generate` after updating any *.graphql schema file.',
-              '// ============================================================================',
-              '',
-            ].join('\n'),
+            content: [...generatedFileHeader(), ''].join('\n'),
           },
         },
         'typescript',
@@ -34,13 +23,7 @@ const config: CodegenConfig = {
         maybeValue: 'T | null',
         inputMaybeValue: 'T | null',
         declarationKind: 'interface',
-        scalars: {
-          ID: { input: 'string', output: 'string' },
-          String: { input: 'string', output: 'string' },
-          Boolean: { input: 'boolean', output: 'boolean' },
-          Int: { input: 'number', output: 'number' },
-          Float: { input: 'number', output: 'number' },
-        },
+        scalars: GRAPHQL_TO_TYPESCRIPT,
       },
     },
   },

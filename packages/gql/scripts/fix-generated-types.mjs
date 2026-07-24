@@ -2,68 +2,128 @@ import { readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, resolve } from 'node:path';
 import { parse } from 'graphql';
+import { parseSchema } from '../codegen/core/parser.ts';
+import { transformSchema } from '../codegen/core/transformer.ts';
+import { GRAPHQL_TO_TYPESCRIPT, PLATFORM_TYPE_DEFAULTS, toKebabCase } from '../codegen/core/utils.ts';
+import { injectPropertyDeprecationJSDoc, injectTypeDeprecationJSDoc, operationArgsOwnerNames } from './generated-doc-comments.mjs';
+import { SCHEMA_FILE_NAMES } from '../schema-files.mjs';
+import { GENERATED_SYNC_MANIFEST, gqlPackageRelativePath } from '../generated-sync-manifest.mjs';
+import {
+  deriveMarkedUnionAlias,
+  operationFieldNames,
+  renderDocumentedTypeAlias,
+  requireExactInterfaceProperties,
+  requireExactTypeAlias,
+  requireGeneratedEnumContracts,
+  requireGeneratedMarkerEffects,
+  requireNoGraphqlCodegenScaffolding,
+  requireProductDiscriminantContracts,
+  requireTypeScriptInputContract,
+  resolveOperationArgsOwner,
+  rewriteRequestPurchaseTypeAliases,
+} from './custom-generated-guards.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
-const targetPath = resolve(__dirname, '../src/generated/types.ts');
-const schemaFiles = [
-  resolve(__dirname, '../src/api.graphql'),
-  resolve(__dirname, '../src/api-ios.graphql'),
-  resolve(__dirname, '../src/api-android.graphql'),
-  // webhook.graphql adds `webhookEventsSince` to the Query interface
-  // and marks it `# Future` so it gets the Promise<> wrap that all
-  // async query fields require. Without this entry, the marker would
-  // be silently ignored — caught in PR #123 (https://github.com/hyodotdev/openiap/pull/123) review.
-  resolve(__dirname, '../src/webhook.graphql'),
-];
-const schemaDefinitionFiles = [
-  '../src/schema.graphql',
-  '../src/type.graphql',
-  '../src/type-ios.graphql',
-  '../src/type-android.graphql',
-  '../src/api.graphql',
-  '../src/api-ios.graphql',
-  '../src/api-android.graphql',
-  '../src/error.graphql',
-  '../src/event.graphql',
-].map((relativePath) => resolve(__dirname, relativePath));
+const targetPath = resolve(__dirname, '..', gqlPackageRelativePath(GENERATED_SYNC_MANIFEST.typescript.source));
+const parsedSchema = parseSchema();
+const irSchema = transformSchema(parsedSchema);
+const schemaDefinitionSources = parsedSchema.sdlContents;
+const schemaDefinitionFiles = [...schemaDefinitionSources.keys()];
+const schemaMarkers = parsedSchema.markers;
+const schemaDeprecations = parsedSchema.deprecations;
+const ROOT_OPERATION_NAMES = Object.freeze(irSchema.operations.map(({ name }) => name));
+const typeScriptTypeFromIR = (type, scalarDirection = 'output') => {
+  if (type.kind === 'list') {
+    const element = typeScriptTypeFromIR(type.elementType, scalarDirection);
+    const nullableElement = type.elementType.nullable ? `${element} | null` : element;
+    return /[|&]/.test(nullableElement) ? `(${nullableElement})[]` : `${nullableElement}[]`;
+  }
+  if (type.kind === 'scalar') {
+    const scalar = type.name === 'Void' ? 'void' : GRAPHQL_TO_TYPESCRIPT[type.name]?.[scalarDirection];
+    if (!scalar) {
+      throw new Error(`Unsupported TypeScript scalar: ${type.name}`);
+    }
+    return scalar;
+  }
+  if (!type.name) {
+    throw new Error(`Unnamed ${type.kind} cannot appear in generated TypeScript.`);
+  }
+  return type.name;
+};
+const typeScriptArgumentTypeFromIR = (type) => {
+  const base = typeScriptTypeFromIR(type, 'input');
+  return type.nullable ? `(${base} | null)` : base;
+};
+const operationContracts = new Map(
+  irSchema.operations.flatMap((operation) =>
+    operation.fields.map((field) => [
+      `${operation.name}.${field.name}`,
+      {
+        rootName: operation.name,
+        fieldName: field.name,
+        arguments: field.args.map((argument) => ({
+          name: argument.name,
+          optional: argument.type.nullable,
+          type: typeScriptArgumentTypeFromIR(argument.type),
+        })),
+      },
+    ]),
+  ),
+);
+const operationFieldsByRoot = new Map(
+  irSchema.operations.map((operation) => [
+    operation.name,
+    operation.fields.map(({ name }) => name).filter((name) => name !== '_placeholder'),
+  ]),
+);
+// Preserve the published TypeScript order for webhook string unions. Those
+// unions historically use graphql-codegen's deterministic ordering rather
+// than SDL order; changing the shared schema inventory must not churn a public
+// generated contract. Deprecation and ownership scans still cover webhook.
+const enumOrderSchemaFiles = new Set(
+  SCHEMA_FILE_NAMES.filter((fileName) => fileName !== 'webhook.graphql').map((fileName) => resolve(__dirname, `../src/${fileName}`)),
+);
+const webhookEnumNames = new Set();
 
 let content = readFileSync(targetPath, 'utf8');
 
 // eslint-disable-next-line no-console
 console.log('[fix-generated-types] transforming output');
 
-const scalarReplacements = new Map([
-  ["Scalars['ID']['output']", 'string'],
-  ["Scalars['ID']['input']", 'string'],
-  ["Scalars['String']['output']", 'string'],
-  ["Scalars['String']['input']", 'string'],
-  ["Scalars['Boolean']['output']", 'boolean'],
-  ["Scalars['Boolean']['input']", 'boolean'],
-  ["Scalars['Int']['output']", 'number'],
-  ["Scalars['Int']['input']", 'number'],
-  ["Scalars['Float']['output']", 'number'],
-  ["Scalars['Float']['input']", 'number'],
-]);
+const scalarReplacements = new Map(
+  Object.entries(GRAPHQL_TO_TYPESCRIPT).flatMap(([name, { input, output }]) => [
+    [`Scalars['${name}']['output']`, output],
+    [`Scalars['${name}']['input']`, input],
+  ]),
+);
 
 for (const [from, to] of scalarReplacements) {
-  const pattern = new RegExp(from.replace(/[[\]]/g, (m) => `\\${m}`), 'g');
+  const pattern = new RegExp(
+    from.replace(/[[\]]/g, (m) => `\\${m}`),
+    'g',
+  );
   content = content.replace(pattern, to);
-}
-
-// Create simple type alias for PurchaseInput
-const purchaseInputPattern = /export interface PurchaseInput \{[\s\S]*?\}\n+/;
-if (purchaseInputPattern.test(content)) {
-  content = content.replace(purchaseInputPattern, 'export type PurchaseInput = Purchase;\n\n');
 }
 
 const iosTypeMap = new Map();
 const enumValueOrder = new Map();
+const typeDeprecations = schemaDeprecations.typeReasons;
+const operationArgDeprecations = schemaDeprecations.operationArguments.map(({ rootName, fieldName, argumentName, reason }) => ({
+  ownerNames: operationArgsOwnerNames(rootName, fieldName),
+  propertyName: argumentName,
+  reason,
+}));
 for (const schemaPath of schemaDefinitionFiles) {
-  const sdl = readFileSync(schemaPath, 'utf8');
+  const sdl = schemaDefinitionSources.get(schemaPath);
   const document = parse(sdl, { noLocation: true });
   for (const definition of document.definitions) {
-    if ('name' in definition && definition.name) {
+    if (definition.kind === 'EnumTypeDefinition' || definition.kind === 'EnumTypeExtension') {
+      if (!enumOrderSchemaFiles.has(schemaPath)) {
+        webhookEnumNames.add(definition.name.value);
+      }
+    }
+    if (enumOrderSchemaFiles.has(schemaPath) && 'name' in definition && definition.name) {
       if (definition.kind === 'EnumTypeDefinition' || definition.kind === 'EnumTypeExtension') {
         const name = definition.name.value;
         const existing = enumValueOrder.get(name) ?? [];
@@ -88,13 +148,7 @@ for (const [tsName, iosName] of iosTypeMap) {
 // Enforce IOS capitalization conventions for enum members and fields.
 content = content.replace(/\b([A-Za-z0-9]+)Ios\b/g, (_, prefix) => `${prefix}IOS`);
 content = content.replace(/\bIos\b/g, 'IOS');
-
-const toKebabCase = (value) => value
-  .replace(/([a-z0-9])([A-Z])/g, '$1-$2')
-  .replace(/([A-Z])([A-Z][a-z])/g, '$1-$2')
-  .replace(/[_\s]+/g, '-')
-  .replace(/-+/g, '-')
-  .toLowerCase();
+content = injectPropertyDeprecationJSDoc(content, operationArgDeprecations);
 
 // Convert enums (except ErrorCode) to union literal types with kebab-case values.
 content = content.replace(/export enum (\w+) \{[\s\S]*?\}\n?/g, (match) => {
@@ -112,15 +166,10 @@ content = content.replace(/export enum (\w+) \{[\s\S]*?\}\n?/g, (match) => {
   return `export type ${enumName} = ${literals.join(' | ')};\n`;
 });
 
-// Convert ErrorCode enum values to kebab-case
-content = content.replace(/export enum [^{]+\{[\s\S]*?\}/g, (block) => {
-  const enumName = block.match(/export enum (\w+)/)[1];
-  if (enumName === 'ErrorCode') {
-    return block.replace(/= '([^']+)'/g, (_, value) => `= '${toKebabCase(value)}'`);
-  } else {
-    return block.replace(/= '([^']+)'/g, (_, value) => `= '${toConstantCase(value)}'`);
-  }
-});
+// ErrorCode is the only enum left after the conversion above.
+content = content.replace(/export enum ErrorCode \{[\s\S]*?\}/, (block) =>
+  block.replace(/= '([^']+)'/g, (_, value) => `= '${toKebabCase(value)}'`),
+);
 
 const removeDefinition = (keyword) => {
   const pattern = new RegExp(`^export type ${keyword}[^]*?;\n`, 'm');
@@ -195,136 +244,45 @@ const convertArrays = () => {
 
 convertArrays();
 
-const toConstantCase = (value) => value
-  .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
-  .replace(/([A-Z])([A-Z][a-z])/g, '$1_$2')
-  .replace(/-/g, '_')
-  .toUpperCase();
-
-content = content.replace(/export enum [^{]+\{[\s\S]*?\}/g, (block) => {
-  const enumName = block.match(/export enum (\w+)/)[1];
-  if (enumName === 'ErrorCode') return block;
-  return block.replace(/= '([^']+)'/g, (_, value) => `= '${toConstantCase(value)}'`);
-});
-
 // Convert platform/type fields to literals and introduce a shared base for products
 // This keeps ProductCommon android-focused while reusing field definitions
-const productTypeMapping = {
-  ProductIOS: { platform: "'ios'", type: "'in-app'" },
-  ProductAndroid: { platform: "'android'", type: "'in-app'" },
-  ProductSubscriptionIOS: { platform: "'ios'", type: "'subs'" },
-  ProductSubscriptionAndroid: { platform: "'android'", type: "'subs'" },
-};
-
-for (const [typeName, literals] of Object.entries(productTypeMapping)) {
+for (const [typeName, defaults] of Object.entries(PLATFORM_TYPE_DEFAULTS)) {
+  const literals = {
+    platform: `'${defaults.platform}'`,
+    type: `'${defaults.type}'`,
+  };
   const interfacePattern = new RegExp(
-    `(export interface ${typeName} extends ProductCommon \\{[\\s\\S]*?)` +
-    `(platform: [^;]+;)` +
-    `([\\s\\S]*?)` +
-    `(type: [^;]+;)`,
-    'g'
+    `(export interface ${typeName} extends ProductCommon \\{[\\s\\S]*?)` + `(platform: [^;]+;)` + `([\\s\\S]*?)` + `(type: [^;]+;)`,
+    'g',
   );
 
-  content = content.replace(interfacePattern, (match, before, platformField, middle, typeField) => {
+  content = content.replace(interfacePattern, (_match, before, _platformField, middle) => {
     return `${before}platform: ${literals.platform};${middle}type: ${literals.type};`;
   });
 }
 
 // Normalize ProductCommon to a single definition with literal union platform/type
+const productDefaultUnion = (key) =>
+  [...new Set(Object.values(PLATFORM_TYPE_DEFAULTS).map((defaults) => defaults[key]))]
+    .sort()
+    .map((value) => `'${value}'`)
+    .join(' | ');
+const productPlatformUnion = productDefaultUnion('platform');
+const productTypeUnion = productDefaultUnion('type');
 const productCommonMatch = content.match(/export interface ProductCommon \{([\s\S]*?)\}\n/);
 if (productCommonMatch) {
   const body = productCommonMatch[1]
-    .replace(/platform: 'android';/, "platform: 'android' | 'ios';")
-    .replace(/platform: IapPlatform;/, "platform: 'android' | 'ios';")
-    .replace(/type: 'in-app' \| 'subs';/, "type: 'in-app' | 'subs';")
-    .replace(/type: ProductType;/, "type: 'in-app' | 'subs';");
+    .replace(/platform: 'android';/, `platform: ${productPlatformUnion};`)
+    .replace(/platform: IapPlatform;/, `platform: ${productPlatformUnion};`)
+    .replace(/type: 'in-app' \| 'subs';/, `type: ${productTypeUnion};`)
+    .replace(/type: ProductType;/, `type: ${productTypeUnion};`);
   content = content.replace(productCommonMatch[0], `export interface ProductCommon {${body}} \n`);
 }
 
-// Collapse ProductCommonBase/ProductCommon into a single ProductCommon interface
-const productCommonTypePattern = /export type ProductCommon = ProductCommonBase & \{[\s\S]*?platform: 'android';[\s\S]*?type: 'in-app' \| 'subs';[\s\S]*?\};\s*\n/;
-const productCommonBasePattern = /export type ProductCommonBase = \{([\s\S]*?)\};\s*\n/;
-const productCommonBaseMatch = content.match(productCommonBasePattern);
-if (productCommonTypePattern.test(content)) {
-  const baseBody = (productCommonBaseMatch ? productCommonBaseMatch[1] : `
-  currency: string;
-  debugDescription?: (string | null);
-  description: string;
-  displayName?: (string | null);
-  displayPrice: string;
-  id: string;
-  price?: (number | null);
-  title: string;
-`).trimEnd();
-  const merged = [
-    'export interface ProductCommon {',
-    baseBody,
-    "  platform: 'android' | 'ios';",
-    "  type: 'in-app' | 'subs';",
-    '}',
-    '',
-  ].join('\n');
-  content = content.replace(productCommonTypePattern, merged);
-  if (productCommonBaseMatch) {
-    content = content.replace(productCommonBasePattern, '');
-  }
-}
+const purchaseInput = requireTypeScriptInputContract(content, 'PurchaseInput');
+content = [content.slice(0, purchaseInput.start), 'export type PurchaseInput = Purchase;\n\n', content.slice(purchaseInput.end)].join('');
 
-// Drop any generated ProductCommonIOS types
-content = content.replace(/export type ProductCommonIOS = [\s\S]*?\};\s*\n/g, '');
-content = content.replace(/export interface ProductCommonIOS \{[\s\S]*?\}\s*\n/g, '');
-
-// Ensure product interfaces extend ProductCommon directly
-content = content.replace(
-  /export interface ProductIOS extends ProductCommonIOS \{/g,
-  'export interface ProductIOS extends ProductCommon {'
-);
-content = content.replace(
-  /export interface ProductSubscriptionIOS extends ProductCommonIOS \{/g,
-  'export interface ProductSubscriptionIOS extends ProductCommon {'
-);
-
-content = content.replace(
-  /export interface RequestPurchaseProps \{[\s\S]*?\}\n\n/,
-  [
-    'export type RequestPurchaseProps =',
-    '  | {',
-    '      /** Per-platform purchase request props */',
-    '      request: RequestPurchasePropsByPlatforms;',
-    "      type: 'in-app';",
-    '      /** Use alternative billing (Google Play alternative billing, Apple external purchase link) */',
-    '      useAlternativeBilling?: boolean | null;',
-    '    }',
-    '  | {',
-    '      /** Per-platform subscription request props */',
-    '      request: RequestSubscriptionPropsByPlatforms;',
-    "      type: 'subs';",
-    '      /** Use alternative billing (Google Play alternative billing, Apple external purchase link) */',
-    '      useAlternativeBilling?: boolean | null;',
-    '    };\n\n',
-  ].join('\n'),
-);
-
-content = content.replace(
-  /export interface MutationRequestPurchaseArgs \{[\s\S]*?\}\n\n/,
-  [
-    'export type MutationRequestPurchaseArgs =',
-    '  | {',
-    '      /** Per-platform purchase request props */',
-    '      request: RequestPurchasePropsByPlatforms;',
-    "      type: 'in-app';",
-    '      /** Use alternative billing (Google Play alternative billing, Apple external purchase link) */',
-    '      useAlternativeBilling?: boolean | null;',
-    '    }',
-    '  | {',
-    '      /** Per-platform subscription request props */',
-    '      request: RequestSubscriptionPropsByPlatforms;',
-    "      type: 'subs';",
-    '      /** Use alternative billing (Google Play alternative billing, Apple external purchase link) */',
-    '      useAlternativeBilling?: boolean | null;',
-    '    };\n\n',
-  ].join('\n'),
-);
+content = rewriteRequestPurchaseTypeAliases(content);
 
 const needsParentheses = (value) => {
   const trimmed = value.trim();
@@ -343,42 +301,7 @@ const needsParentheses = (value) => {
   return /[|&]/.test(trimmed);
 };
 
-const unionWrapperNames = new Set();
-for (const file of schemaDefinitionFiles) {
-  let expectTypeName = false;
-  for (const line of readFileSync(file, 'utf8').split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (trimmed.startsWith('#') && trimmed.toLowerCase().includes('=> union')) {
-      expectTypeName = true;
-      continue;
-    }
-    if (expectTypeName) {
-      if (trimmed.length === 0) {
-        continue;
-      }
-      if (trimmed.startsWith('#')) {
-        continue;
-      }
-      const typeMatch = trimmed.match(/^type\s+([A-Za-z0-9_]+)/);
-      if (typeMatch) {
-        unionWrapperNames.add(typeMatch[1]);
-      }
-      expectTypeName = false;
-    }
-  }
-}
-
-// Extend FetchProductsResult to support mixed arrays for 'all' type
-// MUST be done BEFORE interface parsing to ensure optionalUnionInterfaces map has the correct union
-// The generated union `Product[] | ProductSubscription[] | null` doesn't support mixed arrays
-// Add `(Product | ProductSubscription)[]` to the union to enable type narrowing
-const fetchProductsResultPattern = /export type FetchProductsResult = Product\[\] \| ProductSubscription\[\] \| null;/;
-if (fetchProductsResultPattern.test(content)) {
-  content = content.replace(
-    fetchProductsResultPattern,
-    'export type FetchProductsResult = Product[] | ProductSubscription[] | (Product | ProductSubscription)[] | null;'
-  );
-}
+const unionWrapperNames = schemaMarkers.unionWrappers;
 
 const singleFieldInterfaceTypes = new Map();
 const optionalUnionInterfaces = new Map();
@@ -386,7 +309,7 @@ const interfacePattern = /export interface (\w+) \{\n([\s\S]*?)\n\}\n/g;
 let interfaceMatch;
 while ((interfaceMatch = interfacePattern.exec(content)) !== null) {
   const [, name, body] = interfaceMatch;
-  if (['Query', 'Mutation', 'Subscription'].includes(name)) {
+  if (ROOT_OPERATION_NAMES.includes(name)) {
     continue;
   }
   const rawLines = body.split(/\r?\n/);
@@ -395,9 +318,12 @@ while ((interfaceMatch = interfacePattern.exec(content)) !== null) {
     .filter((line) => line.length > 0 && !line.startsWith('/**') && !line.startsWith('*'));
   const propertyLines = fieldLines.filter((line) => /^[A-Za-z0-9_]+\??:/.test(line));
 
-  const propertyMatches = propertyLines
-    .map((line) => line.match(/^([A-Za-z0-9_]+)(\??): ([^;]+);$/))
-    .filter(Boolean);
+  const propertyMatches = propertyLines.map((line) => line.match(/^([A-Za-z0-9_]+)(\??): ([^;]+);$/)).filter(Boolean);
+
+  if (unionWrapperNames.has(name)) {
+    optionalUnionInterfaces.set(name, deriveMarkedUnionAlias(content, name));
+    continue;
+  }
 
   if (propertyMatches.length === 0) {
     continue;
@@ -408,182 +334,91 @@ while ((interfaceMatch = interfacePattern.exec(content)) !== null) {
     if (!shouldAlias) {
       continue;
     }
-    const [, , optionalMarker, rawType] = propertyMatches[0];
+    const [propertyMatch] = propertyMatches;
+    const [, propertyName, optionalMarker, rawType] = propertyMatch;
+    const declaration = requireExactInterfaceProperties(content, name, [propertyName]);
     const grouped = needsParentheses(rawType.trim()) ? `(${rawType.trim()})` : rawType.trim();
-    let finalType = optionalMarker === '?'
-      ? `${grouped} | undefined`
-      : rawType.trim();
+    let finalType = optionalMarker === '?' ? `${grouped} | undefined` : rawType.trim();
     if (name === 'VoidResult') {
       finalType = 'void';
     }
-    singleFieldInterfaceTypes.set(name, finalType);
+    const propertyJSDoc = declaration.propertyJSDoc(propertyName, false);
+    singleFieldInterfaceTypes.set(name, {
+      declaration: finalType,
+      jsdoc: propertyJSDoc,
+      source: declaration.source,
+      type: finalType,
+    });
     continue;
-  }
-
-  const allOptional = propertyMatches.every((match) => match[2] === '?');
-  if (!allOptional) {
-    continue;
-  }
-
-  if (!unionWrapperNames.has(name)) {
-    continue;
-  }
-
-  const stripParens = (value) => {
-    let result = value.trim();
-    const isWrapped = (str) => {
-      if (!str.startsWith('(') || !str.endsWith(')')) return false;
-      let depth = 0;
-      for (let i = 0; i < str.length; i += 1) {
-        const ch = str[i];
-        if (ch === '(') depth += 1;
-        else if (ch === ')') depth -= 1;
-        if (depth === 0 && i < str.length - 1) {
-          return false;
-        }
-      }
-      return depth === 0;
-    };
-
-    while (isWrapped(result)) {
-      result = result.slice(1, -1).trim();
-    }
-    return result;
-  };
-
-  const splitUnion = (value) => {
-    const tokens = [];
-    let current = '';
-    let depth = 0;
-    for (let i = 0; i < value.length; i += 1) {
-      const ch = value[i];
-      if (ch === '<' || ch === '(') {
-        depth += 1;
-      } else if (ch === '>' || ch === ')') {
-        depth -= 1;
-      }
-      if (ch === '|' && depth === 0) {
-        tokens.push(current.trim());
-        current = '';
-        continue;
-      }
-      current += ch;
-    }
-    if (current.trim()) {
-      tokens.push(current.trim());
-    }
-    return tokens;
-  };
-
-  const unionTypes = [];
-  const seenTypes = new Set();
-  let hasNull = false;
-
-  for (const match of propertyMatches) {
-    const cleaned = stripParens(match[3]);
-    for (const token of splitUnion(cleaned)) {
-      const normalized = token.trim();
-      if (!normalized || normalized === 'undefined') continue;
-      if (normalized === 'null') {
-        hasNull = true;
-        continue;
-      }
-      if (seenTypes.has(normalized)) continue;
-      seenTypes.add(normalized);
-      unionTypes.push(normalized);
-    }
-  }
-
-  if (hasNull) {
-    unionTypes.push('null');
-  }
-
-  if (unionTypes.length > 0) {
-    optionalUnionInterfaces.set(name, unionTypes.join(' | '));
   }
 }
 
-
-
-
-const rootNames = ['Query', 'Mutation', 'Subscription'];
-for (const root of rootNames) {
+for (const root of ROOT_OPERATION_NAMES) {
   const pattern = new RegExp(`export interface ${root} \\{\\n([\\s\\S]*?)\\n\\}(\\n*)`);
-  content = content.replace(pattern, (match, body, trailingNewlines) => {
+  content = content.replace(pattern, (_match, body) => {
     const lines = body.split(/\r?\n/);
-    const transformed = lines.map((line) => {
-      const fieldMatch = line.match(/^(\s*)([A-Za-z0-9_]+)(\??):\s*([^;]+);$/);
-      if (!fieldMatch) {
-        return line;
-      }
-      const [, indent, fieldName, optionalMarker, typeSegmentRaw] = fieldMatch;
-      let typeSegment = typeSegmentRaw;
-      if (!typeSegment.includes('Promise<')) {
-        return line;
-      }
-      let updated = false;
-      for (const [interfaceName, replacementType] of singleFieldInterfaceTypes) {
-        const namePattern = new RegExp(`\\b${interfaceName}\\b`);
-        if (!namePattern.test(typeSegment)) {
-          continue;
+    const transformed = lines
+      .map((line) => {
+        const fieldMatch = line.match(/^(\s*)([A-Za-z0-9_]+)(\??):\s*([^;]+);$/);
+        if (!fieldMatch) {
+          return line;
         }
-        const replacePattern = new RegExp(`\\b${interfaceName}\\b`, 'g');
-        typeSegment = typeSegment.replace(replacePattern, replacementType);
-        updated = true;
-      }
-      for (const [interfaceName, unionType] of optionalUnionInterfaces) {
-        const namePattern = new RegExp(`\\b${interfaceName}\\b`);
-        if (!namePattern.test(typeSegment)) {
-          continue;
+        const [, indent, fieldName, optionalMarker, typeSegmentRaw] = fieldMatch;
+        let typeSegment = typeSegmentRaw;
+        if (!typeSegment.includes('Promise<')) {
+          return line;
         }
-        const replacePattern = new RegExp(`\\b${interfaceName}\\b`, 'g');
-        typeSegment = typeSegment.replace(replacePattern, `(${unionType})`);
-        updated = true;
-      }
-      if (!updated) {
-        return line;
-      }
-      return `${indent}${fieldName}${optionalMarker}: ${typeSegment};`;
-    }).join('\n');
-    return `export interface ${root} {\n${transformed}\n}\n${trailingNewlines}`;
+        let updated = false;
+        for (const [interfaceName, replacement] of singleFieldInterfaceTypes) {
+          const namePattern = new RegExp(`\\b${interfaceName}\\b`);
+          if (!namePattern.test(typeSegment)) {
+            continue;
+          }
+          const replacePattern = new RegExp(`\\b${interfaceName}\\b`, 'g');
+          typeSegment = typeSegment.replace(replacePattern, replacement.type);
+          updated = true;
+        }
+        for (const [interfaceName, union] of optionalUnionInterfaces) {
+          const namePattern = new RegExp(`\\b${interfaceName}\\b`);
+          if (!namePattern.test(typeSegment)) {
+            continue;
+          }
+          const replacePattern = new RegExp(`\\b${interfaceName}\\b`, 'g');
+          typeSegment = typeSegment.replace(replacePattern, `(${union.type})`);
+          updated = true;
+        }
+        if (!updated) {
+          return line;
+        }
+        return `${indent}${fieldName}${optionalMarker}: ${typeSegment};`;
+      })
+      .join('\n');
+    return `export interface ${root} {\n${transformed}\n}\n\n`;
   });
 }
 
-for (const [name, aliasType] of singleFieldInterfaceTypes) {
-  const pattern = new RegExp(`export interface ${name} \\{[\\s\\S]*?\\}\n+`, 'g');
-  content = content.replace(pattern, `export type ${name} = ${aliasType};\n\n`);
-}
-
-for (const [name, unionType] of optionalUnionInterfaces) {
-  const pattern = new RegExp(`export interface ${name} \\{[\\s\\S]*?\\}\n+`, 'g');
-  content = content.replace(pattern, `export type ${name} = ${unionType};\n\n`);
-}
-
-const futureFields = new Set();
-for (const file of schemaFiles) {
-  let previousWasMarker = false;
-  for (const line of readFileSync(file, 'utf8').split(/\r?\n/)) {
-    const trimmed = line.trim();
-    if (trimmed.startsWith('#') && trimmed.toLowerCase().includes('future')) {
-      previousWasMarker = true;
-      continue;
-    }
-    if (previousWasMarker) {
-      const match = trimmed.match(/^([A-Za-z0-9_]+)\s*\(/) || trimmed.match(/^([A-Za-z0-9_]+)\s*:/);
-      if (match) {
-        futureFields.add(match[1]);
-      }
-      previousWasMarker = false;
-    }
+for (const [name, alias] of singleFieldInterfaceTypes) {
+  const occurrences = content.split(alias.source).length - 1;
+  if (occurrences !== 1) {
+    throw new Error(`${name} generated interface replacement must match exactly once; found ${occurrences}.`);
   }
+  content = content.replace(alias.source, `${renderDocumentedTypeAlias(name, alias.declaration, alias.jsdoc)}\n\n`);
+}
+
+for (const [name, union] of optionalUnionInterfaces) {
+  const occurrences = content.split(union.source).length - 1;
+  if (occurrences !== 1) {
+    throw new Error(`${name} generated interface replacement must match exactly once; found ${occurrences}.`);
+  }
+  content = content.replace(union.source, `${renderDocumentedTypeAlias(name, union.declaration)}\n\n`);
 }
 
 const wrapReturns = (interfaceName) => {
   const pattern = new RegExp(`export interface ${interfaceName} \\\{\\n([\\s\\S]*?)\\n\\}`, 'g');
-  content = content.replace(pattern, (match, body) => {
+  content = content.replace(pattern, (_match, body) => {
     // Use multiline mode and [^;\n]+ to prevent matching across lines
     const transformed = body.replace(/^(\s*)([A-Za-z0-9_]+)(\??: )(?!Promise<)([^;\n]+);$/gm, (line, indent, name, sep, type) => {
-      if (!futureFields.has(name)) {
+      if (!schemaMarkers.futureFields.has(`${interfaceName}.${name}`)) {
         return line;
       }
       return `${indent}${name}${sep}Promise<${type}>;`;
@@ -595,30 +430,20 @@ const wrapReturns = (interfaceName) => {
 wrapReturns('Query');
 wrapReturns('Mutation');
 
-for (const [name, aliasType] of singleFieldInterfaceTypes) {
-  content = content.replaceAll(`Promise<${name}>`, `Promise<${aliasType}>`);
+for (const [name, alias] of singleFieldInterfaceTypes) {
+  content = content.replaceAll(`Promise<${name}>`, `Promise<${alias.type}>`);
 }
 
-for (const [name, unionType] of optionalUnionInterfaces) {
-  content = content.replaceAll(`Promise<${name}>`, `Promise<(${unionType})>`);
+for (const [name, union] of optionalUnionInterfaces) {
+  content = content.replaceAll(`Promise<${name}>`, `Promise<(${union.type})>`);
   const nullableToken = `Promise<(${name} | null)>`;
   if (content.includes(nullableToken)) {
-    const unionWithNull = unionType.includes('null') ? unionType : `${unionType} | null`;
+    const unionWithNull = union.type.includes('null') ? union.type : `${union.type} | null`;
     content = content.replaceAll(nullableToken, `Promise<(${unionWithNull})>`);
   }
 }
 
-// Fix Query interface to use FetchProductsResult type alias instead of inline union
-// This ensures the Query['fetchProducts'] return type matches our implementation
-// Must be done AFTER singleFieldInterfaceTypes replacement expands the type
-content = content.replace(
-  /fetchProducts: Promise<\(Product\[\] \| ProductSubscription\[\] \| \(Product \| ProductSubscription\)\[\] \| null\)>/g,
-  'fetchProducts: Promise<FetchProductsResult>'
-);
-
 content = content.replace(/^\s*_placeholder\??: [^;]+;\n/gm, '');
-
-const ROOT_DEFINITIONS = ['Query', 'Mutation', 'Subscription'];
 
 const helperMarkers = (root) => ({
   start: `// -- ${root} helper types (auto-generated)`,
@@ -636,36 +461,35 @@ const removeRootHelpers = (root) => {
   content = content.slice(0, startIdx) + content.slice(finalEnd);
 };
 
-const findArgsType = (root, pascalFieldName) => {
-  const prefixes = new Set([
-    `${root}${pascalFieldName}Args`,
-    `${root}${pascalFieldName.replace(/IOS/g, 'Ios')}Args`,
-    `${root}${pascalFieldName.replace(/Ios/g, 'IOS')}Args`,
-  ]);
-  for (const name of prefixes) {
-    if (
-      content.includes(`export interface ${name} {`) ||
-      content.includes(`export type ${name} =`)
-    ) {
-      return name;
-    }
+const findArgsType = (root, fieldName) => {
+  const operationPath = `${root}.${fieldName}`;
+  const contract = operationContracts.get(operationPath);
+  if (!contract) {
+    throw new Error(`${operationPath} exists in generated TypeScript but not in the canonical SDL operation root.`);
   }
-  return 'never';
+  const argsType = resolveOperationArgsOwner(content, {
+    rootName: root,
+    fieldName,
+    ownerNames: operationArgsOwnerNames(root, fieldName),
+    argumentCount: contract.arguments.length,
+    argumentContracts: contract.arguments,
+  });
+  const allOptional = contract.arguments.length > 0 && contract.arguments.every(({ optional }) => optional);
+  return {
+    argsType,
+    mapType: contract.arguments.length > 1 && allOptional ? `${argsType} | undefined` : argsType,
+  };
 };
 
 const buildRootHelpers = (root) => {
-  const rootMatch = content.match(new RegExp(`export interface ${root} {\n([\\s\\S]*?)\n}\n`));
-  if (!rootMatch) return '';
-  const body = rootMatch[1];
-  const fieldPattern = /^\s*([A-Za-z0-9_]+)\??:\s*[^;]+;$/gm;
-  const entries = [];
-  let fieldMatch;
-  while ((fieldMatch = fieldPattern.exec(body)) !== null) {
-    const fieldName = fieldMatch[1];
-    const pascal = fieldName[0].toUpperCase() + fieldName.slice(1);
-    const argsType = findArgsType(root, pascal);
-    entries.push({ fieldName, argsType });
+  const expectedFields = operationFieldsByRoot.get(root);
+  if (!expectedFields) {
+    throw new Error(`${root} is missing from the canonical IR operation roots.`);
   }
+  const entries = operationFieldNames(content, root, expectedFields).map((fieldName) => {
+    const { mapType } = findArgsType(root, fieldName);
+    return { fieldName, mapType };
+  });
   if (entries.length === 0) return '';
   const { start, end } = helperMarkers(root);
   const mapName = `${root}ArgsMap`;
@@ -674,8 +498,8 @@ const buildRootHelpers = (root) => {
   const lines = [];
   lines.push(start);
   lines.push(`export type ${mapName} = {`);
-  for (const { fieldName, argsType } of entries) {
-    lines.push(`  ${fieldName}: ${argsType};`);
+  for (const { fieldName, mapType } of entries) {
+    lines.push(`  ${fieldName}: ${mapType};`);
   }
   lines.push('};');
   lines.push('');
@@ -695,7 +519,7 @@ const buildRootHelpers = (root) => {
 };
 
 const helperBlocks = [];
-for (const root of ROOT_DEFINITIONS) {
+for (const root of ROOT_OPERATION_NAMES) {
   removeRootHelpers(root);
   const block = buildRootHelpers(root);
   if (block) helperBlocks.push(block);
@@ -707,5 +531,36 @@ if (helperBlocks.length > 0) {
   }
   content += helperBlocks.join('\n');
 }
+
+content = injectTypeDeprecationJSDoc(content, typeDeprecations);
+content = content.replace(/(?:\r?\n){3,}(?=export )/g, '\n\n');
+const enumContracts = new Map(
+  irSchema.enums.map((irEnum) => {
+    const values = irEnum.values.map(({ rawValue }) => rawValue);
+    return [irEnum.name, irEnum.name === 'ErrorCode' || webhookEnumNames.has(irEnum.name) ? values.sort() : values];
+  }),
+);
+requireGeneratedEnumContracts(content, enumContracts);
+requireExactTypeAlias(content, 'VoidResult', 'void');
+requireProductDiscriminantContracts(content);
+
+const unionContracts = new Map(
+  irSchema.objects
+    .filter((object) => object.isResultUnion)
+    .map((object) => {
+      const entries = object.resultUnionEntries ?? [];
+      const members = [];
+      let hasNull = false;
+      for (const entry of entries) {
+        const member = typeScriptTypeFromIR(entry.type);
+        if (!members.includes(member)) members.push(member);
+        hasNull ||= entry.type.nullable;
+      }
+      if (hasNull) members.push('null');
+      return [object.name, members];
+    }),
+);
+requireGeneratedMarkerEffects(content, schemaMarkers, unionContracts);
+requireNoGraphqlCodegenScaffolding(content);
 
 writeFileSync(targetPath, content);

@@ -1,9 +1,23 @@
 #!/usr/bin/env node
+import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { GENERATED_SYNC_MANIFEST } from "../packages/gql/generated-sync-manifest.mjs";
+import { collectGeneratedSyncDrift } from "../packages/gql/scripts/verify-generated-sync.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+execFileSync(
+  process.execPath,
+  [
+    "--test",
+    path.resolve(
+      root,
+      "packages/gql/scripts/standalone-generated-refreshers.test.mjs",
+    ),
+  ],
+  { stdio: "inherit" },
+);
 const failures = [];
 
 const EXPO_EXAMPLE_ROOT = "libraries/expo-iap/example";
@@ -279,7 +293,7 @@ function discoverExpoRoutes() {
 }
 
 function parseGeneratedOperations(kind) {
-  const sourcePath = "packages/gql/src/generated/types.ts";
+  const sourcePath = GENERATED_SYNC_MANIFEST.typescript.source;
   expectFile(sourcePath);
   if (!exists(sourcePath)) return [];
   const match = read(sourcePath).match(
@@ -362,7 +376,7 @@ function expectFlutterHandlers(kind, block) {
 
 function parseGodotOperationFields() {
   const fields = [];
-  const lines = read("libraries/godot-iap/addons/godot-iap/types.gd").split(
+  const lines = read(GENERATED_SYNC_MANIFEST.gdscript.targets.godot.path).split(
     "\n",
   );
   let section = null;
@@ -710,64 +724,16 @@ function checkE2eExampleIds() {
 }
 
 function checkGeneratedTypeSync() {
-  expectSameFile(
-    "packages/gql/src/generated/types.ts",
-    "libraries/expo-iap/src/types.ts",
-    "Expo generated TypeScript types",
-  );
-  expectSameFile(
-    "packages/gql/src/generated/types.ts",
-    "libraries/react-native-iap/src/types.ts",
-    "React Native generated TypeScript types",
-  );
-  expectSameFile(
-    "packages/gql/src/webhook-client.ts",
-    "libraries/expo-iap/src/webhook-client.ts",
-    "Expo webhook client helper",
-  );
-  expectSameFile(
-    "packages/gql/src/webhook-client.ts",
-    "libraries/react-native-iap/src/webhook-client.ts",
-    "React Native webhook client helper",
-  );
-  expectSameFile(
-    "packages/gql/src/kit-api.ts",
-    "libraries/expo-iap/src/kit-api.ts",
-    "Expo IAPKit API helper",
-  );
-  expectSameFile(
-    "packages/gql/src/kit-api.ts",
-    "libraries/react-native-iap/src/kit-api.ts",
-    "React Native IAPKit API helper",
-  );
-  expectSameFile(
-    "packages/gql/src/generated/types.dart",
-    "libraries/flutter_inapp_purchase/lib/types.dart",
-    "Flutter generated Dart types",
-  );
-  expectSameFile(
-    "packages/gql/src/generated/Types.swift",
-    "packages/apple/Sources/Models/Types.swift",
-    "Apple generated Swift types",
-  );
-  expectSameFile(
-    "packages/gql/src/generated/Types.cs",
-    "libraries/maui-iap/src/OpenIap.Maui/Types.cs",
-    "MAUI generated C# types",
-  );
-  expectSameFile(
-    "packages/gql/src/generated/Types.kt",
-    "libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt",
-    "KMP generated Kotlin types",
-    kmpGeneratedKotlin,
-  );
+  for (const drift of collectGeneratedSyncDrift(root)) {
+    fail(`generated sync manifest drift: ${drift}`);
+  }
 
   for (const kind of Object.keys(operationParityRegistry)) {
     expectSameSet(
       `Google generated ${kind} operations`,
       parseGeneratedOperations(kind),
       parseKotlinResolverOperations(
-        "packages/google/openiap/src/main/java/dev/hyo/openiap/Types.kt",
+        GENERATED_SYNC_MANIFEST.kotlin.targets.google.path,
         kind,
       ),
     );
@@ -777,13 +743,13 @@ function checkGeneratedTypeSync() {
 function checkGqlRuntimeExports() {
   const packageJson = JSON.parse(read("packages/gql/package.json"));
   const exports = packageJson.exports ?? {};
-  for (const [exportPath, filePath] of [
-    ["./kit-api", "./src/kit-api.ts"],
-    ["./webhook-client", "./src/webhook-client.ts"],
-  ]) {
-    if (exports[exportPath] !== filePath) {
+  for (const [groupName, definition] of Object.entries(
+    GENERATED_SYNC_MANIFEST,
+  )) {
+    const filePath = definition.source.replace(/^packages\/gql\//, "./");
+    if (exports[definition.exportKey] !== filePath) {
       fail(
-        `@hyodotdev/openiap-gql export ${exportPath} should point to ${filePath}`,
+        `@hyodotdev/openiap-gql ${groupName} export ${definition.exportKey} should point to ${filePath}`,
       );
     }
   }
@@ -1242,10 +1208,7 @@ function checkFlutter() {
     );
     expectNotIncludes(
       nativePlugin,
-      [
-        "details: purchaseError.productId",
-        '"productId": error.productId',
-      ],
+      ["details: purchaseError.productId", '"productId": error.productId'],
       "Flutter Apple PurchaseError diagnostics must remain structured",
     );
   }
@@ -1806,7 +1769,7 @@ function checkNativeApis() {
     "Expo Android API exports",
   );
   expectIncludes(
-    "libraries/flutter_inapp_purchase/lib/types.dart",
+    GENERATED_SYNC_MANIFEST.dart.targets.flutter.path,
     [
       "Future<String> getStorefront()",
       "Future<bool> checkAlternativeBillingAvailabilityAndroid()",
@@ -1821,7 +1784,7 @@ function checkNativeApis() {
     "Flutter generated API",
   );
   expectIncludes(
-    "libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt",
+    GENERATED_SYNC_MANIFEST.kotlin.targets.kmp.path,
     [
       "suspend fun getStorefront(): String",
       "suspend fun checkAlternativeBillingAvailabilityAndroid(): Boolean",
@@ -2442,7 +2405,7 @@ function checkBillingChoiceFieldBindings() {
       ['"subResponseCodeAndroid" to diagnostics["subResponseCodeAndroid"]'],
     ],
     [
-      "libraries/godot-iap/addons/godot-iap/types.gd",
+      GENERATED_SYNC_MANIFEST.gdscript.targets.godot.path,
       [
         "var sub_response_code_android: Variant = null",
         'dict["subResponseCodeAndroid"]',
@@ -4339,12 +4302,23 @@ function checkFrameworkDependencyHygiene() {
     "KMP docs card must not point at the legacy standalone docs",
   );
   expectIncludes(
-    "scripts/agent/compile-context.ts",
+    "scripts/agent/context-files.ts",
     [
-      "function readInstallationVersions()",
+      "libraries/flutter_inapp_purchase/pubspec.yaml",
       "libraries/kmp-iap/gradle.properties",
       "libraries/godot-iap/addons/godot-iap/plugin.cfg",
       "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
+    ],
+    "AI context compiler framework package version source manifest",
+  );
+  expectIncludes(
+    "scripts/agent/compile-context.ts",
+    [
+      "function readInstallationVersions()",
+      "CONTEXT_SOURCES.flutterPackage",
+      "CONTEXT_SOURCES.kmpPackage",
+      "CONTEXT_SOURCES.godotPackage",
+      "CONTEXT_SOURCES.mauiPackage",
       "<PackageId>([^<]+)<\\/PackageId>",
       "flutter pub add flutter_inapp_purchase",
       "io.github.hyochan:kmp-iap:${versions.kmp}",
@@ -4439,35 +4413,6 @@ function checkFrameworkDependencyHygiene() {
       "based on local.properties",
     ],
     "KMP README version script must not inject release-specific versions",
-  );
-  for (const generatedTypeScript of [
-    "libraries/kmp-iap/scripts/generate-types.sh",
-    "libraries/godot-iap/scripts/generate-types.sh",
-  ]) {
-    expectIncludes(
-      generatedTypeScript,
-      [
-        "json.loads",
-        'data.get("spec")',
-        "Error: 'spec' version missing in openiap-versions.json",
-      ],
-      `${generatedTypeScript} must parse openiap-versions.json as JSON`,
-    );
-    expectNotIncludes(
-      generatedTypeScript,
-      ["grep '\"spec\"'", "sed 's/.*: *"],
-      `${generatedTypeScript} must not parse JSON with grep/sed`,
-    );
-  }
-  expectIncludes(
-    "libraries/godot-iap/scripts/generate-types.sh",
-    [
-      'ADDON_DIR="$REPO_ROOT/addons/godot-iap"',
-      'EXAMPLE_ADDON_DIR="$REPO_ROOT/Example/addons/godot-iap"',
-      'cp "$TEMP_DIR/types.gd" "$ADDON_DIR/types.gd"',
-      'cp "$TEMP_DIR/types.gd" "$EXAMPLE_ADDON_DIR/types.gd"',
-    ],
-    "Godot generated types script must update the shipped addon and example",
   );
   expectIncludes(
     "libraries/kmp-iap/publish-local.sh",

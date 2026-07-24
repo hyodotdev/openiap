@@ -138,11 +138,12 @@ type DiscountDisplayInfoAndroid {
 """
 One-time purchase offer details (Android).
 Available in Google Play Billing Library 8.0+
-@deprecated Use the standardized DiscountOffer type instead for cross-platform compatibility.
-@see https://openiap.dev/docs/types#discount-offer
+@see https://openiap.dev/docs/types/discount-offer
 """
 type ProductAndroidOneTimePurchaseOfferDetail
-  @deprecated(reason: "Use DiscountOffer type instead") {
+  @openiapDeprecated(
+    reason: "Use the standardized DiscountOffer type for Android one-time offers."
+  ) {
   """
   Offer ID
   """
@@ -216,11 +217,12 @@ type InstallmentPlanDetailsAndroid {
 
 """
 Subscription offer details (Android).
-@deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
-@see https://openiap.dev/docs/types#subscription-offer
+@see https://openiap.dev/docs/types/subscription-offer
 """
 type ProductSubscriptionAndroidOfferDetails
-  @deprecated(reason: "Use SubscriptionOffer type instead") {
+  @openiapDeprecated(
+    reason: "Use the standardized SubscriptionOffer type instead for cross-platform compatibility."
+  ) {
   basePlanId: String!
   offerId: String
   offerToken: String!
@@ -258,18 +260,18 @@ type ProductAndroid implements ProductCommon {
   """
   productStatusAndroid: ProductStatusAndroid
 
-  # Standardized cross-platform fields
+  # Standardized offer fields
   """
-  Standardized discount offers for one-time products.
-  Cross-platform type with Android-specific fields using suffix.
-  @see https://openiap.dev/docs/types#discount-offer
+  Standardized Android one-time product purchase options and offers.
+  Native metadata uses Android-suffixed fields.
+  @see https://openiap.dev/docs/types/discount-offer
   """
   discountOffers: [DiscountOffer!]
 
   """
   Standardized subscription offers.
   Cross-platform type with Android-specific fields using suffix.
-  @see https://openiap.dev/docs/types#subscription-offer
+  @see https://openiap.dev/docs/types/subscription-offer
   """
   subscriptionOffers: [SubscriptionOffer!]
 
@@ -277,15 +279,13 @@ type ProductAndroid implements ProductCommon {
   """
   One-time purchase offer details including discounts (Android)
   Returns all eligible offers. Available in Google Play Billing Library 8.0+
-  @deprecated Use discountOffers instead for cross-platform compatibility.
   """
   oneTimePurchaseOfferDetailsAndroid: [ProductAndroidOneTimePurchaseOfferDetail!]
-    @deprecated(reason: "Use discountOffers instead")
-  """
-  @deprecated Use subscriptionOffers instead for cross-platform compatibility.
-  """
+    @deprecated(reason: "Use the standardized discountOffers field instead.")
   subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails!]
-    @deprecated(reason: "Use subscriptionOffers instead")
+    @deprecated(
+      reason: "Use subscriptionOffers instead for cross-platform compatibility."
+    )
 }
 
 type ProductSubscriptionAndroid implements ProductCommon {
@@ -312,34 +312,33 @@ type ProductSubscriptionAndroid implements ProductCommon {
   """
   productStatusAndroid: ProductStatusAndroid
 
-  # Standardized cross-platform fields
+  # Standardized offer fields
   """
-  Standardized discount offers for one-time products.
-  Cross-platform type with Android-specific fields using suffix.
-  @see https://openiap.dev/docs/types#discount-offer
+  Nullable compatibility field. Google Play does not return one-time purchase
+  offer details for subscription products; use subscriptionOffers below.
   """
   discountOffers: [DiscountOffer!]
 
   """
   Standardized subscription offers.
   Cross-platform type with Android-specific fields using suffix.
-  @see https://openiap.dev/docs/types#subscription-offer
+  @see https://openiap.dev/docs/types/subscription-offer
   """
   subscriptionOffers: [SubscriptionOffer!]!
 
   # Deprecated platform-specific fields
   """
-  One-time purchase offer details including discounts (Android)
-  Returns all eligible offers. Available in Google Play Billing Library 8.0+
-  @deprecated Use discountOffers instead for cross-platform compatibility.
+  Legacy nullable compatibility field. Google Play does not populate one-time
+  purchase offer details for subscription products.
   """
   oneTimePurchaseOfferDetailsAndroid: [ProductAndroidOneTimePurchaseOfferDetail!]
-    @deprecated(reason: "Use discountOffers instead")
-  """
-  @deprecated Use subscriptionOffers instead for cross-platform compatibility.
-  """
+    @deprecated(
+      reason: "One-time offers belong to ProductAndroid.discountOffers; subscriptions use subscriptionOffers."
+    )
   subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails!]!
-    @deprecated(reason: "Use subscriptionOffers instead")
+    @deprecated(
+      reason: "Use subscriptionOffers instead for cross-platform compatibility."
+    )
 }
 
 type PurchaseAndroid implements PurchaseCommon {
@@ -472,9 +471,11 @@ input RequestSubscriptionAndroidProps {
   originalExternalTransactionId: String
   """
   Replacement mode for subscription changes
-  @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+)
   """
   replacementMode: Int
+    @deprecated(
+      reason: "Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+)."
+    )
   """
   Subscription offers
   """
@@ -653,10 +654,12 @@ type VerifyPurchaseResultAndroid {
 """
 Alternative billing mode for Android
 Controls which billing system is used
-@deprecated Use enableBillingProgramAndroid with BillingProgramAndroid instead.
 Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only.
 """
-enum AlternativeBillingModeAndroid {
+enum AlternativeBillingModeAndroid
+  @openiapDeprecated(
+    reason: "Use enableBillingProgramAndroid with BillingProgramAndroid instead."
+  ) {
   """
   Standard Google Play billing (default)
   """
@@ -665,16 +668,18 @@ enum AlternativeBillingModeAndroid {
   """
   User choice billing - user can select between Google Play or alternative
   Requires Google Play Billing Library 7.0+
-  @deprecated Use BillingProgramAndroid.USER_CHOICE_BILLING instead
   """
   USER_CHOICE
+    @deprecated(
+      reason: "Use BillingProgramAndroid.USER_CHOICE_BILLING instead."
+    )
 
   """
   Alternative billing only - no Google Play billing option
   Requires Google Play Billing Library 6.2+
-  @deprecated Use BillingProgramAndroid.EXTERNAL_OFFER instead
   """
   ALTERNATIVE_ONLY
+    @deprecated(reason: "Use BillingProgramAndroid.EXTERNAL_OFFER instead.")
 }
 
 # User Choice Billing
@@ -1138,11 +1143,10 @@ type DeveloperProvidedBillingProductAndroid {
 
 """
 External offer reporting details (Android)
-@deprecated Use BillingProgramReportingDetailsAndroid with createBillingProgramReportingDetailsAsync instead
 Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
 """
 type ExternalOfferReportingDetailsAndroid
-  @deprecated(
+  @openiapDeprecated(
     reason: "Use BillingProgramReportingDetailsAndroid with createBillingProgramReportingDetailsAsync instead"
   ) {
   """
@@ -1153,11 +1157,10 @@ type ExternalOfferReportingDetailsAndroid
 
 """
 External offer availability result (Android)
-@deprecated Use BillingProgramAvailabilityResultAndroid with isBillingProgramAvailableAsync instead
 Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
 """
 type ExternalOfferAvailabilityResultAndroid
-  @deprecated(
+  @openiapDeprecated(
     reason: "Use BillingProgramAvailabilityResultAndroid with isBillingProgramAvailableAsync instead"
   ) {
   """

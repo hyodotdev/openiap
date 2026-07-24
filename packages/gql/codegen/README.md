@@ -1,6 +1,8 @@
 # Code Generation System
 
-IR-based code generation system for multiple target languages.
+IR-based code generation system for Swift, Kotlin, Dart, GDScript, and C#.
+TypeScript uses the sibling graphql-codegen plus guarded AST pipeline described
+in `../CONVENTION.md`.
 
 ## Architecture
 
@@ -19,11 +21,6 @@ codegen/
 │   ├── dart.ts           # Dart plugin (~870 lines)
 │   ├── gdscript.ts       # GDScript plugin (~610 lines)
 │   └── csharp.ts         # C# plugin (.NET MAUI)
-├── templates/            # Handlebars templates (optional)
-│   ├── swift/
-│   ├── kotlin/
-│   ├── dart/
-│   └── gdscript/
 ```
 
 ## How It Works
@@ -113,7 +110,6 @@ These patterns are difficult to express cleanly in templates. The current plugin
 1. Create `plugins/<language>.ts` extending `CodegenPlugin`
 2. Implement abstract methods
 3. Register in `index.ts`
-4. Optionally create templates in `templates/<language>/`
 
 ## Testing
 

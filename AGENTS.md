@@ -82,6 +82,7 @@ openiap/
 - `libraries/expo-iap/src/types.ts` - Synced from GQL
 - `libraries/flutter_inapp_purchase/lib/types.dart` - Synced from GQL
 - `libraries/godot-iap/addons/godot-iap/types.gd` - Synced from GQL
+- `libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/Types.kt` - Synced from GQL
 - `libraries/maui-iap/src/OpenIap.Maui/Types.cs` - Synced from GQL
 - `openiap-versions.json` - Tracks only `spec`, `google`, and `apple`. Google
   and Apple are CI-managed; the spec may be bumped directly in a feature PR
@@ -102,23 +103,19 @@ copy nearby release blocks without checking the actual package/tag.
 Regenerate and sync types:
 
 ```bash
-cd packages/gql && bun run generate  # Generate types from GraphQL schema
-cd ../.. && ./scripts/sync-versions.sh  # Sync to all packages and libraries
+cd packages/gql && bun run generate  # Generate every language and sync every manifest target
 ```
 
 ### GQL Code Generation System
 
-The type generation uses an **IR-based (Intermediate Representation)** architecture:
+Type generation has two guarded lanes over the same schema inventory and
+contract metadata:
 
 ```text
-GraphQL Schema → Parser → IR → Language Plugins → Generated Code
-                              ↓
-         codegen/core/     codegen/plugins/
-         ├── types.ts      ├── swift.ts
-         ├── parser.ts     ├── kotlin.ts
-         └── transformer.ts├── dart.ts
-                           ├── gdscript.ts
-                           └── csharp.ts
+GraphQL Schema ─┬─► graphql-codegen + AST guards ─► TypeScript
+                └─► Parser → IR → language plugins ─► Swift/Kotlin/Dart/GDScript/C#
+                                                        ↓
+                                             generated-sync-manifest.mjs
 ```
 
 **Language plugins handle:**

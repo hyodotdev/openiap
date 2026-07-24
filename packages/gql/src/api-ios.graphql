@@ -123,13 +123,13 @@ extend type Mutation {
   """
   Buy the currently promoted product.
 
-  @deprecated Use promotedProductListenerIOS to receive the productId,
-  then call requestPurchase with that SKU instead. In StoreKit 2,
-  promoted products can be purchased directly via the standard purchase flow.
   See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
   """
   # Future
-  requestPurchaseOnPromotedProductIOS: Boolean! @deprecated(reason: "Use promotedProductListenerIOS + requestPurchase instead")
+  requestPurchaseOnPromotedProductIOS: Boolean!
+    @deprecated(
+      reason: "Use promotedProductListenerIOS to receive the productId, then call requestPurchase with that SKU instead. In StoreKit 2, promoted products can be purchased directly via the standard purchase flow."
+    )
   """
   Present the manage-subscriptions sheet and return changed purchases (iOS 15+).
   See: https://openiap.dev/docs/apis/ios/show-manage-subscriptions-ios

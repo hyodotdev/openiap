@@ -87,7 +87,7 @@ For complete type definitions and documentation, see: <https://openiap.dev/docs/
 
 The library follows the OpenIAP type specifications with platform-specific extensions using iOS/Android suffixes.
 
-> **Important:** `src/types.ts` is generated from the OpenIAP schema. Never edit this file manually or commit hand-written changes. After updating any `*.graphql` schema, run `bun run generate:types` (or the equivalent script in your package manager) to refresh the file.
+> **Important:** `src/types.ts` is generated from the OpenIAP schema. Never edit this file manually or commit hand-written changes. In this monorepo, run `cd packages/gql && bun run generate` from the repository root so every platform copy stays synchronized. The Expo-local `bun run generate:types` command is only for a standalone checkout: it atomically refreshes the platform-ready file from the raw `docs-${spec}` tag pinned by `openiap-versions.json` (or the version passed with `--tag`).
 
 - Whenever you need Request/Params/Result types in the JS API surface (`src/index.ts`, hooks, modules, examples), import them directly from the generated `src/types.ts` (e.g., `MutationRequestPurchaseArgs`, `QueryFetchProductsArgs`). Bind exported functions with the generated `QueryField` / `MutationField` helpers so their signatures stay in lockstep with `types.ts` instead of redefining ad-hoc unions like `ProductTypeInput`.
 

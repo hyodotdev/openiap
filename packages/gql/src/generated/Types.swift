@@ -1,6 +1,6 @@
 // ============================================================================
 // AUTO-GENERATED TYPES — DO NOT EDIT DIRECTLY
-// Run `bun run generate` after updating any *.graphql schema file.
+// Refresh this file with the generated-types workflow documented for your checkout.
 // ============================================================================
 
 import Foundation
@@ -9,18 +9,18 @@ import Foundation
 
 /// Alternative billing mode for Android
 /// Controls which billing system is used
-/// @deprecated Use enableBillingProgramAndroid with BillingProgramAndroid instead.
 /// Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only.
+/// @deprecated Use enableBillingProgramAndroid with BillingProgramAndroid instead.
 public enum AlternativeBillingModeAndroid: String, Codable, CaseIterable {
     /// Standard Google Play billing (default)
     case none = "none"
     /// User choice billing - user can select between Google Play or alternative
     /// Requires Google Play Billing Library 7.0+
-    /// @deprecated Use BillingProgramAndroid.USER_CHOICE_BILLING instead
+    /// @deprecated Use BillingProgramAndroid.USER_CHOICE_BILLING instead.
     case userChoice = "user-choice"
     /// Alternative billing only - no Google Play billing option
     /// Requires Google Play Billing Library 6.2+
-    /// @deprecated Use BillingProgramAndroid.EXTERNAL_OFFER instead
+    /// @deprecated Use BillingProgramAndroid.EXTERNAL_OFFER instead.
     case alternativeOnly = "alternative-only"
 }
 
@@ -121,8 +121,11 @@ public enum ErrorCode: String, Codable, CaseIterable {
     case remoteError = "remote-error"
     case networkError = "network-error"
     case serviceError = "service-error"
+    /// @deprecated Use PurchaseVerificationFailed instead
     case receiptFailed = "receipt-failed"
+    /// @deprecated Use PurchaseVerificationFinished instead
     case receiptFinished = "receipt-finished"
+    /// @deprecated Use PurchaseVerificationFinishFailed instead
     case receiptFinishedFailed = "receipt-finished-failed"
     case purchaseVerificationFailed = "purchase-verification-failed"
     case purchaseVerificationFinished = "purchase-verification-finished"
@@ -636,6 +639,7 @@ public protocol PurchaseCommon: Codable {
     var id: String { get }
     var ids: [String]? { get }
     var isAutoRenewing: Bool { get }
+    /// @deprecated Use store instead
     var platform: IapPlatform { get }
     var productId: String { get }
     var purchaseState: PurchaseState { get }
@@ -672,9 +676,9 @@ public struct ActiveSubscription: Codable {
     /// Unix timestamp in milliseconds since January 1, 1970 UTC.
     public var transactionDate: Double
     public var transactionId: String
-    /// @deprecated iOS only - use daysUntilExpirationIOS instead.
     /// Whether the subscription will expire soon (within 7 days).
     /// Consider using daysUntilExpirationIOS for more precise control.
+    /// @deprecated iOS only - use daysUntilExpirationIOS instead.
     public var willExpireSoon: Bool? = nil
 }
 
@@ -837,8 +841,8 @@ public struct DiscountDisplayInfoAndroid: Codable {
 }
 
 /// Discount information returned from the store.
+/// @see https://openiap.dev/docs/types/subscription-offer
 /// @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
-/// @see https://openiap.dev/docs/types#subscription-offer
 public struct DiscountIOS: Codable {
     public var identifier: String
     public var localizedPrice: String? = nil
@@ -851,12 +855,13 @@ public struct DiscountIOS: Codable {
 }
 
 /// Standardized one-time product discount offer.
-/// Provides a unified interface for one-time purchase discounts across platforms.
+/// Provides a platform-neutral OpenIAP shape for Google Play one-time product
+/// purchase options and offers.
 /// 
-/// Currently supported on Android (Google Play Billing 8.0+).
-/// iOS does not support one-time purchase discounts in the same way.
+/// Currently populated only on Android (Google Play Billing 8.0+).
+/// iOS does not populate this type.
 /// 
-/// @see https://openiap.dev/docs/features/discount
+/// @see https://openiap.dev/docs/types/discount-offer
 public struct DiscountOffer: Codable {
     /// Currency code (ISO 4217, e.g., "USD")
     public var currency: String
@@ -865,7 +870,7 @@ public struct DiscountOffer: Codable {
     public var discountAmountMicrosAndroid: String? = nil
     /// Formatted display price string (e.g., "$4.99")
     public var displayPrice: String
-    /// [Android] Formatted discount amount string (e.g., "$5.00 OFF").
+    /// [Android] Formatted discount amount including its currency sign (e.g., "$5.00").
     public var formattedDiscountAmountAndroid: String? = nil
     /// [Android] Original full price in micro-units before discount.
     /// Divide by 1,000,000 to get the actual price.
@@ -897,7 +902,9 @@ public struct DiscountOffer: Codable {
     public var purchaseOptionIdAndroid: String? = nil
     /// [Android] Rental details if this is a rental offer.
     public var rentalDetailsAndroid: RentalDetailsAndroid? = nil
-    /// Type of discount offer
+    /// Offer category. DiscountOffer currently represents Android one-time product
+    /// offers and is populated as OneTime. Introductory and Promotional are used by
+    /// SubscriptionOffer.
     public var type: DiscountOfferType
     /// [Android] Valid time window for the offer.
     /// Contains startTimeMillis and endTimeMillis.
@@ -905,8 +912,8 @@ public struct DiscountOffer: Codable {
 }
 
 /// iOS DiscountOffer (output type).
+/// @see https://openiap.dev/docs/types/subscription-offer
 /// @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
-/// @see https://openiap.dev/docs/types#subscription-offer
 public struct DiscountOfferIOS: Codable {
     /// Discount identifier
     public var identifier: String
@@ -927,16 +934,16 @@ public struct EntitlementIOS: Codable {
 }
 
 /// External offer availability result (Android)
-/// @deprecated Use BillingProgramAvailabilityResultAndroid with isBillingProgramAvailableAsync instead
 /// Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
+/// @deprecated Use BillingProgramAvailabilityResultAndroid with isBillingProgramAvailableAsync instead
 public struct ExternalOfferAvailabilityResultAndroid: Codable {
     /// Whether external offers are available for the user
     public var isAvailable: Bool
 }
 
 /// External offer reporting details (Android)
-/// @deprecated Use BillingProgramReportingDetailsAndroid with createBillingProgramReportingDetailsAsync instead
 /// Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
+/// @deprecated Use BillingProgramReportingDetailsAndroid with createBillingProgramReportingDetailsAsync instead
 public struct ExternalOfferReportingDetailsAndroid: Codable {
     /// External transaction token for reporting external offer transactions
     public var externalTransactionToken: String
@@ -1071,9 +1078,9 @@ public struct ProductAndroid: Codable, ProductCommon {
     public var currency: String
     public var debugDescription: String? = nil
     public var description: String
-    /// Standardized discount offers for one-time products.
-    /// Cross-platform type with Android-specific fields using suffix.
-    /// @see https://openiap.dev/docs/types#discount-offer
+    /// Standardized Android one-time product purchase options and offers.
+    /// Native metadata uses Android-suffixed fields.
+    /// @see https://openiap.dev/docs/types/discount-offer
     public var discountOffers: [DiscountOffer]? = nil
     public var displayName: String? = nil
     public var displayPrice: String
@@ -1081,7 +1088,7 @@ public struct ProductAndroid: Codable, ProductCommon {
     public var nameAndroid: String
     /// One-time purchase offer details including discounts (Android)
     /// Returns all eligible offers. Available in Google Play Billing Library 8.0+
-    /// @deprecated Use discountOffers instead for cross-platform compatibility.
+    /// @deprecated Use the standardized discountOffers field instead.
     public var oneTimePurchaseOfferDetailsAndroid: [ProductAndroidOneTimePurchaseOfferDetail]? = nil
     public var platform: IapPlatform = .android
     public var price: Double? = nil
@@ -1095,7 +1102,7 @@ public struct ProductAndroid: Codable, ProductCommon {
     public var subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails]? = nil
     /// Standardized subscription offers.
     /// Cross-platform type with Android-specific fields using suffix.
-    /// @see https://openiap.dev/docs/types#subscription-offer
+    /// @see https://openiap.dev/docs/types/subscription-offer
     public var subscriptionOffers: [SubscriptionOffer]? = nil
     public var title: String
     public var type: ProductType = .inApp
@@ -1103,8 +1110,8 @@ public struct ProductAndroid: Codable, ProductCommon {
 
 /// One-time purchase offer details (Android).
 /// Available in Google Play Billing Library 8.0+
-/// @deprecated Use the standardized DiscountOffer type instead for cross-platform compatibility.
-/// @see https://openiap.dev/docs/types#discount-offer
+/// @see https://openiap.dev/docs/types/discount-offer
+/// @deprecated Use the standardized DiscountOffer type for Android one-time offers.
 public struct ProductAndroidOneTimePurchaseOfferDetail: Codable {
     /// Discount display information
     /// Only available for discounted offers
@@ -1156,7 +1163,7 @@ public struct ProductIOS: Codable, ProductCommon {
     /// Standardized subscription offers.
     /// Cross-platform type with iOS-specific fields using suffix.
     /// Note: iOS does not support one-time product discounts.
-    /// @see https://openiap.dev/docs/types#subscription-offer
+    /// @see https://openiap.dev/docs/types/subscription-offer
     public var subscriptionOffers: [SubscriptionOffer]? = nil
     public var title: String
     public var type: ProductType = .inApp
@@ -1167,17 +1174,16 @@ public struct ProductSubscriptionAndroid: Codable, ProductCommon {
     public var currency: String
     public var debugDescription: String? = nil
     public var description: String
-    /// Standardized discount offers for one-time products.
-    /// Cross-platform type with Android-specific fields using suffix.
-    /// @see https://openiap.dev/docs/types#discount-offer
+    /// Nullable compatibility field. Google Play does not return one-time purchase
+    /// offer details for subscription products; use subscriptionOffers below.
     public var discountOffers: [DiscountOffer]? = nil
     public var displayName: String? = nil
     public var displayPrice: String
     public var id: String
     public var nameAndroid: String
-    /// One-time purchase offer details including discounts (Android)
-    /// Returns all eligible offers. Available in Google Play Billing Library 8.0+
-    /// @deprecated Use discountOffers instead for cross-platform compatibility.
+    /// Legacy nullable compatibility field. Google Play does not populate one-time
+    /// purchase offer details for subscription products.
+    /// @deprecated One-time offers belong to ProductAndroid.discountOffers; subscriptions use subscriptionOffers.
     public var oneTimePurchaseOfferDetailsAndroid: [ProductAndroidOneTimePurchaseOfferDetail]? = nil
     public var platform: IapPlatform = .android
     public var price: Double? = nil
@@ -1191,15 +1197,15 @@ public struct ProductSubscriptionAndroid: Codable, ProductCommon {
     public var subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails]
     /// Standardized subscription offers.
     /// Cross-platform type with Android-specific fields using suffix.
-    /// @see https://openiap.dev/docs/types#subscription-offer
+    /// @see https://openiap.dev/docs/types/subscription-offer
     public var subscriptionOffers: [SubscriptionOffer]
     public var title: String
     public var type: ProductType = .subs
 }
 
 /// Subscription offer details (Android).
+/// @see https://openiap.dev/docs/types/subscription-offer
 /// @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
-/// @see https://openiap.dev/docs/types#subscription-offer
 public struct ProductSubscriptionAndroidOfferDetails: Codable {
     public var basePlanId: String
     /// Installment plan details for this subscription offer.
@@ -1240,7 +1246,7 @@ public struct ProductSubscriptionIOS: Codable, ProductCommon {
     public var subscriptionInfoIOS: SubscriptionInfoIOS? = nil
     /// Standardized subscription offers.
     /// Cross-platform type with iOS-specific fields using suffix.
-    /// @see https://openiap.dev/docs/types#subscription-offer
+    /// @see https://openiap.dev/docs/types/subscription-offer
     public var subscriptionOffers: [SubscriptionOffer]? = nil
     public var subscriptionPeriodNumberIOS: String? = nil
     public var subscriptionPeriodUnitIOS: SubscriptionPeriodIOS? = nil
@@ -1272,6 +1278,7 @@ public struct PurchaseAndroid: Codable, PurchaseCommon {
     /// Returns null if no pending update exists.
     /// Available in Google Play Billing Library 5.0+
     public var pendingPurchaseUpdateAndroid: PendingPurchaseUpdateAndroid? = nil
+    /// @deprecated Use store instead
     public var platform: IapPlatform
     public var productId: String
     public var purchaseState: PurchaseState
@@ -1322,6 +1329,7 @@ public struct PurchaseIOS: Codable, PurchaseCommon {
     public var originalTransactionDateIOS: Double? = nil
     public var originalTransactionIdentifierIOS: String? = nil
     public var ownershipTypeIOS: String? = nil
+    /// @deprecated Use store instead
     public var platform: IapPlatform
     public var productId: String
     public var purchaseState: PurchaseState
@@ -1453,8 +1461,7 @@ public struct SubscriptionInfoIOS: Codable {
 /// - iOS: Introductory offers, promotional offers with server-side signatures
 /// - Android: Offer tokens with pricing phases
 /// 
-/// @see https://openiap.dev/docs/types/ios#discount-offer
-/// @see https://openiap.dev/docs/types/android#subscription-offer
+/// @see https://openiap.dev/docs/types/subscription-offer
 public struct SubscriptionOffer: Codable {
     /// [Android] Base plan identifier.
     /// Identifies which base plan this offer belongs to.
@@ -1508,8 +1515,8 @@ public struct SubscriptionOffer: Codable {
 }
 
 /// iOS subscription offer details.
+/// @see https://openiap.dev/docs/types/subscription-offer
 /// @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
-/// @see https://openiap.dev/docs/types#subscription-offer
 public struct SubscriptionOfferIOS: Codable {
     public var displayPrice: String
     public var id: String
@@ -1761,10 +1768,15 @@ public struct DeveloperBillingOptionParamsAndroid: Codable {
 }
 
 public struct DiscountOfferInputIOS: Codable {
+    /// Discount identifier
     public var identifier: String
+    /// Key identifier for validation
     public var keyIdentifier: String
+    /// Cryptographic nonce
     public var nonce: String
+    /// Signature for validation
     public var signature: String
+    /// Timestamp of discount offer
     public var timestamp: Double
 
     public init(identifier: String, keyIdentifier: String, nonce: String, signature: String, timestamp: Double) {
@@ -1850,8 +1862,8 @@ public struct InAppMessageParamsAndroid: Codable {
 public struct InitConnectionConfig: Codable {
     /// Alternative billing mode for Android
     /// If not specified, defaults to NONE (standard Google Play billing)
-    /// @deprecated Use enableBillingProgramAndroid instead.
     /// Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only.
+    /// @deprecated Use enableBillingProgramAndroid instead.
     public var alternativeBillingModeAndroid: AlternativeBillingModeAndroid?
     /// Billing Choice renderer configured in Play Console. Available in OpenIAP
     /// Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
@@ -2059,7 +2071,10 @@ public struct RequestPurchaseIosProps: Codable {
 
 public struct RequestPurchaseProps: Codable {
     public var request: Request
+    /// Explicit purchase type hint (defaults to in-app)
     public var type: ProductQueryType
+    /// This flag only logs debug info and has no effect on the purchase flow.
+    /// @deprecated Use enableBillingProgramAndroid in InitConnectionConfig instead.
     public var useAlternativeBilling: Bool?
 
     public init(request: Request, type: ProductQueryType? = nil, useAlternativeBilling: Bool? = nil) {
@@ -2127,7 +2142,9 @@ public struct RequestPurchaseProps: Codable {
     }
 
     public enum Request {
+        /// Per-platform purchase request props
         case purchase(RequestPurchasePropsByPlatforms)
+        /// Per-platform subscription request props
         case subscription(RequestSubscriptionPropsByPlatforms)
     }
 }
@@ -2181,7 +2198,7 @@ public struct RequestSubscriptionAndroidProps: Codable {
     /// Purchase token for upgrades/downgrades
     public var purchaseToken: String?
     /// Replacement mode for subscription changes
-    /// @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+)
+    /// @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+).
     public var replacementMode: Int?
     /// List of subscription SKUs
     public var skus: [String]
@@ -2770,6 +2787,7 @@ public enum Purchase: Codable, PurchaseCommon {
         }
     }
 
+    /// @deprecated Use store instead
     public var platform: IapPlatform {
         switch self {
         case let .purchaseAndroid(value):
@@ -2943,10 +2961,8 @@ public protocol MutationResolver {
     func requestPurchase(_ params: RequestPurchaseProps) async throws -> RequestPurchaseResult?
     /// Buy the currently promoted product.
     /// 
-    /// @deprecated Use promotedProductListenerIOS to receive the productId,
-    /// then call requestPurchase with that SKU instead. In StoreKit 2,
-    /// promoted products can be purchased directly via the standard purchase flow.
     /// See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
+    /// @deprecated Use promotedProductListenerIOS to receive the productId, then call requestPurchase with that SKU instead. In StoreKit 2, promoted products can be purchased directly via the standard purchase flow.
     func requestPurchaseOnPromotedProductIOS() async throws -> Bool
     /// Restore non-consumable and active subscription purchases.
     /// See: https://openiap.dev/docs/apis/restore-purchases
@@ -2967,6 +2983,7 @@ public protocol MutationResolver {
     /// Call this after a deliberate customer interaction before linking out to external purchases.
     /// Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/shownotice(type:)
     /// See: https://openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios
+    /// Parameter noticeType: Notice type determining the style of disclosure
     func showExternalPurchaseCustomLinkNoticeIOS(_ noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS) async throws -> ExternalPurchaseCustomLinkNoticeResultIOS
     /// Overlay Play billing in-app messages, such as payment issues or subscription price-change confirmations.
     /// OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0
@@ -2983,6 +3000,7 @@ public protocol MutationResolver {
     func syncIOS() async throws -> Bool
     /// Deprecated. Validate purchase receipts with the configured providers — use verifyPurchase instead.
     /// See: https://openiap.dev/docs/features/validation#verify-purchase
+    /// @deprecated Use verifyPurchase
     func validateReceipt(_ options: VerifyPurchaseProps) async throws -> VerifyPurchaseResult
     /// Verify a purchase against your own backend. Returns a platform-specific
     /// variant of VerifyPurchaseResult — VerifyPurchaseResultIOS exposes isValid
@@ -3034,6 +3052,7 @@ public protocol QueryResolver {
     /// Use this token to report transactions made through ExternalPurchaseCustomLink.
     /// Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
     /// See: https://openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios
+    /// Parameter tokenType: Token type: acquisition (new customers) or services (existing customers)
     func getExternalPurchaseCustomLinkTokenIOS(_ tokenType: ExternalPurchaseCustomLinkTokenTypeIOS) async throws -> ExternalPurchaseCustomLinkTokenResultIOS
     /// List unfinished StoreKit transactions in the queue.
     /// See: https://openiap.dev/docs/apis/ios/get-pending-transactions-ios
@@ -3052,6 +3071,7 @@ public protocol QueryResolver {
     /// Deprecated. Get the current App Store storefront ISO 3166-1 alpha-3 country
     /// code — use cross-platform getStorefront instead.
     /// See: https://openiap.dev/docs/apis/ios/get-storefront-ios
+    /// @deprecated Use getStorefront
     func getStorefrontIOS() async throws -> String
     /// Return the JWS string for a transaction (StoreKit 2).
     /// See: https://openiap.dev/docs/apis/ios/get-transaction-jws-ios
@@ -3078,6 +3098,7 @@ public protocol QueryResolver {
     func subscriptionStatusIOS(_ sku: String) async throws -> [SubscriptionStatusIOS]
     /// Deprecated. Legacy App Store receipt validation — use verifyPurchase instead.
     /// See: https://openiap.dev/docs/apis/ios/validate-receipt-ios
+    /// @deprecated Use verifyPurchase
     func validateReceiptIOS(_ options: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS
 }
 

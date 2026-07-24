@@ -1,6 +1,6 @@
 // ============================================================================
 // AUTO-GENERATED TYPES — DO NOT EDIT DIRECTLY
-// Run `bun run generate` after updating any *.graphql schema file.
+// Refresh this file with the generated-types workflow documented for your checkout.
 // ============================================================================
 
 // Suppress unchecked cast warnings for JSON Map parsing - unavoidable due to Kotlin type erasure
@@ -12,8 +12,8 @@ package dev.hyo.openiap
 /**
  * Alternative billing mode for Android
  * Controls which billing system is used
- * @deprecated Use enableBillingProgramAndroid with BillingProgramAndroid instead.
  * Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only.
+ * @deprecated Use enableBillingProgramAndroid with BillingProgramAndroid instead.
  */
 public enum class AlternativeBillingModeAndroid(val rawValue: String) {
     /**
@@ -23,23 +23,26 @@ public enum class AlternativeBillingModeAndroid(val rawValue: String) {
     /**
      * User choice billing - user can select between Google Play or alternative
      * Requires Google Play Billing Library 7.0+
-     * @deprecated Use BillingProgramAndroid.USER_CHOICE_BILLING instead
+     * @deprecated Use BillingProgramAndroid.USER_CHOICE_BILLING instead.
      */
     UserChoice("user-choice"),
     /**
      * Alternative billing only - no Google Play billing option
      * Requires Google Play Billing Library 6.2+
-     * @deprecated Use BillingProgramAndroid.EXTERNAL_OFFER instead
+     * @deprecated Use BillingProgramAndroid.EXTERNAL_OFFER instead.
      */
     AlternativeOnly("alternative-only");
 
     companion object {
         fun fromJson(value: String): AlternativeBillingModeAndroid = when (value) {
             "none" -> AlternativeBillingModeAndroid.None
+            "NONE" -> AlternativeBillingModeAndroid.None
             "None" -> AlternativeBillingModeAndroid.None
             "user-choice" -> AlternativeBillingModeAndroid.UserChoice
+            "USER_CHOICE" -> AlternativeBillingModeAndroid.UserChoice
             "UserChoice" -> AlternativeBillingModeAndroid.UserChoice
             "alternative-only" -> AlternativeBillingModeAndroid.AlternativeOnly
+            "ALTERNATIVE_ONLY" -> AlternativeBillingModeAndroid.AlternativeOnly
             "AlternativeOnly" -> AlternativeBillingModeAndroid.AlternativeOnly
             else -> throw IllegalArgumentException("Unknown AlternativeBillingModeAndroid value: $value")
         }
@@ -69,10 +72,13 @@ public enum class BillingChoiceImageLayoutAndroid(val rawValue: String) {
     companion object {
         fun fromJson(value: String): BillingChoiceImageLayoutAndroid = when (value) {
             "rectangular-four-by-one" -> BillingChoiceImageLayoutAndroid.RectangularFourByOne
+            "RECTANGULAR_FOUR_BY_ONE" -> BillingChoiceImageLayoutAndroid.RectangularFourByOne
             "RectangularFourByOne" -> BillingChoiceImageLayoutAndroid.RectangularFourByOne
             "rectangular-three-by-one" -> BillingChoiceImageLayoutAndroid.RectangularThreeByOne
+            "RECTANGULAR_THREE_BY_ONE" -> BillingChoiceImageLayoutAndroid.RectangularThreeByOne
             "RectangularThreeByOne" -> BillingChoiceImageLayoutAndroid.RectangularThreeByOne
             "rectangular-two-by-two" -> BillingChoiceImageLayoutAndroid.RectangularTwoByTwo
+            "RECTANGULAR_TWO_BY_TWO" -> BillingChoiceImageLayoutAndroid.RectangularTwoByTwo
             "RectangularTwoByTwo" -> BillingChoiceImageLayoutAndroid.RectangularTwoByTwo
             else -> throw IllegalArgumentException("Unknown BillingChoiceImageLayoutAndroid value: $value")
         }
@@ -102,10 +108,13 @@ public enum class BillingChoiceScreenTypeAndroid(val rawValue: String) {
     companion object {
         fun fromJson(value: String): BillingChoiceScreenTypeAndroid = when (value) {
             "unspecified" -> BillingChoiceScreenTypeAndroid.Unspecified
+            "UNSPECIFIED" -> BillingChoiceScreenTypeAndroid.Unspecified
             "Unspecified" -> BillingChoiceScreenTypeAndroid.Unspecified
             "developer-rendered" -> BillingChoiceScreenTypeAndroid.DeveloperRendered
+            "DEVELOPER_RENDERED" -> BillingChoiceScreenTypeAndroid.DeveloperRendered
             "DeveloperRendered" -> BillingChoiceScreenTypeAndroid.DeveloperRendered
             "google-rendered" -> BillingChoiceScreenTypeAndroid.GoogleRendered
+            "GOOGLE_RENDERED" -> BillingChoiceScreenTypeAndroid.GoogleRendered
             "GoogleRendered" -> BillingChoiceScreenTypeAndroid.GoogleRendered
             else -> throw IllegalArgumentException("Unknown BillingChoiceScreenTypeAndroid value: $value")
         }
@@ -161,16 +170,22 @@ public enum class BillingProgramAndroid(val rawValue: String) {
     companion object {
         fun fromJson(value: String): BillingProgramAndroid = when (value) {
             "unspecified" -> BillingProgramAndroid.Unspecified
+            "UNSPECIFIED" -> BillingProgramAndroid.Unspecified
             "Unspecified" -> BillingProgramAndroid.Unspecified
             "user-choice-billing" -> BillingProgramAndroid.UserChoiceBilling
+            "USER_CHOICE_BILLING" -> BillingProgramAndroid.UserChoiceBilling
             "UserChoiceBilling" -> BillingProgramAndroid.UserChoiceBilling
             "external-content-link" -> BillingProgramAndroid.ExternalContentLink
+            "EXTERNAL_CONTENT_LINK" -> BillingProgramAndroid.ExternalContentLink
             "ExternalContentLink" -> BillingProgramAndroid.ExternalContentLink
             "external-offer" -> BillingProgramAndroid.ExternalOffer
+            "EXTERNAL_OFFER" -> BillingProgramAndroid.ExternalOffer
             "ExternalOffer" -> BillingProgramAndroid.ExternalOffer
             "external-payments" -> BillingProgramAndroid.ExternalPayments
+            "EXTERNAL_PAYMENTS" -> BillingProgramAndroid.ExternalPayments
             "ExternalPayments" -> BillingProgramAndroid.ExternalPayments
             "billing-choice" -> BillingProgramAndroid.BillingChoice
+            "BILLING_CHOICE" -> BillingProgramAndroid.BillingChoice
             "BillingChoice" -> BillingProgramAndroid.BillingChoice
             else -> throw IllegalArgumentException("Unknown BillingProgramAndroid value: $value")
         }
@@ -203,10 +218,13 @@ public enum class DeveloperBillingLaunchModeAndroid(val rawValue: String) {
     companion object {
         fun fromJson(value: String): DeveloperBillingLaunchModeAndroid = when (value) {
             "unspecified" -> DeveloperBillingLaunchModeAndroid.Unspecified
+            "UNSPECIFIED" -> DeveloperBillingLaunchModeAndroid.Unspecified
             "Unspecified" -> DeveloperBillingLaunchModeAndroid.Unspecified
             "launch-in-external-browser-or-app" -> DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp
+            "LAUNCH_IN_EXTERNAL_BROWSER_OR_APP" -> DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp
             "LaunchInExternalBrowserOrApp" -> DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp
             "caller-will-launch-link" -> DeveloperBillingLaunchModeAndroid.CallerWillLaunchLink
+            "CALLER_WILL_LAUNCH_LINK" -> DeveloperBillingLaunchModeAndroid.CallerWillLaunchLink
             "CallerWillLaunchLink" -> DeveloperBillingLaunchModeAndroid.CallerWillLaunchLink
             else -> throw IllegalArgumentException("Unknown DeveloperBillingLaunchModeAndroid value: $value")
         }
@@ -236,10 +254,13 @@ public enum class DeveloperBillingTypeAndroid(val rawValue: String) {
     companion object {
         fun fromJson(value: String): DeveloperBillingTypeAndroid = when (value) {
             "developer-billing-type-unspecified" -> DeveloperBillingTypeAndroid.DeveloperBillingTypeUnspecified
+            "DEVELOPER_BILLING_TYPE_UNSPECIFIED" -> DeveloperBillingTypeAndroid.DeveloperBillingTypeUnspecified
             "DeveloperBillingTypeUnspecified" -> DeveloperBillingTypeAndroid.DeveloperBillingTypeUnspecified
             "in-app" -> DeveloperBillingTypeAndroid.InApp
+            "IN_APP" -> DeveloperBillingTypeAndroid.InApp
             "InApp" -> DeveloperBillingTypeAndroid.InApp
             "external-link" -> DeveloperBillingTypeAndroid.ExternalLink
+            "EXTERNAL_LINK" -> DeveloperBillingTypeAndroid.ExternalLink
             "ExternalLink" -> DeveloperBillingTypeAndroid.ExternalLink
             else -> throw IllegalArgumentException("Unknown DeveloperBillingTypeAndroid value: $value")
         }
@@ -269,10 +290,13 @@ public enum class DiscountOfferType(val rawValue: String) {
     companion object {
         fun fromJson(value: String): DiscountOfferType = when (value) {
             "introductory" -> DiscountOfferType.Introductory
+            "INTRODUCTORY" -> DiscountOfferType.Introductory
             "Introductory" -> DiscountOfferType.Introductory
             "promotional" -> DiscountOfferType.Promotional
+            "PROMOTIONAL" -> DiscountOfferType.Promotional
             "Promotional" -> DiscountOfferType.Promotional
             "one-time" -> DiscountOfferType.OneTime
+            "ONE_TIME" -> DiscountOfferType.OneTime
             "OneTime" -> DiscountOfferType.OneTime
             else -> throw IllegalArgumentException("Unknown DiscountOfferType value: $value")
         }
@@ -289,8 +313,17 @@ public enum class ErrorCode(val rawValue: String) {
     RemoteError("remote-error"),
     NetworkError("network-error"),
     ServiceError("service-error"),
+    /**
+     * @deprecated Use PurchaseVerificationFailed instead
+     */
     ReceiptFailed("receipt-failed"),
+    /**
+     * @deprecated Use PurchaseVerificationFinished instead
+     */
     ReceiptFinished("receipt-finished"),
+    /**
+     * @deprecated Use PurchaseVerificationFinishFailed instead
+     */
     ReceiptFinishedFailed("receipt-finished-failed"),
     PurchaseVerificationFailed("purchase-verification-failed"),
     PurchaseVerificationFinished("purchase-verification-finished"),
@@ -325,82 +358,121 @@ public enum class ErrorCode(val rawValue: String) {
     companion object {
         fun fromJson(value: String): ErrorCode = when (value) {
             "unknown" -> ErrorCode.Unknown
+            "UNKNOWN" -> ErrorCode.Unknown
             "Unknown" -> ErrorCode.Unknown
             "user-cancelled" -> ErrorCode.UserCancelled
+            "USER_CANCELLED" -> ErrorCode.UserCancelled
             "UserCancelled" -> ErrorCode.UserCancelled
             "user-error" -> ErrorCode.UserError
+            "USER_ERROR" -> ErrorCode.UserError
             "UserError" -> ErrorCode.UserError
             "item-unavailable" -> ErrorCode.ItemUnavailable
+            "ITEM_UNAVAILABLE" -> ErrorCode.ItemUnavailable
             "ItemUnavailable" -> ErrorCode.ItemUnavailable
             "remote-error" -> ErrorCode.RemoteError
+            "REMOTE_ERROR" -> ErrorCode.RemoteError
             "RemoteError" -> ErrorCode.RemoteError
             "network-error" -> ErrorCode.NetworkError
+            "NETWORK_ERROR" -> ErrorCode.NetworkError
             "NetworkError" -> ErrorCode.NetworkError
             "service-error" -> ErrorCode.ServiceError
+            "SERVICE_ERROR" -> ErrorCode.ServiceError
             "ServiceError" -> ErrorCode.ServiceError
             "receipt-failed" -> ErrorCode.ReceiptFailed
+            "RECEIPT_FAILED" -> ErrorCode.ReceiptFailed
             "ReceiptFailed" -> ErrorCode.ReceiptFailed
             "receipt-finished" -> ErrorCode.ReceiptFinished
+            "RECEIPT_FINISHED" -> ErrorCode.ReceiptFinished
             "ReceiptFinished" -> ErrorCode.ReceiptFinished
             "receipt-finished-failed" -> ErrorCode.ReceiptFinishedFailed
+            "RECEIPT_FINISHED_FAILED" -> ErrorCode.ReceiptFinishedFailed
             "ReceiptFinishedFailed" -> ErrorCode.ReceiptFinishedFailed
             "purchase-verification-failed" -> ErrorCode.PurchaseVerificationFailed
+            "PURCHASE_VERIFICATION_FAILED" -> ErrorCode.PurchaseVerificationFailed
             "PurchaseVerificationFailed" -> ErrorCode.PurchaseVerificationFailed
             "purchase-verification-finished" -> ErrorCode.PurchaseVerificationFinished
+            "PURCHASE_VERIFICATION_FINISHED" -> ErrorCode.PurchaseVerificationFinished
             "PurchaseVerificationFinished" -> ErrorCode.PurchaseVerificationFinished
             "purchase-verification-finish-failed" -> ErrorCode.PurchaseVerificationFinishFailed
+            "PURCHASE_VERIFICATION_FINISH_FAILED" -> ErrorCode.PurchaseVerificationFinishFailed
             "PurchaseVerificationFinishFailed" -> ErrorCode.PurchaseVerificationFinishFailed
             "not-prepared" -> ErrorCode.NotPrepared
+            "NOT_PREPARED" -> ErrorCode.NotPrepared
             "NotPrepared" -> ErrorCode.NotPrepared
             "not-ended" -> ErrorCode.NotEnded
+            "NOT_ENDED" -> ErrorCode.NotEnded
             "NotEnded" -> ErrorCode.NotEnded
             "already-owned" -> ErrorCode.AlreadyOwned
+            "ALREADY_OWNED" -> ErrorCode.AlreadyOwned
             "AlreadyOwned" -> ErrorCode.AlreadyOwned
             "developer-error" -> ErrorCode.DeveloperError
+            "DEVELOPER_ERROR" -> ErrorCode.DeveloperError
             "DeveloperError" -> ErrorCode.DeveloperError
             "billing-response-json-parse-error" -> ErrorCode.BillingResponseJsonParseError
+            "BILLING_RESPONSE_JSON_PARSE_ERROR" -> ErrorCode.BillingResponseJsonParseError
             "BillingResponseJsonParseError" -> ErrorCode.BillingResponseJsonParseError
             "deferred-payment" -> ErrorCode.DeferredPayment
+            "DEFERRED_PAYMENT" -> ErrorCode.DeferredPayment
             "DeferredPayment" -> ErrorCode.DeferredPayment
             "interrupted" -> ErrorCode.Interrupted
+            "INTERRUPTED" -> ErrorCode.Interrupted
             "Interrupted" -> ErrorCode.Interrupted
             "iap-not-available" -> ErrorCode.IapNotAvailable
+            "IAP_NOT_AVAILABLE" -> ErrorCode.IapNotAvailable
             "IapNotAvailable" -> ErrorCode.IapNotAvailable
             "purchase-error" -> ErrorCode.PurchaseError
+            "PURCHASE_ERROR" -> ErrorCode.PurchaseError
             "PurchaseError" -> ErrorCode.PurchaseError
             "sync-error" -> ErrorCode.SyncError
+            "SYNC_ERROR" -> ErrorCode.SyncError
             "SyncError" -> ErrorCode.SyncError
             "transaction-validation-failed" -> ErrorCode.TransactionValidationFailed
+            "TRANSACTION_VALIDATION_FAILED" -> ErrorCode.TransactionValidationFailed
             "TransactionValidationFailed" -> ErrorCode.TransactionValidationFailed
             "activity-unavailable" -> ErrorCode.ActivityUnavailable
+            "ACTIVITY_UNAVAILABLE" -> ErrorCode.ActivityUnavailable
             "ActivityUnavailable" -> ErrorCode.ActivityUnavailable
             "already-prepared" -> ErrorCode.AlreadyPrepared
+            "ALREADY_PREPARED" -> ErrorCode.AlreadyPrepared
             "AlreadyPrepared" -> ErrorCode.AlreadyPrepared
             "pending" -> ErrorCode.Pending
+            "PENDING" -> ErrorCode.Pending
             "Pending" -> ErrorCode.Pending
             "connection-closed" -> ErrorCode.ConnectionClosed
+            "CONNECTION_CLOSED" -> ErrorCode.ConnectionClosed
             "ConnectionClosed" -> ErrorCode.ConnectionClosed
             "init-connection" -> ErrorCode.InitConnection
+            "INIT_CONNECTION" -> ErrorCode.InitConnection
             "InitConnection" -> ErrorCode.InitConnection
             "service-disconnected" -> ErrorCode.ServiceDisconnected
+            "SERVICE_DISCONNECTED" -> ErrorCode.ServiceDisconnected
             "ServiceDisconnected" -> ErrorCode.ServiceDisconnected
             "service-timeout" -> ErrorCode.ServiceTimeout
+            "SERVICE_TIMEOUT" -> ErrorCode.ServiceTimeout
             "ServiceTimeout" -> ErrorCode.ServiceTimeout
             "query-product" -> ErrorCode.QueryProduct
+            "QUERY_PRODUCT" -> ErrorCode.QueryProduct
             "QueryProduct" -> ErrorCode.QueryProduct
             "sku-not-found" -> ErrorCode.SkuNotFound
+            "SKU_NOT_FOUND" -> ErrorCode.SkuNotFound
             "SkuNotFound" -> ErrorCode.SkuNotFound
             "sku-offer-mismatch" -> ErrorCode.SkuOfferMismatch
+            "SKU_OFFER_MISMATCH" -> ErrorCode.SkuOfferMismatch
             "SkuOfferMismatch" -> ErrorCode.SkuOfferMismatch
             "item-not-owned" -> ErrorCode.ItemNotOwned
+            "ITEM_NOT_OWNED" -> ErrorCode.ItemNotOwned
             "ItemNotOwned" -> ErrorCode.ItemNotOwned
             "billing-unavailable" -> ErrorCode.BillingUnavailable
+            "BILLING_UNAVAILABLE" -> ErrorCode.BillingUnavailable
             "BillingUnavailable" -> ErrorCode.BillingUnavailable
             "feature-not-supported" -> ErrorCode.FeatureNotSupported
+            "FEATURE_NOT_SUPPORTED" -> ErrorCode.FeatureNotSupported
             "FeatureNotSupported" -> ErrorCode.FeatureNotSupported
             "empty-sku-list" -> ErrorCode.EmptySkuList
+            "EMPTY_SKU_LIST" -> ErrorCode.EmptySkuList
             "EmptySkuList" -> ErrorCode.EmptySkuList
             "duplicate-purchase" -> ErrorCode.DuplicatePurchase
+            "DUPLICATE_PURCHASE" -> ErrorCode.DuplicatePurchase
             "DuplicatePurchase" -> ErrorCode.DuplicatePurchase
             else -> throw IllegalArgumentException("Unknown ErrorCode value: $value")
         }
@@ -433,10 +505,13 @@ public enum class ExternalLinkLaunchModeAndroid(val rawValue: String) {
         fun fromJson(value: String): ExternalLinkLaunchModeAndroid = when (value) {
             "unspecified" -> ExternalLinkLaunchModeAndroid.Unspecified
             "UNSPECIFIED" -> ExternalLinkLaunchModeAndroid.Unspecified
+            "Unspecified" -> ExternalLinkLaunchModeAndroid.Unspecified
             "launch-in-external-browser-or-app" -> ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp
             "LAUNCH_IN_EXTERNAL_BROWSER_OR_APP" -> ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp
+            "LaunchInExternalBrowserOrApp" -> ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp
             "caller-will-launch-link" -> ExternalLinkLaunchModeAndroid.CallerWillLaunchLink
             "CALLER_WILL_LAUNCH_LINK" -> ExternalLinkLaunchModeAndroid.CallerWillLaunchLink
+            "CallerWillLaunchLink" -> ExternalLinkLaunchModeAndroid.CallerWillLaunchLink
             else -> throw IllegalArgumentException("Unknown ExternalLinkLaunchModeAndroid value: $value")
         }
     }
@@ -466,10 +541,13 @@ public enum class ExternalLinkTypeAndroid(val rawValue: String) {
     companion object {
         fun fromJson(value: String): ExternalLinkTypeAndroid = when (value) {
             "unspecified" -> ExternalLinkTypeAndroid.Unspecified
+            "UNSPECIFIED" -> ExternalLinkTypeAndroid.Unspecified
             "Unspecified" -> ExternalLinkTypeAndroid.Unspecified
             "link-to-digital-content-offer" -> ExternalLinkTypeAndroid.LinkToDigitalContentOffer
+            "LINK_TO_DIGITAL_CONTENT_OFFER" -> ExternalLinkTypeAndroid.LinkToDigitalContentOffer
             "LinkToDigitalContentOffer" -> ExternalLinkTypeAndroid.LinkToDigitalContentOffer
             "link-to-app-download" -> ExternalLinkTypeAndroid.LinkToAppDownload
+            "LINK_TO_APP_DOWNLOAD" -> ExternalLinkTypeAndroid.LinkToAppDownload
             "LinkToAppDownload" -> ExternalLinkTypeAndroid.LinkToAppDownload
             else -> throw IllegalArgumentException("Unknown ExternalLinkTypeAndroid value: $value")
         }
@@ -493,6 +571,7 @@ public enum class ExternalPurchaseCustomLinkNoticeTypeIOS(val rawValue: String) 
     companion object {
         fun fromJson(value: String): ExternalPurchaseCustomLinkNoticeTypeIOS = when (value) {
             "browser" -> ExternalPurchaseCustomLinkNoticeTypeIOS.Browser
+            "BROWSER" -> ExternalPurchaseCustomLinkNoticeTypeIOS.Browser
             "Browser" -> ExternalPurchaseCustomLinkNoticeTypeIOS.Browser
             else -> throw IllegalArgumentException("Unknown ExternalPurchaseCustomLinkNoticeTypeIOS value: $value")
         }
@@ -521,8 +600,10 @@ public enum class ExternalPurchaseCustomLinkTokenTypeIOS(val rawValue: String) {
     companion object {
         fun fromJson(value: String): ExternalPurchaseCustomLinkTokenTypeIOS = when (value) {
             "acquisition" -> ExternalPurchaseCustomLinkTokenTypeIOS.Acquisition
+            "ACQUISITION" -> ExternalPurchaseCustomLinkTokenTypeIOS.Acquisition
             "Acquisition" -> ExternalPurchaseCustomLinkTokenTypeIOS.Acquisition
             "services" -> ExternalPurchaseCustomLinkTokenTypeIOS.Services
+            "SERVICES" -> ExternalPurchaseCustomLinkTokenTypeIOS.Services
             "Services" -> ExternalPurchaseCustomLinkTokenTypeIOS.Services
             else -> throw IllegalArgumentException("Unknown ExternalPurchaseCustomLinkTokenTypeIOS value: $value")
         }
@@ -547,8 +628,10 @@ public enum class ExternalPurchaseNoticeAction(val rawValue: String) {
     companion object {
         fun fromJson(value: String): ExternalPurchaseNoticeAction = when (value) {
             "continue" -> ExternalPurchaseNoticeAction.Continue
+            "CONTINUE" -> ExternalPurchaseNoticeAction.Continue
             "Continue" -> ExternalPurchaseNoticeAction.Continue
             "dismissed" -> ExternalPurchaseNoticeAction.Dismissed
+            "DISMISSED" -> ExternalPurchaseNoticeAction.Dismissed
             "Dismissed" -> ExternalPurchaseNoticeAction.Dismissed
             else -> throw IllegalArgumentException("Unknown ExternalPurchaseNoticeAction value: $value")
         }
@@ -581,17 +664,23 @@ public enum class IapEvent(val rawValue: String) {
     companion object {
         fun fromJson(value: String): IapEvent = when (value) {
             "purchase-updated" -> IapEvent.PurchaseUpdated
+            "PURCHASE_UPDATED" -> IapEvent.PurchaseUpdated
             "PurchaseUpdated" -> IapEvent.PurchaseUpdated
             "purchase-error" -> IapEvent.PurchaseError
+            "PURCHASE_ERROR" -> IapEvent.PurchaseError
             "PurchaseError" -> IapEvent.PurchaseError
             "promoted-product-ios" -> IapEvent.PromotedProductIos
-            "PromotedProductIos" -> IapEvent.PromotedProductIos
+            "PROMOTED_PRODUCT_IOS" -> IapEvent.PromotedProductIos
             "PromotedProductIOS" -> IapEvent.PromotedProductIos
+            "PromotedProductIos" -> IapEvent.PromotedProductIos
             "user-choice-billing-android" -> IapEvent.UserChoiceBillingAndroid
+            "USER_CHOICE_BILLING_ANDROID" -> IapEvent.UserChoiceBillingAndroid
             "UserChoiceBillingAndroid" -> IapEvent.UserChoiceBillingAndroid
             "developer-provided-billing-android" -> IapEvent.DeveloperProvidedBillingAndroid
+            "DEVELOPER_PROVIDED_BILLING_ANDROID" -> IapEvent.DeveloperProvidedBillingAndroid
             "DeveloperProvidedBillingAndroid" -> IapEvent.DeveloperProvidedBillingAndroid
             "subscription-billing-issue" -> IapEvent.SubscriptionBillingIssue
+            "SUBSCRIPTION_BILLING_ISSUE" -> IapEvent.SubscriptionBillingIssue
             "SubscriptionBillingIssue" -> IapEvent.SubscriptionBillingIssue
             else -> throw IllegalArgumentException("Unknown IapEvent value: $value")
         }
@@ -611,10 +700,13 @@ public enum class IapkitClientPayloadFormat(val rawValue: String) {
     companion object {
         fun fromJson(value: String): IapkitClientPayloadFormat = when (value) {
             "toml" -> IapkitClientPayloadFormat.Toml
+            "TOML" -> IapkitClientPayloadFormat.Toml
             "Toml" -> IapkitClientPayloadFormat.Toml
             "json" -> IapkitClientPayloadFormat.Json
+            "JSON" -> IapkitClientPayloadFormat.Json
             "Json" -> IapkitClientPayloadFormat.Json
             "text" -> IapkitClientPayloadFormat.Text
+            "TEXT" -> IapkitClientPayloadFormat.Text
             "Text" -> IapkitClientPayloadFormat.Text
             else -> throw IllegalArgumentException("Unknown IapkitClientPayloadFormat value: $value")
         }
@@ -667,22 +759,31 @@ public enum class IapkitPurchaseState(val rawValue: String) {
     companion object {
         fun fromJson(value: String): IapkitPurchaseState = when (value) {
             "entitled" -> IapkitPurchaseState.Entitled
+            "ENTITLED" -> IapkitPurchaseState.Entitled
             "Entitled" -> IapkitPurchaseState.Entitled
             "pending-acknowledgment" -> IapkitPurchaseState.PendingAcknowledgment
+            "PENDING_ACKNOWLEDGMENT" -> IapkitPurchaseState.PendingAcknowledgment
             "PendingAcknowledgment" -> IapkitPurchaseState.PendingAcknowledgment
             "pending" -> IapkitPurchaseState.Pending
+            "PENDING" -> IapkitPurchaseState.Pending
             "Pending" -> IapkitPurchaseState.Pending
             "canceled" -> IapkitPurchaseState.Canceled
+            "CANCELED" -> IapkitPurchaseState.Canceled
             "Canceled" -> IapkitPurchaseState.Canceled
             "expired" -> IapkitPurchaseState.Expired
+            "EXPIRED" -> IapkitPurchaseState.Expired
             "Expired" -> IapkitPurchaseState.Expired
             "ready-to-consume" -> IapkitPurchaseState.ReadyToConsume
+            "READY_TO_CONSUME" -> IapkitPurchaseState.ReadyToConsume
             "ReadyToConsume" -> IapkitPurchaseState.ReadyToConsume
             "consumed" -> IapkitPurchaseState.Consumed
+            "CONSUMED" -> IapkitPurchaseState.Consumed
             "Consumed" -> IapkitPurchaseState.Consumed
             "unknown" -> IapkitPurchaseState.Unknown
+            "UNKNOWN" -> IapkitPurchaseState.Unknown
             "Unknown" -> IapkitPurchaseState.Unknown
             "inauthentic" -> IapkitPurchaseState.Inauthentic
+            "INAUTHENTIC" -> IapkitPurchaseState.Inauthentic
             "Inauthentic" -> IapkitPurchaseState.Inauthentic
             else -> throw IllegalArgumentException("Unknown IapkitPurchaseState value: $value")
         }
@@ -698,9 +799,10 @@ public enum class IapPlatform(val rawValue: String) {
     companion object {
         fun fromJson(value: String): IapPlatform = when (value) {
             "ios" -> IapPlatform.Ios
-            "Ios" -> IapPlatform.Ios
             "IOS" -> IapPlatform.Ios
+            "Ios" -> IapPlatform.Ios
             "android" -> IapPlatform.Android
+            "ANDROID" -> IapPlatform.Android
             "Android" -> IapPlatform.Android
             else -> throw IllegalArgumentException("Unknown IapPlatform value: $value")
         }
@@ -719,14 +821,19 @@ public enum class IapStore(val rawValue: String) {
     companion object {
         fun fromJson(value: String): IapStore = when (value) {
             "unknown" -> IapStore.Unknown
+            "UNKNOWN" -> IapStore.Unknown
             "Unknown" -> IapStore.Unknown
             "apple" -> IapStore.Apple
+            "APPLE" -> IapStore.Apple
             "Apple" -> IapStore.Apple
             "google" -> IapStore.Google
+            "GOOGLE" -> IapStore.Google
             "Google" -> IapStore.Google
             "horizon" -> IapStore.Horizon
+            "HORIZON" -> IapStore.Horizon
             "Horizon" -> IapStore.Horizon
             "amazon" -> IapStore.Amazon
+            "AMAZON" -> IapStore.Amazon
             "Amazon" -> IapStore.Amazon
             else -> throw IllegalArgumentException("Unknown IapStore value: $value")
         }
@@ -753,8 +860,10 @@ public enum class InAppMessageCategoryAndroid(val rawValue: String) {
     companion object {
         fun fromJson(value: String): InAppMessageCategoryAndroid = when (value) {
             "unknown-in-app-message-category-id" -> InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId
+            "UNKNOWN_IN_APP_MESSAGE_CATEGORY_ID" -> InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId
             "UnknownInAppMessageCategoryId" -> InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId
             "transactional" -> InAppMessageCategoryAndroid.Transactional
+            "TRANSACTIONAL" -> InAppMessageCategoryAndroid.Transactional
             "Transactional" -> InAppMessageCategoryAndroid.Transactional
             else -> throw IllegalArgumentException("Unknown InAppMessageCategoryAndroid value: $value")
         }
@@ -781,8 +890,10 @@ public enum class InAppMessageResponseCodeAndroid(val rawValue: String) {
     companion object {
         fun fromJson(value: String): InAppMessageResponseCodeAndroid = when (value) {
             "no-action-needed" -> InAppMessageResponseCodeAndroid.NoActionNeeded
+            "NO_ACTION_NEEDED" -> InAppMessageResponseCodeAndroid.NoActionNeeded
             "NoActionNeeded" -> InAppMessageResponseCodeAndroid.NoActionNeeded
             "subscription-status-updated" -> InAppMessageResponseCodeAndroid.SubscriptionStatusUpdated
+            "SUBSCRIPTION_STATUS_UPDATED" -> InAppMessageResponseCodeAndroid.SubscriptionStatusUpdated
             "SubscriptionStatusUpdated" -> InAppMessageResponseCodeAndroid.SubscriptionStatusUpdated
             else -> throw IllegalArgumentException("Unknown InAppMessageResponseCodeAndroid value: $value")
         }
@@ -816,12 +927,16 @@ public enum class PaymentMode(val rawValue: String) {
     companion object {
         fun fromJson(value: String): PaymentMode = when (value) {
             "free-trial" -> PaymentMode.FreeTrial
+            "FREE_TRIAL" -> PaymentMode.FreeTrial
             "FreeTrial" -> PaymentMode.FreeTrial
             "pay-as-you-go" -> PaymentMode.PayAsYouGo
+            "PAY_AS_YOU_GO" -> PaymentMode.PayAsYouGo
             "PayAsYouGo" -> PaymentMode.PayAsYouGo
             "pay-up-front" -> PaymentMode.PayUpFront
+            "PAY_UP_FRONT" -> PaymentMode.PayUpFront
             "PayUpFront" -> PaymentMode.PayUpFront
             "unknown" -> PaymentMode.Unknown
+            "UNKNOWN" -> PaymentMode.Unknown
             "Unknown" -> PaymentMode.Unknown
             else -> throw IllegalArgumentException("Unknown PaymentMode value: $value")
         }
@@ -839,12 +954,16 @@ public enum class PaymentModeIOS(val rawValue: String) {
     companion object {
         fun fromJson(value: String): PaymentModeIOS = when (value) {
             "empty" -> PaymentModeIOS.Empty
+            "EMPTY" -> PaymentModeIOS.Empty
             "Empty" -> PaymentModeIOS.Empty
             "free-trial" -> PaymentModeIOS.FreeTrial
+            "FREE_TRIAL" -> PaymentModeIOS.FreeTrial
             "FreeTrial" -> PaymentModeIOS.FreeTrial
             "pay-as-you-go" -> PaymentModeIOS.PayAsYouGo
+            "PAY_AS_YOU_GO" -> PaymentModeIOS.PayAsYouGo
             "PayAsYouGo" -> PaymentModeIOS.PayAsYouGo
             "pay-up-front" -> PaymentModeIOS.PayUpFront
+            "PAY_UP_FRONT" -> PaymentModeIOS.PayUpFront
             "PayUpFront" -> PaymentModeIOS.PayUpFront
             else -> throw IllegalArgumentException("Unknown PaymentModeIOS value: $value")
         }
@@ -861,10 +980,13 @@ public enum class ProductQueryType(val rawValue: String) {
     companion object {
         fun fromJson(value: String): ProductQueryType = when (value) {
             "in-app" -> ProductQueryType.InApp
+            "IN_APP" -> ProductQueryType.InApp
             "InApp" -> ProductQueryType.InApp
             "subs" -> ProductQueryType.Subs
+            "SUBS" -> ProductQueryType.Subs
             "Subs" -> ProductQueryType.Subs
             "all" -> ProductQueryType.All
+            "ALL" -> ProductQueryType.All
             "All" -> ProductQueryType.All
             else -> throw IllegalArgumentException("Unknown ProductQueryType value: $value")
         }
@@ -900,12 +1022,16 @@ public enum class ProductStatusAndroid(val rawValue: String) {
     companion object {
         fun fromJson(value: String): ProductStatusAndroid = when (value) {
             "ok" -> ProductStatusAndroid.Ok
+            "OK" -> ProductStatusAndroid.Ok
             "Ok" -> ProductStatusAndroid.Ok
             "not-found" -> ProductStatusAndroid.NotFound
+            "NOT_FOUND" -> ProductStatusAndroid.NotFound
             "NotFound" -> ProductStatusAndroid.NotFound
             "no-offers-available" -> ProductStatusAndroid.NoOffersAvailable
+            "NO_OFFERS_AVAILABLE" -> ProductStatusAndroid.NoOffersAvailable
             "NoOffersAvailable" -> ProductStatusAndroid.NoOffersAvailable
             "unknown" -> ProductStatusAndroid.Unknown
+            "UNKNOWN" -> ProductStatusAndroid.Unknown
             "Unknown" -> ProductStatusAndroid.Unknown
             else -> throw IllegalArgumentException("Unknown ProductStatusAndroid value: $value")
         }
@@ -921,8 +1047,10 @@ public enum class ProductType(val rawValue: String) {
     companion object {
         fun fromJson(value: String): ProductType = when (value) {
             "in-app" -> ProductType.InApp
+            "IN_APP" -> ProductType.InApp
             "InApp" -> ProductType.InApp
             "subs" -> ProductType.Subs
+            "SUBS" -> ProductType.Subs
             "Subs" -> ProductType.Subs
             else -> throw IllegalArgumentException("Unknown ProductType value: $value")
         }
@@ -940,12 +1068,16 @@ public enum class ProductTypeIOS(val rawValue: String) {
     companion object {
         fun fromJson(value: String): ProductTypeIOS = when (value) {
             "consumable" -> ProductTypeIOS.Consumable
+            "CONSUMABLE" -> ProductTypeIOS.Consumable
             "Consumable" -> ProductTypeIOS.Consumable
             "non-consumable" -> ProductTypeIOS.NonConsumable
+            "NON_CONSUMABLE" -> ProductTypeIOS.NonConsumable
             "NonConsumable" -> ProductTypeIOS.NonConsumable
             "auto-renewable-subscription" -> ProductTypeIOS.AutoRenewableSubscription
+            "AUTO_RENEWABLE_SUBSCRIPTION" -> ProductTypeIOS.AutoRenewableSubscription
             "AutoRenewableSubscription" -> ProductTypeIOS.AutoRenewableSubscription
             "non-renewing-subscription" -> ProductTypeIOS.NonRenewingSubscription
+            "NON_RENEWING_SUBSCRIPTION" -> ProductTypeIOS.NonRenewingSubscription
             "NonRenewingSubscription" -> ProductTypeIOS.NonRenewingSubscription
             else -> throw IllegalArgumentException("Unknown ProductTypeIOS value: $value")
         }
@@ -962,10 +1094,13 @@ public enum class PurchaseState(val rawValue: String) {
     companion object {
         fun fromJson(value: String): PurchaseState = when (value) {
             "pending" -> PurchaseState.Pending
+            "PENDING" -> PurchaseState.Pending
             "Pending" -> PurchaseState.Pending
             "purchased" -> PurchaseState.Purchased
+            "PURCHASED" -> PurchaseState.Purchased
             "Purchased" -> PurchaseState.Purchased
             "unknown" -> PurchaseState.Unknown
+            "UNKNOWN" -> PurchaseState.Unknown
             "Unknown" -> PurchaseState.Unknown
             else -> throw IllegalArgumentException("Unknown PurchaseState value: $value")
         }
@@ -980,6 +1115,7 @@ public enum class PurchaseVerificationProvider(val rawValue: String) {
     companion object {
         fun fromJson(value: String): PurchaseVerificationProvider = when (value) {
             "iapkit" -> PurchaseVerificationProvider.Iapkit
+            "IAPKIT" -> PurchaseVerificationProvider.Iapkit
             "Iapkit" -> PurchaseVerificationProvider.Iapkit
             else -> throw IllegalArgumentException("Unknown PurchaseVerificationProvider value: $value")
         }
@@ -1009,10 +1145,13 @@ public enum class SubResponseCodeAndroid(val rawValue: String) {
     companion object {
         fun fromJson(value: String): SubResponseCodeAndroid = when (value) {
             "no-applicable-sub-response-code" -> SubResponseCodeAndroid.NoApplicableSubResponseCode
+            "NO_APPLICABLE_SUB_RESPONSE_CODE" -> SubResponseCodeAndroid.NoApplicableSubResponseCode
             "NoApplicableSubResponseCode" -> SubResponseCodeAndroid.NoApplicableSubResponseCode
             "payment-declined-due-to-insufficient-funds" -> SubResponseCodeAndroid.PaymentDeclinedDueToInsufficientFunds
+            "PAYMENT_DECLINED_DUE_TO_INSUFFICIENT_FUNDS" -> SubResponseCodeAndroid.PaymentDeclinedDueToInsufficientFunds
             "PaymentDeclinedDueToInsufficientFunds" -> SubResponseCodeAndroid.PaymentDeclinedDueToInsufficientFunds
             "user-ineligible" -> SubResponseCodeAndroid.UserIneligible
+            "USER_INELIGIBLE" -> SubResponseCodeAndroid.UserIneligible
             "UserIneligible" -> SubResponseCodeAndroid.UserIneligible
             else -> throw IllegalArgumentException("Unknown SubResponseCodeAndroid value: $value")
         }
@@ -1038,10 +1177,13 @@ public enum class SubscriptionBillingPlanTypeIOS(val rawValue: String) {
     companion object {
         fun fromJson(value: String): SubscriptionBillingPlanTypeIOS = when (value) {
             "unknown" -> SubscriptionBillingPlanTypeIOS.Unknown
+            "UNKNOWN" -> SubscriptionBillingPlanTypeIOS.Unknown
             "Unknown" -> SubscriptionBillingPlanTypeIOS.Unknown
             "monthly" -> SubscriptionBillingPlanTypeIOS.Monthly
+            "MONTHLY" -> SubscriptionBillingPlanTypeIOS.Monthly
             "Monthly" -> SubscriptionBillingPlanTypeIOS.Monthly
             "up-front" -> SubscriptionBillingPlanTypeIOS.UpFront
+            "UP_FRONT" -> SubscriptionBillingPlanTypeIOS.UpFront
             "UpFront" -> SubscriptionBillingPlanTypeIOS.UpFront
             else -> throw IllegalArgumentException("Unknown SubscriptionBillingPlanTypeIOS value: $value")
         }
@@ -1062,10 +1204,13 @@ public enum class SubscriptionOfferTypeIOS(val rawValue: String) {
     companion object {
         fun fromJson(value: String): SubscriptionOfferTypeIOS = when (value) {
             "introductory" -> SubscriptionOfferTypeIOS.Introductory
+            "INTRODUCTORY" -> SubscriptionOfferTypeIOS.Introductory
             "Introductory" -> SubscriptionOfferTypeIOS.Introductory
             "promotional" -> SubscriptionOfferTypeIOS.Promotional
+            "PROMOTIONAL" -> SubscriptionOfferTypeIOS.Promotional
             "Promotional" -> SubscriptionOfferTypeIOS.Promotional
             "win-back" -> SubscriptionOfferTypeIOS.WinBack
+            "WIN_BACK" -> SubscriptionOfferTypeIOS.WinBack
             "WinBack" -> SubscriptionOfferTypeIOS.WinBack
             else -> throw IllegalArgumentException("Unknown SubscriptionOfferTypeIOS value: $value")
         }
@@ -1084,14 +1229,19 @@ public enum class SubscriptionPeriodIOS(val rawValue: String) {
     companion object {
         fun fromJson(value: String): SubscriptionPeriodIOS = when (value) {
             "day" -> SubscriptionPeriodIOS.Day
+            "DAY" -> SubscriptionPeriodIOS.Day
             "Day" -> SubscriptionPeriodIOS.Day
             "week" -> SubscriptionPeriodIOS.Week
+            "WEEK" -> SubscriptionPeriodIOS.Week
             "Week" -> SubscriptionPeriodIOS.Week
             "month" -> SubscriptionPeriodIOS.Month
+            "MONTH" -> SubscriptionPeriodIOS.Month
             "Month" -> SubscriptionPeriodIOS.Month
             "year" -> SubscriptionPeriodIOS.Year
+            "YEAR" -> SubscriptionPeriodIOS.Year
             "Year" -> SubscriptionPeriodIOS.Year
             "empty" -> SubscriptionPeriodIOS.Empty
+            "EMPTY" -> SubscriptionPeriodIOS.Empty
             "Empty" -> SubscriptionPeriodIOS.Empty
             else -> throw IllegalArgumentException("Unknown SubscriptionPeriodIOS value: $value")
         }
@@ -1113,14 +1263,19 @@ public enum class SubscriptionPeriodUnit(val rawValue: String) {
     companion object {
         fun fromJson(value: String): SubscriptionPeriodUnit = when (value) {
             "day" -> SubscriptionPeriodUnit.Day
+            "DAY" -> SubscriptionPeriodUnit.Day
             "Day" -> SubscriptionPeriodUnit.Day
             "week" -> SubscriptionPeriodUnit.Week
+            "WEEK" -> SubscriptionPeriodUnit.Week
             "Week" -> SubscriptionPeriodUnit.Week
             "month" -> SubscriptionPeriodUnit.Month
+            "MONTH" -> SubscriptionPeriodUnit.Month
             "Month" -> SubscriptionPeriodUnit.Month
             "year" -> SubscriptionPeriodUnit.Year
+            "YEAR" -> SubscriptionPeriodUnit.Year
             "Year" -> SubscriptionPeriodUnit.Year
             "unknown" -> SubscriptionPeriodUnit.Unknown
+            "UNKNOWN" -> SubscriptionPeriodUnit.Unknown
             "Unknown" -> SubscriptionPeriodUnit.Unknown
             else -> throw IllegalArgumentException("Unknown SubscriptionPeriodUnit value: $value")
         }
@@ -1167,18 +1322,25 @@ public enum class SubscriptionReplacementModeAndroid(val rawValue: String) {
     companion object {
         fun fromJson(value: String): SubscriptionReplacementModeAndroid = when (value) {
             "unknown-replacement-mode" -> SubscriptionReplacementModeAndroid.UnknownReplacementMode
+            "UNKNOWN_REPLACEMENT_MODE" -> SubscriptionReplacementModeAndroid.UnknownReplacementMode
             "UnknownReplacementMode" -> SubscriptionReplacementModeAndroid.UnknownReplacementMode
             "with-time-proration" -> SubscriptionReplacementModeAndroid.WithTimeProration
+            "WITH_TIME_PRORATION" -> SubscriptionReplacementModeAndroid.WithTimeProration
             "WithTimeProration" -> SubscriptionReplacementModeAndroid.WithTimeProration
             "charge-prorated-price" -> SubscriptionReplacementModeAndroid.ChargeProratedPrice
+            "CHARGE_PRORATED_PRICE" -> SubscriptionReplacementModeAndroid.ChargeProratedPrice
             "ChargeProratedPrice" -> SubscriptionReplacementModeAndroid.ChargeProratedPrice
             "charge-full-price" -> SubscriptionReplacementModeAndroid.ChargeFullPrice
+            "CHARGE_FULL_PRICE" -> SubscriptionReplacementModeAndroid.ChargeFullPrice
             "ChargeFullPrice" -> SubscriptionReplacementModeAndroid.ChargeFullPrice
             "without-proration" -> SubscriptionReplacementModeAndroid.WithoutProration
+            "WITHOUT_PRORATION" -> SubscriptionReplacementModeAndroid.WithoutProration
             "WithoutProration" -> SubscriptionReplacementModeAndroid.WithoutProration
             "deferred" -> SubscriptionReplacementModeAndroid.Deferred
+            "DEFERRED" -> SubscriptionReplacementModeAndroid.Deferred
             "Deferred" -> SubscriptionReplacementModeAndroid.Deferred
             "keep-existing" -> SubscriptionReplacementModeAndroid.KeepExisting
+            "KEEP_EXISTING" -> SubscriptionReplacementModeAndroid.KeepExisting
             "KeepExisting" -> SubscriptionReplacementModeAndroid.KeepExisting
             else -> throw IllegalArgumentException("Unknown SubscriptionReplacementModeAndroid value: $value")
         }
@@ -1200,20 +1362,28 @@ public enum class SubscriptionState(val rawValue: String) {
     companion object {
         fun fromJson(value: String): SubscriptionState = when (value) {
             "active" -> SubscriptionState.Active
+            "ACTIVE" -> SubscriptionState.Active
             "Active" -> SubscriptionState.Active
             "in-grace-period" -> SubscriptionState.InGracePeriod
+            "IN_GRACE_PERIOD" -> SubscriptionState.InGracePeriod
             "InGracePeriod" -> SubscriptionState.InGracePeriod
             "in-billing-retry" -> SubscriptionState.InBillingRetry
+            "IN_BILLING_RETRY" -> SubscriptionState.InBillingRetry
             "InBillingRetry" -> SubscriptionState.InBillingRetry
             "expired" -> SubscriptionState.Expired
+            "EXPIRED" -> SubscriptionState.Expired
             "Expired" -> SubscriptionState.Expired
             "revoked" -> SubscriptionState.Revoked
+            "REVOKED" -> SubscriptionState.Revoked
             "Revoked" -> SubscriptionState.Revoked
             "refunded" -> SubscriptionState.Refunded
+            "REFUNDED" -> SubscriptionState.Refunded
             "Refunded" -> SubscriptionState.Refunded
             "paused" -> SubscriptionState.Paused
+            "PAUSED" -> SubscriptionState.Paused
             "Paused" -> SubscriptionState.Paused
             "unknown" -> SubscriptionState.Unknown
+            "UNKNOWN" -> SubscriptionState.Unknown
             "Unknown" -> SubscriptionState.Unknown
             else -> throw IllegalArgumentException("Unknown SubscriptionState value: $value")
         }
@@ -1265,10 +1435,13 @@ public enum class WebhookEventEnvironment(val rawValue: String) {
     companion object {
         fun fromJson(value: String): WebhookEventEnvironment = when (value) {
             "production" -> WebhookEventEnvironment.Production
+            "PRODUCTION" -> WebhookEventEnvironment.Production
             "Production" -> WebhookEventEnvironment.Production
             "sandbox" -> WebhookEventEnvironment.Sandbox
+            "SANDBOX" -> WebhookEventEnvironment.Sandbox
             "Sandbox" -> WebhookEventEnvironment.Sandbox
             "xcode" -> WebhookEventEnvironment.Xcode
+            "XCODE" -> WebhookEventEnvironment.Xcode
             "Xcode" -> WebhookEventEnvironment.Xcode
             else -> throw IllegalArgumentException("Unknown WebhookEventEnvironment value: $value")
         }
@@ -1292,10 +1465,13 @@ public enum class WebhookEventSource(val rawValue: String) {
     companion object {
         fun fromJson(value: String): WebhookEventSource = when (value) {
             "apple-app-store-server-notifications-v2" -> WebhookEventSource.AppleAppStoreServerNotificationsV2
+            "APPLE_APP_STORE_SERVER_NOTIFICATIONS_V2" -> WebhookEventSource.AppleAppStoreServerNotificationsV2
             "AppleAppStoreServerNotificationsV2" -> WebhookEventSource.AppleAppStoreServerNotificationsV2
             "google-play-real-time-developer-notifications" -> WebhookEventSource.GooglePlayRealTimeDeveloperNotifications
+            "GOOGLE_PLAY_REAL_TIME_DEVELOPER_NOTIFICATIONS" -> WebhookEventSource.GooglePlayRealTimeDeveloperNotifications
             "GooglePlayRealTimeDeveloperNotifications" -> WebhookEventSource.GooglePlayRealTimeDeveloperNotifications
             "meta-horizon-reconciler" -> WebhookEventSource.MetaHorizonReconciler
+            "META_HORIZON_RECONCILER" -> WebhookEventSource.MetaHorizonReconciler
             "MetaHorizonReconciler" -> WebhookEventSource.MetaHorizonReconciler
             else -> throw IllegalArgumentException("Unknown WebhookEventSource value: $value")
         }
@@ -1408,36 +1584,52 @@ public enum class WebhookEventType(val rawValue: String) {
     companion object {
         fun fromJson(value: String): WebhookEventType = when (value) {
             "subscription-started" -> WebhookEventType.SubscriptionStarted
+            "SUBSCRIPTION_STARTED" -> WebhookEventType.SubscriptionStarted
             "SubscriptionStarted" -> WebhookEventType.SubscriptionStarted
             "subscription-renewed" -> WebhookEventType.SubscriptionRenewed
+            "SUBSCRIPTION_RENEWED" -> WebhookEventType.SubscriptionRenewed
             "SubscriptionRenewed" -> WebhookEventType.SubscriptionRenewed
             "subscription-expired" -> WebhookEventType.SubscriptionExpired
+            "SUBSCRIPTION_EXPIRED" -> WebhookEventType.SubscriptionExpired
             "SubscriptionExpired" -> WebhookEventType.SubscriptionExpired
             "subscription-in-grace-period" -> WebhookEventType.SubscriptionInGracePeriod
+            "SUBSCRIPTION_IN_GRACE_PERIOD" -> WebhookEventType.SubscriptionInGracePeriod
             "SubscriptionInGracePeriod" -> WebhookEventType.SubscriptionInGracePeriod
             "subscription-in-billing-retry" -> WebhookEventType.SubscriptionInBillingRetry
+            "SUBSCRIPTION_IN_BILLING_RETRY" -> WebhookEventType.SubscriptionInBillingRetry
             "SubscriptionInBillingRetry" -> WebhookEventType.SubscriptionInBillingRetry
             "subscription-recovered" -> WebhookEventType.SubscriptionRecovered
+            "SUBSCRIPTION_RECOVERED" -> WebhookEventType.SubscriptionRecovered
             "SubscriptionRecovered" -> WebhookEventType.SubscriptionRecovered
             "subscription-canceled" -> WebhookEventType.SubscriptionCanceled
+            "SUBSCRIPTION_CANCELED" -> WebhookEventType.SubscriptionCanceled
             "SubscriptionCanceled" -> WebhookEventType.SubscriptionCanceled
             "subscription-uncanceled" -> WebhookEventType.SubscriptionUncanceled
+            "SUBSCRIPTION_UNCANCELED" -> WebhookEventType.SubscriptionUncanceled
             "SubscriptionUncanceled" -> WebhookEventType.SubscriptionUncanceled
             "subscription-revoked" -> WebhookEventType.SubscriptionRevoked
+            "SUBSCRIPTION_REVOKED" -> WebhookEventType.SubscriptionRevoked
             "SubscriptionRevoked" -> WebhookEventType.SubscriptionRevoked
             "subscription-price-change" -> WebhookEventType.SubscriptionPriceChange
+            "SUBSCRIPTION_PRICE_CHANGE" -> WebhookEventType.SubscriptionPriceChange
             "SubscriptionPriceChange" -> WebhookEventType.SubscriptionPriceChange
             "subscription-product-changed" -> WebhookEventType.SubscriptionProductChanged
+            "SUBSCRIPTION_PRODUCT_CHANGED" -> WebhookEventType.SubscriptionProductChanged
             "SubscriptionProductChanged" -> WebhookEventType.SubscriptionProductChanged
             "subscription-paused" -> WebhookEventType.SubscriptionPaused
+            "SUBSCRIPTION_PAUSED" -> WebhookEventType.SubscriptionPaused
             "SubscriptionPaused" -> WebhookEventType.SubscriptionPaused
             "subscription-resumed" -> WebhookEventType.SubscriptionResumed
+            "SUBSCRIPTION_RESUMED" -> WebhookEventType.SubscriptionResumed
             "SubscriptionResumed" -> WebhookEventType.SubscriptionResumed
             "purchase-refunded" -> WebhookEventType.PurchaseRefunded
+            "PURCHASE_REFUNDED" -> WebhookEventType.PurchaseRefunded
             "PurchaseRefunded" -> WebhookEventType.PurchaseRefunded
             "purchase-consumption-request" -> WebhookEventType.PurchaseConsumptionRequest
+            "PURCHASE_CONSUMPTION_REQUEST" -> WebhookEventType.PurchaseConsumptionRequest
             "PurchaseConsumptionRequest" -> WebhookEventType.PurchaseConsumptionRequest
             "test-notification" -> WebhookEventType.TestNotification
+            "TEST_NOTIFICATION" -> WebhookEventType.TestNotification
             "TestNotification" -> WebhookEventType.TestNotification
             else -> throw IllegalArgumentException("Unknown WebhookEventType value: $value")
         }
@@ -1472,6 +1664,9 @@ public interface PurchaseCommon {
     val id: String
     val ids: List<String>?
     val isAutoRenewing: Boolean
+    /**
+     * @deprecated Use store instead
+     */
     val platform: IapPlatform
     val productId: String
     val purchaseState: PurchaseState
@@ -1523,9 +1718,9 @@ public data class ActiveSubscription(
     val transactionDate: Double,
     val transactionId: String,
     /**
-     * @deprecated iOS only - use daysUntilExpirationIOS instead.
      * Whether the subscription will expire soon (within 7 days).
      * Consider using daysUntilExpirationIOS for more precise control.
+     * @deprecated iOS only - use daysUntilExpirationIOS instead.
      */
     val willExpireSoon: Boolean? = null
 ) {
@@ -2076,8 +2271,8 @@ public data class DiscountDisplayInfoAndroid(
 
 /**
  * Discount information returned from the store.
+ * @see https://openiap.dev/docs/types/subscription-offer
  * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
- * @see https://openiap.dev/docs/types#subscription-offer
  */
 public data class DiscountIOS(
     val identifier: String,
@@ -2120,12 +2315,13 @@ public data class DiscountIOS(
 
 /**
  * Standardized one-time product discount offer.
- * Provides a unified interface for one-time purchase discounts across platforms.
+ * Provides a platform-neutral OpenIAP shape for Google Play one-time product
+ * purchase options and offers.
  * 
- * Currently supported on Android (Google Play Billing 8.0+).
- * iOS does not support one-time purchase discounts in the same way.
+ * Currently populated only on Android (Google Play Billing 8.0+).
+ * iOS does not populate this type.
  * 
- * @see https://openiap.dev/docs/features/discount
+ * @see https://openiap.dev/docs/types/discount-offer
  */
 public data class DiscountOffer(
     /**
@@ -2142,7 +2338,7 @@ public data class DiscountOffer(
      */
     val displayPrice: String,
     /**
-     * [Android] Formatted discount amount string (e.g., "$5.00 OFF").
+     * [Android] Formatted discount amount including its currency sign (e.g., "$5.00").
      */
     val formattedDiscountAmountAndroid: String? = null,
     /**
@@ -2196,7 +2392,9 @@ public data class DiscountOffer(
      */
     val rentalDetailsAndroid: RentalDetailsAndroid? = null,
     /**
-     * Type of discount offer
+     * Offer category. DiscountOffer currently represents Android one-time product
+     * offers and is populated as OneTime. Introductory and Promotional are used by
+     * SubscriptionOffer.
      */
     val type: DiscountOfferType,
     /**
@@ -2252,8 +2450,8 @@ public data class DiscountOffer(
 
 /**
  * iOS DiscountOffer (output type).
+ * @see https://openiap.dev/docs/types/subscription-offer
  * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
- * @see https://openiap.dev/docs/types#subscription-offer
  */
 public data class DiscountOfferIOS(
     /**
@@ -2326,8 +2524,8 @@ public data class EntitlementIOS(
 
 /**
  * External offer availability result (Android)
- * @deprecated Use BillingProgramAvailabilityResultAndroid with isBillingProgramAvailableAsync instead
  * Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
+ * @deprecated Use BillingProgramAvailabilityResultAndroid with isBillingProgramAvailableAsync instead
  */
 public data class ExternalOfferAvailabilityResultAndroid(
     /**
@@ -2352,8 +2550,8 @@ public data class ExternalOfferAvailabilityResultAndroid(
 
 /**
  * External offer reporting details (Android)
- * @deprecated Use BillingProgramReportingDetailsAndroid with createBillingProgramReportingDetailsAsync instead
  * Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
+ * @deprecated Use BillingProgramReportingDetailsAndroid with createBillingProgramReportingDetailsAsync instead
  */
 public data class ExternalOfferReportingDetailsAndroid(
     /**
@@ -2770,9 +2968,9 @@ public data class ProductAndroid(
     override val debugDescription: String? = null,
     override val description: String,
     /**
-     * Standardized discount offers for one-time products.
-     * Cross-platform type with Android-specific fields using suffix.
-     * @see https://openiap.dev/docs/types#discount-offer
+     * Standardized Android one-time product purchase options and offers.
+     * Native metadata uses Android-suffixed fields.
+     * @see https://openiap.dev/docs/types/discount-offer
      */
     val discountOffers: List<DiscountOffer>? = null,
     override val displayName: String? = null,
@@ -2782,7 +2980,7 @@ public data class ProductAndroid(
     /**
      * One-time purchase offer details including discounts (Android)
      * Returns all eligible offers. Available in Google Play Billing Library 8.0+
-     * @deprecated Use discountOffers instead for cross-platform compatibility.
+     * @deprecated Use the standardized discountOffers field instead.
      */
     val oneTimePurchaseOfferDetailsAndroid: List<ProductAndroidOneTimePurchaseOfferDetail>? = null,
     override val platform: IapPlatform = IapPlatform.Android,
@@ -2802,7 +3000,7 @@ public data class ProductAndroid(
     /**
      * Standardized subscription offers.
      * Cross-platform type with Android-specific fields using suffix.
-     * @see https://openiap.dev/docs/types#subscription-offer
+     * @see https://openiap.dev/docs/types/subscription-offer
      */
     val subscriptionOffers: List<SubscriptionOffer>? = null,
     override val title: String,
@@ -2856,8 +3054,8 @@ public data class ProductAndroid(
 /**
  * One-time purchase offer details (Android).
  * Available in Google Play Billing Library 8.0+
- * @deprecated Use the standardized DiscountOffer type instead for cross-platform compatibility.
- * @see https://openiap.dev/docs/types#discount-offer
+ * @see https://openiap.dev/docs/types/discount-offer
+ * @deprecated Use the standardized DiscountOffer type for Android one-time offers.
  */
 public data class ProductAndroidOneTimePurchaseOfferDetail(
     /**
@@ -2973,7 +3171,7 @@ public data class ProductIOS(
      * Standardized subscription offers.
      * Cross-platform type with iOS-specific fields using suffix.
      * Note: iOS does not support one-time product discounts.
-     * @see https://openiap.dev/docs/types#subscription-offer
+     * @see https://openiap.dev/docs/types/subscription-offer
      */
     val subscriptionOffers: List<SubscriptionOffer>? = null,
     override val title: String,
@@ -3032,9 +3230,8 @@ public data class ProductSubscriptionAndroid(
     override val debugDescription: String? = null,
     override val description: String,
     /**
-     * Standardized discount offers for one-time products.
-     * Cross-platform type with Android-specific fields using suffix.
-     * @see https://openiap.dev/docs/types#discount-offer
+     * Nullable compatibility field. Google Play does not return one-time purchase
+     * offer details for subscription products; use subscriptionOffers below.
      */
     val discountOffers: List<DiscountOffer>? = null,
     override val displayName: String? = null,
@@ -3042,9 +3239,9 @@ public data class ProductSubscriptionAndroid(
     override val id: String,
     val nameAndroid: String,
     /**
-     * One-time purchase offer details including discounts (Android)
-     * Returns all eligible offers. Available in Google Play Billing Library 8.0+
-     * @deprecated Use discountOffers instead for cross-platform compatibility.
+     * Legacy nullable compatibility field. Google Play does not populate one-time
+     * purchase offer details for subscription products.
+     * @deprecated One-time offers belong to ProductAndroid.discountOffers; subscriptions use subscriptionOffers.
      */
     val oneTimePurchaseOfferDetailsAndroid: List<ProductAndroidOneTimePurchaseOfferDetail>? = null,
     override val platform: IapPlatform = IapPlatform.Android,
@@ -3064,7 +3261,7 @@ public data class ProductSubscriptionAndroid(
     /**
      * Standardized subscription offers.
      * Cross-platform type with Android-specific fields using suffix.
-     * @see https://openiap.dev/docs/types#subscription-offer
+     * @see https://openiap.dev/docs/types/subscription-offer
      */
     val subscriptionOffers: List<SubscriptionOffer>,
     override val title: String,
@@ -3117,8 +3314,8 @@ public data class ProductSubscriptionAndroid(
 
 /**
  * Subscription offer details (Android).
+ * @see https://openiap.dev/docs/types/subscription-offer
  * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
- * @see https://openiap.dev/docs/types#subscription-offer
  */
 public data class ProductSubscriptionAndroidOfferDetails(
     val basePlanId: String,
@@ -3195,7 +3392,7 @@ public data class ProductSubscriptionIOS(
     /**
      * Standardized subscription offers.
      * Cross-platform type with iOS-specific fields using suffix.
-     * @see https://openiap.dev/docs/types#subscription-offer
+     * @see https://openiap.dev/docs/types/subscription-offer
      */
     val subscriptionOffers: List<SubscriptionOffer>? = null,
     val subscriptionPeriodNumberIOS: String? = null,
@@ -3296,6 +3493,9 @@ public data class PurchaseAndroid(
      * Available in Google Play Billing Library 5.0+
      */
     val pendingPurchaseUpdateAndroid: PendingPurchaseUpdateAndroid? = null,
+    /**
+     * @deprecated Use store instead
+     */
     override val platform: IapPlatform,
     override val productId: String,
     override val purchaseState: PurchaseState,
@@ -3467,6 +3667,9 @@ public data class PurchaseIOS(
     val originalTransactionDateIOS: Double? = null,
     val originalTransactionIdentifierIOS: String? = null,
     val ownershipTypeIOS: String? = null,
+    /**
+     * @deprecated Use store instead
+     */
     override val platform: IapPlatform,
     override val productId: String,
     override val purchaseState: PurchaseState,
@@ -3917,8 +4120,7 @@ public data class SubscriptionInfoIOS(
  * - iOS: Introductory offers, promotional offers with server-side signatures
  * - Android: Offer tokens with pricing phases
  * 
- * @see https://openiap.dev/docs/types/ios#discount-offer
- * @see https://openiap.dev/docs/types/android#subscription-offer
+ * @see https://openiap.dev/docs/types/subscription-offer
  */
 public data class SubscriptionOffer(
     /**
@@ -4062,8 +4264,8 @@ public data class SubscriptionOffer(
 
 /**
  * iOS subscription offer details.
+ * @see https://openiap.dev/docs/types/subscription-offer
  * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility.
- * @see https://openiap.dev/docs/types#subscription-offer
  */
 public data class SubscriptionOfferIOS(
     val displayPrice: String,
@@ -4889,8 +5091,8 @@ public data class InitConnectionConfig(
     /**
      * Alternative billing mode for Android
      * If not specified, defaults to NONE (standard Google Play billing)
-     * @deprecated Use enableBillingProgramAndroid instead.
      * Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only.
+     * @deprecated Use enableBillingProgramAndroid instead.
      */
     val alternativeBillingModeAndroid: AlternativeBillingModeAndroid? = null,
     /**
@@ -5227,7 +5429,14 @@ public data class RequestPurchaseIosProps(
 
 public data class RequestPurchaseProps(
     val request: Request,
+    /**
+     * Explicit purchase type hint (defaults to in-app)
+     */
     val type: ProductQueryType,
+    /**
+     * This flag only logs debug info and has no effect on the purchase flow.
+     * @deprecated Use enableBillingProgramAndroid in InitConnectionConfig instead.
+     */
     val useAlternativeBilling: Boolean? = null
 ) {
     init {
@@ -5276,7 +5485,13 @@ public data class RequestPurchaseProps(
     }
 
     sealed class Request {
+        /**
+         * Per-platform purchase request props
+         */
         data class Purchase(val value: RequestPurchasePropsByPlatforms) : Request()
+        /**
+         * Per-platform subscription request props
+         */
         data class Subscription(val value: RequestSubscriptionPropsByPlatforms) : Request()
     }
 }
@@ -5359,7 +5574,7 @@ public data class RequestSubscriptionAndroidProps(
     val purchaseToken: String? = null,
     /**
      * Replacement mode for subscription changes
-     * @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+)
+     * @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+).
      */
     val replacementMode: Int? = null,
     /**
@@ -6177,10 +6392,8 @@ public interface MutationResolver {
     /**
      * Buy the currently promoted product.
      * 
-     * @deprecated Use promotedProductListenerIOS to receive the productId,
-     * then call requestPurchase with that SKU instead. In StoreKit 2,
-     * promoted products can be purchased directly via the standard purchase flow.
      * See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
+     * @deprecated Use promotedProductListenerIOS to receive the productId, then call requestPurchase with that SKU instead. In StoreKit 2, promoted products can be purchased directly via the standard purchase flow.
      */
     suspend fun requestPurchaseOnPromotedProductIOS(): Boolean
     /**
@@ -6209,6 +6422,7 @@ public interface MutationResolver {
      * Call this after a deliberate customer interaction before linking out to external purchases.
      * Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/shownotice(type:)
      * See: https://openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios
+     * Parameter noticeType: Notice type determining the style of disclosure
      */
     suspend fun showExternalPurchaseCustomLinkNoticeIOS(noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS): ExternalPurchaseCustomLinkNoticeResultIOS
     /**
@@ -6233,6 +6447,7 @@ public interface MutationResolver {
     /**
      * Deprecated. Validate purchase receipts with the configured providers — use verifyPurchase instead.
      * See: https://openiap.dev/docs/features/validation#verify-purchase
+     * @deprecated Use verifyPurchase
      */
     suspend fun validateReceipt(options: VerifyPurchaseProps): VerifyPurchaseResult
     /**
@@ -6308,6 +6523,7 @@ public interface QueryResolver {
      * Use this token to report transactions made through ExternalPurchaseCustomLink.
      * Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
      * See: https://openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios
+     * Parameter tokenType: Token type: acquisition (new customers) or services (existing customers)
      */
     suspend fun getExternalPurchaseCustomLinkTokenIOS(tokenType: ExternalPurchaseCustomLinkTokenTypeIOS): ExternalPurchaseCustomLinkTokenResultIOS
     /**
@@ -6336,6 +6552,7 @@ public interface QueryResolver {
      * Deprecated. Get the current App Store storefront ISO 3166-1 alpha-3 country
      * code — use cross-platform getStorefront instead.
      * See: https://openiap.dev/docs/apis/ios/get-storefront-ios
+     * @deprecated Use getStorefront
      */
     suspend fun getStorefrontIOS(): String
     /**
@@ -6378,6 +6595,7 @@ public interface QueryResolver {
     /**
      * Deprecated. Legacy App Store receipt validation — use verifyPurchase instead.
      * See: https://openiap.dev/docs/apis/ios/validate-receipt-ios
+     * @deprecated Use verifyPurchase
      */
     suspend fun validateReceiptIOS(options: VerifyPurchaseProps): VerifyPurchaseResultIOS
 }

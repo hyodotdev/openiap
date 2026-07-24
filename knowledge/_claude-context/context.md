@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-07-20T00:25:18.244Z
+> Last updated: 2026-07-24T00:17:24.969Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -800,11 +800,8 @@ Before writing or editing anything, **ALWAYS** review:
 The `Types.swift` file in `Sources/Models/` is **auto-generated** from the OpenIAP GraphQL schema.
 
 ```bash
-# Generate types using version from openiap-versions.json
-./scripts/generate-types.sh
-
-# Or override with environment variable
-OPENIAP_GQL_VERSION=1.0.9 ./scripts/generate-types.sh
+# From the monorepo root: regenerate all languages and sync manifest targets
+cd packages/gql && bun run generate
 ```
 
 ### Version Management
@@ -821,9 +818,12 @@ Version is managed in `openiap-versions.json`:
 
 **To update GQL types:**
 
-1. Edit `openiap-versions.json` - change the `"spec"` version
-2. Run `./scripts/generate-types.sh`
-3. Run `swift test` to verify compatibility
+1. Edit the canonical schema under `packages/gql/src/`.
+2. Run `cd packages/gql && bun run generate`.
+3. Run `cd packages/apple && swift test` to verify compatibility.
+
+Change the `"spec"` version only when the release train explicitly requests a
+version bump; type regeneration itself does not require one.
 
 **To bump Apple package version:**
 
@@ -1063,7 +1063,7 @@ The Google package supports **three build flavors**:
 
 1. **DO NOT edit generated files**: `openiap/src/main/java/dev/hyo/openiap/Types.kt` is auto-generated
 2. Put reusable Kotlin helpers in `openiap/src/main/java/dev/hyo/openiap/utils/`
-3. Run `./scripts/generate-types.sh` to regenerate types
+3. Run `cd packages/gql && bun run generate` from the monorepo root
 4. **Test ALL THREE flavors** when making changes to shared code
 5. **Never persist local receipt-to-SKU aliases as entitlement identity**:
    store-specific adapters may cache data for performance or correlate an
@@ -1155,8 +1155,9 @@ maps OpenIAP product queries, purchases, restore calls, and fulfillment to
 
 ### Updating openiap-gql Version
 
-1. Edit `openiap-versions.json` and update the `spec` field
-2. Run `./scripts/generate-types.sh` to download and regenerate Types.kt
+1. Update the canonical schema and change `openiap-versions.json` only when an
+   explicitly coordinated release requests a new `spec` version.
+2. Run `cd packages/gql && bun run generate` from the monorepo root.
 3. Compile ALL THREE flavors to verify:
    ```bash
    ./gradlew :openiap:compilePlayDebugKotlin
@@ -1247,18 +1248,16 @@ Before writing or editing anything, **ALWAYS** review:
 
 ### Code Generation Architecture
 
-The GQL package uses an **IR-based (Intermediate Representation) code generation system**:
+The GQL package uses two guarded generation lanes over one schema inventory:
 
 ```text
 GraphQL Schema (src/*.graphql)
-         ↓
-    [1] Parser (codegen/core/parser.ts)
-         ↓
-    [2] Transformer → IR (codegen/core/transformer.ts)
-         ↓
-    [3] Language Plugins (codegen/plugins/*.ts)
-         ↓
-    Generated Files (src/generated/*)
+         ├──► graphql-codegen + guarded TypeScript AST post-processing
+         │                         └──► src/generated/types.ts
+         └──► Parser → Transformer → IR → Language Plugins
+                                      └──► Swift/Kotlin/Dart/GDScript/C#
+                                                     ↓
+                                          generated-sync-manifest.mjs
 ```
 
 #### Directory Structure
@@ -1278,7 +1277,6 @@ packages/gql/codegen/
 │   ├── dart.ts           # Dart plugin (sealed class, factory constructors)
 │   ├── gdscript.ts       # GDScript plugin (Godot engine)
 │   └── csharp.ts         # C# plugin (.NET MAUI)
-└── templates/            # Handlebars templates (optional)
 ```
 
 #### IR (Intermediate Representation)
@@ -1308,16 +1306,16 @@ Each plugin handles language-specific requirements:
 
 ### Scripts
 
-| Script              | Description                                 |
-| ------------------- | ------------------------------------------- |
-| `generate:ts`       | Generate TypeScript types (graphql-codegen) |
-| `generate:swift`    | Generate Swift types (IR-based plugin)      |
-| `generate:kotlin`   | Generate Kotlin types (IR-based plugin)     |
-| `generate:dart`     | Generate Dart types (IR-based plugin)       |
-| `generate:gdscript` | Generate GDScript types (IR-based plugin)   |
-| `generate:csharp`   | Generate C# / MAUI types (IR-based plugin)  |
-| `generate`          | Generate all types + sync to platforms      |
-| `sync`              | Sync generated types to platform packages   |
+| Script              | Description                                   |
+| ------------------- | --------------------------------------------- |
+| `generate:ts`       | Generate TypeScript types (graphql-codegen)   |
+| `generate:swift`    | Generate Swift types (IR-based plugin)        |
+| `generate:kotlin`   | Generate Kotlin types (IR-based plugin)       |
+| `generate:dart`     | Generate Dart types (IR-based plugin)         |
+| `generate:gdscript` | Generate GDScript types (IR-based plugin)     |
+| `generate:csharp`   | Generate C# / MAUI types (IR-based plugin)    |
+| `generate`          | Generate every type and sync manifest targets |
+| `sync`              | Replay manifest-owned synchronized copies     |
 
 ### Generating Types
 
@@ -1327,7 +1325,8 @@ cd packages/gql
 # Generate all platform types
 bun run generate
 
-# Generate specific platform
+# Diagnostic single-plugin generation (always finish with `bun run generate`
+# before committing so every manifest target is synchronized)
 bun run generate:swift
 bun run generate:kotlin
 bun run generate:dart
@@ -2057,9 +2056,48 @@ GraphQL schema  →  generated Types  →  hand-written wrapper SDK  →  docs p
  /src/*.graphql)   /types.{ts,kt,...})    Dart / TS / GDScript)        src/pages/...)
 ```
 
+- `packages/gql/schema-files.mjs` — ordered inventory of every production SDL
+  input. Every repository-owned generator imports it directly. Do not add
+  another hard-coded schema list or an unverified external generator manifest.
+- `packages/gql/schema-source-utils.mjs` — shared source identity normalization
+  and block-string line detection. Metadata extractors must not duplicate this
+  lexical bookkeeping.
 - `packages/gql/src/*.graphql` — schema descriptions ARE the canonical doc
   string. Edits propagate via `bun run generate` to every generated
-  `Types.{ts,kt,swift,dart,gd}`.
+  `types.ts`, `Types.kt`, `Types.swift`, `types.dart`, `types.gd`, and
+  `Types.cs`.
+- `packages/gql/schema-markers.mjs` — the only parser for the SDL comment
+  contracts `# Future` and `# => Union`. Generators and the schema linter must
+  consume it rather than maintaining independent line-state machines. A union
+  wrapper must be a non-root object with at least one field and all fields
+  nullable; operation roots, empty wrappers, and required fields fail
+  generation instead of silently degrading to an object.
+- `packages/gql/schema-deprecations.mjs` — the only extractor and validator for
+  canonical deprecation ownership. Standard GraphQL declarations use
+  `@deprecated(reason: ...)`; named types use the project-scoped
+  `@openiapDeprecated(reason: ...)` directive declared in `schema.graphql`.
+  Do not duplicate an
+  `@deprecated` tag inside the description or encode deprecation only as
+  description prose. The schema linter rejects missing, duplicate, empty, and
+  conflicting ownership. The generator appends the directive reason wherever
+  the target exposes a corresponding declaration; TypeScript receives an
+  explicit injection for project-scoped type-level directives.
+  TypeScript string-union members have no per-member declaration and therefore
+  cannot carry GraphQL enum-value docs; `ErrorCode` remains a real enum, so its
+  member deprecations are required. Custom aliases such as
+  `PurchaseInput = Purchase` rely on the aliased declaration's canonical docs
+  instead of duplicating them. GDScript does not emit GraphQL interfaces, so
+  implementation declarations carry the applicable field guidance. GDScript
+  also expresses `# => Union` result wrappers only through operation return
+  metadata rather than declarations, so wrapper-variant docs have no generated
+  declaration target there; every language that emits a wrapper or variant
+  declaration must preserve the canonical reason.
+- `packages/gql/custom-input-contracts.ts` — typed
+  field/type/nullability/default contracts for inputs that custom generators
+  alias or project. The shared IR transformer validates these before any
+  language plugin runs.
+- `packages/gql/generated-sync-manifest.mjs` — generated source/target mapping
+  shared by canonical platform sync and the pre-commit drift guard.
 - `libraries/*/src/types.ts` (or equivalent) — generated; never hand-edit.
   When a docs page mentions a field name, that field MUST exist in the
   generated TS type. The audit script enforces this.
@@ -2105,10 +2143,10 @@ When changing a default, update:
 ### R3 — Doc pages reference real fields only
 
 When a Type doc page lists fields in a `<table>` or `<ul>`, every field name
-MUST exist in the generated `libraries/expo-iap/src/types.ts` (or
-`libraries/react-native-iap/src/types.ts` — they're identical in shape).
-The audit script greps for fields that don't appear in the type definition
-and flags them.
+MUST exist in the canonical generated
+`packages/gql/src/generated/types.ts` shape, which is synchronized into Expo
+and React Native. The audit parses that TypeScript SSOT with the compiler AST
+and flags fields that do not appear in the declaration.
 
 Example failure modes already encountered:
 
@@ -2125,13 +2163,19 @@ Example failure modes already encountered:
 
 When a doc page mentions enum values (e.g.
 `'continue' | 'cancelled'`, `.acquisition`, `.services`), they must
-appear in the generated enum definition. The audit script extracts string
-literals from `<code>'…'</code>` blocks in doc pages and checks them
-against the generated TypeScript union types.
+appear in the generated enum definition. Compare documentation against the
+generated target-language member names and wire values, not a manually copied
+list. GraphQL enum identifiers are PascalCase, but serialized string values can
+be lowercase or kebab-case.
 
 `ExternalPurchaseCustomLinkNoticeTypeIOS` is the canonical recent miss —
 the union is `'browser'` only, but the doc claimed
 `'continue' | 'cancelled' | …`.
+
+The audit script enforces exact generated values for the canonical offer
+snippets covered by R12. Other enum examples still require review against the
+generated types until a focused, fault-tested rule is added; do not describe a
+broader automated guarantee than the script actually provides.
 
 ### R5 — `<Link to="/docs/...">` targets must resolve
 
@@ -2146,8 +2190,9 @@ recent failures:
   wrong section. Add a precise `#external-purchase-custom-link-token-result-ios`
   anchor on the type page AND link to it.
 
-The audit script crawls every internal `<Link to="/docs/...">` and asserts
-the target file (and anchor when given) exists.
+The audit script crawls every internal `<Link to="/docs/...">` and asserts the
+target page file exists. Anchor semantics still require review against the
+target page.
 
 ### R6 — Native version constraints are honest
 
@@ -2164,16 +2209,13 @@ When you write `<X> 8.2.0+`, you should be able to point to the matching
 release-notes line. Don't paraphrase — quote the version requirement
 exactly as Google / Apple states it.
 
-### R7 — Code-example snippets compile-check
+### R7 — Code-example snippets follow the real wrapper contract
 
 Code examples in doc pages should at minimum parse / type-check against
-the wrapper they target. The audit script does NOT yet run a full
-TypeScript / Kotlin / Dart parser, but it does:
-
-- Verify imports (`import {…} from 'expo-iap'`) reference symbols that
-  expo-iap actually exports.
-- Verify field accesses on shown objects (e.g. `purchase.purchaseToken`)
-  exist on the corresponding generated type.
+the wrapper they target. The audit script does not compile every documentation
+language. Its R11 rules reject a focused set of recurring phantom API shapes;
+all other imports, calls, and field accesses still require a real example build
+or a targeted fault-tested audit rule.
 
 When in doubt, run the example in a real example app before publishing.
 
@@ -2226,6 +2268,38 @@ by `scripts/sync-versions.sh` from the real SSOT files:
 `bun run audit:docs` fails if this generated metadata drifts from the SSOT
 files or if `versioning.ts` reintroduces raw imports outside `packages/docs`.
 
+### R11 — Active code examples reject recurring phantom API shapes
+
+Fenced `CodeBlock` examples under active documentation must not reintroduce
+known cross-language mistakes such as Kotlin syntax in C#, obsolete Flutter
+listener names, legacy purchase request shapes, top-level Godot SKUs, or
+obsolete Kotlin/KMP named arguments. Historical release notes are excluded
+because they describe APIs as shipped at that time.
+
+Keep R11 focused. Every new pattern needs a failing fixture and a valid nearby
+shape so formatting, comments, or unrelated prose cannot trigger it.
+
+### R12 — Canonical offer docs derive enum contracts from generated types
+
+`DiscountOffer` is the canonical Android one-time product offer shape backed by
+`ProductDetails.OneTimePurchaseOfferDetails`. Subscription discounts belong to
+`SubscriptionOffer`, which maps to StoreKit `Product.SubscriptionOffer` and
+Google Play `ProductDetails.SubscriptionOfferDetails`.
+
+The canonical DiscountOffer page contains TypeScript, Swift, Kotlin, and Dart
+`DiscountOfferType` snippets. The audit must parse the corresponding generated
+files and compare each snippet with those generated members and wire values. Do
+not hard-code a second expected enum list in the audit or its fixtures.
+
+Search data must contain exactly one canonical entry for each page:
+
+- `DiscountOffer` → `/docs/types/discount-offer`
+- `SubscriptionOffer` → `/docs/types/subscription-offer`
+
+Every R12 parser edge case needs a fault test. Required fixture transforms must
+fail when their search pattern no longer matches; a no-op replacement can make
+an invalid parser look green.
+
 ## Pre-commit checklist
 
 Run before every `git push` on docs / SDK changes:
@@ -2243,13 +2317,16 @@ cd libraries/flutter_inapp_purchase && dart analyze lib
 cd packages/apple && swift build
 cd packages/google && ./gradlew :openiap:compilePlayDebugKotlin
 
-# 3. SSOT audit — run the docs-consistency audit script
-cd scripts && bun run audit-docs.ts
+# 3. SSOT audit + parser fault fixtures (from the repository root)
+cd <repo-root>
+bun test scripts/audit-docs.test.ts
+bun run audit:docs
 ```
 
-Auto-mode users: the `commit-push-pr` skill runs steps 1 + 2 automatically
-before pushing. Step 3 is opt-in until the audit script has zero false
-positives in CI.
+The pre-commit hook runs the docs typecheck, audit fixtures, audit, and docs
+format check when docs, the audit scripts, or the generated GQL contracts they
+consume change. GitHub's `Test Docs` job runs the same audit fixtures and audit.
+Do not bypass these gates.
 
 ## Audit script
 
@@ -2258,18 +2335,21 @@ parses every `/docs/apis/*.tsx` and `/docs/types/*.tsx` page, extracts:
 
 - `<Link to="/docs/...">` targets
 - `<code>fieldName</code>` mentions inside Returns / Parameters tables
-- String-literal enum values in `<code>'…'</code>` blocks
-- `@see {@link openiap.dev/...}` URLs
+- published release entries and docs-local version metadata
+- focused recurring phantom shapes from active fenced code examples
+- canonical offer semantics, generated enum snippets, and search entries
 
-…and cross-references each against the generated TypeScript types in
-`libraries/expo-iap/src/types.ts`. Failures print as a punch-list with the
-file, line, and the offending mention.
+Field mentions are cross-referenced against generated TypeScript shapes.
+Canonical offer snippets are compared with the generated TypeScript, Swift,
+Kotlin, and Dart outputs. Failures print a punch-list with the file, line, and
+offending contract.
 
 Run with:
 
 ```bash
 cd <repo-root>
-bun run scripts/audit-docs.ts
+bun test scripts/audit-docs.test.ts
+bun run audit:docs
 ```
 
 Exit code 1 means at least one drift; 0 means clean.

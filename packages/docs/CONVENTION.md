@@ -2,9 +2,12 @@
 
 ## Enum Values
 
-- Use PascalCase for all enum values, including string literal unions and
-  documentation snippets. This keeps the codebase and docs aligned with the
-  runtime values exposed by the SDK.
+- Use the generated target-language member name and wire value exactly as
+  emitted from the GraphQL SSOT. GraphQL enum identifiers are PascalCase, while
+  serialized string values and TypeScript string-literal unions use the
+  generated lowercase/kebab-case wire values (for example, `OneTime` maps to
+  `'one-time'`). Do not normalize documentation snippets to PascalCase when the
+  runtime value is lowercase or kebab-case.
 - In documentation examples (e.g., `src/pages/docs/types.tsx`), declare enums
   before any related type aliases so readers see the enum values ahead of the
   structures that consume them.
