@@ -32,6 +32,9 @@ jobs:
       - name: Test release branch policy
         run: node --test scripts/release-branch-policy.test.mjs
 
+      - name: Test Gradle network retry helper
+        run: node --test scripts/ci/retry-gradle.test.mjs
+
   # The test jobs below install with --frozen-lockfile but only run when
   # their path filters match, so a workspace package.json change outside
   # those paths can land with a stale bun.lock. Run the check on every CI
@@ -209,19 +212,23 @@ jobs:
 
       - name: Run tests
         working-directory: packages/google
-        run: ./gradlew :openiap:test
+        run: |
+          "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" ./gradlew :openiap:test
 
       - name: Build Play flavor
         working-directory: packages/google
-        run: ./gradlew :openiap:assemblePlayDebug
+        run: |
+          "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" ./gradlew :openiap:assemblePlayDebug
 
       - name: Build Horizon flavor
         working-directory: packages/google
-        run: ./gradlew :openiap:assembleHorizonDebug
+        run: |
+          "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" ./gradlew :openiap:assembleHorizonDebug
 
       - name: Build Fire OS flavor
         working-directory: packages/google
-        run: ./gradlew :openiap:assembleAmazonDebug
+        run: |
+          "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" ./gradlew :openiap:assembleAmazonDebug
 
   test-ios:
     name: Test iOS

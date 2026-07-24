@@ -5,6 +5,7 @@ on:
     branches: [main, next]
     paths:
       - ".github/workflows/ci-godot-iap.yml"
+      - "scripts/ci/retry-gradle.sh"
       - "libraries/godot-iap/**"
       - "packages/gql/codegen/plugins/gdscript.ts"
       - "packages/gql/src/generated/types.gd"
@@ -12,6 +13,7 @@ on:
     branches: [main, next]
     paths:
       - ".github/workflows/ci-godot-iap.yml"
+      - "scripts/ci/retry-gradle.sh"
       - "libraries/godot-iap/**"
       - "packages/gql/codegen/plugins/gdscript.ts"
       - "packages/gql/src/generated/types.gd"
@@ -71,7 +73,8 @@ jobs:
             "https://github.com/godotengine/godot/releases/download/4.3-stable/godot-lib.4.3.stable.template_release.aar"
           cd android
           chmod +x gradlew
-          ./gradlew --no-daemon assembleDebug testDebugUnitTest
+          "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" \
+            ./gradlew --no-daemon assembleDebug testDebugUnitTest
 
       - name: Test generated types
         run: godot --headless --path Example --script res://tests/test_types_only.gd
