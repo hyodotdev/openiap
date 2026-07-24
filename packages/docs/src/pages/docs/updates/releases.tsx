@@ -195,15 +195,15 @@ function Releases() {
 
     // July 24, 2026 - Planned cross-SDK native payload integrity patches
     {
-      id: 'flutter-purchase-payload-fix-planned-2026-07-24',
+      id: 'cross-sdk-payload-integrity-planned-2026-07-24',
       date: new Date('2026-07-24'),
       element: (
         <div
-          key="flutter-purchase-payload-fix-planned-2026-07-24"
+          key="cross-sdk-payload-integrity-planned-2026-07-24"
           style={noteCardStyle}
         >
           <AnchorLink
-            id="flutter-purchase-payload-fix-planned-2026-07-24"
+            id="cross-sdk-payload-integrity-planned-2026-07-24"
             level="h4"
           >
             July 24, 2026 - Cross-SDK native payload integrity patches (planned)

@@ -107,6 +107,23 @@ describe('native log redaction', () => {
     expect(onsideModule).toContain(
       'dictionary["subscriptionPeriodUnitIOS"] = subscriptionPeriod.unit',
     );
+    expect(onsideModule).toContain(
+      'introductoryPricePaymentModeIOS(for: introductoryPrice).rawValue',
+    );
+    expect(onsideModule).toMatch(
+      /private func introductoryPricePaymentModeIOS\([\s\S]*?if offer\.price\.value == 0 \{\s+return \.freeTrial\s+\}[\s\S]*?return \.empty/,
+    );
+    expect(onsideModule).toContain(
+      'PaymentModeIOS.empty.rawValue',
+    );
+    expect(onsideModule).toContain('private func formatPriceIOS(');
+    expect(onsideModule).toContain(
+      'private func subscriptionPeriodComponentsIOS(',
+    );
+    expect(onsideModule).not.toContain('private func formatPrice(');
+    expect(onsideModule).not.toContain(
+      'private func subscriptionPeriodComponents(',
+    );
     expect(onsideModule).toMatch(
       /switch request\.type \?\? \.inApp \{\s+case \.subs:\s+return product\.subscriptionPeriod != nil\s+case \.inApp:\s+return product\.subscriptionPeriod == nil\s+case \.all:\s+return true/,
     );

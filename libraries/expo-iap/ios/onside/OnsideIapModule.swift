@@ -469,7 +469,7 @@ public final class ExpoIapOnsideModule: Module {
         dictionary["currency"] = product.price.currencyCode
         dictionary["price"] = priceNumber
         let subscriptionPeriod = product.subscriptionPeriod.map {
-            subscriptionPeriodComponents($0)
+            subscriptionPeriodComponentsIOS($0)
         }
         let isSubscription = subscriptionPeriod != nil
         dictionary["type"] = isSubscription ? "subs" : "in-app"
@@ -481,15 +481,15 @@ public final class ExpoIapOnsideModule: Module {
             dictionary["subscriptionPeriodUnitIOS"] = subscriptionPeriod.unit
         }
         if let introductoryPrice = product.introductoryPrice {
-            let introductoryPeriod = subscriptionPeriodComponents(introductoryPrice.period)
+            let introductoryPeriod = subscriptionPeriodComponentsIOS(introductoryPrice.period)
             dictionary["introductoryPriceAsAmountIOS"] = String(introductoryPrice.price.value)
-            dictionary["introductoryPriceIOS"] = formatPrice(introductoryPrice.price)
+            dictionary["introductoryPriceIOS"] = formatPriceIOS(introductoryPrice.price)
             dictionary["introductoryPriceNumberOfPeriodsIOS"] = String(introductoryPeriod.value)
             dictionary["introductoryPricePaymentModeIOS"] =
-                introductoryPrice.price.value == 0 ? "free-trial" : "empty"
+                introductoryPricePaymentModeIOS(for: introductoryPrice).rawValue
             dictionary["introductoryPriceSubscriptionPeriodIOS"] = introductoryPeriod.unit
         } else if isSubscription {
-            dictionary["introductoryPricePaymentModeIOS"] = "empty"
+            dictionary["introductoryPricePaymentModeIOS"] = PaymentModeIOS.empty.rawValue
         }
         // Avoid JSONEncoder on non-Encodable SDK type: build JSON string from known fields
         dictionary["jsonRepresentationIOS"] = try makeProductJSONRepresentation(from: product)
@@ -548,7 +548,7 @@ public final class ExpoIapOnsideModule: Module {
         let priceNumber = makePriceNumber(from: product)
         let formattedPrice = priceFormatter.string(from: priceNumber) ?? "\(product.price.value)"
         let subscriptionPeriod = product.subscriptionPeriod.map {
-            subscriptionPeriodComponents($0)
+            subscriptionPeriodComponentsIOS($0)
         }
         var jsonObject: [String: Any] = [
             "id": product.productIdentifier,
@@ -583,7 +583,7 @@ public final class ExpoIapOnsideModule: Module {
         NSDecimalNumber(string: String(product.price.value))
     }
 
-    private func formatPrice(_ price: OnsidePrice) -> String {
+    private func formatPriceIOS(_ price: OnsidePrice) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
         formatter.currencyCode = price.currencyCode
@@ -591,7 +591,21 @@ public final class ExpoIapOnsideModule: Module {
         return formatter.string(from: number) ?? "\(price.value)"
     }
 
-    private func subscriptionPeriodComponents(_ period: OnsidePeriod) -> (value: Int, unit: String) {
+    private func introductoryPricePaymentModeIOS(
+        for offer: OnsidePricePeriod
+    ) -> PaymentModeIOS {
+        if offer.price.value == 0 {
+            return .freeTrial
+        }
+
+        // OnsideKit exposes only price and period for introductory offers, so
+        // paid offers cannot be distinguished as pay-as-you-go or pay-up-front.
+        return .empty
+    }
+
+    private func subscriptionPeriodComponentsIOS(
+        _ period: OnsidePeriod
+    ) -> (value: Int, unit: String) {
         switch period {
         case .day(let value):
             return (Int(value), "day")

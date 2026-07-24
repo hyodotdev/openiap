@@ -153,4 +153,63 @@ class ProductPayloadNormalizerTestIOS {
 
         assertEquals("transaction-legacy", purchase.id)
     }
+
+    @Test
+    fun `keeps purchase when optional advanced commerce payload is malformed`() {
+        val purchase = assertNotNull(
+            decodePurchasePayloadIOS(
+                mapOf<Any?, Any?>(
+                    "platform" to "ios",
+                    "store" to "apple",
+                    "id" to "transaction-1",
+                    "productId" to "premium.monthly",
+                    "purchaseState" to "purchased",
+                    "quantity" to 1,
+                    "transactionDate" to 1_700_000_000_000.0,
+                    "transactionId" to "transaction-1",
+                    "advancedCommerceInfoIOS" to mapOf<Any?, Any?>(
+                        "items" to listOf("not-an-object"),
+                    ),
+                    "renewalInfoIOS" to mapOf<Any?, Any?>(
+                        "pendingUpgradeProductId" to "premium.yearly",
+                        "willAutoRenew" to true,
+                    ),
+                )
+            )
+        )
+
+        assertEquals(null, purchase.advancedCommerceInfoIOS)
+        assertEquals("premium.yearly", purchase.renewalInfoIOS?.pendingUpgradeProductId)
+    }
+
+    @Test
+    fun `recovers legacy purchase identity and quantity aliases`() {
+        val purchase = assertNotNull(
+            decodePurchasePayloadIOS(
+                mapOf<Any?, Any?>(
+                    "id" to "transaction-legacy",
+                    "productId" to "premium.monthly",
+                    "purchaseState" to "purchased",
+                    "quantityIOS" to 2,
+                    "transactionDate" to 1_700_000_000_000.0,
+                )
+            )
+        )
+
+        assertEquals("transaction-legacy", purchase.transactionId)
+        assertEquals(2, purchase.quantity)
+    }
+
+    @Test
+    fun `rejects purchase payload without core identity`() {
+        val purchase = decodePurchasePayloadIOS(
+            mapOf<Any?, Any?>(
+                "platform" to "ios",
+                "productId" to "premium.monthly",
+                "purchaseState" to "purchased",
+            )
+        )
+
+        assertEquals(null, purchase)
+    }
 }

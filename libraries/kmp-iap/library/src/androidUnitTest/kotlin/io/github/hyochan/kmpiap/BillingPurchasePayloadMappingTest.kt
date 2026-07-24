@@ -2,6 +2,7 @@ package io.github.hyochan.kmpiap
 
 import com.android.billingclient.api.Purchase as BillingPurchase
 import io.github.hyochan.kmpiap.openiap.PurchaseAndroid
+import io.github.hyochan.kmpiap.openiap.PurchaseState
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import kotlin.test.Test
@@ -40,6 +41,7 @@ class BillingPurchasePayloadMappingTest {
         assertEquals(originalJson, purchase.dataAndroid)
         assertEquals("developer-payload", purchase.developerPayloadAndroid)
         assertEquals("order-premium", purchase.transactionId)
+        assertEquals(PurchaseState.Purchased, purchase.purchaseState)
         assertEquals("signature", purchase.signatureAndroid)
         assertEquals(2, purchase.quantity)
         val pendingUpdate = assertNotNull(purchase.pendingPurchaseUpdateAndroid)

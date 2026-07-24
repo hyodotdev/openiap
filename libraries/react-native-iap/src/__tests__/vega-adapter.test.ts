@@ -1144,7 +1144,13 @@ describe('Amazon Vega adapter', () => {
         },
       ],
     });
-    const module = createVegaIapModule(service);
+    const module = createVegaIapModule(service) as ReturnType<
+      typeof createVegaIapModule
+    > & {
+      restorePurchases(): Promise<void>;
+    };
+    const listener = jest.fn();
+    module.addPurchaseUpdatedListener(listener);
 
     await expect(
       module.getAvailablePurchases({android: {type: 'subs'}}),
@@ -1162,6 +1168,17 @@ describe('Amazon Vega adapter', () => {
         purchaseState: 'purchased',
       }),
     ]);
+    await expect(module.restorePurchases()).resolves.toBeUndefined();
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: 'deferred-sub',
+        isSuspendedAndroid: false,
+        pendingPurchaseUpdateAndroid: {
+          products: ['premium_yearly'],
+          purchaseToken: 'deferred-sub',
+        },
+      }),
+    );
   });
 
   it('verifies Vega receipts through IAPKit Amazon payload', async () => {

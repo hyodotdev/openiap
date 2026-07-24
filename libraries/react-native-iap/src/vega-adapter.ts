@@ -1557,9 +1557,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
       return true;
     },
     async restorePurchases(): Promise<void> {
-      const purchases = await getAvailablePurchases({
-        android: {includeSuspended: false},
-      });
+      const purchases = await getAvailablePurchases();
       purchases.forEach(emitPurchaseUpdated);
     },
     addPurchaseUpdatedListener(listener): number {
