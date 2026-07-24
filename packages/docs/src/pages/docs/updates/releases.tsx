@@ -233,6 +233,15 @@ function Releases() {
             >
               PR #251
             </a>
+            {' and '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/252"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #252
+            </a>
             . This entry remains planned until the affected release workflows
             publish their packages and GitHub tags. OpenIAP Spec stays at{' '}
             <code>2.4.2</code>, the minimum of openiap-apple <code>2.4.2</code>{' '}
