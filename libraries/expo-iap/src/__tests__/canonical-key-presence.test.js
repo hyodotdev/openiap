@@ -17,6 +17,17 @@ describe('native canonical-key presence contract', () => {
     expect(helper).toContain('request.removeValue(forKey: "ios")');
   });
 
+  it('fails closed to in-app for unrecognized iOS product query types', () => {
+    const helper = readExpoFile('ios/ExpoIapHelper.swift');
+    const parser = helper.match(
+      /static func parseProductQueryType[\s\S]*?\n    }\n\n    static func decodeProductRequest/,
+    )?.[0];
+
+    expect(parser).toBeDefined();
+    expect(parser).toContain('default:\n            return .inApp');
+    expect(parser).not.toContain('default:\n            return .all');
+  });
+
   it('does not let Onside fall through from an explicit apple key to ios', () => {
     const onside = readExpoFile('ios/onside/OnsideIapModule.swift');
 

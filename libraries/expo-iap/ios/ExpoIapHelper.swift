@@ -77,7 +77,7 @@ enum ExpoIapHelper {
         case ProductQueryType.all.rawValue:
             return .all
         default:
-            return .all
+            return .inApp
         }
     }
 
