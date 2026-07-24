@@ -12,9 +12,8 @@ dynamic _canonicalOrLegacy(
   required String canonicalKey,
   required String legacyKey,
 }) {
-  final canonical = payload[canonicalKey];
-  if (canonical != null) {
-    return canonical;
+  if (payload.containsKey(canonicalKey)) {
+    return payload[canonicalKey];
   }
   final legacy = payload[legacyKey];
   return legacy;
@@ -36,16 +35,15 @@ test("Flutter canonical helper preserves canonical-first payload lookup", () => 
 
 test("Flutter canonical helper rejects a legacy-first implementation", () => {
   const legacyFirst = canonicalHelper.replace(
-    `final canonical = payload[canonicalKey];
-  if (canonical != null) {
-    return canonical;
+    `if (payload.containsKey(canonicalKey)) {
+    return payload[canonicalKey];
   }
   final legacy = payload[legacyKey];`,
     `final legacy = payload[legacyKey];
   if (legacy != null) {
     return legacy;
   }
-  final canonical = payload[canonicalKey];`,
+  return payload[canonicalKey];`,
   );
   const result = inspectFlutterCanonicalExpression(
     legacyFirst,
@@ -98,8 +96,9 @@ dynamic _canonicalOrLegacy(
   required String canonicalKey,
   required String legacyKey,
 }) {
-  // final canonical = payload[canonicalKey];
-  // if (canonical != null) { return canonical; }
+  // if (payload.containsKey(canonicalKey)) {
+  //   return payload[canonicalKey];
+  // }
   final legacy = payload[legacyKey];
   return legacy;
 }
@@ -119,8 +118,8 @@ dynamic _canonicalOrLegacy(
 
 test("Flutter canonical helper rejects an early return before canonical data", () => {
   const earlyReturn = canonicalHelper.replace(
-    "final canonical = payload[canonicalKey];",
-    "if (payload.isEmpty) return legacy;\n  final canonical = payload[canonicalKey];",
+    "if (payload.containsKey(canonicalKey)) {",
+    "if (payload.isEmpty) return legacy;\n  if (payload.containsKey(canonicalKey)) {",
   );
   const result = inspectFlutterCanonicalExpression(
     earlyReturn,
@@ -150,6 +149,35 @@ test("a fallback before the helper remains the first payload source", () => {
     issues: [],
     sourceKey: "originalJsonAndroid",
   });
+});
+
+test("Flutter canonical inspection follows own-key presence selectors", () => {
+  const functionBody = `
+    final hasSourceId = sourcePayload.containsKey('id');
+    final sourceId = sourcePayload['id']?.toString();
+    final purchaseId = hasSourceId ? sourceId : null;
+  `;
+  const result = inspectFlutterCanonicalExpression(
+    canonicalHelper,
+    "purchaseId",
+    functionBody,
+  );
+
+  assert.deepEqual(result, { issues: [], sourceKey: "id" });
+});
+
+test("Flutter canonical inspection follows transaction selection helper", () => {
+  const functionBody = `
+    final transactionIdSelection = _transactionIdFrom(sourcePayload);
+    final sourceTransactionId = transactionIdSelection.value;
+  `;
+  const result = inspectFlutterCanonicalExpression(
+    canonicalHelper,
+    "sourceTransactionId",
+    functionBody,
+  );
+
+  assert.deepEqual(result, { issues: [], sourceKey: "transactionId" });
 });
 
 test("Kotlin payload parsing ignores decoys and nested commas", () => {

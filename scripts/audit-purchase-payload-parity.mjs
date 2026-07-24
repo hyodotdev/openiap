@@ -481,18 +481,6 @@ function parseNamedCallArguments(
   return entries;
 }
 
-function parseNamedCallArgumentNames(
-  text,
-  marker,
-  separator,
-  label,
-  mask = maskKotlinCommentsAndStrings,
-) {
-  return [
-    ...parseNamedCallArguments(text, marker, separator, label, mask).keys(),
-  ].sort();
-}
-
 function normalizeExpression(expression) {
   return expression.replace(/\s+/g, " ").trim();
 }
@@ -565,10 +553,6 @@ function parseTypeScriptObjectEntries(text, marker, label) {
   return entries;
 }
 
-function parseTypeScriptObjectFieldNames(text, marker, label) {
-  return [...parseTypeScriptObjectEntries(text, marker, label).keys()].sort();
-}
-
 function parseDartMapEntries(mapBody, label) {
   const entries = new Map();
   for (const segment of splitTopLevelSegments(
@@ -606,23 +590,17 @@ function validateCanonicalOrLegacyHelper(source, label) {
   if (!helper) return false;
 
   const masked = maskDartCommentsAndStrings(helper.body);
-  const canonicalRead =
-    /\bfinal\s+canonical\s*=\s*payload\s*\[\s*canonicalKey\s*\]\s*;/.exec(
-      masked,
-    );
   const canonicalGuard =
-    /\bif\s*\(\s*canonical\s*!=\s*null\s*\)\s*\{\s*return\s+canonical\s*;\s*\}/.exec(
+    /\bif\s*\(\s*payload\s*\.\s*containsKey\s*\(\s*canonicalKey\s*\)\s*\)\s*\{\s*return\s+payload\s*\[\s*canonicalKey\s*\]\s*;\s*\}/.exec(
       masked,
     );
   const legacyRead =
     /\bfinal\s+legacy\s*=\s*payload\s*\[\s*legacyKey\s*\]\s*;/.exec(masked);
   const legacyReturn = /\breturn\s+legacy\s*;/.exec(masked);
   const ordered =
-    canonicalRead &&
     canonicalGuard &&
     legacyRead &&
     legacyReturn &&
-    canonicalRead.index < canonicalGuard.index &&
     canonicalGuard.index < legacyRead.index &&
     legacyRead.index < legacyReturn.index;
 
@@ -633,17 +611,11 @@ function validateCanonicalOrLegacyHelper(source, label) {
     payloadReads.length === 2 &&
     payloadReads[0] === "canonicalKey" &&
     payloadReads[1] === "legacyKey";
-  const returnValues = [
-    ...masked.matchAll(/\breturn\s+([A-Za-z][A-Za-z0-9_]*)\s*;/g),
-  ].map((match) => match[1]);
-  const exactReturns =
-    returnValues.length === 2 &&
-    returnValues[0] === "canonical" &&
-    returnValues[1] === "legacy";
+  const exactReturns = [...masked.matchAll(/\breturn\b/g)].length === 2;
 
   if (!ordered || !exactReads || !exactReturns) {
     fail(
-      `${label} _canonicalOrLegacy must return payload[canonicalKey] before consulting payload[legacyKey]`,
+      `${label} _canonicalOrLegacy must use payload.containsKey(canonicalKey) before consulting payload[legacyKey]`,
     );
     return false;
   }
@@ -688,17 +660,21 @@ function firstCanonicalSourceReference(
     const helperKey = canonicalKeyFromHelperCall(expression);
     if (helperKey) return helperKey;
   }
+  if (/_transactionIdFrom\s*\(\s*sourcePayload\s*\)/.test(expression)) {
+    return "transactionId";
+  }
 
   const seenInExpression = new Set();
   const references =
-    /sourcePayload\s*\[\s*['"]([^'"]+)['"]\s*\]|\b([A-Za-z][A-Za-z0-9_]*)\b/g;
+    /sourcePayload\s*(?:\[\s*['"]([^'"]+)['"]\s*\]|\.containsKey\s*\(\s*['"]([^'"]+)['"]\s*\))|\b([A-Za-z][A-Za-z0-9_]*)\b/g;
   for (const reference of expression.matchAll(references)) {
-    if (reference[1]) {
+    const sourceKey = reference[1] ?? reference[2];
+    if (sourceKey) {
       return hasDominatingOperator(expression.slice(0, reference.index))
         ? null
-        : reference[1];
+        : sourceKey;
     }
-    const identifier = reference[2];
+    const identifier = reference[3];
     if (seenInExpression.has(identifier)) continue;
     seenInExpression.add(identifier);
     if (seenIdentifiers.has(identifier)) continue;
