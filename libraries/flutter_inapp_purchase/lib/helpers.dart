@@ -52,9 +52,8 @@ dynamic _canonicalOrLegacy(
   required String warningKey,
   required String message,
 }) {
-  final canonical = payload[canonicalKey];
-  if (canonical != null) {
-    return canonical;
+  if (payload.containsKey(canonicalKey)) {
+    return payload[canonicalKey];
   }
 
   final legacy = payload[legacyKey];
@@ -65,29 +64,32 @@ dynamic _canonicalOrLegacy(
 }
 
 String _resolveProductId(Map<String, dynamic> json) {
-  final canonicalId = json['id'];
-  if (canonicalId != null) {
-    return canonicalId.toString();
+  if (json.containsKey('id')) {
+    return json['id']?.toString() ?? '';
   }
 
-  final legacyProductId = json['productId'];
-  if (legacyProductId != null) {
-    warnLegacyOnce(
-      'product.productId',
-      'The product `productId` field is deprecated and will be removed in '
-          'flutter_inapp_purchase 10.0.0. Use `id` instead.',
-    );
-    return legacyProductId.toString();
+  if (json.containsKey('productId')) {
+    final legacyProductId = json['productId'];
+    if (legacyProductId != null) {
+      warnLegacyOnce(
+        'product.productId',
+        'The product `productId` field is deprecated and will be removed in '
+            'flutter_inapp_purchase 10.0.0. Use `id` instead.',
+      );
+    }
+    return legacyProductId?.toString() ?? '';
   }
 
-  final legacySku = json['sku'];
-  if (legacySku != null) {
-    warnLegacyOnce(
-      'product.sku',
-      'The product `sku` field is deprecated and will be removed in '
-          'flutter_inapp_purchase 10.0.0. Use `id` instead.',
-    );
-    return legacySku.toString();
+  if (json.containsKey('sku')) {
+    final legacySku = json['sku'];
+    if (legacySku != null) {
+      warnLegacyOnce(
+        'product.sku',
+        'The product `sku` field is deprecated and will be removed in '
+            'flutter_inapp_purchase 10.0.0. Use `id` instead.',
+      );
+    }
+    return legacySku?.toString() ?? '';
   }
 
   // StoreKit 1's productIdentifier remains outside the OpenIAP-owned legacy
@@ -334,8 +336,10 @@ gentype.Purchase convertToPurchase(
   })!;
 
   final productId = sourcePayload['productId']?.toString() ?? '';
+  final hasSourceId = sourcePayload.containsKey('id');
   final sourceId = sourcePayload['id']?.toString();
-  final sourceTransactionId = sourcePayload['transactionId']?.toString();
+  final transactionIdSelection = _transactionIdFrom(sourcePayload);
+  final sourceTransactionId = transactionIdSelection.value;
   final dynamic quantityValue = sourcePayload['quantity'];
   int quantity = 1;
   if (quantityValue is num) {
@@ -347,8 +351,8 @@ gentype.Purchase convertToPurchase(
     }
   }
 
-  final String? purchaseId = (sourceId?.isNotEmpty ?? false)
-      ? sourceId
+  final String? purchaseId = hasSourceId
+      ? ((sourceId?.isNotEmpty ?? false) ? sourceId : null)
       : (sourceTransactionId?.isNotEmpty ?? false)
           ? sourceTransactionId
           : (productId.isNotEmpty ? productId : null);
@@ -364,6 +368,9 @@ gentype.Purchase convertToPurchase(
       _parseTimestampMilliseconds(sourcePayload['transactionDate']) ?? 0;
 
   if (platformIsAndroid) {
+    final hasSelectedPurchaseState =
+        sourcePayload.containsKey('purchaseState') ||
+            sourcePayload.containsKey('purchaseStateAndroid');
     final stateValue = _coerceAndroidPurchaseState(
       _canonicalOrLegacy(
         sourcePayload,
@@ -374,18 +381,20 @@ gentype.Purchase convertToPurchase(
             'will be removed in flutter_inapp_purchase 10.0.0. Use '
             '`purchaseState` instead.',
       ),
+      hasSelectedState: hasSelectedPurchaseState,
     );
     final purchaseState = _mapAndroidPurchaseState(stateValue).toJson();
 
     // Determine store from input or default based on platform
     final storeValue = sourcePayload['store']?.toString() ?? 'google';
     final androidTransactionId = _resolveAndroidTransactionId(
+      hasCanonicalTransactionId: transactionIdSelection.isPresent,
       canonicalTransactionId: sourceTransactionId,
       id: sourceId,
       purchaseToken: sourcePayload['purchaseToken']?.toString(),
       store: storeValue,
     );
-    if (!(sourceTransactionId?.isNotEmpty ?? false) &&
+    if (!transactionIdSelection.isPresent &&
         androidTransactionId != null &&
         androidTransactionId == sourceId) {
       warnLegacyOnce(
@@ -465,8 +474,7 @@ gentype.Purchase convertToPurchase(
 
     // Determine store from input or default based on platform
     final storeValueIOS = sourcePayload['store']?.toString() ?? 'apple';
-    if (!(sourceTransactionId?.isNotEmpty ?? false) &&
-        (sourceId?.isNotEmpty ?? false)) {
+    if (!transactionIdSelection.isPresent && (sourceId?.isNotEmpty ?? false)) {
       warnLegacyOnce(
         'purchase.id-transaction-id',
         'Using purchase `id` as `transactionId` is deprecated and will be '
@@ -508,8 +516,8 @@ gentype.Purchase convertToPurchase(
       'originalTransactionDateIOS': originalTransactionDateIOS,
       'subscriptionGroupIdIOS':
           sourcePayload['subscriptionGroupIdIOS']?.toString(),
-      'transactionId': (sourceTransactionId?.isNotEmpty ?? false)
-          ? sourceTransactionId
+      'transactionId': transactionIdSelection.isPresent
+          ? sourceTransactionId ?? ''
           // The legacy `id` transaction fallback ends in 10.0.0.
           : purchaseId,
       'transactionReasonIOS': sourcePayload['transactionReasonIOS']?.toString(),
@@ -667,17 +675,31 @@ List<String>? _toStringList(dynamic value) {
 }
 
 String? _resolveAndroidTransactionId({
+  required bool hasCanonicalTransactionId,
   required String? canonicalTransactionId,
   required String? id,
   required String? purchaseToken,
   required String store,
 }) {
-  if (canonicalTransactionId?.isNotEmpty ?? false) {
+  if (hasCanonicalTransactionId) {
     return canonicalTransactionId;
   }
   if (id == null || id.isEmpty) return null;
   if (store.toLowerCase() == 'google' && id == purchaseToken) return null;
   return id;
+}
+
+({bool isPresent, String? value}) _transactionIdFrom(
+  Map<String, dynamic> payload,
+) {
+  if (!payload.containsKey('transactionId')) {
+    return (isPresent: false, value: null);
+  }
+
+  return (
+    isPresent: true,
+    value: payload['transactionId']?.toString(),
+  );
 }
 
 /// Safe int parsing that handles both num and String inputs.
@@ -1319,9 +1341,15 @@ gentype.PurchaseState _parsePurchaseStateIOS(dynamic value) {
   return gentype.PurchaseState.Unknown;
 }
 
-int _coerceAndroidPurchaseState(dynamic value) {
-  if (value == null) {
+int _coerceAndroidPurchaseState(
+  dynamic value, {
+  required bool hasSelectedState,
+}) {
+  if (!hasSelectedState) {
     return AndroidPurchaseState.Purchased.value;
+  }
+  if (value == null) {
+    return AndroidPurchaseState.Unknown.value;
   }
   if (value is int) {
     return value;
@@ -1348,7 +1376,7 @@ int _coerceAndroidPurchaseState(dynamic value) {
         return AndroidPurchaseState.Unknown.value;
     }
   }
-  return AndroidPurchaseState.Purchased.value;
+  return AndroidPurchaseState.Unknown.value;
 }
 
 gentype.PurchaseState _mapAndroidPurchaseState(int stateValue) {

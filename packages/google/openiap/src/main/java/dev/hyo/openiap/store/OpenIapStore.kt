@@ -65,6 +65,55 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentHashMap
+
+internal object OpenIapStorePurchaseRequestResolver {
+    private const val LEGACY_ANDROID_WARNING_KEY = "OpenIapStore.requestPurchase.android"
+    private val emittedLegacyWarnings = ConcurrentHashMap.newKeySet<String>()
+
+    fun sku(
+        props: RequestPurchaseProps,
+        legacyWarningKey: String = LEGACY_ANDROID_WARNING_KEY,
+        warnLegacy: (String) -> Unit = { message ->
+            OpenIapLog.warn(message, "OpenIapStore")
+        },
+    ): String? =
+        when (val request = props.request) {
+            is RequestPurchaseProps.Request.Purchase -> {
+                val platforms = request.value
+                if (platforms.google != null) {
+                    platforms.google.skus.firstOrNull()
+                } else {
+                    platforms.android?.let { legacy ->
+                        warnAboutLegacyAndroid(legacyWarningKey, warnLegacy)
+                        legacy.skus.firstOrNull()
+                    }
+                }
+            }
+            is RequestPurchaseProps.Request.Subscription -> {
+                val platforms = request.value
+                if (platforms.google != null) {
+                    platforms.google.skus.firstOrNull()
+                } else {
+                    platforms.android?.let { legacy ->
+                        warnAboutLegacyAndroid(legacyWarningKey, warnLegacy)
+                        legacy.skus.firstOrNull()
+                    }
+                }
+            }
+        }
+
+    private fun warnAboutLegacyAndroid(
+        key: String,
+        warnLegacy: (String) -> Unit,
+    ) {
+        if (!emittedLegacyWarnings.add(key)) return
+        warnLegacy(
+            "OpenIapStore request field `android` is deprecated; use `google` instead. " +
+                "Legacy `android` compatibility is scheduled for removal in OpenIAP 3.0.",
+        )
+    }
+}
 
 /**
  * OpenIapStore (Android)
@@ -448,10 +497,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      * @see <a href="https://openiap.dev/docs/apis/request-purchase">request-purchase</a>
      */
     val requestPurchase: MutationRequestPurchaseHandler = { props ->
-        val skuForStatus = when (val request = props.request) {
-            is RequestPurchaseProps.Request.Purchase -> request.value.android?.skus?.firstOrNull()
-            is RequestPurchaseProps.Request.Subscription -> request.value.android?.skus?.firstOrNull()
-        }
+        val skuForStatus = OpenIapStorePurchaseRequestResolver.sku(props)
 
         if (skuForStatus != null) {
             addPurchasing(skuForStatus)

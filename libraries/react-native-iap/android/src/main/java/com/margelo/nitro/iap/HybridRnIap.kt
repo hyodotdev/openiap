@@ -445,6 +445,13 @@ class HybridRnIap : HybridRnIapSpec() {
 
             ensureConnection()
 
+            if (type.trim().lowercase(Locale.US) == "inapp") {
+                RnIapLog.deprecation(
+                    "product-type.inapp",
+                    "fetchProducts received legacy type 'inapp'; forwarding as 'in-app'. " +
+                        "The alias will be removed in react-native-iap 16.0.0."
+                )
+            }
             val queryType = parseProductQueryType(type)
             val skusList = skus.toList()
 
@@ -495,8 +502,19 @@ class HybridRnIap : HybridRnIapSpec() {
         return Promise.async {
             val defaultResult = RequestPurchaseResult.create(emptyArray<com.margelo.nitro.iap.Purchase>())
 
-            val androidRequest = (request.google as? Variant_NullType_NitroRequestPurchaseAndroid.Second)?.value
-                ?: (request.android as? Variant_NullType_NitroRequestPurchaseAndroid.Second)?.value
+            val androidRequest =
+                if (request.google != null) {
+                    (request.google as? Variant_NullType_NitroRequestPurchaseAndroid.Second)?.value
+                } else {
+                    (request.android as? Variant_NullType_NitroRequestPurchaseAndroid.Second)
+                        ?.value
+                        ?.also {
+                            RnIapLog.deprecation(
+                                "request-purchase.android",
+                                "`request.android` is deprecated and will be removed in react-native-iap 16.0.0. Use `request.google` instead."
+                            )
+                        }
+                }
 
             RnIapLog.payload(
                 "requestPurchase",
@@ -680,7 +698,11 @@ class HybridRnIap : HybridRnIapSpec() {
             val typeName = androidOptions?.type?.name?.lowercase(java.util.Locale.ROOT)
             val normalizedType = when (typeName) {
                 "inapp" -> {
-                    RnIapLog.warn("getAvailablePurchases received legacy type 'inapp'; forwarding as 'in-app'")
+                    RnIapLog.deprecation(
+                        "product-type.inapp",
+                        "getAvailablePurchases received legacy type 'inapp'; forwarding as 'in-app'. " +
+                            "The alias will be removed in react-native-iap 16.0.0."
+                    )
                     "in-app"
                 }
                 "in-app", "subs" -> typeName

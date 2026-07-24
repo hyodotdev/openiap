@@ -30,7 +30,7 @@ dynamic _subResponseCodeAndroidFrom(
   Map<String, dynamic> payload,
   dynamic canonical,
 ) {
-  if (canonical != null) {
+  if (payload.containsKey('subResponseCodeAndroid')) {
     return canonical;
   }
 

@@ -72,4 +72,23 @@ describe('Amazon Vega public API', () => {
     });
     warn.mockRestore();
   });
+
+  it('does not fall back to android when google is explicitly null', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const request: RequestPurchaseProps = {
+      request: {
+        google: null,
+        android: {skus: ['legacy-coins']},
+      },
+      type: 'in-app',
+    };
+
+    await expect(requestPurchase(request)).rejects.toThrow(
+      /request\.google\.skus/,
+    );
+
+    expect(warn).not.toHaveBeenCalled();
+    expect(requestPurchaseNative).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
 });

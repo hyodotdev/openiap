@@ -73,7 +73,13 @@ enum FlutterIapHelper {
             return .all
         }
         switch raw.lowercased() {
-        case "inapp", ProductQueryType.inApp.rawValue:
+        case ProductQueryType.inApp.rawValue:
+            return .inApp
+        case "inapp":
+            FlutterIapLog.deprecation(
+                "productType.inapp",
+                "Product type `inapp` is deprecated and will be removed in flutter_inapp_purchase 10.0.0. Use `in-app` instead."
+            )
             return .inApp
         case ProductQueryType.subs.rawValue:
             return .subs

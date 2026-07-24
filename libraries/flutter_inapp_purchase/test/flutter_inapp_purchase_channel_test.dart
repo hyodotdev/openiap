@@ -1,7 +1,9 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:flutter_inapp_purchase/deprecation.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 import 'package:flutter_inapp_purchase/types.dart' as types;
 import 'package:platform/platform.dart';
@@ -284,6 +286,44 @@ void main() {
         expect(args['enableBillingProgramAndroid'], 'billing-choice');
       },
     );
+
+    test('legacy init warning is emitted once across failed retries', () async {
+      resetLegacyWarningsForTesting();
+      final warnings = <String?>[];
+      final originalDebugPrint = debugPrint;
+      debugPrint = (String? message, {int? wrapWidth}) {
+        warnings.add(message);
+      };
+      addTearDown(() => debugPrint = originalDebugPrint);
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        if (call.method == 'initConnection') {
+          throw PlatformException(code: 'E_SERVICE_ERROR');
+        }
+        return null;
+      });
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+
+      for (var index = 0; index < 2; index += 1) {
+        await expectLater(
+          iap.initConnection(
+            alternativeBillingModeAndroid:
+                types.AlternativeBillingModeAndroid.UserChoice,
+          ),
+          throwsA(isA<PurchaseError>()),
+        );
+      }
+
+      expect(
+        warnings.where(
+          (message) =>
+              message?.contains('alternativeBillingModeAndroid') ?? false,
+        ),
+        hasLength(1),
+      );
+    });
 
     test(
       'initConnection passes both alternativeBillingMode and enableBillingProgram',

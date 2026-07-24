@@ -27,6 +27,7 @@ import {
   validateNitroPurchase,
 } from './utils/type-bridge';
 import {warnLegacyOnce} from './utils/deprecation';
+import {selectCanonicalPlatformRequest} from './utils/platform-request';
 
 export * from './types';
 export * from './utils/error';
@@ -147,15 +148,19 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
     | RequestPurchasePropsByPlatforms
     | RequestSubscriptionPropsByPlatforms
     | undefined;
-  const googleRequest = perPlatformRequest?.google;
-  const legacyAndroidRequest = perPlatformRequest?.android;
-  if (googleRequest == null && legacyAndroidRequest != null) {
+  const selection = perPlatformRequest
+    ? selectCanonicalPlatformRequest<
+        | RequestPurchasePropsByPlatforms['google']
+        | RequestSubscriptionPropsByPlatforms['google']
+      >(perPlatformRequest, 'google', 'android')
+    : {usesLegacyKey: false, value: undefined};
+  if (selection.usesLegacyKey && selection.value != null) {
     warnLegacyOnce(
       'request-purchase.android',
       '[react-native-iap] `request.android` is deprecated and will be removed in react-native-iap 16.0.0. Use `request.google` instead.',
     );
   }
-  const androidRequest = googleRequest ?? legacyAndroidRequest;
+  const androidRequest = selection.value;
 
   if (!androidRequest?.skus?.length) {
     throw new Error(

@@ -970,6 +970,23 @@ describe('Public API (src/index.ts)', () => {
       expect(console.warn).not.toHaveBeenCalled();
     });
 
+    it('treats an explicit null apple field as authoritative', async () => {
+      (Platform as any).OS = 'ios';
+
+      await expect(
+        IAP.requestPurchase({
+          request: {
+            apple: null,
+            ios: {sku: 'legacy-ios'},
+          },
+          type: 'in-app',
+        }),
+      ).rejects.toThrow(/sku/);
+
+      expect(mockIap.requestPurchase).not.toHaveBeenCalled();
+      expect(console.warn).not.toHaveBeenCalled();
+    });
+
     it('prefers google field over android field when both provided', async () => {
       (Platform as any).OS = 'android';
       await IAP.requestPurchase({
@@ -982,6 +999,23 @@ describe('Public API (src/index.ts)', () => {
       const passed = mockIap.requestPurchase.mock.calls.pop()?.[0];
       expect(passed.google.skus).toEqual(['google_sku']);
       expect(passed.android).toBeUndefined();
+      expect(console.warn).not.toHaveBeenCalled();
+    });
+
+    it('treats an explicit null google field as authoritative', async () => {
+      (Platform as any).OS = 'android';
+
+      await expect(
+        IAP.requestPurchase({
+          request: {
+            google: null,
+            android: {skus: ['legacy-android']},
+          },
+          type: 'in-app',
+        }),
+      ).rejects.toThrow(/skus/);
+
+      expect(mockIap.requestPurchase).not.toHaveBeenCalled();
       expect(console.warn).not.toHaveBeenCalled();
     });
 

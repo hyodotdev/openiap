@@ -97,16 +97,23 @@ const getAndroidRequest = (
     | RequestSubscriptionPropsByPlatforms
     | null,
 ) => {
-  if (request?.google != null) {
+  if (
+    request != null &&
+    Object.prototype.hasOwnProperty.call(request, 'google')
+  ) {
     return request.google;
   }
-  if (request?.android != null) {
+  if (
+    request != null &&
+    Object.prototype.hasOwnProperty.call(request, 'android')
+  ) {
     warnLegacyOnce(
       'request-purchase.android',
       '`request.android` is deprecated and will be removed in expo-iap 5.0.0. Use `request.google` instead.',
     );
+    return request.android;
   }
-  return request?.android;
+  return undefined;
 };
 
 const createPurchaseTokenError = (purchase: Purchase): Error => {

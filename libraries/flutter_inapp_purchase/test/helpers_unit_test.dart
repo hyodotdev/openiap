@@ -103,6 +103,119 @@ void main() {
       expect(warnings, isEmpty);
     });
 
+    test('explicit canonical nulls do not select legacy fallbacks', () {
+      final warnings = <String?>[];
+      final originalDebugPrint = debugPrint;
+      debugPrint = (String? message, {int? wrapWidth}) {
+        warnings.add(message);
+      };
+      addTearDown(() => debugPrint = originalDebugPrint);
+
+      final product = parseProductFromNative(
+        <String, dynamic>{
+          'platform': 'ios',
+          'id': 'canonical-null-product',
+          'title': 'Canonical null',
+          'description': 'Canonical null product',
+          'currency': 'USD',
+          'displayPrice': r'$1.00',
+          'typeIOS': 'AUTO_RENEWABLE_SUBSCRIPTION',
+          'discountsIOS': null,
+          'discounts': <dynamic>[
+            <String, dynamic>{'identifier': 'legacy-discount'},
+          ],
+          'subscriptionInfoIOS': null,
+          'subscription': <String, dynamic>{
+            'subscriptionGroupId': 'legacy-group',
+          },
+        },
+        'subs',
+        fallbackIsIOS: true,
+      ) as types.ProductSubscriptionIOS;
+      final productWithNullId = parseProductFromNative(
+        <String, dynamic>{
+          'platform': 'ios',
+          'id': null,
+          'productId': 'legacy-product-id',
+          'sku': 'legacy-sku',
+          'title': 'Canonical null ID',
+          'description': 'Canonical null ID product',
+          'currency': 'USD',
+          'displayPrice': r'$1.00',
+          'typeIOS': 'CONSUMABLE',
+        },
+        'in-app',
+        fallbackIsIOS: true,
+      ) as types.ProductIOS;
+      final androidPurchase = convertToPurchase(
+        <String, dynamic>{
+          'platform': 'android',
+          'store': 'google',
+          'id': 'canonical-null-android',
+          'productId': 'canonical-null-product',
+          'transactionId': 'canonical-null-android',
+          'purchaseState': null,
+          'purchaseStateAndroid': 2,
+          'purchaseToken': 'canonical-null-token',
+          'dataAndroid': null,
+          'originalJsonAndroid': '{"legacy":true}',
+        },
+        platformIsAndroid: true,
+        platformIsIOS: false,
+        acknowledgedAndroidPurchaseTokens: <String, bool>{},
+      ) as types.PurchaseAndroid;
+      final iosPurchase = convertToPurchase(
+        <String, dynamic>{
+          'platform': 'ios',
+          'store': 'apple',
+          'id': 'canonical-null-ios',
+          'productId': 'canonical-null-product',
+          'transactionId': 'canonical-null-ios',
+          'purchaseState': null,
+          'transactionStateIOS': 'purchased',
+          'purchaseToken': null,
+          'transactionReceipt': 'legacy-receipt',
+        },
+        platformIsAndroid: false,
+        platformIsIOS: true,
+        acknowledgedAndroidPurchaseTokens: <String, bool>{},
+      ) as types.PurchaseIOS;
+
+      expect(product.discountsIOS, isNull);
+      expect(product.subscriptionInfoIOS, isNull);
+      expect(productWithNullId.id, isEmpty);
+      expect(androidPurchase.purchaseState, types.PurchaseState.Unknown);
+      expect(androidPurchase.dataAndroid, isNull);
+      expect(iosPurchase.purchaseState, types.PurchaseState.Unknown);
+      expect(iosPurchase.purchaseToken, isNull);
+      expect(warnings, isEmpty);
+    });
+
+    test(
+      'explicit purchase id presence suppresses identifier recovery',
+      () {
+        for (final canonicalId in <dynamic>[null, '']) {
+          expect(
+            () => convertToPurchase(
+              <String, dynamic>{
+                'platform': 'android',
+                'store': 'google',
+                'id': canonicalId,
+                'productId': 'fallback-product',
+                'transactionId': 'fallback-transaction',
+                'purchaseState': 'purchased',
+                'purchaseToken': 'purchase-token',
+              },
+              platformIsAndroid: true,
+              platformIsIOS: false,
+              acknowledgedAndroidPurchaseTokens: <String, bool>{},
+            ),
+            throwsA(isA<FormatException>()),
+          );
+        }
+      },
+    );
+
     test('legacy product fallbacks warn once per selected wire field', () {
       final warnings = <String?>[];
       final originalDebugPrint = debugPrint;
@@ -511,6 +624,7 @@ void main() {
       ) as types.PurchaseAndroid;
 
       expect(purchase.currentPlanId, 'monthly-base-plan');
+      expect(purchase.id, 'txn-canonical-android');
       expect(purchase.dataAndroid, '{"orderId":"canonical-order"}');
       expect(purchase.developerPayloadAndroid, 'developer-payload');
       expect(purchase.ids, <String>['premium_monthly', 'premium_bonus']);
@@ -583,6 +697,48 @@ void main() {
     });
 
     test(
+      'convertToPurchase maps a malformed selected Android state to unknown',
+      () {
+        final purchase = convertToPurchase(
+          <String, dynamic>{
+            'platform': 'android',
+            'store': 'google',
+            'id': 'malformed-state-purchase',
+            'productId': 'premium_monthly',
+            'transactionId': 'malformed-state-transaction',
+            'purchaseState': 'not-a-purchase-state',
+            'purchaseStateAndroid': 1,
+          },
+          platformIsAndroid: true,
+          platformIsIOS: false,
+          acknowledgedAndroidPurchaseTokens: <String, bool>{},
+        ) as types.PurchaseAndroid;
+
+        expect(purchase.purchaseState, types.PurchaseState.Unknown);
+      },
+    );
+
+    test(
+      'convertToPurchase keeps the missing-state compatibility default',
+      () {
+        final purchase = convertToPurchase(
+          <String, dynamic>{
+            'platform': 'android',
+            'store': 'google',
+            'id': 'missing-state-purchase',
+            'productId': 'premium_monthly',
+            'transactionId': 'missing-state-transaction',
+          },
+          platformIsAndroid: true,
+          platformIsIOS: false,
+          acknowledgedAndroidPurchaseTokens: <String, bool>{},
+        ) as types.PurchaseAndroid;
+
+        expect(purchase.purchaseState, types.PurchaseState.Purchased);
+      },
+    );
+
+    test(
       'convertToPurchase falls back to legacy Android original JSON key',
       () {
         final purchase = convertToPurchase(
@@ -624,6 +780,56 @@ void main() {
       expect(purchase.id, 'pending-purchase-token');
       expect(purchase.transactionId, isNull);
     });
+
+    test(
+      'canonical transaction ID presence suppresses legacy id recovery',
+      () {
+        final warnings = <String?>[];
+        final originalDebugPrint = debugPrint;
+        debugPrint = (String? message, {int? wrapWidth}) {
+          warnings.add(message);
+        };
+        addTearDown(() => debugPrint = originalDebugPrint);
+
+        types.PurchaseAndroid androidPurchase(dynamic transactionId) =>
+            convertToPurchase(
+              <String, dynamic>{
+                'platform': 'android',
+                'store': 'google',
+                'id': 'GPA.legacy-order',
+                'productId': 'coins_pack',
+                'transactionId': transactionId,
+                'purchaseState': 'purchased',
+                'purchaseToken': 'purchase-token',
+              },
+              platformIsAndroid: true,
+              platformIsIOS: false,
+              acknowledgedAndroidPurchaseTokens: <String, bool>{},
+            ) as types.PurchaseAndroid;
+
+        types.PurchaseIOS iosPurchase(dynamic transactionId) =>
+            convertToPurchase(
+              <String, dynamic>{
+                'platform': 'ios',
+                'store': 'apple',
+                'id': 'legacy-ios-transaction',
+                'productId': 'premium_monthly',
+                'transactionId': transactionId,
+                'purchaseState': 'purchased',
+                'purchaseToken': 'canonical-jws',
+              },
+              platformIsAndroid: false,
+              platformIsIOS: true,
+              acknowledgedAndroidPurchaseTokens: <String, bool>{},
+            ) as types.PurchaseIOS;
+
+        expect(androidPurchase(null).transactionId, isNull);
+        expect(androidPurchase('').transactionId, isEmpty);
+        expect(iosPurchase(null).transactionId, isEmpty);
+        expect(iosPurchase('').transactionId, isEmpty);
+        expect(warnings, isEmpty);
+      },
+    );
 
     test('convertToPurchase recovers legacy Google order ID from id', () {
       final purchase = convertToPurchase(

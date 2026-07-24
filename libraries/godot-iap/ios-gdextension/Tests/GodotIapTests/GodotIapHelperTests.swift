@@ -135,6 +135,22 @@ final class GodotIapHelperTests: XCTestCase {
         XCTAssertNil(platforms.ios)
     }
 
+    func testExplicitNullAppleSuppressesLegacyIosFallback() throws {
+        let request = try GodotIapHelper.decodeRequestPurchaseProps(from: [
+            "requestPurchase": [
+                "apple": NSNull(),
+                "ios": ["sku": "legacy.ios"],
+            ],
+            "type": "in-app",
+        ])
+
+        guard case let .purchase(platforms) = request.request else {
+            return XCTFail("Expected a purchase request")
+        }
+        XCTAssertNil(platforms.apple)
+        XCTAssertNil(platforms.ios)
+    }
+
     func testCanonicalApplePurchaseDoesNotEmitCompatibilityWarnings() throws {
         var warnings: [String] = []
         GodotIapLog.setHandler { level, message in

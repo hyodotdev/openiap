@@ -58,6 +58,7 @@ import {
 } from './utils/errorMapping';
 import {RnIapConsole} from './utils/debug';
 import {warnLegacyOnce} from './utils/deprecation';
+import {selectCanonicalPlatformRequest} from './utils/platform-request';
 import {getSuccessFromPurchaseVariant} from './utils/purchase';
 import {parseAppTransactionPayload} from './utils';
 import {getVegaIapModule, isVegaOS} from './vega';
@@ -2791,16 +2792,16 @@ const selectApplePurchaseRequest = (
     | RequestPurchasePropsByPlatforms
     | RequestSubscriptionPropsByPlatforms,
 ): RequestPurchaseIosProps | RequestSubscriptionIosProps | null | undefined => {
-  if (request.apple != null) {
-    return request.apple;
-  }
-  if (request.ios != null) {
+  const selection = selectCanonicalPlatformRequest<
+    RequestPurchaseIosProps | RequestSubscriptionIosProps
+  >(request, 'apple', 'ios');
+  if (selection.usesLegacyKey && selection.value != null) {
     warnLegacyOnce(
       'request-purchase.ios',
       '[react-native-iap] `request.ios` is deprecated and will be removed in react-native-iap 16.0.0. Use `request.apple` instead.',
     );
   }
-  return request.ios;
+  return selection.value;
 };
 
 const selectGooglePurchaseRequest = (
@@ -2812,16 +2813,16 @@ const selectGooglePurchaseRequest = (
   | RequestSubscriptionAndroidProps
   | null
   | undefined => {
-  if (request.google != null) {
-    return request.google;
-  }
-  if (request.android != null) {
+  const selection = selectCanonicalPlatformRequest<
+    RequestPurchaseAndroidProps | RequestSubscriptionAndroidProps
+  >(request, 'google', 'android');
+  if (selection.usesLegacyKey && selection.value != null) {
     warnLegacyOnce(
       'request-purchase.android',
       '[react-native-iap] `request.android` is deprecated and will be removed in react-native-iap 16.0.0. Use `request.google` instead.',
     );
   }
-  return request.android;
+  return selection.value;
 };
 
 const toDiscountOfferRecordIOS = (

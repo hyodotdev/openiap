@@ -1148,6 +1148,44 @@ describe('Public API (index.ts)', () => {
       );
       warnSpy.mockRestore();
     });
+
+    it('does not revive legacy ios when canonical apple is explicitly null', async () => {
+      (Platform as any).OS = 'ios';
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+      await expect(
+        requestPurchase({
+          request: {
+            apple: null,
+            ios: {sku: 'legacy-ios'},
+          },
+          type: 'in-app',
+        } as any),
+      ).rejects.toThrow(/sku/);
+
+      expect(ExpoIapModule.requestPurchase).not.toHaveBeenCalled();
+      expect(warnSpy).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
+    });
+
+    it('does not revive legacy android when canonical google is explicitly null', async () => {
+      (Platform as any).OS = 'android';
+      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+      await expect(
+        requestPurchase({
+          request: {
+            google: null,
+            android: {skus: ['legacy-android']},
+          },
+          type: 'in-app',
+        } as any),
+      ).rejects.toThrow(/skus/);
+
+      expect(ExpoIapModule.requestPurchase).not.toHaveBeenCalled();
+      expect(warnSpy).not.toHaveBeenCalled();
+      warnSpy.mockRestore();
+    });
   });
 
   describe('legacy wrappers and getters', () => {

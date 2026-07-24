@@ -72,4 +72,22 @@ describe('Amazon Vega public API', () => {
     });
     warn.mockRestore();
   });
+
+  it('does not revive legacy android when canonical google is explicitly null', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await expect(
+      requestPurchase({
+        request: {
+          google: null,
+          android: {skus: ['legacy-coins']},
+        },
+        type: 'in-app',
+      } as any),
+    ).rejects.toThrow(/request\.google\.skus/);
+
+    expect(requestPurchaseNative).not.toHaveBeenCalled();
+    expect(warn).not.toHaveBeenCalled();
+    warn.mockRestore();
+  });
 });

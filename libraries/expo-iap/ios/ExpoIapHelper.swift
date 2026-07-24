@@ -107,25 +107,34 @@ enum ExpoIapHelper {
     static func decodeRequestPurchaseProps(from payload: [String: Any]) throws
         -> RequestPurchaseProps
     {
-        if let requestPurchase = payload["requestPurchase"] {
-            warnIfLegacyApplePlatformKey(in: requestPurchase)
-            return try OpenIapSerialization.decode(object: payload, as: RequestPurchaseProps.self)
+        if payload.keys.contains("requestPurchase"),
+           let requestPurchase = payload["requestPurchase"]
+        {
+            var normalized = payload
+            normalized["requestPurchase"] = normalizeApplePlatformKey(in: requestPurchase)
+            return try OpenIapSerialization.decode(
+                object: normalized, as: RequestPurchaseProps.self)
         }
-        if let requestSubscription = payload["requestSubscription"] {
-            warnIfLegacyApplePlatformKey(in: requestSubscription)
-            return try OpenIapSerialization.decode(object: payload, as: RequestPurchaseProps.self)
+        if payload.keys.contains("requestSubscription"),
+           let requestSubscription = payload["requestSubscription"]
+        {
+            var normalized = payload
+            normalized["requestSubscription"] =
+                normalizeApplePlatformKey(in: requestSubscription)
+            return try OpenIapSerialization.decode(
+                object: normalized, as: RequestPurchaseProps.self)
         }
 
-        if let request = payload["request"] {
-            warnIfLegacyApplePlatformKey(in: request)
+        if payload.keys.contains("request"), let request = payload["request"] {
+            let normalizedRequest = normalizeApplePlatformKey(in: request)
             let parsedType = parseProductQueryType(payload["type"] as? String)
             let purchaseType: ProductQueryType = parsedType == .all ? .inApp : parsedType
             var normalized: [String: Any] = ["type": purchaseType.rawValue]
             switch purchaseType {
             case .subs:
-                normalized["requestSubscription"] = request
+                normalized["requestSubscription"] = normalizedRequest
             case .inApp:
-                normalized["requestPurchase"] = request
+                normalized["requestPurchase"] = normalizedRequest
             case .all:
                 break
             }
@@ -149,18 +158,24 @@ enum ExpoIapHelper {
         throw PurchaseError.make(code: .developerError, message: "Invalid request payload")
     }
 
-    private static func warnIfLegacyApplePlatformKey(in value: Any) {
-        guard let request = value as? [String: Any],
-              request["apple"] == nil,
-              request["ios"] != nil
-        else {
-            return
+    private static func normalizeApplePlatformKey(in value: Any) -> Any {
+        guard var request = value as? [String: Any] else {
+            return value
         }
 
-        ExpoIapLog.deprecation(
-            "request-purchase.ios",
-            "`request.ios` is deprecated and will be removed in expo-iap 5.0.0. Use `request.apple` instead."
-        )
+        if request.keys.contains("apple") {
+            request.removeValue(forKey: "ios")
+            return request
+        }
+
+        if request.keys.contains("ios") {
+            ExpoIapLog.deprecation(
+                "request-purchase.ios",
+                "`request.ios` is deprecated and will be removed in expo-iap 5.0.0. Use `request.apple` instead."
+            )
+        }
+
+        return request
     }
 
     static func setupListeners(

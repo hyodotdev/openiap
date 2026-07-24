@@ -603,16 +603,18 @@ public final class ExpoIapOnsideModule: Module {
     }
 
     private func resolveAppleRequest(from request: [String: Any]) -> [String: Any]? {
-        if let apple = request["apple"] as? [String: Any] {
-            return apple
+        if request.keys.contains("apple") {
+            return request["apple"] as? [String: Any]
         }
-        if let legacyIOS = request["ios"] as? [String: Any] {
+
+        if request.keys.contains("ios") {
             ExpoIapLog.deprecation(
                 "request-purchase.ios",
                 "`request.ios` is deprecated and will be removed in expo-iap 5.0.0. Use `request.apple` instead."
             )
-            return legacyIOS
+            return request["ios"] as? [String: Any]
         }
+
         return nil
     }
 }

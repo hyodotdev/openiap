@@ -63,6 +63,7 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.lang.ref.WeakReference
+import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 
 private const val TAG = "OpenIapModule"
@@ -75,16 +76,24 @@ private val LEGACY_HORIZON_APP_ID_META_DATA = listOf(
     "com.meta.horizon.platform.ovr.HORIZON_APP_ID",
     "com.oculus.vr.APP_ID"
 )
+private val emittedLegacyHorizonAppIdWarnings = ConcurrentHashMap.newKeySet<String>()
+
+private fun warnLegacyHorizonAppIdKey(key: String) {
+    if (!emittedLegacyHorizonAppIdWarnings.add(key)) return
+    OpenIapLog.warn(
+        "AndroidManifest meta-data key '$key' is deprecated and will be removed in OpenIAP 3.0. " +
+            "Use '$HORIZON_APP_ID_META_DATA' instead.",
+        TAG
+    )
+}
+
+internal fun resetLegacyHorizonAppIdWarningsForTests() {
+    emittedLegacyHorizonAppIdWarnings.clear()
+}
 
 internal fun resolveHorizonAppId(
     metaData: Bundle?,
-    warnLegacyKey: (String) -> Unit = { key ->
-        OpenIapLog.warn(
-            "AndroidManifest meta-data key '$key' is deprecated and will be removed in OpenIAP 3.0. " +
-                "Use '$HORIZON_APP_ID_META_DATA' instead.",
-            TAG
-        )
-    }
+    warnLegacyKey: (String) -> Unit = ::warnLegacyHorizonAppIdKey
 ): String? {
     (listOf(HORIZON_APP_ID_META_DATA) + LEGACY_HORIZON_APP_ID_META_DATA).forEach { key ->
         val appId = metaData?.getString(key)?.takeIf { it.isNotBlank() }

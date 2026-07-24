@@ -955,27 +955,29 @@ function normalizeRequestProps(
   platform: 'ios' | 'android',
 ) {
   if (platform === 'ios') {
-    if (request.apple != null) {
+    if (Object.prototype.hasOwnProperty.call(request, 'apple')) {
       return request.apple;
     }
-    if (request.ios != null) {
+    if (Object.prototype.hasOwnProperty.call(request, 'ios')) {
       warnLegacyOnce(
         'request-purchase.ios',
         '`request.ios` is deprecated and will be removed in expo-iap 5.0.0. Use `request.apple` instead.',
       );
+      return request.ios;
     }
-    return request.ios;
+    return undefined;
   }
-  if (request.google != null) {
+  if (Object.prototype.hasOwnProperty.call(request, 'google')) {
     return request.google;
   }
-  if (request.android != null) {
+  if (Object.prototype.hasOwnProperty.call(request, 'android')) {
     warnLegacyOnce(
       'request-purchase.android',
       '`request.android` is deprecated and will be removed in expo-iap 5.0.0. Use `request.google` instead.',
     );
+    return request.android;
   }
-  return request.android;
+  return undefined;
 }
 
 /**

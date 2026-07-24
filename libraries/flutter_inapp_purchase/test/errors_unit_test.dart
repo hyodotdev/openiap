@@ -113,6 +113,21 @@ void main() {
       });
       expect(warnings, isEmpty);
 
+      final canonicalNullError =
+          errors.PurchaseError.fromPlatformError(<String, dynamic>{
+        'message': 'canonical null',
+        'subResponseCodeAndroid': null,
+        'subResponseCode': 'user-ineligible',
+      }, types.IapPlatform.Android);
+      final canonicalNullResult =
+          errors.PurchaseResult.fromJSON(<String, dynamic>{
+        'subResponseCodeAndroid': null,
+        'subResponseCode': 'user-ineligible',
+      });
+      expect(canonicalNullError.subResponseCodeAndroid, isNull);
+      expect(canonicalNullResult.subResponseCodeAndroid, isNull);
+      expect(warnings, isEmpty);
+
       for (var index = 0; index < 2; index += 1) {
         errors.PurchaseError.fromPlatformError(<String, dynamic>{
           'message': 'legacy',

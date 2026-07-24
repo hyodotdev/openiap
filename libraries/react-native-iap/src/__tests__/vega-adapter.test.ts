@@ -274,6 +274,23 @@ describe('Amazon Vega adapter', () => {
     });
   });
 
+  it('does not fall back to android when google is explicitly null', async () => {
+    const service = createService();
+    const module = createVegaIapModule(service);
+
+    await expect(
+      module.requestPurchase({
+        google: null,
+        android: {skus: ['coins_100']},
+      }),
+    ).rejects.toMatchObject({
+      code: ErrorCode.DeveloperError,
+      message: 'Amazon Vega purchase expects exactly one SKU per request.',
+    });
+
+    expect(service.purchase).not.toHaveBeenCalled();
+  });
+
   it('retries transient Amazon Vega fulfillment failures', async () => {
     jest.useFakeTimers();
     const service = createService();

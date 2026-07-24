@@ -511,11 +511,11 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               enableBillingProgramAndroid != null) {
             config = {};
             if (alternativeBillingModeAndroid != null) {
-              debugPrint(
-                '[flutter_inapp_purchase] alternativeBillingModeAndroid is '
-                'deprecated and scheduled for removal in '
-                'flutter_inapp_purchase 10.0.0. Use '
-                'enableBillingProgramAndroid instead.',
+              warnLegacyOnce(
+                'init-connection.alternative-billing-mode-android',
+                'The `alternativeBillingModeAndroid` field is deprecated and '
+                    'will be removed in flutter_inapp_purchase 10.0.0. Use '
+                    '`enableBillingProgramAndroid` instead.',
               );
               config['alternativeBillingModeAndroid'] =
                   alternativeBillingModeAndroid.toJson();
@@ -643,7 +643,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
 
             final appleData = requestData['apple'];
             final legacyIosData = requestData['ios'];
-            if (appleData == null && legacyIosData != null) {
+            final hasAppleData = requestData.containsKey('apple');
+            if (!hasAppleData && legacyIosData != null) {
               warnLegacyOnce(
                 'request-purchase.ios',
                 'The requestPurchase/requestSubscription `ios` field is '
@@ -651,8 +652,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                     '10.0.0. Use `apple` instead.',
               );
             }
-            final iosData =
-                (appleData ?? legacyIosData) as Map<String, dynamic>?;
+            final iosData = (hasAppleData ? appleData : legacyIosData)
+                as Map<String, dynamic>?;
 
             if (iosData == null) {
               throw PurchaseError(
@@ -687,7 +688,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             final requestData = json[requestKey] as Map<String, dynamic>?;
             final googleData = requestData?['google'];
             final legacyAndroidData = requestData?['android'];
-            if (googleData == null && legacyAndroidData != null) {
+            final hasGoogleData = requestData?.containsKey('google') ?? false;
+            if (!hasGoogleData && legacyAndroidData != null) {
               warnLegacyOnce(
                 'request-purchase.android',
                 'The requestPurchase/requestSubscription `android` field is '
@@ -695,8 +697,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                     '10.0.0. Use `google` instead.',
               );
             }
-            final androidData =
-                (googleData ?? legacyAndroidData) as Map<String, dynamic>?;
+            final androidData = (hasGoogleData ? googleData : legacyAndroidData)
+                as Map<String, dynamic>?;
 
             if (androidData == null) {
               throw PurchaseError(

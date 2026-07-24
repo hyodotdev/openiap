@@ -74,12 +74,19 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
     private var openIap: OpenIapModule? = null
 
     private fun parseQueryType(raw: String?): ProductQueryType {
-        val normalized = raw?.lowercase(Locale.ROOT) ?: "inapp"
+        val normalized = raw?.lowercase(Locale.ROOT) ?: "in-app"
         return when {
             normalized == "all" -> ProductQueryType.All
             normalized.contains("sub") -> ProductQueryType.Subs
             normalized.contains("consumable") -> ProductQueryType.InApp
-            normalized == "in-app" || normalized == "inapp" || normalized == "in_app" -> ProductQueryType.InApp
+            normalized == "in-app" -> ProductQueryType.InApp
+            normalized == "inapp" || normalized == "in_app" -> {
+                logDeprecated(
+                    "productType.$normalized",
+                    "Product type `$normalized` is deprecated. Use `in-app` instead.",
+                )
+                ProductQueryType.InApp
+            }
             else -> ProductQueryType.InApp
         }
     }
@@ -438,10 +445,29 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
         when (call.method) {
             // Expo parity: fetchProducts(type, skuArr[])
             "fetchProducts" -> {
+                val params = call.arguments as? Map<*, *> ?: emptyMap<String, Any?>()
                 val typeStr = call.argument<String>("type")
-                val skuArr = call.argument<List<String>>("skuArr")
-                    ?: call.argument<List<String>>("skus")
-                    ?: call.argument<List<String>>("productIds")
+                val skuSource =
+                    when {
+                        params.containsKey("skus") -> params["skus"]
+                        params.containsKey("skuArr") -> {
+                            logDeprecated(
+                                "fetchProducts.skuArr",
+                                "Use `skus` instead of `skuArr`.",
+                            )
+                            params["skuArr"]
+                        }
+                        params.containsKey("productIds") -> {
+                            logDeprecated(
+                                "fetchProducts.productIds",
+                                "Use `skus` instead of `productIds`.",
+                            )
+                            params["productIds"]
+                        }
+                        else -> null
+                    }
+                val skuArr = (skuSource as? List<*>)
+                    ?.filterIsInstance<String>()
                     ?: emptyList()
                 val queryType = parseQueryType(typeStr)
                 scope.launch {
@@ -775,24 +801,27 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
             }
             "deepLinkToSubscriptionsAndroid" -> {
                 val params = call.arguments as? Map<*, *>
-                val canonicalSku = params?.get("skuAndroid") as? String
+                val hasCanonicalSku = params?.containsKey("skuAndroid") == true
+                val canonicalSku = if (hasCanonicalSku) params?.get("skuAndroid") as? String else null
                 val legacySku = params?.get("sku") as? String
-                if (canonicalSku == null && legacySku != null) {
+                if (!hasCanonicalSku && legacySku != null) {
                     logDeprecated(
                         "deepLinkToSubscriptionsAndroid.sku",
                         "Use skuAndroid instead of sku.",
                     )
                 }
-                val sku = canonicalSku ?: legacySku
-                val canonicalPackageName = params?.get("packageNameAndroid") as? String
+                val sku = if (hasCanonicalSku) canonicalSku else legacySku
+                val hasCanonicalPackageName = params?.containsKey("packageNameAndroid") == true
+                val canonicalPackageName =
+                    if (hasCanonicalPackageName) params?.get("packageNameAndroid") as? String else null
                 val legacyPackageName = params?.get("packageName") as? String
-                if (canonicalPackageName == null && legacyPackageName != null) {
+                if (!hasCanonicalPackageName && legacyPackageName != null) {
                     logDeprecated(
                         "deepLinkToSubscriptionsAndroid.packageName",
                         "Use packageNameAndroid instead of packageName.",
                     )
                 }
-                val pkg = canonicalPackageName ?: legacyPackageName
+                val pkg = if (hasCanonicalPackageName) canonicalPackageName else legacyPackageName
                 scope.launch {
                     try {
                         val iap = openIap
@@ -808,9 +837,12 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 }
             }
             "acknowledgePurchaseAndroid" -> {
-                val token: String? = call.argument<String>("token")
-                    ?: call.argument<String>("purchaseToken")
-                val purchaseToken = token?.takeIf { it.isNotBlank() }
+                val params = call.arguments as? Map<*, *> ?: emptyMap<String, Any?>()
+                val purchaseToken =
+                    resolveCanonicalPurchaseToken(
+                        params,
+                        operation = "acknowledgePurchaseAndroid",
+                    )?.takeIf { it.isNotBlank() }
                 if (purchaseToken == null) {
                     safe.error(OpenIapError.DeveloperError.CODE, OpenIapError.DeveloperError.MESSAGE, "Missing purchaseToken")
                     return
@@ -831,9 +863,12 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 }
             }
             "consumePurchaseAndroid" -> {
-                val token: String? = call.argument<String>("token")
-                    ?: call.argument<String>("purchaseToken")
-                val purchaseToken = token?.takeIf { it.isNotBlank() }
+                val params = call.arguments as? Map<*, *> ?: emptyMap<String, Any?>()
+                val purchaseToken =
+                    resolveCanonicalPurchaseToken(
+                        params,
+                        operation = "consumePurchaseAndroid",
+                    )?.takeIf { it.isNotBlank() }
                 if (purchaseToken == null) {
                     safe.error(OpenIapError.DeveloperError.CODE, OpenIapError.DeveloperError.MESSAGE, "Missing purchaseToken")
                     return
@@ -1516,6 +1551,23 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
             "[$name] is deprecated and scheduled for removal in flutter_inapp_purchase 10.0.0. $message",
             TAG,
         )
+    }
+
+    private fun resolveCanonicalPurchaseToken(
+        params: Map<*, *>,
+        operation: String,
+    ): String? {
+        if (params.containsKey(KEY_PURCHASE_TOKEN)) {
+            return params[KEY_PURCHASE_TOKEN] as? String
+        }
+        if (params.containsKey("token")) {
+            logDeprecated(
+                "$operation.token",
+                "Use `purchaseToken` instead of `token`.",
+            )
+            return params["token"] as? String
+        }
+        return null
     }
 
     /**

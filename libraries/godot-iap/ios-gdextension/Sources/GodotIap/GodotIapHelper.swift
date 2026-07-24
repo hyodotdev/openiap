@@ -227,7 +227,7 @@ enum GodotIapHelper {
         }
         if let legacy = platforms["ios"] {
             warnLegacyWireInput("ios", replacement: "apple")
-            if platforms["apple"] == nil {
+            if !platforms.keys.contains("apple") {
                 platforms["apple"] = legacy
             }
             platforms.removeValue(forKey: "ios")

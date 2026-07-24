@@ -319,7 +319,7 @@ public final class OpenIapStore: ObservableObject {
                 withOffer: withOffer
             )
             let request = RequestPurchaseProps(
-                request: .subscription(RequestSubscriptionPropsByPlatforms(android: nil, ios: iosProps)),
+                request: .subscription(RequestSubscriptionPropsByPlatforms(apple: iosProps)),
                 type: .subs
             )
             return try await requestPurchase(request)
@@ -333,7 +333,7 @@ public final class OpenIapStore: ObservableObject {
                 withOffer: withOffer
             )
             let request = RequestPurchaseProps(
-                request: .purchase(RequestPurchasePropsByPlatforms(android: nil, ios: iosProps)),
+                request: .purchase(RequestPurchasePropsByPlatforms(apple: iosProps)),
                 type: .inApp
             )
             return try await requestPurchase(request)
@@ -344,11 +344,12 @@ public final class OpenIapStore: ObservableObject {
         clearCurrentPurchase()
         clearCurrentPurchaseError()
 
-        if let sku = params.iosSku {
+        let purchaseSku = params.purchaseSku
+        if let sku = purchaseSku {
             status.loadings.purchasing.insert(sku)
         }
         defer {
-            if let sku = params.iosSku {
+            if let sku = purchaseSku {
                 status.loadings.purchasing.remove(sku)
             }
         }
@@ -732,14 +733,43 @@ private extension OpenIAP.Purchase {
 }
 
 @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
-private extension RequestPurchaseProps {
-    var iosSku: String? {
-        switch request {
+enum OpenIapStorePurchaseRequestResolver {
+    private static let legacyIOSWarningKey = "OpenIapStore.requestPurchase.ios"
+
+    static func sku(
+        from params: RequestPurchaseProps,
+        legacyWarningKey: String = legacyIOSWarningKey
+    ) -> String? {
+        switch params.request {
         case .purchase(let platforms):
-            return platforms.ios?.sku
+            if let apple = platforms.apple {
+                return apple.sku
+            }
+            guard let ios = platforms.ios else { return nil }
+            warnAboutLegacyIOS(key: legacyWarningKey)
+            return ios.sku
         case .subscription(let platforms):
-            return platforms.ios?.sku
+            if let apple = platforms.apple {
+                return apple.sku
+            }
+            guard let ios = platforms.ios else { return nil }
+            warnAboutLegacyIOS(key: legacyWarningKey)
+            return ios.sku
         }
+    }
+
+    private static func warnAboutLegacyIOS(key: String) {
+        OpenIapLog.deprecation(
+            key,
+            "OpenIapStore request field `ios` is deprecated; use `apple` instead. "
+                + "Legacy `ios` compatibility is scheduled for removal in OpenIAP 3.0."
+        )
+    }
+}
+
+private extension RequestPurchaseProps {
+    var purchaseSku: String? {
+        OpenIapStorePurchaseRequestResolver.sku(from: self)
     }
 }
 

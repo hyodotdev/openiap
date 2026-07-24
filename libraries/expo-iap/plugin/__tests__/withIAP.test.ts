@@ -6,6 +6,7 @@ import plugin, {
   modifyAppBuildGradle,
   normalizeGeneratedGroovyAppBuildGradle,
   normalizeGeneratedGroovyProjectBuildGradle,
+  resolveAlternativeBillingIOS,
   resolveAmazonPlatformFlags,
   resolveHorizonAppId,
   resolveModuleSelection,
@@ -348,6 +349,39 @@ describe('android configuration', () => {
     }
   });
 
+  it('keeps explicit null module flags ahead of Expo IAP platform env flags', () => {
+    const previous = {
+      horizon: process.env.EXPO_IAP_HORIZON,
+      onside: process.env.EXPO_IAP_ONSIDE,
+    };
+    process.env.EXPO_IAP_HORIZON = '1';
+    process.env.EXPO_IAP_ONSIDE = '1';
+
+    try {
+      const options = {
+        modules: {horizon: null, onside: null},
+      } as unknown as ExpoIapPluginOptions;
+
+      expect(resolveAmazonPlatformFlags(options)).toEqual({
+        isFireOsEnabled: false,
+        isVegaEnabled: false,
+        isHorizonEnabled: false,
+        isOnsideEnabled: false,
+      });
+    } finally {
+      if (previous.horizon === undefined) {
+        delete process.env.EXPO_IAP_HORIZON;
+      } else {
+        process.env.EXPO_IAP_HORIZON = previous.horizon;
+      }
+      if (previous.onside === undefined) {
+        delete process.env.EXPO_IAP_ONSIDE;
+      } else {
+        process.env.EXPO_IAP_ONSIDE = previous.onside;
+      }
+    }
+  });
+
   it('keeps deprecated android.amazon flags as a fallback', () => {
     expect(
       resolveAmazonPlatformFlags({
@@ -356,6 +390,20 @@ describe('android configuration', () => {
     ).toEqual({
       isFireOsEnabled: true,
       isVegaEnabled: true,
+      isHorizonEnabled: false,
+      isOnsideEnabled: false,
+    });
+  });
+
+  it('does not revive legacy Amazon flags when canonical keys are explicitly null', () => {
+    const options = {
+      modules: {amazon: {fireOS: null, vegaOS: null}},
+      android: {amazon: {fireOS: true, vegaOS: true}},
+    } as unknown as ExpoIapPluginOptions;
+
+    expect(resolveAmazonPlatformFlags(options)).toEqual({
+      isFireOsEnabled: false,
+      isVegaEnabled: false,
       isHorizonEnabled: false,
       isOnsideEnabled: false,
     });
@@ -406,6 +454,27 @@ describe('android configuration', () => {
     ).toBe('deprecated-top-level');
   });
 
+  it('does not revive legacy Horizon app ids after an explicit canonical null', () => {
+    const options = {
+      android: {
+        horizon: {appId: null},
+        horizonAppId: 'deprecated-android',
+      },
+      horizonAppId: 'deprecated-top-level',
+    } as unknown as ExpoIapPluginOptions;
+
+    expect(resolveHorizonAppId(options)).toBeUndefined();
+  });
+
+  it('does not revive the top-level Horizon app id after an explicit android null', () => {
+    const options = {
+      android: {horizonAppId: null},
+      horizonAppId: 'deprecated-top-level',
+    } as unknown as ExpoIapPluginOptions;
+
+    expect(resolveHorizonAppId(options)).toBeUndefined();
+  });
+
   it('warns for legacy Android plugin fields scheduled for 5.0 removal', () => {
     const addWarningAndroid =
       WarningAggregator.addWarningAndroid as jest.MockedFunction<
@@ -423,6 +492,7 @@ describe('android configuration', () => {
       modules: {amazon: {fireOS: true, vegaOS: true}},
     };
 
+    warnLegacyPluginOptions(legacyOptions);
     warnLegacyPluginOptions(legacyOptions);
 
     expect(addWarningAndroid).toHaveBeenCalledTimes(4);
@@ -487,6 +557,10 @@ describe('android configuration', () => {
       ios: {alternativeBilling: {enabled: false}},
       iosAlternativeBilling: {enabled: true},
     });
+    warnLegacyPluginOptions({
+      ios: {alternativeBilling: {enabled: false}},
+      iosAlternativeBilling: {enabled: true},
+    });
 
     expect(addWarningIOS).toHaveBeenCalledTimes(1);
     expect(addWarningIOS).toHaveBeenCalledWith(
@@ -495,6 +569,15 @@ describe('android configuration', () => {
         /iosAlternativeBilling.*expo-iap 5\.0\.0.*ios\.alternativeBilling/,
       ),
     );
+  });
+
+  it('does not revive legacy iOS alternative billing after an explicit canonical null', () => {
+    const options = {
+      ios: {alternativeBilling: null},
+      iosAlternativeBilling: {enabled: true},
+    } as unknown as ExpoIapPluginOptions;
+
+    expect(resolveAlternativeBillingIOS(options)).toBeUndefined();
   });
 
   it('resolves Vega OS project options from android.amazon.vegaOS', () => {
@@ -672,7 +755,7 @@ describe('local OpenIAP configuration', () => {
 
 describe('ios module selection', () => {
   const createConfig = (ios?: ExpoConfig['ios']): ExpoConfig =>
-    ({name: 'test-app', slug: 'test-app', ios}) as ExpoConfig;
+    ({name: 'test-app', slug: 'test-app', ios} as ExpoConfig);
 
   it('defaults to Expo IAP only when no options provided', () => {
     const result = resolveModuleSelection(createConfig(), undefined);

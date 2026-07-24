@@ -64,6 +64,7 @@ class HorizonAppIdMetadataTest {
     @Test
     fun `historical metadata logs its OpenIAP 3_0 removal deadline`() {
         val warnings = mutableListOf<String>()
+        resetLegacyHorizonAppIdWarningsForTests()
         OpenIapLog.enable(true)
         OpenIapLog.setHandler { level, message, _ ->
             if (level == OpenIapLog.Level.Warn) {
@@ -72,6 +73,14 @@ class HorizonAppIdMetadataTest {
         }
 
         try {
+            assertEquals(
+                "legacy",
+                resolveHorizonAppId(
+                    Bundle().apply {
+                        putString("com.oculus.vr.APP_ID", "legacy")
+                    }
+                )
+            )
             assertEquals(
                 "legacy",
                 resolveHorizonAppId(
@@ -89,6 +98,7 @@ class HorizonAppIdMetadataTest {
         } finally {
             OpenIapLog.setHandler(null)
             OpenIapLog.enable(false)
+            resetLegacyHorizonAppIdWarningsForTests()
         }
     }
 
