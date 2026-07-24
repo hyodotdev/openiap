@@ -188,15 +188,21 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
         }
 
-        let typeStr = args["type"] as? String ?? "all"
         let queryType: ProductQueryType
-        switch typeStr {
-        case "inapp", "in-app":
-            queryType = .inApp
-        case "subs", "subscription":
-            queryType = .subs
-        default:
-            queryType = .all
+        do {
+            queryType = try GodotIapHelper.parseProductQueryType(
+                args["type"] as? String,
+                defaultType: .all
+            )
+        } catch {
+            Task { [weak self] in
+                await self?.emitAsyncFailure(
+                    method: "fetchProducts",
+                    requestId: requestId,
+                    message: error.localizedDescription
+                )
+            }
+            return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
         }
 
         Task { [weak self] in
@@ -248,7 +254,13 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     // MARK: - Purchase Methods
 
     @Callable
+    @available(*, deprecated, message: "Use requestPurchaseWithPayload instead. Scheduled for removal in godot-iap 3.0.0.")
     public func requestPurchase(sku: String) -> String {
+        GodotIapLog.deprecation(
+            "requestPurchase(sku:)",
+            "requestPurchase(sku:) is deprecated and will be removed in godot-iap 3.0.0; " +
+                "use requestPurchaseWithPayload instead."
+        )
         GodotIapLog.payload("requestPurchase", payload: sku)
 
         Task { [weak self] in
@@ -258,11 +270,11 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     return
                 }
 
-                // Create purchase request for the SKU
-                // Note: Use `ios:` parameter (not `apple:`) as the library implementation checks for `platforms.ios`
+                // Keep the legacy callable compatible while emitting the
+                // canonical Apple platform payload.
                 let purchaseProps = RequestPurchaseProps(
                     request: .purchase(RequestPurchasePropsByPlatforms(
-                        ios: RequestPurchaseIosProps(sku: sku)
+                        apple: RequestPurchaseIosProps(sku: sku)
                     ))
                 )
 

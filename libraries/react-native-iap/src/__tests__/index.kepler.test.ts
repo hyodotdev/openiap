@@ -1,5 +1,11 @@
-import {fetchProducts, openRedeemOfferCodeAndroid} from '../index.kepler';
+import {
+  fetchProducts,
+  openRedeemOfferCodeAndroid,
+  requestPurchase,
+} from '../index.kepler';
+import type {RequestPurchaseProps} from '../types';
 import {getVegaIapModule} from '../vega';
+import {resetLegacyWarningsForTesting} from '../utils/deprecation';
 
 jest.mock('../hooks/useIAP', () => ({useIAP: jest.fn()}));
 jest.mock('../vega', () => ({
@@ -8,11 +14,14 @@ jest.mock('../vega', () => ({
 
 describe('Amazon Vega public API', () => {
   const fetchProductsNative = jest.fn().mockResolvedValue([]);
+  const requestPurchaseNative = jest.fn().mockResolvedValue([]);
 
   beforeEach(() => {
     jest.clearAllMocks();
+    resetLegacyWarningsForTesting();
     (getVegaIapModule as jest.Mock).mockReturnValue({
       fetchProducts: fetchProductsNative,
+      requestPurchase: requestPurchaseNative,
     });
   });
 
@@ -29,7 +38,38 @@ describe('Amazon Vega public API', () => {
       '[RN-IAP]',
       expect.stringContaining('react-native-iap 16.0.0'),
     );
-    expect(fetchProductsNative).toHaveBeenCalledWith(['coins'], 'inapp');
+    expect(fetchProductsNative).toHaveBeenCalledWith(['coins'], 'in-app');
+    warn.mockRestore();
+  });
+
+  it("uses canonical 'in-app' without a compatibility warning", async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+
+    await fetchProducts({skus: ['coins'], type: 'in-app'});
+
+    expect(warn).not.toHaveBeenCalled();
+    expect(fetchProductsNative).toHaveBeenCalledWith(['coins'], 'in-app');
+    warn.mockRestore();
+  });
+
+  it('emits only google and warns once for the legacy android alias', async () => {
+    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const request: RequestPurchaseProps = {
+      request: {android: {skus: ['coins']}},
+      type: 'in-app',
+    };
+
+    await requestPurchase(request);
+    await requestPurchase(request);
+
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(warn).toHaveBeenCalledWith(
+      '[RN-IAP]',
+      expect.stringContaining('`request.android` is deprecated'),
+    );
+    expect(requestPurchaseNative).toHaveBeenLastCalledWith({
+      google: {skus: ['coins']},
+    });
     warn.mockRestore();
   });
 });

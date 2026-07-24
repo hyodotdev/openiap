@@ -1,3 +1,7 @@
+// This runtime reads generated 2.x aliases only to preserve compatibility.
+// Consumers still receive compiler warnings; remove the reads in kmp-iap 3.
+@file:Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
+
 package io.github.hyochan.kmpiap
 
 import android.app.Activity

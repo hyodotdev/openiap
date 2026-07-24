@@ -495,14 +495,15 @@ class HybridRnIap : HybridRnIapSpec() {
         return Promise.async {
             val defaultResult = RequestPurchaseResult.create(emptyArray<com.margelo.nitro.iap.Purchase>())
 
-            val androidRequest = (request.android as? Variant_NullType_NitroRequestPurchaseAndroid.Second)?.value
-                ?: (request.google as? Variant_NullType_NitroRequestPurchaseAndroid.Second)?.value
+            val androidRequest = (request.google as? Variant_NullType_NitroRequestPurchaseAndroid.Second)?.value
+                ?: (request.android as? Variant_NullType_NitroRequestPurchaseAndroid.Second)?.value
 
             RnIapLog.payload(
                 "requestPurchase",
                 mapOf(
                     "androidSkus" to (androidRequest?.skus?.toList() ?: emptyList()),
-                    "hasIOS" to (request.ios != null)
+                    "hasApple" to (request.apple != null),
+                    "hasLegacyIOS" to (request.ios != null)
                 )
             )
 

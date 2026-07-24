@@ -1,3 +1,7 @@
+// Protocol-level 2.x shims reference their legacy listener types by design.
+// Consumer call sites retain warnings; remove these declarations in 3.0.
+@file:Suppress("DEPRECATION")
+
 package dev.hyo.openiap
 
 import android.app.Activity

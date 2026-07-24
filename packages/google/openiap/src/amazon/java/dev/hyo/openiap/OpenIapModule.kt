@@ -443,18 +443,18 @@ class OpenIapModule
                 when (response.requestStatus) {
                     UserDataResponse.RequestStatus.SUCCESSFUL -> true
                     UserDataResponse.RequestStatus.NOT_SUPPORTED -> {
-                        OpenIapLog.w("Amazon initConnection not supported on this device", TAG)
+                        OpenIapLog.warn("Amazon initConnection not supported on this device", TAG)
                         false
                     }
                     UserDataResponse.RequestStatus.FAILED -> {
-                        OpenIapLog.w("Amazon initConnection user data request failed", TAG)
+                        OpenIapLog.warn("Amazon initConnection user data request failed", TAG)
                         false
                     }
                 }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
-                OpenIapLog.e("Amazon initConnection failed: ${error.message}", error, TAG)
+                OpenIapLog.error("Amazon initConnection failed: ${error.message}", error, TAG)
                 false
             }
         }
@@ -686,7 +686,7 @@ class OpenIapModule
                             )
                         }
                         if (!receipt.sku.isNullOrBlank() && receipt.sku != sku) {
-                            OpenIapLog.w(
+                            OpenIapLog.warn(
                                 "Amazon receipt SKU '${receipt.sku}' differs from requested SKU '$sku'. " +
                                     "Using the requested SKU for the OpenIAP purchase productId; " +
                                     "align the Amazon catalog and App Tester data for restore and server verification.",
@@ -789,7 +789,7 @@ class OpenIapModule
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse("amzn://apps/android?p=${context.packageName}"))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             runCatching { context.startActivity(intent) }
-                .onFailure { OpenIapLog.w("Amazon subscription deep link unavailable: ${it.message}", TAG) }
+                .onFailure { OpenIapLog.warn("Amazon subscription deep link unavailable: ${it.message}", TAG) }
             Unit
         }
     }
@@ -1026,7 +1026,7 @@ class OpenIapModule
 
     override suspend fun openRedeemOfferCode(activity: Activity): Boolean {
         // No-op: offer-code redemption is a Google Play feature, not supported on Amazon Appstore
-        OpenIapLog.w("openRedeemOfferCode is not supported on Amazon (no-op)", TAG)
+        OpenIapLog.warn("openRedeemOfferCode is not supported on Amazon (no-op)", TAG)
         return unsupportedRedeemOfferCode()
     }
 
@@ -1484,7 +1484,7 @@ class OpenIapModule
     ) {
         if (timedOutRequestIds.remove(requestId)) {
             requestLifecycle.complete(requestId)
-            OpenIapLog.w(
+            OpenIapLog.warn(
                 "Ignoring late Amazon Appstore response for aborted request $requestId",
                 TAG
             )
@@ -1497,7 +1497,7 @@ class OpenIapModule
                 if (!deferred.isCompleted) deferred.complete(value)
             }
             if (!accepted) {
-                OpenIapLog.w(
+                OpenIapLog.warn(
                     "Ignoring Amazon Appstore response for an ended request $requestId",
                     TAG,
                 )
@@ -1510,7 +1510,7 @@ class OpenIapModule
                 earlyResponses[requestId] = value
             }
         ) {
-            OpenIapLog.w(
+            OpenIapLog.warn(
                 "Ignoring Amazon Appstore response for unknown request $requestId",
                 TAG,
             )
@@ -1554,7 +1554,7 @@ class OpenIapModule
             PurchasingService.notifyFulfillment(purchaseToken, FulfillmentResult.FULFILLED)
             true
         }.getOrElse {
-            OpenIapLog.w("Amazon $operation failed: ${it.message}", TAG)
+            OpenIapLog.warn("Amazon $operation failed: ${it.message}", TAG)
             false
         }
     }

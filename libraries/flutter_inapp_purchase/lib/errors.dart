@@ -3,6 +3,7 @@ library errors;
 
 import 'package:flutter/foundation.dart';
 
+import 'deprecation.dart';
 import 'types.dart' as openiap_types;
 
 // Type aliases for convenience
@@ -23,6 +24,26 @@ openiap_types.SubResponseCodeAndroid? parseSubResponseCodeAndroid(
 List<String>? _parseProductIds(dynamic value) {
   if (value is! List<dynamic>) return null;
   return value.map((dynamic id) => id.toString()).toList();
+}
+
+dynamic _subResponseCodeAndroidFrom(
+  Map<String, dynamic> payload,
+  dynamic canonical,
+) {
+  if (canonical != null) {
+    return canonical;
+  }
+
+  final legacy = payload['subResponseCode'];
+  if (legacy != null) {
+    warnLegacyOnce(
+      'error.subResponseCode',
+      'The error `subResponseCode` field is deprecated and will be removed '
+          'in flutter_inapp_purchase 10.0.0. Use `subResponseCodeAndroid` '
+          'instead.',
+    );
+  }
+  return legacy;
 }
 
 /// Get current platform
@@ -250,7 +271,10 @@ class PurchaseError implements Exception {
       productType: errorData['productType']?.toString(),
       isEmptyProductList: errorData['isEmptyProductList'] as bool?,
       subResponseCodeAndroid: parseSubResponseCodeAndroid(
-        errorData['subResponseCodeAndroid'] ?? errorData['subResponseCode'],
+        _subResponseCodeAndroidFrom(
+          errorData,
+          errorData['subResponseCodeAndroid'],
+        ),
       ),
       platform: platform,
     );
@@ -310,7 +334,10 @@ class PurchaseResult {
       productType: json['productType']?.toString(),
       isEmptyProductList: json['isEmptyProductList'] as bool?,
       subResponseCodeAndroid: parseSubResponseCodeAndroid(
-        json['subResponseCodeAndroid'] ?? json['subResponseCode'],
+        _subResponseCodeAndroidFrom(
+          json,
+          json['subResponseCodeAndroid'],
+        ),
       ),
       purchaseTokenAndroid: json['purchaseTokenAndroid']?.toString(),
     );

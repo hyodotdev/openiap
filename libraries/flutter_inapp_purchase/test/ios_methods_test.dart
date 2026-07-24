@@ -64,7 +64,7 @@ void main() {
             };
           case 'isEligibleForIntroOfferIOS':
             return true;
-          case 'getSubscriptionStatus':
+          case 'subscriptionStatusIOS':
             return <Map<String, dynamic>>[
               <String, dynamic>{'state': 'active'},
             ];
@@ -80,7 +80,7 @@ void main() {
                 'transactionDate': 1700000000000,
               },
             ];
-          case 'getAppTransaction':
+          case 'getAppTransactionIOS':
             return <String, dynamic>{
               'appId': 1,
               'appTransactionId': 'txn-app',
@@ -403,13 +403,13 @@ void main() {
       final statuses = await iap.subscriptionStatusIOS('sku');
       expect(statuses, hasLength(1));
       expect(statuses.first.state, 'active');
-      expect(calls.last.method, 'getSubscriptionStatus');
+      expect(calls.last.method, 'subscriptionStatusIOS');
     });
 
     test('subscriptionStatusIOS accepts string payload', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
-        if (methodCall.method == 'getSubscriptionStatus') {
+        if (methodCall.method == 'subscriptionStatusIOS') {
           return '[{"state":"expired"}]';
         }
         return null;
@@ -423,7 +423,7 @@ void main() {
       final transaction = await iap.getAppTransactionIOS();
       expect(transaction, isNotNull);
       expect(transaction!.bundleId, 'com.example');
-      expect(calls.last.method, 'getAppTransaction');
+      expect(calls.last.method, 'getAppTransactionIOS');
     });
 
     test('getStorefrontIOS throws when country code is missing or blank',
@@ -484,7 +484,7 @@ void main() {
       () async {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
-          if (methodCall.method == 'getAppTransaction') {
+          if (methodCall.method == 'getAppTransactionIOS') {
             return null;
           }
           return null;
@@ -552,8 +552,8 @@ void main() {
           'getStorefrontIOS',
           'syncIOS',
           'isEligibleForIntroOfferIOS',
-          'getSubscriptionStatus',
-          'getAppTransaction',
+          'subscriptionStatusIOS',
+          'getAppTransactionIOS',
           'getPendingTransactionsIOS',
           'getAllTransactionsIOS',
           'currentEntitlementIOS',
@@ -697,7 +697,7 @@ void main() {
     test('subscriptionStatusIOS preserves native platform errors', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
-        if (methodCall.method == 'getSubscriptionStatus') {
+        if (methodCall.method == 'subscriptionStatusIOS') {
           throw PlatformException(code: '500', message: 'failure');
         }
         return null;

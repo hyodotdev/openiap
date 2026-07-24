@@ -1,3 +1,7 @@
+// This file implements the deprecated 2.x adapter to the canonical listener.
+// Consumer call sites retain warnings; remove the adapter in 3.0.
+@file:Suppress("DEPRECATION")
+
 package dev.hyo.openiap.listener
 
 /**

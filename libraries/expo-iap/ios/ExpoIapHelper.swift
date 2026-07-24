@@ -107,11 +107,17 @@ enum ExpoIapHelper {
     static func decodeRequestPurchaseProps(from payload: [String: Any]) throws
         -> RequestPurchaseProps
     {
-        if payload["requestPurchase"] != nil || payload["requestSubscription"] != nil {
+        if let requestPurchase = payload["requestPurchase"] {
+            warnIfLegacyApplePlatformKey(in: requestPurchase)
+            return try OpenIapSerialization.decode(object: payload, as: RequestPurchaseProps.self)
+        }
+        if let requestSubscription = payload["requestSubscription"] {
+            warnIfLegacyApplePlatformKey(in: requestSubscription)
             return try OpenIapSerialization.decode(object: payload, as: RequestPurchaseProps.self)
         }
 
         if let request = payload["request"] {
+            warnIfLegacyApplePlatformKey(in: request)
             let parsedType = parseProductQueryType(payload["type"] as? String)
             let purchaseType: ProductQueryType = parsedType == .all ? .inApp : parsedType
             var normalized: [String: Any] = ["type": purchaseType.rawValue]
@@ -141,6 +147,20 @@ enum ExpoIapHelper {
         }
 
         throw PurchaseError.make(code: .developerError, message: "Invalid request payload")
+    }
+
+    private static func warnIfLegacyApplePlatformKey(in value: Any) {
+        guard let request = value as? [String: Any],
+              request["apple"] == nil,
+              request["ios"] != nil
+        else {
+            return
+        }
+
+        ExpoIapLog.deprecation(
+            "request-purchase.ios",
+            "`request.ios` is deprecated and will be removed in expo-iap 5.0.0. Use `request.apple` instead."
+        )
     }
 
     static func setupListeners(

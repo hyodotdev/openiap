@@ -1,3 +1,7 @@
+// Legacy 2.x factories delegate to the canonical store construction path.
+// Consumer call sites retain warnings; remove these factories in 3.0.
+@file:Suppress("DEPRECATION")
+
 package dev.hyo.openiap.store
 
 import android.content.Context

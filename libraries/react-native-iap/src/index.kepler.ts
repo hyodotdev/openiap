@@ -26,7 +26,7 @@ import {
   validateNitroProduct,
   validateNitroPurchase,
 } from './utils/type-bridge';
-import {RnIapConsole} from './utils/debug';
+import {warnLegacyOnce} from './utils/deprecation';
 
 export * from './types';
 export * from './utils/error';
@@ -92,9 +92,9 @@ const normalizeProductQueryType = (
   if (type === 'subs') return 'subs';
   if (type === 'all') return 'all';
   if (type === 'inapp') {
-    RnIapConsole.warn(LEGACY_INAPP_WARNING);
+    warnLegacyOnce('product-type.inapp', LEGACY_INAPP_WARNING);
   }
-  return 'inapp';
+  return 'in-app';
 };
 
 const mapProducts = (
@@ -147,8 +147,15 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
     | RequestPurchasePropsByPlatforms
     | RequestSubscriptionPropsByPlatforms
     | undefined;
-  const androidRequest =
-    perPlatformRequest?.google ?? perPlatformRequest?.android;
+  const googleRequest = perPlatformRequest?.google;
+  const legacyAndroidRequest = perPlatformRequest?.android;
+  if (googleRequest == null && legacyAndroidRequest != null) {
+    warnLegacyOnce(
+      'request-purchase.android',
+      '[react-native-iap] `request.android` is deprecated and will be removed in react-native-iap 16.0.0. Use `request.google` instead.',
+    );
+  }
+  const androidRequest = googleRequest ?? legacyAndroidRequest;
 
   if (!androidRequest?.skus?.length) {
     throw new Error(
@@ -158,7 +165,6 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
 
   const nitroRequest: NitroPurchaseRequest = {
     google: androidRequest,
-    android: androidRequest,
   };
   const result = await getModule().requestPurchase(nitroRequest);
   if (!Array.isArray(result)) return null;

@@ -33,6 +33,16 @@ describe('native log redaction', () => {
     }
     expect(androidLog).toContain('isSensitiveKey');
     expect(iosLog).toContain('isSensitiveKey');
+    expect(androidLog).toContain(
+      'private val emittedDeprecations = ConcurrentHashMap.newKeySet<String>()',
+    );
+    expect(iosLog).toContain(
+      'private static var emittedDeprecations = Set<String>()',
+    );
+    expect(androidLog).toContain('if (!emittedDeprecations.add(key))');
+    expect(iosLog).toContain(
+      'let inserted = emittedDeprecations.insert(key).inserted',
+    );
     expect(androidLog).toContain('filter { it.isLetterOrDigit() }');
     expect(iosLog).toContain('.filter { $0.isLetter || $0.isNumber }');
     expect(androidLog).toContain("'{' -> JSONObject(trimmed)");

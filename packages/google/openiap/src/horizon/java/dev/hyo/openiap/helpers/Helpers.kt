@@ -19,19 +19,19 @@ internal suspend fun restorePurchasesHorizon(
     client: BillingClient?,
     operations: ActiveStoreOperationRegistry<BillingClient>,
 ): List<Purchase> {
-    OpenIapLog.d("restorePurchasesHorizon: Starting", TAG)
+    OpenIapLog.debug("restorePurchasesHorizon: Starting", TAG)
     val billingClient = client ?: throw OpenIapError.NotPrepared
 
     val purchases = mutableListOf<Purchase>()
     val inapp = queryPurchasesHorizon(billingClient, operations, BillingClient.ProductType.INAPP)
-    OpenIapLog.d("restorePurchasesHorizon: INAPP purchases = ${inapp.size}", TAG)
+    OpenIapLog.debug("restorePurchasesHorizon: INAPP purchases = ${inapp.size}", TAG)
     purchases += inapp
 
     val subs = queryPurchasesHorizon(billingClient, operations, BillingClient.ProductType.SUBS)
-    OpenIapLog.d("restorePurchasesHorizon: SUBS purchases = ${subs.size}", TAG)
+    OpenIapLog.debug("restorePurchasesHorizon: SUBS purchases = ${subs.size}", TAG)
     purchases += subs
 
-    OpenIapLog.d("restorePurchasesHorizon: Total = ${purchases.size}", TAG)
+    OpenIapLog.debug("restorePurchasesHorizon: Total = ${purchases.size}", TAG)
     return purchases
 }
 
@@ -43,21 +43,21 @@ internal suspend fun queryPurchasesHorizon(
     operations: ActiveStoreOperationRegistry<BillingClient>,
     productType: String
 ): List<Purchase> {
-    OpenIapLog.d("queryPurchasesHorizon: type=$productType", TAG)
+    OpenIapLog.debug("queryPurchasesHorizon: type=$productType", TAG)
 
     val billingClient = client ?: throw OpenIapError.NotPrepared
 
     // CRITICAL FIX: Check if BillingClient is ready before querying
     if (!billingClient.isReady()) {
-        OpenIapLog.w("queryPurchasesHorizon: BillingClient is not ready", TAG)
+        OpenIapLog.warn("queryPurchasesHorizon: BillingClient is not ready", TAG)
         throw OpenIapError.NotPrepared
     }
 
-    OpenIapLog.d("queryPurchasesHorizon: BillingClient is ready, querying purchases", TAG)
+    OpenIapLog.debug("queryPurchasesHorizon: BillingClient is ready, querying purchases", TAG)
     val params = QueryPurchasesParams.newBuilder().setProductType(productType).build()
     return operations.await(billingClient) { operation ->
         billingClient.queryPurchasesAsync(params) { result, purchaseList ->
-            OpenIapLog.d(
+            OpenIapLog.debug(
                 "queryPurchasesHorizon: type=$productType responseCode=${result.responseCode} " +
                     "count=${purchaseList?.size ?: 0}",
                 TAG
@@ -65,13 +65,13 @@ internal suspend fun queryPurchasesHorizon(
 
             if (result.responseCode == BillingClient.BillingResponseCode.OK) {
                 val mapped = purchaseList?.map {
-                    OpenIapLog.d("  - Purchase: productIds=${it.products}", TAG)
+                    OpenIapLog.debug("  - Purchase: productIds=${it.products}", TAG)
                     it.toPurchase()
                 } ?: emptyList()
-                OpenIapLog.d("queryPurchasesHorizon: Returning ${mapped.size} mapped purchases", TAG)
+                OpenIapLog.debug("queryPurchasesHorizon: Returning ${mapped.size} mapped purchases", TAG)
                 operation.succeed(mapped)
             } else {
-                OpenIapLog.w("queryPurchasesHorizon: Failed with code=${result.responseCode}", TAG)
+                OpenIapLog.warn("queryPurchasesHorizon: Failed with code=${result.responseCode}", TAG)
                 operation.fail(
                     OpenIapError.fromBillingResponseCode(
                         result.responseCode,

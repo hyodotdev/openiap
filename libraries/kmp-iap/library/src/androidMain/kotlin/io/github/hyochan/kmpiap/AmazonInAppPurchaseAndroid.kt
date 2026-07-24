@@ -1,3 +1,7 @@
+// The Amazon implementation overrides the shared 2.x compatibility methods.
+// Consumer call sites retain warnings; remove the overrides in kmp-iap 3.
+@file:Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
+
 package io.github.hyochan.kmpiap
 
 import android.app.Activity

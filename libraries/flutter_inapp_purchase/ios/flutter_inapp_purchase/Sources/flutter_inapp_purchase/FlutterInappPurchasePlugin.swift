@@ -260,6 +260,12 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
             getReceiptDataIOS(result: result)
 
         case "getAppTransactionIOS", "getAppTransaction":
+            if call.method == "getAppTransaction" {
+                FlutterIapLog.deprecation(
+                    "channel.getAppTransaction",
+                    "`getAppTransaction` is deprecated and will be removed in flutter_inapp_purchase 10.0.0. Use `getAppTransactionIOS` instead."
+                )
+            }
             if #available(iOS 16.0, macOS 14.0, tvOS 16.0, *) {
                 getAppTransactionIOS(result: result)
             } else {
@@ -271,6 +277,12 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
             syncIOS(result: result)
 
         case "subscriptionStatusIOS", "getSubscriptionStatus":
+            if call.method == "getSubscriptionStatus" {
+                FlutterIapLog.deprecation(
+                    "channel.getSubscriptionStatus",
+                    "`getSubscriptionStatus` is deprecated and will be removed in flutter_inapp_purchase 10.0.0. Use `subscriptionStatusIOS` instead."
+                )
+            }
             if let args = call.arguments as? [String: Any],
                let sku = args["sku"] as? String {
                 subscriptionStatusIOS(sku: sku, result: result)
@@ -293,7 +305,9 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                let appleSku = appleOptions["sku"] as? String {
                 sku = appleSku
             } else if let legacySku = args["sku"] as? String {
-                // Backwards compatibility with legacy API
+                FlutterIapLog.deprecation(
+                    "Top-level `sku` verification input is deprecated and will be removed in flutter_inapp_purchase 10.0.0. Use `apple.sku` instead."
+                )
                 sku = legacySku
             } else {
                 let code: ErrorCode = .developerError

@@ -51,7 +51,7 @@ void main() {
           if (type == 'subs') {
             return <Map<String, dynamic>>[subscription];
           }
-          if (type == 'inapp') {
+          if (type == 'in-app') {
             return <Map<String, dynamic>>[inApp];
           }
           return <Map<String, dynamic>>[subscription, inApp];

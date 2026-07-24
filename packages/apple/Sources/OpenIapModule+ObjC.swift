@@ -149,6 +149,9 @@ import StoreKit
         }
     }
 
+    /// Compatibility overload retained for existing Objective-C and Kotlin
+    /// callers. Use the extended overload to pass modern subscription options.
+    @available(*, deprecated, message: "Use requestSubscriptionWithSku(_:offer:compactJWS:promotionalOfferJWS:winBackOfferId:billingPlanType:completion:) instead. Scheduled for removal in OpenIAP 3.0.")
     @objc func requestSubscriptionWithSku(
         _ sku: String,
         offer: [String: Any]?,

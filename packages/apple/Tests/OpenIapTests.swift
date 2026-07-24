@@ -47,6 +47,52 @@ final class OpenIapTests: XCTestCase {
         XCTAssertEqual(purchase.purchaseState, .purchased)
     }
 
+    func testPurchaseInputRecoversLegacyTransactionIdFromId() throws {
+        var payload = OpenIapSerialization.encode(makeSamplePurchase())
+        payload.removeValue(forKey: "transactionId")
+
+        let input = try OpenIapSerialization.purchaseInput(from: payload)
+        guard case let .purchaseIos(purchase) = input else {
+            return XCTFail("Expected an iOS purchase")
+        }
+
+        XCTAssertEqual(purchase.id, "transaction")
+        XCTAssertEqual(purchase.transactionId, "transaction")
+    }
+
+    func testPurchaseInputPrefersCanonicalTransactionId() throws {
+        var payload = OpenIapSerialization.encode(makeSamplePurchase())
+        payload["id"] = "purchase-identity"
+        payload["transactionId"] = "canonical-transaction"
+
+        let input = try OpenIapSerialization.purchaseInput(from: payload)
+        guard case let .purchaseIos(purchase) = input else {
+            return XCTFail("Expected an iOS purchase")
+        }
+
+        XCTAssertEqual(purchase.id, "purchase-identity")
+        XCTAssertEqual(purchase.transactionId, "canonical-transaction")
+    }
+
+    func testDeprecationWarningIsAlwaysVisibleAndEmittedOnce() {
+        let key = "OpenIapTests.\(UUID().uuidString)"
+        var emissions: [(OpenIapLog.Level, String)] = []
+        OpenIapLog.setEnabled(false)
+        OpenIapLog.handler = { level, message in
+            emissions.append((level, message))
+        }
+        defer {
+            OpenIapLog.handler = nil
+        }
+
+        OpenIapLog.deprecation(key, "legacy bridge")
+        OpenIapLog.deprecation(key, "legacy bridge")
+
+        XCTAssertEqual(emissions.count, 1)
+        XCTAssertEqual(emissions.first?.0, .warn)
+        XCTAssertEqual(emissions.first?.1, "legacy bridge")
+    }
+
     func testPurchaseErrorStruct() {
         let error = PurchaseError(code: .skuNotFound, message: "Not found", productId: "sku")
         XCTAssertEqual(error.code, .skuNotFound)

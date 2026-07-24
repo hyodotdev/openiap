@@ -1,5 +1,6 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_inapp_purchase/deprecation.dart';
 import 'package:flutter_inapp_purchase/errors.dart' as errors;
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 import 'package:flutter_inapp_purchase/types.dart' as types;
@@ -7,6 +8,8 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:platform/platform.dart';
 
 void main() {
+  setUp(resetLegacyWarningsForTesting);
+
   group('getCurrentPlatform', () {
     tearDown(() {
       // Reset platform override after each test
@@ -90,6 +93,40 @@ void main() {
   });
 
   group('PurchaseError', () {
+    test('subResponseCode fallback warns once while canonical stays silent',
+        () {
+      final warnings = <String?>[];
+      final originalDebugPrint = debugPrint;
+      debugPrint = (String? message, {int? wrapWidth}) {
+        warnings.add(message);
+      };
+      addTearDown(() => debugPrint = originalDebugPrint);
+
+      errors.PurchaseError.fromPlatformError(<String, dynamic>{
+        'message': 'canonical',
+        'subResponseCodeAndroid': 'user-ineligible',
+        'subResponseCode': 'payment-declined-due-to-insufficient-funds',
+      }, types.IapPlatform.Android);
+      errors.PurchaseResult.fromJSON(<String, dynamic>{
+        'subResponseCodeAndroid': 'user-ineligible',
+        'subResponseCode': 'payment-declined-due-to-insufficient-funds',
+      });
+      expect(warnings, isEmpty);
+
+      for (var index = 0; index < 2; index += 1) {
+        errors.PurchaseError.fromPlatformError(<String, dynamic>{
+          'message': 'legacy',
+          'subResponseCode': 'user-ineligible',
+        }, types.IapPlatform.Android);
+        errors.PurchaseResult.fromJSON(<String, dynamic>{
+          'subResponseCode': 'user-ineligible',
+        });
+      }
+
+      expect(warnings, hasLength(1));
+      expect(warnings.single, contains('`subResponseCode` field'));
+    });
+
     test('fromPlatformError normalizes payload', () {
       final error = errors.PurchaseError.fromPlatformError(<String, dynamic>{
         'message': 'Something went wrong',

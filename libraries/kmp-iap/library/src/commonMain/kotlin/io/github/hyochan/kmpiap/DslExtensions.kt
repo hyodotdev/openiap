@@ -1,3 +1,7 @@
+// DSL projections expose legacy generated fields only for 2.x compatibility.
+// Consumer call sites retain warnings; remove the projections in kmp-iap 3.
+@file:Suppress("DEPRECATION")
+
 package io.github.hyochan.kmpiap
 
 import io.github.hyochan.kmpiap.PurchaseException

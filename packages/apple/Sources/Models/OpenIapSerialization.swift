@@ -98,9 +98,15 @@ public enum OpenIapSerialization {
 
         print("🔄 [OpenIapSerialization] Auto-wrapping as iOS purchase")
 
-        // Map common field aliases for backward compatibility
+        // Custom bridges must emit `transactionId` explicitly before OpenIAP
+        // 3.0. `id` remains the canonical purchase identity and is used only
+        // as a temporary fallback when the transaction field is absent.
         var normalizedDict = dict
         if normalizedDict["transactionId"] == nil, let id = normalizedDict["id"] {
+            OpenIapLog.deprecation(
+                "purchase-input-id-transaction-id",
+                "Raw PurchaseIOS dictionaries that use `id` as a fallback for `transactionId` are deprecated and will be rejected in OpenIAP 3.0. Custom bridges must emit `transactionId` explicitly; `id` remains the purchase identity."
+            )
             normalizedDict["transactionId"] = id
         }
 

@@ -1,3 +1,7 @@
+// Legacy offer projections remain readable through OpenIAP 2.x. Generated
+// declarations warn consumers; remove these projections in OpenIAP 3.0.
+@file:Suppress("DEPRECATION")
+
 package dev.hyo.openiap.utils
 
 import dev.hyo.openiap.Product

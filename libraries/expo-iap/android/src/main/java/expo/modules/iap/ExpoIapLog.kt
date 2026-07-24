@@ -4,27 +4,31 @@ import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 
 internal object ExpoIapLog {
     private const val TAG = "ExpoIap"
-    private val SENSITIVE_KEY_FRAGMENTS = setOf(
-        "token",
-        "apikey",
-        "secret",
-        "jws",
-        "receipt",
-        "clientpayload",
-        "dataandroid",
-        "signatureandroid",
-        "userid",
-        "password",
-        "bearer"
-    )
-    private val SENSITIVE_AUTH_KEYS = setOf(
-        "auth",
-        "authorization",
-        "authheader"
-    )
+    private val emittedDeprecations = ConcurrentHashMap.newKeySet<String>()
+    private val SENSITIVE_KEY_FRAGMENTS =
+        setOf(
+            "token",
+            "apikey",
+            "secret",
+            "jws",
+            "receipt",
+            "clientpayload",
+            "dataandroid",
+            "signatureandroid",
+            "userid",
+            "password",
+            "bearer",
+        )
+    private val SENSITIVE_AUTH_KEYS =
+        setOf(
+            "auth",
+            "authorization",
+            "authheader",
+        )
 
     fun payload(
         name: String,
@@ -51,6 +55,16 @@ internal object ExpoIapLog {
         Log.w(TAG, message)
     }
 
+    fun deprecation(
+        key: String,
+        message: String,
+    ) {
+        if (!emittedDeprecations.add(key)) {
+            return
+        }
+        Log.w(TAG, message)
+    }
+
     fun debug(message: String) {
         if (BuildConfig.DEBUG || Log.isLoggable(TAG, Log.DEBUG)) {
             Log.d(TAG, message)
@@ -73,9 +87,10 @@ internal object ExpoIapLog {
 
         return when (value) {
             is String -> sanitizeJsonString(value)
-            is JSONObject -> sanitizeMap(
-                value.keys().asSequence().associateWith(value::opt),
-            )
+            is JSONObject ->
+                sanitizeMap(
+                    value.keys().asSequence().associateWith(value::opt),
+                )
             is JSONArray -> (0 until value.length()).mapNotNull { sanitize(value.opt(it)) }
             is Map<*, *> -> sanitizeMap(value)
             is List<*> -> value.mapNotNull { sanitize(it) }
@@ -86,13 +101,14 @@ internal object ExpoIapLog {
 
     private fun sanitizeJsonString(value: String): Any {
         val trimmed = value.trim()
-        val json = runCatching {
-            when (trimmed.firstOrNull()) {
-                '{' -> JSONObject(trimmed)
-                '[' -> JSONArray(trimmed)
-                else -> null
-            }
-        }.getOrNull() ?: return value
+        val json =
+            runCatching {
+                when (trimmed.firstOrNull()) {
+                    '{' -> JSONObject(trimmed)
+                    '[' -> JSONArray(trimmed)
+                    else -> null
+                }
+            }.getOrNull() ?: return value
         return sanitize(json) ?: value
     }
 

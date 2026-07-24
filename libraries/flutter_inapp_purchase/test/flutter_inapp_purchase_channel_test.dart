@@ -571,9 +571,9 @@ void main() {
         methodCall.arguments as Map<dynamic, dynamic>,
       );
       expect(payload['packageNameAndroid'], 'dev.hyo.martie');
-      expect(payload['packageName'], 'dev.hyo.martie');
       expect(payload['skuAndroid'], 'sub.premium');
-      expect(payload['sku'], 'sub.premium');
+      expect(payload.containsKey('packageName'), isFalse);
+      expect(payload.containsKey('sku'), isFalse);
     });
 
     test('uses Apple channel method on iOS', () async {
@@ -685,7 +685,7 @@ void main() {
       );
 
       expect(payload['sku'], 'ios.sku');
-      expect(payload['type'], 'inapp');
+      expect(payload['type'], 'in-app');
       expect(payload['appAccountToken'], 'app-token');
       expect(payload['quantity'], 3);
       expect(payload['andDangerouslyFinishTransactionAutomatically'], isFalse);
@@ -1129,7 +1129,7 @@ void main() {
           requestCall.arguments as Map<dynamic, dynamic>,
         );
 
-        expect(payload['type'], 'inapp');
+        expect(payload['type'], 'in-app');
         expect(payload['skus'], <String>['product.premium']);
         expect(payload.containsKey('developerBillingOption'), isTrue);
 
@@ -1398,7 +1398,7 @@ void main() {
         requestCall.arguments as Map<dynamic, dynamic>,
       );
 
-      expect(payload['type'], 'inapp');
+      expect(payload['type'], 'in-app');
       expect(payload['productId'], 'coin.pack');
       expect(payload['skus'], <String>['coin.pack']);
       expect(payload['isOfferPersonalized'], isTrue);

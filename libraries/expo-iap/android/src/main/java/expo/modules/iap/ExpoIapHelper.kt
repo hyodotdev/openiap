@@ -86,9 +86,15 @@ object ExpoIapHelper {
             run {
                 val request = params["request"] as? Map<*, *>
                 if (request != null) {
-                    val nested =
-                        (request["google"] as? Map<*, *>)
-                            ?: (request["android"] as? Map<*, *>)
+                    val canonicalGoogle = request["google"] as? Map<*, *>
+                    val legacyAndroid = request["android"] as? Map<*, *>
+                    if (canonicalGoogle == null && legacyAndroid != null) {
+                        ExpoIapLog.deprecation(
+                            "request-purchase.android",
+                            "`request.android` is deprecated and will be removed in expo-iap 5.0.0. Use `request.google` instead.",
+                        )
+                    }
+                    val nested = canonicalGoogle ?: legacyAndroid
                     if (nested != null) {
                         val flat = mutableMapOf<String, Any?>()
                         // Carry over top-level fields like type, useAlternativeBilling
@@ -109,15 +115,27 @@ object ExpoIapHelper {
             }
 
         val type = effective["type"] as? String
-        val skus: List<String> =
-            (effective["skus"] as? List<*>)?.filterIsInstance<String>()
-                ?: (effective["skuArr"] as? List<*>)?.filterIsInstance<String>()
-                ?: emptyList()
+        val canonicalSkus = (effective["skus"] as? List<*>)?.filterIsInstance<String>()
+        val legacySkuArr = (effective["skuArr"] as? List<*>)?.filterIsInstance<String>()
+        if (canonicalSkus == null && legacySkuArr != null) {
+            ExpoIapLog.deprecation(
+                "request-purchase.skuArr",
+                "`skuArr` is deprecated and will be removed in expo-iap 5.0.0. Use `skus` instead.",
+            )
+        }
+        val skus: List<String> = canonicalSkus ?: legacySkuArr ?: emptyList()
         val obfuscatedAccountId = effective["obfuscatedAccountId"] as? String
         val obfuscatedProfileId = effective["obfuscatedProfileId"] as? String
         val isOfferPersonalized = effective["isOfferPersonalized"] as? Boolean ?: false
-        val offerTokenArr =
+        val hasCanonicalSubscriptionOffers = effective["subscriptionOffers"] != null
+        val legacyOfferTokenArr =
             (effective["offerTokenArr"] as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+        val offerTokenArr =
+            if (hasCanonicalSubscriptionOffers) {
+                emptyList()
+            } else {
+                legacyOfferTokenArr
+            }
         val explicitSubscriptionOffers =
             (effective["subscriptionOffers"] as? List<*>)?.mapNotNull { rawOffer ->
                 val offerMap = rawOffer as? Map<*, *> ?: return@mapNotNull null
@@ -129,6 +147,12 @@ object ExpoIapHelper {
                     AndroidSubscriptionOfferInput(offerToken = offerToken, sku = sku)
                 }
             } ?: emptyList()
+        if (!hasCanonicalSubscriptionOffers && offerTokenArr.isNotEmpty()) {
+            ExpoIapLog.deprecation(
+                "request-purchase.offerTokenArr",
+                "`offerTokenArr` is deprecated and will be removed in expo-iap 5.0.0. Use `subscriptionOffers` instead.",
+            )
+        }
         val purchaseToken = effective["purchaseToken"] as? String
         val originalExternalTransactionId = effective["originalExternalTransactionId"] as? String
         val replacementMode = effective["replacementMode"] as? Number

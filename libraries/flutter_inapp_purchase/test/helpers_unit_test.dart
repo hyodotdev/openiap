@@ -1,5 +1,7 @@
 import 'dart:convert';
 
+import 'package:flutter/foundation.dart';
+import 'package:flutter_inapp_purchase/deprecation.dart';
 import 'package:flutter_inapp_purchase/enums.dart';
 import 'package:flutter_inapp_purchase/errors.dart' as iap_err;
 import 'package:flutter_inapp_purchase/helpers.dart';
@@ -10,12 +12,211 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   group('helpers', () {
-    test('resolveProductType handles multiple input types', () {
+    setUp(resetLegacyWarningsForTesting);
+
+    test('resolveProductType emits canonical product types without warnings',
+        () {
+      final warnings = <String?>[];
+      final originalDebugPrint = debugPrint;
+      debugPrint = (String? message, {int? wrapWidth}) {
+        warnings.add(message);
+      };
+      addTearDown(() => debugPrint = originalDebugPrint);
+
       expect(resolveProductType('subs'), 'subs');
+      expect(resolveProductType('in-app'), 'in-app');
       expect(resolveProductType(types.ProductQueryType.All), 'all');
-      expect(resolveProductType(types.ProductType.InApp), 'inapp');
+      expect(resolveProductType(types.ProductQueryType.InApp), 'in-app');
+      expect(resolveProductType(types.ProductType.InApp), 'in-app');
+      expect(warnings, isEmpty);
+    });
+
+    test('resolveProductType warns once for each legacy product type', () {
+      final warnings = <String?>[];
+      final originalDebugPrint = debugPrint;
+      debugPrint = (String? message, {int? wrapWidth}) {
+        warnings.add(message);
+      };
+      addTearDown(() => debugPrint = originalDebugPrint);
+
+      expect(resolveProductType('inapp'), 'in-app');
+      expect(resolveProductType('inapp'), 'in-app');
       expect(resolveProductType(TypeInApp.subs), 'subs');
-      expect(resolveProductType(Object()), 'inapp');
+      expect(resolveProductType(TypeInApp.inapp), 'in-app');
+      expect(resolveProductType(Object()), 'in-app');
+      expect(warnings, hasLength(2));
+      expect(warnings.first, contains('`inapp` is deprecated'));
+      expect(warnings.last, contains('TypeInApp is deprecated'));
+    });
+
+    test('canonical product and purchase payloads emit no legacy warnings', () {
+      final warnings = <String?>[];
+      final originalDebugPrint = debugPrint;
+      debugPrint = (String? message, {int? wrapWidth}) {
+        warnings.add(message);
+      };
+      addTearDown(() => debugPrint = originalDebugPrint);
+
+      parseProductFromNative(
+        <String, dynamic>{
+          'platform': 'ios',
+          'id': 'canonical-product',
+          'title': 'Canonical',
+          'description': 'Canonical product',
+          'currency': 'USD',
+          'displayPrice': '\$1.00',
+          'typeIOS': 'CONSUMABLE',
+        },
+        'in-app',
+        fallbackIsIOS: true,
+      );
+      convertToPurchase(
+        <String, dynamic>{
+          'platform': 'android',
+          'store': 'google',
+          'id': 'canonical-purchase',
+          'productId': 'canonical-product',
+          'transactionId': 'canonical-transaction',
+          'purchaseState': 'purchased',
+          'purchaseToken': 'canonical-token',
+          'dataAndroid': '{}',
+        },
+        platformIsAndroid: true,
+        platformIsIOS: false,
+        acknowledgedAndroidPurchaseTokens: <String, bool>{},
+      );
+      convertToPurchase(
+        <String, dynamic>{
+          'platform': 'ios',
+          'store': 'apple',
+          'id': 'canonical-ios-purchase',
+          'productId': 'canonical-product',
+          'transactionId': 'canonical-ios-transaction',
+          'purchaseState': 'purchased',
+          'purchaseToken': 'canonical-jws',
+        },
+        platformIsAndroid: false,
+        platformIsIOS: true,
+        acknowledgedAndroidPurchaseTokens: <String, bool>{},
+      );
+
+      expect(warnings, isEmpty);
+    });
+
+    test('legacy product fallbacks warn once per selected wire field', () {
+      final warnings = <String?>[];
+      final originalDebugPrint = debugPrint;
+      debugPrint = (String? message, {int? wrapWidth}) {
+        warnings.add(message);
+      };
+      addTearDown(() => debugPrint = originalDebugPrint);
+
+      final legacyProductId = <String, dynamic>{
+        'platform': 'ios',
+        'productId': 'legacy-product-id',
+        'title': 'Legacy',
+        'description': 'Legacy product',
+        'currency': 'USD',
+        'displayPrice': '\$1.00',
+        'typeIOS': 'AUTO_RENEWABLE_SUBSCRIPTION',
+        'discounts': <dynamic>[],
+        'subscription': <dynamic>[],
+      };
+      final legacySku = <String, dynamic>{
+        'platform': 'ios',
+        'sku': 'legacy-sku',
+        'title': 'Legacy SKU',
+        'description': 'Legacy product',
+        'currency': 'USD',
+        'displayPrice': '\$1.00',
+        'typeIOS': 'CONSUMABLE',
+      };
+
+      parseProductFromNative(
+        legacyProductId,
+        'subs',
+        fallbackIsIOS: true,
+      );
+      parseProductFromNative(
+        legacyProductId,
+        'subs',
+        fallbackIsIOS: true,
+      );
+      parseProductFromNative(legacySku, 'in-app', fallbackIsIOS: true);
+      parseProductFromNative(legacySku, 'in-app', fallbackIsIOS: true);
+
+      expect(warnings, hasLength(4));
+      expect(warnings.join('\n'), contains('`productId` field'));
+      expect(warnings.join('\n'), contains('`sku` field'));
+      expect(warnings.join('\n'), contains('`discounts` field'));
+      expect(warnings.join('\n'), contains('`subscription` field'));
+      expect(warnings.join('\n'), contains('Use `subscriptionOffers`'));
+      expect(warnings.join('\n'), contains('`subscriptionGroupIdIOS`'));
+      expect(warnings.join('\n'), isNot(contains('Use `discountsIOS`')));
+      expect(warnings.join('\n'), isNot(contains('Use `subscriptionInfoIOS`')));
+    });
+
+    test('legacy Android purchase fallbacks warn once per selected field', () {
+      final warnings = <String?>[];
+      final originalDebugPrint = debugPrint;
+      debugPrint = (String? message, {int? wrapWidth}) {
+        warnings.add(message);
+      };
+      addTearDown(() => debugPrint = originalDebugPrint);
+      final payload = <String, dynamic>{
+        'platform': 'android',
+        'store': 'google',
+        'id': 'GPA.legacy-order',
+        'productId': 'legacy-product',
+        'purchaseStateAndroid': 1,
+        'purchaseToken': 'legacy-token',
+        'originalJsonAndroid': '{"legacy":true}',
+      };
+
+      for (var index = 0; index < 2; index += 1) {
+        convertToPurchase(
+          payload,
+          platformIsAndroid: true,
+          platformIsIOS: false,
+          acknowledgedAndroidPurchaseTokens: <String, bool>{},
+        );
+      }
+
+      expect(warnings, hasLength(3));
+      expect(warnings.join('\n'), contains('`purchaseStateAndroid` field'));
+      expect(warnings.join('\n'), contains('`originalJsonAndroid` field'));
+      expect(warnings.join('\n'), contains('purchase `id` as `transactionId`'));
+    });
+
+    test('legacy iOS purchase fallbacks warn once per selected field', () {
+      final warnings = <String?>[];
+      final originalDebugPrint = debugPrint;
+      debugPrint = (String? message, {int? wrapWidth}) {
+        warnings.add(message);
+      };
+      addTearDown(() => debugPrint = originalDebugPrint);
+      final payload = <String, dynamic>{
+        'platform': 'ios',
+        'store': 'apple',
+        'id': 'legacy-ios-transaction',
+        'productId': 'legacy-product',
+        'transactionStateIOS': 'purchased',
+        'transactionReceipt': 'legacy-receipt',
+      };
+
+      for (var index = 0; index < 2; index += 1) {
+        convertToPurchase(
+          payload,
+          platformIsAndroid: false,
+          platformIsIOS: true,
+          acknowledgedAndroidPurchaseTokens: <String, bool>{},
+        );
+      }
+
+      expect(warnings, hasLength(3));
+      expect(warnings.join('\n'), contains('`transactionStateIOS` field'));
+      expect(warnings.join('\n'), contains('`transactionReceipt` field'));
+      expect(warnings.join('\n'), contains('purchase `id` as `transactionId`'));
     });
 
     test('parseProductFromNative creates iOS subscription product', () {

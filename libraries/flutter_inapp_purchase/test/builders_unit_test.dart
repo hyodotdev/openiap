@@ -152,8 +152,10 @@ void main() {
 
       final json = props.toJson();
       expect(json['requestPurchase'], isNotNull);
-      expect(json['requestPurchase']['ios'], isNotNull);
-      expect(json['requestPurchase']['android'], isNotNull);
+      expect(json['requestPurchase']['apple'], isNotNull);
+      expect(json['requestPurchase']['google'], isNotNull);
+      expect(json['requestPurchase']['ios'], isNull);
+      expect(json['requestPurchase']['android'], isNull);
     });
 
     test('builds Subs purchase with apple/google fields', () {
@@ -239,8 +241,8 @@ void main() {
       final props = builder.build();
       final json = props.toJson();
 
-      expect(json['requestPurchase']['ios'], isNull);
-      expect(json['requestPurchase']['android'], isNotNull);
+      expect(json['requestPurchase']['apple'], isNull);
+      expect(json['requestPurchase']['google'], isNotNull);
     });
 
     test('builds subscription with advancedCommerceData', () {
@@ -253,7 +255,7 @@ void main() {
       expect(props, isA<RequestPurchaseProps>());
       final json = props.toJson();
       expect(
-        json['requestSubscription']['ios']['advancedCommerceData'],
+        json['requestSubscription']['apple']['advancedCommerceData'],
         'campaign',
       );
     });
@@ -267,7 +269,10 @@ void main() {
       final props = builder.build();
       final json = props.toJson();
 
-      expect(json['requestSubscription']['ios']['billingPlanType'], 'monthly');
+      expect(
+        json['requestSubscription']['apple']['billingPlanType'],
+        'monthly',
+      );
     });
   });
 
@@ -310,8 +315,8 @@ void main() {
       final props = builder.build();
       final json = props.toJson();
 
-      expect(json['requestSubscription']['ios'], isNull);
-      expect(json['requestSubscription']['android'], isNull);
+      expect(json['requestSubscription']['apple'], isNull);
+      expect(json['requestSubscription']['google'], isNull);
     });
   });
 }

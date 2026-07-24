@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:platform/platform.dart';
 
+import 'deprecation.dart';
 import 'enums.dart';
 import 'types.dart' as gentype;
 import 'builders.dart';
@@ -640,7 +641,18 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               );
             }
 
-            final iosData = requestData['ios'] as Map<String, dynamic>?;
+            final appleData = requestData['apple'];
+            final legacyIosData = requestData['ios'];
+            if (appleData == null && legacyIosData != null) {
+              warnLegacyOnce(
+                'request-purchase.ios',
+                'The requestPurchase/requestSubscription `ios` field is '
+                    'deprecated and will be removed in flutter_inapp_purchase '
+                    '10.0.0. Use `apple` instead.',
+              );
+            }
+            final iosData =
+                (appleData ?? legacyIosData) as Map<String, dynamic>?;
 
             if (iosData == null) {
               throw PurchaseError(
@@ -673,9 +685,18 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             final requestKey =
                 type == 'in-app' ? 'requestPurchase' : 'requestSubscription';
             final requestData = json[requestKey] as Map<String, dynamic>?;
-            // Support both 'google' (new) and 'android' (deprecated) fields
-            final androidData = (requestData?['google'] ??
-                requestData?['android']) as Map<String, dynamic>?;
+            final googleData = requestData?['google'];
+            final legacyAndroidData = requestData?['android'];
+            if (googleData == null && legacyAndroidData != null) {
+              warnLegacyOnce(
+                'request-purchase.android',
+                'The requestPurchase/requestSubscription `android` field is '
+                    'deprecated and will be removed in flutter_inapp_purchase '
+                    '10.0.0. Use `google` instead.',
+              );
+            }
+            final androidData =
+                (googleData ?? legacyAndroidData) as Map<String, dynamic>?;
 
             if (androidData == null) {
               throw PurchaseError(
@@ -1091,7 +1112,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
 
         try {
           final dynamic result = await _channel.invokeMethod(
-            'getSubscriptionStatus',
+            'subscriptionStatusIOS',
             {'sku': sku},
           );
 
@@ -1249,7 +1270,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
 
         try {
           final result = await _channel.invokeMethod<Map<dynamic, dynamic>>(
-            'getAppTransaction',
+            'getAppTransactionIOS',
           );
           if (result == null) {
             return null;
@@ -1731,11 +1752,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             final args = <String, dynamic>{};
             if (packageNameAndroid != null && packageNameAndroid.isNotEmpty) {
               args['packageNameAndroid'] = packageNameAndroid;
-              args['packageName'] = packageNameAndroid;
             }
             if (skuAndroid != null && skuAndroid.isNotEmpty) {
               args['skuAndroid'] = skuAndroid;
-              args['sku'] = skuAndroid;
             }
 
             await _channel.invokeMethod(

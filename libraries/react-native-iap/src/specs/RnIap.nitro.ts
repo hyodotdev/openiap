@@ -128,16 +128,22 @@ export type BillingChoiceImageLayoutAndroid =
   | 'rectangular-two-by-two';
 
 export type BillingChoiceScreenTypeAndroid =
-  'unspecified' | 'developer-rendered' | 'google-rendered';
+  | 'unspecified'
+  | 'developer-rendered'
+  | 'google-rendered';
 
 export type DeveloperBillingTypeAndroid =
-  'developer-billing-type-unspecified' | 'in-app' | 'external-link';
+  | 'developer-billing-type-unspecified'
+  | 'in-app'
+  | 'external-link';
 
 export type InAppMessageCategoryAndroid =
-  'unknown-in-app-message-category-id' | 'transactional';
+  | 'unknown-in-app-message-category-id'
+  | 'transactional';
 
 export type InAppMessageResponseCodeAndroid =
-  'no-action-needed' | 'subscription-status-updated';
+  | 'no-action-needed'
+  | 'subscription-status-updated';
 
 // Developer Billing Launch Mode (Android 8.3.0+)
 // Defined locally for Nitro codegen
@@ -156,7 +162,9 @@ export type ExternalLinkLaunchModeAndroid =
 // External Link Type (Android 8.2.0+)
 // Defined locally for Nitro codegen
 export type ExternalLinkTypeAndroid =
-  'unspecified' | 'link-to-digital-content-offer' | 'link-to-app-download';
+  | 'unspecified'
+  | 'link-to-digital-content-offer'
+  | 'link-to-app-download';
 
 // ╔══════════════════════════════════════════════════════════════════════════╗
 // ║                                  PARAMS                                  ║
@@ -781,7 +789,7 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
   /**
    * Fetch products from the store
    * @param skus - Array of product SKUs to fetch
-   * @param type - Type of products: 'inapp' or 'subs'
+   * @param type - Type of products: 'in-app' or 'subs'
    * @returns Promise<NitroProduct[]> - Array of products from the store
    */
   fetchProducts(skus: string[], type: string): Promise<NitroProduct[]>;

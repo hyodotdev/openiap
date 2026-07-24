@@ -1,3 +1,7 @@
+// The common facade retains deprecated 2.x type and operation shims.
+// Consumer call sites retain warnings; remove the shims in kmp-iap 3.
+@file:Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
+
 package io.github.hyochan.kmpiap
 
 import io.github.hyochan.kmpiap.openiap.*

@@ -9,17 +9,52 @@ import org.junit.Test
 
 class ExpoIapHelperTest {
     @Test
-    fun `end connection preserves false and still cleans up`() = runBlocking {
-        var cleanedUp = false
+    fun `canonical google request wins over legacy android request`() {
+        val parsed =
+            ExpoIapHelper.parseRequestPurchaseParams(
+                mapOf(
+                    "type" to "in-app",
+                    "request" to
+                        mapOf(
+                            "google" to mapOf("skus" to listOf("canonical")),
+                            "android" to mapOf("skus" to listOf("legacy")),
+                        ),
+                ),
+            )
 
-        val result = endExpoConnectionWithCleanup(
-            endConnection = { false },
-            cleanup = { cleanedUp = true },
-        )
-
-        assertFalse(result)
-        assertTrue(cleanedUp)
+        assertEquals(listOf("canonical"), parsed.skus)
     }
+
+    @Test
+    fun `canonical subscription offers suppress legacy offer token fallback`() {
+        val parsed =
+            ExpoIapHelper.parseRequestPurchaseParams(
+                mapOf(
+                    "type" to "subs",
+                    "skus" to listOf("premium"),
+                    "subscriptionOffers" to emptyList<Map<String, String>>(),
+                    "offerTokenArr" to listOf("legacy-token"),
+                ),
+            )
+
+        assertTrue(parsed.explicitSubscriptionOffers.isEmpty())
+        assertTrue(parsed.offerTokenArr.isEmpty())
+    }
+
+    @Test
+    fun `end connection preserves false and still cleans up`() =
+        runBlocking {
+            var cleanedUp = false
+
+            val result =
+                endExpoConnectionWithCleanup(
+                    endConnection = { false },
+                    cleanup = { cleanedUp = true },
+                )
+
+            assertFalse(result)
+            assertTrue(cleanedUp)
+        }
 
     @Test
     fun `end connection preserves OpenIapError code`() {

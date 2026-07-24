@@ -12,7 +12,7 @@ import type {
   RequestPurchasePropsByPlatforms,
   RequestSubscriptionPropsByPlatforms,
 } from './types';
-import {ExpoIapConsole} from './utils/debug';
+import {warnLegacyOnce} from './utils/deprecation';
 
 export * from './types';
 export * from './vega';
@@ -76,7 +76,7 @@ const normalizeProductType = (
 ): ProductQueryType => {
   if (type === 'subs' || type === 'all') return type;
   if (type === 'inapp') {
-    ExpoIapConsole.warn(LEGACY_INAPP_WARNING);
+    warnLegacyOnce('product-type.inapp', LEGACY_INAPP_WARNING);
   }
   return 'in-app';
 };
@@ -96,7 +96,18 @@ const getAndroidRequest = (
     | RequestPurchasePropsByPlatforms
     | RequestSubscriptionPropsByPlatforms
     | null,
-) => request?.google ?? request?.android;
+) => {
+  if (request?.google != null) {
+    return request.google;
+  }
+  if (request?.android != null) {
+    warnLegacyOnce(
+      'request-purchase.android',
+      '`request.android` is deprecated and will be removed in expo-iap 5.0.0. Use `request.google` instead.',
+    );
+  }
+  return request?.android;
+};
 
 const createPurchaseTokenError = (purchase: Purchase): Error => {
   const error = new Error(

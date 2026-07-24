@@ -79,7 +79,7 @@ private val LEGACY_HORIZON_APP_ID_META_DATA = listOf(
 internal fun resolveHorizonAppId(
     metaData: Bundle?,
     warnLegacyKey: (String) -> Unit = { key ->
-        OpenIapLog.w(
+        OpenIapLog.warn(
             "AndroidManifest meta-data key '$key' is deprecated and will be removed in OpenIAP 3.0. " +
                 "Use '$HORIZON_APP_ID_META_DATA' instead.",
             TAG
@@ -300,10 +300,10 @@ class OpenIapModule
                 android.content.pm.PackageManager.GET_META_DATA
             )
             val id = resolveHorizonAppId(appInfo.metaData)
-            OpenIapLog.d("Read Horizon App ID from manifest: $id", TAG)
+            OpenIapLog.debug("Read Horizon App ID from manifest: $id", TAG)
             id
         } catch (e: Exception) {
-            OpenIapLog.w("Failed to read Horizon App ID from AndroidManifest.xml: ${e.message}", TAG)
+            OpenIapLog.warn("Failed to read Horizon App ID from AndroidManifest.xml: ${e.message}", TAG)
             null
         }
     }
@@ -518,7 +518,7 @@ class OpenIapModule
     init {
         // DO NOT build BillingClient here - React Native context doesn't have Activity yet
         // BillingClient will be built in initConnection() when Activity is guaranteed to be available
-        OpenIapLog.d("OpenIapModule initialized (Horizon flavor)", TAG)
+        OpenIapLog.debug("OpenIapModule initialized (Horizon flavor)", TAG)
     }
 
     override fun setActivity(activity: Activity?) {
@@ -527,7 +527,7 @@ class OpenIapModule
 
     override val initConnection: MutationInitConnectionHandler = {
         withContext(Dispatchers.IO) {
-            OpenIapLog.i("=== INIT CONNECTION ===", TAG)
+            OpenIapLog.info("=== INIT CONNECTION ===", TAG)
 
             val (attempt, isOwner) = synchronized(connectionLifecycleLock) {
                 val currentClient = billingClient
@@ -549,7 +549,7 @@ class OpenIapModule
             }
 
             val contextForInit = currentActivityRef?.get() ?: fallbackActivity ?: context
-            OpenIapLog.d("Building BillingClient with ${contextForInit.javaClass.simpleName}...", TAG)
+            OpenIapLog.debug("Building BillingClient with ${contextForInit.javaClass.simpleName}...", TAG)
             lateinit var client: BillingClient
             client = runCatching {
                 buildBillingClient(
@@ -560,7 +560,7 @@ class OpenIapModule
                 )
             }
                 .getOrElse { error ->
-                    OpenIapLog.w("Failed to build BillingClient: ${error.message}", TAG)
+                    OpenIapLog.warn("Failed to build BillingClient: ${error.message}", TAG)
                     finishConnectionAttempt(attempt, null, false)
                     return@withContext attempt.completion.await()
                 }
@@ -615,18 +615,18 @@ class OpenIapModule
                     override fun onBillingSetupFinished(result: BillingResult) {
                         val ok = result.responseCode == BillingClient.BillingResponseCode.OK
                         if (!ok) {
-                            OpenIapLog.w(
+                            OpenIapLog.warn(
                                 "Horizon setup failed: code=${result.responseCode}, ${result.debugMessage}",
                                 TAG,
                             )
                         } else {
-                            OpenIapLog.i("Horizon billing connected successfully", TAG)
+                            OpenIapLog.info("Horizon billing connected successfully", TAG)
                         }
                         finishConnectionAttempt(attempt, client, ok)
                     }
 
                     override fun onBillingServiceDisconnected() {
-                        OpenIapLog.i("Horizon service disconnected", TAG)
+                        OpenIapLog.info("Horizon service disconnected", TAG)
                         val (setupPending, operationFailures) = synchronized(connectionLifecycleLock) {
                             val pending = connectionAttempt === attempt && billingClient === client
                             if (!pending && billingClient === client) {
@@ -657,7 +657,7 @@ class OpenIapModule
                 return@withContext false
             }
             startResult.onFailure { error ->
-                OpenIapLog.w("Horizon startConnection failed: ${error.message}", TAG)
+                OpenIapLog.warn("Horizon startConnection failed: ${error.message}", TAG)
                 finishConnectionAttempt(attempt, client, false)
             }
             val connected = withTimeoutOrNull(15_000) { attempt.completion.await() }
@@ -825,7 +825,7 @@ class OpenIapModule
         withContext(Dispatchers.IO) {
             val client = billingClient ?: throw OpenIapError.NotPrepared
             val purchases = restorePurchasesHorizon(client, activeOperations)
-            OpenIapLog.i("Retrieved ${purchases.size} authoritative Horizon purchases", TAG)
+            OpenIapLog.info("Retrieved ${purchases.size} authoritative Horizon purchases", TAG)
             purchases
         }
     }
@@ -842,8 +842,8 @@ class OpenIapModule
 
     override val getActiveSubscriptions: QueryGetActiveSubscriptionsHandler = { subscriptionIds ->
         withContext(Dispatchers.IO) {
-            OpenIapLog.i("=== HORIZON getActiveSubscriptions ===", TAG)
-            OpenIapLog.i("Requested subscriptionIds: $subscriptionIds", TAG)
+            OpenIapLog.info("=== HORIZON getActiveSubscriptions ===", TAG)
+            OpenIapLog.info("Requested subscriptionIds: $subscriptionIds", TAG)
 
             val client = billingClient ?: throw OpenIapError.NotPrepared
             val allPurchases = queryPurchasesHorizon(
@@ -851,10 +851,10 @@ class OpenIapModule
                 activeOperations,
                 BillingClient.ProductType.SUBS,
             )
-            OpenIapLog.i("Total SUBS purchases from query: ${allPurchases.size}", TAG)
+            OpenIapLog.info("Total SUBS purchases from query: ${allPurchases.size}", TAG)
 
             val androidPurchases = allPurchases.filterIsInstance<PurchaseAndroid>()
-            OpenIapLog.i("PurchaseAndroid instances: ${androidPurchases.size}", TAG)
+            OpenIapLog.info("PurchaseAndroid instances: ${androidPurchases.size}", TAG)
 
             val ids = subscriptionIds.orEmpty()
             val filtered = androidPurchases
@@ -867,7 +867,7 @@ class OpenIapModule
                     )
                 }
 
-            OpenIapLog.i("Filtered subscriptions count: ${filtered.size}", TAG)
+            OpenIapLog.info("Filtered subscriptions count: ${filtered.size}", TAG)
 
             val subscriptionProductIds = filtered
                 .flatMap { listOf(it.productId) + it.ids.orEmpty() }
@@ -889,7 +889,7 @@ class OpenIapModule
                 } catch (error: OpenIapError.ServiceDisconnected) {
                     throw error
                 } catch (error: Exception) {
-                    OpenIapLog.w(
+                    OpenIapLog.warn(
                         "Failed to refresh subscription ProductDetails: ${error.message}",
                         TAG,
                     )
@@ -918,7 +918,7 @@ class OpenIapModule
             }
 
             activeSubscriptions.forEachIndexed { index, sub ->
-                OpenIapLog.i(
+                OpenIapLog.info(
                     "  [$index] productId=${sub.productId} " +
                     "basePlanId=${sub.basePlanIdAndroid} " +
                     "isActive=${sub.isActive} " +
@@ -927,7 +927,7 @@ class OpenIapModule
                 )
             }
 
-            OpenIapLog.i("=== END getActiveSubscriptions ===", TAG)
+            OpenIapLog.info("=== END getActiveSubscriptions ===", TAG)
             activeSubscriptions
         }
     }
@@ -939,7 +939,7 @@ class OpenIapModule
     override val requestPurchase: MutationRequestPurchaseHandler = { props ->
         val purchases = withContext(Dispatchers.IO) {
             val androidArgs = props.toAndroidPurchaseArgs()
-            OpenIapLog.i("=== REQUEST PURCHASE: ${androidArgs.skus} ===", TAG)
+            OpenIapLog.info("=== REQUEST PURCHASE: ${androidArgs.skus} ===", TAG)
 
             val activity = currentActivityRef?.get() ?: fallbackActivity
 
@@ -1022,7 +1022,7 @@ class OpenIapModule
                     callback = callback,
                 )
                 if (installError != null) {
-                    OpenIapLog.w("requestPurchase rejected: ${installError.message}", TAG)
+                    OpenIapLog.warn("requestPurchase rejected: ${installError.message}", TAG)
                     if (installError is OpenIapError.ServiceDisconnected) {
                         emitPurchaseError(installError)
                     }
@@ -1047,7 +1047,7 @@ class OpenIapModule
                     if (androidArgs.type == ProductQueryType.Subs) {
                         androidArgs.subscriptionOffers.orEmpty().forEach { offer ->
                             if (offer.offerToken.isNotEmpty()) {
-                                OpenIapLog.d("Adding offer token for SKU ${offer.sku}", TAG)
+                                OpenIapLog.debug("Adding offer token for SKU ${offer.sku}", TAG)
                                 val queue = requestedOffersBySku.getOrPut(offer.sku) { mutableListOf() }
                                 queue.add(offer.offerToken)
                             }
@@ -1062,7 +1062,7 @@ class OpenIapModule
                             val availableOffers = productDetails.subscriptionOfferDetails?.map {
                                 it.basePlanId
                             } ?: emptyList()
-                            OpenIapLog.d("Available offer base plans for ${productDetails.productId}: $availableOffers", TAG)
+                            OpenIapLog.debug("Available offer base plans for ${productDetails.productId}: $availableOffers", TAG)
 
                             val availableOffersByToken = productDetails.subscriptionOfferDetails
                                 .orEmpty()
@@ -1075,13 +1075,13 @@ class OpenIapModule
                                 productDetails.subscriptionOfferDetails.orEmpty().map { it.offerToken }
                             )
 
-                            OpenIapLog.d(
+                            OpenIapLog.debug(
                                 "Resolved offer token for ${productDetails.productId}: present=${!resolved.isNullOrEmpty()}",
                                 TAG,
                             )
 
                             if (resolved.isNullOrEmpty() || !availableTokens.contains(resolved)) {
-                                OpenIapLog.w("Invalid offer token for ${productDetails.productId}", TAG)
+                                OpenIapLog.warn("Invalid offer token for ${productDetails.productId}", TAG)
                                 finishPurchaseCallback(
                                     client,
                                     callback,
@@ -1105,18 +1105,18 @@ class OpenIapModule
 
                     androidArgs.obfuscatedAccountId?.let { flowBuilder.setObfuscatedAccountId(it) }
                     androidArgs.obfuscatedProfileId?.let {
-                        OpenIapLog.d("Setting obfuscatedProfileId", TAG)
+                        OpenIapLog.debug("Setting obfuscatedProfileId", TAG)
                         flowBuilder.setObfuscatedProfileId(it)
                     }
 
                     if (androidArgs.type == ProductQueryType.Subs && !androidArgs.purchaseToken.isNullOrBlank()) {
-                        OpenIapLog.d("=== Subscription Upgrade Flow ===", TAG)
-                        OpenIapLog.d("  - Old Token: <redacted>", TAG)
-                        OpenIapLog.d("  - Target SKUs: ${androidArgs.skus}", TAG)
-                        OpenIapLog.d("  - Replacement mode: ${androidArgs.replacementMode}", TAG)
-                        OpenIapLog.d("  - Product Details Count: ${paramsList.size}", TAG)
+                        OpenIapLog.debug("=== Subscription Upgrade Flow ===", TAG)
+                        OpenIapLog.debug("  - Old Token: <redacted>", TAG)
+                        OpenIapLog.debug("  - Target SKUs: ${androidArgs.skus}", TAG)
+                        OpenIapLog.debug("  - Replacement mode: ${androidArgs.replacementMode}", TAG)
+                        OpenIapLog.debug("  - Product Details Count: ${paramsList.size}", TAG)
                         paramsList.forEachIndexed { idx, params ->
-                            OpenIapLog.d("  - Product[$idx]: SKU=${details[idx].productId}, offerToken=...", TAG)
+                            OpenIapLog.debug("  - Product[$idx]: SKU=${details[idx].productId}, offerToken=...", TAG)
                         }
 
                         val updateParamsBuilder = BillingFlowParams.SubscriptionUpdateParams.newBuilder()
@@ -1125,11 +1125,11 @@ class OpenIapModule
                         // Set replacement mode - this is critical for upgrades
                         val replacementMode = androidArgs.replacementMode ?: 5 // Default to CHARGE_FULL_PRICE
                         updateParamsBuilder.setSubscriptionReplacementMode(replacementMode)
-                        OpenIapLog.d("  - Final replacement mode: $replacementMode", TAG)
+                        OpenIapLog.debug("  - Final replacement mode: $replacementMode", TAG)
 
                         val updateParams = updateParamsBuilder.build()
                         flowBuilder.setSubscriptionUpdateParams(updateParams)
-                        OpenIapLog.d("=== Subscription Update Params Set ===", TAG)
+                        OpenIapLog.debug("=== Subscription Update Params Set ===", TAG)
                     }
 
                     val billingFlowParams = flowBuilder.build()
@@ -1158,12 +1158,12 @@ class OpenIapModule
                             )
                             return@runOnUiThread
                         }
-                        OpenIapLog.d("launchBillingFlow result: ${result.responseCode} - ${result.debugMessage}", TAG)
+                        OpenIapLog.debug("launchBillingFlow result: ${result.responseCode} - ${result.debugMessage}", TAG)
 
                         if (result.responseCode != BillingClient.BillingResponseCode.OK) {
                             val err = when (result.responseCode) {
                                 BillingClient.BillingResponseCode.DEVELOPER_ERROR -> {
-                                    OpenIapLog.w("DEVELOPER_ERROR: Invalid arguments. Check if subscriptions are in the same group.", TAG)
+                                    OpenIapLog.warn("DEVELOPER_ERROR: Invalid arguments. Check if subscriptions are in the same group.", TAG)
                                     OpenIapError.DeveloperError(result.debugMessage)
                                 }
                                 BillingClient.BillingResponseCode.USER_CANCELED -> OpenIapError.UserCancelled(result.debugMessage)
@@ -1172,7 +1172,7 @@ class OpenIapModule
                             finishPurchaseCallback(client, callback, err)
                         } else {
                             if (!ownsPurchaseCallback(client, callback)) return@runOnUiThread
-                            OpenIapLog.i(
+                            OpenIapLog.info(
                                 "launchBillingFlow started; polling purchases while awaiting the callback",
                                 TAG,
                             )
@@ -1194,7 +1194,7 @@ class OpenIapModule
                                             )
                                     },
                                     onQueryFailure = { error ->
-                                        OpenIapLog.w(
+                                        OpenIapLog.warn(
                                             "Horizon purchase polling failed: ${error.message}",
                                             TAG,
                                         )
@@ -1211,7 +1211,7 @@ class OpenIapModule
                                         Result.success(correlated),
                                         client,
                                     )) {
-                                        OpenIapLog.d("Purchase polling found ${correlated.size} purchases", TAG)
+                                        OpenIapLog.debug("Purchase polling found ${correlated.size} purchases", TAG)
                                         correlated.forEach { purchase ->
                                             if (!claimPurchaseDelivery(purchase)) return@forEach
                                             purchaseUpdateListeners.forEach { listener ->
@@ -1334,7 +1334,7 @@ class OpenIapModule
                 activeOperations.await(client) { operation ->
                     client.consumeAsync(params) { result, _ ->
                         if (result.responseCode != BillingClient.BillingResponseCode.OK) {
-                            OpenIapLog.w("Failed to consume Horizon purchase: ${result.debugMessage}", TAG)
+                            OpenIapLog.warn("Failed to consume Horizon purchase: ${result.debugMessage}", TAG)
                             operation.fail(
                                 OpenIapError.fromBillingResponseCode(
                                     result.responseCode,
@@ -1351,7 +1351,7 @@ class OpenIapModule
                 activeOperations.await(client) { operation ->
                     client.acknowledgePurchase(params) { result ->
                         if (result.responseCode != BillingClient.BillingResponseCode.OK) {
-                            OpenIapLog.w("Failed to acknowledge Horizon purchase: ${result.debugMessage}", TAG)
+                            OpenIapLog.warn("Failed to acknowledge Horizon purchase: ${result.debugMessage}", TAG)
                             operation.fail(
                                 OpenIapError.fromBillingResponseCode(
                                     result.responseCode,
@@ -1375,7 +1375,7 @@ class OpenIapModule
                 client.acknowledgePurchase(params) { result ->
                     val success = result.responseCode == BillingClient.BillingResponseCode.OK
                     if (!success) {
-                        OpenIapLog.w("Horizon acknowledge failed: ${result.debugMessage}", TAG)
+                        OpenIapLog.warn("Horizon acknowledge failed: ${result.debugMessage}", TAG)
                     }
                     operation.succeed(success)
                 }
@@ -1391,7 +1391,7 @@ class OpenIapModule
                 client.consumeAsync(params) { result, _ ->
                     val success = result.responseCode == BillingClient.BillingResponseCode.OK
                     if (!success) {
-                        OpenIapLog.w("Horizon consume failed: ${result.debugMessage}", TAG)
+                        OpenIapLog.warn("Horizon consume failed: ${result.debugMessage}", TAG)
                     }
                     operation.succeed(success)
                 }
@@ -1407,26 +1407,26 @@ class OpenIapModule
 
     override val restorePurchases: MutationRestorePurchasesHandler = {
         withContext(Dispatchers.IO) {
-            OpenIapLog.i("=== HORIZON restorePurchases ===", TAG)
-            OpenIapLog.i("Number of purchase update listeners: ${purchaseUpdateListeners.size}", TAG)
+            OpenIapLog.info("=== HORIZON restorePurchases ===", TAG)
+            OpenIapLog.info("Number of purchase update listeners: ${purchaseUpdateListeners.size}", TAG)
 
             val client = billingClient ?: throw OpenIapError.NotPrepared
             val all = restorePurchasesHorizon(client, activeOperations)
-            OpenIapLog.i("Total restored purchases: ${all.size}", TAG)
+            OpenIapLog.info("Total restored purchases: ${all.size}", TAG)
 
             all.forEachIndexed { index, purchase ->
-                OpenIapLog.i("  Restoring [$index] productId=${purchase.productId}", TAG)
+                OpenIapLog.info("  Restoring [$index] productId=${purchase.productId}", TAG)
                 purchaseUpdateListeners.forEach { listener ->
                     runCatching {
                         listener.onPurchaseUpdated(purchase)
-                        OpenIapLog.d("  - Listener notified", TAG)
+                        OpenIapLog.debug("  - Listener notified", TAG)
                     }.onFailure { e ->
-                        OpenIapLog.e("  - Listener failed", e, TAG)
+                        OpenIapLog.error("  - Listener failed", e, TAG)
                     }
                 }
             }
 
-            OpenIapLog.i("=== END restorePurchases ===", TAG)
+            OpenIapLog.info("=== END restorePurchases ===", TAG)
             Unit
         }
     }
@@ -1600,7 +1600,7 @@ class OpenIapModule
         } catch (error: Exception) {
             val mapped = error as? OpenIapError
                 ?: OpenIapError.ServiceUnavailable(error.message)
-            OpenIapLog.w("Horizon getStorefront failed: ${mapped.message}", TAG)
+            OpenIapLog.warn("Horizon getStorefront failed: ${mapped.message}", TAG)
             emitPurchaseError(mapped)
             throw mapped
         }
@@ -1637,12 +1637,12 @@ class OpenIapModule
         if (!ownsCallback) return
         val pendingRequest = ownedPendingRequest
         try {
-            OpenIapLog.i("=== HORIZON onPurchasesUpdated ===", TAG)
-            OpenIapLog.i("Response code: ${result.responseCode}", TAG)
-            OpenIapLog.i("Purchases count: ${purchases?.size ?: 0}", TAG)
+            OpenIapLog.info("=== HORIZON onPurchasesUpdated ===", TAG)
+            OpenIapLog.info("Response code: ${result.responseCode}", TAG)
+            OpenIapLog.info("Purchases count: ${purchases?.size ?: 0}", TAG)
 
             purchases?.forEachIndexed { index, purchase ->
-                OpenIapLog.i(
+                OpenIapLog.info(
                     "[HorizonPurchase $index] productIds=${purchase.products} " +
                         "orderIdPresent=${!purchase.orderId.isNullOrBlank()} " +
                         "acknowledged=${purchase.isAcknowledged()} autoRenew=${purchase.isAutoRenewing()}",
@@ -1654,7 +1654,7 @@ class OpenIapModule
                 // When using DEFERRED replacement mode, purchases will be null
                 // This is expected behavior - the change will take effect at next renewal
                 if (purchases != null) {
-                    OpenIapLog.i("Processing ${purchases.size} successful purchases", TAG)
+                    OpenIapLog.info("Processing ${purchases.size} successful purchases", TAG)
 
                     val mapped = purchases.map { purchase ->
                         val productIds = purchase.products.orEmpty()
@@ -1693,7 +1693,7 @@ class OpenIapModule
                             null
                         }
                         val basePlanId = selectedBasePlanId ?: unambiguousCachedBasePlanId
-                        OpenIapLog.d(
+                        OpenIapLog.debug(
                             "Mapping Horizon purchase: type=$type basePlanResolved=${basePlanId != null}",
                             TAG,
                         )
@@ -1722,7 +1722,7 @@ class OpenIapModule
                         null
                     }
 
-                    OpenIapLog.i(
+                    OpenIapLog.info(
                         "Mapped ${mapped.size} purchases, " +
                             "notifying ${purchaseUpdateListeners.size} listeners",
                         TAG,
@@ -1731,13 +1731,13 @@ class OpenIapModule
                     val delivered = owner.deliver {
                         mapped.forEach { converted ->
                             if (!claimPurchaseDelivery(converted)) {
-                                OpenIapLog.d(
+                                OpenIapLog.debug(
                                     "Skipping duplicate store callback already delivered by polling",
                                     TAG,
                                 )
                                 return@forEach
                             }
-                            OpenIapLog.d(
+                            OpenIapLog.debug(
                                 "Notifying ${purchaseUpdateListeners.size} listeners about " +
                                     "purchase: productId=${converted.productId}",
                                 TAG,
@@ -1745,15 +1745,15 @@ class OpenIapModule
                             purchaseUpdateListeners.forEach { listener ->
                                 runCatching {
                                     listener.onPurchaseUpdated(converted)
-                                    OpenIapLog.d("Listener notified successfully", TAG)
+                                    OpenIapLog.debug("Listener notified successfully", TAG)
                                 }.onFailure { e ->
-                                    OpenIapLog.e("Listener notification failed", e, TAG)
+                                    OpenIapLog.error("Listener notification failed", e, TAG)
                                 }
                             }
                         }
                     }
                     if (!delivered) {
-                        OpenIapLog.w(
+                        OpenIapLog.warn(
                             "Ignoring purchase update from an inactive BillingClient connection",
                             TAG,
                         )
@@ -1762,19 +1762,19 @@ class OpenIapModule
                     if (completedCallback != null) {
                         completedCallback(Result.success(matched))
                     } else if (matched.isNotEmpty() && pendingRequest != null) {
-                        OpenIapLog.w(
+                        OpenIapLog.warn(
                             "Purchase request completed elsewhere; delivered purchase update to listeners only",
                             TAG,
                         )
                     } else if (mapped.isNotEmpty() && pendingRequest != null) {
-                        OpenIapLog.w(
+                        OpenIapLog.warn(
                             "Ignoring unrelated purchase update while another purchase is pending",
                             TAG,
                         )
                     }
                 } else {
                     // Purchases is null - likely DEFERRED mode
-                    OpenIapLog.d("Purchase successful but purchases list is null (DEFERRED mode)", TAG)
+                    OpenIapLog.debug("Purchase successful but purchases list is null (DEFERRED mode)", TAG)
                     if (pendingRequest?.launchStartedAtMillis != null) {
                         consumePurchaseCallback(
                             pendingRequest.callback,
@@ -1784,7 +1784,7 @@ class OpenIapModule
                     }
                 }
             } else {
-                OpenIapLog.w("Purchase failed or cancelled: code=${result.responseCode}", TAG)
+                OpenIapLog.warn("Purchase failed or cancelled: code=${result.responseCode}", TAG)
                 val completedCallback = pendingRequest
                     ?.takeIf { it.launchStartedAtMillis != null }
                     ?.let { takePurchaseCallback(it.callback, expectedClient) }
@@ -1796,12 +1796,12 @@ class OpenIapModule
                     emitPurchaseError(error)
                     completedCallback(Result.success(emptyList()))
                 } else {
-                    OpenIapLog.d("Ignoring non-OK callback without an active purchase owner", TAG)
+                    OpenIapLog.debug("Ignoring non-OK callback without an active purchase owner", TAG)
                 }
             }
-            OpenIapLog.i("=== END onPurchasesUpdated ===", TAG)
+            OpenIapLog.info("=== END onPurchasesUpdated ===", TAG)
         } catch (error: Exception) {
-            OpenIapLog.e("Exception in onPurchasesUpdated", error, TAG)
+            OpenIapLog.error("Exception in onPurchasesUpdated", error, TAG)
             if (
                 pendingRequest?.launchStartedAtMillis != null &&
                 consumePurchaseCallback(
@@ -1834,9 +1834,9 @@ class OpenIapModule
         listener: PurchasesUpdatedListener,
     ): BillingClient {
         if (contextForBilling is Activity) {
-            OpenIapLog.d("Building BillingClient with Activity", TAG)
+            OpenIapLog.debug("Building BillingClient with Activity", TAG)
         } else {
-            OpenIapLog.w("Building BillingClient with Context (not Activity) - Horizon SDK will run in limited mode", TAG)
+            OpenIapLog.warn("Building BillingClient with Context (not Activity) - Horizon SDK will run in limited mode", TAG)
         }
 
         val pendingPurchasesParams = com.meta.horizon.billingclient.api.PendingPurchasesParams.newBuilder()
@@ -1852,7 +1852,7 @@ class OpenIapModule
         appId?.let { id ->
             if (id.isNotEmpty()) {
                 builder.setAppId(id)
-                OpenIapLog.d("Horizon App ID set: $id", TAG)
+                OpenIapLog.debug("Horizon App ID set: $id", TAG)
             }
         }
 
@@ -1875,20 +1875,20 @@ class OpenIapModule
                     }
                 } catch (e: NoSuchMethodError) {
                     // Method doesn't exist in Horizon library
-                    OpenIapLog.w("Alternative Billing not supported by Horizon library", TAG)
+                    OpenIapLog.warn("Alternative Billing not supported by Horizon library", TAG)
                     operation.fail(OpenIapError.FeatureNotSupported())
                 } catch (e: Exception) {
-                    OpenIapLog.e("Error checking alternative billing: ${e.message}", e, TAG)
+                    OpenIapLog.error("Error checking alternative billing: ${e.message}", e, TAG)
                     operation.fail(e)
                 }
             }
 
-            OpenIapLog.d("Alternative Billing availability: ${result.responseCode}", TAG)
+            OpenIapLog.debug("Alternative Billing availability: ${result.responseCode}", TAG)
             result.responseCode == BillingClient.BillingResponseCode.OK
         } catch (e: OpenIapError) {
             throw e
         } catch (e: Exception) {
-            OpenIapLog.e("Error in checkAlternativeBillingAvailability: ${e.message}", e, TAG)
+            OpenIapLog.error("Error in checkAlternativeBillingAvailability: ${e.message}", e, TAG)
             false
         }
     }
@@ -1915,20 +1915,20 @@ class OpenIapModule
                         }
                     }
                 } catch (e: NoSuchMethodError) {
-                    OpenIapLog.w("showAlternativeBillingOnlyInformationDialog not supported", TAG)
+                    OpenIapLog.warn("showAlternativeBillingOnlyInformationDialog not supported", TAG)
                     operation.fail(OpenIapError.FeatureNotSupported())
                 } catch (e: Exception) {
-                    OpenIapLog.e("Error showing alternative billing dialog: ${e.message}", e, TAG)
+                    OpenIapLog.error("Error showing alternative billing dialog: ${e.message}", e, TAG)
                     operation.fail(e)
                 }
             }
 
-            OpenIapLog.d("Alternative Billing dialog result: ${result.responseCode}", TAG)
+            OpenIapLog.debug("Alternative Billing dialog result: ${result.responseCode}", TAG)
             result.responseCode == BillingClient.BillingResponseCode.OK
         } catch (e: OpenIapError) {
             throw e
         } catch (e: Exception) {
-            OpenIapLog.e("Error in showAlternativeBillingInformationDialog: ${e.message}", e, TAG)
+            OpenIapLog.error("Error in showAlternativeBillingInformationDialog: ${e.message}", e, TAG)
             false
         }
     }
@@ -1946,15 +1946,15 @@ class OpenIapModule
                         operation.succeed(Pair(billingResult, details))
                     }
                 } catch (e: NoSuchMethodError) {
-                    OpenIapLog.w("createAlternativeBillingOnlyReportingDetails not supported", TAG)
+                    OpenIapLog.warn("createAlternativeBillingOnlyReportingDetails not supported", TAG)
                     operation.fail(OpenIapError.FeatureNotSupported())
                 } catch (e: Exception) {
-                    OpenIapLog.e("Error creating alternative billing token: ${e.message}", e, TAG)
+                    OpenIapLog.error("Error creating alternative billing token: ${e.message}", e, TAG)
                     operation.fail(e)
                 }
             }
 
-            OpenIapLog.d("Alternative Billing token result: ${result.first.responseCode}", TAG)
+            OpenIapLog.debug("Alternative Billing token result: ${result.first.responseCode}", TAG)
             if (result.first.responseCode == BillingClient.BillingResponseCode.OK) {
                 result.second?.externalTransactionToken
             } else {
@@ -1963,7 +1963,7 @@ class OpenIapModule
         } catch (e: OpenIapError) {
             throw e
         } catch (e: Exception) {
-            OpenIapLog.e("Error in createAlternativeBillingReportingToken: ${e.message}", e, TAG)
+            OpenIapLog.error("Error in createAlternativeBillingReportingToken: ${e.message}", e, TAG)
             null
         }
     }
@@ -1973,7 +1973,7 @@ class OpenIapModule
     )
     override fun setUserChoiceBillingListener(listener: dev.hyo.openiap.listener.UserChoiceBillingListener?) {
         // No-op: User Choice Billing is a Google Play feature, not supported on Meta Horizon
-        OpenIapLog.w("setUserChoiceBillingListener is not supported on Meta Horizon (no-op)", TAG)
+        OpenIapLog.warn("setUserChoiceBillingListener is not supported on Meta Horizon (no-op)", TAG)
     }
 
     @Deprecated(
@@ -1981,45 +1981,45 @@ class OpenIapModule
     )
     override fun setDeveloperProvidedBillingListener(listener: dev.hyo.openiap.listener.DeveloperProvidedBillingListener?) {
         // No-op: developer-provided billing programs are Google Play-only.
-        OpenIapLog.w("setDeveloperProvidedBillingListener is not supported on Meta Horizon (no-op)", TAG)
+        OpenIapLog.warn("setDeveloperProvidedBillingListener is not supported on Meta Horizon (no-op)", TAG)
     }
 
     override fun addUserChoiceBillingListener(listener: OpenIapUserChoiceBillingListener) {
         // No-op: User Choice Billing is a Google Play feature, not supported on Meta Horizon
-        OpenIapLog.w("addUserChoiceBillingListener is not supported on Meta Horizon (no-op)", TAG)
+        OpenIapLog.warn("addUserChoiceBillingListener is not supported on Meta Horizon (no-op)", TAG)
     }
 
     override fun removeUserChoiceBillingListener(listener: OpenIapUserChoiceBillingListener) {
         // No-op: User Choice Billing is a Google Play feature, not supported on Meta Horizon
-        OpenIapLog.w("removeUserChoiceBillingListener is not supported on Meta Horizon (no-op)", TAG)
+        OpenIapLog.warn("removeUserChoiceBillingListener is not supported on Meta Horizon (no-op)", TAG)
     }
 
     override fun addDeveloperProvidedBillingListener(listener: OpenIapDeveloperProvidedBillingListener) {
         // No-op: developer-provided billing programs are Google Play-only.
-        OpenIapLog.w("addDeveloperProvidedBillingListener is not supported on Meta Horizon (no-op)", TAG)
+        OpenIapLog.warn("addDeveloperProvidedBillingListener is not supported on Meta Horizon (no-op)", TAG)
     }
 
     override fun removeDeveloperProvidedBillingListener(listener: OpenIapDeveloperProvidedBillingListener) {
         // No-op: developer-provided billing programs are Google Play-only.
-        OpenIapLog.w("removeDeveloperProvidedBillingListener is not supported on Meta Horizon (no-op)", TAG)
+        OpenIapLog.warn("removeDeveloperProvidedBillingListener is not supported on Meta Horizon (no-op)", TAG)
     }
 
     override fun addSubscriptionBillingIssueListener(listener: dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener) {
         // No-op: Suspended-subscription detection (Purchase.isSuspended) requires Google Play
         // Billing Library 8.1+. The Meta Horizon Billing Compatibility SDK targets Play Billing 7.0
         // and does not expose this signal.
-        OpenIapLog.w("addSubscriptionBillingIssueListener is not supported on Meta Horizon (no-op); requires Play Billing 8.1+", TAG)
+        OpenIapLog.warn("addSubscriptionBillingIssueListener is not supported on Meta Horizon (no-op); requires Play Billing 8.1+", TAG)
     }
 
     override fun removeSubscriptionBillingIssueListener(listener: dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener) {
         // No-op: see addSubscriptionBillingIssueListener
-        OpenIapLog.w("removeSubscriptionBillingIssueListener is not supported on Meta Horizon (no-op)", TAG)
+        OpenIapLog.warn("removeSubscriptionBillingIssueListener is not supported on Meta Horizon (no-op)", TAG)
     }
 
     // Google Play billing programs are not supported on Horizon.
     override suspend fun isBillingProgramAvailable(program: BillingProgramAndroid): BillingProgramAvailabilityResultAndroid {
         // No-op: Billing Programs is a Google Play 8.2.0+ feature, not supported on Meta Horizon
-        OpenIapLog.w("isBillingProgramAvailable is not supported on Meta Horizon (no-op)", TAG)
+        OpenIapLog.warn("isBillingProgramAvailable is not supported on Meta Horizon (no-op)", TAG)
         return BillingProgramAvailabilityResultAndroid(
             billingProgram = program,
             isAvailable = false
@@ -2030,7 +2030,7 @@ class OpenIapModule
         program: BillingProgramAndroid,
         developerBillingType: DeveloperBillingTypeAndroid?
     ): BillingProgramReportingDetailsAndroid {
-        OpenIapLog.w("createBillingProgramReportingDetails is not supported on Meta Horizon", TAG)
+        OpenIapLog.warn("createBillingProgramReportingDetails is not supported on Meta Horizon", TAG)
         throw OpenIapError.FeatureNotSupported(
             "Meta Horizon does not support Google Play Billing Program reporting details"
         )
@@ -2038,18 +2038,18 @@ class OpenIapModule
 
     override suspend fun launchExternalLink(activity: Activity, params: LaunchExternalLinkParamsAndroid): Boolean {
         // No-op: Billing Programs is a Google Play 8.2.0+ feature, not supported on Meta Horizon
-        OpenIapLog.w("launchExternalLink is not supported on Meta Horizon (no-op)", TAG)
+        OpenIapLog.warn("launchExternalLink is not supported on Meta Horizon (no-op)", TAG)
         return false
     }
 
     override suspend fun openRedeemOfferCode(activity: Activity): Boolean {
         // No-op: offer-code redemption is a Google Play feature, not supported on Meta Horizon
-        OpenIapLog.w("openRedeemOfferCode is not supported on Meta Horizon (no-op)", TAG)
+        OpenIapLog.warn("openRedeemOfferCode is not supported on Meta Horizon (no-op)", TAG)
         return false
     }
 
     override suspend fun getBillingChoiceInfo(params: GetBillingChoiceInfoParamsAndroid): BillingChoiceInfoAndroid {
-        OpenIapLog.w("getBillingChoiceInfo is not supported on Meta Horizon", TAG)
+        OpenIapLog.warn("getBillingChoiceInfo is not supported on Meta Horizon", TAG)
         throw OpenIapError.FeatureNotSupported("Meta Horizon does not support Google Play Billing Choice")
     }
 
@@ -2057,7 +2057,7 @@ class OpenIapModule
         activity: Activity,
         params: BillingProgramInformationDialogParamsAndroid
     ): BillingResultAndroid {
-        OpenIapLog.w("showBillingProgramInformationDialog is not supported on Meta Horizon", TAG)
+        OpenIapLog.warn("showBillingProgramInformationDialog is not supported on Meta Horizon", TAG)
         throw OpenIapError.FeatureNotSupported("Meta Horizon does not support Google Play Billing Choice")
     }
 
@@ -2065,7 +2065,7 @@ class OpenIapModule
         activity: Activity,
         params: InAppMessageParamsAndroid?
     ): InAppMessageResultAndroid {
-        OpenIapLog.w("showInAppMessages is not supported on Meta Horizon", TAG)
+        OpenIapLog.warn("showInAppMessages is not supported on Meta Horizon", TAG)
         throw OpenIapError.FeatureNotSupported("Meta Horizon does not support Google Play billing in-app messages")
     }
 }

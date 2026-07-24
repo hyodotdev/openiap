@@ -1,3 +1,7 @@
+// Play conversion still populates deprecated generated offer projections for
+// 2.x consumers. Remove those projections atomically in OpenIAP 3.0.
+@file:Suppress("DEPRECATION")
+
 package dev.hyo.openiap.utils
 
 import dev.hyo.openiap.ActiveSubscription

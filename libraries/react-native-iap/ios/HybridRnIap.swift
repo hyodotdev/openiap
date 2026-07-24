@@ -178,13 +178,17 @@ class HybridRnIap: HybridRnIapSpec {
             let defaultResult: RequestPurchaseResult = .fourth([])
             RnIapLog.payload(
                 "requestPurchase", [
-                    "hasIOS": request.ios != nil,
-                    "hasAndroid": request.android != nil
+                    "hasApple": request.apple != nil,
+                    "hasGoogle": request.google != nil,
+                    "hasLegacyIOS": request.ios != nil,
+                    "hasLegacyAndroid": request.android != nil
                 ]
             )
 
             let iosRequest: NitroRequestPurchaseIos
-            if case .second(let unwrapped) = request.ios {
+            if case .second(let unwrapped) = request.apple {
+                iosRequest = unwrapped
+            } else if case .second(let unwrapped) = request.ios {
                 iosRequest = unwrapped
             } else {
                 let error = RnIapHelper.makePurchaseErrorResult(

@@ -57,6 +57,7 @@ import {
   DUPLICATE_PURCHASE_CODE,
 } from './utils/errorMapping';
 import {RnIapConsole} from './utils/debug';
+import {warnLegacyOnce} from './utils/deprecation';
 import {getSuccessFromPurchaseVariant} from './utils/purchase';
 import {parseAppTransactionPayload} from './utils';
 import {getVegaIapModule, isVegaOS} from './vega';
@@ -885,7 +886,8 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
 
     if (normalizedType === 'all') {
       const converted = (await fetchAndConvert('all')) as (
-        Product | ProductSubscription
+        | Product
+        | ProductSubscription
       )[];
 
       RnIapConsole.debug(
@@ -1818,19 +1820,22 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
       throw new Error('Missing purchase request configuration');
     }
 
+    const iosRequestSource =
+      Platform.OS === 'ios'
+        ? selectApplePurchaseRequest(perPlatformRequest)
+        : undefined;
+    const androidRequestSource = isAndroidStoreRuntime()
+      ? selectGooglePurchaseRequest(perPlatformRequest)
+      : undefined;
+
     if (Platform.OS === 'ios') {
-      // `ios` is deprecated and will be removed in react-native-iap 16.0.0.
-      const iosRequest = perPlatformRequest.apple ?? perPlatformRequest.ios;
-      if (!iosRequest?.sku) {
+      if (!iosRequestSource?.sku) {
         throw new Error(
           'Invalid request for iOS. The `sku` property is required.',
         );
       }
     } else if (isAndroidStoreRuntime()) {
-      // `android` is deprecated and will be removed in react-native-iap 16.0.0.
-      const androidRequest =
-        perPlatformRequest.google ?? perPlatformRequest.android;
-      if (!androidRequest?.skus?.length) {
+      if (!androidRequestSource?.skus?.length) {
         throw new Error(
           'Invalid request for Android. The `skus` property is required and must be a non-empty array.',
         );
@@ -1841,14 +1846,12 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
 
     const unifiedRequest: NitroPurchaseRequest = {};
 
-    // `ios` is deprecated and will be removed in react-native-iap 16.0.0.
-    const iosRequestSource = perPlatformRequest.apple ?? perPlatformRequest.ios;
     if (Platform.OS === 'ios' && iosRequestSource) {
       const iosRequest = isSubs
         ? (iosRequestSource as RequestSubscriptionIosProps)
         : (iosRequestSource as RequestPurchaseIosProps);
 
-      const iosPayload: NonNullable<NitroPurchaseRequest['ios']> = {
+      const iosPayload: NonNullable<NitroPurchaseRequest['apple']> = {
         sku: iosRequest.sku,
       };
 
@@ -1888,18 +1891,15 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
         }
       }
 
-      unifiedRequest.ios = iosPayload;
+      unifiedRequest.apple = iosPayload;
     }
 
-    // `android` is deprecated and will be removed in react-native-iap 16.0.0.
-    const androidRequestSource =
-      perPlatformRequest.google ?? perPlatformRequest.android;
     if (isAndroidStoreRuntime() && androidRequestSource) {
       const androidRequest = isSubs
         ? (androidRequestSource as RequestSubscriptionAndroidProps)
         : (androidRequestSource as RequestPurchaseAndroidProps);
 
-      const androidPayload: NonNullable<NitroPurchaseRequest['android']> = {
+      const androidPayload: NonNullable<NitroPurchaseRequest['google']> = {
         skus: androidRequest.skus,
       };
 
@@ -1953,7 +1953,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
           }));
       }
 
-      unifiedRequest.android = androidPayload;
+      unifiedRequest.google = androidPayload;
     }
 
     return await IAP.instance.requestPurchase(unifiedRequest);
@@ -2783,8 +2783,46 @@ export const consumePurchase = consumePurchaseAndroid;
 // ============================================================================
 
 type NitroDiscountOfferRecord = NonNullable<
-  NonNullable<NitroPurchaseRequest['ios']>['withOffer']
+  NonNullable<NitroPurchaseRequest['apple']>['withOffer']
 >;
+
+const selectApplePurchaseRequest = (
+  request:
+    | RequestPurchasePropsByPlatforms
+    | RequestSubscriptionPropsByPlatforms,
+): RequestPurchaseIosProps | RequestSubscriptionIosProps | null | undefined => {
+  if (request.apple != null) {
+    return request.apple;
+  }
+  if (request.ios != null) {
+    warnLegacyOnce(
+      'request-purchase.ios',
+      '[react-native-iap] `request.ios` is deprecated and will be removed in react-native-iap 16.0.0. Use `request.apple` instead.',
+    );
+  }
+  return request.ios;
+};
+
+const selectGooglePurchaseRequest = (
+  request:
+    | RequestPurchasePropsByPlatforms
+    | RequestSubscriptionPropsByPlatforms,
+):
+  | RequestPurchaseAndroidProps
+  | RequestSubscriptionAndroidProps
+  | null
+  | undefined => {
+  if (request.google != null) {
+    return request.google;
+  }
+  if (request.android != null) {
+    warnLegacyOnce(
+      'request-purchase.android',
+      '[react-native-iap] `request.android` is deprecated and will be removed in react-native-iap 16.0.0. Use `request.google` instead.',
+    );
+  }
+  return request.android;
+};
 
 const toDiscountOfferRecordIOS = (
   offer: DiscountOfferInputIOS | null | undefined,
@@ -2803,7 +2841,7 @@ const toDiscountOfferRecordIOS = (
 
 const toNitroProductType = (
   type?: ProductTypeInput | ProductQueryType | null,
-): 'inapp' | 'subs' | 'all' => {
+): 'in-app' | 'subs' | 'all' => {
   if (type === 'subs') {
     return 'subs';
   }
@@ -2811,10 +2849,10 @@ const toNitroProductType = (
     return 'all';
   }
   if (type === 'inapp') {
-    RnIapConsole.warn(LEGACY_INAPP_WARNING);
-    return 'inapp';
+    warnLegacyOnce('product-type.inapp', LEGACY_INAPP_WARNING);
+    return 'in-app';
   }
-  return 'inapp';
+  return 'in-app';
 };
 
 const isSubscriptionQuery = (type?: ProductQueryType | null): boolean =>
@@ -2837,7 +2875,7 @@ const normalizeProductQueryType = (
       return 'subs';
     }
     if (normalized === 'inapp') {
-      RnIapConsole.warn(LEGACY_INAPP_WARNING);
+      warnLegacyOnce('product-type.inapp', LEGACY_INAPP_WARNING);
       return 'in-app';
     }
     if (normalized === 'in-app') {

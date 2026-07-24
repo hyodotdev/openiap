@@ -75,6 +75,8 @@ enum GodotIapLog {
     }()
 
     private static var customHandler: ((Level, String) -> Void)?
+    private static let deprecationLock = NSLock()
+    private static var emittedDeprecations = Set<String>()
 
     #if canImport(os)
     private static let logger = Logger(subsystem: "dev.hyo.godot-iap", category: "GodotIap")
@@ -93,6 +95,26 @@ enum GodotIapLog {
     static func warn(_ message: String) { log(.warn, message) }
     static func error(_ message: String) { log(.error, message) }
 
+    /// Emit an always-visible compatibility warning once per process.
+    ///
+    /// Deprecation warnings intentionally bypass optional diagnostic logging
+    /// so projects see the migration path before godot-iap 3.0.0.
+    static func deprecation(_ key: String, _ message: String) {
+        deprecationLock.lock()
+        let inserted = emittedDeprecations.insert(key).inserted
+        deprecationLock.unlock()
+        guard inserted else { return }
+        emit(.warn, message)
+    }
+
+    #if DEBUG
+    static func resetDeprecationsForTests() {
+        deprecationLock.lock()
+        emittedDeprecations.removeAll()
+        deprecationLock.unlock()
+    }
+    #endif
+
     static func payload(_ name: String, payload: Any?) {
         debug("\(name) payload: \(stringify(payload))")
     }
@@ -108,6 +130,10 @@ enum GodotIapLog {
     private static func log(_ level: Level, _ message: String) {
         guard isEnabled else { return }
 
+        emit(level, message)
+    }
+
+    private static func emit(_ level: Level, _ message: String) {
         if let handler = customHandler {
             handler(level, message)
             return

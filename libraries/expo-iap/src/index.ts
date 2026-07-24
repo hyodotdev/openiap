@@ -16,11 +16,11 @@ import {
   deepLinkToSubscriptionsAndroid,
 } from './modules/android';
 import {ExpoIapConsole} from './utils/debug';
+import {warnLegacyOnce} from './utils/deprecation';
 
 // Types
 import type {
   ActiveSubscription,
-  AndroidSubscriptionOfferInput,
   DeepLinkOptions,
   DeveloperProvidedBillingDetailsAndroid,
   IapPlatform,
@@ -81,7 +81,9 @@ type ExpoIapEventPayloads = {
   [OpenIapEvent.PurchaseUpdated]: Purchase;
   [OpenIapEvent.PurchaseError]: PurchaseError;
   [OpenIapEvent.PromotedProductIOS]:
-    Product | string | {id?: string; productId?: string};
+    | Product
+    | string
+    | {id?: string; productId?: string};
   [OpenIapEvent.UserChoiceBillingAndroid]: UserChoiceBillingDetails;
   [OpenIapEvent.DeveloperProvidedBillingAndroid]: DeveloperProvidedBillingDetailsAndroid;
   [OpenIapEvent.SubscriptionBillingIssue]: Purchase;
@@ -234,7 +236,8 @@ export type ProductTypeInput = ProductQueryType | 'inapp';
 
 const normalizeProductType = (type?: ProductTypeInput) => {
   if (type === 'inapp') {
-    ExpoIapConsole.warn(
+    warnLegacyOnce(
+      'product-type.inapp',
       "'inapp' product type is deprecated and will be removed in expo-iap 5.0.0. Use 'in-app' instead.",
     );
   }
@@ -414,7 +417,8 @@ export const promotedProductListenerIOS = (
     let pendingProduct: Promise<Product | null> | undefined;
     try {
       pendingProduct = ExpoIapModule.getPromotedProductIOS() as
-        Promise<Product | null> | undefined;
+        | Promise<Product | null>
+        | undefined;
     } catch {
       return Promise.resolve();
     }
@@ -631,8 +635,8 @@ const invokeNativeWithPurchaseError = async <T>(
       typeof nativeError?.message === 'string'
         ? nativeError.message
         : typeof error === 'string'
-          ? error
-          : '';
+        ? error
+        : '';
     const hasCanonicalFields =
       nativeMessage.includes(OPENIAP_ERROR_ENVELOPE_PREFIX) ||
       nativeError?.code !== undefined ||
@@ -946,15 +950,32 @@ function normalizeRequestProps(
 ): RequestSubscriptionAndroidProps | null | undefined;
 function normalizeRequestProps(
   request:
-    RequestPurchasePropsByPlatforms | RequestSubscriptionPropsByPlatforms,
+    | RequestPurchasePropsByPlatforms
+    | RequestSubscriptionPropsByPlatforms,
   platform: 'ios' | 'android',
 ) {
-  // `ios`/`android` are deprecated and will be removed in expo-iap 5.0.0.
-  // Canonical `apple`/`google` fields take precedence until then.
   if (platform === 'ios') {
-    return request.apple ?? request.ios;
+    if (request.apple != null) {
+      return request.apple;
+    }
+    if (request.ios != null) {
+      warnLegacyOnce(
+        'request-purchase.ios',
+        '`request.ios` is deprecated and will be removed in expo-iap 5.0.0. Use `request.apple` instead.',
+      );
+    }
+    return request.ios;
   }
-  return request.google ?? request.android;
+  if (request.google != null) {
+    return request.google;
+  }
+  if (request.android != null) {
+    warnLegacyOnce(
+      'request-purchase.android',
+      '`request.android` is deprecated and will be removed in expo-iap 5.0.0. Use `request.google` instead.',
+    );
+  }
+  return request.android;
 }
 
 /**
@@ -1014,7 +1035,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
 
     const payload: MutationRequestPurchaseArgs = {
       type: canonical === 'in-app' ? 'in-app' : 'subs',
-      request: {ios: normalizedRequest},
+      request: {apple: normalizedRequest},
       useAlternativeBilling: args.useAlternativeBilling,
     };
 
@@ -1076,14 +1097,13 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
         () =>
           ExpoIapModule.requestPurchase({
             type: native,
-            skuArr: skus,
+            skus,
             purchaseToken: undefined,
             replacementMode: -1,
             obfuscatedAccountId: obfuscatedAccountId,
             obfuscatedProfileId: obfuscatedProfileId,
             offerToken: offerToken,
             developerBillingOption: developerBillingOption ?? undefined,
-            offerTokenArr: [],
             isOfferPersonalized: isOfferPersonalized ?? false,
           }),
         'android',
@@ -1141,16 +1161,13 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
         () =>
           ExpoIapModule.requestPurchase({
             type: native,
-            skuArr: skus,
+            skus,
             purchaseToken,
             originalExternalTransactionId:
               originalExternalTransactionId ?? undefined,
             replacementMode,
             obfuscatedAccountId: obfuscatedAccountId,
             obfuscatedProfileId: obfuscatedProfileId,
-            offerTokenArr: normalizedOffers.map(
-              (offer: AndroidSubscriptionOfferInput) => offer.offerToken,
-            ),
             subscriptionOffers: normalizedOffers,
             isOfferPersonalized: isOfferPersonalized ?? false,
             developerBillingOption: developerBillingOption ?? undefined,
@@ -1437,8 +1454,9 @@ export const verifyPurchaseWithProvider: MutationField<
     }
   }
 
-  const result =
-    await ExpoIapModule.verifyPurchaseWithProvider(resolvedOptions);
+  const result = await ExpoIapModule.verifyPurchaseWithProvider(
+    resolvedOptions,
+  );
   if (result.iapkit == null) {
     return result;
   }

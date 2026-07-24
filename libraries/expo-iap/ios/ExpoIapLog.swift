@@ -39,6 +39,8 @@ enum ExpoIapLog {
     }()
 
     private static var customHandler: ((Level, String) -> Void)?
+    private static let deprecationLock = NSLock()
+    private static var emittedDeprecations = Set<String>()
 
     static func setEnabled(_ enabled: Bool) {
         isEnabled = enabled
@@ -52,6 +54,15 @@ enum ExpoIapLog {
     static func info(_ message: String) { log(.info, message) }
     static func warn(_ message: String) { log(.warn, message) }
     static func error(_ message: String) { log(.error, message) }
+
+    static func deprecation(_ key: String, _ message: String) {
+        deprecationLock.lock()
+        let inserted = emittedDeprecations.insert(key).inserted
+        deprecationLock.unlock()
+        guard inserted else { return }
+
+        emit(.warn, message)
+    }
 
     static func payload(_ name: String, payload: Any?) {
         debug("\(name) payload: \(stringify(payload))")
@@ -68,6 +79,10 @@ enum ExpoIapLog {
     private static func log(_ level: Level, _ message: String) {
         guard isEnabled else { return }
 
+        emit(level, message)
+    }
+
+    private static func emit(_ level: Level, _ message: String) {
         if let handler = customHandler {
             handler(level, message)
             return

@@ -1,3 +1,7 @@
+// This runtime reads generated 2.x aliases only to preserve compatibility.
+// Consumers still receive compiler warnings; remove the reads in kmp-iap 3.
+@file:Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
+
 package io.github.hyochan.kmpiap
 
 import io.github.hyochan.kmpiap.openiap.*
@@ -1498,8 +1502,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     }
 
     private fun subscriptionOffersFrom(map: Map<String, Any?>): List<SubscriptionOffer> {
-        val subscriptionOffers = convertAnyListToSubscriptionOffers(map["subscriptionOffers"])
-        return subscriptionOffers.ifEmpty { convertAnyListToSubscriptionOffers(map["offers"]) }
+        // normalizeProductPayloadIOS owns native `offers` compatibility and
+        // copies it to the canonical key before every caller reaches here.
+        return convertAnyListToSubscriptionOffers(map["subscriptionOffers"])
     }
 
     private fun mergeLegacySubscriptionOffers(

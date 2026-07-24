@@ -4,12 +4,14 @@ on:
   pull_request:
     branches: [main, next]
     paths:
+      - ".github/workflows/ci-godot-iap.yml"
       - "libraries/godot-iap/**"
       - "packages/gql/codegen/plugins/gdscript.ts"
       - "packages/gql/src/generated/types.gd"
   push:
     branches: [main, next]
     paths:
+      - ".github/workflows/ci-godot-iap.yml"
       - "libraries/godot-iap/**"
       - "packages/gql/codegen/plugins/gdscript.ts"
       - "packages/gql/src/generated/types.gd"
@@ -62,14 +64,14 @@ jobs:
           test -f android/src/main/java/dev/hyo/godotiap/GodotIap.kt
           echo "All required Android plugin files exist"
 
-      - name: Compile Android plugin
+      - name: Build and test Android plugin
         run: |
           mkdir -p android/libs
           curl -L -o android/libs/godot-lib.aar \
             "https://github.com/godotengine/godot/releases/download/4.3-stable/godot-lib.4.3.stable.template_release.aar"
           cd android
           chmod +x gradlew
-          ./gradlew --no-daemon assembleDebug
+          ./gradlew --no-daemon assembleDebug testDebugUnitTest
 
       - name: Test generated types
         run: godot --headless --path Example --script res://tests/test_types_only.gd
@@ -82,3 +84,17 @@ jobs:
 
       - name: Test wrapper mapping
         run: godot --headless --path Example --script res://tests/test_godot_iap.gd
+
+  swift-test:
+    name: Swift Test
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Test iOS GDExtension bridge
+        working-directory: libraries/godot-iap/ios-gdextension
+        run: swift test

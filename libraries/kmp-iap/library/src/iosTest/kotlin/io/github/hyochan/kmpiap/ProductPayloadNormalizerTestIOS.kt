@@ -7,7 +7,7 @@ import kotlin.test.assertNotNull
 
 class ProductPayloadNormalizerTestIOS {
     @Test
-    fun `normalizes legacy product aliases before generated decoding`() {
+    fun `recovers populated native aliases from empty canonical placeholders`() {
         val payload: Map<Any?, Any?> = mapOf(
             "id" to "premium.monthly",
             "type" to "subs",

@@ -562,6 +562,29 @@ describe('Public API (src/index.ts)', () => {
         /No SKUs provided/,
       );
     });
+
+    it("emits canonical 'in-app' with no compatibility warning", async () => {
+      await IAP.fetchProducts({skus: ['coins'], type: 'in-app'});
+
+      expect(mockIap.fetchProducts).toHaveBeenCalledWith(['coins'], 'in-app');
+      expect(console.warn).not.toHaveBeenCalled();
+    });
+
+    it("warns once and canonicalizes the legacy 'inapp' type", async () => {
+      await IAP.fetchProducts({skus: ['coins'], type: 'inapp'});
+      await IAP.fetchProducts({skus: ['coins'], type: 'inapp'});
+
+      expect(mockIap.fetchProducts).toHaveBeenLastCalledWith(
+        ['coins'],
+        'in-app',
+      );
+      expect(console.warn).toHaveBeenCalledTimes(1);
+      expect(console.warn).toHaveBeenCalledWith(
+        '[RN-IAP]',
+        expect.stringContaining("`type: 'inapp'` is deprecated"),
+      );
+    });
+
     it('validates and maps products for a single type', async () => {
       (Platform as any).OS = 'ios';
       mockIap.fetchProducts.mockResolvedValueOnce([
@@ -711,7 +734,7 @@ describe('Public API (src/index.ts)', () => {
       });
       expect(mockIap.requestPurchase).toHaveBeenCalledWith(
         expect.objectContaining({
-          android: expect.objectContaining({skus: ['p1']}),
+          google: expect.objectContaining({skus: ['p1']}),
         }),
       );
     });
@@ -724,7 +747,7 @@ describe('Public API (src/index.ts)', () => {
       });
       const passed = mockIap.requestPurchase.mock.calls.pop()?.[0];
       expect(
-        passed.ios.andDangerouslyFinishTransactionAutomatically,
+        passed.apple.andDangerouslyFinishTransactionAutomatically,
       ).toBeUndefined();
     });
 
@@ -744,7 +767,7 @@ describe('Public API (src/index.ts)', () => {
         type: 'in-app',
       });
       const passed = mockIap.requestPurchase.mock.calls.pop()?.[0];
-      expect(passed.ios.withOffer).toEqual({
+      expect(passed.apple.withOffer).toEqual({
         identifier: 'offer-id',
         keyIdentifier: 'key-id',
         nonce: 'nonce-value',
@@ -760,7 +783,7 @@ describe('Public API (src/index.ts)', () => {
         type: 'subs',
       });
       const passed = mockIap.requestPurchase.mock.calls.pop()?.[0];
-      expect(passed.android.subscriptionOffers).toEqual([]);
+      expect(passed.google.subscriptionOffers).toEqual([]);
     });
 
     it('Android subs forwards subscriptionOffers when provided', async () => {
@@ -778,7 +801,7 @@ describe('Public API (src/index.ts)', () => {
         type: 'subs',
       });
       const [lastCallArgs] = mockIap.requestPurchase.mock.lastCall;
-      expect(lastCallArgs.android.subscriptionOffers).toEqual([
+      expect(lastCallArgs.google.subscriptionOffers).toEqual([
         {sku: 'sub1', offerToken: 'offer-1'},
         {sku: 'sub1', offerToken: 'offer-2'},
       ]);
@@ -800,12 +823,10 @@ describe('Public API (src/index.ts)', () => {
         type: 'subs',
       });
       const [lastCallArgs] = mockIap.requestPurchase.mock.lastCall;
-      expect(lastCallArgs.android.subscriptionProductReplacementParams).toEqual(
-        {
-          oldProductId: 'old_sub',
-          replacementMode: 'with-time-proration',
-        },
-      );
+      expect(lastCallArgs.google.subscriptionProductReplacementParams).toEqual({
+        oldProductId: 'old_sub',
+        replacementMode: 'with-time-proration',
+      });
     });
 
     it('Android subs does not include subscriptionProductReplacementParams when not provided', async () => {
@@ -821,7 +842,7 @@ describe('Public API (src/index.ts)', () => {
       });
       const [lastCallArgs] = mockIap.requestPurchase.mock.lastCall;
       expect(
-        lastCallArgs.android.subscriptionProductReplacementParams,
+        lastCallArgs.google.subscriptionProductReplacementParams,
       ).toBeUndefined();
     });
 
@@ -840,7 +861,7 @@ describe('Public API (src/index.ts)', () => {
       });
 
       const [lastCallArgs] = mockIap.requestPurchase.mock.lastCall;
-      expect(lastCallArgs.android.developerBillingOption).toEqual({
+      expect(lastCallArgs.google.developerBillingOption).toEqual({
         billingProgram: 'billing-choice',
       });
     });
@@ -864,10 +885,10 @@ describe('Public API (src/index.ts)', () => {
       });
 
       const [lastCallArgs] = mockIap.requestPurchase.mock.lastCall;
-      expect(lastCallArgs.android.originalExternalTransactionId).toBe(
+      expect(lastCallArgs.google.originalExternalTransactionId).toBe(
         'original-external-id',
       );
-      expect(lastCallArgs.android.developerBillingOption).toEqual({
+      expect(lastCallArgs.google.developerBillingOption).toEqual({
         billingProgram: 'billing-choice',
         externalTransactionToken: 'pre-generated-token',
         launchMode: 'caller-will-launch-link',
@@ -903,7 +924,7 @@ describe('Public API (src/index.ts)', () => {
         });
         const [lastCallArgs] = mockIap.requestPurchase.mock.lastCall;
         expect(
-          lastCallArgs.android.subscriptionProductReplacementParams
+          lastCallArgs.google.subscriptionProductReplacementParams
             .replacementMode,
         ).toBe(mode);
       }
@@ -917,7 +938,9 @@ describe('Public API (src/index.ts)', () => {
         type: 'in-app',
       });
       const passed = mockIap.requestPurchase.mock.calls.pop()?.[0];
-      expect(passed.ios.sku).toBe('premium_sub');
+      expect(passed.apple.sku).toBe('premium_sub');
+      expect(passed.ios).toBeUndefined();
+      expect(console.warn).not.toHaveBeenCalled();
     });
 
     it('supports google field (recommended) on Android', async () => {
@@ -927,7 +950,9 @@ describe('Public API (src/index.ts)', () => {
         type: 'in-app',
       });
       const passed = mockIap.requestPurchase.mock.calls.pop()?.[0];
-      expect(passed.android.skus).toEqual(['premium_sub']);
+      expect(passed.google.skus).toEqual(['premium_sub']);
+      expect(passed.android).toBeUndefined();
+      expect(console.warn).not.toHaveBeenCalled();
     });
 
     it('prefers apple field over ios field when both provided', async () => {
@@ -940,7 +965,9 @@ describe('Public API (src/index.ts)', () => {
         type: 'in-app',
       });
       const passed = mockIap.requestPurchase.mock.calls.pop()?.[0];
-      expect(passed.ios.sku).toBe('apple_sku');
+      expect(passed.apple.sku).toBe('apple_sku');
+      expect(passed.ios).toBeUndefined();
+      expect(console.warn).not.toHaveBeenCalled();
     });
 
     it('prefers google field over android field when both provided', async () => {
@@ -953,7 +980,9 @@ describe('Public API (src/index.ts)', () => {
         type: 'in-app',
       });
       const passed = mockIap.requestPurchase.mock.calls.pop()?.[0];
-      expect(passed.android.skus).toEqual(['google_sku']);
+      expect(passed.google.skus).toEqual(['google_sku']);
+      expect(passed.android).toBeUndefined();
+      expect(console.warn).not.toHaveBeenCalled();
     });
 
     it('iOS passes advancedCommerceData through to native', async () => {
@@ -968,7 +997,7 @@ describe('Public API (src/index.ts)', () => {
         type: 'in-app',
       });
       const passed = mockIap.requestPurchase.mock.calls.pop()?.[0];
-      expect(passed.ios.advancedCommerceData).toBe('campaign_summer_2025');
+      expect(passed.apple.advancedCommerceData).toBe('campaign_summer_2025');
     });
 
     it('iOS passes advancedCommerceData with JSON format', async () => {
@@ -984,7 +1013,7 @@ describe('Public API (src/index.ts)', () => {
         type: 'subs',
       });
       const passed = mockIap.requestPurchase.mock.calls.pop()?.[0];
-      expect(passed.ios.advancedCommerceData).toBe(advancedData);
+      expect(passed.apple.advancedCommerceData).toBe(advancedData);
     });
 
     it('iOS subs forwards advanced subscription offer fields', async () => {
@@ -1007,15 +1036,59 @@ describe('Public API (src/index.ts)', () => {
         type: 'subs',
       });
       const passed = mockIap.requestPurchase.mock.calls.pop()?.[0];
-      expect(passed.ios.billingPlanType).toBe('monthly');
-      expect(passed.ios.compactJWS).toBe('intro-eligibility-jws');
-      expect(passed.ios.promotionalOfferJWS).toEqual({
+      expect(passed.apple.billingPlanType).toBe('monthly');
+      expect(passed.apple.compactJWS).toBe('intro-eligibility-jws');
+      expect(passed.apple.promotionalOfferJWS).toEqual({
         offerId: 'promo-offer',
         jws: 'compact-jws',
       });
-      expect(passed.ios.winBackOffer).toEqual({
+      expect(passed.apple.winBackOffer).toEqual({
         offerId: 'winback-offer',
       });
+    });
+
+    it('warns once when the legacy ios request alias is selected', async () => {
+      (Platform as any).OS = 'ios';
+
+      await IAP.requestPurchase({
+        request: {ios: {sku: 'legacy-ios'}},
+        type: 'in-app',
+      });
+      await IAP.requestPurchase({
+        request: {ios: {sku: 'legacy-ios'}},
+        type: 'in-app',
+      });
+
+      expect(console.warn).toHaveBeenCalledTimes(1);
+      expect(console.warn).toHaveBeenCalledWith(
+        '[RN-IAP]',
+        expect.stringContaining('`request.ios` is deprecated'),
+      );
+      const passed = mockIap.requestPurchase.mock.calls.pop()?.[0];
+      expect(passed.apple.sku).toBe('legacy-ios');
+      expect(passed.ios).toBeUndefined();
+    });
+
+    it('warns once when the legacy android request alias is selected', async () => {
+      (Platform as any).OS = 'android';
+
+      await IAP.requestPurchase({
+        request: {android: {skus: ['legacy-android']}},
+        type: 'in-app',
+      });
+      await IAP.requestPurchase({
+        request: {android: {skus: ['legacy-android']}},
+        type: 'in-app',
+      });
+
+      expect(console.warn).toHaveBeenCalledTimes(1);
+      expect(console.warn).toHaveBeenCalledWith(
+        '[RN-IAP]',
+        expect.stringContaining('`request.android` is deprecated'),
+      );
+      const passed = mockIap.requestPurchase.mock.calls.pop()?.[0];
+      expect(passed.google.skus).toEqual(['legacy-android']);
+      expect(passed.android).toBeUndefined();
     });
   });
 

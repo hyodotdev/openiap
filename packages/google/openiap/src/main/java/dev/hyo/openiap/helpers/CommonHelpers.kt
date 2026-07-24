@@ -1,3 +1,7 @@
+// This file intentionally normalizes legacy 2.x request fields. Consumers
+// still see generated compiler warnings; remove these reads in OpenIAP 3.0.
+@file:Suppress("DEPRECATION")
+
 package dev.hyo.openiap.helpers
 
 import dev.hyo.openiap.AndroidSubscriptionOfferInput

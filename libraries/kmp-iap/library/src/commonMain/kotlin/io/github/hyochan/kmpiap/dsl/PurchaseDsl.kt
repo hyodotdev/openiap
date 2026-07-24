@@ -1,3 +1,7 @@
+// Canonical builders still read their deprecated 2.x properties when callers
+// set them. Consumer call sites retain warnings; remove those reads in 3.0.
+@file:Suppress("DEPRECATION")
+
 package io.github.hyochan.kmpiap.dsl
 
 import io.github.hyochan.kmpiap.openiap.AndroidSubscriptionOfferInput
