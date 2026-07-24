@@ -7,6 +7,12 @@ import { GENERATED_SYNC_MANIFEST } from "../packages/gql/generated-sync-manifest
 import { collectGeneratedSyncDrift } from "../packages/gql/scripts/verify-generated-sync.mjs";
 import { collectDeprecationScheduleDrift } from "./audit-deprecation-schedule.mjs";
 import { assertSpecMatchesNativeFloor } from "./release-branch-policy.mjs";
+import {
+  collectPurchasePayloadParityFailures,
+  extractBalancedAfterMarker,
+  maskKotlinCommentsAndStrings,
+  maskTypeScriptCommentsAndStrings,
+} from "./audit-purchase-payload-parity.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 execFileSync(
@@ -23,6 +29,14 @@ execFileSync(
 execFileSync(
   process.execPath,
   ["--test", path.resolve(root, "scripts/audit-deprecation-schedule.test.mjs")],
+  { stdio: "inherit" },
+);
+execFileSync(
+  process.execPath,
+  [
+    "--test",
+    path.resolve(root, "scripts/audit-purchase-payload-parity.test.mjs"),
+  ],
   { stdio: "inherit" },
 );
 const failures = [];
@@ -230,6 +244,16 @@ function expectNoMatch(relativePath, regex, label = relativePath) {
   }
   if (matched) {
     fail(`${label} must not match ${regex}`);
+  }
+}
+
+function expectMatch(relativePath, regex, label = relativePath) {
+  expectFile(relativePath);
+  if (!exists(relativePath)) return;
+  const text = read(relativePath);
+  regex.lastIndex = 0;
+  if (!regex.test(text)) {
+    fail(`${label} must match ${regex}`);
   }
 }
 
@@ -823,60 +847,6 @@ const GOOGLE_FLAVOR_MODULES = [
 // `// (optional)` or `"a, b"`) that must not affect the structural
 // bracket-depth and argument-split scans below. Blank their contents out with
 // spaces, preserving indices, so only real code characters are scanned.
-function maskKotlinCommentsAndStrings(text) {
-  let masked = "";
-  let state = "code";
-  let index = 0;
-  while (index < text.length) {
-    const char = text[index];
-    const next = text[index + 1];
-    if (state === "code") {
-      if (char === "/" && next === "/") {
-        state = "line";
-        masked += "  ";
-        index += 2;
-        continue;
-      }
-      if (char === "/" && next === "*") {
-        state = "block";
-        masked += "  ";
-        index += 2;
-        continue;
-      }
-      if (char === '"') state = "string";
-      masked += char;
-      index += 1;
-      continue;
-    }
-    if (state === "line") {
-      if (char === "\n") state = "code";
-      masked += char === "\n" ? "\n" : " ";
-      index += 1;
-      continue;
-    }
-    if (state === "block") {
-      if (char === "*" && next === "/") {
-        state = "code";
-        masked += "  ";
-        index += 2;
-        continue;
-      }
-      masked += char === "\n" ? "\n" : " ";
-      index += 1;
-      continue;
-    }
-    if (char === "\\") {
-      masked += "  ";
-      index += 2;
-      continue;
-    }
-    if (char === '"') state = "code";
-    masked += char === '"' ? '"' : " ";
-    index += 1;
-  }
-  return masked;
-}
-
 function parseHandlerBundleArgumentNames(text, bundleType, relativePath) {
   const source = maskKotlinCommentsAndStrings(text);
   const marker = new RegExp(
@@ -1367,13 +1337,30 @@ function checkFlutter() {
       "getOnsideStorefront()",
       "OnsideEvent.subscriptionBillingIssue.rawValue",
       'constants["ERROR_CODES"] = errorCodes',
+      "switch request.type ?? .inApp",
+      "return product.subscriptionPeriod != nil",
+      'dictionary["type"] = isSubscription ? "subs" : "in-app"',
+      'dictionary["environmentIOS"] = NSNull()',
     ],
     "Expo Onside root API bridge",
   );
   expectNotIncludes(
     "libraries/expo-iap/ios/onside/OnsideIapModule.swift",
-    ["private let encoder: JSONEncoder"],
+    [
+      "private let encoder: JSONEncoder",
+      'dictionary["environmentIOS"] = transaction.storefront.id',
+    ],
     "Expo Onside unused encoder cleanup",
+  );
+  expectMatch(
+    "libraries/expo-iap/ios/onside/OnsideIapModule.swift",
+    /switch request\.type \?\? \.inApp\s*\{\s*case \.subs:\s*return product\.subscriptionPeriod != nil\s*case \.inApp:\s*return product\.subscriptionPeriod == nil\s*case \.all:\s*return true\s*\}/,
+    "Expo Onside product query type filter",
+  );
+  expectIncludes(
+    "libraries/expo-iap/ios/ExpoIapHelper.swift",
+    ["else {\n            return .inApp"],
+    "Expo iOS ProductRequest default",
   );
   expectIncludes(
     "libraries/expo-iap/src/index.ts",
@@ -1386,16 +1373,75 @@ function checkFlutter() {
       "const ONSIDE_MARKETPLACE_ID = 'com.onside.marketplace-app'",
       "shouldUseOnsideModule()",
       "onsideModuleUnavailable",
-      "return getExpoIapFallbackModule()?.[prop]",
+      "The call was not routed through Apple StoreKit.",
     ],
     "Expo Onside native module proxy routing",
   );
+  expectNotIncludes(
+    "libraries/expo-iap/src/ExpoIapModule.ts",
+    ["getExpoIapFallbackModule", "expoIapFallback"],
+    "Expo Onside must not silently route unsupported operations through Apple StoreKit",
+  );
+  expectMatch(
+    "libraries/expo-iap/src/ExpoIapModule.ts",
+    /if\s*\(\s*value !== undefined \|\| resolved\.name !== ['"]ExpoIapOnside['"]\s*\)\s*\{\s*return value;\s*\}\s*return \(\) => \{\s*throw new UnavailabilityError\(/,
+    "Expo Onside missing methods must fail closed",
+  );
+  expectNoMatch(
+    "libraries/expo-iap/src/ExpoIapModule.ts",
+    /requireNativeModule\(\s*['"]ExpoIap['"]\s*\)\s*\[\s*prop\s*\]/,
+    "Expo Onside missing methods must not fall back to Apple StoreKit",
+  );
+  const expoModulePath = "libraries/expo-iap/src/ExpoIapModule.ts";
+  const expoModuleSource = read(expoModulePath);
+  const onsideBranch = extractBalancedAfterMarker(
+    expoModuleSource,
+    "if (shouldUseOnsideModule())",
+    "{",
+    "}",
+    `${expoModulePath} Onside selection branch`,
+    maskTypeScriptCommentsAndStrings,
+  );
+  if (onsideBranch) {
+    if (
+      /requireNativeModule\(\s*['"]ExpoIap['"]\s*\)|name\s*:\s*['"]ExpoIap['"]/.test(
+        onsideBranch.body,
+      )
+    ) {
+      fail(
+        `${expoModulePath} Onside selection branch must never return the Apple StoreKit module`,
+      );
+    }
+    const missingModuleCatch = extractBalancedAfterMarker(
+      onsideBranch.body,
+      "catch (error)",
+      "{",
+      "}",
+      `${expoModulePath} Onside missing-module catch`,
+      maskTypeScriptCommentsAndStrings,
+    );
+    if (missingModuleCatch) {
+      const maskedCatch = maskTypeScriptCommentsAndStrings(
+        missingModuleCatch.body,
+      );
+      if (
+        /\breturn\b/.test(maskedCatch) ||
+        !/onsideModuleUnavailable\s*=\s*true\s*;\s*throw new UnavailabilityError\s*\(/.test(
+          maskedCatch,
+        )
+      ) {
+        fail(
+          `${expoModulePath} missing Onside module must mark unavailable and throw without fallback`,
+        );
+      }
+    }
+  }
   expectIncludes(
     "libraries/expo-iap/src/__tests__/ExpoIapModule.test.ts",
     [
       "re-resolves when Onside availability changes after initial access",
-      "does not repeatedly load a missing ExpoIapOnside module",
-      "surfaces non-missing ExpoIap fallback errors",
+      "fails closed without repeatedly loading a missing ExpoIapOnside module",
+      "fails closed for methods missing from ExpoIapOnside",
     ],
     "Expo Onside module proxy tests",
   );
@@ -1770,6 +1816,51 @@ function checkMaui() {
     "libraries/maui-iap/src/OpenIap.Maui/Platforms/iOS/NSObjectJsonBridge.cs",
     ["JsonObjectToDictionary"],
     "MAUI iOS JSON bridge",
+  );
+  const mauiAndroidPath =
+    "libraries/maui-iap/src/OpenIap.Maui/Platforms/Android/OpenIapAndroid.cs";
+  for (const [listener, variable, type, eventName] of [
+    ["PurchaseUpdated", "purchase", "Purchase", "purchaseUpdated"],
+    [
+      "SubscriptionBillingIssue",
+      "purchase",
+      "Purchase",
+      "subscriptionBillingIssue",
+    ],
+    [
+      "UserChoiceBillingAndroid",
+      "details",
+      "UserChoiceBillingDetails",
+      "userChoiceBillingAndroid",
+    ],
+    [
+      "DeveloperProvidedBillingAndroid",
+      "details",
+      "DeveloperProvidedBillingDetailsAndroid",
+      "developerProvidedBillingAndroid",
+    ],
+  ]) {
+    expectMatch(
+      mauiAndroidPath,
+      new RegExp(
+        `_module\\.Add${listener}Listener\\(new EventBridge\\(json =>\\s*\\{\\s*var ${variable} = DeserializeListenerPayload<${type}>\\(\\s*json,\\s*"${eventName}"\\s*\\);`,
+      ),
+      `MAUI Android ${eventName} listener payload bridge`,
+    );
+  }
+  expectMatch(
+    mauiAndroidPath,
+    /_module\.AddPurchaseErrorListener\(new EventBridge\(json =>\s*\{\s*_purchaseError\.OnNext\(OpenIapErrorMapper\.FromJson\(json\)\);/,
+    "MAUI Android purchaseError listener payload bridge",
+  );
+  expectIncludes(
+    mauiAndroidPath,
+    [
+      "private static T? DeserializeListenerPayload<T>",
+      "ReportListenerFailure(listenerName, ex)",
+      "Do not include the raw payload",
+    ],
+    "MAUI Android listener failure visibility",
   );
 }
 
@@ -2398,7 +2489,12 @@ function checkBillingChoiceFieldBindings() {
   );
   expectIncludes(
     "libraries/maui-iap/src/OpenIap.Maui/Platforms/Android/OpenIapAndroid.cs",
-    ["JsonSerializer.Deserialize<DeveloperProvidedBillingDetailsAndroid>"],
+    [
+      "DeserializeListenerPayload<DeveloperProvidedBillingDetailsAndroid>",
+      "JsonSerializer.Deserialize<T>(json, JsonOptions.Default)",
+      "catch (JsonException ex)",
+      "catch (NotSupportedException ex)",
+    ],
     "MAUI Billing Choice event payload",
   );
 
@@ -6130,6 +6226,9 @@ checkDeprecationSchedule();
 checkExpoSsotRegistry();
 checkE2eExampleIds();
 checkGeneratedTypeSync();
+for (const issue of collectPurchasePayloadParityFailures(root)) {
+  fail(issue);
+}
 checkGqlRuntimeExports();
 checkOperationRegistry();
 checkGoogleFlavorHandlerWiring();

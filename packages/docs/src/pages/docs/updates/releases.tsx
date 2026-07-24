@@ -82,8 +82,13 @@ const purchaseSafetyReleases = [
   ['OpenIap.Maui 1.2.2', 'maui-iap-1.2.2'],
 ] as const;
 
-const plannedFlutterPurchasePayloadReleases = [
+const plannedCrossSdkPurchasePayloadReleases = [
+  'openiap-google 2.5.1 (planned)',
+  'react-native-iap 15.6.1 (planned)',
+  'expo-iap 4.7.1 (planned)',
   'flutter_inapp_purchase 9.6.1 (planned)',
+  'kmp-iap 2.7.1 (planned)',
+  'OpenIap.Maui 1.4.1 (planned)',
 ] as const;
 
 function Releases() {
@@ -188,20 +193,24 @@ function Releases() {
       ),
     },
 
-    // July 24, 2026 - Planned Flutter purchase payload patch
+    // July 24, 2026 - Planned cross-SDK native payload integrity patches
     {
-      id: 'flutter-purchase-payload-fix-planned-2026-07-24',
+      id: 'cross-sdk-payload-integrity-planned-2026-07-24',
       date: new Date('2026-07-24'),
       element: (
         <div
-          key="flutter-purchase-payload-fix-planned-2026-07-24"
+          key="cross-sdk-payload-integrity-planned-2026-07-24"
           style={noteCardStyle}
         >
-          <AnchorLink
+          <span
             id="flutter-purchase-payload-fix-planned-2026-07-24"
+            aria-hidden="true"
+          />
+          <AnchorLink
+            id="cross-sdk-payload-integrity-planned-2026-07-24"
             level="h4"
           >
-            July 24, 2026 - Flutter purchase payload patch (planned)
+            July 24, 2026 - Cross-SDK native payload integrity patches (planned)
           </AnchorLink>
 
           <p
@@ -210,7 +219,7 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            Prepares a focused Flutter patch for{' '}
+            Prepares a coordinated payload-integrity patch train based on{' '}
             <a
               href="https://github.com/hyodotdev/openiap/issues/248"
               target="_blank"
@@ -219,7 +228,7 @@ function Releases() {
             >
               issue #248
             </a>{' '}
-            in{' '}
+            and{' '}
             <a
               href="https://github.com/hyodotdev/openiap/pull/251"
               target="_blank"
@@ -228,12 +237,25 @@ function Releases() {
             >
               PR #251
             </a>
-            . This entry remains planned until the Flutter release workflow
-            publishes the package and GitHub tag. The OpenIAP specification and
-            native package versions are unchanged.
+            {' and '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/252"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #252
+            </a>
+            . This entry remains planned until the affected release workflows
+            publish their packages and GitHub tags. OpenIAP Spec stays at{' '}
+            <code>2.4.2</code>, the minimum of openiap-apple <code>2.4.2</code>{' '}
+            and openiap-google <code>2.5.0</code>; this source change does not
+            bump package metadata.
           </p>
 
-          <h5 style={{ margin: '0 0 0.5rem 0' }}>Flutter purchase payloads</h5>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Package-specific payload fixes
+          </h5>
           <ul
             style={{
               marginBottom: '1rem',
@@ -242,44 +264,41 @@ function Releases() {
             }}
           >
             <li>
-              Reads Google Play&apos;s signed purchase JSON from the canonical{' '}
-              <code>PurchaseAndroid.dataAndroid</code> key. Flutter 9.6.0 and
-              earlier 9.x releases read only a nonexistent compatibility key,
-              leaving <code>dataAndroid</code> null for listener and available-
-              purchase results.
+              <strong>openiap-google</strong> - rejects Amazon receipts when
+              either cancellation signal is present, keeps the subscription term
+              SKU as <code>currentPlanId</code>, and reports deferred plan
+              changes through <code>pendingPurchaseUpdateAndroid</code>.
             </li>
             <li>
-              Preserves the complete normalized generated Android and iOS
-              purchase payload before applying compatibility conversions, so
-              newly added optional fields are not silently dropped by a local
-              allowlist.
+              <strong>react-native-iap</strong> - carries explicit native
+              transaction identity through Nitro, leaves orderless Google Play
+              transactions without a synthetic order ID, preserves Apple renewal
+              metadata, and models deferred Vega plan changes without hiding the
+              active receipt.
             </li>
             <li>
-              Keeps <code>originalJsonAndroid</code> as a fallback input alias
-              only for the remainder of Flutter 9.x. It is not a public Purchase
-              field, canonical <code>dataAndroid</code> wins when both are
-              present, and the fallback is scheduled for removal in{' '}
-              <code>flutter_inapp_purchase 10.0.0</code>.
+              <strong>expo-iap</strong> - fails closed when an Onside module or
+              method is unavailable instead of falling through to StoreKit,
+              classifies Onside subscriptions with their canonical metadata, and
+              preserves Vega current-plan and pending-update semantics.
             </li>
             <li>
-              Preserves the remaining Flutter 9.x wire fallbacks while warning
-              custom integrations to migrate before 10.0.0:{' '}
-              <code>purchaseStateAndroid</code> and{' '}
-              <code>transactionStateIOS</code> move to{' '}
-              <code>purchaseState</code>, <code>transactionReceipt</code> moves
-              to <code>purchaseToken</code>, <code>transactionId</code> must be
-              emitted explicitly, and iOS/macOS verification uses{' '}
-              <code>{'{ apple: { sku } }'}</code> instead of a top-level{' '}
-              <code>{'{ sku }'}</code>.
+              <strong>flutter_inapp_purchase</strong> - reads canonical{' '}
+              <code>dataAndroid</code>, preserves complete generated purchase
+              and verification results, supports Horizon verification, and
+              recursively normalizes nested native maps. Flutter 9.x keeps its
+              documented wire fallbacks until 10.0.0.
             </li>
             <li>
-              Moves the official Dart bridge to canonical <code>in-app</code>,{' '}
-              <code>apple</code> / <code>google</code>,
-              <code>getAppTransactionIOS</code> /{' '}
-              <code>subscriptionStatusIOS</code>, and <code>skuAndroid</code> /{' '}
-              <code>packageNameAndroid</code> payloads before enabling one-time
-              compatibility warnings. Normal SDK calls stay silent; only a
-              selected legacy custom-channel fallback warns.
+              <strong>kmp-iap</strong> - preserves complete generated Android
+              and iOS purchase fields, including developer payload, pending
+              updates, purchase tokens, transaction identity, and normalized
+              Apple bridge null values.
+            </li>
+            <li>
+              <strong>OpenIap.Maui</strong> - reports listener deserialization
+              drift with credential-safe diagnostics instead of silently
+              dropping malformed purchase events.
             </li>
             <li>
               Custom MethodChannel callers should also replace{' '}
@@ -298,12 +317,16 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            Custom MethodChannel adapters, mocks, and fixtures should migrate to{' '}
-            <code>dataAndroid</code> now. See{' '}
+            The SDK parity audit now compares generated purchase and renewal
+            fields with handwritten bridges, enforces source-first mappings and
+            alternative-store deferred-plan semantics, and keeps round-trip
+            regressions executable across wrappers. Godot receives the shared
+            regression coverage only, so this diff does not require a Godot
+            package release. See{' '}
             <Link to="/docs/updates/deprecations#flutter-original-json-android">
               Deprecations &amp; 3.0 Migration
             </Link>{' '}
-            for the complete removal schedule.
+            for Flutter&apos;s compatibility-input removal schedule.
           </p>
 
           <div
@@ -320,7 +343,7 @@ function Releases() {
                 fontSize: '0.9rem',
               }}
             >
-              {plannedFlutterPurchasePayloadReleases.map((release) => (
+              {plannedCrossSdkPurchasePayloadReleases.map((release) => (
                 <li key={release}>{release}</li>
               ))}
             </ul>

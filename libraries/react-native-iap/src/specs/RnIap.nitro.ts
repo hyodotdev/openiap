@@ -609,6 +609,7 @@ export interface NitroOneTimePurchaseOfferDetail {
 
 export interface NitroPurchase {
   id: PurchaseCommon['id'];
+  transactionId?: string | null;
   productId: PurchaseCommon['productId'];
   transactionDate: PurchaseCommon['transactionDate'];
   purchaseToken?: PurchaseCommon['purchaseToken'];

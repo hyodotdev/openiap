@@ -2012,7 +2012,7 @@ void main() {
         codec.encodeMethodCall(
           MethodCall(
             'connection-updated',
-            jsonEncode(<String, dynamic>{'msg': 'connected'}),
+            jsonEncode(<String, dynamic>{'connected': true}),
           ),
         ),
         (_) {},
@@ -2020,6 +2020,36 @@ void main() {
 
       final result = await connectionFuture;
       expect(result.msg, 'connected');
+    });
+
+    test('connection-updated derives the disconnected message', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        if (call.method == 'initConnection') {
+          return true;
+        }
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+      final connectionFuture = iap.connectionUpdated.first;
+
+      await iap.initConnection();
+      await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .handlePlatformMessage(
+        channel.name,
+        codec.encodeMethodCall(
+          MethodCall(
+            'connection-updated',
+            jsonEncode(<String, dynamic>{'connected': false}),
+          ),
+        ),
+        (_) {},
+      );
+
+      expect((await connectionFuture).msg, 'disconnected');
     });
 
     test('iap-promoted-product emits the productId', () async {
@@ -2373,11 +2403,23 @@ void main() {
           case 'initConnection':
             return true;
           case 'verifyPurchase':
-            return {
+            return <Object?, Object?>{
               '__typename': 'VerifyPurchaseResultIOS',
               'isValid': true,
               'jwsRepresentation': 'test-jws-representation',
               'receiptData': 'test-receipt-data',
+              'latestTransaction': <Object?, Object?>{
+                '__typename': 'PurchaseIOS',
+                'id': 'ios-transaction-id',
+                'isAutoRenewing': false,
+                'platform': 'ios',
+                'productId': 'premium.upgrade',
+                'purchaseState': 'purchased',
+                'quantity': 1,
+                'store': 'apple',
+                'transactionDate': 1705315800000.0,
+                'transactionId': 'ios-transaction-id',
+              },
             };
         }
         return null;
@@ -2410,6 +2452,7 @@ void main() {
       final iosResult = result as types.VerifyPurchaseResultIOS;
       expect(iosResult.isValid, true);
       expect(iosResult.jwsRepresentation, 'test-jws-representation');
+      expect(iosResult.latestTransaction?.productId, 'premium.upgrade');
     });
 
     test('sends correct payload for Android verification', () async {
@@ -2478,6 +2521,55 @@ void main() {
       expect(androidResult.productId, 'premium.upgrade');
       expect(androidResult.productType, 'inapp');
       expect(androidResult.autoRenewing, false);
+    });
+
+    test('sends and parses Horizon verification payloads', () async {
+      final calls = <MethodCall>[];
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        calls.add(call);
+        switch (call.method) {
+          case 'initConnection':
+            return true;
+          case 'verifyPurchase':
+            return jsonEncode(<String, dynamic>{
+              '__typename': 'VerifyPurchaseResultHorizon',
+              'grantTime': 1705315800,
+              'success': true,
+            });
+        }
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+      await iap.initConnection();
+
+      final result = await iap.verifyPurchase(
+        horizon: const types.VerifyPurchaseHorizonOptions(
+          accessToken: 'test-horizon-access-token',
+          sku: 'premium.upgrade',
+          userId: 'horizon-user-id',
+        ),
+      );
+
+      final verifyCall = calls.singleWhere(
+        (MethodCall call) => call.method == 'verifyPurchase',
+      );
+      final payload = normalizeDynamicMap(verifyCall.arguments)!;
+      expect(payload['google'], isNull);
+      expect(
+        payload['horizon'],
+        containsPair('accessToken', 'test-horizon-access-token'),
+      );
+      expect(payload['horizon'], containsPair('sku', 'premium.upgrade'));
+      expect(payload['horizon'], containsPair('userId', 'horizon-user-id'));
+
+      expect(result, isA<types.VerifyPurchaseResultHorizon>());
+      final horizonResult = result as types.VerifyPurchaseResultHorizon;
+      expect(horizonResult.success, isTrue);
+      expect(horizonResult.grantTime, 1705315800);
     });
 
     test('throws PurchaseError on platform exception', () async {

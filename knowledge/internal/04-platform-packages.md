@@ -166,6 +166,27 @@ If it fails for Godot GDAP dependency drift, run
 `./libraries/godot-iap/scripts/write-gdap.sh` and commit the regenerated
 `libraries/godot-iap/addons/godot-iap/android/GodotIap.gdap`.
 
+### Generated payload preservation
+
+Generated payload types are additive contracts. Handwritten native and framework
+bridges must preserve every canonical field rather than reconstructing
+`Purchase`, `ActiveSubscription`, `RenewalInfoIOS`, or verification results from
+local allowlists. Prefer the generated `toJson` / `fromJson` or canonical
+serializer, recursively normalize platform dictionaries and `NSNull`, and add
+only documented transport-specific fields around that generated payload.
+
+Map canonical fields from their same-named native source before applying a
+compatibility fallback. In particular, an orderless Google Play purchase keeps
+`transactionId` null instead of copying `purchaseToken`, while alternative-store
+deferred plan changes remain active purchases and expose
+`pendingPurchaseUpdateAndroid` plus the current plan. Listener diagnostics must
+never include raw purchase payloads, receipts, or tokens.
+
+`bun run audit:parity` compares generated payload fields with the handwritten
+bridges and exercises source-first mappings and round trips. When a generated
+payload field or bridge changes, update the real platform mapping and a focused
+regression fixture before extending the audit expectation.
+
 ### The bug pattern
 
 A symptom like "interface exists in `types.dart` / `types.ts` / `Types.kt` but calling it does nothing / throws" means one or more of these layers is missing:

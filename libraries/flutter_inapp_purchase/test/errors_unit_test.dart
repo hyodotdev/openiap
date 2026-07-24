@@ -267,6 +267,21 @@ void main() {
       expect(parsed.toString(), contains('connected'));
     });
 
+    test('ConnectionResult accepts the native connected flag', () {
+      expect(
+        errors.ConnectionResult.fromJSON(
+          <String, dynamic>{'connected': true},
+        ).msg,
+        'connected',
+      );
+      expect(
+        errors.ConnectionResult.fromJSON(
+          <String, dynamic>{'connected': false},
+        ).msg,
+        'disconnected',
+      );
+    });
+
     test(
       'message-based inference removed - returns Unknown for "User cancelled the operation"',
       () {

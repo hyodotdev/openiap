@@ -175,11 +175,21 @@ public final class ExpoIapOnsideModule: Module {
                 throw OnsideBridgeError.productNotFound(response.invalidProductIdentifiers.joined(separator: ", "))
             }
 
+            let matchingProducts = response.products.filter { product in
+                switch request.type ?? .inApp {
+                case .subs:
+                    return product.subscriptionPeriod != nil
+                case .inApp:
+                    return product.subscriptionPeriod == nil
+                case .all:
+                    return true
+                }
+            }
             let payload: [[String: Any]] = try await MainActor.run {
-                for p in response.products {
+                for p in matchingProducts {
                     productCache[p.productIdentifier] = p
                 }
-                return try response.products.map { try serializeProduct($0) }
+                return try matchingProducts.map { try serializeProduct($0) }
             }
             ExpoIapLog.result("fetchProductsOnside", value: payload)
             return payload
@@ -458,9 +468,29 @@ public final class ExpoIapOnsideModule: Module {
         dictionary["displayPrice"] = formattedPrice
         dictionary["currency"] = product.price.currencyCode
         dictionary["price"] = priceNumber
-        dictionary["type"] = "in-app"
-        dictionary["typeIOS"] = "non-consumable"
+        let subscriptionPeriod = product.subscriptionPeriod.map {
+            subscriptionPeriodComponentsIOS($0)
+        }
+        let isSubscription = subscriptionPeriod != nil
+        dictionary["type"] = isSubscription ? "subs" : "in-app"
+        dictionary["typeIOS"] = isSubscription ? "auto-renewable-subscription" : "non-consumable"
         dictionary["isFamilyShareableIOS"] = false
+        dictionary["subscriptionGroupIdIOS"] = product.subscriptionGroupIdentifier
+        if let subscriptionPeriod {
+            dictionary["subscriptionPeriodNumberIOS"] = String(subscriptionPeriod.value)
+            dictionary["subscriptionPeriodUnitIOS"] = subscriptionPeriod.unit
+        }
+        if let introductoryPrice = product.introductoryPrice {
+            let introductoryPeriod = subscriptionPeriodComponentsIOS(introductoryPrice.period)
+            dictionary["introductoryPriceAsAmountIOS"] = String(introductoryPrice.price.value)
+            dictionary["introductoryPriceIOS"] = formatPriceIOS(introductoryPrice.price)
+            dictionary["introductoryPriceNumberOfPeriodsIOS"] = String(introductoryPeriod.value)
+            dictionary["introductoryPricePaymentModeIOS"] =
+                introductoryPricePaymentModeIOS(for: introductoryPrice).rawValue
+            dictionary["introductoryPriceSubscriptionPeriodIOS"] = introductoryPeriod.unit
+        } else if isSubscription {
+            dictionary["introductoryPricePaymentModeIOS"] = PaymentModeIOS.empty.rawValue
+        }
         // Avoid JSONEncoder on non-Encodable SDK type: build JSON string from known fields
         dictionary["jsonRepresentationIOS"] = try makeProductJSONRepresentation(from: product)
         dictionary["debugDescription"] = product.description
@@ -474,7 +504,17 @@ public final class ExpoIapOnsideModule: Module {
         dictionary["transactionId"] = transaction.transactionIdentifier ?? ""
         dictionary["productId"] = transaction.payment.product.productIdentifier
         dictionary["platform"] = "ios"
+        // Onside is an alternative iOS marketplace and does not yet have a
+        // dedicated IapStore enum value. Preserve the required store
+        // discriminator without reporting the purchase as App Store traffic.
+        dictionary["store"] = "unknown"
+        if product.subscriptionPeriod == nil {
+            dictionary["currentPlanId"] = NSNull()
+        } else {
+            dictionary["currentPlanId"] = product.productIdentifier
+        }
         dictionary["quantity"] = 1
+        dictionary["quantityIOS"] = 1
         dictionary["isAutoRenewing"] = false
         dictionary["purchaseState"] = mapPurchaseState(transaction.transactionState)
         let txDate = fallbackTransactionDate(for: transaction)
@@ -485,9 +525,15 @@ public final class ExpoIapOnsideModule: Module {
         currencyFormatter.currencyCode = product.price.currencyCode
         dictionary["currencySymbolIOS"] = currencyFormatter.currencySymbol ?? ""
 
+        dictionary["countryCodeIOS"] = transaction.storefront.countryCode
         dictionary["storefrontCountryCodeIOS"] = transaction.storefront.countryCode
+        dictionary["subscriptionGroupIdIOS"] = product.subscriptionGroupIdentifier
+        dictionary["originalTransactionIdentifierIOS"] =
+            transaction.originalTransactionIdentifier
         dictionary["purchaseToken"] = nil
-        dictionary["environmentIOS"] = transaction.storefront.id
+        // Onside exposes storefront identity, not StoreKit's Sandbox/Production
+        // environment. Do not mislabel a marketplace/storefront identifier.
+        dictionary["environmentIOS"] = NSNull()
         if let error = transaction.error {
             dictionary["reasonIOS"] = error.localizedDescription
         }
@@ -501,7 +547,10 @@ public final class ExpoIapOnsideModule: Module {
         priceFormatter.currencyCode = product.price.currencyCode
         let priceNumber = makePriceNumber(from: product)
         let formattedPrice = priceFormatter.string(from: priceNumber) ?? "\(product.price.value)"
-        let jsonObject: [String: Any] = [
+        let subscriptionPeriod = product.subscriptionPeriod.map {
+            subscriptionPeriodComponentsIOS($0)
+        }
+        var jsonObject: [String: Any] = [
             "id": product.productIdentifier,
             "title": product.localizedTitle,
             "description": product.localizedDescription,
@@ -512,8 +561,17 @@ public final class ExpoIapOnsideModule: Module {
             ],
             "isFamilyShareable": false,
             "platform": "ios",
-            "type": "in-app",
+            "type": subscriptionPeriod == nil ? "in-app" : "subs",
         ]
+        if let subscriptionGroupIdentifier = product.subscriptionGroupIdentifier {
+            jsonObject["subscriptionGroupIdentifier"] = subscriptionGroupIdentifier
+        }
+        if let subscriptionPeriod {
+            jsonObject["subscriptionPeriod"] = [
+                "value": subscriptionPeriod.value,
+                "unit": subscriptionPeriod.unit,
+            ]
+        }
         let data = try JSONSerialization.data(withJSONObject: jsonObject, options: [])
         guard let json = String(data: data, encoding: .utf8) else {
             throw OnsideBridgeError.queueError("Unable to encode JSON string")
@@ -523,6 +581,43 @@ public final class ExpoIapOnsideModule: Module {
 
     private func makePriceNumber(from product: OnsideProduct) -> NSDecimalNumber {
         NSDecimalNumber(string: String(product.price.value))
+    }
+
+    private func formatPriceIOS(_ price: OnsidePrice) -> String {
+        let formatter = NumberFormatter()
+        formatter.numberStyle = .currency
+        formatter.currencyCode = price.currencyCode
+        let number = NSDecimalNumber(string: String(price.value))
+        return formatter.string(from: number) ?? "\(price.value)"
+    }
+
+    private func introductoryPricePaymentModeIOS(
+        for offer: OnsidePricePeriod
+    ) -> PaymentModeIOS {
+        if offer.price.value == 0 {
+            return .freeTrial
+        }
+
+        // OnsideKit exposes only price and period for introductory offers, so
+        // paid offers cannot be distinguished as pay-as-you-go or pay-up-front.
+        return .empty
+    }
+
+    private func subscriptionPeriodComponentsIOS(
+        _ period: OnsidePeriod
+    ) -> (value: Int, unit: String) {
+        switch period {
+        case .day(let value):
+            return (Int(value), "day")
+        case .week(let value):
+            return (Int(value), "week")
+        case .month(let value):
+            return (Int(value), "month")
+        case .year(let value):
+            return (Int(value), "year")
+        @unknown default:
+            return (0, "empty")
+        }
     }
 
     private func fallbackTransactionDate(for transaction: OnsidePaymentTransaction) -> Date {
@@ -553,9 +648,9 @@ public final class ExpoIapOnsideModule: Module {
         case .purchased:
             return "purchased"
         case .restored:
-            return "restored"
+            return "purchased"
         case .failed:
-            return "failed"
+            return "unknown"
         case .purchasing:
             return "pending"
         @unknown default:

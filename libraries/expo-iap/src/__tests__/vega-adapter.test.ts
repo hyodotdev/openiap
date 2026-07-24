@@ -245,6 +245,8 @@ describe('Amazon Vega Expo adapter', () => {
 
     expect(result).toEqual([
       expect.objectContaining({
+        currentPlanId: null,
+        ids: ['coins_100'],
         productId: 'coins_100',
         purchaseToken: 'receipt-1',
         store: 'amazon',
@@ -252,6 +254,8 @@ describe('Amazon Vega Expo adapter', () => {
     ]);
     expect(listener).toHaveBeenCalledWith(
       expect.objectContaining({
+        currentPlanId: null,
+        ids: ['coins_100'],
         productId: 'coins_100',
         purchaseToken: 'receipt-1',
       }),
@@ -808,6 +812,8 @@ describe('Amazon Vega Expo adapter', () => {
       },
     });
     const module = createExpoIapVegaModule(service);
+    const listener = jest.fn();
+    module.addListener('purchase-updated', listener);
 
     await expect(
       module.requestPurchase({
@@ -816,9 +822,32 @@ describe('Amazon Vega Expo adapter', () => {
       }),
     ).resolves.toEqual([
       expect.objectContaining({
+        currentPlanId: 'premium_monthly',
+        ids: ['premium_monthly'],
         productId: 'premium_monthly',
         isAutoRenewing: true,
         autoRenewingAndroid: true,
+      }),
+    ]);
+    expect(listener).toHaveBeenCalledWith(
+      expect.objectContaining({
+        currentPlanId: 'premium_monthly',
+        ids: ['premium_monthly'],
+        productId: 'premium_monthly',
+      }),
+    );
+  });
+
+  it('preserves subscription plan identifiers in available purchases', async () => {
+    const service = createService();
+    const module = createExpoIapVegaModule(service);
+
+    await expect(module.getAvailableItems()).resolves.toEqual([
+      expect.objectContaining({
+        currentPlanId: 'premium_monthly',
+        ids: ['premium_monthly'],
+        productId: 'premium_monthly',
+        purchaseToken: 'sub-receipt',
       }),
     ]);
   });
@@ -1028,14 +1057,16 @@ describe('Amazon Vega Expo adapter', () => {
     expect(service.getProductData.mock.calls[1]?.[0].skus).toHaveLength(1);
   });
 
-  it('excludes suspended purchases unless requested', async () => {
+  it('keeps deferred subscription changes active and exposes the upcoming plan', async () => {
     const service = createService();
     service.getPurchaseUpdates.mockResolvedValue({
       responseCode: 1,
       receiptList: [
         {
           receiptId: 'deferred-sub',
-          sku: 'premium_monthly',
+          sku: 'premium',
+          termSku: 'premium_monthly',
+          deferredSku: 'premium_yearly',
           productType: 3,
           isDeferred: true,
         },
@@ -1043,16 +1074,46 @@ describe('Amazon Vega Expo adapter', () => {
     });
     const module = createExpoIapVegaModule(service);
 
-    await expect(module.getAvailableItems()).resolves.toEqual([]);
-
-    await expect(
-      module.getAvailableItems({includeSuspendedAndroid: true}),
-    ).resolves.toEqual([
+    await expect(module.getAvailableItems()).resolves.toEqual([
       expect.objectContaining({
         id: 'deferred-sub',
-        isAutoRenewing: false,
-        isSuspendedAndroid: true,
-        purchaseState: 'pending',
+        productId: 'premium',
+        currentPlanId: 'premium_monthly',
+        isAutoRenewing: true,
+        isSuspendedAndroid: false,
+        pendingPurchaseUpdateAndroid: {
+          products: ['premium_yearly'],
+          purchaseToken: 'deferred-sub',
+        },
+        purchaseState: 'purchased',
+      }),
+    ]);
+  });
+
+  it('ignores blank Vega subscription identifiers', async () => {
+    const service = createService();
+    service.getPurchaseUpdates.mockResolvedValue({
+      responseCode: 1,
+      receiptList: [
+        {
+          receiptId: ' receipt-token-with-spaces ',
+          sku: '  ',
+          termSku: 'premium_monthly',
+          deferredSku: '  ',
+          productType: 3,
+          isDeferred: true,
+        },
+      ],
+    });
+    const module = createExpoIapVegaModule(service);
+
+    await expect(module.getAvailableItems()).resolves.toEqual([
+      expect.objectContaining({
+        id: ' receipt-token-with-spaces ',
+        productId: 'premium_monthly',
+        purchaseToken: ' receipt-token-with-spaces ',
+        currentPlanId: 'premium_monthly',
+        pendingPurchaseUpdateAndroid: null,
       }),
     ]);
   });

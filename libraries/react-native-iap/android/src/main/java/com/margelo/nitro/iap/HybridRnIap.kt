@@ -1308,6 +1308,7 @@ class HybridRnIap : HybridRnIapSpec() {
         }
         return NitroPurchase(
             id = purchase.id,
+            transactionId = androidPurchase?.transactionId.wrapVariant(),
             productId = purchase.productId,
             transactionDate = purchase.transactionDate,
             purchaseToken = purchase.purchaseToken.wrapVariant(),

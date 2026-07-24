@@ -577,7 +577,7 @@ iap_err.PurchaseError convertToPurchaseError(
         code = gentype.ErrorCode.AlreadyOwned;
         break;
       case 8:
-        code = gentype.ErrorCode.PurchaseError;
+        code = gentype.ErrorCode.ItemNotOwned;
         break;
     }
   }
@@ -1168,7 +1168,7 @@ Map<String, dynamic>? normalizeDynamicMap(dynamic value) {
 }
 
 dynamic normalizeDynamicValue(dynamic value) {
-  if (value is Map || value is Map<dynamic, dynamic>) {
+  if (value is Map) {
     return normalizeDynamicMap(value);
   }
   if (value is List) {

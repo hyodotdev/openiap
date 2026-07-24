@@ -67,7 +67,7 @@ enum ExpoIapHelper {
     static func parseProductQueryType(_ rawValue: String?) -> ProductQueryType {
         guard let raw = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty
         else {
-            return .all
+            return .inApp
         }
         switch raw.lowercased() {
         case "inapp", ProductQueryType.inApp.rawValue:
@@ -77,7 +77,7 @@ enum ExpoIapHelper {
         case ProductQueryType.all.rawValue:
             return .all
         default:
-            return .all
+            return .inApp
         }
     }
 

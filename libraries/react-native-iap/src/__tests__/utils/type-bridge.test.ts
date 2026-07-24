@@ -12,6 +12,7 @@ import type {
   NitroPurchase,
   NitroSubscriptionStatus,
 } from '../../specs/RnIap.nitro';
+import type {PurchaseAndroid} from '../../types';
 
 describe('type-bridge utilities', () => {
   describe('convertNitroProductToProduct', () => {
@@ -419,11 +420,13 @@ describe('type-bridge utilities', () => {
       const result = convertNitroPurchaseToPurchase(nitroPurchase);
       expect(result.platform).toBe('ios');
       expect(result.purchaseState).toBe('purchased');
+      expect(result.transactionId).toBe('tx-ios');
     });
 
     it('preserves common and StoreKit purchase metadata', () => {
       const nitroPurchase = {
         id: 'tx-ios-metadata',
+        transactionId: 'canonical-tx-ios-metadata',
         productId: 'sku-ios',
         transactionDate: 123,
         platform: 'ios',
@@ -459,6 +462,7 @@ describe('type-bridge utilities', () => {
         expect.objectContaining({
           currentPlanId: 'premium-monthly',
           ids: ['sku-ios', 'item-addon'],
+          transactionId: 'canonical-tx-ios-metadata',
           advancedCommerceInfoIOS: {items: []},
           billingPlanTypeIOS: 'monthly',
           commitmentInfoIOS: expect.objectContaining({totalBillingPeriods: 12}),
@@ -510,7 +514,8 @@ describe('type-bridge utilities', () => {
 
     it('converts Android purchases and maps purchase state', () => {
       const nitroPurchase: NitroPurchase = {
-        id: 'tx-android',
+        id: 'token-android',
+        transactionId: 'order-android',
         productId: 'sku-android',
         transactionDate: 456,
         purchaseTokenAndroid: 'token-android',
@@ -526,7 +531,72 @@ describe('type-bridge utilities', () => {
       expect(result.platform).toBe('android');
       expect(result.purchaseState).toBe('purchased');
       expect(result.autoRenewingAndroid).toBe(true);
+      expect(result.transactionId).toBe('order-android');
     });
+
+    it('does not treat an orderless Android purchase token as transactionId', () => {
+      const nitroPurchase: NitroPurchase = {
+        id: 'pending-purchase-token',
+        transactionId: null,
+        productId: 'sku-android',
+        transactionDate: 456,
+        purchaseTokenAndroid: 'pending-purchase-token',
+        platform: 'android',
+        store: 'google',
+        quantity: 1,
+        purchaseState: 'pending',
+        isAutoRenewing: false,
+      };
+
+      const result = convertNitroPurchaseToPurchase(
+        nitroPurchase,
+      ) as PurchaseAndroid;
+      expect(result.id).toBe('pending-purchase-token');
+      expect(result.transactionId).toBeNull();
+    });
+
+    it('recovers a legacy Google order ID that differs from its token', () => {
+      const nitroPurchase = {
+        id: 'GPA.1234-5678',
+        productId: 'sku-android',
+        transactionDate: 456,
+        purchaseToken: 'purchase-token',
+        purchaseTokenAndroid: 'purchase-token',
+        platform: 'android',
+        store: 'google',
+        quantity: 1,
+        purchaseState: 'purchased',
+        isAutoRenewing: false,
+      } as NitroPurchase;
+
+      const result = convertNitroPurchaseToPurchase(
+        nitroPurchase,
+      ) as PurchaseAndroid;
+      expect(result.transactionId).toBe('GPA.1234-5678');
+    });
+
+    it.each(['amazon', 'horizon'] as const)(
+      'recovers a legacy %s receipt ID even when it is also the token',
+      (store) => {
+        const nitroPurchase = {
+          id: `${store}-receipt`,
+          productId: 'sku-android',
+          transactionDate: 456,
+          purchaseToken: `${store}-receipt`,
+          purchaseTokenAndroid: `${store}-receipt`,
+          platform: 'android',
+          store,
+          quantity: 1,
+          purchaseState: 'purchased',
+          isAutoRenewing: false,
+        } as NitroPurchase;
+
+        const result = convertNitroPurchaseToPurchase(
+          nitroPurchase,
+        ) as PurchaseAndroid;
+        expect(result.transactionId).toBe(`${store}-receipt`);
+      },
+    );
 
     it('preserves Android pending purchase metadata', () => {
       const nitroPurchase = {

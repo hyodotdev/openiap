@@ -1006,6 +1006,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                     return
                 }
                 var payload: [String: Any?] = [
+                    "__typename": "VerifyPurchaseResultIOS",
                     "isValid": res.isValid,
                     "receiptData": res.receiptData,
                     // Provide both fields for compatibility with OpenIAP spec and legacy
@@ -1087,29 +1088,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 let props = try JSONDecoder().decode(VerifyPurchaseWithProviderProps.self, from: jsonData)
                 let res = try await OpenIapModule.shared.verifyPurchaseWithProvider(props)
 
-                // Convert result to dictionary
-                var payload: [String: Any] = [
-                    "provider": res.provider.rawValue
-                ]
-                if let iapkitItem = res.iapkit {
-                    var iapkitResult: [String: Any] = [
-                        "isValid": iapkitItem.isValid,
-                        "state": iapkitItem.state.rawValue,
-                        "store": iapkitItem.store.rawValue
-                    ]
-                    if let productId = iapkitItem.productId {
-                        iapkitResult["productId"] = productId
-                    }
-                    if let clientPayload = iapkitItem.clientPayload {
-                        iapkitResult["clientPayload"] = [
-                            "format": clientPayload.format.rawValue,
-                            "body": clientPayload.body,
-                            "version": clientPayload.version,
-                            "updatedAt": clientPayload.updatedAt
-                        ]
-                    }
-                    payload["iapkit"] = iapkitResult
-                }
+                let payload = FlutterIapHelper.sanitizeDictionary(OpenIapSerialization.encode(res))
                 FlutterIapLog.result("verifyPurchaseWithProvider", value: payload)
                 result(payload)
             } catch let purchaseError as PurchaseError {

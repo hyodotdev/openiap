@@ -12,6 +12,7 @@ import com.android.billingclient.api.BillingResult
 import com.android.billingclient.api.ProductDetails
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryProductDetailsResult
+import io.github.hyochan.kmpiap.openiap.ActiveSubscription
 import io.github.hyochan.kmpiap.openiap.BillingProgramAndroid
 import io.github.hyochan.kmpiap.openiap.DiscountAmountAndroid
 import io.github.hyochan.kmpiap.openiap.DiscountDisplayInfoAndroid
@@ -39,6 +40,7 @@ import io.github.hyochan.kmpiap.openiap.Purchase
 import io.github.hyochan.kmpiap.openiap.SubscriptionOffer
 import io.github.hyochan.kmpiap.openiap.PaymentMode
 import io.github.hyochan.kmpiap.openiap.DiscountOfferType
+import io.github.hyochan.kmpiap.openiap.PendingPurchaseUpdateAndroid
 import io.github.hyochan.kmpiap.openiap.PurchaseAndroid
 import io.github.hyochan.kmpiap.openiap.PurchaseError
 import io.github.hyochan.kmpiap.openiap.PurchaseState
@@ -486,11 +488,17 @@ internal fun com.android.billingclient.api.Purchase.toPurchase(): Purchase {
     }
 
     val accountIdentifiers = accountIdentifiers
+    val pendingUpdate = runCatching { pendingPurchaseUpdate }.getOrNull()?.let { update ->
+        PendingPurchaseUpdateAndroid(
+            products = update.products,
+            purchaseToken = update.purchaseToken,
+        )
+    }
 
     return PurchaseAndroid(
         autoRenewingAndroid = isAutoRenewing,
         dataAndroid = originalJson,
-        developerPayloadAndroid = null,
+        developerPayloadAndroid = developerPayload,
         id = orderId ?: purchaseToken,
         ids = products,
         isAcknowledgedAndroid = isAcknowledged,
@@ -499,6 +507,7 @@ internal fun com.android.billingclient.api.Purchase.toPurchase(): Purchase {
         obfuscatedAccountIdAndroid = accountIdentifiers?.obfuscatedAccountId,
         obfuscatedProfileIdAndroid = accountIdentifiers?.obfuscatedProfileId,
         packageNameAndroid = packageName,
+        pendingPurchaseUpdateAndroid = pendingUpdate,
         platform = IapPlatform.Android,
         productId = products.firstOrNull() ?: "",
         store = IapStore.Google,
@@ -506,9 +515,22 @@ internal fun com.android.billingclient.api.Purchase.toPurchase(): Purchase {
         purchaseToken = purchaseToken,
         quantity = quantity,
         signatureAndroid = signature,
-        transactionDate = purchaseTime.toOpenIapTransactionDate()
+        transactionDate = purchaseTime.toOpenIapTransactionDate(),
+        transactionId = orderId,
     )
 }
+
+internal fun com.android.billingclient.api.Purchase.toActiveSubscription(): ActiveSubscription =
+    ActiveSubscription(
+        autoRenewingAndroid = isAutoRenewing,
+        isActive = purchaseState ==
+            com.android.billingclient.api.Purchase.PurchaseState.PURCHASED,
+        productId = products.firstOrNull().orEmpty(),
+        purchaseToken = purchaseToken,
+        purchaseTokenAndroid = purchaseToken,
+        transactionDate = purchaseTime.toOpenIapTransactionDate(),
+        transactionId = orderId ?: purchaseToken,
+    )
 
 internal fun ProductDetails.toProduct(): Product {
     val oneTime = oneTimePurchaseOfferDetails

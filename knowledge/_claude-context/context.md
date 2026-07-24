@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-07-24T15:33:00.652Z
+> Last updated: 2026-07-24T15:52:26.154Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -949,6 +949,27 @@ then update the parity registry in
 If it fails for Godot GDAP dependency drift, run
 `./libraries/godot-iap/scripts/write-gdap.sh` and commit the regenerated
 `libraries/godot-iap/addons/godot-iap/android/GodotIap.gdap`.
+
+### Generated payload preservation
+
+Generated payload types are additive contracts. Handwritten native and framework
+bridges must preserve every canonical field rather than reconstructing
+`Purchase`, `ActiveSubscription`, `RenewalInfoIOS`, or verification results from
+local allowlists. Prefer the generated `toJson` / `fromJson` or canonical
+serializer, recursively normalize platform dictionaries and `NSNull`, and add
+only documented transport-specific fields around that generated payload.
+
+Map canonical fields from their same-named native source before applying a
+compatibility fallback. In particular, an orderless Google Play purchase keeps
+`transactionId` null instead of copying `purchaseToken`, while alternative-store
+deferred plan changes remain active purchases and expose
+`pendingPurchaseUpdateAndroid` plus the current plan. Listener diagnostics must
+never include raw purchase payloads, receipts, or tokens.
+
+`bun run audit:parity` compares generated payload fields with the handwritten
+bridges and exercises source-first mappings and round trips. When a generated
+payload field or bridge changes, update the real platform mapping and a focused
+regression fixture before extending the audit expectation.
 
 ### The bug pattern
 

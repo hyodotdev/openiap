@@ -2694,6 +2694,7 @@ export const getActiveSubscriptions: QueryField<
               willAutoRenew: sub.renewalInfoIOS.willAutoRenew ?? false,
               autoRenewPreference:
                 sub.renewalInfoIOS.autoRenewPreference ?? null,
+              commitmentInfo: sub.renewalInfoIOS.commitmentInfo ?? null,
               pendingUpgradeProductId:
                 sub.renewalInfoIOS.pendingUpgradeProductId ?? null,
               renewalDate: sub.renewalInfoIOS.renewalDate ?? null,
@@ -2703,8 +2704,11 @@ export const getActiveSubscriptions: QueryField<
                 sub.renewalInfoIOS.gracePeriodExpirationDate ?? null,
               priceIncreaseStatus:
                 sub.renewalInfoIOS.priceIncreaseStatus ?? null,
+              renewalBillingPlanType:
+                sub.renewalInfoIOS.renewalBillingPlanType ?? null,
               renewalOfferType: sub.renewalInfoIOS.renewalOfferType ?? null,
               renewalOfferId: sub.renewalInfoIOS.renewalOfferId ?? null,
+              jsonRepresentation: sub.renewalInfoIOS.jsonRepresentation ?? null,
             }
           : null,
         // Android specific fields

@@ -54,6 +54,7 @@ interface VegaProduct {
 interface VegaReceipt {
   cancelDate?: Date | number | string | null;
   deferredDate?: Date | number | string | null;
+  deferredSku?: string | null;
   isCancelled?: boolean | null;
   isDeferred?: boolean | null;
   productType?: unknown;
@@ -127,7 +128,6 @@ const FULFILLMENT_RESULT_FULFILLED = 1;
 const RESPONSE_SUCCESS = 1;
 const PURCHASE_RESPONSE_SUCCESS = 0;
 const PURCHASE_STATE_PURCHASED = 1;
-const PURCHASE_STATE_PENDING = 2;
 const IAPKIT_DEFAULT_BASE_URL = 'https://kit.openiap.dev';
 const IAPKIT_VERIFY_PATH = '/v1/purchase/verify';
 const VEGA_PARSER_ERROR_MESSAGES = [
@@ -575,8 +575,13 @@ function getSubscriptionPeriod(product: VegaProduct): string {
   return '';
 }
 
+function nonBlankString(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  return value.trim().length > 0 ? value : null;
+}
+
 function getReceiptSku(receipt: VegaReceipt): string {
-  return receipt.sku ?? receipt.termSku ?? '';
+  return nonBlankString(receipt.sku) ?? nonBlankString(receipt.termSku) ?? '';
 }
 
 function getCachedProductType(
@@ -712,33 +717,39 @@ function mapReceipt(
   const receiptId = receipt.receiptId ?? '';
   const productId = productIdOverride ?? getReceiptSku(receipt);
   const type = productTypeToOpenIap(receipt.productType ?? fallbackProductType);
-  const isPending = Boolean(receipt.isDeferred);
   const isCanceled = Boolean(receipt.isCancelled || receipt.cancelDate);
-  const isActive = !isCanceled && !isPending;
+  const isActive = !isCanceled;
+  const deferredSku = nonBlankString(receipt.deferredSku);
 
   return {
     id: receiptId,
+    transactionId: receiptId,
     productId,
     transactionDate: toTimestamp(receipt.purchaseDate),
     purchaseToken: receiptId,
-    currentPlanId: type === 'subs' ? productId : null,
+    currentPlanId:
+      type === 'subs' ? (nonBlankString(receipt.termSku) ?? productId) : null,
     ids: productId ? [productId] : [],
     platform: 'android',
     store: 'amazon',
     quantity: 1,
-    purchaseState: isPending ? 'pending' : isActive ? 'purchased' : 'unknown',
+    purchaseState: isActive ? 'purchased' : 'unknown',
     isAutoRenewing: type === 'subs' && isActive,
     purchaseTokenAndroid: receiptId,
     dataAndroid: stringifyJson(receipt),
     signatureAndroid: null,
     autoRenewingAndroid: type === 'subs' && isActive,
-    purchaseStateAndroid: isPending
-      ? PURCHASE_STATE_PENDING
-      : isActive
-        ? PURCHASE_STATE_PURCHASED
-        : 0,
+    purchaseStateAndroid: isActive ? PURCHASE_STATE_PURCHASED : 0,
     isAcknowledgedAndroid: false,
-    isSuspendedAndroid: Boolean(receipt.isDeferred),
+    packageNameAndroid: null,
+    obfuscatedAccountIdAndroid: null,
+    obfuscatedProfileIdAndroid: null,
+    developerPayloadAndroid: null,
+    isSuspendedAndroid: false,
+    pendingPurchaseUpdateAndroid:
+      receipt.isDeferred && deferredSku
+        ? {products: [deferredSku], purchaseToken: receiptId}
+        : null,
   };
 }
 
@@ -1041,13 +1052,11 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
     options?: Parameters<RnIap['getAvailablePurchases']>[0],
   ): Promise<NitroPurchase[]> => {
     const requestedType = options?.android?.type;
-    const includeSuspended = Boolean(options?.android?.includeSuspended);
     const receipts = await getPurchaseUpdateReceipts();
     await hydrateProductTypesForReceipts(receipts);
     return receipts
       .filter((receipt) => {
         if (receipt.isCancelled || receipt.cancelDate) return false;
-        if (!includeSuspended && receipt.isDeferred) return false;
         const openIapType = productTypeToOpenIap(
           receipt.productType ??
             getCachedProductType(receipt, productTypesBySku),
@@ -1129,7 +1138,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
     const requestedPurchases: NitroPurchase[] = [];
 
     for (const receipt of receipts) {
-      if (receipt.isCancelled || receipt.cancelDate || receipt.isDeferred) {
+      if (receipt.isCancelled || receipt.cancelDate) {
         continue;
       }
 
@@ -1530,8 +1539,8 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
           purchaseToken: purchase.purchaseToken ?? null,
           transactionDate: purchase.transactionDate,
           autoRenewingAndroid: purchase.autoRenewingAndroid ?? true,
-          basePlanIdAndroid: purchase.productId,
-          currentPlanId: purchase.productId,
+          basePlanIdAndroid: purchase.currentPlanId ?? purchase.productId,
+          currentPlanId: purchase.currentPlanId ?? purchase.productId,
           purchaseTokenAndroid: purchase.purchaseTokenAndroid ?? null,
         }));
     },
@@ -1555,9 +1564,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
       return true;
     },
     async restorePurchases(): Promise<void> {
-      const purchases = await getAvailablePurchases({
-        android: {includeSuspended: false},
-      });
+      const purchases = await getAvailablePurchases();
       purchases.forEach(emitPurchaseUpdated);
     },
     addPurchaseUpdatedListener(listener): number {

@@ -1224,82 +1224,11 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         return convertAnyToPurchaseIOS(data)
     }
 
-    @Suppress("UNCHECKED_CAST")
-    private fun convertAnyToPurchaseIOS(data: Any?): PurchaseIOS? {
-        if (data == null) return null
-
-        return try {
-            // OpenIAP returns NSDictionary which can be cast to Map
-            val dict = (data as? Map<*, *>) ?: return null
-            val map = normalizeBridgeMap(dict) ?: return null
-
-            val platform = map["platform"] as? String
-            if (platform == "ios" || platform == "iOS") {
-                PurchaseIOS(
-                    appAccountToken = map["appAccountToken"] as? String,
-                    appBundleIdIOS = map["appBundleIdIOS"] as? String,
-                    billingPlanTypeIOS = (map["billingPlanTypeIOS"] as? String)?.let {
-                        SubscriptionBillingPlanTypeIOS.fromJson(it)
-                    },
-                    commitmentInfoIOS = convertAnyToTransactionCommitmentInfoIOS(
-                        map["commitmentInfoIOS"]
-                    ),
-                    countryCodeIOS = map["countryCodeIOS"] as? String,
-                    currencyCodeIOS = map["currencyCodeIOS"] as? String,
-                    currencySymbolIOS = map["currencySymbolIOS"] as? String,
-                    environmentIOS = map["environmentIOS"] as? String,
-                    expirationDateIOS = (map["expirationDateIOS"] as? Number)?.toDouble(),
-                    id = map["id"] as? String ?: "",
-                    ids = (map["ids"] as? List<*>)?.mapNotNull { it as? String },
-                    isAutoRenewing = map["isAutoRenewing"] as? Boolean ?: false,
-                    isUpgradedIOS = map["isUpgradedIOS"] as? Boolean,
-                    offerIOS = null, // Complex object, handle separately if needed
-                    originalTransactionDateIOS = (map["originalTransactionDateIOS"] as? Number)?.toDouble(),
-                    originalTransactionIdentifierIOS = map["originalTransactionIdentifierIOS"] as? String,
-                    ownershipTypeIOS = map["ownershipTypeIOS"] as? String,
-                    platform = IapPlatform.Ios,
-                    productId = map["productId"] as? String ?: "",
-                    store = IapStore.Apple,
-                    purchaseState = (map["purchaseState"] as? String)?.let {
-                        PurchaseState.fromJson(it)
-                    } ?: PurchaseState.Unknown,
-                    purchaseToken = map["purchaseToken"] as? String,
-                    quantity = (map["quantity"] as? Number)?.toInt() ?: 1,
-                    quantityIOS = (map["quantityIOS"] as? Number)?.toInt(),
-                    reasonIOS = map["reasonIOS"] as? String,
-                    reasonStringRepresentationIOS = map["reasonStringRepresentationIOS"] as? String,
-                    renewalInfoIOS = convertAnyToRenewalInfoIOS(map["renewalInfoIOS"]),
-                    revocationDateIOS = (map["revocationDateIOS"] as? Number)?.toDouble(),
-                    revocationReasonIOS = map["revocationReasonIOS"] as? String,
-                    storefrontCountryCodeIOS = map["storefrontCountryCodeIOS"] as? String,
-                    subscriptionGroupIdIOS = map["subscriptionGroupIdIOS"] as? String,
-                    transactionDate = (map["transactionDate"] as? Number)?.toDouble() ?: 0.0,
-                    transactionId = map["transactionId"] as? String ?: "",
-                    transactionReasonIOS = map["transactionReasonIOS"] as? String,
-                    webOrderLineItemIdIOS = map["webOrderLineItemIdIOS"] as? String
-                )
-            } else {
-                null
-            }
-        } catch (e: Exception) {
-            null
-        }
-    }
+    private fun convertAnyToPurchaseIOS(data: Any?): PurchaseIOS? =
+        decodePurchasePayloadIOS(data)
 
     private fun mapFromAny(data: Any?): Map<String, Any?>? {
         return normalizeBridgeMap(data)
-    }
-
-    private fun convertAnyToTransactionCommitmentInfoIOS(data: Any?): TransactionCommitmentInfoIOS? {
-        return mapFromAny(data)?.let { map ->
-            runCatching { TransactionCommitmentInfoIOS.fromJson(map) }.getOrNull()
-        }
-    }
-
-    private fun convertAnyToRenewalInfoIOS(data: Any?): RenewalInfoIOS? {
-        return mapFromAny(data)?.let { map ->
-            runCatching { RenewalInfoIOS.fromJson(map) }.getOrNull()
-        }
     }
 
     private fun convertAnyListToSubscriptionPricingTermsIOS(data: Any?): List<SubscriptionPricingTermsIOS>? {

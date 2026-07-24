@@ -74,12 +74,8 @@ internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, Mutation
     {
         _module.AddPurchaseUpdatedListener(new EventBridge(json =>
         {
-            try
-            {
-                var purchase = JsonSerializer.Deserialize<Purchase>(json, JsonOptions.Default);
-                if (purchase is not null) _purchaseUpdated.OnNext(purchase);
-            }
-            catch (JsonException) { /* malformed payload — ignore */ }
+            var purchase = DeserializeListenerPayload<Purchase>(json, "purchaseUpdated");
+            if (purchase is not null) _purchaseUpdated.OnNext(purchase);
         }));
 
         _module.AddPurchaseErrorListener(new EventBridge(json =>
@@ -89,33 +85,54 @@ internal sealed partial class OpenIapAndroid : IOpenIap, QueryResolver, Mutation
 
         _module.AddSubscriptionBillingIssueListener(new EventBridge(json =>
         {
-            try
-            {
-                var purchase = JsonSerializer.Deserialize<Purchase>(json, JsonOptions.Default);
-                if (purchase is not null) _subscriptionBillingIssue.OnNext(purchase);
-            }
-            catch (JsonException) { }
+            var purchase = DeserializeListenerPayload<Purchase>(json, "subscriptionBillingIssue");
+            if (purchase is not null) _subscriptionBillingIssue.OnNext(purchase);
         }));
 
         _module.AddUserChoiceBillingAndroidListener(new EventBridge(json =>
         {
-            try
-            {
-                var details = JsonSerializer.Deserialize<UserChoiceBillingDetails>(json, JsonOptions.Default);
-                if (details is not null) _userChoiceBillingAndroid.OnNext(details);
-            }
-            catch (JsonException) { }
+            var details = DeserializeListenerPayload<UserChoiceBillingDetails>(
+                json,
+                "userChoiceBillingAndroid");
+            if (details is not null) _userChoiceBillingAndroid.OnNext(details);
         }));
 
         _module.AddDeveloperProvidedBillingAndroidListener(new EventBridge(json =>
         {
-            try
-            {
-                var details = JsonSerializer.Deserialize<DeveloperProvidedBillingDetailsAndroid>(json, JsonOptions.Default);
-                if (details is not null) _developerProvidedBillingAndroid.OnNext(details);
-            }
-            catch (JsonException) { }
+            var details = DeserializeListenerPayload<DeveloperProvidedBillingDetailsAndroid>(
+                json,
+                "developerProvidedBillingAndroid");
+            if (details is not null) _developerProvidedBillingAndroid.OnNext(details);
         }));
+    }
+
+    private static T? DeserializeListenerPayload<T>(string json, string listenerName)
+        where T : class
+    {
+        try
+        {
+            return JsonSerializer.Deserialize<T>(json, JsonOptions.Default)
+                ?? throw new JsonException("Listener payload deserialized to null");
+        }
+        catch (JsonException ex)
+        {
+            ReportListenerFailure(listenerName, ex);
+            return null;
+        }
+        catch (NotSupportedException ex)
+        {
+            ReportListenerFailure(listenerName, ex);
+            return null;
+        }
+    }
+
+    private static void ReportListenerFailure(string listenerName, Exception exception)
+    {
+        // Do not include the raw payload: purchase events can contain receipt
+        // data and tokens. The listener and exception types are enough to expose
+        // bridge/schema drift without leaking purchase credentials.
+        Console.WriteLine(
+            $"[OpenIapAndroid] {listenerName} listener failed ({exception.GetType().Name})");
     }
 
     // -------------------------------------------------------------------

@@ -1060,6 +1060,15 @@ void main() {
         platform: types.IapPlatform.Android,
       );
       expect(responseMapped.code, types.ErrorCode.AlreadyOwned);
+
+      final notOwnedMapped = convertToPurchaseError(
+        PurchaseResult(
+          responseCode: 8,
+          message: 'item is not owned',
+        ),
+        platform: types.IapPlatform.Android,
+      );
+      expect(notOwnedMapped.code, types.ErrorCode.ItemNotOwned);
     });
 
     test('normalizeDynamicMap coerces keys and nested structures', () {

@@ -1354,34 +1354,34 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
             // Verify Purchase (Platform-specific, v8.0.0+)
             "verifyPurchase" -> {
                 val googleOptions = call.argument<Map<String, Any?>>("google")
+                val horizonOptions = call.argument<Map<String, Any?>>("horizon")
 
-                // Android only supports google options
-                if (googleOptions == null) {
-                    safe.error(OpenIapError.DeveloperError.CODE, "google options required for Android verification", null)
+                if ((googleOptions == null) == (horizonOptions == null)) {
+                    safe.error(
+                        OpenIapError.DeveloperError.CODE,
+                        "Exactly one of google or horizon options is required for Android verification",
+                        null
+                    )
                     return
                 }
 
-                val sku = googleOptions["sku"] as? String
-                val accessToken = googleOptions["accessToken"] as? String
-                val packageName = googleOptions["packageName"] as? String
-                val purchaseToken = googleOptions["purchaseToken"] as? String
-                val isSub = googleOptions["isSub"] as? Boolean
-
-                // Validate required fields (sensitive data check)
-                if (accessToken.isNullOrBlank()) {
-                    safe.error(OpenIapError.DeveloperError.CODE, "accessToken is required for Google verification", null)
-                    return
+                val optionName = if (googleOptions != null) "google" else "horizon"
+                val optionLabel = if (googleOptions != null) "Google" else "Horizon"
+                val selectedOptions = googleOptions ?: horizonOptions!!
+                val requiredFields = if (googleOptions != null) {
+                    listOf("accessToken", "packageName", "purchaseToken", "sku")
+                } else {
+                    listOf("accessToken", "sku", "userId")
                 }
-                if (packageName.isNullOrBlank()) {
-                    safe.error(OpenIapError.DeveloperError.CODE, "packageName is required for Google verification", null)
-                    return
+                val missingField = requiredFields.firstOrNull {
+                    (selectedOptions[it] as? String).isNullOrBlank()
                 }
-                if (purchaseToken.isNullOrBlank()) {
-                    safe.error(OpenIapError.DeveloperError.CODE, "purchaseToken is required for Google verification", null)
-                    return
-                }
-                if (sku.isNullOrBlank()) {
-                    safe.error(OpenIapError.DeveloperError.CODE, "sku is required for Google verification", null)
+                if (missingField != null) {
+                    safe.error(
+                        OpenIapError.DeveloperError.CODE,
+                        "$missingField is required for $optionLabel verification",
+                        null
+                    )
                     return
                 }
 
@@ -1394,50 +1394,25 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                                 return@withBillingReady
                             }
 
-                            // Build props for OpenIAP using new API structure
-                            val propsMap = mapOf(
-                                "google" to mapOf(
-                                    "sku" to sku,
-                                    "accessToken" to accessToken,
-                                    "packageName" to packageName,
-                                    "purchaseToken" to purchaseToken,
-                                    "isSub" to isSub
-                                )
-                            )
+                            // Forward the complete platform payload and let the generated
+                            // contract own both parsing and result serialization.
+                            val propsMap = mapOf(optionName to selectedOptions)
                             val props = dev.hyo.openiap.VerifyPurchaseProps.fromJson(propsMap)
-                            val result = iap.verifyPurchase(props)
-
-                            // Convert result to JSON
-                            val payload = JSONObject().apply {
-                                put("__typename", "VerifyPurchaseResultAndroid")
-                                // Add Android-specific result fields from OpenIAP result
-                                when (result) {
-                                    is dev.hyo.openiap.VerifyPurchaseResultAndroid -> {
-                                        put("autoRenewing", result.autoRenewing)
-                                        put("betaProduct", result.betaProduct)
-                                        result.cancelDate?.let { put("cancelDate", it) }
-                                        result.cancelReason?.let { put("cancelReason", it) }
-                                        result.deferredDate?.let { put("deferredDate", it) }
-                                        result.deferredSku?.let { put("deferredSku", it) }
-                                        put("freeTrialEndDate", result.freeTrialEndDate)
-                                        put("gracePeriodEndDate", result.gracePeriodEndDate)
-                                        put("parentProductId", result.parentProductId)
-                                        put("productId", result.productId)
-                                        put("productType", result.productType)
-                                        put("purchaseDate", result.purchaseDate)
-                                        put("quantity", result.quantity)
-                                        put("receiptId", result.receiptId)
-                                        put("renewalDate", result.renewalDate)
-                                        put("term", result.term)
-                                        put("termSku", result.termSku)
-                                        put("testTransaction", result.testTransaction)
-                                    }
-                                    else -> {
-                                        OpenIapLog.warn("Unexpected verification result type: ${result::class.simpleName}", TAG)
-                                    }
-                                }
+                            val hasParsedOptions = if (optionName == "google") {
+                                props.google != null
+                            } else {
+                                props.horizon != null
                             }
-                            safe.success(payload.toString())
+                            if (!hasParsedOptions) {
+                                safe.error(
+                                    OpenIapError.DeveloperError.CODE,
+                                    "Invalid $optionName options for Android verification",
+                                    null
+                                )
+                                return@withBillingReady
+                            }
+                            val result = iap.verifyPurchase(props)
+                            safe.success(JSONObject(result.toJson()).toString())
                         } catch (e: Exception) {
                             OpenIapLog.error("verifyPurchase error", e)
                             safe.error(OpenIapError.VerificationFailed.CODE, "Verification failed: ${e.message}", null)
@@ -1503,34 +1478,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                                 return@withBillingReady
                             }
                             val result = iap.verifyPurchaseWithProvider(props)
-
-                            // Convert result to JSON
-                            val iapkitResult = result.iapkit?.let { item ->
-                                JSONObject().apply {
-                                    put("isValid", item.isValid)
-                                    put("state", item.state.toJson())
-                                    put("store", item.store.toJson())
-                                    item.productId?.let { put("productId", it) }
-                                    item.clientPayload?.let { clientPayload ->
-                                        put(
-                                            "clientPayload",
-                                            JSONObject().apply {
-                                                put("format", clientPayload.format.toJson())
-                                                put("body", clientPayload.body)
-                                                put("version", clientPayload.version)
-                                                put("updatedAt", clientPayload.updatedAt)
-                                            }
-                                        )
-                                    }
-                                }
-                            }
-                            val payload = JSONObject().apply {
-                                put("provider", result.provider.toJson())
-                                if (iapkitResult != null) {
-                                    put("iapkit", iapkitResult)
-                                }
-                            }
-                            safe.success(payload.toString())
+                            safe.success(JSONObject(result.toJson()).toString())
                         } catch (e: Exception) {
                             OpenIapLog.error("verifyPurchaseWithProvider error", e)
                             safe.error(OpenIapError.VerificationFailed.CODE, "Verification failed: ${e.message}", null)

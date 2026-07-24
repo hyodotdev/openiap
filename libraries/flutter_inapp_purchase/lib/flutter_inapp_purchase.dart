@@ -1136,10 +1136,12 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           final statuses = <gentype.SubscriptionStatusIOS>[];
           for (final entry in asList) {
             if (entry is Map) {
-              final normalized = entry.map<String, dynamic>(
-                (key, value) => MapEntry(key.toString(), value),
-              );
-              statuses.add(gentype.SubscriptionStatusIOS.fromJson(normalized));
+              final normalized = normalizeDynamicMap(entry);
+              if (normalized != null) {
+                statuses.add(
+                  gentype.SubscriptionStatusIOS.fromJson(normalized),
+                );
+              }
             }
           }
           return statuses;
@@ -1202,11 +1204,10 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           }
 
           if (result is Map) {
-            return gentype.ProductIOS.fromJson(
-              result.map<String, dynamic>(
-                (key, value) => MapEntry(key.toString(), value),
-              ),
-            );
+            final normalized = normalizeDynamicMap(result);
+            return normalized == null
+                ? null
+                : gentype.ProductIOS.fromJson(normalized);
           }
 
           if (result is String) {
@@ -2019,16 +2020,17 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             );
           }
 
-          final validationResult = result.map<String, dynamic>(
-            (key, value) => MapEntry(key.toString(), value),
-          );
+          final validationResult = normalizeDynamicMap(result);
+          if (validationResult == null) {
+            throw PurchaseError(
+              code: gentype.ErrorCode.ServiceError,
+              message:
+                  'Invalid validation result received from native platform',
+            );
+          }
           final latestTransactionMap = validationResult['latestTransaction'];
           final latestTransaction = latestTransactionMap is Map
-              ? gentype.Purchase.fromJson(
-                  latestTransactionMap.map<String, dynamic>(
-                    (key, value) => MapEntry(key.toString(), value),
-                  ),
-                )
+              ? normalizeDynamicMap(latestTransactionMap)
               : null;
 
           return gentype.VerifyPurchaseResultIOS(
@@ -2036,7 +2038,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             jwsRepresentation:
                 validationResult['jwsRepresentation']?.toString() ?? '',
             receiptData: validationResult['receiptData']?.toString() ?? '',
-            latestTransaction: latestTransaction,
+            latestTransaction: latestTransaction == null
+                ? null
+                : gentype.Purchase.fromJson(latestTransaction),
           );
         } on PlatformException catch (error) {
           throw PurchaseError(
@@ -2345,17 +2349,23 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             );
           }
 
-          final Map<String, dynamic> resultMap;
+          final Map<String, dynamic>? resultMap;
           if (result is String) {
-            resultMap = jsonDecode(result) as Map<String, dynamic>;
+            resultMap = normalizeDynamicMap(jsonDecode(result));
           } else if (result is Map) {
-            resultMap = result.map<String, dynamic>(
-              (k, v) => MapEntry(k.toString(), v),
-            );
+            resultMap = normalizeDynamicMap(result);
           } else {
             throw PurchaseError(
               code: gentype.ErrorCode.PurchaseVerificationFailed,
               message: 'Unexpected result type: ${result.runtimeType}',
+            );
+          }
+
+          if (resultMap == null) {
+            throw PurchaseError(
+              code: gentype.ErrorCode.PurchaseVerificationFailed,
+              message:
+                  'Invalid verification result received from native platform',
             );
           }
 

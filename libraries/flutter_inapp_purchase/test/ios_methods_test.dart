@@ -257,6 +257,44 @@ void main() {
       expect(calls.last.method, 'getPromotedProductIOS');
     });
 
+    test('getPromotedProductIOS normalizes nested platform maps', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
+        if (methodCall.method == 'getPromotedProductIOS') {
+          return <Object?, Object?>{
+            'currency': 'USD',
+            'description': 'Subscription',
+            'displayNameIOS': 'Premium',
+            'displayPrice': r'$4.99',
+            'id': 'com.example.premium',
+            'isFamilyShareableIOS': true,
+            'jsonRepresentationIOS': '{}',
+            'platform': 'ios',
+            'price': 4.99,
+            'subscriptionInfoIOS': <Object?, Object?>{
+              'subscriptionGroupId': 'premium-group',
+              'subscriptionPeriod': <Object?, Object?>{
+                'unit': 'month',
+                'value': 1,
+              },
+            },
+            'title': 'Premium',
+            'type': 'subs',
+            'typeIOS': 'auto-renewable-subscription',
+          };
+        }
+        return null;
+      });
+
+      final product = await iap.getPromotedProductIOS();
+      expect(
+          product?.subscriptionInfoIOS?.subscriptionGroupId, 'premium-group');
+      expect(
+        product?.subscriptionInfoIOS?.subscriptionPeriod.unit,
+        SubscriptionPeriodIOS.Month,
+      );
+    });
+
     test('getPendingTransactionsIOS returns purchases list', () async {
       final list = await iap.getPendingTransactionsIOS();
       expect(list, isA<List<PurchaseIOS>>());
@@ -305,6 +343,43 @@ void main() {
       expect(result.isValid, isTrue);
       expect(result.latestTransaction, isA<Purchase>());
       expect(calls.last.method, 'validateReceiptIOS');
+    });
+
+    test('validateReceiptIOS normalizes a nested native transaction', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
+        if (methodCall.method == 'initConnection') {
+          return true;
+        }
+        if (methodCall.method == 'validateReceiptIOS') {
+          return <Object?, Object?>{
+            '__typename': 'VerifyPurchaseResultIOS',
+            'isValid': true,
+            'jwsRepresentation': 'nested-jws',
+            'receiptData': 'nested-receipt',
+            'latestTransaction': <Object?, Object?>{
+              '__typename': 'PurchaseIOS',
+              'id': 'nested-transaction',
+              'isAutoRenewing': false,
+              'platform': 'ios',
+              'productId': 'com.example.prod1',
+              'purchaseState': 'purchased',
+              'quantity': 1,
+              'store': 'apple',
+              'transactionDate': 1700000000000,
+              'transactionId': 'nested-transaction',
+            },
+          };
+        }
+        return null;
+      });
+
+      await iap.initConnection();
+      final result = await iap.validateReceiptIOS(
+        apple: const VerifyPurchaseAppleOptions(sku: 'com.example.prod1'),
+      );
+
+      expect(result.latestTransaction?.id, 'nested-transaction');
     });
 
     test('validateReceiptIOS throws when connection not initialized', () async {
@@ -404,6 +479,26 @@ void main() {
       expect(statuses, hasLength(1));
       expect(statuses.first.state, 'active');
       expect(calls.last.method, 'subscriptionStatusIOS');
+    });
+
+    test('subscriptionStatusIOS normalizes nested renewal info', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
+        if (methodCall.method == 'subscriptionStatusIOS') {
+          return <Object?>[
+            <Object?, Object?>{
+              'state': 'active',
+              'renewalInfo': <Object?, Object?>{
+                'willAutoRenew': true,
+              },
+            },
+          ];
+        }
+        return null;
+      });
+
+      final statuses = await iap.subscriptionStatusIOS('sku');
+      expect(statuses.single.renewalInfo?.willAutoRenew, isTrue);
     });
 
     test('subscriptionStatusIOS accepts string payload', () async {
