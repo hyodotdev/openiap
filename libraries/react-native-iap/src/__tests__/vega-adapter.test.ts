@@ -1181,6 +1181,34 @@ describe('Amazon Vega adapter', () => {
     );
   });
 
+  it('ignores blank Vega subscription identifiers', async () => {
+    const service = createService();
+    service.getPurchaseUpdates.mockResolvedValue({
+      responseCode: 1,
+      receiptList: [
+        {
+          receiptId: ' receipt-token-with-spaces ',
+          sku: '  ',
+          termSku: 'premium_monthly',
+          deferredSku: '  ',
+          productType: 3,
+          isDeferred: true,
+        },
+      ],
+    });
+    const module = createVegaIapModule(service);
+
+    await expect(module.getAvailablePurchases()).resolves.toEqual([
+      expect.objectContaining({
+        id: ' receipt-token-with-spaces ',
+        productId: 'premium_monthly',
+        purchaseToken: ' receipt-token-with-spaces ',
+        currentPlanId: 'premium_monthly',
+        pendingPurchaseUpdateAndroid: null,
+      }),
+    ]);
+  });
+
   it('verifies Vega receipts through IAPKit Amazon payload', async () => {
     const service = createService();
     const originalFetch = globalThis.fetch;

@@ -202,6 +202,10 @@ function Releases() {
           key="cross-sdk-payload-integrity-planned-2026-07-24"
           style={noteCardStyle}
         >
+          <span
+            id="flutter-purchase-payload-fix-planned-2026-07-24"
+            aria-hidden="true"
+          />
           <AnchorLink
             id="cross-sdk-payload-integrity-planned-2026-07-24"
             level="h4"

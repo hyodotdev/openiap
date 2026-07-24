@@ -1,5 +1,6 @@
 import fs from "node:fs";
 import path from "node:path";
+import ts from "typescript";
 
 // Purchase payload fields are discovered from generated native/GQL models.
 // This audit intentionally keeps only transport-only fields and documented
@@ -62,9 +63,106 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function skipNestedBlockComment(text, start) {
+  let depth = 1;
+  let index = start + 2;
+  while (index < text.length && depth > 0) {
+    if (text.startsWith("/*", index)) {
+      depth += 1;
+      index += 2;
+      continue;
+    }
+    if (text.startsWith("*/", index)) {
+      depth -= 1;
+      index += 2;
+      continue;
+    }
+    index += 1;
+  }
+  return index;
+}
+
+function skipLineComment(text, start) {
+  const end = text.indexOf("\n", start + 2);
+  return end < 0 ? text.length : end;
+}
+
+function maskDelimitedLiteral(text, start, end, delimiter) {
+  const literal = text.slice(start, end);
+  const closed = literal.endsWith(delimiter);
+  const closingStart = closed ? literal.length - delimiter.length : Infinity;
+  let masked = "";
+  for (let index = 0; index < literal.length; index += 1) {
+    const char = literal[index];
+    masked +=
+      char === "\n" || index < delimiter.length || index >= closingStart
+        ? char
+        : " ";
+  }
+  return masked;
+}
+
+function kotlinStringDescriptorAt(text, index) {
+  if (text.startsWith('"""', index)) {
+    return { delimiter: '"""', interpolates: true, raw: true };
+  }
+  if (text[index] === '"' || text[index] === "'") {
+    return { delimiter: text[index], interpolates: true, raw: false };
+  }
+  if (text[index] === "`") {
+    return { delimiter: "`", interpolates: false, raw: true };
+  }
+  return null;
+}
+
+function findKotlinInterpolationEnd(text, start) {
+  let depth = 1;
+  let index = start;
+  while (index < text.length && depth > 0) {
+    if (text.startsWith("//", index)) {
+      index = skipLineComment(text, index);
+      continue;
+    }
+    if (text.startsWith("/*", index)) {
+      index = skipNestedBlockComment(text, index);
+      continue;
+    }
+    const descriptor = kotlinStringDescriptorAt(text, index);
+    if (descriptor) {
+      index = findKotlinStringEnd(text, index, descriptor);
+      continue;
+    }
+    if (text[index] === "{") depth += 1;
+    else if (text[index] === "}") depth -= 1;
+    index += 1;
+  }
+  return index;
+}
+
+function findKotlinStringEnd(text, start, descriptor) {
+  const { delimiter, interpolates, raw } = descriptor;
+  let index = start + delimiter.length;
+  while (index < text.length) {
+    if (text.startsWith(delimiter, index)) {
+      return index + delimiter.length;
+    }
+    if (!raw && text[index] === "\\") {
+      index += 2;
+      continue;
+    }
+    if (interpolates && text[index] === "$" && text[index + 1] === "{") {
+      index = findKotlinInterpolationEnd(text, index + 2);
+      continue;
+    }
+    index += 1;
+  }
+  return text.length;
+}
+
 function maskKotlinCommentsAndStrings(text) {
   let masked = "";
   let state = "code";
+  let blockDepth = 0;
   let index = 0;
   while (index < text.length) {
     const char = text[index];
@@ -78,11 +176,18 @@ function maskKotlinCommentsAndStrings(text) {
       }
       if (char === "/" && next === "*") {
         state = "block";
+        blockDepth = 1;
         masked += "  ";
         index += 2;
         continue;
       }
-      if (char === '"') state = "string";
+      const descriptor = kotlinStringDescriptorAt(text, index);
+      if (descriptor) {
+        const end = findKotlinStringEnd(text, index, descriptor);
+        masked += maskDelimitedLiteral(text, index, end, descriptor.delimiter);
+        index = end;
+        continue;
+      }
       masked += char;
       index += 1;
       continue;
@@ -94,8 +199,15 @@ function maskKotlinCommentsAndStrings(text) {
       continue;
     }
     if (state === "block") {
+      if (char === "/" && next === "*") {
+        blockDepth += 1;
+        masked += "  ";
+        index += 2;
+        continue;
+      }
       if (char === "*" && next === "/") {
-        state = "code";
+        blockDepth -= 1;
+        if (blockDepth === 0) state = "code";
         masked += "  ";
         index += 2;
         continue;
@@ -104,24 +216,79 @@ function maskKotlinCommentsAndStrings(text) {
       index += 1;
       continue;
     }
-    if (char === "\\") {
-      masked += "  ";
-      index += 2;
-      continue;
-    }
-    if (char === '"') state = "code";
-    masked += char === '"' ? '"' : " ";
-    index += 1;
   }
   return masked;
 }
 
-// Dart uses both single- and double-quoted strings. Mask both while preserving
-// indices so structural scans cannot be confused by delimiters in literals.
+function hasDartRawStringPrefix(text, quoteIndex) {
+  const prefix = text[quoteIndex - 1];
+  const beforePrefix = text[quoteIndex - 2];
+  return (
+    (prefix === "r" || prefix === "R") &&
+    (beforePrefix === undefined || !/[A-Za-z0-9_$]/.test(beforePrefix))
+  );
+}
+
+function dartStringDescriptorAt(text, index) {
+  const char = text[index];
+  if (char !== "'" && char !== '"') return null;
+  return {
+    delimiter: text.startsWith(char.repeat(3), index) ? char.repeat(3) : char,
+    raw: hasDartRawStringPrefix(text, index),
+  };
+}
+
+function findDartInterpolationEnd(text, start) {
+  let depth = 1;
+  let index = start;
+  while (index < text.length && depth > 0) {
+    if (text.startsWith("//", index)) {
+      index = skipLineComment(text, index);
+      continue;
+    }
+    if (text.startsWith("/*", index)) {
+      index = skipNestedBlockComment(text, index);
+      continue;
+    }
+    const descriptor = dartStringDescriptorAt(text, index);
+    if (descriptor) {
+      index = findDartStringEnd(text, index, descriptor);
+      continue;
+    }
+    if (text[index] === "{") depth += 1;
+    else if (text[index] === "}") depth -= 1;
+    index += 1;
+  }
+  return index;
+}
+
+function findDartStringEnd(text, start, descriptor) {
+  const { delimiter, raw } = descriptor;
+  let index = start + delimiter.length;
+  while (index < text.length) {
+    if (text.startsWith(delimiter, index)) {
+      return index + delimiter.length;
+    }
+    if (!raw && text[index] === "\\") {
+      index += 2;
+      continue;
+    }
+    if (!raw && text[index] === "$" && text[index + 1] === "{") {
+      index = findDartInterpolationEnd(text, index + 2);
+      continue;
+    }
+    index += 1;
+  }
+  return text.length;
+}
+
+// Dart supports raw, multiline, and interpolated strings plus nested block
+// comments. Mask them while preserving indices so delimiters inside literals
+// and comments cannot confuse structural scans.
 function maskDartCommentsAndStrings(text) {
   let masked = "";
   let state = "code";
-  let quote = "";
+  let blockDepth = 0;
   let index = 0;
   while (index < text.length) {
     const char = text[index];
@@ -135,13 +302,17 @@ function maskDartCommentsAndStrings(text) {
       }
       if (char === "/" && next === "*") {
         state = "block";
+        blockDepth = 1;
         masked += "  ";
         index += 2;
         continue;
       }
-      if (char === "'" || char === '"') {
-        state = "string";
-        quote = char;
+      const descriptor = dartStringDescriptorAt(text, index);
+      if (descriptor) {
+        const end = findDartStringEnd(text, index, descriptor);
+        masked += maskDelimitedLiteral(text, index, end, descriptor.delimiter);
+        index = end;
+        continue;
       }
       masked += char;
       index += 1;
@@ -154,8 +325,15 @@ function maskDartCommentsAndStrings(text) {
       continue;
     }
     if (state === "block") {
+      if (char === "/" && next === "*") {
+        blockDepth += 1;
+        masked += "  ";
+        index += 2;
+        continue;
+      }
       if (char === "*" && next === "/") {
-        state = "code";
+        blockDepth -= 1;
+        if (blockDepth === 0) state = "code";
         masked += "  ";
         index += 2;
         continue;
@@ -164,31 +342,60 @@ function maskDartCommentsAndStrings(text) {
       index += 1;
       continue;
     }
-    if (char === "\\") {
-      masked += "  ";
-      index += 2;
-      continue;
-    }
-    if (char === quote) {
-      state = "code";
-      masked += char;
-    } else {
-      masked += char === "\n" ? "\n" : " ";
-    }
-    index += 1;
   }
   return masked;
 }
 
+function findTypeScriptLiteralRanges(text) {
+  const sourceFile = ts.createSourceFile(
+    "payload-audit.ts",
+    text,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  const ranges = [];
+  function visit(node) {
+    if (
+      node.kind === ts.SyntaxKind.RegularExpressionLiteral ||
+      node.kind === ts.SyntaxKind.StringLiteral ||
+      node.kind === ts.SyntaxKind.NoSubstitutionTemplateLiteral ||
+      node.kind === ts.SyntaxKind.TemplateExpression ||
+      node.kind === ts.SyntaxKind.TemplateLiteralType
+    ) {
+      ranges.push([node.getStart(sourceFile), node.end]);
+      return;
+    }
+    ts.forEachChild(node, visit);
+  }
+  visit(sourceFile);
+  return ranges.sort(([left], [right]) => left - right);
+}
+
 function maskTypeScriptCommentsAndStrings(text) {
+  const literalRanges = findTypeScriptLiteralRanges(text);
+  let literalRangeIndex = 0;
   let masked = "";
   let state = "code";
-  let quote = "";
   let index = 0;
   while (index < text.length) {
     const char = text[index];
     const next = text[index + 1];
     if (state === "code") {
+      while (
+        literalRanges[literalRangeIndex] &&
+        literalRanges[literalRangeIndex][0] < index
+      ) {
+        literalRangeIndex += 1;
+      }
+      const literalRange = literalRanges[literalRangeIndex];
+      if (literalRange?.[0] === index) {
+        const [start, end] = literalRange;
+        masked += text.slice(start, end).replace(/[^\n]/g, " ");
+        index = end;
+        literalRangeIndex += 1;
+        continue;
+      }
       if (char === "/" && next === "/") {
         state = "line";
         masked += "  ";
@@ -200,10 +407,6 @@ function maskTypeScriptCommentsAndStrings(text) {
         masked += "  ";
         index += 2;
         continue;
-      }
-      if (char === "'" || char === '"' || char === "`") {
-        state = "string";
-        quote = char;
       }
       masked += char;
       index += 1;
@@ -226,18 +429,6 @@ function maskTypeScriptCommentsAndStrings(text) {
       index += 1;
       continue;
     }
-    if (char === "\\") {
-      masked += "  ";
-      index += 2;
-      continue;
-    }
-    if (char === quote) {
-      state = "code";
-      masked += char;
-    } else {
-      masked += char === "\n" ? "\n" : " ";
-    }
-    index += 1;
   }
   return masked;
 }
@@ -1797,7 +1988,7 @@ function checkVegaPurchasePayloadContracts() {
     expectNamedExpression(
       entries,
       "currentPlanId",
-      /^type === ['"]subs['"] \? \(receipt\.termSku \?\? productId\) : null$/,
+      /^type === ['"]subs['"] \? \(nonBlankString\(receipt\.termSku\) \?\? productId\) : null$/,
       `${relativePath} mapReceipt`,
     );
     expectNamedExpression(
@@ -1809,9 +2000,13 @@ function checkVegaPurchasePayloadContracts() {
     const pendingUpdate = normalizeExpression(
       entries.get("pendingPurchaseUpdateAndroid") ?? "",
     );
+    const deferredSkuDeclaration = normalizeExpression(
+      mapper.body.match(/\bconst\s+deferredSku\s*=\s*([^;]+);/)?.[1] ?? "",
+    );
     if (
       !pendingUpdate.includes("receipt.isDeferred") ||
-      !pendingUpdate.includes("receipt.deferredSku") ||
+      !pendingUpdate.includes("deferredSku") ||
+      deferredSkuDeclaration !== "nonBlankString(receipt.deferredSku)" ||
       pendingUpdate.includes("receipt.termSku")
     ) {
       fail(
@@ -1929,6 +2124,15 @@ export function inspectNamedArguments(
     "payload parser fixture",
     mask,
   );
+  const issues = [...failures];
+  failures = previousFailures;
+  return { entries, issues };
+}
+
+export function inspectDartMapEntries(mapBody) {
+  const previousFailures = failures;
+  failures = [];
+  const entries = parseDartMapEntries(mapBody, "Dart map fixture");
   const issues = [...failures];
   failures = previousFailures;
   return { entries, issues };

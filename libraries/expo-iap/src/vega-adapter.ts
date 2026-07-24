@@ -560,8 +560,13 @@ function getSubscriptionPeriod(product: VegaProduct): string {
   return '';
 }
 
+function nonBlankString(value: unknown): string | null {
+  if (typeof value !== 'string') return null;
+  return value.trim().length > 0 ? value : null;
+}
+
 function getReceiptSku(receipt: VegaReceipt): string {
-  return receipt.sku ?? receipt.termSku ?? '';
+  return nonBlankString(receipt.sku) ?? nonBlankString(receipt.termSku) ?? '';
 }
 
 function getCachedProductType(
@@ -703,13 +708,15 @@ function mapReceipt(
   const type = productTypeToOpenIap(receipt.productType ?? fallbackProductType);
   const isCanceled = Boolean(receipt.isCancelled || receipt.cancelDate);
   const isActive = !isCanceled;
+  const deferredSku = nonBlankString(receipt.deferredSku);
 
   return {
     id: receiptId,
     productId,
     transactionDate: toTimestamp(receipt.purchaseDate),
     purchaseToken: receiptId,
-    currentPlanId: type === 'subs' ? (receipt.termSku ?? productId) : null,
+    currentPlanId:
+      type === 'subs' ? (nonBlankString(receipt.termSku) ?? productId) : null,
     ids: productId ? [productId] : [],
     platform: 'android',
     store: 'amazon',
@@ -727,8 +734,8 @@ function mapReceipt(
     developerPayloadAndroid: null,
     isSuspendedAndroid: false,
     pendingPurchaseUpdateAndroid:
-      receipt.isDeferred && receipt.deferredSku
-        ? {products: [receipt.deferredSku], purchaseToken: receiptId}
+      receipt.isDeferred && deferredSku
+        ? {products: [deferredSku], purchaseToken: receiptId}
         : null,
   };
 }
