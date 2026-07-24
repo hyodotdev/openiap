@@ -452,7 +452,10 @@ class ConnectionResult {
   ConnectionResult({this.msg});
 
   ConnectionResult.fromJSON(Map<String, dynamic> json)
-      : msg = json['msg'] as String?;
+      : msg = json['msg'] as String? ??
+            (json['connected'] is bool
+                ? ((json['connected'] as bool) ? 'connected' : 'disconnected')
+                : null);
 
   Map<String, dynamic> toJson() => {'msg': msg ?? ''};
 

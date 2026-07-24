@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
@@ -27,6 +28,39 @@ void main() {
     );
 
     expect(result, isEmpty);
+  });
+
+  test('extractPurchases does not log sensitive malformed payload data', () {
+    final previousDebugPrint = debugPrint;
+    final messages = <String>[];
+    debugPrint = (String? message, {int? wrapWidth}) {
+      if (message != null) messages.add(message);
+    };
+
+    try {
+      final result = extractPurchases(
+        <Map<String, dynamic>>[
+          <String, dynamic>{
+            'dataAndroid': '{"purchaseToken":"secret-native-token"}',
+            'platform': 'android',
+            'purchaseStateAndroid': 1,
+            'purchaseToken': 'secret-canonical-token',
+            'store': 'google',
+          },
+        ],
+        platformIsAndroid: true,
+        platformIsIOS: false,
+        acknowledgedAndroidPurchaseTokens: <String, bool>{},
+      );
+
+      expect(result, isEmpty);
+    } finally {
+      debugPrint = previousDebugPrint;
+    }
+
+    final output = messages.join('\n');
+    expect(output, isNot(contains('secret-native-token')));
+    expect(output, isNot(contains('secret-canonical-token')));
   });
 
   group('getActiveSubscriptions', () {
