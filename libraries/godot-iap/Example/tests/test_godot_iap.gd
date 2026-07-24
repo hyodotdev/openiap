@@ -21,9 +21,12 @@ class FakeAndroidPlugin:
 		last_config = JSON.parse_string(config_json)
 		return true
 
-	func requestPurchaseJson(params_json: String) -> String:
+	func requestPurchase(params_json: String) -> String:
 		last_purchase = JSON.parse_string(params_json)
 		return JSON.stringify({"success": true, "pending": true})
+
+	func requestPurchaseJson(params_json: String) -> String:
+		return requestPurchase(params_json)
 
 	func getAvailablePurchasesWithOptions(options_json: String) -> String:
 		last_purchase_options = JSON.parse_string(options_json)
@@ -159,6 +162,7 @@ func _run_all_tests() -> void:
 	test_create_purchase_error()
 	test_set_purchase_updated_listener_options()
 	test_enum_raw_mapping_helpers()
+	test_iapkit_verification_input_precedence()
 	test_product_from_dict_platform_guards()
 	test_connection_state_signal_handlers()
 
@@ -735,6 +739,28 @@ func test_enum_raw_mapping_helpers() -> void:
 		"Developer billing type enums should map to their wire strings"
 	)
 	_assert_equal(GodotIapPlugin._developer_billing_type_to_raw("external-link"), "external-link", "Raw developer billing type strings should pass through")
+
+
+func test_iapkit_verification_input_precedence() -> void:
+	var legacy_only = GodotIapPlugin._normalize_verify_purchase_with_provider_props({
+		"apiKey": "legacy-key",
+		"google": {"purchaseToken": "token"},
+	})
+	_assert_equal(legacy_only.get("provider"), "iapkit", "Legacy-only input should default to the IAPKit provider")
+	_assert_equal(legacy_only.get("iapkit", {}).get("apiKey"), "legacy-key", "Legacy-only input should be nested for 2.x compatibility")
+
+	var canonical = {"provider": "iapkit", "iapkit": {"apiKey": "canonical"}, "apiKey": "legacy"}
+	var canonical_normalized = GodotIapPlugin._normalize_verify_purchase_with_provider_props(canonical)
+	_assert_equal(canonical_normalized.get("iapkit", {}).get("apiKey"), "canonical", "Canonical IAPKit input must win over flattened compatibility input")
+
+	var canonical_null = {"provider": "iapkit", "iapkit": null, "apiKey": "legacy"}
+	var null_normalized = GodotIapPlugin._normalize_verify_purchase_with_provider_props(canonical_null)
+	_assert_true(null_normalized.has("iapkit"), "Explicit canonical null must remain present")
+	_assert_equal(null_normalized.get("iapkit"), null, "Explicit canonical null must not revive flattened input")
+	_assert_true(
+		GodotIapPlugin._emitted_legacy_wire_warnings.has("flattened IAPKit verification keys"),
+		"Flattened IAPKit input should emit one migration warning"
+	)
 
 
 func test_product_from_dict_platform_guards() -> void:

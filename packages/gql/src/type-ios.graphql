@@ -64,7 +64,7 @@ iOS subscription offer details.
 """
 type SubscriptionOfferIOS
   @openiapDeprecated(
-    reason: "Use the standardized SubscriptionOffer type instead for cross-platform compatibility."
+    reason: "Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0."
   ) {
   displayPrice: String!
   id: ID!
@@ -136,7 +136,7 @@ type ProductIOS implements ProductCommon {
   # Deprecated platform-specific field
   subscriptionInfoIOS: SubscriptionInfoIOS
     @deprecated(
-      reason: "Use subscriptionOffers instead for cross-platform compatibility."
+      reason: "Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0."
     )
 }
 
@@ -182,12 +182,12 @@ type ProductSubscriptionIOS implements ProductCommon {
   # Deprecated legacy iOS fields
   subscriptionInfoIOS: SubscriptionInfoIOS
     @deprecated(
-      reason: "Use subscriptionOffers for offer metadata and subscriptionGroupIdIOS for the App Store subscription group identifier."
+      reason: "Use subscriptionOffers for offer metadata and subscriptionGroupIdIOS for the App Store subscription group identifier. Scheduled for removal in OpenIAP 3.0."
     )
 
   discountsIOS: [DiscountIOS!]
     @deprecated(
-      reason: "Use subscriptionOffers instead for cross-platform compatibility."
+      reason: "Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0."
     )
 
   introductoryPriceIOS: String
@@ -205,7 +205,7 @@ Discount information returned from the store.
 """
 type DiscountIOS
   @openiapDeprecated(
-    reason: "Use the standardized SubscriptionOffer type instead for cross-platform compatibility."
+    reason: "Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0."
   ) {
   identifier: String!
   type: String!
@@ -232,7 +232,7 @@ type PurchaseIOS implements PurchaseCommon {
   Store where purchase was made
   """
   store: IapStore!
-  platform: IapPlatform! @deprecated(reason: "Use store instead")
+  platform: IapPlatform! @deprecated(reason: "Use store instead. Scheduled for removal in OpenIAP 3.0.")
   quantity: Int!
   purchaseState: PurchaseState!
   isAutoRenewing: Boolean!
@@ -540,7 +540,7 @@ iOS DiscountOffer (output type).
 """
 type DiscountOfferIOS
   @openiapDeprecated(
-    reason: "Use the standardized SubscriptionOffer type instead for cross-platform compatibility."
+    reason: "Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0."
   ) {
   """
   Discount identifier

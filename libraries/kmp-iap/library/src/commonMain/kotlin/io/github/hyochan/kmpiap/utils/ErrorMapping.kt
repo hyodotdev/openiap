@@ -1,3 +1,7 @@
+// Historical OpenIAP error aliases remain accepted throughout kmp-iap 2.x.
+// Consumer enum usage still warns; remove these mappings in kmp-iap 3.
+@file:Suppress("DEPRECATION")
+
 package io.github.hyochan.kmpiap.utils
 
 import io.github.hyochan.kmpiap.openiap.ErrorCode

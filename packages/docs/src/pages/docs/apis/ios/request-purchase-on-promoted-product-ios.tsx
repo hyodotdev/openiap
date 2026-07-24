@@ -39,10 +39,16 @@ function RequestPurchaseOnPromotedProductIOS() {
 
       <div className="alert-card alert-card--warning">
         <p>
-          <strong>Deprecated.</strong> In StoreKit 2, promoted products fire
-          promotedProductListenerIOS with the productId — call requestPurchase
-          with that SKU. Use{' '}
+          <strong>Deprecated.</strong> In StoreKit 2, promoted products fire the
+          package&apos;s promoted-product listener or callback with the product
+          ID — call <code>requestPurchase</code> with that SKU. Use{' '}
           <Link to="/docs/apis/request-purchase">requestPurchase</Link> instead.
+          The schema/native operation is scheduled for removal in OpenIAP 3.0;
+          framework copies remain only through each package major listed in the{' '}
+          <Link to="/docs/updates/deprecations#removal-schedule">
+            deprecation schedule
+          </Link>
+          .
         </p>
       </div>
 
@@ -54,14 +60,14 @@ function RequestPurchaseOnPromotedProductIOS() {
 func requestPurchaseOnPromotedProductIOS() async throws -> Bool`}</CodeBlock>
           ),
           kotlin: (
-            <CodeBlock language="kotlin">{`@Deprecated("Use promotedProductListenerIOS + requestPurchase instead")
+            <CodeBlock language="kotlin">{`@Deprecated("Use promotedProductListener + requestPurchase instead")
 suspend fun requestPurchaseOnPromotedProductIOS(): Boolean`}</CodeBlock>
           ),
           typescript: (
             <CodeBlock language="typescript">{`requestPurchaseOnPromotedProductIOS(): Promise<boolean>`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`@Deprecated('Use promotedProductListenerIOS + requestPurchase instead')
+            <CodeBlock language="dart">{`@Deprecated('Use purchasePromoted + requestPurchase instead')
 Future<bool> requestPurchaseOnPromotedProductIOS();`}</CodeBlock>
           ),
           csharp: (
@@ -82,7 +88,7 @@ Task<bool> RequestPurchaseOnPromotedProductIOSAsync();`}</CodeBlock>
         was dispatched.
       </p>
 
-      <h2>Example</h2>
+      <h2>Legacy example (migration reference only)</h2>
       <LanguageTabs>
         {{
           swift: (
@@ -91,7 +97,7 @@ try await OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()`}</CodeBloc
           ),
           kotlin: (
             <CodeBlock language="kotlin">{`// kmp-iap (iOS targets only — no-op on Android)
-// Deprecated — prefer promotedProductListenerIOS + requestPurchase.
+// Deprecated — prefer promotedProductListener + requestPurchase.
 kmpIAP.requestPurchaseOnPromotedProductIOS()`}</CodeBlock>
           ),
           typescript: (
@@ -104,7 +110,7 @@ if (Platform.OS === 'ios') {
 }`}</CodeBlock>
           ),
           dart: (
-            <CodeBlock language="dart">{`// Deprecated — prefer promotedProductListenerIOS + requestPurchase.
+            <CodeBlock language="dart">{`// Deprecated — prefer purchasePromoted + requestPurchase.
 if (Platform.isIOS) {
   await FlutterInappPurchase.instance.requestPurchaseOnPromotedProductIOS();
 }`}</CodeBlock>
@@ -114,11 +120,12 @@ if (Platform.isIOS) {
 using OpenIap.Maui;
 
 // maui-iap (iOS targets only — not supported on Android)
-// Deprecated — prefer promotedProductListenerIOS + requestPurchase.
+// Deprecated — prefer PromotedProductIOS + RequestPurchaseAsync.
 await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseOnPromotedProductIOSAsync();`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`if iap.get_platform() == "iOS":
+            <CodeBlock language="gdscript">{`# Deprecated — prefer promoted_product_ios + request_purchase.
+if iap.get_platform() == "iOS":
     var ok = await iap.request_purchase_on_promoted_product_ios()`}</CodeBlock>
           ),
         }}

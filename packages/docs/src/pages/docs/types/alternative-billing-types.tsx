@@ -73,15 +73,19 @@ function AlternativeBillingTypes() {
           <Link to="/docs/types/billing-programs#billing-program-android">
             <code>BillingProgramAndroid</code>
           </Link>{' '}
-          instead.
+          instead. The schema/native type is scheduled for removal in OpenIAP
+          3.0; generated framework copies remain through their package-specific
+          majors in the{' '}
+          <Link to="/docs/updates/deprecations#removal-schedule">
+            deprecation schedule
+          </Link>
+          .
           <ul style={{ marginBottom: 0 }}>
             <li>
-              <code>USER_CHOICE</code> →{' '}
-              <code>BillingProgramAndroid.USER_CHOICE_BILLING</code>
+              <code>user-choice</code> → <code>user-choice-billing</code>
             </li>
             <li>
-              <code>ALTERNATIVE_ONLY</code> →{' '}
-              <code>BillingProgramAndroid.EXTERNAL_OFFER</code>
+              <code>alternative-only</code> → <code>external-offer</code>
             </li>
           </ul>
         </div>
@@ -535,6 +539,7 @@ await FlutterInappPurchase.instance.requestPurchase(
     google: RequestSubscriptionAndroidProps(
       skus: ['premium_subscription'],
     ),
+    // Compatibility-only placeholder required by the generated 9.x record.
     useAlternativeBilling: null,
   )),
 );
@@ -645,6 +650,21 @@ func _exit_tree() -> void:
             ),
           }}
         </LanguageTabs>
+
+        <div className="alert-card alert-card--warning">
+          <p>
+            <strong>Flutter 9.x record compatibility:</strong>{' '}
+            <code>useAlternativeBilling: null</code> in the Dart example is only
+            a required placeholder in the generated positional record. Configure{' '}
+            <code>enableBillingProgramAndroid</code> on{' '}
+            <code>initConnection</code> instead. The deprecated field is removed
+            in <code>flutter_inapp_purchase 10.0.0</code>; see the{' '}
+            <Link to="/docs/updates/deprecations#flutter-10-package-migrations">
+              Flutter 10 migration notes
+            </Link>
+            .
+          </p>
+        </div>
 
         <AnchorLink id="alternative-only-example" level="h4">
           Alternative Billing Only Complete Example

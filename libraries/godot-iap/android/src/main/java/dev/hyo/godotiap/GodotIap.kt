@@ -28,16 +28,31 @@ import dev.hyo.openiap.LaunchExternalLinkParamsAndroid as OpenIapLaunchExternalL
 internal fun normalizeVerifyPurchaseWithProviderProps(
     props: Map<String, Any?>,
 ): Map<String, Any?> {
-    if (props["iapkit"] != null) return props
+    val legacyKeys =
+        listOf("amazon", "apiKey", "apple", "baseUrl", "google", "includeClientPayload")
+    val suppliedLegacyKeys = legacyKeys.filter(props::containsKey)
+    if (suppliedLegacyKeys.isNotEmpty()) {
+        GodotIapLog.deprecation(
+            "verify-purchase-with-provider.flattened-iapkit",
+            "Flattened IAPKit verification keys are deprecated and will be removed in " +
+                "godot-iap 3.0.0. Nest them under `iapkit` instead.",
+        )
+    }
+    // Canonical key presence is authoritative, including an explicit null.
+    // Never revive flattened compatibility input when `iapkit` was supplied.
+    if (props.containsKey("iapkit")) return props
 
     val legacyIapkit = linkedMapOf<String, Any?>()
-    listOf("amazon", "apiKey", "apple", "baseUrl", "google", "includeClientPayload").forEach { key ->
+    legacyKeys.forEach { key ->
         if (props[key] != null) {
             legacyIapkit[key] = props[key]
         }
     }
     if (legacyIapkit.isEmpty()) return props
 
+    // Compatibility bridge for callers that bypass the public GDScript wrapper.
+    // Flattened IAPKit verification keys are deprecated. Nest them under
+    // `iapkit`; remove this bridge in godot-iap 3.0.0.
     return linkedMapOf(
         "provider" to (props["provider"] ?: PurchaseVerificationProvider.Iapkit.toJson()),
         "iapkit" to legacyIapkit,
@@ -242,7 +257,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
         return runBlocking {
             try {
-                // Parse request JSON: { "skus": [...], "type": "all" | "inapp" | "subs" }
+                // Parse request JSON: { "skus": [...], "type": "all" | "in-app" | "subs" }
                 val request = JSONObject(requestJson)
                 val skusArray = request.optJSONArray("skus") ?: JSONArray()
                 val skus = mutableListOf<String>()
@@ -250,13 +265,10 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                     skus.add(skusArray.getString(i))
                 }
 
-                // Parse type from request (default to "all")
-                val typeStr = request.optString("type", "all")
-                val queryType = when (typeStr) {
-                    "inapp" -> ProductQueryType.InApp
-                    "subs" -> ProductQueryType.Subs
-                    else -> ProductQueryType.All
-                }
+                val queryType = GodotIapHelper.parseProductQueryType(
+                    rawType = request.optString("type", ProductQueryType.All.toJson()),
+                    defaultType = ProductQueryType.All,
+                )
 
                 val result = store.fetchProducts(ProductRequest(skus = skus, type = queryType))
                 val productsArray = JSONArray()
@@ -328,7 +340,11 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             val params = GodotIapHelper.parseRequestPurchaseParams(paramsJson)
 
             // Determine product type
-            val productType = GodotIapHelper.parseProductQueryType(params.type)
+            val productType = GodotIapHelper.parseProductQueryType(
+                rawType = params.type,
+                defaultType = ProductQueryType.InApp,
+                allowAll = false,
+            )
 
             // Build request props based on product type (exactly like expo-iap)
             when (productType) {
@@ -358,7 +374,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                         obfuscatedAccountId = params.obfuscatedAccountId,
                         obfuscatedProfileId = params.obfuscatedProfileId,
                         developerBillingOption = params.developerBillingOption,
-                        offerToken = params.offerTokenArr.firstOrNull(),
+                        offerToken = params.offerToken,
                         skus = params.skus
                     )
                     RequestPurchaseProps(
@@ -402,7 +418,15 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
     }
 
     @UsedByGodot
-    fun requestPurchaseJson(paramsJson: String): String = requestPurchase(paramsJson)
+    fun requestPurchaseJson(paramsJson: String): String {
+        GodotIapLog.deprecation(
+            key = "requestPurchaseJson",
+            message =
+                "requestPurchaseJson is deprecated and will be removed in godot-iap 3.0.0; " +
+                    "use requestPurchase instead.",
+        )
+        return requestPurchase(paramsJson)
+    }
 
     @UsedByGodot
     fun finishTransaction(purchaseJson: String, isConsumable: Boolean): String {

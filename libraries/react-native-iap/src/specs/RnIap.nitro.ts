@@ -256,7 +256,7 @@ export interface NitroRequestPurchaseAndroid {
    */
   offerToken?: string | null;
   subscriptionOffers?: AndroidSubscriptionOfferInput[] | null;
-  /** @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+) */
+  /** @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+). Scheduled for removal in react-native-iap 16.0.0. */
   replacementMode?: RequestSubscriptionAndroidProps['replacementMode'];
   purchaseToken?: RequestSubscriptionAndroidProps['purchaseToken'];
   /** Original external transaction ID for developer-billed subscription replacement (9.1.0+). */
@@ -271,9 +271,9 @@ export interface NitroRequestPurchaseAndroid {
 }
 
 export interface NitroPurchaseRequest {
-  /** @deprecated Use apple instead */
+  /** @deprecated Use apple instead. Scheduled for removal in react-native-iap 16.0.0. */
   ios?: NitroRequestPurchaseIos | null;
-  /** @deprecated Use google instead */
+  /** @deprecated Use google instead. Scheduled for removal in react-native-iap 16.0.0. */
   android?: NitroRequestPurchaseAndroid | null;
   /** Apple-specific purchase parameters */
   apple?: NitroRequestPurchaseIos | null;
@@ -614,7 +614,7 @@ export interface NitroPurchase {
   purchaseToken?: PurchaseCommon['purchaseToken'];
   currentPlanId?: PurchaseCommon['currentPlanId'];
   ids?: PurchaseCommon['ids'];
-  /** @deprecated Use store instead */
+  /** @deprecated Use store instead. Scheduled for removal in react-native-iap 16.0.0. */
   platform: IapPlatform;
   /** Store where purchase was made */
   store: IapStore;
@@ -674,6 +674,7 @@ export interface NitroActiveSubscription {
   // iOS specific fields
   expirationDateIOS?: ActiveSubscription['expirationDateIOS'];
   environmentIOS?: ActiveSubscription['environmentIOS'];
+  /** @deprecated Use daysUntilExpirationIOS instead. Scheduled for removal in react-native-iap 16.0.0. */
   willExpireSoon?: ActiveSubscription['willExpireSoon'];
   daysUntilExpirationIOS?: ActiveSubscription['daysUntilExpirationIOS'];
   renewalInfoIOS?: NitroRenewalInfoIOS | null; // 🆕 Key field for upgrade/downgrade detection
@@ -720,7 +721,9 @@ export interface NitroProduct {
   isFamilyShareableIOS?: null | boolean;
   jsonRepresentationIOS?: string | null;
   pricingTermsIOS?: string | null;
+  /** @deprecated Use subscriptionOffers and subscriptionGroupIdIOS instead. Scheduled for removal in react-native-iap 16.0.0. */
   subscriptionInfoIOS?: string | null;
+  /** @deprecated Use subscriptionOffers instead. Scheduled for removal in react-native-iap 16.0.0. */
   discountsIOS?: string | null;
   introductoryPriceIOS?: string | null;
   introductoryPriceAsAmountIOS?: number | null;
@@ -744,7 +747,9 @@ export interface NitroProduct {
   introductoryPriceValueAndroid?: number | null;
   subscriptionPeriodAndroid?: string | null;
   freeTrialPeriodAndroid?: string | null;
+  /** @deprecated Use subscriptionOffers instead. Scheduled for removal in react-native-iap 16.0.0. */
   subscriptionOfferDetailsAndroid?: string | null;
+  /** @deprecated Use discountOffers instead. Scheduled for removal in react-native-iap 16.0.0. */
   oneTimePurchaseOfferDetailsAndroid?: NitroOneTimePurchaseOfferDetail[] | null;
   /**
    * Product-level status code indicating fetch result (Android 8.0+)
@@ -784,7 +789,7 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
   /**
    * Fetch products from the store
    * @param skus - Array of product SKUs to fetch
-   * @param type - Type of products: 'inapp' or 'subs'
+   * @param type - Type of products: 'in-app' or 'subs'
    * @returns Promise<NitroProduct[]> - Array of products from the store
    */
   fetchProducts(skus: string[], type: string): Promise<NitroProduct[]>;
@@ -905,6 +910,8 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
    * Request the promoted product from the App Store (iOS only)
    * @returns Promise<NitroProduct | null> - The promoted product or null if none available
    * @platform iOS
+   * @deprecated Use `getPromotedProductIOS` instead. This compatibility alias
+   * will be removed in react-native-iap 16.0.0.
    */
   requestPromotedProductIOS(): Promise<NitroProduct | null>;
 
@@ -1041,6 +1048,8 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
    *
    * @returns Promise<string> - Base64 encoded receipt data containing all app transactions
    * @platform iOS
+   * @deprecated Use `getReceiptDataIOS` instead. This compatibility alias will
+   * be removed in react-native-iap 16.0.0.
    * @see getReceiptDataIOS for full documentation
    * @see getTransactionJwsIOS for validating individual transactions (recommended)
    */
@@ -1095,7 +1104,8 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
 
   /**
    * Validate a receipt on the appropriate platform
-   * @deprecated Use `verifyPurchase` instead. This function will be removed in a future version.
+   * @deprecated Use `verifyPurchase` instead. This function will be removed in
+   * react-native-iap 16.0.0.
    * @param params - Receipt validation parameters including SKU and platform-specific options
    * @returns Promise<NitroReceiptValidationResultIOS | NitroReceiptValidationResultAndroid> - Platform-specific validation result
    */
@@ -1144,6 +1154,8 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
    * @returns Promise<boolean> - true if available, false otherwise
    * @throws Error if billing client not ready
    * @platform Android
+   * @deprecated Use `isBillingProgramAvailableAndroid('external-offer')`
+   * instead. Scheduled for removal in react-native-iap 16.0.0.
    */
   checkAlternativeBillingAvailabilityAndroid(): Promise<boolean>;
 
@@ -1155,6 +1167,8 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
    * @returns Promise<boolean> - true if user accepted, false if user canceled
    * @throws Error if billing client not ready
    * @platform Android
+   * @deprecated Use `launchExternalLinkAndroid` instead. Scheduled for removal in
+   * react-native-iap 16.0.0.
    */
   showAlternativeBillingDialogAndroid(): Promise<boolean>;
 
@@ -1168,6 +1182,9 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
    * @returns Promise<string | null> - Token string or null if creation failed
    * @throws Error if billing client not ready
    * @platform Android
+   * @deprecated Use
+   * `createBillingProgramReportingDetailsAndroid('external-offer')` instead.
+   * Scheduled for removal in react-native-iap 16.0.0.
    */
   createAlternativeBillingTokenAndroid(
     sku?: string | null,

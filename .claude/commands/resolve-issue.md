@@ -19,6 +19,14 @@ Analyze a GitHub issue, add labels, and either fix it with a PR or comment with 
 
 - `$ARGUMENTS` - Issue number (e.g., `88`) or issue URL
 
+## Public GitHub Language Guard
+
+Before creating or editing an issue, issue comment, or related pull request,
+apply the English-only public communication policy in
+`knowledge/internal/06-git-deployment.md#public-github-communication-language`.
+Inspect the complete public title/body payload before sending it, even when the
+maintainer requested the work in another language.
+
 ## Instructions
 
 When this command is executed, perform the following:

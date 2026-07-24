@@ -184,12 +184,20 @@ android {
         <CodeBlock language="xml">{`<meta-data
     android:name="com.meta.horizon.platform.HORIZON_APP_ID"
     android:value="YOUR_HORIZON_APP_ID" />`}</CodeBlock>
-        <p>
-          OpenIAP still reads the older <code>...ovr.OCULUS_APP_ID</code>,{' '}
-          <code>...ovr.HORIZON_APP_ID</code>, and{' '}
-          <code>com.oculus.vr.APP_ID</code> keys for migration. New setup should
-          use the Horizon 2.x canonical key above.
-        </p>
+        <div className="alert-card alert-card--warning">
+          <p>
+            <strong>Deprecated manifest aliases.</strong> OpenIAP still reads{' '}
+            <code>com.meta.horizon.platform.ovr.OCULUS_APP_ID</code>,{' '}
+            <code>com.meta.horizon.platform.ovr.HORIZON_APP_ID</code>, and{' '}
+            <code>com.oculus.vr.APP_ID</code> for migration only. Replace them
+            with <code>com.meta.horizon.platform.HORIZON_APP_ID</code> now; the
+            legacy aliases are scheduled for removal in OpenIAP 3.0. See the{' '}
+            <Link to="/docs/updates/deprecations#removal-schedule">
+              package compatibility migration table
+            </Link>
+            .
+          </p>
+        </div>
       </section>
 
       <section>

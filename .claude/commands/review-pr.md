@@ -31,6 +31,14 @@ When reviewing, check these project-specific rules:
 
 See [CLAUDE.md](../../CLAUDE.md) and [knowledge/internal/](../../knowledge/internal/) for full conventions.
 
+## Public GitHub Language Guard
+
+Before posting any review reply or PR conversation comment, apply the
+English-only public communication policy in
+`knowledge/internal/06-git-deployment.md#public-github-communication-language`.
+Inspect the complete reply body before sending it; a private maintainer's
+language is not the language of the public reply.
+
 ## Response Rules (CRITICAL)
 
 **NEVER respond with "will address in a follow-up" or "will fix later".** Fix ALL review comments NOW in the current PR. Every comment must be addressed with a code fix and committed before replying. No exceptions.

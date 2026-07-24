@@ -501,7 +501,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
     /// Buy the currently promoted product.
     /// See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
-    @available(*, deprecated, message: "Use promotedProductListenerIOS + requestPurchase instead")
+    @available(*, deprecated, message: "Use promotedProductListenerIOS + requestPurchase instead. Scheduled for removal in OpenIAP 3.0.")
     public func requestPurchaseOnPromotedProductIOS() async throws -> Bool {
         #if os(iOS)
         guard let sku = await state.promotedProductIdentifier() else {
@@ -753,8 +753,9 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     /// Deprecated. Legacy App Store receipt validation. Use `verifyPurchase` instead.
+    /// Scheduled for removal in OpenIAP 3.0.
     /// See: https://openiap.dev/docs/apis/ios/validate-receipt-ios
-    @available(*, deprecated, message: "Use verifyPurchase")
+    @available(*, deprecated, message: "Use verifyPurchase instead. Scheduled for removal in OpenIAP 3.0.")
     public func validateReceiptIOS(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS {
         try await performVerifyPurchaseIOS(props)
     }
@@ -794,8 +795,9 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     /// Deprecated. Use verifyPurchase instead — same input/output shape.
+    /// Scheduled for removal in OpenIAP 3.0.
     /// See: https://openiap.dev/docs/apis/validate-receipt
-    @available(*, deprecated, message: "Use verifyPurchase")
+    @available(*, deprecated, message: "Use verifyPurchase instead. Scheduled for removal in OpenIAP 3.0.")
     public func validateReceipt(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResult {
         try await verifyPurchase(props)
     }
@@ -1036,7 +1038,9 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     /// Deprecated. Use cross-platform `getStorefront` instead.
+    /// Scheduled for removal in OpenIAP 3.0.
     /// See: https://openiap.dev/docs/apis/ios/get-storefront-ios
+    @available(*, deprecated, message: "Use getStorefront instead. Scheduled for removal in OpenIAP 3.0.")
     public func getStorefrontIOS() async throws -> String {
         try await getStorefront()
     }

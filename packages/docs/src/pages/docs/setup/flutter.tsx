@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
 import { ANDROID_SDK, FLUTTER_PACKAGE } from '../../../lib/versioning';
@@ -198,6 +199,29 @@ function FlutterSetup() {
           </a>
         </h2>
 
+        <div
+          style={{
+            padding: '1rem',
+            background: 'rgba(220, 104, 67, 0.1)',
+            borderLeft: '4px solid var(--accent-color)',
+            borderRadius: '0.5rem',
+            margin: '1rem 0',
+          }}
+        >
+          <strong>Android purchase JSON migration:</strong> the public Purchase
+          field is <code>dataAndroid</code>. The planned Flutter 9.6.1 patch
+          reads that canonical key and temporarily accepts{' '}
+          <code>originalJsonAndroid</code> as a fallback input alias for the
+          remainder of 9.x. The alias is not emitted as a public Purchase field
+          and will be removed in <code>flutter_inapp_purchase 10.0.0</code>.
+          Update custom native adapters, MethodChannel fixtures, and mocks to
+          emit <code>dataAndroid</code> now. See{' '}
+          <Link to="/docs/updates/deprecations#flutter-original-json-android">
+            Deprecations &amp; 3.0 Migration
+          </Link>
+          .
+        </div>
+
         <h3 id="basic-setup" className="anchor-heading">
           Basic Setup
           <a href="#basic-setup" className="anchor-link">
@@ -283,12 +307,29 @@ for (final product in products) {
             #
           </a>
         </h3>
+        <div className="alert-card alert-card--warning">
+          <p>
+            <strong>Flutter 9.x record compatibility:</strong> the generated
+            positional purchase records currently require{' '}
+            <code>useAlternativeBilling: null</code> as a placeholder. This is
+            not configuration and must not be set to <code>true</code>; use{' '}
+            <code>enableBillingProgramAndroid</code> on{' '}
+            <code>initConnection</code> when a billing program is needed. The
+            deprecated record field is removed in{' '}
+            <code>flutter_inapp_purchase 10.0.0</code>. See the{' '}
+            <Link to="/docs/updates/deprecations#flutter-10-package-migrations">
+              Flutter 10 migration notes
+            </Link>
+            .
+          </p>
+        </div>
         <CodeBlock language="dart">
           {`// Request purchase (results come through purchaseUpdatedListener)
 await iap.requestPurchase(
   RequestPurchaseProps.inApp((
     apple: RequestPurchaseIosProps(sku: 'premium'),
     google: RequestPurchaseAndroidProps(skus: ['premium']),
+    // Compatibility-only placeholder required by the generated 9.x record.
     useAlternativeBilling: null,
   )),
 );
@@ -301,6 +342,7 @@ await iap.requestPurchase(
       skus: ['monthly_pro'],
       subscriptionOffers: [offer],
     ),
+    // Compatibility-only placeholder required by the generated 9.x record.
     useAlternativeBilling: null,
   )),
 );`}

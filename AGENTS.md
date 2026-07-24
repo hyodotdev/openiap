@@ -67,6 +67,13 @@ openiap/
 
 ## Key Rules Summary
 
+### Public Collaboration Language
+
+All repository-authored public GitHub content must be written in English.
+Before posting or editing issues, pull requests, reviews, discussions, commits,
+release notes, or GitHub Releases, follow the mandatory language guard in
+[`knowledge/internal/06-git-deployment.md`](knowledge/internal/06-git-deployment.md#public-github-communication-language).
+
 ### Platform Function Naming
 
 - **iOS functions**: Must end with `IOS` suffix (e.g., `syncIOS`, `getStorefrontIOS`)

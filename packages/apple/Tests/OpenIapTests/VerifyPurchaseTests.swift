@@ -131,6 +131,102 @@ final class VerifyPurchaseTests: XCTestCase {
     }
 
     @MainActor
+    func testConveniencePurchaseUsesCanonicalAppleField() async throws {
+        let module = FakeOpenIapModule(
+            validateResult: .verifyPurchaseResultIos(makeVerifyPurchaseResult())
+        )
+        let store = OpenIapStore(module: module)
+
+        _ = try await store.requestPurchase(sku: "dev.hyo.coins", type: .inApp)
+
+        guard case let .purchase(platforms)? = module.lastRequestPurchaseProps?.request else {
+            return XCTFail("Expected the purchase union branch")
+        }
+        XCTAssertEqual(platforms.apple?.sku, "dev.hyo.coins")
+        XCTAssertNil(platforms.ios)
+    }
+
+    @MainActor
+    func testConvenienceSubscriptionUsesCanonicalAppleField() async throws {
+        let module = FakeOpenIapModule(
+            validateResult: .verifyPurchaseResultIos(makeVerifyPurchaseResult())
+        )
+        let store = OpenIapStore(module: module)
+
+        _ = try await store.requestPurchase(sku: "dev.hyo.premium", type: .subs)
+
+        guard case let .subscription(platforms)? = module.lastRequestPurchaseProps?.request else {
+            return XCTFail("Expected the subscription union branch")
+        }
+        XCTAssertEqual(platforms.apple?.sku, "dev.hyo.premium")
+        XCTAssertNil(platforms.ios)
+    }
+
+    func testStoreSkuResolverPrefersCanonicalAppleAcrossUnionBranches() {
+        let purchase = RequestPurchaseProps(
+            request: .purchase(RequestPurchasePropsByPlatforms(
+                apple: RequestPurchaseIosProps(sku: "dev.hyo.purchase.apple"),
+                ios: RequestPurchaseIosProps(sku: "dev.hyo.purchase.legacy")
+            ))
+        )
+        let subscription = RequestPurchaseProps(
+            request: .subscription(RequestSubscriptionPropsByPlatforms(
+                apple: RequestSubscriptionIosProps(sku: "dev.hyo.subscription.apple"),
+                ios: RequestSubscriptionIosProps(sku: "dev.hyo.subscription.legacy")
+            ))
+        )
+
+        XCTAssertEqual(
+            OpenIapStorePurchaseRequestResolver.sku(from: purchase),
+            "dev.hyo.purchase.apple"
+        )
+        XCTAssertEqual(
+            OpenIapStorePurchaseRequestResolver.sku(from: subscription),
+            "dev.hyo.subscription.apple"
+        )
+    }
+
+    func testStoreSkuResolverFallsBackToLegacyIosAndWarnsOnce() {
+        let purchase = RequestPurchaseProps(
+            request: .purchase(RequestPurchasePropsByPlatforms(
+                ios: RequestPurchaseIosProps(sku: "dev.hyo.purchase.legacy")
+            ))
+        )
+        let subscription = RequestPurchaseProps(
+            request: .subscription(RequestSubscriptionPropsByPlatforms(
+                ios: RequestSubscriptionIosProps(sku: "dev.hyo.subscription.legacy")
+            ))
+        )
+        let warningKey = "VerifyPurchaseTests.\(UUID().uuidString)"
+        var warnings: [String] = []
+        OpenIapLog.handler = { level, message in
+            if level == .warn {
+                warnings.append(message)
+            }
+        }
+        defer { OpenIapLog.handler = nil }
+
+        XCTAssertEqual(
+            OpenIapStorePurchaseRequestResolver.sku(
+                from: purchase,
+                legacyWarningKey: warningKey
+            ),
+            "dev.hyo.purchase.legacy"
+        )
+        XCTAssertEqual(
+            OpenIapStorePurchaseRequestResolver.sku(
+                from: subscription,
+                legacyWarningKey: warningKey
+            ),
+            "dev.hyo.subscription.legacy"
+        )
+
+        XCTAssertEqual(warnings.count, 1)
+        XCTAssertTrue(warnings[0].contains("`ios`"))
+        XCTAssertTrue(warnings[0].contains("OpenIAP 3.0"))
+    }
+
+    @MainActor
     func testStorePublishesSubscriptionBillingIssue() async {
         let purchase = makePurchase(id: "billing-issue-transaction")
         let callback = expectation(description: "subscription billing issue callback")
@@ -207,6 +303,7 @@ private final class FakeOpenIapModule: OpenIapModuleProtocol {
     private(set) var deepLinkCallCount = 0
     private(set) var lastDeepLinkOptions: DeepLinkOptions?
     private(set) var lastPurchaseOptions: PurchaseOptions?
+    private(set) var lastRequestPurchaseProps: RequestPurchaseProps?
 
     init(
         validateResult: VerifyPurchaseResult,
@@ -238,7 +335,10 @@ private final class FakeOpenIapModule: OpenIapModuleProtocol {
     func getPromotedProductIOS() async throws -> ProductIOS? { nil }
 
     // MARK: - Purchase Management
-    func requestPurchase(_ params: RequestPurchaseProps) async throws -> RequestPurchaseResult? { nil }
+    func requestPurchase(_ params: RequestPurchaseProps) async throws -> RequestPurchaseResult? {
+        lastRequestPurchaseProps = params
+        return nil
+    }
     func requestPurchaseOnPromotedProductIOS() async throws -> Bool { false }
     func restorePurchases() async throws -> Void { restorePurchasesCallCount += 1 }
     func getAvailablePurchases(_ options: PurchaseOptions?) async throws -> [Purchase] {

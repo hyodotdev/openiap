@@ -351,7 +351,11 @@ internal fun buildAmazonPurchase(
  */
 internal suspend fun unsupportedRedeemOfferCode(): Boolean = false
 
-class OpenIapModule(
+class OpenIapModule
+    @Deprecated(
+        "Use OpenIapModule(context) and register listeners with add/remove APIs; Amazon ignores alternative-billing constructor options. Scheduled for removal in OpenIAP 3.0."
+    )
+    constructor(
     private val context: Context,
     @Suppress("UNUSED_PARAMETER")
     private var alternativeBillingMode: AlternativeBillingMode = AlternativeBillingMode.NONE,
@@ -361,11 +365,22 @@ class OpenIapModule(
     private var developerProvidedBillingListener: DeveloperProvidedBillingListener? = null
 ) : OpenIapProtocol, PurchasingListener {
 
+    @Suppress("DEPRECATION")
+    constructor(context: Context) : this(
+        context,
+        AlternativeBillingMode.NONE,
+        null,
+        null
+    )
+
     private class AmazonPurchaseRequestFailure(
         val requestId: String,
         val purchaseError: OpenIapError,
     ) : Exception(purchaseError.message, purchaseError)
 
+    @Deprecated(
+        "Use OpenIapModule(context) instead; Amazon ignores alternative-billing constructor options. Scheduled for removal in OpenIAP 3.0."
+    )
     constructor(context: Context, enableAlternativeBilling: Boolean) : this(
         context,
         if (enableAlternativeBilling) AlternativeBillingMode.ALTERNATIVE_ONLY else AlternativeBillingMode.NONE,
@@ -428,18 +443,18 @@ class OpenIapModule(
                 when (response.requestStatus) {
                     UserDataResponse.RequestStatus.SUCCESSFUL -> true
                     UserDataResponse.RequestStatus.NOT_SUPPORTED -> {
-                        OpenIapLog.w("Amazon initConnection not supported on this device", TAG)
+                        OpenIapLog.warn("Amazon initConnection not supported on this device", TAG)
                         false
                     }
                     UserDataResponse.RequestStatus.FAILED -> {
-                        OpenIapLog.w("Amazon initConnection user data request failed", TAG)
+                        OpenIapLog.warn("Amazon initConnection user data request failed", TAG)
                         false
                     }
                 }
             } catch (error: CancellationException) {
                 throw error
             } catch (error: Throwable) {
-                OpenIapLog.e("Amazon initConnection failed: ${error.message}", error, TAG)
+                OpenIapLog.error("Amazon initConnection failed: ${error.message}", error, TAG)
                 false
             }
         }
@@ -671,7 +686,7 @@ class OpenIapModule(
                             )
                         }
                         if (!receipt.sku.isNullOrBlank() && receipt.sku != sku) {
-                            OpenIapLog.w(
+                            OpenIapLog.warn(
                                 "Amazon receipt SKU '${receipt.sku}' differs from requested SKU '$sku'. " +
                                     "Using the requested SKU for the OpenIAP purchase productId; " +
                                     "align the Amazon catalog and App Tester data for restore and server verification.",
@@ -774,12 +789,12 @@ class OpenIapModule(
             val intent = Intent(Intent.ACTION_VIEW, Uri.parse("amzn://apps/android?p=${context.packageName}"))
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             runCatching { context.startActivity(intent) }
-                .onFailure { OpenIapLog.w("Amazon subscription deep link unavailable: ${it.message}", TAG) }
+                .onFailure { OpenIapLog.warn("Amazon subscription deep link unavailable: ${it.message}", TAG) }
             Unit
         }
     }
 
-    @Deprecated("Use verifyPurchase")
+    @Deprecated("Use verifyPurchase instead. Scheduled for removal in OpenIAP 3.0.")
     override val validateReceipt: MutationValidateReceiptHandler = {
         verifyPurchase(it)
     }
@@ -961,21 +976,33 @@ class OpenIapModule(
 
     override fun removeSubscriptionBillingIssueListener(listener: OpenIapSubscriptionBillingIssueListener) = Unit
 
+    @Deprecated(
+        "Use addUserChoiceBillingListener and removeUserChoiceBillingListener instead. Scheduled for removal in OpenIAP 3.0."
+    )
     override fun setUserChoiceBillingListener(listener: UserChoiceBillingListener?) {
         userChoiceBillingListener = listener
     }
 
+    @Deprecated(
+        "Use addDeveloperProvidedBillingListener and removeDeveloperProvidedBillingListener instead. Scheduled for removal in OpenIAP 3.0."
+    )
     override fun setDeveloperProvidedBillingListener(listener: DeveloperProvidedBillingListener?) {
         developerProvidedBillingListener = listener
     }
 
-    @Deprecated("Amazon Appstore does not support Google Play alternative billing")
+    @Deprecated(
+        "Use isBillingProgramAvailable with BillingProgramAndroid.ExternalOffer instead; Amazon Appstore does not support Google Play alternative billing. Scheduled for removal in OpenIAP 3.0."
+    )
     override suspend fun checkAlternativeBillingAvailability(): Boolean = false
 
-    @Deprecated("Amazon Appstore does not support Google Play alternative billing")
+    @Deprecated(
+        "Use launchExternalLink instead; Amazon Appstore does not support Google Play alternative billing. Scheduled for removal in OpenIAP 3.0."
+    )
     override suspend fun showAlternativeBillingInformationDialog(activity: Activity): Boolean = false
 
-    @Deprecated("Amazon Appstore does not support Google Play alternative billing")
+    @Deprecated(
+        "Use createBillingProgramReportingDetails with BillingProgramAndroid.ExternalOffer instead; Amazon Appstore does not support Google Play alternative billing. Scheduled for removal in OpenIAP 3.0."
+    )
     override suspend fun createAlternativeBillingReportingToken(): String? = null
 
     override suspend fun isBillingProgramAvailable(
@@ -999,7 +1026,7 @@ class OpenIapModule(
 
     override suspend fun openRedeemOfferCode(activity: Activity): Boolean {
         // No-op: offer-code redemption is a Google Play feature, not supported on Amazon Appstore
-        OpenIapLog.w("openRedeemOfferCode is not supported on Amazon (no-op)", TAG)
+        OpenIapLog.warn("openRedeemOfferCode is not supported on Amazon (no-op)", TAG)
         return unsupportedRedeemOfferCode()
     }
 
@@ -1457,7 +1484,7 @@ class OpenIapModule(
     ) {
         if (timedOutRequestIds.remove(requestId)) {
             requestLifecycle.complete(requestId)
-            OpenIapLog.w(
+            OpenIapLog.warn(
                 "Ignoring late Amazon Appstore response for aborted request $requestId",
                 TAG
             )
@@ -1470,7 +1497,7 @@ class OpenIapModule(
                 if (!deferred.isCompleted) deferred.complete(value)
             }
             if (!accepted) {
-                OpenIapLog.w(
+                OpenIapLog.warn(
                     "Ignoring Amazon Appstore response for an ended request $requestId",
                     TAG,
                 )
@@ -1483,7 +1510,7 @@ class OpenIapModule(
                 earlyResponses[requestId] = value
             }
         ) {
-            OpenIapLog.w(
+            OpenIapLog.warn(
                 "Ignoring Amazon Appstore response for unknown request $requestId",
                 TAG,
             )
@@ -1527,7 +1554,7 @@ class OpenIapModule(
             PurchasingService.notifyFulfillment(purchaseToken, FulfillmentResult.FULFILLED)
             true
         }.getOrElse {
-            OpenIapLog.w("Amazon $operation failed: ${it.message}", TAG)
+            OpenIapLog.warn("Amazon $operation failed: ${it.message}", TAG)
             false
         }
     }

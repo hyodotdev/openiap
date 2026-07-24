@@ -44,6 +44,8 @@ export interface LibraryInfo {
   displayName: string;
   frameworkName: string;
   homeLabel: string;
+  version: string;
+  deprecatedApiRemovalVersion: string;
   setupPath: string;
   language: string;
   description: string;
@@ -63,6 +65,8 @@ export const LIBRARIES: LibraryInfo[] = [
     displayName: 'expo-iap',
     frameworkName: 'Expo',
     homeLabel: 'Expo',
+    version: EXPO_PACKAGE.version,
+    deprecatedApiRemovalVersion: '5.0.0',
     setupPath: '/docs/setup/expo',
     language: 'TypeScript',
     description: 'React Native & Expo (Expo Modules)',
@@ -81,6 +85,8 @@ export const LIBRARIES: LibraryInfo[] = [
     displayName: 'react-native-iap',
     frameworkName: 'React Native',
     homeLabel: 'React Native',
+    version: REACT_NATIVE_PACKAGE.version,
+    deprecatedApiRemovalVersion: '16.0.0',
     setupPath: '/docs/setup/react-native',
     language: 'TypeScript',
     description: 'Bare React Native (Nitro Modules)',
@@ -99,6 +105,8 @@ export const LIBRARIES: LibraryInfo[] = [
     displayName: 'flutter_inapp_purchase',
     frameworkName: 'Flutter',
     homeLabel: 'Flutter',
+    version: FLUTTER_PACKAGE.version,
+    deprecatedApiRemovalVersion: '10.0.0',
     setupPath: '/docs/setup/flutter',
     language: 'Dart',
     description: 'Flutter',
@@ -116,6 +124,8 @@ export const LIBRARIES: LibraryInfo[] = [
     displayName: 'kmp-iap',
     frameworkName: 'Kotlin Multiplatform',
     homeLabel: 'KMP',
+    version: KMP_PACKAGE.version,
+    deprecatedApiRemovalVersion: '3.0.0',
     setupPath: '/docs/setup/kmp',
     language: 'Kotlin',
     description: 'Kotlin Multiplatform',
@@ -134,6 +144,8 @@ export const LIBRARIES: LibraryInfo[] = [
     displayName: 'maui-iap',
     frameworkName: '.NET MAUI',
     homeLabel: '.NET MAUI',
+    version: MAUI_PACKAGE.version,
+    deprecatedApiRemovalVersion: '2.0.0',
     setupPath: '/docs/setup/maui',
     language: 'C#',
     description: '.NET MAUI / C#',
@@ -152,6 +164,8 @@ export const LIBRARIES: LibraryInfo[] = [
     displayName: 'godot-iap',
     frameworkName: 'Godot',
     homeLabel: 'Godot',
+    version: GODOT_PACKAGE.version,
+    deprecatedApiRemovalVersion: '3.0.0',
     setupPath: '/docs/setup/godot',
     language: 'GDScript',
     description: 'Godot (GDScript)',

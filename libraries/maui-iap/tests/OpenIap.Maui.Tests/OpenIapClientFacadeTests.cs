@@ -27,7 +27,9 @@ public class OpenIapClientFacadeTests
             var initial = OpenIapClient.Instance;
             Assert.IsType<UnsupportedOpenIap>(initial);
             Assert.Same(initial, OpenIapClient.Instance);
+#pragma warning disable CS0618 // Exercise the legacy facade until its 2.0.0 removal.
             Assert.Same(initial, Iap.Instance);
+#pragma warning restore CS0618
 
             // Listener contract defaults: every stream is a non-null empty
             // observable that accepts subscriptions and never emits.
@@ -55,11 +57,15 @@ public class OpenIapClientFacadeTests
             var fakeA = new DisposableFakeIap();
             OpenIapClient.OverrideInstance(fakeA);
             Assert.Same(fakeA, OpenIapClient.Instance);
+#pragma warning disable CS0618 // Exercise the legacy facade until its 2.0.0 removal.
             Assert.Same(fakeA, Iap.Instance);
+#pragma warning restore CS0618
 
             // …disposing the replaced instance when it is IDisposable…
             var fakeB = new DisposableFakeIap();
+#pragma warning disable CS0618 // Exercise the legacy facade until its 2.0.0 removal.
             Iap.OverrideInstance(fakeB);
+#pragma warning restore CS0618
             Assert.True(fakeA.Disposed);
             Assert.Same(fakeB, OpenIapClient.Instance);
 

@@ -1,3 +1,7 @@
+// BillingClient.SERVICE_TIMEOUT remains part of the supported response-code
+// compatibility map even though the upstream constant is deprecated.
+@file:Suppress("DEPRECATION")
+
 package dev.hyo.openiap
 
 import com.android.billingclient.api.BillingClient

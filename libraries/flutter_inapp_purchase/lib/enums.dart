@@ -38,7 +38,10 @@ enum OfferType { introductory, promotional, code, winBack }
 enum BillingClientState { disconnected, connecting, connected, closed }
 
 /// Replacement mode (Android)
-@Deprecated('Use AndroidReplacementMode')
+@Deprecated(
+  'Use AndroidReplacementMode. '
+  'Scheduled for removal in flutter_inapp_purchase 10.0.0.',
+)
 enum ReplacementMode {
   withTimeProration,
   chargeProratedPrice,
@@ -48,7 +51,10 @@ enum ReplacementMode {
 }
 
 /// Replace mode (Android)
-@Deprecated('Use AndroidReplacementMode')
+@Deprecated(
+  'Use AndroidReplacementMode. '
+  'Scheduled for removal in flutter_inapp_purchase 10.0.0.',
+)
 enum ReplaceMode {
   withTimeProration,
   chargeProratedPrice,
@@ -57,7 +63,14 @@ enum ReplaceMode {
   chargeFullPrice,
 }
 
-/// A enumeration of in-app purchase types for Android
+/// An enumeration of legacy in-app purchase types for Android.
+///
+/// Use the generated [ProductQueryType] contract. Scheduled for removal in
+/// flutter_inapp_purchase 10.0.0.
+@Deprecated(
+  'Use ProductQueryType. '
+  'Scheduled for removal in flutter_inapp_purchase 10.0.0.',
+)
 enum TypeInApp { inapp, subs }
 
 /// Android purchase states from Google Play Billing

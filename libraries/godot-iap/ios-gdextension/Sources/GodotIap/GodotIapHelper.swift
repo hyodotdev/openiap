@@ -66,29 +66,59 @@ enum GodotIapHelper {
 
     // MARK: - Parsing
 
-    /// Parse product query type from string.
-    /// Handles various formats: "subs", "in-app", "inapp", "all"
-    static func parseProductQueryType(_ rawValue: String?) -> ProductQueryType {
+    /// Parse an OpenIAP product query type without silently changing an
+    /// unknown value into another query class.
+    static func parseProductQueryType(
+        _ rawValue: String?,
+        defaultType: ProductQueryType = .all,
+        allowAll: Bool = true
+    ) throws -> ProductQueryType {
         guard let raw = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty
         else {
-            return .all
+            return defaultType
         }
+
+        let parsed: ProductQueryType
         switch raw.lowercased() {
-        case "inapp", "in-app", ProductQueryType.inApp.rawValue:
-            return .inApp
-        case "subs", "subscription", ProductQueryType.subs.rawValue:
-            return .subs
+        case ProductQueryType.inApp.rawValue:
+            parsed = .inApp
+        case ProductQueryType.subs.rawValue:
+            parsed = .subs
         case ProductQueryType.all.rawValue:
-            return .all
+            parsed = .all
+        case "inapp", "in_app":
+            warnLegacyWireInput(raw, replacement: ProductQueryType.inApp.rawValue)
+            parsed = .inApp
+        case "subscription", "subscriptions":
+            warnLegacyWireInput(raw, replacement: ProductQueryType.subs.rawValue)
+            parsed = .subs
         default:
-            return .all
+            throw PurchaseError.make(
+                code: .developerError,
+                message: "Unknown product query type '\(rawValue ?? "")'. Expected in-app, subs, or all."
+            )
         }
+
+        if !allowAll, parsed == .all {
+            throw PurchaseError.make(
+                code: .developerError,
+                message: "Product query type 'all' is not valid for a purchase request."
+            )
+        }
+        return parsed
     }
 
     /// Decode ProductRequest from JSON dictionary.
     static func decodeProductRequest(from payload: [String: Any]) throws -> ProductRequest {
+        let hasIndexedSkus = payload.keys.contains { Int($0) != nil }
+        if hasIndexedSkus {
+            warnLegacyWireInput("indexed SKU keys", replacement: "skus")
+        }
         if let skus = payload["skus"] as? [String], !skus.isEmpty {
-            let type = parseProductQueryType(payload["type"] as? String)
+            let type = try parseProductQueryType(
+                payload["type"] as? String,
+                defaultType: .all
+            )
             return try OpenIapSerialization.productRequest(skus: skus, type: type)
         }
 
@@ -99,11 +129,22 @@ enum GodotIapHelper {
             .compactMap { payload[String($0)] as? String }
 
         if !indexedSkus.isEmpty {
-            return try OpenIapSerialization.productRequest(skus: indexedSkus, type: .all)
+            let type = try parseProductQueryType(
+                payload["type"] as? String,
+                defaultType: .all
+            )
+            return try OpenIapSerialization.productRequest(skus: indexedSkus, type: type)
         }
 
         // Try direct decode
-        if let request = try? OpenIapSerialization.decode(object: payload, as: ProductRequest.self) {
+        var normalized = payload
+        if payload["type"] != nil {
+            normalized["type"] = try parseProductQueryType(
+                payload["type"] as? String,
+                defaultType: .all
+            ).rawValue
+        }
+        if let request = try? OpenIapSerialization.decode(object: normalized, as: ProductRequest.self) {
             return request
         }
 
@@ -112,24 +153,59 @@ enum GodotIapHelper {
 
     /// Decode RequestPurchaseProps from JSON dictionary.
     static func decodeRequestPurchaseProps(from payload: [String: Any]) throws -> RequestPurchaseProps {
+        if payload["request"] != nil {
+            warnLegacyWireInput(
+                "request",
+                replacement: "requestPurchase or requestSubscription"
+            )
+        }
+        if payload["sku"] != nil {
+            warnLegacyWireInput(
+                "top-level sku purchase payload",
+                replacement: "requestPurchase.apple.sku"
+            )
+        }
+
         // Check for explicit requestPurchase or requestSubscription
         if payload["requestPurchase"] != nil || payload["requestSubscription"] != nil {
-            return try OpenIapSerialization.decode(object: payload, as: RequestPurchaseProps.self)
+            if payload["requestPurchase"] != nil, payload["requestSubscription"] != nil {
+                throw PurchaseError.make(
+                    code: .developerError,
+                    message: "Choose either requestPurchase or requestSubscription, not both."
+                )
+            }
+            var normalized = payload
+            let hasSubscription = payload["requestSubscription"] != nil
+            let branch = hasSubscription ? "requestSubscription" : "requestPurchase"
+            if let platformPayload = payload[branch] {
+                normalized[branch] = normalizeApplePlatformPayload(platformPayload)
+            }
+            normalized["type"] = try parseProductQueryType(
+                payload["type"] as? String,
+                defaultType: hasSubscription ? .subs : .inApp,
+                allowAll: false
+            ).rawValue
+            warnDeprecatedPurchaseFlag(in: payload)
+            return try OpenIapSerialization.decode(object: normalized, as: RequestPurchaseProps.self)
         }
 
         // Handle "request" wrapper
         if let request = payload["request"] {
-            let parsedType = parseProductQueryType(payload["type"] as? String)
-            let purchaseType: ProductQueryType = parsedType == .all ? .inApp : parsedType
+            let purchaseType = try parseProductQueryType(
+                payload["type"] as? String,
+                defaultType: .inApp,
+                allowAll: false
+            )
             var normalized: [String: Any] = ["type": purchaseType.rawValue]
             switch purchaseType {
             case .subs:
-                normalized["requestSubscription"] = request
+                normalized["requestSubscription"] = normalizeApplePlatformPayload(request)
             case .inApp:
-                normalized["requestPurchase"] = request
+                normalized["requestPurchase"] = normalizeApplePlatformPayload(request)
             case .all:
                 break
             }
+            warnDeprecatedPurchaseFlag(in: payload)
             return try OpenIapSerialization.decode(object: normalized, as: RequestPurchaseProps.self)
         }
 
@@ -137,11 +213,45 @@ enum GodotIapHelper {
         if payload["sku"] != nil {
             let normalized: [String: Any] = [
                 "type": ProductQueryType.inApp.rawValue,
-                "requestPurchase": ["ios": payload],
+                "requestPurchase": ["apple": payload],
             ]
             return try OpenIapSerialization.decode(object: normalized, as: RequestPurchaseProps.self)
         }
 
         throw PurchaseError.make(code: .developerError, message: "Invalid request payload")
+    }
+
+    private static func normalizeApplePlatformPayload(_ payload: Any) -> Any {
+        guard var platforms = payload as? [String: Any] else {
+            return payload
+        }
+        if let legacy = platforms["ios"] {
+            warnLegacyWireInput("ios", replacement: "apple")
+            if !platforms.keys.contains("apple") {
+                platforms["apple"] = legacy
+            }
+            platforms.removeValue(forKey: "ios")
+        }
+        return platforms
+    }
+
+    private static func warnDeprecatedPurchaseFlag(in payload: [String: Any]) {
+        if payload["useAlternativeBilling"] != nil {
+            warnLegacyWireInput(
+                "useAlternativeBilling",
+                replacement: "enableBillingProgramAndroid in InitConnectionConfig"
+            )
+        }
+    }
+
+    private static func warnLegacyWireInput(
+        _ legacyName: String,
+        replacement: String
+    ) {
+        GodotIapLog.deprecation(
+            "wire:\(legacyName)",
+            "`\(legacyName)` is deprecated and will be removed in godot-iap 3.0.0; " +
+                "use `\(replacement)` instead."
+        )
     }
 }

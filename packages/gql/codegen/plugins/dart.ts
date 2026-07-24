@@ -472,8 +472,8 @@ export class DartPlugin extends CodegenPlugin {
     this.emit('  Map<String, dynamic> toJson() {');
     this.emit('    return {');
     this.emit("      'requestPurchase': {");
-    this.emit(`        if (props.${appleName} != null) 'ios': props.${appleName}!.toJson(),`);
-    this.emit(`        if (props.${googleName} != null) 'android': props.${googleName}!.toJson(),`);
+    this.emit(`        if (props.${appleName} != null) 'apple': props.${appleName}!.toJson(),`);
+    this.emit(`        if (props.${googleName} != null) 'google': props.${googleName}!.toJson(),`);
     this.emit('      },');
     this.emit("      'type': ProductQueryType.InApp.toJson(),");
     this.emit("      if (props.useAlternativeBilling != null) 'useAlternativeBilling': props.useAlternativeBilling,");
@@ -495,8 +495,8 @@ export class DartPlugin extends CodegenPlugin {
     this.emit('  Map<String, dynamic> toJson() {');
     this.emit('    return {');
     this.emit("      'requestSubscription': {");
-    this.emit(`        if (props.${appleName} != null) 'ios': props.${appleName}!.toJson(),`);
-    this.emit(`        if (props.${googleName} != null) 'android': props.${googleName}!.toJson(),`);
+    this.emit(`        if (props.${appleName} != null) 'apple': props.${appleName}!.toJson(),`);
+    this.emit(`        if (props.${googleName} != null) 'google': props.${googleName}!.toJson(),`);
     this.emit('      },');
     this.emit("      'type': ProductQueryType.Subs.toJson(),");
     this.emit("      if (props.useAlternativeBilling != null) 'useAlternativeBilling': props.useAlternativeBilling,");

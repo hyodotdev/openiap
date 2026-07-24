@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
+import 'deprecation.dart';
 import 'errors.dart' as iap_err;
 import 'flutter_inapp_purchase.dart';
 import 'types.dart' as gentype;
@@ -10,27 +11,90 @@ final _billingPeriodRegExp = RegExp(r'^P(\d+)([DWMY])$');
 
 String resolveProductType(Object type) {
   if (type is String) {
+    if (type == 'inapp') {
+      warnLegacyOnce(
+        'product-type.raw-inapp',
+        'The product type `inapp` is deprecated and will be removed in '
+            'flutter_inapp_purchase 10.0.0. Use `in-app` instead.',
+      );
+      return 'in-app';
+    }
     return type;
   }
   if (type is TypeInApp) {
-    return type.name;
+    warnLegacyOnce(
+      'product-type.type-in-app',
+      'TypeInApp is deprecated and will be removed in '
+          'flutter_inapp_purchase 10.0.0. Use ProductQueryType instead.',
+    );
+    return type == TypeInApp.inapp ? 'in-app' : 'subs';
   }
   if (type is gentype.ProductType) {
-    return type == gentype.ProductType.InApp
-        ? TypeInApp.inapp.name
-        : TypeInApp.subs.name;
+    return type == gentype.ProductType.InApp ? 'in-app' : 'subs';
   }
   if (type is gentype.ProductQueryType) {
     switch (type) {
       case gentype.ProductQueryType.InApp:
-        return TypeInApp.inapp.name;
+        return 'in-app';
       case gentype.ProductQueryType.Subs:
-        return TypeInApp.subs.name;
+        return 'subs';
       case gentype.ProductQueryType.All:
         return 'all';
     }
   }
-  return TypeInApp.inapp.name;
+  return 'in-app';
+}
+
+dynamic _canonicalOrLegacy(
+  Map<String, dynamic> payload, {
+  required String canonicalKey,
+  required String legacyKey,
+  required String warningKey,
+  required String message,
+}) {
+  if (payload.containsKey(canonicalKey)) {
+    return payload[canonicalKey];
+  }
+
+  final legacy = payload[legacyKey];
+  if (legacy != null) {
+    warnLegacyOnce(warningKey, message);
+  }
+  return legacy;
+}
+
+String _resolveProductId(Map<String, dynamic> json) {
+  if (json.containsKey('id')) {
+    return json['id']?.toString() ?? '';
+  }
+
+  if (json.containsKey('productId')) {
+    final legacyProductId = json['productId'];
+    if (legacyProductId != null) {
+      warnLegacyOnce(
+        'product.productId',
+        'The product `productId` field is deprecated and will be removed in '
+            'flutter_inapp_purchase 10.0.0. Use `id` instead.',
+      );
+    }
+    return legacyProductId?.toString() ?? '';
+  }
+
+  if (json.containsKey('sku')) {
+    final legacySku = json['sku'];
+    if (legacySku != null) {
+      warnLegacyOnce(
+        'product.sku',
+        'The product `sku` field is deprecated and will be removed in '
+            'flutter_inapp_purchase 10.0.0. Use `id` instead.',
+      );
+    }
+    return legacySku?.toString() ?? '';
+  }
+
+  // StoreKit 1's productIdentifier remains outside the OpenIAP-owned legacy
+  // wire cleanup and is intentionally not warned here.
+  return json['productIdentifier']?.toString() ?? '';
 }
 
 gentype.ProductCommon parseProductFromNative(
@@ -73,12 +137,7 @@ gentype.ProductCommon parseProductFromNative(
     return null;
   }
 
-  final productId = (json['id']?.toString() ??
-          json['productId']?.toString() ??
-          json['sku']?.toString() ??
-          json['productIdentifier']?.toString() ??
-          '')
-      .trim();
+  final productId = _resolveProductId(json).trim();
   final title = json['title']?.toString() ?? productId;
   final description = json['description']?.toString() ?? '';
   final currency = json['currency']?.toString() ?? '';
@@ -105,7 +164,15 @@ gentype.ProductCommon parseProductFromNative(
         typeIOS: _parseProductTypeIOS(json['typeIOS']?.toString()),
         debugDescription: json['debugDescription']?.toString(),
         discountsIOS: _parseDiscountsIOS(
-          json['discountsIOS'] ?? json['discounts'],
+          _canonicalOrLegacy(
+            json,
+            canonicalKey: 'discountsIOS',
+            legacyKey: 'discounts',
+            warningKey: 'product.discounts',
+            message: 'The product `discounts` field is deprecated and will be '
+                'removed in flutter_inapp_purchase 10.0.0. Use '
+                '`subscriptionOffers` instead.',
+          ),
         ),
         displayName: json['displayName']?.toString(),
         introductoryPriceAsAmountIOS:
@@ -124,7 +191,17 @@ gentype.ProductCommon parseProductFromNative(
           json['pricingTermsIOS'],
         ),
         subscriptionInfoIOS: _parseSubscriptionInfoIOS(
-          json['subscriptionInfoIOS'] ?? json['subscription'],
+          _canonicalOrLegacy(
+            json,
+            canonicalKey: 'subscriptionInfoIOS',
+            legacyKey: 'subscription',
+            warningKey: 'product.subscription',
+            message:
+                'The product `subscription` field is deprecated and will be '
+                'removed in flutter_inapp_purchase 10.0.0. Use '
+                '`subscriptionOffers` for offer metadata and '
+                '`subscriptionGroupIdIOS` for the group identifier instead.',
+          ),
         ),
         subscriptionOffers: _parseStandardizedSubscriptionOffers(
           json['subscriptionOffers'],
@@ -189,7 +266,15 @@ gentype.ProductCommon parseProductFromNative(
         json['pricingTermsIOS'],
       ),
       subscriptionInfoIOS: _parseSubscriptionInfoIOS(
-        json['subscriptionInfoIOS'] ?? json['subscription'],
+        _canonicalOrLegacy(
+          json,
+          canonicalKey: 'subscriptionInfoIOS',
+          legacyKey: 'subscription',
+          warningKey: 'product.subscription',
+          message: 'The product `subscription` field is deprecated and will be '
+              'removed in flutter_inapp_purchase 10.0.0. Use '
+              '`subscriptionOffers` for offer metadata instead.',
+        ),
       ),
       subscriptionOffers: _parseStandardizedSubscriptionOffers(
         json['subscriptionOffers'],
@@ -237,10 +322,25 @@ gentype.Purchase convertToPurchase(
   required Map<String, bool> acknowledgedAndroidPurchaseTokens,
   Map<String, dynamic>? originalJson,
 }) {
-  final productId = itemJson['productId']?.toString() ?? '';
-  final transactionId =
-      itemJson['transactionId']?.toString() ?? itemJson['id']?.toString();
-  final dynamic quantityValue = itemJson['quantity'];
+  // Native SDKs serialize the generated Purchase types directly. Preserve that
+  // canonical payload as the base so newly generated optional fields are not
+  // silently dropped by this legacy compatibility adapter.
+  //
+  // The fallback wire keys below are accepted through
+  // flutter_inapp_purchase 9.x only and are scheduled for removal in 10.0.0.
+  // New native bridges, fixtures, and custom MethodChannel producers must emit
+  // the canonical OpenIAP keys.
+  final sourcePayload = normalizeDynamicMap(<String, dynamic>{
+    if (originalJson != null) ...originalJson,
+    ...itemJson,
+  })!;
+
+  final productId = sourcePayload['productId']?.toString() ?? '';
+  final hasSourceId = sourcePayload.containsKey('id');
+  final sourceId = sourcePayload['id']?.toString();
+  final transactionIdSelection = _transactionIdFrom(sourcePayload);
+  final sourceTransactionId = transactionIdSelection.value;
+  final dynamic quantityValue = sourcePayload['quantity'];
   int quantity = 1;
   if (quantityValue is num) {
     quantity = quantityValue.toInt();
@@ -251,72 +351,105 @@ gentype.Purchase convertToPurchase(
     }
   }
 
-  final String? purchaseId = (transactionId?.isNotEmpty ?? false)
-      ? transactionId
-      : (productId.isNotEmpty ? productId : null);
+  final String? purchaseId = hasSourceId
+      ? ((sourceId?.isNotEmpty ?? false) ? sourceId : null)
+      : (sourceTransactionId?.isNotEmpty ?? false)
+          ? sourceTransactionId
+          : (productId.isNotEmpty ? productId : null);
 
   if (purchaseId == null || purchaseId.isEmpty) {
     debugPrint(
-      '[flutter_inapp_purchase] Skipping purchase with missing identifiers: $itemJson',
+      '[flutter_inapp_purchase] Skipping purchase with missing identifiers',
     );
     throw const FormatException('Missing purchase identifier');
   }
 
-  double transactionDate = 0;
-  final transactionDateValue = itemJson['transactionDate'];
-  if (transactionDateValue is num) {
-    transactionDate = transactionDateValue.toDouble();
-  } else if (transactionDateValue is String) {
-    final parsedDate = DateTime.tryParse(transactionDateValue);
-    if (parsedDate != null) {
-      transactionDate = parsedDate.millisecondsSinceEpoch.toDouble();
-    }
-  }
+  final transactionDate =
+      _parseTimestampMilliseconds(sourcePayload['transactionDate']) ?? 0;
 
   if (platformIsAndroid) {
+    final hasSelectedPurchaseState =
+        sourcePayload.containsKey('purchaseState') ||
+            sourcePayload.containsKey('purchaseStateAndroid');
     final stateValue = _coerceAndroidPurchaseState(
-      itemJson['purchaseStateAndroid'] ?? itemJson['purchaseState'],
+      _canonicalOrLegacy(
+        sourcePayload,
+        canonicalKey: 'purchaseState',
+        legacyKey: 'purchaseStateAndroid',
+        warningKey: 'purchase.purchaseStateAndroid',
+        message: 'The purchase `purchaseStateAndroid` field is deprecated and '
+            'will be removed in flutter_inapp_purchase 10.0.0. Use '
+            '`purchaseState` instead.',
+      ),
+      hasSelectedState: hasSelectedPurchaseState,
     );
     final purchaseState = _mapAndroidPurchaseState(stateValue).toJson();
 
     // Determine store from input or default based on platform
-    final storeValue = itemJson['store']?.toString() ?? 'google';
+    final storeValue = sourcePayload['store']?.toString() ?? 'google';
+    final androidTransactionId = _resolveAndroidTransactionId(
+      hasCanonicalTransactionId: transactionIdSelection.isPresent,
+      canonicalTransactionId: sourceTransactionId,
+      id: sourceId,
+      purchaseToken: sourcePayload['purchaseToken']?.toString(),
+      store: storeValue,
+    );
+    if (!transactionIdSelection.isPresent &&
+        androidTransactionId != null &&
+        androidTransactionId == sourceId) {
+      warnLegacyOnce(
+        'purchase.id-transaction-id',
+        'Using purchase `id` as `transactionId` is deprecated and will be '
+            'removed in flutter_inapp_purchase 10.0.0. Emit `transactionId` '
+            'directly instead.',
+      );
+    }
 
     final map = <String, dynamic>{
+      ...sourcePayload,
       'id': purchaseId,
       'productId': productId,
       'platform': gentype.IapPlatform.Android.toJson(),
       'store': storeValue,
-      'isAutoRenewing': itemJson['isAutoRenewing'] as bool? ??
-          itemJson['autoRenewingAndroid'] as bool? ??
+      'isAutoRenewing': sourcePayload['isAutoRenewing'] as bool? ??
+          sourcePayload['autoRenewingAndroid'] as bool? ??
           false,
       'purchaseState': purchaseState,
       'quantity': quantity,
       'transactionDate': transactionDate,
-      'purchaseToken': itemJson['purchaseToken']?.toString(),
-      'autoRenewingAndroid': itemJson['autoRenewingAndroid'] as bool?,
-      'dataAndroid': itemJson['originalJsonAndroid']?.toString(),
+      'purchaseToken': sourcePayload['purchaseToken']?.toString(),
+      'autoRenewingAndroid': sourcePayload['autoRenewingAndroid'] as bool?,
+      'currentPlanId': sourcePayload['currentPlanId']?.toString(),
+      'dataAndroid': _canonicalOrLegacy(
+        sourcePayload,
+        canonicalKey: 'dataAndroid',
+        legacyKey: 'originalJsonAndroid',
+        warningKey: 'purchase.originalJsonAndroid',
+        message: 'The purchase `originalJsonAndroid` field is deprecated and '
+            'will be removed in flutter_inapp_purchase 10.0.0. Use '
+            '`dataAndroid` instead.',
+      )?.toString(),
       'developerPayloadAndroid':
-          itemJson['developerPayloadAndroid']?.toString(),
-      'ids': (itemJson['ids'] as List<dynamic>?)
-          ?.map((e) => e.toString())
-          .toList(),
-      'isAcknowledgedAndroid': itemJson['isAcknowledgedAndroid'] as bool?,
+          sourcePayload['developerPayloadAndroid']?.toString(),
+      'ids': _toStringList(sourcePayload['ids']),
+      'isAcknowledgedAndroid': sourcePayload['isAcknowledgedAndroid'] as bool?,
       'obfuscatedAccountIdAndroid':
-          itemJson['obfuscatedAccountIdAndroid']?.toString() ??
-              originalJson?['obfuscatedAccountIdAndroid']?.toString(),
+          sourcePayload['obfuscatedAccountIdAndroid']?.toString(),
       'obfuscatedProfileIdAndroid':
-          itemJson['obfuscatedProfileIdAndroid']?.toString() ??
-              originalJson?['obfuscatedProfileIdAndroid']?.toString(),
-      'packageNameAndroid': itemJson['packageNameAndroid']?.toString(),
-      'signatureAndroid': itemJson['signatureAndroid']?.toString(),
-      'transactionId': transactionId,
+          sourcePayload['obfuscatedProfileIdAndroid']?.toString(),
+      'packageNameAndroid': sourcePayload['packageNameAndroid']?.toString(),
+      'signatureAndroid': sourcePayload['signatureAndroid']?.toString(),
+      // Pending/orderless Play purchases legitimately have no order ID.
+      // Legacy native payloads only exposed it through `id`, so recover that
+      // value only when it is distinguishable from a Google purchase token.
+      // The `id` transaction fallback ends in 10.0.0.
+      'transactionId': androidTransactionId,
     };
 
-    final purchaseToken = itemJson['purchaseToken']?.toString();
+    final purchaseToken = sourcePayload['purchaseToken']?.toString();
     if (purchaseToken != null && purchaseToken.isNotEmpty) {
       acknowledgedAndroidPurchaseTokens[purchaseToken] =
-          itemJson['isAcknowledgedAndroid'] as bool? ?? false;
+          sourcePayload['isAcknowledgedAndroid'] as bool? ?? false;
     }
 
     return gentype.PurchaseAndroid.fromJson(map);
@@ -324,59 +457,75 @@ gentype.Purchase convertToPurchase(
 
   if (platformIsIOS) {
     final stateIOS = _parsePurchaseStateIOS(
-      itemJson['purchaseState'] ?? itemJson['transactionStateIOS'],
+      _canonicalOrLegacy(
+        sourcePayload,
+        canonicalKey: 'purchaseState',
+        legacyKey: 'transactionStateIOS',
+        warningKey: 'purchase.transactionStateIOS',
+        message: 'The purchase `transactionStateIOS` field is deprecated and '
+            'will be removed in flutter_inapp_purchase 10.0.0. Use '
+            '`purchaseState` instead.',
+      ),
     ).toJson();
 
-    double? originalTransactionDateIOS;
-    final originalTransactionDateValue =
-        itemJson['originalTransactionDateIOS'] ??
-            originalJson?['originalTransactionDateIOS'];
-    if (originalTransactionDateValue is num) {
-      originalTransactionDateIOS = originalTransactionDateValue.toDouble();
-    } else if (originalTransactionDateValue is String) {
-      final parsed = DateTime.tryParse(originalTransactionDateValue);
-      if (parsed != null) {
-        originalTransactionDateIOS = parsed.millisecondsSinceEpoch.toDouble();
-      }
-    }
+    final originalTransactionDateIOS = _parseTimestampMilliseconds(
+      sourcePayload['originalTransactionDateIOS'],
+    );
 
     // Determine store from input or default based on platform
-    final storeValueIOS = itemJson['store']?.toString() ?? 'apple';
+    final storeValueIOS = sourcePayload['store']?.toString() ?? 'apple';
+    if (!transactionIdSelection.isPresent && (sourceId?.isNotEmpty ?? false)) {
+      warnLegacyOnce(
+        'purchase.id-transaction-id',
+        'Using purchase `id` as `transactionId` is deprecated and will be '
+            'removed in flutter_inapp_purchase 10.0.0. Emit `transactionId` '
+            'directly instead.',
+      );
+    }
 
     final map = <String, dynamic>{
+      ...sourcePayload,
       'id': purchaseId,
       'productId': productId,
       'platform': gentype.IapPlatform.IOS.toJson(),
       'store': storeValueIOS,
-      'isAutoRenewing': itemJson['isAutoRenewing'] as bool? ?? false,
+      'isAutoRenewing': sourcePayload['isAutoRenewing'] as bool? ?? false,
       'purchaseState': stateIOS,
       'quantity': quantity,
       'transactionDate': transactionDate,
-      'purchaseToken': itemJson['transactionReceipt']?.toString() ??
-          itemJson['purchaseToken']?.toString(),
-      'ids': (itemJson['ids'] as List<dynamic>?)
-          ?.map((e) => e.toString())
-          .toList(),
-      'appAccountToken': itemJson['appAccountToken']?.toString(),
-      'appBundleIdIOS': itemJson['appBundleIdIOS']?.toString(),
-      'countryCodeIOS': itemJson['countryCodeIOS']?.toString(),
-      'currencyCodeIOS': itemJson['currencyCodeIOS']?.toString(),
-      'currencySymbolIOS': itemJson['currencySymbolIOS']?.toString(),
-      'environmentIOS': itemJson['environmentIOS']?.toString(),
+      'purchaseToken': _canonicalOrLegacy(
+        sourcePayload,
+        canonicalKey: 'purchaseToken',
+        legacyKey: 'transactionReceipt',
+        warningKey: 'purchase.transactionReceipt',
+        message: 'The purchase `transactionReceipt` field is deprecated and '
+            'will be removed in flutter_inapp_purchase 10.0.0. Use '
+            '`purchaseToken` instead.',
+      )?.toString(),
+      'ids': _toStringList(sourcePayload['ids']),
+      'appAccountToken': sourcePayload['appAccountToken']?.toString(),
+      'appBundleIdIOS': sourcePayload['appBundleIdIOS']?.toString(),
+      'countryCodeIOS': sourcePayload['countryCodeIOS']?.toString(),
+      'currencyCodeIOS': sourcePayload['currencyCodeIOS']?.toString(),
+      'currencySymbolIOS': sourcePayload['currencySymbolIOS']?.toString(),
+      'environmentIOS': sourcePayload['environmentIOS']?.toString(),
       'expirationDateIOS':
-          (originalJson?['expirationDateIOS'] as num?)?.toDouble(),
+          _parseTimestampMilliseconds(sourcePayload['expirationDateIOS']),
       'originalTransactionIdentifierIOS':
-          itemJson['originalTransactionIdentifierIOS']?.toString(),
+          sourcePayload['originalTransactionIdentifierIOS']?.toString(),
       'originalTransactionDateIOS': originalTransactionDateIOS,
-      'subscriptionGroupIdIOS': itemJson['subscriptionGroupIdIOS']?.toString(),
-      'transactionReasonIOS': itemJson['transactionReasonIOS']?.toString(),
-      'webOrderLineItemIdIOS': itemJson['webOrderLineItemIdIOS']?.toString(),
-      'offerIOS': originalJson?['offerIOS'],
-      'priceIOS': (originalJson?['priceIOS'] as num?)?.toDouble(),
+      'subscriptionGroupIdIOS':
+          sourcePayload['subscriptionGroupIdIOS']?.toString(),
+      'transactionId': transactionIdSelection.isPresent
+          ? sourceTransactionId ?? ''
+          // The legacy `id` transaction fallback ends in 10.0.0.
+          : purchaseId,
+      'transactionReasonIOS': sourcePayload['transactionReasonIOS']?.toString(),
+      'webOrderLineItemIdIOS':
+          sourcePayload['webOrderLineItemIdIOS']?.toString(),
       'revocationDateIOS':
-          (originalJson?['revocationDateIOS'] as num?)?.toDouble(),
-      'revocationReasonIOS': originalJson?['revocationReasonIOS']?.toString(),
-      'transactionId': transactionId ?? purchaseId,
+          _parseTimestampMilliseconds(sourcePayload['revocationDateIOS']),
+      'revocationReasonIOS': sourcePayload['revocationReasonIOS']?.toString(),
     };
 
     return gentype.PurchaseIOS.fromJson(map);
@@ -507,6 +656,50 @@ double? _toDouble(dynamic value) {
   if (value is num) return value.toDouble();
   if (value is String) return double.tryParse(value);
   return null;
+}
+
+double? _parseTimestampMilliseconds(dynamic value) {
+  if (value is num) return value.toDouble();
+  if (value is! String) return null;
+
+  final trimmed = value.trim();
+  final numeric = double.tryParse(trimmed);
+  if (numeric != null) return numeric;
+
+  return DateTime.tryParse(trimmed)?.millisecondsSinceEpoch.toDouble();
+}
+
+List<String>? _toStringList(dynamic value) {
+  if (value is! List) return null;
+  return value.map((item) => item.toString()).toList();
+}
+
+String? _resolveAndroidTransactionId({
+  required bool hasCanonicalTransactionId,
+  required String? canonicalTransactionId,
+  required String? id,
+  required String? purchaseToken,
+  required String store,
+}) {
+  if (hasCanonicalTransactionId) {
+    return canonicalTransactionId;
+  }
+  if (id == null || id.isEmpty) return null;
+  if (store.toLowerCase() == 'google' && id == purchaseToken) return null;
+  return id;
+}
+
+({bool isPresent, String? value}) _transactionIdFrom(
+  Map<String, dynamic> payload,
+) {
+  if (!payload.containsKey('transactionId')) {
+    return (isPresent: false, value: null);
+  }
+
+  return (
+    isPresent: true,
+    value: payload['transactionId']?.toString(),
+  );
 }
 
 /// Safe int parsing that handles both num and String inputs.
@@ -1148,9 +1341,15 @@ gentype.PurchaseState _parsePurchaseStateIOS(dynamic value) {
   return gentype.PurchaseState.Unknown;
 }
 
-int _coerceAndroidPurchaseState(dynamic value) {
-  if (value == null) {
+int _coerceAndroidPurchaseState(
+  dynamic value, {
+  required bool hasSelectedState,
+}) {
+  if (!hasSelectedState) {
     return AndroidPurchaseState.Purchased.value;
+  }
+  if (value == null) {
+    return AndroidPurchaseState.Unknown.value;
   }
   if (value is int) {
     return value;
@@ -1177,7 +1376,7 @@ int _coerceAndroidPurchaseState(dynamic value) {
         return AndroidPurchaseState.Unknown.value;
     }
   }
-  return AndroidPurchaseState.Purchased.value;
+  return AndroidPurchaseState.Unknown.value;
 }
 
 gentype.PurchaseState _mapAndroidPurchaseState(int stateValue) {

@@ -11,6 +11,7 @@ on:
       - "packages/apple/wrapper/**"
       - "packages/apple/scripts/build-xcframework.sh"
       - "openiap-versions.json"
+      - "scripts/ci/retry-gradle.sh"
       - ".github/workflows/ci-maui-iap.yml"
   push:
     branches: [main, next]
@@ -22,6 +23,7 @@ on:
       - "packages/apple/wrapper/**"
       - "packages/apple/scripts/build-xcframework.sh"
       - "openiap-versions.json"
+      - "scripts/ci/retry-gradle.sh"
       - ".github/workflows/ci-maui-iap.yml"
 
 concurrency:
@@ -113,7 +115,7 @@ jobs:
       - name: Build Google AARs
         working-directory: packages/google
         run: |
-          ./gradlew \
+          "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" ./gradlew \
             :openiap:assemblePlayRelease \
             :openiap:assembleAmazonRelease \
             :openiap:assembleHorizonRelease
@@ -133,7 +135,13 @@ jobs:
           rm -rf \
             src/OpenIap.Maui.Bindings.Android/bin \
             src/OpenIap.Maui.Bindings.Android/obj
-          (cd android && ../../../packages/google/gradlew :openiap:assembleRelease -PopenIapAndroidStore=play)
+          (
+            cd android
+            "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" \
+              ../../../packages/google/gradlew \
+              :openiap:assembleRelease \
+              -PopenIapAndroidStore=play
+          )
           dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj -p:TargetFrameworks=net9.0-android -p:OpenIapAndroidStore=play "${DOTNET_BUILD_ARGS[@]}"
           dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj -p:TargetFrameworks=net10.0-android -p:OpenIapAndroidStore=play "${DOTNET_BUILD_ARGS[@]}"
           dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0-android -p:OpenIapAndroidStore=play -p:BuildProjectReferences=false "${DOTNET_BUILD_ARGS[@]}"
@@ -145,7 +153,13 @@ jobs:
             rm -rf \
               src/OpenIap.Maui.Bindings.Android/bin \
               src/OpenIap.Maui.Bindings.Android/obj
-            (cd android && ../../../packages/google/gradlew :openiap:assembleRelease -PopenIapAndroidStore="$store")
+            (
+              cd android
+              "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" \
+                ../../../packages/google/gradlew \
+                :openiap:assembleRelease \
+                -PopenIapAndroidStore="$store"
+            )
             dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj -p:TargetFrameworks=net9.0-android -p:OpenIapAndroidStore="$store" "${DOTNET_BUILD_ARGS[@]}"
             dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0-android -p:OpenIapAndroidStore="$store" -p:BuildProjectReferences=false "${DOTNET_BUILD_ARGS[@]}"
           done

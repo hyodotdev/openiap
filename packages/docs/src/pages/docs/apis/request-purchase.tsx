@@ -361,6 +361,7 @@ kmpIAP.requestPurchase {
   RequestPurchaseProps.inApp((
     apple: RequestPurchaseIosProps(sku: 'com.app.premium'),
     google: RequestPurchaseAndroidProps(skus: ['com.app.premium']),
+    // Compatibility-only placeholder required by the generated 9.x record.
     useAlternativeBilling: null,
   )),
 );
@@ -423,6 +424,22 @@ await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new Reques
           ),
         }}
       </LanguageTabs>
+
+      <div className="alert-card alert-card--warning">
+        <p>
+          <strong>Flutter 9.x record compatibility:</strong>{' '}
+          <code>useAlternativeBilling: null</code> in the Dart example is only a
+          required placeholder in the generated positional record. It does not
+          enable alternative billing. Prefer the builder DSL, or configure{' '}
+          <code>enableBillingProgramAndroid</code> on{' '}
+          <code>initConnection</code>. The deprecated field is removed in{' '}
+          <code>flutter_inapp_purchase 10.0.0</code>; see the{' '}
+          <Link to="/docs/updates/deprecations#flutter-10-package-migrations">
+            Flutter 10 migration notes
+          </Link>
+          .
+        </p>
+      </div>
 
       <div className="alert-card alert-card--warning">
         <p>

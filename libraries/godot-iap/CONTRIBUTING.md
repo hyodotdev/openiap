@@ -8,7 +8,7 @@ Thank you for your interest in contributing to godot-iap! This guide will help y
 
 - macOS (required for iOS builds)
 - [Godot 4.3+](https://godotengine.org/download)
-- [Xcode 15+](https://developer.apple.com/xcode/) (for iOS)
+- [Xcode 26+](https://developer.apple.com/xcode/) (Swift 6.2 is required by the pinned SwiftGodot runtime)
 - [Android Studio](https://developer.android.com/studio) with SDK (for Android)
 - Java 17+ (for Android builds)
 
@@ -25,6 +25,7 @@ make setup
 
 This will:
 - Download `godot-lib.aar` for Android builds
+- Clone the pinned SwiftGodot source used by the iOS GDExtension
 - Install git pre-commit hooks that auto-build iOS when `ios-gdextension/` files change
 
 ## Project Structure

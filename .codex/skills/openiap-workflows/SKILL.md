@@ -64,6 +64,9 @@ appropriate labels before merging.
 
 ## Non-Negotiables
 
+- Before any public GitHub write, apply the English-only communication guard in
+  `knowledge/internal/06-git-deployment.md`. Private maintainer conversation
+  language must never leak into issue, PR, review, release, or commit prose.
 - Read relevant knowledge and package convention files before editing package or
   library code.
 - Never hand-edit generated files unless the workflow explicitly says to verify

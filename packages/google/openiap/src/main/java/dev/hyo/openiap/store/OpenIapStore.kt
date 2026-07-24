@@ -1,3 +1,7 @@
+// The store facade keeps explicit 2.x compatibility delegates. Consumer
+// call sites still receive deprecation warnings; remove the shims in 3.0.
+@file:Suppress("DEPRECATION")
+
 package dev.hyo.openiap.store
 
 import dev.hyo.openiap.ActiveSubscription
@@ -61,6 +65,55 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.concurrent.ConcurrentHashMap
+
+internal object OpenIapStorePurchaseRequestResolver {
+    private const val LEGACY_ANDROID_WARNING_KEY = "OpenIapStore.requestPurchase.android"
+    private val emittedLegacyWarnings = ConcurrentHashMap.newKeySet<String>()
+
+    fun sku(
+        props: RequestPurchaseProps,
+        legacyWarningKey: String = LEGACY_ANDROID_WARNING_KEY,
+        warnLegacy: (String) -> Unit = { message ->
+            OpenIapLog.warn(message, "OpenIapStore")
+        },
+    ): String? =
+        when (val request = props.request) {
+            is RequestPurchaseProps.Request.Purchase -> {
+                val platforms = request.value
+                if (platforms.google != null) {
+                    platforms.google.skus.firstOrNull()
+                } else {
+                    platforms.android?.let { legacy ->
+                        warnAboutLegacyAndroid(legacyWarningKey, warnLegacy)
+                        legacy.skus.firstOrNull()
+                    }
+                }
+            }
+            is RequestPurchaseProps.Request.Subscription -> {
+                val platforms = request.value
+                if (platforms.google != null) {
+                    platforms.google.skus.firstOrNull()
+                } else {
+                    platforms.android?.let { legacy ->
+                        warnAboutLegacyAndroid(legacyWarningKey, warnLegacy)
+                        legacy.skus.firstOrNull()
+                    }
+                }
+            }
+        }
+
+    private fun warnAboutLegacyAndroid(
+        key: String,
+        warnLegacy: (String) -> Unit,
+    ) {
+        if (!emittedLegacyWarnings.add(key)) return
+        warnLegacy(
+            "OpenIapStore request field `android` is deprecated; use `google` instead. " +
+                "Legacy `android` compatibility is scheduled for removal in OpenIAP 3.0.",
+        )
+    }
+}
 
 /**
  * OpenIapStore (Android)
@@ -69,7 +122,7 @@ import kotlinx.coroutines.launch
  */
 class OpenIapStore(private val module: OpenIapProtocol) {
     init {
-        OpenIapLog.i("Initialized with module: ${module.javaClass.simpleName}", "OpenIapStore")
+        OpenIapLog.info("Initialized with module: ${module.javaClass.simpleName}", "OpenIapStore")
     }
 
     constructor(context: Context) : this(buildModule(context, null, null))
@@ -85,6 +138,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     private val _isConnected = MutableStateFlow(false)
     val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
     // Backwards-compat alias for example app
+    @Deprecated("Use isConnected instead. Scheduled for removal in OpenIAP 3.0.", ReplaceWith("isConnected"))
     val connectionStatus: StateFlow<Boolean> get() = isConnected
 
     private val _products = MutableStateFlow<List<Product>>(emptyList())
@@ -123,29 +177,29 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         // This ensures the purchase list reflects the new purchase immediately
         storeScope.launch {
             try {
-                OpenIapLog.i("Purchase update received, refreshing available purchases", "OpenIapStore")
+                OpenIapLog.info("Purchase update received, refreshing available purchases", "OpenIapStore")
 
                 // Wait a bit for the purchase to be fully processed by Horizon
                 kotlinx.coroutines.delay(500)
 
                 // Ensure connection is ready
                 if (!isConnected.value) {
-                    OpenIapLog.w("Not connected, skipping purchase refresh (connection will be restored on next app start)", "OpenIapStore")
+                    OpenIapLog.warn("Not connected, skipping purchase refresh (connection will be restored on next app start)", "OpenIapStore")
                     // Don't attempt to reconnect here as it may cause issues
                     // The purchase will be available on next app launch
                     return@launch
                 }
 
-                OpenIapLog.i("About to call module.getAvailablePurchases(null)", "OpenIapStore")
+                OpenIapLog.info("About to call module.getAvailablePurchases(null)", "OpenIapStore")
                 val result = module.getAvailablePurchases(null)
-                OpenIapLog.i("module.getAvailablePurchases returned: ${result.size} purchases", "OpenIapStore")
+                OpenIapLog.info("module.getAvailablePurchases returned: ${result.size} purchases", "OpenIapStore")
                 result.forEachIndexed { index, purchase ->
-                    OpenIapLog.i("  Purchase[$index]: ${purchase.productId}", "OpenIapStore")
+                    OpenIapLog.info("  Purchase[$index]: ${purchase.productId}", "OpenIapStore")
                 }
                 _availablePurchases.value = result
-                OpenIapLog.i("Available purchases updated: ${result.size} purchases", "OpenIapStore")
+                OpenIapLog.info("Available purchases updated: ${result.size} purchases", "OpenIapStore")
             } catch (e: Exception) {
-                OpenIapLog.e("Failed to refresh purchases after update", e, "OpenIapStore")
+                OpenIapLog.error("Failed to refresh purchases after update", e, "OpenIapStore")
             }
         }
     }
@@ -186,6 +240,9 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      *
      * @param listener User choice billing listener
      */
+    @Deprecated(
+        "Use addUserChoiceBillingListener and removeUserChoiceBillingListener instead. Scheduled for removal in OpenIAP 3.0."
+    )
     fun setUserChoiceBillingListener(listener: dev.hyo.openiap.listener.UserChoiceBillingListener?) {
         module.setUserChoiceBillingListener(listener)
     }
@@ -196,6 +253,9 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      *
      * @param listener Developer-provided billing listener or null to remove
      */
+    @Deprecated(
+        "Use addDeveloperProvidedBillingListener and removeDeveloperProvidedBillingListener instead. Scheduled for removal in OpenIAP 3.0."
+    )
     fun setDeveloperProvidedBillingListener(listener: dev.hyo.openiap.listener.DeveloperProvidedBillingListener?) {
         module.setDeveloperProvidedBillingListener(listener)
     }
@@ -239,13 +299,13 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     val initConnection: MutationInitConnectionHandler = { config ->
         setLoading { it.initConnection = true }
         try {
-            OpenIapLog.i("OpenIapStore.initConnection: Calling module.initConnection...", "OpenIapStore")
+            OpenIapLog.info("OpenIapStore.initConnection: Calling module.initConnection...", "OpenIapStore")
             val ok = module.initConnection(config)
-            OpenIapLog.i("OpenIapStore.initConnection: module.initConnection returned: $ok", "OpenIapStore")
+            OpenIapLog.info("OpenIapStore.initConnection: module.initConnection returned: $ok", "OpenIapStore")
             _isConnected.value = ok
             ok
         } catch (e: Exception) {
-            OpenIapLog.e("OpenIapStore.initConnection: Exception", e, "OpenIapStore")
+            OpenIapLog.error("OpenIapStore.initConnection: Exception", e, "OpenIapStore")
             setError(e.message)
             throw e
         } finally {
@@ -265,7 +325,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      * @see <a href="https://openiap.dev/docs/apis/init-connection">init-connection</a>
      */
     suspend fun initConnection(): Boolean {
-        OpenIapLog.i("OpenIapStore.initConnection(): Calling initConnection(null)...", "OpenIapStore")
+        OpenIapLog.info("OpenIapStore.initConnection(): Calling initConnection(null)...", "OpenIapStore")
         return initConnection(null)
     }
 
@@ -305,12 +365,12 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      * @see <a href="https://openiap.dev/docs/apis/fetch-products">fetch-products</a>
      */
     val fetchProducts: QueryFetchProductsHandler = { request ->
-        OpenIapLog.i("fetchProducts called with SKUs: ${request.skus}, type: ${request.type}", "OpenIapStore")
+        OpenIapLog.info("fetchProducts called with SKUs: ${request.skus}, type: ${request.type}", "OpenIapStore")
         setLoading { it.fetchProducts = true }
         try {
-            OpenIapLog.i("Calling module.fetchProducts", "OpenIapStore")
+            OpenIapLog.info("Calling module.fetchProducts", "OpenIapStore")
             val result = module.fetchProducts(request)
-            OpenIapLog.i("module.fetchProducts returned: $result", "OpenIapStore")
+            OpenIapLog.info("module.fetchProducts returned: $result", "OpenIapStore")
             when (result) {
                 is FetchProductsResultProducts -> {
                     // Merge new products with existing ones
@@ -399,16 +459,16 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      * @see <a href="https://openiap.dev/docs/apis/get-available-purchases">get-available-purchases</a>
      */
     val getAvailablePurchases: QueryGetAvailablePurchasesHandler = { options ->
-        OpenIapLog.i("getAvailablePurchases called, module type: ${module.javaClass.simpleName}", "OpenIapStore")
+        OpenIapLog.info("getAvailablePurchases called, module type: ${module.javaClass.simpleName}", "OpenIapStore")
         setLoading { it.restorePurchases = true }
         try {
-            OpenIapLog.i("Calling module.getAvailablePurchases(options)", "OpenIapStore")
+            OpenIapLog.info("Calling module.getAvailablePurchases(options)", "OpenIapStore")
             val result = module.getAvailablePurchases(options)
-            OpenIapLog.i("module.getAvailablePurchases returned ${result.size} purchases", "OpenIapStore")
+            OpenIapLog.info("module.getAvailablePurchases returned ${result.size} purchases", "OpenIapStore")
             _availablePurchases.value = result
             result
         } catch (e: Exception) {
-            OpenIapLog.e("getAvailablePurchases exception: ${e.message}", e, "OpenIapStore")
+            OpenIapLog.error("getAvailablePurchases exception: ${e.message}", e, "OpenIapStore")
             setError(e.message)
             throw e
         } finally {
@@ -437,10 +497,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      * @see <a href="https://openiap.dev/docs/apis/request-purchase">request-purchase</a>
      */
     val requestPurchase: MutationRequestPurchaseHandler = { props ->
-        val skuForStatus = when (val request = props.request) {
-            is RequestPurchaseProps.Request.Purchase -> request.value.android?.skus?.firstOrNull()
-            is RequestPurchaseProps.Request.Subscription -> request.value.android?.skus?.firstOrNull()
-        }
+        val skuForStatus = OpenIapStorePurchaseRequestResolver.sku(props)
 
         if (skuForStatus != null) {
             addPurchasing(skuForStatus)
@@ -517,7 +574,9 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      *
      * @see <a href="https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android">https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android</a>
      */
-    @Deprecated("Use isBillingProgramAvailable with BillingProgramAndroid.ExternalOffer instead")
+    @Deprecated(
+        "Use isBillingProgramAvailable with BillingProgramAndroid.ExternalOffer instead. Scheduled for removal in OpenIAP 3.0."
+    )
     @Suppress("DEPRECATION")
     suspend fun checkAlternativeBillingAvailability(): Boolean = module.checkAlternativeBillingAvailability()
 
@@ -526,7 +585,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      *
      * @see <a href="https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android">https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android</a>
      */
-    @Deprecated("Use launchExternalLink instead")
+    @Deprecated("Use launchExternalLink instead. Scheduled for removal in OpenIAP 3.0.")
     @Suppress("DEPRECATION")
     suspend fun showAlternativeBillingInformationDialog(activity: Activity): Boolean =
         module.showAlternativeBillingInformationDialog(activity)
@@ -536,7 +595,9 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      *
      * @see <a href="https://openiap.dev/docs/apis/android/create-alternative-billing-token-android">https://openiap.dev/docs/apis/android/create-alternative-billing-token-android</a>
      */
-    @Deprecated("Use createBillingProgramReportingDetails with BillingProgramAndroid.ExternalOffer instead")
+    @Deprecated(
+        "Use createBillingProgramReportingDetails with BillingProgramAndroid.ExternalOffer instead. Scheduled for removal in OpenIAP 3.0."
+    )
     @Suppress("DEPRECATION")
     suspend fun createAlternativeBillingReportingToken(): String? =
         module.createAlternativeBillingReportingToken()
@@ -625,11 +686,11 @@ class OpenIapStore(private val module: OpenIapProtocol) {
         try {
             val method = module.javaClass.getMethod("enableBillingProgram", BillingProgramAndroid::class.java)
             method.invoke(module, program)
-            OpenIapLog.d("Billing program enabled via store: $program", "OpenIapStore")
+            OpenIapLog.debug("Billing program enabled via store: $program", "OpenIapStore")
         } catch (e: NoSuchMethodException) {
-            OpenIapLog.w("enableBillingProgram not available (Horizon flavor or older library)", "OpenIapStore")
+            OpenIapLog.warn("enableBillingProgram not available (Horizon flavor or older library)", "OpenIapStore")
         } catch (e: Exception) {
-            OpenIapLog.e("Failed to enable billing program: ${e.message}", e, "OpenIapStore")
+            OpenIapLog.error("Failed to enable billing program: ${e.message}", e, "OpenIapStore")
         }
     }
 
@@ -784,29 +845,29 @@ private fun buildModule(context: Context, store: String?, appId: String?): OpenI
     val defaultStore = try {
         val buildConfig = Class.forName("io.github.hyochan.openiap.BuildConfig")
         val storeValue = buildConfig.getField("OPENIAP_STORE").get(null) as? String ?: "play"
-        OpenIapLog.i("BuildConfig.OPENIAP_STORE = $storeValue", "OpenIapStore")
+        OpenIapLog.info("BuildConfig.OPENIAP_STORE = $storeValue", "OpenIapStore")
         storeValue
     } catch (e: Throwable) {
-        OpenIapLog.w("Failed to read BuildConfig.OPENIAP_STORE: ${e.message}", "OpenIapStore")
+        OpenIapLog.warn("Failed to read BuildConfig.OPENIAP_STORE: ${e.message}", "OpenIapStore")
         "play"
     }
 
     val selected = (store ?: defaultStore).lowercase()
 
-    OpenIapLog.d("buildModule: selected=$selected, defaultStore=$defaultStore", "OpenIapStore")
+    OpenIapLog.debug("buildModule: selected=$selected, defaultStore=$defaultStore", "OpenIapStore")
 
     return when (selected) {
         "horizon", "meta", "quest" -> {
-            OpenIapLog.d("Loading OpenIapModule (Horizon flavor)", "OpenIapStore")
+            OpenIapLog.debug("Loading OpenIapModule (Horizon flavor)", "OpenIapStore")
             loadHorizonModule(context)
         }
         "amazon", "fireos", "fire" -> {
-            OpenIapLog.d("Loading OpenIapModule (Amazon flavor)", "OpenIapStore")
+            OpenIapLog.debug("Loading OpenIapModule (Amazon flavor)", "OpenIapStore")
             loadAmazonModule(context)
         }
         else -> {
             // Default to Play Store (includes "play", "google", "gplay", "googleplay", "gms")
-            OpenIapLog.d("Loading OpenIapModule (Play flavor)", "OpenIapStore")
+            OpenIapLog.debug("Loading OpenIapModule (Play flavor)", "OpenIapStore")
             loadPlayModule(context)
         }
     }
@@ -821,22 +882,9 @@ private fun loadHorizonModule(context: Context): OpenIapProtocol {
     return try {
         // Both Play and Horizon flavors now use the same class name: dev.hyo.openiap.OpenIapModule
         val clazz = Class.forName("dev.hyo.openiap.OpenIapModule")
-        val alternativeBillingModeClass = Class.forName("dev.hyo.openiap.AlternativeBillingMode")
-        val userChoiceBillingListenerClass = Class.forName("dev.hyo.openiap.listener.UserChoiceBillingListener")
-
-        val constructor = clazz.getConstructor(
-            Context::class.java,
-            alternativeBillingModeClass,
-            userChoiceBillingListenerClass
-        )
-
-        // Get NONE enum value
-        val noneMode = alternativeBillingModeClass.enumConstants?.first {
-            (it as Enum<*>).name == "NONE"
-        }
-
-        val instance = constructor.newInstance(context, noneMode, null) as OpenIapProtocol
-        OpenIapLog.d("Successfully loaded OpenIapModule (Horizon flavor)", "OpenIapStore")
+        val constructor = clazz.getConstructor(Context::class.java)
+        val instance = constructor.newInstance(context) as OpenIapProtocol
+        OpenIapLog.debug("Successfully loaded OpenIapModule (Horizon flavor)", "OpenIapStore")
         instance
     } catch (e: Throwable) {
         throw IllegalStateException("Failed to load OpenIapModule (Horizon flavor). Make sure you're using the Horizon flavor.", e)
@@ -850,23 +898,9 @@ private fun loadHorizonModule(context: Context): OpenIapProtocol {
 private fun loadAmazonModule(context: Context): OpenIapProtocol {
     return try {
         val clazz = Class.forName("dev.hyo.openiap.OpenIapModule")
-        val alternativeBillingModeClass = Class.forName("dev.hyo.openiap.AlternativeBillingMode")
-        val userChoiceBillingListenerClass = Class.forName("dev.hyo.openiap.listener.UserChoiceBillingListener")
-        val developerProvidedBillingListenerClass = Class.forName("dev.hyo.openiap.listener.DeveloperProvidedBillingListener")
-
-        val constructor = clazz.getConstructor(
-            Context::class.java,
-            alternativeBillingModeClass,
-            userChoiceBillingListenerClass,
-            developerProvidedBillingListenerClass
-        )
-
-        val noneMode = alternativeBillingModeClass.enumConstants?.first {
-            (it as Enum<*>).name == "NONE"
-        }
-
-        val instance = constructor.newInstance(context, noneMode, null, null) as OpenIapProtocol
-        OpenIapLog.d("Successfully loaded OpenIapModule (Amazon flavor)", "OpenIapStore")
+        val constructor = clazz.getConstructor(Context::class.java)
+        val instance = constructor.newInstance(context) as OpenIapProtocol
+        OpenIapLog.debug("Successfully loaded OpenIapModule (Amazon flavor)", "OpenIapStore")
         instance
     } catch (e: Throwable) {
         throw IllegalStateException("Failed to load OpenIapModule (Amazon flavor). Make sure you're using the Amazon flavor.", e)
@@ -878,26 +912,9 @@ private fun loadAmazonModule(context: Context): OpenIapProtocol {
  */
 private fun loadPlayModule(context: Context): OpenIapProtocol {
     return try {
-        // Try to load OpenIapModule with default parameters
-        // Constructor: (Context, AlternativeBillingMode, UserChoiceBillingListener?, DeveloperProvidedBillingListener?)
         val clazz = Class.forName("dev.hyo.openiap.OpenIapModule")
-        val alternativeBillingModeClass = Class.forName("dev.hyo.openiap.AlternativeBillingMode")
-        val userChoiceBillingListenerClass = Class.forName("dev.hyo.openiap.listener.UserChoiceBillingListener")
-        val developerProvidedBillingListenerClass = Class.forName("dev.hyo.openiap.listener.DeveloperProvidedBillingListener")
-
-        val constructor = clazz.getConstructor(
-            Context::class.java,
-            alternativeBillingModeClass,
-            userChoiceBillingListenerClass,
-            developerProvidedBillingListenerClass
-        )
-
-        // Get NONE enum value
-        val noneMode = alternativeBillingModeClass.enumConstants?.first {
-            (it as Enum<*>).name == "NONE"
-        }
-
-        constructor.newInstance(context, noneMode, null, null) as OpenIapProtocol
+        val constructor = clazz.getConstructor(Context::class.java)
+        constructor.newInstance(context) as OpenIapProtocol
     } catch (e: Throwable) {
         throw IllegalStateException("Failed to load OpenIapModule. Make sure you're using the Play flavor.", e)
     }

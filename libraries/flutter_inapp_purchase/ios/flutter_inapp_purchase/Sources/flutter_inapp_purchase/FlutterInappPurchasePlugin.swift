@@ -54,6 +54,28 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
             details: purchaseErrorDetails(error, fallbackProductId: fallbackProductId)
         )
     }
+
+    private func resolveTransactionId(
+        from payload: [String: Any],
+        legacyKey: String,
+        warningKey: String,
+        warningMessage: String
+    ) -> String? {
+        if payload.keys.contains("transactionId") {
+            guard let transactionId = payload["transactionId"] as? String,
+                  !transactionId.isEmpty else {
+                return nil
+            }
+            return transactionId
+        }
+
+        guard let legacyTransactionId = payload[legacyKey] as? String,
+              !legacyTransactionId.isEmpty else {
+            return nil
+        }
+        FlutterIapLog.deprecation(warningKey, warningMessage)
+        return legacyTransactionId
+    }
     
     public static func register(with registrar: FlutterPluginRegistrar) {
         FlutterIapLog.debug("Swift register called")
@@ -147,7 +169,12 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                     finishTransaction(purchaseDict: purchasePayload, isConsumable: isConsumable, result: result)
                     return
                 }
-                if let id = args["transactionId"] as? String ?? args["transactionIdentifier"] as? String {
+                if let id = resolveTransactionId(
+                    from: args,
+                    legacyKey: "transactionIdentifier",
+                    warningKey: "finishTransaction.transactionIdentifier",
+                    warningMessage: "The finishTransaction `transactionIdentifier` field is deprecated and will be removed in flutter_inapp_purchase 10.0.0. Use `transactionId` instead."
+                ) {
                     FlutterIapLog.debug("finishTransaction extracted transactionId: \(id)")
                     finishTransaction(transactionId: id, result: result)
                     return
@@ -260,6 +287,12 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
             getReceiptDataIOS(result: result)
 
         case "getAppTransactionIOS", "getAppTransaction":
+            if call.method == "getAppTransaction" {
+                FlutterIapLog.deprecation(
+                    "channel.getAppTransaction",
+                    "`getAppTransaction` is deprecated and will be removed in flutter_inapp_purchase 10.0.0. Use `getAppTransactionIOS` instead."
+                )
+            }
             if #available(iOS 16.0, macOS 14.0, tvOS 16.0, *) {
                 getAppTransactionIOS(result: result)
             } else {
@@ -271,6 +304,12 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
             syncIOS(result: result)
 
         case "subscriptionStatusIOS", "getSubscriptionStatus":
+            if call.method == "getSubscriptionStatus" {
+                FlutterIapLog.deprecation(
+                    "channel.getSubscriptionStatus",
+                    "`getSubscriptionStatus` is deprecated and will be removed in flutter_inapp_purchase 10.0.0. Use `subscriptionStatusIOS` instead."
+                )
+            }
             if let args = call.arguments as? [String: Any],
                let sku = args["sku"] as? String {
                 subscriptionStatusIOS(sku: sku, result: result)
@@ -288,14 +327,18 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 return
             }
             // Support new API: { apple: { sku: "..." } } or legacy { sku: "..." }
-            let sku: String
-            if let appleOptions = args["apple"] as? [String: Any],
-               let appleSku = appleOptions["sku"] as? String {
-                sku = appleSku
+            let sku: String?
+            if args.keys.contains("apple") {
+                sku = (args["apple"] as? [String: Any])?["sku"] as? String
             } else if let legacySku = args["sku"] as? String {
-                // Backwards compatibility with legacy API
+                FlutterIapLog.deprecation(
+                    "Top-level `sku` verification input is deprecated and will be removed in flutter_inapp_purchase 10.0.0. Use `apple.sku` instead."
+                )
                 sku = legacySku
             } else {
+                sku = nil
+            }
+            guard let sku, !sku.isEmpty else {
                 let code: ErrorCode = .developerError
                 result(FlutterError(code: code.rawValue, message: "apple.sku required", details: nil))
                 return
@@ -651,16 +694,26 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 purchase = try FlutterIapHelper.decodePurchaseInput(from: purchaseDict)
             } catch let purchaseError as PurchaseError {
                 FlutterIapLog.failure("finishTransactionDecode", error: purchaseError)
-                if let idValue = purchaseDict["id"] as? String, !idValue.isEmpty {
-                    finishTransaction(transactionId: idValue, result: result)
+                if let transactionId = resolveTransactionId(
+                    from: purchaseDict,
+                    legacyKey: "id",
+                    warningKey: "finishTransaction.purchase.id",
+                    warningMessage: "Using purchase `id` as `transactionId` is deprecated and will be removed in flutter_inapp_purchase 10.0.0. Emit `transactionId` directly instead."
+                ) {
+                    finishTransaction(transactionId: transactionId, result: result)
                     return
                 }
                 result(flutterError(from: purchaseError, fallbackProductId: purchaseDict["productId"] as? String))
                 return
             } catch {
                 FlutterIapLog.failure("finishTransactionDecode", error: error)
-                if let idValue = purchaseDict["id"] as? String, !idValue.isEmpty {
-                    finishTransaction(transactionId: idValue, result: result)
+                if let transactionId = resolveTransactionId(
+                    from: purchaseDict,
+                    legacyKey: "id",
+                    warningKey: "finishTransaction.purchase.id",
+                    warningMessage: "Using purchase `id` as `transactionId` is deprecated and will be removed in flutter_inapp_purchase 10.0.0. Emit `transactionId` directly instead."
+                ) {
+                    finishTransaction(transactionId: transactionId, result: result)
                     return
                 }
                 let code: ErrorCode = .serviceError

@@ -160,7 +160,9 @@ public class WebhookParsingTests
     public void WebhookEventTypes_AreExposedByAllFacades()
     {
         Assert.Same(WebhookClient.WebhookEventTypes, OpenIapClient.WebhookEventTypes);
+#pragma warning disable CS0618 // Exercise the legacy facade until its 2.0.0 removal.
         Assert.Same(WebhookClient.WebhookEventTypes, Iap.WebhookEventTypes);
+#pragma warning restore CS0618
     }
 
     [Fact]

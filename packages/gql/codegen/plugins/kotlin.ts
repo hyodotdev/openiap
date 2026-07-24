@@ -176,8 +176,8 @@ export class KotlinPlugin extends CodegenPlugin {
   generateHeader(): void {
     for (const line of generatedFileHeader()) this.emit(line);
     this.emit('');
-    this.emit('// Suppress unchecked cast warnings for JSON Map parsing - unavoidable due to Kotlin type erasure');
-    this.emit('@file:Suppress("UNCHECKED_CAST")');
+    this.emit('// Suppress generator-internal compatibility reads while preserving deprecation warnings for consumers');
+    this.emit('@file:Suppress("DEPRECATION", "UNCHECKED_CAST")');
     this.emit('');
   }
 
@@ -187,10 +187,16 @@ export class KotlinPlugin extends CodegenPlugin {
 
   generateEnum(irEnum: IREnum): void {
     this.generateDocComment(irEnum.description);
+    this.generateDeprecationAnnotation(irEnum.description);
     this.emit(`public enum class ${irEnum.name}(val rawValue: String) {`);
 
     irEnum.values.forEach((value, index) => {
       this.generateDocComment(value.description, '    ');
+      this.generateEnumValueDeprecationAnnotation(
+        irEnum,
+        value.description,
+        '    ',
+      );
       const caseName = this.escapeKeyword(this.enumValueCase(value.name));
       const suffix = index === irEnum.values.length - 1 ? '' : ',';
       this.emit(`    ${caseName}("${value.rawValue}")${suffix}`);
@@ -230,12 +236,14 @@ export class KotlinPlugin extends CodegenPlugin {
 
   generateInterface(irInterface: IRInterface): void {
     this.generateDocComment(irInterface.description);
+    this.generateDeprecationAnnotation(irInterface.description);
     this.emit(`public interface ${irInterface.name} {`);
 
     // Sort fields alphabetically for Kotlin
     const sortedFields = [...irInterface.fields].sort((a, b) => a.name.localeCompare(b.name));
     for (const field of sortedFields) {
       this.generateDocComment(field.description, '    ');
+      this.generateDeprecationAnnotation(field.description, '    ');
       const propertyType = this.getPropertyType(field.type);
       const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
       this.emit(`    val ${propertyName}: ${propertyType}`);
@@ -253,6 +261,7 @@ export class KotlinPlugin extends CodegenPlugin {
     // Handle VoidResult
     if (irObject.name === 'VoidResult') {
       this.generateDocComment(irObject.description);
+      this.generateDeprecationAnnotation(irObject.description);
       this.emit('public typealias VoidResult = Unit');
       this.emit('');
       return;
@@ -276,16 +285,19 @@ export class KotlinPlugin extends CodegenPlugin {
     // Handle empty objects
     if (sortedFields.length === 0) {
       this.generateDocComment(irObject.description);
+      this.generateDeprecationAnnotation(irObject.description);
       this.emit(`public class ${irObject.name}`);
       this.emit('');
       return;
     }
 
     this.generateDocComment(irObject.description);
+    this.generateDeprecationAnnotation(irObject.description);
     this.emit(`public data class ${irObject.name}(`);
 
     sortedFields.forEach((field, index) => {
       this.generateDocComment(field.description, '    ');
+      this.generateDeprecationAnnotation(field.description, '    ');
       const propertyType = this.getPropertyType(field.type);
       const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
       const suffix = index === sortedFields.length - 1 ? '' : ',';
@@ -351,9 +363,11 @@ export class KotlinPlugin extends CodegenPlugin {
     }
 
     this.generateDocComment(irObject.description);
+    this.generateDeprecationAnnotation(irObject.description);
     this.emit(`public data class ${irObject.name}(`);
     primaryFields.forEach((value, index) => {
       this.generateDocComment(value.description, '    ');
+      this.generateDeprecationAnnotation(value.description, '    ');
       const suffix = index === primaryFields.length - 1 ? '' : ',';
       const defaultValue = this.getObjectFieldDefault(value);
       this.emit(`    val ${value.name}: ${this.getPropertyType(value.type)}${defaultValue}${suffix}`);
@@ -363,6 +377,7 @@ export class KotlinPlugin extends CodegenPlugin {
 
     for (const value of extraFields) {
       this.generateDocComment(value.description, '    ');
+      this.generateDeprecationAnnotation(value.description, '    ');
       this.emit(`    var ${value.name}: ${this.getPropertyType(value.type)} = null`);
       this.emit('        private set');
       this.emit('');
@@ -418,6 +433,7 @@ export class KotlinPlugin extends CodegenPlugin {
 
   private generateResultUnionObject(irObject: IRObject): void {
     this.generateDocComment(irObject.description);
+    this.generateDeprecationAnnotation(irObject.description);
     this.emit(`public sealed interface ${irObject.name}`);
     this.emit('');
 
@@ -425,6 +441,7 @@ export class KotlinPlugin extends CodegenPlugin {
     const sortedEntries = [...irObject.resultUnionEntries!].sort((a, b) => a.fieldName.localeCompare(b.fieldName));
     for (const entry of sortedEntries) {
       this.generateDocComment(entry.description);
+      this.generateDeprecationAnnotation(entry.description);
       const className = `${irObject.name}${capitalize(entry.fieldName)}`;
       const propertyType = this.getPropertyType(entry.type);
       this.emit(`public data class ${className}(val value: ${propertyType}) : ${irObject.name}`);
@@ -453,10 +470,12 @@ export class KotlinPlugin extends CodegenPlugin {
     const sortedFields = [...irInput.fields].sort((a, b) => a.name.localeCompare(b.name));
 
     this.generateDocComment(irInput.description);
+    this.generateDeprecationAnnotation(irInput.description);
     this.emit(`public data class ${irInput.name}(`);
 
     sortedFields.forEach((field, index) => {
       this.generateDocComment(field.description, '    ');
+      this.generateDeprecationAnnotation(field.description, '    ');
       const propertyType = this.getPropertyType(field.type);
       const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
       const suffix = index === sortedFields.length - 1 ? '' : ',';
@@ -557,9 +576,11 @@ export class KotlinPlugin extends CodegenPlugin {
     };
 
     this.generateDocComment(irInput.description);
+    this.generateDeprecationAnnotation(irInput.description);
     this.emit(`public data class ${irInput.name}(`);
     primaryFields.forEach((value, index) => {
       this.generateDocComment(value.description, '    ');
+      this.generateDeprecationAnnotation(value.description, '    ');
       const suffix = index === primaryFields.length - 1 ? '' : ',';
       this.emit(`    val ${value.name}: ${this.getPropertyType(value.type)}${defaultValue(value)}${suffix}`);
     });
@@ -568,6 +589,7 @@ export class KotlinPlugin extends CodegenPlugin {
 
     for (const value of extraFields) {
       this.generateDocComment(value.description, '    ');
+      this.generateDeprecationAnnotation(value.description, '    ');
       this.emit(`    var ${value.name}: ${this.getPropertyType(value.type)} = null`);
       this.emit('        private set');
       this.emit('');
@@ -640,10 +662,12 @@ export class KotlinPlugin extends CodegenPlugin {
 
   private generateStandardInput(irInput: IRInput): void {
     this.generateDocComment(irInput.description);
+    this.generateDeprecationAnnotation(irInput.description);
     this.emit(`public data class ${irInput.name}(`);
 
     irInput.fields.forEach((field, index) => {
       this.generateDocComment(field.description, '    ');
+      this.generateDeprecationAnnotation(field.description, '    ');
       const propertyType = this.getPropertyType(field.type);
       const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
       const suffix = index === irInput.fields.length - 1 ? '' : ',';
@@ -724,11 +748,13 @@ export class KotlinPlugin extends CodegenPlugin {
   private generateRequestPurchaseProps(irInput: IRInput): void {
     const [requestPurchase, requestSubscription, type, useAlternativeBilling] = this.requireCustomInputFields(irInput);
     this.generateDocComment(irInput.description);
+    this.generateDeprecationAnnotation(irInput.description);
     this.emit('public data class RequestPurchaseProps(');
     this.emit('    val request: Request,');
     this.generateDocComment(type.description, '    ');
     this.emit('    val type: ProductQueryType,');
     this.generateDocComment(useAlternativeBilling.description, '    ');
+    this.generateDeprecationAnnotation(useAlternativeBilling.description, '    ');
     this.emit('    val useAlternativeBilling: Boolean? = null');
     this.emit(') {');
     this.emit('    init {');
@@ -800,6 +826,7 @@ export class KotlinPlugin extends CodegenPlugin {
 
   generateUnion(irUnion: IRUnion): void {
     this.generateDocComment(irUnion.description);
+    this.generateDeprecationAnnotation(irUnion.description);
 
     const implementations = irUnion.sharedInterfaces.length > 0 ? ` : ${irUnion.sharedInterfaces.join(', ')}` : '';
     this.emit(`public sealed interface ${irUnion.name}${implementations} {`);
@@ -882,6 +909,7 @@ export class KotlinPlugin extends CodegenPlugin {
   private generateOperationInterface(irOperation: IROperation): void {
     const interfaceName = `${irOperation.name}Resolver`;
     this.generateDocComment(irOperation.description ?? `GraphQL root ${irOperation.name.toLowerCase()} operations.`);
+    this.generateDeprecationAnnotation(irOperation.description);
     this.emit(`public interface ${interfaceName} {`);
 
     // Sort fields alphabetically and filter _placeholder
@@ -889,12 +917,22 @@ export class KotlinPlugin extends CodegenPlugin {
 
     for (const field of sortedFields) {
       this.generateDocComment(this.operationFieldDescription(field), '    ');
+      // Operation replacements may require new arguments, so prose alone
+      // cannot safely produce a Kotlin ReplaceWith code fragment.
+      this.generateDeprecationAnnotation(
+        this.operationFieldDescription(field),
+        '    ',
+        false,
+      );
       const returnType = this.getOperationReturnType(field);
 
       const args = field.args.map((arg) => {
         const argType = this.getPropertyType(arg.type);
         const argName = this.escapeKeyword(arg.name);
         const defaultValue = arg.type.nullable ? ' = null' : '';
+        // Kotlin's Deprecated annotation cannot target value parameters.
+        // operationFieldDescription keeps the canonical argument reason in
+        // resolver KDoc without generating an invalid annotation.
         return `${argName}: ${argType}${defaultValue}`;
       });
       const params = args.length > 0 ? args.join(', ') : '';
@@ -942,6 +980,12 @@ export class KotlinPlugin extends CodegenPlugin {
       const aliasName = `${irOperation.name}${capitalize(field.name)}Handler`;
       const propertyName = this.escapeKeyword(field.name);
       const suffix = index === sortedFields.length - 1 ? '' : ',';
+      this.generateDocComment(this.operationFieldDescription(field), '    ');
+      this.generateDeprecationAnnotation(
+        this.operationFieldDescription(field),
+        '    ',
+        false,
+      );
       this.emit(`    val ${propertyName}: ${aliasName}? = null${suffix}`);
     });
 
@@ -1128,8 +1172,76 @@ export class KotlinPlugin extends CodegenPlugin {
     if (!description) return;
     this.emit(`${indent}/**`);
     for (const line of description.split(/\r?\n/)) {
-      this.emit(`${indent} * ${line}`);
+      this.emit(line.length === 0 ? `${indent} *` : `${indent} * ${line}`);
     }
     this.emit(`${indent} */`);
+  }
+
+  private deprecationReason(description: string | undefined): string | null {
+    if (!description) return null;
+    const match = description.match(/(?:^|\n)@deprecated\s+([^\n]+)/);
+    return match?.[1]?.trim() || null;
+  }
+
+  private deprecationAnnotation(
+    description: string | undefined,
+    includeReplaceWith: boolean = true,
+    verifiedReplacement?: string,
+  ): string | null {
+    const reason = this.deprecationReason(description);
+    if (!reason) return null;
+
+    const escapedReason = reason
+      .replaceAll('\\', '\\\\')
+      .replaceAll('"', '\\"')
+      .replaceAll('$', '\\$')
+      .replaceAll('\r', '\\r')
+      .replaceAll('\n', '\\n')
+      .replaceAll('\t', '\\t');
+    const simpleReplacement =
+      verifiedReplacement ??
+      (includeReplaceWith
+        ? reason.match(
+            /^Use\s+([A-Za-z_][A-Za-z0-9_.]*)\s+instead\./,
+          )?.[1]
+        : undefined);
+    if (simpleReplacement) {
+      return `@Deprecated("${escapedReason}", ReplaceWith("${simpleReplacement}"))`;
+    }
+    return `@Deprecated("${escapedReason}")`;
+  }
+
+  private generateDeprecationAnnotation(
+    description: string | undefined,
+    indent: string = '',
+    includeReplaceWith: boolean = true,
+  ): void {
+    const annotation = this.deprecationAnnotation(
+      description,
+      includeReplaceWith,
+    );
+    if (annotation) this.emit(`${indent}${annotation}`);
+  }
+
+  private generateEnumValueDeprecationAnnotation(
+    irEnum: IREnum,
+    description: string | undefined,
+    indent: string,
+  ): void {
+    const reason = this.deprecationReason(description);
+    if (!reason) return;
+
+    const namedTarget = reason.match(
+      /^Use\s+([A-Za-z_][A-Za-z0-9_]*)\s+instead\./,
+    )?.[1];
+    const replacement = namedTarget
+      ? irEnum.values.find((value) => value.name === namedTarget)
+      : undefined;
+    const annotation = this.deprecationAnnotation(
+      description,
+      false,
+      replacement ? this.enumValueCase(replacement.name) : undefined,
+    );
+    if (annotation) this.emit(`${indent}${annotation}`);
   }
 }

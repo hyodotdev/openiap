@@ -16,11 +16,11 @@ import {
   deepLinkToSubscriptionsAndroid,
 } from './modules/android';
 import {ExpoIapConsole} from './utils/debug';
+import {warnLegacyOnce} from './utils/deprecation';
 
 // Types
 import type {
   ActiveSubscription,
-  AndroidSubscriptionOfferInput,
   DeepLinkOptions,
   DeveloperProvidedBillingDetailsAndroid,
   IapPlatform,
@@ -230,14 +230,15 @@ const configurePurchaseUpdatedListenerOptionsIOS = (
 
 /**
  * Accepts the legacy 'inapp' alias for backward compatibility. The alias is
- * deprecated and scheduled for removal in the next major release — use 'in-app'.
+ * deprecated and scheduled for removal in expo-iap 5.0.0 — use 'in-app'.
  */
 export type ProductTypeInput = ProductQueryType | 'inapp';
 
 const normalizeProductType = (type?: ProductTypeInput) => {
   if (type === 'inapp') {
-    ExpoIapConsole.warn(
-      "'inapp' product type is deprecated and will be removed in a future major version. Use 'in-app' instead.",
+    warnLegacyOnce(
+      'product-type.inapp',
+      "'inapp' product type is deprecated and will be removed in expo-iap 5.0.0. Use 'in-app' instead.",
     );
   }
 
@@ -953,12 +954,30 @@ function normalizeRequestProps(
     | RequestSubscriptionPropsByPlatforms,
   platform: 'ios' | 'android',
 ) {
-  // Support both new (apple/google) and legacy (ios/android) field names
-  // New fields take precedence over deprecated ones
   if (platform === 'ios') {
-    return request.apple ?? request.ios;
+    if (Object.prototype.hasOwnProperty.call(request, 'apple')) {
+      return request.apple;
+    }
+    if (Object.prototype.hasOwnProperty.call(request, 'ios')) {
+      warnLegacyOnce(
+        'request-purchase.ios',
+        '`request.ios` is deprecated and will be removed in expo-iap 5.0.0. Use `request.apple` instead.',
+      );
+      return request.ios;
+    }
+    return undefined;
   }
-  return request.google ?? request.android;
+  if (Object.prototype.hasOwnProperty.call(request, 'google')) {
+    return request.google;
+  }
+  if (Object.prototype.hasOwnProperty.call(request, 'android')) {
+    warnLegacyOnce(
+      'request-purchase.android',
+      '`request.android` is deprecated and will be removed in expo-iap 5.0.0. Use `request.google` instead.',
+    );
+    return request.android;
+  }
+  return undefined;
 }
 
 /**
@@ -1018,7 +1037,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
 
     const payload: MutationRequestPurchaseArgs = {
       type: canonical === 'in-app' ? 'in-app' : 'subs',
-      request: {ios: normalizedRequest},
+      request: {apple: normalizedRequest},
       useAlternativeBilling: args.useAlternativeBilling,
     };
 
@@ -1080,14 +1099,13 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
         () =>
           ExpoIapModule.requestPurchase({
             type: native,
-            skuArr: skus,
+            skus,
             purchaseToken: undefined,
             replacementMode: -1,
             obfuscatedAccountId: obfuscatedAccountId,
             obfuscatedProfileId: obfuscatedProfileId,
             offerToken: offerToken,
             developerBillingOption: developerBillingOption ?? undefined,
-            offerTokenArr: [],
             isOfferPersonalized: isOfferPersonalized ?? false,
           }),
         'android',
@@ -1145,16 +1163,13 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
         () =>
           ExpoIapModule.requestPurchase({
             type: native,
-            skuArr: skus,
+            skus,
             purchaseToken,
             originalExternalTransactionId:
               originalExternalTransactionId ?? undefined,
             replacementMode,
             obfuscatedAccountId: obfuscatedAccountId,
             obfuscatedProfileId: obfuscatedProfileId,
-            offerTokenArr: normalizedOffers.map(
-              (offer: AndroidSubscriptionOfferInput) => offer.offerToken,
-            ),
             subscriptionOffers: normalizedOffers,
             isOfferPersonalized: isOfferPersonalized ?? false,
             developerBillingOption: developerBillingOption ?? undefined,
@@ -1314,7 +1329,8 @@ export const deepLinkToSubscriptions: MutationField<
  * - iOS: Send receipt data to Apple's verification endpoint from your server
  * - Android: Use Google Play Developer API with service account credentials
  *
- * @deprecated Use verifyPurchase instead
+ * @deprecated Use verifyPurchase instead. This function will be removed in
+ * expo-iap 5.0.0.
  *
  * @see {@link https://openiap.dev/docs/apis/validate-receipt}
  */

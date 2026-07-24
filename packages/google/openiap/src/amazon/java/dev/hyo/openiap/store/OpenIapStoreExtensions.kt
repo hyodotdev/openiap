@@ -18,8 +18,11 @@ import dev.hyo.openiap.listener.UserChoiceBillingListener
  * @param alternativeBillingMode Ignored by Amazon; kept for API compatibility
  * @param userChoiceBillingListener Ignored by Amazon; kept for API compatibility
  */
+@Deprecated(
+    "Use OpenIapStore(context) instead; Amazon ignores alternative-billing constructor options. Scheduled for removal in OpenIAP 3.0."
+)
 fun OpenIapStore(
     context: Context,
-    alternativeBillingMode: AlternativeBillingMode = AlternativeBillingMode.NONE,
+    alternativeBillingMode: AlternativeBillingMode,
     userChoiceBillingListener: UserChoiceBillingListener? = null
 ): OpenIapStore = OpenIapStore(OpenIapModule(context, alternativeBillingMode, userChoiceBillingListener) as OpenIapProtocol)

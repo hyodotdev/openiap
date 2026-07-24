@@ -68,5 +68,9 @@ let package = Package(
             swiftSettings: swiftSettings,
             linkerSettings: linkerSettings
         ),
+        .testTarget(
+            name: "GodotIapTests",
+            dependencies: ["GodotIap"]
+        ),
     ]
 )

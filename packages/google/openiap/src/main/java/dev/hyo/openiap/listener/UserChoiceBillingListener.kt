@@ -1,8 +1,15 @@
+// This file implements the deprecated 2.x adapter to the canonical listener.
+// Consumer call sites retain warnings; remove the adapter in 3.0.
+@file:Suppress("DEPRECATION")
+
 package dev.hyo.openiap.listener
 
 /**
  * User choice billing details when user selects alternative billing
  */
+@Deprecated(
+    "Use UserChoiceBillingDetails instead. Scheduled for removal in OpenIAP 3.0."
+)
 data class UserChoiceDetails(
     /**
      * External transaction token to be sent to backend server
@@ -18,6 +25,9 @@ data class UserChoiceDetails(
  * Listener for user choice billing selection
  * Called when user selects alternative billing in the user choice flow
  */
+@Deprecated(
+    "Use OpenIapUserChoiceBillingListener instead. Scheduled for removal in OpenIAP 3.0."
+)
 fun interface UserChoiceBillingListener {
     /**
      * Called when user selects alternative billing

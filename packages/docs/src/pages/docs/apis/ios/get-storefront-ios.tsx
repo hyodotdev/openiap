@@ -37,7 +37,13 @@ function GetStorefrontIOS() {
       <div className="alert-card alert-card--warning">
         <p>
           <strong>Deprecated.</strong> Use the cross-platform API. Use{' '}
-          <Link to="/docs/apis/get-storefront">getStorefront</Link> instead.
+          <Link to="/docs/apis/get-storefront">getStorefront</Link> instead. The
+          schema/native operation is scheduled for removal in OpenIAP 3.0;
+          framework copies remain only through each package major listed in the{' '}
+          <Link to="/docs/updates/deprecations#removal-schedule">
+            deprecation schedule
+          </Link>
+          .
         </p>
       </div>
 
@@ -78,7 +84,7 @@ Task<string> GetStorefrontIOSAsync();`}</CodeBlock>
         <code>"JPN"</code>).
       </p>
 
-      <h2>Example</h2>
+      <h2>Legacy example (migration reference only)</h2>
       <LanguageTabs>
         {{
           swift: (

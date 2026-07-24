@@ -569,11 +569,11 @@ public final class ExpoIapOnsideModule: Module {
         }
 
         if let request = payload["request"] as? [String: Any] {
-            if let ios = request["ios"] as? [String: Any] {
-                if let sku = ios["sku"] as? String, !sku.isEmpty {
+            if let apple = resolveAppleRequest(from: request) {
+                if let sku = apple["sku"] as? String, !sku.isEmpty {
                     return sku
                 }
-                if let skus = ios["skus"] as? [String], let first = skus.first, !first.isEmpty {
+                if let skus = apple["skus"] as? [String], let first = skus.first, !first.isEmpty {
                     return first
                 }
             }
@@ -581,22 +581,38 @@ public final class ExpoIapOnsideModule: Module {
 
         if
         let requestPurchase = payload["requestPurchase"] as? [String: Any],
-        let ios = requestPurchase["ios"] as? [String: Any],
-        let sku = ios["sku"] as? String, !sku.isEmpty
+        let apple = resolveAppleRequest(from: requestPurchase),
+        let sku = apple["sku"] as? String, !sku.isEmpty
             {
             return sku
         }
 
         if
         let requestSubscription = payload["requestSubscription"] as? [String: Any],
-        let ios = requestSubscription["ios"] as? [String: Any],
-        let sku = ios["sku"] as? String, !sku.isEmpty
+        let apple = resolveAppleRequest(from: requestSubscription),
+        let sku = apple["sku"] as? String, !sku.isEmpty
             {
             return sku
         }
 
         if let skus = payload["skus"] as? [String], let first = skus.first, !first.isEmpty {
             return first
+        }
+
+        return nil
+    }
+
+    private func resolveAppleRequest(from request: [String: Any]) -> [String: Any]? {
+        if request.keys.contains("apple") {
+            return request["apple"] as? [String: Any]
+        }
+
+        if request.keys.contains("ios") {
+            ExpoIapLog.deprecation(
+                "request-purchase.ios",
+                "`request.ios` is deprecated and will be removed in expo-iap 5.0.0. Use `request.apple` instead."
+            )
+            return request["ios"] as? [String: Any]
         }
 
         return nil

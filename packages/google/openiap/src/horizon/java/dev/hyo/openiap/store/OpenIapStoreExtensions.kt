@@ -22,6 +22,9 @@ import dev.hyo.openiap.listener.UserChoiceBillingListener
  * @param alternativeBillingMode Alternative billing mode (default: NONE)
  * @param userChoiceBillingListener Listener for user choice billing selection (optional)
  */
+@Deprecated(
+    "Use OpenIapStore(context) instead; Horizon ignores alternative-billing constructor options. Scheduled for removal in OpenIAP 3.0."
+)
 fun OpenIapStore(
     context: Context,
     alternativeBillingMode: AlternativeBillingMode = AlternativeBillingMode.NONE,

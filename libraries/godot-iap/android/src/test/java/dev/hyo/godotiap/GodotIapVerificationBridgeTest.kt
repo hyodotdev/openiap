@@ -1,12 +1,30 @@
 package dev.hyo.godotiap
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertSame
+import org.junit.After
+import org.junit.Before
 import org.junit.Test
 
 class GodotIapVerificationBridgeTest {
+    private val deprecationWarnings = mutableListOf<String>()
+
+    @Before
+    fun setUpDeprecationCapture() {
+        GodotIapLog.resetDeprecationsForTests()
+        GodotIapLog.setDeprecationHandlerForTests(deprecationWarnings::add)
+    }
+
+    @After
+    fun tearDownDeprecationCapture() {
+        GodotIapLog.setDeprecationHandlerForTests(null)
+        GodotIapLog.resetDeprecationsForTests()
+        deprecationWarnings.clear()
+    }
+
     @Test
-    fun `legacy iapkit fields include custom base url`() {
+    fun `legacy iapkit fields normalize and warn once`() {
         val props = linkedMapOf<String, Any?>(
             "provider" to "iapkit",
             "apiKey" to "test-api-key",
@@ -26,18 +44,38 @@ class GodotIapVerificationBridgeTest {
             mapOf("purchaseToken" to "purchase-token"),
             iapkit["google"],
         )
+        assertEquals(1, deprecationWarnings.size)
+        normalizeVerifyPurchaseWithProviderProps(props)
+        assertEquals(1, deprecationWarnings.size)
     }
 
     @Test
-    fun `nested iapkit payload is passed through unchanged`() {
+    fun `canonical iapkit payload wins while supplied legacy keys still warn`() {
         val props = linkedMapOf<String, Any?>(
             "provider" to "iapkit",
             "iapkit" to mapOf(
                 "baseUrl" to "http://10.0.2.2:4174",
                 "google" to mapOf("purchaseToken" to "purchase-token"),
             ),
+            "apiKey" to "ignored-legacy-key",
         )
 
         assertSame(props, normalizeVerifyPurchaseWithProviderProps(props))
+        assertEquals(1, deprecationWarnings.size)
+    }
+
+    @Test
+    fun `explicit null canonical iapkit never revives flattened input`() {
+        val props = linkedMapOf<String, Any?>(
+            "provider" to "iapkit",
+            "iapkit" to null,
+            "apiKey" to "ignored-legacy-key",
+        )
+
+        val normalized = normalizeVerifyPurchaseWithProviderProps(props)
+
+        assertSame(props, normalized)
+        assertNull(normalized["iapkit"])
+        assertEquals(1, deprecationWarnings.size)
     }
 }

@@ -6,6 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:platform/platform.dart';
 
+import 'deprecation.dart';
 import 'enums.dart';
 import 'types.dart' as gentype;
 import 'builders.dart';
@@ -74,18 +75,45 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
 
   // Instance-level stream controllers
   StreamController<gentype.Purchase?>? _purchaseController;
+
+  /// Legacy nullable purchase stream.
+  ///
+  /// Use [purchaseUpdatedListener]. Scheduled for removal in
+  /// flutter_inapp_purchase 10.0.0.
+  @Deprecated(
+    'Use purchaseUpdatedListener. '
+    'Scheduled for removal in flutter_inapp_purchase 10.0.0.',
+  )
   Stream<gentype.Purchase?> get purchaseUpdated {
     _purchaseController ??= StreamController<gentype.Purchase?>.broadcast();
     return _purchaseController!.stream;
   }
 
   StreamController<PurchaseResult?>? _purchaseErrorController;
+
+  /// Legacy purchase-error stream.
+  ///
+  /// Use [purchaseErrorListener]. Scheduled for removal in
+  /// flutter_inapp_purchase 10.0.0.
+  @Deprecated(
+    'Use purchaseErrorListener. '
+    'Scheduled for removal in flutter_inapp_purchase 10.0.0.',
+  )
   Stream<PurchaseResult?> get purchaseError {
     _purchaseErrorController ??= StreamController<PurchaseResult?>.broadcast();
     return _purchaseErrorController!.stream;
   }
 
   StreamController<ConnectionResult>? _connectionController;
+
+  /// Legacy connection-event stream.
+  ///
+  /// Use the result of [initConnection]. Scheduled for removal in
+  /// flutter_inapp_purchase 10.0.0.
+  @Deprecated(
+    'Use the result of initConnection. '
+    'Scheduled for removal in flutter_inapp_purchase 10.0.0.',
+  )
   Stream<ConnectionResult> get connectionUpdated {
     _connectionController ??= StreamController<ConnectionResult>.broadcast();
     return _connectionController!.stream;
@@ -452,6 +480,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// Parameters:
   /// - `alternativeBillingModeAndroid`: Android-only — opt into Google's alternative
   ///   billing flow (deprecated; prefer `enableBillingProgramAndroid`).
+  ///   Scheduled for removal in flutter_inapp_purchase 10.0.0.
   /// - `enableBillingProgramAndroid`: Android-only — Play Billing 8.2.0+ billing program
   ///   (e.g. External Payments). iOS ignores both fields.
   ///
@@ -482,6 +511,12 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               enableBillingProgramAndroid != null) {
             config = {};
             if (alternativeBillingModeAndroid != null) {
+              warnLegacyOnce(
+                'init-connection.alternative-billing-mode-android',
+                'The `alternativeBillingModeAndroid` field is deprecated and '
+                    'will be removed in flutter_inapp_purchase 10.0.0. Use '
+                    '`enableBillingProgramAndroid` instead.',
+              );
               config['alternativeBillingModeAndroid'] =
                   alternativeBillingModeAndroid.toJson();
             }
@@ -606,7 +641,19 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               );
             }
 
-            final iosData = requestData['ios'] as Map<String, dynamic>?;
+            final appleData = requestData['apple'];
+            final legacyIosData = requestData['ios'];
+            final hasAppleData = requestData.containsKey('apple');
+            if (!hasAppleData && legacyIosData != null) {
+              warnLegacyOnce(
+                'request-purchase.ios',
+                'The requestPurchase/requestSubscription `ios` field is '
+                    'deprecated and will be removed in flutter_inapp_purchase '
+                    '10.0.0. Use `apple` instead.',
+              );
+            }
+            final iosData = (hasAppleData ? appleData : legacyIosData)
+                as Map<String, dynamic>?;
 
             if (iosData == null) {
               throw PurchaseError(
@@ -639,9 +686,19 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             final requestKey =
                 type == 'in-app' ? 'requestPurchase' : 'requestSubscription';
             final requestData = json[requestKey] as Map<String, dynamic>?;
-            // Support both 'google' (new) and 'android' (deprecated) fields
-            final androidData = (requestData?['google'] ??
-                requestData?['android']) as Map<String, dynamic>?;
+            final googleData = requestData?['google'];
+            final legacyAndroidData = requestData?['android'];
+            final hasGoogleData = requestData?.containsKey('google') ?? false;
+            if (!hasGoogleData && legacyAndroidData != null) {
+              warnLegacyOnce(
+                'request-purchase.android',
+                'The requestPurchase/requestSubscription `android` field is '
+                    'deprecated and will be removed in flutter_inapp_purchase '
+                    '10.0.0. Use `google` instead.',
+              );
+            }
+            final androidData = (hasGoogleData ? googleData : legacyAndroidData)
+                as Map<String, dynamic>?;
 
             if (androidData == null) {
               throw PurchaseError(
@@ -951,7 +1008,13 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
 
   /// Deprecated. Use cross-platform `getStorefront` instead.
   ///
+  /// Scheduled for removal in flutter_inapp_purchase 10.0.0.
+  ///
   /// See: https://openiap.dev/docs/apis/ios/get-storefront-ios
+  @Deprecated(
+    'Use getStorefront. '
+    'Scheduled for removal in flutter_inapp_purchase 10.0.0.',
+  )
   gentype.QueryGetStorefrontIOSHandler get getStorefrontIOS => () async {
         if (!isIOS) {
           throw PurchaseError(
@@ -1051,7 +1114,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
 
         try {
           final dynamic result = await _channel.invokeMethod(
-            'getSubscriptionStatus',
+            'subscriptionStatusIOS',
             {'sku': sku},
           );
 
@@ -1170,7 +1233,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
   @Deprecated(
     'Use purchasePromoted stream + requestPurchase() instead. '
-    'In StoreKit 2, promoted products are purchased via standard flow.',
+    'In StoreKit 2, promoted products are purchased via standard flow. '
+    'Scheduled for removal in flutter_inapp_purchase 10.0.0.',
   )
   gentype.MutationRequestPurchaseOnPromotedProductIOSHandler
       get requestPurchaseOnPromotedProductIOS => () async {
@@ -1208,7 +1272,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
 
         try {
           final result = await _channel.invokeMethod<Map<dynamic, dynamic>>(
-            'getAppTransaction',
+            'getAppTransactionIOS',
           );
           if (result == null) {
             return null;
@@ -1690,11 +1754,9 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             final args = <String, dynamic>{};
             if (packageNameAndroid != null && packageNameAndroid.isNotEmpty) {
               args['packageNameAndroid'] = packageNameAndroid;
-              args['packageName'] = packageNameAndroid;
             }
             if (skuAndroid != null && skuAndroid.isNotEmpty) {
               args['skuAndroid'] = skuAndroid;
-              args['sku'] = skuAndroid;
             }
 
             await _channel.invokeMethod(
@@ -1901,7 +1963,13 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
 
   /// Deprecated. Legacy App Store receipt validation. Use `verifyPurchase` instead.
   ///
+  /// Scheduled for removal in flutter_inapp_purchase 10.0.0.
+  ///
   /// See: https://openiap.dev/docs/apis/ios/validate-receipt-ios
+  @Deprecated(
+    'Use verifyPurchase. '
+    'Scheduled for removal in flutter_inapp_purchase 10.0.0.',
+  )
   gentype.QueryValidateReceiptIOSHandler get validateReceiptIOS => ({
         gentype.VerifyPurchaseAppleOptions? apple,
         gentype.VerifyPurchaseGoogleOptions? google,
@@ -1986,7 +2054,13 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
 
   /// Deprecated. Use verifyPurchase instead — same input/output shape.
   ///
+  /// Scheduled for removal in flutter_inapp_purchase 10.0.0.
+  ///
   /// See: https://openiap.dev/docs/apis/validate-receipt
+  @Deprecated(
+    'Use verifyPurchase. '
+    'Scheduled for removal in flutter_inapp_purchase 10.0.0.',
+  )
   gentype.MutationValidateReceiptHandler get validateReceipt => ({
         gentype.VerifyPurchaseAppleOptions? apple,
         gentype.VerifyPurchaseGoogleOptions? google,
@@ -2643,6 +2717,11 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// Check whether alternative billing is available for the user.
   ///
   /// See: https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android
+  @Deprecated(
+    'Use isBillingProgramAvailableAndroid('
+    'BillingProgramAndroid.ExternalOffer) instead. '
+    'Scheduled for removal in flutter_inapp_purchase 10.0.0.',
+  )
   gentype.MutationCheckAlternativeBillingAvailabilityAndroidHandler
       get checkAlternativeBillingAvailabilityAndroid => () async {
             if (!_platform.isAndroid) {
@@ -2663,6 +2742,10 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// Display Google's alternative billing information dialog.
   ///
   /// See: https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android
+  @Deprecated(
+    'Use launchExternalLinkAndroid instead. '
+    'Scheduled for removal in flutter_inapp_purchase 10.0.0.',
+  )
   gentype.MutationShowAlternativeBillingDialogAndroidHandler
       get showAlternativeBillingDialogAndroid => () async {
             if (!_platform.isAndroid) {
@@ -2682,6 +2765,11 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// Create a reporting token for an alternative billing flow.
   ///
   /// See: https://openiap.dev/docs/apis/android/create-alternative-billing-token-android
+  @Deprecated(
+    'Use createBillingProgramReportingDetailsAndroid('
+    'BillingProgramAndroid.ExternalOffer) instead. '
+    'Scheduled for removal in flutter_inapp_purchase 10.0.0.',
+  )
   gentype.MutationCreateAlternativeBillingTokenAndroidHandler
       get createAlternativeBillingTokenAndroid => () async {
             if (!_platform.isAndroid) {

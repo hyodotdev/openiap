@@ -1,3 +1,7 @@
+// Native conversion keeps populating legacy generated projections throughout
+// kmp-iap 2.x. Consumer call sites retain warnings; remove them in 3.0.
+@file:Suppress("DEPRECATION")
+
 package io.github.hyochan.kmpiap
 
 import android.app.Activity

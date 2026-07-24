@@ -64,6 +64,17 @@ final allPurchases = await iap.getAvailablePurchases(
 ### Using `lib/types.dart`
 
 - Follow the generated-handler convention documented in `CONVENTION.md` so exported APIs stay aligned with the OpenIAP schema.
+- Native purchase events already serialize the generated `PurchaseAndroid` and
+  `PurchaseIOS` contracts. Treat that canonical payload as the base in Dart
+  adapters instead of rebuilding an allowlist of fields; otherwise newly
+  generated optional fields are silently lost.
+- When a legacy purchase key must remain supported, prefer the canonical
+  generated key and use the legacy key only as a fallback. Cover both the
+  direct converter and MethodChannel listener/list response paths in tests.
+- OpenIAP-owned legacy wire keys are compatibility inputs through
+  `flutter_inapp_purchase` 9.x only. Keep the canonical generated key
+  authoritative, add an explicit removal comment to each fallback, and remove
+  the fallback together in 10.0.0 rather than piecemeal in patch releases.
 
 ### Documentation Style
 

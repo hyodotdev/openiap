@@ -12,6 +12,7 @@
     "test": "bun run --filter '*' test",
     "lint": "bun run --filter '*' lint",
     "e2e:web": "node scripts/e2e-web-sites.mjs",
+    "audit:deprecations": "node --test scripts/audit-deprecation-schedule.test.mjs && node scripts/audit-deprecation-schedule.mjs",
     "audit:parity": "node scripts/audit-non-godot-parity.mjs",
     "audit:docs": "bun run scripts/audit-docs.ts",
     "audit:release-state": "node scripts/release-branch-policy.mjs audit",

@@ -1,3 +1,7 @@
+// The Amazon implementation overrides the shared 2.x compatibility methods.
+// Consumer call sites retain warnings; remove the overrides in kmp-iap 3.
+@file:Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
+
 package io.github.hyochan.kmpiap
 
 import android.app.Activity
@@ -225,6 +229,9 @@ internal class AmazonInAppPurchaseAndroid(
             )
         }
 
+    @Deprecated(
+        message = "Use getStorefront instead. This function will be removed in kmp-iap 3.0.0.",
+    )
     override suspend fun getStorefrontIOS(): String =
         failUnsupported("getStorefrontIOS is an iOS-only API. Use getStorefront on Android.")
 
@@ -258,9 +265,15 @@ internal class AmazonInAppPurchaseAndroid(
     override suspend fun verifyPurchase(options: VerifyPurchaseProps): VerifyPurchaseResult =
         failUnsupported("verifyPurchase is not supported on Android. Use verifyPurchaseWithProvider for server-side verification via IAPKit.")
 
+    @Deprecated(
+        message = "Use verifyPurchase instead. This function will be removed in kmp-iap 3.0.0.",
+    )
     override suspend fun validateReceipt(options: VerifyPurchaseProps): VerifyPurchaseResult =
         failUnsupported("validateReceipt is not supported on Android. Use verifyPurchaseWithProvider for server-side verification.")
 
+    @Deprecated(
+        message = "Use verifyPurchase instead. This function will be removed in kmp-iap 3.0.0.",
+    )
     override suspend fun validateReceiptIOS(options: VerifyPurchaseProps): VerifyPurchaseResultIOS =
         failUnsupported("validateReceiptIOS is an iOS-only API.")
 
@@ -303,7 +316,11 @@ internal class AmazonInAppPurchaseAndroid(
     override suspend fun getReceiptDataIOS(): String? = null
     override suspend fun getTransactionJwsIOS(sku: String): String? = null
     override suspend fun getPromotedProductIOS(): io.github.hyochan.kmpiap.openiap.ProductIOS? = null
-    override suspend fun requestPurchaseOnPromotedProductIOS(): Boolean = failUnsupported("requestPurchaseOnPromotedProductIOS is an iOS-only API.")
+    @Deprecated(
+        message = "Use promotedProductListener and requestPurchase instead. Scheduled for removal in kmp-iap 3.0.0.",
+    )
+    override suspend fun requestPurchaseOnPromotedProductIOS(): Boolean =
+        failUnsupported("requestPurchaseOnPromotedProductIOS is an iOS-only API.")
     override suspend fun beginRefundRequestIOS(sku: String): String? = null
     override suspend fun showManageSubscriptionsIOS(): List<PurchaseIOS> = emptyList()
     override suspend fun syncIOS(): Boolean = false
@@ -368,60 +385,8 @@ internal class AmazonInAppPurchaseAndroid(
 
     private fun buildOpenIapModule(ctx: Context): AndroidOpenIapProtocol {
         val clazz = Class.forName("dev.hyo.openiap.OpenIapModule")
-        val alternativeBillingModeClass = runCatching {
-            Class.forName("dev.hyo.openiap.AlternativeBillingMode")
-        }.getOrNull()
-        val noneMode = alternativeBillingModeClass?.enumConstants
-            ?.firstOrNull { (it as Enum<*>).name == "NONE" }
-        val userChoiceBillingListenerClass = runCatching {
-            Class.forName("dev.hyo.openiap.listener.UserChoiceBillingListener")
-        }.getOrNull()
-        val developerProvidedBillingListenerClass = runCatching {
-            Class.forName("dev.hyo.openiap.listener.DeveloperProvidedBillingListener")
-        }.getOrNull()
-
-        val constructorArgs = mutableListOf<Pair<java.lang.reflect.Constructor<*>, Array<Any?>>>()
-
-        if (
-            alternativeBillingModeClass != null &&
-            noneMode != null &&
-            userChoiceBillingListenerClass != null &&
-            developerProvidedBillingListenerClass != null
-        ) {
-            runCatching {
-                val constructor = clazz.getConstructor(
-                    Context::class.java,
-                    alternativeBillingModeClass,
-                    userChoiceBillingListenerClass,
-                    developerProvidedBillingListenerClass
-                )
-                constructor to arrayOf(ctx, noneMode, null, null)
-            }.getOrNull()?.let(constructorArgs::add)
-        }
-
-        if (
-            alternativeBillingModeClass != null &&
-            noneMode != null &&
-            userChoiceBillingListenerClass != null
-        ) {
-            runCatching {
-                val constructor = clazz.getConstructor(
-                    Context::class.java,
-                    alternativeBillingModeClass,
-                    userChoiceBillingListenerClass
-                )
-                constructor to arrayOf(ctx, noneMode, null)
-            }.getOrNull()?.let(constructorArgs::add)
-        }
-
-        runCatching {
-            val constructor = clazz.getConstructor(Context::class.java)
-            constructor to arrayOf<Any?>(ctx)
-        }.getOrNull()?.let(constructorArgs::add)
-
-        val (constructor, args) = constructorArgs.firstOrNull()
-            ?: error("Failed to find $storeName OpenIapModule constructor")
-        return constructor.newInstance(*args) as AndroidOpenIapProtocol
+        val constructor = clazz.getConstructor(Context::class.java)
+        return constructor.newInstance(ctx) as AndroidOpenIapProtocol
     }
 
     private fun registerListeners(openModule: AndroidOpenIapProtocol) {

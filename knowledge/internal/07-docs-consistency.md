@@ -267,6 +267,87 @@ Every R12 parser edge case needs a fault test. Required fixture transforms must
 fail when their search pattern no longer matches; a no-op replacement can make
 an invalid parser look green.
 
+### R13 — Deprecations state one removal boundary
+
+OpenIAP-owned schema, native, and framework compatibility APIs stay available
+through their current stable major. Do not remove them piecemeal in patch or
+minor releases.
+
+- Every canonical `@deprecated` or `@openiapDeprecated` reason in the GraphQL
+  schema ends with `Scheduled for removal in OpenIAP 3.0.` The schema
+  deprecation extractor enforces this sentence so generated language comments
+  cannot omit the deadline.
+- `openiap-apple` and `openiap-google` remove their OpenIAP-owned legacy surface
+  with OpenIAP 3.0.
+- Framework libraries version independently and remove their handwritten
+  compatibility APIs only when each package reaches its own next major:
+  `react-native-iap` 16.0.0, `expo-iap` 5.0.0,
+  `flutter_inapp_purchase` 10.0.0, `godot-iap` 3.0.0, `kmp-iap` 3.0.0,
+  and `OpenIap.Maui` 2.0.0.
+- Generated framework declarations retain the canonical schema sentence
+  `Scheduled for removal in OpenIAP 3.0.` That sentence names the spec/native
+  removal train; a generated copy shipped by a framework remains available
+  until that framework reaches its package-specific major above.
+- The public migration guide is `/docs/updates/deprecations`. Add a canonical
+  replacement and removal target there before introducing a new deprecated
+  public symbol.
+- Flutter 9.x purchase conversion temporarily accepts
+  `originalJsonAndroid` → `dataAndroid`, `purchaseStateAndroid` /
+  `transactionStateIOS` → `purchaseState`, `transactionReceipt` →
+  `purchaseToken`, and `id` as a fallback for `transactionId`. Document these
+  as Flutter 10 wire-input removals without marking the canonical `id` field
+  itself deprecated. Flutter's legacy top-level `{ sku }` verification input
+  also ends in 10.0.0; use `{ apple: { sku } }`. The official Dart emitter must
+  use canonical `in-app`, `apple` / `google`,
+  `getAppTransactionIOS` / `subscriptionStatusIOS`, and suffixed Android
+  deep-link keys before native fallbacks warn about their historical forms.
+- Godot's flattened IAPKit verification keys (`apiKey`, `baseUrl`,
+  `includeClientPayload`, `apple`, `google`, and `amazon`) remain compatible
+  through 2.x but move under the canonical `iapkit` object before godot-iap
+  3.0.0. `provider` remains top-level. Canonical typed calls must not emit raw
+  bridge aliases such as `request`, `ios` / `android`, `skuArr`,
+  `offerTokenArr`, or `requestPurchaseJson`; direct custom-bridge callers may
+  use those forms only through 2.x and receive a Godot 3 warning.
+- Kotlin generation must convert canonical schema deprecation reasons into
+  real `@Deprecated` annotations on supported type, property, enum, and
+  function declarations, not KDoc alone. Kotlin does not allow that annotation
+  on value parameters, so deprecated GraphQL arguments remain explicit
+  resolver KDoc. Generated files suppress their own compatibility reads while
+  downstream Kotlin consumers still receive compiler and IDE warnings wherever
+  the language provides an annotation target.
+- Native custom-bridge fallbacks such as Apple purchase `id` standing in for a
+  missing `transactionId` warn once and prefer the canonical key whenever both
+  are present. The canonical purchase identity `id` itself is not deprecated.
+- React Native and Expo custom request envelopes move from `ios` / `android` to
+  `apple` / `google` at their respective removal majors. Expo Android custom
+  callers also move `skuArr` to `skus` and `offerTokenArr` to
+  `subscriptionOffers`, and Android deep-link callers move `sku` /
+  `packageName` to `skuAndroid` / `packageNameAndroid` before 5.0.0. Flutter
+  custom Android callers replace `skuArr` / `productIds` with `skus`,
+  `offerTokenArr` with `offerToken` for one-time products or
+  `subscriptionOffers` for subscriptions, `token` with `purchaseToken`, and
+  finish-transaction `transactionIdentifier` with `transactionId` before
+  10.0.0.
+- Raw map/object compatibility adapters use own-key presence semantics, so an
+  own canonical key, including `null`, is authoritative in JavaScript objects,
+  plugin configuration, and custom MethodChannel payloads.
+- Generated typed platform requests use nullable value semantics. Swift and
+  Kotlin request models expose nullable `apple` / `google` and `ios` /
+  `android` members without a separate supplied-key bit. Typed facades therefore
+  prefer a non-null canonical member and otherwise retain the legacy optional
+  fallback until the listed major. Callers must omit the legacy member instead
+  of relying on canonical `null` to suppress it.
+
+This policy covers OpenIAP-owned public aliases and compatibility wire keys. It
+does not schedule upstream StoreKit, Play Billing, Amazon, or Horizon response
+compatibility; internal React Native, Expo, KMP, or Godot native-response
+recovery; historical URL redirects; error-code input normalization;
+unsupported-OS fallbacks; or staged IAPKit data migrations for removal.
+In particular, the KMP iOS product-response normalizer may fill an empty
+canonical placeholder from a populated native historical response label. That
+transport recovery is not a user-authored deprecated input and is not scheduled
+for removal in KMP 3.0.
+
 ## Pre-commit checklist
 
 Run before every `git push` on docs / SDK changes:

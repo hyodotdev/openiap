@@ -129,7 +129,11 @@ class HybridRnIap: HybridRnIapSpec {
                 queryTypes = [.inApp, .subs]
             } else {
                 if normalizedType == "inapp" {
-                    RnIapLog.warn("fetchProducts received legacy type 'inapp'; forwarding as 'in-app'")
+                    RnIapLog.deprecation(
+                        "product-type.inapp",
+                        "fetchProducts received legacy type 'inapp'; forwarding as 'in-app'. " +
+                            "The alias will be removed in react-native-iap 16.0.0."
+                    )
                 }
                 queryTypes = [RnIapHelper.parseProductQueryType(type)]
             }
@@ -178,13 +182,30 @@ class HybridRnIap: HybridRnIapSpec {
             let defaultResult: RequestPurchaseResult = .fourth([])
             RnIapLog.payload(
                 "requestPurchase", [
-                    "hasIOS": request.ios != nil,
-                    "hasAndroid": request.android != nil
+                    "hasApple": request.apple != nil,
+                    "hasGoogle": request.google != nil,
+                    "hasLegacyIOS": request.ios != nil,
+                    "hasLegacyAndroid": request.android != nil
                 ]
             )
 
             let iosRequest: NitroRequestPurchaseIos
-            if case .second(let unwrapped) = request.ios {
+            if let canonicalApple = request.apple {
+                guard case .second(let unwrapped) = canonicalApple else {
+                    let error = RnIapHelper.makePurchaseErrorResult(
+                        code: .developerError,
+                        message: "No iOS request provided"
+                    )
+                    self.sendPurchaseError(error, productId: nil)
+                    return defaultResult
+                }
+                iosRequest = unwrapped
+            } else if case .second(let unwrapped) = request.ios {
+                RnIapLog.deprecation(
+                    "request-purchase.ios",
+                    "`request.ios` is deprecated and will be removed in react-native-iap 16.0.0. " +
+                        "Use `request.apple` instead."
+                )
                 iosRequest = unwrapped
             } else {
                 let error = RnIapHelper.makePurchaseErrorResult(

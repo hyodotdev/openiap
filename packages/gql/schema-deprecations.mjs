@@ -3,6 +3,8 @@ import { collectGraphQLComments, normalizeSchemaSources } from './schema-source-
 
 const TYPE_DEPRECATION_DIRECTIVE = 'openiapDeprecated';
 
+export const OPENIAP_3_REMOVAL_NOTICE = 'Scheduled for removal in OpenIAP 3.0.';
+
 const TYPE_DEFINITION_KINDS = new Set([
   Kind.ENUM_TYPE_DEFINITION,
   Kind.ENUM_TYPE_EXTENSION,
@@ -36,7 +38,17 @@ const canonicalReason = ({ directive, issues, label, line, sourceId }) => {
     });
     return null;
   }
-  return reason.value.replace(/\s+/g, ' ').trim();
+  const normalizedReason = reason.value.replace(/\s+/g, ' ').trim();
+  if (!normalizedReason.endsWith(OPENIAP_3_REMOVAL_NOTICE)) {
+    issues.push({
+      file: sourceId,
+      line: directive.loc?.startToken.line ?? line,
+      message: `${label} deprecation reason must end with "${OPENIAP_3_REMOVAL_NOTICE}"`,
+      rule: 'deprecated-removal-schedule-missing',
+    });
+    return null;
+  }
+  return normalizedReason;
 };
 
 /**

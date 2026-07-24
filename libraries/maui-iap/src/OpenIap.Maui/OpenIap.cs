@@ -155,10 +155,12 @@ public static class OpenIapClient
 }
 
 /// <summary>
-/// Backward-compatible alias for <see cref="OpenIapClient"/>. New code should
-/// use <see cref="OpenIapClient"/> to avoid namespace/type name collisions in
+/// Backward-compatible alias for <see cref="OpenIapClient"/>. This facade will
+/// be removed in OpenIap.Maui 2.0.0. New code should use
+/// <see cref="OpenIapClient"/> to avoid namespace/type name collisions in
 /// projects whose namespaces start with <c>OpenIap.Maui.Iap</c>.
 /// </summary>
+[Obsolete("Use OpenIapClient instead. The Iap facade will be removed in OpenIap.Maui 2.0.0.")]
 [EditorBrowsable(EditorBrowsableState.Never)]
 public static class Iap
 {

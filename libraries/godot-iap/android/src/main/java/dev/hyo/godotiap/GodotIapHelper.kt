@@ -61,21 +61,40 @@ internal object GodotIapHelper {
     }
 
     /**
-     * Parse product query type from string.
-     * Handles various formats: "subs", "in-app", "in_app", "inapp", "all"
+     * Parse an OpenIAP product query type without silently changing unknown
+     * values into another query class.
+     *
+     * The non-canonical spellings remain accepted during godot-iap 2.x so
+     * projects using the native bridge directly can migrate before 3.0.0.
      */
-    fun parseProductQueryType(rawType: String?): ProductQueryType {
-        val normalized = rawType
-            ?.trim()
-            ?.lowercase(Locale.US)
-            ?.replace("-", "")
-            ?.replace("_", "")
+    fun parseProductQueryType(
+        rawType: String?,
+        defaultType: ProductQueryType = ProductQueryType.InApp,
+        allowAll: Boolean = true,
+    ): ProductQueryType {
+        val normalized = rawType?.trim()?.lowercase(Locale.US)
+        if (normalized.isNullOrEmpty()) return defaultType
 
-        return when (normalized) {
-            "subs" -> ProductQueryType.Subs
-            "all" -> ProductQueryType.All
-            else -> ProductQueryType.InApp
+        val parsed = when (normalized) {
+            ProductQueryType.InApp.toJson() -> ProductQueryType.InApp
+            ProductQueryType.Subs.toJson() -> ProductQueryType.Subs
+            ProductQueryType.All.toJson() -> ProductQueryType.All
+            "inapp", "in_app" -> {
+                warnLegacyWireInput(normalized, ProductQueryType.InApp.toJson())
+                ProductQueryType.InApp
+            }
+            "subscription", "subscriptions" -> {
+                warnLegacyWireInput(normalized, ProductQueryType.Subs.toJson())
+                ProductQueryType.Subs
+            }
+            else -> throw IllegalArgumentException(
+                "Unknown product query type '$rawType'. Expected in-app, subs, or all.",
+            )
         }
+        if (!allowAll && parsed == ProductQueryType.All) {
+            throw IllegalArgumentException("Product query type 'all' is not valid for a purchase request.")
+        }
+        return parsed
     }
 
     /**
@@ -88,30 +107,63 @@ internal object GodotIapHelper {
         // Parse type
         val type = json.optStringOrNull("type")
 
-        // Parse skus - check multiple possible keys
+        // Parse skus - keep the 2.x alias, but canonical presence always wins.
         val skus = mutableListOf<String>()
-        val skusArray = json.optJSONArray("skus") ?: json.optJSONArray("skuArr")
+        val skusArray = resolveCanonicalWireValue(
+            canonicalPresent = json.has("skus"),
+            canonicalValue = json.optJSONArray("skus"),
+            legacyPresent = json.has("skuArr"),
+            legacyValue = json.optJSONArray("skuArr"),
+            legacyName = "skuArr",
+            canonicalName = "skus",
+        )
         if (skusArray != null) {
             for (i in 0 until skusArray.length()) {
                 skus.add(skusArray.getString(i))
             }
         }
 
-        // Parse obfuscated IDs (support both Android-suffixed and plain keys)
-        val obfuscatedAccountId = json.optStringOrNull("obfuscatedAccountIdAndroid")
-            ?: json.optStringOrNull("obfuscatedAccountId")
-        val obfuscatedProfileId = json.optStringOrNull("obfuscatedProfileIdAndroid")
-            ?: json.optStringOrNull("obfuscatedProfileId")
+        // Parse obfuscated IDs (canonical keys win when both are supplied).
+        val obfuscatedAccountId = resolveCanonicalWireValue(
+            canonicalPresent = json.has("obfuscatedAccountId"),
+            canonicalValue = json.optStringOrNull("obfuscatedAccountId"),
+            legacyPresent = json.has("obfuscatedAccountIdAndroid"),
+            legacyValue = json.optStringOrNull("obfuscatedAccountIdAndroid"),
+            legacyName = "obfuscatedAccountIdAndroid",
+            canonicalName = "obfuscatedAccountId",
+        )
+        val obfuscatedProfileId = resolveCanonicalWireValue(
+            canonicalPresent = json.has("obfuscatedProfileId"),
+            canonicalValue = json.optStringOrNull("obfuscatedProfileId"),
+            legacyPresent = json.has("obfuscatedProfileIdAndroid"),
+            legacyValue = json.optStringOrNull("obfuscatedProfileIdAndroid"),
+            legacyName = "obfuscatedProfileIdAndroid",
+            canonicalName = "obfuscatedProfileId",
+        )
 
         // Parse other options
         val isOfferPersonalized = json.optBoolean("isOfferPersonalized", false)
-        val purchaseToken = json.optStringOrNull("purchaseTokenAndroid")
-            ?: json.optStringOrNull("purchaseToken")
+        val purchaseToken = resolveCanonicalWireValue(
+            canonicalPresent = json.has("purchaseToken"),
+            canonicalValue = json.optStringOrNull("purchaseToken"),
+            legacyPresent = json.has("purchaseTokenAndroid"),
+            legacyValue = json.optStringOrNull("purchaseTokenAndroid"),
+            legacyName = "purchaseTokenAndroid",
+            canonicalName = "purchaseToken",
+        )
         val originalExternalTransactionId = json.optStringOrNull("originalExternalTransactionId")
-        val replacementMode = when {
-            json.has("replacementModeAndroid") -> json.optInt("replacementModeAndroid")
-            json.has("replacementMode") -> json.optInt("replacementMode")
-            else -> null
+        val replacementMode = resolveCanonicalWireValue(
+            canonicalPresent = json.has("replacementMode"),
+            canonicalValue = json.optInt("replacementMode").takeIf { json.has("replacementMode") },
+            legacyPresent = json.has("replacementModeAndroid"),
+            legacyValue = json.optInt("replacementModeAndroid").takeIf {
+                json.has("replacementModeAndroid")
+            },
+            legacyName = "replacementModeAndroid",
+            canonicalName = "subscriptionProductReplacementParams",
+        )
+        if (json.has("replacementMode")) {
+            warnLegacyWireInput("replacementMode", "subscriptionProductReplacementParams")
         }
 
         // Parse subscriptionProductReplacementParams (8.1.0+)
@@ -134,9 +186,17 @@ internal object GodotIapHelper {
             DeveloperBillingOptionParamsAndroid.fromJson(jsonObjectToMap(it))
         }
 
-        // Parse offer token array
+        val canonicalOfferToken = json.optStringOrNull("offerToken")
+
+        // Parse the pre-3.0 offer token array.
         val offerTokenArr = mutableListOf<String>()
         val offerTokenArray = json.optJSONArray("offerTokenArr")
+        if (json.has("offerTokenArr")) {
+            warnLegacyWireInput(
+                "offerTokenArr",
+                "offerToken for one-time products or subscriptionOffers for subscriptions",
+            )
+        }
         if (offerTokenArray != null) {
             for (i in 0 until offerTokenArray.length()) {
                 offerTokenArr.add(offerTokenArray.getString(i))
@@ -160,7 +220,7 @@ internal object GodotIapHelper {
         }
 
         // Build subscription offers from offerTokenArr as fallback
-        val subscriptionOffers = if (explicitSubscriptionOffers.isNotEmpty()) {
+        val subscriptionOffers = if (json.has("subscriptionOffers")) {
             explicitSubscriptionOffers
         } else if (offerTokenArr.isNotEmpty() && skus.isNotEmpty()) {
             skus.zip(offerTokenArr).mapNotNull { (sku, token) ->
@@ -180,7 +240,11 @@ internal object GodotIapHelper {
             obfuscatedAccountId = obfuscatedAccountId,
             obfuscatedProfileId = obfuscatedProfileId,
             isOfferPersonalized = isOfferPersonalized,
-            offerTokenArr = offerTokenArr,
+            offerToken = if (json.has("offerToken")) {
+                canonicalOfferToken
+            } else {
+                offerTokenArr.firstOrNull()
+            },
             subscriptionOffers = subscriptionOffers,
             developerBillingOption = developerBillingOption,
             originalExternalTransactionId = originalExternalTransactionId,
@@ -216,12 +280,38 @@ internal object GodotIapHelper {
         val obfuscatedAccountId: String?,
         val obfuscatedProfileId: String?,
         val isOfferPersonalized: Boolean,
-        val offerTokenArr: List<String>,
+        val offerToken: String?,
         val subscriptionOffers: List<AndroidSubscriptionOfferInput>,
         val developerBillingOption: DeveloperBillingOptionParamsAndroid?,
         val originalExternalTransactionId: String?,
         val purchaseToken: String?,
         val replacementMode: Int?,
-        val subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid?
+        val subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid?,
     )
+
+    private fun warnLegacyWireInput(
+        legacyName: String,
+        canonicalName: String,
+    ) {
+        GodotIapLog.deprecation(
+            key = "wire:$legacyName",
+            message =
+                "$legacyName is deprecated and will be removed in godot-iap 3.0.0; " +
+                    "use $canonicalName instead.",
+        )
+    }
+
+    internal fun <T> resolveCanonicalWireValue(
+        canonicalPresent: Boolean,
+        canonicalValue: T?,
+        legacyPresent: Boolean,
+        legacyValue: T?,
+        legacyName: String,
+        canonicalName: String,
+    ): T? {
+        if (legacyPresent) {
+            warnLegacyWireInput(legacyName, canonicalName)
+        }
+        return if (canonicalPresent) canonicalValue else legacyValue
+    }
 }

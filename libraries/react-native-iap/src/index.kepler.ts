@@ -3,6 +3,7 @@ import type {
   MutationField,
   Product,
   ProductQueryType,
+  ProductRequest,
   ProductSubscription,
   Purchase,
   PurchaseError,
@@ -25,6 +26,8 @@ import {
   validateNitroProduct,
   validateNitroPurchase,
 } from './utils/type-bridge';
+import {warnLegacyOnce} from './utils/deprecation';
+import {selectCanonicalPlatformRequest} from './utils/platform-request';
 
 export * from './types';
 export * from './utils/error';
@@ -46,7 +49,16 @@ export type {
   StatusResponse,
 } from './kit-api';
 
+/**
+ * Product type accepted by the Amazon Vega entry point.
+ *
+ * Compatibility note: the `'inapp'` member is deprecated. Use `'in-app'`
+ * instead; the alias will be removed in react-native-iap 16.0.0.
+ */
 export type ProductTypeInput = 'inapp' | 'in-app' | 'subs';
+
+const LEGACY_INAPP_WARNING =
+  "[react-native-iap] `type: 'inapp'` is deprecated and will be removed in react-native-iap 16.0.0. Use 'in-app' instead.";
 
 export interface EventSubscription {
   remove(): void;
@@ -80,7 +92,10 @@ const normalizeProductQueryType = (
 ): ProductTypeInput | 'all' => {
   if (type === 'subs') return 'subs';
   if (type === 'all') return 'all';
-  return 'inapp';
+  if (type === 'inapp') {
+    warnLegacyOnce('product-type.inapp', LEGACY_INAPP_WARNING);
+  }
+  return 'in-app';
 };
 
 const mapProducts = (
@@ -113,7 +128,11 @@ export const endConnection: MutationField<'endConnection'> = async () => {
   return getModule().endConnection();
 };
 
-export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
+export const fetchProducts = async (
+  request: Omit<ProductRequest, 'type'> & {
+    type?: ProductQueryType | ProductTypeInput | null;
+  },
+): ReturnType<QueryField<'fetchProducts'>> => {
   const {skus, type} = request;
   const normalizedType = normalizeProductQueryType(type);
   const nitroProducts = await getModule().fetchProducts(skus, normalizedType);
@@ -129,8 +148,19 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
     | RequestPurchasePropsByPlatforms
     | RequestSubscriptionPropsByPlatforms
     | undefined;
-  const androidRequest =
-    perPlatformRequest?.google ?? perPlatformRequest?.android;
+  const selection = perPlatformRequest
+    ? selectCanonicalPlatformRequest<
+        | RequestPurchasePropsByPlatforms['google']
+        | RequestSubscriptionPropsByPlatforms['google']
+      >(perPlatformRequest, 'google', 'android')
+    : {usesLegacyKey: false, value: undefined};
+  if (selection.usesLegacyKey && selection.value != null) {
+    warnLegacyOnce(
+      'request-purchase.android',
+      '[react-native-iap] `request.android` is deprecated and will be removed in react-native-iap 16.0.0. Use `request.google` instead.',
+    );
+  }
+  const androidRequest = selection.value;
 
   if (!androidRequest?.skus?.length) {
     throw new Error(
@@ -140,7 +170,6 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
 
   const nitroRequest: NitroPurchaseRequest = {
     google: androidRequest,
-    android: androidRequest,
   };
   const result = await getModule().requestPurchase(nitroRequest);
   if (!Array.isArray(result)) return null;
@@ -247,11 +276,20 @@ export const verifyPurchaseWithProvider: MutationField<
   >;
 };
 
+/**
+ * @deprecated Use `verifyPurchase` instead. This compatibility operation will
+ * be removed in react-native-iap 16.0.0.
+ */
 export const validateReceipt: MutationField<'validateReceipt'> = async () => {
   return unsupported('validateReceipt');
 };
 
 export const verifyPurchase: MutationField<'verifyPurchase'> = validateReceipt;
+
+/**
+ * @deprecated Use `verifyPurchase` instead. This iOS compatibility operation
+ * will be removed in react-native-iap 16.0.0.
+ */
 export const validateReceiptIOS: QueryField<'validateReceiptIOS'> = async () =>
   unsupported('validateReceiptIOS');
 export const syncIOS: MutationField<'syncIOS'> = async () =>
@@ -262,7 +300,18 @@ export const getAppTransactionIOS: QueryField<
 export const getPromotedProductIOS: QueryField<
   'getPromotedProductIOS'
 > = async () => null;
+
+/**
+ * @deprecated Use `getPromotedProductIOS` instead. This compatibility alias
+ * will be removed in react-native-iap 16.0.0.
+ */
 export const requestPromotedProductIOS = getPromotedProductIOS;
+
+/**
+ * @deprecated Use `promotedProductListenerIOS` followed by `requestPurchase`
+ * instead. This compatibility operation will be removed in react-native-iap
+ * 16.0.0.
+ */
 export const requestPurchaseOnPromotedProductIOS = async (): Promise<void> =>
   unsupported('requestPurchaseOnPromotedProductIOS');
 export const showManageSubscriptionsIOS: MutationField<
@@ -291,19 +340,44 @@ export const consumePurchaseAndroid: MutationField<
 > = async (purchaseToken) => {
   return getVegaModule().consumePurchaseAndroid(purchaseToken);
 };
+
+/**
+ * @deprecated Use `acknowledgePurchaseAndroid` instead. This alias will be
+ * removed in react-native-iap 16.0.0.
+ */
 export const acknowledgePurchase = acknowledgePurchaseAndroid;
+
+/**
+ * @deprecated Use `consumePurchaseAndroid` instead. This alias will be removed
+ * in react-native-iap 16.0.0.
+ */
 export const consumePurchase = consumePurchaseAndroid;
 
 export const openRedeemOfferCodeAndroid: MutationField<
   'openRedeemOfferCodeAndroid'
 > = async () => false;
 
+/**
+ * @deprecated Use `isBillingProgramAvailableAndroid('external-offer')`
+ * instead. Scheduled for removal in react-native-iap 16.0.0.
+ */
 export const checkAlternativeBillingAvailabilityAndroid: MutationField<
   'checkAlternativeBillingAvailabilityAndroid'
 > = async () => unsupported('checkAlternativeBillingAvailabilityAndroid');
+
+/**
+ * @deprecated Use `launchExternalLinkAndroid` instead. Scheduled for removal
+ * in react-native-iap 16.0.0.
+ */
 export const showAlternativeBillingDialogAndroid: MutationField<
   'showAlternativeBillingDialogAndroid'
 > = async () => unsupported('showAlternativeBillingDialogAndroid');
+
+/**
+ * @deprecated Use `createBillingProgramReportingDetailsAndroid` with the
+ * external-offer program instead. Scheduled for removal in react-native-iap
+ * 16.0.0.
+ */
 export const createAlternativeBillingTokenAndroid: MutationField<
   'createAlternativeBillingTokenAndroid'
 > = async () => unsupported('createAlternativeBillingTokenAndroid');

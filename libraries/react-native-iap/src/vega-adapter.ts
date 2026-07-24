@@ -11,6 +11,7 @@ import type {
 } from './specs/RnIap.nitro';
 import {ErrorCode} from './types';
 import type {SubResponseCodeAndroid} from './types';
+import {selectCanonicalPlatformRequest} from './utils/platform-request';
 
 type ResponseOperation =
   | 'product-data'
@@ -741,8 +742,22 @@ function mapReceipt(
   };
 }
 
-function getSkuFromRequest(request: Parameters<RnIap['requestPurchase']>[0]) {
-  const androidRequest = request.google ?? request.android;
+type VegaPurchaseRequest = Parameters<RnIap['requestPurchase']>[0];
+type VegaAndroidPurchaseRequest = NonNullable<VegaPurchaseRequest['google']>;
+
+function selectGooglePurchaseRequest(
+  request: VegaPurchaseRequest,
+): VegaAndroidPurchaseRequest | null | undefined {
+  return selectCanonicalPlatformRequest<VegaAndroidPurchaseRequest>(
+    request,
+    'google',
+    'android',
+  ).value;
+}
+
+function getSkuFromRequest(
+  androidRequest: VegaAndroidPurchaseRequest | null | undefined,
+) {
   const skus = androidRequest?.skus ?? [];
   if (skus.length !== 1) {
     throw createVegaError(
@@ -1422,8 +1437,8 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
     ): Promise<Awaited<ReturnType<RnIap['requestPurchase']>>> {
       let sku: string | undefined;
       try {
-        sku = getSkuFromRequest(request);
-        const androidRequest = request.google ?? request.android;
+        const androidRequest = selectGooglePurchaseRequest(request);
+        sku = getSkuFromRequest(androidRequest);
         const fallbackProductType = hasSubscriptionRequestContext(
           androidRequest?.subscriptionOffers,
         )

@@ -9,9 +9,9 @@ enum ErrorCode {
   RemoteError
   NetworkError
   ServiceError
-  ReceiptFailed @deprecated(reason: "Use PurchaseVerificationFailed instead")
-  ReceiptFinished @deprecated(reason: "Use PurchaseVerificationFinished instead")
-  ReceiptFinishedFailed @deprecated(reason: "Use PurchaseVerificationFinishFailed instead")
+  ReceiptFailed @deprecated(reason: "Use PurchaseVerificationFailed instead. Scheduled for removal in OpenIAP 3.0.")
+  ReceiptFinished @deprecated(reason: "Use PurchaseVerificationFinished instead. Scheduled for removal in OpenIAP 3.0.")
+  ReceiptFinishedFailed @deprecated(reason: "Use PurchaseVerificationFinishFailed instead. Scheduled for removal in OpenIAP 3.0.")
   PurchaseVerificationFailed
   PurchaseVerificationFinished
   PurchaseVerificationFinishFailed

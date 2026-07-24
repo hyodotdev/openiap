@@ -25,7 +25,7 @@ void main() {
             return true;
           case 'isEligibleForIntroOfferIOS':
             return true;
-          case 'getSubscriptionStatus':
+          case 'subscriptionStatusIOS':
             return <Map<String, dynamic>>[
               <String, dynamic>{'state': 'active'},
             ];
@@ -57,7 +57,7 @@ void main() {
                 'store': 'apple',
               },
             ]);
-          case 'getAppTransaction':
+          case 'getAppTransactionIOS':
             return <String, dynamic>{
               'appId': 123,
               'appTransactionId': 'tx-1',

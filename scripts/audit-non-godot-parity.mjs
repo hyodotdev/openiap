@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { GENERATED_SYNC_MANIFEST } from "../packages/gql/generated-sync-manifest.mjs";
 import { collectGeneratedSyncDrift } from "../packages/gql/scripts/verify-generated-sync.mjs";
+import { collectDeprecationScheduleDrift } from "./audit-deprecation-schedule.mjs";
 import { assertSpecMatchesNativeFloor } from "./release-branch-policy.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
@@ -19,6 +20,11 @@ execFileSync(
   ],
   { stdio: "inherit" },
 );
+execFileSync(
+  process.execPath,
+  ["--test", path.resolve(root, "scripts/audit-deprecation-schedule.test.mjs")],
+  { stdio: "inherit" },
+);
 const failures = [];
 
 const EXPO_EXAMPLE_ROOT = "libraries/expo-iap/example";
@@ -28,6 +34,12 @@ function checkNativeSpecVersionFloor() {
     assertSpecMatchesNativeFloor(readJson("openiap-versions.json"));
   } catch (error) {
     fail(error instanceof Error ? error.message : String(error));
+  }
+}
+
+function checkDeprecationSchedule() {
+  for (const issue of collectDeprecationScheduleDrift()) {
+    fail(issue);
   }
 }
 
@@ -183,6 +195,24 @@ function expectNotIncludes(relativePath, needles, label = relativePath) {
   for (const needle of needles) {
     if (text.includes(needle)) {
       fail(`${label} must not include ${JSON.stringify(needle)}`);
+    }
+  }
+}
+
+function expectCodeBlocksNotInclude(
+  relativePath,
+  needles,
+  label = relativePath,
+) {
+  expectFile(relativePath);
+  if (!exists(relativePath)) return;
+  const text = read(relativePath);
+  const codeBlocks = [...text.matchAll(/<CodeBlock\b[\s\S]*?<\/CodeBlock>/g)]
+    .map((match) => match[0])
+    .join("\n");
+  for (const needle of needles) {
+    if (codeBlocks.includes(needle)) {
+      fail(`${label} code examples must not include ${JSON.stringify(needle)}`);
     }
   }
 }
@@ -2291,7 +2321,9 @@ function checkBillingChoiceFieldBindings() {
     "packages/google/openiap/src/testHorizon/java/dev/hyo/openiap/HorizonAppIdMetadataTest.kt",
     [
       "canonical Horizon 2 key takes precedence over legacy metadata",
-      "blank canonical key falls back through every historical key",
+      "blank canonical key warns for the selected historical key",
+      "only the first resolved historical key warns",
+      "historical metadata logs its OpenIAP 3_0 removal deadline",
       "missing or blank Horizon metadata resolves to null",
     ],
     "Horizon App ID metadata tests",
@@ -2315,7 +2347,7 @@ function checkBillingChoiceFieldBindings() {
       ["com.meta.horizon.platform.HORIZON_APP_ID"],
       "Horizon App ID canonical setup",
     );
-    expectNotIncludes(
+    expectCodeBlocksNotInclude(
       file,
       [
         "com.meta.horizon.platform.ovr.OCULUS_APP_ID",
@@ -4118,8 +4150,8 @@ function checkFrameworkDependencyHygiene() {
       "ErrorCode.userCancelled.rawValue",
       "ErrorCode.developerError.rawValue",
       "ErrorCode.syncError.rawValue",
-      '@available(*, deprecated, message: "Use promotedProductIOS signal with requestPurchase instead.")',
-      '@available(*, deprecated, message: "Use verifyPurchase instead.")',
+      '@available(*, deprecated, message: "Use promotedProductIOS signal with requestPurchase instead. Scheduled for removal in godot-iap 3.0.0.")',
+      '@available(*, deprecated, message: "Use verifyPurchase instead. Scheduled for removal in godot-iap 3.0.0.")',
     ],
     "Godot iOS purchase errors must emit OpenIAP error codes",
   );
@@ -6094,6 +6126,7 @@ function checkReleaseNoteGroupingGuidance() {
 
 checkLibraryCoverageRegistry();
 checkNativeSpecVersionFloor();
+checkDeprecationSchedule();
 checkExpoSsotRegistry();
 checkE2eExampleIds();
 checkGeneratedTypeSync();

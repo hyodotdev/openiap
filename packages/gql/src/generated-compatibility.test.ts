@@ -326,7 +326,9 @@ describe('generated compatibility', () => {
     // intentionally remains an enum and must retain member documentation.
     for (const file of generatedFiles.filter((file) => file !== 'types.ts')) {
       const source = generated(file);
-      expect(source).toContain('@deprecated Use BillingProgramAndroid.USER_CHOICE_BILLING instead.');
+      expect(source).toContain(
+        '@deprecated Use the user-choice-billing BillingProgramAndroid value instead.',
+      );
     }
   });
 
@@ -373,6 +375,17 @@ describe('generated compatibility', () => {
           if (file === 'Types.swift' || file === 'types.dart') {
             expectedOwners.push(...(unionOwners.get(entry.parentName) ?? []));
           }
+        }
+        if (
+          file === 'Types.kt' &&
+          (entry.parentName === 'Query' ||
+            entry.parentName === 'Mutation' ||
+            entry.parentName === 'Subscription')
+        ) {
+          // Kotlin exposes root operations through both the suspending
+          // operation interface and an optional handler bundle. Both are
+          // consumer-facing declarations and must warn consistently.
+          expectedOwners.push(`${entry.parentName}Handlers`);
         }
         const expectedSymbols = [expectedGeneratedSymbol(file, entry)];
         if (

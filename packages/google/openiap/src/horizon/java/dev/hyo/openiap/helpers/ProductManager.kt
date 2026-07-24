@@ -47,7 +47,7 @@ internal class ProductManager {
         productType: String,
         operations: ActiveStoreOperationRegistry<BillingClient>,
     ): List<HorizonProductDetails> {
-        OpenIapLog.d("getOrQuery: productIds=$productIds, type=$productType", TAG)
+        OpenIapLog.debug("getOrQuery: productIds=$productIds, type=$productType", TAG)
 
         if (productIds.isEmpty()) {
             throw OpenIapError.EmptySkuList
@@ -64,11 +64,11 @@ internal class ProductManager {
             .setProductList(productList)
             .build()
 
-        OpenIapLog.d("getOrQuery: Querying ${requestedIds.size} products from Horizon API", TAG)
+        OpenIapLog.debug("getOrQuery: Querying ${requestedIds.size} products from Horizon API", TAG)
 
         return operations.await(client) { operation ->
             client.queryProductDetailsAsync(params) { billingResult, result ->
-                OpenIapLog.d(
+                OpenIapLog.debug(
                     "getOrQuery: Response code=${billingResult.responseCode}, " +
                     "message=${billingResult.debugMessage}, " +
                     "resultCount=${result?.size ?: 0}",
@@ -76,7 +76,7 @@ internal class ProductManager {
                 )
 
                 if (billingResult.responseCode != BillingClient.BillingResponseCode.OK) {
-                    OpenIapLog.w(
+                    OpenIapLog.warn(
                         "getOrQuery: Query failed with code=${billingResult.responseCode}, " +
                             "message=${billingResult.debugMessage}",
                         TAG
@@ -94,7 +94,7 @@ internal class ProductManager {
                 }
 
                 val list = result ?: emptyList()
-                OpenIapLog.d("getOrQuery: Received ${list.size} products", TAG)
+                OpenIapLog.debug("getOrQuery: Received ${list.size} products", TAG)
 
                 if (list.isEmpty()) {
                     operation.fail(
@@ -110,13 +110,13 @@ internal class ProductManager {
                 }
 
                 list.forEach { product ->
-                    OpenIapLog.d("  - Product: ${product.productId}, type=${product.productType}", TAG)
+                    OpenIapLog.debug("  - Product: ${product.productId}, type=${product.productType}", TAG)
 
                     // Log subscription offer details
                     product.subscriptionOfferDetails?.forEachIndexed { index, offer ->
-                        OpenIapLog.d("    Offer[$index]: tokenPresent=${offer.offerToken.isNotBlank()}", TAG)
+                        OpenIapLog.debug("    Offer[$index]: tokenPresent=${offer.offerToken.isNotBlank()}", TAG)
                         offer.pricingPhases?.pricingPhaseList?.forEachIndexed { phaseIndex, phase ->
-                            OpenIapLog.d(
+                            OpenIapLog.debug(
                                 "      Phase[$phaseIndex]: period=${phase.billingPeriod}, " +
                                 "price=${phase.formattedPrice}, " +
                                 "cycles=${phase.billingCycleCount}",
@@ -127,14 +127,14 @@ internal class ProductManager {
 
                     // Log one-time purchase details if applicable
                     product.oneTimePurchaseOfferDetails?.let { offer ->
-                        OpenIapLog.d("    OneTime: price=${offer.formattedPrice}", TAG)
+                        OpenIapLog.debug("    OneTime: price=${offer.formattedPrice}", TAG)
                     }
                 }
 
                 // Preserve requested order while still allowing duplicate input IDs.
                 val detailsById = list.associateBy { it.productId }
                 val finalList = productIds.mapNotNull(detailsById::get)
-                OpenIapLog.d("getOrQuery: Returning ${finalList.size} total products", TAG)
+                OpenIapLog.debug("getOrQuery: Returning ${finalList.size} total products", TAG)
                 operation.succeed(finalList) {
                     replaceQueryResults(requestedIds, list, productType)
                 }

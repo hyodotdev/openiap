@@ -4,9 +4,11 @@ import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Locale
+import java.util.concurrent.ConcurrentHashMap
 
 internal object RnIapLog {
     private const val TAG = "RnIap"
+    private val emittedDeprecations = ConcurrentHashMap.newKeySet<String>()
     private val SENSITIVE_KEY_FRAGMENTS = setOf(
         "token",
         "apikey",
@@ -43,6 +45,15 @@ internal object RnIapLog {
 
     fun warn(message: String) {
         Log.w(TAG, message)
+    }
+
+    fun deprecation(
+        key: String,
+        message: String,
+    ) {
+        if (emittedDeprecations.add(key)) {
+            Log.w(TAG, message)
+        }
     }
 
     private fun stringify(value: Any?): String {

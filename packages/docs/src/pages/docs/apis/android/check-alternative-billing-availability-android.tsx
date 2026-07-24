@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
@@ -19,6 +20,23 @@ function CheckAlternativeBillingAvailabilityAndroid() {
         <span className="platform-badge platform-badge--android">Android</span>{' '}
         checkAlternativeBillingAvailabilityAndroid
       </h1>
+      <div className="alert-card alert-card--warning">
+        <p>
+          <strong>Deprecated.</strong> This legacy Alternative Billing Only API
+          remains for migration reference only. For new integrations, use{' '}
+          <Link to="/docs/apis/android/is-billing-program-available-android">
+            <code>isBillingProgramAvailableAndroid</code>
+          </Link>{' '}
+          with <code>BillingProgramAndroid.EXTERNAL_OFFER</code>. The
+          schema/native operation is scheduled for removal in OpenIAP 3.0;
+          framework copies remain only until each package reaches the major
+          listed in the{' '}
+          <Link to="/docs/updates/deprecations#removal-schedule">
+            deprecation schedule
+          </Link>
+          .
+        </p>
+      </div>
       <p>
         Step 1 of alternative billing flow. Check if alternative billing is
         available for this user/device.
@@ -74,7 +92,14 @@ Task<bool> CheckAlternativeBillingAvailabilityAndroidAsync();`}</CodeBlock>
         available for this user/device (step 1 of 3).
       </p>
 
-      <h2>Example</h2>
+      <h2>Legacy example (migration reference only)</h2>
+      <p>
+        Do not start a new integration from these snippets. Use{' '}
+        <Link to="/docs/apis/android/is-billing-program-available-android">
+          <code>isBillingProgramAvailableAndroid</code>
+        </Link>{' '}
+        instead.
+      </p>
       <LanguageTabs>
         {{
           kotlin: (

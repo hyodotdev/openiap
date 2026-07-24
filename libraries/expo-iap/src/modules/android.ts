@@ -107,7 +107,8 @@ export const deepLinkToSubscriptionsAndroid = async (
  * your access token in the binary you ship to users is potentially dangerous.
  * Use server side validation instead for your production builds
  *
- * @deprecated Use verifyPurchase instead
+ * @deprecated Use verifyPurchase instead. This function will be removed in
+ * expo-iap 5.0.0.
  * @param {Object} params - The parameters object
  * @param {string} params.packageName - package name of your app.
  * @param {string} params.productId - product id for your in app product.
@@ -259,6 +260,8 @@ export const openRedeemOfferCodeAndroid: MutationField<
  * ```
  *
  * @see {@link https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android}
+ * @deprecated Use `isBillingProgramAvailableAndroid('external-offer')`
+ * instead. Scheduled for removal in expo-iap 5.0.0.
  */
 export const checkAlternativeBillingAvailabilityAndroid: MutationField<
   'checkAlternativeBillingAvailabilityAndroid'
@@ -292,6 +295,8 @@ export const checkAlternativeBillingAvailabilityAndroid: MutationField<
  * ```
  *
  * @see {@link https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android}
+ * @deprecated Use `launchExternalLinkAndroid` instead. Scheduled for removal
+ * in expo-iap 5.0.0.
  */
 export const showAlternativeBillingDialogAndroid: MutationField<
   'showAlternativeBillingDialogAndroid'
@@ -325,6 +330,9 @@ export const showAlternativeBillingDialogAndroid: MutationField<
  * ```
  *
  * @see {@link https://openiap.dev/docs/apis/android/create-alternative-billing-token-android}
+ * @deprecated Use
+ * `createBillingProgramReportingDetailsAndroid('external-offer')` instead.
+ * Scheduled for removal in expo-iap 5.0.0.
  */
 export const createAlternativeBillingTokenAndroid: MutationField<
   'createAlternativeBillingTokenAndroid'

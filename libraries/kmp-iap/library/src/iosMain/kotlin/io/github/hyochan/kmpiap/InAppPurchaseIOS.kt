@@ -1,3 +1,7 @@
+// This runtime reads generated 2.x aliases only to preserve compatibility.
+// Consumers still receive compiler warnings; remove the reads in kmp-iap 3.
+@file:Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
+
 package io.github.hyochan.kmpiap
 
 import io.github.hyochan.kmpiap.openiap.*
@@ -334,10 +338,14 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     }
 
     /**
-     * Buy the currently promoted product.
+     * Deprecated. Use promotedProductListener and requestPurchase instead.
+     * This function will be removed in kmp-iap 3.0.0.
      *
      * @see <a href="https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios">https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios</a>
      */
+    @Deprecated(
+        message = "Use promotedProductListener and requestPurchase instead. Scheduled for removal in kmp-iap 3.0.0.",
+    )
     override suspend fun requestPurchaseOnPromotedProductIOS(): Boolean =
         suspendCancellableCoroutine { continuation ->
             openIapModule.requestPurchaseOnPromotedProductIOSWithCompletion { success, error ->
@@ -493,10 +501,14 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     }
 
     /**
-     * Deprecated. Use verifyPurchase instead.
+     * Deprecated. Use verifyPurchase instead. This function will be removed in
+     * kmp-iap 3.0.0.
      *
      * @see <a href="https://openiap.dev/docs/apis/validate-receipt">https://openiap.dev/docs/apis/validate-receipt</a>
      */
+    @Deprecated(
+        message = "Use verifyPurchase instead. This function will be removed in kmp-iap 3.0.0.",
+    )
     override suspend fun validateReceipt(options: VerifyPurchaseProps): VerifyPurchaseResult {
         // Call the iOS-specific version and return the result directly
         return validateReceiptIOS(options)
@@ -587,10 +599,14 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     }
 
     /**
-     * Deprecated. Use cross-platform getStorefront instead.
+     * Deprecated. Use cross-platform getStorefront instead. This function will
+     * be removed in kmp-iap 3.0.0.
      *
      * @see <a href="https://openiap.dev/docs/apis/ios/get-storefront-ios">https://openiap.dev/docs/apis/ios/get-storefront-ios</a>
      */
+    @Deprecated(
+        message = "Use getStorefront instead. This function will be removed in kmp-iap 3.0.0.",
+    )
     override suspend fun getStorefrontIOS(): String = suspendCancellableCoroutine { continuation ->
         openIapModule.getStorefrontIOSWithCompletion { result, error ->
             if (error != null) {
@@ -972,10 +988,14 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         }
 
     /**
-     * Deprecated. Legacy App Store receipt validation.
+     * Deprecated. Legacy App Store receipt validation. This function will be
+     * removed in kmp-iap 3.0.0.
      *
      * @see <a href="https://openiap.dev/docs/apis/ios/validate-receipt-ios">https://openiap.dev/docs/apis/ios/validate-receipt-ios</a>
      */
+    @Deprecated(
+        message = "Use verifyPurchase instead. This function will be removed in kmp-iap 3.0.0.",
+    )
     override suspend fun validateReceiptIOS(options: VerifyPurchaseProps): VerifyPurchaseResultIOS {
         val sku = options.apple?.sku?.trim()
         if (sku.isNullOrEmpty()) {
@@ -1482,8 +1502,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     }
 
     private fun subscriptionOffersFrom(map: Map<String, Any?>): List<SubscriptionOffer> {
-        val subscriptionOffers = convertAnyListToSubscriptionOffers(map["subscriptionOffers"])
-        return subscriptionOffers.ifEmpty { convertAnyListToSubscriptionOffers(map["offers"]) }
+        // normalizeProductPayloadIOS owns native `offers` compatibility and
+        // copies it to the canonical key before every caller reaches here.
+        return convertAnyListToSubscriptionOffers(map["subscriptionOffers"])
     }
 
     private fun mergeLegacySubscriptionOffers(

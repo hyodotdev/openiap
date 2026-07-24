@@ -7,6 +7,7 @@ on:
       - "libraries/kmp-iap/**"
       - "packages/google/**"
       - "openiap-versions.json"
+      - "scripts/ci/retry-gradle.sh"
       - ".github/workflows/ci-kmp-iap.yml"
   push:
     branches: [main, next]
@@ -14,6 +15,7 @@ on:
       - "libraries/kmp-iap/**"
       - "packages/google/**"
       - "openiap-versions.json"
+      - "scripts/ci/retry-gradle.sh"
       - ".github/workflows/ci-kmp-iap.yml"
 
 concurrency:
@@ -46,7 +48,7 @@ jobs:
       - name: Compile check
         run: |
           chmod +x gradlew
-          ./gradlew \
+          "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" ./gradlew \
             --no-parallel \
             -Dorg.gradle.jvmargs=-Xmx8192M \
             -Dkotlin.daemon.jvm.options=-Xmx4096M \
@@ -79,4 +81,5 @@ jobs:
       - name: Compile iOS simulator source set
         run: |
           chmod +x gradlew
-          ./gradlew --no-parallel :library:compileKotlinIosSimulatorArm64
+          "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" \
+            ./gradlew --no-parallel :library:compileKotlinIosSimulatorArm64

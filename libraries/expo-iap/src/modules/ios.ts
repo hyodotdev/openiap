@@ -221,15 +221,17 @@ export const getReceiptDataIOS: QueryField<'getReceiptDataIOS'> = async () => {
   return ExpoIapModule.getReceiptDataIOS();
 };
 
+/**
+ * @deprecated Use `getReceiptDataIOS` instead. This compatibility alias will
+ * be removed in expo-iap 5.0.0.
+ */
 export const getReceiptIOS = getReceiptDataIOS;
 
 /**
  * Get the current App Store storefront country code on iOS.
  *
  * @deprecated Use cross-platform `getStorefront` from the main index instead.
- *   The native module exposes a single `getStorefront` AsyncFunction that already
- *   resolves to the iOS storefront on iOS. This helper is kept as an iOS-only
- *   alias so consumers who previously imported `getStorefrontIOS` do not break.
+ *   This compatibility alias will be removed in expo-iap 5.0.0.
  *
  * @returns {Promise<string>} ISO 3166-1 alpha-3 country code (e.g. "USA")
  * @throws Error if called on non-iOS platform — Android callers must use the
@@ -331,24 +333,6 @@ export const getTransactionJwsIOS: QueryField<'getTransactionJwsIOS'> = async (
   return jws ?? '';
 };
 
-/**
- * Validate receipt for iOS using StoreKit 2's built-in verification.
- * Returns receipt data and verification information to help with server-side validation.
- *
- * NOTE: For proper security, Apple recommends verifying receipts on your server using
- * the verifyReceipt endpoint rather than relying solely on client-side verification.
- *
- * @deprecated Use verifyPurchase instead
- * @param props The product's SKU or verification props
- * @returns {Promise<{
- *   isValid: boolean;
- *   receiptData: string;
- *   jwsRepresentation: string;
- *   latestTransaction?: Purchase;
- * }>}
- *
- * @see {@link https://openiap.dev/docs/apis/ios/validate-receipt-ios}
- */
 const validateReceiptIOSImpl = async (props: VerifyPurchaseProps | string) => {
   requireIosPlatform('validateReceiptIOS');
   const sku =
@@ -365,6 +349,25 @@ const validateReceiptIOSImpl = async (props: VerifyPurchaseProps | string) => {
   )) as VerifyPurchaseResultIOS;
 };
 
+/**
+ * Validate receipt for iOS using StoreKit 2's built-in verification.
+ * Returns receipt data and verification information to help with server-side validation.
+ *
+ * NOTE: For proper security, Apple recommends verifying receipts on your server using
+ * the verifyReceipt endpoint rather than relying solely on client-side verification.
+ *
+ * @deprecated Use `verifyPurchase` instead. Scheduled for removal in
+ * expo-iap 5.0.0.
+ * @param props The product's SKU or verification props
+ * @returns {Promise<{
+ *   isValid: boolean;
+ *   receiptData: string;
+ *   jwsRepresentation: string;
+ *   latestTransaction?: Purchase;
+ * }>}
+ *
+ * @see {@link https://openiap.dev/docs/apis/ios/validate-receipt-ios}
+ */
 export const validateReceiptIOS =
   validateReceiptIOSImpl as QueryField<'validateReceiptIOS'>;
 
@@ -435,8 +438,9 @@ export const getPromotedProductIOS: QueryField<
  * Complete the purchase of a promoted product (iOS only).
  * This should be called after showing your purchase UI for a promoted product.
  *
- * @deprecated Use promotedProductListenerIOS to receive the productId,
- * then call requestPurchase with that SKU instead.
+ * @deprecated Use promotedProductListenerIOS to receive the productId, then
+ * call requestPurchase with that SKU instead. This function will be removed in
+ * expo-iap 5.0.0.
  *
  * @returns Promise resolving when the purchase is initiated
  * @throws Error if called on non-iOS platform or no promoted product is available
@@ -597,9 +601,8 @@ export const getExternalPurchaseCustomLinkTokenIOS: QueryField<
       "getExternalPurchaseCustomLinkTokenIOS requires a tokenType ('acquisition' or 'services')",
     );
   }
-  const result = await ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS(
-    tokenType,
-  );
+  const result =
+    await ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS(tokenType);
   return result as ExternalPurchaseCustomLinkTokenResultIOS;
 };
 
@@ -624,9 +627,8 @@ export const showExternalPurchaseCustomLinkNoticeIOS: MutationField<
       "showExternalPurchaseCustomLinkNoticeIOS requires a noticeType ('browser')",
     );
   }
-  const result = await ExpoIapModule.showExternalPurchaseCustomLinkNoticeIOS(
-    noticeType,
-  );
+  const result =
+    await ExpoIapModule.showExternalPurchaseCustomLinkNoticeIOS(noticeType);
   return result as ExternalPurchaseCustomLinkNoticeResultIOS;
 };
 

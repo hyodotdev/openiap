@@ -82,10 +82,253 @@ const purchaseSafetyReleases = [
   ['OpenIap.Maui 1.2.2', 'maui-iap-1.2.2'],
 ] as const;
 
+const plannedFlutterPurchasePayloadReleases = [
+  'flutter_inapp_purchase 9.6.1 (planned)',
+] as const;
+
 function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // July 24, 2026 - Planned cross-package migration warnings
+    {
+      id: 'legacy-migration-warnings-planned-2026-07-24',
+      date: new Date('2026-07-24'),
+      element: (
+        <div
+          key="legacy-migration-warnings-planned-2026-07-24"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="legacy-migration-warnings-planned-2026-07-24"
+            level="h4"
+          >
+            July 24, 2026 - Cross-package legacy migration warnings (planned)
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Prepares advance compiler, IDE, documentation, and one-time runtime
+            warnings in{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/251"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #251
+            </a>
+            . No compatibility surface is removed by this change, and this note
+            remains planned until the affected package release workflows publish
+            it.
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Independent removal boundaries
+          </h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              OpenIAP Spec, openiap-apple, and openiap-google compatibility
+              surfaces remain through 2.x and are scheduled for removal in{' '}
+              <code>3.0.0</code>.
+            </li>
+            <li>
+              Framework libraries keep their aliases until their own next major:{' '}
+              <code>react-native-iap 16.0.0</code>, <code>expo-iap 5.0.0</code>,{' '}
+              <code>flutter_inapp_purchase 10.0.0</code>,{' '}
+              <code>godot-iap 3.0.0</code>, <code>kmp-iap 3.0.0</code>, and{' '}
+              <code>OpenIap.Maui 2.0.0</code>.
+            </li>
+            <li>
+              Raw map/object compatibility inputs—including JavaScript objects,
+              plugin configuration, and custom MethodChannel payloads—treat an
+              own canonical key, including <code>null</code>, as authoritative.
+              Generated Swift and Kotlin request models cannot retain a separate
+              supplied-key bit, so typed facades prefer a non-null{' '}
+              <code>apple</code> / <code>google</code> member before the legacy
+              optional fallback. Runtime compatibility warnings identify the
+              final canonical replacement and are emitted once rather than on
+              every purchase.
+            </li>
+            <li>
+              Generated Kotlin declarations now carry real{' '}
+              <code>@Deprecated</code> annotations where Kotlin supports them;
+              other generated languages and package-specific shims preserve
+              their native warning mechanisms.
+            </li>
+            <li>
+              Expo custom callers should replace legacy{' '}
+              <code>Android deep-link sku / packageName</code> with{' '}
+              <code>skuAndroid</code> / <code>packageNameAndroid</code> before
+              expo-iap 5.0.0.
+            </li>
+          </ul>
+
+          <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
+            See{' '}
+            <Link to="/docs/updates/deprecations">
+              Deprecations &amp; 3.0 Migration
+            </Link>{' '}
+            for the complete symbol and wire-key inventory. Package versions
+            remain <code>Spec 2.4.2</code>, <code>openiap-apple 2.4.2</code>,
+            and <code>openiap-google 2.5.0</code>; the spec continues to equal
+            the minimum native version.
+          </p>
+        </div>
+      ),
+    },
+
+    // July 24, 2026 - Planned Flutter purchase payload patch
+    {
+      id: 'flutter-purchase-payload-fix-planned-2026-07-24',
+      date: new Date('2026-07-24'),
+      element: (
+        <div
+          key="flutter-purchase-payload-fix-planned-2026-07-24"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="flutter-purchase-payload-fix-planned-2026-07-24"
+            level="h4"
+          >
+            July 24, 2026 - Flutter purchase payload patch (planned)
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Prepares a focused Flutter patch for{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/issues/248"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              issue #248
+            </a>{' '}
+            in{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/251"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #251
+            </a>
+            . This entry remains planned until the Flutter release workflow
+            publishes the package and GitHub tag. The OpenIAP specification and
+            native package versions are unchanged.
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Flutter purchase payloads</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              Reads Google Play&apos;s signed purchase JSON from the canonical{' '}
+              <code>PurchaseAndroid.dataAndroid</code> key. Flutter 9.6.0 and
+              earlier 9.x releases read only a nonexistent compatibility key,
+              leaving <code>dataAndroid</code> null for listener and available-
+              purchase results.
+            </li>
+            <li>
+              Preserves the complete normalized generated Android and iOS
+              purchase payload before applying compatibility conversions, so
+              newly added optional fields are not silently dropped by a local
+              allowlist.
+            </li>
+            <li>
+              Keeps <code>originalJsonAndroid</code> as a fallback input alias
+              only for the remainder of Flutter 9.x. It is not a public Purchase
+              field, canonical <code>dataAndroid</code> wins when both are
+              present, and the fallback is scheduled for removal in{' '}
+              <code>flutter_inapp_purchase 10.0.0</code>.
+            </li>
+            <li>
+              Preserves the remaining Flutter 9.x wire fallbacks while warning
+              custom integrations to migrate before 10.0.0:{' '}
+              <code>purchaseStateAndroid</code> and{' '}
+              <code>transactionStateIOS</code> move to{' '}
+              <code>purchaseState</code>, <code>transactionReceipt</code> moves
+              to <code>purchaseToken</code>, <code>transactionId</code> must be
+              emitted explicitly, and iOS/macOS verification uses{' '}
+              <code>{'{ apple: { sku } }'}</code> instead of a top-level{' '}
+              <code>{'{ sku }'}</code>.
+            </li>
+            <li>
+              Moves the official Dart bridge to canonical <code>in-app</code>,{' '}
+              <code>apple</code> / <code>google</code>,
+              <code>getAppTransactionIOS</code> /{' '}
+              <code>subscriptionStatusIOS</code>, and <code>skuAndroid</code> /{' '}
+              <code>packageNameAndroid</code> payloads before enabling one-time
+              compatibility warnings. Normal SDK calls stay silent; only a
+              selected legacy custom-channel fallback warns.
+            </li>
+            <li>
+              Custom MethodChannel callers should also replace{' '}
+              <code>fetchProducts skuArr / productIds</code> with{' '}
+              <code>skus</code>, acknowledge/consume <code>token</code> with{' '}
+              <code>purchaseToken</code>, and finish-transaction{' '}
+              <code>transactionIdentifier</code> with <code>transactionId</code>
+              . The complete catalog also covers the legacy <code>inapp</code>{' '}
+              product type and other 9.x bridge aliases.
+            </li>
+          </ul>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Custom MethodChannel adapters, mocks, and fixtures should migrate to{' '}
+            <code>dataAndroid</code> now. See{' '}
+            <Link to="/docs/updates/deprecations#flutter-original-json-android">
+              Deprecations &amp; 3.0 Migration
+            </Link>{' '}
+            for the complete removal schedule.
+          </p>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Planned Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {plannedFlutterPurchasePayloadReleases.map((release) => (
+                <li key={release}>{release}</li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // July 23, 2026 - IAPKit webhook deduplication and ASC review automation
     {
       id: 'iapkit-webhook-dedup-asc-review-automation-2026-07-23',

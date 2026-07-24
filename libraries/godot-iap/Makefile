@@ -33,13 +33,14 @@ YELLOW := \033[0;33m
 RED := \033[0;31m
 NC := \033[0m # No Color
 
-.PHONY: all setup ios ios-build macos macos-build android clean help run-android run-ios export-ios export-android test-setup test-android test-ios export-test-android export-test-ios test
+.PHONY: all setup setup-swiftgodot ios ios-build macos macos-build android clean help run-android run-ios export-ios export-android test-setup test-android test-ios export-test-android export-test-ios test
 
 help:
 	@echo "GodotIap Build System"
 	@echo ""
 	@echo "Usage:"
 	@echo "  make setup         - Download godot-lib.aar for Android development"
+	@echo "  make setup-swiftgodot - Download the pinned SwiftGodot source only"
 	@echo "  make ios           - Build iOS plugin (uses xcodebuild)"
 	@echo "  make macos         - Build macOS plugin (uses xcodebuild)"
 	@echo "  make android       - Build Android plugin"
@@ -71,7 +72,7 @@ help:
 	@echo "  RELEASE_TAG    - GitHub release tag to test (default: latest)"
 
 # Download godot-lib.aar for Android builds
-setup:
+setup: setup-swiftgodot
 	@echo "$(GREEN)Setting up build environment...$(NC)"
 	@mkdir -p $(ANDROID_DIR)/libs
 	@mkdir -p $(BIN_DIR)/ios
@@ -86,6 +87,11 @@ setup:
 	else \
 		echo "$(GREEN)✓ godot-lib.aar already exists$(NC)"; \
 	fi
+	@echo "$(GREEN)Installing git hooks...$(NC)"
+	@$(PROJECT_ROOT)/scripts/install-hooks.sh
+	@echo "$(GREEN)Setup complete!$(NC)"
+
+setup-swiftgodot:
 	@if [ ! -d "$(PROJECT_ROOT)/SwiftGodot" ]; then \
 		echo "$(YELLOW)Cloning SwiftGodot ($(SWIFT_GODOT_VERSION))...$(NC)"; \
 		git clone --depth 1 --branch $(SWIFT_GODOT_VERSION) https://github.com/migueldeicaza/SwiftGodot.git "$(PROJECT_ROOT)/SwiftGodot" || \
@@ -94,9 +100,6 @@ setup:
 	else \
 		echo "$(GREEN)✓ SwiftGodot already exists$(NC)"; \
 	fi
-	@echo "$(GREEN)Installing git hooks...$(NC)"
-	@$(PROJECT_ROOT)/scripts/install-hooks.sh
-	@echo "$(GREEN)Setup complete!$(NC)"
 
 # Build iOS plugin (automated with xcodebuild)
 ios: setup ios-build

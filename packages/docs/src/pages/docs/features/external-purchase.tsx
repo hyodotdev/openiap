@@ -659,7 +659,41 @@ func handle_external_purchase_flow() -> void:
                   Only and User Choice Billing.
                 </p>
 
-                <h4>Mode 1: Alternative Billing Only</h4>
+                <div className="alert-card alert-card--warning">
+                  <p>
+                    <strong>
+                      Deprecated legacy flow — migration reference only.
+                    </strong>{' '}
+                    Do not start a new integration with{' '}
+                    <code>checkAlternativeBillingAvailabilityAndroid</code>,{' '}
+                    <code>showAlternativeBillingDialogAndroid</code>,{' '}
+                    <code>createAlternativeBillingTokenAndroid</code>, or{' '}
+                    <code>alternativeBillingModeAndroid</code>. Use{' '}
+                    <Link to="/docs/apis/android/is-billing-program-available-android">
+                      <code>isBillingProgramAvailableAndroid</code>
+                    </Link>
+                    ,{' '}
+                    <Link to="/docs/apis/android/launch-external-link-android">
+                      <code>launchExternalLinkAndroid</code>
+                    </Link>
+                    ,{' '}
+                    <Link to="/docs/apis/android/create-billing-program-reporting-details-android">
+                      <code>createBillingProgramReportingDetailsAndroid</code>
+                    </Link>
+                    , and <code>enableBillingProgramAndroid</code>. The
+                    schema/native operations are scheduled for removal in
+                    OpenIAP 3.0; framework copies remain only through the
+                    package-specific majors in the{' '}
+                    <Link to="/docs/updates/deprecations#removal-schedule">
+                      deprecation schedule
+                    </Link>
+                    .
+                  </p>
+                </div>
+
+                <h4>
+                  Mode 1: Alternative Billing Only (legacy migration reference)
+                </h4>
                 <p>
                   Completely bypass Google Play Billing. Requires manual 3-step
                   flow:
@@ -1235,6 +1269,8 @@ Future<void> handleUserChoicePurchase(String productId) async {
       RequestPurchaseProps.inApp((
         apple: null,
         google: RequestPurchaseAndroidProps(skus: [productId]),
+        // Compatibility-only: generated Flutter 9.x records require this
+        // deprecated null placeholder. It is removed in Flutter 10.
         useAlternativeBilling: null,
       )),
     );
@@ -1328,13 +1364,18 @@ func handle_user_choice_purchase(product_id: String) -> void:
 
                 <div className="alert-card alert-card--warning">
                   <p>
-                    <strong>⚠️ Deprecated APIs:</strong> The above APIs (
-                    <code>checkAlternativeBillingAvailability</code>,{' '}
-                    <code>showAlternativeBillingInformationDialog</code>,{' '}
-                    <code>createAlternativeBillingReportingToken</code>) are
-                    deprecated in Google Play Billing Library 8.2.0+. For new
-                    implementations, use the{' '}
-                    <strong>Billing Programs API</strong> described below.
+                    <strong>Flutter 9.x compatibility:</strong>{' '}
+                    <code>useAlternativeBilling: null</code> in the Dart
+                    snippets above is only a required placeholder in the current
+                    generated positional record. It does not enable alternative
+                    billing. Configure <code>enableBillingProgramAndroid</code>{' '}
+                    on <code>initConnection</code> instead. The deprecated
+                    record field is removed in{' '}
+                    <code>flutter_inapp_purchase 10.0.0</code>; see the{' '}
+                    <Link to="/docs/updates/deprecations#flutter-10-package-migrations">
+                      Flutter 10 migration notes
+                    </Link>
+                    .
                   </p>
                 </div>
 
@@ -1687,10 +1728,20 @@ func handle_external_purchase_with_billing_programs(product_id: String) -> void:
                 </LanguageTabs>
 
                 <h5>API Migration Guide</h5>
+                <p>
+                  The left column is documentation for existing integrations
+                  only. The legacy schema/native operations are scheduled for
+                  removal in OpenIAP 3.0, while framework copies follow their
+                  own package majors in the{' '}
+                  <Link to="/docs/updates/deprecations#removal-schedule">
+                    deprecation schedule
+                  </Link>
+                  .
+                </p>
                 <table className="error-table">
                   <thead>
                     <tr>
-                      <th>Legacy API (6.2+)</th>
+                      <th>Legacy API (migration only; OpenIAP 3.0 removal)</th>
                       <th>External Offer API (8.2.1+)</th>
                     </tr>
                   </thead>
@@ -2046,6 +2097,8 @@ Future<void> handlePurchaseWithExternalPayments(String productId) async {
             launchMode: DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp,
           ),
         ),
+        // Compatibility-only: generated Flutter 9.x records require this
+        // deprecated null placeholder. It is removed in Flutter 10.
         useAlternativeBilling: null,
       )),
     );
@@ -2598,7 +2651,23 @@ func _ready_user_choice() -> void:
                   </tbody>
                 </table>
 
-                <h3>Alternative Billing Only (Legacy 6.2+)</h3>
+                <h3>
+                  Alternative Billing Only (legacy migration reference, 6.2+)
+                </h3>
+                <p>
+                  This sequence is retained only to help existing integrations
+                  migrate. Use the Billing Programs replacements in the{' '}
+                  <Link to="/docs/features/external-purchase#platform-implementation">
+                    Android implementation guide
+                  </Link>
+                  . The legacy schema/native operations are scheduled for
+                  removal in OpenIAP 3.0; framework copies follow the majors in
+                  the{' '}
+                  <Link to="/docs/updates/deprecations#removal-schedule">
+                    deprecation schedule
+                  </Link>
+                  .
+                </p>
                 <table className="error-table">
                   <thead>
                     <tr>

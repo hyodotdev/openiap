@@ -77,6 +77,8 @@ data class InitConnectionConfig(
           ),
           dart: (
             <CodeBlock language="dart">{`Future<bool> initConnection({
+  // Deprecated compatibility parameter. Use enableBillingProgramAndroid.
+  // Removed in flutter_inapp_purchase 10.0.0.
   AlternativeBillingModeAndroid? alternativeBillingModeAndroid,
   BillingChoiceScreenTypeAndroid? billingChoiceScreenTypeAndroid,
   BillingProgramAndroid? enableBillingProgramAndroid,
@@ -98,6 +100,21 @@ func init_connection(config: InitConnectionConfig) -> bool`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
+
+      <div className="alert-card alert-card--warning">
+        <p>
+          <strong>Flutter compatibility:</strong>{' '}
+          <code>alternativeBillingModeAndroid</code> remains visible in the
+          generated Dart signature only for 9.x compatibility. Use{' '}
+          <code>enableBillingProgramAndroid</code> now. The deprecated schema
+          field is scheduled for removal in OpenIAP 3.0 and the Flutter copy is
+          removed in <code>flutter_inapp_purchase 10.0.0</code>. See the{' '}
+          <Link to="/docs/updates/deprecations#flutter-10-package-migrations">
+            Flutter 10 migration notes
+          </Link>
+          .
+        </p>
+      </div>
 
       <AnchorLink id="config-field" level="h2">
         Config field
