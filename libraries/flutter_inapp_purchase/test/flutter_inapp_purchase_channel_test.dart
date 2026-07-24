@@ -1496,6 +1496,13 @@ void main() {
                 'transactionId': 'txn-android',
                 'purchaseToken': 'token-android',
                 'purchaseStateAndroid': 1,
+                'dataAndroid': '{"orderId":"order-android"}',
+                'currentPlanId': 'base-plan',
+                'isSuspendedAndroid': true,
+                'pendingPurchaseUpdateAndroid': <String, dynamic>{
+                  'products': <String>['coins.200'],
+                  'purchaseToken': 'pending-token',
+                },
               },
               <String, dynamic>{
                 'platform': 'android',
@@ -1515,7 +1522,15 @@ void main() {
 
       final purchases = await iap.getAvailablePurchases();
       expect(purchases, hasLength(1));
-      expect(purchases.single.productId, 'coins.100');
+      final purchase = purchases.single as types.PurchaseAndroid;
+      expect(purchase.productId, 'coins.100');
+      expect(purchase.dataAndroid, '{"orderId":"order-android"}');
+      expect(purchase.currentPlanId, 'base-plan');
+      expect(purchase.isSuspendedAndroid, isTrue);
+      expect(
+        purchase.pendingPurchaseUpdateAndroid?.purchaseToken,
+        'pending-token',
+      );
     });
 
     test('wraps native errors as PurchaseError', () async {
@@ -1553,6 +1568,61 @@ void main() {
   });
 
   group('method channel listeners', () {
+    test('purchase-updated preserves canonical Android payload fields',
+        () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        if (call.method == 'initConnection') {
+          return true;
+        }
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+      final purchaseFuture = iap.purchaseUpdatedListener.first;
+
+      await iap.initConnection();
+
+      await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .handlePlatformMessage(
+        channel.name,
+        codec.encodeMethodCall(
+          MethodCall(
+            'purchase-updated',
+            jsonEncode(<String, dynamic>{
+              'platform': 'android',
+              'store': 'google',
+              'productId': 'premium_monthly',
+              'transactionId': 'txn-listener-android',
+              'purchaseState': 'purchased',
+              'purchaseToken': 'token-listener-android',
+              'transactionDate': 1700000000000,
+              'dataAndroid': '{"orderId":"listener-order"}',
+              'currentPlanId': 'listener-base-plan',
+              'isSuspendedAndroid': true,
+              'pendingPurchaseUpdateAndroid': <String, dynamic>{
+                'products': <String>['premium_yearly'],
+                'purchaseToken': 'listener-pending-token',
+              },
+            }),
+          ),
+        ),
+        (_) {},
+      );
+
+      final purchase = await purchaseFuture.timeout(const Duration(seconds: 1))
+          as types.PurchaseAndroid;
+      expect(purchase.dataAndroid, '{"orderId":"listener-order"}');
+      expect(purchase.currentPlanId, 'listener-base-plan');
+      expect(purchase.isSuspendedAndroid, isTrue);
+      expect(
+        purchase.pendingPurchaseUpdateAndroid?.purchaseToken,
+        'listener-pending-token',
+      );
+    });
+
     test('purchase-updated emits events on both streams', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall call) async {

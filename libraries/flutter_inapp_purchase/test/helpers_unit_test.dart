@@ -275,6 +275,157 @@ void main() {
       },
     );
 
+    test('convertToPurchase preserves canonical Android purchase fields', () {
+      final purchase = convertToPurchase(
+        <String, dynamic>{
+          'platform': 'android',
+          'store': 'google',
+          'productId': 'premium_monthly',
+          'transactionId': 'txn-canonical-android',
+          'purchaseState': 'purchased',
+          'purchaseToken': 'token-canonical-android',
+          'transactionDate': '1700000000000',
+          'quantity': 2,
+          'autoRenewingAndroid': true,
+          'currentPlanId': 'monthly-base-plan',
+          'dataAndroid': '{"orderId":"canonical-order"}',
+          'originalJsonAndroid': '{"orderId":"legacy-order"}',
+          'developerPayloadAndroid': 'developer-payload',
+          'ids': <String>['premium_monthly', 'premium_bonus'],
+          'isAcknowledgedAndroid': true,
+          'isSuspendedAndroid': true,
+          'obfuscatedAccountIdAndroid': 'account-id',
+          'obfuscatedProfileIdAndroid': 'profile-id',
+          'packageNameAndroid': 'dev.hyo.martie',
+          'pendingPurchaseUpdateAndroid': <String, dynamic>{
+            'products': <String>['premium_yearly'],
+            'purchaseToken': 'pending-update-token',
+          },
+          'signatureAndroid': 'purchase-signature',
+          'isAlternativeBilling': true,
+        },
+        platformIsAndroid: true,
+        platformIsIOS: false,
+        acknowledgedAndroidPurchaseTokens: <String, bool>{},
+      ) as types.PurchaseAndroid;
+
+      expect(purchase.currentPlanId, 'monthly-base-plan');
+      expect(purchase.dataAndroid, '{"orderId":"canonical-order"}');
+      expect(purchase.developerPayloadAndroid, 'developer-payload');
+      expect(purchase.ids, <String>['premium_monthly', 'premium_bonus']);
+      expect(purchase.isSuspendedAndroid, isTrue);
+      expect(
+        purchase.pendingPurchaseUpdateAndroid?.products,
+        <String>['premium_yearly'],
+      );
+      expect(
+        purchase.pendingPurchaseUpdateAndroid?.purchaseToken,
+        'pending-update-token',
+      );
+      expect(purchase.isAlternativeBilling, isTrue);
+      expect(purchase.transactionDate, 1700000000000);
+    });
+
+    test('convertToPurchase prefers canonical Android purchase state', () {
+      final purchase = convertToPurchase(
+        <String, dynamic>{
+          'platform': 'android',
+          'store': 'google',
+          'id': 'pending-token',
+          'productId': 'premium_monthly',
+          'purchaseState': 'pending',
+          'purchaseStateAndroid': 1,
+          'transactionDate': 1700000000000,
+        },
+        platformIsAndroid: true,
+        platformIsIOS: false,
+        acknowledgedAndroidPurchaseTokens: <String, bool>{},
+      ) as types.PurchaseAndroid;
+
+      expect(purchase.purchaseState, types.PurchaseState.Pending);
+    });
+
+    test(
+      'convertToPurchase falls back to legacy Android original JSON key',
+      () {
+        final purchase = convertToPurchase(
+          <String, dynamic>{
+            'platform': 'android',
+            'store': 'google',
+            'productId': 'coins_pack',
+            'transactionId': 'txn-legacy-android',
+            'purchaseStateAndroid': 1,
+            'purchaseToken': 'token-legacy-android',
+            'originalJsonAndroid': '{"orderId":"legacy-order"}',
+          },
+          platformIsAndroid: true,
+          platformIsIOS: false,
+          acknowledgedAndroidPurchaseTokens: <String, bool>{},
+        ) as types.PurchaseAndroid;
+
+        expect(purchase.dataAndroid, '{"orderId":"legacy-order"}');
+      },
+    );
+
+    test('convertToPurchase keeps pending Android transaction ID null', () {
+      final purchase = convertToPurchase(
+        <String, dynamic>{
+          'platform': 'android',
+          'store': 'google',
+          'id': 'pending-purchase-token',
+          'productId': 'coins_pack',
+          'transactionId': null,
+          'purchaseState': 'pending',
+          'purchaseToken': 'pending-purchase-token',
+          'transactionDate': 1700000000000,
+        },
+        platformIsAndroid: true,
+        platformIsIOS: false,
+        acknowledgedAndroidPurchaseTokens: <String, bool>{},
+      ) as types.PurchaseAndroid;
+
+      expect(purchase.id, 'pending-purchase-token');
+      expect(purchase.transactionId, isNull);
+    });
+
+    test('convertToPurchase recovers legacy Google order ID from id', () {
+      final purchase = convertToPurchase(
+        <String, dynamic>{
+          'platform': 'android',
+          'store': 'google',
+          'id': 'GPA.1234-5678',
+          'productId': 'coins_pack',
+          'purchaseState': 'purchased',
+          'purchaseToken': 'purchase-token',
+          'transactionDate': 1700000000000,
+        },
+        platformIsAndroid: true,
+        platformIsIOS: false,
+        acknowledgedAndroidPurchaseTokens: <String, bool>{},
+      ) as types.PurchaseAndroid;
+
+      expect(purchase.transactionId, 'GPA.1234-5678');
+    });
+
+    test('convertToPurchase recovers legacy non-Google receipt ID', () {
+      final purchase = convertToPurchase(
+        <String, dynamic>{
+          'platform': 'android',
+          'store': 'amazon',
+          'id': 'amazon-receipt',
+          'productId': 'coins_pack',
+          'purchaseState': 'purchased',
+          'purchaseToken': 'amazon-receipt',
+          'transactionDate': 1700000000000,
+        },
+        platformIsAndroid: true,
+        platformIsIOS: false,
+        acknowledgedAndroidPurchaseTokens: <String, bool>{},
+      ) as types.PurchaseAndroid;
+
+      expect(purchase.transactionId, 'amazon-receipt');
+    });
+
     test('convertFromLegacyPurchase handles iOS payloads', () {
       final purchase = convertToPurchase(
         <String, dynamic>{
@@ -297,6 +448,93 @@ void main() {
       expect(iosPurchase.transactionId, 'txn-ios');
       expect(iosPurchase.purchaseToken, 'receipt-data');
       expect(iosPurchase.quantity, 2);
+    });
+
+    test('convertToPurchase preserves canonical iOS purchase fields', () {
+      final purchase = convertToPurchase(
+        <String, dynamic>{
+          'platform': 'ios',
+          'store': 'apple',
+          'productId': 'premium_monthly',
+          'transactionId': 'txn-canonical-ios',
+          'purchaseState': 'purchased',
+          'purchaseToken': 'jws-canonical',
+          'transactionReceipt': 'legacy-receipt',
+          'transactionDate': '2026-07-23T00:00:00Z',
+          'quantity': 3,
+          'advancedCommerceInfoIOS': <String, dynamic>{
+            'items': <Map<String, dynamic>>[
+              <String, dynamic>{
+                'details': <String, dynamic>{
+                  'jsonRepresentation': '{"sku":"generic"}',
+                },
+              },
+            ],
+            'requestReferenceId': 'request-reference',
+          },
+          'billingPlanTypeIOS': 'monthly',
+          'commitmentInfoIOS': <String, dynamic>{
+            'billingPeriodNumber': 2,
+            'commitmentExpiresDate': 1800000000000,
+            'commitmentPrice': 9.99,
+            'totalBillingPeriods': 12,
+          },
+          'currentPlanId': 'monthly-plan',
+          'expirationDateIOS': '1800000000000',
+          'isAutoRenewing': true,
+          'isUpgradedIOS': true,
+          'offerIOS': <String, dynamic>{
+            'id': 'offer-id',
+            'paymentMode': 'pay-as-you-go',
+            'type': 'promotional',
+          },
+          'originalTransactionDateIOS': '2026-01-01T00:00:00Z',
+          'ownershipTypeIOS': 'purchased',
+          'quantityIOS': 3,
+          'reasonIOS': 'purchase',
+          'reasonStringRepresentationIOS': 'PURCHASE',
+          'renewalInfoIOS': <String, dynamic>{
+            'pendingUpgradeProductId': 'premium_yearly',
+            'willAutoRenew': true,
+          },
+          'revocationDateIOS': '1900000000000',
+          'storefrontCountryCodeIOS': 'US',
+          'isAlternativeBilling': true,
+        },
+        platformIsAndroid: false,
+        platformIsIOS: true,
+        acknowledgedAndroidPurchaseTokens: <String, bool>{},
+      ) as types.PurchaseIOS;
+
+      expect(
+        purchase.advancedCommerceInfoIOS?.requestReferenceId,
+        'request-reference',
+      );
+      expect(
+        purchase.billingPlanTypeIOS,
+        types.SubscriptionBillingPlanTypeIOS.Monthly,
+      );
+      expect(purchase.commitmentInfoIOS?.billingPeriodNumber, 2);
+      expect(purchase.currentPlanId, 'monthly-plan');
+      expect(purchase.expirationDateIOS, 1800000000000);
+      expect(purchase.isUpgradedIOS, isTrue);
+      expect(purchase.offerIOS?.id, 'offer-id');
+      expect(purchase.ownershipTypeIOS, 'purchased');
+      expect(purchase.purchaseToken, 'jws-canonical');
+      expect(purchase.quantityIOS, 3);
+      expect(purchase.reasonIOS, 'purchase');
+      expect(purchase.reasonStringRepresentationIOS, 'PURCHASE');
+      expect(
+        purchase.renewalInfoIOS?.pendingUpgradeProductId,
+        'premium_yearly',
+      );
+      expect(purchase.revocationDateIOS, 1900000000000);
+      expect(purchase.storefrontCountryCodeIOS, 'US');
+      expect(purchase.isAlternativeBilling, isTrue);
+      expect(
+        purchase.transactionDate,
+        DateTime.utc(2026, 7, 23).millisecondsSinceEpoch,
+      );
     });
 
     test(

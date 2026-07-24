@@ -237,10 +237,18 @@ gentype.Purchase convertToPurchase(
   required Map<String, bool> acknowledgedAndroidPurchaseTokens,
   Map<String, dynamic>? originalJson,
 }) {
-  final productId = itemJson['productId']?.toString() ?? '';
-  final transactionId =
-      itemJson['transactionId']?.toString() ?? itemJson['id']?.toString();
-  final dynamic quantityValue = itemJson['quantity'];
+  // Native SDKs serialize the generated Purchase types directly. Preserve that
+  // canonical payload as the base so newly generated optional fields are not
+  // silently dropped by this legacy compatibility adapter.
+  final sourcePayload = normalizeDynamicMap(<String, dynamic>{
+    if (originalJson != null) ...originalJson,
+    ...itemJson,
+  })!;
+
+  final productId = sourcePayload['productId']?.toString() ?? '';
+  final sourceId = sourcePayload['id']?.toString();
+  final sourceTransactionId = sourcePayload['transactionId']?.toString();
+  final dynamic quantityValue = sourcePayload['quantity'];
   int quantity = 1;
   if (quantityValue is num) {
     quantity = quantityValue.toInt();
@@ -251,72 +259,74 @@ gentype.Purchase convertToPurchase(
     }
   }
 
-  final String? purchaseId = (transactionId?.isNotEmpty ?? false)
-      ? transactionId
-      : (productId.isNotEmpty ? productId : null);
+  final String? purchaseId = (sourceId?.isNotEmpty ?? false)
+      ? sourceId
+      : (sourceTransactionId?.isNotEmpty ?? false)
+          ? sourceTransactionId
+          : (productId.isNotEmpty ? productId : null);
 
   if (purchaseId == null || purchaseId.isEmpty) {
     debugPrint(
-      '[flutter_inapp_purchase] Skipping purchase with missing identifiers: $itemJson',
+      '[flutter_inapp_purchase] Skipping purchase with missing identifiers',
     );
     throw const FormatException('Missing purchase identifier');
   }
 
-  double transactionDate = 0;
-  final transactionDateValue = itemJson['transactionDate'];
-  if (transactionDateValue is num) {
-    transactionDate = transactionDateValue.toDouble();
-  } else if (transactionDateValue is String) {
-    final parsedDate = DateTime.tryParse(transactionDateValue);
-    if (parsedDate != null) {
-      transactionDate = parsedDate.millisecondsSinceEpoch.toDouble();
-    }
-  }
+  final transactionDate =
+      _parseTimestampMilliseconds(sourcePayload['transactionDate']) ?? 0;
 
   if (platformIsAndroid) {
     final stateValue = _coerceAndroidPurchaseState(
-      itemJson['purchaseStateAndroid'] ?? itemJson['purchaseState'],
+      sourcePayload['purchaseState'] ?? sourcePayload['purchaseStateAndroid'],
     );
     final purchaseState = _mapAndroidPurchaseState(stateValue).toJson();
 
     // Determine store from input or default based on platform
-    final storeValue = itemJson['store']?.toString() ?? 'google';
+    final storeValue = sourcePayload['store']?.toString() ?? 'google';
+    final androidTransactionId = _resolveAndroidTransactionId(
+      canonicalTransactionId: sourceTransactionId,
+      id: sourceId,
+      purchaseToken: sourcePayload['purchaseToken']?.toString(),
+      store: storeValue,
+    );
 
     final map = <String, dynamic>{
+      ...sourcePayload,
       'id': purchaseId,
       'productId': productId,
       'platform': gentype.IapPlatform.Android.toJson(),
       'store': storeValue,
-      'isAutoRenewing': itemJson['isAutoRenewing'] as bool? ??
-          itemJson['autoRenewingAndroid'] as bool? ??
+      'isAutoRenewing': sourcePayload['isAutoRenewing'] as bool? ??
+          sourcePayload['autoRenewingAndroid'] as bool? ??
           false,
       'purchaseState': purchaseState,
       'quantity': quantity,
       'transactionDate': transactionDate,
-      'purchaseToken': itemJson['purchaseToken']?.toString(),
-      'autoRenewingAndroid': itemJson['autoRenewingAndroid'] as bool?,
-      'dataAndroid': itemJson['originalJsonAndroid']?.toString(),
+      'purchaseToken': sourcePayload['purchaseToken']?.toString(),
+      'autoRenewingAndroid': sourcePayload['autoRenewingAndroid'] as bool?,
+      'currentPlanId': sourcePayload['currentPlanId']?.toString(),
+      'dataAndroid': sourcePayload['dataAndroid']?.toString() ??
+          sourcePayload['originalJsonAndroid']?.toString(),
       'developerPayloadAndroid':
-          itemJson['developerPayloadAndroid']?.toString(),
-      'ids': (itemJson['ids'] as List<dynamic>?)
-          ?.map((e) => e.toString())
-          .toList(),
-      'isAcknowledgedAndroid': itemJson['isAcknowledgedAndroid'] as bool?,
+          sourcePayload['developerPayloadAndroid']?.toString(),
+      'ids': _toStringList(sourcePayload['ids']),
+      'isAcknowledgedAndroid': sourcePayload['isAcknowledgedAndroid'] as bool?,
       'obfuscatedAccountIdAndroid':
-          itemJson['obfuscatedAccountIdAndroid']?.toString() ??
-              originalJson?['obfuscatedAccountIdAndroid']?.toString(),
+          sourcePayload['obfuscatedAccountIdAndroid']?.toString(),
       'obfuscatedProfileIdAndroid':
-          itemJson['obfuscatedProfileIdAndroid']?.toString() ??
-              originalJson?['obfuscatedProfileIdAndroid']?.toString(),
-      'packageNameAndroid': itemJson['packageNameAndroid']?.toString(),
-      'signatureAndroid': itemJson['signatureAndroid']?.toString(),
-      'transactionId': transactionId,
+          sourcePayload['obfuscatedProfileIdAndroid']?.toString(),
+      'packageNameAndroid': sourcePayload['packageNameAndroid']?.toString(),
+      'signatureAndroid': sourcePayload['signatureAndroid']?.toString(),
+      // Pending/orderless Play purchases legitimately have no order ID.
+      // Legacy native payloads only exposed it through `id`, so recover that
+      // value only when it is distinguishable from a Google purchase token.
+      'transactionId': androidTransactionId,
     };
 
-    final purchaseToken = itemJson['purchaseToken']?.toString();
+    final purchaseToken = sourcePayload['purchaseToken']?.toString();
     if (purchaseToken != null && purchaseToken.isNotEmpty) {
       acknowledgedAndroidPurchaseTokens[purchaseToken] =
-          itemJson['isAcknowledgedAndroid'] as bool? ?? false;
+          sourcePayload['isAcknowledgedAndroid'] as bool? ?? false;
     }
 
     return gentype.PurchaseAndroid.fromJson(map);
@@ -324,59 +334,51 @@ gentype.Purchase convertToPurchase(
 
   if (platformIsIOS) {
     final stateIOS = _parsePurchaseStateIOS(
-      itemJson['purchaseState'] ?? itemJson['transactionStateIOS'],
+      sourcePayload['purchaseState'] ?? sourcePayload['transactionStateIOS'],
     ).toJson();
 
-    double? originalTransactionDateIOS;
-    final originalTransactionDateValue =
-        itemJson['originalTransactionDateIOS'] ??
-            originalJson?['originalTransactionDateIOS'];
-    if (originalTransactionDateValue is num) {
-      originalTransactionDateIOS = originalTransactionDateValue.toDouble();
-    } else if (originalTransactionDateValue is String) {
-      final parsed = DateTime.tryParse(originalTransactionDateValue);
-      if (parsed != null) {
-        originalTransactionDateIOS = parsed.millisecondsSinceEpoch.toDouble();
-      }
-    }
+    final originalTransactionDateIOS = _parseTimestampMilliseconds(
+      sourcePayload['originalTransactionDateIOS'],
+    );
 
     // Determine store from input or default based on platform
-    final storeValueIOS = itemJson['store']?.toString() ?? 'apple';
+    final storeValueIOS = sourcePayload['store']?.toString() ?? 'apple';
 
     final map = <String, dynamic>{
+      ...sourcePayload,
       'id': purchaseId,
       'productId': productId,
       'platform': gentype.IapPlatform.IOS.toJson(),
       'store': storeValueIOS,
-      'isAutoRenewing': itemJson['isAutoRenewing'] as bool? ?? false,
+      'isAutoRenewing': sourcePayload['isAutoRenewing'] as bool? ?? false,
       'purchaseState': stateIOS,
       'quantity': quantity,
       'transactionDate': transactionDate,
-      'purchaseToken': itemJson['transactionReceipt']?.toString() ??
-          itemJson['purchaseToken']?.toString(),
-      'ids': (itemJson['ids'] as List<dynamic>?)
-          ?.map((e) => e.toString())
-          .toList(),
-      'appAccountToken': itemJson['appAccountToken']?.toString(),
-      'appBundleIdIOS': itemJson['appBundleIdIOS']?.toString(),
-      'countryCodeIOS': itemJson['countryCodeIOS']?.toString(),
-      'currencyCodeIOS': itemJson['currencyCodeIOS']?.toString(),
-      'currencySymbolIOS': itemJson['currencySymbolIOS']?.toString(),
-      'environmentIOS': itemJson['environmentIOS']?.toString(),
+      'purchaseToken': sourcePayload['purchaseToken']?.toString() ??
+          sourcePayload['transactionReceipt']?.toString(),
+      'ids': _toStringList(sourcePayload['ids']),
+      'appAccountToken': sourcePayload['appAccountToken']?.toString(),
+      'appBundleIdIOS': sourcePayload['appBundleIdIOS']?.toString(),
+      'countryCodeIOS': sourcePayload['countryCodeIOS']?.toString(),
+      'currencyCodeIOS': sourcePayload['currencyCodeIOS']?.toString(),
+      'currencySymbolIOS': sourcePayload['currencySymbolIOS']?.toString(),
+      'environmentIOS': sourcePayload['environmentIOS']?.toString(),
       'expirationDateIOS':
-          (originalJson?['expirationDateIOS'] as num?)?.toDouble(),
+          _parseTimestampMilliseconds(sourcePayload['expirationDateIOS']),
       'originalTransactionIdentifierIOS':
-          itemJson['originalTransactionIdentifierIOS']?.toString(),
+          sourcePayload['originalTransactionIdentifierIOS']?.toString(),
       'originalTransactionDateIOS': originalTransactionDateIOS,
-      'subscriptionGroupIdIOS': itemJson['subscriptionGroupIdIOS']?.toString(),
-      'transactionReasonIOS': itemJson['transactionReasonIOS']?.toString(),
-      'webOrderLineItemIdIOS': itemJson['webOrderLineItemIdIOS']?.toString(),
-      'offerIOS': originalJson?['offerIOS'],
-      'priceIOS': (originalJson?['priceIOS'] as num?)?.toDouble(),
+      'subscriptionGroupIdIOS':
+          sourcePayload['subscriptionGroupIdIOS']?.toString(),
+      'transactionId': (sourceTransactionId?.isNotEmpty ?? false)
+          ? sourceTransactionId
+          : purchaseId,
+      'transactionReasonIOS': sourcePayload['transactionReasonIOS']?.toString(),
+      'webOrderLineItemIdIOS':
+          sourcePayload['webOrderLineItemIdIOS']?.toString(),
       'revocationDateIOS':
-          (originalJson?['revocationDateIOS'] as num?)?.toDouble(),
-      'revocationReasonIOS': originalJson?['revocationReasonIOS']?.toString(),
-      'transactionId': transactionId ?? purchaseId,
+          _parseTimestampMilliseconds(sourcePayload['revocationDateIOS']),
+      'revocationReasonIOS': sourcePayload['revocationReasonIOS']?.toString(),
     };
 
     return gentype.PurchaseIOS.fromJson(map);
@@ -507,6 +509,36 @@ double? _toDouble(dynamic value) {
   if (value is num) return value.toDouble();
   if (value is String) return double.tryParse(value);
   return null;
+}
+
+double? _parseTimestampMilliseconds(dynamic value) {
+  if (value is num) return value.toDouble();
+  if (value is! String) return null;
+
+  final trimmed = value.trim();
+  final numeric = double.tryParse(trimmed);
+  if (numeric != null) return numeric;
+
+  return DateTime.tryParse(trimmed)?.millisecondsSinceEpoch.toDouble();
+}
+
+List<String>? _toStringList(dynamic value) {
+  if (value is! List) return null;
+  return value.map((item) => item.toString()).toList();
+}
+
+String? _resolveAndroidTransactionId({
+  required String? canonicalTransactionId,
+  required String? id,
+  required String? purchaseToken,
+  required String store,
+}) {
+  if (canonicalTransactionId?.isNotEmpty ?? false) {
+    return canonicalTransactionId;
+  }
+  if (id == null || id.isEmpty) return null;
+  if (store.toLowerCase() == 'google' && id == purchaseToken) return null;
+  return id;
 }
 
 /// Safe int parsing that handles both num and String inputs.
