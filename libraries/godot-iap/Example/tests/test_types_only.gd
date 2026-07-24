@@ -692,6 +692,14 @@ func _test_purchase_android_json_round_trip() -> void:
 	purchase.purchase_state = Types.PurchaseState.PURCHASED
 	purchase.is_auto_renewing = true
 	purchase.is_acknowledged_android = true
+	purchase.current_plan_id = "base-plan-monthly"
+	purchase.data_android = "{\"orderId\":\"txn-1\"}"
+	purchase.is_suspended_android = true
+	var pending_update = Types.PendingPurchaseUpdateAndroid.new()
+	var pending_products: Array[String] = ["sku.b"]
+	pending_update.products = pending_products
+	pending_update.purchase_token = "pending-token"
+	purchase.pending_purchase_update_android = pending_update
 
 	var dict = purchase.to_dict()
 	_assert_equal(dict["store"], "google", "IapStore should serialize to its wire value")
@@ -707,6 +715,20 @@ func _test_purchase_android_json_round_trip() -> void:
 	_assert_equal(parsed.quantity, 2, "quantity should survive JSON float conversion")
 	_assert_equal(parsed.is_acknowledged_android, true, "isAcknowledgedAndroid should survive the wire round trip")
 	_assert_equal(parsed.ids.size(), 1, "ids should survive the wire round trip")
+	_assert_equal(parsed.transaction_id, "txn-1", "transactionId should survive the wire round trip")
+	_assert_equal(parsed.current_plan_id, "base-plan-monthly", "currentPlanId should survive the wire round trip")
+	_assert_equal(parsed.data_android, "{\"orderId\":\"txn-1\"}", "dataAndroid should survive the wire round trip")
+	_assert_equal(parsed.is_suspended_android, true, "isSuspendedAndroid should survive the wire round trip")
+	_assert_equal(
+		parsed.pending_purchase_update_android.products[0],
+		"sku.b",
+		"pendingPurchaseUpdateAndroid products should survive the wire round trip"
+	)
+	_assert_equal(
+		parsed.pending_purchase_update_android.purchase_token,
+		"pending-token",
+		"pendingPurchaseUpdateAndroid token should survive the wire round trip"
+	)
 
 	var unknown_state = Types.PurchaseAndroid.from_dict({"productId": "p", "purchaseState": "mystery"})
 	_assert_equal(unknown_state.purchase_state, Types.PurchaseState.UNKNOWN, "Unknown purchaseState strings should fall back to UNKNOWN")
@@ -728,6 +750,21 @@ func _test_purchase_ios_json_round_trip() -> void:
 	purchase.quantity = 1
 	purchase.purchase_state = Types.PurchaseState.PURCHASED
 	purchase.original_transaction_identifier_ios = "orig-1"
+	purchase.current_plan_id = "premium.monthly"
+	var offer = Types.PurchaseOfferIOS.new()
+	offer.id = "launch-offer"
+	offer.type = "promotional"
+	offer.payment_mode = "payAsYouGo"
+	purchase.offer_ios = offer
+	var advanced_info = Types.AdvancedCommerceInfoIOS.new()
+	advanced_info.request_reference_id = "request-reference"
+	advanced_info.display_name = "Premium bundle"
+	var advanced_item = Types.AdvancedCommerceItemIOS.new()
+	var advanced_details = Types.AdvancedCommerceItemDetailsIOS.new()
+	advanced_details.json_representation = "{\"sku\":\"ios.sku\"}"
+	advanced_item.details = advanced_details
+	advanced_info.items.append(advanced_item)
+	purchase.advanced_commerce_info_ios = advanced_info
 
 	var wire = JSON.parse_string(JSON.stringify(purchase.to_dict()))
 	_assert_equal(wire["store"], "apple", "IapStore should serialize to apple")
@@ -737,6 +774,18 @@ func _test_purchase_ios_json_round_trip() -> void:
 	_assert_equal(parsed.product_id, "ios.sku", "productId should survive the wire round trip")
 	_assert_equal(parsed.store, Types.IapStore.APPLE, "store should parse back to the enum")
 	_assert_equal(parsed.original_transaction_identifier_ios, "orig-1", "iOS-only fields should survive the wire round trip")
+	_assert_equal(parsed.current_plan_id, "premium.monthly", "currentPlanId should survive the wire round trip")
+	_assert_equal(parsed.offer_ios.id, "launch-offer", "offerIOS should survive the wire round trip")
+	_assert_equal(
+		parsed.advanced_commerce_info_ios.request_reference_id,
+		"request-reference",
+		"advancedCommerceInfoIOS should survive the wire round trip"
+	)
+	_assert_equal(
+		parsed.advanced_commerce_info_ios.items[0].details.json_representation,
+		"{\"sku\":\"ios.sku\"}",
+		"advancedCommerceInfoIOS nested item details should survive the wire round trip"
+	)
 
 
 func _test_active_subscription_round_trip() -> void:
