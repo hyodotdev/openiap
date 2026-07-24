@@ -107,6 +107,11 @@ const requiredSourceNotices = [
       "KMP iOS product-response normalizer",
       "not scheduled",
       "KMP 3.0",
+      "`skuArr` / `productIds`",
+      "finish-transaction `transactionIdentifier` with `transactionId`",
+      "Android deep-link callers move `sku` /",
+      "Raw map/object compatibility adapters use own-key presence semantics",
+      "Generated typed platform requests use nullable value semantics",
     ],
   },
   {
@@ -149,6 +154,11 @@ const requiredSourceNotices = [
       "constructor argument does not trigger its property annotation",
       "Android custom-channel skuArr",
       "Android custom-channel offerTokenArr",
+      "fetchProducts skuArr / productIds",
+      "finishTransaction transactionIdentifier",
+      "Android deep-link sku / packageName",
+      "Raw map/object compatibility inputs",
+      "Generated Swift and Kotlin request models expose nullable",
     ],
   },
   {
@@ -179,6 +189,11 @@ const requiredSourceNotices = [
       "offerTokenArr -> offerToken",
       "OpenIapLog.d/i/w/e",
       "internal native-response",
+      "skuArr/productIds -> skus",
+      "sku/packageName -> skuAndroid/packageNameAndroid",
+      "finish-transaction \\`transactionIdentifier\\` with",
+      "Raw map/object compatibility inputs",
+      "typed facades prefer a",
     ],
   },
   {
@@ -194,6 +209,11 @@ const requiredSourceNotices = [
       "Spec 2.4.2",
       "openiap-apple 2.4.2",
       "openiap-google 2.5.0",
+      "fetchProducts skuArr / productIds",
+      "transactionIdentifier",
+      "Android deep-link sku / packageName",
+      "Raw map/object compatibility inputs",
+      "typed facades prefer a non-null",
     ],
   },
   ...[
@@ -222,6 +242,11 @@ const requiredSourceNotices = [
       "OpenIapLog.d/i/w/e",
       "internal native-response",
       "https://openiap.dev/docs/updates/deprecations",
+      "skuArr/productIds -> skus",
+      "sku/packageName -> skuAndroid/packageNameAndroid",
+      "finish-transaction `transactionIdentifier` with",
+      "Raw map/object compatibility inputs",
+      "typed facades prefer a",
     ],
   })),
   {
@@ -246,6 +271,11 @@ const requiredSourceNotices = [
       "bridge aliases such as",
       "internal React Native",
       "/docs/updates/deprecations",
+      "`skuArr` / `productIds`",
+      "finish-transaction `transactionIdentifier` with `transactionId`",
+      "Android deep-link callers move `sku` /",
+      "Raw map/object compatibility adapters use own-key presence semantics",
+      "Generated typed platform requests use nullable value semantics",
     ],
   },
   {
@@ -454,6 +484,810 @@ const requiredSourceNotices = [
   },
 ];
 
+export function collectMissingRequiredSourceNotices(file, source) {
+  return requiredSourceNotices
+    .filter((requirement) => requirement.file === file)
+    .flatMap((requirement) =>
+      requirement.values.filter((value) => !source.includes(value)),
+    );
+}
+
+function clonePatternWithoutState(pattern) {
+  return new RegExp(pattern.source, pattern.flags.replaceAll("g", ""));
+}
+
+function isRegexLiteralStart(source, index) {
+  let previous = index - 1;
+  while (previous >= 0 && /\s/.test(source[previous])) previous -= 1;
+  return previous < 0 || /[=(:,![{;?&|+\-*%^~<>]/.test(source[previous]);
+}
+
+function maskLexicalNoise(source, { maskStrings }) {
+  let result = "";
+  let quote = null;
+  let regexLiteral = false;
+  let regexCharacterClass = false;
+  let escaped = false;
+  let lineComment = false;
+  let blockComment = false;
+
+  for (let index = 0; index < source.length; index += 1) {
+    const character = source[index];
+    const next = source[index + 1];
+
+    if (lineComment) {
+      if (character === "\n") {
+        lineComment = false;
+        result += "\n";
+      } else {
+        result += " ";
+      }
+      continue;
+    }
+    if (blockComment) {
+      if (character === "*" && next === "/") {
+        result += "  ";
+        blockComment = false;
+        index += 1;
+      } else {
+        result += character === "\n" ? "\n" : " ";
+      }
+      continue;
+    }
+    if (quote !== null) {
+      result += maskStrings ? (character === "\n" ? "\n" : " ") : character;
+      if (escaped) {
+        escaped = false;
+      } else if (character === "\\") {
+        escaped = true;
+      } else if (character === quote) {
+        quote = null;
+      }
+      continue;
+    }
+    if (regexLiteral) {
+      result += character === "\n" ? "\n" : " ";
+      if (escaped) {
+        escaped = false;
+      } else if (character === "\\") {
+        escaped = true;
+      } else if (character === "[") {
+        regexCharacterClass = true;
+      } else if (character === "]") {
+        regexCharacterClass = false;
+      } else if (character === "/" && !regexCharacterClass) {
+        regexLiteral = false;
+      }
+      continue;
+    }
+    if (character === "/" && next === "/") {
+      result += "  ";
+      lineComment = true;
+      index += 1;
+      continue;
+    }
+    if (character === "/" && next === "*") {
+      result += "  ";
+      blockComment = true;
+      index += 1;
+      continue;
+    }
+    if (character === "/" && isRegexLiteralStart(source, index)) {
+      regexLiteral = true;
+      regexCharacterClass = false;
+      result += " ";
+      continue;
+    }
+    result += character;
+    if (character === '"' || character === "'" || character === "`") {
+      quote = character;
+      if (maskStrings) result = `${result.slice(0, -1)} `;
+    }
+  }
+
+  return result;
+}
+
+function maskSourceNonCode(source) {
+  return maskLexicalNoise(source, { maskStrings: true });
+}
+
+/**
+ * Extracts a declaration body while ignoring fake signatures and braces in
+ * comments, strings, and regular-expression literals.
+ */
+export function extractBraceDelimitedRegion(source, anchor) {
+  const code = maskSourceNonCode(source);
+  const match = clonePatternWithoutState(anchor).exec(code);
+  if (!match || match.index === undefined) return null;
+  const matchedBrace = match[0].lastIndexOf("{");
+  const openIndex =
+    matchedBrace >= 0
+      ? match.index + matchedBrace
+      : code.indexOf("{", match.index + match[0].length);
+  if (openIndex < 0) return null;
+
+  let depth = 0;
+  for (let index = openIndex; index < code.length; index += 1) {
+    if (code[index] === "{") depth += 1;
+    if (code[index] !== "}") continue;
+    depth -= 1;
+    if (depth === 0) return source.slice(openIndex, index + 1);
+  }
+  return null;
+}
+
+export function maskSourceComments(source) {
+  return maskLexicalNoise(source, { maskStrings: false });
+}
+
+function normalizeSourceForStructuralMatching(source) {
+  const commentsMasked = maskSourceComments(source);
+  let result = "";
+  let quote = null;
+  let escaped = false;
+
+  for (let index = 0; index < commentsMasked.length; index += 1) {
+    const character = commentsMasked[index];
+    if (quote === null) {
+      result += character;
+      if (character === '"' || character === "'" || character === "`") {
+        quote = character;
+      }
+      continue;
+    }
+
+    if (escaped) {
+      result += /[A-Za-z0-9_.-]/.test(character) ? character : " ";
+      escaped = false;
+      continue;
+    }
+    if (character === "\\") {
+      result += " ";
+      escaped = true;
+      continue;
+    }
+    if (character === quote) {
+      result += character;
+      quote = null;
+      continue;
+    }
+    result += /[A-Za-z0-9_.-]/.test(character) ? character : " ";
+  }
+
+  return result;
+}
+
+const quotedKeyPattern = (key) =>
+  `(?:["']${key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}["'])`;
+
+function structuralPresencePatterns(key) {
+  const literal = quotedKeyPattern(key);
+  return [
+    new RegExp(`\\.containsKey\\s*\\(\\s*${literal}\\s*\\)`, "g"),
+    new RegExp(`\\.keys\\.contains\\s*\\(\\s*${literal}\\s*\\)`, "g"),
+    new RegExp(`\\.has\\s*\\(\\s*${literal}\\s*\\)`, "g"),
+    new RegExp(
+      `(?:Object\\.prototype\\.)?hasOwnProperty\\.call\\s*\\([^,]+,\\s*${literal}\\s*\\)`,
+      "g",
+    ),
+    new RegExp(`\\bhasOwnKey\\s*\\([^,]+,\\s*${literal}\\s*\\)`, "g"),
+    new RegExp(`${literal}\\s+in\\s+[A-Za-z_$][\\w$]*`, "g"),
+  ];
+}
+
+function assignedPresenceIdentifier(source, matchIndex) {
+  const prefix = source.slice(Math.max(0, matchIndex - 320), matchIndex);
+  const assignments = [
+    ...prefix.matchAll(
+      /\b(?:const|let|var|final|val)\s+([A-Za-z_$][\w$]*)\s*=/g,
+    ),
+  ];
+  const latest = assignments.at(-1);
+  if (!latest?.[1]) return null;
+  const assignmentIndex = Math.max(0, matchIndex - 320) + (latest.index ?? 0);
+  if (source.slice(assignmentIndex, matchIndex).includes(";")) return null;
+  return latest[1];
+}
+
+function presenceControlsSelection(source, matchIndex, matchLength) {
+  const prefix = source.slice(Math.max(0, matchIndex - 240), matchIndex);
+  const suffix = source.slice(matchIndex + matchLength, matchIndex + 1200);
+  if (/\bif\s*\([^)]*$/.test(prefix) || /\bif\s+!?[^;\n]*$/.test(prefix)) {
+    return true;
+  }
+  if (/^\s*(?:\?|->)/.test(suffix)) return true;
+
+  const identifier = assignedPresenceIdentifier(source, matchIndex);
+  if (!identifier) return false;
+  const escaped = identifier.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return [
+    new RegExp(`\\bif\\s*\\(\\s*!?\\s*${escaped}\\b`),
+    new RegExp(`\\bif\\s+!?\\s*${escaped}\\b`),
+    new RegExp(`\\b${escaped}\\s*\\?`),
+    new RegExp(`\\bhasSelectedState\\s*:\\s*${escaped}\\b`),
+    new RegExp(`\\bhasCanonicalTransactionId\\s*:\\s*${escaped}\\b`),
+  ].some((pattern) => pattern.test(suffix));
+}
+
+export function hasStructuralKeyPresence(source, key) {
+  return structuralPresencePatterns(key).some((pattern) =>
+    [...source.matchAll(pattern)].some((match) =>
+      presenceControlsSelection(
+        source,
+        match.index ?? 0,
+        match[0]?.length ?? 0,
+      ),
+    ),
+  );
+}
+
+function hasGovernedKeySelection(source, key) {
+  const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const keyRead = new RegExp(
+    `(?:\\[\\s*${quotedKeyPattern(key)}\\s*\\]|\\.get\\s*\\(\\s*${quotedKeyPattern(key)}\\s*\\)|\\??\\.${escapedKey}\\b)`,
+  );
+
+  return structuralPresencePatterns(key).some((pattern) =>
+    [...source.matchAll(pattern)].some((match) => {
+      const matchIndex = match.index ?? 0;
+      const matchEnd = matchIndex + (match[0]?.length ?? 0);
+      const immediateSuffix = source.slice(matchEnd, matchEnd + 420);
+      if (/^\s*(?:\?|->)/.test(immediateSuffix)) {
+        return keyRead.test(immediateSuffix);
+      }
+
+      const identifier = assignedPresenceIdentifier(source, matchIndex);
+      if (identifier) {
+        const escapedIdentifier = identifier.replace(
+          /[.*+?^${}()|[\]\\]/g,
+          "\\$&",
+        );
+        const conditional = new RegExp(
+          `(?:\\bif\\s*\\(\\s*!?\\s*${escapedIdentifier}\\b[^)]*\\)|\\bif\\s+!?\\s*${escapedIdentifier}\\b|\\b${escapedIdentifier}\\s*\\?)`,
+          "g",
+        );
+        for (const use of source.slice(matchEnd).matchAll(conditional)) {
+          const useIndex = matchEnd + (use.index ?? 0);
+          const afterCondition = source.slice(
+            useIndex + (use[0]?.length ?? 0),
+            useIndex + 520,
+          );
+          const branchStart = afterCondition.search(/\S/);
+          if (branchStart < 0) continue;
+          if (afterCondition[branchStart] === "{") {
+            let depth = 0;
+            for (
+              let index = branchStart;
+              index < afterCondition.length;
+              index += 1
+            ) {
+              if (afterCondition[index] === "{") depth += 1;
+              if (afterCondition[index] !== "}") continue;
+              depth -= 1;
+              if (depth === 0) {
+                if (
+                  keyRead.test(afterCondition.slice(branchStart, index + 1))
+                ) {
+                  return true;
+                }
+                break;
+              }
+            }
+            continue;
+          }
+          const branchEnd = afterCondition.search(/\belse\b|[:;\n]/);
+          const branch = afterCondition.slice(
+            branchStart,
+            branchEnd < 0 ? 420 : branchEnd,
+          );
+          if (keyRead.test(branch)) return true;
+        }
+        return false;
+      }
+
+      const prefix = source.slice(Math.max(0, matchIndex - 240), matchIndex);
+      if (
+        !/\bif\s*\([^)]*$/.test(prefix) &&
+        !/\bif\s+!?[^;\n]*$/.test(prefix) &&
+        !/^\s*\?/.test(source.slice(matchEnd, matchEnd + 40))
+      ) {
+        return false;
+      }
+      return keyRead.test(source.slice(matchEnd, matchEnd + 420));
+    }),
+  );
+}
+
+function dynamicPresenceIdentifiers(source) {
+  const identifiers = new Set();
+  const patterns = [
+    /\.containsKey\s*\(\s*([A-Za-z_$][\w$]*)\s*\)/g,
+    /\.has\s*\(\s*([A-Za-z_$][\w$]*)\s*\)/g,
+    /(?:Object\.prototype\.)?hasOwnProperty\.call\s*\([^,]+,\s*([A-Za-z_$][\w$]*)\s*\)/g,
+    /\bhasOwnKey\s*\([^,]+,\s*([A-Za-z_$][\w$]*)\s*\)/g,
+  ];
+
+  for (const pattern of patterns) {
+    for (const match of source.matchAll(pattern)) {
+      const identifier = match[1];
+      if (
+        identifier &&
+        presenceControlsSelection(
+          source,
+          match.index ?? 0,
+          match[0]?.length ?? 0,
+        ) &&
+        new RegExp(
+          `\\[\\s*${identifier.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\]`,
+        ).test(source)
+      ) {
+        identifiers.add(identifier);
+      }
+    }
+  }
+  return identifiers;
+}
+
+const canonicalSelectorPattern = (canonicalKey, legacyKey) =>
+  new RegExp(
+    `selectCanonicalPlatformRequest(?:\\s*<[^;]{0,240}?>)?\\s*\\([^;]{0,240}?${quotedKeyPattern(canonicalKey)}\\s*,\\s*${quotedKeyPattern(legacyKey)}\\s*,?\\s*\\)`,
+  );
+
+const F = {
+  flutter: "libraries/flutter_inapp_purchase/lib/flutter_inapp_purchase.dart",
+  flutterHelpers: "libraries/flutter_inapp_purchase/lib/helpers.dart",
+  flutterErrors: "libraries/flutter_inapp_purchase/lib/errors.dart",
+  flutterAndroid:
+    "libraries/flutter_inapp_purchase/android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
+  godotIOS:
+    "libraries/godot-iap/ios-gdextension/Sources/GodotIap/GodotIapHelper.swift",
+  rn: "libraries/react-native-iap/src/index.ts",
+  rnKepler: "libraries/react-native-iap/src/index.kepler.ts",
+  rnVega: "libraries/react-native-iap/src/vega-adapter.ts",
+  rnShared: "libraries/react-native-iap/src/utils/platform-request.ts",
+  rnAndroid:
+    "libraries/react-native-iap/android/src/main/java/com/margelo/nitro/iap/HybridRnIap.kt",
+  rnAndroidLog:
+    "libraries/react-native-iap/android/src/main/java/com/margelo/nitro/iap/RnIapLog.kt",
+  rnIOS: "libraries/react-native-iap/ios/HybridRnIap.swift",
+  rnIOSLog: "libraries/react-native-iap/ios/RnIapLog.swift",
+  expo: "libraries/expo-iap/src/index.ts",
+  expoKepler: "libraries/expo-iap/src/index.kepler.ts",
+  expoAndroid:
+    "libraries/expo-iap/android/src/main/java/expo/modules/iap/ExpoIapHelper.kt",
+  expoAndroidModule:
+    "libraries/expo-iap/android/src/main/java/expo/modules/iap/ExpoIapModule.kt",
+  expoIOS: "libraries/expo-iap/ios/ExpoIapHelper.swift",
+  expoOnside: "libraries/expo-iap/ios/onside/OnsideIapModule.swift",
+  expoPlugin: "libraries/expo-iap/plugin/src/withIAP.ts",
+  horizon:
+    "packages/google/openiap/src/horizon/java/dev/hyo/openiap/OpenIapModule.kt",
+};
+
+const structuralRule = (id, file, anchor, requirements = {}) => ({
+  id,
+  file,
+  anchor,
+  label: `${id} structural contract is missing`,
+  ...requirements,
+});
+const presenceRule = (id, file, anchor, keys, requirements = {}) =>
+  structuralRule(id, file, anchor, { keyPresence: keys, ...requirements });
+const governedRule = (id, file, anchor, keys, requirements = {}) =>
+  presenceRule(id, file, anchor, keys, {
+    governedKeySelection: keys,
+    ...requirements,
+  });
+
+const flutterApplePluginFiles = ["ios", "macos"].map(
+  (platform) =>
+    `libraries/flutter_inapp_purchase/${platform}/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift`,
+);
+const inappWarning = {
+  requiredPatterns: [
+    /RnIapLog\.deprecation\s*\(\s*["']product-type\.inapp["']/,
+  ],
+  forbiddenPatterns: [/RnIapLog\.warn\s*\(\s*["'][^"']*legacy type ["']?inapp/],
+};
+
+export const sourceStructureRules = [
+  structuralRule(
+    "flutter-dynamic-canonical-selector",
+    F.flutterHelpers,
+    /\b(?:dynamic|Object\?)\s+_canonicalOrLegacy\s*\([\s\S]*?\}\s*\)\s*\{/,
+    { dynamicPresenceCount: 1 },
+  ),
+  presenceRule(
+    "flutter-product-id-selector",
+    F.flutterHelpers,
+    /\bString\s+_resolveProductId\s*\(/,
+    ["id", "productId", "sku"],
+  ),
+  presenceRule(
+    "flutter-error-selector",
+    F.flutterErrors,
+    /\b(?:dynamic|Object\?)\s+_subResponseCodeAndroidFrom\s*\(/,
+    ["subResponseCodeAndroid"],
+  ),
+  presenceRule(
+    "flutter-purchase-platform-selector",
+    F.flutter,
+    /\bget\s+requestPurchase\s*=>/,
+    ["apple", "google"],
+  ),
+  presenceRule(
+    "flutter-selected-purchase-fields",
+    F.flutterHelpers,
+    /\bgentype\.Purchase\s+convertToPurchase\s*\([\s\S]*?\}\s*\)\s*\{/,
+    ["purchaseState", "purchaseStateAndroid"],
+    {
+      requiredPatterns: [
+        /_canonicalOrLegacy\s*\([\s\S]{0,320}?canonicalKey\s*:\s*["']purchaseState["'][\s\S]{0,220}?legacyKey\s*:\s*["']purchaseStateAndroid["']/,
+        /_transactionIdFrom\s*\(/,
+      ],
+    },
+  ),
+  presenceRule(
+    "flutter-transaction-id-selector",
+    F.flutterHelpers,
+    /\b_transactionIdFrom\s*\(\s*Map</,
+    ["transactionId"],
+    { requiredPatterns: [/\[\s*["']transactionId["']\s*\]/] },
+  ),
+  governedRule(
+    "flutter-android-custom-channel-selectors",
+    F.flutterAndroid,
+    /\boverride\s+fun\s+onMethodCall\s*\(/,
+    ["skus", "skuArr", "productIds", "skuAndroid", "packageNameAndroid"],
+  ),
+  ...flutterApplePluginFiles.map((file) =>
+    governedRule(
+      `flutter-apple-transaction-selector:${file}`,
+      file,
+      /\bprivate\s+func\s+resolveTransactionId\s*\(/,
+      ["transactionId"],
+      {
+        requiredFilePatterns: [
+          /legacyKey\s*:\s*["']transactionIdentifier["']/,
+          /warningKey\s*:\s*["']finishTransaction\.transactionIdentifier["']/,
+        ],
+      },
+    ),
+  ),
+  presenceRule(
+    "godot-ios-platform-selector",
+    F.godotIOS,
+    /\bprivate\s+static\s+func\s+normalizeApplePlatformPayload\s*\(/,
+    ["apple"],
+    {
+      requiredPatterns: [
+        /\[\s*["']ios["']\s*\]/,
+        /removeValue\s*\(\s*forKey\s*:\s*["']ios["']\s*\)/,
+      ],
+    },
+  ),
+  structuralRule(
+    "rn-shared-platform-selector",
+    F.rnShared,
+    /\bexport\s+const\s+selectCanonicalPlatformRequest\s*=/,
+    { dynamicPresenceCount: 2 },
+  ),
+  ...[
+    [
+      "rn-js-apple-selector",
+      F.rn,
+      /\bconst\s+selectApplePurchaseRequest\s*=/,
+      "apple",
+      "ios",
+    ],
+    [
+      "rn-js-google-selector",
+      F.rn,
+      /\bconst\s+selectGooglePurchaseRequest\s*=/,
+      "google",
+      "android",
+    ],
+    [
+      "rn-kepler-google-selector",
+      F.rnKepler,
+      /\bexport\s+const\s+requestPurchase\b/,
+      "google",
+      "android",
+    ],
+    [
+      "rn-vega-google-selector",
+      F.rnVega,
+      /\bfunction\s+selectGooglePurchaseRequest\s*\(/,
+      "google",
+      "android",
+    ],
+  ].map(([id, file, anchor, canonical, legacy]) =>
+    structuralRule(id, file, anchor, {
+      requiredPatterns: [canonicalSelectorPattern(canonical, legacy)],
+    }),
+  ),
+  structuralRule(
+    "rn-android-native-platform-selector",
+    F.rnAndroid,
+    /\boverride\s+fun\s+requestPurchase\s*\(/,
+    {
+      requiredPatterns: [
+        /if\s*\(\s*[A-Za-z_$][\w$]*\.google\s*!=\s*null\s*\)/,
+        /else\s*\{[^}]{0,320}?[A-Za-z_$][\w$]*\.android/s,
+      ],
+    },
+  ),
+  structuralRule(
+    "rn-ios-native-platform-selector",
+    F.rnIOS,
+    /\bfunc\s+requestPurchase\s*\(/,
+    {
+      requiredPatterns: [
+        /if\s+let\s+[A-Za-z_$][\w$]*\s*=\s*[A-Za-z_$][\w$]*\.apple\b/,
+        /else\s+if\s+case\s+\.second[^=]{0,120}=\s*[A-Za-z_$][\w$]*\.ios\b/,
+      ],
+    },
+  ),
+  ...[
+    [
+      "expo-js-platform-selector",
+      F.expo,
+      /\bfunction\s+normalizeRequestProps\s*\(/,
+      ["apple", "ios", "google", "android"],
+    ],
+    [
+      "expo-kepler-platform-selector",
+      F.expoKepler,
+      /\bgetAndroidRequest\s*=/,
+      ["google", "android"],
+    ],
+    [
+      "expo-android-request-selector",
+      F.expoAndroid,
+      /\bfun\s+parseRequestPurchaseParams\s*\(/,
+      ["google", "skus", "subscriptionOffers"],
+    ],
+    [
+      "expo-onside-platform-selector",
+      F.expoOnside,
+      /\bprivate\s+func\s+resolveAppleRequest\s*\(/,
+      ["apple", "ios"],
+    ],
+  ].map(([id, file, anchor, keys]) => presenceRule(id, file, anchor, keys)),
+  presenceRule(
+    "expo-ios-platform-selector",
+    F.expoIOS,
+    /\bprivate\s+static\s+func\s+normalizeApplePlatformKey\s*\(/,
+    ["apple"],
+    {
+      requiredPatterns: [/removeValue\s*\(\s*forKey\s*:\s*["']ios["']\s*\)/],
+    },
+  ),
+  governedRule(
+    "expo-android-deep-link-selector",
+    F.expoAndroid,
+    /\bfun\s+parseDeepLinkSubscriptionParams\s*\(/,
+    ["skuAndroid", "packageNameAndroid"],
+  ),
+  structuralRule(
+    "expo-android-deep-link-call",
+    F.expoAndroidModule,
+    /\boverride\s+fun\s+definition\s*\(\s*\)/,
+    {
+      requiredPatterns: [/ExpoIapHelper\.parseDeepLinkSubscriptionParams\s*\(/],
+    },
+  ),
+  ...[
+    [
+      "expo-plugin-module-env-selector",
+      /\bfunction\s+resolveAmazonPlatformFlags\s*\(/,
+      ["fireOS", "vegaOS", "horizon", "onside"],
+    ],
+    [
+      "expo-plugin-horizon-id-selector",
+      /\bfunction\s+resolveHorizonAppId\s*\(/,
+      ["appId", "horizonAppId"],
+    ],
+    [
+      "expo-plugin-ios-billing-selector",
+      /\bfunction\s+resolveAlternativeBillingIOS\s*\(/,
+      ["alternativeBilling"],
+    ],
+  ].map(([id, anchor, keys]) => governedRule(id, F.expoPlugin, anchor, keys)),
+  structuralRule(
+    "flutter-stable-alternative-billing-warning",
+    F.flutter,
+    /if\s*\(\s*alternativeBillingModeAndroid\s*!=\s*null\s*\)/,
+    {
+      requiredPatterns: [
+        /warnLegacyOnce\s*\(\s*["']init-connection\.alternative-billing-mode-android["']/,
+      ],
+      forbiddenPatterns: [/debugPrint\s*\(/],
+    },
+  ),
+  structuralRule(
+    "rn-android-deprecation-dedup",
+    F.rnAndroidLog,
+    /\bfun\s+deprecation\s*\(/,
+    {
+      requiredPatterns: [
+        /[A-Za-z_$][\w$]*\.add\s*\(\s*key\s*\)/,
+        /Log\.w\s*\(/,
+      ],
+    },
+  ),
+  structuralRule(
+    "rn-ios-deprecation-dedup",
+    F.rnIOSLog,
+    /\bstatic\s+func\s+deprecation\s*\(/,
+    {
+      requiredPatterns: [
+        /[A-Za-z_$][\w$]*\.insert\s*\(\s*key\s*\)\.inserted/,
+        /\.lock\s*\(\s*\)/,
+        /\.unlock\s*\(\s*\)/,
+        /\bemit\s*\(\s*\.warn\s*,\s*message\s*\)/,
+      ],
+    },
+  ),
+  structuralRule(
+    "rn-android-fetch-inapp-warning",
+    F.rnAndroid,
+    /\boverride\s+fun\s+fetchProducts\s*\(/,
+    inappWarning,
+  ),
+  structuralRule(
+    "rn-android-purchases-inapp-warning",
+    F.rnAndroid,
+    /\boverride\s+fun\s+getAvailablePurchases\s*\(/,
+    inappWarning,
+  ),
+  structuralRule(
+    "rn-ios-fetch-inapp-warning",
+    F.rnIOS,
+    /\bfunc\s+fetchProducts\s*\(/,
+    inappWarning,
+  ),
+  structuralRule(
+    "expo-plugin-warning-dedup",
+    F.expoPlugin,
+    /\bfunction\s+addLegacyPluginWarningOnce\s*\(/,
+    {
+      requiredPatterns: [
+        /[A-Za-z_$][\w$]*\.has\s*\(\s*[A-Za-z_$][\w$]*\s*\)/,
+        /[A-Za-z_$][\w$]*\.add\s*\(\s*[A-Za-z_$][\w$]*\s*\)/,
+        /WarningAggregator\.addWarningAndroid\s*\(/,
+        /WarningAggregator\.addWarningIOS\s*\(/,
+      ],
+    },
+  ),
+  structuralRule(
+    "expo-plugin-warning-callers",
+    F.expoPlugin,
+    /\bfunction\s+warnLegacyPluginOptions\s*\(/,
+    {
+      requiredPatterns: [
+        /addLegacyPluginWarningOnce\s*\(\s*["']android["']\s*,\s*["']android\.amazon\.fireOS["']/,
+        /addLegacyPluginWarningOnce\s*\(\s*["']android["']\s*,\s*["']android\.amazon\.vegaOS\.boolean["']/,
+        /addLegacyPluginWarningOnce\s*\(\s*["']android["']\s*,\s*["']android\.horizonAppId["']/,
+        /addLegacyPluginWarningOnce\s*\(\s*["']android["']\s*,\s*["']horizonAppId["']/,
+        /addLegacyPluginWarningOnce\s*\(\s*["']ios["']\s*,\s*["']iosAlternativeBilling["']/,
+      ],
+      forbiddenPatterns: [/WarningAggregator\.addWarning(?:Android|IOS)\s*\(/],
+    },
+  ),
+  structuralRule(
+    "horizon-manifest-warning-dedup",
+    F.horizon,
+    /\bfun\s+warnLegacyHorizonAppIdKey\s*\(/,
+    {
+      requiredPatterns: [
+        /[A-Za-z_$][\w$]*\.add\s*\(\s*key\s*\)/,
+        /OpenIapLog\.warn\s*\(/,
+      ],
+    },
+  ),
+  structuralRule(
+    "horizon-manifest-warning-caller",
+    F.horizon,
+    /\bfun\s+resolveHorizonAppId\s*\(/,
+    {
+      requiredPatterns: [/warnLegacyKey\s*\(\s*key\s*\)/],
+      requiredFilePatterns: [
+        /warnLegacyKey\s*:\s*\(\s*String\s*\)\s*->\s*Unit\s*=\s*::warnLegacyHorizonAppIdKey/,
+      ],
+    },
+  ),
+  structuralRule(
+    "apple-store-platform-selector",
+    "packages/apple/Sources/OpenIapStore.swift",
+    /\bstatic\s+func\s+sku\s*\(/,
+    {
+      requiredPatterns: [
+        /if\s+let\s+[A-Za-z_$][\w$]*\s*=\s*[A-Za-z_$][\w$]*\.apple\b/,
+        /guard\s+let\s+[A-Za-z_$][\w$]*\s*=\s*[A-Za-z_$][\w$]*\.ios\b/,
+      ],
+      requiredFilePatterns: [
+        /OpenIapLog\.deprecation\s*\(/,
+        /Legacy\s+ios\s+compatibility\s+is\s+scheduled\s+for\s+removal\s+in\s+OpenIAP\s+3\.0\./,
+      ],
+    },
+  ),
+  structuralRule(
+    "google-store-platform-selector",
+    "packages/google/openiap/src/main/java/dev/hyo/openiap/store/OpenIapStore.kt",
+    /\binternal\s+object\s+OpenIapStorePurchaseRequestResolver\s*\{/,
+    {
+      requiredPatterns: [
+        /if\s*\(\s*[A-Za-z_$][\w$]*\.google\s*!=\s*null\s*\)/,
+        /else\s*\{[\s\S]{0,220}?[A-Za-z_$][\w$]*\.android\?\.let/,
+        /warnAboutLegacyAndroid\s*\(/,
+      ],
+      requiredFilePatterns: [
+        /if\s*\(\s*![A-Za-z_$][\w$]*\.add\s*\(\s*key\s*\)\s*\)\s*return/,
+        /Legacy\s+android\s+compatibility\s+is\s+scheduled\s+for\s+removal\s+in\s+OpenIAP\s+3\.0\./,
+      ],
+    },
+  ),
+];
+
+export function evaluateSourceStructureRule(rule, source) {
+  const region = extractBraceDelimitedRegion(source, rule.anchor);
+  if (region === null) return false;
+  const code = normalizeSourceForStructuralMatching(region);
+  const fileCode = normalizeSourceForStructuralMatching(source);
+
+  if (
+    (rule.keyPresence ?? []).some((key) => !hasStructuralKeyPresence(code, key))
+  ) {
+    return false;
+  }
+  if (
+    (rule.governedKeySelection ?? []).some(
+      (key) => !hasGovernedKeySelection(code, key),
+    )
+  ) {
+    return false;
+  }
+  if (
+    rule.dynamicPresenceCount !== undefined &&
+    dynamicPresenceIdentifiers(code).size < rule.dynamicPresenceCount
+  ) {
+    return false;
+  }
+  if (
+    (rule.requiredPatterns ?? []).some(
+      (pattern) => !matchesForbiddenSourcePattern(code, pattern),
+    )
+  ) {
+    return false;
+  }
+  if (
+    (rule.requiredFilePatterns ?? []).some(
+      (pattern) => !matchesForbiddenSourcePattern(fileCode, pattern),
+    )
+  ) {
+    return false;
+  }
+  if (
+    (rule.forbiddenPatterns ?? []).some((pattern) =>
+      matchesForbiddenSourcePattern(code, pattern),
+    )
+  ) {
+    return false;
+  }
+  return true;
+}
+
+export function collectSourceStructureViolations(file, source) {
+  return sourceStructureRules
+    .filter(
+      (rule) =>
+        rule.file === file && !evaluateSourceStructureRule(rule, source),
+    )
+    .map((rule) => rule.label);
+}
+
 const forbiddenSourcePatterns = [
   ...SCHEMA_FILE_NAMES.map((file) => ({
     file: `packages/gql/src/${file}`,
@@ -530,8 +1364,7 @@ const forbiddenSourcePatterns = [
   },
   {
     file: "libraries/flutter_inapp_purchase/android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
-    pattern:
-      /params\["skus"\][\s\S]{0,160}\?:\s*\(params\["skuArr"\]/,
+    pattern: /params\["skus"\][\s\S]{0,160}\?:\s*\(params\["skuArr"\]/,
     label:
       "Flutter Android skuArr fallback must pass through the warning-aware canonical resolver",
   },
@@ -1586,12 +2419,13 @@ export function collectDeprecationScheduleDrift() {
     }
   }
 
-  for (const requirement of requiredSourceNotices) {
-    const source = fs.readFileSync(path.join(root, requirement.file), "utf8");
-    for (const value of requirement.values) {
-      if (source.includes(value)) continue;
+  for (const file of new Set(
+    requiredSourceNotices.map((entry) => entry.file),
+  )) {
+    const source = fs.readFileSync(path.join(root, file), "utf8");
+    for (const value of collectMissingRequiredSourceNotices(file, source)) {
       failures.push(
-        `${requirement.file}: missing deprecation schedule evidence ${JSON.stringify(value)}`,
+        `${file}: missing deprecation schedule evidence ${JSON.stringify(value)}`,
       );
     }
   }
@@ -1600,6 +2434,13 @@ export function collectDeprecationScheduleDrift() {
     const source = fs.readFileSync(path.join(root, requirement.file), "utf8");
     if (!matchesForbiddenSourcePattern(source, requirement.pattern)) continue;
     failures.push(`${requirement.file}: ${requirement.label}`);
+  }
+
+  for (const file of new Set(sourceStructureRules.map((rule) => rule.file))) {
+    const source = fs.readFileSync(path.join(root, file), "utf8");
+    for (const label of collectSourceStructureViolations(file, source)) {
+      failures.push(`${file}: ${label}`);
+    }
   }
 
   for (const output of generatedDeprecationOutputs) {
