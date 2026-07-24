@@ -90,7 +90,93 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
-    // July 24, 2026 - Planned Flutter Android purchase payload patch
+    // July 24, 2026 - Planned cross-package migration warnings
+    {
+      id: 'legacy-migration-warnings-planned-2026-07-24',
+      date: new Date('2026-07-24'),
+      element: (
+        <div
+          key="legacy-migration-warnings-planned-2026-07-24"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="legacy-migration-warnings-planned-2026-07-24"
+            level="h4"
+          >
+            July 24, 2026 - Cross-package legacy migration warnings (planned)
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Prepares advance compiler, IDE, documentation, and one-time runtime
+            warnings in{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/251"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #251
+            </a>
+            . No compatibility surface is removed by this change, and this note
+            remains planned until the affected package release workflows publish
+            it.
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Independent removal boundaries
+          </h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              OpenIAP Spec, openiap-apple, and openiap-google compatibility
+              surfaces remain through 2.x and are scheduled for removal in{' '}
+              <code>3.0.0</code>.
+            </li>
+            <li>
+              Framework libraries keep their aliases until their own next major:{' '}
+              <code>react-native-iap 16.0.0</code>, <code>expo-iap 5.0.0</code>,{' '}
+              <code>flutter_inapp_purchase 10.0.0</code>,{' '}
+              <code>godot-iap 3.0.0</code>, <code>kmp-iap 3.0.0</code>, and{' '}
+              <code>OpenIap.Maui 2.0.0</code>.
+            </li>
+            <li>
+              Canonical inputs win when both canonical and historical wire keys
+              are present. Compatibility warnings identify the final canonical
+              replacement and are emitted once rather than on every purchase.
+            </li>
+            <li>
+              Generated Kotlin declarations now carry real{' '}
+              <code>@Deprecated</code> annotations where Kotlin supports them;
+              other generated languages and package-specific shims preserve
+              their native warning mechanisms.
+            </li>
+          </ul>
+
+          <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
+            See{' '}
+            <Link to="/docs/updates/deprecations">
+              Deprecations &amp; 3.0 Migration
+            </Link>{' '}
+            for the complete symbol and wire-key inventory. Package versions
+            remain <code>Spec 2.4.2</code>, <code>openiap-apple 2.4.2</code>,
+            and <code>openiap-google 2.5.0</code>; the spec continues to equal
+            the minimum native version.
+          </p>
+        </div>
+      ),
+    },
+
+    // July 24, 2026 - Planned Flutter purchase payload patch
     {
       id: 'flutter-purchase-payload-fix-planned-2026-07-24',
       date: new Date('2026-07-24'),
@@ -103,7 +189,7 @@ function Releases() {
             id="flutter-purchase-payload-fix-planned-2026-07-24"
             level="h4"
           >
-            July 24, 2026 - Flutter Android purchase payload patch (planned)
+            July 24, 2026 - Flutter purchase payload patch (planned)
           </AnchorLink>
 
           <p
@@ -162,6 +248,26 @@ function Releases() {
               field, canonical <code>dataAndroid</code> wins when both are
               present, and the fallback is scheduled for removal in{' '}
               <code>flutter_inapp_purchase 10.0.0</code>.
+            </li>
+            <li>
+              Preserves the remaining Flutter 9.x wire fallbacks while warning
+              custom integrations to migrate before 10.0.0:{' '}
+              <code>purchaseStateAndroid</code> and{' '}
+              <code>transactionStateIOS</code> move to{' '}
+              <code>purchaseState</code>, <code>transactionReceipt</code> moves
+              to <code>purchaseToken</code>, <code>transactionId</code> must be
+              emitted explicitly, and iOS/macOS verification uses{' '}
+              <code>{'{ apple: { sku } }'}</code> instead of a top-level{' '}
+              <code>{'{ sku }'}</code>.
+            </li>
+            <li>
+              Moves the official Dart bridge to canonical <code>in-app</code>,{' '}
+              <code>apple</code> / <code>google</code>,
+              <code>getAppTransactionIOS</code> /{' '}
+              <code>subscriptionStatusIOS</code>, and <code>skuAndroid</code> /{' '}
+              <code>packageNameAndroid</code> payloads before enabling one-time
+              compatibility warnings. Normal SDK calls stay silent; only a
+              selected legacy custom-channel fallback warns.
             </li>
           </ul>
 

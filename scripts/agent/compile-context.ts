@@ -185,7 +185,43 @@ async function generateLlmsTxt(): Promise<{ quick: number; full: number }> {
 - Generated framework declarations repeat the canonical sentence
   \`Scheduled for removal in OpenIAP 3.0.\` That sentence names the
   spec/native train; the framework copy remains available until its own
-  package-specific removal major above.
+  package-specific removal major above. Supported generated Kotlin declarations
+  carry real \`@Deprecated\` annotations so consumers receive compiler and IDE
+  warnings; deprecated value parameters remain resolver KDoc because Kotlin
+  does not permit the annotation target, and generator-internal compatibility
+  reads stay suppressed.
+- Flutter 10 removes the 9.x purchase wire fallbacks
+  \`originalJsonAndroid -> dataAndroid\`,
+  \`purchaseStateAndroid / transactionStateIOS -> purchaseState\`,
+  \`transactionReceipt -> purchaseToken\`, and the
+  \`id used as a transactionId fallback\`. The canonical \`id\` purchase
+  identity itself is not deprecated. The legacy top-level \`{sku}\`
+  verification input also ends in 10.0.0; use \`{apple: {sku}}\`. Official
+  Dart calls emit canonical \`in-app\`, \`apple\` / \`google\`,
+  \`getAppTransactionIOS\` / \`subscriptionStatusIOS\`, and suffixed Android
+  deep-link keys before native fallbacks warn about historical forms.
+- React Native 16 and Expo 5 remove \`request.ios/android\`; emit
+  \`request.apple/google\`. Expo custom Android callers must replace
+  \`skuArr -> skus\` and \`offerTokenArr -> subscriptionOffers\`.
+- Flutter custom Android callers likewise replace \`skuArr -> skus\`,
+  \`offerTokenArr -> offerToken\` for one-time products or
+  \`subscriptionOffers\` for subscriptions, suffixed obfuscated-account/token
+  keys with their unsuffixed forms, and both legacy replacement-mode fields
+  with \`subscriptionProductReplacementParams\` before Flutter 10.
+- Godot 3 removes flattened IAPKit verification keys. Keep \`provider\`
+  top-level and nest \`apiKey\`, \`baseUrl\`, \`includeClientPayload\`,
+  \`apple\`, \`google\`, and \`amazon\` under \`iapkit\`. Typed Godot calls
+  must not emit raw bridge aliases such as \`request\`, \`ios/android\`,
+  \`skuArr\`, \`offerTokenArr\`, or \`requestPurchaseJson\`.
+- OpenIAP 3 also removes \`OpenIapLog.d/i/w/e\`, Apple's short
+  \`requestSubscriptionWithSku\` overload, and custom Apple purchase payloads
+  that rely on \`id\` as \`transactionId\`. Use the long log methods, the
+  extended subscription overload, and an explicit \`transactionId\`;
+  canonical purchase identity \`id\` remains supported.
+- Do not treat upstream store response labels or internal native-response
+  recovery as user-authored deprecated inputs. StoreKit, Play Billing, Amazon,
+  Horizon, and SDK transport normalization remain compatibility code until
+  their upstream contracts permit removal.
 - Migrate now to the canonical replacement named in each deprecation notice.
   See https://openiap.dev/docs/updates/deprecations.
 `;

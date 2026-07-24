@@ -130,6 +130,11 @@ const migrationGroups = [
 const flutterPublicMigrations = [
   ['ReplacementMode / ReplaceMode', 'AndroidReplacementMode'],
   ['TypeInApp', 'ProductQueryType'],
+  ['builder replacementMode', 'subscriptionProductReplacementParams'],
+  [
+    'builder useAlternativeBilling',
+    'InitConnectionConfig.enableBillingProgramAndroid',
+  ],
   ['purchaseUpdated', 'purchaseUpdatedListener'],
   ['PurchaseResult / purchaseError', 'PurchaseError / purchaseErrorListener'],
   ['ConnectionResult / connectionUpdated', 'the initConnection result'],
@@ -146,6 +151,56 @@ const flutterMethodChannelMigrations = [
   ['acknowledgePurchase', 'finishTransaction or acknowledgePurchaseAndroid'],
   ['consumeProduct / consumePurchase', 'finishTransaction with isConsumable'],
   ['showInAppMessages', 'showInAppMessagesAndroid'],
+  ['getAppTransaction', 'getAppTransactionIOS'],
+  ['getSubscriptionStatus', 'subscriptionStatusIOS'],
+] as const;
+
+const flutterPurchasePayloadMigrations = [
+  ['originalJsonAndroid', 'dataAndroid', 'Android'],
+  ['purchaseStateAndroid', 'purchaseState', 'Android'],
+  ['transactionStateIOS', 'purchaseState', 'iOS'],
+  ['transactionReceipt', 'purchaseToken', 'iOS'],
+  [
+    'id used as a transactionId fallback',
+    'an explicit transactionId; keep id as the purchase identity',
+    'Android and iOS',
+  ],
+  [
+    'top-level { sku } for verifyPurchase / validateReceiptIOS',
+    '{ apple: { sku } }',
+    'iOS and macOS',
+  ],
+] as const;
+
+const flutterCustomWireMigrations = [
+  ["product type 'inapp'", "'in-app'"],
+  ['requestPurchase.request.ios / requestSubscription.request.ios', 'apple'],
+  [
+    'requestPurchase.request.android / requestSubscription.request.android',
+    'google',
+  ],
+  ['productId / sku used as a product id', 'id'],
+  [
+    'discounts / subscription product metadata',
+    'discountOffers or subscriptionOffers, plus subscriptionGroupIdIOS when applicable',
+  ],
+  ['subResponseCode', 'subResponseCodeAndroid'],
+  ['skuArr', 'skus'],
+  [
+    'offerTokenArr',
+    'offerToken for one-time products or subscriptionOffers for subscriptions',
+  ],
+  [
+    'obfuscatedAccountIdAndroid / obfuscatedProfileIdAndroid',
+    'obfuscatedAccountId / obfuscatedProfileId',
+  ],
+  ['purchaseTokenAndroid / token', 'purchaseToken'],
+  [
+    'replacementModeAndroid / replacementMode',
+    'subscriptionProductReplacementParams',
+  ],
+  ['unsuffixed deep-link sku / packageName', 'skuAndroid / packageNameAndroid'],
+  ['numeric-indexed iOS SKU maps', '{ skus: [...] }'],
 ] as const;
 
 const packageCompatibilityMigrations = [
@@ -164,6 +219,14 @@ const packageCompatibilityMigrations = [
       [
         'requestPurchaseOnPromotedProductIOSWithCompletion',
         'promotedProductListenerIOS followed by requestPurchase',
+      ],
+      [
+        'short requestSubscriptionWithSku(_:offer:completion:) overload',
+        'the extended overload with compactJWS, promotionalOfferJWS, winBackOfferId, and billingPlanType',
+      ],
+      [
+        'raw/custom purchase id used as a transactionId fallback',
+        'an explicit transactionId; keep id as the canonical purchase identity',
       ],
       ['OpenIapStore.deepLinkToSubscriptionsIOS', 'deepLinkToSubscriptions'],
       [
@@ -241,12 +304,16 @@ const packageCompatibilityMigrations = [
         'createAlternativeBillingReportingToken',
         'createBillingProgramReportingDetails with BillingProgramAndroid.ExternalOffer',
       ],
+      ['OpenIapLog.d / i / w / e', 'debug / info / warn / error'],
     ],
   },
   {
     title: 'react-native-iap 16.0.0',
     rows: [
       ["ProductTypeInput 'inapp'", "'in-app'"],
+      ['request.ios / request.android', 'request.apple / request.google'],
+      ['replacementMode', 'subscriptionProductReplacementParams'],
+      ['useIAP().alternativeBillingModeAndroid', 'enableBillingProgramAndroid'],
       ['acknowledgePurchase', 'acknowledgePurchaseAndroid'],
       ['consumePurchase', 'consumePurchaseAndroid'],
       ['requestPromotedProductIOS', 'getPromotedProductIOS'],
@@ -265,6 +332,14 @@ const packageCompatibilityMigrations = [
     title: 'expo-iap 5.0.0',
     rows: [
       ["ProductTypeInput 'inapp'", "'in-app'"],
+      ['request.ios / request.android', 'request.apple / request.google'],
+      ['Android custom-channel skuArr', 'skus'],
+      [
+        'Android custom-channel offerTokenArr',
+        'subscriptionOffers for subscriptions',
+      ],
+      ['replacementMode', 'subscriptionProductReplacementParams'],
+      ['useIAP().alternativeBillingModeAndroid', 'enableBillingProgramAndroid'],
       ['acknowledgePurchase', 'acknowledgePurchaseAndroid'],
       ['consumePurchase', 'consumePurchaseAndroid'],
       ['getReceiptIOS', 'getReceiptDataIOS'],
@@ -309,6 +384,35 @@ const packageCompatibilityMigrations = [
         'godot-iap create_alternative_billing_token_android',
         'create_billing_program_reporting_details_android with BillingProgramAndroid.EXTERNAL_OFFER',
       ],
+      [
+        'flattened verify_purchase_with_provider IAPKit keys',
+        'keep provider at the top level and nest apiKey, baseUrl, includeClientPayload, apple, google, and amazon under iapkit',
+      ],
+      ["ProductQueryType 'inapp' / 'in_app'", "'in-app'"],
+      ["ProductQueryType 'subscription'", "'subs'"],
+      [
+        'raw request selector and ios / android purchase envelopes',
+        'requestPurchase or requestSubscription with apple / google',
+      ],
+      ['raw offer_token', 'offerToken'],
+      [
+        'raw obfuscatedAccountIdAndroid / obfuscatedProfileIdAndroid / purchaseTokenAndroid',
+        'the corresponding unsuffixed Google request keys',
+      ],
+      [
+        'raw replacementModeAndroid / replacementMode',
+        'subscriptionProductReplacementParams',
+      ],
+      ['raw skuArr / numeric-indexed iOS SKU maps', 'skus'],
+      [
+        'raw offerTokenArr',
+        'offerToken for a one-time product or subscriptionOffers for a subscription',
+      ],
+      ['Android native requestPurchaseJson', 'requestPurchase'],
+      [
+        'iOS simple requestPurchase(sku:) / top-level sku request',
+        'requestPurchaseWithPayload using an apple request envelope',
+      ],
     ],
   },
   {
@@ -326,6 +430,18 @@ const packageCompatibilityMigrations = [
       ],
       [
         'AndroidOptionsBuilder.replacementMode',
+        'subscriptionProductReplacementParams',
+      ],
+      [
+        'generated RequestPurchasePropsByPlatforms.ios / .android and RequestSubscriptionPropsByPlatforms.ios / .android',
+        'apple / google',
+      ],
+      [
+        'generated RequestPurchaseProps.useAlternativeBilling / InitConnectionConfig.alternativeBillingModeAndroid',
+        'InitConnectionConfig.enableBillingProgramAndroid',
+      ],
+      [
+        'generated RequestSubscriptionAndroidProps.replacementMode',
         'subscriptionProductReplacementParams',
       ],
     ],
@@ -443,11 +559,20 @@ function Deprecations() {
           available until that framework reaches its own removal major in the
           table above.
         </p>
+        <p>
+          Kotlin emits compiler and IDE warnings on supported deprecated types,
+          properties, enum values, and functions. Kotlin does not permit{' '}
+          <code>@Deprecated</code> on value parameters, and a data-class named
+          constructor argument does not trigger its property annotation.
+          Deprecated GraphQL resolver arguments and those constructor call sites
+          therefore retain KDoc and this migration catalog; reading the
+          deprecated property still warns.
+        </p>
       </section>
 
       <section>
         <AnchorLink id="flutter-original-json-android" level="h2">
-          Flutter Android purchase JSON
+          Flutter purchase payload compatibility
         </AnchorLink>
         <p>
           <code>PurchaseAndroid.dataAndroid</code> is the only public,
@@ -455,6 +580,42 @@ function Deprecations() {
           <code>originalJsonAndroid</code> is not a public Purchase field and is
           never the preferred output key.
         </p>
+        <p>
+          Flutter 9.x still accepts the following legacy native or custom
+          MethodChannel payload shapes. These are input fallbacks, not public
+          generated fields, and all are scheduled for removal in{' '}
+          <code>flutter_inapp_purchase 10.0.0</code>.
+        </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Legacy Flutter 9.x input</th>
+              <th>Emit instead</th>
+              <th>Platform</th>
+            </tr>
+          </thead>
+          <tbody>
+            {flutterPurchasePayloadMigrations.map(
+              ([deprecated, replacement, platform]) => (
+                <tr key={deprecated}>
+                  <td>
+                    <code>{deprecated}</code>
+                  </td>
+                  <td>
+                    <code>{replacement}</code>
+                  </td>
+                  <td>{platform}</td>
+                </tr>
+              )
+            )}
+          </tbody>
+        </table>
+        <p>
+          The canonical <code>id</code> purchase identity is not deprecated.
+          Only using it implicitly in place of <code>transactionId</code> ends
+          in Flutter 10.
+        </p>
+        <h3>Issue #248 and Android raw purchase JSON</h3>
         <ul>
           <li>
             Before the planned Flutter 9.6.1 patch, issue{' '}
@@ -542,6 +703,33 @@ function Deprecations() {
           </thead>
           <tbody>
             {flutterMethodChannelMigrations.map(([deprecated, replacement]) => (
+              <tr key={deprecated}>
+                <td>
+                  <code>{deprecated}</code>
+                </td>
+                <td>
+                  <code>{replacement}</code>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+
+        <h3>Custom MethodChannel payloads</h3>
+        <p>
+          The official Dart API emits the canonical forms below. Flutter 9.x
+          continues to normalize these historical custom-channel inputs and
+          warns only when a fallback is selected; canonical calls stay silent.
+        </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Legacy payload shape</th>
+              <th>Emit instead</th>
+            </tr>
+          </thead>
+          <tbody>
+            {flutterCustomWireMigrations.map(([deprecated, replacement]) => (
               <tr key={deprecated}>
                 <td>
                   <code>{deprecated}</code>
@@ -645,6 +833,16 @@ function Deprecations() {
           <li>
             documentation that describes an upstream StoreKit or Play Billing
             legacy technology still supported by the stores; or
+          </li>
+          <li>
+            StoreKit, Play Billing, Amazon, or Horizon response-shape
+            normalization, including upstream names such as{' '}
+            <code>productIdentifier</code>, <code>localizedPrice</code>, and
+            historical receipt payload labels;
+          </li>
+          <li>
+            internal React Native, Expo, KMP, or Godot recovery of native
+            response fields that applications do not author;
           </li>
           <li>
             input normalization that accepts historical error-code spellings;
