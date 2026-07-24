@@ -22,6 +22,10 @@ interface Note {
   element: React.ReactNode;
 }
 
+const generatedContractReleases = [
+  ['OpenIAP Spec 2.5.1', 'docs-2.5.1'],
+] as const;
+
 const androidOfferCodeReleases = [
   ['OpenIAP Spec 2.5.0', 'docs-2.5.0'],
   ['openiap-apple 2.4.2', '2.4.2'],
@@ -86,6 +90,136 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // July 24, 2026 - OpenIAP Spec 2.5.1 offer docs and generated-contract consistency
+    {
+      id: 'spec-2-5-1-offer-docs-codegen-ssot-2026-07-24',
+      date: new Date('2026-07-24'),
+      element: (
+        <div
+          key="spec-2-5-1-offer-docs-codegen-ssot-2026-07-24"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="spec-2-5-1-offer-docs-codegen-ssot-2026-07-24"
+            level="h4"
+          >
+            July 24, 2026 - OpenIAP Spec 2.5.1 offer documentation and
+            generated-contract consistency
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes a backward-compatible documentation and generated-contract
+            patch from{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/issues/249"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              issue #249
+            </a>{' '}
+            and{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/250"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #250
+            </a>
+            . Native and framework runtime APIs, wire values, and installable
+            package versions are unchanged.
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Offer documentation</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <code>DiscountOffer</code> is documented as the standardized shape
+              for Android one-time product purchase options and offers. It is
+              not an iOS discount type and is not the subscription-offer model.
+            </li>
+            <li>
+              Subscription products consistently point to{' '}
+              <code>SubscriptionOffer</code>, while Android one-time products
+              read <code>ProductAndroid.discountOffers</code>. Legacy
+              platform-specific fields retain precise deprecation guidance.
+            </li>
+            <li>
+              Examples, type references, search data, and LLM exports now use
+              the same canonical field names and offer-page routes.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Generated-contract consistency
+          </h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              GraphQL schema inventory, custom input contracts, deprecation
+              reasons, supported languages, generated sources, and synchronized
+              platform targets now derive from canonical manifests instead of
+              parallel file lists.
+            </li>
+            <li>
+              Generation and CI fail closed on tracked or untracked drift, and
+              standalone refreshers consume the versioned{' '}
+              <code>docs-2.5.1</code> source snapshot.
+            </li>
+            <li>
+              Generated TypeScript, Swift, Kotlin, Dart, GDScript, and C# docs
+              carry the same offer and deprecation metadata without changing the
+              public wire contract.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {generatedContractReleases.map(([label, tag]) => (
+                <li key={tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // July 23, 2026 - IAPKit webhook deduplication and ASC review automation
     {
       id: 'iapkit-webhook-dedup-asc-review-automation-2026-07-23',
