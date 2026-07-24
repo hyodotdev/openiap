@@ -65,11 +65,13 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
+import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 
 internal object OpenIapStorePurchaseRequestResolver {
     private const val LEGACY_ANDROID_WARNING_KEY = "OpenIapStore.requestPurchase.android"
-    private val emittedLegacyWarnings = ConcurrentHashMap.newKeySet<String>()
+    private val emittedLegacyWarnings: MutableSet<String> =
+        Collections.newSetFromMap(ConcurrentHashMap())
 
     fun sku(
         props: RequestPurchaseProps,

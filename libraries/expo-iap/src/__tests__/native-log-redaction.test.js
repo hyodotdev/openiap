@@ -34,8 +34,12 @@ describe('native log redaction', () => {
     expect(androidLog).toContain('isSensitiveKey');
     expect(iosLog).toContain('isSensitiveKey');
     expect(androidLog).toContain(
-      'private val emittedDeprecations = ConcurrentHashMap.newKeySet<String>()',
+      'private val emittedDeprecations: MutableSet<String>',
     );
+    expect(androidLog).toContain(
+      'Collections.newSetFromMap(ConcurrentHashMap())',
+    );
+    expect(androidLog).not.toContain('ConcurrentHashMap.newKeySet');
     expect(iosLog).toContain(
       'private static var emittedDeprecations = Set<String>()',
     );
@@ -113,9 +117,7 @@ describe('native log redaction', () => {
     expect(onsideModule).toMatch(
       /private func introductoryPricePaymentModeIOS\([\s\S]*?if offer\.price\.value == 0 \{\s+return \.freeTrial\s+\}[\s\S]*?return \.empty/,
     );
-    expect(onsideModule).toContain(
-      'PaymentModeIOS.empty.rawValue',
-    );
+    expect(onsideModule).toContain('PaymentModeIOS.empty.rawValue');
     expect(onsideModule).toContain('private func formatPriceIOS(');
     expect(onsideModule).toContain(
       'private func subscriptionPeriodComponentsIOS(',

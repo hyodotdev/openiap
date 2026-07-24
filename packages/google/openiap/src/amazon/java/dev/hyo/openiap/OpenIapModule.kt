@@ -43,6 +43,7 @@ import java.lang.ref.WeakReference
 import java.text.NumberFormat
 import java.text.ParsePosition
 import java.util.Currency
+import java.util.Collections
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicReference
@@ -415,14 +416,18 @@ class OpenIapModule
     private val purchaseUpdatesSession = AmazonPurchaseUpdatesSession()
     private val purchaseTypeByReceiptId = ConcurrentHashMap<String, AmazonProductType>()
     private val purchaseSkuByRequestId = ConcurrentHashMap<String, String>()
-    private val purchaseErrorsPublishedAtEnd = ConcurrentHashMap.newKeySet<String>()
+    private val purchaseErrorsPublishedAtEnd: MutableSet<String> =
+        Collections.newSetFromMap(ConcurrentHashMap())
     private val activePurchaseSku = AtomicReference<String?>(null)
     private val purchaseIssuance = AtomicReference<AmazonPurchaseIssuance?>(null)
-    private val purchaseIssuanceErrorsPublishedAtEnd = ConcurrentHashMap.newKeySet<String>()
+    private val purchaseIssuanceErrorsPublishedAtEnd: MutableSet<String> =
+        Collections.newSetFromMap(ConcurrentHashMap())
     private val productTypeBySku = ConcurrentHashMap<String, AmazonProductType>()
 
-    private val purchaseUpdateListeners = ConcurrentHashMap.newKeySet<OpenIapPurchaseUpdateListener>()
-    private val purchaseErrorListeners = ConcurrentHashMap.newKeySet<OpenIapPurchaseErrorListener>()
+    private val purchaseUpdateListeners: MutableSet<OpenIapPurchaseUpdateListener> =
+        Collections.newSetFromMap(ConcurrentHashMap())
+    private val purchaseErrorListeners: MutableSet<OpenIapPurchaseErrorListener> =
+        Collections.newSetFromMap(ConcurrentHashMap())
 
     private fun ensureRegistered() {
         synchronized(registrationLock) {

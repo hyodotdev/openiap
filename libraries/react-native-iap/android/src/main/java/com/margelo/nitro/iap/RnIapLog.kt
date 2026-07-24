@@ -3,12 +3,14 @@ package com.margelo.nitro.iap
 import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.Collections
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
 internal object RnIapLog {
     private const val TAG = "RnIap"
-    private val emittedDeprecations = ConcurrentHashMap.newKeySet<String>()
+    private val emittedDeprecations: MutableSet<String> =
+        Collections.newSetFromMap(ConcurrentHashMap())
     private val SENSITIVE_KEY_FRAGMENTS = setOf(
         "token",
         "apikey",

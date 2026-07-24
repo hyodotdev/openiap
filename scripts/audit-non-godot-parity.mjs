@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { GENERATED_SYNC_MANIFEST } from "../packages/gql/generated-sync-manifest.mjs";
 import { collectGeneratedSyncDrift } from "../packages/gql/scripts/verify-generated-sync.mjs";
 import { collectDeprecationScheduleDrift } from "./audit-deprecation-schedule.mjs";
+import { usesApi24ConcurrentKeySet } from "./audit-android-api-compat.mjs";
 import { assertSpecMatchesNativeFloor } from "./release-branch-policy.mjs";
 import {
   collectPurchasePayloadParityFailures,
@@ -29,6 +30,11 @@ execFileSync(
 execFileSync(
   process.execPath,
   ["--test", path.resolve(root, "scripts/audit-deprecation-schedule.test.mjs")],
+  { stdio: "inherit" },
+);
+execFileSync(
+  process.execPath,
+  ["--test", path.resolve(root, "scripts/audit-android-api-compat.test.mjs")],
   { stdio: "inherit" },
 );
 execFileSync(
@@ -957,6 +963,31 @@ function expectNoExampleStorefrontIOS() {
       if (text.includes("getStorefrontIOS(")) {
         fail(
           `example uses getStorefrontIOS instead of getStorefront: ${path.relative(root, file)}`,
+        );
+      }
+    }
+  }
+}
+
+function expectNoApi24ConcurrentKeySets() {
+  const androidSourceRoots = [
+    "packages/google/Example/src",
+    "packages/google/openiap/src",
+    "libraries/expo-iap/android/src",
+    "libraries/flutter_inapp_purchase/android/src",
+    "libraries/flutter_inapp_purchase/example/android/app/src",
+    "libraries/godot-iap/android/src",
+    "libraries/react-native-iap/android/src",
+  ];
+  for (const searchRoot of androidSourceRoots) {
+    for (const file of walk(abs(searchRoot))) {
+      if (!/\.(?:java|kt)$/.test(file)) continue;
+      const source = fs.readFileSync(file, "utf8");
+      if (usesApi24ConcurrentKeySet(source, file.endsWith(".kt"))) {
+        fail(
+          `Android minSdk 23 source uses the reserved newKeySet identifier ` +
+            `(ConcurrentHashMap.newKeySet is API 24+); use ` +
+            `Collections.newSetFromMap instead: ${path.relative(root, file)}`,
         );
       }
     }
@@ -6245,6 +6276,7 @@ checkBillingChoiceFieldBindings();
 checkFrameworkDependencyHygiene();
 checkReleaseNoteGroupingGuidance();
 expectNoExampleStorefrontIOS();
+expectNoApi24ConcurrentKeySets();
 
 if (failures.length > 0) {
   console.error(

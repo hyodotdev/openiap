@@ -3,12 +3,14 @@ package expo.modules.iap
 import android.util.Log
 import org.json.JSONArray
 import org.json.JSONObject
+import java.util.Collections
 import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 
 internal object ExpoIapLog {
     private const val TAG = "ExpoIap"
-    private val emittedDeprecations = ConcurrentHashMap.newKeySet<String>()
+    private val emittedDeprecations: MutableSet<String> =
+        Collections.newSetFromMap(ConcurrentHashMap())
     private val SENSITIVE_KEY_FRAGMENTS =
         setOf(
             "token",
