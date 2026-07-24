@@ -37,7 +37,15 @@ jobs:
 
       - name: Install dependencies (workspace root)
         working-directory: ${{ github.workspace }}
-        run: bun install --frozen-lockfile
+        run: |
+          # Registry metadata can be temporarily incomplete even when the
+          # frozen lockfile is valid. Match the root CI retry policy.
+          for attempt in 1 2 3; do
+            bun install --frozen-lockfile && break
+            [ "$attempt" -eq 3 ] && exit 1
+            echo "Attempt $attempt failed. Retrying..."
+            sleep 5
+          done
 
       - name: Lint (app + Convex typecheck + eslint)
         run: bun run lint
@@ -125,7 +133,12 @@ jobs:
         run: |
           # Install only Kit's workspace dependencies. Convex goes first because
           # its additive API remains compatible with the currently running Fly app.
-          (cd "$GITHUB_WORKSPACE" && bun install --frozen-lockfile --filter @hyodotdev/openiap-kit)
+          for attempt in 1 2 3; do
+            (cd "$GITHUB_WORKSPACE" && bun install --frozen-lockfile --filter @hyodotdev/openiap-kit) && break
+            [ "$attempt" -eq 3 ] && exit 1
+            echo "Attempt $attempt failed. Retrying..."
+            sleep 5
+          done
           bunx convex deploy --yes
 
       - name: Setup flyctl

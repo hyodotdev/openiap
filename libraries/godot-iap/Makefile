@@ -40,6 +40,7 @@ help:
 	@echo ""
 	@echo "Usage:"
 	@echo "  make setup         - Download godot-lib.aar for Android development"
+	@echo "  make setup-swiftgodot - Download the pinned SwiftGodot source only"
 	@echo "  make ios           - Build iOS plugin (uses xcodebuild)"
 	@echo "  make macos         - Build macOS plugin (uses xcodebuild)"
 	@echo "  make android       - Build Android plugin"
