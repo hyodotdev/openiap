@@ -5,6 +5,8 @@
 const API_24_CONCURRENT_KEY_SET = /(?:\bnewKeySet\b|`newKeySet`)/;
 
 function translateJavaUnicodeEscapes(source) {
+  // JLS §3.3: a raw backslash is eligible after an even contiguous run, or
+  // when the previous result character itself came from a Unicode escape.
   let translated = "";
   let trailingBackslashes = 0;
   let lastResultWasUnicodeEscape = false;
@@ -120,6 +122,8 @@ function maskCommentsAndLiteralText(source, isKotlin) {
         continue;
       }
       if (source[index] === "`") {
+        // Kotlin backticks delimit executable identifiers. Preserve the exact
+        // forbidden name while masking unrelated escaped-identifier text.
         const end = source.indexOf("`", index + 1);
         const closingIndex = end === -1 ? source.length - 1 : end;
         if (source.slice(index, closingIndex + 1) === "`newKeySet`") {
