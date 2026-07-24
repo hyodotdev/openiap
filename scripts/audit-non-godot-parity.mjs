@@ -975,6 +975,7 @@ function expectNoApi24ConcurrentKeySets() {
     "packages/google/openiap/src",
     "libraries/expo-iap/android/src",
     "libraries/flutter_inapp_purchase/android/src",
+    "libraries/flutter_inapp_purchase/example/android/app/src",
     "libraries/godot-iap/android/src",
     "libraries/react-native-iap/android/src",
   ];
@@ -982,10 +983,11 @@ function expectNoApi24ConcurrentKeySets() {
     for (const file of walk(abs(searchRoot))) {
       if (!/\.(?:java|kt)$/.test(file)) continue;
       const source = fs.readFileSync(file, "utf8");
-      if (usesApi24ConcurrentKeySet(source)) {
+      if (usesApi24ConcurrentKeySet(source, file.endsWith(".kt"))) {
         fail(
-          `Android minSdk 23 source uses ConcurrentHashMap.newKeySet (API 24+); ` +
-            `use Collections.newSetFromMap instead: ${path.relative(root, file)}`,
+          `Android minSdk 23 source uses the reserved newKeySet identifier ` +
+            `(ConcurrentHashMap.newKeySet is API 24+); use ` +
+            `Collections.newSetFromMap instead: ${path.relative(root, file)}`,
         );
       }
     }
