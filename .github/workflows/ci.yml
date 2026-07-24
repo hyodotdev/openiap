@@ -134,10 +134,12 @@ jobs:
       - name: Install parity audit dependencies
         run: |
           # The root parity scripts use root devDependencies (for example,
-          # TypeScript) as well as GQL workspace tooling. Install the complete
-          # frozen workspace so Node can resolve both dependency scopes.
+          # TypeScript) as well as GQL workspace tooling. Install both scopes
+          # so Node can resolve them without installing unrelated workspaces.
           for i in 1 2 3; do
-            bun install --frozen-lockfile && break
+            bun install --frozen-lockfile \
+              --filter @hyodotdev/openiap \
+              --filter @hyodotdev/openiap-gql && break
             [ $i -eq 3 ] && exit 1
             echo "Attempt $i failed. Retrying..."
             sleep 5
