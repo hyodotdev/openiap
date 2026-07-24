@@ -63,6 +63,12 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
+function isLineTerminator(char) {
+  return (
+    char === "\n" || char === "\r" || char === "\u2028" || char === "\u2029"
+  );
+}
+
 function skipNestedBlockComment(text, start) {
   let depth = 1;
   let index = start + 2;
@@ -83,8 +89,11 @@ function skipNestedBlockComment(text, start) {
 }
 
 function skipLineComment(text, start) {
-  const end = text.indexOf("\n", start + 2);
-  return end < 0 ? text.length : end;
+  let index = start + 2;
+  while (index < text.length && !isLineTerminator(text[index])) {
+    index += 1;
+  }
+  return index;
 }
 
 function maskDelimitedLiteral(text, start, end, delimiter) {
@@ -95,7 +104,9 @@ function maskDelimitedLiteral(text, start, end, delimiter) {
   for (let index = 0; index < literal.length; index += 1) {
     const char = literal[index];
     masked +=
-      char === "\n" || index < delimiter.length || index >= closingStart
+      isLineTerminator(char) ||
+      index < delimiter.length ||
+      index >= closingStart
         ? char
         : " ";
   }
@@ -193,8 +204,8 @@ function maskKotlinCommentsAndStrings(text) {
       continue;
     }
     if (state === "line") {
-      if (char === "\n") state = "code";
-      masked += char === "\n" ? "\n" : " ";
+      if (isLineTerminator(char)) state = "code";
+      masked += isLineTerminator(char) ? char : " ";
       index += 1;
       continue;
     }
@@ -212,7 +223,7 @@ function maskKotlinCommentsAndStrings(text) {
         index += 2;
         continue;
       }
-      masked += char === "\n" ? "\n" : " ";
+      masked += isLineTerminator(char) ? char : " ";
       index += 1;
       continue;
     }
@@ -319,8 +330,8 @@ function maskDartCommentsAndStrings(text) {
       continue;
     }
     if (state === "line") {
-      if (char === "\n") state = "code";
-      masked += char === "\n" ? "\n" : " ";
+      if (isLineTerminator(char)) state = "code";
+      masked += isLineTerminator(char) ? char : " ";
       index += 1;
       continue;
     }
@@ -338,7 +349,7 @@ function maskDartCommentsAndStrings(text) {
         index += 2;
         continue;
       }
-      masked += char === "\n" ? "\n" : " ";
+      masked += isLineTerminator(char) ? char : " ";
       index += 1;
       continue;
     }
@@ -391,7 +402,7 @@ function maskTypeScriptCommentsAndStrings(text) {
       const literalRange = literalRanges[literalRangeIndex];
       if (literalRange?.[0] === index) {
         const [start, end] = literalRange;
-        masked += text.slice(start, end).replace(/[^\n]/g, " ");
+        masked += text.slice(start, end).replace(/[^\r\n\u2028\u2029]/g, " ");
         index = end;
         literalRangeIndex += 1;
         continue;
@@ -413,8 +424,8 @@ function maskTypeScriptCommentsAndStrings(text) {
       continue;
     }
     if (state === "line") {
-      if (char === "\n") state = "code";
-      masked += char === "\n" ? "\n" : " ";
+      if (isLineTerminator(char)) state = "code";
+      masked += isLineTerminator(char) ? char : " ";
       index += 1;
       continue;
     }
@@ -425,7 +436,7 @@ function maskTypeScriptCommentsAndStrings(text) {
         index += 2;
         continue;
       }
-      masked += char === "\n" ? "\n" : " ";
+      masked += isLineTerminator(char) ? char : " ";
       index += 1;
       continue;
     }
@@ -1059,7 +1070,7 @@ function swiftDictionarySourceReferences(expression) {
       continue;
     }
     if (state === "line") {
-      if (char === "\n") state = "code";
+      if (isLineTerminator(char)) state = "code";
       index += 1;
       continue;
     }

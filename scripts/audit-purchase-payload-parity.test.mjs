@@ -553,3 +553,58 @@ test("Kotlin balanced extraction ignores nested block comments", () => {
 
   assert.match(region?.body ?? "", /return\s+PurchaseAndroid/);
 });
+
+test("line comments terminate on non-LF line separators", () => {
+  for (const separator of ["\r", "\u2028", "\u2029"]) {
+    const kotlin = [
+      "fun mapPayload(): PurchaseAndroid {",
+      "// comment }",
+      'return PurchaseAndroid(id = "payload")',
+      "}",
+    ].join(separator);
+    const kotlinRegion = extractBalancedAfterMarker(
+      kotlin,
+      "fun mapPayload",
+      "{",
+      "}",
+      "Kotlin line-separator fixture",
+      maskKotlinCommentsAndStrings,
+    );
+    assert.match(kotlinRegion?.body ?? "", /return\s+PurchaseAndroid/);
+
+    const typescript = [
+      "function mapPayload() {",
+      "// comment }",
+      "return {id: 1};",
+      "}",
+    ].join(separator);
+    const typescriptRegion = extractBalancedAfterMarker(
+      typescript,
+      "function mapPayload",
+      "{",
+      "}",
+      "TypeScript line-separator fixture",
+      maskTypeScriptCommentsAndStrings,
+    );
+    assert.match(typescriptRegion?.body ?? "", /return\s+\{id:\s*1\}/);
+
+    const dart = [
+      "return PurchaseAndroid(",
+      "id: payload.id,",
+      "// comment )",
+      "productId: payload.productId,",
+      ")",
+    ].join(separator);
+    const dartResult = inspectNamedArguments(
+      dart,
+      "return PurchaseAndroid",
+      ":",
+      "dart",
+    );
+    assert.deepEqual(dartResult.issues, []);
+    assert.deepEqual([...dartResult.entries.keys()].sort(), [
+      "id",
+      "productId",
+    ]);
+  }
+});
