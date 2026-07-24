@@ -131,11 +131,13 @@ jobs:
         with:
           bun-version: 1.3.13
 
-      - name: Install GQL audit dependencies
+      - name: Install parity audit dependencies
         run: |
-          # Retry bun install up to 3 times to handle transient registry errors
+          # The root parity scripts use root devDependencies (for example,
+          # TypeScript) as well as GQL workspace tooling. Install the complete
+          # frozen workspace so Node can resolve both dependency scopes.
           for i in 1 2 3; do
-            bun install --frozen-lockfile --filter @hyodotdev/openiap-gql && break
+            bun install --frozen-lockfile && break
             [ $i -eq 3 ] && exit 1
             echo "Attempt $i failed. Retrying..."
             sleep 5
