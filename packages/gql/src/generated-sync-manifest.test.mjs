@@ -184,16 +184,19 @@ describe("generated sync manifest", () => {
       workflow.indexOf("  audit-parity:"),
       workflow.indexOf("\n  test-gql:"),
     );
-    const syncIndex = parityJob.indexOf("./scripts/sync-versions.sh");
-    const driftIndex = parityJob.indexOf(
+    const normalizedParityJob = parityJob.replace(/\\\r?\n[ \t]*/g, "");
+    const syncIndex = normalizedParityJob.indexOf("./scripts/sync-versions.sh");
+    const driftIndex = normalizedParityJob.indexOf(
       "node scripts/assert-clean-worktree.mjs",
     );
-    const parityIndex = parityJob.indexOf(
+    const parityIndex = normalizedParityJob.indexOf(
       "node scripts/audit-non-godot-parity.mjs",
     );
-    const setupIndex = parityJob.indexOf("uses: oven-sh/setup-bun@v2");
-    const installIndex = parityJob.indexOf(
-      "bun install --frozen-lockfile --filter @hyodotdev/openiap-gql",
+    const setupIndex = normalizedParityJob.indexOf(
+      "uses: oven-sh/setup-bun@v2",
+    );
+    const installIndex = normalizedParityJob.indexOf(
+      "bun install --frozen-lockfile --filter @hyodotdev/openiap --filter @hyodotdev/openiap-gql",
     );
 
     expect(syncIndex).toBeGreaterThanOrEqual(0);
