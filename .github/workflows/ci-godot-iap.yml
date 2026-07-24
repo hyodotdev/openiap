@@ -95,6 +95,10 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - name: Checkout SwiftGodot
+        working-directory: libraries/godot-iap
+        run: make setup-swiftgodot
+
       - name: Test iOS GDExtension bridge
         working-directory: libraries/godot-iap/ios-gdextension
         run: swift test
