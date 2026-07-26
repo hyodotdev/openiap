@@ -1,6 +1,6 @@
 ---
 name: generate-doc
-description: Use for OpenIAP documentation generation work, especially release-note entries in packages/docs/src/pages/docs/updates/releases.tsx where package releases are assumed to be deployed and links should be written as shipped release links.
+description: Use for OpenIAP documentation generation work, especially pre-deployment release-note entries in packages/docs/src/pages/docs/updates/releases.tsx that must name the expected native and framework versions, link their future GitHub Releases, and update an existing unreleased train instead of creating a duplicate.
 ---
 
 # Generate OpenIAP Docs
@@ -24,7 +24,7 @@ read the package or library convention file before editing that code.
 
 ## Release Note Mode
 
-Current scope: assumed-published release notes.
+Current scope: pre-deployment notes written in assumed-published form.
 
 RC and npm `next` releases live on the on-demand `next` branch and do not get a
 release-history entry. Gather their changes as source material, but add the
@@ -44,6 +44,30 @@ write the docs as already released. In that mode:
 For non-assumed releases, follow the release-note verification rules in
 `knowledge/internal/05-docs-patterns.md` and
 `knowledge/internal/06-git-deployment.md`; do not invent shipped links.
+
+## Existing Unreleased Train
+
+Before adding a release card, inspect the newest entries and package tags.
+
+- If an existing card describes a release train whose package tags are not all
+  published yet, update that card in place with the new user-visible changes.
+  Do not add another card for the same train.
+- Consolidate overlapping unreleased cards when they describe the same package
+  versions. Preserve their old IDs in the note's pagination-aware alias list
+  and render matching hidden anchors so old deep links select the right page.
+- If an unreleased hosted IAPKit card already exists and companion SDK packages
+  belong to the same release train, expand that card into the single
+  consolidated release entry and advance its date and title. Do not create a
+  second card for the package versions.
+- Structure a consolidated train in this order: a short `Common changes`
+  summary, hosted IAPKit changes, versioned native and framework changes grouped
+  by package, migration or integration notes, and `Package Releases` at the
+  bottom.
+- IAPKit and its MCP deploy as services and have no package version. Include
+  their user-visible behavior in the consolidated card, but never invent an
+  IAPKit item in the versioned `Package Releases` list.
+- Create a new card only when the latest card is already fully published or the
+  new work has an explicitly separate release train.
 
 ## Version Sources
 
@@ -75,9 +99,24 @@ Tag formats:
 - KMP: `kmp-iap-{version}`
 - MAUI: `maui-iap-{version}`
 
-If a release workflow will bump versions after the docs are written, derive the
-expected version from the explicit release plan or ask for confirmation when the
-target version is ambiguous.
+When workflows will bump versions after the docs are written, resolve expected
+versions in this order:
+
+1. Reuse explicit targets already recorded in the existing unreleased card or
+   release plan.
+2. Use package metadata that has already advanced beyond the last published
+   release.
+3. For an affected package still at its last published stable version, use
+   exactly the next patch version.
+4. Do not bump unaffected packages merely to make a release list symmetrical.
+5. Derive the expected OpenIAP Spec/docs version as the semantic-version minimum
+   of the expected Apple and Google versions.
+
+Write every resolved target into the release card with its expected tag link.
+Do not leave versionless package bullets, `(planned)` labels, or a
+`Planned Package Releases` list in assumed-published mode. Ask for confirmation
+only when repository evidence names conflicting target versions or it is unclear
+whether work belongs to the existing train.
 
 ## Editing Release Notes
 
@@ -93,6 +132,8 @@ Follow the existing card pattern:
 - Use `AnchorLink` for the heading.
 - Keep package links in a `Package Releases` list when using assumed-published
   mode.
+- Name the expected version in each package-specific heading or bullet, as well
+  as in the linked `Package Releases` list.
 - Link issues and PRs when they exist.
 - Do not edit `packages/docs/src/generated/version-metadata.json` manually; it
   is produced by `./scripts/sync-versions.sh`.
@@ -127,6 +168,7 @@ For docs-only release-note edits, run:
 cd packages/docs && bunx prettier --check "src/**/*.{ts,tsx,js,jsx,css,json}"
 cd packages/docs && bun run build
 bun run audit:docs
+bun run audit:release-state
 git diff --check
 ```
 

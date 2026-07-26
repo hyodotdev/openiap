@@ -1,6 +1,6 @@
 ---
 name: iapkit-e2e-martie
-description: Run IAPKit local receipt-validation E2E with the dev.hyo.martie React Native or Expo examples, the compiled packages/kit server, real Convex, and Apple or Google sandbox purchases. Use when verifying purchase-token or JWS routing, Local (IAPKit) baseUrl behavior, local server logs, receipt validity, transaction finishing, or the Martie purchases view; distinguish safe smoke checks from approval-gated live purchase verticals.
+description: Run IAPKit local receipt-validation E2E with the dev.hyo.martie React Native or Expo examples, the compiled packages/kit server, real Convex, and Apple or Google sandbox purchases. Use when preparing an iOS Sandbox Apple Account for a development-signed or TestFlight build, verifying purchase-token or JWS routing, Local (IAPKit) baseUrl behavior, local server logs, receipt validity, transaction finishing, or the Martie purchases view; distinguish safe smoke checks from approval-gated live purchase verticals.
 ---
 
 # IAPKit Martie Receipt E2E
@@ -68,6 +68,17 @@ satisfied.
   receipt workflow. Store-catalog mutation is a different E2E scope.
 - Use sandbox/test accounts only. Do not claim that sandbox means no external
   side effect; the store still creates purchase/transaction state.
+- Never place a sandbox/tester email or password in this skill, repository
+  files, environment files, shell commands, logs, screenshots, or reports.
+  Enter credentials only in Apple's on-device system sign-in UI. Redact the
+  account identity from captured evidence unless the user explicitly needs it.
+- Treat signing out of **Media & Purchases** as a separate, device-wide account
+  change. Do it only for the TestFlight sandbox-controls path on a dedicated
+  test device and only after the user approves that exact change; it can remove
+  access to production purchased content on the device.
+- Do not repeatedly retry a rejected account password or an Apple account
+  challenge. Stop as `BLOCKED` and let the user complete password, verification,
+  terms, or account-recovery prompts directly on the device.
 - Prefer a repeatable consumable. Never leave a purchased transaction
   unfinished merely to preserve test evidence.
 
@@ -80,17 +91,87 @@ satisfied.
 3. Confirm port `3100` is free and identify the device:
    - Android: `adb devices -l`
    - iOS: `xcrun devicectl list devices`
-4. Confirm the device is signed into the correct sandbox/tester account, can
-   load the store, and can install or launch `dev.hyo.martie`.
-5. Confirm an existing Martie IAPKit API key and the exact Martie Convex
+4. Classify the iOS app as **development-signed** or **TestFlight** and follow
+   [Prepare the iOS Sandbox Account](#prepare-the-ios-sandbox-account). Confirm
+   the device can load the store and install or launch `dev.hyo.martie`.
+5. For Android, follow
+   [Prepare the Google Play License Tester](#prepare-the-google-play-license-tester)
+   and confirm which Google Account the Play purchase sheet will use.
+6. Confirm an existing Martie IAPKit API key and the exact Martie Convex
    deployment that issued it are available. A placeholder or cross-deployment
    key/URL pair blocks the live lane.
-6. Confirm the selected example exposes the distinct **Local (Device)**,
+7. Confirm the selected example exposes the distinct **Local (Device)**,
    **Local (IAPKit)**, **IAPKit**, and **None (Skip)** choices in that order,
    then fetches the Martie catalog before requesting purchase.
 
 Treat a missing device, store account, catalog, API key, real Convex URL, or
 network route as `BLOCKED`, not passed.
+
+## Prepare the iOS Sandbox Account
+
+Do not treat the TestFlight download account and Sandbox Apple Account as the
+same role:
+
+- The production Apple Account under **Media & Purchases** downloads the beta
+  from TestFlight.
+- The Sandbox Apple Account attributes test purchases and exposes sandbox
+  controls. TestFlight and development-signed apps both create sandbox
+  transactions, which do not incur charges.
+
+For a **development-signed app** installed from Xcode, `devicectl`, React
+Native, or Expo:
+
+1. Keep the device's production **Media & Purchases** account signed in.
+2. Launch the app and initiate the first purchase only after the live-purchase
+   approval gate.
+3. Complete Apple's Sandbox Apple Account sign-in in the on-device purchase
+   flow or under **Settings → Developer → Sandbox Apple Account** when the
+   option is available.
+4. Require Apple's purchase UI to identify the environment as
+   `[Environment: Sandbox]`. If it does not, cancel and report `BLOCKED`; never
+   continue against a production environment.
+
+For an app installed from **TestFlight**:
+
+1. While the production **Media & Purchases** account is still signed in,
+   download the beta from TestFlight.
+2. Obtain explicit approval for the device-wide account change, then open
+   **Settings → Apple Account → Media & Purchases** and sign out.
+3. Open **Settings → Developer → Sandbox Apple Account → Sign In** and let the
+   user enter the Sandbox Apple Account credentials directly on the device.
+4. Keep production **Media & Purchases** signed out during the sandbox-control
+   run. Signing it back in makes TestFlight purchases use the production Apple
+   Account attribution instead of the Sandbox Apple Account.
+
+If the execution environment cannot control the physical iPhone UI, prepare
+the installed app and purchase screen, then pause for the user to complete only
+the system account prompt. Never claim that a CLI install or a known email
+proves the account is signed in. Follow Apple's current
+[sandbox testing instructions](https://developer.apple.com/documentation/storekit/testing-in-app-purchases-with-sandbox)
+when device labels differ by iOS version.
+
+## Prepare the Google Play License Tester
+
+TestFlight and Apple's Sandbox Apple Account do not apply to Android. Google
+Play needs a Google Account registered under **Play Console → Settings →
+License testing**:
+
+1. Confirm the device has an up-to-date Google Play Store and the intended
+   license-tester account. Never store or type its credentials through a shell,
+   repository file, environment file, log, or screenshot.
+2. Confirm `dev.hyo.martie` matches the Play Console application id and that
+   its products are published. A license tester may use a side-loaded debug
+   build; otherwise install the opted-in internal/closed-test build from Play.
+3. If the device has multiple Google Accounts, expand the purchase sheet and
+   confirm the selected account. Prefer installing the app from Play with the
+   tester account so Google selects it deterministically.
+4. Require the Google purchase sheet to identify the transaction as a test and
+   offer a test payment instrument. If it shows an ordinary payment method or
+   could charge real money, cancel and report `BLOCKED`.
+
+Follow Google's current
+[Play Billing test instructions](https://developer.android.com/google/play/billing/test)
+when the Play Store UI or tester controls differ.
 
 ## Make the Local Server Reachable
 
@@ -173,6 +254,13 @@ assume a JavaScript reload changed the native verification payload. Confirm the
 screen label is **Local (IAPKit)**, not **Local (Device)** or **IAPKit**, before
 purchase.
 
+For the Expo Vega target, `bun run build:vega:debug` loads the normal Expo
+development environment-file chain, including ignored `.env.local`, and
+embeds only the two `EXPO_PUBLIC_*` values above. Do not manually print or
+inspect the generated key value. After building, install with
+`VEGA_DEVICE_ID="$VEGA_DEVICE_ID" bun run run:vega:firetv`, then require the
+same local-server and purchases-view evidence as the other live lanes.
+
 ## Martie Catalog
 
 - `dev.hyo.martie.10bulbs`: consumable; preferred repeatable receipt fixture
@@ -188,14 +276,23 @@ in scope and the tester can safely create that sandbox state.
 ## Run the Approval-Gated Live Vertical
 
 1. Start log capture for the selected example and the local IAPKit server.
-2. Launch `dev.hyo.martie`, open Purchase Flow or Subscription Flow, and select
+2. In the exact Convex deployment used by the local server, take a redacted
+   pre-purchase snapshot for the Martie project, application id, target store,
+   and SKU. Record the matching logical-row count, latest purchase time, and
+   applicable aggregate/entitlement state without exposing a receipt, JWS,
+   purchase token, API key, or account identity.
+3. Launch `dev.hyo.martie`, open Purchase Flow or Subscription Flow, and select
    **Local (IAPKit)**.
-3. Fetch products and record the visible SKU and localized price.
-4. Obtain explicit approval if it is not already present for this exact live
+4. Fetch products and record the visible SKU and localized price.
+5. Obtain explicit approval if it is not already present for this exact live
    purchase run.
-5. Purchase the selected sandbox SKU and complete the store sheet.
-6. Match the app, local server, and same-deployment purchases evidence before
-   stopping logs.
+6. Purchase the selected sandbox SKU. Require the Apple sheet to show the
+   sandbox environment on iOS or the Google sheet to show a test purchase and
+   test instrument on Android. Account prompts are completed by the user
+   directly on the physical device.
+7. Match the app, local server, and same-deployment post-purchase data before
+   stopping logs. Query by the store's logical transaction identity where it
+   is exposed, not by a broad latest-row guess.
 
 Require all of these assertions for `LIVE RECEIPT PASS`:
 
@@ -209,15 +306,28 @@ Require all of these assertions for `LIVE RECEIPT PASS`:
 3. The app reports `isValid: true` with the expected IAPKit state/store and then
    successfully finishes, acknowledges, or consumes the transaction as
    appropriate.
-4. The purchases view backed by the same Martie Convex deployment shows the
-   matching store, SKU, and purchase time. For a Dev deployment, use its Convex
-   Data view or a dashboard explicitly connected to Dev; the production-backed
-   hosted UI will not contain the Dev row. Correlate identifiers where exposed.
+4. The purchases view backed by the same Martie Convex deployment contains
+   exactly one canonical logical purchase for the verified transaction. Its
+   project, application id, store/platform, SKU, sandbox/test environment,
+   validity, purchase state, and purchase time match the app and server
+   evidence. For a Dev deployment, use its Convex Data view or a dashboard
+   explicitly connected to Dev; the production-backed hosted UI will not
+   contain the Dev row.
+5. The post-purchase snapshot has the intended delta only: purchase/order
+   aggregates advance once, and subscription or durable-entitlement state is
+   created or updated only when the selected product type requires it. A
+   consumable must not accidentally create a durable entitlement.
+6. The exact logical transaction identity has no duplicate row. Run the
+   repository's purchase-save idempotency and replay-guard integration tests
+   in the same revision as the live run; when the example safely retains the
+   same receipt in memory before finishing, reverify it once and require the
+   same canonical row and unchanged aggregate count. Never persist plaintext
+   receipt material merely to perform this replay.
 
 If the request reaches the hosted endpoint, lacks `baseUrl`, never appears in
 the local structured log, or cannot be correlated with the same-deployment
 purchases evidence, fail the local vertical even when the store purchase itself
-succeeds.
+succeeds. A correct purchase row in the wrong Convex deployment also fails.
 
 ## Cleanup and Reporting
 
@@ -250,6 +360,9 @@ Report:
 - smoke result separately from live receipt result;
 - local correlation id, HTTP status, `isValid`, state, store, and transaction
   finish/consume result;
-- same-deployment Martie purchases correlation result;
+- same-deployment Martie before/after row count, canonical purchase-field
+  comparison, aggregate/entitlement delta, and duplicate-row result;
+- purchase-save idempotency and replay-guard integration-test result, plus the
+  optional live same-receipt replay result when it was safe to perform;
 - every `BLOCKED` prerequisite or failure, without upgrading partial evidence
   to PASS.

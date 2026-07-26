@@ -90,6 +90,11 @@ Prerequisites:
 
 - A connected iPhone or Google Play-capable Android phone with a sandbox/tester
   account and the `dev.hyo.martie` catalog.
+- For Google Play, the purchasing Google Account must be a Play Console license
+  tester. Confirm the purchase sheet shows a test purchase and test payment
+  instrument; TestFlight and Apple's Sandbox Apple Account do not configure
+  Android. A matching-package debug build may be side-loaded for a license
+  tester, or use the opted-in Play test-track build.
 - A valid API key issued by the same real Martie Convex deployment that the
   local server will use. Never use the placeholder smoke URL for a receipt.
 - A device-reachable local URL. For Android over USB, reuse an existing
@@ -144,7 +149,10 @@ the device-reachable local origin above, without `/v1/purchase/verify`.
 On the example purchase screen, choose **Local (IAPKit)**, not **Local
 (Device)** or hosted **IAPKit**. Fetch the Martie catalog, buy a visible
 consumable or subscription, and approve the sandbox dialog only when
-authorized. Require all of the following before PASS:
+authorized. Before the purchase, capture a redacted same-deployment Convex
+snapshot for the Martie project, application id, store, and SKU: matching
+logical-row count, latest purchase time, and applicable aggregate/entitlement
+state. Require all of the following before PASS:
 
 1. The example receives the purchase token/JWS and calls
    `verifyPurchaseWithProvider({ provider: 'iapkit' })` with the local
@@ -154,14 +162,25 @@ authorized. Require all of the following before PASS:
    HTTP 200, and `isValid: true`.
 3. The app displays/logs `isValid: true` and the expected IAPKit state/store,
    then successfully finishes or consumes the transaction.
-4. The purchases view backed by that same Martie Convex deployment shows the
-   same store/product purchase. Use the Dev Convex Data view for a Dev
+4. The purchases view backed by that same Martie Convex deployment has exactly
+   one canonical logical row for the transaction, with matching project,
+   application id, store/platform, SKU, sandbox/test environment, validity,
+   purchase state, and purchase time. Use the Dev Convex Data view for a Dev
    deployment; do not look for Dev rows in the production-backed hosted UI.
+5. The before/after delta is exact: purchase/order aggregates advance once,
+   entitlement or subscription state changes only when the product type
+   requires it, and a consumable does not gain a durable entitlement.
+6. No duplicate row exists for the logical transaction identity. Run the
+   purchase-save idempotency and replay-guard integration tests on the same
+   revision. If the example safely retains the same receipt in memory before
+   finishing, reverify it once and require the same row and unchanged
+   aggregate; never persist plaintext receipt material just to replay it.
 
 If the device, sandbox account, Martie catalog, API key, Convex deployment, or
 purchase approval is unavailable, report this row as `BLOCKED` with that exact
 prerequisite. A server health check, build, mocked receipt, or HTTP 400 route
-probe does not count as a live receipt PASS.
+probe does not count as a live receipt PASS. A purchase row written to a
+different Convex deployment is also a failure.
 
 Always after the row, including `PASS`, `FAIL`, or `BLOCKED`, stop the local
 server and log streams. Remove the reverse rule only when this run created it:
@@ -439,12 +458,20 @@ Onside iOS build-only path:
 ```bash
 cd libraries/expo-iap/example
 EXPO_IAP_ONSIDE=1 bunx expo prebuild --platform ios --clean
+bunx pod-install ios
+grep -F "ENV['EXPO_IAP_ONSIDE'] = '1'" ios/Podfile
+grep -F 'OnsideKit' ios/Podfile.lock
+plutil -p ios/ExpoIAPExample/Info.plist | grep -F 'onside'
+plutil -p ios/ExpoIAPExample/Info.plist | grep -F 'dev.hyo.martie.onside-auth'
 xcodebuild \
   -workspace ios/ExpoIAPExample.xcworkspace \
   -configuration Debug \
   -scheme ExpoIAPExample \
   -destination "generic/platform=iOS" \
+  -derivedDataPath ios/build-e2e-onside \
   CODE_SIGNING_ALLOWED=NO
+test -f \
+  ios/build-e2e-onside/Build/Products/Debug-iphoneos/ExpoIAPExample.app/Frameworks/OnsideKit.framework/OnsideKit
 ```
 
 VegaOS/Kepler path:
@@ -452,6 +479,9 @@ VegaOS/Kepler path:
 ```bash
 cd libraries/expo-iap/example
 if [ -f "$HOME/vega/env" ]; then source "$HOME/vega/env"; fi
+bun run test:vega-config
+# The build script loads Expo's normal .env chain, including ignored
+# .env.local for a Debug build. Never print the embedded publishable key.
 bun run build:vega:debug
 bun run build:vega:release
 # Build-only regression can stop here.
@@ -812,8 +842,8 @@ iOS build and launch smoke:
 
 ```bash
 cd libraries/godot-iap
-make setup
-make ios
+# export-ios already runs setup and builds the iOS plugin. Do not invoke
+# `make ios` first; the export target owns that prerequisite.
 make export-ios
 : "${IOS_UDID:?Set IOS_UDID to the target iOS device UDID}"
 : "${TEAM_ID:?Set TEAM_ID to the Apple development team ID}"
@@ -840,9 +870,12 @@ Run these on each connected platform requested:
   tester catalog/config if needed, launch, fetch products, buy a consumable,
   approve tester purchase if authorized, verify no crash on success, cancel, or
   timeout/error paths.
-- iPhone / StoreKit sandbox: install the iOS build, launch, fetch products, buy
-  a visible consumable or subscription, approve sandbox purchase if authorized,
-  verify transaction finish and restore behavior.
+- iPhone / StoreKit sandbox: follow
+  `.codex/skills/iapkit-e2e-martie/SKILL.md` to distinguish a
+  development-signed install from TestFlight account preparation. Never persist
+  tester credentials. Launch, fetch products, require the Apple purchase sheet
+  to identify the sandbox environment, buy a visible consumable or subscription
+  only after approval, and verify transaction finish and restore behavior.
 - VegaOS / Fire TV: build and install the VPK, copy Amazon tester catalog/config
   with the project script, launch, fetch products, and run at least one purchase
   attempt when device input and tester UI are available.
@@ -850,8 +883,11 @@ Run these on each connected platform requested:
   are explicitly available. If it is build-only, do not claim purchase flow
   coverage.
 - Onside: Expo iOS build-only. Verify the generated Podfile and iOS project
-  include the Onside module when `EXPO_IAP_ONSIDE=1`; do not claim purchase
-  flow coverage unless the Onside app/account/test flow was actually exercised.
+  include the Onside module when `EXPO_IAP_ONSIDE=1`. Run CocoaPods explicitly
+  after prebuild, require `OnsideKit` in `Podfile.lock`, require both `onside`
+  and `<bundle-id>.onside-auth` in the generated `Info.plist`, and confirm the
+  built app embeds `OnsideKit.framework`. Do not claim purchase flow coverage
+  unless the Onside app/account/test flow was actually exercised.
 
 If a product catalog or sandbox account is missing, stop that row and report it
 as blocked with the exact missing prerequisite.

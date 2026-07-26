@@ -1,6 +1,6 @@
 ---
 name: generate-doc
-description: Use for OpenIAP documentation generation work, especially release-note entries in packages/docs/src/pages/docs/updates/releases.tsx where package releases are assumed to be deployed and links should be written as shipped release links.
+description: Use for OpenIAP documentation generation work, especially pre-deployment release-note entries in packages/docs/src/pages/docs/updates/releases.tsx that must name the expected native and framework versions, link their future GitHub Releases, and update an existing unreleased train instead of creating a duplicate.
 ---
 
 # Generate OpenIAP Docs (Claude Code)
@@ -16,5 +16,5 @@ trains, and validation are all defined there and apply to any agent.
   `.claude/skills/openiap-workflows` skill or the matching
   `.claude/commands/*.md` slash command instead.
 - Run the same validation commands (`bunx prettier --check`, `bun run build`,
-  `bun run audit:docs`, `git diff --check`) before reporting the docs change
-  as done.
+  `bun run audit:docs`, `bun run audit:release-state`, `git diff --check`)
+  before reporting the docs change as done.
