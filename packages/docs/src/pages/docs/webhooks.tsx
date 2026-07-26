@@ -1,6 +1,5 @@
 import AnchorLink from '../../components/AnchorLink';
 import CodeBlock from '../../components/CodeBlock';
-import LanguageTabs from '../../components/LanguageTabs';
 import SEO from '../../components/SEO';
 import { useScrollToHash } from '../../hooks/useScrollToHash';
 
@@ -11,7 +10,7 @@ function Webhooks() {
     <div className="doc-page">
       <SEO
         title="Webhooks"
-        description="OpenIAP lifecycle webhooks normalize Apple App Store Server Notifications v2 and Google Play Real-Time Developer Notifications into a single cross-store event stream delivered straight to your client SDK — no user-side server required."
+        description="IAPKit normalizes Apple App Store Server Notifications v2 and Google Play Real-Time Developer Notifications into one administrative event stream."
         path="/docs/webhooks"
         keywords="OpenIAP webhooks, App Store Server Notifications v2, Google RTDN, subscription lifecycle events, no server"
       />
@@ -33,10 +32,10 @@ function Webhooks() {
         >
           Real-Time Developer Notifications
         </a>{' '}
-        into a single cross-store event stream and pushes them straight to your
-        client SDK over Server-Sent Events. Apps can react to renewals,
-        billing-retry, refunds, and revokes without operating any backend of
-        their own.
+        into a single cross-store event stream. IAPKit receives and stores these
+        notifications without requiring you to operate a receipt-verification
+        server. The project-wide stream is administrative and uses a secret key;
+        consume it from MCP, CI, or a trusted backend, never from a shipped app.
       </p>
 
       <section>
@@ -48,10 +47,10 @@ function Webhooks() {
           registered as the webhook endpoint with Apple and Google. It verifies
           each notification's signature, normalizes the payload into the spec's{' '}
           <code>WebhookEvent</code> shape, dedups on the source notification id,
-          and stores the result for at least 30 days. Authenticated SDK clients
-          connect to <code>GET /v1/webhooks/stream/&#123;apiKey&#125;</code> and
-          receive new events as Server-Sent Events along with reconnect support
-          via the <code>Last-Event-ID</code> header.
+          and stores the result for at least 30 days. A trusted administrative
+          client connects to <code>GET /v1/webhooks/stream</code> with a secret
+          Bearer key and receives new events as Server-Sent Events with
+          reconnect support via the <code>Last-Event-ID</code> header.
         </p>
       </section>
 
@@ -153,16 +152,20 @@ function Webhooks() {
           Consuming the SSE stream
         </AnchorLink>
         <p>
-          The second URL —{' '}
-          <code>GET /v1/webhooks/stream/&#123;apiKey&#125;</code> — is a
-          long-lived <code>text/event-stream</code> response, not an HTML page.
-          Open it in a browser and you'll see a blank tab; that's correct
-          behavior because the response never closes and only emits
-          comment-style keepalive frames (<code>:keepalive\n\n</code>) until a
-          real <code>WebhookEvent</code> arrives. To actually consume it use one
-          of the SDK helpers below or call it directly with{' '}
-          <code>EventSource</code> / <code>curl -N</code>.
+          <code>GET /v1/webhooks/stream</code> is a long-lived{' '}
+          <code>text/event-stream</code> response, not an HTML page. Send the
+          secret admin key in the <code>Authorization: Bearer</code> header. It
+          emits comment-style keepalive frames (<code>:keepalive\n\n</code>)
+          until a real <code>WebhookEvent</code> arrives.
         </p>
+        <div className="alert-card alert-card--warning">
+          <p>
+            The stream contains project-wide lifecycle records and purchase
+            identifiers. It requires an <code>openiap-kit_sk_</code> secret
+            admin key. A publishable mobile key receives{' '}
+            <code>403 INSUFFICIENT_SCOPE</code>.
+          </p>
+        </div>
       </section>
 
       <section>
@@ -212,78 +215,22 @@ function Webhooks() {
 
       <section>
         <AnchorLink id="usage" level="h2">
-          Usage
+          Trusted-consumer usage
         </AnchorLink>
-        <LanguageTabs>
-          {{
-            typescript: (
-              <CodeBlock language="typescript">{`// react-native-iap (and expo-iap) ship a useWebhookEvents hook.
-import { useWebhookEvents } from 'react-native-iap';
-// React Native does not ship a global EventSource; pass one in.
-import EventSource from 'react-native-sse';
-
-const { events, lastError, isConnected } = useWebhookEvents({
-  apiKey: process.env.IAPKIT_API_KEY!,
-  // baseUrl defaults to https://kit.openiap.dev
-  eventSourceFactory: (url) => new EventSource(url),
-  onEvent: (event) => {
-    if (event.type === 'SubscriptionRenewed') {
-      grantEntitlement(event.purchaseToken);
-    }
-  },
-});`}</CodeBlock>
-            ),
-            dart: (
-              <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/webhook_client.dart';
-
-final listener = connectWebhookStream(apiKey: 'openiap-kit_<your-key>');
-listener.events.listen((event) {
-  if (event.type == WebhookEventType.SubscriptionRenewed) {
-    grantEntitlement(event.purchaseToken);
-  }
-});`}</CodeBlock>
-            ),
-            csharp: (
-              <CodeBlock language="csharp">{`using OpenIap;
-using System.Text.Json;
-
-// Feed each SSE data frame into the generated OpenIAP webhook type.
-var webhookEvent = JsonSerializer.Deserialize<WebhookEvent>(rawJson);
-if (webhookEvent?.Type == WebhookEventType.SubscriptionRenewed)
-{
-    GrantEntitlement(webhookEvent.PurchaseToken);
-}`}</CodeBlock>
-            ),
-            kotlin: (
-              <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.openiap.WebhookEventParser
-import io.github.hyochan.kmpiap.openiap.webhookStreamUrl
-
-// Pure parser + types live in commonMain. Wire your platform's HTTP
-// client to webhookStreamUrl(apiKey = "...") and feed each SSE
-// data frame to WebhookEventParser.parse().
-val event = WebhookEventParser.parse(rawJson) ?: return
-when (event.type) {
-    WebhookEventType.SubscriptionRenewed -> grantEntitlement(event.purchaseToken)
-    else -> Unit
-}`}</CodeBlock>
-            ),
-            gdscript: (
-              <CodeBlock language="gdscript">{`extends Node
-
-@onready var webhook := preload("res://addons/godot-iap/webhook_client.gd").new()
-
-func _ready() -> void:
-    webhook.api_key = "openiap-kit_<your-key>"
-    webhook.event_received.connect(_on_event)
-    add_child(webhook)
-    webhook.connect_stream()
-
-func _on_event(event: Dictionary) -> void:
-    if event["type"] == "SubscriptionRenewed":
-        grant_entitlement(event["purchaseToken"])`}</CodeBlock>
-            ),
-          }}
-        </LanguageTabs>
+        <p>
+          Keep the key in the trusted process environment and send it only in
+          the Authorization header.
+        </p>
+        <CodeBlock language="bash">{`export IAPKIT_SECRET_KEY="openiap-kit_sk_<your-secret-key>"
+curl -N "https://kit.openiap.dev/v1/webhooks/stream" \\
+  -H "Authorization: Bearer \${IAPKIT_SECRET_KEY}"`}</CodeBlock>
+        <p>
+          If paid content is protected by your own backend, that backend should
+          consume lifecycle changes and make the final entitlement decision.
+          Apps without a backend can still verify purchases directly and query
+          their own status with a publishable key, but should not ingest the
+          project-wide stream.
+        </p>
       </section>
 
       <section>
@@ -298,10 +245,9 @@ func _on_event(event: Dictionary) -> void:
           next connect.
         </p>
         <p>
-          For long-offline reconciliation, call the{' '}
-          <code>webhookEventsSince</code> Convex query directly with a
-          checkpoint timestamp; it returns up to 500 events at a time, capped at
-          the 30-day retention window.
+          A trusted consumer should persist the latest event id and reconnect
+          with <code>Last-Event-ID</code>. IAPKit replays from that checkpoint
+          within its retention window.
         </p>
       </section>
     </div>

@@ -17,14 +17,16 @@ export default function ProjectsPage() {
         An <strong>organization</strong> groups team members and usage data.
         Inside it, every distinct app is a <strong>project</strong>: bundle id,
         package name, store credentials, and its own purchase log. Each project
-        owns one or more <strong>API keys</strong> that your app uses to
-        authenticate against <code>/v1/purchase/verify</code>.
+        owns one or more <strong>API keys</strong>: publishable keys for apps
+        and secret keys for administrative automation.
       </p>
       <pre className="my-4 overflow-x-auto rounded-lg border border-border bg-muted/30 px-4 py-3 text-xs leading-relaxed">
         <code>{`Organization (members, usage)
   └── Project (one mobile app)
         ├── Store credentials (Apple, Google, Horizon, Amazon)
-        └── API keys ── used by your app
+        └── API keys
+              ├── Publishable (mobile verification + client reads)
+              └── Secret (MCP, CI, catalog writes + store sync)
 `}</code>
       </pre>
       <p>
@@ -78,13 +80,23 @@ export default function ProjectsPage() {
 
       <h2 className="mt-10 text-2xl font-semibold">API keys</h2>
       <p>
-        When a project is created, IAPKit issues a default production key named{" "}
-        <em>Default Production Key</em>. It is a real active key for that
-        project, not a placeholder. The full value is shown only when the
-        project is created or when a key is regenerated; after that the
-        dashboard shows only a preview. You can issue additional keys on the{" "}
-        <strong>API Keys</strong> tab for rotation, separate app builds, CI, or
-        staging callers.
+        When a project is created, IAPKit issues a default publishable key named{" "}
+        <em>Default Production Key</em>. Publishable keys start with{" "}
+        <code>openiap-kit_pk_</code> and may be embedded in a mobile app for
+        purchase verification, user-scoped entitlement helpers, and public
+        product or client-payload reads.
+      </p>
+      <p>
+        Administrative automation uses a secret key beginning with{" "}
+        <code>openiap-kit_sk_</code>. Create one from the{" "}
+        <strong>API Keys</strong> tab before configuring MCP, CI, catalog
+        writes, subscription analytics, webhook streams, or store sync. Never
+        ship a secret key in an app.
+      </p>
+      <p>
+        The full value is shown only when the project or key is created, or when
+        a key is regenerated; after that the dashboard shows only a preview.
+        Regeneration preserves the key type.
       </p>
       <p>
         Extra keys are not separate environments. Every key on the same project
@@ -94,23 +106,65 @@ export default function ProjectsPage() {
         keys consistently from each app for verify, webhooks, bind-user, status,
         and entitlement calls.
       </p>
+      <div className="my-4 overflow-x-auto rounded-lg border border-border">
+        <table className="min-w-[46rem] w-full text-sm">
+          <thead className="bg-muted/40">
+            <tr>
+              <th className="px-3 py-2 text-left font-medium">Key type</th>
+              <th className="px-3 py-2 text-left font-medium">
+                Where it lives
+              </th>
+              <th className="px-3 py-2 text-left font-medium">Allowed use</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            <tr>
+              <td className="px-3 py-2 font-mono text-xs">openiap-kit_pk_…</td>
+              <td className="px-3 py-2">Mobile app or public client</td>
+              <td className="px-3 py-2">
+                Purchase verification, bind/status/entitlements, and public
+                product or client-payload reads
+              </td>
+            </tr>
+            <tr>
+              <td className="px-3 py-2 font-mono text-xs">openiap-kit_sk_…</td>
+              <td className="px-3 py-2">Secret manager, CI, or MCP</td>
+              <td className="px-3 py-2">
+                Everything above plus catalog and payload writes, analytics,
+                webhook streams, and store sync
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
       <DocsScreenshot
         src="/docs/screenshots/api-keys.webp"
-        alt="API Keys tab"
-        caption="Each row shows last-used timestamp and total call count, so stale keys stand out before you revoke."
+        alt="IAPKit API Keys tab showing publishable and secret key types with masked previews"
+        caption="The dashboard shows each key's scope and a safe preview. The full value appears only at creation or regeneration."
       />
+
+      <Callout kind="note" title="Existing keys migrate safely">
+        <p>
+          Keys created before this split are treated as publishable because
+          older documentation allowed them inside apps. Existing mobile builds
+          keep verifying purchases, while administrative callers must switch to
+          a newly created secret key. Any mobile webhook-stream demo must be
+          removed or moved to a trusted backend; project-wide streams now reject
+          publishable keys.
+        </p>
+      </Callout>
 
       <p>All keys are:</p>
       <ul className="my-3 list-disc space-y-1 pl-6">
         <li>
-          Sent as a bearer token for <code>/v1/purchase/verify</code>, e.g.{" "}
-          <code>Authorization: Bearer openiap-kit_&lt;your-key&gt;</code> on
-          purchase verification requests.
+          Accepted as a bearer token for <code>/v1/purchase/verify</code>.
+          Mobile apps should send a publishable key.
         </li>
         <li>
-          Used as a path segment by webhook, subscription, product, and SDK
-          helper endpoints that need to work without custom bearer-header
-          plumbing.
+          Sent as a Bearer token for administrative endpoints. App-facing SDK
+          helpers and inbound store webhooks retain publishable key path
+          segments where their transport requires it. Never place a secret key
+          in a URL.
         </li>
         <li>
           Hashed before logging — the server only retains the SHA-256 prefix in
@@ -138,7 +192,7 @@ export default function ProjectsPage() {
       <h2 className="mt-10 text-2xl font-semibold">Example request</h2>
       <CodeBlock title="/v1/purchase/verify" language="bash">
         {`curl -X POST https://kit.openiap.dev/v1/purchase/verify \\
-  -H "Authorization: Bearer openiap-kit_<your-key>" \\
+  -H "Authorization: Bearer openiap-kit_pk_<your-publishable-key>" \\
   -H "Content-Type: application/json" \\
   -d '{ "store": "google", "purchaseToken": "..." }'`}
       </CodeBlock>

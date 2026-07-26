@@ -47,6 +47,8 @@ const PAGE_CSS = `
   .subtitle { font-size: 13px; color: #8e8e93; margin-top: 4px; }
   .pill { display: inline-block; padding: 3px 8px; border-radius: 999px; font-size: 11px; font-weight: 500; }
   .pill-green { background: rgba(16, 185, 129, 0.12); color: #34d399; border: 1px solid rgba(16, 185, 129, 0.3); }
+  .pill-blue { background: rgba(59, 130, 246, 0.12); color: #60a5fa; border: 1px solid rgba(59, 130, 246, 0.3); }
+  .pill-orange { background: rgba(245, 158, 11, 0.12); color: #fbbf24; border: 1px solid rgba(245, 158, 11, 0.3); }
   .row { display: flex; align-items: center; }
   .stack > * + * { margin-top: 16px; }
   table { width: 100%; border-collapse: collapse; }
@@ -150,7 +152,7 @@ const MOCKUPS: Mockup[] = [
         <div class="row" style="justify-content: space-between; margin-bottom: 20px;">
           <div>
             <div class="title">API keys</div>
-            <div class="subtitle">Bearer tokens your backend sends to /v1/purchase/verify. Scoped to this project.</div>
+            <div class="subtitle">Use publishable keys in apps and secret keys only for trusted administrative work.</div>
           </div>
           <button class="btn">+ Issue new key</button>
         </div>
@@ -159,38 +161,38 @@ const MOCKUPS: Mockup[] = [
             <thead>
               <tr>
                 <th>Name</th>
-                <th>Key prefix</th>
-                <th>Last used</th>
-                <th>Calls</th>
+                <th>Key preview</th>
+                <th>Type</th>
+                <th>Use</th>
                 <th></th>
               </tr>
             </thead>
             <tbody>
               <tr>
                 <td>Default Production Key <span class="pill pill-green" style="margin-left:6px;">ACTIVE</span></td>
-                <td class="mono muted">openiap-kit_a4f2b9…</td>
-                <td class="muted">2 minutes ago</td>
-                <td class="mono">1,284</td>
+                <td class="mono muted">openiap-kit_pk_a4f2b9…</td>
+                <td><span class="pill pill-blue">PUBLISHABLE</span></td>
+                <td class="muted">Mobile verification</td>
                 <td class="muted mono">⋯</td>
               </tr>
               <tr>
                 <td>Staging CI</td>
-                <td class="mono muted">openiap-kit_c7e1d3…</td>
-                <td class="muted">3 hours ago</td>
-                <td class="mono">42</td>
+                <td class="mono muted">openiap-kit_sk_c7e1d3…</td>
+                <td><span class="pill pill-orange">SECRET ADMIN</span></td>
+                <td class="muted">MCP, catalog, and sync</td>
                 <td class="muted mono">⋯</td>
               </tr>
               <tr>
                 <td>Dev — local</td>
-                <td class="mono muted">openiap-kit_9a3f12…</td>
-                <td class="muted">Yesterday</td>
-                <td class="mono">7</td>
+                <td class="mono muted">openiap-kit_pk_9a3f12…</td>
+                <td><span class="pill pill-blue">PUBLISHABLE</span></td>
+                <td class="muted">Local app testing</td>
                 <td class="muted mono">⋯</td>
               </tr>
             </tbody>
           </table>
         </div>
-        <div class="hint" style="margin-top: 14px;">Keys are shown in full exactly once, at creation. Store them in a secret manager — anyone with the key can hit /v1/purchase/verify against your project's quota.</div>
+        <div class="hint" style="margin-top: 14px;">Full values are shown exactly once. Publishable keys may ship in an app; keep secret admin keys in a secret manager and never embed them in a mobile build.</div>
       </div>
     `,
   },

@@ -18,6 +18,7 @@ const noteCardStyle = {
 
 interface Note {
   id: string;
+  aliases?: readonly string[];
   date: Date;
   element: React.ReactNode;
 }
@@ -82,33 +83,50 @@ const purchaseSafetyReleases = [
   ['OpenIap.Maui 1.2.2', 'maui-iap-1.2.2'],
 ] as const;
 
-const plannedCrossSdkPurchasePayloadReleases = [
-  'openiap-google 2.5.1 (planned)',
-  'react-native-iap 15.6.1 (planned)',
-  'expo-iap 4.7.1 (planned)',
-  'flutter_inapp_purchase 9.6.1 (planned)',
-  'kmp-iap 2.7.1 (planned)',
-  'OpenIap.Maui 1.4.1 (planned)',
+const iapkitSecurityTrainReleases = [
+  ['OpenIAP Spec 2.4.4', 'docs-2.4.4'],
+  ['openiap-apple 2.4.4', '2.4.4'],
+  ['openiap-google 2.5.1', 'google-2.5.1'],
+  ['react-native-iap 15.6.1', 'react-native-iap-15.6.1'],
+  ['expo-iap 4.7.1', 'expo-iap-4.7.1'],
+  ['flutter_inapp_purchase 9.6.1', 'flutter-iap-9.6.1'],
+  ['godot-iap 2.6.1', 'godot-iap-2.6.1'],
+  ['kmp-iap 2.7.1', 'kmp-iap-2.7.1'],
+  ['OpenIap.Maui 1.4.1', 'maui-iap-1.4.1'],
+] as const;
+
+const iapkitSecurityTrainAliases = [
+  'iapkit-webhook-asc-review-scoped-keys-2026-07-25',
+  'iapkit-webhook-dedup-asc-review-automation-2026-07-23',
+  'cross-sdk-payload-integrity-migrations-2026-07-25',
+  'cross-sdk-payload-integrity-planned-2026-07-24',
+  'legacy-migration-warnings-planned-2026-07-24',
+  'flutter-purchase-payload-fix-planned-2026-07-24',
 ] as const;
 
 function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
-    // July 24, 2026 - Planned cross-package migration warnings
+    // July 25, 2026 - OpenIAP Spec 2.4.4 / Apple 2.4.4 / Google 2.5.1
     {
-      id: 'legacy-migration-warnings-planned-2026-07-24',
-      date: new Date('2026-07-24'),
+      id: 'iapkit-security-cross-sdk-payload-integrity-2026-07-25',
+      aliases: iapkitSecurityTrainAliases,
+      date: new Date('2026-07-25'),
       element: (
         <div
-          key="legacy-migration-warnings-planned-2026-07-24"
+          key="iapkit-security-cross-sdk-payload-integrity-2026-07-25"
           style={noteCardStyle}
         >
+          {iapkitSecurityTrainAliases.map((alias) => (
+            <span key={alias} id={alias} aria-hidden="true" />
+          ))}
           <AnchorLink
-            id="legacy-migration-warnings-planned-2026-07-24"
+            id="iapkit-security-cross-sdk-payload-integrity-2026-07-25"
             level="h4"
           >
-            July 24, 2026 - Cross-package legacy migration warnings (planned)
+            July 25, 2026 - OpenIAP Spec 2.4.4 / Apple 2.4.4 / Google 2.5.1 and
+            SDK patch releases
           </AnchorLink>
 
           <p
@@ -117,109 +135,11 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            Prepares advance compiler, IDE, documentation, and one-time runtime
-            warnings in{' '}
-            <a
-              href="https://github.com/hyodotdev/openiap/pull/251"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="external-link"
-            >
-              PR #251
-            </a>
-            . No compatibility surface is removed by this change, and this note
-            remains planned until the affected package release workflows publish
-            it.
-          </p>
-
-          <h5 style={{ margin: '0 0 0.5rem 0' }}>
-            Independent removal boundaries
-          </h5>
-          <ul
-            style={{
-              marginBottom: '1rem',
-              paddingLeft: '1.25rem',
-              fontSize: '0.9rem',
-            }}
-          >
-            <li>
-              OpenIAP Spec, openiap-apple, and openiap-google compatibility
-              surfaces remain through 2.x and are scheduled for removal in{' '}
-              <code>3.0.0</code>.
-            </li>
-            <li>
-              Framework libraries keep their aliases until their own next major:{' '}
-              <code>react-native-iap 16.0.0</code>, <code>expo-iap 5.0.0</code>,{' '}
-              <code>flutter_inapp_purchase 10.0.0</code>,{' '}
-              <code>godot-iap 3.0.0</code>, <code>kmp-iap 3.0.0</code>, and{' '}
-              <code>OpenIap.Maui 2.0.0</code>.
-            </li>
-            <li>
-              Raw map/object compatibility inputs—including JavaScript objects,
-              plugin configuration, and custom MethodChannel payloads—treat an
-              own canonical key, including <code>null</code>, as authoritative.
-              Generated Swift and Kotlin request models cannot retain a separate
-              supplied-key bit, so typed facades prefer a non-null{' '}
-              <code>apple</code> / <code>google</code> member before the legacy
-              optional fallback. Runtime compatibility warnings identify the
-              final canonical replacement and are emitted once rather than on
-              every purchase.
-            </li>
-            <li>
-              Generated Kotlin declarations now carry real{' '}
-              <code>@Deprecated</code> annotations where Kotlin supports them;
-              other generated languages and package-specific shims preserve
-              their native warning mechanisms.
-            </li>
-            <li>
-              Expo custom callers should replace legacy{' '}
-              <code>Android deep-link sku / packageName</code> with{' '}
-              <code>skuAndroid</code> / <code>packageNameAndroid</code> before
-              expo-iap 5.0.0.
-            </li>
-          </ul>
-
-          <p style={{ margin: 0, color: 'var(--text-secondary)' }}>
-            See{' '}
-            <Link to="/docs/updates/deprecations">
-              Deprecations &amp; 3.0 Migration
-            </Link>{' '}
-            for the complete symbol and wire-key inventory. Package versions
-            remain <code>Spec 2.4.2</code>, <code>openiap-apple 2.4.2</code>,
-            and <code>openiap-google 2.5.0</code>; the spec continues to equal
-            the minimum native version.
-          </p>
-        </div>
-      ),
-    },
-
-    // July 24, 2026 - Planned cross-SDK native payload integrity patches
-    {
-      id: 'cross-sdk-payload-integrity-planned-2026-07-24',
-      date: new Date('2026-07-24'),
-      element: (
-        <div
-          key="cross-sdk-payload-integrity-planned-2026-07-24"
-          style={noteCardStyle}
-        >
-          <span
-            id="flutter-purchase-payload-fix-planned-2026-07-24"
-            aria-hidden="true"
-          />
-          <AnchorLink
-            id="cross-sdk-payload-integrity-planned-2026-07-24"
-            level="h4"
-          >
-            July 24, 2026 - Cross-SDK native payload integrity patches (planned)
-          </AnchorLink>
-
-          <p
-            style={{
-              marginBottom: '1rem',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            Prepares a coordinated payload-integrity patch train based on{' '}
+            Publishes one coordinated IAPKit and SDK security train. Hosted
+            IAPKit adds scoped API keys, programmable product client payloads,
+            source-aware webhook delivery, and version-based App Store Connect
+            review submissions. The native and framework packages harden
+            purchase payload handling and publish migration guidance from{' '}
             <a
               href="https://github.com/hyodotdev/openiap/issues/248"
               target="_blank"
@@ -246,15 +166,116 @@ function Releases() {
             >
               PR #252
             </a>
-            . This entry remains planned until the affected release workflows
-            publish their packages and GitHub tags. OpenIAP Spec stays at{' '}
-            <code>2.4.2</code>, the minimum of openiap-apple <code>2.4.2</code>{' '}
-            and openiap-google <code>2.5.0</code>; this source change does not
-            bump package metadata.
+            . OpenIAP Spec <code>2.4.4</code> is the semantic-version floor
+            shared by openiap-apple <code>2.4.4</code> and openiap-google{' '}
+            <code>2.5.1</code>.
           </p>
 
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Common changes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              Mobile apps use an extractable <code>openiap-kit_pk_</code>{' '}
+              publishable key for direct verification and client-safe reads.
+              Administrative automation, MCP, CI, and trusted backends use an{' '}
+              <code>openiap-kit_sk_</code> secret key.
+            </li>
+            <li>
+              Product client payloads are public app-readable configuration, not
+              secrets or proof of entitlement. Apps retrieve them during
+              verification or product fetches; IAPKit does not push them through
+              APNs or FCM.
+            </li>
+            <li>
+              Canonical payload fields now take precedence consistently across
+              raw adapters and typed facades. Legacy aliases remain compatible
+              through each package&apos;s current major and emit bounded
+              migration guidance instead of being removed in this patch train.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>IAPKit hosted service</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              Product writes, store sync, analytics, project setup, and
+              project-wide webhook streams require secret-admin scope at the
+              Convex data boundary. Existing unclassified keys fail closed as
+              publishable keys, preserving verification without granting
+              administrative access. Newly generated keys are shown in full once
+              and represented by a safe preview afterward. Secret-key URL routes
+              return <code>410</code>, and deleting the final scoped key cannot
+              reactivate the deprecated project-key fallback.
+            </li>
+            <li>
+              Secret-key REST and MCP clients can create, replace, or remove
+              TOML, JSON, and text client payloads. IAPKit enforces a 16 KiB
+              decoded UTF-8 limit, accepts their bounded JSON envelopes,
+              validates structured syntax, and protects updates with monotonic
+              versions and optimistic concurrency control. An editor-state read
+              exposes the durable revision even after deletion.
+            </li>
+            <li>
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/245"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                PR #245
+              </a>{' '}
+              moves Apple, Google RTDN, and Horizon webhook deduplication onto
+              source-aware event identity as phase 1 of{' '}
+              <a
+                href="https://github.com/hyodotdev/openiap/issues/241"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                issue #241
+              </a>
+              . Legacy idempotency records remain available for rollback during
+              the 30-day retention window, and the webhook-event retention job
+              remains active.
+            </li>
+            <li>
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/246"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                PR #246
+              </a>{' '}
+              adds resumable, bounded App Store Connect review submissions with
+              fully validated JPEG or flattened PNG project screenshots up to 10
+              MB, dry-run counts, durable manual actions for Apple&apos;s
+              first-IAP cases, and safe cleanup of only IAPKit-owned drafts. It
+              completes{' '}
+              <a
+                href="https://github.com/hyodotdev/openiap/issues/242"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                issue #242
+              </a>
+              .
+            </li>
+          </ul>
+
           <h5 style={{ margin: '0 0 0.5rem 0' }}>
-            Package-specific payload fixes
+            Shared spec and native packages
           </h5>
           <ul
             style={{
@@ -264,243 +285,161 @@ function Releases() {
             }}
           >
             <li>
-              <strong>openiap-google</strong> - rejects Amazon receipts when
-              either cancellation signal is present, keeps the subscription term
-              SKU as <code>currentPlanId</code>, and reports deferred plan
-              changes through <code>pendingPurchaseUpdateAndroid</code>.
+              <strong>OpenIAP Spec 2.4.4</strong> - publishes canonical
+              deprecation ownership, generated Kotlin <code>@Deprecated</code>{' '}
+              annotations, and synchronized Swift, Kotlin, TypeScript, Dart,
+              GDScript, and C# compatibility contracts. No compatibility surface
+              is removed in the 2.x train.
             </li>
             <li>
-              <strong>react-native-iap</strong> - carries explicit native
+              <strong>openiap-apple 2.4.4</strong> - ships the synchronized
+              generated contracts, preserves canonical-first request handling,
+              and emits one-time guidance for legacy native bridge keys while
+              retaining their 2.x compatibility window. The native example no
+              longer asks a shipped app to embed a secret for a project-wide
+              webhook stream.
+            </li>
+            <li>
+              <strong>openiap-google 2.5.1</strong> - rejects Amazon receipts
+              when either cancellation signal is present, keeps the subscription
+              term SKU as <code>currentPlanId</code>, reports deferred plan
+              changes through <code>pendingPurchaseUpdateAndroid</code>, and
+              keeps one-time warning deduplication compatible with Android API
+              23. Its example directs mobile apps to publishable-key
+              verification instead of a secret-backed project stream (
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/253"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                PR #253
+              </a>
+              ).
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>react-native-iap 15.6.1</strong> - carries explicit native
               transaction identity through Nitro, leaves orderless Google Play
               transactions without a synthetic order ID, preserves Apple renewal
               metadata, and models deferred Vega plan changes without hiding the
-              active receipt.
+              active receipt. Its example removes the project-wide stream, and
+              the legacy helper is documented as trusted-process compatibility
+              only.
             </li>
             <li>
-              <strong>expo-iap</strong> - fails closed when an Onside module or
-              method is unavailable instead of falling through to StoreKit,
-              classifies Onside subscriptions with their canonical metadata, and
-              preserves Vega current-plan and pending-update semantics.
+              <strong>expo-iap 4.7.1</strong> - fails closed when an Onside
+              module or method is unavailable instead of falling through to
+              StoreKit, classifies Onside subscriptions with canonical metadata,
+              preserves Vega current-plan and pending-update semantics, and
+              removes the secret-backed webhook stream from the mobile example.
+              The Vega example build now loads the standard Expo environment
+              chain before embedding public IAPKit settings and declares the
+              required system and control audio services so TV focus navigation
+              works without runtime permission failures.
             </li>
             <li>
-              <strong>flutter_inapp_purchase</strong> - reads canonical{' '}
+              <strong>flutter_inapp_purchase 9.6.1</strong> - reads canonical{' '}
               <code>dataAndroid</code>, preserves complete generated purchase
-              and verification results, supports Horizon verification, and
-              recursively normalizes nested native maps. Flutter 9.x keeps its
-              documented wire fallbacks until 10.0.0.
+              and verification results, supports Horizon verification,
+              recursively normalizes nested native maps, and moves the
+              trusted-process IAPKit stream credential into the Authorization
+              header.
             </li>
             <li>
-              <strong>kmp-iap</strong> - preserves complete generated Android
-              and iOS purchase fields, including developer payload, pending
-              updates, purchase tokens, transaction identity, and normalized
-              Apple bridge null values.
+              <strong>godot-iap 2.6.1</strong> - ships generated deprecation
+              guidance, canonical-first envelope handling, credential-safe
+              one-time warnings, and a Bearer-authenticated project-wide IAPKit
+              stream that must never run from a shipped game.
             </li>
             <li>
-              <strong>OpenIap.Maui</strong> - reports listener deserialization
-              drift with credential-safe diagnostics instead of silently
-              dropping malformed purchase events.
+              <strong>kmp-iap 2.7.1</strong> - preserves complete generated
+              Android and iOS purchase fields, including developer payload,
+              pending updates, purchase tokens, transaction identity, and
+              normalized Apple bridge null values. Project-wide stream helper
+              compatibility is restricted to trusted tooling in documentation
+              and examples.
             </li>
             <li>
-              Custom MethodChannel callers should also replace{' '}
+              <strong>OpenIap.Maui 1.4.1</strong> - reports listener
+              deserialization drift with credential-safe diagnostics instead of
+              silently dropping malformed purchase events, removes the mobile
+              webhook-stream entry point, and directs apps to publishable-key
+              verification.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Migration and integration notes
+          </h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              Native/spec compatibility surfaces remain through OpenIAP 2.x.
+              Framework aliases remain until each framework&apos;s next major:
+              react-native-iap 16.0.0, expo-iap 5.0.0,{' '}
+              {'flutter_inapp_purchase 10.0.0'}, godot-iap 3.0.0, kmp-iap 3.0.0,
+              and OpenIap.Maui 2.0.0.
+            </li>
+            <li>
+              Raw map/object compatibility inputs treat an own canonical key,
+              including <code>null</code>, as authoritative. Generated Swift and
+              Kotlin typed facades prefer a non-null canonical{' '}
+              <code>apple</code> or <code>google</code> member before the legacy
+              optional fallback.
+            </li>
+            <li>
+              Expo custom callers should replace legacy{' '}
+              <code>Android deep-link sku / packageName</code> with{' '}
+              <code>skuAndroid</code> and <code>packageNameAndroid</code> before
+              expo-iap 5. Flutter custom MethodChannel callers should replace{' '}
               <code>fetchProducts skuArr / productIds</code> with{' '}
-              <code>skus</code>, acknowledge/consume <code>token</code> with{' '}
-              <code>purchaseToken</code>, and finish-transaction{' '}
-              <code>transactionIdentifier</code> with <code>transactionId</code>
-              . The complete catalog also covers the legacy <code>inapp</code>{' '}
-              product type and other 9.x bridge aliases.
+              <code>skus</code>, <code>token</code> with{' '}
+              <code>purchaseToken</code>, and <code>transactionIdentifier</code>{' '}
+              with <code>transactionId</code> before flutter_inapp_purchase
+              10.0.0.
+            </li>
+            <li>
+              The SDK parity audit compares generated purchase and renewal
+              fields with handwritten bridges and keeps source-first mappings,
+              alternative-store plan changes, and round-trip regressions
+              executable across wrappers. See{' '}
+              <Link to="/docs/updates/deprecations#flutter-original-json-android">
+                Deprecations &amp; 3.0 Migration
+              </Link>{' '}
+              for the complete replacement and removal schedule.
             </li>
           </ul>
 
           <p
             style={{
               marginBottom: '1rem',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            The SDK parity audit now compares generated purchase and renewal
-            fields with handwritten bridges, enforces source-first mappings and
-            alternative-store deferred-plan semantics, and keeps round-trip
-            regressions executable across wrappers. Godot receives the shared
-            regression coverage only, so this diff does not require a Godot
-            package release. See{' '}
-            <Link to="/docs/updates/deprecations#flutter-original-json-android">
-              Deprecations &amp; 3.0 Migration
-            </Link>{' '}
-            for Flutter&apos;s compatibility-input removal schedule.
-          </p>
-
-          <div
-            style={{
-              paddingTop: '1rem',
-              borderTop: '1px solid var(--border-color)',
-            }}
-          >
-            <h5 style={{ margin: '0 0 0.5rem 0' }}>Planned Package Releases</h5>
-            <ul
-              style={{
-                margin: 0,
-                paddingLeft: '1.25rem',
-                fontSize: '0.9rem',
-              }}
-            >
-              {plannedCrossSdkPurchasePayloadReleases.map((release) => (
-                <li key={release}>{release}</li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      ),
-    },
-
-    // July 23, 2026 - IAPKit webhook deduplication and ASC review automation
-    {
-      id: 'iapkit-webhook-dedup-asc-review-automation-2026-07-23',
-      date: new Date('2026-07-23'),
-      element: (
-        <div
-          key="iapkit-webhook-dedup-asc-review-automation-2026-07-23"
-          style={noteCardStyle}
-        >
-          <AnchorLink
-            id="iapkit-webhook-dedup-asc-review-automation-2026-07-23"
-            level="h4"
-          >
-            July 23, 2026 - IAPKit webhook deduplication and App Store Connect
-            review automation
-          </AnchorLink>
-
-          <p
-            style={{
-              marginBottom: '1rem',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            Deploys two hosted IAPKit service updates.{' '}
-            <a
-              href="https://github.com/hyodotdev/openiap/pull/245"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="external-link"
-            >
-              PR #245
-            </a>{' '}
-            moves webhook deduplication onto source-aware event identity as
-            phase 1 of{' '}
-            <a
-              href="https://github.com/hyodotdev/openiap/issues/241"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="external-link"
-            >
-              issue #241
-            </a>
-            {', while '}
-            <a
-              href="https://github.com/hyodotdev/openiap/pull/246"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="external-link"
-            >
-              PR #246
-            </a>{' '}
-            adds version-based App Store Connect review submissions and
-            completes{' '}
-            <a
-              href="https://github.com/hyodotdev/openiap/issues/242"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="external-link"
-            >
-              issue #242
-            </a>
-            {'. '}These are hosted-service changes and require no SDK package
-            upgrade.
-          </p>
-
-          <h5 style={{ margin: '0 0 0.5rem 0' }}>
-            Webhook delivery reliability
-          </h5>
-          <ul
-            style={{
-              marginBottom: '1rem',
-              paddingLeft: '1.25rem',
-              fontSize: '0.9rem',
-            }}
-          >
-            <li>
-              Apple, Google RTDN and its preflight lookup, and Horizon now
-              prefer the source-aware <code>webhookEvents</code> identity formed
-              from project, store source, and notification ID. Notifications
-              from different projects or store sources no longer collide when an
-              upstream identifier happens to match.
-            </li>
-            <li>
-              This is intentionally only phase 1 of issue #241. Legacy{' '}
-              <code>webhookIdempotencyKeys</code> reads, writes, pruning, and
-              deletion cascades remain available for rollback and retained-row
-              compatibility. A later deployment must first stop legacy key
-              writes, wait at least the 30-day <code>WEBHOOK_RETENTION_MS</code>{' '}
-              window, and confirm that the table has zero rows before removing
-              the table, cron work, or cascades. The webhook-event retention
-              cron remains required.
-            </li>
-          </ul>
-
-          <h5 style={{ margin: '0 0 0.5rem 0' }}>
-            App Store Connect review submissions
-          </h5>
-          <ul
-            style={{
-              marginBottom: '1rem',
-              paddingLeft: '1.25rem',
-              fontSize: '0.9rem',
-            }}
-          >
-            <li>
-              Organization owners and admins can store one private,
-              project-level App Review screenshot for eligible IAPKit-managed
-              iOS products. IAPKit accepts JPEG or a flattened PNG without alpha
-              or transparency up to 10 MB and validates the extension, MIME
-              type, magic bytes, dimensions, transparency, and full image decode
-              before persistence.
-            </li>
-            <li>
-              Push Sync can prepare current IAP and subscription review
-              versions, create the <code>en-US</code> localization, execute
-              every upload operation reserved by App Store Connect, commit the
-              MD5 checksum, wait for asset delivery, and submit bounded eligible
-              batches for review. Checksum-committed uploads and Ready rows
-              resume against the exact stored screenshot identity.
-            </li>
-            <li>
-              Dry-run counts remain prospective and perform no store writes. The
-              first consumable, non-consumable, auto-renewable subscription, or
-              non-renewing subscription—and a subscription in a new subscription
-              group—stays Draft with a durable manual action because Apple
-              requires an app-version submission. An ambiguous review-submission
-              response also stays Draft for operator inspection; IAPKit never
-              adopts or submits an unidentified existing draft.
-            </li>
-            <li>
-              Manual actions and failures remain visible after reload, while
-              cancellation and deadline checkpoints stop further remote work and
-              clean up only IAPKit-owned drafts within a bounded safety window.
-              Removing the project screenshot stops future reuse but does not
-              delete copies already uploaded to App Store Connect.
-            </li>
-          </ul>
-
-          <p
-            style={{
-              margin: 0,
               color: 'var(--text-secondary)',
             }}
           >
             See the{' '}
-            <Link to="/docs/kit-backend#product-sync">
-              IAPKit product-sync documentation
-            </Link>{' '}
-            and the hosted{' '}
+            <Link to="/docs/kit-backend#api-keys-environments">
+              API key architecture
+            </Link>
+            ,{' '}
+            <Link to="/docs/kit-backend#product-client-payloads">
+              product client payload documentation
+            </Link>
+            , and the hosted{' '}
             <a
               href="https://kit.openiap.dev/docs/products"
               target="_blank"
@@ -509,8 +448,36 @@ function Releases() {
             >
               Products guide
             </a>{' '}
-            for the operator workflow and screenshot-reuse policy.
+            for setup and payload automation.
           </p>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {iapkitSecurityTrainReleases.map(([label, tag]) => (
+                <li key={tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       ),
     },
@@ -759,26 +726,6 @@ function Releases() {
               delivered immediately through listeners.
             </li>
           </ul>
-
-          <h5 style={{ margin: '0 0 0.5rem 0' }}>
-            Documentation and deployment scope
-          </h5>
-          <p
-            style={{
-              marginBottom: '1rem',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            The documentation publishes the Android API reference, canonical
-            offer-model guidance, generated-contract metadata, cross-SDK
-            offer-code examples, and the macOS subscription-management and
-            refund fallbacks. The separate hosted IAPKit deployments are
-            documented in the{' '}
-            <Link to="/docs/updates/releases#iapkit-webhook-dedup-asc-review-automation-2026-07-23">
-              July 23 IAPKit entry
-            </Link>{' '}
-            and do not have installable package tags.
-          </p>
 
           <div
             style={{
@@ -8725,7 +8672,9 @@ result.error                  // optional error`}</CodeBlock>
     const hashId = getHashId();
     if (!hashId) return 1;
 
-    const noteIndex = sortedNotes.findIndex((note) => note.id === hashId);
+    const noteIndex = sortedNotes.findIndex(
+      (note) => note.id === hashId || note.aliases?.includes(hashId)
+    );
     if (noteIndex === -1) return 1;
 
     return Math.floor(noteIndex / itemsPerPage) + 1;

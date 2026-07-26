@@ -36,7 +36,8 @@ One package, one binary, one Fly.io app.
 - **Apple StoreKit 2 JWS verification** (`@apple/app-store-server-library`)
 - **Google Play purchase verification** (`googleapis`)
 - **Meta Horizon entitlement verification** (Graph API)
-- **Scoped API keys per project** with usage telemetry
+- **Publishable and secret API keys per project** with server-enforced scopes
+  and usage telemetry
 - **Organization + project multi-tenancy** via Convex
 - **Free for everyone** — no paywall, no usage caps. Sustained by sponsors at [openiap.dev/sponsors](https://openiap.dev/sponsors)
 - **Email OTP (Resend) + GitHub OAuth** via `@convex-dev/auth`
@@ -59,34 +60,74 @@ git clone https://github.com/hyodotdev/openiap.git
 cd openiap
 bun install
 cd packages/kit
-cp .env.example .env.local
-# edit .env.local with your VITE_KIT_CONVEX_URL + CONVEX_DEPLOYMENT
 ```
 
 ### 3. Run locally
 
-Two terminals:
+Recommended (one terminal):
+
+```bash
+bun run dev:all
+```
+
+`dev:all` lets `convex dev` configure the deployment and write its standard
+`CONVEX_DEPLOYMENT`, `VITE_CONVEX_URL`, and `VITE_CONVEX_SITE_URL` values to
+`.env.local` before it starts Hono and Vite. On a new checkout or worktree,
+complete the interactive Convex prompt in that terminal. Starting all three
+processes in parallel before this first configuration can make Hono or the SPA
+exit because the Convex URL is not available yet.
+
+Copy individual optional settings from `.env.example` only after Convex has
+created `.env.local`; do not replace the generated deployment values.
+
+> **Git worktrees:** `.env.local` and `.env.production` are intentionally
+> ignored, so Git does not copy them into a new worktree. Provision them from
+> the maintainer's secure local copy before launching Kit, and never commit
+> either file. The VS Code Kit launcher stops with an explicit message when
+> `.env.local` is missing instead of silently configuring an unrelated
+> anonymous deployment.
+
+GitHub OAuth uses two different URLs in local development:
+
+- The GitHub OAuth App callback remains
+  `https://<dev-deployment>.convex.site/api/auth/callback/github`.
+- The Convex **dev** deployment's `SITE_URL` must match the Vite origin that
+  starts sign-in:
+
+  ```bash
+  bunx convex env set SITE_URL http://localhost:5173
+  ```
+
+Convex Auth redirects to `SITE_URL` after GitHub calls the Convex endpoint.
+Keep Vite on port 5173; its strict-port configuration now fails visibly instead
+of silently switching to 5174 and creating an unreachable OAuth return URL.
+
+After `.env.local` has been configured, the split-terminal workflow is also
+available:
 
 ```bash
 # Terminal A — Convex functions + schema watcher
 bun run dev:convex
 
-# Terminal B — Vite dev server (http://localhost:5173)
+# Terminal B — Hono API server (http://localhost:3000)
+bun run dev:server
+
+# Terminal C — Vite dashboard (http://localhost:5173)
 bun run dev
 ```
 
 For API-only work:
 
 ```bash
-bun run dev:server     # Hono on http://localhost:3000
+bun run dev:server
 ```
 
 The dev server also exposes the Codex / Claude Code MCP plugin endpoint at
-`http://localhost:3000/mcp`. Use an IAPKit project key, not an OpenAI,
-ChatGPT, Anthropic, or Claude API key:
+`http://localhost:3000/mcp`. Use an IAPKit secret admin key, not a mobile
+publishable key and not an OpenAI, ChatGPT, Anthropic, or Claude API key:
 
 ```bash
-IAPKIT_API_KEY="openiap-kit_your-project-key" bun run dev:server
+IAPKIT_API_KEY="openiap-kit_sk_<your-secret-key>" bun run dev:server
 ```
 
 ### 4. Production build
@@ -205,10 +246,42 @@ Client payloads are retrieved by an app request. They do not send APNs/FCM
 notifications and must never contain credentials, secrets, or private
 server-only rules.
 
-Project keys embedded in an app can be extracted and can call existing
-project-scoped endpoints. Use a separate key per app build/environment, never
-commit or log it, and rotate it if exposed. Keep IAPKit calls behind your own
-backend when your threat model requires a server-held secret.
+A matching IAPKit catalog row must exist before a payload write. When external
+automation creates a product directly in App Store Connect or Play Console,
+run `POST /v1/products/sync/{ios|android}?direction=pull&dryRun=false` with a
+secret Bearer key, poll the returned job until it succeeds, and then set the
+payload. Alternatively create the IAPKit row through the
+secret-authenticated `POST /v1/products` route. An early payload write returns
+`PRODUCT_NOT_FOUND`.
+
+Mobile apps use `openiap-kit_pk_...` publishable keys. They may verify purchases
+and read public client payloads, but cannot change catalog or payload data,
+inspect project-wide analytics, open webhook streams, or start store sync.
+Administrative REST and MCP operations require an `openiap-kit_sk_...` secret
+key stored in a trusted environment. Existing unclassified keys are treated as
+publishable so previously shipped app builds fail closed without losing
+verification access.
+
+New administrative integrations send the secret only as
+`Authorization: Bearer openiap-kit_sk_...`. Header-authenticated
+`GET /v1/products` is a client-safe catalog read; catalog writes use
+`POST /v1/products`, `POST /v1/products/state`,
+`DELETE /v1/products/{productId}`, and `/v1/products/sync/*`; subscription
+analytics use `/v1/subscriptions/{list|metrics|revenue}`. Older key-in-path
+routes remain available for compatibility, but should not be used with new
+secret keys because URLs are commonly retained by proxy and access logs.
+
+After deploying the scoped-key schema, operators may persist the runtime
+fallback classification with:
+
+```bash
+npx convex run migrations:run \
+  '{"fn":"migrations:classifyLegacyApiKeysAsPublishable"}'
+```
+
+The migration is idempotent. Authorization already treats an absent `keyType`
+as publishable, so existing app verification remains available before and
+during the backfill.
 
 ### Outbound retries (Google Play)
 

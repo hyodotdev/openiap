@@ -288,7 +288,7 @@ if result is VerifyPurchaseResultIOS and result.is_valid:
         </ul>
 
         <p>
-          Get an IAPKit project key at{' '}
+          Get an IAPKit publishable key at{' '}
           <a
             href={IAPKIT_URL}
             target="_blank"
@@ -337,7 +337,7 @@ if result is VerifyPurchaseResultIOS and result.is_valid:
 const result = await verifyPurchaseWithProvider({
   provider: 'iapkit',
   iapkit: {
-    apiKey: 'openiap-kit_<your-key>',
+    apiKey: 'openiap-kit_pk_<your-publishable-key>',
     includeClientPayload: true,
     google: { purchaseToken: purchase.purchaseToken ?? '' },
   },
@@ -364,7 +364,7 @@ if (
 let result = try await OpenIapModule.shared.verifyPurchaseWithProvider(
     VerifyPurchaseWithProviderProps(
         iapkit: RequestVerifyPurchaseWithIapkitProps(
-            apiKey: "openiap-kit_<your-key>",
+            apiKey: "openiap-kit_pk_<your-publishable-key>",
             apple: RequestVerifyPurchaseWithIapkitAppleProps(
                 jws: purchase.purchaseToken ?? ""
             ),
@@ -378,7 +378,7 @@ let result = try await OpenIapModule.shared.verifyPurchaseWithProvider(
               <CodeBlock language="kotlin">{`val result = module.verifyPurchaseWithProvider(
     VerifyPurchaseWithProviderProps(
         iapkit = RequestVerifyPurchaseWithIapkitProps(
-            apiKey = "openiap-kit_<your-key>",
+            apiKey = "openiap-kit_pk_<your-publishable-key>",
             google = RequestVerifyPurchaseWithIapkitGoogleProps(
                 purchaseToken = purchase.purchaseToken.orEmpty()
             ),
@@ -389,10 +389,10 @@ let result = try await OpenIapModule.shared.verifyPurchaseWithProvider(
 )`}</CodeBlock>
             ),
             kmp: (
-              <CodeBlock language="kotlin">{`val result = kmpIAP.verifyPurchaseWithProvider(
+              <CodeBlock language="kotlin">{`val result = kmpIapInstance.verifyPurchaseWithProvider(
     VerifyPurchaseWithProviderProps(
         iapkit = RequestVerifyPurchaseWithIapkitProps(
-            apiKey = "openiap-kit_<your-key>",
+            apiKey = "openiap-kit_pk_<your-publishable-key>",
             google = RequestVerifyPurchaseWithIapkitGoogleProps(
                 purchaseToken = purchase.purchaseToken.orEmpty()
             ),
@@ -408,7 +408,7 @@ let result = try await OpenIapModule.shared.verifyPurchaseWithProvider(
 final result = await FlutterInappPurchase.instance.verifyPurchaseWithProvider(
   provider: PurchaseVerificationProvider.Iapkit,
   iapkit: RequestVerifyPurchaseWithIapkitProps(
-    apiKey: 'openiap-kit_<your-key>',
+    apiKey: 'openiap-kit_pk_<your-publishable-key>',
     apple: RequestVerifyPurchaseWithIapkitAppleProps(jws: purchase.purchaseToken ?? ''),
     includeClientPayload: true,
   ),
@@ -424,7 +424,7 @@ var result = await ((MutationResolver)OpenIapClient.Instance)
         Provider = PurchaseVerificationProvider.Iapkit,
         Iapkit = new RequestVerifyPurchaseWithIapkitProps
         {
-            ApiKey = "openiap-kit_<your-key>",
+            ApiKey = "openiap-kit_pk_<your-publishable-key>",
             IncludeClientPayload = true,
             Google = new RequestVerifyPurchaseWithIapkitGoogleProps
             {
@@ -448,7 +448,7 @@ if (verified is { IsValid: true } &&
               <CodeBlock language="gdscript">{`const Types = preload("res://addons/godot-iap/types.gd")
 
 var iapkit_props = Types.RequestVerifyPurchaseWithIapkitProps.new()
-iapkit_props.api_key = "openiap-kit_<your-key>"
+iapkit_props.api_key = "openiap-kit_pk_<your-publishable-key>"
 iapkit_props.include_client_payload = true
 iapkit_props.google = Types.RequestVerifyPurchaseWithIapkitGoogleProps.new()
 iapkit_props.google.purchase_token = purchase.purchase_token
@@ -457,7 +457,7 @@ var props = Types.VerifyPurchaseWithProviderProps.new()
 props.provider = Types.PurchaseVerificationProvider.IAPKIT
 props.iapkit = iapkit_props
 
-var result = await iap.verify_purchase_with_provider(props)
+var result = await GodotIapPlugin.verify_purchase_with_provider(props)
 
 var verified_product_id = result.iapkit.product_id if result.iapkit != null else null
 if (
@@ -471,7 +471,7 @@ if (
     and verified_product_id == purchase.product_id
 ):
     await grant_entitlement(verified_product_id)
-    await iap.finish_transaction(purchase, false)`}</CodeBlock>
+    await GodotIapPlugin.finish_transaction(purchase, false)`}</CodeBlock>
             ),
           }}
         </LanguageTabs>

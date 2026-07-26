@@ -199,6 +199,58 @@ export default function ProductsPage() {
         writes also check the version they opened, so an older browser tab is
         rejected instead of silently overwriting a newer edit.
       </p>
+      <p>
+        CI and catalog automation can use the same operation with a secret admin
+        key. Publishable mobile keys are rejected with{" "}
+        <code>403 INSUFFICIENT_SCOPE</code>.
+      </p>
+      <Callout kind="note" title="Products created directly in a store">
+        <p>
+          A matching IAPKit catalog row must exist before its payload can be
+          saved. If automation creates the product in App Store Connect or Play
+          Console first, run a pull sync and wait for that job to succeed, then
+          set the payload. Alternatively, create the matching IAPKit row through
+          the secret-authenticated <code>POST /v1/products</code> endpoint.
+          Writing too early returns <code>PRODUCT_NOT_FOUND</code>.
+        </p>
+      </Callout>
+      <CodeBlock
+        title="Pull a newly created iOS product into IAPKit"
+        language="bash"
+      >
+        {`curl -X POST \\
+  "https://kit.openiap.dev/v1/products/sync/ios?direction=pull&dryRun=false" \\
+  -H "Authorization: Bearer openiap-kit_sk_<your-secret-key>"
+
+# Poll the returned jobId until status is succeeded.
+curl "https://kit.openiap.dev/v1/products/sync/jobs/<jobId>" \\
+  -H "Authorization: Bearer openiap-kit_sk_<your-secret-key>"`}
+      </CodeBlock>
+      <CodeBlock title="Set a payload from CI" language="bash">
+        {`curl -X PUT \\
+  "https://kit.openiap.dev/v1/products/client-payload/premium_monthly?platform=IOS" \\
+  -H "Authorization: Bearer openiap-kit_sk_<your-secret-key>" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "format": "toml",
+    "body": "[access]\\nmax_items = 10",
+    "expectedVersion": 3
+  }'`}
+      </CodeBlock>
+      <CodeBlock title="Remove a payload from CI" language="bash">
+        {`curl -X DELETE \\
+  "https://kit.openiap.dev/v1/products/client-payload/premium_monthly?platform=IOS&expectedVersion=4" \\
+  -H "Authorization: Bearer openiap-kit_sk_<your-secret-key>"`}
+      </CodeBlock>
+      <p>
+        <code>expectedVersion</code> is optional for automation. Pass it when
+        you want optimistic concurrency protection; omit it for an atomic
+        last-write-wins upsert. Read the same URL with <code>GET</code> to
+        recover the durable revision after deletion. The hosted MCP surface
+        exposes these operations as <code>iapkit_get_client_payload</code>,{" "}
+        <code>iapkit_set_client_payload</code>, and{" "}
+        <code>iapkit_remove_client_payload</code>.
+      </p>
 
       <CodeBlock title="Client payload shape" language="json">
         {`{
@@ -215,18 +267,17 @@ export default function ProductsPage() {
       <p>
         Include payloads in a platform catalog read by opting in explicitly:
       </p>
-      <Callout kind="warning" title="Treat project keys as app credentials">
+      <Callout kind="warning" title="Use only a publishable key in the app">
         <p>
-          A key embedded in an app can be extracted. IAPKit project keys scope
-          requests and quota to a project, and existing project endpoints may
-          grant more access than this read. Use a separate key for each app
-          build or environment, avoid committing or logging it, and rotate it
-          from the dashboard if it is exposed. Keep the call on your own backend
-          when your threat model requires a server-held secret.
+          A publishable key can be extracted, but IAPKit limits it to
+          verification and client-safe operations. It cannot change products or
+          payloads, inspect project-wide analytics, open a webhook stream, or
+          run store sync. Never substitute the <code>openiap-kit_sk_</code>{" "}
+          secret used by MCP or CI.
         </p>
       </Callout>
       <CodeBlock title="List iOS products with payloads" language="bash">
-        {`curl "https://kit.openiap.dev/v1/products/<project-api-key>?platform=IOS&includeClientPayload=true&limit=25"`}
+        {`curl "https://kit.openiap.dev/v1/products/openiap-kit_pk_<your-publishable-key>?platform=IOS&includeClientPayload=true&limit=25"`}
       </CodeBlock>
       <CodeBlock title="Catalog response" language="json">
         {`{
@@ -261,7 +312,7 @@ export default function ProductsPage() {
       >
         {`import { kitApi } from "react-native-iap"; // Or "expo-iap"
 
-const api = kitApi({ apiKey: IAPKIT_API_KEY });
+const api = kitApi({ apiKey: IAPKIT_PUBLISHABLE_KEY });
 const firstPage = await api.products({
   platform: "IOS",
   includeClientPayload: true,
@@ -299,7 +350,7 @@ const { clientPayload } = await api.clientPayload(
         To fetch one known product without downloading the full catalog, use:
       </p>
       <CodeBlock title="Fetch one product payload" language="bash">
-        {`curl "https://kit.openiap.dev/v1/products/<project-api-key>/premium_monthly/client-payload?platform=IOS"`}
+        {`curl "https://kit.openiap.dev/v1/products/openiap-kit_pk_<your-publishable-key>/premium_monthly/client-payload?platform=IOS"`}
       </CodeBlock>
       <p>
         The direct endpoint returns <code>{`{ clientPayload: { ... } }`}</code>{" "}
@@ -380,9 +431,10 @@ const { clientPayload } = await api.clientPayload(
         </li>
       </ul>
       <p>
-        The separate 64 KiB product-management limit is the maximum size of an
-        entire HTTP request before JSON parsing. It is not per-product custom
-        storage. See{" "}
+        General product-management requests use a 64 KiB envelope. Client
+        payload writes use a bounded 128 KiB envelope so JSON escaping cannot
+        prevent a valid 16 KiB decoded body from reaching validation. Neither
+        envelope is per-product custom storage. See{" "}
         <Link to="/docs/operations" className="text-primary underline">
           Operations
         </Link>{" "}

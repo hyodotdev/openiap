@@ -216,7 +216,7 @@ export default function LandingPage() {
                   </p>
                   <pre className="text-sm md:text-base w-full min-w-0">
                     <code className="block w-full min-w-0">{`curl -X POST https://kit.openiap.dev/v1/purchase/verify \\
--H "Authorization: Bearer openiap-kit_<your-key>" \\
+-H "Authorization: Bearer openiap-kit_pk_<your-publishable-key>" \\
 -H "Content-Type: application/json" \\
 -d '{
   "store": "google",

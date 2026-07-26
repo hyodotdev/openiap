@@ -3,10 +3,11 @@ import { DocsPage } from "../components/DocsPage";
 // Release entries — newest first. Treat this as the changelog
 // canonical source: every shipped PR that touched production should
 // land an entry here, dated with the deploy date (not the merge
-// date). Versioning tracks `package.json` — IAPKit is still
-// pre-2.x, so entries live in the 1.x range.
+// date). Hosted updates have no installable package version; older
+// version labels remain as historical release identifiers.
 interface ReleaseEntry {
-  version: string;
+  id: string;
+  version?: string;
   date: string; // YYYY-MM-DD
   tagline: string;
   items: Array<{
@@ -26,6 +27,39 @@ const KIND_STYLES: Record<ReleaseEntry["items"][number]["kind"], string> = {
 
 const RELEASES: ReleaseEntry[] = [
   {
+    id: "hosted-2026-07-25",
+    date: "2026-07-25",
+    tagline:
+      "Scoped mobile/admin keys, programmable client payloads, and safer operations.",
+    items: [
+      {
+        kind: "security",
+        text: "Projects now issue publishable openiap-kit_pk_ keys for shipped apps and secret openiap-kit_sk_ keys for MCP, CI, catalog writes, analytics, store sync, and project-wide webhook streams. Existing unclassified keys remain publishable so prior mobile builds keep verifying without gaining admin access.",
+      },
+      {
+        kind: "security",
+        text: "Secret keys are accepted only through Authorization headers. Secret-key-in-URL compatibility requests return 410, and rotating or deleting scoped keys can no longer reactivate the deprecated projects.apiKey fallback.",
+      },
+      {
+        kind: "feature",
+        text: "Secret-key REST and MCP automation can read, create, replace, and remove per-product TOML, JSON, or text client payloads. Editor-state reads expose the durable expectedVersion after deletion, and version conflicts retain their safe revision details.",
+      },
+      {
+        kind: "feature",
+        text: "Product client payloads remain public app-readable configuration: purchase verification or product reads can return them when explicitly requested, with a 16 KiB decoded UTF-8 limit and a bounded JSON envelope that still accepts fully escaped text.",
+      },
+      {
+        kind: "fix",
+        text: "Webhook delivery uses source-aware event identity across Apple, Google RTDN, and Horizon, preventing matching upstream identifiers from colliding across projects or store sources.",
+      },
+      {
+        kind: "feature",
+        text: "App Store Connect push sync can validate and reuse a project review screenshot, prepare current IAP and subscription versions, and resume bounded review submissions with explicit manual-action states for Apple's first-IAP cases.",
+      },
+    ],
+  },
+  {
+    id: "v1.2.0",
     version: "1.2.0",
     date: "2026-04-22",
     tagline: "IAPKit joins OpenIAP. Validation and analytics are now free.",
@@ -61,6 +95,7 @@ const RELEASES: ReleaseEntry[] = [
     ],
   },
   {
+    id: "v1.1.0",
     version: "1.1.0",
     date: "2026-04-21",
     tagline: "Production hardening, Meta Horizon support, in-dashboard docs.",
@@ -124,6 +159,7 @@ const RELEASES: ReleaseEntry[] = [
     ],
   },
   {
+    id: "v1.0.0",
     version: "1.0.0",
     date: "2024-10-05",
     tagline: "Initial public release.",
@@ -160,7 +196,7 @@ const RELEASES: ReleaseEntry[] = [
   },
 ];
 
-const LATEST_VERSION = RELEASES[0].version;
+const LATEST_RELEASE_ID = RELEASES[0].id;
 
 export default function ReleaseNotesPage() {
   return (
@@ -188,12 +224,14 @@ export default function ReleaseNotesPage() {
         </div>
         <ul className="flex flex-wrap gap-2 text-sm">
           {RELEASES.map((release) => (
-            <li key={release.version}>
+            <li key={release.id}>
               <a
-                href={`#v${release.version}`}
+                href={`#${release.id}`}
                 className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-2.5 py-1 font-mono text-xs hover:border-primary/50 hover:text-primary"
               >
-                <span className="font-semibold">v{release.version}</span>
+                <span className="font-semibold">
+                  {release.version ? `v${release.version}` : "Hosted update"}
+                </span>
                 <span className="text-muted-foreground">
                   {formatDate(release.date)}
                 </span>
@@ -205,22 +243,18 @@ export default function ReleaseNotesPage() {
 
       <div className="mt-6 space-y-6">
         {RELEASES.map((release) => (
-          <section
-            key={release.version}
-            id={`v${release.version}`}
-            className="scroll-mt-8"
-          >
+          <section key={release.id} id={release.id} className="scroll-mt-8">
             <details
               // Most recent release opens by default; older ones are
               // collapsed so a long list stays scannable. Users who
               // want everything expanded can toggle via the summary.
-              open={release.version === LATEST_VERSION}
+              open={release.id === LATEST_RELEASE_ID}
               className="group rounded-lg border border-border bg-card/30 open:bg-card/50"
             >
               <summary className="flex cursor-pointer list-none items-baseline justify-between gap-3 border-b border-transparent px-4 py-3 group-open:border-border [&::-webkit-details-marker]:hidden">
                 <div className="flex flex-1 flex-wrap items-baseline gap-3">
                   <span className="font-mono text-lg font-bold">
-                    v{release.version}
+                    {release.version ? `v${release.version}` : "Hosted update"}
                   </span>
                   <time className="text-sm text-muted-foreground">
                     {formatDate(release.date)}

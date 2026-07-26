@@ -11,19 +11,25 @@ and React SPA deployed behind one origin.
 ## API quick reference
 
 Base URL: https://kit.openiap.dev
-Purchase verification and MCP auth: `Authorization: Bearer openiap-kit_<project-key>`
-Product, subscription, and webhook helper routes carry the same project key in
-their `{apiKey}` path segment.
+Purchase verification: `Authorization: Bearer openiap-kit_pk_<publishable-key>`
+MCP/admin: `Authorization: Bearer openiap-kit_sk_<secret-key>`
+App-facing product, subscription, and inbound webhook helpers use a publishable
+key path where mobile/store transports require it. Administrative product,
+subscription analytics, MCP, and webhook-stream requests keep the secret in the
+Bearer header and out of URLs.
 
 - [POST /v1/purchase/verify](https://kit.openiap.dev/docs/api) — verify an in-app purchase; body is a tagged union on `store`
 - [GET /v1/products/{apiKey}?platform=IOS&includeClientPayload=true&limit=25](https://kit.openiap.dev/docs/products) — list public product payloads in bounded cursor pages (platform required, limit 1-50, follow `nextCursor` while `hasMore`)
 - [GET /v1/products/{apiKey}/{productId}/client-payload?platform=IOS](https://kit.openiap.dev/docs/products) — fetch `{ clientPayload }`; returns 404 when the product is missing/Removed or no payload exists
+- [GET/PUT/DELETE /v1/products/client-payload/{productId}?platform=IOS](https://kit.openiap.dev/docs/products) — read durable editor state or create/update/remove a payload from CI or MCP with `Authorization: Bearer <secret-key>`; publishable keys receive 403
+- [GET /v1/products and catalog/store-sync writes](https://openiap.dev/docs/kit-backend) — header-authenticated GET is client-safe; POST/DELETE and `/v1/products/sync/{ios|android}` require `Authorization: Bearer <secret-key>`; secret-key-in-path requests receive 410
+- [GET /v1/subscriptions/{list|metrics|revenue}](https://openiap.dev/docs/kit-backend) — administrative subscription data with `Authorization: Bearer <secret-key>`
 - [POST /v1/webhooks/{apiKey}](https://openiap.dev/docs/webhooks#setup) — lifecycle webhook receiver. Paste this URL into App Store Connect (Production + Sandbox) AND Google Cloud Pub/Sub push subscription. Auto-detects ASN v2 vs Pub/Sub by payload shape. **POST-only**; opening in a browser returns 404 — that's expected.
-- [GET /v1/webhooks/stream/{apiKey}](https://openiap.dev/docs/webhooks#consume-stream) — long-lived SSE stream of normalized `WebhookEvent`s. Connect with `EventSource` (or the per-SDK helper); reconnects honor `Last-Event-ID`. Opening in a browser shows a blank page (text/event-stream that never closes) — use the SDK helpers or `curl -N`.
+- [GET /v1/webhooks/stream](https://openiap.dev/docs/webhooks#consume-stream) — secret-admin long-lived SSE stream using `Authorization: Bearer <secret-key>`. Reconnects honor `Last-Event-ID`.
 - [GET /v1/openapi](https://kit.openiap.dev/v1/openapi) — machine-readable OpenAPI spec
 - [GET /v1](https://kit.openiap.dev/v1) — Redoc UI for the OpenAPI spec
 - [GET /health](https://kit.openiap.dev/health) — liveness probe (no Convex round-trip)
-- [POST /mcp](https://kit.openiap.dev/docs/ai-assistants/codex-plugin) — MCP Streamable HTTP endpoint for Codex, Claude Code, and other MCP clients. Uses an IAPKit project API key, not an OpenAI, ChatGPT, Anthropic, or Claude API key.
+- [POST /mcp](https://kit.openiap.dev/docs/ai-assistants/codex-plugin) — MCP Streamable HTTP endpoint for Codex, Claude Code, and other MCP clients. Uses an IAPKit secret admin key, not a mobile publishable key and not an OpenAI, ChatGPT, Anthropic, or Claude API key.
 
 Also mounted at `/api/v1/*` for backwards compatibility. `/v1/verify-purchase`
 is an alias of `/v1/purchase/verify`. Pick `/v1/purchase/verify` for new code.
@@ -81,7 +87,10 @@ Harmonized `state` values (truthy `isValid`): `ENTITLED`,
 - Payloads are public app data. Never store secrets, credentials, or private server rules.
 - Store Sync never pushes or overwrites them. Resetting the local catalog retains them.
 - They are returned by app requests, not sent through APNs/FCM, and do not display an OS notification.
-- The separate 64 KB product-management cap applies to the whole HTTP request before parsing; it is not per-product payload storage.
+- The decoded body limit is 16 KiB. The payload-write JSON envelope is separately capped at 128 KiB so fully escaped 16 KiB text still fits; the general product-management envelope remains 64 KiB.
+- Mobile apps use `openiap-kit_pk_...` publishable keys. Payload writes use `openiap-kit_sk_...` secret keys or authenticated dashboard sessions.
+- A matching IAPKit catalog row must exist before a payload write. After creating a product directly in App Store Connect or Play Console, run a pull sync and wait for its job to succeed, or create the row with secret-authenticated `POST /v1/products`; early writes return `PRODUCT_NOT_FOUND`.
+- Secret-key `GET /v1/products/client-payload/{productId}?platform=...` returns the current payload plus durable `expectedVersion`, including the revision after deletion. MCP exposes it as `iapkit_get_client_payload`.
 
 ## Status codes
 
@@ -90,7 +99,9 @@ Harmonized `state` values (truthy `isValid`): `ENTITLED`,
 - `400 INVALID_API_KEY` — well-formed key that fails project lookup (unknown or rotated)
 - `413 PAYLOAD_TOO_LARGE` — request body exceeds the 32 KB edge cap
 - `401 MISSING_API_KEY` — no `Authorization` header
+- `403 INSUFFICIENT_SCOPE` — publishable key used for an administrative operation
 - `403 INVALID_API_KEY` — wrong scheme or malformed key (format check only)
+- `410 SECRET_API_KEY_IN_URL` — move the secret to `Authorization: Bearer ...` on the canonical route
 - `429 RATE_LIMITED` — per-key bucket empty; honor `Retry-After` seconds
 - `500 UNKNOWN_ERROR` — quote the `X-Correlation-Id` header in a support ticket
 

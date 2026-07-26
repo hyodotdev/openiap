@@ -314,8 +314,10 @@ await mutate.RequestPurchaseAsync(new RequestPurchaseProps
         <p>
           The MAUI package exposes the same IAPKit helper surface as the
           JavaScript SDKs: create a kit client for status, entitlements, and
-          bind-user calls, and open the webhook SSE stream from the library
-          instead of hand-rolling the HTTP stream in the app.
+          bind-user calls. These app-facing calls use the publishable key.
+          Project-wide webhook streaming is an administrative operation and must
+          run from a trusted backend with a separate secret key—not from the
+          MAUI app.
         </p>
         <CodeBlock language="csharp">
           {`using OpenIap;
@@ -323,7 +325,7 @@ using OpenIap.Maui;
 
 var kit = OpenIapClient.KitApi(new KitApiOptions
 {
-    ApiKey = "openiap-kit_<your-key>",
+    ApiKey = "openiap-kit_pk_<your-publishable-key>",
     BaseUrl = "https://kit.openiap.dev",
 });
 
@@ -331,13 +333,8 @@ StatusResponse status = await kit.StatusAsync("user_123");
 EntitlementsResponse entitlements = await kit.EntitlementsAsync("user_123");
 BindUserResponse bind = await kit.BindUserAsync(purchase.PurchaseToken!, "user_123");
 
-using WebhookListener listener = OpenIapClient.ConnectWebhookStream(new WebhookListenerOptions
-{
-    ApiKey = "openiap-kit_<your-key>",
-    OnEvent = webhookEvent => Console.WriteLine(webhookEvent.Type),
-    OnError = error => Console.WriteLine($"{error.Code}: {error.Message}"),
-});
-
+// Server-side parsers remain available when a trusted backend consumes
+// GET /v1/webhooks/stream with Authorization: Bearer openiap-kit_sk_...
 ParsedWebhookEventResult parsed = OpenIapClient.ParseWebhookEventData(rawSseData);`}
         </CodeBlock>
 

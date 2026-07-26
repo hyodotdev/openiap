@@ -81,10 +81,16 @@ export default function QuickstartPage() {
 
       <h2 className="mt-10 text-2xl font-semibold">4. Issue an API key</h2>
       <p>
-        The <strong>API Keys</strong> tab lists the project's keys. A default
-        production key is auto-created and shown once when the project is
-        created; you can rotate it or add separate keys for app builds, CI, and
-        staging.
+        The <strong>API Keys</strong> tab lists the project&apos;s keys. A
+        default <code>openiap-kit_pk_</code> publishable key is auto-created and
+        shown once when the project is created. Use it in the mobile app for
+        verification and client-safe reads.
+      </p>
+      <p>
+        Create a separate <code>openiap-kit_sk_</code> secret key for MCP, CI,
+        catalog or payload writes, analytics, webhook streams, and store sync.
+        Keep secret keys in a secret manager and never include one in an app
+        build.
       </p>
       <p>
         Keys are credentials for the same project, not separate entitlement
@@ -102,20 +108,13 @@ export default function QuickstartPage() {
         When clients call status or entitlements directly, use opaque app-scoped
         user IDs rather than public identifiers like email addresses.
       </p>
-      <DocsScreenshot
-        src="/docs/screenshots/api-keys.webp"
-        alt="API Keys tab"
-        caption="Issued keys start with openiap-kit_. Anyone holding one can call project-scoped endpoints against your quota and subscription state."
-      />
-
-      <Callout kind="warning" title="Project keys are production-sensitive">
+      <Callout kind="warning" title="Publishable does not mean private">
         <p>
-          The project key lets your app call IAPKit's managed validation service
-          directly. Do not commit it to a public repo or log it. Assume embedded
-          keys can be extracted and use separate keys for each app build or
-          environment so you can rotate one from the dashboard if it leaks or is
-          abused. If your own backend calls IAPKit instead of the app calling
-          directly, keep that server-side copy in a secret manager.
+          A publishable key lets your app call IAPKit&apos;s restricted managed
+          validation surface directly, but it can still be extracted and used
+          against your project quota. Avoid logging it, use separate keys for
+          independent builds or environments, and rotate an abused key. Secret
+          keys provide administrative access and must remain server-side.
         </p>
       </Callout>
 
@@ -129,7 +128,7 @@ export default function QuickstartPage() {
 
       <CodeBlock title="Apple App Store" language="bash">
         {`curl -X POST https://kit.openiap.dev/v1/purchase/verify \\
-  -H "Authorization: Bearer openiap-kit_<your-key>" \\
+  -H "Authorization: Bearer openiap-kit_pk_<your-publishable-key>" \\
   -H "Content-Type: application/json" \\
   -d '{
     "store": "apple",
@@ -140,7 +139,7 @@ export default function QuickstartPage() {
 
       <CodeBlock title="Google Play" language="bash">
         {`curl -X POST https://kit.openiap.dev/v1/purchase/verify \\
-  -H "Authorization: Bearer openiap-kit_<your-key>" \\
+  -H "Authorization: Bearer openiap-kit_pk_<your-publishable-key>" \\
   -H "Content-Type: application/json" \\
   -d '{
     "store": "google",
@@ -151,7 +150,7 @@ export default function QuickstartPage() {
 
       <CodeBlock title="Meta Horizon (Quest)" language="bash">
         {`curl -X POST https://kit.openiap.dev/v1/purchase/verify \\
-  -H "Authorization: Bearer openiap-kit_<your-key>" \\
+  -H "Authorization: Bearer openiap-kit_pk_<your-publishable-key>" \\
   -H "Content-Type: application/json" \\
   -d '{
     "store": "horizon",
@@ -162,7 +161,7 @@ export default function QuickstartPage() {
 
       <CodeBlock title="Amazon Appstore" language="bash">
         {`curl -X POST https://kit.openiap.dev/v1/purchase/verify \\
-  -H "Authorization: Bearer openiap-kit_<your-key>" \\
+  -H "Authorization: Bearer openiap-kit_pk_<your-publishable-key>" \\
   -H "Content-Type: application/json" \\
   -d '{
     "store": "amazon",

@@ -40,6 +40,15 @@ function MCPServer() {
         </a>{' '}
         before using the hosted MCP endpoint.
       </p>
+      <p>
+        MCP can perform administrative writes, so it requires an{' '}
+        <code>openiap-kit_sk_</code> secret admin key. Store it only in the
+        agent&apos;s environment or secret manager. Generated mobile snippets
+        use a separate <code>openiap-kit_pk_</code> publishable key placeholder
+        and never embed the MCP credential. MCP forwards the secret to
+        IAPKit&apos;s administrative REST endpoints in the Authorization header,
+        never in a URL path or query string.
+      </p>
 
       <TLDRBox>
         <ul>
@@ -58,7 +67,7 @@ function MCPServer() {
           </li>
           <li>
             Authentication:{' '}
-            <code>Authorization: Bearer &lt;IAPKit project key&gt;</code>
+            <code>Authorization: Bearer &lt;IAPKit secret admin key&gt;</code>
           </li>
           <li>
             Local testing: run <code>@hyodotdev/openiap-mcp-server</code> from
@@ -99,11 +108,13 @@ function MCPServer() {
         <p>
           Use the OpenIAP plugin when you want Codex to call IAPKit tools while
           it also edits and tests your app workspace. Install the plugin from
-          the OpenIAP marketplace, set <code>IAPKIT_API_KEY</code> in the
-          environment that launches Codex, then open a new thread.
+          the OpenIAP marketplace, create an <code>openiap-kit_sk_</code> secret
+          admin key in the IAPKit dashboard, set it as{' '}
+          <code>IAPKIT_API_KEY</code> in the environment that launches Codex,
+          then open a new thread.
         </p>
         <CodeBlock language="bash">{`codex plugin marketplace add hyodotdev/openiap --ref main
-export IAPKIT_API_KEY="openiap-kit_your-project-key"`}</CodeBlock>
+export IAPKIT_API_KEY="openiap-kit_sk_<your-secret-key>"`}</CodeBlock>
         <CodeBlock language="text">{`Use the OpenIAP plugin.
 
 Review my app's in-app purchase flow and list the OpenIAP/IAPKit tools available.
@@ -116,12 +127,13 @@ Do not create products, start sync jobs, or modify files until I confirm.`}</Cod
         </AnchorLink>
         <p>
           The same plugin works in Claude Code. Add the OpenIAP marketplace,
-          install the plugin, set <code>IAPKIT_API_KEY</code> in the environment
-          that launches Claude Code, then start a new session.
+          install the plugin, set an IAPKit secret admin key as{' '}
+          <code>IAPKIT_API_KEY</code> in the environment that launches Claude
+          Code, then start a new session.
         </p>
         <CodeBlock language="bash">{`claude plugin marketplace add hyodotdev/openiap
 claude plugin install openiap@openiap
-export IAPKIT_API_KEY="openiap-kit_your-project-key"`}</CodeBlock>
+export IAPKIT_API_KEY="openiap-kit_sk_<your-secret-key>"`}</CodeBlock>
         <p>
           Inside an interactive session you can use{' '}
           <code>/plugin marketplace add hyodotdev/openiap</code> and{' '}
@@ -144,8 +156,8 @@ export IAPKIT_API_KEY="openiap-kit_your-project-key"`}</CodeBlock>
         </AnchorLink>
         <p>
           If you do not install the plugin bundle, configure the hosted MCP
-          server directly in Codex. Keep the project key in an environment
-          variable instead of hardcoding it into config files.
+          server directly in Codex. Keep the secret admin key in an environment
+          variable instead of hardcoding it into config files or mobile code.
         </p>
         <CodeBlock language="toml">{`[mcp_servers.openiap]
 url = "https://kit.openiap.dev/mcp"
@@ -156,7 +168,7 @@ default_tools_approval_mode = "prompt"`}</CodeBlock>
           Codex at it:
         </p>
         <CodeBlock language="bash">{`# From the monorepo root
-IAPKIT_API_KEY="openiap-kit_your-project-key" \\
+IAPKIT_API_KEY="openiap-kit_sk_<your-secret-key>" \\
   bun run --filter @hyodotdev/openiap-mcp-server start:http
 
 # Local MCP URL:
@@ -167,87 +179,44 @@ default_tools_approval_mode = "prompt"`}</CodeBlock>
       </section>
 
       <section>
-        <AnchorLink id="recorded-expo-test" level="h2">
-          Recorded Expo app test
+        <AnchorLink id="expo-smoke-test" level="h2">
+          Expo smoke-test checklist
         </AnchorLink>
         <p>
-          This recording uses the generated CPK Expo app at{' '}
-          <code>/Users/hyo/Github/others/OpenIapMcpTestApp</code>. The local
-          OpenIAP MCP server is started on <code>localhost:3939/mcp</code> and a
-          Codex prompt asks MCP to generate the Expo setup hook. After the hook
-          is applied, the app loads the store products, connects Buy to{' '}
-          <code>requestPurchase</code>, validates the receipt against the dev
-          Kit API, and finishes the transaction on a connected iPhone.
+          When testing generated mobile setup code, verify the credential
+          boundary as well as the purchase flow:
         </p>
-        <p>The recording covers these concrete checks:</p>
         <ul>
           <li>
-            Create the CPK Expo app in <code>/Users/hyo/Github/others</code> and
-            configure <code>dev.hyo.martie</code> as the sample iOS bundle id
-            and Android package name. The app UI still shows only Example App
-            product names, prices, and Buy buttons.
+            Start MCP with an <code>openiap-kit_sk_</code> secret admin key,
+            call <code>initialize</code>, confirm the <code>iapkit_*</code> tool
+            list, and request the Expo snippet with <code>iapkit_setup</code>.
           </li>
           <li>
-            Start the local MCP HTTP transport, call <code>initialize</code>,
-            confirm the <code>iapkit_*</code> tools list, and request the Expo
-            setup snippet with <code>iapkit_setup</code>.
+            Confirm the generated code contains only an{' '}
+            <code>IAPKIT_PUBLISHABLE_KEY</code> placeholder and does not contain
+            the MCP secret or a project-wide webhook-stream hook.
           </li>
           <li>
-            Confirm the generated Expo IAP hook fetches the subscription and
-            in-app products: Premium, 10 Bulbs, and 30 Bulbs.
+            Configure an <code>openiap-kit_pk_</code> publishable key in Expo
+            public configuration, then fetch products and open the native
+            sandbox purchase sheet.
           </li>
           <li>
-            Verify <code>fetchProducts</code> returns all three products, then
-            press Buy in the app and confirm <code>requestPurchase</code> opens
-            the native Apple sandbox purchase sheet on the connected iPhone.
+            Confirm verification checks <code>isValid</code>, an allowed state,
+            and an exact store-verified product-ID match before granting or
+            finishing.
           </li>
           <li>
-            Confirm the dev Kit validation endpoint returns{' '}
-            <code>isValid: true</code>, the purchase state is{' '}
-            <code>READY_TO_CONSUME</code>, <code>finishTransaction</code>{' '}
-            completes, and the dev database records the purchase row.
+            If <code>includeClientPayload</code> is enabled, confirm the app
+            treats the payload as public configuration and never as entitlement
+            authority.
           </li>
           <li>
-            Run <code>npm run typecheck</code>,{' '}
-            <code>npm test -- --runInBand</code>, and a native iOS run.
+            Run the app&apos;s typecheck and tests, then complete one
+            real-device sandbox purchase against the matching IAPKit project.
           </li>
         </ul>
-        <figure style={{ margin: '1.5rem 0' }}>
-          <video
-            src="/docs/videos/openiap-mcp-expo-test.webm?v=real-purchase-v1"
-            controls
-            muted
-            playsInline
-            preload="metadata"
-            style={{
-              width: '100%',
-              border: '1px solid var(--border-color)',
-              borderRadius: '12px',
-              background: '#0b0d10',
-            }}
-          >
-            Recorded OpenIAP MCP and Expo app smoke test.
-          </video>
-          <figcaption
-            style={{
-              marginTop: '0.5rem',
-              color: 'var(--text-secondary)',
-              fontSize: '0.875rem',
-            }}
-          >
-            Real-device verification: MCP initialize/tools/list/iapkit_setup
-            succeeds, the generated Expo hook loads Premium and Bulbs products,
-            Buy opens the native Apple sandbox purchase sheet, and dev receipt
-            validation plus <code>finishTransaction</code> completes.
-          </figcaption>
-        </figure>
-        <p>
-          The recording uses local PR code with the dev Kit backend; it does not
-          require the production MCP endpoint to be deployed. The same MCP
-          thread can also connect the app to its IAPKit project, check
-          entitlement status, inspect webhook URLs, and review revenue or
-          subscriber state without leaving Codex.
-        </p>
       </section>
 
       <section>
@@ -255,7 +224,7 @@ default_tools_approval_mode = "prompt"`}</CodeBlock>
           Example App setup
         </AnchorLink>
         <p>
-          For a concrete recording or walkthrough, use Example App with{' '}
+          For a concrete walkthrough, use Example App with{' '}
           <code>dev.hyo.martie</code> as the sample iOS bundle id and Android
           package name. Configure that identifier in the IAPKit project settings
           first; store sync tools read the package and bundle identifiers from
@@ -302,7 +271,8 @@ Show the proposed store changes and wait for my approval before running dryRun f
 Call iapkit_setup for framework expo and the Premium product.
 Apply the generated snippet to the app's purchase screen or purchase hook.
 Fetch Premium, 10 Bulbs, and 30 Bulbs, and connect Buy to requestPurchase.
-Keep IAPKIT_API_KEY out of source code; read it from runtime configuration.
+Use a separate IAPKIT_PUBLISHABLE_KEY in the app. Never copy the MCP
+IAPKIT_API_KEY secret into source code or runtime configuration shipped to users.
 Run the app's typecheck and tests after editing.`}</CodeBlock>
 
         <h4>5. Add receipt validation</h4>
@@ -313,7 +283,8 @@ Wire receipt validation after a successful purchase:
 - on iOS, validate the StoreKit JWS from the purchase
 - on Android, validate the Google purchaseToken
 - grant the entitlement and finishTransaction only after the validation result is valid
-- keep the IAPKit project key out of committed source; use a backend endpoint or runtime secret
+- use an openiap-kit_pk_ publishable key in the app
+- keep the openiap-kit_sk_ MCP secret out of every app build
 
 Then inspect IAPKit state from MCP:
 - call iapkit_inspect_state to review project status, products, and webhook URLs
@@ -330,13 +301,12 @@ Run typecheck and tests after editing, and summarize exactly what changed.`}</Co
         <p>
           Your agent sees the tools with the <code>iapkit_</code> prefix. The
           MCP server currently exposes tools for setup snippets, status checks,
-          troubleshooting, product catalog reads and writes, subscription lists,
-          sandbox purchase guidance, synthetic webhook delivery, entitlement
-          inspection, revenue analytics, and App Store / Google Play product
-          sync jobs. Receipt validation still runs in your app or backend
-          through the OpenIAP SDK and IAPKit API; MCP gives your agent the
-          project context and tool results it needs to wire and verify that
-          flow.
+          troubleshooting, product catalog and client-payload reads and writes,
+          subscription lists, sandbox purchase guidance, synthetic webhook
+          delivery, entitlement inspection, revenue analytics, and App Store /
+          Google Play product sync jobs. MCP authenticates with a secret admin
+          key. Receipt validation still runs in your app or backend through the
+          OpenIAP SDK and IAPKit API using a restricted publishable key.
         </p>
         <p>
           For the lower-level backend architecture and stdio example, see{' '}

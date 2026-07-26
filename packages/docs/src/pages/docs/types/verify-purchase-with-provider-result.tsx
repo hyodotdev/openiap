@@ -441,7 +441,7 @@ function VerifyPurchaseWithProviderResult() {
 const result = await verifyPurchaseWithProvider({
   provider: 'iapkit',
   iapkit: {
-    apiKey: 'openiap-kit_<your-key>',
+    apiKey: 'openiap-kit_pk_<your-publishable-key>',
     includeClientPayload: true,
     google: {
       purchaseToken: purchase.purchaseToken ?? '',
@@ -472,7 +472,7 @@ if (
 let result = try await OpenIapModule.shared.verifyPurchaseWithProvider(
     VerifyPurchaseWithProviderProps(
         iapkit: RequestVerifyPurchaseWithIapkitProps(
-            apiKey: "openiap-kit_<your-key>",
+            apiKey: "openiap-kit_pk_<your-publishable-key>",
             apple: RequestVerifyPurchaseWithIapkitAppleProps(
                 jws: purchase.purchaseToken ?? ""
             ),
@@ -500,7 +500,7 @@ if let verified = result.iapkit,
 val result = module.verifyPurchaseWithProvider(
     VerifyPurchaseWithProviderProps(
         iapkit = RequestVerifyPurchaseWithIapkitProps(
-            apiKey = "openiap-kit_<your-key>",
+            apiKey = "openiap-kit_pk_<your-publishable-key>",
             google = RequestVerifyPurchaseWithIapkitGoogleProps(
                 purchaseToken = purchase.purchaseToken.orEmpty(),
             ),
@@ -528,10 +528,10 @@ result.iapkit?.let { iapkit ->
             kmp: (
               <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.*
 
-val result = kmpIAP.verifyPurchaseWithProvider(
+val result = kmpIapInstance.verifyPurchaseWithProvider(
     VerifyPurchaseWithProviderProps(
         iapkit = RequestVerifyPurchaseWithIapkitProps(
-            apiKey = "openiap-kit_<your-key>",
+            apiKey = "openiap-kit_pk_<your-publishable-key>",
             apple = RequestVerifyPurchaseWithIapkitAppleProps(
                 jws = purchase.purchaseToken.orEmpty(),
             ),
@@ -561,7 +561,7 @@ result.iapkit?.let { iapkit ->
 final result = await FlutterInappPurchase.instance.verifyPurchaseWithProvider(
   provider: PurchaseVerificationProvider.Iapkit,
   iapkit: RequestVerifyPurchaseWithIapkitProps(
-    apiKey: 'openiap-kit_<your-key>',
+    apiKey: 'openiap-kit_pk_<your-publishable-key>',
     google: RequestVerifyPurchaseWithIapkitGoogleProps(
       purchaseToken: purchase.purchaseToken ?? '',
     ),
@@ -593,7 +593,7 @@ var result = await ((MutationResolver)OpenIapClient.Instance)
     Provider = PurchaseVerificationProvider.Iapkit,
     Iapkit = new RequestVerifyPurchaseWithIapkitProps
     {
-        ApiKey = "openiap-kit_<your-key>",
+        ApiKey = "openiap-kit_pk_<your-publishable-key>",
         IncludeClientPayload = true,
         Google = new RequestVerifyPurchaseWithIapkitGoogleProps
         {
@@ -625,12 +625,12 @@ const Types = preload("res://addons/godot-iap/types.gd")
 var props = Types.VerifyPurchaseWithProviderProps.new()
 props.provider = Types.PurchaseVerificationProvider.IAPKIT
 props.iapkit = Types.RequestVerifyPurchaseWithIapkitProps.new()
-props.iapkit.api_key = "openiap-kit_<your-key>"
+props.iapkit.api_key = "openiap-kit_pk_<your-publishable-key>"
 props.iapkit.include_client_payload = true
 props.iapkit.google = Types.RequestVerifyPurchaseWithIapkitGoogleProps.new()
 props.iapkit.google.purchase_token = purchase.purchase_token
 
-var result = await iap.verify_purchase_with_provider(props)
+var result = await GodotIapPlugin.verify_purchase_with_provider(props)
 
 var iapkit = result.iapkit
 var verified_product_id = iapkit.product_id if iapkit != null else null

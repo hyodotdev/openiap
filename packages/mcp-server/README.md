@@ -12,20 +12,23 @@ testing. Full user-facing setup docs:
 
 ## Authentication
 
-Every transport authenticates with an **IAPKit project API key** — not
-an OpenAI, ChatGPT, Anthropic, or Claude API key. The key is resolved
-from, in order: a tool's explicit `apiKey` argument, then the MCP
-`Authorization: Bearer` token, then the `IAPKIT_API_KEY` environment
-variable.
+Every transport authenticates with an **IAPKit secret admin key**
+(`openiap-kit_sk_…`) — not a mobile publishable key and not an OpenAI,
+ChatGPT, Anthropic, or Claude API key. The key is resolved from, in order:
+a tool's explicit `apiKey` argument, then the MCP `Authorization: Bearer`
+token, then the `IAPKIT_API_KEY` environment variable. Keep it out of app
+bundles; generated mobile snippets use a separate publishable key placeholder.
+When MCP calls IAPKit's administrative REST surface, it forwards the secret in
+the `Authorization` header and never places it in the request URL.
 
 ## Transports
 
 ```bash
 # stdio (bin: iapkit-mcp / openiap-mcp)
-IAPKIT_API_KEY="openiap-kit_your-project-key" bun run start
+IAPKIT_API_KEY="openiap-kit_sk_<your-secret-key>" bun run start
 
 # Streamable HTTP on http://127.0.0.1:3939/mcp (bin: iapkit-mcp-http)
-IAPKIT_API_KEY="openiap-kit_your-project-key" bun run start:http
+IAPKIT_API_KEY="openiap-kit_sk_<your-secret-key>" bun run start:http
 ```
 
 `PORT` / `IAPKIT_MCP_PORT` override the HTTP port and
