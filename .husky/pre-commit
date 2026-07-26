@@ -175,7 +175,7 @@ if git diff --cached --name-only --diff-filter=ACMR \
   echo "📘 docs/contract/audit-touched commit — running typecheck + audit + format…"
   bun install --frozen-lockfile
   bun run --filter @hyodotdev/openiap-docs typecheck
-  bun test scripts/audit-docs.test.ts
+  bun test "$REPO_ROOT/scripts/audit-docs.test.ts"
   bun run audit:docs
   (
     cd packages/docs && bunx prettier --check "src/**/*.{ts,tsx,css}"

@@ -101,6 +101,9 @@ export const secretAdminApiKeyMiddleware = createMiddleware<{
     apiKey: string;
   };
 }>(async (c, next) => {
+  // Administrative responses may contain private catalog, entitlement, or
+  // analytics data. Never let a browser/CDN shared cache retain them.
+  c.header("Cache-Control", "private, no-store");
   if (isPublishableApiKey(c.var.apiKey)) {
     return c.json(
       {

@@ -19,6 +19,7 @@ import {
   JsonBodyTooLargeError,
   readJsonBodyWithLimit,
 } from "./request-body";
+import { multiAxisRateLimitMiddleware } from "./rate-limit";
 
 // Subscription state, entitlements, metrics, and user-binding routes.
 // Mirrors the role of onesub's `/onesub/status`, `/onesub/admin/...`
@@ -27,7 +28,10 @@ import {
 // headers. Canonical administrative routes accept a Bearer secret so MCP and
 // trusted servers keep credentials out of URLs.
 
-const subscriptions = new Hono<{ Variables: { apiKey: string } }>();
+const subscriptions = new Hono<{
+  Variables: { apiKey: string; apiKeyHash?: string };
+}>();
+const publicApiRateLimit = multiAxisRateLimitMiddleware();
 const MAX_USER_ID_LENGTH = 256;
 const MAX_PRODUCT_ID_LENGTH = 256;
 const MAX_BIND_USER_BODY_BYTES = 32 * 1024;
@@ -62,7 +66,7 @@ const API_KEY_ROUTES = [
 ];
 
 for (const route of API_KEY_ROUTES) {
-  subscriptions.use(route, pathApiKeyGuard);
+  subscriptions.use(route, pathApiKeyGuard, publicApiRateLimit);
 }
 
 async function handleSubscriptionStatus(c: Context, apiKey: string) {
@@ -92,7 +96,7 @@ async function handleSubscriptionStatus(c: Context, apiKey: string) {
   }
 }
 
-subscriptions.get("/status", apiKeyMiddleware, (c) =>
+subscriptions.get("/status", apiKeyMiddleware, publicApiRateLimit, (c) =>
   handleSubscriptionStatus(c, c.var.apiKey),
 );
 subscriptions.get("/status/:apiKey", (c) =>
@@ -123,7 +127,7 @@ async function handleEntitlements(c: Context, apiKey: string) {
   }
 }
 
-subscriptions.get("/entitlements", apiKeyMiddleware, (c) =>
+subscriptions.get("/entitlements", apiKeyMiddleware, publicApiRateLimit, (c) =>
   handleEntitlements(c, c.var.apiKey),
 );
 subscriptions.get("/entitlements/:apiKey", (c) =>
@@ -182,7 +186,7 @@ async function handleListSubscriptions(c: Context, apiKey: string) {
 subscriptions.get("/list", apiKeyMiddleware, secretAdminApiKeyMiddleware, (c) =>
   handleListSubscriptions(c, c.var.apiKey),
 );
-subscriptions.get("/list/:apiKey", (c) =>
+subscriptions.get("/list/:apiKey", secretAdminApiKeyMiddleware, (c) =>
   handleListSubscriptions(c, c.req.param("apiKey")),
 );
 
@@ -208,7 +212,7 @@ subscriptions.get(
   secretAdminApiKeyMiddleware,
   (c) => handleMetrics(c, c.var.apiKey),
 );
-subscriptions.get("/metrics/:apiKey", (c) =>
+subscriptions.get("/metrics/:apiKey", secretAdminApiKeyMiddleware, (c) =>
   handleMetrics(c, c.req.param("apiKey")),
 );
 
@@ -256,7 +260,7 @@ subscriptions.get(
   secretAdminApiKeyMiddleware,
   (c) => handleRevenueMetrics(c, c.var.apiKey),
 );
-subscriptions.get("/revenue/:apiKey", (c) =>
+subscriptions.get("/revenue/:apiKey", secretAdminApiKeyMiddleware, (c) =>
   handleRevenueMetrics(c, c.req.param("apiKey")),
 );
 
@@ -313,7 +317,7 @@ async function handleBindUser(c: Context, apiKey: string) {
   }
 }
 
-subscriptions.post("/bind-user", apiKeyMiddleware, (c) =>
+subscriptions.post("/bind-user", apiKeyMiddleware, publicApiRateLimit, (c) =>
   handleBindUser(c, c.var.apiKey),
 );
 subscriptions.post("/bind-user/:apiKey", (c) =>
@@ -533,6 +537,7 @@ async function pathApiKeyGuard(c: Context, next: Next) {
   ) {
     return payloadTooLarge(c);
   }
+  c.set("apiKey", apiKey);
   await next();
 }
 

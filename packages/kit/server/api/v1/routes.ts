@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import type { Context } from "hono";
-import { getConnInfo } from "hono/bun";
 import { html } from "hono/html";
 import { describeRoute, openAPIRouteHandler, resolver } from "hono-openapi";
 import * as crypto from "node:crypto";
@@ -15,7 +14,7 @@ import {
   verifyPurchaseSuccessResponseSchema,
 } from "./route-response-schemas";
 import { apiKeyMiddleware } from "./middleware";
-import { rateLimitMiddleware } from "./rate-limit";
+import { getRequestIp, multiAxisRateLimitMiddleware } from "./rate-limit";
 import { replayGuardMiddleware } from "./replay-guard";
 import { requestLoggerMiddleware } from "./request-logger";
 import { validator } from "./validator";
@@ -50,79 +49,6 @@ const specUrl =
   process.env.APP_ENV === "development"
     ? `${DEV_BASE_URL}/v1/openapi`
     : `${PROD_BASE_URL}/v1/openapi`;
-
-// These client-IP headers are set by the upstream proxy (Fly.io edge /
-// Cloudflare) and would be spoofable if the server were reachable outside the
-// proxy. The Fly.io machine only accepts traffic through the Fly edge, so we
-// trust these headers here. If the deployment topology changes (e.g. direct
-// public ingress without a trusted proxy), these headers MUST NOT be trusted
-// and we should fall back to the TCP peer address from `getConnInfo`.
-const DIRECT_IP_HEADERS = [
-  // `fly-client-ip` is injected by the Fly.io edge proxy and is the
-  // most reliable signal on the Fly deployment; check it first.
-  "fly-client-ip",
-  "cf-connecting-ip",
-  "true-client-ip",
-  "fastly-client-ip",
-  "x-client-ip",
-  "x-real-ip",
-  "x-cluster-client-ip",
-];
-
-function normalizeIp(value?: string | null): string | undefined {
-  if (!value) {
-    return undefined;
-  }
-
-  const first = value.split(",")[0]?.trim();
-  if (!first || first === "unknown") {
-    return undefined;
-  }
-
-  return first.replace(/^"(.*)"$/, "$1").replace(/^\[(.*)\]$/, "$1");
-}
-
-function parseForwardedHeader(value?: string | null): string | undefined {
-  if (!value) {
-    return undefined;
-  }
-
-  const match = value.match(/for=([^;]+)/i);
-  if (!match || !match[1]) {
-    return undefined;
-  }
-
-  return normalizeIp(match[1]);
-}
-
-function getRequestIp(c: Context): string | undefined {
-  for (const header of DIRECT_IP_HEADERS) {
-    const ip = normalizeIp(c.req.header(header));
-    if (ip) {
-      return ip;
-    }
-  }
-
-  const forwarded = parseForwardedHeader(c.req.header("forwarded"));
-  if (forwarded) {
-    return forwarded;
-  }
-
-  const xForwardedFor = normalizeIp(c.req.header("x-forwarded-for"));
-  if (xForwardedFor) {
-    return xForwardedFor;
-  }
-
-  return getRemoteAddr(c);
-}
-
-function getRemoteAddr(c: Context): string | undefined {
-  try {
-    return getConnInfo(c).remote?.address;
-  } catch {
-    return undefined;
-  }
-}
 
 /**
  * Redoc UI with API documentation.
@@ -198,13 +124,21 @@ const commonResponseHeaders = {
   },
   "X-RateLimit-Limit": {
     description:
-      "Maximum number of requests allowed in the rolling bucket for this API key.",
+      "Maximum number of weighted requests allowed by the currently reported bucket. Successful responses report the API-key bucket; 429 responses report the rejecting key, source-IP, or process bucket.",
     schema: { type: "integer" as const },
   },
   "X-RateLimit-Remaining": {
     description:
       "Requests remaining in the current bucket. Reaches 0 just before a 429 is returned.",
     schema: { type: "integer" as const },
+  },
+  "X-RateLimit-Scope": {
+    description:
+      "Present on rate-limited responses. Identifies the rejecting in-memory bucket: `key`, `ip`, or `global` (one Fly process).",
+    schema: {
+      type: "string" as const,
+      enum: ["key", "ip", "global"],
+    },
   },
 };
 
@@ -231,17 +165,24 @@ const verifyPurchaseRouteDescription = describeRoute({
     "omitted by default, for invalid receipts, missing/Removed products, " +
     "and Horizon or Amazon requests. Client payloads are public app data, " +
     "not secrets or server-authoritative entitlement rules.\n\n" +
-    "Rate limit: per API key, 600 req/min sustained with a 600-request " +
-    "burst — sized to let legitimate global apps verify at app-launch " +
-    "scale without tripping. In addition, per-(API key, payload) " +
+    "Rate limit: each Fly process enforces bounded, in-memory token buckets " +
+    "for API key (600-request burst, 600 req/min sustained), source IP " +
+    "(600-request burst, 300 req/min sustained), and the whole process " +
+    "(5,000-request burst, 6,000 req/min sustained). Random identifiers " +
+    "cannot grow these stores without bound because key/IP entries use " +
+    "TTL cleanup and LRU eviction. With multiple machines, these limits " +
+    "multiply by machine count; Convex deployment usage limits remain the " +
+    "cross-machine cost brake. In addition, per-(API key, payload) " +
     "replay-guard: the same receipt can be submitted at most 30 times " +
     "in a burst and ~1/min sustained — cache the previous result on " +
     "your side. Exceeding either returns HTTP 429 with a `Retry-After` " +
-    "header. **Authenticated** responses (2xx, 4xx from validation, " +
-    "429) carry `X-RateLimit-Limit`, `X-RateLimit-Remaining`, and " +
+    "header. Responses that pass bearer-token shape validation (2xx, " +
+    "downstream 4xx, 429) carry `X-RateLimit-Limit`, " +
+    "`X-RateLimit-Remaining`, and " +
     "`X-Correlation-Id`. 401 / 403 responses from the auth layer run " +
     "before the rate-limit middleware and do not include those " +
-    "headers.\n\n" +
+    "headers. A 429 also carries `X-RateLimit-Scope` (`key`, `ip`, or " +
+    "`global`).\n\n" +
     "Input size caps: request body ≤ 32 KB, `jws` ≤ 16 KB, " +
     "`purchaseToken` ≤ 2 KB, `expectedProductId` ≤ 256 chars, " +
     "Meta `userId` ≤ 256 chars, `sku` ≤ 256 chars. " +
@@ -298,9 +239,9 @@ const verifyPurchaseRouteDescription = describeRoute({
     429: {
       description:
         "Request rejected by a rate limit. Three shapes:\n\n" +
-        "  • `RATE_LIMITED` — burst bucket empty (600 req/min sustained " +
-        "+ 600 burst per API key). Retry after the seconds in " +
-        "`Retry-After`.\n" +
+        "  • `RATE_LIMITED` — the API-key, source-IP, or whole-process " +
+        "bucket is empty. `X-RateLimit-Scope` names the rejecting axis; " +
+        "retry after the seconds in `Retry-After`.\n" +
         "  • `DUPLICATE_PAYLOAD` — too many verifications for the exact " +
         "same receipt from this API key (burst 30, sustained ~1/min). " +
         "Cache the previous result on your side or back off per " +
@@ -316,7 +257,7 @@ const verifyPurchaseRouteDescription = describeRoute({
         ...commonResponseHeaders,
         "Retry-After": {
           description:
-            "Seconds to wait before retrying. The exact meaning depends on which guard rejected the request: for `RATE_LIMITED` it's when the burst bucket will have a token; for `DUPLICATE_PAYLOAD` it's when the per-(key, payload) bucket refills; for `REPEATED_FAILURE` it's when the 5-minute negative cooldown elapses.",
+            "Seconds to wait before retrying. The exact meaning depends on which guard rejected the request: for `RATE_LIMITED` it is when the key, IP, or process bucket will have a token; for `DUPLICATE_PAYLOAD` it is when the per-(key, payload) bucket refills; for `REPEATED_FAILURE` it is when the 5-minute negative cooldown elapses.",
           schema: { type: "integer" as const, minimum: 1 },
         },
       },
@@ -528,7 +469,7 @@ const verifyPurchaseHandler = async (
   }
 };
 
-const verifyRateLimit = rateLimitMiddleware();
+const verifyRateLimit = multiAxisRateLimitMiddleware();
 const verifyRequestLogger = requestLoggerMiddleware();
 const verifyReplayGuard = replayGuardMiddleware();
 
@@ -536,7 +477,8 @@ const verifyReplayGuard = replayGuardMiddleware();
 //   1. apiKeyMiddleware — 401/403 before anything expensive.
 //   2. verifyRequestLogger — logs every attempt that passed auth-header
 //      shape validation for audit/debug.
-//   3. verifyRateLimit — per-key burst cap; also populates `apiKeyHash`.
+//   3. verifyRateLimit — global, source-IP, and per-key burst caps; also
+//      populates `apiKeyHash`.
 //   4. validator — rejects malformed payloads (400) before the guard
 //      below hashes the body.
 //   5. verifyReplayGuard — per-(key, payload) burst cap + 5-minute

@@ -21,6 +21,8 @@ export {kitApi, KitApiError} from './kit-api';
 export type {
   EntitlementsResponse,
   KitApiOptions,
+  KitClientPayloadCache,
+  KitClientPayloadOptions,
   KitClientPayloadResponse,
   KitProduct,
   KitProductClientPayload,

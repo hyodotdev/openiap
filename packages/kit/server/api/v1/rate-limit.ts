@@ -1,4 +1,5 @@
 import { createMiddleware } from "hono/factory";
+import type { Context } from "hono";
 import * as crypto from "node:crypto";
 
 import { parsePositiveNumber } from "../../utils/env";
@@ -39,8 +40,20 @@ export interface RateLimitConfig {
    * when a malicious/ignorant client churns random keys. When exceeded,
    * the least-recently-used entry is evicted. */
   maxStoreSize: number;
+  /** Idle entries older than this are removed opportunistically. */
+  ttlMs: number;
+  /** Tokens charged by this request. Zero skips this limiter. */
+  cost: number | ((c: Context) => number);
   now?: () => number;
   store?: Map<string, Bucket>;
+}
+
+export interface MultiAxisRateLimitConfig {
+  key?: Partial<RateLimitConfig>;
+  ip?: Partial<RateLimitConfig>;
+  global?: Partial<RateLimitConfig>;
+  now?: () => number;
+  getIp?: (c: Context) => string | undefined;
 }
 
 export interface ConsumeResult {
@@ -70,7 +83,25 @@ export { parsePositiveNumber };
  * request deletes-and-reinserts its bucket so the key moves to the
  * tail, leaving the oldest untouched at the head.
  */
-function evictIfNeeded(store: Map<string, Bucket>, maxSize: number): void {
+function evictIfNeeded(
+  store: Map<string, Bucket>,
+  maxSize: number,
+  nowMs: number,
+  ttlMs: number,
+): void {
+  // Map order is LRU order, so stale entries are contiguous at the head.
+  // Removing only that prefix makes cleanup amortized O(1) instead of
+  // scanning every key on every mobile request.
+  while (store.size > 0) {
+    const oldestKey = store.keys().next().value;
+    if (oldestKey === undefined) break;
+    const oldest = store.get(oldestKey);
+    if (!oldest || nowMs - oldest.lastRefillMs > ttlMs) {
+      store.delete(oldestKey);
+      continue;
+    }
+    break;
+  }
   while (store.size > maxSize) {
     const oldest = store.keys().next().value;
     if (oldest === undefined) return;
@@ -85,13 +116,27 @@ export function tryConsume(
   refillPerSecond: number,
   nowMs: number,
   maxStoreSize: number = DEFAULT_MAX_STORE_SIZE,
+  ttlMs: number = DEFAULT_STORE_TTL_MS,
+  cost: number = 1,
 ): ConsumeResult {
+  evictIfNeeded(store, maxStoreSize, nowMs, ttlMs);
+  if (cost <= 0) {
+    return { allowed: true, remaining: capacity, retryAfterSec: 0 };
+  }
   const bucket = store.get(keyHash);
 
   if (!bucket) {
-    store.set(keyHash, { tokens: capacity - 1, lastRefillMs: nowMs });
-    evictIfNeeded(store, maxStoreSize);
-    return { allowed: true, remaining: capacity - 1, retryAfterSec: 0 };
+    const allowed = cost <= capacity;
+    const remaining = allowed ? capacity - cost : capacity;
+    store.set(keyHash, { tokens: remaining, lastRefillMs: nowMs });
+    evictIfNeeded(store, maxStoreSize, nowMs, ttlMs);
+    return {
+      allowed,
+      remaining: Math.floor(remaining),
+      retryAfterSec: allowed
+        ? 0
+        : Math.max(1, Math.ceil((cost - capacity) / refillPerSecond)),
+    };
   }
 
   // LRU bump: delete + re-set so this key moves to the tail of the
@@ -105,8 +150,8 @@ export function tryConsume(
     bucket.tokens + elapsedSec * refillPerSecond,
   );
 
-  if (refilled >= 1) {
-    bucket.tokens = refilled - 1;
+  if (refilled >= cost) {
+    bucket.tokens = refilled - cost;
     bucket.lastRefillMs = nowMs;
     return {
       allowed: true,
@@ -117,7 +162,7 @@ export function tryConsume(
 
   bucket.tokens = refilled;
   bucket.lastRefillMs = nowMs;
-  const missing = 1 - refilled;
+  const missing = cost - refilled;
   const retryAfterSec = Math.max(1, Math.ceil(missing / refillPerSecond));
   return { allowed: false, remaining: 0, retryAfterSec };
 }
@@ -152,8 +197,38 @@ const DEFAULT_MAX_STORE_SIZE = parsePositiveNumber(
   10_000,
   1,
 );
+const DEFAULT_STORE_TTL_MS =
+  parsePositiveNumber(process.env.RATE_LIMIT_STORE_TTL_SEC, 15 * 60, 1) * 1000;
 
 const sharedStore = new Map<string, Bucket>();
+const sharedIpStore = new Map<string, Bucket>();
+const sharedGlobalStore = new Map<string, Bucket>();
+
+const DEFAULT_IP_CAPACITY = parsePositiveNumber(
+  process.env.RATE_LIMIT_IP_CAPACITY,
+  600,
+  1,
+);
+const DEFAULT_IP_REFILL_PER_SEC = parsePositiveNumber(
+  process.env.RATE_LIMIT_IP_REFILL_PER_SEC,
+  5,
+  0.001,
+);
+const DEFAULT_GLOBAL_CAPACITY = parsePositiveNumber(
+  process.env.RATE_LIMIT_GLOBAL_CAPACITY,
+  5_000,
+  1,
+);
+const DEFAULT_GLOBAL_REFILL_PER_SEC = parsePositiveNumber(
+  process.env.RATE_LIMIT_GLOBAL_REFILL_PER_SEC,
+  100,
+  0.001,
+);
+const DEFAULT_IP_MAX_STORE_SIZE = parsePositiveNumber(
+  process.env.RATE_LIMIT_IP_MAX_STORE,
+  10_000,
+  1,
+);
 
 // Variables exposed to downstream middleware. `apiKeyHash` is set
 // here so the request-logger doesn't re-hash the key on every request
@@ -169,6 +244,7 @@ export function rateLimitMiddleware(
   const capacity = config.capacity ?? DEFAULT_CAPACITY;
   const refillPerSecond = config.refillPerSecond ?? DEFAULT_REFILL_PER_SEC;
   const maxStoreSize = config.maxStoreSize ?? DEFAULT_MAX_STORE_SIZE;
+  const ttlMs = config.ttlMs ?? DEFAULT_STORE_TTL_MS;
   const store = config.store ?? sharedStore;
   const clock = config.now ?? (() => Date.now());
 
@@ -205,6 +281,8 @@ export function rateLimitMiddleware(
       refillPerSecond,
       clock(),
       maxStoreSize,
+      ttlMs,
+      requestCost(config.cost, c),
     );
 
     c.header("X-RateLimit-Limit", String(capacity));
@@ -227,4 +305,209 @@ export function rateLimitMiddleware(
 
     await next();
   });
+}
+
+function requestCost(
+  cost: RateLimitConfig["cost"] | undefined,
+  c: Context,
+): number {
+  const resolved = typeof cost === "function" ? cost(c) : (cost ?? 1);
+  return Number.isFinite(resolved) && resolved > 0 ? resolved : 0;
+}
+
+type AxisRuntime = {
+  scope: "global" | "ip" | "key";
+  identifier: string;
+  capacity: number;
+  refillPerSecond: number;
+  maxStoreSize: number;
+  ttlMs: number;
+  cost: number;
+  store: Map<string, Bucket>;
+};
+
+function resolveAxis(
+  scope: AxisRuntime["scope"],
+  identifier: string,
+  config: Partial<RateLimitConfig> | undefined,
+  defaults: {
+    capacity: number;
+    refillPerSecond: number;
+    maxStoreSize: number;
+    store: Map<string, Bucket>;
+  },
+  c: Context,
+): AxisRuntime {
+  return {
+    scope,
+    identifier,
+    capacity: config?.capacity ?? defaults.capacity,
+    refillPerSecond: config?.refillPerSecond ?? defaults.refillPerSecond,
+    maxStoreSize: config?.maxStoreSize ?? defaults.maxStoreSize,
+    ttlMs: config?.ttlMs ?? DEFAULT_STORE_TTL_MS,
+    cost: requestCost(config?.cost, c),
+    store: config?.store ?? defaults.store,
+  };
+}
+
+function rateLimitResponse(
+  c: Context,
+  scope: AxisRuntime["scope"],
+  result: ConsumeResult,
+) {
+  c.header("X-RateLimit-Scope", scope);
+  c.header("Retry-After", String(result.retryAfterSec));
+  return c.json(
+    {
+      errors: [
+        {
+          code: "RATE_LIMITED",
+          message: `Too many requests. Retry after ${result.retryAfterSec}s.`,
+        },
+      ],
+    },
+    429,
+  );
+}
+
+/**
+ * Cost guard shared by receipt verification and every publishable-key API.
+ *
+ * Three in-memory axes are intentionally used instead of a Convex counter:
+ * key protects a leaked credential, IP bounds random-key churn, and global
+ * bounds a distributed spike reaching one Fly process. Every store has TTL
+ * cleanup plus an LRU cap, so attacker-controlled identifiers cannot grow
+ * memory without bound. With multiple Fly machines the limits multiply by
+ * the machine count; deployment usage limits remain the cross-machine brake.
+ */
+export function multiAxisRateLimitMiddleware(
+  config: MultiAxisRateLimitConfig = {},
+): ReturnType<typeof createMiddleware<{ Variables: RateLimitVars }>> {
+  const clock = config.now ?? (() => Date.now());
+  const getIp = config.getIp ?? getRequestIp;
+
+  return createMiddleware<{ Variables: RateLimitVars }>(async (c, next) => {
+    const apiKey = c.var.apiKey;
+    if (!apiKey) {
+      return c.json(
+        {
+          errors: [
+            {
+              code: "INTERNAL_MISCONFIGURATION",
+              message: "Rate limiter ran before API key was extracted.",
+            },
+          ],
+        },
+        500,
+      );
+    }
+
+    const apiKeyHash = hashApiKey(apiKey);
+    const ip = getIp(c) ?? "unknown";
+    const nowMs = clock();
+    c.set("apiKeyHash", apiKeyHash);
+
+    const axes = [
+      resolveAxis(
+        "key",
+        apiKeyHash,
+        config.key,
+        {
+          capacity: DEFAULT_CAPACITY,
+          refillPerSecond: DEFAULT_REFILL_PER_SEC,
+          maxStoreSize: DEFAULT_MAX_STORE_SIZE,
+          store: sharedStore,
+        },
+        c,
+      ),
+      resolveAxis(
+        "ip",
+        hashApiKey(`ip:${ip}`),
+        config.ip,
+        {
+          capacity: DEFAULT_IP_CAPACITY,
+          refillPerSecond: DEFAULT_IP_REFILL_PER_SEC,
+          maxStoreSize: DEFAULT_IP_MAX_STORE_SIZE,
+          store: sharedIpStore,
+        },
+        c,
+      ),
+      resolveAxis(
+        "global",
+        "process",
+        config.global,
+        {
+          capacity: DEFAULT_GLOBAL_CAPACITY,
+          refillPerSecond: DEFAULT_GLOBAL_REFILL_PER_SEC,
+          maxStoreSize: 1,
+          store: sharedGlobalStore,
+        },
+        c,
+      ),
+    ] satisfies AxisRuntime[];
+
+    if (axes.every((axis) => axis.cost <= 0)) {
+      await next();
+      return;
+    }
+
+    let keyResult: ConsumeResult | null = null;
+    for (const axis of axes) {
+      const result = tryConsume(
+        axis.store,
+        axis.identifier,
+        axis.capacity,
+        axis.refillPerSecond,
+        nowMs,
+        axis.maxStoreSize,
+        axis.ttlMs,
+        axis.cost,
+      );
+      if (axis.scope === "key") keyResult = result;
+      if (!result.allowed) {
+        c.header("X-RateLimit-Limit", String(axis.capacity));
+        c.header("X-RateLimit-Remaining", String(result.remaining));
+        return rateLimitResponse(c, axis.scope, result);
+      }
+    }
+
+    c.header(
+      "X-RateLimit-Limit",
+      String(config.key?.capacity ?? DEFAULT_CAPACITY),
+    );
+    c.header("X-RateLimit-Remaining", String(keyResult?.remaining ?? 0));
+    await next();
+  });
+}
+
+const DIRECT_IP_HEADERS = [
+  "fly-client-ip",
+  "cf-connecting-ip",
+  "true-client-ip",
+  "fastly-client-ip",
+  "x-client-ip",
+  "x-real-ip",
+  "x-cluster-client-ip",
+];
+
+function normalizeIp(value?: string | null): string | undefined {
+  const first = value?.split(",")[0]?.trim();
+  if (!first || first === "unknown") return undefined;
+  return first.replace(/^"(.*)"$/, "$1").replace(/^\[(.*)\]$/, "$1");
+}
+
+export function getRequestIp(c: Context): string | undefined {
+  for (const header of DIRECT_IP_HEADERS) {
+    const ip = normalizeIp(c.req.header(header));
+    if (ip) return ip;
+  }
+  const forwarded = c.req.header("forwarded")?.match(/for=([^;]+)/i)?.[1];
+  const forwardedIp = normalizeIp(forwarded);
+  if (forwardedIp) return forwardedIp;
+  const xForwardedFor = normalizeIp(c.req.header("x-forwarded-for"));
+  if (xForwardedFor) return xForwardedFor;
+  // Fly injects `fly-client-ip` on production ingress. Requests that bypass a
+  // trusted proxy (tests/local direct traffic) deliberately share the bounded
+  // "unknown" bucket instead of importing a runtime-specific socket adapter.
+  return undefined;
 }

@@ -17,6 +17,7 @@ import {
   JsonBodyTooLargeError,
   readJsonBodyWithLimit,
 } from "./request-body";
+import { multiAxisRateLimitMiddleware } from "./rate-limit";
 import { drainWebhookEventBatches } from "./webhookStreamDrain";
 
 // Shared reactive client for the SSE webhook stream. We keep a
@@ -97,12 +98,15 @@ export async function readWebhookJsonBody(request: Request): Promise<unknown> {
 //   project's API key is also in the path so kit can resolve which
 //   project a notification belongs to. Both checks must pass.
 
-const webhooks = new Hono<{ Variables: { apiKey: string } }>();
+const webhooks = new Hono<{
+  Variables: { apiKey: string; apiKeyHash?: string };
+}>();
+const publicApiRateLimit = multiAxisRateLimitMiddleware();
 
-webhooks.use("/:apiKey", pathApiKeyGuard);
-webhooks.use("/apple/:apiKey", pathApiKeyGuard);
-webhooks.use("/google/:apiKey", pathApiKeyGuard);
-webhooks.use("/stream/:apiKey", pathApiKeyGuard);
+webhooks.use("/:apiKey", pathApiKeyGuard, publicApiRateLimit);
+webhooks.use("/apple/:apiKey", pathApiKeyGuard, publicApiRateLimit);
+webhooks.use("/google/:apiKey", pathApiKeyGuard, publicApiRateLimit);
+webhooks.use("/stream/:apiKey", pathApiKeyGuard, publicApiRateLimit);
 
 // Unified lifecycle endpoint. The exact same URL works for both Apple
 // App Store Connect and Google Pub/Sub push subscriptions: kit
@@ -248,6 +252,7 @@ async function pathApiKeyGuard(c: Context, next: Next) {
   ) {
     return webhookPayloadTooLargeResponse(c);
   }
+  c.set("apiKey", apiKey);
   await next();
 }
 

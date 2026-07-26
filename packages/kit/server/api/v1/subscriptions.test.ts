@@ -113,6 +113,7 @@ describe("subscriptionsRoutes", () => {
     };
     const responses = [
       await app.request("/subscriptions/list?limit=10", { headers }),
+      await app.request("/subscriptions/list/openiap-kit_pk_mobile?limit=10"),
       await app.request("/subscriptions/metrics", { headers }),
       await app.request(
         "/subscriptions/revenue?fromDay=2026-06-01&toDay=2026-06-04",
@@ -169,6 +170,10 @@ describe("subscriptionsRoutes", () => {
     expect(responses.map((response) => response.status)).toEqual([
       200, 200, 200,
     ]);
+    for (const response of responses) {
+      expect(response.headers.get("x-ratelimit-limit")).toBe("600");
+      expect(response.headers.get("x-ratelimit-remaining")).not.toBeNull();
+    }
     expect(mocks.query).toHaveBeenNthCalledWith(1, "subscriptionStatus", {
       apiKey: "openiap-kit_pk_mobile",
       userId: "user-1",
@@ -717,14 +722,13 @@ describe("subscriptionsRoutes", () => {
     expect(mocks.query).toHaveBeenCalledOnce();
   });
 
-  it("maps publishable-key analytics failures to HTTP 403", async () => {
+  it("rejects publishable-key analytics before Convex access", async () => {
     const app = buildApp();
     const scopeError = {
       code: "INSUFFICIENT_SCOPE",
-      message: "This operation requires a secret admin key.",
+      message:
+        "This operation requires a secret admin key. Publishable mobile keys cannot access administrative operations.",
     };
-    mocks.query.mockRejectedValueOnce(new Error("scope"));
-    mocks.handleConvexError.mockReturnValueOnce(scopeError);
 
     const response = await app.request(
       "/subscriptions/metrics/openiap-kit_pk_public",
@@ -732,6 +736,7 @@ describe("subscriptionsRoutes", () => {
 
     expect(response.status).toBe(403);
     await expect(response.json()).resolves.toEqual({ errors: [scopeError] });
+    expect(mocks.query).not.toHaveBeenCalled();
   });
 
   it("does not return raw internal bind-user mutation errors", async () => {

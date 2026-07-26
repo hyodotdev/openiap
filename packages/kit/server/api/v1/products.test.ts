@@ -13,8 +13,10 @@ vi.mock("@/convex", () => ({
     products: {
       query: {
         listProducts: "listProducts",
+        listProductsPage: "listProductsPage",
         listProductsWithClientPayloads: "listProductsWithClientPayloads",
         getProductClientPayload: "getProductClientPayload",
+        getProductClientPayloadIfChanged: "getProductClientPayloadIfChanged",
         getProductClientPayloadEditorStateWithApiKey:
           "getProductClientPayloadEditorStateWithApiKey",
       },
@@ -89,6 +91,16 @@ describe("productsRoutes", () => {
           title: "100 coins",
         }),
       }),
+      app.request("/products/openiap-kit_pk_mobile", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          productId: "coins_100",
+          platform: "IOS",
+          type: "Consumable",
+          title: "100 coins",
+        }),
+      }),
       app.request("/products/state", {
         method: "POST",
         headers,
@@ -114,11 +126,12 @@ describe("productsRoutes", () => {
     ]);
 
     expect(responses.map((response) => response.status)).toEqual([
-      200, 200, 200, 202, 200, 200, 200,
+      200, 200, 403, 200, 202, 200, 200, 200,
     ]);
-    expect(mocks.query).toHaveBeenNthCalledWith(1, "listProducts", {
+    expect(mocks.query).toHaveBeenNthCalledWith(1, "listProductsPage", {
       apiKey: "openiap-kit_sk_admin",
       platform: "IOS",
+      limit: 25,
     });
     expect(mocks.query).toHaveBeenNthCalledWith(2, "getSyncJobById", {
       apiKey: "openiap-kit_sk_admin",
@@ -215,7 +228,7 @@ describe("productsRoutes", () => {
         products: [{ productId: "premium", clientPayload }],
         hasMore: false,
       })
-      .mockResolvedValueOnce(clientPayload);
+      .mockResolvedValueOnce({ status: "found", clientPayload });
 
     const listResponse = await app.request(
       "/products?platform=IOS&includeClientPayload=true",
@@ -239,11 +252,15 @@ describe("productsRoutes", () => {
         limit: 25,
       },
     );
-    expect(mocks.query).toHaveBeenNthCalledWith(2, "getProductClientPayload", {
-      apiKey: "openiap-kit_pk_mobile",
-      productId: "premium",
-      platform: "IOS",
-    });
+    expect(mocks.query).toHaveBeenNthCalledWith(
+      2,
+      "getProductClientPayloadIfChanged",
+      {
+        apiKey: "openiap-kit_pk_mobile",
+        productId: "premium",
+        platform: "IOS",
+      },
+    );
     expect(mocks.mutation).not.toHaveBeenCalled();
   });
 
@@ -796,15 +813,19 @@ describe("productsRoutes", () => {
       },
     );
 
-    mocks.query.mockResolvedValue([]);
+    mocks.query.mockResolvedValue({ products: [], hasMore: false });
     const explicitFalse = await app.request(
       "/products/key?platform=IOS&includeClientPayload=false",
     );
     expect(explicitFalse.status).toBe(200);
-    await expect(explicitFalse.json()).resolves.toEqual({ products: [] });
-    expect(mocks.query).toHaveBeenLastCalledWith("listProducts", {
+    await expect(explicitFalse.json()).resolves.toEqual({
+      products: [],
+      hasMore: false,
+    });
+    expect(mocks.query).toHaveBeenLastCalledWith("listProductsPage", {
       apiKey: "key",
       platform: "IOS",
+      limit: 25,
     });
 
     mocks.query.mockClear();
@@ -858,22 +879,18 @@ describe("productsRoutes", () => {
     expect(mocks.query).not.toHaveBeenCalled();
   });
 
-  it("keeps ignoring payload-page params on the legacy default path", async () => {
+  it("requires bounded pagination on the default catalog path", async () => {
     const app = buildApp();
-    mocks.query.mockResolvedValue([]);
-
-    for (const cursor of ["legacy-value", "%20", "x".repeat(4097)]) {
-      const response = await app.request(
-        `/products/key?platform=IOS&limit=not-a-number&cursor=${cursor}`,
-      );
-
-      expect(response.status).toBe(200);
-      await expect(response.json()).resolves.toEqual({ products: [] });
-      expect(mocks.query).toHaveBeenLastCalledWith("listProducts", {
-        apiKey: "key",
-        platform: "IOS",
-      });
+    for (const url of [
+      "/products/key?platform=IOS&limit=not-a-number",
+      "/products/key?platform=IOS&limit=51",
+      "/products/key?platform=IOS&cursor=%20",
+      `/products/key?platform=IOS&cursor=${"x".repeat(4097)}`,
+    ]) {
+      const response = await app.request(url);
+      expect(response.status).toBe(400);
     }
+    expect(mocks.query).not.toHaveBeenCalled();
   });
 
   it("uses the 25-item payload page default", async () => {
@@ -919,14 +936,15 @@ describe("productsRoutes", () => {
 
   it("keeps the default product list read opted out", async () => {
     const app = buildApp();
-    mocks.query.mockResolvedValueOnce([]);
+    mocks.query.mockResolvedValueOnce({ products: [], hasMore: false });
 
     const response = await app.request("/products/key");
 
     expect(response.status).toBe(200);
-    expect(mocks.query).toHaveBeenCalledWith("listProducts", {
+    expect(mocks.query).toHaveBeenCalledWith("listProductsPage", {
       apiKey: "key",
       platform: undefined,
+      limit: 25,
     });
   });
 
@@ -938,7 +956,7 @@ describe("productsRoutes", () => {
       version: 3,
       updatedAt: 123,
     };
-    mocks.query.mockResolvedValueOnce(clientPayload);
+    mocks.query.mockResolvedValueOnce({ status: "found", clientPayload });
 
     const response = await app.request(
       "/products/key/premium.monthly/client-payload?platform=Android",
@@ -946,12 +964,75 @@ describe("productsRoutes", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ clientPayload });
-    expect(mocks.query).toHaveBeenCalledWith("getProductClientPayload", {
-      apiKey: "key",
-      productId: "premium.monthly",
-      platform: "Android",
-    });
+    expect(mocks.query).toHaveBeenCalledWith(
+      "getProductClientPayloadIfChanged",
+      {
+        apiKey: "key",
+        productId: "premium.monthly",
+        platform: "Android",
+      },
+    );
+    expect(response.headers.get("cache-control")).toBe("private, no-cache");
+    expect(response.headers.get("vary")).toBe("Authorization");
+    expect(response.headers.get("x-ratelimit-limit")).toBe("600");
+    expect(response.headers.get("x-ratelimit-remaining")).not.toBeNull();
+    expect(response.headers.get("etag")).toMatch(
+      /^"iapkit-client-payload-[A-Za-z0-9_-]{16}-v3"$/,
+    );
     expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("returns a scoped 304 without accepting another key's ETag", async () => {
+    const app = buildApp();
+    const clientPayload = {
+      format: "text",
+      body: "rules",
+      version: 4,
+      updatedAt: 123,
+    };
+    mocks.query
+      .mockResolvedValueOnce({ status: "found", clientPayload })
+      .mockResolvedValueOnce({ status: "not_modified", version: 4 })
+      .mockResolvedValueOnce({ status: "found", clientPayload });
+
+    const first = await app.request(
+      "/products/openiap-kit_pk_a/premium/client-payload?platform=IOS",
+    );
+    const etag = first.headers.get("etag");
+    expect(etag).toBeTruthy();
+
+    const unchanged = await app.request(
+      "/products/openiap-kit_pk_a/premium/client-payload?platform=IOS",
+      { headers: { "if-none-match": etag! } },
+    );
+    expect(unchanged.status).toBe(304);
+    expect(await unchanged.text()).toBe("");
+    expect(unchanged.headers.get("etag")).toBe(etag);
+    expect(mocks.query).toHaveBeenNthCalledWith(
+      2,
+      "getProductClientPayloadIfChanged",
+      {
+        apiKey: "openiap-kit_pk_a",
+        productId: "premium",
+        platform: "IOS",
+        knownVersion: 4,
+      },
+    );
+
+    const otherProject = await app.request(
+      "/products/openiap-kit_pk_b/premium/client-payload?platform=IOS",
+      { headers: { "if-none-match": etag! } },
+    );
+    expect(otherProject.status).toBe(200);
+    expect(mocks.query).toHaveBeenNthCalledWith(
+      3,
+      "getProductClientPayloadIfChanged",
+      {
+        apiKey: "openiap-kit_pk_b",
+        productId: "premium",
+        platform: "IOS",
+      },
+    );
   });
 
   it("serves the secret-key editor revision after payload deletion", async () => {
@@ -967,6 +1048,7 @@ describe("productsRoutes", () => {
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toEqual({ expectedVersion: 4 });
+    expect(response.headers.get("cache-control")).toBe("private, no-store");
     expect(mocks.query).toHaveBeenCalledWith(
       "getProductClientPayloadEditorStateWithApiKey",
       {
@@ -1165,7 +1247,7 @@ describe("productsRoutes", () => {
 
   it("returns 404 for a missing client payload", async () => {
     const app = buildApp();
-    mocks.query.mockResolvedValueOnce(null);
+    mocks.query.mockResolvedValueOnce({ status: "not_found" });
 
     const response = await app.request(
       "/products/key/premium.monthly/client-payload?platform=IOS",

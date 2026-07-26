@@ -4,6 +4,7 @@ import { Hono } from "hono";
 import { apiKeyMiddleware } from "./middleware";
 import {
   hashApiKey,
+  multiAxisRateLimitMiddleware,
   parsePositiveNumber,
   rateLimitMiddleware,
   tryConsume,
@@ -76,6 +77,19 @@ describe("tryConsume (token bucket)", () => {
     expect(rA.allowed).toBe(false);
     expect(rB.allowed).toBe(true);
   });
+
+  test("charges a bounded weighted cost", () => {
+    const store = new Map<string, Bucket>();
+    expect(tryConsume(store, "k", 10, 1, 1_000, 10, 60_000, 7)).toMatchObject({
+      allowed: true,
+      remaining: 3,
+    });
+    expect(tryConsume(store, "k", 10, 1, 1_000, 10, 60_000, 4)).toMatchObject({
+      allowed: false,
+      remaining: 0,
+      retryAfterSec: 1,
+    });
+  });
 });
 
 describe("tryConsume store bounds", () => {
@@ -103,6 +117,14 @@ describe("tryConsume store bounds", () => {
     expect(store.has("a")).toBe(true);
     expect(store.has("b")).toBe(false);
     expect(store.has("c")).toBe(true);
+  });
+
+  test("expires idle buckets opportunistically", () => {
+    const store = new Map<string, Bucket>();
+    tryConsume(store, "stale", 5, 1, 1_000, 10, 1_000);
+    tryConsume(store, "fresh", 5, 1, 2_001, 10, 1_000);
+    expect(store.has("stale")).toBe(false);
+    expect(store.has("fresh")).toBe(true);
   });
 });
 
@@ -284,5 +306,97 @@ describe("rateLimitMiddleware", () => {
       headers: { Authorization: "Bearer B" },
     });
     expect(keyB1.status).toBe(200);
+  });
+});
+
+describe("multiAxisRateLimitMiddleware", () => {
+  function buildMultiAxisApp(options?: {
+    keyCapacity?: number;
+    ipCapacity?: number;
+    globalCapacity?: number;
+    keyMaxStoreSize?: number;
+  }) {
+    const keyStore = new Map<string, Bucket>();
+    const ipStore = new Map<string, Bucket>();
+    const globalStore = new Map<string, Bucket>();
+    const app = new Hono();
+    app.get(
+      "/public",
+      apiKeyMiddleware,
+      multiAxisRateLimitMiddleware({
+        now: () => 1_000,
+        getIp: (c) => c.req.header("x-test-ip"),
+        key: {
+          capacity: options?.keyCapacity ?? 10,
+          refillPerSecond: 1,
+          maxStoreSize: options?.keyMaxStoreSize ?? 10,
+          store: keyStore,
+        },
+        ip: {
+          capacity: options?.ipCapacity ?? 10,
+          refillPerSecond: 1,
+          maxStoreSize: 10,
+          store: ipStore,
+        },
+        global: {
+          capacity: options?.globalCapacity ?? 10,
+          refillPerSecond: 1,
+          maxStoreSize: 1,
+          store: globalStore,
+        },
+      }),
+      (c) => c.json({ ok: true }),
+    );
+    return { app, keyStore, ipStore, globalStore };
+  }
+
+  test("enforces key, IP, and process limits with consistent headers", async () => {
+    const keyLimited = buildMultiAxisApp({ keyCapacity: 1 });
+    const request = (app: Hono, key: string, ip: string) =>
+      app.request("/public", {
+        headers: { authorization: `Bearer ${key}`, "x-test-ip": ip },
+      });
+    expect((await request(keyLimited.app, "key-a", "ip-a")).status).toBe(200);
+    const keyDenied = await request(keyLimited.app, "key-a", "ip-a");
+    expect(keyDenied.status).toBe(429);
+    expect(keyDenied.headers.get("x-ratelimit-scope")).toBe("key");
+    expect(keyDenied.headers.get("retry-after")).toBe("1");
+
+    const ipLimited = buildMultiAxisApp({ ipCapacity: 2 });
+    expect((await request(ipLimited.app, "key-a", "ip-a")).status).toBe(200);
+    expect((await request(ipLimited.app, "key-b", "ip-a")).status).toBe(200);
+    const ipDenied = await request(ipLimited.app, "key-c", "ip-a");
+    expect(ipDenied.status).toBe(429);
+    expect(ipDenied.headers.get("x-ratelimit-scope")).toBe("ip");
+
+    const globalLimited = buildMultiAxisApp({ globalCapacity: 2 });
+    expect((await request(globalLimited.app, "key-a", "ip-a")).status).toBe(
+      200,
+    );
+    expect((await request(globalLimited.app, "key-b", "ip-b")).status).toBe(
+      200,
+    );
+    const globalDenied = await request(globalLimited.app, "key-c", "ip-c");
+    expect(globalDenied.status).toBe(429);
+    expect(globalDenied.headers.get("x-ratelimit-scope")).toBe("global");
+  });
+
+  test("bounds random-key churn with LRU eviction", async () => {
+    const { app, keyStore } = buildMultiAxisApp({
+      keyCapacity: 1,
+      ipCapacity: 100,
+      globalCapacity: 100,
+      keyMaxStoreSize: 3,
+    });
+    for (let index = 0; index < 20; index += 1) {
+      const response = await app.request("/public", {
+        headers: {
+          authorization: `Bearer random-${index}`,
+          "x-test-ip": "same-ip",
+        },
+      });
+      expect(response.status).toBe(200);
+    }
+    expect(keyStore.size).toBe(3);
   });
 });

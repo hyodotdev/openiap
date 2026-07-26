@@ -137,6 +137,24 @@ describe("webhooksRoutes", () => {
       ],
     });
   });
+
+  it("rate-limits publishable webhook ingress before Convex", async () => {
+    const app = new Hono();
+    app.route("/webhooks", helpers.webhooksRoutes);
+
+    const response = await app.request("/webhooks/openiap-kit_pk_mobile", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "fly-client-ip": "203.0.113.10",
+      },
+      body: "{}",
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.headers.get("x-ratelimit-limit")).toBe("600");
+    expect(response.headers.get("x-ratelimit-remaining")).toBe("599");
+  });
 });
 
 describe("legacyUnsupportedEventReason", () => {

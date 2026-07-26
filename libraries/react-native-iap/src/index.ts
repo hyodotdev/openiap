@@ -173,6 +173,8 @@ export type {
 export {kitApi, KitApiError} from './kit-api';
 export type {
   KitApiOptions,
+  KitClientPayloadCache,
+  KitClientPayloadOptions,
   KitClientPayloadResponse,
   KitProduct,
   KitProductClientPayload,

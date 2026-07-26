@@ -49,6 +49,14 @@ const RELEASES: ReleaseEntry[] = [
         text: "Product client payloads remain public app-readable configuration: purchase verification or product reads can return them when explicitly requested, with a 16 KiB decoded UTF-8 limit and a bounded JSON envelope that still accepts fully escaped text.",
       },
       {
+        kind: "ops",
+        text: "Every public catalog is now cursor-paginated at 25 items by default and 50 maximum. Public API and store-webhook ingress use API-key, source-IP, process-wide, and weighted payload-page limits in bounded TTL/LRU memory before Convex, without adding a per-request usage mutation.",
+      },
+      {
+        kind: "feature",
+        text: "Direct payload reads now support project/key/product-scoped ETags and body-free 304 responses. React Native IAP and Expo IAP can persist the payload body, version, and ETag through an AsyncStorage-compatible cache and revalidate only on explicit refresh.",
+      },
+      {
         kind: "fix",
         text: "Webhook delivery uses source-aware event identity across Apple, Google RTDN, and Horizon, preventing matching upstream identifiers from colliding across projects or store sources.",
       },

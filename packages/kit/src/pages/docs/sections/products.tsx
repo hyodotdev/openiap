@@ -262,7 +262,7 @@ curl "https://kit.openiap.dev/v1/products/sync/jobs/<jobId>" \\
       </CodeBlock>
 
       <h2 className="mt-10 text-2xl font-semibold">
-        Fetch payloads when the app opens
+        Cache known payloads; paginate explicit catalog refreshes
       </h2>
       <p>
         Include payloads in a platform catalog read by opting in explicitly:
@@ -304,45 +304,42 @@ curl "https://kit.openiap.dev/v1/products/sync/jobs/<jobId>" \\
       <p>
         React Native IAP and Expo IAP export the same canonical{" "}
         <code>kitApi</code> helper. Import it from the package your app uses and
-        call it during app startup or whenever you refresh public rules:
+        give it an AsyncStorage-compatible cache. Use the direct method for a
+        known product, and revalidate once on cold startup or an explicit
+        refresh instead of downloading the catalog on every foreground event:
       </p>
       <CodeBlock
-        title="React Native / Expo app-open fetch"
+        title="React Native / Expo persistent cache"
         language="typescript"
       >
-        {`import { kitApi } from "react-native-iap"; // Or "expo-iap"
+        {`import AsyncStorage from "@react-native-async-storage/async-storage";
+import { kitApi } from "react-native-iap"; // Or "expo-iap"
 
-const api = kitApi({ apiKey: IAPKIT_PUBLISHABLE_KEY });
-const firstPage = await api.products({
-  platform: "IOS",
-  includeClientPayload: true,
-  limit: 25,
+const api = kitApi({
+  apiKey: IAPKIT_PUBLISHABLE_KEY,
+  clientPayloadCache: AsyncStorage,
 });
-
-if (firstPage.hasMore && firstPage.nextCursor) {
-  const secondPage = await api.products({
-    platform: "IOS",
-    includeClientPayload: true,
-    limit: 25,
-    cursor: firstPage.nextCursor,
-  });
-  // Consume secondPage.products and continue while hasMore is true.
-}
 
 const { clientPayload } = await api.clientPayload(
   "premium_monthly",
   "IOS",
+);
+
+// Sends If-None-Match when a persisted ETag exists. A 304 reuses the body.
+const refreshed = await api.clientPayload(
+  "premium_monthly",
+  "IOS",
+  { refresh: true },
 );`}
       </CodeBlock>
       <p>
-        Payload-inclusive catalog reads require <code>platform</code> and use
-        opaque cursor pagination. <code>limit</code> defaults to 25 and accepts
-        1-50; pass <code>nextCursor</code> back as <code>cursor</code> while
-        <code>hasMore</code> is true. The service performs payload lookups only
-        for products in that page. For backwards compatibility,{" "}
-        <code>limit</code>
-        and <code>cursor</code> are ignored on the default non-payload catalog
-        path. If catalog changes invalidate a cursor, IAPKit returns
+        Every app-facing catalog read uses opaque cursor pagination.{" "}
+        <code>limit</code> defaults to 25 and accepts 1-50; pass{" "}
+        <code>nextCursor</code> back as <code>cursor</code> while{" "}
+        <code>hasMore</code> is true. Payload-inclusive reads additionally
+        require <code>platform</code> and perform exact payload lookups only for
+        products in that bounded page. The default path performs zero payload
+        lookups. If catalog changes invalidate a cursor, IAPKit returns{" "}
         <code>400 INVALID_CURSOR</code>; restart from the first page without a
         cursor.
       </p>
@@ -356,9 +353,20 @@ const { clientPayload } = await api.clientPayload(
         The direct endpoint returns <code>{`{ clientPayload: { ... } }`}</code>{" "}
         or <code>404</code> when the matching product is missing, Removed, or
         has no payload. Catalog reads omit <code>clientPayload</code> unless{" "}
-        <code>includeClientPayload=true</code> is present, preserving the
-        existing response for current clients.
+        <code>includeClientPayload=true</code> is present. Direct responses use
+        a key/platform/product/version-scoped <code>ETag</code>; a matching{" "}
+        <code>If-None-Match</code> returns <code>304</code> without reading the
+        payload body. Catalog and secret-admin responses are not cacheable.
       </p>
+      <Callout kind="note" title="Cost protection is applied before Convex">
+        <p>
+          Public requests use bounded API-key, source-IP, and process-wide token
+          buckets with TTL/LRU eviction. Payload catalog pages are weighted by
+          requested item count. Rate-limit checks do not write per-request
+          counters to Convex; rejected requests return 429, Retry-After, and the
+          limiting scope.
+        </p>
+      </Callout>
       <CodeBlock title="Direct payload response" language="json">
         {`{
   "clientPayload": {

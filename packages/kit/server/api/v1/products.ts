@@ -1,3 +1,5 @@
+import * as crypto from "node:crypto";
+
 import { Hono, type Context, type Next } from "hono";
 import { ConvexError } from "convex/values";
 
@@ -7,6 +9,7 @@ import { client, handleConvexError } from "../../convex";
 import {
   apiKeyMiddleware,
   apiKeyValidationError,
+  isPublishableApiKey,
   isSecretApiKey,
   secretAdminApiKeyMiddleware,
 } from "./middleware";
@@ -15,6 +18,7 @@ import {
   JsonBodyTooLargeError,
   readJsonBodyWithLimit,
 } from "./request-body";
+import { multiAxisRateLimitMiddleware, type Bucket } from "./rate-limit";
 
 // Catalog read/write surface mirroring onesub's @onesub/providers
 // admin path. Store sync is queued through background jobs so the
@@ -23,7 +27,9 @@ import {
 // Canonical administrative routes use a Bearer secret; key-in-path routes
 // remain as compatibility aliases for existing clients.
 
-const products = new Hono<{ Variables: { apiKey: string } }>();
+const products = new Hono<{
+  Variables: { apiKey: string; apiKeyHash?: string };
+}>();
 const MAX_PRODUCT_ID_LENGTH = 256;
 const MAX_SYNC_JOB_ID_LENGTH = 256;
 const MAX_PRODUCT_BODY_BYTES = 64 * 1024;
@@ -34,6 +40,30 @@ const MAX_CLIENT_PAYLOAD_BODY_BYTES = 128 * 1024;
 const DEFAULT_CLIENT_PAYLOAD_PAGE_SIZE = 25;
 const MAX_CLIENT_PAYLOAD_PAGE_SIZE = 50;
 const MAX_CLIENT_PAYLOAD_CURSOR_LENGTH = 4096;
+const publicApiRateLimit = multiAxisRateLimitMiddleware();
+const payloadCatalogRateLimit = multiAxisRateLimitMiddleware({
+  key: {
+    capacity: 2_500,
+    refillPerSecond: 25,
+    maxStoreSize: 10_000,
+    store: new Map<string, Bucket>(),
+    cost: payloadCatalogRequestCost,
+  },
+  ip: {
+    capacity: 1_000,
+    refillPerSecond: 10,
+    maxStoreSize: 10_000,
+    store: new Map<string, Bucket>(),
+    cost: payloadCatalogRequestCost,
+  },
+  global: {
+    capacity: 10_000,
+    refillPerSecond: 100,
+    maxStoreSize: 1,
+    store: new Map<string, Bucket>(),
+    cost: payloadCatalogRequestCost,
+  },
+});
 
 type ProductPlatform = "IOS" | "Android";
 type ProductType = "Subscription" | "NonConsumable" | "Consumable";
@@ -65,6 +95,11 @@ const SYNC_DIRECTIONS = new Set<string>([
 ]);
 
 async function handleListProducts(c: Context, apiKey: string) {
+  // Catalog pages can include project-scoped payload bodies and have no
+  // aggregate ETag. Keep them out of shared/browser caches; known products
+  // should use the conditional direct endpoint instead.
+  c.header("Cache-Control", "private, no-store");
+  c.header("Vary", "Authorization");
   const platformParam = c.req.query("platform");
   const includeClientPayloadParam = c.req.query("includeClientPayload");
   const limitParam = c.req.query("limit");
@@ -86,10 +121,7 @@ async function handleListProducts(c: Context, apiKey: string) {
       "platform is required when includeClientPayload=true",
     );
   }
-  const limit =
-    includeClientPayload === true
-      ? parseClientPayloadPageLimit(limitParam)
-      : undefined;
+  const limit = parseClientPayloadPageLimit(limitParam);
   if (limit === null) {
     return invalidInput(
       c,
@@ -97,7 +129,6 @@ async function handleListProducts(c: Context, apiKey: string) {
     );
   }
   if (
-    includeClientPayload === true &&
     cursor !== undefined &&
     (!cursor.trim() || cursor.length > MAX_CLIENT_PAYLOAD_CURSOR_LENGTH)
   ) {
@@ -113,23 +144,21 @@ async function handleListProducts(c: Context, apiKey: string) {
         {
           apiKey,
           platform: platform!,
-          limit: limit!,
+          limit,
           ...(cursor !== undefined ? { cursor } : {}),
         },
       );
       return c.json(page);
     }
-    const list = await client.query(api.products.query.listProducts, {
+    const page = await client.query(api.products.query.listProductsPage, {
       apiKey,
       platform,
+      limit,
+      ...(cursor !== undefined ? { cursor } : {}),
     });
-    return c.json({ products: list });
+    return c.json(page);
   } catch (error) {
-    if (
-      includeClientPayload === true &&
-      cursor !== undefined &&
-      isInvalidPaginationCursor(error)
-    ) {
+    if (cursor !== undefined && isInvalidPaginationCursor(error)) {
       return c.json(
         {
           errors: [
@@ -152,8 +181,14 @@ async function handleListProducts(c: Context, apiKey: string) {
   }
 }
 
-products.get("/", apiKeyMiddleware, (c) => handleListProducts(c, c.var.apiKey));
-products.get("/:apiKey", pathApiKeyGuard, (c) =>
+products.get(
+  "/",
+  apiKeyMiddleware,
+  publicApiRateLimit,
+  payloadCatalogRateLimit,
+  (c) => handleListProducts(c, c.var.apiKey),
+);
+products.get("/:apiKey", pathApiKeyGuard, payloadCatalogRateLimit, (c) =>
   handleListProducts(c, guardedPathApiKey(c)),
 );
 
@@ -498,9 +533,10 @@ products.get(
   "/:apiKey/:productId/client-payload",
   pathApiKeyGuard,
   async (c) => {
-    const apiKey = c.req.param("apiKey");
+    const apiKey = guardedPathApiKey(c);
     const productId = c.req.param("productId");
     const platformParam = c.req.query("platform");
+    setPublicPayloadCacheHeaders(c);
     if (!isProductPlatform(platformParam)) {
       return invalidInput(c, "platform query param required (IOS | Android)");
     }
@@ -512,11 +548,25 @@ products.get(
     }
 
     try {
-      const clientPayload = await client.query(
-        api.products.query.getProductClientPayload,
-        { apiKey, productId, platform: platformParam },
+      const scope = clientPayloadEtagScope(apiKey, platformParam, productId);
+      const knownVersion = clientPayloadKnownVersion(
+        c.req.header("if-none-match"),
+        scope,
       );
-      if (!clientPayload) {
+      const result = await client.query(
+        api.products.query.getProductClientPayloadIfChanged,
+        {
+          apiKey,
+          productId,
+          platform: platformParam,
+          ...(knownVersion !== undefined ? { knownVersion } : {}),
+        },
+      );
+      if (result.status === "not_modified") {
+        c.header("ETag", clientPayloadEtag(scope, result.version));
+        return c.body(null, 304);
+      }
+      if (result.status === "not_found") {
         return c.json(
           {
             errors: [
@@ -529,7 +579,8 @@ products.get(
           404,
         );
       }
-      return c.json({ clientPayload });
+      c.header("ETag", clientPayloadEtag(scope, result.clientPayload.version));
+      return c.json({ clientPayload: result.clientPayload });
     } catch (error) {
       return productRouteError(
         c,
@@ -895,6 +946,20 @@ async function pathApiKeyGuard(c: Context, next: Next) {
       403,
     );
   }
+  if (c.req.method !== "GET" && isPublishableApiKey(apiKey)) {
+    return c.json(
+      {
+        errors: [
+          {
+            code: "INSUFFICIENT_SCOPE",
+            message:
+              "This operation requires a secret admin key. Publishable mobile keys cannot access administrative operations.",
+          },
+        ],
+      },
+      403,
+    );
+  }
   if (
     c.req.method !== "GET" &&
     isContentLengthOverLimit(
@@ -904,7 +969,63 @@ async function pathApiKeyGuard(c: Context, next: Next) {
   ) {
     return payloadTooLarge(c);
   }
-  await next();
+  c.set("apiKey", apiKey);
+  await publicApiRateLimit(c, next);
+}
+
+function payloadCatalogRequestCost(c: Context): number {
+  if (c.req.query("includeClientPayload") !== "true") {
+    return 0;
+  }
+  const limit = Number(
+    c.req.query("limit") ?? DEFAULT_CLIENT_PAYLOAD_PAGE_SIZE,
+  );
+  return Number.isSafeInteger(limit) &&
+    limit >= 1 &&
+    limit <= MAX_CLIENT_PAYLOAD_PAGE_SIZE
+    ? limit
+    : MAX_CLIENT_PAYLOAD_PAGE_SIZE;
+}
+
+function setPublicPayloadCacheHeaders(c: Context): void {
+  // The response is app-readable but project-scoped. `private, no-cache`
+  // permits a device cache to retain it while requiring ETag revalidation;
+  // it prevents shared caches from serving one project's payload to another.
+  c.header("Cache-Control", "private, no-cache");
+  c.header("Vary", "Authorization");
+}
+
+function clientPayloadEtagScope(
+  apiKey: string,
+  platform: ProductPlatform,
+  productId: string,
+): string {
+  return crypto
+    .createHash("sha256")
+    .update(`${apiKey}\0${platform}\0${productId}`)
+    .digest("base64url")
+    .slice(0, 16);
+}
+
+function clientPayloadEtag(scope: string, version: number): string {
+  return `"iapkit-client-payload-${scope}-v${version}"`;
+}
+
+function clientPayloadKnownVersion(
+  ifNoneMatch: string | undefined,
+  scope: string,
+): number | undefined {
+  if (!ifNoneMatch) return undefined;
+  const pattern = new RegExp(
+    `^(?:W/)?"iapkit-client-payload-${scope}-v(\\d+)"$`,
+  );
+  for (const candidate of ifNoneMatch.split(",")) {
+    const match = candidate.trim().match(pattern);
+    if (!match?.[1]) continue;
+    const version = Number(match[1]);
+    if (Number.isSafeInteger(version) && version >= 1) return version;
+  }
+  return undefined;
 }
 
 function secretKeyInUrl(c: Context) {

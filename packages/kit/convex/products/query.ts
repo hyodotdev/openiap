@@ -40,6 +40,17 @@ const clientPayloadEditorStateShape = v.object({
   expectedVersion: v.number(),
   clientPayload: v.optional(clientPayloadShape),
 });
+const conditionalClientPayloadShape = v.union(
+  v.object({
+    status: v.literal("found"),
+    clientPayload: clientPayloadShape,
+  }),
+  v.object({
+    status: v.literal("not_modified"),
+    version: v.number(),
+  }),
+  v.object({ status: v.literal("not_found") }),
+);
 type ClientPayloadEditorState = Infer<typeof clientPayloadEditorStateShape>;
 
 export const DEFAULT_CLIENT_PAYLOAD_PAGE_SIZE = 25;
@@ -173,6 +184,74 @@ export const getProductClientPayload = query({
       .unique();
 
     return payload ? shapeClientPayload(payload) : null;
+  },
+});
+
+/**
+ * App-facing conditional payload read. The body-free summary is checked before
+ * the 16 KiB payload row, so a matching ETag still authenticates and verifies
+ * catalog visibility but avoids reading or returning the body document.
+ */
+export const getProductClientPayloadIfChanged = query({
+  args: {
+    apiKey: v.string(),
+    platform: platformValidator,
+    productId: v.string(),
+    knownVersion: v.optional(v.number()),
+  },
+  returns: conditionalClientPayloadShape,
+  handler: async (ctx, args) => {
+    const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
+    if (!resolved) return { status: "not_found" } as const;
+
+    const product = await ctx.db
+      .query("products")
+      .withIndex("by_project_and_platform_and_product", (q) =>
+        q
+          .eq("projectId", resolved.project._id)
+          .eq("platform", args.platform)
+          .eq("productId", args.productId),
+      )
+      .unique();
+    if (!product || product.state === "Removed") {
+      return { status: "not_found" } as const;
+    }
+
+    const summary = await ctx.db
+      .query("productClientPayloadSummaries")
+      .withIndex("by_project_and_platform_and_product", (q) =>
+        q
+          .eq("projectId", resolved.project._id)
+          .eq("platform", args.platform)
+          .eq("productId", args.productId),
+      )
+      .unique();
+    if (summary?.deleted === true) {
+      return { status: "not_found" } as const;
+    }
+    if (
+      summary &&
+      args.knownVersion !== undefined &&
+      summary.version === args.knownVersion
+    ) {
+      return { status: "not_modified", version: summary.version } as const;
+    }
+
+    const payload = await ctx.db
+      .query("productClientPayloads")
+      .withIndex("by_project_and_platform_and_product", (q) =>
+        q
+          .eq("projectId", resolved.project._id)
+          .eq("platform", args.platform)
+          .eq("productId", args.productId),
+      )
+      .unique();
+    return payload
+      ? ({
+          status: "found",
+          clientPayload: shapeClientPayload(payload),
+        } as const)
+      : ({ status: "not_found" } as const);
   },
 });
 
@@ -312,6 +391,13 @@ function assertClientPayloadPageArgs(args: {
       message: "platform is required when includeClientPayload=true",
     });
   }
+  assertProductPageArgs(args);
+}
+
+function assertProductPageArgs(args: {
+  limit?: number;
+  cursor?: string;
+}): void {
   if (
     args.limit !== undefined &&
     (!Number.isSafeInteger(args.limit) ||
@@ -366,6 +452,56 @@ export const listProducts = query({
           .collect();
 
     return rows.map((row) => shape(row));
+  },
+});
+
+/**
+ * Bounded app/API-facing catalog read. Dashboard code keeps using listProducts
+ * because its authenticated project view needs the complete operator table;
+ * mobile/API callers must paginate so one public request cannot collect an
+ * unbounded catalog.
+ */
+export const listProductsPage = query({
+  args: {
+    apiKey: v.string(),
+    platform: v.optional(platformValidator),
+    limit: v.optional(v.number()),
+    cursor: v.optional(v.string()),
+  },
+  returns: v.object({
+    products: v.array(productShape),
+    hasMore: v.boolean(),
+    nextCursor: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    assertProductPageArgs(args);
+    const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
+    if (!resolved) return { products: [], hasMore: false };
+
+    const page = await (
+      args.platform
+        ? ctx.db
+            .query("products")
+            .withIndex("by_project_and_platform", (q) =>
+              q
+                .eq("projectId", resolved.project._id)
+                .eq("platform", args.platform!),
+            )
+        : ctx.db
+            .query("products")
+            .withIndex("by_project_and_platform_and_product", (q) =>
+              q.eq("projectId", resolved.project._id),
+            )
+    ).paginate({
+      numItems: args.limit ?? DEFAULT_CLIENT_PAYLOAD_PAGE_SIZE,
+      cursor: args.cursor ?? null,
+    });
+
+    return {
+      products: page.page.map((row) => shape(row)),
+      hasMore: !page.isDone,
+      ...(!page.isDone ? { nextCursor: page.continueCursor } : {}),
+    };
   },
 });
 

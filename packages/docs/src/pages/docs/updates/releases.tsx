@@ -137,9 +137,10 @@ function Releases() {
           >
             Publishes one coordinated IAPKit and SDK security train. Hosted
             IAPKit adds scoped API keys, programmable product client payloads,
-            source-aware webhook delivery, and version-based App Store Connect
-            review submissions. The native and framework packages harden
-            purchase payload handling and publish migration guidance from{' '}
+            bounded public-API cost controls, source-aware webhook delivery, and
+            version-based App Store Connect review submissions. The native and
+            framework packages harden purchase payload handling and publish
+            migration guidance from{' '}
             <a
               href="https://github.com/hyodotdev/openiap/issues/248"
               target="_blank"
@@ -224,6 +225,30 @@ function Releases() {
               validates structured syntax, and protects updates with monotonic
               versions and optimistic concurrency control. An editor-state read
               exposes the durable revision even after deletion.
+            </li>
+            <li>
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/254"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                PR #254
+              </a>{' '}
+              bounds every public catalog to 25 items by default and 50 at most,
+              keeps the non-payload path at zero payload-table reads, and
+              protects verification, payload, product, status, entitlement, and
+              binding requests, plus publishable-key store-webhook ingress, with
+              TTL/LRU-bounded API-key, source-IP, and process rate limits before
+              Convex. Maximum payload catalog pages are weighted by item count,
+              while normal reads create no usage mutation.
+            </li>
+            <li>
+              Direct client-payload reads use a key, platform, product, and
+              version-scoped <code>ETag</code>. A matching conditional request
+              returns <code>304</code> without loading the 16 KiB body.
+              Client-readable responses stay private and revalidated; catalog
+              and secret-admin responses are never stored by shared caches.
             </li>
             <li>
               <a
@@ -334,7 +359,9 @@ function Releases() {
               metadata, and models deferred Vega plan changes without hiding the
               active receipt. Its example removes the project-wide stream, and
               the legacy helper is documented as trusted-process compatibility
-              only.
+              only. Its IAPKit helper also accepts an AsyncStorage-compatible
+              persistent client-payload cache and uses conditional refreshes
+              instead of repeated catalog polling.
             </li>
             <li>
               <strong>expo-iap 4.7.1</strong> - fails closed when an Onside
@@ -345,7 +372,9 @@ function Releases() {
               The Vega example build now loads the standard Expo environment
               chain before embedding public IAPKit settings and declares the
               required system and control audio services so TV focus navigation
-              works without runtime permission failures.
+              works without runtime permission failures. Its IAPKit helper
+              persists payload version, body, and ETag through the same
+              cache-adapter contract and revalidates only on explicit refresh.
             </li>
             <li>
               <strong>flutter_inapp_purchase 9.6.1</strong> - reads canonical{' '}
@@ -422,6 +451,15 @@ function Releases() {
                 Deprecations &amp; 3.0 Migration
               </Link>{' '}
               for the complete replacement and removal schedule.
+            </li>
+            <li>
+              Apps with a known product ID should use the direct payload helper
+              with persistent storage and revalidate once on cold launch or an
+              explicit refresh. Do not fetch every payload catalog page on each
+              foreground event. Operators should configure Convex daily/monthly
+              usage warning and disable limits plus a team spending limit; the
+              hosted service adds no new Fly machine or paid rate-limit
+              dependency.
             </li>
           </ul>
 

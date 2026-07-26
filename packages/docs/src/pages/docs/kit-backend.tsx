@@ -629,49 +629,41 @@ if (status.Active)
         </div>
 
         <AnchorLink id="fetch-client-payload-on-app-open" level="h3">
-          Fetch on app open
+          Cache a known payload
         </AnchorLink>
         <p>
           React Native IAP and Expo IAP export the canonical <code>kitApi</code>{' '}
           helper, and MAUI exposes the equivalent <code>KitApiClient</code>. Use
-          the product-list method to refresh a platform catalog, or the direct
-          payload method when the product ID is already known. Both surfaces
-          return a response envelope.
+          the direct payload method when the product ID is already known. Do not
+          download the complete payload catalog on every foreground event.
+          Product-list pagination is for an explicit catalog refresh.
         </p>
         <LanguageTabs>
           {{
             typescript: (
               <CodeBlock language="typescript">{`import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { kitApi } from 'expo-iap';
 // React Native IAP apps can import kitApi from 'react-native-iap'.
 
 const platform = Platform.OS === 'ios' ? 'IOS' : 'Android';
-const api = kitApi({ apiKey: '<IAPKIT_PUBLISHABLE_KEY>' });
-
-let page = await api.products({
-  platform,
-  includeClientPayload: true,
-  limit: 50,
+const api = kitApi({
+  apiKey: '<IAPKIT_PUBLISHABLE_KEY>',
+  clientPayloadCache: AsyncStorage,
 });
-const products = [...page.products];
-while (page.hasMore && page.nextCursor) {
-  page = await api.products({
-    platform,
-    includeClientPayload: true,
-    limit: 50,
-    cursor: page.nextCursor,
-  });
-  products.push(...page.products);
-}
 
-const catalogPayload = products.find(
-  (product) => product.productId === 'premium_monthly',
-)?.clientPayload;
-
-// Or fetch one known product without downloading the catalog.
+// Cache-first: after the first successful read this performs no request.
 const { clientPayload } = await api.clientPayload(
   'premium_monthly',
   platform,
+);
+
+// Revalidate once on a cold app launch or an explicit user refresh.
+// A matching scoped ETag returns 304 and reuses the persisted body.
+const refreshed = await api.clientPayload(
+  'premium_monthly',
+  platform,
+  { refresh: true },
 );`}</CodeBlock>
             ),
             csharp: (
@@ -728,12 +720,9 @@ var clientPayload = payloadResponse.ClientPayload;`}</CodeBlock>
             <code>25</code>, maximum <code>50</code>) and an opaque{' '}
             <code>cursor</code>, and returns{' '}
             <code>&#123; products, hasMore, nextCursor? &#125;</code>. Continue
-            until <code>hasMore</code> is <code>false</code>. Without the
-            explicit payload flag, the response remains exactly{' '}
-            <code>&#123; products &#125;</code>; payload bodies are omitted and{' '}
-            <code>limit</code> / <code>cursor</code> are ignored for backwards
-            compatibility. Their strict validation applies only when{' '}
-            <code>includeClientPayload=true</code>. Catalog changes can
+            until <code>hasMore</code> is <code>false</code>. The same 25-item
+            default and 50-item maximum apply without the explicit payload flag;
+            that path never queries payload bodies. Catalog changes can
             invalidate an opaque cursor; if the server returns{' '}
             <code>400 INVALID_CURSOR</code>, discard that cursor and restart
             from the first page.
@@ -745,9 +734,49 @@ var clientPayload = payloadResponse.ClientPayload;`}</CodeBlock>
             </code>{' '}
             returns <code>&#123; clientPayload &#125;</code>, or HTTP 404 when
             no payload exists, the matching product is absent, or its state is{' '}
-            <code>Removed</code>.
+            <code>Removed</code>. Responses use a project/key/product-scoped{' '}
+            <code>ETag</code>. A matching <code>If-None-Match</code> returns{' '}
+            <code>304</code> without reading or returning the 16 KiB body.
           </li>
         </ul>
+
+        <AnchorLink id="cost-and-abuse-guardrails" level="h3">
+          Cost and abuse guardrails
+        </AnchorLink>
+        <p>
+          Public verification, product, payload, status, entitlement, and
+          user-binding requests, plus publishable-key store-webhook ingress, are
+          bounded in Fly memory by API key, source IP, and process-wide token
+          buckets before Convex is called. The stores use TTL plus LRU eviction,
+          so invalid-key churn cannot grow memory without bound. A 50-item
+          payload catalog page is charged as 50 units. Rejections return{' '}
+          <code>429</code>, <code>Retry-After</code>, and consistent rate-limit
+          headers.
+        </p>
+        <p>
+          These counters do not create a Convex mutation on every mobile
+          request. Direct payloads use <code>private, no-cache</code> plus a
+          scoped ETag; catalog and secret-admin responses use{' '}
+          <code>private, no-store</code>. The current single Fly machine makes
+          the process limit effectively global. If IAPKit scales to several
+          machines, per-machine allowances multiply, so production should also
+          configure Convex daily/monthly warning and disable limits under the
+          deployment&apos;s Usage Limits page and a team spending limit under
+          Billing.
+        </p>
+        <p>
+          See the{' '}
+          <a
+            href="https://github.com/hyodotdev/openiap/blob/main/packages/kit/COST-SAFETY.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="external-link"
+          >
+            IAPKit cost and abuse safety model
+          </a>{' '}
+          for the function-call/read counts, Starter and Professional estimates,
+          usage-limit recommendations, and remaining multi-machine limitation.
+        </p>
 
         <AnchorLink id="write-client-payload-from-ci" level="h3">
           Write from CI or MCP
