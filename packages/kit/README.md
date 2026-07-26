@@ -270,7 +270,7 @@ secret-authenticated `POST /v1/products` route. An early payload write returns
 
 Mobile apps use `openiap-kit_pk_...` publishable keys. They may verify purchases
 and read public client payloads, but cannot change catalog or payload data,
-inspect project-wide analytics, open webhook streams, or start store sync.
+inspect project-wide analytics, or start store sync.
 Administrative REST and MCP operations require an `openiap-kit_sk_...` secret
 key stored in a trusted environment. Existing unclassified keys are treated as
 publishable so previously shipped app builds fail closed without losing

@@ -30,9 +30,7 @@ export const webhookEventSourceValidator = v.union(
   v.literal("GooglePlayRealTimeDeveloperNotifications"),
   // Synthetic source for Meta Horizon Store. Meta has no webhook /
   // push notification system so kit polls `verify_entitlement` on a
-  // cron and emits these synthetic events when an entitlement
-  // transitions. SDK consumers see them on the SSE stream alongside
-  // real Apple / Google webhooks.
+  // cron and records synthetic events when an entitlement transitions.
   v.literal("MetaHorizonReconciler"),
 );
 

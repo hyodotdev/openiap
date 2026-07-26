@@ -106,19 +106,6 @@
                    HorizontalTextAlignment="Center"
                    Margin="0,-6,0,6" />
 
-            <Button Text="📡 Webhook Stream"
-                    BackgroundColor="#0EA5E9"
-                    TextColor="White"
-                    FontAttributes="Bold"
-                    HeightRequest="68"
-                    CornerRadius="12"
-                    Clicked="OnWebhookStreamClicked" />
-            <Label Text="Backend-only IAPKit SSE guidance"
-                   FontSize="13"
-                   TextColor="#666"
-                   HorizontalTextAlignment="Center"
-                   Margin="0,-6,0,6" />
-
         </VerticalStackLayout>
     </ScrollView>
 

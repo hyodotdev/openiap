@@ -33,7 +33,6 @@ export type {
   KitSubscription,
   StatusResponse,
 } from './kit-api';
-export {connectWebhookStream, parseWebhookEventData} from './webhook-client';
 
 export enum OpenIapEvent {
   PurchaseUpdated = 'purchase-updated',

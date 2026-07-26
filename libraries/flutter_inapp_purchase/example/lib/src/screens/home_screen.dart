@@ -124,16 +124,6 @@ class HomeScreen extends StatelessWidget {
                           '/alternative-billing',
                         ),
                       ),
-                      const Divider(height: 1),
-                      _buildMenuItem(
-                        context,
-                        icon: CupertinoIcons.dot_radiowaves_left_right,
-                        title: 'Webhook Stream',
-                        subtitle: 'Backend-only IAPKit SSE guidance',
-                        color: const Color(0xFF0EA5E9),
-                        onTap: () =>
-                            Navigator.pushNamed(context, '/webhook-stream'),
-                      ),
                     ],
                   ),
                 ),

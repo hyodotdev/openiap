@@ -447,10 +447,9 @@ products.post("/:apiKey/sync/:platform", pathApiKeyGuard, (c) =>
   handleEnqueueProductSync(c, guardedPathApiKey(c)),
 );
 
-// Poll the job state. Clients should backoff (e.g. 3s) between
-// polls; the typical sync finishes in tens of seconds, larger
-// catalogs in 1-2 min. SSE is a future option; polling kept simple
-// for v1.
+// Poll the job state with bounded backoff (for example, 3s). The typical sync
+// finishes in tens of seconds and larger catalogs in 1-2 min. IAPKit does not
+// expose server-to-client event streams.
 async function handleGetProductSyncJob(c: Context, apiKey: string) {
   const jobId = c.req.param("jobId");
   if (!isNonBlankString(jobId)) {

@@ -47,8 +47,8 @@ function KitBackend() {
           Purchase verification uses a publishable{' '}
           <code>Authorization: Bearer</code> key. App-facing reads keep the
           publishable key in their compatibility path where required by mobile
-          runtimes. Administrative subscription, product, webhook-stream, and
-          MCP calls send the secret key only in the{' '}
+          runtimes. Administrative subscription, product, store-sync, and MCP
+          calls send the secret key only in the{' '}
           <code>Authorization: Bearer</code> header so it does not enter URL
           logs.
         </p>
@@ -63,11 +63,6 @@ function KitBackend() {
             Store Server Notifications v2 / Google Pub/Sub RTDN receiver (Google
             OIDC verified). Platform-specific <code>/apple</code> /{' '}
             <code>/google</code> aliases remain supported for existing setups.
-          </li>
-          <li>
-            <code>GET /v1/webhooks/stream</code> — secret Bearer-authenticated
-            admin SSE stream of normalized <code>WebhookEvent</code>s, driven by
-            Convex&apos;s reactive subscribe.
           </li>
           <li>
             <code>GET /v1/subscriptions/status/&#123;apiKey&#125;?userId=</code>{' '}
@@ -135,7 +130,7 @@ function KitBackend() {
           <li>
             <code>openiap-kit_sk_...</code> secret keys belong in MCP, CI, or a
             trusted backend. They additionally authorize catalog and payload
-            writes, subscription analytics, webhook streams, and store sync.
+            writes, subscription analytics, and store sync.
           </li>
         </ul>
         <p>
@@ -147,9 +142,7 @@ function KitBackend() {
           Keys created before scoped credentials are classified as publishable
           because older documentation allowed them in app bundles. Existing apps
           keep verification access; create a new secret key before continuing
-          MCP or CI administration. Move any project-wide webhook-stream
-          consumer out of the mobile app and into a trusted backend; publishable
-          keys cannot open that stream.
+          MCP or CI administration.
         </p>
         <p>
           Additional keys do not create separate sandbox or production
@@ -198,9 +191,8 @@ function KitBackend() {
             payload editor for app-readable TOML, JSON, or text rules.
           </li>
           <li>
-            <strong>Webhooks</strong> — copyable lifecycle webhook URL, the SSE
-            stream URL, and a curl recipe for emitting a synthetic test
-            notification without opening a store console.
+            <strong>Webhooks</strong> — copyable inbound lifecycle webhook URLs
+            for Apple ASN v2 and Google RTDN.
           </li>
         </ul>
       </section>

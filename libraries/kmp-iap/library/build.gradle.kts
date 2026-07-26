@@ -239,17 +239,6 @@ fun dynamicKmpPodspec(): String =
     """.trimIndent() + "\n"
 
 kotlin {
-    // openiap WebhookTransport is shipped as `expect class` in
-    // commonMain with platform-specific actual implementations in
-    // androidMain / iosMain. Kotlin 2.x emits a warning for this
-    // pattern unless the `-Xexpect-actual-classes` flag is set;
-    // applying it here keeps the build clean for the kmp-iap
-    // consumers without surfacing warnings.
-    @OptIn(ExperimentalKotlinGradlePluginApi::class)
-    compilerOptions {
-        freeCompilerArgs.add("-Xexpect-actual-classes")
-    }
-
     androidTarget {
         publishLibraryVariants("playRelease", "horizonRelease", "amazonRelease")
         @OptIn(ExperimentalKotlinGradlePluginApi::class)

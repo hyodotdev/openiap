@@ -15,7 +15,7 @@ Purchase verification: `Authorization: Bearer openiap-kit_pk_<publishable-key>`
 MCP/admin: `Authorization: Bearer openiap-kit_sk_<secret-key>`
 App-facing product, subscription, and inbound webhook helpers use a publishable
 key path where mobile/store transports require it. Administrative product,
-subscription analytics, MCP, and webhook-stream requests keep the secret in the
+subscription analytics, MCP, and store-sync requests keep the secret in the
 Bearer header and out of URLs.
 
 - [POST /v1/purchase/verify](https://kit.openiap.dev/docs/api) — verify an in-app purchase; body is a tagged union on `store`
@@ -25,7 +25,6 @@ Bearer header and out of URLs.
 - [GET /v1/products and catalog/store-sync writes](https://openiap.dev/docs/kit-backend) — header-authenticated GET is client-safe; POST/DELETE and `/v1/products/sync/{ios|android}` require `Authorization: Bearer <secret-key>`; secret-key-in-path requests receive 410
 - [GET /v1/subscriptions/{list|metrics|revenue}](https://openiap.dev/docs/kit-backend) — administrative subscription data with `Authorization: Bearer <secret-key>`
 - [POST /v1/webhooks/{apiKey}](https://openiap.dev/docs/webhooks#setup) — lifecycle webhook receiver. Paste this URL into App Store Connect (Production + Sandbox) AND Google Cloud Pub/Sub push subscription. Auto-detects ASN v2 vs Pub/Sub by payload shape. **POST-only**; opening in a browser returns 404 — that's expected.
-- [GET /v1/webhooks/stream](https://openiap.dev/docs/webhooks#consume-stream) — secret-admin long-lived SSE stream using `Authorization: Bearer <secret-key>`. Reconnects honor `Last-Event-ID`.
 - [GET /v1/openapi](https://kit.openiap.dev/v1/openapi) — machine-readable OpenAPI spec
 - [GET /v1](https://kit.openiap.dev/v1) — Redoc UI for the OpenAPI spec
 - [GET /health](https://kit.openiap.dev/health) — liveness probe (no Convex round-trip)
@@ -122,7 +121,7 @@ Harmonized `state` values (truthy `isValid`): `ENTITLED`,
 - [/docs/verification/horizon](https://kit.openiap.dev/docs/verification/horizon) — App ID + App Secret (write-only)
 - [/docs/api](https://kit.openiap.dev/docs/api) — request shapes, responses, errors, headers, and Amazon RVS payloads
 - [/docs/operations](https://kit.openiap.dev/docs/operations) — rate limits, logs, `/health`, graceful shutdown
-- [openiap.dev/docs/webhooks](https://openiap.dev/docs/webhooks) — operator setup steps for the lifecycle webhook URL (Apple ASN v2 + Google RTDN) and SDK code for consuming the SSE stream
+- [openiap.dev/docs/webhooks](https://openiap.dev/docs/webhooks) — operator setup steps for inbound Apple ASN v2 and Google RTDN lifecycle delivery
 - [/docs/ai-assistants](https://kit.openiap.dev/docs/ai-assistants) — how to point Codex / Claude / Cursor / etc. at this file
 - [/docs/ai-assistants/codex-plugin](https://kit.openiap.dev/docs/ai-assistants/codex-plugin) — Codex plugin setup and self-hosted IAPKit MCP server option
 - [/docs/ai-assistants/claude-plugin](https://kit.openiap.dev/docs/ai-assistants/claude-plugin) — Claude Code plugin setup (marketplace install or claude mcp add)

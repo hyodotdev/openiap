@@ -327,10 +327,6 @@ const packageCompatibilityMigrations = [
         'useIAP().requestPurchaseOnPromotedProductIOS',
         'onPromotedProductIOS, then requestPurchase',
       ],
-      [
-        'useWebhookEvents',
-        'connect to the secret Bearer-authenticated project stream from a trusted backend, MCP, or CI process; shipped apps should use lifecycle webhooks and app-open entitlement fetches',
-      ],
     ],
   },
   {
@@ -360,10 +356,6 @@ const packageCompatibilityMigrations = [
       [
         'useIAP().requestPurchaseOnPromotedProductIOS',
         'onPromotedProductIOS, then requestPurchase',
-      ],
-      [
-        'useWebhookEvents',
-        'connect to the secret Bearer-authenticated project stream from a trusted backend, MCP, or CI process; shipped apps should use lifecycle webhooks and app-open entitlement fetches',
       ],
       ['config.iosAlternativeBilling', 'config.ios.alternativeBilling'],
       [

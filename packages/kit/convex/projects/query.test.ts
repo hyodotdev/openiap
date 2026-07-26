@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
-import { selectActiveWebhookApiKeys } from "./query";
+import { selectActiveWebhookPublishableKey } from "./query";
 
-describe("selectActiveWebhookApiKeys", () => {
+describe("selectActiveWebhookPublishableKey", () => {
   it("selects the newest publishable key without returning secret material", () => {
-    const selected = selectActiveWebhookApiKeys([
+    const selected = selectActiveWebhookPublishableKey([
       {
         createdAt: 100,
         isActive: true,
@@ -25,15 +25,11 @@ describe("selectActiveWebhookApiKeys", () => {
       },
     ]);
 
-    expect(selected).toEqual({
-      publishableKey: "openiap-kit_pk_newer",
-      hasSecretKey: true,
-    });
-    expect(selected).not.toHaveProperty("secretKey");
+    expect(selected).toBe("openiap-kit_pk_newer");
   });
 
   it("treats legacy unclassified keys as publishable and ignores revoked keys", () => {
-    const selected = selectActiveWebhookApiKeys([
+    const selected = selectActiveWebhookPublishableKey([
       {
         createdAt: 100,
         isActive: true,
@@ -48,9 +44,6 @@ describe("selectActiveWebhookApiKeys", () => {
       },
     ]);
 
-    expect(selected).toEqual({
-      publishableKey: "iapkit_legacy",
-      hasSecretKey: false,
-    });
+    expect(selected).toBe("iapkit_legacy");
   });
 });

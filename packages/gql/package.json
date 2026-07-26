@@ -6,7 +6,6 @@
   "exports": {
     ".": "./src/generated/types.ts",
     "./kit-api": "./src/kit-api.ts",
-    "./webhook-client": "./src/webhook-client.ts",
     "./swift": "./src/generated/Types.swift",
     "./kotlin": "./src/generated/Types.kt",
     "./dart": "./src/generated/types.dart",

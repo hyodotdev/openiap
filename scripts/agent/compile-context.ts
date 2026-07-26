@@ -389,10 +389,8 @@ Requires .NET 9 or .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
   \`PackageReference\` dependencies so consuming apps can deduplicate them.
 - Public surface: \`QueryResolver\`, \`MutationResolver\`, and \`IOpenIap\`
   implemented by \`OpenIapIOS\`, \`OpenIapAndroid\`, and \`OpenIapMacCatalyst\`;
-  IAPKit helpers mirror the TypeScript SDKs via
-  \`OpenIapClient.KitApi(...)\`, \`OpenIapClient.ConnectWebhookStream(...)\`,
-  \`OpenIapClient.ParseWebhookEventData(...)\`, and
-  \`OpenIapClient.WebhookEventTypes\`.
+  app-facing IAPKit helpers mirror the TypeScript SDKs via
+  \`OpenIapClient.KitApi(...)\`.
 - Example app: \`libraries/maui-iap/example/OpenIap.Maui.Example\`, mirroring
   the \`expo-iap\` example flows.
 
@@ -656,9 +654,8 @@ Current NuGet package version: ${versions.maui}
 - \`godot-iap\`: Godot 4.x plugin with GDScript functions and signals.
 - \`kmp-iap\`: Kotlin Multiplatform API with Flow-based purchase events.
 - \`maui-iap\`: \`OpenIap.Maui\` package with \`OpenIapClient.Instance\`,
-  generated \`Types.cs\`, IAPKit helpers (\`OpenIapClient.KitApi\`,
-  \`OpenIapClient.ConnectWebhookStream\`,
-  \`OpenIapClient.ParseWebhookEventData\`), flattened OpenIAP-owned iOS
+  generated \`Types.cs\`, app-facing IAPKit helpers
+  (\`OpenIapClient.KitApi\`), flattened OpenIAP-owned iOS
   xcframework / Android AAR bindings, Google and AndroidX Android
   dependencies as NuGet package references, and MAUI example flows matching
   \`expo-iap\`.

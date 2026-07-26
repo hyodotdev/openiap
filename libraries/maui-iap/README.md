@@ -120,8 +120,6 @@ var payload = await kit.ClientPayloadAsync(
     "premium.monthly",
     KitProductPlatform.IOS);
 await kit.BindUserAsync(purchaseToken: "token", userId: "user-123");
-
-ParsedWebhookEventResult parsed = OpenIapClient.ParseWebhookEventData(rawSseData);
 ```
 
 Client payloads are public app-readable metadata. Keep secrets and server-only
@@ -131,12 +129,9 @@ bounded cursor pages (`HasMore` / `NextCursor`). `Limit` and `Cursor` are
 ignored by the legacy non-payload catalog path. If catalog churn returns
 `INVALID_CURSOR`, restart without `Cursor`.
 
-Project-wide webhook streaming is an administrative operation. Consume
-`GET /v1/webhooks/stream` only from a trusted backend with
-`Authorization: Bearer openiap-kit_sk_...`; never embed that secret in a MAUI
-app. `ConnectWebhookStream` now uses that header-authenticated route; mobile
-apps should use purchase verification, user-scoped entitlement reads, and
-normal app refreshes instead.
+IAPKit accepts store-to-server lifecycle webhooks but does not expose an
+outbound event stream to MAUI or other mobile SDKs. Apps should use purchase
+verification, scoped entitlement reads, and bounded lifecycle refreshes.
 
 ## Example app
 

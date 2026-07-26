@@ -1,45 +1,16 @@
 import { Hono } from "hono";
 import type { Context, Next } from "hono";
-import { streamSSE } from "hono/streaming";
 import { OAuth2Client } from "google-auth-library";
-import { ConvexClient } from "convex/browser";
 
 import { api } from "@/convex";
-import { client, convexUrlForRealtime, handleConvexError } from "../../convex";
-import {
-  apiKeyMiddleware,
-  apiKeyValidationError,
-  isSecretApiKey,
-  secretAdminApiKeyMiddleware,
-} from "./middleware";
+import { client, handleConvexError } from "../../convex";
+import { apiKeyValidationError, isSecretApiKey } from "./middleware";
 import {
   isContentLengthOverLimit,
   JsonBodyTooLargeError,
   readJsonBodyWithLimit,
 } from "./request-body";
 import { multiAxisRateLimitMiddleware } from "./rate-limit";
-import { drainWebhookEventBatches } from "./webhookStreamDrain";
-
-// Shared reactive client for the SSE webhook stream. We keep a
-// SINGLE WebSocket open to Convex regardless of how many SDK clients
-// are subscribed — the previous per-connection `new ConvexClient(...)`
-// inside streamSSE fanned out to one WebSocket per subscriber, which
-// scaled poorly under administrative traffic from dashboard tabs, MCP/CI,
-// and trusted backend consumers. Shipped mobile apps no longer open this
-// secret-admin project-wide stream. Each per-connection
-// `onUpdate(...)` returns its own unsubscribe handle so isolating
-// the *subscription lifecycle* per request still works correctly.
-//
-// Initialized lazily on first SSE connection — module-level
-// instantiation would open the WebSocket at boot time, which (a)
-// breaks the smoke build (placeholder CONVEX_URL → infinite reconnect
-// loop blocks `server.stop()` shutdown) and (b) wastes a connection
-// on processes that never serve a stream request.
-let sharedReactiveClient: ConvexClient | null = null;
-function getSharedReactiveClient(): ConvexClient {
-  sharedReactiveClient ??= new ConvexClient(convexUrlForRealtime);
-  return sharedReactiveClient;
-}
 
 function describeError(error: unknown): string {
   return error instanceof Error ? error.name : typeof error;
@@ -56,17 +27,6 @@ export function legacyUnsupportedEventReason(error: unknown): string | null {
 
 export function isWebhookBodyTooLarge(contentLengthHeader: string | undefined) {
   return isContentLengthOverLimit(contentLengthHeader, MAX_WEBHOOK_BODY_BYTES);
-}
-
-export function webhookStreamUnavailableError() {
-  return {
-    errors: [
-      {
-        code: "WEBHOOK_STREAM_UNAVAILABLE",
-        message: "Webhook stream is temporarily unavailable",
-      },
-    ],
-  };
 }
 
 export async function readWebhookJsonBody(request: Request): Promise<unknown> {
@@ -102,11 +62,6 @@ const webhooks = new Hono<{
   Variables: { apiKey: string; apiKeyHash?: string };
 }>();
 const publicApiRateLimit = multiAxisRateLimitMiddleware();
-
-webhooks.use("/:apiKey", pathApiKeyGuard, publicApiRateLimit);
-webhooks.use("/apple/:apiKey", pathApiKeyGuard, publicApiRateLimit);
-webhooks.use("/google/:apiKey", pathApiKeyGuard, publicApiRateLimit);
-webhooks.use("/stream/:apiKey", pathApiKeyGuard, publicApiRateLimit);
 
 // Unified lifecycle endpoint. The exact same URL works for both Apple
 // App Store Connect and Google Pub/Sub push subscriptions: kit
@@ -187,14 +142,24 @@ const unifiedHandler = async (c: Context) => {
 
 // Public — paste this URL into both App Store Connect and Google
 // Pub/Sub push subscription configuration.
-webhooks.post("/:apiKey", unifiedHandler);
+webhooks.post("/:apiKey", pathApiKeyGuard, publicApiRateLimit, unifiedHandler);
 
 // Backwards-compatible aliases for operators who already configured a
 // platform-specific URL. Both dispatch through the same handlers as
 // the unified endpoint, so the dashboard / docs nudge users toward
 // the one-URL pattern without breaking existing wiring.
-webhooks.post("/apple/:apiKey", unifiedHandler);
-webhooks.post("/google/:apiKey", unifiedHandler);
+webhooks.post(
+  "/apple/:apiKey",
+  pathApiKeyGuard,
+  publicApiRateLimit,
+  unifiedHandler,
+);
+webhooks.post(
+  "/google/:apiKey",
+  pathApiKeyGuard,
+  publicApiRateLimit,
+  unifiedHandler,
+);
 
 type PubSubPushBody = {
   message: {
@@ -432,510 +397,6 @@ async function handleGoogleNotification(
   } catch (error) {
     return mapWebhookError(c, error, "google");
   }
-}
-
-// Server-Sent Events stream of normalized webhook events tied to the
-// caller's API key. Per-connection, we open a Convex `onUpdate`
-// subscription against `webhookEventsSince(apiKey, sinceMs)` so kit
-// pushes new events to the SSE client the moment Convex commits them.
-// No polling — Convex's reactive query is the source of liveness.
-//
-// Protocol:
-//   GET /v1/webhooks/stream
-//   Authorization: Bearer <secret admin key>
-//
-//   Response: text/event-stream with one event per webhook,
-//     id: <sourceNotificationId>
-//     event: <WebhookEventType>
-//     data: <serialized WebhookEvent JSON>
-//
-//   Reconnection: the standard `Last-Event-ID` header is honored on
-//   reconnect — kit looks up that event's `receivedAt` and resumes
-//   from there, so events that fired while the connection was closed
-//   are delivered in order on the next connect.
-//
-//   Heartbeat: an SSE `event: heartbeat` is emitted every 25s so
-//   intermediate proxies (Fly edge, Cloudflare, browser fetch) don't
-//   close the idle connection.
-const HEARTBEAT_MS = 25_000;
-const MAX_LAST_EVENT_ID_LENGTH = 512;
-
-async function streamWebhookEvents(c: Context, apiKey: string) {
-  const lastEventId = normalizeLastEventId(
-    c.req.header("last-event-id") ?? undefined,
-  );
-
-  // Validate the API key BEFORE entering streamSSE. If the key is
-  // wrong / rotated, every downstream `webhookEventsSince(apiKey, …)`
-  // call returns `[]`, which in the absence of this guard makes the
-  // SSE handler emit `ready` plus heartbeats forever — clients silently
-  // never receive lifecycle updates after a key rotation. Returning a
-  // 401 surfaces the misconfiguration immediately instead of looking
-  // like a healthy idle stream.
-  let project: unknown;
-  try {
-    project = await client.query(api.projects.query.getProjectByApiKey, {
-      apiKey,
-    });
-  } catch (error) {
-    const convexError = handleConvexError(error);
-    if (convexError?.code === "INSUFFICIENT_SCOPE") {
-      return c.json({ errors: [convexError] }, 403);
-    }
-    console.error(
-      "[webhooks/stream] project lookup failed",
-      describeError(error),
-    );
-    return c.json(webhookStreamUnavailableError(), 503);
-  }
-  if (!project) {
-    return c.json(
-      {
-        errors: [
-          {
-            code: "INVALID_API_KEY",
-            message:
-              "Project API key not recognized. Generate a fresh key in the kit dashboard or check that the key was not rotated.",
-          },
-        ],
-      },
-      401,
-    );
-  }
-
-  const startCursor = await resolveStreamStartCursor(apiKey, lastEventId);
-
-  return streamSSE(c, async (stream) => {
-    let aborted = false;
-    stream.onAbort(() => {
-      aborted = true;
-    });
-
-    // Use the lazy module-level shared client so we don't open a new
-    // WebSocket per SSE subscriber. Each subscription's lifecycle is
-    // bound to its own `unsubscribe` handle returned by
-    // `reactive.onUpdate(...)`, so isolation between connections is
-    // preserved without paying the per-connection WebSocket cost.
-    const reactive = getSharedReactiveClient();
-    // Bounded dedup tracker: caps at SEEN_MAX entries with FIFO
-    // eviction so a long-lived SSE connection (days/weeks) can't
-    // grow the Set unbounded under high event volume. The window
-    // The cap kicks in only after the backlog drain (Phase 1)
-    // completes and we've armed the live tail (Phase 2). During
-    // Phase 1 we hold every drained id so the Phase 2 onUpdate
-    // can't double-deliver an event Phase 1 already emitted —
-    // even if the backlog runs to tens of thousands of rows.
-    // After Phase 2 is armed we only need a window long enough to
-    // cover the ~5s overlap between phases plus normal-traffic
-    // jitter; 5000 entries (~5 min of high-volume webhook traffic)
-    // comfortably bounds that.
-    const SEEN_MAX_AFTER_DRAIN = 5000;
-    let drainComplete = false;
-    const seenOrder: string[] = [];
-    const seenSet = new Set<string>();
-    const seen = {
-      has(id: string): boolean {
-        return seenSet.has(id);
-      },
-      add(id: string): void {
-        if (seenSet.has(id)) return;
-        seenSet.add(id);
-        seenOrder.push(id);
-        if (drainComplete && seenOrder.length > SEEN_MAX_AFTER_DRAIN) {
-          const evicted = seenOrder.shift();
-          if (evicted !== undefined) seenSet.delete(evicted);
-        }
-      },
-      // Called by the SSE handler when Phase 1 finishes draining
-      // and Phase 2 has been registered. The pre-drain ids are now
-      // safe to age out under the SEEN_MAX_AFTER_DRAIN bound — the
-      // overlap-window guarantee only needs the tail.
-      markDrainComplete(): void {
-        drainComplete = true;
-        // Trim immediately so we don't carry a multi-minute backlog
-        // forever just because the drain ran long.
-        while (seenOrder.length > SEEN_MAX_AFTER_DRAIN) {
-          const evicted = seenOrder.shift();
-          if (evicted !== undefined) seenSet.delete(evicted);
-        }
-      },
-    };
-    // `liveStart` is the boundary between the backlog drain (paginated
-    // HTTP queries) and the live tail (Convex `onUpdate` subscription
-    // pinned to `sinceMs = liveStart`). Convex pins query args at
-    // subscription time and won't refresh them as cursors advance —
-    // attaching `onUpdate` with the original cursor would create a
-    // 500-row result window that never moves forward, so new events
-    // beyond the initial batch would never reach the consumer (PR #124 (https://github.com/hyodotdev/openiap/pull/124)
-    // review fix). Draining first, then pinning the live tail at
-    // "now", sidesteps that limitation.
-    const liveStart = Date.now();
-
-    await stream.writeSSE({
-      event: "ready",
-      data: JSON.stringify({ cursor: startCursor.sinceMs }),
-    });
-
-    // ── Phase 1: drain backlog ───────────────────────────────────
-    // Pull every event between the reconnect cursor and `liveStart`
-    // through paginated `webhookEventsSince` calls. The cursor pair
-    // (`sinceMs`, `afterCreationTime`) is honored by the query so
-    // same-`receivedAt` cohorts larger than `limit` still advance.
-    let drainCursor = startCursor.sinceMs;
-    let drainCreationCursor = startCursor.afterCreationTime;
-    // Tracks the receivedAt of the last event we *delivered* (not the
-    // last cursor position) so we can detect a saturated-cohort
-    // stall: if a follow-up query returns empty while we just
-    // delivered events at drainCursor's millisecond, the
-    // receivedAt-keyed query bound (limit=5000) fell short of the
-    // full cohort. Bumping drainCursor by 1ms in that case sacrifices
-    // any remaining events past the 5000-event-per-ms threshold but
-    // guarantees forward progress — and the threshold is a hard upper
-    // bound that no real-world store webhook ever approaches.
-    let lastDeliveredReceivedAt: number | null = null;
-    // Hard safety bounds on the drain loop. Without these, a project
-    // with a very large 30-day backlog could keep one connection
-    // running for an unbounded amount of time, holding the kit pod's
-    // SSE budget. Hitting either bound stops drain phase and lets
-    // Phase 2 take over from the live cursor — clients can reconnect
-    // with their last received id to continue.
-    const DRAIN_MAX_ITERATIONS = 200; // 200 * 500-row pages = 100k events
-    const DRAIN_MAX_MS = 60_000; // wall-clock cap (1 min)
-    const drainStartedAt = Date.now();
-    let drainIterations = 0;
-    try {
-      while (!aborted) {
-        if (drainIterations >= DRAIN_MAX_ITERATIONS) {
-          console.warn(
-            "[webhooks/stream] drain hit DRAIN_MAX_ITERATIONS — handing off to live tail",
-            { drainIterations, drainCursor },
-          );
-          break;
-        }
-        if (Date.now() - drainStartedAt > DRAIN_MAX_MS) {
-          console.warn(
-            "[webhooks/stream] drain hit DRAIN_MAX_MS — handing off to live tail",
-            { elapsedMs: Date.now() - drainStartedAt, drainCursor },
-          );
-          break;
-        }
-        drainIterations += 1;
-        const batch = (await client.query(
-          api.webhooks.query.webhookEventsSince,
-          {
-            apiKey,
-            sinceMs: drainCursor,
-            afterCreationTime: drainCreationCursor,
-            limit: 500,
-          },
-        )) as Array<Record<string, unknown>>;
-        if (!batch.length) {
-          // Saturated-cohort fallback: if the previous iteration
-          // delivered events stuck at drainCursor's millisecond and
-          // this query came back empty, the query's fetchLimit cap
-          // hid the rest of that cohort. Advance past the millisecond
-          // and try once more before declaring drain complete.
-          if (
-            lastDeliveredReceivedAt !== null &&
-            lastDeliveredReceivedAt === drainCursor
-          ) {
-            drainCursor += 1;
-            drainCreationCursor = undefined;
-            lastDeliveredReceivedAt = null;
-            continue;
-          }
-          break;
-        }
-
-        let advanced = false;
-        for (const event of batch) {
-          if (aborted) break;
-          const id = typeof event.id === "string" ? event.id : null;
-          if (!id || seen.has(id)) continue;
-          // Stop the drain once we've crossed into "live" territory —
-          // events at or past `liveStart` are owned by the live tail.
-          if (
-            typeof event.receivedAt === "number" &&
-            event.receivedAt >= liveStart
-          ) {
-            break;
-          }
-          seen.add(id);
-          if (
-            typeof event.receivedAt === "number" &&
-            event.receivedAt > drainCursor
-          ) {
-            drainCursor = event.receivedAt;
-            advanced = true;
-          }
-          if (
-            typeof event._creationTime === "number" &&
-            (drainCreationCursor === undefined ||
-              event._creationTime > drainCreationCursor)
-          ) {
-            drainCreationCursor = event._creationTime;
-            advanced = true;
-          }
-          await stream
-            .writeSSE({
-              id,
-              event:
-                typeof event.type === "string" ? event.type : "WebhookEvent",
-              data: JSON.stringify(event),
-            })
-            .catch((err) => {
-              console.error(
-                "[webhooks/stream] drain write failed",
-                describeError(err),
-              );
-            });
-          if (typeof event.receivedAt === "number") {
-            lastDeliveredReceivedAt = event.receivedAt;
-          }
-        }
-        if (!advanced) break;
-        if (batch.length < 500) break;
-      }
-    } catch (error) {
-      console.error("[webhooks/stream] drain failed", describeError(error));
-      await stream.writeSSE({
-        event: "stream-error",
-        data: JSON.stringify({
-          message: "Drain failed",
-        }),
-      });
-      // No reactive.close() — the client is shared across SSE
-      // subscribers. We never registered an `onUpdate` here (still
-      // in the drain phase), so there's nothing per-connection to
-      // tear down.
-      return;
-    }
-    if (aborted) {
-      return;
-    }
-
-    // ── Phase 2: attach live tail ────────────────────────────────
-    // Convex reactive query args are immutable for the life of an
-    // `onUpdate` subscription, so the subscription itself cannot be
-    // the delivery cursor. Use it only as a wake-up signal, then drain
-    // through `webhookEventsSince` with a per-connection moving cursor.
-    // That keeps long-lived streams moving past every 500-row page.
-    //
-    // The overlap closes a small race window: an event committed with
-    // `receivedAt` marginally before `liveStart` would otherwise be
-    // missed by both phases. `seen` dedupes the overlap.
-    const PHASE_OVERLAP_MS = 5_000;
-    let liveCursor = liveStart - PHASE_OVERLAP_MS;
-    let liveCreationCursor: number | undefined;
-    let liveDraining = false;
-    let liveDrainRequested = false;
-    const drainLiveTail = async (): Promise<void> => {
-      if (liveDraining) {
-        liveDrainRequested = true;
-        return;
-      }
-      liveDraining = true;
-      try {
-        do {
-          liveDrainRequested = false;
-          const result = await drainWebhookEventBatches({
-            initialCursor: {
-              sinceMs: liveCursor,
-              afterCreationTime: liveCreationCursor,
-            },
-            maxIterations: DRAIN_MAX_ITERATIONS,
-            isAborted: () => aborted,
-            loadBatch: async ({ sinceMs, afterCreationTime, limit }) =>
-              await client.query(api.webhooks.query.webhookEventsSince, {
-                apiKey,
-                sinceMs,
-                afterCreationTime,
-                limit,
-              }),
-            seen,
-            writeEvent: async (event, id) => {
-              await stream
-                .writeSSE({
-                  id,
-                  event:
-                    typeof event.type === "string"
-                      ? event.type
-                      : "WebhookEvent",
-                  data: JSON.stringify(event),
-                })
-                .catch((err) => {
-                  console.error(
-                    "[webhooks/stream] live write failed",
-                    describeError(err),
-                  );
-                });
-            },
-            onIterationLimit: ({ iterations, cursor }) => {
-              console.warn(
-                "[webhooks/stream] live drain hit DRAIN_MAX_ITERATIONS",
-                { iterations, liveCursor: cursor.sinceMs },
-              );
-            },
-            onSaturatedCohortFallback: ({
-              iterations,
-              cursor,
-              nextSinceMs,
-              limit,
-            }) => {
-              console.warn(
-                "[webhooks/stream] live drain saturated same-ms cohort fallback",
-                {
-                  iterations,
-                  limit,
-                  liveCursor: cursor.sinceMs,
-                  afterCreationTime: cursor.afterCreationTime,
-                  nextLiveCursor: nextSinceMs,
-                },
-              );
-            },
-          });
-          liveCursor = result.cursor.sinceMs;
-          liveCreationCursor = result.cursor.afterCreationTime;
-        } while (liveDrainRequested && !aborted);
-      } catch (error) {
-        console.error(
-          "[webhooks/stream] live drain failed",
-          describeError(error),
-        );
-        await stream.writeSSE({
-          event: "stream-error",
-          data: JSON.stringify({
-            message: "Live drain failed",
-          }),
-        });
-      } finally {
-        liveDraining = false;
-        if (liveDrainRequested && !aborted) {
-          void drainLiveTail();
-        }
-      }
-    };
-
-    let unsubscribe: (() => void) | null = null;
-    try {
-      unsubscribe = reactive.onUpdate(
-        api.webhooks.query.latestWebhookEventsSince,
-        {
-          apiKey,
-          sinceMs: liveStart - PHASE_OVERLAP_MS,
-          limit: 500,
-        },
-        (events: unknown) => {
-          if (aborted) return;
-          if (!Array.isArray(events)) return;
-          void drainLiveTail();
-        },
-      );
-    } catch (error) {
-      console.error("[webhooks/stream] subscribe failed", describeError(error));
-      await stream.writeSSE({
-        event: "stream-error",
-        data: JSON.stringify({
-          message: "Subscribe failed",
-        }),
-      });
-      // unsubscribe() not needed — onUpdate threw before returning a
-      // handle. Don't close the shared client.
-      return;
-    }
-
-    await drainLiveTail();
-
-    // Phase 2 onUpdate is now armed — switch the dedup tracker
-    // from "hold every drained id" to "bounded sliding window."
-    // The pre-drain ids that are older than the overlap window
-    // (5s back from liveStart) can no longer be re-surfaced by
-    // the live tail, so they're safe to age out.
-    seen.markDrainComplete();
-
-    try {
-      while (!aborted) {
-        await stream.sleep(HEARTBEAT_MS);
-        if (aborted) break;
-        await drainLiveTail();
-        if (aborted) break;
-        await stream.writeSSE({ event: "heartbeat", data: "" });
-      }
-    } finally {
-      // Unsubscribe from this connection's onUpdate but DO NOT close
-      // the shared reactive client — other live SSE subscribers and
-      // future connections share the same WebSocket.
-      try {
-        unsubscribe?.();
-      } catch {
-        // Some Convex client versions throw on double-unsubscribe
-        // during hot-reload paths; benign.
-      }
-    }
-  });
-}
-
-webhooks.get("/stream", apiKeyMiddleware, secretAdminApiKeyMiddleware, (c) =>
-  streamWebhookEvents(c, c.var.apiKey),
-);
-
-// Compatibility route for early stream clients. New integrations should keep
-// the secret out of URLs and use the Bearer-authenticated route above.
-webhooks.get("/stream/:apiKey", (c) =>
-  streamWebhookEvents(c, c.req.param("apiKey")),
-);
-
-// Translate an EventSource `Last-Event-ID` (which is the spec's stable
-// `sourceNotificationId`) into a `sinceMs` + `afterCreationTime` cursor
-// pair. The new `findEventCursor` query hits the dedicated
-// `by_project_and_notification_id` index so the lookup is O(log n)
-// regardless of how many events the project has accumulated. The prior
-// implementation scanned the first 500 events and silently fell back
-// to "now" for anything beyond that — projects with > 500 events
-// would lose every replay-on-reconnect (PR #124 (https://github.com/hyodotdev/openiap/pull/124) review fix).
-//
-// Returns `{ sinceMs, afterCreationTime }` so the SSE handler can pass
-// both to `webhookEventsSince` and resume strictly past the last
-// emitted event even under same-`receivedAt` bursts.
-async function resolveStreamStartCursor(
-  apiKey: string,
-  lastEventId: string | undefined,
-): Promise<{ sinceMs: number; afterCreationTime?: number }> {
-  if (!lastEventId) {
-    // New client (no Last-Event-ID) starts from the live tail. The
-    // prior `sinceMs: 0` made every fresh connection drain the
-    // entire 30-day retention window, which on busy projects melted
-    // the kit pod and saturated the SDK with already-known history.
-    // Long-offline reconciliation is the explicit job of the
-    // `webhookEventsSince` query — clients that need historical
-    // events query it directly with whatever cursor they tracked.
-    return { sinceMs: Date.now() };
-  }
-  try {
-    const match = await client.query(api.webhooks.query.findEventCursor, {
-      apiKey,
-      sourceNotificationId: lastEventId,
-    });
-    if (match) {
-      return {
-        sinceMs: match.receivedAt,
-        afterCreationTime: match._creationTime,
-      };
-    }
-    // Unknown lastEventId — never replay the full 30-day window for a
-    // confused / forged client.
-    return { sinceMs: Date.now() };
-  } catch (error) {
-    const sanitized =
-      error instanceof Error ? error.name : "(unknown error type)";
-    console.warn("[webhooks/stream] cursor resolution failed", sanitized);
-    return { sinceMs: Date.now() };
-  }
-}
-
-export function normalizeLastEventId(value: string | undefined) {
-  if (!value) return undefined;
-  return value.length <= MAX_LAST_EVENT_ID_LENGTH ? value : undefined;
 }
 
 const oauth2Client = new OAuth2Client();

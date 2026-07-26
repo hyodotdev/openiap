@@ -272,7 +272,6 @@ describe("remote MCP HTTP server", () => {
       "verified?.state === 'pending-acknowledgment'",
     );
     expect(expoPayload.snippet).toContain("<IAPKIT_PUBLISHABLE_KEY>");
-    expect(expoPayload.snippet).not.toContain("useWebhookEvents");
     expect(expoPayload.snippet).not.toContain(apiKey);
   });
 

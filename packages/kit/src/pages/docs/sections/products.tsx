@@ -271,9 +271,8 @@ curl "https://kit.openiap.dev/v1/products/sync/jobs/<jobId>" \\
         <p>
           A publishable key can be extracted, but IAPKit limits it to
           verification and client-safe operations. It cannot change products or
-          payloads, inspect project-wide analytics, open a webhook stream, or
-          run store sync. Never substitute the <code>openiap-kit_sk_</code>{" "}
-          secret used by MCP or CI.
+          payloads, inspect project-wide analytics, or run store sync. Never
+          substitute the <code>openiap-kit_sk_</code> secret used by MCP or CI.
         </p>
       </Callout>
       <CodeBlock title="List iOS products with payloads" language="bash">

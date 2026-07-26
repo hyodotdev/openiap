@@ -195,7 +195,7 @@ default_tools_approval_mode = "prompt"`}</CodeBlock>
           <li>
             Confirm the generated code contains only an{' '}
             <code>IAPKIT_PUBLISHABLE_KEY</code> placeholder and does not contain
-            the MCP secret or a project-wide webhook-stream hook.
+            the MCP secret or any project-wide lifecycle event consumer.
           </li>
           <li>
             Configure an <code>openiap-kit_pk_</code> publishable key in Expo

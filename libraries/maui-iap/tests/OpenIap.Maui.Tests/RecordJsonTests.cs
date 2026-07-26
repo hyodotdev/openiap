@@ -549,46 +549,4 @@ public class RecordJsonTests
             () => JsonSerializer.Deserialize<RequestPurchaseProps>(mismatched, Options));
     }
 
-    // ------------------------------------------------------------------
-    // WebhookEvent record
-    // ------------------------------------------------------------------
-
-    [Fact]
-    public void WebhookEvent_DeserializesFullPayload()
-    {
-        const string json = """
-            {
-              "id": "evt-123",
-              "type": "subscription-renewed",
-              "platform": "ios",
-              "environment": "production",
-              "source": "apple-app-store-server-notifications-v2",
-              "projectId": "proj-1",
-              "productId": "premium.monthly",
-              "purchaseToken": "orig-txn-1",
-              "subscriptionState": "active",
-              "occurredAt": 1720000000000,
-              "receivedAt": 1720000000500,
-              "expiresAt": 1722678400000,
-              "renewsAt": 1722678400000,
-              "priceAmountMicros": 9990000,
-              "currency": "USD"
-            }
-            """;
-
-        var evt = JsonSerializer.Deserialize<WebhookEvent>(json, Options);
-
-        Assert.NotNull(evt);
-        Assert.Equal("evt-123", evt!.Id);
-        Assert.Equal(WebhookEventType.SubscriptionRenewed, evt.Type);
-        Assert.Equal(IapPlatform.IOS, evt.Platform);
-        Assert.Equal(WebhookEventEnvironment.Production, evt.Environment);
-        Assert.Equal(WebhookEventSource.AppleAppStoreServerNotificationsV2, evt.Source);
-        Assert.Equal(SubscriptionState.Active, evt.SubscriptionState);
-        Assert.Equal("orig-txn-1", evt.PurchaseToken);
-        Assert.Equal(1720000000000D, evt.OccurredAt);
-        Assert.Equal(1720000000500D, evt.ReceivedAt);
-        Assert.Null(evt.CancellationReason);
-        Assert.Null(evt.RawSignedPayload);
-    }
 }

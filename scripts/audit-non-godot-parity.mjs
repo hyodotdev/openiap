@@ -88,7 +88,6 @@ const featureSpecs = {
   "available-purchases": {},
   "offer-code": {},
   "alternative-billing": {},
-  "webhook-stream": {},
 };
 
 const operationParityRegistry = {
@@ -182,6 +181,145 @@ function exists(relativePath) {
 
 function fail(message) {
   failures.push(message);
+}
+
+function listTrackedFiles(relativePath) {
+  return execFileSync("git", ["ls-files", "--", relativePath], {
+    cwd: root,
+    encoding: "utf8",
+  })
+    .split(/\r?\n/)
+    .filter((file) => file.length > 0 && exists(file));
+}
+
+function checkNoOutboundWebhookStream() {
+  const forbiddenFiles = [
+    "packages/kit/server/api/v1/webhookStreamDrain.ts",
+    "packages/kit/convex/webhooks/query.ts",
+    "packages/gql/src/webhook.graphql",
+    "packages/gql/src/webhook-client.ts",
+    "libraries/react-native-iap/src/webhook-client.ts",
+    "libraries/react-native-iap/src/hooks/useWebhookEvents.ts",
+    "libraries/expo-iap/src/webhook-client.ts",
+    "libraries/expo-iap/src/useWebhookEvents.ts",
+    "libraries/flutter_inapp_purchase/lib/webhook_client.dart",
+    "libraries/godot-iap/addons/godot-iap/webhook_client.gd",
+    "libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/WebhookClient.kt",
+    "libraries/maui-iap/src/OpenIap.Maui/WebhookClient.cs",
+  ];
+  for (const relativePath of forbiddenFiles) {
+    if (exists(relativePath)) {
+      fail(
+        `outbound IAPKit webhook streams are forbidden; remove ${relativePath}`,
+      );
+    }
+  }
+
+  const forbiddenIdentifiers = [
+    "/v1/webhooks/stream",
+    "connectWebhookStream",
+    "useWebhookEvents",
+    "WebhookStream",
+    "WebhookClient",
+    "webhookEventsSince",
+    "webhookStreamCursor",
+    "webhook_stream",
+    "webhook-stream",
+  ];
+  const removalRegressionTest =
+    "packages/kit/server/api/v1/webhooks.test.ts";
+  expectIncludes(
+    removalRegressionTest,
+    [
+      'it("does not expose outbound webhook stream routes"',
+      '"/webhooks/stream"',
+      '"/webhooks/stream/openiap-kit_pk_mobile"',
+      "expect(response.status).toBe(404)",
+    ],
+    "outbound webhook route removal regression",
+  );
+  const synchronizedGodotArtifacts = [
+    "libraries/godot-iap/addons/godot-iap/android/GodotIap.debug.aar",
+    "libraries/godot-iap/addons/godot-iap/android/GodotIap.release.aar",
+    "libraries/godot-iap/addons/godot-iap/bin/ios/GodotIap.framework/GodotIap",
+    "libraries/godot-iap/addons/godot-iap/bin/macos/GodotIap.framework/GodotIap",
+  ];
+  const forbiddenGodotArtifactSymbols = [
+    "WebhookEvent",
+    "SubscriptionState",
+    "WebhookCancellationReason",
+  ];
+  for (const relativePath of synchronizedGodotArtifacts) {
+    if (!exists(relativePath)) {
+      fail(`missing tracked Godot runtime artifact: ${relativePath}`);
+      continue;
+    }
+    const artifact = fs.readFileSync(abs(relativePath));
+    for (const symbol of forbiddenGodotArtifactSymbols) {
+      if (artifact.includes(Buffer.from(symbol))) {
+        fail(
+          `${relativePath} still embeds removed outbound webhook symbol ${JSON.stringify(symbol)}; rebuild the tracked artifact`,
+        );
+      }
+    }
+  }
+
+  const activeRoots = [
+    "packages/gql/src",
+    "packages/apple/Sources",
+    "packages/apple/Example",
+    "packages/google/openiap/src",
+    "packages/google/Example",
+    "packages/kit/server/api/v1",
+    "packages/kit/convex/webhooks",
+    "libraries/react-native-iap",
+    "libraries/expo-iap",
+    "libraries/flutter_inapp_purchase",
+    "libraries/godot-iap",
+    "libraries/kmp-iap",
+    "libraries/maui-iap",
+  ];
+  for (const relativePath of activeRoots.flatMap(listTrackedFiles)) {
+    if (relativePath === removalRegressionTest) continue;
+    if (
+      !/\.(?:c|cc|cs|dart|gd|graphql|h|java|js|json|kt|kts|md|mjs|mm|swift|ts|tsx|xaml)$/i.test(
+        relativePath,
+      )
+    ) {
+      continue;
+    }
+    const text = read(relativePath);
+    if (/\bwebhook[\s_-]*stream\b/i.test(text)) {
+      fail(`${relativePath} reintroduces a forbidden outbound webhook stream`);
+    }
+    if (
+      /webhook/i.test(relativePath) &&
+      (text.includes("text/event-stream") || /\bEventSource\b/.test(text))
+    ) {
+      fail(
+        `${relativePath} reintroduces forbidden SSE transport in webhook code`,
+      );
+    }
+    for (const identifier of forbiddenIdentifiers) {
+      if (text.includes(identifier)) {
+        fail(
+          `${relativePath} reintroduces forbidden outbound webhook identifier ${JSON.stringify(identifier)}`,
+        );
+      }
+    }
+  }
+
+  for (const relativePath of listTrackedFiles("packages/docs/src/pages/docs")) {
+    if (relativePath.includes("/updates/")) continue;
+    const text = read(relativePath);
+    for (const identifier of forbiddenIdentifiers) {
+      if (text.includes(identifier)) {
+        fail(
+          `${relativePath} documents forbidden outbound webhook identifier ${JSON.stringify(identifier)}`,
+        );
+      }
+    }
+  }
 }
 
 function listDirectories(relativePath) {
@@ -1010,22 +1148,6 @@ function checkExpoRouterExample(base, importSource) {
   );
   expectIncludes(rel(base, "app/index.tsx"), ["getStorefront"], `${base} home`);
   expectIncludes(
-    rel(base, "app/webhook-stream.tsx"),
-    [
-      "Do not connect from a shipped app",
-      "openiap-kit_pk_",
-      "openiap-kit_sk_",
-      "/v1/webhooks/stream",
-      "Authorization: Bearer",
-    ],
-    `${base} webhook security guidance`,
-  );
-  expectNotIncludes(
-    rel(base, "app/webhook-stream.tsx"),
-    ["connectWebhookStream", "EXPO_PUBLIC_IAPKIT_SECRET_KEY"],
-    `${base} webhook mobile example`,
-  );
-  expectIncludes(
     rel(base, "app/alternative-billing.tsx"),
     [
       "isBillingProgramAvailableAndroid",
@@ -1059,7 +1181,6 @@ function checkReactNativeClassic() {
     AvailablePurchases: "AvailablePurchases",
     OfferCode: "OfferCode",
     AlternativeBilling: "AlternativeBilling",
-    WebhookStream: "WebhookStream",
   };
   for (const [route, file] of Object.entries(screens)) {
     expectFile(rel(base, "screens", `${file}.tsx`));
@@ -1078,25 +1199,8 @@ function checkReactNativeClassic() {
       "Available Purchases",
       "Offer Code",
       "Alternative Billing",
-      "Webhook Stream",
     ],
     `${base} home`,
-  );
-  expectIncludes(
-    rel(base, "screens/WebhookStream.tsx"),
-    [
-      "Do not connect from a shipped app",
-      "openiap-kit_pk_",
-      "openiap-kit_sk_",
-      "/v1/webhooks/stream",
-      "Authorization: Bearer",
-    ],
-    `${base} webhook security guidance`,
-  );
-  expectNotIncludes(
-    rel(base, "screens/WebhookStream.tsx"),
-    ["connectWebhookStream", "IAPKIT_SECRET_KEY ||"],
-    `${base} webhook mobile example`,
   );
   expectIncludes(
     rel(base, "screens/AlternativeBilling.tsx"),
@@ -1115,7 +1219,7 @@ function checkReactNativeClassic() {
   );
   expectIncludes(
     rel(base, "__tests__/screens/Home.test.tsx"),
-    ["All Products", "Alternative Billing", "Webhook Stream"],
+    ["All Products", "Alternative Billing"],
     `${base} home tests`,
   );
   expectIncludes(
@@ -1139,7 +1243,6 @@ function checkFlutter() {
     "available_purchases_screen.dart",
     "offer_code_screen.dart",
     "alternative_billing_screen.dart",
-    "webhook_stream_screen.dart",
   ];
   for (const file of screenFiles) {
     expectFile(rel(base, "lib/src/screens", file));
@@ -1158,25 +1261,8 @@ function checkFlutter() {
       "Available Purchases",
       "Redeem Offer Code",
       "Alternative Billing",
-      "Webhook Stream",
     ],
     `${base} home`,
-  );
-  expectIncludes(
-    rel(base, "lib/src/screens/webhook_stream_screen.dart"),
-    [
-      "Do not connect from a shipped app",
-      "openiap-kit_pk_",
-      "openiap-kit_sk_",
-      "/v1/webhooks/stream",
-      "Authorization: Bearer",
-    ],
-    `${base} webhook security guidance`,
-  );
-  expectNotIncludes(
-    rel(base, "lib/src/screens/webhook_stream_screen.dart"),
-    ["connectWebhookStream", "iapKitSecretKey"],
-    `${base} webhook mobile example`,
   );
   expectIncludes(
     rel(base, "lib/src/screens/alternative_billing_screen.dart"),
@@ -1194,11 +1280,7 @@ function checkFlutter() {
   );
   expectIncludes(
     rel(base, "test/widget_test.dart"),
-    [
-      "Webhook Stream",
-      "Do not connect from a shipped app",
-      "Alternative Billing",
-    ],
+    ["Alternative Billing"],
     `${base} widget tests`,
   );
   expectIncludes(
@@ -1565,19 +1647,9 @@ function checkKmp() {
     "AvailablePurchasesScreen.kt",
     "OfferCodeScreen.kt",
     "AlternativeBillingScreen.kt",
-    "WebhookStreamScreen.kt",
     "ExampleProductIds.kt",
-    "WebhookTestNotification.kt",
   ]) {
     expectFile(rel(base, "commonMain/kotlin/dev/hyo/martie/screens", file));
-  }
-  for (const sourceSet of ["androidMain", "iosMain", "jvmMain"]) {
-    expectFile(
-      rel(
-        base,
-        `${sourceSet}/kotlin/dev/hyo/martie/screens/WebhookTestNotification.${sourceSet.replace("Main", "")}.kt`,
-      ),
-    );
   }
   expectIncludes(
     rel(base, "commonMain/kotlin/dev/hyo/martie/navigation/Navigation.kt"),
@@ -1593,32 +1665,9 @@ function checkKmp() {
       "Available Purchases",
       "Offer Code",
       "Alternative Billing",
-      "Webhook Stream",
       "getStorefront()",
     ],
     "KMP home",
-  );
-  expectIncludes(
-    rel(
-      base,
-      "commonMain/kotlin/dev/hyo/martie/screens/WebhookStreamScreen.kt",
-    ),
-    [
-      "Do not connect from a shipped app",
-      "openiap-kit_pk_",
-      "openiap-kit_sk_",
-      "/v1/webhooks/stream",
-      "Authorization: Bearer",
-    ],
-    "KMP webhook security guidance",
-  );
-  expectNotIncludes(
-    rel(
-      base,
-      "commonMain/kotlin/dev/hyo/martie/screens/WebhookStreamScreen.kt",
-    ),
-    ["connectWebhookStream", "triggerWebhookTestNotification"],
-    "KMP webhook mobile example",
   );
   expectIncludes(
     rel(
@@ -1683,7 +1732,6 @@ function checkApple() {
     "AvailablePurchasesScreen.swift",
     "OfferCodeScreen.swift",
     "AlternativeBillingScreen.swift",
-    "WebhookStreamScreen.swift",
   ]) {
     expectFile(rel(base, "Example/OpenIapExample/Screens", file));
   }
@@ -1696,25 +1744,8 @@ function checkApple() {
       "AvailablePurchasesScreen",
       "OfferCodeScreen",
       "AlternativeBillingScreen",
-      "WebhookStreamScreen",
     ],
     "Apple home",
-  );
-  expectIncludes(
-    rel(base, "Example/OpenIapExample/Screens/WebhookStreamScreen.swift"),
-    [
-      "Do not connect from a shipped app",
-      "openiap-kit_pk_",
-      "openiap-kit_sk_",
-      "/v1/webhooks/stream",
-      "Authorization: Bearer",
-    ],
-    "Apple webhook security guidance",
-  );
-  expectNotIncludes(
-    rel(base, "Example/OpenIapExample/Screens/WebhookStreamScreen.swift"),
-    ["/v1/webhooks/stream/", "Trigger Test"],
-    "Apple webhook mobile example",
   );
   expectIncludes(
     rel(base, "Sources/OpenIapProtocol.swift"),
@@ -1776,7 +1807,6 @@ function checkGoogle() {
     "AvailablePurchasesScreen.kt",
     "OfferCodeScreen.kt",
     "AlternativeBillingScreen.kt",
-    "WebhookStreamScreen.kt",
   ]) {
     expectFile(rel(base, "Example/src/main/java/dev/hyo/martie/screens", file));
   }
@@ -1789,31 +1819,8 @@ function checkGoogle() {
       "available_purchases",
       "offer_code",
       "alternative_billing",
-      "webhook_stream",
     ],
     "Google home",
-  );
-  expectIncludes(
-    rel(
-      base,
-      "Example/src/main/java/dev/hyo/martie/screens/WebhookStreamScreen.kt",
-    ),
-    [
-      "Do not connect from a shipped app",
-      "openiap-kit_pk_",
-      "openiap-kit_sk_",
-      "/v1/webhooks/stream",
-      "Authorization: Bearer",
-    ],
-    "Google webhook security guidance",
-  );
-  expectNotIncludes(
-    rel(
-      base,
-      "Example/src/main/java/dev/hyo/martie/screens/WebhookStreamScreen.kt",
-    ),
-    ["triggerTestNotification", "/v1/webhooks/stream/"],
-    "Google webhook mobile example",
   );
   for (const flavor of ["play", "horizon", "amazon"]) {
     expectIncludes(
@@ -1857,7 +1864,6 @@ function checkMaui() {
     "AvailablePurchasesPage",
     "OfferCodePage",
     "AlternativeBillingPage",
-    "WebhookStreamPage",
   ]) {
     expectFile(rel(base, "Pages", `${page}.xaml`));
     expectFile(rel(base, "Pages", `${page}.xaml.cs`));
@@ -1871,27 +1877,10 @@ function checkMaui() {
       "Available Purchases",
       "Offer Code",
       "Alternative Billing",
-      "Webhook Stream",
     ],
     "MAUI home",
   );
   expectIncludes(rel(base, "AppShell.xaml.cs"), routes, "MAUI routes");
-  expectIncludes(
-    rel(base, "Pages/WebhookStreamPage.xaml"),
-    [
-      "Do not connect from a shipped app",
-      "openiap-kit_pk_",
-      "openiap-kit_sk_",
-      "/v1/webhooks/stream",
-      "Authorization: Bearer",
-    ],
-    "MAUI webhook security guidance",
-  );
-  expectNotIncludes(
-    rel(base, "Pages/WebhookStreamPage.xaml.cs"),
-    ["ConnectWebhookStream", "TriggerButton"],
-    "MAUI webhook mobile example",
-  );
   expectIncludes(
     rel(base, "Pages/AlternativeBillingPage.xaml.cs"),
     [
@@ -1991,11 +1980,7 @@ function checkNativeApis() {
   );
   expectIncludes(
     "libraries/expo-iap/src/index.ts",
-    [
-      "getStorefront",
-      "connectWebhookStream",
-      "export * from './modules/android';",
-    ],
+    ["getStorefront", "export * from './modules/android';"],
     "Expo API exports",
   );
   expectIncludes(
@@ -3820,7 +3805,7 @@ function checkFrameworkDependencyHygiene() {
       "Purchase verification: `Authorization: Bearer openiap-kit_pk_<publishable-key>`",
       "MCP/admin: `Authorization: Bearer openiap-kit_sk_<secret-key>`",
       "Administrative product,",
-      "subscription analytics, MCP, and webhook-stream requests keep the secret in the",
+      "subscription analytics, MCP, and store-sync requests keep the secret in the",
       "Bearer header and out of URLs.",
       "default 600 per key",
       "an exact store-verified `productId` match",
@@ -6336,6 +6321,7 @@ function checkReleaseNoteGroupingGuidance() {
 checkLibraryCoverageRegistry();
 checkNativeSpecVersionFloor();
 checkDeprecationSchedule();
+checkNoOutboundWebhookStream();
 checkExpoSsotRegistry();
 checkE2eExampleIds();
 checkGeneratedTypeSync();

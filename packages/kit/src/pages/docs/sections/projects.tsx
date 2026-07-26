@@ -90,8 +90,8 @@ export default function ProjectsPage() {
         Administrative automation uses a secret key beginning with{" "}
         <code>openiap-kit_sk_</code>. Create one from the{" "}
         <strong>API Keys</strong> tab before configuring MCP, CI, catalog
-        writes, subscription analytics, webhook streams, or store sync. Never
-        ship a secret key in an app.
+        writes, subscription analytics, or store sync. Never ship a secret key
+        in an app.
       </p>
       <p>
         The full value is shown only when the project or key is created, or when
@@ -130,8 +130,8 @@ export default function ProjectsPage() {
               <td className="px-3 py-2 font-mono text-xs">openiap-kit_sk_…</td>
               <td className="px-3 py-2">Secret manager, CI, or MCP</td>
               <td className="px-3 py-2">
-                Everything above plus catalog and payload writes, analytics,
-                webhook streams, and store sync
+                Everything above plus catalog and payload writes, analytics, and
+                store sync
               </td>
             </tr>
           </tbody>
@@ -148,9 +148,7 @@ export default function ProjectsPage() {
           Keys created before this split are treated as publishable because
           older documentation allowed them inside apps. Existing mobile builds
           keep verifying purchases, while administrative callers must switch to
-          a newly created secret key. Any mobile webhook-stream demo must be
-          removed or moved to a trusted backend; project-wide streams now reject
-          publishable keys.
+          a newly created secret key.
         </p>
       </Callout>
 

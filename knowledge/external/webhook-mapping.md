@@ -1,8 +1,9 @@
-# Webhook Event Mapping (ASN v2 ↔ RTDN ↔ openiap)
+# IAPKit Internal Webhook Mapping (ASN v2 ↔ RTDN)
 
 This document is the source of truth for how kit normalizes Apple App Store Server
 Notifications v2 (ASN v2) and Google Play Real-Time Developer Notifications (RTDN)
-into the unified `WebhookEvent` shape defined in [`packages/gql/src/webhook.graphql`](../../packages/gql/src/webhook.graphql).
+for its internal subscription state machine and persisted event records. These
+types are not part of the OpenIAP native or framework SDK contract.
 
 When kit's webhook receivers are implemented (Phase 1, PR #2), they MUST follow
 this table. When extending the spec (new event types, new stores), update this
@@ -10,7 +11,7 @@ document in the same PR.
 
 ## Subscription lifecycle
 
-| openiap `WebhookEventType` | Apple ASN v2 `notificationType` (`subtype`) | Google RTDN `subscriptionNotification.notificationType` |
+| IAPKit internal event type | Apple ASN v2 `notificationType` (`subtype`) | Google RTDN `subscriptionNotification.notificationType` |
 |---|---|---|
 | `SubscriptionStarted` | `SUBSCRIBED` (`INITIAL_BUY`, `RESUBSCRIBE`) | `SUBSCRIPTION_PURCHASED` (4) |
 | `SubscriptionRenewed` | `DID_RENEW` | `SUBSCRIPTION_RENEWED` (2) |
@@ -34,7 +35,7 @@ above reflects the corrected RTDN reference.
 
 ## One-time / common
 
-| openiap `WebhookEventType` | Apple ASN v2 | Google RTDN |
+| IAPKit internal event type | Apple ASN v2 | Google RTDN |
 |---|---|---|
 | `PurchaseRefunded` | `REFUND` | `oneTimeProductNotification.notificationType = ONE_TIME_PRODUCT_CANCELED` (2), or `voidedPurchaseNotification` |
 | `PurchaseConsumptionRequest` | `CONSUMPTION_REQUEST` | (no equivalent — Play handles consumption client-side) |
@@ -42,7 +43,7 @@ above reflects the corrected RTDN reference.
 
 ## Field mapping
 
-| `WebhookEvent` field | Apple ASN v2 source | Google RTDN source |
+| Internal event field | Apple ASN v2 source | Google RTDN source |
 |---|---|---|
 | `id` | `notificationUUID` | Pub/Sub `messageId` |
 | `occurredAt` | `signedDate` | `eventTimeMillis` |
@@ -58,7 +59,7 @@ above reflects the corrected RTDN reference.
 
 ## Validation requirements (kit Phase 1, PR #2)
 
-Both stores require signature verification before any event is emitted:
+Both stores require signature verification before any event is accepted:
 
 - **Apple ASN v2**: verify the JWS using Apple's public root certificates (refresh
   via the App Store Connect API). The receiver must reject unverified payloads
@@ -74,7 +75,7 @@ Idempotency:
   RTDN. Convex idempotency table records the first-seen event and silently
   acknowledges duplicates with HTTP 200.
 
-Replay window:
+Retention:
 
-- Events MUST be retained for at least 30 days so `webhookEventsSince` can
-  service reconnecting clients. Older events are pruned by a Convex cron job.
+- Events are retained for the bounded IAPKit operational window and pruned by a
+  Convex cron job. They are not exposed as a public replay stream.

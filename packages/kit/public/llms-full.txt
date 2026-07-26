@@ -31,7 +31,7 @@ Authorization: Bearer openiap-kit_pk_<your-publishable-key>
 
 Each project has publishable (`openiap-kit_pk_...`) keys for mobile
 verification and client-safe reads, plus secret (`openiap-kit_sk_...`) keys for
-MCP, CI, catalog/payload writes, analytics, webhook streams, and store sync.
+MCP, CI, catalog/payload writes, analytics, and store sync.
 Keys are stored in Convex and can be rotated from the dashboard. Existing
 unclassified keys are treated as publishable because older docs allowed them in
 apps.
@@ -176,14 +176,6 @@ openiap-kit_sk_...` on `POST /v1/products`, `POST /v1/products/state`,
 required by `/v1/subscriptions/{list|metrics|revenue}`. Older key-in-path
 routes accept publishable keys only where app/store transports require them.
 Secret keys in URL paths receive `410 SECRET_API_KEY_IN_URL`.
-
-### GET /v1/webhooks/stream
-
-Long-lived administrative SSE stream of normalized project-wide webhook
-events. Send `Authorization: Bearer openiap-kit_sk_...` and resume with
-`Last-Event-ID`. Publishable keys receive `403 INSUFFICIENT_SCOPE`. The older
-secret-key-in-path route returns `410 SECRET_API_KEY_IN_URL`; never put a
-secret stream key in a shipped app.
 
 ### Aliases
 

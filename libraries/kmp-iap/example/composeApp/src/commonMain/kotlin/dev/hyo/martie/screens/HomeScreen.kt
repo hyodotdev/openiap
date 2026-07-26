@@ -147,13 +147,6 @@ fun HomeScreen(navController: NavController) {
             onClick = { navController.navigate(Screen.AlternativeBilling.route) }
         )
 
-        NavigationCard(
-            icon = Icons.Default.Notifications,
-            title = "Webhook Stream",
-            subtitle = "Backend-only IAPKit SSE guidance",
-            onClick = { navController.navigate(Screen.WebhookStream.route) }
-        )
-
         Spacer(modifier = Modifier.height(32.dp))
     }
 }

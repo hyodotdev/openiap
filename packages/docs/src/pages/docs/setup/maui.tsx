@@ -305,19 +305,18 @@ await mutate.RequestPurchaseAsync(new RequestPurchaseProps
           </p>
         </div>
 
-        <h3 id="iapkit-api-webhooks" className="anchor-heading">
-          IAPKit API and Webhooks
-          <a href="#iapkit-api-webhooks" className="anchor-link">
+        <h3 id="iapkit-api" className="anchor-heading">
+          IAPKit API
+          <a href="#iapkit-api" className="anchor-link">
             #
           </a>
         </h3>
         <p>
           The MAUI package exposes the same IAPKit helper surface as the
           JavaScript SDKs: create a kit client for status, entitlements, and
-          bind-user calls. These app-facing calls use the publishable key.
-          Project-wide webhook streaming is an administrative operation and must
-          run from a trusted backend with a separate secret key—not from the
-          MAUI app.
+          bind-user calls. These app-facing calls use the publishable key. Store
+          lifecycle webhooks flow into IAPKit only; there is no outbound webhook
+          stream in the MAUI package.
         </p>
         <CodeBlock language="csharp">
           {`using OpenIap;
@@ -331,11 +330,7 @@ var kit = OpenIapClient.KitApi(new KitApiOptions
 
 StatusResponse status = await kit.StatusAsync("user_123");
 EntitlementsResponse entitlements = await kit.EntitlementsAsync("user_123");
-BindUserResponse bind = await kit.BindUserAsync(purchase.PurchaseToken!, "user_123");
-
-// Server-side parsers remain available when a trusted backend consumes
-// GET /v1/webhooks/stream with Authorization: Bearer openiap-kit_sk_...
-ParsedWebhookEventResult parsed = OpenIapClient.ParseWebhookEventData(rawSseData);`}
+BindUserResponse bind = await kit.BindUserAsync(purchase.PurchaseToken!, "user_123");`}
         </CodeBlock>
 
         <h3 id="cleanup" className="anchor-heading">
@@ -368,7 +363,7 @@ await mutate.EndConnectionAsync();`}
           <code>libraries/maui-iap/example/OpenIap.Maui.Example</code>. It
           mirrors the Expo example screens: Home, All Products, In-App Purchase
           Flow, Subscription Flow, Available Purchases, Offer Code, Alternative
-          Billing, and Webhook Stream.
+          Billing.
         </p>
         <CodeBlock language="bash">
           {`# From the OpenIAP repo root:

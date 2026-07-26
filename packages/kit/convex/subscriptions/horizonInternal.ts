@@ -210,25 +210,15 @@ export const recordHorizonStatus = internalMutation({
     if (!transition.next) return existing._id;
     const now = Date.now();
 
-    // Synthesize a webhookEvents row so the SSE stream re-broadcasts
-    // this Horizon transition to connected SDK clients. Without this
-    // the polling reconciler updated the subscription row but never
-    // surfaced the change on the authenticated `/v1/webhooks/stream` — Horizon
-    // listeners would silently miss every renewal / expiry until the
-    // next state-driven HTTP query.
-    //
-    // Source is `MetaHorizonReconciler` (synthetic; Horizon has no
-    // upstream webhook) and `sourceNotificationId` is a deterministic
-    // hash of (purchaseToken, eventType, productId) so re-running the
-    // cron with the same Meta Graph response doesn't double-emit.
+    // Record a synthetic webhookEvents row for operator history, metrics, and
+    // deduplication. Horizon has no upstream webhook. The deterministic
+    // sourceNotificationId prevents cron retries from duplicating the event.
     const sourceNotificationId = `meta-horizon-${args.eventType}-${args.purchaseToken}-${args.productId}`;
 
     // Dedup by (projectId, source, sourceNotificationId) — re-running
     // the same Horizon poll result (cron retries, manual reconcile)
-    // would otherwise insert another webhookEvents row and re-broadcast
-    // the same SSE event, bypassing the first-seen-wins contract the
-    // Apple/Google webhook receivers honor. Reuse the existing event
-    // when one is already on file.
+    // would otherwise insert another webhookEvents row. Reuse the existing
+    // event when one is already on file.
     const existingEvent = await ctx.db
       .query("webhookEvents")
       .withIndex("by_project_and_source_and_notification_id", (q) =>

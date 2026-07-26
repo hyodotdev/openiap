@@ -7,10 +7,7 @@ import {
   allowsLegacyProjectApiKeyFallback,
   effectiveApiKeyType,
 } from "../apiKeys/helpers";
-import {
-  resolveProjectByApiKeyFromDb,
-  resolveProjectByIdForCurrentUserFromDb,
-} from "./helpers";
+import { resolveProjectByIdForCurrentUserFromDb } from "./helpers";
 
 function projectWithSecretState(project: Doc<"projects">): Omit<
   Doc<"projects">,
@@ -203,31 +200,26 @@ export const getProjectById = query({
   },
 });
 
-export function selectActiveWebhookApiKeys(
+export function selectActiveWebhookPublishableKey(
   apiKeys: Array<
     Pick<Doc<"apiKeys">, "createdAt" | "isActive" | "key" | "keyType">
   >,
-): { publishableKey?: string; hasSecretKey: boolean } {
+): string | undefined {
   const activeApiKeys = apiKeys
     .filter((apiKey) => apiKey.isActive)
     .sort((a, b) => b.createdAt - a.createdAt);
-  return {
-    publishableKey: activeApiKeys.find(
-      (apiKey) => effectiveApiKeyType(apiKey.keyType) === "publishable",
-    )?.key,
-    hasSecretKey: activeApiKeys.some(
-      (apiKey) => effectiveApiKeyType(apiKey.keyType) === "secret",
-    ),
-  };
+  return activeApiKeys.find(
+    (apiKey) => effectiveApiKeyType(apiKey.keyType) === "publishable",
+  )?.key;
 }
 
-async function getWebhookApiKeys(ctx: QueryCtx, project: Doc<"projects">) {
+async function getWebhookApiKey(ctx: QueryCtx, project: Doc<"projects">) {
   const apiKeys = await ctx.db
     .query("apiKeys")
     .withIndex("by_project", (q) => q.eq("projectId", project._id))
     .collect();
-  const selected = selectActiveWebhookApiKeys(apiKeys);
-  if (selected.publishableKey || selected.hasSecretKey) return selected;
+  const selected = selectActiveWebhookPublishableKey(apiKeys);
+  if (selected) return selected;
 
   // Legacy-only projects predate the apiKeys table. Reuse the central fallback
   // policy so revoking or deleting the final scoped key cannot make the
@@ -236,13 +228,9 @@ async function getWebhookApiKeys(ctx: QueryCtx, project: Doc<"projects">) {
     ctx,
     project,
   );
-  return {
-    publishableKey:
-      mayUseLegacyFallback && project.apiKey.length > 0
-        ? project.apiKey
-        : undefined,
-    hasSecretKey: false,
-  };
+  return mayUseLegacyFallback && project.apiKey.length > 0
+    ? project.apiKey
+    : undefined;
 }
 
 function lifecycleWebhookPathsForApiKey(apiKey: string) {
@@ -259,10 +247,9 @@ export const getWebhookEndpointPaths = query({
   returns: v.union(
     v.null(),
     v.object({
-      unified: v.optional(v.string()),
-      apple: v.optional(v.string()),
-      google: v.optional(v.string()),
-      hasSecretKey: v.boolean(),
+      unified: v.string(),
+      apple: v.string(),
+      google: v.string(),
     }),
   ),
   handler: async (ctx, args) => {
@@ -273,16 +260,10 @@ export const getWebhookEndpointPaths = query({
     if (!resolved) return null;
     if (resolved.role === "member") return null;
 
-    const { publishableKey, hasSecretKey } = await getWebhookApiKeys(
-      ctx,
-      resolved.project,
-    );
-    if (!publishableKey && !hasSecretKey) return null;
-
-    return {
-      ...(publishableKey ? lifecycleWebhookPathsForApiKey(publishableKey) : {}),
-      hasSecretKey,
-    };
+    const publishableKey = await getWebhookApiKey(ctx, resolved.project);
+    return publishableKey
+      ? lifecycleWebhookPathsForApiKey(publishableKey)
+      : null;
   },
 });
 
@@ -329,23 +310,5 @@ export const hasProjects = query({
       .first();
 
     return project !== null;
-  },
-});
-
-// Public query to find project by API key (used by API verification endpoints).
-// New keys resolve through `apiKeys` first so rotation / revocation semantics
-// match the rest of the v1 surface; legacy project keys still fall back. Do
-// not echo the apiKey back to callers; route code only needs a truthy project.
-export const getProjectByApiKey = query({
-  args: { apiKey: v.string() },
-  handler: async (ctx, args) => {
-    // The only HTTP caller is the project-wide webhook event stream. Receipt
-    // verification resolves through internal purchase helpers instead.
-    const resolved = await resolveProjectByApiKeyFromDb(
-      ctx,
-      args.apiKey,
-      "admin",
-    );
-    return resolved ? projectForApiKeyLookup(resolved.project) : null;
   },
 });

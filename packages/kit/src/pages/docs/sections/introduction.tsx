@@ -48,10 +48,9 @@ export default function IntroductionPage() {
           call it directly with an <code>openiap-kit_pk_</code> publishable key,
           so you do not need to build a proxy just to verify a purchase. Secret
           <code>openiap-kit_sk_</code> keys are only for administrative work
-          such as MCP, catalog or payload writes, analytics, webhook streams,
-          and store sync. You still need your own authenticated backend when
-          resources on that backend are protected or when rules must remain
-          private.
+          such as MCP, catalog or payload writes, analytics, and store sync. You
+          still need your own authenticated backend when resources on that
+          backend are protected or when rules must remain private.
         </p>
       </Callout>
 

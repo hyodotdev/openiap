@@ -44,7 +44,6 @@ describe('RootLayout', () => {
       'available-purchases',
       'offer-code',
       'alternative-billing',
-      'webhook-stream',
     ].forEach((route) => {
       expect(getByTestId(route)).toBeDefined();
     });

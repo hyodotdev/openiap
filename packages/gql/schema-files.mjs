@@ -15,5 +15,4 @@ export const SCHEMA_FILE_NAMES = Object.freeze([
   'api-android.graphql',
   'error.graphql',
   'event.graphql',
-  'webhook.graphql',
 ]);

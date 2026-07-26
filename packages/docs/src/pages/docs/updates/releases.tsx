@@ -84,15 +84,15 @@ const purchaseSafetyReleases = [
 ] as const;
 
 const iapkitSecurityTrainReleases = [
-  ['OpenIAP Spec 2.4.4', 'docs-2.4.4'],
-  ['openiap-apple 2.4.4', '2.4.4'],
-  ['openiap-google 2.5.1', 'google-2.5.1'],
-  ['react-native-iap 15.6.1', 'react-native-iap-15.6.1'],
-  ['expo-iap 4.7.1', 'expo-iap-4.7.1'],
-  ['flutter_inapp_purchase 9.6.1', 'flutter-iap-9.6.1'],
-  ['godot-iap 2.6.1', 'godot-iap-2.6.1'],
-  ['kmp-iap 2.7.1', 'kmp-iap-2.7.1'],
-  ['OpenIap.Maui 1.4.1', 'maui-iap-1.4.1'],
+  ['OpenIAP Spec 3.0.0', 'docs-3.0.0'],
+  ['openiap-apple 3.0.0', '3.0.0'],
+  ['openiap-google 3.0.0', 'google-3.0.0'],
+  ['react-native-iap 16.0.0', 'react-native-iap-16.0.0'],
+  ['expo-iap 5.0.0', 'expo-iap-5.0.0'],
+  ['flutter_inapp_purchase 10.0.0', 'flutter-iap-10.0.0'],
+  ['godot-iap 3.0.0', 'godot-iap-3.0.0'],
+  ['kmp-iap 3.0.0', 'kmp-iap-3.0.0'],
+  ['OpenIap.Maui 2.0.0', 'maui-iap-2.0.0'],
 ] as const;
 
 const iapkitSecurityTrainAliases = [
@@ -108,7 +108,7 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
-    // July 25, 2026 - OpenIAP Spec 2.4.4 / Apple 2.4.4 / Google 2.5.1
+    // July 25, 2026 - OpenIAP Spec/native 3.0.0 and framework major releases
     {
       id: 'iapkit-security-cross-sdk-payload-integrity-2026-07-25',
       aliases: iapkitSecurityTrainAliases,
@@ -125,8 +125,8 @@ function Releases() {
             id="iapkit-security-cross-sdk-payload-integrity-2026-07-25"
             level="h4"
           >
-            July 25, 2026 - OpenIAP Spec 2.4.4 / Apple 2.4.4 / Google 2.5.1 and
-            SDK patch releases
+            July 25, 2026 - OpenIAP Spec/native 3.0.0 and framework major
+            releases
           </AnchorLink>
 
           <p
@@ -137,9 +137,12 @@ function Releases() {
           >
             Publishes one coordinated IAPKit and SDK security train. Hosted
             IAPKit adds scoped API keys, programmable product client payloads,
-            bounded public-API cost controls, source-aware webhook delivery, and
-            version-based App Store Connect review submissions. The native and
-            framework packages harden purchase payload handling and publish
+            bounded public-API cost controls, source-aware inbound webhook
+            processing, and version-based App Store Connect review submissions.
+            This is a coordinated major SDK train because the unsupported
+            IAPKit-to-app webhook stream and its public event types are removed
+            from the shared spec, native packages, and every framework library.
+            The packages also harden purchase payload handling and publish
             migration guidance from{' '}
             <a
               href="https://github.com/hyodotdev/openiap/issues/248"
@@ -167,9 +170,9 @@ function Releases() {
             >
               PR #252
             </a>
-            . OpenIAP Spec <code>2.4.4</code> is the semantic-version floor
-            shared by openiap-apple <code>2.4.4</code> and openiap-google{' '}
-            <code>2.5.1</code>.
+            . OpenIAP Spec <code>3.0.0</code> is the coordinated contract for
+            openiap-apple <code>3.0.0</code> and openiap-google{' '}
+            <code>3.0.0</code>.
           </p>
 
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Common changes</h5>
@@ -193,6 +196,14 @@ function Releases() {
               APNs or FCM.
             </li>
             <li>
+              <strong>Breaking:</strong> only store-to-IAPKit lifecycle webhooks
+              remain. The IAPKit-to-SDK SSE route, webhook clients and hooks,
+              generated <code>WebhookEvent*</code> contracts, native and
+              framework examples, and replay helpers are removed. Apps should
+              use bounded verification, status, and entitlement requests; a
+              developer backend owns any APNs or FCM delivery it requires.
+            </li>
+            <li>
               Canonical payload fields now take precedence consistently across
               raw adapters and typed facades. Legacy aliases remain compatible
               through each package&apos;s current major and emit bounded
@@ -209,14 +220,14 @@ function Releases() {
             }}
           >
             <li>
-              Product writes, store sync, analytics, project setup, and
-              project-wide webhook streams require secret-admin scope at the
-              Convex data boundary. Existing unclassified keys fail closed as
-              publishable keys, preserving verification without granting
-              administrative access. Newly generated keys are shown in full once
-              and represented by a safe preview afterward. Secret-key URL routes
-              return <code>410</code>, and deleting the final scoped key cannot
-              reactivate the deprecated project-key fallback.
+              Product writes, store sync, analytics, and project setup require
+              secret-admin scope at the Convex data boundary. Existing
+              unclassified keys fail closed as publishable keys, preserving
+              verification without granting administrative access. Newly
+              generated keys are shown in full once and represented by a safe
+              preview afterward. Secret-key URL routes return <code>410</code>,
+              and deleting the final scoped key cannot reactivate the deprecated
+              project-key fallback.
             </li>
             <li>
               Secret-key REST and MCP clients can create, replace, or remove
@@ -310,28 +321,26 @@ function Releases() {
             }}
           >
             <li>
-              <strong>OpenIAP Spec 2.4.4</strong> - publishes canonical
-              deprecation ownership, generated Kotlin <code>@Deprecated</code>{' '}
-              annotations, and synchronized Swift, Kotlin, TypeScript, Dart,
-              GDScript, and C# compatibility contracts. No compatibility surface
-              is removed in the 2.x train.
+              <strong>OpenIAP Spec 3.0.0</strong> - removes the public
+              IAPKit-to-SDK webhook schema and generated{' '}
+              <code>WebhookEvent*</code> types, then synchronizes the remaining
+              Swift, Kotlin, TypeScript, Dart, GDScript, and C# contracts.
             </li>
             <li>
-              <strong>openiap-apple 2.4.4</strong> - ships the synchronized
-              generated contracts, preserves canonical-first request handling,
-              and emits one-time guidance for legacy native bridge keys while
-              retaining their 2.x compatibility window. The native example no
-              longer asks a shipped app to embed a secret for a project-wide
-              webhook stream.
+              <strong>openiap-apple 3.0.0</strong> - ships the synchronized
+              generated contract without public webhook-event types and removes
+              the webhook-stream screen from the native example while preserving
+              inbound App Store notification support in IAPKit.
             </li>
             <li>
-              <strong>openiap-google 2.5.1</strong> - rejects Amazon receipts
-              when either cancellation signal is present, keeps the subscription
-              term SKU as <code>currentPlanId</code>, reports deferred plan
-              changes through <code>pendingPurchaseUpdateAndroid</code>, and
-              keeps one-time warning deduplication compatible with Android API
-              23. Its example directs mobile apps to publishable-key
-              verification instead of a secret-backed project stream (
+              <strong>openiap-google 3.0.0</strong> - removes public
+              webhook-event types and the stream example, rejects Amazon
+              receipts when either cancellation signal is present, keeps the
+              subscription term SKU as <code>currentPlanId</code>, reports
+              deferred plan changes through{' '}
+              <code>pendingPurchaseUpdateAndroid</code>, and keeps one-time
+              warning deduplication compatible with Android API 23.
+              Store-to-IAPKit Google RTDN remains supported (
               <a
                 href="https://github.com/hyodotdev/openiap/pull/253"
                 target="_blank"
@@ -353,57 +362,57 @@ function Releases() {
             }}
           >
             <li>
-              <strong>react-native-iap 15.6.1</strong> - carries explicit native
-              transaction identity through Nitro, leaves orderless Google Play
-              transactions without a synthetic order ID, preserves Apple renewal
-              metadata, and models deferred Vega plan changes without hiding the
-              active receipt. Its example removes the project-wide stream, and
-              the legacy helper is documented as trusted-process compatibility
-              only. Its IAPKit helper also accepts an AsyncStorage-compatible
-              persistent client-payload cache and uses conditional refreshes
-              instead of repeated catalog polling.
+              <strong>react-native-iap 16.0.0</strong> - removes{' '}
+              <code>connectWebhookStream</code>, <code>useWebhookEvents</code>,
+              their event types, tests, and example screen. It carries explicit
+              native transaction identity through Nitro, leaves orderless Google
+              Play transactions without a synthetic order ID, preserves Apple
+              renewal metadata, and models deferred Vega plan changes without
+              hiding the active receipt. Its IAPKit helper accepts an
+              AsyncStorage-compatible persistent client-payload cache and uses
+              conditional refreshes instead of repeated catalog polling.
             </li>
             <li>
-              <strong>expo-iap 4.7.1</strong> - fails closed when an Onside
-              module or method is unavailable instead of falling through to
-              StoreKit, classifies Onside subscriptions with canonical metadata,
-              preserves Vega current-plan and pending-update semantics, and
-              removes the secret-backed webhook stream from the mobile example.
-              The Vega example build now loads the standard Expo environment
-              chain before embedding public IAPKit settings and declares the
-              required system and control audio services so TV focus navigation
-              works without runtime permission failures. Its IAPKit helper
-              persists payload version, body, and ETag through the same
-              cache-adapter contract and revalidates only on explicit refresh.
+              <strong>expo-iap 5.0.0</strong> - removes{' '}
+              <code>connectWebhookStream</code>, <code>useWebhookEvents</code>,
+              their event types, tests, and example route. It fails closed when
+              an Onside module or method is unavailable instead of falling
+              through to StoreKit, classifies Onside subscriptions with
+              canonical metadata, preserves Vega current-plan and pending-update
+              semantics. The Vega example build now loads the standard Expo
+              environment chain before embedding public IAPKit settings and
+              declares the required system and control audio services so TV
+              focus navigation works without runtime permission failures. Its
+              IAPKit helper persists payload version, body, and ETag through the
+              same cache-adapter contract and revalidates only on explicit
+              refresh.
             </li>
             <li>
-              <strong>flutter_inapp_purchase 9.6.1</strong> - reads canonical{' '}
-              <code>dataAndroid</code>, preserves complete generated purchase
-              and verification results, supports Horizon verification,
-              recursively normalizes nested native maps, and moves the
-              trusted-process IAPKit stream credential into the Authorization
-              header.
+              <strong>flutter_inapp_purchase 10.0.0</strong> - removes the
+              webhook client, generated event types, tests, and example screen.
+              It reads canonical <code>dataAndroid</code>, preserves complete
+              generated purchase and verification results, supports Horizon
+              verification, and recursively normalizes nested native maps.
             </li>
             <li>
-              <strong>godot-iap 2.6.1</strong> - ships generated deprecation
-              guidance, canonical-first envelope handling, credential-safe
-              one-time warnings, and a Bearer-authenticated project-wide IAPKit
-              stream that must never run from a shipped game.
+              <strong>godot-iap 3.0.0</strong> - removes the GDScript webhook
+              client and generated event types while preserving canonical-first
+              envelope handling and credential-safe one-time warnings.
             </li>
             <li>
-              <strong>kmp-iap 2.7.1</strong> - preserves complete generated
-              Android and iOS purchase fields, including developer payload,
-              pending updates, purchase tokens, transaction identity, and
-              normalized Apple bridge null values. Project-wide stream helper
-              compatibility is restricted to trusted tooling in documentation
-              and examples.
+              <strong>kmp-iap 3.0.0</strong> - removes common, Android, and iOS
+              webhook transports, public event types, tests, and example
+              screens. It preserves complete generated Android and iOS purchase
+              fields, including developer payload, pending updates, purchase
+              tokens, transaction identity, and normalized Apple bridge null
+              values.
             </li>
             <li>
-              <strong>OpenIap.Maui 1.4.1</strong> - reports listener
-              deserialization drift with credential-safe diagnostics instead of
-              silently dropping malformed purchase events, removes the mobile
-              webhook-stream entry point, and directs apps to publishable-key
-              verification.
+              <strong>OpenIap.Maui 2.0.0</strong> - removes webhook clients,
+              parsers, event types, tests, and example pages. It reports
+              listener deserialization drift with credential-safe diagnostics
+              instead of silently dropping malformed purchase events and directs
+              apps to publishable-key verification.
             </li>
           </ul>
 
@@ -418,11 +427,10 @@ function Releases() {
             }}
           >
             <li>
-              Native/spec compatibility surfaces remain through OpenIAP 2.x.
-              Framework aliases remain until each framework&apos;s next major:
-              react-native-iap 16.0.0, expo-iap 5.0.0,{' '}
-              {'flutter_inapp_purchase 10.0.0'}, godot-iap 3.0.0, kmp-iap 3.0.0,
-              and OpenIap.Maui 2.0.0.
+              Upgrade all coordinated packages together. The outbound webhook
+              APIs have no compatibility stub or replacement stream. Use direct
+              verification and scoped reads, or implement authenticated backend
+              push delivery when the product requires it.
             </li>
             <li>
               Raw map/object compatibility inputs treat an own canonical key,
@@ -4588,14 +4596,12 @@ function Releases() {
             <li>
               <strong>Example parity</strong> — the MAUI example mirrors the
               Expo sample flows for all products, purchase flow, subscription
-              flow, available purchases, alternative billing, offer codes, and
-              webhook stream demos.
+              flow, available purchases, alternative billing, and offer codes.
             </li>
             <li>
               <strong>IAPKit helper parity</strong> — MAUI exposes{' '}
-              <code>Iap.KitApi</code> and <code>Iap.ConnectWebhookStream</code>,
-              plus the webhook parser helper, so apps can use the same status,
-              entitlements, bind-user, and webhook flow as the TypeScript SDKs.
+              <code>Iap.KitApi</code> so apps can use the same status,
+              entitlements, and bind-user flow as the TypeScript SDKs.
             </li>
           </ul>
 
@@ -4716,8 +4722,8 @@ function Releases() {
             <li>
               <strong>Example parity</strong> — Expo, React Native classic,
               React Native Expo, Flutter, KMP, MAUI, Apple, and Google examples
-              now share the same product ids, route set, storefront usage,
-              alternative billing flow, and webhook stream demo coverage.
+              now share the same product ids, route set, storefront usage, and
+              alternative billing flow.
             </li>
             <li>
               <strong>Framework SDK patches</strong> — Expo, React Native,
@@ -4824,7 +4830,7 @@ function Releases() {
       ),
     },
 
-    // May 5, 2026 — Webhook event streaming + IAPKit kit-api shipped to all SDKs
+    // May 5, 2026 — IAPKit kit-api shipped to all SDKs
     {
       id: 'releases-2026-05-05',
       date: new Date('2026-05-05'),
@@ -4836,8 +4842,7 @@ function Releases() {
 
           <div style={{ marginTop: '0.75rem', marginBottom: '1.5rem' }}>
             <h5 style={{ margin: '0 0 0.5rem 0' }}>
-              Webhook event streaming + IAPKit <code>kit-api</code> wired across
-              every SDK
+              IAPKit <code>kit-api</code> wired across every SDK
             </h5>
             <p
               style={{
@@ -4854,11 +4859,9 @@ function Releases() {
               >
                 PR #124
               </a>
-              ): every wrapper SDK and both native packages now expose the
-              normalized webhook event stream (App Store Server Notifications v2
-              + Google RTDN, surfaced through <code>kit.openiap.dev</code>'s SSE
-              channel) plus a typed <code>kit-api</code> client for hosted
-              purchase verification, subscription state, and product sync.
+              ): every wrapper SDK and both native packages now expose a typed{' '}
+              <code>kit-api</code> client for hosted purchase verification,
+              subscription state, and product sync.
             </p>
 
             <ul
@@ -4869,49 +4872,35 @@ function Releases() {
               }}
             >
               <li>
-                <strong>packages/gql</strong> — added{' '}
-                <code>webhook.graphql</code> spec, generated webhook event
-                types, <code>connectWebhookStream</code> SSE client, and{' '}
-                <code>kit-api</code> typed client. Spec bumped to{' '}
-                <code>2.1.0</code>.
+                <strong>packages/gql</strong> — added the <code>kit-api</code>{' '}
+                typed client. Spec bumped to <code>2.1.0</code>.
               </li>
               <li>
                 <strong>packages/apple</strong> — <code>Types.swift</code>{' '}
-                regenerated with webhook event payloads + kit-api request /
-                response shapes; <code>OpenIapModule</code> exposes ASN v2
-                normalization helpers used by Convex sync.
+                regenerated with kit-api request and response shapes.
               </li>
               <li>
                 <strong>packages/google</strong> — <code>Types.kt</code>{' '}
-                regenerated; <code>OpenIapStore</code> emits RTDN-normalized
-                events into the kit pipeline and exposes the same kit-api
-                surface as Apple.
+                regenerated and exposes the same kit-api surface as Apple.
               </li>
               <li>
                 <strong>expo-iap</strong> &amp;{' '}
                 <strong>react-native-iap</strong> — added{' '}
-                <code>webhook-client.ts</code>, <code>useWebhookEvents</code>{' '}
-                hook, and <code>kit-api.ts</code>. <code>useIAP</code> now
-                optionally subscribes to the live event stream so receipt
-                updates fan out without polling.
+                <code>kit-api.ts</code>.
               </li>
               <li>
-                <strong>flutter_inapp_purchase</strong> — added{' '}
-                <code>webhook_client.dart</code> with a Dart SSE transport;{' '}
-                <code>types.dart</code> now mirrors the new webhook + kit-api
-                shapes generated from <code>packages/gql</code>.
+                <strong>flutter_inapp_purchase</strong> —{' '}
+                <code>types.dart</code> now mirrors the kit-api shapes generated
+                from <code>packages/gql</code>.
               </li>
               <li>
-                <strong>kmp-iap</strong> — added <code>WebhookClient</code> with
-                platform <code>WebhookTransport</code> implementations
-                (OkHttp-EventSource on Android, NSURLSession on iOS) and{' '}
-                expanded <code>Types.kt</code> for the new payloads.
+                <strong>kmp-iap</strong> — expanded <code>Types.kt</code> for
+                the new kit-api payloads.
               </li>
               <li>
-                <strong>godot-iap</strong> — added{' '}
-                <code>webhook_client.gd</code> with a GDScript SSE client and
-                regenerated <code>types.gd</code>; the addon now ships with the
-                same kit verification path the other SDKs use.
+                <strong>godot-iap</strong> — regenerated <code>types.gd</code>;
+                the addon now ships with the same kit verification path the
+                other SDKs use.
               </li>
             </ul>
 
@@ -4925,8 +4914,7 @@ function Releases() {
               The legacy <code>api.iapkit.com</code> redirect still forwards to{' '}
               <code>kit.openiap.dev</code> until{' '}
               <strong>August 12, 2026</strong> — apps that pick up these package
-              versions move off the redirect and onto the native webhook stream
-              in one upgrade.
+              versions move off the redirect in one upgrade.
             </p>
           </div>
 
@@ -5005,7 +4993,7 @@ function Releases() {
       ),
     },
 
-    // May 4, 2026 — Kit webhook drain helper extraction + CI/BuildKit hardening
+    // May 4, 2026 — Kit CI/BuildKit hardening
     {
       id: 'releases-2026-05-04',
       date: new Date('2026-05-04'),
@@ -5017,77 +5005,8 @@ function Releases() {
 
           <div style={{ marginTop: '0.75rem', marginBottom: '1.5rem' }}>
             <h5 style={{ margin: '0 0 0.5rem 0' }}>
-              Kit webhook drain helper extracted + SSE drain edges hardened
+              Kit CI and BuildKit hardening
             </h5>
-            <p
-              style={{
-                marginBottom: '1rem',
-                color: 'var(--text-secondary)',
-              }}
-            >
-              The SSE live-drain loop in{' '}
-              <code>packages/kit/server/api/v1/webhooks.ts</code> now delegates
-              to a standalone <code>drainWebhookEventBatches</code> helper
-              (preserving the same advance/abort semantics), so cohort and
-              iteration-limit edges are testable in isolation. See{' '}
-              <a
-                href="https://github.com/hyodotdev/openiap/pull/125"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="external-link"
-              >
-                PR #125
-              </a>
-              .
-            </p>
-
-            <ul
-              style={{
-                marginBottom: '1rem',
-                paddingLeft: '1.25rem',
-                fontSize: '0.9rem',
-              }}
-            >
-              <li>
-                <strong>Saturated-cohort fallback</strong> — drain loop now
-                advances when a same-millisecond cohort exceeds the{' '}
-                <code>take()</code> cap. The fallback is gated on a true same-
-                <code>receivedAt</code> cohort (full page, every event shares
-                one <code>receivedAt</code>, that <code>receivedAt</code>{' '}
-                matches <code>cursor.sinceMs</code>) so a mixed full page ending
-                at the cursor ms cannot skip a late-arriving same-ms event.
-              </li>
-              <li>
-                <strong>Write-failure retryability</strong> — event ids are
-                added to <code>seen</code> only after <code>writeEvent</code>{' '}
-                succeeds, so a thrown writer leaves the event eligible for the
-                next drain pass.
-              </li>
-              <li>
-                <strong>Convex index cleanup</strong> — removed the redundant{' '}
-                <code>by_project_and_received_and_creation</code> index. Convex
-                auto-appends <code>_creationTime</code> to every index, so{' '}
-                <code>by_project_and_received</code> already serves both{' '}
-                <code>webhookEventsSince</code> and{' '}
-                <code>latestWebhookEventsSince</code>.
-              </li>
-              <li>
-                <strong>Typed drain events</strong> —{' '}
-                <code>Record&lt;string, unknown&gt;</code> replaced with a{' '}
-                <code>WebhookStreamEvent</code> type that names the fields the
-                helper actually reads (<code>id</code>, <code>receivedAt</code>,{' '}
-                <code>_creationTime</code>).
-              </li>
-              <li>
-                <strong>Real-HTTP SSE integration test</strong> — added for{' '}
-                <code>connectWebhookStream</code> in <code>packages/gql</code>{' '}
-                using <code>http.createServer</code> + a fetch-based{' '}
-                <code>EventSource</code> shim, and wired{' '}
-                <code>packages/gql</code> vitest into CI's <code>test-gql</code>{' '}
-                job (these tests weren't running on PRs before).
-              </li>
-            </ul>
-
             <p
               style={{
                 marginBottom: '0.75rem',

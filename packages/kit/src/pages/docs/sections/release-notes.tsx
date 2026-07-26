@@ -34,7 +34,7 @@ const RELEASES: ReleaseEntry[] = [
     items: [
       {
         kind: "security",
-        text: "Projects now issue publishable openiap-kit_pk_ keys for shipped apps and secret openiap-kit_sk_ keys for MCP, CI, catalog writes, analytics, store sync, and project-wide webhook streams. Existing unclassified keys remain publishable so prior mobile builds keep verifying without gaining admin access.",
+        text: "Projects now issue publishable openiap-kit_pk_ keys for shipped apps and secret openiap-kit_sk_ keys for MCP, CI, catalog writes, analytics, and store sync. Existing unclassified keys remain publishable so prior mobile builds keep verifying without gaining admin access.",
       },
       {
         kind: "security",
@@ -55,6 +55,10 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "feature",
         text: "Direct payload reads now support project/key/product-scoped ETags and body-free 304 responses. React Native IAP and Expo IAP can persist the payload body, version, and ETag through an AsyncStorage-compatible cache and revalidate only on explicit refresh.",
+      },
+      {
+        kind: "security",
+        text: "Breaking SDK change: IAPKit keeps inbound Apple ASN v2 and Google RTDN processing but removes the outbound project event stream, replay queries, SDK webhook clients and hooks, and public generated webhook-event types. Apps use bounded verification and scoped reads; a developer backend owns any APNs or FCM delivery.",
       },
       {
         kind: "fix",

@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-07-24T15:52:26.154Z
+> Last updated: 2026-07-26T16:23:20.219Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -372,6 +372,20 @@ openiap/src/
 - Contains API reference and guides
 
 ## Dependency Flow
+
+### IAPKit webhook boundary
+
+The only allowed webhook direction is from a store into IAPKit:
+
+```text
+Apple ASN v2 / Google RTDN ──► IAPKit state
+```
+
+IAPKit must not expose a server-to-mobile webhook stream, SSE endpoint,
+WebSocket, push relay, or long-poll lifecycle feed. Mobile packages and
+framework libraries use bounded request/response verification and scoped reads.
+If an app needs immediate push delivery, its authenticated backend owns that
+policy and transport.
 
 ```
 ┌─────────────┐
@@ -994,7 +1008,7 @@ For every new/changed handler in the generated types, verify **all five** of the
 | **flutter_inapp_purchase** | `lib/types.dart` (generated)                                        | getter on `FlutterInappPurchase` in `lib/flutter_inapp_purchase.dart`                                                                                                                                                                                                                                                                                                                                            | `case "<name>":` in `ios/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift` and `macos/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift`, Android plugin `onMethodCall`                                                                                                                                                                                                                                                                                                                                                   | `queryHandlers` / `mutationHandlers` / `subscriptionHandlers` bundles near the bottom of `flutter_inapp_purchase.dart` | Mock + test in `test/ios_methods_test.dart` (and the `errors_unit_test.dart` error-mapping test)                                                                                                                                                                 |
 | **kmp-iap**                | `library/src/commonMain/.../openiap/Types.kt` (generated interface) | exposed via `KmpInAppPurchase` / `kmpIapInstance`                                                                                                                                                                                                                                                                                                                                                                | `library/src/iosMain/.../InAppPurchaseIOS.kt` — must call `openIapModule.<name>WithCompletion { ... }`, **never** `throw UnsupportedOperationException`                                                                                                                                                                                                                                                                                                                                                                                                                                              | Not required (interface dispatch)                                                                                      | `library/src/commonTest/` if testable cross-platform                                                                                                                                                                                                             |
 | **godot-iap**              | `addons/godot-iap/types.gd` (generated)                             | public `snake_case` function in `addons/godot-iap/godot_iap.gd`                                                                                                                                                                                                                                                                                                                                                  | `ios-gdextension/Sources/GodotIap/GodotIap.swift` (iOS), `android/src/main/java/.../GodotIap.java` (Android)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Not required                                                                                                           | Manual testing — no automated test suite yet                                                                                                                                                                                                                     |
-| **maui-iap**               | `src/OpenIap.Maui/Types.cs` (generated)                             | `OpenIap.QueryResolver` / `MutationResolver` interfaces in `Types.cs`; `IOpenIap` adds the listener-stream contract; static facade is `OpenIap.Maui.OpenIapClient` (`OpenIap.Maui.Iap` remains as a legacy shim); IAPKit helpers mirror TypeScript via `OpenIapClient.KitApi(...)`, `OpenIapClient.ConnectWebhookStream(...)`, `OpenIapClient.ParseWebhookEventData(...)`, and `OpenIapClient.WebhookEventTypes` | Android: `OpenIapMauiModule.kt` in `libraries/maui-iap/android/openiap/` (JSON-shaped Java facade over `packages/google`), bound by `OpenIap.Maui.Bindings.Android.csproj`, consumed by `Platforms/Android/OpenIapAndroid.cs`. Google Billing / Play Services / Gson / AndroidX / Kotlin dependencies must stay NuGet `PackageReference`s, not fat-bundled AARs. iOS / macCatalyst: existing `OpenIapModule+ObjC.swift` bridge in `packages/apple`, bound by hand-written `OpenIap.Maui.Bindings.iOS/ApiDefinition.cs`, consumed by `Platforms/iOS/OpenIapIOS.cs` (+ subclass `OpenIapMacCatalyst`). | Not required (interface dispatch)                                                                                      | Example app `libraries/maui-iap/example/OpenIap.Maui.Example` builds for net9.0-android / net9.0-ios / net9.0-maccatalyst; package CI builds net9/net10 shared, Android, iOS, and macCatalyst TFMs (manual device testing for purchase flow); no xUnit tests yet |
+| **maui-iap**               | `src/OpenIap.Maui/Types.cs` (generated)                             | `OpenIap.QueryResolver` / `MutationResolver` interfaces in `Types.cs`; `IOpenIap` adds the native purchase-listener contract; static facade is `OpenIap.Maui.OpenIapClient` (`OpenIap.Maui.Iap` remains as a legacy shim); app-facing IAPKit helpers are exposed via `OpenIapClient.KitApi(...)`                                                                 | Android: `OpenIapMauiModule.kt` in `libraries/maui-iap/android/openiap/` (JSON-shaped Java facade over `packages/google`), bound by `OpenIap.Maui.Bindings.Android.csproj`, consumed by `Platforms/Android/OpenIapAndroid.cs`. Google Billing / Play Services / Gson / AndroidX / Kotlin dependencies must stay NuGet `PackageReference`s, not fat-bundled AARs. iOS / macCatalyst: existing `OpenIapModule+ObjC.swift` bridge in `packages/apple`, bound by hand-written `OpenIap.Maui.Bindings.iOS/ApiDefinition.cs`, consumed by `Platforms/iOS/OpenIapIOS.cs` (+ subclass `OpenIapMacCatalyst`). | Not required (interface dispatch)                                                                                      | Example app `libraries/maui-iap/example/OpenIap.Maui.Example` builds for net9.0-android / net9.0-ios / net9.0-maccatalyst; package CI builds net9/net10 shared, Android, iOS, and macCatalyst TFMs; xUnit covers generated serialization, error mapping, and the `KitApiClient` HTTP contract (manual device testing remains for purchase flow) |
 
 ### Platform suffix rule (who needs what)
 
@@ -4439,11 +4453,12 @@ try await ExternalPurchaseLink.open(url: externalURL)
 
 <!-- Source: external/webhook-mapping.md -->
 
-# Webhook Event Mapping (ASN v2 ↔ RTDN ↔ openiap)
+# IAPKit Internal Webhook Mapping (ASN v2 ↔ RTDN)
 
 This document is the source of truth for how kit normalizes Apple App Store Server
 Notifications v2 (ASN v2) and Google Play Real-Time Developer Notifications (RTDN)
-into the unified `WebhookEvent` shape defined in [`packages/gql/src/webhook.graphql`](../../packages/gql/src/webhook.graphql).
+for its internal subscription state machine and persisted event records. These
+types are not part of the OpenIAP native or framework SDK contract.
 
 When kit's webhook receivers are implemented (Phase 1, PR #2), they MUST follow
 this table. When extending the spec (new event types, new stores), update this
@@ -4451,7 +4466,7 @@ document in the same PR.
 
 ## Subscription lifecycle
 
-| openiap `WebhookEventType` | Apple ASN v2 `notificationType` (`subtype`) | Google RTDN `subscriptionNotification.notificationType` |
+| IAPKit internal event type | Apple ASN v2 `notificationType` (`subtype`) | Google RTDN `subscriptionNotification.notificationType` |
 |---|---|---|
 | `SubscriptionStarted` | `SUBSCRIBED` (`INITIAL_BUY`, `RESUBSCRIBE`) | `SUBSCRIPTION_PURCHASED` (4) |
 | `SubscriptionRenewed` | `DID_RENEW` | `SUBSCRIPTION_RENEWED` (2) |
@@ -4475,7 +4490,7 @@ above reflects the corrected RTDN reference.
 
 ## One-time / common
 
-| openiap `WebhookEventType` | Apple ASN v2 | Google RTDN |
+| IAPKit internal event type | Apple ASN v2 | Google RTDN |
 |---|---|---|
 | `PurchaseRefunded` | `REFUND` | `oneTimeProductNotification.notificationType = ONE_TIME_PRODUCT_CANCELED` (2), or `voidedPurchaseNotification` |
 | `PurchaseConsumptionRequest` | `CONSUMPTION_REQUEST` | (no equivalent — Play handles consumption client-side) |
@@ -4483,7 +4498,7 @@ above reflects the corrected RTDN reference.
 
 ## Field mapping
 
-| `WebhookEvent` field | Apple ASN v2 source | Google RTDN source |
+| Internal event field | Apple ASN v2 source | Google RTDN source |
 |---|---|---|
 | `id` | `notificationUUID` | Pub/Sub `messageId` |
 | `occurredAt` | `signedDate` | `eventTimeMillis` |
@@ -4499,7 +4514,7 @@ above reflects the corrected RTDN reference.
 
 ## Validation requirements (kit Phase 1, PR #2)
 
-Both stores require signature verification before any event is emitted:
+Both stores require signature verification before any event is accepted:
 
 - **Apple ASN v2**: verify the JWS using Apple's public root certificates (refresh
   via the App Store Connect API). The receiver must reject unverified payloads
@@ -4515,10 +4530,10 @@ Idempotency:
   RTDN. Convex idempotency table records the first-seen event and silently
   acknowledges duplicates with HTTP 200.
 
-Replay window:
+Retention:
 
-- Events MUST be retained for at least 30 days so `webhookEventsSince` can
-  service reconnecting clients. Older events are pruned by a Convex cron job.
+- Events are retained for the bounded IAPKit operational window and pruned by a
+  Convex cron job. They are not exposed as a public replay stream.
 
 
 ---

@@ -1,6 +1,5 @@
 // Pure normalization helpers that map Apple ASN v2 and Google RTDN
-// payloads to the unified `WebhookEvent` shape defined in
-// `packages/gql/src/webhook.graphql`.
+// payloads to IAPKit's private persisted lifecycle-event shape.
 //
 // This file is intentionally framework-free (no "use node", no Convex
 // imports, no Apple/Google SDK imports) so it can run in the browser-
@@ -12,8 +11,8 @@
 // SSOT for the mapping is `knowledge/external/webhook-mapping.md`.
 
 // ---------------------------------------------------------------------------
-// Generated GraphQL spec mirrors. These literals MUST stay in sync with
-// the enum values in `packages/gql/src/webhook.graphql`.
+// Private IAPKit lifecycle literals. These are not part of the OpenIAP
+// native or framework SDK contract.
 // ---------------------------------------------------------------------------
 
 export type WebhookEventType =
@@ -60,9 +59,9 @@ export type WebhookCancellationReason =
 
 export type IapPlatform = "IOS" | "Android";
 
-// Result returned by the pure normalizers. Mirrors the GraphQL
-// `WebhookEvent` payload minus `id` / `projectId` / `receivedAt` /
-// `rawSignedPayload`, which the action layer fills in.
+// Result returned by the pure normalizers. The action layer fills in
+// persistence-only fields such as id, projectId, receivedAt, and
+// rawSignedPayload.
 export type NormalizedWebhookEvent = {
   type: WebhookEventType;
   source: WebhookEventSource;

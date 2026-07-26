@@ -32,12 +32,6 @@ const scanRules = [
     extensions: [".ts", ".tsx"],
     marker: "@deprecated",
     notice: "react-native-iap 16.0.0",
-    noticeOverrides: new Map([
-      [
-        "libraries/react-native-iap/src/hooks/useWebhookEvents.ts",
-        "not a mobile-app integration surface",
-      ],
-    ]),
     excludedNames: new Set(["types.ts"]),
   },
   {
@@ -46,12 +40,6 @@ const scanRules = [
     extensions: [".ts", ".tsx"],
     marker: "@deprecated",
     notice: "expo-iap 5.0.0",
-    noticeOverrides: new Map([
-      [
-        "libraries/expo-iap/src/useWebhookEvents.ts",
-        "not a mobile-app integration surface",
-      ],
-    ]),
     excludedNames: new Set(["types.ts"]),
   },
   {
@@ -211,16 +199,16 @@ const requiredSourceNotices = [
   {
     file: "packages/docs/src/pages/docs/updates/releases.tsx",
     values: [
-      "OpenIAP Spec 2.4.4 / Apple 2.4.4 / Google",
+      "OpenIAP Spec/native 3.0.0",
       "react-native-iap 16.0.0",
       "expo-iap 5.0.0",
       "flutter_inapp_purchase 10.0.0",
       "godot-iap 3.0.0",
       "kmp-iap 3.0.0",
       "OpenIap.Maui 2.0.0",
-      "OpenIAP Spec 2.4.4",
-      "openiap-apple 2.4.4",
-      "openiap-google 2.5.1",
+      "OpenIAP Spec 3.0.0",
+      "openiap-apple 3.0.0",
+      "openiap-google 3.0.0",
       "fetchProducts skuArr / productIds",
       "transactionIdentifier",
       "Android deep-link sku / packageName",

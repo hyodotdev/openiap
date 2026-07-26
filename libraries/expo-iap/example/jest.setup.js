@@ -87,9 +87,6 @@ jest.mock('../../src', () => {
     // Cross-platform storefront helper
     getStorefront: jest.fn(),
     deepLinkToSubscriptions: jest.fn(() => Promise.resolve(true)),
-    connectWebhookStream: jest.fn(() => ({
-      close: jest.fn(),
-    })),
 
     // Android functions
     deepLinkToSubscriptionsAndroid: jest.fn(),
@@ -211,9 +208,6 @@ jest.mock('expo-iap', () => {
     // Cross-platform storefront helper
     getStorefront: jest.fn(),
     deepLinkToSubscriptions: jest.fn(() => Promise.resolve(true)),
-    connectWebhookStream: jest.fn(() => ({
-      close: jest.fn(),
-    })),
 
     // Android functions
     deepLinkToSubscriptionsAndroid: jest.fn(),

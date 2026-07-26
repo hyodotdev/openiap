@@ -50,9 +50,6 @@ describe('Home Screen', () => {
     expect(
       getByText('External purchase links & alternative billing'),
     ).toBeTruthy();
-
-    expect(getByText('Webhook Stream')).toBeTruthy();
-    expect(getByText('Backend-only IAPKit SSE guidance')).toBeTruthy();
   });
 
   it('navigates to AllProducts when All Products menu item is pressed', () => {
@@ -134,19 +131,6 @@ describe('Home Screen', () => {
     }
 
     expect(mockNavigate).toHaveBeenCalledWith('AlternativeBilling');
-  });
-
-  it('navigates to WebhookStream when Webhook Stream menu item is pressed', () => {
-    const {getByText} = render(
-      <Home navigation={{navigate: mockNavigate} as any} />,
-    );
-
-    const webhookStreamButton = getByText('Webhook Stream').parent?.parent;
-    if (webhookStreamButton) {
-      fireEvent.press(webhookStreamButton);
-    }
-
-    expect(mockNavigate).toHaveBeenCalledWith('WebhookStream');
   });
 
   it('renders footer text', () => {

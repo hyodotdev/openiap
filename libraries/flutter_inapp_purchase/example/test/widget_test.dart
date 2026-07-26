@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_dotenv/flutter_dotenv.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_inapp_purchase_example/src/app.dart';
-import 'package:flutter_inapp_purchase_example/src/screens/webhook_stream_screen.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
@@ -23,17 +22,5 @@ void main() {
     expect(find.text('Available Purchases'), findsOneWidget);
     expect(find.text('Redeem Offer Code'), findsOneWidget);
     expect(find.text('Alternative Billing'), findsOneWidget);
-    expect(find.text('Webhook Stream'), findsOneWidget);
-  });
-
-  testWidgets('renders backend-only webhook guidance', (
-    WidgetTester tester,
-  ) async {
-    await tester.pumpWidget(const MaterialApp(home: WebhookStreamScreen()));
-
-    expect(find.text('Webhook Stream'), findsOneWidget);
-    expect(find.text('Trusted backend or MCP only'), findsOneWidget);
-    expect(find.text('Do not connect from a shipped app'), findsOneWidget);
-    expect(find.text('Connect'), findsNothing);
   });
 }

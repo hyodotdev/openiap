@@ -75,7 +75,7 @@ describe("generated sync manifest", () => {
     expect(gqlPackageRelativePath(GQL_GENERATED_SOURCE_DIRECTORY)).toBe(
       "src/generated",
     );
-    expect(() => generatedSourceFileName("webhookClient")).toThrow(
+    expect(() => generatedSourceFileName("missingGroup")).toThrow(
       "Expected a generated manifest group",
     );
   });
@@ -98,9 +98,7 @@ describe("generated sync manifest", () => {
     expect(
       isGqlGenerationInputPath("packages/gql/codegen/core/transformer.ts"),
     ).toBe(true);
-    expect(isGqlGenerationInputPath("packages/gql/src/webhook-client.ts")).toBe(
-      true,
-    );
+    expect(isGqlGenerationInputPath("packages/gql/src/kit-api.ts")).toBe(true);
     expect(isGqlGenerationInputPath("package.json")).toBe(true);
     expect(isGqlGenerationInputPath("bun.lock")).toBe(true);
     expect(

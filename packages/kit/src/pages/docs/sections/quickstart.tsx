@@ -88,9 +88,8 @@ export default function QuickstartPage() {
       </p>
       <p>
         Create a separate <code>openiap-kit_sk_</code> secret key for MCP, CI,
-        catalog or payload writes, analytics, webhook streams, and store sync.
-        Keep secret keys in a secret manager and never include one in an app
-        build.
+        catalog or payload writes, analytics, and store sync. Keep secret keys
+        in a secret manager and never include one in an app build.
       </p>
       <p>
         Keys are credentials for the same project, not separate entitlement

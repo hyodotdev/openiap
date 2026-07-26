@@ -51,9 +51,6 @@ export default function ProjectWebhooks() {
           google: `${baseUrl}${endpointPaths.google}`,
         }
       : null;
-  const streamUrlTemplate = endpointPaths?.hasSecretKey
-    ? `${baseUrl}/v1/webhooks/stream`
-    : null;
 
   return (
     <div className="space-y-6">
@@ -64,11 +61,10 @@ export default function ProjectWebhooks() {
         </h2>
         <p className="text-sm text-muted-foreground">
           One URL covers Apple ASN v2 and Google Pub/Sub RTDN — kit inspects the
-          payload shape and routes internally. Trusted administrative consumers
-          can connect to the SSE stream URL to receive normalized{" "}
-          <code className="text-xs">WebhookEvent</code>s in real time. Platforms
-          you haven't configured simply produce no traffic; if a notification
-          arrives for an unconfigured platform, kit returns a precise{" "}
+          payload shape, validates it, stores the lifecycle transition, and
+          updates subscription state internally. Platforms you haven't
+          configured simply produce no traffic; if a notification arrives for an
+          unconfigured platform, kit returns a precise{" "}
           <code className="text-xs">IOS_NOT_CONFIGURED</code> /{" "}
           <code className="text-xs">ANDROID_NOT_CONFIGURED</code> error so you
           know exactly what's missing.
@@ -152,46 +148,6 @@ export default function ProjectWebhooks() {
           <p className="text-xs text-muted-foreground mt-1">
             Create or activate a publishable API key, or ask an admin to view
             webhook endpoints.
-          </p>
-        </div>
-      )}
-
-      {streamUrlTemplate ? (
-        <UrlCard
-          title="Real-time SSE stream"
-          description={
-            <>
-              Open this URL from MCP, CI, or a trusted backend to receive
-              normalized project-wide webhook events. Reconnects are handled
-              using <code className="text-xs">Last-Event-ID</code> so events
-              fired during a closed connection are delivered in order.
-              <span className="block mt-2 text-xs text-amber-500">
-                Send the secret key saved at creation as an{" "}
-                <code className="text-xs">
-                  Authorization: Bearer &lt;secret&gt;
-                </code>{" "}
-                header. IAPKit never reveals that key again. Never put it in a
-                mobile app, source control, or logs. See{" "}
-                <a
-                  href="https://openiap.dev/docs/webhooks#consume-stream"
-                  target="_blank"
-                  rel="noreferrer"
-                  className="underline hover:text-foreground"
-                >
-                  openiap.dev/docs/webhooks
-                </a>
-                .
-              </span>
-            </>
-          }
-          url={streamUrlTemplate}
-        />
-      ) : (
-        <div className="border border-border rounded-lg bg-card p-4 text-sm">
-          <div className="font-medium">Real-time SSE stream unavailable</div>
-          <p className="text-xs text-muted-foreground mt-1">
-            Create or activate a secret admin key on the API Keys tab. The
-            stream is intentionally unavailable to publishable mobile keys.
           </p>
         </div>
       )}

@@ -5,12 +5,7 @@ import type { QueryCtx } from "../_generated/server";
 import { assertProjectWritable } from "../projects/writable";
 
 // Retention window for `webhookEvents` and `webhookIdempotencyKeys`.
-// The same value is referenced by `crons.ts` (which schedules the
-// pruner) and by the `webhookEventsSince` SDK reconnect contract
-// documented at packages/gql/src/webhook.graphql — clients can
-// safely resume from a Last-Event-ID up to this far back, but no
-// further. Keep the units literal (ms) so the cron scheduler call
-// reads naturally.
+// Keep the units literal (ms) so the cron scheduler call reads naturally.
 export const WEBHOOK_RETENTION_MS = 30 * 24 * 60 * 60 * 1000;
 
 type WebhookDedupSource = "apple" | "google";

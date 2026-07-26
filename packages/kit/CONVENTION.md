@@ -136,6 +136,21 @@ discussion — the simplification is intentional, not an oversight.
   trustworthy. Use the store-verified `productId` and optional
   `expectedProductId` match guard.
 
+## Webhook direction
+
+IAPKit supports inbound store lifecycle delivery only:
+
+```text
+Apple ASN v2 / Google RTDN → IAPKit
+```
+
+Do not add an outbound IAPKit-to-SDK/mobile webhook stream, SSE route,
+WebSocket, push relay, or long-poll event feed. Mobile clients must use the
+bounded request/response verification, status, entitlement, product, and
+client-payload endpoints. A developer backend may send APNs/FCM notifications
+for resources it protects, but IAPKit must not publish project-wide lifecycle
+events to shipped apps.
+
 ## Icons
 
 Always use icon components, never inline `<svg>`:

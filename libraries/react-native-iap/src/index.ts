@@ -156,20 +156,6 @@ export interface EventSubscription {
 
 // Export hooks
 export {useIAP} from './hooks/useIAP';
-export {useWebhookEvents} from './hooks/useWebhookEvents';
-export type {
-  UseWebhookEventsOptions,
-  UseWebhookEventsResult,
-} from './hooks/useWebhookEvents';
-export {connectWebhookStream, parseWebhookEventData} from './webhook-client';
-export type {
-  WebhookEventPayload,
-  WebhookEventStream,
-  WebhookEventType as WebhookEventTypeName,
-  WebhookListener,
-  WebhookListenerError,
-  WebhookListenerOptions,
-} from './webhook-client';
 export {kitApi, KitApiError} from './kit-api';
 export type {
   KitApiOptions,
@@ -889,8 +875,7 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
 
     if (normalizedType === 'all') {
       const converted = (await fetchAndConvert('all')) as (
-        | Product
-        | ProductSubscription
+        Product | ProductSubscription
       )[];
 
       RnIapConsole.debug(
@@ -2795,8 +2780,7 @@ type NitroDiscountOfferRecord = NonNullable<
 
 const selectApplePurchaseRequest = (
   request:
-    | RequestPurchasePropsByPlatforms
-    | RequestSubscriptionPropsByPlatforms,
+    RequestPurchasePropsByPlatforms | RequestSubscriptionPropsByPlatforms,
 ): RequestPurchaseIosProps | RequestSubscriptionIosProps | null | undefined => {
   const selection = selectCanonicalPlatformRequest<
     RequestPurchaseIosProps | RequestSubscriptionIosProps
@@ -2812,8 +2796,7 @@ const selectApplePurchaseRequest = (
 
 const selectGooglePurchaseRequest = (
   request:
-    | RequestPurchasePropsByPlatforms
-    | RequestSubscriptionPropsByPlatforms,
+    RequestPurchasePropsByPlatforms | RequestSubscriptionPropsByPlatforms,
 ):
   | RequestPurchaseAndroidProps
   | RequestSubscriptionAndroidProps

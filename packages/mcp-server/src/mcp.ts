@@ -188,7 +188,7 @@ function redactSecretString(value: string, apiKey?: string): string {
   }
   return redacted
     .replace(
-      /(\/v1\/(?:subscriptions\/(?:status|entitlements|list|metrics|revenue)|products|webhooks(?:\/stream)?|webhooks\/(?:apple|google))\/)[^/?\s"]+/g,
+      /(\/v1\/(?:subscriptions\/(?:status|entitlements|list|metrics|revenue)|products|webhooks\/(?:apple|google)|webhooks)\/)[^/?\s"]+/g,
       `$1${API_KEY_PLACEHOLDER}`,
     )
     .replace(
@@ -611,9 +611,8 @@ function registerIapKitTools(server: McpServer) {
           products,
           webhookUrls: {
             lifecycle: `${client.baseUrl}/v1/webhooks/${PUBLISHABLE_KEY_PLACEHOLDER}`,
-            stream: `${client.baseUrl}/v1/webhooks/stream`,
           },
-          note: "Use webhookUrls.lifecycle for Apple ASN v2 and Google Pub/Sub RTDN with a publishable project key. The project-wide stream is administrative and requires Authorization: Bearer <IAPKIT_SECRET_KEY>.",
+          note: "Use webhookUrls.lifecycle for inbound Apple ASN v2 and Google Pub/Sub RTDN delivery. IAPKit does not expose an outbound webhook stream.",
         });
       } catch (error) {
         return err(error, resolveApiKey(args, extra));

@@ -14,7 +14,6 @@ import Home from './screens/Home';
 import OfferCode from './screens/OfferCode';
 import PurchaseFlow from './screens/PurchaseFlow';
 import SubscriptionFlow from './screens/SubscriptionFlow';
-import WebhookStream from './screens/WebhookStream';
 import {DataModalProvider} from './src/contexts/DataModalContext';
 
 LogBox.ignoreLogs([
@@ -38,8 +37,7 @@ type RouteName =
   | 'SubscriptionFlow'
   | 'AvailablePurchases'
   | 'OfferCode'
-  | 'AlternativeBilling'
-  | 'WebhookStream';
+  | 'AlternativeBilling';
 
 const ROUTE_TITLES: Record<RouteName, string> = {
   Home: 'React Native IAP',
@@ -49,7 +47,6 @@ const ROUTE_TITLES: Record<RouteName, string> = {
   AvailablePurchases: 'Available Purchases',
   OfferCode: 'Offer Code',
   AlternativeBilling: 'Alternative Billing',
-  WebhookStream: 'Webhook Stream',
 };
 
 const SCREENS: Record<Exclude<RouteName, 'Home'>, React.ComponentType> = {
@@ -59,7 +56,6 @@ const SCREENS: Record<Exclude<RouteName, 'Home'>, React.ComponentType> = {
   AvailablePurchases,
   OfferCode,
   AlternativeBilling,
-  WebhookStream,
 };
 
 export default function App(): React.JSX.Element {
