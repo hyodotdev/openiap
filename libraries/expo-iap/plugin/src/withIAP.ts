@@ -115,7 +115,7 @@ export const normalizeGeneratedGroovyAppBuildGradle = (
   gradle: string,
 ): string => {
   let modified = gradle;
-  const replacements: Array<[RegExp, string]> = [
+  const replacements: [RegExp, string][] = [
     [
       /^(\s*)ndkVersion\s+rootProject\.ext\.ndkVersion\s*$/gm,
       '$1ndkVersion = rootProject.ext.ndkVersion',
@@ -128,11 +128,13 @@ export const normalizeGeneratedGroovyAppBuildGradle = (
       /^(\s*)compileSdk\s+rootProject\.ext\.compileSdkVersion\s*$/gm,
       '$1compileSdk = rootProject.ext.compileSdkVersion',
     ],
-    // Note: `namespace` and `applicationId` are intentionally left in
-    // method-call form. AGP accepts both, but @expo/config-plugins parses them
-    // with regexes that only match the no-`=` form (getApplicationIdAsync and
-    // setPackageInBuildGradle), so converting them breaks `expo run:android`
-    // app-id resolution. See hyodotdev/openiap#228.
+    // Expo SDK 54 generates assignment syntax for these string properties.
+    // AGP accepts both forms, but @expo/config-plugins parses only the
+    // method-call form in getApplicationIdAsync and setPackageInBuildGradle.
+    // Normalize both so `expo run:android` can still resolve the app id.
+    // See hyodotdev/openiap#228.
+    [/^(\s*)namespace\s*=\s*(['"][^'"]+['"])\s*$/gm, '$1namespace $2'],
+    [/^(\s*)applicationId\s*=\s*(['"][^'"]+['"])\s*$/gm, '$1applicationId $2'],
     [
       /^(\s*)minSdkVersion\s+rootProject\.ext\.minSdkVersion\s*$/gm,
       '$1minSdk = rootProject.ext.minSdkVersion',

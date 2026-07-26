@@ -188,9 +188,9 @@ describe('android configuration', () => {
         '    ndkVersion rootProject.ext.ndkVersion',
         '    buildToolsVersion rootProject.ext.buildToolsVersion',
         '    compileSdk rootProject.ext.compileSdkVersion',
-        "    namespace 'dev.hyo.openiap.expo.example'",
+        "    namespace = 'dev.hyo.openiap.expo.example'",
         '    defaultConfig {',
-        "        applicationId 'dev.hyo.openiap.expo.example'",
+        "        applicationId = 'dev.hyo.openiap.expo.example'",
         '        minSdkVersion rootProject.ext.minSdkVersion',
         '        targetSdkVersion rootProject.ext.targetSdkVersion',
         '    }',
@@ -217,8 +217,8 @@ describe('android configuration', () => {
 
     expect(result).toContain('ndkVersion = rootProject.ext.ndkVersion');
     expect(result).toContain('compileSdk = rootProject.ext.compileSdkVersion');
-    // namespace/applicationId stay in method-call form (see withIAP.ts): AGP
-    // accepts both, but @expo/config-plugins only parses the no-`=` form.
+    // namespace/applicationId normalize to method-call form (see withIAP.ts):
+    // AGP accepts both, but @expo/config-plugins only parses the no-`=` form.
     expect(result).toContain("namespace 'dev.hyo.openiap.expo.example'");
     expect(result).not.toContain("namespace = 'dev.hyo.openiap.expo.example'");
     expect(result).toContain("applicationId 'dev.hyo.openiap.expo.example'");
