@@ -6,6 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite --open",
+    "dev:all": "convex dev --start 'run-p dev:server dev'",
     "dev:server": "bun --watch ./server/server.ts",
     "dev:convex": "convex dev",
     "build": "vite build",

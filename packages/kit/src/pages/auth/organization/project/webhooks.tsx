@@ -43,13 +43,16 @@ export default function ProjectWebhooks() {
     return <PageLoading />;
   }
 
-  const urls = endpointPaths
-    ? {
-        unified: `${baseUrl}${endpointPaths.unified}`,
-        apple: `${baseUrl}${endpointPaths.apple}`,
-        google: `${baseUrl}${endpointPaths.google}`,
-        stream: `${baseUrl}${endpointPaths.stream}`,
-      }
+  const lifecycleUrls =
+    endpointPaths?.unified && endpointPaths.apple && endpointPaths.google
+      ? {
+          unified: `${baseUrl}${endpointPaths.unified}`,
+          apple: `${baseUrl}${endpointPaths.apple}`,
+          google: `${baseUrl}${endpointPaths.google}`,
+        }
+      : null;
+  const streamUrlTemplate = endpointPaths?.hasSecretKey
+    ? `${baseUrl}/v1/webhooks/stream`
     : null;
 
   return (
@@ -61,8 +64,8 @@ export default function ProjectWebhooks() {
         </h2>
         <p className="text-sm text-muted-foreground">
           One URL covers Apple ASN v2 and Google Pub/Sub RTDN — kit inspects the
-          payload shape and routes internally. Clients connect to the SSE stream
-          URL to receive normalized{" "}
+          payload shape and routes internally. Trusted administrative consumers
+          can connect to the SSE stream URL to receive normalized{" "}
           <code className="text-xs">WebhookEvent</code>s in real time. Platforms
           you haven't configured simply produce no traffic; if a notification
           arrives for an unconfigured platform, kit returns a precise{" "}
@@ -101,7 +104,7 @@ export default function ProjectWebhooks() {
         </div>
       ) : null}
 
-      {urls ? (
+      {lifecycleUrls ? (
         <UrlCard
           title="Lifecycle webhook URL (Apple + Google)"
           description={
@@ -140,35 +143,35 @@ export default function ProjectWebhooks() {
               </span>
             </>
           }
-          url={urls.unified}
+          url={lifecycleUrls.unified}
           external="https://developer.apple.com/documentation/appstoreservernotifications"
         />
       ) : (
         <div className="border border-border rounded-lg bg-card p-4 text-sm">
           <div className="font-medium">Webhook endpoints unavailable</div>
           <p className="text-xs text-muted-foreground mt-1">
-            Create or activate an API key, or ask an admin to view webhook
-            endpoints.
+            Create or activate a publishable API key, or ask an admin to view
+            webhook endpoints.
           </p>
         </div>
       )}
 
-      {urls ? (
+      {streamUrlTemplate ? (
         <UrlCard
           title="Real-time SSE stream"
           description={
             <>
-              Open this URL with EventSource (or kit's per-SDK helper) to
-              receive normalized webhook events. Reconnects are handled
-              automatically using <code className="text-xs">Last-Event-ID</code>{" "}
-              so events fired during a closed connection are delivered in order
-              on the next connect.
+              Open this URL from MCP, CI, or a trusted backend to receive
+              normalized project-wide webhook events. Reconnects are handled
+              using <code className="text-xs">Last-Event-ID</code> so events
+              fired during a closed connection are delivered in order.
               <span className="block mt-2 text-xs text-amber-500">
-                Long-lived <code className="text-xs">text/event-stream</code>{" "}
-                response — opening it in a browser shows a blank tab (expected).
-                Test it with{" "}
-                <code className="text-xs">curl -N {urls.stream}</code> or wire
-                one of the per-SDK hooks at{" "}
+                Send the secret key saved at creation as an{" "}
+                <code className="text-xs">
+                  Authorization: Bearer &lt;secret&gt;
+                </code>{" "}
+                header. IAPKit never reveals that key again. Never put it in a
+                mobile app, source control, or logs. See{" "}
                 <a
                   href="https://openiap.dev/docs/webhooks#consume-stream"
                   target="_blank"
@@ -181,11 +184,19 @@ export default function ProjectWebhooks() {
               </span>
             </>
           }
-          url={urls.stream}
+          url={streamUrlTemplate}
         />
-      ) : null}
+      ) : (
+        <div className="border border-border rounded-lg bg-card p-4 text-sm">
+          <div className="font-medium">Real-time SSE stream unavailable</div>
+          <p className="text-xs text-muted-foreground mt-1">
+            Create or activate a secret admin key on the API Keys tab. The
+            stream is intentionally unavailable to publishable mobile keys.
+          </p>
+        </div>
+      )}
 
-      {urls ? (
+      {lifecycleUrls ? (
         <details className="border border-border rounded-lg bg-card">
           <summary className="px-4 py-3 cursor-pointer text-sm font-medium">
             Advanced — platform-specific URLs (legacy)
@@ -199,18 +210,18 @@ export default function ProjectWebhooks() {
             <UrlCard
               title="Apple-only"
               description="Accepts ASN v2 signedPayload bodies only."
-              url={urls.apple}
+              url={lifecycleUrls.apple}
             />
             <UrlCard
               title="Google-only"
               description="Accepts Pub/Sub envelopes only."
-              url={urls.google}
+              url={lifecycleUrls.google}
             />
           </div>
         </details>
       ) : null}
 
-      {urls ? (
+      {lifecycleUrls ? (
         <div className="border border-border rounded-lg bg-card p-4 text-sm space-y-2">
           <div className="font-medium">Local/dev receiver smoke test</div>
           <p className="text-xs text-muted-foreground">
@@ -221,7 +232,7 @@ export default function ProjectWebhooks() {
             store-console test notification buttons there.
           </p>
           <pre className="text-xs bg-muted/50 rounded p-3 overflow-x-auto">{`curl -X POST \\
-  ${urls.unified} \\
+  ${lifecycleUrls.unified} \\
   -H 'content-type: application/json' \\
   -d '{
     "message": {

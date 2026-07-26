@@ -54,8 +54,8 @@ describe("remote MCP HTTP server", () => {
         health: "/health",
       },
       authentication: [
-        "Authorization: Bearer <IAPKit project API key>",
-        "IAPKIT_API_KEY environment variable",
+        "Authorization: Bearer <IAPKit secret admin key>",
+        "IAPKIT_API_KEY environment variable (secret admin key)",
       ],
     });
   });
@@ -130,6 +130,9 @@ describe("remote MCP HTTP server", () => {
 
     expect(toolNames).toContain("iapkit_inspect_state");
     expect(toolNames).toContain("iapkit_create_product");
+    expect(toolNames).toContain("iapkit_get_client_payload");
+    expect(toolNames).toContain("iapkit_set_client_payload");
+    expect(toolNames).toContain("iapkit_remove_client_payload");
     expect(toolNames).toContain("iapkit_revenue_analytics");
     expect(toolNames).toContain("iapkit_sync_products");
     expect(toolNames).toContain("iapkit_sync_status");
@@ -148,14 +151,44 @@ describe("remote MCP HTTP server", () => {
     );
   });
 
+  it("returns 403 before a publishable key can initialize the admin MCP surface", async () => {
+    const baseUrl = await startServer();
+    const response = await postMcp(
+      baseUrl,
+      {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: {
+          protocolVersion: "2025-06-18",
+          capabilities: {},
+          clientInfo: { name: "vitest", version: "0.0.0" },
+        },
+      },
+      undefined,
+      { authorization: "Bearer openiap-kit_pk_mobile" },
+    );
+
+    expect(response.status).toBe(403);
+    expect(response.headers.get("mcp-session-id")).toBeNull();
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: -32003,
+        message:
+          "This operation requires a secret admin key. Publishable mobile keys cannot access MCP administrative operations.",
+      },
+    });
+  });
+
   it("summarizes revenue analytics through the bearer-authenticated Kit API", async () => {
     const apiKey = "openiap-kit_secret_revenue";
     const previousBaseUrl = process.env.IAPKIT_BASE_URL;
     process.env.IAPKIT_BASE_URL = await startKitApi((req, res) => {
       expect(req.method).toBe("GET");
       expect(req.url).toBe(
-        `/v1/subscriptions/revenue/${apiKey}?fromDay=2026-06-01&toDay=2026-06-04`,
+        "/v1/subscriptions/revenue?fromDay=2026-06-01&toDay=2026-06-04",
       );
+      expect(req.headers.authorization).toBe(`Bearer ${apiKey}`);
       res.writeHead(200, { "content-type": "application/json" });
       res.end(
         JSON.stringify({
@@ -231,17 +264,15 @@ describe("remote MCP HTTP server", () => {
     );
     expect(expoPayload).toMatchObject({
       framework: "expo",
-      note: expect.stringContaining("IAPKIT_API_KEY"),
+      note: expect.stringContaining("openiap-kit_pk_"),
     });
+    expect(expoPayload.snippet).toContain("verifyPurchaseWithProvider");
+    expect(expoPayload.snippet).toContain("includeClientPayload: true");
     expect(expoPayload.snippet).toContain(
-      "export function useOpenIapPremium()",
+      "verified?.state === 'pending-acknowledgment'",
     );
-    expect(expoPayload.snippet).toContain("useIAP()");
-    expect(expoPayload.snippet).toContain("fetchProducts({");
-    expect(expoPayload.snippet).toContain("new EventSource<string>");
-    expect(expoPayload.snippet).toContain("type WebhookEventStream");
-    expect(expoPayload.snippet).toContain("<IAPKIT_API_KEY>");
-    expect(expoPayload.snippet).not.toContain("useIAP({ skus:");
+    expect(expoPayload.snippet).toContain("<IAPKIT_PUBLISHABLE_KEY>");
+    expect(expoPayload.snippet).not.toContain("useWebhookEvents");
     expect(expoPayload.snippet).not.toContain(apiKey);
   });
 
@@ -260,13 +291,21 @@ describe("remote MCP HTTP server", () => {
     );
     expect(iosPayload).toMatchObject({
       framework: "ios",
-      note: expect.stringContaining("IAPKIT_API_KEY"),
+      note: expect.stringContaining("openiap-kit_pk_"),
     });
     expect(iosPayload.snippet).toContain("OpenIapStore");
     expect(iosPayload.snippet).toContain(
       "RequestVerifyPurchaseWithIapkitAppleProps",
     );
-    expect(iosPayload.snippet).toContain("<IAPKIT_API_KEY>");
+    expect(iosPayload.snippet).toContain("includeClientPayload: true");
+    expect(iosPayload.snippet).toContain("verification?.state == .entitled");
+    expect(iosPayload.snippet).toContain(
+      "verification?.productId == purchase.productId",
+    );
+    expect(iosPayload.snippet).toContain(
+      "verification?.productId == productId",
+    );
+    expect(iosPayload.snippet).toContain("<IAPKIT_PUBLISHABLE_KEY>");
     expect(iosPayload.snippet).not.toContain(apiKey);
 
     const androidPayload = await callTool<SetupToolPayload>(
@@ -280,15 +319,79 @@ describe("remote MCP HTTP server", () => {
     );
     expect(androidPayload).toMatchObject({
       framework: "android",
-      note: expect.stringContaining("IAPKIT_API_KEY"),
+      note: expect.stringContaining("openiap-kit_pk_"),
     });
     expect(androidPayload.snippet).toContain("OpenIapModule");
     expect(androidPayload.snippet).toContain("OpenIapPurchaseUpdateListener");
     expect(androidPayload.snippet).toContain(
       "RequestVerifyPurchaseWithIapkitGoogleProps",
     );
-    expect(androidPayload.snippet).toContain("<IAPKIT_API_KEY>");
+    expect(androidPayload.snippet).toContain("includeClientPayload = true");
+    expect(androidPayload.snippet).toContain(
+      "IapkitPurchaseState.PendingAcknowledgment",
+    );
+    expect(androidPayload.snippet).toContain(
+      "verifiedProductId == purchase.productId",
+    );
+    expect(androidPayload.snippet).toContain("verifiedProductId == productId");
+    expect(androidPayload.snippet).toContain("<IAPKIT_PUBLISHABLE_KEY>");
     expect(androidPayload.snippet).not.toContain(apiKey);
+  });
+
+  it("generates framework snippets without server secrets or undefined clients", async () => {
+    const apiKey = "openiap-kit_secret_setup";
+    const { baseUrl, sessionId } = await initializeMcpSession(apiKey);
+
+    for (const framework of ["flutter", "kmp", "godot"] as const) {
+      const payload = await callTool<SetupToolPayload>(
+        baseUrl,
+        sessionId,
+        "iapkit_setup",
+        {
+          framework,
+          productId: "premium_monthly",
+        },
+      );
+      expect(payload.snippet).toContain("<IAPKIT_PUBLISHABLE_KEY>");
+      expect(payload.snippet).toContain("includeClientPayload");
+      expect(payload.snippet).not.toContain(apiKey);
+    }
+
+    const kmpPayload = await callTool<SetupToolPayload>(
+      baseUrl,
+      sessionId,
+      "iapkit_setup",
+      {
+        framework: "kmp",
+        productId: "premium_monthly",
+      },
+    );
+    expect(kmpPayload.snippet).toContain(
+      "kmpIapInstance.verifyPurchaseWithProvider",
+    );
+    expect(kmpPayload.snippet).toContain(
+      "IapkitPurchaseState.PendingAcknowledgment",
+    );
+    expect(kmpPayload.snippet).not.toContain("kmpIAP.");
+
+    const godotPayload = await callTool<SetupToolPayload>(
+      baseUrl,
+      sessionId,
+      "iapkit_setup",
+      {
+        framework: "godot",
+        productId: "premium_monthly",
+      },
+    );
+    expect(godotPayload.snippet).toContain(
+      "GodotIapPlugin.verify_purchase_with_provider",
+    );
+    expect(godotPayload.snippet).toContain(
+      "Types.IapkitPurchaseState.PENDING_ACKNOWLEDGMENT",
+    );
+    expect(godotPayload.snippet).not.toContain(
+      "await iap.verify_purchase_with_provider",
+    );
   });
 
   it("enqueues store sync jobs through the bearer-authenticated Kit API", async () => {
@@ -296,9 +399,8 @@ describe("remote MCP HTTP server", () => {
     const previousBaseUrl = process.env.IAPKIT_BASE_URL;
     process.env.IAPKIT_BASE_URL = await startKitApi((req, res) => {
       expect(req.method).toBe("POST");
-      expect(req.url).toBe(
-        `/v1/products/${apiKey}/sync/ios?direction=push&dryRun=false`,
-      );
+      expect(req.url).toBe("/v1/products/sync/ios?direction=push&dryRun=false");
+      expect(req.headers.authorization).toBe(`Bearer ${apiKey}`);
       res.writeHead(202, { "content-type": "application/json" });
       res.end(JSON.stringify({ jobId: "job_123", deduped: false }));
     });
@@ -333,12 +435,82 @@ describe("remote MCP HTTP server", () => {
     }
   });
 
+  it("sets client payloads through the bearer-authenticated Kit API", async () => {
+    const apiKey = "openiap-kit_sk_payload";
+    const previousBaseUrl = process.env.IAPKIT_BASE_URL;
+    process.env.IAPKIT_BASE_URL = await startKitApi((req, res) => {
+      expect(req.method).toBe("PUT");
+      expect(req.url).toBe(
+        "/v1/products/client-payload/premium_monthly?platform=IOS",
+      );
+      expect(req.headers.authorization).toBe(`Bearer ${apiKey}`);
+
+      let raw = "";
+      req.on("data", (chunk) => {
+        raw += chunk;
+      });
+      req.on("end", () => {
+        expect(JSON.parse(raw)).toEqual({
+          format: "toml",
+          body: 'rule = "premium"',
+          expectedVersion: 0,
+        });
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(
+          JSON.stringify({
+            id: "payload_1",
+            created: true,
+            changed: true,
+            version: 1,
+            updatedAt: 123,
+          }),
+        );
+      });
+    });
+
+    try {
+      const { baseUrl, sessionId } = await initializeMcpSession(apiKey);
+      const response = await postMcp(
+        baseUrl,
+        {
+          jsonrpc: "2.0",
+          id: 2,
+          method: "tools/call",
+          params: {
+            name: "iapkit_set_client_payload",
+            arguments: {
+              productId: "premium_monthly",
+              platform: "IOS",
+              format: "toml",
+              body: 'rule = "premium"',
+              expectedVersion: 0,
+            },
+          },
+        },
+        sessionId,
+        { authorization: `Bearer ${apiKey}` },
+      );
+      const event = parseSseJson(await response.text());
+      const payload = JSON.parse(event.result.content[0].text);
+
+      expect(payload).toMatchObject({
+        created: true,
+        changed: true,
+        version: 1,
+      });
+    } finally {
+      if (previousBaseUrl === undefined) delete process.env.IAPKIT_BASE_URL;
+      else process.env.IAPKIT_BASE_URL = previousBaseUrl;
+    }
+  });
+
   it("posts UTF-8-safe synthetic Android webhook payloads", async () => {
-    const apiKey = "openiap-kit_secret_webhook";
-    const { baseUrl, sessionId } = await initializeMcpSession(apiKey);
+    const secretKey = "openiap-kit_sk_webhook_admin";
+    const publishableKey = "openiap-kit_pk_webhook_client";
+    const { baseUrl, sessionId } = await initializeMcpSession(secretKey);
     const kitBaseUrl = await startKitApi((req, res) => {
       expect(req.method).toBe("POST");
-      expect(req.url).toBe(`/v1/webhooks/${apiKey}`);
+      expect(req.url).toBe(`/v1/webhooks/${publishableKey}`);
 
       let raw = "";
       req.on("data", (chunk) => {
@@ -373,16 +545,45 @@ describe("remote MCP HTTP server", () => {
           arguments: {
             platform: "Android",
             baseUrl: kitBaseUrl,
+            publishableKey,
           },
         },
       },
       sessionId,
-      { authorization: `Bearer ${apiKey}` },
+      { authorization: `Bearer ${secretKey}` },
     );
     const event = parseSseJson(await response.text());
     const payload = JSON.parse(event.result.content[0].text);
 
     expect(payload).toMatchObject({ status: 200 });
+  });
+
+  it("refuses to place an MCP secret in a lifecycle webhook URL", async () => {
+    const secretKey = "openiap-kit_sk_webhook_admin";
+    const { baseUrl, sessionId } = await initializeMcpSession(secretKey);
+
+    const response = await postMcp(
+      baseUrl,
+      {
+        jsonrpc: "2.0",
+        id: 2,
+        method: "tools/call",
+        params: {
+          name: "iapkit_simulate_webhook",
+          arguments: {
+            platform: "Android",
+            publishableKey: secretKey,
+          },
+        },
+      },
+      sessionId,
+      { authorization: `Bearer ${secretKey}` },
+    );
+    const body = await response.text();
+
+    expect(body).not.toContain(secretKey);
+    expect(body).toContain("publishableKey must not be an");
+    expect(body).toContain("openiap-kit_pk_");
   });
 
   it("returns iOS webhook simulation guidance without credentials", async () => {
@@ -396,7 +597,7 @@ describe("remote MCP HTTP server", () => {
     );
 
     expect(payload.info).toContain("Apple ASN v2 simulation");
-    expect(payload.info).toContain("/v1/webhooks/{apiKey}");
+    expect(payload.info).toContain("/v1/webhooks/{publishableKey}");
   });
 
   it("returns client errors for invalid JSON and oversized payloads", async () => {
@@ -467,7 +668,7 @@ describe("remote MCP HTTP server", () => {
       const callBody = await callResponse.text();
 
       expect(callBody).not.toContain(apiKey);
-      expect(callBody).toContain("<IAPKIT_API_KEY>");
+      expect(callBody).toContain("<IAPKIT_SECRET_KEY>");
     } finally {
       if (previousBaseUrl === undefined) delete process.env.IAPKIT_BASE_URL;
       else process.env.IAPKIT_BASE_URL = previousBaseUrl;
@@ -512,10 +713,9 @@ describe("remote MCP HTTP server", () => {
       const callBody = await response.text();
 
       expect(callBody).not.toContain(apiKey);
-      expect(callBody).toContain("<IAPKIT_API_KEY>");
-      expect(callBody).toContain("/v1/subscriptions/metrics/");
-      expect(callBody).toContain("/v1/subscriptions/status/");
-      expect(callBody).toContain("/v1/subscriptions/entitlements/");
+      expect(callBody).toContain("/v1/subscriptions/metrics");
+      expect(callBody).toContain("/v1/subscriptions/status?userId=");
+      expect(callBody).toContain("/v1/subscriptions/entitlements?userId=");
     } finally {
       if (previousBaseUrl === undefined) delete process.env.IAPKIT_BASE_URL;
       else process.env.IAPKIT_BASE_URL = previousBaseUrl;

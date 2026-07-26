@@ -39,7 +39,11 @@ export const findEventCursor = query({
     }),
   ),
   handler: async (ctx, args) => {
-    const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
+    const resolved = await resolveProjectByApiKeyFromDb(
+      ctx,
+      args.apiKey,
+      "admin",
+    );
     const project = resolved?.project ?? null;
     if (!project) return null;
 
@@ -138,7 +142,11 @@ export const webhookEventsSince = query({
   },
   returns: v.array(webhookEventStreamShape),
   handler: async (ctx, args) => {
-    const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
+    const resolved = await resolveProjectByApiKeyFromDb(
+      ctx,
+      args.apiKey,
+      "admin",
+    );
     const project = resolved?.project ?? null;
 
     if (!project) {
@@ -217,7 +225,11 @@ export const latestWebhookEventsSince = query({
   },
   returns: v.array(webhookEventStreamShape),
   handler: async (ctx, args) => {
-    const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
+    const resolved = await resolveProjectByApiKeyFromDb(
+      ctx,
+      args.apiKey,
+      "admin",
+    );
     const project = resolved?.project ?? null;
 
     if (!project) {

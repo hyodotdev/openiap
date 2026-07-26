@@ -13,6 +13,10 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 
 import {
+  INSUFFICIENT_API_KEY_SCOPE_MESSAGE,
+  isPublishableApiKey,
+} from "./auth.js";
+import {
   createIapKitMcpServer,
   IAPKIT_MCP_SERVER_NAME,
   IAPKIT_MCP_SERVER_VERSION,
@@ -102,8 +106,8 @@ export function createRemoteMcpHttpServer(
             health: "/health",
           },
           authentication: [
-            "Authorization: Bearer <IAPKit project API key>",
-            "IAPKIT_API_KEY environment variable",
+            "Authorization: Bearer <IAPKit secret admin key>",
+            "IAPKIT_API_KEY environment variable (secret admin key)",
           ],
         });
         return;
@@ -111,6 +115,14 @@ export function createRemoteMcpHttpServer(
 
       if (pathname !== mcpPath) {
         writeJson(res, 404, { ok: false, error: "Not found" });
+        return;
+      }
+
+      const bearerToken = parseBearerToken(
+        headerString(req.headers.authorization),
+      );
+      if (isPublishableApiKey(bearerToken)) {
+        writeJsonRpcError(res, 403, -32003, INSUFFICIENT_API_KEY_SCOPE_MESSAGE);
         return;
       }
 

@@ -37,9 +37,11 @@ const OPTIONAL_BASE_URL = z
     "Override IAPKit base URL. Defaults to IAPKIT_BASE_URL, then https://kit.openiap.dev.",
   );
 
-const API_KEY_PLACEHOLDER = "<IAPKIT_API_KEY>";
+const API_KEY_PLACEHOLDER = "<IAPKIT_SECRET_KEY>";
+const PUBLISHABLE_KEY_PLACEHOLDER = "<IAPKIT_PUBLISHABLE_KEY>";
 const MAX_API_KEY_LENGTH = 128;
 const MAX_KIT_ID_LENGTH = 256;
+const MAX_CLIENT_PAYLOAD_BYTES = 16 * 1024;
 const MAX_PRICE_AMOUNT_MICROS = Number.MAX_SAFE_INTEGER;
 const READ_ONLY_TOOL: ToolAnnotations = {
   readOnlyHint: true,
@@ -83,7 +85,7 @@ const API_KEY_PARAM = z
   });
 
 const OPTIONAL_API_KEY = API_KEY_PARAM.optional().describe(
-  "IAPKit project API key. Defaults to the MCP Authorization bearer token, then IAPKIT_API_KEY.",
+  "IAPKit secret admin key. Defaults to the MCP Authorization bearer token, then IAPKIT_API_KEY.",
 );
 
 function validateApiKey(apiKey: string): string | null {
@@ -109,7 +111,7 @@ function withClient(
   const apiKey = resolveApiKey(opts, extra);
   if (!apiKey) {
     throw new Error(
-      "No IAPKit API key was provided. Set Authorization: Bearer <IAPKit project key>, IAPKIT_API_KEY, or the tool's apiKey argument.",
+      "No IAPKit secret admin key was provided. Set Authorization: Bearer <IAPKit secret key>, IAPKIT_API_KEY, or the tool's apiKey argument.",
     );
   }
   const validationError = validateApiKey(apiKey);
@@ -239,7 +241,7 @@ function registerIapKitTools(server: McpServer) {
   registerTool(
     server,
     "setup",
-    "Print a copy/pasteable IAPKit integration snippet for a given framework. Does not modify files — emit code for the LLM / human to apply.",
+    "Print a copy/pasteable mobile IAPKit integration snippet using a restricted publishable key. Does not modify files or expose the MCP secret key.",
     {
       framework: z
         .enum(SETUP_FRAMEWORKS)
@@ -248,7 +250,7 @@ function registerIapKitTools(server: McpServer) {
         .string()
         .optional()
         .describe(
-          "Accepted for compatibility, but never embedded in generated snippets. Configure IAPKIT_API_KEY or the MCP Authorization bearer token instead.",
+          "Accepted for compatibility, but never embedded in generated snippets. Mobile code must use a separate publishable key.",
         ),
       productId: PRODUCT_ID_PARAM.optional().describe(
         "Default productId to seed.",
@@ -259,13 +261,13 @@ function registerIapKitTools(server: McpServer) {
       const productId = args.productId ?? "com.example.premium_monthly";
       const snippet = renderSetupSnippet(
         args.framework,
-        API_KEY_PLACEHOLDER,
+        PUBLISHABLE_KEY_PLACEHOLDER,
         productId,
       );
       return ok({
         framework: args.framework,
         snippet,
-        note: "API keys are intentionally left as IAPKIT_API_KEY placeholders so tool output does not leak project credentials.",
+        note: "Insert an openiap-kit_pk_ publishable key in the IAPKIT_PUBLISHABLE_KEY placeholder. Never put the MCP openiap-kit_sk_ secret key in an app.",
       });
     },
   );
@@ -493,27 +495,47 @@ function registerIapKitTools(server: McpServer) {
   registerTool(
     server,
     "simulate_webhook",
-    "POST a synthetic test notification to kit's webhook endpoint. Android simulation is for local/dev deployments with KIT_ALLOW_UNAUTHENTICATED_PUBSUB=1; production Google RTDN requires Pub/Sub OIDC.",
+    "POST a synthetic test notification to kit's webhook endpoint with a separate publishable key. Android simulation is for local/dev deployments with KIT_ALLOW_UNAUTHENTICATED_PUBSUB=1; production Google RTDN requires Pub/Sub OIDC.",
     {
       platform: z.enum(["IOS", "Android"]),
-      apiKey: OPTIONAL_API_KEY,
+      publishableKey: API_KEY_PARAM.optional().describe(
+        "IAPKit publishable project key for the lifecycle webhook URL. Required for Android simulation; the MCP secret is never used automatically.",
+      ),
+      apiKey: API_KEY_PARAM.optional().describe(
+        "Deprecated alias for publishableKey. Must be a publishable project key.",
+      ),
       baseUrl: OPTIONAL_BASE_URL,
     },
     WRITE_TOOL,
-    async (args, extra) => {
+    async (args) => {
       if (args.platform === "Android") {
-        const apiKey =
-          args.apiKey ?? extra?.authInfo?.token ?? process.env.IAPKIT_API_KEY;
-        if (!apiKey) return err(new Error("apiKey required"));
-        const validationError = validateApiKey(apiKey);
-        if (validationError) return err(new Error(validationError), apiKey);
+        const publishableKey = args.publishableKey ?? args.apiKey;
+        if (!publishableKey) {
+          return err(
+            new Error(
+              "publishableKey is required. The MCP secret is intentionally not reused for lifecycle webhook URLs.",
+            ),
+          );
+        }
+        if (publishableKey.startsWith("openiap-kit_sk_")) {
+          return err(
+            new Error(
+              "publishableKey must not be an openiap-kit_sk_ secret. Create or select an openiap-kit_pk_ key for the lifecycle webhook URL.",
+            ),
+            publishableKey,
+          );
+        }
+        const validationError = validateApiKey(publishableKey);
+        if (validationError) {
+          return err(new Error(validationError), publishableKey);
+        }
         let baseUrl: string;
         try {
           baseUrl = normalizeKitBaseUrl(
             args.baseUrl ?? process.env.IAPKIT_BASE_URL,
           );
         } catch (error) {
-          return err(error, apiKey);
+          return err(error, publishableKey);
         }
         const message = {
           version: "1.0",
@@ -532,7 +554,7 @@ function registerIapKitTools(server: McpServer) {
         };
         try {
           const response = await fetch(
-            `${baseUrl}/v1/webhooks/${encodeURIComponent(apiKey)}`,
+            `${baseUrl}/v1/webhooks/${encodeURIComponent(publishableKey)}`,
             {
               method: "POST",
               headers: { "content-type": "application/json" },
@@ -545,18 +567,18 @@ function registerIapKitTools(server: McpServer) {
               new KitHttpError(
                 response.status,
                 responseBody,
-                `kit /v1/webhooks/${API_KEY_PLACEHOLDER} returned ${response.status}`,
+                `kit /v1/webhooks/${PUBLISHABLE_KEY_PLACEHOLDER} returned ${response.status}`,
               ),
-              apiKey,
+              publishableKey,
             );
           }
           return ok({ status: response.status, body: responseBody });
         } catch (error) {
-          return err(error, apiKey);
+          return err(error, publishableKey);
         }
       }
       return ok({
-        info: "Apple ASN v2 simulation requires a real signed payload from App Store Connect Sandbox. Use App Store Connect → App Store Server Notifications → Send Test Notification, configured to POST to /v1/webhooks/{apiKey}.",
+        info: "Apple ASN v2 simulation requires a real signed payload from App Store Connect Sandbox. Use App Store Connect → App Store Server Notifications → Send Test Notification, configured to POST to /v1/webhooks/{publishableKey}.",
       });
     },
   );
@@ -588,10 +610,10 @@ function registerIapKitTools(server: McpServer) {
           metrics,
           products,
           webhookUrls: {
-            lifecycle: `${client.baseUrl}/v1/webhooks/${API_KEY_PLACEHOLDER}`,
-            stream: `${client.baseUrl}/v1/webhooks/stream/${API_KEY_PLACEHOLDER}`,
+            lifecycle: `${client.baseUrl}/v1/webhooks/${PUBLISHABLE_KEY_PLACEHOLDER}`,
+            stream: `${client.baseUrl}/v1/webhooks/stream`,
           },
-          note: "Use webhookUrls.lifecycle for both Apple ASN v2 and Google Pub/Sub RTDN. URLs use an IAPKIT_API_KEY placeholder so tool output does not leak project credentials.",
+          note: "Use webhookUrls.lifecycle for Apple ASN v2 and Google Pub/Sub RTDN with a publishable project key. The project-wide stream is administrative and requires Authorization: Bearer <IAPKIT_SECRET_KEY>.",
         });
       } catch (error) {
         return err(error, resolveApiKey(args, extra));
@@ -687,7 +709,104 @@ function registerIapKitTools(server: McpServer) {
   );
 
   // ---------------------------------------------------------------------------
-  // 12. sync_products — enqueue App Store / Play Console sync.
+  // 12. get_client_payload — read public rules plus their durable OCC state.
+  // ---------------------------------------------------------------------------
+  registerTool(
+    server,
+    "get_client_payload",
+    "Read a product's public client payload and durable expectedVersion. Requires a secret admin key and returns the revision even after deletion.",
+    {
+      productId: PRODUCT_ID_PARAM,
+      platform: z.enum(["IOS", "Android"]),
+      apiKey: OPTIONAL_API_KEY,
+      baseUrl: OPTIONAL_BASE_URL,
+    },
+    READ_ONLY_TOOL,
+    async (args, extra) => {
+      try {
+        return ok(
+          await withClient(args, extra).getClientPayloadState({
+            productId: args.productId,
+            platform: args.platform,
+          }),
+        );
+      } catch (error) {
+        return err(error, resolveApiKey(args, extra));
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 13. set_client_payload — attach public app-readable product rules.
+  // ---------------------------------------------------------------------------
+  registerTool(
+    server,
+    "set_client_payload",
+    "Create or update a product's public app-readable TOML, JSON, or text payload. Requires a secret admin key; publishable mobile keys are rejected.",
+    {
+      productId: PRODUCT_ID_PARAM,
+      platform: z.enum(["IOS", "Android"]),
+      format: z.enum(["toml", "json", "text"]),
+      body: z
+        .string()
+        .max(MAX_CLIENT_PAYLOAD_BYTES)
+        .describe(
+          "Public app-readable payload body. The server enforces a 16 KiB UTF-8 limit and validates TOML/JSON.",
+        ),
+      expectedVersion: z.number().int().nonnegative().optional(),
+      apiKey: OPTIONAL_API_KEY,
+      baseUrl: OPTIONAL_BASE_URL,
+    },
+    WRITE_TOOL,
+    async (args, extra) => {
+      try {
+        return ok(
+          await withClient(args, extra).setClientPayload({
+            productId: args.productId,
+            platform: args.platform,
+            format: args.format,
+            body: args.body,
+            expectedVersion: args.expectedVersion,
+          }),
+        );
+      } catch (error) {
+        return err(error, resolveApiKey(args, extra));
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 14. remove_client_payload — remove public product rules.
+  // ---------------------------------------------------------------------------
+  registerTool(
+    server,
+    "remove_client_payload",
+    "Remove a product's public client payload while retaining its monotonic revision history. Requires a secret admin key.",
+    {
+      productId: PRODUCT_ID_PARAM,
+      platform: z.enum(["IOS", "Android"]),
+      expectedVersion: z.number().int().nonnegative().optional(),
+      apiKey: OPTIONAL_API_KEY,
+      baseUrl: OPTIONAL_BASE_URL,
+    },
+    WRITE_TOOL,
+    async (args, extra) => {
+      try {
+        return ok(
+          await withClient(args, extra).removeClientPayload({
+            productId: args.productId,
+            platform: args.platform,
+            expectedVersion: args.expectedVersion,
+          }),
+        );
+      } catch (error) {
+        return err(error, resolveApiKey(args, extra));
+      }
+    },
+  );
+
+  // ---------------------------------------------------------------------------
+  // 15. sync_products — enqueue App Store / Play Console sync.
   // ---------------------------------------------------------------------------
   registerTool(
     server,
@@ -725,7 +844,7 @@ function registerIapKitTools(server: McpServer) {
   );
 
   // ---------------------------------------------------------------------------
-  // 13. sync_status — poll a product sync job.
+  // 15. sync_status — poll a product sync job.
   // ---------------------------------------------------------------------------
   registerTool(
     server,
@@ -758,96 +877,161 @@ function renderSetupSnippet(
   switch (framework) {
     case "expo":
     case "react-native":
-      return `import { useEffect } from 'react';
-import { useIAP, useWebhookEvents, type WebhookEventStream } from '${framework === "expo" ? "expo-iap" : "react-native-iap"}';
-import EventSource from 'react-native-sse';
+      return `import { Platform } from 'react-native';
+import {
+  verifyPurchaseWithProvider,
+  type Purchase,
+} from '${framework === "expo" ? "expo-iap" : "react-native-iap"}';
 
-const productId = ${productIdLiteral};
+const iapkitPublishableKey = ${apiKeyLiteral};
+const expectedProductId = ${productIdLiteral};
 
-function createWebhookEventSource(
-  url: string,
-  headers: Record<string, string>,
-): WebhookEventStream {
-  const source = new EventSource<string>(url, { headers });
-  const stream: WebhookEventStream = {
-    onmessage: null,
-    onerror: null,
-    close: () => source.close(),
-    addEventListener: (type, listener) => {
-      source.addEventListener(type, (event) => {
-        listener({
-          data: event.data ?? '',
-          lastEventId: event.lastEventId ?? undefined,
-        });
-      });
-    },
-  };
-  source.addEventListener('error', (event) => stream.onerror?.(event));
-  return stream;
-}
-
-export function useOpenIapPremium() {
-  useWebhookEvents({
-    apiKey: ${apiKeyLiteral},
-    eventSourceFactory: createWebhookEventSource,
-    onEvent: (event) => {
-      if (event.type === 'SubscriptionRenewed') grantEntitlement(event.purchaseToken);
+export async function verifyAndGrant(purchase: Purchase) {
+  const token = purchase.purchaseToken ?? '';
+  const result = await verifyPurchaseWithProvider({
+    provider: 'iapkit',
+    iapkit: {
+      apiKey: iapkitPublishableKey,
+      includeClientPayload: true,
+      ...(Platform.OS === 'ios'
+        ? { apple: { jws: token } }
+        : { google: { purchaseToken: token } }),
     },
   });
 
-  const { fetchProducts, requestPurchase } = useIAP();
-
-  useEffect(() => {
-    void fetchProducts({ skus: [productId], type: 'in-app' });
-  }, [fetchProducts]);
-
-  const buyPremium = () =>
-    requestPurchase({
-      request: {
-        ios: { sku: productId },
-        android: { skus: [productId] },
-      },
-      type: 'in-app',
-    });
-
-  return { buyPremium };
+  const verified = result.iapkit;
+  const allowedState =
+    verified?.state === 'entitled' ||
+    (Platform.OS === 'android' &&
+      verified?.state === 'pending-acknowledgment');
+  if (
+    verified?.isValid === true &&
+    allowedState &&
+    verified.productId === purchase.productId &&
+    verified.productId === expectedProductId
+  ) {
+    grantEntitlement(verified.productId);
+    if (verified.clientPayload) applyPublicRules(verified.clientPayload);
+  }
 }`;
     case "flutter":
-      return `import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
-import 'package:flutter_inapp_purchase/webhook_client.dart';
+      return `import 'dart:io';
+import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
-final listener = connectWebhookStream(apiKey: ${apiKeyLiteral});
-listener.events.listen((event) {
-  if (event.type == WebhookEventType.SubscriptionRenewed) {
-    grantEntitlement(event.purchaseToken);
+const iapkitPublishableKey = ${apiKeyLiteral};
+
+Future<void> verifyAndGrant(Purchase purchase) async {
+  final result =
+      await FlutterInappPurchase.instance.verifyPurchaseWithProvider(
+    provider: PurchaseVerificationProvider.Iapkit,
+    iapkit: RequestVerifyPurchaseWithIapkitProps(
+      apiKey: iapkitPublishableKey,
+      includeClientPayload: true,
+      apple: Platform.isIOS
+          ? RequestVerifyPurchaseWithIapkitAppleProps(
+              jws: purchase.purchaseToken ?? '',
+            )
+          : null,
+      google: Platform.isAndroid
+          ? RequestVerifyPurchaseWithIapkitGoogleProps(
+              purchaseToken: purchase.purchaseToken ?? '',
+            )
+          : null,
+    ),
+  );
+
+  final verified = result.iapkit;
+  final allowedState =
+      verified?.state == IapkitPurchaseState.Entitled ||
+      (Platform.isAndroid &&
+          verified?.state == IapkitPurchaseState.PendingAcknowledgment);
+  if (verified?.isValid == true &&
+      allowedState &&
+      verified?.productId == purchase.productId &&
+      verified?.productId == ${productIdLiteral}) {
+    grantEntitlement(verified!.productId!);
+    if (verified.clientPayload != null) {
+      applyPublicRules(verified.clientPayload!);
+    }
   }
-});
-await FlutterInappPurchase.instance.requestPurchase(productId: ${productIdLiteral});`;
+}`;
     case "kmp":
-      return `import io.github.hyochan.kmpiap.openiap.WebhookEventParser
-import io.github.hyochan.kmpiap.openiap.WebhookEventType
+      return `import io.github.hyochan.kmpiap.*
 
-// Parse SSE frames from \`webhookStreamUrl(apiKey = ${apiKeyLiteral})\`
-// in your platform's HTTP client and feed each data frame to:
-val event = WebhookEventParser.parse(rawJson) ?: return
-when (event.type) {
-    WebhookEventType.SubscriptionRenewed -> grantEntitlement(event.purchaseToken)
-    else -> Unit
+suspend fun verifyAndGrant(purchase: Purchase, isIos: Boolean) {
+    val result = kmpIapInstance.verifyPurchaseWithProvider(
+        VerifyPurchaseWithProviderProps(
+            provider = PurchaseVerificationProvider.Iapkit,
+            iapkit = RequestVerifyPurchaseWithIapkitProps(
+                apiKey = ${apiKeyLiteral},
+                includeClientPayload = true,
+                apple = if (isIos) {
+                    RequestVerifyPurchaseWithIapkitAppleProps(
+                        jws = purchase.purchaseToken.orEmpty(),
+                    )
+                } else null,
+                google = if (!isIos) {
+                    RequestVerifyPurchaseWithIapkitGoogleProps(
+                        purchaseToken = purchase.purchaseToken.orEmpty(),
+                    )
+                } else null,
+            ),
+        ),
+    )
+
+    val verified = result.iapkit
+    val verifiedProductId = verified?.productId
+    val allowedState =
+        verified?.state == IapkitPurchaseState.Entitled ||
+            (!isIos && verified?.state == IapkitPurchaseState.PendingAcknowledgment)
+    if (verified?.isValid == true &&
+        allowedState &&
+        verifiedProductId != null &&
+        verifiedProductId == purchase.productId &&
+        verifiedProductId == ${productIdLiteral}) {
+        grantEntitlement(verifiedProductId)
+        verified?.clientPayload?.let(::applyPublicRules)
+    }
 }`;
     case "godot":
-      return `extends Node
+      return `const Types = preload("res://addons/godot-iap/types.gd")
 
-@onready var webhook := preload("res://addons/godot-iap/webhook_client.gd").new()
+func verify_and_grant(purchase: Variant) -> void:
+    var token = purchase.get("purchaseToken", "")
+    var iapkit = {
+        "apiKey": ${apiKeyLiteral},
+        "includeClientPayload": true,
+    }
+    if OS.get_name() == "iOS":
+        iapkit["apple"] = { "jws": token }
+    else:
+        iapkit["google"] = { "purchaseToken": token }
 
-func _ready() -> void:
-    webhook.api_key = ${apiKeyLiteral}
-    webhook.event_received.connect(func(event):
-        if event["type"] == "SubscriptionRenewed":
-            grant_entitlement(event["purchaseToken"])
+    var result = await GodotIapPlugin.verify_purchase_with_provider({
+        "provider": "iapkit",
+        "iapkit": iapkit,
+    })
+    var verified = result.iapkit
+    var allowed_state = (
+        verified != null
+        and (
+            verified.state == Types.IapkitPurchaseState.ENTITLED
+            or (
+                OS.get_name() != "iOS"
+                and verified.state == Types.IapkitPurchaseState.PENDING_ACKNOWLEDGMENT
+            )
+        )
     )
-    add_child(webhook)
-    webhook.connect_stream()
-    GodotIap.request_purchase(${productIdLiteral})`;
+    if (
+        verified != null
+        and verified.is_valid
+        and allowed_state
+        and verified.product_id == purchase.get("productId", "")
+        and verified.product_id == ${productIdLiteral}
+    ):
+        grant_entitlement(verified.product_id)
+        if verified.client_payload != null:
+            apply_public_rules(verified.client_payload)`;
     case "ios":
       return `import OpenIAP
 
@@ -865,13 +1049,20 @@ if let purchase = try await iapStore.requestPurchase(sku: productId, type: .inAp
             iapkit: RequestVerifyPurchaseWithIapkitProps(
                 apiKey: iapkitApiKey,
                 apple: RequestVerifyPurchaseWithIapkitAppleProps(jws: jws),
-                google: nil
+                google: nil,
+                includeClientPayload: true
             ),
             provider: .iapkit
         )
     )
-    if verification?.isValid == true {
+    if verification?.isValid == true,
+       verification?.state == .entitled,
+       verification?.productId == purchase.productId,
+       verification?.productId == productId {
         grantEntitlement(purchase.productId)
+        if let payload = verification?.clientPayload {
+            applyPublicRules(payload)
+        }
     }
 }`;
     case "android":
@@ -879,6 +1070,7 @@ if let purchase = try await iapStore.requestPurchase(sku: productId, type: .inAp
 import androidx.appcompat.app.AppCompatActivity
 import androidx.lifecycle.lifecycleScope
 import dev.hyo.openiap.OpenIapModule
+import dev.hyo.openiap.IapkitPurchaseState
 import dev.hyo.openiap.ProductQueryType
 import dev.hyo.openiap.ProductRequest
 import dev.hyo.openiap.PurchaseVerificationProvider
@@ -908,13 +1100,23 @@ class MainActivity : AppCompatActivity() {
                             apiKey = iapkitApiKey,
                             google = RequestVerifyPurchaseWithIapkitGoogleProps(
                                 purchaseToken = token
-                            )
+                            ),
+                            includeClientPayload = true
                         ),
                         provider = PurchaseVerificationProvider.Iapkit
                     )
                 ).iapkit
-                if (verification?.isValid == true) {
-                    grantEntitlement(purchase.productId)
+                val verifiedProductId = verification?.productId
+                val allowedState =
+                    verification?.state == IapkitPurchaseState.Entitled ||
+                        verification?.state == IapkitPurchaseState.PendingAcknowledgment
+                if (verification?.isValid == true &&
+                    allowedState &&
+                    verifiedProductId != null &&
+                    verifiedProductId == purchase.productId &&
+                    verifiedProductId == productId) {
+                    grantEntitlement(verifiedProductId)
+                    verification?.clientPayload?.let(::applyPublicRules)
                 }
             }
         })

@@ -3,7 +3,12 @@ import { Hono, type Context, type Next } from "hono";
 
 import { api } from "@/convex";
 import { client, handleConvexError } from "../../convex";
-import { apiKeyValidationError } from "./middleware";
+import {
+  apiKeyMiddleware,
+  apiKeyValidationError,
+  isSecretApiKey,
+  secretAdminApiKeyMiddleware,
+} from "./middleware";
 import {
   APPLE_JWS_PATTERN,
   APPLE_JWS_MAX_LENGTH,
@@ -17,11 +22,12 @@ import {
 
 // Subscription state, entitlements, metrics, and user-binding routes.
 // Mirrors the role of onesub's `/onesub/status`, `/onesub/admin/...`
-// and `/onesub/metrics/*` endpoints, but with kit-style apiKey-in-path
-// auth so the routes work without sticky bearer headers from RN-side
-// fetch implementations that strip them.
+// and `/onesub/metrics/*` endpoints. App-facing compatibility routes keep the
+// publishable apiKey in the path for RN fetch implementations that strip
+// headers. Canonical administrative routes accept a Bearer secret so MCP and
+// trusted servers keep credentials out of URLs.
 
-const subscriptions = new Hono();
+const subscriptions = new Hono<{ Variables: { apiKey: string } }>();
 const MAX_USER_ID_LENGTH = 256;
 const MAX_PRODUCT_ID_LENGTH = 256;
 const MAX_BIND_USER_BODY_BYTES = 32 * 1024;
@@ -59,8 +65,7 @@ for (const route of API_KEY_ROUTES) {
   subscriptions.use(route, pathApiKeyGuard);
 }
 
-subscriptions.get("/status/:apiKey", async (c) => {
-  const apiKey = c.req.param("apiKey");
+async function handleSubscriptionStatus(c: Context, apiKey: string) {
   const userId = c.req.query("userId");
   if (!isNonBlankString(userId)) {
     return invalidInput(c, "userId is required");
@@ -85,10 +90,16 @@ subscriptions.get("/status/:apiKey", async (c) => {
       "Subscription status lookup failed",
     );
   }
-});
+}
 
-subscriptions.get("/entitlements/:apiKey", async (c) => {
-  const apiKey = c.req.param("apiKey");
+subscriptions.get("/status", apiKeyMiddleware, (c) =>
+  handleSubscriptionStatus(c, c.var.apiKey),
+);
+subscriptions.get("/status/:apiKey", (c) =>
+  handleSubscriptionStatus(c, c.req.param("apiKey")),
+);
+
+async function handleEntitlements(c: Context, apiKey: string) {
   const userId = c.req.query("userId");
   if (!isNonBlankString(userId)) {
     return invalidInput(c, "userId is required");
@@ -110,10 +121,16 @@ subscriptions.get("/entitlements/:apiKey", async (c) => {
       "Subscription entitlements lookup failed",
     );
   }
-});
+}
 
-subscriptions.get("/list/:apiKey", async (c) => {
-  const apiKey = c.req.param("apiKey");
+subscriptions.get("/entitlements", apiKeyMiddleware, (c) =>
+  handleEntitlements(c, c.var.apiKey),
+);
+subscriptions.get("/entitlements/:apiKey", (c) =>
+  handleEntitlements(c, c.req.param("apiKey")),
+);
+
+async function handleListSubscriptions(c: Context, apiKey: string) {
   const stateParam = c.req.query("state");
   const productId = c.req.query("productId");
   const userId = c.req.query("userId");
@@ -160,10 +177,16 @@ subscriptions.get("/list/:apiKey", async (c) => {
       "Subscription list failed",
     );
   }
-});
+}
 
-subscriptions.get("/metrics/:apiKey", async (c) => {
-  const apiKey = c.req.param("apiKey");
+subscriptions.get("/list", apiKeyMiddleware, secretAdminApiKeyMiddleware, (c) =>
+  handleListSubscriptions(c, c.var.apiKey),
+);
+subscriptions.get("/list/:apiKey", (c) =>
+  handleListSubscriptions(c, c.req.param("apiKey")),
+);
+
+async function handleMetrics(c: Context, apiKey: string) {
   try {
     const result = await client.query(api.subscriptions.query.metricsSummary, {
       apiKey,
@@ -177,10 +200,19 @@ subscriptions.get("/metrics/:apiKey", async (c) => {
       "Subscription metrics lookup failed",
     );
   }
-});
+}
 
-subscriptions.get("/revenue/:apiKey", async (c) => {
-  const apiKey = c.req.param("apiKey");
+subscriptions.get(
+  "/metrics",
+  apiKeyMiddleware,
+  secretAdminApiKeyMiddleware,
+  (c) => handleMetrics(c, c.var.apiKey),
+);
+subscriptions.get("/metrics/:apiKey", (c) =>
+  handleMetrics(c, c.req.param("apiKey")),
+);
+
+async function handleRevenueMetrics(c: Context, apiKey: string) {
   const fromDay = c.req.query("fromDay");
   const toDay = c.req.query("toDay");
 
@@ -216,10 +248,19 @@ subscriptions.get("/revenue/:apiKey", async (c) => {
       "Subscription revenue lookup failed",
     );
   }
-});
+}
 
-subscriptions.post("/bind-user/:apiKey", async (c) => {
-  const apiKey = c.req.param("apiKey");
+subscriptions.get(
+  "/revenue",
+  apiKeyMiddleware,
+  secretAdminApiKeyMiddleware,
+  (c) => handleRevenueMetrics(c, c.var.apiKey),
+);
+subscriptions.get("/revenue/:apiKey", (c) =>
+  handleRevenueMetrics(c, c.req.param("apiKey")),
+);
+
+async function handleBindUser(c: Context, apiKey: string) {
   let body: unknown;
   try {
     body = await readJsonBodyWithLimit(
@@ -270,7 +311,14 @@ subscriptions.post("/bind-user/:apiKey", async (c) => {
       "Subscription user binding failed",
     );
   }
-});
+}
+
+subscriptions.post("/bind-user", apiKeyMiddleware, (c) =>
+  handleBindUser(c, c.var.apiKey),
+);
+subscriptions.post("/bind-user/:apiKey", (c) =>
+  handleBindUser(c, c.req.param("apiKey")),
+);
 
 function parseLimit(raw: string | undefined): number | undefined | null {
   if (raw === undefined) return undefined;
@@ -454,7 +502,22 @@ function payloadTooLarge(c: Context) {
 }
 
 async function pathApiKeyGuard(c: Context, next: Next) {
-  const validationError = apiKeyValidationError(c.req.param("apiKey"));
+  const apiKey = c.req.param("apiKey");
+  if (isSecretApiKey(apiKey)) {
+    return c.json(
+      {
+        errors: [
+          {
+            code: "SECRET_API_KEY_IN_URL",
+            message:
+              "Secret API keys are not accepted in URLs. Use Authorization: Bearer <secret-key> on the canonical route.",
+          },
+        ],
+      },
+      410,
+    );
+  }
+  const validationError = apiKeyValidationError(apiKey);
   if (validationError) {
     return c.json(
       { errors: [{ code: "INVALID_API_KEY", message: validationError }] },
@@ -481,7 +544,10 @@ function subscriptionRouteError(
 ) {
   const convexError = handleConvexError(error);
   if (convexError) {
-    return c.json({ errors: [convexError] }, 400);
+    return c.json(
+      { errors: [convexError] },
+      convexError.code === "INSUFFICIENT_SCOPE" ? 403 : 400,
+    );
   }
 
   console.error(`[subscriptions] ${code}`, describeErrorForLog(error));

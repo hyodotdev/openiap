@@ -12,6 +12,7 @@ import {
   DEFAULT_REPORTING_CURRENCY,
   normalizeReportingCurrency,
 } from "../utils/currency";
+import { getApiKeyByKey } from "../apiKeys/helpers";
 
 const projectPlatformValidator = v.union(
   v.literal("react-native"),
@@ -251,7 +252,7 @@ export const createProject = mutation({
       finalSlug = `${slug}-${randomSuffix}`;
     }
 
-    const apiKey = generateApiKey();
+    const apiKey = generateApiKey("publishable");
     const now = Date.now();
 
     const projectId = await ctx.db.insert("projects", {
@@ -259,6 +260,7 @@ export const createProject = mutation({
       name: args.name,
       slug: finalSlug,
       apiKey, // Keep for backward compatibility, will be deprecated
+      legacyApiKeyFallbackDisabledAt: now,
       reportingCurrency: DEFAULT_REPORTING_CURRENCY,
       createdAt: now,
       updatedAt: now,
@@ -272,6 +274,7 @@ export const createProject = mutation({
       key: apiKey,
       name: "Default Production Key",
       description: "Automatically generated production key",
+      keyType: "publishable",
       permissions: undefined,
       lastUsedAt: undefined,
       usageCount: 0,
@@ -511,15 +514,39 @@ export const regenerateApiKey = mutation({
       )
       .first();
 
-    if (!membership) {
+    if (!membership || membership.role === "member") {
       throw createError(ErrorCode.INSUFFICIENT_PERMISSIONS);
     }
 
-    const newApiKey = generateApiKey();
+    const newApiKey = generateApiKey("publishable");
+    const now = Date.now();
+    const previousKeyRow = await getApiKeyByKey(ctx, project.apiKey);
+    if (previousKeyRow?.projectId === project._id && previousKeyRow.isActive) {
+      await ctx.db.patch(previousKeyRow._id, {
+        isActive: false,
+        updatedAt: now,
+      });
+    }
 
     await ctx.db.patch(args.projectId, {
       apiKey: newApiKey,
-      updatedAt: Date.now(),
+      legacyApiKeyFallbackDisabledAt: now,
+      updatedAt: now,
+    });
+    await ctx.db.insert("apiKeys", {
+      projectId: project._id,
+      organizationId: project.organizationId,
+      key: newApiKey,
+      name: "Default Production Key (Regenerated)",
+      description: "Regenerated through the legacy project API",
+      keyType: "publishable",
+      permissions: undefined,
+      lastUsedAt: undefined,
+      usageCount: 0,
+      isActive: true,
+      createdBy: userId,
+      createdAt: now,
+      updatedAt: now,
     });
 
     return newApiKey;

@@ -15,6 +15,14 @@ export function apiKeyValidationError(
   return null;
 }
 
+export function isSecretApiKey(apiKey: string | undefined): boolean {
+  return apiKey?.startsWith("openiap-kit_sk_") === true;
+}
+
+export function isPublishableApiKey(apiKey: string | undefined): boolean {
+  return apiKey?.startsWith("openiap-kit_pk_") === true;
+}
+
 export const apiKeyMiddleware = createMiddleware<{
   Variables: {
     apiKey: string;
@@ -76,6 +84,37 @@ export const apiKeyMiddleware = createMiddleware<{
   }
 
   c.set("apiKey", parts[1]);
+
+  await next();
+});
+
+/**
+ * Rejects an explicitly publishable credential before an administrative
+ * handler can read or mutate project data.
+ *
+ * The prefix is only an early-deny signal. Unknown and legacy key formats
+ * still reach Convex, where the stored key type is authoritative and legacy
+ * keys fail closed as publishable.
+ */
+export const secretAdminApiKeyMiddleware = createMiddleware<{
+  Variables: {
+    apiKey: string;
+  };
+}>(async (c, next) => {
+  if (isPublishableApiKey(c.var.apiKey)) {
+    return c.json(
+      {
+        errors: [
+          {
+            code: "INSUFFICIENT_SCOPE",
+            message:
+              "This operation requires a secret admin key. Publishable mobile keys cannot access administrative operations.",
+          },
+        ],
+      },
+      403,
+    );
+  }
 
   await next();
 });

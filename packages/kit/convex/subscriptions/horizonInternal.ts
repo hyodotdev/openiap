@@ -61,7 +61,11 @@ export const getProjectByApiKey = internalQuery({
     }),
   ),
   handler: async (ctx, args) => {
-    const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
+    const resolved = await resolveProjectByApiKeyFromDb(
+      ctx,
+      args.apiKey,
+      "admin",
+    );
     const project = resolved?.project ?? null;
     if (!project) return null;
     return {
@@ -209,7 +213,7 @@ export const recordHorizonStatus = internalMutation({
     // Synthesize a webhookEvents row so the SSE stream re-broadcasts
     // this Horizon transition to connected SDK clients. Without this
     // the polling reconciler updated the subscription row but never
-    // surfaced the change on `/v1/webhooks/stream/{apiKey}` — Horizon
+    // surfaced the change on the authenticated `/v1/webhooks/stream` — Horizon
     // listeners would silently miss every renewal / expiry until the
     // next state-driven HTTP query.
     //

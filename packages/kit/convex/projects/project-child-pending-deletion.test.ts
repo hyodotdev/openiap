@@ -14,7 +14,10 @@ vi.mock("../purchases/stats", () => ({
   deltaForUpdate: vi.fn().mockReturnValue({}),
 }));
 
-import { create as registeredCreateApiKey } from "../apiKeys/mutation";
+import {
+  create as registeredCreateApiKey,
+  remove as registeredRemoveApiKey,
+} from "../apiKeys/mutation";
 import {
   pruneUploadReservations as registeredPruneUploadReservations,
   UPLOAD_RESERVATION_PRUNE_BATCH_SIZE,
@@ -28,6 +31,7 @@ import { markReceiptInvalid as registeredMarkReceiptInvalid } from "../purchases
 import { testableFunction } from "../test.setup";
 
 const createApiKey = testableFunction(registeredCreateApiKey);
+const removeApiKey = testableFunction(registeredRemoveApiKey);
 const generateUploadUrl = testableFunction(registeredGenerateUploadUrl);
 const markReceiptInvalid = testableFunction(registeredMarkReceiptInvalid);
 const pruneUploadReservations = testableFunction(
@@ -219,6 +223,31 @@ describe("pending-deletion project child write guards", () => {
     authMocks.getAuthUserId.mockResolvedValue("users_a");
   });
 
+  it("permanently disables legacy fallback before deleting the final scoped key", async () => {
+    const ctx = makeCtx({});
+    ctx.db.tables.projects[0].apiKey = "legacy-key";
+    ctx.db.tables.apiKeys = [
+      {
+        _id: "apiKeys_a",
+        projectId: "projects_a",
+        organizationId: "organizations_a",
+        key: "legacy-key",
+        isActive: true,
+      },
+    ];
+
+    await expect(
+      removeApiKey._handler(ctx as never, {
+        keyId: "apiKeys_a" as never,
+      }),
+    ).resolves.toEqual({ success: true });
+
+    expect(ctx.db.tables.apiKeys).toEqual([]);
+    expect(ctx.db.tables.projects[0]).toMatchObject({
+      legacyApiKeyFallbackDisabledAt: expect.any(Number),
+    });
+  });
+
   for (const options of [
     { projectPending: true },
     { organizationPending: true },
@@ -232,6 +261,7 @@ describe("pending-deletion project child write guards", () => {
         createApiKey._handler(ctx as never, {
           projectId: "projects_a" as never,
           name: "stale key",
+          keyType: "publishable",
         }),
       ).rejects.toThrow("Project not found");
 

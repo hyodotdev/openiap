@@ -1,6 +1,6 @@
-import { query } from "../_generated/server";
+import { query, type QueryCtx } from "../_generated/server";
 import { ConvexError, v, type Infer } from "convex/values";
-import type { Doc } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 
 import {
   resolveProjectByApiKeyFromDb,
@@ -40,6 +40,7 @@ const clientPayloadEditorStateShape = v.object({
   expectedVersion: v.number(),
   clientPayload: v.optional(clientPayloadShape),
 });
+type ClientPayloadEditorState = Infer<typeof clientPayloadEditorStateShape>;
 
 export const DEFAULT_CLIENT_PAYLOAD_PAGE_SIZE = 25;
 export const MAX_CLIENT_PAYLOAD_PAGE_SIZE = 50;
@@ -195,38 +196,79 @@ export const getProductClientPayloadEditorState = query({
     );
     if (!resolved) return null;
 
-    const [payload, summary] = await Promise.all([
-      ctx.db
-        .query("productClientPayloads")
-        .withIndex("by_project_and_platform_and_product", (q) =>
-          q
-            .eq("projectId", resolved.project._id)
-            .eq("platform", args.platform)
-            .eq("productId", args.productId),
-        )
-        .unique(),
-      ctx.db
-        .query("productClientPayloadSummaries")
-        .withIndex("by_project_and_platform_and_product", (q) =>
-          q
-            .eq("projectId", resolved.project._id)
-            .eq("platform", args.platform)
-            .eq("productId", args.productId),
-        )
-        .unique(),
-    ]);
-    const expectedVersion = Math.max(
-      payload?.version ?? 0,
-      summary?.version ?? 0,
+    return loadProductClientPayloadEditorState(
+      ctx,
+      resolved.project._id,
+      args.platform,
+      args.productId,
     );
-    return {
-      expectedVersion,
-      ...(payload && summary?.deleted !== true
-        ? { clientPayload: shapeClientPayload(payload) }
-        : {}),
-    };
   },
 });
+
+/**
+ * Secret-key equivalent of the dashboard editor read. This lets MCP, CI, and
+ * other trusted automation recover the durable OCC revision after deletion.
+ */
+export const getProductClientPayloadEditorStateWithApiKey = query({
+  args: {
+    apiKey: v.string(),
+    platform: platformValidator,
+    productId: v.string(),
+  },
+  returns: v.union(clientPayloadEditorStateShape, v.null()),
+  handler: async (ctx, args) => {
+    const resolved = await resolveProjectByApiKeyFromDb(
+      ctx,
+      args.apiKey,
+      "admin",
+    );
+    if (!resolved) return null;
+    return loadProductClientPayloadEditorState(
+      ctx,
+      resolved.project._id,
+      args.platform,
+      args.productId,
+    );
+  },
+});
+
+async function loadProductClientPayloadEditorState(
+  ctx: QueryCtx,
+  projectId: Id<"projects">,
+  platform: "IOS" | "Android",
+  productId: string,
+): Promise<ClientPayloadEditorState> {
+  const [payload, summary] = await Promise.all([
+    ctx.db
+      .query("productClientPayloads")
+      .withIndex("by_project_and_platform_and_product", (q) =>
+        q
+          .eq("projectId", projectId)
+          .eq("platform", platform)
+          .eq("productId", productId),
+      )
+      .unique(),
+    ctx.db
+      .query("productClientPayloadSummaries")
+      .withIndex("by_project_and_platform_and_product", (q) =>
+        q
+          .eq("projectId", projectId)
+          .eq("platform", platform)
+          .eq("productId", productId),
+      )
+      .unique(),
+  ]);
+  const expectedVersion = Math.max(
+    payload?.version ?? 0,
+    summary?.version ?? 0,
+  );
+  return {
+    expectedVersion,
+    ...(payload && summary?.deleted !== true
+      ? { clientPayload: shapeClientPayload(payload) }
+      : {}),
+  };
+}
 
 /**
  * Body-free metadata for the authenticated dashboard. Payload summaries live

@@ -3,6 +3,7 @@ import { Hono } from "hono";
 import { ConvexError } from "convex/values";
 
 const mocks = vi.hoisted(() => ({
+  handleConvexError: vi.fn(),
   query: vi.fn(),
   mutation: vi.fn(),
 }));
@@ -14,10 +15,16 @@ vi.mock("@/convex", () => ({
         listProducts: "listProducts",
         listProductsWithClientPayloads: "listProductsWithClientPayloads",
         getProductClientPayload: "getProductClientPayload",
+        getProductClientPayloadEditorStateWithApiKey:
+          "getProductClientPayloadEditorStateWithApiKey",
       },
       mutation: {
         upsertProduct: "upsertProduct",
         setProductState: "setProductState",
+        upsertProductClientPayloadWithApiKey:
+          "upsertProductClientPayloadWithApiKey",
+        removeProductClientPayloadWithApiKey:
+          "removeProductClientPayloadWithApiKey",
         removeProduct: "removeProduct",
       },
       jobs: {
@@ -34,7 +41,7 @@ vi.mock("../../convex", () => ({
     query: mocks.query,
     mutation: mocks.mutation,
   },
-  handleConvexError: () => null,
+  handleConvexError: mocks.handleConvexError,
 }));
 
 const { productsRoutes } = await import("./products");
@@ -47,8 +54,228 @@ function buildApp() {
 
 describe("productsRoutes", () => {
   beforeEach(() => {
+    mocks.handleConvexError.mockReset();
+    mocks.handleConvexError.mockReturnValue(null);
     mocks.query.mockReset();
     mocks.mutation.mockReset();
+  });
+
+  it("supports Bearer-authenticated admin routes without keys in URLs", async () => {
+    const app = buildApp();
+    const headers = {
+      authorization: "Bearer openiap-kit_sk_admin",
+      "content-type": "application/json",
+    };
+
+    mocks.query
+      .mockResolvedValueOnce([])
+      .mockResolvedValueOnce({ _id: "job_1", status: "queued" });
+    mocks.mutation
+      .mockResolvedValueOnce({ id: "product_1", created: true })
+      .mockResolvedValueOnce({ id: "product_1", state: "Active" })
+      .mockResolvedValueOnce({ jobId: "job_1", deduped: false })
+      .mockResolvedValueOnce({ ok: true })
+      .mockResolvedValueOnce({ ok: true });
+
+    const responses = await Promise.all([
+      app.request("/products?platform=IOS", { headers }),
+      app.request("/products", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          productId: "coins_100",
+          platform: "IOS",
+          type: "Consumable",
+          title: "100 coins",
+        }),
+      }),
+      app.request("/products/state", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          productId: "coins_100",
+          platform: "IOS",
+          state: "Active",
+        }),
+      }),
+      app.request("/products/sync/ios?direction=pull&dryRun=true", {
+        method: "POST",
+        headers,
+      }),
+      app.request("/products/sync/jobs/job_1", { headers }),
+      app.request("/products/sync/jobs/job_1/cancel", {
+        method: "POST",
+        headers,
+      }),
+      app.request("/products/coins_100?platform=IOS", {
+        method: "DELETE",
+        headers,
+      }),
+    ]);
+
+    expect(responses.map((response) => response.status)).toEqual([
+      200, 200, 200, 202, 200, 200, 200,
+    ]);
+    expect(mocks.query).toHaveBeenNthCalledWith(1, "listProducts", {
+      apiKey: "openiap-kit_sk_admin",
+      platform: "IOS",
+    });
+    expect(mocks.query).toHaveBeenNthCalledWith(2, "getSyncJobById", {
+      apiKey: "openiap-kit_sk_admin",
+      jobId: "job_1",
+    });
+    for (const [, args] of mocks.mutation.mock.calls) {
+      expect(args).toMatchObject({ apiKey: "openiap-kit_sk_admin" });
+    }
+  });
+
+  it("returns 403 before any catalog admin access with a publishable key", async () => {
+    const app = buildApp();
+    const headers = {
+      authorization: "Bearer openiap-kit_pk_mobile",
+      "content-type": "application/json",
+    };
+    const requests = [
+      app.request("/products", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          productId: "coins_100",
+          platform: "IOS",
+          type: "Consumable",
+          title: "100 coins",
+        }),
+      }),
+      app.request("/products/state", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          productId: "coins_100",
+          platform: "IOS",
+          state: "Active",
+        }),
+      }),
+      app.request("/products/sync/ios?direction=pull&dryRun=true", {
+        method: "POST",
+        headers,
+      }),
+      app.request("/products/sync/jobs/job_1", { headers }),
+      app.request("/products/sync/jobs/job_1/cancel", {
+        method: "POST",
+        headers,
+      }),
+      app.request("/products/client-payload/coins_100?platform=IOS", {
+        headers,
+      }),
+      app.request("/products/client-payload/coins_100?platform=IOS", {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ format: "json", body: "{}" }),
+      }),
+      app.request(
+        "/products/client-payload/coins_100?platform=IOS&expectedVersion=1",
+        { method: "DELETE", headers },
+      ),
+      app.request("/products/coins_100?platform=IOS", {
+        method: "DELETE",
+        headers,
+      }),
+    ];
+
+    for (const request of requests) {
+      const response = await request;
+      expect(response.status).toBe(403);
+      await expect(response.json()).resolves.toEqual({
+        errors: [
+          {
+            code: "INSUFFICIENT_SCOPE",
+            message:
+              "This operation requires a secret admin key. Publishable mobile keys cannot access administrative operations.",
+          },
+        ],
+      });
+    }
+    expect(mocks.query).not.toHaveBeenCalled();
+    expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("keeps publishable product and client-payload reads available", async () => {
+    const app = buildApp();
+    const headers = {
+      authorization: "Bearer openiap-kit_pk_mobile",
+    };
+    const clientPayload = {
+      format: "toml",
+      body: 'tier = "premium"',
+      version: 1,
+      updatedAt: 123,
+    };
+    mocks.query
+      .mockResolvedValueOnce({
+        products: [{ productId: "premium", clientPayload }],
+        hasMore: false,
+      })
+      .mockResolvedValueOnce(clientPayload);
+
+    const listResponse = await app.request(
+      "/products?platform=IOS&includeClientPayload=true",
+      { headers },
+    );
+    const payloadResponse = await app.request(
+      "/products/openiap-kit_pk_mobile/premium/client-payload?platform=IOS",
+    );
+
+    expect(listResponse.status).toBe(200);
+    expect(payloadResponse.status).toBe(200);
+    await expect(payloadResponse.json()).resolves.toEqual({
+      clientPayload,
+    });
+    expect(mocks.query).toHaveBeenNthCalledWith(
+      1,
+      "listProductsWithClientPayloads",
+      {
+        apiKey: "openiap-kit_pk_mobile",
+        platform: "IOS",
+        limit: 25,
+      },
+    );
+    expect(mocks.query).toHaveBeenNthCalledWith(2, "getProductClientPayload", {
+      apiKey: "openiap-kit_pk_mobile",
+      productId: "premium",
+      platform: "IOS",
+    });
+    expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("requires Bearer authentication on keyless admin routes", async () => {
+    const app = buildApp();
+    const response = await app.request("/products/sync/ios", {
+      method: "POST",
+    });
+
+    expect(response.status).toBe(401);
+    expect(mocks.query).not.toHaveBeenCalled();
+    expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("retires secret-key-in-path product routes", async () => {
+    const app = buildApp();
+    const response = await app.request(
+      "/products/openiap-kit_sk_secret/sync/ios",
+      { method: "POST" },
+    );
+
+    expect(response.status).toBe(410);
+    await expect(response.json()).resolves.toEqual({
+      errors: [
+        {
+          code: "SECRET_API_KEY_IN_URL",
+          message:
+            "Secret API keys are not accepted in URLs. Use Authorization: Bearer <secret-key> on the canonical route.",
+        },
+      ],
+    });
+    expect(mocks.mutation).not.toHaveBeenCalled();
   });
 
   it("rejects oversized path apiKey before calling Convex", async () => {
@@ -703,7 +930,7 @@ describe("productsRoutes", () => {
     });
   });
 
-  it("serves the read-only product client-payload endpoint", async () => {
+  it("serves the product client-payload read endpoint", async () => {
     const app = buildApp();
     const clientPayload = {
       format: "toml",
@@ -725,6 +952,215 @@ describe("productsRoutes", () => {
       platform: "Android",
     });
     expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("serves the secret-key editor revision after payload deletion", async () => {
+    const app = buildApp();
+    mocks.query.mockResolvedValueOnce({ expectedVersion: 4 });
+
+    const response = await app.request(
+      "/products/client-payload/premium.monthly?platform=IOS",
+      {
+        headers: { authorization: "Bearer openiap-kit_sk_secret" },
+      },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({ expectedVersion: 4 });
+    expect(mocks.query).toHaveBeenCalledWith(
+      "getProductClientPayloadEditorStateWithApiKey",
+      {
+        apiKey: "openiap-kit_sk_secret",
+        productId: "premium.monthly",
+        platform: "IOS",
+      },
+    );
+  });
+
+  it("forwards secret-key client-payload updates and removals", async () => {
+    const app = buildApp();
+    mocks.mutation
+      .mockResolvedValueOnce({
+        id: "payload-id",
+        created: true,
+        changed: true,
+        version: 1,
+        updatedAt: 123,
+      })
+      .mockResolvedValueOnce({ ok: true });
+
+    const updateResponse = await app.request(
+      "/products/client-payload/premium.monthly?platform=IOS",
+      {
+        method: "PUT",
+        headers: {
+          authorization: "Bearer openiap-kit_sk_secret",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          format: "toml",
+          body: 'rule = "premium"',
+          expectedVersion: 0,
+        }),
+      },
+    );
+    expect(updateResponse.status).toBe(200);
+    await expect(updateResponse.json()).resolves.toMatchObject({
+      version: 1,
+      changed: true,
+    });
+    expect(mocks.mutation).toHaveBeenNthCalledWith(
+      1,
+      "upsertProductClientPayloadWithApiKey",
+      {
+        apiKey: "openiap-kit_sk_secret",
+        productId: "premium.monthly",
+        platform: "IOS",
+        format: "toml",
+        body: 'rule = "premium"',
+        expectedVersion: 0,
+      },
+    );
+
+    const removeResponse = await app.request(
+      "/products/client-payload/premium.monthly?platform=IOS&expectedVersion=1",
+      {
+        method: "DELETE",
+        headers: { authorization: "Bearer openiap-kit_sk_secret" },
+      },
+    );
+    expect(removeResponse.status).toBe(200);
+    await expect(removeResponse.json()).resolves.toEqual({ ok: true });
+    expect(mocks.mutation).toHaveBeenNthCalledWith(
+      2,
+      "removeProductClientPayloadWithApiKey",
+      {
+        apiKey: "openiap-kit_sk_secret",
+        productId: "premium.monthly",
+        platform: "IOS",
+        expectedVersion: 1,
+      },
+    );
+  });
+
+  it("accepts a fully escaped 16 KiB text client payload envelope", async () => {
+    const app = buildApp();
+    const payloadBody = "\0".repeat(16 * 1024);
+    const encodedBody = JSON.stringify({
+      format: "text",
+      body: payloadBody,
+      expectedVersion: 0,
+    });
+    expect(new TextEncoder().encode(encodedBody).byteLength).toBeGreaterThan(
+      64 * 1024,
+    );
+    mocks.mutation.mockResolvedValueOnce({
+      id: "payload-id",
+      created: true,
+      changed: true,
+      version: 1,
+      updatedAt: 123,
+    });
+
+    const response = await app.request(
+      "/products/client-payload/premium.monthly?platform=IOS",
+      {
+        method: "PUT",
+        headers: {
+          authorization: "Bearer openiap-kit_sk_secret",
+          "content-type": "application/json",
+        },
+        body: encodedBody,
+      },
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.mutation).toHaveBeenCalledWith(
+      "upsertProductClientPayloadWithApiKey",
+      expect.objectContaining({ body: payloadBody }),
+    );
+  });
+
+  it("requires a Bearer key for client-payload writes", async () => {
+    const app = buildApp();
+    const response = await app.request(
+      "/products/client-payload/premium?platform=IOS",
+      {
+        method: "PUT",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ format: "json", body: "{}" }),
+      },
+    );
+
+    expect(response.status).toBe(401);
+    expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("validates client-payload write inputs before Convex", async () => {
+    const app = buildApp();
+    const headers = {
+      authorization: "Bearer openiap-kit_sk_secret",
+      "content-type": "application/json",
+    };
+    const cases = [
+      app.request("/products/client-payload/premium?platform=IOS", {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ format: "yaml", body: "rule: premium" }),
+      }),
+      app.request("/products/client-payload/premium?platform=IOS", {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({ format: "json", body: {} }),
+      }),
+      app.request("/products/client-payload/premium?platform=IOS", {
+        method: "PUT",
+        headers,
+        body: JSON.stringify({
+          format: "json",
+          body: "{}",
+          expectedVersion: -1,
+        }),
+      }),
+      app.request(
+        "/products/client-payload/premium?platform=IOS&expectedVersion=1.5",
+        {
+          method: "DELETE",
+          headers: { authorization: "Bearer openiap-kit_sk_secret" },
+        },
+      ),
+    ];
+
+    for (const responsePromise of cases) {
+      const response = await responsePromise;
+      expect(response.status).toBe(400);
+    }
+    expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("maps backend scope failures for legacy keys to HTTP 403", async () => {
+    const app = buildApp();
+    const scopeError = {
+      code: "INSUFFICIENT_SCOPE",
+      message: "This operation requires a secret admin key.",
+    };
+    mocks.mutation.mockRejectedValueOnce(new Error("scope"));
+    mocks.handleConvexError.mockReturnValueOnce(scopeError);
+
+    const response = await app.request(
+      "/products/client-payload/premium?platform=IOS",
+      {
+        method: "PUT",
+        headers: {
+          authorization: "Bearer openiap-kit_legacy",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({ format: "json", body: "{}" }),
+      },
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ errors: [scopeError] });
   });
 
   it("returns 404 for a missing client payload", async () => {

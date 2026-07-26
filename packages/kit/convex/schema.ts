@@ -182,6 +182,10 @@ const schema = defineSchema({
     name: v.string(),
     slug: v.string(), // URL-friendly identifier within org - UNIQUE per org enforced in mutations
     apiKey: v.string(), // Deprecated - will be removed after migration
+    // Once scoped apiKeys have been issued for this project, never fall back to
+    // the legacy projects.apiKey column. The marker survives deletion of the
+    // last scoped key so a removed legacy credential cannot become valid again.
+    legacyApiKeyFallbackDisabledAt: v.optional(v.number()),
 
     // Platform
     platform: v.optional(
@@ -290,7 +294,14 @@ const schema = defineSchema({
     name: v.string(), // User-friendly name for the key
     description: v.optional(v.string()),
 
-    permissions: v.optional(v.array(v.string())), // Future: specific permissions
+    // Publishable keys are safe to embed in mobile apps and are limited to
+    // client-facing verification/read surfaces. Secret keys are operator
+    // credentials for MCP, catalog writes, analytics, and store sync.
+    //
+    // Optional for migration safety: keys created before scoped credentials
+    // shipped are treated as publishable by every authorization helper.
+    keyType: v.optional(v.union(v.literal("publishable"), v.literal("secret"))),
+    permissions: v.optional(v.array(v.string())), // Reserved for future custom scopes
 
     // Usage tracking
     lastUsedAt: v.optional(v.number()),

@@ -1,13 +1,21 @@
 import { describe, expect, test } from "vitest";
 import { Hono } from "hono";
 
-import { apiKeyMiddleware, apiKeyValidationError } from "./middleware";
+import {
+  apiKeyMiddleware,
+  apiKeyValidationError,
+  isPublishableApiKey,
+  secretAdminApiKeyMiddleware,
+} from "./middleware";
 
 function buildApp() {
   const app = new Hono();
   app.post("/verify", apiKeyMiddleware, (c) => {
     return c.json({ ok: true, apiKey: c.var.apiKey });
   });
+  app.get("/admin", apiKeyMiddleware, secretAdminApiKeyMiddleware, (c) =>
+    c.json({ ok: true }),
+  );
   return app;
 }
 
@@ -121,6 +129,43 @@ describe("apiKeyMiddleware", () => {
       code: "INVALID_API_KEY",
       message: "API key is too long",
     });
+  });
+});
+
+describe("secretAdminApiKeyMiddleware", () => {
+  test("returns 403 before admin handlers for publishable keys", async () => {
+    const app = buildApp();
+    const response = await app.request("/admin", {
+      headers: { Authorization: "Bearer openiap-kit_pk_mobile" },
+    });
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      errors: [
+        {
+          code: "INSUFFICIENT_SCOPE",
+          message:
+            "This operation requires a secret admin key. Publishable mobile keys cannot access administrative operations.",
+        },
+      ],
+    });
+  });
+
+  test("lets secret and legacy-looking keys reach authoritative backend checks", async () => {
+    const app = buildApp();
+
+    for (const apiKey of ["openiap-kit_sk_admin", "openiap-kit_legacy"]) {
+      const response = await app.request("/admin", {
+        headers: { Authorization: `Bearer ${apiKey}` },
+      });
+      expect(response.status).toBe(200);
+    }
+  });
+
+  test("recognizes only the publishable prefix as an early-deny signal", () => {
+    expect(isPublishableApiKey("openiap-kit_pk_mobile")).toBe(true);
+    expect(isPublishableApiKey("openiap-kit_sk_admin")).toBe(false);
+    expect(isPublishableApiKey("openiap-kit_legacy")).toBe(false);
   });
 });
 

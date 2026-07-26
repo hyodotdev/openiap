@@ -1,9 +1,13 @@
 import { mutation } from "../_generated/server";
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { ConvexError } from "convex/values";
 import { generateApiKey } from "../utils/helpers";
 import { getProjectById } from "../projects/helpers";
+
+const apiKeyTypeValidator = v.union(
+  v.literal("publishable"),
+  v.literal("secret"),
+);
 
 // Create a new API key for a project
 export const create = mutation({
@@ -11,6 +15,7 @@ export const create = mutation({
     projectId: v.id("projects"),
     name: v.string(),
     description: v.optional(v.string()),
+    keyType: apiKeyTypeValidator,
   },
   handler: async (ctx, args) => {
     const userId = await getAuthUserId(ctx);
@@ -37,7 +42,7 @@ export const create = mutation({
     }
 
     // Generate a new API key
-    const apiKey = generateApiKey();
+    const apiKey = generateApiKey(args.keyType);
     const now = Date.now();
 
     // Create the API key record
@@ -47,12 +52,17 @@ export const create = mutation({
       key: apiKey,
       name: args.name,
       description: args.description,
-      permissions: undefined, // For future use
+      keyType: args.keyType,
+      permissions: undefined,
       lastUsedAt: undefined,
       usageCount: 0,
       isActive: true,
       createdBy: userId,
       createdAt: now,
+      updatedAt: now,
+    });
+    await ctx.db.patch(project._id, {
+      legacyApiKeyFallbackDisabledAt: now,
       updatedAt: now,
     });
 
@@ -61,6 +71,7 @@ export const create = mutation({
       _id: keyId,
       key: apiKey, // Full key returned only once
       name: args.name,
+      keyType: args.keyType,
       createdAt: now,
     };
   },
@@ -161,7 +172,15 @@ export const remove = mutation({
       throw new ConvexError("Insufficient permissions to delete API keys");
     }
 
-    // Delete the API key
+    // Disable the legacy project-column fallback before deleting the row.
+    // Both writes commit atomically in Convex, so deleting the final scoped
+    // key can never make projects.apiKey valid again.
+    const now = Date.now();
+    await ctx.db.patch(project._id, {
+      legacyApiKeyFallbackDisabledAt:
+        project.legacyApiKeyFallbackDisabledAt ?? now,
+      updatedAt: now,
+    });
     await ctx.db.delete(args.keyId);
 
     return { success: true };
@@ -207,6 +226,12 @@ export const revoke = mutation({
       isActive: false,
       updatedAt: Date.now(),
     });
+    if (project.legacyApiKeyFallbackDisabledAt === undefined) {
+      await ctx.db.patch(project._id, {
+        legacyApiKeyFallbackDisabledAt: Date.now(),
+        updatedAt: Date.now(),
+      });
+    }
 
     return { success: true };
   },
@@ -247,8 +272,17 @@ export const regenerate = mutation({
     }
 
     // Generate a new API key
-    const newApiKey = generateApiKey();
+    // Unclassified legacy keys are app-facing credentials and regenerate into
+    // explicitly publishable keys instead of silently retaining admin access.
+    const keyType = oldApiKey.keyType ?? "publishable";
+    const newApiKey = generateApiKey(keyType);
     const now = Date.now();
+    if (project.legacyApiKeyFallbackDisabledAt === undefined) {
+      await ctx.db.patch(project._id, {
+        legacyApiKeyFallbackDisabledAt: now,
+        updatedAt: now,
+      });
+    }
 
     // Deactivate the old key
     await ctx.db.patch(args.keyId, {
@@ -263,6 +297,7 @@ export const regenerate = mutation({
       key: newApiKey,
       name: `${oldApiKey.name} (Regenerated)`,
       description: oldApiKey.description,
+      keyType,
       permissions: oldApiKey.permissions,
       lastUsedAt: undefined,
       usageCount: 0,
@@ -277,6 +312,7 @@ export const regenerate = mutation({
       _id: newKeyId,
       key: newApiKey, // Full key returned only once
       name: `${oldApiKey.name} (Regenerated)`,
+      keyType,
       createdAt: now,
     };
   },

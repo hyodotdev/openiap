@@ -29,6 +29,9 @@ export default function ApiKeys() {
   const [showCreateForm, setShowCreateForm] = useState(false);
   const [keyName, setKeyName] = useState("");
   const [keyDescription, setKeyDescription] = useState("");
+  const [keyType, setKeyType] = useState<"publishable" | "secret">(
+    "publishable",
+  );
   const [isCreating, setIsCreating] = useState(false);
   const [revealedApiKey, setRevealedApiKey] = useState<GeneratedApiKey | null>(
     null,
@@ -67,15 +70,21 @@ export default function ApiKeys() {
         projectId: project._id,
         name: keyName.trim(),
         description: keyDescription.trim() || undefined,
+        keyType,
       });
       trackEvent(MixpanelEvent.ApiKeyCreated);
 
-      setRevealedApiKey({ name: result.name, key: result.key });
+      setRevealedApiKey({
+        name: result.name,
+        key: result.key,
+        keyType: result.keyType,
+      });
       toast.success("API key created. Copy it below before leaving this page.");
 
       // Reset form
       setKeyName("");
       setKeyDescription("");
+      setKeyType("publishable");
       setShowCreateForm(false);
     } catch {
       toast.error("Failed to create API key");
@@ -112,7 +121,11 @@ export default function ApiKeys() {
 
     try {
       const result = await regenerateApiKey({ keyId });
-      setRevealedApiKey({ name: result.name, key: result.key });
+      setRevealedApiKey({
+        name: result.name,
+        key: result.key,
+        keyType: result.keyType,
+      });
       toast.success(
         "API key regenerated. Copy it below before leaving this page.",
       );
@@ -136,7 +149,9 @@ export default function ApiKeys() {
         <div>
           <h2 className="text-2xl font-bold">{"API Keys"}</h2>
           <p className="text-muted-foreground mt-1">
-            {"Manage API keys for authenticating with IAPKit API"}
+            {
+              "Use publishable keys in apps and secret keys only for MCP, CI, analytics, catalog writes, and store sync."
+            }
           </p>
         </div>
         <ButtonPrimary onClick={() => setShowCreateForm(true)} size="md">
@@ -160,6 +175,47 @@ export default function ApiKeys() {
             onSubmit={(e) => void handleCreateApiKey(e)}
             className="space-y-4"
           >
+            <fieldset>
+              <legend className="mb-2 block text-sm font-medium">
+                {"Key Type"}
+              </legend>
+              <div className="grid gap-3 md:grid-cols-2">
+                <label className="flex cursor-pointer gap-3 rounded-lg border border-border p-4">
+                  <input
+                    type="radio"
+                    name="keyType"
+                    value="publishable"
+                    checked={keyType === "publishable"}
+                    onChange={() => setKeyType("publishable")}
+                  />
+                  <span>
+                    <span className="block font-medium">{"Publishable"}</span>
+                    <span className="block text-sm text-muted-foreground">
+                      {
+                        "For mobile apps: purchase verification, entitlement helpers, and public product payload reads."
+                      }
+                    </span>
+                  </span>
+                </label>
+                <label className="flex cursor-pointer gap-3 rounded-lg border border-border p-4">
+                  <input
+                    type="radio"
+                    name="keyType"
+                    value="secret"
+                    checked={keyType === "secret"}
+                    onChange={() => setKeyType("secret")}
+                  />
+                  <span>
+                    <span className="block font-medium">{"Secret admin"}</span>
+                    <span className="block text-sm text-muted-foreground">
+                      {
+                        "For trusted servers, CI, and MCP. Never ship this key in an app."
+                      }
+                    </span>
+                  </span>
+                </label>
+              </div>
+            </fieldset>
             <div className="grid md:grid-cols-2 gap-4">
               <div>
                 <label
@@ -212,6 +268,7 @@ export default function ApiKeys() {
                   setShowCreateForm(false);
                   setKeyName("");
                   setKeyDescription("");
+                  setKeyType("publishable");
                 }}
                 className="px-6 py-3 border border-border hover:bg-muted rounded-xl font-medium transition-all"
               >
@@ -226,7 +283,7 @@ export default function ApiKeys() {
       {apiKeys && apiKeys.length > 0 ? (
         <div className="bg-card rounded-lg border-thin overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="min-w-[900px] w-full text-sm">
+            <table className="min-w-[1000px] w-full text-sm">
               <thead className="bg-muted/40 text-muted-foreground">
                 <tr>
                   <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide">
@@ -237,6 +294,9 @@ export default function ApiKeys() {
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide">
                     {"Key"}
+                  </th>
+                  <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide">
+                    {"Type"}
                   </th>
                   <th className="px-6 py-3 text-left text-xs font-semibold uppercase tracking-wide">
                     {"Status"}
@@ -287,6 +347,17 @@ export default function ApiKeys() {
                             {apiKey.keyPreview}
                           </code>
                         </div>
+                      </td>
+                      <td className="px-6 py-4 align-top">
+                        {(apiKey.keyType ?? "publishable") === "publishable" ? (
+                          <span className="inline-flex rounded-full bg-blue-500/10 px-2 py-1 text-xs font-medium text-blue-600 dark:text-blue-400">
+                            {"Publishable"}
+                          </span>
+                        ) : (
+                          <span className="inline-flex rounded-full bg-amber-500/10 px-2 py-1 text-xs font-medium text-amber-700 dark:text-amber-400">
+                            {"Secret admin"}
+                          </span>
+                        )}
                       </td>
                       <td className="px-6 py-4 align-top">
                         {apiKey.isActive ? (

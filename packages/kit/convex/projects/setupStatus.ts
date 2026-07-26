@@ -38,7 +38,7 @@ export const getSetupStatus = query({
     const resolved = args.projectId
       ? await resolveProjectByIdForCurrentUserFromDb(ctx, args.projectId)
       : args.apiKey
-        ? await resolveProjectByApiKeyFromDb(ctx, args.apiKey)
+        ? await resolveProjectByApiKeyFromDb(ctx, args.apiKey, "admin")
         : null;
     const project = resolved?.project ?? null;
 

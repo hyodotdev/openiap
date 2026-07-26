@@ -17,7 +17,9 @@ import {
   nextStateForKitProductUpsert,
   removeProduct as registeredRemoveProduct,
   removeProductClientPayload as registeredRemoveProductClientPayload,
+  removeProductClientPayloadWithApiKey as registeredRemoveProductClientPayloadWithApiKey,
   upsertProductClientPayload as registeredUpsertProductClientPayload,
+  upsertProductClientPayloadWithApiKey as registeredUpsertProductClientPayloadWithApiKey,
   validateProductClientPayloadBody,
 } from "./mutation";
 import { testableFunction } from "../test.setup";
@@ -26,8 +28,14 @@ const removeProduct = testableFunction(registeredRemoveProduct);
 const removeProductClientPayload = testableFunction(
   registeredRemoveProductClientPayload,
 );
+const removeProductClientPayloadWithApiKey = testableFunction(
+  registeredRemoveProductClientPayloadWithApiKey,
+);
 const upsertProductClientPayload = testableFunction(
   registeredUpsertProductClientPayload,
+);
+const upsertProductClientPayloadWithApiKey = testableFunction(
+  registeredUpsertProductClientPayloadWithApiKey,
 );
 
 type Row = Record<string, unknown> & { _id: string };
@@ -275,6 +283,44 @@ describe("product client payload mutations", () => {
       (error: unknown) => convexErrorData(error).code === "PRODUCT_NOT_FOUND",
     );
     expect(ctx.db.insertCount).toBe(0);
+  });
+
+  it("requires admin key access for programmatic payload writes", async () => {
+    const ctx = makeCtx();
+    ctx.db.seed("products", {
+      _id: "product_ios",
+      projectId: PROJECT_ID,
+      platform: "IOS",
+      productId: "premium.monthly",
+    });
+
+    await expect(
+      upsertProductClientPayloadWithApiKey._handler(ctx, {
+        apiKey: "openiap-kit_sk_admin",
+        platform: "IOS",
+        productId: "premium.monthly",
+        format: "toml",
+        body: 'rule = "premium"',
+      }),
+    ).resolves.toMatchObject({ created: true, version: 1 });
+    expect(projectMocks.byApiKey).toHaveBeenCalledWith(
+      ctx,
+      "openiap-kit_sk_admin",
+      "admin",
+    );
+
+    await expect(
+      removeProductClientPayloadWithApiKey._handler(ctx, {
+        apiKey: "openiap-kit_sk_admin",
+        platform: "IOS",
+        productId: "premium.monthly",
+      }),
+    ).resolves.toEqual({ ok: true });
+    expect(projectMocks.byApiKey).toHaveBeenLastCalledWith(
+      ctx,
+      "openiap-kit_sk_admin",
+      "admin",
+    );
   });
 
   it("creates, updates, and leaves an unchanged save fully idempotent", async () => {

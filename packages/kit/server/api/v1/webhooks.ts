@@ -6,7 +6,12 @@ import { ConvexClient } from "convex/browser";
 
 import { api } from "@/convex";
 import { client, convexUrlForRealtime, handleConvexError } from "../../convex";
-import { apiKeyValidationError } from "./middleware";
+import {
+  apiKeyMiddleware,
+  apiKeyValidationError,
+  isSecretApiKey,
+  secretAdminApiKeyMiddleware,
+} from "./middleware";
 import {
   isContentLengthOverLimit,
   JsonBodyTooLargeError,
@@ -18,8 +23,9 @@ import { drainWebhookEventBatches } from "./webhookStreamDrain";
 // SINGLE WebSocket open to Convex regardless of how many SDK clients
 // are subscribed — the previous per-connection `new ConvexClient(...)`
 // inside streamSSE fanned out to one WebSocket per subscriber, which
-// scaled poorly under typical traffic where every dashboard tab + every
-// mobile SDK opens its own SSE connection. Each per-connection
+// scaled poorly under administrative traffic from dashboard tabs, MCP/CI,
+// and trusted backend consumers. Shipped mobile apps no longer open this
+// secret-admin project-wide stream. Each per-connection
 // `onUpdate(...)` returns its own unsubscribe handle so isolating
 // the *subscription lifecycle* per request still works correctly.
 //
@@ -91,7 +97,7 @@ export async function readWebhookJsonBody(request: Request): Promise<unknown> {
 //   project's API key is also in the path so kit can resolve which
 //   project a notification belongs to. Both checks must pass.
 
-const webhooks = new Hono();
+const webhooks = new Hono<{ Variables: { apiKey: string } }>();
 
 webhooks.use("/:apiKey", pathApiKeyGuard);
 webhooks.use("/apple/:apiKey", pathApiKeyGuard);
@@ -214,7 +220,22 @@ function looksLikeGoogle(body: unknown): boolean {
 }
 
 async function pathApiKeyGuard(c: Context, next: Next) {
-  const validationError = apiKeyValidationError(c.req.param("apiKey"));
+  const apiKey = c.req.param("apiKey");
+  if (isSecretApiKey(apiKey)) {
+    return c.json(
+      {
+        errors: [
+          {
+            code: "SECRET_API_KEY_IN_URL",
+            message:
+              "Secret API keys are not accepted in URLs. Use Authorization: Bearer <secret-key> on the canonical route.",
+          },
+        ],
+      },
+      410,
+    );
+  }
+  const validationError = apiKeyValidationError(apiKey);
   if (validationError) {
     return c.json(
       { errors: [{ code: "INVALID_API_KEY", message: validationError }] },
@@ -415,7 +436,8 @@ async function handleGoogleNotification(
 // No polling — Convex's reactive query is the source of liveness.
 //
 // Protocol:
-//   GET /v1/webhooks/stream/:apiKey
+//   GET /v1/webhooks/stream
+//   Authorization: Bearer <secret admin key>
 //
 //   Response: text/event-stream with one event per webhook,
 //     id: <sourceNotificationId>
@@ -433,8 +455,7 @@ async function handleGoogleNotification(
 const HEARTBEAT_MS = 25_000;
 const MAX_LAST_EVENT_ID_LENGTH = 512;
 
-webhooks.get("/stream/:apiKey", async (c) => {
-  const apiKey = c.req.param("apiKey");
+async function streamWebhookEvents(c: Context, apiKey: string) {
   const lastEventId = normalizeLastEventId(
     c.req.header("last-event-id") ?? undefined,
   );
@@ -452,6 +473,10 @@ webhooks.get("/stream/:apiKey", async (c) => {
       apiKey,
     });
   } catch (error) {
+    const convexError = handleConvexError(error);
+    if (convexError?.code === "INSUFFICIENT_SCOPE") {
+      return c.json({ errors: [convexError] }, 403);
+    }
     console.error(
       "[webhooks/stream] project lookup failed",
       describeError(error),
@@ -843,7 +868,17 @@ webhooks.get("/stream/:apiKey", async (c) => {
       }
     }
   });
-});
+}
+
+webhooks.get("/stream", apiKeyMiddleware, secretAdminApiKeyMiddleware, (c) =>
+  streamWebhookEvents(c, c.var.apiKey),
+);
+
+// Compatibility route for early stream clients. New integrations should keep
+// the secret out of URLs and use the Bearer-authenticated route above.
+webhooks.get("/stream/:apiKey", (c) =>
+  streamWebhookEvents(c, c.req.param("apiKey")),
+);
 
 // Translate an EventSource `Last-Event-ID` (which is the spec's stable
 // `sourceNotificationId`) into a `sinceMs` + `afterCreationTime` cursor

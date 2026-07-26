@@ -102,10 +102,14 @@ export const receiptResponseValidator = v.object({
   productId: v.optional(v.string()),
 });
 
-export async function getProjectByApiKey(ctx: ActionCtx, apiKey: string) {
+export async function getProjectByApiKey(
+  ctx: ActionCtx,
+  apiKey: string,
+  requiredAccess: "client" | "admin" = "client",
+) {
   const project = await ctx.runQuery(
     internal.projects.internal.getProjectByApiKey,
-    { apiKey },
+    { apiKey, requiredAccess },
   );
 
   if (!project) {

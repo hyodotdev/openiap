@@ -7,9 +7,16 @@ import { deleteProjectWithData, resolveProjectByApiKeyFromDb } from "./helpers";
 export const getProjectByApiKey = internalQuery({
   args: {
     apiKey: v.string(),
+    requiredAccess: v.optional(
+      v.union(v.literal("client"), v.literal("admin")),
+    ),
   },
   handler: async (ctx, args): Promise<Doc<"projects"> | null> => {
-    const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
+    const resolved = await resolveProjectByApiKeyFromDb(
+      ctx,
+      args.apiKey,
+      args.requiredAccess ?? "client",
+    );
     return resolved?.project ?? null;
   },
 });

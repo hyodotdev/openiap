@@ -4,6 +4,10 @@ import { getAuthUserId } from "@convex-dev/auth/server";
 import { Doc } from "../_generated/dataModel";
 
 import {
+  allowsLegacyProjectApiKeyFallback,
+  effectiveApiKeyType,
+} from "../apiKeys/helpers";
+import {
   resolveProjectByApiKeyFromDb,
   resolveProjectByIdForCurrentUserFromDb,
 } from "./helpers";
@@ -199,34 +203,54 @@ export const getProjectById = query({
   },
 });
 
-async function getWebhookApiKey(ctx: QueryCtx, project: Doc<"projects">) {
+export function selectActiveWebhookApiKeys(
+  apiKeys: Array<
+    Pick<Doc<"apiKeys">, "createdAt" | "isActive" | "key" | "keyType">
+  >,
+): { publishableKey?: string; hasSecretKey: boolean } {
+  const activeApiKeys = apiKeys
+    .filter((apiKey) => apiKey.isActive)
+    .sort((a, b) => b.createdAt - a.createdAt);
+  return {
+    publishableKey: activeApiKeys.find(
+      (apiKey) => effectiveApiKeyType(apiKey.keyType) === "publishable",
+    )?.key,
+    hasSecretKey: activeApiKeys.some(
+      (apiKey) => effectiveApiKeyType(apiKey.keyType) === "secret",
+    ),
+  };
+}
+
+async function getWebhookApiKeys(ctx: QueryCtx, project: Doc<"projects">) {
   const apiKeys = await ctx.db
     .query("apiKeys")
     .withIndex("by_project", (q) => q.eq("projectId", project._id))
     .collect();
-  const activeApiKey = apiKeys
-    .filter((apiKey) => apiKey.isActive)
-    .sort((a, b) => b.createdAt - a.createdAt)[0];
+  const selected = selectActiveWebhookApiKeys(apiKeys);
+  if (selected.publishableKey || selected.hasSecretKey) return selected;
 
-  if (activeApiKey) {
-    return activeApiKey.key;
-  }
-
-  // Legacy-only projects predate the apiKeys table. Once the table has rows
-  // for a project, do not fall back to projects.apiKey because revoked keys
-  // are authoritative there.
-  return apiKeys.length === 0 && project.apiKey.length > 0
-    ? project.apiKey
-    : null;
+  // Legacy-only projects predate the apiKeys table. Reuse the central fallback
+  // policy so revoking or deleting the final scoped key cannot make the
+  // deprecated projects.apiKey appear usable in the dashboard again.
+  const mayUseLegacyFallback = await allowsLegacyProjectApiKeyFallback(
+    ctx,
+    project,
+  );
+  return {
+    publishableKey:
+      mayUseLegacyFallback && project.apiKey.length > 0
+        ? project.apiKey
+        : undefined,
+    hasSecretKey: false,
+  };
 }
 
-function webhookPathsForApiKey(apiKey: string) {
+function lifecycleWebhookPathsForApiKey(apiKey: string) {
   const encodedApiKey = encodeURIComponent(apiKey);
   return {
     unified: `/v1/webhooks/${encodedApiKey}`,
     apple: `/v1/webhooks/apple/${encodedApiKey}`,
     google: `/v1/webhooks/google/${encodedApiKey}`,
-    stream: `/v1/webhooks/stream/${encodedApiKey}`,
   };
 }
 
@@ -235,10 +259,10 @@ export const getWebhookEndpointPaths = query({
   returns: v.union(
     v.null(),
     v.object({
-      unified: v.string(),
-      apple: v.string(),
-      google: v.string(),
-      stream: v.string(),
+      unified: v.optional(v.string()),
+      apple: v.optional(v.string()),
+      google: v.optional(v.string()),
+      hasSecretKey: v.boolean(),
     }),
   ),
   handler: async (ctx, args) => {
@@ -249,8 +273,16 @@ export const getWebhookEndpointPaths = query({
     if (!resolved) return null;
     if (resolved.role === "member") return null;
 
-    const apiKey = await getWebhookApiKey(ctx, resolved.project);
-    return apiKey ? webhookPathsForApiKey(apiKey) : null;
+    const { publishableKey, hasSecretKey } = await getWebhookApiKeys(
+      ctx,
+      resolved.project,
+    );
+    if (!publishableKey && !hasSecretKey) return null;
+
+    return {
+      ...(publishableKey ? lifecycleWebhookPathsForApiKey(publishableKey) : {}),
+      hasSecretKey,
+    };
   },
 });
 
@@ -303,11 +335,17 @@ export const hasProjects = query({
 // Public query to find project by API key (used by API verification endpoints).
 // New keys resolve through `apiKeys` first so rotation / revocation semantics
 // match the rest of the v1 surface; legacy project keys still fall back. Do
-// Do not echo the apiKey back to callers; route code only needs a truthy project.
+// not echo the apiKey back to callers; route code only needs a truthy project.
 export const getProjectByApiKey = query({
   args: { apiKey: v.string() },
   handler: async (ctx, args) => {
-    const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
+    // The only HTTP caller is the project-wide webhook event stream. Receipt
+    // verification resolves through internal purchase helpers instead.
+    const resolved = await resolveProjectByApiKeyFromDb(
+      ctx,
+      args.apiKey,
+      "admin",
+    );
     return resolved ? projectForApiKeyLookup(resolved.project) : null;
   },
 });

@@ -33,6 +33,66 @@ describe("pubSubOidcAudiences", () => {
 });
 
 describe("webhooksRoutes", () => {
+  it("requires a Bearer key for the canonical webhook stream", async () => {
+    const app = new Hono();
+    app.route("/webhooks", helpers.webhooksRoutes);
+
+    const response = await app.request("/webhooks/stream");
+
+    expect(response.status).toBe(401);
+    await expect(response.json()).resolves.toEqual({
+      errors: [
+        {
+          code: "MISSING_API_KEY",
+          message:
+            'An API key must be provided in the Authorization header in the format "Bearer api-key"',
+        },
+      ],
+    });
+  });
+
+  it("returns 403 before a publishable key can open the admin event stream", async () => {
+    const app = new Hono();
+    app.route("/webhooks", helpers.webhooksRoutes);
+
+    const response = await app.request("/webhooks/stream", {
+      headers: {
+        authorization: "Bearer openiap-kit_pk_mobile",
+      },
+    });
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({
+      errors: [
+        {
+          code: "INSUFFICIENT_SCOPE",
+          message:
+            "This operation requires a secret admin key. Publishable mobile keys cannot access administrative operations.",
+        },
+      ],
+    });
+  });
+
+  it("retires the secret-key-in-path webhook stream", async () => {
+    const app = new Hono();
+    app.route("/webhooks", helpers.webhooksRoutes);
+
+    const response = await app.request(
+      "/webhooks/stream/openiap-kit_sk_secret",
+    );
+
+    expect(response.status).toBe(410);
+    await expect(response.json()).resolves.toEqual({
+      errors: [
+        {
+          code: "SECRET_API_KEY_IN_URL",
+          message:
+            "Secret API keys are not accepted in URLs. Use Authorization: Bearer <secret-key> on the canonical route.",
+        },
+      ],
+    });
+  });
+
   it("rejects oversized path apiKey before reading the body", async () => {
     const app = new Hono();
     app.route("/webhooks", helpers.webhooksRoutes);

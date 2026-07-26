@@ -86,17 +86,29 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
     return parsed as T;
   }
 
+  function adminCall<T>(path: string, init: RequestInit = {}): Promise<T> {
+    return call<T>(path, {
+      ...init,
+      headers: {
+        ...(init.headers as Record<string, string> | undefined),
+        authorization: `Bearer ${apiKey}`,
+      },
+    });
+  }
+
   return {
     apiKey,
     baseUrl: root,
     status: (userId: string) =>
-      call<{ active: boolean; subscription: unknown }>(
-        `/v1/subscriptions/status/${encodeURIComponent(apiKey)}?userId=${encodeURIComponent(userId)}`,
+      adminCall<{ active: boolean; subscription: unknown }>(
+        `/v1/subscriptions/status?userId=${encodeURIComponent(userId)}`,
       ),
     entitlements: (userId: string) =>
-      call<{ userId: string; productIds: string[]; subscriptions: unknown[] }>(
-        `/v1/subscriptions/entitlements/${encodeURIComponent(apiKey)}?userId=${encodeURIComponent(userId)}`,
-      ),
+      adminCall<{
+        userId: string;
+        productIds: string[];
+        subscriptions: unknown[];
+      }>(`/v1/subscriptions/entitlements?userId=${encodeURIComponent(userId)}`),
     listSubscriptions: (params: {
       state?: string;
       productId?: string;
@@ -109,12 +121,12 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
       if (params.userId) usp.set("userId", params.userId);
       if (params.limit) usp.set("limit", String(params.limit));
       const qs = usp.toString();
-      return call<{ items: unknown[]; total?: number }>(
-        `/v1/subscriptions/list/${encodeURIComponent(apiKey)}${qs ? `?${qs}` : ""}`,
+      return adminCall<{ items: unknown[]; total?: number }>(
+        `/v1/subscriptions/list${qs ? `?${qs}` : ""}`,
       );
     },
     metrics: () =>
-      call<{
+      adminCall<{
         activeSubs: number;
         inGracePeriod: number;
         inBillingRetry: number;
@@ -122,13 +134,13 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
         canceled30d: number;
         mrrMicros: number;
         currency?: string;
-      }>(`/v1/subscriptions/metrics/${encodeURIComponent(apiKey)}`),
+      }>("/v1/subscriptions/metrics"),
     revenueMetrics: (params: { fromDay: string; toDay: string }) => {
       const usp = new URLSearchParams({
         fromDay: params.fromDay,
         toDay: params.toDay,
       });
-      return call<{
+      return adminCall<{
         days: Array<{
           day: string;
           currency: string;
@@ -145,16 +157,14 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
         productIds: string[];
         platforms: Array<"IOS" | "Android">;
         truncated: boolean;
-      }>(
-        `/v1/subscriptions/revenue/${encodeURIComponent(apiKey)}?${usp.toString()}`,
-      );
+      }>(`/v1/subscriptions/revenue?${usp.toString()}`);
     },
     listProducts: (params: { platform?: "IOS" | "Android" } = {}) => {
       const usp = new URLSearchParams();
       if (params.platform) usp.set("platform", params.platform);
       const qs = usp.toString();
-      return call<{ products: unknown[] }>(
-        `/v1/products/${encodeURIComponent(apiKey)}${qs ? `?${qs}` : ""}`,
+      return adminCall<{ products: unknown[] }>(
+        `/v1/products${qs ? `?${qs}` : ""}`,
       );
     },
     upsertProduct: (product: {
@@ -169,19 +179,76 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
       subscriptionGroupName?: string;
       reviewNote?: string;
     }) =>
-      call<{ id: string; created: boolean }>(
-        `/v1/products/${encodeURIComponent(apiKey)}`,
-        { method: "POST", body: JSON.stringify(product) },
-      ),
+      adminCall<{ id: string; created: boolean }>("/v1/products", {
+        method: "POST",
+        body: JSON.stringify(product),
+      }),
     setProductState: (params: {
       productId: string;
       platform: "IOS" | "Android";
       state: "Draft" | "Ready" | "Active" | "Removed";
     }) =>
-      call<{ id: string; state: string }>(
-        `/v1/products/${encodeURIComponent(apiKey)}/state`,
-        { method: "POST", body: JSON.stringify(params) },
+      adminCall<{ id: string; state: string }>("/v1/products/state", {
+        method: "POST",
+        body: JSON.stringify(params),
+      }),
+    getClientPayloadState: (params: {
+      productId: string;
+      platform: "IOS" | "Android";
+    }) =>
+      adminCall<{
+        expectedVersion: number;
+        clientPayload?: {
+          format: "toml" | "json" | "text";
+          body: string;
+          version: number;
+          updatedAt: number;
+        };
+      }>(
+        `/v1/products/client-payload/${encodeURIComponent(params.productId)}?platform=${encodeURIComponent(params.platform)}`,
       ),
+    setClientPayload: (params: {
+      productId: string;
+      platform: "IOS" | "Android";
+      format: "toml" | "json" | "text";
+      body: string;
+      expectedVersion?: number;
+    }) =>
+      adminCall<{
+        id: string;
+        created: boolean;
+        changed: boolean;
+        version: number;
+        updatedAt: number;
+      }>(
+        `/v1/products/client-payload/${encodeURIComponent(params.productId)}?platform=${encodeURIComponent(params.platform)}`,
+        {
+          method: "PUT",
+          body: JSON.stringify({
+            format: params.format,
+            body: params.body,
+            ...(params.expectedVersion !== undefined
+              ? { expectedVersion: params.expectedVersion }
+              : {}),
+          }),
+        },
+      ),
+    removeClientPayload: (params: {
+      productId: string;
+      platform: "IOS" | "Android";
+      expectedVersion?: number;
+    }) => {
+      const query = new URLSearchParams({ platform: params.platform });
+      if (params.expectedVersion !== undefined) {
+        query.set("expectedVersion", String(params.expectedVersion));
+      }
+      return adminCall<{ ok: boolean }>(
+        `/v1/products/client-payload/${encodeURIComponent(params.productId)}?${query.toString()}`,
+        {
+          method: "DELETE",
+        },
+      );
+    },
     syncProducts: (params: {
       platform: "IOS" | "Android";
       direction: "pull" | "push" | "both" | "purge-local";
@@ -192,15 +259,13 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
         direction: params.direction,
         dryRun: String(params.dryRun),
       });
-      return call<{ jobId: string; deduped?: boolean }>(
-        `/v1/products/${encodeURIComponent(apiKey)}/sync/${platformPath}?${usp.toString()}`,
+      return adminCall<{ jobId: string; deduped?: boolean }>(
+        `/v1/products/sync/${platformPath}?${usp.toString()}`,
         { method: "POST" },
       );
     },
     syncJob: (jobId: string) =>
-      call<unknown>(
-        `/v1/products/${encodeURIComponent(apiKey)}/sync/jobs/${encodeURIComponent(jobId)}`,
-      ),
+      adminCall<unknown>(`/v1/products/sync/jobs/${encodeURIComponent(jobId)}`),
     health: () => call<{ ok: boolean }>("/health"),
   };
 }

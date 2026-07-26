@@ -4,7 +4,12 @@ import { ConvexError } from "convex/values";
 import { api } from "@/convex";
 import type { Id } from "@/convex";
 import { client, handleConvexError } from "../../convex";
-import { apiKeyValidationError } from "./middleware";
+import {
+  apiKeyMiddleware,
+  apiKeyValidationError,
+  isSecretApiKey,
+  secretAdminApiKeyMiddleware,
+} from "./middleware";
 import {
   isContentLengthOverLimit,
   JsonBodyTooLargeError,
@@ -15,11 +20,17 @@ import {
 // admin path. Store sync is queued through background jobs so the
 // dashboard, MCP server, and API clients do not hold browser/mobile
 // HTTP connections open while App Store Connect or Play Console work runs.
+// Canonical administrative routes use a Bearer secret; key-in-path routes
+// remain as compatibility aliases for existing clients.
 
-const products = new Hono();
+const products = new Hono<{ Variables: { apiKey: string } }>();
 const MAX_PRODUCT_ID_LENGTH = 256;
 const MAX_SYNC_JOB_ID_LENGTH = 256;
 const MAX_PRODUCT_BODY_BYTES = 64 * 1024;
+// A decoded 16 KiB text payload can expand beyond 64 KiB when JSON escaping
+// control characters. Keep the envelope bounded while allowing every payload
+// accepted by Convex to traverse the REST route.
+const MAX_CLIENT_PAYLOAD_BODY_BYTES = 128 * 1024;
 const DEFAULT_CLIENT_PAYLOAD_PAGE_SIZE = 25;
 const MAX_CLIENT_PAYLOAD_PAGE_SIZE = 50;
 const MAX_CLIENT_PAYLOAD_CURSOR_LENGTH = 4096;
@@ -27,6 +38,7 @@ const MAX_CLIENT_PAYLOAD_CURSOR_LENGTH = 4096;
 type ProductPlatform = "IOS" | "Android";
 type ProductType = "Subscription" | "NonConsumable" | "Consumable";
 type ProductState = "Draft" | "Ready" | "Active" | "Removed";
+type ClientPayloadFormat = "toml" | "json" | "text";
 type BillingPeriod = "P1W" | "P1M" | "P2M" | "P3M" | "P6M" | "P1Y";
 type SyncDirection = "pull" | "push" | "both" | "purge-local";
 const PRODUCT_PLATFORMS = new Set<string>(["IOS", "Android"]);
@@ -36,6 +48,7 @@ const PRODUCT_TYPES = new Set<string>([
   "Consumable",
 ]);
 const PRODUCT_STATES = new Set<string>(["Draft", "Ready", "Active", "Removed"]);
+const CLIENT_PAYLOAD_FORMATS = new Set<string>(["toml", "json", "text"]);
 const BILLING_PERIODS = new Set<string>([
   "P1W",
   "P1M",
@@ -51,11 +64,7 @@ const SYNC_DIRECTIONS = new Set<string>([
   "purge-local",
 ]);
 
-products.use("/:apiKey", pathApiKeyGuard);
-products.use("/:apiKey/*", pathApiKeyGuard);
-
-products.get("/:apiKey", async (c) => {
-  const apiKey = c.req.param("apiKey");
+async function handleListProducts(c: Context, apiKey: string) {
   const platformParam = c.req.query("platform");
   const includeClientPayloadParam = c.req.query("includeClientPayload");
   const limitParam = c.req.query("limit");
@@ -141,10 +150,14 @@ products.get("/:apiKey", async (c) => {
       "Product list failed",
     );
   }
-});
+}
 
-products.post("/:apiKey", async (c) => {
-  const apiKey = c.req.param("apiKey");
+products.get("/", apiKeyMiddleware, (c) => handleListProducts(c, c.var.apiKey));
+products.get("/:apiKey", pathApiKeyGuard, (c) =>
+  handleListProducts(c, guardedPathApiKey(c)),
+);
+
+async function handleUpsertProduct(c: Context, apiKey: string) {
   let body: unknown;
   try {
     body = await readProductJsonBody(c.req.raw);
@@ -267,14 +280,17 @@ products.post("/:apiKey", async (c) => {
       "Product upsert failed",
     );
   }
-});
+}
+
+products.post("/", apiKeyMiddleware, secretAdminApiKeyMiddleware, (c) =>
+  handleUpsertProduct(c, c.var.apiKey),
+);
 
 // State-only update for the existing row. MCP `manage_product` uses
 // this so it doesn't have to re-supply `type` / `title` (and thus
 // can't accidentally clobber them, which the prior `upsertProduct`
 // reuse pattern silently did).
-products.post("/:apiKey/state", async (c) => {
-  const apiKey = c.req.param("apiKey");
+async function handleSetProductState(c: Context, apiKey: string) {
   let body: unknown;
   try {
     body = await readProductJsonBody(c.req.raw);
@@ -330,7 +346,17 @@ products.post("/:apiKey/state", async (c) => {
       "Product state update failed",
     );
   }
-});
+}
+
+products.post("/state", apiKeyMiddleware, secretAdminApiKeyMiddleware, (c) =>
+  handleSetProductState(c, c.var.apiKey),
+);
+products.post("/:apiKey", pathApiKeyGuard, (c) =>
+  handleUpsertProduct(c, guardedPathApiKey(c)),
+);
+products.post("/:apiKey/state", pathApiKeyGuard, (c) =>
+  handleSetProductState(c, guardedPathApiKey(c)),
+);
 
 // Enqueue an async sync job. Returns `{ jobId, deduped }`
 // immediately. The caller polls `GET .../sync/jobs/:jobId` until
@@ -338,8 +364,7 @@ products.post("/:apiKey/state", async (c) => {
 // endpoint held the HTTP connection open for the entire sync, which
 // iOS Safari aborted on cellular / backgrounded tabs as
 // `TypeError: Load failed`.
-products.post("/:apiKey/sync/:platform", async (c) => {
-  const apiKey = c.req.param("apiKey");
+async function handleEnqueueProductSync(c: Context, apiKey: string) {
   const platformParam = c.req.param("platform");
   const direction = c.req.query("direction") ?? "both";
   const dryRunParam = c.req.query("dryRun");
@@ -375,14 +400,23 @@ products.post("/:apiKey/sync/:platform", async (c) => {
       "Product sync enqueue failed",
     );
   }
-});
+}
+
+products.post(
+  "/sync/:platform",
+  apiKeyMiddleware,
+  secretAdminApiKeyMiddleware,
+  (c) => handleEnqueueProductSync(c, c.var.apiKey),
+);
+products.post("/:apiKey/sync/:platform", pathApiKeyGuard, (c) =>
+  handleEnqueueProductSync(c, guardedPathApiKey(c)),
+);
 
 // Poll the job state. Clients should backoff (e.g. 3s) between
 // polls; the typical sync finishes in tens of seconds, larger
 // catalogs in 1-2 min. SSE is a future option; polling kept simple
 // for v1.
-products.get("/:apiKey/sync/jobs/:jobId", async (c) => {
-  const apiKey = c.req.param("apiKey");
+async function handleGetProductSyncJob(c: Context, apiKey: string) {
   const jobId = c.req.param("jobId");
   if (!isNonBlankString(jobId)) {
     return invalidInput(c, "jobId must not be empty");
@@ -410,12 +444,21 @@ products.get("/:apiKey/sync/jobs/:jobId", async (c) => {
       "Product sync lookup failed",
     );
   }
-});
+}
+
+products.get(
+  "/sync/jobs/:jobId",
+  apiKeyMiddleware,
+  secretAdminApiKeyMiddleware,
+  (c) => handleGetProductSyncJob(c, c.var.apiKey),
+);
+products.get("/:apiKey/sync/jobs/:jobId", pathApiKeyGuard, (c) =>
+  handleGetProductSyncJob(c, guardedPathApiKey(c)),
+);
 
 // Operator-initiated cancel. Workers observe it at phase/chunk boundaries and
 // before remote requests, upload operations, and asset-delivery polls.
-products.post("/:apiKey/sync/jobs/:jobId/cancel", async (c) => {
-  const apiKey = c.req.param("apiKey");
+async function handleCancelProductSync(c: Context, apiKey: string) {
   const jobId = c.req.param("jobId");
   if (!isNonBlankString(jobId)) {
     return invalidInput(c, "jobId must not be empty");
@@ -437,56 +480,242 @@ products.post("/:apiKey/sync/jobs/:jobId/cancel", async (c) => {
       "Product sync cancel failed",
     );
   }
-});
+}
 
-// Read-only client payload endpoint. Writes intentionally remain dashboard
-// mutations authenticated by project membership; an API key can only read the
-// metadata destined for that project's app clients.
-products.get("/:apiKey/:productId/client-payload", async (c) => {
-  const apiKey = c.req.param("apiKey");
-  const productId = c.req.param("productId");
-  const platformParam = c.req.query("platform");
-  if (!isProductPlatform(platformParam)) {
-    return invalidInput(c, "platform query param required (IOS | Android)");
-  }
-  if (!isNonBlankString(productId)) {
-    return invalidInput(c, "productId must not be empty");
-  }
-  if (!isValidProductIdLength(productId)) {
-    return invalidInput(c, "productId must be ≤ 256 chars");
-  }
+products.post(
+  "/sync/jobs/:jobId/cancel",
+  apiKeyMiddleware,
+  secretAdminApiKeyMiddleware,
+  (c) => handleCancelProductSync(c, c.var.apiKey),
+);
+products.post("/:apiKey/sync/jobs/:jobId/cancel", pathApiKeyGuard, (c) =>
+  handleCancelProductSync(c, guardedPathApiKey(c)),
+);
 
-  try {
-    const clientPayload = await client.query(
-      api.products.query.getProductClientPayload,
-      { apiKey, productId, platform: platformParam },
-    );
-    if (!clientPayload) {
-      return c.json(
-        {
-          errors: [
-            {
-              code: "NOT_FOUND",
-              message: "Product client payload not found",
-            },
-          ],
-        },
-        404,
+// Publishable keys may read the app-facing payload. The matching PUT/DELETE
+// routes are administrative and enforce a secret key in Convex.
+products.get(
+  "/:apiKey/:productId/client-payload",
+  pathApiKeyGuard,
+  async (c) => {
+    const apiKey = c.req.param("apiKey");
+    const productId = c.req.param("productId");
+    const platformParam = c.req.query("platform");
+    if (!isProductPlatform(platformParam)) {
+      return invalidInput(c, "platform query param required (IOS | Android)");
+    }
+    if (!isNonBlankString(productId)) {
+      return invalidInput(c, "productId must not be empty");
+    }
+    if (!isValidProductIdLength(productId)) {
+      return invalidInput(c, "productId must be ≤ 256 chars");
+    }
+
+    try {
+      const clientPayload = await client.query(
+        api.products.query.getProductClientPayload,
+        { apiKey, productId, platform: platformParam },
+      );
+      if (!clientPayload) {
+        return c.json(
+          {
+            errors: [
+              {
+                code: "NOT_FOUND",
+                message: "Product client payload not found",
+              },
+            ],
+          },
+          404,
+        );
+      }
+      return c.json({ clientPayload });
+    } catch (error) {
+      return productRouteError(
+        c,
+        error,
+        "PRODUCT_CLIENT_PAYLOAD_LOOKUP_FAILED",
+        "Product client payload lookup failed",
       );
     }
-    return c.json({ clientPayload });
-  } catch (error) {
-    return productRouteError(
-      c,
-      error,
-      "PRODUCT_CLIENT_PAYLOAD_LOOKUP_FAILED",
-      "Product client payload lookup failed",
-    );
-  }
-});
+  },
+);
 
-products.delete("/:apiKey/:productId", async (c) => {
-  const apiKey = c.req.param("apiKey");
+products.get(
+  "/client-payload/:productId",
+  apiKeyMiddleware,
+  secretAdminApiKeyMiddleware,
+  async (c) => {
+    const apiKey = c.var.apiKey;
+    const productId = c.req.param("productId");
+    const platformParam = c.req.query("platform");
+    if (!isProductPlatform(platformParam)) {
+      return invalidInput(c, "platform query param required (IOS | Android)");
+    }
+    if (!isNonBlankString(productId)) {
+      return invalidInput(c, "productId must not be empty");
+    }
+    if (!isValidProductIdLength(productId)) {
+      return invalidInput(c, "productId must be ≤ 256 chars");
+    }
+
+    try {
+      const editorState = await client.query(
+        api.products.query.getProductClientPayloadEditorStateWithApiKey,
+        { apiKey, productId, platform: platformParam },
+      );
+      if (!editorState) {
+        return c.json(
+          {
+            errors: [
+              {
+                code: "NOT_FOUND",
+                message: "Product client payload state not found",
+              },
+            ],
+          },
+          404,
+        );
+      }
+      return c.json(editorState);
+    } catch (error) {
+      return productRouteError(
+        c,
+        error,
+        "PRODUCT_CLIENT_PAYLOAD_LOOKUP_FAILED",
+        "Product client payload lookup failed",
+      );
+    }
+  },
+);
+
+products.put(
+  "/client-payload/:productId",
+  apiKeyMiddleware,
+  secretAdminApiKeyMiddleware,
+  async (c) => {
+    const apiKey = c.var.apiKey;
+    const productId = c.req.param("productId");
+    const platformParam = c.req.query("platform");
+    if (!isProductPlatform(platformParam)) {
+      return invalidInput(c, "platform query param required (IOS | Android)");
+    }
+    if (!isNonBlankString(productId)) {
+      return invalidInput(c, "productId must not be empty");
+    }
+    if (!isValidProductIdLength(productId)) {
+      return invalidInput(c, "productId must be ≤ 256 chars");
+    }
+
+    let body: unknown;
+    try {
+      body = await readClientPayloadJsonBody(c.req.raw);
+    } catch (error) {
+      if (error instanceof JsonBodyTooLargeError) {
+        return payloadTooLarge(c);
+      }
+      return invalidInput(c, "Body is not JSON");
+    }
+    if (!isJsonObject(body)) {
+      return invalidInput(c, "format and body are required");
+    }
+    const payload = body as {
+      format?: unknown;
+      body?: unknown;
+      expectedVersion?: unknown;
+    };
+    if (!isClientPayloadFormat(payload.format)) {
+      return invalidInput(c, "format must be toml|json|text");
+    }
+    if (typeof payload.body !== "string") {
+      return invalidInput(c, "body must be a string");
+    }
+    if (
+      payload.expectedVersion !== undefined &&
+      !isValidClientPayloadVersion(payload.expectedVersion)
+    ) {
+      return invalidInput(
+        c,
+        "expectedVersion must be a non-negative safe integer",
+      );
+    }
+
+    try {
+      const result = await client.mutation(
+        api.products.mutation.upsertProductClientPayloadWithApiKey,
+        {
+          apiKey,
+          productId,
+          platform: platformParam,
+          format: payload.format,
+          body: payload.body,
+          ...(payload.expectedVersion !== undefined
+            ? { expectedVersion: payload.expectedVersion }
+            : {}),
+        },
+      );
+      return c.json(result);
+    } catch (error) {
+      return productRouteError(
+        c,
+        error,
+        "PRODUCT_CLIENT_PAYLOAD_UPSERT_FAILED",
+        "Product client payload update failed",
+      );
+    }
+  },
+);
+
+products.delete(
+  "/client-payload/:productId",
+  apiKeyMiddleware,
+  secretAdminApiKeyMiddleware,
+  async (c) => {
+    const apiKey = c.var.apiKey;
+    const productId = c.req.param("productId");
+    const platformParam = c.req.query("platform");
+    const expectedVersion = parseOptionalVersion(
+      c.req.query("expectedVersion"),
+    );
+    if (!isProductPlatform(platformParam)) {
+      return invalidInput(c, "platform query param required (IOS | Android)");
+    }
+    if (!isNonBlankString(productId)) {
+      return invalidInput(c, "productId must not be empty");
+    }
+    if (!isValidProductIdLength(productId)) {
+      return invalidInput(c, "productId must be ≤ 256 chars");
+    }
+    if (expectedVersion === null) {
+      return invalidInput(
+        c,
+        "expectedVersion must be a non-negative safe integer",
+      );
+    }
+
+    try {
+      const result = await client.mutation(
+        api.products.mutation.removeProductClientPayloadWithApiKey,
+        {
+          apiKey,
+          productId,
+          platform: platformParam,
+          ...(expectedVersion !== undefined ? { expectedVersion } : {}),
+        },
+      );
+      return c.json(result);
+    } catch (error) {
+      return productRouteError(
+        c,
+        error,
+        "PRODUCT_CLIENT_PAYLOAD_REMOVE_FAILED",
+        "Product client payload removal failed",
+      );
+    }
+  },
+);
+
+async function handleRemoveProduct(c: Context, apiKey: string) {
   const productId = c.req.param("productId");
   const platformParam = c.req.query("platform");
   if (!isProductPlatform(platformParam)) {
@@ -513,7 +742,17 @@ products.delete("/:apiKey/:productId", async (c) => {
       "Product remove failed",
     );
   }
-});
+}
+
+products.delete(
+  "/:productId",
+  apiKeyMiddleware,
+  secretAdminApiKeyMiddleware,
+  (c) => handleRemoveProduct(c, c.var.apiKey),
+);
+products.delete("/:apiKey/:productId", pathApiKeyGuard, (c) =>
+  handleRemoveProduct(c, guardedPathApiKey(c)),
+);
 
 function isValidProductIdLength(productId: string): boolean {
   return productId.length <= MAX_PRODUCT_ID_LENGTH;
@@ -537,6 +776,23 @@ function isProductType(value: unknown): value is ProductType {
 
 function isProductState(value: unknown): value is ProductState {
   return typeof value === "string" && PRODUCT_STATES.has(value);
+}
+
+function isClientPayloadFormat(value: unknown): value is ClientPayloadFormat {
+  return typeof value === "string" && CLIENT_PAYLOAD_FORMATS.has(value);
+}
+
+function isValidClientPayloadVersion(value: unknown): value is number {
+  return typeof value === "number" && Number.isSafeInteger(value) && value >= 0;
+}
+
+function parseOptionalVersion(
+  value: string | undefined,
+): number | undefined | null {
+  if (value === undefined) return undefined;
+  if (!/^(0|[1-9]\d*)$/.test(value)) return null;
+  const parsed = Number(value);
+  return isValidClientPayloadVersion(parsed) ? parsed : null;
 }
 
 function isBillingPeriod(value: unknown): value is BillingPeriod {
@@ -619,8 +875,20 @@ function readProductJsonBody(request: Request) {
   );
 }
 
+function readClientPayloadJsonBody(request: Request) {
+  return readJsonBodyWithLimit(
+    request,
+    MAX_CLIENT_PAYLOAD_BODY_BYTES,
+    "Product client payload is too large",
+  );
+}
+
 async function pathApiKeyGuard(c: Context, next: Next) {
-  const validationError = apiKeyValidationError(c.req.param("apiKey"));
+  const apiKey = c.req.param("apiKey");
+  if (isSecretApiKey(apiKey)) {
+    return secretKeyInUrl(c);
+  }
+  const validationError = apiKeyValidationError(apiKey);
   if (validationError) {
     return c.json(
       { errors: [{ code: "INVALID_API_KEY", message: validationError }] },
@@ -639,6 +907,29 @@ async function pathApiKeyGuard(c: Context, next: Next) {
   await next();
 }
 
+function secretKeyInUrl(c: Context) {
+  return c.json(
+    {
+      errors: [
+        {
+          code: "SECRET_API_KEY_IN_URL",
+          message:
+            "Secret API keys are not accepted in URLs. Use Authorization: Bearer <secret-key> on the canonical route.",
+        },
+      ],
+    },
+    410,
+  );
+}
+
+function guardedPathApiKey(c: Context): string {
+  const apiKey = c.req.param("apiKey");
+  if (apiKey === undefined) {
+    throw new Error("pathApiKeyGuard did not provide apiKey");
+  }
+  return apiKey;
+}
+
 function productRouteError(
   c: Context,
   error: unknown,
@@ -647,7 +938,10 @@ function productRouteError(
 ) {
   const convexError = handleConvexError(error);
   if (convexError) {
-    return c.json({ errors: [convexError] }, 400);
+    return c.json(
+      { errors: [convexError] },
+      convexError.code === "INSUFFICIENT_SCOPE" ? 403 : 400,
+    );
   }
 
   console.error(`[products] ${code}`, describeErrorForLog(error));
