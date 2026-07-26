@@ -1,17 +1,19 @@
 extends Node
 class_name OpenIapWebhookClient
 
-## Webhook listener for the openiap kit SSE stream
-## (`GET /v1/webhooks/stream/{api_key}`).
+## Bearer-authenticated webhook listener for the openiap kit SSE stream.
+## Hosted IAPKit restricts this project-wide stream to secret admin keys.
+## Never put that secret in a shipped game. The listener calls
+## [code]GET /v1/webhooks/stream[/code] with the secret in the Authorization
+## header.
 ##
 ## Wire format mirrors the canonical TypeScript implementation in
 ## packages/gql/src/webhook-client.ts. The WebhookEvent shape comes
 ## from packages/gql/src/webhook.graphql.
 ##
-## Add this node to a scene, set [code]api_key[/code] (and optionally
-## [code]base_url[/code]), then call [code]connect_stream()[/code].
-## Listen for the [code]event_received[/code] signal to consume
-## normalized webhook events without running your own server.
+## This compatibility node remains for trusted tooling that still uses the old
+## route. Set [code]api_key[/code] (and optionally [code]base_url[/code]), then
+## call [code]connect_stream()[/code].
 ##
 ## Reconnect: the node uses HTTPClient + chunked HTTP read in a loop
 ## with a 2s back-off on disconnect. The Last-Event-ID header is
@@ -42,7 +44,8 @@ func _ready() -> void:
 	if auto_start:
 		connect_stream()
 
-## Begin streaming. Returns immediately; the connection runs on a
+## Begin Bearer-authenticated streaming from a trusted process. Returns
+## immediately; the connection runs on a
 ## background process loop until [code]close_stream()[/code] is called
 ## or the node is freed.
 func connect_stream() -> void:
@@ -132,10 +135,11 @@ func _open_and_drain() -> bool:
 
 	emit_signal("connected_to_stream")
 
-	var path := "%s/v1/webhooks/stream/%s" % [path_root, api_key.uri_encode()]
+	var path := "%s/v1/webhooks/stream" % path_root
 	var headers := PackedStringArray([
 		"Accept: text/event-stream",
 		"Cache-Control: no-cache",
+		"Authorization: Bearer %s" % api_key,
 	])
 	if not _last_event_id.is_empty():
 		headers.append("Last-Event-ID: %s" % _last_event_id)

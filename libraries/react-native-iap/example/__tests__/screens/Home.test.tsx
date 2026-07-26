@@ -52,7 +52,7 @@ describe('Home Screen', () => {
     ).toBeTruthy();
 
     expect(getByText('Webhook Stream')).toBeTruthy();
-    expect(getByText('IAPKit SSE + test notification')).toBeTruthy();
+    expect(getByText('Backend-only IAPKit SSE guidance')).toBeTruthy();
   });
 
   it('navigates to AllProducts when All Products menu item is pressed', () => {
@@ -127,8 +127,8 @@ describe('Home Screen', () => {
       <Home navigation={{navigate: mockNavigate} as any} />,
     );
 
-    const alternativeBillingButton =
-      getByText('Alternative Billing').parent?.parent;
+    const alternativeBillingButton = getByText('Alternative Billing').parent
+      ?.parent;
     if (alternativeBillingButton) {
       fireEvent.press(alternativeBillingButton);
     }

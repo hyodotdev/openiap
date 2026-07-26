@@ -59,7 +59,7 @@ const Home: React.FC<Props> = ({navigation}) => {
     },
     {
       title: 'Webhook Stream',
-      subtitle: 'IAPKit SSE + test notification',
+      subtitle: 'Backend-only IAPKit SSE guidance',
       route: 'WebhookStream' as keyof RootStackParamList,
       enabled: true,
     },

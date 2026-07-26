@@ -3,11 +3,15 @@ package io.github.hyochan.kmpiap.openiap
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Per-target SSE transport for the openiap kit webhook stream. The
- * common surface is a Flow<WebhookEvent> driven by an internal SSE
- * reader; concrete transports live in androidMain / iosMain / jvmMain
- * to plug in the platform's HTTP client (HttpURLConnection on Android
- * and JVM, NSURLSession via cinterop for iOS).
+ * Bearer-authenticated SSE transport for the openiap kit webhook stream.
+ * Hosted IAPKit requires a secret admin key for this project-wide stream, so
+ * never instantiate this transport in a shipped app. It calls
+ * `GET /v1/webhooks/stream` with Bearer authentication.
+ *
+ * The common surface is a Flow<WebhookEvent> driven by an internal SSE reader;
+ * concrete transports live in androidMain / iosMain / jvmMain to plug in the
+ * platform's HTTP client (HttpURLConnection on Android and JVM, NSURLSession
+ * via cinterop for iOS).
  *
  * Reconnect: implementations should resubscribe on transport errors
  * with a 2-second back-off, honoring the optional `lastEventId` the
@@ -38,6 +42,10 @@ expect class WebhookTransport(
  * Convenience factory so call sites read like the JS / Dart APIs:
  *
  *   val flow = connectWebhookStream(apiKey = "...").events()
+ *
+ * Hosted IAPKit now restricts the project-wide stream to secret admin keys.
+ * Never call this helper from a shipped app or pass it a publishable key. It
+ * calls `GET /v1/webhooks/stream` with the secret in the Authorization header.
  */
 fun connectWebhookStream(
     apiKey: String,

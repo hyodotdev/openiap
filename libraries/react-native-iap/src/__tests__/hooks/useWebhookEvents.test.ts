@@ -97,8 +97,8 @@ describe('useWebhookEvents', () => {
     });
 
     expect(factory).toHaveBeenCalledWith(
-      'http://localhost/v1/webhooks/stream/k',
-      {},
+      'http://localhost/v1/webhooks/stream',
+      {Authorization: 'Bearer k'},
     );
 
     act(() => {

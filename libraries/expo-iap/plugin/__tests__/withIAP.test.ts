@@ -1,6 +1,7 @@
 import type {ExpoConfig} from '@expo/config-types';
 import {WarningAggregator} from 'expo/config-plugins';
 import plugin, {
+  applyOnsideInfoPlist,
   computeAutolinkModules,
   ensureOnsidePodIOS,
   modifyAppBuildGradle,
@@ -15,7 +16,11 @@ import plugin, {
   warnLegacyPluginOptions,
 } from '../src/withIAP';
 import {getAndroidLocalPathInput} from '../src/withLocalOpenIAP';
-import type {AutolinkState, ExpoIapPluginOptions} from '../src/withIAP';
+import type {
+  AutolinkState,
+  ExpoIapPluginOptions,
+  OnsideInfoPlist,
+} from '../src/withIAP';
 import type {ExpoIapPluginCommonOptions} from '../src/expoConfig.augmentation';
 import {
   createVegaAppJson,
@@ -736,6 +741,35 @@ describe('android configuration', () => {
   });
 });
 
+describe('Onside iOS configuration', () => {
+  it('adds the Onside query and callback schemes idempotently', () => {
+    const plist: OnsideInfoPlist = {
+      CFBundleIdentifier: '$(PRODUCT_BUNDLE_IDENTIFIER)',
+      CFBundleURLTypes: [{CFBundleURLSchemes: ['expo-iap-example']}],
+    };
+
+    applyOnsideInfoPlist(plist, 'dev.hyo.martie');
+    applyOnsideInfoPlist(plist, 'dev.hyo.martie');
+
+    expect(plist.LSApplicationQueriesSchemes).toEqual(['onside']);
+    expect(plist.CFBundleURLTypes).toEqual([
+      {CFBundleURLSchemes: ['expo-iap-example']},
+      {CFBundleURLSchemes: ['dev.hyo.martie.onside-auth']},
+    ]);
+  });
+
+  it('does not emit a build-setting placeholder as a callback scheme', () => {
+    const plist: OnsideInfoPlist = {
+      CFBundleIdentifier: '$(PRODUCT_BUNDLE_IDENTIFIER)',
+    };
+
+    applyOnsideInfoPlist(plist);
+
+    expect(plist.LSApplicationQueriesSchemes).toEqual(['onside']);
+    expect(plist.CFBundleURLTypes).toEqual([]);
+  });
+});
+
 describe('local OpenIAP configuration', () => {
   it('uses string localPath for Android local module resolution', () => {
     expect(getAndroidLocalPathInput('/repo/packages/google')).toBe(
@@ -924,7 +958,8 @@ describe('ensureOnsidePodIOS', () => {
   it('overwrites env var when value is not 1', () => {
     const podfileWithZero = `ENV['EXPO_IAP_ONSIDE'] = '0'\n${basePodfile}`;
     const result = ensureOnsidePodIOS(podfileWithZero);
-    expect(result).toContain("ENV['EXPO_IAP_ONSIDE'] = '1'");
+    expect(result.startsWith("ENV['EXPO_IAP_ONSIDE'] = '1'\n")).toBe(true);
+    expect(result.match(/EXPO_IAP_ONSIDE/g)).toHaveLength(1);
   });
 
   it('does not modify Podfile when onside is disabled (not called)', () => {

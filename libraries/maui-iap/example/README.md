@@ -13,7 +13,7 @@ seven flows, same UX patterns.
 - **`AvailablePurchasesPage`** ← `app/available-purchases.tsx` — `getAvailablePurchases` (deduplicated), `getActiveSubscriptions`, manage deep link.
 - **`OfferCodePage`** ← `app/offer-code.tsx` — iOS-only `presentCodeRedemptionSheetIOS` with Android hint copy.
 - **`AlternativeBillingPage`** ← `app/alternative-billing.tsx` — Android `checkAlternativeBillingAvailabilityAndroid` / `isBillingProgramAvailableAndroid`, iOS external purchase link + custom-link eligibility.
-- **`WebhookStreamPage`** ← `app/webhook-stream.tsx` — live IAPKit SSE consumer with optional bearer token, terminal-style log.
+- **`WebhookStreamPage`** ← `app/webhook-stream.tsx` — explains why the project-wide IAPKit SSE stream belongs in MCP, CI, or a trusted backend and never in a shipped app.
 
 Shared layer:
 

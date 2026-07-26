@@ -134,8 +134,9 @@ public static class OpenIapClient
     public static KitApiClient KitApi(KitApiOptions options) => new(options);
 
     /// <summary>
-    /// Connect to OpenIAP kit's SSE webhook stream. Mirrors the JavaScript
-    /// <c>connectWebhookStream(...)</c> helper.
+    /// Bearer-authenticated connection to OpenIAP kit's administrative SSE
+    /// webhook stream. Never call this from a shipped app or pass it a
+    /// publishable key.
     /// </summary>
     public static WebhookListener ConnectWebhookStream(WebhookListenerOptions options)
         => WebhookClient.ConnectWebhookStream(options);

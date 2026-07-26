@@ -82,7 +82,8 @@ public class WebhookStreamTests
 
         // The connection targeted the escaped stream endpoint.
         var uri = Assert.Single(handler.RequestUris);
-        Assert.Equal("https://kit.example.test/v1/webhooks/stream/key%2F1", uri);
+        Assert.Equal("https://kit.example.test/v1/webhooks/stream", uri);
+        Assert.Equal("Bearer key/1", Assert.Single(handler.AuthorizationHeaders));
     }
 
     [Fact]
@@ -142,6 +143,7 @@ public class WebhookStreamTests
         public SseScriptedHandler(string script) => _script = script;
 
         public List<string> RequestUris { get; } = [];
+        public List<string?> AuthorizationHeaders { get; } = [];
 
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
@@ -152,6 +154,7 @@ public class WebhookStreamTests
                 RequestUris.Add(
                     request.RequestUri?.AbsoluteUri
                     ?? throw new InvalidOperationException("Request URI was null."));
+                AuthorizationHeaders.Add(request.Headers.Authorization?.ToString());
             }
 
             return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)

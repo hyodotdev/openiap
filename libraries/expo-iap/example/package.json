@@ -13,6 +13,7 @@
     "build:vega:release": "node scripts/build-vega-example.mjs Release",
     "build:vega:debug": "node scripts/build-vega-example.mjs Debug",
     "run:vega:firetv": "node scripts/run-vega-firetv.mjs",
+    "test:vega-config": "node --test scripts/vega-build-config.test.mjs",
     "eas:preview:android": "eas build --profile preview --platform android --local",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -45,9 +46,11 @@
     "react-native-reanimated": "~4.1.1",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.16.0",
-    "react-native-webview": "13.15.0"
+    "react-native-webview": "13.15.0",
+    "@amazon-devices/keplerscript-appstore-iap-lib": "~2.12.13"
   },
   "devDependencies": {
+    "@expo/env": "~2.0.7",
     "@babel/core": "^7.25.2",
     "@react-native-community/cli": "11.3.2",
     "@react-native/metro-config": "^0.72.6",
@@ -63,7 +66,10 @@
     "jest-expo": "~54.0.12",
     "metro-react-native-babel-preset": "~0.76.9",
     "react-test-renderer": "19.1.0",
-    "typescript": "~5.9.2"
+    "typescript": "~5.9.2",
+    "@amazon-devices/kepler-cli-platform": "~0.22.0",
+    "@amazon-devices/kepler-compatibility-metro-config": "^0.0.6",
+    "@amazon-devices/kepler-module-resolver-preset": "^0.1.15"
   },
   "private": true,
   "expo": {
@@ -75,5 +81,19 @@
         "react-native"
       ]
     }
+  },
+  "optionalDependencies": {
+    "@amazon-devices/react-native-kepler": "^2.0.0"
+  },
+  "kepler": {
+    "projectType": "application",
+    "appName": "ExpoIAPExample",
+    "targets": [
+      "tv"
+    ],
+    "os": [
+      "vega"
+    ],
+    "api": 0.1
   }
 }

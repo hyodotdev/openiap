@@ -10,8 +10,9 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 
 /**
- * Pure parser for the openiap kit SSE webhook stream
- * (`GET /v1/webhooks/stream/{apiKey}`).
+ * Pure parser plus the Bearer-authenticated endpoint builder for the openiap
+ * kit SSE webhook stream. Hosted IAPKit restricts this project-wide stream to
+ * secret admin keys; never put that secret in a shipped app.
  *
  * The `WebhookEvent` data class + every enum used here come from the
  * generated `Types.kt` (synced from `packages/gql/src/webhook.graphql`).
@@ -127,39 +128,10 @@ object WebhookEventParser {
 private fun JsonPrimitive.numericOrNull(): Double? =
     content.toDoubleOrNull() ?: longOrNull?.toDouble() ?: intOrNull?.toDouble()
 
-/**
- * Endpoint URL for the kit SSE stream. Kept on the type so callers
- * don't reimplement the path layout in each transport.
- */
-fun webhookStreamUrl(baseUrl: String = "https://kit.openiap.dev", apiKey: String): String {
+/** Endpoint URL for the Bearer-authenticated kit SSE stream. */
+fun webhookStreamUrl(baseUrl: String = "https://kit.openiap.dev"): String {
     val trimmed = if (baseUrl.endsWith("/")) baseUrl.dropLast(1) else baseUrl
-    // URL-encode the apiKey path segment. kit's apiKey format
-    // (`openiap-kit_<hex>`) doesn't currently include reserved
-    // characters, but a future format change or a misconfigured
-    // operator-supplied key could break routing without this guard.
-    // Matches the JS / Dart / GDScript clients which all
-    // encodeURIComponent the same segment.
-    return "$trimmed/v1/webhooks/stream/${encodePathSegment(apiKey)}"
-}
-
-private fun encodePathSegment(value: String): String {
-    val sb = StringBuilder(value.length)
-    for (ch in value) {
-        if (ch.isLetterOrDigit() || ch == '-' || ch == '.' || ch == '_' || ch == '~') {
-            sb.append(ch)
-        } else {
-            // RFC 3986 percent-encoding for the unreserved set —
-            // matches Java's URLEncoder for path segments minus the
-            // legacy `+` substitution for spaces (we want %20 for
-            // path-segment use, not form-encoded space).
-            for (b in ch.toString().encodeToByteArray()) {
-                sb.append('%')
-                sb.append(((b.toInt() shr 4) and 0xF).toString(16).uppercase())
-                sb.append((b.toInt() and 0xF).toString(16).uppercase())
-            }
-        }
-    }
-    return sb.toString()
+    return "$trimmed/v1/webhooks/stream"
 }
 
 // `JsonPrimitive.contentOrNull` returns the raw string value (or null

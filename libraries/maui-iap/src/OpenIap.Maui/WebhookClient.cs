@@ -73,6 +73,11 @@ public static class WebhookClient
             WebhookEventType.TestNotification,
         };
 
+    /// <summary>
+    /// Opens the Bearer-authenticated administrative stream. Hosted IAPKit
+    /// requires a secret key for this project-wide stream, so never call this
+    /// from a shipped app.
+    /// </summary>
     public static WebhookListener ConnectWebhookStream(WebhookListenerOptions options)
     {
         if (string.IsNullOrWhiteSpace(options.ApiKey))
@@ -243,9 +248,11 @@ public static class WebhookClient
         private async Task ConnectOnceAsync(CancellationToken cancellationToken)
         {
             var baseUrl = KitApiClient.TrimTrailingSlash(_options.BaseUrl ?? DefaultBaseUrl);
-            var url = $"{baseUrl}/v1/webhooks/stream/{Uri.EscapeDataString(_options.ApiKey)}";
+            var url = $"{baseUrl}/v1/webhooks/stream";
             using var request = new HttpRequestMessage(HttpMethod.Get, url);
             request.Headers.Accept.ParseAdd("text/event-stream");
+            request.Headers.Authorization =
+                new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _options.ApiKey);
 
             using var response = await _http.SendAsync(
                 request,

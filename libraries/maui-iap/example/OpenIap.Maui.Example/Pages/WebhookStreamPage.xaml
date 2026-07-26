@@ -5,74 +5,51 @@
              Title="Webhook Stream"
              BackgroundColor="White">
 
-    <Grid RowDefinitions="Auto,Auto,Auto,*">
-        <VerticalStackLayout Grid.Row="0" Padding="20" Spacing="6">
-            <Label Text="Webhook Stream" FontSize="22" FontAttributes="Bold" TextColor="#000" />
-            <Label Text="SSE → /v1/webhooks/stream/{apiKey}"
-                   FontSize="13"
-                   FontFamily="Menlo"
-                   TextColor="#444" />
-        </VerticalStackLayout>
+    <ScrollView>
+        <VerticalStackLayout Padding="20" Spacing="16">
+            <Label Text="Trusted backend or MCP only"
+                   FontSize="20"
+                   FontAttributes="Bold"
+                   TextColor="#111827" />
 
-        <VerticalStackLayout Grid.Row="1" Padding="20,0,20,8" Spacing="6">
-            <Label Text="Base URL" FontAttributes="Bold" />
-            <Entry x:Name="BaseUrlEntry"
-                   Text="https://kit.openiap.dev"
-                   FontSize="14" />
-            <Label Text="IAPKit API Key" FontAttributes="Bold" Margin="0,6,0,0" />
-            <Entry x:Name="ApiKeyEntry" Placeholder="iapkit_*" FontSize="14" IsPassword="True" />
-            <Label x:Name="EndpointLabel"
-                   Text="api key: MISSING"
-                   FontSize="12"
-                   TextColor="#888" />
-        </VerticalStackLayout>
-
-        <HorizontalStackLayout Grid.Row="2" Spacing="8" Padding="20,4,20,8">
-                <Button Text="Connect"
-                        BackgroundColor="#0EA5E9"
-                        TextColor="White"
-                        CornerRadius="10"
-                        Padding="14,10"
-                        Clicked="OnConnectClicked" />
-                <Button Text="Disconnect"
-                        BackgroundColor="#6C757D"
-                        TextColor="White"
-                        CornerRadius="10"
-                        Padding="14,10"
-                        Clicked="OnDisconnectClicked" />
-                <Button Text="Clear"
-                        BackgroundColor="#E5EAF1"
-                        TextColor="#1A1A1A"
-                        CornerRadius="10"
-                        Padding="14,10"
-                        Clicked="OnClearClicked" />
-                <Button x:Name="TriggerButton"
-                        Text="Trigger test notification"
-                        BackgroundColor="#34C759"
-                        TextColor="White"
-                        CornerRadius="10"
-                        Padding="14,10"
-                        Clicked="OnTriggerTestClicked" />
-        </HorizontalStackLayout>
-
-        <Grid Grid.Row="3" RowDefinitions="Auto,*" Padding="20,0,20,20">
-            <Border x:Name="StatusPanel" StrokeShape="RoundRectangle 8" Padding="12" BackgroundColor="#F0F0F0" Margin="0,0,0,8">
-                <VerticalStackLayout Spacing="4">
-                    <Label x:Name="StatusLabel" Text="Status: idle" FontAttributes="Bold" TextColor="#222" />
-                    <Label x:Name="StatusMessageLabel" FontSize="12" TextColor="#444" IsVisible="False" />
+            <Border Stroke="#FDBA74"
+                    StrokeShape="RoundRectangle 12"
+                    Padding="16"
+                    BackgroundColor="#FFF7ED">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Do not connect from a shipped app"
+                           FontAttributes="Bold"
+                           TextColor="#9A3412" />
+                    <Label Text="The project-wide IAPKit stream contains lifecycle records and purchase identifiers. It requires an openiap-kit_sk_ secret admin key, which must never be embedded in a MAUI app."
+                           TextColor="#374151" />
                 </VerticalStackLayout>
             </Border>
 
-            <Border Grid.Row="1" Stroke="#E1E7EF" StrokeShape="RoundRectangle 10" Padding="0" BackgroundColor="#F7F8FA">
-                <Editor x:Name="LogEditor"
-                        IsReadOnly="True"
-                        BackgroundColor="Transparent"
-                        TextColor="#444"
-                        FontFamily="Menlo"
-                        FontSize="12"
-                        Text="No events yet. Connect, then trigger a test notification or wait for a real Apple / Google webhook." />
+            <Border Stroke="#E5E7EB"
+                    StrokeShape="RoundRectangle 12"
+                    Padding="16"
+                    BackgroundColor="#F9FAFB">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Mobile app" FontAttributes="Bold" TextColor="#111827" />
+                    <Label Text="Use an openiap-kit_pk_ publishable key for purchase verification, user-scoped entitlement helpers, and public product payloads."
+                           TextColor="#374151" />
+                </VerticalStackLayout>
             </Border>
-        </Grid>
-    </Grid>
+
+            <Border Stroke="#E5E7EB"
+                    StrokeShape="RoundRectangle 12"
+                    Padding="16"
+                    BackgroundColor="#F9FAFB">
+                <VerticalStackLayout Spacing="8">
+                    <Label Text="Trusted consumer" FontAttributes="Bold" TextColor="#111827" />
+                    <Label Text="MCP, CI, or your backend connects to GET /v1/webhooks/stream and sends Authorization: Bearer &lt;IAPKIT_SECRET_KEY&gt;. If your backend protects paid content, it should make the final entitlement decision."
+                           TextColor="#374151" />
+                </VerticalStackLayout>
+            </Border>
+
+            <Label Text="Configure the separate lifecycle webhook URL from the IAPKit dashboard in App Store Connect and Google Cloud Pub/Sub."
+                   TextColor="#6B7280" />
+        </VerticalStackLayout>
+    </ScrollView>
 
 </ContentPage>

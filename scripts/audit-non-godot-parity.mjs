@@ -1012,12 +1012,18 @@ function checkExpoRouterExample(base, importSource) {
   expectIncludes(
     rel(base, "app/webhook-stream.tsx"),
     [
-      "connectWebhookStream",
-      "Trigger test",
-      "/v1/webhooks/",
+      "Do not connect from a shipped app",
+      "openiap-kit_pk_",
+      "openiap-kit_sk_",
       "/v1/webhooks/stream",
+      "Authorization: Bearer",
     ],
-    `${base} webhook`,
+    `${base} webhook security guidance`,
+  );
+  expectNotIncludes(
+    rel(base, "app/webhook-stream.tsx"),
+    ["connectWebhookStream", "EXPO_PUBLIC_IAPKIT_SECRET_KEY"],
+    `${base} webhook mobile example`,
   );
   expectIncludes(
     rel(base, "app/alternative-billing.tsx"),
@@ -1078,8 +1084,19 @@ function checkReactNativeClassic() {
   );
   expectIncludes(
     rel(base, "screens/WebhookStream.tsx"),
-    ["connectWebhookStream", "Trigger test notification", "/v1/webhooks/"],
-    `${base} webhook`,
+    [
+      "Do not connect from a shipped app",
+      "openiap-kit_pk_",
+      "openiap-kit_sk_",
+      "/v1/webhooks/stream",
+      "Authorization: Bearer",
+    ],
+    `${base} webhook security guidance`,
+  );
+  expectNotIncludes(
+    rel(base, "screens/WebhookStream.tsx"),
+    ["connectWebhookStream", "IAPKIT_SECRET_KEY ||"],
+    `${base} webhook mobile example`,
   );
   expectIncludes(
     rel(base, "screens/AlternativeBilling.tsx"),
@@ -1147,8 +1164,19 @@ function checkFlutter() {
   );
   expectIncludes(
     rel(base, "lib/src/screens/webhook_stream_screen.dart"),
-    ["connectWebhookStream", "Trigger test", "/v1/webhooks/"],
-    `${base} webhook`,
+    [
+      "Do not connect from a shipped app",
+      "openiap-kit_pk_",
+      "openiap-kit_sk_",
+      "/v1/webhooks/stream",
+      "Authorization: Bearer",
+    ],
+    `${base} webhook security guidance`,
+  );
+  expectNotIncludes(
+    rel(base, "lib/src/screens/webhook_stream_screen.dart"),
+    ["connectWebhookStream", "iapKitSecretKey"],
+    `${base} webhook mobile example`,
   );
   expectIncludes(
     rel(base, "lib/src/screens/alternative_billing_screen.dart"),
@@ -1166,7 +1194,11 @@ function checkFlutter() {
   );
   expectIncludes(
     rel(base, "test/widget_test.dart"),
-    ["Webhook Stream", "Trigger test", "Alternative Billing"],
+    [
+      "Webhook Stream",
+      "Do not connect from a shipped app",
+      "Alternative Billing",
+    ],
     `${base} widget tests`,
   );
   expectIncludes(
@@ -1572,11 +1604,21 @@ function checkKmp() {
       "commonMain/kotlin/dev/hyo/martie/screens/WebhookStreamScreen.kt",
     ),
     [
-      "connectWebhookStream",
-      "triggerWebhookTestNotification",
-      "Trigger test notification",
+      "Do not connect from a shipped app",
+      "openiap-kit_pk_",
+      "openiap-kit_sk_",
+      "/v1/webhooks/stream",
+      "Authorization: Bearer",
     ],
-    "KMP webhook",
+    "KMP webhook security guidance",
+  );
+  expectNotIncludes(
+    rel(
+      base,
+      "commonMain/kotlin/dev/hyo/martie/screens/WebhookStreamScreen.kt",
+    ),
+    ["connectWebhookStream", "triggerWebhookTestNotification"],
+    "KMP webhook mobile example",
   );
   expectIncludes(
     rel(
@@ -1660,8 +1702,19 @@ function checkApple() {
   );
   expectIncludes(
     rel(base, "Example/OpenIapExample/Screens/WebhookStreamScreen.swift"),
-    ["/v1/webhooks/stream/", "Trigger Test", "/v1/webhooks/"],
-    "Apple webhook",
+    [
+      "Do not connect from a shipped app",
+      "openiap-kit_pk_",
+      "openiap-kit_sk_",
+      "/v1/webhooks/stream",
+      "Authorization: Bearer",
+    ],
+    "Apple webhook security guidance",
+  );
+  expectNotIncludes(
+    rel(base, "Example/OpenIapExample/Screens/WebhookStreamScreen.swift"),
+    ["/v1/webhooks/stream/", "Trigger Test"],
+    "Apple webhook mobile example",
   );
   expectIncludes(
     rel(base, "Sources/OpenIapProtocol.swift"),
@@ -1745,8 +1798,22 @@ function checkGoogle() {
       base,
       "Example/src/main/java/dev/hyo/martie/screens/WebhookStreamScreen.kt",
     ),
-    ["triggerTestNotification", "/v1/webhooks/", "/v1/webhooks/stream/"],
-    "Google webhook",
+    [
+      "Do not connect from a shipped app",
+      "openiap-kit_pk_",
+      "openiap-kit_sk_",
+      "/v1/webhooks/stream",
+      "Authorization: Bearer",
+    ],
+    "Google webhook security guidance",
+  );
+  expectNotIncludes(
+    rel(
+      base,
+      "Example/src/main/java/dev/hyo/martie/screens/WebhookStreamScreen.kt",
+    ),
+    ["triggerTestNotification", "/v1/webhooks/stream/"],
+    "Google webhook mobile example",
   );
   for (const flavor of ["play", "horizon", "amazon"]) {
     expectIncludes(
@@ -1810,9 +1877,20 @@ function checkMaui() {
   );
   expectIncludes(rel(base, "AppShell.xaml.cs"), routes, "MAUI routes");
   expectIncludes(
+    rel(base, "Pages/WebhookStreamPage.xaml"),
+    [
+      "Do not connect from a shipped app",
+      "openiap-kit_pk_",
+      "openiap-kit_sk_",
+      "/v1/webhooks/stream",
+      "Authorization: Bearer",
+    ],
+    "MAUI webhook security guidance",
+  );
+  expectNotIncludes(
     rel(base, "Pages/WebhookStreamPage.xaml.cs"),
-    ["ConnectWebhookStream", "TriggerButton", "/v1/webhooks/"],
-    "MAUI webhook",
+    ["ConnectWebhookStream", "TriggerButton"],
+    "MAUI webhook mobile example",
   );
   expectIncludes(
     rel(base, "Pages/AlternativeBillingPage.xaml.cs"),
@@ -3739,8 +3817,11 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     "packages/kit/public/llms.txt",
     [
-      "Purchase verification and MCP auth:",
-      "Product, subscription, and webhook helper routes carry",
+      "Purchase verification: `Authorization: Bearer openiap-kit_pk_<publishable-key>`",
+      "MCP/admin: `Authorization: Bearer openiap-kit_sk_<secret-key>`",
+      "Administrative product,",
+      "subscription analytics, MCP, and webhook-stream requests keep the secret in the",
+      "Bearer header and out of URLs.",
       "default 600 per key",
       "an exact store-verified `productId` match",
     ],
@@ -4889,9 +4970,10 @@ function checkFrameworkDependencyHygiene() {
         "compileSdk = rootProject.ext.compileSdkVersion",
         "minSdk = rootProject.ext.minSdkVersion",
         "targetSdk = rootProject.ext.targetSdkVersion",
-        "namespace =",
+        "namespace 'dev.hyo.martie'",
+        "applicationId 'dev.hyo.martie'",
       ],
-      "Expo example app Gradle SDK versions must use assignment syntax",
+      "Expo example app Gradle must preserve Expo-compatible app identity syntax",
     );
     expectOptionalNotIncludes(
       "libraries/expo-iap/example/android/app/build.gradle",
@@ -4899,8 +4981,8 @@ function checkFrameworkDependencyHygiene() {
         "ndkVersion rootProject.ext.ndkVersion",
         "buildToolsVersion rootProject.ext.buildToolsVersion",
         "compileSdk rootProject.ext.compileSdkVersion",
-        "namespace 'dev.hyo.martie'",
-        "applicationId 'dev.hyo.martie'",
+        "namespace = 'dev.hyo.martie'",
+        "applicationId = 'dev.hyo.martie'",
         "minSdkVersion rootProject.ext.minSdkVersion",
         "targetSdkVersion rootProject.ext.targetSdkVersion",
         "signingConfig signingConfigs.debug",
@@ -4909,7 +4991,7 @@ function checkFrameworkDependencyHygiene() {
         "useLegacyPackaging enableLegacyPackaging.toBoolean()",
         "ignoreAssetsPattern '!.svn:!.git:!.ds_store:!*.scc:!CVS:!thumbs.db:!picasa.ini:!*~'",
       ],
-      "Expo example app Gradle must avoid deprecated Groovy property syntax",
+      "Expo example app Gradle must use normalized syntax without breaking Expo app-id resolution",
     );
     expectIncludes(
       "libraries/flutter_inapp_purchase/android/build.gradle",

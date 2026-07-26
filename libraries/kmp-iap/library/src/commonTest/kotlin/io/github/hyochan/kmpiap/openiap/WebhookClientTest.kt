@@ -69,8 +69,8 @@ class WebhookClientTest {
     @Test
     fun streamUrlBuilderTrimsTrailingSlashes() {
         assertEquals(
-            "https://kit.openiap.dev/v1/webhooks/stream/key",
-            webhookStreamUrl(baseUrl = "https://kit.openiap.dev/", apiKey = "key"),
+            "https://kit.openiap.dev/v1/webhooks/stream",
+            webhookStreamUrl(baseUrl = "https://kit.openiap.dev/"),
         )
     }
 }

@@ -10,9 +10,8 @@ import {
 
 export type UseWebhookEventsOptions = {
   /**
-   * kit project API key — same value used for receipt verification.
-   * Must be non-empty to start the stream; pass `null`/`undefined` to
-   * disable the listener (e.g. before the user is logged in).
+   * Secret admin key sent in the Authorization header. Never pass a publishable
+   * key or ship this value in an app bundle.
    */
   apiKey: string | null | undefined;
   /**
@@ -20,9 +19,9 @@ export type UseWebhookEventsOptions = {
    */
   baseUrl?: string;
   /**
-   * Optional EventSource factory. Required on React Native because RN
-   * does not ship a global EventSource — pass an instance from
-   * `react-native-sse` (or any compatible polyfill).
+   * EventSource factory that supports custom Authorization headers. React
+   * Native does not ship a global EventSource; use a compatible trusted-process
+   * transport.
    */
   eventSourceFactory?: (
     url: string,
@@ -37,8 +36,7 @@ export type UseWebhookEventsOptions = {
   bufferSize?: number;
   /**
    * Called for every received event in addition to being appended to
-   * the buffer. Useful for side effects (toast, analytics, granting
-   * entitlement). Called with the latest stable callback identity.
+   * the buffer. Called with the latest stable callback identity.
    */
   onEvent?: (event: WebhookEventPayload) => void;
   /**
@@ -65,17 +63,24 @@ export type UseWebhookEventsResult = {
   isConnected: boolean;
 };
 
-// React hook wrapping the SSE webhook stream. Lifecycle:
+/**
+ * React hook wrapping the secret Bearer-authenticated SSE webhook stream.
+ *
+ * Hosted IAPKit now restricts the project-wide stream to trusted
+ * administrative consumers. Never use this hook in a shipped app. Connect
+ * from MCP, CI, or a backend, and provide a transport factory that supports
+ * Authorization headers.
+ *
+ * @deprecated Project-wide streams are not a mobile-app integration surface.
+ * Connect from a trusted process. Scheduled for removal in react-native-iap
+ * 16.0.0.
+ */
+// Lifecycle:
 //   - opens on mount (once `apiKey` is non-empty),
 //   - closes on unmount,
 //   - reconnects automatically when EventSource raises a transport
 //     error (the underlying client auto-reconnects via the EventSource
 //     spec; this hook just surfaces the error and re-renders).
-//
-// Why a hook: openiap's UX guidance is that consumers consume webhook
-// events from React state (granting entitlement, refreshing the
-// subscription view) rather than via an imperative listener. The
-// hook's `events` buffer + `onEvent` callback cover both styles.
 export function useWebhookEvents({
   apiKey,
   baseUrl,

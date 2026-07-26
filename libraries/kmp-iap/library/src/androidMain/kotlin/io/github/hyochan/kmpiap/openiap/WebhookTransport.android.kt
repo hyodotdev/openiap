@@ -64,11 +64,12 @@ actual class WebhookTransport actual constructor(
         var resumeId: String? = lastEventId
         try {
         while (!closed) {
-            val url = URL(webhookStreamUrl(baseUrl, apiKey))
+            val url = URL(webhookStreamUrl(baseUrl))
             val connection = (url.openConnection() as HttpURLConnection).apply {
                 requestMethod = "GET"
                 setRequestProperty("Accept", "text/event-stream")
                 setRequestProperty("Cache-Control", "no-cache")
+                setRequestProperty("Authorization", "Bearer $apiKey")
                 if (resumeId != null) {
                     setRequestProperty("Last-Event-ID", resumeId)
                 }

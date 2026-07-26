@@ -9,6 +9,10 @@ import {
 } from './webhook-client';
 
 export type UseWebhookEventsOptions = {
+  /**
+   * Secret admin key sent in the Authorization header. Never pass a publishable
+   * key or ship this value in an app bundle.
+   */
   apiKey: string | null | undefined;
   baseUrl?: string;
   eventSourceFactory?: (
@@ -36,14 +40,17 @@ export type UseWebhookEventsResult = {
   isConnected: boolean;
 };
 
-// React hook wrapping the kit SSE webhook stream. See
-// `libraries/react-native-iap/src/hooks/useWebhookEvents.ts` for the
-// canonical version — this file mirrors it 1:1 because expo-iap and
-// react-native-iap share the JS/TS SSE wire format. The intentional
-// duplication keeps each library self-contained (no cross-package
-// runtime dep) at the cost of a coordinated edit when the surface
-// changes; that's checked by the SDK Parity Checklist in
-// `knowledge/internal/04-platform-packages.md`.
+/**
+ * React hook wrapping the secret Bearer-authenticated SSE webhook stream.
+ *
+ * Hosted IAPKit now restricts the project-wide stream to trusted
+ * administrative consumers. Never use this hook in a shipped app. Connect
+ * from MCP, CI, or a backend, and provide a transport factory that supports
+ * Authorization headers.
+ *
+ * @deprecated Project-wide streams are not a mobile-app integration surface.
+ * Connect from a trusted process. Scheduled for removal in expo-iap 5.0.0.
+ */
 export function useWebhookEvents({
   apiKey,
   baseUrl,

@@ -2,12 +2,14 @@ import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 // Product IDs for testing in the example app
 class IapConstants {
-  // IAPKit API Key for purchase verification
-  // Get your API key from https://kit.openiap.dev
-  static const _iapkitApiKeyFromEnvironment =
-      String.fromEnvironment('IAPKIT_API_KEY');
-  static const _iapkitBaseUrlFromEnvironment =
-      String.fromEnvironment('IAPKIT_BASE_URL');
+  // IAPKit openiap-kit_pk_ publishable key for purchase verification.
+  // Never put an openiap-kit_sk_ secret admin key in a Flutter app.
+  static const _iapkitApiKeyFromEnvironment = String.fromEnvironment(
+    'IAPKIT_API_KEY',
+  );
+  static const _iapkitBaseUrlFromEnvironment = String.fromEnvironment(
+    'IAPKIT_BASE_URL',
+  );
 
   static String get iapkitApiKey => _iapkitApiKeyFromEnvironment.isNotEmpty
       ? _iapkitApiKeyFromEnvironment

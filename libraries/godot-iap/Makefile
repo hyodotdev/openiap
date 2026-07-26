@@ -108,7 +108,7 @@ ios: setup ios-build
 # Build iOS frameworks using xcodebuild
 ios-build:
 	@echo "$(GREEN)Building iOS frameworks...$(NC)"
-	@cd $(IOS_GDEXT_DIR) && xcodebuild -scheme GodotIap -sdk iphoneos -destination 'generic/platform=iOS' -configuration Release -derivedDataPath .build-xcode build
+	@cd $(IOS_GDEXT_DIR) && xcodebuild -scheme GodotIap -sdk iphoneos -destination 'generic/platform=iOS' -configuration Release -derivedDataPath .build-xcode clean build
 	@echo "$(GREEN)Copying frameworks to addon...$(NC)"
 	@$(APPLE_FRAMEWORK_INSTALLER) \
 		$(IOS_GDEXT_DIR)/.build-xcode/Build/Products/Release-iphoneos/PackageFrameworks/SwiftGodotRuntime.framework \
@@ -213,7 +213,7 @@ clean-all: clean
 export-android: android
 	@echo "$(GREEN)Exporting Android APK...$(NC)"
 	@mkdir -p $(EXAMPLE_DIR)/android
-	@cd $(EXAMPLE_DIR) && $(GODOT) --headless --export-debug "Android" android/Martie.apk
+	@cd $(EXAMPLE_DIR) && $(GODOT) --headless --install-android-build-template --export-debug "Android" android/Martie.apk
 	@echo "$(GREEN)✓ APK exported to $(EXAMPLE_DIR)/android/Martie.apk$(NC)"
 
 # Run Android - Build, export and install on device

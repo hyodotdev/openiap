@@ -108,7 +108,7 @@ actual class WebhookTransport actual constructor(
         lastEventId: String?,
         updateLastEventId: (String) -> Unit,
     ): Boolean = try {
-        val url = NSURL(string = webhookStreamUrl(baseUrl, apiKey))
+        val url = NSURL(string = webhookStreamUrl(baseUrl))
         // `NSURLRequest.requestWithURL` returns the immutable parent
         // type even when invoked on the mutable subclass companion, so
         // we cast to NSMutableURLRequest to expose the mutable setters.
@@ -120,6 +120,7 @@ actual class WebhookTransport actual constructor(
         request.setHTTPMethod("GET")
         request.setValue("text/event-stream", forHTTPHeaderField = "Accept")
         request.setValue("no-cache", forHTTPHeaderField = "Cache-Control")
+        request.setValue("Bearer $apiKey", forHTTPHeaderField = "Authorization")
         if (lastEventId != null) {
             request.setValue(lastEventId, forHTTPHeaderField = "Last-Event-ID")
         }

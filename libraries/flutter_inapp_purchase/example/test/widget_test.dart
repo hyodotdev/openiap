@@ -9,8 +9,8 @@ void main() {
 
   setUp(() {
     dotenv.testLoad(
-        fileInput:
-            'IAPKIT_API_KEY=\nIAPKIT_BASE_URL=https://kit.openiap.dev\n');
+      fileInput: 'IAPKIT_API_KEY=\nIAPKIT_BASE_URL=https://kit.openiap.dev\n',
+    );
   });
 
   testWidgets('renders the full example menu', (WidgetTester tester) async {
@@ -26,14 +26,14 @@ void main() {
     expect(find.text('Webhook Stream'), findsOneWidget);
   });
 
-  testWidgets('renders webhook stream controls', (WidgetTester tester) async {
-    await tester.pumpWidget(
-      const MaterialApp(home: WebhookStreamScreen()),
-    );
+  testWidgets('renders backend-only webhook guidance', (
+    WidgetTester tester,
+  ) async {
+    await tester.pumpWidget(const MaterialApp(home: WebhookStreamScreen()));
 
     expect(find.text('Webhook Stream'), findsOneWidget);
-    expect(find.text('Connect'), findsOneWidget);
-    expect(find.text('Trigger test'), findsOneWidget);
-    expect(find.text('No webhook events yet.'), findsOneWidget);
+    expect(find.text('Trusted backend or MCP only'), findsOneWidget);
+    expect(find.text('Do not connect from a shipped app'), findsOneWidget);
+    expect(find.text('Connect'), findsNothing);
   });
 }

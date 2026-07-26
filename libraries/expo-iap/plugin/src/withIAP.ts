@@ -19,6 +19,9 @@ import {
   type IOSAlternativeBillingConfig,
 } from './withIosAlternativeBilling';
 import type {ExpoIapPluginCommonOptions} from './expoConfig.augmentation';
+import {ensureOnsidePodIOS} from './onsidePodfile';
+
+export {ensureOnsidePodIOS} from './onsidePodfile';
 
 const pkg = require('../../package.json');
 const AUTOLINKING_CONFIG_PATH = path.resolve(
@@ -473,19 +476,6 @@ const withIapAndroid: ConfigPlugin<
   return config;
 };
 
-export const ensureOnsidePodIOS = (content: string): string => {
-  // Set EXPO_IAP_ONSIDE env var at the top of the Podfile so that the ExpoIap podspec
-  // conditionally adds OnsideKit as a dependency. This makes #if canImport(OnsideKit)
-  // work inside ExpoIap's Swift source files.
-  if (content.includes("ENV['EXPO_IAP_ONSIDE'] = '1'")) {
-    return content;
-  }
-
-  logOnce('📦 expo-iap: Enabled OnsideKit (EXPO_IAP_ONSIDE=1)');
-
-  return `ENV['EXPO_IAP_ONSIDE'] = '1'\n` + content;
-};
-
 export type AutolinkState = {expoIap: boolean; onside: boolean};
 
 type AutolinkEntry = {name: string; enable: boolean};
@@ -652,6 +642,66 @@ type WithIapIosOptions = {
   iosAlternativeBilling?: IOSAlternativeBillingConfig;
 };
 
+export type OnsideInfoPlist = {
+  CFBundleIdentifier?: string;
+  CFBundleURLTypes?: {CFBundleURLSchemes?: string[]}[];
+  LSApplicationQueriesSchemes?: string[];
+};
+
+export const applyOnsideInfoPlist = (
+  plist: OnsideInfoPlist,
+  bundleIdentifier?: string,
+): OnsideInfoPlist => {
+  const queries = (plist.LSApplicationQueriesSchemes ??= []);
+  if (!queries.includes('onside')) {
+    queries.push('onside');
+  }
+
+  const plistBundleIdentifier = plist.CFBundleIdentifier;
+  const concretePlistBundleIdentifier =
+    plistBundleIdentifier && !plistBundleIdentifier.includes('$(')
+      ? plistBundleIdentifier
+      : undefined;
+  const bundleId = bundleIdentifier || concretePlistBundleIdentifier;
+  const callbackScheme = bundleId ? `${bundleId}.onside-auth` : '';
+  const urlTypes = (plist.CFBundleURLTypes ??= []);
+
+  if (callbackScheme) {
+    const hasCallbackScheme = urlTypes.some(
+      (entry) =>
+        Array.isArray(entry.CFBundleURLSchemes) &&
+        entry.CFBundleURLSchemes.includes(callbackScheme),
+    );
+
+    if (!hasCallbackScheme) {
+      urlTypes.push({
+        CFBundleURLSchemes: [callbackScheme],
+      });
+    }
+  }
+
+  return plist;
+};
+
+const withOnsideInfoPlist: ConfigPlugin = (config) =>
+  withInfoPlist(config, (cfg) => {
+    const plist = cfg.modResults as OnsideInfoPlist;
+    const bundleIdentifier = cfg.ios?.bundleIdentifier;
+    applyOnsideInfoPlist(plist, bundleIdentifier);
+
+    if (
+      !bundleIdentifier &&
+      (!plist.CFBundleIdentifier || plist.CFBundleIdentifier.includes('$('))
+    ) {
+      WarningAggregator.addWarningIOS(
+        'expo-iap',
+        'Onside callback scheme could not be derived because bundle identifier is empty. Skipping CFBundleURLTypes injection.',
+      );
+    }
+
+    return cfg;
+  });
+
 const withIapIOS: ConfigPlugin<WithIapIosOptions | undefined> = (
   config,
   options,
@@ -662,46 +712,7 @@ const withIapIOS: ConfigPlugin<WithIapIosOptions | undefined> = (
   }
 
   if (options?.enableOnside) {
-    config = withInfoPlist(config, (cfg) => {
-      const plist = cfg.modResults as any;
-
-      // Allow opening the Onside app (onside://)
-      const queries: string[] = (plist.LSApplicationQueriesSchemes ??= []);
-      if (!queries.includes('onside')) {
-        queries.push('onside');
-      }
-
-      // Derive callback scheme from bundle id: <bundle id>.onside-auth
-      const bundleIdFromPlist: string | undefined = plist.CFBundleIdentifier;
-      const bundleIdFromConfig: string | undefined = cfg.ios
-        ?.bundleIdentifier as string | undefined;
-
-      const bundleId = bundleIdFromPlist || bundleIdFromConfig;
-      const callbackScheme = !!bundleId ? `${bundleId}.onside-auth` : '';
-
-      // Step 2: Declare a Custom URL Scheme for callbacks (guard against empty scheme)
-      const urlTypes: any[] = (plist.CFBundleURLTypes ??= []);
-
-      if (!callbackScheme) {
-        WarningAggregator.addWarningIOS(
-          'expo-iap',
-          'Onside callback scheme could not be derived because bundle identifier is empty. Skipping CFBundleURLTypes injection.',
-        );
-      } else {
-        const hasCallbackScheme = urlTypes.some(
-          (entry) =>
-            Array.isArray(entry.CFBundleURLSchemes) &&
-            entry.CFBundleURLSchemes.includes(callbackScheme),
-        );
-
-        if (!hasCallbackScheme) {
-          urlTypes.push({
-            CFBundleURLSchemes: [callbackScheme],
-          });
-        }
-      }
-      return cfg;
-    });
+    config = withOnsideInfoPlist(config);
   }
 
   return withPodfile(config, (config) => {
@@ -724,7 +735,11 @@ const withIapIOS: ConfigPlugin<WithIapIosOptions | undefined> = (
 
     // 3) Optionally install OnsideKit when enabled in config
     if (options?.enableOnside) {
-      content = ensureOnsidePodIOS(content);
+      const updatedContent = ensureOnsidePodIOS(content);
+      if (updatedContent !== content) {
+        logOnce('📦 expo-iap: Enabled OnsideKit (EXPO_IAP_ONSIDE=1)');
+      }
+      content = updatedContent;
     }
 
     config.modResults.contents = content;
@@ -1024,12 +1039,16 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
                 resolved.android ?? 'auto'
               }`;
         logOnce(`🔧 [expo-iap] Enabling local OpenIAP: ${preview}`);
+        if (includeOnside) {
+          result = withOnsideInfoPlist(result);
+        }
         result = withLocalOpenIAP(result, {
           localPath: resolved,
           iosAlternativeBilling,
           horizonAppId,
           isHorizonEnabled,
           isFireOsEnabled,
+          enableOnside: includeOnside,
         });
       }
     } else {

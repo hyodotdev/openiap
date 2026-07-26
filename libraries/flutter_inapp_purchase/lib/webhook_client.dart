@@ -1,5 +1,6 @@
-// Webhook listener for the openiap kit SSE stream
-// (`GET /v1/webhooks/stream/{apiKey}`).
+// Trusted-process listener for the openiap kit SSE stream. Hosted IAPKit
+// requires a secret admin key in the Authorization header for this
+// project-wide stream; never put that secret in a shipped app.
 //
 // Wire format mirrors the canonical TypeScript implementation in
 // `packages/gql/src/webhook-client.ts`. The `WebhookEvent` value type
@@ -238,12 +239,11 @@ class _SseWebhookListener implements WebhookListener {
     final trimmed = baseUrl.endsWith('/')
         ? baseUrl.substring(0, baseUrl.length - 1)
         : baseUrl;
-    final uri = Uri.parse(
-      '$trimmed/v1/webhooks/stream/${Uri.encodeComponent(apiKey)}',
-    );
+    final uri = Uri.parse('$trimmed/v1/webhooks/stream');
 
     final request = await _httpClient.getUrl(uri);
     request.headers.set(HttpHeaders.acceptHeader, 'text/event-stream');
+    request.headers.set(HttpHeaders.authorizationHeader, 'Bearer $apiKey');
     if (_lastEventId != null) {
       request.headers.set('Last-Event-ID', _lastEventId!);
     }
@@ -409,6 +409,10 @@ class _SseWebhookListener implements WebhookListener {
 /// Open a long-lived listener against the kit SSE stream. The
 /// listener auto-reconnects with `Last-Event-ID` until [close] is
 /// called.
+///
+/// Hosted IAPKit now restricts the project-wide stream to secret admin keys.
+/// Never call this helper from a shipped app or pass it a publishable key. It
+/// calls `GET /v1/webhooks/stream` with the secret in the Authorization header.
 WebhookListener connectWebhookStream({
   required String apiKey,
   String baseUrl = 'https://kit.openiap.dev',

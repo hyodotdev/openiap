@@ -121,19 +121,6 @@ var payload = await kit.ClientPayloadAsync(
     KitProductPlatform.IOS);
 await kit.BindUserAsync(purchaseToken: "token", userId: "user-123");
 
-using var listener = OpenIapClient.ConnectWebhookStream(new WebhookListenerOptions
-{
-    ApiKey = "iapkit_...",
-    OnEvent = webhookEvent =>
-    {
-        Console.WriteLine($"{webhookEvent.Type.ToJson()}: {webhookEvent.ProductId}");
-    },
-    OnError = error =>
-    {
-        Console.WriteLine($"{error.Code}: {error.Message}");
-    },
-});
-
 ParsedWebhookEventResult parsed = OpenIapClient.ParseWebhookEventData(rawSseData);
 ```
 
@@ -143,6 +130,13 @@ requested. Payload-inclusive catalog reads require a platform and return
 bounded cursor pages (`HasMore` / `NextCursor`). `Limit` and `Cursor` are
 ignored by the legacy non-payload catalog path. If catalog churn returns
 `INVALID_CURSOR`, restart without `Cursor`.
+
+Project-wide webhook streaming is an administrative operation. Consume
+`GET /v1/webhooks/stream` only from a trusted backend with
+`Authorization: Bearer openiap-kit_sk_...`; never embed that secret in a MAUI
+app. `ConnectWebhookStream` now uses that header-authenticated route; mobile
+apps should use purchase verification, user-scoped entitlement reads, and
+normal app refreshes instead.
 
 ## Example app
 

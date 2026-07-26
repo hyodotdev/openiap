@@ -32,6 +32,12 @@ const scanRules = [
     extensions: [".ts", ".tsx"],
     marker: "@deprecated",
     notice: "react-native-iap 16.0.0",
+    noticeOverrides: new Map([
+      [
+        "libraries/react-native-iap/src/hooks/useWebhookEvents.ts",
+        "not a mobile-app integration surface",
+      ],
+    ]),
     excludedNames: new Set(["types.ts"]),
   },
   {
@@ -40,6 +46,12 @@ const scanRules = [
     extensions: [".ts", ".tsx"],
     marker: "@deprecated",
     notice: "expo-iap 5.0.0",
+    noticeOverrides: new Map([
+      [
+        "libraries/expo-iap/src/useWebhookEvents.ts",
+        "not a mobile-app integration surface",
+      ],
+    ]),
     excludedNames: new Set(["types.ts"]),
   },
   {
@@ -199,16 +211,16 @@ const requiredSourceNotices = [
   {
     file: "packages/docs/src/pages/docs/updates/releases.tsx",
     values: [
-      "Cross-package legacy migration warnings (planned)",
+      "OpenIAP Spec 2.4.4 / Apple 2.4.4 / Google",
       "react-native-iap 16.0.0",
       "expo-iap 5.0.0",
       "flutter_inapp_purchase 10.0.0",
       "godot-iap 3.0.0",
       "kmp-iap 3.0.0",
       "OpenIap.Maui 2.0.0",
-      "Spec 2.4.2",
-      "openiap-apple 2.4.2",
-      "openiap-google 2.5.0",
+      "OpenIAP Spec 2.4.4",
+      "openiap-apple 2.4.4",
+      "openiap-google 2.5.1",
       "fetchProducts skuArr / productIds",
       "transactionIdentifier",
       "Android deep-link sku / packageName",
@@ -2393,6 +2405,9 @@ export function collectDeprecationScheduleDrift() {
       for (const file of walk(path.join(root, relativeRoot), rule.extensions)) {
         if (rule.excludedNames.has(path.basename(file))) continue;
         const source = fs.readFileSync(file, "utf8");
+        const relativeFile = path.relative(root, file);
+        const requiredNotice =
+          rule.noticeOverrides?.get(relativeFile) ?? rule.notice;
         let markerIndex = source.indexOf(rule.marker);
         while (markerIndex >= 0) {
           const block = extractDeprecationBlock(
@@ -2400,7 +2415,7 @@ export function collectDeprecationScheduleDrift() {
             markerIndex,
             rule.marker,
           );
-          if (containsNotice(block, rule.notice)) {
+          if (containsNotice(block, requiredNotice)) {
             markerIndex = source.indexOf(
               rule.marker,
               markerIndex + rule.marker.length,
@@ -2408,7 +2423,7 @@ export function collectDeprecationScheduleDrift() {
             continue;
           }
           failures.push(
-            `${path.relative(root, file)}:${lineNumberAt(source, markerIndex)}: ${rule.label} deprecation is missing ${JSON.stringify(rule.notice)}`,
+            `${relativeFile}:${lineNumberAt(source, markerIndex)}: ${rule.label} deprecation is missing ${JSON.stringify(requiredNotice)}`,
           );
           markerIndex = source.indexOf(
             rule.marker,

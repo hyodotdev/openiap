@@ -73,7 +73,7 @@ const MENU_ITEMS: MenuItem[] = [
     href: '/webhook-stream',
     icon: '📡',
     title: 'Webhook Stream',
-    subtitle: 'IAPKit SSE + test notification',
+    subtitle: 'Backend-only IAPKit SSE guidance',
     accentColor: '#0284C7',
   },
 ];

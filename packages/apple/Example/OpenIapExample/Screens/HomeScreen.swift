@@ -98,7 +98,7 @@ struct HomeScreen: View {
 
                         FeatureCard(
                             title: "Webhook\nStream",
-                            subtitle: "IAPKit SSE events",
+                            subtitle: "Backend-only SSE guidance",
                             icon: "dot.radiowaves.left.and.right",
                             color: Color.cyan,
                             destination: AnyView(WebhookStreamScreen())

@@ -193,7 +193,7 @@ fun HomeScreen(navController: NavController) {
                 item {
                     FeatureCard(
                         title = "Webhook\nStream",
-                        subtitle = "IAPKit SSE events",
+                        subtitle = "Backend-only SSE guidance",
                         icon = Icons.Default.Notifications,
                         color = AppColors.info,
                         onClick = {

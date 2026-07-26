@@ -113,7 +113,7 @@
                     HeightRequest="68"
                     CornerRadius="12"
                     Clicked="OnWebhookStreamClicked" />
-            <Label Text="IAPKit SSE + test notification"
+            <Label Text="Backend-only IAPKit SSE guidance"
                    FontSize="13"
                    TextColor="#666"
                    HorizontalTextAlignment="Center"

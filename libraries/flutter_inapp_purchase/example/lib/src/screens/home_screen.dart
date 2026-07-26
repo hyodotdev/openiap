@@ -29,10 +29,7 @@ class HomeScreen extends StatelessWidget {
                     const SizedBox(height: 8),
                     Text(
                       'In-app purchase example',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 16, color: Colors.grey[600]),
                     ),
                   ],
                 ),
@@ -85,7 +82,9 @@ class HomeScreen extends StatelessWidget {
                         subtitle: 'View and restore purchases',
                         color: const Color(0xFF5856D6),
                         onTap: () => Navigator.pushNamed(
-                            context, '/available-purchases'),
+                          context,
+                          '/available-purchases',
+                        ),
                       ),
                       const Divider(height: 1),
                       _buildMenuItem(
@@ -121,14 +120,16 @@ class HomeScreen extends StatelessWidget {
                             : 'External purchase links',
                         color: const Color(0xFFFF9800),
                         onTap: () => Navigator.pushNamed(
-                            context, '/alternative-billing'),
+                          context,
+                          '/alternative-billing',
+                        ),
                       ),
                       const Divider(height: 1),
                       _buildMenuItem(
                         context,
                         icon: CupertinoIcons.dot_radiowaves_left_right,
                         title: 'Webhook Stream',
-                        subtitle: 'IAPKit SSE + test notification',
+                        subtitle: 'Backend-only IAPKit SSE guidance',
                         color: const Color(0xFF0EA5E9),
                         onTap: () =>
                             Navigator.pushNamed(context, '/webhook-stream'),
@@ -147,10 +148,7 @@ class HomeScreen extends StatelessWidget {
                   children: [
                     Text(
                       'Platform: ${defaultTargetPlatform.name}',
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                     ),
                     const SizedBox(height: 8),
                   ],
@@ -184,11 +182,7 @@ class HomeScreen extends StatelessWidget {
                 color: color.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Icon(
-                icon,
-                color: color,
-                size: 24,
-              ),
+              child: Icon(icon, color: color, size: 24),
             ),
             const SizedBox(width: 16),
             Expanded(
@@ -205,10 +199,7 @@ class HomeScreen extends StatelessWidget {
                   const SizedBox(height: 4),
                   Text(
                     subtitle,
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[600],
-                    ),
+                    style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                   ),
                 ],
               ),

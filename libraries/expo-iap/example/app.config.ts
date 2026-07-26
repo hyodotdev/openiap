@@ -30,7 +30,7 @@ export default ({config}: ConfigContext): ExpoConfig => {
   const isOnsideEnabled = process.env.EXPO_IAP_ONSIDE === '1';
 
   const iapPluginOptions: ExpoIapPluginOptions = {
-    // IAPKit API key for server-side receipt verification
+    // IAPKit openiap-kit_pk_ publishable key. Never use openiap-kit_sk_ here.
     // Get your API key from https://kit.openiap.dev
     iapkitApiKey: process.env.EXPO_PUBLIC_IAPKIT_API_KEY,
     enableLocalDev: useLocalDev,
