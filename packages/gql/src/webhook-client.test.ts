@@ -97,8 +97,8 @@ describe("connectWebhookStream", () => {
     });
 
     expect(factory).toHaveBeenCalledWith(
-      "http://localhost:3100/v1/webhooks/stream/test-key",
-      {},
+      "http://localhost:3100/v1/webhooks/stream",
+      { Authorization: "Bearer test-key" },
     );
 
     expect(handlers.get("message")).toBeDefined();
@@ -206,13 +206,11 @@ describe("connectWebhookStream", () => {
   });
 
   it("trims trailing slashes in baseUrl", () => {
-    const factory = vi.fn(
-      (): WebhookEventStream => ({
-        onmessage: null,
-        onerror: null,
-        close: () => {},
-      }),
-    );
+    const factory = vi.fn((): WebhookEventStream => ({
+      onmessage: null,
+      onerror: null,
+      close: () => {},
+    }));
     connectWebhookStream({
       apiKey: "k",
       baseUrl: "https://kit.openiap.dev/",
@@ -220,18 +218,19 @@ describe("connectWebhookStream", () => {
       eventSourceFactory: factory,
     });
     expect(factory.mock.calls[0][0]).toBe(
-      "https://kit.openiap.dev/v1/webhooks/stream/k",
+      "https://kit.openiap.dev/v1/webhooks/stream",
     );
+    expect(factory.mock.calls[0][1]).toEqual({
+      Authorization: "Bearer k",
+    });
   });
 
-  it("URL-encodes the apiKey", () => {
-    const factory = vi.fn(
-      (): WebhookEventStream => ({
-        onmessage: null,
-        onerror: null,
-        close: () => {},
-      }),
-    );
+  it("keeps the apiKey out of the URL and sends it in the header", () => {
+    const factory = vi.fn((): WebhookEventStream => ({
+      onmessage: null,
+      onerror: null,
+      close: () => {},
+    }));
     connectWebhookStream({
       apiKey: "key with spaces & symbols",
       baseUrl: "http://localhost",
@@ -239,7 +238,10 @@ describe("connectWebhookStream", () => {
       eventSourceFactory: factory,
     });
     expect(factory.mock.calls[0][0]).toBe(
-      "http://localhost/v1/webhooks/stream/key%20with%20spaces%20%26%20symbols",
+      "http://localhost/v1/webhooks/stream",
     );
+    expect(factory.mock.calls[0][1]).toEqual({
+      Authorization: "Bearer key with spaces & symbols",
+    });
   });
 });

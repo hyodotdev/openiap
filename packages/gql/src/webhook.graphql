@@ -231,8 +231,9 @@ type WebhookEvent {
 # Note: webhook event transport is intentionally NOT modeled as a
 # GraphQL Subscription / Query field on this spec. The streaming
 # endpoint is a kit-server concern delivered over SSE
-# (`GET /v1/webhooks/stream/{apiKey}`) — see the per-SDK
-# `webhook-client` helpers — and the backfill is a Convex query
+# (`GET /v1/webhooks/stream` with secret Bearer authentication).
+# Per-SDK `webhook-client` compatibility helpers send that header and
+# must only run in trusted processes. The backfill is a Convex query
 # internal to kit that reads `webhookEvents`. Exposing them here
 # would force every device-side IAP implementation to declare a
 # `webhookEvent` listener / `webhookEventsSince` method even though

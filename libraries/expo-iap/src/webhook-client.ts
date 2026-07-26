@@ -1,8 +1,6 @@
-// Transport-agnostic webhook client for the openiap kit SSE stream
-// (`GET /v1/webhooks/stream/{apiKey}`). Used by the JavaScript / TS
-// wrappers (react-native-iap, expo-iap) but written without React or
-// React-Native imports so it can also run in plain Node, browser, or
-// any other JS runtime.
+// Trusted-process transport for the openiap kit SSE stream. The
+// administrative route is `GET /v1/webhooks/stream` with a secret Bearer key.
+// Never embed the secret in a shipped app.
 //
 // The wire format is documented in `packages/kit/server/api/v1/webhooks.ts`
 // and matches the GraphQL `WebhookEvent` shape from `webhook.graphql`.
@@ -71,9 +69,8 @@ export type WebhookEventPayload = {
 
 export type WebhookListenerOptions = {
   /**
-   * Project API key. Embedded in the URL path because Apple ASN
-   * registration cannot send custom headers; the same path is reused
-   * here for symmetry.
+   * Secret admin key sent in the Authorization header. Never put this value in
+   * a shipped app.
    */
   apiKey: string;
   /**
@@ -117,26 +114,32 @@ export type WebhookListener = {
 
 export type WebhookListenerError = {
   code:
-    | "TRANSPORT_ERROR"
-    | "PARSE_ERROR"
-    | "MALFORMED_EVENT"
-    | "NO_EVENTSOURCE";
+    "TRANSPORT_ERROR" | "PARSE_ERROR" | "MALFORMED_EVENT" | "NO_EVENTSOURCE";
   message: string;
   cause?: unknown;
 };
 
 const DEFAULT_BASE_URL = "https://kit.openiap.dev";
 
+/**
+ * Trusted-process transport for the project-wide IAPKit stream.
+ *
+ * Hosted IAPKit now requires a secret admin key for this stream. Never call
+ * this helper from a shipped app or pass it a publishable key. The secret is
+ * sent in the Authorization header so it does not enter URLs or proxy logs.
+ */
 export function connectWebhookStream(
   options: WebhookListenerOptions,
 ): WebhookListener {
   const baseUrl = options.baseUrl ?? DEFAULT_BASE_URL;
-  const url = `${trimTrailingSlash(baseUrl)}/v1/webhooks/stream/${encodeURIComponent(options.apiKey)}`;
+  const url = `${trimTrailingSlash(baseUrl)}/v1/webhooks/stream`;
 
   const factory = options.eventSourceFactory ?? defaultEventSourceFactory;
   let stream: WebhookEventStream;
   try {
-    stream = factory(url, {});
+    stream = factory(url, {
+      Authorization: `Bearer ${options.apiKey}`,
+    });
   } catch (error) {
     options.onError?.({
       code: "NO_EVENTSOURCE",
@@ -291,22 +294,13 @@ function trimTrailingSlash(url: string): string {
 }
 
 function defaultEventSourceFactory(
-  url: string,
+  _url: string,
   _headers: Record<string, string>,
 ): WebhookEventStream {
-  // EventSource is part of the WHATWG spec and available in all
-  // browser environments and most JS runtimes (Bun, Node 22+, Deno).
-  // RN does not ship it natively — consumers must pass
-  // `eventSourceFactory` from `react-native-sse` or similar.
-  const ctor = (
-    globalThis as {
-      EventSource?: new (url: string) => WebhookEventStream;
-    }
-  ).EventSource;
-  if (!ctor) {
-    throw new Error(
-      "EventSource is not defined. Pass `eventSourceFactory` for runtimes without a built-in EventSource.",
-    );
-  }
-  return new ctor(url);
+  // WHATWG EventSource cannot attach an Authorization header. Fail closed
+  // instead of falling back to a secret-in-URL route or silently opening an
+  // unauthenticated stream.
+  throw new Error(
+    "Pass an eventSourceFactory that supports Authorization headers.",
+  );
 }
