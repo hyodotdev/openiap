@@ -96,6 +96,24 @@ OpenIAP docs and release notes, `$iapkit-e2e-petgu` for Petgu product-sync E2E,
 `$iapkit-e2e-martie` for Martie local-receipt E2E, and
 `$opencollective-steward` for OpenCollective work.
 
+## Act As A Review-PR Fallback
+
+When `review-pr` invokes this skill because an external reviewer cannot review
+the current PR head:
+
+- Run exactly one complete review round against the supplied base, head SHA,
+  requirements, and acceptance criteria. Preserve the commit/push and external
+  write authority supplied by the calling workflow.
+- Do not re-enter `review-pr`, request external reviewers, handle its trigger
+  comments, invoke this fallback again, or schedule this skill's five-minute
+  loop. `review-pr` remains the sole thread-handling and polling owner.
+- Return the reviewed head and working-tree fingerprints, validated findings and
+  fixes, checks run, and a clean or blocked result. The caller may cache a clean
+  result only for that exact head and invalidate it after any head change.
+
+This single-round override prevents nested polling loops while still replacing
+the missing external review coverage with the full self-review procedure.
+
 ## Recheck Every Five Minutes
 
 - Run the first round immediately; never wait before the initial review.

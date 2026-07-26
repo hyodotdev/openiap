@@ -14,7 +14,9 @@ Follow both; this file only adds the Claude Code specifics.
 When the user asks in natural language, execute the matching workflow by
 reading the command file (or invoke the slash command directly when available):
 
-- Review PR comments / fix review feedback → `.claude/commands/review-pr.md` (`/review-pr`)
+- Review PR comments / fix review feedback → `.claude/commands/review-pr.md`
+  (`/review-pr`), including its `.claude/skills/review-self/SKILL.md` fallback
+  when an automated reviewer cannot review the current head
 - Audit code against knowledge rules → `.claude/commands/audit-code.md` (`/audit-code`)
 - Compile knowledge / rebuild AI context → `.claude/commands/compile-knowledge.md` (`/compile-knowledge`)
 - Resolve a GitHub issue → `.claude/commands/resolve-issue.md` (`/resolve-issue`)
@@ -34,3 +36,6 @@ reading the command file (or invoke the slash command directly when available):
 - Where that file mentions `$skill` syntax, the equivalent in Claude Code is
   the matching skill in `.claude/skills/` or the slash command in
   `.claude/commands/`.
+- When `review-pr` falls back to `review-self`, follow the canonical
+  single-round override and leave reviewer requests, thread handling, and
+  polling ownership with `review-pr`.

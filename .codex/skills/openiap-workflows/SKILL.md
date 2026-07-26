@@ -29,7 +29,9 @@ Codex does not need Claude slash-command syntax. If the user says any of these
 natural-language requests, execute the matching workflow:
 
 - Review PR comments, fix review feedback, or "review-pr": read
-  `.claude/commands/review-pr.md`.
+  `.claude/commands/review-pr.md`. If an automated reviewer cannot review the
+  current head, also read `.codex/skills/review-self/SKILL.md` and run its
+  single-round `review-pr` fallback.
 - Audit code, check latest APIs, or "audit-code": read
   `.claude/commands/audit-code.md`.
 - Compile knowledge or rebuild AI context: read
@@ -106,6 +108,10 @@ For PR review feedback, use the GitHub app tools or `gh` as needed to inspect
 inline review threads. Fix valid findings in the current PR, reply to the
 specific inline comment with the plain commit hash, and resolve only threads
 that are fixed or outdated per `.claude/commands/review-pr.md`.
+
+Do not call a PR clean merely because an automated reviewer skipped or failed.
+Use the head-specific `review-self` fallback required by the command workflow,
+and include its clean result in the completion gate.
 
 Do not reply with "will address later" for valid correctness or operational
 findings. Implement the fix in the current PR unless the finding is wrong on
