@@ -480,16 +480,6 @@ export function multiAxisRateLimitMiddleware(
   });
 }
 
-const DIRECT_IP_HEADERS = [
-  "fly-client-ip",
-  "cf-connecting-ip",
-  "true-client-ip",
-  "fastly-client-ip",
-  "x-client-ip",
-  "x-real-ip",
-  "x-cluster-client-ip",
-];
-
 function normalizeIp(value?: string | null): string | undefined {
   const first = value?.split(",")[0]?.trim();
   if (!first || first === "unknown") return undefined;
@@ -497,17 +487,10 @@ function normalizeIp(value?: string | null): string | undefined {
 }
 
 export function getRequestIp(c: Context): string | undefined {
-  for (const header of DIRECT_IP_HEADERS) {
-    const ip = normalizeIp(c.req.header(header));
-    if (ip) return ip;
-  }
-  const forwarded = c.req.header("forwarded")?.match(/for=([^;]+)/i)?.[1];
-  const forwardedIp = normalizeIp(forwarded);
-  if (forwardedIp) return forwardedIp;
-  const xForwardedFor = normalizeIp(c.req.header("x-forwarded-for"));
-  if (xForwardedFor) return xForwardedFor;
-  // Fly injects `fly-client-ip` on production ingress. Requests that bypass a
-  // trusted proxy (tests/local direct traffic) deliberately share the bounded
-  // "unknown" bucket instead of importing a runtime-specific socket adapter.
-  return undefined;
+  // The current public topology terminates at Fly, which overwrites this
+  // platform header. Caller-controlled Forwarded/X-Forwarded-For and
+  // CDN-specific headers are intentionally ignored; trusting them on a direct
+  // ingress would let an attacker rotate the per-IP bucket. Local/direct
+  // requests without Fly's header share the bounded "unknown" bucket.
+  return normalizeIp(c.req.header("fly-client-ip"));
 }

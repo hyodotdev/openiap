@@ -62,7 +62,7 @@ const RELEASES: ReleaseEntry[] = [
       },
       {
         kind: "fix",
-        text: "Webhook delivery uses source-aware event identity across Apple, Google RTDN, and Horizon, preventing matching upstream identifiers from colliding across projects or store sources.",
+        text: "Apple ASN, Google RTDN, and Horizon reconciliation use source-aware lifecycle-event identity, preventing matching identifiers from colliding across projects or store sources.",
       },
       {
         kind: "feature",

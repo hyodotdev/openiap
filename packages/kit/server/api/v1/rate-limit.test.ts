@@ -3,6 +3,7 @@ import { Hono } from "hono";
 
 import { apiKeyMiddleware } from "./middleware";
 import {
+  getRequestIp,
   hashApiKey,
   multiAxisRateLimitMiddleware,
   parsePositiveNumber,
@@ -10,6 +11,40 @@ import {
   tryConsume,
   type Bucket,
 } from "./rate-limit";
+
+describe("getRequestIp", () => {
+  test("trusts Fly's ingress header over caller-controlled forwarding headers", async () => {
+    const app = new Hono();
+    app.get("/", (c) => c.text(getRequestIp(c) ?? "unknown"));
+
+    const response = await app.request("/", {
+      headers: {
+        "fly-client-ip": "203.0.113.10",
+        forwarded: "for=198.51.100.1",
+        "x-forwarded-for": "198.51.100.2",
+        "cf-connecting-ip": "198.51.100.3",
+      },
+    });
+
+    expect(await response.text()).toBe("203.0.113.10");
+  });
+
+  test("ignores spoofable forwarding headers without Fly ingress", async () => {
+    const app = new Hono();
+    app.get("/", (c) => c.text(getRequestIp(c) ?? "unknown"));
+
+    const response = await app.request("/", {
+      headers: {
+        forwarded: "for=198.51.100.1",
+        "x-forwarded-for": "198.51.100.2",
+        "cf-connecting-ip": "198.51.100.3",
+        "x-real-ip": "198.51.100.4",
+      },
+    });
+
+    expect(await response.text()).toBe("unknown");
+  });
+});
 
 describe("tryConsume (token bucket)", () => {
   test("first request creates a bucket and consumes one token", () => {

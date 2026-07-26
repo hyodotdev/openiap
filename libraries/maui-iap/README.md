@@ -94,7 +94,7 @@ using OpenIap.Maui;
 
 var kit = OpenIapClient.KitApi(new KitApiOptions
 {
-    ApiKey = "iapkit_...",
+    ApiKey = "openiap-kit_pk_<your-publishable-key>",
     BaseUrl = "https://kit.openiap.dev",
 });
 
@@ -121,6 +121,10 @@ var payload = await kit.ClientPayloadAsync(
     KitProductPlatform.IOS);
 await kit.BindUserAsync(purchaseToken: "token", userId: "user-123");
 ```
+
+Publishable keys are intentionally app-readable. Never embed an
+`openiap-kit_sk_` secret key in a shipped app; reserve it for trusted backends,
+CI, and MCP administration.
 
 Client payloads are public app-readable metadata. Keep secrets and server-only
 rules out of them; catalog responses omit payload bodies unless explicitly

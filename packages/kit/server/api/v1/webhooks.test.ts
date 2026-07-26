@@ -74,6 +74,30 @@ describe("webhooksRoutes", () => {
     });
   });
 
+  it("directs legacy secret webhook URLs to the publishable lifecycle URL", async () => {
+    const app = new Hono();
+    app.route("/webhooks", helpers.webhooksRoutes);
+
+    for (const path of [
+      "/webhooks/openiap-kit_sk_legacy",
+      "/webhooks/apple/openiap-kit_sk_legacy",
+      "/webhooks/google/openiap-kit_sk_legacy",
+    ]) {
+      const response = await app.request(path, { method: "POST" });
+
+      expect(response.status).toBe(410);
+      await expect(response.json()).resolves.toEqual({
+        errors: [
+          {
+            code: "SECRET_API_KEY_IN_URL",
+            message:
+              "Secret API keys are not accepted in webhook URLs. Replace this URL with the publishable-key lifecycle URL shown in the IAPKit dashboard.",
+          },
+        ],
+      });
+    }
+  });
+
   it("rejects oversized webhook bodies before JSON parsing", async () => {
     const app = new Hono();
     app.route("/webhooks", helpers.webhooksRoutes);

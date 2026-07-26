@@ -197,7 +197,7 @@ async function pathApiKeyGuard(c: Context, next: Next) {
           {
             code: "SECRET_API_KEY_IN_URL",
             message:
-              "Secret API keys are not accepted in URLs. Use Authorization: Bearer <secret-key> on the canonical route.",
+              "Secret API keys are not accepted in webhook URLs. Replace this URL with the publishable-key lifecycle URL shown in the IAPKit dashboard.",
           },
         ],
       },
@@ -595,8 +595,8 @@ function mapWebhookError(
 ) {
   const convexError = handleConvexError(error);
   if (convexError !== null) {
-    // Apple/Google ship new notification types ahead of the openiap
-    // spec. Acknowledge with 200 so the upstream stops retrying — the
+    // Apple/Google ship new notification types ahead of IAPKit's internal
+    // lifecycle mapping. Acknowledge with 200 so the upstream stops retrying —
     // event was deliberately dropped, not lost. Other normalization
     // errors (MissingNotificationId, MissingPurchaseToken,
     // BUNDLE_ID_MISMATCH, INVALID_SIGNATURE, …) are permanent

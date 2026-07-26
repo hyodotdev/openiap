@@ -32,8 +32,9 @@ performs the project query, service-account metadata query, storage-reader
 action, file-record query, receipt mutation, and either the in-app catalog-type
 query or subscription mutation. Requesting `includeClientPayload` on a valid
 Apple or Google result adds one query after verification. The enrichment query
-is skipped for opt-out, invalid, Horizon, Amazon, missing-product, and
-missing-payload cases; enrichment failure does not change a successful receipt
+is skipped for opt-out, invalid, Horizon, Amazon, and missing verified-product
+ID cases. A catalog or payload miss still uses that one query and returns no
+enrichment; enrichment absence or failure does not change a successful receipt
 result.
 
 All catalog reads use indexed pagination with a default of 25 and maximum of 50. Payload-inclusive pages perform a bounded N+1 of at most 50 exact indexed
@@ -66,8 +67,9 @@ cross-machine hard brake; a distributed globally consistent edge limit would
 require additional infrastructure and is not justified for the current
 single-machine deployment.
 
-Only trust the source-IP headers inserted by the Fly/CDN ingress. Direct local
-requests without a trusted header share the bounded `unknown` IP bucket.
+Only the `Fly-Client-IP` header inserted by the current Fly ingress is trusted.
+Forwarding and CDN headers supplied by callers are ignored. Direct local
+requests without the Fly header share the bounded `unknown` IP bucket.
 
 ## HTTP cache behavior
 

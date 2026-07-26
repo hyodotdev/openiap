@@ -157,10 +157,10 @@ function mapAppleEnvironment(
   return APPLE_ENV_MAP[value] ?? "Production";
 }
 
-// Maps (notificationType, subtype) -> WebhookEventType. Returns null
-// when the combination is not observable in the openiap spec yet
-// (e.g. OFFER_REDEEMED, RENEWAL_EXTENDED) — kit will record but not
-// emit those.
+// Maps (notificationType, subtype) -> IAPKit's internal event type. Returns
+// null when the combination has no state-machine mapping yet (for example,
+// OFFER_REDEEMED or RENEWAL_EXTENDED); normalization rejects it and the
+// receiver acknowledges the unsupported notification without storing it.
 export function mapAppleNotificationType(
   notificationType: string,
   subtype?: string | null,

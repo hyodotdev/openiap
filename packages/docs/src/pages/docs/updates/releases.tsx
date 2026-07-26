@@ -207,7 +207,7 @@ function Releases() {
               Canonical payload fields now take precedence consistently across
               raw adapters and typed facades. Legacy aliases remain compatible
               through each package&apos;s current major and emit bounded
-              migration guidance instead of being removed in this patch train.
+              migration guidance instead of being removed in this release train.
             </li>
           </ul>
 
@@ -270,8 +270,8 @@ function Releases() {
               >
                 PR #245
               </a>{' '}
-              moves Apple, Google RTDN, and Horizon webhook deduplication onto
-              source-aware event identity as phase 1 of{' '}
+              moves Apple ASN, Google RTDN, and Horizon reconciliation onto
+              source-aware lifecycle-event identity as phase 1 of{' '}
               <a
                 href="https://github.com/hyodotdev/openiap/issues/241"
                 target="_blank"

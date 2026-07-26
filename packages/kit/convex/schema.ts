@@ -579,8 +579,8 @@ const schema = defineSchema({
     // (see webhooks/internal.ts).
     purchaseToken: v.optional(v.string()),
     // Original notification id from the store (ASN v2 `notificationUUID`
-    // or RTDN Pub/Sub `messageId`). Surfaced as the GraphQL `id` field
-    // for clients and used to correlate events during pruning.
+    // or RTDN Pub/Sub `messageId`). Used internally for source-aware
+    // deduplication and pruning correlation.
     sourceNotificationId: v.string(),
     productId: v.optional(v.string()),
     subscriptionState: v.optional(
@@ -636,8 +636,8 @@ const schema = defineSchema({
   // dedup state. (Apple's notificationUUID is globally unique so the
   // projectId scope is redundant for ASN, but matching one shape
   // keeps the lookup path simple.) Duplicates detected here cause
-  // kit to silently ACK the upstream request with 200 without
-  // re-emitting the event, matching Apple's documented retry
+  // kit to silently ACK the upstream request with 200 without storing or
+  // reapplying the lifecycle transition, matching Apple's documented retry
   // expectation and Google's at-least-once Pub/Sub contract.
   // `projectId` is optional during the rollout so already-written
   // rows still validate; new inserts always populate it.
@@ -663,9 +663,9 @@ const schema = defineSchema({
     .index("by_first_seen_at", ["firstSeenAt"]),
 
   // Authoritative per-(project, originalTransactionId) subscription record.
-  // Mirrors the spec from `packages/gql/src/webhook.graphql` and the role
-  // played by onesub's `onesub_subscriptions` table. State transitions are
-  // driven by webhook events through `applySubscriptionEvent`.
+  // Follows the inbound lifecycle mapping in
+  // `knowledge/external/webhook-mapping.md`. State transitions are driven by
+  // internal webhook events through `applySubscriptionEvent`.
   //
   // Why per-`originalTransactionId` (Apple) / `purchaseToken` (Google) and
   // not per-`(userId, productId)`: a single user can hold multiple historical

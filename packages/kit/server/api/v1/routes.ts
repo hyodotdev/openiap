@@ -515,10 +515,11 @@ app.post(
 app.post("/verify-purchase", ...verifyMiddleware);
 
 // Lifecycle webhook receivers — Apple App Store Server Notifications v2
-// and Google Pub/Sub RTDN. These bypass the apiKeyMiddleware /
-// rate-limit / replay-guard chain because Apple cannot send custom
-// auth headers and Google's Pub/Sub push has its own delivery
-// guarantees. Auth is enforced inside the receiver:
+// and Google Pub/Sub RTDN. These bypass header-based apiKeyMiddleware and the
+// purchase replay guard because Apple cannot send custom auth headers. The
+// receiver validates the path capability before applying the same bounded
+// key/IP/process limiter used by public APIs. Store authenticity is enforced
+// inside the receiver:
 //   - Apple: project apiKey is in the path; the action verifies the
 //     signedPayload against Apple's root certificates so a leaked URL
 //     can't be used to inject forged events.

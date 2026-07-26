@@ -106,11 +106,23 @@ versions in this order:
    release plan.
 2. Use package metadata that has already advanced beyond the last published
    release.
-3. For an affected package still at its last published stable version, use
-   exactly the next patch version.
+3. For an affected package still at its last published stable version, classify
+   the public change before resolving its target: use the next patch for
+   backward-compatible fixes, the next minor for backward-compatible features,
+   and the next major for breaking public API or type removals. If the SemVer
+   impact is ambiguous or conflicts with an existing release plan, ask instead
+   of guessing.
 4. Do not bump unaffected packages merely to make a release list symmetrical.
-5. Derive the expected OpenIAP Spec/docs version as the semantic-version minimum
-   of the expected Apple and Google versions.
+5. Reuse the explicit maintainer-selected OpenIAP Spec/docs target from the
+   coordinated release plan or unreleased card. If no explicit coordinated spec
+   target exists, ask; never infer or auto-align it from Apple and Google
+   versions.
+
+Before naming any package's next major, inspect the canonical deprecation and
+migration schedule. The release train must include every public removal already
+scheduled for that major, or stop for maintainer direction to reschedule the
+contract; never announce a major while claiming APIs scheduled for that major
+remain available.
 
 Write every resolved target into the release card with its expected tag link.
 Do not leave versionless package bullets, `(planned)` labels, or a
