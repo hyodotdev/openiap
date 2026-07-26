@@ -1,6 +1,6 @@
 {
   "name": "@hyodotdev/openiap-ios",
-  "version": "2.4.3",
+  "version": "2.4.4",
   "private": true,
   "description": "OpenIAP iOS/Swift implementation",
   "scripts": {
