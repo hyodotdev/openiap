@@ -502,7 +502,7 @@ function Deprecations() {
         </AnchorLink>
 
         <h3>OpenIAP specification and native packages</h3>
-        <table className="doc-table">
+        <table className="doc-table deprecation-schedule-table">
           <thead>
             <tr>
               <th>Package</th>
@@ -526,7 +526,7 @@ function Deprecations() {
         </table>
 
         <h3>Framework libraries</h3>
-        <table className="doc-table">
+        <table className="doc-table deprecation-schedule-table">
           <thead>
             <tr>
               <th>Library</th>

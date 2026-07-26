@@ -84,15 +84,15 @@ const purchaseSafetyReleases = [
 ] as const;
 
 const iapkitSecurityTrainReleases = [
-  ['OpenIAP Spec 3.0.0', 'docs-3.0.0'],
-  ['openiap-apple 3.0.0', '3.0.0'],
-  ['openiap-google 3.0.0', 'google-3.0.0'],
-  ['react-native-iap 16.0.0', 'react-native-iap-16.0.0'],
-  ['expo-iap 5.0.0', 'expo-iap-5.0.0'],
-  ['flutter_inapp_purchase 10.0.0', 'flutter-iap-10.0.0'],
-  ['godot-iap 3.0.0', 'godot-iap-3.0.0'],
-  ['kmp-iap 3.0.0', 'kmp-iap-3.0.0'],
-  ['OpenIap.Maui 2.0.0', 'maui-iap-2.0.0'],
+  ['OpenIAP Spec 2.4.4', 'docs-2.4.4'],
+  ['openiap-apple 2.4.4', '2.4.4'],
+  ['openiap-google 2.5.1', 'google-2.5.1'],
+  ['react-native-iap 15.6.1', 'react-native-iap-15.6.1'],
+  ['expo-iap 4.7.1', 'expo-iap-4.7.1'],
+  ['flutter_inapp_purchase 9.6.1', 'flutter-iap-9.6.1'],
+  ['godot-iap 2.6.1', 'godot-iap-2.6.1'],
+  ['kmp-iap 2.7.1', 'kmp-iap-2.7.1'],
+  ['OpenIap.Maui 1.4.1', 'maui-iap-1.4.1'],
 ] as const;
 
 const iapkitSecurityTrainAliases = [
@@ -108,7 +108,7 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
-    // July 25, 2026 - OpenIAP Spec/native 3.0.0 and framework major releases
+    // July 25, 2026 - IAPKit security and SDK patch train
     {
       id: 'iapkit-security-cross-sdk-payload-integrity-2026-07-25',
       aliases: iapkitSecurityTrainAliases,
@@ -125,8 +125,7 @@ function Releases() {
             id="iapkit-security-cross-sdk-payload-integrity-2026-07-25"
             level="h4"
           >
-            July 25, 2026 - OpenIAP Spec/native 3.0.0 and framework major
-            releases
+            July 25, 2026 - IAPKit security and SDK patch train
           </AnchorLink>
 
           <p
@@ -139,11 +138,13 @@ function Releases() {
             IAPKit adds scoped API keys, programmable product client payloads,
             bounded public-API cost controls, source-aware inbound webhook
             processing, and version-based App Store Connect review submissions.
-            This is a coordinated major SDK train because the unsupported
-            IAPKit-to-app webhook stream and its public event types are removed
+            The same stable patch train hard-removes the experimental,
+            unsupported IAPKit-to-app webhook stream and its public event types
             from the shared spec, native packages, and every framework library.
-            The packages also harden purchase payload handling and publish
-            migration guidance from{' '}
+            This is an intentional compatibility break within the maintainer
+            selected patch train; store-to-IAPKit webhooks remain supported. The
+            packages also harden purchase payload handling and publish migration
+            guidance from{' '}
             <a
               href="https://github.com/hyodotdev/openiap/issues/248"
               target="_blank"
@@ -170,9 +171,9 @@ function Releases() {
             >
               PR #252
             </a>
-            . OpenIAP Spec <code>3.0.0</code> is the coordinated contract for
-            openiap-apple <code>3.0.0</code> and openiap-google{' '}
-            <code>3.0.0</code>.
+            . OpenIAP Spec <code>2.4.4</code> is the coordinated contract for
+            openiap-apple <code>2.4.4</code> and openiap-google{' '}
+            <code>2.5.1</code>.
           </p>
 
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Common changes</h5>
@@ -321,19 +322,19 @@ function Releases() {
             }}
           >
             <li>
-              <strong>OpenIAP Spec 3.0.0</strong> - removes the public
+              <strong>OpenIAP Spec 2.4.4</strong> - removes the public
               IAPKit-to-SDK webhook schema and generated{' '}
               <code>WebhookEvent*</code> types, then synchronizes the remaining
               Swift, Kotlin, TypeScript, Dart, GDScript, and C# contracts.
             </li>
             <li>
-              <strong>openiap-apple 3.0.0</strong> - ships the synchronized
+              <strong>openiap-apple 2.4.4</strong> - ships the synchronized
               generated contract without public webhook-event types and removes
               the webhook-stream screen from the native example while preserving
               inbound App Store notification support in IAPKit.
             </li>
             <li>
-              <strong>openiap-google 3.0.0</strong> - removes public
+              <strong>openiap-google 2.5.1</strong> - removes public
               webhook-event types and the stream example, rejects Amazon
               receipts when either cancellation signal is present, keeps the
               subscription term SKU as <code>currentPlanId</code>, reports
@@ -362,7 +363,7 @@ function Releases() {
             }}
           >
             <li>
-              <strong>react-native-iap 16.0.0</strong> - removes{' '}
+              <strong>react-native-iap 15.6.1</strong> - removes{' '}
               <code>connectWebhookStream</code>, <code>useWebhookEvents</code>,
               their event types, tests, and example screen. It carries explicit
               native transaction identity through Nitro, leaves orderless Google
@@ -373,7 +374,7 @@ function Releases() {
               conditional refreshes instead of repeated catalog polling.
             </li>
             <li>
-              <strong>expo-iap 5.0.0</strong> - removes{' '}
+              <strong>expo-iap 4.7.1</strong> - removes{' '}
               <code>connectWebhookStream</code>, <code>useWebhookEvents</code>,
               their event types, tests, and example route. It fails closed when
               an Onside module or method is unavailable instead of falling
@@ -388,19 +389,19 @@ function Releases() {
               refresh.
             </li>
             <li>
-              <strong>flutter_inapp_purchase 10.0.0</strong> - removes the
+              <strong>flutter_inapp_purchase 9.6.1</strong> - removes the
               webhook client, generated event types, tests, and example screen.
               It reads canonical <code>dataAndroid</code>, preserves complete
               generated purchase and verification results, supports Horizon
               verification, and recursively normalizes nested native maps.
             </li>
             <li>
-              <strong>godot-iap 3.0.0</strong> - removes the GDScript webhook
+              <strong>godot-iap 2.6.1</strong> - removes the GDScript webhook
               client and generated event types while preserving canonical-first
               envelope handling and credential-safe one-time warnings.
             </li>
             <li>
-              <strong>kmp-iap 3.0.0</strong> - removes common, Android, and iOS
+              <strong>kmp-iap 2.7.1</strong> - removes common, Android, and iOS
               webhook transports, public event types, tests, and example
               screens. It preserves complete generated Android and iOS purchase
               fields, including developer payload, pending updates, purchase
@@ -408,7 +409,7 @@ function Releases() {
               values.
             </li>
             <li>
-              <strong>OpenIap.Maui 2.0.0</strong> - removes webhook clients,
+              <strong>OpenIap.Maui 1.4.1</strong> - removes webhook clients,
               parsers, event types, tests, and example pages. It reports
               listener deserialization drift with credential-safe diagnostics
               instead of silently dropping malformed purchase events and directs
