@@ -68,14 +68,6 @@ const MENU_ITEMS: MenuItem[] = [
     subtitle: 'External payment links',
     accentColor: '#EA580C',
   },
-  {
-    id: 'webhook-stream',
-    href: '/webhook-stream',
-    icon: '📡',
-    title: 'Webhook Stream',
-    subtitle: 'IAPKit SSE + test notification',
-    accentColor: '#0284C7',
-  },
 ];
 
 /**

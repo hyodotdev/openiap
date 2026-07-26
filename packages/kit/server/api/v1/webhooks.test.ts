@@ -33,6 +33,19 @@ describe("pubSubOidcAudiences", () => {
 });
 
 describe("webhooksRoutes", () => {
+  it("does not expose outbound webhook stream routes", async () => {
+    const app = new Hono();
+    app.route("/webhooks", helpers.webhooksRoutes);
+
+    for (const path of [
+      "/webhooks/stream",
+      "/webhooks/stream/openiap-kit_pk_mobile",
+    ]) {
+      const response = await app.request(path);
+      expect(response.status).toBe(404);
+    }
+  });
+
   it("rejects oversized path apiKey before reading the body", async () => {
     const app = new Hono();
     app.route("/webhooks", helpers.webhooksRoutes);
@@ -61,6 +74,30 @@ describe("webhooksRoutes", () => {
     });
   });
 
+  it("directs legacy secret webhook URLs to the publishable lifecycle URL", async () => {
+    const app = new Hono();
+    app.route("/webhooks", helpers.webhooksRoutes);
+
+    for (const path of [
+      "/webhooks/openiap-kit_sk_legacy",
+      "/webhooks/apple/openiap-kit_sk_legacy",
+      "/webhooks/google/openiap-kit_sk_legacy",
+    ]) {
+      const response = await app.request(path, { method: "POST" });
+
+      expect(response.status).toBe(410);
+      await expect(response.json()).resolves.toEqual({
+        errors: [
+          {
+            code: "SECRET_API_KEY_IN_URL",
+            message:
+              "Secret API keys are not accepted in webhook URLs. Replace this URL with the publishable-key lifecycle URL shown in the IAPKit dashboard.",
+          },
+        ],
+      });
+    }
+  });
+
   it("rejects oversized webhook bodies before JSON parsing", async () => {
     const app = new Hono();
     app.route("/webhooks", helpers.webhooksRoutes);
@@ -76,6 +113,52 @@ describe("webhooksRoutes", () => {
         { code: "PAYLOAD_TOO_LARGE", message: "Webhook payload is too large" },
       ],
     });
+  });
+
+  it("rate-limits publishable webhook ingress before Convex", async () => {
+    const app = new Hono();
+    app.route("/webhooks", helpers.webhooksRoutes);
+
+    const response = await app.request("/webhooks/openiap-kit_pk_mobile", {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "fly-client-ip": "203.0.113.10",
+      },
+      body: "{}",
+    });
+
+    expect(response.status).toBe(400);
+    expect(response.headers.get("x-ratelimit-limit")).toBe("600");
+    expect(response.headers.get("x-ratelimit-remaining")).toBe("599");
+  });
+
+  it("keeps only the inbound store lifecycle routes mounted", async () => {
+    const app = new Hono();
+    app.route("/webhooks", helpers.webhooksRoutes);
+
+    for (const path of [
+      "/webhooks/openiap-kit_pk_mobile",
+      "/webhooks/apple/openiap-kit_pk_mobile",
+      "/webhooks/google/openiap-kit_pk_mobile",
+    ]) {
+      const response = await app.request(path, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+      });
+
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual({
+        errors: [
+          {
+            code: "INVALID_INPUT",
+            message:
+              "Unrecognized payload. Expected Apple ASN v2 ({signedPayload}) or Google Pub/Sub ({message:{data,messageId}}).",
+          },
+        ],
+      });
+    }
   });
 });
 
@@ -112,19 +195,6 @@ describe("readWebhookJsonBody", () => {
     await expect(helpers.readWebhookJsonBody(request)).rejects.toThrow(
       "Webhook payload is too large",
     );
-  });
-});
-
-describe("webhookStreamUnavailableError", () => {
-  it("does not expose raw stream lookup failures", () => {
-    expect(helpers.webhookStreamUnavailableError()).toEqual({
-      errors: [
-        {
-          code: "WEBHOOK_STREAM_UNAVAILABLE",
-          message: "Webhook stream is temporarily unavailable",
-        },
-      ],
-    });
   });
 });
 
@@ -250,10 +320,6 @@ describe("sanitizePubSubAudienceForLog", () => {
         "https://kit.openiap.dev/v1/webhooks/google/openiap-kit_secret",
       ],
       [
-        "https://kit.openiap.dev/v1/webhooks/stream/openiap-kit_secret?since=1",
-        "https://kit.openiap.dev/v1/webhooks/stream/openiap-kit_secret?since=1",
-      ],
-      [
         "https://kit.openiap.dev/v1/webhooks/openiap-kit_secret?apiKey=openiap-kit_query&token=jwt-token&id_token=id-token&jwt=jwt-token&since=1",
         "https://kit.openiap.dev/v1/webhooks/openiap-kit_secret?apiKey=openiap-kit_query&token=jwt-token&id_token=id-token&jwt=jwt-token&since=1",
       ],
@@ -266,14 +332,5 @@ describe("sanitizePubSubAudienceForLog", () => {
     for (const [input, expected] of cases) {
       expect(helpers.sanitizePubSubAudienceForLog(input)).toBe(expected);
     }
-  });
-});
-
-describe("normalizeLastEventId", () => {
-  it("drops oversized reconnect cursors before Convex lookup", () => {
-    expect(helpers.normalizeLastEventId(undefined)).toBeUndefined();
-    expect(helpers.normalizeLastEventId("rtdn-msg-1")).toBe("rtdn-msg-1");
-    expect(helpers.normalizeLastEventId("a".repeat(512))).toBe("a".repeat(512));
-    expect(helpers.normalizeLastEventId("a".repeat(513))).toBeUndefined();
   });
 });

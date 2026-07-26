@@ -11,9 +11,10 @@ and exposes `iapkit_*` tools for live project operations.
 
 ## Authentication
 
-The server expects an IAPKit project API key, not an OpenAI, ChatGPT,
-Anthropic, or Claude API key. Set `IAPKIT_API_KEY` in the environment that
-launches the agent before using the plugin:
+The server expects an IAPKit secret admin key (`openiap-kit_sk_...`), not a
+mobile publishable key and not an OpenAI, ChatGPT, Anthropic, or Claude API
+key. Set `IAPKIT_API_KEY` in the environment that launches the agent before
+using the plugin:
 
 - **Codex**: export `IAPKIT_API_KEY` before starting Codex; the plugin's MCP
   config reads it through `bearer_token_env_var`.
@@ -32,4 +33,8 @@ launches the agent before using the plugin:
 - Do not create products, start non-dry-run sync jobs, simulate webhooks, or
   edit app code unless the user explicitly asks for that action in the current
   thread.
-- Keep IAPKit project API keys out of code snippets and final responses.
+- Keep IAPKit secret admin keys out of code snippets, app bundles, and final
+  responses. Mobile code must use a separate `openiap-kit_pk_...` publishable
+  key.
+- Administrative REST examples must send the secret in an `Authorization:
+  Bearer` header, never in a URL path or query string.

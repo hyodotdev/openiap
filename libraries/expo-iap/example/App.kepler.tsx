@@ -15,7 +15,6 @@ import Home from './app/index';
 import OfferCode from './app/offer-code';
 import PurchaseFlow from './app/purchase-flow';
 import SubscriptionFlow from './app/subscription-flow';
-import WebhookStream from './app/webhook-stream';
 import {ExpoRouterShimProvider} from './vega-shims/expo-router';
 
 LogBox.ignoreLogs([
@@ -29,15 +28,19 @@ LogBox.ignoreLogs([
   '[Expo-IAP] Error getting active subscriptions:',
 ]);
 
-(globalThis as {
-  EXPO_IAP_ENABLE_TV_SHORTCUTS?: boolean;
-  EXPO_IAP_SUPPRESS_NATIVE_ALERTS?: boolean;
-}).EXPO_IAP_ENABLE_TV_SHORTCUTS = true;
+(
+  globalThis as {
+    EXPO_IAP_ENABLE_TV_SHORTCUTS?: boolean;
+    EXPO_IAP_SUPPRESS_NATIVE_ALERTS?: boolean;
+  }
+).EXPO_IAP_ENABLE_TV_SHORTCUTS = true;
 
-(globalThis as {
-  EXPO_IAP_ENABLE_TV_SHORTCUTS?: boolean;
-  EXPO_IAP_SUPPRESS_NATIVE_ALERTS?: boolean;
-}).EXPO_IAP_SUPPRESS_NATIVE_ALERTS = true;
+(
+  globalThis as {
+    EXPO_IAP_ENABLE_TV_SHORTCUTS?: boolean;
+    EXPO_IAP_SUPPRESS_NATIVE_ALERTS?: boolean;
+  }
+).EXPO_IAP_SUPPRESS_NATIVE_ALERTS = true;
 
 type RoutePath =
   | '/'
@@ -46,8 +49,7 @@ type RoutePath =
   | '/subscription-flow'
   | '/available-purchases'
   | '/offer-code'
-  | '/alternative-billing'
-  | '/webhook-stream';
+  | '/alternative-billing';
 
 const ROUTE_TITLES: Record<RoutePath, string> = {
   '/': 'expo-iap Examples',
@@ -57,7 +59,6 @@ const ROUTE_TITLES: Record<RoutePath, string> = {
   '/available-purchases': 'Available Purchases',
   '/offer-code': 'Offer Code Redemption',
   '/alternative-billing': 'Alternative Billing',
-  '/webhook-stream': 'Webhook Stream',
 };
 
 const SCREENS: Record<Exclude<RoutePath, '/'>, React.ComponentType> = {
@@ -67,7 +68,6 @@ const SCREENS: Record<Exclude<RoutePath, '/'>, React.ComponentType> = {
   '/available-purchases': AvailablePurchases,
   '/offer-code': OfferCode,
   '/alternative-billing': AlternativeBilling,
-  '/webhook-stream': WebhookStream,
 };
 
 const normalizeRoute = (href: unknown): RoutePath => {

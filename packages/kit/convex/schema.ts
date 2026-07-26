@@ -182,6 +182,10 @@ const schema = defineSchema({
     name: v.string(),
     slug: v.string(), // URL-friendly identifier within org - UNIQUE per org enforced in mutations
     apiKey: v.string(), // Deprecated - will be removed after migration
+    // Once scoped apiKeys have been issued for this project, never fall back to
+    // the legacy projects.apiKey column. The marker survives deletion of the
+    // last scoped key so a removed legacy credential cannot become valid again.
+    legacyApiKeyFallbackDisabledAt: v.optional(v.number()),
 
     // Platform
     platform: v.optional(
@@ -290,7 +294,14 @@ const schema = defineSchema({
     name: v.string(), // User-friendly name for the key
     description: v.optional(v.string()),
 
-    permissions: v.optional(v.array(v.string())), // Future: specific permissions
+    // Publishable keys are safe to embed in mobile apps and are limited to
+    // client-facing verification/read surfaces. Secret keys are operator
+    // credentials for MCP, catalog writes, analytics, and store sync.
+    //
+    // Optional for migration safety: keys created before scoped credentials
+    // shipped are treated as publishable by every authorization helper.
+    keyType: v.optional(v.union(v.literal("publishable"), v.literal("secret"))),
+    permissions: v.optional(v.array(v.string())), // Reserved for future custom scopes
 
     // Usage tracking
     lastUsedAt: v.optional(v.number()),
@@ -523,15 +534,11 @@ const schema = defineSchema({
   }).index("by_jobName", ["jobName"]),
 
   // Normalized lifecycle webhook events ingested from Apple ASN v2 and
-  // Google RTDN. Mirrors the GraphQL `WebhookEvent` shape defined in
-  // `packages/gql/src/webhook.graphql` — kit's Subscription endpoint
-  // streams rows from this table to authenticated clients, and the
-  // `webhookEventsSince` query backfills events that occurred while a
-  // client's WebSocket was closed.
+  // Google RTDN. The rows drive subscription state, revenue metrics,
+  // deduplication, and operator-visible delivery history inside IAPKit.
   //
   // Retention: rows are pruned by the `pruneWebhookEvents` cron after
-  // 30 days. The replay window matches `webhookEventsSince` so clients
-  // returning from a long offline period can still reconcile.
+  // 30 days to bound storage and analytics reads.
   webhookEvents: defineTable({
     projectId: v.id("projects"),
     type: v.union(
@@ -556,8 +563,7 @@ const schema = defineSchema({
       v.literal("AppleAppStoreServerNotificationsV2"),
       v.literal("GooglePlayRealTimeDeveloperNotifications"),
       // Synthetic source for Meta Horizon Store entitlement
-      // transitions discovered by the polling reconciler. Mirrors
-      // the GraphQL `WebhookEventSource.MetaHorizonReconciler` enum.
+      // transitions discovered by the polling reconciler.
       v.literal("MetaHorizonReconciler"),
     ),
     platform: v.union(v.literal("IOS"), v.literal("Android")),
@@ -573,8 +579,8 @@ const schema = defineSchema({
     // (see webhooks/internal.ts).
     purchaseToken: v.optional(v.string()),
     // Original notification id from the store (ASN v2 `notificationUUID`
-    // or RTDN Pub/Sub `messageId`). Surfaced as the GraphQL `id` field
-    // for clients and used to correlate events during pruning.
+    // or RTDN Pub/Sub `messageId`). Used internally for source-aware
+    // deduplication and pruning correlation.
     sourceNotificationId: v.string(),
     productId: v.optional(v.string()),
     subscriptionState: v.optional(
@@ -609,30 +615,12 @@ const schema = defineSchema({
   })
     .index("by_project", ["projectId"])
     .index("by_purchase_token", ["purchaseToken"])
-    // (projectId, receivedAt, _creationTime) — Convex appends
-    // `_creationTime` automatically. Used by the SSE backfill
-    // `webhookEventsSince` query so the boundary-cohort tail past the
-    // millisecond cursor can be walked directly via
-    // `gt("_creationTime", afterCreationTime)` instead of an in-memory
-    // filter that would silently drop pages when a single
-    // millisecond's burst exceeds the take() cap (PR #124
-    // (https://github.com/hyodotdev/openiap/pull/124) review).
+    // Convex appends `_creationTime` automatically. Revenue metrics use this
+    // index for bounded project/time-window reads.
     .index("by_project_and_received", ["projectId", "receivedAt"])
     .index("by_received_at", ["receivedAt"])
-    // Lookup helper used by the SSE stream's `Last-Event-ID` cursor
-    // resolution. The reconnect cursor needs to translate a stable
-    // notification id back to its `receivedAt` regardless of whether
-    // the event is in the first 500 or the 50,000th. A direct index
-    // hit is O(log n) vs O(n/page) for the prior linear scan.
-    .index("by_project_and_notification_id", [
-      "projectId",
-      "sourceNotificationId",
-    ])
-    // Source-aware lookup used for ingestion dedup. Keep this separate from
-    // `by_project_and_notification_id`: SSE reconnects only send the stable
-    // sourceNotificationId in Last-Event-ID and therefore cannot supply a
-    // source discriminator, while ingestion must preserve the full
-    // (projectId, source, sourceNotificationId) natural key.
+    // Source-aware lookup used for ingestion dedup. Ingestion preserves the
+    // full (projectId, source, sourceNotificationId) natural key.
     .index("by_project_and_source_and_notification_id", [
       "projectId",
       "source",
@@ -648,8 +636,8 @@ const schema = defineSchema({
   // dedup state. (Apple's notificationUUID is globally unique so the
   // projectId scope is redundant for ASN, but matching one shape
   // keeps the lookup path simple.) Duplicates detected here cause
-  // kit to silently ACK the upstream request with 200 without
-  // re-emitting the event, matching Apple's documented retry
+  // kit to silently ACK the upstream request with 200 without storing or
+  // reapplying the lifecycle transition, matching Apple's documented retry
   // expectation and Google's at-least-once Pub/Sub contract.
   // `projectId` is optional during the rollout so already-written
   // rows still validate; new inserts always populate it.
@@ -675,9 +663,9 @@ const schema = defineSchema({
     .index("by_first_seen_at", ["firstSeenAt"]),
 
   // Authoritative per-(project, originalTransactionId) subscription record.
-  // Mirrors the spec from `packages/gql/src/webhook.graphql` and the role
-  // played by onesub's `onesub_subscriptions` table. State transitions are
-  // driven by webhook events through `applySubscriptionEvent`.
+  // Follows the inbound lifecycle mapping in
+  // `knowledge/external/webhook-mapping.md`. State transitions are driven by
+  // internal webhook events through `applySubscriptionEvent`.
   //
   // Why per-`originalTransactionId` (Apple) / `purchaseToken` (Google) and
   // not per-`(userId, productId)`: a single user can hold multiple historical

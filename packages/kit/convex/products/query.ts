@@ -1,6 +1,6 @@
-import { query } from "../_generated/server";
+import { query, type QueryCtx } from "../_generated/server";
 import { ConvexError, v, type Infer } from "convex/values";
-import type { Doc } from "../_generated/dataModel";
+import type { Doc, Id } from "../_generated/dataModel";
 
 import {
   resolveProjectByApiKeyFromDb,
@@ -40,6 +40,18 @@ const clientPayloadEditorStateShape = v.object({
   expectedVersion: v.number(),
   clientPayload: v.optional(clientPayloadShape),
 });
+const conditionalClientPayloadShape = v.union(
+  v.object({
+    status: v.literal("found"),
+    clientPayload: clientPayloadShape,
+  }),
+  v.object({
+    status: v.literal("not_modified"),
+    version: v.number(),
+  }),
+  v.object({ status: v.literal("not_found") }),
+);
+type ClientPayloadEditorState = Infer<typeof clientPayloadEditorStateShape>;
 
 export const DEFAULT_CLIENT_PAYLOAD_PAGE_SIZE = 25;
 export const MAX_CLIENT_PAYLOAD_PAGE_SIZE = 50;
@@ -176,6 +188,74 @@ export const getProductClientPayload = query({
 });
 
 /**
+ * App-facing conditional payload read. The body-free summary is checked before
+ * the 16 KiB payload row, so a matching ETag still authenticates and verifies
+ * catalog visibility but avoids reading or returning the body document.
+ */
+export const getProductClientPayloadIfChanged = query({
+  args: {
+    apiKey: v.string(),
+    platform: platformValidator,
+    productId: v.string(),
+    knownVersion: v.optional(v.number()),
+  },
+  returns: conditionalClientPayloadShape,
+  handler: async (ctx, args) => {
+    const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
+    if (!resolved) return { status: "not_found" } as const;
+
+    const product = await ctx.db
+      .query("products")
+      .withIndex("by_project_and_platform_and_product", (q) =>
+        q
+          .eq("projectId", resolved.project._id)
+          .eq("platform", args.platform)
+          .eq("productId", args.productId),
+      )
+      .unique();
+    if (!product || product.state === "Removed") {
+      return { status: "not_found" } as const;
+    }
+
+    const summary = await ctx.db
+      .query("productClientPayloadSummaries")
+      .withIndex("by_project_and_platform_and_product", (q) =>
+        q
+          .eq("projectId", resolved.project._id)
+          .eq("platform", args.platform)
+          .eq("productId", args.productId),
+      )
+      .unique();
+    if (summary?.deleted === true) {
+      return { status: "not_found" } as const;
+    }
+    if (
+      summary &&
+      args.knownVersion !== undefined &&
+      summary.version === args.knownVersion
+    ) {
+      return { status: "not_modified", version: summary.version } as const;
+    }
+
+    const payload = await ctx.db
+      .query("productClientPayloads")
+      .withIndex("by_project_and_platform_and_product", (q) =>
+        q
+          .eq("projectId", resolved.project._id)
+          .eq("platform", args.platform)
+          .eq("productId", args.productId),
+      )
+      .unique();
+    return payload
+      ? ({
+          status: "found",
+          clientPayload: shapeClientPayload(payload),
+        } as const)
+      : ({ status: "not_found" } as const);
+  },
+});
+
+/**
  * Authenticated editor read that exposes the durable OCC revision without
  * exposing tombstone metadata or bodies to API-key clients. A deleted payload
  * returns no `clientPayload`, but its monotonic `expectedVersion` lets the next
@@ -195,38 +275,79 @@ export const getProductClientPayloadEditorState = query({
     );
     if (!resolved) return null;
 
-    const [payload, summary] = await Promise.all([
-      ctx.db
-        .query("productClientPayloads")
-        .withIndex("by_project_and_platform_and_product", (q) =>
-          q
-            .eq("projectId", resolved.project._id)
-            .eq("platform", args.platform)
-            .eq("productId", args.productId),
-        )
-        .unique(),
-      ctx.db
-        .query("productClientPayloadSummaries")
-        .withIndex("by_project_and_platform_and_product", (q) =>
-          q
-            .eq("projectId", resolved.project._id)
-            .eq("platform", args.platform)
-            .eq("productId", args.productId),
-        )
-        .unique(),
-    ]);
-    const expectedVersion = Math.max(
-      payload?.version ?? 0,
-      summary?.version ?? 0,
+    return loadProductClientPayloadEditorState(
+      ctx,
+      resolved.project._id,
+      args.platform,
+      args.productId,
     );
-    return {
-      expectedVersion,
-      ...(payload && summary?.deleted !== true
-        ? { clientPayload: shapeClientPayload(payload) }
-        : {}),
-    };
   },
 });
+
+/**
+ * Secret-key equivalent of the dashboard editor read. This lets MCP, CI, and
+ * other trusted automation recover the durable OCC revision after deletion.
+ */
+export const getProductClientPayloadEditorStateWithApiKey = query({
+  args: {
+    apiKey: v.string(),
+    platform: platformValidator,
+    productId: v.string(),
+  },
+  returns: v.union(clientPayloadEditorStateShape, v.null()),
+  handler: async (ctx, args) => {
+    const resolved = await resolveProjectByApiKeyFromDb(
+      ctx,
+      args.apiKey,
+      "admin",
+    );
+    if (!resolved) return null;
+    return loadProductClientPayloadEditorState(
+      ctx,
+      resolved.project._id,
+      args.platform,
+      args.productId,
+    );
+  },
+});
+
+async function loadProductClientPayloadEditorState(
+  ctx: QueryCtx,
+  projectId: Id<"projects">,
+  platform: "IOS" | "Android",
+  productId: string,
+): Promise<ClientPayloadEditorState> {
+  const [payload, summary] = await Promise.all([
+    ctx.db
+      .query("productClientPayloads")
+      .withIndex("by_project_and_platform_and_product", (q) =>
+        q
+          .eq("projectId", projectId)
+          .eq("platform", platform)
+          .eq("productId", productId),
+      )
+      .unique(),
+    ctx.db
+      .query("productClientPayloadSummaries")
+      .withIndex("by_project_and_platform_and_product", (q) =>
+        q
+          .eq("projectId", projectId)
+          .eq("platform", platform)
+          .eq("productId", productId),
+      )
+      .unique(),
+  ]);
+  const expectedVersion = Math.max(
+    payload?.version ?? 0,
+    summary?.version ?? 0,
+  );
+  return {
+    expectedVersion,
+    ...(payload && summary?.deleted !== true
+      ? { clientPayload: shapeClientPayload(payload) }
+      : {}),
+  };
+}
 
 /**
  * Body-free metadata for the authenticated dashboard. Payload summaries live
@@ -270,6 +391,13 @@ function assertClientPayloadPageArgs(args: {
       message: "platform is required when includeClientPayload=true",
     });
   }
+  assertProductPageArgs(args);
+}
+
+function assertProductPageArgs(args: {
+  limit?: number;
+  cursor?: string;
+}): void {
   if (
     args.limit !== undefined &&
     (!Number.isSafeInteger(args.limit) ||
@@ -324,6 +452,56 @@ export const listProducts = query({
           .collect();
 
     return rows.map((row) => shape(row));
+  },
+});
+
+/**
+ * Bounded app/API-facing catalog read. Dashboard code keeps using listProducts
+ * because its authenticated project view needs the complete operator table;
+ * mobile/API callers must paginate so one public request cannot collect an
+ * unbounded catalog.
+ */
+export const listProductsPage = query({
+  args: {
+    apiKey: v.string(),
+    platform: v.optional(platformValidator),
+    limit: v.optional(v.number()),
+    cursor: v.optional(v.string()),
+  },
+  returns: v.object({
+    products: v.array(productShape),
+    hasMore: v.boolean(),
+    nextCursor: v.optional(v.string()),
+  }),
+  handler: async (ctx, args) => {
+    assertProductPageArgs(args);
+    const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
+    if (!resolved) return { products: [], hasMore: false };
+
+    const page = await (
+      args.platform
+        ? ctx.db
+            .query("products")
+            .withIndex("by_project_and_platform", (q) =>
+              q
+                .eq("projectId", resolved.project._id)
+                .eq("platform", args.platform!),
+            )
+        : ctx.db
+            .query("products")
+            .withIndex("by_project_and_platform_and_product", (q) =>
+              q.eq("projectId", resolved.project._id),
+            )
+    ).paginate({
+      numItems: args.limit ?? DEFAULT_CLIENT_PAYLOAD_PAGE_SIZE,
+      cursor: args.cursor ?? null,
+    });
+
+    return {
+      products: page.page.map((row) => shape(row)),
+      hasMore: !page.isDone,
+      ...(!page.isDone ? { nextCursor: page.continueCursor } : {}),
+    };
   },
 });
 

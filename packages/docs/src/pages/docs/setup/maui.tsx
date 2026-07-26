@@ -305,17 +305,18 @@ await mutate.RequestPurchaseAsync(new RequestPurchaseProps
           </p>
         </div>
 
-        <h3 id="iapkit-api-webhooks" className="anchor-heading">
-          IAPKit API and Webhooks
-          <a href="#iapkit-api-webhooks" className="anchor-link">
+        <h3 id="iapkit-api" className="anchor-heading">
+          IAPKit API
+          <a href="#iapkit-api" className="anchor-link">
             #
           </a>
         </h3>
         <p>
           The MAUI package exposes the same IAPKit helper surface as the
           JavaScript SDKs: create a kit client for status, entitlements, and
-          bind-user calls, and open the webhook SSE stream from the library
-          instead of hand-rolling the HTTP stream in the app.
+          bind-user calls. These app-facing calls use the publishable key. Store
+          lifecycle webhooks flow into IAPKit only; there is no outbound webhook
+          stream in the MAUI package.
         </p>
         <CodeBlock language="csharp">
           {`using OpenIap;
@@ -323,22 +324,13 @@ using OpenIap.Maui;
 
 var kit = OpenIapClient.KitApi(new KitApiOptions
 {
-    ApiKey = "openiap-kit_<your-key>",
+    ApiKey = "openiap-kit_pk_<your-publishable-key>",
     BaseUrl = "https://kit.openiap.dev",
 });
 
 StatusResponse status = await kit.StatusAsync("user_123");
 EntitlementsResponse entitlements = await kit.EntitlementsAsync("user_123");
-BindUserResponse bind = await kit.BindUserAsync(purchase.PurchaseToken!, "user_123");
-
-using WebhookListener listener = OpenIapClient.ConnectWebhookStream(new WebhookListenerOptions
-{
-    ApiKey = "openiap-kit_<your-key>",
-    OnEvent = webhookEvent => Console.WriteLine(webhookEvent.Type),
-    OnError = error => Console.WriteLine($"{error.Code}: {error.Message}"),
-});
-
-ParsedWebhookEventResult parsed = OpenIapClient.ParseWebhookEventData(rawSseData);`}
+BindUserResponse bind = await kit.BindUserAsync(purchase.PurchaseToken!, "user_123");`}
         </CodeBlock>
 
         <h3 id="cleanup" className="anchor-heading">
@@ -371,7 +363,7 @@ await mutate.EndConnectionAsync();`}
           <code>libraries/maui-iap/example/OpenIap.Maui.Example</code>. It
           mirrors the Expo example screens: Home, All Products, In-App Purchase
           Flow, Subscription Flow, Available Purchases, Offer Code, Alternative
-          Billing, and Webhook Stream.
+          Billing.
         </p>
         <CodeBlock language="bash">
           {`# From the OpenIAP repo root:

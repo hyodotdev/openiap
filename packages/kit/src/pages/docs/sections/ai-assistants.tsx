@@ -90,8 +90,8 @@ export default function AiAssistantsPage() {
       <p>
         Codex and Claude Code can use IAPKit as an MCP-backed plugin through{" "}
         <code>https://kit.openiap.dev/mcp</code>. The plugin uses your IAPKit
-        project API key, not an OpenAI, ChatGPT, Anthropic, or Claude API key.
-        See the{" "}
+        secret admin key, not the app&apos;s publishable key and not an OpenAI,
+        ChatGPT, Anthropic, or Claude API key. See the{" "}
         <Link
           to="/docs/ai-assistants/codex-plugin"
           className="text-primary underline"

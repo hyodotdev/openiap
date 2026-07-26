@@ -77,14 +77,7 @@ const operationFieldsByRoot = new Map(
     operation.fields.map(({ name }) => name).filter((name) => name !== '_placeholder'),
   ]),
 );
-// Preserve the published TypeScript order for webhook string unions. Those
-// unions historically use graphql-codegen's deterministic ordering rather
-// than SDL order; changing the shared schema inventory must not churn a public
-// generated contract. Deprecation and ownership scans still cover webhook.
-const enumOrderSchemaFiles = new Set(
-  SCHEMA_FILE_NAMES.filter((fileName) => fileName !== 'webhook.graphql').map((fileName) => resolve(__dirname, `../src/${fileName}`)),
-);
-const webhookEnumNames = new Set();
+const enumOrderSchemaFiles = new Set(SCHEMA_FILE_NAMES.map((fileName) => resolve(__dirname, `../src/${fileName}`)));
 
 let content = readFileSync(targetPath, 'utf8');
 
@@ -118,11 +111,6 @@ for (const schemaPath of schemaDefinitionFiles) {
   const sdl = schemaDefinitionSources.get(schemaPath);
   const document = parse(sdl, { noLocation: true });
   for (const definition of document.definitions) {
-    if (definition.kind === 'EnumTypeDefinition' || definition.kind === 'EnumTypeExtension') {
-      if (!enumOrderSchemaFiles.has(schemaPath)) {
-        webhookEnumNames.add(definition.name.value);
-      }
-    }
     if (enumOrderSchemaFiles.has(schemaPath) && 'name' in definition && definition.name) {
       if (definition.kind === 'EnumTypeDefinition' || definition.kind === 'EnumTypeExtension') {
         const name = definition.name.value;
@@ -537,7 +525,7 @@ content = content.replace(/(?:\r?\n){3,}(?=export )/g, '\n\n');
 const enumContracts = new Map(
   irSchema.enums.map((irEnum) => {
     const values = irEnum.values.map(({ rawValue }) => rawValue);
-    return [irEnum.name, irEnum.name === 'ErrorCode' || webhookEnumNames.has(irEnum.name) ? values.sort() : values];
+    return [irEnum.name, irEnum.name === 'ErrorCode' ? values.sort() : values];
   }),
 );
 requireGeneratedEnumContracts(content, enumContracts);

@@ -205,7 +205,7 @@ async function getProjectForActionArgs(
   }
 
   if (args.apiKey !== undefined) {
-    return await getProjectByApiKey(ctx, args.apiKey);
+    return await getProjectByApiKey(ctx, args.apiKey, "admin");
   }
 
   throw new Error("apiKey or projectId is required");

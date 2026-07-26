@@ -110,6 +110,20 @@ openiap/src/
 
 ## Dependency Flow
 
+### IAPKit webhook boundary
+
+The only allowed webhook direction is from a store into IAPKit:
+
+```text
+Apple ASN v2 / Google RTDN ──► IAPKit state
+```
+
+IAPKit must not expose a server-to-mobile webhook stream, SSE endpoint,
+WebSocket, push relay, or long-poll lifecycle feed. Mobile packages and
+framework libraries use bounded request/response verification and scoped reads.
+If an app needs immediate push delivery, its authenticated backend owns that
+policy and transport.
+
 ```
 ┌─────────────┐
 │  packages/  │

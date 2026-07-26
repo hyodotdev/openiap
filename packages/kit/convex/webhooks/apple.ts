@@ -147,7 +147,7 @@ export const ingestAppleAsnIOS = action({
     } catch (error) {
       if (error instanceof WebhookNormalizationError) {
         // Selective handling: only `UnknownEventType` is "Apple ships
-        // new types ahead of openiap spec" — those we ACK as 200 so
+        // new types ahead of IAPKit's internal mapping" — those we ACK as 200 so
         // ASN v2 stops retrying. `MissingNotificationId` and
         // `MissingPurchaseToken` mean the payload itself is malformed
         // — those must surface as 400 so the operator notices, and

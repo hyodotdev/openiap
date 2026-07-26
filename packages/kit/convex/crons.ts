@@ -56,12 +56,9 @@ crons.interval(
   {},
 );
 
-// Prune webhook events older than the 30-day retention window so the
-// `webhookEventsSince` backfill query stays bounded. Runs hourly with
-// a small per-tick batch size — webhook traffic is low-volume per
-// project so even a tight batch keeps the table from growing
-// unbounded. Matches the retention promise documented in
-// `packages/gql/src/webhook.graphql`.
+// Prune webhook events older than the 30-day retention window. Runs hourly
+// with a small per-tick batch size so stored lifecycle history and analytics
+// reads remain bounded.
 crons.interval(
   "prune webhook events past retention",
   { hours: 1 },

@@ -13,9 +13,11 @@ vi.mock("../projects/helpers", () => ({
 
 import {
   getProductClientPayload as registeredGetProductClientPayload,
+  getProductClientPayloadIfChanged as registeredGetProductClientPayloadIfChanged,
   getProductClientPayloadEditorState as registeredGetProductClientPayloadEditorState,
   listProductClientPayloadSummaries as registeredListProductClientPayloadSummaries,
   listProducts as registeredListProducts,
+  listProductsPage as registeredListProductsPage,
   listProductsWithClientPayloads as registeredListProductsWithClientPayloads,
 } from "./query";
 import { deletePlatformCatalog as registeredDeletePlatformCatalog } from "./sync";
@@ -25,6 +27,9 @@ const deletePlatformCatalog = testableFunction(registeredDeletePlatformCatalog);
 const getProductClientPayload = testableFunction(
   registeredGetProductClientPayload,
 );
+const getProductClientPayloadIfChanged = testableFunction(
+  registeredGetProductClientPayloadIfChanged,
+);
 const getProductClientPayloadEditorState = testableFunction(
   registeredGetProductClientPayloadEditorState,
 );
@@ -32,6 +37,7 @@ const listProductClientPayloadSummaries = testableFunction(
   registeredListProductClientPayloadSummaries,
 );
 const listProducts = testableFunction(registeredListProducts);
+const listProductsPage = testableFunction(registeredListProductsPage);
 const listProductsWithClientPayloads = testableFunction(
   registeredListProductsWithClientPayloads,
 );
@@ -190,6 +196,81 @@ describe("product client payload queries", () => {
     expect(rows[0]).not.toHaveProperty("clientPayload");
     expect(db.queryCounts.get("products")).toBe(1);
     expect(db.queryCounts.get("productClientPayloads")).toBeUndefined();
+  });
+
+  it("bounds the app-facing default catalog without payload body reads", async () => {
+    const products = Array.from({ length: 51 }, (_, index) =>
+      product(`p${index}`, "IOS", `product_${index}`),
+    );
+    const db = new TestDb({
+      products,
+      productClientPayloads: products.map((row, index) =>
+        payload(`m${index}`, "IOS", String(row.productId), `body ${index}`),
+      ),
+    });
+
+    const page = await listProductsPage._handler(
+      { db },
+      { apiKey: "key", platform: "IOS", limit: 50 },
+    );
+    expect(page.products).toHaveLength(50);
+    expect(page).toMatchObject({ hasMore: true, nextCursor: "50" });
+    expect(db.queryCounts.get("productClientPayloads")).toBeUndefined();
+
+    await expect(
+      listProductsPage._handler(
+        { db },
+        { apiKey: "key", platform: "IOS", limit: 51 },
+      ),
+    ).rejects.toSatisfy(
+      (error: unknown) =>
+        (error as { data?: { code?: string } }).data?.code === "INVALID_INPUT",
+    );
+  });
+
+  it("uses body-free summaries for conditional payload reads", async () => {
+    const tables = {
+      products: [product("p1", "IOS", "premium")],
+      productClientPayloads: [payload("m1", "IOS", "premium", "rules")],
+      productClientPayloadSummaries: [summary("s1", "IOS", "premium")],
+    };
+    const unchangedDb = new TestDb(tables);
+    await expect(
+      getProductClientPayloadIfChanged._handler(
+        { db: unchangedDb },
+        {
+          apiKey: "key",
+          platform: "IOS",
+          productId: "premium",
+          knownVersion: 2,
+        },
+      ),
+    ).resolves.toEqual({ status: "not_modified", version: 2 });
+    expect(
+      unchangedDb.queryCounts.get("productClientPayloads"),
+    ).toBeUndefined();
+
+    const changedDb = new TestDb(tables);
+    await expect(
+      getProductClientPayloadIfChanged._handler(
+        { db: changedDb },
+        {
+          apiKey: "key",
+          platform: "IOS",
+          productId: "premium",
+          knownVersion: 1,
+        },
+      ),
+    ).resolves.toEqual({
+      status: "found",
+      clientPayload: {
+        format: "text",
+        body: "rules",
+        version: 2,
+        updatedAt: 20,
+      },
+    });
+    expect(changedDb.queryCounts.get("productClientPayloads")).toBe(1);
   });
 
   it("pages before exact payload-body lookups and returns an opaque next cursor", async () => {

@@ -6,12 +6,10 @@ imports the generated [`Types.cs`](src/OpenIap.Maui/Types.cs) from
 [`packages/gql`](../../packages/gql), exposes a thin listener contract
 (`IOpenIap`), and delegates the actual purchase work to the OpenIAP
 native packages — `packages/apple` on iOS / macCatalyst, `packages/google`
-on Android. It also exposes the same IAPKit HTTP/webhook helper surface as the
-TypeScript SDKs through `OpenIapClient.KitApi(...)`,
-`OpenIapClient.ConnectWebhookStream(...)`, and
-`OpenIapClient.ParseWebhookEventData(...)`. The legacy `Iap` facade remains as
-a compatibility shim, but new code should use `OpenIapClient` to avoid
-namespace/type collisions with app namespaces such as `OpenIap.Maui.Iap`.
+on Android. It also exposes the app-facing IAPKit HTTP helper surface through
+`OpenIapClient.KitApi(...)`. The legacy `Iap` facade remains as a compatibility
+shim, but new code should use `OpenIapClient` to avoid namespace/type collisions
+with app namespaces such as `OpenIap.Maui.Iap`.
 
 ## Required pre-work
 
@@ -184,7 +182,7 @@ For maui-iap specifically:
 | 2. Public API exposed | `OpenIap.QueryResolver` / `OpenIap.MutationResolver` (in `Types.cs`) |
 | 3. Platform bridge    | `Platforms/Android/OpenIapAndroid.cs`, `Platforms/iOS/OpenIapIOS.cs` |
 | 4. Handlers wired     | Concrete platform classes implement the resolver interfaces          |
-| 5. Test coverage      | `tests/OpenIap.Maui.Tests` (xUnit, net9.0) covers Types.cs serialization, the error mapper, webhook parsing, and the `KitApiClient` HTTP contract; `tests/OpenIap.Maui.ContractTests` keeps the dependency-free net9/net10 runner used by release-maui.yml; platform purchase flows remain example/manual coverage |
+| 5. Test coverage      | `tests/OpenIap.Maui.Tests` (xUnit, net9.0) covers Types.cs serialization, the error mapper, and the `KitApiClient` HTTP contract; `tests/OpenIap.Maui.ContractTests` keeps the dependency-free net9/net10 runner used by release-maui.yml; platform purchase flows remain example/manual coverage |
 
 ## Build & test
 

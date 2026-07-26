@@ -163,10 +163,10 @@ X-RateLimit-Remaining: 599`}
         stop before upstream store calls or Convex mutations.
       </p>
       <p>
-        The 64 KB product-management limit applies to the entire HTTP request,
-        including JSON field names and every supplied value. It is not a
-        per-product custom metadata allowance. A client payload body has its own
-        16 KiB UTF-8 limit.
+        The general 64 KB product-management limit applies to the entire HTTP
+        request, including JSON field names and every supplied value. Client
+        payload writes use a bounded 128 KiB envelope so a fully JSON-escaped
+        body can still reach its separate 16 KiB decoded UTF-8 limit.
       </p>
     </DocsPage>
   );

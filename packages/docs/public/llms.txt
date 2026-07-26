@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
-> Generated: 2026-07-24T20:57:29.106Z
+> Generated: 2026-07-26T15:39:23.721Z
 
 ## Installation
 
@@ -59,9 +59,8 @@ Current NuGet package version: 1.4.0
 - `godot-iap`: Godot 4.x plugin with GDScript functions and signals.
 - `kmp-iap`: Kotlin Multiplatform API with Flow-based purchase events.
 - `maui-iap`: `OpenIap.Maui` package with `OpenIapClient.Instance`,
-  generated `Types.cs`, IAPKit helpers (`OpenIapClient.KitApi`,
-  `OpenIapClient.ConnectWebhookStream`,
-  `OpenIapClient.ParseWebhookEventData`), flattened OpenIAP-owned iOS
+  generated `Types.cs`, app-facing IAPKit helpers
+  (`OpenIapClient.KitApi`), flattened OpenIAP-owned iOS
   xcframework / Android AAR bindings, Google and AndroidX Android
   dependencies as NuGet package references, and MAUI example flows matching
   `expo-iap`.

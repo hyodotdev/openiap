@@ -73,6 +73,12 @@ export default defineConfig({
   // the dashboard host (5173) and the public API share one origin so
   // operators don't have to remember which port serves which surface.
   server: {
+    // OAuth returns to the exact browser origin that initiated sign-in.
+    // Do not let Vite silently fall forward to 5174 when another Kit dev
+    // process owns 5173: that temporary origin can disappear during the
+    // GitHub round trip and leave the browser on an unreachable callback.
+    port: 5173,
+    strictPort: true,
     proxy: {
       "/v1": {
         target: "http://localhost:3000",

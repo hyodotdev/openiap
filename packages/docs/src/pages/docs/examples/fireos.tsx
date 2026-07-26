@@ -914,7 +914,7 @@ adb shell monkey -p dev.hyo.martie -c android.intent.category.LAUNCHER 1`}</Code
           before recording the verification clip.
         </p>
         <CodeBlock language="properties">{`# packages/google/local.properties
-iapkit.api.key=openiap-kit_<your-key>`}</CodeBlock>
+iapkit.api.key=openiap-kit_pk_<your-publishable-key>`}</CodeBlock>
       </section>
 
       <section>

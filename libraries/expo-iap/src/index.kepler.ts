@@ -21,6 +21,8 @@ export {kitApi, KitApiError} from './kit-api';
 export type {
   EntitlementsResponse,
   KitApiOptions,
+  KitClientPayloadCache,
+  KitClientPayloadOptions,
   KitClientPayloadResponse,
   KitProduct,
   KitProductClientPayload,
@@ -31,7 +33,6 @@ export type {
   KitSubscription,
   StatusResponse,
 } from './kit-api';
-export {connectWebhookStream, parseWebhookEventData} from './webhook-client';
 
 export enum OpenIapEvent {
   PurchaseUpdated = 'purchase-updated',

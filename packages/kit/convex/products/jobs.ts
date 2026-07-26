@@ -69,7 +69,7 @@ const directionValidator = v.union(
   v.literal("purge-local"),
 );
 
-// Auth gate: presence of a valid `apiKey` is sufficient (matches the
+// Auth gate: presence of a valid secret `apiKey` is sufficient (matches the
 // existing pattern in `products/mutation.ts upsertProduct` and the
 // HTTP routes in `server/api/v1/products.ts`). The dashboard call
 // path is also authenticated via Convex Auth — when a logged-in
@@ -82,7 +82,7 @@ async function resolveProjectByApiKey(
   ctx: QueryCtx | MutationCtx,
   apiKey: string,
 ): Promise<{ project: Doc<"projects">; userId: Id<"users"> | null }> {
-  const resolved = await resolveProjectByApiKeyFromDb(ctx, apiKey);
+  const resolved = await resolveProjectByApiKeyFromDb(ctx, apiKey, "admin");
   const project = resolved?.project ?? null;
   if (!project) {
     throw createError(ErrorCode.PROJECT_NOT_FOUND);
@@ -95,7 +95,7 @@ async function resolveProjectByApiKey(
   }
   // Best-effort membership confirmation when a user IS present
   // — refuse to honor a logged-in user calling another org's
-  // apiKey. Without a logged-in user we trust the apiKey as the
+  // apiKey. Without a logged-in user we trust the secret apiKey as the
   // sole credential (server-side caller, MCP tool, SDK).
   if (userId) {
     const membership = await ctx.db

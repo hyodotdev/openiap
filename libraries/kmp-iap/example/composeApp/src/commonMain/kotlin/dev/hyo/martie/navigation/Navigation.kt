@@ -16,7 +16,6 @@ sealed class Screen(val route: String) {
     object AvailablePurchases : Screen("available-purchases")
     object OfferCode : Screen("offer-code")
     object AlternativeBilling : Screen("alternative-billing")
-    object WebhookStream : Screen("webhook-stream")
 }
 
 @Composable
@@ -47,9 +46,6 @@ fun AppNavigation(
         }
         composable(Screen.AlternativeBilling.route) {
             AlternativeBillingScreen(navController)
-        }
-        composable(Screen.WebhookStream.route) {
-            WebhookStreamScreen(navController)
         }
     }
 }

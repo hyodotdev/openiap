@@ -41,19 +41,24 @@ export default function ApiReferencePage() {
       </p>
 
       <h2 className="mt-8 text-2xl font-semibold">Authentication</h2>
-      <p>Every purchase-verification request must include a Bearer API key:</p>
+      <p>
+        Every purchase-verification request must include a publishable Bearer
+        API key:
+      </p>
       <CodeBlock title="Authorization header" language="http">
-        {`Authorization: Bearer openiap-kit_<your-key>`}
+        {`Authorization: Bearer openiap-kit_pk_<your-publishable-key>`}
       </CodeBlock>
       <p>
         Missing header → <code>401 MISSING_API_KEY</code>. Wrong scheme or
         malformed key → <code>403 INVALID_API_KEY</code>.
       </p>
       <p>
-        In the default mobile-direct flow, your app sends this key to IAPKit as
-        the managed validation service. If you proxy calls through your own
-        backend instead, keep the key server-side and call the same endpoint
-        from there.
+        In the default mobile-direct flow, your app sends the restricted
+        publishable key to IAPKit as the managed validation service. A secret
+        key is unnecessary for verification and must never be embedded in a
+        mobile app. If you proxy calls through your own backend, that backend
+        can still use a publishable key unless it also performs administrative
+        operations.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">
@@ -196,12 +201,18 @@ export default function ApiReferencePage() {
       </h2>
       <p>
         Subscription state endpoints such as{" "}
-        <code>GET /v1/subscriptions/list/{"{apiKey}"}</code> keep the legacy{" "}
+        <code>GET /v1/subscriptions/list</code> keep the legacy{" "}
         <code>purchaseToken</code> field for the stable store identity. On
         Google this is the Play purchase token. On iOS this is the StoreKit{" "}
         <code>originalTransactionId</code> (falling back to{" "}
         <code>transactionId</code>), not the raw JWS. iOS rows also expose{" "}
         <code>originalTransactionId</code> explicitly.
+      </p>
+      <p>
+        Administrative subscription endpoints use{" "}
+        <code>Authorization: Bearer openiap-kit_sk_...</code>. Compatibility
+        routes with a key in the path remain available, but new server-side and
+        MCP integrations should keep secret keys out of URLs.
       </p>
       <CodeBlock title="iOS subscription row" language="json">
         {`{
@@ -354,6 +365,15 @@ export default function ApiReferencePage() {
               <td className="px-3 py-2 font-mono text-xs">401</td>
               <td className="px-3 py-2 font-mono text-xs">MISSING_API_KEY</td>
               <td className="px-3 py-2">No Authorization header.</td>
+            </tr>
+            <tr>
+              <td className="px-3 py-2 font-mono text-xs">403</td>
+              <td className="px-3 py-2 font-mono text-xs">
+                INSUFFICIENT_SCOPE
+              </td>
+              <td className="px-3 py-2">
+                Publishable key used for an administrative operation.
+              </td>
             </tr>
             <tr>
               <td className="px-3 py-2 font-mono text-xs">403</td>

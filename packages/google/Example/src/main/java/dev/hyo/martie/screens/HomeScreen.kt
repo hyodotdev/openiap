@@ -190,17 +190,6 @@ fun HomeScreen(navController: NavController) {
                     )
                 }
 
-                item {
-                    FeatureCard(
-                        title = "Webhook\nStream",
-                        subtitle = "IAPKit SSE events",
-                        icon = Icons.Default.Notifications,
-                        color = AppColors.info,
-                        onClick = {
-                            navController.navigate("webhook_stream")
-                        }
-                    )
-                }
             }
             
             // Testing Notes Card

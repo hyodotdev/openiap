@@ -411,7 +411,8 @@ id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreServ
         <CodeBlock language="typescript">{`await verifyPurchaseWithProvider({
   provider: 'iapkit',
   iapkit: {
-    apiKey: process.env.EXPO_PUBLIC_IAPKIT_API_KEY,
+    // Use an openiap-kit_pk_ publishable key in the app.
+    apiKey: process.env.EXPO_PUBLIC_IAPKIT_PUBLISHABLE_KEY,
     amazon: {
       userId: amazonUserId,
       receiptId,

@@ -4,6 +4,10 @@ import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 
+import {
+  INSUFFICIENT_API_KEY_SCOPE_MESSAGE,
+  isPublishableApiKey,
+} from "./auth.js";
 import { createIapKitMcpServer } from "./mcp.js";
 
 const MAX_MCP_BODY_BYTES = 1024 * 1024;
@@ -42,6 +46,17 @@ export function createIapKitWebMcpHandler(
         return withCors(
           request,
           new Response(null, { status: 204 }),
+          allowedOrigins,
+        );
+      }
+
+      const bearerToken = parseBearerToken(
+        request.headers.get("authorization"),
+      );
+      if (isPublishableApiKey(bearerToken)) {
+        return withCors(
+          request,
+          jsonRpcError(403, -32003, INSUFFICIENT_API_KEY_SCOPE_MESSAGE),
           allowedOrigins,
         );
       }

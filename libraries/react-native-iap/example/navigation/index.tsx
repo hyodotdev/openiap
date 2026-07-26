@@ -8,7 +8,6 @@ import SubscriptionFlow from '../screens/SubscriptionFlow';
 import AvailablePurchases from '../screens/AvailablePurchases';
 import OfferCode from '../screens/OfferCode';
 import AlternativeBilling from '../screens/AlternativeBilling';
-import WebhookStream from '../screens/WebhookStream';
 
 export type RootStackParamList = {
   Home: undefined;
@@ -18,7 +17,6 @@ export type RootStackParamList = {
   AvailablePurchases: undefined;
   OfferCode: undefined;
   AlternativeBilling: undefined;
-  WebhookStream: undefined;
 };
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -61,11 +59,6 @@ export default function AppNavigator() {
           name="AlternativeBilling"
           component={AlternativeBilling}
           options={{title: 'Alternative Billing'}}
-        />
-        <Stack.Screen
-          name="WebhookStream"
-          component={WebhookStream}
-          options={{title: 'Webhook Stream'}}
         />
       </Stack.Navigator>
     </NavigationContainer>

@@ -7,5 +7,6 @@ sdk.dir=/path/to/your/Android/sdk
 # Horizon OS App ID (Meta Quest)
 horizon.app.id=YOUR_HORIZON_APP_ID
 
-# IAPKit API Key for purchase verification
-iapkit.api.key=YOUR_IAPKIT_API_KEY_HERE
+# IAPKit publishable key for mobile purchase verification.
+# Never put an openiap-kit_sk_ secret admin key in an app build.
+iapkit.api.key=openiap-kit_pk_your_publishable_key_here

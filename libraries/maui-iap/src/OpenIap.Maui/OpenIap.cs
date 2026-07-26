@@ -24,7 +24,6 @@
 #nullable enable
 
 using System;
-using System.Collections.Generic;
 using System.ComponentModel;
 using System.Threading.Tasks;
 using OpenIap;
@@ -133,25 +132,6 @@ public static class OpenIapClient
     /// </summary>
     public static KitApiClient KitApi(KitApiOptions options) => new(options);
 
-    /// <summary>
-    /// Connect to OpenIAP kit's SSE webhook stream. Mirrors the JavaScript
-    /// <c>connectWebhookStream(...)</c> helper.
-    /// </summary>
-    public static WebhookListener ConnectWebhookStream(WebhookListenerOptions options)
-        => WebhookClient.ConnectWebhookStream(options);
-
-    /// <summary>
-    /// Known OpenIAP kit webhook event types. Mirrors the JavaScript
-    /// <c>WEBHOOK_EVENT_TYPES</c> export.
-    /// </summary>
-    public static IReadOnlyList<WebhookEventType> WebhookEventTypes => WebhookClient.WebhookEventTypes;
-
-    /// <summary>
-    /// Parse a raw SSE <c>data:</c> payload into a typed webhook event. Mirrors
-    /// the JavaScript <c>parseWebhookEventData(...)</c> helper.
-    /// </summary>
-    public static ParsedWebhookEventResult ParseWebhookEventData(string raw)
-        => WebhookClient.ParseWebhookEventData(raw);
 }
 
 /// <summary>
@@ -175,17 +155,6 @@ public static class Iap
     public static KitApiClient KitApi(KitApiOptions options)
         => OpenIapClient.KitApi(options);
 
-    /// <inheritdoc cref="OpenIapClient.ConnectWebhookStream(WebhookListenerOptions)"/>
-    public static WebhookListener ConnectWebhookStream(WebhookListenerOptions options)
-        => OpenIapClient.ConnectWebhookStream(options);
-
-    /// <inheritdoc cref="OpenIapClient.WebhookEventTypes"/>
-    public static IReadOnlyList<WebhookEventType> WebhookEventTypes
-        => OpenIapClient.WebhookEventTypes;
-
-    /// <inheritdoc cref="OpenIapClient.ParseWebhookEventData(string)"/>
-    public static ParsedWebhookEventResult ParseWebhookEventData(string raw)
-        => OpenIapClient.ParseWebhookEventData(raw);
 }
 
 /// <summary>

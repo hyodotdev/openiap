@@ -185,8 +185,8 @@ export function applySubscriptionTransition(
       };
     case "SubscriptionCanceled":
       // User turned off auto-renew but access continues until expiry.
-      // We keep `state: "Active"` (matches the spec note in
-      // `webhook.graphql` and onesub's behavior) and just flip willRenew.
+      // We keep `state: "Active"` (matches the inbound lifecycle mapping in
+      // `knowledge/external/webhook-mapping.md`) and just flip willRenew.
       return {
         next: carryForward({
           state:

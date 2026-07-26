@@ -149,8 +149,9 @@ export default function Projects() {
       setRevealedApiKey({
         name: "Default Production Key",
         key: result.apiKey,
+        keyType: "publishable",
       });
-      toast.success("Project created. Copy the default production key below.");
+      toast.success("Project created. Copy the publishable key below.");
     } catch {
       toast.error("Failed to create project");
     } finally {

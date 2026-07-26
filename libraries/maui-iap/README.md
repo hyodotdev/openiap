@@ -94,7 +94,7 @@ using OpenIap.Maui;
 
 var kit = OpenIapClient.KitApi(new KitApiOptions
 {
-    ApiKey = "iapkit_...",
+    ApiKey = "openiap-kit_pk_<your-publishable-key>",
     BaseUrl = "https://kit.openiap.dev",
 });
 
@@ -120,22 +120,11 @@ var payload = await kit.ClientPayloadAsync(
     "premium.monthly",
     KitProductPlatform.IOS);
 await kit.BindUserAsync(purchaseToken: "token", userId: "user-123");
-
-using var listener = OpenIapClient.ConnectWebhookStream(new WebhookListenerOptions
-{
-    ApiKey = "iapkit_...",
-    OnEvent = webhookEvent =>
-    {
-        Console.WriteLine($"{webhookEvent.Type.ToJson()}: {webhookEvent.ProductId}");
-    },
-    OnError = error =>
-    {
-        Console.WriteLine($"{error.Code}: {error.Message}");
-    },
-});
-
-ParsedWebhookEventResult parsed = OpenIapClient.ParseWebhookEventData(rawSseData);
 ```
+
+Publishable keys are intentionally app-readable. Never embed an
+`openiap-kit_sk_` secret key in a shipped app; reserve it for trusted backends,
+CI, and MCP administration.
 
 Client payloads are public app-readable metadata. Keep secrets and server-only
 rules out of them; catalog responses omit payload bodies unless explicitly
@@ -143,6 +132,10 @@ requested. Payload-inclusive catalog reads require a platform and return
 bounded cursor pages (`HasMore` / `NextCursor`). `Limit` and `Cursor` are
 ignored by the legacy non-payload catalog path. If catalog churn returns
 `INVALID_CURSOR`, restart without `Cursor`.
+
+IAPKit accepts store-to-server lifecycle webhooks but does not expose an
+outbound event stream to MAUI or other mobile SDKs. Apps should use purchase
+verification, scoped entitlement reads, and bounded lifecycle refreshes.
 
 ## Example app
 

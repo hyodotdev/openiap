@@ -189,7 +189,7 @@ export const ingestGoogleRtdn = action({
       if (error instanceof WebhookNormalizationError) {
         // Only `UnknownEventType` is "unsupported but well-formed" —
         // ACK with a 200-class so Pub/Sub stops re-delivering it (the
-        // SDK gateway has no use for one-off Google notification kinds
+        // IAPKit state model has no transition for one-off notification kinds
         // we don't model). The other two codes
         // (`MissingNotificationId`, `MissingPurchaseToken`) indicate a
         // malformed payload we genuinely cannot route — surface them

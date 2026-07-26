@@ -5,6 +5,8 @@ namespace OpenIap.Maui.Example.Utils;
 
 internal static class IapKitSettings
 {
+    // Mobile verification must use an openiap-kit_pk_ publishable key. Never
+    // place an openiap-kit_sk_ secret admin key in this app configuration.
     private const string ApiKeyPreferenceKey = "openiap.example.iapkit.apiKey";
     private const string BaseUrlPreferenceKey = "openiap.example.iapkit.baseUrl";
     private const string DefaultBaseUrl = "https://kit.openiap.dev";

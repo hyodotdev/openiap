@@ -20,7 +20,7 @@
             "runtimeExecutable": "bash",
             "runtimeArgs": [
                 "-lc",
-                "npx --yes kill-port 3000 5173 || true && rm -rf dist node_modules/.vite && ([ -d ../../node_modules ] || (echo '📦 Installing workspace dependencies...' && cd ../.. && bun install)) && trap 'kill 0' INT TERM EXIT && (bun run dev:convex & bun run dev:server & bun run dev; wait)"
+                "test -f .env.local || { echo '❌ packages/kit/.env.local is missing. Git worktrees do not copy ignored env files; restore the development env before launching Kit.'; exit 1; }; npx --yes kill-port 3000 5173 || true && rm -rf dist node_modules/.vite && ([ -d ../../node_modules ] || (echo '📦 Installing workspace dependencies...' && cd ../.. && bun install)) && bun run dev:all"
             ],
             "cwd": "${workspaceFolder}/packages/kit",
             "console": "integratedTerminal"

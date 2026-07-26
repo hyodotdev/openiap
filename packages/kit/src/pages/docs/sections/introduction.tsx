@@ -34,11 +34,25 @@ export default function IntroductionPage() {
       </p>
       <p>
         IAPKit centralizes those credentials in one place, exposes one API your
-        app calls with a project API key, and harmonizes the supported stores'
-        very different response shapes into a single lifecycle:{" "}
-        <code>ENTITLED</code>, <code>PENDING_ACKNOWLEDGMENT</code>,{" "}
+        app calls with a restricted publishable key, and harmonizes the
+        supported stores&apos; very different response shapes into a single
+        lifecycle: <code>ENTITLED</code>, <code>PENDING_ACKNOWLEDGMENT</code>,{" "}
         <code>CANCELED</code>, and friends.
       </p>
+      <Callout
+        kind="note"
+        title="No receipt server does not mean a secret in the app"
+      >
+        <p>
+          IAPKit itself is the managed receipt-verification server. Your app can
+          call it directly with an <code>openiap-kit_pk_</code> publishable key,
+          so you do not need to build a proxy just to verify a purchase. Secret
+          <code>openiap-kit_sk_</code> keys are only for administrative work
+          such as MCP, catalog or payload writes, analytics, and store sync. You
+          still need your own authenticated backend when resources on that
+          backend are protected or when rules must remain private.
+        </p>
+      </Callout>
 
       <h2 className="mt-10 text-2xl font-semibold">Supported stores</h2>
       <div className="my-6 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -79,8 +93,8 @@ export default function IntroductionPage() {
       <pre className="my-4 overflow-x-auto rounded-lg border border-border bg-muted/30 px-4 py-3 text-xs leading-relaxed">
         <code>{`  your app                      IAPKit                         upstream store
   ─────────────────────         ──────────────────            ─────────────────
-     POST /v1/purchase/verify     apiKey → project
-      Bearer <apiKey>    ───►     verify action      ───►     App Store / Play /
+     POST /v1/purchase/verify     publishable key → project
+      Bearer <pk>        ───►     verify action      ───►     App Store / Play /
       { store, ... }                                           Horizon / Amazon
                                                           ◄── verified receipt
       { store, isValid, state,

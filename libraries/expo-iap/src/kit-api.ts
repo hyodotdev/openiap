@@ -10,6 +10,21 @@ export type KitApiOptions = {
   // Optional fetch override for runtimes without a global (older RN
   // builds) or for injection in tests.
   fetchImpl?: (input: string, init?: RequestInit) => Promise<Response>;
+  /** Optional AsyncStorage-compatible persistent cache for direct client
+   * payload reads. Cache failures never change a successful API result. */
+  clientPayloadCache?: KitClientPayloadCache;
+};
+
+export type KitClientPayloadCache = {
+  getItem: (key: string) => Promise<string | null> | string | null;
+  setItem: (key: string, value: string) => Promise<void> | void;
+  removeItem?: (key: string) => Promise<void> | void;
+};
+
+export type KitClientPayloadOptions = {
+  /** Revalidate a cached payload with its scoped ETag. Without this flag,
+   * a valid persistent entry is returned without a network request. */
+  refresh?: boolean;
 };
 
 export type KitSubscription = {
@@ -85,24 +100,25 @@ export type KitProductsOptions = {
   platform?: KitProductPlatform;
   /** Include public client payload bodies in a bounded platform page. */
   includeClientPayload?: boolean;
-  /** Page size for payload-inclusive reads (default 25, maximum 50).
-   * Ignored by the legacy non-payload catalog path. */
+  /** Page size for every catalog read (default 25, maximum 50). */
   limit?: number;
-  /** Opaque cursor returned as `nextCursor` by the previous payload page.
-   * Ignored by the legacy non-payload catalog path. */
+  /** Opaque cursor returned as `nextCursor` by the previous page. */
   cursor?: string;
 };
 
 export type KitProductsResponse = {
   products: KitProduct[];
-  /** Present on payload-inclusive catalog pages. */
-  hasMore?: boolean;
-  /** Present when a payload-inclusive catalog page has another page. */
+  hasMore: boolean;
+  /** Present when a catalog page has another page. */
   nextCursor?: string;
 };
 
 export type KitClientPayloadResponse = {
   clientPayload: KitProductClientPayload;
+};
+
+type CachedClientPayload = KitClientPayloadResponse & {
+  etag?: string;
 };
 
 const DEFAULT_BASE_URL = "https://kit.openiap.dev";
@@ -196,7 +212,7 @@ export function kitApi(options: KitApiOptions) {
       );
     })();
 
-  async function call<T>(path: string, init?: RequestInit): Promise<T> {
+  async function request(path: string, init?: RequestInit): Promise<Response> {
     // Normalize headers without depending on a global `Headers`
     // constructor: older React Native runtimes ship `fetch` (or a
     // polyfill via `fetchImpl`) without exposing `Headers` globally.
@@ -213,10 +229,16 @@ export function kitApi(options: KitApiOptions) {
     // already-stripped `baseUrl` (PR #124
     // (https://github.com/hyodotdev/openiap/pull/124) review).
     const normalizedPath = path.startsWith("/") ? path : `/${path}`;
-    const response = await fetchImpl(`${baseUrl}${normalizedPath}`, {
+    return fetchImpl(`${baseUrl}${normalizedPath}`, {
       ...init,
       headers,
     });
+  }
+
+  async function parseResponse<T>(
+    response: Response,
+    path: string,
+  ): Promise<T> {
     const text = await response.text();
     // Empty body normalizes to null so callers expecting JSON
     // (status / entitlements / list*) don't get a truthy ""
@@ -254,6 +276,75 @@ export function kitApi(options: KitApiOptions) {
       );
     }
     return parsed as T;
+  }
+
+  async function call<T>(path: string, init?: RequestInit): Promise<T> {
+    return parseResponse<T>(await request(path, init), path);
+  }
+
+  function clientPayloadCacheKey(
+    productId: string,
+    platform: KitProductPlatform,
+  ): string {
+    return [
+      "iapkit-client-payload-v1",
+      baseUrl,
+      options.apiKey,
+      platform,
+      productId,
+    ]
+      .map(encodeURIComponent)
+      .join(":");
+  }
+
+  async function readCachedClientPayload(
+    cacheKey: string,
+  ): Promise<CachedClientPayload | null> {
+    if (!options.clientPayloadCache) return null;
+    try {
+      const raw = await options.clientPayloadCache.getItem(cacheKey);
+      if (!raw) return null;
+      const candidate = JSON.parse(raw) as Partial<CachedClientPayload>;
+      const payload = candidate.clientPayload;
+      if (
+        !payload ||
+        !["toml", "json", "text"].includes(payload.format) ||
+        typeof payload.body !== "string" ||
+        !Number.isSafeInteger(payload.version) ||
+        payload.version < 1 ||
+        typeof payload.updatedAt !== "number" ||
+        (candidate.etag !== undefined && typeof candidate.etag !== "string")
+      ) {
+        await options.clientPayloadCache.removeItem?.(cacheKey);
+        return null;
+      }
+      return candidate as CachedClientPayload;
+    } catch {
+      return null;
+    }
+  }
+
+  async function writeCachedClientPayload(
+    cacheKey: string,
+    value: CachedClientPayload,
+  ): Promise<void> {
+    try {
+      await options.clientPayloadCache?.setItem(
+        cacheKey,
+        JSON.stringify(value),
+      );
+    } catch {
+      // Persistence is an optimization. A device storage failure must not
+      // turn a successful IAPKit read into an application error.
+    }
+  }
+
+  async function removeCachedClientPayload(cacheKey: string): Promise<void> {
+    try {
+      await options.clientPayloadCache?.removeItem?.(cacheKey);
+    } catch {
+      // See writeCachedClientPayload: cache maintenance is best effort.
+    }
   }
 
   return {
@@ -312,10 +403,42 @@ export function kitApi(options: KitApiOptions) {
 
     /** GET one public client payload by its store-specific natural key.
      * Payloads are app-facing data; never store secrets in them. */
-    clientPayload: (productId: string, platform: KitProductPlatform) =>
-      call<KitClientPayloadResponse>(
-        `/v1/products/${encodeURIComponent(options.apiKey)}/${encodeURIComponent(productId)}/client-payload?platform=${encodeURIComponent(platform)}`,
-      ),
+    clientPayload: async (
+      productId: string,
+      platform: KitProductPlatform,
+      payloadOptions: KitClientPayloadOptions = {},
+    ) => {
+      const path = `/v1/products/${encodeURIComponent(options.apiKey)}/${encodeURIComponent(productId)}/client-payload?platform=${encodeURIComponent(platform)}`;
+      const cacheKey = clientPayloadCacheKey(productId, platform);
+      const cached = await readCachedClientPayload(cacheKey);
+      if (cached && payloadOptions.refresh !== true) {
+        return { clientPayload: cached.clientPayload };
+      }
+      const response = await request(path, {
+        ...(cached?.etag ? { headers: { "If-None-Match": cached.etag } } : {}),
+      });
+      if (response.status === 304 && cached) {
+        return { clientPayload: cached.clientPayload };
+      }
+      try {
+        const result = await parseResponse<KitClientPayloadResponse>(
+          response,
+          path,
+        );
+        await writeCachedClientPayload(cacheKey, {
+          ...result,
+          ...(response.headers.get("etag")
+            ? { etag: response.headers.get("etag")! }
+            : {}),
+        });
+        return result;
+      } catch (error) {
+        if (error instanceof KitApiError && error.status === 404) {
+          await removeCachedClientPayload(cacheKey);
+        }
+        throw error;
+      }
+    },
 
     /** POST /v1/subscriptions/bind-user — call after a successful
      * verifyReceipt so kit knows which userId owns the verified

@@ -96,13 +96,6 @@ struct HomeScreen: View {
                             )
                         }
 
-                        FeatureCard(
-                            title: "Webhook\nStream",
-                            subtitle: "IAPKit SSE events",
-                            icon: "dot.radiowaves.left.and.right",
-                            color: Color.cyan,
-                            destination: AnyView(WebhookStreamScreen())
-                        )
                     }
                     .padding(.horizontal)
                     

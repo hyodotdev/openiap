@@ -2,7 +2,8 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const apiKeyMocks = vi.hoisted(() => ({ getApiKeyByKey: vi.fn() }));
 
-vi.mock("./helpers", () => ({
+vi.mock("./helpers", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("./helpers")>()),
   getApiKeyByKey: apiKeyMocks.getApiKeyByKey,
 }));
 
@@ -87,6 +88,64 @@ describe("validateApiKey pending-deletion guard", () => {
         },
       ],
       organizations: [{ _id: "organizations_a", pendingDeletion: true }],
+    });
+
+    await expect(
+      validateApiKey._handler({ db }, { apiKey: "legacy-key" }),
+    ).resolves.toEqual({ isValid: false });
+  });
+
+  it("returns the effective key type for current and legacy keys", async () => {
+    apiKeyMocks.getApiKeyByKey.mockResolvedValueOnce({
+      _id: "api_key_a",
+      projectId: "projects_a",
+      organizationId: "organizations_a",
+      isActive: true,
+    });
+    const currentDb = new TestDb({
+      projects: [{ _id: "projects_a", organizationId: "organizations_a" }],
+      organizations: [{ _id: "organizations_a" }],
+    });
+
+    await expect(
+      validateApiKey._handler({ db: currentDb }, { apiKey: "current-key" }),
+    ).resolves.toMatchObject({
+      isValid: true,
+      keyType: "publishable",
+    });
+
+    apiKeyMocks.getApiKeyByKey.mockResolvedValueOnce(null);
+    const legacyDb = new TestDb({
+      projects: [
+        {
+          _id: "projects_a",
+          organizationId: "organizations_a",
+          apiKey: "legacy-key",
+        },
+      ],
+      organizations: [{ _id: "organizations_a" }],
+    });
+    await expect(
+      validateApiKey._handler({ db: legacyDb }, { apiKey: "legacy-key" }),
+    ).resolves.toMatchObject({
+      isValid: true,
+      keyType: "publishable",
+    });
+  });
+
+  it("rejects a legacy project key after scoped-key migration", async () => {
+    apiKeyMocks.getApiKeyByKey.mockResolvedValue(null);
+    const db = new TestDb({
+      projects: [
+        {
+          _id: "projects_a",
+          organizationId: "organizations_a",
+          apiKey: "legacy-key",
+          legacyApiKeyFallbackDisabledAt: 123,
+        },
+      ],
+      organizations: [{ _id: "organizations_a" }],
+      apiKeys: [],
     });
 
     await expect(

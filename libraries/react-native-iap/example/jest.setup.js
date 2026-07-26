@@ -86,9 +86,6 @@ jest.mock('../src/index', () => {
     getPurchaseHistory: jest.fn(() => Promise.resolve([])),
     getActiveSubscriptions: mockGetActiveSubscriptions,
     getStorefront: jest.fn(() => Promise.resolve('US')),
-    connectWebhookStream: jest.fn(() => ({
-      close: jest.fn(),
-    })),
     verifyPurchase: mockVerifyPurchase,
     verifyPurchaseWithProvider: mockVerifyPurchaseWithProvider,
 

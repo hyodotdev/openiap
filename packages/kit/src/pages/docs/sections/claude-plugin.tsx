@@ -43,12 +43,13 @@ export default function ClaudePluginPage() {
         </p>
       </Callout>
 
-      <Callout kind="note" title="Uses an IAPKit key">
+      <Callout kind="warning" title="Uses an IAPKit secret admin key">
         <p>
           Do not use an Anthropic or Claude API key for this plugin.
-          Authentication is an IAPKit project API key sent as{" "}
-          <code>Authorization: Bearer &lt;IAPKit project key&gt;</code>, read
-          from the <code>IAPKIT_API_KEY</code> environment variable.
+          Authentication is an <code>openiap-kit_sk_</code> secret admin key
+          sent as <code>Authorization: Bearer &lt;IAPKit secret key&gt;</code>,
+          read from the <code>IAPKIT_API_KEY</code> environment variable. Never
+          reuse the app&apos;s publishable key for MCP.
         </p>
       </Callout>
 
@@ -71,7 +72,7 @@ export default function ClaudePluginPage() {
               Authentication
             </div>
             <code className="mt-1 block break-all rounded border border-border bg-background px-3 py-2">
-              Bearer token = IAPKit project API key
+              Bearer token = IAPKit secret admin key
             </code>
           </div>
           <div>
@@ -87,13 +88,13 @@ export default function ClaudePluginPage() {
 
       <h2 className="mt-10 text-2xl font-semibold">Install</h2>
       <p>
-        Add the OpenIAP marketplace, install the plugin, and set the project key
-        before launching Claude Code:
+        Add the OpenIAP marketplace, install the plugin, and set a secret admin
+        key before launching Claude Code:
       </p>
       <CodeBlock language="bash">
         {`claude plugin marketplace add hyodotdev/openiap
 claude plugin install openiap@openiap
-export IAPKIT_API_KEY="openiap-kit_your-project-key"`}
+export IAPKIT_API_KEY="openiap-kit_sk_<your-secret-key>"`}
       </CodeBlock>
       <p>Without the plugin bundle, register the hosted MCP server directly:</p>
       <CodeBlock language="bash">

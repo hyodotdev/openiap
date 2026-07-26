@@ -36,6 +36,9 @@ describe("IAPKit MCP route handler", () => {
 
     expect(toolNames).toContain("iapkit_inspect_state");
     expect(toolNames).toContain("iapkit_manage_product");
+    expect(toolNames).toContain("iapkit_get_client_payload");
+    expect(toolNames).toContain("iapkit_set_client_payload");
+    expect(toolNames).toContain("iapkit_remove_client_payload");
     expect(toolNames).toContain("iapkit_revenue_analytics");
     expect(toolNames).toContain("iapkit_sync_products");
     expect(toolNames).toContain("iapkit_sync_status");
@@ -51,6 +54,33 @@ describe("IAPKit MCP route handler", () => {
     });
   });
 
+  it("returns 403 before publishable keys can initialize the admin MCP surface", async () => {
+    const response = await postMcp(
+      {
+        jsonrpc: "2.0",
+        id: 1,
+        method: "initialize",
+        params: {
+          protocolVersion: "2025-06-18",
+          capabilities: {},
+          clientInfo: { name: "vitest", version: "0.0.0" },
+        },
+      },
+      undefined,
+      { authorization: "Bearer openiap-kit_pk_mobile" },
+    );
+
+    expect(response.status).toBe(403);
+    expect(response.headers.get("mcp-session-id")).toBeNull();
+    await expect(response.json()).resolves.toMatchObject({
+      error: {
+        code: -32003,
+        message:
+          "This operation requires a secret admin key. Publishable mobile keys cannot access MCP administrative operations.",
+      },
+    });
+  });
+
   it("returns 413 for oversized MCP JSON bodies", async () => {
     const response = await rawPostMcp("x".repeat(1024 * 1024 + 1));
 
@@ -61,7 +91,11 @@ describe("IAPKit MCP route handler", () => {
   });
 });
 
-function postMcp(body: unknown, sessionId?: string): Promise<Response> {
+function postMcp(
+  body: unknown,
+  sessionId?: string,
+  extraHeaders: Record<string, string> = {},
+): Promise<Response> {
   return handleIapKitMcpRequest(
     new Request("http://localhost/mcp", {
       method: "POST",
@@ -69,6 +103,7 @@ function postMcp(body: unknown, sessionId?: string): Promise<Response> {
         accept: "application/json, text/event-stream",
         "content-type": "application/json",
         ...(sessionId ? { "mcp-session-id": sessionId } : {}),
+        ...extraHeaders,
       },
       body: JSON.stringify(body),
     }),

@@ -85,7 +85,7 @@ describe("mapAppleNotificationType", () => {
     expect(mapAppleNotificationType("TEST")).toBe("TestNotification");
   });
 
-  it("returns null for notification types not in the openiap spec yet", () => {
+  it("returns null for notification types without an internal mapping", () => {
     expect(mapAppleNotificationType("OFFER_REDEEMED")).toBeNull();
     expect(mapAppleNotificationType("RENEWAL_EXTENDED")).toBeNull();
     expect(mapAppleNotificationType("EXTERNAL_PURCHASE_TOKEN")).toBeNull();

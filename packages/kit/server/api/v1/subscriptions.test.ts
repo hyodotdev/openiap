@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { Hono } from "hono";
 
 const mocks = vi.hoisted(() => ({
+  handleConvexError: vi.fn(),
   query: vi.fn(),
   mutation: vi.fn(),
 }));
@@ -29,7 +30,7 @@ vi.mock("../../convex", () => ({
     query: mocks.query,
     mutation: mocks.mutation,
   },
-  handleConvexError: () => null,
+  handleConvexError: mocks.handleConvexError,
 }));
 
 const { subscriptionsRoutes } = await import("./subscriptions");
@@ -56,8 +57,163 @@ function compactJwsFromRawPayload(payload: string): string {
 
 describe("subscriptionsRoutes", () => {
   beforeEach(() => {
+    mocks.handleConvexError.mockReset();
+    mocks.handleConvexError.mockReturnValue(null);
     mocks.query.mockReset();
     mocks.mutation.mockReset();
+  });
+
+  it("supports Bearer-authenticated routes without keys in URLs", async () => {
+    const app = buildApp();
+    const headers = {
+      authorization: "Bearer openiap-kit_sk_admin",
+      "content-type": "application/json",
+    };
+    mocks.query.mockResolvedValue({});
+    mocks.mutation.mockResolvedValue({ ok: true });
+
+    const responses = [
+      await app.request("/subscriptions/status?userId=user-1", { headers }),
+      await app.request("/subscriptions/entitlements?userId=user-1", {
+        headers,
+      }),
+      await app.request("/subscriptions/list?limit=10", { headers }),
+      await app.request("/subscriptions/metrics", { headers }),
+      await app.request(
+        "/subscriptions/revenue?fromDay=2026-06-01&toDay=2026-06-04",
+        { headers },
+      ),
+      await app.request("/subscriptions/bind-user", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          purchaseToken: "token",
+          userId: "user-1",
+        }),
+      }),
+    ];
+
+    expect(responses.map((response) => response.status)).toEqual([
+      200, 200, 200, 200, 200, 200,
+    ]);
+    for (const [, args] of mocks.query.mock.calls) {
+      expect(args).toMatchObject({ apiKey: "openiap-kit_sk_admin" });
+    }
+    expect(mocks.mutation).toHaveBeenCalledWith("bindUser", {
+      apiKey: "openiap-kit_sk_admin",
+      purchaseToken: "token",
+      userId: "user-1",
+    });
+  });
+
+  it("returns 403 before publishable keys can read administrative subscription data", async () => {
+    const app = buildApp();
+    const headers = {
+      authorization: "Bearer openiap-kit_pk_mobile",
+    };
+    const responses = [
+      await app.request("/subscriptions/list?limit=10", { headers }),
+      await app.request("/subscriptions/list/openiap-kit_pk_mobile?limit=10"),
+      await app.request("/subscriptions/metrics", { headers }),
+      await app.request(
+        "/subscriptions/revenue?fromDay=2026-06-01&toDay=2026-06-04",
+        { headers },
+      ),
+    ];
+
+    for (const response of responses) {
+      expect(response.status).toBe(403);
+      await expect(response.json()).resolves.toEqual({
+        errors: [
+          {
+            code: "INSUFFICIENT_SCOPE",
+            message:
+              "This operation requires a secret admin key. Publishable mobile keys cannot access administrative operations.",
+          },
+        ],
+      });
+    }
+    expect(mocks.query).not.toHaveBeenCalled();
+    expect(mocks.mutation).not.toHaveBeenCalled();
+  });
+
+  it("keeps publishable entitlement helpers and user binding available", async () => {
+    const app = buildApp();
+    const headers = {
+      authorization: "Bearer openiap-kit_pk_mobile",
+      "content-type": "application/json",
+    };
+    mocks.query
+      .mockResolvedValueOnce({ active: true, subscription: null })
+      .mockResolvedValueOnce({
+        userId: "user-1",
+        productIds: ["premium"],
+        subscriptions: [],
+      });
+    mocks.mutation.mockResolvedValueOnce({ ok: true, bound: true });
+
+    const responses = [
+      await app.request("/subscriptions/status?userId=user-1", { headers }),
+      await app.request("/subscriptions/entitlements?userId=user-1", {
+        headers,
+      }),
+      await app.request("/subscriptions/bind-user", {
+        method: "POST",
+        headers,
+        body: JSON.stringify({
+          purchaseToken: "purchase-token",
+          userId: "user-1",
+        }),
+      }),
+    ];
+
+    expect(responses.map((response) => response.status)).toEqual([
+      200, 200, 200,
+    ]);
+    for (const response of responses) {
+      expect(response.headers.get("x-ratelimit-limit")).toBe("600");
+      expect(response.headers.get("x-ratelimit-remaining")).not.toBeNull();
+    }
+    expect(mocks.query).toHaveBeenNthCalledWith(1, "subscriptionStatus", {
+      apiKey: "openiap-kit_pk_mobile",
+      userId: "user-1",
+    });
+    expect(mocks.query).toHaveBeenNthCalledWith(2, "entitlements", {
+      apiKey: "openiap-kit_pk_mobile",
+      userId: "user-1",
+    });
+    expect(mocks.mutation).toHaveBeenCalledWith("bindUser", {
+      apiKey: "openiap-kit_pk_mobile",
+      purchaseToken: "purchase-token",
+      userId: "user-1",
+    });
+  });
+
+  it("requires Bearer authentication on keyless routes", async () => {
+    const app = buildApp();
+    const response = await app.request("/subscriptions/metrics");
+
+    expect(response.status).toBe(401);
+    expect(mocks.query).not.toHaveBeenCalled();
+  });
+
+  it("retires secret-key-in-path administrative routes", async () => {
+    const app = buildApp();
+    const response = await app.request(
+      "/subscriptions/metrics/openiap-kit_sk_secret",
+    );
+
+    expect(response.status).toBe(410);
+    await expect(response.json()).resolves.toEqual({
+      errors: [
+        {
+          code: "SECRET_API_KEY_IN_URL",
+          message:
+            "Secret API keys are not accepted in URLs. Use Authorization: Bearer <secret-key> on the canonical route.",
+        },
+      ],
+    });
+    expect(mocks.query).not.toHaveBeenCalled();
   });
 
   it("rejects oversized path apiKey before calling Convex", async () => {
@@ -564,6 +720,23 @@ describe("subscriptionsRoutes", () => {
       ],
     });
     expect(mocks.query).toHaveBeenCalledOnce();
+  });
+
+  it("rejects publishable-key analytics before Convex access", async () => {
+    const app = buildApp();
+    const scopeError = {
+      code: "INSUFFICIENT_SCOPE",
+      message:
+        "This operation requires a secret admin key. Publishable mobile keys cannot access administrative operations.",
+    };
+
+    const response = await app.request(
+      "/subscriptions/metrics/openiap-kit_pk_public",
+    );
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toEqual({ errors: [scopeError] });
+    expect(mocks.query).not.toHaveBeenCalled();
   });
 
   it("does not return raw internal bind-user mutation errors", async () => {

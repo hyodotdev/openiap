@@ -143,7 +143,11 @@ async function resolveProjectForMutationArgs(
   }
 
   if (args.apiKey !== undefined) {
-    const resolved = await resolveProjectByApiKeyFromDb(ctx, args.apiKey);
+    const resolved = await resolveProjectByApiKeyFromDb(
+      ctx,
+      args.apiKey,
+      "admin",
+    );
     return resolved?.project ?? null;
   }
 
@@ -214,6 +218,221 @@ function currentProductClientPayloadRevision(
   return Math.max(payload?.version ?? 0, summary?.version ?? 0);
 }
 
+type UpsertProductClientPayloadInput = {
+  platform: "IOS" | "Android";
+  productId: string;
+  format: ProductClientPayloadFormat;
+  body: string;
+  expectedVersion?: number;
+};
+
+async function upsertProductClientPayloadForProject(
+  ctx: MutationCtx,
+  project: Doc<"projects">,
+  args: UpsertProductClientPayloadInput,
+) {
+  validateProductClientPayloadBody(args.format, args.body);
+
+  const product = await ctx.db
+    .query("products")
+    .withIndex("by_project_and_platform_and_product", (q) =>
+      q
+        .eq("projectId", project._id)
+        .eq("platform", args.platform)
+        .eq("productId", args.productId),
+    )
+    .unique();
+  if (!product) {
+    throw clientPayloadError(
+      "PRODUCT_NOT_FOUND",
+      "A matching product must exist before client payload can be saved",
+    );
+  }
+
+  const existing = await ctx.db
+    .query("productClientPayloads")
+    .withIndex("by_project_and_platform_and_product", (q) =>
+      q
+        .eq("projectId", project._id)
+        .eq("platform", args.platform)
+        .eq("productId", args.productId),
+    )
+    .unique();
+  const summary = await ctx.db
+    .query("productClientPayloadSummaries")
+    .withIndex("by_project_and_platform_and_product", (q) =>
+      q
+        .eq("projectId", project._id)
+        .eq("platform", args.platform)
+        .eq("productId", args.productId),
+    )
+    .unique();
+  const currentRevision = currentProductClientPayloadRevision(
+    existing,
+    summary,
+  );
+  if (args.expectedVersion !== undefined) {
+    assertProductClientPayloadVersion(
+      args.expectedVersion,
+      currentRevision === 0 ? null : currentRevision,
+    );
+  }
+
+  if (
+    existing &&
+    summary?.deleted !== true &&
+    existing.version === currentRevision
+  ) {
+    if (existing.format === args.format && existing.body === args.body) {
+      await syncProductClientPayloadSummary(ctx, {
+        projectId: project._id,
+        platform: args.platform,
+        productId: args.productId,
+        format: existing.format,
+        version: existing.version,
+        createdAt: existing.createdAt,
+        updatedAt: existing.updatedAt,
+      });
+      return {
+        id: existing._id,
+        created: false,
+        changed: false,
+        version: existing.version,
+        updatedAt: existing.updatedAt,
+      };
+    }
+
+    const version = currentRevision + 1;
+    const updatedAt = Date.now();
+    await ctx.db.patch(existing._id, {
+      format: args.format,
+      body: args.body,
+      version,
+      updatedAt,
+    });
+    await syncProductClientPayloadSummary(ctx, {
+      projectId: project._id,
+      platform: args.platform,
+      productId: args.productId,
+      format: args.format,
+      version,
+      createdAt: existing.createdAt,
+      updatedAt,
+    });
+    return {
+      id: existing._id,
+      created: false,
+      changed: true,
+      version,
+      updatedAt,
+    };
+  }
+
+  const now = Date.now();
+  const version = currentRevision + 1;
+  const id = existing
+    ? existing._id
+    : await ctx.db.insert("productClientPayloads", {
+        projectId: project._id,
+        platform: args.platform,
+        productId: args.productId,
+        format: args.format,
+        body: args.body,
+        version,
+        createdAt: now,
+        updatedAt: now,
+      });
+  if (existing) {
+    await ctx.db.patch(existing._id, {
+      format: args.format,
+      body: args.body,
+      version,
+      updatedAt: now,
+    });
+  }
+  await syncProductClientPayloadSummary(ctx, {
+    projectId: project._id,
+    platform: args.platform,
+    productId: args.productId,
+    format: args.format,
+    version,
+    createdAt: existing?.createdAt ?? now,
+    updatedAt: now,
+  });
+  return {
+    id,
+    created: !existing,
+    changed: true,
+    version,
+    updatedAt: now,
+  };
+}
+
+async function removeProductClientPayloadForProject(
+  ctx: MutationCtx,
+  project: Doc<"projects">,
+  args: {
+    platform: "IOS" | "Android";
+    productId: string;
+    expectedVersion?: number;
+  },
+) {
+  const existing = await ctx.db
+    .query("productClientPayloads")
+    .withIndex("by_project_and_platform_and_product", (q) =>
+      q
+        .eq("projectId", project._id)
+        .eq("platform", args.platform)
+        .eq("productId", args.productId),
+    )
+    .unique();
+  const summary = await ctx.db
+    .query("productClientPayloadSummaries")
+    .withIndex("by_project_and_platform_and_product", (q) =>
+      q
+        .eq("projectId", project._id)
+        .eq("platform", args.platform)
+        .eq("productId", args.productId),
+    )
+    .unique();
+
+  const currentRevision = currentProductClientPayloadRevision(
+    existing,
+    summary,
+  );
+  if (args.expectedVersion !== undefined) {
+    assertProductClientPayloadVersion(
+      args.expectedVersion,
+      currentRevision === 0 ? null : currentRevision,
+    );
+  }
+  if (!existing) return { ok: false };
+
+  const version = currentRevision + 1;
+  const updatedAt = Date.now();
+  await ctx.db.delete(existing._id);
+  if (summary) {
+    await ctx.db.patch(summary._id, {
+      format: existing.format,
+      version,
+      deleted: true,
+      updatedAt,
+    });
+  } else {
+    await ctx.db.insert("productClientPayloadSummaries", {
+      projectId: project._id,
+      platform: args.platform,
+      productId: args.productId,
+      format: existing.format,
+      version,
+      deleted: true,
+      createdAt: existing.createdAt,
+      updatedAt,
+    });
+  }
+  return { ok: true };
+}
+
 export const upsertProductClientPayload = mutation({
   args: {
     projectId: v.id("projects"),
@@ -235,139 +454,39 @@ export const upsertProductClientPayload = mutation({
       ctx,
       args.projectId,
     );
-    validateProductClientPayloadBody(args.format, args.body);
+    return upsertProductClientPayloadForProject(ctx, project, args);
+  },
+});
 
-    const product = await ctx.db
-      .query("products")
-      .withIndex("by_project_and_platform_and_product", (q) =>
-        q
-          .eq("projectId", project._id)
-          .eq("platform", args.platform)
-          .eq("productId", args.productId),
-      )
-      .unique();
-    if (!product) {
+export const upsertProductClientPayloadWithApiKey = mutation({
+  args: {
+    apiKey: v.string(),
+    platform: platformValidator,
+    productId: v.string(),
+    format: clientPayloadFormatValidator,
+    body: v.string(),
+    expectedVersion: v.optional(v.number()),
+  },
+  returns: v.object({
+    id: v.id("productClientPayloads"),
+    created: v.boolean(),
+    changed: v.boolean(),
+    version: v.number(),
+    updatedAt: v.number(),
+  }),
+  handler: async (ctx, args) => {
+    const resolved = await resolveProjectByApiKeyFromDb(
+      ctx,
+      args.apiKey,
+      "admin",
+    );
+    if (!resolved) {
       throw clientPayloadError(
-        "PRODUCT_NOT_FOUND",
-        "A matching product must exist before client payload can be saved",
+        "PROJECT_ACCESS_DENIED",
+        "Project not found or access denied",
       );
     }
-
-    const existing = await ctx.db
-      .query("productClientPayloads")
-      .withIndex("by_project_and_platform_and_product", (q) =>
-        q
-          .eq("projectId", project._id)
-          .eq("platform", args.platform)
-          .eq("productId", args.productId),
-      )
-      .unique();
-    const summary = await ctx.db
-      .query("productClientPayloadSummaries")
-      .withIndex("by_project_and_platform_and_product", (q) =>
-        q
-          .eq("projectId", project._id)
-          .eq("platform", args.platform)
-          .eq("productId", args.productId),
-      )
-      .unique();
-    const currentRevision = currentProductClientPayloadRevision(
-      existing,
-      summary,
-    );
-    assertProductClientPayloadVersion(
-      args.expectedVersion,
-      currentRevision === 0 ? null : currentRevision,
-    );
-
-    if (
-      existing &&
-      summary?.deleted !== true &&
-      existing.version === currentRevision
-    ) {
-      if (existing.format === args.format && existing.body === args.body) {
-        await syncProductClientPayloadSummary(ctx, {
-          projectId: project._id,
-          platform: args.platform,
-          productId: args.productId,
-          format: existing.format,
-          version: existing.version,
-          createdAt: existing.createdAt,
-          updatedAt: existing.updatedAt,
-        });
-        return {
-          id: existing._id,
-          created: false,
-          changed: false,
-          version: existing.version,
-          updatedAt: existing.updatedAt,
-        };
-      }
-
-      const version = currentRevision + 1;
-      const updatedAt = Date.now();
-      await ctx.db.patch(existing._id, {
-        format: args.format,
-        body: args.body,
-        version,
-        updatedAt,
-      });
-      await syncProductClientPayloadSummary(ctx, {
-        projectId: project._id,
-        platform: args.platform,
-        productId: args.productId,
-        format: args.format,
-        version,
-        createdAt: existing.createdAt,
-        updatedAt,
-      });
-      return {
-        id: existing._id,
-        created: false,
-        changed: true,
-        version,
-        updatedAt,
-      };
-    }
-
-    const now = Date.now();
-    const version = currentRevision + 1;
-    const id = existing
-      ? existing._id
-      : await ctx.db.insert("productClientPayloads", {
-          projectId: project._id,
-          platform: args.platform,
-          productId: args.productId,
-          format: args.format,
-          body: args.body,
-          version,
-          createdAt: now,
-          updatedAt: now,
-        });
-    if (existing) {
-      await ctx.db.patch(existing._id, {
-        format: args.format,
-        body: args.body,
-        version,
-        updatedAt: now,
-      });
-    }
-    await syncProductClientPayloadSummary(ctx, {
-      projectId: project._id,
-      platform: args.platform,
-      productId: args.productId,
-      format: args.format,
-      version,
-      createdAt: existing?.createdAt ?? now,
-      updatedAt: now,
-    });
-    return {
-      id,
-      created: !existing,
-      changed: true,
-      version,
-      updatedAt: now,
-    };
+    return upsertProductClientPayloadForProject(ctx, resolved.project, args);
   },
 });
 
@@ -384,58 +503,31 @@ export const removeProductClientPayload = mutation({
       ctx,
       args.projectId,
     );
-    const existing = await ctx.db
-      .query("productClientPayloads")
-      .withIndex("by_project_and_platform_and_product", (q) =>
-        q
-          .eq("projectId", project._id)
-          .eq("platform", args.platform)
-          .eq("productId", args.productId),
-      )
-      .unique();
-    const summary = await ctx.db
-      .query("productClientPayloadSummaries")
-      .withIndex("by_project_and_platform_and_product", (q) =>
-        q
-          .eq("projectId", project._id)
-          .eq("platform", args.platform)
-          .eq("productId", args.productId),
-      )
-      .unique();
+    return removeProductClientPayloadForProject(ctx, project, args);
+  },
+});
 
-    const currentRevision = currentProductClientPayloadRevision(
-      existing,
-      summary,
+export const removeProductClientPayloadWithApiKey = mutation({
+  args: {
+    apiKey: v.string(),
+    platform: platformValidator,
+    productId: v.string(),
+    expectedVersion: v.optional(v.number()),
+  },
+  returns: v.object({ ok: v.boolean() }),
+  handler: async (ctx, args) => {
+    const resolved = await resolveProjectByApiKeyFromDb(
+      ctx,
+      args.apiKey,
+      "admin",
     );
-    assertProductClientPayloadVersion(
-      args.expectedVersion,
-      currentRevision === 0 ? null : currentRevision,
-    );
-    if (!existing) return { ok: false };
-
-    const version = currentRevision + 1;
-    const updatedAt = Date.now();
-    await ctx.db.delete(existing._id);
-    if (summary) {
-      await ctx.db.patch(summary._id, {
-        format: existing.format,
-        version,
-        deleted: true,
-        updatedAt,
-      });
-    } else {
-      await ctx.db.insert("productClientPayloadSummaries", {
-        projectId: project._id,
-        platform: args.platform,
-        productId: args.productId,
-        format: existing.format,
-        version,
-        deleted: true,
-        createdAt: existing.createdAt,
-        updatedAt,
-      });
+    if (!resolved) {
+      throw clientPayloadError(
+        "PROJECT_ACCESS_DENIED",
+        "Project not found or access denied",
+      );
     }
-    return { ok: true };
+    return removeProductClientPayloadForProject(ctx, resolved.project, args);
   },
 });
 

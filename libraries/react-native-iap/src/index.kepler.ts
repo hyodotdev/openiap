@@ -33,11 +33,12 @@ export * from './types';
 export * from './utils/error';
 export * from './vega';
 export {useIAP, type UseIapOptions} from './hooks/useIAP';
-export {connectWebhookStream, parseWebhookEventData} from './webhook-client';
 export {kitApi, KitApiError} from './kit-api';
 export type {
   EntitlementsResponse,
   KitApiOptions,
+  KitClientPayloadCache,
+  KitClientPayloadOptions,
   KitClientPayloadResponse,
   KitProduct,
   KitProductClientPayload,
@@ -137,8 +138,7 @@ export const fetchProducts = async (
   const normalizedType = normalizeProductQueryType(type);
   const nitroProducts = await getModule().fetchProducts(skus, normalizedType);
   return mapProducts(nitroProducts, normalizedType) as
-    | Product[]
-    | ProductSubscription[];
+    Product[] | ProductSubscription[];
 };
 
 export const requestPurchase: MutationField<'requestPurchase'> = async (

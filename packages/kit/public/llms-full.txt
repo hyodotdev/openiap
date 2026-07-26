@@ -26,19 +26,20 @@ at `src/convex.ts`) and the Hono server (via `./convex` direct path).
 Purchase verification requires a Bearer token:
 
 ```http
-Authorization: Bearer openiap-kit_<your-project-key>
+Authorization: Bearer openiap-kit_pk_<your-publishable-key>
 ```
 
-Each project has its own API key. Keys are stored in Convex
-(`convex/apiKeys`), looked up by SHA-256 hash, and can be rotated from the
-dashboard. Product, subscription, and webhook helper routes carry that key in
-their `{apiKey}` path segment. Dashboard users sign in via GitHub / Google OAuth
-or email-OTP (Resend).
+Each project has publishable (`openiap-kit_pk_...`) keys for mobile
+verification and client-safe reads, plus secret (`openiap-kit_sk_...`) keys for
+MCP, CI, catalog/payload writes, analytics, and store sync.
+Keys are stored in Convex and can be rotated from the dashboard. Existing
+unclassified keys are treated as publishable because older docs allowed them in
+apps.
 
-The MCP endpoint at `/mcp` uses the same IAPKit project key. MCP clients may
-send it as `Authorization: Bearer <project-key>`. A self-hosted MCP server can
-instead set `IAPKIT_API_KEY` so the project key stays in that private process.
-This is not an OpenAI, ChatGPT, Anthropic, or Claude API key.
+The MCP endpoint at `/mcp` requires a secret admin key. MCP clients send it as
+`Authorization: Bearer <secret-key>` or set `IAPKIT_API_KEY` in a private
+process. Never embed that secret in an app. This is not an OpenAI, ChatGPT,
+Anthropic, or Claude API key.
 
 ## Endpoints
 
@@ -126,7 +127,7 @@ For backwards compatibility, `limit` and `cursor` are ignored unless
 `includeClientPayload=true`.
 
 ```http
-GET /v1/products/openiap-kit_xxx?platform=IOS&includeClientPayload=true&limit=25
+GET /v1/products/openiap-kit_pk_xxx?platform=IOS&includeClientPayload=true&limit=25
 ```
 
 Payload-inclusive response: `{ products, hasMore, nextCursor? }`. The final
@@ -141,8 +142,18 @@ use the same productId on both stores. Returns `{ clientPayload: { ... } }` or
 404 when that exact product is absent, Removed, or has no payload.
 
 ```http
-GET /v1/products/openiap-kit_xxx/premium_monthly/client-payload?platform=IOS
+GET /v1/products/openiap-kit_pk_xxx/premium_monthly/client-payload?platform=IOS
 ```
+
+### GET/PUT/DELETE /v1/products/client-payload/{productId}
+
+Secret-admin endpoints for CI and MCP. GET returns `expectedVersion` and the
+current payload when present, including the durable revision after deletion.
+PUT accepts
+`{ format, body, expectedVersion? }`; DELETE accepts optional
+`expectedVersion` in the query. Send the secret key in
+`Authorization: Bearer openiap-kit_sk_<secret-key>` so it never appears in the
+URL. Publishable keys receive `403 INSUFFICIENT_SCOPE`.
 
 ### Product client payload contract
 
@@ -152,8 +163,19 @@ GET /v1/products/openiap-kit_xxx/premium_monthly/client-payload?platform=IOS
 - Values are public app-readable data; never store secrets, credentials, or private server rules.
 - Payload storage is separate from the store catalog. Pull/Push Sync does not send or overwrite it, and local catalog Reset retains it. Retained payloads are not app-readable until a matching product is present again.
 - Apps receive payloads when they call IAPKit. This does not send APNs/FCM or display an OS notification.
-- The 64 KB product-management request cap applies to the entire HTTP request before parsing, not to each product's payload storage.
-- Project keys embedded in an app can be extracted and call existing project-scoped endpoints. Use a separate key per app build/environment, avoid committing or logging it, and rotate exposed keys.
+- The decoded body limit is 16 KiB. The payload-write JSON envelope is separately capped at 128 KiB so fully escaped 16 KiB text still fits; the general product-management envelope remains 64 KiB.
+- Publishable keys embedded in an app can be extracted, but cannot call administrative operations. Use separate keys per app build/environment and never ship a secret key.
+- A matching IAPKit catalog row must exist before a payload write. After creating a product directly in App Store Connect or Play Console, run a secret-authenticated pull sync and wait for its job to succeed, or create the row with `POST /v1/products`. Early writes return `PRODUCT_NOT_FOUND`.
+
+### Header-authenticated product and administrative subscription routes
+
+`GET /v1/products` is a client-safe catalog read and accepts a Bearer key.
+Catalog writes and store sync require `Authorization: Bearer
+openiap-kit_sk_...` on `POST /v1/products`, `POST /v1/products/state`,
+`DELETE /v1/products/{productId}`, and `/v1/products/sync/*`. The same secret is
+required by `/v1/subscriptions/{list|metrics|revenue}`. Older key-in-path
+routes accept publishable keys only where app/store transports require them.
+Secret keys in URL paths receive `410 SECRET_API_KEY_IN_URL`.
 
 ### Aliases
 
@@ -179,10 +201,11 @@ probe traffic doesn't dominate trace quota.
 ### POST /mcp
 
 MCP Streamable HTTP endpoint for Codex, Claude Code, and other MCP clients.
-Exposes tools with the `iapkit_` prefix: setup snippets, revenue analytics,
-status checks, diagnostics, product catalog reads/writes, store-sync jobs,
-subscriber views, sandbox guidance, webhook simulation, and project
-inspection. Setup guides: `/docs/ai-assistants/codex-plugin` and
+Requires a secret admin key and exposes tools with the `iapkit_` prefix: setup
+snippets, revenue analytics, status checks, diagnostics, product catalog and
+client-payload reads/writes, store-sync jobs, subscriber views, sandbox
+guidance, webhook simulation, and project inspection. Setup guides:
+`/docs/ai-assistants/codex-plugin` and
 `/docs/ai-assistants/claude-plugin`.
 
 ## Harmonized purchase states
@@ -208,6 +231,7 @@ inspection. Setup guides: `/docs/ai-assistants/codex-plugin` and
 | 400  | `INVALID_API_KEY`                                       | Well-formed key that fails project lookup       |
 | 413  | `PAYLOAD_TOO_LARGE`                                     | Request body exceeds the 32 KB edge cap         |
 | 401  | `MISSING_API_KEY`                                       | No `Authorization` header                       |
+| 403  | `INSUFFICIENT_SCOPE`                                  | Publishable key used for an admin operation     |
 | 403  | `INVALID_API_KEY`                                       | Wrong scheme or malformed key (format only)     |
 | 429  | `RATE_LIMITED`                                          | Per-key bucket empty; honor `Retry-After`       |
 | 500  | `UNKNOWN_ERROR`                                         | Server-side failure; include `X-Correlation-Id` |
@@ -263,9 +287,9 @@ Oversized fields return `400 INVALID_INPUT`; oversized request bodies return
 `413 PAYLOAD_TOO_LARGE`. Neither path calls the upstream store, so a
 misbehaving client can't burn Apple / Google / Horizon / Amazon quota.
 
-The product-management body cap is 64 KB for the whole HTTP request before
-JSON parsing. It is distinct from the 16 KiB client-payload field limit and is
-not a per-product metadata allowance.
+General product-management requests use a 64 KB envelope. Client-payload writes
+use 128 KiB so a fully JSON-escaped body can still reach the separate 16 KiB
+decoded field limit. Neither envelope is a per-product metadata allowance.
 
 ## Structured logs
 

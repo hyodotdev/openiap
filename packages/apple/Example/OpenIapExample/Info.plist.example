@@ -3,6 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>IAPKIT_API_KEY</key>
-	<string>YOUR_IAPKIT_API_KEY_HERE</string>
+	<!-- Use an openiap-kit_pk_ publishable key. Never embed an openiap-kit_sk_ secret key. -->
+	<string>openiap-kit_pk_your_publishable_key_here</string>
 </dict>
 </plist>

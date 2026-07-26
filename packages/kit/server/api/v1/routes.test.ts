@@ -194,6 +194,7 @@ describe("apiRoutes", () => {
       expect(response.status).toBe(200);
       expect(await response.json()).toEqual({ store: "google", ...verified });
     }
+    expect(convexClientMock.query).toHaveBeenCalledTimes(2);
     expect(consoleError).toHaveBeenCalledWith(
       "[purchase/verify] CLIENT_PAYLOAD_LOOKUP_FAILED: %s",
       "Error",

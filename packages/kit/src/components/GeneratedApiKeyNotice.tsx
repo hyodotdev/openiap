@@ -7,6 +7,7 @@ import { copyTextToClipboard } from "@/lib/clipboard";
 export interface GeneratedApiKey {
   name: string;
   key: string;
+  keyType: "publishable" | "secret";
 }
 
 interface GeneratedApiKeyNoticeProps {
@@ -49,7 +50,9 @@ export function GeneratedApiKeyNotice({
             </h3>
           </div>
           <p className="mb-3 text-sm text-muted-foreground">
-            {"This full key is shown once. Store it before leaving this page."}
+            {apiKey.keyType === "publishable"
+              ? "This full publishable key is shown once. It may be embedded in your app and cannot perform administrative operations."
+              : "This secret key is shown once. Store it securely and never embed it in a mobile app."}
           </p>
           <code className="block max-w-full select-all overflow-x-auto rounded-md border border-border bg-background px-3 py-2 font-mono text-xs text-foreground">
             {apiKey.key}

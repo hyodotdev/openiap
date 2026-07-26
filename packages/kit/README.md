@@ -36,7 +36,8 @@ One package, one binary, one Fly.io app.
 - **Apple StoreKit 2 JWS verification** (`@apple/app-store-server-library`)
 - **Google Play purchase verification** (`googleapis`)
 - **Meta Horizon entitlement verification** (Graph API)
-- **Scoped API keys per project** with usage telemetry
+- **Publishable and secret API keys per project** with server-enforced scopes
+  and usage telemetry
 - **Organization + project multi-tenancy** via Convex
 - **Free for everyone** — no paywall, no usage caps. Sustained by sponsors at [openiap.dev/sponsors](https://openiap.dev/sponsors)
 - **Email OTP (Resend) + GitHub OAuth** via `@convex-dev/auth`
@@ -59,34 +60,74 @@ git clone https://github.com/hyodotdev/openiap.git
 cd openiap
 bun install
 cd packages/kit
-cp .env.example .env.local
-# edit .env.local with your VITE_KIT_CONVEX_URL + CONVEX_DEPLOYMENT
 ```
 
 ### 3. Run locally
 
-Two terminals:
+Recommended (one terminal):
+
+```bash
+bun run dev:all
+```
+
+`dev:all` lets `convex dev` configure the deployment and write its standard
+`CONVEX_DEPLOYMENT`, `VITE_CONVEX_URL`, and `VITE_CONVEX_SITE_URL` values to
+`.env.local` before it starts Hono and Vite. On a new checkout or worktree,
+complete the interactive Convex prompt in that terminal. Starting all three
+processes in parallel before this first configuration can make Hono or the SPA
+exit because the Convex URL is not available yet.
+
+Copy individual optional settings from `.env.example` only after Convex has
+created `.env.local`; do not replace the generated deployment values.
+
+> **Git worktrees:** `.env.local` and `.env.production` are intentionally
+> ignored, so Git does not copy them into a new worktree. Provision them from
+> the maintainer's secure local copy before launching Kit, and never commit
+> either file. The VS Code Kit launcher stops with an explicit message when
+> `.env.local` is missing instead of silently configuring an unrelated
+> anonymous deployment.
+
+GitHub OAuth uses two different URLs in local development:
+
+- The GitHub OAuth App callback remains
+  `https://<dev-deployment>.convex.site/api/auth/callback/github`.
+- The Convex **dev** deployment's `SITE_URL` must match the Vite origin that
+  starts sign-in:
+
+  ```bash
+  bunx convex env set SITE_URL http://localhost:5173
+  ```
+
+Convex Auth redirects to `SITE_URL` after GitHub calls the Convex endpoint.
+Keep Vite on port 5173; its strict-port configuration now fails visibly instead
+of silently switching to 5174 and creating an unreachable OAuth return URL.
+
+After `.env.local` has been configured, the split-terminal workflow is also
+available:
 
 ```bash
 # Terminal A — Convex functions + schema watcher
 bun run dev:convex
 
-# Terminal B — Vite dev server (http://localhost:5173)
+# Terminal B — Hono API server (http://localhost:3000)
+bun run dev:server
+
+# Terminal C — Vite dashboard (http://localhost:5173)
 bun run dev
 ```
 
 For API-only work:
 
 ```bash
-bun run dev:server     # Hono on http://localhost:3000
+bun run dev:server
 ```
 
 The dev server also exposes the Codex / Claude Code MCP plugin endpoint at
-`http://localhost:3000/mcp`. Use an IAPKit project key, not an OpenAI,
-ChatGPT, Anthropic, or Claude API key:
+`http://localhost:3000/mcp`. Use an IAPKit secret admin key, not a mobile
+publishable key and not an OpenAI, ChatGPT, Anthropic, or Claude API key:
 
 ```bash
-IAPKIT_API_KEY="openiap-kit_your-project-key" bun run dev:server
+IAPKIT_API_KEY="openiap-kit_sk_<your-secret-key>" bun run dev:server
 ```
 
 ### 4. Production build
@@ -112,14 +153,20 @@ machine, so deploys don't cut off requests mid-verify.
 
 ### Rate limiting
 
-`/v1/purchase/verify` is protected by an in-memory token bucket keyed
-on the SHA-256 of the API key. The `/api/v1/purchase/verify`
-compatibility alias uses the same middleware. Defaults: **600-request
-burst, 10 req/sec steady state** (= 600 req/min sustained). Tunable via
-`RATE_LIMIT_CAPACITY` and `RATE_LIMIT_REFILL_PER_SEC` — see
-`.env.example`. Responses carry `X-RateLimit-Limit` and
-`X-RateLimit-Remaining`; when the bucket is empty the server returns
-`429 RATE_LIMITED` with a `Retry-After` header.
+Receipt verification and every publishable-key product, client-payload,
+subscription-status, entitlement, and user-binding route share bounded
+in-memory protection before Convex is called. Publishable-key Apple/Google
+webhook ingress uses the same guard before dispatching its verification action.
+The default axes are **per API key** (600-request burst, 10 req/sec), **per
+source IP** (600-request burst, 5 req/sec), and **per Fly process**
+(5,000-request burst, 100 req/sec). The `/api/v1/*` compatibility aliases use
+the same middleware.
+
+Payload-inclusive catalog pages also use a weighted limiter: a request costs
+one token per requested product, so a 50-payload page costs 50. Responses carry
+`X-RateLimit-Limit`, `X-RateLimit-Remaining`, and, on a rejection,
+`X-RateLimit-Scope`; the server returns `429 RATE_LIMITED` with
+`Retry-After`.
 
 The verify endpoint also has a per-(API key, payload) replay guard for
 the exact same receipt: **30-request burst, ~1/min sustained**, plus a
@@ -127,15 +174,17 @@ the exact same receipt: **30-request burst, ~1/min sustained**, plus a
 invalid. Those paths return `429 DUPLICATE_PAYLOAD` or
 `429 REPEATED_FAILURE` with `Retry-After`.
 
-The bucket store itself is bounded (default **10,000 entries**,
-`RATE_LIMIT_MAX_STORE`) with LRU eviction — an attacker churning
-random API keys past the parse-only `apiKeyMiddleware` can't grow the
-Map without bound and OOM the Fly machine.
+Key/IP bucket stores have a 15-minute idle TTL and are bounded (default
+**10,000 entries**) with LRU eviction. An attacker churning random API keys or
+addresses past the parse-only middleware cannot grow the maps without bound.
+Rate checks do not write a Convex counter on every request.
 
-The bucket is per-machine; Fly.io currently runs
-`min_machines_running = 1`, so it's effectively global. If you scale
-out, see the note at the top of
-[`server/api/v1/rate-limit.ts`](server/api/v1/rate-limit.ts).
+The buckets are per-machine; Fly.io currently runs
+`min_machines_running = 1`, so the process axis is effectively global. With
+multiple machines the allowances multiply. Use Convex deployment usage limits
+as the cross-machine hard brake. See
+[`COST-SAFETY.md`](COST-SAFETY.md) for the call graph, worst-case cost model,
+recommended warning/disable limits, and this limitation.
 
 ### Request logging
 
@@ -191,24 +240,62 @@ Grant access only when `isValid` and `state` permit it and the store-verified
 back to a client-supplied product ID when the verified value is missing, and
 never use `clientPayload` contents as entitlement authority.
 
-Payload-inclusive catalog reads require `platform` and are cursor-paginated so
-the service never loads every 16 KiB body in a large catalog at once. `limit`
-defaults to 25 and accepts 1-50. Continue while `hasMore` is true by passing the
-opaque `nextCursor` back as `cursor`. The default catalog read remains
-`{ products }` with no payload lookup; paginated opt-in responses add
-`hasMore` and, when another page exists, `nextCursor`. For backwards
-compatibility, `limit` and `cursor` are ignored when payload inclusion is not
-enabled. If catalog churn invalidates a cursor, IAPKit returns
+Every app-facing catalog read is cursor-paginated so a public request never
+collects an unbounded catalog. `limit` defaults to 25 and accepts 1-50.
+Continue while `hasMore` is true by passing the opaque `nextCursor` back as
+`cursor`. Without payload inclusion the payload table is never queried.
+Payload-inclusive reads additionally require `platform` and perform at most 50
+exact indexed payload lookups. If catalog churn invalidates a cursor, IAPKit returns
 `400 INVALID_CURSOR`; restart from the first page without `cursor`.
 
 Client payloads are retrieved by an app request. They do not send APNs/FCM
 notifications and must never contain credentials, secrets, or private
 server-only rules.
 
-Project keys embedded in an app can be extracted and can call existing
-project-scoped endpoints. Use a separate key per app build/environment, never
-commit or log it, and rotate it if exposed. Keep IAPKit calls behind your own
-backend when your threat model requires a server-held secret.
+Known products should use the direct endpoint instead of downloading the full
+catalog on every foreground event. Direct responses carry a project/key-scoped
+ETag. `If-None-Match` can return `304` after reading only body-free metadata,
+and responses use `Cache-Control: private, no-cache`; catalog and secret-admin
+responses use `private, no-store`. React Native IAP and Expo IAP can persist the
+payload body, version, and ETag through an AsyncStorage-compatible
+`clientPayloadCache` and revalidate only on an explicit `{ refresh: true }`.
+
+A matching IAPKit catalog row must exist before a payload write. When external
+automation creates a product directly in App Store Connect or Play Console,
+run `POST /v1/products/sync/{ios|android}?direction=pull&dryRun=false` with a
+secret Bearer key, poll the returned job until it succeeds, and then set the
+payload. Alternatively create the IAPKit row through the
+secret-authenticated `POST /v1/products` route. An early payload write returns
+`PRODUCT_NOT_FOUND`.
+
+Mobile apps use `openiap-kit_pk_...` publishable keys. They may verify purchases
+and read public client payloads, but cannot change catalog or payload data,
+inspect project-wide analytics, or start store sync.
+Administrative REST and MCP operations require an `openiap-kit_sk_...` secret
+key stored in a trusted environment. Existing unclassified keys are treated as
+publishable so previously shipped app builds fail closed without losing
+verification access.
+
+New administrative integrations send the secret only as
+`Authorization: Bearer openiap-kit_sk_...`. Header-authenticated
+`GET /v1/products` is a client-safe catalog read; catalog writes use
+`POST /v1/products`, `POST /v1/products/state`,
+`DELETE /v1/products/{productId}`, and `/v1/products/sync/*`; subscription
+analytics use `/v1/subscriptions/{list|metrics|revenue}`. Older key-in-path
+routes remain available for compatibility, but should not be used with new
+secret keys because URLs are commonly retained by proxy and access logs.
+
+After deploying the scoped-key schema, operators may persist the runtime
+fallback classification with:
+
+```bash
+npx convex run migrations:run \
+  '{"fn":"migrations:classifyLegacyApiKeysAsPublishable"}'
+```
+
+The migration is idempotent. Authorization already treats an absent `keyType`
+as publishable, so existing app verification remains available before and
+during the backfill.
 
 ### Outbound retries (Google Play)
 
@@ -310,12 +397,12 @@ Omitting Sentry or Mixpanel is fine; the SPA skips those integrations.
 Server-side runtime secrets (read by the compiled Bun binary at boot)
 are set once with `flyctl secrets set`:
 
-| Secret                                                                       | Purpose                                         |
-| ---------------------------------------------------------------------------- | ----------------------------------------------- |
-| `CONVEX_URL`                                                                 | Convex HTTP client endpoint for the Hono server |
-| `SENTRY_DSN`                                                                 | Server-side Sentry (`@sentry/bun`) — optional   |
-| `SENTRY_SEND_DEFAULT_PII`                                                    | `true` / `false` (default `false`)              |
-| `RATE_LIMIT_CAPACITY` / `RATE_LIMIT_REFILL_PER_SEC` / `RATE_LIMIT_MAX_STORE` | Override rate-limit defaults                    |
+| Secret                    | Purpose                                             |
+| ------------------------- | --------------------------------------------------- |
+| `CONVEX_URL`              | Convex HTTP client endpoint for the Hono server     |
+| `SENTRY_DSN`              | Server-side Sentry (`@sentry/bun`) — optional       |
+| `SENTRY_SEND_DEFAULT_PII` | `true` / `false` (default `false`)                  |
+| `RATE_LIMIT_*`            | Override bounded key/IP/process rate-limit defaults |
 
 ### Automated (CI on push to `main`)
 

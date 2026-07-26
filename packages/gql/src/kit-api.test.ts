@@ -171,4 +171,97 @@ describe("kitApi", () => {
       expect.anything(),
     );
   });
+
+  it("persists payloads and conditionally refreshes with ETag", async () => {
+    const values = new Map<string, string>();
+    const cache = {
+      getItem: vi.fn((key: string) => values.get(key) ?? null),
+      setItem: vi.fn((key: string, value: string) => values.set(key, value)),
+      removeItem: vi.fn((key: string) => values.delete(key)),
+    };
+    const payload = {
+      clientPayload: {
+        format: "text" as const,
+        body: "rules",
+        version: 3,
+        updatedAt: 123,
+      },
+    };
+    const fetchImpl = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json(payload, { headers: { etag: '"scoped-v3"' } }),
+      )
+      .mockResolvedValueOnce(new Response(null, { status: 304 }));
+    const api = kitApi({
+      apiKey: "openiap-kit_pk_mobile",
+      baseUrl: "https://kit.test",
+      fetchImpl,
+      clientPayloadCache: cache,
+    });
+
+    await expect(api.clientPayload("premium", "IOS")).resolves.toEqual(payload);
+    await expect(api.clientPayload("premium", "IOS")).resolves.toEqual(payload);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
+
+    await expect(
+      api.clientPayload("premium", "IOS", { refresh: true }),
+    ).resolves.toEqual(payload);
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(
+      new Headers(fetchImpl.mock.calls[1]?.[1]?.headers).get("if-none-match"),
+    ).toBe('"scoped-v3"');
+  });
+
+  it("isolates cached payloads by API key and evicts a cached 404", async () => {
+    const values = new Map<string, string>();
+    const cache = {
+      getItem: vi.fn((key: string) => values.get(key) ?? null),
+      setItem: vi.fn((key: string, value: string) => values.set(key, value)),
+      removeItem: vi.fn((key: string) => values.delete(key)),
+    };
+    const payload = {
+      clientPayload: {
+        format: "text" as const,
+        body: "rules",
+        version: 3,
+        updatedAt: 123,
+      },
+    };
+    await kitApi({
+      apiKey: "openiap-kit_pk_a",
+      baseUrl: "https://kit.test",
+      fetchImpl: vi
+        .fn()
+        .mockResolvedValue(
+          Response.json(payload, { headers: { etag: '"a-v3"' } }),
+        ),
+      clientPayloadCache: cache,
+    }).clientPayload("premium", "IOS");
+
+    const otherFetch = vi
+      .fn()
+      .mockResolvedValueOnce(
+        Response.json(payload, { headers: { etag: '"b-v3"' } }),
+      )
+      .mockResolvedValueOnce(
+        Response.json(
+          { errors: [{ code: "NOT_FOUND", message: "missing" }] },
+          { status: 404 },
+        ),
+      );
+    const other = kitApi({
+      apiKey: "openiap-kit_pk_b",
+      baseUrl: "https://kit.test",
+      fetchImpl: otherFetch,
+      clientPayloadCache: cache,
+    });
+
+    await other.clientPayload("premium", "IOS");
+    expect(otherFetch).toHaveBeenCalledTimes(1);
+    await expect(
+      other.clientPayload("premium", "IOS", { refresh: true }),
+    ).rejects.toBeInstanceOf(KitApiError);
+    expect(cache.removeItem).toHaveBeenCalledTimes(1);
+  });
 });

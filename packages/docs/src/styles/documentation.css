@@ -714,6 +714,37 @@
   font-family: 'Courier New', monospace;
 }
 
+/* The three-column removal schedule is intentionally compact. On wider
+   viewports render it as a real full-width table so the final column owns the
+   remaining space instead of leaving an empty block to its right. The shared
+   scrollable table behavior remains in place on narrow viewports. */
+@media (min-width: 769px) {
+  .doc-page table.deprecation-schedule-table {
+    display: table;
+    table-layout: fixed;
+  }
+
+  .doc-page table.deprecation-schedule-table th,
+  .doc-page table.deprecation-schedule-table td {
+    min-width: 0;
+  }
+
+  .doc-page table.deprecation-schedule-table th:first-child,
+  .doc-page table.deprecation-schedule-table td:first-child {
+    width: 30%;
+  }
+
+  .doc-page table.deprecation-schedule-table th:nth-child(2),
+  .doc-page table.deprecation-schedule-table td:nth-child(2) {
+    width: 26%;
+  }
+
+  .doc-page table.deprecation-schedule-table th:nth-child(3),
+  .doc-page table.deprecation-schedule-table td:nth-child(3) {
+    width: 44%;
+  }
+}
+
 /* Dark mode for tables */
 :root.dark .error-table,
 :root.dark .doc-page table {

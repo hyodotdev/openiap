@@ -70,15 +70,6 @@ export const GENERATED_SYNC_MANIFEST = Object.freeze({
       maui: target('libraries/maui-iap/src/OpenIap.Maui/Types.cs', 'C# → maui-iap'),
     },
   }),
-  webhookClient: group({
-    source: 'packages/gql/src/webhook-client.ts',
-    generated: false,
-    exportKey: './webhook-client',
-    targets: {
-      reactNative: target('libraries/react-native-iap/src/webhook-client.ts', 'webhook-client → react-native-iap'),
-      expo: target('libraries/expo-iap/src/webhook-client.ts', 'webhook-client → expo-iap'),
-    },
-  }),
   kitApi: group({
     source: 'packages/gql/src/kit-api.ts',
     generated: false,

@@ -1,8 +1,11 @@
 import { internalQuery, internalMutation } from "../_generated/server";
-import { v } from "convex/values";
-import { ConvexError } from "convex/values";
+import { ConvexError, v } from "convex/values";
 
-import { getApiKeyByKey } from "./helpers";
+import {
+  allowsLegacyProjectApiKeyFallback,
+  effectiveApiKeyType,
+  getApiKeyByKey,
+} from "./helpers";
 import { getProjectById } from "../projects/helpers";
 
 // Internal query to validate an API key and get the associated project
@@ -33,6 +36,7 @@ export const validateApiKey = internalQuery({
         projectId: apiKeyRecord.projectId,
         organizationId: apiKeyRecord.organizationId,
         keyId: apiKeyRecord._id,
+        keyType: effectiveApiKeyType(apiKeyRecord.keyType),
       };
     }
 
@@ -41,6 +45,9 @@ export const validateApiKey = internalQuery({
       .withIndex("by_api_key", (q) => q.eq("apiKey", args.apiKey))
       .first();
     if (!legacyProject || legacyProject.pendingDeletion) {
+      return { isValid: false };
+    }
+    if (!(await allowsLegacyProjectApiKeyFallback(ctx, legacyProject))) {
       return { isValid: false };
     }
     const organization = await ctx.db.get(legacyProject.organizationId);
@@ -53,6 +60,7 @@ export const validateApiKey = internalQuery({
       projectId: legacyProject._id,
       organizationId: legacyProject.organizationId,
       keyId: undefined,
+      keyType: "publishable" as const,
     };
   },
 });
@@ -100,6 +108,12 @@ export const migrateProjectApiKey = internalMutation({
       .first();
 
     if (existingKeys) {
+      if (project.legacyApiKeyFallbackDisabledAt === undefined) {
+        await ctx.db.patch(project._id, {
+          legacyApiKeyFallbackDisabledAt: Date.now(),
+          updatedAt: Date.now(),
+        });
+      }
       // Already migrated
       return { alreadyMigrated: true };
     }
@@ -113,12 +127,17 @@ export const migrateProjectApiKey = internalMutation({
       key: project.apiKey,
       name: "Default Production Key",
       description: "Migrated from legacy API key system",
+      keyType: "publishable",
       permissions: undefined,
       lastUsedAt: undefined,
       usageCount: 0,
       isActive: true,
       createdBy: args.createdBy,
       createdAt: project.createdAt,
+      updatedAt: now,
+    });
+    await ctx.db.patch(project._id, {
+      legacyApiKeyFallbackDisabledAt: now,
       updatedAt: now,
     });
 

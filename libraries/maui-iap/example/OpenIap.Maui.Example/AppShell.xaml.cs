@@ -14,6 +14,5 @@ public partial class AppShell : Shell
         Routing.RegisterRoute("available-purchases", typeof(AvailablePurchasesPage));
         Routing.RegisterRoute("offer-code", typeof(OfferCodePage));
         Routing.RegisterRoute("alternative-billing", typeof(AlternativeBillingPage));
-        Routing.RegisterRoute("webhook-stream", typeof(WebhookStreamPage));
     }
 }

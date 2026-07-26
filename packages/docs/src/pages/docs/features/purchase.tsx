@@ -829,9 +829,11 @@ async Task<bool> VerifyOnServerAsync(Purchase purchase)
             >
               kit.openiap.dev
             </a>{' '}
-            to obtain an <code>IAPKIT_API_KEY</code>. You can pass it directly,
-            or configure it once in your app (Expo extra, Info.plist,
-            AndroidManifest, etc.) so the SDK picks it up automatically.
+            to obtain an <code>openiap-kit_pk_</code> publishable key. You can
+            pass it directly, or configure it once in your app (Expo extra,
+            Info.plist, AndroidManifest, etc.) so the SDK picks it up
+            automatically. Never use an <code>openiap-kit_sk_</code> secret key
+            in app code.
           </p>
         </div>
 
@@ -870,8 +872,9 @@ const verifyWithIapkit = async (purchase: Purchase) => {
   const result = await verifyPurchaseWithProvider({
     provider: 'iapkit',
     iapkit: {
-      // apiKey is optional when configured via app config / Info.plist / AndroidManifest
-      apiKey: process.env.EXPO_PUBLIC_IAPKIT_API_KEY,
+      // Use an openiap-kit_pk_ key. Optional when configured via app config,
+      // Info.plist, or AndroidManifest.
+      apiKey: process.env.EXPO_PUBLIC_IAPKIT_PUBLISHABLE_KEY,
       ...(await iapkitPayloadFor(purchase)),
     },
   });
@@ -900,7 +903,7 @@ function PurchaseScreen() {
       const result = await verifyPurchaseWithProvider({
         provider: 'iapkit',
         iapkit: {
-          apiKey: process.env.EXPO_PUBLIC_IAPKIT_API_KEY,
+          apiKey: process.env.EXPO_PUBLIC_IAPKIT_PUBLISHABLE_KEY,
           ...(await iapkitPayloadFor(purchase)),
         },
       });
@@ -958,7 +961,8 @@ suspend fun verifyWithIapkit(purchase: PurchaseAndroid): Boolean {
             VerifyPurchaseWithProviderProps(
                 provider = PurchaseVerificationProvider.Iapkit,
                 iapkit = RequestVerifyPurchaseWithIapkitProps(
-                    // apiKey is optional when configured via AndroidManifest meta-data
+                    // This BuildConfig value must be an openiap-kit_pk_ publishable key.
+                    // apiKey is optional when configured via AndroidManifest meta-data.
                     apiKey = BuildConfig.IAPKIT_API_KEY,
                     google = RequestVerifyPurchaseWithIapkitGoogleProps(
                         purchaseToken = purchase.purchaseToken.orEmpty()

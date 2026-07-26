@@ -2,7 +2,14 @@ import type { Doc, Id } from "../_generated/dataModel";
 import type { MutationCtx, QueryCtx } from "../_generated/server";
 import { internal } from "../_generated/api";
 import { getAuthUserId } from "@convex-dev/auth/server";
-import { getApiKeyByKey } from "../apiKeys/helpers";
+import {
+  allowsLegacyProjectApiKeyFallback,
+  assertApiKeyAccess,
+  effectiveApiKeyType,
+  getApiKeyByKey,
+  type ApiKeyAccess,
+  type ApiKeyType,
+} from "../apiKeys/helpers";
 import { deleteFileAndStorageIfUnreferenced } from "../files/storage";
 export {
   getWritableOrganization as getOrganizationById,
@@ -12,6 +19,7 @@ export {
 export type ApiKeyProjectResolution = {
   project: Doc<"projects">;
   keyId?: Id<"apiKeys">;
+  keyType: ApiKeyType;
   organizationId: Id<"organizations">;
 };
 
@@ -35,6 +43,7 @@ async function scheduleProjectDeletionContinuation(
 export async function resolveProjectByApiKeyFromDb(
   ctx: QueryCtx | MutationCtx,
   apiKey: string,
+  requiredAccess: ApiKeyAccess = "client",
 ): Promise<ApiKeyProjectResolution | null> {
   const keyRow = await getApiKeyByKey(ctx, apiKey);
   if (keyRow !== null) {
@@ -43,9 +52,12 @@ export async function resolveProjectByApiKeyFromDb(
     if (!project || project.pendingDeletion) return null;
     const organization = await ctx.db.get(project.organizationId);
     if (!organization || organization.pendingDeletion) return null;
+    const keyType = effectiveApiKeyType(keyRow.keyType);
+    assertApiKeyAccess(keyType, requiredAccess);
     return {
       project,
       keyId: keyRow._id,
+      keyType,
       organizationId: keyRow.organizationId,
     };
   }
@@ -56,10 +68,18 @@ export async function resolveProjectByApiKeyFromDb(
     .first();
 
   if (!legacyProject || legacyProject.pendingDeletion) return null;
+  if (!(await allowsLegacyProjectApiKeyFallback(ctx, legacyProject))) {
+    return null;
+  }
   const organization = await ctx.db.get(legacyProject.organizationId);
   if (!organization || organization.pendingDeletion) return null;
+  // The legacy project column was the value the old documentation told apps
+  // to embed. Never grant it newly separated administrative capabilities.
+  const keyType = "publishable";
+  assertApiKeyAccess(keyType, requiredAccess);
   return {
     project: legacyProject,
+    keyType,
     organizationId: legacyProject.organizationId,
   };
 }

@@ -3,7 +3,8 @@ import type { Id } from "../_generated/dataModel";
 
 const apiKeyMocks = vi.hoisted(() => ({ getApiKeyByKey: vi.fn() }));
 
-vi.mock("../apiKeys/helpers", () => ({
+vi.mock("../apiKeys/helpers", async (importOriginal) => ({
+  ...(await importOriginal<typeof import("../apiKeys/helpers")>()),
   getApiKeyByKey: apiKeyMocks.getApiKeyByKey,
 }));
 
@@ -280,6 +281,126 @@ describe("deleteProjectWithData", () => {
 });
 
 describe("resolveProjectByApiKeyFromDb", () => {
+  it("allows publishable keys for client reads and secret keys for admin operations", async () => {
+    const db = new TestDb({
+      projects: [
+        {
+          _id: PROJECT_ID,
+          organizationId: "organizations_a",
+        },
+      ],
+      organizations: [{ _id: "organizations_a" }],
+    });
+
+    apiKeyMocks.getApiKeyByKey.mockResolvedValueOnce({
+      _id: "api_key_publishable",
+      projectId: PROJECT_ID,
+      organizationId: "organizations_a",
+      isActive: true,
+      keyType: "publishable",
+    });
+    await expect(
+      resolveProjectByApiKeyFromDb({ db } as never, "publishable-key"),
+    ).resolves.toMatchObject({
+      project: { _id: PROJECT_ID },
+      keyType: "publishable",
+    });
+
+    apiKeyMocks.getApiKeyByKey.mockResolvedValueOnce({
+      _id: "api_key_secret",
+      projectId: PROJECT_ID,
+      organizationId: "organizations_a",
+      isActive: true,
+      keyType: "secret",
+    });
+    await expect(
+      resolveProjectByApiKeyFromDb({ db } as never, "secret-key", "admin"),
+    ).resolves.toMatchObject({
+      project: { _id: PROJECT_ID },
+      keyType: "secret",
+    });
+  });
+
+  it("treats current unclassified and legacy project keys as publishable", async () => {
+    const db = new TestDb({
+      projects: [
+        {
+          _id: PROJECT_ID,
+          organizationId: "organizations_a",
+          apiKey: "legacy-key",
+        },
+      ],
+      organizations: [{ _id: "organizations_a" }],
+    });
+
+    apiKeyMocks.getApiKeyByKey.mockResolvedValueOnce({
+      _id: "api_key_unclassified",
+      projectId: PROJECT_ID,
+      organizationId: "organizations_a",
+      isActive: true,
+    });
+    await expect(
+      resolveProjectByApiKeyFromDb(
+        { db } as never,
+        "unclassified-key",
+        "admin",
+      ),
+    ).rejects.toThrow("INSUFFICIENT_SCOPE");
+
+    apiKeyMocks.getApiKeyByKey.mockResolvedValueOnce(null);
+    await expect(
+      resolveProjectByApiKeyFromDb({ db } as never, "legacy-key", "admin"),
+    ).rejects.toThrow("INSUFFICIENT_SCOPE");
+  });
+
+  it("never revives the legacy project key after scoped keys are issued or removed", async () => {
+    apiKeyMocks.getApiKeyByKey.mockResolvedValue(null);
+    const dbWithScopedKey = new TestDb({
+      projects: [
+        {
+          _id: PROJECT_ID,
+          organizationId: "organizations_a",
+          apiKey: "legacy-key",
+        },
+      ],
+      organizations: [{ _id: "organizations_a" }],
+      apiKeys: [
+        {
+          _id: "api_key_new",
+          projectId: PROJECT_ID,
+          organizationId: "organizations_a",
+          key: "new-key",
+          isActive: true,
+        },
+      ],
+    });
+    await expect(
+      resolveProjectByApiKeyFromDb(
+        { db: dbWithScopedKey } as never,
+        "legacy-key",
+      ),
+    ).resolves.toBeNull();
+
+    const dbAfterRemoval = new TestDb({
+      projects: [
+        {
+          _id: PROJECT_ID,
+          organizationId: "organizations_a",
+          apiKey: "legacy-key",
+          legacyApiKeyFallbackDisabledAt: 123,
+        },
+      ],
+      organizations: [{ _id: "organizations_a" }],
+      apiKeys: [],
+    });
+    await expect(
+      resolveProjectByApiKeyFromDb(
+        { db: dbAfterRemoval } as never,
+        "legacy-key",
+      ),
+    ).resolves.toBeNull();
+  });
+
   it("rejects current and legacy keys when the owning organization is pending deletion", async () => {
     const currentDb = new TestDb({
       projects: [

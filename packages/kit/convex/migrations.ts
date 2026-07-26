@@ -274,4 +274,39 @@ export const backfillPurchaseStatsOrganizationId = migrations.define({
   },
 });
 
+/**
+ * Classify pre-scope API keys as publishable.
+ *
+ * Those credentials were explicitly documented for embedding in app builds,
+ * so migration must fail closed: operators create a new secret key for MCP,
+ * analytics, catalog writes, and store sync.
+ */
+export const classifyLegacyApiKeysAsPublishable = migrations.define({
+  table: "apiKeys",
+  migrateOne: async (_ctx, doc) => {
+    return doc.keyType ? doc : { ...doc, keyType: "publishable" as const };
+  },
+});
+
+/**
+ * Permanently disable projects.apiKey fallback for projects that already have
+ * scoped-key rows. Request-time authorization also checks for those rows while
+ * this migration is rolling out.
+ */
+export const disableLegacyApiKeyFallbackForScopedProjects = migrations.define({
+  table: "projects",
+  migrateOne: async (ctx, doc) => {
+    if (doc.legacyApiKeyFallbackDisabledAt !== undefined) {
+      return doc;
+    }
+    const scopedKey = await ctx.db
+      .query("apiKeys")
+      .withIndex("by_project", (q) => q.eq("projectId", doc._id))
+      .first();
+    return scopedKey
+      ? { ...doc, legacyApiKeyFallbackDisabledAt: Date.now() }
+      : doc;
+  },
+});
+
 export const run = migrations.runner();

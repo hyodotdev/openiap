@@ -56,14 +56,6 @@ public class EnumJsonTests
         => AssertRoundTripsAllValues<PurchaseState>(PurchaseStateExtensions.ToJson, PurchaseStateExtensions.FromJson);
 
     [Fact]
-    public void WebhookEventType_RoundTripsAllValues()
-        => AssertRoundTripsAllValues<WebhookEventType>(WebhookEventTypeExtensions.ToJson, WebhookEventTypeExtensions.FromJson);
-
-    [Fact]
-    public void SubscriptionState_RoundTripsAllValues()
-        => AssertRoundTripsAllValues<SubscriptionState>(SubscriptionStateExtensions.ToJson, SubscriptionStateExtensions.FromJson);
-
-    [Fact]
     public void IapkitPurchaseState_RoundTripsAllValues()
         => AssertRoundTripsAllValues<IapkitPurchaseState>(IapkitPurchaseStateExtensions.ToJson, IapkitPurchaseStateExtensions.FromJson);
 
@@ -123,14 +115,6 @@ public class EnumJsonTests
         Assert.Throws<ArgumentException>(() => ErrorCodeExtensions.FromJson("no-such-code"));
         Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ErrorCode>("\"no-such-code\""));
     }
-
-    [Theory]
-    [InlineData("subscription-started", WebhookEventType.SubscriptionStarted)]
-    [InlineData("SUBSCRIPTION_IN_GRACE_PERIOD", WebhookEventType.SubscriptionInGracePeriod)]
-    [InlineData("PurchaseConsumptionRequest", WebhookEventType.PurchaseConsumptionRequest)]
-    [InlineData("test-notification", WebhookEventType.TestNotification)]
-    public void WebhookEventType_AcceptsAllDocumentedCasings(string raw, WebhookEventType expected)
-        => Assert.Equal(expected, WebhookEventTypeExtensions.FromJson(raw));
 
     [Theory]
     [InlineData(ProductType.InApp, "in-app")]

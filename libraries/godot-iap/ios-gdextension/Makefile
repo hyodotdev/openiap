@@ -14,7 +14,7 @@ ios:
 		-configuration $(CONFIG) \
 		-destination "generic/platform=iOS" \
 		-derivedDataPath "$(DERIVED_DATA)" \
-		build
+		clean build
 	@echo "=== iOS Build Complete ==="
 
 # Build for macOS (arm64)

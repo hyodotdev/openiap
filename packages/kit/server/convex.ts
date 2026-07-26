@@ -2,26 +2,38 @@ import { ConvexHttpClient } from "convex/browser";
 import { ConvexError } from "convex/values";
 import * as v from "valibot";
 
-// Prefer VITE_KIT_CONVEX_URL (managed by the Convex CLI / build args)
-// and fall back to CONVEX_URL for environments that only export the
-// plain name.
-const convexUrl = process.env.VITE_KIT_CONVEX_URL ?? process.env.CONVEX_URL;
-if (!convexUrl) {
+export function resolveServerConvexUrl(
+  env: Readonly<Record<string, string | undefined>> = process.env,
+): string {
+  const convexUrl = [
+    env.VITE_KIT_CONVEX_URL,
+    env.CONVEX_URL,
+    env.VITE_CONVEX_URL,
+  ].find(
+    (value): value is string =>
+      typeof value === "string" && value.trim().length > 0,
+  );
+
+  if (convexUrl) return convexUrl.trim();
+
   throw new Error(
-    "Set VITE_KIT_CONVEX_URL (or CONVEX_URL) before starting the server.",
+    "Set VITE_KIT_CONVEX_URL or CONVEX_URL, or run `convex dev` to generate VITE_CONVEX_URL.",
   );
 }
-export const client = new ConvexHttpClient(convexUrl);
 
-// Used by the SSE webhook stream to subscribe to live query updates
-// instead of polling. The reactive client is exported lazily so unit
-// tests that only need `client` (the HTTP client) don't pay for a
-// WebSocket dial when no subscription is opened.
-export const convexUrlForRealtime = convexUrl;
+// Production uses the dedicated build/runtime names. A fresh `convex dev`
+// checkout writes VITE_CONVEX_URL, so keep that standard CLI value as the
+// final local-development fallback.
+const convexUrl = resolveServerConvexUrl();
+export const client = new ConvexHttpClient(convexUrl);
 
 interface ApiError {
   code: string;
   message: string;
+  actualVersion?: number | null;
+  expectedVersion?: number;
+  byteLength?: number;
+  maxBytes?: number;
 }
 
 export function handleConvexError(error: unknown): ApiError | null {
@@ -41,6 +53,10 @@ function getConvexError(error: ConvexError<string>): ApiError | null {
       v.object({
         code: v.string(),
         message: v.string(),
+        actualVersion: v.optional(v.nullable(v.number())),
+        expectedVersion: v.optional(v.number()),
+        byteLength: v.optional(v.number()),
+        maxBytes: v.optional(v.number()),
       }),
       error.data,
     );
@@ -48,6 +64,18 @@ function getConvexError(error: ConvexError<string>): ApiError | null {
       return {
         code: objectResult.output.code,
         message: objectResult.output.message,
+        ...(objectResult.output.actualVersion !== undefined
+          ? { actualVersion: objectResult.output.actualVersion }
+          : {}),
+        ...(objectResult.output.expectedVersion !== undefined
+          ? { expectedVersion: objectResult.output.expectedVersion }
+          : {}),
+        ...(objectResult.output.byteLength !== undefined
+          ? { byteLength: objectResult.output.byteLength }
+          : {}),
+        ...(objectResult.output.maxBytes !== undefined
+          ? { maxBytes: objectResult.output.maxBytes }
+          : {}),
       };
     }
     // Fall through to legacy `{ error, message }` shape for backward

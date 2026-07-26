@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-07-24T20:57:29.106Z
+> Generated: 2026-07-26T17:17:44.905Z
 
 ## Table of Contents
 1. Installation
@@ -144,10 +144,8 @@ Requires .NET 9 or .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
   `PackageReference` dependencies so consuming apps can deduplicate them.
 - Public surface: `QueryResolver`, `MutationResolver`, and `IOpenIap`
   implemented by `OpenIapIOS`, `OpenIapAndroid`, and `OpenIapMacCatalyst`;
-  IAPKit helpers mirror the TypeScript SDKs via
-  `OpenIapClient.KitApi(...)`, `OpenIapClient.ConnectWebhookStream(...)`,
-  `OpenIapClient.ParseWebhookEventData(...)`, and
-  `OpenIapClient.WebhookEventTypes`.
+  app-facing IAPKit helpers mirror the TypeScript SDKs via
+  `OpenIapClient.KitApi(...)`.
 - Example app: `libraries/maui-iap/example/OpenIap.Maui.Example`, mirroring
   the `expo-iap` example flows.
 
@@ -1859,33 +1857,34 @@ try await ExternalPurchaseLink.open(url: externalURL)
 
 ---
 
-# Webhook Event Mapping (ASN v2 ↔ RTDN ↔ openiap)
+# IAPKit Internal Webhook Mapping (ASN v2 ↔ RTDN)
 
 This document is the source of truth for how kit normalizes Apple App Store Server
 Notifications v2 (ASN v2) and Google Play Real-Time Developer Notifications (RTDN)
-into the unified `WebhookEvent` shape defined in [`packages/gql/src/webhook.graphql`](../../packages/gql/src/webhook.graphql).
+for its internal subscription state machine and persisted event records. These
+types are not part of the OpenIAP native or framework SDK contract.
 
-When kit's webhook receivers are implemented (Phase 1, PR #2), they MUST follow
-this table. When extending the spec (new event types, new stores), update this
-document in the same PR.
+Kit's inbound receivers and internal state machine MUST follow this table. When
+adding an internal lifecycle type or store source, update this document and the
+corresponding normalization tests in the same PR.
 
 ## Subscription lifecycle
 
-| openiap `WebhookEventType` | Apple ASN v2 `notificationType` (`subtype`) | Google RTDN `subscriptionNotification.notificationType` |
-|---|---|---|
-| `SubscriptionStarted` | `SUBSCRIBED` (`INITIAL_BUY`, `RESUBSCRIBE`) | `SUBSCRIPTION_PURCHASED` (4) |
-| `SubscriptionRenewed` | `DID_RENEW` | `SUBSCRIPTION_RENEWED` (2) |
-| `SubscriptionExpired` | `EXPIRED` | `SUBSCRIPTION_EXPIRED` (13) |
-| `SubscriptionInGracePeriod` | `DID_FAIL_TO_RENEW` (`GRACE_PERIOD`) | `SUBSCRIPTION_IN_GRACE_PERIOD` (6) |
-| `SubscriptionInBillingRetry` | `DID_FAIL_TO_RENEW` (no subtype) | `SUBSCRIPTION_ON_HOLD` (5) |
-| `SubscriptionRecovered` | `DID_RENEW` (after a prior failure) | `SUBSCRIPTION_RECOVERED` (1) |
-| `SubscriptionCanceled` | `DID_CHANGE_RENEWAL_STATUS` (`AUTO_RENEW_DISABLED`) | `SUBSCRIPTION_CANCELED` (3) |
-| `SubscriptionUncanceled` | `DID_CHANGE_RENEWAL_STATUS` (`AUTO_RENEW_ENABLED`) | `SUBSCRIPTION_RESTARTED` (7) — fired when auto-renew is re-enabled while the period is still active |
-| `SubscriptionRevoked` | `REVOKE` | `SUBSCRIPTION_REVOKED` (12) |
-| `SubscriptionPriceChange` | `PRICE_INCREASE` | `SUBSCRIPTION_PRICE_CHANGE_CONFIRMED` (8), `SUBSCRIPTION_PRICE_CHANGE_UPDATED` (19) |
-| `SubscriptionProductChanged` | `DID_CHANGE_RENEWAL_PREF` | `SUBSCRIPTION_DEFERRED` (9) |
-| `SubscriptionPaused` | (no equivalent — iOS has no pause) | `SUBSCRIPTION_PAUSED` (10), `SUBSCRIPTION_PAUSE_SCHEDULE_CHANGED` (11) — schedule update, not actual resume |
-| `SubscriptionResumed` | (no equivalent) | `SUBSCRIPTION_RECOVERED` (1) when fired after a `SUBSCRIPTION_PAUSED` — kit chooses Resumed vs Recovered based on the prior `subscriptions` row state |
+| IAPKit internal event type   | Apple ASN v2 `notificationType` (`subtype`)         | Google RTDN `subscriptionNotification.notificationType`                                                                                               |
+| ---------------------------- | --------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `SubscriptionStarted`        | `SUBSCRIBED` (`INITIAL_BUY`, `RESUBSCRIBE`)         | `SUBSCRIPTION_PURCHASED` (4)                                                                                                                          |
+| `SubscriptionRenewed`        | `DID_RENEW`                                         | `SUBSCRIPTION_RENEWED` (2)                                                                                                                            |
+| `SubscriptionExpired`        | `EXPIRED`                                           | `SUBSCRIPTION_EXPIRED` (13)                                                                                                                           |
+| `SubscriptionInGracePeriod`  | `DID_FAIL_TO_RENEW` (`GRACE_PERIOD`)                | `SUBSCRIPTION_IN_GRACE_PERIOD` (6)                                                                                                                    |
+| `SubscriptionInBillingRetry` | `DID_FAIL_TO_RENEW` (no subtype)                    | `SUBSCRIPTION_ON_HOLD` (5)                                                                                                                            |
+| `SubscriptionRecovered`      | `DID_RENEW` (after a prior failure)                 | `SUBSCRIPTION_RECOVERED` (1)                                                                                                                          |
+| `SubscriptionCanceled`       | `DID_CHANGE_RENEWAL_STATUS` (`AUTO_RENEW_DISABLED`) | `SUBSCRIPTION_CANCELED` (3)                                                                                                                           |
+| `SubscriptionUncanceled`     | `DID_CHANGE_RENEWAL_STATUS` (`AUTO_RENEW_ENABLED`)  | `SUBSCRIPTION_RESTARTED` (7) — fired when auto-renew is re-enabled while the period is still active                                                   |
+| `SubscriptionRevoked`        | `REVOKE`                                            | `SUBSCRIPTION_REVOKED` (12)                                                                                                                           |
+| `SubscriptionPriceChange`    | `PRICE_INCREASE`                                    | `SUBSCRIPTION_PRICE_CHANGE_CONFIRMED` (8), `SUBSCRIPTION_PRICE_CHANGE_UPDATED` (19)                                                                   |
+| `SubscriptionProductChanged` | `DID_CHANGE_RENEWAL_PREF`                           | `SUBSCRIPTION_DEFERRED` (9)                                                                                                                           |
+| `SubscriptionPaused`         | (no equivalent — iOS has no pause)                  | `SUBSCRIPTION_PAUSED` (10), `SUBSCRIPTION_PAUSE_SCHEDULE_CHANGED` (11) — schedule update, not actual resume                                           |
+| `SubscriptionResumed`        | (no equivalent)                                     | `SUBSCRIPTION_RECOVERED` (1) when fired after a `SUBSCRIPTION_PAUSED` — kit chooses Resumed vs Recovered based on the prior `subscriptions` row state |
 
 PR #123 review caught the earlier draft where codes 1 and 4 were swapped
 (`SUBSCRIPTION_RECOVERED` is code 1, `SUBSCRIPTION_PURCHASED` is code 4)
@@ -1895,50 +1894,55 @@ above reflects the corrected RTDN reference.
 
 ## One-time / common
 
-| openiap `WebhookEventType` | Apple ASN v2 | Google RTDN |
-|---|---|---|
-| `PurchaseRefunded` | `REFUND` | `oneTimeProductNotification.notificationType = ONE_TIME_PRODUCT_CANCELED` (2), or `voidedPurchaseNotification` |
-| `PurchaseConsumptionRequest` | `CONSUMPTION_REQUEST` | (no equivalent — Play handles consumption client-side) |
-| `TestNotification` | `TEST` | `testNotification` field present on the RTDN message |
+| IAPKit internal event type   | Apple ASN v2          | Google RTDN                                                                                                    |
+| ---------------------------- | --------------------- | -------------------------------------------------------------------------------------------------------------- |
+| `PurchaseRefunded`           | `REFUND`              | `oneTimeProductNotification.notificationType = ONE_TIME_PRODUCT_CANCELED` (2), or `voidedPurchaseNotification` |
+| `PurchaseConsumptionRequest` | `CONSUMPTION_REQUEST` | (no equivalent — Play handles consumption client-side)                                                         |
+| `TestNotification`           | `TEST`                | `testNotification` field present on the RTDN message                                                           |
 
 ## Field mapping
 
-| `WebhookEvent` field | Apple ASN v2 source | Google RTDN source |
-|---|---|---|
-| `id` | `notificationUUID` | Pub/Sub `messageId` |
-| `occurredAt` | `signedDate` | `eventTimeMillis` |
-| `environment` | `data.environment` (`Production` \| `Sandbox` \| `Xcode`) | `testNotification` present → `Sandbox`, else `Production` |
-| `purchaseToken` | `data.signedTransactionInfo.originalTransactionId` | `subscriptionNotification.purchaseToken` or `oneTimeProductNotification.purchaseToken` |
-| `productId` | `data.signedTransactionInfo.productId` | `subscriptionNotification.subscriptionId` or `oneTimeProductNotification.sku` |
-| `expiresAt` | `data.signedRenewalInfo.expirationDate` (decoded JWS) | resolved by calling `purchases.subscriptionsv2.get` (ASN/RTDN do not embed it directly) |
-| `renewsAt` | `data.signedRenewalInfo.renewalDate` | resolved by calling `purchases.subscriptionsv2.get` |
-| `cancellationReason` | `data.signedTransactionInfo.revocationReason` + ASN `subtype` | `purchases.subscriptionsv2.get` → `canceledStateContext.userInitiatedCancellation` / `systemInitiatedCancellation` |
-| `currency` | `data.signedTransactionInfo.currency` | from `purchases.subscriptionsv2.get` linked product price |
-| `priceAmountMicros` | `data.signedTransactionInfo.price` × 1000 (Apple's `price` field is in **milliunits** = 1/1000 of a currency unit; multiply by 1000 to convert to micros) | `purchases.subscriptionsv2.get` → `lineItems[*].autoRenewingPlan.recurringPrice` — `units * 1_000_000 + Math.round(nanos / 1000)` (Money type combines whole units + nanos = 10⁻⁹ units) |
-| `rawSignedPayload` | The complete `signedPayload` JWS string from the ASN body | The base64-decoded Pub/Sub message `data` (JSON) |
+| Internal event field | Apple ASN v2 source                                                                                                                                       | Google RTDN source                                                                                                                                                                       |
+| -------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `id`                 | `notificationUUID`                                                                                                                                        | Pub/Sub `messageId`                                                                                                                                                                      |
+| `occurredAt`         | `signedDate`                                                                                                                                              | `eventTimeMillis`                                                                                                                                                                        |
+| `environment`        | `data.environment` (`Production` \| `Sandbox` \| `Xcode`)                                                                                                 | `testNotification` present → `Sandbox`, else `Production`                                                                                                                                |
+| `purchaseToken`      | `data.signedTransactionInfo.originalTransactionId`                                                                                                        | `subscriptionNotification.purchaseToken` or `oneTimeProductNotification.purchaseToken`                                                                                                   |
+| `productId`          | `data.signedTransactionInfo.productId`                                                                                                                    | `subscriptionNotification.subscriptionId` or `oneTimeProductNotification.sku`                                                                                                            |
+| `expiresAt`          | `data.signedRenewalInfo.expirationDate` (decoded JWS)                                                                                                     | resolved by calling `purchases.subscriptionsv2.get` (ASN/RTDN do not embed it directly)                                                                                                  |
+| `renewsAt`           | `data.signedRenewalInfo.renewalDate`                                                                                                                      | resolved by calling `purchases.subscriptionsv2.get`                                                                                                                                      |
+| `cancellationReason` | `data.signedTransactionInfo.revocationReason` + ASN `subtype`                                                                                             | `purchases.subscriptionsv2.get` → `canceledStateContext.userInitiatedCancellation` / `systemInitiatedCancellation`                                                                       |
+| `currency`           | `data.signedTransactionInfo.currency`                                                                                                                     | from `purchases.subscriptionsv2.get` linked product price                                                                                                                                |
+| `priceAmountMicros`  | `data.signedTransactionInfo.price` × 1000 (Apple's `price` field is in **milliunits** = 1/1000 of a currency unit; multiply by 1000 to convert to micros) | `purchases.subscriptionsv2.get` → `lineItems[*].autoRenewingPlan.recurringPrice` — `units * 1_000_000 + Math.round(nanos / 1000)` (Money type combines whole units + nanos = 10⁻⁹ units) |
+| `rawSignedPayload`   | The complete `signedPayload` JWS string from the ASN body                                                                                                 | The base64-decoded Pub/Sub message `data` (JSON)                                                                                                                                         |
 
-## Validation requirements (kit Phase 1, PR #2)
+## Validation requirements
 
-Both stores require signature verification before any event is emitted:
+Both stores require signature verification before any event is accepted:
 
-- **Apple ASN v2**: verify the JWS using Apple's public root certificates (refresh
-  via the App Store Connect API). The receiver must reject unverified payloads
-  with HTTP 401.
+- **Apple ASN v2**: verify the JWS certificate chain against IAPKit's embedded
+  Apple public root certificates. Online OCSP/CRL checks are disabled so
+  transient network failures do not create webhook retry storms. The receiver
+  rejects an invalid signature with HTTP 400 as a permanent payload failure.
 - **Google RTDN**: validate the Pub/Sub push request against the configured
   service account audience (OIDC token verification). Reject missing or invalid
   tokens with HTTP 401.
 
 Idempotency:
 
-- Use `(source, sourceNotificationId)` as the dedup key, where
+- Use `(projectId, source, sourceNotificationId)` as the dedup key, where
   `sourceNotificationId` is `notificationUUID` for ASN v2 or `messageId` for
   RTDN. Convex idempotency table records the first-seen event and silently
   acknowledges duplicates with HTTP 200.
 
-Replay window:
+Retention:
 
-- Events MUST be retained for at least 30 days so `webhookEventsSince` can
-  service reconnecting clients. Older events are pruned by a Convex cron job.
+- Events are retained for the bounded IAPKit operational window and pruned by a
+  Convex cron job. They are not exposed as a public replay stream.
+
+Meta Horizon has no inbound webhook. Its bounded polling reconciler may record
+synthetic lifecycle events under the `MetaHorizonReconciler` source for the same
+private state machine and retention policy.
 
 
 ---
@@ -1956,19 +1960,24 @@ and React SPA deployed behind one origin.
 ## API quick reference
 
 Base URL: https://kit.openiap.dev
-Purchase verification and MCP auth: `Authorization: Bearer openiap-kit_<project-key>`
-Product, subscription, and webhook helper routes carry the same project key in
-their `{apiKey}` path segment.
+Purchase verification: `Authorization: Bearer openiap-kit_pk_<publishable-key>`
+MCP/admin: `Authorization: Bearer openiap-kit_sk_<secret-key>`
+App-facing product, subscription, and inbound webhook helpers use a publishable
+key path where mobile/store transports require it. Administrative product,
+subscription analytics, MCP, and store-sync requests keep the secret in the
+Bearer header and out of URLs.
 
 - [POST /v1/purchase/verify](https://kit.openiap.dev/docs/api) — verify an in-app purchase; body is a tagged union on `store`
 - [GET /v1/products/{apiKey}?platform=IOS&includeClientPayload=true&limit=25](https://kit.openiap.dev/docs/products) — list public product payloads in bounded cursor pages (platform required, limit 1-50, follow `nextCursor` while `hasMore`)
 - [GET /v1/products/{apiKey}/{productId}/client-payload?platform=IOS](https://kit.openiap.dev/docs/products) — fetch `{ clientPayload }`; returns 404 when the product is missing/Removed or no payload exists
+- [GET/PUT/DELETE /v1/products/client-payload/{productId}?platform=IOS](https://kit.openiap.dev/docs/products) — read durable editor state or create/update/remove a payload from CI or MCP with `Authorization: Bearer <secret-key>`; publishable keys receive 403
+- [GET /v1/products and catalog/store-sync writes](https://openiap.dev/docs/kit-backend) — header-authenticated GET is client-safe; POST/DELETE and `/v1/products/sync/{ios|android}` require `Authorization: Bearer <secret-key>`; secret-key-in-path requests receive 410
+- [GET /v1/subscriptions/{list|metrics|revenue}](https://openiap.dev/docs/kit-backend) — administrative subscription data with `Authorization: Bearer <secret-key>`
 - [POST /v1/webhooks/{apiKey}](https://openiap.dev/docs/webhooks#setup) — lifecycle webhook receiver. Paste this URL into App Store Connect (Production + Sandbox) AND Google Cloud Pub/Sub push subscription. Auto-detects ASN v2 vs Pub/Sub by payload shape. **POST-only**; opening in a browser returns 404 — that's expected.
-- [GET /v1/webhooks/stream/{apiKey}](https://openiap.dev/docs/webhooks#consume-stream) — long-lived SSE stream of normalized `WebhookEvent`s. Connect with `EventSource` (or the per-SDK helper); reconnects honor `Last-Event-ID`. Opening in a browser shows a blank page (text/event-stream that never closes) — use the SDK helpers or `curl -N`.
 - [GET /v1/openapi](https://kit.openiap.dev/v1/openapi) — machine-readable OpenAPI spec
 - [GET /v1](https://kit.openiap.dev/v1) — Redoc UI for the OpenAPI spec
 - [GET /health](https://kit.openiap.dev/health) — liveness probe (no Convex round-trip)
-- [POST /mcp](https://kit.openiap.dev/docs/ai-assistants/codex-plugin) — MCP Streamable HTTP endpoint for Codex, Claude Code, and other MCP clients. Uses an IAPKit project API key, not an OpenAI, ChatGPT, Anthropic, or Claude API key.
+- [POST /mcp](https://kit.openiap.dev/docs/ai-assistants/codex-plugin) — MCP Streamable HTTP endpoint for Codex, Claude Code, and other MCP clients. Uses an IAPKit secret admin key, not a mobile publishable key and not an OpenAI, ChatGPT, Anthropic, or Claude API key.
 
 Also mounted at `/api/v1/*` for backwards compatibility. `/v1/verify-purchase`
 is an alias of `/v1/purchase/verify`. Pick `/v1/purchase/verify` for new code.
@@ -2026,7 +2035,10 @@ Harmonized `state` values (truthy `isValid`): `ENTITLED`,
 - Payloads are public app data. Never store secrets, credentials, or private server rules.
 - Store Sync never pushes or overwrites them. Resetting the local catalog retains them.
 - They are returned by app requests, not sent through APNs/FCM, and do not display an OS notification.
-- The separate 64 KB product-management cap applies to the whole HTTP request before parsing; it is not per-product payload storage.
+- The decoded body limit is 16 KiB. The payload-write JSON envelope is separately capped at 128 KiB so fully escaped 16 KiB text still fits; the general product-management envelope remains 64 KiB.
+- Mobile apps use `openiap-kit_pk_...` publishable keys. Payload writes use `openiap-kit_sk_...` secret keys or authenticated dashboard sessions.
+- A matching IAPKit catalog row must exist before a payload write. After creating a product directly in App Store Connect or Play Console, run a pull sync and wait for its job to succeed, or create the row with secret-authenticated `POST /v1/products`; early writes return `PRODUCT_NOT_FOUND`.
+- Secret-key `GET /v1/products/client-payload/{productId}?platform=...` returns the current payload plus durable `expectedVersion`, including the revision after deletion. MCP exposes it as `iapkit_get_client_payload`.
 
 ## Status codes
 
@@ -2035,7 +2047,9 @@ Harmonized `state` values (truthy `isValid`): `ENTITLED`,
 - `400 INVALID_API_KEY` — well-formed key that fails project lookup (unknown or rotated)
 - `413 PAYLOAD_TOO_LARGE` — request body exceeds the 32 KB edge cap
 - `401 MISSING_API_KEY` — no `Authorization` header
+- `403 INSUFFICIENT_SCOPE` — publishable key used for an administrative operation
 - `403 INVALID_API_KEY` — wrong scheme or malformed key (format check only)
+- `410 SECRET_API_KEY_IN_URL` — move the secret to `Authorization: Bearer ...` on the canonical route
 - `429 RATE_LIMITED` — per-key bucket empty; honor `Retry-After` seconds
 - `500 UNKNOWN_ERROR` — quote the `X-Correlation-Id` header in a support ticket
 
@@ -2056,7 +2070,7 @@ Harmonized `state` values (truthy `isValid`): `ENTITLED`,
 - [/docs/verification/horizon](https://kit.openiap.dev/docs/verification/horizon) — App ID + App Secret (write-only)
 - [/docs/api](https://kit.openiap.dev/docs/api) — request shapes, responses, errors, headers, and Amazon RVS payloads
 - [/docs/operations](https://kit.openiap.dev/docs/operations) — rate limits, logs, `/health`, graceful shutdown
-- [openiap.dev/docs/webhooks](https://openiap.dev/docs/webhooks) — operator setup steps for the lifecycle webhook URL (Apple ASN v2 + Google RTDN) and SDK code for consuming the SSE stream
+- [openiap.dev/docs/webhooks](https://openiap.dev/docs/webhooks) — operator setup steps for inbound Apple ASN v2 and Google RTDN lifecycle delivery
 - [/docs/ai-assistants](https://kit.openiap.dev/docs/ai-assistants) — how to point Codex / Claude / Cursor / etc. at this file
 - [/docs/ai-assistants/codex-plugin](https://kit.openiap.dev/docs/ai-assistants/codex-plugin) — Codex plugin setup and self-hosted IAPKit MCP server option
 - [/docs/ai-assistants/claude-plugin](https://kit.openiap.dev/docs/ai-assistants/claude-plugin) — Claude Code plugin setup (marketplace install or claude mcp add)

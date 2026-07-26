@@ -11,6 +11,7 @@ import {
   withIosAlternativeBilling,
   type IOSAlternativeBillingConfig,
 } from './withIosAlternativeBilling';
+import {ensureOnsidePodIOS} from './onsidePodfile';
 
 /**
  * Plugin to add local OpenIAP pod dependency for development
@@ -109,9 +110,9 @@ export const ensureLocalOpenIapFlavorStrategy = (
   language: GradleLanguage = 'groovy',
 ): string => {
   const existingBlockPattern = new RegExp(
-    `\\n?${escapeRegExp(LOCAL_OPENIAP_FLAVOR_BLOCK_START)}[\\s\\S]*?${escapeRegExp(
-      LOCAL_OPENIAP_FLAVOR_BLOCK_END,
-    )}\\n?`,
+    `\\n?${escapeRegExp(
+      LOCAL_OPENIAP_FLAVOR_BLOCK_START,
+    )}[\\s\\S]*?${escapeRegExp(LOCAL_OPENIAP_FLAVOR_BLOCK_END)}\\n?`,
     'gm',
   );
   const cleaned = contents
@@ -157,6 +158,8 @@ const withLocalOpenIAP: ConfigPlugin<
     isHorizonEnabled?: boolean;
     /** Resolved from modules.amazon.fireOS by withIAP */
     isFireOsEnabled?: boolean;
+    /** Resolved from modules.onside by withIAP */
+    enableOnside?: boolean;
   } | void
 > = (config, props) => {
   // Import and apply iOS alternative billing configuration if provided
@@ -208,9 +211,22 @@ const withLocalOpenIAP: ConfigPlugin<
       logOnce(`✅ Using local OpenIAP from: ${iosPath}`);
 
       let podfileContent = fs.readFileSync(podfilePath, 'utf8');
+      let podfileChanged = false;
+
+      if (props?.enableOnside) {
+        const updatedContent = ensureOnsidePodIOS(podfileContent);
+        if (updatedContent !== podfileContent) {
+          podfileContent = updatedContent;
+          podfileChanged = true;
+          logOnce('📦 expo-iap: Enabled OnsideKit (EXPO_IAP_ONSIDE=1)');
+        }
+      }
 
       // Check if local OpenIAP pod is already configured
       if (podfileContent.includes("pod 'openiap',")) {
+        if (podfileChanged) {
+          fs.writeFileSync(podfilePath, podfileContent);
+        }
         logOnce('✅ Local OpenIAP pod already configured');
         return config;
       }
@@ -228,7 +244,14 @@ const withLocalOpenIAP: ConfigPlugin<
   # Local OpenIAP pod for development (added by expo-iap plugin)
   pod 'openiap', :path => '${relativePath}'`;
         });
+        podfileChanged = true;
+      }
+
+      if (podfileChanged) {
         fs.writeFileSync(podfilePath, podfileContent);
+      }
+
+      if (podfileContent.includes("pod 'openiap',")) {
         logOnce(`✅ Added local OpenIAP pod at: ${iosPath}`);
       } else {
         console.warn('⚠️  Could not find target block in Podfile');
@@ -385,8 +408,8 @@ const withLocalOpenIAP: ConfigPlugin<
     const flavor = props?.isFireOsEnabled
       ? 'amazon'
       : props?.isHorizonEnabled
-        ? 'horizon'
-        : 'play';
+      ? 'horizon'
+      : 'play';
     const strategyLine =
       appLanguage === 'kotlin'
         ? `        missingDimensionStrategy("platform", "${flavor}")`
@@ -459,8 +482,8 @@ const withLocalOpenIAP: ConfigPlugin<
     const flavor = props?.isFireOsEnabled
       ? 'amazon'
       : props?.isHorizonEnabled
-        ? 'horizon'
-        : 'play';
+      ? 'horizon'
+      : 'play';
     config.modResults.contents = ensureLocalOpenIapFlavorStrategy(
       config.modResults.contents,
       flavor,

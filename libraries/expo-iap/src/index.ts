@@ -81,9 +81,7 @@ type ExpoIapEventPayloads = {
   [OpenIapEvent.PurchaseUpdated]: Purchase;
   [OpenIapEvent.PurchaseError]: PurchaseError;
   [OpenIapEvent.PromotedProductIOS]:
-    | Product
-    | string
-    | {id?: string; productId?: string};
+    Product | string | {id?: string; productId?: string};
   [OpenIapEvent.UserChoiceBillingAndroid]: UserChoiceBillingDetails;
   [OpenIapEvent.DeveloperProvidedBillingAndroid]: DeveloperProvidedBillingDetailsAndroid;
   [OpenIapEvent.SubscriptionBillingIssue]: Purchase;
@@ -417,8 +415,7 @@ export const promotedProductListenerIOS = (
     let pendingProduct: Promise<Product | null> | undefined;
     try {
       pendingProduct = ExpoIapModule.getPromotedProductIOS() as
-        | Promise<Product | null>
-        | undefined;
+        Promise<Product | null> | undefined;
     } catch {
       return Promise.resolve();
     }
@@ -635,8 +632,8 @@ const invokeNativeWithPurchaseError = async <T>(
       typeof nativeError?.message === 'string'
         ? nativeError.message
         : typeof error === 'string'
-        ? error
-        : '';
+          ? error
+          : '';
     const hasCanonicalFields =
       nativeMessage.includes(OPENIAP_ERROR_ENVELOPE_PREFIX) ||
       nativeError?.code !== undefined ||
@@ -950,8 +947,7 @@ function normalizeRequestProps(
 ): RequestSubscriptionAndroidProps | null | undefined;
 function normalizeRequestProps(
   request:
-    | RequestPurchasePropsByPlatforms
-    | RequestSubscriptionPropsByPlatforms,
+    RequestPurchasePropsByPlatforms | RequestSubscriptionPropsByPlatforms,
   platform: 'ios' | 'android',
 ) {
   if (platform === 'ios') {
@@ -1456,9 +1452,8 @@ export const verifyPurchaseWithProvider: MutationField<
     }
   }
 
-  const result = await ExpoIapModule.verifyPurchaseWithProvider(
-    resolvedOptions,
-  );
+  const result =
+    await ExpoIapModule.verifyPurchaseWithProvider(resolvedOptions);
   if (result.iapkit == null) {
     return result;
   }
@@ -1475,23 +1470,11 @@ export const verifyPurchaseWithProvider: MutationField<
 };
 
 export * from './useIAP';
-export {useWebhookEvents} from './useWebhookEvents';
-export type {
-  UseWebhookEventsOptions,
-  UseWebhookEventsResult,
-} from './useWebhookEvents';
-export {connectWebhookStream, parseWebhookEventData} from './webhook-client';
-export type {
-  WebhookEventPayload,
-  WebhookEventStream,
-  WebhookEventType as WebhookEventTypeName,
-  WebhookListener,
-  WebhookListenerError,
-  WebhookListenerOptions,
-} from './webhook-client';
 export {kitApi, KitApiError} from './kit-api';
 export type {
   KitApiOptions,
+  KitClientPayloadCache,
+  KitClientPayloadOptions,
   KitClientPayloadResponse,
   KitProduct,
   KitProductClientPayload,

@@ -21,6 +21,7 @@ import type * as files_action from "../files/action.js";
 import type * as files_internal from "../files/internal.js";
 import type * as files_mutation from "../files/mutation.js";
 import type * as files_query from "../files/query.js";
+import type * as files_storage from "../files/storage.js";
 import type * as files_validation from "../files/validation.js";
 import type * as http from "../http.js";
 import type * as migrations from "../migrations.js";
@@ -29,17 +30,20 @@ import type * as organizations_mutation from "../organizations/mutation.js";
 import type * as organizations_query from "../organizations/query.js";
 import type * as plans from "../plans.js";
 import type * as products_asc from "../products/asc.js";
+import type * as products_ascReview from "../products/ascReview.js";
 import type * as products_jobs from "../products/jobs.js";
 import type * as products_jwt from "../products/jwt.js";
 import type * as products_mutation from "../products/mutation.js";
 import type * as products_play from "../products/play.js";
 import type * as products_query from "../products/query.js";
 import type * as products_sync from "../products/sync.js";
+import type * as products_syncResult from "../products/syncResult.js";
 import type * as projects_helpers from "../projects/helpers.js";
 import type * as projects_internal from "../projects/internal.js";
 import type * as projects_mutation from "../projects/mutation.js";
 import type * as projects_query from "../projects/query.js";
 import type * as projects_setupStatus from "../projects/setupStatus.js";
+import type * as projects_writable from "../projects/writable.js";
 import type * as purchases_action from "../purchases/action.js";
 import type * as purchases_amazon from "../purchases/amazon.js";
 import type * as purchases_android from "../purchases/android.js";
@@ -78,9 +82,7 @@ import type * as utils_validation from "../utils/validation.js";
 import type * as webhooks_apple from "../webhooks/apple.js";
 import type * as webhooks_google from "../webhooks/google.js";
 import type * as webhooks_internal from "../webhooks/internal.js";
-import type * as webhooks_query from "../webhooks/query.js";
 import type * as webhooks_shared from "../webhooks/shared.js";
-import type * as webhooks_validators from "../webhooks/validators.js";
 
 import type {
   ApiFromModules,
@@ -102,6 +104,7 @@ declare const fullApi: ApiFromModules<{
   "files/internal": typeof files_internal;
   "files/mutation": typeof files_mutation;
   "files/query": typeof files_query;
+  "files/storage": typeof files_storage;
   "files/validation": typeof files_validation;
   http: typeof http;
   migrations: typeof migrations;
@@ -110,17 +113,20 @@ declare const fullApi: ApiFromModules<{
   "organizations/query": typeof organizations_query;
   plans: typeof plans;
   "products/asc": typeof products_asc;
+  "products/ascReview": typeof products_ascReview;
   "products/jobs": typeof products_jobs;
   "products/jwt": typeof products_jwt;
   "products/mutation": typeof products_mutation;
   "products/play": typeof products_play;
   "products/query": typeof products_query;
   "products/sync": typeof products_sync;
+  "products/syncResult": typeof products_syncResult;
   "projects/helpers": typeof projects_helpers;
   "projects/internal": typeof projects_internal;
   "projects/mutation": typeof projects_mutation;
   "projects/query": typeof projects_query;
   "projects/setupStatus": typeof projects_setupStatus;
+  "projects/writable": typeof projects_writable;
   "purchases/action": typeof purchases_action;
   "purchases/amazon": typeof purchases_amazon;
   "purchases/android": typeof purchases_android;
@@ -159,9 +165,7 @@ declare const fullApi: ApiFromModules<{
   "webhooks/apple": typeof webhooks_apple;
   "webhooks/google": typeof webhooks_google;
   "webhooks/internal": typeof webhooks_internal;
-  "webhooks/query": typeof webhooks_query;
   "webhooks/shared": typeof webhooks_shared;
-  "webhooks/validators": typeof webhooks_validators;
 }>;
 
 /**

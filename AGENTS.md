@@ -80,6 +80,20 @@ release notes, or GitHub Releases, follow the mandatory language guard in
 - **Android functions in packages/google**: NO `Android` suffix (it's Android-only)
 - **Cross-platform functions**: NO suffix
 
+### Webhook Direction Guardrail
+
+- The only supported webhook direction is **store → IAPKit**: Apple App Store
+  Server Notifications and Google Play RTDN enter IAPKit and update its backend
+  state.
+- Never add an **IAPKit → SDK/mobile** webhook stream, SSE endpoint, WebSocket,
+  push relay, or long-poll event feed. Mobile SDKs use bounded request/response
+  verification and scoped status or entitlement reads.
+- If a product needs device push notifications, the developer's authenticated
+  backend owns that delivery. Do not expose project-wide lifecycle events or a
+  secret key to a shipped app.
+- `bun audit:parity` enforces the removed outbound-stream files and public
+  identifiers. Do not weaken that audit to reintroduce the feature.
+
 ### Auto-Generated Files (DO NOT EDIT)
 
 - `packages/gql/src/generated/*` - All generated type files (SSOT)

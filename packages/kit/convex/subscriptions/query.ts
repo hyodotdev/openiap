@@ -83,9 +83,14 @@ export function shapeSubscriptionRow(
 async function projectByApiKey(
   ctx: QueryCtx,
   apiKey: string | undefined,
+  requiredAccess: "client" | "admin" = "client",
 ): Promise<Doc<"projects"> | null> {
   if (!apiKey) return null;
-  const resolved = await resolveProjectByApiKeyFromDb(ctx, apiKey);
+  const resolved = await resolveProjectByApiKeyFromDb(
+    ctx,
+    apiKey,
+    requiredAccess,
+  );
   return resolved?.project ?? null;
 }
 
@@ -104,13 +109,14 @@ async function projectForReadArgs(
     apiKey?: string;
     projectId?: Id<"projects">;
   },
+  apiKeyAccess: "client" | "admin" = "client",
 ): Promise<Doc<"projects"> | null> {
   if (args.projectId) {
     return projectByIdForCurrentUser(ctx, args.projectId);
   }
 
   if (args.apiKey !== undefined) {
-    return projectByApiKey(ctx, args.apiKey);
+    return projectByApiKey(ctx, args.apiKey, apiKeyAccess);
   }
 
   throw new Error("apiKey or projectId is required.");
@@ -241,7 +247,7 @@ export const listSubscriptions = query({
     total: v.number(),
   }),
   handler: async (ctx, args) => {
-    const project = await projectForReadArgs(ctx, args);
+    const project = await projectForReadArgs(ctx, args, "admin");
     if (!project) return { items: [], total: 0 };
 
     const limit = Math.min(Math.max(args.limit ?? 50, 1), 200);
@@ -378,7 +384,7 @@ export const metricsSummary = query({
     ),
   }),
   handler: async (ctx, args) => {
-    const project = await projectForReadArgs(ctx, args);
+    const project = await projectForReadArgs(ctx, args, "admin");
     if (!project) {
       return {
         activeSubs: 0,
@@ -605,7 +611,7 @@ export const getRevenueMetrics = query({
     truncated: v.boolean(),
   }),
   handler: async (ctx, args) => {
-    const project = await projectForReadArgs(ctx, args);
+    const project = await projectForReadArgs(ctx, args, "admin");
     if (!project) {
       return {
         days: [],

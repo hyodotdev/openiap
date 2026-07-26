@@ -416,6 +416,16 @@ test("public docs, context template, and generated context pin migration wording
     [
       "packages/docs/src/pages/docs/updates/releases.tsx",
       [
+        "IAPKit security and SDK patch train",
+        "OpenIAP Spec 2.4.4",
+        "openiap-apple 2.4.4",
+        "openiap-google 2.5.1",
+        "react-native-iap 15.6.1",
+        "expo-iap 4.7.1",
+        "flutter_inapp_purchase 9.6.1",
+        "godot-iap 2.6.1",
+        "kmp-iap 2.7.1",
+        "OpenIap.Maui 1.4.1",
         "fetchProducts skuArr / productIds",
         "transactionIdentifier",
         "Android deep-link sku / packageName",

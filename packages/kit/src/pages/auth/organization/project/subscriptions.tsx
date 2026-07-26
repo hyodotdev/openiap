@@ -77,9 +77,9 @@ export default function ProjectSubscriptions() {
           Subscriptions
         </h2>
         <p className="text-sm text-muted-foreground">
-          Authoritative state derived from webhooks. Keys map to the openiap{" "}
-          <code className="text-xs">WebhookEvent</code> spec — rows update the
-          moment kit ingests an Apple ASN v2 / Google RTDN notification.
+          Authoritative state derived from IAPKit&apos;s internal lifecycle
+          events. Rows update when kit ingests an Apple ASN v2 or Google RTDN
+          notification.
         </p>
       </div>
 

@@ -4,14 +4,21 @@ import os from 'node:os';
 import path from 'node:path';
 import {fileURLToPath} from 'node:url';
 
+import {
+  createVegaManifest,
+  loadVegaBuildEnvironment,
+} from './vega-build-config.mjs';
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const exampleRoot = path.resolve(__dirname, '..');
 const packageRoot = path.resolve(exampleRoot, '..');
 const tempRoot = path.join(os.tmpdir(), 'openiap-expo-iap-vega-example');
 const tempPackageSourceRoot = path.join(tempRoot, 'openiap-expo-iap-src');
 const buildType = process.argv[2] === 'Release' ? 'Release' : 'Debug';
-const iapkitApiKey = process.env.EXPO_PUBLIC_IAPKIT_API_KEY ?? '';
-const iapkitBaseUrl = process.env.EXPO_PUBLIC_IAPKIT_BASE_URL ?? '';
+const {iapkitApiKey, iapkitBaseUrl} = loadVegaBuildEnvironment({
+  buildType,
+  projectRoot: exampleRoot,
+});
 const vegaPackageId = 'dev.hyo.openiap.expo.example';
 const vegaComponentId = `${vegaPackageId}.main`;
 const vegaAppName = 'ExpoIapVegaExample';
@@ -96,44 +103,6 @@ const writeLocalJavaScriptModule = (packageName, source, main = 'index.js') => {
   );
   fs.writeFileSync(path.join(moduleRoot, main), source, 'utf8');
 };
-
-const createVegaManifest = () => `schema-version = 1
-
-[package]
-id = "${vegaPackageId}"
-title = "${vegaDisplayName}"
-version = "1.0.0"
-
-[components]
-[[components.interactive]]
-id = "${vegaComponentId}"
-runtime-module = "/com.amazon.kepler.keplerscript.runtime.loader_2@IKeplerScript_2_0"
-launch-type = "singleton"
-categories = ["com.amazon.category.main"]
-
-[wants]
-[[wants.service]]
-id = "com.amazon.inputmethod.service"
-
-[[wants.service]]
-id = "com.amazon.network.service"
-
-[[wants.service]]
-id = "com.amazon.iap.core.service"
-
-[[wants.service]]
-id = "com.amazon.iap.tester.service"
-
-[[wants.module]]
-id = "/com.amazon.iap.core@IIAPCoreUI"
-
-[[wants.module]]
-id = "/com.amazonappstore.iap.tester@IIAPTesterUI"
-
-[needs]
-[[needs.module]]
-id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreService"
-`;
 
 const rewriteExpoSourceImports = (source) =>
   source
@@ -447,7 +416,14 @@ writeLocalEntryModule(
   'openiap-expo-iap.ts',
   path.join(tempPackageSourceRoot, 'index.kepler.ts'),
 );
-writeFile('manifest.toml', createVegaManifest());
+writeFile(
+  'manifest.toml',
+  createVegaManifest({
+    componentId: vegaComponentId,
+    displayName: vegaDisplayName,
+    packageId: vegaPackageId,
+  }),
+);
 
 run('bun', ['install', '--force']);
 writeLocalPackageAlias(

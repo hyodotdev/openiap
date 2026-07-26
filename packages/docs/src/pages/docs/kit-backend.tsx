@@ -25,12 +25,11 @@ function KitBackend() {
         <a href={IAPKIT_URL} target="_blank" rel="noopener noreferrer">
           <code>kit.openiap.dev</code>
         </a>
-        ) is OpenIAP's hosted backend for that flow. Drop it in instead of
-        running your own server for the steps that come after a user taps "buy":
-        store verification, lifecycle webhooks, subscription state, revenue
-        metrics, and App Store Connect / Play Console product sync. Everything
-        is exposed through one URL surface that the framework SDKs and MCP
-        server speak.
+        ) is OpenIAP's hosted backend for that flow. A mobile app can call
+        IAPKit directly with a restricted publishable key, so you do not need to
+        operate a receipt-verification server. Administrative automation uses a
+        separate secret key for lifecycle inspection, revenue metrics, catalog
+        writes, and App Store Connect / Play Console product sync.
       </p>
       <p>
         Amazon targets use the same IAPKit Amazon verification shape. Fire OS
@@ -45,28 +44,25 @@ function KitBackend() {
           Surface map
         </AnchorLink>
         <p>
-          Purchase verification uses an <code>Authorization: Bearer</code> API
-          key header. Webhook, subscription, product, and MCP-friendly endpoints
-          carry the project API key as a path segment so store consoles, SDK
-          helpers, and stdio MCP tools can call them without custom bearer
-          header plumbing.
+          Purchase verification uses a publishable{' '}
+          <code>Authorization: Bearer</code> key. App-facing reads keep the
+          publishable key in their compatibility path where required by mobile
+          runtimes. Administrative subscription, product, store-sync, and MCP
+          calls send the secret key only in the{' '}
+          <code>Authorization: Bearer</code> header so it does not enter URL
+          logs.
         </p>
         <ul>
           <li>
             <code>POST /v1/purchase/verify</code> — purchase verification (Apple
             JWS, Google purchaseToken, Amazon RVS receiptId for Fire OS and Vega
-            OS, Meta Horizon) with a Bearer API key.
+            OS, Meta Horizon) with a publishable Bearer key.
           </li>
           <li>
             <code>POST /v1/webhooks/&#123;apiKey&#125;</code> — unified App
             Store Server Notifications v2 / Google Pub/Sub RTDN receiver (Google
             OIDC verified). Platform-specific <code>/apple</code> /{' '}
             <code>/google</code> aliases remain supported for existing setups.
-          </li>
-          <li>
-            <code>GET /v1/webhooks/stream/&#123;apiKey&#125;</code> — SSE stream
-            of normalized <code>WebhookEvent</code>s, driven by Convex's
-            reactive subscribe.
           </li>
           <li>
             <code>GET /v1/subscriptions/status/&#123;apiKey&#125;?userId=</code>{' '}
@@ -79,33 +75,43 @@ function KitBackend() {
             — every active productId for a user.
           </li>
           <li>
-            <code>GET /v1/subscriptions/list/&#123;apiKey&#125;</code> —
-            filtered subscription list (for the dashboard).
+            <code>GET /v1/subscriptions/list</code> — secret
+            Bearer-authenticated filtered subscription list.
           </li>
           <li>
-            <code>GET /v1/subscriptions/metrics/&#123;apiKey&#125;</code> — MRR,
-            churn, refund counts.
+            <code>GET /v1/subscriptions/metrics</code> — secret
+            Bearer-authenticated MRR, churn, and refund counts.
           </li>
           <li>
             <code>POST /v1/subscriptions/bind-user/&#123;apiKey&#125;</code> —
             attach a userId to a tracked subscription by purchase token.
           </li>
           <li>
-            <code>GET/POST/DELETE /v1/products/&#123;apiKey&#125;</code> —
-            kit-side product catalog.
+            <code>GET /v1/products/&#123;publishableKey&#125;</code> — client
+            catalog read. The equivalent header-authenticated{' '}
+            <code>GET /v1/products</code> accepts either key type. Catalog{' '}
+            <code>POST</code> and <code>DELETE</code> calls require a secret
+            Bearer key.
           </li>
           <li>
             <code>
               GET
-              /v1/products/&#123;apiKey&#125;/&#123;productId&#125;/client-payload?platform=
+              /v1/products/&#123;publishableKey&#125;/&#123;productId&#125;/client-payload?platform=
             </code>{' '}
             — read one public TOML, JSON, or text product payload.
           </li>
           <li>
             <code>
-              POST /v1/products/&#123;apiKey&#125;/sync/&#123;ios|android&#125;
+              PUT/DELETE
+              /v1/products/client-payload/&#123;productId&#125;?platform=
             </code>{' '}
-            — push-sync with App Store Connect / Play Console.
+            — create, update, or remove that payload from CI or MCP using a
+            secret Bearer key.
+          </li>
+          <li>
+            <code>POST /v1/products/sync/&#123;ios|android&#125;</code> — secret
+            Bearer-authenticated push-sync with App Store Connect / Play
+            Console.
           </li>
         </ul>
       </section>
@@ -114,10 +120,29 @@ function KitBackend() {
         <AnchorLink id="api-keys-environments" level="h2">
           API keys and environments
         </AnchorLink>
+        <p>IAPKit has two project-scoped credential types:</p>
+        <ul>
+          <li>
+            <code>openiap-kit_pk_...</code> publishable keys belong in mobile
+            apps. They can verify purchases, bind/check a user&apos;s
+            entitlement state, and read public products or client payloads.
+          </li>
+          <li>
+            <code>openiap-kit_sk_...</code> secret keys belong in MCP, CI, or a
+            trusted backend. They additionally authorize catalog and payload
+            writes, subscription analytics, and store sync.
+          </li>
+        </ul>
         <p>
-          Kit API keys are project-scoped credentials. Creating more than one
-          key lets you rotate credentials, split app builds, and revoke an
-          abused app, CI, or staging key without replacing every caller.
+          A secret key can call client endpoints, but a publishable key cannot
+          call administrative endpoints. Those attempts return{' '}
+          <code>403 INSUFFICIENT_SCOPE</code>.
+        </p>
+        <p>
+          Keys created before scoped credentials are classified as publishable
+          because older documentation allowed them in app bundles. Existing apps
+          keep verification access; create a new secret key before continuing
+          MCP or CI administration.
         </p>
         <p>
           Additional keys do not create separate sandbox or production
@@ -166,9 +191,8 @@ function KitBackend() {
             payload editor for app-readable TOML, JSON, or text rules.
           </li>
           <li>
-            <strong>Webhooks</strong> — copyable lifecycle webhook URL, the SSE
-            stream URL, and a curl recipe for emitting a synthetic test
-            notification without opening a store console.
+            <strong>Webhooks</strong> — copyable inbound lifecycle webhook URLs
+            for Apple ASN v2 and Google RTDN.
           </li>
         </ul>
       </section>
@@ -185,6 +209,11 @@ function KitBackend() {
           <code>VerifyPurchaseWithProviderResult</code>. The API is named{' '}
           <code>verifyPurchaseWithProvider</code> in the SDKs; the snippets
           below call it directly.
+        </p>
+        <p>
+          Configure these mobile SDK calls with an <code>openiap-kit_pk_</code>{' '}
+          publishable key. Do not copy the <code>openiap-kit_sk_</code> secret
+          used by MCP or CI into the app.
         </p>
         <p>
           A verification result and the IAPKit Purchases row are snapshots of
@@ -221,8 +250,9 @@ const isAmazonRuntime = runtimeOS === 'kepler' || isFireOSBuild;
 const result = await verifyPurchaseWithProvider({
   provider: 'iapkit',
   iapkit: {
-    // Optional when configured via Expo config / Info.plist / AndroidManifest.
-    apiKey: process.env.EXPO_PUBLIC_IAPKIT_API_KEY,
+    // Use an openiap-kit_pk_ publishable key. Optional when configured via
+    // Expo config / Info.plist / AndroidManifest.
+    apiKey: process.env.EXPO_PUBLIC_IAPKIT_PUBLISHABLE_KEY,
     // Product payload enrichment applies only to Apple and Google.
     ...(!isAmazonRuntime && { includeClientPayload: true }),
     ...(Platform.OS === 'ios'
@@ -392,7 +422,7 @@ if (verified is { IsValid: true } &&
               <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.*
 
 val token = purchase.purchaseToken.orEmpty()
-val result = kmpIAP.verifyPurchaseWithProvider(
+val result = kmpIapInstance.verifyPurchaseWithProvider(
     VerifyPurchaseWithProviderProps(
         provider = PurchaseVerificationProvider.Iapkit,
         iapkit = RequestVerifyPurchaseWithIapkitProps(
@@ -421,7 +451,7 @@ if (verified != null &&
             gdscript: (
               <CodeBlock language="gdscript">{`const Types = preload("res://addons/godot-iap/types.gd")
 
-var result = await iap.verify_purchase_with_provider({
+var result = await GodotIapPlugin.verify_purchase_with_provider({
 	"provider": "iapkit",
 	"iapkit": {
 		"apiKey": iapkit_api_key,
@@ -496,7 +526,7 @@ if (
 // Expo apps can import from 'expo-iap'.
 // Node/server helpers can import from '@hyodotdev/openiap-gql/kit-api'.
 
-const openiapProjectKey = '<project-api-key-from-sdk-config-or-env>';
+const openiapProjectKey = '<IAPKIT_PUBLISHABLE_KEY>';
 const api = kitApi({ apiKey: openiapProjectKey });
 const { active, subscription } = await api.status('user-1');
 if (active) {
@@ -507,7 +537,7 @@ if (active) {
               <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-var openiapProjectKey = "<project-api-key-from-sdk-config-or-env>";
+var openiapProjectKey = "<IAPKIT_PUBLISHABLE_KEY>";
 var api = OpenIapClient.KitApi(new KitApiOptions { ApiKey = openiapProjectKey });
 var status = await api.StatusAsync("user-1");
 if (status.Active)
@@ -547,7 +577,8 @@ if (status.Active)
             </tr>
             <tr>
               <td>
-                <code>kitApi.products</code> / <code>GET /v1/products</code>
+                <code>kitApi.products</code> /{' '}
+                <code>GET /v1/products/&#123;publishableKey&#125;</code>
               </td>
               <td>One paginated platform catalog page</td>
               <td>
@@ -581,57 +612,50 @@ if (status.Active)
             entitlement rules in a client payload.
           </p>
           <p>
-            A project key embedded in an app is extractable. It retains that
-            key's existing project-scoped endpoint permissions and consumes the
-            project's quota. Use separate keys for each build or environment,
-            then rotate or revoke them when a build is retired or compromised.
+            A publishable key embedded in an app is extractable and consumes the
+            project&apos;s quota, but it cannot perform administrative writes or
+            project-wide inspection. Use separate publishable keys for
+            independent builds or environments and never put a secret key in the
+            app.
           </p>
         </div>
 
         <AnchorLink id="fetch-client-payload-on-app-open" level="h3">
-          Fetch on app open
+          Cache a known payload
         </AnchorLink>
         <p>
           React Native IAP and Expo IAP export the canonical <code>kitApi</code>{' '}
           helper, and MAUI exposes the equivalent <code>KitApiClient</code>. Use
-          the product-list method to refresh a platform catalog, or the direct
-          payload method when the product ID is already known. Both surfaces
-          return a response envelope.
+          the direct payload method when the product ID is already known. Do not
+          download the complete payload catalog on every foreground event.
+          Product-list pagination is for an explicit catalog refresh.
         </p>
         <LanguageTabs>
           {{
             typescript: (
               <CodeBlock language="typescript">{`import { Platform } from 'react-native';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { kitApi } from 'expo-iap';
 // React Native IAP apps can import kitApi from 'react-native-iap'.
 
 const platform = Platform.OS === 'ios' ? 'IOS' : 'Android';
-const api = kitApi({ apiKey: '<project-api-key>' });
-
-let page = await api.products({
-  platform,
-  includeClientPayload: true,
-  limit: 50,
+const api = kitApi({
+  apiKey: '<IAPKIT_PUBLISHABLE_KEY>',
+  clientPayloadCache: AsyncStorage,
 });
-const products = [...page.products];
-while (page.hasMore && page.nextCursor) {
-  page = await api.products({
-    platform,
-    includeClientPayload: true,
-    limit: 50,
-    cursor: page.nextCursor,
-  });
-  products.push(...page.products);
-}
 
-const catalogPayload = products.find(
-  (product) => product.productId === 'premium_monthly',
-)?.clientPayload;
-
-// Or fetch one known product without downloading the catalog.
+// Cache-first: after the first successful read this performs no request.
 const { clientPayload } = await api.clientPayload(
   'premium_monthly',
   platform,
+);
+
+// Revalidate once on a cold app launch or an explicit user refresh.
+// A matching scoped ETag returns 304 and reuses the persisted body.
+const refreshed = await api.clientPayload(
+  'premium_monthly',
+  platform,
+  { refresh: true },
 );`}</CodeBlock>
             ),
             csharp: (
@@ -640,7 +664,7 @@ using OpenIap.Maui;
 
 var api = OpenIapClient.KitApi(new KitApiOptions
 {
-    ApiKey = "<project-api-key>",
+    ApiKey = "<IAPKIT_PUBLISHABLE_KEY>",
 });
 
 var page = await api.ProductsAsync(new KitProductsOptions
@@ -688,12 +712,9 @@ var clientPayload = payloadResponse.ClientPayload;`}</CodeBlock>
             <code>25</code>, maximum <code>50</code>) and an opaque{' '}
             <code>cursor</code>, and returns{' '}
             <code>&#123; products, hasMore, nextCursor? &#125;</code>. Continue
-            until <code>hasMore</code> is <code>false</code>. Without the
-            explicit payload flag, the response remains exactly{' '}
-            <code>&#123; products &#125;</code>; payload bodies are omitted and{' '}
-            <code>limit</code> / <code>cursor</code> are ignored for backwards
-            compatibility. Their strict validation applies only when{' '}
-            <code>includeClientPayload=true</code>. Catalog changes can
+            until <code>hasMore</code> is <code>false</code>. The same 25-item
+            default and 50-item maximum apply without the explicit payload flag;
+            that path never queries payload bodies. Catalog changes can
             invalidate an opaque cursor; if the server returns{' '}
             <code>400 INVALID_CURSOR</code>, discard that cursor and restart
             from the first page.
@@ -705,9 +726,89 @@ var clientPayload = payloadResponse.ClientPayload;`}</CodeBlock>
             </code>{' '}
             returns <code>&#123; clientPayload &#125;</code>, or HTTP 404 when
             no payload exists, the matching product is absent, or its state is{' '}
-            <code>Removed</code>.
+            <code>Removed</code>. Responses use a project/key/product-scoped{' '}
+            <code>ETag</code>. A matching <code>If-None-Match</code> returns{' '}
+            <code>304</code> without reading or returning the 16 KiB body.
           </li>
         </ul>
+
+        <AnchorLink id="cost-and-abuse-guardrails" level="h3">
+          Cost and abuse guardrails
+        </AnchorLink>
+        <p>
+          Public verification, product, payload, status, entitlement, and
+          user-binding requests, plus publishable-key store-webhook ingress, are
+          bounded in Fly memory by API key, source IP, and process-wide token
+          buckets before Convex is called. The stores use TTL plus LRU eviction,
+          so invalid-key churn cannot grow memory without bound. A 50-item
+          payload catalog page is charged as 50 units. Rejections return{' '}
+          <code>429</code>, <code>Retry-After</code>, and consistent rate-limit
+          headers.
+        </p>
+        <p>
+          These counters do not create a Convex mutation on every mobile
+          request. Direct payloads use <code>private, no-cache</code> plus a
+          scoped ETag; catalog and secret-admin responses use{' '}
+          <code>private, no-store</code>. The current single Fly machine makes
+          the process limit effectively global. If IAPKit scales to several
+          machines, per-machine allowances multiply, so production should also
+          configure Convex daily/monthly warning and disable limits under the
+          deployment&apos;s Usage Limits page and a team spending limit under
+          Billing.
+        </p>
+        <p>
+          See the{' '}
+          <a
+            href="https://github.com/hyodotdev/openiap/blob/main/packages/kit/COST-SAFETY.md"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="external-link"
+          >
+            IAPKit cost and abuse safety model
+          </a>{' '}
+          for the function-call/read counts, Starter and Professional estimates,
+          usage-limit recommendations, and remaining multi-machine limitation.
+        </p>
+
+        <AnchorLink id="write-client-payload-from-ci" level="h3">
+          Write from CI or MCP
+        </AnchorLink>
+        <p>
+          A secret admin key can set or remove payloads programmatically.
+          Publishable keys receive <code>403 INSUFFICIENT_SCOPE</code>.
+          <code>expectedVersion</code> is optional: pass it for optimistic
+          concurrency, or omit it for an atomic last-write-wins update.
+        </p>
+        <p>
+          The matching IAPKit catalog row must exist first. If your automation
+          creates the product directly in App Store Connect or Play Console, run
+          a secret-authenticated pull sync and wait for the returned job to
+          succeed before setting its payload. You may instead create the IAPKit
+          row with <code>POST /v1/products</code>. A payload write made before
+          either step returns <code>PRODUCT_NOT_FOUND</code>.
+        </p>
+        <CodeBlock language="bash">{`curl -X POST \\
+  "https://kit.openiap.dev/v1/products/sync/ios?direction=pull&dryRun=false" \\
+  -H "Authorization: Bearer openiap-kit_sk_<your-secret-key>"
+
+# Poll the returned jobId until status is succeeded.
+curl "https://kit.openiap.dev/v1/products/sync/jobs/<jobId>" \\
+  -H "Authorization: Bearer openiap-kit_sk_<your-secret-key>"`}</CodeBlock>
+        <CodeBlock language="bash">{`curl -X PUT \\
+  "https://kit.openiap.dev/v1/products/client-payload/premium_monthly?platform=IOS" \\
+  -H "Authorization: Bearer openiap-kit_sk_<your-secret-key>" \\
+  -H "Content-Type: application/json" \\
+  -d '{"format":"toml","body":"[access]\\nmax_items = 10","expectedVersion":3}'
+
+curl -X DELETE \\
+  "https://kit.openiap.dev/v1/products/client-payload/premium_monthly?platform=IOS&expectedVersion=4" \\
+  -H "Authorization: Bearer openiap-kit_sk_<your-secret-key>"`}</CodeBlock>
+        <p>
+          MCP exposes these routes as <code>iapkit_get_client_payload</code>,{' '}
+          <code>iapkit_set_client_payload</code>, and{' '}
+          <code>iapkit_remove_client_payload</code>. The read tool returns the
+          durable <code>expectedVersion</code> even after deletion.
+        </p>
 
         <AnchorLink id="client-payload-behavior" level="h3">
           Storage, limits, and delivery
@@ -719,9 +820,10 @@ var clientPayload = payloadResponse.ClientPayload;`}</CodeBlock>
             bytes. JSON must be an object, and TOML syntax is validated.
           </li>
           <li>
-            The 64 KiB product-management request limit covers the whole HTTP
-            request before parsing. It is separate from the 16 KiB payload body
-            limit and was never a per-product metadata field.
+            General product-management requests use a 64 KiB envelope. Client
+            payload writes use 128 KiB so a fully JSON-escaped body can still
+            reach its separate 16 KiB decoded limit. Neither envelope is a
+            per-product metadata allowance.
           </li>
           <li>
             Store sync never sends a client payload to Apple or Google and never
@@ -794,13 +896,11 @@ var clientPayload = payloadResponse.ClientPayload;`}</CodeBlock>
         </p>
         <p>
           Sync is asynchronous —{' '}
-          <code>
-            POST /v1/products/&#123;apiKey&#125;/sync/&#123;ios|android&#125;
-          </code>{' '}
-          enqueues a job and returns <code>&#123; jobId, deduped &#125;</code>{' '}
-          with HTTP 202 immediately. The actual catalog walk (App Store Connect
-          REST or Play Developer API) runs in the background as a Convex
-          internalAction, writing progress and the final result back to a{' '}
+          <code>POST /v1/products/sync/&#123;ios|android&#125;</code> enqueues a
+          job and returns <code>&#123; jobId, deduped &#125;</code> with HTTP
+          202 immediately. The actual catalog walk (App Store Connect REST or
+          Play Developer API) runs in the background as a Convex internalAction,
+          writing progress and the final result back to a{' '}
           <code>productSyncJobs</code> row. Earlier kit versions held the HTTP
           connection open for the entire sync, which iOS Safari aborted on
           cellular / backgrounded tabs as <code>TypeError: Load failed</code>.
@@ -808,10 +908,8 @@ var clientPayload = payloadResponse.ClientPayload;`}</CodeBlock>
         <p>Clients poll the job state:</p>
         <ul>
           <li>
-            <code>
-              GET /v1/products/&#123;apiKey&#125;/sync/jobs/&#123;jobId&#125;
-            </code>{' '}
-            — current status (<code>queued</code> / <code>running</code> /{' '}
+            <code>GET /v1/products/sync/jobs/&#123;jobId&#125;</code> — current
+            status (<code>queued</code> / <code>running</code> /{' '}
             <code>succeeded</code> / <code>failed</code>),{' '}
             <code>progress.phase</code>, and on terminal status the{' '}
             <code>result</code> object with <code>pulled</code> /{' '}
@@ -821,11 +919,8 @@ var clientPayload = payloadResponse.ClientPayload;`}</CodeBlock>
             set and the array is capped.
           </li>
           <li>
-            <code>
-              POST
-              /v1/products/&#123;apiKey&#125;/sync/jobs/&#123;jobId&#125;/cancel
-            </code>{' '}
-            — request a cancel; the worker checks at phase, product-chunk,
+            <code>POST /v1/products/sync/jobs/&#123;jobId&#125;/cancel</code> —
+            request a cancel; the worker checks at phase, product-chunk,
             request, upload-operation, and asset-poll boundaries, then performs
             bounded cleanup for any IAPKit-owned review draft.
           </li>
@@ -838,6 +933,13 @@ var clientPayload = payloadResponse.ClientPayload;`}</CodeBlock>
           the 9-minute deadline to <code>failed</code> so a crashed action can't
           pin the project's "active job" slot.
         </p>
+        <p>
+          All three sync requests send{' '}
+          <code>Authorization: Bearer openiap-kit_sk_...</code>. Secret keys in
+          path routes receive <code>410 SECRET_API_KEY_IN_URL</code>;
+          publishable path segments remain only on app-facing reads and inbound
+          store webhooks whose transport requires them.
+        </p>
       </section>
 
       <section>
@@ -846,10 +948,10 @@ var clientPayload = payloadResponse.ClientPayload;`}</CodeBlock>
         </AnchorLink>
         <p>
           <code>@hyodotdev/openiap-mcp-server</code> is a stdio Model Context
-          Protocol server with 13 tools covering setup, status checks,
-          troubleshooting, product CRUD, subscription listing, sandbox
-          simulation, and full-state inspection. Plug it into Claude Desktop /
-          Cursor / Codex via:
+          Protocol server with 15 tools covering setup, status checks,
+          troubleshooting, product and client-payload CRUD, subscription
+          listing, sandbox simulation, analytics, store sync, and full-state
+          inspection. It requires a secret admin key:
         </p>
         <CodeBlock language="json">{`{
   "mcpServers": {
@@ -857,16 +959,16 @@ var clientPayload = payloadResponse.ClientPayload;`}</CodeBlock>
       "command": "bunx",
       "args": ["@hyodotdev/openiap-mcp-server"],
       "env": {
-        "IAPKIT_API_KEY": "openiap-kit_<your-key>",
+        "IAPKIT_API_KEY": "openiap-kit_sk_<your-secret-key>",
         "IAPKIT_BASE_URL": "https://kit.openiap.dev"
       }
     }
   }
 }`}</CodeBlock>
         <p>
-          Every tool funnels through the same kit HTTP surface as the dashboard
-          and the SDKs, so an LLM action ("disable this product on Android") and
-          a manual edit produce identical state changes.
+          Every tool funnels through the same authorization checks as the
+          dashboard and REST API. Generated mobile setup snippets contain a
+          separate publishable-key placeholder and never reuse the MCP secret.
         </p>
       </section>
     </div>

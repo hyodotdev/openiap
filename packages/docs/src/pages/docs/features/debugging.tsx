@@ -198,7 +198,7 @@ onPurchaseSuccess: async (purchase) => {
 const result = await verifyPurchaseWithProvider({
   provider: 'iapkit',
   iapkit: {
-    apiKey: 'openiap-kit_<your-key>',
+    apiKey: 'openiap-kit_pk_<your-publishable-key>',
     google: { purchaseToken: purchase.purchaseToken },
   },
 });

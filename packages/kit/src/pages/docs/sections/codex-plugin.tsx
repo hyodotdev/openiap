@@ -42,12 +42,13 @@ export default function CodexPluginPage() {
         </p>
       </Callout>
 
-      <Callout kind="note" title="Uses an IAPKit key">
+      <Callout kind="warning" title="Uses an IAPKit secret admin key">
         <p>
           Do not use an OpenAI or ChatGPT API key for this plugin.
-          Authentication is an IAPKit project API key sent as{" "}
-          <code>Authorization: Bearer &lt;IAPKit project key&gt;</code> or
-          provided to a private MCP server as <code>IAPKIT_API_KEY</code>.
+          Authentication is an <code>openiap-kit_sk_</code> secret admin key
+          sent as <code>Authorization: Bearer &lt;IAPKit secret key&gt;</code>{" "}
+          or provided to a private MCP server as <code>IAPKIT_API_KEY</code>.
+          Never reuse the app&apos;s publishable key for MCP.
         </p>
       </Callout>
 
@@ -70,7 +71,7 @@ export default function CodexPluginPage() {
               Authentication
             </div>
             <code className="mt-1 block break-all rounded border border-border bg-background px-3 py-2">
-              Bearer token = IAPKit project API key
+              Bearer token = IAPKit secret admin key
             </code>
           </div>
           <div>

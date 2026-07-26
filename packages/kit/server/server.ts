@@ -28,6 +28,13 @@ app.route("/v1", apiRoutes);
 // static serving so `/mcp` never falls through to the React Router SPA.
 app.all("/mcp", (c) => handleIapKitMcpRequest(c.req.raw));
 
+// Never let an unknown API subroute fall through to the React Router SPA.
+// Besides making API typos return the correct status, this guarantees that
+// removed endpoints such as the former outbound webhook SSE stream remain
+// hard 404s instead of appearing to exist because they returned index.html.
+app.all("/api/v1/*", (c) => c.notFound());
+app.all("/v1/*", (c) => c.notFound());
+
 const STATIC_ROOT = process.env.STATIC_ROOT ?? "./dist";
 
 // Serve the built SPA (hashed assets, favicons, llms.txt, etc.).

@@ -27,10 +27,6 @@ export default function RootLayout() {
           name="alternative-billing"
           options={{title: 'Alternative Billing'}}
         />
-        <Stack.Screen
-          name="webhook-stream"
-          options={{title: 'Webhook Stream'}}
-        />
       </Stack>
     </ActionSheetProvider>
   );

@@ -283,7 +283,7 @@ cd ios && pod install`}
       [
         "expo-iap",
         {
-          "iapkitApiKey": "openiap-kit_<your-key>",
+          "iapkitApiKey": "openiap-kit_pk_<your-publishable-key>",
           "modules": {
             "onside": true,
             "horizon": true,

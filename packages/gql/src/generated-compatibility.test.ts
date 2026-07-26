@@ -524,20 +524,6 @@ export interface WrongOwner {
     expect(iapkitPropsPrimary).not.toContain('includeClientPayload');
   });
 
-  it('preserves the published TypeScript webhook union order', () => {
-    const typescript = generated('types.ts');
-
-    expect(typescript).toContain(
-      "export type SubscriptionState = 'active' | 'expired' | 'in-billing-retry' | 'in-grace-period' | 'paused' | 'refunded' | 'revoked' | 'unknown';",
-    );
-    expect(typescript).toContain(
-      "export type WebhookCancellationReason = 'billing-error' | 'other' | 'price-increase-declined' | 'product-unavailable' | 'refunded' | 'user-canceled';",
-    );
-    expect(typescript).toContain(
-      "export type WebhookEventType = 'purchase-consumption-request' | 'purchase-refunded' | 'subscription-canceled' | 'subscription-expired' | 'subscription-in-billing-retry' | 'subscription-in-grace-period' | 'subscription-paused' | 'subscription-price-change' | 'subscription-product-changed' | 'subscription-recovered' | 'subscription-renewed' | 'subscription-resumed' | 'subscription-revoked' | 'subscription-started' | 'subscription-uncanceled' | 'test-notification';",
-    );
-  });
-
   it('preserves schema prose in custom purchase and discount generators', () => {
     const swift = generated('Types.swift');
     const kotlin = generated('Types.kt');

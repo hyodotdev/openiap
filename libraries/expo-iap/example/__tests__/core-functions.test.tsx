@@ -38,11 +38,6 @@ describe('Core Functions Tests', () => {
       expect(ExpoIap.getStorefront).toBeDefined();
       expect(typeof ExpoIap.getStorefront).toBe('function');
     });
-
-    it('should export connectWebhookStream function', () => {
-      expect(ExpoIap.connectWebhookStream).toBeDefined();
-      expect(typeof ExpoIap.connectWebhookStream).toBe('function');
-    });
   });
 
   describe('Event Listeners', () => {
