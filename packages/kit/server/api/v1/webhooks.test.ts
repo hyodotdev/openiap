@@ -132,6 +132,34 @@ describe("webhooksRoutes", () => {
     expect(response.headers.get("x-ratelimit-limit")).toBe("600");
     expect(response.headers.get("x-ratelimit-remaining")).toBe("599");
   });
+
+  it("keeps only the inbound store lifecycle routes mounted", async () => {
+    const app = new Hono();
+    app.route("/webhooks", helpers.webhooksRoutes);
+
+    for (const path of [
+      "/webhooks/openiap-kit_pk_mobile",
+      "/webhooks/apple/openiap-kit_pk_mobile",
+      "/webhooks/google/openiap-kit_pk_mobile",
+    ]) {
+      const response = await app.request(path, {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{}",
+      });
+
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual({
+        errors: [
+          {
+            code: "INVALID_INPUT",
+            message:
+              "Unrecognized payload. Expected Apple ASN v2 ({signedPayload}) or Google Pub/Sub ({message:{data,messageId}}).",
+          },
+        ],
+      });
+    }
+  });
 });
 
 describe("legacyUnsupportedEventReason", () => {

@@ -117,6 +117,14 @@ probe "/api/v1" "200"
 probe "/intu/project/intu/apikeys" "200"
 probe "/assets/missing-build-asset.js" "404"
 probe "/missing-static-doc.json" "404"
+# The removed outbound IAPKit-to-SDK SSE surface must remain absent in the
+# compiled server, including both API mount points and the legacy key-in-path
+# shape. These probes also guard against the SPA fallback masking a missing API
+# route with a misleading 200 HTML response.
+probe "/v1/webhooks/stream" "404"
+probe "/api/v1/webhooks/stream" "404"
+probe "/v1/webhooks/stream/openiap-kit_pk_smoke-test-key" "404"
+probe "/api/v1/webhooks/stream/openiap-kit_pk_smoke-test-key" "404"
 # Exercise the compiled receipt route without reaching Convex or a store. The
 # well-formed Bearer header passes auth-shape middleware, then the empty JSON
 # object is rejected by the request schema with 400.
