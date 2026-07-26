@@ -1,5 +1,19 @@
 # Changelog
 
+## 9.6.1 (2026-07-26)
+
+- chore(google): bump version to 2.5.1
+- chore(apple): bump version to 2.4.4
+- feat(kit): add scoped publishable and secret keys
+- fix(android): support API 23 warning sets (#253)
+- chore(apple): bump version to 2.4.3
+- fix: preserve native purchase payloads across SDKs (#252)
+- fix: preserve Flutter payloads and warn before legacy removals (#251)
+- fix(release): derive spec from native version floor
+- refactor(gql): enforce generated contract SSOT (#250)
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
+
+
 ## 9.6.0 (2026-07-23)
 
 - chore(google): bump version to 2.5.0
