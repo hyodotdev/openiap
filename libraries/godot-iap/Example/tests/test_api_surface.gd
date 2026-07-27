@@ -126,7 +126,7 @@ func test_query_fields_have_wrapper_methods() -> void:
 
 func test_mutation_fields_have_wrapper_methods() -> void:
 	var fields = _collect_fields(Types.Mutation)
-	_assert_true(fields.size() >= 25, "Mutation should expose at least 25 generated fields (got %d)" % fields.size())
+	_assert_true(fields.size() >= 24, "Mutation should expose at least 24 generated fields (got %d)" % fields.size())
 	for field in fields:
 		_assert_true(
 			GodotIapPlugin.has_method(field["snake_name"]),

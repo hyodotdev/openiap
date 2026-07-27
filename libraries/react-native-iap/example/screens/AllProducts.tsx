@@ -19,12 +19,8 @@ import {
 import {getErrorMessage} from '../src/utils/errorUtils';
 import type {
   Product,
-  ProductAndroid,
   ProductSubscription,
-  ProductSubscriptionAndroid,
-  ProductSubscriptionAndroidOfferDetails,
 } from 'react-native-iap';
-import AndroidOneTimeOfferDetails from '../src/components/AndroidOneTimeOfferDetails';
 
 /**
  * All Products Example - Show All Products and Subscriptions
@@ -59,7 +55,7 @@ import AndroidOneTimeOfferDetails from '../src/components/AndroidOneTimeOfferDet
  * - ProductSubscription = ProductSubscriptionIOS | ProductSubscriptionAndroid (type: 'subs')
  *
  * Benefits:
- * ✅ Type-safe access to platform-specific fields (e.g., discountsIOS, subscriptionOfferDetailsAndroid)
+ * ✅ Type-safe access to platform-specific fields and standardized offers
  * ✅ Compile-time errors prevent accessing non-existent fields
  * ✅ Better IDE autocomplete and IntelliSense
  * ✅ Runtime safety - no accessing undefined fields
@@ -149,13 +145,16 @@ function AllProducts() {
           '- Subscription Period:',
           product.subscriptionPeriodUnitIOS,
         );
-        console.log('- Has Discounts:', product.discountsIOS?.length || 0);
+        console.log(
+          '- Subscription Offers:',
+          product.subscriptionOffers?.length || 0,
+        );
       } else if (product.platform === 'android') {
         // ✅ Narrowed to: ProductSubscriptionAndroid
         console.log('- Android Subscription detected');
         console.log(
           '- Offers:',
-          product.subscriptionOfferDetailsAndroid?.length || 0,
+          product.subscriptionOffers.length,
         );
       }
     } else {
@@ -352,108 +351,7 @@ function AllProducts() {
                     </>
                   )}
 
-                  {/* Android One-Time Purchase Offers */}
-                  {selectedProduct.platform === 'android' &&
-                    'oneTimePurchaseOfferDetailsAndroid' in selectedProduct && (
-                      <AndroidOneTimeOfferDetails
-                        offers={
-                          (
-                            selectedProduct as
-                              | ProductAndroid
-                              | ProductSubscriptionAndroid
-                          ).oneTimePurchaseOfferDetailsAndroid ?? []
-                        }
-                      />
-                    )}
-
-                  {/* Android Subscription Offers */}
-                  {selectedProduct.platform === 'android' &&
-                    'subscriptionOfferDetailsAndroid' in selectedProduct &&
-                    selectedProduct.subscriptionOfferDetailsAndroid &&
-                    selectedProduct.subscriptionOfferDetailsAndroid.length >
-                      0 && (
-                      <View style={styles.offersSection}>
-                        <Text style={styles.offersSectionTitle}>
-                          Subscription Offers (
-                          {
-                            selectedProduct.subscriptionOfferDetailsAndroid
-                              .length
-                          }
-                          )
-                        </Text>
-                        {selectedProduct.subscriptionOfferDetailsAndroid.map(
-                          (
-                            offer: ProductSubscriptionAndroidOfferDetails,
-                            index: number,
-                          ) => (
-                            <View
-                              key={`${offer.offerId ?? 'offer'}-${index}`}
-                              style={styles.offerCard}
-                            >
-                              <Text style={styles.offerTitle}>
-                                Offer {index + 1}
-                                {offer.offerId ? ` (${offer.offerId})` : ''}
-                              </Text>
-
-                              <Text style={styles.offerLabel}>
-                                Base Plan ID:
-                              </Text>
-                              <Text style={styles.offerValue}>
-                                {offer.basePlanId}
-                              </Text>
-
-                              {offer.pricingPhases.pricingPhaseList.length >
-                                0 && (
-                                <>
-                                  <Text style={styles.offerLabel}>
-                                    Pricing Phases:
-                                  </Text>
-                                  {offer.pricingPhases.pricingPhaseList.map(
-                                    (phase, phaseIndex) => (
-                                      <View
-                                        key={phaseIndex}
-                                        style={styles.pricingPhase}
-                                      >
-                                        <Text style={styles.phaseText}>
-                                          Phase {phaseIndex + 1}:{' '}
-                                          {phase.formattedPrice} /{' '}
-                                          {phase.billingPeriod}
-                                        </Text>
-                                        <Text style={styles.phaseDetail}>
-                                          Cycles: {phase.billingCycleCount},
-                                          Mode: {phase.recurrenceMode}
-                                        </Text>
-                                      </View>
-                                    ),
-                                  )}
-                                </>
-                              )}
-
-                              {offer.offerTags.length > 0 && (
-                                <>
-                                  <Text style={styles.offerLabel}>Tags:</Text>
-                                  <Text style={styles.offerValue}>
-                                    {offer.offerTags.join(', ')}
-                                  </Text>
-                                </>
-                              )}
-
-                              <Text style={styles.offerLabel}>
-                                Offer Token:
-                              </Text>
-                              <Text
-                                style={[styles.offerValue, styles.offerToken]}
-                                numberOfLines={2}
-                              >
-                                Present
-                              </Text>
-                            </View>
-                          ),
-                        )}
-                      </View>
-                    )}
-
-                  {/* Cross-Platform Standardized Subscription Offers (v14.7.2+) */}
+                  {/* Cross-platform standardized subscription offers */}
                   {'subscriptionOffers' in selectedProduct &&
                     selectedProduct.subscriptionOffers &&
                     selectedProduct.subscriptionOffers.length > 0 && (

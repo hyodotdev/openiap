@@ -219,13 +219,11 @@ public partial class AllProductsPage : ContentPage
                 if (p is ProductIOS pios)
                 {
                     AppendRow("Is Family Shareable:", pios.IsFamilyShareableIOS ? "Yes" : "No");
-                    AppendSubscriptionInfoIOS(pios.SubscriptionInfoIOS);
                     AppendSubscriptionOffers(pios.SubscriptionOffers);
                 }
                 else if (p is ProductAndroid pand)
                 {
                     AppendRow("Name (Android):", pand.NameAndroid);
-                    AppendOneTimeOffers(pand.OneTimePurchaseOfferDetailsAndroid);
                     AppendDiscountOffers(pand.DiscountOffers);
                     AppendSubscriptionOffers(pand.SubscriptionOffers);
                 }
@@ -247,76 +245,17 @@ public partial class AllProductsPage : ContentPage
                         AppendRow("Subscription Period (iOS):",
                             $"{sios.SubscriptionPeriodNumberIOS} {unit.ToJson()}");
                     }
-                    AppendDiscountsIOS(sios.DiscountsIOS);
-                    AppendSubscriptionInfoIOS(sios.SubscriptionInfoIOS);
+                    AppendRow("Subscription Group (iOS):", sios.SubscriptionGroupIdIOS ?? "N/A");
                     AppendSubscriptionOffers(sios.SubscriptionOffers);
                 }
                 if (s is ProductSubscriptionAndroid sand)
                 {
                     AppendRow("Name (Android):", sand.NameAndroid);
-                    AppendAndroidSubscriptionOfferDetails(sand.SubscriptionOfferDetailsAndroid);
-                    AppendDiscountOffers(sand.DiscountOffers);
                     AppendSubscriptionOffers(sand.SubscriptionOffers);
                 }
                 break;
         }
         DetailsOverlay.IsVisible = true;
-    }
-
-    private void AppendDiscountsIOS(IReadOnlyList<DiscountIOS>? discounts)
-    {
-        if (discounts is not { Count: > 0 }) return;
-        AppendSection($"iOS Discounts ({discounts.Count})");
-        foreach (var discount in discounts)
-        {
-            AppendOfferTitle(discount.Identifier);
-            AppendOfferDetail($"Type: {discount.Type}");
-            AppendOfferDetail($"Price: {discount.LocalizedPrice ?? discount.Price}");
-            AppendOfferDetail($"Payment Mode: {discount.PaymentMode.ToJson()}");
-            AppendOfferDetail($"Periods: {discount.NumberOfPeriods}");
-        }
-    }
-
-    private void AppendSubscriptionInfoIOS(SubscriptionInfoIOS? info)
-    {
-        if (info is null) return;
-        AppendSection("iOS Subscription Info");
-        AppendOfferDetail($"Group ID: {info.SubscriptionGroupId}");
-        AppendOfferDetail($"Period: {info.SubscriptionPeriod.Value} {info.SubscriptionPeriod.Unit.ToJson()}");
-        if (info.IntroductoryOffer is { } intro)
-        {
-            AppendOfferTitle("Introductory Offer");
-            AppendOfferDetail($"Price: {intro.DisplayPrice}");
-            AppendOfferDetail($"Mode: {intro.PaymentMode.ToJson()}");
-            AppendOfferDetail($"Periods: {intro.PeriodCount}");
-        }
-        if (info.PromotionalOffers is { Count: > 0 } promos)
-        {
-            AppendOfferTitle($"Promotional Offers ({promos.Count})");
-            foreach (var promo in promos)
-            {
-                AppendOfferDetail($"ID: {promo.Id}");
-                AppendOfferDetail($"Price: {promo.DisplayPrice}");
-                AppendOfferDetail($"Mode: {promo.PaymentMode.ToJson()}");
-            }
-        }
-    }
-
-    private void AppendOneTimeOffers(IReadOnlyList<ProductAndroidOneTimePurchaseOfferDetail>? offers)
-    {
-        if (offers is not { Count: > 0 }) return;
-        AppendSection($"One-Time Purchase Offers ({offers.Count})");
-        foreach (var offer in offers)
-        {
-            AppendOfferTitle(offer.OfferId ?? offer.PurchaseOptionId ?? "Offer");
-            AppendOfferDetail($"Price: {offer.FormattedPrice}");
-            AppendOfferDetail($"Full Price (micros): {offer.FullPriceMicros}");
-            AppendOfferDetail($"Discount: {offer.DiscountDisplayInfo?.DiscountAmount?.FormattedDiscountAmount}");
-            AppendOfferDetail($"Percentage: {offer.DiscountDisplayInfo?.PercentageDiscount}");
-            AppendOfferDetail($"Release: {FormatMillis(offer.PreorderDetailsAndroid?.PreorderReleaseTimeMillis)}");
-            AppendOfferDetail($"Rental Period: {offer.RentalDetailsAndroid?.RentalExpirationPeriod}");
-            AppendOfferDetail($"Tags: {FormatList(offer.OfferTags)}");
-        }
     }
 
     private void AppendDiscountOffers(IReadOnlyList<DiscountOffer>? offers)
@@ -335,25 +274,6 @@ public partial class AllProductsPage : ContentPage
             AppendOfferDetail($"Release: {FormatMillis(offer.PreorderDetailsAndroid?.PreorderReleaseTimeMillis)}");
             AppendOfferDetail($"Rental Period: {offer.RentalDetailsAndroid?.RentalExpirationPeriod}");
             AppendOfferDetail($"Tags: {FormatList(offer.OfferTagsAndroid)}");
-        }
-    }
-
-    private void AppendAndroidSubscriptionOfferDetails(IReadOnlyList<ProductSubscriptionAndroidOfferDetails>? offers)
-    {
-        if (offers is not { Count: > 0 }) return;
-        AppendSection($"Android Subscription Offer Details ({offers.Count})");
-        foreach (var offer in offers)
-        {
-            AppendOfferTitle(offer.BasePlanId + (string.IsNullOrEmpty(offer.OfferId) ? string.Empty : $" - {offer.OfferId}"));
-            var offerTokenStatus = string.IsNullOrEmpty(offer.OfferToken)
-                ? "missing"
-                : "present";
-            AppendOfferDetail($"Offer Token: {offerTokenStatus}");
-            AppendOfferDetail($"Tags: {FormatList(offer.OfferTags)}");
-            foreach (var phase in offer.PricingPhases.PricingPhaseList)
-            {
-                AppendOfferDetail($"Price: {phase.FormattedPrice} · Period: {phase.BillingPeriod} · Cycles: {phase.BillingCycleCount} · Recurrence: {phase.RecurrenceMode}");
-            }
         }
     }
 

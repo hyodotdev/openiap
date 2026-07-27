@@ -12,12 +12,12 @@ Review and address PR review comments for this repository.
 
 Based on changed files, run these checks BEFORE committing:
 
-| Changed Files | Commands |
-|---------------|----------|
+| Changed Files                    | Commands                                                                                                                                                          |
+| -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `lib/*.dart` (except types.dart) | `git ls-files '*.dart' \| grep -v '^lib/types.dart$' \| xargs dart format --page-width 80 --output=none --set-exit-if-changed && flutter analyze && flutter test` |
-| `android/` | `cd example && flutter build apk --debug` |
-| `ios/` | `cd example && flutter build ios --no-codesign --debug` |
-| `test/` | `flutter test` |
+| `android/`                       | `cd example && flutter build apk --debug`                                                                                                                         |
+| `ios/`                           | `cd example && flutter build ios --no-codesign --debug`                                                                                                           |
+| `test/`                          | `flutter test`                                                                                                                                                    |
 
 **Quick check script:** `./scripts/pre-commit-checks.sh`
 
@@ -25,7 +25,7 @@ Based on changed files, run these checks BEFORE committing:
 
 When reviewing, check these project-specific rules:
 
-- **iOS-related code**: Use `IOS` suffix (e.g., `PurchaseIOS`, `SubscriptionOfferIOS`)
+- **iOS-related code**: Use `IOS` suffix (e.g., `PurchaseIOS`, `ProductIOS`)
 - **Android-related code**: Use `Android` suffix (e.g., `PurchaseAndroid`)
 - **ID convention**: Use `Id` consistently (e.g., `productId`, `transactionId`)
 - **Generated files**: Do NOT edit `lib/types.dart` - regenerate via `./scripts/generate-type.sh`
@@ -41,10 +41,10 @@ When replying to PR comments:
 
 **NEVER wrap commit hashes in backticks or code blocks.** GitHub only auto-links plain text commit hashes.
 
-| Format | Example | Result |
-|--------|---------|--------|
-| CORRECT | `Fixed in f3b5fec.` | Clickable link to commit |
-| WRONG | `Fixed in \`f3b5fec\`.` | Plain text, no link |
+| Format  | Example                 | Result                   |
+| ------- | ----------------------- | ------------------------ |
+| CORRECT | `Fixed in f3b5fec.`     | Clickable link to commit |
+| WRONG   | `Fixed in \`f3b5fec\`.` | Plain text, no link      |
 
 **Examples of correct replies:**
 

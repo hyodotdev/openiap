@@ -449,8 +449,7 @@ function SubscriptionFlow({
 
                 // For Android, get purchase token from activeSubscriptions
                 const extendedSub = currentSub as
-                  | ExtendedActiveSubscription
-                  | undefined;
+                  ExtendedActiveSubscription | undefined;
                 const purchaseToken =
                   extendedSub?.purchaseToken ||
                   extendedSub?.purchaseTokenAndroid;
@@ -470,16 +469,6 @@ function SubscriptionFlow({
                     ? purchaseToken
                     : String(purchaseToken);
 
-                // Use replacement mode for Android
-                // ProrationMode constants from Google Play Billing:
-                // 1 = IMMEDIATE_WITH_TIME_PRORATION
-                // 2 = IMMEDIATE_AND_CHARGE_PRORATED_PRICE
-                // 3 = IMMEDIATE_AND_CHARGE_FULL_PRICE
-                // 4 = DEFERRED
-                // 5 = IMMEDIATE_WITHOUT_PRORATION
-                // For same product with different offers, OpenIAP uses CHARGE_FULL_PRICE (5)
-                const replacementMode = 5; // IMMEDIATE_WITHOUT_PRORATION as per OpenIAP example
-
                 // Make the request with proper token
                 void requestPurchase({
                   request: {
@@ -491,7 +480,10 @@ function SubscriptionFlow({
                           offerToken: targetOffer.offerTokenAndroid ?? '',
                         },
                       ],
-                      replacementMode: replacementMode,
+                      subscriptionProductReplacementParams: {
+                        oldProductId: currentSub!.productId,
+                        replacementMode: 'without-proration',
+                      },
                       purchaseToken: tokenString,
                     },
                   },
@@ -545,12 +537,6 @@ function SubscriptionFlow({
       'subscriptionOffers' in selectedSubscription &&
       selectedSubscription.subscriptionOffers &&
       selectedSubscription.subscriptionOffers.length > 0;
-
-    // Check for discount offers (cross-platform)
-    const hasDiscountOffers =
-      'discountOffers' in selectedSubscription &&
-      selectedSubscription.discountOffers &&
-      selectedSubscription.discountOffers.length > 0;
 
     return (
       <View style={styles.modalContent}>
@@ -674,47 +660,6 @@ function SubscriptionFlow({
                   </View>
                 ),
               )}
-            </View>
-          )}
-
-          {/* Discount Offers (Cross-platform) */}
-          {hasDiscountOffers && (
-            <View style={styles.offersSection}>
-              <Text style={styles.offersSectionTitle}>
-                Discount Offers ({selectedSubscription.discountOffers!.length})
-              </Text>
-              {selectedSubscription.discountOffers!.map((offer, idx) => (
-                <View key={offer.id || idx} style={styles.offerCard}>
-                  <Text style={styles.offerTitle}>
-                    {offer.id || `Offer ${idx + 1}`}
-                  </Text>
-                  <Text style={styles.offerDetailLabel}>Price:</Text>
-                  <Text style={styles.offerValue}>{offer.displayPrice}</Text>
-                  {offer.fullPriceMicrosAndroid && (
-                    <>
-                      <Text style={styles.offerDetailLabel}>
-                        Full Price (micros):
-                      </Text>
-                      <Text style={styles.offerValue}>
-                        {offer.fullPriceMicrosAndroid}
-                      </Text>
-                    </>
-                  )}
-                  {offer.percentageDiscountAndroid && (
-                    <Text style={styles.offerValueDiscount}>
-                      {offer.percentageDiscountAndroid}% off
-                    </Text>
-                  )}
-                  {offer.formattedDiscountAmountAndroid && (
-                    <>
-                      <Text style={styles.offerDetailLabel}>Discount:</Text>
-                      <Text style={styles.offerValueDiscount}>
-                        {offer.formattedDiscountAmountAndroid}
-                      </Text>
-                    </>
-                  )}
-                </View>
-              ))}
             </View>
           )}
 
@@ -1124,7 +1069,8 @@ function SubscriptionFlow({
                                 </Text>
                                 <Text style={styles.statusValue}>
                                   {new Date(
-                                    sub.renewalInfoIOS.gracePeriodExpirationDate,
+                                    sub.renewalInfoIOS
+                                      .gracePeriodExpirationDate,
                                   ).toLocaleDateString()}
                                 </Text>
                               </View>
@@ -2223,20 +2169,6 @@ function SubscriptionFlowContainer() {
               sub.introductoryPriceIOS || 'null'
             }`,
           );
-
-          // Log discountsIOS (already parsed as DiscountIOS[])
-          if (sub.discountsIOS && sub.discountsIOS.length > 0) {
-            console.log(
-              `      • discountsIOS: ${sub.discountsIOS.length} discount(s)`,
-            );
-            sub.discountsIOS.forEach((discount, idx) => {
-              console.log(
-                `         [${idx}] type: ${discount.type}, paymentMode: ${discount.paymentMode}, price: ${discount.price}`,
-              );
-            });
-          } else {
-            console.log('      • discountsIOS: empty or null ⚠️');
-          }
         }
 
         // Cross-platform subscription offers
@@ -2244,15 +2176,6 @@ function SubscriptionFlowContainer() {
           console.log(
             `      • subscriptionOffers: ${
               sub.subscriptionOffers.length || 0
-            } offer(s)`,
-          );
-        }
-
-        // Cross-platform discount offers
-        if ('discountOffers' in sub && sub.discountOffers) {
-          console.log(
-            `      • discountOffers: ${
-              sub.discountOffers.length || 0
             } offer(s)`,
           );
         }
@@ -2407,11 +2330,11 @@ function SubscriptionFlowContainer() {
 
       void requestPurchase({
         request: {
-          ios: {
+          apple: {
             sku: itemId,
             appAccountToken: 'user-123',
           },
-          android: {
+          google: {
             skus: [itemId],
             subscriptionOffers:
               subscription &&

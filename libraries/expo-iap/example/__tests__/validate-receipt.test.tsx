@@ -67,14 +67,14 @@ describe('Purchase Token Unified API Tests', () => {
   it('should have correct property types with unified API', () => {
     const purchase = {
       id: 'test-id',
-      platform: 'ios',
+      store: 'apple',
       productId: 'test.product',
       transactionDate: Date.now(),
       purchaseToken: 'unified-purchase-token',
     };
 
     expect(typeof purchase.id).toBe('string');
-    expect(typeof purchase.platform).toBe('string');
+    expect(typeof purchase.store).toBe('string');
     expect(typeof purchase.productId).toBe('string');
     expect(typeof purchase.transactionDate).toBe('number');
     expect(typeof purchase.purchaseToken).toBe('string');

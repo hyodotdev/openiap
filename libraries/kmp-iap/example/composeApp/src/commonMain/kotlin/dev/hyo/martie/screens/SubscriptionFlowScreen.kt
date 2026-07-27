@@ -598,7 +598,11 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                     )
                                 }
 
-                                if (activeSub.willExpireSoon == true) {
+                                if (
+                                    activeSub.daysUntilExpirationIOS?.let {
+                                        it in 0.0..7.0
+                                    } == true
+                                ) {
                                     Text(
                                         text = "  ⚠️ Expiring soon!",
                                         fontSize = 12.sp,
@@ -989,7 +993,7 @@ fun SubscriptionCard(
                     }
                     is ProductSubscriptionIOS -> {
                         println("--- iOS Specific ---")
-                        println("Subscription Info: ${subscription.subscriptionInfoIOS}")
+                        println("Subscription Group: ${subscription.subscriptionGroupIdIOS}")
                         subscription.subscriptionOffers?.let { offers ->
                             println("Subscription Offers: ${offers.size} offers")
                             offers.forEach { offer ->

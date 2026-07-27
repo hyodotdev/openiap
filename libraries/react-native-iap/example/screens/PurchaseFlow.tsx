@@ -1025,11 +1025,11 @@ function PurchaseFlowContainer() {
     // Using Option C: Cross-platform request
     void requestPurchase({
       request: {
-        ios: {
+        apple: {
           sku: itemId,
           quantity: 1,
         },
-        android: {
+        google: {
           skus: [itemId],
         },
       },

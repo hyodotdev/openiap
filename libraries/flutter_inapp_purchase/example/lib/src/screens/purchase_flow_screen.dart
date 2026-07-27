@@ -9,7 +9,7 @@ import '../widgets/purchase_detail_view.dart';
 import '../constants.dart';
 
 class PurchaseFlowScreen extends StatefulWidget {
-  const PurchaseFlowScreen({Key? key}) : super(key: key);
+  const PurchaseFlowScreen({super.key});
 
   @override
   State<PurchaseFlowScreen> createState() => _PurchaseFlowScreenState();
@@ -104,7 +104,7 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
         debugPrint(
             'Has purchase credential: ${purchase.purchaseToken?.isNotEmpty ?? false}');
         debugPrint(
-          'Purchase data: productId=${purchase.productId}, platform=${purchase.platform}, state=${purchase.purchaseState}',
+          'Purchase data: productId=${purchase.productId}, store=${purchase.store}, state=${purchase.purchaseState}',
         );
         _handlePurchaseUpdate(purchase);
       },
@@ -143,7 +143,7 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
 
   Future<void> _handlePurchaseUpdate(Purchase purchase) async {
     debugPrint('🎯 Purchase update received: ${purchase.productId}');
-    debugPrint('  Platform: ${purchase.platform}');
+    debugPrint('  Store: ${purchase.store}');
     debugPrint('  Purchase state: ${purchase.purchaseState}');
     final transactionId = purchase.transactionIdFor;
     final androidStateValue = purchase.androidPurchaseStateValue;
@@ -157,7 +157,7 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
         '  Has purchase credential: ${purchase.purchaseToken?.isNotEmpty ?? false}');
     debugPrint('  ID: ${purchase.id} (${purchase.id.runtimeType})');
     debugPrint('  IDs array: ${purchase.ids}');
-    if (purchase.platform == IapPlatform.IOS) {
+    if (purchase is PurchaseIOS) {
       final quantityIOS = purchase.iosQuantity;
       final originalIdentifier = purchase.iosOriginalTransactionId;
       debugPrint('  quantityIOS: $quantityIOS');
@@ -209,7 +209,7 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
       final bool condition3 = transactionId != null;
 
       debugPrint('  iOS condition checks:');
-      debugPrint('    transactionStateIOS == purchased: $condition1');
+      debugPrint('    purchaseState == purchased: $condition1');
       debugPrint('    has valid purchaseToken: $condition2');
       debugPrint('    has valid transactionId: $condition3');
 
@@ -225,7 +225,7 @@ class _PurchaseFlowScreenState extends State<PurchaseFlowScreen> {
         _isProcessing = false;
         _purchaseResult = '''
 ⚠️ Purchase received but state unknown
-Platform: ${purchase.platform}
+Store: ${purchase.store}
 Purchase state: ${purchase.purchaseState}
 iOS transaction state: $iosTransactionState
 Android purchase state (legacy value): $androidStateValue
@@ -601,7 +601,6 @@ Store: ${iapkitResult.store.value}
         google: RequestPurchaseAndroidProps(
           skus: [productId],
         ),
-        useAlternativeBilling: null,
       ));
 
       await _iap.requestPurchase(requestProps);

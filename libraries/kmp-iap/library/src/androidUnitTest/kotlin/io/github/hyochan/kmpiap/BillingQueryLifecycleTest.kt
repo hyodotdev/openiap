@@ -35,7 +35,6 @@ import com.android.billingclient.api.PurchasesResponseListener
 import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryProductDetailsResult
 import com.android.billingclient.api.QueryPurchasesParams
-import io.github.hyochan.kmpiap.openiap.AlternativeBillingModeAndroid
 import io.github.hyochan.kmpiap.openiap.BillingChoiceScreenTypeAndroid
 import io.github.hyochan.kmpiap.openiap.BillingProgramAndroid
 import io.github.hyochan.kmpiap.openiap.ErrorCode
@@ -203,7 +202,6 @@ class BillingQueryLifecycleTest {
             val failedAttempt =
                 connectionAttempt(
                     module,
-                    alternativeMode = AlternativeBillingModeAndroid.AlternativeOnly,
                     program = BillingProgramAndroid.ExternalOffer,
                     screenType = BillingChoiceScreenTypeAndroid.DeveloperRendered,
                 )
@@ -212,7 +210,6 @@ class BillingQueryLifecycleTest {
             assertTrue(finishAttempt(module, failedAttempt, failedClient, connected = false))
             assertConfig(
                 module,
-                AlternativeBillingModeAndroid.None,
                 null,
                 BillingChoiceScreenTypeAndroid.GoogleRendered,
             )
@@ -221,7 +218,6 @@ class BillingQueryLifecycleTest {
             val connectedAttempt =
                 connectionAttempt(
                     module,
-                    alternativeMode = AlternativeBillingModeAndroid.AlternativeOnly,
                     program = BillingProgramAndroid.ExternalOffer,
                     screenType = BillingChoiceScreenTypeAndroid.DeveloperRendered,
                 )
@@ -230,7 +226,6 @@ class BillingQueryLifecycleTest {
             assertTrue(finishAttempt(module, connectedAttempt, connectedClient, connected = true))
             assertConfig(
                 module,
-                AlternativeBillingModeAndroid.AlternativeOnly,
                 BillingProgramAndroid.ExternalOffer,
                 BillingChoiceScreenTypeAndroid.DeveloperRendered,
             )
@@ -326,7 +321,6 @@ class BillingQueryLifecycleTest {
 
     private fun connectionAttempt(
         module: InAppPurchaseAndroid,
-        alternativeMode: AlternativeBillingModeAndroid = AlternativeBillingModeAndroid.None,
         program: BillingProgramAndroid? = null,
         screenType: BillingChoiceScreenTypeAndroid = BillingChoiceScreenTypeAndroid.GoogleRendered,
     ): Any {
@@ -335,11 +329,10 @@ class BillingQueryLifecycleTest {
                 .first { it.simpleName == "ConnectionAttempt" }
         val constructor =
             type.declaredConstructors
-                .first { it.parameterCount == 5 }
+                .first { it.parameterCount == 4 }
                 .apply { isAccessible = true }
         return constructor.newInstance(
             generation(module),
-            alternativeMode,
             program,
             screenType,
             CompletableDeferred<Boolean>(),
@@ -421,11 +414,9 @@ class BillingQueryLifecycleTest {
 
     private fun assertConfig(
         module: InAppPurchaseAndroid,
-        alternativeMode: AlternativeBillingModeAndroid,
         program: BillingProgramAndroid?,
         screenType: BillingChoiceScreenTypeAndroid,
     ) {
-        assertEquals(alternativeMode, field(module, "alternativeBillingMode"))
         assertEquals(program, field<BillingProgramAndroid?>(module, "enabledBillingProgram"))
         assertEquals(screenType, field(module, "billingChoiceScreenType"))
     }
@@ -438,7 +429,6 @@ class BillingQueryLifecycleTest {
             id = token,
             isAutoRenewing = false,
             isSuspendedAndroid = true,
-            platform = IapPlatform.Android,
             productId = "subscription",
             purchaseState = PurchaseState.Purchased,
             purchaseToken = token,

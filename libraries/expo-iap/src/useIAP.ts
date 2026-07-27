@@ -17,7 +17,6 @@ import {
   finishTransaction as finishTransactionInternal,
   requestPurchase as requestPurchaseInternal,
   fetchProducts,
-  validateReceipt as validateReceiptInternal,
   verifyPurchase as verifyPurchaseInternal,
   verifyPurchaseWithProvider as verifyPurchaseWithProviderInternal,
   getActiveSubscriptions,
@@ -28,13 +27,9 @@ import {
 import {ExpoIapConsole} from './utils/debug';
 import {
   getPromotedProductIOS,
-  requestPurchaseOnPromotedProductIOS,
   syncIOS,
 } from './modules/ios';
 import {
-  checkAlternativeBillingAvailabilityAndroid,
-  showAlternativeBillingDialogAndroid,
-  createAlternativeBillingTokenAndroid,
   getBillingChoiceInfoAndroid,
   isBillingProgramAvailableAndroid,
   createBillingProgramReportingDetailsAndroid,
@@ -50,7 +45,6 @@ import type {
   ProductSubscription,
   ProductQueryType,
   ProductRequest,
-  AlternativeBillingModeAndroid,
   BillingChoiceScreenTypeAndroid,
   BillingProgramAndroid,
   DeveloperProvidedBillingDetailsAndroid,
@@ -63,8 +57,6 @@ import type {
   VerifyPurchaseResult,
   VerifyPurchaseWithProviderProps,
   VerifyPurchaseWithProviderResult,
-  ProductAndroid,
-  ProductSubscriptionIOS,
   PurchaseOptions,
   MutationField,
   QueryField,
@@ -115,22 +107,12 @@ type UseIap = {
   requestPurchase: (
     params: MutationRequestPurchaseArgs,
   ) => ReturnType<typeof requestPurchaseInternal>;
-  /** @deprecated Use verifyPurchase instead. Scheduled for removal in expo-iap 5.0.0. */
-  validateReceipt: (
-    props: VerifyPurchaseProps,
-  ) => Promise<VerifyPurchaseResult>;
   verifyPurchase: (props: VerifyPurchaseProps) => Promise<VerifyPurchaseResult>;
   verifyPurchaseWithProvider: (
     props: VerifyPurchaseWithProviderProps,
   ) => Promise<VerifyPurchaseWithProviderResult>;
   restorePurchases: (options?: PurchaseOptions) => Promise<void>;
   getPromotedProductIOS: () => Promise<Product | null>;
-  /**
-   * @deprecated Use the `onPromotedProductIOS` hook callback to receive the
-   * product, then call `requestPurchase` with that SKU instead. Scheduled for
-   * removal in expo-iap 5.0.0.
-   */
-  requestPurchaseOnPromotedProductIOS: () => Promise<boolean>;
   getActiveSubscriptions: (subscriptionIds?: string[]) => Promise<void>;
   hasActiveSubscriptions: (subscriptionIds?: string[]) => Promise<boolean>;
   /**
@@ -139,24 +121,6 @@ type UseIap = {
    * Updates the `connected` state on success.
    */
   reconnect: () => Promise<boolean>;
-  /**
-   * @deprecated Use `isBillingProgramAvailableAndroid('external-offer')`
-   * instead. Scheduled for removal in expo-iap 5.0.0.
-   */
-  checkAlternativeBillingAvailabilityAndroid: () => Promise<boolean>;
-  /**
-   * @deprecated Use `launchExternalLinkAndroid` instead. Scheduled for removal
-   * in expo-iap 5.0.0.
-   */
-  showAlternativeBillingDialogAndroid: () => Promise<boolean>;
-  /**
-   * @deprecated Use
-   * `createBillingProgramReportingDetailsAndroid('external-offer')` instead.
-   * Scheduled for removal in expo-iap 5.0.0.
-   */
-  createAlternativeBillingTokenAndroid: (
-    sku?: string,
-  ) => Promise<string | null>;
   getBillingChoiceInfoAndroid: QueryField<'getBillingChoiceInfoAndroid'>;
   isBillingProgramAvailableAndroid: MutationField<'isBillingProgramAvailableAndroid'>;
   createBillingProgramReportingDetailsAndroid: MutationField<'createBillingProgramReportingDetailsAndroid'>;
@@ -193,15 +157,6 @@ export interface UseIAPOptions {
   ) => void;
   /** Fires when a subscription enters a billing-issue state. */
   onSubscriptionBillingIssue?: (purchase: Purchase) => void;
-  /**
-   * Alternative billing mode for Android
-   * If not specified, defaults to NONE (standard Google Play billing)
-   * @deprecated Use enableBillingProgramAndroid instead. This option will be
-   * removed in expo-iap 5.0.0.
-   * - 'user-choice' → 'user-choice-billing'
-   * - 'alternative-only' → 'external-offer'
-   */
-  alternativeBillingModeAndroid?: AlternativeBillingModeAndroid;
   /**
    * Enable a specific billing program for Android (8.2.0+)
    * When set, enables the specified billing program for external transactions.
@@ -282,7 +237,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
 
   const normalizeProductQueryType = useCallback(
     (type?: ProductTypeInput): ProductQueryType => {
-      if (!type || type === 'inapp' || type === 'in-app') {
+      if (!type || type === 'in-app') {
         return 'in-app';
       }
       return type;
@@ -307,7 +262,6 @@ export function useIAP(options?: UseIAPOptions): UseIap {
       id: purchase.id,
       ids: purchase.ids ?? undefined,
       isAutoRenewing: purchase.isAutoRenewing,
-      platform: purchase.platform,
       productId: purchase.productId,
       purchaseState: purchase.purchaseState,
       purchaseToken: purchase.purchaseToken ?? null,
@@ -397,40 +351,13 @@ export function useIAP(options?: UseIAPOptions): UseIap {
             ),
           );
         } else {
-          // For 'all' type, need to properly distinguish between products and subscriptions
-          // On Android, check subscriptionOfferDetailsAndroid to determine if it's a real subscription
-          const productItems = items.filter((item) => {
-            // iOS: check type
-            if (Platform.OS === 'ios') {
-              return canonicalProductType(item.type as string) === 'in-app';
-            }
-            // Android: check if it has actual subscription details
-            const androidItem = item as ProductAndroid;
-            return (
-              !androidItem.subscriptionOfferDetailsAndroid ||
-              (Array.isArray(androidItem.subscriptionOfferDetailsAndroid) &&
-                androidItem.subscriptionOfferDetailsAndroid.length === 0)
-            );
-          }) as Product[];
+          const productItems = items.filter(
+            (item) => canonicalProductType(item.type as string) === 'in-app',
+          ) as Product[];
 
-          const subscriptionItems = items.filter((item) => {
-            // iOS: check type
-            if (Platform.OS === 'ios') {
-              return (
-                canonicalProductType(
-                  item.type as ProductSubscriptionIOS['type'],
-                ) === 'subs'
-              );
-            }
-            // Android: check if it has actual subscription details
-            const androidItem = item as ProductAndroid;
-
-            return (
-              androidItem.subscriptionOfferDetailsAndroid &&
-              Array.isArray(androidItem.subscriptionOfferDetailsAndroid) &&
-              androidItem.subscriptionOfferDetailsAndroid.length > 0
-            );
-          }) as ProductSubscription[];
+          const subscriptionItems = items.filter(
+            (item) => canonicalProductType(item.type as string) === 'subs',
+          ) as ProductSubscription[];
 
           setProducts((prevProducts) =>
             mergeWithDuplicateCheck(
@@ -680,16 +607,6 @@ export function useIAP(options?: UseIAPOptions): UseIap {
   );
 
   /**
-   * Deprecated. Use verifyPurchase instead — same input/output shape. This
-   * function will be removed in expo-iap 5.0.0.
-   *
-   * @see {@link https://openiap.dev/docs/apis/validate-receipt}
-   */
-  const validateReceipt = useCallback(async (props: VerifyPurchaseProps) => {
-    return validateReceiptInternal(props);
-  }, []);
-
-  /**
    * Verify a purchase against your own backend (returns isValid + raw store metadata).
    *
    * @see {@link https://openiap.dev/docs/features/validation#verify-purchase}
@@ -710,7 +627,7 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     [],
   );
 
-  // Build config from options (prefer new enableBillingProgramAndroid over deprecated alternativeBillingModeAndroid)
+  // Build the canonical billing-program connection config.
   const buildConnectionConfig = useCallback(():
     InitConnectionConfig | undefined => {
     if (optionsRef.current?.enableBillingProgramAndroid) {
@@ -723,13 +640,6 @@ export function useIAP(options?: UseIAPOptions): UseIap {
                 optionsRef.current.billingChoiceScreenTypeAndroid,
             }
           : {}),
-      };
-    }
-
-    if (optionsRef.current?.alternativeBillingModeAndroid) {
-      return {
-        alternativeBillingModeAndroid:
-          optionsRef.current.alternativeBillingModeAndroid,
       };
     }
 
@@ -935,21 +845,15 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     getAvailablePurchases: getAvailablePurchasesInternal,
     fetchProducts: fetchProductsInternal,
     requestPurchase: requestPurchaseWithReset,
-    validateReceipt,
     verifyPurchase,
     verifyPurchaseWithProvider,
     restorePurchases: restorePurchasesInternal,
     // internal getters kept for hook state management
     getPromotedProductIOS,
-    requestPurchaseOnPromotedProductIOS,
     getActiveSubscriptions: getActiveSubscriptionsInternal,
     hasActiveSubscriptions: hasActiveSubscriptionsInternal,
     // Reconnect method for manual retry
     reconnect,
-    // Alternative billing methods (Android only)
-    checkAlternativeBillingAvailabilityAndroid,
-    showAlternativeBillingDialogAndroid,
-    createAlternativeBillingTokenAndroid,
     getBillingChoiceInfoAndroid,
     isBillingProgramAvailableAndroid,
     createBillingProgramReportingDetailsAndroid,

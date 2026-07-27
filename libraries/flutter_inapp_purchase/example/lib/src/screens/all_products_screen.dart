@@ -9,7 +9,7 @@ import '../widgets/product_detail_modal.dart';
 import '../constants.dart';
 
 class AllProductsScreen extends StatefulWidget {
-  const AllProductsScreen({Key? key}) : super(key: key);
+  const AllProductsScreen({super.key});
 
   @override
   State<AllProductsScreen> createState() => _AllProductsScreenState();
@@ -389,8 +389,7 @@ class _AllProductsScreenState extends State<AllProductsScreen> {
                         if (!kIsWeb &&
                             defaultTargetPlatform == TargetPlatform.android &&
                             product is ProductAndroid) ...[
-                          if (product.oneTimePurchaseOfferDetailsAndroid !=
-                              null)
+                          if (product.discountOffers?.isNotEmpty ?? false)
                             Container(
                               padding: const EdgeInsets.symmetric(
                                 horizontal: 4,

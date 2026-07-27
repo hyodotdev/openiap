@@ -19,7 +19,7 @@ This document outlines the coding conventions and guidelines for the kmp-iap pro
 
 3. **Platform-specific**:
 
-   - iOS: Use `IOS` as a suffix (e.g., `PurchaseIOS`, `SubscriptionOfferIOS`, `TransactionStateIOS`)
+   - iOS: Use `IOS` as a suffix (e.g., `PurchaseIOS`, `ProductIOS`, `TransactionStateIOS`)
    - Android: Use `Android` as a suffix (e.g., `PurchaseAndroid`, `SubscriptionOfferAndroid`, `AndroidPurchaseState`)
    - **Important**: The platform identifier should always be a suffix, not a prefix
      - ✅ Correct: `TransactionStateIOS`, `DiscountPaymentModeIOS`
@@ -88,7 +88,7 @@ The library supports two patterns for maximum flexibility:
 // 1. Listen for purchase updates
 kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
     // 2. Validate receipt with your backend
-    val isValid = validateReceiptOnServer(purchase)
+    val isValid = verifyPurchaseOnServer(purchase)
 
     if (isValid) {
         // 3. Grant entitlement

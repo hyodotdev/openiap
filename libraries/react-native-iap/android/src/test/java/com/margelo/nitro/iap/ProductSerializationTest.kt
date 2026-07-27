@@ -5,10 +5,7 @@ import dev.hyo.openiap.DiscountOfferType
 import dev.hyo.openiap.InstallmentPlanDetailsAndroid
 import dev.hyo.openiap.PaymentMode
 import dev.hyo.openiap.PreorderDetailsAndroid
-import dev.hyo.openiap.PricingPhasesAndroid
 import dev.hyo.openiap.ProductAndroid
-import dev.hyo.openiap.ProductAndroidOneTimePurchaseOfferDetail
-import dev.hyo.openiap.ProductSubscriptionAndroidOfferDetails
 import dev.hyo.openiap.RentalDetailsAndroid
 import dev.hyo.openiap.SubscriptionOffer
 import org.junit.Assert.assertEquals
@@ -16,28 +13,6 @@ import org.junit.Assert.assertNotNull
 import org.junit.Test
 
 class ProductSerializationTest {
-    @Test
-    fun `legacy subscription offer keeps installment details`() {
-        val maps = legacySubscriptionOfferMaps(
-            listOf(
-                ProductSubscriptionAndroidOfferDetails(
-                    basePlanId = "annual",
-                    installmentPlanDetails = InstallmentPlanDetailsAndroid(12, 12),
-                    offerId = "commitment",
-                    offerTags = listOf("annual"),
-                    offerToken = "token",
-                    pricingPhases = PricingPhasesAndroid(emptyList()),
-                )
-            )
-        )
-
-        val installment = maps.single()["installmentPlanDetails"] as Map<*, *>
-        assertEquals(false, maps.single().containsKey("__typename"))
-        assertEquals(false, installment.containsKey("__typename"))
-        assertEquals(12, installment["commitmentPaymentsCount"])
-        assertEquals(12, installment["subsequentCommitmentPaymentsCount"])
-    }
-
     @Test
     fun `standardized subscription offer keeps Android metadata`() {
         val maps = subscriptionOfferMaps(
@@ -96,28 +71,17 @@ class ProductSerializationTest {
 
     @Test
     fun `native product metadata reaches Nitro bridge models`() {
-        val offer = ProductAndroidOneTimePurchaseOfferDetail(
-            formattedPrice = "\$4.99",
-            offerTags = listOf("discount"),
-            offerToken = "offer-token",
-            priceAmountMicros = "4990000",
-            priceCurrencyCode = "USD",
-            purchaseOptionId = "purchase-option",
-        )
         val product = ProductAndroid(
             currency = "USD",
             debugDescription = "native debug metadata",
             description = "Premium access",
+            discountOffers = emptyList(),
             displayPrice = "\$4.99",
             id = "premium",
             nameAndroid = "Premium",
-            oneTimePurchaseOfferDetailsAndroid = listOf(offer),
             title = "Premium",
         )
 
-        val nitroOffer = offer.toNitroOneTimePurchaseOfferDetail()
-
-        assertEquals("purchase-option", nitroOffer.purchaseOptionId?.asSecondOrNull())
         assertEquals("native debug metadata", product.nitroDebugDescription()?.asSecondOrNull())
     }
 }

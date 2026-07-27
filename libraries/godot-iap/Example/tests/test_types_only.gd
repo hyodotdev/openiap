@@ -157,16 +157,6 @@ func _test_product_nested_arrays() -> void:
 				"commitmentPaymentsCount": 12,
 				"subsequentCommitmentPaymentsCount": 0
 			}
-		}],
-		"subscriptionOfferDetailsAndroid": [{
-			"basePlanId": "annual",
-			"offerTags": ["commitment"],
-			"offerToken": "token",
-			"pricingPhases": {"pricingPhaseList": []},
-			"installmentPlanDetails": {
-				"commitmentPaymentsCount": 12,
-				"subsequentCommitmentPaymentsCount": 0
-			}
 		}]
 	})
 	_assert_equal(android_product.subscription_offers.size(), 1, "Android should parse standardized offers")
@@ -174,11 +164,6 @@ func _test_product_nested_arrays() -> void:
 		android_product.subscription_offers[0].installment_plan_details_android.commitment_payments_count,
 		12,
 		"Android standardized installment details should survive"
-	)
-	_assert_equal(
-		android_product.subscription_offer_details_android[0].installment_plan_details.commitment_payments_count,
-		12,
-		"Android legacy installment details should survive"
 	)
 
 
@@ -687,7 +672,6 @@ func _test_purchase_android_json_round_trip() -> void:
 	purchase.transaction_date = 1720000000000.0
 	purchase.purchase_token = "token-1"
 	purchase.store = Types.IapStore.GOOGLE
-	purchase.platform = Types.IapPlatform.ANDROID
 	purchase.quantity = 2
 	purchase.purchase_state = Types.PurchaseState.PURCHASED
 	purchase.is_auto_renewing = true
@@ -703,14 +687,13 @@ func _test_purchase_android_json_round_trip() -> void:
 
 	var dict = purchase.to_dict()
 	_assert_equal(dict["store"], "google", "IapStore should serialize to its wire value")
-	_assert_equal(dict["platform"], "android", "IapPlatform should serialize to its wire value")
+	_assert_equal(dict.has("platform"), false, "Removed purchase platform should not be serialized")
 	_assert_equal(dict["purchaseState"], "purchased", "PurchaseState should serialize to its wire value")
 
 	var wire = JSON.parse_string(JSON.stringify(dict))
 	var parsed = Types.PurchaseAndroid.from_dict(wire)
 	_assert_equal(parsed.product_id, "sku.a", "productId should survive the wire round trip")
 	_assert_equal(parsed.store, Types.IapStore.GOOGLE, "store should parse back to the enum")
-	_assert_equal(parsed.platform, Types.IapPlatform.ANDROID, "platform should parse back to the enum")
 	_assert_equal(parsed.purchase_state, Types.PurchaseState.PURCHASED, "purchaseState should parse back to the enum")
 	_assert_equal(parsed.quantity, 2, "quantity should survive JSON float conversion")
 	_assert_equal(parsed.is_acknowledged_android, true, "isAcknowledgedAndroid should survive the wire round trip")
@@ -746,7 +729,6 @@ func _test_purchase_ios_json_round_trip() -> void:
 	purchase.transaction_date = 1720000000000.0
 	purchase.purchase_token = "jws-token"
 	purchase.store = Types.IapStore.APPLE
-	purchase.platform = Types.IapPlatform.IOS
 	purchase.quantity = 1
 	purchase.purchase_state = Types.PurchaseState.PURCHASED
 	purchase.original_transaction_identifier_ios = "orig-1"
@@ -768,7 +750,7 @@ func _test_purchase_ios_json_round_trip() -> void:
 
 	var wire = JSON.parse_string(JSON.stringify(purchase.to_dict()))
 	_assert_equal(wire["store"], "apple", "IapStore should serialize to apple")
-	_assert_equal(wire["platform"], "ios", "IapPlatform should serialize to ios")
+	_assert_equal(wire.has("platform"), false, "Removed purchase platform should not be serialized")
 
 	var parsed = Types.PurchaseIOS.from_dict(wire)
 	_assert_equal(parsed.product_id, "ios.sku", "productId should survive the wire round trip")

@@ -2,20 +2,7 @@ import XCTest
 @testable import GodotIap
 
 final class GodotIapHelperTests: XCTestCase {
-    override func tearDown() {
-        GodotIapLog.setHandler(nil)
-        GodotIapLog.setEnabled(false)
-        GodotIapLog.resetDeprecationsForTests()
-        super.tearDown()
-    }
-
     func testCanonicalProductQueryTypesPreserveMeaning() throws {
-        var warnings: [String] = []
-        GodotIapLog.setHandler { level, message in
-            if level == .warn {
-                warnings.append(message)
-            }
-        }
         XCTAssertEqual(
             try GodotIapHelper.parseProductQueryType("in-app", defaultType: .all),
             .inApp
@@ -28,102 +15,42 @@ final class GodotIapHelperTests: XCTestCase {
             try GodotIapHelper.parseProductQueryType("all", defaultType: .inApp),
             .all
         )
-        XCTAssertTrue(warnings.isEmpty)
     }
 
-    func testKnownAliasesWarnAndNormalize() throws {
-        var warnings: [String] = []
-        GodotIapLog.setEnabled(true)
-        GodotIapLog.setHandler { level, message in
-            if level == .warn {
-                warnings.append(message)
-            }
+    func testRemovedAliasesUnknownValuesAndPurchaseAllAreRejected() {
+        for removed in ["inapp", "in_app", "subscription", "subscriptions"] {
+            XCTAssertThrowsError(try GodotIapHelper.parseProductQueryType(removed))
         }
-
-        XCTAssertEqual(try GodotIapHelper.parseProductQueryType("in_app"), .inApp)
-        XCTAssertEqual(try GodotIapHelper.parseProductQueryType("subscription"), .subs)
-        XCTAssertEqual(try GodotIapHelper.parseProductQueryType("in_app"), .inApp)
-        XCTAssertTrue(warnings.contains { $0.contains("`in_app`") && $0.contains("`in-app`") })
-        XCTAssertTrue(warnings.contains { $0.contains("`subscription`") && $0.contains("`subs`") })
-        XCTAssertEqual(warnings.count, 2)
-    }
-
-    func testUnknownAndPurchaseAllTypesAreRejected() {
         XCTAssertThrowsError(try GodotIapHelper.parseProductQueryType("subscrption"))
         XCTAssertThrowsError(
             try GodotIapHelper.parseProductQueryType("all", allowAll: false)
         )
     }
 
-    func testIndexedProductRequestRemainsCompatibleAndWarns() throws {
-        var warnings: [String] = []
-        GodotIapLog.setEnabled(true)
-        GodotIapLog.setHandler { level, message in
-            if level == .warn {
-                warnings.append(message)
-            }
-        }
-
+    func testCanonicalProductRequestDecodes() throws {
         let request = try GodotIapHelper.decodeProductRequest(from: [
-            "0": "coins.100",
-            "1": "premium.monthly",
-            "type": "inapp",
+            "skus": ["coins.100", "premium.monthly"],
+            "type": "all",
         ])
 
         XCTAssertEqual(request.skus, ["coins.100", "premium.monthly"])
-        XCTAssertEqual(request.type, .inApp)
-        XCTAssertTrue(warnings.contains { $0.contains("indexed SKU keys") })
-        XCTAssertTrue(warnings.contains { $0.contains("`inapp`") && $0.contains("`in-app`") })
+        XCTAssertEqual(request.type, .all)
     }
 
-    func testCanonicalProductRequestWinsOverIndexedSkuFallbackAndWarns() throws {
-        var warnings: [String] = []
-        GodotIapLog.setHandler { level, message in
-            if level == .warn {
-                warnings.append(message)
-            }
-        }
-
-        let request = try GodotIapHelper.decodeProductRequest(from: [
-            "skus": ["canonical"],
-            "0": "legacy",
-            "type": "in-app",
-        ])
-
-        XCTAssertEqual(request.skus, ["canonical"])
-        XCTAssertTrue(warnings.contains { $0.contains("indexed SKU keys") })
+    func testProductRequestRejectsIndexedSkuCompatibilityShape() {
+        XCTAssertThrowsError(
+            try GodotIapHelper.decodeProductRequest(from: [
+                "0": "coins.100",
+                "1": "premium.monthly",
+                "type": "in-app",
+            ])
+        )
     }
 
-    func testLegacyRequestWrapperAndIosKeyNormalizeToApple() throws {
-        var warnings: [String] = []
-        GodotIapLog.setEnabled(true)
-        GodotIapLog.setHandler { level, message in
-            if level == .warn {
-                warnings.append(message)
-            }
-        }
-
-        let request = try GodotIapHelper.decodeRequestPurchaseProps(from: [
-            "request": [
-                "ios": ["sku": "legacy.ios"],
-            ],
-            "type": "inapp",
-        ])
-
-        guard case let .purchase(platforms) = request.request else {
-            return XCTFail("Expected a purchase request")
-        }
-        XCTAssertEqual(platforms.apple?.sku, "legacy.ios")
-        XCTAssertNil(platforms.ios)
-        XCTAssertTrue(warnings.contains { $0.contains("`request`") })
-        XCTAssertTrue(warnings.contains { $0.contains("`ios`") && $0.contains("`apple`") })
-    }
-
-    func testCanonicalAppleWinsWhenLegacyIosIsAlsoPresent() throws {
+    func testCanonicalPurchaseRequestDecodes() throws {
         let request = try GodotIapHelper.decodeRequestPurchaseProps(from: [
             "requestPurchase": [
-                "apple": ["sku": "canonical.apple"],
-                "ios": ["sku": "legacy.ios"],
+                "apple": ["sku": "coins.100"],
             ],
             "type": "in-app",
         ])
@@ -131,87 +58,53 @@ final class GodotIapHelperTests: XCTestCase {
         guard case let .purchase(platforms) = request.request else {
             return XCTFail("Expected a purchase request")
         }
-        XCTAssertEqual(platforms.apple?.sku, "canonical.apple")
-        XCTAssertNil(platforms.ios)
+        XCTAssertEqual(platforms.apple?.sku, "coins.100")
     }
 
-    func testExplicitNullAppleSuppressesLegacyIosFallback() throws {
+    func testCanonicalSubscriptionRequestDecodes() throws {
         let request = try GodotIapHelper.decodeRequestPurchaseProps(from: [
-            "requestPurchase": [
-                "apple": NSNull(),
-                "ios": ["sku": "legacy.ios"],
+            "requestSubscription": [
+                "apple": ["sku": "premium.monthly"],
             ],
-            "type": "in-app",
+            "type": "subs",
         ])
 
-        guard case let .purchase(platforms) = request.request else {
-            return XCTFail("Expected a purchase request")
+        guard case let .subscription(platforms) = request.request else {
+            return XCTFail("Expected a subscription request")
         }
-        XCTAssertNil(platforms.apple)
-        XCTAssertNil(platforms.ios)
+        XCTAssertEqual(platforms.apple?.sku, "premium.monthly")
     }
 
-    func testCanonicalApplePurchaseDoesNotEmitCompatibilityWarnings() throws {
-        var warnings: [String] = []
-        GodotIapLog.setHandler { level, message in
-            if level == .warn {
-                warnings.append(message)
-            }
-        }
-
-        let request = try GodotIapHelper.decodeRequestPurchaseProps(from: [
-            "requestPurchase": [
-                "apple": ["sku": "canonical.apple"],
+    func testRemovedPurchaseRequestShapesAreRejected() {
+        let removedPayloads: [[String: Any]] = [
+            [
+                "request": ["ios": ["sku": "legacy.request"]],
+                "type": "in-app",
             ],
-            "type": "in-app",
-        ])
+            [
+                "requestPurchase": ["ios": ["sku": "legacy.ios"]],
+                "type": "in-app",
+            ],
+            [
+                "sku": "legacy.top-level",
+                "type": "in-app",
+            ],
+        ]
 
-        guard case let .purchase(platforms) = request.request else {
-            return XCTFail("Expected a purchase request")
+        for payload in removedPayloads {
+            XCTAssertThrowsError(
+                try GodotIapHelper.decodeRequestPurchaseProps(from: payload)
+            )
         }
-        XCTAssertEqual(platforms.apple?.sku, "canonical.apple")
-        XCTAssertTrue(warnings.isEmpty)
     }
 
-    func testCanonicalPurchaseBranchWinsOverOtherLegacyEnvelopesAndWarns() throws {
-        var warnings: [String] = []
-        GodotIapLog.setHandler { level, message in
-            if level == .warn {
-                warnings.append(message)
-            }
-        }
-
-        let request = try GodotIapHelper.decodeRequestPurchaseProps(from: [
-            "requestPurchase": ["apple": ["sku": "canonical.apple"]],
-            "request": ["ios": ["sku": "legacy.request"]],
-            "sku": "legacy.top-level",
-            "type": "in-app",
-        ])
-
-        guard case let .purchase(platforms) = request.request else {
-            return XCTFail("Expected a purchase request")
-        }
-        XCTAssertEqual(platforms.apple?.sku, "canonical.apple")
-        XCTAssertTrue(warnings.contains { $0.contains("`request`") })
-        XCTAssertTrue(warnings.contains { $0.contains("top-level sku purchase payload") })
-    }
-
-    func testTopLevelSkuNormalizesToCanonicalAppleEnvelope() throws {
-        let request = try GodotIapHelper.decodeRequestPurchaseProps(from: [
-            "sku": "legacy.simple",
-        ])
-
-        guard case let .purchase(platforms) = request.request else {
-            return XCTFail("Expected a purchase request")
-        }
-        XCTAssertEqual(platforms.apple?.sku, "legacy.simple")
-        XCTAssertNil(platforms.ios)
-    }
-
-    func testAmbiguousCanonicalPurchaseBranchesAreRejected() {
-        XCTAssertThrowsError(try GodotIapHelper.decodeRequestPurchaseProps(from: [
-            "requestPurchase": ["apple": ["sku": "one-time"]],
-            "requestSubscription": ["apple": ["sku": "subscription"]],
-        ]))
+    func testConflictingCanonicalBranchesAreRejected() {
+        XCTAssertThrowsError(
+            try GodotIapHelper.decodeRequestPurchaseProps(from: [
+                "requestPurchase": ["apple": ["sku": "coins.100"]],
+                "requestSubscription": ["apple": ["sku": "premium.monthly"]],
+                "type": "in-app",
+            ])
+        )
     }
 }

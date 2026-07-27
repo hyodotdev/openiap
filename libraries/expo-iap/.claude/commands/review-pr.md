@@ -32,7 +32,7 @@ When reviewing and fixing, check these project-specific rules:
 
 ### Naming Conventions
 
-- **iOS fields/functions**: Must end with `IOS` suffix (e.g., `currencyCodeIOS`, `getStorefrontIOS`)
+- **iOS fields/functions**: Must end with `IOS` suffix (e.g., `currencyCodeIOS`, `getReceiptDataIOS`)
 - **Android fields/functions**: Must end with `Android` suffix (e.g., `nameAndroid`, `deepLinkToSubscriptionsAndroid`)
 - **ID fields**: Use `Id` not `ID` (e.g., `productId`, `transactionId`)
 - **Type names**: Use `Iap` prefix (e.g., `IapPurchase`), iOS suffix `IOS`, Android prefix `ProductAndroid...`

@@ -117,7 +117,7 @@ describe('errorMapping utilities', () => {
 
     const expectations: [ErrorCode, RegExp][] = [
       [ErrorCode.NetworkError, /Network connection error/],
-      [ErrorCode.ReceiptFinished, /Receipt already finished/],
+      [ErrorCode.PurchaseVerificationFinished, /verification already finished/],
       [ErrorCode.ServiceDisconnected, /Billing service disconnected/],
       [ErrorCode.BillingUnavailable, /Billing is unavailable/],
       [ErrorCode.ItemUnavailable, /not available/],
@@ -130,7 +130,7 @@ describe('errorMapping utilities', () => {
       [ErrorCode.ServiceError, /Store service error/],
       [ErrorCode.FeatureNotSupported, /not supported/],
       [ErrorCode.TransactionValidationFailed, /could not be verified/],
-      [ErrorCode.ReceiptFailed, /Receipt processing failed/],
+      [ErrorCode.PurchaseVerificationFailed, /verification failed/],
       [ErrorCode.EmptySkuList, /No product IDs/],
       [ErrorCode.InitConnection, /Failed to initialize billing/],
       [ErrorCode.QueryProduct, /Failed to query products/],

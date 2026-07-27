@@ -119,16 +119,12 @@ enum RnIapHelper {
         guard let raw = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else {
             return .inApp
         }
-        let normalized = raw
-            .lowercased()
-            .replacingOccurrences(of: "_", with: "")
-            .replacingOccurrences(of: "-", with: "")
-        switch normalized {
-        case "subs", "subscription", "subscriptions":
+        switch raw.lowercased() {
+        case "subs":
             return .subs
         case "all":
             return .all
-        case "inapp":
+        case "in-app":
             return .inApp
         default:
             return .inApp
@@ -258,33 +254,12 @@ enum RnIapHelper {
             displayName = wrapString(dictionary["displayName"] as? String)
         }
 
-        // Handle discountsIOS - OpenIAP 1.2.30+ returns [[String: Any]] (non-nullable)
-        var discountsIOS: Variant_NullType_String? = nil
-        if let discountsArray = dictionary["discountsIOS"] as? [[String: Any]] {
-            if let json = serializeToJSON(discountsArray) {
-                discountsIOS = .second(json)
-            } else {
-                NSLog("⚠️ [RnIapHelper] Failed to serialize discountsIOS")
-            }
-        }
-
         var pricingTermsIOS: Variant_NullType_String? = nil
         if let pricingTermsArray = dictionary["pricingTermsIOS"] as? [[String: Any]], !pricingTermsArray.isEmpty {
             if let json = serializeToJSON(pricingTermsArray) {
                 pricingTermsIOS = .second(json)
             } else {
                 NSLog("⚠️ [RnIapHelper] Failed to serialize pricingTermsIOS")
-            }
-        }
-
-        var subscriptionInfoIOS: Variant_NullType_String? = nil
-        let subscriptionInfoDict = dictionary["subscriptionInfoIOS"] as? [String: Any]
-            ?? dictionary["subscription"] as? [String: Any]
-        if let subscriptionInfo = subscriptionInfoDict, !subscriptionInfo.isEmpty {
-            if let json = serializeToJSON(subscriptionInfo) {
-                subscriptionInfoIOS = .second(json)
-            } else {
-                NSLog("⚠️ [RnIapHelper] Failed to serialize subscriptionInfoIOS")
             }
         }
 
@@ -323,8 +298,6 @@ enum RnIapHelper {
             isFamilyShareableIOS: wrapBool(boolValue(dictionary["isFamilyShareableIOS"])),
             jsonRepresentationIOS: wrapString(dictionary["jsonRepresentationIOS"] as? String),
             pricingTermsIOS: pricingTermsIOS,
-            subscriptionInfoIOS: subscriptionInfoIOS,
-            discountsIOS: discountsIOS,
             introductoryPriceIOS: wrapString(dictionary["introductoryPriceIOS"] as? String),
             introductoryPriceAsAmountIOS: wrapDouble(doubleValue(dictionary["introductoryPriceAsAmountIOS"])),
             introductoryPriceNumberOfPeriodsIOS: wrapDouble(doubleValue(dictionary["introductoryPriceNumberOfPeriodsIOS"])),
@@ -343,21 +316,11 @@ enum RnIapHelper {
             introductoryPriceValueAndroid: nil,
             subscriptionPeriodAndroid: nil,
             freeTrialPeriodAndroid: nil,
-            subscriptionOfferDetailsAndroid: nil,
-            oneTimePurchaseOfferDetailsAndroid: nil,
             productStatusAndroid: nil
         )
     }
 
     static func convertPurchaseDictionary(_ dictionary: [String: Any]) -> NitroPurchase {
-        let platform: IapPlatform
-        if let platformString = dictionary["platform"] as? String,
-           let p = IapPlatform(fromString: platformString) {
-            platform = p
-        } else {
-            platform = .ios
-        }
-
         let store: IapStore
         if let storeString = dictionary["store"] as? String,
            let s = IapStore(fromString: storeString) {
@@ -398,7 +361,6 @@ enum RnIapHelper {
             purchaseToken: wrapString(dictionary["purchaseToken"] as? String),
             currentPlanId: wrapString(dictionary["currentPlanId"] as? String),
             ids: wrapStringArray(dictionary["ids"] as? [String]),
-            platform: platform,
             store: store,
             quantity: doubleValue(dictionary["quantity"]) ?? 0,
             purchaseState: purchaseState,
@@ -465,7 +427,6 @@ enum RnIapHelper {
             transactionDate: doubleValue(dictionary["transactionDate"]) ?? 0,
             expirationDateIOS: wrapDouble(doubleValue(dictionary["expirationDateIOS"])),
             environmentIOS: wrapString(dictionary["environmentIOS"] as? String),
-            willExpireSoon: wrapBool(boolValue(dictionary["willExpireSoon"])),
             daysUntilExpirationIOS: wrapDouble(doubleValue(dictionary["daysUntilExpirationIOS"])),
             renewalInfoIOS: renewalInfoIOS,
             autoRenewingAndroid: nil,
@@ -528,13 +489,13 @@ enum RnIapHelper {
 
         do {
             guard let receipt = try await OpenIapModule.shared.getReceiptDataIOS(), !receipt.isEmpty else {
-                throw OpenIapException.make(code: .receiptFailed)
+                throw OpenIapException.make(code: .purchaseVerificationFailed)
             }
             return receipt
         } catch let error as PurchaseError {
             throw OpenIapException.from(error)
         } catch {
-            throw OpenIapException.make(code: .receiptFailed, message: error.localizedDescription)
+            throw OpenIapException.make(code: .purchaseVerificationFailed, message: error.localizedDescription)
         }
     }
 
@@ -568,7 +529,7 @@ enum RnIapHelper {
             title: id,
             description: "",
             debugDescription: nil,
-            type: "inapp",
+            type: "in-app",
             displayName: nil,
             displayPrice: nil,
             currency: nil,
@@ -578,8 +539,6 @@ enum RnIapHelper {
             isFamilyShareableIOS: nil,
             jsonRepresentationIOS: nil,
             pricingTermsIOS: nil,
-            subscriptionInfoIOS: nil,
-            discountsIOS: nil,
             introductoryPriceIOS: nil,
             introductoryPriceAsAmountIOS: nil,
             introductoryPriceNumberOfPeriodsIOS: nil,
@@ -598,8 +557,6 @@ enum RnIapHelper {
             introductoryPriceValueAndroid: nil,
             subscriptionPeriodAndroid: nil,
             freeTrialPeriodAndroid: nil,
-            subscriptionOfferDetailsAndroid: nil,
-            oneTimePurchaseOfferDetailsAndroid: nil,
             productStatusAndroid: nil
         )
     }

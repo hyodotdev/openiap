@@ -165,7 +165,7 @@ When organizing native implementation classes (Swift/Kotlin), follow this strict
 
 1. **Properties and Initialization** - Class properties, init, deinit
 2. **Public Cross-platform Methods** - Methods without platform suffixes (e.g., `initConnection`, `fetchProducts`)
-3. **Platform-specific Public Methods** - Methods with IOS/Android suffixes (e.g., `getStorefrontIOS`, `consumePurchaseAndroid`)
+3. **Platform-specific Public Methods** - Methods with IOS/Android suffixes (e.g., `getReceiptDataIOS`, `consumePurchaseAndroid`)
 4. **Event Listener Methods** - Methods for managing event listeners
 5. **Private Helper Methods** - All private implementation details
 
@@ -184,7 +184,7 @@ class HybridRnIap {
     func fetchProducts() { }
 
     // MARK: - iOS-specific Public Methods
-    func getStorefrontIOS() { }
+    func getReceiptDataIOS() { }
     func clearTransactionIOS() { }
 
     // MARK: - Event Listener Methods

@@ -9,7 +9,6 @@ const mockIap: any = {
   fetchProducts: jest.fn(async () => []),
   getAvailablePurchases: jest.fn(async () => []),
   finishTransaction: jest.fn(async () => true),
-  validateReceipt: jest.fn(async () => ({})),
   addPurchaseUpdatedListener: jest.fn(),
   removePurchaseUpdatedListener: jest.fn(),
   addPurchaseErrorListener: jest.fn(),
@@ -102,53 +101,6 @@ describe('hooks/useIAP Android', () => {
     expect(IAP.initConnection).toHaveBeenCalledWith({
       enableBillingProgramAndroid: 'billing-choice',
       billingChoiceScreenTypeAndroid: 'developer-rendered',
-    });
-  });
-
-  it('passes alternativeBillingModeAndroid config to initConnection on Android (deprecated)', async () => {
-    let api: any;
-    const Harness = () => {
-      api = useIAP({
-        alternativeBillingModeAndroid: 'user-choice',
-      });
-      return null;
-    };
-
-    await act(async () => {
-      TestRenderer.create(React.createElement(Harness));
-    });
-
-    // Allow effects to run and connection to settle
-    await act(async () => {});
-    expect(api.connected).toBe(true);
-
-    // Verify initConnection was called with the alternative billing config
-    expect(IAP.initConnection).toHaveBeenCalledWith({
-      alternativeBillingModeAndroid: 'user-choice',
-    });
-  });
-
-  it('prefers enableBillingProgramAndroid over alternativeBillingModeAndroid', async () => {
-    let api: any;
-    const Harness = () => {
-      api = useIAP({
-        enableBillingProgramAndroid: 'external-offer',
-        alternativeBillingModeAndroid: 'user-choice',
-      });
-      return null;
-    };
-
-    await act(async () => {
-      TestRenderer.create(React.createElement(Harness));
-    });
-
-    // Allow effects to run and connection to settle
-    await act(async () => {});
-    expect(api.connected).toBe(true);
-
-    // Verify initConnection was called with enableBillingProgramAndroid (takes priority)
-    expect(IAP.initConnection).toHaveBeenCalledWith({
-      enableBillingProgramAndroid: 'external-offer',
     });
   });
 

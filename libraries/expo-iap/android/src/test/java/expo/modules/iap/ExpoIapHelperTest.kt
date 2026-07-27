@@ -9,7 +9,7 @@ import org.junit.Test
 
 class ExpoIapHelperTest {
     @Test
-    fun `canonical deep link keys win over legacy aliases`() {
+    fun `deep link parser uses canonical keys`() {
         val parsed =
             ExpoIapHelper.parseDeepLinkSubscriptionParams(
                 mapOf(
@@ -25,7 +25,7 @@ class ExpoIapHelperTest {
     }
 
     @Test
-    fun `explicit null deep link keys suppress legacy aliases`() {
+    fun `deep link parser ignores removed aliases`() {
         val parsed =
             ExpoIapHelper.parseDeepLinkSubscriptionParams(
                 mapOf(
@@ -41,7 +41,7 @@ class ExpoIapHelperTest {
     }
 
     @Test
-    fun `legacy deep link aliases remain compatible when canonical keys are absent`() {
+    fun `removed deep link aliases are not accepted`() {
         val parsed =
             ExpoIapHelper.parseDeepLinkSubscriptionParams(
                 mapOf(
@@ -50,12 +50,12 @@ class ExpoIapHelperTest {
                 ),
             )
 
-        assertEquals("legacy.sku", parsed.sku)
-        assertEquals("dev.legacy", parsed.packageName)
+        assertEquals(null, parsed.sku)
+        assertEquals(null, parsed.packageName)
     }
 
     @Test
-    fun `canonical google request wins over legacy android request`() {
+    fun `request parser uses the canonical google request`() {
         val parsed =
             ExpoIapHelper.parseRequestPurchaseParams(
                 mapOf(
@@ -72,7 +72,7 @@ class ExpoIapHelperTest {
     }
 
     @Test
-    fun `explicit null google request suppresses legacy android request`() {
+    fun `request parser ignores the removed android request alias`() {
         val parsed =
             ExpoIapHelper.parseRequestPurchaseParams(
                 mapOf(
@@ -89,7 +89,7 @@ class ExpoIapHelperTest {
     }
 
     @Test
-    fun `explicit null skus suppress legacy sku array`() {
+    fun `request parser ignores the removed sku array alias`() {
         val parsed =
             ExpoIapHelper.parseRequestPurchaseParams(
                 mapOf(
@@ -103,7 +103,7 @@ class ExpoIapHelperTest {
     }
 
     @Test
-    fun `canonical subscription offers suppress legacy offer token fallback`() {
+    fun `request parser ignores the removed offer token array alias`() {
         val parsed =
             ExpoIapHelper.parseRequestPurchaseParams(
                 mapOf(
@@ -115,23 +115,6 @@ class ExpoIapHelperTest {
             )
 
         assertTrue(parsed.explicitSubscriptionOffers.isEmpty())
-        assertTrue(parsed.offerTokenArr.isEmpty())
-    }
-
-    @Test
-    fun `explicit null subscription offers suppress legacy offer token fallback`() {
-        val parsed =
-            ExpoIapHelper.parseRequestPurchaseParams(
-                mapOf(
-                    "type" to "subs",
-                    "skus" to listOf("premium"),
-                    "subscriptionOffers" to null,
-                    "offerTokenArr" to listOf("legacy-token"),
-                ),
-            )
-
-        assertTrue(parsed.explicitSubscriptionOffers.isEmpty())
-        assertTrue(parsed.offerTokenArr.isEmpty())
     }
 
     @Test

@@ -11,7 +11,6 @@ import type {
 } from './specs/RnIap.nitro';
 import {ErrorCode} from './types';
 import type {SubResponseCodeAndroid} from './types';
-import {selectCanonicalPlatformRequest} from './utils/platform-request';
 
 type ResponseOperation =
   | 'product-data'
@@ -643,20 +642,6 @@ function createPricingPhase(product: VegaProduct) {
   };
 }
 
-function createSubscriptionOffer(product: VegaProduct) {
-  const pricingPhase = createPricingPhase(product);
-  const sku = product.sku ?? '';
-  return {
-    basePlanId: sku,
-    offerId: null,
-    offerTags: [],
-    offerToken: '',
-    pricingPhases: {
-      pricingPhaseList: [pricingPhase],
-    },
-  };
-}
-
 function createStandardizedSubscriptionOffer(product: VegaProduct) {
   const pricingPhase = createPricingPhase(product);
   const sku = product.sku ?? '';
@@ -680,8 +665,6 @@ function createStandardizedSubscriptionOffer(product: VegaProduct) {
 function mapProduct(product: VegaProduct): NitroProduct {
   const sku = product.sku ?? '';
   const type = productTypeToOpenIap(getProductType(product));
-  const subscriptionOfferDetails =
-    type === 'subs' ? [createSubscriptionOffer(product)] : null;
   const subscriptionOffers =
     type === 'subs' ? [createStandardizedSubscriptionOffer(product)] : null;
 
@@ -699,9 +682,6 @@ function mapProduct(product: VegaProduct): NitroProduct {
     nameAndroid: product.title ?? sku,
     subscriptionPeriodAndroid: getSubscriptionPeriod(product) || null,
     freeTrialPeriodAndroid: product.freeTrialPeriod ?? null,
-    subscriptionOfferDetailsAndroid: subscriptionOfferDetails
-      ? stringifyJson(subscriptionOfferDetails)
-      : null,
     subscriptionOffers: subscriptionOffers
       ? stringifyJson(subscriptionOffers)
       : null,
@@ -730,7 +710,6 @@ function mapReceipt(
     currentPlanId:
       type === 'subs' ? (nonBlankString(receipt.termSku) ?? productId) : null,
     ids: productId ? [productId] : [],
-    platform: 'android',
     store: 'amazon',
     quantity: 1,
     purchaseState: isActive ? 'purchased' : 'unknown',
@@ -759,11 +738,7 @@ type VegaAndroidPurchaseRequest = NonNullable<VegaPurchaseRequest['google']>;
 function selectGooglePurchaseRequest(
   request: VegaPurchaseRequest,
 ): VegaAndroidPurchaseRequest | null | undefined {
-  return selectCanonicalPlatformRequest<VegaAndroidPurchaseRequest>(
-    request,
-    'google',
-    'android',
-  ).value;
+  return request.google;
 }
 
 function getSkuFromRequest(
@@ -1062,7 +1037,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
             getCachedProductType(receipt, productTypesBySku),
         );
         if (requestedType === 'subs') return openIapType === 'subs';
-        if (requestedType === 'inapp') return openIapType === 'in-app';
+        if (requestedType === 'in-app') return openIapType === 'in-app';
         return true;
       })
       .map((receipt) =>
@@ -1268,7 +1243,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
         json.store !== 'amazon'
       ) {
         throw createVegaError(
-          ErrorCode.ReceiptFailed,
+          ErrorCode.PurchaseVerificationFailed,
           `IAPKit returned malformed response (HTTP ${status}).`,
         );
       }
@@ -1276,7 +1251,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
       const productId = json.productId;
       if (productId != null && typeof productId !== 'string') {
         throw createVegaError(
-          ErrorCode.ReceiptFailed,
+          ErrorCode.PurchaseVerificationFailed,
           `IAPKit returned malformed response (HTTP ${status}).`,
         );
       }
@@ -1377,28 +1352,28 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
 
     if (!response.ok) {
       throw createVegaError(
-        ErrorCode.ReceiptFailed,
+        ErrorCode.PurchaseVerificationFailed,
         extractIapkitErrorMessage(json) ?? `HTTP ${response.status}`,
       );
     }
 
     if (json === null) {
       throw createVegaError(
-        ErrorCode.ReceiptFailed,
+        ErrorCode.PurchaseVerificationFailed,
         `IAPKit returned non-JSON response (HTTP ${response.status}).`,
       );
     }
 
     if (!isIapkitResultObject(json)) {
       throw createVegaError(
-        ErrorCode.ReceiptFailed,
+        ErrorCode.PurchaseVerificationFailed,
         `IAPKit returned malformed response (HTTP ${response.status}).`,
       );
     }
 
     if (hasIapkitErrors(json)) {
       throw createVegaError(
-        ErrorCode.ReceiptFailed,
+        ErrorCode.PurchaseVerificationFailed,
         extractIapkitErrorMessage(json) ?? 'IAPKit verification failed.',
       );
     }
@@ -1586,14 +1561,8 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
     async getAppTransactionIOS(): Promise<null> {
       return throwUnsupportedFeature('getAppTransactionIOS');
     },
-    async requestPromotedProductIOS(): Promise<null> {
-      return throwUnsupportedFeature('requestPromotedProductIOS');
-    },
     async getPromotedProductIOS(): Promise<null> {
       return throwUnsupportedFeature('getPromotedProductIOS');
-    },
-    async buyPromotedProductIOS(): Promise<boolean> {
-      return throwUnsupportedFeature('buyPromotedProductIOS');
     },
     async presentCodeRedemptionSheetIOS(): Promise<boolean> {
       return throwUnsupportedFeature('presentCodeRedemptionSheetIOS');
@@ -1634,9 +1603,6 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
     async getReceiptDataIOS(): Promise<string> {
       return throwUnsupportedFeature('getReceiptDataIOS');
     },
-    async getReceiptIOS(): Promise<string> {
-      return throwUnsupportedFeature('getReceiptIOS');
-    },
     async requestReceiptRefreshIOS(): Promise<string> {
       return throwUnsupportedFeature('requestReceiptRefreshIOS');
     },
@@ -1646,13 +1612,10 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
     async getTransactionJwsIOS(): Promise<null> {
       return throwUnsupportedFeature('getTransactionJwsIOS');
     },
-    async validateReceipt(): Promise<never> {
-      return throwUnsupportedFeature('validateReceipt');
+    async verifyPurchase(): Promise<never> {
+      return throwUnsupportedFeature('verifyPurchase');
     },
     async getStorefront(): Promise<string> {
-      return getStorefront();
-    },
-    async getStorefrontIOS(): Promise<string> {
       return getStorefront();
     },
     async verifyPurchaseWithProvider(params) {
@@ -1660,17 +1623,6 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
     },
     async deepLinkToSubscriptionsAndroid(): Promise<void> {
       return throwUnsupportedFeature('deepLinkToSubscriptionsAndroid');
-    },
-    async checkAlternativeBillingAvailabilityAndroid(): Promise<boolean> {
-      return throwUnsupportedFeature(
-        'checkAlternativeBillingAvailabilityAndroid',
-      );
-    },
-    async showAlternativeBillingDialogAndroid(): Promise<boolean> {
-      return throwUnsupportedFeature('showAlternativeBillingDialogAndroid');
-    },
-    async createAlternativeBillingTokenAndroid(): Promise<null> {
-      return throwUnsupportedFeature('createAlternativeBillingTokenAndroid');
     },
     addUserChoiceBillingListenerAndroid(): void {},
     removeUserChoiceBillingListenerAndroid(): void {},

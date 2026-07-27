@@ -3,9 +3,7 @@ import {
   openRedeemOfferCodeAndroid,
   requestPurchase,
 } from '../index.kepler';
-import type {RequestPurchaseProps} from '../types';
 import {getVegaIapModule} from '../vega';
-import {resetLegacyWarningsForTesting} from '../utils/deprecation';
 
 jest.mock('../vega', () => ({
   getVegaIapModule: jest.fn(),
@@ -17,7 +15,6 @@ describe('Amazon Vega public API', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    resetLegacyWarningsForTesting();
     (getVegaIapModule as jest.Mock).mockReturnValue({
       fetchProducts: fetchProductsNative,
       requestPurchase: requestPurchaseNative,
@@ -28,17 +25,11 @@ describe('Amazon Vega public API', () => {
     await expect(openRedeemOfferCodeAndroid()).resolves.toBe(false);
   });
 
-  it("warns when the legacy 'inapp' product type is used", async () => {
-    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
-
-    await fetchProducts({skus: ['coins'], type: 'inapp'});
-
-    expect(warn).toHaveBeenCalledWith(
-      '[Expo-IAP]',
-      expect.stringContaining('expo-iap 5.0.0'),
-    );
-    expect(fetchProductsNative).toHaveBeenCalledWith('in-app', ['coins']);
-    warn.mockRestore();
+  it("rejects the removed 'inapp' product type", async () => {
+    await expect(
+      fetchProducts({skus: ['coins'], type: 'inapp'} as any),
+    ).rejects.toThrow(/Unsupported product type/);
+    expect(fetchProductsNative).not.toHaveBeenCalled();
   });
 
   it('uses canonical product type without a compatibility warning', async () => {
@@ -51,31 +42,19 @@ describe('Amazon Vega public API', () => {
     warn.mockRestore();
   });
 
-  it('warns once when the legacy android request alias is selected', async () => {
-    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
-    const request: RequestPurchaseProps = {
+  it('rejects the removed android request alias', async () => {
+    const request = {
       request: {android: {skus: ['coins']}},
       type: 'in-app',
-    };
+    } as any;
 
-    await requestPurchase(request);
-    await requestPurchase(request);
-
-    expect(warn).toHaveBeenCalledTimes(1);
-    expect(warn).toHaveBeenCalledWith(
-      '[Expo-IAP]',
-      expect.stringContaining('`request.android` is deprecated'),
+    await expect(requestPurchase(request)).rejects.toThrow(
+      /request\.google\.skus/,
     );
-    expect(requestPurchaseNative).toHaveBeenLastCalledWith({
-      skuArr: ['coins'],
-      type: 'in-app',
-    });
-    warn.mockRestore();
+    expect(requestPurchaseNative).not.toHaveBeenCalled();
   });
 
   it('does not revive legacy android when canonical google is explicitly null', async () => {
-    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
-
     await expect(
       requestPurchase({
         request: {
@@ -87,7 +66,5 @@ describe('Amazon Vega public API', () => {
     ).rejects.toThrow(/request\.google\.skus/);
 
     expect(requestPurchaseNative).not.toHaveBeenCalled();
-    expect(warn).not.toHaveBeenCalled();
-    warn.mockRestore();
   });
 });

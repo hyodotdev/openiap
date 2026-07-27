@@ -7,7 +7,7 @@ import '../constants.dart';
 
 /// Demo screen showing DSL-like builder pattern for purchases/subscriptions
 class BuilderDemoScreen extends StatefulWidget {
-  const BuilderDemoScreen({Key? key}) : super(key: key);
+  const BuilderDemoScreen({super.key});
 
   @override
   State<BuilderDemoScreen> createState() => _BuilderDemoScreenState();
@@ -169,17 +169,20 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
       // Android requires an existing purchase token to replace (proration)
       final token = existing?.purchaseToken;
       final hasToken = token != null && token.isNotEmpty;
-      // Demo: use a default proration mode for upgrade
-      final int prorationMode = AndroidReplacementMode.withTimeProration.value;
-
       if (!kIsWeb &&
           defaultTargetPlatform == TargetPlatform.android &&
-          hasToken) {
+          hasToken &&
+          existing != null) {
         // Upgrade/downgrade with replacement mode
         final subBuilder = RequestSubscriptionBuilder()
           ..withAndroid((RequestSubscriptionAndroidBuilder a) => a
             ..skus = [IapConstants.subscriptionProductIds[0]]
-            ..replacementMode = prorationMode
+            ..subscriptionProductReplacementParams =
+                SubscriptionProductReplacementParamsAndroid(
+              oldProductId: existing!.productId,
+              replacementMode:
+                  SubscriptionReplacementModeAndroid.WithTimeProration,
+            )
             ..purchaseToken = token);
 
         await _iap.requestPurchase(subBuilder.build());
@@ -222,23 +225,16 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
           setState(() => _status = 'User cancelled external purchase');
         }
       } else if (!kIsWeb) {
-        // Android: Check availability first
-        final availability =
-            await _iap.checkAlternativeBillingAvailabilityAndroid();
-        if (!availability) {
-          setState(() => _status = 'Alternative billing unavailable');
-          return;
-        }
-
-        // Use builder with Alternative Billing
-        // Note: When useAlternativeBilling is true, Google Play will automatically
-        // show the user-choice dialog (if in user-choice mode)
+        // Android: use the current Billing Programs request shape.
         await _iap.requestPurchaseWithBuilder(
           build: (RequestPurchaseBuilder r) => r
             ..type = ProductType.InApp
-            ..useAlternativeBilling = true
-            ..withAndroid((RequestPurchaseAndroidBuilder a) =>
-                a..skus = [IapConstants.inAppProductIds[0]]),
+            ..withAndroid((RequestPurchaseAndroidBuilder a) => a
+              ..skus = [IapConstants.inAppProductIds[0]]
+              ..developerBillingOption =
+                  const DeveloperBillingOptionParamsAndroid(
+                billingProgram: BillingProgramAndroid.ExternalPayments,
+              )),
         );
         setState(() => _status = 'Alternative billing purchase initiated');
       } else {
@@ -273,23 +269,16 @@ class _BuilderDemoScreenState extends State<BuilderDemoScreen> {
           setState(() => _status = 'User cancelled external purchase');
         }
       } else if (!kIsWeb) {
-        // Android: Check availability first
-        final availability =
-            await _iap.checkAlternativeBillingAvailabilityAndroid();
-        if (!availability) {
-          setState(() => _status = 'Alternative billing unavailable');
-          return;
-        }
-
-        // Use builder with Alternative Billing
-        // Note: When useAlternativeBilling is true, Google Play will automatically
-        // show the user-choice dialog (if in user-choice mode)
+        // Android: use the current Billing Programs request shape.
         await _iap.requestPurchaseWithBuilder(
           build: (RequestPurchaseBuilder r) => r
             ..type = ProductType.Subs
-            ..useAlternativeBilling = true
-            ..withAndroid((RequestPurchaseAndroidBuilder a) =>
-                a..skus = [IapConstants.subscriptionProductIds[0]]),
+            ..withAndroid((RequestPurchaseAndroidBuilder a) => a
+              ..skus = [IapConstants.subscriptionProductIds[0]]
+              ..developerBillingOption =
+                  const DeveloperBillingOptionParamsAndroid(
+                billingProgram: BillingProgramAndroid.ExternalPayments,
+              )),
         );
         setState(() => _status = 'Alternative billing subscription initiated');
       } else {
@@ -419,17 +408,24 @@ await iap.requestPurchaseWithBuilder(
 await iap.requestPurchaseWithBuilder(
   build: (RequestPurchaseBuilder r) => r
     ..type = ProductType.InApp
-    ..useAlternativeBilling = true
     ..withIOS((RequestPurchaseIosBuilder i) => i..sku = 'dev.hyo.martie.10bulbs')
-    ..withAndroid((RequestPurchaseAndroidBuilder a) => a..skus = ['dev.hyo.martie.10bulbs']),
+    ..withAndroid((RequestPurchaseAndroidBuilder a) => a
+      ..skus = ['dev.hyo.martie.10bulbs']
+      ..developerBillingOption = const DeveloperBillingOptionParamsAndroid(
+        billingProgram: BillingProgramAndroid.ExternalPayments,
+      )),
 );
 
 // Subscription upgrade/downgrade (Android):
 final b = RequestSubscriptionBuilder()
   ..withAndroid((RequestSubscriptionAndroidBuilder a) => a
     ..skus = ['dev.hyo.martie.premium']
-    ..replacementModeAndroid = AndroidReplacementMode.withTimeProration.value
-    ..purchaseTokenAndroid = '<existing_token>');
+    ..subscriptionProductReplacementParams =
+        const SubscriptionProductReplacementParamsAndroid(
+      oldProductId: 'dev.hyo.martie.premium.monthly',
+      replacementMode: SubscriptionReplacementModeAndroid.WithTimeProration,
+    )
+    ..purchaseToken = '<existing_token>');
 await iap.requestPurchase(b.build());""",
                       style: TextStyle(fontFamily: 'monospace', fontSize: 12),
                     ),

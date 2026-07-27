@@ -52,10 +52,6 @@ interface OpenIapModule
     [Async]
     void RequestPurchaseWithPayload(NSDictionary payload, Action<NSObject?, NSError?> completion);
 
-    [Export("requestSubscriptionWithSku:offer:completion:")]
-    [Async]
-    void RequestSubscription(string sku, [NullAllowed] NSDictionary offer, Action<NSObject?, NSError?> completion);
-
     [Export("requestSubscriptionWithSku:offer:compactJWS:promotionalOfferJWS:winBackOfferId:billingPlanType:completion:")]
     [Async]
     void RequestSubscriptionExtended(
@@ -86,10 +82,6 @@ interface OpenIapModule
     [Export("syncIOSWithCompletion:")]
     [Async]
     void SyncIOS(Action<bool, NSError?> completion);
-
-    [Export("requestPurchaseOnPromotedProductIOSWithCompletion:")]
-    [Async]
-    void RequestPurchaseOnPromotedProductIOS(Action<bool, NSError?> completion);
 
     [Export("deepLinkToSubscriptionsWithCompletion:")]
     [Async]
@@ -136,10 +128,6 @@ interface OpenIapModule
     [Export("getStorefrontWithCompletion:")]
     [Async]
     void GetStorefront(Action<string?, NSError?> completion);
-
-    [Export("getStorefrontIOSWithCompletion:")]
-    [Async]
-    void GetStorefrontIOS(Action<string?, NSError?> completion);
 
     [Export("getActiveSubscriptionsWithCompletion:")]
     [Async]

@@ -80,14 +80,14 @@ export const buildPurchaseRows = (purchase: Purchase): PurchaseDetailRow[] => {
   pushRow(rows, 'id', purchase.id);
   pushRow(rows, 'transactionId', transactionId);
   pushRow(rows, 'productId', purchase.productId);
-  pushRow(rows, 'platform', purchase.platform ?? 'unknown');
+  pushRow(rows, 'store', purchase.store);
   pushRow(rows, 'ids', formatList(purchase.ids ?? undefined));
   pushRow(rows, 'transactionDate', formatDate(purchase.transactionDate));
   pushRow(rows, 'purchaseState', normalizedState);
   pushRow(rows, 'quantity', purchase.quantity);
   pushRow(rows, 'isAutoRenewing', formatBoolean(purchase.isAutoRenewing));
 
-  const platform = (purchase.platform ?? '').toString().toLowerCase();
+  const platform = purchase.store === 'apple' ? 'ios' : 'android';
 
   if (platform === 'ios') {
     const iosPurchase = purchase as PurchaseIOS;

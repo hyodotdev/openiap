@@ -9,6 +9,7 @@ Complete workflow: branch check → pre-commit checks → commit → push → PR
 ```
 
 **Options:**
+
 - `--push` or `-p`: Push to remote after commit
 - `--pr`: Create PR after push
 - `--all` or `-a`: Commit all changes at once
@@ -40,6 +41,7 @@ git branch --show-current
 ```
 
 **If on `main`** -> Create a feature branch first:
+
 ```bash
 git checkout -b feat/<feature-name>
 ```
@@ -47,6 +49,7 @@ git checkout -b feat/<feature-name>
 **If NOT on `main`** -> Proceed with commits directly.
 
 **Branch naming conventions:**
+
 - `feat/<feature-name>` - New features
 - `fix/<bug-description>` - Bug fixes
 - `docs/<doc-update>` - Documentation only
@@ -75,6 +78,7 @@ flutter test
 ```
 
 **If format check fails:**
+
 ```bash
 # Auto-format and retry
 git ls-files '*.dart' | grep -v '^lib/types.dart$' | xargs dart format --page-width 80
@@ -85,11 +89,13 @@ git ls-files '*.dart' | grep -v '^lib/types.dart$' | xargs dart format --page-wi
 ### 4. Stage Changes
 
 **Specific path:**
+
 ```bash
 git add <path>
 ```
 
 **All changes:**
+
 ```bash
 git add .
 ```
@@ -117,14 +123,15 @@ EOF
 ```
 
 **Commit Types:**
-| Type | Description |
-|------|-------------|
-| `feat` | New feature |
-| `fix` | Bug fix |
-| `docs` | Documentation only |
-| `refactor` | Code refactoring |
-| `chore` | Maintenance tasks |
-| `test` | Adding/updating tests |
+
+| Type       | Description           |
+| ---------- | --------------------- |
+| `feat`     | New feature           |
+| `fix`      | Bug fix               |
+| `docs`     | Documentation only    |
+| `refactor` | Code refactoring      |
+| `chore`    | Maintenance tasks     |
+| `test`     | Adding/updating tests |
 
 ### 7. Push to Remote
 
@@ -162,14 +169,14 @@ EOF
 
 When making changes across platforms, commit in this order:
 
-| Order | Path | Description |
-|-------|------|-------------|
-| 1 | `lib/` | Dart library code (excluding types.dart) |
-| 2 | `android/` | Android implementation |
-| 3 | `ios/` | iOS implementation |
-| 4 | `example/` | Example app changes |
-| 5 | `test/` | Test updates |
-| 6 | Root files | pubspec.yaml, README.md, etc. |
+| Order | Path       | Description                              |
+| ----- | ---------- | ---------------------------------------- |
+| 1     | `lib/`     | Dart library code (excluding types.dart) |
+| 2     | `android/` | Android implementation                   |
+| 3     | `ios/`     | iOS implementation                       |
+| 4     | `example/` | Example app changes                      |
+| 5     | `test/`    | Test updates                             |
+| 6     | Root files | pubspec.yaml, README.md, etc.            |
 
 **IMPORTANT - Never edit `lib/types.dart`:**
 This file is auto-generated. Regenerate via `./scripts/generate-type.sh`.
@@ -179,10 +186,11 @@ This file is auto-generated. Regenerate via `./scripts/generate-type.sh`.
 ## Example Commit Messages
 
 **New feature:**
+
 ```
 feat: add subscription offer support
 
-- Add SubscriptionOfferIOS for iOS promotional offers
+- Add SubscriptionOffer support for iOS promotional offers
 - Add SubscriptionOfferAndroid for Android offers
 - Update fetchProducts to include offer details
 
@@ -190,6 +198,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 ```
 
 **Bug fix:**
+
 ```
 fix: resolve purchase validation error on iOS
 
@@ -200,6 +209,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 ```
 
 **Documentation:**
+
 ```
 docs: update API documentation for getAvailablePurchases
 
@@ -210,6 +220,7 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 ```
 
 **Chore:**
+
 ```
 chore: bump version to 8.2.6
 
@@ -230,14 +241,17 @@ Co-Authored-By: Claude Opus 4.5 <noreply@anthropic.com>
 ## Changes
 
 ### Dart Library (lib/)
+
 - Add `WinBackOfferIOS` type
 - Update `requestPurchase` to support offers
 
 ### iOS (ios/)
+
 - Implement StoreKit 2 win-back offer handling
 - Add offer eligibility checking
 
 ### Android (android/)
+
 - Improve BillingClient error mapping
 - Add retry logic for transient failures
 

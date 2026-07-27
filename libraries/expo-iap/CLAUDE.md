@@ -51,18 +51,17 @@ Before committing any changes:
 
 #### Function Naming
 
-- Functions that only operate on one platform must carry the suffix: `nameIOS` or `nameAndroid` (e.g. `getStorefrontIOS`, `deepLinkToSubscriptionsAndroid`).
+- Functions that only operate on one platform must carry the suffix: `nameIOS` or `nameAndroid` (e.g. `getReceiptDataIOS`, `deepLinkToSubscriptionsAndroid`).
 - Cross-platform helpers should expose a single name and branch internally via `Platform.select` or equivalent.
 
 #### Field Naming
 
-- **iOS-related fields**: Use `IOS` suffix (e.g., `displayNameIOS`, `discountsIOS`, `introductoryPriceIOS`)
+- **iOS-related fields**: Use `IOS` suffix (e.g., `displayNameIOS`, `subscriptionGroupIdIOS`, `introductoryPriceIOS`)
   - **Exception**: When an acronym appears at the end of a field name, use uppercase (e.g., `quantityIOS`, `appBundleIdIOS`, not `quantityIos`)
   - Platform-specific fields: `currencyCodeIOS`, `currencySymbolIOS`, `countryCodeIOS`
-  - Product fields: `isFamilyShareableIOS`, `jsonRepresentationIOS`, `subscriptionInfoIOS`
+  - Product fields: `isFamilyShareableIOS`, `jsonRepresentationIOS`, `subscriptionGroupIdIOS`
 - **Android-related fields**: Use `Android` suffix (e.g., `nameAndroid`)
-  - Platform-specific fields: `oneTimePurchaseOfferDetailsAndroid`, `subscriptionOfferDetailsAndroid`
-  - In **Android-specific types** (e.g., `ProductSubscriptionAndroidOfferDetails`), keep `pricingPhases` without suffix for consistency with Google Play Billing
+  - Platform-specific fields: `productStatusAndroid`, `basePlanIdAndroid`
   - In **cross-platform types** (e.g., `SubscriptionOffer`, `DiscountOffer`), use `pricingPhasesAndroid` suffix to distinguish from common fields
 - **Common fields**: Fields shared across platforms go in Common types (e.g., `ids`, `platform`, `debugDescription`)
   - Use these for data that exists on both platforms without platform-specific variations
@@ -71,7 +70,7 @@ Before committing any changes:
 
 - **iOS types**: Use `IOS` suffix (e.g., `PurchaseIOS`, `ProductIOS`)
 - **Android types**: Use descriptive prefixes to identify subtypes:
-  - ✅ Good: `ProductAndroidOneTimePurchaseOfferDetail`, `ProductSubscriptionAndroidOfferDetails`, `PurchaseAndroidState`
+  - ✅ Good: `BillingProgramAvailabilityResultAndroid`, `SubscriptionPeriodIOS`, `PurchaseAndroidState`
   - ❌ Avoid: `OneTimePurchaseOfferDetails`, `SubscriptionOfferAndroid`, `PurchaseStateAndroid`
 - **General IAP types**: Use `Iap` prefix (e.g., `IapPurchase`, not `IAPPurchase`)
 

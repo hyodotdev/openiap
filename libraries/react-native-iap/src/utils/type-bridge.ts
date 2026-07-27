@@ -217,29 +217,6 @@ function convertNitroRenewalInfoToRenewalInfoIOS(
   };
 }
 
-function parseSubscriptionOffers(value?: Nullable<string> | any[]) {
-  if (!value) return undefined;
-
-  // Keep pre-normalized native values intact.
-  if (Array.isArray(value)) {
-    return value;
-  }
-
-  // Otherwise, try to parse it as JSON string
-  try {
-    const parsed = JSON.parse(value as string);
-    if (Array.isArray(parsed)) {
-      return parsed;
-    }
-  } catch (error) {
-    RnIapConsole.warn(
-      'Failed to parse subscriptionOfferDetailsAndroid:',
-      error,
-    );
-  }
-  return undefined;
-}
-
 /**
  * Convert NitroProduct (from native) to generated Product type
  */
@@ -298,17 +275,6 @@ export function convertNitroProductToProduct(
       nitroProduct.subscriptionPeriodUnitIOS,
     );
 
-    // Parse discountsIOS from JSON string if present
-    if (nitroProduct.discountsIOS) {
-      try {
-        iosProduct.discountsIOS = JSON.parse(nitroProduct.discountsIOS);
-      } catch {
-        iosProduct.discountsIOS = null;
-      }
-    } else {
-      iosProduct.discountsIOS = null;
-    }
-
     if (nitroProduct.pricingTermsIOS) {
       try {
         const parsed = JSON.parse(nitroProduct.pricingTermsIOS);
@@ -318,20 +284,6 @@ export function convertNitroProductToProduct(
       }
     } else {
       iosProduct.pricingTermsIOS = null;
-    }
-
-    if (nitroProduct.subscriptionInfoIOS) {
-      try {
-        const parsed = JSON.parse(nitroProduct.subscriptionInfoIOS);
-        iosProduct.subscriptionInfoIOS =
-          typeof parsed === 'object' && parsed !== null && !Array.isArray(parsed)
-            ? parsed
-            : null;
-      } catch {
-        iosProduct.subscriptionInfoIOS = null;
-      }
-    } else {
-      iosProduct.subscriptionInfoIOS = null;
     }
 
     // Parse standardized subscriptionOffers (cross-platform, OpenIAP 1.3.10+)
@@ -347,28 +299,12 @@ export function convertNitroProductToProduct(
       iosProduct.subscriptionOffers = null;
     }
 
-    // Parse standardized discountOffers (cross-platform, OpenIAP 1.3.10+)
-    if (nitroProduct.discountOffers) {
-      try {
-        iosProduct.discountOffers = JSON.parse(nitroProduct.discountOffers);
-      } catch {
-        iosProduct.discountOffers = null;
-      }
-    } else {
-      iosProduct.discountOffers = null;
-    }
-
     return iosProduct as Product;
   }
 
   const androidProduct: any = {
     ...base,
     nameAndroid: nitroProduct.nameAndroid ?? nitroProduct.title,
-    oneTimePurchaseOfferDetailsAndroid:
-      nitroProduct.oneTimePurchaseOfferDetailsAndroid ?? null,
-    subscriptionOfferDetailsAndroid: parseSubscriptionOffers(
-      nitroProduct.subscriptionOfferDetailsAndroid,
-    ),
     // Product status (Billing Library 8.0+, OpenIAP 1.3.14+)
     productStatusAndroid: nitroProduct.productStatusAndroid ?? null,
   };
@@ -386,8 +322,12 @@ export function convertNitroProductToProduct(
     androidProduct.subscriptionOffers = null;
   }
 
-  // Parse standardized discountOffers (cross-platform, OpenIAP 1.3.10+)
-  if (nitroProduct.discountOffers) {
+  if (type === PRODUCT_TYPE_SUBS) {
+    // Ensure subscriptionOffers is always an array for subscriptions (non-nullable in ProductSubscriptionAndroid)
+    if (!Array.isArray(androidProduct.subscriptionOffers)) {
+      androidProduct.subscriptionOffers = [];
+    }
+  } else if (nitroProduct.discountOffers) {
     try {
       androidProduct.discountOffers = JSON.parse(nitroProduct.discountOffers);
     } catch {
@@ -395,17 +335,6 @@ export function convertNitroProductToProduct(
     }
   } else {
     androidProduct.discountOffers = null;
-  }
-
-  if (type === PRODUCT_TYPE_SUBS) {
-    // Ensure subscriptionOfferDetailsAndroid is always an array for subscriptions
-    if (!Array.isArray(androidProduct.subscriptionOfferDetailsAndroid)) {
-      androidProduct.subscriptionOfferDetailsAndroid = [];
-    }
-    // Ensure subscriptionOffers is always an array for subscriptions (non-nullable in ProductSubscriptionAndroid)
-    if (!Array.isArray(androidProduct.subscriptionOffers)) {
-      androidProduct.subscriptionOffers = [];
-    }
   }
 
   return androidProduct as Product;
@@ -424,15 +353,7 @@ export function convertProductToProductSubscription(
     );
   }
 
-  const output: any = {...(product as any)};
-
-  if (output.platform === PLATFORM_ANDROID) {
-    if (!Array.isArray(output.subscriptionOfferDetailsAndroid)) {
-      output.subscriptionOfferDetailsAndroid = [];
-    }
-  }
-
-  return output;
+  return {...(product as any)};
 }
 
 /**
@@ -441,8 +362,6 @@ export function convertProductToProductSubscription(
 export function convertNitroPurchaseToPurchase(
   nitroPurchase: NitroPurchase,
 ): Purchase {
-  const platform = normalizePlatform(nitroPurchase.platform);
-
   let purchaseState = normalizePurchaseState(
     nitroPurchase.purchaseState ?? nitroPurchase.purchaseStateAndroid,
   );
@@ -457,22 +376,24 @@ export function convertNitroPurchaseToPurchase(
 
   const store = normalizeStore(nitroPurchase.store);
 
-  if (platform === PLATFORM_IOS) {
+  if (store === STORE_APPLE) {
+    const transactionId = toNullableString(nitroPurchase.transactionId);
+    if (transactionId == null) {
+      throw new Error('Apple purchase is missing transactionId');
+    }
+
     const iosPurchase: PurchaseIOS = {
       id: nitroPurchase.id,
       productId: nitroPurchase.productId,
       transactionDate: nitroPurchase.transactionDate ?? Date.now(),
       purchaseToken: nitroPurchase.purchaseToken ?? null,
-      platform,
       store,
       quantity: nitroPurchase.quantity ?? 1,
       purchaseState,
       isAutoRenewing: Boolean(nitroPurchase.isAutoRenewing),
       currentPlanId: toNullableString(nitroPurchase.currentPlanId),
       ids: nitroPurchase.ids ?? null,
-      // PurchaseIOS requires a transaction ID; legacy native payloads used id.
-      transactionId:
-        toNullableString(nitroPurchase.transactionId) ?? nitroPurchase.id,
+      transactionId,
       advancedCommerceInfoIOS: nitroPurchase.advancedCommerceInfoIOS ?? null,
       billingPlanTypeIOS: nitroPurchase.billingPlanTypeIOS ?? null,
       commitmentInfoIOS: nitroPurchase.commitmentInfoIOS ?? null,
@@ -546,7 +467,6 @@ export function convertNitroPurchaseToPurchase(
     transactionDate: nitroPurchase.transactionDate ?? Date.now(),
     purchaseToken:
       nitroPurchase.purchaseToken ?? nitroPurchase.purchaseTokenAndroid ?? null,
-    platform,
     store,
     quantity: nitroPurchase.quantity ?? 1,
     purchaseState,
@@ -629,7 +549,7 @@ export function validateNitroPurchase(nitroPurchase: NitroPurchase): boolean {
     return false;
   }
 
-  const required = ['id', 'productId', 'transactionDate', 'platform'];
+  const required = ['id', 'productId', 'transactionDate', 'store'];
   for (const field of required) {
     if (
       !(field in nitroPurchase) ||
@@ -660,7 +580,7 @@ export function checkTypeSynchronization(): {
       id: 'test',
       title: 'Test',
       description: 'Test product',
-      type: 'inapp',
+      type: 'in-app',
       platform: PLATFORM_IOS,
       displayPrice: '$1.00',
       currency: 'USD',

@@ -43,8 +43,7 @@ const mockVerifyPurchaseWithProvider = jest
   )
   .mockName('verifyPurchaseWithProvider');
 let mockOnPurchaseSuccess:
-  | ((purchase: Record<string, unknown>) => Promise<void> | void)
-  | undefined;
+  ((purchase: Record<string, unknown>) => Promise<void> | void) | undefined;
 
 const createMockSubscription = (overrides = {}) => ({
   id: 'dev.hyo.martie.premium',
@@ -53,16 +52,20 @@ const createMockSubscription = (overrides = {}) => ({
   price: '$9.99',
   displayPrice: '$9.99',
   currency: 'USD',
+  type: 'subs',
   platform: 'ios',
-  subscriptionInfoIOS: {
-    subscriptionPeriod: {unit: 'month'},
-    introductoryOffer: {
+  subscriptionOffers: [
+    {
+      id: 'intro',
       paymentMode: 'free-trial',
       periodCount: 7,
-      period: {unit: 'day'},
+      period: {value: 1, unit: 'day'},
       displayPrice: 'Free',
+      price: 0,
+      currency: 'USD',
+      type: 'introductory',
     },
-  },
+  ],
   ...overrides,
 });
 
@@ -71,10 +74,18 @@ const createMockAndroidSubscription = () => ({
   title: 'Android Subscription',
   description: 'Android Test Description',
   displayPrice: '$4.99',
+  type: 'subs',
   platform: 'android',
-  subscriptionOfferDetailsAndroid: [
+  subscriptionOffers: [
     {
-      pricingPhases: {
+      id: 'base-plan',
+      displayPrice: '$4.99',
+      price: 4.99,
+      currency: 'USD',
+      type: 'introductory',
+      paymentMode: 'pay-as-you-go',
+      offerTokenAndroid: 'offer123',
+      pricingPhasesAndroid: {
         pricingPhaseList: [
           {
             formattedPrice: '$4.99',
@@ -82,7 +93,6 @@ const createMockAndroidSubscription = () => ({
           },
         ],
       },
-      offerToken: 'offer123',
     },
   ],
 });
@@ -198,7 +208,6 @@ describe('SubscriptionFlow Component', () => {
       isActive: true,
       expirationDateIOS: new Date(Date.now() + 86400000),
       environmentIOS: 'Production',
-      willExpireSoon: false,
       daysUntilExpirationIOS: 1,
     };
 
@@ -224,7 +233,6 @@ describe('SubscriptionFlow Component', () => {
       productId: 'dev.hyo.martie.premium',
       isActive: true,
       expirationDateIOS: new Date(Date.now() + 86400000),
-      willExpireSoon: true,
       daysUntilExpirationIOS: 3,
     };
 
@@ -254,7 +262,6 @@ describe('SubscriptionFlow Component', () => {
       productId: 'dev.hyo.martie.premium',
       isActive: true,
       autoRenewingAndroid: false,
-      willExpireSoon: true,
     };
 
     mockUseIAP.mockReturnValue({
@@ -411,7 +418,7 @@ describe('SubscriptionFlow Component', () => {
     await act(async () => {
       await mockOnPurchaseSuccess?.({
         id: 'transaction-android-1',
-        platform: 'android',
+        store: 'google',
         productId: 'dev.hyo.martie.premium',
         purchaseToken: 'android-token',
         transactionDate: Date.now(),
@@ -458,7 +465,7 @@ describe('SubscriptionFlow Component', () => {
     await act(async () => {
       await mockOnPurchaseSuccess?.({
         id: 'transaction-device-sub-1',
-        platform: 'ios',
+        store: 'apple',
         productId: 'dev.hyo.martie.premium',
         purchaseToken: 'device-sub-jws',
         transactionDate: Date.now(),

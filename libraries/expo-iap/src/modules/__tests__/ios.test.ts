@@ -14,11 +14,9 @@ jest.mock('../../ExpoIapModule', () => ({
     requestReceiptRefreshIOS: jest.fn(),
     isTransactionVerifiedIOS: jest.fn(),
     getTransactionJwsIOS: jest.fn(),
-    validateReceiptIOS: jest.fn(),
     presentCodeRedemptionSheetIOS: jest.fn(),
     getAppTransactionIOS: jest.fn(),
     getPromotedProductIOS: jest.fn(),
-    requestPurchaseOnPromotedProductIOS: jest.fn(),
     getPendingTransactionsIOS: jest.fn(),
     clearTransactionIOS: jest.fn(),
     canPresentExternalPurchaseNoticeIOS: jest.fn(),
@@ -56,16 +54,13 @@ import {
   latestTransactionIOS,
   beginRefundRequestIOS,
   showManageSubscriptionsIOS,
-  getReceiptIOS,
-  getStorefrontIOS,
+  getReceiptDataIOS,
   requestReceiptRefreshIOS,
   isTransactionVerifiedIOS,
   getTransactionJwsIOS,
-  validateReceiptIOS,
   presentCodeRedemptionSheetIOS,
   getAppTransactionIOS,
   getPromotedProductIOS,
-  requestPurchaseOnPromotedProductIOS,
   deepLinkToSubscriptionsIOS,
   isProductIOS,
   getPendingTransactionsIOS,
@@ -77,7 +72,6 @@ import {
   getExternalPurchaseCustomLinkTokenIOS,
   showExternalPurchaseCustomLinkNoticeIOS,
 } from '../ios';
-import {checkAlternativeBillingAvailabilityAndroid} from '../android';
 /* eslint-enable import/first */
 
 describe('iOS Module Functions', () => {
@@ -231,84 +225,6 @@ describe('iOS Module Functions', () => {
       const result = await getAppTransactionIOS();
 
       expect(result).toBeNull();
-    });
-  });
-
-  describe('validateReceiptIOS', () => {
-    it('should validate receipt for given SKU', async () => {
-      const mockSku = 'com.example.product';
-      const mockValidationResult = {
-        isValid: true,
-        receiptData: 'receipt-data-base64',
-        jwsRepresentation: 'jws-token',
-        latestTransaction: {
-          id: 'com.example.product',
-          transactionId: 'transaction-123',
-          platform: 'ios',
-        },
-      };
-
-      (ExpoIapModule.validateReceiptIOS as jest.Mock).mockResolvedValue(
-        mockValidationResult,
-      );
-
-      const result = (await validateReceiptIOS({apple: {sku: mockSku}})) as any;
-
-      expect(ExpoIapModule.validateReceiptIOS).toHaveBeenCalledWith(mockSku);
-      expect(result.isValid).toBe(true);
-      expect(result.receiptData).toBeDefined();
-      expect(result.jwsRepresentation).toBeDefined();
-      expect(result.latestTransaction?.id).toBe('com.example.product');
-    });
-
-    it('should throw when SKU missing', async () => {
-      // @ts-expect-error runtime guard
-      await expect(validateReceiptIOS(undefined)).rejects.toThrow(
-        /requires a SKU/,
-      );
-      // Also test with empty apple options
-      await expect(validateReceiptIOS({apple: {sku: ''}})).rejects.toThrow(
-        /requires a SKU/,
-      );
-    });
-
-    it('returns original result when already normalized', async () => {
-      const mockResult: any = {
-        isValid: true,
-        receiptData: 'data',
-        jwsRepresentation: 'jws',
-        latestTransaction: {
-          id: 'transaction-123',
-          transactionId: 'transaction-123',
-          platform: 'ios',
-        },
-      };
-
-      (ExpoIapModule.validateReceiptIOS as jest.Mock).mockResolvedValue(
-        mockResult,
-      );
-
-      const result = await validateReceiptIOS({apple: {sku: 'product.id'}});
-
-      expect(result).toBe(mockResult);
-    });
-
-    it('allows string SKU argument for backward compatibility', async () => {
-      (ExpoIapModule.validateReceiptIOS as jest.Mock).mockResolvedValue({
-        isValid: true,
-        receiptData: 'data',
-        jwsRepresentation: 'jws',
-        latestTransaction: undefined,
-      });
-
-      const result = await validateReceiptIOS('string.sku' as any);
-
-      expect(result).toEqual({
-        isValid: true,
-        receiptData: 'data',
-        jwsRepresentation: 'jws',
-        latestTransaction: undefined,
-      });
     });
   });
 
@@ -481,63 +397,17 @@ describe('iOS Module Functions', () => {
       expect(result).toEqual([]);
     });
 
-    it('should call getReceiptIOS', async () => {
+    it('should call getReceiptDataIOS', async () => {
       const mockReceipt = 'base64-receipt-data';
 
       (ExpoIapModule.getReceiptDataIOS as jest.Mock).mockResolvedValue(
         mockReceipt,
       );
 
-      const result = await getReceiptIOS();
+      const result = await getReceiptDataIOS();
 
       expect(ExpoIapModule.getReceiptDataIOS).toHaveBeenCalledTimes(1);
       expect(result).toBe(mockReceipt);
-    });
-
-    it('should return the iOS storefront country code', async () => {
-      (ExpoIapModule.getStorefront as jest.Mock).mockResolvedValue('USA');
-
-      await expect(getStorefrontIOS()).resolves.toBe('USA');
-    });
-
-    it.each([null, '', '   '])(
-      'should reject an empty iOS storefront value (%p)',
-      async (value) => {
-        (ExpoIapModule.getStorefront as jest.Mock).mockResolvedValue(value);
-
-        await expect(getStorefrontIOS()).rejects.toMatchObject({
-          code: 'service-error',
-          message: expect.stringContaining('no country code'),
-        });
-      },
-    );
-
-    it('should reject when the native storefront method is unavailable', async () => {
-      const nativeGetStorefront = ExpoIapModule.getStorefront;
-      try {
-        delete (ExpoIapModule as any).getStorefront;
-
-        await expect(getStorefrontIOS()).rejects.toMatchObject({
-          code: 'feature-not-supported',
-          message: expect.stringContaining('not available on this build'),
-          platform: 'ios',
-        });
-      } finally {
-        (ExpoIapModule as any).getStorefront = nativeGetStorefront;
-      }
-    });
-
-    it('should normalize native storefront errors', async () => {
-      (ExpoIapModule.getStorefront as jest.Mock).mockRejectedValueOnce(
-        new Error('storefront exploded'),
-      );
-
-      await expect(getStorefrontIOS()).rejects.toMatchObject({
-        code: 'service-error',
-        message: 'Failed to get storefront.',
-        debugMessage: 'storefront exploded',
-        platform: 'ios',
-      });
     });
 
     it('should call requestReceiptRefreshIOS and return refreshed receipt', async () => {
@@ -647,41 +517,6 @@ describe('iOS Module Functions', () => {
       const result = await getPromotedProductIOS();
 
       expect(result).toBeNull();
-    });
-
-    it('should call requestPurchaseOnPromotedProductIOS (deprecated)', async () => {
-      // Note: This function is deprecated. Use promotedProductListenerIOS + requestPurchase instead.
-      (
-        ExpoIapModule.requestPurchaseOnPromotedProductIOS as jest.Mock
-      ).mockResolvedValue(undefined);
-
-      const result = await requestPurchaseOnPromotedProductIOS();
-
-      expect(
-        ExpoIapModule.requestPurchaseOnPromotedProductIOS,
-      ).toHaveBeenCalledTimes(1);
-      expect(result).toBe(true);
-    });
-
-    it('requestPurchaseOnPromotedProductIOS returns true on success', async () => {
-      (
-        ExpoIapModule.requestPurchaseOnPromotedProductIOS as jest.Mock
-      ).mockResolvedValue(true);
-
-      const result = await requestPurchaseOnPromotedProductIOS();
-
-      expect(result).toBe(true);
-    });
-
-    it('requestPurchaseOnPromotedProductIOS propagates errors', async () => {
-      const mockError = new Error('Feature not supported');
-      (
-        ExpoIapModule.requestPurchaseOnPromotedProductIOS as jest.Mock
-      ).mockRejectedValue(mockError);
-
-      await expect(requestPurchaseOnPromotedProductIOS()).rejects.toThrow(
-        'Feature not supported',
-      );
     });
 
     it('normalizes pending transactions list', async () => {
@@ -894,9 +729,8 @@ describe('iOS Module Functions', () => {
           ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS as jest.Mock
         ).mockResolvedValue(mockResult);
 
-        const result = await getExternalPurchaseCustomLinkTokenIOS(
-          'acquisition',
-        );
+        const result =
+          await getExternalPurchaseCustomLinkTokenIOS('acquisition');
 
         expect(
           ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS,
@@ -926,9 +760,8 @@ describe('iOS Module Functions', () => {
           ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS as jest.Mock
         ).mockResolvedValue(mockResult);
 
-        const result = await getExternalPurchaseCustomLinkTokenIOS(
-          'acquisition',
-        );
+        const result =
+          await getExternalPurchaseCustomLinkTokenIOS('acquisition');
 
         expect(result.error).toBe('App not eligible');
         expect(result.token).toBeUndefined();
@@ -1022,13 +855,5 @@ describe('iOS Module Functions', () => {
         ).rejects.toThrow('Notice display failed');
       });
     });
-  });
-});
-
-describe('Platform guards (Platform.OS = ios)', () => {
-  it('rejects Android-only wrappers with the documented platform error', async () => {
-    await expect(checkAlternativeBillingAvailabilityAndroid()).rejects.toThrow(
-      'checkAlternativeBillingAvailabilityAndroid is only available on Android',
-    );
   });
 });

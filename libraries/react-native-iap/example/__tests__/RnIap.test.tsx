@@ -26,20 +26,12 @@ jest.mock('react-native-nitro-modules', () => ({
       addPromotedProductListenerIOS: jest.fn(),
       removePromotedProductListenerIOS: jest.fn(),
       getStorefront: jest.fn().mockResolvedValue('US'),
-      getStorefrontIOS: jest.fn().mockResolvedValue('USA'),
       getAppTransactionIOS: jest.fn().mockResolvedValue(null),
-      requestPromotedProductIOS: jest.fn().mockResolvedValue(null),
       presentCodeRedemptionSheetIOS: jest.fn().mockResolvedValue(true),
       clearTransactionIOS: jest.fn().mockResolvedValue(true),
       beginRefundRequestIOS: jest.fn().mockResolvedValue(null),
       acknowledgePurchaseAndroid: jest.fn().mockResolvedValue(true),
       consumePurchaseAndroid: jest.fn().mockResolvedValue(true),
-      checkAlternativeBillingAvailabilityAndroid: jest
-        .fn()
-        .mockResolvedValue(true),
-      createAlternativeBillingTokenAndroid: jest
-        .fn()
-        .mockResolvedValue('external-token'),
       isBillingProgramAvailableAndroid: jest.fn().mockResolvedValue({
         billingProgram: 'external-offer',
         isAvailable: true,
@@ -49,12 +41,6 @@ jest.mock('react-native-nitro-modules', () => ({
         externalTransactionToken: 'external-transaction-token',
       }),
       launchExternalLinkAndroid: jest.fn().mockResolvedValue(true),
-      validateReceipt: jest.fn().mockResolvedValue({
-        isValid: true,
-        receiptData: 'mock-receipt',
-        jwsRepresentation: 'mock-jws',
-        latestTransaction: null,
-      }),
     }),
   },
 }));
@@ -114,7 +100,7 @@ describe('RnIap Complete Test Suite', () => {
     });
 
     it('should request purchase', async () => {
-      const request = {ios: {sku: 'product1'}};
+      const request = {apple: {sku: 'product1'}};
       await expect(
         RNIap.requestPurchase({
           request,
@@ -159,11 +145,6 @@ describe('RnIap Complete Test Suite', () => {
   });
 
   describe('iOS-specific APIs', () => {
-    it('should export requestPromotedProductIOS', () => {
-      expect(RNIap.requestPromotedProductIOS).toBeDefined();
-      expect(typeof RNIap.requestPromotedProductIOS).toBe('function');
-    });
-
     it('should export presentCodeRedemptionSheetIOS', () => {
       expect(RNIap.presentCodeRedemptionSheetIOS).toBeDefined();
       expect(typeof RNIap.presentCodeRedemptionSheetIOS).toBe('function');
@@ -185,11 +166,6 @@ describe('RnIap Complete Test Suite', () => {
 
     it('should clear transactions on iOS', async () => {
       await expect(RNIap.clearTransactionIOS()).resolves.toBe(true);
-    });
-
-    it('should request promoted product on iOS', async () => {
-      const result = await RNIap.requestPromotedProductIOS();
-      expect(result).toBeNull();
     });
 
     it('should begin refund request on iOS', async () => {
@@ -215,17 +191,6 @@ describe('RnIap Complete Test Suite', () => {
     it('should export consumePurchaseAndroid', () => {
       expect(RNIap.consumePurchaseAndroid).toBeDefined();
       expect(typeof RNIap.consumePurchaseAndroid).toBe('function');
-    });
-
-    it('should export legacy alternative billing Android functions', () => {
-      expect(RNIap.checkAlternativeBillingAvailabilityAndroid).toBeDefined();
-      expect(typeof RNIap.checkAlternativeBillingAvailabilityAndroid).toBe(
-        'function',
-      );
-      expect(RNIap.createAlternativeBillingTokenAndroid).toBeDefined();
-      expect(typeof RNIap.createAlternativeBillingTokenAndroid).toBe(
-        'function',
-      );
     });
 
     it('should export Billing Programs Android functions', () => {

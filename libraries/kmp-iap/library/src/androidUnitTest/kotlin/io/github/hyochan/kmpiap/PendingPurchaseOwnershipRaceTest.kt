@@ -162,16 +162,4 @@ class PendingPurchaseOwnershipRaceTest {
         )
     }
 
-    @Test
-    fun `Android storefront IOS aliases fail with typed unsupported errors`() = runTest {
-        val playError = assertFailsWith<PurchaseException> {
-            InAppPurchaseAndroid().getStorefrontIOS()
-        }
-        val amazonError = assertFailsWith<PurchaseException> {
-            AmazonInAppPurchaseAndroid().getStorefrontIOS()
-        }
-
-        assertEquals(ErrorCode.FeatureNotSupported, playError.error.code)
-        assertEquals(ErrorCode.FeatureNotSupported, amazonError.error.code)
-    }
 }

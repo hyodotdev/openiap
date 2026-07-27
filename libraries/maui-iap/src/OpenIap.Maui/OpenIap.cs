@@ -4,9 +4,7 @@
 //
 // The static `OpenIapClient` class is the recommended entry point. It
 // delegates to a platform implementation that is selected at compile time (see
-// the Platforms/ folder). The older `Iap` facade remains as a compatibility
-// shim, but the longer name avoids collisions with app namespaces such as
-// `OpenIap.Maui.Iap`. Mirrors the API surface of:
+// the Platforms/ folder). Mirrors the API surface of:
 //   - react-native-iap / expo-iap (TypeScript)
 //   - flutter_inapp_purchase (Dart)
 //   - kmp-iap (Kotlin)
@@ -24,7 +22,6 @@
 #nullable enable
 
 using System;
-using System.ComponentModel;
 using System.Threading.Tasks;
 using OpenIap;
 
@@ -131,29 +128,6 @@ public static class OpenIapClient
     /// <c>kitApi(...)</c> helper.
     /// </summary>
     public static KitApiClient KitApi(KitApiOptions options) => new(options);
-
-}
-
-/// <summary>
-/// Backward-compatible alias for <see cref="OpenIapClient"/>. This facade will
-/// be removed in OpenIap.Maui 2.0.0. New code should use
-/// <see cref="OpenIapClient"/> to avoid namespace/type name collisions in
-/// projects whose namespaces start with <c>OpenIap.Maui.Iap</c>.
-/// </summary>
-[Obsolete("Use OpenIapClient instead. The Iap facade will be removed in OpenIap.Maui 2.0.0.")]
-[EditorBrowsable(EditorBrowsableState.Never)]
-public static class Iap
-{
-    /// <inheritdoc cref="OpenIapClient.Instance"/>
-    public static IOpenIap Instance => OpenIapClient.Instance;
-
-    /// <inheritdoc cref="OpenIapClient.OverrideInstance(IOpenIap)"/>
-    public static void OverrideInstance(IOpenIap instance)
-        => OpenIapClient.OverrideInstance(instance);
-
-    /// <inheritdoc cref="OpenIapClient.KitApi(KitApiOptions)"/>
-    public static KitApiClient KitApi(KitApiOptions options)
-        => OpenIapClient.KitApi(options);
 
 }
 

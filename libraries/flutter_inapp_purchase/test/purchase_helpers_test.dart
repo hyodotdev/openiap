@@ -10,7 +10,6 @@ void main() {
           const purchase = PurchaseIOS(
             id: 'ios-id',
             isAutoRenewing: false,
-            platform: IapPlatform.IOS,
             productId: 'com.example.product',
             purchaseState: PurchaseState.Purchased,
             quantity: 1,
@@ -23,12 +22,11 @@ void main() {
       );
 
       test(
-        'returns id for PurchaseIOS when transactionId is empty',
+        'returns null for PurchaseIOS when transactionId is empty',
         () {
           const purchase = PurchaseIOS(
             id: 'ios-id',
             isAutoRenewing: false,
-            platform: IapPlatform.IOS,
             productId: 'com.example.product',
             purchaseState: PurchaseState.Purchased,
             quantity: 1,
@@ -36,7 +34,7 @@ void main() {
             transactionDate: 1000.0,
             transactionId: '',
           );
-          expect(purchase.transactionIdFor, 'ios-id');
+          expect(purchase.transactionIdFor, isNull);
         },
       );
 
@@ -46,7 +44,6 @@ void main() {
           const purchase = PurchaseAndroid(
             id: 'android-id',
             isAutoRenewing: false,
-            platform: IapPlatform.Android,
             productId: 'com.example.product',
             purchaseState: PurchaseState.Purchased,
             quantity: 1,
@@ -59,29 +56,27 @@ void main() {
       );
 
       test(
-        'returns id for PurchaseAndroid when transactionId is null',
+        'returns null for PurchaseAndroid when transactionId is null',
         () {
           const purchase = PurchaseAndroid(
             id: 'android-id',
             isAutoRenewing: false,
-            platform: IapPlatform.Android,
             productId: 'com.example.product',
             purchaseState: PurchaseState.Purchased,
             quantity: 1,
             store: IapStore.Google,
             transactionDate: 1000.0,
           );
-          expect(purchase.transactionIdFor, 'android-id');
+          expect(purchase.transactionIdFor, isNull);
         },
       );
 
       test(
-        'returns id for PurchaseAndroid when transactionId is empty',
+        'returns null for PurchaseAndroid when transactionId is empty',
         () {
           const purchase = PurchaseAndroid(
             id: 'android-id',
             isAutoRenewing: false,
-            platform: IapPlatform.Android,
             productId: 'com.example.product',
             purchaseState: PurchaseState.Purchased,
             quantity: 1,
@@ -89,7 +84,7 @@ void main() {
             transactionDate: 1000.0,
             transactionId: '',
           );
-          expect(purchase.transactionIdFor, 'android-id');
+          expect(purchase.transactionIdFor, isNull);
         },
       );
 
@@ -99,7 +94,6 @@ void main() {
           const purchase = PurchaseIOS(
             id: '',
             isAutoRenewing: false,
-            platform: IapPlatform.IOS,
             productId: 'com.example.product',
             purchaseState: PurchaseState.Purchased,
             quantity: 1,
@@ -117,7 +111,6 @@ void main() {
         const purchase = PurchaseIOS(
           id: 'ios-id',
           isAutoRenewing: false,
-          platform: IapPlatform.IOS,
           productId: 'com.example.product',
           purchaseState: PurchaseState.Purchased,
           quantity: 1,
@@ -132,7 +125,6 @@ void main() {
         const purchase = PurchaseAndroid(
           id: 'id',
           isAutoRenewing: false,
-          platform: IapPlatform.Android,
           productId: 'product',
           purchaseState: PurchaseState.Purchased,
           quantity: 1,
@@ -149,7 +141,6 @@ void main() {
         const purchase = PurchaseAndroid(
           id: 'id',
           isAutoRenewing: false,
-          platform: IapPlatform.Android,
           productId: 'product',
           purchaseState: PurchaseState.Pending,
           quantity: 1,
@@ -166,7 +157,6 @@ void main() {
         const purchase = PurchaseAndroid(
           id: 'id',
           isAutoRenewing: false,
-          platform: IapPlatform.Android,
           productId: 'product',
           purchaseState: PurchaseState.Unknown,
           quantity: 1,
@@ -185,7 +175,6 @@ void main() {
         const purchase = PurchaseAndroid(
           id: 'id',
           isAutoRenewing: false,
-          platform: IapPlatform.Android,
           productId: 'product',
           purchaseState: PurchaseState.Purchased,
           quantity: 1,
@@ -199,7 +188,6 @@ void main() {
         const purchase = PurchaseIOS(
           id: 'id',
           isAutoRenewing: false,
-          platform: IapPlatform.IOS,
           productId: 'product',
           purchaseState: PurchaseState.Purchased,
           quantity: 1,
@@ -217,7 +205,6 @@ void main() {
         const purchase = PurchaseIOS(
           id: 'id',
           isAutoRenewing: false,
-          platform: IapPlatform.IOS,
           productId: 'product',
           purchaseState: PurchaseState.Pending,
           quantity: 1,
@@ -235,7 +222,6 @@ void main() {
         const purchase = PurchaseIOS(
           id: 'id',
           isAutoRenewing: false,
-          platform: IapPlatform.IOS,
           productId: 'product',
           purchaseState: PurchaseState.Unknown,
           quantity: 1,
@@ -255,7 +241,6 @@ void main() {
         const purchase = PurchaseIOS(
           id: 'id',
           isAutoRenewing: false,
-          platform: IapPlatform.IOS,
           productId: 'product',
           purchaseState: PurchaseState.Purchased,
           quantity: 1,
@@ -270,7 +255,6 @@ void main() {
         const purchase = PurchaseAndroid(
           id: 'id',
           isAutoRenewing: false,
-          platform: IapPlatform.Android,
           productId: 'product',
           purchaseState: PurchaseState.Purchased,
           quantity: 1,
@@ -287,7 +271,6 @@ void main() {
         const purchase = PurchaseAndroid(
           id: 'id',
           isAutoRenewing: false,
-          platform: IapPlatform.Android,
           productId: 'product',
           purchaseState: PurchaseState.Purchased,
           quantity: 1,
@@ -301,7 +284,6 @@ void main() {
         const purchase = PurchaseIOS(
           id: 'id',
           isAutoRenewing: false,
-          platform: IapPlatform.IOS,
           productId: 'product',
           purchaseState: PurchaseState.Purchased,
           quantity: 1,
@@ -319,7 +301,6 @@ void main() {
         const purchase = PurchaseAndroid(
           id: 'id',
           isAutoRenewing: false,
-          platform: IapPlatform.Android,
           productId: 'product',
           purchaseState: PurchaseState.Purchased,
           quantity: 1,
@@ -333,7 +314,6 @@ void main() {
         const purchase = PurchaseIOS(
           id: 'id',
           isAutoRenewing: false,
-          platform: IapPlatform.IOS,
           productId: 'product',
           purchaseState: PurchaseState.Purchased,
           quantity: 1,

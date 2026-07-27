@@ -64,8 +64,6 @@ internal object GodotIapHelper {
      * Parse an OpenIAP product query type without silently changing unknown
      * values into another query class.
      *
-     * The non-canonical spellings remain accepted during godot-iap 2.x so
-     * projects using the native bridge directly can migrate before 3.0.0.
      */
     fun parseProductQueryType(
         rawType: String?,
@@ -79,14 +77,6 @@ internal object GodotIapHelper {
             ProductQueryType.InApp.toJson() -> ProductQueryType.InApp
             ProductQueryType.Subs.toJson() -> ProductQueryType.Subs
             ProductQueryType.All.toJson() -> ProductQueryType.All
-            "inapp", "in_app" -> {
-                warnLegacyWireInput(normalized, ProductQueryType.InApp.toJson())
-                ProductQueryType.InApp
-            }
-            "subscription", "subscriptions" -> {
-                warnLegacyWireInput(normalized, ProductQueryType.Subs.toJson())
-                ProductQueryType.Subs
-            }
             else -> throw IllegalArgumentException(
                 "Unknown product query type '$rawType'. Expected in-app, subs, or all.",
             )
@@ -107,64 +97,22 @@ internal object GodotIapHelper {
         // Parse type
         val type = json.optStringOrNull("type")
 
-        // Parse skus - keep the 2.x alias, but canonical presence always wins.
+        // Parse canonical SKUs.
         val skus = mutableListOf<String>()
-        val skusArray = resolveCanonicalWireValue(
-            canonicalPresent = json.has("skus"),
-            canonicalValue = json.optJSONArray("skus"),
-            legacyPresent = json.has("skuArr"),
-            legacyValue = json.optJSONArray("skuArr"),
-            legacyName = "skuArr",
-            canonicalName = "skus",
-        )
+        val skusArray = json.optJSONArray("skus")
         if (skusArray != null) {
             for (i in 0 until skusArray.length()) {
                 skus.add(skusArray.getString(i))
             }
         }
 
-        // Parse obfuscated IDs (canonical keys win when both are supplied).
-        val obfuscatedAccountId = resolveCanonicalWireValue(
-            canonicalPresent = json.has("obfuscatedAccountId"),
-            canonicalValue = json.optStringOrNull("obfuscatedAccountId"),
-            legacyPresent = json.has("obfuscatedAccountIdAndroid"),
-            legacyValue = json.optStringOrNull("obfuscatedAccountIdAndroid"),
-            legacyName = "obfuscatedAccountIdAndroid",
-            canonicalName = "obfuscatedAccountId",
-        )
-        val obfuscatedProfileId = resolveCanonicalWireValue(
-            canonicalPresent = json.has("obfuscatedProfileId"),
-            canonicalValue = json.optStringOrNull("obfuscatedProfileId"),
-            legacyPresent = json.has("obfuscatedProfileIdAndroid"),
-            legacyValue = json.optStringOrNull("obfuscatedProfileIdAndroid"),
-            legacyName = "obfuscatedProfileIdAndroid",
-            canonicalName = "obfuscatedProfileId",
-        )
+        val obfuscatedAccountId = json.optStringOrNull("obfuscatedAccountId")
+        val obfuscatedProfileId = json.optStringOrNull("obfuscatedProfileId")
 
         // Parse other options
         val isOfferPersonalized = json.optBoolean("isOfferPersonalized", false)
-        val purchaseToken = resolveCanonicalWireValue(
-            canonicalPresent = json.has("purchaseToken"),
-            canonicalValue = json.optStringOrNull("purchaseToken"),
-            legacyPresent = json.has("purchaseTokenAndroid"),
-            legacyValue = json.optStringOrNull("purchaseTokenAndroid"),
-            legacyName = "purchaseTokenAndroid",
-            canonicalName = "purchaseToken",
-        )
+        val purchaseToken = json.optStringOrNull("purchaseToken")
         val originalExternalTransactionId = json.optStringOrNull("originalExternalTransactionId")
-        val replacementMode = resolveCanonicalWireValue(
-            canonicalPresent = json.has("replacementMode"),
-            canonicalValue = json.optInt("replacementMode").takeIf { json.has("replacementMode") },
-            legacyPresent = json.has("replacementModeAndroid"),
-            legacyValue = json.optInt("replacementModeAndroid").takeIf {
-                json.has("replacementModeAndroid")
-            },
-            legacyName = "replacementModeAndroid",
-            canonicalName = "subscriptionProductReplacementParams",
-        )
-        if (json.has("replacementMode")) {
-            warnLegacyWireInput("replacementMode", "subscriptionProductReplacementParams")
-        }
 
         // Parse subscriptionProductReplacementParams (8.1.0+)
         val subscriptionProductReplacementParams = if (json.has("subscriptionProductReplacementParams")) {
@@ -186,22 +134,7 @@ internal object GodotIapHelper {
             DeveloperBillingOptionParamsAndroid.fromJson(jsonObjectToMap(it))
         }
 
-        val canonicalOfferToken = json.optStringOrNull("offerToken")
-
-        // Parse the pre-3.0 offer token array.
-        val offerTokenArr = mutableListOf<String>()
-        val offerTokenArray = json.optJSONArray("offerTokenArr")
-        if (json.has("offerTokenArr")) {
-            warnLegacyWireInput(
-                "offerTokenArr",
-                "offerToken for one-time products or subscriptionOffers for subscriptions",
-            )
-        }
-        if (offerTokenArray != null) {
-            for (i in 0 until offerTokenArray.length()) {
-                offerTokenArr.add(offerTokenArray.getString(i))
-            }
-        }
+        val offerToken = json.optStringOrNull("offerToken")
 
         // Parse explicit subscription offers
         val explicitSubscriptionOffers = mutableListOf<AndroidSubscriptionOfferInput>()
@@ -219,37 +152,17 @@ internal object GodotIapHelper {
             }
         }
 
-        // Build subscription offers from offerTokenArr as fallback
-        val subscriptionOffers = if (json.has("subscriptionOffers")) {
-            explicitSubscriptionOffers
-        } else if (offerTokenArr.isNotEmpty() && skus.isNotEmpty()) {
-            skus.zip(offerTokenArr).mapNotNull { (sku, token) ->
-                if (token.isNotEmpty()) {
-                    AndroidSubscriptionOfferInput(offerToken = token, sku = sku)
-                } else {
-                    null
-                }
-            }
-        } else {
-            emptyList()
-        }
-
         return RequestPurchaseParams(
             type = type,
             skus = skus,
             obfuscatedAccountId = obfuscatedAccountId,
             obfuscatedProfileId = obfuscatedProfileId,
             isOfferPersonalized = isOfferPersonalized,
-            offerToken = if (json.has("offerToken")) {
-                canonicalOfferToken
-            } else {
-                offerTokenArr.firstOrNull()
-            },
-            subscriptionOffers = subscriptionOffers,
+            offerToken = offerToken,
+            subscriptionOffers = explicitSubscriptionOffers,
             developerBillingOption = developerBillingOption,
             originalExternalTransactionId = originalExternalTransactionId,
             purchaseToken = purchaseToken,
-            replacementMode = replacementMode,
             subscriptionProductReplacementParams = subscriptionProductReplacementParams
         )
     }
@@ -285,33 +198,6 @@ internal object GodotIapHelper {
         val developerBillingOption: DeveloperBillingOptionParamsAndroid?,
         val originalExternalTransactionId: String?,
         val purchaseToken: String?,
-        val replacementMode: Int?,
         val subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid?,
     )
-
-    private fun warnLegacyWireInput(
-        legacyName: String,
-        canonicalName: String,
-    ) {
-        GodotIapLog.deprecation(
-            key = "wire:$legacyName",
-            message =
-                "$legacyName is deprecated and will be removed in godot-iap 3.0.0; " +
-                    "use $canonicalName instead.",
-        )
-    }
-
-    internal fun <T> resolveCanonicalWireValue(
-        canonicalPresent: Boolean,
-        canonicalValue: T?,
-        legacyPresent: Boolean,
-        legacyValue: T?,
-        legacyName: String,
-        canonicalName: String,
-    ): T? {
-        if (legacyPresent) {
-            warnLegacyWireInput(legacyName, canonicalName)
-        }
-        return if (canonicalPresent) canonicalValue else legacyValue
-    }
 }

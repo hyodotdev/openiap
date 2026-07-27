@@ -148,7 +148,6 @@ public class RecordJsonTests
             "products": ["premium.annual"],
             "purchaseToken": "pending-token"
           },
-          "platform": "android",
           "productId": "premium.monthly",
           "purchaseState": "purchased",
           "purchaseToken": "token-abc",
@@ -212,7 +211,6 @@ public class RecordJsonTests
           "originalTransactionDateIOS": 1710000000000,
           "originalTransactionIdentifierIOS": "2000000001",
           "ownershipTypeIOS": "PURCHASED",
-          "platform": "ios",
           "productId": "premium.monthly",
           "purchaseState": "purchased",
           "purchaseToken": "signed-jws",
@@ -260,7 +258,6 @@ public class RecordJsonTests
 
         var android = Assert.IsType<PurchaseAndroid>(purchase);
         Assert.Equal("token-abc", android.Id);
-        Assert.Equal(IapPlatform.Android, android.Platform);
         Assert.Equal(PurchaseState.Purchased, android.PurchaseState);
         Assert.Equal(IapStore.Google, android.Store);
         Assert.Equal("token-abc", android.PurchaseToken);
@@ -326,7 +323,6 @@ public class RecordJsonTests
         {
             Id = "2000000123",
             IsAutoRenewing = false,
-            Platform = IapPlatform.IOS,
             ProductId = "premium.monthly",
             PurchaseState = PurchaseState.Purchased,
             Quantity = 1,
@@ -354,7 +350,6 @@ public class RecordJsonTests
             {
               "__typename": "PurchaseAndroid",
               "isAutoRenewing": true,
-              "platform": "android",
               "productId": "premium.monthly",
               "purchaseState": "purchased",
               "quantity": 1,

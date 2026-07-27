@@ -95,7 +95,6 @@ void main() {
         ..skus = ['sub_sku']
         ..purchaseToken = 'old_token'
         ..originalExternalTransactionId = 'original-external-id'
-        ..replacementMode = 1
         ..obfuscatedAccountId = 'acc'
         ..obfuscatedProfileId = 'prof'
         ..subscriptionProductReplacementParams =
@@ -109,8 +108,6 @@ void main() {
       expect(props.skus, ['sub_sku']);
       expect(props.purchaseToken, 'old_token');
       expect(props.originalExternalTransactionId, 'original-external-id');
-      expect(props.replacementMode, 1);
-      expect(props.toJson()['replacementMode'], 1);
       expect(props.subscriptionProductReplacementParams?.oldProductId,
           'old_product');
     });
@@ -220,19 +217,6 @@ void main() {
       expect(builder.android.skus, ['android_product']);
     });
 
-    test('builds with useAlternativeBilling', () {
-      final builder = RequestPurchaseBuilder()
-        ..ios.sku = 'product'
-        ..useAlternativeBilling = true
-        ..type = ProductQueryType.InApp;
-
-      final props = builder.build();
-      final json = props.toJson();
-
-      expect(json['requestPurchase'], isNotNull);
-      expect(json['useAlternativeBilling'], isTrue);
-    });
-
     test('builds with empty ios returns null apple field', () {
       final builder = RequestPurchaseBuilder()
         ..android.skus = ['product']
@@ -297,16 +281,6 @@ void main() {
 
       expect(builder.ios.sku, 'sub_ios');
       expect(builder.android.skus, ['sub_android']);
-    });
-
-    test('builds with useAlternativeBilling', () {
-      final builder = RequestSubscriptionBuilder()
-        ..ios.sku = 'sub'
-        ..useAlternativeBilling = true;
-
-      final props = builder.build();
-      expect(props, isA<RequestPurchaseProps>());
-      expect(props.toJson()['useAlternativeBilling'], isTrue);
     });
 
     test('builds with empty skus returns null fields', () {

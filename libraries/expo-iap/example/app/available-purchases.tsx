@@ -21,6 +21,11 @@ import PurchaseSummaryRow from '../src/components/PurchaseSummaryRow';
 
 const isVegaOS = (): boolean => String(Platform.OS) === 'kepler';
 
+const isExpiringSoon = (subscription: ActiveSubscription): boolean => {
+  const days = subscription.daysUntilExpirationIOS;
+  return days != null && days >= 0 && days <= 7;
+};
+
 export default function AvailablePurchases() {
   const [loading, setLoading] = useState(false);
   const [isCheckingStatus, setIsCheckingStatus] = useState(false);
@@ -74,7 +79,7 @@ export default function AvailablePurchases() {
       console.log('[AVAILABLE-PURCHASES] Purchase successful:', {
         productId: purchase.productId,
         transactionId: purchase.id,
-        platform: purchase.platform,
+        store: purchase.store,
       });
 
       // Finish transaction like in subscription-flow
@@ -318,13 +323,13 @@ export default function AvailablePurchases() {
                     <Text
                       style={[
                         styles.value,
-                        subscription.willExpireSoon && styles.expiredText,
+                        isExpiringSoon(subscription) && styles.expiredText,
                       ]}
                     >
                       {new Date(
                         subscription.expirationDateIOS,
                       ).toLocaleDateString()}
-                      {subscription.willExpireSoon && ' (Soon)'}
+                      {isExpiringSoon(subscription) && ' (Soon)'}
                     </Text>
                   </View>
                 )}
@@ -480,11 +485,11 @@ export default function AvailablePurchases() {
                     </Text>
                   </View>
                 )}
-                {typeof selectedSubscription.willExpireSoon === 'boolean' && (
+                {selectedSubscription.daysUntilExpirationIOS != null && (
                   <View style={styles.purchaseRow}>
                     <Text style={styles.label}>Will Expire Soon</Text>
                     <Text style={styles.value}>
-                      {selectedSubscription.willExpireSoon ? 'Yes' : 'No'}
+                      {isExpiringSoon(selectedSubscription) ? 'Yes' : 'No'}
                     </Text>
                   </View>
                 )}

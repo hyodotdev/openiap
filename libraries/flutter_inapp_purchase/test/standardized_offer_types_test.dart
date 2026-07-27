@@ -380,26 +380,6 @@ void main() {
         paymentMode: PaymentMode.FreeTrial,
       );
 
-      const phases = PricingPhasesAndroid(
-        pricingPhaseList: [
-          PricingPhaseAndroid(
-            billingCycleCount: 1,
-            billingPeriod: 'P1M',
-            formattedPrice: '\$4.99',
-            priceAmountMicros: '4990000',
-            priceCurrencyCode: 'USD',
-            recurrenceMode: 1,
-          ),
-        ],
-      );
-
-      const legacyOffer = ProductSubscriptionAndroidOfferDetails(
-        basePlanId: 'monthly',
-        offerToken: 'token_123',
-        offerTags: ['intro'],
-        pricingPhases: phases,
-      );
-
       const subscription = ProductSubscriptionAndroid(
         currency: 'USD',
         description: 'Monthly subscription',
@@ -408,7 +388,6 @@ void main() {
         nameAndroid: 'Monthly Sub',
         platform: IapPlatform.Android,
         price: 4.99,
-        subscriptionOfferDetailsAndroid: [legacyOffer],
         subscriptionOffers: [subscriptionOffer],
         title: 'Monthly Subscription',
         type: ProductType.Subs,
@@ -416,8 +395,6 @@ void main() {
 
       final json = subscription.toJson();
 
-      // Has both legacy and new fields
-      expect(json['subscriptionOfferDetailsAndroid'], isNotNull);
       expect(json['subscriptionOffers'], isNotNull);
 
       // New standardized offer

@@ -11,7 +11,8 @@ void main() {
 
   setUp(() {
     log = <MethodCall>[];
-    channel.setMockMethodCallHandler((MethodCall call) async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (MethodCall call) async {
       log.add(call);
       switch (call.method) {
         case 'initConnection':
@@ -52,7 +53,8 @@ void main() {
   });
 
   tearDown(() {
-    channel.setMockMethodCallHandler(null);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null);
   });
 
   testWidgets('loads products and triggers purchase when tapping Buy',

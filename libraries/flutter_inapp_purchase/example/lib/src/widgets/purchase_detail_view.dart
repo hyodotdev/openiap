@@ -33,8 +33,8 @@ extension PurchaseDisplayMapping on Purchase {
         value: _formatPresence(purchaseToken),
       ),
       PurchaseDisplayField(
-        label: 'platform',
-        value: platform.toJson().toLowerCase(),
+        label: 'store',
+        value: store.toJson(),
       ),
       PurchaseDisplayField(label: 'quantity', value: quantity.toString()),
       PurchaseDisplayField(
@@ -212,8 +212,8 @@ class PurchaseDataView extends StatelessWidget {
     this.statusColor,
     this.sectionSpacing = 16,
     this.fieldSpacing = 8,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   final Purchase purchase;
   final String? statusLabel;
@@ -232,7 +232,7 @@ class PurchaseDataView extends StatelessWidget {
       ),
       _buildInfoChip(
         context,
-        label: 'Platform: ${purchase.platform.toJson().toLowerCase()}',
+        label: 'Store: ${purchase.store.toJson()}',
       ),
       _buildInfoChip(
         context,
@@ -326,8 +326,8 @@ class PurchaseDataCard extends StatelessWidget {
     required this.purchase,
     this.statusLabel,
     this.statusColor,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   final Purchase purchase;
   final String? statusLabel;

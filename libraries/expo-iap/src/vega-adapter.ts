@@ -146,7 +146,7 @@ export interface ExpoIapVegaModule {
   initConnection(config?: unknown): Promise<boolean>;
   removeListener(eventName: string, listener: VegaListener): void;
   requestPurchase(params: {
-    skuArr?: string[];
+    skus?: string[];
     type?: string;
   }): Promise<Purchase[]>;
   verifyPurchaseWithProvider(
@@ -628,20 +628,6 @@ function createPricingPhase(product: VegaProduct) {
   };
 }
 
-function createSubscriptionOffer(product: VegaProduct) {
-  const sku = product.sku ?? '';
-  const pricingPhase = createPricingPhase(product);
-  return {
-    basePlanId: sku,
-    offerId: null,
-    offerTags: [],
-    offerToken: '',
-    pricingPhases: {
-      pricingPhaseList: [pricingPhase],
-    },
-  };
-}
-
 function createStandardizedSubscriptionOffer(product: VegaProduct) {
   const pricingPhase = createPricingPhase(product);
   const sku = product.sku ?? '';
@@ -676,7 +662,6 @@ function mapProduct(product: VegaProduct): Product | ProductSubscription {
     debugDescription: null,
     platform: 'android' as const,
     nameAndroid: product.title ?? sku,
-    oneTimePurchaseOfferDetailsAndroid: null,
     productStatusAndroid: 'ok' as const,
     discountOffers: null,
   };
@@ -685,7 +670,6 @@ function mapProduct(product: VegaProduct): Product | ProductSubscription {
     return {
       ...base,
       type,
-      subscriptionOfferDetailsAndroid: [createSubscriptionOffer(product)],
       subscriptionOffers: [createStandardizedSubscriptionOffer(product)],
     };
   }
@@ -693,7 +677,6 @@ function mapProduct(product: VegaProduct): Product | ProductSubscription {
   return {
     ...base,
     type,
-    subscriptionOfferDetailsAndroid: null,
     subscriptionOffers: null,
   };
 }
@@ -718,7 +701,6 @@ function mapReceipt(
     currentPlanId:
       type === 'subs' ? (nonBlankString(receipt.termSku) ?? productId) : null,
     ids: productId ? [productId] : [],
-    platform: 'android',
     store: 'amazon',
     quantity: 1,
     purchaseState: isActive ? 'purchased' : 'unknown',
@@ -1167,7 +1149,7 @@ export function createExpoIapVegaModule(
         json.store !== 'amazon'
       ) {
         throw createVegaError(
-          ErrorCode.ReceiptFailed,
+          ErrorCode.PurchaseVerificationFailed,
           `IAPKit returned malformed response (HTTP ${status}).`,
         );
       }
@@ -1175,7 +1157,7 @@ export function createExpoIapVegaModule(
       const productId = json.productId;
       if (productId != null && typeof productId !== 'string') {
         throw createVegaError(
-          ErrorCode.ReceiptFailed,
+          ErrorCode.PurchaseVerificationFailed,
           `IAPKit returned malformed response (HTTP ${status}).`,
         );
       }
@@ -1276,28 +1258,28 @@ export function createExpoIapVegaModule(
 
     if (!response.ok) {
       throw createVegaError(
-        ErrorCode.ReceiptFailed,
+        ErrorCode.PurchaseVerificationFailed,
         extractIapkitErrorMessage(json) ?? `HTTP ${response.status}`,
       );
     }
 
     if (json === null) {
       throw createVegaError(
-        ErrorCode.ReceiptFailed,
+        ErrorCode.PurchaseVerificationFailed,
         `IAPKit returned non-JSON response (HTTP ${response.status}).`,
       );
     }
 
     if (!isIapkitResultObject(json)) {
       throw createVegaError(
-        ErrorCode.ReceiptFailed,
+        ErrorCode.PurchaseVerificationFailed,
         `IAPKit returned malformed response (HTTP ${response.status}).`,
       );
     }
 
     if (hasIapkitErrors(json)) {
       throw createVegaError(
-        ErrorCode.ReceiptFailed,
+        ErrorCode.PurchaseVerificationFailed,
         extractIapkitErrorMessage(json) ?? 'IAPKit verification failed.',
       );
     }
@@ -1347,7 +1329,7 @@ export function createExpoIapVegaModule(
     async requestPurchase(params): Promise<Purchase[]> {
       let sku: string | undefined;
       try {
-        const skus = params.skuArr ?? [];
+        const skus = params.skus ?? [];
         if (skus.length !== 1) {
           throw createVegaError(
             ErrorCode.DeveloperError,
@@ -1449,17 +1431,14 @@ export function createExpoIapVegaModule(
           transactionDate: purchase.transactionDate,
           expirationDateIOS: null,
           environmentIOS: null,
-          willExpireSoon: null,
           daysUntilExpirationIOS: null,
           renewalInfoIOS: null,
           autoRenewingAndroid:
-            purchase.platform === 'android'
-              ? ((
-                  purchase as Purchase & {
-                    autoRenewingAndroid?: boolean | null;
-                  }
-                ).autoRenewingAndroid ?? null)
-              : null,
+            (
+              purchase as Purchase & {
+                autoRenewingAndroid?: boolean | null;
+              }
+            ).autoRenewingAndroid ?? null,
           basePlanIdAndroid: purchase.currentPlanId ?? purchase.productId,
           currentPlanId: purchase.currentPlanId ?? purchase.productId,
           purchaseTokenAndroid: purchase.purchaseToken ?? null,

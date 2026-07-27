@@ -459,7 +459,7 @@ public partial class AlternativeBillingPage : ContentPage
 #if IOS || MACCATALYST
         SubtitleLabel.Text = "External purchase links (iOS 16.0+)";
         InfoLabel.Text = "• Enter your external purchase URL\n• Tap Purchase on any product\n• User will be redirected to the external URL\n• Complete purchase on your website\n• No PurchaseUpdated callback\n• Implement deep link to return to app";
-        WarningLabel.Text = "⚠️ iOS 16.0+ required\n⚠️ Valid external URL needed\n⚠️ useAlternativeBilling: true is set";
+        WarningLabel.Text = "⚠️ iOS 16.0+ required\n⚠️ Valid external URL needed\n⚠️ Billing program mode is enabled";
         AndroidFlowSection.IsVisible = false;
         BillingProgramSection.IsVisible = false;
         IosUrlSection.IsVisible = true;

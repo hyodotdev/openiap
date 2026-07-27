@@ -8,19 +8,19 @@ void main() {
   const channel = MethodChannel('flutter_inapp');
 
   setUp(() {
-    channel.setMockMethodCallHandler((MethodCall call) async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (MethodCall call) async {
       switch (call.method) {
         case 'initConnection':
           return true;
         case 'getAvailablePurchases':
           return <Map<String, dynamic>>[
             <String, dynamic>{
-              'platform': 'android',
+              'store': 'google',
               'id': 'txn_123',
               'productId': 'dev.hyo.martie.premium',
               'purchaseToken': 'token_abc',
-              'purchaseTokenAndroid': 'token_abc',
-              'purchaseStateAndroid': 1,
+              'purchaseState': 'purchased',
               'isAutoRenewing': true,
               'autoRenewingAndroid': true,
               'transactionDate': 1700000000000.0,
@@ -39,7 +39,8 @@ void main() {
   });
 
   tearDown(() {
-    channel.setMockMethodCallHandler(null);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null);
   });
 
   testWidgets('shows available purchase cards', (tester) async {

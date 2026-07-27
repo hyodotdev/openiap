@@ -2,17 +2,19 @@ import {StyleSheet, Text, TouchableOpacity, View} from 'react-native';
 import type {ViewStyle} from 'react-native';
 import type {Purchase} from 'react-native-iap';
 
-const platformLabel = (platform?: string | null): string => {
-  if (!platform) return 'unknown';
-  return platform.toString().toLowerCase();
+const storeLabel = (store?: string | null): string => {
+  if (!store) return 'unknown';
+  return store.toString().toLowerCase();
 };
 
-const platformStyle = (platform?: string | null) => {
-  const normalized = platformLabel(platform);
+const storeStyle = (store?: string | null) => {
+  const normalized = storeLabel(store);
   switch (normalized) {
-    case 'ios':
+    case 'apple':
       return styles.badgeIOS;
-    case 'android':
+    case 'google-play':
+    case 'amazon':
+    case 'horizon':
       return styles.badgeAndroid;
     default:
       return styles.badgeUnknown;
@@ -40,7 +42,7 @@ type Props = {
 };
 
 function PurchaseSummaryRow({purchase, onPress, style}: Props) {
-  const platform = platformLabel(purchase.platform);
+  const store = storeLabel(purchase.store);
   const transactionId = resolveTransactionId(purchase);
 
   return (
@@ -57,8 +59,8 @@ function PurchaseSummaryRow({purchase, onPress, style}: Props) {
           Transaction: {transactionId || 'N/A'}
         </Text>
       </View>
-      <View style={[styles.badge, platformStyle(purchase.platform)]}>
-        <Text style={styles.badgeText}>{platform}</Text>
+      <View style={[styles.badge, storeStyle(purchase.store)]}>
+        <Text style={styles.badgeText}>{store}</Text>
       </View>
     </TouchableOpacity>
   );

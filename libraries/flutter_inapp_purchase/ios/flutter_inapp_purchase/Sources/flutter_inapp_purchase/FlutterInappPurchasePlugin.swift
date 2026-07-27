@@ -55,26 +55,12 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         )
     }
 
-    private func resolveTransactionId(
-        from payload: [String: Any],
-        legacyKey: String,
-        warningKey: String,
-        warningMessage: String
-    ) -> String? {
-        if payload.keys.contains("transactionId") {
-            guard let transactionId = payload["transactionId"] as? String,
-                  !transactionId.isEmpty else {
-                return nil
-            }
-            return transactionId
-        }
-
-        guard let legacyTransactionId = payload[legacyKey] as? String,
-              !legacyTransactionId.isEmpty else {
+    private func resolveTransactionId(from payload: [String: Any]) -> String? {
+        guard let transactionId = payload["transactionId"] as? String,
+              !transactionId.isEmpty else {
             return nil
         }
-        FlutterIapLog.deprecation(warningKey, warningMessage)
-        return legacyTransactionId
+        return transactionId
     }
     
     public static func register(with registrar: FlutterPluginRegistrar) {
@@ -153,8 +139,6 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
             // OpenIAP requestPurchase expects structured props
             if let args = call.arguments as? [String: Any] {
                 requestPurchase(args: args, result: result)
-            } else if let sku = call.arguments as? String {
-                requestPurchase(args: ["sku": sku], result: result)
             } else {
                 let code: ErrorCode = .developerError
                 result(FlutterError(code: code.rawValue, message: "Invalid params for requestPurchase", details: nil))
@@ -169,12 +153,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                     finishTransaction(purchaseDict: purchasePayload, isConsumable: isConsumable, result: result)
                     return
                 }
-                if let id = resolveTransactionId(
-                    from: args,
-                    legacyKey: "transactionIdentifier",
-                    warningKey: "finishTransaction.transactionIdentifier",
-                    warningMessage: "The finishTransaction `transactionIdentifier` field is deprecated and will be removed in flutter_inapp_purchase 10.0.0. Use `transactionId` instead."
-                ) {
+                if let id = resolveTransactionId(from: args) {
                     FlutterIapLog.debug("finishTransaction extracted transactionId: \(id)")
                     finishTransaction(transactionId: id, result: result)
                     return
@@ -192,17 +171,11 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         case "getStorefront":
             getStorefront(result: result)
 
-        case "getStorefrontIOS":
-            getStorefrontIOS(result: result)
-
         case "getPendingTransactionsIOS":
             getPendingTransactionsIOS(result: result)
 
         case "getAllTransactionsIOS":
             getAllTransactionsIOS(result: result)
-
-        case "requestPurchaseOnPromotedProductIOS":
-            requestPurchaseOnPromotedProductIOS(result: result)
 
         case "clearTransactionIOS":
             clearTransactionIOS(result: result)
@@ -286,13 +259,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         case "getReceiptDataIOS":
             getReceiptDataIOS(result: result)
 
-        case "getAppTransactionIOS", "getAppTransaction":
-            if call.method == "getAppTransaction" {
-                FlutterIapLog.deprecation(
-                    "channel.getAppTransaction",
-                    "`getAppTransaction` is deprecated and will be removed in flutter_inapp_purchase 10.0.0. Use `getAppTransactionIOS` instead."
-                )
-            }
+        case "getAppTransactionIOS":
             if #available(iOS 16.0, macOS 14.0, tvOS 16.0, *) {
                 getAppTransactionIOS(result: result)
             } else {
@@ -303,13 +270,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         case "syncIOS":
             syncIOS(result: result)
 
-        case "subscriptionStatusIOS", "getSubscriptionStatus":
-            if call.method == "getSubscriptionStatus" {
-                FlutterIapLog.deprecation(
-                    "channel.getSubscriptionStatus",
-                    "`getSubscriptionStatus` is deprecated and will be removed in flutter_inapp_purchase 10.0.0. Use `subscriptionStatusIOS` instead."
-                )
-            }
+        case "subscriptionStatusIOS":
             if let args = call.arguments as? [String: Any],
                let sku = args["sku"] as? String {
                 subscriptionStatusIOS(sku: sku, result: result)
@@ -320,30 +281,19 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 result(FlutterError(code: code.rawValue, message: "sku required", details: nil))
             }
 
-        case "validateReceiptIOS", "verifyPurchase":
+        case "verifyPurchase":
             guard let args = call.arguments as? [String: Any] else {
                 let code: ErrorCode = .developerError
                 result(FlutterError(code: code.rawValue, message: "arguments required", details: nil))
                 return
             }
-            // Support new API: { apple: { sku: "..." } } or legacy { sku: "..." }
-            let sku: String?
-            if args.keys.contains("apple") {
-                sku = (args["apple"] as? [String: Any])?["sku"] as? String
-            } else if let legacySku = args["sku"] as? String {
-                FlutterIapLog.deprecation(
-                    "Top-level `sku` verification input is deprecated and will be removed in flutter_inapp_purchase 10.0.0. Use `apple.sku` instead."
-                )
-                sku = legacySku
-            } else {
-                sku = nil
-            }
+            let sku = (args["apple"] as? [String: Any])?["sku"] as? String
             guard let sku, !sku.isEmpty else {
                 let code: ErrorCode = .developerError
                 result(FlutterError(code: code.rawValue, message: "apple.sku required", details: nil))
                 return
             }
-            validateReceiptIOS(productId: sku, result: result)
+            verifyPurchase(productId: sku, result: result)
 
         case "canPresentExternalPurchaseNoticeIOS":
             if #available(iOS 17.4, macOS 14.4, tvOS 17.4, *) {
@@ -656,7 +606,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
     
     // MARK: - Purchase
     private func requestPurchase(args: [String: Any], result: @escaping FlutterResult) {
-        let sku = (args["sku"] as? String) ?? (args["productId"] as? String)
+        let sku = args["sku"] as? String
         guard let sku else {
             let code: ErrorCode = .developerError
             result(FlutterError(code: code.rawValue, message: "sku required", details: nil))
@@ -694,12 +644,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 purchase = try FlutterIapHelper.decodePurchaseInput(from: purchaseDict)
             } catch let purchaseError as PurchaseError {
                 FlutterIapLog.failure("finishTransactionDecode", error: purchaseError)
-                if let transactionId = resolveTransactionId(
-                    from: purchaseDict,
-                    legacyKey: "id",
-                    warningKey: "finishTransaction.purchase.id",
-                    warningMessage: "Using purchase `id` as `transactionId` is deprecated and will be removed in flutter_inapp_purchase 10.0.0. Emit `transactionId` directly instead."
-                ) {
+                if let transactionId = resolveTransactionId(from: purchaseDict) {
                     finishTransaction(transactionId: transactionId, result: result)
                     return
                 }
@@ -707,12 +652,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                 return
             } catch {
                 FlutterIapLog.failure("finishTransactionDecode", error: error)
-                if let transactionId = resolveTransactionId(
-                    from: purchaseDict,
-                    legacyKey: "id",
-                    warningKey: "finishTransaction.purchase.id",
-                    warningMessage: "Using purchase `id` as `transactionId` is deprecated and will be removed in flutter_inapp_purchase 10.0.0. Emit `transactionId` directly instead."
-                ) {
+                if let transactionId = resolveTransactionId(from: purchaseDict) {
                     finishTransaction(transactionId: transactionId, result: result)
                     return
                 }
@@ -835,24 +775,6 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         }
     }
 
-    private func requestPurchaseOnPromotedProductIOS(result: @escaping FlutterResult) {
-        FlutterIapLog.debug("requestPurchaseOnPromotedProductIOS called")
-        Task { @MainActor in
-            do {
-                let purchased = try await OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()
-                FlutterIapLog.result("requestPurchaseOnPromotedProductIOS", value: purchased)
-                result(purchased)
-            } catch let purchaseError as PurchaseError {
-                FlutterIapLog.failure("requestPurchaseOnPromotedProductIOS", error: purchaseError)
-                result(flutterError(from: purchaseError))
-            } catch {
-                FlutterIapLog.failure("requestPurchaseOnPromotedProductIOS", error: error)
-                let code: ErrorCode = .purchaseError
-                result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: error.localizedDescription))
-            }
-        }
-    }
-
     private func getPromotedProductIOS(result: @escaping FlutterResult) {
         Task { @MainActor in
             do {
@@ -895,25 +817,6 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         }
     }
 
-    private func getStorefrontIOS(result: @escaping FlutterResult) {
-        FlutterIapLog.debug("getStorefrontIOS called")
-        Task { @MainActor in
-            do {
-                let code = try await OpenIapModule.shared.getStorefront()
-                FlutterIapLog.result("getStorefrontIOS", value: ["countryCode": code])
-                result(["countryCode": code])
-            } catch let purchaseError as PurchaseError {
-                FlutterIapLog.failure("getStorefrontIOS", error: purchaseError)
-                result(flutterError(from: purchaseError))
-            } catch {
-                await MainActor.run {
-                    let code: ErrorCode = .serviceError
-                    result(FlutterError(code: code.rawValue, message: defaultMessage(for: code), details: nil))
-                }
-            }
-        }
-    }
-    
     private func getPendingTransactionsIOS(result: @escaping FlutterResult) {
         Task { @MainActor in
             do {
@@ -992,13 +895,15 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         }
     }
 
-    // MARK: - Receipt Validation (OpenIAP)
+    // MARK: - Purchase Verification (OpenIAP)
 
-    private func validateReceiptIOS(productId: String, result: @escaping FlutterResult) {
-        FlutterIapLog.debug("validateReceiptIOS called for product: \(productId)")
+    private func verifyPurchase(productId: String, result: @escaping FlutterResult) {
+        FlutterIapLog.debug("verifyPurchase called for product: \(productId)")
         Task { @MainActor in
             do {
-                let props = try FlutterIapHelper.decodeVerifyPurchaseProps(for: productId)
+                let props = VerifyPurchaseProps(
+                    apple: VerifyPurchaseAppleOptions(sku: productId)
+                )
                 let verifyResult = try await OpenIapModule.shared.verifyPurchase(props)
                 guard case let .verifyPurchaseResultIos(res) = verifyResult else {
                     let code: ErrorCode = .featureNotSupported
@@ -1009,18 +914,15 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                     "__typename": "VerifyPurchaseResultIOS",
                     "isValid": res.isValid,
                     "receiptData": res.receiptData,
-                    // Provide both fields for compatibility with OpenIAP spec and legacy
                     "jwsRepresentation": res.jwsRepresentation,
-                    "purchaseToken": res.jwsRepresentation,
-                    "platform": "ios"
                 ]
                 if let latest = res.latestTransaction {
                     payload["latestTransaction"] = FlutterIapHelper.sanitizeDictionary(OpenIapSerialization.purchase(latest))
                 }
-                FlutterIapLog.result("validateReceiptIOS", value: payload)
+                FlutterIapLog.result("verifyPurchase", value: payload)
                 await MainActor.run { result(payload) }
             } catch let purchaseError as PurchaseError {
-                FlutterIapLog.failure("validateReceiptIOS", error: purchaseError)
+                FlutterIapLog.failure("verifyPurchase", error: purchaseError)
                 result(flutterError(from: purchaseError, fallbackProductId: productId))
             } catch {
                 await MainActor.run {

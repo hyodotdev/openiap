@@ -62,15 +62,18 @@ void main() {
         ],
       );
 
-      const offer = ProductSubscriptionAndroidOfferDetails(
-        basePlanId: 'base_plan',
-        offerId: 'intro_offer',
-        offerTags: ['intro'],
-        offerToken: 'token_123',
-        pricingPhases: phases,
+      const offer = SubscriptionOffer(
+        id: 'intro_offer',
+        displayPrice: '\$0.99',
+        price: 0.99,
+        type: DiscountOfferType.Introductory,
+        basePlanIdAndroid: 'base_plan',
+        offerTokenAndroid: 'token_123',
+        offerTagsAndroid: ['intro'],
+        pricingPhasesAndroid: phases,
       );
 
-      final subscription = ProductSubscriptionAndroid(
+      const subscription = ProductSubscriptionAndroid(
         currency: 'USD',
         description: 'Android subscription',
         displayPrice: '\$4.99',
@@ -78,27 +81,15 @@ void main() {
         nameAndroid: 'Android Subscription',
         platform: IapPlatform.Android,
         price: 4.99,
-        subscriptionOfferDetailsAndroid: const [offer],
-        subscriptionOffers: [
-          SubscriptionOffer(
-            id: offer.offerId ?? offer.basePlanId,
-            displayPrice: phases.pricingPhaseList.first.formattedPrice,
-            price: 0.99,
-            type: DiscountOfferType.Introductory,
-            basePlanIdAndroid: offer.basePlanId,
-            offerTokenAndroid: offer.offerToken,
-            offerTagsAndroid: offer.offerTags,
-            pricingPhasesAndroid: phases,
-          ),
-        ],
+        subscriptionOffers: [offer],
         title: 'Android Subscription',
         type: ProductType.Subs,
       );
 
-      expect(subscription.subscriptionOfferDetailsAndroid.length, 1);
+      expect(subscription.subscriptionOffers.length, 1);
       expect(
-        subscription.subscriptionOfferDetailsAndroid.first.pricingPhases
-            .pricingPhaseList.first.formattedPrice,
+        subscription.subscriptionOffers.first.pricingPhasesAndroid
+            ?.pricingPhaseList.first.formattedPrice,
         '\$0.99',
       );
     });

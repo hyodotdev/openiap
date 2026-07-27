@@ -56,7 +56,7 @@ class HybridRnIap: HybridRnIapSpec {
                 if case .second(let c) = config { return c }
                 return nil
             }()
-            RnIapLog.payload("initConnection", configValue?.alternativeBillingModeAndroid)
+            RnIapLog.payload("initConnection", configValue)
             let epoch = self.listenerLock.withLock { self.connectionEpoch }
 
             do {
@@ -128,13 +128,6 @@ class HybridRnIap: HybridRnIapSpec {
             if normalizedType == "all" {
                 queryTypes = [.inApp, .subs]
             } else {
-                if normalizedType == "inapp" {
-                    RnIapLog.deprecation(
-                        "product-type.inapp",
-                        "fetchProducts received legacy type 'inapp'; forwarding as 'in-app'. " +
-                            "The alias will be removed in react-native-iap 16.0.0."
-                    )
-                }
                 queryTypes = [RnIapHelper.parseProductQueryType(type)]
             }
 
@@ -183,9 +176,7 @@ class HybridRnIap: HybridRnIapSpec {
             RnIapLog.payload(
                 "requestPurchase", [
                     "hasApple": request.apple != nil,
-                    "hasGoogle": request.google != nil,
-                    "hasLegacyIOS": request.ios != nil,
-                    "hasLegacyAndroid": request.android != nil
+                    "hasGoogle": request.google != nil
                 ]
             )
 
@@ -199,13 +190,6 @@ class HybridRnIap: HybridRnIapSpec {
                     self.sendPurchaseError(error, productId: nil)
                     return defaultResult
                 }
-                iosRequest = unwrapped
-            } else if case .second(let unwrapped) = request.ios {
-                RnIapLog.deprecation(
-                    "request-purchase.ios",
-                    "`request.ios` is deprecated and will be removed in react-native-iap 16.0.0. " +
-                        "Use `request.apple` instead."
-                )
                 iosRequest = unwrapped
             } else {
                 let error = RnIapHelper.makePurchaseErrorResult(
@@ -413,7 +397,7 @@ class HybridRnIap: HybridRnIapSpec {
         }
     }
     
-    func validateReceipt(params: NitroReceiptValidationParams) throws -> Promise<Variant_NitroReceiptValidationResultIOS_NitroReceiptValidationResultAndroid> {
+    func verifyPurchase(params: NitroPurchaseVerificationParams) throws -> Promise<Variant_NitroPurchaseVerificationResultIOS_NitroPurchaseVerificationResultAndroid> {
         return Promise.async {
             do {
                 // Extract SKU from apple options (new platform-specific structure)
@@ -422,7 +406,7 @@ class HybridRnIap: HybridRnIapSpec {
                 }
                 let sku = appleOptions.sku
 
-                RnIapLog.payload("validateReceiptIOS", ["sku": sku])
+                RnIapLog.payload("verifyPurchase", ["sku": sku])
                 let props = try OpenIapSerialization.verifyPurchaseProps(from: ["apple": ["sku": sku]])
                 let verifyResult = try await OpenIapModule.shared.verifyPurchase(props)
                 guard case let .verifyPurchaseResultIos(result) = verifyResult else {
@@ -435,13 +419,13 @@ class HybridRnIap: HybridRnIapSpec {
                 if encoded["jwsRepresentation"] != nil {
                     encoded["jwsRepresentation"] = "<jws>"
                 }
-                RnIapLog.result("validateReceiptIOS", encoded)
+                RnIapLog.result("verifyPurchase", encoded)
                 var latest: NitroPurchase? = nil
                 if let transaction = result.latestTransaction {
                     let payload = RnIapHelper.sanitizeDictionary(OpenIapSerialization.purchase(transaction))
                     latest = RnIapHelper.convertPurchaseDictionary(payload)
                 }
-                let mapped = NitroReceiptValidationResultIOS(
+                let mapped = NitroPurchaseVerificationResultIOS(
                     isValid: result.isValid,
                     receiptData: result.receiptData,
                     jwsRepresentation: result.jwsRepresentation,
@@ -449,10 +433,10 @@ class HybridRnIap: HybridRnIapSpec {
                 )
                 return .first(mapped)
             } catch let purchaseError as PurchaseError {
-                RnIapLog.failure("validateReceiptIOS", error: purchaseError)
+                RnIapLog.failure("verifyPurchase", error: purchaseError)
                 throw OpenIapException.from(purchaseError)
             } catch {
-                RnIapLog.failure("validateReceiptIOS", error: error)
+                RnIapLog.failure("verifyPurchase", error: error)
                 throw OpenIapException.make(code: .purchaseVerificationFailed, message: error.localizedDescription)
             }
         }
@@ -572,10 +556,6 @@ class HybridRnIap: HybridRnIapSpec {
     }
 
     // MARK: - iOS-specific Public Methods
-    func getStorefrontIOS() throws -> Promise<String> {
-        return try getStorefront()
-    }
-    
     func getAppTransactionIOS() throws -> Promise<Variant_NullType_String> {
         return Promise.async {
             do {
@@ -638,27 +618,6 @@ class HybridRnIap: HybridRnIapSpec {
         }
     }
 
-    func requestPromotedProductIOS() throws -> Promise<Variant_NullType_NitroProduct> {
-        return try getPromotedProductIOS()
-    }
-    
-    func buyPromotedProductIOS() throws -> Promise<Bool> {
-        return Promise.async {
-            do {
-                RnIapLog.payload("buyPromotedProductIOS", nil)
-                let ok = try await OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()
-                RnIapLog.result("buyPromotedProductIOS", ok)
-                return ok
-            } catch let purchaseError as PurchaseError {
-                RnIapLog.failure("buyPromotedProductIOS", error: purchaseError)
-                throw OpenIapException.from(purchaseError)
-            } catch {
-                RnIapLog.failure("buyPromotedProductIOS", error: error)
-                throw OpenIapException.make(code: .featureNotSupported, message: error.localizedDescription)
-            }
-        }
-    }
-    
     func presentCodeRedemptionSheetIOS() throws -> Promise<Bool> {
         return Promise.async {
             do {
@@ -909,25 +868,7 @@ class HybridRnIap: HybridRnIapSpec {
                 throw OpenIapException.from(purchaseError)
             } catch {
                 RnIapLog.failure("getReceiptDataIOS", error: error)
-                throw OpenIapException.make(code: .receiptFailed, message: error.localizedDescription)
-            }
-        }
-    }
-
-    func getReceiptIOS() throws -> Promise<String> {
-        return Promise.async {
-            try self.ensureConnection()
-            do {
-                RnIapLog.payload("getReceiptIOS", nil)
-                let receipt = try await RnIapHelper.loadReceiptData(refresh: true)
-                RnIapLog.result("getReceiptIOS", "<receipt>")
-                return receipt
-            } catch let purchaseError as PurchaseError {
-                RnIapLog.failure("getReceiptIOS", error: purchaseError)
-                throw OpenIapException.from(purchaseError)
-            } catch {
-                RnIapLog.failure("getReceiptIOS", error: error)
-                throw OpenIapException.make(code: .receiptFailed, message: error.localizedDescription)
+                throw OpenIapException.make(code: .purchaseVerificationFailed, message: error.localizedDescription)
             }
         }
     }
@@ -945,7 +886,7 @@ class HybridRnIap: HybridRnIapSpec {
                 throw OpenIapException.from(purchaseError)
             } catch {
                 RnIapLog.failure("requestReceiptRefreshIOS", error: error)
-                throw OpenIapException.make(code: .receiptFailed, message: error.localizedDescription)
+                throw OpenIapException.make(code: .purchaseVerificationFailed, message: error.localizedDescription)
             }
         }
     }
@@ -1444,26 +1385,6 @@ class HybridRnIap: HybridRnIapSpec {
     }
 
     func deepLinkToSubscriptionsAndroid(options: NitroDeepLinkOptionsAndroid) throws -> Promise<Void> {
-        return Promise.async {
-            throw OpenIapException.make(code: .featureNotSupported)
-        }
-    }
-
-    // MARK: - Alternative Billing (Android) - Not supported on iOS
-
-    func checkAlternativeBillingAvailabilityAndroid() throws -> Promise<Bool> {
-        return Promise.async {
-            throw OpenIapException.make(code: .featureNotSupported)
-        }
-    }
-
-    func showAlternativeBillingDialogAndroid() throws -> Promise<Bool> {
-        return Promise.async {
-            throw OpenIapException.make(code: .featureNotSupported)
-        }
-    }
-
-    func createAlternativeBillingTokenAndroid(sku: Variant_NullType_String?) throws -> Promise<Variant_NullType_String> {
         return Promise.async {
             throw OpenIapException.make(code: .featureNotSupported)
         }

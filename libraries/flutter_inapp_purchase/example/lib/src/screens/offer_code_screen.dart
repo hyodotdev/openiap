@@ -4,7 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
 class OfferCodeScreen extends StatefulWidget {
-  const OfferCodeScreen({Key? key}) : super(key: key);
+  const OfferCodeScreen({super.key});
 
   @override
   State<OfferCodeScreen> createState() => _OfferCodeScreenState();

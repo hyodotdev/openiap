@@ -22,7 +22,7 @@ Based on changed files, run these checks BEFORE committing:
 
 When reviewing, check these project-specific rules:
 
-- **iOS functions**: Must end with `IOS` suffix (e.g., `getStorefrontIOS`)
+- **iOS functions**: Must end with `IOS` suffix (e.g., `getReceiptDataIOS`)
 - **Android functions**: Must end with `Android` suffix (e.g., `consumePurchaseAndroid`)
 - **Cross-platform functions**: No suffix (e.g., `initConnection`, `fetchProducts`)
 - **Generated files**: Do NOT edit files in `nitrogen/generated/` or `src/types.ts`

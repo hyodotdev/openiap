@@ -1,6 +1,5 @@
 package io.github.hyochan.kmpiap
 
-import io.github.hyochan.kmpiap.openiap.AlternativeBillingModeAndroid
 import io.github.hyochan.kmpiap.openiap.BillingProgramAndroid
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -52,31 +51,14 @@ class PurchaseFallbackMatchingTest {
     }
 
     @Test
-    fun `explicit legacy and new billing programs reject incompatible dual enable`() {
-        assertTrue(
-            hasLegacyBillingProgramConflict(
-                deprecatedMode = AlternativeBillingModeAndroid.AlternativeOnly,
-                requestedProgram = BillingProgramAndroid.ExternalOffer,
-            )
-        )
-        assertFalse(
-            hasLegacyBillingProgramConflict(
-                deprecatedMode = AlternativeBillingModeAndroid.UserChoice,
-                requestedProgram = BillingProgramAndroid.UserChoiceBilling,
-            )
+    fun `billing program resolution accepts canonical programs only`() {
+        assertEquals(
+            BillingProgramAndroid.UserChoiceBilling,
+            resolveBillingProgramForConnection(BillingProgramAndroid.UserChoiceBilling),
         )
         assertEquals(
             null,
-            resolveBillingProgramForConnection(
-                requestedProgram = BillingProgramAndroid.UserChoiceBilling,
-                deprecatedMode = AlternativeBillingModeAndroid.UserChoice,
-            )
-        )
-        assertFalse(
-            hasLegacyBillingProgramConflict(
-                deprecatedMode = AlternativeBillingModeAndroid.None,
-                requestedProgram = BillingProgramAndroid.ExternalOffer,
-            )
+            resolveBillingProgramForConnection(BillingProgramAndroid.Unspecified),
         )
     }
 

@@ -2,13 +2,12 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
-import 'package:flutter_inapp_purchase/extensions/purchase_helpers.dart';
 import 'package:flutter_inapp_purchase/types.dart' as gentype;
 
 import '../widgets/purchase_detail_view.dart';
 
 class DebugPurchasesScreen extends StatefulWidget {
-  const DebugPurchasesScreen({Key? key}) : super(key: key);
+  const DebugPurchasesScreen({super.key});
 
   @override
   State<DebugPurchasesScreen> createState() => _DebugPurchasesScreenState();

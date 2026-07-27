@@ -262,7 +262,6 @@ describe('Standardized Offer Types', () => {
         platform: 'android',
         type: 'subs',
         nameAndroid: 'Premium Subscription',
-        subscriptionOfferDetailsAndroid: [],
         subscriptionOffers: [
           {
             id: 'sub_intro',
@@ -558,7 +557,6 @@ describe('Standardized Offer Types', () => {
       const purchaseWithPendingUpdate: PurchaseAndroid = {
         id: 'purchase_id_abc',
         productId: 'premium_monthly',
-        platform: 'android',
         transactionDate: 1704067200000,
         purchaseToken: 'current_token',
         purchaseState: 'purchased',
@@ -587,7 +585,6 @@ describe('Standardized Offer Types', () => {
       const regularPurchase: PurchaseAndroid = {
         id: 'purchase_id_xyz',
         productId: 'consumable_coins',
-        platform: 'android',
         transactionDate: 1704067200000,
         purchaseToken: 'regular_token',
         purchaseState: 'purchased',

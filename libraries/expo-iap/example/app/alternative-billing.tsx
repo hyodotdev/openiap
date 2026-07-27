@@ -80,14 +80,13 @@ function AlternativeBillingScreen() {
 
   // Initialize with billing program config (new API)
   const {connected, products, fetchProducts, finishTransaction} = useIAP({
-    // New API: use enableBillingProgramAndroid instead of alternativeBillingModeAndroid
     enableBillingProgramAndroid:
       Platform.OS === 'android' ? billingProgram : undefined,
     onPurchaseSuccess: async (purchase: Purchase) => {
       console.log('Purchase successful:', {
         productId: purchase.productId,
         transactionId: purchase.id,
-        platform: purchase.platform,
+        store: purchase.store,
       });
       setLastPurchase(purchase);
       setIsProcessing(false);
@@ -234,9 +233,8 @@ function AlternativeBillingScreen() {
 
       try {
         // Step 1: Check if billing program is available
-        const availability = await isBillingProgramAvailableAndroid(
-          billingProgram,
-        );
+        const availability =
+          await isBillingProgramAvailableAndroid(billingProgram);
         console.log('[Android] Billing program available:', availability);
 
         if (!availability.isAvailable) {
@@ -264,9 +262,8 @@ function AlternativeBillingScreen() {
         setPurchaseResult('Getting reporting token...');
 
         // Step 3: Get reporting details (after payment completes externally)
-        const details = await createBillingProgramReportingDetailsAndroid(
-          billingProgram,
-        );
+        const details =
+          await createBillingProgramReportingDetailsAndroid(billingProgram);
         const hasReportingToken = Boolean(details.externalTransactionToken);
         console.log('[Android] Reporting details:', {
           billingProgram: details.billingProgram,
@@ -372,8 +369,8 @@ function AlternativeBillingScreen() {
           {isVega
             ? 'Not supported on Amazon Vega'
             : Platform.OS === 'ios'
-            ? 'External purchase links (iOS 16.0+)'
-            : 'Google Play alternative billing'}
+              ? 'External purchase links (iOS 16.0+)'
+              : 'Google Play alternative billing'}
         </Text>
       </View>
 
@@ -405,7 +402,7 @@ function AlternativeBillingScreen() {
               <Text style={styles.warningText}>
                 ⚠️ iOS 16.0+ required{'\n'}
                 ⚠️ Valid external URL needed{'\n'}
-                ⚠️ useAlternativeBilling: true is set
+                ⚠️ Billing program mode is enabled
               </Text>
             </>
           ) : (
@@ -455,10 +452,10 @@ function AlternativeBillingScreen() {
                 {billingProgram === 'external-offer'
                   ? 'External Offer'
                   : billingProgram === 'external-payments'
-                  ? 'External Payments'
-                  : billingProgram === 'external-content-link'
-                  ? 'External Content Link'
-                  : billingProgram}
+                    ? 'External Payments'
+                    : billingProgram === 'external-content-link'
+                      ? 'External Content Link'
+                      : billingProgram}
               </Text>
               <Text style={styles.modeSelectorArrow}>▼</Text>
             </TouchableOpacity>
@@ -591,12 +588,12 @@ function AlternativeBillingScreen() {
                 {isProcessing
                   ? 'Processing...'
                   : isVega
-                  ? 'Not supported on Vega'
-                  : Platform.OS === 'ios'
-                  ? '🛒 Buy (External URL)'
-                  : androidBillingFlow === 'billing-programs'
-                  ? '🛒 Buy (Billing Programs)'
-                  : '🛒 Buy (User Choice Billing)'}
+                    ? 'Not supported on Vega'
+                    : Platform.OS === 'ios'
+                      ? '🛒 Buy (External URL)'
+                      : androidBillingFlow === 'billing-programs'
+                        ? '🛒 Buy (Billing Programs)'
+                        : '🛒 Buy (User Choice Billing)'}
               </Text>
             </TouchableOpacity>
           </View>
@@ -748,19 +745,19 @@ function AlternativeBillingScreen() {
                   {program === 'external-offer'
                     ? 'External Offer'
                     : program === 'external-payments'
-                    ? 'External Payments'
-                    : program === 'external-content-link'
-                    ? 'External Content Link'
-                    : program}
+                      ? 'External Payments'
+                      : program === 'external-content-link'
+                        ? 'External Content Link'
+                        : program}
                 </Text>
                 <Text style={styles.modeOptionDescription}>
                   {program === 'external-offer'
                     ? 'For apps that offer digital content outside Google Play. Requires approval.'
                     : program === 'external-payments'
-                    ? 'For apps in eligible regions to use alternative payment processors.'
-                    : program === 'external-content-link'
-                    ? 'For linking to external content already purchased outside the app.'
-                    : ''}
+                      ? 'For apps in eligible regions to use alternative payment processors.'
+                      : program === 'external-content-link'
+                        ? 'For linking to external content already purchased outside the app.'
+                        : ''}
                 </Text>
               </TouchableOpacity>
             ))}

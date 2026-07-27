@@ -68,41 +68,29 @@ enum FlutterIapHelper {
 
     // MARK: - Parsing helpers
 
-    static func parseProductQueryType(_ rawValue: String?) -> ProductQueryType {
+    static func parseProductQueryType(_ rawValue: String?) throws -> ProductQueryType {
         guard let raw = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else {
             return .all
         }
         switch raw.lowercased() {
         case ProductQueryType.inApp.rawValue:
             return .inApp
-        case "inapp":
-            FlutterIapLog.deprecation(
-                "productType.inapp",
-                "Product type `inapp` is deprecated and will be removed in flutter_inapp_purchase 10.0.0. Use `in-app` instead."
-            )
-            return .inApp
         case ProductQueryType.subs.rawValue:
             return .subs
         case ProductQueryType.all.rawValue:
             return .all
         default:
-            return .all
+            throw PurchaseError.make(
+                code: .developerError,
+                message: "Invalid product type. Expected in-app, subs, or all."
+            )
         }
     }
 
     static func decodeProductRequest(from payload: [String: Any]) throws -> ProductRequest {
         if let skus = payload["skus"] as? [String], !skus.isEmpty {
-            let type = parseProductQueryType(payload["type"] as? String)
+            let type = try parseProductQueryType(payload["type"] as? String)
             return try OpenIapSerialization.productRequest(skus: skus, type: type)
-        }
-
-        let indexedSkus = payload.keys
-            .compactMap { Int($0) }
-            .sorted()
-            .compactMap { payload[String($0)] as? String }
-
-        if !indexedSkus.isEmpty {
-            return try OpenIapSerialization.productRequest(skus: indexedSkus, type: .all)
         }
 
         return try OpenIapSerialization.decode(object: payload, as: ProductRequest.self)
@@ -125,31 +113,13 @@ enum FlutterIapHelper {
             return try OpenIapSerialization.decode(object: payload, as: RequestPurchaseProps.self)
         }
 
-        if let request = payload["request"] {
-            let parsedType = parseProductQueryType(payload["type"] as? String)
-            let purchaseType: ProductQueryType = parsedType == .all ? .inApp : parsedType
-            var normalized: [String: Any] = ["type": purchaseType.rawValue]
-            switch purchaseType {
-            case .subs:
-                normalized["requestSubscription"] = request
-            case .inApp:
-                normalized["requestPurchase"] = request
-            case .all:
-                break
-            }
-            FlutterIapLog.payload("decodeRequestPurchaseProps.normalized", payload: sanitizeValue(normalized))
-            return try OpenIapSerialization.decode(object: normalized, as: RequestPurchaseProps.self)
-        }
-
         if let sku = payload["sku"] as? String, !sku.isEmpty {
-            let parsedType = parseProductQueryType(payload["type"] as? String)
+            let parsedType = try parseProductQueryType(payload["type"] as? String)
             let purchaseType: ProductQueryType = parsedType == .subs ? .subs : .inApp
-            var iosPayload: [String: Any?] = payload
-            iosPayload["sku"] = sku
             let normalized: [String: Any] = [
                 "type": purchaseType.rawValue,
                 purchaseType == .subs ? "requestSubscription" : "requestPurchase": [
-                    "ios": sanitizeDictionary(iosPayload)
+                    "apple": sanitizeDictionary(payload)
                 ]
             ]
             FlutterIapLog.payload("decodeRequestPurchaseProps.normalized", payload: sanitizeValue(normalized))
@@ -168,7 +138,6 @@ enum FlutterIapHelper {
             "id": transactionId,
             "ids": [],
             "isAutoRenewing": false,
-            "platform": IapPlatform.ios.rawValue,
             "productId": "",
             "purchaseState": PurchaseState.purchased.rawValue,
             "purchaseToken": transactionId,
@@ -178,7 +147,4 @@ enum FlutterIapHelper {
         return try decodePurchaseInput(from: payload)
     }
 
-    static func decodeVerifyPurchaseProps(for sku: String) throws -> VerifyPurchaseProps {
-        try OpenIapSerialization.verifyPurchaseProps(from: ["sku": sku])
-    }
 }

@@ -21,18 +21,6 @@ const ERROR_CODE_ALIASES: Record<string, ErrorCode> = {
   USER_CANCELED: ErrorCode.UserCancelled,
   E_USER_CANCELLED: ErrorCode.UserCancelled,
   USER_CANCELLED: ErrorCode.UserCancelled,
-  // Deprecated error code mappings (map old Receipt* codes to new PurchaseVerification* codes)
-  // These ensure backwards compatibility while preferring new codes
-  RECEIPT_FAILED: ErrorCode.PurchaseVerificationFailed,
-  E_RECEIPT_FAILED: ErrorCode.PurchaseVerificationFailed,
-  RECEIPT_FINISHED: ErrorCode.PurchaseVerificationFinished,
-  E_RECEIPT_FINISHED: ErrorCode.PurchaseVerificationFinished,
-  RECEIPT_FINISHED_FAILED: ErrorCode.PurchaseVerificationFinishFailed,
-  E_RECEIPT_FINISHED_FAILED: ErrorCode.PurchaseVerificationFinishFailed,
-  // Also handle kebab-case versions
-  'receipt-failed': ErrorCode.PurchaseVerificationFailed,
-  'receipt-finished': ErrorCode.PurchaseVerificationFinished,
-  'receipt-finished-failed': ErrorCode.PurchaseVerificationFinishFailed,
 };
 
 const toKebabCase = (str: string): string => {
@@ -87,9 +75,6 @@ const COMMON_ERROR_CODE_MAP: Record<ErrorCode, string> = {
   [ErrorCode.RemoteError]: ErrorCode.RemoteError,
   [ErrorCode.NetworkError]: ErrorCode.NetworkError,
   [ErrorCode.ServiceError]: ErrorCode.ServiceError,
-  [ErrorCode.ReceiptFailed]: ErrorCode.ReceiptFailed,
-  [ErrorCode.ReceiptFinished]: ErrorCode.ReceiptFinished,
-  [ErrorCode.ReceiptFinishedFailed]: ErrorCode.ReceiptFinishedFailed,
   [ErrorCode.NotPrepared]: ErrorCode.NotPrepared,
   [ErrorCode.NotEnded]: ErrorCode.NotEnded,
   [ErrorCode.AlreadyOwned]: ErrorCode.AlreadyOwned,
@@ -369,13 +354,10 @@ export function getUserFriendlyErrorMessage(error: ErrorLike): string {
       return 'This feature is not supported on this device.';
     case ErrorCode.TransactionValidationFailed:
       return 'Transaction could not be verified';
-    case ErrorCode.ReceiptFailed:
     case ErrorCode.PurchaseVerificationFailed:
       return 'Purchase verification failed';
-    case ErrorCode.ReceiptFinished:
     case ErrorCode.PurchaseVerificationFinished:
       return 'Purchase verification completed';
-    case ErrorCode.ReceiptFinishedFailed:
     case ErrorCode.PurchaseVerificationFinishFailed:
       return 'Failed to complete purchase verification';
     case ErrorCode.EmptySkuList:
@@ -402,7 +384,7 @@ export const normalizeErrorCodeFromNative = (code: unknown): ErrorCode => {
   if (typeof code === 'string') {
     const upper = code.toUpperCase();
 
-    // Check aliases first (includes deprecated Receipt* -> PurchaseVerification* mappings)
+    // Check platform spelling aliases first.
     const alias = ERROR_CODE_ALIASES[upper];
     if (alias) {
       return alias;

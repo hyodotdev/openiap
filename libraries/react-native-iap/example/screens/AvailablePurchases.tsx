@@ -46,7 +46,7 @@ export default function AvailablePurchases() {
       console.log('[AVAILABLE-PURCHASES] Purchase successful:', {
         productId: purchase.productId,
         transactionId: purchase.id,
-        platform: purchase.platform,
+        store: purchase.store,
       });
 
       // Finish transaction like in subscription-flow
@@ -231,13 +231,19 @@ export default function AvailablePurchases() {
                     <Text
                       style={[
                         styles.value,
-                        subscription.willExpireSoon && styles.expiredText,
+                        typeof subscription.daysUntilExpirationIOS ===
+                          'number' &&
+                          subscription.daysUntilExpirationIOS <= 7 &&
+                          styles.expiredText,
                       ]}
                     >
                       {new Date(
                         subscription.expirationDateIOS,
                       ).toLocaleDateString()}
-                      {subscription.willExpireSoon && ' (Soon)'}
+                      {typeof subscription.daysUntilExpirationIOS ===
+                        'number' &&
+                        subscription.daysUntilExpirationIOS <= 7 &&
+                        ' (Soon)'}
                     </Text>
                   </View>
                 )}
@@ -308,8 +314,8 @@ export default function AvailablePurchases() {
                 <Text style={styles.value}>{purchase.productId}</Text>
               </View>
               <View style={styles.purchaseRow}>
-                <Text style={styles.label}>Platform:</Text>
-                <Text style={styles.value}>{purchase.platform}</Text>
+                <Text style={styles.label}>Store:</Text>
+                <Text style={styles.value}>{purchase.store}</Text>
               </View>
               {purchase.transactionDate && (
                 <View style={styles.purchaseRow}>

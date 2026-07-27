@@ -33,8 +33,6 @@ jest.mock('react-native-nitro-modules', () => ({
       clearTransactionIOS: jest.fn(() => Promise.resolve(true)),
       clearProductsIOS: jest.fn(() => Promise.resolve()),
       promotedProductIOS: jest.fn(() => Promise.resolve()),
-      requestPromotedProductIOS: jest.fn(() => Promise.resolve()),
-      validateReceiptIos: jest.fn(() => Promise.resolve()),
       deepLinkingGetPendingPurchases: jest.fn(() => Promise.resolve()),
       presentCodeRedemptionSheetIOS: jest.fn(() => Promise.resolve()),
     })),
@@ -93,14 +91,7 @@ jest.mock('../src/index', () => {
     acknowledgePurchaseAndroid: jest.fn(() => Promise.resolve(true)),
     consumePurchaseAndroid: jest.fn(() => Promise.resolve(true)),
     deepLinkingGetPendingPurchases: jest.fn(() => Promise.resolve()),
-    validateReceiptAndroid: jest.fn(() => Promise.resolve()),
     deepLinkToSubscriptions: jest.fn(() => Promise.resolve(true)),
-    checkAlternativeBillingAvailabilityAndroid: jest.fn(() =>
-      Promise.resolve(true),
-    ),
-    createAlternativeBillingTokenAndroid: jest.fn(() =>
-      Promise.resolve('external-token'),
-    ),
     isBillingProgramAvailableAndroid: jest.fn(() =>
       Promise.resolve({
         billingProgram: 'external-offer',
@@ -120,9 +111,7 @@ jest.mock('../src/index', () => {
     clearTransactionIOS: jest.fn(() => Promise.resolve(true)),
     clearProductsIOS: jest.fn(() => Promise.resolve()),
     promotedProductIOS: jest.fn(() => Promise.resolve()),
-    requestPromotedProductIOS: jest.fn(() => Promise.resolve(null)),
     beginRefundRequestIOS: jest.fn(() => Promise.resolve(null)),
-    validateReceiptIos: jest.fn(() => Promise.resolve()),
     presentCodeRedemptionSheetIOS: jest.fn(() => Promise.resolve(true)),
     showManageSubscriptionsIOS: jest.fn(() => Promise.resolve(true)),
     getAppTransactionIOS: jest.fn(() => Promise.resolve(null)),
@@ -157,7 +146,7 @@ jest.mock('../src/index', () => {
       NetworkError: 'NETWORK_ERROR',
       ServiceError: 'SERVICE_ERROR',
       DeveloperError: 'DEVELOPER_ERROR',
-      ReceiptFinished: 'RECEIPT_FINISHED',
+      PurchaseVerificationFinished: 'PURCHASE_VERIFICATION_FINISHED',
       E_USER_CANCELLED: 'USER_CANCELLED',
       E_ITEM_UNAVAILABLE: 'ITEM_UNAVAILABLE',
       E_NETWORK_ERROR: 'NETWORK_ERROR',

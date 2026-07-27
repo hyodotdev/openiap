@@ -109,9 +109,6 @@ const COMMON_ERROR_CODE_MAP: Record<ErrorCode, string> = {
   [ErrorCode.RemoteError]: ErrorCode.RemoteError,
   [ErrorCode.NetworkError]: ErrorCode.NetworkError,
   [ErrorCode.ServiceError]: ErrorCode.ServiceError,
-  [ErrorCode.ReceiptFailed]: ErrorCode.ReceiptFailed,
-  [ErrorCode.ReceiptFinished]: ErrorCode.ReceiptFinished,
-  [ErrorCode.ReceiptFinishedFailed]: ErrorCode.ReceiptFinishedFailed,
   [ErrorCode.NotPrepared]: ErrorCode.NotPrepared,
   [ErrorCode.NotEnded]: ErrorCode.NotEnded,
   [ErrorCode.AlreadyOwned]: ErrorCode.AlreadyOwned,
@@ -413,8 +410,8 @@ export function getUserFriendlyErrorMessage(error: ErrorLike): string {
       return 'Purchase was cancelled by user';
     case ErrorCode.NetworkError:
       return 'Network connection error. Please check your internet connection and try again.';
-    case ErrorCode.ReceiptFinished:
-      return 'Receipt already finished';
+    case ErrorCode.PurchaseVerificationFinished:
+      return 'Purchase verification already finished';
     case ErrorCode.ServiceDisconnected:
       return 'Billing service disconnected. Please try again.';
     case ErrorCode.BillingUnavailable:
@@ -439,8 +436,8 @@ export function getUserFriendlyErrorMessage(error: ErrorLike): string {
       return 'This feature is not supported on this device.';
     case ErrorCode.TransactionValidationFailed:
       return 'Transaction could not be verified';
-    case ErrorCode.ReceiptFailed:
-      return 'Receipt processing failed';
+    case ErrorCode.PurchaseVerificationFailed:
+      return 'Purchase verification failed';
     case ErrorCode.EmptySkuList:
       return 'No product IDs provided';
     case ErrorCode.InitConnection:

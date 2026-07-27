@@ -12,7 +12,7 @@ seven flows, same UX patterns.
 - **`SubscriptionFlowPage`** ← `app/subscription-flow.tsx` — subscriptions list, `getActiveSubscriptions`, `deepLinkToSubscriptions`, details modal.
 - **`AvailablePurchasesPage`** ← `app/available-purchases.tsx` — `getAvailablePurchases` (deduplicated), `getActiveSubscriptions`, manage deep link.
 - **`OfferCodePage`** ← `app/offer-code.tsx` — iOS-only `presentCodeRedemptionSheetIOS` with Android hint copy.
-- **`AlternativeBillingPage`** ← `app/alternative-billing.tsx` — Android `checkAlternativeBillingAvailabilityAndroid` / `isBillingProgramAvailableAndroid`, iOS external purchase link + custom-link eligibility.
+- **`AlternativeBillingPage`** ← `app/alternative-billing.tsx` — Android `isBillingProgramAvailableAndroid`, iOS external purchase link + custom-link eligibility.
 
 Shared layer:
 

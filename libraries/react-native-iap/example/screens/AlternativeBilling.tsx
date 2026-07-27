@@ -64,12 +64,6 @@ import {CONSUMABLE_PRODUCT_IDS} from '../src/utils/constants';
  * - If user selects Google Play: purchaseUpdatedListener fires
  * - If user selects Developer billing: developerProvidedBillingListenerAndroid fires
  * - Must report externalTransactionToken to Google Play within 24 hours
- *
- * ⚠️ DEPRECATED APIs (still supported but not recommended):
- * - alternativeBillingModeAndroid in InitConnectionConfig
- *   → Use enableBillingProgramAndroid instead:
- *   - 'user-choice' → 'user-choice-billing'
- *   - 'alternative-only' → 'external-offer'
  */
 
 // Android Billing Mode types - all unified under BillingProgramAndroid
@@ -94,16 +88,14 @@ function AlternativeBillingScreen() {
   const [isReconnecting, setIsReconnecting] = useState(false);
   const isVega = isVegaOS();
 
-  // Initialize with billing program config (recommended over deprecated alternativeBillingModeAndroid)
   const {connected, products, fetchProducts, finishTransaction} = useIAP({
-    // Use enableBillingProgramAndroid instead of deprecated alternativeBillingModeAndroid
     enableBillingProgramAndroid:
       Platform.OS === 'android' ? billingProgram : undefined,
     onPurchaseSuccess: async (purchase: Purchase) => {
       console.log('Purchase successful:', {
         productId: purchase.productId,
         transactionId: purchase.id,
-        platform: purchase.platform,
+        store: purchase.store,
       });
       setLastPurchase(purchase);
       setIsProcessing(false);
@@ -347,7 +339,7 @@ function AlternativeBillingScreen() {
         // This shows a side-by-side choice dialog in Japan
         await requestPurchase({
           request: {
-            android: {
+            google: {
               skus: [product.id],
               developerBillingOption: {
                 billingProgram: 'external-payments',
@@ -453,7 +445,7 @@ function AlternativeBillingScreen() {
               <Text style={styles.warningText}>
                 ⚠️ iOS 16.0+ required{'\n'}
                 ⚠️ Valid external URL needed{'\n'}
-                ⚠️ useAlternativeBilling: true is set
+                ⚠️ Billing program mode is enabled
               </Text>
             </>
           ) : (

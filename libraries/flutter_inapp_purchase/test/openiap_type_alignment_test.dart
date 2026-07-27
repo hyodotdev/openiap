@@ -47,7 +47,6 @@ void main() {
       const purchase = PurchaseAndroid(
         id: 'txn_android',
         isAutoRenewing: true,
-        platform: IapPlatform.Android,
         productId: 'monthly_access',
         purchaseState: PurchaseState.Purchased,
         purchaseToken: 'token_123',
@@ -58,14 +57,13 @@ void main() {
 
       expect(purchase.id, 'txn_android');
       expect(purchase.purchaseToken, 'token_123');
-      expect(purchase.platform, IapPlatform.Android);
+      expect(purchase.store, IapStore.Google);
     });
 
     test('PurchaseIOS stores StoreKit specific fields', () {
       final purchase = PurchaseIOS(
         id: 'txn_ios',
         isAutoRenewing: false,
-        platform: IapPlatform.IOS,
         productId: 'premium_upgrade',
         purchaseState: PurchaseState.Purchased,
         quantity: 1,
@@ -78,7 +76,7 @@ void main() {
 
       expect(purchase.environmentIOS, 'Sandbox');
       expect(purchase.quantityIOS, 1);
-      expect(purchase.platform, IapPlatform.IOS);
+      expect(purchase.store, IapStore.Apple);
     });
 
     test('PricingPhasesAndroid round-trips through JSON', () {

@@ -6,8 +6,6 @@ import {Platform} from 'react-native';
 import {ErrorCode} from '../types';
 import type {DiscountOfferInputIOS} from '../types';
 
-const PLATFORM_IOS = 'ios';
-
 // Minimal Nitro IAP mock to exercise wrappers
 const mockIap: any = {
   // connection
@@ -33,18 +31,16 @@ const mockIap: any = {
   removeSubscriptionBillingIssueListener: jest.fn(),
 
   // iOS-only
-  getStorefrontIOS: jest.fn(async () => 'USA'),
   getAppTransactionIOS: jest.fn(async () => null),
-  requestPromotedProductIOS: jest.fn(async () => null),
-  buyPromotedProductIOS: jest.fn(async () => true),
+  getPromotedProductIOS: jest.fn(async () => null),
   presentCodeRedemptionSheetIOS: jest.fn(async () => true),
   getAllTransactionsIOS: jest.fn(async () => []),
 
   // Unified storefront
   getStorefront: jest.fn(async () => 'USA'),
 
-  // receipt validation (unified API)
-  validateReceipt: jest.fn(async () => ({
+  // purchase verification (unified API)
+  verifyPurchase: jest.fn(async () => ({
     isValid: true,
     receiptData: 'mock-receipt',
     jwsRepresentation: 'mock-jws',
@@ -123,9 +119,7 @@ describe('Public API (src/index.ts)', () => {
       },
     }));
     mockIap.deepLinkToSubscriptionsIOS = undefined;
-    mockIap.getReceiptIOS = undefined;
     mockIap.requestReceiptRefreshIOS = undefined;
-    mockIap.getStorefrontIOS = jest.fn(async () => 'USA');
     mockIap.getStorefront = jest.fn(async () => 'USA');
     mockIap.addSubscriptionBillingIssueListener.mockReset();
     mockIap.addSubscriptionBillingIssueListener.mockImplementation(
@@ -161,9 +155,10 @@ describe('Public API (src/index.ts)', () => {
       // Emulate native event via singleton handler
       const nitroPurchase = {
         id: 't1',
+        transactionId: 't1',
         productId: 'p1',
         transactionDate: Date.now(),
-        platform: 'ios',
+        store: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -175,7 +170,7 @@ describe('Public API (src/index.ts)', () => {
       expect(listener).toHaveBeenCalledWith(
         expect.objectContaining({
           productId: 'p1',
-          platform: PLATFORM_IOS,
+          store: 'apple',
         }),
       );
 
@@ -202,9 +197,10 @@ describe('Public API (src/index.ts)', () => {
 
       const nitroPurchase = {
         id: 't1',
+        transactionId: 't1',
         productId: 'p1',
         transactionDate: Date.now(),
-        platform: 'ios',
+        store: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -319,7 +315,7 @@ describe('Public API (src/index.ts)', () => {
         id: 'sku1',
         title: 'Title',
         description: 'Desc',
-        type: 'inapp',
+        type: 'in-app',
         platform: 'ios',
         isAutoRenewing: true,
         displayPrice: '$1',
@@ -332,7 +328,7 @@ describe('Public API (src/index.ts)', () => {
         mockIap.addPromotedProductListenerIOS.mock.calls[0][0];
       nativeHandler(nitroProduct);
       expect(listener).toHaveBeenCalledWith(
-        expect.objectContaining({id: 'sku1', platform: PLATFORM_IOS}),
+        expect.objectContaining({id: 'sku1', platform: 'ios'}),
       );
       sub.remove();
       // Verify listener no longer fires after removal
@@ -360,9 +356,10 @@ describe('Public API (src/index.ts)', () => {
 
       const nitroPurchase = {
         id: 't1',
+        transactionId: 't1',
         productId: 'p1',
         transactionDate: Date.now(),
-        platform: 'ios',
+        store: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -390,9 +387,10 @@ describe('Public API (src/index.ts)', () => {
       const nativeHandler = mockIap.addPurchaseUpdatedListener.mock.calls[0][0];
       const nitroPurchase = {
         id: 't2',
+        transactionId: 't2',
         productId: 'p2',
         transactionDate: Date.now(),
-        platform: 'ios',
+        store: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -492,9 +490,10 @@ describe('Public API (src/index.ts)', () => {
       // Simulate a purchase event — listener should fire
       const nitroPurchase = {
         id: 't1',
+        transactionId: 't1',
         productId: 'p1',
         transactionDate: Date.now(),
-        platform: 'ios',
+        store: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -570,21 +569,6 @@ describe('Public API (src/index.ts)', () => {
       expect(console.warn).not.toHaveBeenCalled();
     });
 
-    it("warns once and canonicalizes the legacy 'inapp' type", async () => {
-      await IAP.fetchProducts({skus: ['coins'], type: 'inapp'});
-      await IAP.fetchProducts({skus: ['coins'], type: 'inapp'});
-
-      expect(mockIap.fetchProducts).toHaveBeenLastCalledWith(
-        ['coins'],
-        'in-app',
-      );
-      expect(console.warn).toHaveBeenCalledTimes(1);
-      expect(console.warn).toHaveBeenCalledWith(
-        '[RN-IAP]',
-        expect.stringContaining("`type: 'inapp'` is deprecated"),
-      );
-    });
-
     it('validates and maps products for a single type', async () => {
       (Platform as any).OS = 'ios';
       mockIap.fetchProducts.mockResolvedValueOnce([
@@ -593,14 +577,14 @@ describe('Public API (src/index.ts)', () => {
           id: 'a',
           title: 'A',
           description: 'desc',
-          type: 'inapp',
+          type: 'in-app',
           platform: 'ios',
           isAutoRenewing: true,
           displayPrice: '$1.00',
           currency: 'USD',
         },
         // invalid (missing title)
-        {id: 'b', description: 'x', type: 'inapp', platform: 'ios'},
+        {id: 'b', description: 'x', type: 'in-app', platform: 'ios'},
       ]);
       const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
       const products = await IAP.fetchProducts({
@@ -619,12 +603,10 @@ describe('Public API (src/index.ts)', () => {
           id: 'x',
           title: 'X',
           description: 'dx',
-          type: 'inapp',
+          type: 'in-app',
           platform: 'android',
           displayPrice: '$1.00',
           currency: 'USD',
-          // Explicitly set as undefined to mark as in-app product
-          subscriptionOfferDetailsAndroid: undefined,
         },
         {
           id: 'y',
@@ -634,26 +616,15 @@ describe('Public API (src/index.ts)', () => {
           platform: 'android',
           displayPrice: '$2.00',
           currency: 'USD',
-          // Add subscription offer details to properly identify as subscription
-          subscriptionOfferDetailsAndroid: [
+          subscriptionOffers: JSON.stringify([
             {
-              basePlanId: 'base',
-              offerTags: [],
-              offerToken: 'token',
-              pricingPhases: {
-                pricingPhaseList: [
-                  {
-                    billingCycleCount: 0,
-                    billingPeriod: 'P1M',
-                    formattedPrice: '$2.00',
-                    priceAmountMicros: '2000000',
-                    priceCurrencyCode: 'USD',
-                    recurrenceMode: 1,
-                  },
-                ],
-              },
+              id: 'base',
+              displayPrice: '$2.00',
+              price: 2,
+              type: 'introductory',
+              offerTokenAndroid: 'token',
             },
-          ],
+          ]),
         },
       ]);
       const result = await IAP.fetchProducts({
@@ -661,16 +632,6 @@ describe('Public API (src/index.ts)', () => {
         type: 'all',
       });
       const items = result ?? [];
-
-      // Debug: Log what we received
-      console.log(
-        'Test items received:',
-        items.map((item: any) => ({
-          id: item.id,
-          type: item.type,
-          hasOffers: item.subscriptionOfferDetailsAndroid?.length > 0,
-        })),
-      );
 
       // Products should be properly categorized
       expect(items).toHaveLength(2);
@@ -696,21 +657,21 @@ describe('Public API (src/index.ts)', () => {
   });
 
   describe('requestPurchase', () => {
-    it('requires ios.sku on iOS', async () => {
+    it('requires apple.sku on iOS', async () => {
       (Platform as any).OS = 'ios';
       await expect(
         IAP.requestPurchase({
-          request: {ios: {}} as any,
+          request: {apple: {}} as any,
           type: 'in-app',
         }),
       ).rejects.toThrow(/sku/);
     });
 
-    it('requires android.skus on Android', async () => {
+    it('requires google.skus on Android', async () => {
       (Platform as any).OS = 'android';
       await expect(
         IAP.requestPurchase({
-          request: {android: {}} as any,
+          request: {google: {}} as any,
           type: 'in-app',
         }),
       ).rejects.toThrow(/skus/);
@@ -720,7 +681,7 @@ describe('Public API (src/index.ts)', () => {
       (Platform as any).OS = 'web';
       await expect(
         IAP.requestPurchase({
-          request: {ios: {sku: 'p1'}} as any,
+          request: {apple: {sku: 'p1'}} as any,
           type: 'in-app',
         }),
       ).rejects.toThrow(/Unsupported platform: web/);
@@ -729,7 +690,7 @@ describe('Public API (src/index.ts)', () => {
     it('passes unified request to native', async () => {
       (Platform as any).OS = 'android';
       await IAP.requestPurchase({
-        request: {android: {skus: ['p1']}},
+        request: {google: {skus: ['p1']}},
         type: 'in-app',
       });
       expect(mockIap.requestPurchase).toHaveBeenCalledWith(
@@ -742,7 +703,7 @@ describe('Public API (src/index.ts)', () => {
     it('iOS subs does not auto-set andDangerouslyFinishTransactionAutomatically when not provided', async () => {
       (Platform as any).OS = 'ios';
       await IAP.requestPurchase({
-        request: {ios: {sku: 'sub1'}},
+        request: {apple: {sku: 'sub1'}},
         type: 'subs',
       });
       const passed = mockIap.requestPurchase.mock.calls.pop()?.[0];
@@ -762,7 +723,7 @@ describe('Public API (src/index.ts)', () => {
       } satisfies DiscountOfferInputIOS;
       await IAP.requestPurchase({
         request: {
-          ios: {sku: 'p1', withOffer: offer},
+          apple: {sku: 'p1', withOffer: offer},
         },
         type: 'in-app',
       });
@@ -779,7 +740,7 @@ describe('Public API (src/index.ts)', () => {
     it('Android subs fills empty subscriptionOffers array when missing', async () => {
       (Platform as any).OS = 'android';
       await IAP.requestPurchase({
-        request: {android: {skus: ['sub1']}},
+        request: {google: {skus: ['sub1']}},
         type: 'subs',
       });
       const passed = mockIap.requestPurchase.mock.calls.pop()?.[0];
@@ -790,7 +751,7 @@ describe('Public API (src/index.ts)', () => {
       (Platform as any).OS = 'android';
       await IAP.requestPurchase({
         request: {
-          android: {
+          google: {
             skus: ['sub1'],
             subscriptionOffers: [
               {sku: 'sub1', offerToken: 'offer-1'},
@@ -955,70 +916,6 @@ describe('Public API (src/index.ts)', () => {
       expect(console.warn).not.toHaveBeenCalled();
     });
 
-    it('prefers apple field over ios field when both provided', async () => {
-      (Platform as any).OS = 'ios';
-      await IAP.requestPurchase({
-        request: {
-          apple: {sku: 'apple_sku'},
-          ios: {sku: 'ios_sku'},
-        },
-        type: 'in-app',
-      });
-      const passed = mockIap.requestPurchase.mock.calls.pop()?.[0];
-      expect(passed.apple.sku).toBe('apple_sku');
-      expect(passed.ios).toBeUndefined();
-      expect(console.warn).not.toHaveBeenCalled();
-    });
-
-    it('treats an explicit null apple field as authoritative', async () => {
-      (Platform as any).OS = 'ios';
-
-      await expect(
-        IAP.requestPurchase({
-          request: {
-            apple: null,
-            ios: {sku: 'legacy-ios'},
-          },
-          type: 'in-app',
-        }),
-      ).rejects.toThrow(/sku/);
-
-      expect(mockIap.requestPurchase).not.toHaveBeenCalled();
-      expect(console.warn).not.toHaveBeenCalled();
-    });
-
-    it('prefers google field over android field when both provided', async () => {
-      (Platform as any).OS = 'android';
-      await IAP.requestPurchase({
-        request: {
-          google: {skus: ['google_sku']},
-          android: {skus: ['android_sku']},
-        },
-        type: 'in-app',
-      });
-      const passed = mockIap.requestPurchase.mock.calls.pop()?.[0];
-      expect(passed.google.skus).toEqual(['google_sku']);
-      expect(passed.android).toBeUndefined();
-      expect(console.warn).not.toHaveBeenCalled();
-    });
-
-    it('treats an explicit null google field as authoritative', async () => {
-      (Platform as any).OS = 'android';
-
-      await expect(
-        IAP.requestPurchase({
-          request: {
-            google: null,
-            android: {skus: ['legacy-android']},
-          },
-          type: 'in-app',
-        }),
-      ).rejects.toThrow(/skus/);
-
-      expect(mockIap.requestPurchase).not.toHaveBeenCalled();
-      expect(console.warn).not.toHaveBeenCalled();
-    });
-
     it('iOS passes advancedCommerceData through to native', async () => {
       (Platform as any).OS = 'ios';
       await IAP.requestPurchase({
@@ -1080,50 +977,6 @@ describe('Public API (src/index.ts)', () => {
         offerId: 'winback-offer',
       });
     });
-
-    it('warns once when the legacy ios request alias is selected', async () => {
-      (Platform as any).OS = 'ios';
-
-      await IAP.requestPurchase({
-        request: {ios: {sku: 'legacy-ios'}},
-        type: 'in-app',
-      });
-      await IAP.requestPurchase({
-        request: {ios: {sku: 'legacy-ios'}},
-        type: 'in-app',
-      });
-
-      expect(console.warn).toHaveBeenCalledTimes(1);
-      expect(console.warn).toHaveBeenCalledWith(
-        '[RN-IAP]',
-        expect.stringContaining('`request.ios` is deprecated'),
-      );
-      const passed = mockIap.requestPurchase.mock.calls.pop()?.[0];
-      expect(passed.apple.sku).toBe('legacy-ios');
-      expect(passed.ios).toBeUndefined();
-    });
-
-    it('warns once when the legacy android request alias is selected', async () => {
-      (Platform as any).OS = 'android';
-
-      await IAP.requestPurchase({
-        request: {android: {skus: ['legacy-android']}},
-        type: 'in-app',
-      });
-      await IAP.requestPurchase({
-        request: {android: {skus: ['legacy-android']}},
-        type: 'in-app',
-      });
-
-      expect(console.warn).toHaveBeenCalledTimes(1);
-      expect(console.warn).toHaveBeenCalledWith(
-        '[RN-IAP]',
-        expect.stringContaining('`request.android` is deprecated'),
-      );
-      const passed = mockIap.requestPurchase.mock.calls.pop()?.[0];
-      expect(passed.google.skus).toEqual(['legacy-android']);
-      expect(passed.android).toBeUndefined();
-    });
   });
 
   describe('getAvailablePurchases', () => {
@@ -1152,7 +1005,7 @@ describe('Public API (src/index.ts)', () => {
         id: `t-${id}`,
         productId: id,
         transactionDate: Date.now(),
-        platform: 'android',
+        store: 'google',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -1162,7 +1015,7 @@ describe('Public API (src/index.ts)', () => {
         .mockResolvedValueOnce([nitro('s1')]);
       const res = await IAP.getAvailablePurchases();
       expect(mockIap.getAvailablePurchases).toHaveBeenNthCalledWith(1, {
-        android: {type: 'inapp', includeSuspended: false},
+        android: {type: 'in-app', includeSuspended: false},
       });
       expect(mockIap.getAvailablePurchases).toHaveBeenNthCalledWith(2, {
         android: {type: 'subs', includeSuspended: false},
@@ -1191,7 +1044,7 @@ describe('Public API (src/index.ts)', () => {
         id: 't-vega',
         productId: 'premium_monthly',
         transactionDate: Date.now(),
-        platform: 'android',
+        store: 'amazon',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: true,
@@ -1209,7 +1062,7 @@ describe('Public API (src/index.ts)', () => {
       expect(res).toEqual([
         expect.objectContaining({
           productId: 'premium_monthly',
-          platform: 'android',
+          store: 'amazon',
         }),
       ]);
     });
@@ -1280,14 +1133,6 @@ describe('Public API (src/index.ts)', () => {
       mockIap.getStorefront = jest.fn(async () => 'USA');
       await expect(IAP.getStorefront()).resolves.toBe('USA');
       expect(mockIap.getStorefront).toHaveBeenCalledTimes(1);
-      expect(mockIap.getStorefrontIOS).not.toHaveBeenCalled();
-    });
-
-    it('getStorefront falls back to iOS-specific implementation when unified method missing', async () => {
-      (Platform as any).OS = 'ios';
-      mockIap.getStorefront = undefined;
-      await expect(IAP.getStorefront()).resolves.toBe('USA');
-      expect(mockIap.getStorefrontIOS).toHaveBeenCalledTimes(1);
     });
 
     it('getStorefront uses unified method on Android', async () => {
@@ -1296,17 +1141,6 @@ describe('Public API (src/index.ts)', () => {
       (Platform as any).OS = 'android';
       await expect(IAP.getStorefront()).resolves.toBe(expected);
       expect(mockIap.getStorefront).toHaveBeenCalledTimes(1);
-    });
-
-    it('getStorefront rejects with a canonical error when native method is missing', async () => {
-      (Platform as any).OS = 'android';
-      mockIap.getStorefront = undefined;
-      await expect(IAP.getStorefront()).rejects.toMatchObject({
-        code: IAP.ErrorCode.FeatureNotSupported,
-        message: expect.stringContaining(
-          'Native getStorefront is not available',
-        ),
-      });
     });
 
     it.each([null, undefined, '', '   '])(
@@ -1345,28 +1179,6 @@ describe('Public API (src/index.ts)', () => {
   });
 
   describe('iOS-only helpers', () => {
-    it('getStorefrontIOS returns storefront on iOS and throws on Android', async () => {
-      (Platform as any).OS = 'ios';
-      await expect(IAP.getStorefrontIOS()).resolves.toBe('USA');
-      (Platform as any).OS = 'android';
-      await expect(IAP.getStorefrontIOS()).rejects.toThrow(
-        /only available on iOS/,
-      );
-    });
-
-    it.each([null, '', '   '])(
-      'getStorefrontIOS rejects an empty native value (%p)',
-      async (value) => {
-        (Platform as any).OS = 'ios';
-        mockIap.getStorefrontIOS.mockResolvedValueOnce(value);
-
-        await expect(IAP.getStorefrontIOS()).rejects.toMatchObject({
-          code: IAP.ErrorCode.ServiceError,
-          message: expect.stringContaining('no country code'),
-        });
-      },
-    );
-
     it('getAppTransactionIOS returns value on iOS and throws on Android', async () => {
       (Platform as any).OS = 'ios';
       await expect(IAP.getAppTransactionIOS()).resolves.toBeNull();
@@ -1391,9 +1203,10 @@ describe('Public API (src/index.ts)', () => {
       (Platform as any).OS = 'ios';
       const nitro = {
         id: 't1',
+        transactionId: 't1',
         productId: 'p1',
         transactionDate: Date.now(),
-        platform: 'ios',
+        store: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -1407,9 +1220,10 @@ describe('Public API (src/index.ts)', () => {
       (Platform as any).OS = 'ios';
       const nitro = {
         id: 't2',
+        transactionId: 't2',
         productId: 'p2',
         transactionDate: Date.now(),
-        platform: 'ios',
+        store: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -1426,36 +1240,22 @@ describe('Public API (src/index.ts)', () => {
       await expect(IAP.showManageSubscriptionsIOS()).resolves.toEqual([]);
     });
 
-    it('requestPromotedProductIOS and alias getPromotedProductIOS map product', async () => {
+    it('getPromotedProductIOS maps the native product', async () => {
       (Platform as any).OS = 'ios';
       const nitroProduct = {
         id: 'sku2',
         title: 'Title2',
         description: 'Desc2',
-        type: 'inapp',
+        type: 'in-app',
         platform: 'ios',
         isAutoRenewing: true,
         displayPrice: '$1',
         currency: 'USD',
       };
-      mockIap.requestPromotedProductIOS = jest.fn(async () => nitroProduct);
-      const p1 = await IAP.requestPromotedProductIOS();
-      expect(p1?.id).toBe('sku2');
-      const p2 = await IAP.getPromotedProductIOS();
-      expect(p2?.id).toBe('sku2');
+      mockIap.getPromotedProductIOS = jest.fn(async () => nitroProduct);
+      const promoted = await IAP.getPromotedProductIOS();
+      expect(promoted?.id).toBe('sku2');
     });
-
-    it.each([true, false])(
-      'requestPurchaseOnPromotedProductIOS returns the native %s result',
-      async (nativeResult) => {
-        (Platform as any).OS = 'ios';
-        mockIap.buyPromotedProductIOS = jest.fn(async () => nativeResult);
-        const result = await IAP.requestPurchaseOnPromotedProductIOS();
-        expect(result).toBe(nativeResult);
-        expect(mockIap.buyPromotedProductIOS).toHaveBeenCalledTimes(1);
-        expect(mockIap.getPendingTransactionsIOS).not.toHaveBeenCalled();
-      },
-    );
 
     it('clearTransactionIOS resolves without throwing', async () => {
       (Platform as any).OS = 'ios';
@@ -1500,9 +1300,10 @@ describe('Public API (src/index.ts)', () => {
       (Platform as any).OS = 'ios';
       const nitro = {
         id: 't3',
+        transactionId: 't3',
         productId: 'p3',
         transactionDate: Date.now(),
-        platform: 'ios',
+        store: 'apple',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -1526,21 +1327,6 @@ describe('Public API (src/index.ts)', () => {
       (Platform as any).OS = 'ios';
       mockIap.getReceiptDataIOS = jest.fn(async () => 'r');
       await expect(IAP.getReceiptDataIOS()).resolves.toBe('r');
-    });
-
-    it('getReceiptIOS prefers dedicated native method', async () => {
-      (Platform as any).OS = 'ios';
-      mockIap.getReceiptIOS = jest.fn(async () => 'get');
-      await expect(IAP.getReceiptIOS()).resolves.toBe('get');
-      expect(mockIap.getReceiptIOS).toHaveBeenCalled();
-    });
-
-    it('getReceiptIOS falls back to getReceiptDataIOS when missing', async () => {
-      (Platform as any).OS = 'ios';
-      delete mockIap.getReceiptIOS;
-      mockIap.getReceiptDataIOS = jest.fn(async () => 'fallback');
-      await expect(IAP.getReceiptIOS()).resolves.toBe('fallback');
-      expect(mockIap.getReceiptDataIOS).toHaveBeenCalled();
     });
 
     it('requestReceiptRefreshIOS prefers native method when available', async () => {
@@ -1656,16 +1442,16 @@ describe('Public API (src/index.ts)', () => {
     });
   });
 
-  describe('validateReceipt', () => {
-    it('iOS path maps NitroReceiptValidationResultIOS', async () => {
+  describe('verifyPurchase', () => {
+    it('iOS path maps NitroPurchaseVerificationResultIOS', async () => {
       (Platform as any).OS = 'ios';
-      mockIap.validateReceipt.mockResolvedValueOnce({
+      mockIap.verifyPurchase.mockResolvedValueOnce({
         isValid: true,
         receiptData: 'r',
         jwsRepresentation: 'jws',
         latestTransaction: null,
       });
-      const res = await IAP.validateReceipt({
+      const res = await IAP.verifyPurchase({
         apple: {sku: 'sku'},
       });
       expect(res).toEqual(
@@ -1677,9 +1463,9 @@ describe('Public API (src/index.ts)', () => {
       );
     });
 
-    it('Android path maps NitroReceiptValidationResultAndroid', async () => {
+    it('Android path maps NitroPurchaseVerificationResultAndroid', async () => {
       (Platform as any).OS = 'android';
-      mockIap.validateReceipt.mockResolvedValueOnce({
+      mockIap.verifyPurchase.mockResolvedValueOnce({
         autoRenewing: false,
         betaProduct: false,
         cancelDate: null,
@@ -1699,7 +1485,7 @@ describe('Public API (src/index.ts)', () => {
         termSku: 'termSku',
         testTransaction: false,
       });
-      const res = await IAP.validateReceipt({
+      const res = await IAP.verifyPurchase({
         google: {
           sku: 'sku',
           packageName: 'com.app',
@@ -1758,16 +1544,6 @@ describe('Public API (src/index.ts)', () => {
       mockIap.syncIOS = jest.fn(async () => true);
       await expect(IAP.restorePurchases()).resolves.toBeUndefined();
       expect(mockIap.syncIOS).not.toHaveBeenCalled();
-    });
-  });
-
-  describe('Error paths', () => {
-    it('getStorefrontIOS catch branch surfaces error', async () => {
-      (Platform as any).OS = 'ios';
-      mockIap.getStorefrontIOS = jest.fn(async () => {
-        throw new Error('boom');
-      });
-      await expect(IAP.getStorefrontIOS()).rejects.toThrow('boom');
     });
   });
 
