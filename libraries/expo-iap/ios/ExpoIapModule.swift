@@ -19,10 +19,10 @@ public final class ExpoIapModule: Module {
         }
 
         Events(
-            OpenIapEvent.purchaseUpdated.rawValue,
-            OpenIapEvent.purchaseError.rawValue,
-            OpenIapEvent.promotedProductIos.rawValue,
-            OpenIapEvent.subscriptionBillingIssue.rawValue
+            IapEvent.purchaseUpdated.rawValue,
+            IapEvent.purchaseError.rawValue,
+            IapEvent.promotedProductIos.rawValue,
+            IapEvent.subscriptionBillingIssue.rawValue
         )
 
         OnCreate {

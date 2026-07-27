@@ -232,19 +232,19 @@ enum ExpoIapHelper {
             purchaseUpdated: { [weak module] purchase in
                 guard let module else { return }
                 let payload = sanitizeDictionary(OpenIapSerialization.purchase(purchase))
-                module.sendEvent(OpenIapEvent.purchaseUpdated.rawValue, payload)
+                module.sendEvent(IapEvent.purchaseUpdated.rawValue, payload)
             },
             purchaseError: { [weak module] error in
                 guard let module else { return }
                 let payload = sanitizeDictionary(OpenIapSerialization.encode(error))
-                module.sendEvent(OpenIapEvent.purchaseError.rawValue, payload)
+                module.sendEvent(IapEvent.purchaseError.rawValue, payload)
             },
             promotedProduct: { [weak module] productId in
                 guard let module else { return }
                 do {
                     if let product = try await OpenIapModule.shared.getPromotedProductIOS() {
                         let sanitized = sanitizeDictionary(OpenIapSerialization.encode(product))
-                        module.sendEvent(OpenIapEvent.promotedProductIos.rawValue, sanitized)
+                        module.sendEvent(IapEvent.promotedProductIos.rawValue, sanitized)
                         return
                     }
                 } catch {
@@ -252,14 +252,14 @@ enum ExpoIapHelper {
                 }
 
                 module.sendEvent(
-                    OpenIapEvent.promotedProductIos.rawValue,
+                    IapEvent.promotedProductIos.rawValue,
                     ["productId": productId]
                 )
             },
             subscriptionBillingIssue: { [weak module] purchase in
                 guard let module else { return }
                 let payload = sanitizeDictionary(OpenIapSerialization.purchase(purchase))
-                module.sendEvent(OpenIapEvent.subscriptionBillingIssue.rawValue, payload)
+                module.sendEvent(IapEvent.subscriptionBillingIssue.rawValue, payload)
             }
         )
     }
