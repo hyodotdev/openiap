@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { GENERATED_SYNC_MANIFEST } from "../packages/gql/generated-sync-manifest.mjs";
 import { collectGeneratedSyncDrift } from "../packages/gql/scripts/verify-generated-sync.mjs";
-import { collectDeprecationScheduleDrift } from "./audit-deprecation-schedule.mjs";
+import { collectCompletedRemovalFailures } from "./audit-deprecation-schedule.mjs";
 import { usesApi24ConcurrentKeySet } from "./audit-android-api-compat.mjs";
 import { assertSpecMatchesNativeFloor } from "./release-branch-policy.mjs";
 import {
@@ -58,7 +58,7 @@ function checkNativeSpecVersionFloor() {
 }
 
 function checkDeprecationSchedule() {
-  for (const issue of collectDeprecationScheduleDrift()) {
+  for (const issue of collectCompletedRemovalFailures()) {
     fail(issue);
   }
 }
@@ -94,10 +94,8 @@ const operationParityRegistry = {
   Mutation: [
     "acknowledgePurchaseAndroid",
     "beginRefundRequestIOS",
-    "checkAlternativeBillingAvailabilityAndroid",
     "clearTransactionIOS",
     "consumePurchaseAndroid",
-    "createAlternativeBillingTokenAndroid",
     "createBillingProgramReportingDetailsAndroid",
     "deepLinkToSubscriptions",
     "endConnection",
@@ -110,15 +108,12 @@ const operationParityRegistry = {
     "presentExternalPurchaseLinkIOS",
     "presentExternalPurchaseNoticeSheetIOS",
     "requestPurchase",
-    "requestPurchaseOnPromotedProductIOS",
     "restorePurchases",
-    "showAlternativeBillingDialogAndroid",
     "showBillingProgramInformationDialogAndroid",
     "showExternalPurchaseCustomLinkNoticeIOS",
     "showInAppMessagesAndroid",
     "showManageSubscriptionsIOS",
     "syncIOS",
-    "validateReceipt",
     "verifyPurchase",
     "verifyPurchaseWithProvider",
   ],
@@ -136,7 +131,6 @@ const operationParityRegistry = {
     "getPromotedProductIOS",
     "getReceiptDataIOS",
     "getStorefront",
-    "getStorefrontIOS",
     "getTransactionJwsIOS",
     "hasActiveSubscriptions",
     "isEligibleForExternalPurchaseCustomLinkIOS",
@@ -144,7 +138,6 @@ const operationParityRegistry = {
     "isTransactionVerifiedIOS",
     "latestTransactionIOS",
     "subscriptionStatusIOS",
-    "validateReceiptIOS",
   ],
   Subscription: [
     "developerProvidedBillingAndroid",
@@ -204,8 +197,11 @@ function checkNoOutboundWebhookStream() {
     "libraries/expo-iap/src/useWebhookEvents.ts",
     "libraries/flutter_inapp_purchase/lib/webhook_client.dart",
     "libraries/godot-iap/addons/godot-iap/webhook_client.gd",
+    "libraries/godot-iap/addons/godot-iap/webhook_client.gd.uid",
     "libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/WebhookClient.kt",
     "libraries/maui-iap/src/OpenIap.Maui/WebhookClient.cs",
+    "packages/kit/convex/webhooks/query.ts",
+    "packages/kit/convex/webhooks/validators.ts",
   ];
   for (const relativePath of forbiddenFiles) {
     if (exists(relativePath)) {
@@ -226,8 +222,7 @@ function checkNoOutboundWebhookStream() {
     "webhook_stream",
     "webhook-stream",
   ];
-  const removalRegressionTest =
-    "packages/kit/server/api/v1/webhooks.test.ts";
+  const removalRegressionTest = "packages/kit/server/api/v1/webhooks.test.ts";
   expectIncludes(
     removalRegressionTest,
     [
@@ -237,6 +232,16 @@ function checkNoOutboundWebhookStream() {
       "expect(response.status).toBe(404)",
     ],
     "outbound webhook route removal regression",
+  );
+  expectNotIncludes(
+    "packages/kit/convex/_generated/api.d.ts",
+    [
+      "../webhooks/query.js",
+      '"webhooks/query"',
+      "../webhooks/validators.js",
+      '"webhooks/validators"',
+    ],
+    "removed outbound Convex modules must not remain in generated API types",
   );
   const synchronizedGodotArtifacts = [
     "libraries/godot-iap/addons/godot-iap/android/GodotIap.debug.aar",
@@ -1372,7 +1377,7 @@ function checkFlutter() {
       'case "setPurchaseUpdatedListenerOptions"',
       'case "deepLinkToSubscriptions"',
       'case "getAllTransactionsIOS"',
-      'case "validateReceiptIOS", "verifyPurchase"',
+      'case "verifyPurchase"',
       'case "verifyPurchaseWithProvider"',
       'case "isEligibleForExternalPurchaseCustomLinkIOS"',
       'case "getExternalPurchaseCustomLinkTokenIOS"',
@@ -1394,6 +1399,7 @@ function checkFlutter() {
     "isTransactionVerifiedIOS",
     "getTransactionJwsIOS",
     "getReceiptDataIOS",
+    "getStorefront",
     "canPresentExternalPurchaseNoticeIOS",
     "presentExternalPurchaseNoticeSheetIOS",
     "isEligibleForExternalPurchaseCustomLinkIOS",
@@ -1411,15 +1417,6 @@ function checkFlutter() {
       `Flutter macOS ${method} bridge`,
     );
   }
-  expectIncludes(
-    flutterMacosPlugin,
-    [
-      'case "getStorefrontIOS"',
-      "private func getStorefrontIOS(",
-      "OpenIapModule.shared.getStorefront()",
-    ],
-    "Flutter macOS storefront bridge",
-  );
   expectIncludes(
     "libraries/flutter_inapp_purchase/android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
     ['"setPurchaseUpdatedListenerOptions" ->'],
@@ -1445,30 +1442,15 @@ function checkFlutter() {
     );
   }
   expectIncludes(
-    flutterIosPlugin,
-    ["OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()"],
-    "Flutter iOS promoted purchase bridge",
-  );
-  expectIncludes(
-    flutterMacosPlugin,
-    ["OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()"],
-    "Flutter macOS promoted purchase bridge",
-  );
-  expectIncludes(
     "libraries/react-native-iap/ios/HybridRnIap.swift",
-    [
-      "func buyPromotedProductIOS() throws -> Promise<Bool>",
-      "OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()",
-      "throw OpenIapException.from(purchaseError)",
-    ],
-    "RN iOS promoted purchase bridge",
+    ["throw OpenIapException.from(purchaseError)"],
+    "RN iOS purchase error bridge",
   );
   expectIncludes(
     "libraries/expo-iap/ios/ExpoIapModule.swift",
     [
       "throw IapException.from(error)",
       "code: .purchaseVerificationFailed",
-      "OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()",
       "try await OpenIapModule.shared.getStorefront()",
     ],
     "Expo iOS error/storefront bridge",
@@ -1782,7 +1764,6 @@ function checkApple() {
       "func requestPurchaseWithPayload",
       "OpenIapSerialization.requestPurchaseProps(from: payload)",
       "func getStorefrontWithCompletion",
-      "try await requestPurchaseOnPromotedProductIOS()",
     ],
     "Apple ObjC purchase bridge",
   );
@@ -1827,13 +1808,10 @@ function checkGoogle() {
       rel(base, `openiap/src/${flavor}/java/dev/hyo/openiap/OpenIapModule.kt`),
       [
         "getStorefront = { getStorefront() }",
-        "checkAlternativeBillingAvailabilityAndroid",
-        "createAlternativeBillingTokenAndroid",
         "createBillingProgramReportingDetailsAndroid",
         "getBillingChoiceInfoAndroid",
         "isBillingProgramAvailableAndroid",
         "launchExternalLinkAndroid",
-        "showAlternativeBillingDialogAndroid",
         "showBillingProgramInformationDialogAndroid",
         "showInAppMessagesAndroid",
       ],
@@ -1967,8 +1945,6 @@ function checkNativeApis() {
     "libraries/react-native-iap/src/specs/RnIap.nitro.ts",
     [
       "getStorefront(): Promise<string>",
-      "checkAlternativeBillingAvailabilityAndroid(): Promise<boolean>",
-      "createAlternativeBillingTokenAndroid",
       "isBillingProgramAvailableAndroid",
       "createBillingProgramReportingDetailsAndroid",
       "getBillingChoiceInfoAndroid",
@@ -1996,8 +1972,6 @@ function checkNativeApis() {
     GENERATED_SYNC_MANIFEST.dart.targets.flutter.path,
     [
       "Future<String> getStorefront()",
-      "Future<bool> checkAlternativeBillingAvailabilityAndroid()",
-      "Future<String?> createAlternativeBillingTokenAndroid()",
       "Future<BillingProgramReportingDetailsAndroid> createBillingProgramReportingDetailsAndroid",
       "Future<BillingChoiceInfoAndroid> getBillingChoiceInfoAndroid",
       "Future<BillingProgramAvailabilityResultAndroid> isBillingProgramAvailableAndroid",
@@ -2011,8 +1985,6 @@ function checkNativeApis() {
     GENERATED_SYNC_MANIFEST.kotlin.targets.kmp.path,
     [
       "suspend fun getStorefront(): String",
-      "suspend fun checkAlternativeBillingAvailabilityAndroid(): Boolean",
-      "suspend fun createAlternativeBillingTokenAndroid",
       "suspend fun createBillingProgramReportingDetailsAndroid",
       "suspend fun getBillingChoiceInfoAndroid",
       "suspend fun isBillingProgramAvailableAndroid",
@@ -2124,7 +2096,6 @@ function checkBillingChoiceFieldBindings() {
       "InAppMessageParams.InAppMessageCategoryId.TRANSACTIONAL",
       "pendingBillingPrograms",
       "resolveBillingProgramsForConnection(",
-      "resolveLegacySubscriptionReplacementMode(",
     ],
     "Google Billing Choice field bindings",
   );
@@ -2170,20 +2141,13 @@ function checkBillingChoiceFieldBindings() {
   );
   expectIncludes(
     "packages/google/openiap/src/main/java/dev/hyo/openiap/helpers/CommonHelpers.kt",
-    [
-      "!purchaseToken.isNullOrBlank() && originalExternalTransactionId.isNullOrBlank()",
-      "if (hasProductLevelReplacementParams) null else replacementMode",
-      "pendingPrograms.filterNot { it == BillingProgramAndroid.Unspecified }",
-    ],
-    "Google developer-billed subscription replacement mode",
+    ["pendingPrograms.filterNot { it == BillingProgramAndroid.Unspecified }"],
+    "Google billing-program connection state",
   );
   expectIncludes(
     "packages/google/openiap/src/test/java/dev/hyo/openiap/BillingChoiceAndroidTypesTest.kt",
-    [
-      "developer billed replacement does not inject a Play replacement mode",
-      "pre-init billing programs survive connection config reset",
-    ],
-    "Google Billing Choice replacement tests",
+    ["pre-init billing programs survive connection config reset"],
+    "Google Billing Choice connection tests",
   );
   expectNotIncludes(
     "packages/google/openiap/src/main/java/dev/hyo/openiap/OpenIapViewModel.kt",
@@ -2392,11 +2356,8 @@ function checkBillingChoiceFieldBindings() {
   );
   expectIncludes(
     "packages/docs/src/pages/docs/features/external-purchase.tsx",
-    [
-      "iap.user_choice_billing_android.connect",
-      "iap.developer_provided_billing_android.connect",
-    ],
-    "Godot external purchase docs signals",
+    ["iap.developer_provided_billing_android.connect"],
+    "Godot external purchase docs signal",
   );
   for (const path of [
     "packages/docs/src/pages/docs/types/billing-programs.tsx",
@@ -2477,10 +2438,7 @@ function checkBillingChoiceFieldBindings() {
   );
   expectIncludes(
     "libraries/kmp-iap/library/src/androidUnitTest/kotlin/io/github/hyochan/kmpiap/SubscriptionReplacementResolutionTest.kt",
-    [
-      "legacy replacement mode follows native Google precedence",
-      "hasProductLevelReplacementParams = true",
-    ],
+    ["hasProductLevelReplacementParams = true"],
     "KMP subscription replacement precedence tests",
   );
   expectIncludes(
@@ -2495,31 +2453,33 @@ function checkBillingChoiceFieldBindings() {
     "packages/google/openiap/src/horizon/java/dev/hyo/openiap/OpenIapModule.kt",
     [
       "com.meta.horizon.platform.HORIZON_APP_ID",
-      "com.meta.horizon.platform.ovr.OCULUS_APP_ID",
-      "com.meta.horizon.platform.ovr.HORIZON_APP_ID",
-      "com.oculus.vr.APP_ID",
       "resolveHorizonAppId(appInfo.metaData)",
     ],
-    "Horizon App ID canonical and migration keys",
+    "Horizon App ID canonical key",
   );
   expectIncludes(
     "packages/google/openiap/src/testHorizon/java/dev/hyo/openiap/HorizonAppIdMetadataTest.kt",
     [
-      "canonical Horizon 2 key takes precedence over legacy metadata",
-      "blank canonical key warns for the selected historical key",
-      "only the first resolved historical key warns",
-      "historical metadata logs its OpenIAP 3_0 removal deadline",
+      "canonical Horizon metadata resolves the app id",
       "missing or blank Horizon metadata resolves to null",
+      "historical Horizon metadata is ignored",
     ],
     "Horizon App ID metadata tests",
   );
   expectIncludes(
     "libraries/expo-iap/plugin/src/withIAP.ts",
-    [
-      "com.meta.horizon.platform.HORIZON_APP_ID",
-      "LEGACY_HORIZON_APP_ID_META_DATA_NAMES",
-    ],
+    ["com.meta.horizon.platform.HORIZON_APP_ID"],
     "Expo Horizon App ID canonical metadata",
+  );
+  expectNotIncludes(
+    "libraries/expo-iap/plugin/src/withIAP.ts",
+    [
+      "LEGACY_HORIZON_APP_ID_META_DATA_NAMES",
+      "com.meta.horizon.platform.ovr.OCULUS_APP_ID",
+      "com.meta.horizon.platform.ovr.HORIZON_APP_ID",
+      "com.oculus.vr.APP_ID",
+    ],
+    "Expo Horizon App ID removed metadata aliases",
   );
   for (const file of [
     "packages/google/Example/src/main/AndroidManifest.xml",
@@ -2618,12 +2578,8 @@ function checkBillingChoiceFieldBindings() {
       ["error.subResponseCodeAndroid = props.subResponseCodeAndroid"],
     ],
     [
-      "libraries/flutter_inapp_purchase/lib/helpers.dart",
-      ["typedef PurchaseResult = iap_err.PurchaseResult;"],
-    ],
-    [
       "libraries/flutter_inapp_purchase/lib/errors.dart",
-      ["errorData['subResponseCodeAndroid']", "json['subResponseCodeAndroid']"],
+      ["errorData['subResponseCodeAndroid']"],
     ],
     [
       "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/Helper.kt",
@@ -4343,8 +4299,6 @@ function checkFrameworkDependencyHygiene() {
       "ErrorCode.userCancelled.rawValue",
       "ErrorCode.developerError.rawValue",
       "ErrorCode.syncError.rawValue",
-      '@available(*, deprecated, message: "Use promotedProductIOS signal with requestPurchase instead. Scheduled for removal in godot-iap 3.0.0.")',
-      '@available(*, deprecated, message: "Use verifyPurchase instead. Scheduled for removal in godot-iap 3.0.0.")',
     ],
     "Godot iOS purchase errors must emit OpenIAP error codes",
   );
@@ -5179,13 +5133,8 @@ function checkFrameworkDependencyHygiene() {
     );
     expectIncludes(
       "libraries/flutter_inapp_purchase/android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
-      [
-        '@Suppress("DEPRECATION")',
-        "val isAvailable = iap.checkAlternativeBillingAvailability()",
-        "val token = iap.createAlternativeBillingReportingToken()",
-        "val payload = JSONObject(serializeOpenIapError(e))",
-      ],
-      "Flutter Android plugin must preserve legacy alternative billing handlers",
+      ["val payload = JSONObject(serializeOpenIapError(e))"],
+      "Flutter Android plugin error serialization",
     );
     expectNotIncludes(
       "libraries/flutter_inapp_purchase/android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
@@ -6273,6 +6222,10 @@ function checkReleaseNoteGroupingGuidance() {
       "## Multi-package Release Trains",
       "project decision recorded from issue #206",
       "Group notable changes under the affected platform package or framework",
+      "the next major for breaking public API or type removals",
+      "never infer or auto-align it from Apple and Google",
+      "Before naming any package's next major",
+      "migration schedule. The release train must include every public removal",
     ],
     "generate-doc package-specific release guidance",
   );

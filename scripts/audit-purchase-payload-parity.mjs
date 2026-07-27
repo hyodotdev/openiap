@@ -783,84 +783,15 @@ function hasDominatingOperator(prefix) {
   return /\?\?|\?|&&|\|\|/.test(prefix);
 }
 
-function validateCanonicalOrLegacyHelper(source, label) {
-  const helper = extractDartFunctionBody(
-    source,
-    "dynamic _canonicalOrLegacy",
-    `${label} _canonicalOrLegacy`,
-  );
-  if (!helper) return false;
-
-  const masked = maskDartCommentsAndStrings(helper.body);
-  const canonicalGuard =
-    /\bif\s*\(\s*payload\s*\.\s*containsKey\s*\(\s*canonicalKey\s*\)\s*\)\s*\{\s*return\s+payload\s*\[\s*canonicalKey\s*\]\s*;\s*\}/.exec(
-      masked,
-    );
-  const legacyRead =
-    /\bfinal\s+legacy\s*=\s*payload\s*\[\s*legacyKey\s*\]\s*;/.exec(masked);
-  const legacyReturn = /\breturn\s+legacy\s*;/.exec(masked);
-  const ordered =
-    canonicalGuard &&
-    legacyRead &&
-    legacyReturn &&
-    canonicalGuard.index < legacyRead.index &&
-    legacyRead.index < legacyReturn.index;
-
-  const payloadReads = [...masked.matchAll(/\bpayload\s*\[\s*(\w+)\s*\]/g)].map(
-    (match) => match[1],
-  );
-  const exactReads =
-    payloadReads.length === 2 &&
-    payloadReads[0] === "canonicalKey" &&
-    payloadReads[1] === "legacyKey";
-  const exactReturns = [...masked.matchAll(/\breturn\b/g)].length === 2;
-
-  if (!ordered || !exactReads || !exactReturns) {
-    fail(
-      `${label} _canonicalOrLegacy must use payload.containsKey(canonicalKey) before consulting payload[legacyKey]`,
-    );
-    return false;
-  }
-  return true;
-}
-
-function canonicalKeyFromHelperCall(expression) {
-  const masked = maskDartCommentsAndStrings(expression);
-  const markerIndex = masked.indexOf("_canonicalOrLegacy");
-  if (markerIndex < 0 || hasDominatingOperator(masked.slice(0, markerIndex))) {
-    return null;
-  }
-
-  const call = extractBalancedAfterMarker(
-    expression,
-    "_canonicalOrLegacy",
-    "(",
-    ")",
-    "Flutter _canonicalOrLegacy call",
-    maskDartCommentsAndStrings,
-  );
-  if (!call) return null;
-  const segments = splitTopLevelSegments(call.body, maskDartCommentsAndStrings);
-  if (segments[0]?.trim() !== "sourcePayload") return null;
-
-  const canonicalKey = segments
-    .slice(1)
-    .map((segment) =>
-      segment.match(/^\s*canonicalKey\s*:\s*['"]([^'"]+)['"]\s*$/),
-    )
-    .find(Boolean)?.[1];
-  return canonicalKey ?? null;
-}
-
 function firstCanonicalSourceReference(
   expression,
   functionBody,
-  canonicalHelperIsValid,
   seenIdentifiers = new Set(),
 ) {
-  if (canonicalHelperIsValid) {
-    const helperKey = canonicalKeyFromHelperCall(expression);
-    if (helperKey) return helperKey;
+  const sourceReferenceCount = [...expression.matchAll(/\bsourcePayload\b/g)]
+    .length;
+  if (sourceReferenceCount > 1 && hasDominatingOperator(expression)) {
+    return null;
   }
   if (/_transactionIdFrom\s*\(\s*sourcePayload\s*\)/.test(expression)) {
     return "transactionId";
@@ -890,7 +821,6 @@ function firstCanonicalSourceReference(
       const sourceKey = firstCanonicalSourceReference(
         declaration[1],
         functionBody,
-        canonicalHelperIsValid,
         nextSeen,
       );
       if (sourceKey) {
@@ -908,7 +838,6 @@ function firstCanonicalSourceReference(
       const sourceKey = firstCanonicalSourceReference(
         assignment[1],
         functionBody,
-        canonicalHelperIsValid,
         nextSeen,
       );
       if (sourceKey) {
@@ -1142,10 +1071,6 @@ function checkFlutterPayloadContracts() {
   const swift = read(swiftPath);
   const dartTypes = read(dartTypesPath);
   const helpers = read(flutterHelpersPath);
-  const canonicalHelperIsValid = validateCanonicalOrLegacyHelper(
-    helpers,
-    flutterHelpersPath,
-  );
   const purchaseFields = {
     PurchaseAndroid: parseKotlinToJsonKeys(
       kotlin,
@@ -1292,7 +1217,6 @@ function checkFlutterPayloadContracts() {
       const sourceKey = firstCanonicalSourceReference(
         entries.get(key),
         convertFunction.body,
-        canonicalHelperIsValid,
       );
       if (sourceKey !== key) {
         fail(
@@ -2168,21 +2092,12 @@ export function inspectMappedGeneratedFields(
 }
 
 export function inspectFlutterCanonicalExpression(
-  helperSource,
   expression,
   functionBody = "",
 ) {
   const previousFailures = failures;
   failures = [];
-  const helperIsValid = validateCanonicalOrLegacyHelper(
-    helperSource,
-    "Flutter helper fixture",
-  );
-  const sourceKey = firstCanonicalSourceReference(
-    expression,
-    functionBody,
-    helperIsValid,
-  );
+  const sourceKey = firstCanonicalSourceReference(expression, functionBody);
   const issues = [...failures];
   failures = previousFailures;
   return { issues, sourceKey };

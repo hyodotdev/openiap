@@ -76,7 +76,7 @@ release notes, or GitHub Releases, follow the mandatory language guard in
 
 ### Platform Function Naming
 
-- **iOS functions**: Must end with `IOS` suffix (e.g., `syncIOS`, `getStorefrontIOS`)
+- **iOS functions**: Must end with `IOS` suffix (e.g., `syncIOS`, `getReceiptDataIOS`)
 - **Android functions in packages/google**: NO `Android` suffix (it's Android-only)
 - **Cross-platform functions**: NO suffix
 
