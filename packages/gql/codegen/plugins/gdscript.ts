@@ -651,11 +651,11 @@ export class GDScriptPlugin extends CodegenPlugin {
 
   /**
    * RequestPurchaseProps is a tagged union even though GraphQL input objects
-   * cannot express one-of semantics. Keep the legacy public field names, but
-   * reject ambiguous/mismatched dictionaries before they cross a native bridge.
+   * cannot express one-of semantics. Reject ambiguous or mismatched
+   * dictionaries before they cross a native bridge.
    */
   private generateRequestPurchasePropsInput(irInput: IRInput): void {
-    const [requestPurchase, requestSubscription, type, useAlternativeBilling] = this.requireCustomInputFields(irInput);
+    const [requestPurchase, requestSubscription, type] = this.requireCustomInputFields(irInput);
     this.generateDocComment(irInput.description);
     this.emit('class RequestPurchaseProps:');
     this.generateDocComment(requestPurchase.description, '\t');
@@ -664,25 +664,21 @@ export class GDScriptPlugin extends CodegenPlugin {
     this.emit('\tvar request_subscription: RequestSubscriptionPropsByPlatforms');
     this.generateDocComment(type.description, '\t');
     this.emit('\tvar type: ProductQueryType = ProductQueryType.IN_APP');
-    this.generateDocComment(useAlternativeBilling.description, '\t');
-    this.emit('\tvar use_alternative_billing: Variant = null');
     this.emit('');
     this.emit(
-      '\tstatic func in_app(platforms: RequestPurchasePropsByPlatforms, use_alternative_billing_value: Variant = null) -> RequestPurchaseProps:',
+      '\tstatic func in_app(platforms: RequestPurchasePropsByPlatforms) -> RequestPurchaseProps:',
     );
     this.emit('\t\tvar obj = RequestPurchaseProps.new()');
     this.emit('\t\tobj.request = platforms');
     this.emit('\t\tobj.type = ProductQueryType.IN_APP');
-    this.emit('\t\tobj.use_alternative_billing = use_alternative_billing_value');
     this.emit('\t\treturn obj');
     this.emit('');
     this.emit(
-      '\tstatic func subs(platforms: RequestSubscriptionPropsByPlatforms, use_alternative_billing_value: Variant = null) -> RequestPurchaseProps:',
+      '\tstatic func subs(platforms: RequestSubscriptionPropsByPlatforms) -> RequestPurchaseProps:',
     );
     this.emit('\t\tvar obj = RequestPurchaseProps.new()');
     this.emit('\t\tobj.request_subscription = platforms');
     this.emit('\t\tobj.type = ProductQueryType.SUBS');
-    this.emit('\t\tobj.use_alternative_billing = use_alternative_billing_value');
     this.emit('\t\treturn obj');
     this.emit('');
     this.emit('\tstatic func from_dict(data: Dictionary) -> RequestPurchaseProps:');
@@ -710,8 +706,6 @@ export class GDScriptPlugin extends CodegenPlugin {
     this.emit('\t\tif obj.type != expected_type:');
     this.emit('\t\t\tpush_error("RequestPurchaseProps.type does not match its request branch")');
     this.emit('\t\t\treturn null');
-    this.emit('\t\tif data.has("useAlternativeBilling") and data["useAlternativeBilling"] != null:');
-    this.emit('\t\t\tobj.use_alternative_billing = data["useAlternativeBilling"]');
     this.emit('\t\treturn obj');
     this.emit('');
     this.emit('\tfunc to_dict() -> Dictionary:');
@@ -732,8 +726,6 @@ export class GDScriptPlugin extends CodegenPlugin {
       '\t\t\tdict["requestSubscription"] = request_subscription.to_dict() if request_subscription.has_method("to_dict") else request_subscription',
     );
     this.emit('\t\tdict["type"] = PRODUCT_QUERY_TYPE_VALUES.get(type, type)');
-    this.emit('\t\tif use_alternative_billing != null:');
-    this.emit('\t\t\tdict["useAlternativeBilling"] = use_alternative_billing');
     this.emit('\t\treturn dict');
     this.emit('');
   }

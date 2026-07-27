@@ -57,7 +57,6 @@ export const CUSTOM_INPUT_CONTRACTS = Object.freeze({
     field('transactionDate', 'scalar', 'Float', false),
     field('purchaseToken', 'scalar', 'String', true),
     field('store', 'enum', 'IapStore', true),
-    field('platform', 'enum', 'IapPlatform', true),
     field('quantity', 'scalar', 'Int', false),
     field('purchaseState', 'enum', 'PurchaseState', false),
     field('isAutoRenewing', 'scalar', 'Boolean', false),
@@ -68,7 +67,6 @@ export const CUSTOM_INPUT_CONTRACTS = Object.freeze({
     field('type', 'enum', 'ProductQueryType', true, {
       defaultValue: 'InApp',
     }),
-    field('useAlternativeBilling', 'scalar', 'Boolean', true),
   ]),
 } as const);
 
@@ -81,14 +79,10 @@ const REQUEST_PLATFORM_INPUT_CONTRACTS = Object.freeze({
   RequestPurchasePropsByPlatforms: Object.freeze([
     field('apple', 'input', 'RequestPurchaseIosProps', true),
     field('google', 'input', 'RequestPurchaseAndroidProps', true),
-    field('ios', 'input', 'RequestPurchaseIosProps', true),
-    field('android', 'input', 'RequestPurchaseAndroidProps', true),
   ]),
   RequestSubscriptionPropsByPlatforms: Object.freeze([
     field('apple', 'input', 'RequestSubscriptionIosProps', true),
     field('google', 'input', 'RequestSubscriptionAndroidProps', true),
-    field('ios', 'input', 'RequestSubscriptionIosProps', true),
-    field('android', 'input', 'RequestSubscriptionAndroidProps', true),
   ]),
 } as const);
 

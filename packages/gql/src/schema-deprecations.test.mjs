@@ -1,11 +1,7 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { SCHEMA_FILE_NAMES } from '../schema-files.mjs';
-import {
-  assertValidSchemaDeprecations,
-  extractSchemaDeprecations,
-  OPENIAP_3_REMOVAL_NOTICE,
-} from '../schema-deprecations.mjs';
+import { assertValidSchemaDeprecations, extractSchemaDeprecations, OPENIAP_REMOVAL_NOTICE_PATTERN } from '../schema-deprecations.mjs';
 
 const repositorySchemaSources = () =>
   SCHEMA_FILE_NAMES.map((fileName) => ({
@@ -35,9 +31,7 @@ type Query {
     ]);
 
     expect(deprecations.issues).toEqual([]);
-    expect(deprecations.typeReasons).toEqual(
-      new Map([['Legacy', 'Use Modern instead. Scheduled for removal in OpenIAP 3.0.']]),
-    );
+    expect(deprecations.typeReasons).toEqual(new Map([['Legacy', 'Use Modern instead. Scheduled for removal in OpenIAP 3.0.']]));
     expect(deprecations.operationArguments).toEqual([
       {
         rootName: 'Query',
@@ -91,54 +85,39 @@ type Legacy @openiapDeprecated(reason: "Use Modern instead.") {
       expect.objectContaining({
         file: 'unscheduled.graphql',
         rule: 'deprecated-removal-schedule-missing',
-        message: expect.stringContaining(OPENIAP_3_REMOVAL_NOTICE),
+        message: expect.stringContaining('Scheduled for removal in OpenIAP <major>.<minor>.'),
       }),
       expect.objectContaining({
         file: 'unscheduled.graphql',
         rule: 'deprecated-removal-schedule-missing',
-        message: expect.stringContaining(OPENIAP_3_REMOVAL_NOTICE),
+        message: expect.stringContaining('Scheduled for removal in OpenIAP <major>.<minor>.'),
       }),
     ]);
   });
 
-  it('schedules every repository deprecation and covers the legacy Android operations', () => {
+  it('accepts a future OpenIAP removal boundary', () => {
+    const deprecations = extractSchemaDeprecations([
+      {
+        sourceId: 'future.graphql',
+        sdl: `
+type Query {
+  old: String @deprecated(reason: "Use current instead. Scheduled for removal in OpenIAP 4.0.")
+}
+`,
+      },
+    ]);
+
+    expect(deprecations.issues).toEqual([]);
+    expect(OPENIAP_REMOVAL_NOTICE_PATTERN.test(deprecations.entries[0].reason)).toBe(true);
+  });
+
+  it('contains no scheduled repository deprecations after the OpenIAP 3 removal', () => {
     const deprecations = extractSchemaDeprecations(repositorySchemaSources());
 
     expect(deprecations.issues).toEqual([]);
-    expect(deprecations.entries).toHaveLength(39);
-    expect(deprecations.entries.every((entry) => entry.reason.endsWith(OPENIAP_3_REMOVAL_NOTICE))).toBe(true);
-    expect(
-      deprecations.entries
-        .filter((entry) =>
-          [
-            'Mutation.checkAlternativeBillingAvailabilityAndroid',
-            'Mutation.showAlternativeBillingDialogAndroid',
-            'Mutation.createAlternativeBillingTokenAndroid',
-          ].includes(entry.ownerPath),
-        )
-        .map(({ ownerPath, reason }) => ({ ownerPath, reason })),
-    ).toEqual([
-      {
-        ownerPath: 'Mutation.checkAlternativeBillingAvailabilityAndroid',
-        reason:
-          'Use isBillingProgramAvailableAndroid with the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.',
-      },
-      {
-        ownerPath: 'Mutation.showAlternativeBillingDialogAndroid',
-        reason: 'Use launchExternalLinkAndroid instead. Scheduled for removal in OpenIAP 3.0.',
-      },
-      {
-        ownerPath: 'Mutation.createAlternativeBillingTokenAndroid',
-        reason:
-          'Use createBillingProgramReportingDetailsAndroid with the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.',
-      },
-    ]);
-    expect(deprecations.typeReasons.get('ExternalOfferAvailabilityResultAndroid')).toBe(
-      'Use BillingProgramAvailabilityResultAndroid from isBillingProgramAvailableAndroid instead. Scheduled for removal in OpenIAP 3.0.',
-    );
-    expect(deprecations.typeReasons.get('ExternalOfferReportingDetailsAndroid')).toBe(
-      'Use BillingProgramReportingDetailsAndroid from createBillingProgramReportingDetailsAndroid instead. Scheduled for removal in OpenIAP 3.0.',
-    );
+    expect(deprecations.entries).toEqual([]);
+    expect(deprecations.typeReasons).toEqual(new Map());
+    expect(deprecations.operationArguments).toEqual([]);
   });
 
   it('rejects duplicate type ownership across definitions and extensions', () => {

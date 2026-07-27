@@ -136,65 +136,6 @@ type DiscountDisplayInfoAndroid {
 }
 
 """
-One-time purchase offer details (Android).
-Available in Google Play Billing Library 8.0+
-@see https://openiap.dev/docs/types/discount-offer
-"""
-type ProductAndroidOneTimePurchaseOfferDetail
-  @openiapDeprecated(
-    reason: "Use the standardized DiscountOffer type for Android one-time offers. Scheduled for removal in OpenIAP 3.0."
-  ) {
-  """
-  Offer ID
-  """
-  offerId: String
-  """
-  Offer token for use in BillingFlowParams when purchasing
-  """
-  offerToken: String!
-  """
-  List of offer tags
-  """
-  offerTags: [String!]!
-  priceCurrencyCode: String!
-  formattedPrice: String!
-  priceAmountMicros: String!
-  """
-  Full (non-discounted) price in micro-units
-  Only available for discounted offers
-  """
-  fullPriceMicros: String
-  """
-  Discount display information
-  Only available for discounted offers
-  """
-  discountDisplayInfo: DiscountDisplayInfoAndroid
-  """
-  Valid time window for the offer
-  """
-  validTimeWindow: ValidTimeWindowAndroid
-  """
-  Limited quantity information
-  """
-  limitedQuantityInfo: LimitedQuantityInfoAndroid
-  """
-  Pre-order details for products available for pre-order
-  Available in Google Play Billing Library 8.1.0+
-  """
-  preorderDetailsAndroid: PreorderDetailsAndroid
-  """
-  Rental details for rental offers
-  """
-  rentalDetailsAndroid: RentalDetailsAndroid
-  """
-  Purchase option ID for this offer (Android)
-  Used to identify which purchase option the user selected.
-  Available in Google Play Billing Library 8.0+
-  """
-  purchaseOptionId: String
-}
-
-"""
 Installment plan details for subscription offers (Android)
 Contains information about the installment plan commitment.
 Available in Google Play Billing Library 7.0+
@@ -213,27 +154,6 @@ type InstallmentPlanDetailsAndroid {
   Returns 0 if the installment plan has no subsequent commitment (reverts to normal plan).
   """
   subsequentCommitmentPaymentsCount: Int!
-}
-
-"""
-Subscription offer details (Android).
-@see https://openiap.dev/docs/types/subscription-offer
-"""
-type ProductSubscriptionAndroidOfferDetails
-  @openiapDeprecated(
-    reason: "Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0."
-  ) {
-  basePlanId: String!
-  offerId: String
-  offerToken: String!
-  offerTags: [String!]!
-  pricingPhases: PricingPhasesAndroid!
-  """
-  Installment plan details for this subscription offer.
-  Only set for installment subscription plans; null for non-installment plans.
-  Available in Google Play Billing Library 7.0+
-  """
-  installmentPlanDetails: InstallmentPlanDetailsAndroid
 }
 
 type ProductAndroid implements ProductCommon {
@@ -274,18 +194,6 @@ type ProductAndroid implements ProductCommon {
   @see https://openiap.dev/docs/types/subscription-offer
   """
   subscriptionOffers: [SubscriptionOffer!]
-
-  # Deprecated platform-specific fields
-  """
-  One-time purchase offer details including discounts (Android)
-  Returns all eligible offers. Available in Google Play Billing Library 8.0+
-  """
-  oneTimePurchaseOfferDetailsAndroid: [ProductAndroidOneTimePurchaseOfferDetail!]
-    @deprecated(reason: "Use the standardized discountOffers field instead. Scheduled for removal in OpenIAP 3.0.")
-  subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails!]
-    @deprecated(
-      reason: "Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0."
-    )
 }
 
 type ProductSubscriptionAndroid implements ProductCommon {
@@ -314,31 +222,11 @@ type ProductSubscriptionAndroid implements ProductCommon {
 
   # Standardized offer fields
   """
-  Nullable compatibility field. Google Play does not return one-time purchase
-  offer details for subscription products; use subscriptionOffers below.
-  """
-  discountOffers: [DiscountOffer!]
-
-  """
   Standardized subscription offers.
   Cross-platform type with Android-specific fields using suffix.
   @see https://openiap.dev/docs/types/subscription-offer
   """
   subscriptionOffers: [SubscriptionOffer!]!
-
-  # Deprecated platform-specific fields
-  """
-  Legacy nullable compatibility field. Google Play does not populate one-time
-  purchase offer details for subscription products.
-  """
-  oneTimePurchaseOfferDetailsAndroid: [ProductAndroidOneTimePurchaseOfferDetail!]
-    @deprecated(
-      reason: "One-time offers belong to ProductAndroid.discountOffers; subscriptions use subscriptionOffers. Scheduled for removal in OpenIAP 3.0."
-    )
-  subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails!]!
-    @deprecated(
-      reason: "Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0."
-    )
 }
 
 type PurchaseAndroid implements PurchaseCommon {
@@ -356,7 +244,6 @@ type PurchaseAndroid implements PurchaseCommon {
   Store where purchase was made
   """
   store: IapStore!
-  platform: IapPlatform! @deprecated(reason: "Use store instead. Scheduled for removal in OpenIAP 3.0.")
   quantity: Int!
   purchaseState: PurchaseState!
   isAutoRenewing: Boolean!
@@ -429,7 +316,7 @@ input RequestPurchaseAndroidProps {
   isOfferPersonalized: Boolean
   """
   Offer token for one-time purchase discounts (8.0+).
-  Pass the offerToken from oneTimePurchaseOfferDetailsAndroid or discountOffers
+  Pass the offerToken from discountOffers
   to apply a discount offer to the purchase.
   """
   offerToken: String
@@ -469,13 +356,6 @@ input RequestSubscriptionAndroidProps {
   openiap-google 2.3.0 (requires Play Billing 9.1.0+).
   """
   originalExternalTransactionId: String
-  """
-  Replacement mode for subscription changes
-  """
-  replacementMode: Int
-    @deprecated(
-      reason: "Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+). Scheduled for removal in OpenIAP 3.0."
-    )
   """
   Subscription offers
   """
@@ -648,39 +528,6 @@ type VerifyPurchaseResultAndroid {
   term: String!
   termSku: String!
   testTransaction: Boolean!
-}
-
-# Alternative Billing (Deprecated)
-"""
-Alternative billing mode for Android
-Controls which billing system is used
-Use the user-choice-billing program for user choice billing and external-offer
-for external digital-content offers.
-"""
-enum AlternativeBillingModeAndroid
-  @openiapDeprecated(
-    reason: "Use enableBillingProgramAndroid with BillingProgramAndroid instead. Scheduled for removal in OpenIAP 3.0."
-  ) {
-  """
-  Standard Google Play billing (default)
-  """
-  NONE
-
-  """
-  User choice billing - user can select between Google Play or alternative
-  Requires Google Play Billing Library 7.0+
-  """
-  USER_CHOICE
-    @deprecated(
-      reason: "Use the user-choice-billing BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0."
-    )
-
-  """
-  Alternative billing only - no Google Play billing option
-  Requires Google Play Billing Library 6.2+
-  """
-  ALTERNATIVE_ONLY
-    @deprecated(reason: "Use the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.")
 }
 
 # User Choice Billing
@@ -1137,37 +984,6 @@ type DeveloperProvidedBillingProductAndroid {
   Subscription offer token, when applicable.
   """
   offerToken: String
-}
-
-# Deprecated External Offers APIs (Google Play Billing Library 8.2.0)
-# These APIs are deprecated in favor of the new BillingProgram APIs above
-
-"""
-External offer reporting details (Android)
-Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
-"""
-type ExternalOfferReportingDetailsAndroid
-  @openiapDeprecated(
-    reason: "Use BillingProgramReportingDetailsAndroid from createBillingProgramReportingDetailsAndroid instead. Scheduled for removal in OpenIAP 3.0."
-  ) {
-  """
-  External transaction token for reporting external offer transactions
-  """
-  externalTransactionToken: String!
-}
-
-"""
-External offer availability result (Android)
-Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
-"""
-type ExternalOfferAvailabilityResultAndroid
-  @openiapDeprecated(
-    reason: "Use BillingProgramAvailabilityResultAndroid from isBillingProgramAvailableAndroid instead. Scheduled for removal in OpenIAP 3.0."
-  ) {
-  """
-  Whether external offers are available for the user
-  """
-  isAvailable: Boolean!
 }
 
 # Sub-Response Codes (Google Play Billing Library 8.0+)

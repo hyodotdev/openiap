@@ -545,7 +545,6 @@ export const rewriteRequestPurchaseTypeAliases = (source) => {
   const requestPurchaseJSDoc = requestPurchaseProps.propertyJSDoc('requestPurchase');
   const requestSubscriptionJSDoc = requestPurchaseProps.propertyJSDoc('requestSubscription');
   const purchaseTypeJSDoc = requestPurchaseProps.propertyJSDoc('type');
-  const useAlternativeBillingJSDoc = requestPurchaseProps.propertyJSDoc('useAlternativeBilling');
 
   let output = [
     source.slice(0, requestPurchaseProps.start),
@@ -556,16 +555,12 @@ export const rewriteRequestPurchaseTypeAliases = (source) => {
       '      request: RequestPurchasePropsByPlatforms;',
       indentJSDoc(purchaseTypeJSDoc, '      '),
       "      type: 'in-app';",
-      indentJSDoc(useAlternativeBillingJSDoc, '      '),
-      '      useAlternativeBilling?: boolean | null;',
       '    }',
       '  | {',
       indentJSDoc(requestSubscriptionJSDoc, '      '),
       '      request: RequestSubscriptionPropsByPlatforms;',
       indentJSDoc(purchaseTypeJSDoc, '      '),
       "      type: 'subs';",
-      indentJSDoc(useAlternativeBillingJSDoc, '      '),
-      '      useAlternativeBilling?: boolean | null;',
       '    };\n\n',
     ].join('\n'),
     source.slice(requestPurchaseProps.end),

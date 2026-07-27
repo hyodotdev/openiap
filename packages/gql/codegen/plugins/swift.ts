@@ -384,16 +384,14 @@ export class SwiftPlugin extends CodegenPlugin {
   }
 
   private generateRequestPurchaseProps(irInput: IRInput): void {
-    const [requestPurchase, requestSubscription, type, useAlternativeBilling] = this.requireCustomInputFields(irInput);
+    const [requestPurchase, requestSubscription, type] = this.requireCustomInputFields(irInput);
     this.generateDocComment(irInput.description);
     this.emit('public struct RequestPurchaseProps: Codable {');
     this.emit('    public var request: Request');
     this.generateDocComment(type.description, '    ');
     this.emit('    public var type: ProductQueryType');
-    this.generateDocComment(useAlternativeBilling.description, '    ');
-    this.emit('    public var useAlternativeBilling: Bool?');
     this.emit('');
-    this.emit('    public init(request: Request, type: ProductQueryType? = nil, useAlternativeBilling: Bool? = nil) {');
+    this.emit('    public init(request: Request, type: ProductQueryType? = nil) {');
     this.emit('        switch request {');
     this.emit('        case .purchase:');
     this.emit('            let resolved = type ?? .inApp');
@@ -403,22 +401,19 @@ export class SwiftPlugin extends CodegenPlugin {
     this.emit('            let resolved = type ?? .subs');
     this.emit('            precondition(resolved == .subs, "RequestPurchaseProps.type must be .subs when request is subscription")');
     this.emit('            self.type = resolved');
-    this.emit('        }');
-    this.emit('        self.request = request');
-    this.emit('        self.useAlternativeBilling = useAlternativeBilling');
-    this.emit('    }');
+        this.emit('        }');
+        this.emit('        self.request = request');
+        this.emit('    }');
     this.emit('');
     this.emit('    private enum CodingKeys: String, CodingKey {');
     this.emit('        case requestPurchase');
     this.emit('        case requestSubscription');
     this.emit('        case type');
-    this.emit('        case useAlternativeBilling');
     this.emit('    }');
     this.emit('');
     this.emit('    public init(from decoder: Decoder) throws {');
     this.emit('        let container = try decoder.container(keyedBy: CodingKeys.self)');
     this.emit('        let decodedType = try container.decodeIfPresent(ProductQueryType.self, forKey: .type)');
-    this.emit('        self.useAlternativeBilling = try container.decodeIfPresent(Bool.self, forKey: .useAlternativeBilling)');
     this.emit('        let purchase = try container.decodeIfPresent(RequestPurchasePropsByPlatforms.self, forKey: .requestPurchase)');
     this.emit(
       '        let subscription = try container.decodeIfPresent(RequestSubscriptionPropsByPlatforms.self, forKey: .requestSubscription)',
@@ -464,7 +459,6 @@ export class SwiftPlugin extends CodegenPlugin {
     this.emit('            try container.encode(value, forKey: .requestSubscription)');
     this.emit('        }');
     this.emit('        try container.encode(type, forKey: .type)');
-    this.emit('        try container.encodeIfPresent(useAlternativeBilling, forKey: .useAlternativeBilling)');
     this.emit('    }');
     this.emit('');
     this.emit('    public enum Request {');

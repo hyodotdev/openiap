@@ -38,7 +38,7 @@ import type {
   IRResultUnionEntry,
   SchemaMarkers,
 } from './types.js';
-import { toKebabCase, PLATFORM_TYPE_DEFAULTS, ERROR_CODE_LEGACY_ALIASES, SUPPORTED_GRAPHQL_SCALARS } from './utils.js';
+import { toKebabCase, PLATFORM_TYPE_DEFAULTS, SUPPORTED_GRAPHQL_SCALARS } from './utils.js';
 import type { ParsedSchema } from './parser.js';
 import { assertValidSchemaMarkers } from '../../schema-markers.mjs';
 import { assertValidSchemaDeprecations } from '../../schema-deprecations.mjs';
@@ -376,16 +376,6 @@ class SchemaTransformer {
       // For Swift compatibility: only use PascalCase name as legacy alias (no CONSTANT_CASE)
       // The enum case matching in Swift uses: kebab-case + PascalCase
       const legacyAliases: string[] = [];
-
-      // Add special legacy aliases for ErrorCode
-      // receipt-failed -> purchaseVerificationFailed
-      if (enumType.name === 'ErrorCode') {
-        const caseNameLower = value.name.charAt(0).toLowerCase() + value.name.slice(1);
-        const extraAliases = Object.entries(ERROR_CODE_LEGACY_ALIASES)
-          .filter(([_, target]) => target === caseNameLower)
-          .map(([alias]) => alias);
-        legacyAliases.push(...extraAliases);
-      }
 
       return {
         name: value.name,

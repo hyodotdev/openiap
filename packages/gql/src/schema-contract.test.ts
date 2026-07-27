@@ -42,16 +42,15 @@ describe('OpenIAP schema contract', () => {
     }
   });
 
-  it('projects interface deprecations onto concrete purchase fields', () => {
+  it('removes the legacy purchase platform field from concrete purchase types', () => {
     const schema = parseSchema().schema;
     for (const typeName of ['PurchaseAndroid', 'PurchaseIOS']) {
       const purchaseType = schema.getType(typeName);
       expect(isObjectType(purchaseType), typeName).toBe(true);
       if (!isObjectType(purchaseType)) continue;
 
-      expect(purchaseType.getFields().platform.deprecationReason, `${typeName}.platform`).toBe(
-        'Use store instead. Scheduled for removal in OpenIAP 3.0.',
-      );
+      expect(purchaseType.getFields().platform, `${typeName}.platform`).toBeUndefined();
+      expect(purchaseType.getFields().store, `${typeName}.store`).toBeDefined();
     }
   });
 });

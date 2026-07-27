@@ -3,7 +3,7 @@ import { collectGraphQLComments, normalizeSchemaSources } from './schema-source-
 
 const TYPE_DEPRECATION_DIRECTIVE = 'openiapDeprecated';
 
-export const OPENIAP_3_REMOVAL_NOTICE = 'Scheduled for removal in OpenIAP 3.0.';
+export const OPENIAP_REMOVAL_NOTICE_PATTERN = /Scheduled for removal in OpenIAP \d+\.\d+\.$/;
 
 const TYPE_DEFINITION_KINDS = new Set([
   Kind.ENUM_TYPE_DEFINITION,
@@ -39,11 +39,11 @@ const canonicalReason = ({ directive, issues, label, line, sourceId }) => {
     return null;
   }
   const normalizedReason = reason.value.replace(/\s+/g, ' ').trim();
-  if (!normalizedReason.endsWith(OPENIAP_3_REMOVAL_NOTICE)) {
+  if (!OPENIAP_REMOVAL_NOTICE_PATTERN.test(normalizedReason)) {
     issues.push({
       file: sourceId,
       line: directive.loc?.startToken.line ?? line,
-      message: `${label} deprecation reason must end with "${OPENIAP_3_REMOVAL_NOTICE}"`,
+      message: `${label} deprecation reason must end with "Scheduled for removal in OpenIAP <major>.<minor>."`,
       rule: 'deprecated-removal-schedule-missing',
     });
     return null;

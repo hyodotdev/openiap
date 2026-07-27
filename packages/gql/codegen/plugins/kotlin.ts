@@ -176,8 +176,8 @@ export class KotlinPlugin extends CodegenPlugin {
   generateHeader(): void {
     for (const line of generatedFileHeader()) this.emit(line);
     this.emit('');
-    this.emit('// Suppress generator-internal compatibility reads while preserving deprecation warnings for consumers');
-    this.emit('@file:Suppress("DEPRECATION", "UNCHECKED_CAST")');
+    this.emit('// Generated JSON decoders use unchecked casts for nested wire values.');
+    this.emit('@file:Suppress("UNCHECKED_CAST")');
     this.emit('');
   }
 
@@ -746,16 +746,13 @@ export class KotlinPlugin extends CodegenPlugin {
   }
 
   private generateRequestPurchaseProps(irInput: IRInput): void {
-    const [requestPurchase, requestSubscription, type, useAlternativeBilling] = this.requireCustomInputFields(irInput);
+    const [requestPurchase, requestSubscription, type] = this.requireCustomInputFields(irInput);
     this.generateDocComment(irInput.description);
     this.generateDeprecationAnnotation(irInput.description);
     this.emit('public data class RequestPurchaseProps(');
     this.emit('    val request: Request,');
     this.generateDocComment(type.description, '    ');
-    this.emit('    val type: ProductQueryType,');
-    this.generateDocComment(useAlternativeBilling.description, '    ');
-    this.generateDeprecationAnnotation(useAlternativeBilling.description, '    ');
-    this.emit('    val useAlternativeBilling: Boolean? = null');
+    this.emit('    val type: ProductQueryType');
     this.emit(') {');
     this.emit('    init {');
     this.emit('        when (request) {');
@@ -771,7 +768,6 @@ export class KotlinPlugin extends CodegenPlugin {
     this.emit('    companion object {');
     this.emit('        fun fromJson(json: Map<String, Any?>): RequestPurchaseProps {');
     this.emit('            val rawType = (json["type"] as String?)?.let { ProductQueryType.fromJson(it) }');
-    this.emit('            val useAlternativeBilling = json["useAlternativeBilling"] as Boolean?');
     this.emit('            val purchaseJson = json["requestPurchase"] as Map<String, Any?>?');
     this.emit('            val subscriptionJson = json["requestSubscription"] as Map<String, Any?>?');
     this.emit('            require((purchaseJson == null) != (subscriptionJson == null)) {');
@@ -782,7 +778,7 @@ export class KotlinPlugin extends CodegenPlugin {
     this.emit('                val finalType = rawType ?: ProductQueryType.InApp');
     this.emit('                require(finalType == ProductQueryType.InApp) { "type must be IN_APP when requestPurchase is provided" }');
     this.emit(
-      '                return RequestPurchaseProps(request = request, type = finalType, useAlternativeBilling = useAlternativeBilling)',
+      '                return RequestPurchaseProps(request = request, type = finalType)',
     );
     this.emit('            }');
     this.emit('            if (subscriptionJson != null) {');
@@ -790,7 +786,7 @@ export class KotlinPlugin extends CodegenPlugin {
     this.emit('                val finalType = rawType ?: ProductQueryType.Subs');
     this.emit('                require(finalType == ProductQueryType.Subs) { "type must be SUBS when requestSubscription is provided" }');
     this.emit(
-      '                return RequestPurchaseProps(request = request, type = finalType, useAlternativeBilling = useAlternativeBilling)',
+      '                return RequestPurchaseProps(request = request, type = finalType)',
     );
     this.emit('            }');
     this.emit('            error("RequestPurchaseProps branch validation failed")');
@@ -801,12 +797,10 @@ export class KotlinPlugin extends CodegenPlugin {
     this.emit('        is Request.Purchase -> mapOf(');
     this.emit('            "requestPurchase" to request.value.toJson(),');
     this.emit('            "type" to type.toJson(),');
-    this.emit('            "useAlternativeBilling" to useAlternativeBilling,');
     this.emit('        )');
     this.emit('        is Request.Subscription -> mapOf(');
     this.emit('            "requestSubscription" to request.value.toJson(),');
     this.emit('            "type" to type.toJson(),');
-    this.emit('            "useAlternativeBilling" to useAlternativeBilling,');
     this.emit('        )');
     this.emit('    }');
     this.emit('');

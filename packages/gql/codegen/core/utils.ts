@@ -410,12 +410,3 @@ export const PLATFORM_TYPE_DEFAULTS: Record<string, { platform: string; type: st
   ProductSubscriptionIOS: { platform: 'ios', type: 'subs' },
   ProductSubscriptionAndroid: { platform: 'android', type: 'subs' },
 };
-
-// ============================================================================
-// Legacy Aliases for ErrorCode
-// ============================================================================
-
-export const ERROR_CODE_LEGACY_ALIASES: Record<string, string> = {
-  'receipt-failed': 'purchaseVerificationFailed',
-  ReceiptFailed: 'purchaseVerificationFailed',
-};

@@ -58,31 +58,6 @@ type SubscriptionPeriodValueIOS {
   value: Int!
 }
 
-"""
-iOS subscription offer details.
-@see https://openiap.dev/docs/types/subscription-offer
-"""
-type SubscriptionOfferIOS
-  @openiapDeprecated(
-    reason: "Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0."
-  ) {
-  displayPrice: String!
-  id: ID!
-  paymentMode: PaymentModeIOS!
-  period: SubscriptionPeriodValueIOS!
-  periodCount: Int!
-  price: Float!
-  type: SubscriptionOfferTypeIOS!
-}
-
-type SubscriptionInfoIOS {
-  introductoryOffer: SubscriptionOfferIOS
-  pricingTerms: [SubscriptionPricingTermsIOS!]
-  promotionalOffers: [SubscriptionOfferIOS!]
-  subscriptionGroupId: String!
-  subscriptionPeriod: SubscriptionPeriodValueIOS!
-}
-
 type SubscriptionCommitmentInfoIOS {
   displayPrice: String!
   period: SubscriptionPeriodValueIOS!
@@ -133,11 +108,6 @@ type ProductIOS implements ProductCommon {
   """
   pricingTermsIOS: [SubscriptionPricingTermsIOS!]
 
-  # Deprecated platform-specific field
-  subscriptionInfoIOS: SubscriptionInfoIOS
-    @deprecated(
-      reason: "Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0."
-    )
 }
 
 # iOS subscription product
@@ -179,17 +149,6 @@ type ProductSubscriptionIOS implements ProductCommon {
   """
   subscriptionGroupIdIOS: String
 
-  # Deprecated legacy iOS fields
-  subscriptionInfoIOS: SubscriptionInfoIOS
-    @deprecated(
-      reason: "Use subscriptionOffers for offer metadata and subscriptionGroupIdIOS for the App Store subscription group identifier. Scheduled for removal in OpenIAP 3.0."
-    )
-
-  discountsIOS: [DiscountIOS!]
-    @deprecated(
-      reason: "Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0."
-    )
-
   introductoryPriceIOS: String
   introductoryPriceAsAmountIOS: String
   introductoryPricePaymentModeIOS: PaymentModeIOS!
@@ -197,24 +156,6 @@ type ProductSubscriptionIOS implements ProductCommon {
   introductoryPriceSubscriptionPeriodIOS: SubscriptionPeriodIOS
   subscriptionPeriodNumberIOS: String
   subscriptionPeriodUnitIOS: SubscriptionPeriodIOS
-}
-
-"""
-Discount information returned from the store.
-@see https://openiap.dev/docs/types/subscription-offer
-"""
-type DiscountIOS
-  @openiapDeprecated(
-    reason: "Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0."
-  ) {
-  identifier: String!
-  type: String!
-  numberOfPeriods: Int!
-  price: String!
-  priceAmount: Float!
-  paymentMode: PaymentModeIOS!
-  subscriptionPeriod: String!
-  localizedPrice: String
 }
 
 # iOS purchase details
@@ -232,7 +173,6 @@ type PurchaseIOS implements PurchaseCommon {
   Store where purchase was made
   """
   store: IapStore!
-  platform: IapPlatform! @deprecated(reason: "Use store instead. Scheduled for removal in OpenIAP 3.0.")
   quantity: Int!
   purchaseState: PurchaseState!
   isAutoRenewing: Boolean!
@@ -532,36 +472,6 @@ type RenewalCommitmentInfoIOS {
 type SubscriptionStatusIOS {
   state: String!
   renewalInfo: RenewalInfoIOS
-}
-
-"""
-iOS DiscountOffer (output type).
-@see https://openiap.dev/docs/types/subscription-offer
-"""
-type DiscountOfferIOS
-  @openiapDeprecated(
-    reason: "Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0."
-  ) {
-  """
-  Discount identifier
-  """
-  identifier: String!
-  """
-  Key identifier for validation
-  """
-  keyIdentifier: String!
-  """
-  Cryptographic nonce
-  """
-  nonce: String!
-  """
-  Signature for validation
-  """
-  signature: String!
-  """
-  Timestamp of discount offer
-  """
-  timestamp: Float!
 }
 
 # StoreKit entitlement (iOS 15+)

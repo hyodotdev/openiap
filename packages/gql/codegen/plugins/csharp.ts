@@ -576,7 +576,7 @@ export class CSharpPlugin extends CodegenPlugin {
   }
 
   private generateRequestPurchaseProps(irInput: IRInput): void {
-    const [requestPurchase, requestSubscription, type, useAlternativeBilling] = this.requireCustomInputFields(irInput);
+    const [requestPurchase, requestSubscription, type] = this.requireCustomInputFields(irInput);
     this.emitDoc(irInput.description);
     this.emit('public sealed record RequestPurchaseProps : IJsonOnDeserialized');
     this.emit('{');
@@ -591,10 +591,6 @@ export class CSharpPlugin extends CodegenPlugin {
     this.emitDoc(type.description, '    ');
     this.emit('    [JsonPropertyName("type")]');
     this.emit('    public required ProductQueryType Type { get; init; }');
-    this.emit('');
-    this.emitDoc(useAlternativeBilling.description, '    ');
-    this.emit('    [JsonPropertyName("useAlternativeBilling")]');
-    this.emit('    public bool? UseAlternativeBilling { get; init; }');
     this.emit('');
     this.emit('    public void Validate()');
     this.emit('    {');
