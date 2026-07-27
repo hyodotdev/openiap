@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-07-26T17:17:44.905Z
+> Generated: 2026-07-27T13:04:16.611Z
 
 ## Table of Contents
 1. Installation
@@ -31,22 +31,22 @@ cd ios && pod install
 ### Swift (iOS/macOS)
 ```swift
 // Swift Package Manager
-.package(url: "https://github.com/hyodotdev/openiap.git", from: "2.4.3")
+.package(url: "https://github.com/hyodotdev/openiap.git", from: "2.4.4")
 
 // CocoaPods
-pod 'openiap', '~> 2.4.3'
+pod 'openiap', '~> 2.4.4'
 ```
 
 ### Kotlin (Android)
 ```kotlin
 // Gradle (build.gradle.kts)
-implementation("io.github.hyochan.openiap:openiap-google:2.5.0")
+implementation("io.github.hyochan.openiap:openiap-google:2.5.1")
 
 // For Meta Horizon OS
-implementation("io.github.hyochan.openiap:openiap-google-horizon:2.5.0")
+implementation("io.github.hyochan.openiap:openiap-google-horizon:2.5.1")
 
 // For Fire OS (Amazon Appstore)
-implementation("io.github.hyochan.openiap:openiap-google-amazon:2.5.0")
+implementation("io.github.hyochan.openiap:openiap-google-amazon:2.5.1")
 ```
 
 ### Flutter
@@ -55,13 +55,13 @@ flutter pub add flutter_inapp_purchase
 ```
 
 ### Godot
-Download `godot-iap-2.6.0.zip` from GitHub Releases, extract it to
+Download `godot-iap-2.6.1.zip` from GitHub Releases, extract it to
 `addons/godot-iap/`, then enable the plugin in Project Settings.
 
 ### Kotlin Multiplatform
 ```kotlin
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:2.7.0")
+    implementation("io.github.hyochan:kmp-iap:2.7.1")
 }
 ```
 
@@ -73,7 +73,7 @@ https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap
 dotnet add package OpenIap.Maui
 ```
 
-Current NuGet package version: 1.4.0
+Current NuGet package version: 1.4.1
 
 Requires .NET 9 or .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
 
