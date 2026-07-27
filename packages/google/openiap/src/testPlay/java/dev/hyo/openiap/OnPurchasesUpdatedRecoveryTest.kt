@@ -150,6 +150,8 @@ class OnPurchasesUpdatedRecoveryTest {
             billingResult(BillingClient.BillingResponseCode.NETWORK_ERROR, "network lost"),
             null,
         )
+        assertEquals(1, client.queryPurchasesCalls.get())
+        assertTrue("retry result must remain pending until the delay elapses", results.isEmpty())
         repeat(purchaseResponseCodes.lastIndex) {
             ShadowLooper.runMainLooperToNextTask()
         }
@@ -197,6 +199,8 @@ class OnPurchasesUpdatedRecoveryTest {
             billingResult(BillingClient.BillingResponseCode.NETWORK_ERROR, "network lost"),
             null,
         )
+        assertEquals(1, client.queryPurchasesCalls.get())
+        assertTrue("retry result must remain pending until the delay elapses", results.isEmpty())
         repeat(purchaseResponseCodes.lastIndex) {
             ShadowLooper.runMainLooperToNextTask()
         }
