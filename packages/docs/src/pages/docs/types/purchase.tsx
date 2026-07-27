@@ -657,13 +657,9 @@ function Purchase() {
                     margin: '1rem 0',
                   }}
                 >
-                  <strong>Flutter migration:</strong>{' '}
-                  <code>originalJsonAndroid</code> is not a public Purchase
-                  field. The planned Flutter 9.6.1 patch accepts it only as a
-                  fallback input alias, prefers <code>dataAndroid</code>, and
-                  removes the alias in{' '}
-                  <code>flutter_inapp_purchase 10.0.0</code>. Custom adapters
-                  and fixtures should use <code>dataAndroid</code> now. See{' '}
+                  <strong>Flutter 10:</strong> only <code>dataAndroid</code> is
+                  accepted. Custom adapters and fixtures must use the canonical
+                  field. See{' '}
                   <Link to="/docs/updates/deprecations#flutter-original-json-android">
                     the migration schedule
                   </Link>

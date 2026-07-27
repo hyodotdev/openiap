@@ -140,8 +140,8 @@ iap.set_purchase_updated_listener_options(options)`}</CodeBlock>
 const subscription = purchaseUpdatedListener(async (purchase) => {
   console.log('Purchase updated:', purchase.productId);
 
-  // Validate the receipt
-  const isValid = await validateReceipt(purchase);
+  // Verify with your backend or IAPKit before granting content.
+  const isValid = await verifyPurchaseOnServer(purchase);
 
   if (isValid) {
     // Deliver content to user
@@ -162,8 +162,8 @@ let subscription = OpenIapModule.shared.purchaseUpdatedListener { purchase in
     Task {
         print("Purchase updated: \\(purchase.productId)")
 
-        // Validate and deliver
-        if await validateReceipt(purchase) {
+        // Verify and deliver
+        if await verifyPurchaseOnServer(purchase) {
             await deliverProduct(purchase.productId)
             try await OpenIapModule.shared.finishTransaction(
                 purchase: purchase,
@@ -185,8 +185,8 @@ lifecycleScope.launch {
         purchase ?: return@collect
         println("Purchase updated: \${purchase.productId}")
 
-        // Validate and deliver
-        if (validateReceipt(purchase)) {
+        // Verify and deliver
+        if (verifyPurchaseOnServer(purchase)) {
             deliverProduct(purchase.productId)
             openIapStore.finishTransaction(purchase, isConsumable = false)
         }
@@ -203,8 +203,8 @@ lifecycleScope.launch {
     kmpIAP.purchaseUpdatedListener.collect { purchase ->
         println("Purchase updated: \${purchase.productId}")
 
-        // Validate and deliver
-        if (validateReceipt(purchase)) {
+        // Verify and deliver
+        if (verifyPurchaseOnServer(purchase)) {
             deliverProduct(purchase.productId)
             kmpIAP.finishTransaction(purchase, isConsumable = false)
         }
@@ -217,8 +217,8 @@ lifecycleScope.launch {
 final subscription = FlutterInappPurchase.instance.purchaseUpdatedListener.listen((purchase) async {
   print('Purchase updated: \${purchase.productId}');
 
-  // Validate the receipt
-  final isValid = await validateReceipt(purchase);
+  // Verify with your backend or IAPKit before granting content.
+  final isValid = await verifyPurchaseOnServer(purchase);
 
   if (isValid) {
     // Deliver content to user
@@ -243,8 +243,8 @@ var subscription = OpenIapClient.Instance.PurchaseUpdated.Subscribe(async purcha
         Console.WriteLine($"Purchase updated: {purchaseInfo.ProductId}");
     }
 
-    // Validate and deliver
-    if (await ValidateReceiptAsync(purchase))
+    // Verify and deliver
+    if (await VerifyPurchaseOnServerAsync(purchase))
     {
         if (purchase is PurchaseCommon validPurchase)
         {
@@ -267,8 +267,8 @@ iap.purchase_updated.connect(_on_purchase_updated)
 func _on_purchase_updated(purchase: Purchase):
     print("Purchase updated: %s" % purchase.product_id)
 
-    # Validate the receipt
-    var is_valid = await validate_receipt(purchase)
+    # Verify with your backend or IAPKit before granting content.
+    var is_valid = await verify_purchase_on_server(purchase)
 
     if is_valid:
         # Deliver content to user

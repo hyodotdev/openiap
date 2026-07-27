@@ -316,7 +316,9 @@ public sealed record DeveloperProvidedBillingDetailsAndroid
           <tr>
             <td>Setup</td>
             <td>
-              <code>AlternativeBillingModeAndroid.UserChoice</code>
+              <code>
+                enableBillingProgram(BillingProgramAndroid.UserChoiceBilling)
+              </code>
             </td>
             <td>
               <code>enableBillingProgram(EXTERNAL_PAYMENTS)</code> or{' '}

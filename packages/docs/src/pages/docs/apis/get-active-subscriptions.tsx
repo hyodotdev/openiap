@@ -118,7 +118,7 @@ function GetActiveSubscriptions() {
           — Subscription product identifier.
         </li>
         <li>
-          <code>basePlanId</code>{' '}
+          <code>basePlanIdAndroid</code>{' '}
           <em>
             (optional, <code>string</code>)
           </em>{' '}
@@ -131,20 +131,6 @@ function GetActiveSubscriptions() {
           </em>{' '}
           — <code>true</code> while the subscription is in a paying or grace
           state.
-        </li>
-        <li>
-          <code style={{ textDecoration: 'line-through' }}>willExpireSoon</code>{' '}
-          <em>
-            (optional, <code>boolean</code>)
-          </em>{' '}
-          — <strong>Deprecated.</strong> Use <code>daysUntilExpirationIOS</code>{' '}
-          for precise iOS expiration handling. The deprecated schema field is
-          scheduled for removal in OpenIAP 3.0; framework copies remain through
-          the package-specific majors in the{' '}
-          <Link to="/docs/updates/deprecations#removal-schedule">
-            deprecation schedule
-          </Link>
-          .
         </li>
         <li>
           <code>expirationDateIOS</code>{' '}

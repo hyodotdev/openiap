@@ -118,25 +118,6 @@ function RequestPurchaseProps() {
               </td>
               <td>Purchase type discriminator</td>
             </tr>
-            <tr>
-              <td>
-                <code>useAlternativeBilling</code>
-              </td>
-              <td>
-                <code>boolean?</code>
-              </td>
-              <td>
-                <strong>Deprecated.</strong> Use{' '}
-                <Link to="/docs/apis/android/enable-billing-program-android">
-                  <code>enableBillingProgramAndroid</code>
-                </Link>{' '}
-                in{' '}
-                <Link to="/docs/types/alternative-billing-types">
-                  <code>InitConnectionConfig</code>
-                </Link>{' '}
-                instead. This flag only logs debug info and has no effect.
-              </td>
-            </tr>
           </tbody>
         </table>
 
@@ -216,7 +197,6 @@ await FlutterInappPurchase.instance.requestPurchase(
   RequestPurchaseProps.inApp((
     apple: RequestPurchaseIosProps(sku: 'premium'),
     google: RequestPurchaseAndroidProps(skus: ['premium']),
-    useAlternativeBilling: null,
   )),
 );
 
@@ -225,7 +205,6 @@ await FlutterInappPurchase.instance.requestPurchase(
   RequestPurchaseProps.subs((
     apple: RequestSubscriptionIosProps(sku: 'monthly_sub'),
     google: RequestSubscriptionAndroidProps(skus: ['monthly_sub']),
-    useAlternativeBilling: null,
   )),
 );`}</CodeBlock>
             ),
@@ -487,7 +466,7 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                       <td>
                         Offer token for one-time purchase discounts (8.0+). Pass
                         the <code>offerToken</code> from{' '}
-                        <code>oneTimePurchaseOfferDetailsAndroid</code> or{' '}
+                        <code>discountOffers</code> or{' '}
                         <code>discountOffers</code> to apply a discount.
                       </td>
                     </tr>

@@ -38,8 +38,8 @@ function Discount() {
           <Link to="/docs/types/discount-offer">DiscountOffer</Link> exposes
           common price fields and Android-only details through the{' '}
           <code>Android</code> suffix (for example,{' '}
-          <code>offerTokenAndroid</code>). The older{' '}
-          <code>oneTimePurchaseOfferDetailsAndroid</code> field is deprecated.
+          <code>offerTokenAndroid</code>). The older <code>discountOffers</code>{' '}
+          field is deprecated.
         </p>
       </div>
 

@@ -113,7 +113,7 @@ type RequestPurchaseProps =
             <CodeBlock language="csharp">{`Task<RequestPurchaseResult?> RequestPurchaseAsync(RequestPurchaseProps @params);
 
 // Result is event-based — listen via OpenIapClient.Instance.PurchaseUpdated /
-// PurchaseError. The returned RequestPurchaseResult is for legacy consumers.`}</CodeBlock>
+// PurchaseError. The return value describes the request dispatch result.`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -362,7 +362,6 @@ kmpIAP.requestPurchase {
     apple: RequestPurchaseIosProps(sku: 'com.app.premium'),
     google: RequestPurchaseAndroidProps(skus: ['com.app.premium']),
     // Compatibility-only placeholder required by the generated 9.x record.
-    useAlternativeBilling: null,
   )),
 );
 
@@ -424,22 +423,6 @@ await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new Reques
           ),
         }}
       </LanguageTabs>
-
-      <div className="alert-card alert-card--warning">
-        <p>
-          <strong>Flutter 9.x record compatibility:</strong>{' '}
-          <code>useAlternativeBilling: null</code> in the Dart example is only a
-          required placeholder in the generated positional record. It does not
-          enable alternative billing. Prefer the builder DSL, or configure{' '}
-          <code>enableBillingProgramAndroid</code> on{' '}
-          <code>initConnection</code>. The deprecated field is removed in{' '}
-          <code>flutter_inapp_purchase 10.0.0</code>; see the{' '}
-          <Link to="/docs/updates/deprecations#flutter-10-package-migrations">
-            Flutter 10 migration notes
-          </Link>
-          .
-        </p>
-      </div>
 
       <div className="alert-card alert-card--warning">
         <p>

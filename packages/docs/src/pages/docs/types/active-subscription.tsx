@@ -104,21 +104,6 @@ function ActiveSubscription() {
             </tr>
             <tr>
               <td>
-                <code style={{ textDecoration: 'line-through' }}>
-                  willExpireSoon
-                </code>
-              </td>
-              <td>
-                <code>boolean?</code>
-              </td>
-              <td>
-                <strong>Deprecated.</strong> iOS only — returns null on Android.
-                Use <code>daysUntilExpirationIOS</code> for more precise
-                control.
-              </td>
-            </tr>
-            <tr>
-              <td>
                 <code>transactionId</code>
               </td>
               <td>

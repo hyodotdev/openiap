@@ -28,7 +28,6 @@ interface CodeBlockProps {
 const TYPE_LINKS: Record<string, string> = {
   // Cross-platform
   ActiveSubscription: '/docs/types/active-subscription',
-  AlternativeBillingModeAndroid: '/docs/types/alternative-billing-types',
   AlternativeBillingTypes: '/docs/types/alternative-billing-types',
   BillingChoiceImageLayoutAndroid: '/docs/types/billing-programs',
   BillingChoiceInfoAndroid: '/docs/types/billing-programs',
@@ -105,9 +104,6 @@ const TYPE_LINKS: Record<string, string> = {
   // iOS-only
   AppTransaction: '/docs/types/ios/app-transaction-ios',
   AppTransactionIOS: '/docs/types/ios/app-transaction-ios',
-  Discount: '/docs/types/ios/discount-ios',
-  DiscountIOS: '/docs/types/ios/discount-ios',
-  DiscountOfferIOS: '/docs/types/ios/discount-offer-ios',
   PaymentMode: '/docs/types/ios/payment-mode-ios',
   PaymentModeIOS: '/docs/types/ios/payment-mode-ios',
   RenewalInfo: '/docs/types/ios/renewal-info-ios',
@@ -127,10 +123,7 @@ const TYPE_LINKS: Record<string, string> = {
   TransactionCommitmentInfoIOS:
     '/docs/types/ios/subscription-billing-plan-ios#transaction-commitment-info-ios',
   // Android-only
-  OneTimePurchaseOfferDetailAndroid:
-    '/docs/types/android/one-time-purchase-offer-detail-android',
   PricingPhaseAndroid: '/docs/types/android/pricing-phase-android',
-  SubscriptionOfferAndroid: '/docs/types/android/subscription-offer-android',
 };
 
 // Wraps a class-name token in an anchor when it matches a known type.

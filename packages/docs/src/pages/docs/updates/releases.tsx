@@ -364,6 +364,179 @@ function Releases() {
       ),
     },
 
+    // July 27, 2026 - OpenIAP major API cleanup
+    {
+      id: 'openiap-major-api-cleanup-2026-07-27',
+      date: new Date('2026-07-27'),
+      element: (
+        <div key="openiap-major-api-cleanup-2026-07-27" style={noteCardStyle}>
+          <AnchorLink id="openiap-major-api-cleanup-2026-07-27" level="h4">
+            July 27, 2026 - OpenIAP major API cleanup
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes the coordinated major release that removes every
+            OpenIAP-owned API, type, field, enum value, wrapper, and custom-wire
+            alias scheduled in the 2.x and current framework majors. The
+            resulting contracts use one canonical purchase, verification,
+            billing-program, offer, and platform-request vocabulary across all
+            supported languages.
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Common changes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              Purchase requests use <code>apple</code> and <code>google</code>;
+              purchase results use <code>store</code>, explicit transaction
+              identity, standardized <code>subscriptionOffers</code> and{' '}
+              <code>discountOffers</code>, and the current billing-program
+              models.
+            </li>
+            <li>
+              Receipt-validation aliases are removed in favor of{' '}
+              <code>verifyPurchase</code>. The old alternative-billing
+              operations are replaced by availability, reporting-details, and
+              external-link Billing Programs APIs.
+            </li>
+            <li>
+              Removed inputs fail closed or are ignored instead of silently
+              selecting compatibility behavior. Generated Swift, Kotlin,
+              TypeScript, Dart, GDScript, and C# declarations contain no
+              scheduled legacy members or deprecation shims.
+            </li>
+            <li>
+              Hosted IAPKit verification, scoped publishable and secret keys,
+              client payloads, catalog reads, and inbound store webhooks keep
+              their existing wire contracts. The removed outbound IAPKit-to-app
+              SSE surface is not restored.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Shared spec and native packages
+          </h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>OpenIAP Spec 3.0.0</strong> - removes deprecated
+              validation and promoted-purchase mutations, platform request
+              aliases, old offer and alternative-billing models, compatibility
+              error codes, and duplicate purchase fields.
+            </li>
+            <li>
+              <strong>openiap-apple 3.0.0</strong> - removes receipt-validation
+              type aliases, old Objective-C selectors and overloads, storefront
+              and promoted-purchase wrappers, legacy version labels, and
+              purchase-ID fallback decoding.
+            </li>
+            <li>
+              <strong>openiap-google 3.0.0</strong> - removes legacy
+              alternative-billing constructors, listeners, manifest keys,
+              logging shortcuts, error aliases, and compatibility methods while
+              retaining the current Play, Amazon, and Horizon flows.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>react-native-iap 16.0.0</strong> - removes deprecated hook
+              fields, purchase helpers, request envelopes, product-type
+              spelling, promoted-purchase shortcut, receipt helper, and native
+              transaction-ID fallback.
+            </li>
+            <li>
+              <strong>expo-iap 5.0.0</strong> - removes the matching JavaScript
+              compatibility APIs plus old Expo config keys and Android
+              custom-channel payload aliases.
+            </li>
+            <li>
+              <strong>flutter_inapp_purchase 10.0.0</strong> - removes
+              deprecated Dart classes, streams, builders, methods, platform
+              fields, and all legacy MethodChannel names and payload
+              normalizers.
+            </li>
+            <li>
+              <strong>godot-iap 3.0.0</strong> - removes deprecated GDScript
+              methods, alternate product spellings, raw request envelopes,
+              flattened IAPKit fields, and native bridge aliases.
+            </li>
+            <li>
+              <strong>kmp-iap 3.0.0</strong> - removes deprecated common and
+              platform methods, DSL properties, generated request aliases, and
+              billing configuration fields while preserving upstream native
+              response normalization.
+            </li>
+            <li>
+              <strong>OpenIap.Maui 2.0.0</strong> - removes the legacy{' '}
+              <code>Iap</code> facade, promoted-purchase wrapper, generated
+              compatibility types, and obsolete native bindings.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Migration notes</h5>
+          <p style={{ fontSize: '0.9rem' }}>
+            Review the complete{' '}
+            <Link to="/docs/updates/deprecations">
+              Deprecations &amp; 3.0 Migration catalog
+            </Link>{' '}
+            before upgrading. Existing bookmarks for removed API pages redirect
+            to their canonical replacement documentation, but the removed
+            runtime symbols themselves have no compatibility stubs.
+          </p>
+
+          <div
+            style={{
+              marginTop: '1rem',
+              padding: '1rem',
+              background: 'rgba(220, 104, 67, 0.1)',
+              borderLeft: '4px solid var(--accent-color)',
+              borderRadius: '0.5rem',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem' }}
+            >
+              {majorApiRemovalReleases.map(([label, tag]) => (
+                <li key={tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // July 25, 2026 - IAPKit security and SDK patch train
     {
       id: 'iapkit-security-cross-sdk-payload-integrity-2026-07-25',

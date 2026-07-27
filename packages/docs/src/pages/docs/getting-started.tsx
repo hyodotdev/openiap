@@ -307,7 +307,6 @@ await iap.requestPurchase(
   RequestPurchaseProps.inApp((
     apple: RequestPurchaseIosProps(sku: 'com.app.premium'),
     google: RequestPurchaseAndroidProps(skus: ['com.app.premium']),
-    useAlternativeBilling: null,
   )),
 );
 

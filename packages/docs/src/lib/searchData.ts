@@ -137,16 +137,6 @@ export const apiData: ApiItem[] = [
     returns: 'VerifyPurchaseWithProviderResult!',
     path: '/docs/features/validation#verify-purchase-with-provider',
   },
-  {
-    id: 'validate-receipt',
-    title: 'validateReceipt',
-    category: 'Validation',
-    description:
-      'Deprecated. Use verifyPurchase instead. Cross-platform receipt validation entry point.',
-    parameters: 'options: ReceiptValidationProps!',
-    returns: 'ReceiptValidationResult!',
-    path: '/docs/apis/validate-receipt',
-  },
 
   // iOS Specific
   {
@@ -175,15 +165,6 @@ export const apiData: ApiItem[] = [
     parameters: '',
     returns: 'ProductIOS',
     path: '/docs/apis/ios/get-promoted-product-ios',
-  },
-  {
-    id: 'request-purchase-on-promoted-product-ios',
-    title: 'requestPurchaseOnPromotedProductIOS',
-    category: 'iOS Specific',
-    description: 'Purchase a promoted product (iOS 11+)',
-    parameters: '',
-    returns: 'Boolean!',
-    path: '/docs/apis/ios/request-purchase-on-promoted-product-ios',
   },
   {
     id: 'get-pending-transactions-ios',
@@ -313,24 +294,6 @@ export const apiData: ApiItem[] = [
     path: '/docs/apis/ios/get-all-transactions-ios',
   },
   {
-    id: 'get-storefront-ios',
-    title: 'getStorefrontIOS',
-    category: 'iOS Specific',
-    description: 'Deprecated. Use getStorefront() (cross-platform) instead.',
-    parameters: '',
-    returns: 'String!',
-    path: '/docs/apis/ios/get-storefront-ios',
-  },
-  {
-    id: 'validate-receipt-ios',
-    title: 'validateReceiptIOS',
-    category: 'iOS Specific',
-    description: 'Deprecated. Use verifyPurchase instead.',
-    parameters: 'options: ReceiptValidationProps!',
-    returns: 'ReceiptValidationResultIOS!',
-    path: '/docs/apis/ios/validate-receipt-ios',
-  },
-  {
     id: 'can-present-external-purchase-notice-ios',
     title: 'canPresentExternalPurchaseNoticeIOS',
     category: 'iOS Specific',
@@ -407,36 +370,6 @@ export const apiData: ApiItem[] = [
     parameters: 'purchaseToken: String!',
     returns: 'Boolean!',
     path: '/docs/apis/android/consume-purchase-android',
-  },
-  {
-    id: 'check-alternative-billing-availability-android',
-    title: 'checkAlternativeBillingAvailabilityAndroid',
-    category: 'Android Specific',
-    description:
-      'Check if alternative billing is available (Step 1 of alternative billing)',
-    parameters: '',
-    returns: 'Boolean!',
-    path: '/docs/apis/android/check-alternative-billing-availability-android',
-  },
-  {
-    id: 'show-alternative-billing-dialog-android',
-    title: 'showAlternativeBillingDialogAndroid',
-    category: 'Android Specific',
-    description:
-      'Show alternative billing dialog to user (Step 2 of alternative billing)',
-    parameters: '',
-    returns: 'Boolean!',
-    path: '/docs/apis/android/show-alternative-billing-dialog-android',
-  },
-  {
-    id: 'create-alternative-billing-token-android',
-    title: 'createAlternativeBillingTokenAndroid',
-    category: 'Android Specific',
-    description:
-      'Create external transaction token for Google Play (Step 3 of alternative billing)',
-    parameters: '',
-    returns: 'String',
-    path: '/docs/apis/android/create-alternative-billing-token-android',
   },
   {
     id: 'enable-billing-program-android',
@@ -678,7 +611,7 @@ export const apiData: ApiItem[] = [
     title: 'Purchase',
     category: 'Types',
     description:
-      'Purchase transaction: id, productId, transactionDate, transactionReceipt',
+      'Purchase transaction: id, productId, transactionDate, purchaseToken',
     path: '/docs/types/purchase#purchase',
   },
   {
@@ -726,15 +659,14 @@ export const apiData: ApiItem[] = [
     title: 'iOS Types',
     category: 'Types',
     description:
-      'DiscountOfferIOS, SubscriptionStatusIOS, PaymentMode, AppTransaction, SubscriptionBillingPlanTypeIOS',
+      'SubscriptionOffer, SubscriptionStatusIOS, PaymentMode, AppTransaction, SubscriptionBillingPlanTypeIOS',
     path: '/docs/types#ios-types',
   },
   {
     id: 'types-android',
     title: 'Android Types',
     category: 'Types',
-    description:
-      'ProductSubscriptionAndroidOfferDetails, PricingPhase, PricingPhasesAndroid',
+    description: 'SubscriptionOffer, PricingPhase, PricingPhasesAndroid',
     path: '/docs/types#android-types',
   },
   {
@@ -742,7 +674,7 @@ export const apiData: ApiItem[] = [
     title: 'Alternative Billing Types',
     category: 'Types',
     description:
-      'AlternativeBillingModeAndroid, InitConnectionConfig, External Purchase Link',
+      'BillingProgramAndroid, InitConnectionConfig, External Purchase Link',
     path: '/docs/types/alternative-billing-types',
   },
   {
@@ -763,14 +695,6 @@ export const apiData: ApiItem[] = [
   },
 
   // iOS-Specific Types (from types/ios.tsx)
-  {
-    id: 'discount-offer-ios',
-    title: 'DiscountOfferIOS',
-    category: 'Types (iOS)',
-    description:
-      'Deprecated iOS promotional offer: identifier, keyIdentifier, nonce, signature, timestamp',
-    path: '/docs/types/ios/discount-offer-ios',
-  },
   {
     id: 'discount',
     title: 'Discount',
@@ -828,14 +752,6 @@ export const apiData: ApiItem[] = [
 
   // Android-Specific Types (from types/android.tsx)
   {
-    id: 'subscription-offer-android',
-    title: 'ProductSubscriptionAndroidOfferDetails',
-    category: 'Types (Android)',
-    description:
-      'Deprecated Android subscription offer details with Play Billing offer tokens',
-    path: '/docs/types/android/subscription-offer-android',
-  },
-  {
     id: 'pricing-phase',
     title: 'PricingPhase',
     category: 'Types (Android)',
@@ -853,18 +769,11 @@ export const apiData: ApiItem[] = [
 
   // Alternative Billing Types (from types/alternative.tsx)
   {
-    id: 'alternative-billing-mode-android',
-    title: 'AlternativeBillingModeAndroid',
-    category: 'Types (Android)',
-    description: 'Android billing mode: NONE, USER_CHOICE, ALTERNATIVE_ONLY',
-    path: '/docs/types/alternative-billing-types',
-  },
-  {
     id: 'init-connection-config',
     title: 'InitConnectionConfig',
     category: 'Types',
     description:
-      'Configuration for initConnection: alternativeBillingModeAndroid',
+      'Configuration for initConnection: enableBillingProgramAndroid',
     path: '/docs/types/alternative-billing-types',
   },
   {

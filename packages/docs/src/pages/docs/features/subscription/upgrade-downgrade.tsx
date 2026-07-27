@@ -1674,7 +1674,6 @@ if (currentSub != null) {
                 SubscriptionReplacementModeAndroid.WithTimeProration,
           ),
       ),
-      useAlternativeBilling: null,
     )),
   );
 
@@ -1928,7 +1927,6 @@ if (premiumPurchase != null) {
             replacementMode: SubscriptionReplacementModeAndroid.Deferred,
           ),
       ),
-      useAlternativeBilling: null,
     )),
   );
 
@@ -2132,7 +2130,6 @@ if (currentSub != null) {
             replacementMode: SubscriptionReplacementModeAndroid.WithTimeProration,
           ),
       ),
-      useAlternativeBilling: null,
     )),
   );
 
@@ -2600,7 +2597,6 @@ Future<void> changeSubscription(
               replacementMode: replacementMode,
             ),
         ),
-        useAlternativeBilling: null,
       )),
     );
 

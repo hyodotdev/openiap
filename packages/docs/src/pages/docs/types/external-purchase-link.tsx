@@ -528,8 +528,7 @@ suspend fun handleExternalPurchase(externalUrl: String) {
     }
 }
 
-// For Android: Use alternative billing APIs instead
-// See: checkAlternativeBillingAvailability, showAlternativeBillingDialog`}</CodeBlock>
+// For Android, use the Billing Programs APIs instead.`}</CodeBlock>
             ),
             dart: (
               <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
@@ -599,7 +598,7 @@ async Task HandleExternalPurchaseAsync(string externalUrl)
     }
 }
 
-// For Android, use alternative billing APIs instead.`}</CodeBlock>
+// For Android, use the Billing Programs APIs instead.`}</CodeBlock>
             ),
             gdscript: (
               <CodeBlock language="gdscript">{`func handle_external_purchase(external_url: String):
@@ -663,20 +662,19 @@ async Task HandleExternalPurchaseAsync(string externalUrl)
 
         <blockquote className="info-note">
           <p>
-            <strong>Android alternative:</strong> For Android, use the
-            alternative billing APIs (
-            <Link to="/docs/apis/android/check-alternative-billing-availability-android">
-              <code>checkAlternativeBillingAvailabilityAndroid</code>
+            <strong>Android alternative:</strong> For Android, use{' '}
+            <Link to="/docs/apis/android/is-billing-program-available-android">
+              <code>isBillingProgramAvailableAndroid</code>
             </Link>
             ,{' '}
-            <Link to="/docs/apis/android/show-alternative-billing-dialog-android">
-              <code>showAlternativeBillingDialogAndroid</code>
+            <Link to="/docs/apis/android/launch-external-link-android">
+              <code>launchExternalLinkAndroid</code>
             </Link>
-            ,{' '}
-            <Link to="/docs/apis/android/create-alternative-billing-token-android">
-              <code>createAlternativeBillingTokenAndroid</code>
+            , and{' '}
+            <Link to="/docs/apis/android/create-billing-program-reporting-details-android">
+              <code>createBillingProgramReportingDetailsAndroid</code>
             </Link>
-            ) instead.
+            .
           </p>
         </blockquote>
       </section>

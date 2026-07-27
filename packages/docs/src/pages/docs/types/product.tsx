@@ -204,22 +204,6 @@ function Product() {
                     </tr>
                     <tr>
                       <td>
-                        <code style={{ textDecoration: 'line-through' }}>
-                          subscriptionInfoIOS
-                        </code>
-                      </td>
-                      <td>
-                        <strong>Deprecated.</strong> Use{' '}
-                        <code>subscriptionOffers</code> instead. Subscription
-                        metadata (only for subscriptions). Contains:{' '}
-                        <code>subscriptionGroupId</code>,{' '}
-                        <code>subscriptionPeriod</code> (unit and value),{' '}
-                        <code>introductoryOffer</code>,{' '}
-                        <code>promotionalOffers</code>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
                         <code>subscriptionOffers</code>
                       </td>
                       <td>
@@ -276,7 +260,7 @@ function Product() {
                     <tr>
                       <td>
                         <code style={{ textDecoration: 'line-through' }}>
-                          oneTimePurchaseOfferDetailsAndroid
+                          discountOffers
                         </code>
                       </td>
                       <td>
@@ -291,7 +275,7 @@ function Product() {
                     </tr>
                     <tr>
                       <td>
-                        <code>subscriptionOfferDetailsAndroid</code>
+                        <code>subscriptionOffers</code>
                       </td>
                       <td>
                         For subscriptions, array of offer details. Contains:{' '}

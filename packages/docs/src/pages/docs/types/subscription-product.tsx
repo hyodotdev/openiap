@@ -140,22 +140,6 @@ function SubscriptionProduct() {
                   <tbody>
                     <tr>
                       <td>
-                        <code style={{ textDecoration: 'line-through' }}>
-                          discountsIOS
-                        </code>
-                      </td>
-                      <td>
-                        <strong>Deprecated.</strong> Use{' '}
-                        <code>subscriptionOffers</code> instead. Array of
-                        available discounts. Each contains:{' '}
-                        <code>identifier</code>, <code>type</code>,{' '}
-                        <code>numberOfPeriods</code>, <code>price</code>,{' '}
-                        <code>localizedPrice</code>, <code>paymentMode</code>,{' '}
-                        <code>subscriptionPeriod</code>
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
                         <code>introductoryPriceIOS</code>
                       </td>
                       <td>Formatted introductory price (e.g., "$0.99")</td>
@@ -298,7 +282,7 @@ function SubscriptionProduct() {
                     </tr>
                     <tr>
                       <td>
-                        <code>subscriptionOfferDetailsAndroid</code>
+                        <code>subscriptionOffers</code>
                       </td>
                       <td>
                         Array of subscription offers. Each contains:{' '}

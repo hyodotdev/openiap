@@ -289,9 +289,7 @@ function SubscriptionOffer() {
                 <code>installmentPlanDetailsAndroid</code>
               </td>
               <td>
-                <Link to="/docs/types/android/subscription-offer-android">
-                  <code>InstallmentPlanDetailsAndroid</code>
-                </Link>
+                <code>InstallmentPlanDetailsAndroid</code>
               </td>
               <td>
                 Installment plan details for subscription commitments (7.0+)

@@ -395,58 +395,6 @@ public sealed record PurchaseError
             </tr>
           </tbody>
         </table>
-
-        <h3>Deprecated Error Codes</h3>
-        <div className="info-note">
-          <strong>Note:</strong> The following error codes are deprecated and
-          scheduled for removal from the schema and native packages in OpenIAP
-          3.0. Generated framework copies remain through their package-specific
-          removal majors. Use the replacement codes now and see the{' '}
-          <Link to="/docs/updates/deprecations#removal-schedule">
-            deprecation schedule
-          </Link>{' '}
-          for exact package boundaries.
-        </div>
-        <table className="error-table">
-          <thead>
-            <tr>
-              <th>Deprecated Code</th>
-              <th>Replacement</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                <code style={{ textDecoration: 'line-through' }}>
-                  ReceiptFailed
-                </code>
-              </td>
-              <td>
-                <code>PurchaseVerificationFailed</code>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <code style={{ textDecoration: 'line-through' }}>
-                  ReceiptFinished
-                </code>
-              </td>
-              <td>
-                <code>PurchaseVerificationFinished</code>
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <code style={{ textDecoration: 'line-through' }}>
-                  ReceiptFinishedFailed
-                </code>
-              </td>
-              <td>
-                <code>PurchaseVerificationFinishFailed</code>
-              </td>
-            </tr>
-          </tbody>
-        </table>
       </section>
 
       <section>
@@ -709,12 +657,6 @@ function isUserCancellation(error: { code?: unknown }) {
   RemoteError = 'remote-error',
   NetworkError = 'network-error',
   ServiceError = 'service-error',
-  // @deprecated Use PurchaseVerificationFailed instead
-  ReceiptFailed = 'receipt-failed',
-  // @deprecated Use PurchaseVerificationFinished instead
-  ReceiptFinished = 'receipt-finished',
-  // @deprecated Use PurchaseVerificationFinishFailed instead
-  ReceiptFinishedFailed = 'receipt-finished-failed',
   PurchaseVerificationFailed = 'purchase-verification-failed',
   PurchaseVerificationFinished = 'purchase-verification-finished',
   PurchaseVerificationFinishFailed = 'purchase-verification-finish-failed',
@@ -755,12 +697,6 @@ function isUserCancellation(error: { code?: unknown }) {
     case remoteError
     case networkError
     case serviceError
-    // @deprecated Use purchaseVerificationFailed instead
-    case receiptFailed
-    // @deprecated Use purchaseVerificationFinished instead
-    case receiptFinished
-    // @deprecated Use purchaseVerificationFinishFailed instead
-    case receiptFinishedFailed
     case purchaseVerificationFailed
     case purchaseVerificationFinished
     case purchaseVerificationFinishFailed
@@ -801,12 +737,6 @@ function isUserCancellation(error: { code?: unknown }) {
     RemoteError,
     NetworkError,
     ServiceError,
-    // @deprecated Use PurchaseVerificationFailed instead
-    ReceiptFailed,
-    // @deprecated Use PurchaseVerificationFinished instead
-    ReceiptFinished,
-    // @deprecated Use PurchaseVerificationFinishFailed instead
-    ReceiptFinishedFailed,
     PurchaseVerificationFailed,
     PurchaseVerificationFinished,
     PurchaseVerificationFinishFailed,
@@ -847,12 +777,6 @@ function isUserCancellation(error: { code?: unknown }) {
     RemoteError,
     NetworkError,
     ServiceError,
-    // @deprecated Use PurchaseVerificationFailed instead
-    ReceiptFailed,
-    // @deprecated Use PurchaseVerificationFinished instead
-    ReceiptFinished,
-    // @deprecated Use PurchaseVerificationFinishFailed instead
-    ReceiptFinishedFailed,
     PurchaseVerificationFailed,
     PurchaseVerificationFinished,
     PurchaseVerificationFinishFailed,
@@ -893,12 +817,6 @@ function isUserCancellation(error: { code?: unknown }) {
   remoteError,
   networkError,
   serviceError,
-  // @deprecated Use purchaseVerificationFailed instead
-  receiptFailed,
-  // @deprecated Use purchaseVerificationFinished instead
-  receiptFinished,
-  // @deprecated Use purchaseVerificationFinishFailed instead
-  receiptFinishedFailed,
   purchaseVerificationFailed,
   purchaseVerificationFinished,
   purchaseVerificationFinishFailed,
@@ -942,12 +860,6 @@ public enum ErrorCode
     RemoteError,
     NetworkError,
     ServiceError,
-    // Deprecated: use PurchaseVerificationFailed instead.
-    ReceiptFailed,
-    // Deprecated: use PurchaseVerificationFinished instead.
-    ReceiptFinished,
-    // Deprecated: use PurchaseVerificationFinishFailed instead.
-    ReceiptFinishedFailed,
     PurchaseVerificationFailed,
     PurchaseVerificationFinished,
     PurchaseVerificationFinishFailed,

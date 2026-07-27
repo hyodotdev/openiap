@@ -176,7 +176,6 @@ final subscription = iap.purchasePromoted.listen((productId) async {
         RequestPurchaseProps.inApp((
           apple: RequestPurchaseIosProps(sku: productId),
           google: null,
-          useAlternativeBilling: null,
         )),
       );
     }
@@ -240,16 +239,12 @@ using var subscription = iap.PromotedProductIOS.Subscribe(async productId =>
       </p>
       <div className="alert-card alert-card--info">
         <p>
-          <strong>Note:</strong> In StoreKit 2, promoted products can be
-          purchased directly via the standard{' '}
+          <strong>Note:</strong> In StoreKit 2, promoted products are purchased
+          through the standard{' '}
           <Link to="/docs/apis/request-purchase">
             <code>requestPurchase()</code>
           </Link>{' '}
-          flow. The deprecated{' '}
-          <code style={{ textDecoration: 'line-through' }}>
-            requestPurchaseOnPromotedProductIOS()
-          </code>{' '}
-          API is no longer needed.
+          flow after the app receives or restores the promoted product.
         </p>
       </div>
     </div>

@@ -1168,7 +1168,6 @@ if (result.isAvailable) {
         ),
       ),
       // Compatibility-only placeholder required by the generated 9.x record.
-      useAlternativeBilling: null,
     )),
   );
 }
@@ -1251,22 +1250,6 @@ if result.is_available:
             ),
           }}
         </LanguageTabs>
-
-        <div className="alert-card alert-card--warning">
-          <p>
-            <strong>Flutter 9.x record compatibility:</strong>{' '}
-            <code>useAlternativeBilling: null</code> in the Dart example is only
-            a required placeholder in the generated positional record. Configure{' '}
-            <code>enableBillingProgramAndroid</code> on{' '}
-            <code>initConnection</code>; do not use the deprecated field to
-            select a program. It is removed in{' '}
-            <code>flutter_inapp_purchase 10.0.0</code>. See the{' '}
-            <Link to="/docs/updates/deprecations#flutter-10-package-migrations">
-              Flutter 10 migration notes
-            </Link>
-            .
-          </p>
-        </div>
 
         <blockquote className="info-note">
           <p>
