@@ -1,5 +1,12 @@
 # Changelog
 
+## 9.6.2 (2026-07-27)
+
+- chore(google): bump version to 2.5.2
+- fix(google): reconcile ambiguous purchase errors (#257)
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
+
+
 ## 9.6.1 (2026-07-26)
 
 - chore(google): bump version to 2.5.1
