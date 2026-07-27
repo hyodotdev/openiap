@@ -217,6 +217,65 @@ before JSON parsing; it is not per-product metadata capacity. A
 `clientPayload.body` is separately limited to **16 KiB of UTF-8**, must be
 nonblank, and—when its format is JSON or TOML—must pass syntax validation.
 
+### Subscription lifecycle refresh without a stream
+
+Apple App Store Server Notifications v2 and Google RTDN are accepted only in
+the store-to-IAPKit direction. IAPKit deduplicates those deliveries and updates
+the canonical subscription snapshot. It does not relay raw events, SSE,
+WebSockets, long polls, APNs, or FCM to shipped apps.
+
+The raw event row exists for bounded operational history and deduplication, then
+expires under webhook retention. The canonical subscription snapshot remains.
+Polling reads that current state rather than replaying a cursor, so an app does
+not have to consume every event in order.
+
+The recommended client flow is:
+
+1. For a purchase started in the current app session, use the SDK purchase
+   callback and verification response for the immediate UI update. Bind the
+   stable purchase token to an opaque, app-scoped `userId`.
+2. Render from a persisted entitlement snapshot on startup.
+3. Revalidate `GET /v1/subscriptions/status?userId=...` or
+   `GET /v1/subscriptions/entitlements?userId=...` with the publishable key in
+   `Authorization` on cold start, when a foreground snapshot is stale, or after
+   an explicit user refresh. Route refreshes through one coordinator so
+   concurrent screens share the same in-flight request. Define an app-specific
+   maximum stale age for offline or rate-limited fallback, and fail closed after
+   that window.
+4. Persist the response body and `ETag`. Send that tag as `If-None-Match` next
+   time. A `304` means the snapshot is unchanged; a `200` replaces it.
+5. Respect `429 Retry-After` and use jittered backoff. Do not run a continuous
+   foreground/background polling timer.
+
+Key the local cache by IAPKit project and opaque user ID, and delete it on
+sign-out. Never render one signed-in user's cached snapshot for another.
+Persist only the fields the UI needs; avoid retaining purchase tokens in
+general-purpose local storage when product IDs, states, and expiry times are
+sufficient.
+
+Snapshot reads use the `(projectId, userId, updatedAt)` index, support up to 200
+subscription rows per user, and perform no usage or last-access mutation. One
+additional indexed row is read only to detect overflow; IAPKit fails closed
+instead of returning a partial entitlement set. Convex returns a
+time-independent row snapshot and invalidates its cached result whenever a
+dependent subscription row changes. Fly evaluates `expiresAt` against its own
+current clock on every HTTP request before returning `200` or `304`. Cached
+query results and caller-controlled timestamps therefore cannot preserve
+expired access, and a time-only expiration transition is detected on the next
+refresh. The conditional response saves body transfer and unnecessary app state
+updates; it does not eliminate the Convex query invocation.
+
+The raw HTTP response exposes `ETag`. The current `kitApi.status()` and
+`kitApi.entitlements()` convenience methods perform unconditional reads and
+return only the decoded body, so use raw HTTP or an app wrapper when conditional
+revalidation is required.
+
+This client-readable snapshot is appropriate for app UI and local feature
+gating. If paid content is protected by a developer-owned backend, that backend
+must authenticate the user and make the entitlement decision. It may query the
+same user-scoped endpoint or send its own APNs/FCM notification after processing
+store webhooks.
+
 ### Product client payloads
 
 Each iOS or Android catalog row can carry an optional public

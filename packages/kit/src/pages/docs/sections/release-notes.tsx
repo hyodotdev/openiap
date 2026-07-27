@@ -27,6 +27,26 @@ const KIND_STYLES: Record<ReleaseEntry["items"][number]["kind"], string> = {
 
 const RELEASES: ReleaseEntry[] = [
   {
+    id: "hosted-2026-07-28",
+    date: "2026-07-28",
+    tagline:
+      "Conditional entitlement snapshots replace continuous app event streams.",
+    items: [
+      {
+        kind: "feature",
+        text: "Publishable-key subscription status and entitlement reads now return API-key, route, user, and content-scoped ETags. Matching If-None-Match requests return a body-free 304 after Convex supplies a database-invalidated row snapshot and Fly reevaluates expiry with its own current clock; secret-key responses remain no-store without an ETag.",
+      },
+      {
+        kind: "ops",
+        text: "Snapshot reads remain mutation-free, use the project-user-updated index, support 200 subscription rows with one bounded overflow probe, and fail closed instead of returning partial entitlements. Existing API-key, source-IP, and process rate limits still run before Convex.",
+      },
+      {
+        kind: "docs",
+        text: "The supported replacement for the removed outbound SSE feature is persisted snapshot state plus raw-HTTP conditional refresh on cold start, stale foreground, or explicit user action—not a raw webhook feed, WebSocket, long poll, or continuous timer. Offline fallback must have an app-defined maximum stale age.",
+      },
+    ],
+  },
+  {
     id: "hosted-2026-07-25",
     date: "2026-07-25",
     tagline:

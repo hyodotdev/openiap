@@ -107,6 +107,16 @@ export default function QuickstartPage() {
         When clients call status or entitlements directly, use opaque app-scoped
         user IDs rather than public identifiers like email addresses.
       </p>
+      <p>
+        IAPKit does not stream store events back to apps. Cache the latest
+        user-scoped status or entitlement response and conditionally refresh it
+        on cold start, when it is stale after foregrounding, or after an
+        explicit user action. Coalesce concurrent refreshes through one
+        coordinator. Send its <code>ETag</code> as <code>If-None-Match</code>;{" "}
+        <code>304</code> reuses the cached snapshot, while <code>200</code>{" "}
+        replaces it. Define a maximum stale age for offline fallback and avoid
+        continuous polling.
+      </p>
       <Callout kind="warning" title="Publishable does not mean private">
         <p>
           A publishable key lets your app call IAPKit&apos;s restricted managed

@@ -1,4 +1,6 @@
+import * as crypto from "node:crypto";
 import { Buffer } from "node:buffer";
+import type { FunctionReturnType } from "convex/server";
 import { Hono, type Context, type Next } from "hono";
 
 import { api } from "@/convex";
@@ -37,15 +39,13 @@ const MAX_PRODUCT_ID_LENGTH = 256;
 const MAX_BIND_USER_BODY_BYTES = 32 * 1024;
 const INVALID_APPLE_JWS_PURCHASE_TOKEN_MESSAGE =
   "purchaseToken must be a valid Apple JWS containing originalTransactionId or transactionId";
-type SubscriptionState =
-  | "Active"
-  | "InGracePeriod"
-  | "InBillingRetry"
-  | "Expired"
-  | "Revoked"
-  | "Refunded"
-  | "Paused"
-  | "Unknown";
+type SubscriptionEvaluationSnapshot = FunctionReturnType<
+  typeof api.subscriptions.query.subscriptionEvaluationSnapshot
+>;
+type SubscriptionSnapshotRow =
+  SubscriptionEvaluationSnapshot["candidates"][number];
+type PublicSubscriptionSnapshotRow = Omit<SubscriptionSnapshotRow, "createdAt">;
+type SubscriptionState = SubscriptionSnapshotRow["state"];
 const SUBSCRIPTION_STATES = new Set<string>([
   "Active",
   "InGracePeriod",
@@ -78,14 +78,17 @@ async function handleSubscriptionStatus(c: Context, apiKey: string) {
     return invalidInput(c, "userId must be ≤ 256 chars");
   }
   try {
-    const result = await client.query(
-      api.subscriptions.query.subscriptionStatus,
-      {
-        apiKey,
-        userId,
-      },
+    const snapshot = await client.query(
+      api.subscriptions.query.subscriptionEvaluationSnapshot,
+      { apiKey, userId },
     );
-    return c.json(result);
+    const result = evaluateSubscriptionStatus(snapshot, Date.now());
+    return conditionalSubscriptionSnapshot(c, {
+      apiKey,
+      kind: "status",
+      userId,
+      result,
+    });
   } catch (error) {
     return subscriptionRouteError(
       c,
@@ -112,11 +115,21 @@ async function handleEntitlements(c: Context, apiKey: string) {
     return invalidInput(c, "userId must be ≤ 256 chars");
   }
   try {
-    const result = await client.query(api.subscriptions.query.entitlements, {
-      apiKey,
+    const snapshot = await client.query(
+      api.subscriptions.query.subscriptionEvaluationSnapshot,
+      { apiKey, userId },
+    );
+    const result = evaluateEntitlements(
       userId,
+      snapshot.candidates,
+      Date.now(),
+    );
+    return conditionalSubscriptionSnapshot(c, {
+      apiKey,
+      kind: "entitlements",
+      userId,
+      result,
     });
-    return c.json(result);
   } catch (error) {
     return subscriptionRouteError(
       c,
@@ -455,6 +468,171 @@ function isJsonObject(value: unknown): value is Record<string, unknown> {
 
 function isNonBlankString(value: unknown): value is string {
   return typeof value === "string" && value.trim().length > 0;
+}
+
+function conditionalSubscriptionSnapshot(
+  c: Context,
+  args: {
+    apiKey: string;
+    kind: "status" | "entitlements";
+    userId: string;
+    result: unknown;
+  },
+): Response {
+  // These app-readable snapshots are user- and project-scoped. A device cache
+  // may retain them, but every reuse must be revalidated with IAPKit so an
+  // inbound store webhook or time-based expiration can change the response.
+  c.header("Vary", "Authorization");
+  if (isSecretApiKey(args.apiKey)) {
+    c.header("Cache-Control", "private, no-store");
+    return c.json(args.result);
+  }
+  c.header("Cache-Control", "private, no-cache");
+
+  const etag = subscriptionSnapshotEtag(args);
+  c.header("ETag", etag);
+  if (ifNoneMatchIncludes(c.req.header("if-none-match"), etag)) {
+    return c.body(null, 304);
+  }
+
+  return c.json(args.result);
+}
+
+function evaluateSubscriptionStatus(
+  snapshot: SubscriptionEvaluationSnapshot,
+  now: number,
+): {
+  active: boolean;
+  subscription: PublicSubscriptionSnapshotRow | null;
+} {
+  const activeSubscriptions = snapshot.candidates.filter((subscription) =>
+    isActiveSubscription(subscription, now),
+  );
+  const selected = selectMostRecentlyUpdatedSnapshot(activeSubscriptions);
+  return {
+    active: selected !== null,
+    subscription: toPublicSubscriptionRow(selected ?? snapshot.fallback),
+  };
+}
+
+function evaluateEntitlements(
+  userId: string,
+  subscriptions: SubscriptionSnapshotRow[],
+  now: number,
+): {
+  userId: string;
+  productIds: string[];
+  subscriptions: PublicSubscriptionSnapshotRow[];
+} {
+  const active = subscriptions.filter((subscription) =>
+    isActiveSubscription(subscription, now),
+  );
+  return {
+    userId,
+    productIds: Array.from(
+      new Set(active.map((subscription) => subscription.productId)),
+    ),
+    subscriptions: active.map((subscription) =>
+      toPublicSubscriptionRow(subscription),
+    ),
+  };
+}
+
+function selectMostRecentlyUpdatedSnapshot(
+  subscriptions: readonly SubscriptionSnapshotRow[],
+): SubscriptionSnapshotRow | null {
+  let selected: SubscriptionSnapshotRow | null = null;
+  for (const subscription of subscriptions) {
+    if (
+      selected === null ||
+      subscription.updatedAt > selected.updatedAt ||
+      (subscription.updatedAt === selected.updatedAt &&
+        subscription.createdAt > selected.createdAt)
+    ) {
+      selected = subscription;
+    }
+  }
+  return selected;
+}
+
+function toPublicSubscriptionRow(
+  subscription: SubscriptionSnapshotRow,
+): PublicSubscriptionSnapshotRow;
+function toPublicSubscriptionRow(subscription: null): null;
+function toPublicSubscriptionRow(
+  subscription: SubscriptionSnapshotRow | null,
+): PublicSubscriptionSnapshotRow | null;
+function toPublicSubscriptionRow(
+  subscription: SubscriptionSnapshotRow | null,
+): PublicSubscriptionSnapshotRow | null {
+  if (subscription === null) return null;
+  const { createdAt: _createdAt, ...publicSubscription } = subscription;
+  return publicSubscription;
+}
+
+function isActiveSubscription(
+  subscription: SubscriptionSnapshotRow,
+  now: number,
+): boolean {
+  const entitled =
+    subscription.state === "Active" || subscription.state === "InGracePeriod";
+  if (!entitled) return false;
+  return subscription.expiresAt == null || subscription.expiresAt > now;
+}
+
+function subscriptionSnapshotEtag(args: {
+  apiKey: string;
+  kind: "status" | "entitlements";
+  userId: string;
+  result: unknown;
+}): string {
+  const digest = crypto
+    .createHash("sha256")
+    .update(stableJson(args))
+    .digest("base64url")
+    .slice(0, 32);
+  return `W/"iapkit-subscription-${args.kind}-${digest}"`;
+}
+
+function stableJson(value: unknown): string {
+  return JSON.stringify(canonicalizeForEtag(value));
+}
+
+function canonicalizeForEtag(value: unknown): unknown {
+  if (Array.isArray(value)) {
+    return value.map(canonicalizeForEtag);
+  }
+  if (!isJsonObject(value)) {
+    return value;
+  }
+
+  const canonical: Record<string, unknown> = {};
+  for (const key of Object.keys(value).sort()) {
+    const item = value[key];
+    if (item !== undefined) {
+      canonical[key] = canonicalizeForEtag(item);
+    }
+  }
+  return canonical;
+}
+
+function ifNoneMatchIncludes(
+  ifNoneMatch: string | undefined,
+  etag: string,
+): boolean {
+  if (!ifNoneMatch) return false;
+  const normalizedEtag = normalizeEtagForWeakComparison(etag);
+  return ifNoneMatch.split(",").some((candidate) => {
+    const normalized = candidate.trim();
+    return (
+      normalized === "*" ||
+      normalizeEtagForWeakComparison(normalized) === normalizedEtag
+    );
+  });
+}
+
+function normalizeEtagForWeakComparison(etag: string): string {
+  return etag.replace(/^W\//, "");
 }
 
 function isIsoDay(value: unknown): value is string {

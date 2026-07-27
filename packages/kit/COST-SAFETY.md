@@ -1,6 +1,6 @@
 # IAPKit cost and abuse safety
 
-This document records the cost model for the public IAPKit API as of July 26, 2026. It is an operational estimate, not an invoice forecast: actual Convex
+This document records the cost model for the public IAPKit API as of July 28, 2026. It is an operational estimate, not an invoice forecast: actual Convex
 database I/O depends on each project's document sizes and should be measured
 from production function logs.
 
@@ -20,6 +20,7 @@ lookup while its compatibility fallback is active.
 | Direct payload, matching ETag (`304`) |                                1 query |                                            3 auth + 1 product + 1 summary = up to 5; payload body row is not read |                                                                 0 |
 | Catalog without payloads              |                                1 query |                                                  3 auth + at most 50 product rows; payload tables are not queried |                                                                 0 |
 | Catalog with payloads                 |                                1 query |                                      3 auth + at most 50 product rows + at most 50 exact payload rows = up to 103 |                                                                 0 |
+| Subscription status or entitlements   |                                1 query |                                                   3 auth + at most 201 user-indexed subscription rows = up to 204 |                                                                 0 |
 | Apple purchase verification           | 7-8 executions on a successful request |                           Indexed/point reads for auth, the Apple P8 file, and existing receipt/subscription rows | Existing receipt/statistics and optional subscription writes only |
 | Google purchase verification          |   7 executions on a successful request | Indexed/point reads for auth, service-account file, optional catalog type, and existing receipt/subscription rows | Existing receipt/statistics and optional subscription writes only |
 
@@ -38,7 +39,12 @@ enrichment; enrichment absence or failure does not change a successful receipt
 result.
 
 All catalog reads use indexed pagination with a default of 25 and maximum of 50. Payload-inclusive pages perform a bounded N+1 of at most 50 exact indexed
-lookups. A payload body is limited to 16 KiB of decoded UTF-8.
+lookups. A payload body is limited to 16 KiB of decoded UTF-8. User-scoped
+status and entitlement reads use
+`subscriptions.by_project_and_user_and_updated` and cap the indexed slice at
+201 rows: up to 200 are supported and the final row detects overflow. IAPKit
+fails closed instead of returning a partial entitlement set. Typical users have
+only one or a few rows.
 
 ## Edge protection
 
@@ -67,6 +73,17 @@ cross-machine hard brake; a distributed globally consistent edge limit would
 require additional infrastructure and is not justified for the current
 single-machine deployment.
 
+The Convex deployment URL is public configuration, and the legacy public
+`subscriptionStatus` / `entitlements` functions remain callable with a
+publishable key for rolling-deploy and rollback compatibility. Such direct
+Convex calls bypass Fly's in-memory limiter. Their reads are still indexed and
+bounded, and the new evaluation snapshot exposes only stored-state entitlement
+candidates plus one latest status fallback rather than raw subscription
+history. This is a pre-existing, non-expanding residual risk; Convex usage
+limits are the current process-independent cost brake. Remove the legacy direct
+functions in a later coordinated major deployment after every old Fly binary
+has drained.
+
 Only the `Fly-Client-IP` header inserted by the current Fly ingress is trusted.
 Forwarding and CDN headers supplied by callers are ignored. Direct local
 requests without the Fly header share the bounded `unknown` IP bucket.
@@ -78,15 +95,35 @@ and payload version. A matching `If-None-Match` returns `304` without reading
 the payload body row. The scope prevents an ETag from one project/key being
 accepted for another.
 
+Subscription status and entitlement responses use a content ETag scoped by API
+key, route, and opaque user ID. A tag from another key, user, or route cannot
+produce a `304`. Convex returns a time-independent, bounded row snapshot and
+invalidates its cached query result whenever a dependent subscription row
+changes. Fly evaluates `expiresAt` against its own current clock on every HTTP
+request before comparing the tag. This prevents cached query results or
+caller-controlled timestamps from preserving expired access and detects a
+time-only expiration transition on the next refresh even when no webhook
+arrives. Therefore a subscription `304` still costs one query invocation; when
+Convex recomputes it, the indexed-read ceiling is the same as a `200`, while a
+valid Convex cache hit may avoid those reads. The `304` itself avoids
+response-body egress and unnecessary client state replacement.
+
 The direct response sends `Cache-Control: private, no-cache` and
-`Vary: Authorization`. Catalog pages and every secret-admin response use
+`Vary: Authorization`. The subscription snapshots use the same private,
+revalidate-on-use policy. Catalog pages and every secret-admin response use
 `private, no-store`; shared caches must never retain them. React Native IAP and
 Expo IAP accept an AsyncStorage-compatible `clientPayloadCache`. They persist
 the body, version, and ETag, return a valid cache entry without polling, and
 conditionally revalidate only when `refresh: true` is requested.
 
 Apps with a known product ID should use the direct endpoint. Do not download
-the complete payload catalog on every foreground event.
+the complete payload catalog on every foreground event. For entitlement state,
+persist one user-scoped snapshot and conditionally refresh it on cold start,
+when it is stale on foreground, or after explicit user action. Do not run a
+continuous timer or rebuild the removed outbound event stream. Coalesce
+concurrent callers through one in-app refresh coordinator. Define a maximum
+stale age for offline or rate-limited fallback and fail closed after that
+app-specific window.
 
 ## Approximate high-volume cost
 
@@ -112,6 +149,13 @@ some overhead.
 
 A `304` still uses one Convex query and reads small auth/product/summary
 documents, but avoids the 16 KiB body read and response egress.
+
+One million user-scoped status or entitlement polls use one million Convex
+function calls. Database I/O depends on the number and size of that user's
+subscription rows: normal accounts read one or a few rows, while the bounded
+pathological ceiling is 201 million small row reads across those requests.
+Rate limiting is the primary protection against an app polling continuously;
+`304` responses do not make that request free.
 
 Pricing references:
 [Convex pricing](https://www.convex.dev/pricing),
