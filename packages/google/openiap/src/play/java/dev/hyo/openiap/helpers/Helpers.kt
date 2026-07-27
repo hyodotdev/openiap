@@ -12,6 +12,14 @@ import java.util.concurrent.atomic.AtomicBoolean
 // Common helpers (onPurchaseUpdated, onPurchaseError, AndroidPurchaseArgs,
 // toAndroidPurchaseArgs, toPurchaseError) are in main/helpers/CommonHelpers.kt
 
+private fun isRetriablePurchaseQueryResponse(responseCode: Int): Boolean = when (responseCode) {
+    BillingClient.BillingResponseCode.NETWORK_ERROR,
+    BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
+    BillingClient.BillingResponseCode.SERVICE_DISCONNECTED,
+    BillingClient.BillingResponseCode.ERROR -> true
+    else -> false
+}
+
 internal suspend fun restorePurchases(
     client: BillingClient?,
     operations: ActiveStoreOperationRegistry<BillingClient>,
@@ -65,51 +73,83 @@ internal suspend fun queryPurchases(
 }
 
 /**
- * Queries Play Billing directly after ITEM_ALREADY_OWNED and returns only
- * currently owned purchases that match the in-flight request SKUs.
+ * Queries Play Billing for currently owned purchases that match an in-flight
+ * request. When [purchasedSinceMillis] is set, older ownership is excluded so
+ * a transient purchase-flow error cannot turn a pre-existing purchase into a
+ * false success. [maxAttempts] applies only when the ownership query itself
+ * fails; eligible retries run through [scheduleRetry] after [retryDelayMillis].
+ * A successful empty response is authoritative.
  */
 internal fun queryAlreadyOwnedPurchases(
     client: BillingClient?,
     productType: String,
     skus: List<String>,
     basePlanIdsBySku: Map<String, String?> = emptyMap(),
+    purchasedSinceMillis: Double? = null,
+    maxAttempts: Int = 1,
+    retryDelayMillis: Long = 0,
+    scheduleRetry: (Long, () -> Unit) -> Boolean = { _, retry ->
+        retry()
+        true
+    },
     onResult: (List<Purchase>) -> Unit
 ) {
     val requestedSkus = skus.toSet()
-    if (client == null || requestedSkus.isEmpty()) {
+    if (client == null || requestedSkus.isEmpty() || maxAttempts < 1) {
         onResult(emptyList())
         return
     }
-
-    val didHandleResult = AtomicBoolean(false)
     val params = QueryPurchasesParams.newBuilder()
         .setProductType(productType)
         .build()
 
-    try {
-        client.queryPurchasesAsync(params) { result, purchaseList ->
-            if (!didHandleResult.compareAndSet(false, true)) return@queryPurchasesAsync
+    fun query(attempt: Int) {
+        val didHandleResult = AtomicBoolean(false)
+        try {
+            client.queryPurchasesAsync(params) { result, purchaseList ->
+                if (!didHandleResult.compareAndSet(false, true)) return@queryPurchasesAsync
 
-            if (result.responseCode != BillingClient.BillingResponseCode.OK) {
+                if (result.responseCode != BillingClient.BillingResponseCode.OK) {
+                    if (attempt < maxAttempts &&
+                        isRetriablePurchaseQueryResponse(result.responseCode)
+                    ) {
+                        val scheduled = runCatching {
+                            scheduleRetry(retryDelayMillis) {
+                                query(attempt + 1)
+                            }
+                        }.getOrDefault(false)
+                        if (!scheduled) onResult(emptyList())
+                    } else {
+                        onResult(emptyList())
+                    }
+                    return@queryPurchasesAsync
+                }
+
+                val recovered = purchaseList.orEmpty().mapNotNull { billingPurchase ->
+                    if (purchasedSinceMillis != null &&
+                        billingPurchase.purchaseTime.toDouble() < purchasedSinceMillis
+                    ) {
+                        return@mapNotNull null
+                    }
+                    val matchingSku = billingPurchase.products.firstOrNull { productId ->
+                        productId in requestedSkus
+                    }
+                    matchingSku?.let { sku ->
+                        billingPurchase.toPurchase(productType, basePlanIdsBySku[sku])
+                    }
+                }
+                onResult(recovered)
+            }
+        } catch (_: Exception) {
+            if (didHandleResult.compareAndSet(false, true)) {
+                // Synchronous API exceptions do not carry a BillingResult that
+                // can establish a transient failure, so do not retry them.
                 onResult(emptyList())
-                return@queryPurchasesAsync
             }
-
-            val recovered = purchaseList.orEmpty().mapNotNull { billingPurchase ->
-                val matchingSku = billingPurchase.products.firstOrNull { productId ->
-                    productId in requestedSkus
-                }
-                matchingSku?.let { sku ->
-                    billingPurchase.toPurchase(productType, basePlanIdsBySku[sku])
-                }
-            }
-            onResult(recovered)
-        }
-    } catch (_: Exception) {
-        if (didHandleResult.compareAndSet(false, true)) {
-            onResult(emptyList())
         }
     }
+
+    query(attempt = 1)
 }
 
 internal data class SubscriptionBasePlanOffer(
