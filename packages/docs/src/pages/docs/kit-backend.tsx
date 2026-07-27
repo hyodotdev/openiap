@@ -624,16 +624,18 @@ async function refreshEntitlements(
   maxStaleMs: number,
   iapkitPublishableKey: string,
 ) {
+  const cachedForUser =
+    cached?.snapshot.userId === userId ? cached : null;
   const canUseCachedSnapshot = () => {
     if (
-      cached === null ||
-      !Number.isFinite(cached.checkedAt) ||
+      cachedForUser === null ||
+      !Number.isFinite(cachedForUser.checkedAt) ||
       !Number.isFinite(maxStaleMs) ||
       maxStaleMs < 0
     ) {
       return false;
     }
-    const cacheAgeMs = Date.now() - cached.checkedAt;
+    const cacheAgeMs = Date.now() - cachedForUser.checkedAt;
     return cacheAgeMs >= 0 && cacheAgeMs <= maxStaleMs;
   };
   let response: Response;
@@ -643,23 +645,29 @@ async function refreshEntitlements(
       {
         headers: {
           Authorization: \`Bearer \${iapkitPublishableKey}\`,
-          ...(cached?.etag ? { 'If-None-Match': cached.etag } : {}),
+          ...(cachedForUser?.etag
+            ? { 'If-None-Match': cachedForUser.etag }
+            : {}),
         },
       },
     );
   } catch (error) {
-    if (cached && canUseCachedSnapshot()) return cached.snapshot;
+    if (cachedForUser && canUseCachedSnapshot()) {
+      return cachedForUser.snapshot;
+    }
     throw error;
   }
 
-  if (response.status === 304 && cached) {
-    const refreshed = { ...cached, checkedAt: Date.now() };
+  if (response.status === 304 && cachedForUser) {
+    const refreshed = { ...cachedForUser, checkedAt: Date.now() };
     await persistEntitlements(refreshed);
     return refreshed.snapshot;
   }
   if (response.status === 429) {
     scheduleRetry(response.headers.get('Retry-After'));
-    if (cached && canUseCachedSnapshot()) return cached.snapshot;
+    if (cachedForUser && canUseCachedSnapshot()) {
+      return cachedForUser.snapshot;
+    }
     throw new Error('Entitlement refresh is rate limited');
   }
   if (!response.ok) throw new Error('Entitlement refresh failed');
