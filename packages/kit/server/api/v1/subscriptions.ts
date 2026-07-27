@@ -1,5 +1,6 @@
 import * as crypto from "node:crypto";
 import { Buffer } from "node:buffer";
+import type { FunctionReturnType } from "convex/server";
 import { Hono, type Context, type Next } from "hono";
 
 import { api } from "@/convex";
@@ -38,36 +39,13 @@ const MAX_PRODUCT_ID_LENGTH = 256;
 const MAX_BIND_USER_BODY_BYTES = 32 * 1024;
 const INVALID_APPLE_JWS_PURCHASE_TOKEN_MESSAGE =
   "purchaseToken must be a valid Apple JWS containing originalTransactionId or transactionId";
-type SubscriptionState =
-  | "Active"
-  | "InGracePeriod"
-  | "InBillingRetry"
-  | "Expired"
-  | "Revoked"
-  | "Refunded"
-  | "Paused"
-  | "Unknown";
-type SubscriptionSnapshotRow = {
-  id: string;
-  productId: string;
-  platform: "IOS" | "Android";
-  state: SubscriptionState;
-  expiresAt?: number;
-  renewsAt?: number;
-  willRenew?: boolean;
-  cancellationReason?: string;
-  currency?: string;
-  priceAmountMicros?: number;
-  startedAt: number;
-  updatedAt: number;
-  purchaseToken: string;
-  originalTransactionId?: string;
-  userId?: string;
-};
-type SubscriptionEvaluationSnapshot = {
-  candidates: SubscriptionSnapshotRow[];
-  fallback: SubscriptionSnapshotRow | null;
-};
+type SubscriptionEvaluationSnapshot = FunctionReturnType<
+  typeof api.subscriptions.query.subscriptionEvaluationSnapshot
+>;
+type SubscriptionSnapshotRow =
+  SubscriptionEvaluationSnapshot["candidates"][number];
+type PublicSubscriptionSnapshotRow = Omit<SubscriptionSnapshotRow, "createdAt">;
+type SubscriptionState = SubscriptionSnapshotRow["state"];
 const SUBSCRIPTION_STATES = new Set<string>([
   "Active",
   "InGracePeriod",
@@ -525,14 +503,15 @@ function evaluateSubscriptionStatus(
   now: number,
 ): {
   active: boolean;
-  subscription: SubscriptionSnapshotRow | null;
+  subscription: PublicSubscriptionSnapshotRow | null;
 } {
   const activeSubscriptions = snapshot.candidates.filter((subscription) =>
     isActiveSubscription(subscription, now),
   );
+  const selected = selectMostRecentlyUpdatedSnapshot(activeSubscriptions);
   return {
-    active: activeSubscriptions.length > 0,
-    subscription: activeSubscriptions[0] ?? snapshot.fallback,
+    active: selected !== null,
+    subscription: toPublicSubscriptionRow(selected ?? snapshot.fallback),
   };
 }
 
@@ -543,7 +522,7 @@ function evaluateEntitlements(
 ): {
   userId: string;
   productIds: string[];
-  subscriptions: SubscriptionSnapshotRow[];
+  subscriptions: PublicSubscriptionSnapshotRow[];
 } {
   const active = subscriptions.filter((subscription) =>
     isActiveSubscription(subscription, now),
@@ -553,8 +532,42 @@ function evaluateEntitlements(
     productIds: Array.from(
       new Set(active.map((subscription) => subscription.productId)),
     ),
-    subscriptions: active,
+    subscriptions: active.map((subscription) =>
+      toPublicSubscriptionRow(subscription),
+    ),
   };
+}
+
+function selectMostRecentlyUpdatedSnapshot(
+  subscriptions: readonly SubscriptionSnapshotRow[],
+): SubscriptionSnapshotRow | null {
+  let selected: SubscriptionSnapshotRow | null = null;
+  for (const subscription of subscriptions) {
+    if (
+      selected === null ||
+      subscription.updatedAt > selected.updatedAt ||
+      (subscription.updatedAt === selected.updatedAt &&
+        subscription.createdAt > selected.createdAt)
+    ) {
+      selected = subscription;
+    }
+  }
+  return selected;
+}
+
+function toPublicSubscriptionRow(
+  subscription: SubscriptionSnapshotRow,
+): PublicSubscriptionSnapshotRow;
+function toPublicSubscriptionRow(subscription: null): null;
+function toPublicSubscriptionRow(
+  subscription: SubscriptionSnapshotRow | null,
+): PublicSubscriptionSnapshotRow | null;
+function toPublicSubscriptionRow(
+  subscription: SubscriptionSnapshotRow | null,
+): PublicSubscriptionSnapshotRow | null {
+  if (subscription === null) return null;
+  const { createdAt: _createdAt, ...publicSubscription } = subscription;
+  return publicSubscription;
 }
 
 function isActiveSubscription(

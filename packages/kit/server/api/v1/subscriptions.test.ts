@@ -1,5 +1,5 @@
 import { Buffer } from "node:buffer";
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { Hono } from "hono";
 
 const mocks = vi.hoisted(() => ({
@@ -73,6 +73,7 @@ function subscriptionRow(
     expiresAt: number;
     startedAt: number;
     updatedAt: number;
+    createdAt: number;
     purchaseToken: string;
     userId: string;
   }> = {},
@@ -84,6 +85,7 @@ function subscriptionRow(
     state: "Active" as const,
     startedAt: 1,
     updatedAt: 2,
+    createdAt: 1,
     purchaseToken: "transaction-1",
     userId: "user-1",
     ...overrides,
@@ -103,6 +105,10 @@ describe("subscriptionsRoutes", () => {
     mocks.handleConvexError.mockReturnValue(null);
     mocks.query.mockReset();
     mocks.mutation.mockReset();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   it("supports Bearer-authenticated routes without keys in URLs", async () => {
@@ -303,7 +309,7 @@ describe("subscriptionsRoutes", () => {
 
   it("derives status and entitlements from the sorted row snapshot at the Fly boundary", async () => {
     const app = buildApp();
-    const dateNow = vi.spyOn(Date, "now").mockReturnValue(1_000);
+    vi.spyOn(Date, "now").mockReturnValue(1_000);
     const expiredNewest = subscriptionRow({
       id: "expired-newest",
       state: "Expired",
@@ -360,8 +366,39 @@ describe("subscriptionsRoutes", () => {
       ],
     });
     expect(mocks.mutation).not.toHaveBeenCalled();
+  });
 
-    dateNow.mockRestore();
+  it("uses creation time to break equal-updatedAt status ties", async () => {
+    const app = buildApp();
+    vi.spyOn(Date, "now").mockReturnValue(1_000);
+    mocks.query.mockResolvedValue(
+      evaluationSnapshot([
+        subscriptionRow({
+          id: "older-created",
+          updatedAt: 5,
+          createdAt: 10,
+        }),
+        subscriptionRow({
+          id: "newer-created",
+          updatedAt: 5,
+          createdAt: 20,
+        }),
+      ]),
+    );
+
+    const response = await app.request("/subscriptions/status?userId=user-1", {
+      headers: {
+        authorization: "Bearer openiap-kit_pk_mobile",
+      },
+    });
+
+    expect(response.status).toBe(200);
+    const body = await response.json();
+    expect(body).toMatchObject({
+      active: true,
+      subscription: { id: "newer-created" },
+    });
+    expect(body.subscription).not.toHaveProperty("createdAt");
   });
 
   it("does not accept a snapshot ETag from another key, user, or route", async () => {
@@ -539,8 +576,6 @@ describe("subscriptionsRoutes", () => {
       },
     );
     expect(mocks.mutation).not.toHaveBeenCalled();
-
-    dateNow.mockRestore();
   });
 
   it("requires Bearer authentication on keyless routes", async () => {

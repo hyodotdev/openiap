@@ -24,7 +24,7 @@ const subscriptionStateValidator = v.union(
   v.literal("Unknown"),
 );
 
-const subscriptionShape = v.object({
+const subscriptionFields = {
   id: v.id("subscriptions"),
   productId: v.string(),
   platform: v.union(v.literal("IOS"), v.literal("Android")),
@@ -40,8 +40,14 @@ const subscriptionShape = v.object({
   purchaseToken: v.string(),
   originalTransactionId: v.optional(v.string()),
   userId: v.optional(v.string()),
+};
+const subscriptionShape = v.object(subscriptionFields);
+const subscriptionEvaluationRowShape = v.object({
+  ...subscriptionFields,
+  createdAt: v.number(),
 });
 type SubscriptionRow = Infer<typeof subscriptionShape>;
+type SubscriptionEvaluationRow = Infer<typeof subscriptionEvaluationRowShape>;
 export const MAX_USER_SUBSCRIPTION_ROWS = 200;
 
 function isActive(sub: Doc<"subscriptions">, now: number): boolean {
@@ -84,13 +90,24 @@ async function userSubscriptionRows(
 export function shapeSubscriptionEvaluationSnapshot(
   rows: Array<Doc<"subscriptions">>,
 ): {
-  candidates: SubscriptionRow[];
-  fallback: SubscriptionRow | null;
+  candidates: SubscriptionEvaluationRow[];
+  fallback: SubscriptionEvaluationRow | null;
 } {
   const fallback = selectMostRecentlyUpdatedSubscription(rows);
   return {
-    candidates: rows.filter(isEntitledState).map(shapeSubscriptionRow),
-    fallback: fallback ? shapeSubscriptionRow(fallback) : null,
+    candidates: rows
+      .filter(isEntitledState)
+      .map(shapeSubscriptionEvaluationRow),
+    fallback: fallback ? shapeSubscriptionEvaluationRow(fallback) : null,
+  };
+}
+
+function shapeSubscriptionEvaluationRow(
+  sub: Doc<"subscriptions">,
+): SubscriptionEvaluationRow {
+  return {
+    ...shapeSubscriptionRow(sub),
+    createdAt: sub._creationTime,
   };
 }
 
@@ -218,8 +235,8 @@ export const subscriptionEvaluationSnapshot = query({
     userId: v.string(),
   },
   returns: v.object({
-    candidates: v.array(subscriptionShape),
-    fallback: v.union(subscriptionShape, v.null()),
+    candidates: v.array(subscriptionEvaluationRowShape),
+    fallback: v.union(subscriptionEvaluationRowShape, v.null()),
   }),
   handler: async (ctx, args) => {
     const project = await projectByApiKey(ctx, args.apiKey);

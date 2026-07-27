@@ -622,6 +622,7 @@ async function refreshEntitlements(
   userId: string,
   cached: CachedEntitlements | null,
   maxStaleMs: number,
+  iapkitPublishableKey: string,
 ) {
   const canUseCachedSnapshot = () => {
     if (

@@ -175,7 +175,9 @@ describe("shapeSubscriptionEvaluationSnapshot", () => {
 
     expect(snapshot.candidates).toHaveLength(1);
     expect(snapshot.candidates[0]?.purchaseToken).toBe("active-token");
+    expect(snapshot.candidates[0]?.createdAt).toBe(0);
     expect(snapshot.fallback?.purchaseToken).toBe("latest-token");
+    expect(snapshot.fallback?.createdAt).toBe(0);
     expect(JSON.stringify(snapshot)).not.toContain("historical-token");
   });
 });

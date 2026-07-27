@@ -246,76 +246,99 @@ export default function ApiReferencePage() {
         <code>fetch</code> or an app wrapper for conditional revalidation.
       </p>
       <CodeBlock title="Conditional entitlement refresh" language="typescript">
-        {`const canUseCachedSnapshot = () => {
-  if (
-    cached === null ||
-    !Number.isFinite(cached.checkedAt) ||
-    !Number.isFinite(maxStaleMs) ||
-    maxStaleMs < 0
-  ) {
-    return false;
-  }
-  const cacheAgeMs = Date.now() - cached.checkedAt;
-  return cacheAgeMs >= 0 && cacheAgeMs <= maxStaleMs;
+        {`type CachedEntitlements = {
+  etag: string | null;
+  checkedAt: number;
+  snapshot: {
+    userId: string;
+    productIds: string[];
+    subscriptions: Array<{
+      productId: string;
+      state: string;
+      expiresAt?: number;
+      renewsAt?: number;
+      willRenew?: boolean;
+    }>;
+  };
 };
-let response: Response;
-try {
-  response = await fetch(
-    \`https://kit.openiap.dev/v1/subscriptions/entitlements?userId=\${encodeURIComponent(userId)}\`,
-    {
-      headers: {
-        Authorization: \`Bearer \${iapkitPublishableKey}\`,
-        ...(cached?.etag ? { "If-None-Match": cached.etag } : {}),
+
+async function refreshEntitlements(
+  userId: string,
+  cached: CachedEntitlements | null,
+  maxStaleMs: number,
+  iapkitPublishableKey: string,
+) {
+  const canUseCachedSnapshot = () => {
+    if (
+      cached === null ||
+      !Number.isFinite(cached.checkedAt) ||
+      !Number.isFinite(maxStaleMs) ||
+      maxStaleMs < 0
+    ) {
+      return false;
+    }
+    const cacheAgeMs = Date.now() - cached.checkedAt;
+    return cacheAgeMs >= 0 && cacheAgeMs <= maxStaleMs;
+  };
+  let response: Response;
+  try {
+    response = await fetch(
+      \`https://kit.openiap.dev/v1/subscriptions/entitlements?userId=\${encodeURIComponent(userId)}\`,
+      {
+        headers: {
+          Authorization: \`Bearer \${iapkitPublishableKey}\`,
+          ...(cached?.etag ? { "If-None-Match": cached.etag } : {}),
+        },
       },
-    },
-  );
-} catch (error) {
-  if (cached && canUseCachedSnapshot()) return cached.snapshot;
-  throw error;
-}
+    );
+  } catch (error) {
+    if (cached && canUseCachedSnapshot()) return cached.snapshot;
+    throw error;
+  }
 
-if (response.status === 304 && cached) {
-  const refreshed = { ...cached, checkedAt: Date.now() };
-  await persistSnapshot(refreshed);
-  return refreshed.snapshot;
-}
-if (response.status === 429) {
-  scheduleRetry(response.headers.get("Retry-After"));
-  if (cached && canUseCachedSnapshot()) return cached.snapshot;
-  throw new Error("Entitlement refresh is rate limited");
-}
-if (!response.ok) throw new Error("Entitlement refresh failed");
+  if (response.status === 304 && cached) {
+    const refreshed = { ...cached, checkedAt: Date.now() };
+    await persistSnapshot(refreshed);
+    return refreshed.snapshot;
+  }
+  if (response.status === 429) {
+    scheduleRetry(response.headers.get("Retry-After"));
+    if (cached && canUseCachedSnapshot()) return cached.snapshot;
+    throw new Error("Entitlement refresh is rate limited");
+  }
+  if (!response.ok) throw new Error("Entitlement refresh failed");
 
-const wireSnapshot = (await response.json()) as {
-  userId: string;
-  productIds: string[];
-  subscriptions: Array<{
-    productId: string;
-    state: string;
-    expiresAt?: number;
-    renewsAt?: number;
-    willRenew?: boolean;
-  }>;
-};
-const snapshot = {
-  userId: wireSnapshot.userId,
-  productIds: wireSnapshot.productIds,
-  subscriptions: wireSnapshot.subscriptions.map(
-    ({ productId, state, expiresAt, renewsAt, willRenew }) => ({
-      productId,
-      state,
-      expiresAt,
-      renewsAt,
-      willRenew,
-    }),
-  ),
-};
-await persistSnapshot({
-  snapshot,
-  etag: response.headers.get("ETag"),
-  checkedAt: Date.now(),
-});
-return snapshot;`}
+  const wireSnapshot = (await response.json()) as {
+    userId: string;
+    productIds: string[];
+    subscriptions: Array<{
+      productId: string;
+      state: string;
+      expiresAt?: number;
+      renewsAt?: number;
+      willRenew?: boolean;
+    }>;
+  };
+  const snapshot = {
+    userId: wireSnapshot.userId,
+    productIds: wireSnapshot.productIds,
+    subscriptions: wireSnapshot.subscriptions.map(
+      ({ productId, state, expiresAt, renewsAt, willRenew }) => ({
+        productId,
+        state,
+        expiresAt,
+        renewsAt,
+        willRenew,
+      }),
+    ),
+  };
+  await persistSnapshot({
+    snapshot,
+    etag: response.headers.get("ETag"),
+    checkedAt: Date.now(),
+  });
+  return snapshot;
+}`}
       </CodeBlock>
       <Callout kind="note" title="A 304 is conditional, not free">
         <p>
