@@ -60,18 +60,18 @@ val products = kmpIapInstance.fetchProducts {
 
 // Request purchase - DSL API with platform-specific options
 val purchase = kmpIapInstance.requestPurchase {
-    ios {
+    apple {
         sku = "product_id"
         quantity = 1
     }
-    android {
+    google {
         skus = listOf("product_id")
     }
 }
 
 // Or just for one platform
 val iosPurchase = kmpIapInstance.requestPurchase {
-    ios {
+    apple {
         sku = "product_id"
     }
 }
@@ -103,18 +103,18 @@ val products = kmpIAP.fetchProducts {
 
 // Request purchase - DSL API with platform-specific options
 val purchase = kmpIAP.requestPurchase {
-    ios {
+    apple {
         sku = "product_id"
         quantity = 1
     }
-    android {
+    google {
         skus = listOf("product_id")
     }
 }
 
 // Or just for one platform
 val androidPurchase = kmpIAP.requestPurchase {
-    android {
+    google {
         skus = listOf("product_id")
     }
 }

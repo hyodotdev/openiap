@@ -110,7 +110,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                         val dateText = Instant.fromEpochMilliseconds(purchase.transactionDate.toLong())
                             .toLocalDateTime(TimeZone.currentSystemDefault())
                         purchaseResult = """
-                    ✅ Subscription successful (${purchase.platform})
+                    ✅ Subscription successful (${purchase.store})
                     Product: ${purchase.productId}
                     Transaction ID: ${purchase.id.ifEmpty { "N/A" }}
                     Date: $dateText
@@ -773,11 +773,11 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                     try {
                                         val purchase = kmpIAP.requestPurchase {
                                             type = ProductType.Subs
-                                            ios {
+                                            apple {
                                                 sku = subscription.id
                                                 quantity = 1
                                             }
-                                            android {
+                                            google {
                                                 skus = listOf(subscription.id)
                                             }
                                         }

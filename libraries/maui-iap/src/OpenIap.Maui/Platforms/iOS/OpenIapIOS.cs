@@ -566,7 +566,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
 
         if (@params.RequestPurchase is { } purchaseEnv)
         {
-            var iosProps = purchaseEnv.Apple ?? purchaseEnv.IOS;
+            var iosProps = purchaseEnv.Apple;
             if (iosProps is null)
                 throw OpenIapErrorMapper.Wrap(ErrorCode.DeveloperError, "iOS purchase request requires `apple` props");
             if (string.IsNullOrWhiteSpace(iosProps.Sku))
@@ -576,7 +576,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
 
         if (@params.RequestSubscription is { } subEnv)
         {
-            var iosProps = subEnv.Apple ?? subEnv.IOS;
+            var iosProps = subEnv.Apple;
             if (iosProps is null)
                 throw OpenIapErrorMapper.Wrap(ErrorCode.DeveloperError, "iOS subscription request requires `apple` props");
             if (string.IsNullOrWhiteSpace(iosProps.Sku))

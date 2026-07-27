@@ -104,7 +104,7 @@ fun PurchaseFlowScreen(navController: NavController) {
                         val dateText = Instant.fromEpochMilliseconds(purchase.transactionDate.toLong())
                             .toLocalDateTime(TimeZone.currentSystemDefault())
                         purchaseResult = """
-                    ✅ Purchase successful (${purchase.platform})
+                    ✅ Purchase successful (${purchase.store})
                     Product: ${purchase.productId}
                     Transaction ID: ${purchase.id.ifEmpty { "N/A" }}
                     Date: $dateText
@@ -471,11 +471,11 @@ fun PurchaseFlowScreen(navController: NavController) {
                                 purchaseResult = null
                                 try {
                                     val purchase = kmpIapInstance.requestPurchase {
-                                        ios {
+                                        apple {
                                             sku = product.id
                                             quantity = 1
                                         }
-                                        android {
+                                        google {
                                             skus = listOf(product.id)
                                         }
                                     }
