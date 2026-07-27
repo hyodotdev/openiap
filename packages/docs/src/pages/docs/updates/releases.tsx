@@ -83,6 +83,16 @@ const purchaseSafetyReleases = [
   ['OpenIap.Maui 1.2.2', 'maui-iap-1.2.2'],
 ] as const;
 
+const googlePurchaseRecoveryReleases = [
+  ['openiap-google 2.5.2', 'google-2.5.2'],
+  ['react-native-iap 15.6.2', 'react-native-iap-15.6.2'],
+  ['expo-iap 4.7.2', 'expo-iap-4.7.2'],
+  ['flutter_inapp_purchase 9.6.2', 'flutter-iap-9.6.2'],
+  ['godot-iap 2.6.2', 'godot-iap-2.6.2'],
+  ['kmp-iap 2.7.2', 'kmp-iap-2.7.2'],
+  ['OpenIap.Maui 1.4.2', 'maui-iap-1.4.2'],
+] as const;
+
 const iapkitSecurityTrainReleases = [
   ['OpenIAP Spec 2.4.4', 'docs-2.4.4'],
   ['openiap-apple 2.4.4', '2.4.4'],
@@ -108,6 +118,164 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // July 28, 2026 - Google Play ambiguous purchase recovery patch train
+    {
+      id: 'google-play-ambiguous-purchase-recovery-2026-07-28',
+      date: new Date('2026-07-28'),
+      element: (
+        <div
+          key="google-play-ambiguous-purchase-recovery-2026-07-28"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="google-play-ambiguous-purchase-recovery-2026-07-28"
+            level="h4"
+          >
+            July 28, 2026 - Google Play ambiguous purchase recovery patch train
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes a coordinated Android patch train for the purchase
+            completion regression reported in{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/issues/166"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              issue #166
+            </a>{' '}
+            and fixed in{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/257"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #257
+            </a>
+            . Google Play can commit a purchase while returning a transient
+            billing error to the app. The SDK now reconciles that ambiguous
+            callback against current ownership instead of immediately reporting
+            a failed purchase. The OpenIAP Spec and Apple package are unchanged
+            because this patch adds no public API or contract.
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Google</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>openiap-google 2.5.2</strong> - recovers Google Play
+              purchase flows that receive <code>NETWORK_ERROR</code>,{' '}
+              <code>SERVICE_UNAVAILABLE</code>,{' '}
+              <code>SERVICE_DISCONNECTED</code>, or an ambiguous{' '}
+              <code>ERROR</code> after the store has already committed the
+              transaction. Recovery queries the requested product type and SKU,
+              ignores ownership older than the current flow, and completes the
+              original request exactly once.
+            </li>
+            <li>
+              Transient ownership-query failures retry up to three total
+              attempts with a 500 ms delay. Fatal billing results and
+              synchronous exceptions fail immediately, while stale purchases,
+              unrelated products, duplicate callbacks, and a replaced purchase
+              flow cannot satisfy recovery.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>react-native-iap 15.6.2</strong> and{' '}
+              <strong>expo-iap 4.7.2</strong> ship the corrected Google Play
+              purchase runtime for Nitro Modules and Expo Modules without a
+              JavaScript API change.
+            </li>
+            <li>
+              <strong>flutter_inapp_purchase 9.6.2</strong>,{' '}
+              <strong>godot-iap 2.6.2</strong>, and{' '}
+              <strong>kmp-iap 2.7.2</strong> carry the same bounded native
+              recovery through their Android packages without changing their
+              public purchase contracts.
+            </li>
+            <li>
+              <strong>OpenIap.Maui 1.4.2</strong> rebuilds its Android binding
+              with the corrected Google package; its CLR API remains unchanged.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Integration and validation notes
+          </h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              No application migration is required. Upgrade the package used by
+              the app and keep the normal purchase-success and purchase-error
+              listeners active until the purchase flow completes.
+            </li>
+            <li>
+              The regression suite covers delayed ownership visibility,
+              transient retry exhaustion, fatal query failures, old ownership,
+              base-plan purchases, duplicate completion, and replacement-flow
+              races. A physical Google Play license-tester purchase also
+              completed local IAPKit verification and consumption without
+              creating a duplicate logical order.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {googlePurchaseRecoveryReleases.map(([label, tag]) => (
+                <li key={tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // July 25, 2026 - IAPKit security and SDK patch train
     {
       id: 'iapkit-security-cross-sdk-payload-integrity-2026-07-25',
