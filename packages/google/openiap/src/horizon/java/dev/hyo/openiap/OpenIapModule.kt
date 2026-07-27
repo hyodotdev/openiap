@@ -2,10 +2,7 @@ package dev.hyo.openiap
 
 import android.app.Activity
 import android.content.Context
-import android.os.Bundle
 import com.meta.horizon.billingclient.api.AcknowledgePurchaseParams
-import com.meta.horizon.billingclient.api.AlternativeBillingOnlyInformationDialogListener
-import com.meta.horizon.billingclient.api.AlternativeBillingOnlyReportingDetails
 import com.meta.horizon.billingclient.api.BillingClient
 import com.meta.horizon.billingclient.api.BillingClientStateListener
 import com.meta.horizon.billingclient.api.BillingFlowParams
@@ -46,7 +43,6 @@ import dev.hyo.openiap.utils.HorizonBillingConverters.toSubscriptionProduct
 import dev.hyo.openiap.utils.verifyPurchaseWithGooglePlay
 import dev.hyo.openiap.utils.verifyPurchaseWithHorizon
 import dev.hyo.openiap.MutationVerifyPurchaseHandler
-import dev.hyo.openiap.MutationValidateReceiptHandler
 import dev.hyo.openiap.MutationVerifyPurchaseWithProviderHandler
 import dev.hyo.openiap.PurchaseVerificationProvider
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
@@ -63,8 +59,6 @@ import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import java.lang.ref.WeakReference
-import java.util.Collections
-import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.atomic.AtomicBoolean
 
 private const val TAG = "OpenIapModule"
@@ -72,42 +66,8 @@ private const val HORIZON_APP_ID_META_DATA = "com.meta.horizon.platform.HORIZON_
 private const val PURCHASE_QUERY_INITIAL_DELAY_MS = 500L
 private const val PURCHASE_QUERY_INTERVAL_MS = 1_000L
 private const val PURCHASE_QUERY_MAX_ATTEMPTS = 300
-private val LEGACY_HORIZON_APP_ID_META_DATA = listOf(
-    "com.meta.horizon.platform.ovr.OCULUS_APP_ID",
-    "com.meta.horizon.platform.ovr.HORIZON_APP_ID",
-    "com.oculus.vr.APP_ID"
-)
-private val emittedLegacyHorizonAppIdWarnings: MutableSet<String> =
-    Collections.newSetFromMap(ConcurrentHashMap())
-
-private fun warnLegacyHorizonAppIdKey(key: String) {
-    if (!emittedLegacyHorizonAppIdWarnings.add(key)) return
-    OpenIapLog.warn(
-        "AndroidManifest meta-data key '$key' is deprecated and will be removed in OpenIAP 3.0. " +
-            "Use '$HORIZON_APP_ID_META_DATA' instead.",
-        TAG
-    )
-}
-
-internal fun resetLegacyHorizonAppIdWarningsForTests() {
-    emittedLegacyHorizonAppIdWarnings.clear()
-}
-
-internal fun resolveHorizonAppId(
-    metaData: Bundle?,
-    warnLegacyKey: (String) -> Unit = ::warnLegacyHorizonAppIdKey
-): String? {
-    (listOf(HORIZON_APP_ID_META_DATA) + LEGACY_HORIZON_APP_ID_META_DATA).forEach { key ->
-        val appId = metaData?.getString(key)?.takeIf { it.isNotBlank() }
-        if (appId != null) {
-            if (key != HORIZON_APP_ID_META_DATA) {
-                warnLegacyKey(key)
-            }
-            return appId
-        }
-    }
-    return null
-}
+internal fun resolveHorizonAppId(metaData: android.os.Bundle?): String? =
+    metaData?.getString(HORIZON_APP_ID_META_DATA)?.takeIf { it.isNotBlank() }
 
 internal data class HorizonAllQueryResults<T : Any>(
     val inApp: T?,
@@ -204,11 +164,8 @@ internal fun <T : Any> claimHorizonPendingIfOwned(
 internal fun horizonUnsupportedPurchaseError(
     type: ProductQueryType,
     offerToken: String?,
-    purchaseToken: String?,
-    replacementMode: Int?,
     originalExternalTransactionId: String?,
     hasDeveloperBillingOption: Boolean,
-    useAlternativeBilling: Boolean = false,
 ): OpenIapError? = when {
     !originalExternalTransactionId.isNullOrBlank() -> OpenIapError.FeatureNotSupported(
         "originalExternalTransactionId is only supported by Google Play Billing 9.1+"
@@ -216,16 +173,9 @@ internal fun horizonUnsupportedPurchaseError(
     hasDeveloperBillingOption -> OpenIapError.FeatureNotSupported(
         "developerBillingOption is only supported by Google Play Billing 8.3+"
     )
-    useAlternativeBilling -> OpenIapError.FeatureNotSupported(
-        "Alternative billing is not supported by Meta Horizon Billing"
-    )
     type == ProductQueryType.InApp && !offerToken.isNullOrBlank() ->
         OpenIapError.FeatureNotSupported(
             "One-time product offer tokens are not supported by Meta Horizon Billing"
-        )
-    replacementMode != null && purchaseToken.isNullOrBlank() ->
-        OpenIapError.DeveloperError(
-            "replacementMode requires purchaseToken for a subscription replacement"
         )
     else -> null
 }
@@ -277,33 +227,15 @@ internal fun resolveHorizonProductType(
  * OpenIapModule for Meta Horizon Billing
  *
  * @param context Android context
- * @param alternativeBillingMode Alternative billing mode (default: NONE)
- * @param userChoiceBillingListener Listener for user choice billing selection (optional)
- *
- * The Horizon App ID is read from AndroidManifest.xml meta-data. New apps should
- * use "com.meta.horizon.platform.HORIZON_APP_ID"; legacy keys remain readable
- * for migration compatibility.
+ * The Horizon App ID is read from the
+ * `com.meta.horizon.platform.HORIZON_APP_ID` AndroidManifest.xml meta-data key.
  */
 internal suspend fun unsupportedRedeemOfferCode(): Boolean = false
 
-class OpenIapModule
-    @Deprecated(
-        "Use OpenIapModule(context); Horizon ignores alternative-billing constructor options. Scheduled for removal in OpenIAP 3.0."
-    )
-    constructor(
+class OpenIapModule(
     private val context: Context,
-    private var alternativeBillingMode: AlternativeBillingMode = AlternativeBillingMode.NONE,
-    private var userChoiceBillingListener: dev.hyo.openiap.listener.UserChoiceBillingListener? = null
 ) : OpenIapProtocol {
 
-    @Suppress("DEPRECATION")
-    constructor(context: Context) : this(
-        context,
-        AlternativeBillingMode.NONE,
-        null
-    )
-
-    // Read the canonical Horizon 2.x key first, then migration-only legacy keys.
     private val appId: String? by lazy {
         try {
             val appInfo = context.packageManager.getApplicationInfo(
@@ -997,11 +929,8 @@ class OpenIapModule
             horizonUnsupportedPurchaseError(
                 type = androidArgs.type,
                 offerToken = androidArgs.offerToken,
-                purchaseToken = androidArgs.purchaseToken,
-                replacementMode = androidArgs.replacementMode,
                 originalExternalTransactionId = androidArgs.originalExternalTransactionId,
                 hasDeveloperBillingOption = androidArgs.developerBillingOption != null,
-                useAlternativeBilling = androidArgs.useAlternativeBilling == true,
             )?.let { error ->
                 emitPurchaseError(error)
                 return@withContext emptyList()
@@ -1124,7 +1053,6 @@ class OpenIapModule
                         OpenIapLog.debug("=== Subscription Upgrade Flow ===", TAG)
                         OpenIapLog.debug("  - Old Token: <redacted>", TAG)
                         OpenIapLog.debug("  - Target SKUs: ${androidArgs.skus}", TAG)
-                        OpenIapLog.debug("  - Replacement mode: ${androidArgs.replacementMode}", TAG)
                         OpenIapLog.debug("  - Product Details Count: ${paramsList.size}", TAG)
                         paramsList.forEachIndexed { idx, params ->
                             OpenIapLog.debug("  - Product[$idx]: SKU=${details[idx].productId}, offerToken=...", TAG)
@@ -1134,9 +1062,8 @@ class OpenIapModule
                             .setOldPurchaseToken(androidArgs.purchaseToken)
 
                         // Set replacement mode - this is critical for upgrades
-                        val replacementMode = androidArgs.replacementMode ?: 5 // Default to CHARGE_FULL_PRICE
-                        updateParamsBuilder.setSubscriptionReplacementMode(replacementMode)
-                        OpenIapLog.debug("  - Final replacement mode: $replacementMode", TAG)
+                        updateParamsBuilder.setSubscriptionReplacementMode(5)
+                        OpenIapLog.debug("  - Replacement mode: CHARGE_FULL_PRICE", TAG)
 
                         val updateParams = updateParamsBuilder.build()
                         flowBuilder.setSubscriptionUpdateParams(updateParams)
@@ -1442,11 +1369,6 @@ class OpenIapModule
         }
     }
 
-    @Deprecated("Use verifyPurchase instead. Scheduled for removal in OpenIAP 3.0.")
-    override val validateReceipt: MutationValidateReceiptHandler = { props ->
-        verifyPurchase(props)
-    }
-
     override val verifyPurchase: MutationVerifyPurchaseHandler = { props ->
         // Use Horizon API if horizon options provided, otherwise fallback to Google Play
         if (props.horizon != null) {
@@ -1514,16 +1436,9 @@ class OpenIapModule
         hasActiveSubscriptions = hasActiveSubscriptions
     )
 
-    @Suppress("DEPRECATION")
     override val mutationHandlers: MutationHandlers = MutationHandlers(
         acknowledgePurchaseAndroid = acknowledgePurchaseAndroid,
-        checkAlternativeBillingAvailabilityAndroid = {
-            checkAlternativeBillingAvailability()
-        },
         consumePurchaseAndroid = consumePurchaseAndroid,
-        createAlternativeBillingTokenAndroid = {
-            createAlternativeBillingReportingToken()
-        },
         createBillingProgramReportingDetailsAndroid = { program, developerBillingType ->
             createBillingProgramReportingDetails(program, developerBillingType)
         },
@@ -1544,10 +1459,6 @@ class OpenIapModule
         openRedeemOfferCodeAndroid = { unsupportedRedeemOfferCode() },
         requestPurchase = requestPurchase,
         restorePurchases = restorePurchases,
-        showAlternativeBillingDialogAndroid = {
-            val activity = currentActivityRef?.get() ?: fallbackActivity
-            if (activity == null) false else showAlternativeBillingInformationDialog(activity)
-        },
         showBillingProgramInformationDialogAndroid = { params ->
             val activity = currentActivityRef?.get() ?: fallbackActivity
                 ?: throw OpenIapError.MissingCurrentActivity
@@ -1558,7 +1469,6 @@ class OpenIapModule
                 ?: throw OpenIapError.MissingCurrentActivity
             showInAppMessages(activity, params)
         },
-        validateReceipt = validateReceipt,
         verifyPurchase = verifyPurchase,
         verifyPurchaseWithProvider = verifyPurchaseWithProvider
     )
@@ -1868,131 +1778,6 @@ class OpenIapModule
         }
 
         return builder.build()
-    }
-
-    // Alternative Billing - Testing if supported by Horizon Billing Compatibility Library
-    @Deprecated(
-        "Use isBillingProgramAvailable with BillingProgramAndroid.ExternalOffer instead. Scheduled for removal in OpenIAP 3.0."
-    )
-    override suspend fun checkAlternativeBillingAvailability(): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val client = billingClient ?: throw Exception("Not connected")
-
-            // Try to call the alternative billing method
-            val result = activeOperations.await(client) { operation ->
-                try {
-                    client.isAlternativeBillingOnlyAvailableAsync { billingResult ->
-                        operation.succeed(billingResult)
-                    }
-                } catch (e: NoSuchMethodError) {
-                    // Method doesn't exist in Horizon library
-                    OpenIapLog.warn("Alternative Billing not supported by Horizon library", TAG)
-                    operation.fail(OpenIapError.FeatureNotSupported())
-                } catch (e: Exception) {
-                    OpenIapLog.error("Error checking alternative billing: ${e.message}", e, TAG)
-                    operation.fail(e)
-                }
-            }
-
-            OpenIapLog.debug("Alternative Billing availability: ${result.responseCode}", TAG)
-            result.responseCode == BillingClient.BillingResponseCode.OK
-        } catch (e: OpenIapError) {
-            throw e
-        } catch (e: Exception) {
-            OpenIapLog.error("Error in checkAlternativeBillingAvailability: ${e.message}", e, TAG)
-            false
-        }
-    }
-
-    @Deprecated("Use launchExternalLink instead. Scheduled for removal in OpenIAP 3.0.")
-    override suspend fun showAlternativeBillingInformationDialog(activity: Activity): Boolean = withContext(Dispatchers.IO) {
-        try {
-            val client = billingClient ?: throw Exception("Not connected")
-
-            val activityRef = WeakReference(activity)
-            val currentActivity = activityRef.get() ?: throw Exception("Activity not available")
-
-            val result = activeOperations.await(client) { operation ->
-                try {
-                    val listener = AlternativeBillingOnlyInformationDialogListener { billingResult ->
-                        operation.succeed(billingResult)
-                    }
-                    currentActivity.runOnUiThread {
-                        if (operation.isActive()) {
-                            client.showAlternativeBillingOnlyInformationDialog(
-                                currentActivity,
-                                listener
-                            )
-                        }
-                    }
-                } catch (e: NoSuchMethodError) {
-                    OpenIapLog.warn("showAlternativeBillingOnlyInformationDialog not supported", TAG)
-                    operation.fail(OpenIapError.FeatureNotSupported())
-                } catch (e: Exception) {
-                    OpenIapLog.error("Error showing alternative billing dialog: ${e.message}", e, TAG)
-                    operation.fail(e)
-                }
-            }
-
-            OpenIapLog.debug("Alternative Billing dialog result: ${result.responseCode}", TAG)
-            result.responseCode == BillingClient.BillingResponseCode.OK
-        } catch (e: OpenIapError) {
-            throw e
-        } catch (e: Exception) {
-            OpenIapLog.error("Error in showAlternativeBillingInformationDialog: ${e.message}", e, TAG)
-            false
-        }
-    }
-
-    @Deprecated(
-        "Use createBillingProgramReportingDetails with BillingProgramAndroid.ExternalOffer instead. Scheduled for removal in OpenIAP 3.0."
-    )
-    override suspend fun createAlternativeBillingReportingToken(): String? = withContext(Dispatchers.IO) {
-        try {
-            val client = billingClient ?: throw Exception("Not connected")
-
-            val result = activeOperations.await(client) { operation ->
-                try {
-                    client.createAlternativeBillingOnlyReportingDetailsAsync { billingResult, details ->
-                        operation.succeed(Pair(billingResult, details))
-                    }
-                } catch (e: NoSuchMethodError) {
-                    OpenIapLog.warn("createAlternativeBillingOnlyReportingDetails not supported", TAG)
-                    operation.fail(OpenIapError.FeatureNotSupported())
-                } catch (e: Exception) {
-                    OpenIapLog.error("Error creating alternative billing token: ${e.message}", e, TAG)
-                    operation.fail(e)
-                }
-            }
-
-            OpenIapLog.debug("Alternative Billing token result: ${result.first.responseCode}", TAG)
-            if (result.first.responseCode == BillingClient.BillingResponseCode.OK) {
-                result.second?.externalTransactionToken
-            } else {
-                null
-            }
-        } catch (e: OpenIapError) {
-            throw e
-        } catch (e: Exception) {
-            OpenIapLog.error("Error in createAlternativeBillingReportingToken: ${e.message}", e, TAG)
-            null
-        }
-    }
-
-    @Deprecated(
-        "Use addUserChoiceBillingListener and removeUserChoiceBillingListener instead. Scheduled for removal in OpenIAP 3.0."
-    )
-    override fun setUserChoiceBillingListener(listener: dev.hyo.openiap.listener.UserChoiceBillingListener?) {
-        // No-op: User Choice Billing is a Google Play feature, not supported on Meta Horizon
-        OpenIapLog.warn("setUserChoiceBillingListener is not supported on Meta Horizon (no-op)", TAG)
-    }
-
-    @Deprecated(
-        "Use addDeveloperProvidedBillingListener and removeDeveloperProvidedBillingListener instead. Scheduled for removal in OpenIAP 3.0."
-    )
-    override fun setDeveloperProvidedBillingListener(listener: dev.hyo.openiap.listener.DeveloperProvidedBillingListener?) {
-        // No-op: developer-provided billing programs are Google Play-only.
-        OpenIapLog.warn("setDeveloperProvidedBillingListener is not supported on Meta Horizon (no-op)", TAG)
     }
 
     override fun addUserChoiceBillingListener(listener: OpenIapUserChoiceBillingListener) {

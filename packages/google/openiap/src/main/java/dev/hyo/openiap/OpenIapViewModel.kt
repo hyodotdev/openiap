@@ -64,7 +64,6 @@ class OpenIapViewModel(app: Application) : AndroidViewModel(app) {
                             obfuscatedAccountId = null,
                             obfuscatedProfileId = null,
                             purchaseToken = null,
-                            replacementMode = null,
                             skus = skus,
                             subscriptionOffers = null
                         )

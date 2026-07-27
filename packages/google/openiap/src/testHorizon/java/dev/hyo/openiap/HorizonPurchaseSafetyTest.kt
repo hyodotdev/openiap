@@ -167,8 +167,6 @@ class HorizonPurchaseSafetyTest {
             horizonUnsupportedPurchaseError(
                 type = ProductQueryType.InApp,
                 offerToken = "one-time-offer",
-                purchaseToken = null,
-                replacementMode = null,
                 originalExternalTransactionId = null,
                 hasDeveloperBillingOption = false,
             ) is OpenIapError.FeatureNotSupported
@@ -177,8 +175,6 @@ class HorizonPurchaseSafetyTest {
             horizonUnsupportedPurchaseError(
                 type = ProductQueryType.Subs,
                 offerToken = null,
-                purchaseToken = null,
-                replacementMode = null,
                 originalExternalTransactionId = "external-transaction",
                 hasDeveloperBillingOption = false,
             ) is OpenIapError.FeatureNotSupported
@@ -187,31 +183,8 @@ class HorizonPurchaseSafetyTest {
             horizonUnsupportedPurchaseError(
                 type = ProductQueryType.Subs,
                 offerToken = null,
-                purchaseToken = null,
-                replacementMode = null,
                 originalExternalTransactionId = null,
                 hasDeveloperBillingOption = true,
-            ) is OpenIapError.FeatureNotSupported
-        )
-        assertTrue(
-            horizonUnsupportedPurchaseError(
-                type = ProductQueryType.Subs,
-                offerToken = null,
-                purchaseToken = null,
-                replacementMode = 1,
-                originalExternalTransactionId = null,
-                hasDeveloperBillingOption = false,
-            ) is OpenIapError.DeveloperError
-        )
-        assertTrue(
-            horizonUnsupportedPurchaseError(
-                type = ProductQueryType.InApp,
-                offerToken = null,
-                purchaseToken = null,
-                replacementMode = null,
-                originalExternalTransactionId = null,
-                hasDeveloperBillingOption = false,
-                useAlternativeBilling = true,
             ) is OpenIapError.FeatureNotSupported
         )
     }

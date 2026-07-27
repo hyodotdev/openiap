@@ -72,7 +72,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
               updatedAt.doubleValue.isFinite,
               updatedAt.doubleValue >= 0 else {
             throw PurchaseError.make(
-                code: .receiptFailed,
+                code: .purchaseVerificationFailed,
                 message: "IAPKit returned malformed client payload"
             )
         }
@@ -89,7 +89,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         guard let value = rawValue as? NSNumber,
               CFGetTypeID(value) == CFBooleanGetTypeID() else {
             throw PurchaseError.make(
-                code: .receiptFailed,
+                code: .purchaseVerificationFailed,
                 message: "IAPKit returned malformed response"
             )
         }
@@ -499,41 +499,6 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         }
     }
 
-    /// Buy the currently promoted product.
-    /// See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
-    @available(*, deprecated, message: "Use promotedProductListenerIOS + requestPurchase instead. Scheduled for removal in OpenIAP 3.0.")
-    public func requestPurchaseOnPromotedProductIOS() async throws -> Bool {
-        #if os(iOS)
-        guard let sku = await state.promotedProductIdentifier() else {
-            return false
-        }
-
-        try await ensureConnection()
-        let product = try await storeProduct(for: sku)
-        let request: RequestPurchaseProps
-
-        switch product.type {
-        case .autoRenewable, .nonRenewable:
-            let iosProps = RequestSubscriptionIosProps(sku: sku)
-            request = RequestPurchaseProps(
-                request: .subscription(RequestSubscriptionPropsByPlatforms(android: nil, ios: iosProps)),
-                type: .subs
-            )
-        default:
-            let iosProps = RequestPurchaseIosProps(sku: sku)
-            request = RequestPurchaseProps(
-                request: .purchase(RequestPurchasePropsByPlatforms(android: nil, ios: iosProps)),
-                type: .inApp
-            )
-        }
-
-        _ = try await requestPurchase(request)
-        return true
-        #else
-        throw makePurchaseError(code: .featureNotSupported)
-        #endif
-    }
-
     /// Restore non-consumable and active subscription purchases.
     /// See: https://openiap.dev/docs/apis/restore-purchases
     public func restorePurchases() async throws -> Void {
@@ -752,14 +717,6 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         return data.base64EncodedString()
     }
 
-    /// Deprecated. Legacy App Store receipt validation. Use `verifyPurchase` instead.
-    /// Scheduled for removal in OpenIAP 3.0.
-    /// See: https://openiap.dev/docs/apis/ios/validate-receipt-ios
-    @available(*, deprecated, message: "Use verifyPurchase instead. Scheduled for removal in OpenIAP 3.0.")
-    public func validateReceiptIOS(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS {
-        try await performVerifyPurchaseIOS(props)
-    }
-
     private func performVerifyPurchaseIOS(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS {
         let receiptData = (try? await getReceiptDataIOS()) ?? ""
         var latestPurchase: Purchase? = nil
@@ -792,14 +749,6 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             latestTransaction: latestPurchase,
             receiptData: receiptData
         )
-    }
-
-    /// Deprecated. Use verifyPurchase instead — same input/output shape.
-    /// Scheduled for removal in OpenIAP 3.0.
-    /// See: https://openiap.dev/docs/apis/validate-receipt
-    @available(*, deprecated, message: "Use verifyPurchase instead. Scheduled for removal in OpenIAP 3.0.")
-    public func validateReceipt(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResult {
-        try await verifyPurchase(props)
     }
 
     /// Verify a purchase against your own backend (returns isValid + raw store metadata).
@@ -956,21 +905,21 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                    let json = try? JSONSerialization.jsonObject(with: jsonData) as? [String: Any] {
                     errorMessage = extractIapkitErrorMessage(from: json) ?? errorMessage
                 }
-                throw makePurchaseError(code: .receiptFailed, message: errorMessage)
+                throw makePurchaseError(code: .purchaseVerificationFailed, message: errorMessage)
             }
 
             OpenIapLog.debug("IAPKit verification response received: bytes=\(data.count)")
 
             guard let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any] else {
                 OpenIapLog.warn("Failed to parse IAPKit verification response")
-                throw makePurchaseError(code: .receiptFailed, message: "Unable to parse verification response")
+                throw makePurchaseError(code: .purchaseVerificationFailed, message: "Unable to parse verification response")
             }
 
             if let errors = json["errors"] as? [[String: Any]], let firstError = errors.first {
                 let errorMessage = extractIapkitErrorMessage(from: firstError) ?? "Unknown error"
                 let errorCode = firstError["code"] as? String ?? "unknown"
                 OpenIapLog.warn("IAPKit verification error: \(errorCode) - \(errorMessage)")
-                throw makePurchaseError(code: .receiptFailed, message: errorMessage)
+                throw makePurchaseError(code: .purchaseVerificationFailed, message: errorMessage)
             }
 
             let isValid = try Self.iapkitBoolean(from: json["isValid"])
@@ -979,7 +928,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                   let parsedStore = IapStore(rawValue: storeString),
                   parsedStore == store else {
                 OpenIapLog.warn("IAPKit verification response missing required fields")
-                throw makePurchaseError(code: .receiptFailed, message: "IAPKit returned malformed response")
+                throw makePurchaseError(code: .purchaseVerificationFailed, message: "IAPKit returned malformed response")
             }
             let normalizedState = stateString.lowercased().replacingOccurrences(of: "_", with: "-")
             let parsedState = IapkitPurchaseState(rawValue: normalizedState) ?? .unknown
@@ -987,7 +936,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             if let rawProductId = json["productId"], !(rawProductId is NSNull) {
                 guard let value = rawProductId as? String else {
                     OpenIapLog.warn("IAPKit verification response contains a non-string productId")
-                    throw makePurchaseError(code: .receiptFailed, message: "IAPKit returned malformed response")
+                    throw makePurchaseError(code: .purchaseVerificationFailed, message: "IAPKit returned malformed response")
                 }
                 productId = value
             } else {
@@ -1037,14 +986,6 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         return storefront.countryCode
     }
 
-    /// Deprecated. Use cross-platform `getStorefront` instead.
-    /// Scheduled for removal in OpenIAP 3.0.
-    /// See: https://openiap.dev/docs/apis/ios/get-storefront-ios
-    @available(*, deprecated, message: "Use getStorefront instead. Scheduled for removal in OpenIAP 3.0.")
-    public func getStorefrontIOS() async throws -> String {
-        try await getStorefront()
-    }
-
     /// Get the app transaction that represents the user's purchase of the app
     /// - Note: Available on iOS 16.0+, macOS 14.0+, tvOS 16.0+, watchOS 9.0+
     /// - SeeAlso: https://developer.apple.com/documentation/storekit/apptransaction
@@ -1088,7 +1029,6 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                 let isActive = expiration.map { $0 > Date() } ?? false
                 let dayDelta = expiration.map { Calendar.current.dateComponents([.day], from: Date(), to: $0).day ?? 0 }
                 let daysUntilExpiration = dayDelta.map { Double($0) }
-                let willExpireSoon = dayDelta.map { $0 < 7 } ?? false
                 let environment: String?
                 if #available(iOS 16.0, tvOS 16.0, watchOS 9.0, *) {
                     environment = transaction.environment.rawValue
@@ -1111,8 +1051,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                         purchaseToken: verification.jwsRepresentation,
                         renewalInfoIOS: renewalInfo,
                         transactionDate: transaction.purchaseDate.milliseconds,
-                        transactionId: String(transaction.id),
-                        willExpireSoon: willExpireSoon
+                        transactionId: String(transaction.id)
                     )
                 )
             } catch {
@@ -1865,11 +1804,11 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     func resolveIOSPurchaseProps(from params: RequestPurchaseProps) throws -> any IosPropsProtocol {
         switch params.request {
         case let .purchase(platforms):
-            if let ios = platforms.apple ?? platforms.ios {
+            if let ios = platforms.apple {
                 return ios
             }
         case let .subscription(platforms):
-            if let ios = platforms.apple ?? platforms.ios {
+            if let ios = platforms.apple {
                 return ios
             }
         }
@@ -1879,9 +1818,9 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     private func purchaseProductId(from params: RequestPurchaseProps) -> String? {
         switch params.request {
         case let .purchase(platforms):
-            return platforms.apple?.sku ?? platforms.ios?.sku
+            return platforms.apple?.sku
         case let .subscription(platforms):
-            return platforms.apple?.sku ?? platforms.ios?.sku
+            return platforms.apple?.sku
         }
     }
 
@@ -2331,10 +2270,6 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         case .remoteError: return "Remote service error"
         case .networkError: return "Network connection error"
         case .serviceError: return "Store service error"
-        // Deprecated - use purchaseVerification* variants instead
-        case .receiptFailed: return "Purchase verification failed"
-        case .receiptFinished: return "Transaction already finished"
-        case .receiptFinishedFailed: return "Transaction finish failed"
         case .purchaseVerificationFailed: return "Purchase verification failed"
         case .purchaseVerificationFinished: return "Transaction already finished"
         case .purchaseVerificationFinishFailed: return "Transaction finish failed"

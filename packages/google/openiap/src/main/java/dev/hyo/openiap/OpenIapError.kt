@@ -107,21 +107,6 @@ sealed class OpenIapError : Exception() {
     }
 
     /**
-     * @deprecated Use [InvalidPurchaseVerification] instead. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated(
-        "Use InvalidPurchaseVerification instead. Scheduled for removal in OpenIAP 3.0.",
-        ReplaceWith("InvalidPurchaseVerification")
-    )
-    object InvalidReceipt : OpenIapError() {
-        val CODE = ErrorCode.PurchaseVerificationFailed.rawValue
-        override val code = CODE
-        override val message = MESSAGE
-
-        const val MESSAGE = "Purchase verification failed"
-    }
-
-    /**
      * Purchase verification failed (general error without specific provider message)
      */
     object InvalidPurchaseVerification : OpenIapError() {

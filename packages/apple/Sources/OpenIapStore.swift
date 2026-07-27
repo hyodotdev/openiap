@@ -170,8 +170,7 @@ public final class OpenIapStore: ObservableObject {
                         purchaseToken: ios.purchaseToken,
                         renewalInfoIOS: ios.renewalInfoIOS,  // Future changes reflected here
                         transactionDate: ios.transactionDate,
-                        transactionId: ios.transactionId,
-                        willExpireSoon: false
+                        transactionId: ios.transactionId
                     )
 
                     // Remove duplicates by transactionId
@@ -374,11 +373,6 @@ public final class OpenIapStore: ObservableObject {
         }
     }
 
-    @available(*, deprecated, message: "Use promotedProductListenerIOS + requestPurchase instead. Scheduled for removal in OpenIAP 3.0.")
-    public func requestPurchaseOnPromotedProductIOS() async throws -> Bool {
-        try await module.requestPurchaseOnPromotedProductIOS()
-    }
-
     public func finishTransaction(purchase: PurchaseIOS, isConsumable: Bool = false) async throws {
         try await finishTransaction(purchase: .purchaseIos(purchase), isConsumable: isConsumable)
     }
@@ -431,11 +425,6 @@ public final class OpenIapStore: ObservableObject {
 
     // MARK: - Validation & Metadata
 
-    @available(*, deprecated, message: "Use verifyPurchase(sku:) instead. Scheduled for removal in OpenIAP 3.0.")
-    public func validateReceipt(sku: String) async throws -> VerifyPurchaseResultIOS {
-        try await verifyPurchase(sku: sku)
-    }
-
     public func verifyPurchase(sku: String) async throws -> VerifyPurchaseResultIOS {
         let result = try await module.verifyPurchase(VerifyPurchaseProps(apple: VerifyPurchaseAppleOptions(sku: sku)))
         if case let .verifyPurchaseResultIos(iosResult) = result {
@@ -471,11 +460,6 @@ public final class OpenIapStore: ObservableObject {
 
     public func getStorefront() async throws -> String {
         try await module.getStorefront()
-    }
-
-    @available(*, deprecated, message: "Use getStorefront instead. Scheduled for removal in OpenIAP 3.0.")
-    public func getStorefrontIOS() async throws -> String {
-        try await getStorefront()
     }
 
     @available(iOS 16.0, macOS 14.0, tvOS 16.0, watchOS 9.0, *)
@@ -538,10 +522,6 @@ public final class OpenIapStore: ObservableObject {
         try await module.deepLinkToSubscriptions(options)
     }
 
-    @available(*, deprecated, message: "Use deepLinkToSubscriptions instead. Scheduled for removal in OpenIAP 3.0.")
-    public func deepLinkToSubscriptionsIOS() async throws {
-        try await deepLinkToSubscriptions()
-    }
     #endif // !os(tvOS)
 
     public func canPresentExternalPurchaseNoticeIOS() async throws -> Bool {
@@ -734,36 +714,13 @@ private extension OpenIAP.Purchase {
 
 @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
 enum OpenIapStorePurchaseRequestResolver {
-    private static let legacyIOSWarningKey = "OpenIapStore.requestPurchase.ios"
-
-    static func sku(
-        from params: RequestPurchaseProps,
-        legacyWarningKey: String = legacyIOSWarningKey
-    ) -> String? {
+    static func sku(from params: RequestPurchaseProps) -> String? {
         switch params.request {
         case .purchase(let platforms):
-            if let apple = platforms.apple {
-                return apple.sku
-            }
-            guard let ios = platforms.ios else { return nil }
-            warnAboutLegacyIOS(key: legacyWarningKey)
-            return ios.sku
+            return platforms.apple?.sku
         case .subscription(let platforms):
-            if let apple = platforms.apple {
-                return apple.sku
-            }
-            guard let ios = platforms.ios else { return nil }
-            warnAboutLegacyIOS(key: legacyWarningKey)
-            return ios.sku
+            return platforms.apple?.sku
         }
-    }
-
-    private static func warnAboutLegacyIOS(key: String) {
-        OpenIapLog.deprecation(
-            key,
-            "OpenIapStore request field `ios` is deprecated; use `apple` instead. "
-                + "Legacy `ios` compatibility is scheduled for removal in OpenIAP 3.0."
-        )
     }
 }
 

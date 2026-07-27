@@ -20,13 +20,11 @@ import dev.hyo.openiap.helpers.requireAuthoritativeStorefrontCountry
 import dev.hyo.openiap.helpers.onPurchaseError
 import dev.hyo.openiap.helpers.onPurchaseUpdated
 import dev.hyo.openiap.helpers.toAndroidPurchaseArgs
-import dev.hyo.openiap.listener.DeveloperProvidedBillingListener
 import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener
 import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
-import dev.hyo.openiap.listener.UserChoiceBillingListener
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CancellationException
@@ -338,7 +336,6 @@ internal fun buildAmazonPurchase(
         isSuspendedAndroid = false,
         packageNameAndroid = packageName,
         pendingPurchaseUpdateAndroid = pendingSubscriptionUpdate,
-        platform = IapPlatform.Android,
         productId = resolvedProductId,
         purchaseState = state,
         purchaseToken = receiptId,
@@ -359,41 +356,14 @@ internal fun buildAmazonPurchase(
  */
 internal suspend fun unsupportedRedeemOfferCode(): Boolean = false
 
-class OpenIapModule
-    @Deprecated(
-        "Use OpenIapModule(context) and register listeners with add/remove APIs; Amazon ignores alternative-billing constructor options. Scheduled for removal in OpenIAP 3.0."
-    )
-    constructor(
+class OpenIapModule(
     private val context: Context,
-    @Suppress("UNUSED_PARAMETER")
-    private var alternativeBillingMode: AlternativeBillingMode = AlternativeBillingMode.NONE,
-    @Suppress("UNUSED_PARAMETER")
-    private var userChoiceBillingListener: UserChoiceBillingListener? = null,
-    @Suppress("UNUSED_PARAMETER")
-    private var developerProvidedBillingListener: DeveloperProvidedBillingListener? = null
 ) : OpenIapProtocol, PurchasingListener {
-
-    @Suppress("DEPRECATION")
-    constructor(context: Context) : this(
-        context,
-        AlternativeBillingMode.NONE,
-        null,
-        null
-    )
 
     private class AmazonPurchaseRequestFailure(
         val requestId: String,
         val purchaseError: OpenIapError,
     ) : Exception(purchaseError.message, purchaseError)
-
-    @Deprecated(
-        "Use OpenIapModule(context) instead; Amazon ignores alternative-billing constructor options. Scheduled for removal in OpenIAP 3.0."
-    )
-    constructor(context: Context, enableAlternativeBilling: Boolean) : this(
-        context,
-        if (enableAlternativeBilling) AlternativeBillingMode.ALTERNATIVE_ONLY else AlternativeBillingMode.NONE,
-        null
-    )
 
     private var currentActivityRef: WeakReference<Activity>? = null
     private val registrationLock = Any()
@@ -806,11 +776,6 @@ class OpenIapModule
         }
     }
 
-    @Deprecated("Use verifyPurchase instead. Scheduled for removal in OpenIAP 3.0.")
-    override val validateReceipt: MutationValidateReceiptHandler = {
-        verifyPurchase(it)
-    }
-
     override val verifyPurchase: MutationVerifyPurchaseHandler = {
         throw OpenIapError.FeatureNotSupported(
             "Amazon receipt verification requires server-side RVS integration"
@@ -883,12 +848,9 @@ class OpenIapModule
         hasActiveSubscriptions = hasActiveSubscriptions
     )
 
-    @Suppress("DEPRECATION")
     override val mutationHandlers: MutationHandlers = MutationHandlers(
         acknowledgePurchaseAndroid = acknowledgePurchaseAndroid,
-        checkAlternativeBillingAvailabilityAndroid = { checkAlternativeBillingAvailability() },
         consumePurchaseAndroid = consumePurchaseAndroid,
-        createAlternativeBillingTokenAndroid = { createAlternativeBillingReportingToken() },
         createBillingProgramReportingDetailsAndroid = { program, developerBillingType ->
             createBillingProgramReportingDetails(program, developerBillingType)
         },
@@ -907,11 +869,6 @@ class OpenIapModule
         openRedeemOfferCodeAndroid = { unsupportedRedeemOfferCode() },
         requestPurchase = requestPurchase,
         restorePurchases = restorePurchases,
-        showAlternativeBillingDialogAndroid = {
-            val activity = currentActivityRef?.get()
-                ?: throw OpenIapError.MissingCurrentActivity
-            showAlternativeBillingInformationDialog(activity)
-        },
         showBillingProgramInformationDialogAndroid = { params ->
             val activity = currentActivityRef?.get()
                 ?: throw OpenIapError.MissingCurrentActivity
@@ -922,7 +879,6 @@ class OpenIapModule
                 ?: throw OpenIapError.MissingCurrentActivity
             showInAppMessages(activity, params)
         },
-        validateReceipt = validateReceipt,
         verifyPurchase = verifyPurchase,
         verifyPurchaseWithProvider = verifyPurchaseWithProvider
     )
@@ -987,35 +943,6 @@ class OpenIapModule
     override fun addSubscriptionBillingIssueListener(listener: OpenIapSubscriptionBillingIssueListener) = Unit
 
     override fun removeSubscriptionBillingIssueListener(listener: OpenIapSubscriptionBillingIssueListener) = Unit
-
-    @Deprecated(
-        "Use addUserChoiceBillingListener and removeUserChoiceBillingListener instead. Scheduled for removal in OpenIAP 3.0."
-    )
-    override fun setUserChoiceBillingListener(listener: UserChoiceBillingListener?) {
-        userChoiceBillingListener = listener
-    }
-
-    @Deprecated(
-        "Use addDeveloperProvidedBillingListener and removeDeveloperProvidedBillingListener instead. Scheduled for removal in OpenIAP 3.0."
-    )
-    override fun setDeveloperProvidedBillingListener(listener: DeveloperProvidedBillingListener?) {
-        developerProvidedBillingListener = listener
-    }
-
-    @Deprecated(
-        "Use isBillingProgramAvailable with BillingProgramAndroid.ExternalOffer instead; Amazon Appstore does not support Google Play alternative billing. Scheduled for removal in OpenIAP 3.0."
-    )
-    override suspend fun checkAlternativeBillingAvailability(): Boolean = false
-
-    @Deprecated(
-        "Use launchExternalLink instead; Amazon Appstore does not support Google Play alternative billing. Scheduled for removal in OpenIAP 3.0."
-    )
-    override suspend fun showAlternativeBillingInformationDialog(activity: Activity): Boolean = false
-
-    @Deprecated(
-        "Use createBillingProgramReportingDetails with BillingProgramAndroid.ExternalOffer instead; Amazon Appstore does not support Google Play alternative billing. Scheduled for removal in OpenIAP 3.0."
-    )
-    override suspend fun createAlternativeBillingReportingToken(): String? = null
 
     override suspend fun isBillingProgramAvailable(
         program: BillingProgramAndroid
@@ -1605,13 +1532,6 @@ class OpenIapModule
             recurrenceMode = 1
         )
         val phases = PricingPhasesAndroid(listOf(phase))
-        val legacyOffer = ProductSubscriptionAndroidOfferDetails(
-            basePlanId = sku,
-            offerId = null,
-            offerTags = emptyList(),
-            offerToken = "",
-            pricingPhases = phases
-        )
         val standardizedOffer = SubscriptionOffer(
             basePlanIdAndroid = sku,
             currency = "",
@@ -1636,7 +1556,6 @@ class OpenIapModule
             platform = IapPlatform.Android,
             price = priceAmount,
             productStatusAndroid = ProductStatusAndroid.Ok,
-            subscriptionOfferDetailsAndroid = listOf(legacyOffer),
             subscriptionOffers = listOf(standardizedOffer),
             title = title.orEmpty(),
             type = ProductType.Subs

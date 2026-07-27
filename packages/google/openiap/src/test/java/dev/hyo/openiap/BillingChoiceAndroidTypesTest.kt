@@ -1,8 +1,6 @@
 package dev.hyo.openiap
 
-import dev.hyo.openiap.helpers.hasLegacyBillingProgramConflict
 import dev.hyo.openiap.helpers.resolveBillingProgramsForConnection
-import dev.hyo.openiap.helpers.resolveLegacySubscriptionReplacementMode
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
@@ -204,41 +202,6 @@ class BillingChoiceAndroidTypesTest {
     }
 
     @Test
-    fun `developer billed replacement does not inject a Play replacement mode`() {
-        assertNull(
-            resolveLegacySubscriptionReplacementMode(
-                purchaseToken = null,
-                originalExternalTransactionId = "original-external-id",
-                replacementMode = null
-            )
-        )
-        assertEquals(
-            5,
-            resolveLegacySubscriptionReplacementMode(
-                purchaseToken = "play-purchase-token",
-                originalExternalTransactionId = null,
-                replacementMode = null
-            )
-        )
-        assertEquals(
-            3,
-            resolveLegacySubscriptionReplacementMode(
-                purchaseToken = null,
-                originalExternalTransactionId = "original-external-id",
-                replacementMode = 3
-            )
-        )
-        assertNull(
-            resolveLegacySubscriptionReplacementMode(
-                purchaseToken = "play-purchase-token",
-                originalExternalTransactionId = null,
-                replacementMode = 3,
-                hasProductLevelReplacementParams = true
-            )
-        )
-    }
-
-    @Test
     fun `pre-init billing programs survive connection config reset`() {
         assertEquals(
             setOf(BillingProgramAndroid.ExternalOffer),
@@ -255,28 +218,6 @@ class BillingChoiceAndroidTypesTest {
             resolveBillingProgramsForConnection(
                 pendingPrograms = setOf(BillingProgramAndroid.ExternalOffer),
                 configuredProgram = BillingProgramAndroid.BillingChoice
-            )
-        )
-    }
-
-    @Test
-    fun `explicit legacy and new billing programs reject incompatible dual enable`() {
-        assertTrue(
-            hasLegacyBillingProgramConflict(
-                AlternativeBillingModeAndroid.AlternativeOnly,
-                setOf(BillingProgramAndroid.ExternalOffer),
-            )
-        )
-        assertFalse(
-            hasLegacyBillingProgramConflict(
-                AlternativeBillingModeAndroid.UserChoice,
-                setOf(BillingProgramAndroid.UserChoiceBilling),
-            )
-        )
-        assertFalse(
-            hasLegacyBillingProgramConflict(
-                AlternativeBillingModeAndroid.None,
-                setOf(BillingProgramAndroid.ExternalOffer),
             )
         )
     }

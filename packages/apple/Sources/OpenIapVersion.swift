@@ -14,12 +14,6 @@ public struct OpenIapVersion {
         version(for: "spec")
     }
 
-    /// OpenIAP GraphQL version for reference
-    @available(*, deprecated, renamed: "specVersion", message: "Use specVersion instead. Scheduled for removal in OpenIAP 3.0.")
-    public static var gqlVersion: String {
-        specVersion
-    }
-
     private static func version(for key: String) -> String {
         let versionURL: URL?
 
@@ -71,9 +65,4 @@ public enum OpenIapVersionInfo {
         OpenIapVersion.current
     }
 
-    /// OpenIAP GraphQL version for reference
-    @available(*, deprecated, renamed: "OpenIapVersion.specVersion", message: "Use OpenIapVersion.specVersion instead. Scheduled for removal in OpenIAP 3.0.")
-    public static var gqlVersion: String {
-        OpenIapVersion.specVersion
-    }
 }

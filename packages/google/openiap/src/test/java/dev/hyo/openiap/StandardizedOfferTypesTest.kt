@@ -361,9 +361,7 @@ class StandardizedOfferTypesTest {
             type = ProductType.InApp,
             nameAndroid = "Test Product",
             discountOffers = listOf(discountOffer),
-            subscriptionOffers = null,
-            oneTimePurchaseOfferDetailsAndroid = null,
-            subscriptionOfferDetailsAndroid = null
+            subscriptionOffers = null
         )
 
         assertEquals(1, product.discountOffers?.size)
@@ -395,10 +393,7 @@ class StandardizedOfferTypesTest {
             platform = IapPlatform.Android,
             type = ProductType.Subs,
             nameAndroid = "Premium Subscription",
-            discountOffers = null,
-            subscriptionOffers = listOf(subscriptionOffer),
-            oneTimePurchaseOfferDetailsAndroid = null,
-            subscriptionOfferDetailsAndroid = emptyList()
+            subscriptionOffers = listOf(subscriptionOffer)
         )
 
         assertEquals(1, product.subscriptionOffers.size)
@@ -507,9 +502,7 @@ class StandardizedOfferTypesTest {
             type = ProductType.InApp,
             nameAndroid = "100 Gems",
             discountOffers = listOf(discountOffer),
-            subscriptionOffers = null,
-            oneTimePurchaseOfferDetailsAndroid = null,
-            subscriptionOfferDetailsAndroid = null
+            subscriptionOffers = null
         )
 
         // Get the offer token from product's discount offers
@@ -702,152 +695,6 @@ class StandardizedOfferTypesTest {
         assertNull(offer.installmentPlanDetailsAndroid)
     }
 
-    // MARK: - ProductAndroidOneTimePurchaseOfferDetail purchaseOptionId Tests
-
-    @Test
-    fun `ProductAndroidOneTimePurchaseOfferDetail supports purchaseOptionId`() {
-        val offerDetail = ProductAndroidOneTimePurchaseOfferDetail(
-            offerId = "offer_001",
-            offerToken = "token_abc",
-            offerTags = listOf("sale"),
-            formattedPrice = "$4.99",
-            priceAmountMicros = "4990000",
-            priceCurrencyCode = "USD",
-            purchaseOptionId = "purchase_opt_xyz"
-        )
-
-        assertEquals("purchase_opt_xyz", offerDetail.purchaseOptionId)
-    }
-
-    @Test
-    fun `ProductAndroidOneTimePurchaseOfferDetail toJson includes purchaseOptionId`() {
-        val offerDetail = ProductAndroidOneTimePurchaseOfferDetail(
-            offerId = "offer_002",
-            offerToken = "token_def",
-            offerTags = emptyList(),
-            formattedPrice = "$2.99",
-            priceAmountMicros = "2990000",
-            priceCurrencyCode = "USD",
-            purchaseOptionId = "opt_id_123"
-        )
-
-        val json = offerDetail.toJson()
-        assertEquals("opt_id_123", json["purchaseOptionId"])
-    }
-
-    @Test
-    fun `ProductAndroidOneTimePurchaseOfferDetail fromJson parses purchaseOptionId`() {
-        val json = mapOf<String, Any?>(
-            "offerId" to "parsed_offer",
-            "offerToken" to "parsed_token",
-            "offerTags" to listOf("tag1"),
-            "formattedPrice" to "$1.99",
-            "priceAmountMicros" to "1990000",
-            "priceCurrencyCode" to "EUR",
-            "purchaseOptionId" to "parsed_purchase_option"
-        )
-
-        val offerDetail = ProductAndroidOneTimePurchaseOfferDetail.fromJson(json)
-        assertEquals("parsed_purchase_option", offerDetail.purchaseOptionId)
-    }
-
-    // MARK: - ProductSubscriptionAndroidOfferDetails installmentPlanDetails Tests
-
-    @Test
-    fun `ProductSubscriptionAndroidOfferDetails supports installmentPlanDetails`() {
-        val pricingPhases = PricingPhasesAndroid(
-            pricingPhaseList = listOf(
-                PricingPhaseAndroid(
-                    billingCycleCount = 0,
-                    billingPeriod = "P1M",
-                    formattedPrice = "$9.99",
-                    priceAmountMicros = "9990000",
-                    priceCurrencyCode = "USD",
-                    recurrenceMode = 1
-                )
-            )
-        )
-
-        val offerDetails = ProductSubscriptionAndroidOfferDetails(
-            basePlanId = "monthly_installment",
-            offerId = null,
-            offerToken = "install_token",
-            offerTags = listOf("installment"),
-            pricingPhases = pricingPhases,
-            installmentPlanDetails = InstallmentPlanDetailsAndroid(
-                commitmentPaymentsCount = 12,
-                subsequentCommitmentPaymentsCount = 0
-            )
-        )
-
-        assertEquals(12, offerDetails.installmentPlanDetails?.commitmentPaymentsCount)
-        assertEquals(0, offerDetails.installmentPlanDetails?.subsequentCommitmentPaymentsCount)
-    }
-
-    @Test
-    fun `ProductSubscriptionAndroidOfferDetails toJson includes installmentPlanDetails`() {
-        val pricingPhases = PricingPhasesAndroid(
-            pricingPhaseList = listOf(
-                PricingPhaseAndroid(
-                    billingCycleCount = 0,
-                    billingPeriod = "P1M",
-                    formattedPrice = "$7.99",
-                    priceAmountMicros = "7990000",
-                    priceCurrencyCode = "USD",
-                    recurrenceMode = 1
-                )
-            )
-        )
-
-        val offerDetails = ProductSubscriptionAndroidOfferDetails(
-            basePlanId = "yearly_base",
-            offerId = "promo_offer",
-            offerToken = "promo_token",
-            offerTags = emptyList(),
-            pricingPhases = pricingPhases,
-            installmentPlanDetails = InstallmentPlanDetailsAndroid(
-                commitmentPaymentsCount = 6,
-                subsequentCommitmentPaymentsCount = 6
-            )
-        )
-
-        val json = offerDetails.toJson()
-        @Suppress("UNCHECKED_CAST")
-        val installmentJson = json["installmentPlanDetails"] as? Map<String, Any?>
-        assertEquals(6, installmentJson?.get("commitmentPaymentsCount"))
-        assertEquals(6, installmentJson?.get("subsequentCommitmentPaymentsCount"))
-    }
-
-    @Test
-    fun `ProductSubscriptionAndroidOfferDetails fromJson parses installmentPlanDetails`() {
-        val json = mapOf<String, Any?>(
-            "basePlanId" to "parsed_base",
-            "offerId" to null,
-            "offerToken" to "parsed_token",
-            "offerTags" to listOf("monthly"),
-            "pricingPhases" to mapOf(
-                "pricingPhaseList" to listOf(
-                    mapOf(
-                        "billingCycleCount" to 0,
-                        "billingPeriod" to "P1M",
-                        "formattedPrice" to "$9.99",
-                        "priceAmountMicros" to "9990000",
-                        "priceCurrencyCode" to "USD",
-                        "recurrenceMode" to 1
-                    )
-                )
-            ),
-            "installmentPlanDetails" to mapOf(
-                "commitmentPaymentsCount" to 24,
-                "subsequentCommitmentPaymentsCount" to 12
-            )
-        )
-
-        val offerDetails = ProductSubscriptionAndroidOfferDetails.fromJson(json)
-        assertEquals(24, offerDetails.installmentPlanDetails?.commitmentPaymentsCount)
-        assertEquals(12, offerDetails.installmentPlanDetails?.subsequentCommitmentPaymentsCount)
-    }
-
     // MARK: - PendingPurchaseUpdateAndroid Tests
 
     @Test
@@ -905,7 +752,6 @@ class StandardizedOfferTypesTest {
             transactionDate = 1700000000000.0,
             purchaseToken = "current_token",
             store = IapStore.Google,
-            platform = IapPlatform.Android,
             quantity = 1,
             purchaseState = PurchaseState.Purchased,
             isAutoRenewing = true,
@@ -924,7 +770,6 @@ class StandardizedOfferTypesTest {
             productId = "basic_plan",
             transactionDate = 1700000000000.0,
             store = IapStore.Google,
-            platform = IapPlatform.Android,
             quantity = 1,
             purchaseState = PurchaseState.Purchased,
             isAutoRenewing = true,
@@ -972,7 +817,6 @@ class StandardizedOfferTypesTest {
             productId = "regular_product",
             transactionDate = 1700000000000.0,
             store = IapStore.Google,
-            platform = IapPlatform.Android,
             quantity = 1,
             purchaseState = PurchaseState.Purchased,
             isAutoRenewing = false
@@ -990,7 +834,6 @@ class StandardizedOfferTypesTest {
             productId = "premium_yearly",
             transactionDate = 1700000000000.0,
             store = IapStore.Google,
-            platform = IapPlatform.Android,
             quantity = 1,
             purchaseState = PurchaseState.Purchased,
             isAutoRenewing = true,

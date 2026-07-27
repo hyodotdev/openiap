@@ -44,7 +44,7 @@ fun AvailablePurchasesScreen(
         ?: IapContext.rememberOpenIapStore())
     val purchases by iapStore.availablePurchases.collectAsState()
     val status by iapStore.status.collectAsState()
-    val connectionStatus by iapStore.connectionStatus.collectAsState()
+    val connectionStatus by iapStore.isConnected.collectAsState()
     val statusMessage = status.lastPurchaseResult
 
     val androidPurchases = remember(purchases) { purchases.filterIsInstance<PurchaseAndroid>() }

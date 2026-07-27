@@ -28,7 +28,6 @@ enum StoreKitTypesBridge {
             platform: .ios,
             price: NSDecimalNumber(decimal: product.price).doubleValue,
             pricingTermsIOS: makeSubscriptionPricingTerms(from: product.subscription),
-            subscriptionInfoIOS: makeSubscriptionInfo(from: product.subscription),
             subscriptionOffers: product.subscription.map(makeStandardizedSubscriptionOffers).flatMap {
                 $0.isEmpty ? nil : $0
             },
@@ -45,30 +44,14 @@ enum StoreKitTypesBridge {
 
         guard let subscription = product.subscription else { return nil }
 
-        // Compute discounts once for reuse
-        let discountsIOS = makeDiscounts(from: subscription, product: product)
-
-        // 🔍 DEBUG LOG: Check discountsIOS data
-        OpenIapLog.debug("🔍 [OpenIAP] Product: \(product.id)")
-        if let discounts = discountsIOS, !discounts.isEmpty {
-            OpenIapLog.debug("🔍 [OpenIAP] discountsIOS: \(discounts.map { "[\($0.type): \($0.paymentMode)]" }.joined(separator: ", "))")
-        } else {
-            OpenIapLog.debug("🔍 [OpenIAP] discountsIOS: empty or nil")
-        }
-
         // Get introductory offer payment mode
-        // If StoreKit's introductoryOffer is nil or returns .empty, extract from discountsIOS array (fallback for StoreKit bug)
+        // StoreKit may return `.empty` for incomplete introductory-offer metadata.
         // https://developer.apple.com/forums/thread/707319
         let introPaymentMode: PaymentModeIOS = {
             if let paymentMode = subscription.introductoryOffer?.paymentMode.paymentModeIOS,
                paymentMode != .empty {
                 return paymentMode
             }
-            // Fallback: Extract payment mode from discountsIOS array
-            if let paymentMode = discountsIOS?.first(where: { $0.type == "introductory" })?.paymentMode {
-                return paymentMode
-            }
-            // Default to .empty if no introductory offer exists
             return .empty
         }()
 
@@ -86,7 +69,6 @@ enum StoreKitTypesBridge {
             currency: currencyCode(from: product) ?? "",
             debugDescription: product.description,
             description: product.description,
-            discountsIOS: discountsIOS,
             displayName: product.displayName,
             displayNameIOS: product.displayName,
             displayPrice: product.displayPrice,
@@ -102,7 +84,6 @@ enum StoreKitTypesBridge {
             price: NSDecimalNumber(decimal: product.price).doubleValue,
             pricingTermsIOS: makeSubscriptionPricingTerms(from: subscription),
             subscriptionGroupIdIOS: subscription.subscriptionGroupID,
-            subscriptionInfoIOS: makeSubscriptionInfo(from: product.subscription),
             subscriptionOffers: standardizedOffers.isEmpty ? nil : standardizedOffers,
             subscriptionPeriodNumberIOS: String(subscription.subscriptionPeriod.value),
             subscriptionPeriodUnitIOS: subscription.subscriptionPeriod.unit.subscriptionPeriodIOS,
@@ -117,7 +98,6 @@ enum StoreKitTypesBridge {
             currency: currencyCode(from: product) ?? "",
             debugDescription: product.description,
             description: product.description,
-            discountsIOS: nil,
             displayName: product.displayName,
             displayNameIOS: product.displayName,
             displayPrice: product.displayPrice,
@@ -133,7 +113,6 @@ enum StoreKitTypesBridge {
             price: NSDecimalNumber(decimal: product.price).doubleValue,
             pricingTermsIOS: nil,
             subscriptionGroupIdIOS: nil,
-            subscriptionInfoIOS: nil,
             subscriptionOffers: nil,
             subscriptionPeriodNumberIOS: nil,
             subscriptionPeriodUnitIOS: nil,
@@ -202,7 +181,6 @@ enum StoreKitTypesBridge {
             originalTransactionDateIOS: transaction.originalPurchaseDate.milliseconds,
             originalTransactionIdentifierIOS: transaction.originalID != 0 ? String(transaction.originalID) : nil,
             ownershipTypeIOS: ownershipDescription,
-            platform: .ios,
             productId: transaction.productID,
             purchaseState: purchaseState,
             purchaseToken: jwsRepresentation ?? transactionId,
@@ -664,40 +642,6 @@ enum StoreKitTypesBridge {
 
 @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
 private extension StoreKitTypesBridge {
-    static func makeSubscriptionInfo(from info: StoreKit.Product.SubscriptionInfo?) -> SubscriptionInfoIOS? {
-        guard let info else { return nil }
-        let intro = info.introductoryOffer.map { makeSubscriptionOffer(from: $0, type: .introductory) }
-        let promos = makeSubscriptionOffers(from: info.promotionalOffers, type: .promotional)
-        return SubscriptionInfoIOS(
-            introductoryOffer: intro,
-            pricingTerms: makeSubscriptionPricingTerms(from: info),
-            promotionalOffers: promos.isEmpty ? nil : promos,
-            subscriptionGroupId: info.subscriptionGroupID,
-            subscriptionPeriod: SubscriptionPeriodValueIOS(
-                unit: info.subscriptionPeriod.unit.subscriptionPeriodIOS,
-                value: info.subscriptionPeriod.value
-            )
-        )
-    }
-
-    static func makeSubscriptionOffers(from offers: [StoreKit.Product.SubscriptionOffer], type: SubscriptionOfferTypeIOS) -> [SubscriptionOfferIOS] {
-        offers.map { makeSubscriptionOffer(from: $0, type: type) }
-    }
-
-    static func makeSubscriptionOffer(from offer: StoreKit.Product.SubscriptionOffer, type: SubscriptionOfferTypeIOS) -> SubscriptionOfferIOS {
-        SubscriptionOfferIOS(
-            displayPrice: offer.displayPrice,
-            id: offer.id ?? "",
-            paymentMode: offer.paymentMode.paymentModeIOS,
-            period: SubscriptionPeriodValueIOS(
-                unit: offer.period.unit.subscriptionPeriodIOS,
-                value: offer.period.value
-            ),
-            periodCount: offer.periodCount,
-            price: NSDecimalNumber(decimal: offer.price).doubleValue,
-            type: type
-        )
-    }
 
     static func makeSubscriptionPricingTerms(from info: StoreKit.Product.SubscriptionInfo?) -> [SubscriptionPricingTermsIOS]? {
         guard let info else { return nil }
@@ -830,111 +774,6 @@ private extension StoreKitTypesBridge {
         }
         #endif
         return .promotional
-    }
-
-    static func makeDiscounts(from subscription: StoreKit.Product.SubscriptionInfo, product: StoreKit.Product) -> [DiscountIOS]? {
-        var discounts: [DiscountIOS] = []
-
-        OpenIapLog.debug("   🔍 [makeDiscounts] Checking introductoryOffer for: \(product.id)")
-
-        // First try to use StoreKit's introductoryOffer
-        if let intro = subscription.introductoryOffer {
-            OpenIapLog.debug("   ✅ [makeDiscounts] Found introductoryOffer")
-            let discount = makeDiscount(from: intro, type: SubscriptionOfferTypeIOS.introductory.rawValue)
-            OpenIapLog.debug("      • paymentMode: \(discount.paymentMode)")
-
-            // Check if StoreKit data is complete (paymentMode is valid)
-            // If paymentMode is .empty, it means StoreKit returned incomplete data
-            if discount.paymentMode != .empty {
-                OpenIapLog.debug("      ✅ Adding introductory discount")
-                discounts.append(discount)
-            } else {
-                OpenIapLog.debug("      ⚠️ Skipping - paymentMode is .empty")
-            }
-        } else {
-            OpenIapLog.debug("   ❌ [makeDiscounts] introductoryOffer is nil")
-        }
-
-        // Try to parse from JSON as fallback when:
-        // 1. StoreKit's introductoryOffer is nil, OR
-        // 2. StoreKit returned incomplete data (paymentMode was .empty)
-        // See: https://developer.apple.com/forums/thread/707319
-        // This ensures we capture intro offer data even when StoreKit has bugs
-        if discounts.isEmpty {
-            OpenIapLog.debug("   🔍 [makeDiscounts] Trying JSON fallback...")
-            if let introFromJSON = parseIntroductoryOfferFromJSON(product) {
-                OpenIapLog.debug("      ✅ Found intro offer in JSON")
-                discounts.append(introFromJSON)
-            } else {
-                OpenIapLog.debug("      ❌ No intro offer in JSON")
-            }
-        }
-
-        let promotional = subscription.promotionalOffers.map { makeDiscount(from: $0, type: SubscriptionOfferTypeIOS.promotional.rawValue) }
-        if !promotional.isEmpty {
-            OpenIapLog.debug("   ✅ [makeDiscounts] Found \(promotional.count) promotional offers")
-        }
-        discounts.append(contentsOf: promotional)
-
-        OpenIapLog.debug("   📊 [makeDiscounts] Total discounts: \(discounts.count)")
-        return discounts.isEmpty ? nil : discounts
-    }
-
-    /// Parse introductory offer from product.jsonRepresentation
-    /// Fallback for cases where StoreKit 2's introductoryOffer is nil but offer data exists in JSON
-    private static func parseIntroductoryOfferFromJSON(_ product: StoreKit.Product) -> DiscountIOS? {
-        guard let jsonData = try? JSONSerialization.jsonObject(with: product.jsonRepresentation) as? [String: Any],
-              let attributes = jsonData["attributes"] as? [String: Any],
-              let offers = attributes["offers"] as? [[String: Any]],
-              let firstOffer = offers.first,
-              let discounts = firstOffer["discounts"] as? [[String: Any]],
-              let introOffer = discounts.first(where: { ($0["type"] as? String) == "IntroOffer" }) else {
-            return nil
-        }
-
-        // Extract introductory offer details from JSON
-        let modeType = introOffer["modeType"] as? String ?? ""
-        let numOfPeriods = introOffer["numOfPeriods"] as? Int ?? 1
-        let price = introOffer["price"] as? Double ?? 0.0
-        let priceFormatted = introOffer["priceFormatted"] as? String ?? ""
-        let recurringPeriod = introOffer["recurringSubscriptionPeriod"] as? String ?? ""
-
-        // Map modeType to PaymentModeIOS
-        let paymentMode: PaymentModeIOS
-        switch modeType {
-        case "FreeTrial":
-            paymentMode = .freeTrial
-        case "PayAsYouGo":
-            paymentMode = .payAsYouGo
-        case "PayUpFront":
-            paymentMode = .payUpFront
-        default:
-            paymentMode = .empty
-        }
-
-        return DiscountIOS(
-            identifier: "",
-            localizedPrice: priceFormatted,
-            numberOfPeriods: numOfPeriods,
-            paymentMode: paymentMode,
-            price: priceFormatted,
-            priceAmount: price,
-            subscriptionPeriod: recurringPeriod,
-            type: SubscriptionOfferTypeIOS.introductory.rawValue
-        )
-    }
-
-    static func makeDiscount(from offer: StoreKit.Product.SubscriptionOffer, type: String) -> DiscountIOS {
-        DiscountIOS(
-            identifier: offer.id ?? "",
-            localizedPrice: offer.displayPrice,
-            numberOfPeriods: offer.periodCount,
-            paymentMode: offer.paymentMode.paymentModeIOS,
-            price: offer.displayPrice,
-            priceAmount: NSDecimalNumber(decimal: offer.price).doubleValue,
-            subscriptionPeriod: offer.period.iso8601,
-            type: type
-        )
     }
 
     static func introductoryPriceAmount(from offer: StoreKit.Product.SubscriptionOffer?) -> String? {

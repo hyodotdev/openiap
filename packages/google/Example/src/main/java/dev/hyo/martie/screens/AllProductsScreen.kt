@@ -46,7 +46,7 @@ fun AllProductsScreen(
     val products by iapStore.products.collectAsState()
     val subscriptions by iapStore.subscriptions.collectAsState()
     val status by iapStore.status.collectAsState()
-    val connectionStatus by iapStore.connectionStatus.collectAsState()
+    val connectionStatus by iapStore.isConnected.collectAsState()
 
     // Combine all products from both lists
     val allProducts = remember(products, subscriptions) {

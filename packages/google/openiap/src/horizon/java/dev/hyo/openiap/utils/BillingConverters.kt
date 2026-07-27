@@ -10,10 +10,8 @@ import dev.hyo.openiap.PaymentMode
 import dev.hyo.openiap.PricingPhaseAndroid
 import dev.hyo.openiap.PricingPhasesAndroid
 import dev.hyo.openiap.ProductAndroid
-import dev.hyo.openiap.ProductAndroidOneTimePurchaseOfferDetail
 import dev.hyo.openiap.ProductStatusAndroid
 import dev.hyo.openiap.ProductSubscriptionAndroid
-import dev.hyo.openiap.ProductSubscriptionAndroidOfferDetails
 import dev.hyo.openiap.ProductType
 import dev.hyo.openiap.PurchaseAndroid
 import dev.hyo.openiap.PurchaseState
@@ -23,48 +21,6 @@ import dev.hyo.openiap.SubscriptionPeriodUnit
 
 private val billingPeriodRegex = Regex("""^P(\d+)([DWMY])$""")
 
-internal fun ProductSubscriptionAndroidOfferDetails.toHorizonSubscriptionOffer(): SubscriptionOffer {
-    val firstPhase = pricingPhases.pricingPhaseList.firstOrNull()
-    val period = firstPhase?.billingPeriod?.let { billingPeriod ->
-        billingPeriodRegex.matchEntire(billingPeriod)?.let { match ->
-            val unit = when (match.groupValues[2]) {
-                "D" -> SubscriptionPeriodUnit.Day
-                "W" -> SubscriptionPeriodUnit.Week
-                "M" -> SubscriptionPeriodUnit.Month
-                "Y" -> SubscriptionPeriodUnit.Year
-                else -> SubscriptionPeriodUnit.Unknown
-            }
-            SubscriptionPeriod(unit = unit, value = match.groupValues[1].toInt())
-        }
-    }
-    val paymentMode = firstPhase?.let { phase ->
-        when {
-            phase.priceAmountMicros == "0" -> PaymentMode.FreeTrial
-            phase.recurrenceMode == 3 -> PaymentMode.PayUpFront
-            else -> PaymentMode.PayAsYouGo
-        }
-    }
-
-    return SubscriptionOffer(
-        basePlanIdAndroid = basePlanId,
-        currency = firstPhase?.priceCurrencyCode,
-        displayPrice = firstPhase?.formattedPrice.orEmpty(),
-        id = offerId ?: basePlanId,
-        offerTagsAndroid = offerTags,
-        offerTokenAndroid = offerToken,
-        paymentMode = paymentMode,
-        period = period,
-        periodCount = firstPhase?.billingCycleCount,
-        price = firstPhase?.priceAmountMicros?.toDoubleOrNull()?.div(1_000_000.0) ?: 0.0,
-        pricingPhasesAndroid = pricingPhases,
-        type = if (offerId == null) {
-            DiscountOfferType.Introductory
-        } else {
-            DiscountOfferType.Promotional
-        },
-    )
-}
-
 internal object HorizonBillingConverters {
 
     fun HorizonProductDetails.toInAppProduct(): ProductAndroid {
@@ -72,26 +28,6 @@ internal object HorizonBillingConverters {
         val displayPrice = offer?.formattedPrice.orEmpty()
         val currency = offer?.priceCurrencyCode.orEmpty()
         val priceAmountMicros = offer?.priceAmountMicros ?: 0L
-
-        // Convert single offer to list format (Horizon doesn't support discount offers yet)
-        val offerDetailsList = offer?.let {
-            listOf(
-                ProductAndroidOneTimePurchaseOfferDetail(
-                    offerId = null,
-                    offerToken = "",
-                    offerTags = emptyList(),
-                    formattedPrice = it.formattedPrice,
-                    priceAmountMicros = it.priceAmountMicros.toString(),
-                    priceCurrencyCode = it.priceCurrencyCode,
-                    fullPriceMicros = null,
-                    discountDisplayInfo = null,
-                    validTimeWindow = null,
-                    limitedQuantityInfo = null,
-                    preorderDetailsAndroid = null,
-                    rentalDetailsAndroid = null
-                )
-            )
-        }
 
         return ProductAndroid(
             currency = currency,
@@ -102,11 +38,9 @@ internal object HorizonBillingConverters {
             displayPrice = displayPrice,
             id = productId,
             nameAndroid = name,
-            oneTimePurchaseOfferDetailsAndroid = offerDetailsList,
             platform = IapPlatform.Android,
             price = priceAmountMicros.toDouble() / 1_000_000.0,
             productStatusAndroid = ProductStatusAndroid.Ok,
-            subscriptionOfferDetailsAndroid = null,
             subscriptionOffers = null,
             title = title,
             type = ProductType.InApp
@@ -119,44 +53,54 @@ internal object HorizonBillingConverters {
         val displayPrice = firstPhase?.formattedPrice.orEmpty()
         val currency = firstPhase?.priceCurrencyCode.orEmpty()
 
-        val pricingDetails = offers.map { offer ->
-            ProductSubscriptionAndroidOfferDetails(
-                basePlanId = offer.basePlanId,
-                offerId = offer.offerId,
-                offerTags = offer.offerTags,
-                offerToken = offer.offerToken,
-                pricingPhases = PricingPhasesAndroid(
-                    pricingPhaseList = offer.pricingPhases.pricingPhaseList.map { phase ->
-                        PricingPhaseAndroid(
-                            billingCycleCount = phase.billingCycleCount,
-                            billingPeriod = phase.billingPeriod,
-                            formattedPrice = phase.formattedPrice,
-                            priceAmountMicros = phase.priceAmountMicros.toString(),
-                            priceCurrencyCode = phase.priceCurrencyCode,
-                            recurrenceMode = phase.recurrenceMode,
-                        )
-                    }
-                )
+        val standardizedOffers = offers.map { offer ->
+            val phases = PricingPhasesAndroid(
+                pricingPhaseList = offer.pricingPhases.pricingPhaseList.map { phase ->
+                    PricingPhaseAndroid(
+                        billingCycleCount = phase.billingCycleCount,
+                        billingPeriod = phase.billingPeriod,
+                        formattedPrice = phase.formattedPrice,
+                        priceAmountMicros = phase.priceAmountMicros.toString(),
+                        priceCurrencyCode = phase.priceCurrencyCode,
+                        recurrenceMode = phase.recurrenceMode,
+                    )
+                }
             )
-        }
-
-        // Convert single offer to list format (Horizon doesn't support discount offers yet)
-        val oneTimeOfferDetailsList = oneTimePurchaseOfferDetails?.let {
-            listOf(
-                ProductAndroidOneTimePurchaseOfferDetail(
-                    offerId = null,
-                    offerToken = "",
-                    offerTags = emptyList(),
-                    formattedPrice = it.formattedPrice,
-                    priceAmountMicros = it.priceAmountMicros.toString(),
-                    priceCurrencyCode = it.priceCurrencyCode,
-                    fullPriceMicros = null,
-                    discountDisplayInfo = null,
-                    validTimeWindow = null,
-                    limitedQuantityInfo = null,
-                    preorderDetailsAndroid = null,
-                    rentalDetailsAndroid = null
-                )
+            val phase = phases.pricingPhaseList.firstOrNull()
+            SubscriptionOffer(
+                basePlanIdAndroid = offer.basePlanId,
+                currency = phase?.priceCurrencyCode,
+                displayPrice = phase?.formattedPrice.orEmpty(),
+                id = offer.offerId ?: offer.basePlanId,
+                offerTagsAndroid = offer.offerTags,
+                offerTokenAndroid = offer.offerToken,
+                paymentMode = phase?.let {
+                    when {
+                        it.priceAmountMicros == "0" -> PaymentMode.FreeTrial
+                        it.recurrenceMode == 3 -> PaymentMode.PayUpFront
+                        else -> PaymentMode.PayAsYouGo
+                    }
+                },
+                period = phase?.billingPeriod?.let { billingPeriod ->
+                    billingPeriodRegex.matchEntire(billingPeriod)?.let { match ->
+                        val unit = when (match.groupValues[2]) {
+                            "D" -> SubscriptionPeriodUnit.Day
+                            "W" -> SubscriptionPeriodUnit.Week
+                            "M" -> SubscriptionPeriodUnit.Month
+                            "Y" -> SubscriptionPeriodUnit.Year
+                            else -> SubscriptionPeriodUnit.Unknown
+                        }
+                        SubscriptionPeriod(unit = unit, value = match.groupValues[1].toInt())
+                    }
+                },
+                periodCount = phase?.billingCycleCount,
+                price = phase?.priceAmountMicros?.toDoubleOrNull()?.div(1_000_000.0) ?: 0.0,
+                pricingPhasesAndroid = phases,
+                type = if (offer.offerId == null) {
+                    DiscountOfferType.Introductory
+                } else {
+                    DiscountOfferType.Promotional
+                },
             )
         }
 
@@ -164,17 +108,14 @@ internal object HorizonBillingConverters {
             currency = currency,
             debugDescription = description,
             description = description,
-            discountOffers = null,  // Horizon doesn't support discount offers yet
             displayName = name,
             displayPrice = displayPrice,
             id = productId,
             nameAndroid = name,
-            oneTimePurchaseOfferDetailsAndroid = oneTimeOfferDetailsList,
             platform = IapPlatform.Android,
             price = firstPhase?.priceAmountMicros?.toDouble()?.div(1_000_000.0),
             productStatusAndroid = ProductStatusAndroid.Ok,
-            subscriptionOfferDetailsAndroid = pricingDetails,
-            subscriptionOffers = pricingDetails.map { it.toHorizonSubscriptionOffer() },
+            subscriptionOffers = standardizedOffers,
             title = title,
             type = ProductType.Subs
         )
@@ -197,7 +138,6 @@ internal object HorizonBillingConverters {
             obfuscatedAccountIdAndroid = null,
             obfuscatedProfileIdAndroid = null,
             packageNameAndroid = packageName,
-            platform = IapPlatform.Android,
             productId = productsList.firstOrNull().orEmpty(),
             purchaseState = state,
             purchaseToken = token,

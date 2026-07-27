@@ -4,7 +4,6 @@ import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -75,9 +74,5 @@ class SubscriptionHandlersBillingIssueHorizonTest {
         val module = OpenIapModule(context)
 
         assertNotNull("Horizon must wire cross-platform getStorefront", module.queryHandlers.getStorefront)
-        assertNull(
-            "Horizon must not wire the iOS-only getStorefrontIOS handler",
-            module.queryHandlers.getStorefrontIOS,
-        )
     }
 }

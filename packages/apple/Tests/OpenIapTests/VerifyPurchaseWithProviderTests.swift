@@ -48,8 +48,8 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
         }
     }
 
-    func testObjCBridgeKeepsLegacySelectorsAndExposesClientPayloadSelector() {
-        let legacySelector = NSSelectorFromString(
+    func testObjCBridgeKeepsPublishedSelectorsAndExposesClientPayloadSelector() {
+        let hostedSelector = NSSelectorFromString(
             "verifyPurchaseWithProviderObjCWithProvider:apiKey:jws:completion:"
         )
         let customBaseUrlSelector = NSSelectorFromString(
@@ -59,7 +59,7 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
             "verifyPurchaseWithProviderObjCWithProvider:apiKey:baseUrl:jws:includeClientPayload:completion:"
         )
 
-        XCTAssertTrue(OpenIapModule.shared.responds(to: legacySelector))
+        XCTAssertTrue(OpenIapModule.shared.responds(to: hostedSelector))
         XCTAssertTrue(OpenIapModule.shared.responds(to: customBaseUrlSelector))
         XCTAssertTrue(OpenIapModule.shared.responds(to: clientPayloadSelector))
     }
@@ -229,7 +229,6 @@ private final class FakeVerifyPurchaseModule: OpenIapModuleProtocol {
 
     // MARK: - Purchase Management
     func requestPurchase(_ params: RequestPurchaseProps) async throws -> RequestPurchaseResult? { nil }
-    func requestPurchaseOnPromotedProductIOS() async throws -> Bool { false }
     func restorePurchases() async throws -> Void { () }
     func getAvailablePurchases(_ options: PurchaseOptions?) async throws -> [Purchase] { [] }
     func getAllTransactionsIOS() async throws -> [PurchaseIOS] { [] }
@@ -245,17 +244,6 @@ private final class FakeVerifyPurchaseModule: OpenIapModuleProtocol {
 
     // MARK: - Validation
     func getReceiptDataIOS() async throws -> String? { "receipt" }
-    func validateReceiptIOS(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS {
-        guard case let .verifyPurchaseResultIos(ios) = validateResult else {
-            throw PurchaseError(code: .featureNotSupported, message: "Expected iOS validation result", productId: props.apple?.sku)
-        }
-        return ios
-    }
-
-    func validateReceipt(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResult {
-        validateResult
-    }
-
     func verifyPurchase(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResult {
         validateResult
     }
@@ -265,8 +253,7 @@ private final class FakeVerifyPurchaseModule: OpenIapModuleProtocol {
     }
 
     // MARK: - Store Information
-    func getStorefront() async throws -> String { try await getStorefrontIOS() }
-    func getStorefrontIOS() async throws -> String { "US" }
+    func getStorefront() async throws -> String { "US" }
     func getAppTransactionIOS() async throws -> AppTransaction? { nil }
 
     // MARK: - Subscription Management

@@ -30,7 +30,6 @@ class SubscriptionGroupMappingHorizonTest {
         isAcknowledgedAndroid = true,
         isAutoRenewing = true,
         packageNameAndroid = "dev.hyo.martie",
-        platform = IapPlatform.Android,
         productId = productId,
         purchaseState = PurchaseState.Purchased,
         purchaseToken = token,

@@ -37,27 +37,20 @@ final class OpenIapTests: XCTestCase {
         XCTAssertEqual(product.id, "dev.hyo.premium")
         XCTAssertEqual(product.platform, .ios)
         XCTAssertEqual(product.price, 9.99)
-        XCTAssertEqual(product.subscriptionInfoIOS?.subscriptionGroupId, "group")
+        XCTAssertEqual(product.typeIOS, .autoRenewableSubscription)
     }
 
     func testPurchaseIOS() {
         let purchase = makeSamplePurchase()
         XCTAssertEqual(purchase.productId, "dev.hyo.premium")
-        XCTAssertEqual(purchase.platform, .ios)
         XCTAssertEqual(purchase.purchaseState, .purchased)
     }
 
-    func testPurchaseInputRecoversLegacyTransactionIdFromId() throws {
+    func testPurchaseInputRejectsMissingTransactionId() throws {
         var payload = OpenIapSerialization.encode(makeSamplePurchase())
         payload.removeValue(forKey: "transactionId")
 
-        let input = try OpenIapSerialization.purchaseInput(from: payload)
-        guard case let .purchaseIos(purchase) = input else {
-            return XCTFail("Expected an iOS purchase")
-        }
-
-        XCTAssertEqual(purchase.id, "transaction")
-        XCTAssertEqual(purchase.transactionId, "transaction")
+        XCTAssertThrowsError(try OpenIapSerialization.purchaseInput(from: payload))
     }
 
     func testPurchaseInputPrefersCanonicalTransactionId() throws {
@@ -72,25 +65,6 @@ final class OpenIapTests: XCTestCase {
 
         XCTAssertEqual(purchase.id, "purchase-identity")
         XCTAssertEqual(purchase.transactionId, "canonical-transaction")
-    }
-
-    func testDeprecationWarningIsAlwaysVisibleAndEmittedOnce() {
-        let key = "OpenIapTests.\(UUID().uuidString)"
-        var emissions: [(OpenIapLog.Level, String)] = []
-        OpenIapLog.setEnabled(false)
-        OpenIapLog.handler = { level, message in
-            emissions.append((level, message))
-        }
-        defer {
-            OpenIapLog.handler = nil
-        }
-
-        OpenIapLog.deprecation(key, "legacy bridge")
-        OpenIapLog.deprecation(key, "legacy bridge")
-
-        XCTAssertEqual(emissions.count, 1)
-        XCTAssertEqual(emissions.first?.0, .warn)
-        XCTAssertEqual(emissions.first?.1, "legacy bridge")
     }
 
     func testPurchaseErrorStruct() {
@@ -305,7 +279,6 @@ final class OpenIapTests: XCTestCase {
             originalTransactionDateIOS: 1729083955000,
             originalTransactionIdentifierIOS: "2000001034753679",
             ownershipTypeIOS: "purchased",
-            platform: .ios,
             productId: "dev.hyo.martie.premium",
             purchaseState: .purchased,
             purchaseToken: "jws_token",
@@ -433,7 +406,6 @@ final class OpenIapTests: XCTestCase {
             currency: "USD",
             debugDescription: "Test",
             description: "Test subscription with 14-day trial",
-            discountsIOS: nil,
             displayName: "Test",
             displayNameIOS: "Test",
             displayPrice: "$9.99",
@@ -447,7 +419,6 @@ final class OpenIapTests: XCTestCase {
             jsonRepresentationIOS: "{}",
             platform: .ios,
             price: 9.99,
-            subscriptionInfoIOS: nil,
             subscriptionPeriodNumberIOS: "1",
             subscriptionPeriodUnitIOS: .month,
             title: "Test",
@@ -465,7 +436,6 @@ final class OpenIapTests: XCTestCase {
             currency: "USD",
             debugDescription: "Test",
             description: "Test subscription with pay-as-you-go",
-            discountsIOS: nil,
             displayName: "Test",
             displayNameIOS: "Test",
             displayPrice: "$9.99",
@@ -479,7 +449,6 @@ final class OpenIapTests: XCTestCase {
             jsonRepresentationIOS: "{}",
             platform: .ios,
             price: 9.99,
-            subscriptionInfoIOS: nil,
             subscriptionPeriodNumberIOS: "1",
             subscriptionPeriodUnitIOS: .month,
             title: "Test",
@@ -531,7 +500,6 @@ final class OpenIapTests: XCTestCase {
             ("network-error", "NetworkError", .networkError),
             ("service-error", "ServiceError", .serviceError),
             ("purchase-verification-failed", "PurchaseVerificationFailed", .purchaseVerificationFailed),
-            ("receipt-failed", "ReceiptFailed", .purchaseVerificationFailed), // Legacy alias
             ("not-prepared", "NotPrepared", .notPrepared),
             ("already-owned", "AlreadyOwned", .alreadyOwned),
             ("developer-error", "DeveloperError", .developerError),
@@ -665,11 +633,10 @@ final class OpenIapTests: XCTestCase {
     }
 
     @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
-    func testResolvePurchasePropsUsesAppleAlias() throws {
+    func testResolvePurchasePropsUsesAppleField() throws {
         let props = RequestPurchaseProps(
             request: .purchase(RequestPurchasePropsByPlatforms(
-                apple: RequestPurchaseIosProps(sku: "dev.hyo.apple"),
-                ios: RequestPurchaseIosProps(sku: "dev.hyo.legacy")
+                apple: RequestPurchaseIosProps(sku: "dev.hyo.apple")
             ))
         )
 
@@ -679,24 +646,11 @@ final class OpenIapTests: XCTestCase {
     }
 
     @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
-    func testResolvePurchasePropsFallsBackToLegacyIosAlias() throws {
-        let props = RequestPurchaseProps(
-            request: .purchase(RequestPurchasePropsByPlatforms(
-                ios: RequestPurchaseIosProps(sku: "dev.hyo.legacy")
-            ))
-        )
-
-        let resolved = try OpenIapModule.shared.resolveIOSPurchaseProps(from: props)
-
-        XCTAssertEqual(resolved.sku, "dev.hyo.legacy")
-    }
-
     @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
-    func testResolveSubscriptionPropsUsesAppleAlias() throws {
+    func testResolveSubscriptionPropsUsesAppleField() throws {
         let props = RequestPurchaseProps(
             request: .subscription(RequestSubscriptionPropsByPlatforms(
-                apple: RequestSubscriptionIosProps(sku: "dev.hyo.sub.apple"),
-                ios: RequestSubscriptionIosProps(sku: "dev.hyo.sub.legacy")
+                apple: RequestSubscriptionIosProps(sku: "dev.hyo.sub.apple")
             ))
         )
 
@@ -1046,7 +1000,6 @@ final class OpenIapTests: XCTestCase {
             currency: "USD",
             debugDescription: "",
             description: "Premium subscription with offers",
-            discountsIOS: nil,
             displayName: "Premium",
             displayNameIOS: "Premium",
             displayPrice: "$9.99",
@@ -1060,7 +1013,6 @@ final class OpenIapTests: XCTestCase {
             jsonRepresentationIOS: "{}",
             platform: .ios,
             price: 9.99,
-            subscriptionInfoIOS: nil,
             subscriptionOffers: [standardizedOffer],
             subscriptionPeriodNumberIOS: "1",
             subscriptionPeriodUnitIOS: .month,
@@ -1103,23 +1055,6 @@ final class OpenIapTests: XCTestCase {
     // MARK: - Helpers
 
     private func makeSampleProduct() -> ProductIOS {
-        let subscriptionPeriod = SubscriptionPeriodValueIOS(unit: .month, value: 1)
-        let offer = SubscriptionOfferIOS(
-            displayPrice: "$0.00",
-            id: "intro",
-            paymentMode: .freeTrial,
-            period: subscriptionPeriod,
-            periodCount: 1,
-            price: 0,
-            type: .introductory
-        )
-        let subscriptionInfo = SubscriptionInfoIOS(
-            introductoryOffer: offer,
-            promotionalOffers: nil,
-            subscriptionGroupId: "group",
-            subscriptionPeriod: subscriptionPeriod
-        )
-
         return ProductIOS(
             currency: "USD",
             debugDescription: "",
@@ -1132,7 +1067,7 @@ final class OpenIapTests: XCTestCase {
             jsonRepresentationIOS: "{}",
             platform: .ios,
             price: 9.99,
-            subscriptionInfoIOS: subscriptionInfo,
+            subscriptionOffers: nil,
             title: "Premium",
             type: .subs,
             typeIOS: .autoRenewableSubscription
@@ -1156,7 +1091,6 @@ final class OpenIapTests: XCTestCase {
             originalTransactionDateIOS: 1,
             originalTransactionIdentifierIOS: "origin",
             ownershipTypeIOS: "purchased",
-            platform: .ios,
             productId: "dev.hyo.premium",
             purchaseState: .purchased,
             purchaseToken: "token",
@@ -1194,7 +1128,6 @@ final class OpenIapTests: XCTestCase {
             originalTransactionDateIOS: 1729083955000,
             originalTransactionIdentifierIOS: "2000001034753679",
             ownershipTypeIOS: "purchased",
-            platform: .ios,
             productId: "dev.hyo.martie.premium",
             purchaseState: .purchased,
             purchaseToken: "jws_token",
@@ -1216,28 +1149,10 @@ final class OpenIapTests: XCTestCase {
     }
 
     private func makeSampleSubscription() -> ProductSubscriptionIOS {
-        let subscriptionPeriod = SubscriptionPeriodValueIOS(unit: .month, value: 1)
-        let offer = SubscriptionOfferIOS(
-            displayPrice: "$0.00",
-            id: "intro",
-            paymentMode: .freeTrial,
-            period: subscriptionPeriod,
-            periodCount: 1,
-            price: 0,
-            type: .introductory
-        )
-        let info = SubscriptionInfoIOS(
-            introductoryOffer: offer,
-            promotionalOffers: nil,
-            subscriptionGroupId: "group",
-            subscriptionPeriod: subscriptionPeriod
-        )
-
         return ProductSubscriptionIOS(
             currency: "USD",
             debugDescription: "",
             description: "Premium subscription",
-            discountsIOS: nil,
             displayName: "Premium",
             displayNameIOS: "Premium",
             displayPrice: "$9.99",
@@ -1252,7 +1167,7 @@ final class OpenIapTests: XCTestCase {
             platform: .ios,
             price: 9.99,
             subscriptionGroupIdIOS: "group",
-            subscriptionInfoIOS: info,
+            subscriptionOffers: nil,
             subscriptionPeriodNumberIOS: "1",
             subscriptionPeriodUnitIOS: .month,
             title: "Premium",

@@ -8,21 +8,16 @@ import dev.hyo.openiap.RequestSubscriptionAndroidProps
 import dev.hyo.openiap.RequestSubscriptionPropsByPlatforms
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
-import org.junit.Assert.assertTrue
 import org.junit.Test
-import java.util.UUID
 
 class OpenIapStorePurchaseRequestResolverTest {
     @Test
-    fun `canonical google wins across generated purchase union branches`() {
+    fun `google resolves across generated purchase union branches`() {
         val purchase = RequestPurchaseProps(
             request = RequestPurchaseProps.Request.Purchase(
                 RequestPurchasePropsByPlatforms(
                     google = RequestPurchaseAndroidProps(
                         skus = listOf("dev.hyo.purchase.google"),
-                    ),
-                    android = RequestPurchaseAndroidProps(
-                        skus = listOf("dev.hyo.purchase.legacy"),
                     ),
                 ),
             ),
@@ -33,9 +28,6 @@ class OpenIapStorePurchaseRequestResolverTest {
                 RequestSubscriptionPropsByPlatforms(
                     google = RequestSubscriptionAndroidProps(
                         skus = listOf("dev.hyo.subscription.google"),
-                    ),
-                    android = RequestSubscriptionAndroidProps(
-                        skus = listOf("dev.hyo.subscription.legacy"),
                     ),
                 ),
             ),
@@ -53,74 +45,15 @@ class OpenIapStorePurchaseRequestResolverTest {
     }
 
     @Test
-    fun `canonical google payload with no sku suppresses legacy fallback`() {
+    fun `google payload with no sku resolves to null`() {
         val props = RequestPurchaseProps(
             request = RequestPurchaseProps.Request.Purchase(
                 RequestPurchasePropsByPlatforms(
                     google = RequestPurchaseAndroidProps(skus = emptyList()),
-                    android = RequestPurchaseAndroidProps(
-                        skus = listOf("dev.hyo.purchase.legacy"),
-                    ),
                 ),
             ),
             type = ProductQueryType.InApp,
         )
-        val warnings = mutableListOf<String>()
-
-        val sku = OpenIapStorePurchaseRequestResolver.sku(
-            props = props,
-            legacyWarningKey = "test.${UUID.randomUUID()}",
-            warnLegacy = warnings::add,
-        )
-
-        assertNull(sku)
-        assertTrue(warnings.isEmpty())
-    }
-
-    @Test
-    fun `legacy android works across generated union branches and warns once`() {
-        val purchase = RequestPurchaseProps(
-            request = RequestPurchaseProps.Request.Purchase(
-                RequestPurchasePropsByPlatforms(
-                    android = RequestPurchaseAndroidProps(
-                        skus = listOf("dev.hyo.purchase.legacy"),
-                    ),
-                ),
-            ),
-            type = ProductQueryType.InApp,
-        )
-        val subscription = RequestPurchaseProps(
-            request = RequestPurchaseProps.Request.Subscription(
-                RequestSubscriptionPropsByPlatforms(
-                    android = RequestSubscriptionAndroidProps(
-                        skus = listOf("dev.hyo.subscription.legacy"),
-                    ),
-                ),
-            ),
-            type = ProductQueryType.Subs,
-        )
-        val warningKey = "test.${UUID.randomUUID()}"
-        val warnings = mutableListOf<String>()
-
-        assertEquals(
-            "dev.hyo.purchase.legacy",
-            OpenIapStorePurchaseRequestResolver.sku(
-                props = purchase,
-                legacyWarningKey = warningKey,
-                warnLegacy = warnings::add,
-            ),
-        )
-        assertEquals(
-            "dev.hyo.subscription.legacy",
-            OpenIapStorePurchaseRequestResolver.sku(
-                props = subscription,
-                legacyWarningKey = warningKey,
-                warnLegacy = warnings::add,
-            ),
-        )
-
-        assertEquals(1, warnings.size)
-        assertTrue(warnings.single().contains("`android`"))
-        assertTrue(warnings.single().contains("OpenIAP 3.0"))
+        assertNull(OpenIapStorePurchaseRequestResolver.sku(props))
     }
 }

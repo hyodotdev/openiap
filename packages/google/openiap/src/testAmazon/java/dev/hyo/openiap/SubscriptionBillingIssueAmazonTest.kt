@@ -6,7 +6,6 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
-import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import java.util.concurrent.atomic.AtomicInteger
@@ -79,9 +78,5 @@ class SubscriptionBillingIssueAmazonTest {
         val module = OpenIapModule(ContextWrapper(null))
 
         assertNotNull("Amazon must wire cross-platform getStorefront", module.queryHandlers.getStorefront)
-        assertNull(
-            "Amazon must not wire the iOS-only getStorefrontIOS handler",
-            module.queryHandlers.getStorefrontIOS,
-        )
     }
 }

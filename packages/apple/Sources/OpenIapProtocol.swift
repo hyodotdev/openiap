@@ -47,8 +47,6 @@ public protocol OpenIapModuleProtocol {
 
     // Purchase Management
     func requestPurchase(_ params: RequestPurchaseProps) async throws -> RequestPurchaseResult?
-    @available(*, deprecated, message: "Use promotedProductListenerIOS + requestPurchase instead. Scheduled for removal in OpenIAP 3.0.")
-    func requestPurchaseOnPromotedProductIOS() async throws -> Bool
     func restorePurchases() async throws -> Void
     func getAvailablePurchases(_ options: PurchaseOptions?) async throws -> [Purchase]
     func getAllTransactionsIOS() async throws -> [PurchaseIOS]
@@ -64,17 +62,11 @@ public protocol OpenIapModuleProtocol {
 
     // Validation
     func getReceiptDataIOS() async throws -> String?
-    @available(*, deprecated, message: "Use verifyPurchase instead. Scheduled for removal in OpenIAP 3.0.")
-    func validateReceiptIOS(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS
-    @available(*, deprecated, message: "Use verifyPurchase instead. Scheduled for removal in OpenIAP 3.0.")
-    func validateReceipt(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResult
     func verifyPurchase(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResult
     func verifyPurchaseWithProvider(_ props: VerifyPurchaseWithProviderProps) async throws -> VerifyPurchaseWithProviderResult
 
     // Store Information
     func getStorefront() async throws -> String
-    @available(*, deprecated, message: "Use getStorefront instead. Scheduled for removal in OpenIAP 3.0.")
-    func getStorefrontIOS() async throws -> String
     @available(iOS 16.0, macOS 14.0, tvOS 16.0, watchOS 9.0, *)
     func getAppTransactionIOS() async throws -> AppTransaction?
 
@@ -120,29 +112,10 @@ public protocol OpenIapModuleProtocol {
     func removeAllListeners()
 }
 
-// Backward compatibility for legacy receipt validation APIs
 public extension OpenIapModuleProtocol {
     /// Default implementation that throws. Override in your module to provide actual verification.
     func verifyPurchaseWithProvider(_ props: VerifyPurchaseWithProviderProps) async throws -> VerifyPurchaseWithProviderResult {
         throw PurchaseError(code: .featureNotSupported, message: "verifyPurchaseWithProvider not supported")
-    }
-
-    @available(*, deprecated, message: "Use verifyPurchase instead. Scheduled for removal in OpenIAP 3.0.")
-    func validateReceiptIOS(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS {
-        let result = try await verifyPurchase(props)
-        if case let .verifyPurchaseResultIos(ios) = result {
-            return ios
-        }
-        throw PurchaseError(
-            code: .featureNotSupported,
-            message: "Expected iOS validation result",
-            productId: props.apple?.sku
-        )
-    }
-
-    @available(*, deprecated, message: "Use verifyPurchase instead. Scheduled for removal in OpenIAP 3.0.")
-    func validateReceipt(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResult {
-        try await verifyPurchase(props)
     }
 
     func canPresentExternalPurchaseNoticeIOS() async throws -> Bool {

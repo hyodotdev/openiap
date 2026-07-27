@@ -87,7 +87,7 @@ import StoreKit
                 )
                 let props = RequestPurchaseProps(
                     request: .purchase(
-                        RequestPurchasePropsByPlatforms(android: nil, ios: iosProps)
+                        RequestPurchasePropsByPlatforms(apple: iosProps)
                     ),
                     type: .inApp
                 )
@@ -149,30 +149,10 @@ import StoreKit
         }
     }
 
-    /// Compatibility overload retained for existing Objective-C and Kotlin
-    /// callers. Use the extended overload to pass modern subscription options.
-    @available(*, deprecated, message: "Use requestSubscriptionWithSku(_:offer:compactJWS:promotionalOfferJWS:winBackOfferId:billingPlanType:completion:) instead. Scheduled for removal in OpenIAP 3.0.")
-    @objc func requestSubscriptionWithSku(
-        _ sku: String,
-        offer: [String: Any]?,
-        completion: @escaping (Any?, Error?) -> Void
-    ) {
-        // Call the full method with nil for new options (backward compatibility)
-        requestSubscriptionWithSku(
-            sku,
-            offer: offer,
-            compactJWS: nil,
-            promotionalOfferJWS: nil,
-            winBackOfferId: nil,
-            billingPlanType: nil,
-            completion: completion
-        )
-    }
-
     /// Extended subscription request with iOS 15+ / iOS 18+ options
     /// - Parameters:
     ///   - sku: The product SKU
-    ///   - offer: Legacy promotional offer (DiscountOfferInputIOS)
+    ///   - offer: Signature-based promotional offer (DiscountOfferInputIOS)
     ///   - compactJWS: JWS for introductory offer eligibility override (iOS 15+, WWDC 2025)
     ///   - promotionalOfferJWS: JWS promotional offer dict with "offerId" and "jws" keys (iOS 15+, WWDC 2025)
     ///   - winBackOfferId: Win-back offer ID (iOS 18+)
@@ -189,7 +169,7 @@ import StoreKit
     ) {
         Task {
             do {
-                // Parse legacy promotional offer
+                // Parse the signature-based promotional offer.
                 let discountOffer: DiscountOfferInputIOS? = if let offer = offer,
                     let identifier = offer["identifier"] as? String,
                     let keyIdentifier = offer["keyIdentifier"] as? String,
@@ -254,7 +234,7 @@ import StoreKit
                 )
                 let props = RequestPurchaseProps(
                     request: .subscription(
-                        RequestSubscriptionPropsByPlatforms(android: nil, ios: iosProps)
+                        RequestSubscriptionPropsByPlatforms(apple: iosProps)
                     ),
                     type: .subs
                 )
@@ -347,18 +327,6 @@ import StoreKit
         }
     }
 
-    @available(*, deprecated, message: "Use promotedProductListenerIOS + requestPurchase instead. Scheduled for removal in OpenIAP 3.0.")
-    @objc func requestPurchaseOnPromotedProductIOSWithCompletion(_ completion: @escaping (Bool, Error?) -> Void) {
-        Task {
-            do {
-                let result = try await requestPurchaseOnPromotedProductIOS()
-                completion(result, nil)
-            } catch {
-                completion(false, error)
-            }
-        }
-    }
-
     @objc func deepLinkToSubscriptionsWithCompletion(_ completion: @escaping (Error?) -> Void) {
         Task {
             do {
@@ -398,7 +366,6 @@ import StoreKit
                     originalTransactionDateIOS: nil,
                     originalTransactionIdentifierIOS: nil,
                     ownershipTypeIOS: nil,
-                    platform: .ios,
                     productId: productId,
                     purchaseState: .purchased,
                     purchaseToken: nil,
@@ -609,18 +576,6 @@ import StoreKit
     // MARK: - Store Information
 
     @objc func getStorefrontWithCompletion(_ completion: @escaping (String?, Error?) -> Void) {
-        Task {
-            do {
-                let storefront = try await getStorefront()
-                completion(storefront, nil)
-            } catch {
-                completion(nil, error)
-            }
-        }
-    }
-
-    @available(*, deprecated, message: "Use getStorefrontWithCompletion instead. Scheduled for removal in OpenIAP 3.0.")
-    @objc func getStorefrontIOSWithCompletion(_ completion: @escaping (String?, Error?) -> Void) {
         Task {
             do {
                 let storefront = try await getStorefront()

@@ -84,14 +84,6 @@ class OpenIapErrorTest {
     }
 
     @Test
-    fun `InvalidReceipt has correct code and message`() {
-        @Suppress("DEPRECATION")
-        val error = OpenIapError.InvalidReceipt
-        assertEquals(ErrorCode.PurchaseVerificationFailed.rawValue, error.code)
-        assertEquals("Purchase verification failed", error.message)
-    }
-
-    @Test
     fun `NetworkError has correct code and message`() {
         val error = OpenIapError.NetworkError
         assertEquals(ErrorCode.NetworkError.rawValue, error.code)
@@ -342,7 +334,6 @@ class OpenIapErrorTest {
     }
 
     @Test
-    @Suppress("DEPRECATION")
     fun `toJSON returns correct map for all error types`() {
         val errors = listOf(
             OpenIapError.ProductNotFound("test"),
@@ -351,7 +342,6 @@ class OpenIapErrorTest {
             OpenIapError.PurchaseDeferred,
             OpenIapError.PaymentNotAllowed,
             OpenIapError.BillingError(),
-            OpenIapError.InvalidReceipt,
             OpenIapError.NetworkError,
             OpenIapError.VerificationFailed,
             OpenIapError.RestoreFailed,
@@ -461,7 +451,6 @@ class OpenIapErrorTest {
     }
 
     @Test
-    @Suppress("DEPRECATION")
     fun `getAllErrorCodes returns all error codes and messages`() {
         val allCodes = OpenIapError.getAllErrorCodes()
 
@@ -491,7 +480,7 @@ class OpenIapErrorTest {
             OpenIapError.ServiceTimeout.CODE,
             OpenIapError.PaymentNotAllowed.CODE,
             OpenIapError.BillingError.CODE,
-            OpenIapError.InvalidReceipt.CODE,
+            OpenIapError.InvalidPurchaseVerification.CODE,
             OpenIapError.VerificationFailed.CODE,
             OpenIapError.RestoreFailed.CODE,
             OpenIapError.MissingCurrentActivity.CODE
@@ -513,7 +502,6 @@ class OpenIapErrorTest {
             OpenIapError.PurchaseDeferred to ErrorCode.DeferredPayment.rawValue,
             OpenIapError.PaymentNotAllowed to ErrorCode.UserError.rawValue,
             OpenIapError.BillingError() to ErrorCode.ServiceError.rawValue,
-            @Suppress("DEPRECATION") OpenIapError.InvalidReceipt to ErrorCode.PurchaseVerificationFailed.rawValue,
             OpenIapError.NetworkError to ErrorCode.NetworkError.rawValue,
             OpenIapError.VerificationFailed to ErrorCode.TransactionValidationFailed.rawValue,
             OpenIapError.RestoreFailed to ErrorCode.SyncError.rawValue,
@@ -579,7 +567,7 @@ class OpenIapErrorTest {
             "remote-error" to "RemoteError",
             "network-error" to "NetworkError",
             "service-error" to "ServiceError",
-            "receipt-failed" to "ReceiptFailed",
+            "purchase-verification-failed" to "PurchaseVerificationFailed",
             "not-prepared" to "NotPrepared",
             "already-owned" to "AlreadyOwned",
             "developer-error" to "DeveloperError",

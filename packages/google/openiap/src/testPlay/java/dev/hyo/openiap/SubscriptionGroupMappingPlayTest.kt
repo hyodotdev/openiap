@@ -42,7 +42,6 @@ class SubscriptionGroupMappingPlayTest {
         isAcknowledgedAndroid = true,
         isAutoRenewing = true,
         packageNameAndroid = "dev.hyo.martie",
-        platform = IapPlatform.Android,
         productId = productId,
         purchaseState = state,
         purchaseToken = token,

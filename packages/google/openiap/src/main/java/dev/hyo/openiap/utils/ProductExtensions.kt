@@ -1,7 +1,3 @@
-// Legacy offer projections remain readable through OpenIAP 2.x. Generated
-// declarations warn consumers; remove these projections in OpenIAP 3.0.
-@file:Suppress("DEPRECATION")
-
 package dev.hyo.openiap.utils
 
 import dev.hyo.openiap.Product
@@ -22,10 +18,9 @@ fun ProductSubscriptionAndroid.toProduct(): Product = ProductAndroid(
     displayPrice = displayPrice,
     id = id,
     nameAndroid = nameAndroid,
-    oneTimePurchaseOfferDetailsAndroid = oneTimePurchaseOfferDetailsAndroid,
     platform = platform,
     price = price,
-    subscriptionOfferDetailsAndroid = subscriptionOfferDetailsAndroid,
+    subscriptionOffers = subscriptionOffers,
     title = title,
     type = type
 )

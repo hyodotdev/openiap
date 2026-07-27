@@ -134,7 +134,7 @@ fun ProductDetailModal(
                         product.nameAndroid?.let { DetailRow("Android Name", it) }
                     }
 
-                    product.oneTimePurchaseOfferDetailsAndroid?.takeIf { it.isNotEmpty() }?.let { offers ->
+                    product.discountOffers?.takeIf { it.isNotEmpty() }?.let { offers ->
                         HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                         Text(
                             "One-Time Purchase Offers (${offers.size})",
@@ -147,7 +147,10 @@ fun ProductDetailModal(
                                     .fillMaxWidth()
                                     .padding(top = 4.dp),
                                 colors = CardDefaults.cardColors(
-                                    containerColor = if (offer.discountDisplayInfo != null)
+                                    containerColor = if (
+                                        offer.percentageDiscountAndroid != null ||
+                                        offer.discountAmountMicrosAndroid != null
+                                    )
                                         AppColors.success.copy(alpha = 0.1f)
                                     else
                                         AppColors.surfaceVariant
@@ -162,36 +165,38 @@ fun ProductDetailModal(
                                         style = MaterialTheme.typography.labelMedium,
                                         fontWeight = FontWeight.SemiBold
                                     )
-                                    DetailRow("Formatted Price", offer.formattedPrice)
-                                    DetailRow("Price (micros)", offer.priceAmountMicros)
-                                    offer.offerId?.let { DetailRow("Offer ID", it) }
-                                    DetailRow("Offer Token", credentialStatus(offer.offerToken))
-                                    if (offer.offerTags.isNotEmpty()) {
-                                        DetailRow("Tags", offer.offerTags.joinToString(", "))
+                                    DetailRow("Formatted Price", offer.displayPrice)
+                                    DetailRow("Price", offer.price.toString())
+                                    offer.id?.let { DetailRow("Offer ID", it) }
+                                    offer.offerTokenAndroid?.let {
+                                        DetailRow("Offer Token", credentialStatus(it))
+                                    }
+                                    offer.offerTagsAndroid?.takeIf { it.isNotEmpty() }?.let {
+                                        DetailRow("Tags", it.joinToString(", "))
                                     }
 
                                     // Discount information
-                                    offer.fullPriceMicros?.let { fullPrice ->
+                                    offer.fullPriceMicrosAndroid?.let { fullPrice ->
                                         DetailRow("Full Price (micros)", fullPrice)
                                     }
-                                    offer.discountDisplayInfo?.let { discount ->
-                                        discount.percentageDiscount?.let {
-                                            DetailRow("Discount", "$it% OFF")
-                                        }
-                                        discount.discountAmount?.let { amount ->
-                                            DetailRow("Discount Amount", amount.formattedDiscountAmount)
-                                            DetailRow("Discount (micros)", amount.discountAmountMicros)
-                                        }
+                                    offer.percentageDiscountAndroid?.let {
+                                        DetailRow("Discount", "$it% OFF")
+                                    }
+                                    offer.formattedDiscountAmountAndroid?.let {
+                                        DetailRow("Discount Amount", it)
+                                    }
+                                    offer.discountAmountMicrosAndroid?.let {
+                                        DetailRow("Discount (micros)", it)
                                     }
 
                                     // Time window
-                                    offer.validTimeWindow?.let { window ->
+                                    offer.validTimeWindowAndroid?.let { window ->
                                         DetailRow("Valid From", window.startTimeMillis)
                                         DetailRow("Valid Until", window.endTimeMillis)
                                     }
 
                                     // Limited quantity
-                                    offer.limitedQuantityInfo?.let { limit ->
+                                    offer.limitedQuantityInfoAndroid?.let { limit ->
                                         DetailRow("Max Quantity", limit.maximumQuantity.toString())
                                         DetailRow("Remaining", limit.remainingQuantity.toString())
                                     }
@@ -214,7 +219,7 @@ fun ProductDetailModal(
                         }
                     }
 
-                    product.subscriptionOfferDetailsAndroid?.takeIf { it.isNotEmpty() }?.let { offers ->
+                    product.subscriptionOffers?.takeIf { it.isNotEmpty() }?.let { offers ->
                         HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                         Text(
                             "Subscription Offers",
@@ -232,11 +237,13 @@ fun ProductDetailModal(
                                     modifier = Modifier.padding(8.dp),
                                     verticalArrangement = Arrangement.spacedBy(4.dp)
                                 ) {
-                                    DetailRow("Base Plan", offer.basePlanId)
-                                    offer.offerId?.let { DetailRow("Offer ID", it) }
-                                    DetailRow("Offer Token", credentialStatus(offer.offerToken))
-                                    if (offer.offerTags.isNotEmpty()) {
-                                        DetailRow("Tags", offer.offerTags.joinToString(", "))
+                                    offer.basePlanIdAndroid?.let { DetailRow("Base Plan", it) }
+                                    DetailRow("Offer ID", offer.id)
+                                    offer.offerTokenAndroid?.let {
+                                        DetailRow("Offer Token", credentialStatus(it))
+                                    }
+                                    offer.offerTagsAndroid?.takeIf { it.isNotEmpty() }?.let {
+                                        DetailRow("Tags", it.joinToString(", "))
                                     }
                                 }
                             }
