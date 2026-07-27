@@ -247,6 +247,7 @@ export default function ApiReferencePage() {
       </p>
       <CodeBlock title="Conditional entitlement refresh" language="typescript">
         {`type CachedEntitlements = {
+  cacheScope: string; // App-defined IAPKit project/environment identifier.
   etag: string | null;
   checkedAt: number;
   snapshot: {
@@ -263,23 +264,27 @@ export default function ApiReferencePage() {
 };
 
 async function refreshEntitlements(
+  iapkitCacheScope: string,
   userId: string,
   cached: CachedEntitlements | null,
   maxStaleMs: number,
   iapkitPublishableKey: string,
 ) {
-  const cachedForUser =
-    cached?.snapshot.userId === userId ? cached : null;
+  const cachedForScope =
+    cached?.cacheScope === iapkitCacheScope &&
+    cached.snapshot.userId === userId
+      ? cached
+      : null;
   const canUseCachedSnapshot = () => {
     if (
-      cachedForUser === null ||
-      !Number.isFinite(cachedForUser.checkedAt) ||
+      cachedForScope === null ||
+      !Number.isFinite(cachedForScope.checkedAt) ||
       !Number.isFinite(maxStaleMs) ||
       maxStaleMs < 0
     ) {
       return false;
     }
-    const cacheAgeMs = Date.now() - cachedForUser.checkedAt;
+    const cacheAgeMs = Date.now() - cachedForScope.checkedAt;
     return cacheAgeMs >= 0 && cacheAgeMs <= maxStaleMs;
   };
   let response: Response;
@@ -289,28 +294,28 @@ async function refreshEntitlements(
       {
         headers: {
           Authorization: \`Bearer \${iapkitPublishableKey}\`,
-          ...(cachedForUser?.etag
-            ? { "If-None-Match": cachedForUser.etag }
+          ...(cachedForScope?.etag
+            ? { "If-None-Match": cachedForScope.etag }
             : {}),
         },
       },
     );
   } catch (error) {
-    if (cachedForUser && canUseCachedSnapshot()) {
-      return cachedForUser.snapshot;
+    if (cachedForScope && canUseCachedSnapshot()) {
+      return cachedForScope.snapshot;
     }
     throw error;
   }
 
-  if (response.status === 304 && cachedForUser) {
-    const refreshed = { ...cachedForUser, checkedAt: Date.now() };
+  if (response.status === 304 && cachedForScope) {
+    const refreshed = { ...cachedForScope, checkedAt: Date.now() };
     await persistSnapshot(refreshed);
     return refreshed.snapshot;
   }
   if (response.status === 429) {
     scheduleRetry(response.headers.get("Retry-After"));
-    if (cachedForUser && canUseCachedSnapshot()) {
-      return cachedForUser.snapshot;
+    if (cachedForScope && canUseCachedSnapshot()) {
+      return cachedForScope.snapshot;
     }
     throw new Error("Entitlement refresh is rate limited");
   }
@@ -341,6 +346,7 @@ async function refreshEntitlements(
     ),
   };
   await persistSnapshot({
+    cacheScope: iapkitCacheScope,
     snapshot,
     etag: response.headers.get("ETag"),
     checkedAt: Date.now(),
