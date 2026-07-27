@@ -65,14 +65,17 @@ internal suspend fun queryPurchases(
 }
 
 /**
- * Queries Play Billing directly after ITEM_ALREADY_OWNED and returns only
- * currently owned purchases that match the in-flight request SKUs.
+ * Queries Play Billing for currently owned purchases that match an in-flight
+ * request. When [purchasedSinceMillis] is set, older ownership is excluded so
+ * a transient purchase-flow error cannot turn a pre-existing purchase into a
+ * false success.
  */
 internal fun queryAlreadyOwnedPurchases(
     client: BillingClient?,
     productType: String,
     skus: List<String>,
     basePlanIdsBySku: Map<String, String?> = emptyMap(),
+    purchasedSinceMillis: Double? = null,
     onResult: (List<Purchase>) -> Unit
 ) {
     val requestedSkus = skus.toSet()
@@ -96,6 +99,11 @@ internal fun queryAlreadyOwnedPurchases(
             }
 
             val recovered = purchaseList.orEmpty().mapNotNull { billingPurchase ->
+                if (purchasedSinceMillis != null &&
+                    billingPurchase.purchaseTime.toDouble() < purchasedSinceMillis
+                ) {
+                    return@mapNotNull null
+                }
                 val matchingSku = billingPurchase.products.firstOrNull { productId ->
                     productId in requestedSkus
                 }

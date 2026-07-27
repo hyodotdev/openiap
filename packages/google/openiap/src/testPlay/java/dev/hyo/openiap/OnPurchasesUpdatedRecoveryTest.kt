@@ -55,6 +55,8 @@ import org.robolectric.annotation.Config
  * Covers the asynchronous PurchasesUpdatedListener path of the Play-flavor
  * OpenIapModule (GitHub issue #166):
  *
+ * - Ambiguous, retriable purchase-flow errors must query current ownership and
+ *   recover only matching purchases created during the in-flight request.
  * - ITEM_ALREADY_OWNED delivered via the listener (instead of the synchronous
  *   launchBillingFlow result) must recover the owned purchases, notify
  *   purchase-update listeners, and resolve the pending request.
@@ -71,6 +73,197 @@ class OnPurchasesUpdatedRecoveryTest {
     fun tearDown() {
         OpenIapLog.setHandler(null)
         OpenIapLog.enable(false)
+    }
+
+    @Test
+    fun `listener NETWORK_ERROR recovers a newly purchased subscription`() {
+        val client = RecordingBillingClient(
+            ownedPurchases = listOf(
+                billingPurchase("subscription-id", "subscription-token", purchaseTime = 1_001)
+            )
+        )
+        val module = module()
+        setBillingClient(module, client)
+        val results = mutableListOf<Result<List<Purchase>>>()
+        installPendingPurchase(
+            module = module,
+            client = client,
+            callback = { results += it },
+            skus = setOf("subscription-id"),
+            productType = BillingClient.ProductType.SUBS,
+            launchStartedAtMillis = 1_000.0,
+            selectedBasePlanIdsBySku = mapOf("subscription-id" to "premium-monthly"),
+        )
+        val updates = mutableListOf<Purchase>()
+        val errors = mutableListOf<OpenIapError>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+        module.addPurchaseErrorListener(OpenIapPurchaseErrorListener { errors += it })
+
+        module.onPurchasesUpdated(
+            billingResult(BillingClient.BillingResponseCode.NETWORK_ERROR, "network lost"),
+            null,
+        )
+
+        assertEquals(1, client.queryPurchasesCalls.get())
+        assertEquals(listOf("subscription-id"), updates.map { it.productId })
+        assertEquals(listOf("premium-monthly"), updates.map { it.currentPlanId })
+        assertEquals(1, results.size)
+        assertEquals(
+            listOf("subscription-token"),
+            results.single().getOrThrow().map { it.purchaseToken },
+        )
+        assertTrue("successful recovery must not emit purchase errors: $errors", errors.isEmpty())
+        assertNull(pendingPurchaseField().get(module))
+    }
+
+    @Test
+    fun `ambiguous purchase errors reconcile current ownership`() {
+        val ambiguousCodes = listOf(
+            BillingClient.BillingResponseCode.NETWORK_ERROR,
+            BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
+            BillingClient.BillingResponseCode.SERVICE_DISCONNECTED,
+            BillingClient.BillingResponseCode.ERROR,
+        )
+
+        for (responseCode in ambiguousCodes) {
+            val client = RecordingBillingClient(
+                ownedPurchases = listOf(
+                    billingPurchase("product-id", "token-$responseCode", purchaseTime = 1_001)
+                )
+            )
+            val module = module()
+            setBillingClient(module, client)
+            val results = mutableListOf<Result<List<Purchase>>>()
+            installPendingPurchase(
+                module = module,
+                client = client,
+                callback = { results += it },
+                skus = setOf("product-id"),
+                productType = BillingClient.ProductType.INAPP,
+                launchStartedAtMillis = 1_000.0,
+            )
+            val updates = mutableListOf<Purchase>()
+            module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+
+            module.onPurchasesUpdated(billingResult(responseCode, "ambiguous"), null)
+
+            assertEquals("responseCode=$responseCode", 1, client.queryPurchasesCalls.get())
+            assertEquals("responseCode=$responseCode", 1, results.size)
+            assertEquals(
+                "responseCode=$responseCode",
+                listOf("token-$responseCode"),
+                results.single().getOrThrow().map { it.purchaseToken },
+            )
+            assertEquals(
+                "responseCode=$responseCode",
+                listOf("token-$responseCode"),
+                updates.map { it.purchaseToken },
+            )
+        }
+    }
+
+    @Test
+    fun `listener NETWORK_ERROR does not recover pre-existing ownership`() {
+        val client = RecordingBillingClient(
+            ownedPurchases = listOf(
+                billingPurchase("subscription-id", "old-token", purchaseTime = 999)
+            )
+        )
+        val module = module()
+        setBillingClient(module, client)
+        val results = mutableListOf<Result<List<Purchase>>>()
+        installPendingPurchase(
+            module = module,
+            client = client,
+            callback = { results += it },
+            skus = setOf("subscription-id"),
+            productType = BillingClient.ProductType.SUBS,
+            launchStartedAtMillis = 1_000.0,
+        )
+        val updates = mutableListOf<Purchase>()
+        val errors = mutableListOf<OpenIapError>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+        module.addPurchaseErrorListener(OpenIapPurchaseErrorListener { errors += it })
+
+        module.onPurchasesUpdated(
+            billingResult(BillingClient.BillingResponseCode.NETWORK_ERROR, "network lost"),
+            null,
+        )
+
+        assertEquals(1, client.queryPurchasesCalls.get())
+        assertTrue("old ownership must not be delivered: $updates", updates.isEmpty())
+        assertEquals(1, results.size)
+        assertEquals(emptyList<Purchase>(), results.single().getOrThrow())
+        assertEquals(1, errors.size)
+        assertTrue(errors.single() is OpenIapError.NetworkFailure)
+        assertNull(pendingPurchaseField().get(module))
+    }
+
+    @Test
+    fun `non ambiguous purchase error does not query ownership`() {
+        val client = RecordingBillingClient(
+            ownedPurchases = listOf(
+                billingPurchase("product-id", "owned-token", purchaseTime = 1_001)
+            )
+        )
+        val module = module()
+        setBillingClient(module, client)
+        val results = mutableListOf<Result<List<Purchase>>>()
+        installPendingPurchase(
+            module = module,
+            client = client,
+            callback = { results += it },
+            skus = setOf("product-id"),
+            productType = BillingClient.ProductType.INAPP,
+            launchStartedAtMillis = 1_000.0,
+        )
+
+        module.onPurchasesUpdated(
+            billingResult(BillingClient.BillingResponseCode.BILLING_UNAVAILABLE, "unavailable"),
+            null,
+        )
+
+        assertEquals(0, client.queryPurchasesCalls.get())
+        assertEquals(1, results.size)
+        assertEquals(emptyList<Purchase>(), results.single().getOrThrow())
+    }
+
+    @Test
+    fun `ambiguous recovery does not duplicate a purchase completed during query`() {
+        val recovered = billingPurchase("product-id", "purchase-token", purchaseTime = 1_001)
+        val client = RecordingBillingClient(ownedPurchases = listOf(recovered))
+        val module = module()
+        setBillingClient(module, client)
+        val results = mutableListOf<Result<List<Purchase>>>()
+        installPendingPurchase(
+            module = module,
+            client = client,
+            callback = { results += it },
+            skus = setOf("product-id"),
+            productType = BillingClient.ProductType.INAPP,
+            launchStartedAtMillis = 1_000.0,
+        )
+        val updates = mutableListOf<Purchase>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+        client.beforeQueryPurchasesResponse = {
+            module.onPurchasesUpdated(
+                billingResult(BillingClient.BillingResponseCode.OK),
+                listOf(recovered),
+            )
+        }
+
+        module.onPurchasesUpdated(
+            billingResult(BillingClient.BillingResponseCode.NETWORK_ERROR, "network lost"),
+            null,
+        )
+
+        assertEquals(1, client.queryPurchasesCalls.get())
+        assertEquals(1, results.size)
+        assertEquals(
+            "the same purchase must only reach listeners once",
+            listOf("purchase-token"),
+            updates.map { it.purchaseToken },
+        )
     }
 
     @Test
@@ -363,6 +556,7 @@ class OnPurchasesUpdatedRecoveryTest {
         skus: Set<String>,
         productType: String,
         launchStartedAtMillis: Double?,
+        selectedBasePlanIdsBySku: Map<String, String?> = emptyMap(),
     ) {
         val snapshotClass = Class.forName("dev.hyo.openiap.OpenIapModule\$PendingPurchaseSnapshot")
         val constructor = snapshotClass.declaredConstructors.first { candidate ->
@@ -375,7 +569,7 @@ class OnPurchasesUpdatedRecoveryTest {
             callback,
             skus,
             productType,
-            emptyMap<String, String?>(),
+            selectedBasePlanIdsBySku,
             launchStartedAtMillis,
         )
         pendingPurchaseField().set(module, snapshot)

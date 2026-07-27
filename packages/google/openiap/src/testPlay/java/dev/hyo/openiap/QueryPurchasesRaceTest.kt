@@ -119,6 +119,28 @@ class QueryPurchasesRaceTest {
     }
 
     @Test
+    fun `queryAlreadyOwnedPurchases excludes ownership older than the purchase flow`() {
+        val client = DuplicateBillingClient(
+            purchases = listOf(
+                billingPurchase("requested-product", "old-token", purchaseTime = 999),
+                billingPurchase("requested-product", "new-token", purchaseTime = 1_001),
+            )
+        )
+        val recoveredTokens = mutableListOf<String>()
+
+        queryAlreadyOwnedPurchases(
+            client,
+            BillingClient.ProductType.SUBS,
+            listOf("requested-product"),
+            purchasedSinceMillis = 1_000.0,
+        ) { purchases ->
+            recoveredTokens += purchases.mapNotNull { it.purchaseToken }
+        }
+
+        assertEquals(listOf("new-token"), recoveredTokens)
+    }
+
+    @Test
     fun `queryAlreadyOwnedPurchases preserves requested subscription base plan`() {
         val client = DuplicateBillingClient(
             purchases = listOf(billingPurchase("subscription-product", "subscription-token"))
@@ -270,14 +292,18 @@ class QueryPurchasesRaceTest {
         }
     }
 
-    private fun billingPurchase(productId: String, token: String): Purchase = Purchase(
+    private fun billingPurchase(
+        productId: String,
+        token: String,
+        purchaseTime: Long = 1,
+    ): Purchase = Purchase(
         """
         {
           "orderId": "order-$productId",
           "packageName": "dev.hyo.openiap.test",
           "productId": "$productId",
           "productIds": ["$productId"],
-          "purchaseTime": 1,
+          "purchaseTime": $purchaseTime,
           "purchaseState": 0,
           "purchaseToken": "$token",
           "quantity": 1,

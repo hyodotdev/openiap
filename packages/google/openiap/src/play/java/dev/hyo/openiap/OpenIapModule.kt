@@ -2561,6 +2561,72 @@ class OpenIapModule
         }
     }
 
+    private fun reconcilePurchaseFlowError(
+        sourceClient: BillingClient,
+        owner: ActiveStoreListenerOwner<BillingClient>,
+        pendingRequest: PendingPurchaseSnapshot,
+        error: OpenIapError,
+        reason: String,
+        purchasedSinceMillis: Double? = null,
+        deliverIfRequestCompletedElsewhere: Boolean = false,
+    ) {
+        val desiredType = pendingRequest.requestedProductType
+        if (desiredType == null) {
+            finishPurchaseCallback(
+                sourceClient,
+                pendingRequest.callback,
+                Result.success(emptyList()),
+                error,
+                requireLaunched = true,
+            )
+            return
+        }
+
+        OpenIapLog.debug(
+            "$reason received via listener; querying owned purchases for ${pendingRequest.requestedSkus}",
+            TAG,
+        )
+        queryAlreadyOwnedPurchases(
+            sourceClient,
+            desiredType,
+            pendingRequest.requestedSkus.toList(),
+            pendingRequest.selectedBasePlanIdsBySku,
+            purchasedSinceMillis,
+        ) { recovered ->
+            if (recovered.isEmpty()) {
+                OpenIapLog.warn("$reason recovery found no matching owned purchases", TAG)
+                finishPurchaseCallback(
+                    sourceClient,
+                    pendingRequest.callback,
+                    Result.success(emptyList()),
+                    error,
+                    requireLaunched = true,
+                )
+                return@queryAlreadyOwnedPurchases
+            }
+
+            val pending = claimPurchaseCallback(
+                sourceClient,
+                pendingRequest.callback,
+                requireLaunched = true,
+            )
+            OpenIapLog.debug("Recovered ${recovered.size} owned purchase(s) after $reason", TAG)
+            val delivered = if (pending != null || deliverIfRequestCompletedElsewhere) {
+                deliverPurchasesIfActive(recovered, owner)
+            } else {
+                false
+            }
+            if (pending != null) {
+                pending.callback(Result.success(recovered))
+            } else {
+                OpenIapLog.warn(
+                    "Purchase request completed elsewhere; recovered purchases delivered to active listeners=$delivered",
+                    TAG,
+                )
+            }
+        }
+    }
+
     private fun onPurchasesUpdated(
         sourceClient: BillingClient,
         owner: ActiveStoreListenerOwner<BillingClient>,
@@ -2710,59 +2776,40 @@ class OpenIapModule
                     // result. Mirror the synchronous recovery: query the owned
                     // purchases for the in-flight request and treat a match as
                     // success instead of failing the purchase.
-                    val desiredType = pendingRequest?.requestedProductType
-                    if (pendingRequest != null && desiredType != null) {
-                        OpenIapLog.debug(
-                            "ITEM_ALREADY_OWNED received via listener; querying owned purchases for ${pendingRequest.requestedSkus}",
-                            TAG,
+                    if (pendingRequest != null) {
+                        reconcilePurchaseFlowError(
+                            sourceClient = sourceClient,
+                            owner = owner,
+                            pendingRequest = pendingRequest,
+                            error = error,
+                            reason = "ITEM_ALREADY_OWNED",
+                            deliverIfRequestCompletedElsewhere = true,
                         )
-                        queryAlreadyOwnedPurchases(
-                            sourceClient,
-                            desiredType,
-                            pendingRequest.requestedSkus.toList(),
-                            pendingRequest.selectedBasePlanIdsBySku,
-                        ) { recovered ->
-                            if (recovered.isNotEmpty()) {
-                                val pending = claimPurchaseCallback(
-                                    sourceClient,
-                                    pendingRequest.callback,
-                                    requireLaunched = true,
-                                )
-                                OpenIapLog.debug("Recovered ${recovered.size} already-owned purchase(s)", TAG)
-                                val delivered = deliverPurchasesIfActive(
-                                    recovered,
-                                    owner,
-                                )
-                                if (pending != null) {
-                                    pending.callback(Result.success(recovered))
-                                } else {
-                                    OpenIapLog.warn(
-                                        "Purchase request completed elsewhere; recovered purchases delivered to active listeners=$delivered",
-                                        TAG,
-                                    )
-                                }
-                            } else {
-                                OpenIapLog.warn("ITEM_ALREADY_OWNED recovery found no matching owned purchases", TAG)
-                                finishPurchaseCallback(
-                                    sourceClient,
-                                    pendingRequest.callback,
-                                    Result.success(emptyList()),
-                                    error,
-                                    requireLaunched = true,
-                                )
-                            }
-                        }
                     } else {
                         OpenIapLog.warn("Purchase failed: code=${billingResult.responseCode} msg=${error.message}", TAG)
-                        if (pendingRequest != null) {
-                            finishPurchaseCallback(
-                                sourceClient,
-                                pendingRequest.callback,
-                                Result.success(emptyList()),
-                                error,
-                                requireLaunched = true,
-                            )
-                        }
+                    }
+                }
+                BillingClient.BillingResponseCode.NETWORK_ERROR,
+                BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
+                BillingClient.BillingResponseCode.SERVICE_DISCONNECTED,
+                BillingClient.BillingResponseCode.ERROR -> {
+                    val error = OpenIapError.fromBillingResponseCode(
+                        billingResult.responseCode,
+                        billingResult.debugMessage,
+                        subResponseCode,
+                    )
+                    val launchStartedAtMillis = pendingRequest?.launchStartedAtMillis
+                    if (pendingRequest != null && launchStartedAtMillis != null) {
+                        reconcilePurchaseFlowError(
+                            sourceClient = sourceClient,
+                            owner = owner,
+                            pendingRequest = pendingRequest,
+                            error = error,
+                            reason = "ambiguous purchase-flow error ${billingResult.responseCode}",
+                            purchasedSinceMillis = launchStartedAtMillis,
+                        )
+                    } else {
+                        OpenIapLog.warn("Purchase failed: code=${billingResult.responseCode} msg=${error.message}", TAG)
                     }
                 }
                 else -> {
