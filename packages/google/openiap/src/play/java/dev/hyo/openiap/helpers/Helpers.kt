@@ -12,6 +12,14 @@ import java.util.concurrent.atomic.AtomicBoolean
 // Common helpers (onPurchaseUpdated, onPurchaseError, AndroidPurchaseArgs,
 // toAndroidPurchaseArgs, toPurchaseError) are in main/helpers/CommonHelpers.kt
 
+private fun isRetriablePurchaseQueryResponse(responseCode: Int): Boolean = when (responseCode) {
+    BillingClient.BillingResponseCode.NETWORK_ERROR,
+    BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
+    BillingClient.BillingResponseCode.SERVICE_DISCONNECTED,
+    BillingClient.BillingResponseCode.ERROR -> true
+    else -> false
+}
+
 internal suspend fun restorePurchases(
     client: BillingClient?,
     operations: ActiveStoreOperationRegistry<BillingClient>,
@@ -68,7 +76,8 @@ internal suspend fun queryPurchases(
  * Queries Play Billing for currently owned purchases that match an in-flight
  * request. When [purchasedSinceMillis] is set, older ownership is excluded so
  * a transient purchase-flow error cannot turn a pre-existing purchase into a
- * false success.
+ * false success. [maxAttempts] applies only when the ownership query itself
+ * fails; a successful empty response is authoritative.
  */
 internal fun queryAlreadyOwnedPurchases(
     client: BillingClient?,
@@ -76,48 +85,62 @@ internal fun queryAlreadyOwnedPurchases(
     skus: List<String>,
     basePlanIdsBySku: Map<String, String?> = emptyMap(),
     purchasedSinceMillis: Double? = null,
+    maxAttempts: Int = 1,
     onResult: (List<Purchase>) -> Unit
 ) {
     val requestedSkus = skus.toSet()
-    if (client == null || requestedSkus.isEmpty()) {
+    if (client == null || requestedSkus.isEmpty() || maxAttempts < 1) {
         onResult(emptyList())
         return
     }
-
-    val didHandleResult = AtomicBoolean(false)
     val params = QueryPurchasesParams.newBuilder()
         .setProductType(productType)
         .build()
 
-    try {
-        client.queryPurchasesAsync(params) { result, purchaseList ->
-            if (!didHandleResult.compareAndSet(false, true)) return@queryPurchasesAsync
+    fun query(attempt: Int) {
+        val didHandleResult = AtomicBoolean(false)
+        try {
+            client.queryPurchasesAsync(params) { result, purchaseList ->
+                if (!didHandleResult.compareAndSet(false, true)) return@queryPurchasesAsync
 
-            if (result.responseCode != BillingClient.BillingResponseCode.OK) {
-                onResult(emptyList())
-                return@queryPurchasesAsync
-            }
+                if (result.responseCode != BillingClient.BillingResponseCode.OK) {
+                    if (attempt < maxAttempts &&
+                        isRetriablePurchaseQueryResponse(result.responseCode)
+                    ) {
+                        query(attempt + 1)
+                    } else {
+                        onResult(emptyList())
+                    }
+                    return@queryPurchasesAsync
+                }
 
-            val recovered = purchaseList.orEmpty().mapNotNull { billingPurchase ->
-                if (purchasedSinceMillis != null &&
-                    billingPurchase.purchaseTime.toDouble() < purchasedSinceMillis
-                ) {
-                    return@mapNotNull null
+                val recovered = purchaseList.orEmpty().mapNotNull { billingPurchase ->
+                    if (purchasedSinceMillis != null &&
+                        billingPurchase.purchaseTime.toDouble() < purchasedSinceMillis
+                    ) {
+                        return@mapNotNull null
+                    }
+                    val matchingSku = billingPurchase.products.firstOrNull { productId ->
+                        productId in requestedSkus
+                    }
+                    matchingSku?.let { sku ->
+                        billingPurchase.toPurchase(productType, basePlanIdsBySku[sku])
+                    }
                 }
-                val matchingSku = billingPurchase.products.firstOrNull { productId ->
-                    productId in requestedSkus
-                }
-                matchingSku?.let { sku ->
-                    billingPurchase.toPurchase(productType, basePlanIdsBySku[sku])
+                onResult(recovered)
+            }
+        } catch (_: Exception) {
+            if (didHandleResult.compareAndSet(false, true)) {
+                if (attempt < maxAttempts) {
+                    query(attempt + 1)
+                } else {
+                    onResult(emptyList())
                 }
             }
-            onResult(recovered)
-        }
-    } catch (_: Exception) {
-        if (didHandleResult.compareAndSet(false, true)) {
-            onResult(emptyList())
         }
     }
+
+    query(attempt = 1)
 }
 
 internal data class SubscriptionBasePlanOffer(

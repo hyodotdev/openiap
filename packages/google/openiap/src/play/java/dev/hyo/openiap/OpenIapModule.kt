@@ -214,6 +214,7 @@ class OpenIapModule
 
     companion object {
         private const val TAG = "OpenIapModule"
+        private const val AMBIGUOUS_PURCHASE_QUERY_MAX_ATTEMPTS = 3
     }
 
     // For backward compatibility
@@ -2592,6 +2593,11 @@ class OpenIapModule
             pendingRequest.requestedSkus.toList(),
             pendingRequest.selectedBasePlanIdsBySku,
             purchasedSinceMillis,
+            maxAttempts = if (purchasedSinceMillis != null) {
+                AMBIGUOUS_PURCHASE_QUERY_MAX_ATTEMPTS
+            } else {
+                1
+            },
         ) { recovered ->
             if (recovered.isEmpty()) {
                 OpenIapLog.warn("$reason recovery found no matching owned purchases", TAG)

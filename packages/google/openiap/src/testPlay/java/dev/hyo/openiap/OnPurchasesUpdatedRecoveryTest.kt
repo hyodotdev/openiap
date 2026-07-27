@@ -117,6 +117,123 @@ class OnPurchasesUpdatedRecoveryTest {
     }
 
     @Test
+    fun `listener NETWORK_ERROR retries transient ownership query failures`() {
+        val client = RecordingBillingClient(
+            ownedPurchases = listOf(
+                billingPurchase("product-id", "purchase-token", purchaseTime = 1_001)
+            ),
+            purchaseResponseCodes = listOf(
+                BillingClient.BillingResponseCode.NETWORK_ERROR,
+                BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
+                BillingClient.BillingResponseCode.OK,
+            ),
+        )
+        val module = module()
+        setBillingClient(module, client)
+        val results = mutableListOf<Result<List<Purchase>>>()
+        installPendingPurchase(
+            module = module,
+            client = client,
+            callback = { results += it },
+            skus = setOf("product-id"),
+            productType = BillingClient.ProductType.INAPP,
+            launchStartedAtMillis = 1_000.0,
+        )
+        val updates = mutableListOf<Purchase>()
+        val errors = mutableListOf<OpenIapError>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+        module.addPurchaseErrorListener(OpenIapPurchaseErrorListener { errors += it })
+
+        module.onPurchasesUpdated(
+            billingResult(BillingClient.BillingResponseCode.NETWORK_ERROR, "network lost"),
+            null,
+        )
+
+        assertEquals(3, client.queryPurchasesCalls.get())
+        assertEquals(listOf("purchase-token"), updates.map { it.purchaseToken })
+        assertEquals(
+            listOf("purchase-token"),
+            results.single().getOrThrow().map { it.purchaseToken },
+        )
+        assertTrue("successful retry must not emit purchase errors: $errors", errors.isEmpty())
+        assertNull(pendingPurchaseField().get(module))
+    }
+
+    @Test
+    fun `listener NETWORK_ERROR preserves original error after retries exhaust`() {
+        val client = RecordingBillingClient(
+            ownedPurchases = listOf(
+                billingPurchase("product-id", "purchase-token", purchaseTime = 1_001)
+            ),
+            purchaseResponseCodes = listOf(
+                BillingClient.BillingResponseCode.NETWORK_ERROR,
+                BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
+                BillingClient.BillingResponseCode.NETWORK_ERROR,
+            ),
+        )
+        val module = module()
+        setBillingClient(module, client)
+        val results = mutableListOf<Result<List<Purchase>>>()
+        installPendingPurchase(
+            module = module,
+            client = client,
+            callback = { results += it },
+            skus = setOf("product-id"),
+            productType = BillingClient.ProductType.INAPP,
+            launchStartedAtMillis = 1_000.0,
+        )
+        val updates = mutableListOf<Purchase>()
+        val errors = mutableListOf<OpenIapError>()
+        module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+        module.addPurchaseErrorListener(OpenIapPurchaseErrorListener { errors += it })
+
+        module.onPurchasesUpdated(
+            billingResult(BillingClient.BillingResponseCode.NETWORK_ERROR, "network lost"),
+            null,
+        )
+
+        assertEquals(3, client.queryPurchasesCalls.get())
+        assertTrue("failed retries must not deliver purchases: $updates", updates.isEmpty())
+        assertEquals(emptyList<Purchase>(), results.single().getOrThrow())
+        assertEquals(1, errors.size)
+        assertTrue(errors.single() is OpenIapError.NetworkFailure)
+        assertNull(pendingPurchaseField().get(module))
+    }
+
+    @Test
+    fun `listener NETWORK_ERROR does not retry a fatal ownership query failure`() {
+        val client = RecordingBillingClient(
+            purchaseResponseCodes = listOf(
+                BillingClient.BillingResponseCode.DEVELOPER_ERROR,
+            ),
+        )
+        val module = module()
+        setBillingClient(module, client)
+        val results = mutableListOf<Result<List<Purchase>>>()
+        installPendingPurchase(
+            module = module,
+            client = client,
+            callback = { results += it },
+            skus = setOf("product-id"),
+            productType = BillingClient.ProductType.INAPP,
+            launchStartedAtMillis = 1_000.0,
+        )
+        val errors = mutableListOf<OpenIapError>()
+        module.addPurchaseErrorListener(OpenIapPurchaseErrorListener { errors += it })
+
+        module.onPurchasesUpdated(
+            billingResult(BillingClient.BillingResponseCode.NETWORK_ERROR, "network lost"),
+            null,
+        )
+
+        assertEquals(1, client.queryPurchasesCalls.get())
+        assertEquals(emptyList<Purchase>(), results.single().getOrThrow())
+        assertEquals(1, errors.size)
+        assertTrue(errors.single() is OpenIapError.NetworkFailure)
+        assertNull(pendingPurchaseField().get(module))
+    }
+
+    @Test
     fun `ambiguous purchase errors reconcile current ownership`() {
         val ambiguousCodes = listOf(
             BillingClient.BillingResponseCode.NETWORK_ERROR,
@@ -604,9 +721,12 @@ class OnPurchasesUpdatedRecoveryTest {
 
     private class RecordingBillingClient(
         private val ownedPurchases: List<BillingPurchase> = emptyList(),
+        purchaseResponseCodes: List<Int> = emptyList(),
     ) : BillingClient() {
         val queryPurchasesCalls = AtomicInteger(0)
         var beforeQueryPurchasesResponse: (() -> Unit)? = null
+        private val purchaseResponseCodes =
+            java.util.concurrent.ConcurrentLinkedQueue(purchaseResponseCodes)
 
         override fun queryPurchasesAsync(
             params: QueryPurchasesParams,
@@ -615,7 +735,9 @@ class OnPurchasesUpdatedRecoveryTest {
             queryPurchasesCalls.incrementAndGet()
             beforeQueryPurchasesResponse?.invoke()
             val result = BillingResult.newBuilder()
-                .setResponseCode(BillingResponseCode.OK)
+                .setResponseCode(
+                    purchaseResponseCodes.poll() ?: BillingResponseCode.OK
+                )
                 .build()
             listener.onQueryPurchasesResponse(result, ownedPurchases)
         }
