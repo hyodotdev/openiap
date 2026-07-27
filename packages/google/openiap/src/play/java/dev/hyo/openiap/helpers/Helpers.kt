@@ -77,7 +77,8 @@ internal suspend fun queryPurchases(
  * request. When [purchasedSinceMillis] is set, older ownership is excluded so
  * a transient purchase-flow error cannot turn a pre-existing purchase into a
  * false success. [maxAttempts] applies only when the ownership query itself
- * fails; a successful empty response is authoritative.
+ * fails; eligible retries run through [scheduleRetry] after [retryDelayMillis].
+ * A successful empty response is authoritative.
  */
 internal fun queryAlreadyOwnedPurchases(
     client: BillingClient?,
@@ -86,6 +87,11 @@ internal fun queryAlreadyOwnedPurchases(
     basePlanIdsBySku: Map<String, String?> = emptyMap(),
     purchasedSinceMillis: Double? = null,
     maxAttempts: Int = 1,
+    retryDelayMillis: Long = 0,
+    scheduleRetry: (Long, () -> Unit) -> Boolean = { _, retry ->
+        retry()
+        true
+    },
     onResult: (List<Purchase>) -> Unit
 ) {
     val requestedSkus = skus.toSet()
@@ -107,7 +113,12 @@ internal fun queryAlreadyOwnedPurchases(
                     if (attempt < maxAttempts &&
                         isRetriablePurchaseQueryResponse(result.responseCode)
                     ) {
-                        query(attempt + 1)
+                        val scheduled = runCatching {
+                            scheduleRetry(retryDelayMillis) {
+                                query(attempt + 1)
+                            }
+                        }.getOrDefault(false)
+                        if (!scheduled) onResult(emptyList())
                     } else {
                         onResult(emptyList())
                     }
@@ -131,11 +142,9 @@ internal fun queryAlreadyOwnedPurchases(
             }
         } catch (_: Exception) {
             if (didHandleResult.compareAndSet(false, true)) {
-                if (attempt < maxAttempts) {
-                    query(attempt + 1)
-                } else {
-                    onResult(emptyList())
-                }
+                // Synchronous API exceptions do not carry a BillingResult that
+                // can establish a transient failure, so do not retry them.
+                onResult(emptyList())
             }
         }
     }

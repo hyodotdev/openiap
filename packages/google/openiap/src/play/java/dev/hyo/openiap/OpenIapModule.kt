@@ -8,6 +8,8 @@ import android.app.Activity
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.os.Handler
+import android.os.Looper
 import com.android.billingclient.api.AcknowledgePurchaseParams
 import com.android.billingclient.api.BillingClient
 import com.android.billingclient.api.BillingClientStateListener
@@ -215,6 +217,7 @@ class OpenIapModule
     companion object {
         private const val TAG = "OpenIapModule"
         private const val AMBIGUOUS_PURCHASE_QUERY_MAX_ATTEMPTS = 3
+        private const val AMBIGUOUS_PURCHASE_QUERY_RETRY_DELAY_MILLIS = 500L
     }
 
     // For backward compatibility
@@ -285,6 +288,7 @@ class OpenIapModule
         val operationFailures: List<() -> Unit>,
     )
     private var currentActivityRef: WeakReference<Activity>? = null
+    private val mainHandler by lazy { Handler(Looper.getMainLooper()) }
     private val productManager = ProductManager()
     private val gson = Gson()
     private val fallbackActivity: Activity? = if (context is Activity) context else null
@@ -2597,6 +2601,10 @@ class OpenIapModule
                 AMBIGUOUS_PURCHASE_QUERY_MAX_ATTEMPTS
             } else {
                 1
+            },
+            retryDelayMillis = AMBIGUOUS_PURCHASE_QUERY_RETRY_DELAY_MILLIS,
+            scheduleRetry = { delayMillis, retry ->
+                mainHandler.postDelayed({ retry() }, delayMillis)
             },
         ) { recovered ->
             if (recovered.isEmpty()) {

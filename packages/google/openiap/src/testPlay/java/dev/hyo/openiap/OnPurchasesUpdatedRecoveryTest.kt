@@ -50,6 +50,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
+import org.robolectric.shadows.ShadowLooper
 
 /**
  * Covers the asynchronous PurchasesUpdatedListener path of the Play-flavor
@@ -118,15 +119,16 @@ class OnPurchasesUpdatedRecoveryTest {
 
     @Test
     fun `listener NETWORK_ERROR retries transient ownership query failures`() {
+        val purchaseResponseCodes = listOf(
+            BillingClient.BillingResponseCode.NETWORK_ERROR,
+            BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
+            BillingClient.BillingResponseCode.OK,
+        )
         val client = RecordingBillingClient(
             ownedPurchases = listOf(
                 billingPurchase("product-id", "purchase-token", purchaseTime = 1_001)
             ),
-            purchaseResponseCodes = listOf(
-                BillingClient.BillingResponseCode.NETWORK_ERROR,
-                BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
-                BillingClient.BillingResponseCode.OK,
-            ),
+            purchaseResponseCodes = purchaseResponseCodes,
         )
         val module = module()
         setBillingClient(module, client)
@@ -148,8 +150,11 @@ class OnPurchasesUpdatedRecoveryTest {
             billingResult(BillingClient.BillingResponseCode.NETWORK_ERROR, "network lost"),
             null,
         )
+        repeat(purchaseResponseCodes.lastIndex) {
+            ShadowLooper.runMainLooperToNextTask()
+        }
 
-        assertEquals(3, client.queryPurchasesCalls.get())
+        assertEquals(purchaseResponseCodes.size, client.queryPurchasesCalls.get())
         assertEquals(listOf("purchase-token"), updates.map { it.purchaseToken })
         assertEquals(
             listOf("purchase-token"),
@@ -161,15 +166,16 @@ class OnPurchasesUpdatedRecoveryTest {
 
     @Test
     fun `listener NETWORK_ERROR preserves original error after retries exhaust`() {
+        val purchaseResponseCodes = listOf(
+            BillingClient.BillingResponseCode.NETWORK_ERROR,
+            BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
+            BillingClient.BillingResponseCode.NETWORK_ERROR,
+        )
         val client = RecordingBillingClient(
             ownedPurchases = listOf(
                 billingPurchase("product-id", "purchase-token", purchaseTime = 1_001)
             ),
-            purchaseResponseCodes = listOf(
-                BillingClient.BillingResponseCode.NETWORK_ERROR,
-                BillingClient.BillingResponseCode.SERVICE_UNAVAILABLE,
-                BillingClient.BillingResponseCode.NETWORK_ERROR,
-            ),
+            purchaseResponseCodes = purchaseResponseCodes,
         )
         val module = module()
         setBillingClient(module, client)
@@ -191,8 +197,11 @@ class OnPurchasesUpdatedRecoveryTest {
             billingResult(BillingClient.BillingResponseCode.NETWORK_ERROR, "network lost"),
             null,
         )
+        repeat(purchaseResponseCodes.lastIndex) {
+            ShadowLooper.runMainLooperToNextTask()
+        }
 
-        assertEquals(3, client.queryPurchasesCalls.get())
+        assertEquals(purchaseResponseCodes.size, client.queryPurchasesCalls.get())
         assertTrue("failed retries must not deliver purchases: $updates", updates.isEmpty())
         assertEquals(emptyList<Purchase>(), results.single().getOrThrow())
         assertEquals(1, errors.size)
