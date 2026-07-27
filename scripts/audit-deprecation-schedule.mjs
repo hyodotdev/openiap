@@ -214,7 +214,12 @@ export const completedRemovalRules = [
   },
   {
     label: "kmp-iap",
-    roots: ["libraries/kmp-iap/library/src", "libraries/kmp-iap/example"],
+    roots: [
+      "libraries/kmp-iap/library/src",
+      "libraries/kmp-iap/example",
+      "libraries/kmp-iap/README.md",
+    ],
+    extensions: new Set([...SOURCE_EXTENSIONS, ".md"]),
     excluded: [
       "libraries/kmp-iap/library/src/androidUnitTest",
       "libraries/kmp-iap/library/src/commonTest",
@@ -227,6 +232,8 @@ export const completedRemovalRules = [
       "validateReceipt(",
       "fun ios(",
       "fun android(",
+      "ios {",
+      "android {",
       "replacementMode(",
       "useAlternativeBilling",
       "alternativeBillingModeAndroid",
@@ -239,6 +246,8 @@ export const completedRemovalRules = [
       "RequestPurchaseOnPromotedProductIOSAsync",
       "ReceiptValidationProps",
       "ReceiptValidationResult",
+      "purchaseEnv.IOS",
+      "subEnv.IOS",
     ],
   },
 ];
@@ -395,14 +404,19 @@ const walkFiles = (entry) => {
 const lineNumberAt = (source, index) =>
   source.slice(0, index).split("\n").length;
 
-export const collectForbiddenMatches = ({ roots, tokens, excluded = [] }) => {
+export const collectForbiddenMatches = ({
+  roots,
+  tokens,
+  excluded = [],
+  extensions = SOURCE_EXTENSIONS,
+}) => {
   const matches = [];
   const files = [...new Set(roots.flatMap(walkFiles))];
 
   for (const file of files) {
     if (isExcluded(file, excluded)) continue;
     if (isTestPath(file)) continue;
-    if (!SOURCE_EXTENSIONS.has(path.extname(file))) continue;
+    if (!extensions.has(path.extname(file))) continue;
     const source = fs.readFileSync(path.join(root, file), "utf8");
     for (const token of tokens) {
       let index = source.indexOf(token);

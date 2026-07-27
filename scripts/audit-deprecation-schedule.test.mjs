@@ -93,6 +93,36 @@ test("forbidden matcher honors excluded directories", () => {
   }
 });
 
+test("forbidden matcher supports explicitly guarded documentation files", () => {
+  const root = path.resolve(
+    path.dirname(new URL(import.meta.url).pathname),
+    "..",
+  );
+  const fixtureDirectory = fs.mkdtempSync(
+    path.join(root, ".audit-deprecations-fixture-"),
+  );
+  const relativeDirectory = path.relative(root, fixtureDirectory);
+  try {
+    fs.writeFileSync(path.join(fixtureDirectory, "fixture.md"), "legacy\n");
+    assert.deepEqual(
+      collectForbiddenMatches({
+        roots: [relativeDirectory],
+        tokens: ["legacy"],
+        extensions: new Set([".md"]),
+      }),
+      [
+        {
+          file: `${relativeDirectory}/fixture.md`,
+          line: 1,
+          token: "legacy",
+        },
+      ],
+    );
+  } finally {
+    fs.rmSync(fixtureDirectory, { recursive: true, force: true });
+  }
+});
+
 test("required text guard fails closed for missing files and values", () => {
   assert.deepEqual(
     collectMissingRequiredTexts([
