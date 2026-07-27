@@ -167,6 +167,44 @@ URL. Publishable keys receive `403 INSUFFICIENT_SCOPE`.
 - Publishable keys embedded in an app can be extracted, but cannot call administrative operations. Use separate keys per app build/environment and never ship a secret key.
 - A matching IAPKit catalog row must exist before a payload write. After creating a product directly in App Store Connect or Play Console, run a secret-authenticated pull sync and wait for its job to succeed, or create the row with `POST /v1/products`. Early writes return `PRODUCT_NOT_FOUND`.
 
+### GET /v1/subscriptions/status?userId={userId}
+
+Returns `{ active, subscription }` for one opaque, app-scoped user ID. Send a
+publishable key as `Authorization: Bearer openiap-kit_pk_...`. The older
+key-in-path route remains a publishable-key compatibility alias.
+
+### GET /v1/subscriptions/entitlements?userId={userId}
+
+Returns `{ userId, productIds, subscriptions }` for the user's active
+entitlements. The status and entitlement queries use the
+`(projectId, userId, updatedAt)` index, read at most 201 rows, support 200, and
+return `400 ENTITLEMENT_SNAPSHOT_TOO_LARGE` rather than a partial result when
+the overflow probe finds another row. They do not update API-key usage or
+last-access fields.
+
+For publishable-key calls, both routes return a weak `ETag` scoped by the API
+key, route, user, and response content. Persist the fields the UI needs, send
+that exact tag in `If-None-Match`, reuse the cached snapshot on body-free `304`,
+and replace it on `200`. IAPKit still makes one Convex query invocation before
+`304`. Convex returns a time-independent row snapshot whose cache is invalidated
+when dependent rows change, and Fly reevaluates expiry against its own current
+clock on every HTTP request. Cached query results and caller-controlled
+timestamps therefore cannot preserve expired access. Secret-key calls return
+`Cache-Control: private, no-store` without an ETag.
+
+Refresh on cold start, when a foreground snapshot is stale, or after explicit
+user action. Coalesce concurrent refreshes, honor `429 Retry-After`, use
+jittered backoff, and fail closed after an app-defined maximum stale age.
+Persist only necessary product/state/expiry fields rather than purchase tokens
+when possible, key the cache by project and user, and clear it on sign-out.
+
+This raw HTTP contract replaces the removed outbound IAPKit-to-app event
+stream. IAPKit accepts Apple ASN v2 and Google RTDN, updates canonical state,
+and does not expose SSE, WebSockets, push relays, raw event feeds, or long
+polling. The current `kitApi.status()` and `kitApi.entitlements()` convenience
+methods remain unconditional body-only reads; use raw HTTP or an app wrapper
+when response headers are required.
+
 ### Header-authenticated product and administrative subscription routes
 
 `GET /v1/products` is a client-safe catalog read and accepts a Bearer key.

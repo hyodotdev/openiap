@@ -725,6 +725,11 @@ const schema = defineSchema({
     .index("by_project", ["projectId"])
     .index("by_project_and_token", ["projectId", "purchaseToken"])
     .index("by_project_and_user", ["projectId", "userId"])
+    .index("by_project_and_user_and_updated", [
+      "projectId",
+      "userId",
+      "updatedAt",
+    ])
     .index("by_project_and_state", ["projectId", "state"])
     .index("by_project_and_updated", ["projectId", "updatedAt"])
     .index("by_project_and_product", ["projectId", "productId"])

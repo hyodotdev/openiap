@@ -276,6 +276,94 @@ function Releases() {
       ),
     },
 
+    // July 28, 2026 - IAPKit conditional entitlement snapshots
+    {
+      id: 'iapkit-conditional-entitlement-snapshots-2026-07-28',
+      date: new Date('2026-07-28'),
+      element: (
+        <div
+          key="iapkit-conditional-entitlement-snapshots-2026-07-28"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="iapkit-conditional-entitlement-snapshots-2026-07-28"
+            level="h4"
+          >
+            July 28, 2026 - IAPKit conditional entitlement snapshots
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Updates the hosted IAPKit service and its documentation with the
+            supported replacement for the removed IAPKit-to-app SSE surface.
+            Apple ASN v2 and Google RTDN continue to update IAPKit&apos;s
+            canonical subscription state; apps read only a user-scoped snapshot
+            through bounded request/response APIs.
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Hosted IAPKit changes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <code>GET /v1/subscriptions/status?userId=</code> and{' '}
+              <code>GET /v1/subscriptions/entitlements?userId=</code> return an
+              API-key, route, user, and content-scoped <code>ETag</code> for
+              publishable-key clients. A matching <code>If-None-Match</code>{' '}
+              returns body-free <code>304</code>; a tag from another key, user,
+              or route cannot match. Secret-key responses remain{' '}
+              <code>private, no-store</code> without an ETag.
+            </li>
+            <li>
+              Convex returns a time-independent row snapshot and invalidates its
+              cached result when a dependent row changes. Fly reevaluates expiry
+              against its own current clock before returning <code>200</code> or{' '}
+              <code>304</code>, so cached results and caller-controlled
+              timestamps cannot preserve expired access. Polls create no usage
+              or last-access mutation, use the project-user-updated index,
+              support up to 200 subscription rows with one bounded overflow
+              probe, and fail closed rather than return partial entitlements.
+            </li>
+            <li>
+              Apps should persist the last snapshot, render it immediately, and
+              conditionally refresh on cold start, when it is stale after
+              foregrounding, or after an explicit user action. Continuous
+              timers, raw webhook feeds, SSE, WebSockets, and long polling are
+              not supported. Offline fallback must use an app-defined maximum
+              stale age rather than retain access indefinitely.
+            </li>
+            <li>
+              Existing API-key, source-IP, and process rate limits remain in
+              front of Convex. Clients must respect <code>429 Retry-After</code>{' '}
+              and use jittered backoff.
+            </li>
+          </ul>
+
+          <p
+            style={{
+              marginBottom: 0,
+              color: 'var(--text-secondary)',
+              fontSize: '0.9rem',
+            }}
+          >
+            This is a hosted-service and documentation update. It has no
+            installable OpenIAP package or framework-library version. Existing{' '}
+            <code>kitApi.status()</code> and <code>kitApi.entitlements()</code>{' '}
+            helpers remain unconditional body-only reads; conditional clients
+            use the documented raw HTTP contract or an app wrapper.
+          </p>
+        </div>
+      ),
+    },
+
     // July 25, 2026 - IAPKit security and SDK patch train
     {
       id: 'iapkit-security-cross-sdk-payload-integrity-2026-07-25',

@@ -60,7 +60,8 @@ export const DOCS_NAV: DocsNavEntry[] = [
   {
     slug: "api",
     title: "API reference",
-    summary: "POST /v1/purchase/verify — request shapes, responses, errors.",
+    summary:
+      "Purchase verification, user-scoped subscription snapshots, responses, and errors.",
   },
   {
     slug: "analytics",

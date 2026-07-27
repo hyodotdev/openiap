@@ -1,5 +1,5 @@
 import { query, type QueryCtx } from "../_generated/server";
-import { v, type Infer } from "convex/values";
+import { ConvexError, v, type Infer } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 
 import {
@@ -42,12 +42,56 @@ const subscriptionShape = v.object({
   userId: v.optional(v.string()),
 });
 type SubscriptionRow = Infer<typeof subscriptionShape>;
+export const MAX_USER_SUBSCRIPTION_ROWS = 200;
 
 function isActive(sub: Doc<"subscriptions">, now: number): boolean {
-  const entitled = sub.state === "Active" || sub.state === "InGracePeriod";
-  if (!entitled) return false;
+  if (!isEntitledState(sub)) return false;
   if (sub.expiresAt != null && sub.expiresAt <= now) return false;
   return true;
+}
+
+function isEntitledState(sub: Doc<"subscriptions">): boolean {
+  return sub.state === "Active" || sub.state === "InGracePeriod";
+}
+
+export function assertUserSubscriptionRowLimit(
+  rows: Array<Doc<"subscriptions">>,
+): void {
+  if (rows.length <= MAX_USER_SUBSCRIPTION_ROWS) return;
+  throw new ConvexError({
+    code: "ENTITLEMENT_SNAPSHOT_TOO_LARGE",
+    message:
+      "This user has more than 200 subscription rows. Contact IAPKit support before retrying.",
+  });
+}
+
+async function userSubscriptionRows(
+  ctx: QueryCtx,
+  projectId: Id<"projects">,
+  userId: string,
+): Promise<Array<Doc<"subscriptions">>> {
+  const rows = await ctx.db
+    .query("subscriptions")
+    .withIndex("by_project_and_user_and_updated", (q) =>
+      q.eq("projectId", projectId).eq("userId", userId),
+    )
+    .order("desc")
+    .take(MAX_USER_SUBSCRIPTION_ROWS + 1);
+  assertUserSubscriptionRowLimit(rows);
+  return rows;
+}
+
+export function shapeSubscriptionEvaluationSnapshot(
+  rows: Array<Doc<"subscriptions">>,
+): {
+  candidates: SubscriptionRow[];
+  fallback: SubscriptionRow | null;
+} {
+  const fallback = selectMostRecentlyUpdatedSubscription(rows);
+  return {
+    candidates: rows.filter(isEntitledState).map(shapeSubscriptionRow),
+    fallback: fallback ? shapeSubscriptionRow(fallback) : null,
+  };
 }
 
 export function shapeSubscriptionRow(
@@ -162,6 +206,30 @@ export function selectReportingMrr(
   };
 }
 
+// Time-independent evaluation snapshot for the Fly HTTP boundary. It excludes
+// refunded, revoked, and other historical rows except for the single latest
+// fallback needed by status. State-entitled candidates may include a row whose
+// expiresAt has just passed; Fly removes it with its own current clock before
+// producing the public HTTP response. Convex may safely cache the snapshot and
+// invalidates it when a dependent row changes.
+export const subscriptionEvaluationSnapshot = query({
+  args: {
+    apiKey: v.string(),
+    userId: v.string(),
+  },
+  returns: v.object({
+    candidates: v.array(subscriptionShape),
+    fallback: v.union(subscriptionShape, v.null()),
+  }),
+  handler: async (ctx, args) => {
+    const project = await projectByApiKey(ctx, args.apiKey);
+    if (!project) return { candidates: [], fallback: null };
+
+    const rows = await userSubscriptionRows(ctx, project._id, args.userId);
+    return shapeSubscriptionEvaluationSnapshot(rows);
+  },
+});
+
 // Match onesub's `/onesub/status?userId=` — returns the most-recently-
 // updated active subscription when the user is entitled, otherwise the
 // most-recently-updated subscription overall, plus one `active` boolean
@@ -176,12 +244,7 @@ export const subscriptionStatus = query({
     const project = await projectByApiKey(ctx, args.apiKey);
     if (!project) return { active: false, subscription: null };
 
-    const subs = await ctx.db
-      .query("subscriptions")
-      .withIndex("by_project_and_user", (q) =>
-        q.eq("projectId", project._id).eq("userId", args.userId),
-      )
-      .collect();
+    const subs = await userSubscriptionRows(ctx, project._id, args.userId);
 
     const now = Date.now();
     const activeSubs = subs.filter((candidate) => isActive(candidate, now));
@@ -214,12 +277,7 @@ export const entitlements = query({
       return { userId: args.userId, productIds: [], subscriptions: [] };
     }
 
-    const all = await ctx.db
-      .query("subscriptions")
-      .withIndex("by_project_and_user", (q) =>
-        q.eq("projectId", project._id).eq("userId", args.userId),
-      )
-      .collect();
+    const all = await userSubscriptionRows(ctx, project._id, args.userId);
 
     const now = Date.now();
     const active = all.filter((sub) => isActive(sub, now));

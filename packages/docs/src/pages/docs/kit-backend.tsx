@@ -65,14 +65,13 @@ function KitBackend() {
             <code>/google</code> aliases remain supported for existing setups.
           </li>
           <li>
-            <code>GET /v1/subscriptions/status/&#123;apiKey&#125;?userId=</code>{' '}
-            — fast entitlement gate.
+            <code>GET /v1/subscriptions/status?userId=</code> — fast entitlement
+            gate with a publishable Bearer key. The key-in-path form remains a
+            compatibility alias.
           </li>
           <li>
-            <code>
-              GET /v1/subscriptions/entitlements/&#123;apiKey&#125;?userId=
-            </code>{' '}
-            — every active productId for a user.
+            <code>GET /v1/subscriptions/entitlements?userId=</code> — every
+            active productId for a user, also with a publishable Bearer key.
           </li>
           <li>
             <code>GET /v1/subscriptions/list</code> — secret
@@ -83,8 +82,9 @@ function KitBackend() {
             Bearer-authenticated MRR, churn, and refund counts.
           </li>
           <li>
-            <code>POST /v1/subscriptions/bind-user/&#123;apiKey&#125;</code> —
-            attach a userId to a tracked subscription by purchase token.
+            <code>POST /v1/subscriptions/bind-user</code> — attach a userId to a
+            tracked subscription by purchase token with a publishable Bearer
+            key. The key-in-path form remains a compatibility alias.
           </li>
           <li>
             <code>GET /v1/products/&#123;publishableKey&#125;</code> — client
@@ -547,6 +547,183 @@ if (status.Active)
             ),
           }}
         </LanguageTabs>
+
+        <AnchorLink id="refresh-entitlements-without-sse" level="h3">
+          Recommended SSE replacement: conditional snapshots
+        </AnchorLink>
+        <p>
+          App Store Server Notifications v2 and Google RTDN update IAPKit&apos;s
+          canonical subscription rows. IAPKit deliberately does not relay those
+          events to apps, expose a raw event feed, or keep an SSE, WebSocket, or
+          long-poll connection open. The app reads only the latest snapshot for
+          its opaque <code>userId</code>.
+        </p>
+        <p>
+          Webhook event rows are bounded operational history for deduplication
+          and retention. Polling reads the canonical snapshot, not an event
+          cursor, so pruning old event rows does not erase the user&apos;s
+          latest state and apps do not have to consume every event in order.
+        </p>
+        <ol>
+          <li>
+            For a purchase started in this app session, update the UI from the
+            SDK purchase callback and verified result. Bind its stable purchase
+            token to the app-scoped user ID once.
+          </li>
+          <li>Render from a persisted status or entitlement snapshot.</li>
+          <li>
+            Revalidate on cold start, when a foreground snapshot is stale, or
+            after an explicit user refresh. Use one refresh coordinator so
+            concurrent screens share the same in-flight request; do not run a
+            continuous timer. Define a maximum stale age for offline or
+            rate-limited fallback and fail closed after that app-specific
+            window.
+          </li>
+          <li>
+            Save the response <code>ETag</code> and send it as{' '}
+            <code>If-None-Match</code> next time. Reuse the cached body on{' '}
+            <code>304</code>; replace it on <code>200</code>.
+          </li>
+          <li>
+            Respect <code>429 Retry-After</code> and use jittered backoff after
+            network failures.
+          </li>
+          <li>
+            Key local storage by IAPKit project and opaque user ID, and clear it
+            on sign-out. Never render one user&apos;s cached snapshot for
+            another.
+          </li>
+        </ol>
+        <p>
+          The example below uses the raw HTTP contract so it can retain response
+          headers. The current <code>kitApi.status()</code> and{' '}
+          <code>kitApi.entitlements()</code> convenience methods still perform
+          unconditional reads and return only the decoded body; use raw{' '}
+          <code>fetch</code> or an app wrapper when you need conditional
+          revalidation.
+        </p>
+        <CodeBlock language="typescript">{`type CachedEntitlements = {
+  etag: string | null;
+  checkedAt: number;
+  snapshot: {
+    userId: string;
+    productIds: string[];
+    subscriptions: Array<{
+      productId: string;
+      state: string;
+      expiresAt?: number;
+      renewsAt?: number;
+      willRenew?: boolean;
+    }>;
+  };
+};
+
+async function refreshEntitlements(
+  userId: string,
+  cached: CachedEntitlements | null,
+  maxStaleMs: number,
+) {
+  const canUseCachedSnapshot = () => {
+    if (
+      cached === null ||
+      !Number.isFinite(cached.checkedAt) ||
+      !Number.isFinite(maxStaleMs) ||
+      maxStaleMs < 0
+    ) {
+      return false;
+    }
+    const cacheAgeMs = Date.now() - cached.checkedAt;
+    return cacheAgeMs >= 0 && cacheAgeMs <= maxStaleMs;
+  };
+  let response: Response;
+  try {
+    response = await fetch(
+      \`https://kit.openiap.dev/v1/subscriptions/entitlements?userId=\${encodeURIComponent(userId)}\`,
+      {
+        headers: {
+          Authorization: \`Bearer \${iapkitPublishableKey}\`,
+          ...(cached?.etag ? { 'If-None-Match': cached.etag } : {}),
+        },
+      },
+    );
+  } catch (error) {
+    if (cached && canUseCachedSnapshot()) return cached.snapshot;
+    throw error;
+  }
+
+  if (response.status === 304 && cached) {
+    const refreshed = { ...cached, checkedAt: Date.now() };
+    await persistEntitlements(refreshed);
+    return refreshed.snapshot;
+  }
+  if (response.status === 429) {
+    scheduleRetry(response.headers.get('Retry-After'));
+    if (cached && canUseCachedSnapshot()) return cached.snapshot;
+    throw new Error('Entitlement refresh is rate limited');
+  }
+  if (!response.ok) throw new Error('Entitlement refresh failed');
+
+  const wireSnapshot = (await response.json()) as {
+    userId: string;
+    productIds: string[];
+    subscriptions: Array<{
+      productId: string;
+      state: string;
+      expiresAt?: number;
+      renewsAt?: number;
+      willRenew?: boolean;
+    }>;
+  };
+  const snapshot = {
+    userId: wireSnapshot.userId,
+    productIds: wireSnapshot.productIds,
+    subscriptions: wireSnapshot.subscriptions.map(
+      ({ productId, state, expiresAt, renewsAt, willRenew }) => ({
+        productId,
+        state,
+        expiresAt,
+        renewsAt,
+        willRenew,
+      }),
+    ),
+  };
+  await persistEntitlements({
+    snapshot,
+    etag: response.headers.get('ETag'),
+    checkedAt: Date.now(),
+  });
+  return snapshot;
+}`}</CodeBlock>
+        <div className="alert-card alert-card--info">
+          <p>
+            <strong>A 304 still makes one Convex query invocation.</strong>{' '}
+            Convex returns a time-independent row snapshot and invalidates its
+            cached result when a dependent row changes. Fly then evaluates
+            expiry against its own current clock on every HTTP request. Cached
+            query results and caller-controlled timestamps therefore cannot
+            preserve expired access, and a time-only transition is detected on
+            the next refresh. The conditional request avoids response-body
+            transfer and unnecessary app state replacement; it does not make
+            aggressive polling free.
+          </p>
+          <p>
+            A user snapshot supports up to 200 subscription rows. IAPKit reads
+            one additional indexed row only to detect overflow and returns{' '}
+            <code>400 ENTITLEMENT_SNAPSHOT_TOO_LARGE</code> instead of exposing
+            a partial entitlement set.
+          </p>
+          <p>
+            Mobile snapshots are suitable for UI and local feature gating. If a
+            developer-owned backend protects paid content, that backend must
+            authenticate the user and make the entitlement decision. It also
+            owns any optional APNs or FCM delivery.
+          </p>
+          <p>
+            Persist only the fields the UI needs. In particular, avoid retaining
+            purchase tokens in general-purpose local storage when product IDs,
+            states, and expiry times are sufficient.
+          </p>
+        </div>
       </section>
 
       <section>

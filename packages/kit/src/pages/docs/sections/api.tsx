@@ -9,7 +9,7 @@ export default function ApiReferencePage() {
     <DocsPage
       slug="api"
       title="API reference"
-      description="POST /v1/purchase/verify — request shapes, responses, errors, headers."
+      description="Purchase verification and user-scoped subscription snapshots — requests, responses, errors, headers."
     >
       <p>
         IAPKit exposes one core purchase-verification endpoint for your app:{" "}
@@ -195,6 +195,164 @@ export default function ApiReferencePage() {
         <code>productId</code> and returns <code>isValid: false</code> with{" "}
         <code>state: "INAUTHENTIC"</code> on mismatch.
       </p>
+
+      <h2 className="mt-10 text-2xl font-semibold">
+        Refresh access without SSE
+      </h2>
+      <p>
+        Apple and Google lifecycle webhooks update IAPKit&apos;s canonical
+        subscription snapshot. IAPKit does not relay those events, expose a raw
+        event feed, or keep a mobile SSE, WebSocket, or long-poll connection
+        open. Apps read only their user-scoped snapshot:
+      </p>
+      <p>
+        Webhook event rows are bounded operational history for deduplication and
+        retention. Polling reads the canonical snapshot, not an event cursor, so
+        pruning old event rows does not erase the user&apos;s latest state and
+        apps do not have to consume every event in order.
+      </p>
+      <ol className="list-decimal space-y-1 pl-6">
+        <li>
+          For a purchase started in this app session, update the UI from the SDK
+          purchase callback and verified result. Bind its stable token to an
+          opaque user ID.
+        </li>
+        <li>Render immediately from the last persisted snapshot.</li>
+        <li>
+          Refresh on cold start, when the cached value is stale after
+          foregrounding, or after an explicit user action. Use one refresh
+          coordinator so concurrent screens share the same in-flight request.
+          Define a maximum stale age for offline or rate-limited fallback and
+          fail closed after that app-specific window.
+        </li>
+        <li>
+          Persist the response body and <code>ETag</code>, then send the tag as{" "}
+          <code>If-None-Match</code> on the next request.
+        </li>
+        <li>
+          Reuse the cached body on <code>304</code>, replace it on{" "}
+          <code>200</code>, and respect <code>429 Retry-After</code>.
+        </li>
+        <li>
+          Key local storage by IAPKit project and opaque user ID, and clear it
+          on sign-out. Never render one user&apos;s snapshot for another.
+        </li>
+      </ol>
+      <p>
+        This example uses raw HTTP so it can retain response headers. The
+        current <code>kitApi.status()</code> and{" "}
+        <code>kitApi.entitlements()</code> convenience methods perform
+        unconditional reads and return only the decoded body; use raw{" "}
+        <code>fetch</code> or an app wrapper for conditional revalidation.
+      </p>
+      <CodeBlock title="Conditional entitlement refresh" language="typescript">
+        {`const canUseCachedSnapshot = () => {
+  if (
+    cached === null ||
+    !Number.isFinite(cached.checkedAt) ||
+    !Number.isFinite(maxStaleMs) ||
+    maxStaleMs < 0
+  ) {
+    return false;
+  }
+  const cacheAgeMs = Date.now() - cached.checkedAt;
+  return cacheAgeMs >= 0 && cacheAgeMs <= maxStaleMs;
+};
+let response: Response;
+try {
+  response = await fetch(
+    \`https://kit.openiap.dev/v1/subscriptions/entitlements?userId=\${encodeURIComponent(userId)}\`,
+    {
+      headers: {
+        Authorization: \`Bearer \${iapkitPublishableKey}\`,
+        ...(cached?.etag ? { "If-None-Match": cached.etag } : {}),
+      },
+    },
+  );
+} catch (error) {
+  if (cached && canUseCachedSnapshot()) return cached.snapshot;
+  throw error;
+}
+
+if (response.status === 304 && cached) {
+  const refreshed = { ...cached, checkedAt: Date.now() };
+  await persistSnapshot(refreshed);
+  return refreshed.snapshot;
+}
+if (response.status === 429) {
+  scheduleRetry(response.headers.get("Retry-After"));
+  if (cached && canUseCachedSnapshot()) return cached.snapshot;
+  throw new Error("Entitlement refresh is rate limited");
+}
+if (!response.ok) throw new Error("Entitlement refresh failed");
+
+const wireSnapshot = (await response.json()) as {
+  userId: string;
+  productIds: string[];
+  subscriptions: Array<{
+    productId: string;
+    state: string;
+    expiresAt?: number;
+    renewsAt?: number;
+    willRenew?: boolean;
+  }>;
+};
+const snapshot = {
+  userId: wireSnapshot.userId,
+  productIds: wireSnapshot.productIds,
+  subscriptions: wireSnapshot.subscriptions.map(
+    ({ productId, state, expiresAt, renewsAt, willRenew }) => ({
+      productId,
+      state,
+      expiresAt,
+      renewsAt,
+      willRenew,
+    }),
+  ),
+};
+await persistSnapshot({
+  snapshot,
+  etag: response.headers.get("ETag"),
+  checkedAt: Date.now(),
+});
+return snapshot;`}
+      </CodeBlock>
+      <Callout kind="note" title="A 304 is conditional, not free">
+        <p>
+          IAPKit still performs one Convex query invocation before returning{" "}
+          <code>304</code>. Convex returns a time-independent row snapshot and
+          invalidates its cached result when a dependent row changes. Fly then
+          evaluates expiry against its own current clock on every HTTP request.
+          Cached query results and caller-controlled timestamps therefore cannot
+          preserve expired access, and a time-only transition is detected on the
+          next refresh. Conditional requests save response bandwidth and
+          app-side state work; they do not justify a continuous timer. A normal
+          client refreshes only at lifecycle boundaries and uses jittered
+          backoff after failures.
+        </p>
+        <p>
+          A user snapshot supports up to 200 subscription rows. IAPKit reads one
+          additional indexed row only to detect overflow and returns{" "}
+          <code>400 ENTITLEMENT_SNAPSHOT_TOO_LARGE</code> instead of exposing a
+          partial entitlement set.
+        </p>
+      </Callout>
+      <Callout
+        kind="warning"
+        title="Backend-protected content stays server-authoritative"
+      >
+        <p>
+          A mobile snapshot is suitable for app UI and local feature gating. If
+          paid content or an API is protected by your own backend, authenticate
+          the user there and let that backend make the entitlement decision. A
+          developer-owned backend also owns any optional APNs or FCM push.
+        </p>
+        <p>
+          Persist only the fields the UI needs. Avoid retaining purchase tokens
+          in general-purpose local storage when product IDs, states, and expiry
+          times are sufficient.
+        </p>
+      </Callout>
 
       <h2 className="mt-10 text-2xl font-semibold">
         Subscription identity fields
