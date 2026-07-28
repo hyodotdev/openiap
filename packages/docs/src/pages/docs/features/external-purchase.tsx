@@ -654,10 +654,10 @@ func handle_external_purchase_flow() -> void:
               <>
                 <h4>Billing Programs API (8.2.1+)</h4>
                 <p>
-                  Google Play Billing Library 8.2.1 introduces the new{' '}
-                  <strong>Billing Programs API</strong> which replaces the
-                  legacy alternative billing APIs. This provides better support
-                  for External Content Links and External Offers.
+                  Google Play Billing Library 8.2.0 introduced the{' '}
+                  <strong>Billing Programs API</strong>, which replaces the
+                  legacy alternative billing APIs. Use 8.2.1 or later for its
+                  availability, reporting-details, and external-link fixes.
                 </p>
 
                 <h5>Program Types</h5>
@@ -1314,8 +1314,6 @@ Future<void> handlePurchaseWithExternalPayments(String productId) async {
             launchMode: DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp,
           ),
         ),
-        // Compatibility-only: generated Flutter 9.x records require this
-        // deprecated null placeholder. It is removed in Flutter 10.
       )),
     );
 
@@ -1793,7 +1791,7 @@ func _ready_user_choice() -> void:
             ),
             android: (
               <>
-                <h3>Billing Programs API (8.2.0+; External Offers 8.2.1+)</h3>
+                <h3>Billing Programs API (8.2.1+ recommended)</h3>
                 <table className="error-table">
                   <thead>
                     <tr>

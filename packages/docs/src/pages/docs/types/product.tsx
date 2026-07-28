@@ -184,10 +184,10 @@ function Product() {
                         <code>typeIOS</code>
                       </td>
                       <td>
-                        Detailed product type: <code>Consumable</code>,{' '}
-                        <code>NonConsumable</code>,{' '}
-                        <code>AutoRenewableSubscription</code>, or{' '}
-                        <code>NonRenewingSubscription</code>
+                        Detailed product-type wire value:{' '}
+                        <code>consumable</code>, <code>non-consumable</code>,{' '}
+                        <code>auto-renewable-subscription</code>, or{' '}
+                        <code>non-renewing-subscription</code>
                       </td>
                     </tr>
                     <tr>
@@ -259,28 +259,13 @@ function Product() {
                     </tr>
                     <tr>
                       <td>
-                        <code style={{ textDecoration: 'line-through' }}>
-                          discountOffers
-                        </code>
-                      </td>
-                      <td>
-                        <strong>Deprecated.</strong> Legacy Android-native
-                        one-time purchase offer details. Use{' '}
-                        <code>discountOffers</code> and the standardized{' '}
-                        <Link to="/docs/types/discount-offer">
-                          <code>DiscountOffer</code>
-                        </Link>{' '}
-                        shape instead.
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
                         <code>subscriptionOffers</code>
                       </td>
                       <td>
-                        For subscriptions, array of offer details. Contains:{' '}
-                        <code>basePlanId</code>, <code>offerId</code>,{' '}
-                        <code>offerToken</code>, <code>pricingPhases</code>
+                        Standardized subscription-offer metadata when a store
+                        adapter provides it; normally empty for one-time
+                        products. Use <code>discountOffers</code> for Google
+                        Play one-time purchase options.
                       </td>
                     </tr>
                     <tr>
@@ -288,10 +273,10 @@ function Product() {
                         <code>productStatusAndroid</code>
                       </td>
                       <td>
-                        Product fetch status code. Values: <code>OK</code>{' '}
-                        (success), <code>NOT_FOUND</code> (SKU doesn't exist),{' '}
-                        <code>NO_OFFERS_AVAILABLE</code> (user not eligible for
-                        any offers), <code>UNKNOWN</code>. Requires{' '}
+                        Product fetch status code. Wire values: <code>ok</code>{' '}
+                        (success), <code>not-found</code> (SKU doesn't exist),{' '}
+                        <code>no-offers-available</code> (user not eligible for
+                        any offers), <code>unknown</code>. Requires{' '}
                         <a
                           href="https://developer.android.com/google/play/billing/release-notes#8-0-0"
                           target="_blank"
@@ -313,18 +298,6 @@ function Product() {
                         </Link>{' '}
                         entries. Populated from Google Play Billing 8.0+{' '}
                         <code>OneTimePurchaseOfferDetails</code>.
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <code>subscriptionOffers</code>
-                      </td>
-                      <td>
-                        Cross-platform array of{' '}
-                        <Link to="/docs/types/subscription-offer">
-                          <code>SubscriptionOffer</code>
-                        </Link>{' '}
-                        — unified across iOS/Android.
                       </td>
                     </tr>
                   </tbody>

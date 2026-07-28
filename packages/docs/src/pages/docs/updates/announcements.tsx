@@ -111,9 +111,9 @@ function Announcements() {
           <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
             Flutter users should migrate custom Android payload fixtures and
             adapters to the canonical <code>dataAndroid</code> key now. The
-            planned 9.6.1 patch retains <code>originalJsonAndroid</code> only as
-            a temporary input fallback for the remainder of Flutter 9.x; the
-            alias is not a public Purchase field and is removed in 10.0.0.
+            9.6.1 retained <code>originalJsonAndroid</code> only as a temporary
+            input fallback for the remainder of Flutter 9.x; the alias is not a
+            public Purchase field and is removed in 10.0.0.
           </p>
           <p style={calloutStyle}>
             See the complete{' '}

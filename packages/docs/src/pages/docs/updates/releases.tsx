@@ -376,14 +376,14 @@ function Releases() {
       ),
     },
 
-    // July 27, 2026 - OpenIAP major API cleanup
+    // July 29, 2026 - OpenIAP major API cleanup
     {
-      id: 'openiap-major-api-cleanup-2026-07-27',
-      date: new Date('2026-07-27'),
+      id: 'openiap-major-api-cleanup-2026-07-29',
+      date: new Date('2026-07-29'),
       element: (
-        <div key="openiap-major-api-cleanup-2026-07-27" style={noteCardStyle}>
-          <AnchorLink id="openiap-major-api-cleanup-2026-07-27" level="h4">
-            July 27, 2026 - OpenIAP major API cleanup
+        <div key="openiap-major-api-cleanup-2026-07-29" style={noteCardStyle}>
+          <AnchorLink id="openiap-major-api-cleanup-2026-07-29" level="h4">
+            July 29, 2026 - OpenIAP major API cleanup
           </AnchorLink>
 
           <p
@@ -392,12 +392,19 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            Publishes the coordinated major release that removes every
-            OpenIAP-owned API, type, field, enum value, wrapper, and custom-wire
-            alias scheduled in the 2.x and current framework majors. The
-            resulting contracts use one canonical purchase, verification,
-            billing-program, offer, and platform-request vocabulary across all
-            supported languages.
+            Publishes the coordinated breaking major release from{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/256"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              PR #256
+            </a>{' '}
+            that removes every OpenIAP-owned API, type, field, enum value,
+            wrapper, and custom-wire alias scheduled in the 2.x and current
+            framework majors. The resulting contracts use one canonical
+            purchase, verification, billing-program, offer, and platform-request
+            vocabulary across all supported languages.
           </p>
 
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Common changes</h5>
@@ -7774,9 +7781,9 @@ result.error                  // optional error`}</CodeBlock>
               }}
             >
               <li>
-                <code>ProductStatusAndroid</code> - Enum: <code>Ok</code>,{' '}
-                <code>NotFound</code>, <code>NoOffersAvailable</code>,{' '}
-                <code>Unknown</code>
+                <code>ProductStatusAndroid</code> - Wire values: <code>ok</code>
+                , <code>not-found</code>, <code>no-offers-available</code>,{' '}
+                <code>unknown</code>
               </li>
               <li>
                 <code>productStatusAndroid</code> - New field on{' '}

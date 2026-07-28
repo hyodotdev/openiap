@@ -290,22 +290,6 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
               </td>
               <td>Google purchase parameters (RequestPurchaseAndroidProps)</td>
             </tr>
-            <tr>
-              <td>
-                <code style={{ textDecoration: 'line-through' }}>ios</code>
-              </td>
-              <td>
-                <strong>Deprecated.</strong> Use <code>apple</code> instead.
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <code style={{ textDecoration: 'line-through' }}>android</code>
-              </td>
-              <td>
-                <strong>Deprecated.</strong> Use <code>google</code> instead.
-              </td>
-            </tr>
           </tbody>
         </table>
 
@@ -335,22 +319,6 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
               </td>
               <td>
                 Google subscription parameters (RequestSubscriptionAndroidProps)
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <code style={{ textDecoration: 'line-through' }}>ios</code>
-              </td>
-              <td>
-                <strong>Deprecated.</strong> Use <code>apple</code> instead.
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <code style={{ textDecoration: 'line-through' }}>android</code>
-              </td>
-              <td>
-                <strong>Deprecated.</strong> Use <code>google</code> instead.
               </td>
             </tr>
           </tbody>
@@ -464,10 +432,10 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                         <code>offerToken</code>
                       </td>
                       <td>
-                        Offer token for one-time purchase discounts (8.0+). Pass
-                        the <code>offerToken</code> from{' '}
-                        <code>discountOffers</code> or{' '}
-                        <code>discountOffers</code> to apply a discount.
+                        Offer token for one-time purchase discounts (8.0+).
+                        Select an entry from <code>discountOffers</code>, then
+                        pass its <code>offerTokenAndroid</code> value here as{' '}
+                        <code>offerToken</code>.
                       </td>
                     </tr>
                     <tr>
@@ -614,18 +582,6 @@ await iap.request_purchase(subs_props)`}</CodeBlock>
                         Original transaction ID when replacing a subscription
                         purchased through developer billing (9.1.0+). Use this
                         instead of <code>purchaseToken</code> for that flow.
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <code style={{ textDecoration: 'line-through' }}>
-                          replacementMode
-                        </code>
-                      </td>
-                      <td>
-                        <strong>Deprecated.</strong> Use{' '}
-                        <code>subscriptionProductReplacementParams</code> for
-                        item-level replacement (Billing Library 8.1.0+).
                       </td>
                     </tr>
                     <tr>

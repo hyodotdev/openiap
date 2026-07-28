@@ -38,8 +38,7 @@ function Discount() {
           <Link to="/docs/types/discount-offer">DiscountOffer</Link> exposes
           common price fields and Android-only details through the{' '}
           <code>Android</code> suffix (for example,{' '}
-          <code>offerTokenAndroid</code>). The older <code>discountOffers</code>{' '}
-          field is deprecated.
+          <code>offerTokenAndroid</code>).
         </p>
       </div>
 
@@ -1275,8 +1274,9 @@ QuantityAvailability CheckQuantityAvailability(DiscountOffer offer)
           Purchasing with Specific Offer
         </AnchorLink>
         <p>
-          When purchasing a discounted product, pass the selected offer's{' '}
-          <code>offerTokenAndroid</code> to the Android purchase request:
+          When purchasing a discounted product, read the selected offer&apos;s{' '}
+          <code>offerTokenAndroid</code> and pass its value as the Android
+          request&apos;s <code>offerToken</code>:
         </p>
 
         <LanguageTabs>
@@ -1294,7 +1294,10 @@ async function purchaseWithOffer(
     throw new Error('No offers available for this product');
   }
 
-  const selectedOffer = offers[offerIndex];
+  const offerToken = offers[offerIndex]?.offerTokenAndroid;
+  if (!offerToken) {
+    throw new Error('Selected offer has no Android offer token');
+  }
 
   await requestPurchase({
     type: 'in-app',
@@ -1302,7 +1305,7 @@ async function purchaseWithOffer(
       google: {
         skus: [product.id],
         // Pass the standardized offer's Android token.
-        offerToken: selectedOffer.offerTokenAndroid,
+        offerToken,
       },
     },
   });
@@ -1322,6 +1325,8 @@ async function purchaseWithOffer(
 
     val selectedOffer = offers.getOrNull(offerIndex)
         ?: throw IllegalStateException("Invalid offer index")
+    val offerToken = selectedOffer.offerTokenAndroid
+        ?: throw IllegalStateException("Selected offer has no Android offer token")
 
     iapStore.requestPurchase(
         RequestPurchaseProps(
@@ -1331,7 +1336,7 @@ async function purchaseWithOffer(
                     google = RequestPurchaseAndroidProps(
                         skus = listOf(product.id),
                         // Pass the standardized offer's Android token.
-                        offerToken = selectedOffer.offerTokenAndroid
+                        offerToken = offerToken
                     )
                 )
             )
@@ -1349,6 +1354,8 @@ async function purchaseWithOffer(
 
     val selectedOffer = offers.getOrNull(offerIndex)
         ?: throw IllegalStateException("Invalid offer index")
+    val offerToken = selectedOffer.offerTokenAndroid
+        ?: throw IllegalStateException("Selected offer has no Android offer token")
 
     kmpIAP.requestPurchase(
         RequestPurchaseProps(
@@ -1358,7 +1365,7 @@ async function purchaseWithOffer(
                     google = RequestPurchaseAndroidProps(
                         skus = listOf(product.id),
                         // Pass the standardized offer's Android token.
-                        offerToken = selectedOffer.offerTokenAndroid
+                        offerToken = offerToken
                     )
                 )
             )
@@ -1379,6 +1386,9 @@ async Task PurchaseWithOfferAsync(ProductAndroid product, int offerIndex = 0)
 
     var selectedOffer = offers.ElementAtOrDefault(offerIndex)
         ?? throw new ArgumentOutOfRangeException(nameof(offerIndex));
+    var offerToken = selectedOffer.OfferTokenAndroid
+        ?? throw new InvalidOperationException(
+            "Selected offer has no Android offer token");
 
     await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps
     {
@@ -1389,7 +1399,7 @@ async Task PurchaseWithOfferAsync(ProductAndroid product, int offerIndex = 0)
             {
                 Skus = new[] { product.Id },
                 // Pass the standardized offer's Android token.
-                OfferToken = selectedOffer.OfferTokenAndroid,
+                OfferToken = offerToken,
             },
         },
     });
@@ -1408,6 +1418,9 @@ async Task PurchaseWithOfferAsync(ProductAndroid product, int offerIndex = 0)
         return
 
     var selected_offer = offers[offer_index]
+    if not selected_offer.offer_token_android:
+        push_error("Selected offer has no Android offer token")
+        return
 
     var props = RequestPurchaseProps.new()
     props.type = ProductQueryType.IN_APP

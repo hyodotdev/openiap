@@ -1167,7 +1167,6 @@ if (result.isAvailable) {
           launchMode: DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp,
         ),
       ),
-      // Compatibility-only placeholder required by the generated 9.x record.
     )),
   );
 }

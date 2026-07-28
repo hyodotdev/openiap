@@ -155,7 +155,14 @@ let purchasedBasePlanId: string | null = null;
 const handlePurchase = async (basePlanId: string) => {
   // Use subscriptionOffers (cross-platform standardized type)
   const offers = product.subscriptionOffers ?? [];
-  const offer = offers.find(o => o.basePlanIdAndroid === basePlanId && !o.id);
+  const offer = offers.find(
+    (candidate) =>
+      candidate.basePlanIdAndroid === basePlanId &&
+      candidate.id === candidate.basePlanIdAndroid,
+  );
+  if (!offer?.offerTokenAndroid) {
+    throw new Error(\`Base plan '\${basePlanId}' is unavailable\`);
+  }
 
   // Store it before purchase
   purchasedBasePlanId = basePlanId;
@@ -165,7 +172,7 @@ const handlePurchase = async (basePlanId: string) => {
       google: {
         skus: [subscriptionGroupId],
         subscriptionOffers: [
-          { sku: subscriptionGroupId, offerToken: offer?.offerTokenAndroid },
+          { sku: subscriptionGroupId, offerToken: offer.offerTokenAndroid },
         ],
       },
     },

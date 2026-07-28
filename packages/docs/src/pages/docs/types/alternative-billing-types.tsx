@@ -446,7 +446,6 @@ await FlutterInappPurchase.instance.requestPurchase(
     google: RequestSubscriptionAndroidProps(
       skus: ['premium_subscription'],
     ),
-    // Compatibility-only placeholder required by the generated 9.x record.
   )),
 );
 

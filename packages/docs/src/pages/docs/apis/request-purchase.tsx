@@ -337,21 +337,21 @@ function BuyButton({ sku }: { sku: string }) {
 )
 
 // --- Or via the DSL API ---
-// Platform-specific options are configured inside ios { } / android { }
+// Platform-specific options are configured inside apple { } / google { }
 // blocks; you can include either or both depending on which stores you ship.
 val purchase = kmpIAP.requestPurchase {
-    ios {
+    apple {
         sku = "com.app.premium"
         quantity = 1
     }
-    android {
+    google {
         skus = listOf("com.app.premium")
     }
 }
 
 // Single-platform DSL (Android only)
 kmpIAP.requestPurchase {
-    android {
+    google {
         skus = listOf("com.app.premium")
     }
 }`}</CodeBlock>
@@ -361,7 +361,6 @@ kmpIAP.requestPurchase {
   RequestPurchaseProps.inApp((
     apple: RequestPurchaseIosProps(sku: 'com.app.premium'),
     google: RequestPurchaseAndroidProps(skus: ['com.app.premium']),
-    // Compatibility-only placeholder required by the generated 9.x record.
   )),
 );
 

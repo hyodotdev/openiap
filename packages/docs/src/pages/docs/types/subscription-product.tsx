@@ -216,8 +216,8 @@ function SubscriptionProduct() {
                       </td>
                       <td>
                         Detailed product type — for subscriptions this is almost
-                        always <code>AutoRenewableSubscription</code> (or{' '}
-                        <code>NonRenewingSubscription</code>).
+                        always <code>auto-renewable-subscription</code> (or{' '}
+                        <code>non-renewing-subscription</code>).
                       </td>
                     </tr>
                     <tr>
@@ -248,14 +248,6 @@ function SubscriptionProduct() {
                   ProductSubscriptionAndroid
                 </AnchorLink>
                 <p>Additional fields available on Android subscriptions:</p>
-                <p>
-                  The generated Android shape retains a nullable{' '}
-                  <code>discountOffers</code> compatibility field, but Google
-                  Play only returns one-time purchase offer details for{' '}
-                  <code>in-app</code> products. It is not subscription discount
-                  metadata; use <code>subscriptionOffers</code> for
-                  subscriptions.
-                </p>
                 <table className="doc-table">
                   <thead>
                     <tr>
@@ -275,9 +267,9 @@ function SubscriptionProduct() {
                         <code>productStatusAndroid</code>
                       </td>
                       <td>
-                        Product fetch status code (<code>OK</code>,{' '}
-                        <code>NOT_FOUND</code>, <code>NO_OFFERS_AVAILABLE</code>
-                        , <code>UNKNOWN</code>) — Billing Library 8.0+
+                        Product fetch status wire value (<code>ok</code>,{' '}
+                        <code>not-found</code>, <code>no-offers-available</code>
+                        , <code>unknown</code>) — Billing Library 8.0+
                       </td>
                     </tr>
                     <tr>
@@ -286,9 +278,10 @@ function SubscriptionProduct() {
                       </td>
                       <td>
                         Array of subscription offers. Each contains:{' '}
-                        <code>basePlanId</code>, <code>offerId</code>,{' '}
-                        <code>offerToken</code>, <code>pricingPhases</code>,{' '}
-                        <code>offerTags</code>
+                        <code>basePlanIdAndroid</code>, <code>id</code>,{' '}
+                        <code>offerTokenAndroid</code>,{' '}
+                        <code>pricingPhasesAndroid</code>, and{' '}
+                        <code>offerTagsAndroid</code>.
                       </td>
                     </tr>
                   </tbody>

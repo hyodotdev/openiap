@@ -183,14 +183,6 @@ function Purchase() {
             </tr>
             <tr>
               <td>
-                <code style={{ textDecoration: 'line-through' }}>platform</code>
-              </td>
-              <td>
-                <strong>Deprecated.</strong> Use <code>store</code> instead.
-              </td>
-            </tr>
-            <tr>
-              <td>
                 <code>quantity</code>
               </td>
               <td>Number of items purchased</td>

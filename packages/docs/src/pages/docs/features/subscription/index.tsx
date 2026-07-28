@@ -181,7 +181,7 @@ val kmpIAP = KmpIAP()
 
 kmpIAP.requestPurchase {
     type = ProductType.Subs
-    ios {
+    apple {
         sku = "premium_annual"
         billingPlanType = SubscriptionBillingPlanTypeIOS.Monthly
     }
@@ -400,7 +400,7 @@ try await iapStore.fetchProducts(skus: ["premium_monthly"], type: .subs)
 let subscription = iapStore.iosSubscriptionProducts.first { $0.id == "premium_monthly" }
 
 // Check for introductory offer
-if let introOffer = subscription?.subscriptionOffers.first(where: {
+if let introOffer = subscription?.subscriptionOffers?.first(where: {
     $0.type == .introductory
 }) {
     print("Intro offer: \\(introOffer.displayPrice)")
@@ -580,7 +580,7 @@ if (isEligible) {
                     ),
                     swift: (
                       <CodeBlock language="swift">{`func displayIntroOffer(_ subscription: ProductSubscriptionIOS) -> String? {
-    guard let offer = subscription.subscriptionOffers.first(where: {
+    guard let offer = subscription.subscriptionOffers?.first(where: {
         $0.type == .introductory
     }) else {
         return nil
@@ -685,7 +685,9 @@ if is_eligible:
                 </AnchorLink>
                 <p>
                   Promotional offers require server-side signature generation.
-                  These offers are for existing or lapsed subscribers.
+                  These offers are for existing or lapsed subscribers. Pass the
+                  selected <code>SubscriptionOffer.id</code> as{' '}
+                  <code>offerId</code> when requesting the signature.
                 </p>
                 <LanguageTabs>
                   {{
@@ -695,7 +697,7 @@ if is_eligible:
 // Purchase with promotional offer
 const purchaseWithPromoOffer = async (
   subscriptionId: string,
-  id: string,
+  offerId: string,
 ) => {
   // 1. Generate signature on your backend
   const nonce = generateUUID();
@@ -707,7 +709,7 @@ const purchaseWithPromoOffer = async (
       method: 'POST',
       body: JSON.stringify({
         productId: subscriptionId,
-        id,
+        offerId,
         nonce,
         timestamp,
       }),
@@ -720,7 +722,7 @@ const purchaseWithPromoOffer = async (
       apple: {
         sku: subscriptionId,
         withOffer: {
-          identifier: id,
+          identifier: offerId,
           keyIdentifier,
           nonce,
           signature,
@@ -738,7 +740,7 @@ const purchaseWithPromoOffer = async (
 
 func purchaseWithPromoOffer(
     subscriptionId: String,
-    id: String
+    offerId: String
 ) async throws {
     // 1. Generate signature on your backend
     let nonce = UUID().uuidString
@@ -746,7 +748,7 @@ func purchaseWithPromoOffer(
 
     let signatureResponse = try await generateSignatureOnServer(
         productId: subscriptionId,
-        id: id,
+        offerId: offerId,
         nonce: nonce,
         timestamp: timestamp
     )
@@ -756,7 +758,7 @@ func purchaseWithPromoOffer(
         sku: subscriptionId,
         type: .subs,
         withOffer: DiscountOfferInputIOS(
-            identifier: id,
+            identifier: offerId,
             keyIdentifier: signatureResponse.keyIdentifier,
             nonce: nonce,
             signature: signatureResponse.signature,
@@ -777,7 +779,7 @@ import io.github.hyochan.kmpiap.openiap.*
 // KMP iOS target
 suspend fun purchaseWithPromoOffer(
     subscriptionId: String,
-    id: String
+    offerId: String
 ) {
     // 1. Generate signature on your backend
     val nonce = java.util.UUID.randomUUID().toString()
@@ -785,7 +787,7 @@ suspend fun purchaseWithPromoOffer(
 
     val signatureResponse = generateSignatureOnServer(
         productId = subscriptionId,
-        id = id,
+        offerId = offerId,
         nonce = nonce,
         timestamp = timestamp
     )
@@ -798,7 +800,7 @@ suspend fun purchaseWithPromoOffer(
                     apple = RequestSubscriptionIosProps(
                         sku = subscriptionId,
                         withOffer = DiscountOfferInputIOS(
-                            identifier = id,
+                            identifier = offerId,
                             keyIdentifier = signatureResponse.keyIdentifier,
                             nonce = nonce,
                             signature = signatureResponse.signature,
@@ -816,7 +818,7 @@ suspend fun purchaseWithPromoOffer(
                     dart: (
                       <CodeBlock language="dart">{`Future<void> purchaseWithPromoOffer(
   String subscriptionId,
-  String id,
+  String offerId,
 ) async {
   // 1. Generate signature on your backend
   final nonce = generateUUID();
@@ -826,7 +828,7 @@ suspend fun purchaseWithPromoOffer(
     Uri.parse('https://your-server.com/generate-signature'),
     body: jsonEncode({
       'productId': subscriptionId,
-      'id': id,
+      'offerId': offerId,
       'nonce': nonce,
       'timestamp': timestamp,
     }),
@@ -839,7 +841,7 @@ suspend fun purchaseWithPromoOffer(
       apple: RequestSubscriptionIosProps(
         sku: subscriptionId,
         withOffer: DiscountOfferInputIOS(
-          identifier: id,
+          identifier: offerId,
           keyIdentifier: signature['keyIdentifier'],
           nonce: nonce,
           signature: signature['signature'],
@@ -856,14 +858,14 @@ suspend fun purchaseWithPromoOffer(
 using OpenIap.Maui;
 using System;
 
-async Task PurchaseWithPromoOfferAsync(string subscriptionId, string id)
+async Task PurchaseWithPromoOfferAsync(string subscriptionId, string offerId)
 {
     // 1. Generate signature on your backend
     var nonce = Guid.NewGuid().ToString();
     var timestamp = DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
     var signatureResponse = await GenerateSignatureOnServerAsync(
         productId: subscriptionId,
-        id: id,
+        offerId: offerId,
         nonce: nonce,
         timestamp: timestamp);
 
@@ -878,7 +880,7 @@ async Task PurchaseWithPromoOfferAsync(string subscriptionId, string id)
                 Sku = subscriptionId,
                 WithOffer = new DiscountOfferInputIOS
                 {
-                    Identifier = id,
+                    Identifier = offerId,
                     KeyIdentifier = signatureResponse.KeyIdentifier,
                     Nonce = nonce,
                     Signature = signatureResponse.Signature,
@@ -891,7 +893,7 @@ async Task PurchaseWithPromoOfferAsync(string subscriptionId, string id)
 }`}</CodeBlock>
                     ),
                     gdscript: (
-                      <CodeBlock language="gdscript">{`func purchase_with_promo_offer(subscription_id: String, id: String) -> void:
+                      <CodeBlock language="gdscript">{`func purchase_with_promo_offer(subscription_id: String, offer_id: String) -> void:
     # 1. Generate signature on your backend
     var nonce = generate_uuid()
     var timestamp = Time.get_unix_time_from_system() * 1000
@@ -904,7 +906,7 @@ async Task PurchaseWithPromoOfferAsync(string subscriptionId, string id)
         HTTPClient.METHOD_POST,
         JSON.stringify({
             "productId": subscription_id,
-            "id": id,
+            "offerId": offer_id,
             "nonce": nonce,
             "timestamp": timestamp
         })
@@ -918,7 +920,7 @@ async Task PurchaseWithPromoOfferAsync(string subscriptionId, string id)
     props.request_subscription.apple = RequestSubscriptionIosProps.new()
     props.request_subscription.apple.sku = subscription_id
     props.request_subscription.apple.with_offer = DiscountOfferInputIOS.new()
-    props.request_subscription.apple.with_offer.identifier = id
+    props.request_subscription.apple.with_offer.identifier = offer_id
     props.request_subscription.apple.with_offer.key_identifier = signature["keyIdentifier"]
     props.request_subscription.apple.with_offer.nonce = nonce
     props.request_subscription.apple.with_offer.signature = signature["signature"]
@@ -1049,12 +1051,13 @@ async Task PurchaseSubscriptionAsync(string subscriptionId)
                 </AnchorLink>
                 <p>
                   Android requires explicit specification of subscription offers
-                  when purchasing. Each offer is identified by an{' '}
-                  <code>offerTokenAndroid</code> obtained from{' '}
+                  when purchasing. Read each offer&apos;s{' '}
+                  <code>offerTokenAndroid</code> from{' '}
                   <Link to="/docs/apis/fetch-products">
                     <code>fetchProducts()</code>
                   </Link>
-                  .
+                  , then pass that value as <code>offerToken</code> in the
+                  request&apos;s <code>subscriptionOffers</code> entry.
                 </p>
 
                 <div className="alert-card alert-card--warning">
@@ -1073,18 +1076,19 @@ async Task PurchaseSubscriptionAsync(string subscriptionId)
                   Offer Structure
                 </AnchorLink>
                 <p>
-                  Each <code>subscriptionOffers</code> item contains:
+                  Relevant Android fields on each{' '}
+                  <code>subscriptionOffers</code> item include:
                 </p>
                 <LanguageTabs>
                   {{
                     typescript: (
                       <CodeBlock language="typescript">{`interface SubscriptionOffer {
-  basePlanIdAndroid: string;      // Base plan identifier
+  basePlanIdAndroid?: string | null; // Base plan identifier
   installmentPlanDetailsAndroid?: InstallmentPlanDetailsAndroid | null;
-  id?: string | null; // Offer ID (null for base plan)
-  offerTagsAndroid: string[];     // Tags for categorization
-  offerTokenAndroid: string;      // Required for purchase
-  pricingPhasesAndroid: PricingPhasesAndroid;
+  id: string;                        // Offer ID, or the base plan ID
+  offerTagsAndroid?: string[] | null;
+  offerTokenAndroid?: string | null; // Pass its value as offerToken when purchasing
+  pricingPhasesAndroid?: PricingPhasesAndroid | null;
 }
 
 interface PricingPhasesAndroid {
@@ -1105,12 +1109,12 @@ interface PricingPhaseAndroid {
                     ),
                     kotlin: (
                       <CodeBlock language="kotlin">{`data class SubscriptionOffer(
-    val basePlanIdAndroid: String,       // Base plan identifier
+    val basePlanIdAndroid: String? = null,
     val installmentPlanDetailsAndroid: InstallmentPlanDetailsAndroid? = null,
-    val id: String? = null,  // Offer ID (null for base plan)
-    val offerTagsAndroid: List<String>,  // Tags for categorization
-    val offerTokenAndroid: String,       // Required for purchase
-    val pricingPhasesAndroid: PricingPhasesAndroid
+    val id: String, // Offer ID, or the base plan ID
+    val offerTagsAndroid: List<String>? = null,
+    val offerTokenAndroid: String? = null,
+    val pricingPhasesAndroid: PricingPhasesAndroid? = null
 )
 
 data class PricingPhaseAndroid(
@@ -1124,12 +1128,12 @@ data class PricingPhaseAndroid(
                     ),
                     kmp: (
                       <CodeBlock language="kotlin">{`data class SubscriptionOffer(
-    val basePlanIdAndroid: String,       // Base plan identifier
+    val basePlanIdAndroid: String? = null,
     val installmentPlanDetailsAndroid: InstallmentPlanDetailsAndroid? = null,
-    val id: String? = null,  // Offer ID (null for base plan)
-    val offerTagsAndroid: List<String>,  // Tags for categorization
-    val offerTokenAndroid: String,       // Required for purchase
-    val pricingPhasesAndroid: PricingPhasesAndroid
+    val id: String, // Offer ID, or the base plan ID
+    val offerTagsAndroid: List<String>? = null,
+    val offerTokenAndroid: String? = null,
+    val pricingPhasesAndroid: PricingPhasesAndroid? = null
 )
 
 data class PricingPhaseAndroid(
@@ -1143,12 +1147,12 @@ data class PricingPhaseAndroid(
                     ),
                     dart: (
                       <CodeBlock language="dart">{`class SubscriptionOffer {
-  final String basePlanIdAndroid;      // Base plan identifier
+  final String? basePlanIdAndroid;
   final InstallmentPlanDetailsAndroid? installmentPlanDetailsAndroid;
-  final String? id;        // Offer ID (null for base plan)
-  final List<String> offerTagsAndroid; // Tags for categorization
-  final String offerTokenAndroid;      // Required for purchase
-  final PricingPhasesAndroid pricingPhasesAndroid;
+  final String id; // Offer ID, or the base plan ID
+  final List<String>? offerTagsAndroid;
+  final String? offerTokenAndroid;
+  final PricingPhasesAndroid? pricingPhasesAndroid;
 }`}</CodeBlock>
                     ),
                     csharp: (
@@ -1157,12 +1161,12 @@ using System.Collections.Generic;
 
 public sealed record SubscriptionOffer
 {
-    public required string BasePlanIdAndroid { get; init; }       // Base plan identifier
+    public string? BasePlanIdAndroid { get; init; }
     public InstallmentPlanDetailsAndroid? InstallmentPlanDetailsAndroid { get; init; }
-    public string? Id { get; init; }                  // Null for base plan
-    public required IReadOnlyList<string> OfferTagsAndroid { get; init; }
-    public required string OfferTokenAndroid { get; init; }       // Required for purchase
-    public required PricingPhasesAndroid PricingPhasesAndroid { get; init; }
+    public required string Id { get; init; } // Offer ID, or the base plan ID
+    public IReadOnlyList<string>? OfferTagsAndroid { get; init; }
+    public string? OfferTokenAndroid { get; init; }
+    public PricingPhasesAndroid? PricingPhasesAndroid { get; init; }
 }
 
 public sealed record PricingPhaseAndroid
@@ -1177,11 +1181,11 @@ public sealed record PricingPhaseAndroid
                     ),
                     gdscript: (
                       <CodeBlock language="gdscript">{`class SubscriptionOffer:
-    var base_plan_id_android: String      # Base plan identifier
+    var base_plan_id_android: Variant
     var installment_plan_details_android: InstallmentPlanDetailsAndroid
-    var id: Variant         # Null for base plan
-    var offer_tags_android: Array[String] # Tags for categorization
-    var offer_token_android: String       # Required for purchase
+    var id: String # Offer ID, or the base plan ID
+    var offer_tags_android: Array[String]
+    var offer_token_android: Variant
     var pricing_phases_android: PricingPhasesAndroid
 
 class PricingPhaseAndroid:
@@ -1223,11 +1227,11 @@ const subscription = subscriptions?.find(
 if (subscription) {
   subscription.subscriptionOffers.forEach((offer) => {
     console.log('Base Plan:', offer.basePlanIdAndroid);
-    console.log('Offer ID:', offer.id ?? 'Base plan');
+    console.log('Offer ID:', offer.id);
     console.log('Offer token selected');
 
     // Check pricing phases
-    offer.pricingPhasesAndroid.pricingPhaseList.forEach((phase) => {
+    (offer.pricingPhasesAndroid?.pricingPhaseList ?? []).forEach((phase) => {
       if (phase.priceAmountMicros === '0') {
         console.log(\`Free trial: \${phase.billingPeriod}\`);
       } else if (phase.recurrenceMode === 2) {
@@ -1263,11 +1267,11 @@ val subscription = subscriptions.find { it.id == "premium_monthly" }
 
 subscription?.subscriptionOffers?.forEach { offer ->
     println("Base Plan: \${offer.basePlanIdAndroid}")
-    println("Offer ID: \${offer.id ?: "Base plan"}")
+    println("Offer ID: \${offer.id}")
     println("Offer token selected")
 
     // Check pricing phases
-    offer.pricingPhasesAndroid.pricingPhaseList.forEach { phase ->
+    offer.pricingPhasesAndroid?.pricingPhaseList.orEmpty().forEach { phase ->
         when {
             phase.priceAmountMicros == "0" ->
                 println("Free trial: \${phase.billingPeriod}")
@@ -1302,11 +1306,11 @@ val subscription = subscriptions.find { it.id == "premium_monthly" }
 
 subscription?.subscriptionOffers?.forEach { offer ->
     println("Base Plan: \${offer.basePlanIdAndroid}")
-    println("Offer ID: \${offer.id ?: "Base plan"}")
+    println("Offer ID: \${offer.id}")
     println("Offer token selected")
 
     // Check pricing phases
-    offer.pricingPhasesAndroid.pricingPhaseList.forEach { phase ->
+    offer.pricingPhasesAndroid?.pricingPhaseList.orEmpty().forEach { phase ->
         when {
             phase.priceAmountMicros == "0" ->
                 println("Free trial: \${phase.billingPeriod}")
@@ -1335,11 +1339,12 @@ final subscription = subscriptions.firstWhere(
 // Access Android offer details
 for (final offer in subscription.subscriptionOffers) {
     print('Base Plan: \${offer.basePlanIdAndroid}');
-    print('Offer ID: \${offer.id ?? "Base plan"}');
+    print('Offer ID: \${offer.id}');
     print('Offer token selected');
 
     // Check pricing phases
-    for (final phase in offer.pricingPhasesAndroid.pricingPhaseList) {
+    for (final phase in offer.pricingPhasesAndroid?.pricingPhaseList
+        ?? const <PricingPhaseAndroid>[]) {
       if (phase.priceAmountMicros == '0') {
         print('Free trial: \${phase.billingPeriod}');
       } else if (phase.recurrenceMode == 2) {
@@ -1372,11 +1377,12 @@ foreach (var offer in subscription?.SubscriptionOffers
     ?? Array.Empty<SubscriptionOffer>())
 {
     Console.WriteLine($"Base Plan: {offer.BasePlanIdAndroid}");
-    Console.WriteLine($"Offer ID: {offer.Id ?? "Base plan"}");
+    Console.WriteLine($"Offer ID: {offer.Id}");
     Console.WriteLine("Offer token selected");
 
     // Check pricing phases
-    foreach (var phase in offer.PricingPhasesAndroid.PricingPhaseList)
+    foreach (var phase in offer.PricingPhasesAndroid?.PricingPhaseList
+        ?? Array.Empty<PricingPhaseAndroid>())
     {
         if (phase.PriceAmountMicros == "0")
         {
@@ -1414,6 +1420,8 @@ if subscription and subscription.subscription_offers:
         print("Offer token selected")
 
         # Check pricing phases
+        if not offer.pricing_phases_android:
+            continue
         for phase in offer.pricing_phases_android.pricing_phase_list:
             if phase.price_amount_micros == "0":
                 print("Free trial: %s" % phase.billing_period)
@@ -1444,7 +1452,7 @@ const purchaseSubscription = async (subscriptionId: string) => {
     .filter((offer) => offer?.offerTokenAndroid)
     .map((offer) => ({
       sku: subscriptionId,
-      offerTokenAndroid: offer!.offerTokenAndroid,
+      offerToken: offer!.offerTokenAndroid!,
     }));
 
   if (subscriptionOffers.length === 0) {
@@ -1482,7 +1490,7 @@ suspend fun purchaseSubscription(subscriptionId: String) {
             offer.offerTokenAndroid?.let { token ->
                 AndroidSubscriptionOfferInput(
                     sku = subscriptionId,
-                    offerTokenAndroid = token
+                    offerToken = token
                 )
             }
         } ?: emptyList()
@@ -1528,7 +1536,7 @@ suspend fun purchaseSubscription(subscriptionId: String) {
             offer.offerTokenAndroid?.let { token ->
                 AndroidSubscriptionOfferInput(
                     sku = subscriptionId,
-                    offerTokenAndroid = token
+                    offerToken = token
                 )
             }
         } ?: emptyList()
@@ -1565,9 +1573,10 @@ suspend fun purchaseSubscription(subscriptionId: String) {
 
   // Build subscriptionOffers from fetched data
   final subscriptionOffers = subscription.subscriptionOffers
+      .where((offer) => offer.offerTokenAndroid != null)
       .map((offer) => AndroidSubscriptionOfferInput(
             sku: subscriptionId,
-            offerTokenAndroid: offer.offerTokenAndroid,
+            offerToken: offer.offerTokenAndroid!,
           ))
       .toList();
 
@@ -1598,10 +1607,11 @@ async Task PurchaseSubscriptionAsync(string subscriptionId, ProductSubscriptionA
     // Build subscriptionOffers from fetched data.
     var subscriptionOffers = (subscription.SubscriptionOffers
             ?? Enumerable.Empty<SubscriptionOffer>())
+        .Where(offer => offer.OfferTokenAndroid is not null)
         .Select(offer => new AndroidSubscriptionOfferInput
         {
             Sku = subscriptionId,
-            OfferTokenAndroid = offer.OfferTokenAndroid,
+            OfferToken = offer.OfferTokenAndroid!,
         })
         .ToArray();
 
@@ -1648,7 +1658,7 @@ async Task PurchaseSubscriptionAsync(string subscriptionId, ProductSubscriptionA
             if offer.offer_token_android:
                 var offer_input = AndroidSubscriptionOfferInput.new()
                 offer_input.sku = subscription_id
-                offer_input.offer_token_android = offer.offer_token_android
+                offer_input.offer_token = offer.offer_token_android
                 subscription_offers.append(offer_input)
 
     if subscription_offers.is_empty():
@@ -1776,18 +1786,30 @@ async Task PurchaseSubscriptionAsync(string subscriptionId, ProductSubscriptionA
                       <CodeBlock language="typescript">{`// 1. Store basePlanIdAndroid BEFORE calling requestPurchase
 let purchasedBasePlanId: string | null = null;
 
-const handlePurchase = async (basePlanIdAndroid: string) => {
-  const offers = JSON.parse(product.subscriptionOffers || '[]');
-  const offer = offers.find((o: any) => o.basePlanIdAndroid === basePlanIdAndroid && !o.id);
+const handlePurchase = async (
+  subscription: ProductSubscriptionAndroid,
+  basePlanIdAndroid: string,
+) => {
+  const offer = subscription.subscriptionOffers.find(
+    (candidate) =>
+      candidate.basePlanIdAndroid === basePlanIdAndroid &&
+      candidate.id === candidate.basePlanIdAndroid,
+  );
+  if (!offer?.offerTokenAndroid) {
+    throw new Error(\`Base plan '\${basePlanIdAndroid}' is unavailable\`);
+  }
 
   // Store it before purchase
   purchasedBasePlanId = basePlanIdAndroid;
 
   await requestPurchase({
     request: {
-      android: {
-        skus: [subscriptionGroupId],
-        subscriptionOffers: [{ sku: subscriptionGroupId, offerTokenAndroid: offer.offerTokenAndroid }],
+      google: {
+        skus: [subscription.id],
+        subscriptionOffers: [{
+          sku: subscription.id,
+          offerToken: offer.offerTokenAndroid,
+        }],
       },
     },
     type: 'subs',
@@ -1816,7 +1838,13 @@ var purchasedBasePlanId: String? = null
 
 suspend fun handlePurchase(basePlanIdAndroid: String) {
     val offers = subscription.subscriptionOffers ?: return
-    val offer = offers.find { it.basePlanIdAndroid == basePlanIdAndroid && it.id == null }
+    val offerToken = offers
+        .find {
+            it.basePlanIdAndroid == basePlanIdAndroid &&
+                it.id == it.basePlanIdAndroid
+        }
+        ?.offerTokenAndroid
+        ?: return
 
     // Store it before purchase
     purchasedBasePlanId = basePlanIdAndroid
@@ -1830,7 +1858,7 @@ suspend fun handlePurchase(basePlanIdAndroid: String) {
                         subscriptionOffers = listOf(
                             AndroidSubscriptionOfferInput(
                                 sku = subscriptionGroupId,
-                                offerTokenAndroid = offer?.offerTokenAndroid ?: ""
+                                offerToken = offerToken
                             )
                         )
                     )
@@ -1860,7 +1888,13 @@ var purchasedBasePlanId: String? = null
 
 suspend fun handlePurchase(basePlanIdAndroid: String) {
     val offers = subscription.subscriptionOffers ?: return
-    val offer = offers.find { it.basePlanIdAndroid == basePlanIdAndroid && it.id == null }
+    val offerToken = offers
+        .find {
+            it.basePlanIdAndroid == basePlanIdAndroid &&
+                it.id == it.basePlanIdAndroid
+        }
+        ?.offerTokenAndroid
+        ?: return
 
     // Store it before purchase
     purchasedBasePlanId = basePlanIdAndroid
@@ -1874,7 +1908,7 @@ suspend fun handlePurchase(basePlanIdAndroid: String) {
                         subscriptionOffers = listOf(
                             AndroidSubscriptionOfferInput(
                                 sku = subscriptionGroupId,
-                                offerTokenAndroid = offer?.offerTokenAndroid ?: ""
+                                offerToken = offerToken
                             )
                         )
                     )
@@ -1905,8 +1939,12 @@ String? purchasedBasePlanId;
 Future<void> handlePurchase(String basePlanIdAndroid) async {
   final offers = subscription.subscriptionOffers;
   final offer = offers.firstWhere(
-    (o) => o.basePlanIdAndroid == basePlanIdAndroid && o.id == null,
+    (o) =>
+      o.basePlanIdAndroid == basePlanIdAndroid &&
+      o.id == o.basePlanIdAndroid,
   );
+  final offerToken = offer.offerTokenAndroid;
+  if (offerToken == null) return;
 
   // Store it before purchase
   purchasedBasePlanId = basePlanIdAndroid;
@@ -1919,7 +1957,7 @@ Future<void> handlePurchase(String basePlanIdAndroid) async {
         subscriptionOffers: [
           AndroidSubscriptionOfferInput(
             sku: subscriptionGroupId,
-            offerTokenAndroid: offer.offerTokenAndroid,
+            offerToken: offerToken,
           ),
         ],
       ),
@@ -1956,9 +1994,10 @@ async Task HandlePurchaseAsync(
 {
     var offer = subscription.SubscriptionOffers?
         .FirstOrDefault(offer =>
-            offer.BasePlanIdAndroid == basePlanIdAndroid && offer.Id is null);
+            offer.BasePlanIdAndroid == basePlanIdAndroid &&
+            offer.Id == offer.BasePlanIdAndroid);
 
-    if (offer is null)
+    if (offer?.OfferTokenAndroid is not { } offerToken)
     {
         throw new InvalidOperationException(
             $"Base plan '{basePlanIdAndroid}' was not found for '{subscriptionGroupId}'.");
@@ -1980,7 +2019,7 @@ async Task HandlePurchaseAsync(
                     new AndroidSubscriptionOfferInput
                     {
                         Sku = subscriptionGroupId,
-                        OfferTokenAndroid = offer.OfferTokenAndroid,
+                        OfferToken = offerToken,
                     },
                 },
             },
@@ -2012,9 +2051,11 @@ func handle_purchase(base_plan_id_android: String) -> void:
 
     var offer = null
     for o in offers:
-        if o.base_plan_id_android == base_plan_id_android and o.id == "":
+        if o.base_plan_id_android == base_plan_id_android and o.id == o.base_plan_id_android:
             offer = o
             break
+    if not offer or not offer.offer_token_android:
+        return
 
     # Store it before purchase
     purchased_base_plan_id = base_plan_id_android
@@ -2025,7 +2066,7 @@ func handle_purchase(base_plan_id_android: String) -> void:
     props.request_subscription.google.skus = [subscription_group_id]
     var offer_input = AndroidSubscriptionOfferInput.new()
     offer_input.sku = subscription_group_id
-    offer_input.offer_token_android = offer.offer_token_android
+    offer_input.offer_token = offer.offer_token_android
     props.request_subscription.google.subscription_offers = [offer_input]
     props.type = ProductQueryType.SUBS
 
@@ -2062,8 +2103,10 @@ func _on_purchase_success(purchase: PurchaseAndroid) -> void:
                 <CodeBlock language="typescript">{`// Server-side API endpoint
 // GET https://androidpublisher.googleapis.com/androidpublisher/v3/applications/{packageName}/purchases/subscriptionsv2/tokens/{purchaseToken}`}</CodeBlock>
                 <p>
-                  This returns the actual <code>basePlanIdAndroid</code> in{' '}
-                  <code>lineItems[].basePlanIdAndroid</code>.
+                  Google returns{' '}
+                  <code>lineItems[].offerDetails.basePlanId</code>. Map that
+                  value to OpenIAP&apos;s <code>basePlanIdAndroid</code> field
+                  in your own backend model.
                 </p>
 
                 <div className="alert-card alert-card--info">
@@ -2104,7 +2147,7 @@ func _on_purchase_success(purchase: PurchaseAndroid) -> void:
                       >
                         May 2022 subscription changes
                       </a>{' '}
-                      - Migration guide for basePlanIdAndroid
+                      - Migration guide for Google Play base plan IDs
                     </li>
                     <li>
                       <a
@@ -2139,19 +2182,21 @@ const selectOffer = (
 
   switch (offerType) {
     case 'base':
-      // Base plan has no id
-      return offers.find((offer) => !offer.id);
+      // Android base-plan entries use the base plan ID as their canonical ID.
+      return offers.find(
+        (offer) => offer.id === offer.basePlanIdAndroid,
+      );
     case 'introductory':
       // Find offer with free trial or intro pricing
       return offers.find((offer) =>
-        offer.pricingPhasesAndroid.pricingPhaseList.some(
+        offer.pricingPhasesAndroid?.pricingPhaseList.some(
           (phase) => phase.priceAmountMicros === '0' || phase.recurrenceMode === 2,
-        ),
+        ) ?? false,
       );
     case 'promotional':
       // Find offer with specific tags
       return offers.find((offer) =>
-        offer.offerTagsAndroid.some((tag) => tag.includes('promo')),
+        offer.offerTagsAndroid?.some((tag) => tag.includes('promo')) ?? false,
       );
   }
 };
@@ -2169,6 +2214,10 @@ const purchaseWithOffer = async (
     console.error('Selected offer not found');
     return;
   }
+  if (!selectedOffer.offerTokenAndroid) {
+    console.error('Selected offer has no Android offer token');
+    return;
+  }
 
   await requestPurchase({
     request: {
@@ -2177,7 +2226,7 @@ const purchaseWithOffer = async (
         skus: [subscriptionId],
         subscriptionOffers: [{
           sku: subscriptionId,
-          offerTokenAndroid: selectedOffer.offerTokenAndroid,
+          offerToken: selectedOffer.offerTokenAndroid,
         }],
       },
     },
@@ -2198,14 +2247,14 @@ fun selectOffer(
     val offers = subscription.subscriptionOffers ?: return null
 
     return when (offerType) {
-        OfferType.Base -> offers.find { it.id == null }
+        OfferType.Base -> offers.find { it.id == it.basePlanIdAndroid }
         OfferType.Introductory -> offers.find { offer ->
-            offer.pricingPhasesAndroid.pricingPhaseList.any { phase ->
+            offer.pricingPhasesAndroid?.pricingPhaseList?.any { phase ->
                 phase.priceAmountMicros == "0" || phase.recurrenceMode == 2
-            }
+            } == true
         }
         OfferType.Promotional -> offers.find { offer ->
-            offer.offerTagsAndroid.any { it.contains("promo", true) }
+            offer.offerTagsAndroid?.any { it.contains("promo", true) } == true
         }
     }
 }
@@ -2234,7 +2283,7 @@ suspend fun purchaseWithOffer(
                     subscriptionOffers = listOf(
                         AndroidSubscriptionOfferInput(
                             sku = subscriptionId,
-                            offerTokenAndroid = selectedOffer.offerTokenAndroid
+                            offerToken = selectedOffer.offerTokenAndroid ?: return
                         )
                     )
                 )
@@ -2256,14 +2305,14 @@ fun selectOffer(
     val offers = subscription.subscriptionOffers ?: return null
 
     return when (offerType) {
-        OfferType.Base -> offers.find { it.id == null }
+        OfferType.Base -> offers.find { it.id == it.basePlanIdAndroid }
         OfferType.Introductory -> offers.find { offer ->
-            offer.pricingPhasesAndroid.pricingPhaseList.any { phase ->
+            offer.pricingPhasesAndroid?.pricingPhaseList?.any { phase ->
                 phase.priceAmountMicros == "0" || phase.recurrenceMode == 2
-            }
+            } == true
         }
         OfferType.Promotional -> offers.find { offer ->
-            offer.offerTagsAndroid.any { it.contains("promo", true) }
+            offer.offerTagsAndroid?.any { it.contains("promo", true) } == true
         }
     }
 }
@@ -2297,7 +2346,7 @@ suspend fun purchaseWithOffer(
                     subscriptionOffers = listOf(
                         AndroidSubscriptionOfferInput(
                             sku = subscriptionId,
-                            offerTokenAndroid = selectedOffer.offerTokenAndroid
+                            offerToken = selectedOffer.offerTokenAndroid ?: return
                         )
                     )
                 )
@@ -2321,12 +2370,12 @@ SubscriptionOffer? selectOffer(
 
   for (final offer in offers) {
     final matches = switch (offerType) {
-      OfferType.base => offer.id == null,
-      OfferType.introductory => offer.pricingPhasesAndroid.pricingPhaseList.any(
+      OfferType.base => offer.id == offer.basePlanIdAndroid,
+      OfferType.introductory => offer.pricingPhasesAndroid?.pricingPhaseList.any(
           (phase) => phase.priceAmountMicros == '0' || phase.recurrenceMode == 2,
-        ),
+        ) ?? false,
       OfferType.promotional =>
-        offer.offerTagsAndroid.any((tag) => tag.contains('promo')),
+        offer.offerTagsAndroid?.any((tag) => tag.contains('promo')) ?? false,
     };
     if (matches) return offer;
   }
@@ -2351,6 +2400,8 @@ Future<void> purchaseWithOffer(
     print('Selected offer not found');
     return;
   }
+  final offerToken = selectedOffer.offerTokenAndroid;
+  if (offerToken == null) return;
 
   await iap.requestPurchase(
     RequestPurchaseProps.subs((
@@ -2360,7 +2411,7 @@ Future<void> purchaseWithOffer(
         subscriptionOffers: [
           AndroidSubscriptionOfferInput(
             sku: subscriptionId,
-            offerTokenAndroid: selectedOffer.offerTokenAndroid,
+            offerToken: offerToken,
           ),
         ],
       ),
@@ -2394,7 +2445,8 @@ SubscriptionOffer? SelectOffer(
     return offerType switch
     {
         OfferType.Base =>
-            offers.FirstOrDefault(offer => offer.Id is null),
+            offers.FirstOrDefault(offer =>
+                offer.Id == offer.BasePlanIdAndroid),
         OfferType.Introductory =>
             offers.FirstOrDefault(offer =>
                 offer.PricingPhasesAndroid?.PricingPhaseList?.Any(phase =>
@@ -2419,6 +2471,11 @@ async Task PurchaseWithOfferAsync(
         Console.WriteLine("Selected offer not found");
         return;
     }
+    if (selectedOffer.OfferTokenAndroid is not { } offerToken)
+    {
+        Console.WriteLine("Selected offer has no Android offer token");
+        return;
+    }
 
     await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps
     {
@@ -2433,7 +2490,7 @@ async Task PurchaseWithOfferAsync(
                     new AndroidSubscriptionOfferInput
                     {
                         Sku = subscriptionId,
-                        OfferTokenAndroid = selectedOffer.OfferTokenAndroid,
+                        OfferToken = offerToken,
                     },
                 },
             },
@@ -2452,12 +2509,14 @@ func select_offer(subscription: ProductSubscriptionAndroid, offer_type: int) -> 
     match offer_type:
         OfferType.BASE:
             for offer in offers:
-                if offer.id == "":
+                if offer.id == offer.base_plan_id_android:
                     return offer
-            return offers[0] if offers.size() > 0 else null
+            return null
 
         OfferType.INTRODUCTORY:
             for offer in offers:
+                if not offer.pricing_phases_android:
+                    continue
                 for phase in offer.pricing_phases_android.pricing_phase_list:
                     if phase.price_amount_micros == "0" or phase.recurrence_mode == 2:
                         return offer
@@ -2486,7 +2545,7 @@ func purchase_with_offer(subscription_id: String, offer_type: int) -> void:
             break
 
     var selected_offer = select_offer(subscription, offer_type)
-    if not selected_offer:
+    if not selected_offer or not selected_offer.offer_token_android:
         print("Selected offer not found")
         return
 
@@ -2496,7 +2555,7 @@ func purchase_with_offer(subscription_id: String, offer_type: int) -> void:
     props.request_subscription.google.skus = [subscription_id]
     var offer_input = AndroidSubscriptionOfferInput.new()
     offer_input.sku = subscription_id
-    offer_input.offer_token_android = selected_offer.offer_token_android
+    offer_input.offer_token = selected_offer.offer_token_android
     props.request_subscription.google.subscription_offers = [offer_input]
     props.type = ProductQueryType.SUBS
 
