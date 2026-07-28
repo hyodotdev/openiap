@@ -394,7 +394,8 @@ const isTestPath = (relativePath) =>
 const walkFiles = (entry) => {
   const absolute = path.join(root, entry);
   if (!fs.existsSync(absolute)) return [];
-  const stat = fs.statSync(absolute);
+  const stat = fs.lstatSync(absolute);
+  if (stat.isSymbolicLink()) return [];
   if (stat.isFile()) return [normalize(entry)];
 
   const files = [];

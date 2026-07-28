@@ -93,6 +93,36 @@ test("forbidden matcher honors excluded directories", () => {
   }
 });
 
+test("forbidden matcher does not follow generated symbolic-link loops", () => {
+  const root = path.resolve(
+    path.dirname(new URL(import.meta.url).pathname),
+    "..",
+  );
+  const fixtureDirectory = fs.mkdtempSync(
+    path.join(root, ".audit-deprecations-fixture-"),
+  );
+  const relativeDirectory = path.relative(root, fixtureDirectory);
+  try {
+    fs.writeFileSync(path.join(fixtureDirectory, "fixture.ts"), "legacy\n");
+    fs.symlinkSync(fixtureDirectory, path.join(fixtureDirectory, "loop"));
+    assert.deepEqual(
+      collectForbiddenMatches({
+        roots: [relativeDirectory],
+        tokens: ["legacy"],
+      }),
+      [
+        {
+          file: `${relativeDirectory}/fixture.ts`,
+          line: 1,
+          token: "legacy",
+        },
+      ],
+    );
+  } finally {
+    fs.rmSync(fixtureDirectory, { recursive: true, force: true });
+  }
+});
+
 test("forbidden matcher supports explicitly guarded documentation files", () => {
   const root = path.resolve(
     path.dirname(new URL(import.meta.url).pathname),
