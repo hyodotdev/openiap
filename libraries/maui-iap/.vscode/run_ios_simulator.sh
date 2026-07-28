@@ -23,7 +23,7 @@ fi
 cd "$APP_DIR"
 dotnet build "$PROJECT" \
   -t:Run \
-  -f net9.0-ios \
+  -f net10.0-ios \
   -p:RuntimeIdentifier="$RID" \
   -tl:off \
   -v:minimal

@@ -21,7 +21,7 @@ public class OpenIapClientFacadeTests
     {
         try
         {
-            // On net9.0 (no platform identifier) the factory resolves the
+            // On net10.0 (no platform identifier) the factory resolves the
             // UnsupportedOpenIap fallback and caches it. No other test in
             // this assembly touches Instance, so this is the first access.
             var initial = OpenIapClient.Instance;

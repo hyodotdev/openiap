@@ -270,7 +270,7 @@ export const showManageSubscriptionsIOS: MutationField<
 > = async () => [];
 export const presentCodeRedemptionSheetIOS: MutationField<
   'presentCodeRedemptionSheetIOS'
-> = async () => false;
+> = async () => null;
 export const presentExternalPurchaseLinkIOS: MutationField<
   'presentExternalPurchaseLinkIOS'
 > = async () => unsupported('presentExternalPurchaseLinkIOS');

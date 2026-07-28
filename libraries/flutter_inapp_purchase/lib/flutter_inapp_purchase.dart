@@ -1116,10 +1116,23 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
             }
 
             try {
-              final result = await channel.invokeMethod<bool>(
+              final result = await channel.invokeMethod<Object?>(
                 'presentCodeRedemptionSheetIOS',
               );
-              return result ?? false;
+              if (result == null) return null;
+              final payload = normalizeDynamicMap(result);
+              if (payload == null) {
+                throw const FormatException(
+                  'Invalid redeemed purchase returned by native StoreKit',
+                );
+              }
+              final purchase = convertToPurchase(
+                payload,
+                platformIsAndroid: false,
+                platformIsIOS: true,
+                acknowledgedAndroidPurchaseTokens: const <String, bool>{},
+              );
+              return purchase as gentype.PurchaseIOS;
             } on PlatformException catch (error) {
               throw _purchaseErrorFromPlatformException(
                 error,

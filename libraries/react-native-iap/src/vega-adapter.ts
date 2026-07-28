@@ -1564,7 +1564,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
     async getPromotedProductIOS(): Promise<null> {
       return throwUnsupportedFeature('getPromotedProductIOS');
     },
-    async presentCodeRedemptionSheetIOS(): Promise<boolean> {
+    async presentCodeRedemptionSheetIOS(): Promise<null> {
       return throwUnsupportedFeature('presentCodeRedemptionSheetIOS');
     },
     async clearTransactionIOS(): Promise<void> {

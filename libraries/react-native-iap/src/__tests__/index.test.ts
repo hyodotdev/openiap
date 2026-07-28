@@ -33,7 +33,7 @@ const mockIap: any = {
   // iOS-only
   getAppTransactionIOS: jest.fn(async () => null),
   getPromotedProductIOS: jest.fn(async () => null),
-  presentCodeRedemptionSheetIOS: jest.fn(async () => true),
+  presentCodeRedemptionSheetIOS: jest.fn(async () => null),
   getAllTransactionsIOS: jest.fn(async () => []),
 
   // Unified storefront
@@ -1201,15 +1201,28 @@ describe('Public API (src/index.ts)', () => {
       );
     });
 
-    it('presentCodeRedemptionSheetIOS returns true', async () => {
+    it('presentCodeRedemptionSheetIOS returns the verified purchase', async () => {
       (Platform as any).OS = 'ios';
-      mockIap.presentCodeRedemptionSheetIOS.mockResolvedValueOnce(true);
-      await expect(IAP.presentCodeRedemptionSheetIOS()).resolves.toBe(true);
+      mockIap.presentCodeRedemptionSheetIOS.mockResolvedValueOnce({
+        id: 'redeemed-transaction',
+        transactionId: 'redeemed-transaction',
+        productId: 'premium',
+        transactionDate: 1700000000000,
+        store: 'apple',
+        quantity: 1,
+        purchaseState: 'purchased',
+        isAutoRenewing: true,
+      });
+      await expect(IAP.presentCodeRedemptionSheetIOS()).resolves.toMatchObject({
+        id: 'redeemed-transaction',
+        productId: 'premium',
+        store: 'apple',
+      });
     });
 
-    it('presentCodeRedemptionSheetIOS returns false on non‑iOS', async () => {
+    it('presentCodeRedemptionSheetIOS returns null on non‑iOS', async () => {
       (Platform as any).OS = 'android';
-      await expect(IAP.presentCodeRedemptionSheetIOS()).resolves.toBe(false);
+      await expect(IAP.presentCodeRedemptionSheetIOS()).resolves.toBeNull();
     });
 
     it('getPendingTransactionsIOS maps purchases', async () => {

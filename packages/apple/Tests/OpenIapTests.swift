@@ -40,6 +40,63 @@ final class OpenIapTests: XCTestCase {
         XCTAssertEqual(product.typeIOS, .autoRenewableSubscription)
     }
 
+    func testXcode27SubscriptionBundleWireTypes() throws {
+        XCTAssertEqual(
+            ProductTypeIOS.subscriptionBundle.rawValue,
+            "subscription-bundle"
+        )
+        XCTAssertEqual(
+            ProductTypeIOS.subscriptionSuite.rawValue,
+            "subscription-suite"
+        )
+
+        let component = BundledSubscriptionIOS(
+            description: "Music subscription",
+            displayName: "Music",
+            displayPrice: "$4.99",
+            id: "dev.hyo.music",
+            isFamilyShareable: true,
+            price: 4.99,
+            subscriptionGroupDisplayName: "Media",
+            subscriptionGroupId: "media",
+            subscriptionGroupLevel: 1
+        )
+        let data = try JSONEncoder().encode(component)
+        let decoded = try JSONDecoder().decode(
+            BundledSubscriptionIOS.self,
+            from: data
+        )
+
+        XCTAssertEqual(decoded.id, "dev.hyo.music")
+        XCTAssertEqual(decoded.subscriptionGroupId, "media")
+        XCTAssertEqual(decoded.subscriptionGroupLevel, 1)
+
+        var appTransaction = AppTransaction(
+            appId: 123,
+            appVersion: "3.0",
+            appVersionId: 300,
+            bundleId: "dev.hyo.martie",
+            deviceVerification: "verification",
+            deviceVerificationNonce: "nonce",
+            environment: "Sandbox",
+            originalAppVersion: "1.0",
+            originalPurchaseDate: 1_700_000_000_000,
+            signedDate: 1_700_000_100_000
+        )
+        appTransaction.originalPlatform = "managed"
+        appTransaction.revocationDate = 1_700_000_200_000
+        appTransaction.storeType = "education"
+        let appTransactionData = try JSONEncoder().encode(appTransaction)
+        let decodedAppTransaction = try JSONDecoder().decode(
+            AppTransaction.self,
+            from: appTransactionData
+        )
+        XCTAssertEqual(decodedAppTransaction.originalPlatform, "managed")
+        XCTAssertEqual(decodedAppTransaction.revocationDate, 1_700_000_200_000)
+        XCTAssertEqual(decodedAppTransaction.storeType, "education")
+
+    }
+
     func testPurchaseIOS() {
         let purchase = makeSamplePurchase()
         XCTAssertEqual(purchase.productId, "dev.hyo.premium")
@@ -251,6 +308,9 @@ final class OpenIapTests: XCTestCase {
     func testPurchaseIOSWithRenewalInfo() {
         let renewalInfo = RenewalInfoIOS(
             autoRenewPreference: "dev.hyo.premium_year",
+            bundleOriginalTransactionId: "bundle-original",
+            bundleProductId: "dev.hyo.bundle",
+            bundleSubscriptionGroupId: "bundle-group",
             expirationReason: nil,
             gracePeriodExpirationDate: nil,
             isInBillingRetry: nil,
@@ -289,6 +349,7 @@ final class OpenIapTests: XCTestCase {
             renewalInfoIOS: renewalInfo,
             revocationDateIOS: nil,
             revocationReasonIOS: nil,
+            revocationTypeIOS: "assignmentRevocation",
             store: .apple,
             storefrontCountryCodeIOS: "US",
             subscriptionGroupIdIOS: "21686373",
@@ -303,6 +364,7 @@ final class OpenIapTests: XCTestCase {
         XCTAssertEqual(purchase.renewalInfoIOS?.autoRenewPreference, "dev.hyo.premium_year")
         XCTAssertEqual(purchase.renewalInfoIOS?.pendingUpgradeProductId, "dev.hyo.premium_year")
         XCTAssertEqual(purchase.renewalInfoIOS?.renewalDate, 1729087555000)
+        XCTAssertEqual(purchase.revocationTypeIOS, "assignmentRevocation")
     }
 
     @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
@@ -338,6 +400,9 @@ final class OpenIapTests: XCTestCase {
     func testPurchaseIOSSerializationWithRenewalInfo() throws {
         let renewalInfo = RenewalInfoIOS(
             autoRenewPreference: "dev.hyo.premium_year",
+            bundleOriginalTransactionId: "bundle-original",
+            bundleProductId: "dev.hyo.bundle",
+            bundleSubscriptionGroupId: "bundle-group",
             expirationReason: nil,
             gracePeriodExpirationDate: nil,
             isInBillingRetry: nil,
@@ -347,20 +412,35 @@ final class OpenIapTests: XCTestCase {
             renewalDate: 1729087555000,
             renewalOfferId: nil,
             renewalOfferType: nil,
-            willAutoRenew: false
+            willAutoRenew: false,
+            willUnbundle: true
         )
 
-        let purchase = makeSamplePurchaseWithRenewalInfo(renewalInfo)
+        var purchase = makeSamplePurchaseWithRenewalInfo(renewalInfo)
+        purchase.bundleOriginalTransactionIdIOS = "bundle-original"
+        purchase.bundleProductIdIOS = "dev.hyo.bundle"
+        purchase.bundleSubscriptionGroupIdIOS = "bundle-group"
+        purchase.bundleTransactionIdIOS = "bundle-transaction"
+        purchase.previousOriginalTransactionIdIOS = "standalone-original"
 
         // Test encoding to dictionary
         let dictionary = OpenIapSerialization.encode(purchase)
         XCTAssertNotNil(dictionary["renewalInfoIOS"] as Any?)
+        XCTAssertEqual(
+            dictionary["bundleTransactionIdIOS"] as? String,
+            "bundle-transaction"
+        )
 
         if let renewalDict = dictionary["renewalInfoIOS"] as? [String: Any] {
             XCTAssertEqual(renewalDict["willAutoRenew"] as? Bool, false)
             XCTAssertEqual(renewalDict["autoRenewPreference"] as? String, "dev.hyo.premium_year")
             XCTAssertEqual(renewalDict["pendingUpgradeProductId"] as? String, "dev.hyo.premium_year")
             XCTAssertEqual(renewalDict["renewalDate"] as? Double, 1729087555000)
+            XCTAssertEqual(
+                renewalDict["bundleProductId"] as? String,
+                "dev.hyo.bundle"
+            )
+            XCTAssertEqual(renewalDict["willUnbundle"] as? Bool, true)
         } else {
             XCTFail("renewalInfoIOS should be a dictionary")
         }
@@ -371,6 +451,8 @@ final class OpenIapTests: XCTestCase {
         XCTAssertNotNil(decoded.renewalInfoIOS)
         XCTAssertEqual(decoded.renewalInfoIOS?.willAutoRenew, false)
         XCTAssertEqual(decoded.renewalInfoIOS?.pendingUpgradeProductId, "dev.hyo.premium_year")
+        XCTAssertEqual(decoded.bundleProductIdIOS, "dev.hyo.bundle")
+        XCTAssertEqual(decoded.previousOriginalTransactionIdIOS, "standalone-original")
     }
 
     func testProductSubscriptionIOSPaymentModeSerialization() throws {
@@ -1143,6 +1225,7 @@ final class OpenIapTests: XCTestCase {
             renewalInfoIOS: nil,
             revocationDateIOS: nil,
             revocationReasonIOS: nil,
+            revocationTypeIOS: nil,
             store: .apple,
             storefrontCountryCodeIOS: "US",
             subscriptionGroupIdIOS: "group",
@@ -1180,6 +1263,7 @@ final class OpenIapTests: XCTestCase {
             renewalInfoIOS: renewalInfo,
             revocationDateIOS: nil,
             revocationReasonIOS: nil,
+            revocationTypeIOS: nil,
             store: .apple,
             storefrontCountryCodeIOS: "US",
             subscriptionGroupIdIOS: "21686373",

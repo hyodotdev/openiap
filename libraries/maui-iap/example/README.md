@@ -24,7 +24,7 @@ Shared layer:
 ## Run
 
 ```bash
-# Once: install the MAUI workload (.NET 9 or newer; macOS needs sudo)
+# Once: install the .NET 10 MAUI workload (macOS needs sudo)
 sudo dotnet workload install maui
 
 # If you upgrade Xcode and see "requires Xcode <X> … current version is <Y>",
@@ -34,14 +34,14 @@ sudo dotnet workload update
 cd libraries/maui-iap/example/OpenIap.Maui.Example
 
 # iOS Simulator
-dotnet build -t:Run -f net9.0-ios
+dotnet build -t:Run -f net10.0-ios
 
 # Android (real device or emulator)
 adb uninstall dev.hyo.martie || true
-dotnet build -t:Run -f net9.0-android
+dotnet build -t:Run -f net10.0-android
 
 # macCatalyst
-dotnet build -t:Run -f net9.0-maccatalyst
+dotnet build -t:Run -f net10.0-maccatalyst
 ```
 
 VS Code launch configurations are pre-wired in
@@ -53,9 +53,8 @@ this example project.
 
 ## Status
 
-This is a scaffold. Pages compile against the generated `OpenIap`
-contract from `packages/gql`, but the underlying platform bridges in
+The pages compile against the generated `OpenIap` contract from `packages/gql`.
+The Android and Apple platform bridges under
 [`libraries/maui-iap/src/OpenIap.Maui/Platforms/`](../src/OpenIap.Maui/Platforms)
-are not yet wired to the native packages — once the Xamarin.Android
-binding (against `packages/google`) and the Xamarin.iOS binding (against
-`packages/apple`) land, every flow becomes immediately functional.
+are wired to `packages/google` and `packages/apple`; use physical store test
+devices for purchase verification.

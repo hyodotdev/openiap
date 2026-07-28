@@ -66,6 +66,7 @@ enum StoreKitTypesBridge {
         let standardizedOffers = makeStandardizedSubscriptionOffers(from: subscription)
 
         return ProductSubscriptionIOS(
+            bundledSubscriptionsIOS: bundledSubscriptionsIOS(from: subscription),
             currency: currencyCode(from: product) ?? "",
             debugDescription: product.description,
             description: product.description,
@@ -95,6 +96,7 @@ enum StoreKitTypesBridge {
 
     private static func nonRenewingSubscriptionIOS(from product: StoreKit.Product) -> ProductSubscriptionIOS {
         ProductSubscriptionIOS(
+            bundledSubscriptionsIOS: nil,
             currency: currencyCode(from: product) ?? "",
             debugDescription: product.description,
             description: product.description,
@@ -132,6 +134,7 @@ enum StoreKitTypesBridge {
         let expirationDate = transaction.expirationDate?.milliseconds
         let revocationDate = transaction.revocationDate?.milliseconds
         let renewalInfoIOS = await subscriptionRenewalInfoIOS(for: transaction)
+        let bundleMetadata = bundleTransactionMetadataIOS(from: transaction)
         // Default to false if renewalInfo unavailable - safer to underreport than falsely claim auto-renewal
         let autoRenewing = renewalInfoIOS?.willAutoRenew ?? false
         let environment: String?
@@ -157,6 +160,10 @@ enum StoreKitTypesBridge {
             appAccountToken: transaction.appAccountToken?.uuidString,
             appBundleIdIOS: transaction.appBundleID,
             billingPlanTypeIOS: billingPlanTypeIOS(from: transaction),
+            bundleOriginalTransactionIdIOS: bundleMetadata.originalTransactionId,
+            bundleProductIdIOS: bundleMetadata.productId,
+            bundleSubscriptionGroupIdIOS: bundleMetadata.subscriptionGroupId,
+            bundleTransactionIdIOS: bundleMetadata.transactionId,
             commitmentInfoIOS: transactionCommitmentInfoIOS(from: transaction),
             countryCodeIOS: {
                 if #available(iOS 17.0, tvOS 17.0, watchOS 10.0, *) {
@@ -181,6 +188,7 @@ enum StoreKitTypesBridge {
             originalTransactionDateIOS: transaction.originalPurchaseDate.milliseconds,
             originalTransactionIdentifierIOS: transaction.originalID != 0 ? String(transaction.originalID) : nil,
             ownershipTypeIOS: ownershipDescription,
+            previousOriginalTransactionIdIOS: bundleMetadata.previousOriginalTransactionId,
             productId: transaction.productID,
             purchaseState: purchaseState,
             purchaseToken: jwsRepresentation ?? transactionId,
@@ -190,7 +198,10 @@ enum StoreKitTypesBridge {
             reasonStringRepresentationIOS: reasonDetails.string,
             renewalInfoIOS: renewalInfoIOS,
             revocationDateIOS: revocationDate,
-            revocationReasonIOS: transaction.revocationReason?.rawValue.description,
+            revocationReasonIOS: transaction.revocationReason.map(
+                revocationReasonDescription(from:)
+            ),
+            revocationTypeIOS: revocationTypeIOS(from: transaction),
             store: .apple,
             storefrontCountryCodeIOS: {
                 if #available(iOS 17.0, tvOS 17.0, watchOS 10.0, *) {
@@ -208,7 +219,7 @@ enum StoreKitTypesBridge {
     }
 
     private static func determineAutoRenewStatus(for transaction: StoreKit.Transaction) async -> Bool {
-        guard transaction.productType == .autoRenewable else { return false }
+        guard isAutoRenewingSubscriptionProductType(transaction.productType) else { return false }
 
         if let resolved = await subscriptionAutoRenewState(for: transaction) {
             return resolved
@@ -241,7 +252,7 @@ enum StoreKitTypesBridge {
     }
 
     static func subscriptionRenewalInfoIOS(for transaction: StoreKit.Transaction) async -> RenewalInfoIOS? {
-        guard transaction.productType == .autoRenewable else {
+        guard isAutoRenewingSubscriptionProductType(transaction.productType) else {
             return nil
         }
         guard let groupId = transaction.subscriptionGroupID else {
@@ -291,6 +302,7 @@ enum StoreKitTypesBridge {
                         return info.autoRenewPreference != current ? info.autoRenewPreference : nil
                     }()
                     let offerInfo = renewalOfferInfoIOS(from: info)
+                    let bundleMetadata = renewalBundleMetadataIOS(from: info)
                     // priceIncreaseStatus only available on iOS 15.0+
                     let priceIncrease: String? = {
                         if #available(iOS 15.0, macOS 12.0, *) {
@@ -300,6 +312,9 @@ enum StoreKitTypesBridge {
                     }()
                     let renewalInfo = RenewalInfoIOS(
                         autoRenewPreference: info.autoRenewPreference,
+                        bundleOriginalTransactionId: bundleMetadata.originalTransactionId,
+                        bundleProductId: bundleMetadata.productId,
+                        bundleSubscriptionGroupId: bundleMetadata.subscriptionGroupId,
                         commitmentInfo: renewalCommitmentInfoIOS(from: info),
                         expirationReason: info.expirationReason?.rawValue.description,
                         gracePeriodExpirationDate: info.gracePeriodExpirationDate?.milliseconds,
@@ -311,7 +326,8 @@ enum StoreKitTypesBridge {
                         renewalDate: info.renewalDate?.milliseconds,
                         renewalOfferId: offerInfo?.id,
                         renewalOfferType: offerInfo?.type,
-                        willAutoRenew: info.willAutoRenew
+                        willAutoRenew: info.willAutoRenew,
+                        willUnbundle: bundleMetadata.willUnbundle
                     )
                     return renewalInfo
                 case .unverified(let info, _):
@@ -328,6 +344,7 @@ enum StoreKitTypesBridge {
                         return info.autoRenewPreference != current ? info.autoRenewPreference : nil
                     }()
                     let offerInfo = renewalOfferInfoIOS(from: info)
+                    let bundleMetadata = renewalBundleMetadataIOS(from: info)
                     // priceIncreaseStatus only available on iOS 15.0+
                     let priceIncrease: String? = {
                         if #available(iOS 15.0, macOS 12.0, *) {
@@ -337,6 +354,9 @@ enum StoreKitTypesBridge {
                     }()
                     let renewalInfo = RenewalInfoIOS(
                         autoRenewPreference: info.autoRenewPreference,
+                        bundleOriginalTransactionId: bundleMetadata.originalTransactionId,
+                        bundleProductId: bundleMetadata.productId,
+                        bundleSubscriptionGroupId: bundleMetadata.subscriptionGroupId,
                         commitmentInfo: renewalCommitmentInfoIOS(from: info),
                         expirationReason: info.expirationReason?.rawValue.description,
                         gracePeriodExpirationDate: info.gracePeriodExpirationDate?.milliseconds,
@@ -348,7 +368,8 @@ enum StoreKitTypesBridge {
                         renewalDate: info.renewalDate?.milliseconds,
                         renewalOfferId: offerInfo?.id,
                         renewalOfferType: offerInfo?.type,
-                        willAutoRenew: info.willAutoRenew
+                        willAutoRenew: info.willAutoRenew,
+                        willUnbundle: bundleMetadata.willUnbundle
                     )
                     return renewalInfo
             }
@@ -580,11 +601,78 @@ enum StoreKitTypesBridge {
         productId: String,
         productType: StoreKit.Product.ProductType
     ) -> String? {
+        #if compiler(>=6.4)
+        if #available(iOS 27.0, macOS 27.0, tvOS 27.0, watchOS 27.0, visionOS 27.0, *),
+           productType == .subscriptionBundle || productType == .subscriptionSuite {
+            return productId
+        }
+        #endif
+
         switch productType {
         case .autoRenewable, .nonRenewable:
             return productId
         default:
             return nil
+        }
+    }
+
+    static func bundleTransactionMetadataIOS(
+        from transaction: StoreKit.Transaction
+    ) -> (
+        originalTransactionId: String?,
+        productId: String?,
+        subscriptionGroupId: String?,
+        transactionId: String?,
+        previousOriginalTransactionId: String?
+    ) {
+        #if compiler(>=6.4)
+        return (
+            originalTransactionId: transaction.bundleOriginalTransactionID,
+            productId: transaction.bundleProductID,
+            subscriptionGroupId: transaction.bundleSubscriptionGroupID,
+            transactionId: transaction.bundleTransactionID,
+            previousOriginalTransactionId: transaction.previousOriginalTransactionID.map(String.init)
+        )
+        #else
+        return (nil, nil, nil, nil, nil)
+        #endif
+    }
+
+    static func renewalBundleMetadataIOS(
+        from info: StoreKit.Product.SubscriptionInfo.RenewalInfo
+    ) -> (
+        originalTransactionId: String?,
+        productId: String?,
+        subscriptionGroupId: String?,
+        willUnbundle: Bool?
+    ) {
+        #if compiler(>=6.4)
+        return (
+            originalTransactionId: info.bundleOriginalTransactionID,
+            productId: info.bundleProductID,
+            subscriptionGroupId: info.bundleSubscriptionGroupID,
+            willUnbundle: info.willUnbundle
+        )
+        #else
+        return (nil, nil, nil, nil)
+        #endif
+    }
+
+    static func isAutoRenewingSubscriptionProductType(
+        _ type: StoreKit.Product.ProductType
+    ) -> Bool {
+        #if compiler(>=6.4)
+        if #available(iOS 27.0, macOS 27.0, tvOS 27.0, watchOS 27.0, visionOS 27.0, *),
+           type == .subscriptionBundle || type == .subscriptionSuite {
+            return true
+        }
+        #endif
+
+        switch type {
+        case .autoRenewable:
+            return true
+        default:
+            return false
         }
     }
 
@@ -677,6 +765,30 @@ private extension StoreKitTypesBridge {
         if #available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *) {
             let terms = info.pricingTerms.map { makeSubscriptionPricingTerm(from: $0) }
             return terms.isEmpty ? nil : terms
+        }
+        #endif
+        return nil
+    }
+
+    static func bundledSubscriptionsIOS(
+        from info: StoreKit.Product.SubscriptionInfo
+    ) -> [BundledSubscriptionIOS]? {
+        #if compiler(>=6.4)
+        if #available(iOS 27.0, macOS 27.0, tvOS 27.0, watchOS 27.0, visionOS 27.0, *) {
+            let bundledSubscriptions = info.bundledSubscriptions.map { subscription in
+                BundledSubscriptionIOS(
+                    description: subscription.description,
+                    displayName: subscription.displayName,
+                    displayPrice: subscription.displayPrice,
+                    id: subscription.id,
+                    isFamilyShareable: subscription.isFamilyShareable,
+                    price: NSDecimalNumber(decimal: subscription.price).doubleValue,
+                    subscriptionGroupDisplayName: subscription.subscriptionGroupDisplayName,
+                    subscriptionGroupId: subscription.subscriptionGroupID,
+                    subscriptionGroupLevel: subscription.subscriptionGroupLevel
+                )
+            }
+            return bundledSubscriptions.isEmpty ? nil : bundledSubscriptions
         }
         #endif
         return nil
@@ -851,6 +963,13 @@ private extension StoreKitTypesBridge {
     }
 
     static func productType(from type: StoreKit.Product.ProductType) -> ProductType {
+        #if compiler(>=6.4)
+        if #available(iOS 27.0, macOS 27.0, tvOS 27.0, watchOS 27.0, visionOS 27.0, *),
+           type == .subscriptionBundle || type == .subscriptionSuite {
+            return .subs
+        }
+        #endif
+
         switch type {
         case .autoRenewable, .nonRenewable:
             return .subs
@@ -862,6 +981,17 @@ private extension StoreKitTypesBridge {
     }
 
     static func productTypeIOS(from type: StoreKit.Product.ProductType) -> ProductTypeIOS {
+        #if compiler(>=6.4)
+        if #available(iOS 27.0, macOS 27.0, tvOS 27.0, watchOS 27.0, visionOS 27.0, *) {
+            if type == .subscriptionBundle {
+                return .subscriptionBundle
+            }
+            if type == .subscriptionSuite {
+                return .subscriptionSuite
+            }
+        }
+        #endif
+
         switch type {
         case .consumable:
             return .consumable
@@ -939,6 +1069,12 @@ private extension StoreKitTypesBridge {
     }
 
     static func ownershipTypeDescription(from ownership: StoreKit.Transaction.OwnershipType) -> String {
+        #if compiler(>=6.4)
+        if ownership == .assigned {
+            return "assigned"
+        }
+        #endif
+
         switch ownership {
         case .purchased:
             return "purchased"
@@ -961,16 +1097,7 @@ private extension StoreKitTypesBridge {
 
     static func transactionReasonDetails(from transaction: StoreKit.Transaction) -> TransactionReason {
         if let revocation = transaction.revocationReason {
-            // Map revocation reasons to expected strings
-            let reasonString: String
-            switch revocation {
-            case .developerIssue:
-                reasonString = "developer_issue"
-            case .other:
-                reasonString = "other"
-            default:
-                reasonString = "unknown"
-            }
+            let reasonString = revocationReasonDescription(from: revocation)
             return TransactionReason(
                 lowercased: reasonString,
                 string: reasonString,
@@ -989,6 +1116,34 @@ private extension StoreKitTypesBridge {
         }
 
         return TransactionReason(lowercased: "purchase", string: "purchase", uppercased: "PURCHASE")
+    }
+
+    static func revocationReasonDescription(
+        from revocation: StoreKit.Transaction.RevocationReason
+    ) -> String {
+        #if compiler(>=6.4)
+        if revocation == .upgradedToBundle {
+            return "upgraded_to_bundle"
+        }
+        #endif
+
+        switch revocation {
+        case .developerIssue:
+            return "developer_issue"
+        case .other:
+            return "other"
+        default:
+            return "unknown"
+        }
+    }
+
+    static func revocationTypeIOS(from transaction: StoreKit.Transaction) -> String? {
+        #if compiler(>=6.4)
+        if #available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *) {
+            return transaction.revocationType?.rawValue
+        }
+        #endif
+        return nil
     }
 
     // MARK: - Advanced Commerce Info (iOS 18.4+)
@@ -1043,11 +1198,27 @@ private extension StoreKitTypesBridge {
                 "reason": offer.reason.rawValue,
             ] as [String: Any?]
         }
+        let partners: [[String: Any?]]?
+        #if compiler(>=6.4)
+        if #available(iOS 27.0, macOS 27.0, tvOS 27.0, watchOS 27.0, visionOS 27.0, *) {
+            partners = details.partners.map { partner in
+                [
+                    "id": partner.id,
+                    "name": partner.name,
+                ]
+            }
+        } else {
+            partners = nil
+        }
+        #else
+        partners = nil
+        #endif
 
         return compactJSONString(from: [
             "description": details.description,
             "displayName": details.displayName,
             "offer": offer,
+            "partners": partners,
             "price": decimalString(details.price),
             "sku": details.sku,
         ])

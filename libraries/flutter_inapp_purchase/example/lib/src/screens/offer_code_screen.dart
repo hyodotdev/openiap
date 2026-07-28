@@ -70,10 +70,11 @@ class _OfferCodeScreenState extends State<OfferCodeScreen> {
     });
 
     try {
-      await _iap.presentCodeRedemptionSheetIOS();
+      final purchase = await _iap.presentCodeRedemptionSheetIOS();
       setState(() {
-        _statusMessage =
-            'Redemption sheet presented. Complete the redemption in the system dialog.';
+        _statusMessage = purchase != null
+            ? 'Verified redemption: ${purchase.productId} (${purchase.id}).'
+            : 'Legacy redemption sheet presented. Refresh purchases after completing redemption.';
         _isSuccess = true;
       });
     } catch (e) {

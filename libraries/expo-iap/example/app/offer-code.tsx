@@ -84,13 +84,13 @@ export default function OfferCodeScreen() {
         const result = await presentCodeRedemptionSheetIOS();
         if (result) {
           Alert.alert(
-            'Success',
-            'Code redemption sheet presented. After successful redemption, the purchase will appear in your purchase history.',
+            'Verified Redemption',
+            `Redeemed ${result.productId} (${result.id}).`,
           );
         } else {
           Alert.alert(
-            'Not Supported',
-            'Offer code redemption is not available on this iOS device.',
+            'Redemption Sheet Presented',
+            'This iOS version uses the legacy sheet. Refresh available purchases after completing redemption.',
           );
         }
       } else {

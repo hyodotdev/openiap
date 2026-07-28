@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
-> Generated: 2026-07-28T00:08:43.656Z
+> Generated: 2026-07-28T21:18:36.146Z
 
 ## Installation
 
@@ -240,7 +240,7 @@ interface PurchaseError {
 
 ### iOS
 - syncIOS() - Sync with App Store
-- presentCodeRedemptionSheetIOS() - Show offer code UI
+- presentCodeRedemptionSheetIOS() - Show offer code UI and return a verified PurchaseIOS on Apple 27+ (null after the legacy sheet)
 - showManageSubscriptionsIOS() - Open subscription management
 - beginRefundRequestIOS() - Start refund flow
 

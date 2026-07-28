@@ -59,11 +59,11 @@ public partial class OfferCodePage : ContentPage
         try
         {
             var mutate = (MutationResolver)OpenIapClient.Instance;
-            var presented = await mutate.PresentCodeRedemptionSheetIOSAsync();
+            var purchase = await mutate.PresentCodeRedemptionSheetIOSAsync();
             ResultPanel.IsVisible = true;
-            ResultLabel.Text = presented
-                ? "Code redemption sheet presented. After successful redemption, the purchase will appear in purchase history."
-                : "The redemption sheet was not presented.";
+            ResultLabel.Text = purchase is not null
+                ? $"Verified redemption: {purchase.ProductId} ({purchase.TransactionId})"
+                : "The legacy redemption sheet was presented. Refresh available purchases after completing redemption.";
         }
         catch (Exception ex)
         {

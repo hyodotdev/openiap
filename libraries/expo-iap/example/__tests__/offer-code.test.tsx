@@ -8,7 +8,13 @@ import * as ExpoIap from 'expo-iap';
 jest.spyOn(Alert, 'alert').mockImplementation(() => {});
 
 jest.mock('expo-iap', () => ({
-  presentCodeRedemptionSheetIOS: jest.fn(() => Promise.resolve(true)),
+  presentCodeRedemptionSheetIOS: jest.fn(() =>
+    Promise.resolve({
+      id: 'redeemed-transaction',
+      productId: 'premium',
+      store: 'apple',
+    }),
+  ),
   openRedeemOfferCodeAndroid: jest.fn(() => Promise.resolve(true)),
   useIAP: jest.fn(() => ({
     connected: true,
@@ -97,8 +103,8 @@ describe('OfferCode Component', () => {
     await waitFor(() => {
       expect(ExpoIap.presentCodeRedemptionSheetIOS).toHaveBeenCalled();
       expect(Alert.alert).toHaveBeenCalledWith(
-        'Success',
-        'Code redemption sheet presented. After successful redemption, the purchase will appear in your purchase history.',
+        'Verified Redemption',
+        'Redeemed premium (redeemed-transaction).',
       );
     });
   });
@@ -125,22 +131,22 @@ describe('OfferCode Component', () => {
     });
   });
 
-  it('should report unsupported iOS redemption results with iOS wording', async () => {
+  it('should explain the legacy iOS redemption result', async () => {
     Object.defineProperty(Platform, 'OS', {
       get: jest.fn(() => 'ios'),
       configurable: true,
     });
     jest
       .mocked(ExpoIap.presentCodeRedemptionSheetIOS)
-      .mockResolvedValueOnce(false);
+      .mockResolvedValueOnce(null);
 
     const {getByText} = render(<OfferCode />);
     fireEvent.press(getByText('🎁 Redeem Offer Code'));
 
     await waitFor(() => {
       expect(Alert.alert).toHaveBeenCalledWith(
-        'Not Supported',
-        'Offer code redemption is not available on this iOS device.',
+        'Redemption Sheet Presented',
+        'This iOS version uses the legacy sheet. Refresh available purchases after completing redemption.',
       );
     });
   });

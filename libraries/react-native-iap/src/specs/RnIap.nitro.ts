@@ -128,16 +128,22 @@ export type BillingChoiceImageLayoutAndroid =
   | 'rectangular-two-by-two';
 
 export type BillingChoiceScreenTypeAndroid =
-  'unspecified' | 'developer-rendered' | 'google-rendered';
+  | 'unspecified'
+  | 'developer-rendered'
+  | 'google-rendered';
 
 export type DeveloperBillingTypeAndroid =
-  'developer-billing-type-unspecified' | 'in-app' | 'external-link';
+  | 'developer-billing-type-unspecified'
+  | 'in-app'
+  | 'external-link';
 
 export type InAppMessageCategoryAndroid =
-  'unknown-in-app-message-category-id' | 'transactional';
+  | 'unknown-in-app-message-category-id'
+  | 'transactional';
 
 export type InAppMessageResponseCodeAndroid =
-  'no-action-needed' | 'subscription-status-updated';
+  | 'no-action-needed'
+  | 'subscription-status-updated';
 
 // Developer Billing Launch Mode (Android 8.3.0+)
 // Defined locally for Nitro codegen
@@ -156,7 +162,9 @@ export type ExternalLinkLaunchModeAndroid =
 // External Link Type (Android 8.2.0+)
 // Defined locally for Nitro codegen
 export type ExternalLinkTypeAndroid =
-  'unspecified' | 'link-to-digital-content-offer' | 'link-to-app-download';
+  | 'unspecified'
+  | 'link-to-digital-content-offer'
+  | 'link-to-app-download';
 
 // ╔══════════════════════════════════════════════════════════════════════════╗
 // ║                                  PARAMS                                  ║
@@ -540,10 +548,15 @@ export interface NitroPurchase {
   // iOS specific fields
   advancedCommerceInfoIOS?: AdvancedCommerceInfoIOS | null;
   billingPlanTypeIOS?: SubscriptionBillingPlanTypeIOS | null;
+  bundleOriginalTransactionIdIOS?: string | null;
+  bundleProductIdIOS?: string | null;
+  bundleSubscriptionGroupIdIOS?: string | null;
+  bundleTransactionIdIOS?: string | null;
   commitmentInfoIOS?: TransactionCommitmentInfoIOS | null;
   quantityIOS?: number | null;
   originalTransactionDateIOS?: number | null;
   originalTransactionIdentifierIOS?: string | null;
+  previousOriginalTransactionIdIOS?: string | null;
   appAccountToken?: string | null;
   appBundleIdIOS?: string | null;
   countryCodeIOS?: string | null;
@@ -558,6 +571,7 @@ export interface NitroPurchase {
   reasonStringRepresentationIOS?: string | null;
   revocationDateIOS?: number | null;
   revocationReasonIOS?: string | null;
+  revocationTypeIOS?: string | null;
   storefrontCountryCodeIOS?: string | null;
   subscriptionGroupIdIOS?: string | null;
   transactionReasonIOS?: string | null;
@@ -606,6 +620,9 @@ export interface NitroActiveSubscription {
 export interface NitroRenewalInfoIOS {
   willAutoRenew: boolean;
   autoRenewPreference?: string | null;
+  bundleOriginalTransactionId?: string | null;
+  bundleProductId?: string | null;
+  bundleSubscriptionGroupId?: string | null;
   commitmentInfo?: RenewalCommitmentInfoIOS | null;
   pendingUpgradeProductId?: string | null;
   renewalDate?: number | null;
@@ -617,6 +634,7 @@ export interface NitroRenewalInfoIOS {
   renewalOfferType?: string | null;
   renewalOfferId?: string | null;
   jsonRepresentation?: string | null;
+  willUnbundle?: null | boolean;
 }
 
 export interface NitroProduct {
@@ -635,6 +653,8 @@ export interface NitroProduct {
   isFamilyShareableIOS?: null | boolean;
   jsonRepresentationIOS?: string | null;
   pricingTermsIOS?: string | null;
+  /** Apple 27 Subscription Bundle/Suite components (JSON string). */
+  bundledSubscriptionsIOS?: string | null;
   introductoryPriceIOS?: string | null;
   introductoryPriceAsAmountIOS?: number | null;
   introductoryPriceNumberOfPeriodsIOS?: number | null;
@@ -814,10 +834,11 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
 
   /**
    * Present the code redemption sheet for offer codes (iOS only)
-   * @returns Promise<boolean> - True if the sheet was presented successfully
+   * @returns The verified redeemed purchase on iOS 27+, or null after the
+   * legacy sheet is presented on earlier iOS versions.
    * @platform iOS
    */
-  presentCodeRedemptionSheetIOS(): Promise<boolean>;
+  presentCodeRedemptionSheetIOS(): Promise<NitroPurchase | null>;
 
   /**
    * Clear unfinished transactions (iOS only)

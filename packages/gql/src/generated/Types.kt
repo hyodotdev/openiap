@@ -956,7 +956,15 @@ public enum class ProductTypeIOS(val rawValue: String) {
     Consumable("consumable"),
     NonConsumable("non-consumable"),
     AutoRenewableSubscription("auto-renewable-subscription"),
-    NonRenewingSubscription("non-renewing-subscription")
+    NonRenewingSubscription("non-renewing-subscription"),
+    /**
+     * A group of independently purchasable subscriptions sold together (Apple 27+ beta).
+     */
+    SubscriptionBundle("subscription-bundle"),
+    /**
+     * A group of subscriptions that are available only as one suite (Apple 27+ beta).
+     */
+    SubscriptionSuite("subscription-suite")
 
     companion object {
         fun fromJson(value: String): ProductTypeIOS = when (value) {
@@ -972,6 +980,12 @@ public enum class ProductTypeIOS(val rawValue: String) {
             "non-renewing-subscription" -> ProductTypeIOS.NonRenewingSubscription
             "NON_RENEWING_SUBSCRIPTION" -> ProductTypeIOS.NonRenewingSubscription
             "NonRenewingSubscription" -> ProductTypeIOS.NonRenewingSubscription
+            "subscription-bundle" -> ProductTypeIOS.SubscriptionBundle
+            "SUBSCRIPTION_BUNDLE" -> ProductTypeIOS.SubscriptionBundle
+            "SubscriptionBundle" -> ProductTypeIOS.SubscriptionBundle
+            "subscription-suite" -> ProductTypeIOS.SubscriptionSuite
+            "SUBSCRIPTION_SUITE" -> ProductTypeIOS.SubscriptionSuite
+            "SubscriptionSuite" -> ProductTypeIOS.SubscriptionSuite
             else -> throw IllegalArgumentException("Unknown ProductTypeIOS value: $value")
         }
     }
@@ -1511,10 +1525,24 @@ public data class AppTransaction(
     val deviceVerificationNonce: String,
     val environment: String,
     val originalAppVersion: String,
+    /**
+     * Original App Store platform raw value. Xcode 27 adds the back-deployed managed
+     * acquisition-platform value.
+     */
     val originalPlatform: String? = null,
     val originalPurchaseDate: Double,
     val preorderDate: Double? = null,
-    val signedDate: Double
+    /**
+     * Date the app-acquisition transaction was revoked (epoch milliseconds).
+     * Available through the Xcode 27 SDK and back-deployed to Apple 16+.
+     */
+    val revocationDate: Double? = null,
+    val signedDate: Double,
+    /**
+     * Store channel of the original app purchase: consumer, education, enterprise,
+     * or another future StoreKit value (Apple 27+ beta).
+     */
+    val storeType: String? = null
 ) {
 
     companion object {
@@ -1532,7 +1560,9 @@ public data class AppTransaction(
                 originalPlatform = json["originalPlatform"] as? String,
                 originalPurchaseDate = (json["originalPurchaseDate"] as? Number)?.toDouble() ?: 0.0,
                 preorderDate = (json["preorderDate"] as? Number)?.toDouble(),
+                revocationDate = (json["revocationDate"] as? Number)?.toDouble(),
                 signedDate = (json["signedDate"] as? Number)?.toDouble() ?: 0.0,
+                storeType = json["storeType"] as? String,
             )
         }
     }
@@ -1551,7 +1581,9 @@ public data class AppTransaction(
         "originalPlatform" to originalPlatform,
         "originalPurchaseDate" to originalPurchaseDate,
         "preorderDate" to preorderDate,
+        "revocationDate" to revocationDate,
         "signedDate" to signedDate,
+        "storeType" to storeType,
     )
 }
 
@@ -1701,6 +1733,52 @@ public data class BillingResultAndroid(
         "debugMessage" to debugMessage,
         "responseCode" to responseCode,
         "subResponseCode" to subResponseCode?.toJson(),
+    )
+}
+
+/**
+ * Metadata for one auto-renewable subscription included in an Apple
+ * subscription bundle (Apple 27+ beta).
+ */
+public data class BundledSubscriptionIOS(
+    val description: String,
+    val displayName: String,
+    val displayPrice: String,
+    val id: String,
+    val isFamilyShareable: Boolean,
+    val price: Double,
+    val subscriptionGroupDisplayName: String,
+    val subscriptionGroupId: String,
+    val subscriptionGroupLevel: Int
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): BundledSubscriptionIOS {
+            return BundledSubscriptionIOS(
+                description = json["description"] as? String ?: "",
+                displayName = json["displayName"] as? String ?: "",
+                displayPrice = json["displayPrice"] as? String ?: "",
+                id = json["id"] as? String ?: "",
+                isFamilyShareable = json["isFamilyShareable"] as? Boolean ?: false,
+                price = (json["price"] as? Number)?.toDouble() ?: 0.0,
+                subscriptionGroupDisplayName = json["subscriptionGroupDisplayName"] as? String ?: "",
+                subscriptionGroupId = json["subscriptionGroupId"] as? String ?: "",
+                subscriptionGroupLevel = (json["subscriptionGroupLevel"] as? Number)?.toInt() ?: 0,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "BundledSubscriptionIOS",
+        "description" to description,
+        "displayName" to displayName,
+        "displayPrice" to displayPrice,
+        "id" to id,
+        "isFamilyShareable" to isFamilyShareable,
+        "price" to price,
+        "subscriptionGroupDisplayName" to subscriptionGroupDisplayName,
+        "subscriptionGroupId" to subscriptionGroupId,
+        "subscriptionGroupLevel" to subscriptionGroupLevel,
     )
 }
 
@@ -2613,6 +2691,11 @@ public data class ProductSubscriptionAndroid(
 }
 
 public data class ProductSubscriptionIOS(
+    /**
+     * Subscriptions included in this Apple subscription bundle. Empty or null for
+     * every other product type (Apple 27+ beta).
+     */
+    val bundledSubscriptionsIOS: List<BundledSubscriptionIOS>? = null,
     override val currency: String,
     override val debugDescription: String? = null,
     override val description: String,
@@ -2654,6 +2737,7 @@ public data class ProductSubscriptionIOS(
     companion object {
         fun fromJson(json: Map<String, Any?>): ProductSubscriptionIOS {
             return ProductSubscriptionIOS(
+                bundledSubscriptionsIOS = (json["bundledSubscriptionsIOS"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { BundledSubscriptionIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for BundledSubscriptionIOS") },
                 currency = json["currency"] as? String ?: "",
                 debugDescription = json["debugDescription"] as? String,
                 description = json["description"] as? String ?: "",
@@ -2684,6 +2768,7 @@ public data class ProductSubscriptionIOS(
 
     override fun toJson(): Map<String, Any?> = mapOf(
         "__typename" to "ProductSubscriptionIOS",
+        "bundledSubscriptionsIOS" to bundledSubscriptionsIOS?.map { it.toJson() },
         "currency" to currency,
         "debugDescription" to debugDescription,
         "description" to description,
@@ -2889,6 +2974,23 @@ public data class PurchaseIOS(
      */
     val billingPlanTypeIOS: SubscriptionBillingPlanTypeIOS? = null,
     /**
+     * Original transaction identifier for the subscription bundle that produced
+     * this transaction (Apple 27+ SDK; back-deployed by StoreKit).
+     */
+    val bundleOriginalTransactionIdIOS: String? = null,
+    /**
+     * Product identifier of the subscription bundle that produced this transaction.
+     */
+    val bundleProductIdIOS: String? = null,
+    /**
+     * Subscription-group identifier of the bundle that produced this transaction.
+     */
+    val bundleSubscriptionGroupIdIOS: String? = null,
+    /**
+     * Bundle transaction identifier associated with this component transaction.
+     */
+    val bundleTransactionIdIOS: String? = null,
+    /**
      * iOS 26.4+ progress information for monthly subscriptions with a 12-month commitment.
      */
     val commitmentInfoIOS: TransactionCommitmentInfoIOS? = null,
@@ -2905,7 +3007,15 @@ public data class PurchaseIOS(
     val offerIOS: PurchaseOfferIOS? = null,
     val originalTransactionDateIOS: Double? = null,
     val originalTransactionIdentifierIOS: String? = null,
+    /**
+     * StoreKit ownership raw value. Xcode 27 adds the back-deployed assigned value.
+     */
     val ownershipTypeIOS: String? = null,
+    /**
+     * Original transaction identifier replaced when moving between a standalone
+     * subscription and a subscription bundle.
+     */
+    val previousOriginalTransactionIdIOS: String? = null,
     override val productId: String,
     override val purchaseState: PurchaseState,
     override val purchaseToken: String? = null,
@@ -2915,7 +3025,15 @@ public data class PurchaseIOS(
     val reasonStringRepresentationIOS: String? = null,
     val renewalInfoIOS: RenewalInfoIOS? = null,
     val revocationDateIOS: Double? = null,
+    /**
+     * Normalized StoreKit revocation reason, including upgraded_to_bundle.
+     */
     val revocationReasonIOS: String? = null,
+    /**
+     * StoreKit revocation type, including assignment-revocation on Apple 26.4+
+     * when compiled with the Xcode 27 SDK.
+     */
+    val revocationTypeIOS: String? = null,
     /**
      * Store where purchase was made
      */
@@ -2938,6 +3056,10 @@ public data class PurchaseIOS(
                 appAccountToken = json["appAccountToken"] as? String,
                 appBundleIdIOS = json["appBundleIdIOS"] as? String,
                 billingPlanTypeIOS = (json["billingPlanTypeIOS"] as? String)?.let { runCatching { SubscriptionBillingPlanTypeIOS.fromJson(it) }.getOrNull() ?: SubscriptionBillingPlanTypeIOS.Unknown },
+                bundleOriginalTransactionIdIOS = json["bundleOriginalTransactionIdIOS"] as? String,
+                bundleProductIdIOS = json["bundleProductIdIOS"] as? String,
+                bundleSubscriptionGroupIdIOS = json["bundleSubscriptionGroupIdIOS"] as? String,
+                bundleTransactionIdIOS = json["bundleTransactionIdIOS"] as? String,
                 commitmentInfoIOS = (json["commitmentInfoIOS"] as? Map<String, Any?>)?.let { TransactionCommitmentInfoIOS.fromJson(it) },
                 countryCodeIOS = json["countryCodeIOS"] as? String,
                 currencyCodeIOS = json["currencyCodeIOS"] as? String,
@@ -2953,6 +3075,7 @@ public data class PurchaseIOS(
                 originalTransactionDateIOS = (json["originalTransactionDateIOS"] as? Number)?.toDouble(),
                 originalTransactionIdentifierIOS = json["originalTransactionIdentifierIOS"] as? String,
                 ownershipTypeIOS = json["ownershipTypeIOS"] as? String,
+                previousOriginalTransactionIdIOS = json["previousOriginalTransactionIdIOS"] as? String,
                 productId = json["productId"] as? String ?: "",
                 purchaseState = runCatching { (json["purchaseState"] as? String)?.let { PurchaseState.fromJson(it) } }.getOrNull() ?: PurchaseState.Unknown,
                 purchaseToken = json["purchaseToken"] as? String,
@@ -2963,6 +3086,7 @@ public data class PurchaseIOS(
                 renewalInfoIOS = (json["renewalInfoIOS"] as? Map<String, Any?>)?.let { RenewalInfoIOS.fromJson(it) },
                 revocationDateIOS = (json["revocationDateIOS"] as? Number)?.toDouble(),
                 revocationReasonIOS = json["revocationReasonIOS"] as? String,
+                revocationTypeIOS = json["revocationTypeIOS"] as? String,
                 store = runCatching { (json["store"] as? String)?.let { IapStore.fromJson(it) } }.getOrNull() ?: IapStore.Unknown,
                 storefrontCountryCodeIOS = json["storefrontCountryCodeIOS"] as? String,
                 subscriptionGroupIdIOS = json["subscriptionGroupIdIOS"] as? String,
@@ -2980,6 +3104,10 @@ public data class PurchaseIOS(
         "appAccountToken" to appAccountToken,
         "appBundleIdIOS" to appBundleIdIOS,
         "billingPlanTypeIOS" to billingPlanTypeIOS?.toJson(),
+        "bundleOriginalTransactionIdIOS" to bundleOriginalTransactionIdIOS,
+        "bundleProductIdIOS" to bundleProductIdIOS,
+        "bundleSubscriptionGroupIdIOS" to bundleSubscriptionGroupIdIOS,
+        "bundleTransactionIdIOS" to bundleTransactionIdIOS,
         "commitmentInfoIOS" to commitmentInfoIOS?.toJson(),
         "countryCodeIOS" to countryCodeIOS,
         "currencyCodeIOS" to currencyCodeIOS,
@@ -2995,6 +3123,7 @@ public data class PurchaseIOS(
         "originalTransactionDateIOS" to originalTransactionDateIOS,
         "originalTransactionIdentifierIOS" to originalTransactionIdentifierIOS,
         "ownershipTypeIOS" to ownershipTypeIOS,
+        "previousOriginalTransactionIdIOS" to previousOriginalTransactionIdIOS,
         "productId" to productId,
         "purchaseState" to purchaseState.toJson(),
         "purchaseToken" to purchaseToken,
@@ -3005,6 +3134,7 @@ public data class PurchaseIOS(
         "renewalInfoIOS" to renewalInfoIOS?.toJson(),
         "revocationDateIOS" to revocationDateIOS,
         "revocationReasonIOS" to revocationReasonIOS,
+        "revocationTypeIOS" to revocationTypeIOS,
         "store" to store.toJson(),
         "storefrontCountryCodeIOS" to storefrontCountryCodeIOS,
         "subscriptionGroupIdIOS" to subscriptionGroupIdIOS,
@@ -3097,13 +3227,25 @@ public data class RenewalCommitmentInfoIOS(
 public data class RenewalInfoIOS(
     val autoRenewPreference: String? = null,
     /**
+     * Original transaction identifier for the bundle used by the next renewal.
+     */
+    val bundleOriginalTransactionId: String? = null,
+    /**
+     * Product identifier for the bundle used by the next renewal.
+     */
+    val bundleProductId: String? = null,
+    /**
+     * Subscription-group identifier for the bundle used by the next renewal.
+     */
+    val bundleSubscriptionGroupId: String? = null,
+    /**
      * iOS 26.4+ renewal commitment metadata for monthly subscriptions with a
      * 12-month commitment.
      */
     val commitmentInfo: RenewalCommitmentInfoIOS? = null,
     /**
-     * When subscription expires due to cancellation/billing issue
-     * Possible values: "VOLUNTARY", "BILLING_ERROR", "DID_NOT_AGREE_TO_PRICE_INCREASE", "PRODUCT_NOT_AVAILABLE", "UNKNOWN"
+     * StoreKit's raw integer expiration-reason value represented as a string.
+     * Xcode 27 adds the back-deployed unbundled case. Preserve unknown future values.
      */
     val expirationReason: String? = null,
     /**
@@ -3145,13 +3287,20 @@ public data class RenewalInfoIOS(
      * Possible values: "PROMOTIONAL", "SUBSCRIPTION_OFFER_CODE", "WIN_BACK", etc.
      */
     val renewalOfferType: String? = null,
-    val willAutoRenew: Boolean
+    val willAutoRenew: Boolean,
+    /**
+     * Whether this subscription will leave its bundle and renew standalone.
+     */
+    val willUnbundle: Boolean? = null
 ) {
 
     companion object {
         fun fromJson(json: Map<String, Any?>): RenewalInfoIOS {
             return RenewalInfoIOS(
                 autoRenewPreference = json["autoRenewPreference"] as? String,
+                bundleOriginalTransactionId = json["bundleOriginalTransactionId"] as? String,
+                bundleProductId = json["bundleProductId"] as? String,
+                bundleSubscriptionGroupId = json["bundleSubscriptionGroupId"] as? String,
                 commitmentInfo = (json["commitmentInfo"] as? Map<String, Any?>)?.let { RenewalCommitmentInfoIOS.fromJson(it) },
                 expirationReason = json["expirationReason"] as? String,
                 gracePeriodExpirationDate = (json["gracePeriodExpirationDate"] as? Number)?.toDouble(),
@@ -3164,6 +3313,7 @@ public data class RenewalInfoIOS(
                 renewalOfferId = json["renewalOfferId"] as? String,
                 renewalOfferType = json["renewalOfferType"] as? String,
                 willAutoRenew = json["willAutoRenew"] as? Boolean ?: false,
+                willUnbundle = json["willUnbundle"] as? Boolean,
             )
         }
     }
@@ -3171,6 +3321,9 @@ public data class RenewalInfoIOS(
     fun toJson(): Map<String, Any?> = mapOf(
         "__typename" to "RenewalInfoIOS",
         "autoRenewPreference" to autoRenewPreference,
+        "bundleOriginalTransactionId" to bundleOriginalTransactionId,
+        "bundleProductId" to bundleProductId,
+        "bundleSubscriptionGroupId" to bundleSubscriptionGroupId,
         "commitmentInfo" to commitmentInfo?.toJson(),
         "expirationReason" to expirationReason,
         "gracePeriodExpirationDate" to gracePeriodExpirationDate,
@@ -3183,6 +3336,7 @@ public data class RenewalInfoIOS(
         "renewalOfferId" to renewalOfferId,
         "renewalOfferType" to renewalOfferType,
         "willAutoRenew" to willAutoRenew,
+        "willUnbundle" to willUnbundle,
     )
 }
 
@@ -5351,9 +5505,14 @@ public interface MutationResolver {
     suspend fun openRedeemOfferCodeAndroid(): Boolean
     /**
      * Show the App Store offer code redemption sheet.
+     * On iOS 27+, Mac Catalyst 27+, and visionOS 27+, returns the verified
+     * transaction produced by the redemption. Earlier iOS and Mac Catalyst
+     * versions present the legacy sheet and return null; reconcile purchases
+     * through the normal transaction listener or an explicit available-purchases
+     * refresh.
      * See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
      */
-    suspend fun presentCodeRedemptionSheetIOS(): Boolean
+    suspend fun presentCodeRedemptionSheetIOS(): PurchaseIOS?
     /**
      * Present an external purchase link, StoreKit External (iOS 16+).
      * See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
@@ -5615,7 +5774,7 @@ public typealias MutationInitConnectionHandler = suspend (config: InitConnection
 public typealias MutationIsBillingProgramAvailableAndroidHandler = suspend (program: BillingProgramAndroid) -> BillingProgramAvailabilityResultAndroid
 public typealias MutationLaunchExternalLinkAndroidHandler = suspend (params: LaunchExternalLinkParamsAndroid) -> Boolean
 public typealias MutationOpenRedeemOfferCodeAndroidHandler = suspend () -> Boolean
-public typealias MutationPresentCodeRedemptionSheetIOSHandler = suspend () -> Boolean
+public typealias MutationPresentCodeRedemptionSheetIOSHandler = suspend () -> PurchaseIOS?
 public typealias MutationPresentExternalPurchaseLinkIOSHandler = suspend (url: String) -> ExternalPurchaseLinkResultIOS
 public typealias MutationPresentExternalPurchaseNoticeSheetIOSHandler = suspend () -> ExternalPurchaseNoticeResultIOS
 public typealias MutationRequestPurchaseHandler = suspend (params: RequestPurchaseProps) -> RequestPurchaseResult?
@@ -5723,6 +5882,11 @@ public data class MutationHandlers(
     val openRedeemOfferCodeAndroid: MutationOpenRedeemOfferCodeAndroidHandler? = null,
     /**
      * Show the App Store offer code redemption sheet.
+     * On iOS 27+, Mac Catalyst 27+, and visionOS 27+, returns the verified
+     * transaction produced by the redemption. Earlier iOS and Mac Catalyst
+     * versions present the legacy sheet and return null; reconcile purchases
+     * through the normal transaction listener or an explicit available-purchases
+     * refresh.
      * See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
      */
     val presentCodeRedemptionSheetIOS: MutationPresentCodeRedemptionSheetIOSHandler? = null,

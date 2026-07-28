@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-07-27T04:55:02.739Z
+> Last updated: 2026-07-28T22:04:06.976Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -998,14 +998,14 @@ GraphQL schema ─► generated types ─► public API ─► native bridge ─
 
 For every new/changed handler in the generated types, verify **all five** of these per target library before considering the change shippable:
 
-| Library                    | 1. Type declared                                                    | 2. Public API exposed                                                                                                                                                                                                                                                                                                                                                                                            | 3. Platform bridge                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | 4. Wired into handlers bundle                                                                                          | 5. Test coverage                                                                                                                                                                                                                                                 |
-| -------------------------- | ------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| **react-native-iap**       | `src/types.ts` (generated)                                          | `src/index.ts` export (Nitro or composed TS)                                                                                                                                                                                                                                                                                                                                                                     | `ios/HybridRnIap.swift` (iOS), `android/.../HybridRnIap.kt` (Android)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | Not required (flat exports)                                                                                            | Mock stub in all 4 `mockIap` objects in `__tests__/` (per memory)                                                                                                                                                                                                |
-| **expo-iap**               | `src/types.ts` (generated)                                          | `src/modules/ios.ts` / `android.ts` export, re-exported from `src/index.ts`                                                                                                                                                                                                                                                                                                                                      | `ios/ExpoIapModule.swift` `AsyncFunction`, `android/.../ExpoIapModule.kt`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Not required (flat exports)                                                                                            | `src/modules/__tests__/*.test.ts`                                                                                                                                                                                                                                |
-| **flutter_inapp_purchase** | `lib/types.dart` (generated)                                        | getter on `FlutterInappPurchase` in `lib/flutter_inapp_purchase.dart`                                                                                                                                                                                                                                                                                                                                            | `case "<name>":` in `ios/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift` and `macos/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift`, Android plugin `onMethodCall`                                                                                                                                                                                                                                                                                                                                                   | `queryHandlers` / `mutationHandlers` / `subscriptionHandlers` bundles near the bottom of `flutter_inapp_purchase.dart` | Mock + test in `test/ios_methods_test.dart` (and the `errors_unit_test.dart` error-mapping test)                                                                                                                                                                 |
-| **kmp-iap**                | `library/src/commonMain/.../openiap/Types.kt` (generated interface) | exposed via `KmpInAppPurchase` / `kmpIapInstance`                                                                                                                                                                                                                                                                                                                                                                | `library/src/iosMain/.../InAppPurchaseIOS.kt` — must call `openIapModule.<name>WithCompletion { ... }`, **never** `throw UnsupportedOperationException`                                                                                                                                                                                                                                                                                                                                                                                                                                              | Not required (interface dispatch)                                                                                      | `library/src/commonTest/` if testable cross-platform                                                                                                                                                                                                             |
-| **godot-iap**              | `addons/godot-iap/types.gd` (generated)                             | public `snake_case` function in `addons/godot-iap/godot_iap.gd`                                                                                                                                                                                                                                                                                                                                                  | `ios-gdextension/Sources/GodotIap/GodotIap.swift` (iOS), `android/src/main/java/.../GodotIap.java` (Android)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Not required                                                                                                           | Manual testing — no automated test suite yet                                                                                                                                                                                                                     |
-| **maui-iap**               | `src/OpenIap.Maui/Types.cs` (generated)                             | `OpenIap.QueryResolver` / `MutationResolver` interfaces in `Types.cs`; `IOpenIap` adds the native purchase-listener contract; static facade is `OpenIap.Maui.OpenIapClient` (`OpenIap.Maui.Iap` remains as a legacy shim); app-facing IAPKit helpers are exposed via `OpenIapClient.KitApi(...)`                                                                 | Android: `OpenIapMauiModule.kt` in `libraries/maui-iap/android/openiap/` (JSON-shaped Java facade over `packages/google`), bound by `OpenIap.Maui.Bindings.Android.csproj`, consumed by `Platforms/Android/OpenIapAndroid.cs`. Google Billing / Play Services / Gson / AndroidX / Kotlin dependencies must stay NuGet `PackageReference`s, not fat-bundled AARs. iOS / macCatalyst: existing `OpenIapModule+ObjC.swift` bridge in `packages/apple`, bound by hand-written `OpenIap.Maui.Bindings.iOS/ApiDefinition.cs`, consumed by `Platforms/iOS/OpenIapIOS.cs` (+ subclass `OpenIapMacCatalyst`). | Not required (interface dispatch)                                                                                      | Example app `libraries/maui-iap/example/OpenIap.Maui.Example` builds for net9.0-android / net9.0-ios / net9.0-maccatalyst; package CI builds net9/net10 shared, Android, iOS, and macCatalyst TFMs; xUnit covers generated serialization, error mapping, and the `KitApiClient` HTTP contract (manual device testing remains for purchase flow) |
+| Library                    | 1. Type declared                                                    | 2. Public API exposed                                                                                                                                                                                                                              | 3. Platform bridge                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   | 4. Wired into handlers bundle                                                                                          | 5. Test coverage                                                                                                                                                                                                                                                                                                                                                                                   |
+| -------------------------- | ------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **react-native-iap**       | `src/types.ts` (generated)                                          | `src/index.ts` export (Nitro or composed TS)                                                                                                                                                                                                       | `ios/HybridRnIap.swift` (iOS), `android/.../HybridRnIap.kt` (Android)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                | Not required (flat exports)                                                                                            | Mock stub in all 4 `mockIap` objects in `__tests__/` (per memory)                                                                                                                                                                                                                                                                                                                                  |
+| **expo-iap**               | `src/types.ts` (generated)                                          | `src/modules/ios.ts` / `android.ts` export, re-exported from `src/index.ts`                                                                                                                                                                        | `ios/ExpoIapModule.swift` `AsyncFunction`, `android/.../ExpoIapModule.kt`                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                            | Not required (flat exports)                                                                                            | `src/modules/__tests__/*.test.ts`                                                                                                                                                                                                                                                                                                                                                                  |
+| **flutter_inapp_purchase** | `lib/types.dart` (generated)                                        | getter on `FlutterInappPurchase` in `lib/flutter_inapp_purchase.dart`                                                                                                                                                                              | `case "<name>":` in `ios/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift` and `macos/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift`, Android plugin `onMethodCall`                                                                                                                                                                                                                                                                                                                                                   | `queryHandlers` / `mutationHandlers` / `subscriptionHandlers` bundles near the bottom of `flutter_inapp_purchase.dart` | Mock + test in `test/ios_methods_test.dart` (and the `errors_unit_test.dart` error-mapping test)                                                                                                                                                                                                                                                                                                   |
+| **kmp-iap**                | `library/src/commonMain/.../openiap/Types.kt` (generated interface) | exposed via `KmpInAppPurchase` / `kmpIapInstance`                                                                                                                                                                                                  | `library/src/iosMain/.../InAppPurchaseIOS.kt` — must call `openIapModule.<name>WithCompletion { ... }`, **never** `throw UnsupportedOperationException`                                                                                                                                                                                                                                                                                                                                                                                                                                              | Not required (interface dispatch)                                                                                      | `library/src/commonTest/` if testable cross-platform                                                                                                                                                                                                                                                                                                                                               |
+| **godot-iap**              | `addons/godot-iap/types.gd` (generated)                             | public `snake_case` function in `addons/godot-iap/godot_iap.gd`                                                                                                                                                                                    | `ios-gdextension/Sources/GodotIap/GodotIap.swift` (iOS), `android/src/main/java/.../GodotIap.java` (Android)                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         | Not required                                                                                                           | `make test` covers generated types, API surface, native-extension loading, envelope parsing, and public GDScript behavior; physical devices remain required for store purchases                                                                                                                                                                                                                     |
+| **maui-iap**               | `src/OpenIap.Maui/Types.cs` (generated)                             | `OpenIap.QueryResolver` / `MutationResolver` interfaces in `Types.cs`; `IOpenIap` adds the native purchase-listener contract; static facade is `OpenIap.Maui.OpenIapClient`; app-facing IAPKit helpers are exposed via `OpenIapClient.KitApi(...)` | Android: `OpenIapMauiModule.kt` in `libraries/maui-iap/android/openiap/` (JSON-shaped Java facade over `packages/google`), bound by `OpenIap.Maui.Bindings.Android.csproj`, consumed by `Platforms/Android/OpenIapAndroid.cs`. Google Billing / Play Services / Gson / AndroidX / Kotlin dependencies must stay NuGet `PackageReference`s, not fat-bundled AARs. iOS / macCatalyst: existing `OpenIapModule+ObjC.swift` bridge in `packages/apple`, bound by hand-written `OpenIap.Maui.Bindings.iOS/ApiDefinition.cs`, consumed by `Platforms/iOS/OpenIapIOS.cs` (+ subclass `OpenIapMacCatalyst`). | Not required (interface dispatch)                                                                                      | OpenIap.Maui 2.x targets supported .NET 10 only. The example app `libraries/maui-iap/example/OpenIap.Maui.Example` builds for net10.0-android / net10.0-ios / net10.0-maccatalyst; package CI builds net10 shared, Android, iOS, and macCatalyst TFMs; xUnit covers generated serialization, error mapping, and the `KitApiClient` HTTP contract (manual device testing remains for purchase flow) |
 
 ### Platform suffix rule (who needs what)
 
@@ -1081,11 +1081,11 @@ openiap/
 
 The Google package supports **three build flavors**:
 
-| Flavor           | Store             | API                                  | Description              |
-| ---------------- | ----------------- | ------------------------------------ | ------------------------ |
-| `play` (default) | Google Play Store | Google Play Billing Library          | Standard Android billing |
-| `horizon`        | Meta Quest Store  | Meta Horizon Billing Compatibility   | VR/Quest billing         |
-| `amazon`         | Amazon Appstore   | Amazon Appstore SDK                  | Fire OS billing          |
+| Flavor           | Store             | API                                | Description              |
+| ---------------- | ----------------- | ---------------------------------- | ------------------------ |
+| `play` (default) | Google Play Store | Google Play Billing Library        | Standard Android billing |
+| `horizon`        | Meta Quest Store  | Meta Horizon Billing Compatibility | VR/Quest billing         |
+| `amazon`         | Amazon Appstore   | Amazon Appstore SDK                | Fire OS billing          |
 
 **Flavor-specific source directories:**
 
@@ -1129,11 +1129,11 @@ The Google package supports **three build flavors**:
 
 ### Version Compatibility
 
-| Flavor  | Billing Library               | Version                     |
-| ------- | ----------------------------- | --------------------------- |
-| Play    | Google Play Billing           | 9.1.0                       |
-| Horizon | horizon-billing-compatibility | 2.0.0 (GPB 7.0 compatible)  |
-| Amazon  | Amazon Appstore SDK           | 3.0.9                       |
+| Flavor  | Billing Library               | Version                    |
+| ------- | ----------------------------- | -------------------------- |
+| Play    | Google Play Billing           | 9.1.0                      |
+| Horizon | horizon-billing-compatibility | 2.0.0 (GPB 7.0 compatible) |
+| Amazon  | Amazon Appstore SDK           | 3.0.9                      |
 
 **CRITICAL**: `src/main/` is also compiled by the Amazon flavor, whose SDK is
 not Google Billing-compatible. Keep native store SDK types and calls out of
@@ -3937,7 +3937,13 @@ This document provides external API reference for Apple's StoreKit 2 framework.
 | `introductoryOfferEligibility`                                 | WWDC 2025                          | Set eligibility via purchase option                                                                 |
 | `SubscriptionStatus` by Transaction ID                         | WWDC 2025                          | `status(for: transactionID:)`                                                                       |
 | Monthly subscriptions with a 12-month commitment               | iOS 26.4+ runtime / Xcode 26.5 SDK | Monthly billing option for annual auto-renewable subscriptions                                      |
-| Group purchases and volume purchasing                          | WWDC 2026                          | Multi-seat auto-renewable subscriptions through StoreKit 2 and Apple Business / School Manager      |
+| Subscription Bundles and Suites                               | Apple 27 / Xcode 27 beta SDK       | Read-only product, bundled-subscription, transaction, and renewal metadata                           |
+| Bundle ownership and revocation metadata                      | Xcode 27 beta SDK                   | Back-deployed assigned ownership, bundle-upgrade reason, assignment revocation, and unbundling data  |
+| `AppTransaction.storeType`, `revocationDate`                  | Xcode 27 beta SDK                   | App-acquisition channel and back-deployed revocation timestamp                                       |
+| `AppTransaction.all`                                          | Apple 27 / Xcode 27 beta SDK       | Async sequence of app-acquisition records; not exported as an OpenIAP 3 operation                    |
+| `AppStore.Platform.managed`                                   | Xcode 27 beta SDK                   | Back-deployed managed-distribution acquisition platform                                              |
+| Advanced Commerce item partners                               | Apple 27 / Xcode 27 beta SDK       | Partner identifiers and names in each item-details JSON payload                                      |
+| Group purchases and volume purchasing                          | Announced at WWDC 2026             | Group Purchases are planned for later in 2026; Xcode 27 beta 4 has no public StoreKit group API      |
 | Retention Messaging                                            | WWDC 2026                          | Cancellation-flow messaging and offers, including real-time server decisioning                      |
 | Retention offer type                                           | WWDC 2026                          | Signed transaction / renewal info can report offer type `5` for retention offers                    |
 | Offer codes for all IAP types                                  | 2026                               | Offer codes expand beyond auto-renewable subscriptions; IAP promo-code creation ends March 26, 2026 |
@@ -3962,7 +3968,12 @@ issue event.
 ### WWDC 2026 Updates
 
 - **Monthly subscriptions with a 12-month commitment**: The Xcode 26.5 SDK adds a monthly billing plan for one-year auto-renewable subscriptions. Customers can subscribe on iOS, iPadOS, macOS, tvOS, and visionOS 26.4+.
-- **Group purchases and volume purchasing**: Auto-renewable subscriptions using StoreKit 2 can be sold to groups and organizations. In-app group purchases pass a requested seat count into the StoreKit purchase flow; Apple Business Manager and Apple School Manager handle volume purchasing.
+- **Subscription Bundles and Suites**: The Xcode 27 beta SDK exposes read-only product types, component-subscription metadata, bundle transaction identifiers, and renewal unbundling state. OpenIAP maps these fields without inventing enrollment, seat, or management operations.
+- **Bundle ownership and revocation metadata**: StoreKit can report assigned ownership, a bundle-upgrade revocation reason, assignment revocation type, and an unbundled expiration reason. OpenIAP preserves these values without adding assignment-management operations.
+- **App acquisition and Advanced Commerce metadata**: `AppTransaction.storeType` reports the acquisition channel, `revocationDate` reports a revoked app acquisition, `AppStore.Platform.managed` identifies managed distribution, and Advanced Commerce item details expose partner identifiers and names.
+- **App-acquisition history**: StoreKit exposes `AppTransaction.all` as an async sequence. OpenIAP 3 does not export it because app-acquisition history is a different contract from the in-app transaction history returned by `getAllTransactionsIOS`.
+- **Presentation and refund errors**: The Xcode 27 SDK adds `StoreKitError.invalidPresentationContext` and `RefundRequestError.ineligible`. OpenIAP keeps these inside its canonical `PurchaseError` boundary instead of expanding the cross-platform error enum with Apple-only cases.
+- **Group purchases and volume purchasing**: Apple announced multi-seat subscriptions and an Apple-managed invitation flow. Group Purchases are scheduled for later in 2026 and Xcode 27 beta 4 does not expose a public StoreKit group-purchase contract. Volume purchasing is managed through Apple Business Manager and Apple School Manager.
 - **Volume pricing**: App Store Connect can configure up to five seat-count price bands for larger subscription purchases.
 - **Retention Messaging**: App Store Connect can show cancellation-flow retention messages and offers. Real-time Retention Messaging adds a server-to-server decision point and supports a switch-plan view for monthly subscriptions with a 12-month commitment.
 - **Offer-code expansion**: Offer codes now support consumables, non-consumables, non-renewing subscriptions, and broader auto-renewable subscription scenarios. Starting March 26, 2026, App Store Connect no longer creates new promo codes for In-App Purchases.
@@ -3984,10 +3995,55 @@ SwiftUI exposes the same result through
 Xcode 27 beta SDK and are currently beta. Xcode 26.x SDKs expose only the
 legacy redemption sheet API.
 
-> **OpenIAP gap**: `presentCodeRedemptionSheetIOS` still wraps the legacy
-> `SKPaymentQueue.presentCodeRedemptionSheet()` API and returns only a Boolean.
-> Redeem options and the verified transaction result need a new end-to-end
-> schema and wrapper contract.
+OpenIAP 3 changes `presentCodeRedemptionSheetIOS` to return `PurchaseIOS?`.
+Xcode 27 builds call the new API, require a verified result, and return the
+mapped transaction. Xcode 26 builds retain the legacy sheet; iOS and Mac
+Catalyst 14–26 therefore return `nil` after presentation and rely on the
+transaction listener or explicit purchase reconciliation. Xcode 27 beta 4
+declares `RedeemOption`, but its public symbol graph exposes no constructible
+option values, so OpenIAP currently passes an empty set.
+
+### Subscription Bundles and Suites (Xcode 27 beta)
+
+StoreKit 27 introduces two subscription product kinds:
+
+- `subscriptionBundle`: independently purchasable subscriptions sold together.
+- `subscriptionSuite`: subscriptions available only as one suite.
+
+OpenIAP treats both as cross-platform `subs` products and preserves the detailed
+Apple value through `ProductTypeIOS.subscriptionBundle` or
+`ProductTypeIOS.subscriptionSuite`. `ProductSubscriptionIOS` also exposes
+`bundledSubscriptionsIOS`, including each component's identity, display
+metadata, price, Family Sharing state, and subscription-group metadata.
+
+Existing transaction and renewal APIs return the Apple bundle linkage without
+adding a new purchase operation:
+
+- `PurchaseIOS.bundleOriginalTransactionIdIOS`,
+  `bundleProductIdIOS`, `bundleSubscriptionGroupIdIOS`,
+  `bundleTransactionIdIOS`, and `previousOriginalTransactionIdIOS`.
+- `RenewalInfoIOS.bundleOriginalTransactionId`, `bundleProductId`,
+  `bundleSubscriptionGroupId`, and `willUnbundle`.
+- `PurchaseIOS.ownershipTypeIOS` can report `assigned`,
+  `revocationReasonIOS` can report `upgraded_to_bundle`, and
+  `revocationTypeIOS` preserves StoreKit's raw revocation type, including
+  assignment revocation.
+- `RenewalInfoIOS.expirationReason` preserves StoreKit's raw integer string,
+  including the Xcode 27 SDK's back-deployed `unbundled` case.
+- `AppTransaction.storeType` and `revocationDate`; `originalPlatform` can
+  report the back-deployed `managed` acquisition platform.
+- Advanced Commerce item-details JSON includes `partners` on Apple 27.
+
+These fields are compiled only with the Xcode 27 SDK. StoreKit back-deploys the
+transaction and renewal bundle metadata where Apple declares it available, but
+the new product kinds and bundled-product catalog require Apple 27 runtimes.
+Test the catalog and transaction mappings with an Xcode 27 StoreKit
+configuration before using beta metadata in production logic.
+
+StoreKit 27 also exposes `AppTransaction.all`. OpenIAP 3 intentionally keeps
+`getAppTransactionIOS` as the current verified app-acquisition record and
+`getAllTransactionsIOS` as in-app transaction history; it does not conflate
+either API with Apple's new app-acquisition history sequence.
 
 ## appAccountToken
 
@@ -4236,6 +4292,10 @@ let appTransaction = try await AppTransaction.shared
 // New in iOS 18.4 (back-deployed to iOS 15)
 let appTransactionID = appTransaction.appTransactionID  // Globally unique per Apple Account
 let originalPlatform = appTransaction.originalPlatform   // Original purchase platform
+
+// Public in the Xcode 27 SDK and back-deployed to these existing runtimes
+let revocationDate = appTransaction.revocationDate        // App-acquisition revocation
+let storeType = appTransaction.storeType                  // Acquisition store channel
 ```
 
 ### appTransactionID
@@ -4244,6 +4304,11 @@ let originalPlatform = appTransaction.originalPlatform   // Original purchase pl
 - Remains consistent across redownloads, refunds, repurchases, and storefront changes
 - Works with Family Sharing (each family member gets unique ID)
 - Back-deployed to iOS 15
+
+The Xcode 27 SDK also adds the back-deployed `managed` platform case, which
+OpenIAP returns through `originalPlatform`, and exposes `revocationDate` for
+revoked app-acquisition records. `storeType` identifies consumer, education,
+enterprise, or a future StoreKit acquisition channel.
 
 ## Transaction Updates (iOS 18.4+)
 
@@ -4293,14 +4358,16 @@ let result = try await product.purchase(options: [
 
 ## Group Purchases and Volume Purchasing (WWDC 2026)
 
-StoreKit 2 auto-renewable subscriptions can be sold to multiple seats for
-groups or organizations. Volume purchasing is handled by Apple Business Manager
-and Apple School Manager. For in-app group purchases, the app starts a StoreKit
-purchase with the requested seat count, then Apple can manage invitation links
-and seat assignment unless the app integrates custom group management.
+Apple announced multi-seat auto-renewable subscriptions for groups or
+organizations, with an Apple-managed invitation flow. Volume purchasing is
+handled by Apple Business Manager and Apple School Manager.
 
-> **OpenIAP gap**: No public OpenIAP request field exists yet for group-purchase
-> seat count or StoreKit group-management identifiers.
+Group Purchases are planned for later in 2026. The Xcode 27 beta 4 StoreKit
+module and its public symbol graph expose no group-purchase request option,
+seat-count field, transaction property, or group-management identifier.
+OpenIAP must not invent a schema contract before Apple publishes one. Add the
+feature only after a public SDK symbol can be compiled, exercised with StoreKit
+Testing, and mapped consistently across every OpenIAP language target.
 
 ## Retention Messaging (WWDC 2026)
 

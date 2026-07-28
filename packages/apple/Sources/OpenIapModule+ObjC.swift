@@ -721,13 +721,13 @@ import StoreKit
     // tvOS: presentCodeRedemptionSheet is unavailable on tvOS
     // tvOS: showManageSubscriptions requires window scene UI not available on tvOS (subscriptions managed in Settings)
     #if !os(tvOS)
-    @objc func presentCodeRedemptionSheetIOSWithCompletion(_ completion: @escaping (Bool, Error?) -> Void) {
+    @objc func presentCodeRedemptionSheetIOSWithCompletion(_ completion: @escaping (Any?, Error?) -> Void) {
         Task {
             do {
                 let result = try await presentCodeRedemptionSheetIOS()
-                completion(result, nil)
+                completion(result.map { OpenIapSerialization.encode($0) }, nil)
             } catch {
-                completion(false, error)
+                completion(nil, error)
             }
         }
     }

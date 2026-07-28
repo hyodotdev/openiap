@@ -506,7 +506,7 @@ public final class OpenIapStore: ObservableObject {
         _ = try await presentCodeRedemptionSheetResultIOS()
     }
 
-    public func presentCodeRedemptionSheetResultIOS() async throws -> Bool {
+    public func presentCodeRedemptionSheetResultIOS() async throws -> PurchaseIOS? {
         try await module.presentCodeRedemptionSheetIOS()
     }
 

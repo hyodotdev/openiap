@@ -492,7 +492,8 @@ function APIsIndex() {
                 </Link>
               </td>
               <td>
-                Show the App Store offer code redemption sheet. See{' '}
+                Show the App Store offer code redemption sheet and return its
+                verified transaction on Apple 27+. See{' '}
                 <Link to="/docs/features/offer-code-redemption">
                   Offer Code Redemption
                 </Link>

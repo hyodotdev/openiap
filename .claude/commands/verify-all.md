@@ -121,15 +121,10 @@ set -euo pipefail
 # MAUI shared contracts, Android bindings, and platform library
 (cd libraries/maui-iap && \
   dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj \
-    -p:TargetFrameworks=net9.0 --nologo && \
-  dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj \
     -p:TargetFrameworks=net10.0 --nologo && \
   dotnet run \
     --project tests/OpenIap.Maui.ContractTests/OpenIap.Maui.ContractTests.csproj \
-    --framework net9.0 -p:TargetFrameworks=net9.0 --no-launch-profile && \
-  dotnet run \
-    --project tests/OpenIap.Maui.ContractTests/OpenIap.Maui.ContractTests.csproj \
-    --framework net10.0 -p:TargetFrameworks=net10.0 --no-launch-profile)
+    --framework net10.0 --no-launch-profile)
 (cd packages/google && ./gradlew \
   :openiap:assemblePlayRelease \
   :openiap:assembleAmazonRelease \
@@ -146,42 +141,25 @@ set -euo pipefail
       :openiap:assembleRelease -PopenIapAndroidStore="$store")
     dotnet build \
       src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj \
-      -p:TargetFrameworks=net9.0-android \
+      -p:TargetFrameworks=net10.0-android \
       -p:OpenIapAndroidStore="$store" \
       "${DOTNET_BUILD_ARGS[@]}"
     dotnet build \
       src/OpenIap.Maui/OpenIap.Maui.csproj \
-      -p:TargetFrameworks=net9.0-android \
+      -p:TargetFrameworks=net10.0-android \
       -p:OpenIapAndroidStore="$store" \
       -p:BuildProjectReferences=false \
       "${DOTNET_BUILD_ARGS[@]}"
-    if [ "$store" = play ]; then
-      dotnet build \
-        src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj \
-        -p:TargetFrameworks=net10.0-android \
-        -p:OpenIapAndroidStore=play \
-        "${DOTNET_BUILD_ARGS[@]}"
-      dotnet build \
-        src/OpenIap.Maui/OpenIap.Maui.csproj \
-        -p:TargetFrameworks=net10.0-android \
-        -p:OpenIapAndroidStore=play \
-        -p:BuildProjectReferences=false \
-        "${DOTNET_BUILD_ARGS[@]}"
-    fi
   done
 )
 
 # MAUI iOS/macCatalyst binding and platform library (requires xcodegen + MAUI workload)
 bash packages/apple/scripts/build-xcframework.sh
 (cd libraries/maui-iap/src/OpenIap.Maui.Bindings.iOS && \
-  dotnet build -p:TargetFrameworks=net9.0-ios --nologo && \
   dotnet build -p:TargetFrameworks=net10.0-ios --nologo && \
-  dotnet build -p:TargetFrameworks=net9.0-maccatalyst --nologo && \
   dotnet build -p:TargetFrameworks=net10.0-maccatalyst --nologo)
 (cd libraries/maui-iap/src/OpenIap.Maui && \
-  dotnet build -p:TargetFrameworks=net9.0-ios --nologo && \
   dotnet build -p:TargetFrameworks=net10.0-ios --nologo && \
-  dotnet build -p:TargetFrameworks=net9.0-maccatalyst --nologo && \
   dotnet build -p:TargetFrameworks=net10.0-maccatalyst --nologo)
 
 # Documentation/context consistency and patch hygiene

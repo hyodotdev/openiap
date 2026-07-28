@@ -99,6 +99,23 @@ export const buildPurchaseRows = (purchase: Purchase): PurchaseDetailRow[] => {
     pushRow(rows, 'subscriptionGroupIdIOS', iosPurchase.subscriptionGroupIdIOS);
     pushRow(
       rows,
+      'bundleOriginalTransactionIdIOS',
+      iosPurchase.bundleOriginalTransactionIdIOS,
+    );
+    pushRow(rows, 'bundleProductIdIOS', iosPurchase.bundleProductIdIOS);
+    pushRow(
+      rows,
+      'bundleSubscriptionGroupIdIOS',
+      iosPurchase.bundleSubscriptionGroupIdIOS,
+    );
+    pushRow(rows, 'bundleTransactionIdIOS', iosPurchase.bundleTransactionIdIOS);
+    pushRow(
+      rows,
+      'previousOriginalTransactionIdIOS',
+      iosPurchase.previousOriginalTransactionIdIOS,
+    );
+    pushRow(
+      rows,
       'originalTransactionIdentifierIOS',
       iosPurchase.originalTransactionIdentifierIOS,
     );
@@ -127,6 +144,7 @@ export const buildPurchaseRows = (purchase: Purchase): PurchaseDetailRow[] => {
       formatDate(iosPurchase.revocationDateIOS),
     );
     pushRow(rows, 'revocationReasonIOS', iosPurchase.revocationReasonIOS);
+    pushRow(rows, 'revocationTypeIOS', iosPurchase.revocationTypeIOS);
     pushRow(rows, 'webOrderLineItemIdIOS', iosPurchase.webOrderLineItemIdIOS);
     if (iosPurchase.offerIOS) {
       pushRow(rows, 'offerIOS.id', iosPurchase.offerIOS.id);

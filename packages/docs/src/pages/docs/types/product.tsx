@@ -186,8 +186,11 @@ function Product() {
                       <td>
                         Detailed product-type wire value:{' '}
                         <code>consumable</code>, <code>non-consumable</code>,{' '}
-                        <code>auto-renewable-subscription</code>, or{' '}
-                        <code>non-renewing-subscription</code>
+                        <code>auto-renewable-subscription</code>,{' '}
+                        <code>non-renewing-subscription</code>,{' '}
+                        <code>subscription-bundle</code>, or{' '}
+                        <code>subscription-suite</code>. The final two values
+                        require an Xcode 27 build and Apple 27 runtime.
                       </td>
                     </tr>
                     <tr>
@@ -225,6 +228,19 @@ function Product() {
                           <code>SubscriptionPricingTermsIOS</code>
                         </Link>
                         .
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>bundledSubscriptionsIOS</code>
+                      </td>
+                      <td>
+                        Component subscriptions for an Apple Subscription Bundle
+                        or Suite, including product identity, display metadata,
+                        price, Family Sharing state, and subscription-group
+                        metadata. Available on{' '}
+                        <code>ProductSubscriptionIOS</code> with Xcode 27 and
+                        Apple 27; otherwise <code>null</code>.
                       </td>
                     </tr>
                     <tr>

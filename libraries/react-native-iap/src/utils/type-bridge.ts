@@ -100,6 +100,14 @@ function normalizeProductTypeIOS(value?: Nullable<string>): ProductTypeIOS {
     case 'non_renewing_subscription':
     case 'non-renewing-subscription':
       return 'non-renewing-subscription';
+    case 'subscriptionbundle':
+    case 'subscription_bundle':
+    case 'subscription-bundle':
+      return 'subscription-bundle';
+    case 'subscriptionsuite':
+    case 'subscription_suite':
+    case 'subscription-suite':
+      return 'subscription-suite';
     default:
       if (value) {
         RnIapConsole.warn(
@@ -198,6 +206,13 @@ function convertNitroRenewalInfoToRenewalInfoIOS(
 ): RenewalInfoIOS {
   return {
     autoRenewPreference: toNullableString(renewalInfo.autoRenewPreference),
+    bundleOriginalTransactionId: toNullableString(
+      renewalInfo.bundleOriginalTransactionId,
+    ),
+    bundleProductId: toNullableString(renewalInfo.bundleProductId),
+    bundleSubscriptionGroupId: toNullableString(
+      renewalInfo.bundleSubscriptionGroupId,
+    ),
     commitmentInfo: renewalInfo.commitmentInfo ?? null,
     expirationReason: toNullableString(renewalInfo.expirationReason),
     gracePeriodExpirationDate: toNullableNumber(
@@ -214,6 +229,7 @@ function convertNitroRenewalInfoToRenewalInfoIOS(
     renewalOfferId: toNullableString(renewalInfo.renewalOfferId),
     renewalOfferType: toNullableString(renewalInfo.renewalOfferType),
     willAutoRenew: renewalInfo.willAutoRenew ?? false,
+    willUnbundle: toNullableBoolean(renewalInfo.willUnbundle),
   };
 }
 
@@ -284,6 +300,19 @@ export function convertNitroProductToProduct(
       }
     } else {
       iosProduct.pricingTermsIOS = null;
+    }
+
+    if (nitroProduct.bundledSubscriptionsIOS) {
+      try {
+        const parsed = JSON.parse(nitroProduct.bundledSubscriptionsIOS);
+        iosProduct.bundledSubscriptionsIOS = Array.isArray(parsed)
+          ? parsed
+          : null;
+      } catch {
+        iosProduct.bundledSubscriptionsIOS = null;
+      }
+    } else {
+      iosProduct.bundledSubscriptionsIOS = null;
     }
 
     // Parse standardized subscriptionOffers (cross-platform, OpenIAP 1.3.10+)
@@ -396,6 +425,16 @@ export function convertNitroPurchaseToPurchase(
       transactionId,
       advancedCommerceInfoIOS: nitroPurchase.advancedCommerceInfoIOS ?? null,
       billingPlanTypeIOS: nitroPurchase.billingPlanTypeIOS ?? null,
+      bundleOriginalTransactionIdIOS: toNullableString(
+        nitroPurchase.bundleOriginalTransactionIdIOS,
+      ),
+      bundleProductIdIOS: toNullableString(nitroPurchase.bundleProductIdIOS),
+      bundleSubscriptionGroupIdIOS: toNullableString(
+        nitroPurchase.bundleSubscriptionGroupIdIOS,
+      ),
+      bundleTransactionIdIOS: toNullableString(
+        nitroPurchase.bundleTransactionIdIOS,
+      ),
       commitmentInfoIOS: nitroPurchase.commitmentInfoIOS ?? null,
       quantityIOS: toNullableNumber(nitroPurchase.quantityIOS),
       originalTransactionDateIOS: toNullableNumber(
@@ -403,6 +442,9 @@ export function convertNitroPurchaseToPurchase(
       ),
       originalTransactionIdentifierIOS: toNullableString(
         nitroPurchase.originalTransactionIdentifierIOS,
+      ),
+      previousOriginalTransactionIdIOS: toNullableString(
+        nitroPurchase.previousOriginalTransactionIdIOS,
       ),
       appAccountToken: toNullableString(nitroPurchase.appAccountToken),
       appBundleIdIOS: toNullableString(nitroPurchase.appBundleIdIOS),
@@ -428,6 +470,7 @@ export function convertNitroPurchaseToPurchase(
       ),
       revocationDateIOS: toNullableNumber(nitroPurchase.revocationDateIOS),
       revocationReasonIOS: toNullableString(nitroPurchase.revocationReasonIOS),
+      revocationTypeIOS: toNullableString(nitroPurchase.revocationTypeIOS),
       storefrontCountryCodeIOS: toNullableString(
         nitroPurchase.storefrontCountryCodeIOS,
       ),

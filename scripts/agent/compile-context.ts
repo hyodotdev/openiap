@@ -774,7 +774,7 @@ interface PurchaseError {
 
 ### iOS
 - syncIOS() - Sync with App Store
-- presentCodeRedemptionSheetIOS() - Show offer code UI
+- presentCodeRedemptionSheetIOS() - Show offer code UI and return a verified PurchaseIOS on Apple 27+ (null after the legacy sheet)
 - showManageSubscriptionsIOS() - Open subscription management
 - beginRefundRequestIOS() - Start refund flow
 

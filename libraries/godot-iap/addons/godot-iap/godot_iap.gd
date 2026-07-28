@@ -990,15 +990,23 @@ func get_all_transactions_ios() -> Array:
 						purchases.append(Types.PurchaseIOS.from_dict(tx))
 	return purchases
 
-## Present code redemption sheet (iOS only).
-## @return bool - true if the sheet was presented successfully
+## Present the code redemption sheet (iOS only).
+## @return Types.PurchaseIOS on iOS 27+ after verified redemption, or null
+## after the legacy sheet is presented on earlier iOS versions.
 ##
 ## See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
-func present_code_redemption_sheet_ios() -> bool:
+func present_code_redemption_sheet_ios() -> Variant:
 	if not (_native_plugin and _platform == "iOS"):
-		return false
+		return null
 	var payload = await _call_ios_async("presentCodeRedemptionSheetIOS")
-	return payload.get("success", false)
+	if not payload.get("success", false):
+		return null
+	var purchase_json = payload.get("purchaseJson", "")
+	if purchase_json is String and not purchase_json.is_empty():
+		var purchase = JSON.parse_string(purchase_json)
+		if purchase is Dictionary:
+			return Types.PurchaseIOS.from_dict(purchase)
+	return null
 
 ## Show manage subscriptions UI (iOS only).
 ## @return Array[Types.PurchaseIOS] - changed purchases

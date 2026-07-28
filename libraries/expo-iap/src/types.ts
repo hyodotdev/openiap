@@ -98,10 +98,24 @@ export interface AppTransaction {
   deviceVerificationNonce: string;
   environment: string;
   originalAppVersion: string;
+  /**
+   * Original App Store platform raw value. Xcode 27 adds the back-deployed managed
+   * acquisition-platform value.
+   */
   originalPlatform?: (string | null);
   originalPurchaseDate: number;
   preorderDate?: (number | null);
+  /**
+   * Date the app-acquisition transaction was revoked (epoch milliseconds).
+   * Available through the Xcode 27 SDK and back-deployed to Apple 16+.
+   */
+  revocationDate?: (number | null);
   signedDate: number;
+  /**
+   * Store channel of the original app purchase: consumer, education, enterprise,
+   * or another future StoreKit value (Apple 27+ beta).
+   */
+  storeType?: (string | null);
 }
 
 /**
@@ -199,6 +213,22 @@ export interface BillingResultAndroid {
    * Provides additional context when responseCode indicates an error.
    */
   subResponseCode?: (SubResponseCodeAndroid | null);
+}
+
+/**
+ * Metadata for one auto-renewable subscription included in an Apple
+ * subscription bundle (Apple 27+ beta).
+ */
+export interface BundledSubscriptionIOS {
+  description: string;
+  displayName: string;
+  displayPrice: string;
+  id: string;
+  isFamilyShareable: boolean;
+  price: number;
+  subscriptionGroupDisplayName: string;
+  subscriptionGroupId: string;
+  subscriptionGroupLevel: number;
 }
 
 export interface DeepLinkOptions {
@@ -779,9 +809,14 @@ export interface Mutation {
   openRedeemOfferCodeAndroid: Promise<boolean>;
   /**
    * Show the App Store offer code redemption sheet.
+   * On iOS 27+, Mac Catalyst 27+, and visionOS 27+, returns the verified
+   * transaction produced by the redemption. Earlier iOS and Mac Catalyst
+   * versions present the legacy sheet and return null; reconcile purchases
+   * through the normal transaction listener or an explicit available-purchases
+   * refresh.
    * See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
    */
-  presentCodeRedemptionSheetIOS: Promise<boolean>;
+  presentCodeRedemptionSheetIOS?: Promise<(PurchaseIOS | null)>;
   /**
    * Present an external purchase link, StoreKit External (iOS 16+).
    * See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
@@ -1078,6 +1113,11 @@ export interface ProductSubscriptionAndroid extends ProductCommon {
 }
 
 export interface ProductSubscriptionIOS extends ProductCommon {
+  /**
+   * Subscriptions included in this Apple subscription bundle. Empty or null for
+   * every other product type (Apple 27+ beta).
+   */
+  bundledSubscriptionsIOS?: (BundledSubscriptionIOS[] | null);
   currency: string;
   debugDescription?: (string | null);
   description: string;
@@ -1116,7 +1156,7 @@ export interface ProductSubscriptionIOS extends ProductCommon {
 
 export type ProductType = 'in-app' | 'subs';
 
-export type ProductTypeIOS = 'consumable' | 'non-consumable' | 'auto-renewable-subscription' | 'non-renewing-subscription';
+export type ProductTypeIOS = 'consumable' | 'non-consumable' | 'auto-renewable-subscription' | 'non-renewing-subscription' | 'subscription-bundle' | 'subscription-suite';
 
 /**
  * JWS promotional offer input for iOS 15+ (StoreKit 2, WWDC 2025).
@@ -1221,6 +1261,17 @@ export interface PurchaseIOS extends PurchaseCommon {
   appBundleIdIOS?: (string | null);
   /** iOS 26.4+ billing plan selected for this transaction. */
   billingPlanTypeIOS?: (SubscriptionBillingPlanTypeIOS | null);
+  /**
+   * Original transaction identifier for the subscription bundle that produced
+   * this transaction (Apple 27+ SDK; back-deployed by StoreKit).
+   */
+  bundleOriginalTransactionIdIOS?: (string | null);
+  /** Product identifier of the subscription bundle that produced this transaction. */
+  bundleProductIdIOS?: (string | null);
+  /** Subscription-group identifier of the bundle that produced this transaction. */
+  bundleSubscriptionGroupIdIOS?: (string | null);
+  /** Bundle transaction identifier associated with this component transaction. */
+  bundleTransactionIdIOS?: (string | null);
   /** iOS 26.4+ progress information for monthly subscriptions with a 12-month commitment. */
   commitmentInfoIOS?: (TransactionCommitmentInfoIOS | null);
   countryCodeIOS?: (string | null);
@@ -1236,7 +1287,13 @@ export interface PurchaseIOS extends PurchaseCommon {
   offerIOS?: (PurchaseOfferIOS | null);
   originalTransactionDateIOS?: (number | null);
   originalTransactionIdentifierIOS?: (string | null);
+  /** StoreKit ownership raw value. Xcode 27 adds the back-deployed assigned value. */
   ownershipTypeIOS?: (string | null);
+  /**
+   * Original transaction identifier replaced when moving between a standalone
+   * subscription and a subscription bundle.
+   */
+  previousOriginalTransactionIdIOS?: (string | null);
   productId: string;
   purchaseState: PurchaseState;
   purchaseToken?: (string | null);
@@ -1246,7 +1303,13 @@ export interface PurchaseIOS extends PurchaseCommon {
   reasonStringRepresentationIOS?: (string | null);
   renewalInfoIOS?: (RenewalInfoIOS | null);
   revocationDateIOS?: (number | null);
+  /** Normalized StoreKit revocation reason, including upgraded_to_bundle. */
   revocationReasonIOS?: (string | null);
+  /**
+   * StoreKit revocation type, including assignment-revocation on Apple 26.4+
+   * when compiled with the Xcode 27 SDK.
+   */
+  revocationTypeIOS?: (string | null);
   /** Store where purchase was made */
   store: IapStore;
   storefrontCountryCodeIOS?: (string | null);
@@ -1451,14 +1514,20 @@ export interface RenewalCommitmentInfoIOS {
  */
 export interface RenewalInfoIOS {
   autoRenewPreference?: (string | null);
+  /** Original transaction identifier for the bundle used by the next renewal. */
+  bundleOriginalTransactionId?: (string | null);
+  /** Product identifier for the bundle used by the next renewal. */
+  bundleProductId?: (string | null);
+  /** Subscription-group identifier for the bundle used by the next renewal. */
+  bundleSubscriptionGroupId?: (string | null);
   /**
    * iOS 26.4+ renewal commitment metadata for monthly subscriptions with a
    * 12-month commitment.
    */
   commitmentInfo?: (RenewalCommitmentInfoIOS | null);
   /**
-   * When subscription expires due to cancellation/billing issue
-   * Possible values: "VOLUNTARY", "BILLING_ERROR", "DID_NOT_AGREE_TO_PRICE_INCREASE", "PRODUCT_NOT_AVAILABLE", "UNKNOWN"
+   * StoreKit's raw integer expiration-reason value represented as a string.
+   * Xcode 27 adds the back-deployed unbundled case. Preserve unknown future values.
    */
   expirationReason?: (string | null);
   /**
@@ -1497,6 +1566,8 @@ export interface RenewalInfoIOS {
    */
   renewalOfferType?: (string | null);
   willAutoRenew: boolean;
+  /** Whether this subscription will leave its bundle and renew standalone. */
+  willUnbundle?: (boolean | null);
 }
 
 /**

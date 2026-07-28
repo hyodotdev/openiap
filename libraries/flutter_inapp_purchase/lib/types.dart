@@ -837,7 +837,11 @@ enum ProductTypeIOS {
   Consumable('consumable'),
   NonConsumable('non-consumable'),
   AutoRenewableSubscription('auto-renewable-subscription'),
-  NonRenewingSubscription('non-renewing-subscription');
+  NonRenewingSubscription('non-renewing-subscription'),
+  /// A group of independently purchasable subscriptions sold together (Apple 27+ beta).
+  SubscriptionBundle('subscription-bundle'),
+  /// A group of subscriptions that are available only as one suite (Apple 27+ beta).
+  SubscriptionSuite('subscription-suite');
 
   const ProductTypeIOS(this.value);
   final String value;
@@ -853,6 +857,10 @@ enum ProductTypeIOS {
         return ProductTypeIOS.AutoRenewableSubscription;
       case 'non-renewing-subscription':
         return ProductTypeIOS.NonRenewingSubscription;
+      case 'subscription-bundle':
+        return ProductTypeIOS.SubscriptionBundle;
+      case 'subscription-suite':
+        return ProductTypeIOS.SubscriptionSuite;
     }
     throw ArgumentError('Unknown ProductTypeIOS value: $value');
   }
@@ -1360,7 +1368,9 @@ class AppTransaction {
     this.originalPlatform,
     required this.originalPurchaseDate,
     this.preorderDate,
+    this.revocationDate,
     required this.signedDate,
+    this.storeType,
   });
 
   final double appId;
@@ -1372,10 +1382,18 @@ class AppTransaction {
   final String deviceVerificationNonce;
   final String environment;
   final String originalAppVersion;
+  /// Original App Store platform raw value. Xcode 27 adds the back-deployed managed
+  /// acquisition-platform value.
   final String? originalPlatform;
   final double originalPurchaseDate;
   final double? preorderDate;
+  /// Date the app-acquisition transaction was revoked (epoch milliseconds).
+  /// Available through the Xcode 27 SDK and back-deployed to Apple 16+.
+  final double? revocationDate;
   final double signedDate;
+  /// Store channel of the original app purchase: consumer, education, enterprise,
+  /// or another future StoreKit value (Apple 27+ beta).
+  final String? storeType;
 
   factory AppTransaction.fromJson(Map<String, dynamic> json) {
     return AppTransaction(
@@ -1391,7 +1409,9 @@ class AppTransaction {
       originalPlatform: json['originalPlatform'] as String?,
       originalPurchaseDate: (json['originalPurchaseDate'] as num).toDouble(),
       preorderDate: (json['preorderDate'] as num?)?.toDouble(),
+      revocationDate: (json['revocationDate'] as num?)?.toDouble(),
       signedDate: (json['signedDate'] as num).toDouble(),
+      storeType: json['storeType'] as String?,
     );
   }
 
@@ -1410,7 +1430,9 @@ class AppTransaction {
       'originalPlatform': originalPlatform,
       'originalPurchaseDate': originalPurchaseDate,
       'preorderDate': preorderDate,
+      'revocationDate': revocationDate,
       'signedDate': signedDate,
+      'storeType': storeType,
     };
   }
 }
@@ -1549,6 +1571,61 @@ class BillingResultAndroid {
       'debugMessage': debugMessage,
       'responseCode': responseCode,
       'subResponseCode': subResponseCode?.toJson(),
+    };
+  }
+}
+
+/// Metadata for one auto-renewable subscription included in an Apple
+/// subscription bundle (Apple 27+ beta).
+class BundledSubscriptionIOS {
+  const BundledSubscriptionIOS({
+    required this.description,
+    required this.displayName,
+    required this.displayPrice,
+    required this.id,
+    required this.isFamilyShareable,
+    required this.price,
+    required this.subscriptionGroupDisplayName,
+    required this.subscriptionGroupId,
+    required this.subscriptionGroupLevel,
+  });
+
+  final String description;
+  final String displayName;
+  final String displayPrice;
+  final String id;
+  final bool isFamilyShareable;
+  final double price;
+  final String subscriptionGroupDisplayName;
+  final String subscriptionGroupId;
+  final int subscriptionGroupLevel;
+
+  factory BundledSubscriptionIOS.fromJson(Map<String, dynamic> json) {
+    return BundledSubscriptionIOS(
+      description: json['description'] as String,
+      displayName: json['displayName'] as String,
+      displayPrice: json['displayPrice'] as String,
+      id: json['id'] as String,
+      isFamilyShareable: json['isFamilyShareable'] as bool,
+      price: (json['price'] as num).toDouble(),
+      subscriptionGroupDisplayName: json['subscriptionGroupDisplayName'] as String,
+      subscriptionGroupId: json['subscriptionGroupId'] as String,
+      subscriptionGroupLevel: json['subscriptionGroupLevel'] as int,
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      '__typename': 'BundledSubscriptionIOS',
+      'description': description,
+      'displayName': displayName,
+      'displayPrice': displayPrice,
+      'id': id,
+      'isFamilyShareable': isFamilyShareable,
+      'price': price,
+      'subscriptionGroupDisplayName': subscriptionGroupDisplayName,
+      'subscriptionGroupId': subscriptionGroupId,
+      'subscriptionGroupLevel': subscriptionGroupLevel,
     };
   }
 }
@@ -2486,6 +2563,7 @@ class ProductSubscriptionAndroid extends ProductSubscription implements ProductC
 
 class ProductSubscriptionIOS extends ProductSubscription implements ProductCommon {
   const ProductSubscriptionIOS({
+    this.bundledSubscriptionsIOS,
     required this.currency,
     this.debugDescription,
     required this.description,
@@ -2512,6 +2590,9 @@ class ProductSubscriptionIOS extends ProductSubscription implements ProductCommo
     required this.typeIOS,
   });
 
+  /// Subscriptions included in this Apple subscription bundle. Empty or null for
+  /// every other product type (Apple 27+ beta).
+  final List<BundledSubscriptionIOS>? bundledSubscriptionsIOS;
   final String currency;
   final String? debugDescription;
   final String description;
@@ -2545,6 +2626,7 @@ class ProductSubscriptionIOS extends ProductSubscription implements ProductCommo
 
   factory ProductSubscriptionIOS.fromJson(Map<String, dynamic> json) {
     return ProductSubscriptionIOS(
+      bundledSubscriptionsIOS: (json['bundledSubscriptionsIOS'] as List<dynamic>?) == null ? null : (json['bundledSubscriptionsIOS'] as List<dynamic>?)!.map((e) => BundledSubscriptionIOS.fromJson(e as Map<String, dynamic>)).toList(),
       currency: json['currency'] as String,
       debugDescription: json['debugDescription'] as String?,
       description: json['description'] as String,
@@ -2576,6 +2658,7 @@ class ProductSubscriptionIOS extends ProductSubscription implements ProductCommo
   Map<String, dynamic> toJson() {
     return {
       '__typename': 'ProductSubscriptionIOS',
+      'bundledSubscriptionsIOS': bundledSubscriptionsIOS == null ? null : bundledSubscriptionsIOS!.map((e) => e.toJson()).toList(),
       'currency': currency,
       'debugDescription': debugDescription,
       'description': description,
@@ -2780,6 +2863,10 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
     this.appAccountToken,
     this.appBundleIdIOS,
     this.billingPlanTypeIOS,
+    this.bundleOriginalTransactionIdIOS,
+    this.bundleProductIdIOS,
+    this.bundleSubscriptionGroupIdIOS,
+    this.bundleTransactionIdIOS,
     this.commitmentInfoIOS,
     this.countryCodeIOS,
     this.currencyCodeIOS,
@@ -2795,6 +2882,7 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
     this.originalTransactionDateIOS,
     this.originalTransactionIdentifierIOS,
     this.ownershipTypeIOS,
+    this.previousOriginalTransactionIdIOS,
     required this.productId,
     required this.purchaseState,
     this.purchaseToken,
@@ -2805,6 +2893,7 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
     this.renewalInfoIOS,
     this.revocationDateIOS,
     this.revocationReasonIOS,
+    this.revocationTypeIOS,
     required this.store,
     this.storefrontCountryCodeIOS,
     this.subscriptionGroupIdIOS,
@@ -2823,6 +2912,15 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
   final String? appBundleIdIOS;
   /// iOS 26.4+ billing plan selected for this transaction.
   final SubscriptionBillingPlanTypeIOS? billingPlanTypeIOS;
+  /// Original transaction identifier for the subscription bundle that produced
+  /// this transaction (Apple 27+ SDK; back-deployed by StoreKit).
+  final String? bundleOriginalTransactionIdIOS;
+  /// Product identifier of the subscription bundle that produced this transaction.
+  final String? bundleProductIdIOS;
+  /// Subscription-group identifier of the bundle that produced this transaction.
+  final String? bundleSubscriptionGroupIdIOS;
+  /// Bundle transaction identifier associated with this component transaction.
+  final String? bundleTransactionIdIOS;
   /// iOS 26.4+ progress information for monthly subscriptions with a 12-month commitment.
   final TransactionCommitmentInfoIOS? commitmentInfoIOS;
   final String? countryCodeIOS;
@@ -2838,7 +2936,11 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
   final PurchaseOfferIOS? offerIOS;
   final double? originalTransactionDateIOS;
   final String? originalTransactionIdentifierIOS;
+  /// StoreKit ownership raw value. Xcode 27 adds the back-deployed assigned value.
   final String? ownershipTypeIOS;
+  /// Original transaction identifier replaced when moving between a standalone
+  /// subscription and a subscription bundle.
+  final String? previousOriginalTransactionIdIOS;
   final String productId;
   final PurchaseState purchaseState;
   final String? purchaseToken;
@@ -2848,7 +2950,11 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
   final String? reasonStringRepresentationIOS;
   final RenewalInfoIOS? renewalInfoIOS;
   final double? revocationDateIOS;
+  /// Normalized StoreKit revocation reason, including upgraded_to_bundle.
   final String? revocationReasonIOS;
+  /// StoreKit revocation type, including assignment-revocation on Apple 26.4+
+  /// when compiled with the Xcode 27 SDK.
+  final String? revocationTypeIOS;
   /// Store where purchase was made
   final IapStore store;
   final String? storefrontCountryCodeIOS;
@@ -2866,6 +2972,10 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
       appAccountToken: json['appAccountToken'] as String?,
       appBundleIdIOS: json['appBundleIdIOS'] as String?,
       billingPlanTypeIOS: json['billingPlanTypeIOS'] != null ? SubscriptionBillingPlanTypeIOS.fromJson(json['billingPlanTypeIOS'] as String) : null,
+      bundleOriginalTransactionIdIOS: json['bundleOriginalTransactionIdIOS'] as String?,
+      bundleProductIdIOS: json['bundleProductIdIOS'] as String?,
+      bundleSubscriptionGroupIdIOS: json['bundleSubscriptionGroupIdIOS'] as String?,
+      bundleTransactionIdIOS: json['bundleTransactionIdIOS'] as String?,
       commitmentInfoIOS: json['commitmentInfoIOS'] != null ? TransactionCommitmentInfoIOS.fromJson(json['commitmentInfoIOS'] as Map<String, dynamic>) : null,
       countryCodeIOS: json['countryCodeIOS'] as String?,
       currencyCodeIOS: json['currencyCodeIOS'] as String?,
@@ -2881,6 +2991,7 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
       originalTransactionDateIOS: (json['originalTransactionDateIOS'] as num?)?.toDouble(),
       originalTransactionIdentifierIOS: json['originalTransactionIdentifierIOS'] as String?,
       ownershipTypeIOS: json['ownershipTypeIOS'] as String?,
+      previousOriginalTransactionIdIOS: json['previousOriginalTransactionIdIOS'] as String?,
       productId: json['productId'] as String,
       purchaseState: PurchaseState.fromJson(json['purchaseState'] as String),
       purchaseToken: json['purchaseToken'] as String?,
@@ -2891,6 +3002,7 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
       renewalInfoIOS: json['renewalInfoIOS'] != null ? RenewalInfoIOS.fromJson(json['renewalInfoIOS'] as Map<String, dynamic>) : null,
       revocationDateIOS: (json['revocationDateIOS'] as num?)?.toDouble(),
       revocationReasonIOS: json['revocationReasonIOS'] as String?,
+      revocationTypeIOS: json['revocationTypeIOS'] as String?,
       store: IapStore.fromJson(json['store'] as String),
       storefrontCountryCodeIOS: json['storefrontCountryCodeIOS'] as String?,
       subscriptionGroupIdIOS: json['subscriptionGroupIdIOS'] as String?,
@@ -2910,6 +3022,10 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
       'appAccountToken': appAccountToken,
       'appBundleIdIOS': appBundleIdIOS,
       'billingPlanTypeIOS': billingPlanTypeIOS?.toJson(),
+      'bundleOriginalTransactionIdIOS': bundleOriginalTransactionIdIOS,
+      'bundleProductIdIOS': bundleProductIdIOS,
+      'bundleSubscriptionGroupIdIOS': bundleSubscriptionGroupIdIOS,
+      'bundleTransactionIdIOS': bundleTransactionIdIOS,
       'commitmentInfoIOS': commitmentInfoIOS?.toJson(),
       'countryCodeIOS': countryCodeIOS,
       'currencyCodeIOS': currencyCodeIOS,
@@ -2925,6 +3041,7 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
       'originalTransactionDateIOS': originalTransactionDateIOS,
       'originalTransactionIdentifierIOS': originalTransactionIdentifierIOS,
       'ownershipTypeIOS': ownershipTypeIOS,
+      'previousOriginalTransactionIdIOS': previousOriginalTransactionIdIOS,
       'productId': productId,
       'purchaseState': purchaseState.toJson(),
       'purchaseToken': purchaseToken,
@@ -2935,6 +3052,7 @@ class PurchaseIOS extends Purchase implements PurchaseCommon {
       'renewalInfoIOS': renewalInfoIOS?.toJson(),
       'revocationDateIOS': revocationDateIOS,
       'revocationReasonIOS': revocationReasonIOS,
+      'revocationTypeIOS': revocationTypeIOS,
       'store': store.toJson(),
       'storefrontCountryCodeIOS': storefrontCountryCodeIOS,
       'subscriptionGroupIdIOS': subscriptionGroupIdIOS,
@@ -3043,6 +3161,9 @@ class RenewalCommitmentInfoIOS {
 class RenewalInfoIOS {
   const RenewalInfoIOS({
     this.autoRenewPreference,
+    this.bundleOriginalTransactionId,
+    this.bundleProductId,
+    this.bundleSubscriptionGroupId,
     this.commitmentInfo,
     this.expirationReason,
     this.gracePeriodExpirationDate,
@@ -3055,14 +3176,21 @@ class RenewalInfoIOS {
     this.renewalOfferId,
     this.renewalOfferType,
     required this.willAutoRenew,
+    this.willUnbundle,
   });
 
   final String? autoRenewPreference;
+  /// Original transaction identifier for the bundle used by the next renewal.
+  final String? bundleOriginalTransactionId;
+  /// Product identifier for the bundle used by the next renewal.
+  final String? bundleProductId;
+  /// Subscription-group identifier for the bundle used by the next renewal.
+  final String? bundleSubscriptionGroupId;
   /// iOS 26.4+ renewal commitment metadata for monthly subscriptions with a
   /// 12-month commitment.
   final RenewalCommitmentInfoIOS? commitmentInfo;
-  /// When subscription expires due to cancellation/billing issue
-  /// Possible values: "VOLUNTARY", "BILLING_ERROR", "DID_NOT_AGREE_TO_PRICE_INCREASE", "PRODUCT_NOT_AVAILABLE", "UNKNOWN"
+  /// StoreKit's raw integer expiration-reason value represented as a string.
+  /// Xcode 27 adds the back-deployed unbundled case. Preserve unknown future values.
   final String? expirationReason;
   /// Grace period expiration date (milliseconds since epoch)
   /// When set, subscription is in grace period (billing issue but still has access)
@@ -3088,10 +3216,15 @@ class RenewalInfoIOS {
   /// Possible values: "PROMOTIONAL", "SUBSCRIPTION_OFFER_CODE", "WIN_BACK", etc.
   final String? renewalOfferType;
   final bool willAutoRenew;
+  /// Whether this subscription will leave its bundle and renew standalone.
+  final bool? willUnbundle;
 
   factory RenewalInfoIOS.fromJson(Map<String, dynamic> json) {
     return RenewalInfoIOS(
       autoRenewPreference: json['autoRenewPreference'] as String?,
+      bundleOriginalTransactionId: json['bundleOriginalTransactionId'] as String?,
+      bundleProductId: json['bundleProductId'] as String?,
+      bundleSubscriptionGroupId: json['bundleSubscriptionGroupId'] as String?,
       commitmentInfo: json['commitmentInfo'] != null ? RenewalCommitmentInfoIOS.fromJson(json['commitmentInfo'] as Map<String, dynamic>) : null,
       expirationReason: json['expirationReason'] as String?,
       gracePeriodExpirationDate: (json['gracePeriodExpirationDate'] as num?)?.toDouble(),
@@ -3104,6 +3237,7 @@ class RenewalInfoIOS {
       renewalOfferId: json['renewalOfferId'] as String?,
       renewalOfferType: json['renewalOfferType'] as String?,
       willAutoRenew: json['willAutoRenew'] as bool,
+      willUnbundle: json['willUnbundle'] as bool?,
     );
   }
 
@@ -3111,6 +3245,9 @@ class RenewalInfoIOS {
     return {
       '__typename': 'RenewalInfoIOS',
       'autoRenewPreference': autoRenewPreference,
+      'bundleOriginalTransactionId': bundleOriginalTransactionId,
+      'bundleProductId': bundleProductId,
+      'bundleSubscriptionGroupId': bundleSubscriptionGroupId,
       'commitmentInfo': commitmentInfo?.toJson(),
       'expirationReason': expirationReason,
       'gracePeriodExpirationDate': gracePeriodExpirationDate,
@@ -3123,6 +3260,7 @@ class RenewalInfoIOS {
       'renewalOfferId': renewalOfferId,
       'renewalOfferType': renewalOfferType,
       'willAutoRenew': willAutoRenew,
+      'willUnbundle': willUnbundle,
     };
   }
 }
@@ -5234,8 +5372,13 @@ abstract class MutationResolver {
   /// See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
   Future<bool> openRedeemOfferCodeAndroid();
   /// Show the App Store offer code redemption sheet.
+  /// On iOS 27+, Mac Catalyst 27+, and visionOS 27+, returns the verified
+  /// transaction produced by the redemption. Earlier iOS and Mac Catalyst
+  /// versions present the legacy sheet and return null; reconcile purchases
+  /// through the normal transaction listener or an explicit available-purchases
+  /// refresh.
   /// See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
-  Future<bool> presentCodeRedemptionSheetIOS();
+  Future<PurchaseIOS?> presentCodeRedemptionSheetIOS();
   /// Present an external purchase link, StoreKit External (iOS 16+).
   /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
   Future<ExternalPurchaseLinkResultIOS> presentExternalPurchaseLinkIOS(String url);
@@ -5462,7 +5605,7 @@ typedef MutationLaunchExternalLinkAndroidHandler = Future<bool> Function({
   required String linkUri,
 });
 typedef MutationOpenRedeemOfferCodeAndroidHandler = Future<bool> Function();
-typedef MutationPresentCodeRedemptionSheetIOSHandler = Future<bool> Function();
+typedef MutationPresentCodeRedemptionSheetIOSHandler = Future<PurchaseIOS?> Function();
 typedef MutationPresentExternalPurchaseLinkIOSHandler = Future<ExternalPurchaseLinkResultIOS> Function(String url);
 typedef MutationPresentExternalPurchaseNoticeSheetIOSHandler = Future<ExternalPurchaseNoticeResultIOS> Function();
 typedef MutationRequestPurchaseHandler = Future<RequestPurchaseResult?> Function(RequestPurchaseProps params);

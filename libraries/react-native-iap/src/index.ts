@@ -2266,7 +2266,8 @@ export const syncIOS: MutationField<'syncIOS'> = async () => {
 
 /**
  * Present the code redemption sheet for offer codes (iOS only)
- * @returns Promise<boolean> - Indicates whether the redemption sheet was presented
+ * @returns The verified redeemed purchase on iOS 27+, or null after the
+ * legacy sheet is presented on earlier iOS versions.
  * @platform iOS
  *
  * @see {@link https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios}
@@ -2275,12 +2276,18 @@ export const presentCodeRedemptionSheetIOS: MutationField<
   'presentCodeRedemptionSheetIOS'
 > = async () => {
   if (Platform.OS !== 'ios') {
-    return false;
+    return null;
   }
 
   try {
     const result = await IAP.instance.presentCodeRedemptionSheetIOS();
-    return Boolean(result);
+    if (result == null) {
+      return null;
+    }
+    if (!validateNitroPurchase(result)) {
+      throw new Error('Invalid redeemed purchase returned by native StoreKit');
+    }
+    return convertNitroPurchaseToPurchase(result) as PurchaseIOS;
   } catch (error) {
     const parsedError = parseErrorAndLogIfNeeded(
       '[presentCodeRedemptionSheetIOS] Failed:',
@@ -2457,6 +2464,12 @@ export const getActiveSubscriptions: QueryField<
               willAutoRenew: sub.renewalInfoIOS.willAutoRenew ?? false,
               autoRenewPreference:
                 sub.renewalInfoIOS.autoRenewPreference ?? null,
+              bundleOriginalTransactionId:
+                sub.renewalInfoIOS.bundleOriginalTransactionId ?? null,
+              bundleProductId:
+                sub.renewalInfoIOS.bundleProductId ?? null,
+              bundleSubscriptionGroupId:
+                sub.renewalInfoIOS.bundleSubscriptionGroupId ?? null,
               commitmentInfo: sub.renewalInfoIOS.commitmentInfo ?? null,
               pendingUpgradeProductId:
                 sub.renewalInfoIOS.pendingUpgradeProductId ?? null,
@@ -2472,6 +2485,7 @@ export const getActiveSubscriptions: QueryField<
               renewalOfferType: sub.renewalInfoIOS.renewalOfferType ?? null,
               renewalOfferId: sub.renewalInfoIOS.renewalOfferId ?? null,
               jsonRepresentation: sub.renewalInfoIOS.jsonRepresentation ?? null,
+              willUnbundle: sub.renewalInfoIOS.willUnbundle ?? null,
             }
           : null,
         // Android specific fields

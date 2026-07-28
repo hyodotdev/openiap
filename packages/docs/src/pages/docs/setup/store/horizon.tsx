@@ -282,7 +282,7 @@ android {
         </p>
         <CodeBlock language="bash">{`./gradlew :library:assembleHorizonRelease`}</CodeBlock>
         <p>MAUI selects the Horizon AAR flavor with an MSBuild property:</p>
-        <CodeBlock language="bash">{`dotnet build -f net9.0-android -p:OpenIapAndroidStore=horizon`}</CodeBlock>
+        <CodeBlock language="bash">{`dotnet build -f net10.0-android -p:OpenIapAndroidStore=horizon`}</CodeBlock>
       </section>
 
       <section>

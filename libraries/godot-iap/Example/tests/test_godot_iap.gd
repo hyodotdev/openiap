@@ -479,7 +479,10 @@ func test_ios_methods_mock() -> void:
 
 	# present_code_redemption_sheet_ios
 	var redemption_result = await GodotIapPlugin.present_code_redemption_sheet_ios()
-	_assert_true(redemption_result is bool, "present_code_redemption_sheet_ios should return bool")
+	_assert_true(
+		redemption_result == null or redemption_result is Types.PurchaseIOS,
+		"present_code_redemption_sheet_ios should return PurchaseIOS or null"
+	)
 
 	# current_entitlement_ios
 	var entitlement = await GodotIapPlugin.current_entitlement_ios("test_sku")
@@ -577,7 +580,7 @@ func test_android_methods_mock() -> void:
 func test_no_plugin_ios_zero_values() -> void:
 	_assert_equal(await GodotIapPlugin.sync_ios(), false, "sync_ios should return false without a native plugin")
 	_assert_equal(await GodotIapPlugin.clear_transaction_ios(), false, "clear_transaction_ios should return false without a native plugin")
-	_assert_equal(await GodotIapPlugin.present_code_redemption_sheet_ios(), false, "present_code_redemption_sheet_ios should return false without a native plugin")
+	_assert_equal(await GodotIapPlugin.present_code_redemption_sheet_ios(), null, "present_code_redemption_sheet_ios should return null without a native plugin")
 	_assert_equal(await GodotIapPlugin.begin_refund_request_ios("sku"), "", "begin_refund_request_ios should return an empty string without a native plugin")
 	_assert_equal(await GodotIapPlugin.get_receipt_data_ios(), "", "get_receipt_data_ios should return an empty string without a native plugin")
 	_assert_equal(await GodotIapPlugin.get_transaction_jws_ios("sku"), "", "get_transaction_jws_ios should return an empty string without a native plugin")

@@ -1,14 +1,14 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <!-- Shared-contract tests only — net9.0 keeps this project buildable without
+    <!-- Shared-contract tests only — net10.0 keeps this project buildable without
          any MAUI / mobile workload. Run with the same global override CI uses
          for every shared-TFM lane in this library:
-           dotnet test tests/OpenIap.Maui.Tests/OpenIap.Maui.Tests.csproj -p:TargetFrameworks=net9.0
+           dotnet test tests/OpenIap.Maui.Tests/OpenIap.Maui.Tests.csproj -p:TargetFrameworks=net10.0
          The PLURAL TargetFrameworks property must be passed so the implicit
          restore of the referenced OpenIap.Maui.csproj does not walk its
          android / ios TFMs (see the comment in ci-maui-iap.yml). -->
-    <TargetFrameworks>net9.0</TargetFrameworks>
+    <TargetFrameworks>net10.0</TargetFrameworks>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <LangVersion>12.0</LangVersion>

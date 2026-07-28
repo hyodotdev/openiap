@@ -8,20 +8,20 @@ C# / .NET MAUI specifics on top of the monorepo-wide rules in
 - **C# 12** with `<Nullable>enable</Nullable>` and
   `<TreatWarningsAsErrors>true</TreatWarningsAsErrors>` (configured in
   the .csproj).
-- **.NET 9 / .NET 10** targets with platform-specific TFMs:
-  `net9.0;net10.0;net9.0-android;net10.0-android;net9.0-ios;net10.0-ios;net9.0-maccatalyst;net10.0-maccatalyst`.
-- The shared `net9.0` and `net10.0` TFMs compile without the MAUI workload —
-  keep both green for fast PR-time validation.
+- **.NET 10** targets with platform-specific TFMs:
+  `net10.0;net10.0-android;net10.0-ios;net10.0-maccatalyst`.
+- The shared `net10.0` TFM compiles without the MAUI workload — keep it green
+  for fast PR-time validation.
 
 ## Namespaces
 
-| Namespace                            | Owns                                           |
-| ------------------------------------ | ---------------------------------------------- |
-| `OpenIap`                            | Generated types, enums, resolver interfaces.   |
-| `OpenIap.Maui`                       | `IOpenIap` contract, static `OpenIapClient` facade, legacy `Iap` shim. |
-| `OpenIap.Maui.Platforms.Android`     | Android bridge implementation.                 |
-| `OpenIap.Maui.Platforms.iOS`         | iOS bridge implementation.                     |
-| `OpenIap.Maui.Platforms.MacCatalyst` | macCatalyst bridge implementation.             |
+| Namespace                            | Owns                                                   |
+| ------------------------------------ | ------------------------------------------------------ |
+| `OpenIap`                            | Generated types, enums, resolver interfaces.           |
+| `OpenIap.Maui`                       | `IOpenIap` contract and static `OpenIapClient` facade. |
+| `OpenIap.Maui.Platforms.Android`     | Android bridge implementation.                         |
+| `OpenIap.Maui.Platforms.iOS`         | iOS bridge implementation.                             |
+| `OpenIap.Maui.Platforms.MacCatalyst` | macCatalyst bridge implementation.                     |
 
 The `OpenIap` namespace is shared with the generated `Types.cs` so
 consumers can `using OpenIap;` and pull in `Product`, `Purchase`,
@@ -71,9 +71,8 @@ Inherits the monorepo rules in
 - **Don't add C#-only fields to schema-derived types.** Edit the GraphQL
   schema in `packages/gql` and regenerate. Hand-edits to `Types.cs` are
   reverted on next sync.
-- **Don't create a NuGet package without the wiring complete.** The
-  scaffold's empty observables and missing native bindings are not a
-  shippable contract — see
+- **Don't create a NuGet package without the wiring complete.** Empty
+  observables or missing native bindings are not a shippable contract — see
   [`CLAUDE.md`](./CLAUDE.md) for the wiring plan.
 - **Don't widen public types to interfaces.** All schema records are
   `sealed`. If polymorphism is needed, the union (abstract base record)

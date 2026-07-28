@@ -24,14 +24,15 @@ function OfferCodeRedemption() {
       </p>
       <p>
         <strong>Current API boundary:</strong>{' '}
-        <code>presentCodeRedemptionSheetIOS</code> wraps Apple&apos;s legacy
-        system sheet and reports presentation success. The 2026 StoreKit API
-        that accepts redeem options and returns a verified transaction is not
-        exposed yet; observe redeemed purchases through{' '}
+        <code>presentCodeRedemptionSheetIOS</code> returns the verified{' '}
+        <code>PurchaseIOS</code> produced by Apple&apos;s new StoreKit API on
+        iOS 27, Mac Catalyst 27, and visionOS 27 or later. On iOS and Mac
+        Catalyst 14–26 it presents the legacy system sheet and returns{' '}
+        <code>null</code>, so observe the redeemed purchase through{' '}
         <Link to="/docs/events/purchase-updated-listener">
           <code>purchaseUpdatedListener</code>
-        </Link>
-        .
+        </Link>{' '}
+        or an explicit available-purchases refresh.
       </p>
 
       <section>
@@ -90,8 +91,10 @@ function OfferCodeRedemption() {
                 <p>
                   Initialize the store connection before presenting the sheet,
                   and register a purchase listener before the user redeems a
-                  code. The sheet&apos;s Boolean result means it was presented;
-                  the redeemed transaction arrives through the listener.
+                  code. Apple 27+ returns the verified redeemed purchase
+                  directly. Earlier iOS versions return <code>null</code> after
+                  presenting the legacy sheet, and the redeemed transaction
+                  arrives through the listener or a subsequent refresh.
                 </p>
                 <LanguageTabs>
                   {{
@@ -113,7 +116,11 @@ export async function startIap() {
 }
 
 export async function redeemCode() {
-  return presentCodeRedemptionSheetIOS();
+  const purchase = await presentCodeRedemptionSheetIOS();
+  if (purchase) {
+    console.log('Verified redemption:', purchase.productId);
+  }
+  return purchase;
 }
 
 export async function stopIap() {
@@ -135,8 +142,8 @@ final class RedemptionManager {
         try await iapStore.initConnection()
     }
 
-    func redeemCode() async throws -> Bool {
-        try await iapStore.presentCodeRedemptionSheetIOS()
+    func redeemCode() async throws -> PurchaseIOS? {
+        try await iapStore.presentCodeRedemptionSheetResultIOS()
     }
 
     func stop() async {
@@ -168,7 +175,7 @@ class RedemptionManager(private val scope: CoroutineScope) {
         }
     }
 
-    suspend fun redeemCode(): Boolean =
+    suspend fun redeemCode(): PurchaseIOS? =
         iap.presentCodeRedemptionSheetIOS()
 
     suspend fun stop() {
@@ -192,7 +199,7 @@ class RedemptionManager {
     });
   }
 
-  Future<bool> redeemCode() => iap.presentCodeRedemptionSheetIOS();
+  Future<PurchaseIOS?> redeemCode() => iap.presentCodeRedemptionSheetIOS();
 
   Future<void> stop() async {
     await subscription?.cancel();
@@ -216,7 +223,7 @@ public sealed class RedemptionManager : IDisposable
         await ((MutationResolver)_iap).InitConnectionAsync();
     }
 
-    public Task<bool> RedeemCodeAsync() =>
+    public Task<PurchaseIOS?> RedeemCodeAsync() =>
         ((MutationResolver)_iap).PresentCodeRedemptionSheetIOSAsync();
 
     public async Task StopAsync()
@@ -240,7 +247,7 @@ func _ready() -> void:
 func _on_purchase_updated(purchase: Dictionary) -> void:
     print("Redeemed product: ", purchase.get("productId", ""))
 
-func redeem_code() -> bool:
+func redeem_code() -> Variant:
     return await GodotIapPlugin.present_code_redemption_sheet_ios()
 
 func _exit_tree() -> void:
@@ -253,7 +260,20 @@ func _exit_tree() -> void:
                   Testing
                 </AnchorLink>
                 <ul>
-                  <li>Test on a real iOS device, not a simulator</li>
+                  <li>
+                    Use Xcode 27 and StoreKit Testing to compile and exercise
+                    the new result path in a simulator
+                  </li>
+                  <li>
+                    The pre-built Godot GDExtension must also have been compiled
+                    with Xcode 27; an Xcode 26-built framework uses the legacy{' '}
+                    <code>null</code> result even on Apple 27. Build from source
+                    or confirm the release artifact toolchain.
+                  </li>
+                  <li>
+                    Use a physical device for an actual App Store sandbox or
+                    TestFlight redemption
+                  </li>
                   <li>Generate test codes in App Store Connect</li>
                   <li>Use a sandbox account or TestFlight build</li>
                 </ul>

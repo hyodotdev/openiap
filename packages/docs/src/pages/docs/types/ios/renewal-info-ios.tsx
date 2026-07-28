@@ -76,10 +76,11 @@ function RenewalInfoIOS() {
                 <code>expirationReason</code>
               </td>
               <td>
-                Why the subscription expired: <code>"VOLUNTARY"</code>,{' '}
-                <code>"BILLING_ERROR"</code>,{' '}
-                <code>"DID_NOT_AGREE_TO_PRICE_INCREASE"</code>,{' '}
-                <code>"PRODUCT_NOT_AVAILABLE"</code>, <code>"UNKNOWN"</code>.
+                StoreKit&apos;s raw integer expiration-reason value represented
+                as a string. The Xcode 27 SDK adds the back-deployed{' '}
+                <code>unbundled</code> case for subscriptions that leave an
+                Apple Subscription Bundle; callers should preserve unknown
+                future values.
               </td>
             </tr>
             <tr>
@@ -151,6 +152,39 @@ function RenewalInfoIOS() {
                   <code>RenewalCommitmentInfoIOS</code>
                 </Link>
                 .
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>bundleOriginalTransactionId</code>
+              </td>
+              <td>
+                Original transaction ID of the Subscription Bundle or Suite used
+                by the next renewal (Xcode 27 SDK).
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>bundleProductId</code>
+              </td>
+              <td>Product ID of the bundle or suite used by the renewal.</td>
+            </tr>
+            <tr>
+              <td>
+                <code>bundleSubscriptionGroupId</code>
+              </td>
+              <td>
+                Subscription-group ID of the bundle or suite used by the
+                renewal.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>willUnbundle</code>
+              </td>
+              <td>
+                Whether this subscription will leave its bundle and renew as a
+                standalone subscription.
               </td>
             </tr>
             <tr>

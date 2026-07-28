@@ -76,6 +76,10 @@ const migrationGroups = [
         'store',
       ],
       ['willExpireSoon', 'daysUntilExpirationIOS'],
+      [
+        'presentCodeRedemptionSheetIOS Boolean result',
+        'nullable PurchaseIOS result: verified on Apple 27+; null after the legacy sheet on iOS or Mac Catalyst 14–26',
+      ],
       ['receipt-failed', 'purchase-verification-failed'],
       ['receipt-finished', 'purchase-verification-finished'],
       ['receipt-finished-failed', 'purchase-verification-finish-failed'],
@@ -461,6 +465,10 @@ const packageCompatibilityMigrations = [
     title: 'OpenIap.Maui 2.0.0',
     rows: [
       ['OpenIap.Maui Iap facade', 'OpenIapClient'],
+      [
+        'net9.0, net9.0-android, net9.0-ios, and net9.0-maccatalyst targets',
+        'the matching net10.0 target frameworks with the .NET 10 MAUI workload',
+      ],
       [
         'RequestPurchaseOnPromotedProductIOSAsync',
         'PromotedProductIOS, then RequestPurchaseAsync',

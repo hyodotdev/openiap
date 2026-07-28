@@ -701,9 +701,14 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         FlutterIapLog.debug("presentCodeRedemptionSheetIOS called")
         Task { @MainActor in
             do {
-                let presented = try await OpenIapModule.shared.presentCodeRedemptionSheetIOS()
-                FlutterIapLog.result("presentCodeRedemptionSheetIOS", value: presented)
-                result(presented)
+                guard let purchase = try await OpenIapModule.shared.presentCodeRedemptionSheetIOS() else {
+                    FlutterIapLog.result("presentCodeRedemptionSheetIOS", value: nil)
+                    result(nil)
+                    return
+                }
+                let payload = FlutterIapHelper.sanitizeDictionary(OpenIapSerialization.encode(purchase))
+                FlutterIapLog.result("presentCodeRedemptionSheetIOS", value: payload)
+                result(payload)
             } catch let purchaseError as PurchaseError {
                 FlutterIapLog.failure("presentCodeRedemptionSheetIOS", error: purchaseError)
                 result(flutterError(from: purchaseError))

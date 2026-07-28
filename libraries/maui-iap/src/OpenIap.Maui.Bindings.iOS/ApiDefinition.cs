@@ -173,7 +173,7 @@ interface OpenIapModule
 
     [Export("presentCodeRedemptionSheetIOSWithCompletion:")]
     [Async]
-    void PresentCodeRedemptionSheetIOS(Action<bool, NSError?> completion);
+    void PresentCodeRedemptionSheetIOS(Action<NSObject?, NSError?> completion);
 
     [Export("showManageSubscriptionsIOSWithCompletion:")]
     [Async]

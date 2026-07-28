@@ -404,13 +404,13 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      *
      * @see <a href="https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios">https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios</a>
      */
-    override suspend fun presentCodeRedemptionSheetIOS(): Boolean =
+    override suspend fun presentCodeRedemptionSheetIOS(): PurchaseIOS? =
         suspendCancellableCoroutine { continuation ->
-            openIapModule.presentCodeRedemptionSheetIOSWithCompletion { success, error ->
+            openIapModule.presentCodeRedemptionSheetIOSWithCompletion { payload, error ->
                 if (error != null) {
                     continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                 } else {
-                    continuation.resumeIfActive(success)
+                    continuation.resumeIfActive(convertAnyToPurchaseIOS(payload))
                 }
             }
         }

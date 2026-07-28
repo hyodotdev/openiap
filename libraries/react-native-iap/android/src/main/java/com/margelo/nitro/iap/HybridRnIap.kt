@@ -1220,6 +1220,7 @@ class HybridRnIap : HybridRnIapSpec() {
             isFamilyShareableIOS = null,
             jsonRepresentationIOS = null,
             pricingTermsIOS = null,
+            bundledSubscriptionsIOS = null,
             subscriptionPeriodUnitIOS = null,
             subscriptionPeriodNumberIOS = null,
             introductoryPriceIOS = null,
@@ -1265,10 +1266,15 @@ class HybridRnIap : HybridRnIapSpec() {
             isAutoRenewing = purchase.isAutoRenewing,
             advancedCommerceInfoIOS = null,
             billingPlanTypeIOS = null,
+            bundleOriginalTransactionIdIOS = null,
+            bundleProductIdIOS = null,
+            bundleSubscriptionGroupIdIOS = null,
+            bundleTransactionIdIOS = null,
             commitmentInfoIOS = null,
             quantityIOS = null,
             originalTransactionDateIOS = null,
             originalTransactionIdentifierIOS = null,
+            previousOriginalTransactionIdIOS = null,
             appAccountToken = null,
             appBundleIdIOS = null,
             countryCodeIOS = null,
@@ -1283,6 +1289,7 @@ class HybridRnIap : HybridRnIapSpec() {
             reasonStringRepresentationIOS = null,
             revocationDateIOS = null,
             revocationReasonIOS = null,
+            revocationTypeIOS = null,
             storefrontCountryCodeIOS = null,
             subscriptionGroupIdIOS = null,
             transactionReasonIOS = null,
@@ -1354,11 +1361,9 @@ class HybridRnIap : HybridRnIapSpec() {
         }
     }
 
-    override fun presentCodeRedemptionSheetIOS(): Promise<Boolean> {
+    override fun presentCodeRedemptionSheetIOS(): Promise<Variant_NullType_NitroPurchase> {
         return Promise.async {
-            // Android doesn't have a code redemption sheet like iOS App Store
-            // This is an iOS-only feature, so we return false on Android
-            false
+            Variant_NullType_NitroPurchase.First(NullType.NULL)
         }
     }
 

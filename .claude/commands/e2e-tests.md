@@ -703,8 +703,8 @@ cd packages/google
 cd ../..
 bash packages/apple/scripts/build-xcframework.sh
 cd libraries/maui-iap
-dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0 --nologo
-dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0-ios --nologo
+dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0 --nologo
+dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0-ios --nologo
 ```
 
 Normal Android / Play build and launch smoke:
@@ -723,16 +723,16 @@ rm -rf \
   src/OpenIap.Maui/bin src/OpenIap.Maui/obj \
   example/OpenIap.Maui.Example/bin example/OpenIap.Maui.Example/obj
 dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj \
-  -p:TargetFrameworks=net9.0-android \
+  -p:TargetFrameworks=net10.0-android \
   -p:OpenIapAndroidStore=play \
   --nologo
 dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj \
-  -p:TargetFrameworks=net9.0-android \
+  -p:TargetFrameworks=net10.0-android \
   -p:OpenIapAndroidStore=play \
   -p:BuildProjectReferences=false \
   --nologo
 dotnet build example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj \
-  -f net9.0-android \
+  -f net10.0-android \
   -p:OpenIapAndroidStore=play \
   -p:EmbedAssembliesIntoApk=true \
   --nologo
@@ -740,7 +740,7 @@ dotnet build example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj \
 : "${ANDROID_SERIAL:?Set ANDROID_SERIAL to the target Android device serial}"
 adb -s "$ANDROID_SERIAL" uninstall dev.hyo.martie || true
 adb -s "$ANDROID_SERIAL" install --no-incremental -r \
-  example/OpenIap.Maui.Example/bin/Debug/net9.0-android/dev.hyo.martie-Signed.apk
+  example/OpenIap.Maui.Example/bin/Debug/net10.0-android/dev.hyo.martie-Signed.apk
 adb -s "$ANDROID_SERIAL" shell monkey -p dev.hyo.martie 1
 ```
 
@@ -756,16 +756,16 @@ rm -rf \
   src/OpenIap.Maui/bin src/OpenIap.Maui/obj \
   example/OpenIap.Maui.Example/bin example/OpenIap.Maui.Example/obj
 dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj \
-  -p:TargetFrameworks=net9.0-android \
+  -p:TargetFrameworks=net10.0-android \
   -p:OpenIapAndroidStore=amazon \
   --nologo
 dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj \
-  -p:TargetFrameworks=net9.0-android \
+  -p:TargetFrameworks=net10.0-android \
   -p:OpenIapAndroidStore=amazon \
   -p:BuildProjectReferences=false \
   --nologo
 dotnet build example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj \
-  -f net9.0-android \
+  -f net10.0-android \
   -p:OpenIapAndroidStore=amazon \
   -p:EmbedAssembliesIntoApk=true \
   --nologo
@@ -773,7 +773,7 @@ dotnet build example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj \
 : "${FIREOS_SERIAL:?Set FIREOS_SERIAL to the target FireOS device serial}"
 adb -s "$FIREOS_SERIAL" uninstall dev.hyo.martie || true
 adb -s "$FIREOS_SERIAL" install --no-incremental -r \
-  example/OpenIap.Maui.Example/bin/stores/amazon/Debug/net9.0-android/dev.hyo.martie-Signed.apk
+  example/OpenIap.Maui.Example/bin/stores/amazon/Debug/net10.0-android/dev.hyo.martie-Signed.apk
 adb -s "$FIREOS_SERIAL" shell monkey -p dev.hyo.martie 1
 ```
 
@@ -789,16 +789,16 @@ rm -rf \
   src/OpenIap.Maui/bin src/OpenIap.Maui/obj \
   example/OpenIap.Maui.Example/bin example/OpenIap.Maui.Example/obj
 dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj \
-  -p:TargetFrameworks=net9.0-android \
+  -p:TargetFrameworks=net10.0-android \
   -p:OpenIapAndroidStore=horizon \
   --nologo
 dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj \
-  -p:TargetFrameworks=net9.0-android \
+  -p:TargetFrameworks=net10.0-android \
   -p:OpenIapAndroidStore=horizon \
   -p:BuildProjectReferences=false \
   --nologo
 dotnet build example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj \
-  -f net9.0-android \
+  -f net10.0-android \
   -p:OpenIapAndroidStore=horizon \
   --nologo
 ```
@@ -809,13 +809,13 @@ iOS physical-device build and launch smoke:
 cd libraries/maui-iap/example/OpenIap.Maui.Example
 : "${IOS_UDID:?Set IOS_UDID to the target iOS device UDID}"
 dotnet build \
-  -f net9.0-ios \
+  -f net10.0-ios \
   -p:RuntimeIdentifier=ios-arm64 \
   -p:ValidateXcodeVersion=false \
   --nologo
 xcrun devicectl device install app \
   --device "$IOS_UDID" \
-  bin/Debug/net9.0-ios/ios-arm64/OpenIap.Maui.Example.app
+  bin/Debug/net10.0-ios/ios-arm64/OpenIap.Maui.Example.app
 xcrun devicectl device process launch \
   --device "$IOS_UDID" \
   dev.hyo.martie

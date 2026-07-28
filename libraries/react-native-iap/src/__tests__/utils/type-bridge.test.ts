@@ -74,6 +74,20 @@ describe('type-bridge utilities', () => {
       const result = convertNitroProductToProduct(
         product({
           type: 'subs',
+          typeIOS: 'subscriptionBundle',
+          bundledSubscriptionsIOS: JSON.stringify([
+            {
+              description: 'Monthly access',
+              displayName: 'Premium Monthly',
+              displayPrice: '$4.99',
+              id: 'premium.monthly',
+              isFamilyShareable: true,
+              price: 4.99,
+              subscriptionGroupDisplayName: 'Premium',
+              subscriptionGroupId: 'premium',
+              subscriptionGroupLevel: 1,
+            },
+          ]),
           pricingTermsIOS: JSON.stringify([
             {billingDisplayPrice: '$4.99', billingPlanType: 'monthly'},
           ]),
@@ -88,6 +102,13 @@ describe('type-bridge utilities', () => {
         }),
       ) as any;
 
+      expect(result.typeIOS).toBe('subscription-bundle');
+      expect(result.bundledSubscriptionsIOS).toEqual([
+        expect.objectContaining({
+          id: 'premium.monthly',
+          subscriptionGroupId: 'premium',
+        }),
+      ]);
       expect(result.pricingTermsIOS).toHaveLength(1);
       expect(result.subscriptionOffers[0].id).toBe('intro');
       expect(result).not.toHaveProperty('discountOffers');
@@ -173,9 +194,19 @@ describe('type-bridge utilities', () => {
           transactionId: 'canonical-transaction-id',
           currentPlanId: 'premium-monthly',
           ids: ['com.example.product', 'addon'],
+          bundleOriginalTransactionIdIOS: 'bundle-original',
+          bundleProductIdIOS: 'bundle-product',
+          bundleSubscriptionGroupIdIOS: 'bundle-group',
+          bundleTransactionIdIOS: 'bundle-transaction',
+          previousOriginalTransactionIdIOS: 'previous-original',
+          revocationTypeIOS: 'assignmentRevocation',
           renewalInfoIOS: {
+            bundleOriginalTransactionId: 'renewal-bundle-original',
+            bundleProductId: 'renewal-bundle-product',
+            bundleSubscriptionGroupId: 'renewal-bundle-group',
             willAutoRenew: true,
             isInBillingRetry: true,
+            willUnbundle: false,
           },
         }),
       ) as PurchaseIOS;
@@ -186,9 +217,19 @@ describe('type-bridge utilities', () => {
           transactionId: 'canonical-transaction-id',
           currentPlanId: 'premium-monthly',
           ids: ['com.example.product', 'addon'],
+          bundleOriginalTransactionIdIOS: 'bundle-original',
+          bundleProductIdIOS: 'bundle-product',
+          bundleSubscriptionGroupIdIOS: 'bundle-group',
+          bundleTransactionIdIOS: 'bundle-transaction',
+          previousOriginalTransactionIdIOS: 'previous-original',
+          revocationTypeIOS: 'assignmentRevocation',
           renewalInfoIOS: expect.objectContaining({
+            bundleOriginalTransactionId: 'renewal-bundle-original',
+            bundleProductId: 'renewal-bundle-product',
+            bundleSubscriptionGroupId: 'renewal-bundle-group',
             willAutoRenew: true,
             isInBillingRetry: true,
+            willUnbundle: false,
           }),
         }),
       );

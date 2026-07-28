@@ -174,7 +174,7 @@ internal sealed partial class OpenIapAndroid
 
     public Task<string?> BeginRefundRequestIOSAsync(string sku) => NotSupportedIOS<string?>("beginRefundRequestIOS");
     public Task<bool> ClearTransactionIOSAsync() => NotSupportedIOS<bool>("clearTransactionIOS");
-    public Task<bool> PresentCodeRedemptionSheetIOSAsync() => NotSupportedIOS<bool>("presentCodeRedemptionSheetIOS");
+    public Task<PurchaseIOS?> PresentCodeRedemptionSheetIOSAsync() => NotSupportedIOS<PurchaseIOS?>("presentCodeRedemptionSheetIOS");
     public Task<ExternalPurchaseLinkResultIOS> PresentExternalPurchaseLinkIOSAsync(string url) => NotSupportedIOS<ExternalPurchaseLinkResultIOS>("presentExternalPurchaseLinkIOS");
     public Task<ExternalPurchaseNoticeResultIOS> PresentExternalPurchaseNoticeSheetIOSAsync() => NotSupportedIOS<ExternalPurchaseNoticeResultIOS>("presentExternalPurchaseNoticeSheetIOS");
     public Task<ExternalPurchaseCustomLinkNoticeResultIOS> ShowExternalPurchaseCustomLinkNoticeIOSAsync(ExternalPurchaseCustomLinkNoticeTypeIOS noticeType) => NotSupportedIOS<ExternalPurchaseCustomLinkNoticeResultIOS>("showExternalPurchaseCustomLinkNoticeIOS");

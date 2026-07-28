@@ -15,7 +15,7 @@ macCatalyst from a single C# API.
 
 ## Install
 
-Requires the .NET 9 or .NET 10 SDK and the MAUI workload:
+OpenIap.Maui 2.x requires the supported .NET 10 SDK and MAUI workload:
 
 ```bash
 dotnet workload install maui
@@ -79,9 +79,8 @@ Always validate purchases on your server before granting entitlement, then call
 `FinishTransactionAsync`. On Android, unfinished purchases are refunded
 automatically after 3 days.
 
-`Iap` remains available as a backward-compatible facade, but new code should use
-`OpenIapClient` so app namespaces such as `OpenIap.Maui.Iap` do not collide
-with the facade type name.
+OpenIap.Maui 2.x exposes `OpenIapClient`; the deprecated `Iap` compatibility
+facade was removed. Replace `Iap` calls before upgrading from 1.x.
 
 ## IAPKit API and webhooks
 
@@ -148,14 +147,11 @@ cd /path/to/openiap
 
 cd libraries/maui-iap/example/OpenIap.Maui.Example
 adb uninstall dev.hyo.martie || true
-dotnet build -t:Run -f net9.0-android
+dotnet build -t:Run -f net10.0-android
 
-dotnet build -t:Run -f net9.0-ios
-dotnet build -t:Run -f net9.0-maccatalyst
+dotnet build -t:Run -f net10.0-ios
+dotnet build -t:Run -f net10.0-maccatalyst
 ```
-
-For .NET 10 apps, use the matching `net10.0-android`, `net10.0-ios`, and
-`net10.0-maccatalyst` target frameworks.
 
 VS Code launch configurations are in `libraries/maui-iap/.vscode/launch.json`.
 The Android launcher builds both AARs before compiling the example app.
@@ -170,7 +166,7 @@ cd libraries/maui-iap/android
 ../../../packages/google/gradlew :openiap:assembleRelease -PopenIapAndroidStore=amazon
 cd ..
 dotnet build example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj \
-  -f net9.0-android \
+  -f net10.0-android \
   -p:OpenIapAndroidStore=amazon
 ```
 

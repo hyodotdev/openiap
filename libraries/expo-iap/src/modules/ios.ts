@@ -281,7 +281,8 @@ export const getTransactionJwsIOS: QueryField<'getTransactionJwsIOS'> = async (
  *
  * Note: This only works on real devices, not simulators.
  *
- * @returns Promise resolving to true if the sheet was presented successfully
+ * @returns The verified redeemed purchase on iOS 27+, or null after the
+ * legacy sheet is presented on earlier iOS versions.
  * @throws Error if called on non-iOS platform or tvOS
  *
  * @platform iOS
@@ -292,7 +293,7 @@ export const presentCodeRedemptionSheetIOS: MutationField<
   'presentCodeRedemptionSheetIOS'
 > = async () => {
   requireIosPlatform('presentCodeRedemptionSheetIOS');
-  return !!(await ExpoIapModule.presentCodeRedemptionSheetIOS());
+  return await ExpoIapModule.presentCodeRedemptionSheetIOS();
 };
 
 /**

@@ -80,7 +80,7 @@ final class VerifyPurchaseTests: XCTestCase {
             validateResult: .verifyPurchaseResultIos(makeVerifyPurchaseResult()),
             allTransactionsResult: [purchase],
             manageSubscriptionsResult: [purchase],
-            presentCodeResult: false,
+            presentCodeResult: nil,
             clearTransactionResult: false
         )
         let store = OpenIapStore(module: module)
@@ -91,9 +91,9 @@ final class VerifyPurchaseTests: XCTestCase {
         let changedTransactions = try await store.showManageSubscriptionsResultIOS()
         XCTAssertEqual(changedTransactions.map(\.id), ["transaction-1"])
 
-        let presentedCodeRedemptionSheet = try await store.presentCodeRedemptionSheetResultIOS()
+        let redeemedPurchase = try await store.presentCodeRedemptionSheetResultIOS()
         let clearedTransactions = try await store.clearTransactionResultIOS()
-        XCTAssertFalse(presentedCodeRedemptionSheet)
+        XCTAssertNil(redeemedPurchase)
         XCTAssertFalse(clearedTransactions)
 
         try await store.showManageSubscriptionsIOS()
@@ -243,7 +243,7 @@ private final class FakeOpenIapModule: OpenIapModuleProtocol {
     private let availablePurchasesResult: [Purchase]
     private let allTransactionsResult: [PurchaseIOS]
     private let manageSubscriptionsResult: [PurchaseIOS]
-    private let presentCodeResult: Bool
+    private let presentCodeResult: PurchaseIOS?
     private let clearTransactionResult: Bool
     private var subscriptionBillingIssueHandler: SubscriptionBillingIssueListener?
     private(set) var getStorefrontCallCount = 0
@@ -262,7 +262,7 @@ private final class FakeOpenIapModule: OpenIapModuleProtocol {
         availablePurchasesResult: [Purchase] = [],
         allTransactionsResult: [PurchaseIOS] = [],
         manageSubscriptionsResult: [PurchaseIOS] = [],
-        presentCodeResult: Bool = true,
+        presentCodeResult: PurchaseIOS? = nil,
         clearTransactionResult: Bool = true
     ) {
         self.validateResult = validateResult
@@ -331,7 +331,7 @@ private final class FakeOpenIapModule: OpenIapModuleProtocol {
 
     // MARK: - Misc
     func syncIOS() async throws -> Bool { true }
-    func presentCodeRedemptionSheetIOS() async throws -> Bool { presentCodeResult }
+    func presentCodeRedemptionSheetIOS() async throws -> PurchaseIOS? { presentCodeResult }
     func showManageSubscriptionsIOS() async throws -> [PurchaseIOS] { manageSubscriptionsResult }
     func deepLinkToSubscriptions(_ options: DeepLinkOptions?) async throws -> Void {
         deepLinkCallCount += 1

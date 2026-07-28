@@ -187,6 +187,10 @@ public class RecordJsonTests
           "appAccountToken": "11111111-2222-3333-4444-555555555555",
           "appBundleIdIOS": "dev.hyo.martie",
           "billingPlanTypeIOS": "monthly",
+          "bundleOriginalTransactionIdIOS": "2000000001",
+          "bundleProductIdIOS": "premium.bundle",
+          "bundleSubscriptionGroupIdIOS": "group.bundle",
+          "bundleTransactionIdIOS": "2000000123",
           "commitmentInfoIOS": {
             "billingPeriodNumber": 3,
             "commitmentExpiresDate": 1750000000000,
@@ -220,6 +224,9 @@ public class RecordJsonTests
           "reasonStringRepresentationIOS": "purchase",
           "renewalInfoIOS": {
             "autoRenewPreference": "premium.annual",
+            "bundleOriginalTransactionId": "2000000001",
+            "bundleProductId": "premium.bundle",
+            "bundleSubscriptionGroupId": "group.bundle",
             "commitmentInfo": {
               "commitmentAutoRenewProductId": "premium.annual",
               "commitmentAutoRenewStatus": true,
@@ -237,10 +244,13 @@ public class RecordJsonTests
             "renewalDate": 1722592000000,
             "renewalOfferId": "renewal-offer",
             "renewalOfferType": "PROMOTIONAL",
-            "willAutoRenew": true
+            "willAutoRenew": true,
+            "willUnbundle": false
           },
+          "previousOriginalTransactionIdIOS": "1999999999",
           "revocationDateIOS": 1724000000000,
           "revocationReasonIOS": "REFUNDED",
+          "revocationTypeIOS": "assignmentRevocation",
           "store": "apple",
           "storefrontCountryCodeIOS": "USA",
           "subscriptionGroupIdIOS": "group.premium",
@@ -305,12 +315,17 @@ public class RecordJsonTests
         Assert.Equal("premium.monthly", ios.CurrentPlanId);
         Assert.Equal("launch-offer", ios.OfferIOS?.Id);
         Assert.Equal(SubscriptionBillingPlanTypeIOS.Monthly, ios.BillingPlanTypeIOS);
+        Assert.Equal("premium.bundle", ios.BundleProductIdIOS);
+        Assert.Equal("2000000123", ios.BundleTransactionIdIOS);
+        Assert.Equal("1999999999", ios.PreviousOriginalTransactionIdIOS);
         Assert.Equal(3, ios.CommitmentInfoIOS?.BillingPeriodNumber);
         Assert.Equal("request-reference", ios.AdvancedCommerceInfoIOS?.RequestReferenceId);
         Assert.Equal(
             """{"sku":"premium.bundle"}""",
             ios.AdvancedCommerceInfoIOS?.Items[0].Details?.JsonRepresentation);
         Assert.Equal("premium.annual", ios.RenewalInfoIOS?.PendingUpgradeProductId);
+        Assert.Equal("group.bundle", ios.RenewalInfoIOS?.BundleSubscriptionGroupId);
+        Assert.False(ios.RenewalInfoIOS?.WillUnbundle);
         Assert.Equal(
             SubscriptionBillingPlanTypeIOS.UpFront,
             ios.RenewalInfoIOS?.CommitmentInfo?.CommitmentRenewalBillingPlanType);

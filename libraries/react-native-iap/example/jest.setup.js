@@ -34,7 +34,7 @@ jest.mock('react-native-nitro-modules', () => ({
       clearProductsIOS: jest.fn(() => Promise.resolve()),
       promotedProductIOS: jest.fn(() => Promise.resolve()),
       deepLinkingGetPendingPurchases: jest.fn(() => Promise.resolve()),
-      presentCodeRedemptionSheetIOS: jest.fn(() => Promise.resolve()),
+      presentCodeRedemptionSheetIOS: jest.fn(() => Promise.resolve(null)),
     })),
   },
 }));
@@ -112,7 +112,7 @@ jest.mock('../src/index', () => {
     clearProductsIOS: jest.fn(() => Promise.resolve()),
     promotedProductIOS: jest.fn(() => Promise.resolve()),
     beginRefundRequestIOS: jest.fn(() => Promise.resolve(null)),
-    presentCodeRedemptionSheetIOS: jest.fn(() => Promise.resolve(true)),
+    presentCodeRedemptionSheetIOS: jest.fn(() => Promise.resolve(null)),
     showManageSubscriptionsIOS: jest.fn(() => Promise.resolve(true)),
     getAppTransactionIOS: jest.fn(() => Promise.resolve(null)),
 

@@ -299,7 +299,7 @@ internal class AmazonInAppPurchaseAndroid(
     override suspend fun showManageSubscriptionsIOS(): List<PurchaseIOS> = emptyList()
     override suspend fun syncIOS(): Boolean = false
     override suspend fun clearTransactionIOS(): Boolean = false
-    override suspend fun presentCodeRedemptionSheetIOS(): Boolean = false
+    override suspend fun presentCodeRedemptionSheetIOS(): PurchaseIOS? = null
     override suspend fun presentExternalPurchaseLinkIOS(url: String): ExternalPurchaseLinkResultIOS = failUnsupported("External purchase links are iOS only.")
     override suspend fun presentExternalPurchaseNoticeSheetIOS(): ExternalPurchaseNoticeResultIOS = failUnsupported("External purchase notice sheet is iOS only.")
     override suspend fun showExternalPurchaseCustomLinkNoticeIOS(noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS): ExternalPurchaseCustomLinkNoticeResultIOS = failUnsupported("External purchase custom-link notice is iOS only.")

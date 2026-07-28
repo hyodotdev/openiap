@@ -114,6 +114,9 @@ gentype.ProductCommon parseProductFromNative(
           json['introductoryPriceSubscriptionPeriodIOS'],
         ),
         price: priceValue,
+        bundledSubscriptionsIOS: _parseBundledSubscriptionsIOS(
+          json['bundledSubscriptionsIOS'],
+        ),
         pricingTermsIOS: _parseSubscriptionPricingTermsIOS(
           json['pricingTermsIOS'],
         ),
@@ -328,6 +331,16 @@ gentype.Purchase convertToPurchase(
       'revocationDateIOS':
           _parseTimestampMilliseconds(sourcePayload['revocationDateIOS']),
       'revocationReasonIOS': sourcePayload['revocationReasonIOS']?.toString(),
+      'revocationTypeIOS': sourcePayload['revocationTypeIOS']?.toString(),
+      'bundleOriginalTransactionIdIOS':
+          sourcePayload['bundleOriginalTransactionIdIOS']?.toString(),
+      'bundleProductIdIOS': sourcePayload['bundleProductIdIOS']?.toString(),
+      'bundleSubscriptionGroupIdIOS':
+          sourcePayload['bundleSubscriptionGroupIdIOS']?.toString(),
+      'bundleTransactionIdIOS':
+          sourcePayload['bundleTransactionIdIOS']?.toString(),
+      'previousOriginalTransactionIdIOS':
+          sourcePayload['previousOriginalTransactionIdIOS']?.toString(),
     };
 
     return gentype.PurchaseIOS.fromJson(map);
@@ -449,6 +462,10 @@ gentype.ProductTypeIOS _parseProductTypeIOS(String? value) {
         return gentype.ProductTypeIOS.AutoRenewableSubscription;
       case 'NON_RENEWING_SUBSCRIPTION':
         return gentype.ProductTypeIOS.NonRenewingSubscription;
+      case 'SUBSCRIPTION_BUNDLE':
+        return gentype.ProductTypeIOS.SubscriptionBundle;
+      case 'SUBSCRIPTION_SUITE':
+        return gentype.ProductTypeIOS.SubscriptionSuite;
       default:
         return gentype.ProductTypeIOS.NonConsumable;
     }
@@ -498,6 +515,11 @@ List<gentype.SubscriptionPricingTermsIOS>? _parseSubscriptionPricingTermsIOS(
   dynamic value,
 ) =>
     _parseGeneratedList(value, gentype.SubscriptionPricingTermsIOS.fromJson);
+
+List<gentype.BundledSubscriptionIOS>? _parseBundledSubscriptionsIOS(
+  dynamic value,
+) =>
+    _parseGeneratedList(value, gentype.BundledSubscriptionIOS.fromJson);
 
 List<gentype.DiscountOffer>? _parseDiscountOffers(dynamic value) =>
     _parseGeneratedList(value, gentype.DiscountOffer.fromJson);

@@ -2047,7 +2047,7 @@ internal class InAppPurchaseAndroid(
      *
      * @see <a href="https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios">https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios</a>
      */
-    override suspend fun presentCodeRedemptionSheetIOS(): Boolean = false
+    override suspend fun presentCodeRedemptionSheetIOS(): PurchaseIOS? = null
 
     suspend fun finishTransactionIOS(transactionId: String) {}
 

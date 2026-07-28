@@ -743,12 +743,19 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         Task { [weak self] in
             guard let self = self else { return }
             do {
-                let result = try await self.openIap.presentCodeRedemptionSheetIOS()
+                let purchase = try await self.openIap.presentCodeRedemptionSheetIOS()
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
                     dict["method"] = Variant("presentCodeRedemptionSheetIOS")
                     dict["requestId"] = Variant(requestId)
-                    dict["success"] = Variant(result)
+                    dict["success"] = Variant(true)
+                    if let purchase,
+                       let jsonData = try? JSONSerialization.data(
+                           withJSONObject: self.purchaseIOSToDictionary(purchase)
+                       ),
+                       let jsonString = String(data: jsonData, encoding: .utf8) {
+                        dict["purchaseJson"] = Variant(jsonString)
+                    }
                     self.productsFetched.emit(dict)
                 }
             } catch {

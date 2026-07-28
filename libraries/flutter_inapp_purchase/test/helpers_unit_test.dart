@@ -28,8 +28,21 @@ void main() {
           'displayNameIOS': 'Premium',
           'isFamilyShareableIOS': true,
           'jsonRepresentationIOS': '{}',
-          'typeIOS': 'auto-renewable-subscription',
+          'typeIOS': 'subscription-bundle',
           'subscriptionGroupIdIOS': 'premium',
+          'bundledSubscriptionsIOS': <Map<String, dynamic>>[
+            <String, dynamic>{
+              'description': 'Monthly access',
+              'displayName': 'Premium Monthly',
+              'displayPrice': r'$4.99',
+              'id': 'premium.monthly',
+              'isFamilyShareable': true,
+              'price': 4.99,
+              'subscriptionGroupDisplayName': 'Premium',
+              'subscriptionGroupId': 'premium',
+              'subscriptionGroupLevel': 1,
+            },
+          ],
           'subscriptionOffers': <Map<String, dynamic>>[
             <String, dynamic>{
               'id': 'intro',
@@ -45,7 +58,13 @@ void main() {
 
       expect(product, isA<types.ProductSubscriptionIOS>());
       final subscription = product as types.ProductSubscriptionIOS;
+      expect(subscription.typeIOS, types.ProductTypeIOS.SubscriptionBundle);
       expect(subscription.subscriptionGroupIdIOS, 'premium');
+      expect(subscription.bundledSubscriptionsIOS, hasLength(1));
+      expect(
+        subscription.bundledSubscriptionsIOS!.single.id,
+        'premium.monthly',
+      );
       expect(subscription.subscriptionOffers, hasLength(1));
       expect(subscription.subscriptionOffers!.single.id, 'intro');
     });
@@ -167,6 +186,12 @@ void main() {
           'purchaseToken': 'signed-transaction',
           'transactionDate': 1700000000000,
           'quantity': 2,
+          'revocationTypeIOS': 1,
+          'bundleOriginalTransactionIdIOS': 1001,
+          'bundleProductIdIOS': 'premium.bundle',
+          'bundleSubscriptionGroupIdIOS': 2002,
+          'bundleTransactionIdIOS': 3003,
+          'previousOriginalTransactionIdIOS': 4004,
         },
         platformIsAndroid: false,
         platformIsIOS: true,
@@ -178,6 +203,12 @@ void main() {
       expect(iosPurchase.transactionId, 'transaction-id');
       expect(iosPurchase.purchaseToken, 'signed-transaction');
       expect(iosPurchase.quantity, 2);
+      expect(iosPurchase.revocationTypeIOS, '1');
+      expect(iosPurchase.bundleOriginalTransactionIdIOS, '1001');
+      expect(iosPurchase.bundleProductIdIOS, 'premium.bundle');
+      expect(iosPurchase.bundleSubscriptionGroupIdIOS, '2002');
+      expect(iosPurchase.bundleTransactionIdIOS, '3003');
+      expect(iosPurchase.previousOriginalTransactionIdIOS, '4004');
     });
 
     test('extractPurchases accepts platform-channel map keys', () {

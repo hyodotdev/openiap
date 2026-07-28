@@ -35,6 +35,13 @@ Visit the [documentation site](https://openiap.dev/docs/setup/godot) for [instal
 2. Extract and copy `addons/godot-iap/` to your project's `addons/` folder
 3. Enable the plugin in **Project → Project Settings → Plugins**
 
+Native Apple API availability is fixed when the pre-built
+`GodotIap.framework` is compiled. The verified Apple 27 offer-code result
+requires a framework built with Xcode 27 or later; an Xcode 26-built framework
+uses the legacy `null` result even on Apple 27. Check the release notes for the
+artifact toolchain or build the plugin from source when adopting beta SDK
+functionality.
+
 Release zips are intended for iOS export and Android. If you use a release or
 custom build that includes `addons/godot-iap/bin/macos`, and Godot says
 `GodotIap.framework` is damaged on macOS, clear quarantine and repair the local

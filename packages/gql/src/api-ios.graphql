@@ -127,10 +127,15 @@ extend type Mutation {
   syncIOS: Boolean!
   """
   Show the App Store offer code redemption sheet.
+  On iOS 27+, Mac Catalyst 27+, and visionOS 27+, returns the verified
+  transaction produced by the redemption. Earlier iOS and Mac Catalyst
+  versions present the legacy sheet and return null; reconcile purchases
+  through the normal transaction listener or an explicit available-purchases
+  refresh.
   See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
   """
   # Future
-  presentCodeRedemptionSheetIOS: Boolean!
+  presentCodeRedemptionSheetIOS: PurchaseIOS
   """
   Present the external purchase notice sheet (iOS 17.4+).
   Uses ExternalPurchase.presentNoticeSheet() which returns a token when the user continues.

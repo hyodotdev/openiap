@@ -1585,7 +1585,11 @@ public enum ProductTypeIOS
     Consumable,
     NonConsumable,
     AutoRenewableSubscription,
-    NonRenewingSubscription
+    NonRenewingSubscription,
+    /// <summary>A group of independently purchasable subscriptions sold together (Apple 27+ beta).</summary>
+    SubscriptionBundle,
+    /// <summary>A group of subscriptions that are available only as one suite (Apple 27+ beta).</summary>
+    SubscriptionSuite
 }
 
 public sealed class ProductTypeIOSJsonConverter : JsonConverter<ProductTypeIOS>
@@ -1604,6 +1608,12 @@ public sealed class ProductTypeIOSJsonConverter : JsonConverter<ProductTypeIOS>
         ["non-renewing-subscription"] = ProductTypeIOS.NonRenewingSubscription,
         ["NON_RENEWING_SUBSCRIPTION"] = ProductTypeIOS.NonRenewingSubscription,
         ["NonRenewingSubscription"] = ProductTypeIOS.NonRenewingSubscription,
+        ["subscription-bundle"] = ProductTypeIOS.SubscriptionBundle,
+        ["SUBSCRIPTION_BUNDLE"] = ProductTypeIOS.SubscriptionBundle,
+        ["SubscriptionBundle"] = ProductTypeIOS.SubscriptionBundle,
+        ["subscription-suite"] = ProductTypeIOS.SubscriptionSuite,
+        ["SUBSCRIPTION_SUITE"] = ProductTypeIOS.SubscriptionSuite,
+        ["SubscriptionSuite"] = ProductTypeIOS.SubscriptionSuite,
     };
 
     private static readonly Dictionary<ProductTypeIOS, string> _toString = new()
@@ -1612,6 +1622,8 @@ public sealed class ProductTypeIOSJsonConverter : JsonConverter<ProductTypeIOS>
         [ProductTypeIOS.NonConsumable] = "non-consumable",
         [ProductTypeIOS.AutoRenewableSubscription] = "auto-renewable-subscription",
         [ProductTypeIOS.NonRenewingSubscription] = "non-renewing-subscription",
+        [ProductTypeIOS.SubscriptionBundle] = "subscription-bundle",
+        [ProductTypeIOS.SubscriptionSuite] = "subscription-suite",
     };
 
     public override ProductTypeIOS Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
@@ -2298,14 +2310,24 @@ public sealed record AppTransaction
     public required string Environment { get; init; }
     [JsonPropertyName("originalAppVersion")]
     public required string OriginalAppVersion { get; init; }
+    /// <summary>Original App Store platform raw value. Xcode 27 adds the back-deployed managed</summary>
+    /// <summary>acquisition-platform value.</summary>
     [JsonPropertyName("originalPlatform")]
     public string? OriginalPlatform { get; init; }
     [JsonPropertyName("originalPurchaseDate")]
     public required double OriginalPurchaseDate { get; init; }
     [JsonPropertyName("preorderDate")]
     public double? PreorderDate { get; init; }
+    /// <summary>Date the app-acquisition transaction was revoked (epoch milliseconds).</summary>
+    /// <summary>Available through the Xcode 27 SDK and back-deployed to Apple 16+.</summary>
+    [JsonPropertyName("revocationDate")]
+    public double? RevocationDate { get; init; }
     [JsonPropertyName("signedDate")]
     public required double SignedDate { get; init; }
+    /// <summary>Store channel of the original app purchase: consumer, education, enterprise,</summary>
+    /// <summary>or another future StoreKit value (Apple 27+ beta).</summary>
+    [JsonPropertyName("storeType")]
+    public string? StoreType { get; init; }
 }
 
 /// <summary>Display information for developer-rendered Billing Choice screens (Android)</summary>
@@ -2370,6 +2392,30 @@ public sealed record BillingResultAndroid
     /// <summary>Provides additional context when responseCode indicates an error.</summary>
     [JsonPropertyName("subResponseCode")]
     public SubResponseCodeAndroid? SubResponseCode { get; init; }
+}
+
+/// <summary>Metadata for one auto-renewable subscription included in an Apple</summary>
+/// <summary>subscription bundle (Apple 27+ beta).</summary>
+public sealed record BundledSubscriptionIOS
+{
+    [JsonPropertyName("description")]
+    public required string Description { get; init; }
+    [JsonPropertyName("displayName")]
+    public required string DisplayName { get; init; }
+    [JsonPropertyName("displayPrice")]
+    public required string DisplayPrice { get; init; }
+    [JsonPropertyName("id")]
+    public required string Id { get; init; }
+    [JsonPropertyName("isFamilyShareable")]
+    public required bool IsFamilyShareable { get; init; }
+    [JsonPropertyName("price")]
+    public required double Price { get; init; }
+    [JsonPropertyName("subscriptionGroupDisplayName")]
+    public required string SubscriptionGroupDisplayName { get; init; }
+    [JsonPropertyName("subscriptionGroupId")]
+    public required string SubscriptionGroupId { get; init; }
+    [JsonPropertyName("subscriptionGroupLevel")]
+    public required int SubscriptionGroupLevel { get; init; }
 }
 
 /// <summary>Details provided when user selects developer billing option (Android)</summary>
@@ -2812,6 +2858,10 @@ public sealed record ProductSubscriptionAndroid : ProductSubscription, ProductCo
 
 public sealed record ProductSubscriptionIOS : ProductSubscription, ProductCommon
 {
+    /// <summary>Subscriptions included in this Apple subscription bundle. Empty or null for</summary>
+    /// <summary>every other product type (Apple 27+ beta).</summary>
+    [JsonPropertyName("bundledSubscriptionsIOS")]
+    public IReadOnlyList<BundledSubscriptionIOS>? BundledSubscriptionsIOS { get; init; }
     [JsonPropertyName("currency")]
     public required string Currency { get; init; }
     [JsonPropertyName("debugDescription")]
@@ -2961,6 +3011,19 @@ public sealed record PurchaseIOS : Purchase, PurchaseCommon
     /// <summary>iOS 26.4+ billing plan selected for this transaction.</summary>
     [JsonPropertyName("billingPlanTypeIOS")]
     public SubscriptionBillingPlanTypeIOS? BillingPlanTypeIOS { get; init; }
+    /// <summary>Original transaction identifier for the subscription bundle that produced</summary>
+    /// <summary>this transaction (Apple 27+ SDK; back-deployed by StoreKit).</summary>
+    [JsonPropertyName("bundleOriginalTransactionIdIOS")]
+    public string? BundleOriginalTransactionIdIOS { get; init; }
+    /// <summary>Product identifier of the subscription bundle that produced this transaction.</summary>
+    [JsonPropertyName("bundleProductIdIOS")]
+    public string? BundleProductIdIOS { get; init; }
+    /// <summary>Subscription-group identifier of the bundle that produced this transaction.</summary>
+    [JsonPropertyName("bundleSubscriptionGroupIdIOS")]
+    public string? BundleSubscriptionGroupIdIOS { get; init; }
+    /// <summary>Bundle transaction identifier associated with this component transaction.</summary>
+    [JsonPropertyName("bundleTransactionIdIOS")]
+    public string? BundleTransactionIdIOS { get; init; }
     /// <summary>iOS 26.4+ progress information for monthly subscriptions with a 12-month commitment.</summary>
     [JsonPropertyName("commitmentInfoIOS")]
     public TransactionCommitmentInfoIOS? CommitmentInfoIOS { get; init; }
@@ -2990,8 +3053,13 @@ public sealed record PurchaseIOS : Purchase, PurchaseCommon
     public double? OriginalTransactionDateIOS { get; init; }
     [JsonPropertyName("originalTransactionIdentifierIOS")]
     public string? OriginalTransactionIdentifierIOS { get; init; }
+    /// <summary>StoreKit ownership raw value. Xcode 27 adds the back-deployed assigned value.</summary>
     [JsonPropertyName("ownershipTypeIOS")]
     public string? OwnershipTypeIOS { get; init; }
+    /// <summary>Original transaction identifier replaced when moving between a standalone</summary>
+    /// <summary>subscription and a subscription bundle.</summary>
+    [JsonPropertyName("previousOriginalTransactionIdIOS")]
+    public string? PreviousOriginalTransactionIdIOS { get; init; }
     [JsonPropertyName("productId")]
     public required string ProductId { get; init; }
     [JsonPropertyName("purchaseState")]
@@ -3010,8 +3078,13 @@ public sealed record PurchaseIOS : Purchase, PurchaseCommon
     public RenewalInfoIOS? RenewalInfoIOS { get; init; }
     [JsonPropertyName("revocationDateIOS")]
     public double? RevocationDateIOS { get; init; }
+    /// <summary>Normalized StoreKit revocation reason, including upgraded_to_bundle.</summary>
     [JsonPropertyName("revocationReasonIOS")]
     public string? RevocationReasonIOS { get; init; }
+    /// <summary>StoreKit revocation type, including assignment-revocation on Apple 26.4+</summary>
+    /// <summary>when compiled with the Xcode 27 SDK.</summary>
+    [JsonPropertyName("revocationTypeIOS")]
+    public string? RevocationTypeIOS { get; init; }
     /// <summary>Store where purchase was made</summary>
     [JsonPropertyName("store")]
     public required IapStore Store { get; init; }
@@ -3068,12 +3141,21 @@ public sealed record RenewalInfoIOS
 {
     [JsonPropertyName("autoRenewPreference")]
     public string? AutoRenewPreference { get; init; }
+    /// <summary>Original transaction identifier for the bundle used by the next renewal.</summary>
+    [JsonPropertyName("bundleOriginalTransactionId")]
+    public string? BundleOriginalTransactionId { get; init; }
+    /// <summary>Product identifier for the bundle used by the next renewal.</summary>
+    [JsonPropertyName("bundleProductId")]
+    public string? BundleProductId { get; init; }
+    /// <summary>Subscription-group identifier for the bundle used by the next renewal.</summary>
+    [JsonPropertyName("bundleSubscriptionGroupId")]
+    public string? BundleSubscriptionGroupId { get; init; }
     /// <summary>iOS 26.4+ renewal commitment metadata for monthly subscriptions with a</summary>
     /// <summary>12-month commitment.</summary>
     [JsonPropertyName("commitmentInfo")]
     public RenewalCommitmentInfoIOS? CommitmentInfo { get; init; }
-    /// <summary>When subscription expires due to cancellation/billing issue</summary>
-    /// <summary>Possible values: &quot;VOLUNTARY&quot;, &quot;BILLING_ERROR&quot;, &quot;DID_NOT_AGREE_TO_PRICE_INCREASE&quot;, &quot;PRODUCT_NOT_AVAILABLE&quot;, &quot;UNKNOWN&quot;</summary>
+    /// <summary>StoreKit&apos;s raw integer expiration-reason value represented as a string.</summary>
+    /// <summary>Xcode 27 adds the back-deployed unbundled case. Preserve unknown future values.</summary>
     [JsonPropertyName("expirationReason")]
     public string? ExpirationReason { get; init; }
     /// <summary>Grace period expiration date (milliseconds since epoch)</summary>
@@ -3110,6 +3192,9 @@ public sealed record RenewalInfoIOS
     public string? RenewalOfferType { get; init; }
     [JsonPropertyName("willAutoRenew")]
     public required bool WillAutoRenew { get; init; }
+    /// <summary>Whether this subscription will leave its bundle and renew standalone.</summary>
+    [JsonPropertyName("willUnbundle")]
+    public bool? WillUnbundle { get; init; }
 }
 
 /// <summary>Rental details for one-time purchase products that can be rented (Android)</summary>
@@ -4081,8 +4166,13 @@ public interface MutationResolver
     Task<bool> OpenRedeemOfferCodeAndroidAsync();
 
     /// <summary>Show the App Store offer code redemption sheet.</summary>
+    /// <summary>On iOS 27+, Mac Catalyst 27+, and visionOS 27+, returns the verified</summary>
+    /// <summary>transaction produced by the redemption. Earlier iOS and Mac Catalyst</summary>
+    /// <summary>versions present the legacy sheet and return null; reconcile purchases</summary>
+    /// <summary>through the normal transaction listener or an explicit available-purchases</summary>
+    /// <summary>refresh.</summary>
     /// <summary>See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios</summary>
-    Task<bool> PresentCodeRedemptionSheetIOSAsync();
+    Task<PurchaseIOS?> PresentCodeRedemptionSheetIOSAsync();
 
     /// <summary>Present an external purchase link, StoreKit External (iOS 16+).</summary>
     /// <summary>See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios</summary>

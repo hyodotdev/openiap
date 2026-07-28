@@ -22,7 +22,17 @@ void main() {
           case 'initConnection':
             return true;
           case 'presentCodeRedemptionSheetIOS':
-            return true;
+            return <String, dynamic>{
+              'id': 'redeemed-transaction',
+              'productId': 'com.example.subscription',
+              'transactionDate': 1700000000000,
+              'transactionId': 'redeemed-transaction',
+              'purchaseState': 'PURCHASED',
+              'purchaseToken': 'redeemed-jws',
+              'quantity': 1,
+              'isAutoRenewing': true,
+              'store': 'apple',
+            };
           case 'showManageSubscriptionsIOS':
             return <Map<String, dynamic>>[
               <String, dynamic>{
@@ -191,19 +201,20 @@ void main() {
     test(
       'presentCodeRedemptionSheetIOS calls correct channel method',
       () async {
-        expect(await iap.presentCodeRedemptionSheetIOS(), isTrue);
+        final purchase = await iap.presentCodeRedemptionSheetIOS();
+        expect(purchase?.id, 'redeemed-transaction');
         expect(calls.last.method, 'presentCodeRedemptionSheetIOS');
       },
     );
 
-    test('presentCodeRedemptionSheetIOS preserves native false', () async {
+    test('presentCodeRedemptionSheetIOS preserves legacy null', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
-        if (methodCall.method == 'presentCodeRedemptionSheetIOS') return false;
+        if (methodCall.method == 'presentCodeRedemptionSheetIOS') return null;
         return null;
       });
 
-      expect(await iap.presentCodeRedemptionSheetIOS(), isFalse);
+      expect(await iap.presentCodeRedemptionSheetIOS(), isNull);
     });
 
     test('showManageSubscriptionsIOS returns changed purchases', () async {

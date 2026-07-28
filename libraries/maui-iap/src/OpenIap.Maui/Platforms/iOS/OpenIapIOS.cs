@@ -375,7 +375,8 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
 
     public Task<string?> BeginRefundRequestIOSAsync(string sku) => InvokeNullableString(cb => _module.BeginRefundRequestIOS(sku, cb));
     public Task<bool> ClearTransactionIOSAsync() => InvokeBool(cb => _module.ClearTransactionIOS(cb));
-    public Task<bool> PresentCodeRedemptionSheetIOSAsync() => InvokeBool(cb => _module.PresentCodeRedemptionSheetIOS(cb));
+    public Task<PurchaseIOS?> PresentCodeRedemptionSheetIOSAsync() =>
+        InvokeDict<PurchaseIOS>(cb => _module.PresentCodeRedemptionSheetIOS(cb));
 
     public Task<ExternalPurchaseLinkResultIOS> PresentExternalPurchaseLinkIOSAsync(string url)
     {

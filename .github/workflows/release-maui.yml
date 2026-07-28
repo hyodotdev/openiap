@@ -50,7 +50,7 @@ jobs:
 
   validate:
     needs: [release-branch]
-    name: Validate (net9.0 / net10.0 shared)
+    name: Validate (net10.0 shared)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     steps:
@@ -61,25 +61,24 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
-      # The shared `net9.0` / `net10.0` builds catch Types.cs / public-API regressions
+      # The shared `net10.0` build catches Types.cs / public-API regressions
       # without needing the MAUI / android / ios workloads. Two things make
       # this work — see ci-maui-iap.yml for the same pattern with details.
       # Note: `-p:TargetFrameworks=...` is PLURAL (overrides the project's
       # multi-target list); the singular `-p:TargetFramework=...` and `-f`
       # leave the implicit restore walking all TFMs.
       - name: Build library (shared)
-        run: |
-          dotnet build libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0
-          dotnet build libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0
+        run: dotnet build libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0
 
       - name: Run contract tests (shared)
-        run: |
-          dotnet run --project libraries/maui-iap/tests/OpenIap.Maui.ContractTests/OpenIap.Maui.ContractTests.csproj --framework net9.0 -p:TargetFrameworks=net9.0 --no-launch-profile
-          dotnet run --project libraries/maui-iap/tests/OpenIap.Maui.ContractTests/OpenIap.Maui.ContractTests.csproj --framework net10.0 -p:TargetFrameworks=net10.0 --no-launch-profile
+        run: dotnet run --project libraries/maui-iap/tests/OpenIap.Maui.ContractTests/OpenIap.Maui.ContractTests.csproj --framework net10.0 --no-launch-profile
+
+      - name: Run unit tests (shared)
+        run: dotnet test libraries/maui-iap/tests/OpenIap.Maui.Tests/OpenIap.Maui.Tests.csproj -p:TargetFrameworks=net10.0 --nologo
 
   validate-multitarget:
     needs: [release-branch]
-    name: Validate (net9.0/net10.0 platform TFMs)
+    name: Validate (net10.0 platform TFMs)
     runs-on: macos-15
     timeout-minutes: 60
     steps:
@@ -119,8 +118,8 @@ jobs:
         working-directory: libraries/maui-iap/android
         run: ../../../packages/google/gradlew :openiap:assembleRelease
 
-      # OpenIap.Maui.csproj includes net9.0-android, net10.0-android,
-      # net9.0-ios, net10.0-ios, net9.0-maccatalyst, and net10.0-maccatalyst.
+      # OpenIap.Maui.csproj includes net10.0-android, net10.0-ios, and
+      # net10.0-maccatalyst.
       - name: Build all target frameworks
         run: dotnet build libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj
 
@@ -361,7 +360,7 @@ jobs:
           cat > /tmp/release-notes.md <<EOF
           ## maui-iap $VERSION
 
-          .NET MAUI / C# 12 library for the OpenIAP specification (iOS + Android + macCatalyst).
+          .NET 10 MAUI / C# 12 library for the OpenIAP specification (iOS + Android + macCatalyst).
 
           ### What's Changed
 

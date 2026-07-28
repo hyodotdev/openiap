@@ -274,6 +274,10 @@ enum ProductTypeIOS {
 	NON_CONSUMABLE = 1,
 	AUTO_RENEWABLE_SUBSCRIPTION = 2,
 	NON_RENEWING_SUBSCRIPTION = 3,
+	## A group of independently purchasable subscriptions sold together (Apple 27+ beta).
+	SUBSCRIPTION_BUNDLE = 4,
+	## A group of subscriptions that are available only as one suite (Apple 27+ beta).
+	SUBSCRIPTION_SUITE = 5,
 }
 
 enum PurchaseState {
@@ -600,8 +604,13 @@ class AppTransaction:
 	var app_id: float = 0.0
 	var app_version_id: float = 0.0
 	var preorder_date: Variant = null
+	## Date the app-acquisition transaction was revoked (epoch milliseconds). Available through the Xcode 27 SDK and back-deployed to Apple 16+.
+	var revocation_date: Variant = null
 	var app_transaction_id: Variant = null
+	## Original App Store platform raw value. Xcode 27 adds the back-deployed managed acquisition-platform value.
 	var original_platform: Variant = null
+	## Store channel of the original app purchase: consumer, education, enterprise, or another future StoreKit value (Apple 27+ beta).
+	var store_type: Variant = null
 
 	static func from_dict(data: Dictionary) -> AppTransaction:
 		var obj = AppTransaction.new()
@@ -627,10 +636,14 @@ class AppTransaction:
 			obj.app_version_id = data["appVersionId"]
 		if data.has("preorderDate") and data["preorderDate"] != null:
 			obj.preorder_date = data["preorderDate"]
+		if data.has("revocationDate") and data["revocationDate"] != null:
+			obj.revocation_date = data["revocationDate"]
 		if data.has("appTransactionId") and data["appTransactionId"] != null:
 			obj.app_transaction_id = data["appTransactionId"]
 		if data.has("originalPlatform") and data["originalPlatform"] != null:
 			obj.original_platform = data["originalPlatform"]
+		if data.has("storeType") and data["storeType"] != null:
+			obj.store_type = data["storeType"]
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -647,10 +660,14 @@ class AppTransaction:
 		dict["appVersionId"] = app_version_id
 		if preorder_date != null:
 			dict["preorderDate"] = preorder_date
+		if revocation_date != null:
+			dict["revocationDate"] = revocation_date
 		if app_transaction_id != null:
 			dict["appTransactionId"] = app_transaction_id
 		if original_platform != null:
 			dict["originalPlatform"] = original_platform
+		if store_type != null:
+			dict["storeType"] = store_type
 		return dict
 
 ## Display information for developer-rendered Billing Choice screens (Android) Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
@@ -783,6 +800,53 @@ class BillingResultAndroid:
 				dict["subResponseCode"] = SUB_RESPONSE_CODE_ANDROID_VALUES[sub_response_code]
 			else:
 				dict["subResponseCode"] = sub_response_code
+		return dict
+
+## Metadata for one auto-renewable subscription included in an Apple subscription bundle (Apple 27+ beta).
+class BundledSubscriptionIOS:
+	var id: String = ""
+	var display_name: String = ""
+	var description: String = ""
+	var price: float = 0.0
+	var display_price: String = ""
+	var is_family_shareable: bool = false
+	var subscription_group_id: String = ""
+	var subscription_group_level: int = 0
+	var subscription_group_display_name: String = ""
+
+	static func from_dict(data: Dictionary) -> BundledSubscriptionIOS:
+		var obj = BundledSubscriptionIOS.new()
+		if data.has("id") and data["id"] != null:
+			obj.id = data["id"]
+		if data.has("displayName") and data["displayName"] != null:
+			obj.display_name = data["displayName"]
+		if data.has("description") and data["description"] != null:
+			obj.description = data["description"]
+		if data.has("price") and data["price"] != null:
+			obj.price = data["price"]
+		if data.has("displayPrice") and data["displayPrice"] != null:
+			obj.display_price = data["displayPrice"]
+		if data.has("isFamilyShareable") and data["isFamilyShareable"] != null:
+			obj.is_family_shareable = data["isFamilyShareable"]
+		if data.has("subscriptionGroupId") and data["subscriptionGroupId"] != null:
+			obj.subscription_group_id = data["subscriptionGroupId"]
+		if data.has("subscriptionGroupLevel") and data["subscriptionGroupLevel"] != null:
+			obj.subscription_group_level = data["subscriptionGroupLevel"]
+		if data.has("subscriptionGroupDisplayName") and data["subscriptionGroupDisplayName"] != null:
+			obj.subscription_group_display_name = data["subscriptionGroupDisplayName"]
+		return obj
+
+	func to_dict() -> Dictionary:
+		var dict = {}
+		dict["id"] = id
+		dict["displayName"] = display_name
+		dict["description"] = description
+		dict["price"] = price
+		dict["displayPrice"] = display_price
+		dict["isFamilyShareable"] = is_family_shareable
+		dict["subscriptionGroupId"] = subscription_group_id
+		dict["subscriptionGroupLevel"] = subscription_group_level
+		dict["subscriptionGroupDisplayName"] = subscription_group_display_name
 		return dict
 
 ## Details provided when user selects developer billing option (Android) Received via DeveloperProvidedBillingListener callback Available in Google Play Billing Library 8.3.0+
@@ -1774,6 +1838,8 @@ class ProductSubscriptionIOS:
 	var subscription_offers: Array[SubscriptionOffer] = []
 	## iOS 26.4+ subscription pricing terms, including billing plan metadata for monthly subscriptions with a 12-month commitment.
 	var pricing_terms_ios: Array[SubscriptionPricingTermsIOS] = []
+	## Subscriptions included in this Apple subscription bundle. Empty or null for every other product type (Apple 27+ beta).
+	var bundled_subscriptions_ios: Array[BundledSubscriptionIOS] = []
 	## App Store subscription group identifier for intro-offer eligibility checks.
 	var subscription_group_id_ios: Variant = null
 	var introductory_price_ios: Variant = null
@@ -1844,6 +1910,15 @@ class ProductSubscriptionIOS:
 					elif item is SubscriptionPricingTermsIOS:
 						arr.append(item)
 				obj.pricing_terms_ios = arr
+		if data.has("bundledSubscriptionsIOS") and data["bundledSubscriptionsIOS"] != null:
+			if data["bundledSubscriptionsIOS"] is Array:
+				var arr: Array[BundledSubscriptionIOS] = []
+				for item in data["bundledSubscriptionsIOS"]:
+					if item is Dictionary:
+						arr.append(BundledSubscriptionIOS.from_dict(item))
+					elif item is BundledSubscriptionIOS:
+						arr.append(item)
+				obj.bundled_subscriptions_ios = arr
 		if data.has("subscriptionGroupIdIOS") and data["subscriptionGroupIdIOS"] != null:
 			obj.subscription_group_id_ios = data["subscriptionGroupIdIOS"]
 		if data.has("introductoryPriceIOS") and data["introductoryPriceIOS"] != null:
@@ -1922,6 +1997,16 @@ class ProductSubscriptionIOS:
 			dict["pricingTermsIOS"] = arr
 		else:
 			dict["pricingTermsIOS"] = null
+		if bundled_subscriptions_ios != null:
+			var arr = []
+			for item in bundled_subscriptions_ios:
+				if item != null and item.has_method("to_dict"):
+					arr.append(item.to_dict())
+				else:
+					arr.append(item)
+			dict["bundledSubscriptionsIOS"] = arr
+		else:
+			dict["bundledSubscriptionsIOS"] = null
 		if subscription_group_id_ios != null:
 			dict["subscriptionGroupIdIOS"] = subscription_group_id_ios
 		if introductory_price_ios != null:
@@ -2179,12 +2264,16 @@ class PurchaseIOS:
 	var app_bundle_id_ios: Variant = null
 	var subscription_group_id_ios: Variant = null
 	var is_upgraded_ios: Variant = null
+	## StoreKit ownership raw value. Xcode 27 adds the back-deployed assigned value.
 	var ownership_type_ios: Variant = null
 	var reason_ios: Variant = null
 	var reason_string_representation_ios: Variant = null
 	var transaction_reason_ios: Variant = null
 	var revocation_date_ios: Variant = null
+	## Normalized StoreKit revocation reason, including upgraded_to_bundle.
 	var revocation_reason_ios: Variant = null
+	## StoreKit revocation type, including assignment-revocation on Apple 26.4+ when compiled with the Xcode 27 SDK.
+	var revocation_type_ios: Variant = null
 	var offer_ios: PurchaseOfferIOS
 	var currency_code_ios: Variant = null
 	var currency_symbol_ios: Variant = null
@@ -2194,6 +2283,16 @@ class PurchaseIOS:
 	var billing_plan_type_ios: Variant = null
 	## iOS 26.4+ progress information for monthly subscriptions with a 12-month commitment.
 	var commitment_info_ios: TransactionCommitmentInfoIOS
+	## Original transaction identifier for the subscription bundle that produced this transaction (Apple 27+ SDK; back-deployed by StoreKit).
+	var bundle_original_transaction_id_ios: Variant = null
+	## Product identifier of the subscription bundle that produced this transaction.
+	var bundle_product_id_ios: Variant = null
+	## Subscription-group identifier of the bundle that produced this transaction.
+	var bundle_subscription_group_id_ios: Variant = null
+	## Bundle transaction identifier associated with this component transaction.
+	var bundle_transaction_id_ios: Variant = null
+	## Original transaction identifier replaced when moving between a standalone subscription and a subscription bundle.
+	var previous_original_transaction_id_ios: Variant = null
 	## Advanced Commerce API metadata (iOS 18.4+). Present only for transactions that use the Advanced Commerce API. Contains item details, tax information, and refund data for generic SKU purchases.
 	var advanced_commerce_info_ios: AdvancedCommerceInfoIOS
 
@@ -2268,6 +2367,8 @@ class PurchaseIOS:
 			obj.revocation_date_ios = data["revocationDateIOS"]
 		if data.has("revocationReasonIOS") and data["revocationReasonIOS"] != null:
 			obj.revocation_reason_ios = data["revocationReasonIOS"]
+		if data.has("revocationTypeIOS") and data["revocationTypeIOS"] != null:
+			obj.revocation_type_ios = data["revocationTypeIOS"]
 		if data.has("offerIOS") and data["offerIOS"] != null:
 			if data["offerIOS"] is Dictionary:
 				obj.offer_ios = PurchaseOfferIOS.from_dict(data["offerIOS"])
@@ -2295,6 +2396,16 @@ class PurchaseIOS:
 				obj.commitment_info_ios = TransactionCommitmentInfoIOS.from_dict(data["commitmentInfoIOS"])
 			else:
 				obj.commitment_info_ios = data["commitmentInfoIOS"]
+		if data.has("bundleOriginalTransactionIdIOS") and data["bundleOriginalTransactionIdIOS"] != null:
+			obj.bundle_original_transaction_id_ios = data["bundleOriginalTransactionIdIOS"]
+		if data.has("bundleProductIdIOS") and data["bundleProductIdIOS"] != null:
+			obj.bundle_product_id_ios = data["bundleProductIdIOS"]
+		if data.has("bundleSubscriptionGroupIdIOS") and data["bundleSubscriptionGroupIdIOS"] != null:
+			obj.bundle_subscription_group_id_ios = data["bundleSubscriptionGroupIdIOS"]
+		if data.has("bundleTransactionIdIOS") and data["bundleTransactionIdIOS"] != null:
+			obj.bundle_transaction_id_ios = data["bundleTransactionIdIOS"]
+		if data.has("previousOriginalTransactionIdIOS") and data["previousOriginalTransactionIdIOS"] != null:
+			obj.previous_original_transaction_id_ios = data["previousOriginalTransactionIdIOS"]
 		if data.has("advancedCommerceInfoIOS") and data["advancedCommerceInfoIOS"] != null:
 			if data["advancedCommerceInfoIOS"] is Dictionary:
 				obj.advanced_commerce_info_ios = AdvancedCommerceInfoIOS.from_dict(data["advancedCommerceInfoIOS"])
@@ -2357,6 +2468,8 @@ class PurchaseIOS:
 			dict["revocationDateIOS"] = revocation_date_ios
 		if revocation_reason_ios != null:
 			dict["revocationReasonIOS"] = revocation_reason_ios
+		if revocation_type_ios != null:
+			dict["revocationTypeIOS"] = revocation_type_ios
 		if offer_ios != null and offer_ios.has_method("to_dict"):
 			dict["offerIOS"] = offer_ios.to_dict()
 		else:
@@ -2380,6 +2493,16 @@ class PurchaseIOS:
 			dict["commitmentInfoIOS"] = commitment_info_ios.to_dict()
 		else:
 			dict["commitmentInfoIOS"] = commitment_info_ios
+		if bundle_original_transaction_id_ios != null:
+			dict["bundleOriginalTransactionIdIOS"] = bundle_original_transaction_id_ios
+		if bundle_product_id_ios != null:
+			dict["bundleProductIdIOS"] = bundle_product_id_ios
+		if bundle_subscription_group_id_ios != null:
+			dict["bundleSubscriptionGroupIdIOS"] = bundle_subscription_group_id_ios
+		if bundle_transaction_id_ios != null:
+			dict["bundleTransactionIdIOS"] = bundle_transaction_id_ios
+		if previous_original_transaction_id_ios != null:
+			dict["previousOriginalTransactionIdIOS"] = previous_original_transaction_id_ios
 		if advanced_commerce_info_ios != null and advanced_commerce_info_ios.has_method("to_dict"):
 			dict["advancedCommerceInfoIOS"] = advanced_commerce_info_ios.to_dict()
 		else:
@@ -2469,7 +2592,7 @@ class RenewalInfoIOS:
 	var json_representation: Variant = null
 	var will_auto_renew: bool = false
 	var auto_renew_preference: Variant = null
-	## When subscription expires due to cancellation/billing issue Possible values: "VOLUNTARY", "BILLING_ERROR", "DID_NOT_AGREE_TO_PRICE_INCREASE", "PRODUCT_NOT_AVAILABLE", "UNKNOWN"
+	## StoreKit's raw integer expiration-reason value represented as a string. Xcode 27 adds the back-deployed unbundled case. Preserve unknown future values.
 	var expiration_reason: Variant = null
 	## Grace period expiration date (milliseconds since epoch) When set, subscription is in grace period (billing issue but still has access)
 	var grace_period_expiration_date: Variant = null
@@ -2489,6 +2612,14 @@ class RenewalInfoIOS:
 	var renewal_billing_plan_type: Variant = null
 	## iOS 26.4+ renewal commitment metadata for monthly subscriptions with a 12-month commitment.
 	var commitment_info: RenewalCommitmentInfoIOS
+	## Original transaction identifier for the bundle used by the next renewal.
+	var bundle_original_transaction_id: Variant = null
+	## Product identifier for the bundle used by the next renewal.
+	var bundle_product_id: Variant = null
+	## Subscription-group identifier for the bundle used by the next renewal.
+	var bundle_subscription_group_id: Variant = null
+	## Whether this subscription will leave its bundle and renew standalone.
+	var will_unbundle: Variant = null
 
 	static func from_dict(data: Dictionary) -> RenewalInfoIOS:
 		var obj = RenewalInfoIOS.new()
@@ -2525,6 +2656,14 @@ class RenewalInfoIOS:
 				obj.commitment_info = RenewalCommitmentInfoIOS.from_dict(data["commitmentInfo"])
 			else:
 				obj.commitment_info = data["commitmentInfo"]
+		if data.has("bundleOriginalTransactionId") and data["bundleOriginalTransactionId"] != null:
+			obj.bundle_original_transaction_id = data["bundleOriginalTransactionId"]
+		if data.has("bundleProductId") and data["bundleProductId"] != null:
+			obj.bundle_product_id = data["bundleProductId"]
+		if data.has("bundleSubscriptionGroupId") and data["bundleSubscriptionGroupId"] != null:
+			obj.bundle_subscription_group_id = data["bundleSubscriptionGroupId"]
+		if data.has("willUnbundle") and data["willUnbundle"] != null:
+			obj.will_unbundle = data["willUnbundle"]
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -2559,6 +2698,14 @@ class RenewalInfoIOS:
 			dict["commitmentInfo"] = commitment_info.to_dict()
 		else:
 			dict["commitmentInfo"] = commitment_info
+		if bundle_original_transaction_id != null:
+			dict["bundleOriginalTransactionId"] = bundle_original_transaction_id
+		if bundle_product_id != null:
+			dict["bundleProductId"] = bundle_product_id
+		if bundle_subscription_group_id != null:
+			dict["bundleSubscriptionGroupId"] = bundle_subscription_group_id
+		if will_unbundle != null:
+			dict["willUnbundle"] = will_unbundle
 		return dict
 
 ## Rental details for one-time purchase products that can be rented (Android) Available in Google Play Billing Library 8.0+
@@ -4762,7 +4909,9 @@ const PRODUCT_TYPE_IOS_VALUES = {
 	ProductTypeIOS.CONSUMABLE: "consumable",
 	ProductTypeIOS.NON_CONSUMABLE: "non-consumable",
 	ProductTypeIOS.AUTO_RENEWABLE_SUBSCRIPTION: "auto-renewable-subscription",
-	ProductTypeIOS.NON_RENEWING_SUBSCRIPTION: "non-renewing-subscription"
+	ProductTypeIOS.NON_RENEWING_SUBSCRIPTION: "non-renewing-subscription",
+	ProductTypeIOS.SUBSCRIPTION_BUNDLE: "subscription-bundle",
+	ProductTypeIOS.SUBSCRIPTION_SUITE: "subscription-suite"
 }
 
 const PURCHASE_STATE_VALUES = {
@@ -5013,7 +5162,9 @@ const PRODUCT_TYPE_IOS_FROM_STRING = {
 	"consumable": ProductTypeIOS.CONSUMABLE,
 	"non-consumable": ProductTypeIOS.NON_CONSUMABLE,
 	"auto-renewable-subscription": ProductTypeIOS.AUTO_RENEWABLE_SUBSCRIPTION,
-	"non-renewing-subscription": ProductTypeIOS.NON_RENEWING_SUBSCRIPTION
+	"non-renewing-subscription": ProductTypeIOS.NON_RENEWING_SUBSCRIPTION,
+	"subscription-bundle": ProductTypeIOS.SUBSCRIPTION_BUNDLE,
+	"subscription-suite": ProductTypeIOS.SUBSCRIPTION_SUITE
 }
 
 const PURCHASE_STATE_FROM_STRING = {
@@ -5622,13 +5773,13 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Show the App Store offer code redemption sheet. See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
+	## Show the App Store offer code redemption sheet. On iOS 27+, Mac Catalyst 27+, and visionOS 27+, returns the verified transaction produced by the redemption. Earlier iOS and Mac Catalyst versions present the legacy sheet and return null; reconcile purchases through the normal transaction listener or an explicit available-purchases refresh. See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
 	class presentCodeRedemptionSheetIOSField:
 		const name = "presentCodeRedemptionSheetIOS"
 		const snake_name = "present_code_redemption_sheet_ios"
 		class Args:
 			pass
-		const return_type = "Boolean"
+		const return_type = "PurchaseIOS"
 		const is_array = false
 
 	## Present the external purchase notice sheet (iOS 17.4+). Uses ExternalPurchase.presentNoticeSheet() which returns a token when the user continues. Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet() See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
@@ -6083,7 +6234,7 @@ static func begin_refund_request_ios_args(sku: String) -> Dictionary:
 static func sync_ios_args() -> Dictionary:
 	return {}
 
-## Show the App Store offer code redemption sheet. See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
+## Show the App Store offer code redemption sheet. On iOS 27+, Mac Catalyst 27+, and visionOS 27+, returns the verified transaction produced by the redemption. Earlier iOS and Mac Catalyst versions present the legacy sheet and return null; reconcile purchases through the normal transaction listener or an explicit available-purchases refresh. See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
 static func present_code_redemption_sheet_ios_args() -> Dictionary:
 	return {}
 

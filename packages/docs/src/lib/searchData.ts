@@ -260,9 +260,10 @@ export const apiData: ApiItem[] = [
     id: 'present-code-redemption-sheet-ios',
     title: 'presentCodeRedemptionSheetIOS',
     category: 'iOS Specific',
-    description: 'Present the App Store code redemption sheet',
+    description:
+      'Present the App Store code redemption sheet and return its verified transaction on Apple 27+',
     parameters: '',
-    returns: 'Boolean!',
+    returns: 'PurchaseIOS',
     path: '/docs/apis/ios/present-code-redemption-sheet-ios',
   },
   {

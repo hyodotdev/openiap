@@ -880,10 +880,10 @@ function checkE2eExampleIds() {
     'adb -s "$ANDROID_SERIAL" shell monkey -p dev.hyo.martie 1',
     'adb -s "$FIREOS_SERIAL" uninstall dev.hyo.martie',
     'adb -s "$FIREOS_SERIAL" install --no-incremental -r',
-    "bin/stores/amazon/Debug/net9.0-android/dev.hyo.martie-Signed.apk",
+    "bin/stores/amazon/Debug/net10.0-android/dev.hyo.martie-Signed.apk",
     'adb -s "$FIREOS_SERIAL" shell monkey -p dev.hyo.martie 1',
     "-p:RuntimeIdentifier=ios-arm64",
-    "bin/Debug/net9.0-ios/ios-arm64/OpenIap.Maui.Example.app",
+    "bin/Debug/net10.0-ios/ios-arm64/OpenIap.Maui.Example.app",
     "xcrun devicectl device process launch",
   ]) {
     if (!mauiSection.includes(expected)) {
@@ -895,7 +895,7 @@ function checkE2eExampleIds() {
       "MAUI E2E must select Android devices with adb -s, not ANDROID_SERIAL",
     );
   }
-  if (/dotnet build\s+-t:Run\s+-f net9\.0-ios/.test(mauiSection)) {
+  if (/dotnet build\s+-t:Run\s+-f net10\.0-ios/.test(mauiSection)) {
     fail("MAUI E2E must build ios-arm64 before installing with devicectl");
   }
 
@@ -5931,6 +5931,11 @@ function checkFrameworkDependencyHygiene() {
     "MAUI Horizon 2.x bindings must not ship the legacy OVR Platform SDK",
   );
   expectIncludes(
+    "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
+    ["net10.0;net10.0-android;net10.0-ios;net10.0-maccatalyst"],
+    "MAUI 2.x package must target supported .NET 10 frameworks only",
+  );
+  expectIncludes(
     "libraries/maui-iap/example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj",
     [
       "net10.0-android",
@@ -5959,13 +5964,43 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     "packages/docs/src/pages/docs/setup/maui.tsx",
     [
-      ".NET 9 or .NET 10 SDK",
+      ".NET 10 SDK",
       "Google Billing, Play",
       "net10.0-ios;net10.0-android;net10.0-maccatalyst",
-      "Replace <code>net9.0-*</code> with <code>net10.0-*</code>",
+      "OpenIap.Maui 2.x",
+      "supports .NET 10 only",
     ],
     "MAUI setup docs must describe net10 and NuGet Google dependency shape",
   );
+  for (const net10OnlyFile of [
+    "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
+    "libraries/maui-iap/src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj",
+    "libraries/maui-iap/src/OpenIap.Maui.Bindings.iOS/OpenIap.Maui.Bindings.iOS.csproj",
+    "libraries/maui-iap/tests/OpenIap.Maui.ContractTests/OpenIap.Maui.ContractTests.csproj",
+    "libraries/maui-iap/tests/OpenIap.Maui.Tests/OpenIap.Maui.Tests.csproj",
+    "libraries/maui-iap/example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj",
+    "libraries/maui-iap/.vscode/launch.json",
+    "libraries/maui-iap/.vscode/run_android.sh",
+    "libraries/maui-iap/.vscode/run_ios_device.sh",
+    "libraries/maui-iap/.vscode/run_ios_simulator.sh",
+    ".github/workflows/ci-maui-iap.yml",
+    ".github/workflows/release-maui.yml",
+    ".claude/commands/e2e-tests.md",
+    ".claude/commands/verify-all.md",
+    "libraries/maui-iap/README.md",
+    "libraries/maui-iap/example/README.md",
+    "libraries/maui-iap/CLAUDE.md",
+    "libraries/maui-iap/CONVENTION.md",
+    "knowledge/internal/04-platform-packages.md",
+    "packages/docs/src/pages/docs/setup/store/amazon.tsx",
+    "packages/docs/src/pages/docs/setup/store/horizon.tsx",
+  ]) {
+    expectNotIncludes(
+      net10OnlyFile,
+      ["net9.0", ".NET 9"],
+      "MAUI 2.x support files must not restore out-of-support .NET MAUI 9 targets",
+    );
+  }
   expectIncludes(
     "libraries/flutter_inapp_purchase/android/settings.gradle",
     ["new File(settingsDir, '../../../packages/google/openiap')"],
@@ -6271,6 +6306,116 @@ function checkReleaseNoteGroupingGuidance() {
   );
 }
 
+function checkXcode27StoreKitCoverage() {
+  expectIncludes(
+    "packages/gql/src/api-ios.graphql",
+    ["presentCodeRedemptionSheetIOS: PurchaseIOS"],
+    "Xcode 27 offer-code redemption result contract",
+  );
+  expectIncludes(
+    "packages/gql/src/type-ios.graphql",
+    [
+      "SubscriptionBundle",
+      "SubscriptionSuite",
+      "type BundledSubscriptionIOS",
+      "bundledSubscriptionsIOS: [BundledSubscriptionIOS!]",
+      "bundleOriginalTransactionIdIOS: String",
+      "bundleTransactionIdIOS: String",
+      "previousOriginalTransactionIdIOS: String",
+      "bundleOriginalTransactionId: String",
+      "willUnbundle: Boolean",
+      "revocationTypeIOS: String",
+      "revocationDate: Float",
+      "storeType: String",
+    ],
+    "Xcode 27 StoreKit schema coverage",
+  );
+  expectIncludes(
+    "packages/apple/Sources/Helpers/StoreKitTypesBridge.swift",
+    [
+      "info.bundledSubscriptions.map",
+      "type == .subscriptionBundle || type == .subscriptionSuite",
+      "transaction.bundleOriginalTransactionID",
+      "transaction.bundleTransactionID",
+      "transaction.previousOriginalTransactionID",
+      "info.bundleOriginalTransactionID",
+      "info.willUnbundle",
+      "ownership == .assigned",
+      "revocation == .upgradedToBundle",
+      "transaction.revocationType?.rawValue",
+      "details.partners.map",
+    ],
+    "Xcode 27 StoreKit native mapping",
+  );
+  expectIncludes(
+    "packages/apple/Sources/OpenIapModule.swift",
+    [
+      "AppStore.presentOfferCodeRedeemSheet(",
+      "StoreKitTypesBridge.isAutoRenewingSubscriptionProductType",
+      "revocationDateValue = transaction.revocationDate?.milliseconds",
+      "storeTypeValue = transaction.storeType.rawValue",
+    ],
+    "Xcode 27 Apple module behavior",
+  );
+  expectIncludes(
+    "libraries/react-native-iap/ios/RnIapHelper.swift",
+    ["bundledSubscriptionsIOS: nil"],
+    "React Native iOS minimal-product StoreKit 27 initializer parity",
+  );
+  expectIncludes(
+    "libraries/react-native-iap/android/src/main/java/com/margelo/nitro/iap/HybridRnIap.kt",
+    ["bundledSubscriptionsIOS = null"],
+    "React Native Android product StoreKit 27 initializer parity",
+  );
+  expectIncludes(
+    "packages/docs/src/pages/docs/updates/releases.tsx",
+    [
+      "Bundle/Suite product types",
+      "Group Purchase seat assignment",
+      "Commerce item partners",
+      "assignment-revocation metadata",
+      "managed acquisition platform",
+      "AppTransaction.all",
+    ],
+    "Xcode 27 major release note",
+  );
+  for (const examplePath of [
+    "libraries/react-native-iap/example/src/utils/buildPurchaseRows.ts",
+    "libraries/expo-iap/example/src/utils/buildPurchaseRows.ts",
+    "libraries/flutter_inapp_purchase/example/lib/src/widgets/purchase_detail_view.dart",
+  ]) {
+    expectIncludes(
+      examplePath,
+      [
+        "bundleOriginalTransactionIdIOS",
+        "bundleProductIdIOS",
+        "bundleSubscriptionGroupIdIOS",
+        "bundleTransactionIdIOS",
+        "previousOriginalTransactionIdIOS",
+        "revocationTypeIOS",
+      ],
+      "Xcode 27 purchase metadata example coverage",
+    );
+  }
+  expectIncludes(
+    "knowledge/external/storekit2-api.md",
+    [
+      "### Subscription Bundles and Suites (Xcode 27 beta)",
+      "Test the catalog and transaction mappings with an Xcode 27 StoreKit",
+      "revocationTypeIOS",
+      "back-deployed `managed` acquisition platform",
+      "it does not conflate",
+      "OpenIAP must not invent a schema contract before Apple publishes one",
+    ],
+    "Xcode 27 support boundary",
+  );
+  expectNotIncludes(
+    "packages/gql/src/type-ios.graphql",
+    ["GroupPurchase", "groupPurchase", "seatCount"],
+    "unpublished Group Purchase contract must stay out of the public schema",
+  );
+}
+
 checkLibraryCoverageRegistry();
 checkNativeSpecVersionFloor();
 checkDeprecationSchedule();
@@ -6296,6 +6441,7 @@ checkNativeApis();
 checkBillingChoiceFieldBindings();
 checkFrameworkDependencyHygiene();
 checkReleaseNoteGroupingGuidance();
+checkXcode27StoreKitCoverage();
 expectNoExampleStorefrontIOS();
 expectNoApi24ConcurrentKeySets();
 

@@ -256,11 +256,15 @@ public final class ExpoIapModule: Module {
             }
         }
 
-        AsyncFunction("presentCodeRedemptionSheetIOS") { () async throws -> Bool in
+        AsyncFunction("presentCodeRedemptionSheetIOS") { () async throws -> [String: Any]? in
             ExpoIapLog.payload("presentCodeRedemptionSheetIOS", payload: nil)
-            let success = try await OpenIapModule.shared.presentCodeRedemptionSheetIOS()
-            ExpoIapLog.result("presentCodeRedemptionSheetIOS", value: success)
-            return success
+            guard let purchase = try await OpenIapModule.shared.presentCodeRedemptionSheetIOS() else {
+                ExpoIapLog.result("presentCodeRedemptionSheetIOS", value: nil)
+                return nil
+            }
+            let payload = ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode(purchase))
+            ExpoIapLog.result("presentCodeRedemptionSheetIOS", value: payload)
+            return payload
         }
 
         AsyncFunction("showManageSubscriptionsIOS") { () async throws -> [[String: Any]] in

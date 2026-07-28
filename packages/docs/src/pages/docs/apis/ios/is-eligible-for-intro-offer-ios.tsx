@@ -70,9 +70,10 @@ function IsEligibleForIntroOfferIOS() {
           <em>
             (required, <code>string</code>)
           </em>{' '}
-          — Subscription group identifier. (Native Swift / Kotlin signatures
-          spell it <code>groupID</code>; the JavaScript / Dart wrappers expose
-          it as <code>groupId</code>.)
+          — Non-empty subscription group identifier. Empty or whitespace-only
+          values fail closed and return <code>false</code>. (Native Swift /
+          Kotlin signatures spell it <code>groupID</code>; the JavaScript / Dart
+          wrappers expose it as <code>groupId</code>.)
         </li>
       </ul>
 
@@ -112,7 +113,7 @@ if (Platform.OS === 'ios') {
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
 
-// kmp-iap (iOS targets only — no-op on Android)
+// OpenIap.Maui (iOS targets only)
 var ok = await ((QueryResolver)OpenIapClient.Instance).IsEligibleForIntroOfferIOSAsync(groupId: "com.app.subgroup");`}</CodeBlock>
           ),
           gdscript: (

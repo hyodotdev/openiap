@@ -62,7 +62,7 @@ function MauiSetup() {
                 <strong>.NET</strong>
               </td>
               <td>
-                .NET 9 or .NET 10 SDK and the MAUI workload:{' '}
+                .NET 10 SDK and the MAUI workload:{' '}
                 <code>dotnet workload install maui</code>
               </td>
             </tr>
@@ -151,11 +151,7 @@ function MauiSetup() {
           <code>TargetFrameworks</code>:
         </p>
         <CodeBlock language="xml">
-          {`<!-- .NET 9 apps -->
-<TargetFrameworks>net9.0-ios;net9.0-android;net9.0-maccatalyst</TargetFrameworks>
-
-<!-- .NET 10 apps -->
-<TargetFrameworks>net10.0-ios;net10.0-android;net10.0-maccatalyst</TargetFrameworks>
+          {`<TargetFrameworks>net10.0-ios;net10.0-android;net10.0-maccatalyst</TargetFrameworks>
 
 <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios'">15.0</SupportedOSPlatformVersion>
 <SupportedOSPlatformVersion Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">15.0</SupportedOSPlatformVersion>
@@ -374,18 +370,22 @@ cd libraries/maui-iap/example/OpenIap.Maui.Example
 
 # Android device or emulator
 adb uninstall dev.hyo.martie || true
-dotnet build -t:Run -f net9.0-android
+dotnet build -t:Run -f net10.0-android
 
 # iOS device or simulator
-dotnet build -t:Run -f net9.0-ios
+dotnet build -t:Run -f net10.0-ios
 
 # macCatalyst
-dotnet build -t:Run -f net9.0-maccatalyst`}
+dotnet build -t:Run -f net10.0-maccatalyst`}
         </CodeBlock>
-        <p>
-          Replace <code>net9.0-*</code> with <code>net10.0-*</code> when your
-          app targets .NET 10.
-        </p>
+        <div className="alert-card alert-card--warning">
+          <p>
+            <strong>Upgrading from OpenIap.Maui 1.x?</strong> OpenIap.Maui 2.x
+            supports .NET 10 only. Retarget every <code>net9.0-*</code> TFM to
+            the matching <code>net10.0-*</code> TFM and update the MAUI workload
+            before upgrading the package.
+          </p>
+        </div>
         <p>
           VS Code launch configurations are available in{' '}
           <code>libraries/maui-iap/.vscode/launch.json</code>. The iOS device
@@ -457,7 +457,7 @@ dotnet build -t:Run -f net9.0-maccatalyst`}
         <CodeBlock language="bash">
           {`adb uninstall dev.hyo.martie || true
 dotnet clean
-dotnet build -t:Run -f net9.0-android`}
+dotnet build -t:Run -f net10.0-android`}
         </CodeBlock>
 
         <h3 id="build-lock" className="anchor-heading">

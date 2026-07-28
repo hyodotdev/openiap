@@ -263,6 +263,16 @@ enum RnIapHelper {
             }
         }
 
+        var bundledSubscriptionsIOS: Variant_NullType_String? = nil
+        if let bundledSubscriptions = dictionary["bundledSubscriptionsIOS"] as? [[String: Any]],
+           !bundledSubscriptions.isEmpty {
+            if let json = serializeToJSON(bundledSubscriptions) {
+                bundledSubscriptionsIOS = .second(json)
+            } else {
+                NSLog("⚠️ [RnIapHelper] Failed to serialize bundledSubscriptionsIOS")
+            }
+        }
+
         // Handle subscriptionOffers - standardized cross-platform offers (OpenIAP 1.3.10+)
         var subscriptionOffers: Variant_NullType_String? = nil
         if let offersArray = dictionary["subscriptionOffers"] as? [[String: Any]], !offersArray.isEmpty {
@@ -298,6 +308,7 @@ enum RnIapHelper {
             isFamilyShareableIOS: wrapBool(boolValue(dictionary["isFamilyShareableIOS"])),
             jsonRepresentationIOS: wrapString(dictionary["jsonRepresentationIOS"] as? String),
             pricingTermsIOS: pricingTermsIOS,
+            bundledSubscriptionsIOS: bundledSubscriptionsIOS,
             introductoryPriceIOS: wrapString(dictionary["introductoryPriceIOS"] as? String),
             introductoryPriceAsAmountIOS: wrapDouble(doubleValue(dictionary["introductoryPriceAsAmountIOS"])),
             introductoryPriceNumberOfPeriodsIOS: wrapDouble(doubleValue(dictionary["introductoryPriceNumberOfPeriodsIOS"])),
@@ -370,12 +381,23 @@ enum RnIapHelper {
             ),
             billingPlanTypeIOS: (dictionary["billingPlanTypeIOS"] as? String)
                 .flatMap(SubscriptionBillingPlanTypeIOS.init(fromString:)),
+            bundleOriginalTransactionIdIOS: wrapString(
+                dictionary["bundleOriginalTransactionIdIOS"] as? String
+            ),
+            bundleProductIdIOS: wrapString(dictionary["bundleProductIdIOS"] as? String),
+            bundleSubscriptionGroupIdIOS: wrapString(
+                dictionary["bundleSubscriptionGroupIdIOS"] as? String
+            ),
+            bundleTransactionIdIOS: wrapString(dictionary["bundleTransactionIdIOS"] as? String),
             commitmentInfoIOS: wrapTransactionCommitmentInfo(
                 convertTransactionCommitmentInfo(dictionary["commitmentInfoIOS"])
             ),
             quantityIOS: wrapDouble(doubleValue(dictionary["quantityIOS"])),
             originalTransactionDateIOS: wrapDouble(doubleValue(dictionary["originalTransactionDateIOS"])),
             originalTransactionIdentifierIOS: wrapString(dictionary["originalTransactionIdentifierIOS"] as? String),
+            previousOriginalTransactionIdIOS: wrapString(
+                dictionary["previousOriginalTransactionIdIOS"] as? String
+            ),
             appAccountToken: wrapString(dictionary["appAccountToken"] as? String),
             appBundleIdIOS: wrapString(dictionary["appBundleIdIOS"] as? String),
             countryCodeIOS: wrapString(dictionary["countryCodeIOS"] as? String),
@@ -390,6 +412,7 @@ enum RnIapHelper {
             reasonStringRepresentationIOS: wrapString(dictionary["reasonStringRepresentationIOS"] as? String),
             revocationDateIOS: wrapDouble(doubleValue(dictionary["revocationDateIOS"])),
             revocationReasonIOS: wrapString(dictionary["revocationReasonIOS"] as? String),
+            revocationTypeIOS: wrapString(dictionary["revocationTypeIOS"] as? String),
             storefrontCountryCodeIOS: wrapString(dictionary["storefrontCountryCodeIOS"] as? String),
             subscriptionGroupIdIOS: wrapString(dictionary["subscriptionGroupIdIOS"] as? String),
             transactionReasonIOS: wrapString(dictionary["transactionReasonIOS"] as? String),
@@ -440,6 +463,13 @@ enum RnIapHelper {
         return NitroRenewalInfoIOS(
             willAutoRenew: boolValue(dictionary["willAutoRenew"]) ?? false,
             autoRenewPreference: wrapString(dictionary["autoRenewPreference"] as? String),
+            bundleOriginalTransactionId: wrapString(
+                dictionary["bundleOriginalTransactionId"] as? String
+            ),
+            bundleProductId: wrapString(dictionary["bundleProductId"] as? String),
+            bundleSubscriptionGroupId: wrapString(
+                dictionary["bundleSubscriptionGroupId"] as? String
+            ),
             commitmentInfo: wrapRenewalCommitmentInfo(
                 convertRenewalCommitmentInfo(dictionary["commitmentInfo"])
             ),
@@ -453,7 +483,8 @@ enum RnIapHelper {
                 .flatMap(SubscriptionBillingPlanTypeIOS.init(fromString:)),
             renewalOfferType: wrapString(dictionary["renewalOfferType"] as? String),
             renewalOfferId: wrapString(dictionary["renewalOfferId"] as? String),
-            jsonRepresentation: wrapString(dictionary["jsonRepresentation"] as? String)
+            jsonRepresentation: wrapString(dictionary["jsonRepresentation"] as? String),
+            willUnbundle: wrapBool(boolValue(dictionary["willUnbundle"]))
         )
     }
 
@@ -539,6 +570,7 @@ enum RnIapHelper {
             isFamilyShareableIOS: nil,
             jsonRepresentationIOS: nil,
             pricingTermsIOS: nil,
+            bundledSubscriptionsIOS: nil,
             introductoryPriceIOS: nil,
             introductoryPriceAsAmountIOS: nil,
             introductoryPriceNumberOfPeriodsIOS: nil,

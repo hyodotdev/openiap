@@ -402,6 +402,10 @@ public enum ProductTypeIOS: String, Codable, CaseIterable {
     case nonConsumable = "non-consumable"
     case autoRenewableSubscription = "auto-renewable-subscription"
     case nonRenewingSubscription = "non-renewing-subscription"
+    /// A group of independently purchasable subscriptions sold together (Apple 27+ beta).
+    case subscriptionBundle = "subscription-bundle"
+    /// A group of subscriptions that are available only as one suite (Apple 27+ beta).
+    case subscriptionSuite = "subscription-suite"
 }
 
 public enum PurchaseState: String, Codable, CaseIterable {
@@ -596,10 +600,18 @@ public struct AppTransaction: Codable {
     public var deviceVerificationNonce: String
     public var environment: String
     public var originalAppVersion: String
+    /// Original App Store platform raw value. Xcode 27 adds the back-deployed managed
+    /// acquisition-platform value.
     public var originalPlatform: String? = nil
     public var originalPurchaseDate: Double
     public var preorderDate: Double? = nil
+    /// Date the app-acquisition transaction was revoked (epoch milliseconds).
+    /// Available through the Xcode 27 SDK and back-deployed to Apple 16+.
+    public var revocationDate: Double? = nil
     public var signedDate: Double
+    /// Store channel of the original app purchase: consumer, education, enterprise,
+    /// or another future StoreKit value (Apple 27+ beta).
+    public var storeType: String? = nil
 }
 
 /// Display information for developer-rendered Billing Choice screens (Android)
@@ -649,6 +661,20 @@ public struct BillingResultAndroid: Codable {
     /// Sub-response code for more granular error information (8.0+).
     /// Provides additional context when responseCode indicates an error.
     public var subResponseCode: SubResponseCodeAndroid? = nil
+}
+
+/// Metadata for one auto-renewable subscription included in an Apple
+/// subscription bundle (Apple 27+ beta).
+public struct BundledSubscriptionIOS: Codable {
+    public var description: String
+    public var displayName: String
+    public var displayPrice: String
+    public var id: String
+    public var isFamilyShareable: Bool
+    public var price: Double
+    public var subscriptionGroupDisplayName: String
+    public var subscriptionGroupId: String
+    public var subscriptionGroupLevel: Int
 }
 
 /// Details provided when user selects developer billing option (Android)
@@ -964,6 +990,9 @@ public struct ProductSubscriptionAndroid: Codable, ProductCommon {
 }
 
 public struct ProductSubscriptionIOS: Codable, ProductCommon {
+    /// Subscriptions included in this Apple subscription bundle. Empty or null for
+    /// every other product type (Apple 27+ beta).
+    public var bundledSubscriptionsIOS: [BundledSubscriptionIOS]? = nil
     public var currency: String
     public var debugDescription: String? = nil
     public var description: String
@@ -1052,6 +1081,15 @@ public struct PurchaseIOS: Codable, PurchaseCommon {
     public var appBundleIdIOS: String? = nil
     /// iOS 26.4+ billing plan selected for this transaction.
     public var billingPlanTypeIOS: SubscriptionBillingPlanTypeIOS? = nil
+    /// Original transaction identifier for the subscription bundle that produced
+    /// this transaction (Apple 27+ SDK; back-deployed by StoreKit).
+    public var bundleOriginalTransactionIdIOS: String? = nil
+    /// Product identifier of the subscription bundle that produced this transaction.
+    public var bundleProductIdIOS: String? = nil
+    /// Subscription-group identifier of the bundle that produced this transaction.
+    public var bundleSubscriptionGroupIdIOS: String? = nil
+    /// Bundle transaction identifier associated with this component transaction.
+    public var bundleTransactionIdIOS: String? = nil
     /// iOS 26.4+ progress information for monthly subscriptions with a 12-month commitment.
     public var commitmentInfoIOS: TransactionCommitmentInfoIOS? = nil
     public var countryCodeIOS: String? = nil
@@ -1067,7 +1105,11 @@ public struct PurchaseIOS: Codable, PurchaseCommon {
     public var offerIOS: PurchaseOfferIOS? = nil
     public var originalTransactionDateIOS: Double? = nil
     public var originalTransactionIdentifierIOS: String? = nil
+    /// StoreKit ownership raw value. Xcode 27 adds the back-deployed assigned value.
     public var ownershipTypeIOS: String? = nil
+    /// Original transaction identifier replaced when moving between a standalone
+    /// subscription and a subscription bundle.
+    public var previousOriginalTransactionIdIOS: String? = nil
     public var productId: String
     public var purchaseState: PurchaseState
     public var purchaseToken: String? = nil
@@ -1077,7 +1119,11 @@ public struct PurchaseIOS: Codable, PurchaseCommon {
     public var reasonStringRepresentationIOS: String? = nil
     public var renewalInfoIOS: RenewalInfoIOS? = nil
     public var revocationDateIOS: Double? = nil
+    /// Normalized StoreKit revocation reason, including upgraded_to_bundle.
     public var revocationReasonIOS: String? = nil
+    /// StoreKit revocation type, including assignment-revocation on Apple 26.4+
+    /// when compiled with the Xcode 27 SDK.
+    public var revocationTypeIOS: String? = nil
     /// Store where purchase was made
     public var store: IapStore
     public var storefrontCountryCodeIOS: String? = nil
@@ -1112,11 +1158,17 @@ public struct RenewalCommitmentInfoIOS: Codable {
 /// https://developer.apple.com/documentation/storekit/product/subscriptioninfo/renewalinfo
 public struct RenewalInfoIOS: Codable {
     public var autoRenewPreference: String? = nil
+    /// Original transaction identifier for the bundle used by the next renewal.
+    public var bundleOriginalTransactionId: String? = nil
+    /// Product identifier for the bundle used by the next renewal.
+    public var bundleProductId: String? = nil
+    /// Subscription-group identifier for the bundle used by the next renewal.
+    public var bundleSubscriptionGroupId: String? = nil
     /// iOS 26.4+ renewal commitment metadata for monthly subscriptions with a
     /// 12-month commitment.
     public var commitmentInfo: RenewalCommitmentInfoIOS? = nil
-    /// When subscription expires due to cancellation/billing issue
-    /// Possible values: "VOLUNTARY", "BILLING_ERROR", "DID_NOT_AGREE_TO_PRICE_INCREASE", "PRODUCT_NOT_AVAILABLE", "UNKNOWN"
+    /// StoreKit's raw integer expiration-reason value represented as a string.
+    /// Xcode 27 adds the back-deployed unbundled case. Preserve unknown future values.
     public var expirationReason: String? = nil
     /// Grace period expiration date (milliseconds since epoch)
     /// When set, subscription is in grace period (billing issue but still has access)
@@ -1142,6 +1194,8 @@ public struct RenewalInfoIOS: Codable {
     /// Possible values: "PROMOTIONAL", "SUBSCRIPTION_OFFER_CODE", "WIN_BACK", etc.
     public var renewalOfferType: String? = nil
     public var willAutoRenew: Bool
+    /// Whether this subscription will leave its bundle and renew standalone.
+    public var willUnbundle: Bool? = nil
 }
 
 /// Rental details for one-time purchase products that can be rented (Android)
@@ -2562,8 +2616,13 @@ public protocol MutationResolver {
     /// See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
     func openRedeemOfferCodeAndroid() async throws -> Bool
     /// Show the App Store offer code redemption sheet.
+    /// On iOS 27+, Mac Catalyst 27+, and visionOS 27+, returns the verified
+    /// transaction produced by the redemption. Earlier iOS and Mac Catalyst
+    /// versions present the legacy sheet and return null; reconcile purchases
+    /// through the normal transaction listener or an explicit available-purchases
+    /// refresh.
     /// See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
-    func presentCodeRedemptionSheetIOS() async throws -> Bool
+    func presentCodeRedemptionSheetIOS() async throws -> PurchaseIOS?
     /// Present an external purchase link, StoreKit External (iOS 16+).
     /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
     func presentExternalPurchaseLinkIOS(_ url: String) async throws -> ExternalPurchaseLinkResultIOS
@@ -2747,7 +2806,7 @@ public typealias MutationInitConnectionHandler = (_ config: InitConnectionConfig
 public typealias MutationIsBillingProgramAvailableAndroidHandler = (_ program: BillingProgramAndroid) async throws -> BillingProgramAvailabilityResultAndroid
 public typealias MutationLaunchExternalLinkAndroidHandler = (_ params: LaunchExternalLinkParamsAndroid) async throws -> Bool
 public typealias MutationOpenRedeemOfferCodeAndroidHandler = () async throws -> Bool
-public typealias MutationPresentCodeRedemptionSheetIOSHandler = () async throws -> Bool
+public typealias MutationPresentCodeRedemptionSheetIOSHandler = () async throws -> PurchaseIOS?
 public typealias MutationPresentExternalPurchaseLinkIOSHandler = (_ url: String) async throws -> ExternalPurchaseLinkResultIOS
 public typealias MutationPresentExternalPurchaseNoticeSheetIOSHandler = () async throws -> ExternalPurchaseNoticeResultIOS
 public typealias MutationRequestPurchaseHandler = (_ params: RequestPurchaseProps) async throws -> RequestPurchaseResult?

@@ -95,6 +95,26 @@ extension PurchaseDisplayMapping on Purchase {
           value: _formatOptionalString(ios.subscriptionGroupIdIOS),
         ),
         PurchaseDisplayField(
+          label: 'bundleOriginalTransactionIdIOS',
+          value: _formatOptionalString(ios.bundleOriginalTransactionIdIOS),
+        ),
+        PurchaseDisplayField(
+          label: 'bundleProductIdIOS',
+          value: _formatOptionalString(ios.bundleProductIdIOS),
+        ),
+        PurchaseDisplayField(
+          label: 'bundleSubscriptionGroupIdIOS',
+          value: _formatOptionalString(ios.bundleSubscriptionGroupIdIOS),
+        ),
+        PurchaseDisplayField(
+          label: 'bundleTransactionIdIOS',
+          value: _formatOptionalString(ios.bundleTransactionIdIOS),
+        ),
+        PurchaseDisplayField(
+          label: 'previousOriginalTransactionIdIOS',
+          value: _formatOptionalString(ios.previousOriginalTransactionIdIOS),
+        ),
+        PurchaseDisplayField(
           label: 'isUpgradedIOS',
           value: ios.isUpgradedIOS?.toString() ?? 'null',
         ),
@@ -121,6 +141,10 @@ extension PurchaseDisplayMapping on Purchase {
         PurchaseDisplayField(
           label: 'revocationReasonIOS',
           value: _formatOptionalString(ios.revocationReasonIOS),
+        ),
+        PurchaseDisplayField(
+          label: 'revocationTypeIOS',
+          value: _formatOptionalString(ios.revocationTypeIOS),
         ),
         PurchaseDisplayField(
           label: 'currencyCodeIOS',

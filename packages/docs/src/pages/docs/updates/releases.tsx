@@ -440,6 +440,27 @@ function Releases() {
               their existing wire contracts. The removed outbound IAPKit-to-app
               SSE surface is not restored.
             </li>
+            <li>
+              Apple offer-code redemption now returns a verified{' '}
+              <code>PurchaseIOS</code> on iOS, Mac Catalyst, and visionOS 27+.
+              The iOS and Mac Catalyst 14–26 fallback still presents the legacy
+              sheet and returns <code>null</code>, requiring listener or
+              available-purchase reconciliation.
+            </li>
+            <li>
+              Xcode 27 builds recognize StoreKit subscription bundles and suites
+              as subscriptions, expose their component catalog metadata and
+              transaction or renewal linkage, report assigned ownership and
+              bundle-upgrade or assignment-revocation metadata, expose{' '}
+              <code>AppTransaction.storeType</code> and its back-deployed
+              revocation date, recognize the managed acquisition platform, and
+              preserve Advanced Commerce item partners. The new catalog types
+              require Apple 27; bundle transaction metadata follows
+              StoreKit&apos;s back-deployment contract. StoreKit&apos;s new{' '}
+              <code>AppTransaction.all</code> acquisition-history sequence is
+              documented but is not exported as an OpenIAP operation in this
+              release; it is distinct from in-app transaction history.
+            </li>
           </ul>
 
           <h5 style={{ margin: '0 0 0.5rem 0' }}>
@@ -462,7 +483,21 @@ function Releases() {
               <strong>openiap-apple 3.0.0</strong> - removes receipt-validation
               type aliases, old Objective-C selectors and overloads, storefront
               and promoted-purchase wrappers, legacy version labels, and
-              purchase-ID fallback decoding.
+              purchase-ID fallback decoding. When compiled with Xcode 27 it
+              adopts <code>presentOfferCodeRedeemSheet(from:options:)</code>,
+              verifies the returned transaction, and maps it to{' '}
+              <code>PurchaseIOS</code>; Xcode 26 builds retain the legacy
+              runtime fallback. It also maps the public Xcode 27 Subscription
+              Bundle/Suite product types, bundled component metadata, bundle
+              transaction and renewal fields, assigned ownership, bundle upgrade
+              and assignment revocation metadata, app revocation date, managed
+              acquisition platform, app store type, and Advanced Commerce
+              partners. Group Purchase seat assignment remains outside this
+              release because Xcode 27 beta 4 exposes no public StoreKit
+              contract for it. The package also keeps{' '}
+              <code>AppTransaction.all</code> outside the cross-SDK surface
+              rather than conflating app-acquisition history with{' '}
+              <code>getAllTransactionsIOS</code>.
             </li>
             <li>
               <strong>openiap-google 3.0.0</strong> - removes legacy
@@ -484,34 +519,44 @@ function Releases() {
               <strong>react-native-iap 16.0.0</strong> - removes deprecated hook
               fields, purchase helpers, request envelopes, product-type
               spelling, promoted-purchase shortcut, receipt helper, and native
-              transaction-ID fallback.
+              transaction-ID fallback, and returns the verified redeemed
+              purchase from the iOS offer-code API when available.
             </li>
             <li>
               <strong>expo-iap 5.0.0</strong> - removes the matching JavaScript
               compatibility APIs plus old Expo config keys and Android
-              custom-channel payload aliases.
+              custom-channel payload aliases, and forwards the nullable verified
+              Apple redemption result.
             </li>
             <li>
               <strong>flutter_inapp_purchase 10.0.0</strong> - removes
               deprecated Dart classes, streams, builders, methods, platform
               fields, and all legacy MethodChannel names and payload
-              normalizers.
+              normalizers; the iOS redemption channel now decodes{' '}
+              <code>PurchaseIOS?</code>.
             </li>
             <li>
               <strong>godot-iap 3.0.0</strong> - removes deprecated GDScript
               methods, alternate product spellings, raw request envelopes,
-              flattened IAPKit fields, and native bridge aliases.
+              flattened IAPKit fields, and native bridge aliases, while its
+              GDExtension returns a typed redeemed purchase on Apple 27+ when
+              that native framework is compiled with Xcode 27. An Xcode 26-built
+              framework keeps the legacy <code>null</code> result.
             </li>
             <li>
               <strong>kmp-iap 3.0.0</strong> - removes deprecated common and
               platform methods, DSL properties, generated request aliases, and
               billing configuration fields while preserving upstream native
-              response normalization.
+              response normalization and the nullable verified redemption
+              result.
             </li>
             <li>
               <strong>OpenIap.Maui 2.0.0</strong> - removes the legacy{' '}
               <code>Iap</code> facade, promoted-purchase wrapper, generated
-              compatibility types, and obsolete native bindings.
+              compatibility types, obsolete native bindings, and out-of-support
+              .NET MAUI 9 target frameworks. The package now targets supported
+              .NET MAUI 10 only and exposes the nullable redeemed{' '}
+              <code>PurchaseIOS</code> through its iOS binding.
             </li>
           </ul>
 
@@ -523,7 +568,19 @@ function Releases() {
             </Link>{' '}
             before upgrading. Existing bookmarks for removed API pages redirect
             to their canonical replacement documentation, but the removed
-            runtime symbols themselves have no compatibility stubs.
+            runtime symbols themselves have no compatibility stubs. MAUI apps
+            must retarget <code>net9.0-*</code> projects to the corresponding{' '}
+            <code>net10.0-*</code> frameworks before installing OpenIap.Maui
+            2.0.0. Callers that treated{' '}
+            <code>presentCodeRedemptionSheetIOS</code> as a Boolean must instead
+            handle a nullable purchase; <code>null</code> is the expected
+            legacy-sheet result on iOS and Mac Catalyst 14–26, and from a Godot
+            GDExtension compiled with Xcode 26. The Xcode 27 Bundle/Suite fields
+            are additive and nullable; applications should keep their existing
+            subscription logic as a fallback until the Apple 27 catalog has been
+            exercised with StoreKit Testing. These APIs are based on Xcode 27
+            beta 4 and must be re-audited against the final SDK before the major
+            train is released.
           </p>
 
           <div

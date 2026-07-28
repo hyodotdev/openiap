@@ -27,7 +27,7 @@ jest.mock('react-native-nitro-modules', () => ({
       removePromotedProductListenerIOS: jest.fn(),
       getStorefront: jest.fn().mockResolvedValue('US'),
       getAppTransactionIOS: jest.fn().mockResolvedValue(null),
-      presentCodeRedemptionSheetIOS: jest.fn().mockResolvedValue(true),
+      presentCodeRedemptionSheetIOS: jest.fn().mockResolvedValue(null),
       clearTransactionIOS: jest.fn().mockResolvedValue(true),
       beginRefundRequestIOS: jest.fn().mockResolvedValue(null),
       acknowledgePurchaseAndroid: jest.fn().mockResolvedValue(true),
@@ -161,7 +161,7 @@ describe('RnIap Complete Test Suite', () => {
     });
 
     it('should present code redemption sheet on iOS', async () => {
-      await expect(RNIap.presentCodeRedemptionSheetIOS()).resolves.toBe(true);
+      await expect(RNIap.presentCodeRedemptionSheetIOS()).resolves.toBeNull();
     });
 
     it('should clear transactions on iOS', async () => {

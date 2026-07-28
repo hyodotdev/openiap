@@ -618,17 +618,29 @@ class HybridRnIap: HybridRnIapSpec {
         }
     }
 
-    func presentCodeRedemptionSheetIOS() throws -> Promise<Bool> {
+    func presentCodeRedemptionSheetIOS() throws -> Promise<Variant_NullType_NitroPurchase> {
         return Promise.async {
             do {
                 RnIapLog.payload("presentCodeRedemptionSheetIOS", nil)
-                let ok = try await OpenIapModule.shared.presentCodeRedemptionSheetIOS()
-                RnIapLog.result("presentCodeRedemptionSheetIOS", ok)
-                return ok
+                guard let purchase = try await OpenIapModule.shared.presentCodeRedemptionSheetIOS() else {
+                    RnIapLog.result("presentCodeRedemptionSheetIOS", nil)
+                    return .first(.null)
+                }
+                let raw = OpenIapSerialization.encode(purchase)
+                let payload = RnIapHelper.sanitizeDictionary(raw)
+                RnIapLog.result("presentCodeRedemptionSheetIOS", payload)
+                if let identifier = raw["id"] as? String {
+                    await MainActor.run {
+                        self.purchasePayloadById[identifier] = raw
+                    }
+                }
+                return .second(RnIapHelper.convertPurchaseDictionary(payload))
             } catch {
-                // Fallback with explicit error for simulator or unsupported cases
                 RnIapLog.failure("presentCodeRedemptionSheetIOS", error: error)
-                throw OpenIapException.make(code: .featureNotSupported)
+                throw OpenIapException.make(
+                    code: .purchaseError,
+                    message: error.localizedDescription
+                )
             }
         }
     }

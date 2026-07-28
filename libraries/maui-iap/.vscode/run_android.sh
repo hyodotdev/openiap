@@ -91,11 +91,11 @@ adb -s "$DEVICE" uninstall "$OLD_APP_ID" >/dev/null 2>&1 || true
 
 echo "Resetting stale Android build server and wrapped assemblies..."
 dotnet build-server shutdown >/dev/null 2>&1 || true
-rm -rf "$APP_DIR/obj/Debug/net9.0-android/$RID/$RID/wrapped"
-rm -f "$APP_DIR/bin/Debug/net9.0-android/$APP_ID.apk"
-rm -f "$APP_DIR/bin/Debug/net9.0-android/$APP_ID-Signed.apk"
-rm -f "$APP_DIR/bin/Debug/net9.0-android/$RID/$APP_ID.apk"
-rm -f "$APP_DIR/bin/Debug/net9.0-android/$RID/$APP_ID-Signed.apk"
+rm -rf "$APP_DIR/obj/Debug/net10.0-android/$RID/$RID/wrapped"
+rm -f "$APP_DIR/bin/Debug/net10.0-android/$APP_ID.apk"
+rm -f "$APP_DIR/bin/Debug/net10.0-android/$APP_ID-Signed.apk"
+rm -f "$APP_DIR/bin/Debug/net10.0-android/$RID/$APP_ID.apk"
+rm -f "$APP_DIR/bin/Debug/net10.0-android/$RID/$APP_ID-Signed.apk"
 
 echo "Building OpenIAP Google Play AAR..."
 (cd "$GOOGLE_DIR" && ./gradlew :openiap:assemblePlayRelease)
@@ -105,7 +105,7 @@ echo "Building MAUI Android module AAR..."
 
 echo "Building and packaging MAUI Android APK. This can take 1-2 minutes after DLL output..."
 dotnet build "$PROJECT" \
-  -f net9.0-android \
+  -f net10.0-android \
   -p:RuntimeIdentifier="$RID" \
   -p:EmbedAssembliesIntoApk=true \
   -maxcpucount:1 \
@@ -115,12 +115,12 @@ dotnet build "$PROJECT" \
 echo "Build completed. Locating APK..."
 APK=""
 for candidate in \
-  "$APP_DIR/bin/Debug/net9.0-android/$RID/$APP_ID-Signed.apk" \
-  "$APP_DIR/bin/Debug/net9.0-android/$RID/$APP_ID.apk" \
-  "$APP_DIR/bin/Debug/net9.0-android/$APP_ID-Signed.apk" \
-  "$APP_DIR/bin/Debug/net9.0-android/$APP_ID.apk" \
-  "$APP_DIR/obj/Debug/net9.0-android/$RID/android/bin/$APP_ID.apk" \
-  "$APP_DIR/obj/Debug/net9.0-android/android/bin/$APP_ID.apk"; do
+  "$APP_DIR/bin/Debug/net10.0-android/$RID/$APP_ID-Signed.apk" \
+  "$APP_DIR/bin/Debug/net10.0-android/$RID/$APP_ID.apk" \
+  "$APP_DIR/bin/Debug/net10.0-android/$APP_ID-Signed.apk" \
+  "$APP_DIR/bin/Debug/net10.0-android/$APP_ID.apk" \
+  "$APP_DIR/obj/Debug/net10.0-android/$RID/android/bin/$APP_ID.apk" \
+  "$APP_DIR/obj/Debug/net10.0-android/android/bin/$APP_ID.apk"; do
   if [ -f "$candidate" ]; then
     APK="$candidate"
     break
@@ -128,7 +128,7 @@ for candidate in \
 done
 
 if [ ! -f "$APK" ]; then
-  echo "Android APK was not produced under $APP_DIR/bin/Debug/net9.0-android." >&2
+  echo "Android APK was not produced under $APP_DIR/bin/Debug/net10.0-android." >&2
   exit 1
 fi
 

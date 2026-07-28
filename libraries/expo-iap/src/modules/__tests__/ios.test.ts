@@ -484,16 +484,21 @@ describe('iOS Module Functions', () => {
     });
 
     it('should call presentCodeRedemptionSheetIOS', async () => {
+      const redeemedPurchase = {
+        id: 'redeemed-transaction',
+        productId: 'premium',
+        store: 'apple',
+      };
       (
         ExpoIapModule.presentCodeRedemptionSheetIOS as jest.Mock
-      ).mockResolvedValue(true);
+      ).mockResolvedValue(redeemedPurchase);
 
       const result = await presentCodeRedemptionSheetIOS();
 
       expect(ExpoIapModule.presentCodeRedemptionSheetIOS).toHaveBeenCalledTimes(
         1,
       );
-      expect(result).toBe(true);
+      expect(result).toEqual(redeemedPurchase);
     });
 
     it('should call getPromotedProductIOS', async () => {
