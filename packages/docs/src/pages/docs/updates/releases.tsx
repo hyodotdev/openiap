@@ -105,6 +105,18 @@ const iapkitSecurityTrainReleases = [
   ['OpenIap.Maui 1.4.1', 'maui-iap-1.4.1'],
 ] as const;
 
+const majorApiRemovalReleases = [
+  ['OpenIAP Spec 3.0.0', 'docs-3.0.0'],
+  ['openiap-apple 3.0.0', '3.0.0'],
+  ['openiap-google 3.0.0', 'google-3.0.0'],
+  ['react-native-iap 16.0.0', 'react-native-iap-16.0.0'],
+  ['expo-iap 5.0.0', 'expo-iap-5.0.0'],
+  ['flutter_inapp_purchase 10.0.0', 'flutter-iap-10.0.0'],
+  ['godot-iap 3.0.0', 'godot-iap-3.0.0'],
+  ['kmp-iap 3.0.0', 'kmp-iap-3.0.0'],
+  ['OpenIap.Maui 2.0.0', 'maui-iap-2.0.0'],
+] as const;
+
 const iapkitSecurityTrainAliases = [
   'iapkit-webhook-asc-review-scoped-keys-2026-07-25',
   'iapkit-webhook-dedup-asc-review-automation-2026-07-23',
