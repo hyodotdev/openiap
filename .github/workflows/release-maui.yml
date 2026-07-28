@@ -71,7 +71,7 @@ jobs:
         run: dotnet build libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0
 
       - name: Run contract tests (shared)
-        run: dotnet run --project libraries/maui-iap/tests/OpenIap.Maui.ContractTests/OpenIap.Maui.ContractTests.csproj --framework net10.0 --no-launch-profile
+        run: dotnet run --project libraries/maui-iap/tests/OpenIap.Maui.ContractTests/OpenIap.Maui.ContractTests.csproj --framework net10.0 -p:TargetFrameworks=net10.0 --no-launch-profile
 
       - name: Run unit tests (shared)
         run: dotnet test libraries/maui-iap/tests/OpenIap.Maui.Tests/OpenIap.Maui.Tests.csproj -p:TargetFrameworks=net10.0 --nologo

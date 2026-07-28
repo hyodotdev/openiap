@@ -69,7 +69,7 @@ jobs:
         run: dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0 --nologo
 
       - name: Run contract tests (shared)
-        run: dotnet run --project tests/OpenIap.Maui.ContractTests/OpenIap.Maui.ContractTests.csproj --framework net10.0 --no-launch-profile
+        run: dotnet run --project tests/OpenIap.Maui.ContractTests/OpenIap.Maui.ContractTests.csproj --framework net10.0 -p:TargetFrameworks=net10.0 --no-launch-profile
 
       # xUnit suite for the shared surface (Types.cs serialization, error
       # mapper, KitApi HTTP contract). net10.0-only project;

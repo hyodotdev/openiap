@@ -188,7 +188,7 @@ For maui-iap specifically:
 dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0
 
 # Dependency-free shared contract tests
-dotnet run --project tests/OpenIap.Maui.ContractTests/OpenIap.Maui.ContractTests.csproj --framework net10.0 --no-launch-profile
+dotnet run --project tests/OpenIap.Maui.ContractTests/OpenIap.Maui.ContractTests.csproj --framework net10.0 -p:TargetFrameworks=net10.0 --no-launch-profile
 
 # xUnit suite for the shared surface (net10.0 only, no workloads; the PLURAL
 # TargetFrameworks override keeps the OpenIap.Maui restore off platform TFMs)
