@@ -66,6 +66,9 @@ post_install do |installer|
       # Ensure Swift runtime libraries are included
       config.build_settings['ALWAYS_EMBED_SWIFT_STANDARD_LIBRARIES'] = 'YES'
       config.build_settings['SWIFT_VERSION'] = '5.0'
+      # Xcode 27 no longer accepts the iOS 13 deployment floor emitted by
+      # Flutter's engine pod. The example and plugin both require iOS 15.
+      config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '15.0'
     end
   end
 end

@@ -1035,7 +1035,9 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
                 let dayDelta = expiration.map { Calendar.current.dateComponents([.day], from: Date(), to: $0).day ?? 0 }
                 let daysUntilExpiration = dayDelta.map { Double($0) }
                 let environment: String?
-                if #available(iOS 16.0, tvOS 16.0, watchOS 9.0, *) {
+                // OpenIapModule already requires tvOS 16, so only the lower
+                // iOS and watchOS deployment floors need a runtime check here.
+                if #available(iOS 16.0, watchOS 9.0, *) {
                     environment = transaction.environment.rawValue
                 } else {
                     environment = nil
