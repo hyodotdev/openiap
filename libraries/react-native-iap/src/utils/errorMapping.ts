@@ -21,7 +21,22 @@ const ERROR_CODE_ALIASES: Record<string, ErrorCode> = {
   USER_CANCELED: ErrorCode.UserCancelled,
   E_USER_CANCELLED: ErrorCode.UserCancelled,
   USER_CANCELLED: ErrorCode.UserCancelled,
+  RECEIPT_FAILED: ErrorCode.PurchaseVerificationFailed,
+  E_RECEIPT_FAILED: ErrorCode.PurchaseVerificationFailed,
+  RECEIPT_FINISHED: ErrorCode.PurchaseVerificationFinished,
+  E_RECEIPT_FINISHED: ErrorCode.PurchaseVerificationFinished,
+  RECEIPT_FINISHED_FAILED: ErrorCode.PurchaseVerificationFinishFailed,
+  E_RECEIPT_FINISHED_FAILED: ErrorCode.PurchaseVerificationFinishFailed,
 };
+
+const errorAlias = (code: string): ErrorCode | undefined =>
+  ERROR_CODE_ALIASES[
+    code
+      .trim()
+      .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+      .replace(/-/g, '_')
+      .toUpperCase()
+  ];
 
 const toKebabCase = (str: string): string => {
   if (str.includes('_')) {
@@ -176,6 +191,11 @@ export const ErrorCodeUtils = {
     _platform: IapPlatform,
   ): ErrorCode => {
     if (typeof platformCode === 'string') {
+      const alias = errorAlias(platformCode);
+      if (alias) {
+        return alias;
+      }
+
       // Handle direct ErrorCode enum values
       if (OPENIAP_ERROR_CODE_SET.has(platformCode)) {
         return platformCode as ErrorCode;
@@ -241,6 +261,11 @@ const normalizeErrorCode = (
 
   if (ERROR_CODES.has(code as string)) {
     return code as string;
+  }
+
+  const alias = errorAlias(code as string);
+  if (alias) {
+    return alias;
   }
 
   const camelCased = toKebabCase(code as string);
@@ -385,15 +410,9 @@ export const normalizeErrorCodeFromNative = (code: unknown): ErrorCode => {
     const upper = code.toUpperCase();
 
     // Check platform spelling aliases first.
-    const alias = ERROR_CODE_ALIASES[upper];
+    const alias = errorAlias(code);
     if (alias) {
       return alias;
-    }
-
-    // Also check lowercase alias for kebab-case codes
-    const lowerAlias = ERROR_CODE_ALIASES[code];
-    if (lowerAlias) {
-      return lowerAlias;
     }
 
     // Handle various user cancelled formats

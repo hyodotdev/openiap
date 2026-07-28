@@ -64,6 +64,15 @@ describe('errorMapping utilities', () => {
     );
   });
 
+  it.each([
+    ['receipt-failed', ErrorCode.PurchaseVerificationFailed],
+    ['ReceiptFailed', ErrorCode.PurchaseVerificationFailed],
+    ['E_RECEIPT_FINISHED', ErrorCode.PurchaseVerificationFinished],
+    ['RECEIPT_FINISHED_FAILED', ErrorCode.PurchaseVerificationFinishFailed],
+  ])('normalizes historical error input %s', (input, expected) => {
+    expect(ErrorCodeUtils.fromPlatformCode(input, 'ios')).toBe(expected);
+  });
+
   it('round-trips canonical codes instead of native message constants', () => {
     const platformCode = ErrorCodeUtils.toPlatformCode(
       ErrorCode.NetworkError,

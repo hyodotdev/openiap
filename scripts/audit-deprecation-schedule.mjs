@@ -339,6 +339,10 @@ const requiredTexts = [
       "OpenIap.Maui 2.0.0",
       "Removed schema migration catalog",
       "Removed package-specific compatibility shims",
+      "ProductAndroid.oneTimePurchaseOfferDetailsAndroid",
+      "ProductSubscriptionAndroid.oneTimePurchaseOfferDetailsAndroid",
+      "ProductAndroid.subscriptionOfferDetailsAndroid / ProductSubscriptionAndroid.subscriptionOfferDetailsAndroid",
+      "ProductSubscriptionAndroid.discountOffers",
     ],
   },
   {

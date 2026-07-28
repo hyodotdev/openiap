@@ -4,6 +4,7 @@ import {
   isUserCancelledError,
   isDuplicatePurchaseError,
   DUPLICATE_PURCHASE_CODE,
+  ErrorCodeUtils,
 } from '../../utils/errorMapping';
 import {ErrorCode} from '../../types';
 
@@ -117,5 +118,17 @@ describe('utils/errorMapping', () => {
         message: 'custom',
       } as any),
     ).toBe('custom');
+  });
+
+  test.each([
+    ['receipt-failed', ErrorCode.PurchaseVerificationFailed],
+    ['ReceiptFailed', ErrorCode.PurchaseVerificationFailed],
+    ['E_RECEIPT_FINISHED', ErrorCode.PurchaseVerificationFinished],
+    ['RECEIPT_FINISHED_FAILED', ErrorCode.PurchaseVerificationFinishFailed],
+  ])('normalizes historical error input %s', (input, expected) => {
+    expect(ErrorCodeUtils.fromPlatformCode(input, 'ios')).toBe(expected);
+    expect(
+      getUserFriendlyErrorMessage({code: input, message: 'ignored'}),
+    ).not.toBe('ignored');
   });
 });

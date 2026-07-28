@@ -52,7 +52,7 @@ enum StoreKitTypesBridge {
                paymentMode != .empty {
                 return paymentMode
             }
-            return .empty
+            return introductoryPaymentModeFromJSON(product.jsonRepresentation) ?? .empty
         }()
 
         // Get normalized introductory period unit (e.g., 14 days -> week)
@@ -637,6 +637,34 @@ enum StoreKitTypesBridge {
         }
         #endif
         return nil
+    }
+
+    /// Recovers an upstream StoreKit introductory payment mode when
+    /// `SubscriptionInfo.introductoryOffer` is missing or incomplete.
+    static func introductoryPaymentModeFromJSON(_ data: Data) -> PaymentModeIOS? {
+        guard
+            let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any],
+            let attributes = json["attributes"] as? [String: Any],
+            let offers = attributes["offers"] as? [[String: Any]],
+            let discounts = offers.first?["discounts"] as? [[String: Any]],
+            let introductory = discounts.first(where: {
+                ($0["type"] as? String) == "IntroOffer"
+            }),
+            let modeType = introductory["modeType"] as? String
+        else {
+            return nil
+        }
+
+        switch modeType {
+        case "FreeTrial":
+            return .freeTrial
+        case "PayAsYouGo":
+            return .payAsYouGo
+        case "PayUpFront":
+            return .payUpFront
+        default:
+            return nil
+        }
     }
 }
 

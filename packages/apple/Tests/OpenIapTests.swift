@@ -400,6 +400,48 @@ final class OpenIapTests: XCTestCase {
             "JSON should not contain 'freeTrial' (case name)")
     }
 
+    func testIntroductoryPaymentModeRecoversFromStoreKitJSON() throws {
+        func payload(modeType: String) throws -> Data {
+            try JSONSerialization.data(withJSONObject: [
+                "attributes": [
+                    "offers": [[
+                        "discounts": [[
+                            "type": "IntroOffer",
+                            "modeType": modeType
+                        ]]
+                    ]]
+                ]
+            ])
+        }
+
+        XCTAssertEqual(
+            StoreKitTypesBridge.introductoryPaymentModeFromJSON(
+                try payload(modeType: "FreeTrial")
+            ),
+            .freeTrial
+        )
+        XCTAssertEqual(
+            StoreKitTypesBridge.introductoryPaymentModeFromJSON(
+                try payload(modeType: "PayAsYouGo")
+            ),
+            .payAsYouGo
+        )
+        XCTAssertEqual(
+            StoreKitTypesBridge.introductoryPaymentModeFromJSON(
+                try payload(modeType: "PayUpFront")
+            ),
+            .payUpFront
+        )
+        XCTAssertNil(
+            StoreKitTypesBridge.introductoryPaymentModeFromJSON(
+                try payload(modeType: "Unknown")
+            )
+        )
+        XCTAssertNil(
+            StoreKitTypesBridge.introductoryPaymentModeFromJSON(Data("{}".utf8))
+        )
+    }
+
     func testProductSubscriptionIOSPeriodNormalization() throws {
         // Test 1: 14-day trial (periodCount = 1) should be normalized to 2 weeks
         let product14Days = ProductSubscriptionIOS(

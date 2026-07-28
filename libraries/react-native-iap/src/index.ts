@@ -2559,13 +2559,18 @@ const toDiscountOfferRecordIOS = (
 const toNitroProductType = (
   type?: ProductTypeInput | ProductQueryType | null,
 ): 'in-app' | 'subs' | 'all' => {
-  if (type === 'subs') {
-    return 'subs';
+  switch (type) {
+    case 'in-app':
+      return 'in-app';
+    case 'subs':
+      return 'subs';
+    case 'all':
+      return 'all';
+    default:
+      throw new Error(
+        `Unsupported product type: ${String(type)}. Use in-app, subs, or all.`,
+      );
   }
-  if (type === 'all') {
-    return 'all';
-  }
-  return 'in-app';
 };
 
 const isSubscriptionQuery = (type?: ProductQueryType | null): boolean =>
@@ -2574,24 +2579,17 @@ const isSubscriptionQuery = (type?: ProductQueryType | null): boolean =>
 const normalizeProductQueryType = (
   type?: ProductQueryType | string | null,
 ): ProductQueryType => {
+  if (type == null) {
+    return 'in-app';
+  }
+
   if (type === 'all' || type === 'subs' || type === 'in-app') {
     return type;
   }
 
-  if (typeof type === 'string') {
-    const normalized = type.trim().toLowerCase().replace(/_/g, '-');
-
-    if (normalized === 'all') {
-      return 'all';
-    }
-    if (normalized === 'subs') {
-      return 'subs';
-    }
-    if (normalized === 'in-app') {
-      return 'in-app';
-    }
-  }
-  return 'in-app';
+  throw new Error(
+    `Unsupported product type: ${String(type)}. Use in-app, subs, or all.`,
+  );
 };
 
 /**

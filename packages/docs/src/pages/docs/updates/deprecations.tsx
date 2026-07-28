@@ -88,13 +88,20 @@ const migrationGroups = [
       ['DiscountIOS / DiscountOfferIOS', 'SubscriptionOffer'],
       ['ProductAndroidOneTimePurchaseOfferDetail', 'DiscountOffer'],
       ['ProductSubscriptionAndroidOfferDetails', 'SubscriptionOffer'],
-      ['ProductAndroid.discountOffers', 'ProductAndroid.discountOffers'],
+      [
+        'ProductAndroid.oneTimePurchaseOfferDetailsAndroid',
+        'ProductAndroid.discountOffers',
+      ],
+      [
+        'ProductSubscriptionAndroid.oneTimePurchaseOfferDetailsAndroid',
+        'subscriptionOffers; one-time offer fields do not apply to subscriptions',
+      ],
       [
         'ProductSubscriptionAndroid.discountOffers',
         'subscriptionOffers; one-time offer fields do not apply to subscriptions',
       ],
       [
-        'ProductAndroid.subscriptionOffers / ProductSubscriptionAndroid.subscriptionOffers',
+        'ProductAndroid.subscriptionOfferDetailsAndroid / ProductSubscriptionAndroid.subscriptionOfferDetailsAndroid',
         'subscriptionOffers',
       ],
       [

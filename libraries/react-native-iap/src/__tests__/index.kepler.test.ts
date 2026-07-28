@@ -33,6 +33,13 @@ describe('Amazon Vega public API', () => {
     expect(fetchProductsNative).toHaveBeenCalledWith(['coins'], 'in-app');
   });
 
+  it('rejects removed product type aliases', async () => {
+    await expect(
+      fetchProducts({skus: ['coins'], type: 'inapp' as any}),
+    ).rejects.toThrow(/Unsupported product type/);
+    expect(fetchProductsNative).not.toHaveBeenCalled();
+  });
+
   it('forwards the canonical google purchase request', async () => {
     const request: RequestPurchaseProps = {
       request: {google: {skus: ['coins']}},

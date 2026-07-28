@@ -142,7 +142,8 @@ import NotFound from '../404';
    minus the hash, defeating LEGACY_ANCHOR_REDIRECTS. */
 function NavigatePreservingHash({ to }: { to: string }) {
   const { hash } = useLocation();
-  return <Navigate to={`${to}${hash || ''}`} replace />;
+  const target = to.includes('#') ? to : `${to}${hash || ''}`;
+  return <Navigate to={target} replace />;
 }
 
 const SIDEBAR_WIDTH_STORAGE_KEY = 'openiap-docs-sidebar-width-v2';

@@ -569,6 +569,19 @@ describe('Public API (src/index.ts)', () => {
       expect(console.warn).not.toHaveBeenCalled();
     });
 
+    it.each(['inapp', 'in_app', 'one-time'])(
+      'rejects removed or unknown product type %s',
+      async (type) => {
+        await expect(
+          IAP.fetchProducts({
+            skus: ['coins'],
+            type: type as any,
+          }),
+        ).rejects.toThrow(/Unsupported product type/);
+        expect(mockIap.fetchProducts).not.toHaveBeenCalled();
+      },
+    );
+
     it('validates and maps products for a single type', async () => {
       (Platform as any).OS = 'ios';
       mockIap.fetchProducts.mockResolvedValueOnce([

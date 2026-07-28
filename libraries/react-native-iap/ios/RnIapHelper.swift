@@ -468,9 +468,9 @@ enum RnIapHelper {
 
         switch normalizedType {
         case .subs:
-            normalized["requestSubscription"] = ["ios": iosPayload]
+            normalized["requestSubscription"] = ["apple": iosPayload]
         case .inApp, .all:
-            normalized["requestPurchase"] = ["ios": iosPayload]
+            normalized["requestPurchase"] = ["apple": iosPayload]
         }
 
         return try OpenIapSerialization.decode(object: normalized, as: RequestPurchaseProps.self)

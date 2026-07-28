@@ -151,6 +151,24 @@ export const ErrorCodeMapping = {
 
 const OPENIAP_ERROR_CODE_SET: Set<string> = new Set(Object.values(ErrorCode));
 
+const HISTORICAL_ERROR_CODE_INPUTS: Record<string, ErrorCode> = {
+  RECEIPT_FAILED: ErrorCode.PurchaseVerificationFailed,
+  E_RECEIPT_FAILED: ErrorCode.PurchaseVerificationFailed,
+  RECEIPT_FINISHED: ErrorCode.PurchaseVerificationFinished,
+  E_RECEIPT_FINISHED: ErrorCode.PurchaseVerificationFinished,
+  RECEIPT_FINISHED_FAILED: ErrorCode.PurchaseVerificationFinishFailed,
+  E_RECEIPT_FINISHED_FAILED: ErrorCode.PurchaseVerificationFinishFailed,
+};
+
+const historicalErrorCode = (code: string): ErrorCode | undefined =>
+  HISTORICAL_ERROR_CODE_INPUTS[
+    code
+      .trim()
+      .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+      .replace(/-/g, '_')
+      .toUpperCase()
+  ];
+
 // Legacy Google Play Billing response codes accepted by older JS call sites.
 // Native ERROR_CODES constants are code -> message tables, not response-code maps.
 const LEGACY_ANDROID_RESPONSE_CODES = new Map<number, ErrorCode>([
@@ -285,8 +303,7 @@ export const createPurchaseErrorFromNativeException = (
         asBoolean(direct.isEmptyProductList) ??
         fallback.isEmptyProductList,
       subResponseCodeAndroid: subResponseCode as
-        | SubResponseCodeAndroid
-        | undefined,
+        SubResponseCodeAndroid | undefined,
       platform: resolvedPlatform,
     },
     resolvedPlatform,
@@ -305,8 +322,12 @@ export const ErrorCodeUtils = {
     }
     if (typeof platformCode === 'number') {
       return normalizePlatform(platform) === 'android'
-        ? LEGACY_ANDROID_RESPONSE_CODES.get(platformCode) ?? ErrorCode.Unknown
+        ? (LEGACY_ANDROID_RESPONSE_CODES.get(platformCode) ?? ErrorCode.Unknown)
         : ErrorCode.Unknown;
+    }
+    const historical = historicalErrorCode(platformCode);
+    if (historical) {
+      return historical;
     }
     const normalized = toKebabCase(platformCode.replace(/^E_/i, ''));
     return OPENIAP_ERROR_CODE_SET.has(normalized)
@@ -336,6 +357,11 @@ const normalizeErrorCode = (code?: string | null): string | undefined => {
 
   if (ERROR_CODES.has(code)) {
     return code;
+  }
+
+  const historical = historicalErrorCode(code);
+  if (historical) {
+    return historical;
   }
 
   const camelCased = toKebabCase(code);

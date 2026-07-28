@@ -57,6 +57,31 @@ void main() {
       expect(iosCode, types.ErrorCode.ServiceError);
     });
 
+    test('fromPlatformCode normalizes historical receipt inputs', () {
+      expect(
+        errors.ErrorCodeUtils.fromPlatformCode(
+          'E_RECEIPT_FAILED',
+          types.IapPlatform.Android,
+        ),
+        types.ErrorCode.PurchaseVerificationFailed,
+      );
+      expect(
+        errors.ErrorCodeUtils.fromPlatformCode(
+          'ReceiptFinished',
+          types.IapPlatform.Android,
+        ),
+        types.ErrorCode.PurchaseVerificationFinished,
+      );
+      expect(
+        errors.ErrorCodeUtils.fromPlatformCode(11, types.IapPlatform.IOS),
+        types.ErrorCode.PurchaseVerificationFinished,
+      );
+      expect(
+        errors.ErrorCodeUtils.fromPlatformCode(15, types.IapPlatform.IOS),
+        types.ErrorCode.PurchaseVerificationFinishFailed,
+      );
+    });
+
     test('toPlatformCode provides platform specific mapping', () {
       final iosValue = errors.ErrorCodeUtils.toPlatformCode(
         types.ErrorCode.NetworkError,

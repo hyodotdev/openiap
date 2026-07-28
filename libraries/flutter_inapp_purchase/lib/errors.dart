@@ -106,6 +106,32 @@ class ErrorCodeMapping {
   };
 }
 
+const Map<int, ErrorCode> _historicalIosErrorInputs = <int, ErrorCode>{
+  5: ErrorCode.PurchaseVerificationFailed,
+  11: ErrorCode.PurchaseVerificationFinished,
+  15: ErrorCode.PurchaseVerificationFinishFailed,
+};
+
+const Map<String, ErrorCode> _historicalErrorInputs = <String, ErrorCode>{
+  'RECEIPT_FAILED': ErrorCode.PurchaseVerificationFailed,
+  'E_RECEIPT_FAILED': ErrorCode.PurchaseVerificationFailed,
+  'RECEIPT_FINISHED': ErrorCode.PurchaseVerificationFinished,
+  'E_RECEIPT_FINISHED': ErrorCode.PurchaseVerificationFinished,
+  'RECEIPT_FINISHED_FAILED': ErrorCode.PurchaseVerificationFinishFailed,
+  'E_RECEIPT_FINISHED_FAILED': ErrorCode.PurchaseVerificationFinishFailed,
+};
+
+String _normalizeHistoricalErrorInput(String value) {
+  return value
+      .trim()
+      .replaceAllMapped(
+        RegExp(r'([a-z0-9])([A-Z])'),
+        (match) => '${match.group(1)}_${match.group(2)}',
+      )
+      .replaceAll('-', '_')
+      .toUpperCase();
+}
+
 /// Convert string to kebab-case
 String _toKebabCase(String str) {
   if (str.contains('_')) {
@@ -266,6 +292,12 @@ class ErrorCodeUtils {
   ) {
     // Handle string codes (Android E_* codes or OpenIAP kebab-case)
     if (platformCode is String) {
+      final historical =
+          _historicalErrorInputs[_normalizeHistoricalErrorInput(platformCode)];
+      if (historical != null) {
+        return historical;
+      }
+
       // First try direct mapping from ErrorCodeMapping
       const mapping = ErrorCodeMapping.android;
       for (final entry in mapping.entries) {
@@ -300,6 +332,10 @@ class ErrorCodeUtils {
 
     // Handle legacy/numeric iOS codes
     if (platformCode is int) {
+      final historical = _historicalIosErrorInputs[platformCode];
+      if (historical != null) {
+        return historical;
+      }
       const mapping = ErrorCodeMapping.ios;
       for (final entry in mapping.entries) {
         if (entry.value == platformCode) {

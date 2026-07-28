@@ -81,9 +81,12 @@ const getVegaModule = () =>
 const normalizeProductQueryType = (
   type?: ProductQueryType | ProductTypeInput | null,
 ): ProductTypeInput | 'all' => {
+  if (type == null || type === 'in-app') return 'in-app';
   if (type === 'subs') return 'subs';
   if (type === 'all') return 'all';
-  return 'in-app';
+  throw new Error(
+    `Unsupported product type: ${String(type)}. Use in-app, subs, or all.`,
+  );
 };
 
 const mapProducts = (
