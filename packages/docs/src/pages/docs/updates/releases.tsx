@@ -443,6 +443,13 @@ function Releases() {
               scheduled legacy members or deprecation shims.
             </li>
             <li>
+              Amazon available-purchase pagination now collapses overlapping
+              pages by receipt ID before product-type hydration, so Fire OS
+              integrations receive one purchase per receipt. Malformed blank
+              receipt IDs still reach the existing validation path and fail
+              closed instead of being hidden by deduplication.
+            </li>
+            <li>
               Hosted IAPKit verification, scoped publishable and secret keys,
               client payloads, catalog reads, and inbound store webhooks keep
               their existing wire contracts. The removed outbound IAPKit-to-app
@@ -511,7 +518,9 @@ function Releases() {
               <strong>openiap-google 3.0.0</strong> - removes legacy
               alternative-billing constructors, listeners, manifest keys,
               logging shortcuts, error aliases, and compatibility methods while
-              retaining the current Play, Amazon, and Horizon flows.
+              retaining the current Play, Amazon, and Horizon flows. Its Amazon
+              flow also deduplicates receipt IDs repeated across Appstore
+              pagination boundaries before returning available purchases.
             </li>
           </ul>
 

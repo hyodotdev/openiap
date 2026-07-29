@@ -230,6 +230,17 @@ internal class AmazonPurchaseUpdatesSession {
     suspend fun <T> run(block: suspend () -> T): T = mutex.withLock { block() }
 }
 
+internal fun <T> deduplicateAmazonPurchaseUpdates(
+    items: List<T>,
+    receiptId: (T) -> String,
+): List<T> {
+    val seenReceiptIds = mutableSetOf<String>()
+    return items.filter { item ->
+        val id = receiptId(item)
+        id.isBlank() || seenReceiptIds.add(id)
+    }
+}
+
 internal fun resolveAmazonStorefront(marketplace: String?): String =
     requireAuthoritativeStorefrontCountry(marketplace)
 
@@ -1257,8 +1268,11 @@ class OpenIapModule(
                 }
                 hasMore = response.hasMore()
             } while (hasMore)
-            hydrateProductTypesForReceipts(receipts, operationGeneration)
-            receipts.map { receipt ->
+            val uniqueReceipts = deduplicateAmazonPurchaseUpdates(receipts) {
+                it.receiptId.orEmpty()
+            }
+            hydrateProductTypesForReceipts(uniqueReceipts, operationGeneration)
+            uniqueReceipts.map { receipt ->
                 val productType = receipt.productTypeOrNull()
                     ?: productTypeBySku[receipt.sku.orEmpty()]
                 cacheReceiptProduct(receipt, productType)
