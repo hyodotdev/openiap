@@ -577,6 +577,8 @@ class HybridRnIap: HybridRnIapSpec {
                         ]
                         result["appTransactionId"] = appTx.appTransactionId
                         result["originalPlatform"] = appTx.originalPlatform
+                        result["revocationDate"] = appTx.revocationDate
+                        result["storeType"] = appTx.storeType
                         let jsonData = try JSONSerialization.data(withJSONObject: result, options: [])
                         let string = String(data: jsonData, encoding: .utf8)
                         RnIapLog.result("getAppTransactionIOS", "<appTransaction>")

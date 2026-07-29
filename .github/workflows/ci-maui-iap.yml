@@ -31,7 +31,6 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  XCODE_VERSION: 16.4
   XCODEGEN_VERSION: 2.45.4
   XCODEGEN_SHA256: 090ec29491aad50aec10631bf6e62253fed733c50f3aab0f5ffc86bc170bdbef
 
@@ -145,17 +144,14 @@ jobs:
 
   ios-binding:
     name: iOS binding (net10.0 ios + maccatalyst)
-    runs-on: macos-15
+    # The MAUI package embeds a prebuilt OpenIAP.xcframework. Compile it with
+    # Xcode 27 so the guarded StoreKit 27 implementation is present in NuGet.
+    runs-on: xcode-27
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 1
-
-      - name: Set up Xcode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: ${{ env.XCODE_VERSION }}
 
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68

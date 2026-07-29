@@ -4112,10 +4112,8 @@ function checkFrameworkDependencyHygiene() {
   }
   for (const xcodeReleaseWorkflow of [
     ".github/workflows/ci.yml",
-    ".github/workflows/ci-maui-iap.yml",
     ".github/workflows/release-apple.yml",
     ".github/workflows/release-kmp.yml",
-    ".github/workflows/release-maui.yml",
   ]) {
     expectIncludes(
       xcodeReleaseWorkflow,
@@ -4131,6 +4129,47 @@ function checkFrameworkDependencyHygiene() {
       xcodeReleaseWorkflow,
       ["runs-on: macos-latest", "sudo xcode-select -s /Applications/Xcode.app"],
       `${xcodeReleaseWorkflow} must not drift with macos-latest Xcode`,
+    );
+  }
+  for (const mauiXcodeWorkflow of [
+    ".github/workflows/ci-maui-iap.yml",
+    ".github/workflows/release-maui.yml",
+  ]) {
+    expectIncludes(
+      mauiXcodeWorkflow,
+      ["runs-on: xcode-27", "prebuilt OpenIAP.xcframework"],
+      `${mauiXcodeWorkflow} must compile the packaged Apple sidecar with Xcode 27`,
+    );
+    expectNotIncludes(
+      mauiXcodeWorkflow,
+      [
+        "XCODE_VERSION: 16.4",
+        "maxim-lobanov/setup-xcode@v1",
+        "runs-on: macos-latest",
+      ],
+      `${mauiXcodeWorkflow} must not compile the packaged Apple sidecar with an older or floating Xcode`,
+    );
+  }
+  expectIncludes(
+    "libraries/godot-iap/scripts/verify-ios-toolchain.sh",
+    [
+      "xcrun vtool -show-build",
+      "version[[:space:]]+27[0-9]+",
+      "Rebuild with DEVELOPER_DIR pointing at Xcode 27 before release.",
+    ],
+    "Godot tracked iOS frameworks must require Xcode 27 linker provenance",
+  );
+  for (const godotWorkflow of [
+    ".github/workflows/ci-godot-iap.yml",
+    ".github/workflows/release-godot.yml",
+  ]) {
+    expectIncludes(
+      godotWorkflow,
+      [
+        "Verify tracked iOS framework toolchain",
+        "bash scripts/verify-ios-toolchain.sh",
+      ],
+      `${godotWorkflow} must validate tracked iOS framework toolchain provenance`,
     );
   }
   expectIncludes(

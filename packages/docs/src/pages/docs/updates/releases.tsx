@@ -117,6 +117,10 @@ const majorApiRemovalReleases = [
   ['OpenIap.Maui 2.0.0', 'maui-iap-2.0.0'],
 ] as const;
 
+const majorApiRemovalAliases = [
+  'openiap-major-api-cleanup-2026-07-27',
+] as const;
+
 const iapkitSecurityTrainAliases = [
   'iapkit-webhook-asc-review-scoped-keys-2026-07-25',
   'iapkit-webhook-dedup-asc-review-automation-2026-07-23',
@@ -379,9 +383,13 @@ function Releases() {
     // July 29, 2026 - OpenIAP major API cleanup
     {
       id: 'openiap-major-api-cleanup-2026-07-29',
+      aliases: majorApiRemovalAliases,
       date: new Date('2026-07-29'),
       element: (
         <div key="openiap-major-api-cleanup-2026-07-29" style={noteCardStyle}>
+          {majorApiRemovalAliases.map((alias) => (
+            <span key={alias} id={alias} aria-hidden="true" />
+          ))}
           <AnchorLink id="openiap-major-api-cleanup-2026-07-29" level="h4">
             July 29, 2026 - OpenIAP major API cleanup
           </AnchorLink>
@@ -579,8 +587,8 @@ function Releases() {
             are additive and nullable; applications should keep their existing
             subscription logic as a fallback until the Apple 27 catalog has been
             exercised with StoreKit Testing. These APIs are based on Xcode 27
-            beta 4 and must be re-audited against the final SDK before the major
-            train is released.
+            beta 4 and must be re-audited when Apple publishes the final or a
+            newer Xcode 27 SDK.
           </p>
 
           <div
@@ -2744,7 +2752,7 @@ function Releases() {
               StoreKit&apos;s{' '}
               <code>Product.PurchaseOption.billingPlanType</code> on iOS,
               iPadOS, macOS, tvOS, and visionOS 26.4+ when compiled with Xcode
-              26.4+ / Swift 6.3+.
+              26.5+ / Swift 6.3+.
             </li>
             <li>
               <strong>Introductory offer eligibility correction</strong> —{' '}

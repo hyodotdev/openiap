@@ -89,7 +89,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      - name: Verify iOS Frameworks
+      - name: Verify tracked iOS framework toolchain
         run: |
           if [ ! -d "addons/godot-iap/bin/ios/GodotIap.framework" ]; then
             echo "Error: iOS frameworks not found"
@@ -99,6 +99,7 @@ jobs:
             echo "Error: iOS SwiftGodotRuntime framework not found"
             exit 1
           fi
+          bash scripts/verify-ios-toolchain.sh
 
       - name: Verify macOS Frameworks
         if: ${{ inputs.notarize_macos }}

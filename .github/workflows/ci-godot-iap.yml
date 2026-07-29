@@ -100,6 +100,10 @@ jobs:
           fetch-depth: 1
           persist-credentials: false
 
+      - name: Verify tracked iOS framework toolchain
+        working-directory: libraries/godot-iap
+        run: bash scripts/verify-ios-toolchain.sh
+
       - name: Set up Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
