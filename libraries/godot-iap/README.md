@@ -38,9 +38,9 @@ Visit the [documentation site](https://openiap.dev/docs/setup/godot) for [instal
 Native Apple API availability is fixed when the pre-built
 `GodotIap.framework` is compiled. The verified Apple 27 offer-code result
 requires a framework built with Xcode 27 or later; an Xcode 26-built framework
-uses the legacy `null` result even on Apple 27. Check the release notes for the
-artifact toolchain or build the plugin from source when adopting beta SDK
-functionality.
+uses the legacy `null` result even on Apple 27. The published godot-iap 3.0.0
+iOS framework is built with Xcode 27 and its release workflow rejects an older
+artifact. Custom builds must use Xcode 27 to retain that result path.
 
 Release zips are intended for iOS export and Android. If you use a release or
 custom build that includes `addons/godot-iap/bin/macos`, and Godot says

@@ -72,7 +72,10 @@ function MauiSetup() {
               </td>
               <td>
                 iOS 15+ / macCatalyst 15+, Apple Developer account, matching
-                bundle identifier, In-App Purchase capability, sandbox tester
+                bundle identifier, In-App Purchase capability, sandbox tester.
+                OpenIap.Maui 2.0.0 embeds an Apple XCFramework built with Xcode
+                27; custom source builds need Xcode 27 to include the guarded
+                StoreKit 27 implementation.
               </td>
             </tr>
             <tr>

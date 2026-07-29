@@ -528,43 +528,52 @@ function Releases() {
               fields, purchase helpers, request envelopes, product-type
               spelling, promoted-purchase shortcut, receipt helper, and native
               transaction-ID fallback, and returns the verified redeemed
-              purchase from the iOS offer-code API when available.
+              purchase from the iOS offer-code API when available. Its Nitro
+              bridge also preserves the new AppTransaction revocation date and
+              store type.
             </li>
             <li>
               <strong>expo-iap 5.0.0</strong> - removes the matching JavaScript
               compatibility APIs plus old Expo config keys and Android
               custom-channel payload aliases, and forwards the nullable verified
-              Apple redemption result.
+              Apple redemption result together with the generated Xcode 27
+              catalog, purchase, renewal, and app-transaction fields.
             </li>
             <li>
               <strong>flutter_inapp_purchase 10.0.0</strong> - removes
               deprecated Dart classes, streams, builders, methods, platform
               fields, and all legacy MethodChannel names and payload
               normalizers; the iOS redemption channel now decodes{' '}
-              <code>PurchaseIOS?</code>.
+              <code>PurchaseIOS?</code>, and the generated Xcode 27 fields pass
+              through the canonical MethodChannel payloads.
             </li>
             <li>
               <strong>godot-iap 3.0.0</strong> - removes deprecated GDScript
               methods, alternate product spellings, raw request envelopes,
               flattened IAPKit fields, and native bridge aliases, while its
-              GDExtension returns a typed redeemed purchase on Apple 27+ when
-              that native framework is compiled with Xcode 27. An Xcode 26-built
-              framework keeps the legacy <code>null</code> result.
+              published iOS GDExtension is built with Xcode 27 and release
+              validation rejects an older tracked framework. It therefore
+              exports the generated Bundle/Suite records and returns a typed
+              redeemed purchase on Apple 27+; a custom Xcode 26-built framework
+              keeps the legacy <code>null</code> result.
             </li>
             <li>
               <strong>kmp-iap 3.0.0</strong> - removes deprecated common and
               platform methods, DSL properties, generated request aliases, and
               billing configuration fields while preserving upstream native
               response normalization and the nullable verified redemption
-              result.
+              result. Its generated common models include the Xcode 27 catalog,
+              purchase, renewal, and app-transaction fields.
             </li>
             <li>
               <strong>OpenIap.Maui 2.0.0</strong> - removes the legacy{' '}
               <code>Iap</code> facade, promoted-purchase wrapper, generated
               compatibility types, obsolete native bindings, and out-of-support
               .NET MAUI 9 target frameworks. The package now targets supported
-              .NET MAUI 10 only and exposes the nullable redeemed{' '}
-              <code>PurchaseIOS</code> through its iOS binding.
+              .NET MAUI 10 only. Its NuGet release rebuilds the embedded Apple
+              XCFramework with Xcode 27, so the iOS binding exposes the guarded
+              StoreKit 27 implementation, generated Bundle/Suite records, and
+              nullable redeemed <code>PurchaseIOS</code>.
             </li>
           </ul>
 
@@ -586,9 +595,12 @@ function Releases() {
             GDExtension compiled with Xcode 26. The Xcode 27 Bundle/Suite fields
             are additive and nullable; applications should keep their existing
             subscription logic as a fallback until the Apple 27 catalog has been
-            exercised with StoreKit Testing. These APIs are based on Xcode 27
-            beta 4 and must be re-audited when Apple publishes the final or a
-            newer Xcode 27 SDK.
+            exercised with StoreKit Testing. Source-integrated Apple SDKs must
+            be compiled with Xcode 27 to include the guarded implementation; the
+            published Godot 3.0.0 and OpenIap.Maui 2.0.0 Apple binaries are
+            built with that toolchain. These APIs are based on Xcode 27 beta 4
+            and must be re-audited when Apple publishes the final or a newer
+            Xcode 27 SDK.
           </p>
 
           <div
