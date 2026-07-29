@@ -69,7 +69,7 @@ function Announcements() {
               ✨
             </div>
             <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
-              Introducing OpenIAP 3
+              OpenIAP 3: Xcode 27, Flutter SwiftPM, and a cleaner API
             </h2>
             <a
               href="#2026-07-29-openiap-3"
@@ -80,6 +80,18 @@ function Announcements() {
             </a>
           </div>
           <p style={dateStyle}>July 29, 2026</p>
+
+          <p
+            style={{
+              margin: '0 0 1.25rem',
+              color: 'var(--text-primary)',
+              fontSize: 'clamp(1.2rem, 3vw, 1.65rem)',
+              fontWeight: 700,
+              lineHeight: 1.3,
+            }}
+          >
+            Xcode 27-ready. Flutter SwiftPM. The legacy clutter is gone.
+          </p>
 
           <Link
             to="/docs/updates/releases#openiap-major-api-cleanup-2026-07-29"
@@ -105,16 +117,15 @@ function Announcements() {
           </Link>
 
           <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
-            OpenIAP 3 completes a coordinated major cleanup across the shared
-            specification, native packages, and every maintained framework
-            library. Deprecated OpenIAP-owned APIs, duplicate fields, legacy
-            request shapes, and compatibility aliases have been removed in favor
-            of one canonical purchase contract across Swift, Kotlin, TypeScript,
-            Dart, GDScript, and C#.
+            OpenIAP 3 is our biggest contract cleanup yet. It connects Flutter's
+            SwiftPM path to openiap-apple 3.0.0, adds guarded Xcode 27 and
+            StoreKit 27 support, and removes the deprecated APIs, duplicate
+            fields, legacy request shapes, and compatibility aliases that made
+            cross-platform integrations harder to reason about.
           </p>
 
           <h3 style={{ marginTop: '1.25rem', marginBottom: '0.5rem' }}>
-            A smaller, clearer cross-platform surface
+            What lands in OpenIAP 3
           </h3>
           <ul
             style={{
@@ -124,14 +135,20 @@ function Announcements() {
             }}
           >
             <li>
-              Purchase, verification, offer, billing-program, and
-              platform-request models now use one canonical vocabulary across
-              the supported SDKs.
+              Guarded Xcode 27 and StoreKit 27 support brings subscription
+              bundles and suites, verified offer-code redemption results, and
+              new transaction metadata without dropping the documented older-OS
+              fallbacks.
             </li>
             <li>
-              Apple integrations add guarded Xcode 27 and StoreKit 27 support,
-              while existing runtime fallbacks remain documented for older
-              operating systems.
+              Flutter 3.44+ resolves the OpenIAP Apple 3.0.0 native dependency
+              through SwiftPM; older or SwiftPM-disabled projects retain the
+              CocoaPods path.
+            </li>
+            <li>
+              The legacy surface is gone: purchase, verification, offer,
+              billing-program, and platform-request models now use one canonical
+              vocabulary across the supported SDKs.
             </li>
             <li>
               IAPKit receipt verification, scoped keys, client payloads, catalog
