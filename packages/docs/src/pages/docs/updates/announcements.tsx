@@ -55,6 +55,107 @@ function Announcements() {
   useScrollToHash();
 
   const announcements: Announcement[] = [
+    // 2026-07-29: OpenIAP 3
+    {
+      id: '2026-07-29-openiap-3',
+      date: new Date('2026-07-29'),
+      element: (
+        <div key="2026-07-29-openiap-3" style={cardStyle}>
+          <div style={headerStyle}>
+            <div
+              aria-hidden="true"
+              style={{ fontSize: '2.25rem', lineHeight: 1 }}
+            >
+              ✨
+            </div>
+            <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
+              Introducing OpenIAP 3
+            </h2>
+            <a
+              href="#2026-07-29-openiap-3"
+              style={linkIconStyle}
+              title="Link to this announcement"
+            >
+              🔗
+            </a>
+          </div>
+          <p style={dateStyle}>July 29, 2026</p>
+
+          <Link
+            to="/docs/updates/releases#openiap-major-api-cleanup-2026-07-29"
+            style={{
+              display: 'block',
+              width: '100%',
+              borderRadius: '0.75rem',
+              margin: '0 0 1.5rem',
+              border: '1px solid var(--border-color)',
+              boxShadow: '0 12px 30px rgba(0, 0, 0, 0.2)',
+              overflow: 'hidden',
+            }}
+          >
+            <img
+              src="/announcements/openiap-3.webp"
+              alt="OpenIAP 3 connecting purchase experiences across device platforms"
+              style={{
+                width: '100%',
+                height: 'auto',
+                display: 'block',
+              }}
+            />
+          </Link>
+
+          <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
+            OpenIAP 3 completes a coordinated major cleanup across the shared
+            specification, native packages, and every maintained framework
+            library. Deprecated OpenIAP-owned APIs, duplicate fields, legacy
+            request shapes, and compatibility aliases have been removed in favor
+            of one canonical purchase contract across Swift, Kotlin, TypeScript,
+            Dart, GDScript, and C#.
+          </p>
+
+          <h3 style={{ marginTop: '1.25rem', marginBottom: '0.5rem' }}>
+            A smaller, clearer cross-platform surface
+          </h3>
+          <ul
+            style={{
+              paddingLeft: '1.5rem',
+              marginBottom: '1rem',
+              lineHeight: '1.7',
+            }}
+          >
+            <li>
+              Purchase, verification, offer, billing-program, and
+              platform-request models now use one canonical vocabulary across
+              the supported SDKs.
+            </li>
+            <li>
+              Apple integrations add guarded Xcode 27 and StoreKit 27 support,
+              while existing runtime fallbacks remain documented for older
+              operating systems.
+            </li>
+            <li>
+              IAPKit receipt verification, scoped keys, client payloads, catalog
+              reads, and inbound App Store and Google Play webhooks keep their
+              existing wire contracts.
+            </li>
+          </ul>
+
+          <p style={calloutStyle}>
+            See the{' '}
+            <Link to="/docs/updates/releases#openiap-major-api-cleanup-2026-07-29">
+              complete OpenIAP 3 release notes
+            </Link>{' '}
+            for exact package versions, per-SDK changes, platform availability,
+            and release links. Before upgrading, follow the{' '}
+            <Link to="/docs/updates/deprecations">
+              Deprecations &amp; 3.0 Migration catalog
+            </Link>
+            .
+          </p>
+        </div>
+      ),
+    },
+
     // 2026-07-24: Major-version deprecation schedule
     {
       id: '2026-07-24-major-version-deprecation-schedule',
