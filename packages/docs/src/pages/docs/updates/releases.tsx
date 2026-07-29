@@ -545,7 +545,10 @@ function Releases() {
               fields, and all legacy MethodChannel names and payload
               normalizers; the iOS redemption channel now decodes{' '}
               <code>PurchaseIOS?</code>, and the generated Xcode 27 fields pass
-              through the canonical MethodChannel payloads.
+              through the canonical MethodChannel payloads. Its iOS and macOS
+              SwiftPM manifests resolve <code>openiap-apple 3.0.0</code> for
+              Flutter 3.44+, while older or SwiftPM-disabled projects keep the
+              CocoaPods integration.
             </li>
             <li>
               <strong>godot-iap 3.0.0</strong> - removes deprecated GDScript
