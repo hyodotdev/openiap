@@ -129,20 +129,59 @@ export function normalizeGeneratedTimestamps(content: string): string {
 export function writeGeneratedFileIfChanged(
   filePath: string,
   content: string,
+  ignoreTimestampOnlyChanges = true,
 ): boolean {
   const finalizedContent = withFinalNewline(content);
   if (fs.existsSync(filePath)) {
     const existingContent = fs.readFileSync(filePath, "utf-8");
-    if (
-      normalizeGeneratedTimestamps(existingContent) ===
-      normalizeGeneratedTimestamps(finalizedContent)
-    ) {
+    const comparableExisting = ignoreTimestampOnlyChanges
+      ? normalizeGeneratedTimestamps(existingContent)
+      : existingContent;
+    const comparableGenerated = ignoreTimestampOnlyChanges
+      ? normalizeGeneratedTimestamps(finalizedContent)
+      : finalizedContent;
+    if (comparableExisting === comparableGenerated) {
       return false;
     }
   }
 
   fs.writeFileSync(filePath, finalizedContent);
   return true;
+}
+
+type GeneratedOutput = {
+  content: string;
+  filePath: string;
+};
+
+export function alignGeneratedOutputTimestamps(
+  outputs: GeneratedOutput[],
+): GeneratedOutput[] {
+  const semanticContentIsUnchanged = outputs.every(({ content, filePath }) => {
+    if (!fs.existsSync(filePath)) return false;
+    return (
+      normalizeGeneratedTimestamps(fs.readFileSync(filePath, "utf-8")) ===
+      normalizeGeneratedTimestamps(withFinalNewline(content))
+    );
+  });
+  if (!semanticContentIsUnchanged) return outputs;
+
+  const existingTimestamps = outputs
+    .map(({ filePath }) =>
+      fs
+        .readFileSync(filePath, "utf-8")
+        .match(/^> Generated: (.+)$/m)?.[1]
+        ?.trim(),
+    )
+    .filter((timestamp): timestamp is string => Boolean(timestamp))
+    .sort();
+  const sharedTimestamp = existingTimestamps.at(-1);
+  if (!sharedTimestamp) return outputs;
+
+  return outputs.map(({ content, filePath }) => ({
+    filePath,
+    content: content.replace(/^(> Generated: ).+$/m, `$1${sharedTimestamp}`),
+  }));
 }
 
 function ensureSymlink(linkPath: string, targetPath: string): void {
@@ -552,7 +591,7 @@ await ((QueryResolver)iap).FetchProductsAsync(new ProductRequest
 `;
 
   // Generate llms.txt (quick reference - condensed version)
-  const quickContent = `# OpenIAP Quick Reference
+  let quickContent = `# OpenIAP Quick Reference
 
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
@@ -804,8 +843,15 @@ interface PurchaseError {
   // The website serves packages/docs/public. Root files are symlinks to avoid
   // drift between local repository readers and deployed docs.
   fs.mkdirSync(path.dirname(CONFIG.llmsQuickPath), { recursive: true });
-  writeGeneratedFileIfChanged(CONFIG.llmsQuickPath, quickContent);
-  writeGeneratedFileIfChanged(CONFIG.llmsFullPath, fullContent);
+  const alignedOutputs = alignGeneratedOutputTimestamps([
+    { content: quickContent, filePath: CONFIG.llmsQuickPath },
+    { content: fullContent, filePath: CONFIG.llmsFullPath },
+  ]);
+  quickContent = alignedOutputs[0].content;
+  fullContent = alignedOutputs[1].content;
+  for (const { content, filePath } of alignedOutputs) {
+    writeGeneratedFileIfChanged(filePath, content, false);
+  }
   for (const [filename, targetPath] of Object.entries(
     CONFIG.rootLlmsSymlinks,
   )) {

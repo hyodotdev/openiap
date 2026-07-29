@@ -1335,6 +1335,10 @@ function checkFlutter() {
       )
     ) {
       fail(`${flutterSwiftPackage} OpenIAP dependency version must be semver`);
+    } else if (openIapDependencyVersion !== "3.0.0") {
+      fail(
+        `${flutterSwiftPackage} OpenIAP dependency floor must be 3.0.0 for Flutter 10`,
+      );
     }
     if (
       !flutterSwiftPackageText.includes(
@@ -4171,6 +4175,26 @@ function checkFrameworkDependencyHygiene() {
       ],
       `${godotWorkflow} must validate tracked iOS framework toolchain provenance`,
     );
+  }
+  expectIncludes(
+    ".github/workflows/release-godot.yml",
+    [
+      "Verify selected iOS framework toolchain",
+      'bash scripts/verify-ios-toolchain.sh "$VERIFY_DIR/addons/godot-iap/bin/ios"',
+    ],
+    "Godot releases must validate the selected tag and packaged iOS frameworks",
+  );
+  for (const eventName of ["pull_request", "push"]) {
+    const eventBlock = read(".github/workflows/ci-maui-iap.yml").match(
+      new RegExp(
+        `${eventName}:([\\s\\S]*?)(?=\\n  (?:pull_request|push|workflow_dispatch|schedule):|\\nconcurrency:)`,
+      ),
+    )?.[1];
+    if (!eventBlock?.includes('"packages/apple/Sources/**"')) {
+      fail(
+        `.github/workflows/ci-maui-iap.yml ${eventName} paths must cover all Apple sources for Xcode 27 compilation`,
+      );
+    }
   }
   expectIncludes(
     "scripts/install-xcodegen.sh",

@@ -261,6 +261,9 @@ jobs:
           RELEASE_TAG="godot-iap-${VERSION}"
           git checkout "$RELEASE_TAG"
 
+      - name: Verify selected iOS framework toolchain
+        run: bash scripts/verify-ios-toolchain.sh
+
       - name: Update version in plugin.cfg
         if: ${{ inputs.version != 'current' }}
         run: |
@@ -404,6 +407,7 @@ jobs:
           test -x "$VERIFY_DIR/addons/godot-iap/scripts/fix_ios_embed.sh"
           test -d "$VERIFY_DIR/addons/godot-iap/bin/ios/GodotIap.framework"
           test -d "$VERIFY_DIR/addons/godot-iap/bin/ios/SwiftGodotRuntime.framework"
+          bash scripts/verify-ios-toolchain.sh "$VERIFY_DIR/addons/godot-iap/bin/ios"
           if [ "${{ inputs.notarize_macos }}" = "true" ]; then
             grep -q '^supported_platforms = \["ios", "macos"\]' "$VERIFY_DIR/addons/godot-iap/bin/godot_iap.gdextension"
             grep -q '^macos\.' "$VERIFY_DIR/addons/godot-iap/bin/godot_iap.gdextension"
