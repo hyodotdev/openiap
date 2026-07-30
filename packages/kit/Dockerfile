@@ -69,6 +69,11 @@ RUN --mount=type=secret,id=VITE_KIT_MIXPANEL_TOKEN,required=false \
 FROM debian:bookworm-slim AS runtime
 WORKDIR /srv
 
+ARG IAPKIT_REVISION=unknown
+LABEL org.opencontainers.image.title="IAPKit" \
+      org.opencontainers.image.source="https://github.com/hyodotdev/openiap" \
+      org.opencontainers.image.revision="${IAPKIT_REVISION}"
+
 RUN addgroup --system --gid 1001 openiap && \
     adduser --system --uid 1001 --ingroup openiap openiap
 
@@ -79,6 +84,7 @@ ENV STATIC_ROOT=/srv/public
 ENV PORT=3000
 ENV NODE_ENV=production
 ENV APP_ENV=production
+ENV IAPKIT_REVISION=${IAPKIT_REVISION}
 EXPOSE 3000/tcp
 
 USER openiap

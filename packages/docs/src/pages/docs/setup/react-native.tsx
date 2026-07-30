@@ -173,6 +173,15 @@ end`}
             <strong>Signing &amp; Capabilities</strong> &gt;{' '}
             <strong>+ Capability</strong> &gt; <strong>In-App Purchase</strong>
           </li>
+          <li>
+            When linking with the iOS 27 SDK, migrate older React Native host
+            templates from an AppDelegate-owned <code>UIWindow</code> to a{' '}
+            <code>UIWindowSceneDelegate</code>. See the{' '}
+            <Link to="/docs/ios-setup#xcode-27-scene-lifecycle">
+              Xcode 27 UIScene checklist
+            </Link>
+            .
+          </li>
         </ul>
 
         <h3 id="android-setup" className="anchor-heading">

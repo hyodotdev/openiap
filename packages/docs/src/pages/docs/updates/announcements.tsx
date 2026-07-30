@@ -138,7 +138,9 @@ function Announcements() {
               Guarded Xcode 27 and StoreKit 27 support brings subscription
               bundles and suites, verified offer-code redemption results, and
               new transaction metadata without dropping the documented older-OS
-              fallbacks.
+              fallbacks. Xcode 27-built UIKit hosts must also adopt UIScene; the
+              release notes link the host migration checklist and the device
+              examples exercise it.
             </li>
             <li>
               Flutter 3.44+ resolves the OpenIAP Apple 3.0.0 native dependency

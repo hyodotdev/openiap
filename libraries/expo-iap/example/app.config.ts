@@ -2,6 +2,7 @@ import type {ConfigContext, ExpoConfig} from '@expo/config';
 import type {ExpoIapPluginOptions} from '../plugin/src/withIAP';
 import * as fs from 'fs';
 import * as path from 'path';
+import withIos27SceneLifecycle from './plugins/withIos27SceneLifecycle.js';
 
 const LOCAL_OPENIAP_PATHS = {
   ios: '../../../packages/apple',
@@ -171,5 +172,5 @@ export default ({config}: ConfigContext): ExpoConfig => {
     },
   };
 
-  return expoConfig;
+  return withIos27SceneLifecycle(expoConfig);
 };

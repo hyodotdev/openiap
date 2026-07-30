@@ -46,13 +46,26 @@ class AmazonPendingPurchasesTest {
         val updates = listOf(
             "receipt-page-1",
             "receipt-overlap",
-            "receipt-overlap",
             "receipt-page-2",
+            "receipt-overlap",
         )
 
         assertEquals(
             listOf("receipt-page-1", "receipt-overlap", "receipt-page-2"),
             deduplicateAmazonPurchaseUpdates(updates) { it },
+        )
+    }
+
+    @Test
+    fun `purchase update pagination retains repeat purchases of the same sku`() {
+        data class PurchaseUpdate(val receiptId: String, val sku: String)
+
+        val first = PurchaseUpdate("receipt-first", "coins")
+        val second = PurchaseUpdate("receipt-second", "coins")
+
+        assertEquals(
+            listOf(first, second),
+            deduplicateAmazonPurchaseUpdates(listOf(first, second)) { it.receiptId },
         )
     }
 

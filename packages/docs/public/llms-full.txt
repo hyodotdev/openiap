@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-07-28T22:04:06.999Z
+> Generated: 2026-07-30T11:44:25.606Z
 
 ## Table of Contents
 1. Installation
@@ -2045,7 +2045,7 @@ Bearer header and out of URLs.
 - [POST /v1/webhooks/{apiKey}](https://openiap.dev/docs/webhooks#setup) — lifecycle webhook receiver. Paste this URL into App Store Connect (Production + Sandbox) AND Google Cloud Pub/Sub push subscription. Auto-detects ASN v2 vs Pub/Sub by payload shape. **POST-only**; opening in a browser returns 404 — that's expected.
 - [GET /v1/openapi](https://kit.openiap.dev/v1/openapi) — machine-readable OpenAPI spec
 - [GET /v1](https://kit.openiap.dev/v1) — Redoc UI for the OpenAPI spec
-- [GET /health](https://kit.openiap.dev/health) — liveness probe (no Convex round-trip)
+- [GET /health](https://kit.openiap.dev/health) — no-store liveness metadata (`ok`, status, service, API version, public revision, environment, timestamp) with no Convex round-trip
 - [POST /mcp](https://kit.openiap.dev/docs/ai-assistants/codex-plugin) — MCP Streamable HTTP endpoint for Codex, Claude Code, and other MCP clients. Uses an IAPKit secret admin key, not a mobile publishable key and not an OpenAI, ChatGPT, Anthropic, or Claude API key.
 
 Also mounted at `/api/v1/*` for backwards compatibility. `/v1/verify-purchase`

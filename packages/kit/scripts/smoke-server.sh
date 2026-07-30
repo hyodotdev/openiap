@@ -39,6 +39,8 @@ LOG_FILE="$(mktemp /tmp/openiap-kit-smoke.XXXXXX.log)"
 CONVEX_URL="https://placeholder-build-1.convex.cloud" \
 VITE_KIT_CONVEX_URL="https://placeholder-build-1.convex.cloud" \
 STATIC_ROOT="$DIST" \
+APP_ENV="test" \
+IAPKIT_REVISION="0123456789abcdef0123456789abcdef01234567" \
 PORT="$PORT" \
 "$BINARY" > "$LOG_FILE" 2>&1 &
 PID=$!
@@ -111,6 +113,27 @@ probe_json_post() {
 # Core surface: liveness probe must return 200 and the SPA fallback
 # must serve index.html for an unknown path.
 probe "/health" "200"
+health_body="$(curl -sS "http://localhost:${PORT}/health")"
+if ! HEALTH_BODY="$health_body" bun -e '
+  const payload = JSON.parse(process.env.HEALTH_BODY ?? "{}");
+  const expected = {
+    ok: true,
+    status: "healthy",
+    service: "iapkit",
+    apiVersion: "v1",
+    revision: "0123456789ab",
+    environment: "test",
+  };
+  for (const [key, value] of Object.entries(expected)) {
+    if (payload[key] !== value) process.exit(1);
+  }
+  if (typeof payload.timestamp !== "string" || Number.isNaN(Date.parse(payload.timestamp))) process.exit(1);
+'; then
+  echo "smoke: /health returned an invalid metadata contract" >&2
+  fail=1
+else
+  echo "smoke: /health metadata contract ✓"
+fi
 probe "/" "200"
 probe "/v1" "200"
 probe "/api/v1" "200"

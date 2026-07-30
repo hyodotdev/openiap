@@ -456,6 +456,14 @@ function Releases() {
               SSE surface is not restored.
             </li>
             <li>
+              IAPKit&apos;s unauthenticated <code>/health</code> response keeps
+              the existing <code>ok</code> contract and now reports the service,
+              API contract version, public deployment revision, environment, and
+              response timestamp without querying Convex or an external store.
+              It is served with <code>Cache-Control: no-store</code> and exposes
+              no machine identifier or credential.
+            </li>
+            <li>
               Apple offer-code redemption now returns a verified{' '}
               <code>PurchaseIOS</code> on iOS, Mac Catalyst, and visionOS 27+.
               The iOS and Mac Catalyst 14–26 fallback still presents the legacy
@@ -475,6 +483,14 @@ function Releases() {
               <code>AppTransaction.all</code> acquisition-history sequence is
               documented but is not exported as an OpenIAP operation in this
               release; it is distinct from in-app transaction history.
+            </li>
+            <li>
+              Apps linked with the iOS 27 SDK must also adopt Apple&apos;s
+              scene-based lifecycle and retain a launch screen. The React Native
+              and Expo device-test hosts now start React Native from a{' '}
+              <code>UIWindowSceneDelegate</code>, while the Flutter fixture uses
+              the canonical <code>UIApplicationSceneManifest</code> key. This
+              host-app migration is separate from the OpenIAP package upgrade.
             </li>
           </ul>
 
@@ -539,14 +555,17 @@ function Releases() {
               transaction-ID fallback, and returns the verified redeemed
               purchase from the iOS offer-code API when available. Its Nitro
               bridge also preserves the new AppTransaction revocation date and
-              store type.
+              store type. The physical-device example adopts UIScene so an Xcode
+              27 build reaches the StoreKit flow instead of failing at launch.
             </li>
             <li>
               <strong>expo-iap 5.0.0</strong> - removes the matching JavaScript
               compatibility APIs plus old Expo config keys and Android
               custom-channel payload aliases, and forwards the nullable verified
               Apple redemption result together with the generated Xcode 27
-              catalog, purchase, renewal, and app-transaction fields.
+              catalog, purchase, renewal, and app-transaction fields. Its
+              generated device-test host applies an idempotent UIScene migration
+              for the pinned Expo SDK 54 template.
             </li>
             <li>
               <strong>flutter_inapp_purchase 10.0.0</strong> - removes
@@ -557,7 +576,8 @@ function Releases() {
               through the canonical MethodChannel payloads. Its iOS and macOS
               SwiftPM manifests resolve <code>openiap-apple 3.0.0</code> for
               Flutter 3.44+, while older or SwiftPM-disabled projects keep the
-              CocoaPods integration.
+              CocoaPods integration. The iOS fixture also uses Flutter&apos;s
+              canonical scene manifest rather than the ignored underscored key.
             </li>
             <li>
               <strong>godot-iap 3.0.0</strong> - removes deprecated GDScript
@@ -612,7 +632,13 @@ function Releases() {
             published Godot 3.0.0 and OpenIap.Maui 2.0.0 Apple binaries are
             built with that toolchain. These APIs are based on Xcode 27 beta 4
             and must be re-audited when Apple publishes the final or a newer
-            Xcode 27 SDK.
+            Xcode 27 SDK. Before building any UIKit-based host with Xcode 27,
+            follow the{' '}
+            <Link to="/docs/ios-setup#xcode-27-scene-lifecycle">
+              UIScene and launch-screen migration checklist
+            </Link>
+            ; OpenIAP cannot migrate the application lifecycle from inside a
+            library.
           </p>
 
           <div

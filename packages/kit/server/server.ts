@@ -6,6 +6,7 @@ import { promises as fs } from "node:fs";
 import path from "node:path";
 
 import { apiRoutes } from "./api/v1/routes";
+import { handleHealthRequest } from "./health";
 import { handleIapKitMcpRequest } from "./mcp";
 import { shouldReturnNotFoundForMissingStaticPath } from "./staticPaths";
 import { parsePort } from "./utils/env";
@@ -15,8 +16,9 @@ const app = new Hono();
 // Liveness/readiness probe. No DB hit — Fly.io health checks fire
 // frequently and hitting Convex from here would both mask real
 // outages (a slow backend should still report "proc is alive") and
-// waste quota.
-app.get("/health", (c) => c.json({ ok: true }));
+// waste quota. The response includes only public build metadata and
+// explicitly disables caching so deploy monitors see the active revision.
+app.get("/health", handleHealthRequest);
 
 // Receipt validation + purchase management API.
 // Mounted under both /api/v1 and /v1 for backwards compatibility with

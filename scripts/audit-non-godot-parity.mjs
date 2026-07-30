@@ -3769,6 +3769,9 @@ function checkFrameworkDependencyHygiene() {
       "Bearer header and out of URLs.",
       "default 600 per key",
       "an exact store-verified `productId` match",
+      "no-store liveness metadata",
+      "public revision",
+      "no Convex round-trip",
     ],
     "Kit compact assistant contract must match authentication and safety SSOT",
   );
@@ -3784,6 +3787,10 @@ function checkFrameworkDependencyHygiene() {
       ".github/workflows/deploy-kit.yml",
       "Apple/Amazon: consumable ready for durable fulfillment",
       "deploys additive Convex functions",
+      '"apiVersion": "v1"',
+      '"revision": "a1b2c3d4e5f6"',
+      "Cache-Control: no-store",
+      "no Convex",
     ],
     "Kit full assistant contract must follow monorepo deployment and state SSOT",
   );
@@ -6439,8 +6446,153 @@ function checkXcode27StoreKitCoverage() {
       "assignment-revocation metadata",
       "managed acquisition platform",
       "AppTransaction.all",
+      "scene-based lifecycle",
+      "UIWindowSceneDelegate",
     ],
     "Xcode 27 major release note",
+  );
+  expectIncludes(
+    "packages/docs/src/pages/docs/ios-setup.tsx",
+    [
+      "xcode-27-scene-lifecycle",
+      "UIApplicationSceneManifest",
+      "configurationForConnecting",
+      "UIWindowSceneDelegate",
+      "tn3208-preparing-your-apps-launch-screen",
+    ],
+    "Xcode 27 host lifecycle migration guide",
+  );
+  expectIncludes(
+    "libraries/expo-iap/example/plugins/withIos27SceneLifecycle.js",
+    [
+      "UIApplicationSceneManifest",
+      "configurationForConnecting connectingSceneSession",
+      "UIWindow(windowScene: windowScene)",
+      "appDelegate?.window = window",
+      "appDelegate?.applicationDidBecomeActive",
+      "appDelegate?.applicationDidEnterBackground",
+    ],
+    "Expo Xcode 27 scene lifecycle fixture",
+  );
+  expectIncludes(
+    "libraries/react-native-iap/example/ios/example/AppDelegate.swift",
+    [
+      "configurationForConnecting connectingSceneSession",
+      "configuration.delegateClass = SceneDelegate.self",
+      "var window: UIWindow?",
+    ],
+    "React Native Xcode 27 app delegate",
+  );
+  expectNotIncludes(
+    "libraries/react-native-iap/example/ios/example/AppDelegate.swift",
+    ["UIWindow(frame: UIScreen.main.bounds)"],
+    "React Native Xcode 27 app delegate must not own the scene window",
+  );
+  expectIncludes(
+    "libraries/react-native-iap/example/ios/example/SceneDelegate.swift",
+    [
+      "UIWindowSceneDelegate",
+      "UIWindow(windowScene: windowScene)",
+      "appDelegate.window = window",
+      "factory.startReactNative(",
+      "connectionOptions.userActivities.first",
+      '"UIApplicationLaunchOptionsUserActivityKey": userActivity',
+    ],
+    "React Native Xcode 27 scene delegate",
+  );
+  expectIncludes(
+    "libraries/react-native-iap/example/ios/example/Info.plist",
+    [
+      "<key>UIApplicationSceneManifest</key>",
+      "$(PRODUCT_MODULE_NAME).SceneDelegate",
+    ],
+    "React Native Xcode 27 scene manifest",
+  );
+  expectIncludes(
+    "libraries/flutter_inapp_purchase/example/ios/Runner/Info.plist",
+    [
+      "<key>UIApplicationSceneManifest</key>",
+      "<string>FlutterSceneDelegate</string>",
+    ],
+    "Flutter Xcode 27 scene manifest",
+  );
+  expectNotIncludes(
+    "libraries/flutter_inapp_purchase/example/ios/Runner/Info.plist",
+    ["<key>_UIApplicationSceneManifest</key>"],
+    "Flutter Xcode 27 scene manifest must use the canonical key",
+  );
+  for (const workflowPath of [
+    ".github/workflows/ci-react-native-iap.yml",
+    ".github/workflows/ci-expo-iap.yml",
+  ]) {
+    expectIncludes(
+      workflowPath,
+      [
+        "ios-xcode-27:",
+        "if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository",
+        "runs-on: xcode-27",
+        "generic/platform=iOS Simulator",
+        "CODE_SIGNING_ALLOWED=NO",
+        "packages/apple/Sources/**",
+        "packages/apple/Package.swift",
+        "openiap-versions.json",
+      ],
+      `${workflowPath} Xcode 27 scene lifecycle build`,
+    );
+  }
+  expectIncludes(
+    ".github/workflows/ci-flutter-inapp-purchase.yml",
+    [
+      'flutter-version: "3.44.0"',
+      "bash scripts/verify-apple-swiftpm-consumer-build.sh",
+      "packages/apple/Sources/**",
+      "packages/apple/Package.swift",
+      "openiap-versions.json",
+    ],
+    "Flutter Xcode 27 SwiftPM example build",
+  );
+  expectIncludes(
+    "libraries/flutter_inapp_purchase/example/pubspec.yaml",
+    ["enable-swift-package-manager: true"],
+    "Flutter example SwiftPM enablement",
+  );
+  expectIncludes(
+    "libraries/flutter_inapp_purchase/scripts/verify-apple-swiftpm-consumer-build.sh",
+    [
+      '[[ "$xcode_version" != "Xcode 27"* ]]',
+      "flutter build ios --config-only --simulator",
+      "flutter build macos --config-only",
+      "generic/platform=iOS Simulator",
+      "generic/platform=macOS",
+      "ARCHS=arm64",
+      "ONLY_ACTIVE_ARCH=YES",
+      "CODE_SIGNING_ALLOWED=NO",
+    ],
+    "Flutter Xcode 27 SwiftPM consumer build",
+  );
+  for (const podfilePath of [
+    "libraries/flutter_inapp_purchase/example/ios/Podfile",
+    "libraries/flutter_inapp_purchase/example/macos/Podfile",
+  ]) {
+    expectIncludes(
+      podfilePath,
+      [".flutter-plugins-dependencies", "swift_package_manager_enabled"],
+      `${podfilePath} SwiftPM dependency-manager isolation`,
+    );
+  }
+  expectIncludes(
+    ".github/workflows/ci-maui-iap.yml",
+    [
+      "ios-binding:",
+      "if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository",
+      "runs-on: xcode-27",
+    ],
+    "MAUI Xcode 27 runner fork guard",
+  );
+  expectIncludes(
+    "libraries/flutter_inapp_purchase/example/ios/.gitignore",
+    ["/Flutter/ephemeral/flutter_native_integration.env"],
+    "Flutter Xcode 27 generated environment file must stay untracked",
   );
   for (const examplePath of [
     "libraries/react-native-iap/example/src/utils/buildPurchaseRows.ts",

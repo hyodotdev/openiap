@@ -237,6 +237,18 @@ export default {
           <strong>+ Capability</strong> &gt; <strong>In-App Purchase</strong>{' '}
           (after running <code>npx expo prebuild</code>).
         </p>
+        <p>
+          Xcode 27 builds must use the UIScene lifecycle. Regenerate with an
+          Expo template that creates React Native from{' '}
+          <code>ExpoAppSceneDelegate</code>, or migrate an older generated iOS
+          host before building. Confirm that <code>Info.plist</code> contains a
+          scene configuration and that <code>AppDelegate.swift</code> no longer
+          creates <code>UIWindow(frame: UIScreen.main.bounds)</code>. See the{' '}
+          <Link to="/docs/ios-setup#xcode-27-scene-lifecycle">
+            Xcode 27 UIScene checklist
+          </Link>
+          .
+        </p>
 
         <h3 id="android-config" className="anchor-heading">
           Android Configuration

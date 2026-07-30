@@ -146,6 +146,7 @@ jobs:
     name: iOS binding (net10.0 ios + maccatalyst)
     # The MAUI package embeds a prebuilt OpenIAP.xcframework. Compile it with
     # Xcode 27 so the guarded StoreKit 27 implementation is present in NuGet.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: xcode-27
     timeout-minutes: 45
     steps:

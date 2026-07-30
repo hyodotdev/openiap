@@ -4,13 +4,21 @@ on:
   pull_request:
     branches: [main, next]
     paths:
-      - 'libraries/react-native-iap/**'
-      - 'packages/gql/src/generated/types.ts'
+      - "libraries/react-native-iap/**"
+      - "packages/gql/src/generated/types.ts"
+      - "packages/apple/Sources/**"
+      - "packages/apple/Package.swift"
+      - "openiap-versions.json"
+      - ".github/workflows/ci-react-native-iap.yml"
   push:
     branches: [main, next]
     paths:
-      - 'libraries/react-native-iap/**'
-      - 'packages/gql/src/generated/types.ts'
+      - "libraries/react-native-iap/**"
+      - "packages/gql/src/generated/types.ts"
+      - "packages/apple/Sources/**"
+      - "packages/apple/Package.swift"
+      - "openiap-versions.json"
+      - ".github/workflows/ci-react-native-iap.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -81,3 +89,47 @@ jobs:
 
       - name: Consumer install smoke test
         run: yarn verify:consumer-install
+
+  ios-xcode-27:
+    name: iOS example (Xcode 27)
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: xcode-27
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+
+      - name: Enable Corepack
+        run: corepack enable && corepack prepare yarn@3.6.1 --activate
+
+      - name: Install dependencies
+        run: yarn install --immutable
+
+      - name: Generate Nitro bridge
+        run: yarn nitrogen
+
+      - name: Install Ruby dependencies
+        working-directory: libraries/react-native-iap/example
+        run: bundle install
+
+      - name: Install CocoaPods dependencies
+        working-directory: libraries/react-native-iap/example/ios
+        run: bundle exec pod install --repo-update
+
+      - name: Build scene-based iOS example
+        working-directory: libraries/react-native-iap/example/ios
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -workspace example.xcworkspace \
+            -scheme example \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO

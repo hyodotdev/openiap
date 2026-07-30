@@ -5,6 +5,16 @@ ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
 require 'json'
 
+plugins_path = File.expand_path('../.flutter-plugins-dependencies', __dir__)
+swift_package_manager_enabled = if File.exist?(plugins_path)
+  JSON.parse(File.read(plugins_path)).dig(
+    'swift_package_manager_enabled',
+    'macos',
+  ) == true
+else
+  false
+end
+
 project 'Runner', {
   'Debug' => :debug,
   'Profile' => :release,
@@ -47,7 +57,9 @@ target 'Runner' do
     end
   end
 
-  if flutter_iap_mode == 'local'
+  # The plugin's Swift package already owns OpenIAP when SwiftPM is enabled.
+  # Keep the local pod override only for the CocoaPods fallback.
+  if !swift_package_manager_enabled && flutter_iap_mode == 'local'
     openiap_local_path = File.expand_path('../../../../packages/apple', __dir__)
     pod 'openiap', :path => openiap_local_path
   end

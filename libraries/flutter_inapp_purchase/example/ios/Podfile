@@ -5,6 +5,15 @@ require 'json'
 
 openiap_versions_path = File.expand_path('../../openiap-versions.json', __dir__)
 openiap_versions = JSON.parse(File.read(openiap_versions_path))
+plugins_path = File.expand_path('../.flutter-plugins-dependencies', __dir__)
+swift_package_manager_enabled = if File.exist?(plugins_path)
+  JSON.parse(File.read(plugins_path)).dig(
+    'swift_package_manager_enabled',
+    'ios',
+  ) == true
+else
+  false
+end
 
 # Uncomment this line to define a global platform for your project
 platform :ios, '15.0'
@@ -51,11 +60,16 @@ target 'Runner' do
     end
   end
 
-  if flutter_iap_mode == 'local'
-    openiap_local_path = File.expand_path('../../../../packages/apple', __dir__)
-    pod 'openiap', :path => openiap_local_path
-  else
-    pod 'openiap', openiap_versions['apple']
+  # The plugin's Swift package already owns OpenIAP when SwiftPM is enabled.
+  # Keep this override only for the CocoaPods fallback so the two dependency
+  # managers never link duplicate OpenIAP products.
+  unless swift_package_manager_enabled
+    if flutter_iap_mode == 'local'
+      openiap_local_path = File.expand_path('../../../../packages/apple', __dir__)
+      pod 'openiap', :path => openiap_local_path
+    else
+      pod 'openiap', openiap_versions['apple']
+    end
   end
 end
 

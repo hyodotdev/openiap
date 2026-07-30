@@ -240,6 +240,7 @@ keep its wording agent-neutral.
 | Skill                | Description                                        | Usage                                 |
 | -------------------- | -------------------------------------------------- | ------------------------------------- |
 | `$review-self`       | Review and improve current work until stable       | `$review-self` or `$review-self <PR>` |
+| `$rebase-main`       | Pull main and safely rebase the current branch     | `$rebase-main`                        |
 | `/review-pr`         | Review PR comments, fix issues, resolve threads    | `/review-pr 65` or `/review-pr <url>` |
 | `/audit-code`        | Audit code against knowledge rules and latest APIs | `/audit-code`                         |
 | `/compile-knowledge` | Compile knowledge base for Claude context          | `/compile-knowledge`                  |

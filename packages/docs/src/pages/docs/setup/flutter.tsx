@@ -95,6 +95,15 @@ function FlutterSetup() {
             <strong>Signing &amp; Capabilities</strong> &gt;{' '}
             <strong>+ Capability</strong> &gt; <strong>In-App Purchase</strong>
           </li>
+          <li>
+            When linking with the iOS 27 SDK, regenerate or migrate an older
+            Runner so its <code>UIApplicationSceneManifest</code> selects{' '}
+            <code>FlutterSceneDelegate</code>. See the{' '}
+            <Link to="/docs/ios-setup#xcode-27-scene-lifecycle">
+              Xcode 27 UIScene checklist
+            </Link>
+            .
+          </li>
         </ul>
         <p>
           Add the following to your <code>ios/Runner/Info.plist</code> (iOS

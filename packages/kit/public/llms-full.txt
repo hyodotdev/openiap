@@ -229,12 +229,25 @@ returns the raw JSON. Both are unauthenticated.
 ### GET /health
 
 ```json
-{ "ok": true }
+{
+  "ok": true,
+  "status": "healthy",
+  "service": "iapkit",
+  "apiVersion": "v1",
+  "revision": "a1b2c3d4e5f6",
+  "environment": "production",
+  "timestamp": "2026-07-30T12:34:56.000Z"
+}
 ```
 
-Intentionally cheap — no Convex round-trip. Used by Fly.io liveness /
-readiness probes. Sentry is configured to drop `/health` transactions so
-probe traffic doesn't dominate trace quota.
+`apiVersion` identifies the public HTTP contract. Hosted deployments expose
+the first 12 characters of their public Git revision; local builds use `null`
+when no valid revision is injected. The allowlisted environment is one of
+`development`, `test`, `staging`, or `production`. The response sets
+`Cache-Control: no-store` and remains intentionally cheap — no Convex
+round-trip or external store request. It is used by Fly.io liveness / readiness
+probes. Sentry is configured to drop `/health` transactions so probe traffic
+doesn't dominate trace quota.
 
 ### POST /mcp
 

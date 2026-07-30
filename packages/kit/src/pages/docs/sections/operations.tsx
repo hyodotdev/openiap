@@ -88,15 +88,33 @@ X-RateLimit-Remaining: 599`}
 
       <h2 className="mt-10 text-2xl font-semibold">/health endpoint</h2>
       <p>
-        <code>GET /health</code> returns <code>{`{ "ok": true }`}</code> without
+        <code>GET /health</code> returns public service, API contract version,
+        deployment revision, environment, and response-time metadata without
         hitting Convex or any external store. Point Fly.io readiness / liveness
-        probes at it; point your own uptime monitors at it too. It's
-        intentionally cheap so probe load doesn't inflate trace quota.
+        probes at it; point your own uptime monitors at it too. The response
+        uses <code>Cache-Control: no-store</code> and remains intentionally
+        cheap so probe load doesn't inflate database or trace quota.
       </p>
-      <CodeBlock language="bash">
-        {`curl -sS https://kit.openiap.dev/health
-# → {"ok":true}`}
+      <CodeBlock language="json">
+        {`{
+  "ok": true,
+  "status": "healthy",
+  "service": "iapkit",
+  "apiVersion": "v1",
+  "revision": "a1b2c3d4e5f6",
+  "environment": "production",
+  "timestamp": "2026-07-30T12:34:56.000Z"
+}`}
       </CodeBlock>
+      <p>
+        <code>apiVersion</code> identifies the public HTTP contract rather than
+        private workspace package metadata. Hosted IAPKit is a revisioned
+        service, not an installable semantic-versioned package. Production
+        deploys expose the first 12 characters of their public Git revision;
+        local builds return <code>null</code> when no valid revision is
+        injected. No machine identifier, credential, or private environment
+        value is exposed.
+      </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Graceful shutdown</h2>
       <p>
