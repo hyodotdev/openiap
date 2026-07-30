@@ -32,6 +32,9 @@ export const parseAppTransactionPayload = (
     const preorderDateRaw = raw.preorderDate;
     const preorderDate =
       preorderDateRaw == null ? null : Number(preorderDateRaw);
+    const revocationDateRaw = raw.revocationDate;
+    const revocationDate =
+      revocationDateRaw == null ? null : Number(revocationDateRaw);
 
     return {
       appId,
@@ -60,7 +63,12 @@ export const parseAppTransactionPayload = (
         preorderDate != null && !Number.isNaN(preorderDate)
           ? preorderDate
           : null,
+      revocationDate:
+        revocationDate != null && !Number.isNaN(revocationDate)
+          ? revocationDate
+          : null,
       signedDate,
+      storeType: typeof raw.storeType === 'string' ? raw.storeType : null,
     };
   } catch (error) {
     RnIapConsole.warn(

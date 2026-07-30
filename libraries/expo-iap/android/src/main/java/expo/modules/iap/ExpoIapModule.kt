@@ -1,7 +1,6 @@
 package expo.modules.iap
 
 import android.content.Context
-import dev.hyo.openiap.AndroidSubscriptionOfferInput
 import dev.hyo.openiap.DeepLinkOptions
 import dev.hyo.openiap.FetchProductsResultAll
 import dev.hyo.openiap.FetchProductsResultProducts
@@ -203,15 +202,15 @@ class ExpoIapModule : Module() {
                 }
             }
 
-            AsyncFunction("fetchProducts") { type: String, skuArr: Array<String>, promise: Promise ->
+            AsyncFunction("fetchProducts") { type: String, skus: Array<String>, promise: Promise ->
                 ExpoIapLog.payload(
                     "fetchProducts",
-                    mapOf("type" to type, "skus" to skuArr.toList()),
+                    mapOf("type" to type, "skus" to skus.toList()),
                 )
                 scope.launch {
                     try {
                         val queryType = ExpoIapHelper.parseProductQueryType(type)
-                        val request = ProductRequest(skuArr.toList(), queryType)
+                        val request = ProductRequest(skus.toList(), queryType)
                         val result = openIap.fetchProducts(request)
                         val payload =
                             when (result) {
@@ -232,7 +231,7 @@ class ExpoIapModule : Module() {
                                     "message" to "Failed to query products",
                                     "debugMessage" to e.message,
                                     "platform" to "android",
-                                    "productIds" to skuArr.toList(),
+                                    "productIds" to skus.toList(),
                                     "productType" to type,
                                 )
                             }
@@ -339,22 +338,8 @@ class ExpoIapModule : Module() {
                         else -> ProductQueryType.InApp
                     }
 
-                val fallbackOffers =
-                    if (parsedParams.explicitSubscriptionOffers.isEmpty() && parsedParams.offerTokenArr.isNotEmpty()) {
-                        parsedParams.skus.zip(parsedParams.offerTokenArr).mapNotNull { (sku, token) ->
-                            if (token.isNotEmpty()) {
-                                AndroidSubscriptionOfferInput(offerToken = token, sku = sku)
-                            } else {
-                                null
-                            }
-                        }
-                    } else {
-                        emptyList()
-                    }
-
                 val subscriptionOffers =
-                    (parsedParams.explicitSubscriptionOffers.ifEmpty { fallbackOffers })
-                        .takeIf { it.isNotEmpty() }
+                    parsedParams.explicitSubscriptionOffers.takeIf { it.isNotEmpty() }
 
                 val requestProps =
                     when (productType) {
@@ -367,7 +352,6 @@ class ExpoIapModule : Module() {
                                     developerBillingOption = parsedParams.developerBillingOption,
                                     originalExternalTransactionId = parsedParams.originalExternalTransactionId,
                                     purchaseToken = parsedParams.purchaseToken,
-                                    replacementMode = parsedParams.replacementMode?.toInt(),
                                     skus = parsedParams.skus,
                                     subscriptionOffers = subscriptionOffers,
                                     subscriptionProductReplacementParams = parsedParams.subscriptionProductReplacementParams,
@@ -481,65 +465,6 @@ class ExpoIapModule : Module() {
                         promise.resolve(response)
                     } catch (e: Exception) {
                         ExpoIapLog.failure("consumePurchaseAndroid", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, null)
-                    }
-                }
-            }
-
-            @Suppress("DEPRECATION")
-            AsyncFunction("checkAlternativeBillingAvailabilityAndroid") { promise: Promise ->
-                ExpoIapLog.payload("checkAlternativeBillingAvailabilityAndroid", null)
-                scope.launch {
-                    try {
-                        val isAvailable = openIap.checkAlternativeBillingAvailability()
-                        ExpoIapLog.result("checkAlternativeBillingAvailabilityAndroid", isAvailable)
-                        promise.resolve(isAvailable)
-                    } catch (e: Exception) {
-                        ExpoIapLog.failure("checkAlternativeBillingAvailabilityAndroid", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, null)
-                    }
-                }
-            }
-
-            @Suppress("DEPRECATION")
-            AsyncFunction("showAlternativeBillingDialogAndroid") { promise: Promise ->
-                ExpoIapLog.payload("showAlternativeBillingDialogAndroid", null)
-                scope.launch {
-                    try {
-                        val activity =
-                            runCatching { currentActivity }
-                                .onFailure {
-                                    ExpoIapLog.failure("showAlternativeBillingDialogAndroid activity", it)
-                                }.getOrNull() ?: run {
-                                promise.reject(OpenIapError.ServiceUnavailable.CODE, "Activity not available", null)
-                                return@launch
-                            }
-                        openIap.setActivity(activity)
-                        val userAccepted = openIap.showAlternativeBillingInformationDialog(activity)
-                        ExpoIapLog.result("showAlternativeBillingDialogAndroid", userAccepted)
-                        promise.resolve(userAccepted)
-                    } catch (e: Exception) {
-                        ExpoIapLog.failure("showAlternativeBillingDialogAndroid", e)
-                        promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, null)
-                    }
-                }
-            }
-
-            @Suppress("DEPRECATION")
-            AsyncFunction("createAlternativeBillingTokenAndroid") { sku: String?, promise: Promise ->
-                ExpoIapLog.payload("createAlternativeBillingTokenAndroid", mapOf("sku" to sku))
-                scope.launch {
-                    try {
-                        // Note: OpenIapModule.createAlternativeBillingReportingToken() doesn't accept sku parameter
-                        // The sku parameter is ignored for now - may be used in future versions
-                        val token = openIap.createAlternativeBillingReportingToken()
-                        ExpoIapLog.result(
-                            "createAlternativeBillingTokenAndroid",
-                            if (token.isNullOrBlank()) "<empty>" else "<token>",
-                        )
-                        promise.resolve(token)
-                    } catch (e: Exception) {
-                        ExpoIapLog.failure("createAlternativeBillingTokenAndroid", e)
                         promise.reject(OpenIapError.ServiceUnavailable.CODE, e.message, null)
                     }
                 }

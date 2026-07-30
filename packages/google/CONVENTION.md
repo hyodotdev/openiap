@@ -26,10 +26,10 @@ fun buildModuleAndroid()          // Don't add Android suffix
 
 **Exception**: Generated GraphQL operation names and generated handler fields
 must keep the schema name exactly, including `Android` when the operation is
-Android-only. For example, `MutationHandlers.checkAlternativeBillingAvailabilityAndroid`
+Android-only. For example, `MutationHandlers.isBillingProgramAvailableAndroid`
 is generated from `packages/gql/src/api-android.graphql` and must be wired under
 that name; the hand-written implementation it delegates to should still be
-suffix-free, such as `checkAlternativeBillingAvailability()`.
+suffix-free, such as `isBillingProgramAvailable()`.
 
 Only add `Android` suffix when the identifier is part of a cross-platform API
 that has platform-specific variants (e.g., `ProductAndroid`, `PurchaseAndroid`
@@ -64,11 +64,11 @@ operation/handler identifier that must match the schema.
 
 This package supports **three build flavors**:
 
-| Flavor           | Store                  | Source Directory |
-| ---------------- | ---------------------- | ---------------- |
-| `play` (default) | Google Play Store      | `src/play/`      |
-| `horizon`        | Meta Quest Store       | `src/horizon/`   |
-| `amazon`         | Fire OS                | `src/amazon/`    |
+| Flavor           | Store             | Source Directory |
+| ---------------- | ----------------- | ---------------- |
+| `play` (default) | Google Play Store | `src/play/`      |
+| `horizon`        | Meta Quest Store  | `src/horizon/`   |
+| `amazon`         | Fire OS           | `src/amazon/`    |
 
 ### Source Directory Structure
 

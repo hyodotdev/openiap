@@ -63,7 +63,6 @@ function InitConnection() {
           ),
           dart: (
             <CodeBlock language="dart">{`Future<bool> initConnection({
-  AlternativeBillingModeAndroid? alternativeBillingModeAndroid,
   BillingChoiceScreenTypeAndroid? billingChoiceScreenTypeAndroid,
   BillingProgramAndroid? enableBillingProgramAndroid,
 });`}</CodeBlock>
@@ -88,18 +87,6 @@ function InitConnection() {
         — Android billing program flags. iOS ignores Android-specific fields.
       </p>
       <ul className="api-params">
-        <li>
-          <code>alternativeBillingModeAndroid</code>{' '}
-          <em>
-            (optional,{' '}
-            <Link to="/docs/types/alternative-billing-types#alternative-billing-mode-android">
-              <code>AlternativeBillingModeAndroid</code>
-            </Link>
-            )
-          </em>{' '}
-          — <strong>Android · deprecated.</strong> Opt into Google's user-choice
-          billing flow. Prefer <code>enableBillingProgramAndroid</code>.
-        </li>
         <li>
           <code>enableBillingProgramAndroid</code>{' '}
           <em>
@@ -258,10 +245,6 @@ var success = await iap.init_connection(config)`}</CodeBlock>
           InitConnectionConfig
         </Link>{' '}
         for the full list of supported config fields (
-        <Link to="/docs/types/alternative-billing-types#alternative-billing-mode-android">
-          <code>alternativeBillingModeAndroid</code>
-        </Link>{' '}
-        [deprecated],{' '}
         <Link to="/docs/types/billing-programs#billing-program-android">
           <code>enableBillingProgramAndroid</code>
         </Link>

@@ -105,6 +105,22 @@ const iapkitSecurityTrainReleases = [
   ['OpenIap.Maui 1.4.1', 'maui-iap-1.4.1'],
 ] as const;
 
+const majorApiRemovalReleases = [
+  ['OpenIAP Spec 3.0.0', 'docs-3.0.0'],
+  ['openiap-apple 3.0.0', '3.0.0'],
+  ['openiap-google 3.0.0', 'google-3.0.0'],
+  ['react-native-iap 16.0.0', 'react-native-iap-16.0.0'],
+  ['expo-iap 5.0.0', 'expo-iap-5.0.0'],
+  ['flutter_inapp_purchase 10.0.0', 'flutter-iap-10.0.0'],
+  ['godot-iap 3.0.0', 'godot-iap-3.0.0'],
+  ['kmp-iap 3.0.0', 'kmp-iap-3.0.0'],
+  ['OpenIap.Maui 2.0.0', 'maui-iap-2.0.0'],
+] as const;
+
+const majorApiRemovalAliases = [
+  'openiap-major-api-cleanup-2026-07-27',
+] as const;
+
 const iapkitSecurityTrainAliases = [
   'iapkit-webhook-asc-review-scoped-keys-2026-07-25',
   'iapkit-webhook-dedup-asc-review-automation-2026-07-23',
@@ -360,6 +376,297 @@ function Releases() {
             helpers remain unconditional body-only reads; conditional clients
             use the documented raw HTTP contract or an app wrapper.
           </p>
+        </div>
+      ),
+    },
+
+    // July 29, 2026 - OpenIAP major API cleanup
+    {
+      id: 'openiap-major-api-cleanup-2026-07-29',
+      aliases: majorApiRemovalAliases,
+      date: new Date('2026-07-29'),
+      element: (
+        <div key="openiap-major-api-cleanup-2026-07-29" style={noteCardStyle}>
+          {majorApiRemovalAliases.map((alias) => (
+            <span key={alias} id={alias} aria-hidden="true" />
+          ))}
+          <AnchorLink id="openiap-major-api-cleanup-2026-07-29" level="h4">
+            July 29, 2026 - OpenIAP major API cleanup
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes the coordinated breaking major release from{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/256"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              PR #256
+            </a>{' '}
+            that removes every OpenIAP-owned API, type, field, enum value,
+            wrapper, and custom-wire alias scheduled in the 2.x and current
+            framework majors. The resulting contracts use one canonical
+            purchase, verification, billing-program, offer, and platform-request
+            vocabulary across all supported languages.
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Common changes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              Purchase requests use <code>apple</code> and <code>google</code>;
+              purchase results use <code>store</code>, explicit transaction
+              identity, standardized <code>subscriptionOffers</code> and{' '}
+              <code>discountOffers</code>, and the current billing-program
+              models.
+            </li>
+            <li>
+              Receipt-validation aliases are removed in favor of{' '}
+              <code>verifyPurchase</code>. The old alternative-billing
+              operations are replaced by availability, reporting-details, and
+              external-link Billing Programs APIs.
+            </li>
+            <li>
+              Removed inputs fail closed or are ignored instead of silently
+              selecting compatibility behavior. Generated Swift, Kotlin,
+              TypeScript, Dart, GDScript, and C# declarations contain no
+              scheduled legacy members or deprecation shims.
+            </li>
+            <li>
+              Amazon available-purchase pagination now collapses overlapping
+              pages by receipt ID before product-type hydration, so Fire OS
+              integrations receive one purchase per receipt. Malformed blank
+              receipt IDs still reach the existing validation path and fail
+              closed instead of being hidden by deduplication.
+            </li>
+            <li>
+              Hosted IAPKit verification, scoped publishable and secret keys,
+              client payloads, catalog reads, and inbound store webhooks keep
+              their existing wire contracts. The removed outbound IAPKit-to-app
+              SSE surface is not restored.
+            </li>
+            <li>
+              IAPKit&apos;s unauthenticated <code>/health</code> response keeps
+              the existing <code>ok</code> contract and now reports the service,
+              API contract version, public deployment revision, environment, and
+              response timestamp without querying Convex or an external store.
+              It is served with <code>Cache-Control: no-store</code> and exposes
+              no machine identifier or credential.
+            </li>
+            <li>
+              Apple offer-code redemption now returns a verified{' '}
+              <code>PurchaseIOS</code> on iOS, Mac Catalyst, and visionOS 27+.
+              The iOS and Mac Catalyst 14–26 fallback still presents the legacy
+              sheet and returns <code>null</code>, requiring listener or
+              available-purchase reconciliation.
+            </li>
+            <li>
+              Xcode 27 builds recognize StoreKit subscription bundles and suites
+              as subscriptions, expose their component catalog metadata and
+              transaction or renewal linkage, report assigned ownership and
+              bundle-upgrade or assignment-revocation metadata, expose{' '}
+              <code>AppTransaction.storeType</code> and its back-deployed
+              revocation date, recognize the managed acquisition platform, and
+              preserve Advanced Commerce item partners. The new catalog types
+              require Apple 27; bundle transaction metadata follows
+              StoreKit&apos;s back-deployment contract. StoreKit&apos;s new{' '}
+              <code>AppTransaction.all</code> acquisition-history sequence is
+              documented but is not exported as an OpenIAP operation in this
+              release; it is distinct from in-app transaction history.
+            </li>
+            <li>
+              Apps linked with the iOS 27 SDK must also adopt Apple&apos;s
+              scene-based lifecycle and retain a launch screen. The React Native
+              and Expo device-test hosts now start React Native from a{' '}
+              <code>UIWindowSceneDelegate</code>, while the Flutter fixture uses
+              the canonical <code>UIApplicationSceneManifest</code> key. This
+              host-app migration is separate from the OpenIAP package upgrade.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Shared spec and native packages
+          </h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>OpenIAP Spec 3.0.0</strong> - removes deprecated
+              validation and promoted-purchase mutations, platform request
+              aliases, old offer and alternative-billing models, compatibility
+              error codes, and duplicate purchase fields.
+            </li>
+            <li>
+              <strong>openiap-apple 3.0.0</strong> - removes receipt-validation
+              type aliases, old Objective-C selectors and overloads, storefront
+              and promoted-purchase wrappers, legacy version labels, and
+              purchase-ID fallback decoding. When compiled with Xcode 27 it
+              adopts <code>presentOfferCodeRedeemSheet(from:options:)</code>,
+              verifies the returned transaction, and maps it to{' '}
+              <code>PurchaseIOS</code>; Xcode 26 builds retain the legacy
+              runtime fallback. It also maps the public Xcode 27 Subscription
+              Bundle/Suite product types, bundled component metadata, bundle
+              transaction and renewal fields, assigned ownership, bundle upgrade
+              and assignment revocation metadata, app revocation date, managed
+              acquisition platform, app store type, and Advanced Commerce
+              partners. Group Purchase seat assignment remains outside this
+              release because Xcode 27 beta 4 exposes no public StoreKit
+              contract for it. The package also keeps{' '}
+              <code>AppTransaction.all</code> outside the cross-SDK surface
+              rather than conflating app-acquisition history with{' '}
+              <code>getAllTransactionsIOS</code>.
+            </li>
+            <li>
+              <strong>openiap-google 3.0.0</strong> - removes legacy
+              alternative-billing constructors, listeners, manifest keys,
+              logging shortcuts, error aliases, and compatibility methods while
+              retaining the current Play, Amazon, and Horizon flows. Its Amazon
+              flow also deduplicates receipt IDs repeated across Appstore
+              pagination boundaries before returning available purchases.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>react-native-iap 16.0.0</strong> - removes deprecated hook
+              fields, purchase helpers, request envelopes, product-type
+              spelling, promoted-purchase shortcut, receipt helper, and native
+              transaction-ID fallback, and returns the verified redeemed
+              purchase from the iOS offer-code API when available. Its Nitro
+              bridge also preserves the new AppTransaction revocation date and
+              store type. The physical-device example adopts UIScene so an Xcode
+              27 build reaches the StoreKit flow instead of failing at launch.
+            </li>
+            <li>
+              <strong>expo-iap 5.0.0</strong> - removes the matching JavaScript
+              compatibility APIs plus old Expo config keys and Android
+              custom-channel payload aliases, and forwards the nullable verified
+              Apple redemption result together with the generated Xcode 27
+              catalog, purchase, renewal, and app-transaction fields. Its
+              generated device-test host applies an idempotent UIScene migration
+              for the pinned Expo SDK 54 template.
+            </li>
+            <li>
+              <strong>flutter_inapp_purchase 10.0.0</strong> - removes
+              deprecated Dart classes, streams, builders, methods, platform
+              fields, and all legacy MethodChannel names and payload
+              normalizers; the iOS redemption channel now decodes{' '}
+              <code>PurchaseIOS?</code>, and the generated Xcode 27 fields pass
+              through the canonical MethodChannel payloads. Its iOS and macOS
+              SwiftPM manifests resolve <code>openiap-apple 3.0.0</code> for
+              Flutter 3.44+, while older or SwiftPM-disabled projects keep the
+              CocoaPods integration. The iOS fixture also uses Flutter&apos;s
+              canonical scene manifest rather than the ignored underscored key.
+            </li>
+            <li>
+              <strong>godot-iap 3.0.0</strong> - removes deprecated GDScript
+              methods, alternate product spellings, raw request envelopes,
+              flattened IAPKit fields, and native bridge aliases, while its
+              published iOS GDExtension is built with Xcode 27 and release
+              validation rejects an older tracked framework. It therefore
+              exports the generated Bundle/Suite records and returns a typed
+              redeemed purchase on Apple 27+; a custom Xcode 26-built framework
+              keeps the legacy <code>null</code> result.
+            </li>
+            <li>
+              <strong>kmp-iap 3.0.0</strong> - removes deprecated common and
+              platform methods, DSL properties, generated request aliases, and
+              billing configuration fields while preserving upstream native
+              response normalization and the nullable verified redemption
+              result. Its generated common models include the Xcode 27 catalog,
+              purchase, renewal, and app-transaction fields.
+            </li>
+            <li>
+              <strong>OpenIap.Maui 2.0.0</strong> - removes the legacy{' '}
+              <code>Iap</code> facade, promoted-purchase wrapper, generated
+              compatibility types, obsolete native bindings, and out-of-support
+              .NET MAUI 9 target frameworks. The package now targets supported
+              .NET MAUI 10 only. Its NuGet release rebuilds the embedded Apple
+              XCFramework with Xcode 27, so the iOS binding exposes the guarded
+              StoreKit 27 implementation, generated Bundle/Suite records, and
+              nullable redeemed <code>PurchaseIOS</code>.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Migration notes</h5>
+          <p style={{ fontSize: '0.9rem' }}>
+            Review the complete{' '}
+            <Link to="/docs/updates/deprecations">
+              Deprecations &amp; 3.0 Migration catalog
+            </Link>{' '}
+            before upgrading. Existing bookmarks for removed API pages redirect
+            to their canonical replacement documentation, but the removed
+            runtime symbols themselves have no compatibility stubs. MAUI apps
+            must retarget <code>net9.0-*</code> projects to the corresponding{' '}
+            <code>net10.0-*</code> frameworks before installing OpenIap.Maui
+            2.0.0. Callers that treated{' '}
+            <code>presentCodeRedemptionSheetIOS</code> as a Boolean must instead
+            handle a nullable purchase; <code>null</code> is the expected
+            legacy-sheet result on iOS and Mac Catalyst 14–26, and from a Godot
+            GDExtension compiled with Xcode 26. The Xcode 27 Bundle/Suite fields
+            are additive and nullable; applications should keep their existing
+            subscription logic as a fallback until the Apple 27 catalog has been
+            exercised with StoreKit Testing. Source-integrated Apple SDKs must
+            be compiled with Xcode 27 to include the guarded implementation; the
+            published Godot 3.0.0 and OpenIap.Maui 2.0.0 Apple binaries are
+            built with that toolchain. These APIs are based on Xcode 27 beta 4
+            and must be re-audited when Apple publishes the final or a newer
+            Xcode 27 SDK. Before building any UIKit-based host with Xcode 27,
+            follow the{' '}
+            <Link to="/docs/ios-setup#xcode-27-scene-lifecycle">
+              UIScene and launch-screen migration checklist
+            </Link>
+            ; OpenIAP cannot migrate the application lifecycle from inside a
+            library.
+          </p>
+
+          <div
+            style={{
+              marginTop: '1rem',
+              padding: '1rem',
+              background: 'rgba(220, 104, 67, 0.1)',
+              borderLeft: '4px solid var(--accent-color)',
+              borderRadius: '0.5rem',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem' }}
+            >
+              {majorApiRemovalReleases.map(([label, tag]) => (
+                <li key={tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
         </div>
       ),
     },
@@ -2495,7 +2802,7 @@ function Releases() {
               StoreKit&apos;s{' '}
               <code>Product.PurchaseOption.billingPlanType</code> on iOS,
               iPadOS, macOS, tvOS, and visionOS 26.4+ when compiled with Xcode
-              26.4+ / Swift 6.3+.
+              26.5+ / Swift 6.3+.
             </li>
             <li>
               <strong>Introductory offer eligibility correction</strong> —{' '}
@@ -7589,9 +7896,9 @@ result.error                  // optional error`}</CodeBlock>
               }}
             >
               <li>
-                <code>ProductStatusAndroid</code> - Enum: <code>Ok</code>,{' '}
-                <code>NotFound</code>, <code>NoOffersAvailable</code>,{' '}
-                <code>Unknown</code>
+                <code>ProductStatusAndroid</code> - Wire values: <code>ok</code>
+                , <code>not-found</code>, <code>no-offers-available</code>,{' '}
+                <code>unknown</code>
               </li>
               <li>
                 <code>productStatusAndroid</code> - New field on{' '}

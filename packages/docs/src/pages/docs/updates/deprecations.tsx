@@ -2,25 +2,27 @@ import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
 import SEO from '../../../components/SEO';
 import { LIBRARIES } from '../../../lib/images';
-import { OPENIAP_VERSIONS } from '../../../lib/versioning';
 
 const nativePackages = [
   {
     name: 'OpenIAP Spec',
-    version: OPENIAP_VERSIONS.spec,
+    lastCompatibleMajor: '2.x',
     removalVersion: '3.0.0',
   },
   {
     name: 'openiap-apple',
-    version: OPENIAP_VERSIONS.apple,
+    lastCompatibleMajor: '2.x',
     removalVersion: '3.0.0',
   },
   {
     name: 'openiap-google',
-    version: OPENIAP_VERSIONS.google,
+    lastCompatibleMajor: '2.x',
     removalVersion: '3.0.0',
   },
 ] as const;
+
+const lastCompatibleMajor = (removalVersion: string) =>
+  `${Number(removalVersion.split('.')[0]) - 1}.x`;
 
 const migrationGroups = [
   {
@@ -74,6 +76,10 @@ const migrationGroups = [
         'store',
       ],
       ['willExpireSoon', 'daysUntilExpirationIOS'],
+      [
+        'presentCodeRedemptionSheetIOS Boolean result',
+        'nullable PurchaseIOS result: verified on Apple 27+; null after the legacy sheet on iOS or Mac Catalyst 14–26',
+      ],
       ['receipt-failed', 'purchase-verification-failed'],
       ['receipt-finished', 'purchase-verification-finished'],
       ['receipt-finished-failed', 'purchase-verification-finish-failed'],
@@ -92,6 +98,10 @@ const migrationGroups = [
       ],
       [
         'ProductSubscriptionAndroid.oneTimePurchaseOfferDetailsAndroid',
+        'subscriptionOffers; one-time offer fields do not apply to subscriptions',
+      ],
+      [
+        'ProductSubscriptionAndroid.discountOffers',
         'subscriptionOffers; one-time offer fields do not apply to subscriptions',
       ],
       [
@@ -456,6 +466,10 @@ const packageCompatibilityMigrations = [
     rows: [
       ['OpenIap.Maui Iap facade', 'OpenIapClient'],
       [
+        'net9.0, net9.0-android, net9.0-ios, and net9.0-maccatalyst targets',
+        'the matching net10.0 target frameworks with the .NET 10 MAUI workload',
+      ],
+      [
         'RequestPurchaseOnPromotedProductIOSAsync',
         'PromotedProductIOS, then RequestPurchaseAsync',
       ],
@@ -483,22 +497,21 @@ function Deprecations() {
 
       <h1>Deprecations &amp; 3.0 Migration</h1>
       <p className="lead">
-        Deprecated OpenIAP APIs remain supported throughout each package&apos;s
-        current stable major. Migrate now: the native specification and each
-        framework library remove their deprecated OpenIAP-owned surfaces when
-        that package reaches the major version listed below.
+        The coordinated major train removes the previously deprecated,
+        OpenIAP-owned compatibility surface. Use this catalog to update calls
+        before upgrading.
       </p>
 
       <div style={calloutStyle}>
-        <strong>No immediate removal:</strong> deprecation is an advance
-        warning, not a patch- or minor-release break. Removal happens only in
-        the listed major release. Each package reaches its major independently;
-        this table does not imply one lockstep release date.
+        <strong>Breaking major release:</strong> the listed versions do not
+        include compatibility wrappers, deprecated schema members, or legacy
+        custom-wire aliases. Upgrade coordinated native and framework
+        dependencies together.
       </div>
 
       <section>
         <AnchorLink id="removal-schedule" level="h2">
-          Removal schedule
+          Removal boundaries
         </AnchorLink>
 
         <h3>OpenIAP specification and native packages</h3>
@@ -506,8 +519,8 @@ function Deprecations() {
           <thead>
             <tr>
               <th>Package</th>
-              <th>Current version</th>
-              <th>Deprecated APIs removed in</th>
+              <th>Last compatible major</th>
+              <th>Removed in</th>
             </tr>
           </thead>
           <tbody>
@@ -515,7 +528,7 @@ function Deprecations() {
               <tr key={item.name}>
                 <td>{item.name}</td>
                 <td>
-                  <code>{item.version}</code>
+                  <code>{item.lastCompatibleMajor}</code>
                 </td>
                 <td>
                   <code>{item.removalVersion}</code>
@@ -530,8 +543,8 @@ function Deprecations() {
           <thead>
             <tr>
               <th>Library</th>
-              <th>Current version</th>
-              <th>Deprecated APIs removed in</th>
+              <th>Last compatible major</th>
+              <th>Removed in</th>
             </tr>
           </thead>
           <tbody>
@@ -541,7 +554,9 @@ function Deprecations() {
                   <Link to={library.setupPath}>{library.displayName}</Link>
                 </td>
                 <td>
-                  <code>{library.version}</code>
+                  <code>
+                    {lastCompatibleMajor(library.deprecatedApiRemovalVersion)}
+                  </code>
                 </td>
                 <td>
                   <code>{library.deprecatedApiRemovalVersion}</code>
@@ -552,38 +567,20 @@ function Deprecations() {
         </table>
 
         <p>
-          IAPKit is a hosted service rather than a versioned framework library,
-          so this major-version schedule does not apply to its staged data
-          migrations.
+          IAPKit is a hosted service rather than a versioned framework library.
+          Its scoped keys, client payloads, verification, and staged data
+          migrations are unchanged by this SDK-only major train.
         </p>
         <p>
-          Generated framework declarations repeat the canonical schema phrase{' '}
-          <code>Scheduled for removal in OpenIAP 3.0.</code> That phrase names
-          the specification and native-package removal train. A generated copy
-          shipped by React Native, Expo, Flutter, Godot, KMP, or MAUI remains
-          available until that framework reaches its own removal major in the
-          table above.
+          Generated Swift, Kotlin, TypeScript, Dart, GDScript, and C# contracts
+          now expose only the canonical schema. The former declarations remain
+          listed below solely as migration reference.
         </p>
         <p>
-          Kotlin emits compiler and IDE warnings on supported deprecated types,
-          properties, enum values, and functions. Kotlin does not permit{' '}
-          <code>@Deprecated</code> on value parameters, and a data-class named
-          constructor argument does not trigger its property annotation.
-          Deprecated GraphQL resolver arguments and those constructor call sites
-          therefore retain KDoc and this migration catalog; reading the
-          deprecated property still warns.
-        </p>
-        <p>
-          Raw map/object compatibility inputs—including JavaScript objects,
-          plugin configuration, and custom MethodChannel payloads—treat an own
-          canonical key, including <code>null</code>, as authoritative.
-          Generated Swift and Kotlin request models expose nullable{' '}
-          <code>apple</code> / <code>google</code> and <code>ios</code> /{' '}
-          <code>android</code> members without a separate “key supplied” bit;
-          typed facades therefore prefer a non-null canonical member and
-          otherwise retain the legacy optional fallback until the listed major.
-          Omit the legacy member instead of relying on canonical{' '}
-          <code>null</code> to suppress it.
+          Raw JavaScript objects, plugin configuration, custom MethodChannel
+          payloads, and direct Godot dictionaries must also use canonical keys.
+          Removed aliases are rejected or ignored; they never override missing
+          canonical input.
         </p>
       </section>
 
@@ -598,10 +595,9 @@ function Deprecations() {
           never the preferred output key.
         </p>
         <p>
-          Flutter 9.x still accepts the following legacy native or custom
-          MethodChannel payload shapes. These are input fallbacks, not public
-          generated fields, and all are scheduled for removal in{' '}
-          <code>flutter_inapp_purchase 10.0.0</code>.
+          Flutter 9.x accepted the following legacy native or custom
+          MethodChannel payload shapes. Flutter 10 accepts only the canonical
+          forms in the middle column.
         </p>
         <table className="doc-table">
           <thead>
@@ -629,13 +625,12 @@ function Deprecations() {
         </table>
         <p>
           The canonical <code>id</code> purchase identity is not deprecated.
-          Only using it implicitly in place of <code>transactionId</code> ends
-          in Flutter 10.
+          Flutter 10 requires an explicit <code>transactionId</code>.
         </p>
         <h3>Issue #248 and Android raw purchase JSON</h3>
         <ul>
           <li>
-            Before the planned Flutter 9.6.1 patch, issue{' '}
+            Before Flutter 9.6.1, issue{' '}
             <a
               href="https://github.com/hyodotdev/openiap/issues/248"
               target="_blank"
@@ -643,11 +638,11 @@ function Deprecations() {
             >
               #248
             </a>{' '}
-            causes canonical <code>dataAndroid</code> input to be lost by the
+            caused canonical <code>dataAndroid</code> input to be lost by the
             Dart compatibility converter.
           </li>
           <li>
-            The planned patch in{' '}
+            The patch in{' '}
             <a
               href="https://github.com/hyodotdev/openiap/pull/251"
               target="_blank"
@@ -655,15 +650,14 @@ function Deprecations() {
             >
               PR #251
             </a>{' '}
-            reads <code>dataAndroid</code> first and accepts{' '}
+            read <code>dataAndroid</code> first and accepted{' '}
             <code>originalJsonAndroid</code> only as a temporary Flutter 9.x
             input fallback. If both keys exist, <code>dataAndroid</code> wins.
           </li>
           <li>
-            The fallback is scheduled for removal in{' '}
-            <code>flutter_inapp_purchase 10.0.0</code>. Custom native adapters,
-            MethodChannel fixtures, and mocks should emit{' '}
-            <code>dataAndroid</code> now.
+            Flutter 10 removes that fallback. Custom native adapters,
+            MethodChannel fixtures, and mocks must emit <code>dataAndroid</code>
+            .
           </li>
         </ul>
         <p>
@@ -708,8 +702,8 @@ function Deprecations() {
         <h3>Custom MethodChannel integrations</h3>
         <p>
           Applications normally use the Dart API and never call these internal
-          channel names. Custom integrations that still do so must migrate
-          before Flutter 10:
+          channel names. Flutter 10 custom integrations must use the
+          replacements:
         </p>
         <table className="doc-table">
           <thead>
@@ -734,9 +728,8 @@ function Deprecations() {
 
         <h3>Custom MethodChannel payloads</h3>
         <p>
-          The official Dart API emits the canonical forms below. Flutter 9.x
-          continues to normalize these historical custom-channel inputs and
-          warns only when a fallback is selected; canonical calls stay silent.
+          The official Dart API emits the canonical forms below. Flutter 10 no
+          longer normalizes the historical custom-channel inputs.
         </p>
         <table className="doc-table">
           <thead>
@@ -762,13 +755,11 @@ function Deprecations() {
 
       <section>
         <AnchorLink id="migration-catalog" level="h2">
-          Current migration catalog
+          Removed schema migration catalog
         </AnchorLink>
         <p>
-          The following OpenIAP-owned deprecated schema surfaces are scheduled
-          by the package table above. Generated Swift, Kotlin, TypeScript, Dart,
-          GDScript, and C# declarations carry the canonical deprecation guidance
-          from the GraphQL schema.
+          The following OpenIAP-owned schema surfaces were removed by the
+          package versions above.
         </p>
 
         {migrationGroups.map((group) => (
@@ -800,12 +791,12 @@ function Deprecations() {
 
       <section>
         <AnchorLink id="package-compatibility-shims" level="h2">
-          Package-specific compatibility shims
+          Removed package-specific compatibility shims
         </AnchorLink>
         <p>
-          These public aliases and wrappers are not separate GraphQL schema
-          members, so their package source carries the removal warning directly.
-          They follow the native or framework major shown in each heading.
+          These public aliases and wrappers were package-local rather than
+          GraphQL schema members. They are absent from the major versions named
+          in each heading.
         </p>
 
         {packageCompatibilityMigrations.map((group) => (

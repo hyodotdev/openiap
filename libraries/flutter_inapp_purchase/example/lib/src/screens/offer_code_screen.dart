@@ -4,7 +4,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
 class OfferCodeScreen extends StatefulWidget {
-  const OfferCodeScreen({Key? key}) : super(key: key);
+  const OfferCodeScreen({super.key});
 
   @override
   State<OfferCodeScreen> createState() => _OfferCodeScreenState();
@@ -70,10 +70,11 @@ class _OfferCodeScreenState extends State<OfferCodeScreen> {
     });
 
     try {
-      await _iap.presentCodeRedemptionSheetIOS();
+      final purchase = await _iap.presentCodeRedemptionSheetIOS();
       setState(() {
-        _statusMessage =
-            'Redemption sheet presented. Complete the redemption in the system dialog.';
+        _statusMessage = purchase != null
+            ? 'Verified redemption: ${purchase.productId} (${purchase.id}).'
+            : 'Legacy redemption sheet presented. Refresh purchases after completing redemption.';
         _isSuccess = true;
       });
     } catch (e) {

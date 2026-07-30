@@ -2,32 +2,15 @@ import 'dart:convert';
 
 import 'package:flutter/foundation.dart';
 
-import 'deprecation.dart';
-import 'errors.dart' as iap_err;
 import 'flutter_inapp_purchase.dart';
 import 'types.dart' as gentype;
 
-final _billingPeriodRegExp = RegExp(r'^P(\d+)([DWMY])$');
-
 String resolveProductType(Object type) {
   if (type is String) {
-    if (type == 'inapp') {
-      warnLegacyOnce(
-        'product-type.raw-inapp',
-        'The product type `inapp` is deprecated and will be removed in '
-            'flutter_inapp_purchase 10.0.0. Use `in-app` instead.',
-      );
-      return 'in-app';
+    if (type == 'in-app' || type == 'subs' || type == 'all') {
+      return type;
     }
-    return type;
-  }
-  if (type is TypeInApp) {
-    warnLegacyOnce(
-      'product-type.type-in-app',
-      'TypeInApp is deprecated and will be removed in '
-          'flutter_inapp_purchase 10.0.0. Use ProductQueryType instead.',
-    );
-    return type == TypeInApp.inapp ? 'in-app' : 'subs';
+    throw ArgumentError.value(type, 'type', 'Use in-app, subs, or all.');
   }
   if (type is gentype.ProductType) {
     return type == gentype.ProductType.InApp ? 'in-app' : 'subs';
@@ -42,25 +25,7 @@ String resolveProductType(Object type) {
         return 'all';
     }
   }
-  return 'in-app';
-}
-
-dynamic _canonicalOrLegacy(
-  Map<String, dynamic> payload, {
-  required String canonicalKey,
-  required String legacyKey,
-  required String warningKey,
-  required String message,
-}) {
-  if (payload.containsKey(canonicalKey)) {
-    return payload[canonicalKey];
-  }
-
-  final legacy = payload[legacyKey];
-  if (legacy != null) {
-    warnLegacyOnce(warningKey, message);
-  }
-  return legacy;
+  throw ArgumentError.value(type, 'type', 'Unsupported product type.');
 }
 
 String _resolveProductId(Map<String, dynamic> json) {
@@ -68,32 +33,8 @@ String _resolveProductId(Map<String, dynamic> json) {
     return json['id']?.toString() ?? '';
   }
 
-  if (json.containsKey('productId')) {
-    final legacyProductId = json['productId'];
-    if (legacyProductId != null) {
-      warnLegacyOnce(
-        'product.productId',
-        'The product `productId` field is deprecated and will be removed in '
-            'flutter_inapp_purchase 10.0.0. Use `id` instead.',
-      );
-    }
-    return legacyProductId?.toString() ?? '';
-  }
-
-  if (json.containsKey('sku')) {
-    final legacySku = json['sku'];
-    if (legacySku != null) {
-      warnLegacyOnce(
-        'product.sku',
-        'The product `sku` field is deprecated and will be removed in '
-            'flutter_inapp_purchase 10.0.0. Use `id` instead.',
-      );
-    }
-    return legacySku?.toString() ?? '';
-  }
-
   // StoreKit 1's productIdentifier remains outside the OpenIAP-owned legacy
-  // wire cleanup and is intentionally not warned here.
+  // wire contract and remains a native-response recovery path.
   return json['productIdentifier']?.toString() ?? '';
 }
 
@@ -114,10 +55,7 @@ gentype.ProductCommon parseProductFromNative(
     platform = platformRaw;
   } else {
     // Heuristics based on well-known platform-specific fields
-    final looksAndroid =
-        json.containsKey('oneTimePurchaseOfferDetailsAndroid') ||
-            json.containsKey('subscriptionOfferDetailsAndroid') ||
-            json.containsKey('nameAndroid');
+    final looksAndroid = json.containsKey('nameAndroid');
     final looksIOS = json.containsKey('subscriptionGroupIdIOS') ||
         json.containsKey('jsonRepresentationIOS') ||
         json.containsKey('environmentIOS');
@@ -163,17 +101,6 @@ gentype.ProductCommon parseProductFromNative(
         type: productType,
         typeIOS: _parseProductTypeIOS(json['typeIOS']?.toString()),
         debugDescription: json['debugDescription']?.toString(),
-        discountsIOS: _parseDiscountsIOS(
-          _canonicalOrLegacy(
-            json,
-            canonicalKey: 'discountsIOS',
-            legacyKey: 'discounts',
-            warningKey: 'product.discounts',
-            message: 'The product `discounts` field is deprecated and will be '
-                'removed in flutter_inapp_purchase 10.0.0. Use '
-                '`subscriptionOffers` instead.',
-          ),
-        ),
         displayName: json['displayName']?.toString(),
         introductoryPriceAsAmountIOS:
             json['introductoryPriceAsAmountIOS']?.toString(),
@@ -187,21 +114,11 @@ gentype.ProductCommon parseProductFromNative(
           json['introductoryPriceSubscriptionPeriodIOS'],
         ),
         price: priceValue,
+        bundledSubscriptionsIOS: _parseBundledSubscriptionsIOS(
+          json['bundledSubscriptionsIOS'],
+        ),
         pricingTermsIOS: _parseSubscriptionPricingTermsIOS(
           json['pricingTermsIOS'],
-        ),
-        subscriptionInfoIOS: _parseSubscriptionInfoIOS(
-          _canonicalOrLegacy(
-            json,
-            canonicalKey: 'subscriptionInfoIOS',
-            legacyKey: 'subscription',
-            warningKey: 'product.subscription',
-            message:
-                'The product `subscription` field is deprecated and will be '
-                'removed in flutter_inapp_purchase 10.0.0. Use '
-                '`subscriptionOffers` for offer metadata and '
-                '`subscriptionGroupIdIOS` for the group identifier instead.',
-          ),
         ),
         subscriptionOffers: _parseStandardizedSubscriptionOffers(
           json['subscriptionOffers'],
@@ -215,30 +132,20 @@ gentype.ProductCommon parseProductFromNative(
       );
     }
 
-    final subscriptionOfferDetails = _parseOfferDetails(
-      json['subscriptionOfferDetailsAndroid'],
-    );
-    final subscriptionOffers =
-        _parseStandardizedSubscriptionOffers(json['subscriptionOffers']) ??
-            _parseSubscriptionOffers(subscriptionOfferDetails);
-
     return gentype.ProductSubscriptionAndroid(
       currency: currency,
       description: description,
-      discountOffers: _parseDiscountOffers(json['discountOffers']),
       displayPrice: displayPrice,
       id: productId,
       nameAndroid: json['nameAndroid']?.toString() ?? productId,
       platform: platform,
-      subscriptionOfferDetailsAndroid: subscriptionOfferDetails,
-      subscriptionOffers: subscriptionOffers,
+      subscriptionOffers:
+          _parseStandardizedSubscriptionOffers(json['subscriptionOffers']) ??
+              const [],
       title: title,
       type: productType,
       debugDescription: json['debugDescription']?.toString(),
       displayName: json['displayName']?.toString(),
-      oneTimePurchaseOfferDetailsAndroid: _parseOneTimePurchaseOfferDetails(
-        json['oneTimePurchaseOfferDetailsAndroid'],
-      ),
       price: priceValue,
       productStatusAndroid: _parseProductStatusAndroid(
         json['productStatusAndroid'],
@@ -265,26 +172,11 @@ gentype.ProductCommon parseProductFromNative(
       pricingTermsIOS: _parseSubscriptionPricingTermsIOS(
         json['pricingTermsIOS'],
       ),
-      subscriptionInfoIOS: _parseSubscriptionInfoIOS(
-        _canonicalOrLegacy(
-          json,
-          canonicalKey: 'subscriptionInfoIOS',
-          legacyKey: 'subscription',
-          warningKey: 'product.subscription',
-          message: 'The product `subscription` field is deprecated and will be '
-              'removed in flutter_inapp_purchase 10.0.0. Use '
-              '`subscriptionOffers` for offer metadata instead.',
-        ),
-      ),
       subscriptionOffers: _parseStandardizedSubscriptionOffers(
         json['subscriptionOffers'],
       ),
     );
   }
-
-  final androidOffers = _parseOfferDetails(
-    json['subscriptionOfferDetailsAndroid'],
-  );
 
   return gentype.ProductAndroid(
     currency: currency,
@@ -298,20 +190,12 @@ gentype.ProductCommon parseProductFromNative(
     debugDescription: json['debugDescription']?.toString(),
     discountOffers: _parseDiscountOffers(json['discountOffers']),
     displayName: json['displayName']?.toString(),
-    oneTimePurchaseOfferDetailsAndroid: _parseOneTimePurchaseOfferDetails(
-      json['oneTimePurchaseOfferDetailsAndroid'],
-    ),
     price: priceValue,
     productStatusAndroid: _parseProductStatusAndroid(
       json['productStatusAndroid'],
     ),
-    subscriptionOfferDetailsAndroid:
-        androidOffers.isEmpty ? null : androidOffers,
     subscriptionOffers:
-        _parseStandardizedSubscriptionOffers(json['subscriptionOffers']) ??
-            (androidOffers.isEmpty
-                ? null
-                : _parseSubscriptionOffers(androidOffers)),
+        _parseStandardizedSubscriptionOffers(json['subscriptionOffers']),
   );
 }
 
@@ -322,24 +206,17 @@ gentype.Purchase convertToPurchase(
   required Map<String, bool> acknowledgedAndroidPurchaseTokens,
   Map<String, dynamic>? originalJson,
 }) {
-  // Native SDKs serialize the generated Purchase types directly. Preserve that
+  // Native SDKs serialize the generated Purchase types directly. Preserve the
   // canonical payload as the base so newly generated optional fields are not
-  // silently dropped by this legacy compatibility adapter.
-  //
-  // The fallback wire keys below are accepted through
-  // flutter_inapp_purchase 9.x only and are scheduled for removal in 10.0.0.
-  // New native bridges, fixtures, and custom MethodChannel producers must emit
-  // the canonical OpenIAP keys.
+  // silently dropped by this adapter.
   final sourcePayload = normalizeDynamicMap(<String, dynamic>{
     if (originalJson != null) ...originalJson,
     ...itemJson,
   })!;
 
   final productId = sourcePayload['productId']?.toString() ?? '';
-  final hasSourceId = sourcePayload.containsKey('id');
   final sourceId = sourcePayload['id']?.toString();
-  final transactionIdSelection = _transactionIdFrom(sourcePayload);
-  final sourceTransactionId = transactionIdSelection.value;
+  final sourceTransactionId = sourcePayload['transactionId']?.toString();
   final dynamic quantityValue = sourcePayload['quantity'];
   int quantity = 1;
   if (quantityValue is num) {
@@ -351,11 +228,7 @@ gentype.Purchase convertToPurchase(
     }
   }
 
-  final String? purchaseId = hasSourceId
-      ? ((sourceId?.isNotEmpty ?? false) ? sourceId : null)
-      : (sourceTransactionId?.isNotEmpty ?? false)
-          ? sourceTransactionId
-          : (productId.isNotEmpty ? productId : null);
+  final String? purchaseId = (sourceId?.isNotEmpty ?? false) ? sourceId : null;
 
   if (purchaseId == null || purchaseId.isEmpty) {
     debugPrint(
@@ -368,67 +241,28 @@ gentype.Purchase convertToPurchase(
       _parseTimestampMilliseconds(sourcePayload['transactionDate']) ?? 0;
 
   if (platformIsAndroid) {
-    final hasSelectedPurchaseState =
-        sourcePayload.containsKey('purchaseState') ||
-            sourcePayload.containsKey('purchaseStateAndroid');
+    final hasSelectedPurchaseState = sourcePayload.containsKey('purchaseState');
     final stateValue = _coerceAndroidPurchaseState(
-      _canonicalOrLegacy(
-        sourcePayload,
-        canonicalKey: 'purchaseState',
-        legacyKey: 'purchaseStateAndroid',
-        warningKey: 'purchase.purchaseStateAndroid',
-        message: 'The purchase `purchaseStateAndroid` field is deprecated and '
-            'will be removed in flutter_inapp_purchase 10.0.0. Use '
-            '`purchaseState` instead.',
-      ),
+      sourcePayload['purchaseState'],
       hasSelectedState: hasSelectedPurchaseState,
     );
     final purchaseState = _mapAndroidPurchaseState(stateValue).toJson();
 
     // Determine store from input or default based on platform
     final storeValue = sourcePayload['store']?.toString() ?? 'google';
-    final androidTransactionId = _resolveAndroidTransactionId(
-      hasCanonicalTransactionId: transactionIdSelection.isPresent,
-      canonicalTransactionId: sourceTransactionId,
-      id: sourceId,
-      purchaseToken: sourcePayload['purchaseToken']?.toString(),
-      store: storeValue,
-    );
-    if (!transactionIdSelection.isPresent &&
-        androidTransactionId != null &&
-        androidTransactionId == sourceId) {
-      warnLegacyOnce(
-        'purchase.id-transaction-id',
-        'Using purchase `id` as `transactionId` is deprecated and will be '
-            'removed in flutter_inapp_purchase 10.0.0. Emit `transactionId` '
-            'directly instead.',
-      );
-    }
-
     final map = <String, dynamic>{
       ...sourcePayload,
       'id': purchaseId,
       'productId': productId,
-      'platform': gentype.IapPlatform.Android.toJson(),
       'store': storeValue,
-      'isAutoRenewing': sourcePayload['isAutoRenewing'] as bool? ??
-          sourcePayload['autoRenewingAndroid'] as bool? ??
-          false,
+      'isAutoRenewing': sourcePayload['isAutoRenewing'] as bool? ?? false,
       'purchaseState': purchaseState,
       'quantity': quantity,
       'transactionDate': transactionDate,
       'purchaseToken': sourcePayload['purchaseToken']?.toString(),
       'autoRenewingAndroid': sourcePayload['autoRenewingAndroid'] as bool?,
       'currentPlanId': sourcePayload['currentPlanId']?.toString(),
-      'dataAndroid': _canonicalOrLegacy(
-        sourcePayload,
-        canonicalKey: 'dataAndroid',
-        legacyKey: 'originalJsonAndroid',
-        warningKey: 'purchase.originalJsonAndroid',
-        message: 'The purchase `originalJsonAndroid` field is deprecated and '
-            'will be removed in flutter_inapp_purchase 10.0.0. Use '
-            '`dataAndroid` instead.',
-      )?.toString(),
+      'dataAndroid': sourcePayload['dataAndroid']?.toString(),
       'developerPayloadAndroid':
           sourcePayload['developerPayloadAndroid']?.toString(),
       'ids': _toStringList(sourcePayload['ids']),
@@ -440,10 +274,7 @@ gentype.Purchase convertToPurchase(
       'packageNameAndroid': sourcePayload['packageNameAndroid']?.toString(),
       'signatureAndroid': sourcePayload['signatureAndroid']?.toString(),
       // Pending/orderless Play purchases legitimately have no order ID.
-      // Legacy native payloads only exposed it through `id`, so recover that
-      // value only when it is distinguishable from a Google purchase token.
-      // The `id` transaction fallback ends in 10.0.0.
-      'transactionId': androidTransactionId,
+      'transactionId': sourceTransactionId,
     };
 
     final purchaseToken = sourcePayload['purchaseToken']?.toString();
@@ -456,17 +287,8 @@ gentype.Purchase convertToPurchase(
   }
 
   if (platformIsIOS) {
-    final stateIOS = _parsePurchaseStateIOS(
-      _canonicalOrLegacy(
-        sourcePayload,
-        canonicalKey: 'purchaseState',
-        legacyKey: 'transactionStateIOS',
-        warningKey: 'purchase.transactionStateIOS',
-        message: 'The purchase `transactionStateIOS` field is deprecated and '
-            'will be removed in flutter_inapp_purchase 10.0.0. Use '
-            '`purchaseState` instead.',
-      ),
-    ).toJson();
+    final stateIOS =
+        _parsePurchaseStateIOS(sourcePayload['purchaseState']).toJson();
 
     final originalTransactionDateIOS = _parseTimestampMilliseconds(
       sourcePayload['originalTransactionDateIOS'],
@@ -474,34 +296,20 @@ gentype.Purchase convertToPurchase(
 
     // Determine store from input or default based on platform
     final storeValueIOS = sourcePayload['store']?.toString() ?? 'apple';
-    if (!transactionIdSelection.isPresent && (sourceId?.isNotEmpty ?? false)) {
-      warnLegacyOnce(
-        'purchase.id-transaction-id',
-        'Using purchase `id` as `transactionId` is deprecated and will be '
-            'removed in flutter_inapp_purchase 10.0.0. Emit `transactionId` '
-            'directly instead.',
-      );
+    if (sourceTransactionId == null || sourceTransactionId.isEmpty) {
+      throw const FormatException('Missing iOS transactionId');
     }
 
     final map = <String, dynamic>{
       ...sourcePayload,
       'id': purchaseId,
       'productId': productId,
-      'platform': gentype.IapPlatform.IOS.toJson(),
       'store': storeValueIOS,
       'isAutoRenewing': sourcePayload['isAutoRenewing'] as bool? ?? false,
       'purchaseState': stateIOS,
       'quantity': quantity,
       'transactionDate': transactionDate,
-      'purchaseToken': _canonicalOrLegacy(
-        sourcePayload,
-        canonicalKey: 'purchaseToken',
-        legacyKey: 'transactionReceipt',
-        warningKey: 'purchase.transactionReceipt',
-        message: 'The purchase `transactionReceipt` field is deprecated and '
-            'will be removed in flutter_inapp_purchase 10.0.0. Use '
-            '`purchaseToken` instead.',
-      )?.toString(),
+      'purchaseToken': sourcePayload['purchaseToken']?.toString(),
       'ids': _toStringList(sourcePayload['ids']),
       'appAccountToken': sourcePayload['appAccountToken']?.toString(),
       'appBundleIdIOS': sourcePayload['appBundleIdIOS']?.toString(),
@@ -516,84 +324,29 @@ gentype.Purchase convertToPurchase(
       'originalTransactionDateIOS': originalTransactionDateIOS,
       'subscriptionGroupIdIOS':
           sourcePayload['subscriptionGroupIdIOS']?.toString(),
-      'transactionId': transactionIdSelection.isPresent
-          ? sourceTransactionId ?? ''
-          // The legacy `id` transaction fallback ends in 10.0.0.
-          : purchaseId,
+      'transactionId': sourceTransactionId,
       'transactionReasonIOS': sourcePayload['transactionReasonIOS']?.toString(),
       'webOrderLineItemIdIOS':
           sourcePayload['webOrderLineItemIdIOS']?.toString(),
       'revocationDateIOS':
           _parseTimestampMilliseconds(sourcePayload['revocationDateIOS']),
       'revocationReasonIOS': sourcePayload['revocationReasonIOS']?.toString(),
+      'revocationTypeIOS': sourcePayload['revocationTypeIOS']?.toString(),
+      'bundleOriginalTransactionIdIOS':
+          sourcePayload['bundleOriginalTransactionIdIOS']?.toString(),
+      'bundleProductIdIOS': sourcePayload['bundleProductIdIOS']?.toString(),
+      'bundleSubscriptionGroupIdIOS':
+          sourcePayload['bundleSubscriptionGroupIdIOS']?.toString(),
+      'bundleTransactionIdIOS':
+          sourcePayload['bundleTransactionIdIOS']?.toString(),
+      'previousOriginalTransactionIdIOS':
+          sourcePayload['previousOriginalTransactionIdIOS']?.toString(),
     };
 
     return gentype.PurchaseIOS.fromJson(map);
   }
 
-  throw const FormatException('Unsupported platform for legacy purchase');
-}
-
-iap_err.PurchaseError convertToPurchaseError(
-  PurchaseResult result, {
-  required gentype.IapPlatform platform,
-}) {
-  gentype.ErrorCode code = gentype.ErrorCode.Unknown;
-
-  if (result.code != null && result.code!.isNotEmpty) {
-    final detected = iap_err.ErrorCodeUtils.fromPlatformCode(
-      result.code!,
-      platform,
-    );
-    if (detected != gentype.ErrorCode.Unknown) {
-      code = detected;
-    }
-  }
-
-  if (code == gentype.ErrorCode.Unknown) {
-    switch (result.responseCode) {
-      case 0:
-        code = gentype.ErrorCode.Unknown;
-        break;
-      case 1:
-        code = gentype.ErrorCode.UserCancelled;
-        break;
-      case 2:
-        code = gentype.ErrorCode.ServiceError;
-        break;
-      case 3:
-        code = gentype.ErrorCode.BillingUnavailable;
-        break;
-      case 4:
-        code = gentype.ErrorCode.ItemUnavailable;
-        break;
-      case 5:
-        code = gentype.ErrorCode.DeveloperError;
-        break;
-      case 6:
-        code = gentype.ErrorCode.Unknown;
-        break;
-      case 7:
-        code = gentype.ErrorCode.AlreadyOwned;
-        break;
-      case 8:
-        code = gentype.ErrorCode.ItemNotOwned;
-        break;
-    }
-  }
-
-  return iap_err.PurchaseError(
-    message: result.message ?? 'Unknown error',
-    code: code,
-    responseCode: result.responseCode,
-    debugMessage: result.debugMessage,
-    productId: result.productId,
-    productIds: result.productIds,
-    productType: result.productType,
-    isEmptyProductList: result.isEmptyProductList,
-    subResponseCodeAndroid: result.subResponseCodeAndroid,
-    platform: platform,
-  );
+  throw const FormatException('Unsupported purchase platform');
 }
 
 List<gentype.Purchase> extractPurchases(
@@ -674,34 +427,6 @@ List<String>? _toStringList(dynamic value) {
   return value.map((item) => item.toString()).toList();
 }
 
-String? _resolveAndroidTransactionId({
-  required bool hasCanonicalTransactionId,
-  required String? canonicalTransactionId,
-  required String? id,
-  required String? purchaseToken,
-  required String store,
-}) {
-  if (hasCanonicalTransactionId) {
-    return canonicalTransactionId;
-  }
-  if (id == null || id.isEmpty) return null;
-  if (store.toLowerCase() == 'google' && id == purchaseToken) return null;
-  return id;
-}
-
-({bool isPresent, String? value}) _transactionIdFrom(
-  Map<String, dynamic> payload,
-) {
-  if (!payload.containsKey('transactionId')) {
-    return (isPresent: false, value: null);
-  }
-
-  return (
-    isPresent: true,
-    value: payload['transactionId']?.toString(),
-  );
-}
-
 /// Safe int parsing that handles both num and String inputs.
 int? _toInt(dynamic value) {
   if (value is num) return value.toInt();
@@ -737,26 +462,14 @@ gentype.ProductTypeIOS _parseProductTypeIOS(String? value) {
         return gentype.ProductTypeIOS.AutoRenewableSubscription;
       case 'NON_RENEWING_SUBSCRIPTION':
         return gentype.ProductTypeIOS.NonRenewingSubscription;
+      case 'SUBSCRIPTION_BUNDLE':
+        return gentype.ProductTypeIOS.SubscriptionBundle;
+      case 'SUBSCRIPTION_SUITE':
+        return gentype.ProductTypeIOS.SubscriptionSuite;
       default:
         return gentype.ProductTypeIOS.NonConsumable;
     }
   }
-}
-
-List<gentype.DiscountIOS>? _parseDiscountsIOS(dynamic json) {
-  if (json == null) return null;
-  final list = json as List<dynamic>;
-  return list
-      .map(
-        (e) => gentype.DiscountIOS.fromJson(
-          e is Map<String, dynamic>
-              ? e
-              : (e as Map).map<String, dynamic>(
-                  (key, value) => MapEntry(key.toString(), value),
-                ),
-        ),
-      )
-      .toList();
 }
 
 List<dynamic>? _parseNativeList(dynamic value) {
@@ -803,6 +516,11 @@ List<gentype.SubscriptionPricingTermsIOS>? _parseSubscriptionPricingTermsIOS(
 ) =>
     _parseGeneratedList(value, gentype.SubscriptionPricingTermsIOS.fromJson);
 
+List<gentype.BundledSubscriptionIOS>? _parseBundledSubscriptionsIOS(
+  dynamic value,
+) =>
+    _parseGeneratedList(value, gentype.BundledSubscriptionIOS.fromJson);
+
 List<gentype.DiscountOffer>? _parseDiscountOffers(dynamic value) =>
     _parseGeneratedList(value, gentype.DiscountOffer.fromJson);
 
@@ -823,143 +541,6 @@ gentype.ProductStatusAndroid? _parseProductStatusAndroid(dynamic value) {
   } catch (_) {
     return null;
   }
-}
-
-gentype.InstallmentPlanDetailsAndroid? _parseInstallmentPlanDetailsAndroid(
-  dynamic value,
-) {
-  if (value is gentype.InstallmentPlanDetailsAndroid) return value;
-  final map = normalizeDynamicMap(value);
-  if (map == null) return null;
-  return gentype.InstallmentPlanDetailsAndroid(
-    commitmentPaymentsCount: _toInt(map['commitmentPaymentsCount']) ?? 0,
-    subsequentCommitmentPaymentsCount:
-        _toInt(map['subsequentCommitmentPaymentsCount']) ?? 0,
-  );
-}
-
-List<gentype.ProductSubscriptionAndroidOfferDetails> _parseOfferDetails(
-  dynamic json,
-) {
-  if (json == null) {
-    return const <gentype.ProductSubscriptionAndroidOfferDetails>[];
-  }
-
-  // Handle both List and String (JSON string from Android)
-  List<dynamic> list;
-  if (json is String) {
-    // Parse JSON string from Android
-    try {
-      final parsed = jsonDecode(json);
-      if (parsed is! List) {
-        return const <gentype.ProductSubscriptionAndroidOfferDetails>[];
-      }
-      list = parsed;
-    } catch (e) {
-      return const <gentype.ProductSubscriptionAndroidOfferDetails>[];
-    }
-  } else if (json is List) {
-    list = json;
-  } else {
-    return const <gentype.ProductSubscriptionAndroidOfferDetails>[];
-  }
-
-  return list
-      .map((item) {
-        // Convert Map<Object?, Object?> to Map<String, dynamic>
-        final Map<String, dynamic> e;
-        if (item is Map<String, dynamic>) {
-          e = item;
-        } else if (item is Map) {
-          e = item.map<String, dynamic>(
-            (key, value) => MapEntry(key.toString(), value),
-          );
-        } else {
-          // Skip invalid items
-          return null;
-        }
-        return gentype.ProductSubscriptionAndroidOfferDetails(
-          basePlanId: e['basePlanId'] as String? ?? '',
-          installmentPlanDetails: _parseInstallmentPlanDetailsAndroid(
-            e['installmentPlanDetails'],
-          ),
-          offerId: e['offerId'] as String?,
-          offerToken: e['offerToken'] as String? ?? '',
-          offerTags: (e['offerTags'] as List<dynamic>?)
-                  ?.map((tag) => tag.toString())
-                  .toList() ??
-              const <String>[],
-          pricingPhases: _parsePricingPhases(e['pricingPhases']),
-        );
-      })
-      .whereType<gentype.ProductSubscriptionAndroidOfferDetails>()
-      .toList();
-}
-
-gentype.PricingPhasesAndroid _parsePricingPhases(dynamic json) {
-  if (json == null) {
-    return const gentype.PricingPhasesAndroid(pricingPhaseList: []);
-  }
-
-  // Handle nested structure from Android
-  List<dynamic>? list;
-  if (json is Map && json['pricingPhaseList'] != null) {
-    list = json['pricingPhaseList'] as List<dynamic>?;
-  } else if (json is List) {
-    list = json;
-  }
-
-  if (list == null) {
-    return const gentype.PricingPhasesAndroid(pricingPhaseList: []);
-  }
-
-  final phases = list
-      .map((item) {
-        // Convert Map<Object?, Object?> to Map<String, dynamic>
-        final Map<String, dynamic> e;
-        if (item is Map<String, dynamic>) {
-          e = item;
-        } else if (item is Map) {
-          e = item.map<String, dynamic>(
-            (key, value) => MapEntry(key.toString(), value),
-          );
-        } else {
-          // Skip invalid items
-          return null;
-        }
-
-        final priceAmountMicros = e['priceAmountMicros'];
-        final recurrenceMode = e['recurrenceMode'];
-
-        return gentype.PricingPhaseAndroid(
-          billingCycleCount: (e['billingCycleCount'] as num?)?.toInt() ?? 0,
-          billingPeriod: e['billingPeriod']?.toString() ?? '',
-          formattedPrice: e['formattedPrice']?.toString() ?? '0',
-          priceAmountMicros: priceAmountMicros?.toString() ?? '0',
-          priceCurrencyCode: e['priceCurrencyCode']?.toString() ?? 'USD',
-          recurrenceMode: recurrenceMode is int ? recurrenceMode : 0,
-        );
-      })
-      .whereType<gentype.PricingPhaseAndroid>()
-      .toList();
-
-  return gentype.PricingPhasesAndroid(pricingPhaseList: phases);
-}
-
-gentype.SubscriptionInfoIOS? _parseSubscriptionInfoIOS(dynamic value) {
-  final normalizedMap = normalizeDynamicMap(value);
-  if (normalizedMap != null) {
-    return gentype.SubscriptionInfoIOS.fromJson(normalizedMap);
-  }
-  if (value is List && value.isNotEmpty) {
-    for (final candidate in value) {
-      final map = normalizeDynamicMap(candidate);
-      if (map != null) {
-        return gentype.SubscriptionInfoIOS.fromJson(map);
-      }
-    }
-  }
-  return null;
 }
 
 /// Parse standardized SubscriptionOffer list from iOS native data.
@@ -1057,83 +638,6 @@ List<gentype.SubscriptionOffer>? _parseSubscriptionOffersIOS(dynamic json) {
   return offers.isEmpty ? null : offers;
 }
 
-/// Parse standardized SubscriptionOffer list from subscription offer details.
-/// Converts legacy subscriptionOfferDetailsAndroid to cross-platform SubscriptionOffer.
-List<gentype.SubscriptionOffer> _parseSubscriptionOffers(
-  List<gentype.ProductSubscriptionAndroidOfferDetails> offerDetails,
-) {
-  return offerDetails.map((offer) {
-    // Determine payment mode and price from first pricing phase
-    gentype.PaymentMode? paymentMode;
-    gentype.SubscriptionPeriod? period;
-    int? periodCount;
-    String displayPrice = '';
-    double price = 0;
-    String? currency;
-
-    if (offer.pricingPhases.pricingPhaseList.isNotEmpty) {
-      final firstPhase = offer.pricingPhases.pricingPhaseList.first;
-      final priceAmountMicros = int.tryParse(firstPhase.priceAmountMicros) ?? 0;
-      final recurrenceMode = firstPhase.recurrenceMode;
-      period = _parseBillingPeriod(firstPhase.billingPeriod);
-      periodCount = firstPhase.billingCycleCount;
-
-      if (priceAmountMicros == 0) {
-        paymentMode = gentype.PaymentMode.FreeTrial;
-      } else if (recurrenceMode == 3) {
-        // NON_RECURRING
-        paymentMode = gentype.PaymentMode.PayUpFront;
-      } else {
-        paymentMode = gentype.PaymentMode.PayAsYouGo;
-      }
-
-      displayPrice = firstPhase.formattedPrice;
-      price = priceAmountMicros / 1000000;
-      currency = firstPhase.priceCurrencyCode;
-    }
-
-    // Determine offer type
-    final gentype.DiscountOfferType type;
-    if (offer.offerId != null && offer.offerId!.isNotEmpty) {
-      type = gentype.DiscountOfferType.Promotional;
-    } else {
-      type = gentype.DiscountOfferType.Introductory;
-    }
-
-    return gentype.SubscriptionOffer(
-      id: offer.offerId ?? offer.basePlanId,
-      displayPrice: displayPrice,
-      price: price,
-      currency: currency,
-      type: type,
-      paymentMode: paymentMode,
-      period: period,
-      periodCount: periodCount,
-      basePlanIdAndroid: offer.basePlanId,
-      installmentPlanDetailsAndroid: offer.installmentPlanDetails,
-      offerTokenAndroid: offer.offerToken,
-      offerTagsAndroid: offer.offerTags,
-      pricingPhasesAndroid: offer.pricingPhases,
-    );
-  }).toList();
-}
-
-gentype.SubscriptionPeriod? _parseBillingPeriod(String billingPeriod) {
-  final match = _billingPeriodRegExp.firstMatch(billingPeriod);
-  if (match == null) return null;
-  final value = int.tryParse(match.group(1) ?? '');
-  if (value == null) return null;
-
-  final unit = switch (match.group(2)) {
-    'D' => gentype.SubscriptionPeriodUnit.Day,
-    'W' => gentype.SubscriptionPeriodUnit.Week,
-    'M' => gentype.SubscriptionPeriodUnit.Month,
-    'Y' => gentype.SubscriptionPeriodUnit.Year,
-    _ => gentype.SubscriptionPeriodUnit.Unknown,
-  };
-  return gentype.SubscriptionPeriod(unit: unit, value: value);
-}
-
 gentype.SubscriptionPeriodIOS? _parseSubscriptionPeriod(dynamic value) {
   if (value == null) return null;
   final raw = value.toString().toUpperCase();
@@ -1185,127 +689,6 @@ gentype.PaymentModeIOS _parsePaymentMode(dynamic value) {
   } catch (_) {
     return gentype.PaymentModeIOS.Empty;
   }
-}
-
-/// Parses oneTimePurchaseOfferDetailsAndroid - handles both array (new 7.0+)
-/// and single object (legacy) for backwards compatibility
-List<gentype.ProductAndroidOneTimePurchaseOfferDetail>?
-    _parseOneTimePurchaseOfferDetails(dynamic value) {
-  if (value == null) return null;
-
-  // New format: array of offers (Android 7.0+)
-  if (value is List) {
-    return value
-        .map((e) => _parseSingleOneTimePurchaseOfferDetail(e))
-        .whereType<gentype.ProductAndroidOneTimePurchaseOfferDetail>()
-        .toList();
-  }
-
-  // Legacy format: single object - wrap in list for compatibility
-  final single = _parseSingleOneTimePurchaseOfferDetail(value);
-  if (single != null) {
-    return [single];
-  }
-
-  return null;
-}
-
-gentype.ProductAndroidOneTimePurchaseOfferDetail?
-    _parseSingleOneTimePurchaseOfferDetail(dynamic value) {
-  if (value is Map<String, dynamic>) {
-    return gentype.ProductAndroidOneTimePurchaseOfferDetail(
-      formattedPrice: value['formattedPrice']?.toString() ?? '0',
-      priceAmountMicros: value['priceAmountMicros']?.toString() ?? '0',
-      priceCurrencyCode: value['priceCurrencyCode']?.toString() ?? 'USD',
-      offerTags: (value['offerTags'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          [],
-      offerToken: value['offerToken']?.toString() ?? '',
-      offerId: value['offerId']?.toString(),
-      fullPriceMicros: value['fullPriceMicros']?.toString(),
-      purchaseOptionId: value['purchaseOptionId']?.toString(),
-      discountDisplayInfo: value['discountDisplayInfo'] != null
-          ? gentype.DiscountDisplayInfoAndroid.fromJson(
-              value['discountDisplayInfo'] as Map<String, dynamic>,
-            )
-          : null,
-      limitedQuantityInfo: value['limitedQuantityInfo'] != null
-          ? gentype.LimitedQuantityInfoAndroid.fromJson(
-              value['limitedQuantityInfo'] as Map<String, dynamic>,
-            )
-          : null,
-      validTimeWindow: _parseValidTimeWindow(value['validTimeWindow']),
-      preorderDetailsAndroid: value['preorderDetailsAndroid'] != null
-          ? gentype.PreorderDetailsAndroid.fromJson(
-              value['preorderDetailsAndroid'] as Map<String, dynamic>,
-            )
-          : null,
-      rentalDetailsAndroid: value['rentalDetailsAndroid'] != null
-          ? gentype.RentalDetailsAndroid.fromJson(
-              value['rentalDetailsAndroid'] as Map<String, dynamic>,
-            )
-          : null,
-    );
-  }
-  if (value is Map) {
-    final map = value.map<String, dynamic>(
-      (key, val) => MapEntry(key.toString(), val),
-    );
-    return gentype.ProductAndroidOneTimePurchaseOfferDetail(
-      formattedPrice: map['formattedPrice']?.toString() ?? '0',
-      priceAmountMicros: map['priceAmountMicros']?.toString() ?? '0',
-      priceCurrencyCode: map['priceCurrencyCode']?.toString() ?? 'USD',
-      offerTags: (map['offerTags'] as List<dynamic>?)
-              ?.map((e) => e.toString())
-              .toList() ??
-          [],
-      offerToken: map['offerToken']?.toString() ?? '',
-      offerId: map['offerId']?.toString(),
-      fullPriceMicros: map['fullPriceMicros']?.toString(),
-      purchaseOptionId: map['purchaseOptionId']?.toString(),
-      discountDisplayInfo: map['discountDisplayInfo'] != null
-          ? gentype.DiscountDisplayInfoAndroid.fromJson(
-              Map<String, dynamic>.from(
-                map['discountDisplayInfo'] as Map<dynamic, dynamic>,
-              ),
-            )
-          : null,
-      limitedQuantityInfo: map['limitedQuantityInfo'] != null
-          ? gentype.LimitedQuantityInfoAndroid.fromJson(
-              Map<String, dynamic>.from(
-                map['limitedQuantityInfo'] as Map<dynamic, dynamic>,
-              ),
-            )
-          : null,
-      validTimeWindow: _parseValidTimeWindow(map['validTimeWindow']),
-      preorderDetailsAndroid: map['preorderDetailsAndroid'] != null
-          ? gentype.PreorderDetailsAndroid.fromJson(
-              Map<String, dynamic>.from(
-                map['preorderDetailsAndroid'] as Map<dynamic, dynamic>,
-              ),
-            )
-          : null,
-      rentalDetailsAndroid: map['rentalDetailsAndroid'] != null
-          ? gentype.RentalDetailsAndroid.fromJson(
-              Map<String, dynamic>.from(
-                map['rentalDetailsAndroid'] as Map<dynamic, dynamic>,
-              ),
-            )
-          : null,
-    );
-  }
-  return null;
-}
-
-gentype.ValidTimeWindowAndroid? _parseValidTimeWindow(dynamic value) {
-  if (value == null) return null;
-  final map = normalizeDynamicMap(value);
-  if (map == null) return null;
-  return gentype.ValidTimeWindowAndroid.fromJson({
-    'endTimeMillis': map['endTimeMillis']?.toString() ?? '',
-    'startTimeMillis': map['startTimeMillis']?.toString() ?? '',
-  });
 }
 
 gentype.PurchaseState _parsePurchaseStateIOS(dynamic value) {
@@ -1397,29 +780,3 @@ extension PurchaseInputConversion on gentype.Purchase {
     return this;
   }
 }
-
-List<PurchaseResult>? extractResult(dynamic result) {
-  List<dynamic> list;
-  if (result is String) {
-    list = json.decode(result) as List<dynamic>;
-  } else if (result is List) {
-    list = result;
-  } else {
-    list = json.decode(result.toString()) as List<dynamic>;
-  }
-
-  final decoded = list
-      .map<PurchaseResult>(
-        (dynamic product) => PurchaseResult.fromJSON(
-          (product as Map).map<String, dynamic>(
-            (key, value) => MapEntry(key.toString(), value),
-          ),
-        ),
-      )
-      .toList();
-
-  return decoded;
-}
-
-typedef PurchaseResult = iap_err.PurchaseResult;
-typedef ConnectionResult = iap_err.ConnectionResult;

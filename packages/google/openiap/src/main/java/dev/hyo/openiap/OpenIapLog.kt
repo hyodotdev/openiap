@@ -36,31 +36,6 @@ object OpenIapLog {
     fun warn(message: String, tag: String = defaultTag()) = log(Level.Warn, message, null, tag)
     fun error(message: String, tr: Throwable? = null, tag: String = defaultTag()) = log(Level.Error, message, tr, tag)
 
-    // Backwards-compat aliases with Android Log-style letters.
-    @Deprecated(
-        message = "Use debug instead. Scheduled for removal in OpenIAP 3.0.",
-        replaceWith = ReplaceWith("debug(message, tag)"),
-    )
-    fun d(message: String, tag: String = defaultTag()) = debug(message, tag)
-
-    @Deprecated(
-        message = "Use info instead. Scheduled for removal in OpenIAP 3.0.",
-        replaceWith = ReplaceWith("info(message, tag)"),
-    )
-    fun i(message: String, tag: String = defaultTag()) = info(message, tag)
-
-    @Deprecated(
-        message = "Use warn instead. Scheduled for removal in OpenIAP 3.0.",
-        replaceWith = ReplaceWith("warn(message, tag)"),
-    )
-    fun w(message: String, tag: String = defaultTag()) = warn(message, tag)
-
-    @Deprecated(
-        message = "Use error instead. Scheduled for removal in OpenIAP 3.0.",
-        replaceWith = ReplaceWith("error(message, tr, tag)"),
-    )
-    fun e(message: String, tr: Throwable? = null, tag: String = defaultTag()) = error(message, tr, tag)
-
     private fun log(level: Level, message: String, tr: Throwable? = null, tag: String = defaultTag()) {
         if (!isEnabled) return
         val h = handler

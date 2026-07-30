@@ -330,8 +330,6 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
         return string.Empty;
     }
 
-    public Task<VerifyPurchaseResult> ValidateReceiptAsync(VerifyPurchaseProps options) => VerifyPurchaseAsync(options);
-
     public Task<VerifyPurchaseResult> VerifyPurchaseAsync(VerifyPurchaseProps options)
     {
         var sku = options.Apple?.Sku
@@ -377,7 +375,8 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
 
     public Task<string?> BeginRefundRequestIOSAsync(string sku) => InvokeNullableString(cb => _module.BeginRefundRequestIOS(sku, cb));
     public Task<bool> ClearTransactionIOSAsync() => InvokeBool(cb => _module.ClearTransactionIOS(cb));
-    public Task<bool> PresentCodeRedemptionSheetIOSAsync() => InvokeBool(cb => _module.PresentCodeRedemptionSheetIOS(cb));
+    public Task<PurchaseIOS?> PresentCodeRedemptionSheetIOSAsync() =>
+        InvokeDict<PurchaseIOS>(cb => _module.PresentCodeRedemptionSheetIOS(cb));
 
     public Task<ExternalPurchaseLinkResultIOS> PresentExternalPurchaseLinkIOSAsync(string url)
     {
@@ -392,8 +391,6 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
             return NotSupportedIOSVersion<ExternalPurchaseNoticeResultIOS>("presentExternalPurchaseNoticeSheetIOS", "iOS 17.4+");
         return InvokeDict<ExternalPurchaseNoticeResultIOS>(cb => _module.PresentExternalPurchaseNoticeSheetIOS(cb), required: true)!;
     }
-
-    public Task<bool> RequestPurchaseOnPromotedProductIOSAsync() => InvokeBool(cb => _module.RequestPurchaseOnPromotedProductIOS(cb));
 
     public Task<ExternalPurchaseCustomLinkNoticeResultIOS> ShowExternalPurchaseCustomLinkNoticeIOSAsync(ExternalPurchaseCustomLinkNoticeTypeIOS noticeType)
     {
@@ -410,9 +407,6 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
 
     public Task<bool> AcknowledgePurchaseAndroidAsync(string purchaseToken) => NotSupportedAndroid<bool>("acknowledgePurchaseAndroid");
     public Task<bool> ConsumePurchaseAndroidAsync(string purchaseToken) => NotSupportedAndroid<bool>("consumePurchaseAndroid");
-    public Task<bool> CheckAlternativeBillingAvailabilityAndroidAsync() => Task.FromResult(false);
-    public Task<string?> CreateAlternativeBillingTokenAndroidAsync() => Task.FromResult<string?>(null);
-    public Task<bool> ShowAlternativeBillingDialogAndroidAsync() => Task.FromResult(false);
     public Task<BillingProgramAvailabilityResultAndroid> IsBillingProgramAvailableAndroidAsync(BillingProgramAndroid program) => NotSupportedAndroid<BillingProgramAvailabilityResultAndroid>("isBillingProgramAvailableAndroid");
     public Task<BillingChoiceInfoAndroid> GetBillingChoiceInfoAndroidAsync(GetBillingChoiceInfoParamsAndroid @params) => NotSupportedAndroid<BillingChoiceInfoAndroid>("getBillingChoiceInfoAndroid");
     public Task<BillingProgramReportingDetailsAndroid> CreateBillingProgramReportingDetailsAndroidAsync(BillingProgramAndroid program, DeveloperBillingTypeAndroid? developerBillingType = null) => NotSupportedAndroid<BillingProgramReportingDetailsAndroid>("createBillingProgramReportingDetailsAndroid");
@@ -530,7 +524,6 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
     public Task<IReadOnlyList<PurchaseIOS>> GetPendingTransactionsIOSAsync() => InvokeArray<PurchaseIOS>(cb => _module.GetPendingTransactionsIOS(cb));
     public Task<ProductIOS?> GetPromotedProductIOSAsync() => InvokeDict<ProductIOS>(cb => _module.GetPromotedProductIOS(cb));
     public Task<string?> GetReceiptDataIOSAsync() => InvokeNullableString(cb => _module.GetReceiptDataIOS(cb));
-    public Task<string> GetStorefrontIOSAsync() => GetStorefrontAsync();
     public Task<string?> GetTransactionJwsIOSAsync(string sku) => InvokeNullableString(cb => _module.GetTransactionJwsIOS(sku, cb));
 
     public Task<bool> IsEligibleForExternalPurchaseCustomLinkIOSAsync()
@@ -543,9 +536,6 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
     public Task<bool> IsTransactionVerifiedIOSAsync(string sku) => InvokeBool(cb => _module.IsTransactionVerifiedIOS(sku, cb));
     public Task<PurchaseIOS?> LatestTransactionIOSAsync(string sku) => InvokeDict<PurchaseIOS>(cb => _module.LatestTransactionIOS(sku, cb));
     public Task<IReadOnlyList<SubscriptionStatusIOS>> SubscriptionStatusIOSAsync(string sku) => InvokeArray<SubscriptionStatusIOS>(cb => _module.SubscriptionStatusIOS(sku, cb));
-
-    public async Task<VerifyPurchaseResultIOS> ValidateReceiptIOSAsync(VerifyPurchaseProps options)
-        => (VerifyPurchaseResultIOS)await VerifyPurchaseAsync(options);
 
     // ====================================================================
     // Helpers
@@ -577,7 +567,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
 
         if (@params.RequestPurchase is { } purchaseEnv)
         {
-            var iosProps = purchaseEnv.Apple ?? purchaseEnv.IOS;
+            var iosProps = purchaseEnv.Apple;
             if (iosProps is null)
                 throw OpenIapErrorMapper.Wrap(ErrorCode.DeveloperError, "iOS purchase request requires `apple` props");
             if (string.IsNullOrWhiteSpace(iosProps.Sku))
@@ -587,7 +577,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
 
         if (@params.RequestSubscription is { } subEnv)
         {
-            var iosProps = subEnv.Apple ?? subEnv.IOS;
+            var iosProps = subEnv.Apple;
             if (iosProps is null)
                 throw OpenIapErrorMapper.Wrap(ErrorCode.DeveloperError, "iOS subscription request requires `apple` props");
             if (string.IsNullOrWhiteSpace(iosProps.Sku))

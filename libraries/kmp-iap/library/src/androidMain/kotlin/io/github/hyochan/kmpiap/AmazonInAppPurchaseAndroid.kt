@@ -229,12 +229,6 @@ internal class AmazonInAppPurchaseAndroid(
             )
         }
 
-    @Deprecated(
-        message = "Use getStorefront instead. This function will be removed in kmp-iap 3.0.0.",
-    )
-    override suspend fun getStorefrontIOS(): String =
-        failUnsupported("getStorefrontIOS is an iOS-only API. Use getStorefront on Android.")
-
     override suspend fun verifyPurchaseWithProvider(options: VerifyPurchaseWithProviderProps): VerifyPurchaseWithProviderResult {
         if (options.provider != PurchaseVerificationProvider.Iapkit) {
             failUnsupported("Verification provider ${options.provider.rawValue} is not supported on Android")
@@ -265,18 +259,6 @@ internal class AmazonInAppPurchaseAndroid(
     override suspend fun verifyPurchase(options: VerifyPurchaseProps): VerifyPurchaseResult =
         failUnsupported("verifyPurchase is not supported on Android. Use verifyPurchaseWithProvider for server-side verification via IAPKit.")
 
-    @Deprecated(
-        message = "Use verifyPurchase instead. This function will be removed in kmp-iap 3.0.0.",
-    )
-    override suspend fun validateReceipt(options: VerifyPurchaseProps): VerifyPurchaseResult =
-        failUnsupported("validateReceipt is not supported on Android. Use verifyPurchaseWithProvider for server-side verification.")
-
-    @Deprecated(
-        message = "Use verifyPurchase instead. This function will be removed in kmp-iap 3.0.0.",
-    )
-    override suspend fun validateReceiptIOS(options: VerifyPurchaseProps): VerifyPurchaseResultIOS =
-        failUnsupported("validateReceiptIOS is an iOS-only API.")
-
     override suspend fun isBillingProgramAvailableAndroid(program: BillingProgramAndroid): BillingProgramAvailabilityResultAndroid =
         BillingProgramAvailabilityResultAndroid(billingProgram = program, isAvailable = false)
 
@@ -297,9 +279,6 @@ internal class AmazonInAppPurchaseAndroid(
 
     override suspend fun launchExternalLinkAndroid(params: LaunchExternalLinkParamsAndroid): Boolean = false
     override suspend fun openRedeemOfferCodeAndroid(): Boolean = false
-    override suspend fun checkAlternativeBillingAvailabilityAndroid(): Boolean = false
-    override suspend fun showAlternativeBillingDialogAndroid(): Boolean = false
-    override suspend fun createAlternativeBillingTokenAndroid(): String? = null
     override suspend fun userChoiceBillingAndroid(): UserChoiceBillingDetails =
         failUnsupported("User Choice Billing is unavailable on $storeName.")
     override suspend fun developerProvidedBillingAndroid(): DeveloperProvidedBillingDetailsAndroid =
@@ -316,16 +295,11 @@ internal class AmazonInAppPurchaseAndroid(
     override suspend fun getReceiptDataIOS(): String? = null
     override suspend fun getTransactionJwsIOS(sku: String): String? = null
     override suspend fun getPromotedProductIOS(): io.github.hyochan.kmpiap.openiap.ProductIOS? = null
-    @Deprecated(
-        message = "Use promotedProductListener and requestPurchase instead. Scheduled for removal in kmp-iap 3.0.0.",
-    )
-    override suspend fun requestPurchaseOnPromotedProductIOS(): Boolean =
-        failUnsupported("requestPurchaseOnPromotedProductIOS is an iOS-only API.")
     override suspend fun beginRefundRequestIOS(sku: String): String? = null
     override suspend fun showManageSubscriptionsIOS(): List<PurchaseIOS> = emptyList()
     override suspend fun syncIOS(): Boolean = false
     override suspend fun clearTransactionIOS(): Boolean = false
-    override suspend fun presentCodeRedemptionSheetIOS(): Boolean = false
+    override suspend fun presentCodeRedemptionSheetIOS(): PurchaseIOS? = null
     override suspend fun presentExternalPurchaseLinkIOS(url: String): ExternalPurchaseLinkResultIOS = failUnsupported("External purchase links are iOS only.")
     override suspend fun presentExternalPurchaseNoticeSheetIOS(): ExternalPurchaseNoticeResultIOS = failUnsupported("External purchase notice sheet is iOS only.")
     override suspend fun showExternalPurchaseCustomLinkNoticeIOS(noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS): ExternalPurchaseCustomLinkNoticeResultIOS = failUnsupported("External purchase custom-link notice is iOS only.")

@@ -13,17 +13,12 @@ import {
   finishTransaction as finishTransactionInternal,
   requestPurchase as requestPurchaseInternal,
   fetchProducts,
-  validateReceipt as validateReceiptInternal,
   verifyPurchase as verifyPurchaseTopLevel,
   verifyPurchaseWithProvider as verifyPurchaseWithProviderTopLevel,
   getActiveSubscriptions,
   hasActiveSubscriptions,
   syncIOS,
   getPromotedProductIOS,
-  requestPurchaseOnPromotedProductIOS,
-  checkAlternativeBillingAvailabilityAndroid,
-  showAlternativeBillingDialogAndroid,
-  createAlternativeBillingTokenAndroid,
   getBillingChoiceInfoAndroid,
   isBillingProgramAvailableAndroid,
   createBillingProgramReportingDetailsAndroid,
@@ -42,7 +37,6 @@ import {ErrorCode} from '../types';
 import type {
   ProductQueryType,
   RequestPurchaseProps,
-  AlternativeBillingModeAndroid,
   BillingChoiceScreenTypeAndroid,
   BillingProgramAndroid,
   DeveloperProvidedBillingDetailsAndroid,
@@ -195,15 +189,6 @@ type UseIap = {
    */
   requestPurchase: (params: RequestPurchaseProps) => Promise<void>;
   /**
-   * @deprecated Use `verifyPurchase` instead. This function will be removed in
-   * react-native-iap 16.0.0.
-   *
-   * @see {@link https://openiap.dev/docs/apis/validate-receipt}
-   */
-  validateReceipt: (
-    options: VerifyPurchaseProps,
-  ) => Promise<VerifyPurchaseResult>;
-  /**
    * Verify a purchase against your own backend (returns isValid + raw store metadata).
    *
    * @see {@link https://openiap.dev/docs/features/validation#verify-purchase}
@@ -232,15 +217,6 @@ type UseIap = {
    */
   getPromotedProductIOS: () => Promise<Product | null>;
   /**
-   * Buy the currently promoted product.
-   *
-   * @see {@link https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios}
-   * @deprecated Use the `onPromotedProductIOS` hook callback followed by
-   * `requestPurchase` instead. Scheduled for removal in react-native-iap
-   * 16.0.0.
-   */
-  requestPurchaseOnPromotedProductIOS: () => Promise<boolean>;
-  /**
    * Get details of all currently active subscriptions.
    *
    * @see {@link https://openiap.dev/docs/apis/get-active-subscriptions}
@@ -260,34 +236,6 @@ type UseIap = {
    * Updates the `connected` state on success.
    */
   reconnect: () => Promise<boolean>;
-  // Alternative billing (Android)
-  /**
-   * Check whether alternative billing is available for the user.
-   *
-   * @see {@link https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android}
-   * @deprecated Use `isBillingProgramAvailableAndroid('external-offer')`
-   * instead. Scheduled for removal in react-native-iap 16.0.0.
-   */
-  checkAlternativeBillingAvailabilityAndroid?: () => Promise<boolean>;
-  /**
-   * Display Google's alternative billing information dialog.
-   *
-   * @see {@link https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android}
-   * @deprecated Use `launchExternalLinkAndroid` instead. Scheduled for removal in
-   * react-native-iap 16.0.0.
-   */
-  showAlternativeBillingDialogAndroid?: () => Promise<boolean>;
-  /**
-   * Create a reporting token for an alternative billing flow.
-   *
-   * @see {@link https://openiap.dev/docs/apis/android/create-alternative-billing-token-android}
-   * @deprecated Use
-   * `createBillingProgramReportingDetailsAndroid('external-offer')` instead.
-   * Scheduled for removal in react-native-iap 16.0.0.
-   */
-  createAlternativeBillingTokenAndroid?: (
-    sku?: string,
-  ) => Promise<string | null>;
   /** Fetch assets and loyalty text for a developer-rendered Billing Choice screen. */
   getBillingChoiceInfoAndroid?: QueryField<'getBillingChoiceInfoAndroid'>;
   /** Check Billing Program availability and the configured choice renderer. */
@@ -334,13 +282,6 @@ export interface UseIapOptions {
    * center.
    */
   onSubscriptionBillingIssue?: (purchase: Purchase) => void;
-  /**
-   * @deprecated Use enableBillingProgramAndroid instead. This option will be
-   * removed in react-native-iap 16.0.0.
-   * - 'user-choice' → 'user-choice-billing'
-   * - 'alternative-only' → 'external-offer'
-   */
-  alternativeBillingModeAndroid?: AlternativeBillingModeAndroid;
   /**
    * Enable a specific billing program for Android (8.2.0+)
    * Use 'user-choice-billing' for User Choice Billing (7.0+).
@@ -596,12 +537,6 @@ export function useIAP(options?: UseIapOptions): UseIap {
     [getAvailablePurchasesInternal, invokeOnError],
   );
 
-  const validateReceipt = useCallback(
-    async (options: VerifyPurchaseProps): Promise<VerifyPurchaseResult> =>
-      validateReceiptInternal(options),
-    [],
-  );
-
   const verifyPurchase = useCallback(
     async (options: VerifyPurchaseProps): Promise<VerifyPurchaseResult> => {
       return verifyPurchaseTopLevel(options);
@@ -623,7 +558,6 @@ export function useIAP(options?: UseIapOptions): UseIap {
     let config:
       | {
           enableBillingProgramAndroid?: BillingProgramAndroid;
-          alternativeBillingModeAndroid?: AlternativeBillingModeAndroid;
           billingChoiceScreenTypeAndroid?: BillingChoiceScreenTypeAndroid;
         }
       | undefined;
@@ -639,11 +573,6 @@ export function useIAP(options?: UseIapOptions): UseIap {
                   optionsRef.current.billingChoiceScreenTypeAndroid,
               }
             : {}),
-        };
-      } else if (optionsRef.current?.alternativeBillingModeAndroid) {
-        config = {
-          alternativeBillingModeAndroid:
-            optionsRef.current.alternativeBillingModeAndroid,
         };
       }
     }
@@ -831,21 +760,16 @@ export function useIAP(options?: UseIapOptions): UseIap {
     getAvailablePurchases: getAvailablePurchasesInternal,
     fetchProducts: fetchProductsInternal,
     requestPurchase,
-    validateReceipt,
     verifyPurchase,
     verifyPurchaseWithProvider,
     restorePurchases,
     getPromotedProductIOS,
-    requestPurchaseOnPromotedProductIOS,
     getActiveSubscriptions: getActiveSubscriptionsInternal,
     hasActiveSubscriptions: hasActiveSubscriptionsInternal,
     reconnect,
     // Alternative billing (Android only)
     ...(Platform.OS === 'android'
       ? {
-          checkAlternativeBillingAvailabilityAndroid,
-          showAlternativeBillingDialogAndroid,
-          createAlternativeBillingTokenAndroid,
           getBillingChoiceInfoAndroid,
           isBillingProgramAvailableAndroid,
           createBillingProgramReportingDetailsAndroid,

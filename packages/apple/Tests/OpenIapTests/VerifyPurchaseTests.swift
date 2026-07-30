@@ -71,12 +71,6 @@ final class VerifyPurchaseTests: XCTestCase {
         let storefront = try await store.getStorefront()
         XCTAssertEqual("US", storefront)
         XCTAssertEqual(1, module.getStorefrontCallCount)
-        XCTAssertEqual(0, module.getStorefrontIOSCallCount)
-
-        let storefrontIOS = try await store.getStorefrontIOS()
-        XCTAssertEqual("US", storefrontIOS)
-        XCTAssertEqual(2, module.getStorefrontCallCount)
-        XCTAssertEqual(0, module.getStorefrontIOSCallCount)
     }
 
     @MainActor
@@ -86,7 +80,7 @@ final class VerifyPurchaseTests: XCTestCase {
             validateResult: .verifyPurchaseResultIos(makeVerifyPurchaseResult()),
             allTransactionsResult: [purchase],
             manageSubscriptionsResult: [purchase],
-            presentCodeResult: false,
+            presentCodeResult: nil,
             clearTransactionResult: false
         )
         let store = OpenIapStore(module: module)
@@ -97,9 +91,9 @@ final class VerifyPurchaseTests: XCTestCase {
         let changedTransactions = try await store.showManageSubscriptionsResultIOS()
         XCTAssertEqual(changedTransactions.map(\.id), ["transaction-1"])
 
-        let presentedCodeRedemptionSheet = try await store.presentCodeRedemptionSheetResultIOS()
+        let redeemedPurchase = try await store.presentCodeRedemptionSheetResultIOS()
         let clearedTransactions = try await store.clearTransactionResultIOS()
-        XCTAssertFalse(presentedCodeRedemptionSheet)
+        XCTAssertNil(redeemedPurchase)
         XCTAssertFalse(clearedTransactions)
 
         try await store.showManageSubscriptionsIOS()
@@ -143,7 +137,6 @@ final class VerifyPurchaseTests: XCTestCase {
             return XCTFail("Expected the purchase union branch")
         }
         XCTAssertEqual(platforms.apple?.sku, "dev.hyo.coins")
-        XCTAssertNil(platforms.ios)
     }
 
     @MainActor
@@ -159,20 +152,17 @@ final class VerifyPurchaseTests: XCTestCase {
             return XCTFail("Expected the subscription union branch")
         }
         XCTAssertEqual(platforms.apple?.sku, "dev.hyo.premium")
-        XCTAssertNil(platforms.ios)
     }
 
-    func testStoreSkuResolverPrefersCanonicalAppleAcrossUnionBranches() {
+    func testStoreSkuResolverUsesCanonicalAppleAcrossUnionBranches() {
         let purchase = RequestPurchaseProps(
             request: .purchase(RequestPurchasePropsByPlatforms(
-                apple: RequestPurchaseIosProps(sku: "dev.hyo.purchase.apple"),
-                ios: RequestPurchaseIosProps(sku: "dev.hyo.purchase.legacy")
+                apple: RequestPurchaseIosProps(sku: "dev.hyo.purchase.apple")
             ))
         )
         let subscription = RequestPurchaseProps(
             request: .subscription(RequestSubscriptionPropsByPlatforms(
-                apple: RequestSubscriptionIosProps(sku: "dev.hyo.subscription.apple"),
-                ios: RequestSubscriptionIosProps(sku: "dev.hyo.subscription.legacy")
+                apple: RequestSubscriptionIosProps(sku: "dev.hyo.subscription.apple")
             ))
         )
 
@@ -184,46 +174,6 @@ final class VerifyPurchaseTests: XCTestCase {
             OpenIapStorePurchaseRequestResolver.sku(from: subscription),
             "dev.hyo.subscription.apple"
         )
-    }
-
-    func testStoreSkuResolverFallsBackToLegacyIosAndWarnsOnce() {
-        let purchase = RequestPurchaseProps(
-            request: .purchase(RequestPurchasePropsByPlatforms(
-                ios: RequestPurchaseIosProps(sku: "dev.hyo.purchase.legacy")
-            ))
-        )
-        let subscription = RequestPurchaseProps(
-            request: .subscription(RequestSubscriptionPropsByPlatforms(
-                ios: RequestSubscriptionIosProps(sku: "dev.hyo.subscription.legacy")
-            ))
-        )
-        let warningKey = "VerifyPurchaseTests.\(UUID().uuidString)"
-        var warnings: [String] = []
-        OpenIapLog.handler = { level, message in
-            if level == .warn {
-                warnings.append(message)
-            }
-        }
-        defer { OpenIapLog.handler = nil }
-
-        XCTAssertEqual(
-            OpenIapStorePurchaseRequestResolver.sku(
-                from: purchase,
-                legacyWarningKey: warningKey
-            ),
-            "dev.hyo.purchase.legacy"
-        )
-        XCTAssertEqual(
-            OpenIapStorePurchaseRequestResolver.sku(
-                from: subscription,
-                legacyWarningKey: warningKey
-            ),
-            "dev.hyo.subscription.legacy"
-        )
-
-        XCTAssertEqual(warnings.count, 1)
-        XCTAssertTrue(warnings[0].contains("`ios`"))
-        XCTAssertTrue(warnings[0].contains("OpenIAP 3.0"))
     }
 
     @MainActor
@@ -276,7 +226,6 @@ final class VerifyPurchaseTests: XCTestCase {
         PurchaseIOS(
             id: id,
             isAutoRenewing: isAutoRenewing,
-            platform: .ios,
             productId: "premium",
             purchaseState: .purchased,
             quantity: 1,
@@ -294,11 +243,10 @@ private final class FakeOpenIapModule: OpenIapModuleProtocol {
     private let availablePurchasesResult: [Purchase]
     private let allTransactionsResult: [PurchaseIOS]
     private let manageSubscriptionsResult: [PurchaseIOS]
-    private let presentCodeResult: Bool
+    private let presentCodeResult: PurchaseIOS?
     private let clearTransactionResult: Bool
     private var subscriptionBillingIssueHandler: SubscriptionBillingIssueListener?
     private(set) var getStorefrontCallCount = 0
-    private(set) var getStorefrontIOSCallCount = 0
     private(set) var restorePurchasesCallCount = 0
     private(set) var deepLinkCallCount = 0
     private(set) var lastDeepLinkOptions: DeepLinkOptions?
@@ -314,7 +262,7 @@ private final class FakeOpenIapModule: OpenIapModuleProtocol {
         availablePurchasesResult: [Purchase] = [],
         allTransactionsResult: [PurchaseIOS] = [],
         manageSubscriptionsResult: [PurchaseIOS] = [],
-        presentCodeResult: Bool = true,
+        presentCodeResult: PurchaseIOS? = nil,
         clearTransactionResult: Bool = true
     ) {
         self.validateResult = validateResult
@@ -339,7 +287,6 @@ private final class FakeOpenIapModule: OpenIapModuleProtocol {
         lastRequestPurchaseProps = params
         return nil
     }
-    func requestPurchaseOnPromotedProductIOS() async throws -> Bool { false }
     func restorePurchases() async throws -> Void { restorePurchasesCallCount += 1 }
     func getAvailablePurchases(_ options: PurchaseOptions?) async throws -> [Purchase] {
         lastPurchaseOptions = options
@@ -358,17 +305,6 @@ private final class FakeOpenIapModule: OpenIapModuleProtocol {
 
     // MARK: - Validation
     func getReceiptDataIOS() async throws -> String? { "receipt" }
-    func validateReceiptIOS(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS {
-        guard case let .verifyPurchaseResultIos(ios) = validateResult else {
-            throw PurchaseError(code: .featureNotSupported, message: "Android validation not supported", productId: props.apple?.sku)
-        }
-        return ios
-    }
-
-    func validateReceipt(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResult {
-        validateResult
-    }
-
     func verifyPurchase(_ props: VerifyPurchaseProps) async throws -> VerifyPurchaseResult {
         validateResult
     }
@@ -381,10 +317,6 @@ private final class FakeOpenIapModule: OpenIapModuleProtocol {
     func getStorefront() async throws -> String {
         getStorefrontCallCount += 1
         return "US"
-    }
-    func getStorefrontIOS() async throws -> String {
-        getStorefrontIOSCallCount += 1
-        return "US-iOS"
     }
     func getAppTransactionIOS() async throws -> AppTransaction? { nil }
 
@@ -399,7 +331,7 @@ private final class FakeOpenIapModule: OpenIapModuleProtocol {
 
     // MARK: - Misc
     func syncIOS() async throws -> Bool { true }
-    func presentCodeRedemptionSheetIOS() async throws -> Bool { presentCodeResult }
+    func presentCodeRedemptionSheetIOS() async throws -> PurchaseIOS? { presentCodeResult }
     func showManageSubscriptionsIOS() async throws -> [PurchaseIOS] { manageSubscriptionsResult }
     func deepLinkToSubscriptions(_ options: DeepLinkOptions?) async throws -> Void {
         deepLinkCallCount += 1

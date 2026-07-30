@@ -6,14 +6,6 @@ describe('iOS Functions Tests', () => {
       expect(ExpoIap.getAppTransactionIOS).toBeDefined();
       expect(typeof ExpoIap.getAppTransactionIOS).toBe('function');
     });
-
-    it('should export validateReceiptIOS function', () => {
-      expect(ExpoIap.validateReceiptIOS).toBeDefined();
-      expect(typeof ExpoIap.validateReceiptIOS).toBe('function');
-    });
-
-    // Note: validateReceiptIOS is not deprecated, but there might be deprecated
-    // aliases for backward compatibility
   });
 
   describe('Function Signatures', () => {
@@ -22,14 +14,6 @@ describe('iOS Functions Tests', () => {
       expect(() => {
         const fn = ExpoIap.getAppTransactionIOS;
         expect(fn.length).toBe(0); // Takes no parameters
-      }).not.toThrow();
-    });
-
-    it('validateReceiptIOS should be callable with SKU parameter', () => {
-      expect(() => {
-        const fn = ExpoIap.validateReceiptIOS;
-        // Just check the function exists - mock functions have 0 length
-        expect(typeof fn).toBe('function');
       }).not.toThrow();
     });
   });
@@ -132,7 +116,7 @@ describe('iOS Functions Tests', () => {
       expect(ExpoIap.latestTransactionIOS).toBeDefined();
       expect(ExpoIap.beginRefundRequestIOS).toBeDefined();
       expect(ExpoIap.showManageSubscriptionsIOS).toBeDefined();
-      expect(ExpoIap.getReceiptIOS).toBeDefined();
+      expect(ExpoIap.getReceiptDataIOS).toBeDefined();
       expect(ExpoIap.isTransactionVerifiedIOS).toBeDefined();
       expect(ExpoIap.getTransactionJwsIOS).toBeDefined();
       expect(ExpoIap.presentCodeRedemptionSheetIOS).toBeDefined();

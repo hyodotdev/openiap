@@ -9,7 +9,7 @@ import '../widgets/product_detail_modal.dart';
 import '../constants.dart';
 
 class SubscriptionFlowScreen extends StatefulWidget {
-  const SubscriptionFlowScreen({Key? key}) : super(key: key);
+  const SubscriptionFlowScreen({super.key});
 
   @override
   State<SubscriptionFlowScreen> createState() => _SubscriptionFlowScreenState();
@@ -58,15 +58,16 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
 
   List<SubscriptionOfferAndroid> _androidOffersFor(ProductCommon item) {
     if (item is ProductAndroid) {
-      final details = item.subscriptionOfferDetailsAndroid;
+      final details = item.subscriptionOffers;
       if (details != null && details.isNotEmpty) {
         return [
           for (final offer in details)
-            SubscriptionOfferAndroid(
-              offerToken: offer.offerToken,
-              // sku must be the productId (SKU), not the basePlanId.
-              sku: item.id,
-            ),
+            if (offer.offerTokenAndroid case final offerToken?)
+              SubscriptionOfferAndroid(
+                offerToken: offerToken,
+                // sku must be the productId (SKU), not the basePlanId.
+                sku: item.id,
+              ),
         ];
       }
     }
@@ -93,7 +94,7 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
     _purchaseUpdatedSubscription = _iap.purchaseUpdatedListener.listen(
       (purchase) async {
         debugPrint('🎯 Purchase updated: ${purchase.productId}');
-        debugPrint('  Platform: ${purchase.platform}');
+        debugPrint('  Store: ${purchase.store}');
         debugPrint('  Purchase state: ${purchase.purchaseState}');
         final transactionId = purchase.transactionIdFor;
         final androidStateValue = purchase.androidPurchaseStateValue;
@@ -159,7 +160,7 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
           final bool condition3 = transactionId != null;
 
           debugPrint('  iOS condition checks:');
-          debugPrint('    transactionStateIOS == purchased: $condition1');
+          debugPrint('    purchaseState == purchased: $condition1');
           debugPrint('    has valid purchaseToken: $condition2');
           debugPrint('    has valid transactionId: $condition3');
 
@@ -254,7 +255,7 @@ class _SubscriptionFlowScreenState extends State<SubscriptionFlowScreen> {
             _isProcessing = false;
             _purchaseResult = '''
 ⚠️ Purchase received but state unknown
-Platform: ${purchase.platform}
+Store: ${purchase.store}
 Purchase state: ${purchase.purchaseState}
 iOS transaction state: $iosTransactionState
 Android purchase state (legacy value): $androidStateValue
@@ -546,9 +547,8 @@ Store: ${iapkitResult.store.value}
         final RenewalInfoIOS? renewalInfoIOS =
             purchase is PurchaseIOS ? purchase.renewalInfoIOS : null;
 
-        // Calculate daysUntilExpirationIOS and willExpireSoon for iOS
+        // Calculate the canonical iOS expiration interval.
         double? daysUntilExpirationIOS;
-        bool? willExpireSoon;
         if (expirationDateIOS != null) {
           final expirationDate = DateTime.fromMillisecondsSinceEpoch(
             expirationDateIOS.toInt(),
@@ -556,8 +556,6 @@ Store: ${iapkitResult.store.value}
           final now = DateTime.now();
           final daysUntilExpiration = expirationDate.difference(now).inDays;
           daysUntilExpirationIOS = daysUntilExpiration.toDouble();
-          // Consider subscription expiring soon if < 7 days remaining
-          willExpireSoon = daysUntilExpiration > 0 && daysUntilExpiration < 7;
         }
 
         // Create ActiveSubscription from Purchase
@@ -578,7 +576,6 @@ Store: ${iapkitResult.store.value}
           renewalInfoIOS: renewalInfoIOS,
           purchaseTokenAndroid:
               purchase is PurchaseAndroid ? purchase.purchaseToken : null,
-          willExpireSoon: willExpireSoon,
         ));
       }
 
@@ -711,7 +708,6 @@ Store: ${iapkitResult.store.value}
             google: RequestSubscriptionAndroidProps(
               skus: [item.id],
             ),
-            useAlternativeBilling: null,
           ));
 
           await _iap.requestPurchase(requestProps);
@@ -724,7 +720,6 @@ Store: ${iapkitResult.store.value}
             google: RequestSubscriptionAndroidProps(
               skus: [item.id],
             ),
-            useAlternativeBilling: null,
           ));
 
           await _iap.requestPurchase(requestProps);
@@ -736,7 +731,6 @@ Store: ${iapkitResult.store.value}
             sku: item.id,
           ),
           google: null,
-          useAlternativeBilling: null,
         ));
 
         await _iap.requestPurchase(requestProps);
@@ -772,7 +766,6 @@ Store: ${iapkitResult.store.value}
           purchaseToken: 'invalid_purchase_token_for_testing',
           skus: [item.id],
         ),
-        useAlternativeBilling: null,
       ));
 
       await _iap.requestPurchase(requestProps);
@@ -808,7 +801,6 @@ Store: ${iapkitResult.store.value}
           purchaseToken: '',
           skus: [item.id],
         ),
-        useAlternativeBilling: null,
       ));
 
       await _iap.requestPurchase(requestProps);
@@ -879,7 +871,10 @@ Store: ${iapkitResult.store.value}
         _infoChip('Expires: ${_formatReadableDate(expiration)}'),
       );
     }
-    if (subscription.willExpireSoon == true) {
+    final daysUntilExpiration = subscription.daysUntilExpirationIOS;
+    if (daysUntilExpiration != null &&
+        daysUntilExpiration > 0 &&
+        daysUntilExpiration < 7) {
       chips.add(_infoChip('Expiring soon'));
     }
     final environment = subscription.environmentIOS;
@@ -1579,7 +1574,7 @@ Store: ${iapkitResult.store.value}
                                               fontSize: 14),
                                           children: [
                                             TextSpan(
-                                              text: '${sub.productId}',
+                                              text: sub.productId,
                                               style: const TextStyle(
                                                   fontWeight: FontWeight.w600),
                                             ),
@@ -1657,7 +1652,7 @@ Store: ${iapkitResult.store.value}
                                               fontSize: 14),
                                           children: [
                                             TextSpan(
-                                              text: '${sub.productId}',
+                                              text: sub.productId,
                                               style: const TextStyle(
                                                   fontWeight: FontWeight.w600),
                                             ),

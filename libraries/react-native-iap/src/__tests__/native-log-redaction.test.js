@@ -48,7 +48,7 @@ describe('native log redaction', () => {
       'result.map { mapOf("id" to it.id, "sku" to it.productId) }',
     );
     expect(androidModule).not.toContain(
-      'RnIapLog.result("validateReceipt", verifyResult.toString())',
+      'RnIapLog.result("verifyPurchase", verifyResult.toString())',
     );
     expect(androidModule).not.toContain(
       'RnIapLog.result("createAlternativeBillingTokenAndroid", token)',
@@ -56,9 +56,6 @@ describe('native log redaction', () => {
     expect(androidModule).toContain('"purchaseCount" to purchases.size');
     expect(androidModule).toContain(
       '"testTransaction" to androidResult.testTransaction',
-    );
-    expect(androidModule).toContain(
-      'if (token.isNullOrBlank()) "<empty>" else "<token>"',
     );
   });
 });

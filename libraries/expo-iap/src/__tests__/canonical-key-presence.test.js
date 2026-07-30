@@ -10,45 +10,42 @@ function readExpoFile(path) {
 }
 
 describe('native canonical-key presence contract', () => {
-  it('removes the legacy iOS alias before the standard Swift decoder sees it', () => {
+  it('passes only canonical Apple envelopes to the Swift decoder', () => {
     const helper = readExpoFile('ios/ExpoIapHelper.swift');
 
-    expect(helper).toContain('if request.keys.contains("apple")');
-    expect(helper).toContain('request.removeValue(forKey: "ios")');
+    expect(helper).toContain('payload.keys.contains("requestPurchase")');
+    expect(helper).toContain('normalized["requestPurchase"] = request');
+    expect(helper).not.toContain('normalizeApplePlatformKey');
+    expect(helper).not.toContain('request.removeValue(forKey: "ios")');
   });
 
-  it('fails closed to in-app for unrecognized iOS product query types', () => {
+  it('rejects unrecognized iOS product query types', () => {
     const helper = readExpoFile('ios/ExpoIapHelper.swift');
     const parser = helper.match(
       /static func parseProductQueryType[\s\S]*?\n    }\n\n    static func decodeProductRequest/,
     )?.[0];
 
     expect(parser).toBeDefined();
-    expect(parser).toContain('default:\n            return .inApp');
-    expect(parser).not.toContain('default:\n            return .all');
+    expect(parser).toContain('default:\n            throw PurchaseError.make(');
+    expect(parser).toContain('code: .developerError');
   });
 
-  it('does not let Onside fall through from an explicit apple key to ios', () => {
+  it('uses only the canonical Apple key in Onside', () => {
     const onside = readExpoFile('ios/onside/OnsideIapModule.swift');
 
-    expect(onside).toContain('if request.keys.contains("apple")');
-    expect(onside).toContain('return request["apple"] as? [String: Any]');
-    expect(onside).not.toContain(
-      'if let apple = request["apple"] as? [String: Any]',
-    );
+    expect(onside).toContain('request["apple"] as? [String: Any]');
+    expect(onside).not.toContain('request["ios"]');
   });
 
-  it('uses Kotlin map key presence for canonical Android aliases', () => {
+  it('uses only canonical Google request fields in Kotlin', () => {
     const helper = readExpoFile(
       'android/src/main/java/expo/modules/iap/ExpoIapHelper.kt',
     );
 
-    expect(helper).toContain(
-      'val hasCanonicalGoogle = request.containsKey("google")',
-    );
-    expect(helper).toContain(
-      'val hasCanonicalSkus = effective.containsKey("skus")',
-    );
-    expect(helper).toContain('effective.containsKey("subscriptionOffers")');
+    expect(helper).toContain('request["google"] as? Map<*, *>');
+    expect(helper).toContain('effective["skus"] as? List<*>');
+    expect(helper).toContain('effective["subscriptionOffers"] as? List<*>');
+    expect(helper).not.toContain('effective["skuArr"]');
+    expect(helper).not.toContain('effective["offerTokenArr"]');
   });
 });

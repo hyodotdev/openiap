@@ -240,11 +240,11 @@ Use the provided launch configurations:
 
 ## Pre-Commit Checklist
 
-1. Code compiles without errors
-2. GDScript passes linting
-3. Android: `./gradlew build` succeeds
-4. iOS: `swift build` succeeds
-5. Example project runs in editor
+1. `make test` passes the headless GDScript and native-extension regression suites
+2. Android: `./gradlew build` succeeds
+3. iOS: `swift build` succeeds
+4. Example project runs in editor
+5. Store purchases are verified on physical devices when purchase behavior changes
 
 ## Contributing
 

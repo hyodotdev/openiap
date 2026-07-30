@@ -23,10 +23,10 @@ const LEGACY_ANCHOR_REDIRECTS: Record<string, string> = {
   'deep-link-to-subscriptions': '/docs/apis/deep-link-to-subscriptions',
   // iOS-specific
   'clear-transaction-ios': '/docs/apis/ios/clear-transaction-ios',
-  'get-storefront-ios': '/docs/apis/ios/get-storefront-ios',
+  'get-storefront-ios': '/docs/apis/get-storefront',
   'get-promoted-product-ios': '/docs/apis/ios/get-promoted-product-ios',
   'request-purchase-on-promoted-product-ios':
-    '/docs/apis/ios/request-purchase-on-promoted-product-ios',
+    '/docs/events/ios/promoted-product-listener-ios',
   'get-pending-transactions-ios': '/docs/apis/ios/get-pending-transactions-ios',
   'get-all-transactions-ios': '/docs/apis/ios/get-all-transactions-ios',
   'is-eligible-for-intro-offer-ios':
@@ -56,17 +56,17 @@ const LEGACY_ANCHOR_REDIRECTS: Record<string, string> = {
   'show-external-purchase-custom-link-notice-ios':
     '/docs/apis/ios/show-external-purchase-custom-link-notice-ios',
   'sync-ios': '/docs/apis/ios/sync-ios',
-  'validate-receipt-ios': '/docs/apis/ios/validate-receipt-ios',
+  'validate-receipt-ios': '/docs/features/validation#verify-purchase',
   // Android-specific
   'acknowledge-purchase-android':
     '/docs/apis/android/acknowledge-purchase-android',
   'consume-purchase-android': '/docs/apis/android/consume-purchase-android',
   'check-alternative-billing-availability-android':
-    '/docs/apis/android/check-alternative-billing-availability-android',
+    '/docs/apis/android/is-billing-program-available-android',
   'show-alternative-billing-dialog-android':
-    '/docs/apis/android/show-alternative-billing-dialog-android',
+    '/docs/apis/android/launch-external-link-android',
   'create-alternative-billing-token-android':
-    '/docs/apis/android/create-alternative-billing-token-android',
+    '/docs/apis/android/create-billing-program-reporting-details-android',
   'enable-billing-program-android':
     '/docs/apis/android/enable-billing-program-android',
   'is-billing-program-available-android':
@@ -351,22 +351,6 @@ function APIsIndex() {
                 {`).`}
               </td>
             </tr>
-            <tr>
-              <td>
-                <Link to="/docs/apis/validate-receipt">
-                  <code style={{ textDecoration: 'line-through' }}>
-                    validateReceipt
-                  </code>
-                </Link>
-              </td>
-              <td>
-                <strong>Deprecated.</strong> Use{' '}
-                <Link to="/docs/features/validation#verify-purchase">
-                  <code>verifyPurchase</code>
-                </Link>{' '}
-                instead — same input/output shape.
-              </td>
-            </tr>
           </tbody>
         </table>
       </section>
@@ -393,22 +377,6 @@ function APIsIndex() {
             </tr>
             <tr>
               <td>
-                <Link to="/docs/apis/ios/get-storefront-ios">
-                  <code style={{ textDecoration: 'line-through' }}>
-                    getStorefrontIOS
-                  </code>
-                </Link>
-              </td>
-              <td>
-                <strong>Deprecated.</strong> Use cross-platform{' '}
-                <Link to="/docs/apis/get-storefront">
-                  <code>getStorefront</code>
-                </Link>{' '}
-                instead.
-              </td>
-            </tr>
-            <tr>
-              <td>
                 <Link to="/docs/apis/ios/clear-transaction-ios">
                   <code>clearTransactionIOS</code>
                 </Link>
@@ -422,14 +390,6 @@ function APIsIndex() {
                 </Link>
               </td>
               <td>Read the App Store-promoted product, if any.</td>
-            </tr>
-            <tr>
-              <td>
-                <Link to="/docs/apis/ios/request-purchase-on-promoted-product-ios">
-                  <code>requestPurchaseOnPromotedProductIOS</code>
-                </Link>
-              </td>
-              <td>Buy the currently promoted product.</td>
             </tr>
             <tr>
               <td>
@@ -532,7 +492,8 @@ function APIsIndex() {
                 </Link>
               </td>
               <td>
-                Show the App Store offer code redemption sheet. See{' '}
+                Show the App Store offer code redemption sheet and return its
+                verified transaction on Apple 27+. See{' '}
                 <Link to="/docs/features/offer-code-redemption">
                   Offer Code Redemption
                 </Link>
@@ -609,23 +570,6 @@ function APIsIndex() {
                 ExternalPurchaseCustomLink (iOS 18.1+).
               </td>
             </tr>
-            <tr>
-              <td>
-                <Link to="/docs/apis/ios/validate-receipt-ios">
-                  <code style={{ textDecoration: 'line-through' }}>
-                    validateReceiptIOS
-                  </code>
-                </Link>
-              </td>
-              <td>
-                <strong>Deprecated.</strong> Legacy App Store receipt
-                validation. Use{' '}
-                <Link to="/docs/features/validation#verify-purchase">
-                  <code>verifyPurchase</code>
-                </Link>{' '}
-                instead.
-              </td>
-            </tr>
           </tbody>
         </table>
       </section>
@@ -660,32 +604,6 @@ function APIsIndex() {
                 </Link>
               </td>
               <td>Consume a consumable purchase so it can be re-bought.</td>
-            </tr>
-            <tr>
-              <td>
-                <Link to="/docs/apis/android/check-alternative-billing-availability-android">
-                  <code>checkAlternativeBillingAvailabilityAndroid</code>
-                </Link>
-              </td>
-              <td>
-                Check whether alternative billing is available for the user.
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <Link to="/docs/apis/android/show-alternative-billing-dialog-android">
-                  <code>showAlternativeBillingDialogAndroid</code>
-                </Link>
-              </td>
-              <td>Display Google's alternative billing information dialog.</td>
-            </tr>
-            <tr>
-              <td>
-                <Link to="/docs/apis/android/create-alternative-billing-token-android">
-                  <code>createAlternativeBillingTokenAndroid</code>
-                </Link>
-              </td>
-              <td>Create a reporting token for an alternative billing flow.</td>
             </tr>
             <tr>
               <td>

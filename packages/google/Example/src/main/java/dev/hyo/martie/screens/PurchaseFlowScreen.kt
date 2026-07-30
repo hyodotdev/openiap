@@ -83,7 +83,7 @@ fun PurchaseFlowScreen(
             else -> null
         }
     }
-    val connectionStatus by iapStore.connectionStatus.collectAsState()
+    val connectionStatus by iapStore.isConnected.collectAsState()
     val statusMessage = status.lastPurchaseResult
     // Modal states
     var selectedProduct by remember { mutableStateOf<ProductAndroid?>(null) }
@@ -108,7 +108,7 @@ fun PurchaseFlowScreen(
             RequestPurchaseProps(
                 request = RequestPurchaseProps.Request.Subscription(
                     RequestSubscriptionPropsByPlatforms(
-                        android = RequestSubscriptionAndroidProps(
+                        google = RequestSubscriptionAndroidProps(
                             skus = listOf(product.id)
                         )
                     )
@@ -119,7 +119,7 @@ fun PurchaseFlowScreen(
             RequestPurchaseProps(
                 request = RequestPurchaseProps.Request.Purchase(
                     RequestPurchasePropsByPlatforms(
-                        android = RequestPurchaseAndroidProps(
+                        google = RequestPurchaseAndroidProps(
                             skus = listOf(product.id)
                         )
                     )

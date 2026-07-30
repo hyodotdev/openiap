@@ -74,16 +74,16 @@ export const buildPurchaseRows = (purchase: Purchase): PurchaseDetailRow[] => {
   pushRow(rows, 'id', purchase.id);
   pushRow(rows, 'transactionId', transactionId);
   pushRow(rows, 'productId', purchase.productId);
-  pushRow(rows, 'platform', purchase.platform ?? 'unknown');
+  pushRow(rows, 'store', purchase.store);
   pushRow(rows, 'ids', formatList(purchase.ids ?? undefined));
   pushRow(rows, 'transactionDate', formatDate(purchase.transactionDate));
   pushRow(rows, 'purchaseState', normalizedState);
   pushRow(rows, 'quantity', purchase.quantity);
   pushRow(rows, 'isAutoRenewing', formatBoolean(purchase.isAutoRenewing));
 
-  const platform = (purchase.platform ?? '').toString().toLowerCase();
+  const store = purchase.store.toLowerCase();
 
-  if (platform === 'ios') {
+  if (store === 'apple') {
     const iosPurchase = purchase as PurchaseIOS;
     pushRow(rows, 'quantityIOS', iosPurchase.quantityIOS);
     pushRow(
@@ -97,6 +97,23 @@ export const buildPurchaseRows = (purchase: Purchase): PurchaseDetailRow[] => {
     pushRow(rows, 'currencySymbolIOS', iosPurchase.currencySymbolIOS);
     pushRow(rows, 'environmentIOS', iosPurchase.environmentIOS);
     pushRow(rows, 'subscriptionGroupIdIOS', iosPurchase.subscriptionGroupIdIOS);
+    pushRow(
+      rows,
+      'bundleOriginalTransactionIdIOS',
+      iosPurchase.bundleOriginalTransactionIdIOS,
+    );
+    pushRow(rows, 'bundleProductIdIOS', iosPurchase.bundleProductIdIOS);
+    pushRow(
+      rows,
+      'bundleSubscriptionGroupIdIOS',
+      iosPurchase.bundleSubscriptionGroupIdIOS,
+    );
+    pushRow(rows, 'bundleTransactionIdIOS', iosPurchase.bundleTransactionIdIOS);
+    pushRow(
+      rows,
+      'previousOriginalTransactionIdIOS',
+      iosPurchase.previousOriginalTransactionIdIOS,
+    );
     pushRow(
       rows,
       'originalTransactionIdentifierIOS',
@@ -127,13 +144,14 @@ export const buildPurchaseRows = (purchase: Purchase): PurchaseDetailRow[] => {
       formatDate(iosPurchase.revocationDateIOS),
     );
     pushRow(rows, 'revocationReasonIOS', iosPurchase.revocationReasonIOS);
+    pushRow(rows, 'revocationTypeIOS', iosPurchase.revocationTypeIOS);
     pushRow(rows, 'webOrderLineItemIdIOS', iosPurchase.webOrderLineItemIdIOS);
     if (iosPurchase.offerIOS) {
       pushRow(rows, 'offerIOS.id', iosPurchase.offerIOS.id);
       pushRow(rows, 'offerIOS.type', iosPurchase.offerIOS.type);
       pushRow(rows, 'offerIOS.paymentMode', iosPurchase.offerIOS.paymentMode);
     }
-  } else if (platform === 'android') {
+  } else {
     const androidPurchase = purchase as PurchaseAndroid;
     pushRow(
       rows,

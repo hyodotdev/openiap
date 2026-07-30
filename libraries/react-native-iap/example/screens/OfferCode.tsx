@@ -81,11 +81,18 @@ export default function OfferCodeScreen() {
     try {
       if (isIOS) {
         // Present native iOS redemption sheet
-        await presentCodeRedemptionSheetIOS();
-        Alert.alert(
-          'Redemption Sheet Presented',
-          'After successful redemption, the purchase will appear in your purchase history.',
-        );
+        const purchase = await presentCodeRedemptionSheetIOS();
+        if (purchase) {
+          Alert.alert(
+            'Verified Redemption',
+            `Redeemed ${purchase.productId} (${purchase.id}).`,
+          );
+        } else {
+          Alert.alert(
+            'Redemption Sheet Presented',
+            'This iOS version uses the legacy sheet. Refresh available purchases after completing redemption.',
+          );
+        }
       } else {
         // Open the Play Store redeem page for Android
         const result = await openRedeemOfferCodeAndroid();

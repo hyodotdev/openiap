@@ -7,24 +7,6 @@ import Foundation
 
 // MARK: - Enums
 
-/// Alternative billing mode for Android
-/// Controls which billing system is used
-/// Use the user-choice-billing program for user choice billing and external-offer
-/// for external digital-content offers.
-/// @deprecated Use enableBillingProgramAndroid with BillingProgramAndroid instead. Scheduled for removal in OpenIAP 3.0.
-public enum AlternativeBillingModeAndroid: String, Codable, CaseIterable {
-    /// Standard Google Play billing (default)
-    case none = "none"
-    /// User choice billing - user can select between Google Play or alternative
-    /// Requires Google Play Billing Library 7.0+
-    /// @deprecated Use the user-choice-billing BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.
-    case userChoice = "user-choice"
-    /// Alternative billing only - no Google Play billing option
-    /// Requires Google Play Billing Library 6.2+
-    /// @deprecated Use the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.
-    case alternativeOnly = "alternative-only"
-}
-
 /// Play Billing choice image layout (Android)
 /// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
 public enum BillingChoiceImageLayoutAndroid: String, Codable, CaseIterable {
@@ -122,12 +104,6 @@ public enum ErrorCode: String, Codable, CaseIterable {
     case remoteError = "remote-error"
     case networkError = "network-error"
     case serviceError = "service-error"
-    /// @deprecated Use PurchaseVerificationFailed instead. Scheduled for removal in OpenIAP 3.0.
-    case receiptFailed = "receipt-failed"
-    /// @deprecated Use PurchaseVerificationFinished instead. Scheduled for removal in OpenIAP 3.0.
-    case receiptFinished = "receipt-finished"
-    /// @deprecated Use PurchaseVerificationFinishFailed instead. Scheduled for removal in OpenIAP 3.0.
-    case receiptFinishedFailed = "receipt-finished-failed"
     case purchaseVerificationFailed = "purchase-verification-failed"
     case purchaseVerificationFinished = "purchase-verification-finished"
     case purchaseVerificationFinishFailed = "purchase-verification-finish-failed"
@@ -177,12 +153,6 @@ public enum ErrorCode: String, Codable, CaseIterable {
             self = .networkError
         case "service-error", "ServiceError":
             self = .serviceError
-        case "receipt-failed", "ReceiptFailed":
-            self = .purchaseVerificationFailed // Legacy alias
-        case "receipt-finished", "ReceiptFinished":
-            self = .receiptFinished
-        case "receipt-finished-failed", "ReceiptFinishedFailed":
-            self = .receiptFinishedFailed
         case "purchase-verification-failed", "PurchaseVerificationFailed":
             self = .purchaseVerificationFailed
         case "purchase-verification-finished", "PurchaseVerificationFinished":
@@ -432,6 +402,10 @@ public enum ProductTypeIOS: String, Codable, CaseIterable {
     case nonConsumable = "non-consumable"
     case autoRenewableSubscription = "auto-renewable-subscription"
     case nonRenewingSubscription = "non-renewing-subscription"
+    /// A group of independently purchasable subscriptions sold together (Apple 27+ beta).
+    case subscriptionBundle = "subscription-bundle"
+    /// A group of subscriptions that are available only as one suite (Apple 27+ beta).
+    case subscriptionSuite = "subscription-suite"
 }
 
 public enum PurchaseState: String, Codable, CaseIterable {
@@ -533,8 +507,6 @@ public protocol PurchaseCommon: Codable {
     var id: String { get }
     var ids: [String]? { get }
     var isAutoRenewing: Bool { get }
-    /// @deprecated Use store instead. Scheduled for removal in OpenIAP 3.0.
-    var platform: IapPlatform { get }
     var productId: String { get }
     var purchaseState: PurchaseState { get }
     /// Unified purchase token (iOS JWS, Android purchaseToken)
@@ -570,10 +542,6 @@ public struct ActiveSubscription: Codable {
     /// Unix timestamp in milliseconds since January 1, 1970 UTC.
     public var transactionDate: Double
     public var transactionId: String
-    /// Whether the subscription will expire soon (within 7 days).
-    /// Consider using daysUntilExpirationIOS for more precise control.
-    /// @deprecated iOS only - use daysUntilExpirationIOS instead. Scheduled for removal in OpenIAP 3.0.
-    public var willExpireSoon: Bool? = nil
 }
 
 /// Advanced Commerce metadata from a transaction (iOS 18.4+).
@@ -632,10 +600,18 @@ public struct AppTransaction: Codable {
     public var deviceVerificationNonce: String
     public var environment: String
     public var originalAppVersion: String
+    /// Original App Store platform raw value. Xcode 27 adds the back-deployed managed
+    /// acquisition-platform value.
     public var originalPlatform: String? = nil
     public var originalPurchaseDate: Double
     public var preorderDate: Double? = nil
+    /// Date the app-acquisition transaction was revoked (epoch milliseconds).
+    /// Available through the Xcode 27 SDK and back-deployed to Apple 16+.
+    public var revocationDate: Double? = nil
     public var signedDate: Double
+    /// Store channel of the original app purchase: consumer, education, enterprise,
+    /// or another future StoreKit value (Apple 27+ beta).
+    public var storeType: String? = nil
 }
 
 /// Display information for developer-rendered Billing Choice screens (Android)
@@ -687,6 +663,20 @@ public struct BillingResultAndroid: Codable {
     public var subResponseCode: SubResponseCodeAndroid? = nil
 }
 
+/// Metadata for one auto-renewable subscription included in an Apple
+/// subscription bundle (Apple 27+ beta).
+public struct BundledSubscriptionIOS: Codable {
+    public var description: String
+    public var displayName: String
+    public var displayPrice: String
+    public var id: String
+    public var isFamilyShareable: Bool
+    public var price: Double
+    public var subscriptionGroupDisplayName: String
+    public var subscriptionGroupId: String
+    public var subscriptionGroupLevel: Int
+}
+
 /// Details provided when user selects developer billing option (Android)
 /// Received via DeveloperProvidedBillingListener callback
 /// Available in Google Play Billing Library 8.3.0+
@@ -734,20 +724,6 @@ public struct DiscountDisplayInfoAndroid: Codable {
     public var percentageDiscount: Int? = nil
 }
 
-/// Discount information returned from the store.
-/// @see https://openiap.dev/docs/types/subscription-offer
-/// @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
-public struct DiscountIOS: Codable {
-    public var identifier: String
-    public var localizedPrice: String? = nil
-    public var numberOfPeriods: Int
-    public var paymentMode: PaymentModeIOS
-    public var price: String
-    public var priceAmount: Double
-    public var subscriptionPeriod: String
-    public var type: String
-}
-
 /// Standardized one-time product discount offer.
 /// Provides a platform-neutral OpenIAP shape for Google Play one-time product
 /// purchase options and offers.
@@ -772,7 +748,7 @@ public struct DiscountOffer: Codable {
     public var fullPriceMicrosAndroid: String? = nil
     /// Unique identifier for the offer.
     /// - iOS: Not applicable (one-time discounts not supported)
-    /// - Android: offerId from ProductAndroidOneTimePurchaseOfferDetail
+    /// - Android: offerId from the Google Play one-time purchase option
     public var id: String? = nil
     /// [Android] Limited quantity information.
     /// Contains maximumQuantity and remainingQuantity.
@@ -805,42 +781,10 @@ public struct DiscountOffer: Codable {
     public var validTimeWindowAndroid: ValidTimeWindowAndroid? = nil
 }
 
-/// iOS DiscountOffer (output type).
-/// @see https://openiap.dev/docs/types/subscription-offer
-/// @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
-public struct DiscountOfferIOS: Codable {
-    /// Discount identifier
-    public var identifier: String
-    /// Key identifier for validation
-    public var keyIdentifier: String
-    /// Cryptographic nonce
-    public var nonce: String
-    /// Signature for validation
-    public var signature: String
-    /// Timestamp of discount offer
-    public var timestamp: Double
-}
-
 public struct EntitlementIOS: Codable {
     public var jsonRepresentation: String
     public var sku: String
     public var transactionId: String
-}
-
-/// External offer availability result (Android)
-/// Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
-/// @deprecated Use BillingProgramAvailabilityResultAndroid from isBillingProgramAvailableAndroid instead. Scheduled for removal in OpenIAP 3.0.
-public struct ExternalOfferAvailabilityResultAndroid: Codable {
-    /// Whether external offers are available for the user
-    public var isAvailable: Bool
-}
-
-/// External offer reporting details (Android)
-/// Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
-/// @deprecated Use BillingProgramReportingDetailsAndroid from createBillingProgramReportingDetailsAndroid instead. Scheduled for removal in OpenIAP 3.0.
-public struct ExternalOfferReportingDetailsAndroid: Codable {
-    /// External transaction token for reporting external offer transactions
-    public var externalTransactionToken: String
 }
 
 /// Result of showing ExternalPurchaseCustomLink notice (iOS 18.1+).
@@ -980,10 +924,6 @@ public struct ProductAndroid: Codable, ProductCommon {
     public var displayPrice: String
     public var id: String
     public var nameAndroid: String
-    /// One-time purchase offer details including discounts (Android)
-    /// Returns all eligible offers. Available in Google Play Billing Library 8.0+
-    /// @deprecated Use the standardized discountOffers field instead. Scheduled for removal in OpenIAP 3.0.
-    public var oneTimePurchaseOfferDetailsAndroid: [ProductAndroidOneTimePurchaseOfferDetail]? = nil
     public var platform: IapPlatform = .android
     public var price: Double? = nil
     /// Product-level status code indicating fetch result (Android 8.0+)
@@ -992,49 +932,12 @@ public struct ProductAndroid: Codable, ProductCommon {
     /// NO_OFFERS_AVAILABLE = user not eligible for any offers
     /// Available in Google Play Billing Library 8.0.0+
     public var productStatusAndroid: ProductStatusAndroid? = nil
-    /// @deprecated Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
-    public var subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails]? = nil
     /// Standardized subscription offers.
     /// Cross-platform type with Android-specific fields using suffix.
     /// @see https://openiap.dev/docs/types/subscription-offer
     public var subscriptionOffers: [SubscriptionOffer]? = nil
     public var title: String
     public var type: ProductType = .inApp
-}
-
-/// One-time purchase offer details (Android).
-/// Available in Google Play Billing Library 8.0+
-/// @see https://openiap.dev/docs/types/discount-offer
-/// @deprecated Use the standardized DiscountOffer type for Android one-time offers. Scheduled for removal in OpenIAP 3.0.
-public struct ProductAndroidOneTimePurchaseOfferDetail: Codable {
-    /// Discount display information
-    /// Only available for discounted offers
-    public var discountDisplayInfo: DiscountDisplayInfoAndroid? = nil
-    public var formattedPrice: String
-    /// Full (non-discounted) price in micro-units
-    /// Only available for discounted offers
-    public var fullPriceMicros: String? = nil
-    /// Limited quantity information
-    public var limitedQuantityInfo: LimitedQuantityInfoAndroid? = nil
-    /// Offer ID
-    public var offerId: String? = nil
-    /// List of offer tags
-    public var offerTags: [String]
-    /// Offer token for use in BillingFlowParams when purchasing
-    public var offerToken: String
-    /// Pre-order details for products available for pre-order
-    /// Available in Google Play Billing Library 8.1.0+
-    public var preorderDetailsAndroid: PreorderDetailsAndroid? = nil
-    public var priceAmountMicros: String
-    public var priceCurrencyCode: String
-    /// Purchase option ID for this offer (Android)
-    /// Used to identify which purchase option the user selected.
-    /// Available in Google Play Billing Library 8.0+
-    public var purchaseOptionId: String? = nil
-    /// Rental details for rental offers
-    public var rentalDetailsAndroid: RentalDetailsAndroid? = nil
-    /// Valid time window for the offer
-    public var validTimeWindow: ValidTimeWindowAndroid? = nil
 }
 
 public struct ProductIOS: Codable, ProductCommon {
@@ -1052,8 +955,6 @@ public struct ProductIOS: Codable, ProductCommon {
     /// iOS 26.4+ subscription pricing terms, including billing plan metadata for
     /// monthly subscriptions with a 12-month commitment.
     public var pricingTermsIOS: [SubscriptionPricingTermsIOS]? = nil
-    /// @deprecated Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
-    public var subscriptionInfoIOS: SubscriptionInfoIOS? = nil
     /// Standardized subscription offers.
     /// Cross-platform type with iOS-specific fields using suffix.
     /// Note: iOS does not support one-time product discounts.
@@ -1068,17 +969,10 @@ public struct ProductSubscriptionAndroid: Codable, ProductCommon {
     public var currency: String
     public var debugDescription: String? = nil
     public var description: String
-    /// Nullable compatibility field. Google Play does not return one-time purchase
-    /// offer details for subscription products; use subscriptionOffers below.
-    public var discountOffers: [DiscountOffer]? = nil
     public var displayName: String? = nil
     public var displayPrice: String
     public var id: String
     public var nameAndroid: String
-    /// Legacy nullable compatibility field. Google Play does not populate one-time
-    /// purchase offer details for subscription products.
-    /// @deprecated One-time offers belong to ProductAndroid.discountOffers; subscriptions use subscriptionOffers. Scheduled for removal in OpenIAP 3.0.
-    public var oneTimePurchaseOfferDetailsAndroid: [ProductAndroidOneTimePurchaseOfferDetail]? = nil
     public var platform: IapPlatform = .android
     public var price: Double? = nil
     /// Product-level status code indicating fetch result (Android 8.0+)
@@ -1087,8 +981,6 @@ public struct ProductSubscriptionAndroid: Codable, ProductCommon {
     /// NO_OFFERS_AVAILABLE = user not eligible for any offers
     /// Available in Google Play Billing Library 8.0.0+
     public var productStatusAndroid: ProductStatusAndroid? = nil
-    /// @deprecated Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
-    public var subscriptionOfferDetailsAndroid: [ProductSubscriptionAndroidOfferDetails]
     /// Standardized subscription offers.
     /// Cross-platform type with Android-specific fields using suffix.
     /// @see https://openiap.dev/docs/types/subscription-offer
@@ -1097,27 +989,13 @@ public struct ProductSubscriptionAndroid: Codable, ProductCommon {
     public var type: ProductType = .subs
 }
 
-/// Subscription offer details (Android).
-/// @see https://openiap.dev/docs/types/subscription-offer
-/// @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
-public struct ProductSubscriptionAndroidOfferDetails: Codable {
-    public var basePlanId: String
-    /// Installment plan details for this subscription offer.
-    /// Only set for installment subscription plans; null for non-installment plans.
-    /// Available in Google Play Billing Library 7.0+
-    public var installmentPlanDetails: InstallmentPlanDetailsAndroid? = nil
-    public var offerId: String? = nil
-    public var offerTags: [String]
-    public var offerToken: String
-    public var pricingPhases: PricingPhasesAndroid
-}
-
 public struct ProductSubscriptionIOS: Codable, ProductCommon {
+    /// Subscriptions included in this Apple subscription bundle. Empty or null for
+    /// every other product type (Apple 27+ beta).
+    public var bundledSubscriptionsIOS: [BundledSubscriptionIOS]? = nil
     public var currency: String
     public var debugDescription: String? = nil
     public var description: String
-    /// @deprecated Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
-    public var discountsIOS: [DiscountIOS]? = nil
     public var displayName: String? = nil
     public var displayNameIOS: String
     public var displayPrice: String
@@ -1136,8 +1014,6 @@ public struct ProductSubscriptionIOS: Codable, ProductCommon {
     public var pricingTermsIOS: [SubscriptionPricingTermsIOS]? = nil
     /// App Store subscription group identifier for intro-offer eligibility checks.
     public var subscriptionGroupIdIOS: String? = nil
-    /// @deprecated Use subscriptionOffers for offer metadata and subscriptionGroupIdIOS for the App Store subscription group identifier. Scheduled for removal in OpenIAP 3.0.
-    public var subscriptionInfoIOS: SubscriptionInfoIOS? = nil
     /// Standardized subscription offers.
     /// Cross-platform type with iOS-specific fields using suffix.
     /// @see https://openiap.dev/docs/types/subscription-offer
@@ -1172,8 +1048,6 @@ public struct PurchaseAndroid: Codable, PurchaseCommon {
     /// Returns null if no pending update exists.
     /// Available in Google Play Billing Library 5.0+
     public var pendingPurchaseUpdateAndroid: PendingPurchaseUpdateAndroid? = nil
-    /// @deprecated Use store instead. Scheduled for removal in OpenIAP 3.0.
-    public var platform: IapPlatform
     public var productId: String
     public var purchaseState: PurchaseState
     public var purchaseToken: String? = nil
@@ -1207,6 +1081,15 @@ public struct PurchaseIOS: Codable, PurchaseCommon {
     public var appBundleIdIOS: String? = nil
     /// iOS 26.4+ billing plan selected for this transaction.
     public var billingPlanTypeIOS: SubscriptionBillingPlanTypeIOS? = nil
+    /// Original transaction identifier for the subscription bundle that produced
+    /// this transaction (Apple 27+ SDK; back-deployed by StoreKit).
+    public var bundleOriginalTransactionIdIOS: String? = nil
+    /// Product identifier of the subscription bundle that produced this transaction.
+    public var bundleProductIdIOS: String? = nil
+    /// Subscription-group identifier of the bundle that produced this transaction.
+    public var bundleSubscriptionGroupIdIOS: String? = nil
+    /// Bundle transaction identifier associated with this component transaction.
+    public var bundleTransactionIdIOS: String? = nil
     /// iOS 26.4+ progress information for monthly subscriptions with a 12-month commitment.
     public var commitmentInfoIOS: TransactionCommitmentInfoIOS? = nil
     public var countryCodeIOS: String? = nil
@@ -1222,9 +1105,11 @@ public struct PurchaseIOS: Codable, PurchaseCommon {
     public var offerIOS: PurchaseOfferIOS? = nil
     public var originalTransactionDateIOS: Double? = nil
     public var originalTransactionIdentifierIOS: String? = nil
+    /// StoreKit ownership raw value. Xcode 27 adds the back-deployed assigned value.
     public var ownershipTypeIOS: String? = nil
-    /// @deprecated Use store instead. Scheduled for removal in OpenIAP 3.0.
-    public var platform: IapPlatform
+    /// Original transaction identifier replaced when moving between a standalone
+    /// subscription and a subscription bundle.
+    public var previousOriginalTransactionIdIOS: String? = nil
     public var productId: String
     public var purchaseState: PurchaseState
     public var purchaseToken: String? = nil
@@ -1234,7 +1119,11 @@ public struct PurchaseIOS: Codable, PurchaseCommon {
     public var reasonStringRepresentationIOS: String? = nil
     public var renewalInfoIOS: RenewalInfoIOS? = nil
     public var revocationDateIOS: Double? = nil
+    /// Normalized StoreKit revocation reason, including upgraded_to_bundle.
     public var revocationReasonIOS: String? = nil
+    /// StoreKit revocation type, including assignment-revocation on Apple 26.4+
+    /// when compiled with the Xcode 27 SDK.
+    public var revocationTypeIOS: String? = nil
     /// Store where purchase was made
     public var store: IapStore
     public var storefrontCountryCodeIOS: String? = nil
@@ -1269,11 +1158,17 @@ public struct RenewalCommitmentInfoIOS: Codable {
 /// https://developer.apple.com/documentation/storekit/product/subscriptioninfo/renewalinfo
 public struct RenewalInfoIOS: Codable {
     public var autoRenewPreference: String? = nil
+    /// Original transaction identifier for the bundle used by the next renewal.
+    public var bundleOriginalTransactionId: String? = nil
+    /// Product identifier for the bundle used by the next renewal.
+    public var bundleProductId: String? = nil
+    /// Subscription-group identifier for the bundle used by the next renewal.
+    public var bundleSubscriptionGroupId: String? = nil
     /// iOS 26.4+ renewal commitment metadata for monthly subscriptions with a
     /// 12-month commitment.
     public var commitmentInfo: RenewalCommitmentInfoIOS? = nil
-    /// When subscription expires due to cancellation/billing issue
-    /// Possible values: "VOLUNTARY", "BILLING_ERROR", "DID_NOT_AGREE_TO_PRICE_INCREASE", "PRODUCT_NOT_AVAILABLE", "UNKNOWN"
+    /// StoreKit's raw integer expiration-reason value represented as a string.
+    /// Xcode 27 adds the back-deployed unbundled case. Preserve unknown future values.
     public var expirationReason: String? = nil
     /// Grace period expiration date (milliseconds since epoch)
     /// When set, subscription is in grace period (billing issue but still has access)
@@ -1299,6 +1194,8 @@ public struct RenewalInfoIOS: Codable {
     /// Possible values: "PROMOTIONAL", "SUBSCRIPTION_OFFER_CODE", "WIN_BACK", etc.
     public var renewalOfferType: String? = nil
     public var willAutoRenew: Bool
+    /// Whether this subscription will leave its bundle and renew standalone.
+    public var willUnbundle: Bool? = nil
 }
 
 /// Rental details for one-time purchase products that can be rented (Android)
@@ -1340,14 +1237,6 @@ public struct SubscriptionCommitmentInfoIOS: Codable {
     public var price: Double
 }
 
-public struct SubscriptionInfoIOS: Codable {
-    public var introductoryOffer: SubscriptionOfferIOS? = nil
-    public var pricingTerms: [SubscriptionPricingTermsIOS]? = nil
-    public var promotionalOffers: [SubscriptionOfferIOS]? = nil
-    public var subscriptionGroupId: String
-    public var subscriptionPeriod: SubscriptionPeriodValueIOS
-}
-
 /// Standardized subscription discount/promotional offer.
 /// Provides a unified interface for subscription offers across iOS and Android.
 /// 
@@ -1366,7 +1255,7 @@ public struct SubscriptionOffer: Codable {
     public var displayPrice: String
     /// Unique identifier for the offer.
     /// - iOS: Discount identifier from App Store Connect
-    /// - Android: offerId from ProductSubscriptionAndroidOfferDetails
+    /// - Android: offerId from the Google Play subscription offer
     public var id: String
     /// [Android] Installment plan details for this subscription offer.
     /// Only set for installment subscription plans; null for non-installment plans.
@@ -1406,19 +1295,6 @@ public struct SubscriptionOffer: Codable {
     public var timestampIOS: Double? = nil
     /// Type of subscription offer (Introductory or Promotional)
     public var type: DiscountOfferType
-}
-
-/// iOS subscription offer details.
-/// @see https://openiap.dev/docs/types/subscription-offer
-/// @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
-public struct SubscriptionOfferIOS: Codable {
-    public var displayPrice: String
-    public var id: String
-    public var paymentMode: PaymentModeIOS
-    public var period: SubscriptionPeriodValueIOS
-    public var periodCount: Int
-    public var price: Double
-    public var type: SubscriptionOfferTypeIOS
 }
 
 /// Subscription period value combining unit and count.
@@ -1711,11 +1587,6 @@ public struct InAppMessageParamsAndroid: Codable {
 
 /// Connection initialization configuration
 public struct InitConnectionConfig: Codable {
-    /// Alternative billing mode for Android
-    /// If not specified, defaults to NONE (standard Google Play billing)
-    /// Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only.
-    /// @deprecated Use enableBillingProgramAndroid instead. Scheduled for removal in OpenIAP 3.0.
-    public var alternativeBillingModeAndroid: AlternativeBillingModeAndroid?
     /// Billing Choice renderer configured in Play Console. Available in OpenIAP
     /// Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
     /// GOOGLE_RENDERED registers the developer-provided billing listener so OpenIAP
@@ -1735,11 +1606,9 @@ public struct InitConnectionConfig: Codable {
     public var enableBillingProgramAndroid: BillingProgramAndroid?
 
     public init(
-        alternativeBillingModeAndroid: AlternativeBillingModeAndroid? = nil,
         billingChoiceScreenTypeAndroid: BillingChoiceScreenTypeAndroid? = .googleRendered,
         enableBillingProgramAndroid: BillingProgramAndroid? = nil
     ) {
-        self.alternativeBillingModeAndroid = alternativeBillingModeAndroid
         self.billingChoiceScreenTypeAndroid = billingChoiceScreenTypeAndroid
         self.enableBillingProgramAndroid = enableBillingProgramAndroid
     }
@@ -1862,7 +1731,7 @@ public struct RequestPurchaseAndroidProps: Codable {
     /// Obfuscated profile ID
     public var obfuscatedProfileId: String?
     /// Offer token for one-time purchase discounts (8.0+).
-    /// Pass the offerToken from oneTimePurchaseOfferDetailsAndroid or discountOffers
+    /// Pass the offerToken from discountOffers
     /// to apply a discount offer to the purchase.
     public var offerToken: String?
     /// List of product SKUs
@@ -1924,11 +1793,8 @@ public struct RequestPurchaseProps: Codable {
     public var request: Request
     /// Explicit purchase type hint (defaults to in-app)
     public var type: ProductQueryType
-    /// This flag only logs debug info and has no effect on the purchase flow.
-    /// @deprecated Use enableBillingProgramAndroid in InitConnectionConfig instead. Scheduled for removal in OpenIAP 3.0.
-    public var useAlternativeBilling: Bool?
 
-    public init(request: Request, type: ProductQueryType? = nil, useAlternativeBilling: Bool? = nil) {
+    public init(request: Request, type: ProductQueryType? = nil) {
         switch request {
         case .purchase:
             let resolved = type ?? .inApp
@@ -1940,20 +1806,17 @@ public struct RequestPurchaseProps: Codable {
             self.type = resolved
         }
         self.request = request
-        self.useAlternativeBilling = useAlternativeBilling
     }
 
     private enum CodingKeys: String, CodingKey {
         case requestPurchase
         case requestSubscription
         case type
-        case useAlternativeBilling
     }
 
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let decodedType = try container.decodeIfPresent(ProductQueryType.self, forKey: .type)
-        self.useAlternativeBilling = try container.decodeIfPresent(Bool.self, forKey: .useAlternativeBilling)
         let purchase = try container.decodeIfPresent(RequestPurchasePropsByPlatforms.self, forKey: .requestPurchase)
         let subscription = try container.decodeIfPresent(RequestSubscriptionPropsByPlatforms.self, forKey: .requestSubscription)
         guard (purchase == nil) != (subscription == nil) else {
@@ -1989,7 +1852,6 @@ public struct RequestPurchaseProps: Codable {
             try container.encode(value, forKey: .requestSubscription)
         }
         try container.encode(type, forKey: .type)
-        try container.encodeIfPresent(useAlternativeBilling, forKey: .useAlternativeBilling)
     }
 
     public enum Request {
@@ -2008,25 +1870,17 @@ public struct RequestPurchaseProps: Codable {
 ///   or Fire OS when built with amazon flavor
 ///   (determined at build time, not runtime)
 public struct RequestPurchasePropsByPlatforms: Codable {
-    /// @deprecated Use google instead. Scheduled for removal in OpenIAP 3.0.
-    public var android: RequestPurchaseAndroidProps?
     /// Apple-specific purchase parameters
     public var apple: RequestPurchaseIosProps?
     /// Google-specific purchase parameters
     public var google: RequestPurchaseAndroidProps?
-    /// @deprecated Use apple instead. Scheduled for removal in OpenIAP 3.0.
-    public var ios: RequestPurchaseIosProps?
 
     public init(
-        android: RequestPurchaseAndroidProps? = nil,
         apple: RequestPurchaseIosProps? = nil,
-        google: RequestPurchaseAndroidProps? = nil,
-        ios: RequestPurchaseIosProps? = nil
+        google: RequestPurchaseAndroidProps? = nil
     ) {
-        self.android = android
         self.apple = apple
         self.google = google
-        self.ios = ios
     }
 }
 
@@ -2048,9 +1902,6 @@ public struct RequestSubscriptionAndroidProps: Codable {
     public var originalExternalTransactionId: String?
     /// Purchase token for upgrades/downgrades
     public var purchaseToken: String?
-    /// Replacement mode for subscription changes
-    /// @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+). Scheduled for removal in OpenIAP 3.0.
-    public var replacementMode: Int?
     /// List of subscription SKUs
     public var skus: [String]
     /// Subscription offers
@@ -2069,7 +1920,6 @@ public struct RequestSubscriptionAndroidProps: Codable {
         obfuscatedProfileId: String? = nil,
         originalExternalTransactionId: String? = nil,
         purchaseToken: String? = nil,
-        replacementMode: Int? = nil,
         skus: [String],
         subscriptionOffers: [AndroidSubscriptionOfferInput]? = nil,
         subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid? = nil
@@ -2080,7 +1930,6 @@ public struct RequestSubscriptionAndroidProps: Codable {
         self.obfuscatedProfileId = obfuscatedProfileId
         self.originalExternalTransactionId = originalExternalTransactionId
         self.purchaseToken = purchaseToken
-        self.replacementMode = replacementMode
         self.skus = skus
         self.subscriptionOffers = subscriptionOffers
         self.subscriptionProductReplacementParams = subscriptionProductReplacementParams
@@ -2151,25 +2000,17 @@ public struct RequestSubscriptionIosProps: Codable {
 ///   or Fire OS when built with amazon flavor
 ///   (determined at build time, not runtime)
 public struct RequestSubscriptionPropsByPlatforms: Codable {
-    /// @deprecated Use google instead. Scheduled for removal in OpenIAP 3.0.
-    public var android: RequestSubscriptionAndroidProps?
     /// Apple-specific subscription parameters
     public var apple: RequestSubscriptionIosProps?
     /// Google-specific subscription parameters
     public var google: RequestSubscriptionAndroidProps?
-    /// @deprecated Use apple instead. Scheduled for removal in OpenIAP 3.0.
-    public var ios: RequestSubscriptionIosProps?
 
     public init(
-        android: RequestSubscriptionAndroidProps? = nil,
         apple: RequestSubscriptionIosProps? = nil,
-        google: RequestSubscriptionAndroidProps? = nil,
-        ios: RequestSubscriptionIosProps? = nil
+        google: RequestSubscriptionAndroidProps? = nil
     ) {
-        self.android = android
         self.apple = apple
         self.google = google
-        self.ios = ios
     }
 }
 
@@ -2638,16 +2479,6 @@ public enum Purchase: Codable, PurchaseCommon {
         }
     }
 
-    /// @deprecated Use store instead. Scheduled for removal in OpenIAP 3.0.
-    public var platform: IapPlatform {
-        switch self {
-        case let .purchaseAndroid(value):
-            return value.platform
-        case let .purchaseIos(value):
-            return value.platform
-        }
-    }
-
     public var productId: String {
         switch self {
         case let .purchaseAndroid(value):
@@ -2722,26 +2553,12 @@ public protocol MutationResolver {
     /// Present the refund request sheet (iOS 15+). See also Features → Refund.
     /// See: https://openiap.dev/docs/apis/ios/begin-refund-request-ios
     func beginRefundRequestIOS(_ sku: String) async throws -> String?
-    /// Check whether alternative billing is available for the user. Step 1 of the alternative billing flow.
-    /// Returns true if available, false otherwise.
-    /// Throws OpenIapError.NotPrepared if billing client not ready.
-    /// See: https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android
-    /// @deprecated Use isBillingProgramAvailableAndroid with the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.
-    func checkAlternativeBillingAvailabilityAndroid() async throws -> Bool
     /// Clear pending transactions in the queue (sandbox helper).
     /// See: https://openiap.dev/docs/apis/ios/clear-transaction-ios
     func clearTransactionIOS() async throws -> Bool
     /// Consume a consumable purchase so it can be re-bought.
     /// See: https://openiap.dev/docs/apis/android/consume-purchase-android
     func consumePurchaseAndroid(_ purchaseToken: String) async throws -> Bool
-    /// Create a reporting token for an alternative billing flow. Step 3 of the alternative billing flow.
-    /// Must be called AFTER successful payment in your payment system.
-    /// Token must be reported to Google Play backend within 24 hours.
-    /// Returns token string, or null if creation failed.
-    /// Throws OpenIapError.NotPrepared if billing client not ready.
-    /// See: https://openiap.dev/docs/apis/android/create-alternative-billing-token-android
-    /// @deprecated Use createBillingProgramReportingDetailsAndroid with the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.
-    func createAlternativeBillingTokenAndroid() async throws -> String?
     /// Create the reporting details and external transaction token required by a billing program.
     /// Introduced in Play Billing 8.2.0. External Offer and External Content Link integrations
     /// must use 8.2.1+ and create fresh details immediately before every redirect session;
@@ -2799,8 +2616,13 @@ public protocol MutationResolver {
     /// See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
     func openRedeemOfferCodeAndroid() async throws -> Bool
     /// Show the App Store offer code redemption sheet.
+    /// On iOS 27+, Mac Catalyst 27+, and visionOS 27+, returns the verified
+    /// transaction produced by the redemption. Earlier iOS and Mac Catalyst
+    /// versions present the legacy sheet and return null; reconcile purchases
+    /// through the normal transaction listener or an explicit available-purchases
+    /// refresh.
     /// See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
-    func presentCodeRedemptionSheetIOS() async throws -> Bool
+    func presentCodeRedemptionSheetIOS() async throws -> PurchaseIOS?
     /// Present an external purchase link, StoreKit External (iOS 16+).
     /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
     func presentExternalPurchaseLinkIOS(_ url: String) async throws -> ExternalPurchaseLinkResultIOS
@@ -2812,21 +2634,9 @@ public protocol MutationResolver {
     /// Initiate a purchase or subscription flow; rely on events for final state.
     /// See: https://openiap.dev/docs/apis/request-purchase
     func requestPurchase(_ params: RequestPurchaseProps) async throws -> RequestPurchaseResult?
-    /// Buy the currently promoted product.
-    /// 
-    /// See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
-    /// @deprecated Use the promoted-product listener or callback exposed by your SDK to receive the productId, then call requestPurchase with that SKU instead. In StoreKit 2, promoted products can be purchased directly via the standard purchase flow. Scheduled for removal in OpenIAP 3.0.
-    func requestPurchaseOnPromotedProductIOS() async throws -> Bool
     /// Restore non-consumable and active subscription purchases.
     /// See: https://openiap.dev/docs/apis/restore-purchases
     func restorePurchases() async throws -> Void
-    /// Display Google's alternative billing information dialog. Step 2 of the alternative billing flow.
-    /// Must be called BEFORE processing payment in your payment system.
-    /// Returns true if user accepted, false if user canceled.
-    /// Throws OpenIapError.NotPrepared if billing client not ready.
-    /// See: https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android
-    /// @deprecated Use launchExternalLinkAndroid instead. Scheduled for removal in OpenIAP 3.0.
-    func showAlternativeBillingDialogAndroid() async throws -> Bool
     /// Show Google's mandatory information dialog before a developer-rendered,
     /// in-app Billing Choice screen.
     /// OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
@@ -2852,10 +2662,6 @@ public protocol MutationResolver {
     /// Force sync transactions with the App Store (iOS 15+).
     /// See: https://openiap.dev/docs/apis/ios/sync-ios
     func syncIOS() async throws -> Bool
-    /// Deprecated. Validate purchase receipts with the configured providers — use verifyPurchase instead.
-    /// See: https://openiap.dev/docs/features/validation#verify-purchase
-    /// @deprecated Use verifyPurchase. Scheduled for removal in OpenIAP 3.0.
-    func validateReceipt(_ options: VerifyPurchaseProps) async throws -> VerifyPurchaseResult
     /// Verify a purchase against your own backend. Returns a platform-specific
     /// variant of VerifyPurchaseResult — VerifyPurchaseResultIOS exposes isValid
     /// + receipt/JWS metadata, VerifyPurchaseResultAndroid carries Play Store
@@ -2922,11 +2728,6 @@ public protocol QueryResolver {
     /// provide a value; implementations must not synthesize a locale fallback.
     /// See: https://openiap.dev/docs/apis/get-storefront
     func getStorefront() async throws -> String
-    /// Deprecated. Get the current App Store storefront ISO 3166-1 alpha-3 country
-    /// code — use cross-platform getStorefront instead.
-    /// See: https://openiap.dev/docs/apis/ios/get-storefront-ios
-    /// @deprecated Use getStorefront. Scheduled for removal in OpenIAP 3.0.
-    func getStorefrontIOS() async throws -> String
     /// Return the JWS string for a transaction (StoreKit 2).
     /// See: https://openiap.dev/docs/apis/ios/get-transaction-jws-ios
     func getTransactionJwsIOS(_ sku: String) async throws -> String?
@@ -2950,10 +2751,6 @@ public protocol QueryResolver {
     /// Get subscription status objects from StoreKit 2 (iOS 15+).
     /// See: https://openiap.dev/docs/apis/ios/subscription-status-ios
     func subscriptionStatusIOS(_ sku: String) async throws -> [SubscriptionStatusIOS]
-    /// Deprecated. Legacy App Store receipt validation — use verifyPurchase instead.
-    /// See: https://openiap.dev/docs/apis/ios/validate-receipt-ios
-    /// @deprecated Use verifyPurchase. Scheduled for removal in OpenIAP 3.0.
-    func validateReceiptIOS(_ options: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS
 }
 
 /// GraphQL root subscription operations.
@@ -2999,10 +2796,8 @@ public protocol SubscriptionResolver {
 
 public typealias MutationAcknowledgePurchaseAndroidHandler = (_ purchaseToken: String) async throws -> Bool
 public typealias MutationBeginRefundRequestIOSHandler = (_ sku: String) async throws -> String?
-public typealias MutationCheckAlternativeBillingAvailabilityAndroidHandler = () async throws -> Bool
 public typealias MutationClearTransactionIOSHandler = () async throws -> Bool
 public typealias MutationConsumePurchaseAndroidHandler = (_ purchaseToken: String) async throws -> Bool
-public typealias MutationCreateAlternativeBillingTokenAndroidHandler = () async throws -> String?
 public typealias MutationCreateBillingProgramReportingDetailsAndroidHandler = (_ program: BillingProgramAndroid, _ developerBillingType: DeveloperBillingTypeAndroid?) async throws -> BillingProgramReportingDetailsAndroid
 public typealias MutationDeepLinkToSubscriptionsHandler = (_ options: DeepLinkOptions?) async throws -> Void
 public typealias MutationEndConnectionHandler = () async throws -> Bool
@@ -3011,29 +2806,24 @@ public typealias MutationInitConnectionHandler = (_ config: InitConnectionConfig
 public typealias MutationIsBillingProgramAvailableAndroidHandler = (_ program: BillingProgramAndroid) async throws -> BillingProgramAvailabilityResultAndroid
 public typealias MutationLaunchExternalLinkAndroidHandler = (_ params: LaunchExternalLinkParamsAndroid) async throws -> Bool
 public typealias MutationOpenRedeemOfferCodeAndroidHandler = () async throws -> Bool
-public typealias MutationPresentCodeRedemptionSheetIOSHandler = () async throws -> Bool
+public typealias MutationPresentCodeRedemptionSheetIOSHandler = () async throws -> PurchaseIOS?
 public typealias MutationPresentExternalPurchaseLinkIOSHandler = (_ url: String) async throws -> ExternalPurchaseLinkResultIOS
 public typealias MutationPresentExternalPurchaseNoticeSheetIOSHandler = () async throws -> ExternalPurchaseNoticeResultIOS
 public typealias MutationRequestPurchaseHandler = (_ params: RequestPurchaseProps) async throws -> RequestPurchaseResult?
-public typealias MutationRequestPurchaseOnPromotedProductIOSHandler = () async throws -> Bool
 public typealias MutationRestorePurchasesHandler = () async throws -> Void
-public typealias MutationShowAlternativeBillingDialogAndroidHandler = () async throws -> Bool
 public typealias MutationShowBillingProgramInformationDialogAndroidHandler = (_ params: BillingProgramInformationDialogParamsAndroid) async throws -> BillingResultAndroid
 public typealias MutationShowExternalPurchaseCustomLinkNoticeIOSHandler = (_ noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS) async throws -> ExternalPurchaseCustomLinkNoticeResultIOS
 public typealias MutationShowInAppMessagesAndroidHandler = (_ params: InAppMessageParamsAndroid?) async throws -> InAppMessageResultAndroid
 public typealias MutationShowManageSubscriptionsIOSHandler = () async throws -> [PurchaseIOS]
 public typealias MutationSyncIOSHandler = () async throws -> Bool
-public typealias MutationValidateReceiptHandler = (_ options: VerifyPurchaseProps) async throws -> VerifyPurchaseResult
 public typealias MutationVerifyPurchaseHandler = (_ options: VerifyPurchaseProps) async throws -> VerifyPurchaseResult
 public typealias MutationVerifyPurchaseWithProviderHandler = (_ options: VerifyPurchaseWithProviderProps) async throws -> VerifyPurchaseWithProviderResult
 
 public struct MutationHandlers {
     public var acknowledgePurchaseAndroid: MutationAcknowledgePurchaseAndroidHandler?
     public var beginRefundRequestIOS: MutationBeginRefundRequestIOSHandler?
-    public var checkAlternativeBillingAvailabilityAndroid: MutationCheckAlternativeBillingAvailabilityAndroidHandler?
     public var clearTransactionIOS: MutationClearTransactionIOSHandler?
     public var consumePurchaseAndroid: MutationConsumePurchaseAndroidHandler?
-    public var createAlternativeBillingTokenAndroid: MutationCreateAlternativeBillingTokenAndroidHandler?
     public var createBillingProgramReportingDetailsAndroid: MutationCreateBillingProgramReportingDetailsAndroidHandler?
     public var deepLinkToSubscriptions: MutationDeepLinkToSubscriptionsHandler?
     public var endConnection: MutationEndConnectionHandler?
@@ -3046,25 +2836,20 @@ public struct MutationHandlers {
     public var presentExternalPurchaseLinkIOS: MutationPresentExternalPurchaseLinkIOSHandler?
     public var presentExternalPurchaseNoticeSheetIOS: MutationPresentExternalPurchaseNoticeSheetIOSHandler?
     public var requestPurchase: MutationRequestPurchaseHandler?
-    public var requestPurchaseOnPromotedProductIOS: MutationRequestPurchaseOnPromotedProductIOSHandler?
     public var restorePurchases: MutationRestorePurchasesHandler?
-    public var showAlternativeBillingDialogAndroid: MutationShowAlternativeBillingDialogAndroidHandler?
     public var showBillingProgramInformationDialogAndroid: MutationShowBillingProgramInformationDialogAndroidHandler?
     public var showExternalPurchaseCustomLinkNoticeIOS: MutationShowExternalPurchaseCustomLinkNoticeIOSHandler?
     public var showInAppMessagesAndroid: MutationShowInAppMessagesAndroidHandler?
     public var showManageSubscriptionsIOS: MutationShowManageSubscriptionsIOSHandler?
     public var syncIOS: MutationSyncIOSHandler?
-    public var validateReceipt: MutationValidateReceiptHandler?
     public var verifyPurchase: MutationVerifyPurchaseHandler?
     public var verifyPurchaseWithProvider: MutationVerifyPurchaseWithProviderHandler?
 
     public init(
         acknowledgePurchaseAndroid: MutationAcknowledgePurchaseAndroidHandler? = nil,
         beginRefundRequestIOS: MutationBeginRefundRequestIOSHandler? = nil,
-        checkAlternativeBillingAvailabilityAndroid: MutationCheckAlternativeBillingAvailabilityAndroidHandler? = nil,
         clearTransactionIOS: MutationClearTransactionIOSHandler? = nil,
         consumePurchaseAndroid: MutationConsumePurchaseAndroidHandler? = nil,
-        createAlternativeBillingTokenAndroid: MutationCreateAlternativeBillingTokenAndroidHandler? = nil,
         createBillingProgramReportingDetailsAndroid: MutationCreateBillingProgramReportingDetailsAndroidHandler? = nil,
         deepLinkToSubscriptions: MutationDeepLinkToSubscriptionsHandler? = nil,
         endConnection: MutationEndConnectionHandler? = nil,
@@ -3077,24 +2862,19 @@ public struct MutationHandlers {
         presentExternalPurchaseLinkIOS: MutationPresentExternalPurchaseLinkIOSHandler? = nil,
         presentExternalPurchaseNoticeSheetIOS: MutationPresentExternalPurchaseNoticeSheetIOSHandler? = nil,
         requestPurchase: MutationRequestPurchaseHandler? = nil,
-        requestPurchaseOnPromotedProductIOS: MutationRequestPurchaseOnPromotedProductIOSHandler? = nil,
         restorePurchases: MutationRestorePurchasesHandler? = nil,
-        showAlternativeBillingDialogAndroid: MutationShowAlternativeBillingDialogAndroidHandler? = nil,
         showBillingProgramInformationDialogAndroid: MutationShowBillingProgramInformationDialogAndroidHandler? = nil,
         showExternalPurchaseCustomLinkNoticeIOS: MutationShowExternalPurchaseCustomLinkNoticeIOSHandler? = nil,
         showInAppMessagesAndroid: MutationShowInAppMessagesAndroidHandler? = nil,
         showManageSubscriptionsIOS: MutationShowManageSubscriptionsIOSHandler? = nil,
         syncIOS: MutationSyncIOSHandler? = nil,
-        validateReceipt: MutationValidateReceiptHandler? = nil,
         verifyPurchase: MutationVerifyPurchaseHandler? = nil,
         verifyPurchaseWithProvider: MutationVerifyPurchaseWithProviderHandler? = nil
     ) {
         self.acknowledgePurchaseAndroid = acknowledgePurchaseAndroid
         self.beginRefundRequestIOS = beginRefundRequestIOS
-        self.checkAlternativeBillingAvailabilityAndroid = checkAlternativeBillingAvailabilityAndroid
         self.clearTransactionIOS = clearTransactionIOS
         self.consumePurchaseAndroid = consumePurchaseAndroid
-        self.createAlternativeBillingTokenAndroid = createAlternativeBillingTokenAndroid
         self.createBillingProgramReportingDetailsAndroid = createBillingProgramReportingDetailsAndroid
         self.deepLinkToSubscriptions = deepLinkToSubscriptions
         self.endConnection = endConnection
@@ -3107,15 +2887,12 @@ public struct MutationHandlers {
         self.presentExternalPurchaseLinkIOS = presentExternalPurchaseLinkIOS
         self.presentExternalPurchaseNoticeSheetIOS = presentExternalPurchaseNoticeSheetIOS
         self.requestPurchase = requestPurchase
-        self.requestPurchaseOnPromotedProductIOS = requestPurchaseOnPromotedProductIOS
         self.restorePurchases = restorePurchases
-        self.showAlternativeBillingDialogAndroid = showAlternativeBillingDialogAndroid
         self.showBillingProgramInformationDialogAndroid = showBillingProgramInformationDialogAndroid
         self.showExternalPurchaseCustomLinkNoticeIOS = showExternalPurchaseCustomLinkNoticeIOS
         self.showInAppMessagesAndroid = showInAppMessagesAndroid
         self.showManageSubscriptionsIOS = showManageSubscriptionsIOS
         self.syncIOS = syncIOS
-        self.validateReceipt = validateReceipt
         self.verifyPurchase = verifyPurchase
         self.verifyPurchaseWithProvider = verifyPurchaseWithProvider
     }
@@ -3136,7 +2913,6 @@ public typealias QueryGetPendingTransactionsIOSHandler = () async throws -> [Pur
 public typealias QueryGetPromotedProductIOSHandler = () async throws -> ProductIOS?
 public typealias QueryGetReceiptDataIOSHandler = () async throws -> String?
 public typealias QueryGetStorefrontHandler = () async throws -> String
-public typealias QueryGetStorefrontIOSHandler = () async throws -> String
 public typealias QueryGetTransactionJwsIOSHandler = (_ sku: String) async throws -> String?
 public typealias QueryHasActiveSubscriptionsHandler = (_ subscriptionIds: [String]?) async throws -> Bool
 public typealias QueryIsEligibleForExternalPurchaseCustomLinkIOSHandler = () async throws -> Bool
@@ -3144,7 +2920,6 @@ public typealias QueryIsEligibleForIntroOfferIOSHandler = (_ groupID: String) as
 public typealias QueryIsTransactionVerifiedIOSHandler = (_ sku: String) async throws -> Bool
 public typealias QueryLatestTransactionIOSHandler = (_ sku: String) async throws -> PurchaseIOS?
 public typealias QuerySubscriptionStatusIOSHandler = (_ sku: String) async throws -> [SubscriptionStatusIOS]
-public typealias QueryValidateReceiptIOSHandler = (_ options: VerifyPurchaseProps) async throws -> VerifyPurchaseResultIOS
 
 public struct QueryHandlers {
     public var canPresentExternalPurchaseNoticeIOS: QueryCanPresentExternalPurchaseNoticeIOSHandler?
@@ -3160,7 +2935,6 @@ public struct QueryHandlers {
     public var getPromotedProductIOS: QueryGetPromotedProductIOSHandler?
     public var getReceiptDataIOS: QueryGetReceiptDataIOSHandler?
     public var getStorefront: QueryGetStorefrontHandler?
-    public var getStorefrontIOS: QueryGetStorefrontIOSHandler?
     public var getTransactionJwsIOS: QueryGetTransactionJwsIOSHandler?
     public var hasActiveSubscriptions: QueryHasActiveSubscriptionsHandler?
     public var isEligibleForExternalPurchaseCustomLinkIOS: QueryIsEligibleForExternalPurchaseCustomLinkIOSHandler?
@@ -3168,7 +2942,6 @@ public struct QueryHandlers {
     public var isTransactionVerifiedIOS: QueryIsTransactionVerifiedIOSHandler?
     public var latestTransactionIOS: QueryLatestTransactionIOSHandler?
     public var subscriptionStatusIOS: QuerySubscriptionStatusIOSHandler?
-    public var validateReceiptIOS: QueryValidateReceiptIOSHandler?
 
     public init(
         canPresentExternalPurchaseNoticeIOS: QueryCanPresentExternalPurchaseNoticeIOSHandler? = nil,
@@ -3184,15 +2957,13 @@ public struct QueryHandlers {
         getPromotedProductIOS: QueryGetPromotedProductIOSHandler? = nil,
         getReceiptDataIOS: QueryGetReceiptDataIOSHandler? = nil,
         getStorefront: QueryGetStorefrontHandler? = nil,
-        getStorefrontIOS: QueryGetStorefrontIOSHandler? = nil,
         getTransactionJwsIOS: QueryGetTransactionJwsIOSHandler? = nil,
         hasActiveSubscriptions: QueryHasActiveSubscriptionsHandler? = nil,
         isEligibleForExternalPurchaseCustomLinkIOS: QueryIsEligibleForExternalPurchaseCustomLinkIOSHandler? = nil,
         isEligibleForIntroOfferIOS: QueryIsEligibleForIntroOfferIOSHandler? = nil,
         isTransactionVerifiedIOS: QueryIsTransactionVerifiedIOSHandler? = nil,
         latestTransactionIOS: QueryLatestTransactionIOSHandler? = nil,
-        subscriptionStatusIOS: QuerySubscriptionStatusIOSHandler? = nil,
-        validateReceiptIOS: QueryValidateReceiptIOSHandler? = nil
+        subscriptionStatusIOS: QuerySubscriptionStatusIOSHandler? = nil
     ) {
         self.canPresentExternalPurchaseNoticeIOS = canPresentExternalPurchaseNoticeIOS
         self.currentEntitlementIOS = currentEntitlementIOS
@@ -3207,7 +2978,6 @@ public struct QueryHandlers {
         self.getPromotedProductIOS = getPromotedProductIOS
         self.getReceiptDataIOS = getReceiptDataIOS
         self.getStorefront = getStorefront
-        self.getStorefrontIOS = getStorefrontIOS
         self.getTransactionJwsIOS = getTransactionJwsIOS
         self.hasActiveSubscriptions = hasActiveSubscriptions
         self.isEligibleForExternalPurchaseCustomLinkIOS = isEligibleForExternalPurchaseCustomLinkIOS
@@ -3215,7 +2985,6 @@ public struct QueryHandlers {
         self.isTransactionVerifiedIOS = isTransactionVerifiedIOS
         self.latestTransactionIOS = latestTransactionIOS
         self.subscriptionStatusIOS = subscriptionStatusIOS
-        self.validateReceiptIOS = validateReceiptIOS
     }
 }
 

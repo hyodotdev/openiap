@@ -3,6 +3,18 @@ platform :osx, '14.0'
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'
 
+require 'json'
+
+plugins_path = File.expand_path('../.flutter-plugins-dependencies', __dir__)
+swift_package_manager_enabled = if File.exist?(plugins_path)
+  JSON.parse(File.read(plugins_path)).dig(
+    'swift_package_manager_enabled',
+    'macos',
+  ) == true
+else
+  false
+end
+
 project 'Runner', {
   'Debug' => :debug,
   'Profile' => :release,
@@ -30,6 +42,28 @@ target 'Runner' do
   use_frameworks!
 
   flutter_install_all_macos_pods File.dirname(File.realpath(__FILE__))
+
+  # Exercise the monorepo's current Apple source during local major-train
+  # verification, matching the iOS example. Published-mode checks continue to
+  # resolve the version declared by the plugin podspec.
+  libraries_versions_path = File.expand_path('../../../../libraries-versions.jsonc', __dir__)
+  flutter_iap_mode = 'local'
+  if File.exist?(libraries_versions_path)
+    begin
+      libraries_versions = JSON.parse(File.read(libraries_versions_path).gsub(%r{^\s*//.*$}, ''))
+      flutter_iap_mode = libraries_versions['flutter_inapp_purchase'] || 'local'
+    rescue => e
+      puts "[Podfile] Warning: Failed to parse libraries-versions.jsonc: #{e.message}. Defaulting to local."
+    end
+  end
+
+  # The plugin's Swift package already owns OpenIAP when SwiftPM is enabled.
+  # Keep the local pod override only for the CocoaPods fallback.
+  if !swift_package_manager_enabled && flutter_iap_mode == 'local'
+    openiap_local_path = File.expand_path('../../../../packages/apple', __dir__)
+    pod 'openiap', :path => openiap_local_path
+  end
+
   target 'RunnerTests' do
     inherit! :search_paths
   end

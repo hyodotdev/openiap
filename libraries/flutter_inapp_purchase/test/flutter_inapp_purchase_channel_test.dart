@@ -1,9 +1,7 @@
 import 'dart:convert';
 
-import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:flutter_inapp_purchase/deprecation.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 import 'package:flutter_inapp_purchase/types.dart' as types;
 import 'package:platform/platform.dart';
@@ -284,78 +282,6 @@ void main() {
         expect(args, isNotNull);
         expect(args!['billingChoiceScreenTypeAndroid'], 'developer-rendered');
         expect(args['enableBillingProgramAndroid'], 'billing-choice');
-      },
-    );
-
-    test('legacy init warning is emitted once across failed retries', () async {
-      resetLegacyWarningsForTesting();
-      final warnings = <String?>[];
-      final originalDebugPrint = debugPrint;
-      debugPrint = (String? message, {int? wrapWidth}) {
-        warnings.add(message);
-      };
-      addTearDown(() => debugPrint = originalDebugPrint);
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(channel, (MethodCall call) async {
-        if (call.method == 'initConnection') {
-          throw PlatformException(code: 'E_SERVICE_ERROR');
-        }
-        return null;
-      });
-      final iap = FlutterInappPurchase.private(
-        FakePlatform(operatingSystem: 'android'),
-      );
-
-      for (var index = 0; index < 2; index += 1) {
-        await expectLater(
-          iap.initConnection(
-            alternativeBillingModeAndroid:
-                types.AlternativeBillingModeAndroid.UserChoice,
-          ),
-          throwsA(isA<PurchaseError>()),
-        );
-      }
-
-      expect(
-        warnings.where(
-          (message) =>
-              message?.contains('alternativeBillingModeAndroid') ?? false,
-        ),
-        hasLength(1),
-      );
-    });
-
-    test(
-      'initConnection passes both alternativeBillingMode and enableBillingProgram',
-      () async {
-        final calls = <MethodCall>[];
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-            .setMockMethodCallHandler(channel, (MethodCall call) async {
-          calls.add(call);
-          if (call.method == 'initConnection') {
-            return true;
-          }
-          return null;
-        });
-
-        final iap = FlutterInappPurchase.private(
-          FakePlatform(operatingSystem: 'android'),
-        );
-
-        await iap.initConnection(
-          alternativeBillingModeAndroid:
-              types.AlternativeBillingModeAndroid.UserChoice,
-          enableBillingProgramAndroid:
-              types.BillingProgramAndroid.ExternalPayments,
-        );
-
-        final call = calls.singleWhere(
-          (MethodCall call) => call.method == 'initConnection',
-        );
-        final args = call.arguments as Map<dynamic, dynamic>?;
-        expect(args, isNotNull);
-        expect(args!['alternativeBillingModeAndroid'], 'user-choice');
-        expect(args['enableBillingProgramAndroid'], 'external-payments');
       },
     );
 
@@ -664,7 +590,6 @@ void main() {
           const types.RequestPurchaseProps.inApp((
             apple: types.RequestPurchaseIosProps(sku: 'demo.sku'),
             google: null,
-            useAlternativeBilling: null,
           )),
         ),
         throwsA(
@@ -712,7 +637,6 @@ void main() {
           ),
         ),
         google: null,
-        useAlternativeBilling: null,
       ));
 
       await iap.requestPurchase(props);
@@ -765,7 +689,6 @@ void main() {
           advancedCommerceData: 'campaign_summer_2025',
         ),
         google: null,
-        useAlternativeBilling: null,
       ));
 
       await iap.requestPurchase(props);
@@ -815,7 +738,6 @@ void main() {
           ),
         ),
         google: null,
-        useAlternativeBilling: null,
       ));
 
       await iap.requestPurchase(props);
@@ -997,7 +919,6 @@ void main() {
         google: types.RequestSubscriptionAndroidProps(
           skus: <String>['sub.premium'],
         ),
-        useAlternativeBilling: null,
       ));
 
       await iap.requestPurchase(props);
@@ -1045,7 +966,6 @@ void main() {
           obfuscatedAccountId: 'acc-id',
           obfuscatedProfileId: 'profile-id',
         ),
-        useAlternativeBilling: null,
       ));
 
       await iap.requestPurchase(props);
@@ -1104,7 +1024,6 @@ void main() {
                   types.SubscriptionReplacementModeAndroid.ChargeFullPrice,
             ),
           ),
-          useAlternativeBilling: null,
         ));
 
         await iap.requestPurchase(props);
@@ -1157,7 +1076,6 @@ void main() {
               billingProgram: types.BillingProgramAndroid.BillingChoice,
             ),
           ),
-          useAlternativeBilling: null,
         ));
 
         await iap.requestPurchase(props);
@@ -1223,7 +1141,6 @@ void main() {
               ),
             ],
           ),
-          useAlternativeBilling: true,
         ));
 
         await iap.requestPurchase(props);
@@ -1237,7 +1154,7 @@ void main() {
 
         expect(payload['type'], 'subs');
         expect(payload['skus'], <String>['sub.premium.monthly']);
-        expect(payload['useAlternativeBilling'], isTrue);
+        expect(payload.containsKey('useAlternativeBilling'), isFalse);
         expect(
             payload['originalExternalTransactionId'], 'original-external-id');
         expect(payload.containsKey('developerBillingOption'), isTrue);
@@ -1296,7 +1213,6 @@ void main() {
               linkUri: 'https://example.com/buy-coins',
             ),
           ),
-          useAlternativeBilling: null,
         ));
 
         await iap.requestPurchase(props);
@@ -1344,7 +1260,6 @@ void main() {
             google: types.RequestPurchaseAndroidProps(
               skus: <String>['android-only'],
             ),
-            useAlternativeBilling: null,
           )),
         ),
         throwsA(
@@ -1382,7 +1297,6 @@ void main() {
           const types.RequestPurchaseProps.inApp((
             apple: types.RequestPurchaseIosProps(sku: 'ignored'),
             google: null,
-            useAlternativeBilling: null,
           )),
         ),
         throwsA(
@@ -1427,7 +1341,6 @@ void main() {
             obfuscatedProfileId: 'profile-1',
             offerToken: 'one-time-offer-token',
           ),
-          useAlternativeBilling: null,
         )),
       );
 
@@ -1465,6 +1378,7 @@ void main() {
                 <String, dynamic>{
                   'platform': 'ios',
                   'store': 'apple',
+                  'id': 'txn-123',
                   'productId': 'iap.premium',
                   'transactionId': 'txn-123',
                   'purchaseToken': 'receipt-data',
@@ -1532,10 +1446,11 @@ void main() {
               <String, dynamic>{
                 'platform': 'android',
                 'store': 'google',
+                'id': 'txn-android',
                 'productId': 'coins.100',
                 'transactionId': 'txn-android',
                 'purchaseToken': 'token-android',
-                'purchaseStateAndroid': 1,
+                'purchaseState': 'purchased',
                 'dataAndroid': '{"orderId":"order-android"}',
                 'currentPlanId': 'base-plan',
                 'isSuspendedAndroid': true,
@@ -1634,6 +1549,7 @@ void main() {
             jsonEncode(<String, dynamic>{
               'platform': 'android',
               'store': 'google',
+              'id': 'txn-listener-android',
               'productId': 'premium_monthly',
               'transactionId': 'txn-listener-android',
               'purchaseState': 'purchased',
@@ -1663,7 +1579,7 @@ void main() {
       );
     });
 
-    test('purchase-updated emits events on both streams', () async {
+    test('purchase-updated emits events on the canonical stream', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall call) async {
         if (call.method == 'initConnection') {
@@ -1676,7 +1592,6 @@ void main() {
         FakePlatform(operatingSystem: 'ios'),
       );
 
-      final purchaseFuture = iap.purchaseUpdated.first;
       final listenerFuture = iap.purchaseUpdatedListener.first;
 
       await iap.initConnection();
@@ -1684,10 +1599,11 @@ void main() {
       final purchasePayload = <String, dynamic>{
         'platform': 'ios',
         'store': 'apple',
+        'id': 'txn-456',
         'productId': 'iap.premium',
         'transactionId': 'txn-456',
         'purchaseState': 'PURCHASED',
-        'transactionReceipt': 'receipt-data',
+        'purchaseToken': 'receipt-data',
         'transactionDate': 1700000000000,
       };
 
@@ -1700,11 +1616,8 @@ void main() {
         (_) {},
       );
 
-      final purchase = await purchaseFuture;
       final listenerPurchase = await listenerFuture;
 
-      expect(purchase, isNotNull);
-      expect(purchase!.productId, 'iap.premium');
       expect(listenerPurchase.productId, 'iap.premium');
     });
 
@@ -1744,10 +1657,11 @@ void main() {
         final purchasePayload = <String, dynamic>{
           'platform': 'ios',
           'store': 'apple',
+          'id': 'txn-dedupe-replay',
           'productId': 'iap.premium',
           'transactionId': 'txn-dedupe-replay',
           'purchaseState': 'PURCHASED',
-          'transactionReceipt': 'receipt-data',
+          'purchaseToken': 'receipt-data',
           'transactionDate': 1700000000000,
         };
 
@@ -1864,10 +1778,11 @@ void main() {
         final purchasePayload = <String, dynamic>{
           'platform': 'ios',
           'store': 'apple',
+          'id': 'txn-handler-dedupe-replay',
           'productId': 'iap.premium',
           'transactionId': 'txn-handler-dedupe-replay',
           'purchaseState': 'PURCHASED',
-          'transactionReceipt': 'receipt-data',
+          'purchaseToken': 'receipt-data',
           'transactionDate': 1700000000000,
         };
 
@@ -1909,7 +1824,8 @@ void main() {
       },
     );
 
-    test('purchase-error emits results to both error streams', () async {
+    test('purchase-error emits results to the canonical error stream',
+        () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall call) async {
         if (call.method == 'initConnection') {
@@ -1922,7 +1838,6 @@ void main() {
         FakePlatform(operatingSystem: 'android'),
       );
 
-      final purchaseErrorFuture = iap.purchaseError.first;
       final listenerErrorFuture = iap.purchaseErrorListener.first;
 
       await iap.initConnection();
@@ -1948,27 +1863,8 @@ void main() {
         (_) {},
       );
 
-      final purchaseError = await purchaseErrorFuture;
       final listenerError = await listenerErrorFuture;
 
-      expect(purchaseError, isNotNull);
-      expect(purchaseError!.message, 'Validation failed');
-      expect(purchaseError.responseCode, 5);
-      expect(
-        purchaseError.debugMessage,
-        'Billing response rejected the selected offer',
-      );
-      expect(purchaseError.productId, 'premium-monthly');
-      expect(
-        purchaseError.productIds,
-        <String>['premium-monthly', 'premium-yearly'],
-      );
-      expect(purchaseError.productType, 'subs');
-      expect(purchaseError.isEmptyProductList, isFalse);
-      expect(
-        purchaseError.subResponseCodeAndroid,
-        types.SubResponseCodeAndroid.UserIneligible,
-      );
       expect(listenerError.code, types.ErrorCode.DeveloperError);
       expect(listenerError.message, 'Validation failed');
       expect(listenerError.responseCode, 5);
@@ -1987,69 +1883,6 @@ void main() {
         listenerError.subResponseCodeAndroid,
         types.SubResponseCodeAndroid.UserIneligible,
       );
-    });
-
-    test('connection-updated emits ConnectionResult', () async {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(channel, (MethodCall call) async {
-        if (call.method == 'initConnection') {
-          return true;
-        }
-        return null;
-      });
-
-      final iap = FlutterInappPurchase.private(
-        FakePlatform(operatingSystem: 'android'),
-      );
-
-      final connectionFuture = iap.connectionUpdated.first;
-
-      await iap.initConnection();
-
-      await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .handlePlatformMessage(
-        channel.name,
-        codec.encodeMethodCall(
-          MethodCall(
-            'connection-updated',
-            jsonEncode(<String, dynamic>{'connected': true}),
-          ),
-        ),
-        (_) {},
-      );
-
-      final result = await connectionFuture;
-      expect(result.msg, 'connected');
-    });
-
-    test('connection-updated derives the disconnected message', () async {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(channel, (MethodCall call) async {
-        if (call.method == 'initConnection') {
-          return true;
-        }
-        return null;
-      });
-
-      final iap = FlutterInappPurchase.private(
-        FakePlatform(operatingSystem: 'android'),
-      );
-      final connectionFuture = iap.connectionUpdated.first;
-
-      await iap.initConnection();
-      await TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .handlePlatformMessage(
-        channel.name,
-        codec.encodeMethodCall(
-          MethodCall(
-            'connection-updated',
-            jsonEncode(<String, dynamic>{'connected': false}),
-          ),
-        ),
-        (_) {},
-      );
-
-      expect((await connectionFuture).msg, 'disconnected');
     });
 
     test('iap-promoted-product emits the productId', () async {

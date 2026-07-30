@@ -75,6 +75,11 @@ function stringifyForDisplay(value: unknown): string {
   );
 }
 
+function isExpiringSoon(subscription: ActiveSubscription): boolean {
+  const days = subscription.daysUntilExpirationIOS;
+  return days != null && days >= 0 && days <= 7;
+}
+
 /**
  * Subscription Flow Example - Subscription Products
  *
@@ -265,8 +270,8 @@ function SubscriptionFlow({
         message: canUpgrade
           ? 'Upgrade available'
           : isDowngrade
-          ? 'Downgrade option'
-          : undefined,
+            ? 'Downgrade option'
+            : undefined,
       };
     },
     [getCurrentSubscription, isCancelled],
@@ -474,24 +479,19 @@ function SubscriptionFlow({
   const getIntroductoryOffer = (
     subscription: ProductSubscription,
   ): string | null => {
-    if (
-      'subscriptionInfoIOS' in subscription &&
-      subscription.subscriptionInfoIOS?.introductoryOffer
-    ) {
-      const offer = subscription.subscriptionInfoIOS.introductoryOffer;
+    const offer = subscription.subscriptionOffers?.find(
+      (candidate) => candidate.type === 'introductory',
+    );
+    if (offer) {
+      const periodCount = offer.periodCount ?? 1;
+      const periodUnit = offer.period?.unit?.toLowerCase() ?? 'period';
       switch (offer.paymentMode) {
         case 'free-trial':
-          return `${
-            offer.periodCount
-          } ${offer.period.unit.toLowerCase()}(s) free trial`;
+          return `${periodCount} ${periodUnit}(s) free trial`;
         case 'pay-as-you-go':
-          return `${offer.displayPrice} for ${
-            offer.periodCount
-          } ${offer.period.unit.toLowerCase()}(s)`;
+          return `${offer.displayPrice} for ${periodCount} ${periodUnit}(s)`;
         case 'pay-up-front':
-          return `${offer.displayPrice} for first ${
-            offer.periodCount
-          } ${offer.period.unit.toLowerCase()}(s)`;
+          return `${offer.displayPrice} for first ${periodCount} ${periodUnit}(s)`;
         default:
           return null;
       }
@@ -517,13 +517,6 @@ function SubscriptionFlow({
         }
       }
       return 'Unknown';
-    } else if (
-      'subscriptionInfoIOS' in subscription &&
-      subscription.subscriptionInfoIOS
-    ) {
-      return (
-        subscription.subscriptionInfoIOS.subscriptionPeriod?.unit || 'Unknown'
-      );
     }
     return 'Unknown';
   };
@@ -569,114 +562,6 @@ function SubscriptionFlow({
               Platform: {subscription.platform}
             </Text>
           </View>
-
-          {/* iOS Discounts */}
-          {'discountsIOS' in subscription &&
-            subscription.discountsIOS &&
-            Array.isArray(subscription.discountsIOS) &&
-            subscription.discountsIOS.length > 0 && (
-              <View style={styles.detailSection}>
-                <Text style={styles.detailSectionTitle}>
-                  iOS Discounts ({subscription.discountsIOS.length})
-                </Text>
-                {subscription.discountsIOS.map((discount, idx) => (
-                  <View key={idx} style={styles.offerCard}>
-                    <Text style={styles.offerTitle}>{discount.identifier}</Text>
-                    <Text style={styles.offerDetail}>
-                      Type: {discount.type}
-                    </Text>
-                    <Text style={styles.offerDetail}>
-                      Price: {discount.localizedPrice || discount.price}
-                    </Text>
-                    <Text style={styles.offerDetail}>
-                      Payment Mode: {discount.paymentMode}
-                    </Text>
-                    <Text style={styles.offerDetail}>
-                      Periods: {discount.numberOfPeriods}
-                    </Text>
-                  </View>
-                ))}
-              </View>
-            )}
-
-          {/* iOS Subscription Info */}
-          {'subscriptionInfoIOS' in subscription &&
-            subscription.subscriptionInfoIOS && (
-              <View style={styles.detailSection}>
-                <Text style={styles.detailSectionTitle}>
-                  iOS Subscription Info
-                </Text>
-                <View style={styles.offerCard}>
-                  {subscription.subscriptionInfoIOS.subscriptionPeriod && (
-                    <Text style={styles.offerDetail}>
-                      Period:{' '}
-                      {
-                        subscription.subscriptionInfoIOS.subscriptionPeriod
-                          .value
-                      }{' '}
-                      {subscription.subscriptionInfoIOS.subscriptionPeriod.unit}
-                    </Text>
-                  )}
-                  {subscription.subscriptionInfoIOS.introductoryOffer && (
-                    <>
-                      <Text style={styles.offerSubtitle}>
-                        Introductory Offer:
-                      </Text>
-                      <Text style={styles.offerDetail}>
-                        Price:{' '}
-                        {
-                          subscription.subscriptionInfoIOS.introductoryOffer
-                            .displayPrice
-                        }
-                      </Text>
-                      <Text style={styles.offerDetail}>
-                        Mode:{' '}
-                        {
-                          subscription.subscriptionInfoIOS.introductoryOffer
-                            .paymentMode
-                        }
-                      </Text>
-                      <Text style={styles.offerDetail}>
-                        Periods:{' '}
-                        {
-                          subscription.subscriptionInfoIOS.introductoryOffer
-                            .periodCount
-                        }
-                      </Text>
-                    </>
-                  )}
-                  {subscription.subscriptionInfoIOS.promotionalOffers &&
-                    subscription.subscriptionInfoIOS.promotionalOffers.length >
-                      0 && (
-                      <>
-                        <Text style={styles.offerSubtitle}>
-                          Promotional Offers (
-                          {
-                            subscription.subscriptionInfoIOS.promotionalOffers
-                              .length
-                          }
-                          ):
-                        </Text>
-                        {subscription.subscriptionInfoIOS.promotionalOffers.map(
-                          (promo, idx) => (
-                            <View key={idx} style={styles.nestedOfferCard}>
-                              <Text style={styles.offerDetail}>
-                                ID: {promo.id}
-                              </Text>
-                              <Text style={styles.offerDetail}>
-                                Price: {promo.displayPrice}
-                              </Text>
-                              <Text style={styles.offerDetail}>
-                                Mode: {promo.paymentMode}
-                              </Text>
-                            </View>
-                          ),
-                        )}
-                      </>
-                    )}
-                </View>
-              </View>
-            )}
 
           {/* Subscription Offers (Cross-platform) */}
           {'subscriptionOffers' in subscription &&
@@ -731,60 +616,6 @@ function SubscriptionFlow({
                           </Text>
                         </View>
                       ),
-                    )}
-                    {offer.offerTagsAndroid &&
-                      offer.offerTagsAndroid.length > 0 && (
-                        <Text style={styles.offerDetail}>
-                          Tags: {offer.offerTagsAndroid.join(', ')}
-                        </Text>
-                      )}
-                  </View>
-                ))}
-              </View>
-            )}
-
-          {/* Discount Offers (Cross-platform) */}
-          {'discountOffers' in subscription &&
-            subscription.discountOffers &&
-            subscription.discountOffers.length > 0 && (
-              <View style={styles.detailSection}>
-                <Text style={styles.detailSectionTitle}>
-                  Discount Offers ({subscription.discountOffers.length})
-                </Text>
-                {subscription.discountOffers.map((offer, idx) => (
-                  <View key={offer.id || idx} style={styles.offerCard}>
-                    <Text style={styles.offerTitle}>
-                      {offer.id || `Offer ${idx + 1}`}
-                    </Text>
-                    <Text style={styles.offerDetail}>
-                      Price: {offer.displayPrice}
-                    </Text>
-                    {offer.fullPriceMicrosAndroid && (
-                      <Text style={styles.offerDetail}>
-                        Full Price (micros): {offer.fullPriceMicrosAndroid}
-                      </Text>
-                    )}
-                    {offer.percentageDiscountAndroid && (
-                      <Text style={styles.offerDetail}>
-                        {offer.percentageDiscountAndroid}% off
-                      </Text>
-                    )}
-                    {offer.formattedDiscountAmountAndroid && (
-                      <Text style={styles.offerDetail}>
-                        Discount: {offer.formattedDiscountAmountAndroid}
-                      </Text>
-                    )}
-                    {offer.validTimeWindowAndroid && (
-                      <Text style={styles.offerDetail}>
-                        Valid:{' '}
-                        {new Date(
-                          Number(offer.validTimeWindowAndroid.startTimeMillis),
-                        ).toLocaleDateString()}{' '}
-                        -{' '}
-                        {new Date(
-                          Number(offer.validTimeWindowAndroid.endTimeMillis),
-                        ).toLocaleDateString()}
-                      </Text>
                     )}
                     {offer.offerTagsAndroid &&
                       offer.offerTagsAndroid.length > 0 && (
@@ -865,10 +696,10 @@ function SubscriptionFlow({
               {verificationMethod === 'ignore'
                 ? 'None (Skip)'
                 : verificationMethod === 'local'
-                ? 'Local (Device)'
-                : verificationMethod === 'iapkit-localhost'
-                ? 'Local (IAPKit)'
-                : 'IAPKit'}
+                  ? 'Local (Device)'
+                  : verificationMethod === 'iapkit-localhost'
+                    ? 'Local (IAPKit)'
+                    : 'IAPKit'}
             </Text>
             <Text style={styles.verificationButtonIcon}>▼</Text>
           </TouchableOpacity>
@@ -1021,7 +852,7 @@ function SubscriptionFlow({
                   </>
                 ) : null}
 
-                {sub.willExpireSoon ? (
+                {isExpiringSoon(sub) ? (
                   <Text style={styles.warningText}>
                     ⚠️ Your subscription will expire soon.{' '}
                     {sub.daysUntilExpirationIOS &&
@@ -1611,20 +1442,15 @@ function SubscriptionFlowContainer() {
 
       let isPurchased = false;
       let isRestoration = false;
-      const purchasePlatform = (purchase.platform ?? '')
-        .toString()
-        .toLowerCase();
-      const purchaseStore = (purchase as Purchase & {store?: string | null})
-        .store;
-      const normalizedPurchaseStore = purchaseStore?.toLowerCase() ?? '';
+      const normalizedPurchaseStore = purchase.store.toLowerCase();
       const hasAndroidPurchaseIdentity = Boolean(
         purchase.purchaseToken ||
-          purchase.id ||
-          purchase.transactionId ||
-          purchase.productId,
+        purchase.id ||
+        purchase.transactionId ||
+        purchase.productId,
       );
 
-      if (Platform.OS === 'ios' && purchasePlatform === 'ios') {
+      if (Platform.OS === 'ios' && normalizedPurchaseStore === 'apple') {
         const hasValidToken = !!(
           purchase.purchaseToken &&
           typeof purchase.purchaseToken === 'string' &&
@@ -1635,11 +1461,11 @@ function SubscriptionFlowContainer() {
         isPurchased = hasValidToken || hasValidTransactionId;
         isRestoration = Boolean(
           'originalTransactionIdentifierIOS' in purchase &&
-            purchase.originalTransactionIdentifierIOS &&
-            purchase.originalTransactionIdentifierIOS !== purchase.id &&
-            'transactionReasonIOS' in purchase &&
-            purchase.transactionReasonIOS &&
-            purchase.transactionReasonIOS !== 'PURCHASE',
+          purchase.originalTransactionIdentifierIOS &&
+          purchase.originalTransactionIdentifierIOS !== purchase.id &&
+          'transactionReasonIOS' in purchase &&
+          purchase.transactionReasonIOS &&
+          purchase.transactionReasonIOS !== 'PURCHASE',
         );
 
         console.log('iOS Purchase Analysis:');
@@ -1662,14 +1488,15 @@ function SubscriptionFlowContainer() {
         );
       } else if (
         Platform.OS === 'android' ||
-        purchasePlatform === 'android' ||
-        normalizedPurchaseStore === 'amazon'
+        normalizedPurchaseStore === 'google' ||
+        normalizedPurchaseStore === 'amazon' ||
+        normalizedPurchaseStore === 'horizon'
       ) {
         isPurchased = hasAndroidPurchaseIdentity;
         isRestoration = false;
 
         console.log('Android Purchase Analysis:');
-        console.log('  platform:', purchasePlatform || Platform.OS);
+        console.log('  runtime:', Platform.OS);
         console.log('  store:', normalizedPurchaseStore || 'unknown');
         console.log(
           '  hasAndroidPurchaseIdentity:',
@@ -1871,9 +1698,8 @@ function SubscriptionFlowContainer() {
       if (didFinishTransaction) {
         if (Platform.OS === 'android' && iapkitVerifyRequest) {
           try {
-            const refreshedResult = await verifyPurchaseWithProvider(
-              iapkitVerifyRequest,
-            );
+            const refreshedResult =
+              await verifyPurchaseWithProvider(iapkitVerifyRequest);
             console.log(
               '[SubscriptionFlow] IAPKit state after finishTransaction:',
               refreshedResult,
@@ -2040,7 +1866,7 @@ function SubscriptionFlowContainer() {
         isActive: sub.isActive,
         expirationDateIOS: sub.expirationDateIOS?.toString(),
         environmentIOS: sub.environmentIOS,
-        willExpireSoon: sub.willExpireSoon,
+        isExpiringSoon: isExpiringSoon(sub),
       })),
     );
   }, [activeSubscriptions]);
@@ -2070,7 +1896,7 @@ function SubscriptionFlowContainer() {
   // Apple: { sku: productId }
   // Google: { skus: [productId], subscriptionOffers: [...] }
   //   - subscriptionOffers required for subscription purchases
-  //   - Contains offerToken from subscriptionOfferDetailsAndroid
+  //   - Contains offerToken from subscriptionOffers
   // ============================================================
   const handleSubscription = useCallback(
     (itemId: string) => {
@@ -2093,15 +1919,14 @@ function SubscriptionFlowContainer() {
 
       // Extract Android subscription offers with offerToken
       const androidOffers =
-        subscription &&
-        'subscriptionOfferDetailsAndroid' in subscription &&
-        Array.isArray(subscription.subscriptionOfferDetailsAndroid)
-          ? subscription.subscriptionOfferDetailsAndroid
+        subscription?.platform === 'android' &&
+        Array.isArray(subscription.subscriptionOffers)
+          ? subscription.subscriptionOffers
               .map((offer) =>
-                offer?.offerToken
+                offer.offerTokenAndroid
                   ? {
                       sku: itemId,
-                      offerToken: offer.offerToken,
+                      offerToken: offer.offerTokenAndroid,
                     }
                   : null,
               )

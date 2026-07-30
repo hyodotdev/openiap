@@ -296,12 +296,14 @@ public sealed record DeveloperProvidedBillingDetailsAndroid
           </tr>
           <tr>
             <td>When presented</td>
-            <td>After initConnection()</td>
+            <td>
+              During <code>requestPurchase()</code>
+            </td>
             <td>During requestPurchase()</td>
           </tr>
           <tr>
             <td>UI</td>
-            <td>Separate dialog before purchase</td>
+            <td>Google Play user-choice dialog in the billing flow</td>
             <td>Program-specific in-app or external-link choice flow</td>
           </tr>
           <tr>
@@ -316,12 +318,16 @@ public sealed record DeveloperProvidedBillingDetailsAndroid
           <tr>
             <td>Setup</td>
             <td>
-              <code>AlternativeBillingModeAndroid.UserChoice</code>
+              <code>
+                enableBillingProgramAndroid:
+                BillingProgramAndroid.UserChoiceBilling
+              </code>
             </td>
             <td>
-              <code>enableBillingProgram(EXTERNAL_PAYMENTS)</code> or{' '}
-              <code>enableBillingProgram(BILLING_CHOICE)</code> +{' '}
-              <code>developerBillingOption</code> in requestPurchase
+              Set <code>enableBillingProgramAndroid</code> to{' '}
+              <code>ExternalPayments</code> or <code>BillingChoice</code>, then
+              pass <code>developerBillingOption</code> to{' '}
+              <code>requestPurchase</code>.
             </td>
           </tr>
         </tbody>

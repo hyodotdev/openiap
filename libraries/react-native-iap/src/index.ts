@@ -7,9 +7,9 @@ import {NitroModules} from 'react-native-nitro-modules';
 // Internal modules
 import type {
   NitroActiveSubscription,
-  NitroReceiptValidationParams,
-  NitroReceiptValidationResultIOS,
-  NitroReceiptValidationResultAndroid,
+  NitroPurchaseVerificationParams,
+  NitroPurchaseVerificationResultIOS,
+  NitroPurchaseVerificationResultAndroid,
   NitroPurchaseUpdatedListenerOptions,
   NitroSubscriptionStatus,
   RnIap,
@@ -57,8 +57,6 @@ import {
   DUPLICATE_PURCHASE_CODE,
 } from './utils/errorMapping';
 import {RnIapConsole} from './utils/debug';
-import {warnLegacyOnce} from './utils/deprecation';
-import {selectCanonicalPlatformRequest} from './utils/platform-request';
 import {getSuccessFromPurchaseVariant} from './utils/purchase';
 import {parseAppTransactionPayload} from './utils';
 import {getVegaIapModule, isVegaOS} from './vega';
@@ -93,16 +91,8 @@ export * from './types';
 export * from './utils/error';
 export * from './vega';
 
-/**
- * Product type accepted by public query and purchase helpers.
- *
- * Compatibility note: the `'inapp'` member is deprecated. Use `'in-app'`
- * instead; the alias will be removed in react-native-iap 16.0.0.
- */
-export type ProductTypeInput = 'inapp' | 'in-app' | 'subs';
-
-const LEGACY_INAPP_WARNING =
-  "[react-native-iap] `type: 'inapp'` is deprecated and will be removed in react-native-iap 16.0.0. Use 'in-app' instead.";
+/** Product type accepted by public query and purchase helpers. */
+export type ProductTypeInput = 'in-app' | 'subs';
 
 type NitroPurchaseRequest = Parameters<RnIap['requestPurchase']>[0];
 type NitroAvailablePurchasesOptions = NonNullable<
@@ -887,8 +877,7 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
         })),
       );
 
-      // For 'all' type, need to properly distinguish between products and subscriptions
-      // On Android, check subscriptionOfferDetailsAndroid to determine if it's a real subscription
+      // The major schema uses the canonical `type` discriminator on every store.
       const productItems: Product[] = [];
       const subscriptionItems: ProductSubscription[] = [];
 
@@ -899,39 +888,7 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
           return;
         }
 
-        // item.type === 'subs' case
-        // For Android, check if subscription items have actual offers
-        if (
-          isAndroidStoreRuntime() &&
-          item.platform === 'android' &&
-          item.type === 'subs'
-        ) {
-          // TypeScript now knows this is ProductSubscriptionAndroid
-          const hasSubscriptionOffers =
-            item.subscriptionOfferDetailsAndroid &&
-            Array.isArray(item.subscriptionOfferDetailsAndroid) &&
-            item.subscriptionOfferDetailsAndroid.length > 0;
-
-          RnIapConsole.debug(
-            `[fetchProducts] ${item.id}: type=${item.type}, hasOffers=${hasSubscriptionOffers}`,
-          );
-
-          if (hasSubscriptionOffers) {
-            subscriptionItems.push(item);
-          } else {
-            // Treat as product if no offers - convert type
-            const {subscriptionOfferDetailsAndroid: _, ...productFields} =
-              item as any;
-            productItems.push({
-              ...productFields,
-              type: 'in-app' as const,
-            } as Product);
-          }
-        } else if (item.platform === 'ios' && item.type === 'subs') {
-          // iOS: type field is reliable with discriminated unions
-          // TypeScript now knows this is ProductSubscriptionIOS
-          subscriptionItems.push(item);
-        }
+        subscriptionItems.push(item);
       });
 
       RnIapConsole.debug(
@@ -1044,7 +1001,7 @@ export const getAvailablePurchases: QueryField<
 
       // For Android Play/Horizon/Fire OS, query in-app items and subscriptions separately.
       const inappNitroPurchases = await IAP.instance.getAvailablePurchases({
-        android: {type: 'inapp', includeSuspended},
+        android: {type: 'in-app', includeSuspended},
       });
       const subsNitroPurchases = await IAP.instance.getAvailablePurchases({
         android: {type: 'subs', includeSuspended},
@@ -1084,10 +1041,7 @@ export const getPromotedProductIOS: QueryField<
   }
 
   try {
-    const nitroProduct =
-      typeof IAP.instance.getPromotedProductIOS === 'function'
-        ? await IAP.instance.getPromotedProductIOS()
-        : await IAP.instance.requestPromotedProductIOS();
+    const nitroProduct = await IAP.instance.getPromotedProductIOS();
     if (!nitroProduct) {
       return null;
     }
@@ -1108,47 +1062,6 @@ export const getPromotedProductIOS: QueryField<
 };
 
 /**
- * @deprecated Use `getPromotedProductIOS` instead. This compatibility alias
- * will be removed in react-native-iap 16.0.0.
- */
-export const requestPromotedProductIOS = getPromotedProductIOS;
-
-/**
- * Get the storefront identifier for the user's App Store account (iOS only)
- * @returns Promise<string> - The storefront identifier (e.g., 'USA' for United States)
- * @platform iOS
- *
- * @example
- * ```typescript
- * const storefront = await getStorefrontIOS();
- * console.log('User storefront:', storefront); // e.g., 'USA', 'GBR', 'KOR'
- * ```
- *
- * @see {@link https://openiap.dev/docs/apis/ios/get-storefront-ios}
- * @deprecated Use `getStorefront` instead. Scheduled for removal in
- * react-native-iap 16.0.0.
- */
-export const getStorefrontIOS: QueryField<'getStorefrontIOS'> = async () => {
-  if (Platform.OS !== 'ios') {
-    throw new Error('getStorefrontIOS is only available on iOS');
-  }
-
-  try {
-    const storefront = await IAP.instance.getStorefrontIOS();
-    if (typeof storefront !== 'string' || storefront.trim().length === 0) {
-      throw createPurchaseError({
-        code: ErrorCode.ServiceError,
-        message: 'Storefront lookup returned no country code.',
-      });
-    }
-    return storefront;
-  } catch (error) {
-    RnIapConsole.error('Failed to get storefront:', error);
-    throw error;
-  }
-};
-
-/**
  * Return the user's storefront country code.
  *
  * @see {@link https://openiap.dev/docs/apis/get-storefront}
@@ -1161,21 +1074,9 @@ export const getStorefront: QueryField<'getStorefront'> = async () => {
     });
   }
 
-  const hasUnifiedMethod = typeof IAP.instance.getStorefront === 'function';
-
-  if (!hasUnifiedMethod && Platform.OS !== 'ios') {
-    throw createPurchaseError({
-      code: ErrorCode.FeatureNotSupported,
-      message: 'Native getStorefront is not available on this build.',
-      platform: 'android',
-    });
-  }
-
   let storefront: string | null | undefined;
   try {
-    storefront = hasUnifiedMethod
-      ? await IAP.instance.getStorefront()
-      : await getStorefrontIOS();
+    storefront = await IAP.instance.getStorefront();
   } catch (error) {
     const parsedError = parseErrorAndLogIfNeeded(
       `[getStorefront] Failed to get storefront on ${Platform.OS}:`,
@@ -1309,7 +1210,7 @@ export const currentEntitlementIOS: QueryField<
     const nitroPurchase = await IAP.instance.currentEntitlementIOS(sku);
     if (nitroPurchase) {
       const converted = convertNitroPurchaseToPurchase(nitroPurchase);
-      return converted.platform === 'ios' ? (converted as PurchaseIOS) : null;
+      return converted.store === 'apple' ? (converted as PurchaseIOS) : null;
     }
     return null;
   } catch (error) {
@@ -1345,7 +1246,7 @@ export const latestTransactionIOS: QueryField<'latestTransactionIOS'> = async (
     const nitroPurchase = await IAP.instance.latestTransactionIOS(sku);
     if (nitroPurchase) {
       const converted = convertNitroPurchaseToPurchase(nitroPurchase);
-      return converted.platform === 'ios' ? (converted as PurchaseIOS) : null;
+      return converted.store === 'apple' ? (converted as PurchaseIOS) : null;
     }
     return null;
   } catch (error) {
@@ -1381,7 +1282,7 @@ export const getPendingTransactionsIOS: QueryField<
     return nitroPurchases
       .map(convertNitroPurchaseToPurchase)
       .filter(
-        (purchase): purchase is PurchaseIOS => purchase.platform === 'ios',
+        (purchase): purchase is PurchaseIOS => purchase.store === 'apple',
       );
   } catch (error) {
     const parsedError = parseErrorAndLogIfNeeded(
@@ -1414,7 +1315,7 @@ export const getAllTransactionsIOS: QueryField<
     return nitroPurchases
       .map(convertNitroPurchaseToPurchase)
       .filter(
-        (purchase): purchase is PurchaseIOS => purchase.platform === 'ios',
+        (purchase): purchase is PurchaseIOS => purchase.store === 'apple',
       );
   } catch (error) {
     const parsedError = parseErrorAndLogIfNeeded(
@@ -1449,7 +1350,7 @@ export const showManageSubscriptionsIOS: MutationField<
     return nitroPurchases
       .map(convertNitroPurchaseToPurchase)
       .filter(
-        (purchase): purchase is PurchaseIOS => purchase.platform === 'ios',
+        (purchase): purchase is PurchaseIOS => purchase.store === 'apple',
       );
   } catch (error) {
     const parsedError = parseErrorAndLogIfNeeded(
@@ -1519,44 +1420,6 @@ export const getReceiptDataIOS: QueryField<'getReceiptDataIOS'> = async () => {
   } catch (error) {
     const parsedError = parseErrorAndLogIfNeeded(
       '[getReceiptDataIOS] Failed:',
-      error,
-    );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
-  }
-};
-
-/**
- * Legacy alias for `getReceiptDataIOS`.
- *
- * @deprecated Use `getReceiptDataIOS` for the cumulative App Store receipt or
- * `getTransactionJwsIOS(productId)` for one transaction. This alias will be
- * removed in react-native-iap 16.0.0.
- */
-export const getReceiptIOS = async (): Promise<string> => {
-  if (Platform.OS !== 'ios') {
-    throw new Error('getReceiptIOS is only available on iOS');
-  }
-
-  RnIapConsole.warn(
-    '[getReceiptIOS] is deprecated and will be removed in react-native-iap 16.0.0. ' +
-      'Use getReceiptDataIOS() for the cumulative receipt. iOS receipts contain ALL transactions, not just the latest one. ' +
-      'For individual purchase validation, use getTransactionJwsIOS(productId) instead. ' +
-      'See: https://react-native-iap.hyo.dev/docs/guides/receipt-validation',
-  );
-
-  try {
-    if (typeof IAP.instance.getReceiptIOS === 'function') {
-      return await IAP.instance.getReceiptIOS();
-    }
-    return await IAP.instance.getReceiptDataIOS();
-  } catch (error) {
-    const parsedError = parseErrorAndLogIfNeeded(
-      '[getReceiptIOS] Failed:',
       error,
     );
     throw createPurchaseError({
@@ -1809,11 +1672,9 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
     }
 
     const iosRequestSource =
-      Platform.OS === 'ios'
-        ? selectApplePurchaseRequest(perPlatformRequest)
-        : undefined;
+      Platform.OS === 'ios' ? perPlatformRequest.apple : undefined;
     const androidRequestSource = isAndroidStoreRuntime()
-      ? selectGooglePurchaseRequest(perPlatformRequest)
+      ? perPlatformRequest.google
       : undefined;
 
     if (Platform.OS === 'ios') {
@@ -1921,9 +1782,6 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
         if (subsRequest.originalExternalTransactionId) {
           androidPayload.originalExternalTransactionId =
             subsRequest.originalExternalTransactionId;
-        }
-        if (subsRequest.replacementMode != null) {
-          androidPayload.replacementMode = subsRequest.replacementMode;
         }
         if (subsRequest.subscriptionProductReplacementParams) {
           androidPayload.subscriptionProductReplacementParams =
@@ -2159,8 +2017,7 @@ export const openRedeemOfferCodeAndroid: MutationField<
 // ============================================================================
 
 /**
- * Validate receipt on both iOS and Android platforms
- * @deprecated Use `verifyPurchase` instead. This function will be removed in react-native-iap 16.0.0.
+ * Verify a purchase on iOS or Android.
  * @param options - Platform-specific verification options
  * @param options.apple - Apple App Store verification options (iOS)
  * @param options.google - Google Play verification options (Android)
@@ -2184,7 +2041,7 @@ export const openRedeemOfferCodeAndroid: MutationField<
  *
  * @see {@link https://openiap.dev/docs/apis/validate-receipt}
  */
-export const validateReceipt: MutationField<'validateReceipt'> = async (
+export const verifyPurchase: MutationField<'verifyPurchase'> = async (
   options,
 ) => {
   const {apple, google, horizon} = options;
@@ -2223,7 +2080,7 @@ export const validateReceipt: MutationField<'validateReceipt'> = async (
       }
     }
 
-    const params: NitroReceiptValidationParams = {
+    const params: NitroPurchaseVerificationParams = {
       apple: apple?.sku
         ? {
             sku: apple.sku,
@@ -2252,11 +2109,11 @@ export const validateReceipt: MutationField<'validateReceipt'> = async (
           : null,
     };
 
-    const nitroResult = await IAP.instance.validateReceipt(params);
+    const nitroResult = await IAP.instance.verifyPurchase(params);
 
     // Convert Nitro result to public API result
     if (Platform.OS === 'ios') {
-      const iosResult = nitroResult as NitroReceiptValidationResultIOS;
+      const iosResult = nitroResult as NitroPurchaseVerificationResultIOS;
       const result: VerifyPurchaseResultIOS = {
         isValid: iosResult.isValid,
         receiptData: iosResult.receiptData,
@@ -2268,7 +2125,8 @@ export const validateReceipt: MutationField<'validateReceipt'> = async (
       return result;
     } else {
       // Android
-      const androidResult = nitroResult as NitroReceiptValidationResultAndroid;
+      const androidResult =
+        nitroResult as NitroPurchaseVerificationResultAndroid;
       const result: VerifyPurchaseResultAndroid = {
         autoRenewing: androidResult.autoRenewing,
         betaProduct: androidResult.betaProduct,
@@ -2293,7 +2151,7 @@ export const validateReceipt: MutationField<'validateReceipt'> = async (
     }
   } catch (error) {
     const parsedError = parseErrorAndLogIfNeeded(
-      '[validateReceipt] Failed:',
+      '[verifyPurchase] Failed:',
       error,
     );
     throw createPurchaseError({
@@ -2303,38 +2161,6 @@ export const validateReceipt: MutationField<'validateReceipt'> = async (
       debugMessage: parsedError.debugMessage,
     });
   }
-};
-
-/**
- * Verify purchase with the configured providers
- *
- * This function uses the native OpenIAP verifyPurchase implementation
- * which validates purchases using platform-specific methods.
- * This is an alias for validateReceipt for API consistency with OpenIAP.
- *
- * @param options - Receipt validation options containing the SKU
- * @returns Promise resolving to receipt validation result
- *
- * @see {@link https://openiap.dev/docs/features/validation#verify-purchase}
- */
-export const verifyPurchase: MutationField<'verifyPurchase'> = validateReceipt;
-
-/**
- * iOS-only receipt validation alias.
- *
- * @deprecated Use `verifyPurchase` instead. This compatibility alias will be
- * removed in react-native-iap 16.0.0. Throws on non-iOS platforms.
- *
- * @see {@link https://openiap.dev/docs/apis/ios/validate-receipt-ios}
- */
-export const validateReceiptIOS: QueryField<'validateReceiptIOS'> = async (
-  options,
-) => {
-  if (Platform.OS !== 'ios') {
-    throw new Error('validateReceiptIOS is only available on iOS');
-  }
-  const result = await validateReceipt(options);
-  return result as VerifyPurchaseResultIOS;
 };
 
 /**
@@ -2440,7 +2266,8 @@ export const syncIOS: MutationField<'syncIOS'> = async () => {
 
 /**
  * Present the code redemption sheet for offer codes (iOS only)
- * @returns Promise<boolean> - Indicates whether the redemption sheet was presented
+ * @returns The verified redeemed purchase on iOS 27+, or null after the
+ * legacy sheet is presented on earlier iOS versions.
  * @platform iOS
  *
  * @see {@link https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios}
@@ -2449,64 +2276,21 @@ export const presentCodeRedemptionSheetIOS: MutationField<
   'presentCodeRedemptionSheetIOS'
 > = async () => {
   if (Platform.OS !== 'ios') {
-    return false;
+    return null;
   }
 
   try {
     const result = await IAP.instance.presentCodeRedemptionSheetIOS();
-    return Boolean(result);
+    if (result == null) {
+      return null;
+    }
+    if (!validateNitroPurchase(result)) {
+      throw new Error('Invalid redeemed purchase returned by native StoreKit');
+    }
+    return convertNitroPurchaseToPurchase(result) as PurchaseIOS;
   } catch (error) {
     const parsedError = parseErrorAndLogIfNeeded(
       '[presentCodeRedemptionSheetIOS] Failed:',
-      error,
-    );
-    throw createPurchaseError({
-      code: parsedError.code,
-      message: parsedError.message,
-      responseCode: parsedError.responseCode,
-      debugMessage: parsedError.debugMessage,
-    });
-  }
-};
-
-/**
- * Buy promoted product on iOS
- * @deprecated In StoreKit 2, promoted products can be purchased directly via
- * the standard `requestPurchase()` flow. This alias will be removed in
- * react-native-iap 16.0.0.
- * Use `promotedProductListenerIOS` to receive the product ID when a user taps a promoted product,
- * then call `requestPurchase()` with the received SKU directly.
- *
- * @example
- * ```typescript
- * // Recommended approach
- * promotedProductListenerIOS(async (product) => {
- *   await requestPurchase({
- *     request: { apple: { sku: product.id } },
- *     type: 'in-app'
- *   });
- * });
- * ```
- *
- * @returns Promise<boolean> - true when the request triggers successfully
- * @platform iOS
- *
- * @see {@link https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios}
- */
-export const requestPurchaseOnPromotedProductIOS: MutationField<
-  'requestPurchaseOnPromotedProductIOS'
-> = async () => {
-  if (Platform.OS !== 'ios') {
-    throw new Error(
-      'requestPurchaseOnPromotedProductIOS is only available on iOS',
-    );
-  }
-
-  try {
-    return await IAP.instance.buyPromotedProductIOS();
-  } catch (error) {
-    const parsedError = parseErrorAndLogIfNeeded(
-      '[requestPurchaseOnPromotedProductIOS] Failed:',
       error,
     );
     throw createPurchaseError({
@@ -2673,7 +2457,6 @@ export const getActiveSubscriptions: QueryField<
         // iOS specific fields
         expirationDateIOS: sub.expirationDateIOS ?? null,
         environmentIOS: sub.environmentIOS ?? null,
-        willExpireSoon: sub.willExpireSoon ?? null,
         daysUntilExpirationIOS: sub.daysUntilExpirationIOS ?? null,
         // renewalInfoIOS contains subscription lifecycle information on iOS.
         renewalInfoIOS: sub.renewalInfoIOS
@@ -2681,6 +2464,12 @@ export const getActiveSubscriptions: QueryField<
               willAutoRenew: sub.renewalInfoIOS.willAutoRenew ?? false,
               autoRenewPreference:
                 sub.renewalInfoIOS.autoRenewPreference ?? null,
+              bundleOriginalTransactionId:
+                sub.renewalInfoIOS.bundleOriginalTransactionId ?? null,
+              bundleProductId:
+                sub.renewalInfoIOS.bundleProductId ?? null,
+              bundleSubscriptionGroupId:
+                sub.renewalInfoIOS.bundleSubscriptionGroupId ?? null,
               commitmentInfo: sub.renewalInfoIOS.commitmentInfo ?? null,
               pendingUpgradeProductId:
                 sub.renewalInfoIOS.pendingUpgradeProductId ?? null,
@@ -2696,6 +2485,7 @@ export const getActiveSubscriptions: QueryField<
               renewalOfferType: sub.renewalInfoIOS.renewalOfferType ?? null,
               renewalOfferId: sub.renewalInfoIOS.renewalOfferId ?? null,
               jsonRepresentation: sub.renewalInfoIOS.jsonRepresentation ?? null,
+              willUnbundle: sub.renewalInfoIOS.willUnbundle ?? null,
             }
           : null,
         // Android specific fields
@@ -2757,19 +2547,6 @@ export {
   checkTypeSynchronization,
 } from './utils/type-bridge';
 
-// Deprecated exports for backward compatibility
-/**
- * @deprecated Use acknowledgePurchaseAndroid instead. This alias will be
- * removed in react-native-iap 16.0.0.
- */
-export const acknowledgePurchase = acknowledgePurchaseAndroid;
-
-/**
- * @deprecated Use consumePurchaseAndroid instead. This alias will be removed
- * in react-native-iap 16.0.0.
- */
-export const consumePurchase = consumePurchaseAndroid;
-
 // ============================================================================
 // Internal Helpers
 // ============================================================================
@@ -2777,42 +2554,6 @@ export const consumePurchase = consumePurchaseAndroid;
 type NitroDiscountOfferRecord = NonNullable<
   NonNullable<NitroPurchaseRequest['apple']>['withOffer']
 >;
-
-const selectApplePurchaseRequest = (
-  request:
-    RequestPurchasePropsByPlatforms | RequestSubscriptionPropsByPlatforms,
-): RequestPurchaseIosProps | RequestSubscriptionIosProps | null | undefined => {
-  const selection = selectCanonicalPlatformRequest<
-    RequestPurchaseIosProps | RequestSubscriptionIosProps
-  >(request, 'apple', 'ios');
-  if (selection.usesLegacyKey && selection.value != null) {
-    warnLegacyOnce(
-      'request-purchase.ios',
-      '[react-native-iap] `request.ios` is deprecated and will be removed in react-native-iap 16.0.0. Use `request.apple` instead.',
-    );
-  }
-  return selection.value;
-};
-
-const selectGooglePurchaseRequest = (
-  request:
-    RequestPurchasePropsByPlatforms | RequestSubscriptionPropsByPlatforms,
-):
-  | RequestPurchaseAndroidProps
-  | RequestSubscriptionAndroidProps
-  | null
-  | undefined => {
-  const selection = selectCanonicalPlatformRequest<
-    RequestPurchaseAndroidProps | RequestSubscriptionAndroidProps
-  >(request, 'google', 'android');
-  if (selection.usesLegacyKey && selection.value != null) {
-    warnLegacyOnce(
-      'request-purchase.android',
-      '[react-native-iap] `request.android` is deprecated and will be removed in react-native-iap 16.0.0. Use `request.google` instead.',
-    );
-  }
-  return selection.value;
-};
 
 const toDiscountOfferRecordIOS = (
   offer: DiscountOfferInputIOS | null | undefined,
@@ -2832,17 +2573,18 @@ const toDiscountOfferRecordIOS = (
 const toNitroProductType = (
   type?: ProductTypeInput | ProductQueryType | null,
 ): 'in-app' | 'subs' | 'all' => {
-  if (type === 'subs') {
-    return 'subs';
+  switch (type) {
+    case 'in-app':
+      return 'in-app';
+    case 'subs':
+      return 'subs';
+    case 'all':
+      return 'all';
+    default:
+      throw new Error(
+        `Unsupported product type: ${String(type)}. Use in-app, subs, or all.`,
+      );
   }
-  if (type === 'all') {
-    return 'all';
-  }
-  if (type === 'inapp') {
-    warnLegacyOnce('product-type.inapp', LEGACY_INAPP_WARNING);
-    return 'in-app';
-  }
-  return 'in-app';
 };
 
 const isSubscriptionQuery = (type?: ProductQueryType | null): boolean =>
@@ -2851,156 +2593,17 @@ const isSubscriptionQuery = (type?: ProductQueryType | null): boolean =>
 const normalizeProductQueryType = (
   type?: ProductQueryType | string | null,
 ): ProductQueryType => {
+  if (type == null) {
+    return 'in-app';
+  }
+
   if (type === 'all' || type === 'subs' || type === 'in-app') {
     return type;
   }
 
-  if (typeof type === 'string') {
-    const normalized = type.trim().toLowerCase().replace(/_/g, '-');
-
-    if (normalized === 'all') {
-      return 'all';
-    }
-    if (normalized === 'subs') {
-      return 'subs';
-    }
-    if (normalized === 'inapp') {
-      warnLegacyOnce('product-type.inapp', LEGACY_INAPP_WARNING);
-      return 'in-app';
-    }
-    if (normalized === 'in-app') {
-      return 'in-app';
-    }
-  }
-  return 'in-app';
-};
-
-// ============================================================================
-// ALTERNATIVE BILLING APIs
-// ============================================================================
-
-// ------------------------------
-// Android Alternative Billing
-// ------------------------------
-
-/**
- * Check if alternative billing is available for this user/device (Android only).
- * Step 1 of alternative billing flow.
- *
- * @returns Promise<boolean> - true if available, false otherwise
- * @throws Error if billing client not ready
- * @platform Android
- *
- * @example
- * ```typescript
- * const isAvailable = await checkAlternativeBillingAvailabilityAndroid();
- * if (isAvailable) {
- *   // Proceed with alternative billing flow
- * }
- * ```
- *
- * @see {@link https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android}
- * @deprecated Use `isBillingProgramAvailableAndroid('external-offer')`
- * instead. Scheduled for removal in react-native-iap 16.0.0.
- */
-export const checkAlternativeBillingAvailabilityAndroid: MutationField<
-  'checkAlternativeBillingAvailabilityAndroid'
-> = async () => {
-  if (Platform.OS !== 'android') {
-    throw new Error('Alternative billing is only supported on Android');
-  }
-  try {
-    return await IAP.instance.checkAlternativeBillingAvailabilityAndroid();
-  } catch (error) {
-    RnIapConsole.error(
-      'Failed to check alternative billing availability:',
-      error,
-    );
-    throw error;
-  }
-};
-
-/**
- * Show alternative billing information dialog to user (Android only).
- * Step 2 of alternative billing flow.
- * Must be called BEFORE processing payment in your payment system.
- *
- * @returns Promise<boolean> - true if user accepted, false if user canceled
- * @throws Error if billing client not ready
- * @platform Android
- *
- * @example
- * ```typescript
- * const userAccepted = await showAlternativeBillingDialogAndroid();
- * if (userAccepted) {
- *   // Process payment in your payment system
- *   const success = await processCustomPayment();
- *   if (success) {
- *     // Create reporting token
- *     const token = await createAlternativeBillingTokenAndroid();
- *     // Send token to your backend for Google Play reporting
- *   }
- * }
- * ```
- *
- * @see {@link https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android}
- * @deprecated Use `launchExternalLinkAndroid` instead. Scheduled for removal in
- * react-native-iap 16.0.0.
- */
-export const showAlternativeBillingDialogAndroid: MutationField<
-  'showAlternativeBillingDialogAndroid'
-> = async () => {
-  if (Platform.OS !== 'android') {
-    throw new Error('Alternative billing is only supported on Android');
-  }
-  try {
-    return await IAP.instance.showAlternativeBillingDialogAndroid();
-  } catch (error) {
-    RnIapConsole.error('Failed to show alternative billing dialog:', error);
-    throw error;
-  }
-};
-
-/**
- * Create external transaction token for Google Play reporting (Android only).
- * Step 3 of alternative billing flow.
- * Must be called AFTER successful payment in your payment system.
- * Token must be reported to Google Play backend within 24 hours.
- *
- * @param sku - Optional product SKU that was purchased
- * @returns Promise<string | null> - Token string or null if creation failed
- * @throws Error if billing client not ready
- * @platform Android
- *
- * @example
- * ```typescript
- * const token = await createAlternativeBillingTokenAndroid('premium_subscription');
- * if (token) {
- *   // Send token to your backend
- *   await fetch('/api/report-transaction', {
- *     method: 'POST',
- *     body: JSON.stringify({ token, sku: 'premium_subscription' })
- *   });
- * }
- * ```
- *
- * @see {@link https://openiap.dev/docs/apis/android/create-alternative-billing-token-android}
- * @deprecated Use
- * `createBillingProgramReportingDetailsAndroid('external-offer')` instead.
- * Scheduled for removal in react-native-iap 16.0.0.
- */
-export const createAlternativeBillingTokenAndroid: MutationField<
-  'createAlternativeBillingTokenAndroid'
-> = async (sku?: string) => {
-  if (Platform.OS !== 'android') {
-    throw new Error('Alternative billing is only supported on Android');
-  }
-  try {
-    return await IAP.instance.createAlternativeBillingTokenAndroid(sku ?? null);
-  } catch (error) {
-    RnIapConsole.error('Failed to create alternative billing token:', error);
-    throw error;
-  }
+  throw new Error(
+    `Unsupported product type: ${String(type)}. Use in-app, subs, or all.`,
+  );
 };
 
 /**

@@ -1,7 +1,3 @@
-// Historical OpenIAP error aliases remain accepted throughout kmp-iap 2.x.
-// Consumer enum usage still warns; remove these mappings in kmp-iap 3.
-@file:Suppress("DEPRECATION")
-
 package io.github.hyochan.kmpiap.utils
 
 import io.github.hyochan.kmpiap.openiap.ErrorCode
@@ -17,14 +13,12 @@ object ErrorCodeUtils {
         ErrorCode.NetworkError to 2,
         ErrorCode.ItemUnavailable to 3,
         ErrorCode.ServiceError to 4,
-        ErrorCode.ReceiptFailed to 5,
         ErrorCode.AlreadyOwned to 6,
         ErrorCode.NotEnded to 10,
         ErrorCode.DeveloperError to 11,
         ErrorCode.UserError to 12,
         ErrorCode.RemoteError to 13,
         ErrorCode.Pending to 14,
-        ErrorCode.ReceiptFinishedFailed to 15,
         ErrorCode.NotPrepared to 16,
         ErrorCode.BillingResponseJsonParseError to 17,
         ErrorCode.DeferredPayment to 18,
@@ -41,6 +35,11 @@ object ErrorCodeUtils {
         ErrorCode.PurchaseVerificationFinishFailed to 29
     )
 
+    private val historicalIosErrorInputs: Map<Int, ErrorCode> = mapOf(
+        5 to ErrorCode.PurchaseVerificationFailed,
+        15 to ErrorCode.PurchaseVerificationFinishFailed,
+    )
+
     private val legacyCodeMap: Map<String, ErrorCode> = buildMap {
         fun alias(vararg keys: String, target: ErrorCode) {
             keys.forEach { put(it, target) }
@@ -54,9 +53,9 @@ object ErrorCodeUtils {
         alias("E_REMOTE_ERROR", "REMOTE_ERROR", target = ErrorCode.RemoteError)
         alias("E_NETWORK_ERROR", "NETWORK_ERROR", target = ErrorCode.NetworkError)
         alias("E_SERVICE_ERROR", "SERVICE_ERROR", target = ErrorCode.ServiceError)
-        alias("E_RECEIPT_FAILED", "RECEIPT_FAILED", target = ErrorCode.ReceiptFailed)
-        alias("E_RECEIPT_FINISHED", "RECEIPT_FINISHED", target = ErrorCode.ReceiptFinished)
-        alias("E_RECEIPT_FINISHED_FAILED", "RECEIPT_FINISHED_FAILED", target = ErrorCode.ReceiptFinishedFailed)
+        alias("E_RECEIPT_FAILED", "RECEIPT_FAILED", target = ErrorCode.PurchaseVerificationFailed)
+        alias("E_RECEIPT_FINISHED", "RECEIPT_FINISHED", target = ErrorCode.PurchaseVerificationFinished)
+        alias("E_RECEIPT_FINISHED_FAILED", "RECEIPT_FINISHED_FAILED", target = ErrorCode.PurchaseVerificationFinishFailed)
         alias("E_NOT_PREPARED", "NOT_PREPARED", target = ErrorCode.NotPrepared)
         alias("E_NOT_ENDED", "NOT_ENDED", target = ErrorCode.NotEnded)
         alias("E_ALREADY_OWNED", "ALREADY_OWNED", target = ErrorCode.AlreadyOwned)
@@ -93,11 +92,17 @@ object ErrorCodeUtils {
         return when (platform) {
             IapPlatform.Ios -> {
                 val code = platformCode as? Int ?: return ErrorCode.Unknown
-                iosErrorMapping.entries.firstOrNull { it.value == code }?.key ?: ErrorCode.Unknown
+                historicalIosErrorInputs[code]
+                    ?: iosErrorMapping.entries.firstOrNull { it.value == code }?.key
+                    ?: ErrorCode.Unknown
             }
             IapPlatform.Android -> {
                 val raw = (platformCode as? String) ?: return ErrorCode.Unknown
-                val normalized = raw.uppercase().replace('-', '_')
+                val normalized = raw
+                    .trim()
+                    .replace(Regex("([a-z0-9])([A-Z])"), "$1_$2")
+                    .uppercase()
+                    .replace('-', '_')
                 legacyCodeMap[normalized]
                     ?: legacyCodeMap[
                         if (normalized.startsWith("E_")) normalized else "E_${normalized}"
@@ -130,9 +135,6 @@ object ErrorCodeUtils {
         ErrorCode.RemoteError -> "Remote service error"
         ErrorCode.NetworkError -> "Network connection error"
         ErrorCode.ServiceError -> "Store service error"
-        ErrorCode.ReceiptFailed -> "Receipt validation failed"
-        ErrorCode.ReceiptFinished -> "Receipt already processed"
-        ErrorCode.ReceiptFinishedFailed -> "Failed to finish receipt"
         ErrorCode.NotPrepared -> "Billing client not initialized"
         ErrorCode.NotEnded -> "Transaction not finished"
         ErrorCode.DeveloperError -> "Developer configuration error"

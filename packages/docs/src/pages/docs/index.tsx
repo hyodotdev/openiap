@@ -33,16 +33,12 @@ import TypesExternalPurchaseLink from './types/external-purchase-link';
 import TypesVerifyPurchase from './types/verify-purchase';
 import TypesVerifyPurchaseWithProviderProps from './types/verify-purchase-with-provider-props';
 import TypesVerifyPurchaseWithProviderResult from './types/verify-purchase-with-provider-result';
-import TypesDiscountOfferIOS from './types/ios/discount-offer-ios';
-import TypesDiscountIOS from './types/ios/discount-ios';
 import TypesSubscriptionPeriodIOS from './types/ios/subscription-period-ios';
 import TypesSubscriptionBillingPlanIOS from './types/ios/subscription-billing-plan-ios';
 import TypesPaymentModeIOS from './types/ios/payment-mode-ios';
 import TypesSubscriptionStatusIOS from './types/ios/subscription-status-ios';
 import TypesAppTransactionIOS from './types/ios/app-transaction-ios';
 import TypesRenewalInfoIOS from './types/ios/renewal-info-ios';
-import TypesOneTimePurchaseOfferDetailAndroid from './types/android/one-time-purchase-offer-detail-android';
-import TypesSubscriptionOfferAndroid from './types/android/subscription-offer-android';
 import TypesPricingPhaseAndroid from './types/android/pricing-phase-android';
 import TypesDiscountOffer from './types/discount-offer';
 import TypesSubscriptionOffer from './types/subscription-offer';
@@ -58,12 +54,10 @@ import APIsGetStorefront from './apis/get-storefront';
 import APIsGetActiveSubscriptions from './apis/get-active-subscriptions';
 import APIsHasActiveSubscriptions from './apis/has-active-subscriptions';
 import APIsDeepLinkToSubscriptions from './apis/deep-link-to-subscriptions';
-import APIsValidateReceipt from './apis/validate-receipt';
 import APIsClearTransactionIOS from './apis/ios/clear-transaction-ios';
 import APIsGetPendingTransactionsIOS from './apis/ios/get-pending-transactions-ios';
 import APIsGetAllTransactionsIOS from './apis/ios/get-all-transactions-ios';
 import APIsSyncIOS from './apis/ios/sync-ios';
-import APIsGetStorefrontIOS from './apis/ios/get-storefront-ios';
 import APIsGetPromotedProductIOS from './apis/ios/get-promoted-product-ios';
 import APIsIsEligibleForIntroOfferIOS from './apis/ios/is-eligible-for-intro-offer-ios';
 import APIsSubscriptionStatusIOS from './apis/ios/subscription-status-ios';
@@ -82,13 +76,8 @@ import APIsPresentExternalPurchaseLinkIOS from './apis/ios/present-external-purc
 import APIsIsEligibleForExternalPurchaseCustomLinkIOS from './apis/ios/is-eligible-for-external-purchase-custom-link-ios';
 import APIsGetExternalPurchaseCustomLinkTokenIOS from './apis/ios/get-external-purchase-custom-link-token-ios';
 import APIsShowExternalPurchaseCustomLinkNoticeIOS from './apis/ios/show-external-purchase-custom-link-notice-ios';
-import APIsRequestPurchaseOnPromotedProductIOS from './apis/ios/request-purchase-on-promoted-product-ios';
-import APIsValidateReceiptIOS from './apis/ios/validate-receipt-ios';
 import APIsAcknowledgePurchaseAndroid from './apis/android/acknowledge-purchase-android';
 import APIsConsumePurchaseAndroid from './apis/android/consume-purchase-android';
-import APIsCheckAlternativeBillingAvailabilityAndroid from './apis/android/check-alternative-billing-availability-android';
-import APIsShowAlternativeBillingDialogAndroid from './apis/android/show-alternative-billing-dialog-android';
-import APIsCreateAlternativeBillingTokenAndroid from './apis/android/create-alternative-billing-token-android';
 import APIsEnableBillingProgramAndroid from './apis/android/enable-billing-program-android';
 import APIsIsBillingProgramAvailableAndroid from './apis/android/is-billing-program-available-android';
 import APIsGetBillingChoiceInfoAndroid from './apis/android/get-billing-choice-info-android';
@@ -153,7 +142,8 @@ import NotFound from '../404';
    minus the hash, defeating LEGACY_ANCHOR_REDIRECTS. */
 function NavigatePreservingHash({ to }: { to: string }) {
   const { hash } = useLocation();
-  return <Navigate to={`${to}${hash || ''}`} replace />;
+  const target = to.includes('#') ? to : `${to}${hash || ''}`;
+  return <Navigate to={target} replace />;
 }
 
 const SIDEBAR_WIDTH_STORAGE_KEY = 'openiap-docs-sidebar-width-v2';
@@ -453,14 +443,6 @@ function Docs() {
                   label: 'iOS Specific',
                   items: [
                     {
-                      to: '/docs/types/ios/discount-offer-ios',
-                      label: 'DiscountOfferIOS',
-                    },
-                    {
-                      to: '/docs/types/ios/discount-ios',
-                      label: 'DiscountIOS',
-                    },
-                    {
                       to: '/docs/types/ios/subscription-period-ios',
                       label: 'SubscriptionPeriodIOS',
                     },
@@ -489,14 +471,6 @@ function Docs() {
                 {
                   label: 'Android Specific',
                   items: [
-                    {
-                      to: '/docs/types/android/one-time-purchase-offer-detail-android',
-                      label: 'ProductAndroidOneTimePurchaseOfferDetail',
-                    },
-                    {
-                      to: '/docs/types/android/subscription-offer-android',
-                      label: 'ProductSubscriptionAndroidOfferDetails',
-                    },
                     {
                       to: '/docs/types/android/pricing-phase-android',
                       label: 'PricingPhaseAndroid',
@@ -558,10 +532,6 @@ function Docs() {
                   label: 'iOS Specific',
                   items: [
                     { to: '/docs/apis/ios/sync-ios', label: 'syncIOS' },
-                    {
-                      to: '/docs/apis/ios/get-storefront-ios',
-                      label: 'getStorefrontIOS',
-                    },
                     {
                       to: '/docs/apis/ios/clear-transaction-ios',
                       label: 'clearTransactionIOS',
@@ -646,14 +616,6 @@ function Docs() {
                       to: '/docs/apis/ios/show-external-purchase-custom-link-notice-ios',
                       label: 'showExternalPurchaseCustomLinkNoticeIOS',
                     },
-                    {
-                      to: '/docs/apis/ios/request-purchase-on-promoted-product-ios',
-                      label: 'requestPurchaseOnPromotedProductIOS',
-                    },
-                    {
-                      to: '/docs/apis/ios/validate-receipt-ios',
-                      label: 'validateReceiptIOS',
-                    },
                   ],
                 },
                 {
@@ -666,18 +628,6 @@ function Docs() {
                     {
                       to: '/docs/apis/android/consume-purchase-android',
                       label: 'consumePurchaseAndroid',
-                    },
-                    {
-                      to: '/docs/apis/android/check-alternative-billing-availability-android',
-                      label: 'checkAlternativeBillingAvailabilityAndroid',
-                    },
-                    {
-                      to: '/docs/apis/android/show-alternative-billing-dialog-android',
-                      label: 'showAlternativeBillingDialogAndroid',
-                    },
-                    {
-                      to: '/docs/apis/android/create-alternative-billing-token-android',
-                      label: 'createAlternativeBillingTokenAndroid',
                     },
                     {
                       to: '/docs/apis/android/enable-billing-program-android',
@@ -1084,9 +1034,16 @@ function Docs() {
           />
           <Route
             path="types/ios/discount-offer-ios"
-            element={<TypesDiscountOfferIOS />}
+            element={
+              <NavigatePreservingHash to="/docs/types/subscription-offer" />
+            }
           />
-          <Route path="types/ios/discount-ios" element={<TypesDiscountIOS />} />
+          <Route
+            path="types/ios/discount-ios"
+            element={
+              <NavigatePreservingHash to="/docs/types/subscription-offer" />
+            }
+          />
           <Route
             path="types/ios/subscription-period-ios"
             element={<TypesSubscriptionPeriodIOS />}
@@ -1113,11 +1070,13 @@ function Docs() {
           />
           <Route
             path="types/android/one-time-purchase-offer-detail-android"
-            element={<TypesOneTimePurchaseOfferDetailAndroid />}
+            element={<NavigatePreservingHash to="/docs/types/discount-offer" />}
           />
           <Route
             path="types/android/subscription-offer-android"
-            element={<TypesSubscriptionOfferAndroid />}
+            element={
+              <NavigatePreservingHash to="/docs/types/subscription-offer" />
+            }
           />
           <Route
             path="types/android/pricing-phase-android"
@@ -1187,7 +1146,9 @@ function Docs() {
           />
           <Route
             path="apis/validate-receipt"
-            element={<APIsValidateReceipt />}
+            element={
+              <NavigatePreservingHash to="/docs/features/validation#verify-purchase" />
+            }
           />
           <Route
             path="apis/ios/clear-transaction-ios"
@@ -1204,7 +1165,7 @@ function Docs() {
           <Route path="apis/ios/sync-ios" element={<APIsSyncIOS />} />
           <Route
             path="apis/ios/get-storefront-ios"
-            element={<APIsGetStorefrontIOS />}
+            element={<NavigatePreservingHash to="/docs/apis/get-storefront" />}
           />
           <Route
             path="apis/ios/get-promoted-product-ios"
@@ -1280,11 +1241,15 @@ function Docs() {
           />
           <Route
             path="apis/ios/request-purchase-on-promoted-product-ios"
-            element={<APIsRequestPurchaseOnPromotedProductIOS />}
+            element={
+              <NavigatePreservingHash to="/docs/events/ios/promoted-product-listener-ios" />
+            }
           />
           <Route
             path="apis/ios/validate-receipt-ios"
-            element={<APIsValidateReceiptIOS />}
+            element={
+              <NavigatePreservingHash to="/docs/features/validation#verify-purchase" />
+            }
           />
           <Route
             path="apis/android/acknowledge-purchase-android"
@@ -1296,15 +1261,21 @@ function Docs() {
           />
           <Route
             path="apis/android/check-alternative-billing-availability-android"
-            element={<APIsCheckAlternativeBillingAvailabilityAndroid />}
+            element={
+              <NavigatePreservingHash to="/docs/apis/android/is-billing-program-available-android" />
+            }
           />
           <Route
             path="apis/android/show-alternative-billing-dialog-android"
-            element={<APIsShowAlternativeBillingDialogAndroid />}
+            element={
+              <NavigatePreservingHash to="/docs/apis/android/launch-external-link-android" />
+            }
           />
           <Route
             path="apis/android/create-alternative-billing-token-android"
-            element={<APIsCreateAlternativeBillingTokenAndroid />}
+            element={
+              <NavigatePreservingHash to="/docs/apis/android/create-billing-program-reporting-details-android" />
+            }
           />
           <Route
             path="apis/android/enable-billing-program-android"

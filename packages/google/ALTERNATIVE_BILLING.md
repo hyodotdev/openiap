@@ -1,18 +1,7 @@
 # External Offer Billing Program Guide
 
 This guide shows the current OpenIAP flow for sending a Google Play user to an
-external digital-content offer. Google and OpenIAP previously called this
-surface “Alternative Billing Only.”
-
-> **OpenIAP 3.0 migration:** the `AlternativeBillingMode` constructors and the
-> `checkAlternativeBillingAvailability`,
-> `showAlternativeBillingInformationDialog`, and
-> `createAlternativeBillingReportingToken` methods remain available throughout
-> OpenIAP 2.x, but are scheduled for removal in OpenIAP 3.0. New integrations
-> must use Billing Programs. See the
-> [deprecation schedule](https://openiap.dev/docs/updates/deprecations#removal-schedule)
-> and the
-> [external-purchase guide](https://openiap.dev/docs/features/external-purchase).
+external digital-content offer. Use the Billing Programs APIs shown below.
 
 ## Requirements
 
@@ -26,8 +15,7 @@ surface “Alternative Billing Only.”
 
 ## Initialize the Billing Program
 
-Construct the store without legacy alternative-billing arguments. Enable the
-program on the connection configuration:
+Construct the store and enable the program on the connection configuration:
 
 ```kotlin
 val iapStore = OpenIapStore(applicationContext)
@@ -57,8 +45,7 @@ openIapModule.initConnection(
 ```
 
 Register purchase and billing listeners with the corresponding `add...Listener`
-and `remove...Listener` APIs. Constructor listener arguments are compatibility
-only and are scheduled for removal in OpenIAP 3.0.
+and `remove...Listener` APIs.
 
 ## Complete External Offer Flow
 
@@ -125,14 +112,14 @@ for checkout completion.
 
 ## Migration from the OpenIAP 2.x Compatibility Surface
 
-| OpenIAP 2.x compatibility API | Current API |
-| --- | --- |
-| `OpenIapStore(context, AlternativeBillingMode...)` | `OpenIapStore(context)` and `InitConnectionConfig.enableBillingProgramAndroid` |
+| OpenIAP 2.x compatibility API                       | Current API                                                                     |
+| --------------------------------------------------- | ------------------------------------------------------------------------------- |
+| `OpenIapStore(context, AlternativeBillingMode...)`  | `OpenIapStore(context)` and `InitConnectionConfig.enableBillingProgramAndroid`  |
 | `OpenIapModule(context, AlternativeBillingMode...)` | `OpenIapModule(context)` and `InitConnectionConfig.enableBillingProgramAndroid` |
-| constructor listener arguments | `add...Listener` / `remove...Listener` |
-| `checkAlternativeBillingAvailability()` | `isBillingProgramAvailable(BillingProgramAndroid.ExternalOffer)` |
-| `showAlternativeBillingInformationDialog()` | `launchExternalLink(activity, params)` |
-| `createAlternativeBillingReportingToken()` | `createBillingProgramReportingDetails(BillingProgramAndroid.ExternalOffer)` |
+| constructor listener arguments                      | `add...Listener` / `remove...Listener`                                          |
+| `checkAlternativeBillingAvailability()`             | `isBillingProgramAvailable(BillingProgramAndroid.ExternalOffer)`                |
+| `showAlternativeBillingInformationDialog()`         | `launchExternalLink(activity, params)`                                          |
+| `createAlternativeBillingReportingToken()`          | `createBillingProgramReportingDetails(BillingProgramAndroid.ExternalOffer)`     |
 
 These compatibility APIs still work in OpenIAP 2.x. Do not remove them from a
 2.x application without migrating the complete flow, but do migrate before

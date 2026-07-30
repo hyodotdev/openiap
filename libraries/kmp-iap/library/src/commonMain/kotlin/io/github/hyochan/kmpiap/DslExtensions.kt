@@ -1,7 +1,3 @@
-// DSL projections expose legacy generated fields only for 2.x compatibility.
-// Consumer call sites retain warnings; remove the projections in kmp-iap 3.
-@file:Suppress("DEPRECATION")
-
 package io.github.hyochan.kmpiap
 
 import io.github.hyochan.kmpiap.PurchaseException
@@ -55,11 +51,11 @@ suspend fun KmpInAppPurchase.fetchProducts(
  * Example:
  * ```kotlin
  * val purchase = kmpIapInstance.requestPurchase {
- *     ios {
+ *     apple {
  *         sku = "product_id"
  *         quantity = 1
  *     }
- *     android {
+ *     google {
  *         skus = listOf("product_id")
  *     }
  * }
@@ -107,16 +103,14 @@ internal fun ProductSubscription.toProductForDsl(): Product = when (this) {
         currency = currency,
         debugDescription = debugDescription,
         description = description,
-        discountOffers = discountOffers,
+        discountOffers = null,
         displayName = displayName,
         displayPrice = displayPrice,
         id = id,
         nameAndroid = nameAndroid,
-        oneTimePurchaseOfferDetailsAndroid = oneTimePurchaseOfferDetailsAndroid,
         platform = platform,
         price = price,
         productStatusAndroid = productStatusAndroid,
-        subscriptionOfferDetailsAndroid = subscriptionOfferDetailsAndroid,
         subscriptionOffers = subscriptionOffers,
         title = title,
         type = type
@@ -134,7 +128,6 @@ internal fun ProductSubscription.toProductForDsl(): Product = when (this) {
         platform = platform,
         price = price,
         pricingTermsIOS = pricingTermsIOS,
-        subscriptionInfoIOS = subscriptionInfoIOS,
         subscriptionOffers = subscriptionOffers,
         title = title,
         type = type,

@@ -342,9 +342,6 @@ public final class ExpoIapOnsideModule: Module {
             try await getOnsideStorefront()
         }
 
-        AsyncFunction("getStorefrontIOS") { () async throws -> String in
-            try await getOnsideStorefront()
-        }
     }
 
     private func getOnsideStorefront() async throws -> String {
@@ -698,19 +695,7 @@ public final class ExpoIapOnsideModule: Module {
     }
 
     private func resolveAppleRequest(from request: [String: Any]) -> [String: Any]? {
-        if request.keys.contains("apple") {
-            return request["apple"] as? [String: Any]
-        }
-
-        if request.keys.contains("ios") {
-            ExpoIapLog.deprecation(
-                "request-purchase.ios",
-                "`request.ios` is deprecated and will be removed in expo-iap 5.0.0. Use `request.apple` instead."
-            )
-            return request["ios"] as? [String: Any]
-        }
-
-        return nil
+        request["apple"] as? [String: Any]
     }
 }
 
@@ -877,9 +862,6 @@ public final class ExpoIapOnsideModule: Module {
             throw OnsideBridgeError.sdkUnavailable
         }
 
-        AsyncFunction("getStorefrontIOS") { () async throws -> String in
-            throw OnsideBridgeError.sdkUnavailable
-        }
     }
 }
 

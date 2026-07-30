@@ -9,7 +9,6 @@ const mockIap: any = {
   fetchProducts: jest.fn(async () => []),
   getAvailablePurchases: jest.fn(async () => []),
   finishTransaction: jest.fn(async () => true),
-  validateReceipt: jest.fn(async () => ({})),
   addPurchaseUpdatedListener: jest.fn(),
   removePurchaseUpdatedListener: jest.fn(),
   addPurchaseErrorListener: jest.fn(),

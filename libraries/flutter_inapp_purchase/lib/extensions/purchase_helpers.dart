@@ -4,17 +4,13 @@ extension PurchaseHelpers on Purchase {
   String? get transactionIdFor {
     if (this is PurchaseIOS) {
       final value = (this as PurchaseIOS).transactionId;
-      if (value.isNotEmpty) {
-        return value;
-      }
+      return value.isEmpty ? null : value;
     } else if (this is PurchaseAndroid) {
       final value = (this as PurchaseAndroid).transactionId;
-      if (value != null && value.isNotEmpty) {
-        return value;
-      }
+      return value == null || value.isEmpty ? null : value;
     }
 
-    return id.isEmpty ? null : id;
+    return null;
   }
 
   int? get androidPurchaseStateValue {

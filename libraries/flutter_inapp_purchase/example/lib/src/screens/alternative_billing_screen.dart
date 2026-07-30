@@ -283,10 +283,10 @@ User redirected to external website.
 
     try {
       // Step 1: Check availability
-      final isAvailable = await FlutterInappPurchase.instance
-          .checkAlternativeBillingAvailabilityAndroid();
+      final availability = await FlutterInappPurchase.instance
+          .isBillingProgramAvailableAndroid(_billingProgram);
 
-      if (!isAvailable) {
+      if (!availability.isAvailable) {
         setState(() {
           _purchaseResult =
               'Billing program "${_billingProgram.name}" not available';
@@ -296,31 +296,31 @@ User redirected to external website.
         return;
       }
 
-      setState(() => _purchaseResult = 'Showing dialog...');
+      setState(() => _purchaseResult = 'Launching external link...');
 
-      // Step 2: Show information dialog
-      final userAccepted = await FlutterInappPurchase.instance
-          .showAlternativeBillingDialogAndroid();
+      // Step 2: Launch the external destination through Play Billing.
+      final launched =
+          await FlutterInappPurchase.instance.launchExternalLinkAndroid(
+        LaunchExternalLinkParamsAndroid(
+          billingProgram: _billingProgram,
+          launchMode:
+              ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp,
+          linkType: ExternalLinkTypeAndroid.LinkToDigitalContentOffer,
+          linkUri: _urlController.text,
+        ),
+      );
 
-      if (!userAccepted) {
-        setState(() => _purchaseResult = 'User cancelled');
-        return;
-      }
-
-      setState(() => _purchaseResult = 'Creating token...');
-
-      // Step 3: Create token
-      final token = await FlutterInappPurchase.instance
-          .createAlternativeBillingTokenAndroid();
-
-      if (token != null) {
+      if (launched) {
+        // Step 3: Create reporting details for the external transaction.
+        final reporting = await FlutterInappPurchase.instance
+            .createBillingProgramReportingDetailsAndroid(_billingProgram);
         setState(() {
           _purchaseResult = '''
 Billing Programs API completed
 
 Program: ${_billingProgram.name}
 URL: ${_urlController.text}
-Token: Present
+Token: ${reporting.externalTransactionToken.isNotEmpty ? 'Present' : 'Missing'}
 
 Important:
 - User completes purchase externally
@@ -349,12 +349,18 @@ Important:
     });
 
     try {
-      // Request purchase with useAlternativeBilling
       await FlutterInappPurchase.instance.requestPurchase(
         RequestPurchaseProps.inApp((
           apple: RequestPurchaseIosProps(sku: product.id),
-          google: RequestPurchaseAndroidProps(skus: [product.id]),
-          useAlternativeBilling: true,
+          google: RequestPurchaseAndroidProps(
+            skus: [product.id],
+            developerBillingOption: DeveloperBillingOptionParamsAndroid(
+              billingProgram: BillingProgramAndroid.ExternalPayments,
+              launchMode: DeveloperBillingLaunchModeAndroid
+                  .LaunchInExternalBrowserOrApp,
+              linkUri: _urlController.text,
+            ),
+          ),
         )),
       );
 
@@ -391,8 +397,12 @@ Waiting for user choice:
       await FlutterInappPurchase.instance.requestPurchase(
         RequestPurchaseProps.inApp((
           apple: RequestPurchaseIosProps(sku: product.id),
-          google: RequestPurchaseAndroidProps(skus: [product.id]),
-          useAlternativeBilling: true,
+          google: RequestPurchaseAndroidProps(
+            skus: [product.id],
+            developerBillingOption: const DeveloperBillingOptionParamsAndroid(
+              billingProgram: BillingProgramAndroid.UserChoiceBilling,
+            ),
+          ),
         )),
       );
 

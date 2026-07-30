@@ -1,7 +1,3 @@
-// The store facade keeps explicit 2.x compatibility delegates. Consumer
-// call sites still receive deprecation warnings; remove the shims in 3.0.
-@file:Suppress("DEPRECATION")
-
 package dev.hyo.openiap.store
 
 import dev.hyo.openiap.ActiveSubscription
@@ -65,56 +61,14 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import java.util.Collections
-import java.util.concurrent.ConcurrentHashMap
-
 internal object OpenIapStorePurchaseRequestResolver {
-    private const val LEGACY_ANDROID_WARNING_KEY = "OpenIapStore.requestPurchase.android"
-    private val emittedLegacyWarnings: MutableSet<String> =
-        Collections.newSetFromMap(ConcurrentHashMap())
-
-    fun sku(
-        props: RequestPurchaseProps,
-        legacyWarningKey: String = LEGACY_ANDROID_WARNING_KEY,
-        warnLegacy: (String) -> Unit = { message ->
-            OpenIapLog.warn(message, "OpenIapStore")
-        },
-    ): String? =
+    fun sku(props: RequestPurchaseProps): String? =
         when (val request = props.request) {
-            is RequestPurchaseProps.Request.Purchase -> {
-                val platforms = request.value
-                if (platforms.google != null) {
-                    platforms.google.skus.firstOrNull()
-                } else {
-                    platforms.android?.let { legacy ->
-                        warnAboutLegacyAndroid(legacyWarningKey, warnLegacy)
-                        legacy.skus.firstOrNull()
-                    }
-                }
-            }
-            is RequestPurchaseProps.Request.Subscription -> {
-                val platforms = request.value
-                if (platforms.google != null) {
-                    platforms.google.skus.firstOrNull()
-                } else {
-                    platforms.android?.let { legacy ->
-                        warnAboutLegacyAndroid(legacyWarningKey, warnLegacy)
-                        legacy.skus.firstOrNull()
-                    }
-                }
-            }
+            is RequestPurchaseProps.Request.Purchase ->
+                request.value.google?.skus?.firstOrNull()
+            is RequestPurchaseProps.Request.Subscription ->
+                request.value.google?.skus?.firstOrNull()
         }
-
-    private fun warnAboutLegacyAndroid(
-        key: String,
-        warnLegacy: (String) -> Unit,
-    ) {
-        if (!emittedLegacyWarnings.add(key)) return
-        warnLegacy(
-            "OpenIapStore request field `android` is deprecated; use `google` instead. " +
-                "Legacy `android` compatibility is scheduled for removal in OpenIAP 3.0.",
-        )
-    }
 }
 
 /**
@@ -139,10 +93,6 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     // Public state
     private val _isConnected = MutableStateFlow(false)
     val isConnected: StateFlow<Boolean> = _isConnected.asStateFlow()
-    // Backwards-compat alias for example app
-    @Deprecated("Use isConnected instead. Scheduled for removal in OpenIAP 3.0.", ReplaceWith("isConnected"))
-    val connectionStatus: StateFlow<Boolean> get() = isConnected
-
     private val _products = MutableStateFlow<List<Product>>(emptyList())
     val products: StateFlow<List<Product>> = _products.asStateFlow()
 
@@ -234,32 +184,6 @@ class OpenIapStore(private val module: OpenIapProtocol) {
             )
         )
         pendingRequestProductId = null
-    }
-
-    /**
-     * Set user choice billing listener
-     * This listener will be called when user selects alternative billing in user choice mode
-     *
-     * @param listener User choice billing listener
-     */
-    @Deprecated(
-        "Use addUserChoiceBillingListener and removeUserChoiceBillingListener instead. Scheduled for removal in OpenIAP 3.0."
-    )
-    fun setUserChoiceBillingListener(listener: dev.hyo.openiap.listener.UserChoiceBillingListener?) {
-        module.setUserChoiceBillingListener(listener)
-    }
-
-    /**
-     * Set a developer-provided billing listener for External Payments (8.3.0+)
-     * and Google-rendered Billing Choice (9.1.0+).
-     *
-     * @param listener Developer-provided billing listener or null to remove
-     */
-    @Deprecated(
-        "Use addDeveloperProvidedBillingListener and removeDeveloperProvidedBillingListener instead. Scheduled for removal in OpenIAP 3.0."
-    )
-    fun setDeveloperProvidedBillingListener(listener: dev.hyo.openiap.listener.DeveloperProvidedBillingListener?) {
-        module.setDeveloperProvidedBillingListener(listener)
     }
 
     // Expose a way to set the current Activity for purchase flows
@@ -567,42 +491,6 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      * @see <a href="https://openiap.dev/docs/apis/deep-link-to-subscriptions">https://openiap.dev/docs/apis/deep-link-to-subscriptions</a>
      */
     suspend fun deepLinkToSubscriptions(options: DeepLinkOptions) = module.mutationHandlers.deepLinkToSubscriptions?.invoke(options)
-
-    // -------------------------------------------------------------------------
-    // Alternative Billing (Step-by-Step API)
-    // -------------------------------------------------------------------------
-    /**
-     * Check whether alternative billing is available for the user.
-     *
-     * @see <a href="https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android">https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android</a>
-     */
-    @Deprecated(
-        "Use isBillingProgramAvailable with BillingProgramAndroid.ExternalOffer instead. Scheduled for removal in OpenIAP 3.0."
-    )
-    @Suppress("DEPRECATION")
-    suspend fun checkAlternativeBillingAvailability(): Boolean = module.checkAlternativeBillingAvailability()
-
-    /**
-     * Display Google's alternative billing information dialog.
-     *
-     * @see <a href="https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android">https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android</a>
-     */
-    @Deprecated("Use launchExternalLink instead. Scheduled for removal in OpenIAP 3.0.")
-    @Suppress("DEPRECATION")
-    suspend fun showAlternativeBillingInformationDialog(activity: Activity): Boolean =
-        module.showAlternativeBillingInformationDialog(activity)
-
-    /**
-     * Create a reporting token for an alternative billing flow.
-     *
-     * @see <a href="https://openiap.dev/docs/apis/android/create-alternative-billing-token-android">https://openiap.dev/docs/apis/android/create-alternative-billing-token-android</a>
-     */
-    @Deprecated(
-        "Use createBillingProgramReportingDetails with BillingProgramAndroid.ExternalOffer instead. Scheduled for removal in OpenIAP 3.0."
-    )
-    @Suppress("DEPRECATION")
-    suspend fun createAlternativeBillingReportingToken(): String? =
-        module.createAlternativeBillingReportingToken()
 
     // -------------------------------------------------------------------------
     // Billing Programs (Google Play Billing Library 8.2.0+)

@@ -184,10 +184,13 @@ function Product() {
                         <code>typeIOS</code>
                       </td>
                       <td>
-                        Detailed product type: <code>Consumable</code>,{' '}
-                        <code>NonConsumable</code>,{' '}
-                        <code>AutoRenewableSubscription</code>, or{' '}
-                        <code>NonRenewingSubscription</code>
+                        Detailed product-type wire value:{' '}
+                        <code>consumable</code>, <code>non-consumable</code>,{' '}
+                        <code>auto-renewable-subscription</code>,{' '}
+                        <code>non-renewing-subscription</code>,{' '}
+                        <code>subscription-bundle</code>, or{' '}
+                        <code>subscription-suite</code>. The final two values
+                        require an Xcode 27 build and Apple 27 runtime.
                       </td>
                     </tr>
                     <tr>
@@ -201,22 +204,6 @@ function Product() {
                         <code>displayNameIOS</code>
                       </td>
                       <td>iOS-specific display name</td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <code style={{ textDecoration: 'line-through' }}>
-                          subscriptionInfoIOS
-                        </code>
-                      </td>
-                      <td>
-                        <strong>Deprecated.</strong> Use{' '}
-                        <code>subscriptionOffers</code> instead. Subscription
-                        metadata (only for subscriptions). Contains:{' '}
-                        <code>subscriptionGroupId</code>,{' '}
-                        <code>subscriptionPeriod</code> (unit and value),{' '}
-                        <code>introductoryOffer</code>,{' '}
-                        <code>promotionalOffers</code>
-                      </td>
                     </tr>
                     <tr>
                       <td>
@@ -241,6 +228,19 @@ function Product() {
                           <code>SubscriptionPricingTermsIOS</code>
                         </Link>
                         .
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>bundledSubscriptionsIOS</code>
+                      </td>
+                      <td>
+                        Component subscriptions for an Apple Subscription Bundle
+                        or Suite, including product identity, display metadata,
+                        price, Family Sharing state, and subscription-group
+                        metadata. Available on{' '}
+                        <code>ProductSubscriptionIOS</code> with Xcode 27 and
+                        Apple 27; otherwise <code>null</code>.
                       </td>
                     </tr>
                     <tr>
@@ -275,28 +275,13 @@ function Product() {
                     </tr>
                     <tr>
                       <td>
-                        <code style={{ textDecoration: 'line-through' }}>
-                          oneTimePurchaseOfferDetailsAndroid
-                        </code>
+                        <code>subscriptionOffers</code>
                       </td>
                       <td>
-                        <strong>Deprecated.</strong> Legacy Android-native
-                        one-time purchase offer details. Use{' '}
-                        <code>discountOffers</code> and the standardized{' '}
-                        <Link to="/docs/types/discount-offer">
-                          <code>DiscountOffer</code>
-                        </Link>{' '}
-                        shape instead.
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <code>subscriptionOfferDetailsAndroid</code>
-                      </td>
-                      <td>
-                        For subscriptions, array of offer details. Contains:{' '}
-                        <code>basePlanId</code>, <code>offerId</code>,{' '}
-                        <code>offerToken</code>, <code>pricingPhases</code>
+                        Standardized subscription-offer metadata when a store
+                        adapter provides it; normally empty for one-time
+                        products. Use <code>discountOffers</code> for Google
+                        Play one-time purchase options.
                       </td>
                     </tr>
                     <tr>
@@ -304,10 +289,10 @@ function Product() {
                         <code>productStatusAndroid</code>
                       </td>
                       <td>
-                        Product fetch status code. Values: <code>OK</code>{' '}
-                        (success), <code>NOT_FOUND</code> (SKU doesn't exist),{' '}
-                        <code>NO_OFFERS_AVAILABLE</code> (user not eligible for
-                        any offers), <code>UNKNOWN</code>. Requires{' '}
+                        Product fetch status code. Wire values: <code>ok</code>{' '}
+                        (success), <code>not-found</code> (SKU doesn't exist),{' '}
+                        <code>no-offers-available</code> (user not eligible for
+                        any offers), <code>unknown</code>. Requires{' '}
                         <a
                           href="https://developer.android.com/google/play/billing/release-notes#8-0-0"
                           target="_blank"
@@ -329,18 +314,6 @@ function Product() {
                         </Link>{' '}
                         entries. Populated from Google Play Billing 8.0+{' '}
                         <code>OneTimePurchaseOfferDetails</code>.
-                      </td>
-                    </tr>
-                    <tr>
-                      <td>
-                        <code>subscriptionOffers</code>
-                      </td>
-                      <td>
-                        Cross-platform array of{' '}
-                        <Link to="/docs/types/subscription-offer">
-                          <code>SubscriptionOffer</code>
-                        </Link>{' '}
-                        — unified across iOS/Android.
                       </td>
                     </tr>
                   </tbody>

@@ -371,8 +371,7 @@ consumer builds. That matrix is the verification SSOT and includes:
 - Godot Android and iOS bridge builds
 - KMP tests and all three Android example flavors
 - MAUI Android bindings for Play, Amazon, and Horizon, plus iOS/macCatalyst
-  bindings and platform TFMs (the shared `net9.0`/`net10.0` TFMs are not a
-  substitute)
+  bindings and platform TFMs (the shared `net10.0` TFM is not a substitute)
 
 After that matrix passes, rerun the audit-specific consistency gates:
 

@@ -558,7 +558,6 @@ Future<void> purchaseProduct(String productId) async {
       RequestPurchaseProps.inApp((
         apple: RequestPurchaseIosProps(sku: productId),
         google: RequestPurchaseAndroidProps(skus: [productId]),
-        useAlternativeBilling: null,
       )),
     );
   } catch (e) {
@@ -1859,7 +1858,6 @@ class PurchaseManager extends ChangeNotifier {
         RequestPurchaseProps.inApp((
           apple: RequestPurchaseIosProps(sku: productId),
           google: RequestPurchaseAndroidProps(skus: [productId]),
-          useAlternativeBilling: null,
         )),
       );
     } catch (e) {

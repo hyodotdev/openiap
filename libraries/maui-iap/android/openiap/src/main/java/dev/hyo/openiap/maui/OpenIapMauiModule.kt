@@ -60,8 +60,8 @@ class OpenIapMauiModule(context: Context) {
     private val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
     // OpenIapModule.currentActivityRef is private; mirror it here so the Android-only
-    // mutations that need an Activity (showAlternativeBillingDialogAndroid,
-    // launchExternalLinkAndroid) can throw a typed error if the host app forgot to call setActivity().
+    // mutations such as launchExternalLinkAndroid that need an Activity can
+    // throw a typed error if the host app forgot to call setActivity().
     private var currentActivity: Activity? = null
 
     /**
@@ -174,11 +174,6 @@ class OpenIapMauiModule(context: Context) {
         wrapString("")
     }
 
-    fun validateReceipt(propsJson: String, callback: ResultCallback) = run(callback) {
-        val props = VerifyPurchaseProps.fromJson(parseMap(propsJson))
-        encodeVerifyPurchaseResult(module.validateReceipt(props))
-    }
-
     fun verifyPurchase(propsJson: String, callback: ResultCallback) = run(callback) {
         val props = VerifyPurchaseProps.fromJson(parseMap(propsJson))
         encodeVerifyPurchaseResult(module.verifyPurchase(props))
@@ -200,19 +195,6 @@ class OpenIapMauiModule(context: Context) {
 
     fun consumePurchaseAndroid(purchaseToken: String, callback: ResultCallback) = run(callback) {
         wrapBool(module.consumePurchaseAndroid(purchaseToken))
-    }
-
-    fun checkAlternativeBillingAvailabilityAndroid(callback: ResultCallback) = run(callback) {
-        wrapBool(module.checkAlternativeBillingAvailability())
-    }
-
-    fun showAlternativeBillingDialogAndroid(callback: ResultCallback) = run(callback) {
-        val activity = currentActivityOrThrow("showAlternativeBillingDialogAndroid")
-        wrapBool(module.showAlternativeBillingInformationDialog(activity))
-    }
-
-    fun createAlternativeBillingTokenAndroid(callback: ResultCallback) = run(callback) {
-        wrapNullableString(module.createAlternativeBillingReportingToken())
     }
 
     fun isBillingProgramAvailableAndroid(programJson: String, callback: ResultCallback) = run(callback) {

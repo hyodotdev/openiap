@@ -34,15 +34,7 @@ class FakeAndroidJsonPlugin:
 	func requestPurchase(params_json: String) -> String:
 		last_method = "requestPurchase"
 		last_args = [params_json]
-		return _respond(
-			"requestPurchase",
-			_respond("requestPurchaseJson", JSON.stringify({"success": true}))
-		)
-
-	func requestPurchaseJson(params_json: String) -> String:
-		last_method = "requestPurchaseJson"
-		last_args = [params_json]
-		return _respond("requestPurchaseJson", JSON.stringify({"success": true}))
+		return _respond("requestPurchase", JSON.stringify({"success": true}))
 
 	func finishTransaction(purchase_json: String, is_consumable: bool) -> String:
 		last_args = [purchase_json, is_consumable]
@@ -60,12 +52,6 @@ class FakeAndroidJsonPlugin:
 		last_args = [ids_json]
 		return _respond("hasActiveSubscriptions", JSON.stringify({"hasActive": false}))
 
-	func checkAlternativeBillingAvailabilityAndroid() -> String:
-		return _respond("checkAlternativeBillingAvailabilityAndroid", "{}")
-
-	func createAlternativeBillingTokenAndroid() -> String:
-		return _respond("createAlternativeBillingTokenAndroid", "{}")
-
 	func launchExternalLinkAndroid(params_json: String) -> String:
 		last_args = [params_json]
 		return _respond("launchExternalLinkAndroid", "{}")
@@ -76,6 +62,10 @@ class FakeAndroidJsonPlugin:
 	func isBillingProgramAvailableAndroid(program) -> String:
 		last_args = [program]
 		return _respond("isBillingProgramAvailableAndroid", "{}")
+
+	func createBillingProgramReportingDetailsAndroid(program) -> String:
+		last_args = [program]
+		return _respond("createBillingProgramReportingDetailsAndroid", "{}")
 
 	func verifyPurchase(props_json: String) -> String:
 		last_args = [props_json]
@@ -98,8 +88,8 @@ class FakeImmediateIOSPlugin:
 	func getReceiptDataIOS() -> String:
 		return responses.get("getReceiptDataIOS", "0")
 
-	func getStorefrontIOS() -> String:
-		return responses.get("getStorefrontIOS", "0")
+	func getStorefront() -> String:
+		return responses.get("getStorefront", "0")
 
 	func fetchProducts(request_json: String) -> String:
 		responses["last_fetch_request"] = request_json
@@ -140,7 +130,6 @@ func _run_all_tests() -> void:
 	# Pure helpers (no fake plugin required)
 	test_canonical_purchase_envelopes()
 	test_product_query_type_normalization()
-	test_legacy_warning_deduplication()
 	test_normalize_purchase_dict()
 	test_normalize_android_purchase_dict()
 	test_parse_request_id()
@@ -158,14 +147,13 @@ func _run_all_tests() -> void:
 	test_request_purchase_unsupported_platform()
 	test_ios_request_purchase_requires_sku()
 	test_android_purchase_uses_canonical_native_wire()
-	test_legacy_purchase_inputs_normalize_with_canonical_precedence()
-	test_ios_legacy_purchase_inputs_emit_canonical_apple_payload()
+	test_removed_purchase_inputs_are_rejected()
 	test_ambiguous_purchase_branches_are_rejected()
 	await test_android_finish_transaction_envelopes()
 	await test_android_available_purchases_envelope()
 	await test_android_active_subscriptions_envelope()
 	await test_android_has_active_subscriptions_envelope()
-	test_android_alternative_billing_envelopes()
+	test_android_billing_program_envelopes()
 	test_android_open_redeem_offer_code_envelope()
 	await test_android_verify_purchase_envelope()
 	test_android_is_billing_program_available_envelope()
@@ -236,13 +224,8 @@ func test_product_query_type_normalization() -> void:
 	)
 	_assert_equal(
 		GodotIapPlugin._normalize_product_query_type("in_app", "all"),
-		"in-app",
-		"The 2.x in_app alias should normalize to in-app"
-	)
-	_assert_equal(
-		GodotIapPlugin._normalize_product_query_type("subscription", "all"),
-		"subs",
-		"The 2.x subscription alias should normalize to subs"
+		"",
+		"Removed product query aliases should be rejected"
 	)
 	_assert_equal(
 		GodotIapPlugin._normalize_product_query_type("typo", "all"),
@@ -253,17 +236,6 @@ func test_product_query_type_normalization() -> void:
 		GodotIapPlugin._normalize_product_query_type("all", "in-app", false),
 		"",
 		"A purchase request should reject the mixed all query type"
-	)
-
-
-func test_legacy_warning_deduplication() -> void:
-	GodotIapPlugin._emitted_legacy_wire_warnings.clear()
-	GodotIapPlugin._warn_legacy_wire_input("legacy-key", "canonical-key")
-	GodotIapPlugin._warn_legacy_wire_input("legacy-key", "canonical-key")
-	_assert_equal(
-		GodotIapPlugin._emitted_legacy_wire_warnings.size(),
-		1,
-		"Each legacy migration warning should be emitted once per process"
 	)
 
 
@@ -439,7 +411,7 @@ func _make_purchase_props(sku: String) -> Variant:
 
 func test_android_request_purchase_success_envelope() -> void:
 	var fake = _install_android_fake()
-	fake.responses["requestPurchaseJson"] = JSON.stringify({
+	fake.responses["requestPurchase"] = JSON.stringify({
 		"success": true,
 		"id": "txn-1",
 		"transactionId": "txn-1",
@@ -474,7 +446,7 @@ func test_android_request_purchase_success_envelope() -> void:
 
 func test_android_request_purchase_error_envelope() -> void:
 	var fake = _install_android_fake()
-	fake.responses["requestPurchaseJson"] = JSON.stringify({
+	fake.responses["requestPurchase"] = JSON.stringify({
 		"success": false,
 		"error": "User cancelled the purchase",
 		"code": "user-cancelled",
@@ -496,7 +468,7 @@ func test_android_request_purchase_error_envelope() -> void:
 
 func test_android_request_purchase_empty_response() -> void:
 	var fake = _install_android_fake()
-	fake.responses["requestPurchaseJson"] = ""
+	fake.responses["requestPurchase"] = ""
 	var errors: Array[Dictionary] = []
 	var capture_error = func(error: Dictionary) -> void:
 		errors.append(error)
@@ -513,7 +485,7 @@ func test_android_request_purchase_empty_response() -> void:
 
 func test_android_request_purchase_unparseable_response() -> void:
 	var fake = _install_android_fake()
-	fake.responses["requestPurchaseJson"] = "[]"
+	fake.responses["requestPurchase"] = "[]"
 
 	var result = GodotIapPlugin._request_purchase_raw({
 		"type": "in-app",
@@ -552,7 +524,6 @@ func test_ios_request_purchase_requires_sku() -> void:
 
 func test_android_purchase_uses_canonical_native_wire() -> void:
 	var fake = _install_android_fake()
-	GodotIapPlugin._emitted_legacy_wire_warnings.clear()
 	var result = GodotIapPlugin._request_purchase_raw({
 		"type": "in-app",
 		"requestPurchase": {
@@ -569,82 +540,23 @@ func test_android_purchase_uses_canonical_native_wire() -> void:
 	_assert_equal(sent.get("offerToken"), "canonical-offer-token", "One-time offerToken should use its canonical key")
 	_assert_false(sent.has("offerTokenArr"), "Canonical calls should never emit legacy offerTokenArr")
 	_assert_false(sent.has("replacementMode"), "Missing replacement options should remain absent")
-	_assert_true(
-		GodotIapPlugin._emitted_legacy_wire_warnings.is_empty(),
-		"Canonical purchase input should not emit compatibility warnings"
-	)
 	_uninstall_fake()
 
 
-func test_legacy_purchase_inputs_normalize_with_canonical_precedence() -> void:
+func test_removed_purchase_inputs_are_rejected() -> void:
 	var fake = _install_android_fake()
-	var canonical_result = GodotIapPlugin._request_purchase_raw({
-		"type": "inapp",
-		"request": {"android": {"skus": ["ignored-envelope"]}},
-		"requestPurchase": {
-			"android": {"skus": ["ignored-platform"]},
-			"google": {
-				"skus": ["canonical"],
-				"obfuscatedAccountId": "canonical-account",
-				"obfuscatedAccountIdAndroid": "legacy-account",
-				"obfuscatedProfileId": "canonical-profile",
-				"obfuscatedProfileIdAndroid": "legacy-profile",
-				"purchaseToken": "canonical-token",
-				"purchaseTokenAndroid": "legacy-token",
-				"replacementMode": 3,
-				"replacementModeAndroid": 4,
-			},
-		},
-	})
-	_assert_equal(canonical_result.get("success"), true, "Known 2.x aliases should remain compatible")
-	var canonical_sent = JSON.parse_string(fake.last_args[0])
-	_assert_equal(canonical_sent.get("skus"), ["canonical"], "Canonical platform payload should win")
-	_assert_equal(canonical_sent.get("obfuscatedAccountId"), "canonical-account", "Canonical account ID should win")
-	_assert_equal(canonical_sent.get("obfuscatedProfileId"), "canonical-profile", "Canonical profile ID should win")
-	_assert_equal(canonical_sent.get("purchaseToken"), "canonical-token", "Canonical purchase token should win")
-	_assert_equal(canonical_sent.get("replacementMode"), 3, "Canonical replacementMode should win during 2.x")
-
-	var legacy_result = GodotIapPlugin._request_purchase_raw({
-		"type": "subscription",
+	var removed_envelope = GodotIapPlugin._request_purchase_raw({
+		"type": "in-app",
 		"request": {
-			"android": {
-				"skus": ["legacy.sub"],
-				"offer_token": "legacy-offer",
-				"obfuscatedAccountIdAndroid": "legacy-account",
-				"purchaseTokenAndroid": "legacy-token",
-				"replacementModeAndroid": 5,
-			},
+			"google": {"skus": ["removed-envelope"]},
 		},
 	})
-	_assert_equal(legacy_result.get("success"), true, "Legacy-only 2.x requests should still dispatch")
-	var legacy_sent = JSON.parse_string(fake.last_args[0])
-	_assert_equal(legacy_sent.get("type"), "subs", "Legacy subscription should normalize to subs")
 	_assert_equal(
-		legacy_sent.get("subscriptionOffers"),
-		[{"sku": "legacy.sub", "offerToken": "legacy-offer"}],
-		"Legacy singular subscription offers should normalize to subscriptionOffers"
+		removed_envelope.get("success", false),
+		false,
+		"The removed request envelope must not dispatch"
 	)
-	_assert_equal(legacy_sent.get("obfuscatedAccountId"), "legacy-account", "Legacy account ID should remain compatible")
-	_assert_equal(legacy_sent.get("purchaseToken"), "legacy-token", "Legacy purchase token should remain compatible")
-	_assert_equal(legacy_sent.get("replacementMode"), 5, "Legacy replacement mode should remain compatible in 2.x")
-	_assert_false(legacy_sent.has("offerTokenArr"), "Even legacy GDS input should emit canonical native keys")
-	_uninstall_fake()
-
-
-func test_ios_legacy_purchase_inputs_emit_canonical_apple_payload() -> void:
-	var fake = _install_ios_fake()
-	var result = GodotIapPlugin._request_purchase_raw({
-		"type": "inapp",
-		"request": {
-			"ios": {"sku": "legacy.ios"},
-		},
-	})
-	_assert_equal(result.get("success"), true, "Legacy iOS 2.x requests should still dispatch")
-	var sent = JSON.parse_string(fake.responses.get("last_purchase_request", "{}"))
-	var platforms = sent.get("requestPurchase", {})
-	_assert_true(platforms.has("apple"), "Legacy ios input should normalize to canonical apple")
-	_assert_false(platforms.has("ios"), "The GDS-to-native payload should not emit ios")
-	_assert_equal(platforms.get("apple", {}).get("sku"), "legacy.ios", "The SKU should survive normalization")
+	_assert_equal(fake.last_method, "", "Removed purchase input must not reach the native plugin")
 	_uninstall_fake()
 
 
@@ -754,18 +666,30 @@ func test_android_has_active_subscriptions_envelope() -> void:
 	_uninstall_fake()
 
 
-func test_android_alternative_billing_envelopes() -> void:
+func test_android_billing_program_envelopes() -> void:
 	var fake = _install_android_fake()
 
-	fake.responses["checkAlternativeBillingAvailabilityAndroid"] = JSON.stringify({"isAvailable": true})
-	_assert_true(GodotIapPlugin.check_alternative_billing_availability_android(), "isAvailable envelopes should map to true")
-	fake.responses["checkAlternativeBillingAvailabilityAndroid"] = "[]"
-	_assert_false(GodotIapPlugin.check_alternative_billing_availability_android(), "Malformed envelopes should map to false")
-
-	fake.responses["createAlternativeBillingTokenAndroid"] = JSON.stringify({"success": true, "token": "abt-1"})
-	_assert_equal(GodotIapPlugin.create_alternative_billing_token_android(), "abt-1", "Token envelopes should return the token")
-	fake.responses["createAlternativeBillingTokenAndroid"] = JSON.stringify({"success": false})
-	_assert_equal(GodotIapPlugin.create_alternative_billing_token_android(), "", "Failed token envelopes should return an empty string")
+	fake.responses["createBillingProgramReportingDetailsAndroid"] = JSON.stringify({
+		"billingProgram": "external-offer",
+		"externalTransactionToken": "abt-1",
+	})
+	var reporting = GodotIapPlugin.create_billing_program_reporting_details_android(
+		Types.BillingProgramAndroid.EXTERNAL_OFFER
+	)
+	_assert_true(
+		reporting is Types.BillingProgramReportingDetailsAndroid,
+		"Reporting-details envelopes should map to the canonical type"
+	)
+	_assert_equal(
+		reporting.external_transaction_token,
+		"abt-1",
+		"Reporting-details envelopes should preserve the external transaction token"
+	)
+	_assert_equal(
+		fake.last_args[0],
+		"external-offer",
+		"The billing program should be serialized for the native call"
+	)
 
 	var params = Types.LaunchExternalLinkParamsAndroid.new()
 	params.billing_program = Types.BillingProgramAndroid.EXTERNAL_OFFER
@@ -895,13 +819,13 @@ func test_ios_immediate_payload_envelope() -> void:
 
 func test_ios_missing_request_id_envelope() -> void:
 	var fake = _install_ios_fake()
-	fake.responses["getStorefrontIOS"] = "0"
+	fake.responses["getStorefront"] = "0"
 	var errors: Array[Dictionary] = []
 	var capture_error = func(error: Dictionary) -> void:
 		errors.append(error)
 	GodotIapPlugin.purchase_error.connect(capture_error)
 
-	_assert_equal(await GodotIapPlugin.get_storefront_ios(), "", "Payloads without a requestId should fail closed")
+	_assert_equal(await GodotIapPlugin.get_storefront(), "", "Payloads without a requestId should fail closed")
 	_assert_equal(errors.size(), 1, "Payloads without a requestId should emit purchase_error")
 	_assert_equal(errors[0].get("code"), "service-error", "Missing requestId should map to service-error")
 	_assert_true(

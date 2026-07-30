@@ -1,7 +1,3 @@
-// This runtime reads generated 2.x aliases only to preserve compatibility.
-// Consumers still receive compiler warnings; remove the reads in kmp-iap 3.
-@file:Suppress("DEPRECATION", "OVERRIDE_DEPRECATION")
-
 package io.github.hyochan.kmpiap
 
 import android.app.Activity
@@ -33,7 +29,6 @@ import com.android.billingclient.api.QueryProductDetailsResult
 import com.android.billingclient.api.QueryPurchasesParams
 import com.android.billingclient.api.UserChoiceBillingListener
 import io.github.hyochan.kmpiap.openiap.ActiveSubscription
-import io.github.hyochan.kmpiap.openiap.AlternativeBillingModeAndroid
 import io.github.hyochan.kmpiap.ConnectionResult
 import io.github.hyochan.kmpiap.openiap.AndroidSubscriptionOfferInput
 import io.github.hyochan.kmpiap.openiap.DeepLinkOptions
@@ -55,7 +50,6 @@ import io.github.hyochan.kmpiap.openiap.MutationEndConnectionHandler
 import io.github.hyochan.kmpiap.openiap.MutationInitConnectionHandler
 import io.github.hyochan.kmpiap.openiap.MutationFinishTransactionHandler
 import io.github.hyochan.kmpiap.openiap.MutationRequestPurchaseHandler
-import io.github.hyochan.kmpiap.openiap.MutationValidateReceiptHandler
 import io.github.hyochan.kmpiap.openiap.MutationHandlers
 import io.github.hyochan.kmpiap.openiap.Product
 import io.github.hyochan.kmpiap.openiap.ProductOrSubscription
@@ -223,22 +217,8 @@ internal fun isSubscriptionReplacementTargetCountValid(
 
 internal fun resolveBillingProgramForConnection(
     requestedProgram: BillingProgramAndroid?,
-    deprecatedMode: AlternativeBillingModeAndroid,
 ): BillingProgramAndroid? = requestedProgram
     ?.takeUnless { it == BillingProgramAndroid.Unspecified }
-    ?.takeUnless {
-        deprecatedMode == AlternativeBillingModeAndroid.UserChoice &&
-            it == BillingProgramAndroid.UserChoiceBilling
-    }
-
-internal fun hasLegacyBillingProgramConflict(
-    deprecatedMode: AlternativeBillingModeAndroid,
-    requestedProgram: BillingProgramAndroid?,
-): Boolean = deprecatedMode != AlternativeBillingModeAndroid.None &&
-    requestedProgram != null &&
-    requestedProgram != BillingProgramAndroid.Unspecified &&
-    !(deprecatedMode == AlternativeBillingModeAndroid.UserChoice &&
-        requestedProgram == BillingProgramAndroid.UserChoiceBilling)
 
 internal fun subscriptionUpdateSourceCount(
     purchaseToken: String?,
@@ -310,7 +290,6 @@ internal class InAppPurchaseAndroid(
 
     private data class ConnectionAttempt(
         val generation: Long,
-        val alternativeBillingMode: AlternativeBillingModeAndroid,
         val billingProgram: BillingProgramAndroid?,
         val billingChoiceScreenType: BillingChoiceScreenTypeAndroid,
         val completion: CompletableDeferred<Boolean> = CompletableDeferred(),
@@ -380,7 +359,6 @@ internal class InAppPurchaseAndroid(
     private fun advanceBillingSessionLocked(): BillingSessionTransition {
         connectionGeneration += 1
         isConnected = false
-        alternativeBillingMode = AlternativeBillingModeAndroid.None
         enabledBillingProgram = null
         billingChoiceScreenType = BillingChoiceScreenTypeAndroid.GoogleRendered
         emittedBillingIssueTokens.clear()
@@ -519,8 +497,6 @@ internal class InAppPurchaseAndroid(
     }
 
     @Volatile
-    private var alternativeBillingMode: AlternativeBillingModeAndroid = AlternativeBillingModeAndroid.None
-    @Volatile
     private var enabledBillingProgram: BillingProgramAndroid? = null
     @Volatile
     private var billingChoiceScreenType: BillingChoiceScreenTypeAndroid =
@@ -572,26 +548,8 @@ internal class InAppPurchaseAndroid(
                 } ?: false
             }
 
-            val requestedAlternativeMode =
-                config?.alternativeBillingModeAndroid ?: AlternativeBillingModeAndroid.None
             val configuredProgram = config?.enableBillingProgramAndroid
-            if (hasLegacyBillingProgramConflict(
-                    requestedAlternativeMode,
-                    configuredProgram,
-                )
-            ) {
-                failWith(
-                    PurchaseError(
-                        code = ErrorCode.DeveloperError,
-                        message =
-                            "alternativeBillingModeAndroid conflicts with enableBillingProgramAndroid",
-                    )
-                )
-            }
-            val requestedProgram = resolveBillingProgramForConnection(
-                configuredProgram,
-                requestedAlternativeMode,
-            )
+            val requestedProgram = resolveBillingProgramForConnection(configuredProgram)
             val requestedBillingChoiceScreenType = config?.billingChoiceScreenTypeAndroid
                 ?.takeUnless { it == BillingChoiceScreenTypeAndroid.Unspecified }
                 ?: BillingChoiceScreenTypeAndroid.GoogleRendered
@@ -608,7 +566,6 @@ internal class InAppPurchaseAndroid(
                         val transition = advanceBillingSessionLocked()
                         val created = ConnectionAttempt(
                             generation = connectionGeneration,
-                            alternativeBillingMode = requestedAlternativeMode,
                             billingProgram = requestedProgram,
                             billingChoiceScreenType = requestedBillingChoiceScreenType,
                         )
@@ -708,21 +665,6 @@ internal class InAppPurchaseAndroid(
                             handlePurchaseUpdate(sourceClient, billingResult, purchases)
                         }
                     }
-
-                when (requestedAlternativeMode) {
-                    AlternativeBillingModeAndroid.UserChoice -> {
-                        builder.enableUserChoiceBilling { userChoiceDetails ->
-                            val details = userChoiceDetails.toOpenIapDetails()
-                            deliverBillingSessionEvent(clientRef.get(), attempt.generation) {
-                                _userChoiceBillingListener.tryEmit(details)
-                            }
-                        }
-                    }
-                    AlternativeBillingModeAndroid.AlternativeOnly -> {
-                        builder.enableAlternativeBillingOnly()
-                    }
-                    AlternativeBillingModeAndroid.None -> Unit
-                }
 
                 requestedProgram?.let { program ->
                     if (
@@ -889,7 +831,6 @@ internal class InAppPurchaseAndroid(
                 connectionAttempt = null
                 isConnected = connected
                 if (connected) {
-                    alternativeBillingMode = attempt.alternativeBillingMode
                     enabledBillingProgram = attempt.billingProgram
                     billingChoiceScreenType = attempt.billingChoiceScreenType
                 } else {
@@ -1004,15 +945,14 @@ internal class InAppPurchaseAndroid(
 
     private val requestPurchaseHandler: MutationRequestPurchaseHandler = { props ->
         val purchases = withContext(Dispatchers.Main) {
-            if (alternativeBillingMode == AlternativeBillingModeAndroid.AlternativeOnly) {
+            if (enabledBillingProgram == BillingProgramAndroid.ExternalOffer) {
                 failWith(
                     PurchaseError(
                         code = ErrorCode.FeatureNotSupported,
                         message =
-                            "requestPurchase cannot run Alternative Billing Only automatically. " +
-                                "Use the explicit deprecated sequence: check availability, show " +
-                                "the information dialog, complete developer payment, create a " +
-                                "reporting token, then report it from your backend.",
+                            "requestPurchase cannot run the external-offer program automatically. " +
+                                "Use isBillingProgramAvailableAndroid, launchExternalLinkAndroid, " +
+                                "and createBillingProgramReportingDetailsAndroid.",
                     )
                 )
             }
@@ -1020,15 +960,14 @@ internal class InAppPurchaseAndroid(
 
             val purchaseRequest = (props.request as? RequestPurchaseProps.Request.Purchase)?.value
             val subscriptionRequest = (props.request as? RequestPurchaseProps.Request.Subscription)?.value
-            val purchaseAndroidOptions = purchaseRequest?.google ?: purchaseRequest?.android
-            val subscriptionAndroidOptions = subscriptionRequest?.google ?: subscriptionRequest?.android
+            val purchaseAndroidOptions = purchaseRequest?.google
+            val subscriptionAndroidOptions = subscriptionRequest?.google
 
             val subscriptionOffers: List<AndroidSubscriptionOfferInput> =
                 subscriptionAndroidOptions?.subscriptionOffers.orEmpty()
 
             val purchaseToken = subscriptionAndroidOptions?.purchaseToken
             val originalExternalTransactionId = subscriptionAndroidOptions?.originalExternalTransactionId
-            val replacementMode = subscriptionAndroidOptions?.replacementMode
             val subscriptionProductReplacementParams = subscriptionAndroidOptions?.subscriptionProductReplacementParams
 
             val targetSkus: List<String> =
@@ -1271,13 +1210,12 @@ internal class InAppPurchaseAndroid(
                     originalExternalTransactionId?.takeIf { it.isNotEmpty() }?.let {
                         updateParamsBuilder.setOriginalExternalTransactionId(it)
                     }
-                    val legacyReplacementMode = resolveLegacySubscriptionReplacementMode(
+                    val replacementMode = resolveSubscriptionReplacementMode(
                         purchaseToken = purchaseToken,
                         originalExternalTransactionId = originalExternalTransactionId,
-                        replacementMode = replacementMode,
                         hasProductLevelReplacementParams = subscriptionProductReplacementParams != null
                     )
-                    legacyReplacementMode?.let { mode ->
+                    replacementMode?.let { mode ->
                         @Suppress("DEPRECATION")
                         updateParamsBuilder.setSubscriptionReplacementMode(mode)
                     }
@@ -1389,18 +1327,12 @@ internal class InAppPurchaseAndroid(
         RequestPurchaseResultPurchases(purchases)
     }
 
-    private val validateReceiptHandler: MutationValidateReceiptHandler = { options ->
-        // Deprecated alias — matches openiap-google, where validateReceipt
-        // delegates to verifyPurchase.
-        verifyPurchase(options)
-    }
-
     private val deepLinkToSubscriptionsHandler: MutationDeepLinkToSubscriptionsHandler = { options ->
         options?.let { launchDeepLinkToSubscriptions(it) }
     }
 
     private val finishTransactionHandler: MutationFinishTransactionHandler = { purchase, isConsumable ->
-        if (purchase.platform != IapPlatform.Android) {
+        if (purchase !is PurchaseAndroid) {
             failWith(
                 PurchaseError(
                     code = ErrorCode.DeveloperError,
@@ -1410,7 +1342,7 @@ internal class InAppPurchaseAndroid(
         }
         val token = purchase.purchaseToken?.takeIf { it.isNotBlank() } ?: failWith(
             PurchaseError(
-                code = ErrorCode.ReceiptFinishedFailed,
+                code = ErrorCode.PurchaseVerificationFinishFailed,
                 message = "Missing purchase token on Android purchase",
             )
         )
@@ -1625,24 +1557,6 @@ internal class InAppPurchaseAndroid(
      * @see <a href="https://openiap.dev/docs/apis/ios/subscription-status-ios">https://openiap.dev/docs/apis/ios/subscription-status-ios</a>
      */
     override suspend fun subscriptionStatusIOS(sku: String): List<SubscriptionStatusIOS> = emptyList()
-
-    /**
-     * Deprecated. Legacy App Store receipt validation. This function will be
-     * removed in kmp-iap 3.0.0.
-     *
-     * @see <a href="https://openiap.dev/docs/apis/ios/validate-receipt-ios">https://openiap.dev/docs/apis/ios/validate-receipt-ios</a>
-     */
-    @Deprecated(
-        message = "Use verifyPurchase instead. This function will be removed in kmp-iap 3.0.0.",
-    )
-    override suspend fun validateReceiptIOS(options: VerifyPurchaseProps): VerifyPurchaseResultIOS {
-        failWith(
-            PurchaseError(
-                code = ErrorCode.FeatureNotSupported,
-                message = "validateReceiptIOS is an iOS-only API. Use verifyPurchaseWithProvider for server-side verification on Android."
-            )
-        )
-    }
 
     suspend fun isPurchaseValid(purchase: Purchase): Boolean = isPurchaseTokenValid(purchase)
 
@@ -1987,7 +1901,6 @@ internal class InAppPurchaseAndroid(
             initConnection = initConnectionHandler,
             endConnection = endConnectionHandler,
             requestPurchase = requestPurchaseHandler,
-            validateReceipt = validateReceiptHandler,
             deepLinkToSubscriptions = deepLinkToSubscriptionsHandler,
             finishTransaction = finishTransactionHandler,
             acknowledgePurchaseAndroid = { token -> acknowledgePurchaseAndroid(token) },
@@ -2013,7 +1926,7 @@ internal class InAppPurchaseAndroid(
             BillingProgramAndroid.UserChoiceBilling -> throw PurchaseException(
                 PurchaseError(
                     code = ErrorCode.DeveloperError,
-                    message = "USER_CHOICE_BILLING uses AlternativeBillingMode, not BillingProgram API",
+                    message = "USER_CHOICE_BILLING is configured during initConnection, not through the BillingProgram API",
                 )
             )
             BillingProgramAndroid.ExternalOffer -> BillingClient.BillingProgram.EXTERNAL_OFFER
@@ -2130,27 +2043,11 @@ internal class InAppPurchaseAndroid(
     }
 
     /**
-     * Deprecated. Use cross-platform getStorefront instead. This function will
-     * be removed in kmp-iap 3.0.0.
-     *
-     * @see <a href="https://openiap.dev/docs/apis/ios/get-storefront-ios">https://openiap.dev/docs/apis/ios/get-storefront-ios</a>
-     */
-    @Deprecated(
-        message = "Use getStorefront instead. This function will be removed in kmp-iap 3.0.0.",
-    )
-    override suspend fun getStorefrontIOS(): String = failWith(
-        PurchaseError(
-            code = ErrorCode.FeatureNotSupported,
-            message = "getStorefrontIOS is an iOS-only API. Use getStorefront on Android.",
-        )
-    )
-
-    /**
      * Show the App Store offer code redemption sheet.
      *
      * @see <a href="https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios">https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios</a>
      */
-    override suspend fun presentCodeRedemptionSheetIOS(): Boolean = false
+    override suspend fun presentCodeRedemptionSheetIOS(): PurchaseIOS? = null
 
     suspend fun finishTransactionIOS(transactionId: String) {}
 
@@ -2169,24 +2066,6 @@ internal class InAppPurchaseAndroid(
      * @see <a href="https://openiap.dev/docs/apis/ios/get-promoted-product-ios">https://openiap.dev/docs/apis/ios/get-promoted-product-ios</a>
      */
     override suspend fun getPromotedProductIOS(): ProductIOS? = null
-
-    /**
-     * Deprecated. Use promotedProductListener and requestPurchase instead.
-     * This function will be removed in kmp-iap 3.0.0.
-     *
-     * @see <a href="https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios">https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios</a>
-     */
-    @Deprecated(
-        message = "Use promotedProductListener and requestPurchase instead. Scheduled for removal in kmp-iap 3.0.0.",
-    )
-    override suspend fun requestPurchaseOnPromotedProductIOS(): Boolean {
-        failWith(
-            PurchaseError(
-                code = ErrorCode.FeatureNotSupported,
-                message = "Use promotedProductListener + requestPurchase instead"
-            )
-        )
-    }
 
     /**
      * Present the refund request sheet (iOS 15+).
@@ -2208,17 +2087,6 @@ internal class InAppPurchaseAndroid(
      * @see <a href="https://openiap.dev/docs/apis/ios/sync-ios">https://openiap.dev/docs/apis/ios/sync-ios</a>
      */
     override suspend fun syncIOS(): Boolean = false
-
-    /**
-     * Deprecated. Use verifyPurchase instead. This function will be removed in
-     * kmp-iap 3.0.0.
-     *
-     * @see <a href="https://openiap.dev/docs/apis/validate-receipt">https://openiap.dev/docs/apis/validate-receipt</a>
-     */
-    @Deprecated(
-        message = "Use verifyPurchase instead. This function will be removed in kmp-iap 3.0.0.",
-    )
-    override suspend fun validateReceipt(options: ValidationOptions): ValidationResult = validateReceiptHandler(options)
 
     /**
      * Verify a purchase with the Google Play Developer API.
@@ -2908,102 +2776,15 @@ internal class InAppPurchaseAndroid(
     }
 
     override suspend fun userChoiceBillingAndroid(): UserChoiceBillingDetails {
-        if (alternativeBillingMode != AlternativeBillingModeAndroid.UserChoice) {
+        if (enabledBillingProgram != BillingProgramAndroid.UserChoiceBilling) {
             failWith(
                 PurchaseError(
                     code = ErrorCode.DeveloperError,
-                    message = "userChoiceBillingAndroid requires UserChoice alternative billing mode"
+                    message = "userChoiceBillingAndroid requires BillingProgramAndroid.UserChoiceBilling"
                 )
             )
         }
         return _userChoiceBillingListener.first()
-    }
-
-    // ---------------------------------------------------------------------
-    // Alternative Billing Methods (Android only)
-    // ---------------------------------------------------------------------
-
-    /**
-     * Check whether alternative billing is available for the user.
-     *
-     * @see <a href="https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android">https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android</a>
-     */
-    override suspend fun checkAlternativeBillingAvailabilityAndroid(): Boolean {
-        return withContext(Dispatchers.IO) {
-            when (alternativeBillingMode) {
-                AlternativeBillingModeAndroid.AlternativeOnly ->
-                    awaitBillingQuery { client, complete ->
-                        client.isAlternativeBillingOnlyAvailableAsync { billingResult ->
-                            complete(Result.success(
-                                billingResult.responseCode == BillingClient.BillingResponseCode.OK
-                            ))
-                        }
-                    }
-                AlternativeBillingModeAndroid.UserChoice -> {
-                    // User Choice Billing doesn't have a specific feature type constant
-                    // It's enabled via enableUserChoiceBilling() and is available if alternative billing is supported
-                    awaitBillingQuery { client, complete ->
-                        complete(Result.success(
-                            client.isFeatureSupported(
-                                BillingClient.FeatureType.ALTERNATIVE_BILLING_ONLY
-                            ).responseCode == BillingClient.BillingResponseCode.OK
-                        ))
-                    }
-                }
-                else -> false
-            }
-        }
-    }
-
-    /**
-     * Display Google's alternative billing information dialog.
-     *
-     * @see <a href="https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android">https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android</a>
-     */
-    override suspend fun showAlternativeBillingDialogAndroid(): Boolean {
-        // Only applicable for AlternativeOnly mode
-        if (alternativeBillingMode != AlternativeBillingModeAndroid.AlternativeOnly) {
-            failWith(PurchaseError(code = ErrorCode.DeveloperError, message = "showAlternativeBillingDialogAndroid is only for AlternativeOnly mode"))
-        }
-
-        return withContext(Dispatchers.Main) {
-            val activity = synchronized(purchaseLifecycleLock) { currentActivity } ?: run {
-                failWith(PurchaseError(code = ErrorCode.ActivityUnavailable, message = "Activity not available"))
-            }
-
-            awaitBillingQuery { client, complete ->
-                client.showAlternativeBillingOnlyInformationDialog(activity) { billingResult ->
-                    complete(Result.success(
-                        billingResult.responseCode == BillingClient.BillingResponseCode.OK
-                    ))
-                }
-            }
-        }
-    }
-
-    /**
-     * Create a reporting token for an alternative billing flow.
-     *
-     * @see <a href="https://openiap.dev/docs/apis/android/create-alternative-billing-token-android">https://openiap.dev/docs/apis/android/create-alternative-billing-token-android</a>
-     */
-    override suspend fun createAlternativeBillingTokenAndroid(): String? {
-        // Only applicable for AlternativeOnly mode
-        if (alternativeBillingMode != AlternativeBillingModeAndroid.AlternativeOnly) {
-            failWith(PurchaseError(code = ErrorCode.DeveloperError, message = "createAlternativeBillingTokenAndroid is only for AlternativeOnly mode. For UserChoice mode, get token from UserChoiceBillingDetails"))
-        }
-
-        return withContext(Dispatchers.IO) {
-            awaitBillingQuery { client, complete ->
-                client.createAlternativeBillingOnlyReportingDetailsAsync { billingResult, alternativeBillingDetails ->
-                    val token = if (billingResult.responseCode == BillingClient.BillingResponseCode.OK) {
-                        alternativeBillingDetails?.externalTransactionToken
-                    } else {
-                        null
-                    }
-                    complete(Result.success(token))
-                }
-            }
-        }
     }
 
     // ---------------------------------------------------------------------

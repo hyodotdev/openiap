@@ -1,11 +1,6 @@
-// This file intentionally normalizes legacy 2.x request fields. Consumers
-// still see generated compiler warnings; remove these reads in OpenIAP 3.0.
-@file:Suppress("DEPRECATION")
-
 package dev.hyo.openiap.helpers
 
 import dev.hyo.openiap.AndroidSubscriptionOfferInput
-import dev.hyo.openiap.AlternativeBillingModeAndroid
 import dev.hyo.openiap.BillingProgramAndroid
 import dev.hyo.openiap.DeveloperProvidedBillingDetailsAndroid
 import dev.hyo.openiap.DeveloperBillingOptionParamsAndroid
@@ -132,22 +127,11 @@ internal data class AndroidPurchaseArgs(
     val offerToken: String?,
     val purchaseToken: String?,
     val originalExternalTransactionId: String?,
-    val replacementMode: Int?,
     val subscriptionOffers: List<AndroidSubscriptionOfferInput>?,
     val subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid?,
     val developerBillingOption: DeveloperBillingOptionParamsAndroid?,
-    val type: ProductQueryType,
-    val useAlternativeBilling: Boolean?
+    val type: ProductQueryType
 )
-
-internal fun resolveLegacySubscriptionReplacementMode(
-    purchaseToken: String?,
-    originalExternalTransactionId: String?,
-    replacementMode: Int?,
-    hasProductLevelReplacementParams: Boolean = false
-): Int? = if (hasProductLevelReplacementParams) null else replacementMode ?: 5.takeIf {
-    !purchaseToken.isNullOrBlank() && originalExternalTransactionId.isNullOrBlank()
-}
 
 /**
  * The public schema currently exposes one product-level replacement object.
@@ -261,18 +245,6 @@ internal fun resolveBillingProgramsForConnection(
         ?.let(::add)
 }
 
-internal fun hasLegacyBillingProgramConflict(
-    deprecatedMode: AlternativeBillingModeAndroid?,
-    billingPrograms: Set<BillingProgramAndroid>,
-): Boolean {
-    val mode = deprecatedMode ?: AlternativeBillingModeAndroid.None
-    if (mode == AlternativeBillingModeAndroid.None) return false
-    return billingPrograms.any { program ->
-        !(mode == AlternativeBillingModeAndroid.UserChoice &&
-            program == BillingProgramAndroid.UserChoiceBilling)
-    }
-}
-
 /**
  * Extension function to convert RequestPurchaseProps to AndroidPurchaseArgs.
  * Shared between Play and Horizon flavors.
@@ -280,8 +252,7 @@ internal fun hasLegacyBillingProgramConflict(
 internal fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
     return when (val payload = request) {
         is RequestPurchaseProps.Request.Purchase -> {
-            // Prefer 'google' over deprecated 'android' field
-            val params = payload.value.google ?: payload.value.android
+            val params = payload.value.google
                 ?: throw IllegalArgumentException("Google purchase parameters are required (use 'google' field)")
             AndroidPurchaseArgs(
                 skus = params.skus,
@@ -291,17 +262,14 @@ internal fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
                 offerToken = params.offerToken,
                 purchaseToken = null,
                 originalExternalTransactionId = null,
-                replacementMode = null,
                 subscriptionOffers = null,
                 subscriptionProductReplacementParams = null,
                 developerBillingOption = params.developerBillingOption,
-                type = type,
-                useAlternativeBilling = useAlternativeBilling
+                type = type
             )
         }
         is RequestPurchaseProps.Request.Subscription -> {
-            // Prefer 'google' over deprecated 'android' field
-            val params = payload.value.google ?: payload.value.android
+            val params = payload.value.google
                 ?: throw IllegalArgumentException("Google subscription parameters are required (use 'google' field)")
 
             // For subscription upgrades/downgrades:
@@ -316,12 +284,10 @@ internal fun RequestPurchaseProps.toAndroidPurchaseArgs(): AndroidPurchaseArgs {
                 offerToken = null,
                 purchaseToken = params.purchaseToken,
                 originalExternalTransactionId = params.originalExternalTransactionId,
-                replacementMode = params.replacementMode,
                 subscriptionOffers = params.subscriptionOffers,
                 subscriptionProductReplacementParams = params.subscriptionProductReplacementParams,
                 developerBillingOption = params.developerBillingOption,
-                type = type,
-                useAlternativeBilling = useAlternativeBilling
+                type = type
             )
         }
     }

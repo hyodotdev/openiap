@@ -25,40 +25,6 @@ import dev.hyo.openiap.ExternalLinkLaunchModeAndroid as OpenIapExternalLinkLaunc
 import dev.hyo.openiap.ExternalLinkTypeAndroid as OpenIapExternalLinkType
 import dev.hyo.openiap.LaunchExternalLinkParamsAndroid as OpenIapLaunchExternalLinkParams
 
-internal fun normalizeVerifyPurchaseWithProviderProps(
-    props: Map<String, Any?>,
-): Map<String, Any?> {
-    val legacyKeys =
-        listOf("amazon", "apiKey", "apple", "baseUrl", "google", "includeClientPayload")
-    val suppliedLegacyKeys = legacyKeys.filter(props::containsKey)
-    if (suppliedLegacyKeys.isNotEmpty()) {
-        GodotIapLog.deprecation(
-            "verify-purchase-with-provider.flattened-iapkit",
-            "Flattened IAPKit verification keys are deprecated and will be removed in " +
-                "godot-iap 3.0.0. Nest them under `iapkit` instead.",
-        )
-    }
-    // Canonical key presence is authoritative, including an explicit null.
-    // Never revive flattened compatibility input when `iapkit` was supplied.
-    if (props.containsKey("iapkit")) return props
-
-    val legacyIapkit = linkedMapOf<String, Any?>()
-    legacyKeys.forEach { key ->
-        if (props[key] != null) {
-            legacyIapkit[key] = props[key]
-        }
-    }
-    if (legacyIapkit.isEmpty()) return props
-
-    // Compatibility bridge for callers that bypass the public GDScript wrapper.
-    // Flattened IAPKit verification keys are deprecated. Nest them under
-    // `iapkit`; remove this bridge in godot-iap 3.0.0.
-    return linkedMapOf(
-        "provider" to (props["provider"] ?: PurchaseVerificationProvider.Iapkit.toJson()),
-        "iapkit" to legacyIapkit,
-    )
-}
-
 /**
  * GodotIap - Godot plugin for in-app purchases using OpenIAP
  *
@@ -356,7 +322,6 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                         developerBillingOption = params.developerBillingOption,
                         originalExternalTransactionId = params.originalExternalTransactionId,
                         purchaseToken = params.purchaseToken,
-                        replacementMode = params.replacementMode,
                         skus = params.skus,
                         subscriptionOffers = params.subscriptionOffers.takeIf { it.isNotEmpty() },
                         subscriptionProductReplacementParams = params.subscriptionProductReplacementParams
@@ -415,17 +380,6 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             put("success", true)
             put("pending", true)
         }.toString()
-    }
-
-    @UsedByGodot
-    fun requestPurchaseJson(paramsJson: String): String {
-        GodotIapLog.deprecation(
-            key = "requestPurchaseJson",
-            message =
-                "requestPurchaseJson is deprecated and will be removed in godot-iap 3.0.0; " +
-                    "use requestPurchase instead.",
-        )
-        return requestPurchase(paramsJson)
     }
 
     @UsedByGodot
@@ -696,109 +650,6 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 }.toString()
             } catch (e: Exception) {
                 GodotIapLog.failure("consumePurchaseAndroid", e)
-                JSONObject().apply {
-                    put("success", false)
-                    put("error", e.message)
-                }.toString()
-            }
-        }
-    }
-
-    // ==========================================
-    // Android Specific - Alternative Billing
-    // ==========================================
-
-    @Suppress("DEPRECATION")
-    @UsedByGodot
-    fun checkAlternativeBillingAvailabilityAndroid(): String {
-        GodotIapLog.debug("checkAlternativeBillingAvailabilityAndroid called")
-
-        if (!isInitialized) {
-            return JSONObject().apply {
-                put("success", false)
-                put("isAvailable", false)
-                put("error", "Not initialized")
-            }.toString()
-        }
-
-        return runBlocking {
-            try {
-                val isAvailable = openIap.checkAlternativeBillingAvailability()
-                GodotIapLog.result("checkAlternativeBillingAvailabilityAndroid", isAvailable)
-                JSONObject().apply {
-                    put("success", true)
-                    put("isAvailable", isAvailable)
-                }.toString()
-            } catch (e: Exception) {
-                GodotIapLog.failure("checkAlternativeBillingAvailabilityAndroid", e)
-                JSONObject().apply {
-                    put("success", false)
-                    put("isAvailable", false)
-                    put("error", e.message)
-                }.toString()
-            }
-        }
-    }
-
-    @Suppress("DEPRECATION")
-    @UsedByGodot
-    fun showAlternativeBillingDialogAndroid(): String {
-        GodotIapLog.debug("showAlternativeBillingDialogAndroid called")
-
-        if (!isInitialized) {
-            return JSONObject().apply {
-                put("success", false)
-                put("error", "Not initialized")
-            }.toString()
-        }
-
-        val activity = activity ?: run {
-            return JSONObject().apply {
-                put("success", false)
-                put("error", "Activity not available")
-            }.toString()
-        }
-
-        return runBlocking {
-            try {
-                val userAccepted = openIap.showAlternativeBillingInformationDialog(activity)
-                GodotIapLog.result("showAlternativeBillingDialogAndroid", userAccepted)
-                JSONObject().apply {
-                    put("success", true)
-                    put("userAccepted", userAccepted)
-                }.toString()
-            } catch (e: Exception) {
-                GodotIapLog.failure("showAlternativeBillingDialogAndroid", e)
-                JSONObject().apply {
-                    put("success", false)
-                    put("error", e.message)
-                }.toString()
-            }
-        }
-    }
-
-    @Suppress("DEPRECATION")
-    @UsedByGodot
-    fun createAlternativeBillingTokenAndroid(): String {
-        GodotIapLog.debug("createAlternativeBillingTokenAndroid called")
-
-        if (!isInitialized) {
-            return JSONObject().apply {
-                put("success", false)
-                put("error", "Not initialized")
-            }.toString()
-        }
-
-        return runBlocking {
-            try {
-                val token = openIap.createAlternativeBillingReportingToken()
-                GodotIapLog.result("createAlternativeBillingTokenAndroid", "token generated")
-                JSONObject().apply {
-                    put("success", true)
-                    put("token", token ?: "")
-                }.toString()
-            } catch (e: Exception) {
-                GodotIapLog.failure("createAlternativeBillingTokenAndroid", e)
                 JSONObject().apply {
                     put("success", false)
                     put("error", e.message)
@@ -1302,9 +1153,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                     }
                 }
 
-                val propsMap = normalizeVerifyPurchaseWithProviderProps(
-                    jsonBridge.objectToMap(JSONObject(propsJson)),
-                )
+                val propsMap = jsonBridge.objectToMap(JSONObject(propsJson))
                 val providerProps = VerifyPurchaseWithProviderProps.fromJson(propsMap)
                     ?: throw IllegalArgumentException("Invalid verifyPurchaseWithProvider options")
 

@@ -254,74 +254,6 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     // MARK: - Purchase Methods
 
     @Callable
-    @available(*, deprecated, message: "Use requestPurchaseWithPayload instead. Scheduled for removal in godot-iap 3.0.0.")
-    public func requestPurchase(sku: String) -> String {
-        GodotIapLog.deprecation(
-            "requestPurchase(sku:)",
-            "requestPurchase(sku:) is deprecated and will be removed in godot-iap 3.0.0; " +
-                "use requestPurchaseWithPayload instead."
-        )
-        GodotIapLog.payload("requestPurchase", payload: sku)
-
-        Task { [weak self] in
-            do {
-                guard !sku.isEmpty else {
-                    await self?.emitPurchaseError(code: ErrorCode.developerError.rawValue, message: "SKU not provided")
-                    return
-                }
-
-                // Keep the legacy callable compatible while emitting the
-                // canonical Apple platform payload.
-                let purchaseProps = RequestPurchaseProps(
-                    request: .purchase(RequestPurchasePropsByPlatforms(
-                        apple: RequestPurchaseIosProps(sku: sku)
-                    ))
-                )
-
-                let result = try await self?.openIap.requestPurchase(purchaseProps)
-
-                // Note: Don't emit purchaseUpdated here.
-                // The purchaseUpdatedListener will handle it to avoid duplicate signals.
-                switch result {
-                case .purchase(let purchase):
-                    if purchase == nil {
-                        await self?.emitPurchaseError(
-                            code: ErrorCode.userCancelled.rawValue,
-                            message: "Purchase was cancelled",
-                            productId: sku
-                        )
-                    }
-                    // If purchase succeeded, purchaseUpdatedListener will emit the signal
-                case .purchases(let purchases):
-                    if purchases?.isEmpty ?? true {
-                        await self?.emitPurchaseError(
-                            code: ErrorCode.userCancelled.rawValue,
-                            message: "Purchase was cancelled",
-                            productId: sku
-                        )
-                    }
-                    // If purchases succeeded, purchaseUpdatedListener will emit the signal
-                case .none:
-                    await self?.emitPurchaseError(
-                        code: ErrorCode.userCancelled.rawValue,
-                        message: "Purchase was cancelled",
-                        productId: sku
-                    )
-                }
-
-            } catch let error as PurchaseError {
-                // OpenIAP requestPurchase emits its canonical error exactly once
-                // through purchaseErrorListener before throwing.
-                GodotIapLog.failure("requestPurchase", error: error)
-            } catch {
-                GodotIapLog.failure("requestPurchase", error: error)
-            }
-        }
-
-        return "{\"status\": \"pending\"}"
-    }
-
-    @Callable
     public func requestPurchaseWithPayload(argsJson: String) -> String {
         GodotIapLog.payload("requestPurchaseWithPayload", payload: argsJson)
 
@@ -612,6 +544,35 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
     }
 
+    @Callable
+    public func getStorefront() -> String {
+        GodotIapLog.payload("Getting storefront", payload: nil)
+        let requestId = UUID().uuidString
+
+        Task { [weak self] in
+            guard let self = self else { return }
+            do {
+                let countryCode = try await self.openIap.getStorefront()
+                await MainActor.run { [self] in
+                    let dict = self.asyncResultDictionary(
+                        method: "getStorefront",
+                        requestId: requestId
+                    )
+                    dict["countryCode"] = Variant(countryCode)
+                    self.productsFetched.emit(dict)
+                }
+            } catch {
+                await self.emitAsyncFailure(
+                    method: "getStorefront",
+                    requestId: requestId,
+                    message: error.localizedDescription
+                )
+            }
+        }
+
+        return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
+    }
+
     // MARK: - iOS Specific Methods
 
     @Callable
@@ -782,12 +743,19 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         Task { [weak self] in
             guard let self = self else { return }
             do {
-                let result = try await self.openIap.presentCodeRedemptionSheetIOS()
+                let purchase = try await self.openIap.presentCodeRedemptionSheetIOS()
                 await MainActor.run { [self] in
                     let dict = VariantDictionary()
                     dict["method"] = Variant("presentCodeRedemptionSheetIOS")
                     dict["requestId"] = Variant(requestId)
-                    dict["success"] = Variant(result)
+                    dict["success"] = Variant(true)
+                    if let purchase,
+                       let jsonData = try? JSONSerialization.data(
+                           withJSONObject: self.purchaseIOSToDictionary(purchase)
+                       ),
+                       let jsonString = String(data: jsonData, encoding: .utf8) {
+                        dict["purchaseJson"] = Variant(jsonString)
+                    }
                     self.productsFetched.emit(dict)
                 }
             } catch {
@@ -988,40 +956,6 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
     }
 
-    @available(*, deprecated, message: "Use getStorefront instead. Scheduled for removal in godot-iap 3.0.0.")
-    @Callable
-    public func getStorefrontIOS() -> String {
-        GodotIapLog.payload("Getting storefront", payload: nil)
-        let requestId = UUID().uuidString
-
-        Task { [weak self] in
-            guard let self = self else { return }
-            do {
-                let storefront = try await self.openIap.getStorefrontIOS()
-                await MainActor.run { [self] in
-                    let dict = VariantDictionary()
-                    dict["method"] = Variant("getStorefrontIOS")
-                    dict["requestId"] = Variant(requestId)
-                    dict["success"] = Variant(true)
-                    dict["storefront"] = Variant(storefront)
-                    self.productsFetched.emit(dict)
-                }
-            } catch {
-                GodotIapLog.debug("[GodotIap] getStorefrontIOS error: \(error.localizedDescription)")
-                await MainActor.run { [self] in
-                    let dict = VariantDictionary()
-                    dict["method"] = Variant("getStorefrontIOS")
-                    dict["requestId"] = Variant(requestId)
-                    dict["success"] = Variant(false)
-                    dict["error"] = Variant(error.localizedDescription)
-                    self.productsFetched.emit(dict)
-                }
-            }
-        }
-
-        return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
-    }
-
     @Callable
     public func getAppTransactionIOS() -> String {
         GodotIapLog.payload("Getting app transaction", payload: nil)
@@ -1191,39 +1125,6 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     requestId: requestId,
                     message: error.localizedDescription
                 )
-            }
-        }
-
-        return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
-    }
-
-    @available(*, deprecated, message: "Use promotedProductIOS signal with requestPurchase instead. Scheduled for removal in godot-iap 3.0.0.")
-    @Callable
-    public func requestPurchaseOnPromotedProductIOS() -> String {
-        GodotIapLog.payload("Requesting purchase on promoted product", payload: nil)
-        let requestId = UUID().uuidString
-
-        Task { [weak self] in
-            guard let self = self else { return }
-            do {
-                let result = try await self.openIap.requestPurchaseOnPromotedProductIOS()
-                await MainActor.run { [self] in
-                    let dict = VariantDictionary()
-                    dict["method"] = Variant("requestPurchaseOnPromotedProductIOS")
-                    dict["requestId"] = Variant(requestId)
-                    dict["success"] = Variant(result)
-                    self.productsFetched.emit(dict)
-                }
-            } catch {
-                GodotIapLog.debug("[GodotIap] requestPurchaseOnPromotedProductIOS error: \(error.localizedDescription)")
-                await MainActor.run { [self] in
-                    let dict = VariantDictionary()
-                    dict["method"] = Variant("requestPurchaseOnPromotedProductIOS")
-                    dict["requestId"] = Variant(requestId)
-                    dict["success"] = Variant(false)
-                    dict["error"] = Variant(error.localizedDescription)
-                    self.productsFetched.emit(dict)
-                }
             }
         }
 
@@ -1565,48 +1466,6 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             }
         }
 
-        return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
-    }
-
-    // MARK: - StoreKit 2 Deprecated / Alias APIs
-
-    @available(*, deprecated, message: "Use verifyPurchase instead. Scheduled for removal in godot-iap 3.0.0.")
-    @Callable
-    public func validateReceiptIOS(propsJson: String) -> String {
-        GodotIapLog.payload("validateReceiptIOS", payload: propsJson)
-        let requestId = UUID().uuidString
-        Task { [weak self] in
-            guard let self = self else { return }
-            do {
-                guard let data = propsJson.data(using: .utf8) else {
-                    throw NSError(domain: "GodotIap", code: -1, userInfo: [NSLocalizedDescriptionKey: "Invalid JSON"])
-                }
-                let props = try JSONDecoder().decode(VerifyPurchaseProps.self, from: data)
-                let result = try await self.openIap.validateReceiptIOS(props)
-                let resultDict = OpenIapSerialization.encode(result)
-                await MainActor.run { [self] in
-                    let dict = VariantDictionary()
-                    dict["method"] = Variant("validateReceiptIOS")
-                    dict["requestId"] = Variant(requestId)
-                    dict["success"] = Variant(true)
-                    if let jsonData = try? JSONSerialization.data(withJSONObject: resultDict),
-                       let jsonString = String(data: jsonData, encoding: .utf8) {
-                        dict["resultJson"] = Variant(jsonString)
-                    }
-                    self.productsFetched.emit(dict)
-                }
-            } catch {
-                GodotIapLog.debug("[GodotIap] validateReceiptIOS error: \(error.localizedDescription)")
-                await MainActor.run { [self] in
-                    let dict = VariantDictionary()
-                    dict["method"] = Variant("validateReceiptIOS")
-                    dict["requestId"] = Variant(requestId)
-                    dict["success"] = Variant(false)
-                    dict["error"] = Variant(error.localizedDescription)
-                    self.productsFetched.emit(dict)
-                }
-            }
-        }
         return "{\"status\": \"pending\", \"requestId\": \"\(requestId)\"}"
     }
 
@@ -1973,9 +1832,9 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     private func purchaseProductId(from props: RequestPurchaseProps) -> String? {
         switch props.request {
         case .purchase(let platforms):
-            return platforms.apple?.sku ?? platforms.ios?.sku
+            return platforms.apple?.sku
         case .subscription(let platforms):
-            return platforms.apple?.sku ?? platforms.ios?.sku
+            return platforms.apple?.sku
         }
     }
 
@@ -2012,7 +1871,6 @@ public class GodotIap: RefCounted, @unchecked Sendable {
         dict["transactionId"] = Variant(transactionId)
         dict["transactionDate"] = Variant(transactionDate)
         dict["purchaseState"] = Variant(purchase.purchaseState.rawValue)
-        dict["platform"] = Variant("ios")
         dict["store"] = Variant(store)
         dict["quantity"] = Variant(quantity)
         dict["isAutoRenewing"] = Variant(isAutoRenewing)
@@ -2177,9 +2035,6 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     }
 
     private func purchaseIOSToDictionary(_ purchase: PurchaseIOS) -> [String: Any] {
-        // Use OpenIapSerialization to get proper dictionary representation
-        var dict = OpenIapSerialization.encode(purchase)
-        dict["platform"] = "ios"
-        return dict
+        OpenIapSerialization.encode(purchase)
     }
 }

@@ -299,8 +299,7 @@ class BillingConvertersTest {
             platform = IapPlatform.Android,
             type = ProductType.Subs,
             nameAndroid = "Premium Monthly",
-            subscriptionOffers = listOf(subscriptionOffer),
-            subscriptionOfferDetailsAndroid = emptyList()
+            subscriptionOffers = listOf(subscriptionOffer)
         )
 
         // displayPrice should be the base/recurring price, not the trial price
@@ -386,8 +385,7 @@ class BillingConvertersTest {
             platform = IapPlatform.Android,
             type = ProductType.Subs,
             nameAndroid = "Empty Sub",
-            subscriptionOffers = emptyList(),
-            subscriptionOfferDetailsAndroid = emptyList()
+            subscriptionOffers = emptyList()
         )
 
         assertEquals("", product.displayPrice)

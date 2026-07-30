@@ -80,14 +80,14 @@ export const buildPurchaseRows = (purchase: Purchase): PurchaseDetailRow[] => {
   pushRow(rows, 'id', purchase.id);
   pushRow(rows, 'transactionId', transactionId);
   pushRow(rows, 'productId', purchase.productId);
-  pushRow(rows, 'platform', purchase.platform ?? 'unknown');
+  pushRow(rows, 'store', purchase.store);
   pushRow(rows, 'ids', formatList(purchase.ids ?? undefined));
   pushRow(rows, 'transactionDate', formatDate(purchase.transactionDate));
   pushRow(rows, 'purchaseState', normalizedState);
   pushRow(rows, 'quantity', purchase.quantity);
   pushRow(rows, 'isAutoRenewing', formatBoolean(purchase.isAutoRenewing));
 
-  const platform = (purchase.platform ?? '').toString().toLowerCase();
+  const platform = purchase.store === 'apple' ? 'ios' : 'android';
 
   if (platform === 'ios') {
     const iosPurchase = purchase as PurchaseIOS;
@@ -103,6 +103,23 @@ export const buildPurchaseRows = (purchase: Purchase): PurchaseDetailRow[] => {
     pushRow(rows, 'currencySymbolIOS', iosPurchase.currencySymbolIOS);
     pushRow(rows, 'environmentIOS', iosPurchase.environmentIOS);
     pushRow(rows, 'subscriptionGroupIdIOS', iosPurchase.subscriptionGroupIdIOS);
+    pushRow(
+      rows,
+      'bundleOriginalTransactionIdIOS',
+      iosPurchase.bundleOriginalTransactionIdIOS,
+    );
+    pushRow(rows, 'bundleProductIdIOS', iosPurchase.bundleProductIdIOS);
+    pushRow(
+      rows,
+      'bundleSubscriptionGroupIdIOS',
+      iosPurchase.bundleSubscriptionGroupIdIOS,
+    );
+    pushRow(rows, 'bundleTransactionIdIOS', iosPurchase.bundleTransactionIdIOS);
+    pushRow(
+      rows,
+      'previousOriginalTransactionIdIOS',
+      iosPurchase.previousOriginalTransactionIdIOS,
+    );
     pushRow(
       rows,
       'originalTransactionIdentifierIOS',
@@ -133,6 +150,7 @@ export const buildPurchaseRows = (purchase: Purchase): PurchaseDetailRow[] => {
       formatDate(iosPurchase.revocationDateIOS),
     );
     pushRow(rows, 'revocationReasonIOS', iosPurchase.revocationReasonIOS);
+    pushRow(rows, 'revocationTypeIOS', iosPurchase.revocationTypeIOS);
     pushRow(rows, 'webOrderLineItemIdIOS', iosPurchase.webOrderLineItemIdIOS);
     if (iosPurchase.offerIOS) {
       pushRow(rows, 'offerIOS.id', iosPurchase.offerIOS.id);

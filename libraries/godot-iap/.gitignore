@@ -21,6 +21,7 @@ build/
 *.os
 *.obj
 *.o
+*.profraw
 *.so
 *.dylib
 *.dll

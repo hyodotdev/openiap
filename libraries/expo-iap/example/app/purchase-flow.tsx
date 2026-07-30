@@ -275,10 +275,10 @@ function PurchaseFlow({
               {storefrontLoading
                 ? 'Fetching…'
                 : storefront
-                ? storefront
-                : storefrontError
-                ? 'Unavailable'
-                : 'Not available'}
+                  ? storefront
+                  : storefrontError
+                    ? 'Unavailable'
+                    : 'Not available'}
             </Text>
           </View>
           {storefrontError ? (
@@ -313,10 +313,10 @@ function PurchaseFlow({
               {verificationMethod === 'ignore'
                 ? 'None (Skip)'
                 : verificationMethod === 'local'
-                ? 'Local (Device)'
-                : verificationMethod === 'iapkit-localhost'
-                ? 'Local (IAPKit)'
-                : 'IAPKit'}
+                  ? 'Local (Device)'
+                  : verificationMethod === 'iapkit-localhost'
+                    ? 'Local (IAPKit)'
+                    : 'IAPKit'}
             </Text>
             <Text style={styles.verificationButtonHint}>Tap to change</Text>
           </TouchableOpacity>
@@ -329,8 +329,8 @@ function PurchaseFlow({
             {visibleProducts.length > 0
               ? `${visibleProducts.length} product(s) available`
               : hasHiddenNonConsumables
-              ? 'All non-consumable products already purchased'
-              : 'Loading products...'}
+                ? 'All non-consumable products already purchased'
+                : 'Loading products...'}
           </Text>
 
           {visibleProducts.map((product, index) => (
@@ -348,15 +348,15 @@ function PurchaseFlow({
                   CONSUMABLE_PRODUCT_ID_SET.has(product.id)
                     ? styles.productBadgeConsumable
                     : NON_CONSUMABLE_PRODUCT_ID_SET.has(product.id)
-                    ? styles.productBadgeNonConsumable
-                    : null,
+                      ? styles.productBadgeNonConsumable
+                      : null,
                 ]}
               >
                 {CONSUMABLE_PRODUCT_ID_SET.has(product.id)
                   ? 'Consumable product'
                   : NON_CONSUMABLE_PRODUCT_ID_SET.has(product.id)
-                  ? 'Non-consumable product'
-                  : 'In-app product'}
+                    ? 'Non-consumable product'
+                    : 'In-app product'}
               </Text>
               <View style={styles.productActions}>
                 <TouchableOpacity
@@ -557,36 +557,6 @@ function PurchaseFlow({
                       </Text>
                     </>
                   )}
-
-                  {/* iOS Discounts */}
-                  {'discountsIOS' in selectedProduct &&
-                    Array.isArray(selectedProduct.discountsIOS) &&
-                    selectedProduct.discountsIOS.length > 0 && (
-                      <View style={styles.offersSection}>
-                        <Text style={styles.offersSectionTitle}>
-                          iOS Discounts ({selectedProduct.discountsIOS.length})
-                        </Text>
-                        {selectedProduct.discountsIOS.map((discount, idx) => (
-                          <View key={idx} style={styles.offerCard}>
-                            <Text style={styles.offerTitle}>
-                              {discount.identifier}
-                            </Text>
-                            <Text style={styles.offerDetail}>
-                              Type: {discount.type}
-                            </Text>
-                            <Text style={styles.offerDetail}>
-                              Price: {discount.localizedPrice || discount.price}
-                            </Text>
-                            <Text style={styles.offerDetail}>
-                              Payment Mode: {discount.paymentMode}
-                            </Text>
-                            <Text style={styles.offerDetail}>
-                              Periods: {discount.numberOfPeriods}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
 
                   {/* Discount Offers (Cross-platform) */}
                   {'discountOffers' in selectedProduct &&

@@ -437,7 +437,7 @@ fun AlternativeBillingScreen(navController: NavController) {
             try {
                 kmpIapInstance.requestPurchase {
                     type = ProductType.InApp
-                    android {
+                    google {
                         skus = listOf(product.id)
                     }
                 }

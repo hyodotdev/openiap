@@ -23,7 +23,6 @@ import {Linking, Platform} from 'react-native';
 import {
   isProductAndroid,
   deepLinkToSubscriptionsAndroid,
-  validateReceiptAndroid,
   acknowledgePurchaseAndroid,
   openRedeemOfferCodeAndroid,
   isBillingProgramAvailableAndroid,
@@ -91,51 +90,6 @@ describe('Android Module Functions', () => {
       });
 
       (ExpoIapModule as any).deepLinkToSubscriptionsAndroid = original;
-    });
-  });
-
-  describe('validateReceiptAndroid', () => {
-    const originalFetch = (globalThis as any).fetch;
-    beforeEach(() => {
-      (globalThis as any).fetch = jest.fn();
-    });
-    afterEach(() => {
-      (globalThis as any).fetch = originalFetch as any;
-    });
-
-    it('returns JSON on success', async () => {
-      (globalThis.fetch as any as jest.Mock).mockResolvedValue({
-        ok: true,
-        json: () => Promise.resolve({purchaseState: 0}),
-      });
-
-      const res = await validateReceiptAndroid({
-        packageName: 'com.example.app',
-        productId: 'prod1',
-        productToken: 'token',
-        accessToken: 'access',
-        isSub: true,
-      });
-      expect(res).toEqual({purchaseState: 0});
-      expect((globalThis as any).fetch).toHaveBeenCalled();
-    });
-
-    it('throws with statusCode on failure', async () => {
-      (globalThis.fetch as any as jest.Mock).mockResolvedValue({
-        ok: false,
-        statusText: 'Forbidden',
-        status: 403,
-      });
-
-      await expect(
-        validateReceiptAndroid({
-          packageName: 'com.example.app',
-          productId: 'prod1',
-          productToken: 'token',
-          accessToken: 'access',
-          isSub: false,
-        }),
-      ).rejects.toMatchObject({message: 'Forbidden', statusCode: 403});
     });
   });
 
@@ -470,9 +424,8 @@ describe('Android Module Functions', () => {
           ExpoIapModule.createBillingProgramReportingDetailsAndroid as jest.Mock
         ).mockResolvedValue(mockResult);
 
-        const result = await createBillingProgramReportingDetailsAndroid(
-          'external-offer',
-        );
+        const result =
+          await createBillingProgramReportingDetailsAndroid('external-offer');
 
         expect(
           ExpoIapModule.createBillingProgramReportingDetailsAndroid,

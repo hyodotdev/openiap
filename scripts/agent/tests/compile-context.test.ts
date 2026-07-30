@@ -2,7 +2,10 @@ import { afterEach, describe, expect, test } from "bun:test";
 import * as fs from "fs";
 import * as os from "os";
 import * as path from "path";
-import { writeGeneratedFileIfChanged } from "../compile-context.js";
+import {
+  alignGeneratedOutputTimestamps,
+  writeGeneratedFileIfChanged,
+} from "../compile-context.js";
 import {
   CONTEXT_DIRECT_INPUTS,
   CONTEXT_INPUT_PATHS,
@@ -56,6 +59,39 @@ describe("writeGeneratedFileIfChanged", () => {
     const written = fs.readFileSync(outputPath, "utf-8");
     expect(written).toContain("2026-07-11T01:00:00.000Z");
     expect(written).toContain("New");
+  });
+
+  test("aligns unchanged output sets to their latest timestamp", () => {
+    const directory = fs.mkdtempSync(
+      path.join(os.tmpdir(), "openiap-context-"),
+    );
+    temporaryDirectories.push(directory);
+    const quickPath = path.join(directory, "llms.txt");
+    const fullPath = path.join(directory, "llms-full.txt");
+    fs.writeFileSync(
+      quickPath,
+      "# Quick\n\n> Generated: 2026-07-11T00:00:00.000Z\n\nBody\n",
+    );
+    fs.writeFileSync(
+      fullPath,
+      "# Full\n\n> Generated: 2026-07-11T01:00:00.000Z\n\nBody\n",
+    );
+
+    const aligned = alignGeneratedOutputTimestamps([
+      {
+        content: "# Quick\n\n> Generated: 2026-07-11T02:00:00.000Z\n\nBody",
+        filePath: quickPath,
+      },
+      {
+        content: "# Full\n\n> Generated: 2026-07-11T02:00:00.000Z\n\nBody",
+        filePath: fullPath,
+      },
+    ]);
+
+    expect(aligned.map(({ content }) => content)).toEqual([
+      "# Quick\n\n> Generated: 2026-07-11T01:00:00.000Z\n\nBody",
+      "# Full\n\n> Generated: 2026-07-11T01:00:00.000Z\n\nBody",
+    ]);
   });
 });
 

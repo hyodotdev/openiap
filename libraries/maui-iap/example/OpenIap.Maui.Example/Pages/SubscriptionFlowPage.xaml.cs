@@ -362,7 +362,7 @@ public partial class SubscriptionFlowPage : ContentPage
                 AddStatusRow(stack, "Environment:", a.EnvironmentIOS);
             }
 
-            if (a.WillExpireSoon == true)
+            if (a.DaysUntilExpirationIOS is >= 0 and <= 7)
             {
                 stack.Children.Add(new Label
                 {
@@ -856,23 +856,7 @@ public partial class SubscriptionFlowPage : ContentPage
 
         if (sub is ProductSubscriptionIOS sios)
         {
-            if (sios.SubscriptionInfoIOS?.IntroductoryOffer is { } intro)
-            {
-                AppendDetail("Introductory Offer:",
-                    $"{intro.DisplayPrice} / {intro.Period.Value} {intro.Period.Unit.ToJson()} ({intro.PaymentMode.ToJson()})");
-            }
-
-            if (sios.SubscriptionInfoIOS?.PromotionalOffers is { Count: > 0 } promos)
-            {
-                AppendDetail($"Promotional Offers ({promos.Count}):",
-                    string.Join(", ", promos.Select(x => x.Id)));
-            }
-
-            if (sios.DiscountsIOS is { Count: > 0 } discounts)
-            {
-                AppendDetail($"iOS Discounts ({discounts.Count}):",
-                    string.Join(", ", discounts.Select(x => x.Identifier)));
-            }
+            AppendDetail("Subscription Group (iOS):", sios.SubscriptionGroupIdIOS);
 
             if (sios.SubscriptionOffers is { Count: > 0 } offers)
             {
@@ -882,12 +866,6 @@ public partial class SubscriptionFlowPage : ContentPage
         }
         else if (sub is ProductSubscriptionAndroid sand)
         {
-            if (sand.SubscriptionOfferDetailsAndroid is { Count: > 0 } details)
-            {
-                AppendDetail($"Android Offer Tokens ({details.Count}):",
-                    string.Join(", ", details.Select(o => $"{o.BasePlanId}: present")));
-            }
-
             if (sand.SubscriptionOffers is { Count: > 0 } offers)
             {
                 AppendDetail($"Subscription Offers ({offers.Count}):",
@@ -1009,18 +987,7 @@ public partial class SubscriptionFlowPage : ContentPage
     {
         if (sub is not ProductSubscriptionAndroid android) return null;
 
-        var offers = android.SubscriptionOfferDetailsAndroid
-            .Where(o => !string.IsNullOrEmpty(o.OfferToken))
-            .Select(o => new AndroidSubscriptionOfferInput
-            {
-                Sku = android.Id,
-                OfferToken = o.OfferToken,
-            })
-            .ToList();
-
-        if (offers.Count > 0) return offers;
-
-        offers = android.SubscriptionOffers
+        var offers = android.SubscriptionOffers
             .Where(o => !string.IsNullOrEmpty(o.OfferTokenAndroid))
             .Select(o => new AndroidSubscriptionOfferInput
             {
@@ -1059,11 +1026,6 @@ public partial class SubscriptionFlowPage : ContentPage
 
         if (sub is ProductSubscriptionIOS ios)
         {
-            if (ios.SubscriptionInfoIOS?.SubscriptionPeriod is { } p)
-            {
-                return $"{p.Value} {p.Unit.ToJson()}";
-            }
-
             if (ios.SubscriptionPeriodUnitIOS is { } unit)
             {
                 return $"{ios.SubscriptionPeriodNumberIOS ?? "1"} {unit.ToJson()}";
@@ -1076,15 +1038,17 @@ public partial class SubscriptionFlowPage : ContentPage
     private static string? GetIntroductoryOffer(ProductSubscription sub)
     {
         if (sub is not ProductSubscriptionIOS ios) return null;
-        var offer = ios.SubscriptionInfoIOS?.IntroductoryOffer;
-        if (offer is null) return null;
+        var offer = ios.SubscriptionOffers?
+            .FirstOrDefault(candidate => candidate.Type == DiscountOfferType.Introductory);
+        if (offer?.Period is not { } period || offer.PaymentMode is not { } paymentMode)
+            return null;
 
-        var unit = offer.Period.Unit.ToJson().ToLowerInvariant();
-        return offer.PaymentMode switch
+        var unit = period.Unit.ToJson().ToLowerInvariant();
+        return paymentMode switch
         {
-            PaymentModeIOS.FreeTrial => $"{offer.PeriodCount} {unit}(s) free trial",
-            PaymentModeIOS.PayAsYouGo => $"{offer.DisplayPrice} for {offer.PeriodCount} {unit}(s)",
-            PaymentModeIOS.PayUpFront => $"{offer.DisplayPrice} for first {offer.PeriodCount} {unit}(s)",
+            PaymentMode.FreeTrial => $"{offer.PeriodCount} {unit}(s) free trial",
+            PaymentMode.PayAsYouGo => $"{offer.DisplayPrice} for {offer.PeriodCount} {unit}(s)",
+            PaymentMode.PayUpFront => $"{offer.DisplayPrice} for first {offer.PeriodCount} {unit}(s)",
             _ => null,
         };
     }

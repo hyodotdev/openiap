@@ -68,26 +68,17 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
     private var connectionReady: Boolean = false
     private var listenersAttached = false
     private val connectionMutex = Mutex()
-    private val emittedDeprecations = mutableSetOf<String>()
-
     // OpenIAP module instance
     private var openIap: OpenIapModule? = null
 
     private fun parseQueryType(raw: String?): ProductQueryType {
-        val normalized = raw?.lowercase(Locale.ROOT) ?: "in-app"
-        return when {
-            normalized == "all" -> ProductQueryType.All
-            normalized.contains("sub") -> ProductQueryType.Subs
-            normalized.contains("consumable") -> ProductQueryType.InApp
-            normalized == "in-app" -> ProductQueryType.InApp
-            normalized == "inapp" || normalized == "in_app" -> {
-                logDeprecated(
-                    "productType.$normalized",
-                    "Product type `$normalized` is deprecated. Use `in-app` instead.",
-                )
-                ProductQueryType.InApp
-            }
-            else -> ProductQueryType.InApp
+        return when (val normalized = raw?.trim()?.lowercase(Locale.ROOT)) {
+            null, "", "in-app" -> ProductQueryType.InApp
+            "subs" -> ProductQueryType.Subs
+            "all" -> ProductQueryType.All
+            else -> throw IllegalArgumentException(
+                "Unsupported product type: $normalized. Use in-app, subs, or all.",
+            )
         }
     }
 
@@ -164,7 +155,6 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
         subscriptionOffers: List<AndroidSubscriptionOfferInput>,
         purchaseToken: String?,
         originalExternalTransactionId: String? = null,
-        replacementMode: Int?,
         offerToken: String? = null,
         developerBillingOption: DeveloperBillingOptionParamsAndroid? = null,
         subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid? = null
@@ -187,20 +177,19 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 originalExternalTransactionId?.let {
                     androidPayload[KEY_ORIGINAL_EXTERNAL_TRANSACTION_ID] = it
                 }
-                replacementMode?.let { androidPayload[KEY_REPLACEMENT_MODE] = it }
                 subscriptionProductReplacementParams?.let {
                     androidPayload[KEY_SUBSCRIPTION_PRODUCT_REPLACEMENT_PARAMS] = it.toJson()
                 }
                 if (subscriptionOffers.isNotEmpty()) {
                     androidPayload[KEY_SUBSCRIPTION_OFFERS] = subscriptionOffers.map { it.toJson() }
                 }
-                root[KEY_REQUEST_SUBSCRIPTION] = mapOf(KEY_ANDROID to androidPayload)
+                root[KEY_REQUEST_SUBSCRIPTION] = mapOf(KEY_GOOGLE to androidPayload)
                 RequestPurchaseProps.fromJson(root)
             }
             ProductQueryType.InApp -> {
                 // offerToken for one-time purchase discounts (Android 8.0+)
                 offerToken?.let { androidPayload[KEY_OFFER_TOKEN] = it }
-                root[KEY_REQUEST_PURCHASE] = mapOf(KEY_ANDROID to androidPayload)
+                root[KEY_REQUEST_PURCHASE] = mapOf(KEY_GOOGLE to androidPayload)
                 RequestPurchaseProps.fromJson(root)
             }
             ProductQueryType.All -> throw IllegalArgumentException(
@@ -353,9 +342,6 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 // Parse Android billing configuration from arguments.
                 val params = call.arguments as? Map<*, *>
                 val configMap = mutableMapOf<String, Any?>()
-                params?.get("alternativeBillingModeAndroid")?.let {
-                    configMap["alternativeBillingModeAndroid"] = it
-                }
                 params?.get("enableBillingProgramAndroid")?.let {
                     configMap["enableBillingProgramAndroid"] = it
                 }
@@ -394,7 +380,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                                 OpenIapLog.warn("Error ending connection: ${e.message}", TAG)
                             }
 
-                            OpenIapLog.debug("Initializing connection with Alternative Billing mode: ${configMap.get("alternativeBillingModeAndroid") ?: "none"}", TAG)
+                            OpenIapLog.debug("Initializing connection with config: $configMap", TAG)
                             val ok = openIap?.initConnection(newConfig) ?: false
                             connectionReady = ok
                             OpenIapLog.debug("Connection initialized: $ok", TAG)
@@ -443,30 +429,10 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
 
 
         when (call.method) {
-            // Expo parity: fetchProducts(type, skuArr[])
             "fetchProducts" -> {
                 val params = call.arguments as? Map<*, *> ?: emptyMap<String, Any?>()
                 val typeStr = call.argument<String>("type")
-                val skuSource =
-                    when {
-                        params.containsKey("skus") -> params["skus"]
-                        params.containsKey("skuArr") -> {
-                            logDeprecated(
-                                "fetchProducts.skuArr",
-                                "Use `skus` instead of `skuArr`.",
-                            )
-                            params["skuArr"]
-                        }
-                        params.containsKey("productIds") -> {
-                            logDeprecated(
-                                "fetchProducts.productIds",
-                                "Use `skus` instead of `productIds`.",
-                            )
-                            params["productIds"]
-                        }
-                        else -> null
-                    }
-                val skuArr = (skuSource as? List<*>)
+                val skus = (params["skus"] as? List<*>)
                     ?.filterIsInstance<String>()
                     ?: emptyList()
                 val queryType = parseQueryType(typeStr)
@@ -478,7 +444,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                                 safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
                                 return@withBillingReady
                             }
-                            val result = iap.fetchProducts(ProductRequest(skuArr, queryType))
+                            val result = iap.fetchProducts(ProductRequest(skus, queryType))
                             val arr = fetchResultToJsonArray(result, queryType == ProductQueryType.All)
                             safe.success(arr.toString())
                         } catch (e: OpenIapError) {
@@ -549,88 +515,18 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 val params = call.arguments as? Map<*, *> ?: emptyMap<String, Any?>()
                 val typeStr = params["type"] as? String
                 val purchaseType = parsePurchaseType(typeStr)
-                fun resolveCanonicalOrLegacy(
-                    canonicalKey: String,
-                    legacyKey: String,
-                ): Any? {
-                    if (params.containsKey(canonicalKey)) {
-                        return params[canonicalKey]
-                    }
-                    if (params.containsKey(legacyKey)) {
-                        logDeprecated(
-                            "requestPurchase.$legacyKey",
-                            "Use `$canonicalKey` instead of `$legacyKey`.",
-                        )
-                        return params[legacyKey]
-                    }
-                    return null
-                }
-
                 val skus: List<String> =
-                    (resolveCanonicalOrLegacy("skus", "skuArr") as? List<*>)
+                    (params["skus"] as? List<*>)
                         ?.filterIsInstance<String>()
                         ?: emptyList()
                 val skusNormalized = skus.filter { it.isNotBlank() }
-                val obfuscatedAccountId =
-                    resolveCanonicalOrLegacy(
-                        "obfuscatedAccountId",
-                        "obfuscatedAccountIdAndroid",
-                    ) as? String
-                val obfuscatedProfileId =
-                    resolveCanonicalOrLegacy(
-                        "obfuscatedProfileId",
-                        "obfuscatedProfileIdAndroid",
-                    ) as? String
+                val obfuscatedAccountId = params["obfuscatedAccountId"] as? String
+                val obfuscatedProfileId = params["obfuscatedProfileId"] as? String
                 val isOfferPersonalized = params["isOfferPersonalized"] as? Boolean ?: false
-                val purchaseTokenAndroid =
-                    resolveCanonicalOrLegacy("purchaseToken", "purchaseTokenAndroid") as? String
+                val purchaseToken = params["purchaseToken"] as? String
                 val originalExternalTransactionId =
                     params[KEY_ORIGINAL_EXTERNAL_TRANSACTION_ID] as? String
-                val replacementModeAndroid =
-                    if (params.containsKey(KEY_SUBSCRIPTION_PRODUCT_REPLACEMENT_PARAMS)) {
-                        null
-                    } else {
-                        val legacyKey =
-                            when {
-                                params.containsKey("replacementMode") -> "replacementMode"
-                                params.containsKey("replacementModeAndroid") -> "replacementModeAndroid"
-                                else -> null
-                            }
-                        legacyKey?.let {
-                            logDeprecated(
-                                "requestPurchase.$it",
-                                "Use `subscriptionProductReplacementParams` instead of `$it`.",
-                            )
-                            (params[it] as? Number)?.toInt()
-                        }
-                    }
-                val legacyOfferTokenArr =
-                    (params["offerTokenArr"] as? List<*>)?.filterIsInstance<String>()
-                        ?: emptyList()
-                // offerToken for one-time purchase discounts (Android 8.0+).
-                // The historical array form used index zero for one-time products.
-                val offerToken =
-                    if (params.containsKey("offerToken")) {
-                        params["offerToken"] as? String
-                    } else if (
-                        purchaseType == ProductQueryType.InApp &&
-                        legacyOfferTokenArr.isNotEmpty()
-                    ) {
-                        logDeprecated(
-                            "requestPurchase.offerTokenArr.in-app",
-                            "Use `offerToken` instead of `offerTokenArr` for one-time products.",
-                        )
-                        legacyOfferTokenArr.first()
-                    } else {
-                        null
-                    }
-                val useAlternativeBilling = params["useAlternativeBilling"] as? Boolean
-                if (params.containsKey("useAlternativeBilling")) {
-                    logDeprecated(
-                        "requestPurchase.useAlternativeBilling",
-                        "Use `InitConnectionConfig.enableBillingProgramAndroid` instead.",
-                    )
-                }
+                val offerToken = params["offerToken"] as? String
 
                 // Parse developerBillingOption for External Payments (8.3.0+) or Billing Choice (9.1.0+)
                 val developerBillingOptionMap = params[KEY_DEVELOPER_BILLING_OPTION] as? Map<*, *>
@@ -684,7 +580,6 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 }
 
                 OpenIapLog.debug("requestPurchase called", TAG)
-                OpenIapLog.debug("  - useAlternativeBilling = $useAlternativeBilling", TAG)
                 OpenIapLog.debug("  - connectionReady = $connectionReady", TAG)
                 OpenIapLog.debug("  - params keys = ${params.keys.joinToString()}", TAG)
 
@@ -717,29 +612,12 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                         return@launch
                     }
                     val offers =
-                        if (params.containsKey("subscriptionOffers")) {
-                            (params["subscriptionOffers"] as? List<*>)?.mapNotNull { entry ->
-                                val map = entry as? Map<*, *> ?: return@mapNotNull null
-                                val sku = map["sku"] as? String ?: return@mapNotNull null
-                                val token = map["offerToken"] as? String ?: return@mapNotNull null
-                                AndroidSubscriptionOfferInput(sku = sku, offerToken = token)
-                            } ?: emptyList()
-                        } else if (
-                            purchaseType == ProductQueryType.Subs &&
-                            legacyOfferTokenArr.isNotEmpty()
-                        ) {
-                            logDeprecated(
-                                "requestPurchase.offerTokenArr.subs",
-                                "Use `subscriptionOffers` instead of `offerTokenArr` for subscriptions.",
-                            )
-                            skusNormalized.zip(legacyOfferTokenArr).mapNotNull { (sku, token) ->
-                                token.takeIf { it.isNotBlank() }?.let {
-                                    AndroidSubscriptionOfferInput(sku = sku, offerToken = it)
-                                }
-                            }
-                        } else {
-                            emptyList()
-                        }
+                        (params["subscriptionOffers"] as? List<*>)?.mapNotNull { entry ->
+                            val map = entry as? Map<*, *> ?: return@mapNotNull null
+                            val sku = map["sku"] as? String ?: return@mapNotNull null
+                            val token = map["offerToken"] as? String ?: return@mapNotNull null
+                            AndroidSubscriptionOfferInput(sku = sku, offerToken = token)
+                        } ?: emptyList()
 
                     val requestProps = buildRequestPurchaseProps(
                         type = purchaseType,
@@ -748,9 +626,8 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                         obfuscatedProfileId = obfuscatedProfileId,
                         isOfferPersonalized = isOfferPersonalized,
                         subscriptionOffers = offers,
-                        purchaseToken = purchaseTokenAndroid,
+                        purchaseToken = purchaseToken,
                         originalExternalTransactionId = originalExternalTransactionId,
-                        replacementMode = replacementModeAndroid,
                         offerToken = offerToken,
                         developerBillingOption = developerBillingOption,
                         subscriptionProductReplacementParams = subscriptionProductReplacementParams
@@ -801,27 +678,8 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
             }
             "deepLinkToSubscriptionsAndroid" -> {
                 val params = call.arguments as? Map<*, *>
-                val hasCanonicalSku = params?.containsKey("skuAndroid") == true
-                val canonicalSku = if (hasCanonicalSku) params?.get("skuAndroid") as? String else null
-                val legacySku = params?.get("sku") as? String
-                if (!hasCanonicalSku && legacySku != null) {
-                    logDeprecated(
-                        "deepLinkToSubscriptionsAndroid.sku",
-                        "Use skuAndroid instead of sku.",
-                    )
-                }
-                val sku = if (hasCanonicalSku) canonicalSku else legacySku
-                val hasCanonicalPackageName = params?.containsKey("packageNameAndroid") == true
-                val canonicalPackageName =
-                    if (hasCanonicalPackageName) params?.get("packageNameAndroid") as? String else null
-                val legacyPackageName = params?.get("packageName") as? String
-                if (!hasCanonicalPackageName && legacyPackageName != null) {
-                    logDeprecated(
-                        "deepLinkToSubscriptionsAndroid.packageName",
-                        "Use packageNameAndroid instead of packageName.",
-                    )
-                }
-                val pkg = if (hasCanonicalPackageName) canonicalPackageName else legacyPackageName
+                val sku = params?.get("skuAndroid") as? String
+                val pkg = params?.get("packageNameAndroid") as? String
                 scope.launch {
                     try {
                         val iap = openIap
@@ -839,10 +697,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
             "acknowledgePurchaseAndroid" -> {
                 val params = call.arguments as? Map<*, *> ?: emptyMap<String, Any?>()
                 val purchaseToken =
-                    resolveCanonicalPurchaseToken(
-                        params,
-                        operation = "acknowledgePurchaseAndroid",
-                    )?.takeIf { it.isNotBlank() }
+                    resolveCanonicalPurchaseToken(params)?.takeIf { it.isNotBlank() }
                 if (purchaseToken == null) {
                     safe.error(OpenIapError.DeveloperError.CODE, OpenIapError.DeveloperError.MESSAGE, "Missing purchaseToken")
                     return
@@ -865,10 +720,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
             "consumePurchaseAndroid" -> {
                 val params = call.arguments as? Map<*, *> ?: emptyMap<String, Any?>()
                 val purchaseToken =
-                    resolveCanonicalPurchaseToken(
-                        params,
-                        operation = "consumePurchaseAndroid",
-                    )?.takeIf { it.isNotBlank() }
+                    resolveCanonicalPurchaseToken(params)?.takeIf { it.isNotBlank() }
                 if (purchaseToken == null) {
                     safe.error(OpenIapError.DeveloperError.CODE, OpenIapError.DeveloperError.MESSAGE, "Missing purchaseToken")
                     return
@@ -886,61 +738,6 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                             put("purchaseToken", purchaseToken)
                         }
                         safe.success(resp.toString())
-                    } catch (e: Exception) {
-                        safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
-                    }
-                }
-            }
-
-            // Alternative Billing APIs
-            "checkAlternativeBillingAvailabilityAndroid" -> {
-                scope.launch {
-                    try {
-                        val iap = openIap
-                        if (iap == null) {
-                            safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
-                            return@launch
-                        }
-                        @Suppress("DEPRECATION")
-                        val isAvailable = iap.checkAlternativeBillingAvailability()
-                        safe.success(isAvailable)
-                    } catch (e: Exception) {
-                        safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
-                    }
-                }
-            }
-            "showAlternativeBillingDialogAndroid" -> {
-                scope.launch {
-                    try {
-                        val iap = openIap
-                        if (iap == null) {
-                            safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
-                            return@launch
-                        }
-                        val act = activity
-                        if (act == null) {
-                            safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, "Activity not available")
-                            return@launch
-                        }
-                        @Suppress("DEPRECATION")
-                        val userAccepted = iap.showAlternativeBillingInformationDialog(act)
-                        safe.success(userAccepted)
-                    } catch (e: Exception) {
-                        safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
-                    }
-                }
-            }
-            "createAlternativeBillingTokenAndroid" -> {
-                scope.launch {
-                    try {
-                        val iap = openIap
-                        if (iap == null) {
-                            safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
-                            return@launch
-                        }
-                        @Suppress("DEPRECATION")
-                        val token = iap.createAlternativeBillingReportingToken()
-                        safe.success(token)
                     } catch (e: Exception) {
                         safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
                     }
@@ -1127,230 +924,6 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 }
             }
 
-            // Legacy/compat purchases queries
-            "getAvailableItemsByType" -> {
-                logDeprecated("getAvailableItemsByType", "Use getAvailablePurchases() instead")
-                scope.launch {
-                    // Ensure connection for legacy path
-                    connectionMutex.withLock {
-                        try {
-                            attachListenersIfNeeded()
-                            openIap?.setActivity(activity)
-                            if (!connectionReady) {
-                                val ok = openIap?.initConnection(InitConnectionConfig()) ?: false
-                                connectionReady = ok
-                                emitConnectionUpdated(ok)
-                                if (!ok) {
-                                    safe.error(OpenIapError.InitConnection.CODE, OpenIapError.InitConnection.MESSAGE, "Failed to initialize connection")
-                                    return@launch
-                                }
-                            }
-                        } catch (e: Exception) {
-                            safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
-                            return@launch
-                        }
-                    }
-                    try {
-                        val iap = openIap
-                        if (iap == null) {
-                            safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
-                            return@launch
-                        }
-                        val purchases = iap.getAvailablePurchases(null)
-                        val arr = purchasesToJsonArray(purchases)
-                        safe.success(arr.toString())
-                    } catch (e: Exception) {
-                        safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
-                    }
-                }
-            }
-            "getPurchaseHistoryByType" -> {
-                logDeprecated("getPurchaseHistoryByType", "Use getAvailablePurchases() instead")
-                scope.launch {
-                    // Ensure connection for legacy path
-                    connectionMutex.withLock {
-                        try {
-                            attachListenersIfNeeded()
-                            openIap?.setActivity(activity)
-                            if (!connectionReady) {
-                                val ok = openIap?.initConnection(InitConnectionConfig()) ?: false
-                                connectionReady = ok
-                                emitConnectionUpdated(ok)
-                                if (!ok) {
-                                    safe.error(OpenIapError.InitConnection.CODE, OpenIapError.InitConnection.MESSAGE, "Failed to initialize connection")
-                                    return@launch
-                                }
-                            }
-                        } catch (e: Exception) {
-                            safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
-                            return@launch
-                        }
-                    }
-                    try {
-                        val iap = openIap
-                        if (iap == null) {
-                            safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
-                            return@launch
-                        }
-                        // Note: As of v6.4.6+, getAvailablePurchases returns only active purchases on Android.
-                        // Purchase history (including expired/consumed items) is not supported on Android
-                        // by the OpenIAP library. Apps should migrate to getAvailableItems() for active purchases.
-                        val purchases = iap.getAvailablePurchases(null)
-                        val arr = purchasesToJsonArray(purchases)
-                        safe.success(arr.toString())
-                    } catch (e: Exception) {
-                        safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
-                    }
-                }
-            }
-
-            // Legacy/compat purchase flow
-            "buyItemByType" -> {
-                logDeprecated("buyItemByType", "Use requestPurchase(params) instead")
-                val typeStr = call.argument<String>("type")
-                val productId: String? = call.argument<String>("productId")
-                    ?: call.argument<String>("sku")
-                    ?: call.argument<ArrayList<String>>("skus")?.firstOrNull()
-                val obfuscatedAccountId = call.argument<String>("obfuscatedAccountId")
-                val obfuscatedProfileId = call.argument<String>("obfuscatedProfileId")
-                val isOfferPersonalized = call.argument<Boolean>("isOfferPersonalized") ?: false
-
-                val requestedProductId = productId?.takeIf { it.isNotBlank() }
-                if (requestedProductId == null) {
-                    safe.error(OpenIapError.DeveloperError.CODE, OpenIapError.DeveloperError.MESSAGE, "Missing productId")
-                    return
-                }
-
-                scope.launch {
-                    // Ensure connection and listeners under mutex
-                    connectionMutex.withLock {
-                        try {
-                            attachListenersIfNeeded()
-                            openIap?.setActivity(activity)
-                            if (!connectionReady) {
-                                val ok = openIap?.initConnection(InitConnectionConfig()) ?: false
-                                connectionReady = ok
-                                emitConnectionUpdated(ok)
-                                if (!ok) {
-                                    safe.error(OpenIapError.InitConnection.CODE, OpenIapError.InitConnection.MESSAGE, "Failed to initialize connection")
-                                    return@launch
-                                }
-                            }
-                        } catch (e: Exception) {
-                            safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
-                            return@launch
-                        }
-                    }
-                    try {
-                        val iap = openIap
-                        if (iap == null) {
-                            safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
-                            return@launch
-                        }
-                        val skus: List<String> = listOf(requestedProductId)
-                        val purchaseType = parsePurchaseType(typeStr)
-                        val requestProps = buildRequestPurchaseProps(
-                            type = purchaseType,
-                            skus = skus,
-                            obfuscatedAccountId = obfuscatedAccountId,
-                            obfuscatedProfileId = obfuscatedProfileId,
-                            isOfferPersonalized = isOfferPersonalized,
-                            subscriptionOffers = emptyList(),
-                            purchaseToken = null,
-                            replacementMode = null
-                        )
-
-                        iap.requestPurchase(requestProps)
-                        safe.success(null)
-                    } catch (e: OpenIapError) {
-                        safe.error(e.code, e.message, serializeOpenIapError(e))
-                    } catch (e: Exception) {
-                        safe.error(OpenIapError.PurchaseFailed.CODE, OpenIapError.PurchaseFailed.MESSAGE, e.message)
-                    }
-                }
-            }
-
-            // Finish/acknowledge/consume (compat)
-            "acknowledgePurchase" -> {
-                logDeprecated("acknowledgePurchase", "Use acknowledgePurchaseAndroid(token) instead")
-                val token: String? = call.argument<String>("purchaseToken")
-                val purchaseToken = token?.takeIf { it.isNotBlank() }
-                if (purchaseToken == null) {
-                    safe.error(OpenIapError.DeveloperError.CODE, OpenIapError.DeveloperError.MESSAGE, "Missing purchaseToken")
-                    return
-                }
-                scope.launch {
-                    try {
-                        val iap = openIap
-                        if (iap == null) {
-                            safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
-                            return@launch
-                        }
-                        iap.acknowledgePurchaseAndroid(purchaseToken)
-                        val resp = JSONObject().apply { put("responseCode", 0) }
-                        safe.success(resp.toString())
-                    } catch (e: Exception) {
-                        safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
-                    }
-                }
-            }
-
-            "consumeProduct" -> {
-                logDeprecated("consumeProduct", "Use finishTransaction(purchase, isConsumable=true) at higher-level API")
-                val token: String? = call.argument<String>("purchaseToken")
-                val purchaseToken = token?.takeIf { it.isNotBlank() }
-                if (purchaseToken == null) {
-                    safe.error(OpenIapError.DeveloperError.CODE, OpenIapError.DeveloperError.MESSAGE, "Missing purchaseToken")
-                    return
-                }
-                scope.launch {
-                    try {
-                        val iap = openIap
-                        if (iap == null) {
-                            safe.error(OpenIapError.NotPrepared.CODE, OpenIapError.NotPrepared.MESSAGE, "IAP module not initialized.")
-                            return@launch
-                        }
-                        iap.consumePurchaseAndroid(purchaseToken)
-                        val resp = JSONObject().apply {
-                            put("responseCode", 0)
-                            put("purchaseToken", purchaseToken)
-                        }
-                        safe.success(resp.toString())
-                    } catch (e: Exception) {
-                        safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, e.message)
-                    }
-                }
-            }
-            "consumePurchase" -> {
-                logDeprecated("consumePurchase", "Use finishTransaction(purchase, isConsumable=true) at higher-level API")
-                val token: String? = call.argument<String>("purchaseToken")
-                val purchaseToken = token?.takeIf { it.isNotBlank() }
-                if (purchaseToken == null) {
-                    safe.error(OpenIapError.DeveloperError.CODE, OpenIapError.DeveloperError.MESSAGE, "Missing purchaseToken")
-                    return
-                }
-                scope.launch {
-                    try {
-                        val iap = openIap
-                        if (iap == null) {
-                            safe.success(false)
-                            return@launch
-                        }
-                        iap.consumePurchaseAndroid(purchaseToken)
-                        safe.success(true)
-                    } catch (e: Exception) {
-                        safe.success(false)
-                    }
-                }
-            }
-            
-
-            // No-op legacy endpoint kept through flutter_inapp_purchase 9.x.
-            "showInAppMessages" -> {
-                logDeprecated("showInAppMessages", "No-op legacy endpoint.")
-                safe.success(true)
-            }
-
             // Verify Purchase (Platform-specific, v8.0.0+)
             "verifyPurchase" -> {
                 val googleOptions = call.argument<Map<String, Any?>>("google")
@@ -1491,31 +1064,10 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
         }
     }
 
-    private fun logDeprecated(name: String, message: String) {
-        if (!emittedDeprecations.add(name)) {
-            return
-        }
-        OpenIapLog.warn(
-            "[$name] is deprecated and scheduled for removal in flutter_inapp_purchase 10.0.0. $message",
-            TAG,
-        )
-    }
-
     private fun resolveCanonicalPurchaseToken(
         params: Map<*, *>,
-        operation: String,
     ): String? {
-        if (params.containsKey(KEY_PURCHASE_TOKEN)) {
-            return params[KEY_PURCHASE_TOKEN] as? String
-        }
-        if (params.containsKey("token")) {
-            logDeprecated(
-                "$operation.token",
-                "Use `purchaseToken` instead of `token`.",
-            )
-            return params["token"] as? String
-        }
-        return null
+        return params[KEY_PURCHASE_TOKEN] as? String
     }
 
     /**
@@ -1618,7 +1170,7 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
 
         private const val KEY_REQUEST_SUBSCRIPTION = "requestSubscription"
         private const val KEY_REQUEST_PURCHASE = "requestPurchase"
-        private const val KEY_ANDROID = "android"
+        private const val KEY_GOOGLE = "google"
         private const val KEY_TYPE = "type"
         private const val KEY_SKUS = "skus"
         private const val KEY_IS_OFFER_PERSONALIZED = "isOfferPersonalized"
@@ -1627,7 +1179,6 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
         private const val KEY_OBFUSCATED_PROFILE = "obfuscatedProfileId"
         private const val KEY_PURCHASE_TOKEN = "purchaseToken"
         private const val KEY_ORIGINAL_EXTERNAL_TRANSACTION_ID = "originalExternalTransactionId"
-        private const val KEY_REPLACEMENT_MODE = "replacementMode"
         private const val KEY_OFFER_TOKEN = "offerToken"
         private const val KEY_SUBSCRIPTION_OFFERS = "subscriptionOffers"
         private const val KEY_DEVELOPER_BILLING_OPTION = "developerBillingOption"

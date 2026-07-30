@@ -12,7 +12,7 @@ let package = Package(
     ],
     dependencies: [
         .package(name: "FlutterFramework", path: "../FlutterFramework"),
-        .package(url: "https://github.com/hyodotdev/openiap.git", from: "2.2.1"),
+        .package(url: "https://github.com/hyodotdev/openiap.git", from: "3.0.0"),
     ],
     targets: [
         .target(

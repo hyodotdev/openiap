@@ -55,13 +55,12 @@ export interface Unrelated {
   requestPurchase?: string;
   requestSubscription?: string;
   type?: string;
-  "useAlternativeBilling"?: boolean;
   futureField?: string;
 }`,
         'RequestPurchaseProps',
-        ['requestPurchase', 'requestSubscription', 'type', 'useAlternativeBilling'],
+        ['requestPurchase', 'requestSubscription', 'type'],
       ),
-    ).toThrow('found requestPurchase, requestSubscription, type, useAlternativeBilling, futureField');
+    ).toThrow('found requestPurchase, requestSubscription, type, futureField');
 
     expect(() =>
       requireExactInterfaceProperties(
@@ -122,8 +121,6 @@ export interface Unrelated {
   requestSubscription?: (RequestSubscriptionPropsByPlatforms | null);
   /** Explicit purchase type hint */
   type?: (ProductQueryType | null);
-  /** Alternative billing flag */
-  useAlternativeBilling?: (boolean | null);
 }
 
 export interface MutationRequestPurchaseArgs {
@@ -167,8 +164,6 @@ export interface Unrelated {
   requestSubscription?: (RequestSubscriptionPropsByPlatforms | null);
   /** Type. */
   type?: (ProductQueryType | null);
-  /** Alternative billing. */
-  useAlternativeBilling?: (boolean | null);
 }
 
 export interface MutationRequestPurchaseArgs {
@@ -202,7 +197,6 @@ export interface MutationRequestPurchaseArgs {
   transactionDate: number;
   purchaseToken?: (string | null);
   store?: (IapStore | null);
-  platform?: (IapPlatform | null);
   quantity: number;
   purchaseState: PurchaseState;
   isAutoRenewing: boolean;

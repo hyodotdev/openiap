@@ -38,9 +38,6 @@ var _is_connected: bool = false
 static var _is_initialized: bool = false
 var _purchase_updated_listener_options: Dictionary = {}
 var _ios_async_results: Dictionary = {}
-## Compatibility warnings are intentionally emitted once per process so users
-## see the 3.0 migration path without flooding the Godot output panel.
-var _emitted_legacy_wire_warnings: Dictionary = {}
 
 # Platform detection
 var _platform: String = ""
@@ -237,11 +234,6 @@ func init_connection(config = null) -> bool:
 			print("[GodotIap] Calling Android initConnection...")
 			if config != null:
 				var config_dict = config.to_dict() if typeof(config) == TYPE_OBJECT and config.has_method("to_dict") else config
-				if config_dict is Dictionary and config_dict.has("alternativeBillingModeAndroid"):
-					_warn_legacy_wire_input(
-						"alternativeBillingModeAndroid",
-						"enableBillingProgramAndroid"
-					)
 				_is_connected = _native_plugin.call("initConnectionWithConfig", JSON.stringify(config_dict))
 			else:
 				_is_connected = _native_plugin.call("initConnection")
@@ -355,16 +347,6 @@ func fetch_products(request) -> Array:
 	return products
 
 
-func _warn_legacy_wire_input(legacy_name: String, canonical_name: String) -> void:
-	if _emitted_legacy_wire_warnings.has(legacy_name):
-		return
-	_emitted_legacy_wire_warnings[legacy_name] = true
-	push_warning(
-		"[GodotIap] `%s` is deprecated and will be removed in godot-iap 3.0.0; use `%s` instead."
-		% [legacy_name, canonical_name]
-	)
-
-
 func _normalize_product_query_type(raw_type, default_type: String, allow_all: bool = true) -> String:
 	if raw_type == null or str(raw_type).strip_edges().is_empty():
 		return default_type
@@ -377,12 +359,6 @@ func _normalize_product_query_type(raw_type, default_type: String, allow_all: bo
 		"all":
 			if allow_all:
 				return "all"
-		"inapp", "in_app":
-			_warn_legacy_wire_input(normalized, "in-app")
-			return "in-app"
-		"subscription", "subscriptions":
-			_warn_legacy_wire_input(normalized, "subs")
-			return "subs"
 	push_error(
 		"[GodotIap] Unknown product query type `%s`. Expected `in-app`, `subs`, or `all`."
 		% str(raw_type)
@@ -390,24 +366,11 @@ func _normalize_product_query_type(raw_type, default_type: String, allow_all: bo
 	return ""
 
 
-func _canonical_wire_value(
-		source: Dictionary,
-		canonical_name: String,
-		legacy_name: String,
-		fallback = null
-):
-	if source.has(legacy_name):
-		_warn_legacy_wire_input(legacy_name, canonical_name)
-	if source.has(canonical_name):
-		return source.get(canonical_name)
-	return source.get(legacy_name, fallback)
-
-
 func _product_from_dict(product_dict: Dictionary) -> Variant:
 	var raw_type = product_dict.get("type", "")
 	var is_subscription = false
 	if raw_type is String:
-		is_subscription = raw_type.to_lower() in ["subs", "subscription", "subscriptions"]
+		is_subscription = raw_type.to_lower() == "subs"
 	elif raw_type is int:
 		is_subscription = raw_type == Types.ProductType.SUBS
 
@@ -421,7 +384,7 @@ func _product_from_dict(product_dict: Dictionary) -> Variant:
 		return Types.ProductIOS.from_dict(product_dict)
 	return null
 
-## Internal: Fetch products with raw Dictionary (for backward compatibility)
+## Internal: Fetch products with a native Dictionary payload.
 func _fetch_products_raw(request: Dictionary) -> Dictionary:
 	print("[GodotIap] _fetch_products_raw called with: ", request)
 	if _native_plugin:
@@ -502,26 +465,19 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 		purchase_error.emit({ "code": "not-prepared", "message": "Native plugin not available" })
 		return { "success": false, "error": "Native plugin not available" }
 
-	if args.has("request"):
-		_warn_legacy_wire_input("request", "requestPurchase or requestSubscription")
-	if args.has("useAlternativeBilling"):
-		_warn_legacy_wire_input(
-			"useAlternativeBilling",
-			"enableBillingProgramAndroid in InitConnectionConfig"
-		)
-
-	# Canonical branches always win over the 2.x raw `request` fallback.
-	var request = args.get(
-		"requestPurchase",
-		args.get("requestSubscription", args.get("request", {}))
-	)
-	if not request is Dictionary:
-		return { "success": false, "error": "Invalid request: platform payload must be a Dictionary" }
 	if args.has("requestPurchase") and args.has("requestSubscription"):
 		return {
 			"success": false,
 			"error": "Invalid request: choose either requestPurchase or requestSubscription"
 		}
+	if not args.has("requestPurchase") and not args.has("requestSubscription"):
+		return {
+			"success": false,
+			"error": "Invalid request: requestPurchase or requestSubscription is required"
+		}
+	var request = args.get("requestPurchase", args.get("requestSubscription"))
+	if not request is Dictionary:
+		return { "success": false, "error": "Invalid request: platform payload must be a Dictionary" }
 	var default_purchase_type := "subs" if args.has("requestSubscription") else "in-app"
 	var purchase_type := _normalize_product_query_type(
 		args.get("type", default_purchase_type),
@@ -539,34 +495,11 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 	if _platform == "Android":
 		# Android requestPurchase is async — returns a pending response, then
 		# delivers the final state via purchase_updated / purchase_error.
-		var google_props = _canonical_wire_value(request, "google", "android", {})
+		var google_props = request.get("google", {})
 		if not google_props is Dictionary:
 			return { "success": false, "error": "Invalid request: google payload must be a Dictionary" }
-		var offer_token = _canonical_wire_value(
-			google_props,
-			"offerToken",
-			"offer_token",
-			""
-		)
+		var offer_token = google_props.get("offerToken", "")
 		var subscription_offers = google_props.get("subscriptionOffers", [])
-		if (
-			purchase_type == "subs"
-				and (google_props.has("offerToken") or google_props.has("offer_token"))
-		):
-			_warn_legacy_wire_input(
-				"subscription offerToken",
-				"subscriptionOffers"
-			)
-		if (
-				purchase_type == "subs"
-				and subscription_offers.is_empty()
-				and not str(offer_token).is_empty()
-				and not google_props.get("skus", []).is_empty()
-		):
-			subscription_offers = [{
-				"sku": google_props.get("skus", [])[0],
-				"offerToken": str(offer_token),
-			}]
 		var replacement_params = google_props.get("subscriptionProductReplacementParams", null)
 		if typeof(replacement_params) == TYPE_OBJECT and replacement_params.has_method("to_dict"):
 			replacement_params = replacement_params.to_dict()
@@ -576,48 +509,22 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 		var params = {
 			"type": purchase_type,
 			"skus": google_props.get("skus", []),
-			"obfuscatedAccountId": _canonical_wire_value(
-				google_props,
-				"obfuscatedAccountId",
-				"obfuscatedAccountIdAndroid",
-				""
-			),
-			"obfuscatedProfileId": _canonical_wire_value(
-				google_props,
-				"obfuscatedProfileId",
-				"obfuscatedProfileIdAndroid",
-				""
-			),
+			"obfuscatedAccountId": google_props.get("obfuscatedAccountId", ""),
+			"obfuscatedProfileId": google_props.get("obfuscatedProfileId", ""),
 			"isOfferPersonalized": google_props.get("isOfferPersonalized", false),
 			"subscriptionOffers": subscription_offers,
-			"purchaseToken": _canonical_wire_value(
-				google_props,
-				"purchaseToken",
-				"purchaseTokenAndroid",
-				""
-			),
+			"purchaseToken": google_props.get("purchaseToken", ""),
 			"originalExternalTransactionId": google_props.get("originalExternalTransactionId", ""),
 			"subscriptionProductReplacementParams": replacement_params,
 			"developerBillingOption": developer_billing_option,
 		}
 		if purchase_type == "in-app" and not str(offer_token).is_empty():
 			params["offerToken"] = str(offer_token)
-		if google_props.has("replacementMode"):
-			_warn_legacy_wire_input(
-				"replacementMode",
-				"subscriptionProductReplacementParams"
-			)
-		if google_props.has("replacementMode") or google_props.has("replacementModeAndroid"):
-			params["replacementMode"] = _canonical_wire_value(
-				google_props,
-				"replacementMode",
-				"replacementModeAndroid"
-			)
 		var params_json = JSON.stringify(params)
 		print("[GodotIap] Calling Android requestPurchase: type=", purchase_type, ", skus=", params["skus"].size(), ", subscriptionOffers=", params["subscriptionOffers"].size(), ", hasPurchaseToken=", not str(params["purchaseToken"]).is_empty())
 		result_raw = _native_plugin.call("requestPurchase", params_json)
 	elif _platform == "iOS":
-		var apple_props = _canonical_wire_value(request, "apple", "ios", {})
+		var apple_props = request.get("apple", {})
 		if not apple_props is Dictionary:
 			return { "success": false, "error": "Invalid request: apple payload must be a Dictionary" }
 		var sku = apple_props.get("sku", "")
@@ -900,7 +807,14 @@ func get_storefront() -> String:
 		})
 		return ""
 	if _platform == "iOS":
-		return await get_storefront_ios()
+		var payload = await _call_ios_async("getStorefront")
+		if payload.get("success", false):
+			return String(payload.get("countryCode", "")).strip_edges()
+		purchase_error.emit({
+			"code": String(payload.get("code", "service-error")),
+			"message": String(payload.get("error", "Storefront lookup failed")),
+		})
+		return ""
 	if _platform != "Android":
 		purchase_error.emit({
 			"code": "feature-not-supported",
@@ -928,7 +842,6 @@ func get_storefront() -> String:
 	purchase_error.emit({
 		"code": error_code,
 		"message": error_message,
-		"platform": "android",
 	})
 	return ""
 
@@ -974,14 +887,10 @@ func _verify_purchase_raw(props: Dictionary) -> Dictionary:
 ## @param props: Types.VerifyPurchaseWithProviderProps - provider verification properties
 ## @return Types.VerifyPurchaseWithProviderResult
 ##
-## Flattened `apiKey`, `baseUrl`, `includeClientPayload`, `apple`, `google`,
-## and `amazon` IAPKit keys are deprecated and will be removed in godot-iap
-## 3.0.0. Keep `provider` at the top level and nest those keys under `iapkit`.
-##
 ## See: https://openiap.dev/docs/features/validation#verify-purchase-with-provider
 func verify_purchase_with_provider(props) -> Variant:
 	print("[GodotIap] verify_purchase_with_provider called")
-	var props_dict := _normalize_verify_purchase_with_provider_props(_as_dictionary(props))
+	var props_dict := _as_dictionary(props)
 	if _native_plugin and _platform == "iOS":
 		var payload = await _call_ios_async("verifyPurchaseWithProvider", [JSON.stringify(props_dict)])
 		if payload is Dictionary and payload.get("success", false):
@@ -1001,34 +910,6 @@ func verify_purchase_with_provider(props) -> Variant:
 
 	var result = _verify_purchase_with_provider_raw(props_dict)
 	return Types.VerifyPurchaseWithProviderResult.from_dict(result)
-
-
-func _normalize_verify_purchase_with_provider_props(props: Dictionary) -> Dictionary:
-	var normalized := props.duplicate(true)
-	var legacy_iapkit: Dictionary = {}
-	var has_legacy := false
-	for legacy_key in ["apiKey", "baseUrl", "includeClientPayload", "apple", "google", "amazon"]:
-		if normalized.has(legacy_key):
-			has_legacy = true
-			if normalized[legacy_key] != null:
-				legacy_iapkit[legacy_key] = normalized[legacy_key]
-
-	if has_legacy:
-		_warn_legacy_wire_input(
-			"flattened IAPKit verification keys",
-			"iapkit"
-		)
-
-	# Canonical key presence is authoritative, including explicit null/empty.
-	# Do not revive flattened compatibility input when callers supplied it.
-	if normalized.has("iapkit") or legacy_iapkit.is_empty():
-		return normalized
-
-	normalized["iapkit"] = legacy_iapkit
-	if not normalized.has("provider"):
-		normalized["provider"] = "iapkit"
-	return normalized
-
 
 ## Internal: Verify purchase with provider raw Dictionary
 func _verify_purchase_with_provider_raw(props: Dictionary) -> Dictionary:
@@ -1109,15 +990,23 @@ func get_all_transactions_ios() -> Array:
 						purchases.append(Types.PurchaseIOS.from_dict(tx))
 	return purchases
 
-## Present code redemption sheet (iOS only).
-## @return bool - true if the sheet was presented successfully
+## Present the code redemption sheet (iOS only).
+## @return Types.PurchaseIOS on iOS 27+ after verified redemption, or null
+## after the legacy sheet is presented on earlier iOS versions.
 ##
 ## See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
-func present_code_redemption_sheet_ios() -> bool:
+func present_code_redemption_sheet_ios() -> Variant:
 	if not (_native_plugin and _platform == "iOS"):
-		return false
+		return null
 	var payload = await _call_ios_async("presentCodeRedemptionSheetIOS")
-	return payload.get("success", false)
+	if not payload.get("success", false):
+		return null
+	var purchase_json = payload.get("purchaseJson", "")
+	if purchase_json is String and not purchase_json.is_empty():
+		var purchase = JSON.parse_string(purchase_json)
+		if purchase is Dictionary:
+			return Types.PurchaseIOS.from_dict(purchase)
+	return null
 
 ## Show manage subscriptions UI (iOS only).
 ## @return Array[Types.PurchaseIOS] - changed purchases
@@ -1239,18 +1128,6 @@ func get_promoted_product_ios() -> Variant:
 					return Types.ProductIOS.from_dict(parsed)
 	return null
 
-## Request purchase on promoted product (iOS only).
-## @deprecated Use promoted_product_ios plus request_purchase instead. This
-## method will be removed in godot-iap 3.0.0.
-## @return bool - true if the promoted product purchase request succeeded
-##
-## See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
-func request_purchase_on_promoted_product_ios() -> bool:
-	if not (_native_plugin and _platform == "iOS"):
-		return false
-	var payload = await _call_ios_async("requestPurchaseOnPromotedProductIOS")
-	return payload.get("success", false)
-
 ## Check if can present external purchase notice (iOS 18.2+).
 ## @return bool - true if external purchase notice can be presented
 ##
@@ -1369,71 +1246,6 @@ func _parse_request_id(pending_json) -> String:
 			return String(decoded.get("requestId", ""))
 	return ""
 
-## Get the current App Store storefront country code (iOS).
-## The native method dispatches asynchronously and emits the result via
-## `products_fetched`; this wrapper awaits that emit and returns the country
-## code, so callers can use it like a synchronous getter.
-## @deprecated Prefer cross-platform get_storefront() which also works on iOS.
-## This method will be removed in godot-iap 3.0.0.
-## @return String ISO 3166-1 alpha-3 country code, or empty string on failure
-##
-## See: https://openiap.dev/docs/apis/ios/get-storefront-ios
-func get_storefront_ios() -> String:
-	if not (_native_plugin and _platform == "iOS"):
-		return ""
-	var payload = await _call_ios_async("getStorefrontIOS")
-	if payload.get("success", false):
-		var storefront = String(payload.get("storefront", "")).strip_edges()
-		if not storefront.is_empty():
-			return storefront
-	var error_message = String(payload.get("error", "Storefront lookup returned no country code"))
-	purchase_error.emit({
-		"code": String(payload.get("code", "service-error")),
-		"message": error_message,
-		"platform": "ios",
-	})
-	return ""
-
-## Validate a receipt with the App Store for a specific SKU (iOS).
-## Kicks off the native async validation and awaits the next `products_fetched`
-## emit matching this call's requestId. Returns null on error.
-## @deprecated Use verify_purchase or verify_purchase_with_provider instead.
-## This method will be removed in godot-iap 3.0.0.
-## @param props: Types.VerifyPurchaseProps with `apple: {sku: String}` set
-## @return Variant Types.VerifyPurchaseResultIOS on success, null otherwise
-##
-## See: https://openiap.dev/docs/apis/ios/validate-receipt-ios
-func validate_receipt_ios(props) -> Variant:
-	if not (_native_plugin and _platform == "iOS"):
-		return null
-	var props_dict := _as_dictionary(props)
-	var props_json = JSON.stringify(props_dict)
-	var payload = await _call_ios_async("validateReceiptIOS", [props_json])
-	if payload.get("success", false):
-		var payload_json = payload.get("resultJson", "")
-		var decoded = JSON.parse_string(payload_json)
-		if decoded is Dictionary:
-			return Types.VerifyPurchaseResultIOS.from_dict(decoded)
-	return null
-
-## Cross-platform wrapper for receipt validation.
-## @deprecated Use verify_purchase instead. This method will be removed in
-## godot-iap 3.0.0.
-## @param props: Types.VerifyPurchaseProps with platform-specific fields
-## @return Variant Types.VerifyPurchaseResultIOS | Types.VerifyPurchaseResultAndroid | null
-##
-## See: https://openiap.dev/docs/apis/validate-receipt
-func validate_receipt(props) -> Variant:
-	if _platform == "iOS":
-		return await validate_receipt_ios(props)
-	if _platform == "Android":
-		# Android path is synchronous via the `verifyPurchase` native call.
-		var props_dict := _as_dictionary(props)
-		var raw = _verify_purchase_raw(props_dict)
-		if raw.get("success", false) or raw.get("isValid", false):
-			return Types.VerifyPurchaseResultAndroid.from_dict(raw)
-	return null
-
 ## ExternalPurchaseCustomLink: check eligibility (iOS 18.1+).
 ## Kicks off the native async check and awaits the next `products_fetched`
 ## emit tagged with method == "isEligibleForExternalPurchaseCustomLinkIOS";
@@ -1530,50 +1342,6 @@ func _consume_purchase_android_raw(purchase_token: String) -> Dictionary:
 		if result is Dictionary:
 			return result
 	return { "success": false, "error": "Not available" }
-
-## Check alternative billing availability (Android).
-## @return bool - true if alternative billing is available
-##
-## See: https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android
-## @deprecated Use is_billing_program_available_android with
-## Types.BillingProgramAndroid.EXTERNAL_OFFER instead. Scheduled for removal in
-## godot-iap 3.0.0.
-func check_alternative_billing_availability_android() -> bool:
-	if _native_plugin and _platform == "Android":
-		var result_json = _native_plugin.call("checkAlternativeBillingAvailabilityAndroid")
-		var result = JSON.parse_string(result_json)
-		if result is Dictionary:
-			return result.get("isAvailable", false)
-	return false
-
-## Show alternative billing dialog (Android).
-## @return bool - true if the user accepted the dialog
-##
-## See: https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android
-## @deprecated Use launch_external_link_android instead. Scheduled for removal
-## in godot-iap 3.0.0.
-func show_alternative_billing_dialog_android() -> bool:
-	if _native_plugin and _platform == "Android":
-		var result_json = _native_plugin.call("showAlternativeBillingDialogAndroid")
-		var result = JSON.parse_string(result_json)
-		if result is Dictionary:
-			return result.get("userAccepted", false)
-	return false
-
-## Create alternative billing token (Android).
-## @return String - reporting token, or empty string on failure
-##
-## See: https://openiap.dev/docs/apis/android/create-alternative-billing-token-android
-## @deprecated Use create_billing_program_reporting_details_android with
-## Types.BillingProgramAndroid.EXTERNAL_OFFER instead. Scheduled for removal in
-## godot-iap 3.0.0.
-func create_alternative_billing_token_android() -> String:
-	if _native_plugin and _platform == "Android":
-		var result_json = _native_plugin.call("createAlternativeBillingTokenAndroid")
-		var result = JSON.parse_string(result_json)
-		if result is Dictionary and result.get("success", false):
-			return result.get("token", "")
-	return ""
 
 ## Check if a billing program is available (Android 8.2.0+).
 ## @param billing_program: Types.BillingProgramAndroid - billing program enum value

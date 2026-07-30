@@ -4,19 +4,12 @@ import {Platform} from 'react-native';
 // Internal modules
 import ExpoIapModule, {getNativeModule} from './ExpoIapModule';
 import {isVegaOS} from './vega';
-import {
-  isProductIOS,
-  validateReceiptIOS,
-  deepLinkToSubscriptionsIOS,
-  syncIOS,
-} from './modules/ios';
+import {isProductIOS, deepLinkToSubscriptionsIOS, syncIOS} from './modules/ios';
 import {
   isProductAndroid,
-  validateReceiptAndroid,
   deepLinkToSubscriptionsAndroid,
 } from './modules/android';
 import {ExpoIapConsole} from './utils/debug';
-import {warnLegacyOnce} from './utils/deprecation';
 
 // Types
 import type {
@@ -26,7 +19,6 @@ import type {
   IapPlatform,
   MutationField,
   MutationRequestPurchaseArgs,
-  MutationValidateReceiptArgs,
   Product,
   ProductQueryType,
   ProductSubscription,
@@ -226,21 +218,10 @@ const configurePurchaseUpdatedListenerOptionsIOS = (
   });
 };
 
-/**
- * Accepts the legacy 'inapp' alias for backward compatibility. The alias is
- * deprecated and scheduled for removal in expo-iap 5.0.0 — use 'in-app'.
- */
-export type ProductTypeInput = ProductQueryType | 'inapp';
+export type ProductTypeInput = ProductQueryType;
 
 const normalizeProductType = (type?: ProductTypeInput) => {
-  if (type === 'inapp') {
-    warnLegacyOnce(
-      'product-type.inapp',
-      "'inapp' product type is deprecated and will be removed in expo-iap 5.0.0. Use 'in-app' instead.",
-    );
-  }
-
-  if (!type || type === 'inapp' || type === 'in-app') {
+  if (!type || type === 'in-app') {
     return {
       canonical: 'in-app' as ProductQueryType,
       native: 'in-app' as const,
@@ -260,23 +241,6 @@ const normalizeProductType = (type?: ProductTypeInput) => {
   }
   throw new Error(`Unsupported product type: ${type}`);
 };
-
-const normalizePurchasePlatform = (purchase: Purchase): Purchase => {
-  const platform = purchase.platform;
-  if (typeof platform !== 'string') {
-    return purchase;
-  }
-
-  const lowered = platform.toLowerCase();
-  if (lowered === platform || (lowered !== 'ios' && lowered !== 'android')) {
-    return purchase;
-  }
-
-  return {...purchase, platform: lowered};
-};
-
-const normalizePurchaseArray = (purchases: Purchase[]): Purchase[] =>
-  purchases.map((purchase) => normalizePurchasePlatform(purchase));
 
 const isAndroidStoreRuntime = (): boolean => {
   return Platform.OS === 'android' || isVegaOS();
@@ -298,7 +262,7 @@ export const purchaseUpdatedListener = (
   let listenerDedupeGenerationIOS = purchaseUpdatedDedupeGenerationIOS;
 
   const wrappedListener = (event: Purchase) => {
-    const normalized = normalizePurchasePlatform(event);
+    const normalized = event;
     if (Platform.OS === 'ios') {
       if (listenerDedupeGenerationIOS !== purchaseUpdatedDedupeGenerationIOS) {
         clearPurchaseUpdatedDedupeHistoryIOS(listenerDedupeHistoryIOS);
@@ -553,10 +517,8 @@ export const developerProvidedBillingListenerAndroid = (
 export const subscriptionBillingIssueListener = (
   listener: (purchase: Purchase) => void,
 ) => {
-  // Mirror purchaseUpdatedListener's platform normalization so consumers get
-  // a consistent payload regardless of native casing.
   const wrappedListener = (event: Purchase) => {
-    listener(normalizePurchasePlatform(event));
+    listener(event);
   };
   return emitter.addListener(
     OpenIapEvent.SubscriptionBillingIssue,
@@ -790,7 +752,7 @@ export const getAvailablePurchases: QueryField<
 
   if (isVegaOS()) {
     const purchases = await ExpoIapModule.getAvailableItems(normalizedOptions);
-    return normalizePurchaseArray(purchases as Purchase[]);
+    return purchases as Purchase[];
   }
 
   let purchases: Purchase[];
@@ -808,7 +770,7 @@ export const getAvailablePurchases: QueryField<
     throw unsupportedPlatformError();
   }
 
-  return normalizePurchaseArray(purchases as Purchase[]);
+  return purchases as Purchase[];
 };
 
 /**
@@ -951,29 +913,9 @@ function normalizeRequestProps(
   platform: 'ios' | 'android',
 ) {
   if (platform === 'ios') {
-    if (Object.prototype.hasOwnProperty.call(request, 'apple')) {
-      return request.apple;
-    }
-    if (Object.prototype.hasOwnProperty.call(request, 'ios')) {
-      warnLegacyOnce(
-        'request-purchase.ios',
-        '`request.ios` is deprecated and will be removed in expo-iap 5.0.0. Use `request.apple` instead.',
-      );
-      return request.ios;
-    }
-    return undefined;
+    return request.apple;
   }
-  if (Object.prototype.hasOwnProperty.call(request, 'google')) {
-    return request.google;
-  }
-  if (Object.prototype.hasOwnProperty.call(request, 'android')) {
-    warnLegacyOnce(
-      'request-purchase.android',
-      '`request.android` is deprecated and will be removed in expo-iap 5.0.0. Use `request.google` instead.',
-    );
-    return request.android;
-  }
-  return undefined;
+  return request.google;
 }
 
 /**
@@ -1034,7 +976,6 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
     const payload: MutationRequestPurchaseArgs = {
       type: canonical === 'in-app' ? 'in-app' : 'subs',
       request: {apple: normalizedRequest},
-      useAlternativeBilling: args.useAlternativeBilling,
     };
 
     const purchase = (await invokeNativeWithPurchaseError(
@@ -1050,11 +991,11 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
     )) as Purchase | Purchase[] | null;
 
     if (Array.isArray(purchase)) {
-      return normalizePurchaseArray(purchase);
+      return purchase;
     }
 
     if (purchase) {
-      return normalizePurchasePlatform(purchase);
+      return purchase;
     }
 
     return canonical === 'subs' ? [] : null;
@@ -1097,7 +1038,6 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
             type: native,
             skus,
             purchaseToken: undefined,
-            replacementMode: -1,
             obfuscatedAccountId: obfuscatedAccountId,
             obfuscatedProfileId: obfuscatedProfileId,
             offerToken: offerToken,
@@ -1114,7 +1054,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
         },
       )) as Purchase[];
 
-      return normalizePurchaseArray(result);
+      return result;
     }
 
     if (canonical === 'subs') {
@@ -1144,7 +1084,6 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
         obfuscatedProfileId,
         isOfferPersonalized,
         subscriptionOffers,
-        replacementMode: replacementModeInput,
         purchaseToken: purchaseTokenInput,
         originalExternalTransactionId,
         developerBillingOption,
@@ -1152,7 +1091,6 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
       } = normalizedRequest;
 
       const normalizedOffers = subscriptionOffers ?? [];
-      const replacementMode = replacementModeInput ?? -1;
       const purchaseToken = purchaseTokenInput ?? undefined;
 
       const result = (await invokeNativeWithPurchaseError(
@@ -1163,7 +1101,6 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
             purchaseToken,
             originalExternalTransactionId:
               originalExternalTransactionId ?? undefined,
-            replacementMode,
             obfuscatedAccountId: obfuscatedAccountId,
             obfuscatedProfileId: obfuscatedProfileId,
             subscriptionOffers: normalizedOffers,
@@ -1182,7 +1119,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
         },
       )) as Purchase[];
 
-      return normalizePurchaseArray(result);
+      return result;
     }
 
     throw new Error(
@@ -1312,55 +1249,6 @@ export const deepLinkToSubscriptions: MutationField<
   if (Platform.OS === 'android') {
     await deepLinkToSubscriptionsAndroid((options as DeepLinkOptions) ?? null);
     return;
-  }
-
-  throw unsupportedPlatformError();
-};
-
-/**
- * Internal receipt validation function (NOT RECOMMENDED for production use)
- *
- * WARNING: This function performs client-side validation which is NOT secure.
- * For production apps, always validate receipts on your secure server:
- * - iOS: Send receipt data to Apple's verification endpoint from your server
- * - Android: Use Google Play Developer API with service account credentials
- *
- * @deprecated Use verifyPurchase instead. This function will be removed in
- * expo-iap 5.0.0.
- *
- * @see {@link https://openiap.dev/docs/apis/validate-receipt}
- */
-export const validateReceipt: MutationField<'validateReceipt'> = async (
-  options,
-) => {
-  const {apple, google} = options as MutationValidateReceiptArgs;
-
-  if (Platform.OS === 'ios') {
-    if (!apple?.sku) {
-      throw new Error('iOS validation requires apple.sku');
-    }
-    return validateReceiptIOS({apple: {sku: apple.sku}});
-  }
-
-  if (Platform.OS === 'android') {
-    if (
-      !google ||
-      !google.sku ||
-      !google.packageName ||
-      !google.purchaseToken ||
-      !google.accessToken
-    ) {
-      throw new Error(
-        'Android validation requires google.sku, google.packageName, google.purchaseToken, and google.accessToken',
-      );
-    }
-    return validateReceiptAndroid({
-      packageName: google.packageName,
-      productId: google.sku,
-      productToken: google.purchaseToken,
-      accessToken: google.accessToken,
-      isSub: google.isSub ?? undefined,
-    });
   }
 
   throw unsupportedPlatformError();

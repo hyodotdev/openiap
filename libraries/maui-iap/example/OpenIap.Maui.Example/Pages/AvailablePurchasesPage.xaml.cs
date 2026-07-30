@@ -224,7 +224,10 @@ public partial class AvailablePurchasesPage : ContentPage
         AppendSubscriptionRow("Active", subscription.IsActive ? "Yes" : "No");
         AppendSubscriptionRow("Date", FormatDate(subscription.TransactionDate));
         AppendSubscriptionRow("Auto Renew", FormatBool(subscription.AutoRenewingAndroid));
-        AppendSubscriptionRow("Will Expire Soon", FormatBool(subscription.WillExpireSoon));
+        AppendSubscriptionRow(
+            "Will Expire Soon",
+            FormatBool(subscription.DaysUntilExpirationIOS is >= 0 and <= 7)
+        );
         AppendSubscriptionRow("Environment", subscription.EnvironmentIOS);
         AppendSubscriptionRow("Expires", FormatDate(subscription.ExpirationDateIOS));
         AppendSubscriptionRow("Days Left", subscription.DaysUntilExpirationIOS is null ? null : $"{subscription.DaysUntilExpirationIOS:0} days");

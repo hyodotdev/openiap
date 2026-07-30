@@ -264,15 +264,15 @@ kmpIAP.requestPurchase(
 )
 
 // --- Or via the DSL API ---
-// Same flow, but platform options live inside ios { } / android { }
+// Same flow, but platform options live inside apple { } / google { }
 // blocks. The call returns the resulting Purchase, which you pipe through
 // .toPurchaseInput() into finishTransaction.
 val purchase = kmpIAP.requestPurchase {
-    ios {
+    apple {
         sku = "com.app.premium"
         quantity = 1
     }
-    android {
+    google {
         skus = listOf("com.app.premium")
     }
 }
@@ -307,7 +307,6 @@ await iap.requestPurchase(
   RequestPurchaseProps.inApp((
     apple: RequestPurchaseIosProps(sku: 'com.app.premium'),
     google: RequestPurchaseAndroidProps(skus: ['com.app.premium']),
-    useAlternativeBilling: null,
   )),
 );
 

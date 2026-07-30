@@ -3,7 +3,6 @@ library errors;
 
 import 'package:flutter/foundation.dart';
 
-import 'deprecation.dart';
 import 'types.dart' as openiap_types;
 
 // Type aliases for convenience
@@ -24,26 +23,6 @@ openiap_types.SubResponseCodeAndroid? parseSubResponseCodeAndroid(
 List<String>? _parseProductIds(dynamic value) {
   if (value is! List<dynamic>) return null;
   return value.map((dynamic id) => id.toString()).toList();
-}
-
-dynamic _subResponseCodeAndroidFrom(
-  Map<String, dynamic> payload,
-  dynamic canonical,
-) {
-  if (payload.containsKey('subResponseCodeAndroid')) {
-    return canonical;
-  }
-
-  final legacy = payload['subResponseCode'];
-  if (legacy != null) {
-    warnLegacyOnce(
-      'error.subResponseCode',
-      'The error `subResponseCode` field is deprecated and will be removed '
-          'in flutter_inapp_purchase 10.0.0. Use `subResponseCodeAndroid` '
-          'instead.',
-    );
-  }
-  return legacy;
 }
 
 /// Get current platform
@@ -67,15 +46,11 @@ class ErrorCodeMapping {
     ErrorCode.NetworkError: 1,
     ErrorCode.ItemUnavailable: 3,
     ErrorCode.ServiceError: 4,
-    ErrorCode.ReceiptFailed: 5,
     ErrorCode.AlreadyOwned: 6,
     ErrorCode.RemoteError: 10,
-    ErrorCode.ReceiptFinished: 11,
     ErrorCode.Pending: 12,
     ErrorCode.NotEnded: 13,
     ErrorCode.DeveloperError: 14,
-    // Legacy codes for compatibility
-    ErrorCode.ReceiptFinishedFailed: 15,
     ErrorCode.PurchaseError: 16,
     ErrorCode.SyncError: 17,
     ErrorCode.DeferredPayment: 18,
@@ -102,12 +77,9 @@ class ErrorCodeMapping {
     ErrorCode.NetworkError: 'E_NETWORK_ERROR',
     ErrorCode.ServiceError: 'E_SERVICE_ERROR',
     ErrorCode.RemoteError: 'E_REMOTE_ERROR',
-    ErrorCode.ReceiptFailed: 'E_RECEIPT_FAILED',
-    ErrorCode.ReceiptFinished: 'E_RECEIPT_FINISHED',
     ErrorCode.Pending: 'E_PENDING',
     ErrorCode.NotEnded: 'E_NOT_ENDED',
     ErrorCode.DeveloperError: 'E_DEVELOPER_ERROR',
-    ErrorCode.ReceiptFinishedFailed: 'E_RECEIPT_FINISHED_FAILED',
     ErrorCode.NotPrepared: 'E_NOT_PREPARED',
     ErrorCode.BillingResponseJsonParseError:
         'E_BILLING_RESPONSE_JSON_PARSE_ERROR',
@@ -132,6 +104,32 @@ class ErrorCodeMapping {
     ErrorCode.PurchaseVerificationFinishFailed:
         'E_PURCHASE_VERIFICATION_FINISH_FAILED',
   };
+}
+
+const Map<int, ErrorCode> _historicalIosErrorInputs = <int, ErrorCode>{
+  5: ErrorCode.PurchaseVerificationFailed,
+  11: ErrorCode.PurchaseVerificationFinished,
+  15: ErrorCode.PurchaseVerificationFinishFailed,
+};
+
+const Map<String, ErrorCode> _historicalErrorInputs = <String, ErrorCode>{
+  'RECEIPT_FAILED': ErrorCode.PurchaseVerificationFailed,
+  'E_RECEIPT_FAILED': ErrorCode.PurchaseVerificationFailed,
+  'RECEIPT_FINISHED': ErrorCode.PurchaseVerificationFinished,
+  'E_RECEIPT_FINISHED': ErrorCode.PurchaseVerificationFinished,
+  'RECEIPT_FINISHED_FAILED': ErrorCode.PurchaseVerificationFinishFailed,
+  'E_RECEIPT_FINISHED_FAILED': ErrorCode.PurchaseVerificationFinishFailed,
+};
+
+String _normalizeHistoricalErrorInput(String value) {
+  return value
+      .trim()
+      .replaceAllMapped(
+        RegExp(r'([a-z0-9])([A-Z])'),
+        (match) => '${match.group(1)}_${match.group(2)}',
+      )
+      .replaceAll('-', '_')
+      .toUpperCase();
 }
 
 /// Convert string to kebab-case
@@ -196,8 +194,6 @@ String getUserFriendlyErrorMessage(dynamic error) {
       return 'Store service error. Please try again later.';
     case ErrorCode.TransactionValidationFailed:
       return 'Transaction could not be verified';
-    case ErrorCode.ReceiptFailed:
-      return 'Receipt processing failed';
     case ErrorCode.PurchaseVerificationFailed:
       return 'Purchase verification failed';
     case ErrorCode.PurchaseVerificationFinished:
@@ -271,10 +267,7 @@ class PurchaseError implements Exception {
       productType: errorData['productType']?.toString(),
       isEmptyProductList: errorData['isEmptyProductList'] as bool?,
       subResponseCodeAndroid: parseSubResponseCodeAndroid(
-        _subResponseCodeAndroidFrom(
-          errorData,
-          errorData['subResponseCodeAndroid'],
-        ),
+        errorData['subResponseCodeAndroid'],
       ),
       platform: platform,
     );
@@ -290,81 +283,6 @@ class PurchaseError implements Exception {
   String toString() => '$name: $message';
 }
 
-/// Legacy error payload used by [FlutterInappPurchase.purchaseError].
-///
-/// Use [PurchaseError] from `purchaseErrorListener`. Scheduled for removal in
-/// flutter_inapp_purchase 10.0.0.
-@Deprecated(
-  'Use PurchaseError from purchaseErrorListener. '
-  'Scheduled for removal in flutter_inapp_purchase 10.0.0.',
-)
-class PurchaseResult {
-  final int? responseCode;
-  final String? debugMessage;
-  final String? code;
-  final String? message;
-  final String? productId;
-  final List<String>? productIds;
-  final String? productType;
-  final bool? isEmptyProductList;
-  final openiap_types.SubResponseCodeAndroid? subResponseCodeAndroid;
-  final String? purchaseTokenAndroid;
-
-  PurchaseResult({
-    this.responseCode,
-    this.debugMessage,
-    this.code,
-    this.message,
-    this.productId,
-    this.productIds,
-    this.productType,
-    this.isEmptyProductList,
-    this.subResponseCodeAndroid,
-    this.purchaseTokenAndroid,
-  });
-
-  factory PurchaseResult.fromJSON(Map<String, dynamic> json) {
-    return PurchaseResult(
-      responseCode: (json['responseCode'] as num?)?.toInt(),
-      debugMessage: json['debugMessage']?.toString(),
-      code: json['code']?.toString(),
-      message: json['message']?.toString(),
-      productId: json['productId']?.toString(),
-      productIds: _parseProductIds(json['productIds']),
-      productType: json['productType']?.toString(),
-      isEmptyProductList: json['isEmptyProductList'] as bool?,
-      subResponseCodeAndroid: parseSubResponseCodeAndroid(
-        _subResponseCodeAndroidFrom(
-          json,
-          json['subResponseCodeAndroid'],
-        ),
-      ),
-      purchaseTokenAndroid: json['purchaseTokenAndroid']?.toString(),
-    );
-  }
-
-  Map<String, dynamic> toJson() => {
-        'responseCode': responseCode ?? 0,
-        'debugMessage': debugMessage ?? '',
-        'code': code ?? '',
-        'message': message ?? '',
-        'productId': productId,
-        'productIds': productIds,
-        'productType': productType,
-        'isEmptyProductList': isEmptyProductList,
-        'subResponseCodeAndroid': subResponseCodeAndroid?.toJson(),
-        'purchaseTokenAndroid': purchaseTokenAndroid ?? '',
-      };
-
-  @override
-  String toString() {
-    return 'responseCode: $responseCode, '
-        'debugMessage: $debugMessage, '
-        'code: $code, '
-        'message: $message';
-  }
-}
-
 /// Utility functions for error code mapping and validation
 class ErrorCodeUtils {
   /// Maps a platform-specific error code back to the standardized ErrorCode enum
@@ -374,6 +292,12 @@ class ErrorCodeUtils {
   ) {
     // Handle string codes (Android E_* codes or OpenIAP kebab-case)
     if (platformCode is String) {
+      final historical =
+          _historicalErrorInputs[_normalizeHistoricalErrorInput(platformCode)];
+      if (historical != null) {
+        return historical;
+      }
+
       // First try direct mapping from ErrorCodeMapping
       const mapping = ErrorCodeMapping.android;
       for (final entry in mapping.entries) {
@@ -408,6 +332,10 @@ class ErrorCodeUtils {
 
     // Handle legacy/numeric iOS codes
     if (platformCode is int) {
+      final historical = _historicalIosErrorInputs[platformCode];
+      if (historical != null) {
+        return historical;
+      }
       const mapping = ErrorCodeMapping.ios;
       for (final entry in mapping.entries) {
         if (entry.value == platformCode) {
@@ -435,32 +363,5 @@ class ErrorCodeUtils {
     } else {
       return ErrorCodeMapping.android.containsKey(errorCode);
     }
-  }
-}
-
-/// Legacy connection event payload.
-///
-/// Use the result of `initConnection`. Scheduled for removal in
-/// flutter_inapp_purchase 10.0.0.
-@Deprecated(
-  'Use the result of initConnection. '
-  'Scheduled for removal in flutter_inapp_purchase 10.0.0.',
-)
-class ConnectionResult {
-  final String? msg;
-
-  ConnectionResult({this.msg});
-
-  ConnectionResult.fromJSON(Map<String, dynamic> json)
-      : msg = json['msg'] as String? ??
-            (json['connected'] is bool
-                ? ((json['connected'] as bool) ? 'connected' : 'disconnected')
-                : null);
-
-  Map<String, dynamic> toJson() => {'msg': msg ?? ''};
-
-  @override
-  String toString() {
-    return 'msg: $msg';
   }
 }

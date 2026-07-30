@@ -128,8 +128,12 @@ struct OfferCodeScreen: View {
     
     private func presentOfferCodeRedemption() async {
         do {
-            try await iapStore.presentCodeRedemptionSheetIOS()
-            print("✅ [OfferCode] Offer code redemption sheet presented")
+            let purchase = try await iapStore.presentCodeRedemptionSheetResultIOS()
+            if let purchase {
+                print("✅ [OfferCode] Verified redemption: \(purchase.productId) (\(purchase.id))")
+            } else {
+                print("✅ [OfferCode] Legacy redemption sheet presented; refresh purchases after completion")
+            }
         } catch {
             await MainActor.run {
                 errorMessage = "Failed to present offer code redemption: \(error.localizedDescription)"

@@ -132,8 +132,12 @@ fun OfferCodeScreen(navController: NavController) {
                             scope.launch {
                                 isLoading = true
                                 try {
-                                    kmpIAP.presentCodeRedemptionSheetIOS()
-                                    result = "Redemption sheet presented"
+                                    val purchase = kmpIAP.presentCodeRedemptionSheetIOS()
+                                    result = if (purchase != null) {
+                                        "Verified redemption: ${purchase.productId} (${purchase.id})"
+                                    } else {
+                                        "Legacy redemption sheet presented; refresh purchases after completion"
+                                    }
                                 } catch (e: Exception) {
                                     result = "Failed to present sheet: ${e.message}"
                                 } finally {

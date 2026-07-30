@@ -23,7 +23,7 @@ public static class BuildPurchaseRows
         Push(rows, "id", common.Id);
         Push(rows, "transactionId", transactionId);
         Push(rows, "productId", common.ProductId);
-        Push(rows, "platform", common.Platform.ToJson());
+        Push(rows, "store", common.Store.ToJson());
         Push(rows, "ids", FormatList(common.Ids));
         Push(rows, "transactionDate", FormatDate(common.TransactionDate));
         Push(rows, "purchaseState", Capitalize(common.PurchaseState.ToJson()));

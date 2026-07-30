@@ -21,19 +21,22 @@ const ERROR_CODE_ALIASES: Record<string, ErrorCode> = {
   USER_CANCELED: ErrorCode.UserCancelled,
   E_USER_CANCELLED: ErrorCode.UserCancelled,
   USER_CANCELLED: ErrorCode.UserCancelled,
-  // Deprecated error code mappings (map old Receipt* codes to new PurchaseVerification* codes)
-  // These ensure backwards compatibility while preferring new codes
   RECEIPT_FAILED: ErrorCode.PurchaseVerificationFailed,
   E_RECEIPT_FAILED: ErrorCode.PurchaseVerificationFailed,
   RECEIPT_FINISHED: ErrorCode.PurchaseVerificationFinished,
   E_RECEIPT_FINISHED: ErrorCode.PurchaseVerificationFinished,
   RECEIPT_FINISHED_FAILED: ErrorCode.PurchaseVerificationFinishFailed,
   E_RECEIPT_FINISHED_FAILED: ErrorCode.PurchaseVerificationFinishFailed,
-  // Also handle kebab-case versions
-  'receipt-failed': ErrorCode.PurchaseVerificationFailed,
-  'receipt-finished': ErrorCode.PurchaseVerificationFinished,
-  'receipt-finished-failed': ErrorCode.PurchaseVerificationFinishFailed,
 };
+
+const errorAlias = (code: string): ErrorCode | undefined =>
+  ERROR_CODE_ALIASES[
+    code
+      .trim()
+      .replace(/([a-z0-9])([A-Z])/g, '$1_$2')
+      .replace(/-/g, '_')
+      .toUpperCase()
+  ];
 
 const toKebabCase = (str: string): string => {
   if (str.includes('_')) {
@@ -87,9 +90,6 @@ const COMMON_ERROR_CODE_MAP: Record<ErrorCode, string> = {
   [ErrorCode.RemoteError]: ErrorCode.RemoteError,
   [ErrorCode.NetworkError]: ErrorCode.NetworkError,
   [ErrorCode.ServiceError]: ErrorCode.ServiceError,
-  [ErrorCode.ReceiptFailed]: ErrorCode.ReceiptFailed,
-  [ErrorCode.ReceiptFinished]: ErrorCode.ReceiptFinished,
-  [ErrorCode.ReceiptFinishedFailed]: ErrorCode.ReceiptFinishedFailed,
   [ErrorCode.NotPrepared]: ErrorCode.NotPrepared,
   [ErrorCode.NotEnded]: ErrorCode.NotEnded,
   [ErrorCode.AlreadyOwned]: ErrorCode.AlreadyOwned,
@@ -191,6 +191,11 @@ export const ErrorCodeUtils = {
     _platform: IapPlatform,
   ): ErrorCode => {
     if (typeof platformCode === 'string') {
+      const alias = errorAlias(platformCode);
+      if (alias) {
+        return alias;
+      }
+
       // Handle direct ErrorCode enum values
       if (OPENIAP_ERROR_CODE_SET.has(platformCode)) {
         return platformCode as ErrorCode;
@@ -256,6 +261,11 @@ const normalizeErrorCode = (
 
   if (ERROR_CODES.has(code as string)) {
     return code as string;
+  }
+
+  const alias = errorAlias(code as string);
+  if (alias) {
+    return alias;
   }
 
   const camelCased = toKebabCase(code as string);
@@ -369,13 +379,10 @@ export function getUserFriendlyErrorMessage(error: ErrorLike): string {
       return 'This feature is not supported on this device.';
     case ErrorCode.TransactionValidationFailed:
       return 'Transaction could not be verified';
-    case ErrorCode.ReceiptFailed:
     case ErrorCode.PurchaseVerificationFailed:
       return 'Purchase verification failed';
-    case ErrorCode.ReceiptFinished:
     case ErrorCode.PurchaseVerificationFinished:
       return 'Purchase verification completed';
-    case ErrorCode.ReceiptFinishedFailed:
     case ErrorCode.PurchaseVerificationFinishFailed:
       return 'Failed to complete purchase verification';
     case ErrorCode.EmptySkuList:
@@ -402,16 +409,10 @@ export const normalizeErrorCodeFromNative = (code: unknown): ErrorCode => {
   if (typeof code === 'string') {
     const upper = code.toUpperCase();
 
-    // Check aliases first (includes deprecated Receipt* -> PurchaseVerification* mappings)
-    const alias = ERROR_CODE_ALIASES[upper];
+    // Check platform spelling aliases first.
+    const alias = errorAlias(code);
     if (alias) {
       return alias;
-    }
-
-    // Also check lowercase alias for kebab-case codes
-    const lowerAlias = ERROR_CODE_ALIASES[code];
-    if (lowerAlias) {
-      return lowerAlias;
     }
 
     // Handle various user cancelled formats

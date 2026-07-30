@@ -290,7 +290,7 @@ describe('generated compatibility', () => {
     );
 
     expect(duplicateBlocks).toEqual([]);
-    expect(typescript).toContain('@deprecated One-time offers belong to ProductAndroid.discountOffers;');
+    expect(typescript).not.toContain('Scheduled for removal in OpenIAP 3.0.');
   });
 
   it('keeps generated TypeScript aliases separated by one blank line', () => {
@@ -304,31 +304,14 @@ describe('generated compatibility', () => {
     expect(gdscript).toContain(
       '## Standardized Android one-time product purchase options and offers. Native metadata uses Android-suffixed fields. @see https://openiap.dev/docs/types/discount-offer',
     );
-    expect(gdscript).toContain(
-      '## Legacy nullable compatibility field. Google Play does not populate one-time purchase offer details for subscription products. @deprecated One-time offers belong to ProductAndroid.discountOffers; subscriptions use subscriptionOffers.',
-    );
+    expect(gdscript).not.toContain('Legacy nullable compatibility field.');
   });
 
-  it('propagates canonical type and field deprecation reasons to every language', () => {
+  it('contains no scheduled OpenIAP 3 deprecation guidance in generated languages', () => {
     const generatedFiles = ['types.ts', 'Types.swift', 'Types.kt', 'types.dart', 'types.gd', 'Types.cs'];
     for (const file of generatedFiles) {
       const source = generated(file);
-      expect(source).toContain('@deprecated Use the standardized DiscountOffer type for Android one-time offers.');
-      expect(source).toContain(
-        '@deprecated One-time offers belong to ProductAndroid.discountOffers; subscriptions use subscriptionOffers.',
-      );
-      expect(source).toContain('@deprecated Use enableBillingProgramAndroid with BillingProgramAndroid instead.');
-      expect(source).toContain('@deprecated Use enableBillingProgramAndroid in InitConnectionConfig instead.');
-    }
-
-    // Most TypeScript GraphQL enums become string unions, so their individual
-    // members have no declaration that can carry member-level JSDoc. ErrorCode
-    // intentionally remains an enum and must retain member documentation.
-    for (const file of generatedFiles.filter((file) => file !== 'types.ts')) {
-      const source = generated(file);
-      expect(source).toContain(
-        '@deprecated Use the user-choice-billing BillingProgramAndroid value instead.',
-      );
+      expect(source).not.toContain('Scheduled for removal in OpenIAP 3.0.');
     }
   });
 
@@ -338,7 +321,7 @@ describe('generated compatibility', () => {
     const implementors = interfaceImplementors();
     const unionOwners = interfaceUnionOwners();
 
-    expect(entries.length).toBeGreaterThan(0);
+    expect(entries).toEqual([]);
     for (const file of generatedFiles) {
       const source = generated(file);
       const representableEntries = entries.filter((entry) => {
@@ -378,9 +361,7 @@ describe('generated compatibility', () => {
         }
         if (
           file === 'Types.kt' &&
-          (entry.parentName === 'Query' ||
-            entry.parentName === 'Mutation' ||
-            entry.parentName === 'Subscription')
+          (entry.parentName === 'Query' || entry.parentName === 'Mutation' || entry.parentName === 'Subscription')
         ) {
           // Kotlin exposes root operations through both the suspending
           // operation interface and an optional handler bundle. Both are

@@ -22,7 +22,6 @@ import {
   endConnection,
   finishTransaction,
   getStorefront,
-  validateReceipt,
   deepLinkToSubscriptions,
   getAvailablePurchases,
   restorePurchases,
@@ -39,8 +38,6 @@ import {
 } from '../index';
 import * as iosMod from '../modules/ios';
 import * as androidMod from '../modules/android';
-import type {RequestPurchaseProps} from '../types';
-import {resetLegacyWarningsForTesting} from '../utils/deprecation';
 import {Platform} from 'react-native';
 /* eslint-enable import/first */
 
@@ -57,7 +54,6 @@ afterAll(() => {
 describe('Public API (index.ts)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    resetLegacyWarningsForTesting();
     (Platform as any).OS = 'ios';
     (Platform as any).select = jest.fn((obj) => obj.ios);
     (ExpoIapModule.getPromotedProductIOS as jest.Mock).mockResolvedValue(null);
@@ -73,9 +69,9 @@ describe('Public API (index.ts)', () => {
         expect.any(Function),
       );
       const passed = addListener.mock.calls[0][1];
-      const event = {id: 't', productId: 'p', platform: 'IOS'} as any;
+      const event = {id: 't', productId: 'p', store: 'apple'} as any;
       passed(event);
-      expect(fn).toHaveBeenCalledWith({...event, platform: 'ios'});
+      expect(fn).toHaveBeenCalledWith(event);
       expect(typeof subscription.remove).toBe('function');
     });
 
@@ -378,7 +374,7 @@ describe('Public API (index.ts)', () => {
       );
     });
 
-    it('subscriptionBillingIssueListener normalizes purchase platform', () => {
+    it('subscriptionBillingIssueListener forwards the canonical purchase', () => {
       const addListener = (ExpoIapModule as any).addListener as jest.Mock;
       const fn = jest.fn();
       subscriptionBillingIssueListener(fn);
@@ -394,11 +390,11 @@ describe('Public API (index.ts)', () => {
       const purchase = {
         id: 'billing-issue',
         productId: 'sub.monthly',
-        platform: 'IOS',
+        store: 'apple',
       } as any;
       registeredCallback(purchase);
 
-      expect(fn).toHaveBeenCalledWith({...purchase, platform: 'ios'});
+      expect(fn).toHaveBeenCalledWith(purchase);
     });
   });
 
@@ -478,23 +474,17 @@ describe('Public API (index.ts)', () => {
       );
     });
 
-    it('warns once when using legacy inapp type alias', async () => {
+    it('rejects the removed inapp type alias', async () => {
       (Platform as any).OS = 'ios';
       (Platform as any).select = (obj: any) => obj.ios;
       (ExpoIapModule.fetchProducts as jest.Mock) = jest
         .fn()
         .mockResolvedValue([{platform: 'ios', id: 'legacy'}]);
-      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
 
-      await fetchProducts({skus: ['legacy'], type: 'inapp' as any});
-      await fetchProducts({skus: ['legacy'], type: 'inapp' as any});
-
-      expect(warnSpy).toHaveBeenCalledTimes(1);
-      expect(warnSpy).toHaveBeenCalledWith(
-        '[Expo-IAP]',
-        "'inapp' product type is deprecated and will be removed in expo-iap 5.0.0. Use 'in-app' instead.",
-      );
-      warnSpy.mockRestore();
+      await expect(
+        fetchProducts({skus: ['legacy'], type: 'inapp' as any}),
+      ).rejects.toThrow(/Unsupported product type/);
+      expect(ExpoIapModule.fetchProducts).not.toHaveBeenCalled();
     });
 
     it('returns results unchanged when querying all product types', async () => {
@@ -577,18 +567,18 @@ describe('Public API (index.ts)', () => {
       expect(ExpoIapModule.requestPurchase).not.toHaveBeenCalled();
     });
 
-    it('normalizes iOS array purchases', async () => {
+    it('returns canonical iOS array purchases', async () => {
       (Platform as any).OS = 'ios';
       (ExpoIapModule.requestPurchase as jest.Mock) = jest
         .fn()
-        .mockResolvedValue([{id: 'a', platform: 'IOS'}]);
+        .mockResolvedValue([{id: 'a', store: 'apple'}]);
 
       const res = await requestPurchase({
         request: {apple: {sku: 'skuSub'}},
         type: 'subs',
       });
 
-      expect(res).toEqual([{id: 'a', platform: 'ios'}]);
+      expect(res).toEqual([{id: 'a', store: 'apple'}]);
     });
 
     it('restores iOS purchase diagnostics from the native error envelope', async () => {
@@ -880,7 +870,7 @@ describe('Public API (index.ts)', () => {
       );
     });
 
-    it('Android subscription passes both legacy replacementMode and new subscriptionProductReplacementParams', async () => {
+    it('Android subscription passes canonical replacement parameters', async () => {
       (Platform as any).OS = 'android';
       (ExpoIapModule.requestPurchase as jest.Mock) = jest
         .fn()
@@ -894,7 +884,6 @@ describe('Public API (index.ts)', () => {
               {sku: 'new_subscription', offerToken: 'token'},
             ],
             purchaseToken: 'old-purchase-token',
-            replacementMode: 2,
             subscriptionProductReplacementParams: {
               oldProductId: 'old_subscription',
               replacementMode: 'charge-prorated-price',
@@ -909,7 +898,6 @@ describe('Public API (index.ts)', () => {
           type: 'subs',
           skus: ['new_subscription'],
           purchaseToken: 'old-purchase-token',
-          replacementMode: 2,
           subscriptionProductReplacementParams: {
             oldProductId: 'old_subscription',
             replacementMode: 'charge-prorated-price',
@@ -969,7 +957,6 @@ describe('Public API (index.ts)', () => {
             advancedCommerceData: 'campaign_summer_2025',
           },
         },
-        useAlternativeBilling: undefined,
       });
       expect(res).toEqual({id: 'purchase-123'});
     });
@@ -1000,7 +987,6 @@ describe('Public API (index.ts)', () => {
             appAccountToken: 'user-uuid-456',
           },
         },
-        useAlternativeBilling: undefined,
       });
       expect(res).toEqual([{id: 'sub-123', platform: 'ios'}]);
     });
@@ -1045,7 +1031,6 @@ describe('Public API (index.ts)', () => {
             },
           },
         },
-        useAlternativeBilling: undefined,
       });
     });
 
@@ -1071,7 +1056,6 @@ describe('Public API (index.ts)', () => {
             sku: 'com.example.product',
           },
         },
-        useAlternativeBilling: undefined,
       });
       expect(res).toEqual({id: 'purchase-no-acd'});
     });
@@ -1097,56 +1081,32 @@ describe('Public API (index.ts)', () => {
       warnSpy.mockRestore();
     });
 
-    it('warns once when the legacy ios request alias is selected', async () => {
+    it('rejects the removed ios request alias', async () => {
       (Platform as any).OS = 'ios';
       (ExpoIapModule.requestPurchase as jest.Mock) = jest
         .fn()
         .mockResolvedValue({id: 'legacy'});
-      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
       const request = {
         request: {ios: {sku: 'legacy-ios'}},
         type: 'in-app',
-      } as const;
+      } as any;
 
-      await requestPurchase(request);
-      await requestPurchase(request);
-
-      expect(warnSpy).toHaveBeenCalledTimes(1);
-      expect(warnSpy).toHaveBeenCalledWith(
-        '[Expo-IAP]',
-        expect.stringContaining('`request.ios` is deprecated'),
-      );
-      expect(ExpoIapModule.requestPurchase).toHaveBeenLastCalledWith(
-        expect.objectContaining({
-          request: {apple: {sku: 'legacy-ios'}},
-        }),
-      );
-      warnSpy.mockRestore();
+      await expect(requestPurchase(request)).rejects.toThrow(/sku/);
+      expect(ExpoIapModule.requestPurchase).not.toHaveBeenCalled();
     });
 
-    it('warns once when the legacy android request alias is selected', async () => {
+    it('rejects the removed android request alias', async () => {
       (Platform as any).OS = 'android';
       (ExpoIapModule.requestPurchase as jest.Mock) = jest
         .fn()
         .mockResolvedValue([]);
-      const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
-      const request: RequestPurchaseProps = {
+      const request = {
         request: {android: {skus: ['legacy-android']}},
         type: 'in-app',
-      };
+      } as any;
 
-      await requestPurchase(request);
-      await requestPurchase(request);
-
-      expect(warnSpy).toHaveBeenCalledTimes(1);
-      expect(warnSpy).toHaveBeenCalledWith(
-        '[Expo-IAP]',
-        expect.stringContaining('`request.android` is deprecated'),
-      );
-      expect(ExpoIapModule.requestPurchase).toHaveBeenLastCalledWith(
-        expect.objectContaining({skus: ['legacy-android']}),
-      );
-      warnSpy.mockRestore();
+      await expect(requestPurchase(request)).rejects.toThrow(/skus/);
+      expect(ExpoIapModule.requestPurchase).not.toHaveBeenCalled();
     });
 
     it('does not revive legacy ios when canonical apple is explicitly null', async () => {
@@ -1294,7 +1254,7 @@ describe('Public API (index.ts)', () => {
       (Platform as any).OS = 'ios';
       (Platform as any).select = (obj: any) => obj.ios;
       const basePurchase = {
-        platform: 'ios',
+        store: 'apple',
         productId: 'prod.ios',
         isAutoRenewing: false,
         purchaseState: 'purchased',
@@ -1302,6 +1262,7 @@ describe('Public API (index.ts)', () => {
         quantity: 1,
         transactionDate: Date.now(),
         id: 'transaction-identifier',
+        transactionId: 'transaction-identifier',
       } as PurchaseInput;
       (ExpoIapModule.finishTransaction as jest.Mock) = jest
         .fn()
@@ -1472,50 +1433,7 @@ describe('Public API (index.ts)', () => {
     });
   });
 
-  describe('validateReceipt and deep link', () => {
-    it('validateReceipt iOS path', async () => {
-      (Platform as any).OS = 'ios';
-      const mock = jest
-        .spyOn(iosMod as any, 'validateReceiptIOS')
-        .mockResolvedValue({isValid: true});
-      const res = await validateReceipt({apple: {sku: 'sku'}});
-      expect(res).toEqual({isValid: true});
-      mock.mockRestore();
-    });
-
-    it('validateReceipt iOS throws without apple.sku', async () => {
-      (Platform as any).OS = 'ios';
-      await expect(validateReceipt({})).rejects.toThrow(/requires apple.sku/);
-    });
-
-    it('validateReceipt Android path and param checks', async () => {
-      (Platform as any).OS = 'android';
-      const spy = jest
-        .spyOn(androidMod as any, 'validateReceiptAndroid')
-        .mockResolvedValue({});
-      await expect(validateReceipt({google: {} as any})).rejects.toThrow(
-        /requires google.sku/,
-      );
-      await validateReceipt({
-        google: {
-          sku: 'sku',
-          packageName: 'com.app',
-          purchaseToken: 'tok',
-          accessToken: 'acc',
-          isSub: true,
-        },
-      });
-      expect(spy).toHaveBeenCalled();
-      spy.mockRestore();
-    });
-
-    it('validateReceipt throws on unsupported platform', async () => {
-      (Platform as any).OS = 'web';
-      await expect(validateReceipt({apple: {sku: 'sku'}})).rejects.toThrow(
-        /Unsupported platform/,
-      );
-    });
-
+  describe('deep link', () => {
     it('deepLinkToSubscriptions iOS delegates, Android validates', async () => {
       (Platform as any).OS = 'ios';
       const iosSpy = jest

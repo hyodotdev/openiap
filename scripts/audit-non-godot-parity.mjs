@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { GENERATED_SYNC_MANIFEST } from "../packages/gql/generated-sync-manifest.mjs";
 import { collectGeneratedSyncDrift } from "../packages/gql/scripts/verify-generated-sync.mjs";
-import { collectDeprecationScheduleDrift } from "./audit-deprecation-schedule.mjs";
+import { collectCompletedRemovalFailures } from "./audit-deprecation-schedule.mjs";
 import { usesApi24ConcurrentKeySet } from "./audit-android-api-compat.mjs";
 import { assertSpecMatchesNativeFloor } from "./release-branch-policy.mjs";
 import {
@@ -58,7 +58,7 @@ function checkNativeSpecVersionFloor() {
 }
 
 function checkDeprecationSchedule() {
-  for (const issue of collectDeprecationScheduleDrift()) {
+  for (const issue of collectCompletedRemovalFailures()) {
     fail(issue);
   }
 }
@@ -94,10 +94,8 @@ const operationParityRegistry = {
   Mutation: [
     "acknowledgePurchaseAndroid",
     "beginRefundRequestIOS",
-    "checkAlternativeBillingAvailabilityAndroid",
     "clearTransactionIOS",
     "consumePurchaseAndroid",
-    "createAlternativeBillingTokenAndroid",
     "createBillingProgramReportingDetailsAndroid",
     "deepLinkToSubscriptions",
     "endConnection",
@@ -110,15 +108,12 @@ const operationParityRegistry = {
     "presentExternalPurchaseLinkIOS",
     "presentExternalPurchaseNoticeSheetIOS",
     "requestPurchase",
-    "requestPurchaseOnPromotedProductIOS",
     "restorePurchases",
-    "showAlternativeBillingDialogAndroid",
     "showBillingProgramInformationDialogAndroid",
     "showExternalPurchaseCustomLinkNoticeIOS",
     "showInAppMessagesAndroid",
     "showManageSubscriptionsIOS",
     "syncIOS",
-    "validateReceipt",
     "verifyPurchase",
     "verifyPurchaseWithProvider",
   ],
@@ -136,7 +131,6 @@ const operationParityRegistry = {
     "getPromotedProductIOS",
     "getReceiptDataIOS",
     "getStorefront",
-    "getStorefrontIOS",
     "getTransactionJwsIOS",
     "hasActiveSubscriptions",
     "isEligibleForExternalPurchaseCustomLinkIOS",
@@ -144,7 +138,6 @@ const operationParityRegistry = {
     "isTransactionVerifiedIOS",
     "latestTransactionIOS",
     "subscriptionStatusIOS",
-    "validateReceiptIOS",
   ],
   Subscription: [
     "developerProvidedBillingAndroid",
@@ -204,8 +197,11 @@ function checkNoOutboundWebhookStream() {
     "libraries/expo-iap/src/useWebhookEvents.ts",
     "libraries/flutter_inapp_purchase/lib/webhook_client.dart",
     "libraries/godot-iap/addons/godot-iap/webhook_client.gd",
+    "libraries/godot-iap/addons/godot-iap/webhook_client.gd.uid",
     "libraries/kmp-iap/library/src/commonMain/kotlin/io/github/hyochan/kmpiap/openiap/WebhookClient.kt",
     "libraries/maui-iap/src/OpenIap.Maui/WebhookClient.cs",
+    "packages/kit/convex/webhooks/query.ts",
+    "packages/kit/convex/webhooks/validators.ts",
   ];
   for (const relativePath of forbiddenFiles) {
     if (exists(relativePath)) {
@@ -226,8 +222,7 @@ function checkNoOutboundWebhookStream() {
     "webhook_stream",
     "webhook-stream",
   ];
-  const removalRegressionTest =
-    "packages/kit/server/api/v1/webhooks.test.ts";
+  const removalRegressionTest = "packages/kit/server/api/v1/webhooks.test.ts";
   expectIncludes(
     removalRegressionTest,
     [
@@ -237,6 +232,16 @@ function checkNoOutboundWebhookStream() {
       "expect(response.status).toBe(404)",
     ],
     "outbound webhook route removal regression",
+  );
+  expectNotIncludes(
+    "packages/kit/convex/_generated/api.d.ts",
+    [
+      "../webhooks/query.js",
+      '"webhooks/query"',
+      "../webhooks/validators.js",
+      '"webhooks/validators"',
+    ],
+    "removed outbound Convex modules must not remain in generated API types",
   );
   const synchronizedGodotArtifacts = [
     "libraries/godot-iap/addons/godot-iap/android/GodotIap.debug.aar",
@@ -875,10 +880,10 @@ function checkE2eExampleIds() {
     'adb -s "$ANDROID_SERIAL" shell monkey -p dev.hyo.martie 1',
     'adb -s "$FIREOS_SERIAL" uninstall dev.hyo.martie',
     'adb -s "$FIREOS_SERIAL" install --no-incremental -r',
-    "bin/stores/amazon/Debug/net9.0-android/dev.hyo.martie-Signed.apk",
+    "bin/stores/amazon/Debug/net10.0-android/dev.hyo.martie-Signed.apk",
     'adb -s "$FIREOS_SERIAL" shell monkey -p dev.hyo.martie 1',
     "-p:RuntimeIdentifier=ios-arm64",
-    "bin/Debug/net9.0-ios/ios-arm64/OpenIap.Maui.Example.app",
+    "bin/Debug/net10.0-ios/ios-arm64/OpenIap.Maui.Example.app",
     "xcrun devicectl device process launch",
   ]) {
     if (!mauiSection.includes(expected)) {
@@ -890,7 +895,7 @@ function checkE2eExampleIds() {
       "MAUI E2E must select Android devices with adb -s, not ANDROID_SERIAL",
     );
   }
-  if (/dotnet build\s+-t:Run\s+-f net9\.0-ios/.test(mauiSection)) {
+  if (/dotnet build\s+-t:Run\s+-f net10\.0-ios/.test(mauiSection)) {
     fail("MAUI E2E must build ios-arm64 before installing with devicectl");
   }
 
@@ -1330,6 +1335,10 @@ function checkFlutter() {
       )
     ) {
       fail(`${flutterSwiftPackage} OpenIAP dependency version must be semver`);
+    } else if (openIapDependencyVersion !== "3.0.0") {
+      fail(
+        `${flutterSwiftPackage} OpenIAP dependency floor must be 3.0.0 for Flutter 10`,
+      );
     }
     if (
       !flutterSwiftPackageText.includes(
@@ -1372,7 +1381,7 @@ function checkFlutter() {
       'case "setPurchaseUpdatedListenerOptions"',
       'case "deepLinkToSubscriptions"',
       'case "getAllTransactionsIOS"',
-      'case "validateReceiptIOS", "verifyPurchase"',
+      'case "verifyPurchase"',
       'case "verifyPurchaseWithProvider"',
       'case "isEligibleForExternalPurchaseCustomLinkIOS"',
       'case "getExternalPurchaseCustomLinkTokenIOS"',
@@ -1394,6 +1403,7 @@ function checkFlutter() {
     "isTransactionVerifiedIOS",
     "getTransactionJwsIOS",
     "getReceiptDataIOS",
+    "getStorefront",
     "canPresentExternalPurchaseNoticeIOS",
     "presentExternalPurchaseNoticeSheetIOS",
     "isEligibleForExternalPurchaseCustomLinkIOS",
@@ -1411,15 +1421,6 @@ function checkFlutter() {
       `Flutter macOS ${method} bridge`,
     );
   }
-  expectIncludes(
-    flutterMacosPlugin,
-    [
-      'case "getStorefrontIOS"',
-      "private func getStorefrontIOS(",
-      "OpenIapModule.shared.getStorefront()",
-    ],
-    "Flutter macOS storefront bridge",
-  );
   expectIncludes(
     "libraries/flutter_inapp_purchase/android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
     ['"setPurchaseUpdatedListenerOptions" ->'],
@@ -1445,30 +1446,15 @@ function checkFlutter() {
     );
   }
   expectIncludes(
-    flutterIosPlugin,
-    ["OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()"],
-    "Flutter iOS promoted purchase bridge",
-  );
-  expectIncludes(
-    flutterMacosPlugin,
-    ["OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()"],
-    "Flutter macOS promoted purchase bridge",
-  );
-  expectIncludes(
     "libraries/react-native-iap/ios/HybridRnIap.swift",
-    [
-      "func buyPromotedProductIOS() throws -> Promise<Bool>",
-      "OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()",
-      "throw OpenIapException.from(purchaseError)",
-    ],
-    "RN iOS promoted purchase bridge",
+    ["throw OpenIapException.from(purchaseError)"],
+    "RN iOS purchase error bridge",
   );
   expectIncludes(
     "libraries/expo-iap/ios/ExpoIapModule.swift",
     [
       "throw IapException.from(error)",
       "code: .purchaseVerificationFailed",
-      "OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()",
       "try await OpenIapModule.shared.getStorefront()",
     ],
     "Expo iOS error/storefront bridge",
@@ -1782,7 +1768,6 @@ function checkApple() {
       "func requestPurchaseWithPayload",
       "OpenIapSerialization.requestPurchaseProps(from: payload)",
       "func getStorefrontWithCompletion",
-      "try await requestPurchaseOnPromotedProductIOS()",
     ],
     "Apple ObjC purchase bridge",
   );
@@ -1827,13 +1812,10 @@ function checkGoogle() {
       rel(base, `openiap/src/${flavor}/java/dev/hyo/openiap/OpenIapModule.kt`),
       [
         "getStorefront = { getStorefront() }",
-        "checkAlternativeBillingAvailabilityAndroid",
-        "createAlternativeBillingTokenAndroid",
         "createBillingProgramReportingDetailsAndroid",
         "getBillingChoiceInfoAndroid",
         "isBillingProgramAvailableAndroid",
         "launchExternalLinkAndroid",
-        "showAlternativeBillingDialogAndroid",
         "showBillingProgramInformationDialogAndroid",
         "showInAppMessagesAndroid",
       ],
@@ -1967,8 +1949,6 @@ function checkNativeApis() {
     "libraries/react-native-iap/src/specs/RnIap.nitro.ts",
     [
       "getStorefront(): Promise<string>",
-      "checkAlternativeBillingAvailabilityAndroid(): Promise<boolean>",
-      "createAlternativeBillingTokenAndroid",
       "isBillingProgramAvailableAndroid",
       "createBillingProgramReportingDetailsAndroid",
       "getBillingChoiceInfoAndroid",
@@ -1996,8 +1976,6 @@ function checkNativeApis() {
     GENERATED_SYNC_MANIFEST.dart.targets.flutter.path,
     [
       "Future<String> getStorefront()",
-      "Future<bool> checkAlternativeBillingAvailabilityAndroid()",
-      "Future<String?> createAlternativeBillingTokenAndroid()",
       "Future<BillingProgramReportingDetailsAndroid> createBillingProgramReportingDetailsAndroid",
       "Future<BillingChoiceInfoAndroid> getBillingChoiceInfoAndroid",
       "Future<BillingProgramAvailabilityResultAndroid> isBillingProgramAvailableAndroid",
@@ -2011,8 +1989,6 @@ function checkNativeApis() {
     GENERATED_SYNC_MANIFEST.kotlin.targets.kmp.path,
     [
       "suspend fun getStorefront(): String",
-      "suspend fun checkAlternativeBillingAvailabilityAndroid(): Boolean",
-      "suspend fun createAlternativeBillingTokenAndroid",
       "suspend fun createBillingProgramReportingDetailsAndroid",
       "suspend fun getBillingChoiceInfoAndroid",
       "suspend fun isBillingProgramAvailableAndroid",
@@ -2124,7 +2100,6 @@ function checkBillingChoiceFieldBindings() {
       "InAppMessageParams.InAppMessageCategoryId.TRANSACTIONAL",
       "pendingBillingPrograms",
       "resolveBillingProgramsForConnection(",
-      "resolveLegacySubscriptionReplacementMode(",
     ],
     "Google Billing Choice field bindings",
   );
@@ -2170,20 +2145,13 @@ function checkBillingChoiceFieldBindings() {
   );
   expectIncludes(
     "packages/google/openiap/src/main/java/dev/hyo/openiap/helpers/CommonHelpers.kt",
-    [
-      "!purchaseToken.isNullOrBlank() && originalExternalTransactionId.isNullOrBlank()",
-      "if (hasProductLevelReplacementParams) null else replacementMode",
-      "pendingPrograms.filterNot { it == BillingProgramAndroid.Unspecified }",
-    ],
-    "Google developer-billed subscription replacement mode",
+    ["pendingPrograms.filterNot { it == BillingProgramAndroid.Unspecified }"],
+    "Google billing-program connection state",
   );
   expectIncludes(
     "packages/google/openiap/src/test/java/dev/hyo/openiap/BillingChoiceAndroidTypesTest.kt",
-    [
-      "developer billed replacement does not inject a Play replacement mode",
-      "pre-init billing programs survive connection config reset",
-    ],
-    "Google Billing Choice replacement tests",
+    ["pre-init billing programs survive connection config reset"],
+    "Google Billing Choice connection tests",
   );
   expectNotIncludes(
     "packages/google/openiap/src/main/java/dev/hyo/openiap/OpenIapViewModel.kt",
@@ -2392,11 +2360,8 @@ function checkBillingChoiceFieldBindings() {
   );
   expectIncludes(
     "packages/docs/src/pages/docs/features/external-purchase.tsx",
-    [
-      "iap.user_choice_billing_android.connect",
-      "iap.developer_provided_billing_android.connect",
-    ],
-    "Godot external purchase docs signals",
+    ["iap.developer_provided_billing_android.connect"],
+    "Godot external purchase docs signal",
   );
   for (const path of [
     "packages/docs/src/pages/docs/types/billing-programs.tsx",
@@ -2477,10 +2442,7 @@ function checkBillingChoiceFieldBindings() {
   );
   expectIncludes(
     "libraries/kmp-iap/library/src/androidUnitTest/kotlin/io/github/hyochan/kmpiap/SubscriptionReplacementResolutionTest.kt",
-    [
-      "legacy replacement mode follows native Google precedence",
-      "hasProductLevelReplacementParams = true",
-    ],
+    ["hasProductLevelReplacementParams = true"],
     "KMP subscription replacement precedence tests",
   );
   expectIncludes(
@@ -2495,31 +2457,33 @@ function checkBillingChoiceFieldBindings() {
     "packages/google/openiap/src/horizon/java/dev/hyo/openiap/OpenIapModule.kt",
     [
       "com.meta.horizon.platform.HORIZON_APP_ID",
-      "com.meta.horizon.platform.ovr.OCULUS_APP_ID",
-      "com.meta.horizon.platform.ovr.HORIZON_APP_ID",
-      "com.oculus.vr.APP_ID",
       "resolveHorizonAppId(appInfo.metaData)",
     ],
-    "Horizon App ID canonical and migration keys",
+    "Horizon App ID canonical key",
   );
   expectIncludes(
     "packages/google/openiap/src/testHorizon/java/dev/hyo/openiap/HorizonAppIdMetadataTest.kt",
     [
-      "canonical Horizon 2 key takes precedence over legacy metadata",
-      "blank canonical key warns for the selected historical key",
-      "only the first resolved historical key warns",
-      "historical metadata logs its OpenIAP 3_0 removal deadline",
+      "canonical Horizon metadata resolves the app id",
       "missing or blank Horizon metadata resolves to null",
+      "historical Horizon metadata is ignored",
     ],
     "Horizon App ID metadata tests",
   );
   expectIncludes(
     "libraries/expo-iap/plugin/src/withIAP.ts",
-    [
-      "com.meta.horizon.platform.HORIZON_APP_ID",
-      "LEGACY_HORIZON_APP_ID_META_DATA_NAMES",
-    ],
+    ["com.meta.horizon.platform.HORIZON_APP_ID"],
     "Expo Horizon App ID canonical metadata",
+  );
+  expectNotIncludes(
+    "libraries/expo-iap/plugin/src/withIAP.ts",
+    [
+      "LEGACY_HORIZON_APP_ID_META_DATA_NAMES",
+      "com.meta.horizon.platform.ovr.OCULUS_APP_ID",
+      "com.meta.horizon.platform.ovr.HORIZON_APP_ID",
+      "com.oculus.vr.APP_ID",
+    ],
+    "Expo Horizon App ID removed metadata aliases",
   );
   for (const file of [
     "packages/google/Example/src/main/AndroidManifest.xml",
@@ -2618,12 +2582,8 @@ function checkBillingChoiceFieldBindings() {
       ["error.subResponseCodeAndroid = props.subResponseCodeAndroid"],
     ],
     [
-      "libraries/flutter_inapp_purchase/lib/helpers.dart",
-      ["typedef PurchaseResult = iap_err.PurchaseResult;"],
-    ],
-    [
       "libraries/flutter_inapp_purchase/lib/errors.dart",
-      ["errorData['subResponseCodeAndroid']", "json['subResponseCodeAndroid']"],
+      ["errorData['subResponseCodeAndroid']"],
     ],
     [
       "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/Helper.kt",
@@ -3809,6 +3769,9 @@ function checkFrameworkDependencyHygiene() {
       "Bearer header and out of URLs.",
       "default 600 per key",
       "an exact store-verified `productId` match",
+      "no-store liveness metadata",
+      "public revision",
+      "no Convex round-trip",
     ],
     "Kit compact assistant contract must match authentication and safety SSOT",
   );
@@ -3824,6 +3787,10 @@ function checkFrameworkDependencyHygiene() {
       ".github/workflows/deploy-kit.yml",
       "Apple/Amazon: consumable ready for durable fulfillment",
       "deploys additive Convex functions",
+      '"apiVersion": "v1"',
+      '"revision": "a1b2c3d4e5f6"',
+      "Cache-Control: no-store",
+      "no Convex",
     ],
     "Kit full assistant contract must follow monorepo deployment and state SSOT",
   );
@@ -4156,10 +4123,8 @@ function checkFrameworkDependencyHygiene() {
   }
   for (const xcodeReleaseWorkflow of [
     ".github/workflows/ci.yml",
-    ".github/workflows/ci-maui-iap.yml",
     ".github/workflows/release-apple.yml",
     ".github/workflows/release-kmp.yml",
-    ".github/workflows/release-maui.yml",
   ]) {
     expectIncludes(
       xcodeReleaseWorkflow,
@@ -4176,6 +4141,67 @@ function checkFrameworkDependencyHygiene() {
       ["runs-on: macos-latest", "sudo xcode-select -s /Applications/Xcode.app"],
       `${xcodeReleaseWorkflow} must not drift with macos-latest Xcode`,
     );
+  }
+  for (const mauiXcodeWorkflow of [
+    ".github/workflows/ci-maui-iap.yml",
+    ".github/workflows/release-maui.yml",
+  ]) {
+    expectIncludes(
+      mauiXcodeWorkflow,
+      ["runs-on: xcode-27", "prebuilt OpenIAP.xcframework"],
+      `${mauiXcodeWorkflow} must compile the packaged Apple sidecar with Xcode 27`,
+    );
+    expectNotIncludes(
+      mauiXcodeWorkflow,
+      [
+        "XCODE_VERSION: 16.4",
+        "maxim-lobanov/setup-xcode@v1",
+        "runs-on: macos-latest",
+      ],
+      `${mauiXcodeWorkflow} must not compile the packaged Apple sidecar with an older or floating Xcode`,
+    );
+  }
+  expectIncludes(
+    "libraries/godot-iap/scripts/verify-ios-toolchain.sh",
+    [
+      "xcrun vtool -show-build",
+      "version[[:space:]]+27[0-9]+",
+      "Rebuild with DEVELOPER_DIR pointing at Xcode 27 before release.",
+    ],
+    "Godot tracked iOS frameworks must require Xcode 27 linker provenance",
+  );
+  for (const godotWorkflow of [
+    ".github/workflows/ci-godot-iap.yml",
+    ".github/workflows/release-godot.yml",
+  ]) {
+    expectIncludes(
+      godotWorkflow,
+      [
+        "Verify tracked iOS framework toolchain",
+        "bash scripts/verify-ios-toolchain.sh",
+      ],
+      `${godotWorkflow} must validate tracked iOS framework toolchain provenance`,
+    );
+  }
+  expectIncludes(
+    ".github/workflows/release-godot.yml",
+    [
+      "Verify selected iOS framework toolchain",
+      'bash scripts/verify-ios-toolchain.sh "$VERIFY_DIR/addons/godot-iap/bin/ios"',
+    ],
+    "Godot releases must validate the selected tag and packaged iOS frameworks",
+  );
+  for (const eventName of ["pull_request", "push"]) {
+    const eventBlock = read(".github/workflows/ci-maui-iap.yml").match(
+      new RegExp(
+        `${eventName}:([\\s\\S]*?)(?=\\n  (?:pull_request|push|workflow_dispatch|schedule):|\\nconcurrency:)`,
+      ),
+    )?.[1];
+    if (!eventBlock?.includes('"packages/apple/Sources/**"')) {
+      fail(
+        `.github/workflows/ci-maui-iap.yml ${eventName} paths must cover all Apple sources for Xcode 27 compilation`,
+      );
+    }
   }
   expectIncludes(
     "scripts/install-xcodegen.sh",
@@ -4343,8 +4369,6 @@ function checkFrameworkDependencyHygiene() {
       "ErrorCode.userCancelled.rawValue",
       "ErrorCode.developerError.rawValue",
       "ErrorCode.syncError.rawValue",
-      '@available(*, deprecated, message: "Use promotedProductIOS signal with requestPurchase instead. Scheduled for removal in godot-iap 3.0.0.")',
-      '@available(*, deprecated, message: "Use verifyPurchase instead. Scheduled for removal in godot-iap 3.0.0.")',
     ],
     "Godot iOS purchase errors must emit OpenIAP error codes",
   );
@@ -5179,13 +5203,8 @@ function checkFrameworkDependencyHygiene() {
     );
     expectIncludes(
       "libraries/flutter_inapp_purchase/android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
-      [
-        '@Suppress("DEPRECATION")',
-        "val isAvailable = iap.checkAlternativeBillingAvailability()",
-        "val token = iap.createAlternativeBillingReportingToken()",
-        "val payload = JSONObject(serializeOpenIapError(e))",
-      ],
-      "Flutter Android plugin must preserve legacy alternative billing handlers",
+      ["val payload = JSONObject(serializeOpenIapError(e))"],
+      "Flutter Android plugin error serialization",
     );
     expectNotIncludes(
       "libraries/flutter_inapp_purchase/android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
@@ -5982,6 +6001,11 @@ function checkFrameworkDependencyHygiene() {
     "MAUI Horizon 2.x bindings must not ship the legacy OVR Platform SDK",
   );
   expectIncludes(
+    "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
+    ["net10.0;net10.0-android;net10.0-ios;net10.0-maccatalyst"],
+    "MAUI 2.x package must target supported .NET 10 frameworks only",
+  );
+  expectIncludes(
     "libraries/maui-iap/example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj",
     [
       "net10.0-android",
@@ -6010,13 +6034,43 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     "packages/docs/src/pages/docs/setup/maui.tsx",
     [
-      ".NET 9 or .NET 10 SDK",
+      ".NET 10 SDK",
       "Google Billing, Play",
       "net10.0-ios;net10.0-android;net10.0-maccatalyst",
-      "Replace <code>net9.0-*</code> with <code>net10.0-*</code>",
+      "OpenIap.Maui 2.x",
+      "supports .NET 10 only",
     ],
     "MAUI setup docs must describe net10 and NuGet Google dependency shape",
   );
+  for (const net10OnlyFile of [
+    "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
+    "libraries/maui-iap/src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj",
+    "libraries/maui-iap/src/OpenIap.Maui.Bindings.iOS/OpenIap.Maui.Bindings.iOS.csproj",
+    "libraries/maui-iap/tests/OpenIap.Maui.ContractTests/OpenIap.Maui.ContractTests.csproj",
+    "libraries/maui-iap/tests/OpenIap.Maui.Tests/OpenIap.Maui.Tests.csproj",
+    "libraries/maui-iap/example/OpenIap.Maui.Example/OpenIap.Maui.Example.csproj",
+    "libraries/maui-iap/.vscode/launch.json",
+    "libraries/maui-iap/.vscode/run_android.sh",
+    "libraries/maui-iap/.vscode/run_ios_device.sh",
+    "libraries/maui-iap/.vscode/run_ios_simulator.sh",
+    ".github/workflows/ci-maui-iap.yml",
+    ".github/workflows/release-maui.yml",
+    ".claude/commands/e2e-tests.md",
+    ".claude/commands/verify-all.md",
+    "libraries/maui-iap/README.md",
+    "libraries/maui-iap/example/README.md",
+    "libraries/maui-iap/CLAUDE.md",
+    "libraries/maui-iap/CONVENTION.md",
+    "knowledge/internal/04-platform-packages.md",
+    "packages/docs/src/pages/docs/setup/store/amazon.tsx",
+    "packages/docs/src/pages/docs/setup/store/horizon.tsx",
+  ]) {
+    expectNotIncludes(
+      net10OnlyFile,
+      ["net9.0", ".NET 9"],
+      "MAUI 2.x support files must not restore out-of-support .NET MAUI 9 targets",
+    );
+  }
   expectIncludes(
     "libraries/flutter_inapp_purchase/android/settings.gradle",
     ["new File(settingsDir, '../../../packages/google/openiap')"],
@@ -6273,6 +6327,10 @@ function checkReleaseNoteGroupingGuidance() {
       "## Multi-package Release Trains",
       "project decision recorded from issue #206",
       "Group notable changes under the affected platform package or framework",
+      "the next major for breaking public API or type removals",
+      "never infer or auto-align it from Apple and Google",
+      "Before naming any package's next major",
+      "migration schedule. The release train must include every public removal",
     ],
     "generate-doc package-specific release guidance",
   );
@@ -6318,6 +6376,268 @@ function checkReleaseNoteGroupingGuidance() {
   );
 }
 
+function checkXcode27StoreKitCoverage() {
+  expectIncludes(
+    "packages/gql/src/api-ios.graphql",
+    ["presentCodeRedemptionSheetIOS: PurchaseIOS"],
+    "Xcode 27 offer-code redemption result contract",
+  );
+  expectIncludes(
+    "packages/gql/src/type-ios.graphql",
+    [
+      "SubscriptionBundle",
+      "SubscriptionSuite",
+      "type BundledSubscriptionIOS",
+      "bundledSubscriptionsIOS: [BundledSubscriptionIOS!]",
+      "bundleOriginalTransactionIdIOS: String",
+      "bundleTransactionIdIOS: String",
+      "previousOriginalTransactionIdIOS: String",
+      "bundleOriginalTransactionId: String",
+      "willUnbundle: Boolean",
+      "revocationTypeIOS: String",
+      "revocationDate: Float",
+      "storeType: String",
+    ],
+    "Xcode 27 StoreKit schema coverage",
+  );
+  expectIncludes(
+    "packages/apple/Sources/Helpers/StoreKitTypesBridge.swift",
+    [
+      "info.bundledSubscriptions.map",
+      "type == .subscriptionBundle || type == .subscriptionSuite",
+      "transaction.bundleOriginalTransactionID",
+      "transaction.bundleTransactionID",
+      "transaction.previousOriginalTransactionID",
+      "info.bundleOriginalTransactionID",
+      "info.willUnbundle",
+      "ownership == .assigned",
+      "revocation == .upgradedToBundle",
+      "transaction.revocationType?.rawValue",
+      "details.partners.map",
+    ],
+    "Xcode 27 StoreKit native mapping",
+  );
+  expectIncludes(
+    "packages/apple/Sources/OpenIapModule.swift",
+    [
+      "AppStore.presentOfferCodeRedeemSheet(",
+      "StoreKitTypesBridge.isAutoRenewingSubscriptionProductType",
+      "revocationDateValue = transaction.revocationDate?.milliseconds",
+      "storeTypeValue = transaction.storeType.rawValue",
+    ],
+    "Xcode 27 Apple module behavior",
+  );
+  expectIncludes(
+    "libraries/react-native-iap/ios/RnIapHelper.swift",
+    ["bundledSubscriptionsIOS: nil"],
+    "React Native iOS minimal-product StoreKit 27 initializer parity",
+  );
+  expectIncludes(
+    "libraries/react-native-iap/android/src/main/java/com/margelo/nitro/iap/HybridRnIap.kt",
+    ["bundledSubscriptionsIOS = null"],
+    "React Native Android product StoreKit 27 initializer parity",
+  );
+  expectIncludes(
+    "packages/docs/src/pages/docs/updates/releases.tsx",
+    [
+      "Bundle/Suite product types",
+      "Group Purchase seat assignment",
+      "Commerce item partners",
+      "assignment-revocation metadata",
+      "managed acquisition platform",
+      "AppTransaction.all",
+      "scene-based lifecycle",
+      "UIWindowSceneDelegate",
+    ],
+    "Xcode 27 major release note",
+  );
+  expectIncludes(
+    "packages/docs/src/pages/docs/ios-setup.tsx",
+    [
+      "xcode-27-scene-lifecycle",
+      "UIApplicationSceneManifest",
+      "configurationForConnecting",
+      "UIWindowSceneDelegate",
+      "tn3208-preparing-your-apps-launch-screen",
+    ],
+    "Xcode 27 host lifecycle migration guide",
+  );
+  expectIncludes(
+    "libraries/expo-iap/example/plugins/withIos27SceneLifecycle.js",
+    [
+      "UIApplicationSceneManifest",
+      "configurationForConnecting connectingSceneSession",
+      "UIWindow(windowScene: windowScene)",
+      "appDelegate?.window = window",
+      "appDelegate?.applicationDidBecomeActive",
+      "appDelegate?.applicationDidEnterBackground",
+    ],
+    "Expo Xcode 27 scene lifecycle fixture",
+  );
+  expectIncludes(
+    "libraries/react-native-iap/example/ios/example/AppDelegate.swift",
+    [
+      "configurationForConnecting connectingSceneSession",
+      "configuration.delegateClass = SceneDelegate.self",
+      "var window: UIWindow?",
+    ],
+    "React Native Xcode 27 app delegate",
+  );
+  expectNotIncludes(
+    "libraries/react-native-iap/example/ios/example/AppDelegate.swift",
+    ["UIWindow(frame: UIScreen.main.bounds)"],
+    "React Native Xcode 27 app delegate must not own the scene window",
+  );
+  expectIncludes(
+    "libraries/react-native-iap/example/ios/example/SceneDelegate.swift",
+    [
+      "UIWindowSceneDelegate",
+      "UIWindow(windowScene: windowScene)",
+      "appDelegate.window = window",
+      "factory.startReactNative(",
+      "connectionOptions.userActivities.first",
+      '"UIApplicationLaunchOptionsUserActivityKey": userActivity',
+    ],
+    "React Native Xcode 27 scene delegate",
+  );
+  expectIncludes(
+    "libraries/react-native-iap/example/ios/example/Info.plist",
+    [
+      "<key>UIApplicationSceneManifest</key>",
+      "$(PRODUCT_MODULE_NAME).SceneDelegate",
+    ],
+    "React Native Xcode 27 scene manifest",
+  );
+  expectIncludes(
+    "libraries/react-native-iap/example/Gemfile",
+    ["gem 'nkf'"],
+    "React Native Ruby 3.4 CocoaPods compatibility",
+  );
+  expectIncludes(
+    "libraries/flutter_inapp_purchase/example/ios/Runner/Info.plist",
+    [
+      "<key>UIApplicationSceneManifest</key>",
+      "<string>FlutterSceneDelegate</string>",
+    ],
+    "Flutter Xcode 27 scene manifest",
+  );
+  expectNotIncludes(
+    "libraries/flutter_inapp_purchase/example/ios/Runner/Info.plist",
+    ["<key>_UIApplicationSceneManifest</key>"],
+    "Flutter Xcode 27 scene manifest must use the canonical key",
+  );
+  for (const workflowPath of [
+    ".github/workflows/ci-react-native-iap.yml",
+    ".github/workflows/ci-expo-iap.yml",
+  ]) {
+    expectIncludes(
+      workflowPath,
+      [
+        "ios-xcode-27:",
+        "if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository",
+        "runs-on: xcode-27",
+        "generic/platform=iOS Simulator",
+        "CODE_SIGNING_ALLOWED=NO",
+        "packages/apple/Sources/**",
+        "packages/apple/Package.swift",
+        "openiap-versions.json",
+      ],
+      `${workflowPath} Xcode 27 scene lifecycle build`,
+    );
+  }
+  expectIncludes(
+    ".github/workflows/ci-flutter-inapp-purchase.yml",
+    [
+      'flutter-version: "3.44.0"',
+      "bash scripts/verify-apple-swiftpm-consumer-build.sh",
+      "packages/apple/Sources/**",
+      "packages/apple/Package.swift",
+      "openiap-versions.json",
+    ],
+    "Flutter Xcode 27 SwiftPM example build",
+  );
+  expectIncludes(
+    "libraries/flutter_inapp_purchase/example/pubspec.yaml",
+    ["enable-swift-package-manager: true"],
+    "Flutter example SwiftPM enablement",
+  );
+  expectIncludes(
+    "libraries/flutter_inapp_purchase/scripts/verify-apple-swiftpm-consumer-build.sh",
+    [
+      'xcode_version_output="$(xcodebuild -version)"',
+      'xcode_version="${xcode_version_output%%$\'\\n\'*}"',
+      '[[ "$xcode_version" != "Xcode 27"* ]]',
+      "flutter build ios --config-only --simulator",
+      "flutter build macos --config-only",
+      "generic/platform=iOS Simulator",
+      "generic/platform=macOS",
+      "ARCHS=arm64",
+      "ONLY_ACTIVE_ARCH=YES",
+      "CODE_SIGNING_ALLOWED=NO",
+    ],
+    "Flutter Xcode 27 SwiftPM consumer build",
+  );
+  for (const podfilePath of [
+    "libraries/flutter_inapp_purchase/example/ios/Podfile",
+    "libraries/flutter_inapp_purchase/example/macos/Podfile",
+  ]) {
+    expectIncludes(
+      podfilePath,
+      [".flutter-plugins-dependencies", "swift_package_manager_enabled"],
+      `${podfilePath} SwiftPM dependency-manager isolation`,
+    );
+  }
+  expectIncludes(
+    ".github/workflows/ci-maui-iap.yml",
+    [
+      "ios-binding:",
+      "if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository",
+      "runs-on: xcode-27",
+    ],
+    "MAUI Xcode 27 runner fork guard",
+  );
+  expectIncludes(
+    "libraries/flutter_inapp_purchase/example/ios/.gitignore",
+    ["/Flutter/ephemeral/flutter_native_integration.env"],
+    "Flutter Xcode 27 generated environment file must stay untracked",
+  );
+  for (const examplePath of [
+    "libraries/react-native-iap/example/src/utils/buildPurchaseRows.ts",
+    "libraries/expo-iap/example/src/utils/buildPurchaseRows.ts",
+    "libraries/flutter_inapp_purchase/example/lib/src/widgets/purchase_detail_view.dart",
+  ]) {
+    expectIncludes(
+      examplePath,
+      [
+        "bundleOriginalTransactionIdIOS",
+        "bundleProductIdIOS",
+        "bundleSubscriptionGroupIdIOS",
+        "bundleTransactionIdIOS",
+        "previousOriginalTransactionIdIOS",
+        "revocationTypeIOS",
+      ],
+      "Xcode 27 purchase metadata example coverage",
+    );
+  }
+  expectIncludes(
+    "knowledge/external/storekit2-api.md",
+    [
+      "### Subscription Bundles and Suites (Xcode 27 beta)",
+      "Test the catalog and transaction mappings with an Xcode 27 StoreKit",
+      "revocationTypeIOS",
+      "back-deployed `managed` acquisition platform",
+      "it does not conflate",
+      "OpenIAP must not invent a schema contract before Apple publishes one",
+    ],
+    "Xcode 27 support boundary",
+  );
+  expectNotIncludes(
+    "packages/gql/src/type-ios.graphql",
+    ["GroupPurchase", "groupPurchase", "seatCount"],
+    "unpublished Group Purchase contract must stay out of the public schema",
+  );
+}
+
 checkLibraryCoverageRegistry();
 checkNativeSpecVersionFloor();
 checkDeprecationSchedule();
@@ -6343,6 +6663,7 @@ checkNativeApis();
 checkBillingChoiceFieldBindings();
 checkFrameworkDependencyHygiene();
 checkReleaseNoteGroupingGuidance();
+checkXcode27StoreKitCoverage();
 expectNoExampleStorefrontIOS();
 expectNoApi24ConcurrentKeySets();
 

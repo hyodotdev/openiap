@@ -65,9 +65,9 @@ describe('Core Functions Tests', () => {
       expect(typeof ExpoIap.deepLinkToSubscriptionsAndroid).toBe('function');
     });
 
-    it('should export validateReceiptAndroid', () => {
-      expect(ExpoIap.validateReceiptAndroid).toBeDefined();
-      expect(typeof ExpoIap.validateReceiptAndroid).toBe('function');
+    it('should export verifyPurchase', () => {
+      expect(ExpoIap.verifyPurchase).toBeDefined();
+      expect(typeof ExpoIap.verifyPurchase).toBe('function');
     });
 
     it('should export acknowledgePurchaseAndroid', () => {
@@ -87,17 +87,6 @@ describe('Core Functions Tests', () => {
       expect(typeof ExpoIap.launchExternalLinkAndroid).toBe('function');
       expect(ExpoIap.createBillingProgramReportingDetailsAndroid).toBeDefined();
       expect(typeof ExpoIap.createBillingProgramReportingDetailsAndroid).toBe(
-        'function',
-      );
-    });
-
-    it('should keep legacy alternative billing Android functions exported', () => {
-      expect(ExpoIap.checkAlternativeBillingAvailabilityAndroid).toBeDefined();
-      expect(typeof ExpoIap.checkAlternativeBillingAvailabilityAndroid).toBe(
-        'function',
-      );
-      expect(ExpoIap.createAlternativeBillingTokenAndroid).toBeDefined();
-      expect(typeof ExpoIap.createAlternativeBillingTokenAndroid).toBe(
         'function',
       );
     });

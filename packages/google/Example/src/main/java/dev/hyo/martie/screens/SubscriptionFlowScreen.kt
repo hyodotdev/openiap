@@ -64,18 +64,6 @@ import java.net.URL
 import java.net.URLEncoder
 import java.nio.charset.StandardCharsets
 
-// Google Play Billing SubscriptionReplacementMode values
-// See: https://developer.android.com/reference/com/android/billingclient/api/BillingFlowParams.SubscriptionUpdateParams.ReplacementMode
-private object ReplacementMode {
-    const val UNKNOWN_REPLACEMENT_MODE = 0
-    const val WITH_TIME_PRORATION = 1     // Immediate change with prorated credit
-    const val CHARGE_PRORATED_PRICE = 2   // Immediate change, charge difference (upgrade only)
-    const val WITHOUT_PRORATION = 3       // Immediate change, no proration
-    const val CHARGE_FULL_PRICE = 5       // Immediate change, charge full price
-    const val DEFERRED = 6                // Change at next billing cycle
-    const val KEEP_EXISTING = 7           // Keep existing payment schedule (8.1.0+)
-}
-
 private const val IAPKIT_BASE_URL = "https://kit.openiap.dev"
 private const val IAPKIT_EXAMPLE_USER_ID = "martie-e2e-user"
 
@@ -122,7 +110,7 @@ fun SubscriptionFlowScreen(
     val androidSubscriptions = remember(subscriptions) { subscriptions.filterIsInstance<ProductSubscriptionAndroid>() }
     val androidPurchases = remember(purchases) { purchases.filterIsInstance<PurchaseAndroid>() }
     val status by iapStore.status.collectAsState()
-    val connectionStatus by iapStore.connectionStatus.collectAsState()
+    val connectionStatus by iapStore.isConnected.collectAsState()
     val lastPurchase by iapStore.currentPurchase.collectAsState(initial = null)
     val lastPurchaseAndroid: PurchaseAndroid? = remember(lastPurchase) {
         when (val purchase = lastPurchase) {
@@ -230,12 +218,12 @@ fun SubscriptionFlowScreen(
                     println("  - Product: ${product.id}")
                     println("    Title: ${product.title}")
                     println("    Price: ${product.displayPrice}")
-                    product.subscriptionOfferDetailsAndroid?.forEachIndexed { index, offer ->
+                    product.subscriptionOffers?.forEachIndexed { index, offer ->
                         println("    Offer $index:")
-                        println("      Base Plan: ${offer.basePlanId}")
-                        println("      Offer ID: ${offer.offerId}")
+                        println("      Base Plan: ${offer.basePlanIdAndroid}")
+                        println("      Offer ID: ${offer.id}")
                         println("      Offer Token: present")
-                        offer.pricingPhases.pricingPhaseList.forEachIndexed { phaseIndex, phase ->
+                        offer.pricingPhasesAndroid?.pricingPhaseList?.forEachIndexed { phaseIndex, phase ->
                             println("      Phase $phaseIndex: ${phase.formattedPrice} for ${phase.billingPeriod}")
                         }
                     }
@@ -741,17 +729,17 @@ fun SubscriptionFlowScreen(
                                     // Get monthly and yearly offers
                                     // On Horizon: offers are distinguished by billing period (P1M vs P1Y)
                                     // On Play: offers can use base plan IDs or billing periods
-                                    val monthlyOffer = premiumSub.subscriptionOfferDetailsAndroid?.find { offer ->
+                                    val monthlyOffer = premiumSub.subscriptionOffers.find { offer ->
                                         // Check base plan ID first (Play Store style)
-                                        offer.basePlanId == IapConstants.PREMIUM_MONTHLY_BASE_PLAN ||
+                                        offer.basePlanIdAndroid == IapConstants.PREMIUM_MONTHLY_BASE_PLAN ||
                                         // Or check billing period (Horizon style)
-                                        offer.pricingPhases.pricingPhaseList.lastOrNull()?.billingPeriod == "P1M"
+                                        offer.pricingPhasesAndroid?.pricingPhaseList?.lastOrNull()?.billingPeriod == "P1M"
                                     }
-                                    val yearlyOffer = premiumSub.subscriptionOfferDetailsAndroid?.find { offer ->
+                                    val yearlyOffer = premiumSub.subscriptionOffers.find { offer ->
                                         // Check base plan ID first (Play Store style)
-                                        offer.basePlanId == IapConstants.PREMIUM_YEARLY_BASE_PLAN ||
+                                        offer.basePlanIdAndroid == IapConstants.PREMIUM_YEARLY_BASE_PLAN ||
                                         // Or check billing period (Horizon style)
-                                        offer.pricingPhases.pricingPhaseList.lastOrNull()?.billingPeriod == "P1Y"
+                                        offer.pricingPhasesAndroid?.pricingPhaseList?.lastOrNull()?.billingPeriod == "P1Y"
                                     }
 
                                     // Determine which plan user is currently on
@@ -806,8 +794,8 @@ fun SubscriptionFlowScreen(
                                                 style = MaterialTheme.typography.bodyMedium,
                                                 fontWeight = FontWeight.Medium
                                             )
-                                            val billingPeriod = currentOffer.pricingPhases.pricingPhaseList.lastOrNull()?.billingPeriod ?: ""
-                                            val price = currentOffer.pricingPhases.pricingPhaseList.lastOrNull()?.formattedPrice ?: ""
+                                            val billingPeriod = currentOffer.pricingPhasesAndroid?.pricingPhaseList?.lastOrNull()?.billingPeriod ?: ""
+                                            val price = currentOffer.pricingPhasesAndroid?.pricingPhaseList?.lastOrNull()?.formattedPrice ?: ""
                                             Text(
                                                 text = "Billing: $billingPeriod • $price",
                                                 style = MaterialTheme.typography.bodySmall,
@@ -841,9 +829,9 @@ fun SubscriptionFlowScreen(
                                                     style = MaterialTheme.typography.titleSmall,
                                                     fontWeight = FontWeight.SemiBold
                                                 )
-                                                val targetPrice = targetOffer.pricingPhases.pricingPhaseList.firstOrNull()?.formattedPrice ?: ""
+                                                val targetPrice = targetOffer.pricingPhasesAndroid?.pricingPhaseList?.firstOrNull()?.formattedPrice ?: ""
                                                 Text(
-                                                    text = "${targetOffer.basePlanId} - $targetPrice",
+                                                    text = "${targetOffer.basePlanIdAndroid} - $targetPrice",
                                                     style = MaterialTheme.typography.bodySmall,
                                                     color = AppColors.textSecondary
                                                 )
@@ -872,20 +860,21 @@ fun SubscriptionFlowScreen(
                                                                 return@launch
                                                             }
 
-                                                            println("SubscriptionFlow [Horizon/Play]: Changing from ${currentOffer.basePlanId} to ${targetOffer.basePlanId} with token: present")
+                                                            println("SubscriptionFlow [Horizon/Play]: Changing from ${currentOffer.basePlanIdAndroid} to ${targetOffer.basePlanIdAndroid} with token: present")
 
                                                             // Request subscription offer change (same product, different offer)
                                                             // Using new subscriptionProductReplacementParams API (8.1.0+)
                                                             val offerInputs = listOf(
                                                                 AndroidSubscriptionOfferInput(
                                                                     sku = IapConstants.PREMIUM_PRODUCT_ID,
-                                                                    offerToken = targetOffer.offerToken
+                                                                    offerToken = targetOffer.offerTokenAndroid
+                                                                        ?: return@launch
                                                                 )
                                                             )
                                                             val props = RequestPurchaseProps(
                                                                 request = RequestPurchaseProps.Request.Subscription(
                                                                     RequestSubscriptionPropsByPlatforms(
-                                                                        android = RequestSubscriptionAndroidProps(
+                                                                        google = RequestSubscriptionAndroidProps(
                                                                             isOfferPersonalized = null,
                                                                             obfuscatedAccountId = null,
                                                                             obfuscatedProfileId = null,
@@ -912,7 +901,8 @@ fun SubscriptionFlowScreen(
 
                                                             if (purchases.isNotEmpty()) {
                                                                 // Save the new offer to SharedPreferences
-                                                                val newOfferBasePlanId = targetOffer.basePlanId
+                                                                val newOfferBasePlanId = targetOffer.basePlanIdAndroid
+                                                                    ?: IapConstants.PREMIUM_MONTHLY_BASE_PLAN
                                                                 prefs.savePremiumOffer(IapConstants.PREMIUM_PRODUCT_ID, newOfferBasePlanId)
                                                                 println("SubscriptionFlow: Subscription change successful, saved offer: $newOfferBasePlanId")
 
@@ -957,11 +947,11 @@ fun SubscriptionFlowScreen(
 
                                 if (premiumSub != null) {
                                     // Get available offers
-                                    val monthlyOffer = premiumSub.subscriptionOfferDetailsAndroid.find {
-                                        it.basePlanId == IapConstants.PREMIUM_MONTHLY_BASE_PLAN
+                                    val monthlyOffer = premiumSub.subscriptionOffers.find {
+                                        it.basePlanIdAndroid == IapConstants.PREMIUM_MONTHLY_BASE_PLAN
                                     }
-                                    val yearlyOffer = premiumSub.subscriptionOfferDetailsAndroid.find {
-                                        it.basePlanId == IapConstants.PREMIUM_YEARLY_BASE_PLAN
+                                    val yearlyOffer = premiumSub.subscriptionOffers.find {
+                                        it.basePlanIdAndroid == IapConstants.PREMIUM_YEARLY_BASE_PLAN
                                     }
 
                                     // Log purchase details for debugging
@@ -987,7 +977,7 @@ fun SubscriptionFlowScreen(
                                         IapConstants.PREMIUM_MONTHLY_BASE_PLAN -> monthlyOffer
                                         IapConstants.PREMIUM_YEARLY_BASE_PLAN -> yearlyOffer
                                         else -> listOfNotNull(monthlyOffer, yearlyOffer)
-                                            .firstOrNull { it.basePlanId == currentOfferBasePlanId }
+                                            .firstOrNull { it.basePlanIdAndroid == currentOfferBasePlanId }
                                     }
 
                                     val targetOffer = when (currentOfferBasePlanId) {
@@ -1030,9 +1020,9 @@ fun SubscriptionFlowScreen(
                                                 fontWeight = FontWeight.Medium
                                             )
                                             currentOffer?.let { offer ->
-                                                val price = offer.pricingPhases.pricingPhaseList.firstOrNull()?.formattedPrice ?: ""
+                                                val price = offer.pricingPhasesAndroid?.pricingPhaseList?.firstOrNull()?.formattedPrice ?: ""
                                                 Text(
-                                                    text = "Base Plan ID: ${offer.basePlanId} • $price",
+                                                    text = "Base Plan ID: ${offer.basePlanIdAndroid} • $price",
                                                     style = MaterialTheme.typography.bodySmall,
                                                     color = AppColors.textSecondary
                                                 )
@@ -1068,9 +1058,9 @@ fun SubscriptionFlowScreen(
                                                     style = MaterialTheme.typography.titleSmall,
                                                     fontWeight = FontWeight.SemiBold
                                                 )
-                                                val targetPrice = targetOffer.pricingPhases.pricingPhaseList.firstOrNull()?.formattedPrice ?: ""
+                                                val targetPrice = targetOffer.pricingPhasesAndroid?.pricingPhaseList?.firstOrNull()?.formattedPrice ?: ""
                                                 Text(
-                                                    text = "${targetOffer.basePlanId} - $targetPrice",
+                                                    text = "${targetOffer.basePlanIdAndroid} - $targetPrice",
                                                     style = MaterialTheme.typography.bodySmall,
                                                     color = AppColors.textSecondary
                                                 )
@@ -1099,30 +1089,29 @@ fun SubscriptionFlowScreen(
                                                                 return@launch
                                                             }
 
-                                                            println("SubscriptionFlow: Changing from ${currentOffer.basePlanId} to ${targetOffer.basePlanId} with token: present")
-
-                                                            // For same subscription with different offers, use CHARGE_FULL_PRICE
-                                                            // This is often the only supported mode for offer changes
-                                                            val replacementMode = ReplacementMode.CHARGE_FULL_PRICE
-
-                                                            println("SubscriptionFlow: Using replacement mode: $replacementMode")
+                                                            println("SubscriptionFlow: Changing from ${currentOffer.basePlanIdAndroid} to ${targetOffer.basePlanIdAndroid} with token: present")
 
                                                             // Request subscription offer change (same product, different offer)
                                                             val offerInputs = listOf(
                                                                 AndroidSubscriptionOfferInput(
                                                                     sku = PREMIUM_SUBSCRIPTION_PRODUCT_ID,
-                                                                    offerToken = targetOffer.offerToken
+                                                                    offerToken = targetOffer.offerTokenAndroid
+                                                                        ?: return@launch
                                                                 )
                                                             )
                                                             val props = RequestPurchaseProps(
                                                                 request = RequestPurchaseProps.Request.Subscription(
                                                                     RequestSubscriptionPropsByPlatforms(
-                                                                        android = RequestSubscriptionAndroidProps(
+                                                                        google = RequestSubscriptionAndroidProps(
                                                                             isOfferPersonalized = null,
                                                                             obfuscatedAccountId = null,
                                                                             obfuscatedProfileId = null,
                                                                             purchaseToken = purchaseToken,
-                                                                            replacementMode = replacementMode,
+                                                                            subscriptionProductReplacementParams =
+                                                                                SubscriptionProductReplacementParamsAndroid(
+                                                                                    oldProductId = PREMIUM_SUBSCRIPTION_PRODUCT_ID,
+                                                                                    replacementMode = SubscriptionReplacementModeAndroid.ChargeFullPrice
+                                                                                ),
                                                                             skus = listOf(PREMIUM_SUBSCRIPTION_PRODUCT_ID),
                                                                             subscriptionOffers = offerInputs
                                                                         )
@@ -1140,7 +1129,8 @@ fun SubscriptionFlowScreen(
 
                                                             if (purchases.isNotEmpty()) {
                                                                 // Save the new offer to SharedPreferences
-                                                                val newOfferBasePlanId = targetOffer.basePlanId
+                                                                val newOfferBasePlanId = targetOffer.basePlanIdAndroid
+                                                                    ?: IapConstants.PREMIUM_MONTHLY_BASE_PLAN
                                                                 prefs.savePremiumOffer(PREMIUM_SUBSCRIPTION_PRODUCT_ID, newOfferBasePlanId)
                                                                 println("SubscriptionFlow: Subscription change successful, saved offer: $newOfferBasePlanId")
 
@@ -1229,10 +1219,12 @@ fun SubscriptionFlowScreen(
                                 val props = if (product.type == ProductType.Subs) {
                                     // Determine if this is an upgrade or downgrade
                                     val purchaseToken = otherPremiumSubscription?.purchaseToken
-                                    val replacementMode = if (purchaseToken != null) {
-                                        // Use CHARGE_FULL_PRICE (5) for immediate change
+                                    val replacementParams = if (purchaseToken != null) {
                                         println("SubscriptionFlow: Changing subscription from ${otherPremiumSubscription.productId} to ${product.id}")
-                                        5 // CHARGE_FULL_PRICE
+                                        SubscriptionProductReplacementParamsAndroid(
+                                            oldProductId = otherPremiumSubscription.productId,
+                                            replacementMode = SubscriptionReplacementModeAndroid.ChargeFullPrice
+                                        )
                                     } else {
                                         println("SubscriptionFlow: New subscription: ${product.id}")
                                         null
@@ -1242,15 +1234,16 @@ fun SubscriptionFlowScreen(
                                     val subscriptionOffers = if (isHorizon && product.id == "dev.hyo.martie.premium") {
                                         // HORIZON ONLY: Premium product has multiple offers (MONTHLY and ANNUAL)
                                         // We default to MONTHLY offer for initial purchase
-                                        val monthlyOffer = product.subscriptionOfferDetailsAndroid?.find { offer ->
-                                            offer.pricingPhases.pricingPhaseList.any { phase ->
+                                        val monthlyOffer = product.subscriptionOffers.orEmpty().find { offer ->
+                                            offer.pricingPhasesAndroid?.pricingPhaseList?.any { phase ->
                                                 phase.billingPeriod == "P1M"
-                                            }
+                                            } == true
                                         }
                                         if (monthlyOffer != null) {
                                             println("SubscriptionFlow: Using MONTHLY offer")
                                             listOf(AndroidSubscriptionOfferInput(
-                                                offerToken = monthlyOffer.offerToken,
+                                                offerToken = monthlyOffer.offerTokenAndroid
+                                                    ?: return@launch,
                                                 sku = product.id
                                             ))
                                         } else {
@@ -1265,12 +1258,12 @@ fun SubscriptionFlowScreen(
                                     RequestPurchaseProps(
                                         request = RequestPurchaseProps.Request.Subscription(
                                             RequestSubscriptionPropsByPlatforms(
-                                                android = RequestSubscriptionAndroidProps(
+                                                google = RequestSubscriptionAndroidProps(
                                                     isOfferPersonalized = null,
                                                     obfuscatedAccountId = null,
                                                     obfuscatedProfileId = null,
                                                     purchaseToken = purchaseToken,
-                                                    replacementMode = replacementMode,
+                                                    subscriptionProductReplacementParams = replacementParams,
                                                     skus = listOf(product.id),
                                                     subscriptionOffers = subscriptionOffers
                                                 )
@@ -1282,7 +1275,7 @@ fun SubscriptionFlowScreen(
                                     RequestPurchaseProps(
                                         request = RequestPurchaseProps.Request.Purchase(
                                             RequestPurchasePropsByPlatforms(
-                                                android = RequestPurchaseAndroidProps(
+                                                google = RequestPurchaseAndroidProps(
                                                     isOfferPersonalized = null,
                                                     obfuscatedAccountId = null,
                                                     obfuscatedProfileId = null,
@@ -1567,12 +1560,11 @@ fun SubscriptionFlowScreen(
                         RequestPurchaseProps(
                             request = RequestPurchaseProps.Request.Subscription(
                                 RequestSubscriptionPropsByPlatforms(
-                                    android = RequestSubscriptionAndroidProps(
+                                    google = RequestSubscriptionAndroidProps(
                                         isOfferPersonalized = null,
                                         obfuscatedAccountId = null,
                                         obfuscatedProfileId = null,
                                         purchaseToken = null,
-                                        replacementMode = null,
                                         skus = listOf(product.id),
                                         subscriptionOffers = null
                                     )
@@ -1584,7 +1576,7 @@ fun SubscriptionFlowScreen(
                         RequestPurchaseProps(
                             request = RequestPurchaseProps.Request.Purchase(
                                 RequestPurchasePropsByPlatforms(
-                                    android = RequestPurchaseAndroidProps(
+                                    google = RequestPurchaseAndroidProps(
                                         isOfferPersonalized = null,
                                         obfuscatedAccountId = null,
                                         obfuscatedProfileId = null,

@@ -89,6 +89,7 @@ jobs:
           cache-to: type=gha,mode=max
           build-args: |
             VITE_KIT_CONVEX_URL=https://placeholder-build-1.convex.cloud
+            IAPKIT_REVISION=${{ github.sha }}
 
   deploy:
     name: Deploy Convex + openiap-kit
@@ -170,6 +171,7 @@ jobs:
           BUILD_FLAGS=(
             --build-arg "VITE_KIT_CONVEX_URL=$VITE_KIT_CONVEX_URL"
             --build-arg "VITE_KIT_SENTRY_DSN=$VITE_KIT_SENTRY_DSN"
+            --build-arg "IAPKIT_REVISION=$GITHUB_SHA"
           )
           if [ -n "$VITE_KIT_MIXPANEL_TOKEN" ]; then
             MIXPANEL_TOKEN_HASH=$(printf '%s' "$VITE_KIT_MIXPANEL_TOKEN" | sha256sum | cut -c1-16)

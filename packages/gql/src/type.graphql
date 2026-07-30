@@ -86,7 +86,6 @@ interface PurchaseCommon {
   Store where purchase was made
   """
   store: IapStore!
-  platform: IapPlatform! @deprecated(reason: "Use store instead. Scheduled for removal in OpenIAP 3.0.")
   quantity: Int!
   purchaseState: PurchaseState!
   isAutoRenewing: Boolean!
@@ -182,13 +181,6 @@ input RequestPurchaseProps {
   Explicit purchase type hint (defaults to in-app)
   """
   type: ProductQueryType = InApp
-  """
-  This flag only logs debug info and has no effect on the purchase flow.
-  """
-  useAlternativeBilling: Boolean
-    @deprecated(
-      reason: "Use enableBillingProgramAndroid in InitConnectionConfig instead. Scheduled for removal in OpenIAP 3.0."
-    )
 }
 
 # Minimal purchase information required to finish transactions
@@ -205,7 +197,6 @@ input PurchaseInput {
   Store where purchase was made
   """
   store: IapStore
-  platform: IapPlatform @deprecated(reason: "Use store instead. Scheduled for removal in OpenIAP 3.0.")
   quantity: Int!
   purchaseState: PurchaseState!
   isAutoRenewing: Boolean!
@@ -241,8 +232,6 @@ input RequestPurchasePropsByPlatforms {
   Google-specific purchase parameters
   """
   google: RequestPurchaseAndroidProps
-  ios: RequestPurchaseIosProps @deprecated(reason: "Use apple instead. Scheduled for removal in OpenIAP 3.0.")
-  android: RequestPurchaseAndroidProps @deprecated(reason: "Use google instead. Scheduled for removal in OpenIAP 3.0.")
 }
 
 """
@@ -263,9 +252,6 @@ input RequestSubscriptionPropsByPlatforms {
   Google-specific subscription parameters
   """
   google: RequestSubscriptionAndroidProps
-  ios: RequestSubscriptionIosProps @deprecated(reason: "Use apple instead. Scheduled for removal in OpenIAP 3.0.")
-  android: RequestSubscriptionAndroidProps
-    @deprecated(reason: "Use google instead. Scheduled for removal in OpenIAP 3.0.")
 }
 
 # Receipt validation inputs and results
@@ -482,12 +468,6 @@ type ActiveSubscription {
   expirationDateIOS: Float
   autoRenewingAndroid: Boolean
   environmentIOS: String
-  """
-  Whether the subscription will expire soon (within 7 days).
-  Consider using daysUntilExpirationIOS for more precise control.
-  """
-  willExpireSoon: Boolean
-    @deprecated(reason: "iOS only - use daysUntilExpirationIOS instead. Scheduled for removal in OpenIAP 3.0.")
   daysUntilExpirationIOS: Float
   transactionId: String!
   purchaseToken: String
@@ -602,7 +582,7 @@ type DiscountOffer {
   """
   Unique identifier for the offer.
   - iOS: Not applicable (one-time discounts not supported)
-  - Android: offerId from ProductAndroidOneTimePurchaseOfferDetail
+  - Android: offerId from the Google Play one-time purchase option
   """
   id: ID
 
@@ -712,7 +692,7 @@ type SubscriptionOffer {
   """
   Unique identifier for the offer.
   - iOS: Discount identifier from App Store Connect
-  - Android: offerId from ProductSubscriptionAndroidOfferDetails
+  - Android: offerId from the Google Play subscription offer
   """
   id: ID!
 
@@ -829,13 +809,6 @@ type SubscriptionOffer {
 Connection initialization configuration
 """
 input InitConnectionConfig {
-  """
-  Alternative billing mode for Android
-  If not specified, defaults to NONE (standard Google Play billing)
-  Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only.
-  """
-  alternativeBillingModeAndroid: AlternativeBillingModeAndroid
-    @deprecated(reason: "Use enableBillingProgramAndroid instead. Scheduled for removal in OpenIAP 3.0.")
   """
   Enable a specific billing program for Android (7.0+)
   When set, enables the specified billing program for external transactions.

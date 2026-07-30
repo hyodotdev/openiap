@@ -4,13 +4,21 @@ on:
   pull_request:
     branches: [main, next]
     paths:
-      - 'libraries/expo-iap/**'
-      - 'packages/gql/src/generated/types.ts'
+      - "libraries/expo-iap/**"
+      - "packages/gql/src/generated/types.ts"
+      - "packages/apple/Sources/**"
+      - "packages/apple/Package.swift"
+      - "openiap-versions.json"
+      - ".github/workflows/ci-expo-iap.yml"
   push:
     branches: [main, next]
     paths:
-      - 'libraries/expo-iap/**'
-      - 'packages/gql/src/generated/types.ts'
+      - "libraries/expo-iap/**"
+      - "packages/gql/src/generated/types.ts"
+      - "packages/apple/Sources/**"
+      - "packages/apple/Package.swift"
+      - "openiap-versions.json"
+      - ".github/workflows/ci-expo-iap.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -79,3 +87,49 @@ jobs:
 
       - name: Consumer install smoke test
         run: bun run verify:consumer-install
+
+  ios-xcode-27:
+    name: iOS example (Xcode 27)
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: xcode-27
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 20
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Install example dependencies
+        working-directory: libraries/expo-iap/example
+        run: bun install --frozen-lockfile
+
+      - name: Generate scene-based iOS project
+        working-directory: libraries/expo-iap/example
+        run: npx expo prebuild --platform ios --clean
+
+      - name: Install CocoaPods dependencies
+        working-directory: libraries/expo-iap/example/ios
+        run: pod install --repo-update
+
+      - name: Build scene-based iOS example
+        working-directory: libraries/expo-iap/example/ios
+        run: |
+          set -o pipefail
+          xcodebuild build \
+            -workspace expoiapexample.xcworkspace \
+            -scheme ExpoIAPExample \
+            -destination 'generic/platform=iOS Simulator' \
+            -configuration Debug \
+            CODE_SIGNING_ALLOWED=NO \
+            COMPILER_INDEX_STORE_ENABLE=NO

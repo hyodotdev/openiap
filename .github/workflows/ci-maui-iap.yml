@@ -7,7 +7,7 @@ on:
       - "libraries/maui-iap/**"
       - "packages/gql/**"
       - "packages/google/**"
-      - "packages/apple/Sources/OpenIapModule+ObjC.swift"
+      - "packages/apple/Sources/**"
       - "packages/apple/wrapper/**"
       - "packages/apple/scripts/build-xcframework.sh"
       - "openiap-versions.json"
@@ -19,7 +19,7 @@ on:
       - "libraries/maui-iap/**"
       - "packages/gql/**"
       - "packages/google/**"
-      - "packages/apple/Sources/OpenIapModule+ObjC.swift"
+      - "packages/apple/Sources/**"
       - "packages/apple/wrapper/**"
       - "packages/apple/scripts/build-xcframework.sh"
       - "openiap-versions.json"
@@ -31,13 +31,12 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  XCODE_VERSION: 16.4
   XCODEGEN_VERSION: 2.45.4
   XCODEGEN_SHA256: 090ec29491aad50aec10631bf6e62253fed733c50f3aab0f5ffc86bc170bdbef
 
 jobs:
   compile-check:
-    name: Compile Check (net9.0 / net10.0 shared)
+    name: Compile Check (net10.0 shared)
     runs-on: ubuntu-latest
     timeout-minutes: 15
     defaults:
@@ -53,37 +52,33 @@ jobs:
         with:
           dotnet-version: "10.0.x"
 
-      # The shared `net9.0` / `net10.0` builds are the fast lane — no AAR / xcframework, no
-      # MAUI workload, no native binding csprojs in the project graph. Two
+      # The shared `net10.0` build is the fast lane — no AAR / xcframework,
+      # MAUI workload, or native binding csprojs in the project graph. Two
       # things make this work:
       #   1. `<UseMaui>` is conditional on having a platform identifier in
       #      OpenIap.Maui.csproj, so the shared TFMs don't activate MAUI.
-      #   2. `-p:TargetFrameworks=net9.0` (PLURAL — overrides the project's
+      #   2. `-p:TargetFrameworks=net10.0` (PLURAL — overrides the project's
       #      `<TargetFrameworks>` list to a single TFM). This must be plural,
-      #      not `-p:TargetFramework=net9.0` (singular) or `-f net9.0`: those
+      #      not `-p:TargetFramework=net10.0` (singular) or `-f net10.0`: those
       #      filter the inner BUILD but leave the implicit RESTORE walking
       #      all platform TFMs in the multi-target list, which loads the conditional
       #      ProjectReferences to Bindings.Android / Bindings.iOS for
       #      restore-time evaluation and triggers NETSDK1147 / NETSDK1178.
       - name: Build library (shared)
-        run: |
-          dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0 --nologo
-          dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0 --nologo
+        run: dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0 --nologo
 
       - name: Run contract tests (shared)
-        run: |
-          dotnet run --project tests/OpenIap.Maui.ContractTests/OpenIap.Maui.ContractTests.csproj --framework net9.0 -p:TargetFrameworks=net9.0 --no-launch-profile
-          dotnet run --project tests/OpenIap.Maui.ContractTests/OpenIap.Maui.ContractTests.csproj --framework net10.0 -p:TargetFrameworks=net10.0 --no-launch-profile
+        run: dotnet run --project tests/OpenIap.Maui.ContractTests/OpenIap.Maui.ContractTests.csproj --framework net10.0 -p:TargetFrameworks=net10.0 --no-launch-profile
 
       # xUnit suite for the shared surface (Types.cs serialization, error
-      # mapper, webhook parsing, KitApi HTTP contract). net9.0-only project;
+      # mapper, KitApi HTTP contract). net10.0-only project;
       # the PLURAL TargetFrameworks override keeps the referenced
       # OpenIap.Maui restore off the workload TFMs — same gotcha as above.
       - name: Run unit tests (shared)
-        run: dotnet test tests/OpenIap.Maui.Tests/OpenIap.Maui.Tests.csproj -p:TargetFrameworks=net9.0 --nologo
+        run: dotnet test tests/OpenIap.Maui.Tests/OpenIap.Maui.Tests.csproj -p:TargetFrameworks=net10.0 --nologo
 
   android-binding:
-    name: Android binding (net9.0-android + net10.0-android)
+    name: Android binding (net10.0-android)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
@@ -120,35 +115,18 @@ jobs:
             :openiap:assembleAmazonRelease \
             :openiap:assembleHorizonRelease
 
-      # `-p:TargetFrameworks=net9.0-android` (PLURAL) is required for the
-      # second build — the singular `-f net9.0-android` filters the inner
+      # `-p:TargetFrameworks=net10.0-android` (PLURAL) isolates each store build.
+      # The singular `-f net10.0-android` filters the inner
       # build but leaves the implicit restore walking ALL 4 TFMs in the
       # project's multi-target list. That makes restore load the
-      # Bindings.iOS conditional ProjectReference for net9.0-ios, which
-      # needs `Microsoft.iOS.Sdk.net9.0_X.Y` packs that aren't part of
-      # the `maui-android` workload installed above.
+      # Bindings.iOS conditional ProjectReference, whose SDK packs aren't part
+      # of the `maui-android` workload installed above.
       - name: Build Android binding + library
         working-directory: libraries/maui-iap
         run: |
           DOTNET_BUILD_ARGS=(/m:1 /nr:false -p:UseSharedCompilation=false --nologo)
-          dotnet build-server shutdown || true
-          rm -rf \
-            src/OpenIap.Maui.Bindings.Android/bin \
-            src/OpenIap.Maui.Bindings.Android/obj
-          (
-            cd android
-            "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" \
-              ../../../packages/google/gradlew \
-              :openiap:assembleRelease \
-              -PopenIapAndroidStore=play
-          )
-          dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj -p:TargetFrameworks=net9.0-android -p:OpenIapAndroidStore=play "${DOTNET_BUILD_ARGS[@]}"
-          dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj -p:TargetFrameworks=net10.0-android -p:OpenIapAndroidStore=play "${DOTNET_BUILD_ARGS[@]}"
-          dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0-android -p:OpenIapAndroidStore=play -p:BuildProjectReferences=false "${DOTNET_BUILD_ARGS[@]}"
-          dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0-android -p:OpenIapAndroidStore=play -p:BuildProjectReferences=false "${DOTNET_BUILD_ARGS[@]}"
-
-          for store in amazon horizon; do
-            printf '\n== Building MAUI Android store: %s (net9.0) ==\n' "$store"
+          for store in play amazon horizon; do
+            printf '\n== Building MAUI Android store: %s (net10.0) ==\n' "$store"
             dotnet build-server shutdown || true
             rm -rf \
               src/OpenIap.Maui.Bindings.Android/bin \
@@ -160,23 +138,21 @@ jobs:
                 :openiap:assembleRelease \
                 -PopenIapAndroidStore="$store"
             )
-            dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj -p:TargetFrameworks=net9.0-android -p:OpenIapAndroidStore="$store" "${DOTNET_BUILD_ARGS[@]}"
-            dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net9.0-android -p:OpenIapAndroidStore="$store" -p:BuildProjectReferences=false "${DOTNET_BUILD_ARGS[@]}"
+            dotnet build src/OpenIap.Maui.Bindings.Android/OpenIap.Maui.Bindings.Android.csproj -p:TargetFrameworks=net10.0-android -p:OpenIapAndroidStore="$store" "${DOTNET_BUILD_ARGS[@]}"
+            dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0-android -p:OpenIapAndroidStore="$store" -p:BuildProjectReferences=false "${DOTNET_BUILD_ARGS[@]}"
           done
 
   ios-binding:
-    name: iOS binding (net9.0/net10.0 ios + maccatalyst)
-    runs-on: macos-15
+    name: iOS binding (net10.0 ios + maccatalyst)
+    # The MAUI package embeds a prebuilt OpenIAP.xcframework. Compile it with
+    # Xcode 27 so the guarded StoreKit 27 implementation is present in NuGet.
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: xcode-27
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 1
-
-      - name: Set up Xcode
-        uses: maxim-lobanov/setup-xcode@v1
-        with:
-          xcode-version: ${{ env.XCODE_VERSION }}
 
       - name: Setup .NET 10 SDK
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
@@ -200,15 +176,11 @@ jobs:
       - name: Build iOS binding (ios + maccatalyst)
         working-directory: libraries/maui-iap/src/OpenIap.Maui.Bindings.iOS
         run: |
-          dotnet build -p:TargetFrameworks=net9.0-ios --nologo
           dotnet build -p:TargetFrameworks=net10.0-ios --nologo
-          dotnet build -p:TargetFrameworks=net9.0-maccatalyst --nologo
           dotnet build -p:TargetFrameworks=net10.0-maccatalyst --nologo
 
       - name: Build library (ios + maccatalyst)
         working-directory: libraries/maui-iap/src/OpenIap.Maui
         run: |
-          dotnet build -p:TargetFrameworks=net9.0-ios --nologo
           dotnet build -p:TargetFrameworks=net10.0-ios --nologo
-          dotnet build -p:TargetFrameworks=net9.0-maccatalyst --nologo
           dotnet build -p:TargetFrameworks=net10.0-maccatalyst --nologo

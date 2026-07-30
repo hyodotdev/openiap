@@ -191,7 +191,6 @@ class VerificationTest {
         val purchase = PurchaseIOS(
             id = "trans123",
             productId = "test_product",
-            platform = IapPlatform.Ios,
             quantity = 1,
             purchaseState = PurchaseState.Purchased,
             store = IapStore.Apple,

@@ -2,12 +2,11 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
-import 'package:flutter_inapp_purchase/extensions/purchase_helpers.dart';
 
 import '../widgets/purchase_detail_view.dart';
 
 class AvailablePurchasesScreen extends StatefulWidget {
-  const AvailablePurchasesScreen({Key? key}) : super(key: key);
+  const AvailablePurchasesScreen({super.key});
 
   @override
   State<AvailablePurchasesScreen> createState() =>
@@ -172,7 +171,7 @@ class _AvailablePurchasesScreenState extends State<AvailablePurchasesScreen> {
       _historyError = null;
     });
 
-    Timer? warningTimer;
+    late final Timer warningTimer;
     warningTimer = Timer(const Duration(seconds: 12), () {
       if (!mounted || !_historyLoading || _historyError != null) {
         return;
@@ -191,7 +190,7 @@ class _AvailablePurchasesScreenState extends State<AvailablePurchasesScreen> {
       debugPrint('Loaded ${purchaseHistory.length} purchases from history');
 
       if (!mounted) {
-        warningTimer?.cancel();
+        warningTimer.cancel();
         return;
       }
 
@@ -202,20 +201,19 @@ class _AvailablePurchasesScreenState extends State<AvailablePurchasesScreen> {
     } catch (e) {
       debugPrint('Error loading purchase history: $e');
       if (!mounted) {
-        warningTimer?.cancel();
+        warningTimer.cancel();
         return;
       }
       setState(() {
         _historyError = e.toString();
       });
     } finally {
-      warningTimer?.cancel();
-      if (!mounted) {
-        return;
+      warningTimer.cancel();
+      if (mounted) {
+        setState(() {
+          _historyLoading = false;
+        });
       }
-      setState(() {
-        _historyLoading = false;
-      });
     }
   }
 
@@ -322,8 +320,7 @@ class _AvailablePurchasesScreenState extends State<AvailablePurchasesScreen> {
       _infoChip('State: ${purchase.purchaseState.name}')
     ];
 
-    infoChips.add(
-        _infoChip('Platform: ${purchase.platform.toJson().toLowerCase()}'));
+    infoChips.add(_infoChip('Store: ${purchase.store.toJson()}'));
     infoChips.add(_infoChip('Quantity: ${purchase.quantity}'));
     infoChips.add(_infoChip('Auto renew: ${purchase.isAutoRenewing}'));
 
@@ -352,7 +349,7 @@ class _AvailablePurchasesScreenState extends State<AvailablePurchasesScreen> {
                   padding:
                       const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
-                    color: statusColor.withOpacity(0.1),
+                    color: statusColor.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(6),
                     border: Border.all(color: statusColor),
                   ),

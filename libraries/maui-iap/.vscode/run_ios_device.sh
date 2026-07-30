@@ -6,8 +6,8 @@ LIB_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 APP_DIR="$LIB_DIR/example/OpenIap.Maui.Example"
 PROJECT="$APP_DIR/OpenIap.Maui.Example.csproj"
 APP_ID="dev.hyo.martie"
-APP_BUILD_DIR="$APP_DIR/bin/Debug/net9.0-ios/ios-arm64"
-APP_OBJ_DIR="$APP_DIR/obj/Debug/net9.0-ios/ios-arm64"
+APP_BUILD_DIR="$APP_DIR/bin/Debug/net10.0-ios/ios-arm64"
+APP_OBJ_DIR="$APP_DIR/obj/Debug/net10.0-ios/ios-arm64"
 
 require_command() {
   if ! command -v "$1" >/dev/null 2>&1; then
@@ -51,7 +51,7 @@ rm -rf "$APP_BUILD_DIR" "$APP_OBJ_DIR"
 
 build_device() {
   dotnet build "$PROJECT" \
-    -f net9.0-ios \
+    -f net10.0-ios \
     -p:RuntimeIdentifier=ios-arm64 \
     -p:_DeviceName="$DEVICE" \
     -tl:off \

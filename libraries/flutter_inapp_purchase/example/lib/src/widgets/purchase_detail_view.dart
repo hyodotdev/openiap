@@ -33,8 +33,8 @@ extension PurchaseDisplayMapping on Purchase {
         value: _formatPresence(purchaseToken),
       ),
       PurchaseDisplayField(
-        label: 'platform',
-        value: platform.toJson().toLowerCase(),
+        label: 'store',
+        value: store.toJson(),
       ),
       PurchaseDisplayField(label: 'quantity', value: quantity.toString()),
       PurchaseDisplayField(
@@ -95,6 +95,26 @@ extension PurchaseDisplayMapping on Purchase {
           value: _formatOptionalString(ios.subscriptionGroupIdIOS),
         ),
         PurchaseDisplayField(
+          label: 'bundleOriginalTransactionIdIOS',
+          value: _formatOptionalString(ios.bundleOriginalTransactionIdIOS),
+        ),
+        PurchaseDisplayField(
+          label: 'bundleProductIdIOS',
+          value: _formatOptionalString(ios.bundleProductIdIOS),
+        ),
+        PurchaseDisplayField(
+          label: 'bundleSubscriptionGroupIdIOS',
+          value: _formatOptionalString(ios.bundleSubscriptionGroupIdIOS),
+        ),
+        PurchaseDisplayField(
+          label: 'bundleTransactionIdIOS',
+          value: _formatOptionalString(ios.bundleTransactionIdIOS),
+        ),
+        PurchaseDisplayField(
+          label: 'previousOriginalTransactionIdIOS',
+          value: _formatOptionalString(ios.previousOriginalTransactionIdIOS),
+        ),
+        PurchaseDisplayField(
           label: 'isUpgradedIOS',
           value: ios.isUpgradedIOS?.toString() ?? 'null',
         ),
@@ -121,6 +141,10 @@ extension PurchaseDisplayMapping on Purchase {
         PurchaseDisplayField(
           label: 'revocationReasonIOS',
           value: _formatOptionalString(ios.revocationReasonIOS),
+        ),
+        PurchaseDisplayField(
+          label: 'revocationTypeIOS',
+          value: _formatOptionalString(ios.revocationTypeIOS),
         ),
         PurchaseDisplayField(
           label: 'currencyCodeIOS',
@@ -212,8 +236,8 @@ class PurchaseDataView extends StatelessWidget {
     this.statusColor,
     this.sectionSpacing = 16,
     this.fieldSpacing = 8,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   final Purchase purchase;
   final String? statusLabel;
@@ -232,7 +256,7 @@ class PurchaseDataView extends StatelessWidget {
       ),
       _buildInfoChip(
         context,
-        label: 'Platform: ${purchase.platform.toJson().toLowerCase()}',
+        label: 'Store: ${purchase.store.toJson()}',
       ),
       _buildInfoChip(
         context,
@@ -326,8 +350,8 @@ class PurchaseDataCard extends StatelessWidget {
     required this.purchase,
     this.statusLabel,
     this.statusColor,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   final Purchase purchase;
   final String? statusLabel;

@@ -13,7 +13,6 @@ import plugin, {
   resolveModuleSelection,
   resolveVegaProjectOptions,
   syncHorizonAppIdMetaData,
-  warnLegacyPluginOptions,
 } from '../src/withIAP';
 import {getAndroidLocalPathInput} from '../src/withLocalOpenIAP';
 import type {
@@ -387,22 +386,8 @@ describe('android configuration', () => {
     }
   });
 
-  it('keeps deprecated android.amazon flags as a fallback', () => {
-    expect(
-      resolveAmazonPlatformFlags({
-        android: {amazon: {fireOS: true, vegaOS: true}},
-      }),
-    ).toEqual({
-      isFireOsEnabled: true,
-      isVegaEnabled: true,
-      isHorizonEnabled: false,
-      isOnsideEnabled: false,
-    });
-  });
-
-  it('does not revive legacy Amazon flags when canonical keys are explicitly null', () => {
+  it('does not use project overrides as Amazon module-selection flags', () => {
     const options = {
-      modules: {amazon: {fireOS: null, vegaOS: null}},
       android: {amazon: {fireOS: true, vegaOS: true}},
     } as unknown as ExpoIapPluginOptions;
 
@@ -433,152 +418,39 @@ describe('android configuration', () => {
     });
   });
 
-  it('resolves canonical Horizon app id before deprecated fields', () => {
+  it('resolves the canonical Horizon app id', () => {
     expect(
       resolveHorizonAppId({
         android: {
           horizon: {appId: 'canonical'},
-          horizonAppId: 'deprecated-android',
         },
-        horizonAppId: 'deprecated-top-level',
       }),
     ).toBe('canonical');
   });
 
-  it('keeps deprecated Horizon app id fields as ordered fallbacks', () => {
-    expect(
-      resolveHorizonAppId({
-        android: {horizonAppId: 'deprecated-android'},
-        horizonAppId: 'deprecated-top-level',
-      }),
-    ).toBe('deprecated-android');
-    expect(
-      resolveHorizonAppId({
-        horizonAppId: 'deprecated-top-level',
-      }),
-    ).toBe('deprecated-top-level');
+  it('ignores removed Horizon app id aliases', () => {
+    const options = {
+      android: {horizonAppId: 'removed-android'},
+      horizonAppId: 'deprecated-top-level',
+    } as unknown as ExpoIapPluginOptions;
+
+    expect(resolveHorizonAppId(options)).toBeUndefined();
   });
 
-  it('does not revive legacy Horizon app ids after an explicit canonical null', () => {
+  it('does not revive removed Horizon aliases after an explicit canonical null', () => {
     const options = {
       android: {
         horizon: {appId: null},
-        horizonAppId: 'deprecated-android',
+        horizonAppId: 'removed-android',
       },
-      horizonAppId: 'deprecated-top-level',
+      horizonAppId: 'removed-top-level',
     } as unknown as ExpoIapPluginOptions;
 
     expect(resolveHorizonAppId(options)).toBeUndefined();
   });
 
-  it('does not revive the top-level Horizon app id after an explicit android null', () => {
+  it('ignores the removed iOS alternative-billing alias', () => {
     const options = {
-      android: {horizonAppId: null},
-      horizonAppId: 'deprecated-top-level',
-    } as unknown as ExpoIapPluginOptions;
-
-    expect(resolveHorizonAppId(options)).toBeUndefined();
-  });
-
-  it('warns for legacy Android plugin fields scheduled for 5.0 removal', () => {
-    const addWarningAndroid =
-      WarningAggregator.addWarningAndroid as jest.MockedFunction<
-        typeof WarningAggregator.addWarningAndroid
-      >;
-    jest.clearAllMocks();
-
-    const legacyOptions: ExpoIapPluginOptions = {
-      android: {
-        horizon: {appId: 'canonical'},
-        horizonAppId: 'deprecated-android',
-        amazon: {fireOS: false, vegaOS: false},
-      },
-      horizonAppId: 'deprecated-top-level',
-      modules: {amazon: {fireOS: true, vegaOS: true}},
-    };
-
-    warnLegacyPluginOptions(legacyOptions);
-    warnLegacyPluginOptions(legacyOptions);
-
-    expect(addWarningAndroid).toHaveBeenCalledTimes(4);
-    expect(addWarningAndroid).toHaveBeenCalledWith(
-      'expo-iap',
-      expect.stringMatching(
-        /android\.amazon\.fireOS.*expo-iap 5\.0\.0.*modules\.amazon\.fireOS/,
-      ),
-    );
-    expect(addWarningAndroid).toHaveBeenCalledWith(
-      'expo-iap',
-      expect.stringMatching(
-        /boolean form of android\.amazon\.vegaOS.*expo-iap 5\.0\.0.*modules\.amazon\.vegaOS/,
-      ),
-    );
-    expect(addWarningAndroid).toHaveBeenCalledWith(
-      'expo-iap',
-      expect.stringMatching(
-        /android\.horizonAppId.*expo-iap 5\.0\.0.*android\.horizon\.appId/,
-      ),
-    );
-    expect(addWarningAndroid).toHaveBeenCalledWith(
-      'expo-iap',
-      expect.stringMatching(
-        /^horizonAppId.*expo-iap 5\.0\.0.*android\.horizon\.appId/,
-      ),
-    );
-  });
-
-  it('does not warn for canonical options or Vega project overrides', () => {
-    const addWarningAndroid =
-      WarningAggregator.addWarningAndroid as jest.MockedFunction<
-        typeof WarningAggregator.addWarningAndroid
-      >;
-    const addWarningIOS =
-      WarningAggregator.addWarningIOS as jest.MockedFunction<
-        typeof WarningAggregator.addWarningIOS
-      >;
-    jest.clearAllMocks();
-
-    warnLegacyPluginOptions({
-      android: {
-        horizon: {appId: 'canonical'},
-        amazon: {vegaOS: {packageId: 'dev.example.vega'}},
-      },
-      ios: {alternativeBilling: {enabled: true}},
-      modules: {amazon: {fireOS: true, vegaOS: true}},
-    });
-
-    expect(addWarningAndroid).not.toHaveBeenCalled();
-    expect(addWarningIOS).not.toHaveBeenCalled();
-  });
-
-  it('warns when the legacy iOS alternative-billing option is present', () => {
-    const addWarningIOS =
-      WarningAggregator.addWarningIOS as jest.MockedFunction<
-        typeof WarningAggregator.addWarningIOS
-      >;
-    jest.clearAllMocks();
-
-    warnLegacyPluginOptions({
-      ios: {alternativeBilling: {enabled: false}},
-      iosAlternativeBilling: {enabled: true},
-    });
-    warnLegacyPluginOptions({
-      ios: {alternativeBilling: {enabled: false}},
-      iosAlternativeBilling: {enabled: true},
-    });
-
-    expect(addWarningIOS).toHaveBeenCalledTimes(1);
-    expect(addWarningIOS).toHaveBeenCalledWith(
-      'expo-iap',
-      expect.stringMatching(
-        /iosAlternativeBilling.*expo-iap 5\.0\.0.*ios\.alternativeBilling/,
-      ),
-    );
-  });
-
-  it('does not revive legacy iOS alternative billing after an explicit canonical null', () => {
-    const options = {
-      ios: {alternativeBilling: null},
       iosAlternativeBilling: {enabled: true},
     } as unknown as ExpoIapPluginOptions;
 
@@ -622,14 +494,8 @@ describe('android configuration', () => {
               },
               {
                 $: {
-                  'android:name': 'com.meta.horizon.platform.ovr.OCULUS_APP_ID',
-                  'android:value': 'legacy',
-                },
-              },
-              {
-                $: {
-                  'android:name': 'com.oculus.vr.APP_ID',
-                  'android:value': 'legacy',
+                  'android:name': 'dev.example.UNRELATED',
+                  'android:value': 'preserved',
                 },
               },
               {
@@ -646,6 +512,12 @@ describe('android configuration', () => {
 
     expect(syncHorizonAppIdMetaData(manifest, false, '123')).toBe('removed');
     expect(manifest.manifest.application[0]!['meta-data']).toEqual([
+      {
+        $: {
+          'android:name': 'dev.example.UNRELATED',
+          'android:value': 'preserved',
+        },
+      },
       {
         $: {
           'android:name': 'dev.iapkit.API_KEY',
@@ -672,7 +544,7 @@ describe('android configuration', () => {
     ]);
   });
 
-  it('migrates legacy Horizon App ID metadata to the canonical key', () => {
+  it('does not interpret removed Horizon metadata aliases', () => {
     const manifest = {
       manifest: {
         application: [
@@ -696,8 +568,20 @@ describe('android configuration', () => {
       },
     };
 
-    expect(syncHorizonAppIdMetaData(manifest, true, '123')).toBe('updated');
+    expect(syncHorizonAppIdMetaData(manifest, true, '123')).toBe('added');
     expect(manifest.manifest.application[0]!['meta-data']).toEqual([
+      {
+        $: {
+          'android:name': 'com.meta.horizon.platform.ovr.OCULUS_APP_ID',
+          'android:value': 'old',
+        },
+      },
+      {
+        $: {
+          'android:name': 'com.oculus.vr.APP_ID',
+          'android:value': 'old',
+        },
+      },
       {
         $: {
           'android:name': 'com.meta.horizon.platform.HORIZON_APP_ID',
@@ -789,7 +673,7 @@ describe('local OpenIAP configuration', () => {
 
 describe('ios module selection', () => {
   const createConfig = (ios?: ExpoConfig['ios']): ExpoConfig =>
-    ({name: 'test-app', slug: 'test-app', ios} as ExpoConfig);
+    ({name: 'test-app', slug: 'test-app', ios}) as ExpoConfig;
 
   it('defaults to Expo IAP only when no options provided', () => {
     const result = resolveModuleSelection(createConfig(), undefined);

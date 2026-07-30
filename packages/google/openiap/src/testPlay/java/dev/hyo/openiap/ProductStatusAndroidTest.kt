@@ -51,7 +51,7 @@ class ProductStatusAndroidTest {
         assertEquals(ProductType.Subs, subscription.type)
         assertEquals(ProductStatusAndroid.NoOffersAvailable, subscription.productStatusAndroid)
         assertTrue(subscription.subscriptionOffers.isEmpty())
-        assertTrue(subscription.subscriptionOfferDetailsAndroid.isEmpty())
+        assertTrue(subscription.subscriptionOffers.isEmpty())
     }
 
     @Test

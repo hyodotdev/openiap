@@ -183,14 +183,6 @@ function Purchase() {
             </tr>
             <tr>
               <td>
-                <code style={{ textDecoration: 'line-through' }}>platform</code>
-              </td>
-              <td>
-                <strong>Deprecated.</strong> Use <code>store</code> instead.
-              </td>
-            </tr>
-            <tr>
-              <td>
                 <code>quantity</code>
               </td>
               <td>Number of items purchased</td>
@@ -327,7 +319,11 @@ function Purchase() {
                       <td>
                         <code>ownershipTypeIOS</code>
                       </td>
-                      <td>Ownership type (purchased, family shared)</td>
+                      <td>
+                        Ownership type: <code>purchased</code>,{' '}
+                        <code>familyShared</code>, or the Xcode 27 SDK&apos;s
+                        back-deployed <code>assigned</code> value
+                      </td>
                     </tr>
                     <tr>
                       <td>
@@ -359,7 +355,22 @@ function Purchase() {
                       <td>
                         <code>revocationReasonIOS</code>
                       </td>
-                      <td>Revocation reason</td>
+                      <td>
+                        Revocation reason, including{' '}
+                        <code>upgraded_to_bundle</code> for a subscription moved
+                        into an Apple Subscription Bundle
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>revocationTypeIOS</code>
+                      </td>
+                      <td>
+                        StoreKit revocation type raw value, such as full refund,
+                        prorated refund, Family Sharing revocation, or
+                        assignment revocation (Apple 26.4+ with the Xcode 27
+                        SDK)
+                      </td>
                     </tr>
                     <tr>
                       <td>
@@ -392,6 +403,48 @@ function Purchase() {
                           <code>TransactionCommitmentInfoIOS</code>
                         </Link>
                         .
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>bundleOriginalTransactionIdIOS</code>
+                      </td>
+                      <td>
+                        Original transaction ID of the Subscription Bundle or
+                        Suite associated with this component transaction (Xcode
+                        27 SDK).
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>bundleProductIdIOS</code>
+                      </td>
+                      <td>Product ID of the associated bundle or suite.</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>bundleSubscriptionGroupIdIOS</code>
+                      </td>
+                      <td>
+                        Subscription-group ID of the associated bundle or suite.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>bundleTransactionIdIOS</code>
+                      </td>
+                      <td>
+                        Bundle transaction ID linked to this component
+                        transaction.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>previousOriginalTransactionIdIOS</code>
+                      </td>
+                      <td>
+                        Original transaction replaced when moving between a
+                        standalone subscription and a bundle.
                       </td>
                     </tr>
                     <tr>
@@ -464,7 +517,10 @@ function Purchase() {
                   </AnchorLink>
                   <p>
                     Present only for transactions using the Advanced Commerce
-                    API with generic SKU purchases.
+                    API with generic SKU purchases. On Apple 27, each
+                    item&apos;s <code>details.jsonRepresentation</code> also
+                    contains a <code>partners</code> array with partner{' '}
+                    <code>id</code> and <code>name</code> values.
                   </p>
                   <table className="doc-table" style={{ marginTop: '0.5rem' }}>
                     <thead>
@@ -657,13 +713,9 @@ function Purchase() {
                     margin: '1rem 0',
                   }}
                 >
-                  <strong>Flutter migration:</strong>{' '}
-                  <code>originalJsonAndroid</code> is not a public Purchase
-                  field. The planned Flutter 9.6.1 patch accepts it only as a
-                  fallback input alias, prefers <code>dataAndroid</code>, and
-                  removes the alias in{' '}
-                  <code>flutter_inapp_purchase 10.0.0</code>. Custom adapters
-                  and fixtures should use <code>dataAndroid</code> now. See{' '}
+                  <strong>Flutter 10:</strong> only <code>dataAndroid</code> is
+                  accepted. Custom adapters and fixtures must use the canonical
+                  field. See{' '}
                   <Link to="/docs/updates/deprecations#flutter-original-json-android">
                     the migration schedule
                   </Link>

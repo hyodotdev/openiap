@@ -19,10 +19,10 @@ public final class ExpoIapModule: Module {
         }
 
         Events(
-            OpenIapEvent.purchaseUpdated.rawValue,
-            OpenIapEvent.purchaseError.rawValue,
-            OpenIapEvent.promotedProductIos.rawValue,
-            OpenIapEvent.subscriptionBillingIssue.rawValue
+            IapEvent.purchaseUpdated.rawValue,
+            IapEvent.purchaseError.rawValue,
+            IapEvent.promotedProductIos.rawValue,
+            IapEvent.subscriptionBillingIssue.rawValue
         )
 
         OnCreate {
@@ -190,13 +190,6 @@ public final class ExpoIapModule: Module {
             return success
         }
 
-        AsyncFunction("getReceiptIOS") { () async throws -> String in
-            ExpoIapLog.payload("getReceiptIOS", payload: nil)
-            let receipt = try await OpenIapModule.shared.getReceiptDataIOS() ?? ""
-            ExpoIapLog.result("getReceiptIOS", value: "<receipt>")
-            return receipt
-        }
-
         AsyncFunction("getReceiptDataIOS") { () async throws -> String in
             ExpoIapLog.payload("getReceiptDataIOS", payload: nil)
             let receipt = try await OpenIapModule.shared.getReceiptDataIOS() ?? ""
@@ -210,30 +203,6 @@ public final class ExpoIapModule: Module {
             let receipt = try await OpenIapModule.shared.getReceiptDataIOS() ?? ""
             ExpoIapLog.result("requestReceiptRefreshIOS", value: "<receipt>")
             return receipt
-        }
-
-        AsyncFunction("validateReceiptIOS") { (sku: String) async throws -> [String: Any] in
-            ExpoIapLog.payload("validateReceiptIOS", payload: ["sku": sku])
-            do {
-                let props = try OpenIapSerialization.verifyPurchaseProps(from: ["apple": ["sku": sku]])
-                let result = try await OpenIapModule.shared.verifyPurchase(props)
-                var payload = OpenIapSerialization.encode(result)
-
-                // Extract jwsRepresentation from the result
-                if case .verifyPurchaseResultIos(let iosResult) = result {
-                    payload["purchaseToken"] = iosResult.jwsRepresentation
-                }
-
-                let sanitized = ExpoIapHelper.sanitizeDictionary(payload)
-                ExpoIapLog.result("validateReceiptIOS", value: sanitized)
-                return sanitized
-            } catch let error as PurchaseError {
-                ExpoIapLog.failure("validateReceiptIOS", error: error)
-                throw IapException.from(error)
-            } catch {
-                ExpoIapLog.failure("validateReceiptIOS", error: error)
-                throw IapException.from(PurchaseError.make(code: .receiptFailed))
-            }
         }
 
         AsyncFunction("verifyPurchase") { (params: [String: Any]) async throws -> [String: Any] in
@@ -287,11 +256,15 @@ public final class ExpoIapModule: Module {
             }
         }
 
-        AsyncFunction("presentCodeRedemptionSheetIOS") { () async throws -> Bool in
+        AsyncFunction("presentCodeRedemptionSheetIOS") { () async throws -> [String: Any]? in
             ExpoIapLog.payload("presentCodeRedemptionSheetIOS", payload: nil)
-            let success = try await OpenIapModule.shared.presentCodeRedemptionSheetIOS()
-            ExpoIapLog.result("presentCodeRedemptionSheetIOS", value: success)
-            return success
+            guard let purchase = try await OpenIapModule.shared.presentCodeRedemptionSheetIOS() else {
+                ExpoIapLog.result("presentCodeRedemptionSheetIOS", value: nil)
+                return nil
+            }
+            let payload = ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode(purchase))
+            ExpoIapLog.result("presentCodeRedemptionSheetIOS", value: payload)
+            return payload
         }
 
         AsyncFunction("showManageSubscriptionsIOS") { () async throws -> [[String: Any]] in
@@ -325,13 +298,6 @@ public final class ExpoIapModule: Module {
             }
             ExpoIapLog.result("getPromotedProductIOS", value: nil)
             return nil
-        }
-
-        AsyncFunction("requestPurchaseOnPromotedProductIOS") { () async throws -> Bool in
-            ExpoIapLog.payload("requestPurchaseOnPromotedProductIOS", payload: nil)
-            let result = try await OpenIapModule.shared.requestPurchaseOnPromotedProductIOS()
-            ExpoIapLog.result("requestPurchaseOnPromotedProductIOS", value: result)
-            return result
         }
 
         AsyncFunction("getStorefront") { () async throws -> String in

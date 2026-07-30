@@ -152,7 +152,7 @@ describe('Amazon Vega Expo adapter', () => {
           id: 'premium_monthly',
           type: 'subs',
           platform: 'android',
-          subscriptionOfferDetailsAndroid: expect.any(Array),
+          subscriptionOffers: expect.any(Array),
         }),
       ]),
     );
@@ -239,7 +239,7 @@ describe('Amazon Vega Expo adapter', () => {
 
     module.addListener('purchase-updated', listener);
     const result = await module.requestPurchase({
-      skuArr: ['coins_100'],
+      skus: ['coins_100'],
       type: 'in-app',
     });
 
@@ -339,7 +339,7 @@ describe('Amazon Vega Expo adapter', () => {
 
     await expect(
       module.requestPurchase({
-        skuArr: ['coins_100'],
+        skus: ['coins_100'],
         type: 'in-app',
       }),
     ).resolves.toEqual([
@@ -388,7 +388,7 @@ describe('Amazon Vega Expo adapter', () => {
 
       await expect(
         module.requestPurchase({
-          skuArr: ['coins_100'],
+          skus: ['coins_100'],
           type: 'in-app',
         }),
       ).resolves.toEqual([
@@ -439,7 +439,7 @@ describe('Amazon Vega Expo adapter', () => {
 
       await expect(
         module.requestPurchase({
-          skuArr: ['coins_100'],
+          skus: ['coins_100'],
           type: 'in-app',
         }),
       ).rejects.toBe(parserError);
@@ -474,7 +474,7 @@ describe('Amazon Vega Expo adapter', () => {
     module.addListener('purchase-error', errorListener);
 
     await expect(
-      module.requestPurchase({skuArr: ['coins_100'], type: 'in-app'}),
+      module.requestPurchase({skus: ['coins_100'], type: 'in-app'}),
     ).rejects.toBe(purchaseError);
     expect(errorListener).toHaveBeenCalledWith({
       code: ErrorCode.QueryProduct,
@@ -510,7 +510,7 @@ describe('Amazon Vega Expo adapter', () => {
 
     await expect(
       module.requestPurchase({
-        skuArr: ['coins_100'],
+        skus: ['coins_100'],
         type: 'in-app',
       }),
     ).resolves.toEqual([
@@ -545,7 +545,7 @@ describe('Amazon Vega Expo adapter', () => {
 
     await expect(
       module.requestPurchase({
-        skuArr: ['coins_100'],
+        skus: ['coins_100'],
         type: 'in-app',
       }),
     ).rejects.toMatchObject({
@@ -599,7 +599,7 @@ describe('Amazon Vega Expo adapter', () => {
 
     await expect(
       module.requestPurchase({
-        skuArr: ['premium_monthly'],
+        skus: ['premium_monthly'],
         type: 'subs',
       }),
     ).resolves.toEqual([
@@ -678,7 +678,7 @@ describe('Amazon Vega Expo adapter', () => {
 
     await expect(
       module.requestPurchase({
-        skuArr: ['coins_100'],
+        skus: ['coins_100'],
         type: 'in-app',
       }),
     ).rejects.toMatchObject({
@@ -707,7 +707,7 @@ describe('Amazon Vega Expo adapter', () => {
 
     await expect(
       module.requestPurchase({
-        skuArr: ['missing_sku'],
+        skus: ['missing_sku'],
         type: 'in-app',
       }),
     ).rejects.toMatchObject({
@@ -817,7 +817,7 @@ describe('Amazon Vega Expo adapter', () => {
 
     await expect(
       module.requestPurchase({
-        skuArr: ['premium_monthly'],
+        skus: ['premium_monthly'],
         type: 'subs',
       }),
     ).resolves.toEqual([
@@ -1379,7 +1379,7 @@ describe('Amazon Vega Expo adapter', () => {
           },
         }),
       ).rejects.toMatchObject({
-        code: ErrorCode.ReceiptFailed,
+        code: ErrorCode.PurchaseVerificationFailed,
         message: 'HTTP 502',
       });
     } finally {
@@ -1417,7 +1417,7 @@ describe('Amazon Vega Expo adapter', () => {
           },
         }),
       ).rejects.toMatchObject({
-        code: ErrorCode.ReceiptFailed,
+        code: ErrorCode.PurchaseVerificationFailed,
         message: 'receipt no longer valid',
       });
     } finally {
@@ -1453,7 +1453,7 @@ describe('Amazon Vega Expo adapter', () => {
           },
         }),
       ).rejects.toMatchObject({
-        code: ErrorCode.ReceiptFailed,
+        code: ErrorCode.PurchaseVerificationFailed,
         message: 'receipt array failure',
       });
     } finally {
@@ -1484,7 +1484,7 @@ describe('Amazon Vega Expo adapter', () => {
           },
         }),
       ).rejects.toMatchObject({
-        code: ErrorCode.ReceiptFailed,
+        code: ErrorCode.PurchaseVerificationFailed,
         message: 'IAPKit returned non-JSON response (HTTP 200).',
       });
     } finally {
@@ -1525,7 +1525,7 @@ describe('Amazon Vega Expo adapter', () => {
           },
         }),
       ).rejects.toMatchObject({
-        code: ErrorCode.ReceiptFailed,
+        code: ErrorCode.PurchaseVerificationFailed,
         message: 'bad receipt',
       });
     } finally {
@@ -1556,7 +1556,7 @@ describe('Amazon Vega Expo adapter', () => {
           },
         }),
       ).rejects.toMatchObject({
-        code: ErrorCode.ReceiptFailed,
+        code: ErrorCode.PurchaseVerificationFailed,
         message: 'IAPKit returned malformed response (HTTP 200).',
       });
     } finally {
@@ -1593,7 +1593,7 @@ describe('Amazon Vega Expo adapter', () => {
           },
         }),
       ).rejects.toMatchObject({
-        code: ErrorCode.ReceiptFailed,
+        code: ErrorCode.PurchaseVerificationFailed,
         message: 'IAPKit returned malformed response (HTTP 200).',
       });
     } finally {
@@ -1631,7 +1631,7 @@ describe('Amazon Vega Expo adapter', () => {
           },
         }),
       ).rejects.toMatchObject({
-        code: ErrorCode.ReceiptFailed,
+        code: ErrorCode.PurchaseVerificationFailed,
         message: 'IAPKit returned malformed response (HTTP 200).',
       });
     } finally {

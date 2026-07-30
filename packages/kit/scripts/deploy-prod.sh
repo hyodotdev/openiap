@@ -56,7 +56,20 @@ esac
 
 echo "Deploying to Fly with VITE_KIT_CONVEX_URL=$VITE_KIT_CONVEX_URL"
 
-BUILD_FLAGS=(--build-arg "VITE_KIT_CONVEX_URL=$VITE_KIT_CONVEX_URL")
+# The health response identifies the deployed Git revision. Refuse a manual
+# build from a dirty checkout, where that revision would not describe the
+# Docker context accurately. Ignored local env files remain allowed.
+if [ -n "$(git -C "$REPO_ROOT" status --porcelain)" ]; then
+  echo "error: refusing to deploy from a dirty worktree." >&2
+  echo "Commit or remove tracked/untracked source changes first." >&2
+  exit 1
+fi
+
+IAPKIT_REVISION="$(git -C "$REPO_ROOT" rev-parse HEAD)"
+BUILD_FLAGS=(
+  --build-arg "VITE_KIT_CONVEX_URL=$VITE_KIT_CONVEX_URL"
+  --build-arg "IAPKIT_REVISION=$IAPKIT_REVISION"
+)
 if [ -n "${VITE_KIT_SENTRY_DSN:-}" ]; then
   BUILD_FLAGS+=(--build-arg "VITE_KIT_SENTRY_DSN=$VITE_KIT_SENTRY_DSN")
 fi

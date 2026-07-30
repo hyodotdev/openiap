@@ -140,7 +140,7 @@ This project uses Codecov with two checks: **codecov/patch** (new/modified lines
 
 ### Platform-Specific Naming Conventions
 
-- **iOS-related code**: Use `IOS` suffix (e.g., `PurchaseIOS`, `SubscriptionOfferIOS`)
+- **iOS-related code**: Use `IOS` suffix (e.g., `PurchaseIOS`, `ProductIOS`)
   - When iOS is not the final suffix, use `Ios` (e.g., `IosManager`, `IosHelper`)
   - For field names with iOS in the middle: use `Id` before `IOS` (e.g., `subscriptionGroupIdIOS`, `webOrderLineItemIdIOS`)
 - **Android-related code**: Use `Android` suffix (e.g., `PurchaseAndroid`, `SubscriptionOfferAndroid`)

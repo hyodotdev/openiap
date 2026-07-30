@@ -142,11 +142,11 @@ describe('SubscriptionFlow Screen', () => {
 
     expect(requestPurchaseMock).toHaveBeenCalledWith({
       request: {
-        ios: {
+        apple: {
           sku: 'dev.hyo.martie.premium',
           appAccountToken: 'user-123',
         },
-        android: {
+        google: {
           skus: ['dev.hyo.martie.premium'],
           subscriptionOffers: [],
         },
@@ -293,7 +293,6 @@ describe('SubscriptionFlow Screen', () => {
     const restoredPurchase: Purchase = {
       id: 'transaction-restored-sub-1',
       isAutoRenewing: true,
-      platform: 'android',
       productId: 'dev.hyo.martie.premium',
       purchaseState: 'purchased',
       purchaseToken: 'google-sub-token-restored-1',
@@ -408,7 +407,6 @@ describe('SubscriptionFlow Screen', () => {
       const restoredPurchase: Purchase = {
         id: `transaction-restored-sub-${caseName}`,
         isAutoRenewing: true,
-        platform: 'android',
         productId: 'dev.hyo.martie.premium',
         purchaseState: 'purchased',
         purchaseToken: `google-sub-token-restored-${caseName}`,
@@ -452,7 +450,6 @@ describe('SubscriptionFlow Screen', () => {
     const restoredPurchase: Purchase = {
       id: 'transaction-restored-sub-unmount-1',
       isAutoRenewing: true,
-      platform: 'android',
       productId: 'dev.hyo.martie.premium',
       purchaseState: 'purchased',
       purchaseToken: 'google-sub-token-restored-unmount-1',
@@ -543,7 +540,6 @@ describe('SubscriptionFlow Screen', () => {
     const purchase: Purchase = {
       id: 'transaction-sub-cancel-retry-1',
       isAutoRenewing: true,
-      platform: 'android',
       productId: 'dev.hyo.martie.premium',
       purchaseState: 'purchased',
       purchaseToken: 'google-sub-token-cancel-retry-1',
@@ -621,7 +617,6 @@ describe('SubscriptionFlow Screen', () => {
     const purchase: Purchase = {
       id: 'transaction-sub-remount-pending-finish-1',
       isAutoRenewing: true,
-      platform: 'android',
       productId: 'dev.hyo.martie.premium',
       purchaseState: 'purchased',
       purchaseToken: 'google-sub-token-remount-pending-finish-1',
@@ -714,7 +709,6 @@ describe('SubscriptionFlow Screen', () => {
     const purchase: Purchase = {
       id: 'transaction-sub-remount-after-owner-finish-1',
       isAutoRenewing: true,
-      platform: 'android',
       productId: 'dev.hyo.martie.premium',
       purchaseState: 'purchased',
       purchaseToken: 'google-sub-token-remount-after-owner-finish-1',
@@ -903,7 +897,6 @@ describe('SubscriptionFlow Screen', () => {
     const purchase: Purchase = {
       id: 'transaction-sub-reconnect-1',
       isAutoRenewing: true,
-      platform: 'android',
       productId: 'dev.hyo.martie.premium',
       purchaseState: 'purchased',
       purchaseToken: 'google-sub-token-reconnect-1',
@@ -1137,12 +1130,16 @@ describe('SubscriptionFlow Screen', () => {
       subscriptions: [
         {
           ...sampleSubscription,
-          subscriptionOfferDetailsAndroid: [
+          subscriptionOffers: [
             {
-              basePlanId: 'premium',
-              offerToken: 'offer-token-monthly',
-              offerTags: [],
-              pricingPhases: {
+              id: 'premium',
+              basePlanIdAndroid: 'premium',
+              offerTokenAndroid: 'offer-token-monthly',
+              offerTagsAndroid: [],
+              displayPrice: '$9.99',
+              price: 9.99,
+              type: 'promotional',
+              pricingPhasesAndroid: {
                 pricingPhaseList: [
                   {
                     formattedPrice: '$9.99',
@@ -1156,10 +1153,14 @@ describe('SubscriptionFlow Screen', () => {
               },
             },
             {
-              basePlanId: 'premium-year',
-              offerToken: 'offer-token-yearly',
-              offerTags: [],
-              pricingPhases: {
+              id: 'premium-year',
+              basePlanIdAndroid: 'premium-year',
+              offerTokenAndroid: 'offer-token-yearly',
+              offerTagsAndroid: [],
+              displayPrice: '$99.99',
+              price: 99.99,
+              type: 'promotional',
+              pricingPhasesAndroid: {
                 pricingPhaseList: [
                   {
                     formattedPrice: '$99.99',

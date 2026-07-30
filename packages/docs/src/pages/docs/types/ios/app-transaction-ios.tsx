@@ -141,10 +141,48 @@ function AppTransactionIos() {
               <td>
                 <code>originalPlatform</code>
               </td>
-              <td>Original platform (iOS 18.4+)</td>
+              <td>
+                Original platform (iOS 18.4+), including the Xcode 27 SDK&apos;s
+                back-deployed <code>managed</code> value
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>revocationDate</code>
+              </td>
+              <td>
+                App-acquisition revocation timestamp. The Xcode 27 SDK exposes
+                this back-deployed property on Apple 16+.
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <code>storeType</code>
+              </td>
+              <td>
+                Store channel of the original app acquisition, such as consumer,
+                education, or enterprise (Xcode 27 / Apple 27).
+              </td>
             </tr>
           </tbody>
         </table>
+
+        <div
+          style={{
+            margin: '1rem 0',
+            padding: '1rem',
+            borderLeft: '4px solid var(--accent-color)',
+            background: 'rgba(220, 104, 67, 0.08)',
+            borderRadius: '0.5rem',
+          }}
+        >
+          <strong>Xcode 27 boundary:</strong> StoreKit also exposes{' '}
+          <code>AppTransaction.all</code>, an async sequence of app-acquisition
+          records. OpenIAP 3 does not export that sequence.{' '}
+          <code>getAppTransactionIOS</code> returns the current verified app
+          transaction, while <code>getAllTransactionsIOS</code> remains in-app
+          purchase history; the two histories are not interchangeable.
+        </div>
 
         <AnchorLink id="app-transaction-type-definition" level="h3">
           Type Definition
@@ -167,6 +205,9 @@ function AppTransactionIos() {
   // iOS 18.4+ properties
   appTransactionId?: string | null;
   originalPlatform?: string | null;
+  // Published by the Xcode 27 SDK; availability follows each StoreKit property
+  revocationDate?: number | null;  // epoch ms
+  storeType?: string | null;
 }`}</CodeBlock>
             ),
             swift: (
@@ -185,6 +226,9 @@ function AppTransactionIos() {
     // iOS 18.4+ properties
     let appTransactionId: String?
     let originalPlatform: String?
+    // Published by the Xcode 27 SDK; availability follows each StoreKit property
+    let revocationDate: Double?  // epoch ms
+    let storeType: String?
 }`}</CodeBlock>
             ),
             kotlin: (
@@ -202,7 +246,10 @@ function AppTransactionIos() {
     val preorderDate: Double? = null,
     // iOS 18.4+ properties
     val appTransactionId: String? = null,
-    val originalPlatform: String? = null
+    val originalPlatform: String? = null,
+    // Published by the Xcode 27 SDK; availability follows each StoreKit property
+    val revocationDate: Double? = null,
+    val storeType: String? = null
 )`}</CodeBlock>
             ),
             dart: (
@@ -221,6 +268,9 @@ function AppTransactionIos() {
   // iOS 18.4+ properties
   final String? appTransactionId;
   final String? originalPlatform;
+  // Published by the Xcode 27 SDK; availability follows each StoreKit property
+  final double? revocationDate;
+  final String? storeType;
 
   AppTransaction({
     required this.bundleId,
@@ -236,6 +286,8 @@ function AppTransactionIos() {
     this.preorderDate,
     this.appTransactionId,
     this.originalPlatform,
+    this.revocationDate,
+    this.storeType,
   });
 }`}</CodeBlock>
             ),
@@ -258,6 +310,9 @@ public sealed record AppTransaction
     // iOS 18.4+ properties
     public string? AppTransactionId { get; init; }
     public string? OriginalPlatform { get; init; }
+    // Published by the Xcode 27 SDK; availability follows each StoreKit property
+    public double? RevocationDate { get; init; }
+    public string? StoreType { get; init; }
 }`}</CodeBlock>
             ),
             gdscript: (
@@ -276,7 +331,10 @@ public sealed record AppTransaction
     var preorder_date: Variant  # optional, epoch ms
     # iOS 18.4+ properties
     var app_transaction_id: Variant
-    var original_platform: Variant`}</CodeBlock>
+    var original_platform: Variant
+    # Published by the Xcode 27 SDK; availability follows each StoreKit property
+    var revocation_date: Variant
+    var store_type: Variant`}</CodeBlock>
             ),
           }}
         </LanguageTabs>

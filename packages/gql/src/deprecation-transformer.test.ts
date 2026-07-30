@@ -196,9 +196,7 @@ describe('deprecation documentation transformation', () => {
     `);
 
     const kotlin = new KotlinPlugin({ outputPath: 'Types.kt' }).generate(schema);
-    expect(kotlin).toContain(
-      '@Deprecated("Use \\$modern instead. Scheduled for removal in OpenIAP 3.0.")',
-    );
+    expect(kotlin).toContain('@Deprecated("Use \\$modern instead. Scheduled for removal in OpenIAP 3.0.")');
     expect(kotlin).not.toContain('@Deprecated("Use $modern instead.');
   });
 
@@ -239,9 +237,7 @@ describe('deprecation documentation transformation', () => {
     }
     const kotlin = new KotlinPlugin({ outputPath: 'Types.kt' }).generate(schema);
     expect(kotlin).toContain('@deprecated Use modern instead.');
-    expect(kotlin).toContain(
-      'suspend fun value(legacy: String? = null): String?',
-    );
+    expect(kotlin).toContain('suspend fun value(legacy: String? = null): String?');
     expect(kotlin).not.toContain('@Deprecated("Use modern instead.');
   });
 
@@ -254,13 +250,10 @@ describe('deprecation documentation transformation', () => {
     `);
 
     const kotlin = new KotlinPlugin({ outputPath: 'Types.kt' }).generate(schema);
-    const warning =
-      '@Deprecated("Use modern instead. Scheduled for removal in OpenIAP 3.0.")';
+    const warning = '@Deprecated("Use modern instead. Scheduled for removal in OpenIAP 3.0.")';
     expect(kotlin).toContain(`${warning}\n    suspend fun legacy(`);
     expect(kotlin).toContain(`${warning}\n    val legacy: QueryLegacyHandler?`);
-    expect(kotlin).not.toContain(
-      '@Deprecated("Use modern instead. Scheduled for removal in OpenIAP 3.0.", ReplaceWith("modern"))',
-    );
+    expect(kotlin).not.toContain('@Deprecated("Use modern instead. Scheduled for removal in OpenIAP 3.0.", ReplaceWith("modern"))');
   });
 
   it('preserves reasons on custom VoidResult declarations', () => {
@@ -318,20 +311,15 @@ describe('deprecation documentation transformation', () => {
           requestPurchase: RequestPurchasePropsByPlatforms
           requestSubscription: RequestSubscriptionPropsByPlatforms
           type: ProductQueryType = InApp
-          useAlternativeBilling: Boolean
           unexpected: String
         }
         input RequestPurchasePropsByPlatforms {
           apple: String
           google: String
-          ios: String
-          android: String
         }
         input RequestSubscriptionPropsByPlatforms {
           apple: String
           google: String
-          ios: String
-          android: String
         }
         enum ProductQueryType { InApp Subs All }
       `),
@@ -360,13 +348,11 @@ describe('deprecation documentation transformation', () => {
           transactionDate: Float!
           purchaseToken: String
           store: IapStore
-          platform: IapPlatform
           quantity: Int!
           purchaseState: PurchaseState!
           isAutoRenewing: Boolean!
         }
         enum IapStore { Apple Google }
-        enum IapPlatform { Ios Android }
         enum PurchaseState { Purchased }
       `),
     ).toThrow('PurchaseInput.id custom input contract drifted');
@@ -389,19 +375,14 @@ describe('deprecation documentation transformation', () => {
           requestPurchase: RequestPurchasePropsByPlatforms
           requestSubscription: RequestSubscriptionPropsByPlatforms
           type: ProductQueryType = Subs
-          useAlternativeBilling: Boolean
         }
         input RequestPurchasePropsByPlatforms {
           apple: RequestPurchaseIosProps
           google: RequestPurchaseAndroidProps
-          ios: RequestPurchaseIosProps
-          android: RequestPurchaseAndroidProps
         }
         input RequestSubscriptionPropsByPlatforms {
           apple: RequestSubscriptionIosProps
           google: RequestSubscriptionAndroidProps
-          ios: RequestSubscriptionIosProps
-          android: RequestSubscriptionAndroidProps
         }
         input RequestPurchaseIosProps { value: String }
         input RequestPurchaseAndroidProps { value: String }
@@ -418,8 +399,6 @@ describe('deprecation documentation transformation', () => {
         input RequestPurchasePropsByPlatforms {
           apple: RequestPurchaseIosProps
           google: String
-          ios: RequestPurchaseIosProps
-          android: RequestPurchaseAndroidProps
         }
         input RequestPurchaseIosProps { value: String }
         input RequestPurchaseAndroidProps { value: String }
@@ -438,9 +417,7 @@ describe('deprecation documentation transformation', () => {
     `);
     const legacy = schema.objects.find((object) => object.name === 'LegacyAndroid');
 
-    expect(legacy?.fields[0]?.description).toBe(
-      '@deprecated Use store instead. Scheduled for removal in OpenIAP 3.0.',
-    );
+    expect(legacy?.fields[0]?.description).toBe('@deprecated Use store instead. Scheduled for removal in OpenIAP 3.0.');
     expect(new GDScriptPlugin({ outputPath: 'types.gd' }).generate(schema)).toContain(
       '## @deprecated Use store instead. Scheduled for removal in OpenIAP 3.0.\n\tvar platform: Variant = null',
     );

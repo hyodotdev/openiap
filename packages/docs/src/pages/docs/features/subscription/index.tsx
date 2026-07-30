@@ -59,7 +59,7 @@ function Subscription() {
           <p>
             <strong>Availability:</strong> billing plan selection requires iOS,
             iPadOS, macOS, tvOS, or visionOS 26.4+ and an app compiled with the
-            StoreKit billing-plan APIs available in Xcode 26.4+ / Swift 6.3+. If
+            StoreKit billing-plan APIs available in Xcode 26.5+ / Swift 6.3+. If
             the app runs on an older Apple OS version, omit{' '}
             <code>billingPlanType</code> and let StoreKit purchase the default
             plan. Never send <code>unknown</code> as a purchase option.
@@ -181,7 +181,7 @@ val kmpIAP = KmpIAP()
 
 kmpIAP.requestPurchase {
     type = ProductType.Subs
-    ios {
+    apple {
         sku = "premium_annual"
         billingPlanType = SubscriptionBillingPlanTypeIOS.Monthly
     }
@@ -373,19 +373,21 @@ const subscription = subscriptions?.find(
 );
 
 // Check for introductory offer
-if (subscription?.subscriptionInfoIOS?.introductoryOffer) {
-  const intro = subscription.subscriptionInfoIOS.introductoryOffer;
+const intro = subscription?.subscriptionOffers?.find(
+  (offer) => offer.type === 'introductory',
+);
+if (intro) {
   console.log('Intro offer:', intro.displayPrice);
   console.log('Payment mode:', intro.paymentMode); // free-trial, pay-as-you-go, pay-up-front
-  console.log('Period:', intro.period.unit, intro.periodCount);
+  console.log('Period:', intro.period?.unit, intro.periodCount);
 }
 
 // Check for promotional offers
-if (subscription?.discountsIOS) {
-  subscription.discountsIOS.forEach((discount) => {
-    console.log('Promo:', discount.identifier, discount.localizedPrice);
-  });
-}`}</CodeBlock>
+subscription?.subscriptionOffers
+  ?.filter((offer) => offer.type === 'promotional')
+  .forEach((offer) => {
+    console.log('Promo:', offer.id, offer.localizedPriceIOS);
+  });`}</CodeBlock>
                     ),
                     swift: (
                       <CodeBlock language="swift">{`import OpenIap
@@ -398,16 +400,18 @@ try await iapStore.fetchProducts(skus: ["premium_monthly"], type: .subs)
 let subscription = iapStore.iosSubscriptionProducts.first { $0.id == "premium_monthly" }
 
 // Check for introductory offer
-if let introOffer = subscription?.subscriptionInfoIOS?.introductoryOffer {
+if let introOffer = subscription?.subscriptionOffers?.first(where: {
+    $0.type == .introductory
+}) {
     print("Intro offer: \\(introOffer.displayPrice)")
     print("Payment mode: \\(introOffer.paymentMode)")
-    print("Period: \\(introOffer.period.unit) x \\(introOffer.periodCount)")
+    print("Period: \\(String(describing: introOffer.period))")
 }
 
 // Check for promotional offers
-if let discounts = subscription?.discountsIOS {
-    for discount in discounts {
-        print("Promo: \\(discount.identifier) - \\(discount.localizedPrice)")
+if let offers = subscription?.subscriptionOffers {
+    for offer in offers where offer.type == .promotional {
+        print("Promo: \\(offer.id) - \\(offer.localizedPriceIOS ?? offer.displayPrice)")
     }
 }`}</CodeBlock>
                     ),
@@ -437,16 +441,20 @@ val subscription = (result as? FetchProductsResultSubscriptions)
     .find { it.id == "premium_monthly" }
 
 // Check for introductory offer
-subscription?.subscriptionInfoIOS?.introductoryOffer?.let { introOffer ->
+subscription?.subscriptionOffers
+    ?.firstOrNull { it.type == DiscountOfferType.Introductory }
+    ?.let { introOffer ->
     println("Intro offer: \${introOffer.displayPrice}")
     println("Payment mode: \${introOffer.paymentMode}")
-    println("Period: \${introOffer.period.unit} x \${introOffer.periodCount}")
+    println("Period: \${introOffer.period}")
 }
 
 // Check for promotional offers
-subscription?.discountsIOS?.forEach { discount ->
-    println("Promo: \${discount.identifier} - \${discount.localizedPrice}")
-}`}</CodeBlock>
+subscription?.subscriptionOffers
+    ?.filter { it.type == DiscountOfferType.Promotional }
+    ?.forEach { offer ->
+        println("Promo: \${offer.id} - \${offer.localizedPriceIOS ?: offer.displayPrice}")
+    }`}</CodeBlock>
                     ),
                     dart: (
                       <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
@@ -462,17 +470,13 @@ final subscription = subscriptions.firstWhere(
   (s) => s.id == 'premium_monthly',
 );
 
-// Check for introductory offer (iOS)
-if (subscription.subscriptionInfoIOS?.introductoryOffer case final intro?) {
-  print('Intro price: \${intro.displayPrice}');
-  print('Period: \${intro.period.unit}');
-  print('Cycles: \${intro.periodCount}');
-}
-
-// Check for promotional offers (iOS)
-if (subscription.discountsIOS != null) {
-  for (final discount in subscription.discountsIOS!) {
-    print('Promo: \${discount.identifier} - \${discount.localizedPrice}');
+for (final offer in subscription.subscriptionOffers ?? const <SubscriptionOffer>[]) {
+  if (offer.type == DiscountOfferType.Introductory) {
+    print('Intro price: \${offer.displayPrice}');
+    print('Period: \${offer.period?.unit}');
+    print('Cycles: \${offer.periodCount}');
+  } else if (offer.type == DiscountOfferType.Promotional) {
+    print('Promo: \${offer.id} - \${offer.localizedPriceIOS ?? offer.displayPrice}');
   }
 }`}</CodeBlock>
                     ),
@@ -495,17 +499,20 @@ var subscription = result is FetchProductsResultSubscriptions subscriptions
     : null;
 
 // Check for introductory offer
-if (subscription?.SubscriptionInfoIOS?.IntroductoryOffer is { } introOffer)
+if (subscription?.SubscriptionOffers?.FirstOrDefault(
+    offer => offer.Type == DiscountOfferType.Introductory) is { } introOffer)
 {
     Console.WriteLine($"Intro offer: {introOffer.DisplayPrice}");
     Console.WriteLine($"Payment mode: {introOffer.PaymentMode}");
-    Console.WriteLine($"Period: {introOffer.Period.Unit} x {introOffer.PeriodCount}");
+    Console.WriteLine($"Period: {introOffer.Period}");
 }
 
 // Check for promotional offers
-foreach (var discount in subscription?.DiscountsIOS ?? Array.Empty<DiscountIOS>())
+foreach (var offer in subscription?.SubscriptionOffers?
+    .Where(offer => offer.Type == DiscountOfferType.Promotional)
+    ?? Array.Empty<SubscriptionOffer>())
 {
-    Console.WriteLine($"Promo: {discount.Identifier} - {discount.LocalizedPrice}");
+    Console.WriteLine($"Promo: {offer.Id} - {offer.LocalizedPriceIOS ?? offer.DisplayPrice}");
 }`}</CodeBlock>
                     ),
                     gdscript: (
@@ -521,18 +528,14 @@ for s in subscriptions:
         subscription = s
         break
 
-# Check for introductory offer (iOS)
-if subscription and subscription.subscription_info_ios:
-    var intro = subscription.subscription_info_ios.introductory_offer
-    if intro:
-        print("Intro offer: %s" % intro.display_price)
-        print("Payment mode: %s" % intro.payment_mode)
-        print("Period: %s x %d" % [intro.period.unit, intro.period_count])
-
-# Check for promotional offers (iOS)
-if subscription and subscription.discounts_ios:
-    for discount in subscription.discounts_ios:
-        print("Promo: %s - %s" % [discount.identifier, discount.localized_price])`}</CodeBlock>
+# Read standardized iOS subscription offers
+if subscription:
+    for offer in subscription.subscription_offers:
+        if offer.type == DiscountOfferType.INTRODUCTORY:
+            print("Intro offer: %s" % offer.display_price)
+        elif offer.type == DiscountOfferType.PROMOTIONAL:
+            var price = offer.localized_price_ios if offer.localized_price_ios else offer.display_price
+            print("Promo: %s - %s" % [offer.id, price])`}</CodeBlock>
                     ),
                   }}
                 </LanguageTabs>
@@ -549,17 +552,23 @@ if subscription and subscription.discounts_ios:
                 <LanguageTabs>
                   {{
                     typescript: (
-                      <CodeBlock language="typescript">{`const displayIntroOffer = (subscription: ProductSubscription) => {
-  const offer = subscription.subscriptionInfoIOS?.introductoryOffer;
+                      <CodeBlock language="typescript">{`const displayIntroOffer = (subscription: ProductSubscriptionIOS) => {
+  const offer = subscription.subscriptionOffers?.find(
+    (candidate) => candidate.type === 'introductory',
+  );
   if (!offer) return 'No intro offer available';
+  const unit = offer.period?.unit.toLowerCase() ?? 'period';
+  const periodCount = offer.periodCount ?? 1;
 
   switch (offer.paymentMode) {
     case 'free-trial':
-      return \`\${offer.periodCount} \${offer.period.unit.toLowerCase()}(s) free trial\`;
+      return \`\${periodCount} \${unit}(s) free trial\`;
     case 'pay-as-you-go':
-      return \`\${offer.displayPrice} for \${offer.periodCount} \${offer.period.unit.toLowerCase()}(s)\`;
+      return \`\${offer.displayPrice} for \${periodCount} \${unit}(s)\`;
     case 'pay-up-front':
-      return \`\${offer.displayPrice} for first \${offer.periodCount} \${offer.period.unit.toLowerCase()}(s)\`;
+      return \`\${offer.displayPrice} for first \${periodCount} \${unit}(s)\`;
+    default:
+      return offer.displayPrice;
   }
 };
 
@@ -570,21 +579,14 @@ if (isEligible) {
 }`}</CodeBlock>
                     ),
                     swift: (
-                      <CodeBlock language="swift">{`func displayIntroOffer(_ subscription: ProductIOS) -> String? {
-    guard let offer = subscription.subscriptionInfoIOS?.introductoryOffer else {
+                      <CodeBlock language="swift">{`func displayIntroOffer(_ subscription: ProductSubscriptionIOS) -> String? {
+    guard let offer = subscription.subscriptionOffers?.first(where: {
+        $0.type == .introductory
+    }) else {
         return nil
     }
 
-    switch offer.paymentMode {
-    case "free-trial":
-        return "\\(offer.periodCount) \\(offer.period.unit.lowercased())(s) free trial"
-    case "pay-as-you-go":
-        return "\\(offer.displayPrice) for \\(offer.periodCount) \\(offer.period.unit.lowercased())(s)"
-    case "pay-up-front":
-        return "\\(offer.displayPrice) for first \\(offer.periodCount) \\(offer.period.unit.lowercased())(s)"
-    default:
-        return nil
-    }
+    return offer.displayPrice
 }
 
 // Check eligibility
@@ -594,43 +596,20 @@ if isEligible, let offerText = displayIntroOffer(subscription) {
 }`}</CodeBlock>
                     ),
                     kotlin: (
-                      <CodeBlock language="kotlin">{`import dev.hyo.openiap.*
-import dev.hyo.openiap.store.OpenIapStore
-
-// KMP iOS target
-fun displayIntroOffer(subscription: ProductIOS): String? {
-    val offer = subscription.subscriptionInfoIOS?.introductoryOffer
-        ?: return null
-
-    return when (offer.paymentMode) {
-        "free-trial" -> "\${offer.periodCount} \${offer.period.unit.lowercase()}(s) free trial"
-        "pay-as-you-go" -> "\${offer.displayPrice} for \${offer.periodCount} \${offer.period.unit.lowercase()}(s)"
-        "pay-up-front" -> "\${offer.displayPrice} for first \${offer.periodCount} \${offer.period.unit.lowercase()}(s)"
-        else -> null
-    }
-}
-
-// Check eligibility
-val isEligible = iapStore.isEligibleForIntroOfferIOS(sku = "premium_monthly")
-if (isEligible) {
-    subscription?.let { displayIntroOffer(it)?.let(::println) }
-}`}</CodeBlock>
+                      <CodeBlock language="kotlin">{`// StoreKit product fields are iOS-only.
+// Use the Swift tab in a native Apple app, or the KMP tab in shared code.`}</CodeBlock>
                     ),
                     kmp: (
                       <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.openiap.*
 
 // KMP iOS target
-fun displayIntroOffer(subscription: ProductIOS): String? {
-    val offer = subscription.subscriptionInfoIOS?.introductoryOffer
+fun displayIntroOffer(subscription: ProductSubscriptionIOS): String? {
+    val offer = subscription.subscriptionOffers
+        ?.firstOrNull { it.type == DiscountOfferType.Introductory }
         ?: return null
 
-    return when (offer.paymentMode) {
-        "free-trial" -> "\${offer.periodCount} \${offer.period.unit.lowercase()}(s) free trial"
-        "pay-as-you-go" -> "\${offer.displayPrice} for \${offer.periodCount} \${offer.period.unit.lowercase()}(s)"
-        "pay-up-front" -> "\${offer.displayPrice} for first \${offer.periodCount} \${offer.period.unit.lowercase()}(s)"
-        else -> null
-    }
+    return offer.displayPrice
 }
 
 // Check eligibility
@@ -641,11 +620,12 @@ if (isEligible) {
                     ),
                     dart: (
                       <CodeBlock language="dart">{`String? displayIntroOffer(ProductSubscriptionIOS subscription) {
-  final offer = subscription.subscriptionInfoIOS?.introductoryOffer;
-  if (offer == null) return null;
-
-  // Display intro offer details
-  return '\${offer.displayPrice} for \${offer.periodCount} \${offer.period.unit.name}';
+  for (final offer in subscription.subscriptionOffers ?? const <SubscriptionOffer>[]) {
+    if (offer.type == DiscountOfferType.Introductory) {
+      return offer.displayPrice;
+    }
+  }
+  return null;
 }
 
 // Check eligibility
@@ -661,23 +641,15 @@ using System;
 
 string? DisplayIntroOffer(ProductSubscriptionIOS subscription)
 {
-    var offer = subscription.SubscriptionInfoIOS?.IntroductoryOffer;
+    var offer = subscription.SubscriptionOffers?
+        .FirstOrDefault(candidate =>
+            candidate.Type == DiscountOfferType.Introductory);
     if (offer is null)
     {
         return null;
     }
 
-    var unit = offer.Period.Unit.ToString().ToLowerInvariant();
-    return offer.PaymentMode switch
-    {
-        PaymentModeIOS.FreeTrial =>
-            $"{offer.PeriodCount} {unit}(s) free trial",
-        PaymentModeIOS.PayAsYouGo =>
-            $"{offer.DisplayPrice} for {offer.PeriodCount} {unit}(s)",
-        PaymentModeIOS.PayUpFront =>
-            $"{offer.DisplayPrice} for first {offer.PeriodCount} {unit}(s)",
-        _ => null,
-    };
+    return offer.DisplayPrice;
 }
 
 // Check eligibility
@@ -694,18 +666,10 @@ if (isEligible && subscription is not null)
 }`}</CodeBlock>
                     ),
                     gdscript: (
-                      <CodeBlock language="gdscript">{`func display_intro_offer(subscription: ProductIOS) -> String:
-    var offer = subscription.subscription_info_ios.introductory_offer if subscription.subscription_info_ios else null
-    if not offer:
-        return ""
-
-    match offer.payment_mode:
-        "free-trial":
-            return "%d %s(s) free trial" % [offer.period_count, offer.period.unit.to_lower()]
-        "pay-as-you-go":
-            return "%s for %d %s(s)" % [offer.display_price, offer.period_count, offer.period.unit.to_lower()]
-        "pay-up-front":
-            return "%s for first %d %s(s)" % [offer.display_price, offer.period_count, offer.period.unit.to_lower()]
+                      <CodeBlock language="gdscript">{`func display_intro_offer(subscription: ProductSubscriptionIOS) -> String:
+    for offer in subscription.subscription_offers:
+        if offer.type == DiscountOfferType.INTRODUCTORY:
+            return offer.display_price
     return ""
 
 # Check eligibility
@@ -721,7 +685,9 @@ if is_eligible:
                 </AnchorLink>
                 <p>
                   Promotional offers require server-side signature generation.
-                  These offers are for existing or lapsed subscribers.
+                  These offers are for existing or lapsed subscribers. Pass the
+                  selected <code>SubscriptionOffer.id</code> as{' '}
+                  <code>offerId</code> when requesting the signature.
                 </p>
                 <LanguageTabs>
                   {{
@@ -883,7 +849,6 @@ suspend fun purchaseWithPromoOffer(
         ),
       ),
       google: null,
-      useAlternativeBilling: null,
     )),
   );
 }`}</CodeBlock>
@@ -1038,7 +1003,6 @@ suspend fun purchaseSubscription(subscriptionId: String) {
     RequestPurchaseProps.subs((
       apple: RequestSubscriptionIosProps(sku: subscriptionId),
       google: null,
-      useAlternativeBilling: null,
     )),
   );
 }`}</CodeBlock>
@@ -1087,12 +1051,13 @@ async Task PurchaseSubscriptionAsync(string subscriptionId)
                 </AnchorLink>
                 <p>
                   Android requires explicit specification of subscription offers
-                  when purchasing. Each offer is identified by an{' '}
-                  <code>offerToken</code> obtained from{' '}
+                  when purchasing. Read each offer&apos;s{' '}
+                  <code>offerTokenAndroid</code> from{' '}
                   <Link to="/docs/apis/fetch-products">
                     <code>fetchProducts()</code>
                   </Link>
-                  .
+                  , then pass that value as <code>offerToken</code> in the
+                  request&apos;s <code>subscriptionOffers</code> entry.
                 </p>
 
                 <div className="alert-card alert-card--warning">
@@ -1111,19 +1076,19 @@ async Task PurchaseSubscriptionAsync(string subscriptionId)
                   Offer Structure
                 </AnchorLink>
                 <p>
-                  Each <code>subscriptionOfferDetailsAndroid</code> item
-                  contains:
+                  Relevant Android fields on each{' '}
+                  <code>subscriptionOffers</code> item include:
                 </p>
                 <LanguageTabs>
                   {{
                     typescript: (
-                      <CodeBlock language="typescript">{`interface ProductSubscriptionAndroidOfferDetails {
-  basePlanId: string;      // Base plan identifier
-  installmentPlanDetails?: InstallmentPlanDetailsAndroid | null;
-  offerId?: string | null; // Offer ID (null for base plan)
-  offerTags: string[];     // Tags for categorization
-  offerToken: string;      // Required for purchase
-  pricingPhases: PricingPhasesAndroid;
+                      <CodeBlock language="typescript">{`interface SubscriptionOffer {
+  basePlanIdAndroid?: string | null; // Base plan identifier
+  installmentPlanDetailsAndroid?: InstallmentPlanDetailsAndroid | null;
+  id: string;                        // Offer ID, or the base plan ID
+  offerTagsAndroid?: string[] | null;
+  offerTokenAndroid?: string | null; // Pass its value as offerToken when purchasing
+  pricingPhasesAndroid?: PricingPhasesAndroid | null;
 }
 
 interface PricingPhasesAndroid {
@@ -1143,13 +1108,13 @@ interface PricingPhaseAndroid {
                       <CodeBlock language="swift">{`// Android-only - use Kotlin for Android implementation`}</CodeBlock>
                     ),
                     kotlin: (
-                      <CodeBlock language="kotlin">{`data class ProductSubscriptionAndroidOfferDetails(
-    val basePlanId: String,       // Base plan identifier
-    val installmentPlanDetails: InstallmentPlanDetailsAndroid? = null,
-    val offerId: String? = null,  // Offer ID (null for base plan)
-    val offerTags: List<String>,  // Tags for categorization
-    val offerToken: String,       // Required for purchase
-    val pricingPhases: PricingPhasesAndroid
+                      <CodeBlock language="kotlin">{`data class SubscriptionOffer(
+    val basePlanIdAndroid: String? = null,
+    val installmentPlanDetailsAndroid: InstallmentPlanDetailsAndroid? = null,
+    val id: String, // Offer ID, or the base plan ID
+    val offerTagsAndroid: List<String>? = null,
+    val offerTokenAndroid: String? = null,
+    val pricingPhasesAndroid: PricingPhasesAndroid? = null
 )
 
 data class PricingPhaseAndroid(
@@ -1162,13 +1127,13 @@ data class PricingPhaseAndroid(
 )`}</CodeBlock>
                     ),
                     kmp: (
-                      <CodeBlock language="kotlin">{`data class ProductSubscriptionAndroidOfferDetails(
-    val basePlanId: String,       // Base plan identifier
-    val installmentPlanDetails: InstallmentPlanDetailsAndroid? = null,
-    val offerId: String? = null,  // Offer ID (null for base plan)
-    val offerTags: List<String>,  // Tags for categorization
-    val offerToken: String,       // Required for purchase
-    val pricingPhases: PricingPhasesAndroid
+                      <CodeBlock language="kotlin">{`data class SubscriptionOffer(
+    val basePlanIdAndroid: String? = null,
+    val installmentPlanDetailsAndroid: InstallmentPlanDetailsAndroid? = null,
+    val id: String, // Offer ID, or the base plan ID
+    val offerTagsAndroid: List<String>? = null,
+    val offerTokenAndroid: String? = null,
+    val pricingPhasesAndroid: PricingPhasesAndroid? = null
 )
 
 data class PricingPhaseAndroid(
@@ -1181,27 +1146,27 @@ data class PricingPhaseAndroid(
 )`}</CodeBlock>
                     ),
                     dart: (
-                      <CodeBlock language="dart">{`class ProductSubscriptionAndroidOfferDetails {
-  final String basePlanId;      // Base plan identifier
-  final InstallmentPlanDetailsAndroid? installmentPlanDetails;
-  final String? offerId;        // Offer ID (null for base plan)
-  final List<String> offerTags; // Tags for categorization
-  final String offerToken;      // Required for purchase
-  final PricingPhasesAndroid pricingPhases;
+                      <CodeBlock language="dart">{`class SubscriptionOffer {
+  final String? basePlanIdAndroid;
+  final InstallmentPlanDetailsAndroid? installmentPlanDetailsAndroid;
+  final String id; // Offer ID, or the base plan ID
+  final List<String>? offerTagsAndroid;
+  final String? offerTokenAndroid;
+  final PricingPhasesAndroid? pricingPhasesAndroid;
 }`}</CodeBlock>
                     ),
                     csharp: (
                       <CodeBlock language="csharp">{`using OpenIap;
 using System.Collections.Generic;
 
-public sealed record ProductSubscriptionAndroidOfferDetails
+public sealed record SubscriptionOffer
 {
-    public required string BasePlanId { get; init; }       // Base plan identifier
-    public InstallmentPlanDetailsAndroid? InstallmentPlanDetails { get; init; }
-    public string? OfferId { get; init; }                  // Null for base plan
-    public required IReadOnlyList<string> OfferTags { get; init; }
-    public required string OfferToken { get; init; }       // Required for purchase
-    public required PricingPhasesAndroid PricingPhases { get; init; }
+    public string? BasePlanIdAndroid { get; init; }
+    public InstallmentPlanDetailsAndroid? InstallmentPlanDetailsAndroid { get; init; }
+    public required string Id { get; init; } // Offer ID, or the base plan ID
+    public IReadOnlyList<string>? OfferTagsAndroid { get; init; }
+    public string? OfferTokenAndroid { get; init; }
+    public PricingPhasesAndroid? PricingPhasesAndroid { get; init; }
 }
 
 public sealed record PricingPhaseAndroid
@@ -1215,13 +1180,13 @@ public sealed record PricingPhaseAndroid
 }`}</CodeBlock>
                     ),
                     gdscript: (
-                      <CodeBlock language="gdscript">{`class ProductSubscriptionAndroidOfferDetails:
-    var base_plan_id: String      # Base plan identifier
-    var installment_plan_details: InstallmentPlanDetailsAndroid
-    var offer_id: Variant         # Null for base plan
-    var offer_tags: Array[String] # Tags for categorization
-    var offer_token: String       # Required for purchase
-    var pricing_phases: PricingPhasesAndroid
+                      <CodeBlock language="gdscript">{`class SubscriptionOffer:
+    var base_plan_id_android: Variant
+    var installment_plan_details_android: InstallmentPlanDetailsAndroid
+    var id: String # Offer ID, or the base plan ID
+    var offer_tags_android: Array[String]
+    var offer_token_android: Variant
+    var pricing_phases_android: PricingPhasesAndroid
 
 class PricingPhaseAndroid:
     var formatted_price: String       # e.g., "$9.99"
@@ -1260,13 +1225,13 @@ const subscription = subscriptions?.find(
 
 // Access Android offer details
 if (subscription) {
-  subscription.subscriptionOfferDetailsAndroid.forEach((offer) => {
-    console.log('Base Plan:', offer.basePlanId);
-    console.log('Offer ID:', offer.offerId ?? 'Base plan');
+  subscription.subscriptionOffers.forEach((offer) => {
+    console.log('Base Plan:', offer.basePlanIdAndroid);
+    console.log('Offer ID:', offer.id);
     console.log('Offer token selected');
 
     // Check pricing phases
-    offer.pricingPhases.pricingPhaseList.forEach((phase) => {
+    (offer.pricingPhasesAndroid?.pricingPhaseList ?? []).forEach((phase) => {
       if (phase.priceAmountMicros === '0') {
         console.log(\`Free trial: \${phase.billingPeriod}\`);
       } else if (phase.recurrenceMode === 2) {
@@ -1300,13 +1265,13 @@ val subscriptions = iapStore.subscriptions.value
 
 val subscription = subscriptions.find { it.id == "premium_monthly" }
 
-subscription?.subscriptionOfferDetailsAndroid?.forEach { offer ->
-    println("Base Plan: \${offer.basePlanId}")
-    println("Offer ID: \${offer.offerId ?: "Base plan"}")
+subscription?.subscriptionOffers?.forEach { offer ->
+    println("Base Plan: \${offer.basePlanIdAndroid}")
+    println("Offer ID: \${offer.id}")
     println("Offer token selected")
 
     // Check pricing phases
-    offer.pricingPhases.pricingPhaseList.forEach { phase ->
+    offer.pricingPhasesAndroid?.pricingPhaseList.orEmpty().forEach { phase ->
         when {
             phase.priceAmountMicros == "0" ->
                 println("Free trial: \${phase.billingPeriod}")
@@ -1339,13 +1304,13 @@ val subscriptions = (result as? FetchProductsResultSubscriptions)
 
 val subscription = subscriptions.find { it.id == "premium_monthly" }
 
-subscription?.subscriptionOfferDetailsAndroid?.forEach { offer ->
-    println("Base Plan: \${offer.basePlanId}")
-    println("Offer ID: \${offer.offerId ?: "Base plan"}")
+subscription?.subscriptionOffers?.forEach { offer ->
+    println("Base Plan: \${offer.basePlanIdAndroid}")
+    println("Offer ID: \${offer.id}")
     println("Offer token selected")
 
     // Check pricing phases
-    offer.pricingPhases.pricingPhaseList.forEach { phase ->
+    offer.pricingPhasesAndroid?.pricingPhaseList.orEmpty().forEach { phase ->
         when {
             phase.priceAmountMicros == "0" ->
                 println("Free trial: \${phase.billingPeriod}")
@@ -1372,13 +1337,14 @@ final subscription = subscriptions.firstWhere(
 );
 
 // Access Android offer details
-for (final offer in subscription.subscriptionOfferDetailsAndroid) {
-    print('Base Plan: \${offer.basePlanId}');
-    print('Offer ID: \${offer.offerId ?? "Base plan"}');
+for (final offer in subscription.subscriptionOffers) {
+    print('Base Plan: \${offer.basePlanIdAndroid}');
+    print('Offer ID: \${offer.id}');
     print('Offer token selected');
 
     // Check pricing phases
-    for (final phase in offer.pricingPhases.pricingPhaseList) {
+    for (final phase in offer.pricingPhasesAndroid?.pricingPhaseList
+        ?? const <PricingPhaseAndroid>[]) {
       if (phase.priceAmountMicros == '0') {
         print('Free trial: \${phase.billingPeriod}');
       } else if (phase.recurrenceMode == 2) {
@@ -1407,15 +1373,16 @@ var subscription = result is FetchProductsResultSubscriptions subscriptions
         ?.FirstOrDefault(product => product.Id == "premium_monthly")
     : null;
 
-foreach (var offer in subscription?.SubscriptionOfferDetailsAndroid
-    ?? Array.Empty<ProductSubscriptionAndroidOfferDetails>())
+foreach (var offer in subscription?.SubscriptionOffers
+    ?? Array.Empty<SubscriptionOffer>())
 {
-    Console.WriteLine($"Base Plan: {offer.BasePlanId}");
-    Console.WriteLine($"Offer ID: {offer.OfferId ?? "Base plan"}");
+    Console.WriteLine($"Base Plan: {offer.BasePlanIdAndroid}");
+    Console.WriteLine($"Offer ID: {offer.Id}");
     Console.WriteLine("Offer token selected");
 
     // Check pricing phases
-    foreach (var phase in offer.PricingPhases.PricingPhaseList)
+    foreach (var phase in offer.PricingPhasesAndroid?.PricingPhaseList
+        ?? Array.Empty<PricingPhaseAndroid>())
     {
         if (phase.PriceAmountMicros == "0")
         {
@@ -1446,14 +1413,16 @@ for s in subscriptions:
         break
 
 # Access Android offer details
-if subscription and subscription.subscription_offer_details_android:
-    for offer in subscription.subscription_offer_details_android:
-        print("Base Plan: %s" % offer.base_plan_id)
-        print("Offer ID: %s" % (offer.offer_id if offer.offer_id else "Base plan"))
+if subscription and subscription.subscription_offers:
+    for offer in subscription.subscription_offers:
+        print("Base Plan: %s" % offer.base_plan_id_android)
+        print("Offer ID: %s" % (offer.id if offer.id else "Base plan"))
         print("Offer token selected")
 
         # Check pricing phases
-        for phase in offer.pricing_phases.pricing_phase_list:
+        if not offer.pricing_phases_android:
+            continue
+        for phase in offer.pricing_phases_android.pricing_phase_list:
             if phase.price_amount_micros == "0":
                 print("Free trial: %s" % phase.billing_period)
             elif phase.recurrence_mode == 2:
@@ -1478,12 +1447,12 @@ const purchaseSubscription = async (subscriptionId: string) => {
 
   // Build subscriptionOffers from fetched data
   const subscriptionOffers = (
-    subscription.subscriptionOfferDetailsAndroid ?? []
+    subscription.subscriptionOffers ?? []
   )
-    .filter((offer) => offer?.offerToken)
+    .filter((offer) => offer?.offerTokenAndroid)
     .map((offer) => ({
       sku: subscriptionId,
-      offerToken: offer!.offerToken,
+      offerToken: offer!.offerTokenAndroid!,
     }));
 
   if (subscriptionOffers.length === 0) {
@@ -1516,9 +1485,9 @@ suspend fun purchaseSubscription(subscriptionId: String) {
         ?: return
 
     // Build subscriptionOffers from fetched data
-    val subscriptionOffers = subscription.subscriptionOfferDetailsAndroid
+    val subscriptionOffers = subscription.subscriptionOffers
         ?.mapNotNull { offer ->
-            offer.offerToken?.let { token ->
+            offer.offerTokenAndroid?.let { token ->
                 AndroidSubscriptionOfferInput(
                     sku = subscriptionId,
                     offerToken = token
@@ -1562,9 +1531,9 @@ suspend fun purchaseSubscription(subscriptionId: String) {
         ?: return
 
     // Build subscriptionOffers from fetched data
-    val subscriptionOffers = subscription.subscriptionOfferDetailsAndroid
+    val subscriptionOffers = subscription.subscriptionOffers
         ?.mapNotNull { offer ->
-            offer.offerToken?.let { token ->
+            offer.offerTokenAndroid?.let { token ->
                 AndroidSubscriptionOfferInput(
                     sku = subscriptionId,
                     offerToken = token
@@ -1603,10 +1572,11 @@ suspend fun purchaseSubscription(subscriptionId: String) {
   );
 
   // Build subscriptionOffers from fetched data
-  final subscriptionOffers = subscription.subscriptionOfferDetailsAndroid
+  final subscriptionOffers = subscription.subscriptionOffers
+      .where((offer) => offer.offerTokenAndroid != null)
       .map((offer) => AndroidSubscriptionOfferInput(
             sku: subscriptionId,
-            offerToken: offer.offerToken,
+            offerToken: offer.offerTokenAndroid!,
           ))
       .toList();
 
@@ -1622,7 +1592,6 @@ suspend fun purchaseSubscription(subscriptionId: String) {
         skus: [subscriptionId],
         subscriptionOffers: subscriptionOffers,
       ),
-      useAlternativeBilling: null,
     )),
   );
 }`}</CodeBlock>
@@ -1636,12 +1605,13 @@ using System.Linq;
 async Task PurchaseSubscriptionAsync(string subscriptionId, ProductSubscriptionAndroid subscription)
 {
     // Build subscriptionOffers from fetched data.
-    var subscriptionOffers = (subscription.SubscriptionOfferDetailsAndroid
-            ?? Enumerable.Empty<ProductSubscriptionAndroidOfferDetails>())
+    var subscriptionOffers = (subscription.SubscriptionOffers
+            ?? Enumerable.Empty<SubscriptionOffer>())
+        .Where(offer => offer.OfferTokenAndroid is not null)
         .Select(offer => new AndroidSubscriptionOfferInput
         {
             Sku = subscriptionId,
-            OfferToken = offer.OfferToken,
+            OfferToken = offer.OfferTokenAndroid!,
         })
         .ToArray();
 
@@ -1683,12 +1653,12 @@ async Task PurchaseSubscriptionAsync(string subscriptionId, ProductSubscriptionA
 
     # Build subscription_offers from fetched data
     var subscription_offers: Array[AndroidSubscriptionOfferInput] = []
-    if subscription.subscription_offer_details_android:
-        for offer in subscription.subscription_offer_details_android:
-            if offer.offer_token:
+    if subscription.subscription_offers:
+        for offer in subscription.subscription_offers:
+            if offer.offer_token_android:
                 var offer_input = AndroidSubscriptionOfferInput.new()
                 offer_input.sku = subscription_id
-                offer_input.offer_token = offer.offer_token
+                offer_input.offer_token = offer.offer_token_android
                 subscription_offers.append(offer_input)
 
     if subscription_offers.is_empty():
@@ -1708,7 +1678,7 @@ async Task PurchaseSubscriptionAsync(string subscriptionId, ProductSubscriptionA
                 </LanguageTabs>
 
                 <AnchorLink id="android-baseplanid-limitation" level="h3">
-                  basePlanId Limitation
+                  basePlanIdAndroid Limitation
                 </AnchorLink>
                 <div className="alert-card alert-card--warning">
                   <p>
@@ -1721,7 +1691,7 @@ async Task PurchaseSubscriptionAsync(string subscriptionId, ProductSubscriptionA
                       Purchase object
                     </a>{' '}
                     returned by Google Play Billing does <strong>NOT</strong>{' '}
-                    include <code>basePlanId</code>. This means{' '}
+                    include <code>basePlanIdAndroid</code>. This means{' '}
                     <Link to="/docs/apis/get-active-subscriptions">
                       <code>getActiveSubscriptions()</code>
                     </Link>{' '}
@@ -1739,16 +1709,16 @@ async Task PurchaseSubscriptionAsync(string subscriptionId, ProductSubscriptionA
                 </p>
                 <ul>
                   <li>
-                    <code>ProductSubscriptionAndroidOfferDetails</code> (from{' '}
+                    <code>SubscriptionOffer</code> (from{' '}
                     <code>fetchProducts</code>) - ✅ Contains{' '}
-                    <code>basePlanId</code>
+                    <code>basePlanIdAndroid</code>
                   </li>
                   <li>
                     <Link to="/docs/types/purchase">
                       <code>Purchase</code>
                     </Link>{' '}
                     object (from purchase callbacks) - ❌ Does NOT contain{' '}
-                    <code>basePlanId</code>
+                    <code>basePlanIdAndroid</code>
                   </li>
                 </ul>
 
@@ -1807,27 +1777,39 @@ async Task PurchaseSubscriptionAsync(string subscriptionId, ProductSubscriptionA
 
                 <h4>Recommended Solution</h4>
                 <p>
-                  Track the <code>basePlanId</code> yourself during the purchase
-                  flow:
+                  Track the <code>basePlanIdAndroid</code> yourself during the
+                  purchase flow:
                 </p>
                 <LanguageTabs>
                   {{
                     typescript: (
-                      <CodeBlock language="typescript">{`// 1. Store basePlanId BEFORE calling requestPurchase
+                      <CodeBlock language="typescript">{`// 1. Store basePlanIdAndroid BEFORE calling requestPurchase
 let purchasedBasePlanId: string | null = null;
 
-const handlePurchase = async (basePlanId: string) => {
-  const offers = JSON.parse(product.subscriptionOfferDetailsAndroid || '[]');
-  const offer = offers.find((o: any) => o.basePlanId === basePlanId && !o.offerId);
+const handlePurchase = async (
+  subscription: ProductSubscriptionAndroid,
+  basePlanIdAndroid: string,
+) => {
+  const offer = subscription.subscriptionOffers.find(
+    (candidate) =>
+      candidate.basePlanIdAndroid === basePlanIdAndroid &&
+      candidate.id === candidate.basePlanIdAndroid,
+  );
+  if (!offer?.offerTokenAndroid) {
+    throw new Error(\`Base plan '\${basePlanIdAndroid}' is unavailable\`);
+  }
 
   // Store it before purchase
-  purchasedBasePlanId = basePlanId;
+  purchasedBasePlanId = basePlanIdAndroid;
 
   await requestPurchase({
     request: {
-      android: {
-        skus: [subscriptionGroupId],
-        subscriptionOffers: [{ sku: subscriptionGroupId, offerToken: offer.offerToken }],
+      google: {
+        skus: [subscription.id],
+        subscriptionOffers: [{
+          sku: subscription.id,
+          offerToken: offer.offerTokenAndroid,
+        }],
       },
     },
     type: 'subs',
@@ -1842,7 +1824,7 @@ onPurchaseSuccess: async (purchase) => {
   // Save to your backend
   await saveToBackend({
     purchaseToken: purchase.purchaseToken,
-    basePlanId: actualBasePlanId,  // Use YOUR tracked value
+    basePlanIdAndroid: actualBasePlanId,  // Use YOUR tracked value
     productId: purchase.productId,
   });
 };`}</CodeBlock>
@@ -1851,15 +1833,21 @@ onPurchaseSuccess: async (purchase) => {
                       <CodeBlock language="swift">{`// Android-only limitation - not applicable to iOS`}</CodeBlock>
                     ),
                     kotlin: (
-                      <CodeBlock language="kotlin">{`// 1. Store basePlanId BEFORE calling requestPurchase
+                      <CodeBlock language="kotlin">{`// 1. Store basePlanIdAndroid BEFORE calling requestPurchase
 var purchasedBasePlanId: String? = null
 
-suspend fun handlePurchase(basePlanId: String) {
-    val offers = subscription.subscriptionOfferDetailsAndroid ?: return
-    val offer = offers.find { it.basePlanId == basePlanId && it.offerId == null }
+suspend fun handlePurchase(basePlanIdAndroid: String) {
+    val offers = subscription.subscriptionOffers ?: return
+    val offerToken = offers
+        .find {
+            it.basePlanIdAndroid == basePlanIdAndroid &&
+                it.id == it.basePlanIdAndroid
+        }
+        ?.offerTokenAndroid
+        ?: return
 
     // Store it before purchase
-    purchasedBasePlanId = basePlanId
+    purchasedBasePlanId = basePlanIdAndroid
 
     iapStore.requestPurchase(
         RequestPurchaseProps(
@@ -1870,7 +1858,7 @@ suspend fun handlePurchase(basePlanId: String) {
                         subscriptionOffers = listOf(
                             AndroidSubscriptionOfferInput(
                                 sku = subscriptionGroupId,
-                                offerToken = offer?.offerToken ?: ""
+                                offerToken = offerToken
                             )
                         )
                     )
@@ -1889,21 +1877,27 @@ fun onPurchaseSuccess(purchase: PurchaseAndroid) {
     // Save to your backend
     saveToBackend(
         purchaseToken = purchase.purchaseToken,
-        basePlanId = actualBasePlanId,
+        basePlanIdAndroid = actualBasePlanId,
         productId = purchase.productId
     )
 }`}</CodeBlock>
                     ),
                     kmp: (
-                      <CodeBlock language="kotlin">{`// 1. Store basePlanId BEFORE calling requestPurchase
+                      <CodeBlock language="kotlin">{`// 1. Store basePlanIdAndroid BEFORE calling requestPurchase
 var purchasedBasePlanId: String? = null
 
-suspend fun handlePurchase(basePlanId: String) {
-    val offers = subscription.subscriptionOfferDetailsAndroid ?: return
-    val offer = offers.find { it.basePlanId == basePlanId && it.offerId == null }
+suspend fun handlePurchase(basePlanIdAndroid: String) {
+    val offers = subscription.subscriptionOffers ?: return
+    val offerToken = offers
+        .find {
+            it.basePlanIdAndroid == basePlanIdAndroid &&
+                it.id == it.basePlanIdAndroid
+        }
+        ?.offerTokenAndroid
+        ?: return
 
     // Store it before purchase
-    purchasedBasePlanId = basePlanId
+    purchasedBasePlanId = basePlanIdAndroid
 
     kmpIAP.requestPurchase(
         RequestPurchaseProps(
@@ -1914,7 +1908,7 @@ suspend fun handlePurchase(basePlanId: String) {
                         subscriptionOffers = listOf(
                             AndroidSubscriptionOfferInput(
                                 sku = subscriptionGroupId,
-                                offerToken = offer?.offerToken ?: ""
+                                offerToken = offerToken
                             )
                         )
                     )
@@ -1933,23 +1927,27 @@ fun onPurchaseSuccess(purchase: PurchaseAndroid) {
     // Save to your backend
     saveToBackend(
         purchaseToken = purchase.purchaseToken,
-        basePlanId = actualBasePlanId,
+        basePlanIdAndroid = actualBasePlanId,
         productId = purchase.productId
     )
 }`}</CodeBlock>
                     ),
                     dart: (
-                      <CodeBlock language="dart">{`// 1. Store basePlanId BEFORE calling requestPurchase
+                      <CodeBlock language="dart">{`// 1. Store basePlanIdAndroid BEFORE calling requestPurchase
 String? purchasedBasePlanId;
 
-Future<void> handlePurchase(String basePlanId) async {
-  final offers = subscription.subscriptionOfferDetailsAndroid;
+Future<void> handlePurchase(String basePlanIdAndroid) async {
+  final offers = subscription.subscriptionOffers;
   final offer = offers.firstWhere(
-    (o) => o.basePlanId == basePlanId && o.offerId == null,
+    (o) =>
+      o.basePlanIdAndroid == basePlanIdAndroid &&
+      o.id == o.basePlanIdAndroid,
   );
+  final offerToken = offer.offerTokenAndroid;
+  if (offerToken == null) return;
 
   // Store it before purchase
-  purchasedBasePlanId = basePlanId;
+  purchasedBasePlanId = basePlanIdAndroid;
 
   await iap.requestPurchase(
     RequestPurchaseProps.subs((
@@ -1959,11 +1957,10 @@ Future<void> handlePurchase(String basePlanId) async {
         subscriptionOffers: [
           AndroidSubscriptionOfferInput(
             sku: subscriptionGroupId,
-            offerToken: offer.offerToken,
+            offerToken: offerToken,
           ),
         ],
       ),
-      useAlternativeBilling: null,
     )),
   );
 }
@@ -1976,7 +1973,7 @@ void onPurchaseSuccess(Purchase purchase) {
   // Save to your backend
   saveToBackend(
     purchaseToken: purchase.purchaseToken,
-    basePlanId: actualBasePlanId,
+    basePlanIdAndroid: actualBasePlanId,
     productId: purchase.productId,
   );
 }`}</CodeBlock>
@@ -1987,26 +1984,27 @@ using OpenIap.Maui;
 using System;
 using System.Linq;
 
-// 1. Store basePlanId BEFORE calling requestPurchase.
+// 1. Store basePlanIdAndroid BEFORE calling requestPurchase.
 string? purchasedBasePlanId = null;
 
 async Task HandlePurchaseAsync(
     ProductSubscriptionAndroid subscription,
     string subscriptionGroupId,
-    string basePlanId)
+    string basePlanIdAndroid)
 {
-    var offer = subscription.SubscriptionOfferDetailsAndroid?
+    var offer = subscription.SubscriptionOffers?
         .FirstOrDefault(offer =>
-            offer.BasePlanId == basePlanId && offer.OfferId is null);
+            offer.BasePlanIdAndroid == basePlanIdAndroid &&
+            offer.Id == offer.BasePlanIdAndroid);
 
-    if (offer is null)
+    if (offer?.OfferTokenAndroid is not { } offerToken)
     {
         throw new InvalidOperationException(
-            $"Base plan '{basePlanId}' was not found for '{subscriptionGroupId}'.");
+            $"Base plan '{basePlanIdAndroid}' was not found for '{subscriptionGroupId}'.");
     }
 
     // Store it before purchase.
-    purchasedBasePlanId = basePlanId;
+    purchasedBasePlanId = basePlanIdAndroid;
 
     await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps
     {
@@ -2021,7 +2019,7 @@ async Task HandlePurchaseAsync(
                     new AndroidSubscriptionOfferInput
                     {
                         Sku = subscriptionGroupId,
-                        OfferToken = offer.OfferToken,
+                        OfferToken = offerToken,
                     },
                 },
             },
@@ -2038,27 +2036,29 @@ void OnPurchaseSuccess(PurchaseAndroid purchase)
     // Save to your backend.
     SaveToBackend(
         purchaseToken: purchase.PurchaseToken,
-        basePlanId: actualBasePlanId,
+        basePlanIdAndroid: actualBasePlanId,
         productId: purchase.ProductId);
 }`}</CodeBlock>
                     ),
                     gdscript: (
-                      <CodeBlock language="gdscript">{`# 1. Store base_plan_id BEFORE calling request_purchase
+                      <CodeBlock language="gdscript">{`# 1. Store base_plan_id_android BEFORE calling request_purchase
 var purchased_base_plan_id: String = ""
 
-func handle_purchase(base_plan_id: String) -> void:
-    var offers = subscription.subscription_offer_details_android
+func handle_purchase(base_plan_id_android: String) -> void:
+    var offers = subscription.subscription_offers
     if not offers:
         return
 
     var offer = null
     for o in offers:
-        if o.base_plan_id == base_plan_id and o.offer_id == "":
+        if o.base_plan_id_android == base_plan_id_android and o.id == o.base_plan_id_android:
             offer = o
             break
+    if not offer or not offer.offer_token_android:
+        return
 
     # Store it before purchase
-    purchased_base_plan_id = base_plan_id
+    purchased_base_plan_id = base_plan_id_android
 
     var props = RequestPurchaseProps.new()
     props.request_subscription = RequestSubscriptionPropsByPlatforms.new()
@@ -2066,7 +2066,7 @@ func handle_purchase(base_plan_id: String) -> void:
     props.request_subscription.google.skus = [subscription_group_id]
     var offer_input = AndroidSubscriptionOfferInput.new()
     offer_input.sku = subscription_group_id
-    offer_input.offer_token = offer.offer_token
+    offer_input.offer_token = offer.offer_token_android
     props.request_subscription.google.subscription_offers = [offer_input]
     props.type = ProductQueryType.SUBS
 
@@ -2089,8 +2089,8 @@ func _on_purchase_success(purchase: PurchaseAndroid) -> void:
 
                 <h4>Server-Side Verification (Recommended)</h4>
                 <p>
-                  For accurate <code>basePlanId</code> after app restart, use
-                  the{' '}
+                  For accurate <code>basePlanIdAndroid</code> after app restart,
+                  use the{' '}
                   <a
                     href="https://developers.google.com/android-publisher/api-ref/rest/v3/purchases.subscriptionsv2/get"
                     target="_blank"
@@ -2103,8 +2103,10 @@ func _on_purchase_success(purchase: PurchaseAndroid) -> void:
                 <CodeBlock language="typescript">{`// Server-side API endpoint
 // GET https://androidpublisher.googleapis.com/androidpublisher/v3/applications/{packageName}/purchases/subscriptionsv2/tokens/{purchaseToken}`}</CodeBlock>
                 <p>
-                  This returns the actual <code>basePlanId</code> in{' '}
-                  <code>lineItems[].basePlanId</code>.
+                  Google returns{' '}
+                  <code>lineItems[].offerDetails.basePlanId</code>. Map that
+                  value to OpenIAP&apos;s <code>basePlanIdAndroid</code> field
+                  in your own backend model.
                 </p>
 
                 <div className="alert-card alert-card--info">
@@ -2145,7 +2147,7 @@ func _on_purchase_success(purchase: PurchaseAndroid) -> void:
                       >
                         May 2022 subscription changes
                       </a>{' '}
-                      - Migration guide for basePlanId
+                      - Migration guide for Google Play base plan IDs
                     </li>
                     <li>
                       <a
@@ -2176,23 +2178,25 @@ const selectOffer = (
   subscription: ProductSubscription,
   offerType: OfferType,
 ) => {
-  const offers = subscription.subscriptionOfferDetailsAndroid ?? [];
+  const offers = subscription.subscriptionOffers ?? [];
 
   switch (offerType) {
     case 'base':
-      // Base plan has no offerId
-      return offers.find((offer) => !offer.offerId);
+      // Android base-plan entries use the base plan ID as their canonical ID.
+      return offers.find(
+        (offer) => offer.id === offer.basePlanIdAndroid,
+      );
     case 'introductory':
       // Find offer with free trial or intro pricing
       return offers.find((offer) =>
-        offer.pricingPhases.pricingPhaseList.some(
+        offer.pricingPhasesAndroid?.pricingPhaseList.some(
           (phase) => phase.priceAmountMicros === '0' || phase.recurrenceMode === 2,
-        ),
+        ) ?? false,
       );
     case 'promotional':
       // Find offer with specific tags
       return offers.find((offer) =>
-        offer.offerTags.some((tag) => tag.includes('promo')),
+        offer.offerTagsAndroid?.some((tag) => tag.includes('promo')) ?? false,
       );
   }
 };
@@ -2210,6 +2214,10 @@ const purchaseWithOffer = async (
     console.error('Selected offer not found');
     return;
   }
+  if (!selectedOffer.offerTokenAndroid) {
+    console.error('Selected offer has no Android offer token');
+    return;
+  }
 
   await requestPurchase({
     request: {
@@ -2218,7 +2226,7 @@ const purchaseWithOffer = async (
         skus: [subscriptionId],
         subscriptionOffers: [{
           sku: subscriptionId,
-          offerToken: selectedOffer.offerToken,
+          offerToken: selectedOffer.offerTokenAndroid,
         }],
       },
     },
@@ -2235,18 +2243,18 @@ const purchaseWithOffer = async (
 fun selectOffer(
     subscription: ProductSubscriptionAndroid,
     offerType: OfferType
-): ProductSubscriptionAndroidOfferDetails? {
-    val offers = subscription.subscriptionOfferDetailsAndroid ?: return null
+): SubscriptionOffer? {
+    val offers = subscription.subscriptionOffers ?: return null
 
     return when (offerType) {
-        OfferType.Base -> offers.find { it.offerId == null }
+        OfferType.Base -> offers.find { it.id == it.basePlanIdAndroid }
         OfferType.Introductory -> offers.find { offer ->
-            offer.pricingPhases.pricingPhaseList.any { phase ->
+            offer.pricingPhasesAndroid?.pricingPhaseList?.any { phase ->
                 phase.priceAmountMicros == "0" || phase.recurrenceMode == 2
-            }
+            } == true
         }
         OfferType.Promotional -> offers.find { offer ->
-            offer.offerTags.any { it.contains("promo", true) }
+            offer.offerTagsAndroid?.any { it.contains("promo", true) } == true
         }
     }
 }
@@ -2275,7 +2283,7 @@ suspend fun purchaseWithOffer(
                     subscriptionOffers = listOf(
                         AndroidSubscriptionOfferInput(
                             sku = subscriptionId,
-                            offerToken = selectedOffer.offerToken
+                            offerToken = selectedOffer.offerTokenAndroid ?: return
                         )
                     )
                 )
@@ -2293,18 +2301,18 @@ suspend fun purchaseWithOffer(
 fun selectOffer(
     subscription: ProductSubscriptionAndroid,
     offerType: OfferType
-): ProductSubscriptionAndroidOfferDetails? {
-    val offers = subscription.subscriptionOfferDetailsAndroid ?: return null
+): SubscriptionOffer? {
+    val offers = subscription.subscriptionOffers ?: return null
 
     return when (offerType) {
-        OfferType.Base -> offers.find { it.offerId == null }
+        OfferType.Base -> offers.find { it.id == it.basePlanIdAndroid }
         OfferType.Introductory -> offers.find { offer ->
-            offer.pricingPhases.pricingPhaseList.any { phase ->
+            offer.pricingPhasesAndroid?.pricingPhaseList?.any { phase ->
                 phase.priceAmountMicros == "0" || phase.recurrenceMode == 2
-            }
+            } == true
         }
         OfferType.Promotional -> offers.find { offer ->
-            offer.offerTags.any { it.contains("promo", true) }
+            offer.offerTagsAndroid?.any { it.contains("promo", true) } == true
         }
     }
 }
@@ -2338,7 +2346,7 @@ suspend fun purchaseWithOffer(
                     subscriptionOffers = listOf(
                         AndroidSubscriptionOfferInput(
                             sku = subscriptionId,
-                            offerToken = selectedOffer.offerToken
+                            offerToken = selectedOffer.offerTokenAndroid ?: return
                         )
                     )
                 )
@@ -2353,21 +2361,21 @@ suspend fun purchaseWithOffer(
                     dart: (
                       <CodeBlock language="dart">{`enum OfferType { base, introductory, promotional }
 
-ProductSubscriptionAndroidOfferDetails? selectOffer(
+SubscriptionOffer? selectOffer(
   ProductSubscriptionAndroid subscription,
   OfferType offerType,
 ) {
-  final offers = subscription.subscriptionOfferDetailsAndroid;
+  final offers = subscription.subscriptionOffers;
   if (offers == null) return null;
 
   for (final offer in offers) {
     final matches = switch (offerType) {
-      OfferType.base => offer.offerId == null,
-      OfferType.introductory => offer.pricingPhases.pricingPhaseList.any(
+      OfferType.base => offer.id == offer.basePlanIdAndroid,
+      OfferType.introductory => offer.pricingPhasesAndroid?.pricingPhaseList.any(
           (phase) => phase.priceAmountMicros == '0' || phase.recurrenceMode == 2,
-        ),
+        ) ?? false,
       OfferType.promotional =>
-        offer.offerTags.any((tag) => tag.contains('promo')),
+        offer.offerTagsAndroid?.any((tag) => tag.contains('promo')) ?? false,
     };
     if (matches) return offer;
   }
@@ -2392,6 +2400,8 @@ Future<void> purchaseWithOffer(
     print('Selected offer not found');
     return;
   }
+  final offerToken = selectedOffer.offerTokenAndroid;
+  if (offerToken == null) return;
 
   await iap.requestPurchase(
     RequestPurchaseProps.subs((
@@ -2401,11 +2411,10 @@ Future<void> purchaseWithOffer(
         subscriptionOffers: [
           AndroidSubscriptionOfferInput(
             sku: subscriptionId,
-            offerToken: selectedOffer.offerToken,
+            offerToken: offerToken,
           ),
         ],
       ),
-      useAlternativeBilling: null,
     )),
   );
 }`}</CodeBlock>
@@ -2423,11 +2432,11 @@ public enum OfferType
     Promotional,
 }
 
-ProductSubscriptionAndroidOfferDetails? SelectOffer(
+SubscriptionOffer? SelectOffer(
     ProductSubscriptionAndroid subscription,
     OfferType offerType)
 {
-    var offers = subscription.SubscriptionOfferDetailsAndroid;
+    var offers = subscription.SubscriptionOffers;
     if (offers is null)
     {
         return null;
@@ -2436,14 +2445,15 @@ ProductSubscriptionAndroidOfferDetails? SelectOffer(
     return offerType switch
     {
         OfferType.Base =>
-            offers.FirstOrDefault(offer => offer.OfferId is null),
+            offers.FirstOrDefault(offer =>
+                offer.Id == offer.BasePlanIdAndroid),
         OfferType.Introductory =>
             offers.FirstOrDefault(offer =>
-                offer.PricingPhases?.PricingPhaseList?.Any(phase =>
+                offer.PricingPhasesAndroid?.PricingPhaseList?.Any(phase =>
                     phase.PriceAmountMicros == "0" || phase.RecurrenceMode == 2) == true),
         OfferType.Promotional =>
             offers.FirstOrDefault(offer =>
-                offer.OfferTags?.Any(tag =>
+                offer.OfferTagsAndroid?.Any(tag =>
                     tag.Contains("promo", StringComparison.OrdinalIgnoreCase)) == true),
         _ => null,
     };
@@ -2461,6 +2471,11 @@ async Task PurchaseWithOfferAsync(
         Console.WriteLine("Selected offer not found");
         return;
     }
+    if (selectedOffer.OfferTokenAndroid is not { } offerToken)
+    {
+        Console.WriteLine("Selected offer has no Android offer token");
+        return;
+    }
 
     await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new RequestPurchaseProps
     {
@@ -2475,7 +2490,7 @@ async Task PurchaseWithOfferAsync(
                     new AndroidSubscriptionOfferInput
                     {
                         Sku = subscriptionId,
-                        OfferToken = selectedOffer.OfferToken,
+                        OfferToken = offerToken,
                     },
                 },
             },
@@ -2486,28 +2501,30 @@ async Task PurchaseWithOfferAsync(
                     gdscript: (
                       <CodeBlock language="gdscript">{`enum OfferType { BASE, INTRODUCTORY, PROMOTIONAL }
 
-func select_offer(subscription: ProductSubscriptionAndroid, offer_type: int) -> ProductSubscriptionAndroidOfferDetails:
-    var offers = subscription.subscription_offer_details_android
+func select_offer(subscription: ProductSubscriptionAndroid, offer_type: int) -> SubscriptionOffer:
+    var offers = subscription.subscription_offers
     if not offers:
         return null
 
     match offer_type:
         OfferType.BASE:
             for offer in offers:
-                if offer.offer_id == "":
+                if offer.id == offer.base_plan_id_android:
                     return offer
-            return offers[0] if offers.size() > 0 else null
+            return null
 
         OfferType.INTRODUCTORY:
             for offer in offers:
-                for phase in offer.pricing_phases.pricing_phase_list:
+                if not offer.pricing_phases_android:
+                    continue
+                for phase in offer.pricing_phases_android.pricing_phase_list:
                     if phase.price_amount_micros == "0" or phase.recurrence_mode == 2:
                         return offer
             return null
 
         OfferType.PROMOTIONAL:
             for offer in offers:
-                for tag in offer.offer_tags:
+                for tag in offer.offer_tags_android:
                     if "promo" in tag.to_lower():
                         return offer
             return null
@@ -2528,7 +2545,7 @@ func purchase_with_offer(subscription_id: String, offer_type: int) -> void:
             break
 
     var selected_offer = select_offer(subscription, offer_type)
-    if not selected_offer:
+    if not selected_offer or not selected_offer.offer_token_android:
         print("Selected offer not found")
         return
 
@@ -2538,7 +2555,7 @@ func purchase_with_offer(subscription_id: String, offer_type: int) -> void:
     props.request_subscription.google.skus = [subscription_id]
     var offer_input = AndroidSubscriptionOfferInput.new()
     offer_input.sku = subscription_id
-    offer_input.offer_token = selected_offer.offer_token
+    offer_input.offer_token = selected_offer.offer_token_android
     props.request_subscription.google.subscription_offers = [offer_input]
     props.type = ProductQueryType.SUBS
 

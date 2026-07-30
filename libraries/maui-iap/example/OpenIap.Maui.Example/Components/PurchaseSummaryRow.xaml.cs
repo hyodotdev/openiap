@@ -33,12 +33,12 @@ public partial class PurchaseSummaryRow : ContentView
         var transactionId = BuildPurchaseRows.ResolveTransactionId(purchase);
         row.TransactionIdLabel.Text = $"Transaction: {(string.IsNullOrEmpty(transactionId) ? "N/A" : transactionId)}";
 
-        var platform = common.Platform.ToJson().ToLowerInvariant();
-        row.PlatformLabel.Text = platform.ToUpperInvariant();
-        row.BadgeBorder.BackgroundColor = platform switch
+        var store = common.Store.ToJson().ToLowerInvariant();
+        row.PlatformLabel.Text = store.ToUpperInvariant();
+        row.BadgeBorder.BackgroundColor = store switch
         {
-            "ios" => Color.FromArgb("#007AFF"),
-            "android" => Color.FromArgb("#3DDC84"),
+            "apple" => Color.FromArgb("#007AFF"),
+            "google" or "amazon" or "horizon" => Color.FromArgb("#3DDC84"),
             _ => Color.FromArgb("#9E9E9E"),
         };
     }

@@ -104,7 +104,7 @@ fun PurchaseFlowScreen(navController: NavController) {
                         val dateText = Instant.fromEpochMilliseconds(purchase.transactionDate.toLong())
                             .toLocalDateTime(TimeZone.currentSystemDefault())
                         purchaseResult = """
-                    ✅ Purchase successful (${purchase.platform})
+                    ✅ Purchase successful (${purchase.store})
                     Product: ${purchase.productId}
                     Transaction ID: ${purchase.id.ifEmpty { "N/A" }}
                     Date: $dateText
@@ -471,11 +471,11 @@ fun PurchaseFlowScreen(navController: NavController) {
                                 purchaseResult = null
                                 try {
                                     val purchase = kmpIapInstance.requestPurchase {
-                                        ios {
+                                        apple {
                                             sku = product.id
                                             quantity = 1
                                         }
-                                        android {
+                                        google {
                                             skus = listOf(product.id)
                                         }
                                     }
@@ -659,7 +659,7 @@ fun ProductCard(
     var showDetailsDialog by remember { mutableStateOf(false) }
 
     // Get Android-specific offer details via smart cast
-    val androidOffers = (product as? io.github.hyochan.kmpiap.openiap.ProductAndroid)?.oneTimePurchaseOfferDetailsAndroid
+    val androidOffers = (product as? io.github.hyochan.kmpiap.openiap.ProductAndroid)?.discountOffers
 
     Card(
         modifier = Modifier
@@ -728,15 +728,13 @@ fun ProductCard(
                     )
 
                     // Show discount if available (Android only)
-                    androidOffers?.firstOrNull()?.discountDisplayInfo?.let { discount ->
-                        discount.percentageDiscount?.let { percent ->
-                            Text(
-                                text = "$percent% OFF",
-                                fontSize = 12.sp,
-                                fontWeight = FontWeight.Bold,
-                                color = AppColors.Success
-                            )
-                        }
+                    androidOffers?.firstOrNull()?.percentageDiscountAndroid?.let { percent ->
+                        Text(
+                            text = "$percent% OFF",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = AppColors.Success
+                        )
                     }
                 }
             }
@@ -798,7 +796,7 @@ fun ProductCard(
                                     }
 
                                     Text(
-                                        text = "Offer ${index + 1}${offer.offerId?.let { " ($it)" } ?: ""}",
+                                        text = "Offer ${index + 1}${offer.id?.let { " ($it)" } ?: ""}",
                                         fontWeight = FontWeight.SemiBold,
                                         fontSize = 14.sp,
                                         color = AppColors.Primary
@@ -806,19 +804,22 @@ fun ProductCard(
 
                                     Spacer(modifier = Modifier.height(4.dp))
 
-                                    ProductDetailRow("Price", offer.formattedPrice)
-                                    ProductDetailRow("Price (micros)", offer.priceAmountMicros)
-                                    ProductDetailRow("Currency", offer.priceCurrencyCode)
+                                    ProductDetailRow("Price", offer.displayPrice)
+                                    ProductDetailRow("Numeric price", offer.price.toString())
+                                    ProductDetailRow("Currency", offer.currency)
 
-                                    offer.offerId?.let { ProductDetailRow("Offer ID", it) }
-                                    offer.fullPriceMicros?.let { ProductDetailRow("Full Price (micros)", it) }
+                                    offer.id?.let { ProductDetailRow("Offer ID", it) }
+                                    offer.fullPriceMicrosAndroid?.let { ProductDetailRow("Full Price (micros)", it) }
 
-                                    if (offer.offerTags.isNotEmpty()) {
-                                        ProductDetailRow("Tags", offer.offerTags.joinToString(", "))
+                                    offer.offerTagsAndroid?.takeIf { it.isNotEmpty() }?.let {
+                                        ProductDetailRow("Tags", it.joinToString(", "))
                                     }
 
                                     // Discount Info
-                                    offer.discountDisplayInfo?.let { discount ->
+                                    if (
+                                        offer.percentageDiscountAndroid != null ||
+                                        offer.formattedDiscountAmountAndroid != null
+                                    ) {
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(
                                             text = "Discount Info:",
@@ -826,17 +827,19 @@ fun ProductCard(
                                             fontSize = 12.sp,
                                             color = AppColors.Success
                                         )
-                                        discount.percentageDiscount?.let {
+                                        offer.percentageDiscountAndroid?.let {
                                             ProductDetailRow("  Percentage", "$it%")
                                         }
-                                        discount.discountAmount?.let { amount ->
-                                            ProductDetailRow("  Amount", amount.formattedDiscountAmount)
-                                            ProductDetailRow("  Amount (micros)", amount.discountAmountMicros)
+                                        offer.formattedDiscountAmountAndroid?.let {
+                                            ProductDetailRow("  Amount", it)
+                                        }
+                                        offer.discountAmountMicrosAndroid?.let {
+                                            ProductDetailRow("  Amount (micros)", it)
                                         }
                                     }
 
                                     // Limited Quantity
-                                    offer.limitedQuantityInfo?.let { limitInfo ->
+                                    offer.limitedQuantityInfoAndroid?.let { limitInfo ->
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(
                                             text = "Limited Quantity:",
@@ -849,7 +852,7 @@ fun ProductCard(
                                     }
 
                                     // Valid Time Window
-                                    offer.validTimeWindow?.let { window ->
+                                    offer.validTimeWindowAndroid?.let { window ->
                                         Spacer(modifier = Modifier.height(4.dp))
                                         Text(
                                             text = "Valid Time Window:",

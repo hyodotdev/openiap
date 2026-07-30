@@ -33,8 +33,8 @@ const LEGACY_ANCHOR_REDIRECTS: Record<string, string> = {
   'billing-programs': '/docs/types/billing-programs',
   'external-purchase-link': '/docs/types/external-purchase-link',
   // iOS-specific
-  'discount-offer-ios': '/docs/types/ios/discount-offer-ios',
-  'discount-ios': '/docs/types/ios/discount-ios',
+  'discount-offer-ios': '/docs/types/subscription-offer',
+  'discount-ios': '/docs/types/subscription-offer',
   'subscription-period-ios': '/docs/types/ios/subscription-period-ios',
   'subscription-billing-plan-ios':
     '/docs/types/ios/subscription-billing-plan-ios',
@@ -53,10 +53,8 @@ const LEGACY_ANCHOR_REDIRECTS: Record<string, string> = {
   'app-transaction-ios': '/docs/types/ios/app-transaction-ios',
   'renewal-info-ios': '/docs/types/ios/renewal-info-ios',
   // Android-specific
-  'one-time-purchase-offer-detail-android':
-    '/docs/types/android/one-time-purchase-offer-detail-android',
-  'subscription-offer-android':
-    '/docs/types/android/subscription-offer-android',
+  'one-time-purchase-offer-detail-android': '/docs/types/discount-offer',
+  'subscription-offer-android': '/docs/types/subscription-offer',
   'pricing-phase-android': '/docs/types/android/pricing-phase-android',
   // Legacy section anchors that pointed at the old combined type pages
   'product-common': '/docs/types/product#product-common',
@@ -82,7 +80,7 @@ const LEGACY_ANCHOR_REDIRECTS: Record<string, string> = {
   'payment-mode': '/docs/types/ios/payment-mode-ios',
   'subscription-period': '/docs/types/ios/subscription-period-ios',
   'subscription-status': '/docs/types/ios/subscription-status-ios',
-  'discount-ios-deprecated': '/docs/types/ios/discount-ios',
+  'discount-ios-deprecated': '/docs/types/subscription-offer',
   // Top-level anchors on the old combined types page — map to the
   // matching section on the new types index when one exists.
   common: '/docs/types#common',
@@ -181,8 +179,8 @@ const VALIDATION_TYPES: TypeRow[] = [
 const ALT_BILLING_TYPES: TypeRow[] = [
   {
     to: '/docs/types/alternative-billing-types',
-    name: 'Alternative Billing',
-    description: 'AlternativeBillingModeAndroid and InitConnectionConfig.',
+    name: 'Billing Configuration',
+    description: 'InitConnectionConfig and current billing-program options.',
   },
   {
     to: '/docs/types/billing-programs',
@@ -197,16 +195,6 @@ const ALT_BILLING_TYPES: TypeRow[] = [
 ];
 
 const IOS_TYPES: TypeRow[] = [
-  {
-    to: '/docs/types/ios/discount-offer-ios',
-    name: 'DiscountOfferIOS',
-    description: 'iOS-specific discount offer payload.',
-  },
-  {
-    to: '/docs/types/ios/discount-ios',
-    name: 'DiscountIOS',
-    description: 'iOS discount details (type, payment mode, period).',
-  },
   {
     to: '/docs/types/ios/subscription-period-ios',
     name: 'SubscriptionPeriodIOS',
@@ -242,16 +230,6 @@ const IOS_TYPES: TypeRow[] = [
 ];
 
 const ANDROID_TYPES: TypeRow[] = [
-  {
-    to: '/docs/types/android/one-time-purchase-offer-detail-android',
-    name: 'ProductAndroidOneTimePurchaseOfferDetail',
-    description: 'Android one-time purchase offer details.',
-  },
-  {
-    to: '/docs/types/android/subscription-offer-android',
-    name: 'ProductSubscriptionAndroidOfferDetails',
-    description: 'Android subscription offer (Play Billing).',
-  },
   {
     to: '/docs/types/android/pricing-phase-android',
     name: 'PricingPhaseAndroid',

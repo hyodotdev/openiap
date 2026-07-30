@@ -62,14 +62,13 @@ function FetchProducts() {
           <em>is</em> the canonical way to read the products you queried.
         </p>
         <p>
-          Reader pitfall to be aware of: APIs in this library that <em>do</em>{' '}
-          start with <code>request</code> (
+          Reader pitfall to be aware of: the API in this library that{' '}
+          <em>does</em> start with <code>request</code> (
           <Link to="/docs/apis/request-purchase">
             <code>requestPurchase</code>
           </Link>
-          , <code>requestPurchaseOnPromotedProductIOS</code>) are{' '}
-          <strong>event-based</strong>. Their return values are not the purchase
-          result — listen via{' '}
+          ) is <strong>event-based</strong>. Its return value is not the
+          purchase result — listen via{' '}
           <Link to="/docs/events/purchase-updated-listener">
             <code>purchaseUpdatedListener</code>
           </Link>{' '}

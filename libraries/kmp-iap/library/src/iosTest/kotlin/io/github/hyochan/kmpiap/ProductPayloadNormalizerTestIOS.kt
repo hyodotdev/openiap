@@ -9,19 +9,12 @@ import kotlin.test.assertNotNull
 
 class ProductPayloadNormalizerTestIOS {
     @Test
-    fun `recovers populated native aliases from empty canonical placeholders`() {
+    fun `recovers native offers from an empty canonical placeholder`() {
         val payload: Map<Any?, Any?> = mapOf(
             "id" to "premium.monthly",
             "type" to "subs",
             "typeIOS" to "auto-renewable-subscription",
-            "subscriptionInfoIOS" to emptyMap<Any?, Any?>(),
-            "subscription" to mapOf<Any?, Any?>(
-                "subscriptionGroupId" to "group-1",
-                "subscriptionPeriod" to mapOf<Any?, Any?>(
-                    "unit" to "month",
-                    "value" to 1,
-                ),
-            ),
+            "subscriptionGroupIdIOS" to "group-1",
             "subscriptionOffers" to emptyList<Any?>(),
             "offers" to listOf(
                 mapOf<Any?, Any?>(
@@ -31,32 +24,18 @@ class ProductPayloadNormalizerTestIOS {
                     "type" to "introductory",
                 )
             ),
-            "discountsIOS" to emptyList<Any?>(),
-            "discounts" to listOf(
-                mapOf<Any?, Any?>(
-                    "identifier" to "legacy-discount",
-                    "numberOfPeriods" to 1,
-                    "paymentMode" to "free-trial",
-                    "price" to "Free",
-                    "priceAmount" to 0.0,
-                    "subscriptionPeriod" to "P1M",
-                    "type" to "introductory",
-                )
-            ),
         )
 
         val normalized = assertNotNull(normalizeProductPayloadIOS(payload))
         val product = ProductSubscriptionIOS.fromJson(normalized)
 
-        assertEquals("group-1", product.subscriptionInfoIOS?.subscriptionGroupId)
+        assertEquals("group-1", product.subscriptionGroupIdIOS)
         assertEquals("intro", product.subscriptionOffers?.single()?.id)
-        assertEquals("legacy-discount", product.discountsIOS?.single()?.identifier)
     }
 
     @Test
     fun `preserves canonical purchase metadata before generated decoding`() {
         val payload: Map<Any?, Any?> = mapOf(
-            "platform" to "ios",
             "store" to "apple",
             "id" to "transaction-1",
             "productId" to "premium.monthly",
@@ -99,11 +78,10 @@ class ProductPayloadNormalizerTestIOS {
     }
 
     @Test
-    fun `adds legacy purchase defaults without overwriting canonical values`() {
+    fun `adds native purchase defaults without restoring removed platform`() {
         val normalized = assertNotNull(
             normalizePurchasePayloadIOS(
                 mapOf<Any?, Any?>(
-                    "platform" to NSNull(),
                     "store" to "apple",
                     "quantity" to NSNull(),
                     "renewalInfoIOS" to mapOf<Any?, Any?>(
@@ -113,7 +91,7 @@ class ProductPayloadNormalizerTestIOS {
             )
         )
 
-        assertEquals("ios", normalized["platform"])
+        assertEquals(false, normalized.containsKey("platform"))
         assertEquals("apple", normalized["store"])
         assertEquals(1, normalized["quantity"])
         assertEquals(
@@ -126,8 +104,13 @@ class ProductPayloadNormalizerTestIOS {
     fun `does not decode a non iOS purchase payload`() {
         val purchase = decodePurchasePayloadIOS(
             mapOf<Any?, Any?>(
-                "platform" to "android",
+                "store" to "google",
                 "id" to "purchase-token",
+                "transactionId" to "order-id",
+                "productId" to "premium.monthly",
+                "purchaseState" to "purchased",
+                "quantity" to 1,
+                "transactionDate" to 1_700_000_000_000.0,
             )
         )
 
@@ -135,11 +118,10 @@ class ProductPayloadNormalizerTestIOS {
     }
 
     @Test
-    fun `canonicalizes legacy iOS discriminator casing before generated decoding`() {
+    fun `canonicalizes native Apple store casing before generated decoding`() {
         val purchase = assertNotNull(
             decodePurchasePayloadIOS(
                 mapOf<Any?, Any?>(
-                    "platform" to "iOS",
                     "store" to "Apple",
                     "id" to "transaction-legacy",
                     "productId" to "premium.monthly",
@@ -159,7 +141,6 @@ class ProductPayloadNormalizerTestIOS {
         val purchase = assertNotNull(
             decodePurchasePayloadIOS(
                 mapOf<Any?, Any?>(
-                    "platform" to "ios",
                     "store" to "apple",
                     "id" to "transaction-1",
                     "productId" to "premium.monthly",
@@ -183,7 +164,7 @@ class ProductPayloadNormalizerTestIOS {
     }
 
     @Test
-    fun `recovers legacy purchase identity and quantity aliases`() {
+    fun `recovers native purchase identity and quantity labels`() {
         val purchase = assertNotNull(
             decodePurchasePayloadIOS(
                 mapOf<Any?, Any?>(
@@ -204,7 +185,7 @@ class ProductPayloadNormalizerTestIOS {
     fun `rejects purchase payload without core identity`() {
         val purchase = decodePurchasePayloadIOS(
             mapOf<Any?, Any?>(
-                "platform" to "ios",
+                "store" to "apple",
                 "productId" to "premium.monthly",
                 "purchaseState" to "purchased",
             )

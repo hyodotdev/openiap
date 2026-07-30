@@ -10,7 +10,6 @@ public enum OpenIapLog {
     private final class State {
         private var isEnabled: Bool = false
         private var handler: ((Level, String) -> Void)? = nil
-        private var emittedDeprecations: Set<String> = []
         private let queue = DispatchQueue(label: "OpenIapLog.state", attributes: .concurrent)
         
         func getEnabled() -> Bool { queue.sync { isEnabled } }
@@ -19,11 +18,6 @@ public enum OpenIapLog {
         func getHandler() -> ((Level, String) -> Void)? { queue.sync { handler } }
         func setHandler(_ h: ((Level, String) -> Void)?) { queue.async(flags: .barrier) { self.handler = h } }
 
-        func claimDeprecation(_ key: String) -> Bool {
-            queue.sync(flags: .barrier) {
-                emittedDeprecations.insert(key).inserted
-            }
-        }
     }
     private static let state = State()
 
@@ -64,13 +58,6 @@ public enum OpenIapLog {
 
     @inline(__always)
     public static func error(_ message: String) { log(.error, message) }
-
-    /// Emits a process-wide, one-time compatibility warning even when optional
-    /// diagnostic logging is disabled.
-    static func deprecation(_ key: String, _ message: String) {
-        guard state.claimDeprecation(key) else { return }
-        emit(.warn, message)
-    }
 
     @inline(__always)
     static func log(_ level: Level, _ message: String) {

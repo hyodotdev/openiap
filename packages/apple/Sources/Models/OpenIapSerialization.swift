@@ -98,21 +98,9 @@ public enum OpenIapSerialization {
 
         print("🔄 [OpenIapSerialization] Auto-wrapping as iOS purchase")
 
-        // Custom bridges must emit `transactionId` explicitly before OpenIAP
-        // 3.0. `id` remains the canonical purchase identity and is used only
-        // as a temporary fallback when the transaction field is absent.
-        var normalizedDict = dict
-        if normalizedDict["transactionId"] == nil, let id = normalizedDict["id"] {
-            OpenIapLog.deprecation(
-                "purchase-input-id-transaction-id",
-                "Raw PurchaseIOS dictionaries that use `id` as a fallback for `transactionId` are deprecated and will be rejected in OpenIAP 3.0. Custom bridges must emit `transactionId` explicitly; `id` remains the purchase identity."
-            )
-            normalizedDict["transactionId"] = id
-        }
-
         // Decode as PurchaseIOS first, then wrap in Purchase enum
         do {
-            let purchaseIOS = try decode(object: normalizedDict, as: PurchaseIOS.self)
+            let purchaseIOS = try decode(object: dict, as: PurchaseIOS.self)
             let result = Purchase.purchaseIos(purchaseIOS)
             print("✅ [OpenIapSerialization] Successfully decoded and wrapped PurchaseInput")
             return result
@@ -208,15 +196,7 @@ public enum OpenIapSerialization {
                 logger?("Subscription: \($0.id) - \($0.title) - \($0.displayPrice)")
             }
 
-            // 🔍 DEBUG: Check encoded dictionaries
-            let encoded = iosSubscriptions.map { encode($0) }
-            encoded.forEach { dict in
-                if dict["id"] != nil {
-                    OpenIapLog.debug("OpenIapSerialization: discounts.isEmpty = \((dict["discountsIOS"] as? [[String: Any]])?.isEmpty ?? true)")
-                }
-            }
-
-            return encoded
+            return iosSubscriptions.map { encode($0) }
 
         case .all(let items):
             return (items ?? []).compactMap { item in

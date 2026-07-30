@@ -76,7 +76,7 @@ release notes, or GitHub Releases, follow the mandatory language guard in
 
 ### Platform Function Naming
 
-- **iOS functions**: Must end with `IOS` suffix (e.g., `syncIOS`, `getStorefrontIOS`)
+- **iOS functions**: Must end with `IOS` suffix (e.g., `syncIOS`, `getReceiptDataIOS`)
 - **Android functions in packages/google**: NO `Android` suffix (it's Android-only)
 - **Cross-platform functions**: NO suffix
 
@@ -240,6 +240,7 @@ keep its wording agent-neutral.
 | Skill                | Description                                        | Usage                                 |
 | -------------------- | -------------------------------------------------- | ------------------------------------- |
 | `$review-self`       | Review and improve current work until stable       | `$review-self` or `$review-self <PR>` |
+| `$rebase-main`       | Pull main and safely rebase the current branch     | `$rebase-main`                        |
 | `/review-pr`         | Review PR comments, fix issues, resolve threads    | `/review-pr 65` or `/review-pr <url>` |
 | `/audit-code`        | Audit code against knowledge rules and latest APIs | `/audit-code`                         |
 | `/compile-knowledge` | Compile knowledge base for Claude context          | `/compile-knowledge`                  |

@@ -170,13 +170,13 @@ export type ExternalLinkTypeAndroid =
 // ║                                  PARAMS                                  ║
 // ╚══════════════════════════════════════════════════════════════════════════╝
 
-// Receipt validation parameters (platform-specific)
+// Purchase verification parameters (platform-specific)
 
-export interface NitroReceiptValidationAppleOptions {
+export interface NitroPurchaseVerificationAppleOptions {
   sku: VerifyPurchaseAppleOptions['sku'];
 }
 
-export interface NitroReceiptValidationGoogleOptions {
+export interface NitroPurchaseVerificationGoogleOptions {
   accessToken: VerifyPurchaseGoogleOptions['accessToken'];
   isSub?: VerifyPurchaseGoogleOptions['isSub'];
   packageName: VerifyPurchaseGoogleOptions['packageName'];
@@ -184,7 +184,7 @@ export interface NitroReceiptValidationGoogleOptions {
   sku: VerifyPurchaseGoogleOptions['sku'];
 }
 
-export interface NitroReceiptValidationHorizonOptions {
+export interface NitroPurchaseVerificationHorizonOptions {
   accessToken: VerifyPurchaseHorizonOptions['accessToken'];
   sku: VerifyPurchaseHorizonOptions['sku'];
   userId: VerifyPurchaseHorizonOptions['userId'];
@@ -193,10 +193,10 @@ export interface NitroReceiptValidationHorizonOptions {
 export type NitroPurchaseUpdatedListenerOptions =
   PurchaseUpdatedListenerOptions;
 
-export interface NitroReceiptValidationParams {
-  apple?: NitroReceiptValidationAppleOptions | null;
-  google?: NitroReceiptValidationGoogleOptions | null;
-  horizon?: NitroReceiptValidationHorizonOptions | null;
+export interface NitroPurchaseVerificationParams {
+  apple?: NitroPurchaseVerificationAppleOptions | null;
+  google?: NitroPurchaseVerificationGoogleOptions | null;
+  horizon?: NitroPurchaseVerificationHorizonOptions | null;
 }
 
 // Purchase request parameters
@@ -251,13 +251,10 @@ export interface NitroRequestPurchaseAndroid {
   isOfferPersonalized?: RequestSubscriptionAndroidProps['isOfferPersonalized'];
   /**
    * Offer token for one-time purchase discounts (8.0+).
-   * Pass the offerToken from oneTimePurchaseOfferDetailsAndroid or discountOffers
-   * to apply a discount offer to the purchase.
+   * Pass an offer token from `discountOffers` to apply a discount offer.
    */
   offerToken?: string | null;
   subscriptionOffers?: AndroidSubscriptionOfferInput[] | null;
-  /** @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+). Scheduled for removal in react-native-iap 16.0.0. */
-  replacementMode?: RequestSubscriptionAndroidProps['replacementMode'];
   purchaseToken?: RequestSubscriptionAndroidProps['purchaseToken'];
   /** Original external transaction ID for developer-billed subscription replacement (9.1.0+). */
   originalExternalTransactionId?: RequestSubscriptionAndroidProps['originalExternalTransactionId'];
@@ -271,10 +268,6 @@ export interface NitroRequestPurchaseAndroid {
 }
 
 export interface NitroPurchaseRequest {
-  /** @deprecated Use apple instead. Scheduled for removal in react-native-iap 16.0.0. */
-  ios?: NitroRequestPurchaseIos | null;
-  /** @deprecated Use google instead. Scheduled for removal in react-native-iap 16.0.0. */
-  android?: NitroRequestPurchaseAndroid | null;
   /** Apple-specific purchase parameters */
   apple?: NitroRequestPurchaseIos | null;
   /** Google-specific purchase parameters */
@@ -291,7 +284,7 @@ export interface NitroAvailablePurchasesIosOptions extends PurchaseOptions {
   onlyIncludeActiveItems?: null | boolean;
 }
 
-type NitroAvailablePurchasesAndroidType = 'inapp' | 'subs';
+type NitroAvailablePurchasesAndroidType = 'in-app' | 'subs';
 
 export interface NitroAvailablePurchasesAndroidOptions {
   type?: NitroAvailablePurchasesAndroidType;
@@ -415,14 +408,14 @@ export interface NitroInAppMessageResultAndroid {
   purchaseToken?: string | null;
 }
 
-export interface NitroReceiptValidationResultIOS {
+export interface NitroPurchaseVerificationResultIOS {
   isValid: boolean;
   receiptData: string;
   jwsRepresentation: string;
   latestTransaction?: NitroPurchase | null;
 }
 
-export interface NitroReceiptValidationResultAndroid {
+export interface NitroPurchaseVerificationResultAndroid {
   autoRenewing: VerifyPurchaseResultAndroid['autoRenewing'];
   betaProduct: VerifyPurchaseResultAndroid['betaProduct'];
   cancelDate: VerifyPurchaseResultAndroid['cancelDate'];
@@ -539,74 +532,6 @@ export interface NitroBillingProgramReportingDetailsAndroid {
   externalTransactionToken: string;
 }
 
-/**
- * Discount amount details for one-time purchase offers (Android)
- */
-export interface NitroDiscountAmountAndroid {
-  discountAmountMicros: string;
-  formattedDiscountAmount: string;
-}
-
-/**
- * Discount display information for one-time purchase offers (Android)
- */
-export interface NitroDiscountDisplayInfoAndroid {
-  discountAmount?: NitroDiscountAmountAndroid | null;
-  percentageDiscount?: number | null;
-}
-
-/**
- * Limited quantity information for one-time purchase offers (Android)
- */
-export interface NitroLimitedQuantityInfoAndroid {
-  maximumQuantity: number;
-  remainingQuantity: number;
-}
-
-/**
- * Pre-order details for one-time purchase products (Android)
- */
-export interface NitroPreorderDetailsAndroid {
-  preorderPresaleEndTimeMillis: string;
-  preorderReleaseTimeMillis: string;
-}
-
-/**
- * Rental details for one-time purchase products (Android)
- */
-export interface NitroRentalDetailsAndroid {
-  rentalExpirationPeriod?: string | null;
-  rentalPeriod: string;
-}
-
-/**
- * Valid time window for when an offer is available (Android)
- */
-export interface NitroValidTimeWindowAndroid {
-  endTimeMillis: string;
-  startTimeMillis: string;
-}
-
-/**
- * Android one-time purchase offer details
- * Available in Google Play Billing Library 8.0+
- */
-export interface NitroOneTimePurchaseOfferDetail {
-  discountDisplayInfo?: NitroDiscountDisplayInfoAndroid | null;
-  formattedPrice: string;
-  fullPriceMicros?: string | null;
-  limitedQuantityInfo?: NitroLimitedQuantityInfoAndroid | null;
-  offerId?: string | null;
-  offerTags: string[];
-  offerToken: string;
-  preorderDetailsAndroid?: NitroPreorderDetailsAndroid | null;
-  priceAmountMicros: string;
-  priceCurrencyCode: string;
-  purchaseOptionId?: string | null;
-  rentalDetailsAndroid?: NitroRentalDetailsAndroid | null;
-  validTimeWindow?: NitroValidTimeWindowAndroid | null;
-}
-
 export interface NitroPurchase {
   id: PurchaseCommon['id'];
   transactionId?: string | null;
@@ -615,8 +540,6 @@ export interface NitroPurchase {
   purchaseToken?: PurchaseCommon['purchaseToken'];
   currentPlanId?: PurchaseCommon['currentPlanId'];
   ids?: PurchaseCommon['ids'];
-  /** @deprecated Use store instead. Scheduled for removal in react-native-iap 16.0.0. */
-  platform: IapPlatform;
   /** Store where purchase was made */
   store: IapStore;
   quantity: PurchaseCommon['quantity'];
@@ -625,10 +548,15 @@ export interface NitroPurchase {
   // iOS specific fields
   advancedCommerceInfoIOS?: AdvancedCommerceInfoIOS | null;
   billingPlanTypeIOS?: SubscriptionBillingPlanTypeIOS | null;
+  bundleOriginalTransactionIdIOS?: string | null;
+  bundleProductIdIOS?: string | null;
+  bundleSubscriptionGroupIdIOS?: string | null;
+  bundleTransactionIdIOS?: string | null;
   commitmentInfoIOS?: TransactionCommitmentInfoIOS | null;
   quantityIOS?: number | null;
   originalTransactionDateIOS?: number | null;
   originalTransactionIdentifierIOS?: string | null;
+  previousOriginalTransactionIdIOS?: string | null;
   appAccountToken?: string | null;
   appBundleIdIOS?: string | null;
   countryCodeIOS?: string | null;
@@ -643,6 +571,7 @@ export interface NitroPurchase {
   reasonStringRepresentationIOS?: string | null;
   revocationDateIOS?: number | null;
   revocationReasonIOS?: string | null;
+  revocationTypeIOS?: string | null;
   storefrontCountryCodeIOS?: string | null;
   subscriptionGroupIdIOS?: string | null;
   transactionReasonIOS?: string | null;
@@ -675,8 +604,6 @@ export interface NitroActiveSubscription {
   // iOS specific fields
   expirationDateIOS?: ActiveSubscription['expirationDateIOS'];
   environmentIOS?: ActiveSubscription['environmentIOS'];
-  /** @deprecated Use daysUntilExpirationIOS instead. Scheduled for removal in react-native-iap 16.0.0. */
-  willExpireSoon?: ActiveSubscription['willExpireSoon'];
   daysUntilExpirationIOS?: ActiveSubscription['daysUntilExpirationIOS'];
   renewalInfoIOS?: NitroRenewalInfoIOS | null; // 🆕 Key field for upgrade/downgrade detection
   // Android specific fields
@@ -693,6 +620,9 @@ export interface NitroActiveSubscription {
 export interface NitroRenewalInfoIOS {
   willAutoRenew: boolean;
   autoRenewPreference?: string | null;
+  bundleOriginalTransactionId?: string | null;
+  bundleProductId?: string | null;
+  bundleSubscriptionGroupId?: string | null;
   commitmentInfo?: RenewalCommitmentInfoIOS | null;
   pendingUpgradeProductId?: string | null;
   renewalDate?: number | null;
@@ -704,6 +634,7 @@ export interface NitroRenewalInfoIOS {
   renewalOfferType?: string | null;
   renewalOfferId?: string | null;
   jsonRepresentation?: string | null;
+  willUnbundle?: null | boolean;
 }
 
 export interface NitroProduct {
@@ -722,10 +653,8 @@ export interface NitroProduct {
   isFamilyShareableIOS?: null | boolean;
   jsonRepresentationIOS?: string | null;
   pricingTermsIOS?: string | null;
-  /** @deprecated Use subscriptionOffers and subscriptionGroupIdIOS instead. Scheduled for removal in react-native-iap 16.0.0. */
-  subscriptionInfoIOS?: string | null;
-  /** @deprecated Use subscriptionOffers instead. Scheduled for removal in react-native-iap 16.0.0. */
-  discountsIOS?: string | null;
+  /** Apple 27 Subscription Bundle/Suite components (JSON string). */
+  bundledSubscriptionsIOS?: string | null;
   introductoryPriceIOS?: string | null;
   introductoryPriceAsAmountIOS?: number | null;
   introductoryPriceNumberOfPeriodsIOS?: number | null;
@@ -748,10 +677,6 @@ export interface NitroProduct {
   introductoryPriceValueAndroid?: number | null;
   subscriptionPeriodAndroid?: string | null;
   freeTrialPeriodAndroid?: string | null;
-  /** @deprecated Use subscriptionOffers instead. Scheduled for removal in react-native-iap 16.0.0. */
-  subscriptionOfferDetailsAndroid?: string | null;
-  /** @deprecated Use discountOffers instead. Scheduled for removal in react-native-iap 16.0.0. */
-  oneTimePurchaseOfferDetailsAndroid?: NitroOneTimePurchaseOfferDetail[] | null;
   /**
    * Product-level status code indicating fetch result (Android 8.0+)
    * OK = product fetched successfully
@@ -894,27 +819,11 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
   ): void;
 
   /**
-   * Get the storefront identifier for the user's App Store account (iOS only)
-   * @returns Promise<string> - The storefront identifier (e.g., 'USA' for United States)
-   * @platform iOS
-   */
-  getStorefrontIOS(): Promise<string>;
-
-  /**
    * Get the original app transaction ID if the app was purchased from the App Store (iOS only)
    * @returns Promise<string | null> - The original app transaction ID or null if not purchased
    * @platform iOS
    */
   getAppTransactionIOS(): Promise<string | null>;
-
-  /**
-   * Request the promoted product from the App Store (iOS only)
-   * @returns Promise<NitroProduct | null> - The promoted product or null if none available
-   * @platform iOS
-   * @deprecated Use `getPromotedProductIOS` instead. This compatibility alias
-   * will be removed in react-native-iap 16.0.0.
-   */
-  requestPromotedProductIOS(): Promise<NitroProduct | null>;
 
   /**
    * Retrieve the currently promoted product without initiating a purchase flow (iOS only)
@@ -924,18 +833,12 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
   getPromotedProductIOS(): Promise<NitroProduct | null>;
 
   /**
-   * Buy the promoted product from the App Store (iOS only)
-   * @returns Promise<boolean> - Whether a promoted product was available and the request was initiated
-   * @platform iOS
-   */
-  buyPromotedProductIOS(): Promise<boolean>;
-
-  /**
    * Present the code redemption sheet for offer codes (iOS only)
-   * @returns Promise<boolean> - True if the sheet was presented successfully
+   * @returns The verified redeemed purchase on iOS 27+, or null after the
+   * legacy sheet is presented on earlier iOS versions.
    * @platform iOS
    */
-  presentCodeRedemptionSheetIOS(): Promise<boolean>;
+  presentCodeRedemptionSheetIOS(): Promise<NitroPurchase | null>;
 
   /**
    * Clear unfinished transactions (iOS only)
@@ -1031,30 +934,15 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
    * This returns the App Store Receipt, which:
    * - Contains all purchase history for the app
    * - Does not update immediately after finishTransaction()
-   * - May be unavailable immediately after purchase (throws receipt-failed error)
+   * - May be unavailable immediately after purchase (throws purchase-verification-failed error)
    * - Requires parsing to extract specific transactions
    *
    * @returns Promise<string> - Base64 encoded receipt data containing all app transactions
-   * @throws {Error} receipt-failed if receipt is not available (e.g., immediately after purchase)
+   * @throws {Error} purchase-verification-failed if receipt is not available (e.g., immediately after purchase)
    * @platform iOS
    * @see getTransactionJwsIOS for validating individual transactions (recommended)
    */
   getReceiptDataIOS(): Promise<string>;
-
-  /**
-   * Alias for getReceiptDataIOS maintained for compatibility (iOS only)
-   *
-   * ⚠️ **IMPORTANT**: iOS receipts are cumulative and contain ALL transactions.
-   * For individual purchase validation, use `getTransactionJwsIOS(productId)` instead.
-   *
-   * @returns Promise<string> - Base64 encoded receipt data containing all app transactions
-   * @platform iOS
-   * @deprecated Use `getReceiptDataIOS` instead. This compatibility alias will
-   * be removed in react-native-iap 16.0.0.
-   * @see getReceiptDataIOS for full documentation
-   * @see getTransactionJwsIOS for validating individual transactions (recommended)
-   */
-  getReceiptIOS(): Promise<string>;
 
   /**
    * Request a refreshed receipt from the App Store (iOS only)
@@ -1104,16 +992,14 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
   getTransactionJwsIOS(sku: string): Promise<string | null>;
 
   /**
-   * Validate a receipt on the appropriate platform
-   * @deprecated Use `verifyPurchase` instead. This function will be removed in
-   * react-native-iap 16.0.0.
-   * @param params - Receipt validation parameters including SKU and platform-specific options
-   * @returns Promise<NitroReceiptValidationResultIOS | NitroReceiptValidationResultAndroid> - Platform-specific validation result
+   * Verify a purchase on the appropriate platform.
+   * @param params - Purchase verification parameters including platform-specific options
+   * @returns Promise<NitroPurchaseVerificationResultIOS | NitroPurchaseVerificationResultAndroid>
    */
-  validateReceipt(
-    params: NitroReceiptValidationParams,
+  verifyPurchase(
+    params: NitroPurchaseVerificationParams,
   ): Promise<
-    NitroReceiptValidationResultIOS | NitroReceiptValidationResultAndroid
+    NitroPurchaseVerificationResultIOS | NitroPurchaseVerificationResultAndroid
   >;
 
   /**
@@ -1143,53 +1029,6 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
   deepLinkToSubscriptionsAndroid?(
     options: NitroDeepLinkOptionsAndroid,
   ): Promise<void>;
-
-  // ╔════════════════════════════════════════════════════════════════════════╗
-  // ║                    ALTERNATIVE BILLING (Android)                       ║
-  // ╚════════════════════════════════════════════════════════════════════════╝
-
-  /**
-   * Check if alternative billing is available for this user/device (Android only).
-   * Step 1 of alternative billing flow.
-   *
-   * @returns Promise<boolean> - true if available, false otherwise
-   * @throws Error if billing client not ready
-   * @platform Android
-   * @deprecated Use `isBillingProgramAvailableAndroid('external-offer')`
-   * instead. Scheduled for removal in react-native-iap 16.0.0.
-   */
-  checkAlternativeBillingAvailabilityAndroid(): Promise<boolean>;
-
-  /**
-   * Show alternative billing information dialog to user (Android only).
-   * Step 2 of alternative billing flow.
-   * Must be called BEFORE processing payment in your payment system.
-   *
-   * @returns Promise<boolean> - true if user accepted, false if user canceled
-   * @throws Error if billing client not ready
-   * @platform Android
-   * @deprecated Use `launchExternalLinkAndroid` instead. Scheduled for removal in
-   * react-native-iap 16.0.0.
-   */
-  showAlternativeBillingDialogAndroid(): Promise<boolean>;
-
-  /**
-   * Create external transaction token for Google Play reporting (Android only).
-   * Step 3 of alternative billing flow.
-   * Must be called AFTER successful payment in your payment system.
-   * Token must be reported to Google Play backend within 24 hours.
-   *
-   * @param sku - Optional product SKU that was purchased
-   * @returns Promise<string | null> - Token string or null if creation failed
-   * @throws Error if billing client not ready
-   * @platform Android
-   * @deprecated Use
-   * `createBillingProgramReportingDetailsAndroid('external-offer')` instead.
-   * Scheduled for removal in react-native-iap 16.0.0.
-   */
-  createAlternativeBillingTokenAndroid(
-    sku?: string | null,
-  ): Promise<string | null>;
 
   /**
    * Add a listener for user choice billing events (Android only).

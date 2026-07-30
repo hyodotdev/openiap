@@ -309,7 +309,7 @@ android {
           flavor by MSBuild property.
         </p>
         <CodeBlock language="bash">{`./gradlew :library:assembleAmazonRelease
-dotnet build -f net9.0-android -p:OpenIapAndroidStore=amazon`}</CodeBlock>
+dotnet build -f net10.0-android -p:OpenIapAndroidStore=amazon`}</CodeBlock>
       </section>
 
       <section>

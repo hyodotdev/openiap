@@ -64,6 +64,15 @@ describe('errorMapping utilities', () => {
     );
   });
 
+  it.each([
+    ['receipt-failed', ErrorCode.PurchaseVerificationFailed],
+    ['ReceiptFailed', ErrorCode.PurchaseVerificationFailed],
+    ['E_RECEIPT_FINISHED', ErrorCode.PurchaseVerificationFinished],
+    ['RECEIPT_FINISHED_FAILED', ErrorCode.PurchaseVerificationFinishFailed],
+  ])('normalizes historical error input %s', (input, expected) => {
+    expect(ErrorCodeUtils.fromPlatformCode(input, 'ios')).toBe(expected);
+  });
+
   it('round-trips canonical codes instead of native message constants', () => {
     const platformCode = ErrorCodeUtils.toPlatformCode(
       ErrorCode.NetworkError,
@@ -117,7 +126,7 @@ describe('errorMapping utilities', () => {
 
     const expectations: [ErrorCode, RegExp][] = [
       [ErrorCode.NetworkError, /Network connection error/],
-      [ErrorCode.ReceiptFinished, /Receipt already finished/],
+      [ErrorCode.PurchaseVerificationFinished, /verification already finished/],
       [ErrorCode.ServiceDisconnected, /Billing service disconnected/],
       [ErrorCode.BillingUnavailable, /Billing is unavailable/],
       [ErrorCode.ItemUnavailable, /not available/],
@@ -130,7 +139,7 @@ describe('errorMapping utilities', () => {
       [ErrorCode.ServiceError, /Store service error/],
       [ErrorCode.FeatureNotSupported, /not supported/],
       [ErrorCode.TransactionValidationFailed, /could not be verified/],
-      [ErrorCode.ReceiptFailed, /Receipt processing failed/],
+      [ErrorCode.PurchaseVerificationFailed, /verification failed/],
       [ErrorCode.EmptySkuList, /No product IDs/],
       [ErrorCode.InitConnection, /Failed to initialize billing/],
       [ErrorCode.QueryProduct, /Failed to query products/],

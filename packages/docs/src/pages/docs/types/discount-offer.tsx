@@ -203,9 +203,7 @@ function DiscountOffer() {
                 <code>validTimeWindowAndroid</code>
               </td>
               <td>
-                <Link to="/docs/types/android/one-time-purchase-offer-detail-android#valid-time-window-android">
-                  <code>ValidTimeWindowAndroid</code>
-                </Link>
+                <code>ValidTimeWindowAndroid</code>
               </td>
               <td>Time window for limited-time offers</td>
             </tr>
@@ -214,9 +212,7 @@ function DiscountOffer() {
                 <code>limitedQuantityInfoAndroid</code>
               </td>
               <td>
-                <Link to="/docs/types/android/one-time-purchase-offer-detail-android#limited-quantity-info-android">
-                  <code>LimitedQuantityInfoAndroid</code>
-                </Link>
+                <code>LimitedQuantityInfoAndroid</code>
               </td>
               <td>Quantity limits for the offer</td>
             </tr>
@@ -225,9 +221,7 @@ function DiscountOffer() {
                 <code>preorderDetailsAndroid</code>
               </td>
               <td>
-                <Link to="/docs/types/android/one-time-purchase-offer-detail-android#preorder-details-android">
-                  <code>PreorderDetailsAndroid</code>
-                </Link>
+                <code>PreorderDetailsAndroid</code>
               </td>
               <td>Pre-order details (Billing Library 8.1.0+)</td>
             </tr>
@@ -236,9 +230,7 @@ function DiscountOffer() {
                 <code>rentalDetailsAndroid</code>
               </td>
               <td>
-                <Link to="/docs/types/android/one-time-purchase-offer-detail-android#rental-details-android">
-                  <code>RentalDetailsAndroid</code>
-                </Link>
+                <code>RentalDetailsAndroid</code>
               </td>
               <td>Rental offer details</td>
             </tr>

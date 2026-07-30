@@ -249,7 +249,7 @@ subscription.Dispose();`}</CodeBlock>
           <code>AlreadyOwned</code> - Restore purchases
         </li>
         <li>
-          <code>ReceiptFailed</code> - Retry validation
+          <code>PurchaseVerificationFailed</code> - Retry verification
         </li>
       </ul>
     </div>

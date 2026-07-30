@@ -3,57 +3,11 @@
 // Refresh this file with the generated-types workflow documented for your checkout.
 // ============================================================================
 
-// Suppress generator-internal compatibility reads while preserving deprecation warnings for consumers
-@file:Suppress("DEPRECATION", "UNCHECKED_CAST")
+// Generated JSON decoders use unchecked casts for nested wire values.
+@file:Suppress("UNCHECKED_CAST")
 package dev.hyo.openiap
 
 // MARK: - Enums
-
-/**
- * Alternative billing mode for Android
- * Controls which billing system is used
- * Use the user-choice-billing program for user choice billing and external-offer
- * for external digital-content offers.
- * @deprecated Use enableBillingProgramAndroid with BillingProgramAndroid instead. Scheduled for removal in OpenIAP 3.0.
- */
-@Deprecated("Use enableBillingProgramAndroid with BillingProgramAndroid instead. Scheduled for removal in OpenIAP 3.0.")
-public enum class AlternativeBillingModeAndroid(val rawValue: String) {
-    /**
-     * Standard Google Play billing (default)
-     */
-    None("none"),
-    /**
-     * User choice billing - user can select between Google Play or alternative
-     * Requires Google Play Billing Library 7.0+
-     * @deprecated Use the user-choice-billing BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use the user-choice-billing BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.")
-    UserChoice("user-choice"),
-    /**
-     * Alternative billing only - no Google Play billing option
-     * Requires Google Play Billing Library 6.2+
-     * @deprecated Use the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.")
-    AlternativeOnly("alternative-only");
-
-    companion object {
-        fun fromJson(value: String): AlternativeBillingModeAndroid = when (value) {
-            "none" -> AlternativeBillingModeAndroid.None
-            "NONE" -> AlternativeBillingModeAndroid.None
-            "None" -> AlternativeBillingModeAndroid.None
-            "user-choice" -> AlternativeBillingModeAndroid.UserChoice
-            "USER_CHOICE" -> AlternativeBillingModeAndroid.UserChoice
-            "UserChoice" -> AlternativeBillingModeAndroid.UserChoice
-            "alternative-only" -> AlternativeBillingModeAndroid.AlternativeOnly
-            "ALTERNATIVE_ONLY" -> AlternativeBillingModeAndroid.AlternativeOnly
-            "AlternativeOnly" -> AlternativeBillingModeAndroid.AlternativeOnly
-            else -> throw IllegalArgumentException("Unknown AlternativeBillingModeAndroid value: $value")
-        }
-    }
-
-    fun toJson(): String = rawValue
-}
 
 /**
  * Play Billing choice image layout (Android)
@@ -317,21 +271,6 @@ public enum class ErrorCode(val rawValue: String) {
     RemoteError("remote-error"),
     NetworkError("network-error"),
     ServiceError("service-error"),
-    /**
-     * @deprecated Use PurchaseVerificationFailed instead. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use PurchaseVerificationFailed instead. Scheduled for removal in OpenIAP 3.0.", ReplaceWith("PurchaseVerificationFailed"))
-    ReceiptFailed("receipt-failed"),
-    /**
-     * @deprecated Use PurchaseVerificationFinished instead. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use PurchaseVerificationFinished instead. Scheduled for removal in OpenIAP 3.0.", ReplaceWith("PurchaseVerificationFinished"))
-    ReceiptFinished("receipt-finished"),
-    /**
-     * @deprecated Use PurchaseVerificationFinishFailed instead. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use PurchaseVerificationFinishFailed instead. Scheduled for removal in OpenIAP 3.0.", ReplaceWith("PurchaseVerificationFinishFailed"))
-    ReceiptFinishedFailed("receipt-finished-failed"),
     PurchaseVerificationFailed("purchase-verification-failed"),
     PurchaseVerificationFinished("purchase-verification-finished"),
     PurchaseVerificationFinishFailed("purchase-verification-finish-failed"),
@@ -385,15 +324,6 @@ public enum class ErrorCode(val rawValue: String) {
             "service-error" -> ErrorCode.ServiceError
             "SERVICE_ERROR" -> ErrorCode.ServiceError
             "ServiceError" -> ErrorCode.ServiceError
-            "receipt-failed" -> ErrorCode.ReceiptFailed
-            "RECEIPT_FAILED" -> ErrorCode.ReceiptFailed
-            "ReceiptFailed" -> ErrorCode.ReceiptFailed
-            "receipt-finished" -> ErrorCode.ReceiptFinished
-            "RECEIPT_FINISHED" -> ErrorCode.ReceiptFinished
-            "ReceiptFinished" -> ErrorCode.ReceiptFinished
-            "receipt-finished-failed" -> ErrorCode.ReceiptFinishedFailed
-            "RECEIPT_FINISHED_FAILED" -> ErrorCode.ReceiptFinishedFailed
-            "ReceiptFinishedFailed" -> ErrorCode.ReceiptFinishedFailed
             "purchase-verification-failed" -> ErrorCode.PurchaseVerificationFailed
             "PURCHASE_VERIFICATION_FAILED" -> ErrorCode.PurchaseVerificationFailed
             "PurchaseVerificationFailed" -> ErrorCode.PurchaseVerificationFailed
@@ -1070,7 +1000,15 @@ public enum class ProductTypeIOS(val rawValue: String) {
     Consumable("consumable"),
     NonConsumable("non-consumable"),
     AutoRenewableSubscription("auto-renewable-subscription"),
-    NonRenewingSubscription("non-renewing-subscription");
+    NonRenewingSubscription("non-renewing-subscription"),
+    /**
+     * A group of independently purchasable subscriptions sold together (Apple 27+ beta).
+     */
+    SubscriptionBundle("subscription-bundle"),
+    /**
+     * A group of subscriptions that are available only as one suite (Apple 27+ beta).
+     */
+    SubscriptionSuite("subscription-suite");
 
     companion object {
         fun fromJson(value: String): ProductTypeIOS = when (value) {
@@ -1086,6 +1024,12 @@ public enum class ProductTypeIOS(val rawValue: String) {
             "non-renewing-subscription" -> ProductTypeIOS.NonRenewingSubscription
             "NON_RENEWING_SUBSCRIPTION" -> ProductTypeIOS.NonRenewingSubscription
             "NonRenewingSubscription" -> ProductTypeIOS.NonRenewingSubscription
+            "subscription-bundle" -> ProductTypeIOS.SubscriptionBundle
+            "SUBSCRIPTION_BUNDLE" -> ProductTypeIOS.SubscriptionBundle
+            "SubscriptionBundle" -> ProductTypeIOS.SubscriptionBundle
+            "subscription-suite" -> ProductTypeIOS.SubscriptionSuite
+            "SUBSCRIPTION_SUITE" -> ProductTypeIOS.SubscriptionSuite
+            "SubscriptionSuite" -> ProductTypeIOS.SubscriptionSuite
             else -> throw IllegalArgumentException("Unknown ProductTypeIOS value: $value")
         }
     }
@@ -1382,11 +1326,6 @@ public interface PurchaseCommon {
     val id: String
     val ids: List<String>?
     val isAutoRenewing: Boolean
-    /**
-     * @deprecated Use store instead. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use store instead. Scheduled for removal in OpenIAP 3.0.", ReplaceWith("store"))
-    val platform: IapPlatform
     val productId: String
     val purchaseState: PurchaseState
     /**
@@ -1435,14 +1374,7 @@ public data class ActiveSubscription(
      * Unix timestamp in milliseconds since January 1, 1970 UTC.
      */
     val transactionDate: Double,
-    val transactionId: String,
-    /**
-     * Whether the subscription will expire soon (within 7 days).
-     * Consider using daysUntilExpirationIOS for more precise control.
-     * @deprecated iOS only - use daysUntilExpirationIOS instead. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("iOS only - use daysUntilExpirationIOS instead. Scheduled for removal in OpenIAP 3.0.")
-    val willExpireSoon: Boolean? = null
+    val transactionId: String
 ) {
 
     companion object {
@@ -1461,7 +1393,6 @@ public data class ActiveSubscription(
                 renewalInfoIOS = (json["renewalInfoIOS"] as? Map<String, Any?>)?.let { RenewalInfoIOS.fromJson(it) },
                 transactionDate = (json["transactionDate"] as? Number)?.toDouble() ?: 0.0,
                 transactionId = json["transactionId"] as? String ?: "",
-                willExpireSoon = json["willExpireSoon"] as? Boolean,
             )
         }
     }
@@ -1481,7 +1412,6 @@ public data class ActiveSubscription(
         "renewalInfoIOS" to renewalInfoIOS?.toJson(),
         "transactionDate" to transactionDate,
         "transactionId" to transactionId,
-        "willExpireSoon" to willExpireSoon,
     )
 }
 
@@ -1649,10 +1579,24 @@ public data class AppTransaction(
     val deviceVerificationNonce: String,
     val environment: String,
     val originalAppVersion: String,
+    /**
+     * Original App Store platform raw value. Xcode 27 adds the back-deployed managed
+     * acquisition-platform value.
+     */
     val originalPlatform: String? = null,
     val originalPurchaseDate: Double,
     val preorderDate: Double? = null,
-    val signedDate: Double
+    /**
+     * Date the app-acquisition transaction was revoked (epoch milliseconds).
+     * Available through the Xcode 27 SDK and back-deployed to Apple 16+.
+     */
+    val revocationDate: Double? = null,
+    val signedDate: Double,
+    /**
+     * Store channel of the original app purchase: consumer, education, enterprise,
+     * or another future StoreKit value (Apple 27+ beta).
+     */
+    val storeType: String? = null
 ) {
 
     companion object {
@@ -1670,7 +1614,9 @@ public data class AppTransaction(
                 originalPlatform = json["originalPlatform"] as? String,
                 originalPurchaseDate = (json["originalPurchaseDate"] as? Number)?.toDouble() ?: 0.0,
                 preorderDate = (json["preorderDate"] as? Number)?.toDouble(),
+                revocationDate = (json["revocationDate"] as? Number)?.toDouble(),
                 signedDate = (json["signedDate"] as? Number)?.toDouble() ?: 0.0,
+                storeType = json["storeType"] as? String,
             )
         }
     }
@@ -1689,7 +1635,9 @@ public data class AppTransaction(
         "originalPlatform" to originalPlatform,
         "originalPurchaseDate" to originalPurchaseDate,
         "preorderDate" to preorderDate,
+        "revocationDate" to revocationDate,
         "signedDate" to signedDate,
+        "storeType" to storeType,
     )
 }
 
@@ -1843,6 +1791,52 @@ public data class BillingResultAndroid(
 }
 
 /**
+ * Metadata for one auto-renewable subscription included in an Apple
+ * subscription bundle (Apple 27+ beta).
+ */
+public data class BundledSubscriptionIOS(
+    val description: String,
+    val displayName: String,
+    val displayPrice: String,
+    val id: String,
+    val isFamilyShareable: Boolean,
+    val price: Double,
+    val subscriptionGroupDisplayName: String,
+    val subscriptionGroupId: String,
+    val subscriptionGroupLevel: Int
+) {
+
+    companion object {
+        fun fromJson(json: Map<String, Any?>): BundledSubscriptionIOS {
+            return BundledSubscriptionIOS(
+                description = json["description"] as? String ?: "",
+                displayName = json["displayName"] as? String ?: "",
+                displayPrice = json["displayPrice"] as? String ?: "",
+                id = json["id"] as? String ?: "",
+                isFamilyShareable = json["isFamilyShareable"] as? Boolean ?: false,
+                price = (json["price"] as? Number)?.toDouble() ?: 0.0,
+                subscriptionGroupDisplayName = json["subscriptionGroupDisplayName"] as? String ?: "",
+                subscriptionGroupId = json["subscriptionGroupId"] as? String ?: "",
+                subscriptionGroupLevel = (json["subscriptionGroupLevel"] as? Number)?.toInt() ?: 0,
+            )
+        }
+    }
+
+    fun toJson(): Map<String, Any?> = mapOf(
+        "__typename" to "BundledSubscriptionIOS",
+        "description" to description,
+        "displayName" to displayName,
+        "displayPrice" to displayPrice,
+        "id" to id,
+        "isFamilyShareable" to isFamilyShareable,
+        "price" to price,
+        "subscriptionGroupDisplayName" to subscriptionGroupDisplayName,
+        "subscriptionGroupId" to subscriptionGroupId,
+        "subscriptionGroupLevel" to subscriptionGroupLevel,
+    )
+}
+
+/**
  * Details provided when user selects developer billing option (Android)
  * Received via DeveloperProvidedBillingListener callback
  * Available in Google Play Billing Library 8.3.0+
@@ -1990,51 +1984,6 @@ public data class DiscountDisplayInfoAndroid(
 }
 
 /**
- * Discount information returned from the store.
- * @see https://openiap.dev/docs/types/subscription-offer
- * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
- */
-@Deprecated("Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.")
-public data class DiscountIOS(
-    val identifier: String,
-    val localizedPrice: String? = null,
-    val numberOfPeriods: Int,
-    val paymentMode: PaymentModeIOS,
-    val price: String,
-    val priceAmount: Double,
-    val subscriptionPeriod: String,
-    val type: String
-) {
-
-    companion object {
-        fun fromJson(json: Map<String, Any?>): DiscountIOS {
-            return DiscountIOS(
-                identifier = json["identifier"] as? String ?: "",
-                localizedPrice = json["localizedPrice"] as? String,
-                numberOfPeriods = (json["numberOfPeriods"] as? Number)?.toInt() ?: 0,
-                paymentMode = (json["paymentMode"] as? String)?.let { PaymentModeIOS.fromJson(it) } ?: PaymentModeIOS.Empty,
-                price = json["price"] as? String ?: "",
-                priceAmount = (json["priceAmount"] as? Number)?.toDouble() ?: 0.0,
-                subscriptionPeriod = json["subscriptionPeriod"] as? String ?: "",
-                type = json["type"] as? String ?: "",
-            )
-        }
-    }
-
-    fun toJson(): Map<String, Any?> = mapOf(
-        "__typename" to "DiscountIOS",
-        "identifier" to identifier,
-        "localizedPrice" to localizedPrice,
-        "numberOfPeriods" to numberOfPeriods,
-        "paymentMode" to paymentMode.toJson(),
-        "price" to price,
-        "priceAmount" to priceAmount,
-        "subscriptionPeriod" to subscriptionPeriod,
-        "type" to type,
-    )
-}
-
-/**
  * Standardized one-time product discount offer.
  * Provides a platform-neutral OpenIAP shape for Google Play one-time product
  * purchase options and offers.
@@ -2071,7 +2020,7 @@ public data class DiscountOffer(
     /**
      * Unique identifier for the offer.
      * - iOS: Not applicable (one-time discounts not supported)
-     * - Android: offerId from ProductAndroidOneTimePurchaseOfferDetail
+     * - Android: offerId from the Google Play one-time purchase option
      */
     val id: String? = null,
     /**
@@ -2169,57 +2118,6 @@ public data class DiscountOffer(
     )
 }
 
-/**
- * iOS DiscountOffer (output type).
- * @see https://openiap.dev/docs/types/subscription-offer
- * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
- */
-@Deprecated("Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.")
-public data class DiscountOfferIOS(
-    /**
-     * Discount identifier
-     */
-    val identifier: String,
-    /**
-     * Key identifier for validation
-     */
-    val keyIdentifier: String,
-    /**
-     * Cryptographic nonce
-     */
-    val nonce: String,
-    /**
-     * Signature for validation
-     */
-    val signature: String,
-    /**
-     * Timestamp of discount offer
-     */
-    val timestamp: Double
-) {
-
-    companion object {
-        fun fromJson(json: Map<String, Any?>): DiscountOfferIOS {
-            return DiscountOfferIOS(
-                identifier = json["identifier"] as? String ?: "",
-                keyIdentifier = json["keyIdentifier"] as? String ?: "",
-                nonce = json["nonce"] as? String ?: "",
-                signature = json["signature"] as? String ?: "",
-                timestamp = (json["timestamp"] as? Number)?.toDouble() ?: 0.0,
-            )
-        }
-    }
-
-    fun toJson(): Map<String, Any?> = mapOf(
-        "__typename" to "DiscountOfferIOS",
-        "identifier" to identifier,
-        "keyIdentifier" to keyIdentifier,
-        "nonce" to nonce,
-        "signature" to signature,
-        "timestamp" to timestamp,
-    )
-}
-
 public data class EntitlementIOS(
     val jsonRepresentation: String,
     val sku: String,
@@ -2241,60 +2139,6 @@ public data class EntitlementIOS(
         "jsonRepresentation" to jsonRepresentation,
         "sku" to sku,
         "transactionId" to transactionId,
-    )
-}
-
-/**
- * External offer availability result (Android)
- * Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
- * @deprecated Use BillingProgramAvailabilityResultAndroid from isBillingProgramAvailableAndroid instead. Scheduled for removal in OpenIAP 3.0.
- */
-@Deprecated("Use BillingProgramAvailabilityResultAndroid from isBillingProgramAvailableAndroid instead. Scheduled for removal in OpenIAP 3.0.")
-public data class ExternalOfferAvailabilityResultAndroid(
-    /**
-     * Whether external offers are available for the user
-     */
-    val isAvailable: Boolean
-) {
-
-    companion object {
-        fun fromJson(json: Map<String, Any?>): ExternalOfferAvailabilityResultAndroid {
-            return ExternalOfferAvailabilityResultAndroid(
-                isAvailable = json["isAvailable"] as? Boolean ?: false,
-            )
-        }
-    }
-
-    fun toJson(): Map<String, Any?> = mapOf(
-        "__typename" to "ExternalOfferAvailabilityResultAndroid",
-        "isAvailable" to isAvailable,
-    )
-}
-
-/**
- * External offer reporting details (Android)
- * Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
- * @deprecated Use BillingProgramReportingDetailsAndroid from createBillingProgramReportingDetailsAndroid instead. Scheduled for removal in OpenIAP 3.0.
- */
-@Deprecated("Use BillingProgramReportingDetailsAndroid from createBillingProgramReportingDetailsAndroid instead. Scheduled for removal in OpenIAP 3.0.")
-public data class ExternalOfferReportingDetailsAndroid(
-    /**
-     * External transaction token for reporting external offer transactions
-     */
-    val externalTransactionToken: String
-) {
-
-    companion object {
-        fun fromJson(json: Map<String, Any?>): ExternalOfferReportingDetailsAndroid {
-            return ExternalOfferReportingDetailsAndroid(
-                externalTransactionToken = json["externalTransactionToken"] as? String ?: "",
-            )
-        }
-    }
-
-    fun toJson(): Map<String, Any?> = mapOf(
-        "__typename" to "ExternalOfferReportingDetailsAndroid",
-        "externalTransactionToken" to externalTransactionToken,
     )
 }
 
@@ -2701,13 +2545,6 @@ public data class ProductAndroid(
     override val displayPrice: String,
     override val id: String,
     val nameAndroid: String,
-    /**
-     * One-time purchase offer details including discounts (Android)
-     * Returns all eligible offers. Available in Google Play Billing Library 8.0+
-     * @deprecated Use the standardized discountOffers field instead. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use the standardized discountOffers field instead. Scheduled for removal in OpenIAP 3.0.")
-    val oneTimePurchaseOfferDetailsAndroid: List<ProductAndroidOneTimePurchaseOfferDetail>? = null,
     override val platform: IapPlatform = IapPlatform.Android,
     override val price: Double? = null,
     /**
@@ -2718,11 +2555,6 @@ public data class ProductAndroid(
      * Available in Google Play Billing Library 8.0.0+
      */
     val productStatusAndroid: ProductStatusAndroid? = null,
-    /**
-     * @deprecated Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.")
-    val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetails>? = null,
     /**
      * Standardized subscription offers.
      * Cross-platform type with Android-specific fields using suffix.
@@ -2744,11 +2576,9 @@ public data class ProductAndroid(
                 displayPrice = json["displayPrice"] as? String ?: "",
                 id = json["id"] as? String ?: "",
                 nameAndroid = json["nameAndroid"] as? String ?: "",
-                oneTimePurchaseOfferDetailsAndroid = (json["oneTimePurchaseOfferDetailsAndroid"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { ProductAndroidOneTimePurchaseOfferDetail.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for ProductAndroidOneTimePurchaseOfferDetail") },
                 platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: IapPlatform.Ios,
                 price = (json["price"] as? Number)?.toDouble(),
                 productStatusAndroid = (json["productStatusAndroid"] as? String)?.let { runCatching { ProductStatusAndroid.fromJson(it) }.getOrNull() ?: ProductStatusAndroid.Unknown },
-                subscriptionOfferDetailsAndroid = (json["subscriptionOfferDetailsAndroid"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { ProductSubscriptionAndroidOfferDetails.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for ProductSubscriptionAndroidOfferDetails") },
                 subscriptionOffers = (json["subscriptionOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionOffer.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionOffer") },
                 title = json["title"] as? String ?: "",
                 type = (json["type"] as? String)?.let { ProductType.fromJson(it) } ?: ProductType.InApp,
@@ -2766,110 +2596,12 @@ public data class ProductAndroid(
         "displayPrice" to displayPrice,
         "id" to id,
         "nameAndroid" to nameAndroid,
-        "oneTimePurchaseOfferDetailsAndroid" to oneTimePurchaseOfferDetailsAndroid?.map { it.toJson() },
         "platform" to platform.toJson(),
         "price" to price,
         "productStatusAndroid" to productStatusAndroid?.toJson(),
-        "subscriptionOfferDetailsAndroid" to subscriptionOfferDetailsAndroid?.map { it.toJson() },
         "subscriptionOffers" to subscriptionOffers?.map { it.toJson() },
         "title" to title,
         "type" to type.toJson(),
-    )
-}
-
-/**
- * One-time purchase offer details (Android).
- * Available in Google Play Billing Library 8.0+
- * @see https://openiap.dev/docs/types/discount-offer
- * @deprecated Use the standardized DiscountOffer type for Android one-time offers. Scheduled for removal in OpenIAP 3.0.
- */
-@Deprecated("Use the standardized DiscountOffer type for Android one-time offers. Scheduled for removal in OpenIAP 3.0.")
-public data class ProductAndroidOneTimePurchaseOfferDetail(
-    /**
-     * Discount display information
-     * Only available for discounted offers
-     */
-    val discountDisplayInfo: DiscountDisplayInfoAndroid? = null,
-    val formattedPrice: String,
-    /**
-     * Full (non-discounted) price in micro-units
-     * Only available for discounted offers
-     */
-    val fullPriceMicros: String? = null,
-    /**
-     * Limited quantity information
-     */
-    val limitedQuantityInfo: LimitedQuantityInfoAndroid? = null,
-    /**
-     * Offer ID
-     */
-    val offerId: String? = null,
-    /**
-     * List of offer tags
-     */
-    val offerTags: List<String>,
-    /**
-     * Offer token for use in BillingFlowParams when purchasing
-     */
-    val offerToken: String,
-    /**
-     * Pre-order details for products available for pre-order
-     * Available in Google Play Billing Library 8.1.0+
-     */
-    val preorderDetailsAndroid: PreorderDetailsAndroid? = null,
-    val priceAmountMicros: String,
-    val priceCurrencyCode: String,
-    /**
-     * Purchase option ID for this offer (Android)
-     * Used to identify which purchase option the user selected.
-     * Available in Google Play Billing Library 8.0+
-     */
-    val purchaseOptionId: String? = null,
-    /**
-     * Rental details for rental offers
-     */
-    val rentalDetailsAndroid: RentalDetailsAndroid? = null,
-    /**
-     * Valid time window for the offer
-     */
-    val validTimeWindow: ValidTimeWindowAndroid? = null
-) {
-
-    companion object {
-        fun fromJson(json: Map<String, Any?>): ProductAndroidOneTimePurchaseOfferDetail {
-            return ProductAndroidOneTimePurchaseOfferDetail(
-                discountDisplayInfo = (json["discountDisplayInfo"] as? Map<String, Any?>)?.let { DiscountDisplayInfoAndroid.fromJson(it) },
-                formattedPrice = json["formattedPrice"] as? String ?: "",
-                fullPriceMicros = json["fullPriceMicros"] as? String,
-                limitedQuantityInfo = (json["limitedQuantityInfo"] as? Map<String, Any?>)?.let { LimitedQuantityInfoAndroid.fromJson(it) },
-                offerId = json["offerId"] as? String,
-                offerTags = (json["offerTags"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
-                offerToken = json["offerToken"] as? String ?: "",
-                preorderDetailsAndroid = (json["preorderDetailsAndroid"] as? Map<String, Any?>)?.let { PreorderDetailsAndroid.fromJson(it) },
-                priceAmountMicros = json["priceAmountMicros"] as? String ?: "",
-                priceCurrencyCode = json["priceCurrencyCode"] as? String ?: "",
-                purchaseOptionId = json["purchaseOptionId"] as? String,
-                rentalDetailsAndroid = (json["rentalDetailsAndroid"] as? Map<String, Any?>)?.let { RentalDetailsAndroid.fromJson(it) },
-                validTimeWindow = (json["validTimeWindow"] as? Map<String, Any?>)?.let { ValidTimeWindowAndroid.fromJson(it) },
-            )
-        }
-    }
-
-    fun toJson(): Map<String, Any?> = mapOf(
-        "__typename" to "ProductAndroidOneTimePurchaseOfferDetail",
-        "discountDisplayInfo" to discountDisplayInfo?.toJson(),
-        "formattedPrice" to formattedPrice,
-        "fullPriceMicros" to fullPriceMicros,
-        "limitedQuantityInfo" to limitedQuantityInfo?.toJson(),
-        "offerId" to offerId,
-        "offerTags" to offerTags,
-        "offerToken" to offerToken,
-        "preorderDetailsAndroid" to preorderDetailsAndroid?.toJson(),
-        "priceAmountMicros" to priceAmountMicros,
-        "priceCurrencyCode" to priceCurrencyCode,
-        "purchaseOptionId" to purchaseOptionId,
-        "rentalDetailsAndroid" to rentalDetailsAndroid?.toJson(),
-        "validTimeWindow" to validTimeWindow?.toJson(),
     )
 }
 
@@ -2890,11 +2622,6 @@ public data class ProductIOS(
      * monthly subscriptions with a 12-month commitment.
      */
     val pricingTermsIOS: List<SubscriptionPricingTermsIOS>? = null,
-    /**
-     * @deprecated Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.")
-    val subscriptionInfoIOS: SubscriptionInfoIOS? = null,
     /**
      * Standardized subscription offers.
      * Cross-platform type with iOS-specific fields using suffix.
@@ -2922,7 +2649,6 @@ public data class ProductIOS(
                 platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: IapPlatform.Ios,
                 price = (json["price"] as? Number)?.toDouble(),
                 pricingTermsIOS = (json["pricingTermsIOS"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionPricingTermsIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionPricingTermsIOS") },
-                subscriptionInfoIOS = (json["subscriptionInfoIOS"] as? Map<String, Any?>)?.let { SubscriptionInfoIOS.fromJson(it) },
                 subscriptionOffers = (json["subscriptionOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionOffer.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionOffer") },
                 title = json["title"] as? String ?: "",
                 type = (json["type"] as? String)?.let { ProductType.fromJson(it) } ?: ProductType.InApp,
@@ -2945,7 +2671,6 @@ public data class ProductIOS(
         "platform" to platform.toJson(),
         "price" to price,
         "pricingTermsIOS" to pricingTermsIOS?.map { it.toJson() },
-        "subscriptionInfoIOS" to subscriptionInfoIOS?.toJson(),
         "subscriptionOffers" to subscriptionOffers?.map { it.toJson() },
         "title" to title,
         "type" to type.toJson(),
@@ -2957,22 +2682,10 @@ public data class ProductSubscriptionAndroid(
     override val currency: String,
     override val debugDescription: String? = null,
     override val description: String,
-    /**
-     * Nullable compatibility field. Google Play does not return one-time purchase
-     * offer details for subscription products; use subscriptionOffers below.
-     */
-    val discountOffers: List<DiscountOffer>? = null,
     override val displayName: String? = null,
     override val displayPrice: String,
     override val id: String,
     val nameAndroid: String,
-    /**
-     * Legacy nullable compatibility field. Google Play does not populate one-time
-     * purchase offer details for subscription products.
-     * @deprecated One-time offers belong to ProductAndroid.discountOffers; subscriptions use subscriptionOffers. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("One-time offers belong to ProductAndroid.discountOffers; subscriptions use subscriptionOffers. Scheduled for removal in OpenIAP 3.0.")
-    val oneTimePurchaseOfferDetailsAndroid: List<ProductAndroidOneTimePurchaseOfferDetail>? = null,
     override val platform: IapPlatform = IapPlatform.Android,
     override val price: Double? = null,
     /**
@@ -2983,11 +2696,6 @@ public data class ProductSubscriptionAndroid(
      * Available in Google Play Billing Library 8.0.0+
      */
     val productStatusAndroid: ProductStatusAndroid? = null,
-    /**
-     * @deprecated Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.")
-    val subscriptionOfferDetailsAndroid: List<ProductSubscriptionAndroidOfferDetails>,
     /**
      * Standardized subscription offers.
      * Cross-platform type with Android-specific fields using suffix.
@@ -3004,16 +2712,13 @@ public data class ProductSubscriptionAndroid(
                 currency = json["currency"] as? String ?: "",
                 debugDescription = json["debugDescription"] as? String,
                 description = json["description"] as? String ?: "",
-                discountOffers = (json["discountOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { DiscountOffer.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for DiscountOffer") },
                 displayName = json["displayName"] as? String,
                 displayPrice = json["displayPrice"] as? String ?: "",
                 id = json["id"] as? String ?: "",
                 nameAndroid = json["nameAndroid"] as? String ?: "",
-                oneTimePurchaseOfferDetailsAndroid = (json["oneTimePurchaseOfferDetailsAndroid"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { ProductAndroidOneTimePurchaseOfferDetail.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for ProductAndroidOneTimePurchaseOfferDetail") },
                 platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: IapPlatform.Ios,
                 price = (json["price"] as? Number)?.toDouble(),
                 productStatusAndroid = (json["productStatusAndroid"] as? String)?.let { runCatching { ProductStatusAndroid.fromJson(it) }.getOrNull() ?: ProductStatusAndroid.Unknown },
-                subscriptionOfferDetailsAndroid = (json["subscriptionOfferDetailsAndroid"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { ProductSubscriptionAndroidOfferDetails.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for ProductSubscriptionAndroidOfferDetails") } ?: emptyList(),
                 subscriptionOffers = (json["subscriptionOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionOffer.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionOffer") } ?: emptyList(),
                 title = json["title"] as? String ?: "",
                 type = (json["type"] as? String)?.let { ProductType.fromJson(it) } ?: ProductType.InApp,
@@ -3026,75 +2731,28 @@ public data class ProductSubscriptionAndroid(
         "currency" to currency,
         "debugDescription" to debugDescription,
         "description" to description,
-        "discountOffers" to discountOffers?.map { it.toJson() },
         "displayName" to displayName,
         "displayPrice" to displayPrice,
         "id" to id,
         "nameAndroid" to nameAndroid,
-        "oneTimePurchaseOfferDetailsAndroid" to oneTimePurchaseOfferDetailsAndroid?.map { it.toJson() },
         "platform" to platform.toJson(),
         "price" to price,
         "productStatusAndroid" to productStatusAndroid?.toJson(),
-        "subscriptionOfferDetailsAndroid" to subscriptionOfferDetailsAndroid.map { it.toJson() },
         "subscriptionOffers" to subscriptionOffers.map { it.toJson() },
         "title" to title,
         "type" to type.toJson(),
     )
 }
 
-/**
- * Subscription offer details (Android).
- * @see https://openiap.dev/docs/types/subscription-offer
- * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
- */
-@Deprecated("Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.")
-public data class ProductSubscriptionAndroidOfferDetails(
-    val basePlanId: String,
-    /**
-     * Installment plan details for this subscription offer.
-     * Only set for installment subscription plans; null for non-installment plans.
-     * Available in Google Play Billing Library 7.0+
-     */
-    val installmentPlanDetails: InstallmentPlanDetailsAndroid? = null,
-    val offerId: String? = null,
-    val offerTags: List<String>,
-    val offerToken: String,
-    val pricingPhases: PricingPhasesAndroid
-) {
-
-    companion object {
-        fun fromJson(json: Map<String, Any?>): ProductSubscriptionAndroidOfferDetails {
-            return ProductSubscriptionAndroidOfferDetails(
-                basePlanId = json["basePlanId"] as? String ?: "",
-                installmentPlanDetails = (json["installmentPlanDetails"] as? Map<String, Any?>)?.let { InstallmentPlanDetailsAndroid.fromJson(it) },
-                offerId = json["offerId"] as? String,
-                offerTags = (json["offerTags"] as? List<*>)?.mapNotNull { it as? String } ?: emptyList(),
-                offerToken = json["offerToken"] as? String ?: "",
-                pricingPhases = (json["pricingPhases"] as? Map<String, Any?>)?.let { PricingPhasesAndroid.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for PricingPhasesAndroid"),
-            )
-        }
-    }
-
-    fun toJson(): Map<String, Any?> = mapOf(
-        "__typename" to "ProductSubscriptionAndroidOfferDetails",
-        "basePlanId" to basePlanId,
-        "installmentPlanDetails" to installmentPlanDetails?.toJson(),
-        "offerId" to offerId,
-        "offerTags" to offerTags,
-        "offerToken" to offerToken,
-        "pricingPhases" to pricingPhases.toJson(),
-    )
-}
-
 public data class ProductSubscriptionIOS(
+    /**
+     * Subscriptions included in this Apple subscription bundle. Empty or null for
+     * every other product type (Apple 27+ beta).
+     */
+    val bundledSubscriptionsIOS: List<BundledSubscriptionIOS>? = null,
     override val currency: String,
     override val debugDescription: String? = null,
     override val description: String,
-    /**
-     * @deprecated Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.")
-    val discountsIOS: List<DiscountIOS>? = null,
     override val displayName: String? = null,
     val displayNameIOS: String,
     override val displayPrice: String,
@@ -3118,11 +2776,6 @@ public data class ProductSubscriptionIOS(
      */
     val subscriptionGroupIdIOS: String? = null,
     /**
-     * @deprecated Use subscriptionOffers for offer metadata and subscriptionGroupIdIOS for the App Store subscription group identifier. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use subscriptionOffers for offer metadata and subscriptionGroupIdIOS for the App Store subscription group identifier. Scheduled for removal in OpenIAP 3.0.")
-    val subscriptionInfoIOS: SubscriptionInfoIOS? = null,
-    /**
      * Standardized subscription offers.
      * Cross-platform type with iOS-specific fields using suffix.
      * @see https://openiap.dev/docs/types/subscription-offer
@@ -3138,10 +2791,10 @@ public data class ProductSubscriptionIOS(
     companion object {
         fun fromJson(json: Map<String, Any?>): ProductSubscriptionIOS {
             return ProductSubscriptionIOS(
+                bundledSubscriptionsIOS = (json["bundledSubscriptionsIOS"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { BundledSubscriptionIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for BundledSubscriptionIOS") },
                 currency = json["currency"] as? String ?: "",
                 debugDescription = json["debugDescription"] as? String,
                 description = json["description"] as? String ?: "",
-                discountsIOS = (json["discountsIOS"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { DiscountIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for DiscountIOS") },
                 displayName = json["displayName"] as? String,
                 displayNameIOS = json["displayNameIOS"] as? String ?: "",
                 displayPrice = json["displayPrice"] as? String ?: "",
@@ -3157,7 +2810,6 @@ public data class ProductSubscriptionIOS(
                 price = (json["price"] as? Number)?.toDouble(),
                 pricingTermsIOS = (json["pricingTermsIOS"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionPricingTermsIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionPricingTermsIOS") },
                 subscriptionGroupIdIOS = json["subscriptionGroupIdIOS"] as? String,
-                subscriptionInfoIOS = (json["subscriptionInfoIOS"] as? Map<String, Any?>)?.let { SubscriptionInfoIOS.fromJson(it) },
                 subscriptionOffers = (json["subscriptionOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionOffer.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionOffer") },
                 subscriptionPeriodNumberIOS = json["subscriptionPeriodNumberIOS"] as? String,
                 subscriptionPeriodUnitIOS = (json["subscriptionPeriodUnitIOS"] as? String)?.let { SubscriptionPeriodIOS.fromJson(it) },
@@ -3170,10 +2822,10 @@ public data class ProductSubscriptionIOS(
 
     override fun toJson(): Map<String, Any?> = mapOf(
         "__typename" to "ProductSubscriptionIOS",
+        "bundledSubscriptionsIOS" to bundledSubscriptionsIOS?.map { it.toJson() },
         "currency" to currency,
         "debugDescription" to debugDescription,
         "description" to description,
-        "discountsIOS" to discountsIOS?.map { it.toJson() },
         "displayName" to displayName,
         "displayNameIOS" to displayNameIOS,
         "displayPrice" to displayPrice,
@@ -3189,7 +2841,6 @@ public data class ProductSubscriptionIOS(
         "price" to price,
         "pricingTermsIOS" to pricingTermsIOS?.map { it.toJson() },
         "subscriptionGroupIdIOS" to subscriptionGroupIdIOS,
-        "subscriptionInfoIOS" to subscriptionInfoIOS?.toJson(),
         "subscriptionOffers" to subscriptionOffers?.map { it.toJson() },
         "subscriptionPeriodNumberIOS" to subscriptionPeriodNumberIOS,
         "subscriptionPeriodUnitIOS" to subscriptionPeriodUnitIOS?.toJson(),
@@ -3226,11 +2877,6 @@ public data class PurchaseAndroid(
      * Available in Google Play Billing Library 5.0+
      */
     val pendingPurchaseUpdateAndroid: PendingPurchaseUpdateAndroid? = null,
-    /**
-     * @deprecated Use store instead. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use store instead. Scheduled for removal in OpenIAP 3.0.", ReplaceWith("store"))
-    override val platform: IapPlatform,
     override val productId: String,
     override val purchaseState: PurchaseState,
     override val purchaseToken: String? = null,
@@ -3263,7 +2909,6 @@ public data class PurchaseAndroid(
                 obfuscatedProfileIdAndroid = json["obfuscatedProfileIdAndroid"] as? String,
                 packageNameAndroid = json["packageNameAndroid"] as? String,
                 pendingPurchaseUpdateAndroid = (json["pendingPurchaseUpdateAndroid"] as? Map<String, Any?>)?.let { PendingPurchaseUpdateAndroid.fromJson(it) },
-                platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: IapPlatform.Ios,
                 productId = json["productId"] as? String ?: "",
                 purchaseState = runCatching { (json["purchaseState"] as? String)?.let { PurchaseState.fromJson(it) } }.getOrNull() ?: PurchaseState.Unknown,
                 purchaseToken = json["purchaseToken"] as? String,
@@ -3291,7 +2936,6 @@ public data class PurchaseAndroid(
         "obfuscatedProfileIdAndroid" to obfuscatedProfileIdAndroid,
         "packageNameAndroid" to packageNameAndroid,
         "pendingPurchaseUpdateAndroid" to pendingPurchaseUpdateAndroid?.toJson(),
-        "platform" to platform.toJson(),
         "productId" to productId,
         "purchaseState" to purchaseState.toJson(),
         "purchaseToken" to purchaseToken,
@@ -3384,6 +3028,23 @@ public data class PurchaseIOS(
      */
     val billingPlanTypeIOS: SubscriptionBillingPlanTypeIOS? = null,
     /**
+     * Original transaction identifier for the subscription bundle that produced
+     * this transaction (Apple 27+ SDK; back-deployed by StoreKit).
+     */
+    val bundleOriginalTransactionIdIOS: String? = null,
+    /**
+     * Product identifier of the subscription bundle that produced this transaction.
+     */
+    val bundleProductIdIOS: String? = null,
+    /**
+     * Subscription-group identifier of the bundle that produced this transaction.
+     */
+    val bundleSubscriptionGroupIdIOS: String? = null,
+    /**
+     * Bundle transaction identifier associated with this component transaction.
+     */
+    val bundleTransactionIdIOS: String? = null,
+    /**
      * iOS 26.4+ progress information for monthly subscriptions with a 12-month commitment.
      */
     val commitmentInfoIOS: TransactionCommitmentInfoIOS? = null,
@@ -3400,12 +3061,15 @@ public data class PurchaseIOS(
     val offerIOS: PurchaseOfferIOS? = null,
     val originalTransactionDateIOS: Double? = null,
     val originalTransactionIdentifierIOS: String? = null,
+    /**
+     * StoreKit ownership raw value. Xcode 27 adds the back-deployed assigned value.
+     */
     val ownershipTypeIOS: String? = null,
     /**
-     * @deprecated Use store instead. Scheduled for removal in OpenIAP 3.0.
+     * Original transaction identifier replaced when moving between a standalone
+     * subscription and a subscription bundle.
      */
-    @Deprecated("Use store instead. Scheduled for removal in OpenIAP 3.0.", ReplaceWith("store"))
-    override val platform: IapPlatform,
+    val previousOriginalTransactionIdIOS: String? = null,
     override val productId: String,
     override val purchaseState: PurchaseState,
     override val purchaseToken: String? = null,
@@ -3415,7 +3079,15 @@ public data class PurchaseIOS(
     val reasonStringRepresentationIOS: String? = null,
     val renewalInfoIOS: RenewalInfoIOS? = null,
     val revocationDateIOS: Double? = null,
+    /**
+     * Normalized StoreKit revocation reason, including upgraded_to_bundle.
+     */
     val revocationReasonIOS: String? = null,
+    /**
+     * StoreKit revocation type, including assignment-revocation on Apple 26.4+
+     * when compiled with the Xcode 27 SDK.
+     */
+    val revocationTypeIOS: String? = null,
     /**
      * Store where purchase was made
      */
@@ -3438,6 +3110,10 @@ public data class PurchaseIOS(
                 appAccountToken = json["appAccountToken"] as? String,
                 appBundleIdIOS = json["appBundleIdIOS"] as? String,
                 billingPlanTypeIOS = (json["billingPlanTypeIOS"] as? String)?.let { runCatching { SubscriptionBillingPlanTypeIOS.fromJson(it) }.getOrNull() ?: SubscriptionBillingPlanTypeIOS.Unknown },
+                bundleOriginalTransactionIdIOS = json["bundleOriginalTransactionIdIOS"] as? String,
+                bundleProductIdIOS = json["bundleProductIdIOS"] as? String,
+                bundleSubscriptionGroupIdIOS = json["bundleSubscriptionGroupIdIOS"] as? String,
+                bundleTransactionIdIOS = json["bundleTransactionIdIOS"] as? String,
                 commitmentInfoIOS = (json["commitmentInfoIOS"] as? Map<String, Any?>)?.let { TransactionCommitmentInfoIOS.fromJson(it) },
                 countryCodeIOS = json["countryCodeIOS"] as? String,
                 currencyCodeIOS = json["currencyCodeIOS"] as? String,
@@ -3453,7 +3129,7 @@ public data class PurchaseIOS(
                 originalTransactionDateIOS = (json["originalTransactionDateIOS"] as? Number)?.toDouble(),
                 originalTransactionIdentifierIOS = json["originalTransactionIdentifierIOS"] as? String,
                 ownershipTypeIOS = json["ownershipTypeIOS"] as? String,
-                platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: IapPlatform.Ios,
+                previousOriginalTransactionIdIOS = json["previousOriginalTransactionIdIOS"] as? String,
                 productId = json["productId"] as? String ?: "",
                 purchaseState = runCatching { (json["purchaseState"] as? String)?.let { PurchaseState.fromJson(it) } }.getOrNull() ?: PurchaseState.Unknown,
                 purchaseToken = json["purchaseToken"] as? String,
@@ -3464,6 +3140,7 @@ public data class PurchaseIOS(
                 renewalInfoIOS = (json["renewalInfoIOS"] as? Map<String, Any?>)?.let { RenewalInfoIOS.fromJson(it) },
                 revocationDateIOS = (json["revocationDateIOS"] as? Number)?.toDouble(),
                 revocationReasonIOS = json["revocationReasonIOS"] as? String,
+                revocationTypeIOS = json["revocationTypeIOS"] as? String,
                 store = runCatching { (json["store"] as? String)?.let { IapStore.fromJson(it) } }.getOrNull() ?: IapStore.Unknown,
                 storefrontCountryCodeIOS = json["storefrontCountryCodeIOS"] as? String,
                 subscriptionGroupIdIOS = json["subscriptionGroupIdIOS"] as? String,
@@ -3481,6 +3158,10 @@ public data class PurchaseIOS(
         "appAccountToken" to appAccountToken,
         "appBundleIdIOS" to appBundleIdIOS,
         "billingPlanTypeIOS" to billingPlanTypeIOS?.toJson(),
+        "bundleOriginalTransactionIdIOS" to bundleOriginalTransactionIdIOS,
+        "bundleProductIdIOS" to bundleProductIdIOS,
+        "bundleSubscriptionGroupIdIOS" to bundleSubscriptionGroupIdIOS,
+        "bundleTransactionIdIOS" to bundleTransactionIdIOS,
         "commitmentInfoIOS" to commitmentInfoIOS?.toJson(),
         "countryCodeIOS" to countryCodeIOS,
         "currencyCodeIOS" to currencyCodeIOS,
@@ -3496,7 +3177,7 @@ public data class PurchaseIOS(
         "originalTransactionDateIOS" to originalTransactionDateIOS,
         "originalTransactionIdentifierIOS" to originalTransactionIdentifierIOS,
         "ownershipTypeIOS" to ownershipTypeIOS,
-        "platform" to platform.toJson(),
+        "previousOriginalTransactionIdIOS" to previousOriginalTransactionIdIOS,
         "productId" to productId,
         "purchaseState" to purchaseState.toJson(),
         "purchaseToken" to purchaseToken,
@@ -3507,6 +3188,7 @@ public data class PurchaseIOS(
         "renewalInfoIOS" to renewalInfoIOS?.toJson(),
         "revocationDateIOS" to revocationDateIOS,
         "revocationReasonIOS" to revocationReasonIOS,
+        "revocationTypeIOS" to revocationTypeIOS,
         "store" to store.toJson(),
         "storefrontCountryCodeIOS" to storefrontCountryCodeIOS,
         "subscriptionGroupIdIOS" to subscriptionGroupIdIOS,
@@ -3599,13 +3281,25 @@ public data class RenewalCommitmentInfoIOS(
 public data class RenewalInfoIOS(
     val autoRenewPreference: String? = null,
     /**
+     * Original transaction identifier for the bundle used by the next renewal.
+     */
+    val bundleOriginalTransactionId: String? = null,
+    /**
+     * Product identifier for the bundle used by the next renewal.
+     */
+    val bundleProductId: String? = null,
+    /**
+     * Subscription-group identifier for the bundle used by the next renewal.
+     */
+    val bundleSubscriptionGroupId: String? = null,
+    /**
      * iOS 26.4+ renewal commitment metadata for monthly subscriptions with a
      * 12-month commitment.
      */
     val commitmentInfo: RenewalCommitmentInfoIOS? = null,
     /**
-     * When subscription expires due to cancellation/billing issue
-     * Possible values: "VOLUNTARY", "BILLING_ERROR", "DID_NOT_AGREE_TO_PRICE_INCREASE", "PRODUCT_NOT_AVAILABLE", "UNKNOWN"
+     * StoreKit's raw integer expiration-reason value represented as a string.
+     * Xcode 27 adds the back-deployed unbundled case. Preserve unknown future values.
      */
     val expirationReason: String? = null,
     /**
@@ -3647,13 +3341,20 @@ public data class RenewalInfoIOS(
      * Possible values: "PROMOTIONAL", "SUBSCRIPTION_OFFER_CODE", "WIN_BACK", etc.
      */
     val renewalOfferType: String? = null,
-    val willAutoRenew: Boolean
+    val willAutoRenew: Boolean,
+    /**
+     * Whether this subscription will leave its bundle and renew standalone.
+     */
+    val willUnbundle: Boolean? = null
 ) {
 
     companion object {
         fun fromJson(json: Map<String, Any?>): RenewalInfoIOS {
             return RenewalInfoIOS(
                 autoRenewPreference = json["autoRenewPreference"] as? String,
+                bundleOriginalTransactionId = json["bundleOriginalTransactionId"] as? String,
+                bundleProductId = json["bundleProductId"] as? String,
+                bundleSubscriptionGroupId = json["bundleSubscriptionGroupId"] as? String,
                 commitmentInfo = (json["commitmentInfo"] as? Map<String, Any?>)?.let { RenewalCommitmentInfoIOS.fromJson(it) },
                 expirationReason = json["expirationReason"] as? String,
                 gracePeriodExpirationDate = (json["gracePeriodExpirationDate"] as? Number)?.toDouble(),
@@ -3666,6 +3367,7 @@ public data class RenewalInfoIOS(
                 renewalOfferId = json["renewalOfferId"] as? String,
                 renewalOfferType = json["renewalOfferType"] as? String,
                 willAutoRenew = json["willAutoRenew"] as? Boolean ?: false,
+                willUnbundle = json["willUnbundle"] as? Boolean,
             )
         }
     }
@@ -3673,6 +3375,9 @@ public data class RenewalInfoIOS(
     fun toJson(): Map<String, Any?> = mapOf(
         "__typename" to "RenewalInfoIOS",
         "autoRenewPreference" to autoRenewPreference,
+        "bundleOriginalTransactionId" to bundleOriginalTransactionId,
+        "bundleProductId" to bundleProductId,
+        "bundleSubscriptionGroupId" to bundleSubscriptionGroupId,
         "commitmentInfo" to commitmentInfo?.toJson(),
         "expirationReason" to expirationReason,
         "gracePeriodExpirationDate" to gracePeriodExpirationDate,
@@ -3685,6 +3390,7 @@ public data class RenewalInfoIOS(
         "renewalOfferId" to renewalOfferId,
         "renewalOfferType" to renewalOfferType,
         "willAutoRenew" to willAutoRenew,
+        "willUnbundle" to willUnbundle,
     )
 }
 
@@ -3817,36 +3523,6 @@ public data class SubscriptionCommitmentInfoIOS(
     )
 }
 
-public data class SubscriptionInfoIOS(
-    val introductoryOffer: SubscriptionOfferIOS? = null,
-    val pricingTerms: List<SubscriptionPricingTermsIOS>? = null,
-    val promotionalOffers: List<SubscriptionOfferIOS>? = null,
-    val subscriptionGroupId: String,
-    val subscriptionPeriod: SubscriptionPeriodValueIOS
-) {
-
-    companion object {
-        fun fromJson(json: Map<String, Any?>): SubscriptionInfoIOS {
-            return SubscriptionInfoIOS(
-                introductoryOffer = (json["introductoryOffer"] as? Map<String, Any?>)?.let { SubscriptionOfferIOS.fromJson(it) },
-                pricingTerms = (json["pricingTerms"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionPricingTermsIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionPricingTermsIOS") },
-                promotionalOffers = (json["promotionalOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionOfferIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionOfferIOS") },
-                subscriptionGroupId = json["subscriptionGroupId"] as? String ?: "",
-                subscriptionPeriod = (json["subscriptionPeriod"] as? Map<String, Any?>)?.let { SubscriptionPeriodValueIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionPeriodValueIOS"),
-            )
-        }
-    }
-
-    fun toJson(): Map<String, Any?> = mapOf(
-        "__typename" to "SubscriptionInfoIOS",
-        "introductoryOffer" to introductoryOffer?.toJson(),
-        "pricingTerms" to pricingTerms?.map { it.toJson() },
-        "promotionalOffers" to promotionalOffers?.map { it.toJson() },
-        "subscriptionGroupId" to subscriptionGroupId,
-        "subscriptionPeriod" to subscriptionPeriod.toJson(),
-    )
-}
-
 /**
  * Standardized subscription discount/promotional offer.
  * Provides a unified interface for subscription offers across iOS and Android.
@@ -3874,7 +3550,7 @@ public data class SubscriptionOffer(
     /**
      * Unique identifier for the offer.
      * - iOS: Discount identifier from App Store Connect
-     * - Android: offerId from ProductSubscriptionAndroidOfferDetails
+     * - Android: offerId from the Google Play subscription offer
      */
     val id: String,
     /**
@@ -3993,48 +3669,6 @@ public data class SubscriptionOffer(
         "pricingPhasesAndroid" to pricingPhasesAndroid?.toJson(),
         "signatureIOS" to signatureIOS,
         "timestampIOS" to timestampIOS,
-        "type" to type.toJson(),
-    )
-}
-
-/**
- * iOS subscription offer details.
- * @see https://openiap.dev/docs/types/subscription-offer
- * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
- */
-@Deprecated("Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.")
-public data class SubscriptionOfferIOS(
-    val displayPrice: String,
-    val id: String,
-    val paymentMode: PaymentModeIOS,
-    val period: SubscriptionPeriodValueIOS,
-    val periodCount: Int,
-    val price: Double,
-    val type: SubscriptionOfferTypeIOS
-) {
-
-    companion object {
-        fun fromJson(json: Map<String, Any?>): SubscriptionOfferIOS {
-            return SubscriptionOfferIOS(
-                displayPrice = json["displayPrice"] as? String ?: "",
-                id = json["id"] as? String ?: "",
-                paymentMode = (json["paymentMode"] as? String)?.let { PaymentModeIOS.fromJson(it) } ?: PaymentModeIOS.Empty,
-                period = (json["period"] as? Map<String, Any?>)?.let { SubscriptionPeriodValueIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionPeriodValueIOS"),
-                periodCount = (json["periodCount"] as? Number)?.toInt() ?: 0,
-                price = (json["price"] as? Number)?.toDouble() ?: 0.0,
-                type = (json["type"] as? String)?.let { SubscriptionOfferTypeIOS.fromJson(it) } ?: SubscriptionOfferTypeIOS.Introductory,
-            )
-        }
-    }
-
-    fun toJson(): Map<String, Any?> = mapOf(
-        "__typename" to "SubscriptionOfferIOS",
-        "displayPrice" to displayPrice,
-        "id" to id,
-        "paymentMode" to paymentMode.toJson(),
-        "period" to period.toJson(),
-        "periodCount" to periodCount,
-        "price" to price,
         "type" to type.toJson(),
     )
 }
@@ -4710,14 +4344,6 @@ public data class InAppMessageParamsAndroid(
  */
 public data class InitConnectionConfig(
     /**
-     * Alternative billing mode for Android
-     * If not specified, defaults to NONE (standard Google Play billing)
-     * Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only.
-     * @deprecated Use enableBillingProgramAndroid instead. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use enableBillingProgramAndroid instead. Scheduled for removal in OpenIAP 3.0.", ReplaceWith("enableBillingProgramAndroid"))
-    val alternativeBillingModeAndroid: AlternativeBillingModeAndroid? = null,
-    /**
      * Billing Choice renderer configured in Play Console. Available in OpenIAP
      * Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
      * GOOGLE_RENDERED registers the developer-provided billing listener so OpenIAP
@@ -4742,7 +4368,6 @@ public data class InitConnectionConfig(
     companion object {
         fun fromJson(json: Map<String, Any?>): InitConnectionConfig {
             return InitConnectionConfig(
-                alternativeBillingModeAndroid = (json["alternativeBillingModeAndroid"] as? String)?.let { AlternativeBillingModeAndroid.fromJson(it) },
                 billingChoiceScreenTypeAndroid = (json["billingChoiceScreenTypeAndroid"] as? String)?.let { BillingChoiceScreenTypeAndroid.fromJson(it) } ?: BillingChoiceScreenTypeAndroid.GoogleRendered,
                 enableBillingProgramAndroid = (json["enableBillingProgramAndroid"] as? String)?.let { BillingProgramAndroid.fromJson(it) },
             )
@@ -4750,7 +4375,6 @@ public data class InitConnectionConfig(
     }
 
     fun toJson(): Map<String, Any?> = mapOf(
-        "alternativeBillingModeAndroid" to alternativeBillingModeAndroid?.toJson(),
         "billingChoiceScreenTypeAndroid" to billingChoiceScreenTypeAndroid?.toJson(),
         "enableBillingProgramAndroid" to enableBillingProgramAndroid?.toJson(),
     )
@@ -4950,7 +4574,7 @@ public data class RequestPurchaseAndroidProps(
     val obfuscatedProfileId: String? = null,
     /**
      * Offer token for one-time purchase discounts (8.0+).
-     * Pass the offerToken from oneTimePurchaseOfferDetailsAndroid or discountOffers
+     * Pass the offerToken from discountOffers
      * to apply a discount offer to the purchase.
      */
     val offerToken: String? = null,
@@ -5054,13 +4678,7 @@ public data class RequestPurchaseProps(
     /**
      * Explicit purchase type hint (defaults to in-app)
      */
-    val type: ProductQueryType,
-    /**
-     * This flag only logs debug info and has no effect on the purchase flow.
-     * @deprecated Use enableBillingProgramAndroid in InitConnectionConfig instead. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use enableBillingProgramAndroid in InitConnectionConfig instead. Scheduled for removal in OpenIAP 3.0.")
-    val useAlternativeBilling: Boolean? = null
+    val type: ProductQueryType
 ) {
     init {
         when (request) {
@@ -5072,7 +4690,6 @@ public data class RequestPurchaseProps(
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestPurchaseProps {
             val rawType = (json["type"] as String?)?.let { ProductQueryType.fromJson(it) }
-            val useAlternativeBilling = json["useAlternativeBilling"] as Boolean?
             val purchaseJson = json["requestPurchase"] as Map<String, Any?>?
             val subscriptionJson = json["requestSubscription"] as Map<String, Any?>?
             require((purchaseJson == null) != (subscriptionJson == null)) {
@@ -5082,13 +4699,13 @@ public data class RequestPurchaseProps(
                 val request = Request.Purchase(RequestPurchasePropsByPlatforms.fromJson(purchaseJson))
                 val finalType = rawType ?: ProductQueryType.InApp
                 require(finalType == ProductQueryType.InApp) { "type must be IN_APP when requestPurchase is provided" }
-                return RequestPurchaseProps(request = request, type = finalType, useAlternativeBilling = useAlternativeBilling)
+                return RequestPurchaseProps(request = request, type = finalType)
             }
             if (subscriptionJson != null) {
                 val request = Request.Subscription(RequestSubscriptionPropsByPlatforms.fromJson(subscriptionJson))
                 val finalType = rawType ?: ProductQueryType.Subs
                 require(finalType == ProductQueryType.Subs) { "type must be SUBS when requestSubscription is provided" }
-                return RequestPurchaseProps(request = request, type = finalType, useAlternativeBilling = useAlternativeBilling)
+                return RequestPurchaseProps(request = request, type = finalType)
             }
             error("RequestPurchaseProps branch validation failed")
         }
@@ -5098,12 +4715,10 @@ public data class RequestPurchaseProps(
         is Request.Purchase -> mapOf(
             "requestPurchase" to request.value.toJson(),
             "type" to type.toJson(),
-            "useAlternativeBilling" to useAlternativeBilling,
         )
         is Request.Subscription -> mapOf(
             "requestSubscription" to request.value.toJson(),
             "type" to type.toJson(),
-            "useAlternativeBilling" to useAlternativeBilling,
         )
     }
 
@@ -5130,40 +4745,26 @@ public data class RequestPurchaseProps(
  */
 public data class RequestPurchasePropsByPlatforms(
     /**
-     * @deprecated Use google instead. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use google instead. Scheduled for removal in OpenIAP 3.0.", ReplaceWith("google"))
-    val android: RequestPurchaseAndroidProps? = null,
-    /**
      * Apple-specific purchase parameters
      */
     val apple: RequestPurchaseIosProps? = null,
     /**
      * Google-specific purchase parameters
      */
-    val google: RequestPurchaseAndroidProps? = null,
-    /**
-     * @deprecated Use apple instead. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use apple instead. Scheduled for removal in OpenIAP 3.0.", ReplaceWith("apple"))
-    val ios: RequestPurchaseIosProps? = null
+    val google: RequestPurchaseAndroidProps? = null
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestPurchasePropsByPlatforms {
             return RequestPurchasePropsByPlatforms(
-                android = (json["android"] as? Map<String, Any?>)?.let { RequestPurchaseAndroidProps.fromJson(it) },
                 apple = (json["apple"] as? Map<String, Any?>)?.let { RequestPurchaseIosProps.fromJson(it) },
                 google = (json["google"] as? Map<String, Any?>)?.let { RequestPurchaseAndroidProps.fromJson(it) },
-                ios = (json["ios"] as? Map<String, Any?>)?.let { RequestPurchaseIosProps.fromJson(it) },
             )
         }
     }
 
     fun toJson(): Map<String, Any?> = mapOf(
-        "android" to android?.toJson(),
         "apple" to apple?.toJson(),
         "google" to google?.toJson(),
-        "ios" to ios?.toJson(),
     )
 }
 
@@ -5198,12 +4799,6 @@ public data class RequestSubscriptionAndroidProps(
      */
     val purchaseToken: String? = null,
     /**
-     * Replacement mode for subscription changes
-     * @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+). Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+). Scheduled for removal in OpenIAP 3.0.")
-    val replacementMode: Int? = null,
-    /**
      * List of subscription SKUs
      */
     val skus: List<String>,
@@ -5228,7 +4823,6 @@ public data class RequestSubscriptionAndroidProps(
             val obfuscatedProfileId = json["obfuscatedProfileId"] as? String
             val originalExternalTransactionId = json["originalExternalTransactionId"] as? String
             val purchaseToken = json["purchaseToken"] as? String
-            val replacementMode = (json["replacementMode"] as? Number)?.toInt()
             val skus = (json["skus"] as? List<*>)?.mapNotNull { it as? String }
             val subscriptionOffers = (json["subscriptionOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { AndroidSubscriptionOfferInput.fromJson(it) } }
             val subscriptionProductReplacementParams = (json["subscriptionProductReplacementParams"] as? Map<String, Any?>)?.let { SubscriptionProductReplacementParamsAndroid.fromJson(it) }
@@ -5240,7 +4834,6 @@ public data class RequestSubscriptionAndroidProps(
                 obfuscatedProfileId = obfuscatedProfileId,
                 originalExternalTransactionId = originalExternalTransactionId,
                 purchaseToken = purchaseToken,
-                replacementMode = replacementMode,
                 skus = skus,
                 subscriptionOffers = subscriptionOffers,
                 subscriptionProductReplacementParams = subscriptionProductReplacementParams,
@@ -5255,7 +4848,6 @@ public data class RequestSubscriptionAndroidProps(
         "obfuscatedProfileId" to obfuscatedProfileId,
         "originalExternalTransactionId" to originalExternalTransactionId,
         "purchaseToken" to purchaseToken,
-        "replacementMode" to replacementMode,
         "skus" to skus,
         "subscriptionOffers" to subscriptionOffers?.map { it.toJson() },
         "subscriptionProductReplacementParams" to subscriptionProductReplacementParams?.toJson(),
@@ -5358,40 +4950,26 @@ public data class RequestSubscriptionIosProps(
  */
 public data class RequestSubscriptionPropsByPlatforms(
     /**
-     * @deprecated Use google instead. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use google instead. Scheduled for removal in OpenIAP 3.0.", ReplaceWith("google"))
-    val android: RequestSubscriptionAndroidProps? = null,
-    /**
      * Apple-specific subscription parameters
      */
     val apple: RequestSubscriptionIosProps? = null,
     /**
      * Google-specific subscription parameters
      */
-    val google: RequestSubscriptionAndroidProps? = null,
-    /**
-     * @deprecated Use apple instead. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use apple instead. Scheduled for removal in OpenIAP 3.0.", ReplaceWith("apple"))
-    val ios: RequestSubscriptionIosProps? = null
+    val google: RequestSubscriptionAndroidProps? = null
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestSubscriptionPropsByPlatforms {
             return RequestSubscriptionPropsByPlatforms(
-                android = (json["android"] as? Map<String, Any?>)?.let { RequestSubscriptionAndroidProps.fromJson(it) },
                 apple = (json["apple"] as? Map<String, Any?>)?.let { RequestSubscriptionIosProps.fromJson(it) },
                 google = (json["google"] as? Map<String, Any?>)?.let { RequestSubscriptionAndroidProps.fromJson(it) },
-                ios = (json["ios"] as? Map<String, Any?>)?.let { RequestSubscriptionIosProps.fromJson(it) },
             )
         }
     }
 
     fun toJson(): Map<String, Any?> = mapOf(
-        "android" to android?.toJson(),
         "apple" to apple?.toJson(),
         "google" to google?.toJson(),
-        "ios" to ios?.toJson(),
     )
 }
 
@@ -5898,15 +5476,6 @@ public interface MutationResolver {
      */
     suspend fun beginRefundRequestIOS(sku: String): String?
     /**
-     * Check whether alternative billing is available for the user. Step 1 of the alternative billing flow.
-     * Returns true if available, false otherwise.
-     * Throws OpenIapError.NotPrepared if billing client not ready.
-     * See: https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android
-     * @deprecated Use isBillingProgramAvailableAndroid with the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use isBillingProgramAvailableAndroid with the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.")
-    suspend fun checkAlternativeBillingAvailabilityAndroid(): Boolean
-    /**
      * Clear pending transactions in the queue (sandbox helper).
      * See: https://openiap.dev/docs/apis/ios/clear-transaction-ios
      */
@@ -5916,17 +5485,6 @@ public interface MutationResolver {
      * See: https://openiap.dev/docs/apis/android/consume-purchase-android
      */
     suspend fun consumePurchaseAndroid(purchaseToken: String): Boolean
-    /**
-     * Create a reporting token for an alternative billing flow. Step 3 of the alternative billing flow.
-     * Must be called AFTER successful payment in your payment system.
-     * Token must be reported to Google Play backend within 24 hours.
-     * Returns token string, or null if creation failed.
-     * Throws OpenIapError.NotPrepared if billing client not ready.
-     * See: https://openiap.dev/docs/apis/android/create-alternative-billing-token-android
-     * @deprecated Use createBillingProgramReportingDetailsAndroid with the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use createBillingProgramReportingDetailsAndroid with the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.")
-    suspend fun createAlternativeBillingTokenAndroid(): String?
     /**
      * Create the reporting details and external transaction token required by a billing program.
      * Introduced in Play Billing 8.2.0. External Offer and External Content Link integrations
@@ -6001,9 +5559,14 @@ public interface MutationResolver {
     suspend fun openRedeemOfferCodeAndroid(): Boolean
     /**
      * Show the App Store offer code redemption sheet.
+     * On iOS 27+, Mac Catalyst 27+, and visionOS 27+, returns the verified
+     * transaction produced by the redemption. Earlier iOS and Mac Catalyst
+     * versions present the legacy sheet and return null; reconcile purchases
+     * through the normal transaction listener or an explicit available-purchases
+     * refresh.
      * See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
      */
-    suspend fun presentCodeRedemptionSheetIOS(): Boolean
+    suspend fun presentCodeRedemptionSheetIOS(): PurchaseIOS?
     /**
      * Present an external purchase link, StoreKit External (iOS 16+).
      * See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
@@ -6022,28 +5585,10 @@ public interface MutationResolver {
      */
     suspend fun requestPurchase(params: RequestPurchaseProps): RequestPurchaseResult?
     /**
-     * Buy the currently promoted product.
-     *
-     * See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
-     * @deprecated Use the promoted-product listener or callback exposed by your SDK to receive the productId, then call requestPurchase with that SKU instead. In StoreKit 2, promoted products can be purchased directly via the standard purchase flow. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use the promoted-product listener or callback exposed by your SDK to receive the productId, then call requestPurchase with that SKU instead. In StoreKit 2, promoted products can be purchased directly via the standard purchase flow. Scheduled for removal in OpenIAP 3.0.")
-    suspend fun requestPurchaseOnPromotedProductIOS(): Boolean
-    /**
      * Restore non-consumable and active subscription purchases.
      * See: https://openiap.dev/docs/apis/restore-purchases
      */
     suspend fun restorePurchases(): Unit
-    /**
-     * Display Google's alternative billing information dialog. Step 2 of the alternative billing flow.
-     * Must be called BEFORE processing payment in your payment system.
-     * Returns true if user accepted, false if user canceled.
-     * Throws OpenIapError.NotPrepared if billing client not ready.
-     * See: https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android
-     * @deprecated Use launchExternalLinkAndroid instead. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use launchExternalLinkAndroid instead. Scheduled for removal in OpenIAP 3.0.")
-    suspend fun showAlternativeBillingDialogAndroid(): Boolean
     /**
      * Show Google's mandatory information dialog before a developer-rendered,
      * in-app Billing Choice screen.
@@ -6079,13 +5624,6 @@ public interface MutationResolver {
      * See: https://openiap.dev/docs/apis/ios/sync-ios
      */
     suspend fun syncIOS(): Boolean
-    /**
-     * Deprecated. Validate purchase receipts with the configured providers — use verifyPurchase instead.
-     * See: https://openiap.dev/docs/features/validation#verify-purchase
-     * @deprecated Use verifyPurchase. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use verifyPurchase. Scheduled for removal in OpenIAP 3.0.")
-    suspend fun validateReceipt(options: VerifyPurchaseProps): VerifyPurchaseResult
     /**
      * Verify a purchase against your own backend. Returns a platform-specific
      * variant of VerifyPurchaseResult — VerifyPurchaseResultIOS exposes isValid
@@ -6185,14 +5723,6 @@ public interface QueryResolver {
      */
     suspend fun getStorefront(): String
     /**
-     * Deprecated. Get the current App Store storefront ISO 3166-1 alpha-3 country
-     * code — use cross-platform getStorefront instead.
-     * See: https://openiap.dev/docs/apis/ios/get-storefront-ios
-     * @deprecated Use getStorefront. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use getStorefront. Scheduled for removal in OpenIAP 3.0.")
-    suspend fun getStorefrontIOS(): String
-    /**
      * Return the JWS string for a transaction (StoreKit 2).
      * See: https://openiap.dev/docs/apis/ios/get-transaction-jws-ios
      */
@@ -6229,13 +5759,6 @@ public interface QueryResolver {
      * See: https://openiap.dev/docs/apis/ios/subscription-status-ios
      */
     suspend fun subscriptionStatusIOS(sku: String): List<SubscriptionStatusIOS>
-    /**
-     * Deprecated. Legacy App Store receipt validation — use verifyPurchase instead.
-     * See: https://openiap.dev/docs/apis/ios/validate-receipt-ios
-     * @deprecated Use verifyPurchase. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use verifyPurchase. Scheduled for removal in OpenIAP 3.0.")
-    suspend fun validateReceiptIOS(options: VerifyPurchaseProps): VerifyPurchaseResultIOS
 }
 
 /**
@@ -6295,10 +5818,8 @@ public interface SubscriptionResolver {
 
 public typealias MutationAcknowledgePurchaseAndroidHandler = suspend (purchaseToken: String) -> Boolean
 public typealias MutationBeginRefundRequestIOSHandler = suspend (sku: String) -> String?
-public typealias MutationCheckAlternativeBillingAvailabilityAndroidHandler = suspend () -> Boolean
 public typealias MutationClearTransactionIOSHandler = suspend () -> Boolean
 public typealias MutationConsumePurchaseAndroidHandler = suspend (purchaseToken: String) -> Boolean
-public typealias MutationCreateAlternativeBillingTokenAndroidHandler = suspend () -> String?
 public typealias MutationCreateBillingProgramReportingDetailsAndroidHandler = suspend (program: BillingProgramAndroid, developerBillingType: DeveloperBillingTypeAndroid?) -> BillingProgramReportingDetailsAndroid
 public typealias MutationDeepLinkToSubscriptionsHandler = suspend (options: DeepLinkOptions?) -> Unit
 public typealias MutationEndConnectionHandler = suspend () -> Boolean
@@ -6307,19 +5828,16 @@ public typealias MutationInitConnectionHandler = suspend (config: InitConnection
 public typealias MutationIsBillingProgramAvailableAndroidHandler = suspend (program: BillingProgramAndroid) -> BillingProgramAvailabilityResultAndroid
 public typealias MutationLaunchExternalLinkAndroidHandler = suspend (params: LaunchExternalLinkParamsAndroid) -> Boolean
 public typealias MutationOpenRedeemOfferCodeAndroidHandler = suspend () -> Boolean
-public typealias MutationPresentCodeRedemptionSheetIOSHandler = suspend () -> Boolean
+public typealias MutationPresentCodeRedemptionSheetIOSHandler = suspend () -> PurchaseIOS?
 public typealias MutationPresentExternalPurchaseLinkIOSHandler = suspend (url: String) -> ExternalPurchaseLinkResultIOS
 public typealias MutationPresentExternalPurchaseNoticeSheetIOSHandler = suspend () -> ExternalPurchaseNoticeResultIOS
 public typealias MutationRequestPurchaseHandler = suspend (params: RequestPurchaseProps) -> RequestPurchaseResult?
-public typealias MutationRequestPurchaseOnPromotedProductIOSHandler = suspend () -> Boolean
 public typealias MutationRestorePurchasesHandler = suspend () -> Unit
-public typealias MutationShowAlternativeBillingDialogAndroidHandler = suspend () -> Boolean
 public typealias MutationShowBillingProgramInformationDialogAndroidHandler = suspend (params: BillingProgramInformationDialogParamsAndroid) -> BillingResultAndroid
 public typealias MutationShowExternalPurchaseCustomLinkNoticeIOSHandler = suspend (noticeType: ExternalPurchaseCustomLinkNoticeTypeIOS) -> ExternalPurchaseCustomLinkNoticeResultIOS
 public typealias MutationShowInAppMessagesAndroidHandler = suspend (params: InAppMessageParamsAndroid?) -> InAppMessageResultAndroid
 public typealias MutationShowManageSubscriptionsIOSHandler = suspend () -> List<PurchaseIOS>
 public typealias MutationSyncIOSHandler = suspend () -> Boolean
-public typealias MutationValidateReceiptHandler = suspend (options: VerifyPurchaseProps) -> VerifyPurchaseResult
 public typealias MutationVerifyPurchaseHandler = suspend (options: VerifyPurchaseProps) -> VerifyPurchaseResult
 public typealias MutationVerifyPurchaseWithProviderHandler = suspend (options: VerifyPurchaseWithProviderProps) -> VerifyPurchaseWithProviderResult
 
@@ -6335,15 +5853,6 @@ public data class MutationHandlers(
      */
     val beginRefundRequestIOS: MutationBeginRefundRequestIOSHandler? = null,
     /**
-     * Check whether alternative billing is available for the user. Step 1 of the alternative billing flow.
-     * Returns true if available, false otherwise.
-     * Throws OpenIapError.NotPrepared if billing client not ready.
-     * See: https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android
-     * @deprecated Use isBillingProgramAvailableAndroid with the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use isBillingProgramAvailableAndroid with the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.")
-    val checkAlternativeBillingAvailabilityAndroid: MutationCheckAlternativeBillingAvailabilityAndroidHandler? = null,
-    /**
      * Clear pending transactions in the queue (sandbox helper).
      * See: https://openiap.dev/docs/apis/ios/clear-transaction-ios
      */
@@ -6353,17 +5862,6 @@ public data class MutationHandlers(
      * See: https://openiap.dev/docs/apis/android/consume-purchase-android
      */
     val consumePurchaseAndroid: MutationConsumePurchaseAndroidHandler? = null,
-    /**
-     * Create a reporting token for an alternative billing flow. Step 3 of the alternative billing flow.
-     * Must be called AFTER successful payment in your payment system.
-     * Token must be reported to Google Play backend within 24 hours.
-     * Returns token string, or null if creation failed.
-     * Throws OpenIapError.NotPrepared if billing client not ready.
-     * See: https://openiap.dev/docs/apis/android/create-alternative-billing-token-android
-     * @deprecated Use createBillingProgramReportingDetailsAndroid with the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use createBillingProgramReportingDetailsAndroid with the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.")
-    val createAlternativeBillingTokenAndroid: MutationCreateAlternativeBillingTokenAndroidHandler? = null,
     /**
      * Create the reporting details and external transaction token required by a billing program.
      * Introduced in Play Billing 8.2.0. External Offer and External Content Link integrations
@@ -6438,6 +5936,11 @@ public data class MutationHandlers(
     val openRedeemOfferCodeAndroid: MutationOpenRedeemOfferCodeAndroidHandler? = null,
     /**
      * Show the App Store offer code redemption sheet.
+     * On iOS 27+, Mac Catalyst 27+, and visionOS 27+, returns the verified
+     * transaction produced by the redemption. Earlier iOS and Mac Catalyst
+     * versions present the legacy sheet and return null; reconcile purchases
+     * through the normal transaction listener or an explicit available-purchases
+     * refresh.
      * See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
      */
     val presentCodeRedemptionSheetIOS: MutationPresentCodeRedemptionSheetIOSHandler? = null,
@@ -6459,28 +5962,10 @@ public data class MutationHandlers(
      */
     val requestPurchase: MutationRequestPurchaseHandler? = null,
     /**
-     * Buy the currently promoted product.
-     *
-     * See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
-     * @deprecated Use the promoted-product listener or callback exposed by your SDK to receive the productId, then call requestPurchase with that SKU instead. In StoreKit 2, promoted products can be purchased directly via the standard purchase flow. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use the promoted-product listener or callback exposed by your SDK to receive the productId, then call requestPurchase with that SKU instead. In StoreKit 2, promoted products can be purchased directly via the standard purchase flow. Scheduled for removal in OpenIAP 3.0.")
-    val requestPurchaseOnPromotedProductIOS: MutationRequestPurchaseOnPromotedProductIOSHandler? = null,
-    /**
      * Restore non-consumable and active subscription purchases.
      * See: https://openiap.dev/docs/apis/restore-purchases
      */
     val restorePurchases: MutationRestorePurchasesHandler? = null,
-    /**
-     * Display Google's alternative billing information dialog. Step 2 of the alternative billing flow.
-     * Must be called BEFORE processing payment in your payment system.
-     * Returns true if user accepted, false if user canceled.
-     * Throws OpenIapError.NotPrepared if billing client not ready.
-     * See: https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android
-     * @deprecated Use launchExternalLinkAndroid instead. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use launchExternalLinkAndroid instead. Scheduled for removal in OpenIAP 3.0.")
-    val showAlternativeBillingDialogAndroid: MutationShowAlternativeBillingDialogAndroidHandler? = null,
     /**
      * Show Google's mandatory information dialog before a developer-rendered,
      * in-app Billing Choice screen.
@@ -6517,13 +6002,6 @@ public data class MutationHandlers(
      */
     val syncIOS: MutationSyncIOSHandler? = null,
     /**
-     * Deprecated. Validate purchase receipts with the configured providers — use verifyPurchase instead.
-     * See: https://openiap.dev/docs/features/validation#verify-purchase
-     * @deprecated Use verifyPurchase. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use verifyPurchase. Scheduled for removal in OpenIAP 3.0.")
-    val validateReceipt: MutationValidateReceiptHandler? = null,
-    /**
      * Verify a purchase against your own backend. Returns a platform-specific
      * variant of VerifyPurchaseResult — VerifyPurchaseResultIOS exposes isValid
      * + receipt/JWS metadata, VerifyPurchaseResultAndroid carries Play Store
@@ -6556,7 +6034,6 @@ public typealias QueryGetPendingTransactionsIOSHandler = suspend () -> List<Purc
 public typealias QueryGetPromotedProductIOSHandler = suspend () -> ProductIOS?
 public typealias QueryGetReceiptDataIOSHandler = suspend () -> String?
 public typealias QueryGetStorefrontHandler = suspend () -> String
-public typealias QueryGetStorefrontIOSHandler = suspend () -> String
 public typealias QueryGetTransactionJwsIOSHandler = suspend (sku: String) -> String?
 public typealias QueryHasActiveSubscriptionsHandler = suspend (subscriptionIds: List<String>?) -> Boolean
 public typealias QueryIsEligibleForExternalPurchaseCustomLinkIOSHandler = suspend () -> Boolean
@@ -6564,7 +6041,6 @@ public typealias QueryIsEligibleForIntroOfferIOSHandler = suspend (groupID: Stri
 public typealias QueryIsTransactionVerifiedIOSHandler = suspend (sku: String) -> Boolean
 public typealias QueryLatestTransactionIOSHandler = suspend (sku: String) -> PurchaseIOS?
 public typealias QuerySubscriptionStatusIOSHandler = suspend (sku: String) -> List<SubscriptionStatusIOS>
-public typealias QueryValidateReceiptIOSHandler = suspend (options: VerifyPurchaseProps) -> VerifyPurchaseResultIOS
 
 public data class QueryHandlers(
     /**
@@ -6644,14 +6120,6 @@ public data class QueryHandlers(
      */
     val getStorefront: QueryGetStorefrontHandler? = null,
     /**
-     * Deprecated. Get the current App Store storefront ISO 3166-1 alpha-3 country
-     * code — use cross-platform getStorefront instead.
-     * See: https://openiap.dev/docs/apis/ios/get-storefront-ios
-     * @deprecated Use getStorefront. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use getStorefront. Scheduled for removal in OpenIAP 3.0.")
-    val getStorefrontIOS: QueryGetStorefrontIOSHandler? = null,
-    /**
      * Return the JWS string for a transaction (StoreKit 2).
      * See: https://openiap.dev/docs/apis/ios/get-transaction-jws-ios
      */
@@ -6687,14 +6155,7 @@ public data class QueryHandlers(
      * Get subscription status objects from StoreKit 2 (iOS 15+).
      * See: https://openiap.dev/docs/apis/ios/subscription-status-ios
      */
-    val subscriptionStatusIOS: QuerySubscriptionStatusIOSHandler? = null,
-    /**
-     * Deprecated. Legacy App Store receipt validation — use verifyPurchase instead.
-     * See: https://openiap.dev/docs/apis/ios/validate-receipt-ios
-     * @deprecated Use verifyPurchase. Scheduled for removal in OpenIAP 3.0.
-     */
-    @Deprecated("Use verifyPurchase. Scheduled for removal in OpenIAP 3.0.")
-    val validateReceiptIOS: QueryValidateReceiptIOSHandler? = null
+    val subscriptionStatusIOS: QuerySubscriptionStatusIOSHandler? = null
 )
 
 // MARK: - Subscription Helpers

@@ -1,5 +1,3 @@
-import 'dart:collection';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -13,7 +11,8 @@ void main() {
 
   setUp(() {
     log = <MethodCall>[];
-    channel.setMockMethodCallHandler((MethodCall call) async {
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, (MethodCall call) async {
       log.add(call);
       switch (call.method) {
         case 'initConnection':
@@ -39,15 +38,8 @@ void main() {
                 'isFamilyShareableIOS': false,
                 'jsonRepresentationIOS': '{}',
                 'typeIOS': 'AUTO_RENEWABLE_SUBSCRIPTION',
-                'subscriptionInfoIOS': <String, dynamic>{
-                  'subscriptionGroupId': 'group1',
-                  'subscriptionPeriod': <String, dynamic>{
-                    'unit': 'MONTH',
-                    'value': 1,
-                  },
-                  'introductoryOffer': null,
-                  'promotionalOffers': <Map<String, dynamic>>[],
-                },
+                'subscriptionGroupIdIOS': 'group1',
+                'subscriptionOffers': <Map<String, dynamic>>[],
               },
             ];
           }
@@ -66,7 +58,8 @@ void main() {
   });
 
   tearDown(() {
-    channel.setMockMethodCallHandler(null);
+    TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+        .setMockMethodCallHandler(channel, null);
   });
 
   testWidgets('renders subscription tiles and triggers requestPurchase',

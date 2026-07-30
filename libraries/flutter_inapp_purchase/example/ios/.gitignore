@@ -39,6 +39,7 @@ Icon?
 /Flutter/App.framework
 /Flutter/Flutter.framework
 /Flutter/ephemeral/Packages/
+/Flutter/ephemeral/flutter_native_integration.env
 /Flutter/Generated.xcconfig
 /ServiceDefinitions.json
 

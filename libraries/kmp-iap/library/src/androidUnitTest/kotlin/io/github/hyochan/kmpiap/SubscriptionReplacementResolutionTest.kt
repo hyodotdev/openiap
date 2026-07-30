@@ -6,35 +6,24 @@ import kotlin.test.assertNull
 
 class SubscriptionReplacementResolutionTest {
     @Test
-    fun `legacy replacement mode follows native Google precedence`() {
+    fun `subscription replacement follows native Google precedence`() {
         assertNull(
-            resolveLegacySubscriptionReplacementMode(
+            resolveSubscriptionReplacementMode(
                 purchaseToken = null,
                 originalExternalTransactionId = "original-external-id",
-                replacementMode = null
             )
         )
         assertEquals(
             5,
-            resolveLegacySubscriptionReplacementMode(
+            resolveSubscriptionReplacementMode(
                 purchaseToken = "play-purchase-token",
                 originalExternalTransactionId = null,
-                replacementMode = null
-            )
-        )
-        assertEquals(
-            3,
-            resolveLegacySubscriptionReplacementMode(
-                purchaseToken = null,
-                originalExternalTransactionId = "original-external-id",
-                replacementMode = 3
             )
         )
         assertNull(
-            resolveLegacySubscriptionReplacementMode(
+            resolveSubscriptionReplacementMode(
                 purchaseToken = "play-purchase-token",
                 originalExternalTransactionId = null,
-                replacementMode = 3,
                 hasProductLevelReplacementParams = true
             )
         )

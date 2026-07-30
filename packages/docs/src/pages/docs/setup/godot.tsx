@@ -89,6 +89,16 @@ function GodotSetup() {
           </li>
         </ol>
         <p>The zip includes pre-built binaries for both iOS and Android.</p>
+        <p>
+          Native Apple API availability is fixed when the pre-built{' '}
+          <code>GodotIap.framework</code> is compiled. In particular, the
+          verified Apple 27 offer-code result requires a framework built with
+          Xcode 27 or later; a framework built with Xcode 26 still presents the
+          legacy sheet and returns <code>null</code>, even when the app runs on
+          Apple 27. The published godot-iap 3.0.0 iOS framework is built with
+          Xcode 27 and its release workflow rejects an older artifact. Custom
+          builds must use Xcode 27 to retain that result path.
+        </p>
 
         <h3 id="macos-gatekeeper" className="anchor-heading">
           macOS: Damaged Framework Warning

@@ -48,54 +48,27 @@ void main() {
       expect(source, contains('"clientpayload"'));
       expect(source, contains('JSONSerialization.jsonObject(with: data)'));
       expect(source, contains('redacted[entry.key] = "hidden"'));
-      expect(
-        source,
-        contains('private static var emittedDeprecations = Set<String>()'),
-      );
-      expect(
-        source,
-        contains('let inserted = emittedDeprecations.insert(key).inserted'),
-      );
-      expect(
-        source,
-        contains('guard inserted else { return }'),
-      );
     }
   });
 
-  test('Android custom wire fallbacks remain warning-aware and canonical-first',
-      () {
+  test('Android custom wire accepts canonical request fields only', () {
     final source = File(
       'android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt',
     ).readAsStringSync();
 
-    expect(source, contains('if (params.containsKey(canonicalKey))'));
-    expect(
-      source,
-      contains('resolveCanonicalOrLegacy("skus", "skuArr")'),
-    );
-    expect(source, contains('"obfuscatedAccountIdAndroid"'));
-    expect(source, contains('"obfuscatedProfileIdAndroid"'));
-    expect(
-      source,
-      contains(
-        'resolveCanonicalOrLegacy("purchaseToken", "purchaseTokenAndroid")',
-      ),
-    );
-    expect(source, contains('"requestPurchase.offerTokenArr.in-app"'));
-    expect(source, contains('"requestPurchase.offerTokenArr.subs"'));
-    expect(
-      source,
-      contains('Use `subscriptionProductReplacementParams` instead'),
-    );
-    expect(
-      source,
-      isNot(
-        contains(
-          '(params["skus"] as? List<*>)?.filterIsInstance<String>()\n'
-          '                        ?: (params["skuArr"]',
-        ),
-      ),
-    );
+    expect(source, contains('KEY_SKUS'));
+    expect(source, contains('KEY_SUBSCRIPTION_OFFERS'));
+    expect(source, contains('KEY_SUBSCRIPTION_PRODUCT_REPLACEMENT_PARAMS'));
+    for (final removedField in <String>[
+      'skuArr',
+      'offerTokenArr',
+      'obfuscatedAccountIdAndroid',
+      'obfuscatedProfileIdAndroid',
+      'purchaseTokenAndroid',
+      'useAlternativeBilling',
+      'alternativeBillingModeAndroid',
+    ]) {
+      expect(source, isNot(contains(removedField)));
+    }
   });
 }

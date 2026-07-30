@@ -15,8 +15,8 @@ class ProductDetailModal extends StatelessWidget {
   const ProductDetailModal({
     required this.item,
     this.product,
-    Key? key,
-  }) : super(key: key);
+    super.key,
+  });
 
   static void show({
     required BuildContext context,
@@ -118,11 +118,12 @@ class ProductDetailModal extends StatelessWidget {
 
   Widget _buildOneTimeOfferCard(
     int index,
-    ProductAndroidOneTimePurchaseOfferDetail offer,
+    DiscountOffer offer,
   ) {
-    final hasDiscount = offer.discountDisplayInfo != null;
-    final hasTimeWindow = offer.validTimeWindow != null;
-    final hasQuantityLimit = offer.limitedQuantityInfo != null;
+    final hasDiscount = offer.percentageDiscountAndroid != null ||
+        offer.discountAmountMicrosAndroid != null;
+    final hasTimeWindow = offer.validTimeWindowAndroid != null;
+    final hasQuantityLimit = offer.limitedQuantityInfoAndroid != null;
 
     return Card(
       margin: const EdgeInsets.symmetric(vertical: 4),
@@ -157,20 +158,21 @@ class ProductDetailModal extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 8),
-            _buildDetailRow('Price', offer.formattedPrice),
-            _buildDetailRow('Price (micros)', offer.priceAmountMicros),
-            _buildDetailRow('Currency', offer.priceCurrencyCode),
-            if (offer.offerId != null)
-              _buildDetailRow('Offer ID', offer.offerId),
-            if (offer.fullPriceMicros != null)
-              _buildDetailRow('Full Price (micros)', offer.fullPriceMicros),
-            if (offer.offerToken.isNotEmpty)
+            _buildDetailRow('Price', offer.displayPrice),
+            _buildDetailRow('Currency', offer.currency),
+            if (offer.id != null) _buildDetailRow('Offer ID', offer.id),
+            if (offer.fullPriceMicrosAndroid != null)
+              _buildDetailRow(
+                'Full Price (micros)',
+                offer.fullPriceMicrosAndroid,
+              ),
+            if (offer.offerTokenAndroid?.isNotEmpty ?? false)
               _buildDetailRow(
                 'Offer Token',
                 'Present',
               ),
-            if (offer.offerTags.isNotEmpty)
-              _buildDetailRow('Tags', offer.offerTags.join(', ')),
+            if (offer.offerTagsAndroid?.isNotEmpty ?? false)
+              _buildDetailRow('Tags', offer.offerTagsAndroid!.join(', ')),
 
             // Discount Info
             if (hasDiscount) ...[
@@ -185,13 +187,14 @@ class ProductDetailModal extends StatelessWidget {
               const SizedBox(height: 4),
               _buildDetailRow(
                 'Discount %',
-                '${offer.discountDisplayInfo!.percentageDiscount}%',
+                offer.percentageDiscountAndroid == null
+                    ? null
+                    : '${offer.percentageDiscountAndroid}%',
               ),
-              if (offer.discountDisplayInfo!.discountAmount != null)
+              if (offer.formattedDiscountAmountAndroid != null)
                 _buildDetailRow(
                   'Discount Amount',
-                  offer.discountDisplayInfo!.discountAmount!
-                      .formattedDiscountAmount,
+                  offer.formattedDiscountAmountAndroid,
                 ),
             ],
 
@@ -208,11 +211,15 @@ class ProductDetailModal extends StatelessWidget {
               const SizedBox(height: 4),
               _buildDetailRow(
                 'Start',
-                _formatMillis(offer.validTimeWindow!.startTimeMillis),
+                _formatMillis(
+                  offer.validTimeWindowAndroid!.startTimeMillis,
+                ),
               ),
               _buildDetailRow(
                 'End',
-                _formatMillis(offer.validTimeWindow!.endTimeMillis),
+                _formatMillis(
+                  offer.validTimeWindowAndroid!.endTimeMillis,
+                ),
               ),
             ],
 
@@ -229,11 +236,11 @@ class ProductDetailModal extends StatelessWidget {
               const SizedBox(height: 4),
               _buildDetailRow(
                 'Max Quantity',
-                offer.limitedQuantityInfo!.maximumQuantity.toString(),
+                offer.limitedQuantityInfoAndroid!.maximumQuantity.toString(),
               ),
               _buildDetailRow(
                 'Remaining',
-                offer.limitedQuantityInfo!.remainingQuantity.toString(),
+                offer.limitedQuantityInfoAndroid!.remainingQuantity.toString(),
               ),
             ],
 
@@ -411,7 +418,7 @@ class ProductDetailModal extends StatelessWidget {
                   if (item is ProductAndroid) ...[
                     () {
                       final android = item as ProductAndroid;
-                      final offers = android.oneTimePurchaseOfferDetailsAndroid;
+                      final offers = android.discountOffers;
                       if (offers == null || offers.isEmpty) {
                         return const SizedBox.shrink();
                       }
@@ -437,7 +444,7 @@ class ProductDetailModal extends StatelessWidget {
                   if (item is ProductSubscriptionAndroid) ...[
                     () {
                       final android = item as ProductSubscriptionAndroid;
-                      final offers = android.subscriptionOfferDetailsAndroid;
+                      final offers = android.subscriptionOffers;
                       if (offers.isEmpty) {
                         return const SizedBox.shrink();
                       }
@@ -457,16 +464,19 @@ class ProductDetailModal extends StatelessWidget {
                                       children: [
                                         _buildDetailRow(
                                           'Base Plan',
-                                          offer.basePlanId,
+                                          offer.basePlanIdAndroid,
                                         ),
-                                        _buildDetailRow(
-                                          'Offer Token',
-                                          'Present',
-                                        ),
-                                        if (offer.offerTags.isNotEmpty)
+                                        if (offer.offerTokenAndroid != null)
+                                          _buildDetailRow(
+                                            'Offer Token',
+                                            'Present',
+                                          ),
+                                        if (offer
+                                                .offerTagsAndroid?.isNotEmpty ??
+                                            false)
                                           _buildDetailRow(
                                             'Tags',
-                                            offer.offerTags.join(', '),
+                                            offer.offerTagsAndroid!.join(', '),
                                           ),
                                       ],
                                     ),
@@ -479,16 +489,16 @@ class ProductDetailModal extends StatelessWidget {
                     }(),
                   ],
 
-                  // iOS Discounts - for subscription products with offers
+                  // iOS standardized subscription offers
                   if (item is ProductSubscriptionIOS) ...[
                     () {
                       final product = item as ProductSubscriptionIOS;
-                      if (product.discountsIOS?.isNotEmpty ?? false) {
+                      if (product.subscriptionOffers?.isNotEmpty ?? false) {
                         return _buildSection(
-                          'iOS Discounts',
+                          'iOS Subscription Offers',
                           Column(
-                            children: product.discountsIOS!
-                                .map<Widget>((discount) => Card(
+                            children: product.subscriptionOffers!
+                                .map<Widget>((offer) => Card(
                                       margin: const EdgeInsets.symmetric(
                                           vertical: 4),
                                       child: Padding(
@@ -497,55 +507,22 @@ class ProductDetailModal extends StatelessWidget {
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
-                                            _buildDetailRow('Identifier',
-                                                discount.identifier),
-                                            _buildDetailRow('Price',
-                                                discount.localizedPrice),
                                             _buildDetailRow(
-                                                'Type', discount.type),
-                                            _buildDetailRow(
-                                              'Payment Mode',
-                                              discount.paymentMode.toJson(),
+                                              'Identifier',
+                                              offer.id,
                                             ),
-                                          ],
-                                        ),
-                                      ),
-                                    ))
-                                .toList(),
-                          ),
-                        );
-                      }
-                      return const SizedBox.shrink();
-                    }(),
-                  ],
-
-                  // iOS Discounts - for Subscription
-                  if (item is ProductSubscriptionIOS) ...[
-                    () {
-                      final subscription = item as ProductSubscriptionIOS;
-                      if (subscription.discountsIOS?.isNotEmpty ?? false) {
-                        return _buildSection(
-                          'iOS Discounts',
-                          Column(
-                            children: subscription.discountsIOS!
-                                .map<Widget>((discount) => Card(
-                                      margin: const EdgeInsets.symmetric(
-                                          vertical: 4),
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(12),
-                                        child: Column(
-                                          crossAxisAlignment:
-                                              CrossAxisAlignment.start,
-                                          children: [
-                                            _buildDetailRow('Identifier',
-                                                discount.identifier),
-                                            _buildDetailRow('Price',
-                                                discount.localizedPrice),
                                             _buildDetailRow(
-                                                'Type', discount.type),
+                                              'Price',
+                                              offer.localizedPriceIOS ??
+                                                  offer.displayPrice,
+                                            ),
+                                            _buildDetailRow(
+                                              'Type',
+                                              offer.type.toJson(),
+                                            ),
                                             _buildDetailRow(
                                               'Payment Mode',
-                                              discount.paymentMode.toJson(),
+                                              offer.paymentMode?.toJson(),
                                             ),
                                           ],
                                         ),
@@ -655,15 +632,14 @@ class ProductDetailModal extends StatelessWidget {
                                       'Platform: ${subscription.platform}');
                                   if (subscription is ProductSubscriptionIOS) {
                                     debugPrint(
-                                        'iOS Discounts: ${subscription.discountsIOS}');
+                                        'iOS Offers: ${subscription.subscriptionOffers}');
                                   }
                                   if (subscription
                                           is ProductSubscriptionAndroid &&
                                       subscription
-                                          .subscriptionOfferDetailsAndroid
-                                          .isNotEmpty) {
+                                          .subscriptionOffers.isNotEmpty) {
                                     debugPrint(
-                                        'Offer Details: ${subscription.subscriptionOfferDetailsAndroid.length}');
+                                        'Offer Details: ${subscription.subscriptionOffers.length}');
                                   }
                                 }
                                 debugPrint(

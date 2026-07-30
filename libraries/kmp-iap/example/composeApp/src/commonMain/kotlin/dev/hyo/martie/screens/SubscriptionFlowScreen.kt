@@ -110,7 +110,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                         val dateText = Instant.fromEpochMilliseconds(purchase.transactionDate.toLong())
                             .toLocalDateTime(TimeZone.currentSystemDefault())
                         purchaseResult = """
-                    ✅ Subscription successful (${purchase.platform})
+                    ✅ Subscription successful (${purchase.store})
                     Product: ${purchase.productId}
                     Transaction ID: ${purchase.id.ifEmpty { "N/A" }}
                     Date: $dateText
@@ -598,7 +598,11 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                     )
                                 }
 
-                                if (activeSub.willExpireSoon == true) {
+                                if (
+                                    activeSub.daysUntilExpirationIOS?.let {
+                                        it in 0.0..7.0
+                                    } == true
+                                ) {
                                     Text(
                                         text = "  ⚠️ Expiring soon!",
                                         fontSize = 12.sp,
@@ -769,11 +773,11 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                     try {
                                         val purchase = kmpIAP.requestPurchase {
                                             type = ProductType.Subs
-                                            ios {
+                                            apple {
                                                 sku = subscription.id
                                                 quantity = 1
                                             }
-                                            android {
+                                            google {
                                                 skus = listOf(subscription.id)
                                             }
                                         }
@@ -989,7 +993,7 @@ fun SubscriptionCard(
                     }
                     is ProductSubscriptionIOS -> {
                         println("--- iOS Specific ---")
-                        println("Subscription Info: ${subscription.subscriptionInfoIOS}")
+                        println("Subscription Group: ${subscription.subscriptionGroupIdIOS}")
                         subscription.subscriptionOffers?.let { offers ->
                             println("Subscription Offers: ${offers.size} offers")
                             offers.forEach { offer ->

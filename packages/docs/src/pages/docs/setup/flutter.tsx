@@ -95,6 +95,15 @@ function FlutterSetup() {
             <strong>Signing &amp; Capabilities</strong> &gt;{' '}
             <strong>+ Capability</strong> &gt; <strong>In-App Purchase</strong>
           </li>
+          <li>
+            When linking with the iOS 27 SDK, regenerate or migrate an older
+            Runner so its <code>UIApplicationSceneManifest</code> selects{' '}
+            <code>FlutterSceneDelegate</code>. See the{' '}
+            <Link to="/docs/ios-setup#xcode-27-scene-lifecycle">
+              Xcode 27 UIScene checklist
+            </Link>
+            .
+          </li>
         </ul>
         <p>
           Add the following to your <code>ios/Runner/Info.plist</code> (iOS
@@ -208,14 +217,10 @@ function FlutterSetup() {
             margin: '1rem 0',
           }}
         >
-          <strong>Android purchase JSON migration:</strong> the public Purchase
-          field is <code>dataAndroid</code>. The planned Flutter 9.6.1 patch
-          reads that canonical key and temporarily accepts{' '}
-          <code>originalJsonAndroid</code> as a fallback input alias for the
-          remainder of 9.x. The alias is not emitted as a public Purchase field
-          and will be removed in <code>flutter_inapp_purchase 10.0.0</code>.
-          Update custom native adapters, MethodChannel fixtures, and mocks to
-          emit <code>dataAndroid</code> now. See{' '}
+          <strong>Android purchase JSON:</strong> the public Purchase field is{' '}
+          <code>dataAndroid</code>. Flutter 10 does not accept the former
+          custom-channel alias. Native adapters, MethodChannel fixtures, and
+          mocks must emit <code>dataAndroid</code>. See{' '}
           <Link to="/docs/updates/deprecations#flutter-original-json-android">
             Deprecations &amp; 3.0 Migration
           </Link>
@@ -307,30 +312,12 @@ for (final product in products) {
             #
           </a>
         </h3>
-        <div className="alert-card alert-card--warning">
-          <p>
-            <strong>Flutter 9.x record compatibility:</strong> the generated
-            positional purchase records currently require{' '}
-            <code>useAlternativeBilling: null</code> as a placeholder. This is
-            not configuration and must not be set to <code>true</code>; use{' '}
-            <code>enableBillingProgramAndroid</code> on{' '}
-            <code>initConnection</code> when a billing program is needed. The
-            deprecated record field is removed in{' '}
-            <code>flutter_inapp_purchase 10.0.0</code>. See the{' '}
-            <Link to="/docs/updates/deprecations#flutter-10-package-migrations">
-              Flutter 10 migration notes
-            </Link>
-            .
-          </p>
-        </div>
         <CodeBlock language="dart">
           {`// Request purchase (results come through purchaseUpdatedListener)
 await iap.requestPurchase(
   RequestPurchaseProps.inApp((
     apple: RequestPurchaseIosProps(sku: 'premium'),
     google: RequestPurchaseAndroidProps(skus: ['premium']),
-    // Compatibility-only placeholder required by the generated 9.x record.
-    useAlternativeBilling: null,
   )),
 );
 
@@ -342,8 +329,6 @@ await iap.requestPurchase(
       skus: ['monthly_pro'],
       subscriptionOffers: [offer],
     ),
-    // Compatibility-only placeholder required by the generated 9.x record.
-    useAlternativeBilling: null,
   )),
 );`}
         </CodeBlock>

@@ -304,9 +304,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
     private fun requireIosSku(params: RequestPurchaseProps): String? {
         val (sku, kind) = when (val request = params.request) {
             is RequestPurchaseProps.Request.Purchase ->
-                (request.value.apple?.sku ?: request.value.ios?.sku) to "purchase"
+                request.value.apple?.sku to "purchase"
             is RequestPurchaseProps.Request.Subscription ->
-                (request.value.apple?.sku ?: request.value.ios?.sku) to "subscription"
+                request.value.apple?.sku to "subscription"
         }
 
         return if (sku.isNullOrBlank()) {
@@ -336,26 +336,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         }
         else -> value
     }
-
-    /**
-     * Deprecated. Use promotedProductListener and requestPurchase instead.
-     * This function will be removed in kmp-iap 3.0.0.
-     *
-     * @see <a href="https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios">https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios</a>
-     */
-    @Deprecated(
-        message = "Use promotedProductListener and requestPurchase instead. Scheduled for removal in kmp-iap 3.0.0.",
-    )
-    override suspend fun requestPurchaseOnPromotedProductIOS(): Boolean =
-        suspendCancellableCoroutine { continuation ->
-            openIapModule.requestPurchaseOnPromotedProductIOSWithCompletion { success, error ->
-                if (error != null) {
-                    continuation.resumeWithExceptionIfActive(error.toPurchaseException())
-                } else {
-                    continuation.resumeIfActive(success)
-                }
-            }
-        }
 
     /**
      * Restore non-consumable and active subscription purchases.
@@ -424,13 +404,13 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      *
      * @see <a href="https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios">https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios</a>
      */
-    override suspend fun presentCodeRedemptionSheetIOS(): Boolean =
+    override suspend fun presentCodeRedemptionSheetIOS(): PurchaseIOS? =
         suspendCancellableCoroutine { continuation ->
-            openIapModule.presentCodeRedemptionSheetIOSWithCompletion { success, error ->
+            openIapModule.presentCodeRedemptionSheetIOSWithCompletion { payload, error ->
                 if (error != null) {
                     continuation.resumeWithExceptionIfActive(error.toPurchaseException())
                 } else {
-                    continuation.resumeIfActive(success)
+                    continuation.resumeIfActive(convertAnyToPurchaseIOS(payload))
                 }
             }
         }
@@ -498,20 +478,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 continuation.resumeIfActive(success)
             }
         }
-    }
-
-    /**
-     * Deprecated. Use verifyPurchase instead. This function will be removed in
-     * kmp-iap 3.0.0.
-     *
-     * @see <a href="https://openiap.dev/docs/apis/validate-receipt">https://openiap.dev/docs/apis/validate-receipt</a>
-     */
-    @Deprecated(
-        message = "Use verifyPurchase instead. This function will be removed in kmp-iap 3.0.0.",
-    )
-    override suspend fun validateReceipt(options: VerifyPurchaseProps): VerifyPurchaseResult {
-        // Call the iOS-specific version and return the result directly
-        return validateReceiptIOS(options)
     }
 
     // -------------------------------------------------------------------------
@@ -594,21 +560,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      *
      * @see <a href="https://openiap.dev/docs/apis/get-storefront">https://openiap.dev/docs/apis/get-storefront</a>
      */
-    override suspend fun getStorefront(): String {
-        return getStorefrontIOS()
-    }
-
-    /**
-     * Deprecated. Use cross-platform getStorefront instead. This function will
-     * be removed in kmp-iap 3.0.0.
-     *
-     * @see <a href="https://openiap.dev/docs/apis/ios/get-storefront-ios">https://openiap.dev/docs/apis/ios/get-storefront-ios</a>
-     */
-    @Deprecated(
-        message = "Use getStorefront instead. This function will be removed in kmp-iap 3.0.0.",
-    )
-    override suspend fun getStorefrontIOS(): String = suspendCancellableCoroutine { continuation ->
-        openIapModule.getStorefrontIOSWithCompletion { result, error ->
+    override suspend fun getStorefront(): String =
+        suspendCancellableCoroutine { continuation ->
+        openIapModule.getStorefrontWithCompletion { result, error ->
             if (error != null) {
                 continuation.resumeWithExceptionIfActive(error.toPurchaseException())
             } else {
@@ -987,22 +941,13 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             }
         }
 
-    /**
-     * Deprecated. Legacy App Store receipt validation. This function will be
-     * removed in kmp-iap 3.0.0.
-     *
-     * @see <a href="https://openiap.dev/docs/apis/ios/validate-receipt-ios">https://openiap.dev/docs/apis/ios/validate-receipt-ios</a>
-     */
-    @Deprecated(
-        message = "Use verifyPurchase instead. This function will be removed in kmp-iap 3.0.0.",
-    )
-    override suspend fun validateReceiptIOS(options: VerifyPurchaseProps): VerifyPurchaseResultIOS {
+    override suspend fun verifyPurchase(options: VerifyPurchaseProps): VerifyPurchaseResult {
         val sku = options.apple?.sku?.trim()
         if (sku.isNullOrEmpty()) {
             throw PurchaseException(
                 PurchaseError(
                     code = ErrorCode.DeveloperError,
-                    message = "Apple SKU is required for iOS receipt validation"
+                    message = "Apple SKU is required for iOS purchase verification"
                 )
             )
         }
@@ -1041,16 +986,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 }
             }
         }
-    }
-
-    /**
-     * Verify a purchase against your own backend.
-     *
-     * @see <a href="https://openiap.dev/docs/features/validation#verify-purchase">https://openiap.dev/docs/features/validation#verify-purchase</a>
-     */
-    override suspend fun verifyPurchase(options: VerifyPurchaseProps): VerifyPurchaseResult {
-        // Call the iOS-specific validation method
-        return validateReceiptIOS(options)
     }
 
     /**
@@ -1242,20 +1177,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         return decoded.ifEmpty { null }
     }
 
-    private fun convertAnyToSubscriptionInfoIOS(data: Any?): SubscriptionInfoIOS? =
-        normalizeBridgeMap(data)?.let { map ->
-            runCatching { SubscriptionInfoIOS.fromJson(map) }.getOrNull()
-        }
-
-    private fun convertAnyListToDiscountsIOS(data: Any?): List<DiscountIOS>? {
-        val list = data as? List<*> ?: return null
-        return list.mapNotNull { item ->
-            normalizeBridgeMap(item)?.let { map ->
-                runCatching { DiscountIOS.fromJson(map) }.getOrNull()
-            }
-        }.ifEmpty { null }
-    }
-
     @Suppress("UNCHECKED_CAST")
     private fun convertAnyListToPurchases(data: Any?): List<Purchase> {
         if (data == null) return emptyList()
@@ -1302,7 +1223,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
 
                 val map = normalizeProductPayloadIOS(dict) ?: return@mapNotNull null
                 runCatching { ProductIOS.fromJson(map) }.getOrNull()?.let {
-                    return@mapNotNull mergeLegacySubscriptionOffers(it, map)
+                    return@mapNotNull mergeNativeSubscriptionOffers(it, map)
                 }
 
                 // Parse subscription offers from the data (if product has subscription info)
@@ -1322,9 +1243,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     price = (map["price"] as? Number)?.toDouble(),
                     pricingTermsIOS = convertAnyListToSubscriptionPricingTermsIOS(
                         map["pricingTermsIOS"]
-                    ),
-                    subscriptionInfoIOS = convertAnyToSubscriptionInfoIOS(
-                        map["subscriptionInfoIOS"]
                     ),
                     subscriptionOffers = subscriptionOffers.ifEmpty { null },
                     title = map["title"] as? String ?: "",
@@ -1350,7 +1268,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 val dict = (item as? Map<*, *>) ?: return@mapNotNull null
                 val map = normalizeProductPayloadIOS(dict) ?: return@mapNotNull null
                 runCatching { ProductSubscriptionIOS.fromJson(map) }.getOrNull()?.let {
-                    return@mapNotNull mergeLegacySubscriptionOffers(it, map)
+                    return@mapNotNull mergeNativeSubscriptionOffers(it, map)
                 }
 
                 // Parse subscription offers from the data
@@ -1360,7 +1278,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     currency = map["currency"] as? String ?: "",
                     debugDescription = map["debugDescription"] as? String,
                     description = map["description"] as? String ?: "",
-                    discountsIOS = convertAnyListToDiscountsIOS(map["discountsIOS"]),
                     displayName = map["displayName"] as? String,
                     displayNameIOS = map["displayNameIOS"] as? String ?: "",
                     displayPrice = map["displayPrice"] as? String ?: "",
@@ -1380,9 +1297,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     price = (map["price"] as? Number)?.toDouble(),
                     pricingTermsIOS = convertAnyListToSubscriptionPricingTermsIOS(
                         map["pricingTermsIOS"]
-                    ),
-                    subscriptionInfoIOS = convertAnyToSubscriptionInfoIOS(
-                        map["subscriptionInfoIOS"]
                     ),
                     subscriptionOffers = subscriptionOffers.ifEmpty { null },
                     subscriptionGroupIdIOS = map["subscriptionGroupIdIOS"] as? String,
@@ -1413,7 +1327,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 // Native iOS may return either generated union JSON or raw StoreKit maps;
                 // decode the union first, then recover by product type for legacy payloads.
                 runCatching { ProductOrSubscription.fromJson(map) }
-                    .map { mergeLegacySubscriptionOffers(it, map) }
+                    .map { mergeNativeSubscriptionOffers(it, map) }
                     .getOrElse {
                     val type = map["type"] as? String
                     if (type?.equals(ProductType.Subs.rawValue, ignoreCase = true) == true) {
@@ -1436,7 +1350,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         return convertAnyListToSubscriptionOffers(map["subscriptionOffers"])
     }
 
-    private fun mergeLegacySubscriptionOffers(
+    private fun mergeNativeSubscriptionOffers(
         product: Product,
         map: Map<String, Any?>
     ): Product {
@@ -1453,7 +1367,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         }
     }
 
-    private fun mergeLegacySubscriptionOffers(
+    private fun mergeNativeSubscriptionOffers(
         subscription: ProductSubscription,
         map: Map<String, Any?>
     ): ProductSubscription {
@@ -1470,15 +1384,15 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
         }
     }
 
-    private fun mergeLegacySubscriptionOffers(
+    private fun mergeNativeSubscriptionOffers(
         item: ProductOrSubscription,
         map: Map<String, Any?>
     ): ProductOrSubscription = when (item) {
         is ProductOrSubscription.ProductItem ->
-            ProductOrSubscription.ProductItem(mergeLegacySubscriptionOffers(item.value, map))
+            ProductOrSubscription.ProductItem(mergeNativeSubscriptionOffers(item.value, map))
         is ProductOrSubscription.ProductSubscriptionItem ->
             ProductOrSubscription.ProductSubscriptionItem(
-                mergeLegacySubscriptionOffers(item.value, map)
+                mergeNativeSubscriptionOffers(item.value, map)
             )
     }
 
@@ -1490,7 +1404,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             val dict = (data as? Map<*, *>) ?: return null
             val map = normalizeProductPayloadIOS(dict) ?: return null
             runCatching { ProductIOS.fromJson(map) }.getOrNull()?.let {
-                return mergeLegacySubscriptionOffers(it, map) as? ProductIOS ?: it
+                return mergeNativeSubscriptionOffers(it, map) as? ProductIOS ?: it
             }
 
             ProductIOS(
@@ -1507,9 +1421,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                 price = (map["price"] as? Number)?.toDouble(),
                 pricingTermsIOS = convertAnyListToSubscriptionPricingTermsIOS(
                     map["pricingTermsIOS"]
-                ),
-                subscriptionInfoIOS = convertAnyToSubscriptionInfoIOS(
-                    map["subscriptionInfoIOS"]
                 ),
                 subscriptionOffers = subscriptionOffersFrom(map).ifEmpty { null },
                 title = map["title"] as? String ?: "",
@@ -1544,37 +1455,6 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
      */
     override suspend fun consumePurchaseAndroid(purchaseToken: String): Boolean {
         throw UnsupportedOperationException("Android method not available on iOS")
-    }
-
-    // -------------------------------------------------------------------------
-    // Android Alternative Billing Methods (stubs for iOS)
-    // -------------------------------------------------------------------------
-
-    /**
-     * Check whether alternative billing is available for the user.
-     *
-     * @see <a href="https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android">https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android</a>
-     */
-    override suspend fun checkAlternativeBillingAvailabilityAndroid(): Boolean {
-        return false // Not supported on iOS
-    }
-
-    /**
-     * Display Google's alternative billing information dialog.
-     *
-     * @see <a href="https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android">https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android</a>
-     */
-    override suspend fun showAlternativeBillingDialogAndroid(): Boolean {
-        throw UnsupportedOperationException("Android alternative billing not available on iOS")
-    }
-
-    /**
-     * Create a reporting token for an alternative billing flow.
-     *
-     * @see <a href="https://openiap.dev/docs/apis/android/create-alternative-billing-token-android">https://openiap.dev/docs/apis/android/create-alternative-billing-token-android</a>
-     */
-    override suspend fun createAlternativeBillingTokenAndroid(): String? {
-        return null // Not supported on iOS
     }
 
     override suspend fun userChoiceBillingAndroid(): UserChoiceBillingDetails {

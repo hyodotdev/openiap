@@ -51,7 +51,7 @@ import type {Product, ProductSubscription} from '../../src/types';
  * - ProductSubscription = ProductSubscriptionIOS | ProductSubscriptionAndroid (type: 'subs')
  *
  * Benefits:
- * ✅ Type-safe access to platform-specific fields (e.g., discountsIOS, subscriptionOffers)
+ * ✅ Type-safe access to platform-specific fields and subscriptionOffers
  * ✅ Compile-time errors prevent accessing non-existent fields
  * ✅ Better IDE autocomplete and IntelliSense
  * ✅ Runtime safety - no accessing undefined fields
@@ -127,7 +127,10 @@ function AllProducts() {
           '- Subscription Period:',
           product.subscriptionPeriodUnitIOS,
         );
-        console.log('- Has Discounts:', product.discountsIOS?.length || 0);
+        console.log(
+          '- Subscription Offers:',
+          product.subscriptionOffers?.length || 0,
+        );
       } else if (product.platform === 'android') {
         // ✅ Narrowed to: ProductSubscriptionAndroid
         console.log('- Android Subscription detected');
@@ -342,124 +345,6 @@ function AllProducts() {
                       </Text>
                     </>
                   )}
-
-                  {/* iOS Discounts */}
-                  {'discountsIOS' in selectedProduct &&
-                    selectedProduct.discountsIOS &&
-                    selectedProduct.discountsIOS.length > 0 && (
-                      <View style={styles.offersSection}>
-                        <Text style={styles.offersSectionTitle}>
-                          iOS Discounts ({selectedProduct.discountsIOS.length})
-                        </Text>
-                        {selectedProduct.discountsIOS.map((discount, idx) => (
-                          <View key={idx} style={styles.offerCard}>
-                            <Text style={styles.offerTitle}>
-                              {discount.identifier}
-                            </Text>
-                            <Text style={styles.offerDetail}>
-                              Type: {discount.type}
-                            </Text>
-                            <Text style={styles.offerDetail}>
-                              Price: {discount.localizedPrice || discount.price}
-                            </Text>
-                            <Text style={styles.offerDetail}>
-                              Payment Mode: {discount.paymentMode}
-                            </Text>
-                            <Text style={styles.offerDetail}>
-                              Periods: {discount.numberOfPeriods}
-                            </Text>
-                          </View>
-                        ))}
-                      </View>
-                    )}
-
-                  {/* iOS Subscription Info */}
-                  {'subscriptionInfoIOS' in selectedProduct &&
-                    selectedProduct.subscriptionInfoIOS && (
-                      <View style={styles.offersSection}>
-                        <Text style={styles.offersSectionTitle}>
-                          iOS Subscription Info
-                        </Text>
-                        <View style={styles.offerCard}>
-                          {selectedProduct.subscriptionInfoIOS
-                            .subscriptionPeriod && (
-                            <Text style={styles.offerDetail}>
-                              Period:{' '}
-                              {
-                                selectedProduct.subscriptionInfoIOS
-                                  .subscriptionPeriod.value
-                              }{' '}
-                              {
-                                selectedProduct.subscriptionInfoIOS
-                                  .subscriptionPeriod.unit
-                              }
-                            </Text>
-                          )}
-                          {selectedProduct.subscriptionInfoIOS
-                            .introductoryOffer && (
-                            <>
-                              <Text style={styles.offerSubtitle}>
-                                Introductory Offer:
-                              </Text>
-                              <Text style={styles.offerDetail}>
-                                Price:{' '}
-                                {
-                                  selectedProduct.subscriptionInfoIOS
-                                    .introductoryOffer.displayPrice
-                                }
-                              </Text>
-                              <Text style={styles.offerDetail}>
-                                Mode:{' '}
-                                {
-                                  selectedProduct.subscriptionInfoIOS
-                                    .introductoryOffer.paymentMode
-                                }
-                              </Text>
-                              <Text style={styles.offerDetail}>
-                                Periods:{' '}
-                                {
-                                  selectedProduct.subscriptionInfoIOS
-                                    .introductoryOffer.periodCount
-                                }
-                              </Text>
-                            </>
-                          )}
-                          {selectedProduct.subscriptionInfoIOS
-                            .promotionalOffers &&
-                            selectedProduct.subscriptionInfoIOS
-                              .promotionalOffers.length > 0 && (
-                              <>
-                                <Text style={styles.offerSubtitle}>
-                                  Promotional Offers (
-                                  {
-                                    selectedProduct.subscriptionInfoIOS
-                                      .promotionalOffers.length
-                                  }
-                                  ):
-                                </Text>
-                                {selectedProduct.subscriptionInfoIOS.promotionalOffers.map(
-                                  (promo, idx) => (
-                                    <View
-                                      key={idx}
-                                      style={styles.nestedOfferCard}
-                                    >
-                                      <Text style={styles.offerDetail}>
-                                        ID: {promo.id}
-                                      </Text>
-                                      <Text style={styles.offerDetail}>
-                                        Price: {promo.displayPrice}
-                                      </Text>
-                                      <Text style={styles.offerDetail}>
-                                        Mode: {promo.paymentMode}
-                                      </Text>
-                                    </View>
-                                  ),
-                                )}
-                              </>
-                            )}
-                        </View>
-                      </View>
-                    )}
 
                   {/* Discount Offers (Cross-platform) */}
                   {'discountOffers' in selectedProduct &&

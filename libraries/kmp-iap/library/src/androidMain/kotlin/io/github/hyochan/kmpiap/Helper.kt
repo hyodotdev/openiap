@@ -1,7 +1,3 @@
-// Native conversion keeps populating legacy generated projections throughout
-// kmp-iap 2.x. Consumer call sites retain warnings; remove them in 3.0.
-@file:Suppress("DEPRECATION")
-
 package io.github.hyochan.kmpiap
 
 import android.app.Activity
@@ -14,8 +10,6 @@ import com.android.billingclient.api.QueryProductDetailsParams
 import com.android.billingclient.api.QueryProductDetailsResult
 import io.github.hyochan.kmpiap.openiap.ActiveSubscription
 import io.github.hyochan.kmpiap.openiap.BillingProgramAndroid
-import io.github.hyochan.kmpiap.openiap.DiscountAmountAndroid
-import io.github.hyochan.kmpiap.openiap.DiscountDisplayInfoAndroid
 import io.github.hyochan.kmpiap.openiap.DiscountOffer
 import io.github.hyochan.kmpiap.openiap.ErrorCode
 import io.github.hyochan.kmpiap.openiap.ExternalLinkLaunchModeAndroid
@@ -27,11 +21,9 @@ import io.github.hyochan.kmpiap.openiap.LaunchExternalLinkParamsAndroid
 import io.github.hyochan.kmpiap.openiap.LimitedQuantityInfoAndroid
 import io.github.hyochan.kmpiap.openiap.Product
 import io.github.hyochan.kmpiap.openiap.ProductAndroid
-import io.github.hyochan.kmpiap.openiap.ProductAndroidOneTimePurchaseOfferDetail
 import io.github.hyochan.kmpiap.openiap.ProductQueryType
 import io.github.hyochan.kmpiap.openiap.ProductStatusAndroid
 import io.github.hyochan.kmpiap.openiap.ProductSubscriptionAndroid
-import io.github.hyochan.kmpiap.openiap.ProductSubscriptionAndroidOfferDetails
 import io.github.hyochan.kmpiap.openiap.ProductType
 import io.github.hyochan.kmpiap.openiap.PreorderDetailsAndroid
 import io.github.hyochan.kmpiap.openiap.PricingPhaseAndroid
@@ -199,7 +191,6 @@ internal fun unavailableSubscriptionProduct(
     platform = IapPlatform.Android,
     price = null,
     productStatusAndroid = status,
-    subscriptionOfferDetailsAndroid = emptyList(),
     subscriptionOffers = emptyList(),
     title = "",
     type = ProductType.Subs,
@@ -325,12 +316,11 @@ internal fun mapReplacementMode(mode: SubscriptionReplacementModeAndroid): Int? 
         BillingFlowParams.ProductDetailsParams.SubscriptionProductReplacementParams.ReplacementMode.KEEP_EXISTING
 }
 
-internal fun resolveLegacySubscriptionReplacementMode(
+internal fun resolveSubscriptionReplacementMode(
     purchaseToken: String?,
     originalExternalTransactionId: String?,
-    replacementMode: Int?,
     hasProductLevelReplacementParams: Boolean = false
-): Int? = if (hasProductLevelReplacementParams) null else replacementMode ?: 5.takeIf {
+): Int? = if (hasProductLevelReplacementParams) null else 5.takeIf {
     !purchaseToken.isNullOrBlank() && originalExternalTransactionId.isNullOrBlank()
 }
 
@@ -508,7 +498,6 @@ internal fun com.android.billingclient.api.Purchase.toPurchase(): Purchase {
         obfuscatedProfileIdAndroid = accountIdentifiers?.obfuscatedProfileId,
         packageNameAndroid = packageName,
         pendingPurchaseUpdateAndroid = pendingUpdate,
-        platform = IapPlatform.Android,
         productId = products.firstOrNull() ?: "",
         store = IapStore.Google,
         purchaseState = purchaseStateEnum,
@@ -555,18 +544,12 @@ internal fun ProductDetails.toProduct(): Product {
         pricingPhase != null -> pricingPhase.priceCurrencyCode
         else -> "USD"
     }
-    val oneTimeOfferDetails = if (allOneTimeOffers.isNotEmpty()) {
-        allOneTimeOffers.map { it.toOfferDetail() }
-    } else {
-        oneTime?.let { listOf(it.toOfferDetail()) }
-    }
     val discountOffers = if (allOneTimeOffers.isNotEmpty()) {
         allOneTimeOffers.map { it.toDiscountOffer() }
     } else {
         oneTime?.let { listOf(it.toDiscountOffer()) }
     }
-    val subscriptionOfferDetails = offers?.map { it.toOfferDetail() }
-    val subscriptionOffers = subscriptionOfferDetails?.map { it.toSubscriptionOffer() }
+    val subscriptionOffers = offers?.map { it.toSubscriptionOffer() }
 
     return ProductAndroid(
         currency = currencyCode,
@@ -577,11 +560,9 @@ internal fun ProductDetails.toProduct(): Product {
         displayPrice = displayPrice,
         id = productId,
         nameAndroid = name,
-        oneTimePurchaseOfferDetailsAndroid = oneTimeOfferDetails,
         platform = IapPlatform.Android,
         price = priceValue,
         productStatusAndroid = ProductStatusAndroid.Ok,
-        subscriptionOfferDetailsAndroid = subscriptionOfferDetails,
         subscriptionOffers = subscriptionOffers,
         title = title,
         type = productType
@@ -590,74 +571,21 @@ internal fun ProductDetails.toProduct(): Product {
 
 internal fun ProductDetails.toSubscriptionProduct(): ProductSubscriptionAndroid? {
     val product = toProduct() as? ProductAndroid ?: return null
-    val offers = product.subscriptionOfferDetailsAndroid ?: return null
+    val offers = product.subscriptionOffers ?: return null
     return ProductSubscriptionAndroid(
         currency = product.currency,
         debugDescription = product.debugDescription,
         description = product.description,
-        discountOffers = product.discountOffers,
         displayName = product.displayName,
         displayPrice = product.displayPrice,
         id = product.id,
         nameAndroid = product.nameAndroid,
-        oneTimePurchaseOfferDetailsAndroid = product.oneTimePurchaseOfferDetailsAndroid,
         platform = product.platform,
         price = product.price,
         productStatusAndroid = product.productStatusAndroid,
-        subscriptionOfferDetailsAndroid = offers,
-        subscriptionOffers = offers.map { it.toSubscriptionOffer() },
+        subscriptionOffers = offers,
         title = product.title,
         type = product.type
-    )
-}
-
-private fun ProductDetails.OneTimePurchaseOfferDetails.toOfferDetail(): ProductAndroidOneTimePurchaseOfferDetail {
-    val discountInfo = runCatching { discountDisplayInfo }.getOrNull()
-
-    return ProductAndroidOneTimePurchaseOfferDetail(
-        discountDisplayInfo = discountInfo?.let { info ->
-            DiscountDisplayInfoAndroid(
-                discountAmount = runCatching { info.discountAmount }.getOrNull()?.let { amount ->
-                    DiscountAmountAndroid(
-                        discountAmountMicros = amount.discountAmountMicros.toString(),
-                        formattedDiscountAmount = amount.formattedDiscountAmount
-                    )
-                },
-                percentageDiscount = runCatching { info.percentageDiscount }.getOrNull()
-            )
-        },
-        formattedPrice = formattedPrice,
-        fullPriceMicros = runCatching { fullPriceMicros?.toString() }.getOrNull(),
-        limitedQuantityInfo = runCatching { limitedQuantityInfo }.getOrNull()?.let { info ->
-            LimitedQuantityInfoAndroid(
-                maximumQuantity = info.maximumQuantity,
-                remainingQuantity = info.remainingQuantity
-            )
-        },
-        offerId = runCatching { offerId }.getOrNull(),
-        offerTags = runCatching { offerTags.orEmpty() }.getOrElse { emptyList() },
-        offerToken = billingStringOrEmpty { this.offerToken },
-        preorderDetailsAndroid = runCatching { preorderDetails }.getOrNull()?.let { details ->
-            PreorderDetailsAndroid(
-                preorderPresaleEndTimeMillis = details.preorderPresaleEndTimeMillis.toString(),
-                preorderReleaseTimeMillis = details.preorderReleaseTimeMillis.toString()
-            )
-        },
-        priceAmountMicros = priceAmountMicros.toString(),
-        priceCurrencyCode = priceCurrencyCode,
-        purchaseOptionId = runCatching { purchaseOptionId }.getOrNull(),
-        rentalDetailsAndroid = runCatching { rentalDetails }.getOrNull()?.let { details ->
-            RentalDetailsAndroid(
-                rentalPeriod = details.rentalPeriod,
-                rentalExpirationPeriod = runCatching { details.rentalExpirationPeriod }.getOrNull()
-            )
-        },
-        validTimeWindow = runCatching { validTimeWindow }.getOrNull()?.let { window ->
-            ValidTimeWindowAndroid(
-                startTimeMillis = window.startTimeMillis.toString(),
-                endTimeMillis = window.endTimeMillis.toString()
-            )
-        }
     )
 }
 
@@ -708,12 +636,20 @@ private fun ProductDetails.OneTimePurchaseOfferDetails.toDiscountOffer(): Discou
     )
 }
 
-/**
- * Convert ProductSubscriptionAndroidOfferDetails to SubscriptionOffer.
- * Maps Android-specific offer details to cross-platform SubscriptionOffer type.
- */
-internal fun ProductSubscriptionAndroidOfferDetails.toSubscriptionOffer(): SubscriptionOffer {
-    val firstPhase = pricingPhases.pricingPhaseList.firstOrNull()
+internal fun ProductDetails.SubscriptionOfferDetails.toSubscriptionOffer(): SubscriptionOffer {
+    val mappedPricingPhases = PricingPhasesAndroid(
+        pricingPhaseList = pricingPhases.pricingPhaseList.map { phase ->
+            PricingPhaseAndroid(
+                billingCycleCount = phase.billingCycleCount,
+                billingPeriod = phase.billingPeriod,
+                formattedPrice = phase.formattedPrice,
+                priceAmountMicros = phase.priceAmountMicros.toString(),
+                priceCurrencyCode = phase.priceCurrencyCode,
+                recurrenceMode = phase.recurrenceMode,
+            )
+        },
+    )
+    val firstPhase = mappedPricingPhases.pricingPhaseList.firstOrNull()
     val period = firstPhase?.billingPeriod?.let { parseBillingPeriod(it) }
 
     // Determine payment mode from first pricing phase
@@ -736,7 +672,7 @@ internal fun ProductSubscriptionAndroidOfferDetails.toSubscriptionOffer(): Subsc
 
     // Determine offer type
     val type = when {
-        offerId != null && offerId.isNotEmpty() -> DiscountOfferType.Promotional
+        !offerId.isNullOrEmpty() -> DiscountOfferType.Promotional
         paymentMode == PaymentMode.FreeTrial -> DiscountOfferType.Introductory
         else -> DiscountOfferType.Introductory
     }
@@ -753,8 +689,14 @@ internal fun ProductSubscriptionAndroidOfferDetails.toSubscriptionOffer(): Subsc
         basePlanIdAndroid = basePlanId,
         offerTokenAndroid = offerToken,
         offerTagsAndroid = offerTags,
-        pricingPhasesAndroid = pricingPhases,
-        installmentPlanDetailsAndroid = installmentPlanDetails
+        pricingPhasesAndroid = mappedPricingPhases,
+        installmentPlanDetailsAndroid = runCatching { installmentPlanDetails }.getOrNull()?.let { details ->
+            InstallmentPlanDetailsAndroid(
+                commitmentPaymentsCount = details.installmentPlanCommitmentPaymentsCount,
+                subsequentCommitmentPaymentsCount =
+                    details.subsequentInstallmentPlanCommitmentPaymentsCount,
+            )
+        },
     )
 }
 
@@ -784,35 +726,6 @@ private fun determinePaymentMode(
         recurrenceMode == 1 -> PaymentMode.PayAsYouGo
         else -> PaymentMode.Unknown
     }
-
-internal fun ProductDetails.SubscriptionOfferDetails.toOfferDetail(): ProductSubscriptionAndroidOfferDetails {
-    val installmentDetails = runCatching { installmentPlanDetails }.getOrNull()?.let { details ->
-        InstallmentPlanDetailsAndroid(
-            commitmentPaymentsCount = details.installmentPlanCommitmentPaymentsCount,
-            subsequentCommitmentPaymentsCount = details.subsequentInstallmentPlanCommitmentPaymentsCount
-        )
-    }
-
-    return ProductSubscriptionAndroidOfferDetails(
-        basePlanId = basePlanId,
-        installmentPlanDetails = installmentDetails,
-        offerId = offerId,
-        offerTags = offerTags,
-        offerToken = offerToken,
-        pricingPhases = PricingPhasesAndroid(
-            pricingPhaseList = pricingPhases.pricingPhaseList.map { phase ->
-                PricingPhaseAndroid(
-                    billingCycleCount = phase.billingCycleCount,
-                    billingPeriod = phase.billingPeriod,
-                    formattedPrice = phase.formattedPrice,
-                    priceAmountMicros = phase.priceAmountMicros.toString(),
-                    priceCurrencyCode = phase.priceCurrencyCode,
-                    recurrenceMode = phase.recurrenceMode
-                )
-            }
-        )
-    )
-}
 
 // ---------------------------------------------------------------------
 // Billing Programs API Mapping Functions (Android 8.2.0+)

@@ -114,20 +114,15 @@ fun ProductCard(
             ) {
                 // Check for discount using new standardized DiscountOffer type (preferred)
                 val standardizedDiscount = product.discountOffers?.firstOrNull()
-                // Fall back to deprecated type for backward compatibility
-                val legacyOffer = product.oneTimePurchaseOfferDetailsAndroid?.firstOrNull()
-                val discountInfo = legacyOffer?.discountDisplayInfo
 
-                // Use standardized type if available, otherwise fall back to legacy
-                val hasDiscount = standardizedDiscount != null || discountInfo != null
+                val hasDiscount = standardizedDiscount != null
 
                 if (hasDiscount) {
                     // Show original price with strikethrough
-                    val fullPriceMicros = standardizedDiscount?.fullPriceMicrosAndroid?.toLongOrNull()
-                        ?: legacyOffer?.fullPriceMicros?.toLongOrNull()
+                    val fullPriceMicros = standardizedDiscount.fullPriceMicrosAndroid?.toLongOrNull()
                     if (fullPriceMicros != null) {
                         val fullPrice = fullPriceMicros.toDouble() / 1_000_000.0
-                        val currencyCode = standardizedDiscount?.currency ?: legacyOffer?.priceCurrencyCode ?: ""
+                        val currencyCode = standardizedDiscount.currency
                         Text(
                             "$currencyCode ${String.format(Locale.getDefault(), "%.2f", fullPrice)}",
                             style = MaterialTheme.typography.bodyMedium,
@@ -144,19 +139,13 @@ fun ProductCard(
                     color = if (hasDiscount) AppColors.success else AppColors.primary
                 )
 
-                // Show discount badge using standardized type or legacy
+                // Show discount badge using the standardized type.
                 if (hasDiscount) {
                     val discountText: String = when {
-                        // Prefer standardized DiscountOffer fields
                         standardizedDiscount?.percentageDiscountAndroid != null ->
                             "${standardizedDiscount.percentageDiscountAndroid}% OFF"
                         standardizedDiscount?.formattedDiscountAmountAndroid != null ->
                             standardizedDiscount.formattedDiscountAmountAndroid!!
-                        // Fall back to legacy discountDisplayInfo
-                        discountInfo?.percentageDiscount != null ->
-                            "${discountInfo.percentageDiscount}% OFF"
-                        discountInfo?.discountAmount?.formattedDiscountAmount != null ->
-                            discountInfo.discountAmount!!.formattedDiscountAmount
                         else -> "SALE"
                     }
                     Surface(

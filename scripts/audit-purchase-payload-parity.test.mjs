@@ -10,149 +10,21 @@ import {
   maskTypeScriptCommentsAndStrings,
 } from "./audit-purchase-payload-parity.mjs";
 
-const canonicalHelper = `
-dynamic _canonicalOrLegacy(
-  Map<String, dynamic> payload, {
-  required String canonicalKey,
-  required String legacyKey,
-}) {
-  if (payload.containsKey(canonicalKey)) {
-    return payload[canonicalKey];
-  }
-  final legacy = payload[legacyKey];
-  return legacy;
-}
-`;
-
-test("Flutter canonical helper preserves canonical-first payload lookup", () => {
+test("Flutter canonical inspection reads the requested source key", () => {
   const result = inspectFlutterCanonicalExpression(
-    canonicalHelper,
-    `_canonicalOrLegacy(
-      sourcePayload,
-      canonicalKey: 'dataAndroid',
-      legacyKey: 'originalJsonAndroid',
-    )?.toString()`,
+    "sourcePayload['dataAndroid']?.toString()",
   );
 
   assert.deepEqual(result, { issues: [], sourceKey: "dataAndroid" });
 });
 
-test("Flutter canonical helper rejects a legacy-first implementation", () => {
-  const legacyFirst = canonicalHelper.replace(
-    `if (payload.containsKey(canonicalKey)) {
-    return payload[canonicalKey];
-  }
-  final legacy = payload[legacyKey];`,
-    `final legacy = payload[legacyKey];
-  if (legacy != null) {
-    return legacy;
-  }
-  return payload[canonicalKey];`,
-  );
+test("Flutter canonical inspection rejects fallback expressions", () => {
   const result = inspectFlutterCanonicalExpression(
-    legacyFirst,
-    `_canonicalOrLegacy(
-      sourcePayload,
-      canonicalKey: 'purchaseState',
-      legacyKey: 'purchaseStateAndroid',
-    )`,
+    "sourcePayload['purchaseStateAndroid'] ?? sourcePayload['purchaseState']",
   );
 
   assert.equal(result.sourceKey, null);
-  assert.match(result.issues.join("\n"), /canonicalKey.*legacyKey/);
-});
-
-test("Flutter canonical helper call sites retain their declared source key", () => {
-  const result = inspectFlutterCanonicalExpression(
-    canonicalHelper,
-    `_coerceAndroidPurchaseState(
-      _canonicalOrLegacy(
-        sourcePayload,
-        canonicalKey: 'purchaseState',
-        legacyKey: 'purchaseStateAndroid',
-      ),
-    )`,
-  );
-
-  assert.deepEqual(result, { issues: [], sourceKey: "purchaseState" });
-});
-
-test("Flutter canonical helper call sites cannot claim a different field", () => {
-  const result = inspectFlutterCanonicalExpression(
-    canonicalHelper,
-    `_canonicalOrLegacy(
-      sourcePayload,
-      canonicalKey: 'originalJsonAndroid',
-      legacyKey: 'dataAndroid',
-    )`,
-  );
-
-  assert.deepEqual(result, {
-    issues: [],
-    sourceKey: "originalJsonAndroid",
-  });
-});
-
-test("Flutter canonical helper ignores canonical-looking comments", () => {
-  const decoy = `
-dynamic _canonicalOrLegacy(
-  Map<String, dynamic> payload, {
-  required String canonicalKey,
-  required String legacyKey,
-}) {
-  // if (payload.containsKey(canonicalKey)) {
-  //   return payload[canonicalKey];
-  // }
-  final legacy = payload[legacyKey];
-  return legacy;
-}
-`;
-  const result = inspectFlutterCanonicalExpression(
-    decoy,
-    `_canonicalOrLegacy(
-      sourcePayload,
-      canonicalKey: 'purchaseState',
-      legacyKey: 'transactionStateIOS',
-    )`,
-  );
-
-  assert.equal(result.sourceKey, null);
-  assert.match(result.issues.join("\n"), /canonicalKey.*legacyKey/);
-});
-
-test("Flutter canonical helper rejects an early return before canonical data", () => {
-  const earlyReturn = canonicalHelper.replace(
-    "if (payload.containsKey(canonicalKey)) {",
-    "if (payload.isEmpty) return legacy;\n  if (payload.containsKey(canonicalKey)) {",
-  );
-  const result = inspectFlutterCanonicalExpression(
-    earlyReturn,
-    `_canonicalOrLegacy(
-      sourcePayload,
-      canonicalKey: 'purchaseState',
-      legacyKey: 'purchaseStateAndroid',
-    )`,
-  );
-
-  assert.equal(result.sourceKey, null);
-  assert.match(result.issues.join("\n"), /canonicalKey.*legacyKey/);
-});
-
-test("a fallback before the helper remains the first payload source", () => {
-  const result = inspectFlutterCanonicalExpression(
-    canonicalHelper,
-    `sourcePayload['originalJsonAndroid'] ??
-      _canonicalOrLegacy(
-        sourcePayload,
-        canonicalKey: 'dataAndroid',
-        legacyKey: 'originalJsonAndroid',
-      )`,
-  );
-
-  assert.deepEqual(result, {
-    issues: [],
-    sourceKey: "originalJsonAndroid",
-  });
+  assert.deepEqual(result.issues, []);
 });
 
 test("Flutter canonical inspection follows own-key presence selectors", () => {
@@ -161,11 +33,7 @@ test("Flutter canonical inspection follows own-key presence selectors", () => {
     final sourceId = sourcePayload['id']?.toString();
     final purchaseId = hasSourceId ? sourceId : null;
   `;
-  const result = inspectFlutterCanonicalExpression(
-    canonicalHelper,
-    "purchaseId",
-    functionBody,
-  );
+  const result = inspectFlutterCanonicalExpression("purchaseId", functionBody);
 
   assert.deepEqual(result, { issues: [], sourceKey: "id" });
 });
@@ -176,7 +44,6 @@ test("Flutter canonical inspection follows transaction selection helper", () => 
     final sourceTransactionId = transactionIdSelection.value;
   `;
   const result = inspectFlutterCanonicalExpression(
-    canonicalHelper,
     "sourceTransactionId",
     functionBody,
   );

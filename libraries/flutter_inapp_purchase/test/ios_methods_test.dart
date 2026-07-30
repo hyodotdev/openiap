@@ -22,7 +22,17 @@ void main() {
           case 'initConnection':
             return true;
           case 'presentCodeRedemptionSheetIOS':
-            return true;
+            return <String, dynamic>{
+              'id': 'redeemed-transaction',
+              'productId': 'com.example.subscription',
+              'transactionDate': 1700000000000,
+              'transactionId': 'redeemed-transaction',
+              'purchaseState': 'PURCHASED',
+              'purchaseToken': 'redeemed-jws',
+              'quantity': 1,
+              'isAutoRenewing': true,
+              'store': 'apple',
+            };
           case 'showManageSubscriptionsIOS':
             return <Map<String, dynamic>>[
               <String, dynamic>{
@@ -40,28 +50,10 @@ void main() {
             ];
           case 'deepLinkToSubscriptions':
             return null;
-          case 'getStorefrontIOS':
-            return <String, dynamic>{'countryCode': 'US'};
+          case 'getStorefront':
+            return 'US';
           case 'syncIOS':
             return true;
-          case 'validateReceiptIOS':
-            return <String, dynamic>{
-              'isValid': true,
-              'jwsRepresentation': 'jws-token',
-              'receiptData': 'receipt-data',
-              'latestTransaction': <String, dynamic>{
-                '__typename': 'PurchaseIOS',
-                'id': 'txn-ios',
-                'productId': 'com.example.prod1',
-                'platform': 'IOS',
-                'store': 'apple',
-                'purchaseState': 'PURCHASED',
-                'quantity': 1,
-                'transactionDate': 1700000000000,
-                'transactionId': 'txn-ios',
-                'isAutoRenewing': false,
-              },
-            };
           case 'isEligibleForIntroOfferIOS':
             return true;
           case 'subscriptionStatusIOS':
@@ -76,7 +68,7 @@ void main() {
                 'productId': 'com.example.prod1',
                 'transactionId': 'txn-available',
                 'purchaseState': 'PURCHASED',
-                'transactionReceipt': 'receipt-data',
+                'purchaseToken': 'receipt-data',
                 'transactionDate': 1700000000000,
               },
             ];
@@ -104,13 +96,11 @@ void main() {
                 'productId': 'com.example.prod1',
                 'transactionId': 'txn-history',
                 'purchaseState': 'PURCHASED',
-                'transactionReceipt': 'history-receipt',
+                'purchaseToken': 'history-receipt',
                 'transactionDate': 1700000000000,
               },
             ];
           case 'clearTransactionIOS':
-            return true;
-          case 'requestPurchaseOnPromotedProductIOS':
             return true;
           case 'getPromotedProductIOS':
             return <String, dynamic>{
@@ -123,7 +113,6 @@ void main() {
               'jsonRepresentationIOS': '{}',
               'platform': 'IOS',
               'price': 0.99,
-              'subscriptionInfoIOS': null,
               'title': 'Prod 1',
               'type': 'IN_APP',
               'typeIOS': 'CONSUMABLE',
@@ -176,7 +165,7 @@ void main() {
                 'id': '1000001',
                 'productId': 'com.example.prod1',
                 'transactionDate': DateTime.now().millisecondsSinceEpoch,
-                'transactionReceipt': 'xyz',
+                'transactionId': '1000001',
                 'purchaseToken': 'jwt-token',
                 'platform': 'ios',
                 'store': 'apple',
@@ -212,19 +201,20 @@ void main() {
     test(
       'presentCodeRedemptionSheetIOS calls correct channel method',
       () async {
-        expect(await iap.presentCodeRedemptionSheetIOS(), isTrue);
+        final purchase = await iap.presentCodeRedemptionSheetIOS();
+        expect(purchase?.id, 'redeemed-transaction');
         expect(calls.last.method, 'presentCodeRedemptionSheetIOS');
       },
     );
 
-    test('presentCodeRedemptionSheetIOS preserves native false', () async {
+    test('presentCodeRedemptionSheetIOS preserves legacy null', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
-        if (methodCall.method == 'presentCodeRedemptionSheetIOS') return false;
+        if (methodCall.method == 'presentCodeRedemptionSheetIOS') return null;
         return null;
       });
 
-      expect(await iap.presentCodeRedemptionSheetIOS(), isFalse);
+      expect(await iap.presentCodeRedemptionSheetIOS(), isNull);
     });
 
     test('showManageSubscriptionsIOS returns changed purchases', () async {
@@ -244,10 +234,10 @@ void main() {
       expect(calls.last.method, 'deepLinkToSubscriptions');
     });
 
-    test('getStorefrontIOS returns storefront country code', () async {
-      final code = await iap.getStorefrontIOS();
+    test('getStorefront returns storefront country code', () async {
+      final code = await iap.getStorefront();
       expect(code, 'US');
-      expect(calls.last.method, 'getStorefrontIOS');
+      expect(calls.last.method, 'getStorefront');
     });
 
     test('getPromotedProduct returns structured map', () async {
@@ -255,44 +245,6 @@ void main() {
       expect(product, isA<ProductIOS>());
       expect(product!.id, 'com.example.prod1');
       expect(calls.last.method, 'getPromotedProductIOS');
-    });
-
-    test('getPromotedProductIOS normalizes nested platform maps', () async {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
-        if (methodCall.method == 'getPromotedProductIOS') {
-          return <Object?, Object?>{
-            'currency': 'USD',
-            'description': 'Subscription',
-            'displayNameIOS': 'Premium',
-            'displayPrice': r'$4.99',
-            'id': 'com.example.premium',
-            'isFamilyShareableIOS': true,
-            'jsonRepresentationIOS': '{}',
-            'platform': 'ios',
-            'price': 4.99,
-            'subscriptionInfoIOS': <Object?, Object?>{
-              'subscriptionGroupId': 'premium-group',
-              'subscriptionPeriod': <Object?, Object?>{
-                'unit': 'month',
-                'value': 1,
-              },
-            },
-            'title': 'Premium',
-            'type': 'subs',
-            'typeIOS': 'auto-renewable-subscription',
-          };
-        }
-        return null;
-      });
-
-      final product = await iap.getPromotedProductIOS();
-      expect(
-          product?.subscriptionInfoIOS?.subscriptionGroupId, 'premium-group');
-      expect(
-        product?.subscriptionInfoIOS?.subscriptionPeriod.unit,
-        SubscriptionPeriodIOS.Month,
-      );
     });
 
     test('getPendingTransactionsIOS returns purchases list', () async {
@@ -330,134 +282,6 @@ void main() {
       await expectLater(
         iap.getAllTransactionsIOS(),
         throwsA(isA<PurchaseError>()),
-      );
-    });
-
-    test('validateReceiptIOS returns structured result', () async {
-      await iap.initConnection();
-
-      final result = await iap.validateReceiptIOS(
-        apple: const VerifyPurchaseAppleOptions(sku: 'com.example.prod1'),
-      );
-
-      expect(result.isValid, isTrue);
-      expect(result.latestTransaction, isA<Purchase>());
-      expect(calls.last.method, 'validateReceiptIOS');
-    });
-
-    test('validateReceiptIOS normalizes a nested native transaction', () async {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
-        if (methodCall.method == 'initConnection') {
-          return true;
-        }
-        if (methodCall.method == 'validateReceiptIOS') {
-          return <Object?, Object?>{
-            '__typename': 'VerifyPurchaseResultIOS',
-            'isValid': true,
-            'jwsRepresentation': 'nested-jws',
-            'receiptData': 'nested-receipt',
-            'latestTransaction': <Object?, Object?>{
-              '__typename': 'PurchaseIOS',
-              'id': 'nested-transaction',
-              'isAutoRenewing': false,
-              'platform': 'ios',
-              'productId': 'com.example.prod1',
-              'purchaseState': 'purchased',
-              'quantity': 1,
-              'store': 'apple',
-              'transactionDate': 1700000000000,
-              'transactionId': 'nested-transaction',
-            },
-          };
-        }
-        return null;
-      });
-
-      await iap.initConnection();
-      final result = await iap.validateReceiptIOS(
-        apple: const VerifyPurchaseAppleOptions(sku: 'com.example.prod1'),
-      );
-
-      expect(result.latestTransaction?.id, 'nested-transaction');
-    });
-
-    test('validateReceiptIOS throws when connection not initialized', () async {
-      await expectLater(
-        iap.validateReceiptIOS(
-          apple: const VerifyPurchaseAppleOptions(sku: 'com.example.prod1'),
-        ),
-        throwsA(
-          isA<PurchaseError>().having(
-            (error) => error.code,
-            'code',
-            ErrorCode.NotPrepared,
-          ),
-        ),
-      );
-    });
-
-    test('validateReceiptIOS rejects empty SKU', () async {
-      await iap.initConnection();
-
-      await expectLater(
-        iap.validateReceiptIOS(
-          apple: const VerifyPurchaseAppleOptions(sku: '   '),
-        ),
-        throwsA(
-          isA<PurchaseError>().having(
-            (error) => error.code,
-            'code',
-            ErrorCode.DeveloperError,
-          ),
-        ),
-      );
-    });
-
-    test('validateReceiptIOS wraps platform exceptions', () async {
-      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-          .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
-        if (methodCall.method == 'initConnection') {
-          return true;
-        }
-        if (methodCall.method == 'validateReceiptIOS') {
-          throw PlatformException(code: '500', message: 'native error');
-        }
-        return null;
-      });
-
-      await iap.initConnection();
-
-      await expectLater(
-        iap.validateReceiptIOS(
-          apple: const VerifyPurchaseAppleOptions(sku: 'com.example.prod1'),
-        ),
-        throwsA(
-          isA<PurchaseError>().having(
-            (error) => error.code,
-            'code',
-            ErrorCode.ServiceError,
-          ),
-        ),
-      );
-    });
-
-    test('validateReceipt throws IapNotAvailable on Android', () async {
-      final androidIap = FlutterInappPurchase.private(
-        FakePlatform(operatingSystem: 'android'),
-      );
-
-      await expectLater(
-        androidIap.validateReceipt(
-          apple: const VerifyPurchaseAppleOptions(sku: 'com.example.prod1'),
-        ),
-        throwsA(
-          isA<PurchaseError>().having(
-            (error) => error.code,
-            'code',
-            ErrorCode.IapNotAvailable,
-          ),
-        ),
       );
     });
 
@@ -521,26 +345,21 @@ void main() {
       expect(calls.last.method, 'getAppTransactionIOS');
     });
 
-    test('getStorefrontIOS throws when country code is missing or blank',
+    test('getStorefront throws when country code is missing or blank',
         () async {
-      final responses = <Map<String, dynamic>>[
-        <String, dynamic>{},
-        <String, dynamic>{'countryCode': null},
-        <String, dynamic>{'countryCode': ''},
-        <String, dynamic>{'countryCode': '   '},
-      ];
+      final responses = <String?>[null, '', '   '];
 
       for (final response in responses) {
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
             .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
-          if (methodCall.method == 'getStorefrontIOS') {
+          if (methodCall.method == 'getStorefront') {
             return response;
           }
           return null;
         });
 
         await expectLater(
-          iap.getStorefrontIOS(),
+          iap.getStorefront(),
           throwsA(
             isA<PurchaseError>().having(
               (error) => error.code,
@@ -612,7 +431,7 @@ void main() {
         FakePlatform(operatingSystem: 'macos'),
       );
 
-      expect(await macIap.getStorefrontIOS(), 'US');
+      expect(await macIap.getStorefront(), 'US');
       expect(await macIap.syncIOS(), isTrue);
       expect(await macIap.isEligibleForIntroOfferIOS('group'), isTrue);
       expect(await macIap.subscriptionStatusIOS('sku'), hasLength(1));
@@ -644,7 +463,7 @@ void main() {
       expect(
         calls.map((call) => call.method),
         containsAll(<String>[
-          'getStorefrontIOS',
+          'getStorefront',
           'syncIOS',
           'isEligibleForIntroOfferIOS',
           'subscriptionStatusIOS',
@@ -721,40 +540,6 @@ void main() {
       );
     });
 
-    test('requestPurchaseOnPromotedProductIOS returns true on iOS', () async {
-      // ignore: deprecated_member_use_from_same_package
-      expect(await iap.requestPurchaseOnPromotedProductIOS(), isTrue);
-      expect(calls.last.method, 'requestPurchaseOnPromotedProductIOS');
-    });
-
-    test(
-      'requestPurchaseOnPromotedProductIOS preserves native false',
-      () async {
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-            .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
-          if (methodCall.method == 'requestPurchaseOnPromotedProductIOS') {
-            return false;
-          }
-          return null;
-        });
-
-        // ignore: deprecated_member_use_from_same_package
-        expect(await iap.requestPurchaseOnPromotedProductIOS(), isFalse);
-      },
-    );
-
-    test(
-      'requestPurchaseOnPromotedProductIOS returns false on non-iOS',
-      () async {
-        final androidIap = FlutterInappPurchase.private(
-          FakePlatform(operatingSystem: 'android'),
-        );
-
-        // ignore: deprecated_member_use_from_same_package
-        expect(await androidIap.requestPurchaseOnPromotedProductIOS(), isFalse);
-      },
-    );
-
     test(
       'getPromotedProductIOS returns null when native sends string payload',
       () async {
@@ -767,25 +552,6 @@ void main() {
         });
 
         expect(await iap.getPromotedProductIOS(), isNull);
-      },
-    );
-
-    test(
-      'requestPurchaseOnPromotedProductIOS preserves native platform errors',
-      () async {
-        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
-            .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
-          if (methodCall.method == 'requestPurchaseOnPromotedProductIOS') {
-            throw PlatformException(code: '500', message: 'failure');
-          }
-          return null;
-        });
-
-        await expectLater(
-          // ignore: deprecated_member_use_from_same_package
-          iap.requestPurchaseOnPromotedProductIOS(),
-          throwsA(isA<PurchaseError>()),
-        );
       },
     );
 
@@ -818,19 +584,6 @@ void main() {
         throwsA(isA<PurchaseError>()),
       );
     });
-
-    test(
-      'validateReceipt delegates to platform-specific implementation',
-      () async {
-        await iap.initConnection();
-
-        final result = await iap.validateReceipt(
-          apple: const VerifyPurchaseAppleOptions(sku: 'com.example.prod1'),
-        );
-
-        expect(result, isA<VerifyPurchaseResultIOS>());
-      },
-    );
 
     test('beginRefundRequestIOS invokes channel and returns status', () async {
       final status = await iap.beginRefundRequestIOS('com.example.prod1');

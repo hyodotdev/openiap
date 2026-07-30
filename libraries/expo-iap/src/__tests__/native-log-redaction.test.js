@@ -33,20 +33,8 @@ describe('native log redaction', () => {
     }
     expect(androidLog).toContain('isSensitiveKey');
     expect(iosLog).toContain('isSensitiveKey');
-    expect(androidLog).toContain(
-      'private val emittedDeprecations: MutableSet<String>',
-    );
-    expect(androidLog).toContain(
-      'Collections.newSetFromMap(ConcurrentHashMap())',
-    );
-    expect(androidLog).not.toContain('ConcurrentHashMap.newKeySet');
-    expect(iosLog).toContain(
-      'private static var emittedDeprecations = Set<String>()',
-    );
-    expect(androidLog).toContain('if (!emittedDeprecations.add(key))');
-    expect(iosLog).toContain(
-      'let inserted = emittedDeprecations.insert(key).inserted',
-    );
+    expect(androidLog).not.toContain('emittedDeprecations');
+    expect(iosLog).not.toContain('emittedDeprecations');
     expect(androidLog).toContain('filter { it.isLetterOrDigit() }');
     expect(iosLog).toContain('.filter { $0.isLetter || $0.isNumber }');
     expect(androidLog).toContain("'{' -> JSONObject(trimmed)");
@@ -71,16 +59,19 @@ describe('native log redaction', () => {
     expect(iosModule).toContain('"hasIapkit": params["iapkit"] != nil');
   });
 
-  it('does not log the alternative-billing reporting token as a raw result', () => {
+  it('redacts Billing Programs reporting details before logging', () => {
     const androidModule = readRepoFile(
       'android/src/main/java/expo/modules/iap/ExpoIapModule.kt',
     );
 
     expect(androidModule).not.toContain(
-      'ExpoIapLog.result("createAlternativeBillingTokenAndroid", token)',
+      'ExpoIapLog.result("createBillingProgramReportingDetailsAndroid", result.externalTransactionToken)',
     );
     expect(androidModule).toContain(
-      'if (token.isNullOrBlank()) "<empty>" else "<token>"',
+      '"externalTransactionToken" to result.externalTransactionToken',
+    );
+    expect(androidModule).toContain(
+      'ExpoIapLog.result(\n                            "createBillingProgramReportingDetailsAndroid",\n                            response,',
     );
   });
 

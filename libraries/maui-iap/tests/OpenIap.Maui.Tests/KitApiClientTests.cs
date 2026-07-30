@@ -340,13 +340,4 @@ public class KitApiClientTests
         Assert.Null(error.Body);
     }
 
-    [Fact]
-    public void Iap_LegacyFacade_CreatesEquivalentClient()
-    {
-#pragma warning disable CS0618 // Exercise the legacy facade until its 2.0.0 removal.
-        var client = Iap.KitApi(new KitApiOptions { ApiKey = "k", BaseUrl = "https://x.test" });
-#pragma warning restore CS0618
-        Assert.Equal("https://x.test", client.BaseUrl);
-        Assert.Equal("k", client.ApiKey);
-    }
 }

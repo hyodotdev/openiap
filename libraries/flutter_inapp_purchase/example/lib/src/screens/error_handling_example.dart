@@ -114,7 +114,7 @@ String getUserFriendlyErrorMessage(dynamic error) {
 
 /// Example demonstrating error handling utilities
 class ErrorHandlingExample extends StatelessWidget {
-  const ErrorHandlingExample({Key? key}) : super(key: key);
+  const ErrorHandlingExample({super.key});
 
   @override
   Widget build(BuildContext context) {
@@ -307,7 +307,7 @@ code.userFriendlyMessage: "${code.userFriendlyMessage}"
 
 /// Example of using error handling in a real scenario
 class PurchaseWithErrorHandling extends StatelessWidget {
-  const PurchaseWithErrorHandling({Key? key}) : super(key: key);
+  const PurchaseWithErrorHandling({super.key});
 
   Future<void> _handlePurchase(BuildContext context) async {
     try {

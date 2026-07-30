@@ -279,8 +279,8 @@ packages/gql/src/generated/Types.cs      # C# / .NET`}
                       <code>syncIOS()</code>
                     </Link>
                     ,{' '}
-                    <Link to="/docs/apis/ios/get-storefront-ios">
-                      <code>getStorefrontIOS()</code>
+                    <Link to="/docs/apis/ios/get-receipt-data-ios">
+                      <code>getReceiptDataIOS()</code>
                     </Link>
                   </td>
                 </tr>

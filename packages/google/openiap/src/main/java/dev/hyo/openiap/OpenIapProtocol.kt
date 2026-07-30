@@ -1,11 +1,6 @@
-// Protocol-level 2.x shims reference their legacy listener types by design.
-// Consumer call sites retain warnings; remove these declarations in 3.0.
-@file:Suppress("DEPRECATION")
-
 package dev.hyo.openiap
 
 import android.app.Activity
-import dev.hyo.openiap.listener.DeveloperProvidedBillingListener
 import dev.hyo.openiap.listener.OpenIapDeveloperProvidedBillingListener
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
@@ -31,8 +26,6 @@ interface OpenIapProtocol {
     val consumePurchaseAndroid: MutationConsumePurchaseAndroidHandler
     val restorePurchases: MutationRestorePurchasesHandler
     val deepLinkToSubscriptions: MutationDeepLinkToSubscriptionsHandler
-    @Deprecated("Use verifyPurchase instead. Scheduled for removal in OpenIAP 3.0.")
-    val validateReceipt: MutationValidateReceiptHandler
     val verifyPurchase: MutationVerifyPurchaseHandler
     val verifyPurchaseWithProvider: MutationVerifyPurchaseWithProviderHandler
 
@@ -47,35 +40,10 @@ interface OpenIapProtocol {
     fun addPurchaseErrorListener(listener: OpenIapPurchaseErrorListener)
     fun removePurchaseErrorListener(listener: OpenIapPurchaseErrorListener)
 
-    // Alternative Billing (Google Play only)
-    @Deprecated(
-        "Use isBillingProgramAvailable with BillingProgramAndroid.ExternalOffer instead. Scheduled for removal in OpenIAP 3.0."
-    )
-    suspend fun checkAlternativeBillingAvailability(): Boolean
-    @Deprecated("Use launchExternalLink instead. Scheduled for removal in OpenIAP 3.0.")
-    suspend fun showAlternativeBillingInformationDialog(activity: Activity): Boolean
-    @Deprecated(
-        "Use createBillingProgramReportingDetails with BillingProgramAndroid.ExternalOffer instead. Scheduled for removal in OpenIAP 3.0."
-    )
-    suspend fun createAlternativeBillingReportingToken(): String?
-    @Deprecated(
-        "Use addUserChoiceBillingListener and removeUserChoiceBillingListener instead. Scheduled for removal in OpenIAP 3.0."
-    )
-    fun setUserChoiceBillingListener(listener: dev.hyo.openiap.listener.UserChoiceBillingListener?)
     fun addUserChoiceBillingListener(listener: OpenIapUserChoiceBillingListener)
     fun removeUserChoiceBillingListener(listener: OpenIapUserChoiceBillingListener)
 
     // Developer Provided Billing (Google Play Billing Library 8.3.0+)
-    /**
-     * Set a legacy-style listener for External Payments (8.3.0+) and
-     * Google-rendered Billing Choice (9.1.0+).
-     *
-     * @param listener Developer-provided billing listener or null to remove
-     */
-    @Deprecated(
-        "Use addDeveloperProvidedBillingListener and removeDeveloperProvidedBillingListener instead. Scheduled for removal in OpenIAP 3.0."
-    )
-    fun setDeveloperProvidedBillingListener(listener: DeveloperProvidedBillingListener?)
     /**
      * Add listener for developer-provided billing selection events.
      * Called when the user selects the developer's option in an enabled billing program.
@@ -98,7 +66,7 @@ interface OpenIapProtocol {
     // Billing Programs (Google Play Billing Library 8.2.0+)
     /**
      * Check if a billing program is available for this user/device.
-     * Replaces checkAlternativeBillingAvailability() for external offers.
+     * Checks whether the selected billing program is available.
      *
      * @param program The billing program to check, including BILLING_CHOICE on 9.1.0+
      * @return Result containing availability information
@@ -107,7 +75,7 @@ interface OpenIapProtocol {
 
     /**
      * Create reporting details for transactions made outside of Google Play Billing.
-     * Replaces createAlternativeBillingReportingToken() for external offers.
+     * Creates reporting details for the selected billing program.
      *
      * @param program The billing program, including BILLING_CHOICE on 9.1.0+
      * @return Reporting details containing the external transaction token
@@ -119,7 +87,7 @@ interface OpenIapProtocol {
 
     /**
      * Launch an external link for external offer or app download.
-     * Replaces showAlternativeBillingInformationDialog() for external offers.
+     * Launches the selected external-link flow.
      *
      * @param activity Current activity context
      * @param params Parameters for the external link

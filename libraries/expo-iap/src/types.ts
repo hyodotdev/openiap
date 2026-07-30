@@ -29,12 +29,6 @@ export interface ActiveSubscription {
   /** Unix timestamp in milliseconds since January 1, 1970 UTC. */
   transactionDate: number;
   transactionId: string;
-  /**
-   * Whether the subscription will expire soon (within 7 days).
-   * Consider using daysUntilExpirationIOS for more precise control.
-   * @deprecated iOS only - use daysUntilExpirationIOS instead. Scheduled for removal in OpenIAP 3.0.
-   */
-  willExpireSoon?: (boolean | null);
 }
 
 /**
@@ -87,15 +81,6 @@ export interface AdvancedCommerceRefundIOS {
   jsonRepresentation?: (string | null);
 }
 
-/**
- * Alternative billing mode for Android
- * Controls which billing system is used
- * Use the user-choice-billing program for user choice billing and external-offer
- * for external digital-content offers.
- * @deprecated Use enableBillingProgramAndroid with BillingProgramAndroid instead. Scheduled for removal in OpenIAP 3.0.
- */
-export type AlternativeBillingModeAndroid = 'none' | 'user-choice' | 'alternative-only';
-
 export interface AndroidSubscriptionOfferInput {
   /** Offer token */
   offerToken: string;
@@ -113,10 +98,24 @@ export interface AppTransaction {
   deviceVerificationNonce: string;
   environment: string;
   originalAppVersion: string;
+  /**
+   * Original App Store platform raw value. Xcode 27 adds the back-deployed managed
+   * acquisition-platform value.
+   */
   originalPlatform?: (string | null);
   originalPurchaseDate: number;
   preorderDate?: (number | null);
+  /**
+   * Date the app-acquisition transaction was revoked (epoch milliseconds).
+   * Available through the Xcode 27 SDK and back-deployed to Apple 16+.
+   */
+  revocationDate?: (number | null);
   signedDate: number;
+  /**
+   * Store channel of the original app purchase: consumer, education, enterprise,
+   * or another future StoreKit value (Apple 27+ beta).
+   */
+  storeType?: (string | null);
 }
 
 /**
@@ -214,6 +213,22 @@ export interface BillingResultAndroid {
    * Provides additional context when responseCode indicates an error.
    */
   subResponseCode?: (SubResponseCodeAndroid | null);
+}
+
+/**
+ * Metadata for one auto-renewable subscription included in an Apple
+ * subscription bundle (Apple 27+ beta).
+ */
+export interface BundledSubscriptionIOS {
+  description: string;
+  displayName: string;
+  displayPrice: string;
+  id: string;
+  isFamilyShareable: boolean;
+  price: number;
+  subscriptionGroupDisplayName: string;
+  subscriptionGroupId: string;
+  subscriptionGroupLevel: number;
 }
 
 export interface DeepLinkOptions {
@@ -327,22 +342,6 @@ export interface DiscountDisplayInfoAndroid {
 }
 
 /**
- * Discount information returned from the store.
- * @see https://openiap.dev/docs/types/subscription-offer
- * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
- */
-export interface DiscountIOS {
-  identifier: string;
-  localizedPrice?: (string | null);
-  numberOfPeriods: number;
-  paymentMode: PaymentModeIOS;
-  price: string;
-  priceAmount: number;
-  subscriptionPeriod: string;
-  type: string;
-}
-
-/**
  * Standardized one-time product discount offer.
  * Provides a platform-neutral OpenIAP shape for Google Play one-time product
  * purchase options and offers.
@@ -373,7 +372,7 @@ export interface DiscountOffer {
   /**
    * Unique identifier for the offer.
    * - iOS: Not applicable (one-time discounts not supported)
-   * - Android: offerId from ProductAndroidOneTimePurchaseOfferDetail
+   * - Android: offerId from the Google Play one-time purchase option
    */
   id?: (string | null);
   /**
@@ -419,24 +418,6 @@ export interface DiscountOffer {
    * Contains startTimeMillis and endTimeMillis.
    */
   validTimeWindowAndroid?: (ValidTimeWindowAndroid | null);
-}
-
-/**
- * iOS DiscountOffer (output type).
- * @see https://openiap.dev/docs/types/subscription-offer
- * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
- */
-export interface DiscountOfferIOS {
-  /** Discount identifier */
-  identifier: string;
-  /** Key identifier for validation */
-  keyIdentifier: string;
-  /** Cryptographic nonce */
-  nonce: string;
-  /** Signature for validation */
-  signature: string;
-  /** Timestamp of discount offer */
-  timestamp: number;
 }
 
 export interface DiscountOfferInputIOS {
@@ -490,12 +471,6 @@ export enum ErrorCode {
   PurchaseVerificationFinishFailed = 'purchase-verification-finish-failed',
   PurchaseVerificationFinished = 'purchase-verification-finished',
   QueryProduct = 'query-product',
-  /** @deprecated Use PurchaseVerificationFailed instead. Scheduled for removal in OpenIAP 3.0. */
-  ReceiptFailed = 'receipt-failed',
-  /** @deprecated Use PurchaseVerificationFinished instead. Scheduled for removal in OpenIAP 3.0. */
-  ReceiptFinished = 'receipt-finished',
-  /** @deprecated Use PurchaseVerificationFinishFailed instead. Scheduled for removal in OpenIAP 3.0. */
-  ReceiptFinishedFailed = 'receipt-finished-failed',
   RemoteError = 'remote-error',
   ServiceDisconnected = 'service-disconnected',
   ServiceError = 'service-error',
@@ -523,26 +498,6 @@ export type ExternalLinkLaunchModeAndroid = 'unspecified' | 'launch-in-external-
  * Available in Google Play Billing Library 8.2.0+
  */
 export type ExternalLinkTypeAndroid = 'unspecified' | 'link-to-digital-content-offer' | 'link-to-app-download';
-
-/**
- * External offer availability result (Android)
- * Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
- * @deprecated Use BillingProgramAvailabilityResultAndroid from isBillingProgramAvailableAndroid instead. Scheduled for removal in OpenIAP 3.0.
- */
-export interface ExternalOfferAvailabilityResultAndroid {
-  /** Whether external offers are available for the user */
-  isAvailable: boolean;
-}
-
-/**
- * External offer reporting details (Android)
- * Available in Google Play Billing Library 6.2.0+, deprecated in 8.2.0
- * @deprecated Use BillingProgramReportingDetailsAndroid from createBillingProgramReportingDetailsAndroid instead. Scheduled for removal in OpenIAP 3.0.
- */
-export interface ExternalOfferReportingDetailsAndroid {
-  /** External transaction token for reporting external offer transactions */
-  externalTransactionToken: string;
-}
 
 /** Result of showing ExternalPurchaseCustomLink notice (iOS 18.1+). */
 export interface ExternalPurchaseCustomLinkNoticeResultIOS {
@@ -682,13 +637,6 @@ export interface InAppMessageResultAndroid {
 /** Connection initialization configuration */
 export interface InitConnectionConfig {
   /**
-   * Alternative billing mode for Android
-   * If not specified, defaults to NONE (standard Google Play billing)
-   * Use USER_CHOICE_BILLING for user choice billing, EXTERNAL_OFFER for alternative only.
-   * @deprecated Use enableBillingProgramAndroid instead. Scheduled for removal in OpenIAP 3.0.
-   */
-  alternativeBillingModeAndroid?: (AlternativeBillingModeAndroid | null);
-  /**
    * Billing Choice renderer configured in Play Console. Available in OpenIAP
    * Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
    * GOOGLE_RENDERED registers the developer-provided billing listener so OpenIAP
@@ -778,14 +726,6 @@ export interface Mutation {
    */
   beginRefundRequestIOS?: Promise<(string | null)>;
   /**
-   * Check whether alternative billing is available for the user. Step 1 of the alternative billing flow.
-   * Returns true if available, false otherwise.
-   * Throws OpenIapError.NotPrepared if billing client not ready.
-   * See: https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android
-   * @deprecated Use isBillingProgramAvailableAndroid with the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.
-   */
-  checkAlternativeBillingAvailabilityAndroid: Promise<boolean>;
-  /**
    * Clear pending transactions in the queue (sandbox helper).
    * See: https://openiap.dev/docs/apis/ios/clear-transaction-ios
    */
@@ -795,16 +735,6 @@ export interface Mutation {
    * See: https://openiap.dev/docs/apis/android/consume-purchase-android
    */
   consumePurchaseAndroid: Promise<boolean>;
-  /**
-   * Create a reporting token for an alternative billing flow. Step 3 of the alternative billing flow.
-   * Must be called AFTER successful payment in your payment system.
-   * Token must be reported to Google Play backend within 24 hours.
-   * Returns token string, or null if creation failed.
-   * Throws OpenIapError.NotPrepared if billing client not ready.
-   * See: https://openiap.dev/docs/apis/android/create-alternative-billing-token-android
-   * @deprecated Use createBillingProgramReportingDetailsAndroid with the external-offer BillingProgramAndroid value instead. Scheduled for removal in OpenIAP 3.0.
-   */
-  createAlternativeBillingTokenAndroid?: Promise<(string | null)>;
   /**
    * Create the reporting details and external transaction token required by a billing program.
    * Introduced in Play Billing 8.2.0. External Offer and External Content Link integrations
@@ -879,9 +809,14 @@ export interface Mutation {
   openRedeemOfferCodeAndroid: Promise<boolean>;
   /**
    * Show the App Store offer code redemption sheet.
+   * On iOS 27+, Mac Catalyst 27+, and visionOS 27+, returns the verified
+   * transaction produced by the redemption. Earlier iOS and Mac Catalyst
+   * versions present the legacy sheet and return null; reconcile purchases
+   * through the normal transaction listener or an explicit available-purchases
+   * refresh.
    * See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
    */
-  presentCodeRedemptionSheetIOS: Promise<boolean>;
+  presentCodeRedemptionSheetIOS?: Promise<(PurchaseIOS | null)>;
   /**
    * Present an external purchase link, StoreKit External (iOS 16+).
    * See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
@@ -900,26 +835,10 @@ export interface Mutation {
    */
   requestPurchase?: Promise<(Purchase | Purchase[] | null)>;
   /**
-   * Buy the currently promoted product.
-   *
-   * See: https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios
-   * @deprecated Use the promoted-product listener or callback exposed by your SDK to receive the productId, then call requestPurchase with that SKU instead. In StoreKit 2, promoted products can be purchased directly via the standard purchase flow. Scheduled for removal in OpenIAP 3.0.
-   */
-  requestPurchaseOnPromotedProductIOS: Promise<boolean>;
-  /**
    * Restore non-consumable and active subscription purchases.
    * See: https://openiap.dev/docs/apis/restore-purchases
    */
   restorePurchases: Promise<void>;
-  /**
-   * Display Google's alternative billing information dialog. Step 2 of the alternative billing flow.
-   * Must be called BEFORE processing payment in your payment system.
-   * Returns true if user accepted, false if user canceled.
-   * Throws OpenIapError.NotPrepared if billing client not ready.
-   * See: https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android
-   * @deprecated Use launchExternalLinkAndroid instead. Scheduled for removal in OpenIAP 3.0.
-   */
-  showAlternativeBillingDialogAndroid: Promise<boolean>;
   /**
    * Show Google's mandatory information dialog before a developer-rendered,
    * in-app Billing Choice screen.
@@ -954,12 +873,6 @@ export interface Mutation {
    * See: https://openiap.dev/docs/apis/ios/sync-ios
    */
   syncIOS: Promise<boolean>;
-  /**
-   * Deprecated. Validate purchase receipts with the configured providers — use verifyPurchase instead.
-   * See: https://openiap.dev/docs/features/validation#verify-purchase
-   * @deprecated Use verifyPurchase. Scheduled for removal in OpenIAP 3.0.
-   */
-  validateReceipt: Promise<VerifyPurchaseResult>;
   /**
    * Verify a purchase against your own backend. Returns a platform-specific
    * variant of VerifyPurchaseResult — VerifyPurchaseResultIOS exposes isValid
@@ -1011,8 +924,6 @@ export type MutationShowBillingProgramInformationDialogAndroidArgs = BillingProg
 export type MutationShowExternalPurchaseCustomLinkNoticeIosArgs = ExternalPurchaseCustomLinkNoticeTypeIOS;
 
 export type MutationShowInAppMessagesAndroidArgs = (InAppMessageParamsAndroid | null) | undefined;
-
-export type MutationValidateReceiptArgs = VerifyPurchaseProps;
 
 export type MutationVerifyPurchaseArgs = VerifyPurchaseProps;
 
@@ -1092,12 +1003,6 @@ export interface ProductAndroid extends ProductCommon {
   displayPrice: string;
   id: string;
   nameAndroid: string;
-  /**
-   * One-time purchase offer details including discounts (Android)
-   * Returns all eligible offers. Available in Google Play Billing Library 8.0+
-   * @deprecated Use the standardized discountOffers field instead. Scheduled for removal in OpenIAP 3.0.
-   */
-  oneTimePurchaseOfferDetailsAndroid?: (ProductAndroidOneTimePurchaseOfferDetail[] | null);
   platform: 'android';
   price?: (number | null);
   /**
@@ -1108,8 +1013,6 @@ export interface ProductAndroid extends ProductCommon {
    * Available in Google Play Billing Library 8.0.0+
    */
   productStatusAndroid?: (ProductStatusAndroid | null);
-  /** @deprecated Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0. */
-  subscriptionOfferDetailsAndroid?: (ProductSubscriptionAndroidOfferDetails[] | null);
   /**
    * Standardized subscription offers.
    * Cross-platform type with Android-specific fields using suffix.
@@ -1118,51 +1021,6 @@ export interface ProductAndroid extends ProductCommon {
   subscriptionOffers?: (SubscriptionOffer[] | null);
   title: string;
   type: 'in-app';
-}
-
-/**
- * One-time purchase offer details (Android).
- * Available in Google Play Billing Library 8.0+
- * @see https://openiap.dev/docs/types/discount-offer
- * @deprecated Use the standardized DiscountOffer type for Android one-time offers. Scheduled for removal in OpenIAP 3.0.
- */
-export interface ProductAndroidOneTimePurchaseOfferDetail {
-  /**
-   * Discount display information
-   * Only available for discounted offers
-   */
-  discountDisplayInfo?: (DiscountDisplayInfoAndroid | null);
-  formattedPrice: string;
-  /**
-   * Full (non-discounted) price in micro-units
-   * Only available for discounted offers
-   */
-  fullPriceMicros?: (string | null);
-  /** Limited quantity information */
-  limitedQuantityInfo?: (LimitedQuantityInfoAndroid | null);
-  /** Offer ID */
-  offerId?: (string | null);
-  /** List of offer tags */
-  offerTags: string[];
-  /** Offer token for use in BillingFlowParams when purchasing */
-  offerToken: string;
-  /**
-   * Pre-order details for products available for pre-order
-   * Available in Google Play Billing Library 8.1.0+
-   */
-  preorderDetailsAndroid?: (PreorderDetailsAndroid | null);
-  priceAmountMicros: string;
-  priceCurrencyCode: string;
-  /**
-   * Purchase option ID for this offer (Android)
-   * Used to identify which purchase option the user selected.
-   * Available in Google Play Billing Library 8.0+
-   */
-  purchaseOptionId?: (string | null);
-  /** Rental details for rental offers */
-  rentalDetailsAndroid?: (RentalDetailsAndroid | null);
-  /** Valid time window for the offer */
-  validTimeWindow?: (ValidTimeWindowAndroid | null);
 }
 
 export interface ProductCommon {
@@ -1195,8 +1053,6 @@ export interface ProductIOS extends ProductCommon {
    * monthly subscriptions with a 12-month commitment.
    */
   pricingTermsIOS?: (SubscriptionPricingTermsIOS[] | null);
-  /** @deprecated Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0. */
-  subscriptionInfoIOS?: (SubscriptionInfoIOS | null);
   /**
    * Standardized subscription offers.
    * Cross-platform type with iOS-specific fields using suffix.
@@ -1232,21 +1088,10 @@ export interface ProductSubscriptionAndroid extends ProductCommon {
   currency: string;
   debugDescription?: (string | null);
   description: string;
-  /**
-   * Nullable compatibility field. Google Play does not return one-time purchase
-   * offer details for subscription products; use subscriptionOffers below.
-   */
-  discountOffers?: (DiscountOffer[] | null);
   displayName?: (string | null);
   displayPrice: string;
   id: string;
   nameAndroid: string;
-  /**
-   * Legacy nullable compatibility field. Google Play does not populate one-time
-   * purchase offer details for subscription products.
-   * @deprecated One-time offers belong to ProductAndroid.discountOffers; subscriptions use subscriptionOffers. Scheduled for removal in OpenIAP 3.0.
-   */
-  oneTimePurchaseOfferDetailsAndroid?: (ProductAndroidOneTimePurchaseOfferDetail[] | null);
   platform: 'android';
   price?: (number | null);
   /**
@@ -1257,8 +1102,6 @@ export interface ProductSubscriptionAndroid extends ProductCommon {
    * Available in Google Play Billing Library 8.0.0+
    */
   productStatusAndroid?: (ProductStatusAndroid | null);
-  /** @deprecated Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0. */
-  subscriptionOfferDetailsAndroid: ProductSubscriptionAndroidOfferDetails[];
   /**
    * Standardized subscription offers.
    * Cross-platform type with Android-specific fields using suffix.
@@ -1269,31 +1112,15 @@ export interface ProductSubscriptionAndroid extends ProductCommon {
   type: 'subs';
 }
 
-/**
- * Subscription offer details (Android).
- * @see https://openiap.dev/docs/types/subscription-offer
- * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
- */
-export interface ProductSubscriptionAndroidOfferDetails {
-  basePlanId: string;
-  /**
-   * Installment plan details for this subscription offer.
-   * Only set for installment subscription plans; null for non-installment plans.
-   * Available in Google Play Billing Library 7.0+
-   */
-  installmentPlanDetails?: (InstallmentPlanDetailsAndroid | null);
-  offerId?: (string | null);
-  offerTags: string[];
-  offerToken: string;
-  pricingPhases: PricingPhasesAndroid;
-}
-
 export interface ProductSubscriptionIOS extends ProductCommon {
+  /**
+   * Subscriptions included in this Apple subscription bundle. Empty or null for
+   * every other product type (Apple 27+ beta).
+   */
+  bundledSubscriptionsIOS?: (BundledSubscriptionIOS[] | null);
   currency: string;
   debugDescription?: (string | null);
   description: string;
-  /** @deprecated Use subscriptionOffers instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0. */
-  discountsIOS?: (DiscountIOS[] | null);
   displayName?: (string | null);
   displayNameIOS: string;
   displayPrice: string;
@@ -1314,8 +1141,6 @@ export interface ProductSubscriptionIOS extends ProductCommon {
   pricingTermsIOS?: (SubscriptionPricingTermsIOS[] | null);
   /** App Store subscription group identifier for intro-offer eligibility checks. */
   subscriptionGroupIdIOS?: (string | null);
-  /** @deprecated Use subscriptionOffers for offer metadata and subscriptionGroupIdIOS for the App Store subscription group identifier. Scheduled for removal in OpenIAP 3.0. */
-  subscriptionInfoIOS?: (SubscriptionInfoIOS | null);
   /**
    * Standardized subscription offers.
    * Cross-platform type with iOS-specific fields using suffix.
@@ -1331,7 +1156,7 @@ export interface ProductSubscriptionIOS extends ProductCommon {
 
 export type ProductType = 'in-app' | 'subs';
 
-export type ProductTypeIOS = 'consumable' | 'non-consumable' | 'auto-renewable-subscription' | 'non-renewing-subscription';
+export type ProductTypeIOS = 'consumable' | 'non-consumable' | 'auto-renewable-subscription' | 'non-renewing-subscription' | 'subscription-bundle' | 'subscription-suite';
 
 /**
  * JWS promotional offer input for iOS 15+ (StoreKit 2, WWDC 2025).
@@ -1379,8 +1204,6 @@ export interface PurchaseAndroid extends PurchaseCommon {
    * Available in Google Play Billing Library 5.0+
    */
   pendingPurchaseUpdateAndroid?: (PendingPurchaseUpdateAndroid | null);
-  /** @deprecated Use store instead. Scheduled for removal in OpenIAP 3.0. */
-  platform: IapPlatform;
   productId: string;
   purchaseState: PurchaseState;
   purchaseToken?: (string | null);
@@ -1404,8 +1227,6 @@ export interface PurchaseCommon {
   id: string;
   ids?: (string[] | null);
   isAutoRenewing: boolean;
-  /** @deprecated Use store instead. Scheduled for removal in OpenIAP 3.0. */
-  platform: IapPlatform;
   productId: string;
   purchaseState: PurchaseState;
   /** Unified purchase token (iOS JWS, Android purchaseToken) */
@@ -1440,6 +1261,17 @@ export interface PurchaseIOS extends PurchaseCommon {
   appBundleIdIOS?: (string | null);
   /** iOS 26.4+ billing plan selected for this transaction. */
   billingPlanTypeIOS?: (SubscriptionBillingPlanTypeIOS | null);
+  /**
+   * Original transaction identifier for the subscription bundle that produced
+   * this transaction (Apple 27+ SDK; back-deployed by StoreKit).
+   */
+  bundleOriginalTransactionIdIOS?: (string | null);
+  /** Product identifier of the subscription bundle that produced this transaction. */
+  bundleProductIdIOS?: (string | null);
+  /** Subscription-group identifier of the bundle that produced this transaction. */
+  bundleSubscriptionGroupIdIOS?: (string | null);
+  /** Bundle transaction identifier associated with this component transaction. */
+  bundleTransactionIdIOS?: (string | null);
   /** iOS 26.4+ progress information for monthly subscriptions with a 12-month commitment. */
   commitmentInfoIOS?: (TransactionCommitmentInfoIOS | null);
   countryCodeIOS?: (string | null);
@@ -1455,9 +1287,13 @@ export interface PurchaseIOS extends PurchaseCommon {
   offerIOS?: (PurchaseOfferIOS | null);
   originalTransactionDateIOS?: (number | null);
   originalTransactionIdentifierIOS?: (string | null);
+  /** StoreKit ownership raw value. Xcode 27 adds the back-deployed assigned value. */
   ownershipTypeIOS?: (string | null);
-  /** @deprecated Use store instead. Scheduled for removal in OpenIAP 3.0. */
-  platform: IapPlatform;
+  /**
+   * Original transaction identifier replaced when moving between a standalone
+   * subscription and a subscription bundle.
+   */
+  previousOriginalTransactionIdIOS?: (string | null);
   productId: string;
   purchaseState: PurchaseState;
   purchaseToken?: (string | null);
@@ -1467,7 +1303,13 @@ export interface PurchaseIOS extends PurchaseCommon {
   reasonStringRepresentationIOS?: (string | null);
   renewalInfoIOS?: (RenewalInfoIOS | null);
   revocationDateIOS?: (number | null);
+  /** Normalized StoreKit revocation reason, including upgraded_to_bundle. */
   revocationReasonIOS?: (string | null);
+  /**
+   * StoreKit revocation type, including assignment-revocation on Apple 26.4+
+   * when compiled with the Xcode 27 SDK.
+   */
+  revocationTypeIOS?: (string | null);
   /** Store where purchase was made */
   store: IapStore;
   storefrontCountryCodeIOS?: (string | null);
@@ -1591,13 +1433,6 @@ export interface Query {
    */
   getStorefront: Promise<string>;
   /**
-   * Deprecated. Get the current App Store storefront ISO 3166-1 alpha-3 country
-   * code — use cross-platform getStorefront instead.
-   * See: https://openiap.dev/docs/apis/ios/get-storefront-ios
-   * @deprecated Use getStorefront. Scheduled for removal in OpenIAP 3.0.
-   */
-  getStorefrontIOS: Promise<string>;
-  /**
    * Return the JWS string for a transaction (StoreKit 2).
    * See: https://openiap.dev/docs/apis/ios/get-transaction-jws-ios
    */
@@ -1634,12 +1469,6 @@ export interface Query {
    * See: https://openiap.dev/docs/apis/ios/subscription-status-ios
    */
   subscriptionStatusIOS: Promise<SubscriptionStatusIOS[]>;
-  /**
-   * Deprecated. Legacy App Store receipt validation — use verifyPurchase instead.
-   * See: https://openiap.dev/docs/apis/ios/validate-receipt-ios
-   * @deprecated Use verifyPurchase. Scheduled for removal in OpenIAP 3.0.
-   */
-  validateReceiptIOS: Promise<VerifyPurchaseResultIOS>;
 }
 
 export type QueryCurrentEntitlementIosArgs = string;
@@ -1666,8 +1495,6 @@ export type QueryLatestTransactionIosArgs = string;
 
 export type QuerySubscriptionStatusIosArgs = string;
 
-export type QueryValidateReceiptIosArgs = VerifyPurchaseProps;
-
 export interface RefundResultIOS {
   message?: (string | null);
   status: string;
@@ -1687,14 +1514,20 @@ export interface RenewalCommitmentInfoIOS {
  */
 export interface RenewalInfoIOS {
   autoRenewPreference?: (string | null);
+  /** Original transaction identifier for the bundle used by the next renewal. */
+  bundleOriginalTransactionId?: (string | null);
+  /** Product identifier for the bundle used by the next renewal. */
+  bundleProductId?: (string | null);
+  /** Subscription-group identifier for the bundle used by the next renewal. */
+  bundleSubscriptionGroupId?: (string | null);
   /**
    * iOS 26.4+ renewal commitment metadata for monthly subscriptions with a
    * 12-month commitment.
    */
   commitmentInfo?: (RenewalCommitmentInfoIOS | null);
   /**
-   * When subscription expires due to cancellation/billing issue
-   * Possible values: "VOLUNTARY", "BILLING_ERROR", "DID_NOT_AGREE_TO_PRICE_INCREASE", "PRODUCT_NOT_AVAILABLE", "UNKNOWN"
+   * StoreKit's raw integer expiration-reason value represented as a string.
+   * Xcode 27 adds the back-deployed unbundled case. Preserve unknown future values.
    */
   expirationReason?: (string | null);
   /**
@@ -1733,6 +1566,8 @@ export interface RenewalInfoIOS {
    */
   renewalOfferType?: (string | null);
   willAutoRenew: boolean;
+  /** Whether this subscription will leave its bundle and renew standalone. */
+  willUnbundle?: (boolean | null);
 }
 
 /**
@@ -1767,7 +1602,7 @@ export interface RequestPurchaseAndroidProps {
   obfuscatedProfileId?: (string | null);
   /**
    * Offer token for one-time purchase discounts (8.0+).
-   * Pass the offerToken from oneTimePurchaseOfferDetailsAndroid or discountOffers
+   * Pass the offerToken from discountOffers
    * to apply a discount offer to the purchase.
    */
   offerToken?: (string | null);
@@ -1804,22 +1639,12 @@ export type RequestPurchaseProps =
       request: RequestPurchasePropsByPlatforms;
       /** Explicit purchase type hint (defaults to in-app) */
       type: 'in-app';
-      /**
-       * This flag only logs debug info and has no effect on the purchase flow.
-       * @deprecated Use enableBillingProgramAndroid in InitConnectionConfig instead. Scheduled for removal in OpenIAP 3.0.
-       */
-      useAlternativeBilling?: boolean | null;
     }
   | {
       /** Per-platform subscription request props */
       request: RequestSubscriptionPropsByPlatforms;
       /** Explicit purchase type hint (defaults to in-app) */
       type: 'subs';
-      /**
-       * This flag only logs debug info and has no effect on the purchase flow.
-       * @deprecated Use enableBillingProgramAndroid in InitConnectionConfig instead. Scheduled for removal in OpenIAP 3.0.
-       */
-      useAlternativeBilling?: boolean | null;
     };
 
 /**
@@ -1832,14 +1657,10 @@ export type RequestPurchaseProps =
  *   (determined at build time, not runtime)
  */
 export interface RequestPurchasePropsByPlatforms {
-  /** @deprecated Use google instead. Scheduled for removal in OpenIAP 3.0. */
-  android?: (RequestPurchaseAndroidProps | null);
   /** Apple-specific purchase parameters */
   apple?: (RequestPurchaseIosProps | null);
   /** Google-specific purchase parameters */
   google?: (RequestPurchaseAndroidProps | null);
-  /** @deprecated Use apple instead. Scheduled for removal in OpenIAP 3.0. */
-  ios?: (RequestPurchaseIosProps | null);
 }
 
 export type RequestPurchaseResult = Purchase | Purchase[] | null;
@@ -1868,11 +1689,6 @@ export interface RequestSubscriptionAndroidProps {
   originalExternalTransactionId?: (string | null);
   /** Purchase token for upgrades/downgrades */
   purchaseToken?: (string | null);
-  /**
-   * Replacement mode for subscription changes
-   * @deprecated Use subscriptionProductReplacementParams instead for item-level replacement (8.1.0+). Scheduled for removal in OpenIAP 3.0.
-   */
-  replacementMode?: (number | null);
   /** List of subscription SKUs */
   skus: string[];
   /** Subscription offers */
@@ -1941,14 +1757,10 @@ export interface RequestSubscriptionIosProps {
  *   (determined at build time, not runtime)
  */
 export interface RequestSubscriptionPropsByPlatforms {
-  /** @deprecated Use google instead. Scheduled for removal in OpenIAP 3.0. */
-  android?: (RequestSubscriptionAndroidProps | null);
   /** Apple-specific subscription parameters */
   apple?: (RequestSubscriptionIosProps | null);
   /** Google-specific subscription parameters */
   google?: (RequestSubscriptionAndroidProps | null);
-  /** @deprecated Use apple instead. Scheduled for removal in OpenIAP 3.0. */
-  ios?: (RequestSubscriptionIosProps | null);
 }
 
 export interface RequestVerifyPurchaseWithIapkitAmazonProps {
@@ -2086,14 +1898,6 @@ export interface SubscriptionCommitmentInfoIOS {
   price: number;
 }
 
-export interface SubscriptionInfoIOS {
-  introductoryOffer?: (SubscriptionOfferIOS | null);
-  pricingTerms?: (SubscriptionPricingTermsIOS[] | null);
-  promotionalOffers?: (SubscriptionOfferIOS[] | null);
-  subscriptionGroupId: string;
-  subscriptionPeriod: SubscriptionPeriodValueIOS;
-}
-
 /**
  * Standardized subscription discount/promotional offer.
  * Provides a unified interface for subscription offers across iOS and Android.
@@ -2117,7 +1921,7 @@ export interface SubscriptionOffer {
   /**
    * Unique identifier for the offer.
    * - iOS: Discount identifier from App Store Connect
-   * - Android: offerId from ProductSubscriptionAndroidOfferDetails
+   * - Android: offerId from the Google Play subscription offer
    */
   id: string;
   /**
@@ -2172,21 +1976,6 @@ export interface SubscriptionOffer {
   timestampIOS?: (number | null);
   /** Type of subscription offer (Introductory or Promotional) */
   type: DiscountOfferType;
-}
-
-/**
- * iOS subscription offer details.
- * @see https://openiap.dev/docs/types/subscription-offer
- * @deprecated Use the standardized SubscriptionOffer type instead for cross-platform compatibility. Scheduled for removal in OpenIAP 3.0.
- */
-export interface SubscriptionOfferIOS {
-  displayPrice: string;
-  id: string;
-  paymentMode: PaymentModeIOS;
-  period: SubscriptionPeriodValueIOS;
-  periodCount: number;
-  price: number;
-  type: SubscriptionOfferTypeIOS;
 }
 
 export type SubscriptionOfferTypeIOS = 'introductory' | 'promotional' | 'win-back';
@@ -2432,10 +2221,8 @@ export interface WinBackOfferInputIOS {
 export type MutationArgsMap = {
   acknowledgePurchaseAndroid: MutationAcknowledgePurchaseAndroidArgs;
   beginRefundRequestIOS: MutationBeginRefundRequestIosArgs;
-  checkAlternativeBillingAvailabilityAndroid: never;
   clearTransactionIOS: never;
   consumePurchaseAndroid: MutationConsumePurchaseAndroidArgs;
-  createAlternativeBillingTokenAndroid: never;
   createBillingProgramReportingDetailsAndroid: MutationCreateBillingProgramReportingDetailsAndroidArgs;
   deepLinkToSubscriptions: MutationDeepLinkToSubscriptionsArgs;
   endConnection: never;
@@ -2448,15 +2235,12 @@ export type MutationArgsMap = {
   presentExternalPurchaseLinkIOS: MutationPresentExternalPurchaseLinkIosArgs;
   presentExternalPurchaseNoticeSheetIOS: never;
   requestPurchase: MutationRequestPurchaseArgs;
-  requestPurchaseOnPromotedProductIOS: never;
   restorePurchases: never;
-  showAlternativeBillingDialogAndroid: never;
   showBillingProgramInformationDialogAndroid: MutationShowBillingProgramInformationDialogAndroidArgs;
   showExternalPurchaseCustomLinkNoticeIOS: MutationShowExternalPurchaseCustomLinkNoticeIosArgs;
   showInAppMessagesAndroid: MutationShowInAppMessagesAndroidArgs;
   showManageSubscriptionsIOS: never;
   syncIOS: never;
-  validateReceipt: MutationValidateReceiptArgs;
   verifyPurchase: MutationVerifyPurchaseArgs;
   verifyPurchaseWithProvider: MutationVerifyPurchaseWithProviderArgs;
 };
@@ -2488,7 +2272,6 @@ export type QueryArgsMap = {
   getPromotedProductIOS: never;
   getReceiptDataIOS: never;
   getStorefront: never;
-  getStorefrontIOS: never;
   getTransactionJwsIOS: QueryGetTransactionJwsIosArgs;
   hasActiveSubscriptions: QueryHasActiveSubscriptionsArgs;
   isEligibleForExternalPurchaseCustomLinkIOS: never;
@@ -2496,7 +2279,6 @@ export type QueryArgsMap = {
   isTransactionVerifiedIOS: QueryIsTransactionVerifiedIosArgs;
   latestTransactionIOS: QueryLatestTransactionIosArgs;
   subscriptionStatusIOS: QuerySubscriptionStatusIosArgs;
-  validateReceiptIOS: QueryValidateReceiptIosArgs;
 };
 
 export type QueryField<K extends keyof Query> =

@@ -1,9 +1,9 @@
 <Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
-    <TargetFrameworks>net9.0;net10.0;net9.0-android;net10.0-android;net9.0-ios;net10.0-ios;net9.0-maccatalyst;net10.0-maccatalyst</TargetFrameworks>
+    <TargetFrameworks>net10.0;net10.0-android;net10.0-ios;net10.0-maccatalyst</TargetFrameworks>
     <!-- UseMaui only activates on platform TFMs (android/ios/maccatalyst).
-         The shared `net9.0` / `net10.0` build is contract-only — IOpenIap, generated
+         The shared `net10.0` build is contract-only — IOpenIap, generated
          Types, factory dispatch — and references no MAUI Controls types,
          so it doesn't need the MAUI workload at restore/build time.
          Keeping UseMaui unconditional makes the shared TFM require

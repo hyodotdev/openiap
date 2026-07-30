@@ -238,8 +238,8 @@ describe('Standardized Offer Types', () => {
         displayPrice: '$9.99',
         price: 9.99,
         currency: 'USD',
-        platform: 'android',
         type: 'in-app',
+        platform: 'android',
         nameAndroid: 'Test Product',
         discountOffers: [
           {
@@ -282,7 +282,6 @@ describe('Standardized Offer Types', () => {
         platform: 'android' as const,
         type: 'subs' as const,
         nameAndroid: 'Premium Subscription',
-        subscriptionOfferDetailsAndroid: [],
         subscriptionOffers: [
           {
             id: 'sub_intro',
@@ -473,8 +472,8 @@ describe('Standardized Offer Types', () => {
         displayPrice: '$4.99',
         price: 4.99,
         currency: 'USD',
-        platform: 'android',
         type: 'in-app',
+        platform: 'android',
         nameAndroid: '100 Gems',
         discountOffers: [
           {
@@ -620,7 +619,6 @@ describe('Standardized Offer Types', () => {
         transactionDate: 1700000000000,
         purchaseToken: 'current_token',
         store: 'google',
-        platform: 'android',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: true,
@@ -645,7 +643,6 @@ describe('Standardized Offer Types', () => {
         productId: 'regular_product',
         transactionDate: 1700000000000,
         store: 'google',
-        platform: 'android',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: false,
@@ -662,7 +659,6 @@ describe('Standardized Offer Types', () => {
         productId: 'premium_yearly',
         transactionDate: 1700000000000,
         store: 'google',
-        platform: 'android',
         quantity: 1,
         purchaseState: 'purchased',
         isAutoRenewing: true,

@@ -415,7 +415,7 @@ export class DartPlugin extends CodegenPlugin {
   }
 
   private generateRequestPurchaseProps(irInput: IRInput): void {
-    const [requestPurchase, requestSubscription, , useAlternativeBilling] = this.requireCustomInputFields(irInput);
+    const [requestPurchase, requestSubscription] = this.requireCustomInputFields(irInput);
     this.generateDocComment(irInput.description);
 
     // Find the platform-specific types from schema
@@ -443,16 +443,12 @@ export class DartPlugin extends CodegenPlugin {
     this.emit('  const factory RequestPurchaseProps.inApp(({');
     this.emit(`    ${appleType}? ${appleName},`);
     this.emit(`    ${googleType}? ${googleName},`);
-    this.generateDocComment(useAlternativeBilling.description, '    ');
-    this.emit('    bool? useAlternativeBilling,');
     this.emit('  }) props) = _InAppPurchase;');
     this.emit('');
     this.generateDocComment(requestSubscription.description, '  ');
     this.emit('  const factory RequestPurchaseProps.subs(({');
     this.emit(`    ${appleSubsType}? ${appleName},`);
     this.emit(`    ${googleSubsType}? ${googleName},`);
-    this.generateDocComment(useAlternativeBilling.description, '    ');
-    this.emit('    bool? useAlternativeBilling,');
     this.emit('  }) props) = _SubsPurchase;');
     this.emit('');
     this.emit('  Map<String, dynamic> toJson();');
@@ -465,7 +461,6 @@ export class DartPlugin extends CodegenPlugin {
     this.emit('  final ({');
     this.emit(`    ${appleType}? ${appleName},`);
     this.emit(`    ${googleType}? ${googleName},`);
-    this.emit('    bool? useAlternativeBilling,');
     this.emit('  }) props;');
     this.emit('');
     this.emit('  @override');
@@ -476,7 +471,6 @@ export class DartPlugin extends CodegenPlugin {
     this.emit(`        if (props.${googleName} != null) 'google': props.${googleName}!.toJson(),`);
     this.emit('      },');
     this.emit("      'type': ProductQueryType.InApp.toJson(),");
-    this.emit("      if (props.useAlternativeBilling != null) 'useAlternativeBilling': props.useAlternativeBilling,");
     this.emit('    };');
     this.emit('  }');
     this.emit('}');
@@ -488,7 +482,6 @@ export class DartPlugin extends CodegenPlugin {
     this.emit('  final ({');
     this.emit(`    ${appleSubsType}? ${appleName},`);
     this.emit(`    ${googleSubsType}? ${googleName},`);
-    this.emit('    bool? useAlternativeBilling,');
     this.emit('  }) props;');
     this.emit('');
     this.emit('  @override');
@@ -499,7 +492,6 @@ export class DartPlugin extends CodegenPlugin {
     this.emit(`        if (props.${googleName} != null) 'google': props.${googleName}!.toJson(),`);
     this.emit('      },');
     this.emit("      'type': ProductQueryType.Subs.toJson(),");
-    this.emit("      if (props.useAlternativeBilling != null) 'useAlternativeBilling': props.useAlternativeBilling,");
     this.emit('    };');
     this.emit('  }');
     this.emit('}');

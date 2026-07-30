@@ -12,8 +12,6 @@ import java.util.Locale
  */
 internal object GodotIapLog {
     private const val TAG = "GodotIap"
-    private val emittedDeprecations = mutableSetOf<String>()
-    private var deprecationHandler: ((String) -> Unit)? = null
     private val SENSITIVE_KEY_FRAGMENTS = setOf(
         "token",
         "apikey",
@@ -64,35 +62,6 @@ internal object GodotIapLog {
     fun warning(message: String) {
         if (DEBUG) {
             Log.w(TAG, message)
-        }
-    }
-
-    /**
-     * Emit an always-visible compatibility warning once per process.
-     *
-     * Deprecation warnings must not depend on optional diagnostic logging:
-     * callers need to see the migration path before the compatibility bridge
-     * is removed in godot-iap 3.0.0.
-     */
-    fun deprecation(
-        key: String,
-        message: String,
-    ) {
-        val shouldEmit = synchronized(emittedDeprecations) {
-            emittedDeprecations.add(key)
-        }
-        if (shouldEmit) {
-            deprecationHandler?.invoke(message) ?: Log.w(TAG, message)
-        }
-    }
-
-    internal fun setDeprecationHandlerForTests(handler: ((String) -> Unit)?) {
-        deprecationHandler = handler
-    }
-
-    internal fun resetDeprecationsForTests() {
-        synchronized(emittedDeprecations) {
-            emittedDeprecations.clear()
         }
     }
 

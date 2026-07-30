@@ -13,10 +13,6 @@ public extension PurchaseError {
         case .remoteError: return "Remote service error"
         case .networkError: return "Network connection error"
         case .serviceError: return "Store service error"
-        // Deprecated - use purchaseVerification* variants instead
-        case .receiptFailed: return "Purchase verification failed"
-        case .receiptFinished: return "Transaction already finished"
-        case .receiptFinishedFailed: return "Transaction finish failed"
         case .purchaseVerificationFailed: return "Purchase verification failed"
         case .purchaseVerificationFinished: return "Transaction already finished"
         case .purchaseVerificationFinishFailed: return "Transaction finish failed"

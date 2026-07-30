@@ -295,11 +295,11 @@ describe('PurchaseFlow Screen', () => {
 
     expect(requestPurchaseMock).toHaveBeenCalledWith({
       request: {
-        ios: {
+        apple: {
           sku: 'dev.hyo.martie.10bulbs',
           quantity: 1,
         },
-        android: {
+        google: {
           skus: ['dev.hyo.martie.10bulbs'],
         },
       },
@@ -343,7 +343,6 @@ describe('PurchaseFlow Screen', () => {
     const restoredPurchase: Purchase = {
       id: 'transaction-restored-1',
       isAutoRenewing: false,
-      platform: 'android',
       productId: 'dev.hyo.martie.10bulbs',
       purchaseState: 'purchased',
       purchaseToken: 'google-token-restored-1',
@@ -450,7 +449,6 @@ describe('PurchaseFlow Screen', () => {
       const restoredPurchase: Purchase = {
         id: `transaction-restored-${result.iapkit?.productId}`,
         isAutoRenewing: false,
-        platform: 'android',
         productId: 'dev.hyo.martie.10bulbs',
         purchaseState: 'purchased',
         purchaseToken: `google-token-restored-${result.iapkit?.productId}`,
@@ -494,7 +492,6 @@ describe('PurchaseFlow Screen', () => {
     const purchase: Purchase = {
       id: 'transaction-reconnect-1',
       isAutoRenewing: false,
-      platform: 'android',
       productId: 'dev.hyo.martie.10bulbs',
       purchaseState: 'purchased',
       purchaseToken: 'google-token-reconnect-1',
@@ -516,8 +513,7 @@ describe('PurchaseFlow Screen', () => {
         Promise.resolve(),
     );
     let resolveVerification:
-      | ((value: VerifyPurchaseWithProviderResult) => void)
-      | undefined;
+      ((value: VerifyPurchaseWithProviderResult) => void) | undefined;
     const verificationPromise = new Promise<VerifyPurchaseWithProviderResult>(
       (resolve) => {
         resolveVerification = resolve;
@@ -625,7 +621,6 @@ describe('PurchaseFlow Screen', () => {
     const purchase: Purchase = {
       id: 'transaction-unmount-1',
       isAutoRenewing: false,
-      platform: 'android',
       productId: 'dev.hyo.martie.10bulbs',
       purchaseState: 'purchased',
       purchaseToken: 'google-token-unmount-1',
@@ -638,8 +633,7 @@ describe('PurchaseFlow Screen', () => {
         Promise.resolve(),
     );
     let resolveVerification:
-      | ((value: VerifyPurchaseWithProviderResult) => void)
-      | undefined;
+      ((value: VerifyPurchaseWithProviderResult) => void) | undefined;
     const verificationPromise = new Promise<VerifyPurchaseWithProviderResult>(
       (resolve) => {
         resolveVerification = resolve;
@@ -704,7 +698,6 @@ describe('PurchaseFlow Screen', () => {
     const purchase: Purchase = {
       id: 'transaction-remount-pending-finish-1',
       isAutoRenewing: false,
-      platform: 'android',
       productId: 'dev.hyo.martie.10bulbs',
       purchaseState: 'purchased',
       purchaseToken: 'google-token-remount-pending-finish-1',
@@ -793,7 +786,6 @@ describe('PurchaseFlow Screen', () => {
     const purchase: Purchase = {
       id: 'transaction-remount-after-owner-finish-1',
       isAutoRenewing: false,
-      platform: 'android',
       productId: 'dev.hyo.martie.10bulbs',
       purchaseState: 'purchased',
       purchaseToken: 'google-token-remount-after-owner-finish-1',

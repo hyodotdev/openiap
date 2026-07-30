@@ -141,8 +141,27 @@ bun run build:all      # Vite build + Bun compile → ./openiap-kit-server
 
 ### Health check
 
-`GET /health` returns `{ "ok": true }` without touching Convex — safe to
-point Fly.io liveness/readiness probes at.
+`GET /health` returns public operational metadata without touching Convex:
+
+```json
+{
+  "ok": true,
+  "status": "healthy",
+  "service": "iapkit",
+  "apiVersion": "v1",
+  "revision": "a1b2c3d4e5f6",
+  "environment": "production",
+  "timestamp": "2026-07-30T12:34:56.000Z"
+}
+```
+
+`apiVersion` identifies the public HTTP contract rather than the private
+workspace package metadata; hosted IAPKit deployments themselves are
+revisioned services, not installable semantic-versioned packages. `revision`
+is the first 12 characters of the deployed Git commit. Local builds report
+`null` when no valid revision is injected. The response is
+`Cache-Control: no-store`, remains safe for Fly.io liveness/readiness probes,
+and performs no database or store request.
 
 ### Graceful shutdown
 

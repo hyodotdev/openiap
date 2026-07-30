@@ -13,7 +13,7 @@ void main() {
         transactionId: 'txn_123',
         environmentIOS: 'Sandbox',
         expirationDateIOS: 1700001200,
-        willExpireSoon: true,
+        daysUntilExpirationIOS: 5,
       );
 
       final json = subscription.toJson();
@@ -21,7 +21,7 @@ void main() {
 
       expect(restored.environmentIOS, 'Sandbox');
       expect(restored.productId, 'premium_sub');
-      expect(restored.willExpireSoon, isTrue);
+      expect(restored.daysUntilExpirationIOS, 5);
     });
   });
 
@@ -30,7 +30,6 @@ void main() {
       const purchase = PurchaseAndroid(
         id: 'txn_android',
         isAutoRenewing: true,
-        platform: IapPlatform.Android,
         productId: 'monthly_access',
         purchaseState: PurchaseState.Purchased,
         purchaseToken: 'android_token',
@@ -43,7 +42,7 @@ void main() {
       final restored = PurchaseAndroid.fromJson(json);
 
       expect(restored.purchaseToken, 'android_token');
-      expect(restored.platform, IapPlatform.Android);
+      expect(restored.store, IapStore.Google);
       expect(restored.purchaseState, PurchaseState.Purchased);
     });
 
@@ -51,7 +50,6 @@ void main() {
       final purchase = PurchaseIOS(
         id: 'txn_ios',
         isAutoRenewing: false,
-        platform: IapPlatform.IOS,
         productId: 'premium_upgrade',
         purchaseState: PurchaseState.Purchased,
         quantity: 1,
@@ -67,7 +65,7 @@ void main() {
 
       expect(restored.environmentIOS, 'Production');
       expect(restored.subscriptionGroupIdIOS, 'group_a');
-      expect(restored.platform, IapPlatform.IOS);
+      expect(restored.store, IapStore.Apple);
     });
   });
 

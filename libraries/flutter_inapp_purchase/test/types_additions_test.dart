@@ -34,13 +34,13 @@ void main() {
         transactionId: 't1',
         environmentIOS: 'Sandbox',
         expirationDateIOS: 1700001000,
-        willExpireSoon: true,
+        daysUntilExpirationIOS: 5,
       );
 
       final json = sub.toJson();
       expect(json['productId'], 'sub');
       expect(json['environmentIOS'], 'Sandbox');
-      expect(json['willExpireSoon'], true);
+      expect(json['daysUntilExpirationIOS'], 5);
     });
 
     test('PurchaseIOS holds expirationDateIOS seconds', () {
@@ -48,7 +48,6 @@ void main() {
         id: 't',
         productId: 'p',
         isAutoRenewing: false,
-        platform: IapPlatform.IOS,
         purchaseState: PurchaseState.Purchased,
         quantity: 1,
         store: IapStore.Apple,
@@ -57,7 +56,7 @@ void main() {
         expirationDateIOS: 1700005000,
       );
       expect(p.expirationDateIOS, 1700005000);
-      expect(p.platform, IapPlatform.IOS);
+      expect(p.store, IapStore.Apple);
     });
 
     test('RequestPurchasePropsByPlatforms supports google field', () {
@@ -69,26 +68,13 @@ void main() {
       });
       expect(propsWithGoogle.google, isNotNull);
       expect(propsWithGoogle.google!.skus, ['com.example.product']);
-      expect(propsWithGoogle.android, isNull);
 
-      // Test parsing with 'android' field (deprecated)
-      final propsWithAndroid = RequestPurchasePropsByPlatforms.fromJson({
-        'android': {
-          'skus': ['com.example.legacy'],
-        },
-      });
-      expect(propsWithAndroid.android, isNotNull);
-      expect(propsWithAndroid.android!.skus, ['com.example.legacy']);
-      expect(propsWithAndroid.google, isNull);
-
-      // Test toJson includes both fields
-      final propsBoth = RequestPurchasePropsByPlatforms(
+      final props = RequestPurchasePropsByPlatforms(
         google: RequestPurchaseAndroidProps(skus: ['sku1']),
-        android: RequestPurchaseAndroidProps(skus: ['sku2']),
       );
-      final json = propsBoth.toJson();
+      final json = props.toJson();
       expect(json['google'], isNotNull);
-      expect(json['android'], isNotNull);
+      expect(json.containsKey('android'), isFalse);
     });
 
     test('RequestPurchaseIosProps supports advancedCommerceData', () {

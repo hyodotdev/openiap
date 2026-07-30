@@ -355,13 +355,6 @@ func get_subscription_offers(product_id: String) -> Array:
 
 
 func _subscription_offer_details(product: Variant) -> Array:
-	var details = _field(product, [
-		"subscriptionOfferDetailsAndroid",
-		"subscription_offer_details_android",
-	])
-	if details is Array and details.size() > 0:
-		return details
-
 	var offers = _field(product, [
 		"subscriptionOffers",
 		"subscription_offers",

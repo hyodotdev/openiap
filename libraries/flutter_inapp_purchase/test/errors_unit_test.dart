@@ -1,6 +1,5 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
-import 'package:flutter_inapp_purchase/deprecation.dart';
 import 'package:flutter_inapp_purchase/errors.dart' as errors;
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 import 'package:flutter_inapp_purchase/types.dart' as types;
@@ -8,8 +7,6 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:platform/platform.dart';
 
 void main() {
-  setUp(resetLegacyWarningsForTesting);
-
   group('getCurrentPlatform', () {
     tearDown(() {
       // Reset platform override after each test
@@ -60,6 +57,31 @@ void main() {
       expect(iosCode, types.ErrorCode.ServiceError);
     });
 
+    test('fromPlatformCode normalizes historical receipt inputs', () {
+      expect(
+        errors.ErrorCodeUtils.fromPlatformCode(
+          'E_RECEIPT_FAILED',
+          types.IapPlatform.Android,
+        ),
+        types.ErrorCode.PurchaseVerificationFailed,
+      );
+      expect(
+        errors.ErrorCodeUtils.fromPlatformCode(
+          'ReceiptFinished',
+          types.IapPlatform.Android,
+        ),
+        types.ErrorCode.PurchaseVerificationFinished,
+      );
+      expect(
+        errors.ErrorCodeUtils.fromPlatformCode(11, types.IapPlatform.IOS),
+        types.ErrorCode.PurchaseVerificationFinished,
+      );
+      expect(
+        errors.ErrorCodeUtils.fromPlatformCode(15, types.IapPlatform.IOS),
+        types.ErrorCode.PurchaseVerificationFinishFailed,
+      );
+    });
+
     test('toPlatformCode provides platform specific mapping', () {
       final iosValue = errors.ErrorCodeUtils.toPlatformCode(
         types.ErrorCode.NetworkError,
@@ -93,53 +115,16 @@ void main() {
   });
 
   group('PurchaseError', () {
-    test('subResponseCode fallback warns once while canonical stays silent',
-        () {
-      final warnings = <String?>[];
-      final originalDebugPrint = debugPrint;
-      debugPrint = (String? message, {int? wrapWidth}) {
-        warnings.add(message);
-      };
-      addTearDown(() => debugPrint = originalDebugPrint);
-
-      errors.PurchaseError.fromPlatformError(<String, dynamic>{
+    test('reads the canonical Android sub-response code', () {
+      final error = errors.PurchaseError.fromPlatformError(<String, dynamic>{
         'message': 'canonical',
         'subResponseCodeAndroid': 'user-ineligible',
-        'subResponseCode': 'payment-declined-due-to-insufficient-funds',
       }, types.IapPlatform.Android);
-      errors.PurchaseResult.fromJSON(<String, dynamic>{
-        'subResponseCodeAndroid': 'user-ineligible',
-        'subResponseCode': 'payment-declined-due-to-insufficient-funds',
-      });
-      expect(warnings, isEmpty);
 
-      final canonicalNullError =
-          errors.PurchaseError.fromPlatformError(<String, dynamic>{
-        'message': 'canonical null',
-        'subResponseCodeAndroid': null,
-        'subResponseCode': 'user-ineligible',
-      }, types.IapPlatform.Android);
-      final canonicalNullResult =
-          errors.PurchaseResult.fromJSON(<String, dynamic>{
-        'subResponseCodeAndroid': null,
-        'subResponseCode': 'user-ineligible',
-      });
-      expect(canonicalNullError.subResponseCodeAndroid, isNull);
-      expect(canonicalNullResult.subResponseCodeAndroid, isNull);
-      expect(warnings, isEmpty);
-
-      for (var index = 0; index < 2; index += 1) {
-        errors.PurchaseError.fromPlatformError(<String, dynamic>{
-          'message': 'legacy',
-          'subResponseCode': 'user-ineligible',
-        }, types.IapPlatform.Android);
-        errors.PurchaseResult.fromJSON(<String, dynamic>{
-          'subResponseCode': 'user-ineligible',
-        });
-      }
-
-      expect(warnings, hasLength(1));
-      expect(warnings.single, contains('`subResponseCode` field'));
+      expect(
+        error.subResponseCodeAndroid,
+        types.SubResponseCodeAndroid.UserIneligible,
+      );
     });
 
     test('fromPlatformError normalizes payload', () {
@@ -220,68 +205,7 @@ void main() {
     });
   });
 
-  group('Legacy models', () {
-    test('PurchaseResult serialization is reversible', () {
-      final result = errors.PurchaseResult(
-        responseCode: 1,
-        debugMessage: 'debug',
-        code: 'E_UNKNOWN',
-        message: 'message',
-        productId: 'sku',
-        productIds: <String>['sku', 'sku-2'],
-        productType: 'inapp',
-        isEmptyProductList: false,
-        subResponseCodeAndroid:
-            types.SubResponseCodeAndroid.NoApplicableSubResponseCode,
-        purchaseTokenAndroid: 'token',
-      );
-
-      final json = result.toJson();
-      final roundTrip = errors.PurchaseResult.fromJSON(json);
-      expect(roundTrip.responseCode, 1);
-      expect(roundTrip.debugMessage, 'debug');
-      expect(roundTrip.productId, 'sku');
-      expect(roundTrip.productIds, <String>['sku', 'sku-2']);
-      expect(roundTrip.productType, 'inapp');
-      expect(roundTrip.isEmptyProductList, isFalse);
-      expect(
-        roundTrip.subResponseCodeAndroid,
-        types.SubResponseCodeAndroid.NoApplicableSubResponseCode,
-      );
-      expect(roundTrip.purchaseTokenAndroid, 'token');
-    });
-
-    test('PurchaseResult ignores malformed productIds', () {
-      final result = errors.PurchaseResult.fromJSON(<String, dynamic>{
-        'productIds': 'not-a-list',
-      });
-
-      expect(result.productIds, isNull);
-    });
-
-    test('ConnectionResult serialization', () {
-      final result = errors.ConnectionResult(msg: 'connected');
-      final json = result.toJson();
-      final parsed = errors.ConnectionResult.fromJSON(json);
-      expect(parsed.msg, 'connected');
-      expect(parsed.toString(), contains('connected'));
-    });
-
-    test('ConnectionResult accepts the native connected flag', () {
-      expect(
-        errors.ConnectionResult.fromJSON(
-          <String, dynamic>{'connected': true},
-        ).msg,
-        'connected',
-      );
-      expect(
-        errors.ConnectionResult.fromJSON(
-          <String, dynamic>{'connected': false},
-        ).msg,
-        'disconnected',
-      );
-    });
-
+  group('Error inference', () {
     test(
       'message-based inference removed - returns Unknown for "User cancelled the operation"',
       () {
@@ -352,7 +276,6 @@ void main() {
             const types.RequestPurchaseProps.inApp((
               apple: types.RequestPurchaseIosProps(sku: 'test_sku'),
               google: null,
-              useAlternativeBilling: null,
             )),
           );
           fail('Expected PurchaseError');
@@ -397,7 +320,6 @@ void main() {
             const types.RequestPurchaseProps.inApp((
               apple: types.RequestPurchaseIosProps(sku: 'test_sku'),
               google: null,
-              useAlternativeBilling: null,
             )),
           );
           fail('Expected PurchaseError');
@@ -665,7 +587,7 @@ void main() {
     });
 
     test(
-      'getStorefrontIOS maps PlatformException error code',
+      'getStorefront maps PlatformException error code',
       () async {
         debugDefaultTargetPlatformOverride = TargetPlatform.iOS;
 
@@ -673,7 +595,7 @@ void main() {
             .setMockMethodCallHandler(
           channel,
           (MethodCall call) async {
-            if (call.method == 'getStorefrontIOS') {
+            if (call.method == 'getStorefront') {
               throw PlatformException(
                 code: 'network-error',
                 message: 'Network issue',
@@ -688,7 +610,7 @@ void main() {
         );
 
         try {
-          await iap.getStorefrontIOS();
+          await iap.getStorefront();
           fail('Expected PurchaseError');
         } on errors.PurchaseError catch (e) {
           expect(e.code, types.ErrorCode.NetworkError);
@@ -857,7 +779,6 @@ void main() {
                 sku: 'test_sku',
               ),
               google: null,
-              useAlternativeBilling: null,
             )),
           );
           fail('Expected PurchaseError');

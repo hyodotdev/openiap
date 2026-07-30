@@ -1,7 +1,3 @@
-// Canonical builders still read their deprecated 2.x properties when callers
-// set them. Consumer call sites retain warnings; remove those reads in 3.0.
-@file:Suppress("DEPRECATION")
-
 package io.github.hyochan.kmpiap.dsl
 
 import io.github.hyochan.kmpiap.openiap.AndroidSubscriptionOfferInput
@@ -64,27 +60,11 @@ class PurchaseRequestBuilder {
     private var iosOptions: (IosOptionsBuilder.() -> Unit)? = null
     private var androidOptions: (AndroidOptionsBuilder.() -> Unit)? = null
 
-    @Deprecated(
-        message = "Use apple(block) instead. Scheduled for removal in kmp-iap 3.0.0.",
-        replaceWith = ReplaceWith("apple(block)")
-    )
-    fun ios(block: IosOptionsBuilder.() -> Unit) {
-        iosOptions = block
-    }
-
     /**
      * Configure App Store purchase options.
      */
     fun apple(block: IosOptionsBuilder.() -> Unit) {
         iosOptions = block
-    }
-
-    @Deprecated(
-        message = "Use google(block) instead. Scheduled for removal in kmp-iap 3.0.0.",
-        replaceWith = ReplaceWith("google(block)")
-    )
-    fun android(block: AndroidOptionsBuilder.() -> Unit) {
-        androidOptions = block
     }
 
     /**
@@ -215,15 +195,11 @@ class AndroidOptionsBuilder {
     var purchaseToken: String? = null
     /** Original external transaction ID for a developer-billed subscription replacement (9.1.0+). */
     var originalExternalTransactionId: String? = null
-    @Deprecated(
-        message = "Use subscriptionProductReplacementParams instead. Scheduled for removal in kmp-iap 3.0.0."
-    )
-    var replacementMode: Int? = null
     var subscriptionOffers: List<AndroidSubscriptionOfferInput> = emptyList()
     var subscriptionProductReplacementParams: SubscriptionProductReplacementParamsAndroid? = null
     /**
      * Offer token for one-time purchase discounts (Android 8.0+).
-     * Pass the offerToken from oneTimePurchaseOfferDetailsAndroid or discountOffers
+     * Pass the offerToken from discountOffers
      * to apply a discount offer to the purchase.
      */
     var offerToken: String? = null
@@ -251,7 +227,6 @@ class AndroidOptionsBuilder {
             isOfferPersonalized = isOfferPersonalized,
             purchaseToken = purchaseToken,
             originalExternalTransactionId = originalExternalTransactionId,
-            replacementMode = replacementMode,
             subscriptionOffers = if (subscriptionOffers.isNotEmpty()) subscriptionOffers else null,
             subscriptionProductReplacementParams = subscriptionProductReplacementParams,
             developerBillingOption = developerBillingOption

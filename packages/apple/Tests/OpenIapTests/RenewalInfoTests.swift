@@ -195,7 +195,6 @@ final class RenewalInfoTests: XCTestCase {
             originalTransactionDateIOS: 1729083955000,
             originalTransactionIdentifierIOS: "txn_123",
             ownershipTypeIOS: "purchased",
-            platform: .ios,
             productId: "premium_yearly",
             purchaseState: .purchased,
             purchaseToken: "jws_token",
@@ -261,7 +260,6 @@ final class RenewalInfoTests: XCTestCase {
             originalTransactionDateIOS: 1729083955000,
             originalTransactionIdentifierIOS: "txn_456",
             ownershipTypeIOS: "purchased",
-            platform: .ios,
             productId: "premium_yearly",  // Currently on yearly
             purchaseState: .purchased,
             purchaseToken: "jws_token",

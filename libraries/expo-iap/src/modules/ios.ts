@@ -3,7 +3,6 @@
 // Internal modules
 // import removed: use purchaseUpdatedListener directly in app code
 import ExpoIapModule from '../ExpoIapModule';
-import {ErrorCode} from '../types';
 
 // Types
 import type {
@@ -16,15 +15,9 @@ import type {
   Purchase,
   PurchaseIOS,
   QueryField,
-  VerifyPurchaseProps,
-  VerifyPurchaseResultIOS,
   SubscriptionStatusIOS,
 } from '../types';
-import {
-  createPurchaseError,
-  createPurchaseErrorFromNativeException,
-  type PurchaseError,
-} from '../utils/errorMapping';
+import {type PurchaseError} from '../utils/errorMapping';
 import {Linking, Platform} from 'react-native';
 
 /**
@@ -222,57 +215,6 @@ export const getReceiptDataIOS: QueryField<'getReceiptDataIOS'> = async () => {
 };
 
 /**
- * @deprecated Use `getReceiptDataIOS` instead. This compatibility alias will
- * be removed in expo-iap 5.0.0.
- */
-export const getReceiptIOS = getReceiptDataIOS;
-
-/**
- * Get the current App Store storefront country code on iOS.
- *
- * @deprecated Use cross-platform `getStorefront` from the main index instead.
- *   This compatibility alias will be removed in expo-iap 5.0.0.
- *
- * @returns {Promise<string>} ISO 3166-1 alpha-3 country code (e.g. "USA")
- * @throws Error if called on non-iOS platform — Android callers must use the
- *   cross-platform `getStorefront` from the main index instead
- *
- * @platform iOS
- *
- * @see {@link https://openiap.dev/docs/apis/ios/get-storefront-ios}
- */
-export const getStorefrontIOS: QueryField<'getStorefrontIOS'> = async () => {
-  requireIosPlatform('getStorefrontIOS');
-  if (typeof ExpoIapModule.getStorefront !== 'function') {
-    throw createPurchaseError({
-      code: ErrorCode.FeatureNotSupported,
-      message: 'Native getStorefront is not available on this build.',
-      platform: 'ios',
-    });
-  }
-
-  let storefront: unknown;
-  try {
-    storefront = await ExpoIapModule.getStorefront();
-  } catch (error) {
-    throw createPurchaseErrorFromNativeException(error, 'ios', {
-      code: ErrorCode.ServiceError,
-      message: 'Failed to get storefront.',
-      debugMessage: error instanceof Error ? error.message : String(error),
-    });
-  }
-
-  if (typeof storefront !== 'string' || storefront.trim().length === 0) {
-    throw createPurchaseError({
-      code: ErrorCode.ServiceError,
-      message: 'Storefront lookup returned no country code.',
-      platform: 'ios',
-    });
-  }
-  return storefront;
-};
-
-/**
  * Refresh the receipt data from Apple's servers and return the updated receipt.
  * This calls AppStore.sync() before reading the receipt, ensuring the latest
  * receipt data is available. Use this after a first purchase when
@@ -333,51 +275,14 @@ export const getTransactionJwsIOS: QueryField<'getTransactionJwsIOS'> = async (
   return jws ?? '';
 };
 
-const validateReceiptIOSImpl = async (props: VerifyPurchaseProps | string) => {
-  requireIosPlatform('validateReceiptIOS');
-  const sku =
-    typeof props === 'string'
-      ? props
-      : (props as VerifyPurchaseProps)?.apple?.sku;
-
-  if (!sku) {
-    throw new Error('validateReceiptIOS requires a SKU (via apple.sku)');
-  }
-
-  return (await ExpoIapModule.validateReceiptIOS(
-    sku,
-  )) as VerifyPurchaseResultIOS;
-};
-
-/**
- * Validate receipt for iOS using StoreKit 2's built-in verification.
- * Returns receipt data and verification information to help with server-side validation.
- *
- * NOTE: For proper security, Apple recommends verifying receipts on your server using
- * the verifyReceipt endpoint rather than relying solely on client-side verification.
- *
- * @deprecated Use `verifyPurchase` instead. Scheduled for removal in
- * expo-iap 5.0.0.
- * @param props The product's SKU or verification props
- * @returns {Promise<{
- *   isValid: boolean;
- *   receiptData: string;
- *   jwsRepresentation: string;
- *   latestTransaction?: Purchase;
- * }>}
- *
- * @see {@link https://openiap.dev/docs/apis/ios/validate-receipt-ios}
- */
-export const validateReceiptIOS =
-  validateReceiptIOSImpl as QueryField<'validateReceiptIOS'>;
-
 /**
  * Present the code redemption sheet for offer codes (iOS only).
  * This allows users to redeem promotional codes for in-app purchases and subscriptions.
  *
  * Note: This only works on real devices, not simulators.
  *
- * @returns Promise resolving to true if the sheet was presented successfully
+ * @returns The verified redeemed purchase on iOS 27+, or null after the
+ * legacy sheet is presented on earlier iOS versions.
  * @throws Error if called on non-iOS platform or tvOS
  *
  * @platform iOS
@@ -388,7 +293,7 @@ export const presentCodeRedemptionSheetIOS: MutationField<
   'presentCodeRedemptionSheetIOS'
 > = async () => {
   requireIosPlatform('presentCodeRedemptionSheetIOS');
-  return !!(await ExpoIapModule.presentCodeRedemptionSheetIOS());
+  return await ExpoIapModule.presentCodeRedemptionSheetIOS();
 };
 
 /**
@@ -432,29 +337,6 @@ export const getPromotedProductIOS: QueryField<
   requireIosPlatform('getPromotedProductIOS');
   const product = await ExpoIapModule.getPromotedProductIOS();
   return (product ?? null) as ProductIOS | null;
-};
-
-/**
- * Complete the purchase of a promoted product (iOS only).
- * This should be called after showing your purchase UI for a promoted product.
- *
- * @deprecated Use promotedProductListenerIOS to receive the productId, then
- * call requestPurchase with that SKU instead. This function will be removed in
- * expo-iap 5.0.0.
- *
- * @returns Promise resolving when the purchase is initiated
- * @throws Error if called on non-iOS platform or no promoted product is available
- *
- * @platform iOS
- *
- * @see {@link https://openiap.dev/docs/apis/ios/request-purchase-on-promoted-product-ios}
- */
-export const requestPurchaseOnPromotedProductIOS: MutationField<
-  'requestPurchaseOnPromotedProductIOS'
-> = async () => {
-  requireIosPlatform('requestPurchaseOnPromotedProductIOS');
-  const result = await ExpoIapModule.requestPurchaseOnPromotedProductIOS();
-  return result ?? true;
 };
 
 /**

@@ -12,7 +12,6 @@ import type {
   RequestPurchasePropsByPlatforms,
   RequestSubscriptionPropsByPlatforms,
 } from './types';
-import {warnLegacyOnce} from './utils/deprecation';
 
 export * from './types';
 export * from './vega';
@@ -43,16 +42,7 @@ export enum OpenIapEvent {
   SubscriptionBillingIssue = 'subscription-billing-issue',
 }
 
-/**
- * Product type accepted by the Amazon Vega entry point.
- *
- * Compatibility note: the `'inapp'` member is deprecated. Use `'in-app'`
- * instead; the alias will be removed in expo-iap 5.0.0.
- */
-export type ProductTypeInput = ProductQueryType | 'inapp';
-
-const LEGACY_INAPP_WARNING =
-  "'inapp' product type is deprecated and will be removed in expo-iap 5.0.0. Use 'in-app' instead.";
+export type ProductTypeInput = ProductQueryType;
 
 export interface EventSubscription {
   remove(): void;
@@ -75,22 +65,14 @@ const unsupported = (feature: string): never => {
 const normalizeProductType = (
   type?: ProductTypeInput | null,
 ): ProductQueryType => {
+  if (type == null || type === 'in-app') return 'in-app';
   if (type === 'subs' || type === 'all') return type;
-  if (type === 'inapp') {
-    warnLegacyOnce('product-type.inapp', LEGACY_INAPP_WARNING);
-  }
-  return 'in-app';
+  throw new Error(
+    `Unsupported product type: ${String(type)}. Use in-app, subs, or all.`,
+  );
 };
 
-const normalizePurchaseArray = (purchases: Purchase[]): Purchase[] =>
-  purchases.map((purchase) => {
-    const platform = String(purchase.platform).toLowerCase();
-    if (platform === purchase.platform) return purchase;
-    if (platform === 'android' || platform === 'ios') {
-      return {...purchase, platform};
-    }
-    return purchase;
-  });
+const normalizePurchaseArray = (purchases: Purchase[]): Purchase[] => purchases;
 
 const getAndroidRequest = (
   request?:
@@ -98,23 +80,7 @@ const getAndroidRequest = (
     | RequestSubscriptionPropsByPlatforms
     | null,
 ) => {
-  if (
-    request != null &&
-    Object.prototype.hasOwnProperty.call(request, 'google')
-  ) {
-    return request.google;
-  }
-  if (
-    request != null &&
-    Object.prototype.hasOwnProperty.call(request, 'android')
-  ) {
-    warnLegacyOnce(
-      'request-purchase.android',
-      '`request.android` is deprecated and will be removed in expo-iap 5.0.0. Use `request.google` instead.',
-    );
-    return request.android;
-  }
-  return undefined;
+  return request?.google;
 };
 
 const createPurchaseTokenError = (purchase: Purchase): Error => {
@@ -183,13 +149,13 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
   const androidRequest = getAndroidRequest(args.request);
   if (!androidRequest?.skus?.length) {
     throw new Error(
-      'Invalid request for Amazon Vega. The `request.google.skus` or `request.android.skus` property is required and must be a non-empty array.',
+      'Invalid request for Amazon Vega. The `request.google.skus` property is required and must be a non-empty array.',
     );
   }
 
   return normalizePurchaseArray(
     await getModule().requestPurchase({
-      skuArr: androidRequest.skus,
+      skus: androidRequest.skus,
       type: normalizeProductType(args.type),
     }),
   );
@@ -248,14 +214,8 @@ export const verifyPurchaseWithProvider: MutationField<
   return getModule().verifyPurchaseWithProvider(options);
 };
 
-/**
- * @deprecated Use `verifyPurchase` instead. This compatibility operation will
- * be removed in expo-iap 5.0.0.
- */
-export const validateReceipt: MutationField<'validateReceipt'> = async () =>
-  unsupported('validateReceipt');
-
-export const verifyPurchase: MutationField<'verifyPurchase'> = validateReceipt;
+export const verifyPurchase: MutationField<'verifyPurchase'> = async () =>
+  unsupported('verifyPurchase');
 
 export const acknowledgePurchaseAndroid: MutationField<
   'acknowledgePurchaseAndroid'
@@ -271,18 +231,6 @@ export const consumePurchaseAndroid: MutationField<
   return true;
 };
 
-/**
- * @deprecated Use `acknowledgePurchaseAndroid` instead. This alias will be
- * removed in expo-iap 5.0.0.
- */
-export const acknowledgePurchase = acknowledgePurchaseAndroid;
-
-/**
- * @deprecated Use `consumePurchaseAndroid` instead. This alias will be removed
- * in expo-iap 5.0.0.
- */
-export const consumePurchase = consumePurchaseAndroid;
-
 export const syncIOS: MutationField<'syncIOS'> = async () =>
   unsupported('syncIOS');
 export const getAppTransactionIOS: QueryField<
@@ -292,18 +240,12 @@ export const getPromotedProductIOS: QueryField<
   'getPromotedProductIOS'
 > = async () => null;
 
-/**
- * @deprecated Use `promotedProductListenerIOS` followed by `requestPurchase`
- * instead. This compatibility operation will be removed in expo-iap 5.0.0.
- */
-export const requestPurchaseOnPromotedProductIOS = async (): Promise<boolean> =>
-  unsupported('requestPurchaseOnPromotedProductIOS');
 export const showManageSubscriptionsIOS: MutationField<
   'showManageSubscriptionsIOS'
 > = async () => [];
 export const presentCodeRedemptionSheetIOS: MutationField<
   'presentCodeRedemptionSheetIOS'
-> = async () => false;
+> = async () => null;
 export const presentExternalPurchaseLinkIOS: MutationField<
   'presentExternalPurchaseLinkIOS'
 > = async () => unsupported('presentExternalPurchaseLinkIOS');
@@ -329,29 +271,6 @@ export const subscriptionBillingIssueListener = (): EventSubscription => ({
   remove: () => {},
 });
 
-/**
- * @deprecated Use `isBillingProgramAvailableAndroid('external-offer')`
- * instead. Scheduled for removal in expo-iap 5.0.0.
- */
-export const checkAlternativeBillingAvailabilityAndroid: MutationField<
-  'checkAlternativeBillingAvailabilityAndroid'
-> = async () => unsupported('checkAlternativeBillingAvailabilityAndroid');
-
-/**
- * @deprecated Use `launchExternalLinkAndroid` instead. Scheduled for removal
- * in expo-iap 5.0.0.
- */
-export const showAlternativeBillingDialogAndroid: MutationField<
-  'showAlternativeBillingDialogAndroid'
-> = async () => unsupported('showAlternativeBillingDialogAndroid');
-
-/**
- * @deprecated Use `createBillingProgramReportingDetailsAndroid` with the
- * external-offer program instead. Scheduled for removal in expo-iap 5.0.0.
- */
-export const createAlternativeBillingTokenAndroid: MutationField<
-  'createAlternativeBillingTokenAndroid'
-> = async () => unsupported('createAlternativeBillingTokenAndroid');
 export const isBillingProgramAvailableAndroid: MutationField<
   'isBillingProgramAvailableAndroid'
 > = async () => unsupported('isBillingProgramAvailableAndroid');

@@ -74,7 +74,7 @@ jest.mock('../../src', () => {
     latestTransactionIOS: jest.fn(),
     beginRefundRequestIOS: jest.fn(),
     showManageSubscriptionsIOS: jest.fn(),
-    getReceiptIOS: jest.fn(),
+    getReceiptDataIOS: jest.fn(),
     isTransactionVerifiedIOS: jest.fn(),
     getTransactionJwsIOS: jest.fn(),
     presentCodeRedemptionSheetIOS: jest.fn(),
@@ -82,7 +82,6 @@ jest.mock('../../src', () => {
       Promise.resolve({success: true}),
     ),
     getAppTransactionIOS: jest.fn(),
-    validateReceiptIOS: jest.fn(),
 
     // Cross-platform storefront helper
     getStorefront: jest.fn(),
@@ -90,10 +89,7 @@ jest.mock('../../src', () => {
 
     // Android functions
     deepLinkToSubscriptionsAndroid: jest.fn(),
-    validateReceiptAndroid: jest.fn(),
     acknowledgePurchaseAndroid: jest.fn(),
-    checkAlternativeBillingAvailabilityAndroid: jest.fn(),
-    createAlternativeBillingTokenAndroid: jest.fn(),
     isBillingProgramAvailableAndroid: jest.fn(),
     launchExternalLinkAndroid: jest.fn(),
     createBillingProgramReportingDetailsAndroid: jest.fn(),
@@ -138,8 +134,8 @@ jest.mock('../../src', () => {
       DeveloperError: 'DEVELOPER_ERROR',
       ItemUnavailable: 'ITEM_UNAVAILABLE',
       NetworkError: 'NETWORK_ERROR',
-      ReceiptFailed: 'RECEIPT_FAILED',
-      ReceiptFinishedFailed: 'RECEIPT_FINISHED_FAILED',
+      PurchaseVerificationFailed: 'PURCHASE_VERIFICATION_FAILED',
+      PurchaseVerificationFinishFailed: 'PURCHASE_VERIFICATION_FINISH_FAILED',
       UserCancelled: 'USER_CANCELLED',
       NotPrepared: 'NOT_PREPARED',
       Unknown: 'UNKNOWN',
@@ -195,7 +191,7 @@ jest.mock('expo-iap', () => {
     latestTransactionIOS: jest.fn(),
     beginRefundRequestIOS: jest.fn(),
     showManageSubscriptionsIOS: jest.fn(),
-    getReceiptIOS: jest.fn(),
+    getReceiptDataIOS: jest.fn(),
     isTransactionVerifiedIOS: jest.fn(),
     getTransactionJwsIOS: jest.fn(),
     presentCodeRedemptionSheetIOS: jest.fn(),
@@ -203,7 +199,6 @@ jest.mock('expo-iap', () => {
       Promise.resolve({success: true}),
     ),
     getAppTransactionIOS: jest.fn(),
-    validateReceiptIOS: jest.fn(),
 
     // Cross-platform storefront helper
     getStorefront: jest.fn(),
@@ -211,10 +206,7 @@ jest.mock('expo-iap', () => {
 
     // Android functions
     deepLinkToSubscriptionsAndroid: jest.fn(),
-    validateReceiptAndroid: jest.fn(),
     acknowledgePurchaseAndroid: jest.fn(),
-    checkAlternativeBillingAvailabilityAndroid: jest.fn(),
-    createAlternativeBillingTokenAndroid: jest.fn(),
     isBillingProgramAvailableAndroid: jest.fn(),
     launchExternalLinkAndroid: jest.fn(),
     createBillingProgramReportingDetailsAndroid: jest.fn(),
@@ -260,8 +252,8 @@ jest.mock('expo-iap', () => {
       DeveloperError: 'DEVELOPER_ERROR',
       ItemUnavailable: 'ITEM_UNAVAILABLE',
       NetworkError: 'NETWORK_ERROR',
-      ReceiptFailed: 'RECEIPT_FAILED',
-      ReceiptFinishedFailed: 'RECEIPT_FINISHED_FAILED',
+      PurchaseVerificationFailed: 'PURCHASE_VERIFICATION_FAILED',
+      PurchaseVerificationFinishFailed: 'PURCHASE_VERIFICATION_FINISH_FAILED',
       UserCancelled: 'USER_CANCELLED',
       NotPrepared: 'NOT_PREPARED',
       Unknown: 'UNKNOWN',

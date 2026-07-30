@@ -1609,7 +1609,7 @@ currentSub?.let { sub ->
     // Upgrade to premium with time proration
     kmpIapInstance.requestPurchase {
         type = ProductType.Subs
-        android {
+        google {
             skus = listOf("premium_monthly")
             purchaseToken = sub.purchaseToken
             subscriptionProductReplacementParams =
@@ -1637,7 +1637,7 @@ currentSub?.let { sub ->
     // Upgrade to premium with time proration
     kmpIapInstance.requestPurchase {
         type = ProductType.Subs
-        android {
+        google {
             skus = listOf("premium_monthly")
             purchaseToken = sub.purchaseToken
             subscriptionProductReplacementParams =
@@ -1674,7 +1674,6 @@ if (currentSub != null) {
                 SubscriptionReplacementModeAndroid.WithTimeProration,
           ),
       ),
-      useAlternativeBilling: null,
     )),
   );
 
@@ -1862,7 +1861,7 @@ premiumPurchase?.let { purchase ->
     // Downgrade - takes effect at next billing cycle
     kmpIapInstance.requestPurchase {
         type = ProductType.Subs
-        android {
+        google {
             skus = listOf("basic_monthly")
             purchaseToken = purchase.purchaseToken
             subscriptionProductReplacementParams =
@@ -1891,7 +1890,7 @@ premiumPurchase?.let { purchase ->
     // Downgrade - takes effect at next billing cycle
     kmpIapInstance.requestPurchase {
         type = ProductType.Subs
-        android {
+        google {
             skus = listOf("basic_monthly")
             purchaseToken = purchase.purchaseToken
             subscriptionProductReplacementParams =
@@ -1928,7 +1927,6 @@ if (premiumPurchase != null) {
             replacementMode: SubscriptionReplacementModeAndroid.Deferred,
           ),
       ),
-      useAlternativeBilling: null,
     )),
   );
 
@@ -2132,7 +2130,6 @@ if (currentSub != null) {
             replacementMode: SubscriptionReplacementModeAndroid.WithTimeProration,
           ),
       ),
-      useAlternativeBilling: null,
     )),
   );
 
@@ -2360,8 +2357,11 @@ for purchase in purchases:
                 <ol>
                   <li>
                     <strong>Specify replacement mode when needed</strong>: Pass{' '}
-                    <code>replacementMode</code> when you want to override the
-                    default configured in Google Play Console
+                    <code>
+                      subscriptionProductReplacementParams.replacementMode
+                    </code>{' '}
+                    when you want to override the default configured in Google
+                    Play Console
                   </li>
                   <li>
                     <strong>Use WITH_TIME_PRORATION for upgrades</strong> to
@@ -2533,7 +2533,7 @@ suspend fun changeSubscription(
     try {
         kmpIapInstance.requestPurchase {
             type = ProductType.Subs
-            android {
+            google {
                 skus = listOf(newSku)
                 purchaseToken = currentSub.purchaseToken
                 subscriptionProductReplacementParams =
@@ -2600,7 +2600,6 @@ Future<void> changeSubscription(
               replacementMode: replacementMode,
             ),
         ),
-        useAlternativeBilling: null,
       )),
     );
 

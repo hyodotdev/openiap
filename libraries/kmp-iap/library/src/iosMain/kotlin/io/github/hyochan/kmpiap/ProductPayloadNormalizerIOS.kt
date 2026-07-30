@@ -32,9 +32,7 @@ internal fun normalizeProductPayloadIOS(data: Any?): Map<String, Any?>? {
         }
     }
 
-    applyAlias("subscriptionInfoIOS", "subscription")
     applyAlias("subscriptionOffers", "offers")
-    applyAlias("discountsIOS", "discounts")
     return normalized
 }
 
@@ -42,15 +40,11 @@ internal fun normalizePurchasePayloadIOS(data: Any?): Map<String, Any?>? {
     val normalized = normalizeBridgeMap(data)?.toMutableMap() ?: return null
 
     // Preserve every canonical PurchaseIOS field from the native dictionary.
-    // These defaults only cover legacy bridge payloads that predate the
-    // generated platform/store/quantity fields.
-    if (normalized["platform"] == null) normalized["platform"] = "ios"
+    // The native bridge still supplies StoreKit-specific response labels that
+    // are normalized internally before decoding.
     if (normalized["store"] == null) normalized["store"] = "apple"
     if (normalized["quantity"] == null) {
         normalized["quantity"] = normalized["quantityIOS"] as? Number ?: 1
-    }
-    if ((normalized["platform"] as? String)?.equals("ios", ignoreCase = true) == true) {
-        normalized["platform"] = "ios"
     }
     if ((normalized["store"] as? String)?.equals("apple", ignoreCase = true) == true) {
         normalized["store"] = "apple"
@@ -64,7 +58,7 @@ internal fun normalizePurchasePayloadIOS(data: Any?): Map<String, Any?>? {
 
 internal fun decodePurchasePayloadIOS(data: Any?): PurchaseIOS? {
     val normalized = normalizePurchasePayloadIOS(data) ?: return null
-    if (normalized["platform"] != "ios") return null
+    if (normalized["store"] != "apple") return null
     if ((normalized["productId"] as? String).isNullOrBlank()) return null
     if (
         (normalized["id"] as? String).isNullOrBlank() ||

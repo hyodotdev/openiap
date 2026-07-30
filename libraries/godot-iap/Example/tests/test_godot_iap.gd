@@ -25,9 +25,6 @@ class FakeAndroidPlugin:
 		last_purchase = JSON.parse_string(params_json)
 		return JSON.stringify({"success": true, "pending": true})
 
-	func requestPurchaseJson(params_json: String) -> String:
-		return requestPurchase(params_json)
-
 	func getAvailablePurchasesWithOptions(options_json: String) -> String:
 		last_purchase_options = JSON.parse_string(options_json)
 		return "[]"
@@ -162,7 +159,6 @@ func _run_all_tests() -> void:
 	test_create_purchase_error()
 	test_set_purchase_updated_listener_options()
 	test_enum_raw_mapping_helpers()
-	test_iapkit_verification_input_precedence()
 	test_product_from_dict_platform_guards()
 	test_connection_state_signal_handlers()
 
@@ -367,7 +363,6 @@ func test_product_variant_mapping() -> void:
 
 	GodotIapPlugin._platform = "Android"
 	subscription_data["nameAndroid"] = "Premium"
-	subscription_data["subscriptionOfferDetailsAndroid"] = []
 	var android_product = GodotIapPlugin._product_from_dict(subscription_data)
 	_assert_true(
 		android_product is Types.ProductSubscriptionAndroid,
@@ -484,11 +479,10 @@ func test_ios_methods_mock() -> void:
 
 	# present_code_redemption_sheet_ios
 	var redemption_result = await GodotIapPlugin.present_code_redemption_sheet_ios()
-	_assert_true(redemption_result is bool, "present_code_redemption_sheet_ios should return bool")
-
-	# request_purchase_on_promoted_product_ios
-	var promoted_result = await GodotIapPlugin.request_purchase_on_promoted_product_ios()
-	_assert_true(promoted_result is bool, "request_purchase_on_promoted_product_ios should return bool")
+	_assert_true(
+		redemption_result == null or redemption_result is Types.PurchaseIOS,
+		"present_code_redemption_sheet_ios should return PurchaseIOS or null"
+	)
 
 	# current_entitlement_ios
 	var entitlement = await GodotIapPlugin.current_entitlement_ios("test_sku")
@@ -520,17 +514,26 @@ func test_android_methods_mock() -> void:
 	var consume_result = GodotIapPlugin.consume_purchase_android("mock_token")
 	_assert_true(consume_result is bool, "consume_purchase_android should return bool")
 
-	# check_alternative_billing_availability_android
-	var alternative_available = GodotIapPlugin.check_alternative_billing_availability_android()
-	_assert_true(alternative_available is bool, "check_alternative_billing_availability_android should return bool")
+	var availability = GodotIapPlugin.is_billing_program_available_android(
+		Types.BillingProgramAndroid.EXTERNAL_OFFER
+	)
+	_assert_true(
+		availability is Types.BillingProgramAvailabilityResultAndroid,
+		"is_billing_program_available_android should return the canonical result type"
+	)
 
-	# show_alternative_billing_dialog_android
-	var alternative_accepted = GodotIapPlugin.show_alternative_billing_dialog_android()
-	_assert_true(alternative_accepted is bool, "show_alternative_billing_dialog_android should return bool")
+	var reporting = GodotIapPlugin.create_billing_program_reporting_details_android(
+		Types.BillingProgramAndroid.EXTERNAL_OFFER
+	)
+	_assert_true(
+		reporting is Types.BillingProgramReportingDetailsAndroid,
+		"create_billing_program_reporting_details_android should return the canonical result type"
+	)
 
-	# create_alternative_billing_token_android
-	var alternative_token = GodotIapPlugin.create_alternative_billing_token_android()
-	_assert_true(alternative_token is String, "create_alternative_billing_token_android should return String")
+	var link_params = Types.LaunchExternalLinkParamsAndroid.new()
+	link_params.billing_program = Types.BillingProgramAndroid.EXTERNAL_OFFER
+	var link_result = GodotIapPlugin.launch_external_link_android(link_params)
+	_assert_true(link_result is bool, "launch_external_link_android should return bool")
 
 	# open_redeem_offer_code_android
 	var redeem_result = GodotIapPlugin.open_redeem_offer_code_android()
@@ -577,12 +580,10 @@ func test_android_methods_mock() -> void:
 func test_no_plugin_ios_zero_values() -> void:
 	_assert_equal(await GodotIapPlugin.sync_ios(), false, "sync_ios should return false without a native plugin")
 	_assert_equal(await GodotIapPlugin.clear_transaction_ios(), false, "clear_transaction_ios should return false without a native plugin")
-	_assert_equal(await GodotIapPlugin.present_code_redemption_sheet_ios(), false, "present_code_redemption_sheet_ios should return false without a native plugin")
-	_assert_equal(await GodotIapPlugin.request_purchase_on_promoted_product_ios(), false, "request_purchase_on_promoted_product_ios should return false without a native plugin")
+	_assert_equal(await GodotIapPlugin.present_code_redemption_sheet_ios(), null, "present_code_redemption_sheet_ios should return null without a native plugin")
 	_assert_equal(await GodotIapPlugin.begin_refund_request_ios("sku"), "", "begin_refund_request_ios should return an empty string without a native plugin")
 	_assert_equal(await GodotIapPlugin.get_receipt_data_ios(), "", "get_receipt_data_ios should return an empty string without a native plugin")
 	_assert_equal(await GodotIapPlugin.get_transaction_jws_ios("sku"), "", "get_transaction_jws_ios should return an empty string without a native plugin")
-	_assert_equal(await GodotIapPlugin.get_storefront_ios(), "", "get_storefront_ios should return an empty string without a native plugin")
 	_assert_equal(await GodotIapPlugin.is_transaction_verified_ios("sku"), false, "is_transaction_verified_ios should return false without a native plugin")
 	_assert_equal(await GodotIapPlugin.is_eligible_for_intro_offer_ios("group"), false, "is_eligible_for_intro_offer_ios should return false without a native plugin")
 	_assert_equal(await GodotIapPlugin.is_eligible_for_external_purchase_custom_link_ios(), false, "is_eligible_for_external_purchase_custom_link_ios should return false without a native plugin")
@@ -593,7 +594,6 @@ func test_no_plugin_ios_zero_values() -> void:
 	_assert_equal(await GodotIapPlugin.get_promoted_product_ios(), null, "get_promoted_product_ios should return null without a native plugin")
 	_assert_equal(await GodotIapPlugin.get_external_purchase_custom_link_token_ios("services"), null, "get_external_purchase_custom_link_token_ios should return null without a native plugin")
 	_assert_equal(await GodotIapPlugin.show_external_purchase_custom_link_notice_ios("browser"), null, "show_external_purchase_custom_link_notice_ios should return null without a native plugin")
-	_assert_equal(await GodotIapPlugin.validate_receipt_ios({}), null, "validate_receipt_ios should return null without a native plugin")
 	_assert_equal((await GodotIapPlugin.get_pending_transactions_ios()).size(), 0, "get_pending_transactions_ios should return an empty array without a native plugin")
 	_assert_equal((await GodotIapPlugin.get_all_transactions_ios()).size(), 0, "get_all_transactions_ios should return an empty array without a native plugin")
 	_assert_equal((await GodotIapPlugin.show_manage_subscriptions_ios()).size(), 0, "show_manage_subscriptions_ios should return an empty array without a native plugin")
@@ -611,9 +611,6 @@ func test_no_plugin_ios_zero_values() -> void:
 func test_no_plugin_android_zero_values() -> void:
 	_assert_equal(GodotIapPlugin.acknowledge_purchase_android("token"), false, "acknowledge_purchase_android should return false without a native plugin")
 	_assert_equal(GodotIapPlugin.consume_purchase_android("token"), false, "consume_purchase_android should return false without a native plugin")
-	_assert_equal(GodotIapPlugin.check_alternative_billing_availability_android(), false, "check_alternative_billing_availability_android should return false without a native plugin")
-	_assert_equal(GodotIapPlugin.show_alternative_billing_dialog_android(), false, "show_alternative_billing_dialog_android should return false without a native plugin")
-	_assert_equal(GodotIapPlugin.create_alternative_billing_token_android(), "", "create_alternative_billing_token_android should return an empty string without a native plugin")
 	_assert_equal(GodotIapPlugin.get_package_name_android(), "", "get_package_name_android should return an empty string without a native plugin")
 	_assert_equal(GodotIapPlugin.open_redeem_offer_code_android(), false, "open_redeem_offer_code_android should return false without a native plugin on desktop")
 
@@ -660,7 +657,6 @@ func test_no_plugin_cross_platform_zero_values() -> void:
 	GodotIapPlugin.purchase_error.disconnect(capture_error)
 
 	_assert_equal(await GodotIapPlugin.verify_purchase({}), null, "verify_purchase should return null without a native plugin")
-	_assert_equal(await GodotIapPlugin.validate_receipt({}), null, "validate_receipt should return null without a native plugin")
 
 	var provider_result = await GodotIapPlugin.verify_purchase_with_provider({"provider": "iapkit"})
 	_assert_true(provider_result is Types.VerifyPurchaseWithProviderResult, "verify_purchase_with_provider should return a typed result without a native plugin")
@@ -739,28 +735,6 @@ func test_enum_raw_mapping_helpers() -> void:
 		"Developer billing type enums should map to their wire strings"
 	)
 	_assert_equal(GodotIapPlugin._developer_billing_type_to_raw("external-link"), "external-link", "Raw developer billing type strings should pass through")
-
-
-func test_iapkit_verification_input_precedence() -> void:
-	var legacy_only = GodotIapPlugin._normalize_verify_purchase_with_provider_props({
-		"apiKey": "legacy-key",
-		"google": {"purchaseToken": "token"},
-	})
-	_assert_equal(legacy_only.get("provider"), "iapkit", "Legacy-only input should default to the IAPKit provider")
-	_assert_equal(legacy_only.get("iapkit", {}).get("apiKey"), "legacy-key", "Legacy-only input should be nested for 2.x compatibility")
-
-	var canonical = {"provider": "iapkit", "iapkit": {"apiKey": "canonical"}, "apiKey": "legacy"}
-	var canonical_normalized = GodotIapPlugin._normalize_verify_purchase_with_provider_props(canonical)
-	_assert_equal(canonical_normalized.get("iapkit", {}).get("apiKey"), "canonical", "Canonical IAPKit input must win over flattened compatibility input")
-
-	var canonical_null = {"provider": "iapkit", "iapkit": null, "apiKey": "legacy"}
-	var null_normalized = GodotIapPlugin._normalize_verify_purchase_with_provider_props(canonical_null)
-	_assert_true(null_normalized.has("iapkit"), "Explicit canonical null must remain present")
-	_assert_equal(null_normalized.get("iapkit"), null, "Explicit canonical null must not revive flattened input")
-	_assert_true(
-		GodotIapPlugin._emitted_legacy_wire_warnings.has("flattened IAPKit verification keys"),
-		"Flattened IAPKit input should emit one migration warning"
-	)
 
 
 func test_product_from_dict_platform_guards() -> void:

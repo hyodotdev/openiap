@@ -40,25 +40,6 @@ const logOnce = (() => {
   };
 })();
 
-const emittedLegacyPluginWarnings = new Set<string>();
-
-function addLegacyPluginWarningOnce(
-  platform: 'android' | 'ios',
-  key: string,
-  message: string,
-): void {
-  const warningKey = `${platform}:${key}`;
-  if (emittedLegacyPluginWarnings.has(warningKey)) {
-    return;
-  }
-  emittedLegacyPluginWarnings.add(warningKey);
-  if (platform === 'android') {
-    WarningAggregator.addWarningAndroid('expo-iap', message);
-  } else {
-    WarningAggregator.addWarningIOS('expo-iap', message);
-  }
-}
-
 const addLineToGradle = (
   content: string,
   anchor: RegExp | string,
@@ -81,18 +62,9 @@ const addLineToGradle = (
 
 const HORIZON_APP_ID_META_DATA_NAME =
   'com.meta.horizon.platform.HORIZON_APP_ID';
-const LEGACY_HORIZON_APP_ID_META_DATA_NAMES = new Set([
-  'com.meta.horizon.platform.ovr.OCULUS_APP_ID',
-  'com.meta.horizon.platform.ovr.HORIZON_APP_ID',
-  'com.oculus.vr.APP_ID',
-]);
 
 const isHorizonAppIdMetaData = (metaData: any): boolean => {
-  const name = metaData?.$?.['android:name'];
-  return (
-    name === HORIZON_APP_ID_META_DATA_NAME ||
-    LEGACY_HORIZON_APP_ID_META_DATA_NAMES.has(name)
-  );
+  return metaData?.$?.['android:name'] === HORIZON_APP_ID_META_DATA_NAME;
 };
 
 type AndroidManifestLike = {
@@ -273,9 +245,8 @@ export const modifyAppBuildGradle = (
 
   let flavor: 'amazon' | 'horizon' | 'play' = 'play';
   let artifactId:
-    | 'openiap-google-amazon'
-    | 'openiap-google-horizon'
-    | 'openiap-google' = 'openiap-google';
+    'openiap-google-amazon' | 'openiap-google-horizon' | 'openiap-google' =
+    'openiap-google';
   if (isFireOsEnabled) {
     flavor = 'amazon';
     artifactId = 'openiap-google-amazon';
@@ -764,26 +735,7 @@ export type AmazonPlatformFlags = {
   isOnsideEnabled: boolean;
 };
 
-type AmazonPlatformFlagOptions = Pick<
-  ExpoIapPluginOptions,
-  'android' | 'modules'
->;
-
-interface LegacyAndroidAmazonOptions {
-  fireOS?: boolean;
-  vegaOS?: boolean | VegaProjectOptions;
-}
-
-interface LegacyAmazonPlatformFlagOptions {
-  android?: {
-    amazon?: LegacyAndroidAmazonOptions;
-  };
-  modules?: ExpoIapPluginOptions['modules'];
-}
-
-type AmazonPlatformFlagInput =
-  | AmazonPlatformFlagOptions
-  | LegacyAmazonPlatformFlagOptions;
+type AmazonPlatformFlagOptions = ExpoIapPluginOptions;
 
 function isEnvFlagEnabled(name: string): boolean {
   return process.env[name] === '1';
@@ -797,28 +749,21 @@ function hasOwnKey(
 }
 
 export function resolveAmazonPlatformFlags(
-  options?: AmazonPlatformFlagInput | void,
+  options?: AmazonPlatformFlagOptions | void,
 ): AmazonPlatformFlags {
-  const androidAmazon = options?.android?.amazon;
-  const legacyAndroidAmazon: LegacyAndroidAmazonOptions | undefined =
-    androidAmazon;
   const moduleAmazon = options?.modules?.amazon;
   const isFireOsEnabled = hasOwnKey(moduleAmazon, 'fireOS')
     ? moduleAmazon?.fireOS === true
-    : legacyAndroidAmazon?.fireOS ?? isEnvFlagEnabled('EXPO_IAP_FIREOS');
-  const legacyAndroidVegaFlag =
-    typeof legacyAndroidAmazon?.vegaOS === 'boolean'
-      ? legacyAndroidAmazon.vegaOS
-      : undefined;
+    : isEnvFlagEnabled('EXPO_IAP_FIREOS');
   const isVegaEnabled = hasOwnKey(moduleAmazon, 'vegaOS')
     ? moduleAmazon?.vegaOS === true
-    : legacyAndroidVegaFlag ?? isEnvFlagEnabled('EXPO_IAP_VEGA');
+    : isEnvFlagEnabled('EXPO_IAP_VEGA');
   const modules = options?.modules;
   const isHorizonEnabled = isFireOsEnabled
     ? false
     : hasOwnKey(modules, 'horizon')
-    ? modules?.horizon === true
-    : isEnvFlagEnabled('EXPO_IAP_HORIZON');
+      ? modules?.horizon === true
+      : isEnvFlagEnabled('EXPO_IAP_HORIZON');
   const isOnsideEnabled = hasOwnKey(modules, 'onside')
     ? modules?.onside === true
     : isEnvFlagEnabled('EXPO_IAP_ONSIDE');
@@ -834,28 +779,13 @@ export function resolveAmazonPlatformFlags(
 export function resolveHorizonAppId(
   options?: ExpoIapPluginOptions | void,
 ): string | undefined {
-  const canonicalHorizon = options?.android?.horizon;
-  if (hasOwnKey(canonicalHorizon, 'appId')) {
-    return canonicalHorizon?.appId ?? undefined;
-  }
-
-  const androidOptions = options?.android;
-  if (hasOwnKey(androidOptions, 'horizonAppId')) {
-    return androidOptions?.horizonAppId ?? undefined;
-  }
-
-  return options?.horizonAppId;
+  return options?.android?.horizon?.appId ?? undefined;
 }
 
 export function resolveAlternativeBillingIOS(
   options?: ExpoIapPluginOptions | void,
 ): IOSAlternativeBillingConfig | undefined {
-  const iosOptions = options?.ios;
-  if (hasOwnKey(iosOptions, 'alternativeBilling')) {
-    return iosOptions?.alternativeBilling ?? undefined;
-  }
-
-  return options?.iosAlternativeBilling;
+  return options?.ios?.alternativeBilling ?? undefined;
 }
 
 export function resolveVegaProjectOptions(
@@ -863,61 +793,7 @@ export function resolveVegaProjectOptions(
 ): VegaProjectOptions | undefined {
   const androidAmazon = options?.android?.amazon;
 
-  return typeof androidAmazon?.vegaOS === 'object'
-    ? androidAmazon.vegaOS
-    : undefined;
-}
-
-export function warnLegacyPluginOptions(
-  options?: ExpoIapPluginOptions | void,
-): void {
-  const legacyOptions = options as
-    | {
-        android?: {
-          amazon?: LegacyAndroidAmazonOptions;
-          horizonAppId?: string;
-        };
-        horizonAppId?: string;
-        iosAlternativeBilling?: IOSAlternativeBillingConfig;
-      }
-    | undefined;
-  const legacyAmazon = legacyOptions?.android?.amazon;
-
-  if (legacyAmazon?.fireOS !== undefined) {
-    addLegacyPluginWarningOnce(
-      'android',
-      'android.amazon.fireOS',
-      'android.amazon.fireOS is deprecated and will be removed in expo-iap 5.0.0. Use modules.amazon.fireOS instead.',
-    );
-  }
-  if (typeof legacyAmazon?.vegaOS === 'boolean') {
-    addLegacyPluginWarningOnce(
-      'android',
-      'android.amazon.vegaOS.boolean',
-      'The boolean form of android.amazon.vegaOS is deprecated and will be removed in expo-iap 5.0.0. Use modules.amazon.vegaOS instead; the object form remains supported for Vega project overrides.',
-    );
-  }
-  if (legacyOptions?.android?.horizonAppId !== undefined) {
-    addLegacyPluginWarningOnce(
-      'android',
-      'android.horizonAppId',
-      'android.horizonAppId is deprecated and will be removed in expo-iap 5.0.0. Use android.horizon.appId instead.',
-    );
-  }
-  if (legacyOptions?.horizonAppId !== undefined) {
-    addLegacyPluginWarningOnce(
-      'android',
-      'horizonAppId',
-      'horizonAppId is deprecated and will be removed in expo-iap 5.0.0. Use android.horizon.appId instead.',
-    );
-  }
-  if (legacyOptions?.iosAlternativeBilling !== undefined) {
-    addLegacyPluginWarningOnce(
-      'ios',
-      'iosAlternativeBilling',
-      'iosAlternativeBilling is deprecated and will be removed in expo-iap 5.0.0. Use ios.alternativeBilling instead.',
-    );
-  }
+  return androidAmazon?.vegaOS;
 }
 
 /**
@@ -930,8 +806,7 @@ export function resolveModuleSelection(
   options?: ExpoIapPluginCommonOptions | void,
 ): ModuleSelectionResult {
   const normalizedOptions = (options ?? undefined) as
-    | ExpoIapPluginCommonOptions
-    | undefined;
+    ExpoIapPluginCommonOptions | undefined;
 
   const selection = normalizedOptions?.module ?? 'auto';
 
@@ -964,7 +839,6 @@ const withIap: ConfigPlugin<ExpoIapPluginOptions | void> = (
   config,
   options,
 ) => {
-  warnLegacyPluginOptions(options);
   const {isFireOsEnabled, isVegaEnabled, isHorizonEnabled, isOnsideEnabled} =
     resolveAmazonPlatformFlags(options);
 

@@ -11,33 +11,31 @@ function AlternativeBillingTypes() {
   return (
     <div className="doc-page">
       <SEO
-        title="Alternative Billing Types"
-        description="Alternative Billing Types type definition and field reference."
+        title="Billing Program Configuration"
+        description="Android billing program connection configuration and field reference."
         path="/docs/types/alternative-billing-types"
-        keywords="Alternative Billing Types, OpenIAP types, Alternative Billing"
+        keywords="Billing Programs, OpenIAP types, Android billing"
       />
-      <h1>Alternative Billing Types</h1>
+      <h1>Billing Program Configuration</h1>
       <section>
         <AnchorLink id="alternative-billing-types" level="h2">
-          Alternative Billing Types
+          Android Billing Programs
         </AnchorLink>
         <p>
-          Types for configuring alternative billing systems, primarily used for
-          Android.
+          Configure Google Play billing programs through{' '}
+          <code>InitConnectionConfig.enableBillingProgramAndroid</code>.
         </p>
         <p>
-          Modes for opting into Google&apos;s alternative-billing programs.{' '}
-          <strong>Android only</strong> — passed via{' '}
-          <code>InitConnectionConfig.alternativeBillingModeAndroid</code>{' '}
-          (deprecated; prefer <code>enableBillingProgramAndroid</code>) (
+          These options are <strong>Android only</strong>. See the current
+          Google Play requirements in the{' '}
           <a
             href="https://developer.android.com/google/play/billing/alternative"
             target="_blank"
             rel="noopener noreferrer"
           >
-            Google docs
+            Google alternative billing documentation
           </a>
-          ).
+          .
         </p>
         <p className="type-link">
           <strong>Native references:</strong>{' '}
@@ -57,80 +55,6 @@ function AlternativeBillingTypes() {
             Google · User Choice Billing
           </a>
         </p>
-
-        <AnchorLink id="alternative-billing-mode-android" level="h3">
-          AlternativeBillingModeAndroid{' '}
-          <span style={{ color: 'var(--text-warning)', fontSize: '0.875rem' }}>
-            (Deprecated)
-          </span>
-        </AnchorLink>
-        <div className="warning-box" style={{ marginBottom: '1rem' }}>
-          <strong>Deprecated:</strong> Use{' '}
-          <Link to="#init-connection-config">
-            <code>enableBillingProgramAndroid</code>
-          </Link>{' '}
-          with{' '}
-          <Link to="/docs/types/billing-programs#billing-program-android">
-            <code>BillingProgramAndroid</code>
-          </Link>{' '}
-          instead. The schema/native type is scheduled for removal in OpenIAP
-          3.0; generated framework copies remain through their package-specific
-          majors in the{' '}
-          <Link to="/docs/updates/deprecations#removal-schedule">
-            deprecation schedule
-          </Link>
-          .
-          <ul style={{ marginBottom: 0 }}>
-            <li>
-              <code>user-choice</code> → <code>user-choice-billing</code>
-            </li>
-            <li>
-              <code>alternative-only</code> → <code>external-offer</code>
-            </li>
-          </ul>
-        </div>
-        <p>
-          Enum controlling which billing system is used during{' '}
-          <Link to="/docs/apis/init-connection">
-            <code>initConnection()</code>
-          </Link>
-          :
-        </p>
-
-        <table className="doc-table">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Summary</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                <code>NONE</code>
-              </td>
-              <td>Standard Google Play billing (default)</td>
-            </tr>
-            <tr>
-              <td>
-                <code>USER_CHOICE</code>
-              </td>
-              <td>
-                User can select between Google Play or alternative billing
-                (requires Billing Library 7.0+)
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <code>ALTERNATIVE_ONLY</code>
-              </td>
-              <td>
-                Alternative billing only, no Google Play option (requires
-                Billing Library 6.2+)
-              </td>
-            </tr>
-          </tbody>
-        </table>
 
         <AnchorLink id="init-connection-config" level="h3">
           InitConnectionConfig
@@ -179,23 +103,6 @@ function AlternativeBillingTypes() {
                 <code>DEVELOPER_RENDERED</code> when your app renders the choice
                 screen; this controls whether OpenIAP registers Play&apos;s
                 developer-provided billing listener.
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <Link to="/docs/types/alternative-billing-types#alternative-billing-mode-android">
-                  <code>alternativeBillingModeAndroid</code>
-                </Link>
-              </td>
-              <td>
-                <span style={{ color: 'var(--text-warning)' }}>
-                  (Deprecated)
-                </span>{' '}
-                Use{' '}
-                <Link to="/docs/types/billing-programs#billing-program-android">
-                  <code>enableBillingProgramAndroid</code>
-                </Link>{' '}
-                instead.
               </td>
             </tr>
           </tbody>
@@ -539,8 +446,6 @@ await FlutterInappPurchase.instance.requestPurchase(
     google: RequestSubscriptionAndroidProps(
       skus: ['premium_subscription'],
     ),
-    // Compatibility-only placeholder required by the generated 9.x record.
-    useAlternativeBilling: null,
   )),
 );
 
@@ -650,21 +555,6 @@ func _exit_tree() -> void:
             ),
           }}
         </LanguageTabs>
-
-        <div className="alert-card alert-card--warning">
-          <p>
-            <strong>Flutter 9.x record compatibility:</strong>{' '}
-            <code>useAlternativeBilling: null</code> in the Dart example is only
-            a required placeholder in the generated positional record. Configure{' '}
-            <code>enableBillingProgramAndroid</code> on{' '}
-            <code>initConnection</code> instead. The deprecated field is removed
-            in <code>flutter_inapp_purchase 10.0.0</code>; see the{' '}
-            <Link to="/docs/updates/deprecations#flutter-10-package-migrations">
-              Flutter 10 migration notes
-            </Link>
-            .
-          </p>
-        </div>
 
         <AnchorLink id="alternative-only-example" level="h4">
           Alternative Billing Only Complete Example

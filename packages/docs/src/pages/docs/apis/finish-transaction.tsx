@@ -179,8 +179,8 @@ function PurchaseScreen() {
 // .toPurchaseInput() into finishTransaction. Use isConsumable = true for
 // consumables, false for subscriptions / non-consumables.
 val purchase = kmpIAP.requestPurchase {
-    ios { sku = "com.app.coins_100" }
-    android { skus = listOf("com.app.coins_100") }
+    apple { sku = "com.app.coins_100" }
+    google { skus = listOf("com.app.coins_100") }
 }
 
 // After server-side validation:

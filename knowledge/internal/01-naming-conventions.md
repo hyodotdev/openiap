@@ -12,7 +12,6 @@ All iOS-specific functions MUST end with `IOS` suffix:
 ```swift
 // CORRECT
 func clearTransactionIOS()
-func getStorefrontIOS()
 func syncIOS()
 func presentCodeRedemptionSheetIOS()
 func showManageSubscriptionsIOS()
@@ -26,7 +25,6 @@ func getAppTransactionIOS()
 func getTransactionJwsIOS()
 func getPendingTransactionsIOS()
 func getPromotedProductIOS()
-func requestPurchaseOnPromotedProductIOS()
 
 // INCORRECT - Missing IOS suffix
 func clearTransaction()
@@ -54,11 +52,11 @@ fun buildModuleAndroid()
 
 **Exception**: Generated GraphQL operation names and generated handler fields keep
 the schema name exactly, including `Android` when the operation is Android-only.
-For example, `MutationHandlers.checkAlternativeBillingAvailabilityAndroid` must
+For example, `MutationHandlers.isBillingProgramAvailableAndroid` must
 be wired in `packages/google` because it is generated from
 `packages/gql/src/api-android.graphql`; the hand-written implementation it
 delegates to should still be suffix-free, such as
-`checkAlternativeBillingAvailability()`.
+`isBillingProgramAvailable()`.
 
 Only use `Android` suffix for types that are part of a cross-platform API (e.g.,
 `ProductAndroid`, `PurchaseAndroid` that contrast with iOS types), or for
@@ -75,17 +73,17 @@ Fields inside platform-specific input types do NOT need platform suffix (the typ
 ```graphql
 # CORRECT - Fields inside AndroidProps don't need Android suffix
 input RequestPurchaseAndroidProps {
-  skus: [String!]!                      # Cross-platform, no suffix
-  offerToken: String                    # No suffix - already in Android type
-  isOfferPersonalized: Boolean          # No suffix - already in Android type
-  obfuscatedAccountId: String           # No suffix - already in Android type
-  obfuscatedProfileId: String           # No suffix - already in Android type
-  developerBillingOption: DeveloperBillingOptionParamsAndroid  # Type has suffix (cross-platform type)
+  skus: [String!]! # Cross-platform, no suffix
+  offerToken: String # No suffix - already in Android type
+  isOfferPersonalized: Boolean # No suffix - already in Android type
+  obfuscatedAccountId: String # No suffix - already in Android type
+  obfuscatedProfileId: String # No suffix - already in Android type
+  developerBillingOption: DeveloperBillingOptionParamsAndroid # Type has suffix (cross-platform type)
 }
 
 # INCORRECT - Redundant Android suffix inside Android-specific type
 input RequestPurchaseAndroidProps {
-  offerTokenAndroid: String           # ❌ Redundant - type already indicates Android
+  offerTokenAndroid: String # ❌ Redundant - type already indicates Android
   isOfferPersonalizedAndroid: Boolean # ❌ Redundant - type already indicates Android
 }
 ```
@@ -98,13 +96,13 @@ input RequestPurchaseAndroidProps {
 
 ### Field Suffix Rules
 
-| Field Location | Suffix Required? | Example |
-|----------------|------------------|---------|
-| Inside Android-only input type | NO | `offerToken` in `RequestPurchaseAndroidProps` |
-| Inside iOS-only input type | NO | `appAccountToken` in `RequestPurchaseIosProps` |
-| Cross-platform type | YES for platform-specific | `nameAndroid` in `ProductAndroid` |
-| Cross-platform type reference | YES | `developerBillingOption: DeveloperBillingOptionParamsAndroid` |
-| Internal implementation | NO (not API) | `val offerToken` in Kotlin data class |
+| Field Location                 | Suffix Required?          | Example                                                       |
+| ------------------------------ | ------------------------- | ------------------------------------------------------------- |
+| Inside Android-only input type | NO                        | `offerToken` in `RequestPurchaseAndroidProps`                 |
+| Inside iOS-only input type     | NO                        | `appAccountToken` in `RequestPurchaseIosProps`                |
+| Cross-platform type            | YES for platform-specific | `nameAndroid` in `ProductAndroid`                             |
+| Cross-platform type reference  | YES                       | `developerBillingOption: DeveloperBillingOptionParamsAndroid` |
+| Internal implementation        | NO (not API)              | `val offerToken` in Kotlin data class                         |
 
 ### Type vs Field Suffix
 
@@ -129,35 +127,35 @@ Functions available on BOTH platforms have **NO** platform suffix:
 
 ```typescript
 // CORRECT - Cross-platform, no suffix
-fetchProducts()
-requestPurchase()
-getAvailablePurchases()
-finishTransaction()
-verifyPurchase()
-initConnection()
-endConnection()
-getActiveSubscriptions()
-hasActiveSubscriptions()
-deepLinkToSubscriptions()
-getStorefront()
+fetchProducts();
+requestPurchase();
+getAvailablePurchases();
+finishTransaction();
+verifyPurchase();
+initConnection();
+endConnection();
+getActiveSubscriptions();
+hasActiveSubscriptions();
+deepLinkToSubscriptions();
+getStorefront();
 ```
 
 ## Action Prefix Rules
 
-| Prefix | When to Use | Examples |
-|--------|-------------|----------|
-| `get` | Synchronous data retrieval | `getStorefrontIOS`, `getPackageName` |
-| `fetch` | Async data retrieval from server | `fetchProducts` |
-| `request` | User-initiated async operations | `requestPurchase` |
-| `clear` | Remove/reset data | `clearTransactionIOS`, `clearProductsIOS` |
-| `is/has` | Boolean checks | `isEligibleForIntroOfferIOS`, `hasActiveSubscriptions` |
-| `show/present` | Display UI | `showManageSubscriptionsIOS`, `presentCodeRedemptionSheetIOS` |
-| `begin` | Start a multi-step process | `beginRefundRequestIOS` |
-| `finish/end` | Complete a process | `finishTransaction`, `endConnection` |
-| `init` | Initialize resources | `initConnection` |
-| `verify` | Validate data | `verifyPurchase` |
-| `acknowledge` | Confirm receipt (Android) | `acknowledgePurchase` |
-| `consume` | Mark as consumed (Android) | `consumePurchase` |
+| Prefix         | When to Use                      | Examples                                                      |
+| -------------- | -------------------------------- | ------------------------------------------------------------- |
+| `get`          | Synchronous data retrieval       | `getReceiptDataIOS`, `getPackageName`                         |
+| `fetch`        | Async data retrieval from server | `fetchProducts`                                               |
+| `request`      | User-initiated async operations  | `requestPurchase`                                             |
+| `clear`        | Remove/reset data                | `clearTransactionIOS`, `clearProductsIOS`                     |
+| `is/has`       | Boolean checks                   | `isEligibleForIntroOfferIOS`, `hasActiveSubscriptions`        |
+| `show/present` | Display UI                       | `showManageSubscriptionsIOS`, `presentCodeRedemptionSheetIOS` |
+| `begin`        | Start a multi-step process       | `beginRefundRequestIOS`                                       |
+| `finish/end`   | Complete a process               | `finishTransaction`, `endConnection`                          |
+| `init`         | Initialize resources             | `initConnection`                                              |
+| `verify`       | Validate data                    | `verifyPurchase`                                              |
+| `acknowledge`  | Confirm receipt (Android)        | `acknowledgePurchase`                                         |
+| `consume`      | Mark as consumed (Android)       | `consumePurchase`                                             |
 
 ## Swift Acronym Rules
 
@@ -179,13 +177,16 @@ IAPManager    // Should be IapManager - IAP at beginning
 ## File Naming
 
 ### TypeScript/JavaScript
+
 - Use `kebab-case` for file names: `purchase-validator.ts`
 - Use `PascalCase` for class/type files: `PurchaseValidator.ts` (when single class)
 
 ### Swift
+
 - Use `PascalCase`: `OpenIapModule.swift`, `ProductManager.swift`
 
 ### Kotlin
+
 - Use `PascalCase`: `OpenIapModule.kt`, `BillingManager.kt`
 
 ## URL Anchors and Search IDs
@@ -205,12 +206,20 @@ Use kebab-case for search modal IDs:
 
 ```typescript
 // CORRECT
-{ id: 'request-products' }
-{ id: 'fetch-products' }
+{
+  id: "request-products";
+}
+{
+  id: "fetch-products";
+}
 
 // INCORRECT
-{ id: 'requestproducts' }
-{ id: 'fetchProducts' }
+{
+  id: "requestproducts";
+}
+{
+  id: "fetchProducts";
+}
 ```
 
 ## Variable Naming
@@ -222,18 +231,6 @@ const isSubscription: boolean;
 const purchaseToken: string;
 
 // INCORRECT
-const product_id: string;     // No snake_case
+const product_id: string; // No snake_case
 const IsSubscription: boolean; // No PascalCase for variables
 ```
-
-## Deprecated Functions
-
-When renaming functions, document the migration path:
-
-| Deprecated | Use Instead |
-|------------|-------------|
-| `buy-promoted-product-ios` | `requestPurchaseOnPromotedProductIOS` |
-| `requestProducts` | `fetchProducts` |
-| `get-storefront-ios` | `getStorefront` |
-| `validateReceipt` | `verifyPurchase` |
-| `validateReceiptIOS` | `verifyPurchase` |

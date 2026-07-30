@@ -155,7 +155,7 @@ describe('Amazon Vega adapter', () => {
           id: 'premium_monthly',
           type: 'subs',
           platform: 'android',
-          subscriptionOfferDetailsAndroid: expect.any(String),
+          subscriptionOffers: expect.any(String),
         }),
       ]),
     );
@@ -240,7 +240,7 @@ describe('Amazon Vega adapter', () => {
 
     module.addPurchaseUpdatedListener(listener);
     const result = await module.requestPurchase({
-      android: {skus: ['coins_100']},
+      google: {skus: ['coins_100']},
     });
 
     expect(result).toEqual([
@@ -274,23 +274,6 @@ describe('Amazon Vega adapter', () => {
       fulfillmentResult: 1,
       receiptId: 'receipt-1',
     });
-  });
-
-  it('does not fall back to android when google is explicitly null', async () => {
-    const service = createService();
-    const module = createVegaIapModule(service);
-
-    await expect(
-      module.requestPurchase({
-        google: null,
-        android: {skus: ['coins_100']},
-      }),
-    ).rejects.toMatchObject({
-      code: ErrorCode.DeveloperError,
-      message: 'Amazon Vega purchase expects exactly one SKU per request.',
-    });
-
-    expect(service.purchase).not.toHaveBeenCalled();
   });
 
   it('retries transient Amazon Vega fulfillment failures', async () => {
@@ -372,7 +355,7 @@ describe('Amazon Vega adapter', () => {
 
     await expect(
       module.requestPurchase({
-        android: {skus: ['coins_100']},
+        google: {skus: ['coins_100']},
       }),
     ).resolves.toEqual([
       expect.objectContaining({
@@ -420,7 +403,7 @@ describe('Amazon Vega adapter', () => {
 
       await expect(
         module.requestPurchase({
-          android: {skus: ['coins_100']},
+          google: {skus: ['coins_100']},
         }),
       ).resolves.toEqual([
         expect.objectContaining({
@@ -470,7 +453,7 @@ describe('Amazon Vega adapter', () => {
 
       await expect(
         module.requestPurchase({
-          android: {skus: ['coins_100']},
+          google: {skus: ['coins_100']},
         }),
       ).rejects.toBe(parserError);
       expect(listener).not.toHaveBeenCalled();
@@ -504,7 +487,7 @@ describe('Amazon Vega adapter', () => {
     module.addPurchaseErrorListener(errorListener);
 
     await expect(
-      module.requestPurchase({android: {skus: ['coins_100']}}),
+      module.requestPurchase({google: {skus: ['coins_100']}}),
     ).rejects.toBe(purchaseError);
     expect(errorListener).toHaveBeenCalledWith({
       code: ErrorCode.QueryProduct,
@@ -541,7 +524,7 @@ describe('Amazon Vega adapter', () => {
 
     await expect(
       module.requestPurchase({
-        android: {skus: ['coins_100']},
+        google: {skus: ['coins_100']},
       }),
     ).resolves.toEqual([
       expect.objectContaining({
@@ -575,7 +558,7 @@ describe('Amazon Vega adapter', () => {
 
     await expect(
       module.requestPurchase({
-        android: {skus: ['coins_100']},
+        google: {skus: ['coins_100']},
       }),
     ).rejects.toMatchObject({
       code: ErrorCode.UserCancelled,
@@ -633,7 +616,7 @@ describe('Amazon Vega adapter', () => {
 
     await expect(
       module.requestPurchase({
-        android: {
+        google: {
           skus: ['premium_monthly'],
           subscriptionOffers: [
             {sku: 'premium_monthly', offerToken: 'offer-token'},
@@ -716,7 +699,7 @@ describe('Amazon Vega adapter', () => {
 
     await expect(
       module.requestPurchase({
-        android: {skus: ['coins_100']},
+        google: {skus: ['coins_100']},
       }),
     ).rejects.toMatchObject({
       code: ErrorCode.UserCancelled,
@@ -744,7 +727,7 @@ describe('Amazon Vega adapter', () => {
 
     await expect(
       module.requestPurchase({
-        android: {skus: ['missing_sku']},
+        google: {skus: ['missing_sku']},
       }),
     ).rejects.toMatchObject({
       code: ErrorCode.SkuNotFound,
@@ -850,7 +833,7 @@ describe('Amazon Vega adapter', () => {
 
     await expect(
       module.requestPurchase({
-        android: {skus: ['premium_monthly'], subscriptionOffers: []},
+        google: {skus: ['premium_monthly'], subscriptionOffers: []},
       }),
     ).resolves.toEqual([
       expect.objectContaining({
@@ -874,7 +857,7 @@ describe('Amazon Vega adapter', () => {
 
     await expect(
       module.requestPurchase({
-        android: {
+        google: {
           skus: ['premium_monthly'],
           subscriptionOffers: '[]' as any,
         },

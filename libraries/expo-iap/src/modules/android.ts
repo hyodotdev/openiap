@@ -20,7 +20,6 @@ import type {
   MutationCreateBillingProgramReportingDetailsAndroidArgs,
   MutationField,
   QueryField,
-  VerifyPurchaseResultAndroid,
 } from '../types';
 
 type NativeAndroidModule = {
@@ -100,58 +99,6 @@ export const deepLinkToSubscriptionsAndroid = async (
   )}`;
   const url = sku ? `${base}&sku=${encodeURIComponent(sku)}` : base;
   return Linking.openURL(url);
-};
-
-/**
- * Validate receipt for Android. NOTE: This method is here for debugging purposes only. Including
- * your access token in the binary you ship to users is potentially dangerous.
- * Use server side validation instead for your production builds
- *
- * @deprecated Use verifyPurchase instead. This function will be removed in
- * expo-iap 5.0.0.
- * @param {Object} params - The parameters object
- * @param {string} params.packageName - package name of your app.
- * @param {string} params.productId - product id for your in app product.
- * @param {string} params.productToken - token for your purchase (called 'token' in the API documentation).
- * @param {string} params.accessToken - OAuth access token with androidpublisher scope. Required for authentication.
- * @param {boolean} params.isSub - whether this is subscription or in-app. `true` for subscription.
- * @returns {Promise<ReceiptAndroid>}
- */
-export const validateReceiptAndroid = async ({
-  packageName,
-  productId,
-  productToken,
-  accessToken,
-  isSub,
-}: {
-  packageName: string;
-  productId: string;
-  productToken: string;
-  accessToken: string;
-  isSub?: boolean;
-}): Promise<VerifyPurchaseResultAndroid> => {
-  const type = isSub ? 'subscriptions' : 'products';
-
-  const url =
-    'https://androidpublisher.googleapis.com/androidpublisher/v3/applications' +
-    `/${packageName}/purchases/${type}/${productId}` +
-    `/tokens/${productToken}`;
-
-  const response = await fetch(url, {
-    method: 'GET',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${accessToken}`,
-    },
-  });
-
-  if (!response.ok) {
-    throw Object.assign(new Error(response.statusText), {
-      statusCode: response.status,
-    });
-  }
-
-  return response.json();
 };
 
 /**
@@ -240,105 +187,6 @@ export const openRedeemOfferCodeAndroid: MutationField<
     return false;
   }
   return ExpoIapModule.openRedeemOfferCodeAndroid();
-};
-
-/**
- * Check if alternative billing is available for this user/device (Android only).
- * Step 1 of alternative billing flow.
- *
- * Returns true if available, false otherwise.
- * Throws OpenIapError.NotPrepared if billing client not ready.
- *
- * @returns {Promise<boolean>}
- *
- * @example
- * ```typescript
- * const isAvailable = await checkAlternativeBillingAvailabilityAndroid();
- * if (isAvailable) {
- *   // Proceed with alternative billing flow
- * }
- * ```
- *
- * @see {@link https://openiap.dev/docs/apis/android/check-alternative-billing-availability-android}
- * @deprecated Use `isBillingProgramAvailableAndroid('external-offer')`
- * instead. Scheduled for removal in expo-iap 5.0.0.
- */
-export const checkAlternativeBillingAvailabilityAndroid: MutationField<
-  'checkAlternativeBillingAvailabilityAndroid'
-> = async () => {
-  requireAndroidPlatform('checkAlternativeBillingAvailabilityAndroid');
-  return ExpoIapModule.checkAlternativeBillingAvailabilityAndroid();
-};
-
-/**
- * Show alternative billing information dialog to user (Android only).
- * Step 2 of alternative billing flow.
- * Must be called BEFORE processing payment in your payment system.
- *
- * Returns true if user accepted, false if user canceled.
- * Throws OpenIapError.NotPrepared if billing client not ready.
- *
- * @returns {Promise<boolean>}
- *
- * @example
- * ```typescript
- * const userAccepted = await showAlternativeBillingDialogAndroid();
- * if (userAccepted) {
- *   // Process payment in your payment system
- *   const success = await processCustomPayment();
- *   if (success) {
- *     // Create reporting token
- *     const token = await createAlternativeBillingTokenAndroid();
- *     // Send token to your backend for Google Play reporting
- *   }
- * }
- * ```
- *
- * @see {@link https://openiap.dev/docs/apis/android/show-alternative-billing-dialog-android}
- * @deprecated Use `launchExternalLinkAndroid` instead. Scheduled for removal
- * in expo-iap 5.0.0.
- */
-export const showAlternativeBillingDialogAndroid: MutationField<
-  'showAlternativeBillingDialogAndroid'
-> = async () => {
-  requireAndroidPlatform('showAlternativeBillingDialogAndroid');
-  return ExpoIapModule.showAlternativeBillingDialogAndroid();
-};
-
-/**
- * Create external transaction token for Google Play reporting (Android only).
- * Step 3 of alternative billing flow.
- * Must be called AFTER successful payment in your payment system.
- * Token must be reported to Google Play backend within 24 hours.
- *
- * Returns token string, or null if creation failed.
- * Throws OpenIapError.NotPrepared if billing client not ready.
- *
- * @param {string} sku - The product SKU that was purchased
- * @returns {Promise<string | null>}
- *
- * @example
- * ```typescript
- * const token = await createAlternativeBillingTokenAndroid('premium_subscription');
- * if (token) {
- *   // Send token to your backend
- *   await fetch('/api/report-transaction', {
- *     method: 'POST',
- *     body: JSON.stringify({ token, sku: 'premium_subscription' })
- *   });
- * }
- * ```
- *
- * @see {@link https://openiap.dev/docs/apis/android/create-alternative-billing-token-android}
- * @deprecated Use
- * `createBillingProgramReportingDetailsAndroid('external-offer')` instead.
- * Scheduled for removal in expo-iap 5.0.0.
- */
-export const createAlternativeBillingTokenAndroid: MutationField<
-  'createAlternativeBillingTokenAndroid'
-> = async (sku?: string) => {
-  requireAndroidPlatform('createAlternativeBillingTokenAndroid');
-  return ExpoIapModule.createAlternativeBillingTokenAndroid(sku);
 };
 
 // ============================================================================

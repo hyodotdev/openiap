@@ -76,13 +76,6 @@ internal sealed partial class OpenIapAndroid
         return DecodeStringValue(result);
     }
 
-    public async Task<VerifyPurchaseResult> ValidateReceiptAsync(VerifyPurchaseProps options)
-    {
-        var json = JsonSerializer.Serialize(options, JsonOptions.Default);
-        var result = await Invoke(cb => _module.ValidateReceipt(json, cb));
-        return DecodeVerifyPurchaseResult(result);
-    }
-
     public async Task<VerifyPurchaseResult> VerifyPurchaseAsync(VerifyPurchaseProps options)
     {
         var json = JsonSerializer.Serialize(options, JsonOptions.Default);
@@ -105,21 +98,6 @@ internal sealed partial class OpenIapAndroid
 
     public Task<bool> ConsumePurchaseAndroidAsync(string purchaseToken)
         => InvokeBool(cb => _module.ConsumePurchaseAndroid(purchaseToken, cb));
-
-    public Task<bool> CheckAlternativeBillingAvailabilityAndroidAsync()
-        => InvokeBool(cb => _module.CheckAlternativeBillingAvailabilityAndroid(cb));
-
-    public async Task<string?> CreateAlternativeBillingTokenAndroidAsync()
-    {
-        var result = await Invoke(cb => _module.CreateAlternativeBillingTokenAndroid(cb));
-        return DecodeNullableString(result);
-    }
-
-    public Task<bool> ShowAlternativeBillingDialogAndroidAsync()
-    {
-        RefreshCurrentActivity();
-        return InvokeBool(cb => _module.ShowAlternativeBillingDialogAndroid(cb));
-    }
 
     public async Task<BillingProgramAvailabilityResultAndroid> IsBillingProgramAvailableAndroidAsync(BillingProgramAndroid program)
     {
@@ -196,10 +174,9 @@ internal sealed partial class OpenIapAndroid
 
     public Task<string?> BeginRefundRequestIOSAsync(string sku) => NotSupportedIOS<string?>("beginRefundRequestIOS");
     public Task<bool> ClearTransactionIOSAsync() => NotSupportedIOS<bool>("clearTransactionIOS");
-    public Task<bool> PresentCodeRedemptionSheetIOSAsync() => NotSupportedIOS<bool>("presentCodeRedemptionSheetIOS");
+    public Task<PurchaseIOS?> PresentCodeRedemptionSheetIOSAsync() => NotSupportedIOS<PurchaseIOS?>("presentCodeRedemptionSheetIOS");
     public Task<ExternalPurchaseLinkResultIOS> PresentExternalPurchaseLinkIOSAsync(string url) => NotSupportedIOS<ExternalPurchaseLinkResultIOS>("presentExternalPurchaseLinkIOS");
     public Task<ExternalPurchaseNoticeResultIOS> PresentExternalPurchaseNoticeSheetIOSAsync() => NotSupportedIOS<ExternalPurchaseNoticeResultIOS>("presentExternalPurchaseNoticeSheetIOS");
-    public Task<bool> RequestPurchaseOnPromotedProductIOSAsync() => NotSupportedIOS<bool>("requestPurchaseOnPromotedProductIOS");
     public Task<ExternalPurchaseCustomLinkNoticeResultIOS> ShowExternalPurchaseCustomLinkNoticeIOSAsync(ExternalPurchaseCustomLinkNoticeTypeIOS noticeType) => NotSupportedIOS<ExternalPurchaseCustomLinkNoticeResultIOS>("showExternalPurchaseCustomLinkNoticeIOS");
     public Task<IReadOnlyList<PurchaseIOS>> ShowManageSubscriptionsIOSAsync() => NotSupportedIOS<IReadOnlyList<PurchaseIOS>>("showManageSubscriptionsIOS");
     public Task<bool> SyncIOSAsync() => NotSupportedIOS<bool>("syncIOS");
@@ -254,15 +231,12 @@ internal sealed partial class OpenIapAndroid
     public Task<IReadOnlyList<PurchaseIOS>> GetPendingTransactionsIOSAsync() => Task.FromResult<IReadOnlyList<PurchaseIOS>>(Array.Empty<PurchaseIOS>());
     public Task<ProductIOS?> GetPromotedProductIOSAsync() => Task.FromResult<ProductIOS?>(null);
     public Task<string?> GetReceiptDataIOSAsync() => Task.FromResult<string?>(null);
-    public Task<string> GetStorefrontIOSAsync() => NotSupportedIOS<string>("getStorefrontIOS");
     public Task<string?> GetTransactionJwsIOSAsync(string sku) => Task.FromResult<string?>(null);
     public Task<bool> IsEligibleForExternalPurchaseCustomLinkIOSAsync() => Task.FromResult(false);
     public Task<bool> IsEligibleForIntroOfferIOSAsync(string groupId) => Task.FromResult(false);
     public Task<bool> IsTransactionVerifiedIOSAsync(string sku) => Task.FromResult(false);
     public Task<PurchaseIOS?> LatestTransactionIOSAsync(string sku) => Task.FromResult<PurchaseIOS?>(null);
     public Task<IReadOnlyList<SubscriptionStatusIOS>> SubscriptionStatusIOSAsync(string sku) => Task.FromResult<IReadOnlyList<SubscriptionStatusIOS>>(Array.Empty<SubscriptionStatusIOS>());
-    public Task<VerifyPurchaseResultIOS> ValidateReceiptIOSAsync(VerifyPurchaseProps options) => NotSupportedIOS<VerifyPurchaseResultIOS>("validateReceiptIOS");
-
     // ====================================================================
     // Decode helpers
     // ====================================================================

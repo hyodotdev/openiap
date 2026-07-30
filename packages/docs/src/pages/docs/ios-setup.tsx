@@ -186,13 +186,69 @@ function IOSSetup() {
             margin: '1rem 0',
           }}
         >
-          <strong>💡 Xcode Version Requirement:</strong> Use Xcode 16.4 or later
-          to avoid known issues with in-app purchases. Earlier versions may
-          cause problems like duplicate purchase events.
+          <strong>💡 Xcode Version Requirement:</strong> Use Xcode 16.4 or
+          later. Compile with Xcode 27 when you need the StoreKit 27 fields
+          documented by OpenIAP 3, and complete the UIScene migration below
+          before shipping that build.
         </div>
 
+        <h3 id="xcode-27-scene-lifecycle" className="anchor-heading">
+          1. Adopt UIScene when building with Xcode 27
+          <a href="#xcode-27-scene-lifecycle" className="anchor-link">
+            #
+          </a>
+        </h3>
+        <p>
+          Apple requires apps linked with the iOS 27 SDK to use the scene-based
+          lifecycle. A build that still creates its window only from{' '}
+          <code>UIApplicationDelegate</code> terminates during launch before
+          OpenIAP or StoreKit can run.
+        </p>
+        <ul>
+          <li>
+            Add a non-empty <code>UIApplicationSceneManifest</code> with a{' '}
+            <code>UIWindowSceneSessionRoleApplication</code> configuration.
+          </li>
+          <li>
+            Implement{' '}
+            <code>application(_:configurationForConnecting:options:)</code> and
+            create the app window from a <code>UIWindowSceneDelegate</code>.
+          </li>
+          <li>
+            Keep a launch screen through <code>UILaunchStoryboardName</code>,{' '}
+            <code>UILaunchScreen</code>, or another Apple-supported
+            launch-screen key.
+          </li>
+          <li>
+            Re-run a physical-device sandbox purchase after the migration;
+            compiling the native OpenIAP package alone does not migrate the host
+            app lifecycle.
+          </li>
+        </ul>
+        <p>
+          See Apple&apos;s{' '}
+          <a
+            href="https://developer.apple.com/documentation/uikit/transitioning-to-the-uikit-scene-based-life-cycle"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            scene-lifecycle migration guide
+          </a>{' '}
+          and{' '}
+          <a
+            href="https://developer.apple.com/documentation/technotes/tn3208-preparing-your-apps-launch-screen-to-meet-app-store-requirements"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Xcode 27 launch-screen requirement
+          </a>
+          . SwiftUI <code>App</code> hosts already use scenes; UIKit, React
+          Native, Expo prebuild, Flutter, Godot, and MAUI hosts must be checked
+          in the generated native project.
+        </p>
+
         <h3 id="enable-iap-capability" className="anchor-heading">
-          1. Enable In-App Purchase Capability
+          2. Enable In-App Purchase Capability
           <a href="#enable-iap-capability" className="anchor-link">
             #
           </a>
@@ -206,7 +262,7 @@ function IOSSetup() {
         </ul>
 
         <h3 id="configure-bundle-id" className="anchor-heading">
-          2. Configure Bundle Identifier
+          3. Configure Bundle Identifier
           <a href="#configure-bundle-id" className="anchor-link">
             #
           </a>
@@ -222,7 +278,7 @@ function IOSSetup() {
         </ul>
 
         <h3 id="code-signing" className="anchor-heading">
-          3. Code Signing
+          4. Code Signing
           <a href="#code-signing" className="anchor-link">
             #
           </a>

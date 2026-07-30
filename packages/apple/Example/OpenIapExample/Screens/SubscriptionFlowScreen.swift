@@ -303,9 +303,8 @@ struct SubscriptionFlowScreen: View {
                 }
                 print("✅ [SubscriptionFlow] Loaded subscriptions: \(ids.joined(separator: ", "))")
 
-                // 🔍 LOG discountsIOS DATA
                 print("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━")
-                print("🔍 [SubscriptionFlow] DISCOUNT DATA CHECK:")
+                print("🔍 [SubscriptionFlow] SUBSCRIPTION OFFER DATA CHECK:")
 
                 // Use iosSubscriptionProducts which returns [ProductSubscriptionIOS]
                 for subscription in iapStore.iosSubscriptionProducts {
@@ -319,13 +318,13 @@ struct SubscriptionFlowScreen: View {
 
                     print("      • introductoryPricePaymentModeIOS: \(subscription.introductoryPricePaymentModeIOS)")
 
-                    if let discounts = subscription.discountsIOS, !discounts.isEmpty {
-                        print("      • discountsIOS: \(discounts.count) discount(s)")
-                        for (idx, discount) in discounts.enumerated() {
-                            print("         [\(idx)] id: \(discount.identifier), type: \(discount.type), paymentMode: \(discount.paymentMode), price: \(discount.price)")
+                    if let offers = subscription.subscriptionOffers, !offers.isEmpty {
+                        print("      • subscriptionOffers: \(offers.count) offer(s)")
+                        for (idx, offer) in offers.enumerated() {
+                            print("         [\(idx)] id: \(offer.id), type: \(offer.type), paymentMode: \(offer.paymentMode), price: \(offer.price)")
                         }
                     } else {
-                        print("      • discountsIOS: nil or empty ⚠️")
+                        print("      • subscriptionOffers: nil or empty ⚠️")
                     }
 
                     print("")

@@ -55,6 +55,126 @@ function Announcements() {
   useScrollToHash();
 
   const announcements: Announcement[] = [
+    // 2026-07-29: OpenIAP 3
+    {
+      id: '2026-07-29-openiap-3',
+      date: new Date('2026-07-29'),
+      element: (
+        <div key="2026-07-29-openiap-3" style={cardStyle}>
+          <div style={headerStyle}>
+            <div
+              aria-hidden="true"
+              style={{ fontSize: '2.25rem', lineHeight: 1 }}
+            >
+              ✨
+            </div>
+            <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
+              OpenIAP 3: Xcode 27, Flutter SwiftPM, and a cleaner API
+            </h2>
+            <a
+              href="#2026-07-29-openiap-3"
+              style={linkIconStyle}
+              title="Link to this announcement"
+            >
+              🔗
+            </a>
+          </div>
+          <p style={dateStyle}>July 29, 2026</p>
+
+          <p
+            style={{
+              margin: '0 0 1.25rem',
+              color: 'var(--text-primary)',
+              fontSize: 'clamp(1.2rem, 3vw, 1.65rem)',
+              fontWeight: 700,
+              lineHeight: 1.3,
+            }}
+          >
+            Xcode 27-ready. Flutter SwiftPM. The legacy clutter is gone.
+          </p>
+
+          <Link
+            to="/docs/updates/releases#openiap-major-api-cleanup-2026-07-29"
+            style={{
+              display: 'block',
+              width: '100%',
+              borderRadius: '0.75rem',
+              margin: '0 0 1.5rem',
+              border: '1px solid var(--border-color)',
+              boxShadow: '0 12px 30px rgba(0, 0, 0, 0.2)',
+              overflow: 'hidden',
+            }}
+          >
+            <img
+              src="/announcements/openiap-3.webp"
+              alt="OpenIAP 3 connecting purchase experiences across device platforms"
+              style={{
+                width: '100%',
+                height: 'auto',
+                display: 'block',
+              }}
+            />
+          </Link>
+
+          <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
+            OpenIAP 3 is our biggest contract cleanup yet. It connects Flutter's
+            SwiftPM path to openiap-apple 3.0.0, adds guarded Xcode 27 and
+            StoreKit 27 support, and removes the deprecated APIs, duplicate
+            fields, legacy request shapes, and compatibility aliases that made
+            cross-platform integrations harder to reason about.
+          </p>
+
+          <h3 style={{ marginTop: '1.25rem', marginBottom: '0.5rem' }}>
+            What lands in OpenIAP 3
+          </h3>
+          <ul
+            style={{
+              paddingLeft: '1.5rem',
+              marginBottom: '1rem',
+              lineHeight: '1.7',
+            }}
+          >
+            <li>
+              Guarded Xcode 27 and StoreKit 27 support brings subscription
+              bundles and suites, verified offer-code redemption results, and
+              new transaction metadata without dropping the documented older-OS
+              fallbacks. Xcode 27-built UIKit hosts must also adopt UIScene; the
+              release notes link the host migration checklist and the device
+              examples exercise it.
+            </li>
+            <li>
+              Flutter 3.44+ resolves the OpenIAP Apple 3.0.0 native dependency
+              through SwiftPM; older or SwiftPM-disabled projects retain the
+              CocoaPods path.
+            </li>
+            <li>
+              The legacy surface is gone: purchase, verification, offer,
+              billing-program, and platform-request models now use one canonical
+              vocabulary across the supported SDKs.
+            </li>
+            <li>
+              IAPKit receipt verification, scoped keys, client payloads, catalog
+              reads, and inbound App Store and Google Play webhooks keep their
+              existing wire contracts.
+            </li>
+          </ul>
+
+          <p style={calloutStyle}>
+            See the{' '}
+            <Link to="/docs/updates/releases#openiap-major-api-cleanup-2026-07-29">
+              complete OpenIAP 3 release notes
+            </Link>{' '}
+            for exact package versions, per-SDK changes, platform availability,
+            and release links. Before upgrading, follow the{' '}
+            <Link to="/docs/updates/deprecations">
+              Deprecations &amp; 3.0 Migration catalog
+            </Link>
+            .
+          </p>
+        </div>
+      ),
+    },
+
     // 2026-07-24: Major-version deprecation schedule
     {
       id: '2026-07-24-major-version-deprecation-schedule',
@@ -111,9 +231,9 @@ function Announcements() {
           <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
             Flutter users should migrate custom Android payload fixtures and
             adapters to the canonical <code>dataAndroid</code> key now. The
-            planned 9.6.1 patch retains <code>originalJsonAndroid</code> only as
-            a temporary input fallback for the remainder of Flutter 9.x; the
-            alias is not a public Purchase field and is removed in 10.0.0.
+            9.6.1 retained <code>originalJsonAndroid</code> only as a temporary
+            input fallback for the remainder of Flutter 9.x; the alias is not a
+            public Purchase field and is removed in 10.0.0.
           </p>
           <p style={calloutStyle}>
             See the complete{' '}

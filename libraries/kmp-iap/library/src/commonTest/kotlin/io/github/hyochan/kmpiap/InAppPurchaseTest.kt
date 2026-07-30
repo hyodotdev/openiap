@@ -103,14 +103,6 @@ class InAppPurchaseTest {
                 )
             )
         )
-        val offerDetails = ProductSubscriptionAndroidOfferDetails(
-            basePlanId = "monthly-base",
-            installmentPlanDetails = installmentPlanDetails,
-            offerId = "intro-offer",
-            offerTags = listOf("intro"),
-            offerToken = "offer-token",
-            pricingPhases = pricingPhases
-        )
         val subscriptionOffer = SubscriptionOffer(
             basePlanIdAndroid = "monthly-base",
             currency = "USD",
@@ -123,19 +115,10 @@ class InAppPurchaseTest {
             pricingPhasesAndroid = pricingPhases,
             type = DiscountOfferType.Introductory
         )
-        val discountOffer = DiscountOffer(
-            currency = "USD",
-            displayPrice = "$1.99",
-            id = "one-time-offer",
-            offerTokenAndroid = "one-time-token",
-            price = 1.99,
-            type = DiscountOfferType.OneTime
-        )
         val subscription = ProductSubscriptionAndroid(
             currency = "USD",
             debugDescription = "debug payload",
             description = "Android subscription",
-            discountOffers = listOf(discountOffer),
             displayName = "Premium monthly",
             displayPrice = "$4.99",
             id = "premium_monthly",
@@ -143,7 +126,6 @@ class InAppPurchaseTest {
             platform = IapPlatform.Android,
             price = 4.99,
             productStatusAndroid = ProductStatusAndroid.NoOffersAvailable,
-            subscriptionOfferDetailsAndroid = listOf(offerDetails),
             subscriptionOffers = listOf(subscriptionOffer),
             title = "Premium monthly",
             type = ProductType.Subs
@@ -151,9 +133,8 @@ class InAppPurchaseTest {
 
         val product = subscription.toProductForDsl() as ProductAndroid
 
-        assertEquals(listOf(discountOffer), product.discountOffers)
+        assertNull(product.discountOffers)
         assertEquals(ProductStatusAndroid.NoOffersAvailable, product.productStatusAndroid)
-        assertEquals(listOf(offerDetails), product.subscriptionOfferDetailsAndroid)
         assertEquals(listOf(subscriptionOffer), product.subscriptionOffers)
         assertEquals("debug payload", product.debugDescription)
     }
@@ -186,11 +167,6 @@ class InAppPurchaseTest {
             ),
             subscriptionOffers = listOf(subscriptionOffer)
         )
-        val subscriptionInfo = SubscriptionInfoIOS(
-            pricingTerms = listOf(pricingTerms),
-            subscriptionGroupId = "group-id",
-            subscriptionPeriod = period
-        )
         val subscription = ProductSubscriptionIOS(
             currency = "USD",
             debugDescription = "storekit json",
@@ -205,7 +181,7 @@ class InAppPurchaseTest {
             platform = IapPlatform.Ios,
             price = 9.99,
             pricingTermsIOS = listOf(pricingTerms),
-            subscriptionInfoIOS = subscriptionInfo,
+            subscriptionGroupIdIOS = "group-id",
             subscriptionOffers = listOf(subscriptionOffer),
             title = "Premium monthly",
             type = ProductType.Subs,
@@ -215,7 +191,6 @@ class InAppPurchaseTest {
         val product = subscription.toProductForDsl() as ProductIOS
 
         assertEquals(listOf(pricingTerms), product.pricingTermsIOS)
-        assertEquals(subscriptionInfo, product.subscriptionInfoIOS)
         assertEquals(listOf(subscriptionOffer), product.subscriptionOffers)
         assertEquals("storekit json", product.debugDescription)
     }
@@ -233,7 +208,6 @@ class InAppPurchaseTest {
             obfuscatedAccountIdAndroid = null,
             obfuscatedProfileIdAndroid = null,
             packageNameAndroid = "com.example",
-            platform = IapPlatform.Android,
             productId = "test_product",
             purchaseState = PurchaseState.Purchased,
             purchaseToken = "token",
@@ -334,13 +308,12 @@ class InAppPurchaseTest {
 
         assertNotNull(props.google)
         assertEquals(listOf("sku_premium"), props.google?.skus)
-        assertNull(props.android)
     }
 
     @Test
-    fun testRequestPurchasePropsByPlatformsWithBothIosAndGoogle() {
+    fun testRequestPurchasePropsByPlatformsWithBothAppleAndGoogle() {
         val props = RequestPurchasePropsByPlatforms(
-            ios = RequestPurchaseIosProps(
+            apple = RequestPurchaseIosProps(
                 sku = "ios_premium",
                 advancedCommerceData = "campaign_123"
             ),
@@ -350,10 +323,10 @@ class InAppPurchaseTest {
             )
         )
 
-        assertNotNull(props.ios)
+        assertNotNull(props.apple)
         assertNotNull(props.google)
-        assertEquals("ios_premium", props.ios?.sku)
-        assertEquals("campaign_123", props.ios?.advancedCommerceData)
+        assertEquals("ios_premium", props.apple?.sku)
+        assertEquals("campaign_123", props.apple?.advancedCommerceData)
         assertEquals(listOf("android_premium"), props.google?.skus)
     }
 
@@ -536,7 +509,7 @@ class InAppPurchaseTest {
     }
 
     @Test
-    fun testDiscountOfferWithAndroidFields() {
+    fun testDiscountOfferWithCanonicalAndroidOfferMetadata() {
         val offer = DiscountOffer(
             currency = "USD",
             displayPrice = "$0.99",
@@ -672,7 +645,6 @@ class InAppPurchaseTest {
             displayPrice = "$9.99/month",
             id = "monthly_sub",
             nameAndroid = "Monthly Subscription",
-            subscriptionOfferDetailsAndroid = emptyList(),
             subscriptionOffers = subscriptionOffers,
             title = "Monthly Plan",
             type = ProductType.Subs
@@ -749,20 +721,21 @@ class InAppPurchaseTest {
     }
 
     @Test
-    fun testProductAndroidOneTimePurchaseOfferDetailWithRequiredFields() {
-        val detail = ProductAndroidOneTimePurchaseOfferDetail(
-            formattedPrice = "$0.99",
-            priceAmountMicros = "990000",
-            priceCurrencyCode = "USD",
-            offerTags = listOf("sale", "featured"),
-            offerToken = "offer_token_abc123"
+    fun testDiscountOfferWithAndroidFields() {
+        val detail = DiscountOffer(
+            currency = "USD",
+            displayPrice = "$0.99",
+            price = 0.99,
+            type = DiscountOfferType.OneTime,
+            offerTagsAndroid = listOf("sale", "featured"),
+            offerTokenAndroid = "offer_token_abc123",
         )
 
-        assertEquals("$0.99", detail.formattedPrice)
-        assertEquals("990000", detail.priceAmountMicros)
-        assertEquals("USD", detail.priceCurrencyCode)
-        assertEquals(listOf("sale", "featured"), detail.offerTags)
-        assertEquals("offer_token_abc123", detail.offerToken)
+        assertEquals("$0.99", detail.displayPrice)
+        assertEquals(0.99, detail.price)
+        assertEquals("USD", detail.currency)
+        assertEquals(listOf("sale", "featured"), detail.offerTagsAndroid)
+        assertEquals("offer_token_abc123", detail.offerTokenAndroid)
     }
 
     // =========================================================================

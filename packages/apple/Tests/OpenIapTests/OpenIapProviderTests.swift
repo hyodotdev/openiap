@@ -148,13 +148,11 @@ final class OpenIapProviderTests: XCTestCase {
         // Initialize connection
         _ = try await module.initConnection()
 
-        // Test with empty group ID
-        let groupID = ""
-        let isEligible = try await module.isEligibleForIntroOfferIOS(groupID: groupID)
+        let isEligible = try await module.isEligibleForIntroOfferIOS(groupID: "")
+        let isWhitespaceEligible = try await module.isEligibleForIntroOfferIOS(groupID: " \n\t ")
 
-        // Empty group ID should return true (no previous subscription)
-        // This matches StoreKit's behavior
-        XCTAssertTrue(isEligible, "Empty group ID should indicate eligibility")
+        XCTAssertFalse(isEligible, "Empty group IDs must fail closed")
+        XCTAssertFalse(isWhitespaceEligible, "Whitespace-only group IDs must fail closed")
 
         // Clean up
         _ = try await module.endConnection()
