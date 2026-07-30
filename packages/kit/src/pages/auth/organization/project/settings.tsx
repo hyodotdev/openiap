@@ -397,7 +397,6 @@ export default function ProjectSettings() {
   const iosAppleIdLocked = Boolean(originalIosAppleIdString);
   const iosIssuerLocked = Boolean(originalIosIssuerId);
   const iosKeyLocked = Boolean(originalIosKeyId);
-  const androidPackageLocked = Boolean(originalAndroidPackageName);
   const isIosP8Provided = hasIosFile || iosFileUploaded;
 
   const derivedAppleSupport =
@@ -435,7 +434,7 @@ export default function ProjectSettings() {
   }
 
   const applePlatformsLocked = iosBundleLocked || iosAppleIdLocked;
-  const androidPlatformsLocked = androidPackageLocked;
+  const androidPlatformsLocked = Boolean(originalAndroidPackageName);
 
   const showAppleSection = applePlatformsSelected;
   const showAndroidSection = androidPlatformsSelected;
@@ -444,11 +443,16 @@ export default function ProjectSettings() {
       ? "md:grid-cols-2"
       : "md:grid-cols-1";
 
+  const isAndroidPackageFormatValid =
+    trimmedAndroidPackageName.length > 0 &&
+    androidPackagePattern.test(trimmedAndroidPackageName);
+  const isAndroidPackageIdentityValid =
+    !originalAndroidPackageName ||
+    trimmedAndroidPackageName.toLowerCase() ===
+      originalAndroidPackageName.toLowerCase();
   const isAndroidPackageValid =
     !showAndroidSection ||
-    androidPackageLocked ||
-    (trimmedAndroidPackageName.length > 0 &&
-      androidPackagePattern.test(trimmedAndroidPackageName));
+    (isAndroidPackageFormatValid && isAndroidPackageIdentityValid);
   const isIosBundleValid =
     !showAppleSection ||
     iosBundleLocked ||
@@ -1837,7 +1841,10 @@ export default function ProjectSettings() {
                     form's metadata save. The JSON file upload below is
                     a separate flow. */}
                   <div>
-                    <label className="block text-sm font-medium mb-2">
+                    <label
+                      htmlFor="android-package-name"
+                      className="block text-sm font-medium mb-2"
+                    >
                       {"Android package name"}{" "}
                       <span className="text-destructive" aria-hidden="true">
                         *
@@ -1845,6 +1852,7 @@ export default function ProjectSettings() {
                       <span className="sr-only">{"Required"}</span>
                     </label>
                     <input
+                      id="android-package-name"
                       type="text"
                       value={androidPackageName}
                       onChange={(event) =>
@@ -1854,23 +1862,32 @@ export default function ProjectSettings() {
                       placeholder="com.example.app"
                       spellCheck={false}
                       aria-invalid={!isAndroidPackageValid}
-                      disabled={androidPackageLocked}
                     />
                     <p className="text-sm text-muted-foreground mt-1">
                       {
-                        "Use the exact package name from the Google Play Console (e.g., com.example.app)."
+                        "Package names are case-sensitive. Use the exact value from the Google Play Console (e.g., com.example.app)."
                       }
                     </p>
-                    {androidPackageLocked && (
+                    {originalAndroidPackageName && (
                       <p className="text-sm text-muted-foreground mt-1">
-                        {"Android package names can’t be edited once saved."}
+                        {
+                          "You can correct capitalization, but changing to a different package name requires a new project."
+                        }
                       </p>
                     )}
-                    {!isAndroidPackageValid && (
+                    {!isAndroidPackageFormatValid && (
                       <p className="text-sm text-destructive mt-1">
                         {"Enter a valid Android package name."}
                       </p>
                     )}
+                    {isAndroidPackageFormatValid &&
+                      !isAndroidPackageIdentityValid && (
+                        <p className="text-sm text-destructive mt-1">
+                          {
+                            "A saved Android package name can only be updated to correct capitalization."
+                          }
+                        </p>
+                      )}
                   </div>
 
                   <div className="pt-4 border-t border-border/60">

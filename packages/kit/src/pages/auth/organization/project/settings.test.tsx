@@ -13,6 +13,16 @@ const mocks = vi.hoisted(() => ({
   fetch: vi.fn(),
   generateUploadUrl: vi.fn(),
   otherMutation: vi.fn(),
+  project: {
+    _id: "projects_test",
+    organizationId: "organizations_test",
+    name: "Test Project",
+    slug: "test-project",
+    iosBundleId: "com.example.test",
+    iosAppStoreIssuerId: "12345678-ABCD-1234-ABCD-1234567890AB",
+    iosAppStoreKeyId: "ABCDE12345",
+    androidPackageName: "com.markhub.markly",
+  },
   saveFile: vi.fn(),
   toastError: vi.fn(),
   toastSuccess: vi.fn(),
@@ -53,14 +63,7 @@ function pngBytesWithTransparencyChunk(): Uint8Array {
 
 vi.mock("react-router-dom", () => ({
   useOutletContext: () => ({
-    project: {
-      _id: "projects_test",
-      organizationId: "organizations_test",
-      name: "Test Project",
-      slug: "test-project",
-      iosBundleId: "com.example.test",
-      androidPackageName: "com.example.test",
-    },
+    project: mocks.project,
   }),
 }));
 
@@ -112,7 +115,7 @@ const TARGET_PENDING_MESSAGE =
 const AUTHORIZATION_LOST_MESSAGE =
   "The file was not saved because your access changed during the upload. Please sign in and try again.";
 
-describe("ProjectSettings credential uploads", () => {
+describe("ProjectSettings", () => {
   beforeEach(() => {
     mocks.downloadFile.mockReset();
     mocks.fetch.mockReset();
@@ -145,6 +148,51 @@ describe("ProjectSettings credential uploads", () => {
     cleanup();
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
+  });
+
+  it("allows correcting a stored Android package name with exact capitalization", async () => {
+    mocks.otherMutation.mockResolvedValueOnce(undefined);
+    render(<ProjectSettings />);
+
+    const input =
+      screen.getByLabelText<HTMLInputElement>(/Android package name/);
+    expect(input.disabled).toBe(false);
+
+    fireEvent.change(input, { target: { value: "com.markhub.Markly" } });
+    fireEvent.click(screen.getByRole("button", { name: "Save identifiers" }));
+
+    await waitFor(() => {
+      expect(mocks.otherMutation).toHaveBeenCalledWith({
+        projectId: "projects_test",
+        androidPackageName: "com.markhub.Markly",
+        iosBundleId: "com.example.test",
+        iosAppStoreIssuerId: "12345678-ABCD-1234-ABCD-1234567890AB",
+        iosAppStoreKeyId: "ABCDE12345",
+      });
+    });
+    expect(mocks.toastSuccess).toHaveBeenCalledWith(
+      "Identifiers updated successfully",
+    );
+  });
+
+  it("prevents replacing a stored Android package name", () => {
+    render(<ProjectSettings />);
+
+    fireEvent.change(
+      screen.getByLabelText<HTMLInputElement>(/Android package name/),
+      { target: { value: "com.example.Other" } },
+    );
+
+    expect(
+      screen.getByRole<HTMLButtonElement>("button", {
+        name: "Save identifiers",
+      }).disabled,
+    ).toBe(true);
+    expect(
+      screen.getByText(
+        "A saved Android package name can only be updated to correct capitalization.",
+      ),
+    ).toBeTruthy();
   });
 
   it.each([
