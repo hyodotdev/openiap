@@ -25,7 +25,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const releaseWorkflows = {
   apple: { filename: "release-apple.yml", guardedJobs: 1 },
   expo: { filename: "release-expo.yml", guardedJobs: 2 },
-  flutter: { filename: "release-flutter.yml", guardedJobs: 2 },
+  flutter: { filename: "release-flutter.yml", guardedJobs: 3 },
   godot: { filename: "release-godot.yml", guardedJobs: 2 },
   google: { filename: "release-google.yml", guardedJobs: 1 },
   kmp: { filename: "release-kmp.yml", guardedJobs: 2 },

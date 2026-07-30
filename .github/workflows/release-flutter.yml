@@ -111,6 +111,13 @@ jobs:
         with:
           xcode-version: ${{ env.XCODE_VERSION }}
 
+      - name: Select CocoaPods fallback
+        run: |
+          perl -0pi -e \
+            's/enable-swift-package-manager: true/enable-swift-package-manager: false/' \
+            example/pubspec.yaml
+          grep -Fq "enable-swift-package-manager: false" example/pubspec.yaml
+
       - name: Install dependencies
         run: flutter pub get
 
@@ -124,7 +131,9 @@ jobs:
 
       - name: Install CocoaPods dependencies
         working-directory: libraries/flutter_inapp_purchase/example/ios
-        run: pod install --repo-update
+        run: |
+          pod install --repo-update
+          grep -Eq '^[[:space:]]+- openiap ' Podfile.lock
 
       - name: Build iOS
         working-directory: libraries/flutter_inapp_purchase/example/ios
@@ -138,8 +147,32 @@ jobs:
             CODE_SIGNING_ALLOWED=NO \
             COMPILER_INDEX_STORE_ENABLE=NO
 
+  validate-apple-swiftpm:
+    needs: [release-branch]
+    runs-on: xcode-27
+    timeout-minutes: 60
+    defaults:
+      run:
+        working-directory: libraries/flutter_inapp_purchase
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - name: Setup Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: "stable"
+          flutter-version: "3.44.0"
+          cache: true
+
+      - name: Build Apple examples with SwiftPM
+        run: bash scripts/verify-apple-swiftpm-consumer-build.sh
+
   deploy:
-    needs: [validate-android, validate-ios]
+    needs: [validate-android, validate-ios, validate-apple-swiftpm]
     permissions:
       contents: write
       id-token: write
