@@ -22,7 +22,8 @@ trap cleanup EXIT
 cp "$ios_manifest" "$tmp_root/ios-Package.swift"
 cp "$macos_manifest" "$tmp_root/macos-Package.swift"
 
-xcode_version="$(xcodebuild -version | head -n 1)"
+xcode_version_output="$(xcodebuild -version)"
+xcode_version="${xcode_version_output%%$'\n'*}"
 if [[ "$xcode_version" != "Xcode 27"* ]]; then
   echo "Expected Xcode 27, found: $xcode_version" >&2
   exit 1

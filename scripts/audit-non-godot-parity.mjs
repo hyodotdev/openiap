@@ -6559,6 +6559,8 @@ function checkXcode27StoreKitCoverage() {
   expectIncludes(
     "libraries/flutter_inapp_purchase/scripts/verify-apple-swiftpm-consumer-build.sh",
     [
+      'xcode_version_output="$(xcodebuild -version)"',
+      'xcode_version="${xcode_version_output%%$\'\\n\'*}"',
       '[[ "$xcode_version" != "Xcode 27"* ]]',
       "flutter build ios --config-only --simulator",
       "flutter build macos --config-only",
