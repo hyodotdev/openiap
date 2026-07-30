@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
-> Generated: 2026-07-30T11:44:25.606Z
+> Generated: 2026-07-30T18:42:59.387Z
 
 ## Installation
 
@@ -19,14 +19,14 @@ npm install react-native-iap
 ### Native
 ```swift
 // Swift Package Manager
-.package(url: "https://github.com/hyodotdev/openiap.git", from: "2.4.4")
+.package(url: "https://github.com/hyodotdev/openiap.git", from: "3.0.0")
 ```
 
 ```kotlin
 // Gradle
-implementation("io.github.hyochan.openiap:openiap-google:2.5.2")
-implementation("io.github.hyochan.openiap:openiap-google-horizon:2.5.2")
-implementation("io.github.hyochan.openiap:openiap-google-amazon:2.5.2")
+implementation("io.github.hyochan.openiap:openiap-google:3.0.0")
+implementation("io.github.hyochan.openiap:openiap-google-horizon:3.0.0")
+implementation("io.github.hyochan.openiap:openiap-google-amazon:3.0.0")
 ```
 
 ```bash
