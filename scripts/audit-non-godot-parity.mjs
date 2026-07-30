@@ -6545,16 +6545,38 @@ function checkXcode27StoreKitCoverage() {
       `${workflowPath} Xcode 27 scene lifecycle build`,
     );
   }
+  for (const workflowPath of [
+    ".github/workflows/ci-flutter-inapp-purchase.yml",
+    ".github/workflows/release-flutter.yml",
+  ]) {
+    expectIncludes(
+      workflowPath,
+      [
+        'flutter-version: "3.44.0"',
+        "bash scripts/verify-apple-swiftpm-consumer-build.sh",
+      ],
+      `${workflowPath} Flutter Xcode 27 SwiftPM example build`,
+    );
+  }
   expectIncludes(
     ".github/workflows/ci-flutter-inapp-purchase.yml",
     [
-      'flutter-version: "3.44.0"',
-      "bash scripts/verify-apple-swiftpm-consumer-build.sh",
       "packages/apple/Sources/**",
       "packages/apple/Package.swift",
       "openiap-versions.json",
     ],
-    "Flutter Xcode 27 SwiftPM example build",
+    "Flutter Xcode 27 SwiftPM trigger coverage",
+  );
+  expectIncludes(
+    ".github/workflows/release-flutter.yml",
+    [
+      "Select CocoaPods fallback",
+      "enable-swift-package-manager: false",
+      "grep -Eq '^[[:space:]]+- openiap ' Podfile.lock",
+      "validate-apple-swiftpm",
+      "needs: [validate-android, validate-ios, validate-apple-swiftpm]",
+    ],
+    "Flutter release Apple dependency-manager coverage",
   );
   expectIncludes(
     "libraries/flutter_inapp_purchase/example/pubspec.yaml",
@@ -6565,7 +6587,7 @@ function checkXcode27StoreKitCoverage() {
     "libraries/flutter_inapp_purchase/scripts/verify-apple-swiftpm-consumer-build.sh",
     [
       'xcode_version_output="$(xcodebuild -version)"',
-      'xcode_version="${xcode_version_output%%$\'\\n\'*}"',
+      "xcode_version=\"${xcode_version_output%%$'\\n'*}\"",
       '[[ "$xcode_version" != "Xcode 27"* ]]',
       "flutter build ios --config-only --simulator",
       "flutter build macos --config-only",
