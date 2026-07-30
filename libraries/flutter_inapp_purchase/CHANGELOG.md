@@ -1,5 +1,13 @@
 # Changelog
 
+## 10.0.0 (2026-07-30)
+
+- chore(google): bump version to 3.0.0
+- chore(apple): bump version to 3.0.0
+- refactor(api)!: remove legacy compatibility (#256)
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
+
+
 ## 9.6.2 (2026-07-27)
 
 - chore(google): bump version to 2.5.2
