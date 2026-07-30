@@ -28,7 +28,10 @@ const projectPlatformValidator = v.union(
   v.literal("other"),
 );
 
-function normalizeAndroidPackageName(input: string): string {
+export function normalizeAndroidPackageName(
+  input: string,
+  currentPackageName?: string,
+): string {
   const normalized = input.trim();
   if (!normalized) {
     throw createError(
@@ -45,7 +48,18 @@ function normalizeAndroidPackageName(input: string): string {
     );
   }
 
-  return normalized.toLowerCase();
+  const normalizedCurrent = currentPackageName?.trim();
+  if (
+    normalizedCurrent &&
+    normalizedCurrent.toLowerCase() !== normalized.toLowerCase()
+  ) {
+    throw createError(
+      ErrorCode.INVALID_INPUT,
+      "Android package name can only be updated to correct capitalization once saved.",
+    );
+  }
+
+  return normalized;
 }
 
 function normalizeIosBundleId(input: string): string {
@@ -348,6 +362,7 @@ export const updateProject = mutation({
     if (args.androidPackageName !== undefined) {
       updates.androidPackageName = normalizeAndroidPackageName(
         args.androidPackageName,
+        project.androidPackageName,
       );
     }
     if (args.iosBundleId !== undefined) {

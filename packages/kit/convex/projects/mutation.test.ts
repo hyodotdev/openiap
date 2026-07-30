@@ -1,6 +1,28 @@
 import { describe, expect, it } from "vitest";
 
-import { normalizeAppAppleId } from "./mutation";
+import { normalizeAndroidPackageName, normalizeAppAppleId } from "./mutation";
+
+describe("normalizeAndroidPackageName", () => {
+  it("trims whitespace without changing capitalization", () => {
+    expect(normalizeAndroidPackageName("  com.markhub.Markly  ")).toBe(
+      "com.markhub.Markly",
+    );
+  });
+
+  it("allows correcting capitalization for a saved package name", () => {
+    expect(
+      normalizeAndroidPackageName("com.markhub.Markly", "com.markhub.markly"),
+    ).toBe("com.markhub.Markly");
+  });
+
+  it("rejects changing a saved project to a different package name", () => {
+    expect(() =>
+      normalizeAndroidPackageName("com.example.Other", "com.markhub.markly"),
+    ).toThrow(
+      "Android package name can only be updated to correct capitalization once saved.",
+    );
+  });
+});
 
 describe("normalizeAppAppleId", () => {
   it("accepts positive safe integers", () => {
