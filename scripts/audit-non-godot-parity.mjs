@@ -6509,6 +6509,11 @@ function checkXcode27StoreKitCoverage() {
     "React Native Xcode 27 scene manifest",
   );
   expectIncludes(
+    "libraries/react-native-iap/example/Gemfile",
+    ["gem 'nkf'"],
+    "React Native Ruby 3.4 CocoaPods compatibility",
+  );
+  expectIncludes(
     "libraries/flutter_inapp_purchase/example/ios/Runner/Info.plist",
     [
       "<key>UIApplicationSceneManifest</key>",
