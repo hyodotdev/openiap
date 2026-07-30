@@ -1,6 +1,6 @@
 {
   "name": "@hyodotdev/openiap-gql",
-  "version": "2.5.2",
+  "version": "3.0.0",
   "type": "module",
   "main": "src/generated/types.ts",
   "exports": {
