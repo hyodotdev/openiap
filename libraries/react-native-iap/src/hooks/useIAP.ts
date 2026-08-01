@@ -591,6 +591,11 @@ export function useIAP(options?: UseIapOptions): UseIap {
           } catch (e) {
             RnIapConsole.warn('[useIAP] post-purchase refresh failed:', e);
           }
+
+          // Deliver even if the hook unmounted while the refresh was pending:
+          // onPurchaseSuccess is where apps call finishTransaction, and a
+          // dropped event has no in-session redelivery. Internal setState is
+          // mount-guarded inside the refresh helpers.
           if (optionsRef.current?.onPurchaseSuccess) {
             optionsRef.current.onPurchaseSuccess(purchase);
           }

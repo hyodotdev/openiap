@@ -50,6 +50,7 @@ describe('hooks/useIAP (renderer)', () => {
   let mockSyncIOS: jest.SpyInstance;
 
   beforeEach(() => {
+    capturedPurchaseListener = undefined;
     jest.spyOn(IAP, 'initConnection').mockResolvedValue(true as any);
     mockGetAvailablePurchases = jest
       .spyOn(IAP, 'getAvailablePurchases')
@@ -119,6 +120,66 @@ describe('hooks/useIAP (renderer)', () => {
       await api.finishTransaction({purchase, isConsumable: false});
     });
     expect(IAP.finishTransaction).toBeDefined();
+  });
+
+  it('still delivers purchase success when unmounted while refresh is pending', async () => {
+    let resolveActiveSubscriptions: (() => void) | undefined;
+    mockGetActiveSubscriptions.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveActiveSubscriptions = () => resolve([]);
+        }) as any,
+    );
+
+    const onPurchaseSuccess = jest.fn();
+    const Harness = () => {
+      useIAP({onPurchaseSuccess});
+      return null;
+    };
+
+    let renderer: ReturnType<typeof TestRenderer.create>;
+    await act(async () => {
+      renderer = TestRenderer.create(React.createElement(Harness));
+    });
+    await act(async () => {});
+
+    const purchase = {
+      id: 't1',
+      productId: 'p1',
+      transactionDate: Date.now(),
+      platform: 'ios',
+      store: 'apple',
+      quantity: 1,
+      purchaseState: 'purchased',
+      isAutoRenewing: false,
+    };
+    if (!capturedPurchaseListener) {
+      throw new Error('purchase listener was not initialized');
+    }
+
+    const purchaseUpdate = capturedPurchaseListener(purchase);
+
+    if (!resolveActiveSubscriptions) {
+      throw new Error('active subscriptions resolver was not initialized');
+    }
+    const resolvePendingActiveSubscriptions = resolveActiveSubscriptions;
+
+    await act(async () => {
+      renderer.unmount();
+    });
+
+    await act(async () => {
+      resolvePendingActiveSubscriptions();
+      await purchaseUpdate;
+    });
+
+    // The event entered while mounted, so the success callback still fires:
+    // it is where apps call finishTransaction, and a dropped event has no
+    // in-session redelivery.
+    expect(onPurchaseSuccess).toHaveBeenCalledTimes(1);
+    expect(onPurchaseSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({id: 't1', productId: 'p1'}),
+    );
   });
 
   it('requestPurchase calls root API and returns void', async () => {

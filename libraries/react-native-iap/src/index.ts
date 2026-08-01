@@ -451,6 +451,13 @@ export const purchaseUpdatedListener = (
         return;
       }
 
+      // StoreKit-backed Nitro listener disposal can abort in iOS release builds
+      // when a native modal is being popped. Keep the singleton native listener
+      // attached for the app session and only remove the JS callback above.
+      if (Platform.OS === 'ios') {
+        return;
+      }
+
       const token = receiveDuplicateTransactionUpdatesIOS
         ? purchaseUpdateDuplicateNativeToken
         : purchaseUpdateNativeToken;
@@ -498,7 +505,19 @@ export const purchaseErrorListener = (
   return {
     remove: () => {
       purchaseErrorJsListeners.delete(listener);
-      if (purchaseErrorJsListeners.size === 0 && purchaseErrorNativeAttached) {
+      if (purchaseErrorJsListeners.size > 0) {
+        return;
+      }
+
+      // Same iOS policy as purchaseUpdatedListener: releasing the stored
+      // native callback from a JS unsubscribe can race an in-flight dispatch
+      // snapshot on another thread. Keep the singleton attached; endConnection
+      // owns native disposal.
+      if (Platform.OS === 'ios') {
+        return;
+      }
+
+      if (purchaseErrorNativeAttached) {
         try {
           IAP.instance.removePurchaseErrorListener(purchaseErrorNativeHandler);
           purchaseErrorNativeAttached = false;
