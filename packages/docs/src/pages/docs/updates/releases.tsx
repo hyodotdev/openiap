@@ -30,6 +30,7 @@ const frameworkIosPatchReleases = [
 ] as const;
 
 const frameworkIosPatchAliases = [
+  'react-native-iap-ios-listener-lifecycle-2026-08-01',
   'app-store-toolchain-compatibility-2026-08-02',
 ] as const;
 
@@ -146,19 +147,19 @@ function Releases() {
   const allNotes: Note[] = [
     // August 2, 2026 - Apple framework compatibility patches
     {
-      id: 'react-native-iap-ios-listener-lifecycle-2026-08-01',
+      id: 'apple-framework-compatibility-patches-2026-08-02',
       aliases: frameworkIosPatchAliases,
       date: new Date('2026-08-02'),
       element: (
         <div
-          key="react-native-iap-ios-listener-lifecycle-2026-08-01"
+          key="apple-framework-compatibility-patches-2026-08-02"
           style={noteCardStyle}
         >
           {frameworkIosPatchAliases.map((alias) => (
             <span key={alias} id={alias} aria-hidden="true" />
           ))}
           <AnchorLink
-            id="react-native-iap-ios-listener-lifecycle-2026-08-01"
+            id="apple-framework-compatibility-patches-2026-08-02"
             level="h4"
           >
             August 2, 2026 - Apple framework compatibility patches
