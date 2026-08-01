@@ -964,18 +964,22 @@ async function upsertAndroidOneTimeProduct(
   validateAndroidOneTimePrice(args);
 
   try {
-    await upsertModernAndroidOneTimeProduct(auth, args, options);
-    await activateAndroidOneTimePurchaseOption(auth, args);
-    return;
+    await upsertModernAndroidOneTimeProduct(androidpublisher, args, options);
   } catch (error) {
-    if (!shouldFallbackToLegacyOneTimeProduct(error)) throw error;
+    if (!shouldFallbackToLegacyOneTimeProduct(error, options)) throw error;
+
+    if (options.allowCreate) {
+      await insertLegacyAndroidOneTimeProduct(androidpublisher, args);
+      return;
+    }
+    await patchLegacyAndroidOneTimeProduct(androidpublisher, args);
+    return;
   }
 
-  if (options.allowCreate) {
-    await insertLegacyAndroidOneTimeProduct(androidpublisher, args);
-    return;
-  }
-  await patchLegacyAndroidOneTimeProduct(androidpublisher, args);
+  // Activation errors describe the modern product we just upserted and must
+  // not be reclassified as evidence that the product belongs to the legacy
+  // catalog.
+  await activateAndroidOneTimePurchaseOption(auth, args);
 }
 
 function validateAndroidOneTimePrice(
@@ -1030,24 +1034,21 @@ function buildAndroidOneTimeProduct(
   };
 }
 
-async function upsertModernAndroidOneTimeProduct(
-  auth: Auth.GoogleAuth,
+export async function upsertModernAndroidOneTimeProduct(
+  androidpublisher: androidpublisher_v3.Androidpublisher,
   args: AndroidOneTimeProductUpsertArgs,
   options: { allowCreate: boolean },
 ): Promise<void> {
-  const client = await auth.getClient();
-  await client.request({
-    method: "PATCH",
-    url:
-      `https://androidpublisher.googleapis.com/androidpublisher/v3/applications/` +
-      `${encodeURIComponent(args.packageName)}/oneTimeProducts/` +
-      `${encodeURIComponent(args.productId)}`,
-    params: {
-      allowMissing: options.allowCreate,
-      updateMask: "listings,purchaseOptions",
-      "regionsVersion.version": "2022/01",
-    },
-    data: buildAndroidOneTimeProduct(args),
+  // The generated method owns the PATCH route. In googleapis v157 the
+  // upsert route is the lowercase `/onetimeproducts/{productId}` path,
+  // which differs from the camel-case routes used by sibling methods.
+  await androidpublisher.monetization.onetimeproducts.patch({
+    packageName: args.packageName,
+    productId: args.productId,
+    allowMissing: options.allowCreate,
+    updateMask: "listings,purchaseOptions",
+    "regionsVersion.version": "2022/01",
+    requestBody: buildAndroidOneTimeProduct(args),
   });
 }
 
@@ -1102,15 +1103,23 @@ async function patchLegacyAndroidOneTimeProduct(
   });
 }
 
-function shouldFallbackToLegacyOneTimeProduct(error: unknown): boolean {
+export function shouldFallbackToLegacyOneTimeProduct(
+  error: unknown,
+  options: { allowCreate: boolean },
+): boolean {
   const status = googleErrorStatus(error);
   const message = error instanceof Error ? error.message : String(error);
-  return (
-    status === 404 ||
+  const explicitlyRequiresLegacyApi =
     message.includes("inappproducts") ||
     message.includes("InAppProduct") ||
-    message.includes("Please use the InAppProducts API")
-  );
+    message.includes("Please use the InAppProducts API");
+  if (explicitlyRequiresLegacyApi) return true;
+
+  // An update may target a SKU that exists only in the legacy catalog, so a
+  // modern 404 must retain the established legacy-patch compatibility path.
+  // A create uses allowMissing=true; its bare 404 cannot mean "product absent"
+  // and must remain visible instead of being masked by a legacy insert.
+  return !options.allowCreate && status === 404;
 }
 
 async function activateAndroidOneTimePurchaseOption(
