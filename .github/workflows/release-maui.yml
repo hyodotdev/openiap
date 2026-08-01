@@ -31,6 +31,9 @@ env:
   DOTNET_NOLOGO: "1"
   XCODEGEN_VERSION: 2.45.4
   XCODEGEN_SHA256: 090ec29491aad50aec10631bf6e62253fed733c50f3aab0f5ffc86bc170bdbef
+  APP_STORE_XCODE_VERSION: "26.6"
+  APP_STORE_SDK_VERSION: "26.5"
+  APP_STORE_LD_VERSION: "1267.0"
   RELEASE_BRANCH: ${{ github.ref_name }}
 
 jobs:
@@ -78,8 +81,9 @@ jobs:
   validate-multitarget:
     needs: [release-branch]
     name: Validate (net10.0 platform TFMs)
-    # The MAUI package embeds a prebuilt OpenIAP.xcframework. Compile it with
-    # Xcode 27 so the guarded StoreKit 27 implementation is present in NuGet.
+    # Keep the upcoming SDK as a source-compatibility lane. The publish job
+    # separately rebuilds the packaged Apple sidecar with the stable App Store
+    # toolchain.
     runs-on: xcode-27
     timeout-minutes: 60
     steps:
@@ -121,9 +125,10 @@ jobs:
 
   publish:
     needs: [validate, validate-multitarget]
-    # Rebuild the exact native sidecar that is packed into the NuGet on the
-    # same Xcode 27 image used by validation.
-    runs-on: xcode-27
+    # Rebuild the exact native sidecar packed into NuGet with an App Store
+    # submission toolchain. Xcode 27 remains validation-only until Apple
+    # accepts its SDK for App Store uploads.
+    runs-on: macos-26
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
@@ -140,6 +145,11 @@ jobs:
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68
         with:
           dotnet-version: "10.0.x"
+
+      - name: Set up App Store Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.APP_STORE_XCODE_VERSION }}
 
       - name: Install MAUI workload
         run: dotnet workload install maui --skip-sign-check
@@ -308,6 +318,9 @@ jobs:
       # job runs in a separate workspace.
       - name: Build OpenIAP.xcframework (Apple)
         run: bash packages/apple/scripts/build-xcframework.sh
+
+      - name: Verify App Store toolchain provenance
+        run: bash packages/apple/scripts/verify-app-store-xcframework.sh
 
       - name: Build Play AAR (Google)
         working-directory: packages/google

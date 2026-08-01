@@ -108,7 +108,16 @@ ios: setup ios-build
 # Build iOS frameworks using xcodebuild
 ios-build:
 	@echo "$(GREEN)Building iOS frameworks...$(NC)"
-	@cd $(IOS_GDEXT_DIR) && xcodebuild -scheme GodotIap -sdk iphoneos -destination 'generic/platform=iOS' -configuration Release -derivedDataPath .build-xcode clean build
+	@cd $(IOS_GDEXT_DIR) && xcodebuild \
+		-scheme GodotIap \
+		-sdk iphoneos \
+		-destination 'generic/platform=iOS' \
+		-configuration Release \
+		CLANG_ENABLE_CODE_COVERAGE=NO \
+		ENABLE_CODE_COVERAGE=NO \
+		SWIFT_ENABLE_CODE_COVERAGE=NO \
+		-derivedDataPath .build-xcode \
+		clean build
 	@echo "$(GREEN)Copying frameworks to addon...$(NC)"
 	@$(APPLE_FRAMEWORK_INSTALLER) \
 		$(IOS_GDEXT_DIR)/.build-xcode/Build/Products/Release-iphoneos/PackageFrameworks/SwiftGodotRuntime.framework \
@@ -125,7 +134,18 @@ macos: setup macos-build
 # Build macOS frameworks using xcodebuild
 macos-build:
 	@echo "$(GREEN)Building macOS frameworks...$(NC)"
-	@cd "$(IOS_GDEXT_DIR)" && xcodebuild -scheme GodotIap -sdk macosx -destination 'platform=macOS' ARCHS="$(MACOS_ARCHS)" PRODUCT_BUNDLE_IDENTIFIER="dev.hyo.godot-iap.GodotIap" -configuration Release -derivedDataPath .build-xcode-macos build
+	@cd "$(IOS_GDEXT_DIR)" && xcodebuild \
+		-scheme GodotIap \
+		-sdk macosx \
+		-destination 'platform=macOS' \
+		ARCHS="$(MACOS_ARCHS)" \
+		PRODUCT_BUNDLE_IDENTIFIER="dev.hyo.godot-iap.GodotIap" \
+		-configuration Release \
+		CLANG_ENABLE_CODE_COVERAGE=NO \
+		ENABLE_CODE_COVERAGE=NO \
+		SWIFT_ENABLE_CODE_COVERAGE=NO \
+		-derivedDataPath .build-xcode-macos \
+		build
 	@echo "$(GREEN)Copying frameworks to addon...$(NC)"
 	@$(APPLE_FRAMEWORK_INSTALLER) \
 		$(IOS_GDEXT_DIR)/.build-xcode-macos/Build/Products/Release/PackageFrameworks/SwiftGodotRuntime.framework \

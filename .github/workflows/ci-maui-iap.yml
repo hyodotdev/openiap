@@ -9,7 +9,7 @@ on:
       - "packages/google/**"
       - "packages/apple/Sources/**"
       - "packages/apple/wrapper/**"
-      - "packages/apple/scripts/build-xcframework.sh"
+      - "packages/apple/scripts/**"
       - "openiap-versions.json"
       - "scripts/ci/retry-gradle.sh"
       - ".github/workflows/ci-maui-iap.yml"
@@ -21,7 +21,7 @@ on:
       - "packages/google/**"
       - "packages/apple/Sources/**"
       - "packages/apple/wrapper/**"
-      - "packages/apple/scripts/build-xcframework.sh"
+      - "packages/apple/scripts/**"
       - "openiap-versions.json"
       - "scripts/ci/retry-gradle.sh"
       - ".github/workflows/ci-maui-iap.yml"
@@ -33,6 +33,9 @@ concurrency:
 env:
   XCODEGEN_VERSION: 2.45.4
   XCODEGEN_SHA256: 090ec29491aad50aec10631bf6e62253fed733c50f3aab0f5ffc86bc170bdbef
+  APP_STORE_XCODE_VERSION: "26.6"
+  APP_STORE_SDK_VERSION: "26.5"
+  APP_STORE_LD_VERSION: "1267.0"
 
 jobs:
   compile-check:
@@ -142,10 +145,34 @@ jobs:
             dotnet build src/OpenIap.Maui/OpenIap.Maui.csproj -p:TargetFrameworks=net10.0-android -p:OpenIapAndroidStore="$store" -p:BuildProjectReferences=false "${DOTNET_BUILD_ARGS[@]}"
           done
 
+  app-store-artifact:
+    name: App Store artifact (Xcode 26.6)
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+
+      - name: Set up App Store Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.APP_STORE_XCODE_VERSION }}
+
+      - name: Install xcodegen
+        run: bash scripts/install-xcodegen.sh "$XCODEGEN_VERSION"
+
+      - name: Build OpenIAP.xcframework
+        run: bash packages/apple/scripts/build-xcframework.sh
+
+      - name: Verify App Store toolchain provenance
+        run: bash packages/apple/scripts/verify-app-store-xcframework.sh
+
   ios-binding:
     name: iOS binding (net10.0 ios + maccatalyst)
-    # The MAUI package embeds a prebuilt OpenIAP.xcframework. Compile it with
-    # Xcode 27 so the guarded StoreKit 27 implementation is present in NuGet.
+    # This lane proves source compatibility with the upcoming Xcode 27 SDK.
+    # The separate app-store-artifact lane guards the XCFramework that can be
+    # packed into a stable NuGet release.
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     runs-on: xcode-27
     timeout-minutes: 45

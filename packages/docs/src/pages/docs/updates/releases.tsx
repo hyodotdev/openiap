@@ -23,6 +23,11 @@ interface Note {
   element: React.ReactNode;
 }
 
+const appStoreToolchainPatchReleases = [
+  ['godot-iap 3.0.1', 'godot-iap-3.0.1'],
+  ['OpenIap.Maui 2.0.1', 'maui-iap-2.0.1'],
+] as const;
+
 const reactNativeListenerLifecycleReleases = [
   ['react-native-iap 16.0.1', 'react-native-iap-16.0.1'],
 ] as const;
@@ -138,6 +143,141 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // August 2, 2026 - App Store toolchain compatibility patch
+    {
+      id: 'app-store-toolchain-compatibility-2026-08-02',
+      date: new Date('2026-08-02'),
+      element: (
+        <div
+          key="app-store-toolchain-compatibility-2026-08-02"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="app-store-toolchain-compatibility-2026-08-02"
+            level="h4"
+          >
+            August 2, 2026 - App Store toolchain compatibility patch
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes stable-toolchain rebuilds for the framework packages that
+            distribute precompiled Apple binaries. This fixes the App Store
+            validation failure reported in{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/issues/264"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              issue #264
+            </a>
+            {', where '}
+            <code>OpenIap.Maui 2.0.0</code> embedded an Xcode 27 beta
+            XCFramework whose <code>LC_BUILD_VERSION</code> recorded SDK 27.0,
+            above the App Store maximum of 26.5.
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>MAUI</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>OpenIap.Maui 2.0.1</strong> rebuilds the Apple XCFramework
+              packed into NuGet with Xcode 26.6 and iPhoneOS SDK 26.5. Device,
+              simulator, and Mac Catalyst slices now carry the App
+              Store-accepted SDK metadata.
+            </li>
+            <li>
+              The release pipeline verifies the selected Xcode and SDK before
+              packing, then inspects every packaged Mach-O slice so an Xcode 27
+              linker signature or a mismatched SDK fails the release before it
+              reaches NuGet.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Godot</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>godot-iap 3.0.1</strong> rebuilds its precompiled iOS
+              GDExtension frameworks with the same App Store-accepted Xcode 26.6
+              / SDK 26.5 toolchain and rejects unaccepted toolchain provenance
+              during CI and release packaging.
+            </li>
+            <li>
+              Source-based Apple integrations and framework packages that do not
+              distribute a precompiled OpenIAP Apple framework require no
+              release for this fix.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              No API migration is required. MAUI applications rejected with the
+              SDK 27.0 validation message should upgrade to{' '}
+              <code>OpenIap.Maui 2.0.1</code> and rebuild the archive before
+              resubmitting it.
+            </li>
+            <li>
+              Xcode 27 remains a source-compatibility CI lane until Apple
+              accepts it for App Store submissions. Compiler-gated StoreKit 27
+              behavior is therefore not included in these stable precompiled
+              artifacts yet.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {appStoreToolchainPatchReleases.map(([label, tag]) => (
+                <li key={tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // August 1, 2026 - React Native iOS listener lifecycle patch
     {
       id: 'react-native-iap-ios-listener-lifecycle-2026-08-01',

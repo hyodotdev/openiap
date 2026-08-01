@@ -4158,33 +4158,89 @@ function checkFrameworkDependencyHygiene() {
       `${xcodeReleaseWorkflow} must not drift with macos-latest Xcode`,
     );
   }
+  expectIncludes(
+    ".github/workflows/ci-maui-iap.yml",
+    [
+      "app-store-artifact:",
+      "runs-on: macos-26",
+      'APP_STORE_XCODE_VERSION: "26.6"',
+      'APP_STORE_SDK_VERSION: "26.5"',
+      'APP_STORE_LD_VERSION: "1267.0"',
+      "maxim-lobanov/setup-xcode@v1",
+      "xcode-version: ${{ env.APP_STORE_XCODE_VERSION }}",
+      "bash packages/apple/scripts/verify-app-store-xcframework.sh",
+      "runs-on: xcode-27",
+    ],
+    "MAUI CI must separate stable App Store artifacts from Xcode 27 compatibility validation",
+  );
+  expectIncludes(
+    ".github/workflows/release-maui.yml",
+    [
+      "runs-on: macos-26",
+      'APP_STORE_XCODE_VERSION: "26.6"',
+      'APP_STORE_SDK_VERSION: "26.5"',
+      'APP_STORE_LD_VERSION: "1267.0"',
+      "maxim-lobanov/setup-xcode@v1",
+      "xcode-version: ${{ env.APP_STORE_XCODE_VERSION }}",
+      "bash packages/apple/scripts/verify-app-store-xcframework.sh",
+      "runs-on: xcode-27",
+    ],
+    "MAUI release must publish with the stable App Store toolchain and retain Xcode 27 validation",
+  );
   for (const mauiXcodeWorkflow of [
     ".github/workflows/ci-maui-iap.yml",
     ".github/workflows/release-maui.yml",
   ]) {
-    expectIncludes(
-      mauiXcodeWorkflow,
-      ["runs-on: xcode-27", "prebuilt OpenIAP.xcframework"],
-      `${mauiXcodeWorkflow} must compile the packaged Apple sidecar with Xcode 27`,
-    );
     expectNotIncludes(
       mauiXcodeWorkflow,
-      [
-        "XCODE_VERSION: 16.4",
-        "maxim-lobanov/setup-xcode@v1",
-        "runs-on: macos-latest",
-      ],
-      `${mauiXcodeWorkflow} must not compile the packaged Apple sidecar with an older or floating Xcode`,
+      ["runs-on: macos-latest"],
+      `${mauiXcodeWorkflow} must not drift with macos-latest Xcode`,
     );
   }
   expectIncludes(
-    "libraries/godot-iap/scripts/verify-ios-toolchain.sh",
+    "packages/apple/scripts/verify-app-store-xcframework.sh",
     [
+      'EXPECTED_XCODE_VERSION="${APP_STORE_XCODE_VERSION:-26.6}"',
+      'EXPECTED_SDK_VERSION="${APP_STORE_SDK_VERSION:-26.5}"',
+      'EXPECTED_LD_VERSION="${APP_STORE_LD_VERSION:-1267.0}"',
       "xcrun vtool -show-build",
       "version[[:space:]]+27[0-9]+",
-      "Rebuild with DEVELOPER_DIR pointing at Xcode 27 before release.",
+      '$1 == "cmd" && $2 == "LC_BUILD_VERSION"',
+      'expect_ld_version = ($2 == "LD")',
+      '$1 == "version" && expect_ld_version',
+      "$2 != expected",
+      "__LLVM_COV|__llvm_prf_",
     ],
-    "Godot tracked iOS frameworks must require Xcode 27 linker provenance",
+    "MAUI packaged Apple sidecar must reject non-App-Store toolchain provenance",
+  );
+  expectIncludes(
+    "libraries/godot-iap/scripts/verify-ios-toolchain.sh",
+    [
+      'EXPECTED_SDK_VERSION="${APP_STORE_SDK_VERSION:-26.5}"',
+      'EXPECTED_LD_VERSION="${APP_STORE_LD_VERSION:-1267.0}"',
+      "xcrun vtool -show-build",
+      '$1 == "sdk" {',
+      "sdk_failed = 1",
+      "exit (sdk_found && !sdk_failed) ? 0 : 1",
+      '$1 == "cmd" && $2 == "LC_BUILD_VERSION"',
+      'expect_ld_version = ($2 == "LD")',
+      '$1 == "version" && expect_ld_version',
+      "$2 != expected",
+      "__LLVM_COV|__llvm_prf_",
+      "Rebuild with Xcode 26.6 / iPhoneOS SDK $EXPECTED_SDK_VERSION before release.",
+    ],
+    "Godot tracked iOS frameworks must require exact stable toolchain provenance",
+  );
+  expectIncludes(
+    "libraries/godot-iap/Makefile",
+    [
+      "ios-build:",
+      "macos-build:",
+      "CLANG_ENABLE_CODE_COVERAGE=NO",
+      "ENABLE_CODE_COVERAGE=NO",
+      "SWIFT_ENABLE_CODE_COVERAGE=NO",
+    ],
+    "Godot release framework builds must disable code-coverage instrumentation",
   );
   for (const godotWorkflow of [
     ".github/workflows/ci-godot-iap.yml",
