@@ -239,12 +239,19 @@ jobs:
           perl -0pi -e 's/^libraryVersion=.*/libraryVersion=$ENV{VERSION}/m' gradle.properties
           ./scripts/update-readme-version.sh "$VERSION"
 
+      - name: Setup Bun
+        if: ${{ inputs.version != 'current' }}
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+
       - name: Commit version updates
         if: ${{ inputs.version != 'current' }}
         run: |
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
           git add gradle.properties
+          "$GITHUB_WORKSPACE/scripts/sync-release-generated.sh"
           if git diff --staged --quiet; then
             echo "No version changes to commit"
           else

@@ -42,6 +42,15 @@ bun run audit:release-state
 node --test scripts/release-branch-policy.test.mjs
 ```
 
+Every release lane's version-bump commit also runs
+`scripts/sync-release-generated.sh`, which regenerates and stages the files
+derived from version metadata (`packages/docs/src/generated/version-metadata.json`,
+`packages/docs/public/llms.txt`, `packages/docs/public/llms-full.txt`,
+`knowledge/_claude-context/context.md`). Expect these paths in bump commits;
+they are not worktree drift. Skipping this regeneration leaves `main` stale and
+fails the `Audit SDK Parity` / `Test Agent Scripts` clean-worktree checks on
+every subsequent PR.
+
 ## Preflight
 
 1. Read `AGENTS.md` and `knowledge/internal/06-git-deployment.md`.

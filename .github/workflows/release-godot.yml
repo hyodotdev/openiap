@@ -131,6 +131,12 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
+      - name: Setup Bun
+        if: ${{ inputs.version != 'current' }}
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+
       - name: Configure Git
         run: |
           git config user.name "godot-iap bot"
@@ -430,6 +436,7 @@ jobs:
         if: ${{ inputs.version != 'current' }}
         run: |
           git add addons/godot-iap/plugin.cfg
+          "$GITHUB_WORKSPACE/scripts/sync-release-generated.sh"
           if ! git diff --cached --quiet; then
             git commit -m "chore(release): godot-iap ${{ steps.version.outputs.VERSION }}"
           fi

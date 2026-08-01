@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-07-28T22:04:06.976Z
+> Last updated: 2026-08-01T08:01:07.836Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -1916,11 +1916,14 @@ node --test scripts/release-branch-policy.test.mjs
 **What happens:**
 
 1. Updates `openiap-versions.json`
-2. Commits the version change to the guarded release branch
-3. Creates Git tag `<apple-version>` (bare semver)
-4. Builds and tests Swift package
-5. Validates and publishes to CocoaPods
-6. Creates GitHub Release
+2. Regenerates release-derived files via `scripts/sync-release-generated.sh`
+   (docs `version-metadata.json`, `llms.txt`, `llms-full.txt`, agent
+   `context.md`) so they land in the same version-bump commit
+3. Commits the version change to the guarded release branch
+4. Creates Git tag `<apple-version>` (bare semver)
+5. Builds and tests Swift package
+6. Validates and publishes to CocoaPods
+7. Creates GitHub Release
 
 **Result:**
 
@@ -1940,11 +1943,14 @@ node --test scripts/release-branch-policy.test.mjs
 **What happens:**
 
 1. Updates `openiap-versions.json`
-2. Commits the version change to the guarded release branch
-3. Creates Git tag `google-<google-version>`
-4. Builds and tests Android library
-5. Publishes to Maven Central
-6. Creates GitHub Release with artifacts (AAR, JAR)
+2. Regenerates release-derived files via `scripts/sync-release-generated.sh`
+   (docs `version-metadata.json`, `llms.txt`, `llms-full.txt`, agent
+   `context.md`) so they land in the same version-bump commit
+3. Commits the version change to the guarded release branch
+4. Creates Git tag `google-<google-version>`
+5. Builds and tests Android library
+6. Publishes to Maven Central
+7. Creates GitHub Release with artifacts (AAR, JAR)
 
 **Result:**
 
