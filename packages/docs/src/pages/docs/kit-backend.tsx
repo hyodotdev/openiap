@@ -778,9 +778,9 @@ async function refreshEntitlements(
             revalidate only when stale or explicitly requested by the user.
           </li>
           <li>
-            Honor <code>429</code> and <code>503 Retry-After</code> with
-            jittered backoff. A <code>304</code> saves response transfer but
-            still uses a Convex query invocation.
+            Honor the <code>Retry-After</code> header on <code>429</code> and{' '}
+            <code>503</code> with jittered backoff. A <code>304</code> saves
+            response transfer but still uses a Convex query invocation.
           </li>
         </ul>
         <div className="alert-card alert-card--warning">

@@ -82,8 +82,8 @@ export default function OperationsPage() {
           requests per second, already above the hosted default per-key steady
           rate before launch-time or notification-driven peaks. Cache stable
           data, coalesce refreshes, verify only after purchase or restore, and
-          honor <code>429</code> and <code>503 Retry-After</code> with jittered
-          backoff.
+          honor the <code>Retry-After</code> header on <code>429</code> and{" "}
+          <code>503</code> with jittered backoff.
         </p>
       </Callout>
       <p>

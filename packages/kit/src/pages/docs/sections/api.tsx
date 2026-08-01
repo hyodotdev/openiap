@@ -231,8 +231,8 @@ export default function ApiReferencePage() {
         </li>
         <li>
           Reuse the cached body on <code>304</code>, replace it on{" "}
-          <code>200</code>, and respect <code>429</code> or{" "}
-          <code>503 Retry-After</code>.
+          <code>200</code>, and respect the <code>Retry-After</code> header on{" "}
+          <code>429</code> or <code>503</code>.
         </li>
         <li>
           Key local storage by IAPKit project and opaque user ID, and clear it

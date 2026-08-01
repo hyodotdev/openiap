@@ -46,7 +46,7 @@ IAPKit does not relay those events through SSE, WebSockets, push, or long
 polling. Apps persist only the user-scoped fields they need and conditionally
 refresh on cold start, stale foreground, or explicit user action. Each refresh
 still performs one mutation-free indexed Convex query so an expiry with no new
-webhook is detected. Respect `429` and `503 Retry-After`, coalesce concurrent refreshes,
+webhook is detected. Respect the `Retry-After` header on `429` and `503`, coalesce concurrent refreshes,
 and enforce an app-defined maximum stale age for offline fallback. Secret-key
 responses are `private, no-store` and omit `ETag`. The current
 `kitApi.status()` and `kitApi.entitlements()` helpers are unconditional,
