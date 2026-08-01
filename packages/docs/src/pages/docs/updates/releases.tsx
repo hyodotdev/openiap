@@ -23,6 +23,10 @@ interface Note {
   element: React.ReactNode;
 }
 
+const reactNativeListenerLifecycleReleases = [
+  ['react-native-iap 16.0.1', 'react-native-iap-16.0.1'],
+] as const;
+
 const androidOfferCodeReleases = [
   ['OpenIAP Spec 2.4.2', 'docs-2.4.2'],
   ['openiap-apple 2.4.2', '2.4.2'],
@@ -134,6 +138,124 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // August 1, 2026 - React Native iOS listener lifecycle patch
+    {
+      id: 'react-native-iap-ios-listener-lifecycle-2026-08-01',
+      date: new Date('2026-08-01'),
+      element: (
+        <div
+          key="react-native-iap-ios-listener-lifecycle-2026-08-01"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="react-native-iap-ios-listener-lifecycle-2026-08-01"
+            level="h4"
+          >
+            August 1, 2026 - React Native iOS listener lifecycle patch
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes <strong>react-native-iap 16.0.1</strong> with the iOS
+            listener cleanup fix from{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/262"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #262
+            </a>
+            . Dismissing a plans or paywall screen while StoreKit and Nitro
+            listener work is still in flight no longer tears down the final
+            native listener during the transition, avoiding the release-build
+            abort reported by consumer apps.
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>React Native</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              On iOS, the singleton native purchase and purchase-error listeners
+              now stay attached for the connection session. Removing a
+              JavaScript subscription still detaches its callback, so an
+              unmounted screen does not receive new purchase or error events.
+            </li>
+            <li>
+              A purchase event that entered before unmount can still deliver a
+              late <code>onPurchaseSuccess</code> after its asynchronous refresh
+              completes, preserving the documented{' '}
+              <code>finishTransaction</code> path. Internal hook state updates
+              remain mount-guarded.
+            </li>
+            <li>
+              Re-mounted screens reuse the retained iOS native listeners and
+              receive newly registered JavaScript callbacks without duplicate
+              native subscriptions. Android listener removal and reattachment
+              behavior is unchanged.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              No API migration is required. Upgrade to{' '}
+              <code>react-native-iap@16.0.1</code> and keep purchase completion
+              in <code>onPurchaseSuccess</code>, including{' '}
+              <code>finishTransaction</code>.
+            </li>
+            <li>
+              The OpenIAP Spec, native Apple and Google packages, and other
+              framework libraries are unchanged by this React Native-only patch.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {reactNativeListenerLifecycleReleases.map(([label, tag]) => (
+                <li key={tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // July 28, 2026 - Google Play ambiguous purchase recovery patch train
     {
       id: 'google-play-ambiguous-purchase-recovery-2026-07-28',
