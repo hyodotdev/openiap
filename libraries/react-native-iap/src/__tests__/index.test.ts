@@ -214,7 +214,7 @@ describe('Public API (src/index.ts)', () => {
       expect(duplicateListener).toHaveBeenCalledTimes(1);
     });
 
-    it('removes purchase updated native listener by token after the last JS listener is removed', () => {
+    it('removes iOS purchase updated JS listeners without removing the native listener', () => {
       const listener1 = jest.fn();
       const listener2 = jest.fn();
       const sub1 = IAP.purchaseUpdatedListener(listener1);
@@ -226,11 +226,10 @@ describe('Public API (src/index.ts)', () => {
 
       sub2.remove();
       sub2.remove();
-      expect(mockIap.removePurchaseUpdatedListener).toHaveBeenCalledTimes(1);
-      expect(mockIap.removePurchaseUpdatedListener).toHaveBeenCalledWith(1);
+      expect(mockIap.removePurchaseUpdatedListener).not.toHaveBeenCalled();
     });
 
-    it('removes non-deduping purchase updated native listener by its own token', () => {
+    it('removes iOS non-deduping purchase updated JS listener without removing the native listener', () => {
       const defaultSub = IAP.purchaseUpdatedListener(jest.fn());
       const duplicateSub = IAP.purchaseUpdatedListener(jest.fn(), {
         dedupeTransactionIOS: false,
@@ -238,11 +237,10 @@ describe('Public API (src/index.ts)', () => {
 
       expect(mockIap.addPurchaseUpdatedListener).toHaveBeenCalledTimes(2);
       duplicateSub.remove();
-      expect(mockIap.removePurchaseUpdatedListener).toHaveBeenCalledWith(2);
+      expect(mockIap.removePurchaseUpdatedListener).not.toHaveBeenCalled();
 
       defaultSub.remove();
-      expect(mockIap.removePurchaseUpdatedListener).toHaveBeenCalledWith(1);
-      expect(mockIap.removePurchaseUpdatedListener).toHaveBeenCalledTimes(2);
+      expect(mockIap.removePurchaseUpdatedListener).not.toHaveBeenCalled();
     });
 
     it('purchaseErrorListener forwards error objects and supports removal', () => {

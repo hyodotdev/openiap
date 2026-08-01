@@ -121,6 +121,60 @@ describe('hooks/useIAP (renderer)', () => {
     expect(IAP.finishTransaction).toBeDefined();
   });
 
+  it('skips purchase success when unmounted while refresh is pending', async () => {
+    let resolveActiveSubscriptions: (() => void) | undefined;
+    mockGetActiveSubscriptions.mockImplementation(
+      () =>
+        new Promise((resolve) => {
+          resolveActiveSubscriptions = () => resolve([]);
+        }) as any,
+    );
+
+    const onPurchaseSuccess = jest.fn();
+    const Harness = () => {
+      useIAP({onPurchaseSuccess});
+      return null;
+    };
+
+    let renderer: ReturnType<typeof TestRenderer.create>;
+    await act(async () => {
+      renderer = TestRenderer.create(React.createElement(Harness));
+    });
+    await act(async () => {});
+
+    const purchase = {
+      id: 't1',
+      productId: 'p1',
+      transactionDate: Date.now(),
+      platform: 'ios',
+      store: 'apple',
+      quantity: 1,
+      purchaseState: 'purchased',
+      isAutoRenewing: false,
+    };
+    if (!capturedPurchaseListener) {
+      throw new Error('purchase listener was not initialized');
+    }
+
+    const purchaseUpdate = capturedPurchaseListener(purchase);
+
+    if (!resolveActiveSubscriptions) {
+      throw new Error('active subscriptions resolver was not initialized');
+    }
+    const resolvePendingActiveSubscriptions = resolveActiveSubscriptions;
+
+    await act(async () => {
+      renderer.unmount();
+    });
+
+    await act(async () => {
+      resolvePendingActiveSubscriptions();
+      await purchaseUpdate;
+    });
+
+    expect(onPurchaseSuccess).not.toHaveBeenCalled();
+  });
+
   it('requestPurchase calls root API and returns void', async () => {
     const mockRequestPurchase = jest
       .spyOn(IAP, 'requestPurchase')

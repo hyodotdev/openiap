@@ -451,6 +451,13 @@ export const purchaseUpdatedListener = (
         return;
       }
 
+      // StoreKit-backed Nitro listener disposal can abort in iOS release builds
+      // when a native modal is being popped. Keep the singleton native listener
+      // attached for the app session and only remove the JS callback above.
+      if (Platform.OS === 'ios') {
+        return;
+      }
+
       const token = receiveDuplicateTransactionUpdatesIOS
         ? purchaseUpdateDuplicateNativeToken
         : purchaseUpdateNativeToken;
