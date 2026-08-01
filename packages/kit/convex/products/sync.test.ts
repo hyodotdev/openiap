@@ -6,6 +6,7 @@ import {
   deleteRemovedProductRow as registeredDeleteRemovedProductRow,
   isSafePriceAmountMicros,
   listDraftIosProducts as registeredListDraftIosProducts,
+  listRemovedAndroidProducts as registeredListRemovedAndroidProducts,
   markPushed as registeredMarkPushed,
   shouldPreserveKitRemovedDuringPull,
   upsertFromStore as registeredUpsertFromStore,
@@ -18,6 +19,9 @@ const deleteRemovedProductRow = testableFunction(
 );
 const upsertFromStore = testableFunction(registeredUpsertFromStore);
 const listDraftIosProducts = testableFunction(registeredListDraftIosProducts);
+const listRemovedAndroidProducts = testableFunction(
+  registeredListRemovedAndroidProducts,
+);
 const markPushed = testableFunction(registeredMarkPushed);
 
 type Row = Record<string, unknown> & { _id: string };
@@ -125,6 +129,103 @@ describe("shouldPreserveKitRemovedDuringPull", () => {
         origin: "kit",
       }),
     ).toBe(false);
+  });
+});
+
+describe("upsertFromStore removal provenance", () => {
+  function writableDb(product: Row) {
+    return new TestDb({
+      organizations: [{ _id: "organization_a", pendingDeletion: false }],
+      projects: [
+        {
+          _id: "project_a",
+          organizationId: "organization_a",
+          pendingDeletion: false,
+        },
+      ],
+      products: [product],
+    });
+  }
+
+  it("marks a store-reported removal as store-authored", async () => {
+    const product = {
+      _id: "product_a",
+      projectId: "project_a",
+      platform: "Android",
+      productId: "legacy_bundle",
+      type: "NonConsumable",
+      title: "Legacy bundle",
+      state: "Active",
+      origin: "kit",
+      storeRef: "legacy_bundle",
+      updatedAt: 1,
+    };
+    const db = writableDb(product);
+
+    await upsertFromStore._handler(
+      { db },
+      {
+        projectId: "project_a" as never,
+        productId: "legacy_bundle",
+        platform: "Android",
+        type: "NonConsumable",
+        title: "Legacy bundle",
+        storeRef: "legacy_bundle",
+        state: "Removed",
+      },
+    );
+
+    expect(product).toMatchObject({ state: "Removed", origin: "store" });
+    await expect(
+      listRemovedAndroidProducts._handler(
+        { db },
+        { projectId: "project_a" as never },
+      ),
+    ).resolves.toEqual([]);
+  });
+
+  it("preserves an explicit kit removal for the push phase", async () => {
+    const product = {
+      _id: "product_a",
+      projectId: "project_a",
+      platform: "Android",
+      productId: "legacy_bundle",
+      type: "NonConsumable",
+      title: "Legacy bundle",
+      state: "Removed",
+      origin: "kit",
+      storeRef: "legacy_bundle",
+      updatedAt: 1,
+    };
+    const db = writableDb(product);
+
+    await upsertFromStore._handler(
+      { db },
+      {
+        projectId: "project_a" as never,
+        productId: "legacy_bundle",
+        platform: "Android",
+        type: "NonConsumable",
+        title: "Legacy bundle",
+        storeRef: "legacy_bundle",
+        state: "Removed",
+      },
+    );
+
+    expect(product).toMatchObject({ state: "Removed", origin: "kit" });
+    await expect(
+      listRemovedAndroidProducts._handler(
+        { db },
+        { projectId: "project_a" as never },
+      ),
+    ).resolves.toEqual([
+      {
+        productId: "legacy_bundle",
+        platform: "Android",
+        type: "NonConsumable",
+        storeRef: "legacy_bundle",
+      },
+    ]);
   });
 });
 

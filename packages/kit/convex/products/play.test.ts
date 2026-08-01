@@ -3,11 +3,43 @@ import { describe, expect, it } from "vitest";
 
 import {
   basePlanIdForPeriod,
+  mapModernPlayOneTimeState,
   moneyToMicros,
   playPriceMicrosToNumber,
   shouldFallbackToLegacyOneTimeProduct,
   upsertModernAndroidOneTimeProduct,
 } from "./play";
+
+describe("mapModernPlayOneTimeState", () => {
+  it("maps the modern purchase-option lifecycle without assuming availability", () => {
+    expect(mapModernPlayOneTimeState([{ state: "DRAFT" }])).toBe("Draft");
+    expect(mapModernPlayOneTimeState([{ state: "INACTIVE" }])).toBe("Removed");
+    expect(mapModernPlayOneTimeState([{ state: "INACTIVE_PUBLISHED" }])).toBe(
+      "Removed",
+    );
+    expect(mapModernPlayOneTimeState(undefined)).toBe("Removed");
+    expect(mapModernPlayOneTimeState(null)).toBe("Removed");
+    expect(mapModernPlayOneTimeState([])).toBe("Removed");
+    expect(mapModernPlayOneTimeState([{ state: "STATE_UNSPECIFIED" }])).toBe(
+      "Removed",
+    );
+    expect(mapModernPlayOneTimeState([{ state: "FUTURE_STATE" }])).toBe(
+      "Removed",
+    );
+  });
+
+  it("keeps a product active when any purchase option remains active", () => {
+    expect(
+      mapModernPlayOneTimeState([{ state: "INACTIVE" }, { state: "ACTIVE" }]),
+    ).toBe("Active");
+  });
+
+  it("treats mixed inactive and draft options as unavailable", () => {
+    expect(
+      mapModernPlayOneTimeState([{ state: "DRAFT" }, { state: "INACTIVE" }]),
+    ).toBe("Removed");
+  });
+});
 
 describe("upsertModernAndroidOneTimeProduct", () => {
   it("uses the generated lowercase one-time-product PATCH route", async () => {
