@@ -23,13 +23,15 @@ interface Note {
   element: React.ReactNode;
 }
 
-const appStoreToolchainPatchReleases = [
+const frameworkIosPatchReleases = [
+  ['react-native-iap 16.0.1', 'react-native-iap-16.0.1'],
   ['godot-iap 3.0.1', 'godot-iap-3.0.1'],
   ['OpenIap.Maui 2.0.1', 'maui-iap-2.0.1'],
 ] as const;
 
-const reactNativeListenerLifecycleReleases = [
-  ['react-native-iap 16.0.1', 'react-native-iap-16.0.1'],
+const frameworkIosPatchAliases = [
+  'react-native-iap-ios-listener-lifecycle-2026-08-01',
+  'app-store-toolchain-compatibility-2026-08-02',
 ] as const;
 
 const androidOfferCodeReleases = [
@@ -143,20 +145,24 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
-    // August 2, 2026 - App Store toolchain compatibility patch
+    // August 2, 2026 - Apple framework compatibility patches
     {
-      id: 'app-store-toolchain-compatibility-2026-08-02',
+      id: 'apple-framework-compatibility-patches-2026-08-02',
+      aliases: frameworkIosPatchAliases,
       date: new Date('2026-08-02'),
       element: (
         <div
-          key="app-store-toolchain-compatibility-2026-08-02"
+          key="apple-framework-compatibility-patches-2026-08-02"
           style={noteCardStyle}
         >
+          {frameworkIosPatchAliases.map((alias) => (
+            <span key={alias} id={alias} aria-hidden="true" />
+          ))}
           <AnchorLink
-            id="app-store-toolchain-compatibility-2026-08-02"
+            id="apple-framework-compatibility-patches-2026-08-02"
             level="h4"
           >
-            August 2, 2026 - App Store toolchain compatibility patch
+            August 2, 2026 - Apple framework compatibility patches
           </AnchorLink>
 
           <p
@@ -165,9 +171,30 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            Publishes stable-toolchain rebuilds for the framework packages that
-            distribute precompiled Apple binaries. This fixes the App Store
-            validation failure reported in{' '}
+            Publishes coordinated framework patches for iOS listener stability
+            and App Store-compatible precompiled Apple binaries.{' '}
+            <strong>react-native-iap 16.0.1</strong> includes the listener
+            cleanup fix from{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/262"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #262
+            </a>
+            , while <strong>OpenIap.Maui 2.0.1</strong> and{' '}
+            <strong>godot-iap 3.0.1</strong> ship the stable-toolchain rebuilds
+            from{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/265"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #265
+            </a>{' '}
+            for the App Store validation failure reported in{' '}
             <a
               href="https://github.com/hyodotdev/openiap/issues/264"
               target="_blank"
@@ -176,11 +203,37 @@ function Releases() {
             >
               issue #264
             </a>
-            {', where '}
-            <code>OpenIap.Maui 2.0.0</code> embedded an Xcode 27 beta
-            XCFramework whose <code>LC_BUILD_VERSION</code> recorded SDK 27.0,
-            above the App Store maximum of 26.5.
+            .
           </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>React Native</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              On iOS, the singleton native purchase and purchase-error listeners
+              now stay attached for the connection session. Removing a
+              JavaScript subscription still detaches its callback, so an
+              unmounted screen does not receive new purchase or error events.
+            </li>
+            <li>
+              A purchase event that entered before unmount can still deliver a
+              late <code>onPurchaseSuccess</code> after its asynchronous refresh
+              completes, preserving the documented{' '}
+              <code>finishTransaction</code> path. Internal hook state updates
+              remain mount-guarded.
+            </li>
+            <li>
+              Re-mounted screens reuse the retained iOS native listeners and
+              receive newly registered JavaScript callbacks without duplicate
+              native subscriptions. Android listener removal and reattachment
+              behavior is unchanged.
+            </li>
+          </ul>
 
           <h5 style={{ margin: '0 0 0.5rem 0' }}>MAUI</h5>
           <ul
@@ -197,10 +250,9 @@ function Releases() {
               Store-accepted SDK metadata.
             </li>
             <li>
-              The release pipeline verifies the selected Xcode and SDK before
-              packing, then inspects every packaged Mach-O slice so an Xcode 27
-              linker signature or a mismatched SDK fails the release before it
-              reaches NuGet.
+              The release pipeline inspects every packaged Mach-O slice so an
+              Xcode 27 linker signature, a mismatched SDK, or coverage
+              instrumentation fails the release before it reaches NuGet.
             </li>
           </ul>
 
@@ -234,134 +286,21 @@ function Releases() {
             }}
           >
             <li>
-              No API migration is required. MAUI applications rejected with the
-              SDK 27.0 validation message should upgrade to{' '}
-              <code>OpenIap.Maui 2.0.1</code> and rebuild the archive before
-              resubmitting it.
-            </li>
-            <li>
-              Xcode 27 remains a source-compatibility CI lane until Apple
-              accepts it for App Store submissions. Compiler-gated StoreKit 27
-              behavior is therefore not included in these stable precompiled
-              artifacts yet.
-            </li>
-          </ul>
-
-          <div
-            style={{
-              paddingTop: '1rem',
-              borderTop: '1px solid var(--border-color)',
-            }}
-          >
-            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
-            <ul
-              style={{
-                margin: 0,
-                paddingLeft: '1.25rem',
-                fontSize: '0.9rem',
-              }}
-            >
-              {appStoreToolchainPatchReleases.map(([label, tag]) => (
-                <li key={tag}>
-                  <a
-                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {label}
-                  </a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        </div>
-      ),
-    },
-
-    // August 1, 2026 - React Native iOS listener lifecycle patch
-    {
-      id: 'react-native-iap-ios-listener-lifecycle-2026-08-01',
-      date: new Date('2026-08-01'),
-      element: (
-        <div
-          key="react-native-iap-ios-listener-lifecycle-2026-08-01"
-          style={noteCardStyle}
-        >
-          <AnchorLink
-            id="react-native-iap-ios-listener-lifecycle-2026-08-01"
-            level="h4"
-          >
-            August 1, 2026 - React Native iOS listener lifecycle patch
-          </AnchorLink>
-
-          <p
-            style={{
-              marginBottom: '1rem',
-              color: 'var(--text-secondary)',
-            }}
-          >
-            Publishes <strong>react-native-iap 16.0.1</strong> with the iOS
-            listener cleanup fix from{' '}
-            <a
-              href="https://github.com/hyodotdev/openiap/pull/262"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="external-link"
-            >
-              PR #262
-            </a>
-            . Dismissing a plans or paywall screen while StoreKit and Nitro
-            listener work is still in flight no longer tears down the final
-            native listener during the transition, avoiding the release-build
-            abort reported by consumer apps.
-          </p>
-
-          <h5 style={{ margin: '0 0 0.5rem 0' }}>React Native</h5>
-          <ul
-            style={{
-              marginBottom: '1rem',
-              paddingLeft: '1.25rem',
-              fontSize: '0.9rem',
-            }}
-          >
-            <li>
-              On iOS, the singleton native purchase and purchase-error listeners
-              now stay attached for the connection session. Removing a
-              JavaScript subscription still detaches its callback, so an
-              unmounted screen does not receive new purchase or error events.
-            </li>
-            <li>
-              A purchase event that entered before unmount can still deliver a
-              late <code>onPurchaseSuccess</code> after its asynchronous refresh
-              completes, preserving the documented{' '}
-              <code>finishTransaction</code> path. Internal hook state updates
-              remain mount-guarded.
-            </li>
-            <li>
-              Re-mounted screens reuse the retained iOS native listeners and
-              receive newly registered JavaScript callbacks without duplicate
-              native subscriptions. Android listener removal and reattachment
-              behavior is unchanged.
-            </li>
-          </ul>
-
-          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
-          <ul
-            style={{
-              marginBottom: '1rem',
-              paddingLeft: '1.25rem',
-              fontSize: '0.9rem',
-            }}
-          >
-            <li>
               No API migration is required. Upgrade to{' '}
               <code>react-native-iap@16.0.1</code> and keep purchase completion
               in <code>onPurchaseSuccess</code>, including{' '}
               <code>finishTransaction</code>.
             </li>
             <li>
-              The OpenIAP Spec, native Apple and Google packages, and other
-              framework libraries are unchanged by this React Native-only patch.
+              MAUI applications rejected with the SDK 27.0 validation message
+              should upgrade to <code>OpenIap.Maui 2.0.1</code>, rebuild the
+              archive, and resubmit it.
+            </li>
+            <li>
+              Xcode 27 remains a source-compatibility CI lane until Apple
+              accepts it for App Store submissions. Compiler-gated StoreKit 27
+              behavior is not included in these stable precompiled artifacts
+              yet.
             </li>
           </ul>
 
@@ -379,7 +318,7 @@ function Releases() {
                 fontSize: '0.9rem',
               }}
             >
-              {reactNativeListenerLifecycleReleases.map(([label, tag]) => (
+              {frameworkIosPatchReleases.map(([label, tag]) => (
                 <li key={tag}>
                   <a
                     href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
