@@ -24,9 +24,41 @@ for binary in \
     exit 1
   fi
 
-  if ! awk -v expected="$EXPECTED_LD_VERSION" \
-    '$1 == "version" && $2 == expected { found = 1 } END { exit found ? 0 : 1 }' \
-    <<<"$build_info"; then
+  if ! awk -v expected="$EXPECTED_LD_VERSION" '
+    function finish_build() {
+      if (in_build && (!saw_ld || bad_ld)) {
+        failed = 1
+      }
+    }
+
+    $1 == "cmd" && $2 == "LC_BUILD_VERSION" {
+      finish_build()
+      in_build = 1
+      builds += 1
+      saw_ld = 0
+      bad_ld = 0
+      expect_ld_version = 0
+      next
+    }
+
+    in_build && $1 == "tool" {
+      expect_ld_version = ($2 == "LD")
+      next
+    }
+
+    in_build && $1 == "version" && expect_ld_version {
+      saw_ld = 1
+      if ($2 != expected) {
+        bad_ld = 1
+      }
+      expect_ld_version = 0
+    }
+
+    END {
+      finish_build()
+      exit (builds > 0 && !failed) ? 0 : 1
+    }
+  ' <<<"$build_info"; then
     echo "::error::$binary was not linked by the expected stable linker $EXPECTED_LD_VERSION."
     echo "::error::Rebuild with Xcode 26.6 / iPhoneOS SDK $EXPECTED_SDK_VERSION before release."
     exit 1
