@@ -284,7 +284,7 @@ guidance, webhook simulation, and project inspection. Setup guides:
 | 401  | `MISSING_API_KEY`                                       | No `Authorization` header                       |
 | 403  | `INSUFFICIENT_SCOPE`                                  | Publishable key used for an admin operation     |
 | 403  | `INVALID_API_KEY`                                       | Wrong scheme or malformed key (format only)     |
-| 429  | `RATE_LIMITED`                                          | Per-key bucket empty; honor `Retry-After`       |
+| 429  | `RATE_LIMITED`                                          | Key, IP, or process bucket empty; inspect `X-RateLimit-Scope` and honor `Retry-After` |
 | 503  | `SERVICE_BUSY`                                          | Verification concurrency is full; retry later   |
 | 500  | `UNKNOWN_ERROR`                                         | Server-side failure; include `X-Correlation-Id` |
 
@@ -308,17 +308,19 @@ per-store docs pages.
 
 ## Response headers
 
-Every verification response that passes the authentication layer, including
-application-generated 503 responses, carries:
+Every verification request that passes bearer-token shape validation receives
+`X-Correlation-Id`. Requests that reach the multi-axis rate limiter, including
+application-generated 503 responses, also carry:
 
-- `X-Correlation-Id` — UUIDv4, matches the stdout log line
 - `X-RateLimit-Limit` — bucket capacity for this API key
 - `X-RateLimit-Remaining` — tokens left in the bucket
 
-Verification responses that pass body validation also carry `X-Concurrency-Limit` and
+`RATE_LIMITED` responses also carry `X-RateLimit-Scope`, identifying the
+rejecting `key`, source `ip`, or process `global` bucket. Verification responses
+that reach the in-flight guard carry `X-Concurrency-Limit` and
 `X-Concurrency-Remaining`; `X-Concurrency-Scope` identifies the reported `key`,
-trusted source `ip`, or process-`global` axis. A 429 or application-generated 503 response carries
-`Retry-After` in seconds.
+trusted source `ip`, or process-`global` axis. A 429 or application-generated
+503 response carries `Retry-After` in seconds.
 401 / 403
 responses from the auth layer run before rate-limit middleware and do not
 carry these headers.

@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-08-01T21:55:33.959Z
+> Generated: 2026-08-01T22:00:58.764Z
 
 ## Table of Contents
 1. Installation
@@ -2136,7 +2136,7 @@ Harmonized `state` values (truthy `isValid`): `ENTITLED`,
 - `403 INSUFFICIENT_SCOPE` — publishable key used for an administrative operation
 - `403 INVALID_API_KEY` — wrong scheme or malformed key (format check only)
 - `410 SECRET_API_KEY_IN_URL` — move the secret to `Authorization: Bearer ...` on the canonical route
-- `429 RATE_LIMITED` — per-key bucket empty; honor `Retry-After` seconds
+- `429 RATE_LIMITED` — API-key, source-IP, or process bucket empty; inspect `X-RateLimit-Scope` and honor `Retry-After`
 - `503 SERVICE_BUSY` — the API-key, source-IP, or process verification share is full; inspect `X-Concurrency-Scope` and retry with jittered backoff
 - `500 UNKNOWN_ERROR` — quote the `X-Correlation-Id` header in a support ticket
 
@@ -2145,7 +2145,8 @@ Harmonized `state` values (truthy `isValid`): `ENTITLED`,
 - `X-Correlation-Id` — UUIDv4, matches the stdout log line
 - `X-RateLimit-Limit` — bucket capacity (default 600 per key)
 - `X-RateLimit-Remaining` — tokens left in the bucket
-- `X-Concurrency-Limit` / `X-Concurrency-Remaining` — verification slots for the reported axis after body validation
+- `X-RateLimit-Scope` — rejecting `key`, source `ip`, or process `global` bucket on `RATE_LIMITED`
+- `X-Concurrency-Limit` / `X-Concurrency-Remaining` — verification slots for the reported axis after the request reaches the in-flight guard
 - `X-Concurrency-Scope` — `key`, trusted source `ip`, or process `global`
 - `Retry-After` (429 / 503) — seconds to wait
 

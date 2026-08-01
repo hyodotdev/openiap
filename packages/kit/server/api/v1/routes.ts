@@ -323,6 +323,8 @@ const verifyPurchaseRouteDescription = describeRoute({
       description: "Unknown error",
       headers: {
         "X-Correlation-Id": commonResponseHeaders["X-Correlation-Id"],
+        "X-RateLimit-Limit": commonResponseHeaders["X-RateLimit-Limit"],
+        "X-RateLimit-Remaining": commonResponseHeaders["X-RateLimit-Remaining"],
         ...concurrencyResponseHeaders,
       },
       content: {

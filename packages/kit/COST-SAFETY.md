@@ -1,6 +1,6 @@
 # IAPKit cost and abuse safety
 
-This document records the cost model for the public IAPKit API as of August 2, 2026. It is an operational estimate, not an invoice forecast: actual Convex
+This document records the cost model for the public IAPKit API as of August 2, 2026 in the project's Asia/Seoul timezone. It is an operational estimate, not an invoice forecast: actual Convex
 database I/O depends on each project's document sizes and should be measured
 from production function logs.
 
@@ -63,7 +63,7 @@ requests per machine. Inside the app, purchase verification has a stricter
 default of 8 in-flight handlers per API key, 16 per trusted source IP, and 32
 per process. The key and source shares prevent simple key rotation from
 occupying every shared verification slot from one network source.
-When any axis is occupied, IAPKit returns `503 SERVICE_BUSY` with
+When any axis reaches its configured limit, IAPKit returns `503 SERVICE_BUSY` with
 `Retry-After` and `X-Concurrency-Scope` instead of retaining request bodies and
 sockets in an unbounded queue. The slot is released in a `finally` block on
 both normal responses and downstream errors; idle key entries are deleted.

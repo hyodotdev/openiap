@@ -47,6 +47,12 @@ describe("apiRoutes", () => {
     expect(
       body.paths["/purchase/verify"]?.post?.responses?.["200"],
     ).toHaveProperty("headers.X-Concurrency-Scope");
+    expect(
+      body.paths["/purchase/verify"]?.post?.responses?.["500"],
+    ).toHaveProperty("headers.X-RateLimit-Limit");
+    expect(
+      body.paths["/purchase/verify"]?.post?.responses?.["500"],
+    ).toHaveProperty("headers.X-RateLimit-Remaining");
   });
 
   it("returns the verified productId from purchase verification", async () => {

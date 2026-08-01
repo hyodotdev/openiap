@@ -87,6 +87,12 @@ export function inFlightLimitMiddleware(
   return createMiddleware(async (c, next) => {
     const apiKeyHash = c.var.apiKeyHash;
     if (!apiKeyHash) {
+      // Without a key hash the key/IP axes cannot be evaluated safely. Report
+      // the process axis and fail closed while preserving the documented 500
+      // response headers for the verification middleware chain.
+      c.header("X-Concurrency-Limit", String(maxInFlight));
+      c.header("X-Concurrency-Remaining", "0");
+      c.header("X-Concurrency-Scope", "global");
       return c.json(
         {
           errors: [

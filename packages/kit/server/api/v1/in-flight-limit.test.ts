@@ -195,11 +195,16 @@ describe("inFlightLimitMiddleware", () => {
 
   it("fails closed when the API key hash middleware is missing", async () => {
     const app = new Hono();
-    app.post("/verify", inFlightLimitMiddleware(), (c) => c.json({ ok: true }));
+    app.post("/verify", inFlightLimitMiddleware({ maxInFlight: 4 }), (c) =>
+      c.json({ ok: true }),
+    );
 
     const response = await app.request("/verify", { method: "POST" });
 
     expect(response.status).toBe(500);
+    expect(response.headers.get("X-Concurrency-Limit")).toBe("4");
+    expect(response.headers.get("X-Concurrency-Remaining")).toBe("0");
+    expect(response.headers.get("X-Concurrency-Scope")).toBe("global");
     expect(await response.json()).toEqual({
       errors: [
         {
