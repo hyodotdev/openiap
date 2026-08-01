@@ -189,13 +189,16 @@ export const upsertFromStore = internalMutation({
         offers: args.offers,
         syncedAt: now,
         updatedAt: now,
-        // Preserve `origin` on UPDATE — only set it if absent
-        // (back-fill for rows created before this field existed).
-        // A pulled row touched later by `upsertProduct` keeps
-        // `origin: "store"`; a kit row touched by pull-sync keeps
-        // `origin: "kit"`. The push filter then correctly excludes
-        // pulled-from-store rows even after they're re-touched.
-        ...(existing.origin === undefined ? { origin: "store" as const } : {}),
+        // A store-reported removal is upstream state, not a new kit-authored
+        // delete request. Reclassify it so the push half of a `both` job does
+        // not attempt to delete the already-unavailable resource. An explicit
+        // kit removal returned above before reaching this patch and therefore
+        // keeps its deletion intent. Preserve origin for all other updates.
+        ...(args.state === "Removed"
+          ? { origin: "store" as const }
+          : existing.origin === undefined
+            ? { origin: "store" as const }
+            : {}),
       });
       return existing._id;
     }

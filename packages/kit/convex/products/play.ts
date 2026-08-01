@@ -413,7 +413,7 @@ async function performAndroidSync(
               priceAmountMicros,
               currency: preferred?.currencyCode ?? undefined,
               storeRef: product.productId,
-              state: "Active",
+              state: mapModernPlayOneTimeState(product.purchaseOptions),
             });
             pulled += 1;
           }
@@ -1238,6 +1238,24 @@ function mapPlayStatus(
     default:
       return "Draft";
   }
+}
+
+export function mapModernPlayOneTimeState(
+  purchaseOptions: Array<{ state?: string | null }> | null | undefined,
+): "Draft" | "Active" | "Removed" {
+  const states = (purchaseOptions ?? []).map((option) =>
+    option.state?.toUpperCase(),
+  );
+  if (states.includes("ACTIVE")) return "Active";
+  if (states.includes("INACTIVE") || states.includes("INACTIVE_PUBLISHED")) {
+    return "Removed";
+  }
+  if (states.length > 0 && states.every((state) => state === "DRAFT")) {
+    return "Draft";
+  }
+  // Missing or future states must not become a kit Draft: a `both` sync would
+  // treat that as an instruction to push and could make the option sellable.
+  return "Removed";
 }
 
 function pickPlayTitle(
