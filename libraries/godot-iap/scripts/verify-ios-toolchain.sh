@@ -17,9 +17,18 @@ for binary in \
   build_info="$(xcrun vtool -show-build "$binary")"
   echo "$build_info"
 
-  if ! awk -v expected="$EXPECTED_SDK_VERSION" \
-    '$1 == "sdk" && $2 == expected { found = 1 } END { exit found ? 0 : 1 }' \
-    <<<"$build_info"; then
+  if ! awk -v expected="$EXPECTED_SDK_VERSION" '
+    $1 == "sdk" {
+      sdk_found = 1
+      if ($2 != expected) {
+        sdk_failed = 1
+      }
+    }
+
+    END {
+      exit (sdk_found && !sdk_failed) ? 0 : 1
+    }
+  ' <<<"$build_info"; then
     echo "::error::$binary was not built with the expected App Store SDK $EXPECTED_SDK_VERSION."
     exit 1
   fi
