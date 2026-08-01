@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
-> Generated: 2026-07-30T18:42:59.387Z
+> Generated: 2026-08-01T08:01:07.851Z
 
 ## Installation
 
@@ -36,20 +36,20 @@ flutter pub add flutter_inapp_purchase
 
 ```gdscript
 # Godot
-# Install godot-iap 2.6.2 to addons/godot-iap and enable the plugin
+# Install godot-iap 3.0.0 to addons/godot-iap and enable the plugin
 ```
 
 ```kotlin
 // Kotlin Multiplatform
-implementation("io.github.hyochan:kmp-iap:2.7.2")
+implementation("io.github.hyochan:kmp-iap:3.0.0")
 ```
 
 ```xml
 <!-- .NET MAUI -->
-<PackageReference Include="OpenIap.Maui" Version="1.4.2" />
+<PackageReference Include="OpenIap.Maui" Version="2.0.0" />
 ```
 
-Current NuGet package version: 1.4.2
+Current NuGet package version: 2.0.0
 
 ## Framework Libraries
 

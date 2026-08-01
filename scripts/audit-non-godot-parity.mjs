@@ -3868,7 +3868,7 @@ function checkFrameworkDependencyHygiene() {
         "openiap-versions.json|packages/*/openiap-versions.json|packages/gql/package.json|packages/docs/package.json|packages/google/package.json|packages/apple/package.json",
         "git show HEAD:openiap-versions.json > /tmp/upstream-openiap-versions.json",
         "Re-sync package metadata and docs copy after merge",
-        "./scripts/sync-versions.sh",
+        "./scripts/sync-release-generated.sh",
         "packages/docs/src/generated/version-metadata.json",
         "packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json",
         `update-native ${nativePackage} "$VERSION"`,
@@ -3897,6 +3897,22 @@ function checkFrameworkDependencyHygiene() {
         "/tmp/theirs.json",
       ],
       `${releaseWorkflow} must not only sync the docs copy after conflict resolution`,
+    );
+  }
+  for (const releaseWorkflow of [
+    ".github/workflows/release-apple.yml",
+    ".github/workflows/release-google.yml",
+    ".github/workflows/release-expo.yml",
+    ".github/workflows/release-react-native.yml",
+    ".github/workflows/release-flutter.yml",
+    ".github/workflows/release-godot.yml",
+    ".github/workflows/release-kmp.yml",
+    ".github/workflows/release-maui.yml",
+  ]) {
+    expectIncludes(
+      releaseWorkflow,
+      ["sync-release-generated.sh"],
+      `${releaseWorkflow} must regenerate release-derived files (version metadata, llms, agent context) inside the version-bump commit`,
     );
   }
   expectIncludes(
