@@ -3,6 +3,8 @@
 set -euo pipefail
 
 FRAMEWORK_ROOT="${1:-addons/godot-iap/bin/ios}"
+EXPECTED_SDK_VERSION="${APP_STORE_SDK_VERSION:-26.5}"
+EXPECTED_LD_VERSION="${APP_STORE_LD_VERSION:-1267.0}"
 
 for binary in \
   "$FRAMEWORK_ROOT/GodotIap.framework/GodotIap" \
@@ -15,9 +17,23 @@ for binary in \
   build_info="$(xcrun vtool -show-build "$binary")"
   echo "$build_info"
 
-  if ! grep -Eq 'version[[:space:]]+27[0-9]+([.][0-9]+)?' <<<"$build_info"; then
-    echo "::error::$binary was not linked by the Xcode 27 toolchain."
-    echo "::error::Rebuild with DEVELOPER_DIR pointing at Xcode 27 before release."
+  if ! awk -v expected="$EXPECTED_SDK_VERSION" \
+    '$1 == "sdk" && $2 == expected { found = 1 } END { exit found ? 0 : 1 }' \
+    <<<"$build_info"; then
+    echo "::error::$binary was not built with the expected App Store SDK $EXPECTED_SDK_VERSION."
+    exit 1
+  fi
+
+  if ! awk -v expected="$EXPECTED_LD_VERSION" \
+    '$1 == "version" && $2 == expected { found = 1 } END { exit found ? 0 : 1 }' \
+    <<<"$build_info"; then
+    echo "::error::$binary was not linked by the expected stable linker $EXPECTED_LD_VERSION."
+    echo "::error::Rebuild with Xcode 26.6 / iPhoneOS SDK $EXPECTED_SDK_VERSION before release."
+    exit 1
+  fi
+
+  if otool -l "$binary" | grep -Eq '__LLVM_COV|__llvm_prf_'; then
+    echo "::error::$binary contains code-coverage instrumentation and is not a release artifact."
     exit 1
   fi
 done

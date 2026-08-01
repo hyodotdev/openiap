@@ -31,11 +31,11 @@ Billing, Play Services, Gson, AndroidX, and Kotlin Android libraries remain
 normal NuGet dependencies so apps can deduplicate them with their own package
 graph.
 
-OpenIap.Maui 2.0.0 rebuilds its embedded Apple XCFramework with Xcode 27 before
-packing the NuGet, so the guarded StoreKit 27 implementation is present for iOS
-and macCatalyst. Custom source builds need Xcode 27 to retain those paths;
-runtime availability still follows the Apple OS version documented for each
-API.
+Stable NuGet releases rebuild the embedded Apple XCFramework with the current
+App Store-accepted toolchain (Xcode 26.6 / SDK 26.5) and verify every packaged
+Mach-O slice before publishing. Xcode 27 remains a source-compatibility CI lane
+until Apple accepts it for App Store submissions, so its guarded StoreKit 27
+paths are not included in stable release artifacts yet.
 
 ## Usage
 
