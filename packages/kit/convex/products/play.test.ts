@@ -1,10 +1,116 @@
+import { google, type Common } from "googleapis";
 import { describe, expect, it } from "vitest";
 
 import {
   basePlanIdForPeriod,
   moneyToMicros,
   playPriceMicrosToNumber,
+  shouldFallbackToLegacyOneTimeProduct,
+  upsertModernAndroidOneTimeProduct,
 } from "./play";
+
+describe("upsertModernAndroidOneTimeProduct", () => {
+  it("uses the generated lowercase one-time-product PATCH route", async () => {
+    let capturedRequest: Common.GaxiosOptions | undefined;
+    const androidpublisher = google.androidpublisher({
+      version: "v3",
+      adapter: async <T>(
+        request: Common.gaxios.GaxiosOptionsPrepared,
+      ): Promise<Common.GaxiosResponse<T>> => {
+        capturedRequest = request;
+        return Object.assign(new Response(null, { status: 200 }), {
+          config: request,
+          data: {} as T,
+        });
+      },
+    });
+
+    await upsertModernAndroidOneTimeProduct(
+      androidpublisher,
+      {
+        packageName: "com.example.moonlit",
+        productId: "hero.sage",
+        title: "Moon Sage",
+        description: "Unlock Moon Sage",
+        priceAmountMicros: 24_990_000,
+        currency: "USD",
+      },
+      { allowCreate: true },
+    );
+
+    expect(capturedRequest).toBeDefined();
+    const requestUrl = new URL(String(capturedRequest?.url));
+    expect(requestUrl.pathname).toBe(
+      "/androidpublisher/v3/applications/com.example.moonlit/onetimeproducts/hero.sage",
+    );
+    expect(requestUrl.searchParams.get("allowMissing")).toBe("true");
+    expect(requestUrl.searchParams.get("updateMask")).toBe(
+      "listings,purchaseOptions",
+    );
+    expect(requestUrl.searchParams.get("regionsVersion.version")).toBe(
+      "2022/01",
+    );
+    expect(capturedRequest?.data).toMatchObject({
+      packageName: "com.example.moonlit",
+      productId: "hero.sage",
+      listings: [
+        {
+          languageCode: "en-US",
+          title: "Moon Sage",
+          description: "Unlock Moon Sage",
+        },
+      ],
+      purchaseOptions: [
+        {
+          purchaseOptionId: "buy",
+          regionalPricingAndAvailabilityConfigs: [
+            {
+              regionCode: "US",
+              availability: "AVAILABLE",
+              price: {
+                currencyCode: "USD",
+                units: "24",
+                nanos: 990_000_000,
+              },
+            },
+          ],
+        },
+      ],
+    });
+  });
+});
+
+describe("shouldFallbackToLegacyOneTimeProduct", () => {
+  it("does not hide a bare 404 from an allow-missing create", () => {
+    expect(
+      shouldFallbackToLegacyOneTimeProduct(
+        { code: 404 },
+        { allowCreate: true },
+      ),
+    ).toBe(false);
+  });
+
+  it("preserves a bare 404 fallback for legacy-only updates", () => {
+    expect(
+      shouldFallbackToLegacyOneTimeProduct(
+        { response: { status: 404 } },
+        { allowCreate: false },
+      ),
+    ).toBe(true);
+  });
+
+  it.each([true, false])(
+    "honors an explicit legacy API response when allowCreate=%s",
+    (allowCreate) => {
+      expect(
+        shouldFallbackToLegacyOneTimeProduct(
+          new Error("Please use the InAppProducts API for this application"),
+          { allowCreate },
+        ),
+      ).toBe(true);
+    },
+  );
+});
 
 describe("playPriceMicrosToNumber", () => {
   it("accepts non-negative safe integer price strings", () => {
