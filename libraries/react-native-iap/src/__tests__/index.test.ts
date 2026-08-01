@@ -263,6 +263,65 @@ describe('Public API (src/index.ts)', () => {
       expect(mockIap.removePurchaseUpdatedListener).not.toHaveBeenCalled();
     });
 
+    it('reuses the retained iOS native listener when re-subscribing after full removal', () => {
+      const first = jest.fn();
+      const sub = IAP.purchaseUpdatedListener(first);
+      const nativeHandler = mockIap.addPurchaseUpdatedListener.mock.calls[0][0];
+      sub.remove();
+
+      const second = jest.fn();
+      IAP.purchaseUpdatedListener(second);
+      expect(mockIap.addPurchaseUpdatedListener).toHaveBeenCalledTimes(1);
+
+      nativeHandler({
+        id: 't1',
+        transactionId: 't1',
+        productId: 'p1',
+        transactionDate: Date.now(),
+        store: 'apple',
+        quantity: 1,
+        purchaseState: 'purchased',
+        isAutoRenewing: false,
+      });
+      expect(first).not.toHaveBeenCalled();
+      expect(second).toHaveBeenCalledTimes(1);
+    });
+
+    it('removes the Android native listener by token and re-attaches on next subscribe', () => {
+      (Platform as any).OS = 'android';
+      const sub1 = IAP.purchaseUpdatedListener(jest.fn());
+      const sub2 = IAP.purchaseUpdatedListener(jest.fn());
+
+      expect(mockIap.addPurchaseUpdatedListener).toHaveBeenCalledTimes(1);
+      sub1.remove();
+      expect(mockIap.removePurchaseUpdatedListener).not.toHaveBeenCalled();
+
+      sub2.remove();
+      expect(mockIap.removePurchaseUpdatedListener).toHaveBeenCalledTimes(1);
+      expect(mockIap.removePurchaseUpdatedListener).toHaveBeenCalledWith(1);
+
+      IAP.purchaseUpdatedListener(jest.fn());
+      expect(mockIap.addPurchaseUpdatedListener).toHaveBeenCalledTimes(2);
+    });
+
+    it('keeps the iOS native purchase error listener attached across removal and re-subscribe', () => {
+      const first = jest.fn();
+      const sub = IAP.purchaseErrorListener(first);
+      expect(mockIap.addPurchaseErrorListener).toHaveBeenCalledTimes(1);
+      const nativeHandler = mockIap.addPurchaseErrorListener.mock.calls[0][0];
+
+      sub.remove();
+      expect(mockIap.removePurchaseErrorListener).not.toHaveBeenCalled();
+
+      const second = jest.fn();
+      IAP.purchaseErrorListener(second);
+      expect(mockIap.addPurchaseErrorListener).toHaveBeenCalledTimes(1);
+
+      nativeHandler({code: 'network-error', message: 'offline'});
+      expect(first).not.toHaveBeenCalled();
+      expect(second).toHaveBeenCalledTimes(1);
+    });
+
     it('purchaseErrorListener forwards error objects and supports removal', () => {
       const listener = jest.fn();
       const sub = IAP.purchaseErrorListener(listener);
@@ -453,7 +512,8 @@ describe('Public API (src/index.ts)', () => {
       expect(listener1).not.toHaveBeenCalled();
     });
 
-    it('detaches the native error listener after the last JS listener is removed', () => {
+    it('detaches the Android native error listener after the last JS listener is removed', () => {
+      (Platform as any).OS = 'android';
       const sub1 = IAP.purchaseErrorListener(jest.fn());
       const sub2 = IAP.purchaseErrorListener(jest.fn());
       const nativeHandler = mockIap.addPurchaseErrorListener.mock.calls[0][0];

@@ -505,7 +505,19 @@ export const purchaseErrorListener = (
   return {
     remove: () => {
       purchaseErrorJsListeners.delete(listener);
-      if (purchaseErrorJsListeners.size === 0 && purchaseErrorNativeAttached) {
+      if (purchaseErrorJsListeners.size > 0) {
+        return;
+      }
+
+      // Same iOS policy as purchaseUpdatedListener: releasing the stored
+      // native callback from a JS unsubscribe can race an in-flight dispatch
+      // snapshot on another thread. Keep the singleton attached; endConnection
+      // owns native disposal.
+      if (Platform.OS === 'ios') {
+        return;
+      }
+
+      if (purchaseErrorNativeAttached) {
         try {
           IAP.instance.removePurchaseErrorListener(purchaseErrorNativeHandler);
           purchaseErrorNativeAttached = false;

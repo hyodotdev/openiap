@@ -585,10 +585,6 @@ export function useIAP(options?: UseIapOptions): UseIap {
     if (!subscriptionsRef.current.purchaseUpdate) {
       subscriptionsRef.current.purchaseUpdate = purchaseUpdatedListener(
         async (purchase: Purchase) => {
-          if (!isMountedRef.current) {
-            return;
-          }
-
           try {
             await getActiveSubscriptionsInternal();
             await getAvailablePurchasesInternal();
@@ -596,10 +592,10 @@ export function useIAP(options?: UseIapOptions): UseIap {
             RnIapConsole.warn('[useIAP] post-purchase refresh failed:', e);
           }
 
-          if (!isMountedRef.current) {
-            return;
-          }
-
+          // Deliver even if the hook unmounted while the refresh was pending:
+          // onPurchaseSuccess is where apps call finishTransaction, and a
+          // dropped event has no in-session redelivery. Internal setState is
+          // mount-guarded inside the refresh helpers.
           if (optionsRef.current?.onPurchaseSuccess) {
             optionsRef.current.onPurchaseSuccess(purchase);
           }
@@ -611,10 +607,6 @@ export function useIAP(options?: UseIapOptions): UseIap {
     if (!subscriptionsRef.current.purchaseError) {
       subscriptionsRef.current.purchaseError = purchaseErrorListener(
         (error) => {
-          if (!isMountedRef.current) {
-            return;
-          }
-
           if (
             error.code === ErrorCode.InitConnection &&
             !connectedRef.current
@@ -631,10 +623,6 @@ export function useIAP(options?: UseIapOptions): UseIap {
     if (isStandardIOS() && !subscriptionsRef.current.promotedProductIOS) {
       subscriptionsRef.current.promotedProductIOS = promotedProductListenerIOS(
         (product: Product) => {
-          if (!isMountedRef.current) {
-            return;
-          }
-
           setPromotedProductIOS(product);
           if (optionsRef.current?.onPromotedProductIOS) {
             optionsRef.current.onPromotedProductIOS(product);
@@ -672,10 +660,6 @@ export function useIAP(options?: UseIapOptions): UseIap {
     if (!subscriptionsRef.current.subscriptionBillingIssue) {
       subscriptionsRef.current.subscriptionBillingIssue =
         subscriptionBillingIssueListener((purchase: Purchase) => {
-          if (!isMountedRef.current) {
-            return;
-          }
-
           optionsRef.current?.onSubscriptionBillingIssue?.(purchase);
         });
     }

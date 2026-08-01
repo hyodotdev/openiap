@@ -50,6 +50,7 @@ describe('hooks/useIAP (renderer)', () => {
   let mockSyncIOS: jest.SpyInstance;
 
   beforeEach(() => {
+    capturedPurchaseListener = undefined;
     jest.spyOn(IAP, 'initConnection').mockResolvedValue(true as any);
     mockGetAvailablePurchases = jest
       .spyOn(IAP, 'getAvailablePurchases')
@@ -121,7 +122,7 @@ describe('hooks/useIAP (renderer)', () => {
     expect(IAP.finishTransaction).toBeDefined();
   });
 
-  it('skips purchase success when unmounted while refresh is pending', async () => {
+  it('still delivers purchase success when unmounted while refresh is pending', async () => {
     let resolveActiveSubscriptions: (() => void) | undefined;
     mockGetActiveSubscriptions.mockImplementation(
       () =>
@@ -172,7 +173,13 @@ describe('hooks/useIAP (renderer)', () => {
       await purchaseUpdate;
     });
 
-    expect(onPurchaseSuccess).not.toHaveBeenCalled();
+    // The event entered while mounted, so the success callback still fires:
+    // it is where apps call finishTransaction, and a dropped event has no
+    // in-session redelivery.
+    expect(onPurchaseSuccess).toHaveBeenCalledTimes(1);
+    expect(onPurchaseSuccess).toHaveBeenCalledWith(
+      expect.objectContaining({id: 't1', productId: 'p1'}),
+    );
   });
 
   it('requestPurchase calls root API and returns void', async () => {
