@@ -231,7 +231,8 @@ export default function ApiReferencePage() {
         </li>
         <li>
           Reuse the cached body on <code>304</code>, replace it on{" "}
-          <code>200</code>, and respect <code>429 Retry-After</code>.
+          <code>200</code>, and respect <code>429</code> or{" "}
+          <code>503 Retry-After</code>.
         </li>
         <li>
           Key local storage by IAPKit project and opaque user ID, and clear it
@@ -312,7 +313,7 @@ async function refreshEntitlements(
     await persistSnapshot(refreshed);
     return refreshed.snapshot;
   }
-  if (response.status === 429) {
+  if (response.status === 429 || response.status === 503) {
     scheduleRetry(response.headers.get("Retry-After"));
     if (cachedForScope && canUseCachedSnapshot()) {
       return cachedForScope.snapshot;
@@ -495,7 +496,10 @@ async function refreshEntitlements(
       </div>
 
       <h2 className="mt-10 text-2xl font-semibold">Response headers</h2>
-      <p>Every authenticated response (2xx, validation 4xx, 429) carries:</p>
+      <p>
+        Every authenticated response after the auth layer carries the
+        correlation and rate-limit headers below:
+      </p>
       <ul className="my-3 list-disc space-y-1 pl-6">
         <li>
           <code>X-Correlation-Id</code> — UUID for this request. Quote it in
@@ -510,7 +514,12 @@ async function refreshEntitlements(
         </li>
       </ul>
       <p>
-        On 429 the response also carries <code>Retry-After</code> in seconds.
+        Verification responses that pass body validation also carry{" "}
+        <code>X-Concurrency-Limit</code> and{" "}
+        <code>X-Concurrency-Remaining</code>. <code>X-Concurrency-Scope</code>{" "}
+        identifies the reported API-key, trusted source-IP, or process-global
+        axis. A 429 or application-generated 503 response carries{" "}
+        <code>Retry-After</code> in seconds.
       </p>
       <p>
         401 / 403 responses from the auth layer run before the rate-limit
@@ -589,6 +598,15 @@ async function refreshEntitlements(
               <td className="px-3 py-2">
                 Per-key or per-payload guard rejected the request; check
                 Retry-After.
+              </td>
+            </tr>
+            <tr>
+              <td className="px-3 py-2 font-mono text-xs">503</td>
+              <td className="px-3 py-2 font-mono text-xs">SERVICE_BUSY</td>
+              <td className="px-3 py-2">
+                The API-key, trusted source-IP, or process share has no
+                verification slot available; inspect X-Concurrency-Scope and
+                retry with jittered backoff after Retry-After.
               </td>
             </tr>
             <tr>

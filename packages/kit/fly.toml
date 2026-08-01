@@ -12,6 +12,11 @@ primary_region = 'iad'
   min_machines_running = 1
   processes = ['app']
 
+  [http_service.concurrency]
+    type = 'requests'
+    soft_limit = 80
+    hard_limit = 120
+
 [[vm]]
   size = 'shared-cpu-1x'
   memory = '512mb'

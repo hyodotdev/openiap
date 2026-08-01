@@ -742,6 +742,87 @@ async function refreshEntitlements(
       </section>
 
       <section>
+        <AnchorLink id="hosted-capacity" level="h2">
+          Hosted capacity and high-volume apps
+        </AnchorLink>
+        <p>
+          The official hosted IAPKit service is open-source infrastructure
+          shared by the OpenIAP community. It is free under fair-use safeguards
+          and operated on a best-effort basis; it is not unlimited capacity and
+          does not include dedicated resources or an SLA.
+        </p>
+        <p>
+          Plan from request frequency and peak concurrency, not DAU alone. One
+          million users making one hosted request per day already averages about{' '}
+          <strong>11.6 requests per second</strong>, before cold-start,
+          release-day, or notification-driven peaks. That average exceeds the
+          hosted default per-key steady rate of 10 requests per second.
+        </p>
+        <p>
+          Hosted purchase verification also limits work already in progress to{' '}
+          <strong>
+            8 handlers per API key, 16 per trusted source IP, and 32 per process
+          </strong>
+          . The key and source shares make simple credential rotation
+          insufficient to monopolize the process from one network source;
+          requests beyond any axis receive <code>503 SERVICE_BUSY</code> instead
+          of entering an unbounded server queue.
+        </p>
+        <ul>
+          <li>
+            Verify after a purchase or restore; do not re-verify every receipt
+            on every app start.
+          </li>
+          <li>
+            Persist entitlement snapshots, coalesce concurrent refreshes, and
+            revalidate only when stale or explicitly requested by the user.
+          </li>
+          <li>
+            Honor <code>429</code> and <code>503 Retry-After</code> with
+            jittered backoff. A <code>304</code> saves response transfer but
+            still uses a Convex query invocation.
+          </li>
+        </ul>
+        <div className="alert-card alert-card--warning">
+          <p>
+            <strong>Contact us before a high-volume production launch.</strong>{' '}
+            If your organization expects to consume a meaningful share of hosted
+            capacity, we ask it to help fund server expansion, monitoring,
+            security, and load testing through{' '}
+            <a
+              href="https://github.com/sponsors/hyodotdev"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              GitHub Sponsors
+            </a>{' '}
+            or{' '}
+            <a
+              href="https://opencollective.com/openiap"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              OpenCollective
+            </a>
+            . Sponsorship supports shared capacity; it does not automatically
+            reserve dedicated resources or create an SLA.
+          </p>
+          <p>
+            For predictable capacity and full operational control,{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/tree/main/packages/kit#deployment-convex--flyio"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              self-host the MIT-licensed server
+            </a>
+            . For capacity planning or a separate written arrangement, contact{' '}
+            <a href="mailto:hyo@hyo.dev">hyo@hyo.dev</a>.
+          </p>
+        </div>
+      </section>
+
+      <section>
         <AnchorLink id="product-client-payloads" level="h2">
           Product client payloads
         </AnchorLink>

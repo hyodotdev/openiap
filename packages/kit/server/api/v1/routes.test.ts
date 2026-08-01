@@ -32,12 +32,21 @@ describe("apiRoutes", () => {
 
     const body = (await response.json()) as {
       openapi: string;
-      paths: Record<string, { post?: { operationId?: string } }>;
+      paths: Record<
+        string,
+        { post?: { operationId?: string; responses?: Record<string, unknown> } }
+      >;
     };
     expect(body.openapi).toBe("3.1.0");
     expect(body.paths["/purchase/verify"]?.post?.operationId).toBe(
       "verifyPurchase",
     );
+    expect(body.paths["/purchase/verify"]?.post?.responses).toHaveProperty(
+      "503",
+    );
+    expect(
+      body.paths["/purchase/verify"]?.post?.responses?.["200"],
+    ).toHaveProperty("headers.X-Concurrency-Scope");
   });
 
   it("returns the verified productId from purchase verification", async () => {
@@ -61,6 +70,9 @@ describe("apiRoutes", () => {
     });
 
     expect(response.status).toBe(200);
+    expect(response.headers.get("X-Concurrency-Limit")).toBe("8");
+    expect(response.headers.get("X-Concurrency-Remaining")).toBe("7");
+    expect(response.headers.get("X-Concurrency-Scope")).toBe("key");
     expect(await response.json()).toEqual({
       store: "google",
       isValid: true,

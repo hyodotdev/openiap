@@ -7,16 +7,16 @@ export default function OperationsPage() {
     <DocsPage
       slug="operations"
       title="Operations"
-      description="Rate limits, correlation IDs, /health, structured logs, graceful shutdown."
+      description="Fair use, capacity, rate limits, correlation IDs, /health, structured logs, and graceful shutdown."
     >
       <h2 className="mt-8 text-2xl font-semibold">Rate limits</h2>
       <p>
-        <code>/v1/purchase/verify</code> is protected by an in-memory
-        token-bucket keyed on a SHA-256 hash of the API key. Defaults:
-        <strong> 600-request burst, 10 req/sec steady state</strong> —
-        equivalently 600 req/min sustained. Self-hosted deployments can tune via{" "}
-        <code>RATE_LIMIT_CAPACITY</code> and{" "}
-        <code>RATE_LIMIT_REFILL_PER_SEC</code>.
+        Publishable-key routes are protected by bounded, in-memory token
+        buckets. Defaults are <strong>600 burst / 10 req/sec</strong> per API
+        key, <strong>600 burst / 5 req/sec</strong> per source IP, and{" "}
+        <strong>5,000 burst / 100 req/sec</strong> for the whole process.
+        Self-hosted deployments can tune the <code>RATE_LIMIT_*</code>{" "}
+        environment variables.
       </p>
       <p>
         When the bucket empties, IAPKit returns <code>429 RATE_LIMITED</code>{" "}
@@ -41,6 +41,80 @@ export default function OperationsPage() {
           OOM. Tune with <code>RATE_LIMIT_MAX_STORE</code>.
         </p>
       </Callout>
+
+      <h2 className="mt-10 text-2xl font-semibold">
+        Concurrent verification capacity
+      </h2>
+      <p>
+        Arrival rate and work already in progress are different limits. A slow
+        Apple, Google, Amazon, Meta, or Convex response can make accepted
+        verifications overlap, so each API key may occupy at most{" "}
+        <strong>8</strong> verification handlers, each trusted source IP at most{" "}
+        <strong>16</strong>, and each process at most <strong>32</strong> by
+        default. The key and source shares make simple credential rotation
+        insufficient to monopolize the process from one network source. Excess
+        work is not queued in memory; it returns <code>503 SERVICE_BUSY</code>{" "}
+        with <code>Retry-After</code>, <code>X-Concurrency-Limit</code>,{" "}
+        <code>X-Concurrency-Remaining</code>, and{" "}
+        <code>X-Concurrency-Scope</code>.
+      </p>
+      <p>
+        Self-hosters can tune <code>VERIFY_MAX_IN_FLIGHT</code>,{" "}
+        <code>VERIFY_MAX_IN_FLIGHT_PER_KEY</code>, and{" "}
+        <code>VERIFY_MAX_IN_FLIGHT_PER_IP</code>. Fly Proxy also uses request
+        concurrency limits for the whole HTTP service (80 soft, 120 hard per
+        machine) so static, read, and verification traffic cannot create an
+        unbounded number of requests inside one 512 MB machine.
+      </p>
+
+      <h2 className="mt-10 text-2xl font-semibold">
+        Hosted fair use and high-volume apps
+      </h2>
+      <p>
+        Hosted IAPKit is open-source infrastructure shared by the OpenIAP
+        community. It is free without a request billing meter, best-effort, and
+        protected by fair-use safeguards; it is not unlimited capacity and does
+        not include dedicated resources or an SLA.
+      </p>
+      <Callout kind="warning" title="Plan from requests and peaks, not DAU">
+        <p>
+          One million users making one request per day average about 11.6
+          requests per second, already above the hosted default per-key steady
+          rate before launch-time or notification-driven peaks. Cache stable
+          data, coalesce refreshes, verify only after purchase or restore, and
+          honor <code>429</code> and <code>503 Retry-After</code> with jittered
+          backoff.
+        </p>
+      </Callout>
+      <p>
+        If your organization expects sustained high volume or a meaningful share
+        of hosted capacity, contact{" "}
+        <a className="text-primary underline" href="mailto:hyo@hyo.dev">
+          hyo@hyo.dev
+        </a>{" "}
+        before launch. We ask organizations at that scale to help fund shared
+        capacity, monitoring, security, and load testing through{" "}
+        <a
+          className="text-primary underline"
+          href="https://github.com/sponsors/hyodotdev"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          GitHub Sponsors
+        </a>{" "}
+        or{" "}
+        <a
+          className="text-primary underline"
+          href="https://opencollective.com/openiap"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          OpenCollective
+        </a>
+        . Sponsorship strengthens the shared service; it does not automatically
+        reserve capacity or create an SLA. For predictable scaling, self-host
+        the MIT-licensed server.
+      </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Correlation IDs</h2>
       <p>

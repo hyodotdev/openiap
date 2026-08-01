@@ -45,8 +45,10 @@ You agree **not** to:
 
 - Use the service for unlawful purposes
 - Interfere with or disrupt the service
+- Generate abusive automated traffic, denial-of-service traffic, or traffic intended to exhaust shared capacity
+- Bypass or evade rate limits, replay protection, access controls, or other security safeguards
 - Attempt to access systems or data you are not authorized to access
-- Reverse engineer, decompile, or attempt to derive the service’s source code
+- Probe or test non-public infrastructure without prior written authorization
 - Use the service to store or transmit personal data unless required for your lawful operations
 
 We may suspend or terminate access for violations.
@@ -89,7 +91,25 @@ We may update, modify, or discontinue parts of the service at any time with or w
 
 ---
 
-## 8. Fees and Payment
+## 8. Fair Use, Capacity, and Abuse Prevention
+
+The official hosted IAPKit service is an open-source, community-funded service running on shared infrastructure. It is provided on a best-effort basis and does not include unlimited capacity, dedicated resources, guaranteed throughput, or a service-level agreement unless we agree otherwise in writing.
+
+We apply fair-use safeguards, including per-key, per-source, and service-wide rate limits, replay protection, request-size limits, and concurrent-request limits. We may change these safeguards when reasonably necessary to protect availability, security, users, upstream store services, or infrastructure costs.
+
+We may throttle, reject, temporarily suspend, or block traffic that:
+
+- Threatens service availability or security
+- Appears to be abusive automation, denial-of-service activity, credential abuse, or deliberate safeguard evasion
+- Uses a disproportionate share of the hosted service in a way that materially affects other users
+
+If your application is expected to generate sustained high volume or consume a significant share of shared capacity, contact us before production launch. We ask organizations at that scale to help fund shared server capacity, monitoring, and security through [GitHub Sponsors](https://github.com/sponsors/hyodotdev), [OpenCollective](https://opencollective.com/openiap), or a separate written arrangement. Sponsorship supports the community service but does not by itself reserve capacity or create an SLA.
+
+The server is MIT-licensed and may be [self-hosted](https://github.com/hyodotdev/openiap/tree/main/packages/kit#deployment-convex--flyio) when you need dedicated capacity, predictable scaling, or full operational control.
+
+---
+
+## 9. Fees and Payment
 
 If applicable:
 
@@ -101,22 +121,15 @@ Failure to pay may result in suspension or termination of your account.
 
 ---
 
-## 9. Intellectual Property
+## 10. Intellectual Property and Open-Source License
 
-All rights, title, and interest in the service, including:
+The IAPKit server source code is available under the repository's MIT License. These Terms do not restrict rights granted by that open-source license.
 
-- Software
-- Documentation
-- APIs
-- Logos and branding
-
-remain the exclusive property of Hyo Dev.
-
-You are granted a limited, non-exclusive, non-transferable license to use the service in accordance with these Terms.
+Hyo Dev and OpenIAP retain their rights in trademarks, logos, branding, the operated hosted service, and any non-public systems or materials. Your access to the official hosted service is limited, non-exclusive, and subject to these Terms.
 
 ---
 
-## 10. Termination
+## 11. Termination
 
 We may suspend or terminate your access if:
 
@@ -133,7 +146,7 @@ Upon termination:
 
 ---
 
-## 11. Disclaimers
+## 12. Disclaimers
 
 The service is provided **“as is”** and **“as available.”**
 We disclaim all warranties, express or implied, including:
@@ -146,7 +159,7 @@ We do not guarantee accuracy of validation results beyond what is provided by th
 
 ---
 
-## 12. Limitation of Liability
+## 13. Limitation of Liability
 
 To the fullest extent permitted by law:
 
@@ -155,7 +168,7 @@ To the fullest extent permitted by law:
 
 ---
 
-## 13. Indemnification
+## 14. Indemnification
 
 You agree to indemnify and hold harmless Hyo Dev from any claims, damages, or losses arising from:
 
@@ -165,14 +178,14 @@ You agree to indemnify and hold harmless Hyo Dev from any claims, damages, or lo
 
 ---
 
-## 14. Governing Law
+## 15. Governing Law
 
 These Terms are governed by the laws of **Sweden**, without regard to conflict of law principles.
 Any disputes shall be resolved in the courts of Sweden.
 
 ---
 
-## 15. Changes to the Terms
+## 16. Changes to the Terms
 
 We may update these Terms occasionally.
 If we make material changes, we will notify you via email or website notice.
@@ -180,8 +193,10 @@ Continued use of the service constitutes acceptance of updated Terms.
 
 ---
 
-## 16. Contact Us
+## 17. Contact Us
 
 For questions about these Terms, contact:
 
 **Hyo Dev**
+
+Email: [hyo@hyo.dev](mailto:hyo@hyo.dev)

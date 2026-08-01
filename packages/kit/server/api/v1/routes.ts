@@ -16,6 +16,7 @@ import {
 import { apiKeyMiddleware } from "./middleware";
 import { getRequestIp, multiAxisRateLimitMiddleware } from "./rate-limit";
 import { replayGuardMiddleware } from "./replay-guard";
+import { inFlightLimitMiddleware } from "./in-flight-limit";
 import { requestLoggerMiddleware } from "./request-logger";
 import { validator } from "./validator";
 import { webhooksRoutes } from "./webhooks";
@@ -142,6 +143,27 @@ const commonResponseHeaders = {
   },
 };
 
+const concurrencyResponseHeaders = {
+  "X-Concurrency-Limit": {
+    description:
+      "Maximum concurrent verification handlers for the axis named by `X-Concurrency-Scope`.",
+    schema: { type: "integer" as const, minimum: 1 },
+  },
+  "X-Concurrency-Remaining": {
+    description:
+      "Verification slots remaining on the reported axis when this request entered the guard.",
+    schema: { type: "integer" as const, minimum: 0 },
+  },
+  "X-Concurrency-Scope": {
+    description:
+      "Concurrency axis reported by these headers: `key` for one API key, `ip` for one trusted source IP, or `global` for this process.",
+    schema: {
+      type: "string" as const,
+      enum: ["key", "ip", "global"],
+    },
+  },
+};
+
 const verifyPurchaseRouteDescription = describeRoute({
   operationId: "verifyPurchase",
   description:
@@ -175,9 +197,14 @@ const verifyPurchaseRouteDescription = describeRoute({
     "cross-machine cost brake. In addition, per-(API key, payload) " +
     "replay-guard: the same receipt can be submitted at most 30 times " +
     "in a burst and ~1/min sustained — cache the previous result on " +
-    "your side. Exceeding either returns HTTP 429 with a `Retry-After` " +
+    "your side. Expensive verification work is also bounded to 8 " +
+    "concurrent requests per API key, 16 per source IP, and 32 per " +
+    "process by default; " +
+    "excess work returns " +
+    "HTTP 503 `SERVICE_BUSY` instead of queueing request bodies in memory. " +
+    "Exceeding a token or replay limit returns HTTP 429 with a `Retry-After` " +
     "header. Responses that pass bearer-token shape validation (2xx, " +
-    "downstream 4xx, 429) carry `X-RateLimit-Limit`, " +
+    "downstream 4xx, 429, 503) carry `X-RateLimit-Limit`, " +
     "`X-RateLimit-Remaining`, and " +
     "`X-Correlation-Id`. 401 / 403 responses from the auth layer run " +
     "before the rate-limit middleware and do not include those " +
@@ -193,7 +220,10 @@ const verifyPurchaseRouteDescription = describeRoute({
   responses: {
     200: {
       description: "Successful verification",
-      headers: commonResponseHeaders,
+      headers: {
+        ...commonResponseHeaders,
+        ...concurrencyResponseHeaders,
+      },
       content: {
         "application/json": {
           schema: resolver(verifyPurchaseSuccessResponseSchema),
@@ -267,10 +297,33 @@ const verifyPurchaseRouteDescription = describeRoute({
         },
       },
     },
+    503: {
+      description:
+        "Shared verification capacity is temporarily full (`SERVICE_BUSY`). " +
+        "Retry after the seconds in `Retry-After` with jittered backoff. " +
+        "Sustained high-volume applications should contact OpenIAP before " +
+        "launch or self-host for dedicated capacity.",
+      headers: {
+        "X-Correlation-Id": commonResponseHeaders["X-Correlation-Id"],
+        "X-RateLimit-Limit": commonResponseHeaders["X-RateLimit-Limit"],
+        "X-RateLimit-Remaining": commonResponseHeaders["X-RateLimit-Remaining"],
+        ...concurrencyResponseHeaders,
+        "Retry-After": {
+          description: "Seconds to wait before retrying with jittered backoff.",
+          schema: { type: "integer" as const, minimum: 1 },
+        },
+      },
+      content: {
+        "application/json": {
+          schema: resolver(apiErrorResponseSchema),
+        },
+      },
+    },
     500: {
       description: "Unknown error",
       headers: {
         "X-Correlation-Id": commonResponseHeaders["X-Correlation-Id"],
+        ...concurrencyResponseHeaders,
       },
       content: {
         "application/json": {
@@ -472,6 +525,7 @@ const verifyPurchaseHandler = async (
 const verifyRateLimit = multiAxisRateLimitMiddleware();
 const verifyRequestLogger = requestLoggerMiddleware();
 const verifyReplayGuard = replayGuardMiddleware();
+const verifyInFlightLimit = inFlightLimitMiddleware();
 
 // Middleware order matters:
 //   1. apiKeyMiddleware — 401/403 before anything expensive.
@@ -483,12 +537,14 @@ const verifyReplayGuard = replayGuardMiddleware();
 //      below hashes the body.
 //   5. verifyReplayGuard — per-(key, payload) burst cap + 5-minute
 //      negative cooldown after an `isValid: false` from the store.
-//   6. verifyPurchaseHandler — the actual Convex call. The verify
+//   6. verifyInFlightLimit — bounds accepted verification work already
+//      waiting on Convex or an upstream store. Rejects instead of queueing.
+//   7. verifyPurchaseHandler — the actual Convex call. The verify
 //      action increments the per-org monthly counter for telemetry
 //      (powers the dashboard usage view + sponsor CTA threshold)
-//      but does NOT enforce a monthly cap — abuse is stopped at
-//      the edge layers above so legitimate high-volume apps are
-//      never blocked by raw success.
+//      but does NOT grant unlimited throughput or enforce billing. Fair-use
+//      and safety are enforced by the edge layers above; high-volume apps
+//      must coordinate capacity or self-host.
 //
 // Held in a single tuple so `purchase/verify` (canonical) and
 // `verify-purchase` (compat alias) can't drift on order or contents
@@ -499,6 +555,7 @@ const verifyMiddleware = [
   verifyRateLimit,
   validator(verifyPurchaseInputSchema),
   verifyReplayGuard,
+  verifyInFlightLimit,
   verifyPurchaseHandler,
 ] as const;
 

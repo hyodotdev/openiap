@@ -81,7 +81,9 @@ export default function LandingPage() {
             </p>
             <p className="inline-flex items-center gap-2 mb-8 px-4 py-2 rounded-full bg-amber-100 dark:bg-amber-500/15 text-amber-900 dark:text-amber-100 text-sm md:text-base font-medium opacity-0 animate-fade-in-up animation-delay-300">
               <span aria-hidden="true">✨</span>
-              {"Validation and analytics are free for every developer."}
+              {
+                "Hosted validation and analytics are free under fair-use limits."
+              }
             </p>
             <div className="flex flex-col sm:flex-row gap-4 justify-center opacity-0 animate-fade-in-up animation-delay-400">
               <button
@@ -103,7 +105,9 @@ export default function LandingPage() {
               </button>
             </div>
             <p className="mt-6 text-sm text-muted-foreground animate-fade-up animation-delay-400">
-              {"No credit card for validation or analytics."}
+              {
+                "No credit card. Shared, community-funded infrastructure with best-effort availability."
+              }
             </p>
           </div>
         </div>
@@ -242,44 +246,92 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Sponsorship Section */}
+      {/* Shared capacity and sponsorship section */}
       <section id="pricing" className="py-20 lg:py-32">
         <div className="container max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 text-foreground">
-              {"Sponsor OpenIAP"}
+              {"Free, shared, and sustained by the ecosystem"}
             </h2>
-            <p className="text-xl text-muted-foreground max-w-2xl mx-auto mb-8">
+            <p className="text-xl text-muted-foreground max-w-3xl mx-auto mb-10">
               {
-                "Core IAPKit validation and analytics are free for every developer. If your team depends on them, help sustain the project — every contribution keeps the foundation available for thousands of indie developers."
+                "Hosted IAPKit is an open-source community service that every developer can share. It has fair-use rate limits, does not include an SLA, and is not unlimited infrastructure."
               }
             </p>
-            <p className="text-sm text-muted-foreground max-w-2xl mx-auto mb-8">
-              {
-                "Advanced AI-assisted workflows may be handled separately later, because model token costs are real infrastructure costs."
-              }
-            </p>
-            <div className="flex flex-col sm:flex-row gap-4 items-center justify-center">
+
+            <div className="grid gap-6 md:grid-cols-3 text-left mb-10">
+              <div className="rounded-xl border border-border bg-card p-6">
+                <h3 className="text-lg font-semibold mb-2">
+                  {"Shared for the community"}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {
+                    "Use the hosted service without a billing meter, cache reads responsibly, and honor 429 or 503 retry guidance so capacity remains available to everyone."
+                  }
+                </p>
+              </div>
+              <div className="rounded-xl border border-amber-300/70 dark:border-amber-500/40 bg-amber-50/60 dark:bg-amber-500/10 p-6">
+                <h3 className="text-lg font-semibold mb-2">
+                  {"Planning significant traffic?"}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {
+                    "Contact us before launch. If your organization expects to consume a meaningful share of the hosted capacity, we ask it to help fund server expansion, monitoring, and security for the ecosystem."
+                  }
+                </p>
+              </div>
+              <div className="rounded-xl border border-border bg-card p-6">
+                <h3 className="text-lg font-semibold mb-2">
+                  {"Need dedicated capacity?"}
+                </h3>
+                <p className="text-sm text-muted-foreground">
+                  {
+                    "Self-host the MIT-licensed server for predictable capacity and operational control. Sponsorship supports the shared service; it does not automatically include dedicated resources or an SLA."
+                  }
+                </p>
+              </div>
+            </div>
+
+            <div className="flex flex-col sm:flex-row flex-wrap gap-4 items-center justify-center">
               <a
-                href="https://openiap.dev/sponsors"
+                href="https://github.com/sponsors/hyodotdev"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="inline-flex items-center btn-gradient text-lg px-8 py-4"
               >
-                {"Become a sponsor"}
+                {"Sponsor on GitHub"}
                 <ArrowRight className="w-5 h-5 ml-2" />
               </a>
-              <button
-                type="button"
-                onClick={() => {
-                  void navigate("/blog/iapkit-joins-openiap");
-                }}
-                className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors"
+              <a
+                href="https://opencollective.com/openiap"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center btn-secondary text-lg px-8 py-4"
               >
-                {"Read the announcement"}
+                {"Support on OpenCollective"}
+              </a>
+              <a
+                href="https://github.com/hyodotdev/openiap/tree/main/packages/kit#deployment-convex--flyio"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="inline-flex items-center text-sm text-muted-foreground hover:text-foreground transition-colors px-3 py-2"
+              >
+                {"Self-host IAPKit"}
                 <ArrowRight className="w-4 h-4 ml-1" />
-              </button>
+              </a>
             </div>
+            <p className="text-sm text-muted-foreground max-w-3xl mx-auto mt-6">
+              {
+                "For capacity planning or a separate written service agreement, contact "
+              }
+              <a
+                href="mailto:hyo@hyo.dev"
+                className="underline hover:text-foreground transition-colors"
+              >
+                hyo@hyo.dev
+              </a>
+              {" before your production launch."}
+            </p>
           </div>
         </div>
       </section>

@@ -38,14 +38,14 @@ Out of scope:
 
 - Findings that require an attacker to already have full control of a
   maintainer's machine or Convex dashboard credentials.
-- Denial-of-service via raw request volume that the edge defenses
-  on `/api/v1/*` are designed to absorb: the per-API-key burst limiter
-  (600 req/min sustained, 600 burst), the per-(API key, payload)
-  replay-guard (~30 burst, ~1/min sustained for the same receipt),
-  and the valibot format gates that 400 obviously-malformed payloads.
-  If you can defeat any of those layers — for example, by getting
-  the Convex action invoked for a payload that should have been
-  rejected at the edge — that's in scope.
+- Reports that merely send raw request volume without demonstrating a bypass,
+  amplification issue, or other vulnerability. IAPKit uses defense-in-depth:
+  bounded key/IP/process rate limits, per-payload replay protection, request and
+  field-size gates, key/IP/process verification concurrency limits, and Fly
+  Proxy concurrency limits. These controls reduce impact; they do not guarantee
+  that a public endpoint can absorb every volumetric DDoS attack. A way to evade
+  a layer, cheaply amplify work, exhaust capacity below its intended threshold,
+  or reach Convex/store work with a request that should be rejected is in scope.
 - Issues that only affect a fork running with modified code.
 
 ## Coordinated disclosure
