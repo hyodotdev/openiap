@@ -231,13 +231,33 @@ describe('Public API (src/index.ts)', () => {
 
     it('removes iOS non-deduping purchase updated JS listener without removing the native listener', () => {
       const defaultSub = IAP.purchaseUpdatedListener(jest.fn());
-      const duplicateSub = IAP.purchaseUpdatedListener(jest.fn(), {
+      const duplicateListener = jest.fn();
+      const duplicateSub = IAP.purchaseUpdatedListener(duplicateListener, {
         dedupeTransactionIOS: false,
       });
 
       expect(mockIap.addPurchaseUpdatedListener).toHaveBeenCalledTimes(2);
+      const duplicateNativeHandler = mockIap.addPurchaseUpdatedListener.mock
+        .calls[1][0];
+      const nitroPurchase = {
+        id: 't1',
+        transactionId: 't1',
+        productId: 'p1',
+        transactionDate: Date.now(),
+        store: 'apple',
+        quantity: 1,
+        purchaseState: 'purchased',
+        isAutoRenewing: false,
+      };
+
+      duplicateNativeHandler(nitroPurchase);
+      expect(duplicateListener).toHaveBeenCalledTimes(1);
+
       duplicateSub.remove();
       expect(mockIap.removePurchaseUpdatedListener).not.toHaveBeenCalled();
+
+      duplicateNativeHandler(nitroPurchase);
+      expect(duplicateListener).toHaveBeenCalledTimes(1);
 
       defaultSub.remove();
       expect(mockIap.removePurchaseUpdatedListener).not.toHaveBeenCalled();
