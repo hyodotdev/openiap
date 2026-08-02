@@ -56,7 +56,10 @@ export default function OperationsPage() {
         work is not queued in memory; it returns <code>503 SERVICE_BUSY</code>{" "}
         with <code>Retry-After</code>, <code>X-Concurrency-Limit</code>,{" "}
         <code>X-Concurrency-Remaining</code>, and{" "}
-        <code>X-Concurrency-Scope</code>.
+        <code>X-Concurrency-Scope</code>. Capacity-rejected attempts never reach
+        an upstream verification store and do not consume the per-payload replay
+        budget, so repeated backoff retries remain <code>SERVICE_BUSY</code>{" "}
+        instead of turning into <code>DUPLICATE_PAYLOAD</code>.
       </p>
       <p>
         Self-hosters can tune <code>VERIFY_MAX_IN_FLIGHT</code>,{" "}

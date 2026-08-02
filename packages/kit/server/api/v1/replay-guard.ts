@@ -259,6 +259,7 @@ const sharedStore = new Map<string, ReplayBucket>();
 type ReplayGuardVars = {
   apiKeyHash?: string;
   verifyOutcome?: { isValid: boolean; state: string };
+  verifyCapacityRejected?: boolean;
 };
 
 export function replayGuardMiddleware(
@@ -271,6 +272,18 @@ export function replayGuardMiddleware(
     config.failureCooldownMs ?? DEFAULT_FAILURE_COOLDOWN_MS;
   const store = config.store ?? sharedStore;
   const clock = config.now ?? (() => Date.now());
+
+  function refundCapacityRejectedAttempt(bucketKey: string): void {
+    const bucket = store.get(bucketKey);
+    if (!bucket) {
+      // LRU churn can evict an in-flight request's bucket. Its absence already
+      // gives the next request a fresh bucket, so recreating it is unnecessary.
+      return;
+    }
+    store.delete(bucketKey);
+    bucket.tokens = Math.min(capacity, bucket.tokens + 1);
+    store.set(bucketKey, bucket);
+  }
 
   return createMiddleware<{ Variables: ReplayGuardVars }>(async (c, next) => {
     const apiKeyHash = c.var.apiKeyHash;
@@ -340,15 +353,22 @@ export function replayGuardMiddleware(
     try {
       await next();
     } finally {
-      // After the handler completes, mark the bucket if the upstream
-      // verification returned invalid. Lives in `finally` so an exception
-      // bubbling out of the handler doesn't skip the marking step —
-      // we only mark on the explicit `isValid: false` signal so
-      // configuration / network errors aren't conflated with stable
-      // receipt or product-match failures.
-      const outcome = c.get("verifyOutcome");
-      if (outcome && outcome.isValid === false) {
-        markPayloadFailure(store, bucketKey, capacity, clock(), maxStoreSize);
+      if (c.get("verifyCapacityRejected") === true) {
+        // SERVICE_BUSY is emitted before the handler or upstream store runs.
+        // Charging it would turn legitimate backoff retries into a misleading
+        // DUPLICATE_PAYLOAD response after enough capacity rejections.
+        refundCapacityRejectedAttempt(bucketKey);
+      } else {
+        // After the handler completes, mark the bucket if the upstream
+        // verification returned invalid. Lives in `finally` so an exception
+        // bubbling out of the handler doesn't skip the marking step —
+        // we only mark on the explicit `isValid: false` signal so
+        // configuration / network errors aren't conflated with stable
+        // receipt or product-match failures.
+        const outcome = c.get("verifyOutcome");
+        if (outcome && outcome.isValid === false) {
+          markPayloadFailure(store, bucketKey, capacity, clock(), maxStoreSize);
+        }
       }
     }
   });

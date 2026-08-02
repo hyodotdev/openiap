@@ -50,7 +50,11 @@ up-to-date `main` checkout at the repository root:
 npm run deploy
 ```
 
-Then create the matching Docs GitHub Release as documented in
-`.claude/commands/release.md`. Branch guards, version ownership, and the full
-deployment contract live in `knowledge/internal/06-git-deployment.md`; do not
-duplicate them here.
+Merging to `main` does not publish docs — there is no docs deploy workflow, so
+this local command is the only path to production.
+
+A routine docs deployment stops there. Do not create a Docs GitHub Release for
+it; that step belongs to a spec release, as documented in
+`.claude/commands/release.md`. Branch guards, version ownership, deploy
+verification, and the full deployment contract live in
+`knowledge/internal/06-git-deployment.md`; do not duplicate them here.

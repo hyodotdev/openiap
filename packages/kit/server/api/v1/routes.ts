@@ -37,6 +37,8 @@ type V1AppVariables = {
   apiKeyHash: string;
   // request-logger middleware
   corrId: string;
+  // in-flight limit → replay guard
+  verifyCapacityRejected?: boolean;
   // verify-purchase handler → request-logger
   verifyOutcome: { isValid: boolean; state: string };
 };
@@ -540,7 +542,8 @@ const verifyInFlightLimit = inFlightLimitMiddleware();
 //   5. verifyReplayGuard — per-(key, payload) burst cap + 5-minute
 //      negative cooldown after an `isValid: false` from the store.
 //   6. verifyInFlightLimit — bounds accepted verification work already
-//      waiting on Convex or an upstream store. Rejects instead of queueing.
+//      waiting on Convex or an upstream store. Rejects instead of queueing and
+//      tells the replay guard to refund attempts that never received a slot.
 //   7. verifyPurchaseHandler — the actual Convex call. The verify
 //      action increments the per-org monthly counter for telemetry
 //      (powers the dashboard usage view + sponsor CTA threshold)

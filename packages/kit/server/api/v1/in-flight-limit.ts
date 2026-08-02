@@ -45,6 +45,7 @@ const sharedVerifyState: InFlightState = {
 
 type InFlightLimitVars = {
   apiKeyHash?: string;
+  verifyCapacityRejected?: boolean;
 };
 
 /**
@@ -132,6 +133,11 @@ export function inFlightLimitMiddleware(
       c.header("X-Concurrency-Limit", String(limit));
       c.header("X-Concurrency-Remaining", "0");
       c.header("X-Concurrency-Scope", scope);
+      // The replay guard runs before this middleware so cheap duplicate
+      // detection still happens before capacity accounting. Tell that outer
+      // guard that this request never received a verification slot, allowing
+      // it to refund the token consumed for this attempt.
+      c.set("verifyCapacityRejected", true);
       return c.json(
         {
           errors: [
