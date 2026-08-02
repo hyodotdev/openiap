@@ -8,7 +8,7 @@ const SLUG = "iapkit-joins-openiap";
 const FAQ: Array<{ q: string; a: string }> = [
   {
     q: "Which parts of IAPKit are free?",
-    a: "Receipt validation and analytics are free for all developers. No credit card, no monthly plan, and no validation paywall. AI-assisted workflows may later use separate usage-based pricing because model token costs are real infrastructure costs.",
+    a: "Receipt validation and analytics are free for all developers under the hosted service's fair-use safeguards. There is no credit card, monthly validation plan, or validation paywall. The shared service is best-effort rather than unlimited or SLA-backed; AI-assisted workflows may later use separate usage-based pricing because model token costs are real infrastructure costs.",
   },
   {
     q: "Why is IAPKit joining OpenIAP?",
@@ -20,7 +20,11 @@ const FAQ: Array<{ q: string; a: string }> = [
   },
   {
     q: "How can I support IAPKit and OpenIAP?",
-    a: "Sponsor OpenIAP at any tier ($25 / $100 / $300 / $500 / $1,000) via PayPal or GitHub Sponsors at openiap.dev/sponsors. Sponsors are permanently listed on the sponsors page.",
+    a: "Support OpenIAP through GitHub Sponsors, OpenCollective, or the other options at openiap.dev/sponsors. Contributions fund the shared servers, security, monitoring, documentation, and cross-platform maintenance the ecosystem depends on.",
+  },
+  {
+    q: "What if my app expects high traffic?",
+    a: "Contact hyo@hyo.dev before production launch. Organizations expecting to consume a meaningful share of the shared hosted capacity are asked to help fund its expansion. Sponsorship does not automatically reserve capacity or create an SLA; self-host the MIT-licensed server when you need dedicated, predictable capacity.",
   },
   {
     q: "Has the domain changed?",
@@ -211,10 +215,11 @@ export default function IapkitJoinsOpenIap() {
             verification flow.
           </li>
           <li>
-            <strong>
-              Same access for indie projects and large commercial apps
-            </strong>{" "}
-            — validation and analytics cost the same: nothing.
+            <strong>Free access under shared fair-use safeguards.</strong> Indie
+            projects and commercial apps use the same hosted APIs without a
+            validation paywall. High-volume teams should coordinate capacity,
+            support the shared infrastructure, or self-host for dedicated
+            resources.
           </li>
           <li>
             <strong>Sustainable AI features.</strong> Workflows that call
@@ -230,7 +235,8 @@ export default function IapkitJoinsOpenIap() {
           </li>
           <li>
             <strong>OpenIAP Sponsorship.</strong> Support OpenIAP at any tier
-            ($25 / $100 / $300 / $500 / $1,000) via PayPal or GitHub Sponsors at{" "}
+            through GitHub Sponsors, OpenCollective, PayPal, or the other
+            options listed at{" "}
             <a
               href="https://openiap.dev/sponsors"
               target="_blank"

@@ -6,11 +6,10 @@ import { parsePositiveNumber } from "../../utils/env";
 
 // Per-machine, in-memory token bucket protecting /api/v1/* from abuse
 // (stolen-key replay, buggy client retry loops, DoS on the verification
-// pipeline). Sized for legitimate global-app traffic — the ceiling
-// needs to be comfortably above what a real app with ~millions of
-// DAU would generate so "you went viral" is never blocked, while
-// still catching the obvious abuse patterns that the replay-guard and
-// format gates miss.
+// pipeline). These are fair-use defaults for shared hosted capacity,
+// not a promise of unlimited global-app traffic. Large apps must plan
+// from peak request rate, contact the maintainers before launch, or
+// self-host with limits sized for their own workload.
 //
 // Pairs with the per-(key, payload) replay-guard in `replay-guard.ts`:
 //   - This file: "how many verify calls /sec from one API key?" (any payload)
@@ -167,13 +166,13 @@ export function tryConsume(
   return { allowed: false, remaining: 0, retryAfterSec };
 }
 
-// Defaults tuned for legitimate global-app traffic:
+// Defaults tuned for shared hosted traffic:
 //   - 600 tokens of burst absorbs push-notification-driven startup
 //     storms and retry-after-transient-5xx spikes.
-//   - 10 tokens/sec refill = 600/min sustained, enough for an app
-//     with ~millions of DAU doing app-launch entitlement checks.
-// An app larger than this should already be in direct contact with
-// the maintainer (sponsor candidate at that scale); tune via env.
+//   - 10 tokens/sec refill = 600/min sustained. One million requests
+//     per day already average ~11.6/sec before peak clustering, so an
+//     app at that scale must reduce call frequency, contact OpenIAP for
+//     shared capacity planning, or self-host and tune via env.
 const DEFAULT_CAPACITY = parsePositiveNumber(
   process.env.RATE_LIMIT_CAPACITY,
   600,

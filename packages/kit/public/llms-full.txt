@@ -284,7 +284,8 @@ guidance, webhook simulation, and project inspection. Setup guides:
 | 401  | `MISSING_API_KEY`                                       | No `Authorization` header                       |
 | 403  | `INSUFFICIENT_SCOPE`                                  | Publishable key used for an admin operation     |
 | 403  | `INVALID_API_KEY`                                       | Wrong scheme or malformed key (format only)     |
-| 429  | `RATE_LIMITED`                                          | Per-key bucket empty; honor `Retry-After`       |
+| 429  | `RATE_LIMITED`                                          | Key, IP, or process bucket empty; inspect `X-RateLimit-Scope` and honor `Retry-After` |
+| 503  | `SERVICE_BUSY`                                          | Verification concurrency is full; retry later   |
 | 500  | `UNKNOWN_ERROR`                                         | Server-side failure; include `X-Correlation-Id` |
 
 Error body shape:
@@ -307,23 +308,50 @@ per-store docs pages.
 
 ## Response headers
 
-Every authenticated response (2xx, validation 4xx, 429) carries:
+Every verification request that passes bearer-token shape validation receives
+`X-Correlation-Id`. Requests that reach the multi-axis rate limiter, including
+application-generated 503 responses, also carry:
 
-- `X-Correlation-Id` — UUIDv4, matches the stdout log line
 - `X-RateLimit-Limit` — bucket capacity for this API key
 - `X-RateLimit-Remaining` — tokens left in the bucket
 
-On 429 the response also carries `Retry-After` in seconds. 401 / 403
+`RATE_LIMITED` responses also carry `X-RateLimit-Scope`, identifying the
+rejecting `key`, source `ip`, or process `global` bucket. Verification responses
+that reach the in-flight guard carry `X-Concurrency-Limit` and
+`X-Concurrency-Remaining`; `X-Concurrency-Scope` identifies the reported `key`,
+trusted source `ip`, or process-`global` axis. A 429 or application-generated
+503 response carries `Retry-After` in seconds.
+401 / 403
 responses from the auth layer run before rate-limit middleware and do not
 carry these headers.
 
 ## Rate limits
 
-In-memory token bucket keyed on SHA-256(api-key). Defaults: 600-request
-burst + 10 req/sec steady state (≈ 600 req/min sustained). Tunable on
-self-hosted deployments via `RATE_LIMIT_CAPACITY` and
-`RATE_LIMIT_REFILL_PER_SEC`. The Map is capped at 10,000 entries with LRU
-eviction (`RATE_LIMIT_MAX_STORE`).
+Bounded in-memory token buckets default to 600 burst + 10 req/sec per API
+key, 600 + 5 req/sec per source IP, and 5,000 + 100 req/sec per process.
+Self-hosted deployments tune the `RATE_LIMIT_*` environment variables. Key/IP
+maps are capped at 10,000 entries with TTL cleanup and LRU eviction.
+
+Purchase verification is additionally capped at 8 in-flight handlers per API
+key, 16 per trusted source IP, and 32 per process. The key and source shares
+make simple credential rotation insufficient to monopolize the process from
+one network source. Excess work returns `503 SERVICE_BUSY` with `Retry-After`
+and `X-Concurrency-Scope` rather than queueing request bodies in memory. Tune
+with `VERIFY_MAX_IN_FLIGHT`, `VERIFY_MAX_IN_FLIGHT_PER_KEY`, and
+`VERIFY_MAX_IN_FLIGHT_PER_IP`. Fly Proxy limits
+the complete HTTP service to 80 soft / 120 hard concurrent requests per machine.
+
+## Hosted fair use and capacity
+
+The official hosted service is shared, community-funded, free under fair-use
+safeguards, and best-effort. It is not unlimited capacity and does not include
+dedicated resources or an SLA. One million requests per day average about 11.6
+req/sec before peak clustering, already above the default per-key steady rate.
+High-volume apps must cache stable data, coalesce refreshes, honor 429/503
+backoff, and contact hyo@hyo.dev before launch. Organizations consuming a
+meaningful share of capacity are asked to fund shared servers, monitoring, and
+security through GitHub Sponsors or OpenCollective. Sponsorship does not
+automatically reserve capacity; self-host for dedicated operational control.
 
 ## Input size caps
 

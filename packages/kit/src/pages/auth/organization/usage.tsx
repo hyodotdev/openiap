@@ -50,7 +50,7 @@ export default function OrganizationUsagePage() {
         <h1 className="text-3xl font-bold">{"Usage"}</h1>
         <p className="text-muted-foreground mt-2">
           {
-            "Track validation usage and stored receipt analytics. Validation and analytics are free."
+            "Track validation usage and stored receipt analytics. Hosted IAPKit is free under fair-use limits on shared community infrastructure."
           }
         </p>
       </div>
@@ -84,26 +84,50 @@ export default function OrganizationUsagePage() {
             </div>
             <div className="flex-1">
               <h2 className="text-lg font-semibold text-amber-900 dark:text-amber-100">
-                {"Support OpenIAP"}
+                {"Planning significant traffic?"}
               </h2>
               <p className="text-sm text-amber-900/80 dark:text-amber-100/80 mt-2 mb-4">
                 {
-                  "Validation and analytics stay free for every developer. If your team or company depends on them, consider supporting the project so we can keep the core service running for thousands of indie developers."
+                  "Hosted IAPKit is a shared, best-effort service rather than unlimited or SLA-backed infrastructure. If your organization expects to consume a meaningful share of capacity, contact us before launch and help fund the servers, monitoring, and security the ecosystem depends on."
                 }
               </p>
               <p className="text-xs text-amber-900/70 dark:text-amber-100/70 mb-4">
                 {
-                  "AI-assisted workflows may later use separate usage-based pricing because model token costs are real infrastructure costs."
+                  "Sponsorship supports shared capacity; it does not automatically reserve dedicated resources or an SLA. Self-host the MIT-licensed server when you need predictable capacity and full operational control."
                 }
               </p>
-              <a
-                href="https://openiap.dev/sponsors"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-medium transition-colors"
-              >
-                {"Become a sponsor"}
-              </a>
+              <div className="flex flex-wrap gap-3">
+                <a
+                  href="https://github.com/sponsors/hyodotdev"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg bg-amber-600 hover:bg-amber-700 text-white font-medium transition-colors"
+                >
+                  {"Sponsor on GitHub"}
+                </a>
+                <a
+                  href="https://opencollective.com/openiap"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-amber-500/50 text-amber-900 dark:text-amber-100 font-medium hover:bg-amber-100/60 dark:hover:bg-amber-500/20 transition-colors"
+                >
+                  {"OpenCollective"}
+                </a>
+                <a
+                  href="https://github.com/hyodotdev/openiap/tree/main/packages/kit#deployment-convex--flyio"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-amber-500/50 text-amber-900 dark:text-amber-100 font-medium hover:bg-amber-100/60 dark:hover:bg-amber-500/20 transition-colors"
+                >
+                  {"Self-host IAPKit"}
+                </a>
+              </div>
+              <p className="text-xs text-amber-900/70 dark:text-amber-100/70 mt-4">
+                {"Capacity planning: "}
+                <a href="mailto:hyo@hyo.dev" className="underline">
+                  hyo@hyo.dev
+                </a>
+              </p>
             </div>
           </div>
         </section>

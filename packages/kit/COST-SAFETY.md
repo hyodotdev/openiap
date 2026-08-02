@@ -1,6 +1,6 @@
 # IAPKit cost and abuse safety
 
-This document records the cost model for the public IAPKit API as of July 28, 2026. It is an operational estimate, not an invoice forecast: actual Convex
+This document records the cost model for the public IAPKit API as of August 2, 2026 in the project's Asia/Seoul timezone. It is an operational estimate, not an invoice forecast: actual Convex
 database I/O depends on each project's document sizes and should be measured
 from production function logs.
 
@@ -58,6 +58,16 @@ in-memory token bucket before calling Convex:
 - payload catalog: a separate weighted limiter charges one token per requested
   product, so a 50-item body page costs 50 tokens.
 
+Fly Proxy limits the complete HTTP service to 80 soft / 120 hard concurrent
+requests per machine. Inside the app, purchase verification has a stricter
+default of 8 in-flight handlers per API key, 16 per trusted source IP, and 32
+per process. The key and source shares prevent simple key rotation from
+occupying every shared verification slot from one network source.
+When any axis reaches its configured limit, IAPKit returns `503 SERVICE_BUSY` with
+`Retry-After` and `X-Concurrency-Scope` instead of retaining request bodies and
+sockets in an unbounded queue. The slot is released in a `finally` block on
+both normal responses and downstream errors; idle key entries are deleted.
+
 Stores use a 15-minute idle TTL and LRU eviction. Key and IP stores are capped
 at 10,000 entries, so random-key/IP churn cannot grow process memory without
 bound. Rejections return `429 RATE_LIMITED`, `Retry-After`,
@@ -72,6 +82,12 @@ multiplies by machine count. Convex deployment usage limits are the
 cross-machine hard brake; a distributed globally consistent edge limit would
 require additional infrastructure and is not justified for the current
 single-machine deployment.
+
+These controls reduce the blast radius of buggy clients, traffic spikes, and
+common resource-exhaustion attempts. They are defense in depth, not a guarantee
+that a public endpoint is immune to DDoS. Operators may still block abusive
+sources at the platform edge and should review Fly and Convex telemetry during
+an incident.
 
 The Convex deployment URL is public configuration, and the legacy public
 `subscriptionStatus` / `entitlements` functions remain callable with a
@@ -157,6 +173,12 @@ pathological ceiling is 201 million small row reads across those requests.
 Rate limiting is the primary protection against an app polling continuously;
 `304` responses do not make that request free.
 
+One million requests spread evenly across one day average approximately 11.6
+requests/second, already above the hosted default per-key steady rate of 10
+requests/second before peak clustering. High-volume consumers must reduce call
+frequency, coordinate shared capacity before launch, or self-host with limits
+sized from measured latency and peak concurrency.
+
 Pricing references:
 [Convex pricing](https://www.convex.dev/pricing),
 [Convex usage limits](https://docs.convex.dev/production/usage-limits), and
@@ -188,5 +210,6 @@ Monitor `function_execution` logs for `database_io_read_bytes`,
 fetching payload catalogs, high `304`-free direct payload traffic, rate-limit
 scope saturation, and unexpected nested purchase-verification calls.
 
-No additional Fly machine, deployment, paid cache, or rate-limit service is
-introduced by this feature.
+No additional Fly machine, deployment, paid cache, or distributed rate-limit
+service is introduced by these source guardrails. Increasing hosted capacity is
+an explicit operational and funding decision rather than an automatic promise.

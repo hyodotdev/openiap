@@ -8,6 +8,12 @@
 IAPKit lives in the OpenIAP monorepo as a Bun + Hono server, Convex backend,
 and React SPA deployed behind one origin.
 
+The official hosted service is free under fair-use safeguards on shared,
+community-funded capacity. It is best-effort, not unlimited or SLA-backed.
+High-volume apps should contact hyo@hyo.dev before launch, help fund shared
+capacity through GitHub Sponsors or OpenCollective, or self-host the
+MIT-licensed server for dedicated capacity.
+
 ## API quick reference
 
 Base URL: https://kit.openiap.dev
@@ -40,7 +46,7 @@ IAPKit does not relay those events through SSE, WebSockets, push, or long
 polling. Apps persist only the user-scoped fields they need and conditionally
 refresh on cold start, stale foreground, or explicit user action. Each refresh
 still performs one mutation-free indexed Convex query so an expiry with no new
-webhook is detected. Respect `429 Retry-After`, coalesce concurrent refreshes,
+webhook is detected. Respect the `Retry-After` header on `429` and `503`, coalesce concurrent refreshes,
 and enforce an app-defined maximum stale age for offline fallback. Secret-key
 responses are `private, no-store` and omit `ETag`. The current
 `kitApi.status()` and `kitApi.entitlements()` helpers are unconditional,
@@ -114,15 +120,29 @@ Harmonized `state` values (truthy `isValid`): `ENTITLED`,
 - `403 INSUFFICIENT_SCOPE` — publishable key used for an administrative operation
 - `403 INVALID_API_KEY` — wrong scheme or malformed key (format check only)
 - `410 SECRET_API_KEY_IN_URL` — move the secret to `Authorization: Bearer ...` on the canonical route
-- `429 RATE_LIMITED` — per-key bucket empty; honor `Retry-After` seconds
+- `429 RATE_LIMITED` — API-key, source-IP, or process bucket empty; inspect `X-RateLimit-Scope` and honor `Retry-After`
+- `503 SERVICE_BUSY` — the API-key, source-IP, or process verification share is full; inspect `X-Concurrency-Scope` and retry with jittered backoff
 - `500 UNKNOWN_ERROR` — quote the `X-Correlation-Id` header in a support ticket
 
-## Response headers (on 2xx / 4xx validation / 429)
+## Response headers
 
 - `X-Correlation-Id` — UUIDv4, matches the stdout log line
 - `X-RateLimit-Limit` — bucket capacity (default 600 per key)
 - `X-RateLimit-Remaining` — tokens left in the bucket
-- `Retry-After` (429 only) — seconds to wait
+- `X-RateLimit-Scope` — rejecting `key`, source `ip`, or process `global` bucket on `RATE_LIMITED`
+- `X-Concurrency-Limit` / `X-Concurrency-Remaining` — verification slots for the reported axis after the request reaches the in-flight guard
+- `X-Concurrency-Scope` — `key`, trusted source `ip`, or process `global`
+- `Retry-After` (429 / 503) — seconds to wait
+
+Default protection is 600 burst / 10 req/sec per key, 600 / 5 req/sec
+per source IP, 5,000 / 100 req/sec per process, 8 concurrent verify handlers per
+API key, 16 per trusted source IP, and 32 per process. The key and source shares
+make simple credential rotation insufficient to monopolize the process from one
+network source. Fly Proxy separately
+limits the complete service to 80 soft / 120 hard concurrent requests per
+machine. One million requests per day average about 11.6 req/sec before peaks,
+so apps at that scale must coordinate capacity or self-host rather than
+assuming DAU implies safe request volume.
 
 ## Docs
 
@@ -133,7 +153,7 @@ Harmonized `state` values (truthy `isValid`): `ENTITLED`,
 - [/docs/verification/google](https://kit.openiap.dev/docs/verification/google) — package name, service account JSON
 - [/docs/verification/horizon](https://kit.openiap.dev/docs/verification/horizon) — App ID + App Secret (write-only)
 - [/docs/api](https://kit.openiap.dev/docs/api) — request shapes, responses, errors, headers, and Amazon RVS payloads
-- [/docs/operations](https://kit.openiap.dev/docs/operations) — rate limits, logs, `/health`, graceful shutdown
+- [/docs/operations](https://kit.openiap.dev/docs/operations) — fair use, capacity, rate and concurrency limits, logs, `/health`, graceful shutdown
 - [openiap.dev/docs/webhooks](https://openiap.dev/docs/webhooks) — operator setup steps for inbound Apple ASN v2 and Google RTDN lifecycle delivery
 - [/docs/ai-assistants](https://kit.openiap.dev/docs/ai-assistants) — how to point Codex / Claude / Cursor / etc. at this file
 - [/docs/ai-assistants/codex-plugin](https://kit.openiap.dev/docs/ai-assistants/codex-plugin) — Codex plugin setup and self-hosted IAPKit MCP server option

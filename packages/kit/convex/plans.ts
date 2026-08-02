@@ -3,8 +3,9 @@ import { v } from "convex/values";
 /**
  * IAPKit is free-for-everyone with no monthly cap. Abuse protection
  * lives at the edge (format validation, replay-guard, per-key burst
- * limit in `server/api/v1/`) — not as a monthly hard stop, so
- * legitimate high-volume apps are never blocked for being successful.
+ * and concurrency limits in `server/api/v1/`) — not as a monthly hard stop.
+ * Monthly accounting never blocks a request, while the fair-use edge
+ * safeguards may throttle any plan to protect the shared service.
  *
  * `monthlyRequestCount` on organizations stays for dashboard display
  * and informal telemetry. `monthlyRequestLimit` is kept as a soft
@@ -22,7 +23,7 @@ export const SUBSCRIPTION_PLANS = {
   developer: {
     id: "developer" as const,
     label: "Developer",
-    description: "Free for all developers",
+    description: "Free for all developers under hosted fair-use safeguards",
     monthlyRequestLimit: SPONSOR_CTA_THRESHOLD,
     requiresPayment: false,
   },

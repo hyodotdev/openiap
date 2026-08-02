@@ -70,7 +70,7 @@ export function FreeTransitionNotice({
         </div>
         <p className="mt-2 text-sm leading-relaxed text-amber-900/80 dark:text-amber-100/85">
           {
-            "Thank you for supporting IAPKit. Your subscription has been cancelled and any unused portion refunded in full — there's nothing you need to do. The validation APIs and analytics you were using keep working."
+            "Thank you for supporting IAPKit. Your subscription has been cancelled and any unused portion refunded in full — there's nothing you need to do. The validation APIs and analytics you were using keep working under the shared hosted service's fair-use safeguards."
           }
         </p>
         <div className="mt-3 flex flex-wrap items-center gap-4 text-sm">

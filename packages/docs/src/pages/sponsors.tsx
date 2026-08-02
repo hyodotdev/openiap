@@ -119,6 +119,87 @@ function Sponsors() {
 
         <section className="resources-section">
           <h2 style={{ textAlign: 'center' }}>
+            Keep Hosted IAPKit Shared and Sustainable
+          </h2>
+          <div
+            style={{
+              maxWidth: '760px',
+              margin: '0 auto',
+              textAlign: 'left',
+              lineHeight: '1.75',
+              color: 'var(--text-secondary, #666)',
+            }}
+          >
+            <p>
+              The official <code>kit.openiap.dev</code> service runs the
+              open-source IAPKit backend as shared infrastructure for the whole
+              ecosystem. It is free under fair-use safeguards, best-effort, and
+              intentionally available to developers who cannot operate a
+              receipt-validation server themselves.
+            </p>
+            <p>
+              If your organization expects sustained high volume or would use a
+              meaningful share of that capacity, we ask you to contact us before
+              launch and help fund the servers, monitoring, security, and load
+              testing your traffic requires. You can contribute through{' '}
+              <a
+                href="https://github.com/sponsors/hyodotdev"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: 'var(--primary-color)',
+                  textDecoration: 'underline',
+                }}
+              >
+                GitHub Sponsors
+              </a>{' '}
+              or{' '}
+              <a
+                href="https://opencollective.com/openiap"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: 'var(--primary-color)',
+                  textDecoration: 'underline',
+                }}
+              >
+                OpenCollective
+              </a>
+              .
+            </p>
+            <p>
+              Sponsorship strengthens shared capacity for everyone; it does not
+              automatically buy unlimited usage, dedicated resources, or an SLA.
+              Teams that need predictable scaling or full operational control
+              can{' '}
+              <a
+                href="https://github.com/hyodotdev/openiap/tree/main/packages/kit#deployment-convex--flyio"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  color: 'var(--primary-color)',
+                  textDecoration: 'underline',
+                }}
+              >
+                self-host the MIT-licensed server
+              </a>{' '}
+              or contact{' '}
+              <a
+                href="mailto:hyo@hyo.dev"
+                style={{
+                  color: 'var(--primary-color)',
+                  textDecoration: 'underline',
+                }}
+              >
+                hyo@hyo.dev
+              </a>{' '}
+              about a separate written arrangement.
+            </p>
+          </div>
+        </section>
+
+        <section className="resources-section">
+          <h2 style={{ textAlign: 'center' }}>
             Why AI Can't Replace This Work
           </h2>
           <div
@@ -251,7 +332,8 @@ function Sponsors() {
             >
               GitHub Sponsors is the primary funding channel. Tiers scale from
               individual contributors to companies shipping OpenIAP in
-              production — details are on the GitHub page.
+              production. OpenCollective is also available for transparent
+              community funding.
             </p>
             <div
               style={{
@@ -303,6 +385,39 @@ function Sponsors() {
                   <path d="M4.25 2.5c-1.336 0-2.75 1.164-2.75 3 0 2.15 1.58 4.144 3.365 5.682A20.565 20.565 0 008 13.393a20.561 20.561 0 003.135-2.211C12.92 9.644 14.5 7.65 14.5 5.5c0-1.836-1.414-3-2.75-3-1.373 0-2.609.986-3.029 2.456a.75.75 0 01-1.442 0C6.859 3.486 5.623 2.5 4.25 2.5zM8 14.25l-.345.666-.002-.001-.006-.003-.018-.01a7.643 7.643 0 01-.31-.17 22.075 22.075 0 01-3.434-2.414C2.045 10.731 0 8.35 0 5.5 0 2.836 2.086 1 4.25 1 5.797 1 7.153 1.802 8 3.02 8.847 1.802 10.203 1 11.75 1 13.914 1 16 2.836 16 5.5c0 2.85-2.045 5.231-3.885 6.818a22.08 22.08 0 01-3.744 2.584l-.018.01-.006.003h-.002L8 14.25z" />
                 </svg>
                 <span>Sponsor on GitHub</span>
+              </a>
+              <a
+                href="https://opencollective.com/openiap"
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: '#3385ff',
+                  color: '#ffffff',
+                  padding: '0.9rem 2rem',
+                  borderRadius: '0.5rem',
+                  textDecoration: 'none',
+                  fontWeight: '600',
+                  fontSize: '1rem',
+                  border: 'none',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.12)',
+                  minHeight: '54.72px',
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.transform = 'translateY(-2px)';
+                  e.currentTarget.style.boxShadow =
+                    '0 4px 12px rgba(0, 0, 0, 0.18)';
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.transform = 'translateY(0)';
+                  e.currentTarget.style.boxShadow =
+                    '0 2px 8px rgba(0, 0, 0, 0.12)';
+                }}
+              >
+                <span>Support on OpenCollective</span>
               </a>
               <a
                 href="https://paypal.me/dooboolab"
