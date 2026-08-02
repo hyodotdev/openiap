@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-08-01T08:01:07.836Z
+> Last updated: 2026-08-02T11:31:06.959Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -1958,6 +1958,16 @@ node --test scripts/release-branch-policy.test.mjs
 
 ### Deploying Documentation
 
+**Merging to `main` does not publish documentation.** No workflow deploys the
+production docs on merge; `deploy-kit.yml` auto-deploys IAPKit instead.
+Production docs go out only when a human runs the local deploy below.
+
+This matters most for a PR that changes both `packages/kit/` and
+`packages/docs/`: the kit server auto-deploys from `main` while the docs half
+stays on the previously deployed build. Server behavior can therefore go live
+while the documentation describing it is still unpublished. After merging such a
+PR, deploy the docs and verify both surfaces.
+
 Production documentation is stable-only and must deploy from a clean `main`
 checkout that exactly matches `origin/main`. The script rejects prerelease spec
 versions, other branches, and stale or unpublished local snapshots.
@@ -1973,16 +1983,24 @@ This will:
 2. Typecheck and build the docs site
 3. Deploy production documentation to Vercel
 
-It does **not** trigger the Docs GitHub Release. After the Vercel deployment is
-verified, run the stable Docs workflow without another version bump:
+`npm run deploy` uses the current native-derived `spec` value from
+`openiap-versions.json`. It rejects any explicit argument that differs from the
+native floor; docs deployment is not a version-bump path.
+
+**Routine docs deployments stop here.** Do not follow them with a Docs GitHub
+Release: the spec version has not moved, so the release would carry no new
+version information and only adds tag churn. Run the stable Docs workflow only
+when the spec version itself is being released, or when the maintainer asks for
+it explicitly:
 
 ```bash
 gh workflow run release.yml --ref main -f version=current
 ```
 
-`npm run deploy` uses the current native-derived `spec` value from
-`openiap-versions.json`. It rejects any explicit argument that differs from the
-native floor; docs deployment is not a version-bump path.
+Verifying a docs deployment: `llms-full.txt` carries a `Generated:` timestamp
+that must match the committed file, and the deployed entry bundle should contain
+any newly added page copy. A stale timestamp under a cache-busting query string
+means the deploy has not landed, not that a CDN is caching.
 
 ---
 
