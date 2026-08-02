@@ -235,9 +235,13 @@ is full, the server returns `503 SERVICE_BUSY` with `Retry-After`,
 `X-Concurrency-Limit`, `X-Concurrency-Remaining`, and `X-Concurrency-Scope`
 instead of retaining an unbounded in-process queue. Tune self-hosted instances
 with `VERIFY_MAX_IN_FLIGHT`, `VERIFY_MAX_IN_FLIGHT_PER_KEY`, and
-`VERIFY_MAX_IN_FLIGHT_PER_IP`. Fly Proxy
-separately protects the complete HTTP service at 80 soft / 120 hard concurrent
-requests per machine.
+`VERIFY_MAX_IN_FLIGHT_PER_IP`. The source axis trusts only Fly's
+`fly-client-ip`, so a deployment that does not run behind Fly resolves every
+caller to one shared `unknown` source and that axis becomes a second
+process-wide cap; raise `VERIFY_MAX_IN_FLIGHT_PER_IP` to
+`VERIFY_MAX_IN_FLIGHT` to recover the intended global concurrency there. Fly
+Proxy separately protects the complete HTTP service at 80 soft / 120 hard
+concurrent requests per machine.
 
 Key/IP bucket stores have a 15-minute idle TTL and are bounded (default
 **10,000 entries**) with LRU eviction. An attacker churning random API keys or
