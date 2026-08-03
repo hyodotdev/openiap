@@ -126,6 +126,12 @@ class FakeImmediateIOSPlugin:
 			JSON.stringify({"success": true})
 		)
 
+	func restorePurchases() -> String:
+		return responses.get(
+			"restorePurchases",
+			JSON.stringify({"success": true})
+		)
+
 
 func _init() -> void:
 	_run_suite.call_deferred()
@@ -161,6 +167,7 @@ func _run_all_tests() -> void:
 	await test_products_fetched_cache()
 	await test_ios_async_timeout_and_late_callback()
 	await test_ios_async_disconnect_and_concurrency()
+	await test_ios_restore_failure_emits_purchase_error()
 	test_android_signal_handlers_parse_json()
 
 	# Android JSON envelopes
@@ -562,6 +569,49 @@ func test_android_request_purchase_success_envelope() -> void:
 	_assert_false(sent_params.has("offerTokenArr"), "Canonical GDS calls should not emit legacy offerTokenArr")
 	_assert_false(sent_params.has("replacementMode"), "Canonical GDS calls should not invent replacementMode: 0")
 	_uninstall_fake()
+
+
+## The non-iOS restore path reports failures through purchase_error. The iOS
+## path used to return success = false silently, so a caller listening only to
+## the signal saw Android restore failures but never iOS ones.
+func test_ios_restore_failure_emits_purchase_error() -> void:
+	var previous_platform = GodotIapPlugin._platform
+	var previous_plugin = GodotIapPlugin._native_plugin
+	GodotIapPlugin._ios_async_results.clear()
+	GodotIapPlugin._ios_async_result_order.clear()
+	GodotIapPlugin._ios_async_terminal_keys.clear()
+	GodotIapPlugin._ios_async_terminal_order.clear()
+
+	var errors: Array[Dictionary] = []
+	var capture_error = func(error: Dictionary) -> void:
+		errors.append(error)
+	GodotIapPlugin.purchase_error.connect(capture_error)
+
+	# The fake returns its payload without a requestId, so `_call_ios_async`
+	# takes the immediate-payload path and `restore_purchases()` runs its real
+	# iOS branch rather than the test re-implementing it.
+	var fake = _install_ios_fake()
+	fake.responses["restorePurchases"] = JSON.stringify({
+		"success": false,
+		"code": "network-error",
+		"error": "Restore failed while offline",
+	})
+
+	var ios_result = await GodotIapPlugin.restore_purchases()
+
+	_assert_false(ios_result.success, "A rejected iOS restore should not report success")
+	_assert_equal(errors.size(), 1, "A failed iOS restore should emit purchase_error")
+	_assert_equal(errors[0].get("code"), "network-error", "The native restore error code should be preserved")
+	_assert_equal(
+		errors[0].get("message"),
+		"Restore failed while offline",
+		"The native restore error message should be preserved"
+	)
+
+	GodotIapPlugin.purchase_error.disconnect(capture_error)
+	_uninstall_fake()
+	GodotIapPlugin._platform = previous_platform
+	GodotIapPlugin._native_plugin = previous_plugin
 
 
 func test_android_request_purchase_error_envelope() -> void:
