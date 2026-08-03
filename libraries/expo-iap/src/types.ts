@@ -1214,6 +1214,17 @@ export interface PurchaseAndroid extends PurchaseCommon {
   /** Unix timestamp in milliseconds since January 1, 1970 UTC. */
   transactionDate: number;
   transactionId?: (string | null);
+  /**
+   * Amazon Appstore user id (PurchaseResponse.getUserData().getUserId()).
+   * Only populated on the Amazon flavor; required for server-side Amazon RVS
+   * receipt verification (userId + receiptId). Null on Google Play and Horizon.
+   */
+  userIdAmazon?: (string | null);
+  /**
+   * Amazon Appstore marketplace (PurchaseResponse.getUserData().getMarketplace()),
+   * for example "US" or "FR". Only populated on the Amazon flavor.
+   */
+  userMarketplaceAmazon?: (string | null);
 }
 
 export interface PurchaseCommon {

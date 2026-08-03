@@ -320,7 +320,9 @@ internal fun buildAmazonPurchase(
     isDeferred: Boolean,
     deferredSku: String? = null,
     termSku: String? = null,
-    productIdOverride: String? = null
+    productIdOverride: String? = null,
+    userIdAmazon: String? = null,
+    userMarketplaceAmazon: String? = null
 ): PurchaseAndroid {
     val resolvedProductId = productIdOverride?.takeIf { it.isNotBlank() } ?: receiptSku
     val resolvedCurrentPlanId = termSku?.takeIf { it.isNotBlank() } ?: resolvedProductId
@@ -354,7 +356,9 @@ internal fun buildAmazonPurchase(
         signatureAndroid = null,
         store = IapStore.Amazon,
         transactionDate = purchaseDateMillis,
-        transactionId = receiptId
+        transactionId = receiptId,
+        userIdAmazon = userIdAmazon,
+        userMarketplaceAmazon = userMarketplaceAmazon
     )
 }
 
@@ -388,6 +392,10 @@ class OpenIapModule(
     private val purchaseRequests = ConcurrentHashMap<String, CompletableDeferred<PurchaseResponse>>()
     private val purchaseUpdatesRequests = ConcurrentHashMap<String, CompletableDeferred<PurchaseUpdatesResponse>>()
     private val userDataRequests = ConcurrentHashMap<String, CompletableDeferred<UserDataResponse>>()
+    // Amazon getUserData() userId/marketplace are needed for server-side RVS verification.
+    // Cache the latest values so they can be attached to each purchase (see toPurchase).
+    @Volatile private var cachedAmazonUserId: String? = null
+    @Volatile private var cachedAmazonMarketplace: String? = null
     private val earlyProductDataResponses = ConcurrentHashMap<String, ProductDataResponse>()
     private val earlyPurchaseResponses = ConcurrentHashMap<String, PurchaseResponse>()
     private val earlyPurchaseUpdatesResponses = ConcurrentHashMap<String, PurchaseUpdatesResponse>()
@@ -999,6 +1007,12 @@ class OpenIapModule(
     }
 
     override fun onUserDataResponse(userDataResponse: UserDataResponse) {
+        if (userDataResponse.requestStatus == UserDataResponse.RequestStatus.SUCCESSFUL) {
+            userDataResponse.userData?.let {
+                cachedAmazonUserId = it.userId
+                cachedAmazonMarketplace = it.marketplace
+            }
+        }
         completeOrCache(
             userDataRequests,
             earlyUserDataResponses,
@@ -1613,7 +1627,9 @@ class OpenIapModule(
             isDeferred = receiptDeferred,
             deferredSku = deferredSku,
             termSku = termSku,
-            productIdOverride = productIdOverride
+            productIdOverride = productIdOverride,
+            userIdAmazon = cachedAmazonUserId,
+            userMarketplaceAmazon = cachedAmazonMarketplace
         ).copy(dataAndroid = toJSON().toString())
     }
 
