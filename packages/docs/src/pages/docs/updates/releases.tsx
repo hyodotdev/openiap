@@ -94,6 +94,18 @@ const purchaseSafetyReleases = [
   ['OpenIap.Maui 1.2.2', 'maui-iap-1.2.2'],
 ] as const;
 
+const amazonUserDataTrainReleases = [
+  ['OpenIAP Spec 3.0.1', 'docs-3.0.1'],
+  ['openiap-apple 3.0.1', '3.0.1'],
+  ['openiap-google 3.0.1', 'google-3.0.1'],
+  ['react-native-iap 16.0.2', 'react-native-iap-16.0.2'],
+  ['expo-iap 5.0.1', 'expo-iap-5.0.1'],
+  ['flutter_inapp_purchase 10.0.1', 'flutter-iap-10.0.1'],
+  ['godot-iap 3.0.2', 'godot-iap-3.0.2'],
+  ['kmp-iap 3.0.1', 'kmp-iap-3.0.1'],
+  ['OpenIap.Maui 2.0.2', 'maui-iap-2.0.2'],
+] as const;
+
 const googlePurchaseRecoveryReleases = [
   ['openiap-google 2.5.2', 'google-2.5.2'],
   ['react-native-iap 15.6.2', 'react-native-iap-15.6.2'],
@@ -145,6 +157,240 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // August 4, 2026 - Amazon RVS user data & purchase reliability patch train
+    {
+      id: 'amazon-rvs-user-data-patch-train-2026-08-04',
+      date: new Date('2026-08-04'),
+      element: (
+        <div
+          key="amazon-rvs-user-data-patch-train-2026-08-04"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="amazon-rvs-user-data-patch-train-2026-08-04"
+            level="h4"
+          >
+            August 4, 2026 - Amazon RVS user data & purchase reliability patches
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes a coordinated patch train across every OpenIAP SDK. Amazon
+            Appstore purchases now carry the identity required for server-side{' '}
+            <a
+              href="https://developer.amazon.com/docs/in-app-purchasing/iap-rvs-for-android-apps.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              Amazon RVS
+            </a>{' '}
+            receipt verification, contributed by{' '}
+            <a
+              href="https://github.com/josef256"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              @josef256
+            </a>{' '}
+            in{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/275"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #275
+            </a>
+            , and purchase queries no longer swallow store failures (
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/276"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #276
+            </a>
+            ).
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Common changes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <code>PurchaseAndroid</code> gains nullable{' '}
+              <code>userIdAmazon</code> and <code>userMarketplaceAmazon</code>{' '}
+              fields across every SDK type surface. They are populated only on
+              the Amazon flavor and stay null on Google Play and Horizon, so
+              Amazon identity metadata can never leak onto other stores'
+              purchases.
+            </li>
+            <li>
+              Purchase query failures now propagate to callers across every SDK
+              instead of being silently dropped, so restore and
+              available-purchases flows surface real store errors.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Shared spec and native packages
+          </h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>OpenIAP Spec 3.0.1</strong> - adds the optional{' '}
+              <code>userIdAmazon</code> and <code>userMarketplaceAmazon</code>{' '}
+              fields to <code>PurchaseAndroid</code> so Amazon purchases carry
+              the identity required for server-side RVS verification.
+            </li>
+            <li>
+              <strong>openiap-apple 3.0.1</strong> - ships the App
+              Store-accepted artifact pipeline from{' '}
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/265"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                PR #265
+              </a>{' '}
+              in the CocoaPods release and keeps the purchase-query failure
+              propagation fix.
+            </li>
+            <li>
+              <strong>openiap-google 3.0.1</strong> - the Amazon flavor attaches{' '}
+              <code>userIdAmazon</code> / <code>userMarketplaceAmazon</code>{' '}
+              from each purchase response's own user data, with a
+              lifecycle-gated cached snapshot as fallback that is cleared on{' '}
+              <code>endConnection</code>, so stale callbacks can no longer
+              attribute purchases to a previous Amazon account. Horizon
+              purchases fall back to the purchase token when the store returns a
+              blank order id, keeping <code>transactionId</code> stable (
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/278"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                PR #278
+              </a>
+              ).
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>react-native-iap 16.0.2</strong> - exposes the Amazon
+              fields through the Nitro transport, the Android bridge, and the
+              Amazon Vega adapter, with store-gated conversion so only{' '}
+              <code>store: 'amazon'</code> purchases carry them.
+            </li>
+            <li>
+              <strong>expo-iap 5.0.1</strong> - populates the Amazon fields in
+              the Vega adapter purchase, restore, and pending-receipt paths.
+            </li>
+            <li>
+              <strong>flutter_inapp_purchase 10.0.1</strong> - carries the new
+              fields through the generated types and platform serialization.
+            </li>
+            <li>
+              <strong>godot-iap 3.0.2</strong> - rebuilds the debug AAR during{' '}
+              <code>make android</code> (
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/277"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                PR #277
+              </a>
+              ) and ships the new purchase fields in <code>types.gd</code>.
+            </li>
+            <li>
+              <strong>kmp-iap 3.0.1</strong> - adds the fields to the common
+              types and keeps the Play Billing mapper explicit about Amazon-only
+              metadata.
+            </li>
+            <li>
+              <strong>OpenIap.Maui 2.0.2</strong> - adds the fields to the C#
+              records with round-trip serialization coverage for realistic
+              Amazon-store payloads.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              For server-side Amazon RVS verification, send{' '}
+              <code>purchase.userIdAmazon</code> together with{' '}
+              <code>purchase.purchaseToken</code> (the Amazon receipt id) to
+              your backend. Both fields are null outside the Amazon flavor.
+            </li>
+            <li>
+              No API migration is required; all packages are backward-compatible
+              patch upgrades.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {amazonUserDataTrainReleases.map(([label, tag]) => (
+                <li key={tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // August 2, 2026 - Apple framework compatibility patches
     {
       id: 'apple-framework-compatibility-patches-2026-08-02',
@@ -206,7 +452,7 @@ function Releases() {
             .
           </p>
 
-          <h5 style={{ margin: '0 0 0.5rem 0' }}>React Native</h5>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
           <ul
             style={{
               marginBottom: '1rem',
@@ -215,65 +461,31 @@ function Releases() {
             }}
           >
             <li>
-              On iOS, the singleton native purchase and purchase-error listeners
-              now stay attached for the connection session. Removing a
-              JavaScript subscription still detaches its callback, so an
-              unmounted screen does not receive new purchase or error events.
+              <strong>react-native-iap 16.0.1</strong> - keeps the singleton iOS
+              purchase and purchase-error listeners attached for the connection
+              session. Removing a JavaScript subscription still detaches its
+              callback, so an unmounted screen receives no new events, while a
+              purchase that entered before unmount can still deliver its late{' '}
+              <code>onPurchaseSuccess</code> and the documented{' '}
+              <code>finishTransaction</code> path. Re-mounted screens reuse the
+              retained native listeners without duplicate subscriptions; Android
+              listener behavior is unchanged.
             </li>
             <li>
-              A purchase event that entered before unmount can still deliver a
-              late <code>onPurchaseSuccess</code> after its asynchronous refresh
-              completes, preserving the documented{' '}
-              <code>finishTransaction</code> path. Internal hook state updates
-              remain mount-guarded.
+              <strong>OpenIap.Maui 2.0.1</strong> - rebuilds the NuGet-packed
+              Apple XCFramework with Xcode 26.6 and iPhoneOS SDK 26.5 so device,
+              simulator, and Mac Catalyst slices carry App Store-accepted SDK
+              metadata, and the release pipeline now fails on any packaged
+              Mach-O slice with an Xcode 27 linker signature, mismatched SDK, or
+              coverage instrumentation.
             </li>
             <li>
-              Re-mounted screens reuse the retained iOS native listeners and
-              receive newly registered JavaScript callbacks without duplicate
-              native subscriptions. Android listener removal and reattachment
-              behavior is unchanged.
-            </li>
-          </ul>
-
-          <h5 style={{ margin: '0 0 0.5rem 0' }}>MAUI</h5>
-          <ul
-            style={{
-              marginBottom: '1rem',
-              paddingLeft: '1.25rem',
-              fontSize: '0.9rem',
-            }}
-          >
-            <li>
-              <strong>OpenIap.Maui 2.0.1</strong> rebuilds the Apple XCFramework
-              packed into NuGet with Xcode 26.6 and iPhoneOS SDK 26.5. Device,
-              simulator, and Mac Catalyst slices now carry the App
-              Store-accepted SDK metadata.
-            </li>
-            <li>
-              The release pipeline inspects every packaged Mach-O slice so an
-              Xcode 27 linker signature, a mismatched SDK, or coverage
-              instrumentation fails the release before it reaches NuGet.
-            </li>
-          </ul>
-
-          <h5 style={{ margin: '0 0 0.5rem 0' }}>Godot</h5>
-          <ul
-            style={{
-              marginBottom: '1rem',
-              paddingLeft: '1.25rem',
-              fontSize: '0.9rem',
-            }}
-          >
-            <li>
-              <strong>godot-iap 3.0.1</strong> rebuilds its precompiled iOS
+              <strong>godot-iap 3.0.1</strong> - rebuilds its precompiled iOS
               GDExtension frameworks with the same App Store-accepted Xcode 26.6
               / SDK 26.5 toolchain and rejects unaccepted toolchain provenance
-              during CI and release packaging.
-            </li>
-            <li>
-              Source-based Apple integrations and framework packages that do not
-              distribute a precompiled OpenIAP Apple framework require no
-              release for this fix.
+              during CI and release packaging. Source-based Apple integrations
+              that do not distribute a precompiled OpenIAP Apple framework
+              require no release for this fix.
             </li>
           </ul>
 
