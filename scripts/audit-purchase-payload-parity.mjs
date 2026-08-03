@@ -40,6 +40,17 @@ function expectIncludes(relativePath, needles, label = relativePath) {
   }
 }
 
+function expectNotIncludes(relativePath, needles, label = relativePath) {
+  expectFile(relativePath);
+  if (!exists(relativePath)) return;
+  const text = read(relativePath);
+  for (const needle of needles) {
+    if (text.includes(needle)) {
+      fail(`${label} must not include ${JSON.stringify(needle)}`);
+    }
+  }
+}
+
 function expectSameSet(label, expected, actual) {
   const expectedSet = new Set(expected);
   const actualSet = new Set(actual);
@@ -1243,11 +1254,99 @@ function checkFlutterPayloadContracts() {
       applePluginPath,
       [
         "OpenIapSerialization.purchase(purchase)",
-        "OpenIapSerialization.purchases(purchases)",
+        "FlutterIapHelper.purchasesRequired(purchases)",
       ],
       `${applePluginPath} native purchase serialization`,
     );
   }
+}
+
+function checkStrictAppleFrameworkQuerySerialization() {
+  for (const [helperPath, helperName] of [
+    ["libraries/react-native-iap/ios/RnIapHelper.swift", "RnIapHelper"],
+    ["libraries/expo-iap/ios/ExpoIapHelper.swift", "ExpoIapHelper"],
+    [
+      "libraries/flutter_inapp_purchase/ios/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterIapHelper.swift",
+      "FlutterIapHelper",
+    ],
+    [
+      "libraries/flutter_inapp_purchase/macos/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterIapHelper.swift",
+      "FlutterIapHelper",
+    ],
+    [
+      "libraries/godot-iap/ios-gdextension/Sources/GodotIap/GodotIapHelper.swift",
+      "GodotIapHelper",
+    ],
+  ]) {
+    expectIncludes(
+      helperPath,
+      [
+        "OpenIapSerialization.purchase(purchase)",
+        "guard !encoded.isEmpty",
+        ".billingResponseJsonParseError",
+      ],
+      `${helperName} strict native purchase serialization`,
+    );
+  }
+
+  for (const [bridgePath, helperName] of [
+    ["libraries/react-native-iap/ios/HybridRnIap.swift", "RnIapHelper"],
+    ["libraries/expo-iap/ios/ExpoIapModule.swift", "ExpoIapHelper"],
+    [
+      "libraries/flutter_inapp_purchase/ios/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift",
+      "FlutterIapHelper",
+    ],
+    [
+      "libraries/flutter_inapp_purchase/macos/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift",
+      "FlutterIapHelper",
+    ],
+    [
+      "libraries/godot-iap/ios-gdextension/Sources/GodotIap/GodotIap.swift",
+      "GodotIapHelper",
+    ],
+  ]) {
+    expectIncludes(
+      bridgePath,
+      [`${helperName}.purchasesRequired(`],
+      `${helperName} authoritative purchase-query routing`,
+    );
+    expectNotIncludes(
+      bridgePath,
+      [
+        "OpenIapSerialization.purchasesRequired(",
+        "OpenIapSerialization.encodeRequired(",
+      ],
+      `${helperName} published-native compatibility`,
+    );
+  }
+
+  expectIncludes(
+    "libraries/godot-iap/ios-gdextension/Sources/GodotIap/GodotIap.swift",
+    [
+      "// OpenIAP requestPurchase emits its canonical error exactly once",
+      "code: ErrorCode.purchaseError.rawValue,\n                    message: error.localizedDescription,\n                    productId: productId",
+    ],
+    "Godot iOS request-purchase terminal error delivery",
+  );
+  expectIncludes(
+    "libraries/godot-iap/addons/godot-iap/godot_iap.gd",
+    [
+      'if result.get("status", "") == "pending" or result.get("pending", false):\n\t\treturn null',
+      'if _platform == "iOS" and store != "apple":',
+      'store not in ["google", "amazon", "horizon"]',
+    ],
+    "Godot pending dispatch and platform-scoped purchase decoding",
+  );
+  expectIncludes(
+    "libraries/maui-iap/src/OpenIap.Maui/BridgePayloadDecoder.cs",
+    [
+      "ios.Store is not IapStore.Apple",
+      "android.Store != IapStore.Google",
+      "android.Store != IapStore.Amazon",
+      "android.Store != IapStore.Horizon",
+    ],
+    "MAUI platform-scoped authoritative purchase-list decoding",
+  );
 }
 
 function checkReactNativePurchasePayloadContracts() {
@@ -2025,16 +2124,111 @@ function checkPurchaseRoundTripRegressionCoverage() {
   );
 }
 
+function checkActiveSubscriptionFailureContracts() {
+  expectIncludes(
+    "packages/apple/Sources/OpenIapModule.swift",
+    [
+      "for await verification in Transaction.currentEntitlements {\n            let transaction = try checkVerified(verification)",
+    ],
+    "Apple active-subscription verification must be atomic",
+  );
+  expectIncludes(
+    "packages/apple/Sources/OpenIapModule+ObjC.swift",
+    [
+      "let dictionaries = try subscriptions.map { try OpenIapSerialization.encodeRequired($0) }",
+    ],
+    "Apple active-subscription bridge serialization",
+  );
+  for (const [relativePath, needle] of [
+    [
+      "libraries/react-native-iap/ios/HybridRnIap.swift",
+      "try subscriptions.map { try RnIapHelper.encodeRequired($0) }",
+    ],
+    [
+      "libraries/expo-iap/ios/ExpoIapModule.swift",
+      "ExpoIapHelper.sanitizeDictionary(try ExpoIapHelper.encodeRequired($0))",
+    ],
+    [
+      "libraries/flutter_inapp_purchase/ios/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift",
+      "try subscriptions.map { try FlutterIapHelper.encodeRequired($0) }",
+    ],
+    [
+      "libraries/flutter_inapp_purchase/macos/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift",
+      "try subscriptions.map { try FlutterIapHelper.encodeRequired($0) }",
+    ],
+    [
+      "libraries/godot-iap/ios-gdextension/Sources/GodotIap/GodotIap.swift",
+      "try GodotIapHelper.encodeRequired($0)",
+    ],
+  ]) {
+    expectIncludes(
+      relativePath,
+      [needle],
+      `${relativePath} active-subscription serialization`,
+    );
+  }
+  expectIncludes(
+    "libraries/kmp-iap/library/src/iosMain/kotlin/io/github/hyochan/kmpiap/ProductPayloadNormalizerIOS.kt",
+    [
+      "internal fun decodeActiveSubscriptionListPayloadIOS(",
+      'normalized["isActive"] !is Boolean',
+      "!transactionDate.toDouble().isFinite()",
+    ],
+    "KMP active-subscription list decoding",
+  );
+  expectIncludes(
+    "libraries/maui-iap/src/OpenIap.Maui/Platforms/iOS/OpenIapIOS.cs",
+    [
+      'operation: "getActiveSubscriptions"',
+    ],
+    "MAUI active-subscription list decoding",
+  );
+  expectIncludes(
+    "libraries/godot-iap/addons/godot-iap/godot_iap.gd",
+    [
+      "func get_active_subscriptions_result(",
+      "func has_active_subscriptions_result(",
+      'not value.get("isActive") is bool',
+    ],
+    "Godot failure-aware active-subscription APIs",
+  );
+  expectIncludes(
+    "libraries/godot-iap/android/src/main/java/dev/hyo/godotiap/GodotIap.kt",
+    [
+      "fun getActiveSubscriptionsResult(subscriptionIdsJson: String?): String",
+      'put("success", false)',
+      'put("code", code)',
+    ],
+    "Godot Android active-subscription result envelope",
+  );
+  expectIncludes(
+    "libraries/flutter_inapp_purchase/lib/flutter_inapp_purchase.dart",
+    [
+      "Unexpected active-subscription response type:",
+      "Native active-subscription response contained malformed fields",
+      "return activeSubscriptions.isNotEmpty;",
+    ],
+    "Flutter active-subscription failure propagation",
+  );
+  expectNotIncludes(
+    "libraries/flutter_inapp_purchase/lib/flutter_inapp_purchase.dart",
+    ["If there's an error getting subscriptions, return false"],
+    "Flutter active-subscription failure propagation",
+  );
+}
+
 export function collectPurchasePayloadParityFailures(repoRoot) {
   root = repoRoot;
   failures = [];
   checkFlutterPayloadContracts();
+  checkStrictAppleFrameworkQuerySerialization();
   checkReactNativePurchasePayloadContracts();
   checkReactNativeActiveSubscriptionPayloadContracts();
   checkKmpPurchasePayloadContracts();
   checkGooglePurchasePayloadContracts();
   checkVegaPurchasePayloadContracts();
   checkPurchaseRoundTripRegressionCoverage();
+  checkActiveSubscriptionFailureContracts();
   return [...failures];
 }
 

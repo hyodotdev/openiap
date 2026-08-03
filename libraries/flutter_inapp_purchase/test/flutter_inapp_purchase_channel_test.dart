@@ -1364,7 +1364,7 @@ void main() {
 
   group('getAvailablePurchases', () {
     test(
-      'forwards iOS options to native channel and filters invalid entries',
+      'forwards iOS options and rejects a partially malformed batch',
       () async {
         final capturedArguments = <dynamic>[];
         TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
@@ -1402,9 +1402,18 @@ void main() {
 
         await iap.initConnection();
 
-        final purchases = await iap.getAvailablePurchases(
-          onlyIncludeActiveItemsIOS: false,
-          alsoPublishToEventListenerIOS: true,
+        await expectLater(
+          () => iap.getAvailablePurchases(
+            onlyIncludeActiveItemsIOS: false,
+            alsoPublishToEventListenerIOS: true,
+          ),
+          throwsA(
+            isA<PurchaseError>().having(
+              (error) => error.code,
+              'code',
+              types.ErrorCode.BillingResponseJsonParseError,
+            ),
+          ),
         );
 
         final args = Map<String, dynamic>.from(
@@ -1413,10 +1422,72 @@ void main() {
 
         expect(args['onlyIncludeActiveItemsIOS'], isFalse);
         expect(args['alsoPublishToEventListenerIOS'], isTrue);
-        expect(purchases, hasLength(1));
-        expect(purchases.single.productId, 'iap.premium');
       },
     );
+
+    test('preserves an explicit empty purchase list', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        if (call.method == 'initConnection') {
+          return true;
+        }
+        if (call.method == 'getAvailableItems') {
+          return <Map<String, dynamic>>[];
+        }
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+      await iap.initConnection();
+
+      await expectLater(iap.getAvailablePurchases(), completion(isEmpty));
+    });
+
+    for (final testCase in <({String os, String foreignStore})>[
+      (os: 'ios', foreignStore: 'google'),
+      (os: 'android', foreignStore: 'apple'),
+    ]) {
+      test('rejects a foreign store in the ${testCase.os} purchase list',
+          () async {
+        TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+            .setMockMethodCallHandler(channel, (MethodCall call) async {
+          if (call.method == 'initConnection') return true;
+          if (call.method == 'getAvailableItems') {
+            return <Map<String, dynamic>>[
+              <String, dynamic>{
+                'id': 'foreign',
+                'productId': 'premium',
+                'transactionId': 'foreign',
+                'transactionDate': 1700000000000,
+                'store': testCase.foreignStore,
+                'quantity': 1,
+                'purchaseState': 'purchased',
+                'isAutoRenewing': false,
+              },
+            ];
+          }
+          return null;
+        });
+
+        final iap = FlutterInappPurchase.private(
+          FakePlatform(operatingSystem: testCase.os),
+        );
+        await iap.initConnection();
+
+        await expectLater(
+          () => iap.getAvailablePurchases(),
+          throwsA(
+            isA<PurchaseError>().having(
+              (error) => error.code,
+              'code',
+              types.ErrorCode.BillingResponseJsonParseError,
+            ),
+          ),
+        );
+      });
+    }
 
     test('throws when connection is not initialized', () async {
       final iap = FlutterInappPurchase.private(
@@ -1435,7 +1506,7 @@ void main() {
       );
     });
 
-    test('filters Android purchases missing identifiers', () async {
+    test('rejects Android batches with missing purchase identifiers', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall call) async {
         switch (call.method) {
@@ -1475,16 +1546,15 @@ void main() {
 
       await iap.initConnection();
 
-      final purchases = await iap.getAvailablePurchases();
-      expect(purchases, hasLength(1));
-      final purchase = purchases.single as types.PurchaseAndroid;
-      expect(purchase.productId, 'coins.100');
-      expect(purchase.dataAndroid, '{"orderId":"order-android"}');
-      expect(purchase.currentPlanId, 'base-plan');
-      expect(purchase.isSuspendedAndroid, isTrue);
-      expect(
-        purchase.pendingPurchaseUpdateAndroid?.purchaseToken,
-        'pending-token',
+      await expectLater(
+        () => iap.getAvailablePurchases(),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            types.ErrorCode.BillingResponseJsonParseError,
+          ),
+        ),
       );
     });
 

@@ -18,6 +18,7 @@ import type {
   SubscriptionStatusIOS,
 } from '../types';
 import {type PurchaseError} from '../utils/errorMapping';
+import {decodeApplePurchases} from '../utils/availablePurchases';
 import {Linking, Platform} from 'react-native';
 
 /**
@@ -194,7 +195,7 @@ export const showManageSubscriptionsIOS: MutationField<
 > = async () => {
   requireIosPlatform('showManageSubscriptionsIOS');
   const purchases = await ExpoIapModule.showManageSubscriptionsIOS();
-  return (purchases ?? []) as PurchaseIOS[];
+  return decodeApplePurchases(purchases);
 };
 
 /**
@@ -352,7 +353,7 @@ export const getPendingTransactionsIOS: QueryField<
 > = async () => {
   requireIosPlatform('getPendingTransactionsIOS');
   const transactions = await ExpoIapModule.getPendingTransactionsIOS();
-  return (transactions ?? []) as PurchaseIOS[];
+  return decodeApplePurchases(transactions);
 };
 
 /**
@@ -365,7 +366,7 @@ export const getAllTransactionsIOS: QueryField<
 > = async () => {
   requireIosPlatform('getAllTransactionsIOS');
   const transactions = await ExpoIapModule.getAllTransactionsIOS();
-  return (transactions ?? []) as PurchaseIOS[];
+  return decodeApplePurchases(transactions);
 };
 
 /**
@@ -483,8 +484,9 @@ export const getExternalPurchaseCustomLinkTokenIOS: QueryField<
       "getExternalPurchaseCustomLinkTokenIOS requires a tokenType ('acquisition' or 'services')",
     );
   }
-  const result =
-    await ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS(tokenType);
+  const result = await ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS(
+    tokenType,
+  );
   return result as ExternalPurchaseCustomLinkTokenResultIOS;
 };
 
@@ -509,8 +511,9 @@ export const showExternalPurchaseCustomLinkNoticeIOS: MutationField<
       "showExternalPurchaseCustomLinkNoticeIOS requires a noticeType ('browser')",
     );
   }
-  const result =
-    await ExpoIapModule.showExternalPurchaseCustomLinkNoticeIOS(noticeType);
+  const result = await ExpoIapModule.showExternalPurchaseCustomLinkNoticeIOS(
+    noticeType,
+  );
   return result as ExternalPurchaseCustomLinkNoticeResultIOS;
 };
 

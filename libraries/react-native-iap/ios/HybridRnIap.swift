@@ -311,7 +311,7 @@ class HybridRnIap: HybridRnIapSpec {
                 let purchaseOptions = try OpenIapSerialization.purchaseOptions(from: optionsDictionary)
                 RnIapLog.payload("getAvailablePurchases", optionsDictionary)
                 let purchases = try await OpenIapModule.shared.getAvailablePurchases(purchaseOptions)
-                let payloads = RnIapHelper.sanitizeArray(OpenIapSerialization.purchases(purchases))
+                let payloads = RnIapHelper.sanitizeArray(try RnIapHelper.purchasesRequired(purchases))
                 RnIapLog.result("getAvailablePurchases", payloads)
                 return payloads.map { RnIapHelper.convertPurchaseDictionary($0) }
             } catch let purchaseError as PurchaseError {
@@ -331,7 +331,9 @@ class HybridRnIap: HybridRnIapSpec {
                 RnIapLog.payload("getActiveSubscriptions", subscriptionIds ?? [])
                 // Call OpenIAP's native getActiveSubscriptions - includes renewalInfoIOS!
                 let subscriptions = try await OpenIapModule.shared.getActiveSubscriptions(subscriptionIds)
-                let payloads = RnIapHelper.sanitizeArray(subscriptions.map { OpenIapSerialization.encode($0) })
+                let payloads = RnIapHelper.sanitizeArray(
+                    try subscriptions.map { try RnIapHelper.encodeRequired($0) }
+                )
                 RnIapLog.result("getActiveSubscriptions", payloads)
                 return payloads.map { RnIapHelper.convertActiveSubscriptionDictionary($0) }
             } catch let purchaseError as PurchaseError {
@@ -761,12 +763,15 @@ class HybridRnIap: HybridRnIapSpec {
                         }
                     }
                 }
-                let payloads = RnIapHelper.sanitizeArray(OpenIapSerialization.purchases(unionPurchases))
+                let payloads = RnIapHelper.sanitizeArray(try RnIapHelper.purchasesRequired(unionPurchases))
                 RnIapLog.result("getPendingTransactionsIOS", payloads)
                 return payloads.map { RnIapHelper.convertPurchaseDictionary($0) }
+            } catch let purchaseError as PurchaseError {
+                RnIapLog.failure("getPendingTransactionsIOS", error: purchaseError)
+                throw OpenIapException.from(purchaseError)
             } catch {
                 RnIapLog.failure("getPendingTransactionsIOS", error: error)
-                return []
+                throw OpenIapException.make(code: .serviceError, message: error.localizedDescription)
             }
         }
     }
@@ -792,7 +797,7 @@ class HybridRnIap: HybridRnIapSpec {
                         self.purchasePayloadById[key] = value
                     }
                 }
-                let payloads = RnIapHelper.sanitizeArray(OpenIapSerialization.purchases(unionPurchases))
+                let payloads = RnIapHelper.sanitizeArray(try RnIapHelper.purchasesRequired(unionPurchases))
                 RnIapLog.result("getAllTransactionsIOS", payloads)
                 return payloads.map { RnIapHelper.convertPurchaseDictionary($0) }
             } catch let purchaseError as PurchaseError {
@@ -829,7 +834,7 @@ class HybridRnIap: HybridRnIapSpec {
                 RnIapLog.payload("showManageSubscriptionsIOS", nil)
                 let changedPurchases = try await OpenIapModule.shared.showManageSubscriptionsIOS()
                 let unionPurchases = changedPurchases.map { OpenIAP.Purchase.purchaseIos($0) }
-                let payloads = RnIapHelper.sanitizeArray(OpenIapSerialization.purchases(unionPurchases))
+                let payloads = RnIapHelper.sanitizeArray(try RnIapHelper.purchasesRequired(unionPurchases))
                 RnIapLog.result("showManageSubscriptionsIOS", payloads)
                 return payloads.map { RnIapHelper.convertPurchaseDictionary($0) }
             } catch let purchaseError as PurchaseError {

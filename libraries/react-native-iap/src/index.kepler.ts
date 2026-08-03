@@ -26,6 +26,7 @@ import {
   validateNitroProduct,
   validateNitroPurchase,
 } from './utils/type-bridge';
+import {convertAndroidPurchasesOrThrow} from './utils/available-purchases';
 
 export * from './types';
 export * from './utils/error';
@@ -128,7 +129,8 @@ export const fetchProducts = async (
   const normalizedType = normalizeProductQueryType(type);
   const nitroProducts = await getModule().fetchProducts(skus, normalizedType);
   return mapProducts(nitroProducts, normalizedType) as
-    Product[] | ProductSubscription[];
+    | Product[]
+    | ProductSubscription[];
 };
 
 export const requestPurchase: MutationField<'requestPurchase'> = async (
@@ -152,9 +154,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
   const result = await getModule().requestPurchase(nitroRequest);
   if (!Array.isArray(result)) return null;
   const purchases = result as unknown as NitroPurchase[];
-  return purchases
-    .filter(validateNitroPurchase)
-    .map((purchase) => convertNitroPurchaseToPurchase(purchase));
+  return convertAndroidPurchasesOrThrow(purchases);
 };
 
 export const getAvailablePurchases: QueryField<
@@ -167,11 +167,7 @@ export const getAvailablePurchases: QueryField<
   };
   return getModule()
     .getAvailablePurchases(nitroOptions)
-    .then((purchases) =>
-      purchases
-        .filter(validateNitroPurchase)
-        .map(convertNitroPurchaseToPurchase),
-    );
+    .then(convertAndroidPurchasesOrThrow);
 };
 
 export const finishTransaction: MutationField<'finishTransaction'> = async (

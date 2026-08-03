@@ -44,13 +44,37 @@ class FakeAndroidJsonPlugin:
 		last_args = []
 		return _respond("getAvailablePurchases", "[]")
 
+	func getAvailablePurchasesResult() -> String:
+		last_args = []
+		return _respond(
+			"getAvailablePurchasesResult",
+			JSON.stringify({"success": true, "purchases": []})
+		)
+
+	func getAvailablePurchasesResultWithOptions(options_json: String) -> String:
+		last_args = [options_json]
+		return _respond(
+			"getAvailablePurchasesResultWithOptions",
+			JSON.stringify({"success": true, "purchases": []})
+		)
+
 	func getActiveSubscriptions(ids_json) -> String:
 		last_args = [ids_json]
 		return _respond("getActiveSubscriptions", "[]")
 
+	func getActiveSubscriptionsResult(ids_json) -> String:
+		last_args = [ids_json]
+		return _respond(
+			"getActiveSubscriptionsResult",
+			JSON.stringify({"success": true, "subscriptions": []})
+		)
+
 	func hasActiveSubscriptions(ids_json) -> String:
 		last_args = [ids_json]
-		return _respond("hasActiveSubscriptions", JSON.stringify({"hasActive": false}))
+		return _respond(
+			"hasActiveSubscriptions",
+			JSON.stringify({"success": true, "hasActive": false})
+		)
 
 	func launchExternalLinkAndroid(params_json: String) -> String:
 		last_args = [params_json]
@@ -135,6 +159,8 @@ func _run_all_tests() -> void:
 	test_parse_request_id()
 	test_ios_async_result_key()
 	await test_products_fetched_cache()
+	await test_ios_async_timeout_and_late_callback()
+	await test_ios_async_disconnect_and_concurrency()
 	test_android_signal_handlers_parse_json()
 
 	# Android JSON envelopes
@@ -144,6 +170,8 @@ func _run_all_tests() -> void:
 	test_android_request_purchase_error_envelope()
 	test_android_request_purchase_empty_response()
 	test_android_request_purchase_unparseable_response()
+	test_android_request_purchase_unsuccessful_response()
+	test_android_request_purchase_pending_response()
 	test_request_purchase_unsupported_platform()
 	test_ios_request_purchase_requires_sku()
 	test_android_purchase_uses_canonical_native_wire()
@@ -287,6 +315,98 @@ func test_products_fetched_cache() -> void:
 	var payload = await GodotIapPlugin._await_products_fetched_for("syncIOS", "req-1")
 	_assert_equal(payload.get("success"), true, "Cached completions should resolve the awaiting coroutine")
 	_assert_equal(GodotIapPlugin._ios_async_results.size(), 0, "Resolved completions should be evicted from the cache")
+
+
+func test_ios_async_timeout_and_late_callback() -> void:
+	GodotIapPlugin._ios_async_results.clear()
+	GodotIapPlugin._ios_async_waiters.clear()
+	GodotIapPlugin._ios_async_terminal_keys.clear()
+	GodotIapPlugin._ios_async_terminal_order.clear()
+	var published: Array[Dictionary] = []
+	var capture = func(payload: Dictionary) -> void:
+		published.append(payload)
+	GodotIapPlugin.products_fetched.connect(capture)
+
+	var result = await GodotIapPlugin._await_products_fetched_for(
+		"syncIOS", "timeout-1", 0.01
+	)
+	_assert_equal(result.get("success"), false, "Timed-out iOS calls should fail")
+	_assert_equal(result.get("code"), "service-timeout", "Timed-out iOS calls should use service-timeout")
+	_assert_equal(GodotIapPlugin._ios_async_waiters.size(), 0, "Timed-out waiters should be removed")
+
+	GodotIapPlugin._on_products_fetched({
+		"method": "syncIOS",
+		"requestId": "timeout-1",
+		"success": true,
+	})
+	_assert_equal(published.size(), 0, "Late completions after timeout should be ignored")
+	_assert_equal(GodotIapPlugin._ios_async_results.size(), 0, "Late completions should not refill the cache")
+	GodotIapPlugin.products_fetched.disconnect(capture)
+
+
+func test_ios_async_disconnect_and_concurrency() -> void:
+	GodotIapPlugin._ios_async_results.clear()
+	GodotIapPlugin._ios_async_waiters.clear()
+	GodotIapPlugin._ios_async_terminal_keys.clear()
+	GodotIapPlugin._ios_async_terminal_order.clear()
+
+	var first_state = GodotIapPlugin._await_products_fetched_for("syncIOS", "first", 1.0)
+	var second_state = GodotIapPlugin._await_products_fetched_for("syncIOS", "second", 1.0)
+	await process_frame
+	GodotIapPlugin._on_products_fetched({
+		"method": "syncIOS",
+		"requestId": "second",
+		"success": true,
+		"value": 2,
+	})
+	GodotIapPlugin._on_disconnected()
+
+	var first = await first_state
+	var second = await second_state
+	_assert_equal(first.get("code"), "service-disconnected", "Disconnect should cancel every pending request")
+	_assert_equal(second.get("value"), 2, "Concurrent completions should resolve only their requestId")
+	_assert_equal(GodotIapPlugin._ios_async_waiters.size(), 0, "Disconnect should leave no pending waiters")
+
+	var tree_exit_state = GodotIapPlugin._await_products_fetched_for(
+		"getAvailablePurchases", "tree-exit", 1.0
+	)
+	await process_frame
+	GodotIapPlugin._exit_tree()
+	var tree_exit_result = await tree_exit_state
+	_assert_equal(
+		tree_exit_result.get("code"),
+		"service-disconnected",
+		"Leaving the scene tree should cancel pending iOS requests"
+	)
+	_assert_equal(
+		GodotIapPlugin._ios_async_waiters.size(),
+		0,
+		"Tree-exit cancellation should leave no pending waiters"
+	)
+
+	GodotIapPlugin._ios_async_results.clear()
+	GodotIapPlugin._ios_async_result_order.clear()
+	GodotIapPlugin._ios_async_terminal_keys.clear()
+	GodotIapPlugin._ios_async_terminal_order.clear()
+	for index in range(GodotIapPlugin.IOS_ASYNC_RESULT_CACHE_LIMIT + 10):
+		GodotIapPlugin._on_products_fetched({
+			"method": "syncIOS",
+			"requestId": "cached-%d" % index,
+			"success": true,
+		})
+	_assert_equal(
+		GodotIapPlugin._ios_async_results.size(),
+		GodotIapPlugin.IOS_ASYNC_RESULT_CACHE_LIMIT,
+		"Unclaimed iOS completions should respect the result-cache limit"
+	)
+	var evicted = await GodotIapPlugin._await_products_fetched_for(
+		"syncIOS", "cached-0", 1.0
+	)
+	_assert_equal(
+		evicted.get("code"),
+		"service-error",
+		"Evicted completions should fail immediately instead of waiting for timeout"
+	)
 
 
 func test_android_signal_handlers_parse_json() -> void:
@@ -496,6 +616,51 @@ func test_android_request_purchase_unparseable_response() -> void:
 	_uninstall_fake()
 
 
+func test_android_request_purchase_unsuccessful_response() -> void:
+	var fake = _install_android_fake()
+	fake.responses["requestPurchase"] = "{}"
+	var errors: Array[Dictionary] = []
+	var capture_error = func(error: Dictionary) -> void:
+		errors.append(error)
+	GodotIapPlugin.purchase_error.connect(capture_error)
+
+	var purchase = GodotIapPlugin.request_purchase(_make_purchase_props("sku.unsuccessful"))
+	_assert_equal(purchase, null, "Empty success envelopes should not become purchases")
+	_assert_equal(errors.size(), 1, "Empty success envelopes should emit exactly one purchase_error")
+	_assert_equal(errors[0].get("code"), "unknown", "Unclassified native failures should use unknown")
+
+	GodotIapPlugin.purchase_error.disconnect(capture_error)
+	_uninstall_fake()
+
+
+func test_android_request_purchase_pending_response() -> void:
+	var fake = _install_android_fake()
+	var errors: Array[Dictionary] = []
+	var capture_error = func(error: Dictionary) -> void:
+		errors.append(error)
+	GodotIapPlugin.purchase_error.connect(capture_error)
+
+	fake.responses["requestPurchase"] = JSON.stringify({"status": "pending"})
+	var result = GodotIapPlugin._request_purchase_raw({
+		"type": "in-app",
+		"requestPurchase": {"google": {"skus": ["sku.pending"]}},
+	})
+	_assert_equal(result.get("status"), "pending", "Pending dispatch envelopes should be accepted")
+	_assert_equal(errors.size(), 0, "Pending dispatch should not emit purchase_error")
+
+	fake.responses["requestPurchase"] = JSON.stringify({"success": true, "pending": true})
+	var public_result = GodotIapPlugin.request_purchase(_make_purchase_props("sku.pending"))
+	_assert_equal(
+		public_result,
+		null,
+		"Pending Android dispatch should not become an incomplete PurchaseAndroid"
+	)
+	_assert_equal(errors.size(), 0, "Pending Android dispatch should remain event-driven")
+
+	GodotIapPlugin.purchase_error.disconnect(capture_error)
+	_uninstall_fake()
+
+
 func test_request_purchase_unsupported_platform() -> void:
 	var fake = FakeAndroidJsonPlugin.new()
 	GodotIapPlugin._native_plugin = fake
@@ -601,8 +766,9 @@ func test_android_finish_transaction_envelopes() -> void:
 
 func test_android_available_purchases_envelope() -> void:
 	var fake = _install_android_fake()
-	fake.responses["getAvailablePurchases"] = JSON.stringify([
-		{
+	fake.responses["getAvailablePurchasesResult"] = JSON.stringify({
+		"success": true,
+		"purchases": [{
 			"id": "txn-9",
 			"productId": "owned.sku",
 			"purchaseToken": "token-9",
@@ -613,31 +779,80 @@ func test_android_available_purchases_envelope() -> void:
 			"quantity": 1,
 			"isAutoRenewing": false,
 			"transactionDate": 1720000000000.0,
-		},
-	])
+		}],
+	})
 
 	var purchases = await GodotIapPlugin.get_available_purchases()
 	_assert_equal(purchases.size(), 1, "Array envelopes should map to typed purchases")
 	_assert_true(purchases[0] is Types.PurchaseAndroid, "Android purchases should be PurchaseAndroid")
 	_assert_equal(purchases[0].is_acknowledged_android, true, "isAcknowledged should normalize for available purchases too")
+	var structured = await GodotIapPlugin.get_available_purchases_result()
+	_assert_equal(structured.get("success"), true, "Structured available-purchases results should preserve success")
+	_assert_equal(structured.get("purchases", []).size(), 1, "Structured results should contain the typed purchases")
 
-	fake.responses["getAvailablePurchases"] = "{}"
+	fake.responses["getAvailablePurchasesResult"] = "{}"
+	var failed = await GodotIapPlugin.get_available_purchases_result()
+	_assert_equal(failed.get("success"), false, "Missing success must remain distinguishable from an empty store")
+	_assert_equal(failed.get("code"), "service-error", "Native failure envelopes should preserve a service code")
 	var not_an_array = await GodotIapPlugin.get_available_purchases()
 	_assert_equal(not_an_array.size(), 0, "Non-array envelopes should degrade to an empty purchase list")
+
+	fake.responses["getAvailablePurchasesResult"] = JSON.stringify({
+		"success": true,
+		"purchases": [{
+			"id": "valid",
+			"productId": "valid",
+			"purchaseState": "purchased",
+			"store": "google",
+			"transactionDate": 1.0,
+			"quantity": 1.0,
+			"isAutoRenewing": false,
+		}, {"productId": "broken"}],
+	})
+	var malformed = await GodotIapPlugin.get_available_purchases_result()
+	_assert_equal(malformed.get("success"), false, "One malformed purchase should reject the full batch")
+	_assert_equal(malformed.get("code"), "billing-response-json-parse-error", "Malformed batches should use the decode error code")
+
+	fake.responses["getAvailablePurchasesResult"] = JSON.stringify({
+		"success": true,
+		"purchases": [{
+			"id": "foreign",
+			"productId": "foreign",
+			"transactionId": "foreign",
+			"purchaseState": "purchased",
+			"store": "apple",
+			"transactionDate": 1.0,
+			"quantity": 1,
+			"isAutoRenewing": false,
+		}],
+	})
+	var foreign = await GodotIapPlugin.get_available_purchases_result()
+	_assert_equal(foreign.get("success"), false, "Android results should reject foreign stores")
+	_assert_equal(foreign.get("code"), "billing-response-json-parse-error", "Foreign stores should use the decode error code")
+
+	var restore_errors: Array[Dictionary] = []
+	var capture_restore_error = func(error: Dictionary) -> void:
+		restore_errors.append(error)
+	GodotIapPlugin.purchase_error.connect(capture_restore_error)
+	var restored = await GodotIapPlugin.restore_purchases()
+	_assert_equal(restored.success, false, "Restore should fail when available purchases cannot be decoded")
+	_assert_equal(restore_errors.size(), 1, "Failed Android restore should emit exactly one purchase_error")
+	GodotIapPlugin.purchase_error.disconnect(capture_restore_error)
 	_uninstall_fake()
 
 
 func test_android_active_subscriptions_envelope() -> void:
 	var fake = _install_android_fake()
-	fake.responses["getActiveSubscriptions"] = JSON.stringify([
-		{
+	fake.responses["getActiveSubscriptionsResult"] = JSON.stringify({
+		"success": true,
+		"subscriptions": [{
 			"productId": "sub.gold",
 			"isActive": true,
 			"transactionId": "txn-11",
 			"transactionDate": 1720000000000.0,
 			"autoRenewingAndroid": true,
-		},
-	])
+		}],
+	})
 
 	var subscriptions = await GodotIapPlugin.get_active_subscriptions()
 	_assert_equal(subscriptions.size(), 1, "Subscription envelopes should map to typed results")
@@ -649,20 +864,28 @@ func test_android_active_subscriptions_envelope() -> void:
 	var filter: Array[String] = ["sub.gold"]
 	await GodotIapPlugin.get_active_subscriptions(filter)
 	_assert_equal(fake.last_args[0], JSON.stringify(["sub.gold"]), "Non-empty filters should serialize to JSON")
+
+	fake.responses["getActiveSubscriptionsResult"] = JSON.stringify({
+		"success": true,
+		"subscriptions": [{"productId": "broken"}],
+	})
+	var malformed = await GodotIapPlugin.get_active_subscriptions_result()
+	_assert_equal(malformed.get("success"), false, "Malformed subscription batches should fail atomically")
+	_assert_equal(malformed.get("code"), "billing-response-json-parse-error", "Malformed subscriptions should use the decode error code")
 	_uninstall_fake()
 
 
 func test_android_has_active_subscriptions_envelope() -> void:
 	var fake = _install_android_fake()
-	fake.responses["hasActiveSubscriptions"] = JSON.stringify({"hasActive": true})
+	fake.responses["hasActiveSubscriptions"] = JSON.stringify({"success": true, "hasActive": true})
 	_assert_true(await GodotIapPlugin.has_active_subscriptions(), "hasActive envelopes should map to true")
 
-	# A malformed envelope must fall back to counting active subscriptions.
+	# A malformed envelope must not become a false entitlement result.
 	fake.responses["hasActiveSubscriptions"] = "[]"
-	fake.responses["getActiveSubscriptions"] = JSON.stringify([
-		{"productId": "sub.gold", "isActive": true, "transactionId": "txn-12", "transactionDate": 1.0},
-	])
-	_assert_true(await GodotIapPlugin.has_active_subscriptions(), "Malformed envelopes should fall back to the subscription list")
+	var malformed = await GodotIapPlugin.has_active_subscriptions_result()
+	_assert_equal(malformed.get("success"), false, "Malformed status envelopes should remain failures")
+	_assert_equal(malformed.get("code"), "billing-response-json-parse-error", "Malformed status should use the decode error code")
+	_assert_false(await GodotIapPlugin.has_active_subscriptions(), "Compatibility status should still map failure to false")
 	_uninstall_fake()
 
 

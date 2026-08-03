@@ -27,6 +27,7 @@ import expo.modules.kotlin.Promise
 import expo.modules.kotlin.exception.Exceptions
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -57,6 +58,20 @@ internal suspend fun endExpoConnectionWithCleanup(
 
 internal fun endConnectionErrorCode(error: Exception): String =
     (error as? OpenIapError)?.code ?: OpenIapError.ServiceDisconnected.CODE
+
+internal fun deliverPurchaseRequestFailure(
+    reachedOpenIapRequest: Boolean,
+    isCancellation: Boolean = false,
+    errorCode: String,
+    errorEnvelope: String,
+    emitLocalError: () -> Unit,
+    rejectPendingPromises: (String, String) -> Unit,
+) {
+    if (!reachedOpenIapRequest && !isCancellation) {
+        emitLocalError()
+    }
+    rejectPendingPromises(errorCode, errorEnvelope)
+}
 
 class ExpoIapModule : Module() {
     companion object {
@@ -387,9 +402,11 @@ class ExpoIapModule : Module() {
 
                 ExpoIapHelper.addPurchasePromise(promise)
                 scope.launch {
+                    var reachedOpenIapRequest = false
                     try {
                         val activity = currentActivity
                         openIap.setActivity(activity)
+                        reachedOpenIapRequest = true
                         val result = openIap.requestPurchase(requestProps)
                         val purchases =
                             when (result) {
@@ -415,23 +432,33 @@ class ExpoIapModule : Module() {
                                 )
                             }
                         val errorCode = errorMap["code"] as? String ?: OpenIapError.PurchaseFailed.CODE
-                        runCatching {
-                            ExpoIapHelper.emitOrQueue(
-                                this@ExpoIapModule,
-                                scope,
-                                connectionReady,
-                                pendingEvents,
-                                EVENT_PURCHASE_ERROR,
-                                errorMap,
-                            )
-                        }.onFailure { ex ->
-                            ExpoIapLog.failure("send PURCHASE_ERROR event requestPurchase", ex)
-                        }
-                        ExpoIapHelper.rejectPurchasePromises(
-                            errorCode,
-                            ExpoIapHelper.serializeErrorEnvelope(errorMap),
-                            null,
+                        val errorEnvelope = ExpoIapHelper.serializeErrorEnvelope(errorMap)
+                        deliverPurchaseRequestFailure(
+                            reachedOpenIapRequest = reachedOpenIapRequest,
+                            isCancellation = e is CancellationException,
+                            errorCode = errorCode,
+                            errorEnvelope = errorEnvelope,
+                            emitLocalError = {
+                                runCatching {
+                                    ExpoIapHelper.emitOrQueue(
+                                        this@ExpoIapModule,
+                                        scope,
+                                        connectionReady,
+                                        pendingEvents,
+                                        EVENT_PURCHASE_ERROR,
+                                        errorMap,
+                                    )
+                                }.onFailure { ex ->
+                                    ExpoIapLog.failure("send PURCHASE_ERROR event requestPurchase", ex)
+                                }
+                            },
+                            rejectPendingPromises = { code, message ->
+                                ExpoIapHelper.rejectPurchasePromises(code, message, null)
+                            },
                         )
+                        if (e is CancellationException) {
+                            throw e
+                        }
                     }
                 }
             }

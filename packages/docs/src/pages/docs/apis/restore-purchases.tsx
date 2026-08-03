@@ -71,7 +71,7 @@ function RestorePurchases() {
             <CodeBlock language="csharp">{`Task<VoidResult> RestorePurchasesAsync();`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func restore_purchases() -> void`}</CodeBlock>
+            <CodeBlock language="gdscript">{`func restore_purchases() -> VoidResult`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -85,7 +85,9 @@ function RestorePurchases() {
         <code>purchaseUpdatedListener</code> / surface as{' '}
         <code>getAvailablePurchases</code> results, depending on platform. In
         MAUI/C#, <code>RestorePurchasesAsync</code> returns{' '}
-        <code>Task&lt;VoidResult&gt;</code>.
+        <code>Task&lt;VoidResult&gt;</code>. Godot returns a{' '}
+        <code>VoidResult</code>; check <code>success</code> because a failed
+        store query must not be treated as a successful restore.
       </p>
 
       <h2>Example</h2>
@@ -171,7 +173,10 @@ using OpenIap.Maui;
 await ((MutationResolver)OpenIapClient.Instance).RestorePurchasesAsync();`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`await iap.restore_purchases()`}</CodeBlock>
+            <CodeBlock language="gdscript">{`var result = await iap.restore_purchases()
+if not result.success:
+    push_error("Purchase restore failed")
+    return`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

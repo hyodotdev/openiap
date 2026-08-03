@@ -65,9 +65,7 @@ describe('hooks/useIAP (renderer)', () => {
     mockFetchProducts = jest
       .spyOn(IAP, 'fetchProducts')
       .mockResolvedValue([] as any);
-    mockSyncIOS = jest
-      .spyOn(IAP, 'syncIOS')
-      .mockResolvedValue(undefined as any);
+    mockSyncIOS = jest.spyOn(IAP, 'syncIOS').mockResolvedValue(true as any);
     jest.spyOn(IAP, 'purchaseUpdatedListener').mockImplementation((cb: any) => {
       capturedPurchaseListener = cb;
       return {remove: jest.fn()};
@@ -277,11 +275,18 @@ describe('hooks/useIAP (renderer)', () => {
       });
       await act(async () => {});
 
+      let thrown: unknown;
       await act(async () => {
-        await api.getAvailablePurchases();
+        try {
+          await api.getAvailablePurchases();
+        } catch (error) {
+          thrown = error;
+        }
       });
 
       expect(onError).toHaveBeenCalledWith(purchaseError);
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(thrown).toBe(purchaseError);
     });
 
     it('calls onError when getActiveSubscriptions fails', async () => {
@@ -300,13 +305,17 @@ describe('hooks/useIAP (renderer)', () => {
       });
       await act(async () => {});
 
+      let thrown: unknown;
       await act(async () => {
-        const result = await api.getActiveSubscriptions();
-        // Should return empty array on error
-        expect(result).toEqual([]);
+        try {
+          await api.getActiveSubscriptions();
+        } catch (error) {
+          thrown = error;
+        }
       });
 
       expect(onError).toHaveBeenCalledWith(subscriptionError);
+      expect(thrown).toBe(subscriptionError);
     });
 
     it('calls onError when hasActiveSubscriptions fails', async () => {
@@ -325,13 +334,17 @@ describe('hooks/useIAP (renderer)', () => {
       });
       await act(async () => {});
 
+      let thrown: unknown;
       await act(async () => {
-        const result = await api.hasActiveSubscriptions();
-        // Should return false on error
-        expect(result).toBe(false);
+        try {
+          await api.hasActiveSubscriptions();
+        } catch (error) {
+          thrown = error;
+        }
       });
 
       expect(onError).toHaveBeenCalledWith(hasSubsError);
+      expect(thrown).toBe(hasSubsError);
     });
 
     it('calls onError when restorePurchases fails (syncIOS error on iOS)', async () => {
@@ -350,12 +363,52 @@ describe('hooks/useIAP (renderer)', () => {
       });
       await act(async () => {});
 
+      let thrown: unknown;
       await act(async () => {
-        await api.restorePurchases();
+        try {
+          await api.restorePurchases();
+        } catch (error) {
+          thrown = error;
+        }
       });
 
       expect(mockSyncIOS).toHaveBeenCalled();
       expect(onError).toHaveBeenCalledWith(restoreError);
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(thrown).toBe(restoreError);
+    });
+
+    it('rejects when restorePurchases syncIOS returns false on iOS', async () => {
+      mockSyncIOS.mockResolvedValueOnce(false as any);
+
+      let api: any;
+      const onError = jest.fn();
+      const Harness = () => {
+        api = useIAP({onError});
+        return null;
+      };
+
+      await act(async () => {
+        TestRenderer.create(React.createElement(Harness));
+      });
+      await act(async () => {});
+
+      let thrown: unknown;
+      await act(async () => {
+        try {
+          await api.restorePurchases();
+        } catch (error) {
+          thrown = error;
+        }
+      });
+
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(onError).toHaveBeenCalledWith(thrown);
+      expect(thrown).toMatchObject({
+        code: IAP.ErrorCode.SyncError,
+        message: 'App Store purchase sync did not complete',
+      });
+      expect(mockGetAvailablePurchases).not.toHaveBeenCalled();
     });
 
     it('calls onError when restorePurchases fails (getAvailablePurchases error)', async () => {
@@ -374,11 +427,18 @@ describe('hooks/useIAP (renderer)', () => {
       });
       await act(async () => {});
 
+      let thrown: unknown;
       await act(async () => {
-        await api.restorePurchases();
+        try {
+          await api.restorePurchases();
+        } catch (error) {
+          thrown = error;
+        }
       });
 
       expect(onError).toHaveBeenCalledWith(purchaseError);
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(thrown).toBe(purchaseError);
     });
 
     it('restorePurchases calls syncIOS then getAvailablePurchases on iOS', async () => {

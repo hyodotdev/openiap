@@ -287,12 +287,25 @@ class OpenIapModule(
         val client: BillingClient,
         val generation: Long,
         val callback: (Result<List<Purchase>>) -> Unit,
+        val errorEventGate: PurchaseErrorEventGate,
         val requestedSkus: Set<String>,
         val requestedProductType: String?,
         val selectedBasePlanIdsBySku: Map<String, String?> = emptyMap(),
         val launchStartedAtMillis: Double? = null,
     )
     private var pendingPurchase: PendingPurchaseSnapshot? = null
+
+    private class PurchaseErrorEventGate(
+        private val publish: (OpenIapError) -> Unit,
+    ) {
+        private val published = AtomicBoolean(false)
+
+        fun publishOnce(error: OpenIapError) {
+            if (published.compareAndSet(false, true)) {
+                publish(error)
+            }
+        }
+    }
 
     private fun clearPurchaseStateLocked() {
         pendingPurchase = null
@@ -325,7 +338,9 @@ class OpenIapModule(
             expectedCallback,
             requireLaunched,
         ) ?: return
-        error?.withProductId(pending.requestedSkus.singleOrNull())?.let(::emitPurchaseError)
+        error?.withProductId(pending.requestedSkus.singleOrNull())?.let {
+            pending.errorEventGate.publishOnce(it)
+        }
         pending.callback(result)
     }
 
@@ -335,7 +350,7 @@ class OpenIapModule(
     ) {
         val pending = claimPurchaseCallback(expectedClient) ?: return
         error.withProductId(pending.requestedSkus.singleOrNull())
-        emitPurchaseError(error)
+        pending.errorEventGate.publishOnce(error)
         pending.callback(Result.failure(error))
     }
 
@@ -343,6 +358,7 @@ class OpenIapModule(
         expectedClient: BillingClient,
         requestedSkus: Set<String>,
         requestedProductType: String,
+        errorEventGate: PurchaseErrorEventGate,
         callback: (Result<List<Purchase>>) -> Unit
     ): OpenIapError? = synchronized(connectionLifecycleLock) {
         when {
@@ -357,6 +373,7 @@ class OpenIapModule(
                     client = expectedClient,
                     generation = connectionGeneration,
                     callback = callback,
+                    errorEventGate = errorEventGate,
                     requestedSkus = requestedSkus.toSet(),
                     requestedProductType = requestedProductType,
                 )
@@ -685,7 +702,7 @@ class OpenIapModule(
                 )
                 if (end.pendingPurchase != null) {
                     disconnectError.withProductId(end.pendingPurchase.requestedSkus.singleOrNull())
-                    emitPurchaseError(disconnectError)
+                    end.pendingPurchase.errorEventGate.publishOnce(disconnectError)
                     end.pendingPurchase.callback(Result.failure(disconnectError))
                 }
                 end.client?.endConnection()
@@ -1554,26 +1571,27 @@ class OpenIapModule(
     }
 
     override val requestPurchase: MutationRequestPurchaseHandler = { props ->
-        val purchases = withContext(Dispatchers.IO) {
+        val errorEventGate = PurchaseErrorEventGate(::emitPurchaseError)
+        val purchases = try { withContext(Dispatchers.IO) {
             val androidArgs = props.toAndroidPurchaseArgs()
             val activity = currentActivityRef?.get() ?: fallbackActivity
 
             if (activity == null) {
                 val err = OpenIapError.MissingCurrentActivity
-                emitPurchaseError(err)
+                errorEventGate.publishOnce(err)
                 return@withContext emptyList()
             }
 
             val client = billingClient
             if (client == null || !client.isReady) {
                 val err = OpenIapError.NotPrepared
-                emitPurchaseError(err)
+                errorEventGate.publishOnce(err)
                 return@withContext emptyList()
             }
 
             if (androidArgs.skus.isEmpty()) {
                 val err = OpenIapError.EmptySkuList
-                emitPurchaseError(err)
+                errorEventGate.publishOnce(err)
                 return@withContext emptyList()
             }
 
@@ -1586,7 +1604,7 @@ class OpenIapModule(
                 val err = OpenIapError.DeveloperError(
                     "subscriptionProductReplacementParams requires exactly one target SKU"
                 )
-                emitPurchaseError(err)
+                errorEventGate.publishOnce(err)
                 return@withContext emptyList()
             }
 
@@ -1598,7 +1616,7 @@ class OpenIapModule(
                 val err = OpenIapError.DeveloperError(
                     "purchaseToken and originalExternalTransactionId are mutually exclusive"
                 )
-                emitPurchaseError(err)
+                errorEventGate.publishOnce(err)
                 return@withContext emptyList()
             }
             if (
@@ -1608,7 +1626,7 @@ class OpenIapModule(
                 val err = OpenIapError.DeveloperError(
                     "subscriptionProductReplacementParams requires exactly one update source"
                 )
-                emitPurchaseError(err)
+                errorEventGate.publishOnce(err)
                 return@withContext emptyList()
             }
 
@@ -1636,13 +1654,12 @@ class OpenIapModule(
                     expectedClient = client,
                     requestedSkus = androidArgs.skus.toSet(),
                     requestedProductType = desiredType,
+                    errorEventGate = errorEventGate,
                     callback = callback,
                 )
                 if (installError != null) {
                     OpenIapLog.warn("requestPurchase rejected: ${installError.message}", TAG)
-                    if (installError is OpenIapError.ServiceDisconnected) {
-                        emitPurchaseError(installError)
-                    }
+                    errorEventGate.publishOnce(installError)
                     resumer.resumeWithException(installError)
                     return@suspendCancellableCoroutine
                 }
@@ -1979,6 +1996,17 @@ class OpenIapModule(
                     }
                 }
             }
+        } } catch (error: CancellationException) {
+            throw error
+        } catch (error: OpenIapError) {
+            errorEventGate.publishOnce(error)
+            throw error
+        } catch (error: Exception) {
+            val mapped = OpenIapError.PurchaseFailed(
+                error.message ?: "Unknown purchase error"
+            )
+            errorEventGate.publishOnce(mapped)
+            throw mapped
         }
         RequestPurchaseResultPurchases(purchases)
     }

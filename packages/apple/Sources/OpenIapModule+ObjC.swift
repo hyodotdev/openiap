@@ -280,7 +280,7 @@ import StoreKit
         Task {
             do {
                 let purchases = try await getAvailablePurchases(nil)
-                let dictionaries = OpenIapSerialization.purchases(purchases)
+                let dictionaries = try OpenIapSerialization.purchasesRequired(purchases)
                 completion(dictionaries, nil)
             } catch {
                 completion(nil, error)
@@ -296,7 +296,7 @@ import StoreKit
             do {
                 let purchaseOptions = try options.map { try OpenIapSerialization.purchaseOptions(from: $0) }
                 let purchases = try await getAvailablePurchases(purchaseOptions)
-                let dictionaries = OpenIapSerialization.purchases(purchases)
+                let dictionaries = try OpenIapSerialization.purchasesRequired(purchases)
                 completion(dictionaries, nil)
             } catch {
                 completion(nil, error)
@@ -308,7 +308,7 @@ import StoreKit
         Task {
             do {
                 let transactions = try await getAllTransactionsIOS()
-                let dictionaries = transactions.map { OpenIapSerialization.encode($0) }
+                let dictionaries = try transactions.map { try OpenIapSerialization.encodeRequired($0) }
                 completion(dictionaries, nil)
             } catch {
                 completion(nil, error)
@@ -399,7 +399,7 @@ import StoreKit
             do {
                 let transactions = try await getPendingTransactionsIOS()
                 // Convert [PurchaseIOS] to dictionaries directly
-                let dictionaries = transactions.map { OpenIapSerialization.encode($0) }
+                let dictionaries = try transactions.map { try OpenIapSerialization.encodeRequired($0) }
                 completion(dictionaries, nil)
             } catch {
                 completion(nil, error)
@@ -592,7 +592,7 @@ import StoreKit
         Task {
             do {
                 let subscriptions = try await getActiveSubscriptions(nil)
-                let dictionaries = subscriptions.map { OpenIapSerialization.encode($0) }
+                let dictionaries = try subscriptions.map { try OpenIapSerialization.encodeRequired($0) }
                 completion(dictionaries, nil)
             } catch {
                 completion(nil, error)

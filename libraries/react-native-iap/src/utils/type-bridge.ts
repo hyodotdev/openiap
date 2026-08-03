@@ -592,17 +592,80 @@ export function validateNitroPurchase(nitroPurchase: NitroPurchase): boolean {
     return false;
   }
 
-  const required = ['id', 'productId', 'transactionDate', 'store'];
-  for (const field of required) {
+  const invalidField = (field: string): false => {
+    RnIapConsole.error(`NitroPurchase has invalid required field: ${field}`);
+    return false;
+  };
+  if (typeof nitroPurchase.id !== 'string' || !nitroPurchase.id) {
+    return invalidField('id');
+  }
+  if (typeof nitroPurchase.productId !== 'string' || !nitroPurchase.productId) {
+    return invalidField('productId');
+  }
+  if (
+    typeof nitroPurchase.transactionDate !== 'number' ||
+    !Number.isFinite(nitroPurchase.transactionDate)
+  ) {
+    return invalidField('transactionDate');
+  }
+  if (typeof nitroPurchase.store !== 'string' || !nitroPurchase.store) {
+    return invalidField('store');
+  }
+  if (
+    typeof nitroPurchase.purchaseState !== 'string' ||
+    !nitroPurchase.purchaseState
+  ) {
+    return invalidField('purchaseState');
+  }
+  if (
+    typeof nitroPurchase.quantity !== 'number' ||
+    !Number.isInteger(nitroPurchase.quantity)
+  ) {
+    return invalidField('quantity');
+  }
+  if (typeof nitroPurchase.isAutoRenewing !== 'boolean') {
+    return invalidField('isAutoRenewing');
+  }
+  if (
+    nitroPurchase.store === 'apple' &&
+    (typeof nitroPurchase.transactionId !== 'string' ||
+      !nitroPurchase.transactionId)
+  ) {
+    return invalidField('transactionId');
+  }
+  const candidate = nitroPurchase as unknown as Record<string, unknown>;
+  if (
+    candidate.ids != null &&
+    (!Array.isArray(candidate.ids) ||
+      candidate.ids.some((id) => typeof id !== 'string'))
+  ) {
+    return invalidField('ids');
+  }
+  for (const field of [
+    'pendingPurchaseUpdateAndroid',
+    'renewalInfoIOS',
+    'commitmentInfoIOS',
+    'advancedCommerceInfoIOS',
+  ]) {
+    const nested = candidate[field];
     if (
-      !(field in nitroPurchase) ||
-      nitroPurchase[field as keyof NitroPurchase] == null
+      nested != null &&
+      (typeof nested !== 'object' || Array.isArray(nested))
     ) {
-      RnIapConsole.error(
-        `NitroPurchase missing required field: ${field}`,
-        nitroPurchase,
-      );
-      return false;
+      return invalidField(field);
+    }
+  }
+  if (candidate.offerIOS != null) {
+    if (typeof candidate.offerIOS !== 'string') {
+      return invalidField('offerIOS');
+    }
+    try {
+      const offer = JSON.parse(candidate.offerIOS);
+      if (offer == null || typeof offer !== 'object' || Array.isArray(offer)) {
+        return invalidField('offerIOS');
+      }
+    } catch {
+      return invalidField('offerIOS');
     }
   }
 

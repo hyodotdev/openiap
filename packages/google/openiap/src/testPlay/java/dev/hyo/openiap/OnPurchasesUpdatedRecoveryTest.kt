@@ -48,6 +48,7 @@ import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.Robolectric
 import org.robolectric.RobolectricTestRunner
 import org.robolectric.annotation.Config
 import org.robolectric.shadows.ShadowLooper
@@ -602,7 +603,9 @@ class OnPurchasesUpdatedRecoveryTest {
             launchStartedAtMillis = 1.0,
         )
         val updates = mutableListOf<Purchase>()
+        val errors = mutableListOf<OpenIapError>()
         module.addPurchaseUpdateListener(OpenIapPurchaseUpdateListener { updates += it })
+        module.addPurchaseErrorListener(OpenIapPurchaseErrorListener { errors += it })
 
         val invalidated = AtomicBoolean(false)
         OpenIapLog.enable(true)
@@ -626,6 +629,8 @@ class OnPurchasesUpdatedRecoveryTest {
             "endConnection must fail the pending request: $results",
             results.single().exceptionOrNull() is OpenIapError.ServiceDisconnected,
         )
+        assertEquals("endConnection must publish one terminal purchase error", 1, errors.size)
+        assertTrue(errors.single() is OpenIapError.ServiceDisconnected)
         assertNull(pendingPurchaseField().get(module))
     }
 
@@ -660,6 +665,40 @@ class OnPurchasesUpdatedRecoveryTest {
         assertNull(pendingPurchaseField().get(module))
     }
 
+    @Test
+    fun `connection replacement during callback install publishes one terminal error`() {
+        val module = module()
+        val invalidated = AtomicBoolean(false)
+        val client = RecordingBillingClient(
+            onReadyCheck = {
+                if (invalidated.compareAndSet(false, true)) {
+                    setBillingClient(module, null)
+                }
+            },
+        )
+        setBillingClient(module, client)
+        module.setActivity(Robolectric.buildActivity(Activity::class.java).create().get())
+        val errors = mutableListOf<OpenIapError>()
+        module.addPurchaseErrorListener(OpenIapPurchaseErrorListener { errors += it })
+        val props = RequestPurchaseProps(
+            request = RequestPurchaseProps.Request.Purchase(
+                RequestPurchasePropsByPlatforms(
+                    google = RequestPurchaseAndroidProps(skus = listOf("product-id")),
+                ),
+            ),
+            type = ProductQueryType.InApp,
+        )
+
+        val thrown = runCatching {
+            runBlocking { module.requestPurchase(props) }
+        }.exceptionOrNull()
+
+        assertTrue("readiness hook must replace the client", invalidated.get())
+        assertTrue("install race must reject with ServiceDisconnected: $thrown", thrown is OpenIapError.ServiceDisconnected)
+        assertEquals("the install path and outer catch must share one event gate", 1, errors.size)
+        assertTrue(errors.single() is OpenIapError.ServiceDisconnected)
+    }
+
     private fun module(): OpenIapModule =
         OpenIapModule(ApplicationProvider.getApplicationContext<android.content.Context>())
 
@@ -689,6 +728,18 @@ class OnPurchasesUpdatedRecoveryTest {
         selectedBasePlanIdsBySku: Map<String, String?> = emptyMap(),
     ) {
         val snapshotClass = Class.forName("dev.hyo.openiap.OpenIapModule\$PendingPurchaseSnapshot")
+        val gateClass = Class.forName("dev.hyo.openiap.OpenIapModule\$PurchaseErrorEventGate")
+        val emitMethod = OpenIapModule::class.java.getDeclaredMethod(
+            "emitPurchaseError",
+            OpenIapError::class.java,
+        ).apply { isAccessible = true }
+        val publisher: (OpenIapError) -> Unit = { error ->
+            emitMethod.invoke(module, error)
+        }
+        val gateConstructor = gateClass.declaredConstructors.single().apply {
+            isAccessible = true
+        }
+        val errorEventGate = gateConstructor.newInstance(publisher)
         val constructor = snapshotClass.declaredConstructors.first { candidate ->
             candidate.parameterTypes.none { it.simpleName == "DefaultConstructorMarker" }
         }
@@ -697,6 +748,7 @@ class OnPurchasesUpdatedRecoveryTest {
             client,
             0L,
             callback,
+            errorEventGate,
             skus,
             productType,
             selectedBasePlanIdsBySku,
@@ -735,6 +787,7 @@ class OnPurchasesUpdatedRecoveryTest {
     private class RecordingBillingClient(
         private val ownedPurchases: List<BillingPurchase> = emptyList(),
         purchaseResponseCodes: List<Int> = emptyList(),
+        private val onReadyCheck: (() -> Unit)? = null,
     ) : BillingClient() {
         val queryPurchasesCalls = AtomicInteger(0)
         var beforeQueryPurchasesResponse: (() -> Unit)? = null
@@ -755,7 +808,10 @@ class OnPurchasesUpdatedRecoveryTest {
             listener.onQueryPurchasesResponse(result, ownedPurchases)
         }
 
-        override fun isReady(): Boolean = true
+        override fun isReady(): Boolean {
+            onReadyCheck?.invoke()
+            return true
+        }
 
         override fun getConnectionState(): Int = ConnectionState.CONNECTED
 

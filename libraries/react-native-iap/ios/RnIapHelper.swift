@@ -65,6 +65,22 @@ enum RnIapHelper {
         array.map { sanitizeDictionary($0) }
     }
 
+    // The currently published native OpenIAP package reports an encoding
+    // failure as an empty dictionary. Reject that sentinel so a partial batch
+    // can never be surfaced as a successful purchase query.
+    static func purchasesRequired(_ purchases: [OpenIAP.Purchase]) throws -> [[String: Any]] {
+        try purchases.map { purchase in
+            let encoded = OpenIapSerialization.purchase(purchase)
+            guard !encoded.isEmpty else {
+                throw PurchaseError.make(
+                    code: .billingResponseJsonParseError,
+                    message: "Failed to serialize native purchase payload"
+                )
+            }
+            return encoded
+        }
+    }
+
     // MARK: - Variant wrapper helpers
 
     static func wrapString(_ value: String?) -> Variant_NullType_String? {

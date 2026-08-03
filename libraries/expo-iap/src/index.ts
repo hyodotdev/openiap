@@ -4,12 +4,17 @@ import {Platform} from 'react-native';
 // Internal modules
 import ExpoIapModule, {getNativeModule} from './ExpoIapModule';
 import {isVegaOS} from './vega';
-import {isProductIOS, deepLinkToSubscriptionsIOS, syncIOS} from './modules/ios';
+import {isProductIOS, deepLinkToSubscriptionsIOS} from './modules/ios';
 import {
   isProductAndroid,
   deepLinkToSubscriptionsAndroid,
 } from './modules/android';
 import {ExpoIapConsole} from './utils/debug';
+import {restorePurchasesIOSNative} from './utils/restorePurchases';
+import {
+  decodeAndroidPurchases,
+  decodeApplePurchases,
+} from './utils/availablePurchases';
 
 // Types
 import type {
@@ -73,7 +78,9 @@ type ExpoIapEventPayloads = {
   [OpenIapEvent.PurchaseUpdated]: Purchase;
   [OpenIapEvent.PurchaseError]: PurchaseError;
   [OpenIapEvent.PromotedProductIOS]:
-    Product | string | {id?: string; productId?: string};
+    | Product
+    | string
+    | {id?: string; productId?: string};
   [OpenIapEvent.UserChoiceBillingAndroid]: UserChoiceBillingDetails;
   [OpenIapEvent.DeveloperProvidedBillingAndroid]: DeveloperProvidedBillingDetailsAndroid;
   [OpenIapEvent.SubscriptionBillingIssue]: Purchase;
@@ -379,7 +386,8 @@ export const promotedProductListenerIOS = (
     let pendingProduct: Promise<Product | null> | undefined;
     try {
       pendingProduct = ExpoIapModule.getPromotedProductIOS() as
-        Promise<Product | null> | undefined;
+        | Promise<Product | null>
+        | undefined;
     } catch {
       return Promise.resolve();
     }
@@ -594,8 +602,8 @@ const invokeNativeWithPurchaseError = async <T>(
       typeof nativeError?.message === 'string'
         ? nativeError.message
         : typeof error === 'string'
-          ? error
-          : '';
+        ? error
+        : '';
     const hasCanonicalFields =
       nativeMessage.includes(OPENIAP_ERROR_ENVELOPE_PREFIX) ||
       nativeError?.code !== undefined ||
@@ -752,7 +760,7 @@ export const getAvailablePurchases: QueryField<
 
   if (isVegaOS()) {
     const purchases = await ExpoIapModule.getAvailableItems(normalizedOptions);
-    return purchases as Purchase[];
+    return decodeAndroidPurchases(purchases);
   }
 
   let purchases: Purchase[];
@@ -770,7 +778,9 @@ export const getAvailablePurchases: QueryField<
     throw unsupportedPlatformError();
   }
 
-  return purchases as Purchase[];
+  return Platform.OS === 'ios'
+    ? decodeApplePurchases(purchases)
+    : decodeAndroidPurchases(purchases);
 };
 
 /**
@@ -909,7 +919,8 @@ function normalizeRequestProps(
 ): RequestSubscriptionAndroidProps | null | undefined;
 function normalizeRequestProps(
   request:
-    RequestPurchasePropsByPlatforms | RequestSubscriptionPropsByPlatforms,
+    | RequestPurchasePropsByPlatforms
+    | RequestSubscriptionPropsByPlatforms,
   platform: 'ios' | 'android',
 ) {
   if (platform === 'ios') {
@@ -1200,16 +1211,7 @@ export const finishTransaction: MutationField<'finishTransaction'> = async ({
  */
 export const restorePurchases: MutationField<'restorePurchases'> = async () => {
   if (Platform.OS === 'ios') {
-    const nativeModule = ExpoIapModule as any;
-
-    if (
-      nativeModule.USING_ONSIDE_SDK &&
-      typeof nativeModule.restorePurchases === 'function'
-    ) {
-      await nativeModule.restorePurchases().catch(() => undefined);
-    } else {
-      await syncIOS().catch(() => undefined);
-    }
+    await restorePurchasesIOSNative();
   }
 
   await getAvailablePurchases({
@@ -1340,8 +1342,9 @@ export const verifyPurchaseWithProvider: MutationField<
     }
   }
 
-  const result =
-    await ExpoIapModule.verifyPurchaseWithProvider(resolvedOptions);
+  const result = await ExpoIapModule.verifyPurchaseWithProvider(
+    resolvedOptions,
+  );
   if (result.iapkit == null) {
     return result;
   }

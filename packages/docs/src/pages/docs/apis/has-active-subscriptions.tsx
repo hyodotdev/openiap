@@ -68,7 +68,12 @@ function HasActiveSubscriptions() {
 );`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func has_active_subscriptions(subscription_ids: Array[String] = []) -> bool`}</CodeBlock>
+            <CodeBlock language="gdscript">{`func has_active_subscriptions(subscription_ids: Array[String] = []) -> bool
+
+# Godot failure-aware variant:
+func has_active_subscriptions_result(subscription_ids: Array[String] = []) -> Dictionary
+# { "success": true, "hasActive": bool }
+# { "success": false, "code": String, "error": String }`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -97,6 +102,14 @@ function HasActiveSubscriptions() {
           <code>getActiveSubscriptions</code>
         </Link>{' '}
         when you only need a yes/no answer.
+      </p>
+      <p>
+        A store or bridge failure is not <code>false</code>. Promise-based SDKs
+        reject, and their React Native/Expo hooks call <code>onError</code>{' '}
+        before rethrowing. Godot entitlement code must use{' '}
+        <code>has_active_subscriptions_result()</code>; the compatibility
+        boolean helper still maps failure to <code>false</code> and is not safe
+        for granting or revoking access.
       </p>
 
       <h2>Example</h2>
@@ -144,7 +157,11 @@ using OpenIap.Maui;
 var isPremium = await ((QueryResolver)OpenIapClient.Instance).HasActiveSubscriptionsAsync();`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`var is_premium = await iap.has_active_subscriptions()`}</CodeBlock>
+            <CodeBlock language="gdscript">{`var result = await iap.has_active_subscriptions_result()
+if not result.success:
+    push_error("Subscription status failed: %s (%s)" % [result.error, result.code])
+    return
+var is_premium: bool = result.hasActive`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

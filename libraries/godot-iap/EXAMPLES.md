@@ -282,8 +282,16 @@ func _find_subscription(subscription_id: String):
 ### 3.4 Checking Subscription Status
 
 ```gdscript
-func check_subscription_status() -> bool:
-    var purchases = iap.get_available_purchases()
+func check_subscription_status() -> Variant:
+    var available_result = await iap.get_available_purchases_result()
+    if not available_result.get("success", false):
+        push_error(
+            "Subscription query failed: %s (%s)"
+            % [available_result.get("error"), available_result.get("code")]
+        )
+        # Leave the existing entitlement state unchanged on store failure.
+        return null
+    var purchases: Array = available_result.get("purchases", [])
 
     for purchase in purchases:
         var product_id = purchase.product_id if purchase is Object else purchase.get("productId", "")
@@ -585,8 +593,16 @@ func restore_purchases():
         push_error("IAP not connected")
         return
 
-    # Get all available (unfinished) purchases
-    var purchases = iap.get_available_purchases()
+    # Use the structured result so a store failure is not mistaken for an
+    # authoritative empty purchase list.
+    var available_result = await iap.get_available_purchases_result()
+    if not available_result.get("success", false):
+        push_error(
+            "Restore query failed: %s (%s)"
+            % [available_result.get("error"), available_result.get("code")]
+        )
+        return
+    var purchases: Array = available_result.get("purchases", [])
 
     print("Found %d purchases to restore" % purchases.size())
 
@@ -627,7 +643,14 @@ func restore_with_feedback():
         restore_failed.emit("Store not available")
         return
 
-    var purchases = iap.get_available_purchases()
+    var available_result = await iap.get_available_purchases_result()
+    if not available_result.get("success", false):
+        restore_failed.emit(
+            "%s (%s)"
+            % [available_result.get("error"), available_result.get("code")]
+        )
+        return
+    var purchases: Array = available_result.get("purchases", [])
 
     if purchases.size() == 0:
         restore_completed.emit(0)
@@ -732,7 +755,14 @@ func _process_fetched_products(fetched: Array):
     products_loaded.emit(products.values())
 
 func _check_pending_purchases():
-    var purchases = iap.get_available_purchases()
+    var available_result = await iap.get_available_purchases_result()
+    if not available_result.get("success", false):
+        push_warning(
+            "Pending purchase query failed: %s (%s)"
+            % [available_result.get("error"), available_result.get("code")]
+        )
+        return
+    var purchases: Array = available_result.get("purchases", [])
     for purchase in purchases:
         await _process_purchase(purchase)
 
@@ -817,7 +847,7 @@ func get_price(product_id: String) -> String:
     return product.display_price if product is Object else product.get("displayPrice", "$0.99")
 
 func restore():
-    var result = iap.restore_purchases()
+    var result = await iap.restore_purchases()
     return result.success if result else false
 ```
 

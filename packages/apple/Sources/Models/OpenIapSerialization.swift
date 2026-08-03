@@ -42,6 +42,29 @@ public enum OpenIapSerialization {
         }
     }
 
+    /// Strict encoding for authoritative query results. Unlike `encode`, this
+    /// never turns a serialization failure into an empty success dictionary.
+    public static func encodeRequired<T: Encodable>(_ value: T) throws -> [String: Any] {
+        do {
+            let data = try encoder.encode(value)
+            guard var json = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
+                throw PurchaseError.make(
+                    code: .billingResponseJsonParseError,
+                    message: "Failed to serialize native \(T.self) payload"
+                )
+            }
+            json["__typename"] = String(describing: T.self)
+            return json
+        } catch let error as PurchaseError {
+            throw error
+        } catch {
+            throw PurchaseError.make(
+                code: .billingResponseJsonParseError,
+                message: "Failed to serialize native \(T.self) payload"
+            )
+        }
+    }
+
     // MARK: - Decoding Helpers
 
     public static func decode<Payload: Encodable, Output: Decodable>(
@@ -216,6 +239,17 @@ public enum OpenIapSerialization {
 
     public static func purchases(_ items: [Purchase]) -> [[String: Any]] {
         items.map { purchase($0) }
+    }
+
+    public static func purchasesRequired(_ items: [Purchase]) throws -> [[String: Any]] {
+        try items.map { item in
+            switch item {
+            case let .purchaseIos(value):
+                return try encodeRequired(value)
+            case let .purchaseAndroid(value):
+                return try encodeRequired(value)
+            }
+        }
     }
 
     public static func purchase(_ purchase: Purchase) -> [String: Any] {

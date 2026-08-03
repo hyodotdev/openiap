@@ -237,8 +237,8 @@ describe('Public API (src/index.ts)', () => {
       });
 
       expect(mockIap.addPurchaseUpdatedListener).toHaveBeenCalledTimes(2);
-      const duplicateNativeHandler = mockIap.addPurchaseUpdatedListener.mock
-        .calls[1][0];
+      const duplicateNativeHandler =
+        mockIap.addPurchaseUpdatedListener.mock.calls[1][0];
       const nitroPurchase = {
         id: 't1',
         transactionId: 't1',
@@ -1114,6 +1114,84 @@ describe('Public API (src/index.ts)', () => {
       expect(res.map((p: any) => p.productId).sort()).toEqual(['p1', 's1']);
     });
 
+    it('rejects a mixed valid and malformed native purchase list', async () => {
+      (Platform as any).OS = 'android';
+      const valid = {
+        id: 'transaction-valid',
+        productId: 'valid',
+        transactionDate: Date.now(),
+        store: 'google',
+        quantity: 1,
+        purchaseState: 'purchased',
+        isAutoRenewing: false,
+      };
+      mockIap.getAvailablePurchases
+        .mockResolvedValueOnce([valid])
+        .mockResolvedValueOnce([{id: 'malformed'}]);
+
+      await expect(IAP.getAvailablePurchases()).rejects.toMatchObject({
+        code: 'billing-response-json-parse-error',
+      });
+    });
+
+    it('rejects a non-array native purchase payload', async () => {
+      (Platform as any).OS = 'ios';
+      mockIap.getAvailablePurchases.mockResolvedValueOnce(null as any);
+
+      await expect(IAP.getAvailablePurchases()).rejects.toMatchObject({
+        code: 'billing-response-json-parse-error',
+      });
+    });
+
+    it('preserves an authoritative empty native purchase list', async () => {
+      (Platform as any).OS = 'ios';
+      mockIap.getAvailablePurchases.mockResolvedValueOnce([]);
+
+      await expect(IAP.getAvailablePurchases()).resolves.toEqual([]);
+    });
+
+    it('rejects a foreign store in an iOS available-purchase list', async () => {
+      (Platform as any).OS = 'ios';
+      mockIap.getAvailablePurchases.mockResolvedValueOnce([
+        {
+          id: 'foreign',
+          transactionId: 'foreign',
+          productId: 'premium',
+          transactionDate: Date.now(),
+          store: 'google',
+          quantity: 1,
+          purchaseState: 'purchased',
+          isAutoRenewing: false,
+        },
+      ]);
+
+      await expect(IAP.getAvailablePurchases()).rejects.toMatchObject({
+        code: 'billing-response-json-parse-error',
+      });
+    });
+
+    it('rejects a foreign store in an Android available-purchase list', async () => {
+      (Platform as any).OS = 'android';
+      mockIap.getAvailablePurchases
+        .mockResolvedValueOnce([
+          {
+            id: 'foreign',
+            productId: 'premium',
+            transactionDate: Date.now(),
+            store: 'apple',
+            quantity: 1,
+            purchaseState: 'purchased',
+            isAutoRenewing: false,
+            transactionId: 'foreign',
+          },
+        ])
+        .mockResolvedValueOnce([]);
+
+      await expect(IAP.getAvailablePurchases()).rejects.toMatchObject({
+        code: 'billing-response-json-parse-error',
+      });
+    });
+
     it('Vega path queries purchase updates once', async () => {
       jest.resetModules();
       jest.doMock('react-native', () => ({
@@ -1339,6 +1417,35 @@ describe('Public API (src/index.ts)', () => {
       expect(res[0].currentPlanId).toBe('premium_monthly');
     });
 
+    it.each([
+      ['getPendingTransactionsIOS', 'getPendingTransactionsIOS'],
+      ['getAllTransactionsIOS', 'getAllTransactionsIOS'],
+      ['showManageSubscriptionsIOS', 'showManageSubscriptionsIOS'],
+    ])(
+      '%s rejects a mixed non-Apple batch atomically',
+      async (apiName, nativeName) => {
+        (Platform as any).OS = 'ios';
+        const valid = {
+          id: 'apple-transaction',
+          transactionId: 'apple-transaction',
+          productId: 'premium',
+          transactionDate: Date.now(),
+          store: 'apple',
+          quantity: 1,
+          purchaseState: 'purchased',
+          isAutoRenewing: false,
+        };
+        mockIap[nativeName] = jest.fn(async () => [
+          valid,
+          {...valid, id: 'foreign', store: 'google'},
+        ]);
+
+        await expect(IAP[apiName]()).rejects.toMatchObject({
+          code: ErrorCode.BillingResponseJsonParseError,
+        });
+      },
+    );
+
     it('showManageSubscriptionsIOS returns [] on non‑iOS', async () => {
       (Platform as any).OS = 'android';
       await expect(IAP.showManageSubscriptionsIOS()).resolves.toEqual([]);
@@ -1490,6 +1597,17 @@ describe('Public API (src/index.ts)', () => {
       mockIap.syncIOS = jest.fn(async () => true);
       await IAP.restorePurchases();
       expect(mockIap.syncIOS).toHaveBeenCalled();
+    });
+
+    it('restorePurchases on iOS rejects when syncIOS returns false', async () => {
+      (Platform as any).OS = 'ios';
+      mockIap.syncIOS = jest.fn(async () => false);
+
+      await expect(IAP.restorePurchases()).rejects.toMatchObject({
+        code: ErrorCode.SyncError,
+        message: 'App Store purchase sync did not complete',
+      });
+      expect(mockIap.getAvailablePurchases).not.toHaveBeenCalled();
     });
   });
 

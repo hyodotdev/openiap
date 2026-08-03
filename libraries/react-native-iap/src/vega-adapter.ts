@@ -631,6 +631,14 @@ function isVegaParserError(error: unknown): boolean {
   );
 }
 
+function malformedVegaResponse(error: unknown, operation: string): Error {
+  const detail = error instanceof Error ? error.message : String(error);
+  return createVegaError(
+    ErrorCode.BillingResponseJsonParseError,
+    `${operation} returned a malformed response: ${detail}`,
+  );
+}
+
 function createPricingPhase(product: VegaProduct) {
   return {
     billingCycleCount: 0,
@@ -934,7 +942,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
           response = await service.getPurchaseUpdates({reset});
         } catch (error) {
           if (isVegaParserError(error)) {
-            return receipts;
+            throw malformedVegaResponse(error, 'Amazon Vega purchase updates');
           }
           throw error;
         }
@@ -1013,7 +1021,10 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
       );
     } catch (error) {
       if (isVegaParserError(error)) {
-        return;
+        throw malformedVegaResponse(
+          error,
+          'Amazon Vega purchase product metadata',
+        );
       }
       throw error;
     }

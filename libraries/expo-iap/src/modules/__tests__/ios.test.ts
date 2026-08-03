@@ -18,6 +18,7 @@ jest.mock('../../ExpoIapModule', () => ({
     getAppTransactionIOS: jest.fn(),
     getPromotedProductIOS: jest.fn(),
     getPendingTransactionsIOS: jest.fn(),
+    getAllTransactionsIOS: jest.fn(),
     clearTransactionIOS: jest.fn(),
     canPresentExternalPurchaseNoticeIOS: jest.fn(),
     presentExternalPurchaseNoticeSheetIOS: jest.fn(),
@@ -64,6 +65,7 @@ import {
   deepLinkToSubscriptionsIOS,
   isProductIOS,
   getPendingTransactionsIOS,
+  getAllTransactionsIOS,
   clearTransactionIOS,
   canPresentExternalPurchaseNoticeIOS,
   presentExternalPurchaseNoticeSheetIOS,
@@ -73,6 +75,17 @@ import {
   showExternalPurchaseCustomLinkNoticeIOS,
 } from '../ios';
 /* eslint-enable import/first */
+
+const validPurchase = (id: string) => ({
+  id,
+  transactionId: id,
+  productId: 'premium',
+  transactionDate: 1720000000000,
+  store: 'apple',
+  quantity: 1,
+  purchaseState: 'purchased',
+  isAutoRenewing: false,
+});
 
 describe('iOS Module Functions', () => {
   beforeEach(() => {
@@ -372,9 +385,7 @@ describe('iOS Module Functions', () => {
     });
 
     it('should call showManageSubscriptionsIOS', async () => {
-      const mockPurchases: any[] = [
-        {id: 'legacy', transactionId: 'txn-77', platform: 'ios'},
-      ];
+      const mockPurchases: any[] = [validPurchase('txn-77')];
       (ExpoIapModule.showManageSubscriptionsIOS as jest.Mock).mockResolvedValue(
         mockPurchases,
       );
@@ -383,18 +394,18 @@ describe('iOS Module Functions', () => {
 
       expect(ExpoIapModule.showManageSubscriptionsIOS).toHaveBeenCalledTimes(1);
       expect(Array.isArray(result)).toBe(true);
-      expect(result[0]?.id).toBe('legacy');
+      expect(result[0]?.id).toBe('txn-77');
       expect(result[0]?.transactionId).toBe('txn-77');
     });
 
-    it('showManageSubscriptionsIOS returns empty array when native returns null', async () => {
+    it('showManageSubscriptionsIOS rejects when native returns null', async () => {
       (ExpoIapModule.showManageSubscriptionsIOS as jest.Mock).mockResolvedValue(
         null,
       );
 
-      const result = await showManageSubscriptionsIOS();
-
-      expect(result).toEqual([]);
+      await expect(showManageSubscriptionsIOS()).rejects.toMatchObject({
+        code: 'billing-response-json-parse-error',
+      });
     });
 
     it('should call getReceiptDataIOS', async () => {
@@ -526,13 +537,13 @@ describe('iOS Module Functions', () => {
 
     it('normalizes pending transactions list', async () => {
       (ExpoIapModule.getPendingTransactionsIOS as jest.Mock).mockResolvedValue([
-        {id: 'legacy-id', transactionId: 'txn-pending', platform: 'ios'},
+        validPurchase('txn-pending'),
       ]);
 
       const result = await getPendingTransactionsIOS();
 
       expect(ExpoIapModule.getPendingTransactionsIOS).toHaveBeenCalledTimes(1);
-      expect(result[0].id).toBe('legacy-id');
+      expect(result[0].id).toBe('txn-pending');
     });
 
     it('clears iOS transactions', async () => {
@@ -544,14 +555,22 @@ describe('iOS Module Functions', () => {
       expect(result).toBe(true);
     });
 
-    it('getPendingTransactionsIOS returns empty list when native returns null', async () => {
+    it('transaction list APIs reject null and mixed foreign batches', async () => {
       (ExpoIapModule.getPendingTransactionsIOS as jest.Mock).mockResolvedValue(
         null,
       );
+      await expect(getPendingTransactionsIOS()).rejects.toMatchObject({
+        code: 'billing-response-json-parse-error',
+      });
 
-      const result = await getPendingTransactionsIOS();
-
-      expect(result).toEqual([]);
+      const valid = validPurchase('valid');
+      (ExpoIapModule.getAllTransactionsIOS as jest.Mock).mockResolvedValue([
+        valid,
+        {...valid, id: 'foreign', store: 'google'},
+      ]);
+      await expect(getAllTransactionsIOS()).rejects.toMatchObject({
+        code: 'billing-response-json-parse-error',
+      });
     });
 
     it('clearTransactionIOS returns false when native resolves undefined', async () => {
@@ -734,8 +753,9 @@ describe('iOS Module Functions', () => {
           ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS as jest.Mock
         ).mockResolvedValue(mockResult);
 
-        const result =
-          await getExternalPurchaseCustomLinkTokenIOS('acquisition');
+        const result = await getExternalPurchaseCustomLinkTokenIOS(
+          'acquisition',
+        );
 
         expect(
           ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS,
@@ -765,8 +785,9 @@ describe('iOS Module Functions', () => {
           ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS as jest.Mock
         ).mockResolvedValue(mockResult);
 
-        const result =
-          await getExternalPurchaseCustomLinkTokenIOS('acquisition');
+        const result = await getExternalPurchaseCustomLinkTokenIOS(
+          'acquisition',
+        );
 
         expect(result.error).toBe('App not eligible');
         expect(result.token).toBeUndefined();

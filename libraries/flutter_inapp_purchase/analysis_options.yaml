@@ -33,6 +33,10 @@ linter:
 
 analyzer:
   exclude:
+    # Flutter 3.44 resolves Swift Packages into build/ios/SourcePackages.
+    # Without this guard, `flutter analyze` recursively analyzes a second
+    # checkout of this monorepo and reports false cross-checkout type errors.
+    - build/**
     - lib/types.dart
     - example/**
 

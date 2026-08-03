@@ -12,6 +12,7 @@ import type {
   RequestPurchasePropsByPlatforms,
   RequestSubscriptionPropsByPlatforms,
 } from './types';
+import {decodeAndroidPurchases} from './utils/availablePurchases';
 
 export * from './types';
 export * from './vega';
@@ -72,7 +73,8 @@ const normalizeProductType = (
   );
 };
 
-const normalizePurchaseArray = (purchases: Purchase[]): Purchase[] => purchases;
+const normalizePurchaseArray = (purchases: Purchase[]): Purchase[] =>
+  decodeAndroidPurchases(purchases);
 
 const getAndroidRequest = (
   request?:

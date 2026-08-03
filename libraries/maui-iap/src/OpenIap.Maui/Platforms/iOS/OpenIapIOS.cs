@@ -399,7 +399,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
         return InvokeDict<ExternalPurchaseCustomLinkNoticeResultIOS>(cb => _module.ShowExternalPurchaseCustomLinkNoticeIOS(noticeType.ToJson(), cb), required: true)!;
     }
 
-    public Task<IReadOnlyList<PurchaseIOS>> ShowManageSubscriptionsIOSAsync() => InvokeArray<PurchaseIOS>(cb => _module.ShowManageSubscriptionsIOS(cb));
+    public Task<IReadOnlyList<PurchaseIOS>> ShowManageSubscriptionsIOSAsync() => InvokeArray<PurchaseIOS>(cb => _module.ShowManageSubscriptionsIOS(cb), required: true, operation: "showManageSubscriptionsIOS");
 
     public Task<bool> SyncIOSAsync() => InvokeBool(cb => _module.SyncIOS(cb));
 
@@ -469,11 +469,14 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
     }
 
     public Task<IReadOnlyList<Purchase>> GetAvailablePurchasesAsync(PurchaseOptions? options = null)
-        => InvokeArray<Purchase>(cb => _module.GetAvailablePurchasesWithOptions(ToPurchaseOptionsDictionary(options), cb));
+        => InvokeArray<Purchase>(cb => _module.GetAvailablePurchasesWithOptions(ToPurchaseOptionsDictionary(options), cb), required: true, operation: "getAvailablePurchases");
 
     public async Task<IReadOnlyList<ActiveSubscription>> GetActiveSubscriptionsAsync(IReadOnlyList<string>? subscriptionIds = null)
     {
-        var result = await InvokeArray<ActiveSubscription>(cb => _module.GetActiveSubscriptions(cb));
+        var result = await InvokeArray<ActiveSubscription>(
+            cb => _module.GetActiveSubscriptions(cb),
+            required: true,
+            operation: "getActiveSubscriptions");
         if (subscriptionIds is null || subscriptionIds.Count == 0) return result;
         var filter = new HashSet<string>(subscriptionIds);
         return result.Where(a => filter.Contains(a.ProductId)).ToList();
@@ -505,7 +508,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
     }
 
     public Task<PurchaseIOS?> CurrentEntitlementIOSAsync(string sku) => InvokeDict<PurchaseIOS>(cb => _module.CurrentEntitlementIOS(sku, cb));
-    public Task<IReadOnlyList<PurchaseIOS>> GetAllTransactionsIOSAsync() => InvokeArray<PurchaseIOS>(cb => _module.GetAllTransactionsIOS(cb));
+    public Task<IReadOnlyList<PurchaseIOS>> GetAllTransactionsIOSAsync() => InvokeArray<PurchaseIOS>(cb => _module.GetAllTransactionsIOS(cb), required: true, operation: "getAllTransactionsIOS");
 
     public Task<AppTransaction?> GetAppTransactionIOSAsync()
     {
@@ -521,7 +524,7 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
         return InvokeDict<ExternalPurchaseCustomLinkTokenResultIOS>(cb => _module.GetExternalPurchaseCustomLinkTokenIOS(tokenType.ToJson(), cb), required: true)!;
     }
 
-    public Task<IReadOnlyList<PurchaseIOS>> GetPendingTransactionsIOSAsync() => InvokeArray<PurchaseIOS>(cb => _module.GetPendingTransactionsIOS(cb));
+    public Task<IReadOnlyList<PurchaseIOS>> GetPendingTransactionsIOSAsync() => InvokeArray<PurchaseIOS>(cb => _module.GetPendingTransactionsIOS(cb), required: true, operation: "getPendingTransactionsIOS");
     public Task<ProductIOS?> GetPromotedProductIOSAsync() => InvokeDict<ProductIOS>(cb => _module.GetPromotedProductIOS(cb));
     public Task<string?> GetReceiptDataIOSAsync() => InvokeNullableString(cb => _module.GetReceiptDataIOS(cb));
     public Task<string?> GetTransactionJwsIOSAsync(string sku) => InvokeNullableString(cb => _module.GetTransactionJwsIOS(sku, cb));
@@ -707,7 +710,10 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
         return tcs.Task;
     }
 
-    private Task<IReadOnlyList<T>> InvokeArray<T>(Action<Action<NSArray?, NSError?>> dispatch)
+    private Task<IReadOnlyList<T>> InvokeArray<T>(
+        Action<Action<NSArray?, NSError?>> dispatch,
+        bool required = false,
+        string? operation = null)
     {
         var tcs = new TaskCompletionSource<IReadOnlyList<T>>(TaskCreationOptions.RunContinuationsAsynchronously);
         Console.WriteLine($"[OpenIapIOS] InvokeArray<{typeof(T).Name}> dispatch");
@@ -718,7 +724,9 @@ internal class OpenIapIOS : IOpenIap, QueryResolver, MutationResolver, IDisposab
                 Console.WriteLine($"[OpenIapIOS] InvokeArray<{typeof(T).Name}> callback: arr.count={arr?.Count ?? 0}, err={err?.LocalizedDescription ?? "nil"}");
                 if (err is not null) { tcs.TrySetException(MapNSError(err)); return; }
                 var node = NSObjectJsonBridge.ArrayToArray(arr);
-                var list = DeserializeArray<T>(node) ?? new List<T>();
+                var list = required
+                    ? BridgePayloadDecoder.DecodeRequiredArray<T>(node, operation ?? typeof(T).Name)
+                    : DeserializeArray<T>(node) ?? new List<T>();
                 Console.WriteLine($"[OpenIapIOS] InvokeArray<{typeof(T).Name}> deserialized {list.Count} items");
                 tcs.TrySetResult(list);
             }

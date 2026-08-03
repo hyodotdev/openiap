@@ -64,6 +64,33 @@ enum ExpoIapHelper {
         array
     }
 
+    // Keep Expo IAP compatible with the currently published OpenIAP native
+    // package while treating authoritative query serialization atomically.
+    // Its non-throwing helpers use an empty dictionary as the failure sentinel.
+    static func encodeRequired<T: Encodable>(_ value: T) throws -> [String: Any] {
+        let encoded = OpenIapSerialization.encode(value)
+        guard !encoded.isEmpty else {
+            throw PurchaseError.make(
+                code: .billingResponseJsonParseError,
+                message: "Failed to serialize native purchase payload"
+            )
+        }
+        return encoded
+    }
+
+    static func purchasesRequired(_ purchases: [Purchase]) throws -> [[String: Any]] {
+        try purchases.map { purchase in
+            let encoded = OpenIapSerialization.purchase(purchase)
+            guard !encoded.isEmpty else {
+                throw PurchaseError.make(
+                    code: .billingResponseJsonParseError,
+                    message: "Failed to serialize native purchase payload"
+                )
+            }
+            return encoded
+        }
+    }
+
     static func parseProductQueryType(_ rawValue: String?) throws -> ProductQueryType {
         guard let raw = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty
         else {

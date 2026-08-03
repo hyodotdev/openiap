@@ -138,6 +138,58 @@ class ExpoIapHelperTest {
     }
 
     @Test
+    fun `purchase failure before core emits and rejects`() {
+        var emitted = 0
+        var rejected: Pair<String, String>? = null
+
+        deliverPurchaseRequestFailure(
+            reachedOpenIapRequest = false,
+            errorCode = "purchase-error",
+            errorEnvelope = "envelope",
+            emitLocalError = { emitted += 1 },
+            rejectPendingPromises = { code, message -> rejected = code to message },
+        )
+
+        assertEquals(1, emitted)
+        assertEquals("purchase-error" to "envelope", rejected)
+    }
+
+    @Test
+    fun `purchase failure after core suppresses duplicate event but still rejects`() {
+        var emitted = 0
+        var rejected: Pair<String, String>? = null
+
+        deliverPurchaseRequestFailure(
+            reachedOpenIapRequest = true,
+            errorCode = "user-cancelled",
+            errorEnvelope = "envelope",
+            emitLocalError = { emitted += 1 },
+            rejectPendingPromises = { code, message -> rejected = code to message },
+        )
+
+        assertEquals(0, emitted)
+        assertEquals("user-cancelled" to "envelope", rejected)
+    }
+
+    @Test
+    fun `purchase coroutine cancellation rejects without publishing a purchase error`() {
+        var emitted = 0
+        var rejected: Pair<String, String>? = null
+
+        deliverPurchaseRequestFailure(
+            reachedOpenIapRequest = false,
+            isCancellation = true,
+            errorCode = "service-disconnected",
+            errorEnvelope = "envelope",
+            emitLocalError = { emitted += 1 },
+            rejectPendingPromises = { code, message -> rejected = code to message },
+        )
+
+        assertEquals(0, emitted)
+        assertEquals("service-disconnected" to "envelope", rejected)
+    }
+
+    @Test
     fun `end connection falls back to service disconnected`() {
         assertEquals(
             OpenIapError.ServiceDisconnected.CODE,

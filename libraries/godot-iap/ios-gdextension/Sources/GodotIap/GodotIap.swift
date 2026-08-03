@@ -312,6 +312,11 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 GodotIapLog.failure("requestPurchaseWithPayload", error: error)
             } catch {
                 GodotIapLog.failure("requestPurchaseWithPayload", error: error)
+                await self?.emitPurchaseError(
+                    code: ErrorCode.purchaseError.rawValue,
+                    message: error.localizedDescription,
+                    productId: productId
+                )
             }
         }
 
@@ -424,7 +429,7 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     options = try OpenIapSerialization.purchaseOptions(from: object)
                 }
                 let purchases = try await self.openIap.getAvailablePurchases(options)
-                let purchaseDicts = purchases.map { self.purchaseToDictionary($0) }
+                let purchaseDicts = try GodotIapHelper.purchasesRequired(purchases)
 
                 if let jsonData = try? JSONSerialization.data(withJSONObject: purchaseDicts),
                    let jsonString = String(data: jsonData, encoding: .utf8) {
@@ -443,6 +448,14 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                         message: "Failed to serialize available purchases"
                     )
                 }
+            } catch let error as PurchaseError {
+                GodotIapLog.debug("[GodotIap] getAvailablePurchases error: \(error.localizedDescription)")
+                await self.emitAsyncFailure(
+                    method: "getAvailablePurchases",
+                    requestId: requestId,
+                    message: error.localizedDescription,
+                    code: error.code.rawValue
+                )
             } catch {
                 GodotIapLog.debug("[GodotIap] getAvailablePurchases error: \(error.localizedDescription)")
                 await self.emitAsyncFailure(
@@ -474,7 +487,9 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                 }
 
                 let subscriptions = try await self.openIap.getActiveSubscriptions(subscriptionIds)
-                let subDicts = subscriptions.map { OpenIapSerialization.encode($0) }
+                let subDicts = try subscriptions.map {
+                    try GodotIapHelper.encodeRequired($0)
+                }
 
                 if let jsonData = try? JSONSerialization.data(withJSONObject: subDicts),
                    let jsonString = String(data: jsonData, encoding: .utf8) {
@@ -493,6 +508,14 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                         message: "Failed to serialize active subscriptions"
                     )
                 }
+            } catch let error as PurchaseError {
+                GodotIapLog.debug("[GodotIap] getActiveSubscriptions error: \(error.localizedDescription)")
+                await self.emitAsyncFailure(
+                    method: "getActiveSubscriptions",
+                    requestId: requestId,
+                    message: error.localizedDescription,
+                    code: error.code.rawValue
+                )
             } catch {
                 GodotIapLog.debug("[GodotIap] getActiveSubscriptions error: \(error.localizedDescription)")
                 await self.emitAsyncFailure(
@@ -531,6 +554,14 @@ public class GodotIap: RefCounted, @unchecked Sendable {
                     dict["hasActive"] = Variant(hasActive)
                     self.productsFetched.emit(dict)
                 }
+            } catch let error as PurchaseError {
+                GodotIapLog.debug("[GodotIap] hasActiveSubscriptions error: \(error.localizedDescription)")
+                await self.emitAsyncFailure(
+                    method: "hasActiveSubscriptions",
+                    requestId: requestId,
+                    message: error.localizedDescription,
+                    code: error.code.rawValue
+                )
             } catch {
                 GodotIapLog.debug("[GodotIap] hasActiveSubscriptions error: \(error.localizedDescription)")
                 await self.emitAsyncFailure(
@@ -650,7 +681,9 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             guard let self = self else { return }
             do {
                 let transactions = try await self.openIap.getPendingTransactionsIOS()
-                let transactionDicts = transactions.map { self.purchaseIOSToDictionary($0) }
+                let transactionDicts = try transactions.map {
+                    try GodotIapHelper.encodeRequired($0)
+                }
 
                 if let jsonData = try? JSONSerialization.data(withJSONObject: transactionDicts),
                    let jsonString = String(data: jsonData, encoding: .utf8) {
@@ -697,7 +730,9 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             guard let self = self else { return }
             do {
                 let transactions = try await self.openIap.getAllTransactionsIOS()
-                let transactionDicts = transactions.map { self.purchaseIOSToDictionary($0) }
+                let transactionDicts = try transactions.map {
+                    try GodotIapHelper.encodeRequired($0)
+                }
 
                 if let jsonData = try? JSONSerialization.data(withJSONObject: transactionDicts),
                    let jsonString = String(data: jsonData, encoding: .utf8) {
@@ -783,7 +818,9 @@ public class GodotIap: RefCounted, @unchecked Sendable {
             guard let self = self else { return }
             do {
                 let purchases = try await self.openIap.showManageSubscriptionsIOS()
-                let purchaseDicts = purchases.map { self.purchaseIOSToDictionary($0) }
+                let purchaseDicts = try purchases.map {
+                    try GodotIapHelper.encodeRequired($0)
+                }
 
                 if let jsonData = try? JSONSerialization.data(withJSONObject: purchaseDicts),
                    let jsonString = String(data: jsonData, encoding: .utf8) {
@@ -1625,13 +1662,15 @@ public class GodotIap: RefCounted, @unchecked Sendable {
     private func emitAsyncFailure(
         method: String,
         requestId: String,
-        message: String
+        message: String,
+        code: String = ErrorCode.serviceError.rawValue
     ) {
         let dict = asyncResultDictionary(
             method: method,
             requestId: requestId,
             success: false
         )
+        dict["code"] = Variant(code)
         dict["error"] = Variant(message)
         self.productsFetched.emit(dict)
     }

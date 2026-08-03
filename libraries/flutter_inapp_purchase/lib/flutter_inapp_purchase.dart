@@ -811,6 +811,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                 platformIsIOS: true,
                 acknowledgedAndroidPurchaseTokens:
                     _acknowledgedAndroidPurchaseTokens,
+                rejectMalformed: true,
               );
             } else if (_platform.isAndroid) {
               final args = <String, dynamic>{
@@ -827,13 +828,19 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                 platformIsIOS: false,
                 acknowledgedAndroidPurchaseTokens:
                     _acknowledgedAndroidPurchaseTokens,
+                rejectMalformed: true,
               );
             }
 
-            return raw
-                .where((purchase) => purchase.productId.isNotEmpty)
-                .where(hasResolvableIdentifier)
-                .toList(growable: false);
+            for (final purchase in raw) {
+              if (purchase.productId.isEmpty ||
+                  !hasResolvableIdentifier(purchase)) {
+                throw const FormatException(
+                  'Native bridge returned a purchase without a required identity',
+                );
+              }
+            }
+            return raw;
           }
 
           return await resolvePurchases();
@@ -841,6 +848,11 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           throw _purchaseErrorFromPlatformException(
             error,
             'get available purchases',
+          );
+        } on FormatException catch (error) {
+          throw PurchaseError(
+            code: gentype.ErrorCode.BillingResponseJsonParseError,
+            message: 'Failed to decode available purchases: ${error.message}',
           );
         } catch (error) {
           if (error is PurchaseError) rethrow;
@@ -1202,14 +1214,25 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                 platformIsIOS: true,
                 acknowledgedAndroidPurchaseTokens:
                     _acknowledgedAndroidPurchaseTokens,
+                rejectMalformed: true,
               );
-              return purchases.whereType<gentype.PurchaseIOS>().toList(
-                    growable: false,
-                  );
+              if (purchases
+                  .any((purchase) => purchase is! gentype.PurchaseIOS)) {
+                throw const FormatException(
+                  'Native bridge returned a non-iOS purchase',
+                );
+              }
+              return purchases.cast<gentype.PurchaseIOS>();
             } on PlatformException catch (error) {
               throw _purchaseErrorFromPlatformException(
                 error,
                 'show manage subscriptions',
+              );
+            } on FormatException catch (error) {
+              throw PurchaseError(
+                code: gentype.ErrorCode.BillingResponseJsonParseError,
+                message:
+                    'Failed to decode changed subscriptions: ${error.message}',
               );
             } catch (error) {
               if (error is PurchaseError) rethrow;
@@ -1239,14 +1262,24 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               platformIsIOS: _platform.isIOS || _platform.isMacOS,
               acknowledgedAndroidPurchaseTokens:
                   _acknowledgedAndroidPurchaseTokens,
+              rejectMalformed: true,
             );
-            return purchases.whereType<gentype.PurchaseIOS>().toList(
-                  growable: false,
-                );
+            if (purchases.any((purchase) => purchase is! gentype.PurchaseIOS)) {
+              throw const FormatException(
+                'Native bridge returned a non-iOS purchase',
+              );
+            }
+            return purchases.cast<gentype.PurchaseIOS>();
           } on PlatformException catch (error) {
             throw _purchaseErrorFromPlatformException(
               error,
               'fetch pending transactions',
+            );
+          } on FormatException catch (error) {
+            throw PurchaseError(
+              code: gentype.ErrorCode.BillingResponseJsonParseError,
+              message:
+                  'Failed to decode pending transactions: ${error.message}',
             );
           } catch (error) {
             if (error is PurchaseError) rethrow;
@@ -1275,14 +1308,23 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
               platformIsIOS: _platform.isIOS || _platform.isMacOS,
               acknowledgedAndroidPurchaseTokens:
                   _acknowledgedAndroidPurchaseTokens,
+              rejectMalformed: true,
             );
-            return purchases.whereType<gentype.PurchaseIOS>().toList(
-                  growable: false,
-                );
+            if (purchases.any((purchase) => purchase is! gentype.PurchaseIOS)) {
+              throw const FormatException(
+                'Native bridge returned a non-iOS purchase',
+              );
+            }
+            return purchases.cast<gentype.PurchaseIOS>();
           } on PlatformException catch (error) {
             throw _purchaseErrorFromPlatformException(
               error,
               'fetch all transactions',
+            );
+          } on FormatException catch (error) {
+            throw PurchaseError(
+              code: gentype.ErrorCode.BillingResponseJsonParseError,
+              message: 'Failed to decode all transactions: ${error.message}',
             );
           } catch (error) {
             if (error is PurchaseError) rethrow;
@@ -2298,43 +2340,61 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   List<gentype.ActiveSubscription> _parseActiveSubscriptions(dynamic result) {
     List<dynamic> list;
     if (result is String) {
-      list = json.decode(result) as List<dynamic>;
+      final decoded = json.decode(result);
+      if (decoded is! List) {
+        throw PurchaseError(
+          code: gentype.ErrorCode.BillingResponseJsonParseError,
+          message: 'Native active-subscription response was not a list',
+        );
+      }
+      list = decoded;
     } else if (result is List) {
       list = result;
     } else if (result is Map) {
       // Some platforms/libs may return a single map; normalize to list
       list = [result];
     } else {
-      try {
-        list = json.decode(result.toString()) as List<dynamic>;
-      } catch (_) {
-        debugPrint(
-          '[flutter_inapp_purchase] Unexpected getActiveSubscriptions result type: ${result.runtimeType}',
-        );
-        list = const <dynamic>[];
-      }
+      throw PurchaseError(
+        code: gentype.ErrorCode.BillingResponseJsonParseError,
+        message: 'Unexpected active-subscription response type: '
+            '${result.runtimeType}',
+      );
     }
 
-    final subscriptions = <gentype.ActiveSubscription>[];
-    for (final dynamic item in list) {
+    return list.map((dynamic item) {
+      if (item is! Map) {
+        throw PurchaseError(
+          code: gentype.ErrorCode.BillingResponseJsonParseError,
+          message:
+              'Native active-subscription response contained a non-map item',
+        );
+      }
+      final map = _deepConvertMap(item) as Map<String, dynamic>;
+      final transactionDate = map['transactionDate'];
+      final renewalInfo = map['renewalInfoIOS'];
+      if (map['productId'] is! String ||
+          (map['productId'] as String).isEmpty ||
+          map['transactionId'] is! String ||
+          (map['transactionId'] as String).isEmpty ||
+          map['isActive'] is! bool ||
+          transactionDate is! num ||
+          !transactionDate.toDouble().isFinite ||
+          renewalInfo != null && renewalInfo is! Map) {
+        throw PurchaseError(
+          code: gentype.ErrorCode.BillingResponseJsonParseError,
+          message:
+              'Native active-subscription response contained malformed fields',
+        );
+      }
       try {
-        if (item is! Map) {
-          debugPrint(
-            '[flutter_inapp_purchase] Skipping subscription with unexpected type: ${item.runtimeType}',
-          );
-          continue;
-        }
-        // Recursively convert map to Map<String, dynamic>
-        final map = _deepConvertMap(item) as Map<String, dynamic>;
-        subscriptions.add(gentype.ActiveSubscription.fromJson(map));
+        return gentype.ActiveSubscription.fromJson(map);
       } catch (error) {
-        debugPrint(
-          '[flutter_inapp_purchase] Skipping subscription due to parse error: $error',
+        throw PurchaseError(
+          code: gentype.ErrorCode.BillingResponseJsonParseError,
+          message: 'Failed to decode native active-subscription response',
         );
       }
-    }
-
-    return subscriptions;
+    }).toList();
   }
 
   /// Get details of all currently active subscriptions.
@@ -2360,7 +2420,10 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           );
 
           if (result == null) {
-            return <gentype.ActiveSubscription>[];
+            throw PurchaseError(
+              code: gentype.ErrorCode.BillingResponseJsonParseError,
+              message: 'Native active-subscription response was null',
+            );
           }
 
           return _parseActiveSubscriptions(result);
@@ -2384,27 +2447,21 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   /// See: https://openiap.dev/docs/apis/has-active-subscriptions
   gentype.QueryHasActiveSubscriptionsHandler get hasActiveSubscriptions =>
       ([subscriptionIds]) async {
-        try {
-          final activeSubscriptions = await getActiveSubscriptions(
-            subscriptionIds,
-          );
-          // For Android, also call native with explicit type for parity/logging
-          if (_platform.isAndroid) {
-            try {
-              await _channel.invokeMethod(
-                'getAvailableItems',
-                <String, dynamic>{'type': 'subs'},
-              );
-            } catch (_) {
-              // Ignore; this is for logging/compatibility only
-            }
+        final activeSubscriptions = await getActiveSubscriptions(
+          subscriptionIds,
+        );
+        // For Android, also call native with explicit type for parity/logging
+        if (_platform.isAndroid) {
+          try {
+            await _channel.invokeMethod(
+              'getAvailableItems',
+              <String, dynamic>{'type': 'subs'},
+            );
+          } catch (_) {
+            // Ignore; this is for logging/compatibility only
           }
-          return activeSubscriptions.isNotEmpty;
-        } catch (error) {
-          // If there's an error getting subscriptions, return false
-          debugPrint('Error checking active subscriptions: $error');
-          return false;
         }
+        return activeSubscriptions.isNotEmpty;
       };
 
   // MARK: - Billing Programs API (Android 8.2.0+)

@@ -196,7 +196,9 @@ internal sealed partial class OpenIapAndroid
     {
         var json = options is null ? null : JsonSerializer.Serialize(options, JsonOptions.Default);
         var result = await Invoke(cb => _module.GetAvailablePurchases(json, cb));
-        return DecodeItems<Purchase>(result);
+        return BridgePayloadDecoder.DecodeRequiredItems<Purchase>(
+            result,
+            "getAvailablePurchases");
     }
 
     public async Task<IReadOnlyList<ActiveSubscription>> GetActiveSubscriptionsAsync(IReadOnlyList<string>? subscriptionIds = null)

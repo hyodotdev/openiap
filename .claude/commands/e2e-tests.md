@@ -1,3 +1,8 @@
+---
+name: e2e-tests
+description: Run device-backed OpenIAP regression across native packages and framework examples using real devices and store accounts. Use when the user asks for e2e tests, device testing, store purchase-flow verification, or a full PR regression on hardware.
+---
+
 # E2E Tests — Device-Backed OpenIAP Regression
 
 Run this when a PR or release candidate needs real-device regression across
@@ -440,7 +445,7 @@ cd android
 ./gradlew :app:assembleDebug
 # Build-only regression can stop here.
 : "${FIREOS_SERIAL:?Set FIREOS_SERIAL to the target FireOS device serial}"
-adb -s "$FIREOS_SERIAL" install -r app/build/outputs/apk/debug/app-debug.apk
+adb -s "$FIREOS_SERIAL" install -r ../build/app/outputs/apk/debug/app-debug.apk
 adb -s "$FIREOS_SERIAL" shell monkey -p dev.hyo.martie 1
 ```
 

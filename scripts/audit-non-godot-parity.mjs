@@ -1495,8 +1495,33 @@ function checkFlutter() {
   );
   expectIncludes(
     "libraries/expo-iap/src/index.ts",
+    ["restorePurchasesIOSNative"],
+    "Expo restore helper routing",
+  );
+  expectIncludes(
+    "libraries/expo-iap/src/utils/restorePurchases.ts",
     ["nativeModule.USING_ONSIDE_SDK", "nativeModule.restorePurchases"],
     "Expo Onside restore routing",
+  );
+  expectNotIncludes(
+    "libraries/expo-iap/src/utils/restorePurchases.ts",
+    ["catch(() => undefined)"],
+    "Expo restore failures must remain observable",
+  );
+  expectIncludes(
+    "libraries/expo-iap/android/src/main/java/expo/modules/iap/ExpoIapModule.kt",
+    [
+      "deliverPurchaseRequestFailure(",
+      "isCancellation = e is CancellationException",
+      "reachedOpenIapRequest = reachedOpenIapRequest",
+      "ExpoIapHelper.rejectPurchasePromises(code, message, null)",
+    ],
+    "Expo Android purchase failures must settle pending promises",
+  );
+  expectMatch(
+    "libraries/react-native-iap/android/src/main/java/com/margelo/nitro/iap/HybridRnIap.kt",
+    /openIap\.requestPurchase\(requestProps\)[\s\S]*?catch \(e: CancellationException\) \{\s*throw e\s*\}[\s\S]*?catch \(e: Exception\)/,
+    "RN Android purchase coroutine cancellation propagation",
   );
   expectIncludes(
     "libraries/expo-iap/src/ExpoIapModule.ts",
@@ -1678,7 +1703,7 @@ function checkKmp() {
       "requestPurchaseWithPayload(params.toJson().toObjCMap())",
       "requireIosSku(params)",
       "openIapModule.verifyPurchaseWithSku(sku)",
-      "filterActiveSubscriptions(result, subscriptionIds)",
+      "decodeActiveSubscriptionListPayloadIOS(result, subscriptionIds)",
     ],
     "KMP iOS requestPurchase bridge",
   );
@@ -2214,6 +2239,88 @@ function checkBillingChoiceFieldBindings() {
       "showInAppMessagesAndroid?: MutationField<'showInAppMessagesAndroid'>",
     ],
     "RN Billing Choice hook wiring",
+  );
+  expectMatch(
+    "libraries/react-native-iap/src/hooks/useIAP.ts",
+    /const getAvailablePurchasesInternal[\s\S]*?catch \(error\) \{[\s\S]*?invokeOnError\(error\);\s*throw error;[\s\S]*?const getActiveSubscriptionsInternal/,
+    "RN authoritative purchase-query hook failure propagation",
+  );
+  expectMatch(
+    "libraries/react-native-iap/src/hooks/useIAP.ts",
+    /const getActiveSubscriptionsInternal[\s\S]*?catch \(error\) \{[\s\S]*?invokeOnError\(error\);\s*throw error;[\s\S]*?const hasActiveSubscriptionsInternal[\s\S]*?catch \(error\) \{[\s\S]*?invokeOnError\(error\);\s*throw error;/,
+    "RN subscription entitlement hook failure propagation",
+  );
+  expectMatch(
+    "libraries/react-native-iap/src/hooks/useIAP.ts",
+    /const restorePurchases[\s\S]*?const synced = await syncIOS\(\);\s*if \(!synced\)[\s\S]*?ErrorCode\.SyncError[\s\S]*?invokeOnError\(error\);\s*throw error;[\s\S]*?await getAvailablePurchasesInternal\(options\);/,
+    "RN restore hook failure propagation",
+  );
+  expectMatch(
+    "libraries/react-native-iap/src/index.ts",
+    /export const restorePurchases[\s\S]*?const synced = await syncIOS\(\);\s*if \(!synced\)[\s\S]*?ErrorCode\.SyncError[\s\S]*?await getAvailablePurchases/,
+    "RN restore API false-sync rejection",
+  );
+  expectIncludes(
+    "libraries/react-native-iap/src/index.ts",
+    [
+      "return convertApplePurchasesOrThrow(nitroPurchases);",
+      "return convertAndroidPurchasesOrThrow(allNitroPurchases);",
+    ],
+    "RN platform-scoped authoritative purchase-list decoding",
+  );
+  expectIncludes(
+    "libraries/react-native-iap/src/vega-adapter.ts",
+    [
+      "throw malformedVegaResponse(error, 'Amazon Vega purchase updates')",
+      "'Amazon Vega purchase product metadata'",
+      "ErrorCode.BillingResponseJsonParseError",
+    ],
+    "RN Vega authoritative purchase-query failure propagation",
+  );
+  expectIncludes(
+    "libraries/expo-iap/src/vega-adapter.ts",
+    [
+      "throw malformedVegaResponse(error, 'Amazon Vega purchase updates')",
+      "'Amazon Vega purchase product metadata'",
+      "ErrorCode.BillingResponseJsonParseError",
+    ],
+    "Expo Vega authoritative purchase-query failure propagation",
+  );
+  expectIncludes(
+    "libraries/expo-iap/src/modules/ios.ts",
+    [
+      "return decodeApplePurchases(purchases);",
+      "return decodeApplePurchases(transactions);",
+    ],
+    "Expo authoritative StoreKit list decoding",
+  );
+  expectIncludes(
+    "libraries/expo-iap/src/index.ts",
+    [
+      "? decodeApplePurchases(purchases)",
+      ": decodeAndroidPurchases(purchases);",
+    ],
+    "Expo platform-scoped authoritative purchase-list decoding",
+  );
+  expectMatch(
+    "libraries/expo-iap/src/useIAP.ts",
+    /const getActiveSubscriptionsInternal[\s\S]*?invokeOnError\(error\);\s*throw error;[\s\S]*?const hasActiveSubscriptionsInternal[\s\S]*?invokeOnError\(error\);\s*throw error;/,
+    "Expo subscription entitlement hook failure propagation",
+  );
+  expectMatch(
+    "libraries/flutter_inapp_purchase/lib/flutter_inapp_purchase.dart",
+    /showManageSubscriptionsIOS[\s\S]*?rejectMalformed: true[\s\S]*?get getPendingTransactionsIOS[\s\S]*?rejectMalformed: true[\s\S]*?get getAllTransactionsIOS[\s\S]*?rejectMalformed: true/,
+    "Flutter authoritative StoreKit list decoding",
+  );
+  expectIncludes(
+    "libraries/flutter_inapp_purchase/lib/helpers.dart",
+    [
+      "if (platformIsIOS && store != 'apple') return false;",
+      "store != 'google' &&",
+      "store != 'amazon' &&",
+      "store != 'horizon'",
+    ],
+    "Flutter platform-scoped authoritative purchase-list decoding",
   );
   expectIncludes(
     "libraries/react-native-iap/src/__tests__/hooks/useIAP.android.test.ts",

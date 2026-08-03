@@ -66,6 +66,34 @@ enum FlutterIapHelper {
         return String(data: data, encoding: .utf8)
     }
 
+    // Keep the framework compatible with the currently published OpenIAP
+    // native package while still treating serialization as all-or-nothing.
+    // OpenIapSerialization.encode/purchase return an empty dictionary when
+    // encoding fails, so reject that sentinel instead of reporting success.
+    static func encodeRequired<T: Encodable>(_ value: T) throws -> [String: Any] {
+        let encoded = OpenIapSerialization.encode(value)
+        guard !encoded.isEmpty else {
+            throw PurchaseError.make(
+                code: .billingResponseJsonParseError,
+                message: "Failed to serialize native purchase payload"
+            )
+        }
+        return encoded
+    }
+
+    static func purchasesRequired(_ purchases: [Purchase]) throws -> [[String: Any]] {
+        try purchases.map { purchase in
+            let encoded = OpenIapSerialization.purchase(purchase)
+            guard !encoded.isEmpty else {
+                throw PurchaseError.make(
+                    code: .billingResponseJsonParseError,
+                    message: "Failed to serialize native purchase payload"
+                )
+            }
+            return encoded
+        }
+    }
+
     // MARK: - Parsing helpers
 
     static func parseProductQueryType(_ rawValue: String?) throws -> ProductQueryType {

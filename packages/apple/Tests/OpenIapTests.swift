@@ -4,6 +4,47 @@ import XCTest
 
 final class OpenIapTests: XCTestCase {
 
+    private struct ThrowingEncodable: Encodable {
+        struct EncodingFailure: Error {}
+
+        func encode(to encoder: Encoder) throws {
+            throw EncodingFailure()
+        }
+    }
+
+    func testRequiredSerializationPreservesFailures() throws {
+        XCTAssertTrue(try OpenIapSerialization.purchasesRequired([]).isEmpty)
+
+        XCTAssertThrowsError(
+            try OpenIapSerialization.encodeRequired(ThrowingEncodable())
+        ) { error in
+            XCTAssertEqual(
+                (error as? PurchaseError)?.code,
+                .billingResponseJsonParseError
+            )
+        }
+    }
+
+    func testTransactionVerificationFailureIsNotAnEmptyEntitlement() throws {
+        XCTAssertEqual(
+            try OpenIapModule.shared.checkVerified(
+                VerificationResult<Int>.verified(7)
+            ),
+            7
+        )
+
+        XCTAssertThrowsError(
+            try OpenIapModule.shared.checkVerified(
+                VerificationResult<Int>.unverified(7, .invalidSignature)
+            )
+        ) { error in
+            XCTAssertEqual(
+                (error as? PurchaseError)?.code,
+                .transactionValidationFailed
+            )
+        }
+    }
+
     func testConnectedGenerationIsInvalidatedWhenEndingBegins() async throws {
         let lifecycle = OpenIapConnectionLifecycle()
         let initWork = try XCTUnwrap(lifecycle.makeInitTask { _ in true })

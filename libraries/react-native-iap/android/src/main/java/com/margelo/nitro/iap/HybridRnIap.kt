@@ -512,6 +512,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 return@async defaultResult
             }
 
+            var reachedOpenIapRequest = false
             try {
                 ensureConnection()
 
@@ -628,6 +629,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 )
 
                 val result = withContext(Dispatchers.Main) {
+                    reachedOpenIapRequest = true
                     openIap.requestPurchase(requestProps)
                 }
                 val purchases = result.purchasesOrEmpty()
@@ -640,15 +642,19 @@ class HybridRnIap : HybridRnIapSpec() {
                 )
 
                 defaultResult
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
                 RnIapLog.failure("requestPurchase", e)
-                sendPurchaseError(
-                    toErrorResult(
-                        error = OpenIapError.PurchaseFailed(),
-                        debugMessage = e.message,
-                        messageOverride = e.message
+                if (!reachedOpenIapRequest) {
+                    sendPurchaseError(
+                        toErrorResult(
+                            error = OpenIapError.PurchaseFailed(),
+                            debugMessage = e.message,
+                            messageOverride = e.message
+                        )
                     )
-                )
+                }
                 defaultResult
             }
         }
