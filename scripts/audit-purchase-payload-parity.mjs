@@ -1835,7 +1835,8 @@ function checkGooglePurchasePayloadContracts() {
         productId: /^productsList\.firstOrNull\(\)\.orEmpty\(\)$/,
         purchaseToken: /^token$/,
         signatureAndroid: /^signature$/,
-        transactionId: /^orderId \?: token$/,
+        transactionId:
+          /^orderId\?\.takeIf \{ it\.isNotBlank\(\) \} \?: token$/,
       },
       intentionallyDefaultedFields: [
         "isSuspendedAndroid",

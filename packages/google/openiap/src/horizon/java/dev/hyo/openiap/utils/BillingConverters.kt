@@ -125,13 +125,16 @@ internal object HorizonBillingConverters {
         val token = purchaseToken
         val productsList = products ?: emptyList()
         val state = PurchaseState.fromHorizonState(getPurchaseState())
-
         return PurchaseAndroid(
             autoRenewingAndroid = isAutoRenewing(),
             currentPlanId = basePlanId,
             dataAndroid = originalJson,
             developerPayloadAndroid = developerPayload,
-            id = orderId ?: token,
+            // Horizon reports a present-but-blank orderId (the module already
+            // logs orderIdPresent via isNullOrBlank), so a null-only fallback
+            // produced an empty id/transactionId that the SDKs' strict
+            // purchase decoders reject, failing the whole batch on device.
+            id = orderId?.takeIf { it.isNotBlank() } ?: token,
             ids = productsList,
             isAcknowledgedAndroid = isAcknowledged(),
             isAutoRenewing = isAutoRenewing(),
@@ -145,7 +148,7 @@ internal object HorizonBillingConverters {
             signatureAndroid = signature,
             store = IapStore.Horizon,
             transactionDate = (purchaseTime ?: 0L).toDouble(),
-            transactionId = orderId ?: token
+            transactionId = orderId?.takeIf { it.isNotBlank() } ?: token
         )
     }
 
@@ -158,7 +161,8 @@ internal object HorizonBillingConverters {
         purchaseToken = purchaseToken,
         purchaseTokenAndroid = purchaseToken,
         transactionDate = (purchaseTime ?: 0L).toDouble(),
-        transactionId = orderId ?: purchaseToken
+        // Same blank-orderId fallback as toPurchase above.
+        transactionId = orderId?.takeIf { it.isNotBlank() } ?: purchaseToken
     )
 
     fun PurchaseAndroid.toActiveSubscription(): ActiveSubscription = ActiveSubscription(
