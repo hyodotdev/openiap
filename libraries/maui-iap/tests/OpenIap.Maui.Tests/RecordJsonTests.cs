@@ -161,6 +161,26 @@ public class RecordJsonTests
         }
         """;
 
+    // Realistic Amazon-flavor payload: Amazon identity fields are set while
+    // Play-only extras (signature, obfuscated ids, pending update) are absent.
+    private const string PurchaseAndroidAmazonJson = """
+        {
+          "__typename": "PurchaseAndroid",
+          "id": "amazon-receipt-1",
+          "ids": ["premium.monthly"],
+          "isAutoRenewing": true,
+          "productId": "premium.monthly",
+          "purchaseState": "purchased",
+          "purchaseToken": "amazon-receipt-1",
+          "quantity": 1,
+          "store": "amazon",
+          "transactionDate": 1720000000000,
+          "transactionId": "amazon-receipt-1",
+          "userIdAmazon": "amazon-user-1",
+          "userMarketplaceAmazon": "US"
+        }
+        """;
+
     private const string PurchaseIosJson = """
         {
           "__typename": "PurchaseIOS",
@@ -309,6 +329,27 @@ public class RecordJsonTests
         Assert.Equal("GPA.1234-5678", android.TransactionId);
         Assert.Equal("amazon-user-1", android.UserIdAmazon);
         Assert.Equal("US", android.UserMarketplaceAmazon);
+    }
+
+    [Fact]
+    public void PurchaseAndroid_AmazonStorePayloadRoundTripsUserData()
+    {
+        var purchase = Assert.IsType<PurchaseAndroid>(
+            JsonSerializer.Deserialize<Purchase>(PurchaseAndroidAmazonJson, Options));
+
+        Assert.Equal(IapStore.Amazon, purchase.Store);
+        Assert.Equal("amazon-user-1", purchase.UserIdAmazon);
+        Assert.Equal("US", purchase.UserMarketplaceAmazon);
+        Assert.Null(purchase.SignatureAndroid);
+        Assert.Null(purchase.ObfuscatedAccountIdAndroid);
+        Assert.Null(purchase.PendingPurchaseUpdateAndroid);
+
+        var serialized = JsonSerializer.Serialize<Purchase>(purchase, Options);
+        var roundTrip = Assert.IsType<PurchaseAndroid>(
+            JsonSerializer.Deserialize<Purchase>(serialized, Options));
+
+        Assert.Equal("amazon-user-1", roundTrip.UserIdAmazon);
+        Assert.Equal("US", roundTrip.UserMarketplaceAmazon);
     }
 
     [Fact]
