@@ -67,6 +67,20 @@ enum RnIapHelper {
 
     // The currently published native OpenIAP package reports an encoding
     // failure as an empty dictionary. Reject that sentinel so a partial batch
+    // can never be surfaced as a successful query.
+    static func encodeRequired<T: Encodable>(_ value: T) throws -> [String: Any] {
+        let encoded = OpenIapSerialization.encode(value)
+        guard !encoded.isEmpty else {
+            throw PurchaseError.make(
+                code: .billingResponseJsonParseError,
+                message: "Failed to serialize native purchase payload"
+            )
+        }
+        return encoded
+    }
+
+    // The currently published native OpenIAP package reports an encoding
+    // failure as an empty dictionary. Reject that sentinel so a partial batch
     // can never be surfaced as a successful purchase query.
     static func purchasesRequired(_ purchases: [OpenIAP.Purchase]) throws -> [[String: Any]] {
         try purchases.map { purchase in

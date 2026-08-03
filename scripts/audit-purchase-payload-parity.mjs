@@ -1284,6 +1284,13 @@ function checkStrictAppleFrameworkQuerySerialization() {
         "OpenIapSerialization.purchase(purchase)",
         "guard !encoded.isEmpty",
         ".billingResponseJsonParseError",
+        // The bridge checks below require these helpers to be *called*. Assert
+        // they are also *defined*, otherwise a bridge can reference a helper
+        // that does not exist and the audit still passes while the Swift build
+        // fails — which is exactly how `RnIapHelper.encodeRequired` shipped
+        // missing.
+        "static func encodeRequired",
+        "static func purchasesRequired",
       ],
       `${helperName} strict native purchase serialization`,
     );
