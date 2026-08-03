@@ -1,5 +1,16 @@
 # Changelog
 
+## 10.0.1 (2026-08-03)
+
+- chore(google): bump version to 3.0.1
+- chore(apple): bump version to 3.0.1
+- feat(google): expose amazon userId and marketplace on purchases (#275)
+- fix(google): fall back to token for blank horizon order ids (#278)
+- fix: preserve purchase query failures across sdks (#276)
+- fix: ship app store-safe apple artifacts (#265)
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
+
+
 ## 10.0.0 (2026-07-30)
 
 - chore(google): bump version to 3.0.0
