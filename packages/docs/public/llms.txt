@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
-> Generated: 2026-08-03T22:41:41.759Z
+> Generated: 2026-08-03T23:03:51.061Z
 
 ## Installation
 
@@ -41,7 +41,7 @@ flutter pub add flutter_inapp_purchase
 
 ```kotlin
 // Kotlin Multiplatform
-implementation("io.github.hyochan:kmp-iap:3.0.0")
+implementation("io.github.hyochan:kmp-iap:3.0.1")
 ```
 
 ```xml
