@@ -395,10 +395,10 @@ class OpenIapModule(
     private val userDataRequests = ConcurrentHashMap<String, CompletableDeferred<UserDataResponse>>()
     // Amazon userId/marketplace are needed for server-side RVS verification.
     // Purchase mapping prefers the userData carried on each Purchase(Updates)Response;
-    // these cached values (refreshed by every successful response) are the fallback
-    // for responses that arrive without userData.
-    @Volatile private var cachedAmazonUserId: String? = null
-    @Volatile private var cachedAmazonMarketplace: String? = null
+    // this cached snapshot (refreshed only by lifecycle-accepted responses and
+    // cleared on endConnection) is the fallback for responses without userData.
+    // One immutable snapshot keeps userId/marketplace from mixing across users.
+    @Volatile private var cachedAmazonUserData: UserData? = null
     private val earlyProductDataResponses = ConcurrentHashMap<String, ProductDataResponse>()
     private val earlyPurchaseResponses = ConcurrentHashMap<String, PurchaseResponse>()
     private val earlyPurchaseUpdatesResponses = ConcurrentHashMap<String, PurchaseUpdatesResponse>()
@@ -476,6 +476,7 @@ class OpenIapModule(
                 earlyPurchaseUpdatesResponses.clear()
                 earlyUserDataResponses.clear()
                 clearPurchaseRequestTracking()
+                cachedAmazonUserData = null
             }
             timedOutRequestIds.addAll(abortedRequestIds)
             val abortedMappedSkus = mutableSetOf<String>()
@@ -657,6 +658,7 @@ class OpenIapModule(
                         ).withProductId(sku)
                     )
                 }
+                val purchaseGeneration = requestLifecycle.currentGeneration()
                 val response = try {
                     requestAmazonPurchase(sku)
                 } catch (error: CancellationException) {
@@ -701,7 +703,9 @@ class OpenIapModule(
                         // local request SKU is safe even when callbacks arrive out
                         // of order.
                         cacheReceiptProduct(receipt, receipt.productTypeOrNull())
-                        response.userData?.let { rememberAmazonUserData(it) }
+                        if (requestLifecycle.isGenerationCurrent(purchaseGeneration)) {
+                            response.userData?.let { rememberAmazonUserData(it) }
+                        }
                         val purchase = receipt.toPurchase(
                             productTypeOverride = receipt.productTypeOrNull(),
                             productIdOverride = sku,
@@ -1012,20 +1016,22 @@ class OpenIapModule(
     }
 
     private fun rememberAmazonUserData(userData: UserData) {
-        userData.userId?.takeIf { it.isNotBlank() }?.let { cachedAmazonUserId = it }
-        userData.marketplace?.takeIf { it.isNotBlank() }?.let { cachedAmazonMarketplace = it }
+        if (userData.userId.isNullOrBlank()) return
+        cachedAmazonUserData = userData
     }
 
     override fun onUserDataResponse(userDataResponse: UserDataResponse) {
-        if (userDataResponse.requestStatus == UserDataResponse.RequestStatus.SUCCESSFUL) {
-            userDataResponse.userData?.let { rememberAmazonUserData(it) }
-        }
-        completeOrCache(
+        val accepted = completeOrCache(
             userDataRequests,
             earlyUserDataResponses,
             userDataResponse.requestId.toString(),
             userDataResponse
         )
+        // Cache only lifecycle-accepted callbacks so a late response cannot
+        // overwrite the active identity after endConnection or a newer request.
+        if (accepted && userDataResponse.requestStatus == UserDataResponse.RequestStatus.SUCCESSFUL) {
+            userDataResponse.userData?.let { rememberAmazonUserData(it) }
+        }
     }
 
     override fun onProductDataResponse(productDataResponse: ProductDataResponse) {
@@ -1275,7 +1281,9 @@ class OpenIapModule(
                     PurchaseUpdatesResponse.RequestStatus.SUCCESSFUL -> {
                         response.userData?.let {
                             responseUserData = it
-                            rememberAmazonUserData(it)
+                            if (requestLifecycle.isGenerationCurrent(operationGeneration)) {
+                                rememberAmazonUserData(it)
+                            }
                         }
                         receipts += response.receipts.orEmpty()
                             .filter {
@@ -1461,19 +1469,24 @@ class OpenIapModule(
         }
     }
 
+    /**
+     * Returns true when the response was accepted by the current request
+     * lifecycle (delivered to its Deferred or cached as an early response),
+     * false when it was ignored as timed-out, ended, or unknown.
+     */
     private fun <T> completeOrCache(
         pending: ConcurrentHashMap<String, CompletableDeferred<T>>,
         earlyResponses: ConcurrentHashMap<String, T>,
         requestId: String,
         value: T
-    ) {
+    ): Boolean {
         if (timedOutRequestIds.remove(requestId)) {
             requestLifecycle.complete(requestId)
             OpenIapLog.warn(
                 "Ignoring late Amazon Appstore response for aborted request $requestId",
                 TAG
             )
-            return
+            return false
         }
         val deferred = pending[requestId]
         if (deferred != null) {
@@ -1487,19 +1500,21 @@ class OpenIapModule(
                     TAG,
                 )
             }
-        } else if (
-            !requestLifecycle.cacheIfCurrent(requestId) {
-                if (earlyResponses.size >= AMAZON_EARLY_RESPONSE_CACHE_MAX) {
-                    earlyResponses.keys.firstOrNull()?.let(earlyResponses::remove)
-                }
-                earlyResponses[requestId] = value
+            return accepted
+        }
+        val cached = requestLifecycle.cacheIfCurrent(requestId) {
+            if (earlyResponses.size >= AMAZON_EARLY_RESPONSE_CACHE_MAX) {
+                earlyResponses.keys.firstOrNull()?.let(earlyResponses::remove)
             }
-        ) {
+            earlyResponses[requestId] = value
+        }
+        if (!cached) {
             OpenIapLog.warn(
                 "Ignoring Amazon Appstore response for unknown request $requestId",
                 TAG,
             )
         }
+        return cached
     }
 
     private fun <T> failPendingAmazonRequests(
@@ -1631,6 +1646,9 @@ class OpenIapModule(
         val dateMillis = purchaseDate?.time?.toDouble() ?: 0.0
         val receiptCanceled = isCanceled || cancelDate != null
         val receiptDeferred = isDeferred
+        // The response's own userData is authoritative for this purchase; the
+        // cached snapshot is the fallback. Never mix fields across snapshots.
+        val resolvedUserData = userData ?: cachedAmazonUserData
         return buildAmazonPurchase(
             packageName = context.packageName,
             receiptId = receiptId,
@@ -1642,10 +1660,8 @@ class OpenIapModule(
             deferredSku = deferredSku,
             termSku = termSku,
             productIdOverride = productIdOverride,
-            // The response's own userData is authoritative for this purchase;
-            // the cache only covers responses that arrived without it.
-            userIdAmazon = userData?.userId ?: cachedAmazonUserId,
-            userMarketplaceAmazon = userData?.marketplace ?: cachedAmazonMarketplace
+            userIdAmazon = resolvedUserData?.userId,
+            userMarketplaceAmazon = resolvedUserData?.marketplace
         ).copy(dataAndroid = toJSON().toString())
     }
 
