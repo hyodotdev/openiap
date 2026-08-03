@@ -590,6 +590,8 @@ export interface NitroPurchase {
   developerPayloadAndroid?: string | null;
   isSuspendedAndroid?: null | boolean;
   pendingPurchaseUpdateAndroid?: PendingPurchaseUpdateAndroid | null;
+  userIdAmazon?: string | null;
+  userMarketplaceAmazon?: string | null;
 }
 
 /**

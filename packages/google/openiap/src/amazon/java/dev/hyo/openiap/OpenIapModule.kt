@@ -14,6 +14,7 @@ import com.amazon.device.iap.model.FulfillmentResult
 import com.amazon.device.iap.model.ProductDataResponse
 import com.amazon.device.iap.model.PurchaseResponse
 import com.amazon.device.iap.model.PurchaseUpdatesResponse
+import com.amazon.device.iap.model.UserData
 import com.amazon.device.iap.model.UserDataResponse
 import dev.hyo.openiap.helpers.isSubscriptionReplacementTargetCountValid
 import dev.hyo.openiap.helpers.requireAuthoritativeStorefrontCountry
@@ -392,8 +393,10 @@ class OpenIapModule(
     private val purchaseRequests = ConcurrentHashMap<String, CompletableDeferred<PurchaseResponse>>()
     private val purchaseUpdatesRequests = ConcurrentHashMap<String, CompletableDeferred<PurchaseUpdatesResponse>>()
     private val userDataRequests = ConcurrentHashMap<String, CompletableDeferred<UserDataResponse>>()
-    // Amazon getUserData() userId/marketplace are needed for server-side RVS verification.
-    // Cache the latest values so they can be attached to each purchase (see toPurchase).
+    // Amazon userId/marketplace are needed for server-side RVS verification.
+    // Purchase mapping prefers the userData carried on each Purchase(Updates)Response;
+    // these cached values (refreshed by every successful response) are the fallback
+    // for responses that arrive without userData.
     @Volatile private var cachedAmazonUserId: String? = null
     @Volatile private var cachedAmazonMarketplace: String? = null
     private val earlyProductDataResponses = ConcurrentHashMap<String, ProductDataResponse>()
@@ -698,9 +701,11 @@ class OpenIapModule(
                         // local request SKU is safe even when callbacks arrive out
                         // of order.
                         cacheReceiptProduct(receipt, receipt.productTypeOrNull())
+                        response.userData?.let { rememberAmazonUserData(it) }
                         val purchase = receipt.toPurchase(
                             productTypeOverride = receipt.productTypeOrNull(),
-                            productIdOverride = sku
+                            productIdOverride = sku,
+                            userData = response.userData
                         )
                         purchaseUpdateListeners.forEach { listener ->
                             runCatching { listener.onPurchaseUpdated(purchase) }
@@ -1006,12 +1011,14 @@ class OpenIapModule(
         throw OpenIapError.FeatureNotSupported("Amazon Appstore does not support Google Play billing in-app messages")
     }
 
+    private fun rememberAmazonUserData(userData: UserData) {
+        userData.userId?.takeIf { it.isNotBlank() }?.let { cachedAmazonUserId = it }
+        userData.marketplace?.takeIf { it.isNotBlank() }?.let { cachedAmazonMarketplace = it }
+    }
+
     override fun onUserDataResponse(userDataResponse: UserDataResponse) {
         if (userDataResponse.requestStatus == UserDataResponse.RequestStatus.SUCCESSFUL) {
-            userDataResponse.userData?.let {
-                cachedAmazonUserId = it.userId
-                cachedAmazonMarketplace = it.marketplace
-            }
+            userDataResponse.userData?.let { rememberAmazonUserData(it) }
         }
         completeOrCache(
             userDataRequests,
@@ -1254,6 +1261,7 @@ class OpenIapModule(
             var shouldReset = reset
             var pageCount = 0
             var hasMore = false
+            var responseUserData: UserData? = null
             do {
                 if (pageCount >= AMAZON_PURCHASE_UPDATES_MAX_PAGES) {
                     throw OpenIapError.ServiceTimeout(
@@ -1265,6 +1273,10 @@ class OpenIapModule(
                 shouldReset = false
                 when (response.requestStatus) {
                     PurchaseUpdatesResponse.RequestStatus.SUCCESSFUL -> {
+                        response.userData?.let {
+                            responseUserData = it
+                            rememberAmazonUserData(it)
+                        }
                         receipts += response.receipts.orEmpty()
                             .filter {
                                 shouldIncludeAmazonReceipt(
@@ -1292,6 +1304,7 @@ class OpenIapModule(
                 cacheReceiptProduct(receipt, productType)
                 receipt.toPurchase(
                     productTypeOverride = productType,
+                    userData = responseUserData,
                 )
             }
         }
@@ -1612,7 +1625,8 @@ class OpenIapModule(
 
     private fun AmazonReceipt.toPurchase(
         productTypeOverride: AmazonProductType? = productTypeOrNull(),
-        productIdOverride: String? = null
+        productIdOverride: String? = null,
+        userData: UserData? = null
     ): PurchaseAndroid {
         val dateMillis = purchaseDate?.time?.toDouble() ?: 0.0
         val receiptCanceled = isCanceled || cancelDate != null
@@ -1628,8 +1642,10 @@ class OpenIapModule(
             deferredSku = deferredSku,
             termSku = termSku,
             productIdOverride = productIdOverride,
-            userIdAmazon = cachedAmazonUserId,
-            userMarketplaceAmazon = cachedAmazonMarketplace
+            // The response's own userData is authoritative for this purchase;
+            // the cache only covers responses that arrived without it.
+            userIdAmazon = userData?.userId ?: cachedAmazonUserId,
+            userMarketplaceAmazon = userData?.marketplace ?: cachedAmazonMarketplace
         ).copy(dataAndroid = toJSON().toString())
     }
 

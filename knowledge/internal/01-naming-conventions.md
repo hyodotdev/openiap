@@ -104,6 +104,25 @@ input RequestPurchaseAndroidProps {
 | Cross-platform type reference  | YES                       | `developerBillingOption: DeveloperBillingOptionParamsAndroid` |
 | Internal implementation        | NO (not API)              | `val offerToken` in Kotlin data class                         |
 
+### Store-Specific Fields (Amazon / Horizon)
+
+A platform type such as `PurchaseAndroid` can carry data that only one *store*
+provides (Google Play, Amazon Appstore, Horizon). Rules:
+
+- The `store: IapStore` discriminator identifies the store; store-exclusive
+  fields are nullable and null on every other store.
+- When a field only exists for one store, suffix it with the store name:
+  `userIdAmazon`, `userMarketplaceAmazon` in `PurchaseAndroid`. Do NOT stack
+  suffixes (`amazonUserIdAndroid` is wrong).
+- Fields sourced from Play Billing keep the plain `Android` suffix for
+  backward compatibility (`signatureAndroid`, `isSuspendedAndroid`), even
+  though other stores return null for them.
+- When several store fields travel together as one concept, prefer a dedicated
+  store-named type with clean inner fields
+  (`RequestVerifyPurchaseWithIapkitAmazonProps.userId`).
+- Where react-native-iap defined a legacy name for the same datum, keep that
+  exact name (`userIdAmazon`) so migration stays mechanical.
+
 ### Type vs Field Suffix
 
 - **Type names**: Cross-platform types ALWAYS use platform suffix (`DeveloperBillingOptionParamsAndroid`)

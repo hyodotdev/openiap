@@ -337,7 +337,10 @@ internal object BillingConverters {
             signatureAndroid = signature,
             store = IapStore.Google,
             transactionDate = purchaseTime.toDouble(),
-            transactionId = orderId
+            transactionId = orderId,
+            // Amazon-flavor-only fields; Google Play purchases never carry them.
+            userIdAmazon = null,
+            userMarketplaceAmazon = null
         )
     }
 

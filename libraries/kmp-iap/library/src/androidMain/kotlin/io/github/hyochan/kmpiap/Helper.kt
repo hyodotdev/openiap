@@ -506,6 +506,9 @@ internal fun com.android.billingclient.api.Purchase.toPurchase(): Purchase {
         signatureAndroid = signature,
         transactionDate = purchaseTime.toOpenIapTransactionDate(),
         transactionId = orderId,
+        // Amazon-flavor-only fields; Google Play purchases never carry them.
+        userIdAmazon = null,
+        userMarketplaceAmazon = null,
     )
 }
 

@@ -540,6 +540,8 @@ export function convertNitroPurchaseToPurchase(
     isSuspendedAndroid: toNullableBoolean(nitroPurchase.isSuspendedAndroid),
     pendingPurchaseUpdateAndroid:
       nitroPurchase.pendingPurchaseUpdateAndroid ?? null,
+    userIdAmazon: toNullableString(nitroPurchase.userIdAmazon),
+    userMarketplaceAmazon: toNullableString(nitroPurchase.userMarketplaceAmazon),
   };
 
   return androidPurchase;

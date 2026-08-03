@@ -459,7 +459,9 @@ enum RnIapHelper {
             obfuscatedProfileIdAndroid: nil,
             developerPayloadAndroid: nil,
             isSuspendedAndroid: nil,
-            pendingPurchaseUpdateAndroid: nil
+            pendingPurchaseUpdateAndroid: nil,
+            userIdAmazon: nil,
+            userMarketplaceAmazon: nil
         )
     }
 

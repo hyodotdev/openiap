@@ -701,6 +701,36 @@ function Purchase() {
                         )
                       </td>
                     </tr>
+                    <tr>
+                      <td>
+                        <code>userIdAmazon</code>
+                      </td>
+                      <td>
+                        Amazon Appstore user id from{' '}
+                        <code>PurchaseResponse.getUserData().getUserId()</code>.
+                        Only populated on the Amazon flavor; required together
+                        with <code>purchaseToken</code> (receiptId) for
+                        server-side{' '}
+                        <a
+                          href="https://developer.amazon.com/docs/in-app-purchasing/iap-rvs-for-android-apps.html"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
+                          Amazon RVS
+                        </a>{' '}
+                        receipt verification. Null on Google Play and Horizon.
+                      </td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>userMarketplaceAmazon</code>
+                      </td>
+                      <td>
+                        Amazon Appstore marketplace (for example <code>US</code>{' '}
+                        or <code>FR</code>). Only populated on the Amazon
+                        flavor; null on Google Play and Horizon.
+                      </td>
+                    </tr>
                   </tbody>
                 </table>
 

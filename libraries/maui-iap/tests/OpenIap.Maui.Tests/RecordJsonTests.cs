@@ -155,7 +155,9 @@ public class RecordJsonTests
           "signatureAndroid": "signature-abc",
           "store": "google",
           "transactionDate": 1720000000000,
-          "transactionId": "GPA.1234-5678"
+          "transactionId": "GPA.1234-5678",
+          "userIdAmazon": "amazon-user-1",
+          "userMarketplaceAmazon": "US"
         }
         """;
 
@@ -305,6 +307,8 @@ public class RecordJsonTests
         Assert.Equal(["premium.annual"], android.PendingPurchaseUpdateAndroid!.Products);
         Assert.Equal("pending-token", android.PendingPurchaseUpdateAndroid.PurchaseToken);
         Assert.Equal("GPA.1234-5678", android.TransactionId);
+        Assert.Equal("amazon-user-1", android.UserIdAmazon);
+        Assert.Equal("US", android.UserMarketplaceAmazon);
     }
 
     [Fact]
