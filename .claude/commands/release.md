@@ -127,6 +127,25 @@ For a multi-package release train, use this order when affected:
 8. `release-maui.yml`
 9. `npm run deploy`, then `release.yml` with `version=current`
 
+Train rules (mistake guards):
+
+- **Affected packages only.** Before dispatching anything, compute the
+  affected set per package with
+  `git log <last-release-tag>..origin/main -- <package-path>`. Skip any
+  package with no unreleased commits. A library-only train releases only the
+  libraries the merged PRs actually touched and skips Apple/Google entirely.
+- **Native gate.** Do not dispatch any library workflow until every affected
+  native release (Apple, Google) is registry-verified (CocoaPods trunk /
+  Maven Central POMs publicly fetchable) and the spec floor has been derived
+  and synchronized on `main`. Workflow success is not deployment; poll the
+  registry.
+- **Release notes last.** After every package in the train is
+  registry-verified, add the consolidated entry to
+  `packages/docs/src/pages/docs/updates/releases.tsx` (see `generate-doc`),
+  commit it directly to `main` together with any release-process doc updates,
+  then run the docs deployment and the Docs release workflow with
+  `version=current`.
+
 Fetch latest `main` before each dependent workflow so every release starts from
 the prior stable version commit. After an Apple or Google release, confirm the
 native workflow has derived and synchronized the spec floor before dispatching
@@ -160,8 +179,13 @@ second run unless the first run failed before publication.
 ## Godot Asset Library
 
 The GitHub Release does not update Asset Library entry 4627. After a stable
-Godot release, report the exact version and release ZIP URL so the maintainer
-can update and submit the asset for review.
+Godot release, the agent edits
+`https://godotengine.org/asset-library/asset/4627` directly through the
+maintainer's logged-in browser session: update the version string and the
+download commit/URL to the new `godot-iap-{version}` release, then submit the
+edit for review. Never enter credentials; if no logged-in session is
+available, report the exact version and release ZIP URL so the maintainer can
+perform the edit, and record it as pending work.
 
 ## Final Report
 

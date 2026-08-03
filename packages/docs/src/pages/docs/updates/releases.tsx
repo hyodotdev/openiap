@@ -94,6 +94,18 @@ const purchaseSafetyReleases = [
   ['OpenIap.Maui 1.2.2', 'maui-iap-1.2.2'],
 ] as const;
 
+const amazonUserDataTrainReleases = [
+  ['OpenIAP Spec 3.0.1', 'docs-3.0.1'],
+  ['openiap-apple 3.0.1', '3.0.1'],
+  ['openiap-google 3.0.1', 'google-3.0.1'],
+  ['react-native-iap 16.0.2', 'react-native-iap-16.0.2'],
+  ['expo-iap 5.0.1', 'expo-iap-5.0.1'],
+  ['flutter_inapp_purchase 10.0.1', 'flutter-iap-10.0.1'],
+  ['godot-iap 3.0.2', 'godot-iap-3.0.2'],
+  ['kmp-iap 3.0.1', 'kmp-iap-3.0.1'],
+  ['OpenIap.Maui 2.0.2', 'maui-iap-2.0.2'],
+] as const;
+
 const googlePurchaseRecoveryReleases = [
   ['openiap-google 2.5.2', 'google-2.5.2'],
   ['react-native-iap 15.6.2', 'react-native-iap-15.6.2'],
@@ -145,6 +157,295 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // August 4, 2026 - Amazon RVS user data & purchase reliability patch train
+    {
+      id: 'amazon-rvs-user-data-patch-train-2026-08-04',
+      date: new Date('2026-08-04'),
+      element: (
+        <div
+          key="amazon-rvs-user-data-patch-train-2026-08-04"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="amazon-rvs-user-data-patch-train-2026-08-04"
+            level="h4"
+          >
+            August 4, 2026 - Amazon RVS user data & purchase reliability patches
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes a coordinated patch train across every OpenIAP SDK. Amazon
+            Appstore purchases now carry the identity required for server-side{' '}
+            <a
+              href="https://developer.amazon.com/docs/in-app-purchasing/iap-rvs-for-android-apps.html"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              Amazon RVS
+            </a>{' '}
+            receipt verification, contributed by{' '}
+            <a
+              href="https://github.com/josef256"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              @josef256
+            </a>{' '}
+            in{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/275"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #275
+            </a>
+            , and purchase queries no longer swallow store failures (
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/276"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #276
+            </a>
+            ).
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Common changes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <code>PurchaseAndroid</code> gains nullable{' '}
+              <code>userIdAmazon</code> and <code>userMarketplaceAmazon</code>{' '}
+              fields across every SDK type surface. They are populated only on
+              the Amazon flavor and stay null on Google Play and Horizon, so
+              Amazon identity metadata can never leak onto other stores'
+              purchases.
+            </li>
+            <li>
+              Purchase query failures now propagate to callers across every SDK
+              instead of being silently dropped, so restore and
+              available-purchases flows surface real store errors.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Apple</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>openiap-apple 3.0.1</strong> ships the App Store-accepted
+              artifact pipeline from{' '}
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/265"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                PR #265
+              </a>{' '}
+              in the CocoaPods release and keeps the purchase-query failure
+              propagation fix.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Google</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>openiap-google 3.0.1</strong> (Amazon flavor) attaches{' '}
+              <code>userIdAmazon</code> / <code>userMarketplaceAmazon</code>{' '}
+              from each purchase response's own user data, with a
+              lifecycle-gated cached snapshot as fallback that is cleared on{' '}
+              <code>endConnection</code> — stale callbacks can no longer
+              attribute purchases to a previous Amazon account.
+            </li>
+            <li>
+              Horizon purchases fall back to the purchase token when the store
+              returns a blank order id, keeping <code>transactionId</code>{' '}
+              stable (
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/278"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                PR #278
+              </a>
+              ).
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>React Native</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>react-native-iap 16.0.2</strong> exposes the Amazon fields
+              through the Nitro transport, the Android bridge, and the Amazon
+              Vega adapter, with store-gated conversion so only{' '}
+              <code>store: 'amazon'</code> purchases carry them.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Expo</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>expo-iap 5.0.1</strong> populates the Amazon fields in the
+              Vega adapter purchase, restore, and pending-receipt paths.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Flutter</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>flutter_inapp_purchase 10.0.1</strong> carries the new
+              fields through the generated types and platform serialization.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Godot</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>godot-iap 3.0.2</strong> rebuilds the debug AAR during{' '}
+              <code>make android</code> (
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/277"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="external-link"
+              >
+                PR #277
+              </a>
+              ) and ships the new purchase fields in <code>types.gd</code>.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>KMP</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>kmp-iap 3.0.1</strong> adds the fields to the common types
+              and keeps the Play Billing mapper explicit about Amazon-only
+              metadata.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>MAUI</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>OpenIap.Maui 2.0.2</strong> adds the fields to the C#
+              records with round-trip serialization coverage for realistic
+              Amazon-store payloads.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              For server-side Amazon RVS verification, send{' '}
+              <code>purchase.userIdAmazon</code> together with{' '}
+              <code>purchase.purchaseToken</code> (the Amazon receipt id) to
+              your backend. Both fields are null outside the Amazon flavor.
+            </li>
+            <li>
+              No API migration is required; all packages are backward-compatible
+              patch upgrades.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {amazonUserDataTrainReleases.map(([label, tag]) => (
+                <li key={tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // August 2, 2026 - Apple framework compatibility patches
     {
       id: 'apple-framework-compatibility-patches-2026-08-02',
