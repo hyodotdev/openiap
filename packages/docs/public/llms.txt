@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Full Reference: https://openiap.dev/llms-full.txt
-> Generated: 2026-08-03T23:03:51.061Z
+> Generated: 2026-08-03T23:28:37.832Z
 
 ## Installation
 
@@ -46,10 +46,10 @@ implementation("io.github.hyochan:kmp-iap:3.0.1")
 
 ```xml
 <!-- .NET MAUI -->
-<PackageReference Include="OpenIap.Maui" Version="2.0.1" />
+<PackageReference Include="OpenIap.Maui" Version="2.0.2" />
 ```
 
-Current NuGet package version: 2.0.1
+Current NuGet package version: 2.0.2
 
 ## Framework Libraries
 
