@@ -1,3 +1,8 @@
+---
+name: review-pr
+description: Review and address pull-request review comments by fixing valid findings, replying to invalid ones, running lint/typecheck/tests, then resolving the threads. Use when the user asks to review a PR, handle review feedback, or address reviewer comments on a pull request.
+---
+
 # Review PR Comments
 
 Review and address PR review comments for this repository.

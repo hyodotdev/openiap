@@ -1,3 +1,8 @@
+---
+name: commit
+description: Branch, commit, push, and optionally open a pull request for the current changes. Use when the user asks to commit, push, or create a PR, including forms like `/commit --all --pr`.
+---
+
 # Commit Changes
 
 Complete workflow: branch → commit → push → PR

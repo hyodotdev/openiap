@@ -1,3 +1,8 @@
+---
+name: compile-knowledge
+description: Compile the OpenIAP knowledge base into the context files AI assistants load. Use after editing anything under knowledge/, or when the user asks to compile, recompile, or refresh the knowledge base or agent context.
+---
+
 # Compile Knowledge Base
 
 Compile the OpenIAP knowledge base to generate context files for AI assistants.
