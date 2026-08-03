@@ -504,6 +504,16 @@ export function convertNitroPurchaseToPurchase(
       ? legacyAndroidId
       : null);
 
+  // Amazon identity metadata must never leak onto other stores' purchases.
+  const amazonUserId =
+    nitroPurchase.userIdAmazon != null && store === STORE_AMAZON
+      ? toNullableString(nitroPurchase.userIdAmazon)
+      : null;
+  const amazonUserMarketplace =
+    nitroPurchase.userMarketplaceAmazon != null && store === STORE_AMAZON
+      ? toNullableString(nitroPurchase.userMarketplaceAmazon)
+      : null;
+
   const androidPurchase: PurchaseAndroid = {
     id: nitroPurchase.id,
     productId: nitroPurchase.productId,
@@ -540,6 +550,8 @@ export function convertNitroPurchaseToPurchase(
     isSuspendedAndroid: toNullableBoolean(nitroPurchase.isSuspendedAndroid),
     pendingPurchaseUpdateAndroid:
       nitroPurchase.pendingPurchaseUpdateAndroid ?? null,
+    userIdAmazon: amazonUserId,
+    userMarketplaceAmazon: amazonUserMarketplace,
   };
 
   return androidPurchase;

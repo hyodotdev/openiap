@@ -1479,6 +1479,10 @@ function checkReactNativePurchasePayloadContracts() {
           allowedSources.add("purchaseTokenAndroid");
           allowedSources.add("store");
         }
+        if (field === "userIdAmazon" || field === "userMarketplaceAmazon") {
+          // The bridge nulls Amazon identity metadata unless store === amazon.
+          allowedSources.add("store");
+        }
         expectOnlySourceReferences(
           typeScriptMemberReferences(
             expression,

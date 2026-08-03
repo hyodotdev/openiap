@@ -2059,6 +2059,10 @@ class PurchaseAndroid:
 	var is_suspended_android: Variant = null
 	## Pending purchase update for uncommitted subscription upgrade/downgrade (Android) Contains the new products and purchase token for the pending transaction. Returns null if no pending update exists. Available in Google Play Billing Library 5.0+
 	var pending_purchase_update_android: PendingPurchaseUpdateAndroid
+	## Amazon Appstore user id (PurchaseResponse.getUserData().getUserId()). Only populated on the Amazon flavor; required for server-side Amazon RVS receipt verification (userId + receiptId). Null on Google Play and Horizon.
+	var user_id_amazon: Variant = null
+	## Amazon Appstore marketplace (PurchaseResponse.getUserData().getMarketplace()), for example "US" or "FR". Only populated on the Amazon flavor.
+	var user_marketplace_amazon: Variant = null
 
 	static func from_dict(data: Dictionary) -> PurchaseAndroid:
 		var obj = PurchaseAndroid.new()
@@ -2120,6 +2124,10 @@ class PurchaseAndroid:
 				obj.pending_purchase_update_android = PendingPurchaseUpdateAndroid.from_dict(data["pendingPurchaseUpdateAndroid"])
 			else:
 				obj.pending_purchase_update_android = data["pendingPurchaseUpdateAndroid"]
+		if data.has("userIdAmazon") and data["userIdAmazon"] != null:
+			obj.user_id_amazon = data["userIdAmazon"]
+		if data.has("userMarketplaceAmazon") and data["userMarketplaceAmazon"] != null:
+			obj.user_marketplace_amazon = data["userMarketplaceAmazon"]
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -2166,6 +2174,10 @@ class PurchaseAndroid:
 			dict["pendingPurchaseUpdateAndroid"] = pending_purchase_update_android.to_dict()
 		else:
 			dict["pendingPurchaseUpdateAndroid"] = pending_purchase_update_android
+		if user_id_amazon != null:
+			dict["userIdAmazon"] = user_id_amazon
+		if user_marketplace_amazon != null:
+			dict["userMarketplaceAmazon"] = user_marketplace_amazon
 		return dict
 
 class PurchaseError:

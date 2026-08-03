@@ -2973,6 +2973,15 @@ public sealed record PurchaseAndroid : Purchase, PurchaseCommon
     public required double TransactionDate { get; init; }
     [JsonPropertyName("transactionId")]
     public string? TransactionId { get; init; }
+    /// <summary>Amazon Appstore user id (PurchaseResponse.getUserData().getUserId()).</summary>
+    /// <summary>Only populated on the Amazon flavor; required for server-side Amazon RVS</summary>
+    /// <summary>receipt verification (userId + receiptId). Null on Google Play and Horizon.</summary>
+    [JsonPropertyName("userIdAmazon")]
+    public string? UserIdAmazon { get; init; }
+    /// <summary>Amazon Appstore marketplace (PurchaseResponse.getUserData().getMarketplace()),</summary>
+    /// <summary>for example &quot;US&quot; or &quot;FR&quot;. Only populated on the Amazon flavor.</summary>
+    [JsonPropertyName("userMarketplaceAmazon")]
+    public string? UserMarketplaceAmazon { get; init; }
 }
 
 public sealed record PurchaseError

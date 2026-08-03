@@ -148,7 +148,10 @@ internal object HorizonBillingConverters {
             signatureAndroid = signature,
             store = IapStore.Horizon,
             transactionDate = (purchaseTime ?: 0L).toDouble(),
-            transactionId = orderId?.takeIf { it.isNotBlank() } ?: token
+            transactionId = orderId?.takeIf { it.isNotBlank() } ?: token,
+            // Amazon-flavor-only fields; Horizon purchases never carry them.
+            userIdAmazon = null,
+            userMarketplaceAmazon = null
         )
     }
 

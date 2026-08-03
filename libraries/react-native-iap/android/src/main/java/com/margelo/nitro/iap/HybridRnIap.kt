@@ -1312,7 +1312,9 @@ class HybridRnIap : HybridRnIapSpec() {
             obfuscatedProfileIdAndroid = androidPurchase?.obfuscatedProfileIdAndroid.wrapVariant(),
             developerPayloadAndroid = androidPurchase?.developerPayloadAndroid.wrapVariant(),
             isSuspendedAndroid = androidPurchase?.isSuspendedAndroid.wrapVariant(),
-            pendingPurchaseUpdateAndroid = androidPurchase?.pendingPurchaseUpdateAndroid.wrapVariant()
+            pendingPurchaseUpdateAndroid = androidPurchase?.pendingPurchaseUpdateAndroid.wrapVariant(),
+            userIdAmazon = androidPurchase?.userIdAmazon.wrapVariant(),
+            userMarketplaceAmazon = androidPurchase?.userMarketplaceAmazon.wrapVariant()
         )
     }
 

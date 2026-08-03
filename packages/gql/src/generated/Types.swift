@@ -1058,6 +1058,13 @@ public struct PurchaseAndroid: Codable, PurchaseCommon {
     /// Unix timestamp in milliseconds since January 1, 1970 UTC.
     public var transactionDate: Double
     public var transactionId: String? = nil
+    /// Amazon Appstore user id (PurchaseResponse.getUserData().getUserId()).
+    /// Only populated on the Amazon flavor; required for server-side Amazon RVS
+    /// receipt verification (userId + receiptId). Null on Google Play and Horizon.
+    public var userIdAmazon: String? = nil
+    /// Amazon Appstore marketplace (PurchaseResponse.getUserData().getMarketplace()),
+    /// for example "US" or "FR". Only populated on the Amazon flavor.
+    public var userMarketplaceAmazon: String? = nil
 }
 
 public struct PurchaseError: Codable {

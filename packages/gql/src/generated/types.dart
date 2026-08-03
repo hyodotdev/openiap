@@ -2710,6 +2710,8 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
     required this.store,
     required this.transactionDate,
     this.transactionId,
+    this.userIdAmazon,
+    this.userMarketplaceAmazon,
     this.isAlternativeBilling,
   });
 
@@ -2745,6 +2747,13 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
   /// Unix timestamp in milliseconds since January 1, 1970 UTC.
   final double transactionDate;
   final String? transactionId;
+  /// Amazon Appstore user id (PurchaseResponse.getUserData().getUserId()).
+  /// Only populated on the Amazon flavor; required for server-side Amazon RVS
+  /// receipt verification (userId + receiptId). Null on Google Play and Horizon.
+  final String? userIdAmazon;
+  /// Amazon Appstore marketplace (PurchaseResponse.getUserData().getMarketplace()),
+  /// for example "US" or "FR". Only populated on the Amazon flavor.
+  final String? userMarketplaceAmazon;
   final bool? isAlternativeBilling;
 
   factory PurchaseAndroid.fromJson(Map<String, dynamic> json) {
@@ -2770,6 +2779,8 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
       store: IapStore.fromJson(json['store'] as String),
       transactionDate: (json['transactionDate'] as num).toDouble(),
       transactionId: json['transactionId'] as String?,
+      userIdAmazon: json['userIdAmazon'] as String?,
+      userMarketplaceAmazon: json['userMarketplaceAmazon'] as String?,
       isAlternativeBilling: json['isAlternativeBilling'] as bool?,
     );
   }
@@ -2799,6 +2810,8 @@ class PurchaseAndroid extends Purchase implements PurchaseCommon {
       'store': store.toJson(),
       'transactionDate': transactionDate,
       'transactionId': transactionId,
+      'userIdAmazon': userIdAmazon,
+      'userMarketplaceAmazon': userMarketplaceAmazon,
       'isAlternativeBilling': isAlternativeBilling,
     };
   }

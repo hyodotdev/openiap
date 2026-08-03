@@ -273,6 +273,17 @@ type PurchaseAndroid implements PurchaseCommon {
   Available in Google Play Billing Library 5.0+
   """
   pendingPurchaseUpdateAndroid: PendingPurchaseUpdateAndroid
+  """
+  Amazon Appstore user id (PurchaseResponse.getUserData().getUserId()).
+  Only populated on the Amazon flavor; required for server-side Amazon RVS
+  receipt verification (userId + receiptId). Null on Google Play and Horizon.
+  """
+  userIdAmazon: String
+  """
+  Amazon Appstore marketplace (PurchaseResponse.getUserData().getMarketplace()),
+  for example "US" or "FR". Only populated on the Amazon flavor.
+  """
+  userMarketplaceAmazon: String
 }
 
 """

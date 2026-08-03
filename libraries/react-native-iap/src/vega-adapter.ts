@@ -701,6 +701,7 @@ function mapReceipt(
   receipt: VegaReceipt,
   fallbackProductType?: unknown,
   productIdOverride?: string,
+  userData?: VegaUserData | null,
 ): NitroPurchase {
   const receiptId = receipt.receiptId ?? '';
   const productId = productIdOverride ?? getReceiptSku(receipt);
@@ -737,6 +738,8 @@ function mapReceipt(
       receipt.isDeferred && deferredSku
         ? {products: [deferredSku], purchaseToken: receiptId}
         : null,
+    userIdAmazon: nonBlankString(userData?.userId),
+    userMarketplaceAmazon: nonBlankString(userData?.marketplace),
   };
 }
 
@@ -1056,6 +1059,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
           receipt,
           getCachedProductType(receipt, productTypesBySku),
           resolveReceiptProductId(receipt),
+          cachedUserData,
         ),
       );
   };
@@ -1144,6 +1148,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
           getCachedProductType(receipt, productTypesBySku, sku) ??
           (matchesRequestedSku ? fallbackProductType : undefined),
         resolveReceiptProductId(receipt, matchesRequestedSku ? sku : undefined),
+        cachedUserData,
       );
       if (matchesRequestedSku) {
         requestedPurchases.push(purchase);
@@ -1492,7 +1497,12 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
         if (!response.receipt) return [];
 
         cachedUserData = response.userData ?? cachedUserData;
-        const purchase = mapReceipt(response.receipt, fallbackProductType, sku);
+        const purchase = mapReceipt(
+          response.receipt,
+          fallbackProductType,
+          sku,
+          response.userData ?? cachedUserData,
+        );
         emitPurchaseUpdated(purchase);
         return [purchase];
       } catch (error) {

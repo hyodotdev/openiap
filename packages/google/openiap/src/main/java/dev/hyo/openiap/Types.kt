@@ -2890,7 +2890,18 @@ public data class PurchaseAndroid(
      * Unix timestamp in milliseconds since January 1, 1970 UTC.
      */
     override val transactionDate: Double,
-    val transactionId: String? = null
+    val transactionId: String? = null,
+    /**
+     * Amazon Appstore user id (PurchaseResponse.getUserData().getUserId()).
+     * Only populated on the Amazon flavor; required for server-side Amazon RVS
+     * receipt verification (userId + receiptId). Null on Google Play and Horizon.
+     */
+    val userIdAmazon: String? = null,
+    /**
+     * Amazon Appstore marketplace (PurchaseResponse.getUserData().getMarketplace()),
+     * for example "US" or "FR". Only populated on the Amazon flavor.
+     */
+    val userMarketplaceAmazon: String? = null
 ) : PurchaseCommon, Purchase {
 
     companion object {
@@ -2917,6 +2928,8 @@ public data class PurchaseAndroid(
                 store = runCatching { (json["store"] as? String)?.let { IapStore.fromJson(it) } }.getOrNull() ?: IapStore.Unknown,
                 transactionDate = (json["transactionDate"] as? Number)?.toDouble() ?: 0.0,
                 transactionId = json["transactionId"] as? String,
+                userIdAmazon = json["userIdAmazon"] as? String,
+                userMarketplaceAmazon = json["userMarketplaceAmazon"] as? String,
             )
         }
     }
@@ -2944,6 +2957,8 @@ public data class PurchaseAndroid(
         "store" to store.toJson(),
         "transactionDate" to transactionDate,
         "transactionId" to transactionId,
+        "userIdAmazon" to userIdAmazon,
+        "userMarketplaceAmazon" to userMarketplaceAmazon,
     )
 }
 
