@@ -65,7 +65,7 @@ const createService = (): jest.Mocked<VegaPurchasingService> =>
     notifyFulfillment: jest.fn(async () => ({
       responseCode: 1,
     })),
-  }) as unknown as jest.Mocked<VegaPurchasingService>;
+  } as unknown as jest.Mocked<VegaPurchasingService>);
 
 describe('Amazon Vega Expo adapter', () => {
   it('initializes without fetching Amazon user data', async () => {
@@ -893,7 +893,7 @@ describe('Amazon Vega Expo adapter', () => {
     ]);
   });
 
-  it('treats Amazon parser-only purchase update errors as no updates', async () => {
+  it('rejects Amazon parser-only purchase update errors atomically', async () => {
     const service = createService();
     service.getPurchaseUpdates.mockRejectedValueOnce(
       new Error(
@@ -902,7 +902,35 @@ describe('Amazon Vega Expo adapter', () => {
     );
     const module = createExpoIapVegaModule(service);
 
-    await expect(module.getAvailableItems()).resolves.toEqual([]);
+    await expect(module.getAvailableItems()).rejects.toMatchObject({
+      code: ErrorCode.BillingResponseJsonParseError,
+    });
+  });
+
+  it('rejects all pages when a later Amazon purchase update page is malformed', async () => {
+    const service = createService();
+    service.getPurchaseUpdates
+      .mockResolvedValueOnce({
+        responseCode: 1,
+        hasMore: true,
+        receiptList: [
+          {
+            receiptId: 'receipt-page-1',
+            sku: 'coins_100',
+            productType: 1,
+          },
+        ],
+      })
+      .mockRejectedValueOnce(
+        new Error(
+          '[AmazonIAPSDK] Unable to parse the response : userId is not found while parsing Json',
+        ),
+      );
+    const module = createExpoIapVegaModule(service);
+
+    await expect(module.getAvailableItems()).rejects.toMatchObject({
+      code: ErrorCode.BillingResponseJsonParseError,
+    });
   });
 
   it('retries failed Amazon purchase update responses', async () => {
@@ -942,7 +970,7 @@ describe('Amazon Vega Expo adapter', () => {
     }
   });
 
-  it('ignores parser-only product type hydration errors for purchase updates', async () => {
+  it('rejects parser-only product type hydration errors for purchase updates', async () => {
     const service = createService();
     service.getPurchaseUpdates.mockResolvedValueOnce({
       responseCode: 1,
@@ -963,7 +991,9 @@ describe('Amazon Vega Expo adapter', () => {
 
     await expect(
       module.getActiveSubscriptions(['premium_monthly']),
-    ).resolves.toEqual([]);
+    ).rejects.toMatchObject({
+      code: ErrorCode.BillingResponseJsonParseError,
+    });
   });
 
   it('limits paginated Amazon purchase updates', async () => {

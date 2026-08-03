@@ -397,12 +397,29 @@ describe('type-bridge utilities', () => {
         ).toBe(false);
         expect(consoleErrorSpy).toHaveBeenCalledWith(
           '[RN-IAP]',
-          'NitroPurchase missing required field: store',
-          {id: 'id', productId: 'sku', transactionDate: 1},
+          'NitroPurchase has invalid required field: store',
         );
       } finally {
         consoleErrorSpy.mockRestore();
       }
+    });
+
+    it('accepts only decodable object JSON for the Nitro iOS offer', () => {
+      expect(
+        validateNitroPurchase(
+          purchase({
+            offerIOS: JSON.stringify({
+              id: 'intro',
+              paymentMode: 'free-trial',
+              type: 'introductory',
+            }),
+          }),
+        ),
+      ).toBe(true);
+      expect(validateNitroPurchase(purchase({offerIOS: '{invalid'}))).toBe(
+        false,
+      );
+      expect(validateNitroPurchase(purchase({offerIOS: '[]'}))).toBe(false);
     });
   });
 

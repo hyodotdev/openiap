@@ -232,7 +232,7 @@ gentype.Purchase convertToPurchase(
 
   if (purchaseId == null || purchaseId.isEmpty) {
     debugPrint(
-      '[flutter_inapp_purchase] Skipping purchase with missing identifiers',
+      '[flutter_inapp_purchase] Invalid purchase payload: missing identifier',
     );
     throw const FormatException('Missing purchase identifier');
   }
@@ -354,20 +354,36 @@ List<gentype.Purchase> extractPurchases(
   required bool platformIsAndroid,
   required bool platformIsIOS,
   required Map<String, bool> acknowledgedAndroidPurchaseTokens,
+  bool rejectMalformed = false,
 }) {
   List<dynamic> list;
-  if (result is String) {
-    list = json.decode(result) as List<dynamic>;
-  } else if (result is List) {
-    list = result;
-  } else {
-    list = json.decode(result.toString()) as List<dynamic>;
+  try {
+    if (result is String) {
+      list = json.decode(result) as List<dynamic>;
+    } else if (result is List) {
+      list = result;
+    } else {
+      list = json.decode(result.toString()) as List<dynamic>;
+    }
+  } catch (_) {
+    if (rejectMalformed) {
+      throw const FormatException(
+        'Native bridge returned a malformed purchase list',
+      );
+    }
+    return const <gentype.Purchase>[];
   }
 
   final purchases = <gentype.Purchase>[];
-  for (final dynamic product in list) {
+  for (var index = 0; index < list.length; index += 1) {
+    final dynamic product = list[index];
     try {
       if (product is! Map) {
+        if (rejectMalformed) {
+          throw FormatException(
+            'Native bridge returned a malformed purchase at index $index',
+          );
+        }
         debugPrint(
           '[flutter_inapp_purchase] Skipping purchase with unexpected type: ${product.runtimeType}',
         );
@@ -377,12 +393,27 @@ List<gentype.Purchase> extractPurchases(
       // return maps with non-string keys (e.g., Map<Object?, Object?>)
       final map = normalizeDynamicMap(product);
       if (map == null) {
+        if (rejectMalformed) {
+          throw FormatException(
+            'Native bridge returned a malformed purchase at index $index',
+          );
+        }
         debugPrint(
           '[flutter_inapp_purchase] Skipping purchase: failed to normalize map',
         );
         continue;
       }
       final original = map; // Use normalized data to access additional fields
+      if (rejectMalformed &&
+          !_isValidAuthoritativePurchaseMap(
+            map,
+            platformIsAndroid: platformIsAndroid,
+            platformIsIOS: platformIsIOS,
+          )) {
+        throw FormatException(
+          'Native bridge returned a purchase with invalid fields at index $index',
+        );
+      }
       purchases.add(
         convertToPurchase(
           map,
@@ -393,6 +424,12 @@ List<gentype.Purchase> extractPurchases(
         ),
       );
     } catch (error) {
+      if (rejectMalformed) {
+        if (error is FormatException) rethrow;
+        throw FormatException(
+          'Failed to decode native purchase at index $index',
+        );
+      }
       debugPrint(
         '[flutter_inapp_purchase] Skipping purchase due to parse error: $error',
       );
@@ -400,6 +437,49 @@ List<gentype.Purchase> extractPurchases(
   }
 
   return purchases;
+}
+
+bool _isValidAuthoritativePurchaseMap(
+  Map<String, dynamic> value, {
+  required bool platformIsAndroid,
+  required bool platformIsIOS,
+}) {
+  for (final field in <String>['id', 'productId', 'store', 'purchaseState']) {
+    final item = value[field];
+    if (item is! String || item.isEmpty) return false;
+  }
+  final transactionDate = value['transactionDate'];
+  if (transactionDate is! num || !transactionDate.isFinite) return false;
+  final store = value['store'];
+  if (platformIsIOS && store != 'apple') return false;
+  if (platformIsAndroid &&
+      store != 'google' &&
+      store != 'amazon' &&
+      store != 'horizon') {
+    return false;
+  }
+  final quantity = value['quantity'];
+  if (quantity is! num || !quantity.isFinite || quantity % 1 != 0) return false;
+  if (value['isAutoRenewing'] is! bool) return false;
+  if (platformIsIOS) {
+    final transactionId = value['transactionId'];
+    if (transactionId is! String || transactionId.isEmpty) return false;
+  }
+  final ids = value['ids'];
+  if (ids != null && (ids is! List || ids.any((dynamic id) => id is! String))) {
+    return false;
+  }
+  for (final field in <String>[
+    'pendingPurchaseUpdateAndroid',
+    'offerIOS',
+    'renewalInfoIOS',
+    'commitmentInfoIOS',
+    'advancedCommerceInfoIOS',
+  ]) {
+    final nested = value[field];
+    if (nested != null && nested is! Map) return false;
+  }
+  return true;
 }
 
 // Private helper functions --------------------------------------------------

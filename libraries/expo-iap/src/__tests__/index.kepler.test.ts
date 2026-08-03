@@ -1,5 +1,6 @@
 import {
   fetchProducts,
+  getAvailablePurchases,
   openRedeemOfferCodeAndroid,
   requestPurchase,
 } from '../index.kepler';
@@ -11,12 +12,14 @@ jest.mock('../vega', () => ({
 
 describe('Amazon Vega public API', () => {
   const fetchProductsNative = jest.fn().mockResolvedValue([]);
+  const getAvailablePurchasesNative = jest.fn().mockResolvedValue([]);
   const requestPurchaseNative = jest.fn().mockResolvedValue([]);
 
   beforeEach(() => {
     jest.clearAllMocks();
     (getVegaIapModule as jest.Mock).mockReturnValue({
       fetchProducts: fetchProductsNative,
+      getAvailableItems: getAvailablePurchasesNative,
       requestPurchase: requestPurchaseNative,
     });
   });
@@ -66,5 +69,24 @@ describe('Amazon Vega public API', () => {
     ).rejects.toThrow(/request\.google\.skus/);
 
     expect(requestPurchaseNative).not.toHaveBeenCalled();
+  });
+
+  it('rejects an Apple purchase returned by the Vega bridge', async () => {
+    getAvailablePurchasesNative.mockResolvedValueOnce([
+      {
+        id: 'foreign',
+        transactionId: 'foreign',
+        productId: 'premium',
+        transactionDate: Date.now(),
+        store: 'apple',
+        quantity: 1,
+        purchaseState: 'purchased',
+        isAutoRenewing: false,
+      },
+    ]);
+
+    await expect(getAvailablePurchases()).rejects.toMatchObject({
+      code: 'billing-response-json-parse-error',
+    });
   });
 });

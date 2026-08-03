@@ -69,6 +69,7 @@ describe('useIAP hook', () => {
     (ExpoIapModule.endConnection as jest.Mock) = jest
       .fn()
       .mockResolvedValue(true);
+    (ExpoIapModule.syncIOS as jest.Mock) = jest.fn().mockResolvedValue(true);
     (ExpoIapModule.addListener as jest.Mock) = jest.fn().mockReturnValue({
       remove: jest.fn(),
     });
@@ -282,6 +283,41 @@ describe('useIAP hook', () => {
       expect(onError).toHaveBeenCalledWith(mockError);
     });
 
+    it('calls onError and rethrows when hasActiveSubscriptions fails', async () => {
+      const mockError = new Error('Entitlement status unavailable');
+      (ExpoIapModule.hasActiveSubscriptions as jest.Mock) = jest
+        .fn()
+        .mockRejectedValue(mockError);
+
+      const onError = jest.fn();
+      let hookResult: ReturnType<typeof useIAP> | null = null;
+
+      await ReactTestRenderer.act(async () => {
+        ReactTestRenderer.create(
+          <TestComponent
+            options={{onError}}
+            onHookReady={(hook) => {
+              hookResult = hook;
+            }}
+          />,
+        );
+        await flushPromises();
+      });
+
+      let thrown: unknown;
+      await ReactTestRenderer.act(async () => {
+        try {
+          await hookResult!.hasActiveSubscriptions();
+        } catch (error) {
+          thrown = error;
+        }
+      });
+
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(onError).toHaveBeenCalledWith(mockError);
+      expect(thrown).toBe(mockError);
+    });
+
     it('calls onError when restorePurchases fails', async () => {
       const mockError = new Error('Restore failed');
       (ExpoIapModule.getAvailableItems as jest.Mock) = jest
@@ -315,6 +351,36 @@ describe('useIAP hook', () => {
         }
       });
 
+      expect(onError).toHaveBeenCalledTimes(1);
+      expect(onError).toHaveBeenCalledWith(mockError);
+    });
+
+    it('stops restore after an iOS sync rejection', async () => {
+      const mockError = new Error('App Store sync failed');
+      (ExpoIapModule.syncIOS as jest.Mock) = jest
+        .fn()
+        .mockRejectedValue(mockError);
+      (ExpoIapModule.getAvailableItems as jest.Mock) = jest.fn();
+
+      const onError = jest.fn();
+      let hookResult: ReturnType<typeof useIAP> | null = null;
+      await ReactTestRenderer.act(async () => {
+        ReactTestRenderer.create(
+          <TestComponent
+            options={{onError}}
+            onHookReady={(hook) => {
+              hookResult = hook;
+            }}
+          />,
+        );
+        await flushPromises();
+      });
+
+      await ReactTestRenderer.act(async () => {
+        await expect(hookResult!.restorePurchases()).rejects.toBe(mockError);
+      });
+
+      expect(ExpoIapModule.getAvailableItems).not.toHaveBeenCalled();
       expect(onError).toHaveBeenCalledTimes(1);
       expect(onError).toHaveBeenCalledWith(mockError);
     });

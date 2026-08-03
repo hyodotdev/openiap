@@ -456,11 +456,12 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             openIapModule.showManageSubscriptionsIOSWithCompletion { result, error ->
                 if (error != null) {
                     continuation.resumeWithExceptionIfActive(error.toPurchaseException())
-                } else if (result != null) {
-                    val purchases = convertAnyListToPurchaseIOSList(result)
-                    continuation.resumeIfActive(purchases)
                 } else {
-                    continuation.resumeIfActive(emptyList())
+                    runCatching { convertAnyListToPurchaseIOSList(result) }
+                        .fold(
+                            onSuccess = continuation::resumeIfActive,
+                            onFailure = continuation::resumeWithExceptionIfActive,
+                        )
                 }
             }
         }
@@ -546,11 +547,12 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             openIapModule.getAvailablePurchasesWithCompletion { result, error ->
                 if (error != null) {
                     continuation.resumeWithExceptionIfActive(error.toPurchaseException())
-                } else if (result != null) {
-                    val purchases = convertAnyListToPurchases(result)
-                    continuation.resumeIfActive(purchases)
                 } else {
-                    continuation.resumeIfActive(emptyList())
+                    runCatching { convertAnyListToPurchases(result) }
+                        .fold(
+                            onSuccess = continuation::resumeIfActive,
+                            onFailure = continuation::resumeWithExceptionIfActive,
+                        )
                 }
             }
         }
@@ -585,11 +587,12 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             openIapModule.getPendingTransactionsIOSWithCompletion { result, error ->
                 if (error != null) {
                     continuation.resumeWithExceptionIfActive(error.toPurchaseException())
-                } else if (result != null) {
-                    val purchases = convertAnyListToPurchaseIOSList(result)
-                    continuation.resumeIfActive(purchases)
                 } else {
-                    continuation.resumeIfActive(emptyList())
+                    runCatching { convertAnyListToPurchaseIOSList(result) }
+                        .fold(
+                            onSuccess = continuation::resumeIfActive,
+                            onFailure = continuation::resumeWithExceptionIfActive,
+                        )
                 }
             }
         }
@@ -604,11 +607,12 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
             openIapModule.getAllTransactionsIOSWithCompletion { result, error ->
                 if (error != null) {
                     continuation.resumeWithExceptionIfActive(error.toPurchaseException())
-                } else if (result != null) {
-                    val purchases = convertAnyListToPurchaseIOSList(result)
-                    continuation.resumeIfActive(purchases)
                 } else {
-                    continuation.resumeIfActive(emptyList())
+                    runCatching { convertAnyListToPurchaseIOSList(result) }
+                        .fold(
+                            onSuccess = continuation::resumeIfActive,
+                            onFailure = continuation::resumeWithExceptionIfActive,
+                        )
                 }
             }
         }
@@ -659,7 +663,13 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     return@getActiveSubscriptionsWithCompletion
                 }
 
-                continuation.resumeIfActive(filterActiveSubscriptions(result, subscriptionIds))
+                try {
+                    continuation.resumeIfActive(
+                        decodeActiveSubscriptionListPayloadIOS(result, subscriptionIds)
+                    )
+                } catch (decodeError: Exception) {
+                    continuation.resumeWithExceptionIfActive(decodeError)
+                }
             }
         }
 
@@ -751,30 +761,15 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     return@getActiveSubscriptionsWithCompletion
                 }
 
-                continuation.resumeIfActive(filterActiveSubscriptions(result, subscriptionIds).isNotEmpty())
+                try {
+                    continuation.resumeIfActive(
+                        decodeActiveSubscriptionListPayloadIOS(result, subscriptionIds).isNotEmpty()
+                    )
+                } catch (decodeError: Exception) {
+                    continuation.resumeWithExceptionIfActive(decodeError)
+                }
             }
         }
-
-    private fun filterActiveSubscriptions(
-        result: List<*>?,
-        subscriptionIds: List<String>?
-    ): List<ActiveSubscription> {
-        val subscriptions = result?.mapNotNull { item ->
-            val map = (item as? Map<*, *>)?.mapKeys { it.key.toString() } ?: return@mapNotNull null
-            try {
-                ActiveSubscription.fromJson(map)
-            } catch (e: Exception) {
-                null
-            }
-        } ?: emptyList()
-
-        if (subscriptionIds.isNullOrEmpty()) {
-            return subscriptions
-        }
-
-        val filter = subscriptionIds.toSet()
-        return subscriptions.filter { it.productId in filter }
-    }
 
     /**
      * Check intro-offer eligibility for a subscription group.
@@ -1179,28 +1174,12 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
 
     @Suppress("UNCHECKED_CAST")
     private fun convertAnyListToPurchases(data: Any?): List<Purchase> {
-        if (data == null) return emptyList()
-
-        return try {
-            val list = data as? List<*> ?: return emptyList()
-            list.mapNotNull { convertAnyToPurchase(it) }
-        } catch (e: Exception) {
-            emptyList()
-        }
+        return decodePurchaseListPayloadIOS(data)
     }
 
     @Suppress("UNCHECKED_CAST")
     private fun convertAnyListToPurchaseIOSList(data: Any?): List<PurchaseIOS> {
-        if (data == null) return emptyList()
-
-        return try {
-            val list = data as? List<*> ?: return emptyList()
-            list.mapNotNull { item ->
-                convertAnyToPurchaseIOS(item)
-            }
-        } catch (e: Exception) {
-            emptyList()
-        }
+        return decodePurchaseListPayloadIOS(data)
     }
 
     @Suppress("UNCHECKED_CAST")

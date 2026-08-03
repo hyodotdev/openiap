@@ -1,3 +1,8 @@
+---
+name: audit-code
+description: Audit OpenIAP code against the knowledge-base rules and current platform APIs, then fix the violations it finds. Use when the user asks to audit code, check convention compliance, or verify sources against knowledge/internal.
+---
+
 # Audit Code Against Knowledge Rules
 
 Automated workflow to check and fix code based on knowledge rules and latest platform APIs.

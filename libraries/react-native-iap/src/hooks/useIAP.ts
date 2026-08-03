@@ -2,6 +2,7 @@
 import {useCallback, useEffect, useState, useRef} from 'react';
 import {Platform} from 'react-native';
 import {RnIapConsole} from '../utils/debug';
+import {createPurchaseError} from '../utils/errorMapping';
 
 // Internal modules
 import {
@@ -467,6 +468,7 @@ export function useIAP(options?: UseIapOptions): UseIap {
       } catch (error) {
         RnIapConsole.error('Error fetching available purchases:', error);
         invokeOnError(error);
+        throw error;
       }
     },
     [invokeOnError],
@@ -483,7 +485,7 @@ export function useIAP(options?: UseIapOptions): UseIap {
       } catch (error) {
         RnIapConsole.error('Error getting active subscriptions:', error);
         invokeOnError(error);
-        return [];
+        throw error;
       }
     },
     [invokeOnError],
@@ -496,7 +498,7 @@ export function useIAP(options?: UseIapOptions): UseIap {
       } catch (error) {
         RnIapConsole.error('Error checking active subscriptions:', error);
         invokeOnError(error);
-        return false;
+        throw error;
       }
     },
     [invokeOnError],
@@ -523,16 +525,26 @@ export function useIAP(options?: UseIapOptions): UseIap {
 
   const restorePurchases = useCallback(
     async (options?: PurchaseOptions): Promise<void> => {
-      try {
-        if (Platform.OS === 'ios') {
-          await syncIOS();
+      if (Platform.OS === 'ios') {
+        try {
+          const synced = await syncIOS();
+          if (!synced) {
+            throw createPurchaseError({
+              code: ErrorCode.SyncError,
+              message: 'App Store purchase sync did not complete',
+              platform: 'ios',
+            });
+          }
+        } catch (error) {
+          RnIapConsole.warn('Failed to restore purchases:', error);
+          invokeOnError(error);
+          throw error;
         }
-
-        await getAvailablePurchasesInternal(options);
-      } catch (error) {
-        RnIapConsole.warn('Failed to restore purchases:', error);
-        invokeOnError(error);
       }
+
+      // The query helper reports and rethrows its own error, avoiding a second
+      // onError call while keeping restore failure observable to the caller.
+      await getAvailablePurchasesInternal(options);
     },
     [getAvailablePurchasesInternal, invokeOnError],
   );

@@ -355,7 +355,8 @@ void main() {
       expect(subs.single.productId, 'sub.ios.single');
     });
 
-    test('handles unexpected result type gracefully', () async {
+    test('rejects unexpected result types instead of returning empty',
+        () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall call) async {
         switch (call.method) {
@@ -373,10 +374,51 @@ void main() {
       );
 
       await iap.initConnection();
-      final subs = await iap.getActiveSubscriptions();
+      await expectLater(
+        iap.getActiveSubscriptions(),
+        throwsA(
+          isA<PurchaseError>().having(
+            (error) => error.code,
+            'code',
+            ErrorCode.BillingResponseJsonParseError,
+          ),
+        ),
+      );
+    });
 
-      // Should return empty list instead of crashing
-      expect(subs, isEmpty);
+    test('rejects the full batch when one subscription is malformed', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        switch (call.method) {
+          case 'initConnection':
+            return true;
+          case 'getActiveSubscriptions':
+            return <Map<String, dynamic>>[
+              <String, dynamic>{
+                'productId': 'sub.valid',
+                'transactionId': 'txn-valid',
+                'isActive': true,
+                'transactionDate': 1700000000000,
+              },
+              <String, dynamic>{'productId': 'sub.invalid'},
+            ];
+        }
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'ios'),
+      );
+      await iap.initConnection();
+
+      await expectLater(
+        iap.getActiveSubscriptions(),
+        throwsA(isA<PurchaseError>()),
+      );
+      await expectLater(
+        iap.hasActiveSubscriptions(),
+        throwsA(isA<PurchaseError>()),
+      );
     });
   });
 }

@@ -1,3 +1,8 @@
+---
+name: resolve-issue
+description: Analyze a GitHub issue, apply labels, then either fix it with a PR or reply with the analysis. Use when the user names an issue number and asks to resolve, triage, fix, or investigate it.
+---
+
 # Resolve Issue
 
 Analyze a GitHub issue, add labels, and either fix it with a PR or comment with analysis.

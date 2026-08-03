@@ -1,3 +1,8 @@
+---
+name: verify-all
+description: Run the full monorepo health check across every package and library. Use before committing or opening a PR, or when the user asks to verify everything, run all checks, or confirm the repo is healthy.
+---
+
 # Verify All — Full Monorepo Health Check
 
 Run this before committing or creating a PR to verify the entire monorepo is healthy.

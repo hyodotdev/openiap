@@ -563,7 +563,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                     onlyIncludeActive: onlyIncludeActiveItems
                 )
                 let purchases = try await OpenIapModule.shared.getAvailablePurchases(opts)
-                let serialized = FlutterIapHelper.sanitizeArray(OpenIapSerialization.purchases(purchases))
+                let serialized = FlutterIapHelper.sanitizeArray(try FlutterIapHelper.purchasesRequired(purchases))
                 FlutterIapLog.result("getAvailableItems", value: serialized)
                 await MainActor.run { result(serialized) }
             } catch let purchaseError as PurchaseError {
@@ -587,7 +587,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         Task { @MainActor in
             do {
                 let subscriptions = try await OpenIapModule.shared.getActiveSubscriptions(subscriptionIds)
-                let serialized = subscriptions.map { OpenIapSerialization.encode($0) }
+                let serialized = try subscriptions.map { try FlutterIapHelper.encodeRequired($0) }
                 let sanitized = FlutterIapHelper.sanitizeArray(serialized)
                 FlutterIapLog.result("getActiveSubscriptions", value: sanitized)
                 await MainActor.run { result(sanitized) }
@@ -745,7 +745,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
         Task { @MainActor in
             do {
                 let purchases = try await OpenIapModule.shared.showManageSubscriptionsIOS()
-                let serialized = purchases.map { OpenIapSerialization.encode($0) }
+                let serialized = try purchases.map { try FlutterIapHelper.encodeRequired($0) }
                 let sanitized = FlutterIapHelper.sanitizeArray(serialized)
                 FlutterIapLog.result("showManageSubscriptionsIOS", value: sanitized)
                 result(sanitized)
@@ -827,7 +827,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
             do {
                 let pending = try await OpenIapModule.shared.getPendingTransactionsIOS()
                 let purchases = pending.map { Purchase.purchaseIos($0) }
-                let serialized = FlutterIapHelper.sanitizeArray(OpenIapSerialization.purchases(purchases))
+                let serialized = FlutterIapHelper.sanitizeArray(try FlutterIapHelper.purchasesRequired(purchases))
                 FlutterIapLog.result("getPendingTransactionsIOS", value: serialized)
                 result(serialized)
             } catch let purchaseError as PurchaseError {
@@ -847,7 +847,7 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
             do {
                 let all = try await OpenIapModule.shared.getAllTransactionsIOS()
                 let purchases = all.map { Purchase.purchaseIos($0) }
-                let serialized = FlutterIapHelper.sanitizeArray(OpenIapSerialization.purchases(purchases))
+                let serialized = FlutterIapHelper.sanitizeArray(try FlutterIapHelper.purchasesRequired(purchases))
                 FlutterIapLog.result("getAllTransactionsIOS", value: serialized)
                 result(serialized)
             } catch let purchaseError as PurchaseError {

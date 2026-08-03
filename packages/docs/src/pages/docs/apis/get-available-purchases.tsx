@@ -81,7 +81,12 @@ interface PurchaseOptions {
 );`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func get_available_purchases(options: PurchaseOptions = null) -> Array[Purchase]`}</CodeBlock>
+            <CodeBlock language="gdscript">{`func get_available_purchases(options: PurchaseOptions = null) -> Array[Purchase]
+
+# Godot failure-aware variant:
+func get_available_purchases_result(options: PurchaseOptions = null) -> Dictionary
+# { "success": true, "purchases": Array[Purchase] }
+# { "success": false, "code": String, "error": String }`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -135,6 +140,27 @@ interface PurchaseOptions {
           <code>Promise&lt;Purchase[]&gt;</code>
         </Link>{' '}
         — owned/available purchases held by the store.
+      </p>
+
+      <AnchorLink id="failure-semantics" level="h2">
+        Failure semantics
+      </AnchorLink>
+      <p>
+        In SDK APIs that surface failures and in Godot&apos;s result-bearing
+        API, an empty purchase list is an authoritative store result: the store
+        query completed and found no purchases. Native transaction verification,
+        serialization, or bridge decoding failures reject the whole query (or
+        return <code>success = false</code>) with an error such as{' '}
+        <code>billing-response-json-parse-error</code>; OpenIAP does not return
+        a partial list.
+      </p>
+      <p>
+        Godot keeps <code>get_available_purchases()</code> for compatibility, so
+        that array-only method still maps a failure to an empty array. Code that
+        restores purchases, grants entitlements, or clears cached ownership must
+        call <code>get_available_purchases_result()</code> and check{' '}
+        <code>success</code> before using <code>purchases</code>. Never revoke
+        or clear entitlements after a failed query.
       </p>
 
       <h2>Example</h2>
@@ -201,7 +227,13 @@ using OpenIap.Maui;
 var purchases = await ((QueryResolver)OpenIapClient.Instance).GetAvailablePurchasesAsync();`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`var purchases = await iap.get_available_purchases()`}</CodeBlock>
+            <CodeBlock language="gdscript">{`var result = await iap.get_available_purchases_result()
+if not result.success:
+    push_error("Purchase query failed: %s (%s)" % [result.error, result.code])
+    return
+
+# An empty array here is a confirmed, successful store result.
+var purchases: Array = result.purchases`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

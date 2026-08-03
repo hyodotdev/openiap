@@ -59,6 +59,10 @@ import {
 import {RnIapConsole} from './utils/debug';
 import {getSuccessFromPurchaseVariant} from './utils/purchase';
 import {parseAppTransactionPayload} from './utils';
+import {
+  convertAndroidPurchasesOrThrow,
+  convertApplePurchasesOrThrow,
+} from './utils/available-purchases';
 import {getVegaIapModule, isVegaOS} from './vega';
 
 // ------------------------------
@@ -884,7 +888,8 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
 
     if (normalizedType === 'all') {
       const converted = (await fetchAndConvert('all')) as (
-        Product | ProductSubscription
+        | Product
+        | ProductSubscription
       )[];
 
       RnIapConsole.debug(
@@ -991,14 +996,7 @@ export const getAvailablePurchases: QueryField<
       const nitroPurchases =
         await IAP.instance.getAvailablePurchases(nitroOptions);
 
-      const validPurchases = nitroPurchases.filter(validateNitroPurchase);
-      if (validPurchases.length !== nitroPurchases.length) {
-        RnIapConsole.warn(
-          `[getAvailablePurchases] Some purchases failed validation: ${nitroPurchases.length - validPurchases.length} invalid`,
-        );
-      }
-
-      return validPurchases.map(convertNitroPurchaseToPurchase);
+      return convertApplePurchasesOrThrow(nitroPurchases);
     } else if (isAndroidStoreRuntime()) {
       const includeSuspended = Boolean(
         options?.includeSuspendedAndroid ?? false,
@@ -1008,14 +1006,7 @@ export const getAvailablePurchases: QueryField<
         const nitroPurchases = await IAP.instance.getAvailablePurchases({
           android: {includeSuspended},
         });
-        const validPurchases = nitroPurchases.filter(validateNitroPurchase);
-        if (validPurchases.length !== nitroPurchases.length) {
-          RnIapConsole.warn(
-            `[getAvailablePurchases] Some Vega purchases failed validation: ${nitroPurchases.length - validPurchases.length} invalid`,
-          );
-        }
-
-        return validPurchases.map(convertNitroPurchaseToPurchase);
+        return convertAndroidPurchasesOrThrow(nitroPurchases);
       }
 
       // For Android Play/Horizon/Fire OS, query in-app items and subscriptions separately.
@@ -1026,16 +1017,8 @@ export const getAvailablePurchases: QueryField<
         android: {type: 'subs', includeSuspended},
       });
 
-      // Validate and convert both sets of purchases
       const allNitroPurchases = [...inappNitroPurchases, ...subsNitroPurchases];
-      const validPurchases = allNitroPurchases.filter(validateNitroPurchase);
-      if (validPurchases.length !== allNitroPurchases.length) {
-        RnIapConsole.warn(
-          `[getAvailablePurchases] Some Android purchases failed validation: ${allNitroPurchases.length - validPurchases.length} invalid`,
-        );
-      }
-
-      return validPurchases.map(convertNitroPurchaseToPurchase);
+      return convertAndroidPurchasesOrThrow(allNitroPurchases);
     } else {
       throw unsupportedPlatformError();
     }
@@ -1298,11 +1281,7 @@ export const getPendingTransactionsIOS: QueryField<
 
   try {
     const nitroPurchases = await IAP.instance.getPendingTransactionsIOS();
-    return nitroPurchases
-      .map(convertNitroPurchaseToPurchase)
-      .filter(
-        (purchase): purchase is PurchaseIOS => purchase.store === 'apple',
-      );
+    return convertApplePurchasesOrThrow(nitroPurchases);
   } catch (error) {
     const parsedError = parseErrorAndLogIfNeeded(
       '[getPendingTransactionsIOS] Failed:',
@@ -1331,11 +1310,7 @@ export const getAllTransactionsIOS: QueryField<
 
   try {
     const nitroPurchases = await IAP.instance.getAllTransactionsIOS();
-    return nitroPurchases
-      .map(convertNitroPurchaseToPurchase)
-      .filter(
-        (purchase): purchase is PurchaseIOS => purchase.store === 'apple',
-      );
+    return convertApplePurchasesOrThrow(nitroPurchases);
   } catch (error) {
     const parsedError = parseErrorAndLogIfNeeded(
       '[getAllTransactionsIOS] Failed:',
@@ -1366,11 +1341,7 @@ export const showManageSubscriptionsIOS: MutationField<
 
   try {
     const nitroPurchases = await IAP.instance.showManageSubscriptionsIOS();
-    return nitroPurchases
-      .map(convertNitroPurchaseToPurchase)
-      .filter(
-        (purchase): purchase is PurchaseIOS => purchase.store === 'apple',
-      );
+    return convertApplePurchasesOrThrow(nitroPurchases);
   } catch (error) {
     const parsedError = parseErrorAndLogIfNeeded(
       '[showManageSubscriptionsIOS] Failed:',
@@ -1627,7 +1598,14 @@ export const endConnection: MutationField<'endConnection'> = async () => {
 export const restorePurchases: MutationField<'restorePurchases'> = async () => {
   try {
     if (Platform.OS === 'ios') {
-      await syncIOS();
+      const synced = await syncIOS();
+      if (!synced) {
+        throw createPurchaseError({
+          code: ErrorCode.SyncError,
+          message: 'App Store purchase sync did not complete',
+          platform: 'ios',
+        });
+      }
     }
 
     await getAvailablePurchases({
@@ -2485,8 +2463,7 @@ export const getActiveSubscriptions: QueryField<
                 sub.renewalInfoIOS.autoRenewPreference ?? null,
               bundleOriginalTransactionId:
                 sub.renewalInfoIOS.bundleOriginalTransactionId ?? null,
-              bundleProductId:
-                sub.renewalInfoIOS.bundleProductId ?? null,
+              bundleProductId: sub.renewalInfoIOS.bundleProductId ?? null,
               bundleSubscriptionGroupId:
                 sub.renewalInfoIOS.bundleSubscriptionGroupId ?? null,
               commitmentInfo: sub.renewalInfoIOS.commitmentInfo ?? null,

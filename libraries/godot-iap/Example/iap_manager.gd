@@ -70,7 +70,17 @@ func _fetch_products_delayed() -> void:
 ## Clear pending purchases that weren't finished (e.g., app crashed after purchase)
 func _clear_pending_purchases() -> void:
 	print("[IAPManager] Checking for pending purchases...")
-	var pending_purchases = await GodotIapPlugin._get_available_purchases_raw()
+	var available_result = await GodotIapPlugin.get_available_purchases_result()
+	if not available_result.get("success", false):
+		push_warning(
+			"[IAPManager] Could not query pending purchases: %s (%s)"
+			% [
+				available_result.get("error", "Unknown store error"),
+				available_result.get("code", "unknown"),
+			]
+		)
+		return
+	var pending_purchases = available_result.get("purchases", [])
 
 	if pending_purchases.size() == 0:
 		print("[IAPManager] No pending purchases found")
@@ -444,10 +454,20 @@ func restore_purchases() -> void:
 		purchases_restored.emit()
 
 
-func is_premium_purchased() -> bool:
+func is_premium_purchased() -> Variant:
 	## Check if premium was purchased (for non-consumables)
-	## Returns typed purchase objects (Types.PurchaseAndroid or Types.PurchaseIOS)
-	var purchases = await GodotIapPlugin.get_available_purchases()
+	## Returns null on query failure so callers do not revoke a valid entitlement.
+	var available_result = await GodotIapPlugin.get_available_purchases_result()
+	if not available_result.get("success", false):
+		push_error(
+			"Premium entitlement query failed: %s (%s)"
+			% [
+				available_result.get("error", "Unknown store error"),
+				available_result.get("code", "unknown"),
+			]
+		)
+		return null
+	var purchases: Array = available_result.get("purchases", [])
 	for purchase in purchases:
 		# Access typed property directly
 		if purchase.product_id == PRODUCT_PREMIUM:

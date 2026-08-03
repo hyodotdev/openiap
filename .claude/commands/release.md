@@ -1,3 +1,8 @@
+---
+name: release
+description: Release OpenIAP packages (stable or prerelease) one at a time, verifying the public registry before continuing. Use when the user asks to release, publish, or deploy a package or run a release train.
+---
+
 # Release Packages
 
 Use this workflow for stable or prerelease package deployment. Release one

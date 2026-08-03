@@ -25,9 +25,12 @@ class FakeAndroidPlugin:
 		last_purchase = JSON.parse_string(params_json)
 		return JSON.stringify({"success": true, "pending": true})
 
-	func getAvailablePurchasesWithOptions(options_json: String) -> String:
+	func getAvailablePurchasesResult() -> String:
+		return JSON.stringify({"success": true, "purchases": []})
+
+	func getAvailablePurchasesResultWithOptions(options_json: String) -> String:
 		last_purchase_options = JSON.parse_string(options_json)
-		return "[]"
+		return JSON.stringify({"success": true, "purchases": []})
 
 	func getStorefrontAndroid() -> String:
 		return storefront_result
@@ -94,7 +97,6 @@ class FakeIOSAsyncPlugin:
 				"transactionDate": 1.0,
 			}]),
 		})
-
 
 func _init() -> void:
 	_run_suite.call_deferred()

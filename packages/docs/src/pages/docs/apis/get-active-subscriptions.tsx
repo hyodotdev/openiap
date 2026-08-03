@@ -80,7 +80,12 @@ function GetActiveSubscriptions() {
 );`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func get_active_subscriptions(subscription_ids: Array[String] = []) -> Array[ActiveSubscription]`}</CodeBlock>
+            <CodeBlock language="gdscript">{`func get_active_subscriptions(subscription_ids: Array[String] = []) -> Array[ActiveSubscription]
+
+# Godot failure-aware variant:
+func get_active_subscriptions_result(subscription_ids: Array[String] = []) -> Dictionary
+# { "success": true, "subscriptions": Array[ActiveSubscription] }
+# { "success": false, "code": String, "error": String }`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
@@ -99,6 +104,18 @@ function GetActiveSubscriptions() {
           about.
         </li>
       </ul>
+
+      <AnchorLink id="failure-semantics" level="h2">
+        Failure semantics
+      </AnchorLink>
+      <p>
+        Store, serialization, and bridge-decoding failures reject the query;
+        they are not an authoritative empty subscription list. The React Native
+        and Expo hooks call <code>onError</code> and rethrow. Godot entitlement
+        code must use <code>get_active_subscriptions_result()</code> and leave
+        its existing entitlement state unchanged when <code>success</code> is{' '}
+        <code>false</code>.
+      </p>
 
       <AnchorLink id="returns" level="h2">
         Returns
@@ -217,7 +234,11 @@ using OpenIap.Maui;
 var subscriptions = await ((QueryResolver)OpenIapClient.Instance).GetActiveSubscriptionsAsync();`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`var subscriptions = await iap.get_active_subscriptions()`}</CodeBlock>
+            <CodeBlock language="gdscript">{`var result = await iap.get_active_subscriptions_result()
+if not result.success:
+    push_error("Subscription query failed: %s (%s)" % [result.error, result.code])
+    return
+var subscriptions: Array = result.subscriptions`}</CodeBlock>
           ),
         }}
       </LanguageTabs>

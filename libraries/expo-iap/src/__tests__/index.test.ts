@@ -43,6 +43,20 @@ import {Platform} from 'react-native';
 
 const consoleLogSpy = jest.spyOn(console, 'log').mockImplementation(() => {});
 
+const nativePurchase = (
+  id: string,
+  overrides: Record<string, unknown> = {},
+) => ({
+  id,
+  productId: `product.${id}`,
+  transactionDate: 1720000000000,
+  store: 'google',
+  quantity: 1,
+  purchaseState: 'purchased',
+  isAutoRenewing: false,
+  ...overrides,
+});
+
 afterEach(() => {
   consoleLogSpy.mockClear();
 });
@@ -1168,8 +1182,8 @@ describe('Public API (index.ts)', () => {
       (ExpoIapModule.getAvailableItems as jest.Mock) = jest
         .fn()
         .mockResolvedValueOnce([
-          {id: 'p1', transactionId: 'txn-1'},
-          {id: 's1', transactionId: 'txn-2'},
+          nativePurchase('p1', {transactionId: 'txn-1'}),
+          nativePurchase('s1', {transactionId: 'txn-2'}),
         ]);
       const res = await getAvailablePurchases();
       expect(ExpoIapModule.getAvailableItems).toHaveBeenCalledWith({
@@ -1187,12 +1201,11 @@ describe('Public API (index.ts)', () => {
       (ExpoIapModule.getAvailableItems as jest.Mock) = jest
         .fn()
         .mockResolvedValueOnce([
-          {id: 'active-sub', transactionId: 'txn-1'},
-          {
-            id: 'suspended-sub',
+          nativePurchase('active-sub', {transactionId: 'txn-1'}),
+          nativePurchase('suspended-sub', {
             transactionId: 'txn-2',
             isSuspendedAndroid: true,
-          },
+          }),
         ]);
       const res = await getAvailablePurchases({includeSuspendedAndroid: true});
       expect(ExpoIapModule.getAvailableItems).toHaveBeenCalledWith({
@@ -1208,10 +1221,15 @@ describe('Public API (index.ts)', () => {
       (Platform as any).select = (obj: any) => obj.ios;
       const syncSpy = jest
         .spyOn(iosMod as any, 'syncIOS')
-        .mockResolvedValue(undefined as any);
+        .mockResolvedValue(true);
       (ExpoIapModule.getAvailableItems as jest.Mock) = jest
         .fn()
-        .mockResolvedValue([{id: 'legacy', transactionId: 'txn-restore'}]);
+        .mockResolvedValue([
+          nativePurchase('legacy', {
+            store: 'apple',
+            transactionId: 'txn-restore',
+          }),
+        ]);
       await restorePurchases();
       expect(syncSpy).toHaveBeenCalledTimes(1);
       expect(ExpoIapModule.getAvailableItems).toHaveBeenCalledWith(false, true);
@@ -1222,7 +1240,7 @@ describe('Public API (index.ts)', () => {
       (Platform as any).select = (obj: any) => obj.ios;
       const syncSpy = jest
         .spyOn(iosMod as any, 'syncIOS')
-        .mockResolvedValue(undefined as any);
+        .mockResolvedValue(true);
       Object.defineProperty(ExpoIapModule, 'USING_ONSIDE_SDK', {
         configurable: true,
         value: true,
@@ -1232,7 +1250,12 @@ describe('Public API (index.ts)', () => {
         .mockResolvedValue(true);
       (ExpoIapModule.getAvailableItems as jest.Mock) = jest
         .fn()
-        .mockResolvedValue([{id: 'onside', transactionId: 'txn-onside'}]);
+        .mockResolvedValue([
+          nativePurchase('onside', {
+            store: 'apple',
+            transactionId: 'txn-onside',
+          }),
+        ]);
 
       try {
         await restorePurchases();
@@ -1246,6 +1269,70 @@ describe('Public API (index.ts)', () => {
       } finally {
         delete (ExpoIapModule as any).USING_ONSIDE_SDK;
       }
+    });
+
+    it('getAvailablePurchases rejects mixed malformed results atomically', async () => {
+      (Platform as any).OS = 'android';
+      (ExpoIapModule.getAvailableItems as jest.Mock) = jest
+        .fn()
+        .mockResolvedValue([nativePurchase('valid'), {id: 'malformed'}]);
+
+      await expect(getAvailablePurchases()).rejects.toMatchObject({
+        code: ErrorCode.BillingResponseJsonParseError,
+      });
+    });
+
+    it('getAvailablePurchases rejects a foreign store on iOS', async () => {
+      (Platform as any).OS = 'ios';
+      (ExpoIapModule.getAvailableItems as jest.Mock) = jest
+        .fn()
+        .mockResolvedValue([
+          nativePurchase('foreign', {
+            store: 'google',
+            transactionId: 'foreign',
+          }),
+        ]);
+
+      await expect(getAvailablePurchases()).rejects.toMatchObject({
+        code: ErrorCode.BillingResponseJsonParseError,
+      });
+    });
+
+    it('getAvailablePurchases rejects a foreign store on Android', async () => {
+      (Platform as any).OS = 'android';
+      (ExpoIapModule.getAvailableItems as jest.Mock) = jest
+        .fn()
+        .mockResolvedValue([
+          nativePurchase('foreign', {
+            store: 'apple',
+            transactionId: 'foreign',
+          }),
+        ]);
+
+      await expect(getAvailablePurchases()).rejects.toMatchObject({
+        code: ErrorCode.BillingResponseJsonParseError,
+      });
+    });
+
+    it('restorePurchases propagates iOS sync failure without querying', async () => {
+      (Platform as any).OS = 'ios';
+      const syncError = new Error('sync failed');
+      jest.spyOn(iosMod as any, 'syncIOS').mockRejectedValue(syncError);
+      (ExpoIapModule.getAvailableItems as jest.Mock) = jest.fn();
+
+      await expect(restorePurchases()).rejects.toBe(syncError);
+      expect(ExpoIapModule.getAvailableItems).not.toHaveBeenCalled();
+    });
+
+    it('restorePurchases rejects a false iOS sync result', async () => {
+      (Platform as any).OS = 'ios';
+      jest.spyOn(iosMod as any, 'syncIOS').mockResolvedValue(false);
+      (ExpoIapModule.getAvailableItems as jest.Mock) = jest.fn();
+
+      await expect(restorePurchases()).rejects.toMatchObject({
+        code: ErrorCode.SyncError,
+      });
+      expect(ExpoIapModule.getAvailableItems).not.toHaveBeenCalled();
     });
   });
 

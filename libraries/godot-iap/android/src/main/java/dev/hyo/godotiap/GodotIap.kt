@@ -361,18 +361,11 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         pluginScope.launch {
             try {
                 store.requestPurchase(requestProps)
-            } catch (e: OpenIapError) {
-                GodotIapLog.failure("requestPurchase", e)
-                emitSignal("purchase_error", JSONObject(serializeOpenIapError(e)).toString())
             } catch (e: Exception) {
+                // OpenIapModule owns purchase_error publication after dispatch.
+                // The bridge only observes the exception so one failed request
+                // cannot publish the same terminal error twice.
                 GodotIapLog.failure("requestPurchase", e)
-                emitSignal(
-                    "purchase_error",
-                    JSONObject().apply {
-                        put("code", "unknown")
-                        put("message", e.message ?: "Unknown purchase error")
-                    }.toString()
-                )
             }
         }
 
@@ -492,6 +485,79 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         return getAvailablePurchasesInternal(options)
     }
 
+    /**
+     * Structured variant used by the GDScript wrapper to distinguish an
+     * authoritative empty purchase list from a store or bridge failure.
+     */
+    @UsedByGodot
+    fun getAvailablePurchasesResult(): String = getAvailablePurchasesResultInternal(null)
+
+    @UsedByGodot
+    fun getAvailablePurchasesResultWithOptions(optionsJson: String): String {
+        val options = try {
+            PurchaseOptions.fromJson(
+                GodotIapHelper.jsonObjectToMap(JSONObject(optionsJson))
+            )
+        } catch (error: Exception) {
+            GodotIapLog.failure("getAvailablePurchasesResultWithOptions", error)
+            return availablePurchasesFailure(
+                code = "developer-error",
+                message = error.message ?: "Invalid purchase options",
+            )
+        }
+        return getAvailablePurchasesResultInternal(options)
+    }
+
+    private fun getAvailablePurchasesResultInternal(options: PurchaseOptions?): String {
+        GodotIapLog.debug("getAvailablePurchasesResult called")
+
+        if (!isInitialized) {
+            return availablePurchasesFailure(
+                code = "not-prepared",
+                message = "IAP connection is not initialized",
+            )
+        }
+
+        return runBlocking {
+            try {
+                val purchasesArray = JSONArray()
+                store.getAvailablePurchases(options).forEach { purchase ->
+                    val sanitized = GodotIapHelper.sanitizeDictionary(purchase.toJson())
+                    purchasesArray.put(JSONObject(sanitized))
+                }
+
+                GodotIapLog.result(
+                    "getAvailablePurchasesResult",
+                    "count=${purchasesArray.length()}",
+                )
+                JSONObject().apply {
+                    put("success", true)
+                    put("purchases", purchasesArray)
+                }.toString()
+            } catch (error: OpenIapError) {
+                GodotIapLog.failure("getAvailablePurchasesResult", error)
+                val payload = serializeOpenIapError(error)
+                availablePurchasesFailure(
+                    code = payload["code"]?.toString() ?: "service-error",
+                    message = error.message ?: "Failed to get available purchases",
+                )
+            } catch (error: Exception) {
+                GodotIapLog.failure("getAvailablePurchasesResult", error)
+                availablePurchasesFailure(
+                    code = "service-error",
+                    message = error.message ?: "Failed to get available purchases",
+                )
+            }
+        }
+    }
+
+    private fun availablePurchasesFailure(code: String, message: String): String =
+        JSONObject().apply {
+            put("success", false)
+            put("code", code)
+            put("error", message)
+        }.toString()
+
     private fun getAvailablePurchasesInternal(options: PurchaseOptions?): String {
         GodotIapLog.debug("getAvailablePurchases called")
 
@@ -558,6 +624,61 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         }
     }
 
+    /** Structured entitlement query used by the failure-aware GDScript API. */
+    @UsedByGodot
+    fun getActiveSubscriptionsResult(subscriptionIdsJson: String?): String {
+        GodotIapLog.debug("getActiveSubscriptionsResult called")
+
+        if (!isInitialized) {
+            return activeSubscriptionsFailure(
+                code = "not-prepared",
+                message = "IAP connection is not initialized",
+            )
+        }
+
+        return runBlocking {
+            try {
+                val subscriptionIds = subscriptionIdsJson?.let {
+                    val array = JSONArray(it)
+                    val list = mutableListOf<String>()
+                    for (i in 0 until array.length()) {
+                        list.add(array.getString(i))
+                    }
+                    list.takeIf { ids -> ids.isNotEmpty() }
+                }
+                val subscriptionsArray = JSONArray()
+                store.getActiveSubscriptions(subscriptionIds).forEach { subscription ->
+                    val sanitized = GodotIapHelper.sanitizeDictionary(subscription.toJson())
+                    subscriptionsArray.put(JSONObject(sanitized))
+                }
+                JSONObject().apply {
+                    put("success", true)
+                    put("subscriptions", subscriptionsArray)
+                }.toString()
+            } catch (error: OpenIapError) {
+                GodotIapLog.failure("getActiveSubscriptionsResult", error)
+                val payload = serializeOpenIapError(error)
+                activeSubscriptionsFailure(
+                    code = payload["code"]?.toString() ?: "service-error",
+                    message = error.message ?: "Failed to get active subscriptions",
+                )
+            } catch (error: Exception) {
+                GodotIapLog.failure("getActiveSubscriptionsResult", error)
+                activeSubscriptionsFailure(
+                    code = "service-error",
+                    message = error.message ?: "Failed to get active subscriptions",
+                )
+            }
+        }
+    }
+
+    private fun activeSubscriptionsFailure(code: String, message: String): String =
+        JSONObject().apply {
+            put("success", false)
+            put("code", code)
+            put("error", message)
+        }.toString()
+
     @UsedByGodot
     fun hasActiveSubscriptions(subscriptionIdsJson: String?): String {
         GodotIapLog.debug("hasActiveSubscriptions called")
@@ -566,6 +687,8 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
             return JSONObject().apply {
                 put("success", false)
                 put("hasActive", false)
+                put("code", "not-prepared")
+                put("error", "IAP connection is not initialized")
             }.toString()
         }
 
@@ -592,7 +715,14 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 JSONObject().apply {
                     put("success", false)
                     put("hasActive", false)
-                    put("error", e.message)
+                    put(
+                        "code",
+                        (e as? OpenIapError)
+                            ?.let(::serializeOpenIapError)
+                            ?.get("code")
+                            ?: "service-error",
+                    )
+                    put("error", e.message ?: "Failed to check active subscriptions")
                 }.toString()
             }
         }

@@ -166,7 +166,10 @@ void main() {
                 'productId': 'com.example.prod1',
                 'transactionDate': DateTime.now().millisecondsSinceEpoch,
                 'transactionId': '1000001',
+                'purchaseState': 'PURCHASED',
                 'purchaseToken': 'jwt-token',
+                'quantity': 1,
+                'isAutoRenewing': false,
                 'platform': 'ios',
                 'store': 'apple',
               },
@@ -283,6 +286,47 @@ void main() {
         iap.getAllTransactionsIOS(),
         throwsA(isA<PurchaseError>()),
       );
+    });
+
+    test('authoritative iOS lists reject mixed malformed payloads', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
+        if (methodCall.method == 'showManageSubscriptionsIOS' ||
+            methodCall.method == 'getPendingTransactionsIOS' ||
+            methodCall.method == 'getAllTransactionsIOS') {
+          return <Map<String, dynamic>>[
+            <String, dynamic>{
+              'id': 'valid',
+              'productId': 'premium',
+              'transactionDate': 1700000000000,
+              'transactionId': 'valid',
+              'purchaseState': 'PURCHASED',
+              'quantity': 1,
+              'isAutoRenewing': false,
+              'store': 'apple',
+            },
+            <String, dynamic>{'id': 'malformed'},
+          ];
+        }
+        return null;
+      });
+
+      for (final request in <Future<List<PurchaseIOS>> Function()>[
+        iap.showManageSubscriptionsIOS,
+        iap.getPendingTransactionsIOS,
+        iap.getAllTransactionsIOS,
+      ]) {
+        await expectLater(
+          request(),
+          throwsA(
+            isA<PurchaseError>().having(
+              (error) => error.code,
+              'code',
+              ErrorCode.BillingResponseJsonParseError,
+            ),
+          ),
+        );
+      }
     });
 
     test('isEligibleForIntroOfferIOS returns platform result', () async {

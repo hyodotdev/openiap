@@ -963,7 +963,7 @@ describe('Amazon Vega adapter', () => {
     ]);
   });
 
-  it('treats Amazon parser-only purchase update errors as no updates', async () => {
+  it('rejects Amazon parser-only purchase update errors atomically', async () => {
     const service = createService();
     service.getPurchaseUpdates.mockRejectedValueOnce(
       new Error(
@@ -972,7 +972,35 @@ describe('Amazon Vega adapter', () => {
     );
     const module = createVegaIapModule(service);
 
-    await expect(module.getAvailablePurchases()).resolves.toEqual([]);
+    await expect(module.getAvailablePurchases()).rejects.toMatchObject({
+      code: ErrorCode.BillingResponseJsonParseError,
+    });
+  });
+
+  it('rejects all pages when a later Amazon purchase update page is malformed', async () => {
+    const service = createService();
+    service.getPurchaseUpdates
+      .mockResolvedValueOnce({
+        responseCode: 1,
+        hasMore: true,
+        receiptList: [
+          {
+            receiptId: 'receipt-page-1',
+            sku: 'coins_100',
+            productType: 1,
+          },
+        ],
+      })
+      .mockRejectedValueOnce(
+        new Error(
+          '[AmazonIAPSDK] Unable to parse the response : userId is not found while parsing Json',
+        ),
+      );
+    const module = createVegaIapModule(service);
+
+    await expect(module.getAvailablePurchases()).rejects.toMatchObject({
+      code: ErrorCode.BillingResponseJsonParseError,
+    });
   });
 
   it('retries failed Amazon purchase update responses', async () => {
@@ -1012,7 +1040,7 @@ describe('Amazon Vega adapter', () => {
     }
   });
 
-  it('ignores parser-only product type hydration errors for purchase updates', async () => {
+  it('rejects parser-only product type hydration errors for purchase updates', async () => {
     const service = createService();
     service.getPurchaseUpdates.mockResolvedValueOnce({
       responseCode: 1,
@@ -1033,7 +1061,9 @@ describe('Amazon Vega adapter', () => {
 
     await expect(
       module.getActiveSubscriptions(['premium_monthly']),
-    ).resolves.toEqual([]);
+    ).rejects.toMatchObject({
+      code: ErrorCode.BillingResponseJsonParseError,
+    });
   });
 
   it('chunks Vega product data requests', async () => {

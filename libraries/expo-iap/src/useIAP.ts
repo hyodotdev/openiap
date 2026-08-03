@@ -25,10 +25,8 @@ import {
   type ProductTypeInput,
 } from './index';
 import {ExpoIapConsole} from './utils/debug';
-import {
-  getPromotedProductIOS,
-  syncIOS,
-} from './modules/ios';
+import {getPromotedProductIOS} from './modules/ios';
+import {restorePurchasesIOSNative} from './utils/restorePurchases';
 import {
   getBillingChoiceInfoAndroid,
   isBillingProgramAvailableAndroid,
@@ -459,10 +457,11 @@ export function useIAP(options?: UseIAPOptions): UseIap {
         return await hasActiveSubscriptions(subscriptionIds);
       } catch (error) {
         ExpoIapConsole.error('Error checking active subscriptions:', error);
-        return false;
+        invokeOnError(error);
+        throw error;
       }
     },
-    [],
+    [invokeOnError],
   );
 
   /**
@@ -556,8 +555,8 @@ export function useIAP(options?: UseIAPOptions): UseIap {
       const purchases = Array.isArray(purchaseResult)
         ? purchaseResult
         : purchaseResult
-          ? [purchaseResult]
-          : [];
+        ? [purchaseResult]
+        : [];
 
       for (const purchase of purchases ?? []) {
         if (!markPurchaseDelivered(purchase)) {
@@ -585,9 +584,8 @@ export function useIAP(options?: UseIAPOptions): UseIap {
   const restorePurchasesInternal = useCallback(
     async (options?: PurchaseOptions): Promise<void> => {
       try {
-        // iOS: Try to sync first, but don't fail if sync errors occur
         if (Platform.OS === 'ios') {
-          await syncIOS().catch(() => undefined); // syncIOS returns Promise<boolean>, we don't need the result
+          await restorePurchasesIOSNative();
         }
 
         const purchases = await getAvailablePurchases({
@@ -629,7 +627,8 @@ export function useIAP(options?: UseIAPOptions): UseIap {
 
   // Build the canonical billing-program connection config.
   const buildConnectionConfig = useCallback(():
-    InitConnectionConfig | undefined => {
+    | InitConnectionConfig
+    | undefined => {
     if (optionsRef.current?.enableBillingProgramAndroid) {
       return {
         enableBillingProgramAndroid:

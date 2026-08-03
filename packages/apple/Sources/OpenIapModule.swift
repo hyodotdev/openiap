@@ -525,25 +525,23 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         var purchasedItems: [Purchase] = []
 
         for await verification in (onlyActive ? Transaction.currentEntitlements : Transaction.all) {
-            do {
-                let transaction = try checkVerified(verification)
+            let transaction = try checkVerified(verification)
 
-                if onlyActive, let expirationDate = transaction.expirationDate, expirationDate <= Date() {
-                    continue
-                }
-
-                let purchase = await StoreKitTypesBridge.purchase(
-                    from: transaction,
-                    jwsRepresentation: verification.jwsRepresentation
-                )
-                purchasedItems.append(purchase)
-                if shouldPublish {
-                    emitPurchaseUpdate(purchase)
-                }
-            } catch {
-                OpenIapLog.error("getAvailablePurchases: failed to verify transaction: \(error)")
+            if onlyActive, let expirationDate = transaction.expirationDate, expirationDate <= Date() {
                 continue
             }
+
+            let purchase = await StoreKitTypesBridge.purchase(
+                from: transaction,
+                jwsRepresentation: verification.jwsRepresentation
+            )
+            purchasedItems.append(purchase)
+        }
+
+        // Publish only after the complete sequence verifies successfully so a
+        // failed query cannot leak a partial authoritative result via events.
+        if shouldPublish {
+            purchasedItems.forEach { emitPurchaseUpdate($0) }
         }
 
         OpenIapLog.debug("🔍 getAvailablePurchases: \(purchasedItems.count) purchases (onlyActive=\(onlyActive))")
@@ -563,17 +561,12 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         var transactions: [PurchaseIOS] = []
 
         for await verification in Transaction.all {
-            do {
-                let transaction = try checkVerified(verification)
-                let purchase = await StoreKitTypesBridge.purchaseIOS(
-                    from: transaction,
-                    jwsRepresentation: verification.jwsRepresentation
-                )
-                transactions.append(purchase)
-            } catch {
-                OpenIapLog.error("getAllTransactionsIOS: failed to verify transaction: \(error)")
-                continue
-            }
+            let transaction = try checkVerified(verification)
+            let purchase = await StoreKitTypesBridge.purchaseIOS(
+                from: transaction,
+                jwsRepresentation: verification.jwsRepresentation
+            )
+            transactions.append(purchase)
         }
 
         OpenIapLog.debug("🔍 getAllTransactionsIOS: \(transactions.count) transactions")
@@ -646,18 +639,14 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         try await ensureConnection()
         var purchases: [PurchaseIOS] = []
         for await verification in Transaction.unfinished {
-            do {
-                let transaction = try checkVerified(verification)
-                await state.storePending(id: String(transaction.id), transaction: transaction)
-                purchases.append(
-                    await StoreKitTypesBridge.purchaseIOS(
-                        from: transaction,
-                        jwsRepresentation: verification.jwsRepresentation
-                    )
+            let transaction = try checkVerified(verification)
+            await state.storePending(id: String(transaction.id), transaction: transaction)
+            purchases.append(
+                await StoreKitTypesBridge.purchaseIOS(
+                    from: transaction,
+                    jwsRepresentation: verification.jwsRepresentation
                 )
-            } catch {
-                OpenIapLog.error("getPendingTransactionsIOS: failed to verify transaction: \(error)")
-            }
+            )
         }
         return purchases
     }
@@ -1012,58 +1001,54 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         try await ensureConnection()
         var allSubscriptions: [ActiveSubscription] = []
         for await verification in Transaction.currentEntitlements {
-            do {
-                let transaction = try checkVerified(verification)
-                guard StoreKitTypesBridge.isAutoRenewingSubscriptionProductType(
-                    transaction.productType
-                ) else {
-                    continue
-                }
-
-                // Skip upgraded subscriptions - they've been replaced
-                if transaction.isUpgraded {
-                    continue
-                }
-
-                if let ids = subscriptionIds, ids.contains(transaction.productID) == false {
-                    continue
-                }
-                let expiration = transaction.expirationDate
-                // If expiration date is nil, treat as inactive (expired or invalid)
-                // This prevents treating subscriptions without expiration dates as active
-                let isActive = expiration.map { $0 > Date() } ?? false
-                let dayDelta = expiration.map { Calendar.current.dateComponents([.day], from: Date(), to: $0).day ?? 0 }
-                let daysUntilExpiration = dayDelta.map { Double($0) }
-                let environment: String?
-                // OpenIapModule already requires tvOS 16, so only the lower
-                // iOS and watchOS deployment floors need a runtime check here.
-                if #available(iOS 16.0, watchOS 9.0, *) {
-                    environment = transaction.environment.rawValue
-                } else {
-                    environment = nil
-                }
-
-                // Fetch renewal info for subscription
-                let renewalInfo = await StoreKitTypesBridge.subscriptionRenewalInfoIOS(for: transaction)
-
-                allSubscriptions.append(
-                    ActiveSubscription(
-                        autoRenewingAndroid: nil,
-                        currentPlanId: transaction.productID,
-                        daysUntilExpirationIOS: daysUntilExpiration,
-                        environmentIOS: environment,
-                        expirationDateIOS: expiration?.milliseconds,
-                        isActive: isActive,
-                        productId: transaction.productID,
-                        purchaseToken: verification.jwsRepresentation,
-                        renewalInfoIOS: renewalInfo,
-                        transactionDate: transaction.purchaseDate.milliseconds,
-                        transactionId: String(transaction.id)
-                    )
-                )
-            } catch {
+            let transaction = try checkVerified(verification)
+            guard StoreKitTypesBridge.isAutoRenewingSubscriptionProductType(
+                transaction.productType
+            ) else {
                 continue
             }
+
+            // Skip upgraded subscriptions - they've been replaced
+            if transaction.isUpgraded {
+                continue
+            }
+
+            if let ids = subscriptionIds, ids.contains(transaction.productID) == false {
+                continue
+            }
+            let expiration = transaction.expirationDate
+            // If expiration date is nil, treat as inactive (expired or invalid)
+            // This prevents treating subscriptions without expiration dates as active
+            let isActive = expiration.map { $0 > Date() } ?? false
+            let dayDelta = expiration.map { Calendar.current.dateComponents([.day], from: Date(), to: $0).day ?? 0 }
+            let daysUntilExpiration = dayDelta.map { Double($0) }
+            let environment: String?
+            // OpenIapModule already requires tvOS 16, so only the lower
+            // iOS and watchOS deployment floors need a runtime check here.
+            if #available(iOS 16.0, watchOS 9.0, *) {
+                environment = transaction.environment.rawValue
+            } else {
+                environment = nil
+            }
+
+            // Fetch renewal info for subscription
+            let renewalInfo = await StoreKitTypesBridge.subscriptionRenewalInfoIOS(for: transaction)
+
+            allSubscriptions.append(
+                ActiveSubscription(
+                    autoRenewingAndroid: nil,
+                    currentPlanId: transaction.productID,
+                    daysUntilExpirationIOS: daysUntilExpiration,
+                    environmentIOS: environment,
+                    expirationDateIOS: expiration?.milliseconds,
+                    isActive: isActive,
+                    productId: transaction.productID,
+                    purchaseToken: verification.jwsRepresentation,
+                    renewalInfoIOS: renewalInfo,
+                    transactionDate: transaction.purchaseDate.milliseconds,
+                    transactionId: String(transaction.id)
+                )
+            )
         }
 
         OpenIapLog.debug("📊 Returning \(allSubscriptions.count) active subscriptions")
@@ -2071,7 +2056,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         return false
     }
 
-    private func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
+    func checkVerified<T>(_ result: VerificationResult<T>) throws -> T {
         switch result {
         case .verified(let value):
             return value

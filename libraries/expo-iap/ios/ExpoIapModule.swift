@@ -142,7 +142,7 @@ public final class ExpoIapModule: Module {
             ExpoIapLog.payload("getAvailablePurchases", payload: options ?? [:])
             let purchaseOptions = try options.map { try OpenIapSerialization.purchaseOptions(from: $0) }
             let purchases = try await OpenIapModule.shared.getAvailablePurchases(purchaseOptions)
-            let sanitized = ExpoIapHelper.sanitizeArray(OpenIapSerialization.purchases(purchases))
+            let sanitized = ExpoIapHelper.sanitizeArray(try ExpoIapHelper.purchasesRequired(purchases))
             ExpoIapLog.result("getAvailablePurchases", value: sanitized)
             return sanitized
         }
@@ -162,7 +162,7 @@ public final class ExpoIapModule: Module {
             ]
             let options = try OpenIapSerialization.purchaseOptions(from: optionsDictionary)
             let purchases = try await OpenIapModule.shared.getAvailablePurchases(options)
-            let sanitized = ExpoIapHelper.sanitizeArray(OpenIapSerialization.purchases(purchases))
+            let sanitized = ExpoIapHelper.sanitizeArray(try ExpoIapHelper.purchasesRequired(purchases))
             ExpoIapLog.result("getAvailableItems", value: sanitized)
             return sanitized
         }
@@ -170,7 +170,9 @@ public final class ExpoIapModule: Module {
         AsyncFunction("getPendingTransactionsIOS") { () async throws -> [[String: Any]] in
             ExpoIapLog.payload("getPendingTransactionsIOS", payload: nil)
             let pending = try await OpenIapModule.shared.getPendingTransactionsIOS()
-            let sanitized = pending.map { ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode($0)) }
+            let sanitized = try pending.map {
+                ExpoIapHelper.sanitizeDictionary(try ExpoIapHelper.encodeRequired($0))
+            }
             ExpoIapLog.result("getPendingTransactionsIOS", value: sanitized)
             return sanitized
         }
@@ -178,7 +180,9 @@ public final class ExpoIapModule: Module {
         AsyncFunction("getAllTransactionsIOS") { () async throws -> [[String: Any]] in
             ExpoIapLog.payload("getAllTransactionsIOS", payload: nil)
             let all = try await OpenIapModule.shared.getAllTransactionsIOS()
-            let sanitized = all.map { ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode($0)) }
+            let sanitized = try all.map {
+                ExpoIapHelper.sanitizeDictionary(try ExpoIapHelper.encodeRequired($0))
+            }
             ExpoIapLog.result("getAllTransactionsIOS", value: sanitized)
             return sanitized
         }
@@ -270,7 +274,9 @@ public final class ExpoIapModule: Module {
         AsyncFunction("showManageSubscriptionsIOS") { () async throws -> [[String: Any]] in
             ExpoIapLog.payload("showManageSubscriptionsIOS", payload: nil)
             let purchases = try await OpenIapModule.shared.showManageSubscriptionsIOS()
-            let sanitized = purchases.map { ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode($0)) }
+            let sanitized = try purchases.map {
+                ExpoIapHelper.sanitizeDictionary(try ExpoIapHelper.encodeRequired($0))
+            }
             ExpoIapLog.result("showManageSubscriptionsIOS", value: sanitized)
             return sanitized
         }
@@ -384,7 +390,9 @@ public final class ExpoIapModule: Module {
         AsyncFunction("getActiveSubscriptions") { (subscriptionIds: [String]?) async throws -> [[String: Any]] in
             ExpoIapLog.payload("getActiveSubscriptions", payload: subscriptionIds.map { ["subscriptionIds": $0] } ?? [:])
             let subscriptions = try await OpenIapModule.shared.getActiveSubscriptions(subscriptionIds)
-            let sanitized = subscriptions.map { ExpoIapHelper.sanitizeDictionary(OpenIapSerialization.encode($0)) }
+            let sanitized = try subscriptions.map {
+                ExpoIapHelper.sanitizeDictionary(try ExpoIapHelper.encodeRequired($0))
+            }
             ExpoIapLog.result("getActiveSubscriptions", value: sanitized)
             return sanitized
         }
