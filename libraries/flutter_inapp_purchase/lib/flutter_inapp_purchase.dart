@@ -2340,7 +2340,19 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
   List<gentype.ActiveSubscription> _parseActiveSubscriptions(dynamic result) {
     List<dynamic> list;
     if (result is String) {
-      final decoded = json.decode(result);
+      final dynamic decoded;
+      try {
+        decoded = json.decode(result);
+      } on FormatException catch (error) {
+        // Malformed JSON and a non-list payload are the same class of failure,
+        // so report one code instead of letting FormatException fall through
+        // to the generic catch and surface as ServiceError.
+        throw PurchaseError(
+          code: gentype.ErrorCode.BillingResponseJsonParseError,
+          message: 'Failed to decode native active-subscription response: '
+              '${error.message}',
+        );
+      }
       if (decoded is! List) {
         throw PurchaseError(
           code: gentype.ErrorCode.BillingResponseJsonParseError,

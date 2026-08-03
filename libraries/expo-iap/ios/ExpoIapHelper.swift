@@ -72,7 +72,7 @@ enum ExpoIapHelper {
         guard !encoded.isEmpty else {
             throw PurchaseError.make(
                 code: .billingResponseJsonParseError,
-                message: "Failed to serialize native purchase payload"
+                message: "Failed to serialize native \(T.self) payload"
             )
         }
         return encoded

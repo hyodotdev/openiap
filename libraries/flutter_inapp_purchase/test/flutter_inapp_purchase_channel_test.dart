@@ -1445,6 +1445,55 @@ void main() {
       await expectLater(iap.getAvailablePurchases(), completion(isEmpty));
     });
 
+    // The rejection cases above only prove a malformed batch throws. These
+    // assert the inverse: a complete native payload must still be accepted, so
+    // a stricter decoder cannot silently break getAvailablePurchases for every
+    // user of a store that does populate every required field.
+    for (final testCase in <({String os, String store, String id})>[
+      (os: 'ios', store: 'apple', id: 'txn-complete-1'),
+      (os: 'android', store: 'google', id: 'gpa-complete-1'),
+    ]) {
+      test(
+        'accepts a complete ${testCase.store} purchase payload',
+        () async {
+          TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+              .setMockMethodCallHandler(channel, (MethodCall call) async {
+            switch (call.method) {
+              case 'initConnection':
+                return true;
+              case 'getAvailableItems':
+                return <Map<String, dynamic>>[
+                  <String, dynamic>{
+                    'platform': testCase.os,
+                    'store': testCase.store,
+                    'id': testCase.id,
+                    'productId': 'iap.premium',
+                    'transactionId': testCase.id,
+                    'purchaseToken': 'token-data',
+                    'purchaseState': 'PURCHASED',
+                    'transactionDate': 1700000000000,
+                    'quantity': 1,
+                    'isAutoRenewing': false,
+                  },
+                ];
+            }
+            return null;
+          });
+
+          final iap = FlutterInappPurchase.private(
+            FakePlatform(operatingSystem: testCase.os),
+          );
+          await iap.initConnection();
+
+          final purchases = await iap.getAvailablePurchases();
+
+          expect(purchases, hasLength(1));
+          expect(purchases.single.productId, 'iap.premium');
+          expect(purchases.single.id, testCase.id);
+        },
+      );
+    }
+
     for (final testCase in <({String os, String foreignStore})>[
       (os: 'ios', foreignStore: 'google'),
       (os: 'android', foreignStore: 'apple'),

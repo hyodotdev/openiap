@@ -734,6 +734,15 @@ func restore_purchases() -> Variant:
 		)
 		var ios_result = Types.VoidResult.new()
 		ios_result.success = payload.get("success", false)
+		# The non-iOS path below reports a failed restore through
+		# purchase_error. Emit it here too, otherwise a caller that only
+		# listens to the signal sees Android restore failures but not iOS ones.
+		if not ios_result.success:
+			_purchase_failure(
+				String(payload.get("code", "service-error")),
+				String(payload.get("error", "Failed to restore purchases")),
+				payload
+			)
 		return ios_result
 
 	var available_result := await get_available_purchases_result()

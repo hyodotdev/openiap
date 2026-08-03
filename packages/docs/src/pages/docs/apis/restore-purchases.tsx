@@ -71,7 +71,7 @@ function RestorePurchases() {
             <CodeBlock language="csharp">{`Task<VoidResult> RestorePurchasesAsync();`}</CodeBlock>
           ),
           gdscript: (
-            <CodeBlock language="gdscript">{`func restore_purchases() -> VoidResult`}</CodeBlock>
+            <CodeBlock language="gdscript">{`func restore_purchases() -> Types.VoidResult`}</CodeBlock>
           ),
         }}
       </LanguageTabs>
