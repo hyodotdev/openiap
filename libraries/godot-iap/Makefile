@@ -180,7 +180,10 @@ macos-build:
 # Build Android plugin
 android: setup gradle-wrapper
 	@echo "$(GREEN)Building Android plugin...$(NC)"
-	@cd $(ANDROID_DIR) && ./gradlew copyReleaseAarToAddons
+	@# export-android runs --export-debug, and the export plugin embeds the
+	@# debug AAR for debug exports. Refresh BOTH variants so a debug export can
+	@# never ship a stale plugin while only the release AAR gets rebuilt.
+	@cd $(ANDROID_DIR) && ./gradlew copyDebugAarToAddons copyReleaseAarToAddons
 	@echo "$(GREEN)Generating GDAP file...$(NC)"
 	@$(PROJECT_ROOT)/scripts/write-gdap.sh "$(ADDON_DIR)/android/GodotIap.gdap"
 	@echo "$(GREEN)✓ Android plugin built$(NC)"
