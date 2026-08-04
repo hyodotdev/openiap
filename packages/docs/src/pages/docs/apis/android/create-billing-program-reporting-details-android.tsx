@@ -48,7 +48,7 @@ function CreateBillingProgramReportingDetailsAndroid() {
         </a>
         .
       </p>
-      <Callout kind="important" title="External Offer ordering">
+      <Callout kind="warning" title="External Offer ordering">
         Check availability, create fresh reporting details immediately before
         the redirect, then call{' '}
         <Link to="/docs/apis/android/launch-external-link-android">

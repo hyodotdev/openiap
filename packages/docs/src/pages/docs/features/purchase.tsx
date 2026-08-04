@@ -798,7 +798,7 @@ async Task<bool> VerifyOnServerAsync(Purchase purchase)
           Google Play, Amazon Appstore, and Meta Horizon purchases for you. Use{' '}
           <code>verifyPurchaseWithProvider</code> with the{' '}
           <code>&apos;iapkit&apos;</code> provider and pass the
-          platform-specific token or receipt payload. Fire OS and Vega OS use
+          platform-specific token or receipt payload. Fire OS and Vega OS use{' '}
           <code>iapkit.amazon</code> with the Amazon receipt id, and no
           app-owned Amazon RVS server is required. If your own backend serves
           protected paid resources, have that backend authenticate the user and

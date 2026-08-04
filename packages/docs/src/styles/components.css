@@ -322,19 +322,27 @@
 
 .doc-page .callout p {
   margin: 0;
+  font-size: var(--font-size-sm);
 }
 
-.doc-page .callout-label {
+/* Beats .doc-page .callout p (0,2,1) with three classes (0,3,0) */
+.doc-page .callout .callout-label {
   margin: 0 0 var(--spacing-xs);
+  font-size: var(--font-size-xs);
+  color: var(--callout-color);
 }
 
-.callout-body p + p {
+.callout-body p + p,
+.doc-page .callout-body p + p {
   margin-top: var(--spacing-sm);
 }
 
 .callout-body ul,
-.callout-body ol {
-  margin: var(--spacing-sm) 0 0;
+.callout-body ol,
+.doc-page .callout-body ul,
+.doc-page .callout-body ol {
+  margin-top: var(--spacing-sm);
+  margin-bottom: 0;
 }
 
 .callout--note {
