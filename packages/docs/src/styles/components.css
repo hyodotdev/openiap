@@ -292,45 +292,75 @@
   color: var(--primary-dark);
 }
 
-/* Alert Cards */
-.alert-card {
-  border-radius: 6px;
-  padding: var(--spacing-md);
+/* Callouts (semantic asides — see Callout.tsx) */
+.callout {
+  border-left: 3px solid var(--callout-color);
+  border-radius: 0 6px 6px 0;
+  background: var(--callout-bg);
+  padding: 0.75rem 1rem;
   margin: var(--spacing-md) 0;
   font-size: var(--font-size-sm);
 }
 
-/* Reduce spacing when alert-card follows TL;DR box */
-.doc-page .tldr-box + .alert-card {
+.callout:has(+ section) {
+  margin-bottom: 0;
+}
+
+/* Reduce spacing when a callout follows the TL;DR box */
+.doc-page .tldr-box + .callout {
   margin-top: 0 !important;
 }
 
-/* Reduce bottom margin when alert-card is followed by section */
-.alert-card:has(+ section) {
-  margin-bottom: 0;
+.callout-label {
+  margin: 0 0 var(--spacing-xs);
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--callout-color);
 }
 
-.doc-page .alert-card p {
+.doc-page .callout p {
   margin: 0;
+  font-size: var(--font-size-sm);
 }
 
-.alert-card ul,
-.alert-card ol {
-  margin-top: 0.5rem;
+/* Beats .doc-page .callout p (0,2,1) with three classes (0,3,0) */
+.doc-page .callout .callout-label {
+  margin: 0 0 var(--spacing-xs);
+  font-size: var(--font-size-xs);
+  color: var(--callout-color);
+}
+
+.callout-body p + p,
+.doc-page .callout-body p + p {
+  margin-top: var(--spacing-sm);
+}
+
+.callout-body ul,
+.callout-body ol,
+.doc-page .callout-body ul,
+.doc-page .callout-body ol {
+  margin-top: var(--spacing-sm);
   margin-bottom: 0;
 }
 
-.alert-card--info {
-  background: rgba(59, 130, 246, 0.1);
-  border: 1px solid rgba(59, 130, 246, 0.3);
+.callout--note {
+  --callout-color: var(--primary-dark);
+  --callout-bg: rgba(164, 116, 101, 0.08);
 }
 
-.alert-card--warning {
-  background: rgba(255, 200, 0, 0.1);
-  border: 1px solid rgba(255, 200, 0, 0.3);
+.callout--tip {
+  --callout-color: #4e7d5b;
+  --callout-bg: rgba(78, 125, 91, 0.08);
 }
 
-.alert-card--success {
-  background: rgba(16, 185, 129, 0.1);
-  border: 1px solid rgba(16, 185, 129, 0.3);
+.callout--important {
+  --callout-color: #c05531;
+  --callout-bg: rgba(220, 104, 67, 0.09);
+}
+
+.callout--warning {
+  --callout-color: #b3403a;
+  --callout-bg: rgba(179, 64, 58, 0.08);
 }

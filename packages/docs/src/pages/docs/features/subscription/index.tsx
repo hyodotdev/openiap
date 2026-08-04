@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
+import Callout from '../../../../components/Callout';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import PlatformTabs from '../../../../components/PlatformTabs';
@@ -55,26 +56,22 @@ function Subscription() {
           </li>
         </ul>
 
-        <div className="alert-card alert-card--warning">
-          <p>
-            <strong>Availability:</strong> billing plan selection requires iOS,
-            iPadOS, macOS, tvOS, or visionOS 26.4+ and an app compiled with the
-            StoreKit billing-plan APIs available in Xcode 26.5+ / Swift 6.3+. If
-            the app runs on an older Apple OS version, omit{' '}
-            <code>billingPlanType</code> and let StoreKit purchase the default
-            plan. Never send <code>unknown</code> as a purchase option.
-          </p>
-        </div>
+        <Callout kind="important" title="Availability">
+          Billing plan selection requires iOS, iPadOS, macOS, tvOS, or visionOS
+          26.4+ and an app compiled with the StoreKit billing-plan APIs
+          available in Xcode 26.5+ / Swift 6.3+. If the app runs on an older
+          Apple OS version, omit <code>billingPlanType</code> and let StoreKit
+          purchase the default plan. Never send <code>unknown</code> as a
+          purchase option.
+        </Callout>
 
-        <div className="alert-card alert-card--info">
-          <p>
-            Treat <code>pricingTermsIOS</code> as the source of truth before
-            showing a commitment option. If StoreKit does not return a term for
-            the user&apos;s selected <code>billingPlanType</code>, fall back to
-            the default subscription purchase and leave{' '}
-            <code>billingPlanType</code> unset.
-          </p>
-        </div>
+        <Callout kind="note">
+          Treat <code>pricingTermsIOS</code> as the source of truth before
+          showing a commitment option. If StoreKit does not return a term for
+          the user&apos;s selected <code>billingPlanType</code>, fall back to
+          the default subscription purchase and leave{' '}
+          <code>billingPlanType</code> unset.
+        </Callout>
 
         <table className="doc-table">
           <thead>
@@ -317,12 +314,10 @@ await iap.request_purchase(props)`}</CodeBlock>
           </tbody>
         </table>
 
-        <div className="alert-card alert-card--info">
-          <p style={{ margin: 0 }}>
-            <strong>ℹ️ Tip:</strong> Always fetch products first; offers only
-            exist after <code>{"fetchProducts({ type: 'subs' })"}</code>.
-          </p>
-        </div>
+        <Callout kind="tip">
+          Always fetch products first; offers only exist after{' '}
+          <code>{"fetchProducts({ type: 'subs' })"}</code>.
+        </Callout>
 
         <h3>Platform Implementation</h3>
 
@@ -1060,17 +1055,17 @@ async Task PurchaseSubscriptionAsync(string subscriptionId)
                   request&apos;s <code>subscriptionOffers</code> entry.
                 </p>
 
-                <div className="alert-card alert-card--warning">
+                <Callout kind="important" title="Required">
                   <p>
-                    <strong>⚠️ Required:</strong> Android subscriptions must
-                    include <code>subscriptionOffers</code> in the purchase
-                    request. Without it, the purchase will fail with:
+                    Android subscriptions must include{' '}
+                    <code>subscriptionOffers</code> in the purchase request.
+                    Without it, the purchase will fail with:
                   </p>
                   <code>
                     The number of skus (1) must match: the number of offerTokens
                     (0)
                   </code>
-                </div>
+                </Callout>
 
                 <AnchorLink id="android-offer-structure" level="h3">
                   Offer Structure
@@ -1680,29 +1675,30 @@ async Task PurchaseSubscriptionAsync(string subscriptionId, ProductSubscriptionA
                 <AnchorLink id="android-baseplanid-limitation" level="h3">
                   basePlanIdAndroid Limitation
                 </AnchorLink>
-                <div className="alert-card alert-card--warning">
-                  <p>
-                    <strong>⚠️ Google Play Billing API Limitation:</strong> The{' '}
-                    <a
-                      href="https://developer.android.com/reference/com/android/billingclient/api/Purchase"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Purchase object
-                    </a>{' '}
-                    returned by Google Play Billing does <strong>NOT</strong>{' '}
-                    include <code>basePlanIdAndroid</code>. This means{' '}
-                    <Link to="/docs/apis/get-active-subscriptions">
-                      <code>getActiveSubscriptions()</code>
-                    </Link>{' '}
-                    and purchase callbacks cannot reliably determine which
-                    specific plan was purchased within a subscription group. See{' '}
-                    <Link to="/docs/features/debugging#android-baseplanid-limitation">
-                      detailed limitation and solutions
-                    </Link>
-                    .
-                  </p>
-                </div>
+                <Callout
+                  kind="important"
+                  title="Google Play Billing API Limitation"
+                >
+                  The{' '}
+                  <a
+                    href="https://developer.android.com/reference/com/android/billingclient/api/Purchase"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    Purchase object
+                  </a>{' '}
+                  returned by Google Play Billing does <strong>NOT</strong>{' '}
+                  include <code>basePlanIdAndroid</code>. This means{' '}
+                  <Link to="/docs/apis/get-active-subscriptions">
+                    <code>getActiveSubscriptions()</code>
+                  </Link>{' '}
+                  and purchase callbacks cannot reliably determine which
+                  specific plan was purchased within a subscription group. See{' '}
+                  <Link to="/docs/features/debugging#android-baseplanid-limitation">
+                    detailed limitation and solutions
+                  </Link>
+                  .
+                </Callout>
 
                 <p>
                   <strong>Important distinction:</strong>
@@ -2109,26 +2105,21 @@ func _on_purchase_success(purchase: PurchaseAndroid) -> void:
                   in your own backend model.
                 </p>
 
-                <div className="alert-card alert-card--info">
-                  <p>
-                    <strong>💡 Tip:</strong> If you want to simplify server-side
-                    verification, consider using{' '}
-                    <Link to="/docs/updates/announcements#2025-12-09">
-                      IAPKit
-                    </Link>{' '}
-                    which handles all the complexity for you. Use{' '}
-                    <Link to="/docs/features/validation#verify-purchase-with-provider">
-                      verifyPurchaseWithProvider
-                    </Link>{' '}
-                    to verify purchases with minimal setup.
-                  </p>
-                </div>
+                <Callout kind="tip">
+                  If you want to simplify server-side verification, consider
+                  using{' '}
+                  <Link to="/docs/updates/announcements#2025-12-09">
+                    IAPKit
+                  </Link>{' '}
+                  which handles all the complexity for you. Use{' '}
+                  <Link to="/docs/features/validation#verify-purchase-with-provider">
+                    verifyPurchaseWithProvider
+                  </Link>{' '}
+                  to verify purchases with minimal setup.
+                </Callout>
 
-                <div className="alert-card alert-card--info">
-                  <p>
-                    <strong>ℹ️ Related Resources:</strong>
-                  </p>
-                  <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem' }}>
+                <Callout kind="note" title="Related Resources">
+                  <ul>
                     <li>
                       <a
                         href="https://developer.android.com/reference/com/android/billingclient/api/Purchase"
@@ -2160,7 +2151,7 @@ func _on_purchase_success(purchase: PurchaseAndroid) -> void:
                       - Server-side verification
                     </li>
                   </ul>
-                </div>
+                </Callout>
 
                 <AnchorLink id="android-select-offer" level="h3">
                   Selecting Specific Offers
@@ -2690,12 +2681,9 @@ func purchase_with_offer(subscription_id: String, offer_type: int) -> void:
         </table>
 
         <h4>Refund Scenario (Tricky Case)</h4>
-        <div className="alert-card alert-card--warning">
-          <p>
-            <strong>⚠️ Important:</strong> When a user requests and receives a
-            refund:
-          </p>
-          <ol style={{ margin: '0.5rem 0', paddingLeft: '1.5rem' }}>
+        <Callout kind="warning">
+          <p>When a user requests and receives a refund:</p>
+          <ol>
             <li>User purchases subscription</li>
             <li>User requests refund from Apple/Google</li>
             <li>Refund is approved</li>
@@ -2706,14 +2694,14 @@ func purchase_with_offer(subscription_id: String, offer_type: int) -> void:
               may still return the purchase temporarily
             </li>
           </ol>
-          <p style={{ marginTop: '0.5rem' }}>
+          <p>
             <strong>Without server validation:</strong> App grants access ✗
             (incorrect - refunded!)
             <br />
             <strong>With server validation:</strong> Server detects refund →
             denies access ✓
           </p>
-        </div>
+        </Callout>
 
         <AnchorLink id="when-to-validate" level="h3">
           When to Validate
@@ -2743,9 +2731,9 @@ func purchase_with_offer(subscription_id: String, offer_type: int) -> void:
           </li>
         </ul>
 
-        <div className="alert-card alert-card--warning">
+        <Callout kind="important" title="Android Limitation">
           <p>
-            <strong>⚠️ Android Limitation:</strong> While{' '}
+            While{' '}
             <Link to="/docs/apis/get-available-purchases">
               <code>getAvailablePurchases()</code>
             </Link>{' '}
@@ -2753,7 +2741,7 @@ func purchase_with_offer(subscription_id: String, offer_type: int) -> void:
             time, cancellation status, or refund information. For complete
             subscription management, consider:
           </p>
-          <ul style={{ margin: '0.5rem 0', paddingLeft: '1.5rem' }}>
+          <ul>
             <li>
               <a
                 href="https://developers.google.com/android-publisher/api-ref/rest/v3/purchases.subscriptionsv2/get"
@@ -2778,7 +2766,7 @@ func purchase_with_offer(subscription_id: String, offer_type: int) -> void:
               Server-side purchase records - Track subscription state history
             </li>
           </ul>
-        </div>
+        </Callout>
 
         <AnchorLink id="verify-subscription" level="h3">
           Verify Subscription
@@ -3571,14 +3559,11 @@ func check_from_active_subscriptions() -> void:
             android: (
               <>
                 <h4>Android: Limited Client-Side Information</h4>
-                <div className="alert-card alert-card--warning">
-                  <p>
-                    <strong>⚠️ Important:</strong> Android's Play Billing
-                    Library does not expose subscription status details (expiry,
-                    cancellation, refund) to the client. You must use
-                    server-side validation.
-                  </p>
-                </div>
+                <Callout kind="important">
+                  Android's Play Billing Library does not expose subscription
+                  status details (expiry, cancellation, refund) to the client.
+                  You must use server-side validation.
+                </Callout>
 
                 <p>
                   On Android, client-side checks are limited to verifying if a

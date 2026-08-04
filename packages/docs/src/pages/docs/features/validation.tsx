@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
+import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import IapKitBanner from '../../../components/IapKitBanner';
 import LanguageTabs from '../../../components/LanguageTabs';
@@ -56,12 +57,10 @@ function Validation() {
         </ul>
       </TLDRBox>
 
-      <div className="alert-card alert-card--warning">
-        <p>
-          <strong>Security:</strong> Never rely only on local client purchase
-          state. Use your backend or IAPKit as the verifier.
-        </p>
-      </div>
+      <Callout kind="warning" title="Security">
+        Never rely only on local client purchase state. Use your backend or
+        IAPKit as the verifier.
+      </Callout>
 
       <section>
         <AnchorLink id="verify-purchase" level="h2">
@@ -500,13 +499,13 @@ if (
     "updatedAt": 1784160000000
   }
 }`}</CodeBlock>
-        <div className="alert-card alert-card--warning">
+        <Callout kind="warning" title="Public, non-authoritative data">
           <p>
-            <strong>Public, non-authoritative data:</strong> The payload is
-            client-visible and limited to 16 KiB of UTF-8. Never store secrets
-            or server-only authorization rules in it, and never use its content
-            instead of <code>isValid</code>, <code>state</code>, or the
-            store-verified <code>productId</code> for entitlement decisions.
+            The payload is client-visible and limited to 16 KiB of UTF-8. Never
+            store secrets or server-only authorization rules in it, and never
+            use its content instead of <code>isValid</code>, <code>state</code>,
+            or the store-verified <code>productId</code> for entitlement
+            decisions.
           </p>
           <p>
             A project key compiled into an app can be extracted. It keeps its
@@ -514,7 +513,7 @@ if (
             project's quota; create separate keys for each build or environment
             and rotate or revoke a key when a build is retired or compromised.
           </p>
-        </div>
+        </Callout>
         <p>
           This is request/response retrieval, not an APNs or FCM push. To fetch
           rules when the app opens without verifying a new purchase, use the
@@ -544,10 +543,7 @@ if (
           Error Handling Best Practice
         </AnchorLink>
 
-        <div className="alert-card alert-card--warning">
-          <p>
-            <strong>Important: Verification error ≠ Invalid purchase</strong>
-          </p>
+        <Callout kind="important" title="Verification error ≠ Invalid purchase">
           <p>
             When verification throws an error, it does NOT mean the purchase is
             invalid. Errors can occur due to network issues, server downtime, or
@@ -561,7 +557,7 @@ if (
             At the same time, never grant or finish a new purchase that has not
             been verified.
           </p>
-        </div>
+        </Callout>
 
         <h4>Recommended Pattern</h4>
         <p>

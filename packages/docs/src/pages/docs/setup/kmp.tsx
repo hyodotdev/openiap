@@ -1,3 +1,4 @@
+import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
 import { LIBRARIES } from '../../../lib/images';
@@ -20,25 +21,19 @@ function KmpSetup() {
       />
       <h1>Kotlin Multiplatform Setup</h1>
       <p>
-        <code>kmp-iap</code> provides in-app purchase support for Kotlin
-        Multiplatform projects. It supports Android natively and iOS via
-        CocoaPods integration.
+        <code>kmp-iap</code> brings OpenIAP-compliant in-app purchases to Kotlin
+        Multiplatform projects. Android talks to Google Play Billing directly;
+        iOS links the OpenIAP StoreKit framework, added with either CocoaPods or
+        Swift Package Manager (see <a href="#ios-config">iOS Configuration</a>{' '}
+        below). Requires iOS 15.0+ and the Android minSdk shown in{' '}
+        <a href="#android-config">Android Configuration</a>.
       </p>
 
-      <div
-        style={{
-          padding: '1rem',
-          background: 'rgba(220, 104, 67, 0.1)',
-          borderLeft: '4px solid var(--accent-color)',
-          borderRadius: '0.5rem',
-          margin: '1rem 0',
-        }}
-      >
-        <strong>Before you start:</strong> Complete the store configuration
-        before integrating with your framework:{' '}
+      <Callout kind="important" title="Before you start">
+        Complete the store configuration before integrating with your framework:{' '}
         <a href="/docs/ios-setup">iOS Setup</a> |{' '}
         <a href="/docs/android-setup">Android Setup</a>
-      </div>
+      </Callout>
 
       <section>
         <h2 id="prerequisites" className="anchor-heading">
@@ -113,20 +108,11 @@ dependencies {
           <strong>CocoaPods</strong> or <strong>Swift Package Manager</strong>:
         </p>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(164, 116, 101, 0.1)',
-            borderLeft: '4px solid var(--primary-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Quick decision:</strong> Use <strong>CocoaPods</strong> if you
-          want automatic dependency management through Gradle. Use{' '}
-          <strong>SPM</strong> if you prefer modern iOS tooling and want to
-          avoid CocoaPods.
-        </div>
+        <Callout kind="tip" title="Quick decision">
+          Use <strong>CocoaPods</strong> if you want automatic dependency
+          management through Gradle. Use <strong>SPM</strong> if you prefer
+          modern iOS tooling and want to avoid CocoaPods.
+        </Callout>
 
         <h4>Option A: CocoaPods (Recommended)</h4>
         <p>Ensure your shared module has the CocoaPods plugin:</p>
@@ -152,7 +138,6 @@ kotlin {
           Then run <code>cd iosApp &amp;&amp; pod install</code> and always open{' '}
           <code>.xcworkspace</code> (not <code>.xcodeproj</code>).
         </p>
-
         <h4>Option B: Swift Package Manager</h4>
         <ol>
           <li>
@@ -169,18 +154,10 @@ kotlin {
           </li>
         </ol>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(164, 116, 101, 0.1)',
-            borderLeft: '4px solid var(--primary-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Note:</strong> With SPM, don't use the CocoaPods plugin.
-          You'll need to manually update OpenIAP when kmp-iap updates.
-        </div>
+        <Callout kind="note">
+          With SPM, don't use the CocoaPods plugin. You'll need to manually
+          update OpenIAP when kmp-iap updates.
+        </Callout>
 
         <h4>Enable In-App Purchase Capability</h4>
         <p>
@@ -188,9 +165,11 @@ kotlin {
           <strong>+ Capability</strong> &gt; <strong>In-App Purchase</strong>
         </p>
 
-        <h4>Configure Info.plist (iOS 14+)</h4>
+        <h4>Configure Info.plist (optional)</h4>
         <p>
-          Add to your <code>iosApp/Info.plist</code>:
+          Declaring <code>itms-apps</code> in <code>iosApp/Info.plist</code> is
+          only needed when your own code checks App Store links before opening
+          them — kmp-iap itself does not require it:
         </p>
         <CodeBlock language="xml">
           {`<key>LSApplicationQueriesSchemes</key>
@@ -235,6 +214,36 @@ kotlin {
             #
           </a>
         </h2>
+        <p>
+          Results stream through Kotlin Flows: initialize the connection (
+          <a href="/docs/apis/init-connection">
+            <code>initConnection</code>
+          </a>
+          ), attach the purchase and error flows (
+          <a href="/docs/events/purchase-updated-listener">
+            <code>purchaseUpdatedListener</code>
+          </a>{' '}
+          and{' '}
+          <a href="/docs/events/purchase-error-listener">
+            <code>purchaseErrorListener</code>
+          </a>
+          ), then fetch and purchase (
+          <a href="/docs/apis/fetch-products">
+            <code>fetchProducts</code>
+          </a>
+          ,{' '}
+          <a href="/docs/apis/request-purchase">
+            <code>requestPurchase</code>
+          </a>
+          ,{' '}
+          <a href="/docs/apis/finish-transaction">
+            <code>finishTransaction</code>
+          </a>
+          ). A successful <code>initConnection()</code> followed by a non-empty{' '}
+          <code>fetchProducts()</code> result is the quickest way to confirm the
+          platform setup above is working. For the full flow, see the{' '}
+          <a href="/docs/features/purchase">Purchase Guide</a>.
+        </p>
 
         <h3 id="instance" className="anchor-heading">
           Creating an Instance
@@ -242,17 +251,27 @@ kotlin {
             #
           </a>
         </h3>
-        <p>Two patterns are supported:</p>
+        <p>
+          Two patterns are supported. The connection, fetch, and purchase APIs
+          are suspend functions — call them from a coroutine scope:
+        </p>
         <CodeBlock language="kotlin">
           {`// Option 1: Global instance (convenient)
 import io.github.hyochan.kmpiap.kmpIapInstance
-kmpIapInstance.initConnection()
+scope.launch { kmpIapInstance.initConnection() }
 
 // Option 2: Constructor (for DI / testing)
 import io.github.hyochan.kmpiap.KmpIAP
 val kmpIAP = KmpIAP()
-kmpIAP.initConnection()`}
+scope.launch { kmpIAP.initConnection() }`}
         </CodeBlock>
+        <p>
+          See{' '}
+          <a href="/docs/apis/init-connection">
+            <code>initConnection</code>
+          </a>{' '}
+          for parameters and per-store behavior.
+        </p>
 
         <h3 id="flow-based" className="anchor-heading">
           Flow-Based Architecture
@@ -261,7 +280,18 @@ kmpIAP.initConnection()`}
           </a>
         </h3>
         <p>
-          KMP IAP uses Kotlin <strong>Flow</strong> for purchase events:
+          KMP IAP delivers purchase results through hot Kotlin{' '}
+          <strong>Flows</strong> — despite the names,{' '}
+          <a href="/docs/events/purchase-updated-listener">
+            <code>purchaseUpdatedListener</code>
+          </a>{' '}
+          and{' '}
+          <a href="/docs/events/purchase-error-listener">
+            <code>purchaseErrorListener</code>
+          </a>{' '}
+          are Flows, not one-shot callbacks. Collect both in a long-lived
+          coroutine scope before requesting a purchase; events are emitted as
+          they occur.
         </p>
         <CodeBlock language="kotlin">
           {`import io.github.hyochan.kmpiap.KmpIAP
@@ -270,7 +300,7 @@ import kotlinx.coroutines.*
 val kmpIAP = KmpIAP()
 val scope = CoroutineScope(Dispatchers.Main + SupervisorJob())
 
-kmpIAP.initConnection()
+scope.launch { kmpIAP.initConnection() }
 
 // Collect in separate coroutines (collect is suspending and never returns)
 scope.launch {
@@ -287,20 +317,19 @@ scope.launch {
     }
 }`}
         </CodeBlock>
+        <p>
+          For the possible <code>error.code</code> values, see{' '}
+          <a href="/docs/errors">Error Codes</a>.
+        </p>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Critical:</strong> Always call <code>finishTransaction</code>{' '}
+        <Callout kind="warning" title="Critical">
+          Always call{' '}
+          <a href="/docs/apis/finish-transaction">
+            <code>finishTransaction</code>
+          </a>{' '}
           after verifying a purchase. On Android, unfinished purchases are
           automatically refunded after 3 days.
-        </div>
+        </Callout>
 
         <h3 id="products-purchase" className="anchor-heading">
           Products and Purchase
@@ -308,96 +337,58 @@ scope.launch {
             #
           </a>
         </h3>
+        <p>
+          Fetch products once the connection is up, then request a purchase —
+          the result arrives on <code>purchaseUpdatedListener</code>, not as a
+          return value. See{' '}
+          <a href="/docs/apis/fetch-products">
+            <code>fetchProducts</code>
+          </a>{' '}
+          and{' '}
+          <a href="/docs/apis/request-purchase">
+            <code>requestPurchase</code>
+          </a>{' '}
+          for parameters and per-store behavior.
+        </p>
         <CodeBlock language="kotlin">
           {`import io.github.hyochan.kmpiap.openiap.*
 
-// Fetch products
-val products = kmpIAP.fetchProducts(
-    ProductRequest(
-        skus = listOf("premium", "coins_100"),
-        type = ProductQueryType.InApp
+scope.launch {
+    // Fetch products
+    val products = kmpIAP.fetchProducts(
+        ProductRequest(
+            skus = listOf("premium", "coins_100"),
+            type = ProductQueryType.InApp
+        )
     )
-)
 
-// Purchase
-kmpIAP.requestPurchase(
-    RequestPurchaseProps(
-        request = RequestPurchaseProps.Request.Purchase(
-            RequestPurchasePropsByPlatforms(
-                google = RequestPurchaseAndroidProps(
-                    skus = listOf("premium")
+    // Purchase — the result arrives on purchaseUpdatedListener
+    kmpIAP.requestPurchase(
+        RequestPurchaseProps(
+            request = RequestPurchaseProps.Request.Purchase(
+                RequestPurchasePropsByPlatforms(
+                    apple = RequestPurchaseIosProps(
+                        sku = "premium"
+                    ),
+                    google = RequestPurchaseAndroidProps(
+                        skus = listOf("premium")
+                    )
                 )
-            )
-        ),
-        type = ProductQueryType.InApp
+            ),
+            type = ProductQueryType.InApp
+        )
     )
-)
-
-// Cleanup
-kmpIAP.endConnection()`}
+}`}
         </CodeBlock>
-
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Note:</strong> KMP IAP uses Kotlin Flow (not callbacks or
-          listeners). Collect purchase and error flows in a coroutine scope. The
-          flows are hot and emit events as they occur.
-        </div>
-      </section>
-
-      <section>
-        <h2 id="next-steps" className="anchor-heading">
-          Next Steps
-          <a href="#next-steps" className="anchor-link">
-            #
-          </a>
-        </h2>
-        <ul>
-          <li>
-            <a href="/docs/features/purchase">Purchase Guide</a> — Complete
-            purchase flow with validation and receipt verification
-          </li>
-          <li>
-            <a href="/docs/features/subscription">Subscription Guide</a> —
-            Subscription offers, renewal, and management
-          </li>
-          <li>
-            <a href="/docs/errors">Error Codes</a> — Full error reference and
-            handling strategies
-          </li>
-          <li>
-            <a href="/docs/apis">API Reference</a> — All available APIs with
-            multi-language examples
-          </li>
-          <li>
-            <a href="/docs/setup/store">Store Setup</a> — Horizon OS, Fire OS,
-            Vega OS support boundaries, and store target configuration
-          </li>
-          <li>
-            <a
-              href="https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Maven Central: kmp-iap
-            </a>
-            {' | '}
-            <a
-              href="https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              GitHub Source
-            </a>
-          </li>
-        </ul>
+        <p>
+          Call{' '}
+          <a href="/docs/apis/end-connection">
+            <code>endConnection()</code>
+          </a>{' '}
+          when the owning screen or scope is disposed — not right after{' '}
+          <code>requestPurchase</code>, or the connection may close before the
+          purchase result arrives.
+        </p>
       </section>
 
       <section>
@@ -447,6 +438,56 @@ kmpIAP.endConnection()`}
           <li>
             App must be signed with the same certificate uploaded to Play
             Console
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 id="next-steps" className="anchor-heading">
+          Next Steps
+          <a href="#next-steps" className="anchor-link">
+            #
+          </a>
+        </h2>
+        <ul>
+          <li>
+            <a href="/docs/features/purchase">Purchase Guide</a> — Complete
+            purchase flow with validation and receipt verification
+          </li>
+          <li>
+            <a href="/docs/features/subscription">Subscription Guide</a> —
+            Subscription offers, renewal, and management
+          </li>
+          <li>
+            <a href="/docs/errors">Error Codes</a> — Full error reference and
+            handling strategies
+          </li>
+          <li>
+            <a href="/docs/apis">API Reference</a> — All available APIs with
+            multi-language examples
+          </li>
+          <li>
+            <a href="/docs/setup/store">Store Setup</a> — support boundaries and
+            build configuration for alternative store targets: Meta Quest (
+            <a href="/docs/setup/store/horizon">Horizon OS</a>) and Amazon
+            devices (<a href="/docs/setup/store/amazon">Fire OS and Vega OS</a>)
+          </li>
+          <li>
+            <a
+              href="https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Maven Central: kmp-iap
+            </a>
+            {' | '}
+            <a
+              href="https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              GitHub Source
+            </a>
           </li>
         </ul>
       </section>

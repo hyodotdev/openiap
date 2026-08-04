@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
+import Callout from '../../../components/Callout';
 import PlatformTabs from '../../../components/PlatformTabs';
 import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
@@ -734,23 +735,14 @@ function Purchase() {
                   </tbody>
                 </table>
 
-                <div
-                  style={{
-                    padding: '1rem',
-                    background: 'rgba(220, 104, 67, 0.1)',
-                    borderLeft: '4px solid var(--accent-color)',
-                    borderRadius: '0.5rem',
-                    margin: '1rem 0',
-                  }}
-                >
-                  <strong>Flutter 10:</strong> only <code>dataAndroid</code> is
-                  accepted. Custom adapters and fixtures must use the canonical
-                  field. See{' '}
+                <Callout kind="warning" title="Flutter 10">
+                  Only <code>dataAndroid</code> is accepted. Custom adapters and
+                  fixtures must use the canonical field. See{' '}
                   <Link to="/docs/updates/deprecations#flutter-original-json-android">
                     the migration schedule
                   </Link>
                   .
-                </div>
+                </Callout>
 
                 <div style={{ marginTop: '1rem' }}>
                   <AnchorLink id="pending-purchase-update-android" level="h4">

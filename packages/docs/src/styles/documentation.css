@@ -793,10 +793,20 @@
 }
 
 /* Documentation Links - Oatmeal Colors */
+.doc-page {
+  /* Persistent link underline so links are visible without hovering —
+     inline code shares the link color, so this is the only cue */
+  --doc-link-underline: rgba(139, 101, 69, 0.35);
+}
+
+:root.dark .doc-page {
+  --doc-link-underline: rgba(212, 165, 116, 0.4);
+}
+
 .doc-page a:not(.anchor-link, .btn) {
   color: #8b6545; /* Warm brown */
   text-decoration: none;
-  border-bottom: 1px solid transparent;
+  border-bottom: 1px solid var(--doc-link-underline);
   transition: border-color 0.2s ease;
 }
 

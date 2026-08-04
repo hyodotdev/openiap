@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
+import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
@@ -23,24 +24,19 @@ function Discount() {
         show original prices, discount percentages, and promotional offers.
       </p>
 
-      <div className="alert-card alert-card--info">
-        <p>
-          <strong>Platform Support:</strong> This feature is currently
-          Android-only. iOS App Store handles discounts differently through
-          promotional offers and introductory prices for subscriptions.
-        </p>
-      </div>
+      <Callout kind="note" title="Platform Support">
+        This feature is currently Android-only. iOS App Store handles discounts
+        differently through promotional offers and introductory prices for
+        subscriptions.
+      </Callout>
 
-      <div className="alert-card alert-card--info">
-        <p>
-          <strong>Standardized API:</strong> Read{' '}
-          <code>ProductAndroid.discountOffers</code>. Each{' '}
-          <Link to="/docs/types/discount-offer">DiscountOffer</Link> exposes
-          common price fields and Android-only details through the{' '}
-          <code>Android</code> suffix (for example,{' '}
-          <code>offerTokenAndroid</code>).
-        </p>
-      </div>
+      <Callout kind="note" title="Standardized API">
+        Read <code>ProductAndroid.discountOffers</code>. Each{' '}
+        <Link to="/docs/types/discount-offer">DiscountOffer</Link> exposes
+        common price fields and Android-only details through the{' '}
+        <code>Android</code> suffix (for example, <code>offerTokenAndroid</code>
+        ).
+      </Callout>
 
       <section>
         <AnchorLink id="overview" level="h2">
@@ -1474,13 +1470,10 @@ async Task PurchaseWithOfferAsync(ProductAndroid product, int offerIndex = 0)
           </li>
         </ol>
 
-        <div className="alert-card alert-card--warning">
-          <p>
-            <strong>Note:</strong> Discount features require Google Play Billing
-            Library 8.0+. Make sure your app uses a compatible version of the
-            OpenIAP library.
-          </p>
-        </div>
+        <Callout kind="important" title="Billing Library 8.0+ required">
+          Discount features require Google Play Billing Library 8.0+. Make sure
+          your app uses a compatible version of the OpenIAP library.
+        </Callout>
       </section>
 
       <section>

@@ -1,5 +1,6 @@
 import SEO from '../../../components/SEO';
 import AnchorLink from '../../../components/AnchorLink';
+import Callout from '../../../components/Callout';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 import { Link } from 'react-router-dom';
 
@@ -15,21 +16,10 @@ function Sponsorship() {
         keywords="OpenIAP sponsorship, open source funding, IAP sponsor, founding supporter"
       />
       <h1>Sponsorship</h1>
-      <div
-        style={{
-          background: 'var(--bg-secondary)',
-          border: '1px solid var(--border-color)',
-          borderLeft: '3px solid var(--primary-color)',
-          borderRadius: '4px',
-          padding: '0.75rem 1rem',
-          marginBottom: '1.5rem',
-          fontSize: '0.9rem',
-          color: 'var(--text-secondary)',
-        }}
-      >
-        <strong>Draft</strong> — The Foundation section is currently being
-        prepared. Content may change as the governance structure is finalized.
-      </div>
+      <Callout kind="note" title="Draft">
+        The Foundation section is currently being prepared. Content may change
+        as the governance structure is finalized.
+      </Callout>
       <p>
         OpenIAP is the open interoperability standard for in-app purchases. Your
         sponsorship directly funds the infrastructure, security, and

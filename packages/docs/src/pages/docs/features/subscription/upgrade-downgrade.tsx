@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
 import Accordion from '../../../../components/Accordion';
+import Callout from '../../../../components/Callout';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import PlatformTabs from '../../../../components/PlatformTabs';
@@ -157,29 +158,24 @@ function SubscriptionUpgradeDowngrade() {
                   <p>
                     <strong>Key insight from Apple Developer Forums:</strong>
                   </p>
-                  <blockquote
-                    style={{
-                      borderLeft: '4px solid #007AFF',
-                      paddingLeft: '1rem',
-                      marginLeft: 0,
-                      fontStyle: 'italic',
-                      color: '#666',
-                    }}
-                  >
-                    "If the <code>autoRenewPreference</code> value is different
-                    from the <code>productID</code> from{' '}
-                    <code>currentEntitlements</code>, then you know that the
-                    user already changed the subscription plan."
-                    <br />
-                    <br />— Apple Developer Forums:{' '}
-                    <a
-                      href="https://developer.apple.com/forums/thread/723300"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      How to know when user upgrades/downgrades
-                    </a>
-                  </blockquote>
+                  <Callout kind="note">
+                    <blockquote>
+                      "If the <code>autoRenewPreference</code> value is
+                      different from the <code>productID</code> from{' '}
+                      <code>currentEntitlements</code>, then you know that the
+                      user already changed the subscription plan."
+                    </blockquote>
+                    <p>
+                      — Apple Developer Forums:{' '}
+                      <a
+                        href="https://developer.apple.com/forums/thread/723300"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
+                        How to know when user upgrades/downgrades
+                      </a>
+                    </p>
+                  </Callout>
                 </Accordion>
               </section>
 

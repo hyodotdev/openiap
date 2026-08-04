@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
+import Callout from '../../../../components/Callout';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
@@ -37,13 +38,11 @@ function PresentExternalPurchaseLinkIOS() {
         </a>
         .
       </p>
-      <div className="alert-card alert-card--info">
-        <p>
-          <strong>macOS:</strong> Not supported. The current OpenIAP Apple core
-          implementation uses <code>UIApplication</code> and returns a
-          feature-not-supported error on macOS.
-        </p>
-      </div>
+      <Callout kind="note" title="macOS">
+        Not supported. The current OpenIAP Apple core implementation uses{' '}
+        <code>UIApplication</code> and returns a feature-not-supported error on
+        macOS.
+      </Callout>
 
       <h2>Signature</h2>
       <LanguageTabs>

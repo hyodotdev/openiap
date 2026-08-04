@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
+import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
@@ -52,11 +53,10 @@ function Purchase() {
           </li>
         </ol>
 
-        <div className="alert-card alert-card--warning">
+        <Callout kind="warning" title="Critical">
           <p>
-            <strong>⚠️ Critical:</strong> You must complete all steps in order.
-            Skipping verification or failing to finish transactions will cause
-            issues:
+            You must complete all steps in order. Skipping verification or
+            failing to finish transactions will cause issues:
           </p>
           <ul>
             <li>
@@ -65,7 +65,7 @@ function Purchase() {
             <li>iOS: Transaction replays on every app launch</li>
             <li>Both: Users cannot repurchase consumables</li>
           </ul>
-        </div>
+        </Callout>
       </section>
 
       <section>
@@ -396,26 +396,24 @@ func _exit_tree() -> void:
           request triggers the native store UI (App Store / Google Play).
         </p>
 
-        <div className="alert-card alert-card--warning">
-          <p>
-            <strong>Terminology:</strong> APIs starting with{' '}
-            <code>request</code> are <strong>event-based</strong> operations,
-            not promise-based. Do not rely on their return values for actual
-            purchase results — instead, listen for events through{' '}
-            <Link to="/docs/events/purchase-updated-listener">
-              <code>purchaseUpdatedListener</code>
-            </Link>{' '}
-            or{' '}
-            <Link to="/docs/events/purchase-error-listener">
-              <code>purchaseErrorListener</code>
-            </Link>
-            . See{' '}
-            <Link to="/docs/apis/fetch-products#request-apis">
-              API Terminology
-            </Link>{' '}
-            for details.
-          </p>
-        </div>
+        <Callout kind="important" title="Terminology">
+          APIs starting with <code>request</code> are{' '}
+          <strong>event-based</strong> operations, not promise-based. Do not
+          rely on their return values for actual purchase results — instead,
+          listen for events through{' '}
+          <Link to="/docs/events/purchase-updated-listener">
+            <code>purchaseUpdatedListener</code>
+          </Link>{' '}
+          or{' '}
+          <Link to="/docs/events/purchase-error-listener">
+            <code>purchaseErrorListener</code>
+          </Link>
+          . See{' '}
+          <Link to="/docs/apis/fetch-products#request-apis">
+            API Terminology
+          </Link>{' '}
+          for details.
+        </Callout>
 
         <AnchorLink id="request-purchase-consumable" level="h3">
           Consumable / Non-Consumable Products
@@ -759,19 +757,13 @@ async Task<bool> VerifyOnServerAsync(Purchase purchase)
           }}
         </LanguageTabs>
 
-        <div className="alert-card alert-card--info">
-          <p>
-            <strong>ℹ️ Server-Side Implementation:</strong> For detailed
-            server-side verification implementation (JWS verification for iOS,
-            Google Play API for Android), see the{' '}
-            <a href="/tutorials#verify-purchase">Verify Purchase tutorials</a>.
-          </p>
-        </div>
+        <Callout kind="note" title="Server-Side Implementation">
+          For detailed server-side verification implementation (JWS verification
+          for iOS, Google Play API for Android), see the{' '}
+          <a href="/tutorials#verify-purchase">Verify Purchase tutorials</a>.
+        </Callout>
 
-        <div className="alert-card alert-card--warning">
-          <p>
-            <strong>⚠️ Security Best Practices:</strong>
-          </p>
+        <Callout kind="warning" title="Security Best Practices">
           <ul>
             <li>
               Never rely only on local StoreKit or Play Billing client state
@@ -785,7 +777,7 @@ async Task<bool> VerifyOnServerAsync(Purchase purchase)
               Keep service account credentials secure (never in client code)
             </li>
           </ul>
-        </div>
+        </Callout>
       </section>
 
       <section>
@@ -806,7 +798,7 @@ async Task<bool> VerifyOnServerAsync(Purchase purchase)
           Google Play, Amazon Appstore, and Meta Horizon purchases for you. Use{' '}
           <code>verifyPurchaseWithProvider</code> with the{' '}
           <code>&apos;iapkit&apos;</code> provider and pass the
-          platform-specific token or receipt payload. Fire OS and Vega OS use
+          platform-specific token or receipt payload. Fire OS and Vega OS use{' '}
           <code>iapkit.amazon</code> with the Amazon receipt id, and no
           app-owned Amazon RVS server is required. If your own backend serves
           protected paid resources, have that backend authenticate the user and
@@ -817,24 +809,22 @@ async Task<bool> VerifyOnServerAsync(Purchase purchase)
           product your app expected; <code>isValid</code> alone is not enough.
         </p>
 
-        <div className="alert-card alert-card--info">
-          <p>
-            <strong>ℹ️ Get a project key:</strong> Sign up at{' '}
-            <a
-              href="https://kit.openiap.dev"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="external-link"
-            >
-              kit.openiap.dev
-            </a>{' '}
-            to obtain an <code>openiap-kit_pk_</code> publishable key. You can
-            pass it directly, or configure it once in your app (Expo extra,
-            Info.plist, AndroidManifest, etc.) so the SDK picks it up
-            automatically. Never use an <code>openiap-kit_sk_</code> secret key
-            in app code.
-          </p>
-        </div>
+        <Callout kind="note" title="Get a project key">
+          Sign up at{' '}
+          <a
+            href="https://kit.openiap.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="external-link"
+          >
+            kit.openiap.dev
+          </a>{' '}
+          to obtain an <code>openiap-kit_pk_</code> publishable key. You can
+          pass it directly, or configure it once in your app (Expo extra,
+          Info.plist, AndroidManifest, etc.) so the SDK picks it up
+          automatically. Never use an <code>openiap-kit_sk_</code> secret key in
+          app code.
+        </Callout>
 
         <LanguageTabs>
           {{
@@ -1127,17 +1117,15 @@ async Task<bool> VerifyWithIapkitAsync(Purchase purchase)
           }}
         </LanguageTabs>
 
-        <div className="alert-card alert-card--info">
-          <p>
-            <strong>ℹ️ Endpoint:</strong> Requests are sent to{' '}
-            <code>https://kit.openiap.dev/v1/purchase/verify</code> with{' '}
-            <code>Authorization: Bearer &lt;apiKey&gt;</code>. See the{' '}
-            <Link to="/docs/types/verify-purchase-with-provider-props">
-              PurchaseVerificationProvider
-            </Link>{' '}
-            type reference for the full response shape.
-          </p>
-        </div>
+        <Callout kind="note" title="Endpoint">
+          Requests are sent to{' '}
+          <code>https://kit.openiap.dev/v1/purchase/verify</code> with{' '}
+          <code>Authorization: Bearer &lt;apiKey&gt;</code>. See the{' '}
+          <Link to="/docs/types/verify-purchase-with-provider-props">
+            PurchaseVerificationProvider
+          </Link>{' '}
+          type reference for the full response shape.
+        </Callout>
       </section>
 
       <section>

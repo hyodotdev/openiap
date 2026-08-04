@@ -1,3 +1,4 @@
+import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
 
@@ -17,20 +18,11 @@ function GodotSetup() {
         and Kotlin AAR for Android.
       </p>
 
-      <div
-        style={{
-          padding: '1rem',
-          background: 'rgba(220, 104, 67, 0.1)',
-          borderLeft: '4px solid var(--accent-color)',
-          borderRadius: '0.5rem',
-          margin: '1rem 0',
-        }}
-      >
-        <strong>Before you start:</strong> Complete the store configuration
-        before integrating with your framework:{' '}
+      <Callout kind="important" title="Before you start">
+        Complete the store configuration before integrating with your framework:{' '}
         <a href="/docs/ios-setup">iOS Setup</a> |{' '}
         <a href="/docs/android-setup">Android Setup</a>
-      </div>
+      </Callout>
 
       <section>
         <h2 id="prerequisites" className="anchor-heading">
@@ -89,46 +81,6 @@ function GodotSetup() {
           </li>
         </ol>
         <p>The zip includes pre-built binaries for both iOS and Android.</p>
-        <p>
-          Native Apple API availability is fixed when the pre-built{' '}
-          <code>GodotIap.framework</code> is compiled. In particular, the
-          verified Apple 27 offer-code result requires a framework built with
-          Xcode 27 or later; a framework built with Xcode 26 still presents the
-          legacy sheet and returns <code>null</code>, even when the app runs on
-          Apple 27. The published godot-iap 3.0.0 iOS framework is built with
-          Xcode 27 and its release workflow rejects an older artifact. Custom
-          builds must use Xcode 27 to retain that result path.
-        </p>
-
-        <h3 id="macos-gatekeeper" className="anchor-heading">
-          macOS: Damaged Framework Warning
-          <a href="#macos-gatekeeper" className="anchor-link">
-            #
-          </a>
-        </h3>
-        <p>
-          Release zips are intended for iOS export and Android. If you use a
-          release or custom build that includes{' '}
-          <code>addons/godot-iap/bin/macos</code>, and Godot reports that{' '}
-          <code>GodotIap.framework</code> or{' '}
-          <code>SwiftGodotRuntime.framework</code> is damaged on macOS, clear
-          quarantine and repair the local ad-hoc signature:
-        </p>
-        <CodeBlock language="bash">
-          {`# Run from your Godot project root after copying addons/godot-iap
-xattr -dr com.apple.quarantine addons/godot-iap
-codesign --force --deep --sign - --timestamp=none addons/godot-iap/bin/macos/SwiftGodotRuntime.framework
-codesign --force --deep --sign - --timestamp=none addons/godot-iap/bin/macos/GodotIap.framework`}
-        </CodeBlock>
-        <p>
-          The checked-in macOS runtime frameworks are Apple Silicon (
-          <code>arm64</code>) only. Custom source builds can override{' '}
-          <code>MACOS_ARCHS</code>; <code>make macos</code> requests{' '}
-          <code>arm64 x86_64</code> by default, and generated metadata should
-          only include architectures that the framework binaries actually
-          contain. The default release zip does not include macOS runtime
-          frameworks.
-        </p>
 
         <h3 id="build-from-source" className="anchor-heading">
           Build from Source
@@ -148,6 +100,56 @@ make ios
 make android
 
 # Copy addons/godot-iap/ to your project`}
+        </CodeBlock>
+        <p>
+          The checked-in macOS runtime frameworks are Apple Silicon (
+          <code>arm64</code>) only. Custom source builds can override{' '}
+          <code>MACOS_ARCHS</code>; <code>make macos</code> requests{' '}
+          <code>arm64 x86_64</code> by default, and generated metadata should
+          only include architectures that the framework binaries actually
+          contain.
+        </p>
+
+        <h3 id="xcode-version" className="anchor-heading">
+          iOS Framework Toolchain (Offer Codes)
+          <a href="#xcode-version" className="anchor-link">
+            #
+          </a>
+        </h3>
+        <p>
+          The pre-built iOS framework locks in Apple API availability at compile
+          time. One feature depends on this:{' '}
+          <a href="/docs/features/offer-code-redemption">
+            offer code redemption
+          </a>{' '}
+          only returns a verified result when the framework was built with Xcode
+          27 or later — a framework built with Xcode 26 falls back to the legacy
+          redemption sheet and returns <code>null</code>, even on devices
+          running the latest OS. The published godot-iap 3.0.0 framework is
+          built with Xcode 27. If you build from source and use offer codes,
+          build with Xcode 27 or later.
+        </p>
+
+        <h3 id="macos-gatekeeper" className="anchor-heading">
+          macOS: Damaged Framework Warning
+          <a href="#macos-gatekeeper" className="anchor-link">
+            #
+          </a>
+        </h3>
+        <p>
+          The default release zip does not include macOS runtime frameworks, so
+          most projects can skip this section. It applies only if you build from
+          source with macOS support or use a custom zip containing{' '}
+          <code>addons/godot-iap/bin/macos</code>. If Godot reports that{' '}
+          <code>GodotIap.framework</code> or{' '}
+          <code>SwiftGodotRuntime.framework</code> is damaged, clear quarantine
+          and repair the ad-hoc signature:
+        </p>
+        <CodeBlock language="bash">
+          {`# Run from your Godot project root after copying addons/godot-iap
+xattr -dr com.apple.quarantine addons/godot-iap
+codesign --force --deep --sign - --timestamp=none addons/godot-iap/bin/macos/SwiftGodotRuntime.framework
+codesign --force --deep --sign - --timestamp=none addons/godot-iap/bin/macos/GodotIap.framework`}
         </CodeBlock>
       </section>
 
@@ -266,17 +268,8 @@ make android
           </ol>
         </details>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Warning:</strong> If the frameworks are not embedded, the app
-          will crash on launch with:{' '}
+        <Callout kind="warning">
+          If the frameworks are not embedded, the app will crash on launch with:{' '}
           <code>Library not loaded: @rpath/GodotIap.framework/GodotIap</code>.
           If the runpath is missing, it can crash with:{' '}
           <code>
@@ -284,7 +277,7 @@ make android
             @rpath/SwiftGodotRuntime.framework/SwiftGodotRuntime
           </code>
           .
-        </div>
+        </Callout>
 
         <h3 id="ios-infoplist" className="anchor-heading">
           iOS: Missing Info.plist Fallback
@@ -337,76 +330,10 @@ fi`}
             Frameworks" phase
           </li>
         </ol>
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(164, 116, 101, 0.1)',
-            borderLeft: '4px solid var(--primary-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Tip:</strong> Prefer the post-export fixer when possible; the
-          build phase is only a fallback for projects that cannot run the script
-          after export.
-        </div>
-      </section>
-
-      <section>
-        <h2 id="verify" className="anchor-heading">
-          Verify Installation
-          <a href="#verify" className="anchor-link">
-            #
-          </a>
-        </h2>
         <p>
-          Add <code>GodotIapWrapper</code> as a child node in your scene, then
-          use this script:
+          Prefer the post-export fixer when possible; the build phase is only a
+          fallback for projects that cannot run the script after export.
         </p>
-        <CodeBlock language="gdscript">
-          {`extends Node
-
-const Types = preload("res://addons/godot-iap/types.gd")
-
-@onready var iap = $GodotIapWrapper
-
-func _ready():
-    print("Godot IAP is available!")
-
-    # Connect signals
-    iap.connected.connect(_on_connected)
-    iap.purchase_updated.connect(_on_purchase_updated)
-    iap.purchase_error.connect(_on_purchase_error)
-
-    # Initialize connection
-    var success = iap.init_connection()
-    print("Init result: ", success)
-
-func _on_connected():
-    print("Store connected!")
-
-func _on_purchase_updated(purchase: Dictionary):
-    print("Purchase: %s" % purchase.get("product_id", ""))
-
-func _on_purchase_error(error: Dictionary):
-    print("Error: ", error)`}
-        </CodeBlock>
-
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(164, 116, 101, 0.1)',
-            borderLeft: '4px solid var(--primary-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Note:</strong> The native plugin is only available on iOS and
-          Android in the default release zip. In the editor and on desktop
-          platforms, store calls return fallback values or no-op results so you
-          can test your integration flow without opening a real store
-          connection.
-        </div>
       </section>
 
       <section>
@@ -462,12 +389,99 @@ func _ready():
       </section>
 
       <section>
+        <h2 id="verify" className="anchor-heading">
+          Verify Installation
+          <a href="#verify" className="anchor-link">
+            #
+          </a>
+        </h2>
+        <p>
+          With the <code>GodotIapWrapper</code> node from Scene Setup in place,
+          attach this script to confirm the plugin loads and the store connects:
+        </p>
+        <CodeBlock language="gdscript">
+          {`extends Node
+
+const Types = preload("res://addons/godot-iap/types.gd")
+
+@onready var iap = $GodotIapWrapper
+
+func _ready():
+    print("Godot IAP is available!")
+
+    # Connect signals
+    iap.connected.connect(_on_connected)
+    iap.purchase_updated.connect(_on_purchase_updated)
+    iap.purchase_error.connect(_on_purchase_error)
+
+    # Initialize connection
+    var success = await iap.init_connection()
+    print("Init result: ", success)
+
+func _on_connected():
+    print("Store connected!")
+
+func _on_purchase_updated(purchase: Dictionary):
+    print("Purchase: %s" % purchase.get("product_id", ""))
+
+func _on_purchase_error(error: Dictionary):
+    print("Error: ", error)`}
+        </CodeBlock>
+        <Callout kind="note">
+          The native plugin is only available on iOS and Android in the default
+          release zip. In the editor and on desktop platforms, store calls
+          return fallback values or no-op results so you can test your
+          integration flow without opening a real store connection.
+        </Callout>
+      </section>
+
+      <section>
         <h2 id="usage" className="anchor-heading">
           Usage
           <a href="#usage" className="anchor-link">
             #
           </a>
         </h2>
+        <p>
+          The typical flow is{' '}
+          <a href="/docs/apis/init-connection">
+            <code>init_connection</code>
+          </a>{' '}
+          → connect the{' '}
+          <a href="/docs/events/purchase-updated-listener">
+            <code>purchase_updated</code>
+          </a>{' '}
+          and{' '}
+          <a href="/docs/events/purchase-error-listener">
+            <code>purchase_error</code>
+          </a>{' '}
+          signals →{' '}
+          <a href="/docs/apis/fetch-products">
+            <code>fetch_products</code>
+          </a>{' '}
+          →{' '}
+          <a href="/docs/apis/request-purchase">
+            <code>request_purchase</code>
+          </a>{' '}
+          →{' '}
+          <a href="/docs/apis/finish-transaction">
+            <code>finish_transaction</code>
+          </a>
+          . See the <a href="/docs/features/purchase">Purchase Guide</a> for the
+          complete flow.
+        </p>
+        <p>
+          The examples below use the <code>iap</code> reference created in Scene
+          Setup (<code>@onready var iap = $GodotIapWrapper</code>).
+        </p>
+
+        <p>
+          GDScript uses <code>snake_case</code> for all function names (
+          <code>init_connection</code>, <code>fetch_products</code>,{' '}
+          <code>request_purchase</code>). Return types use <code>Array</code>{' '}
+          for lists and <code>Variant</code> for platform-specific single
+          results.
+        </p>
 
         <h3 id="signals" className="anchor-heading">
           Signal-Based Architecture
@@ -484,34 +498,48 @@ func _ready():
 
 func _ready():
     # Connect signals
-    GodotIapPlugin.purchase_updated.connect(_on_purchase_updated)
-    GodotIapPlugin.purchase_error.connect(_on_purchase_error)
+    iap.purchase_updated.connect(_on_purchase_updated)
+    iap.purchase_error.connect(_on_purchase_error)
 
     # Initialize
-    await GodotIapPlugin.init_connection()
+    await iap.init_connection()
 
 func _on_purchase_updated(purchase):
     # Validate receipt with your backend or IAPKit, then:
-    await GodotIapPlugin.finish_transaction(purchase, true)
+    # (second argument: true only for consumable products)
+    await iap.finish_transaction(purchase, false)
     print("Purchased: ", purchase.product_id)
 
 func _on_purchase_error(error):
     print("Error: ", error.code, " - ", error.message)`}
         </CodeBlock>
+        <p>
+          Each call here has a full reference — see the{' '}
+          <a href="/docs/events/purchase-updated-listener">
+            <code>purchase_updated</code>
+          </a>{' '}
+          and{' '}
+          <a href="/docs/events/purchase-error-listener">
+            <code>purchase_error</code>
+          </a>{' '}
+          signals,{' '}
+          <a href="/docs/apis/init-connection">
+            <code>init_connection</code>
+          </a>
+          , and{' '}
+          <a href="/docs/apis/finish-transaction">
+            <code>finish_transaction</code>
+          </a>{' '}
+          for parameters and per-store behavior, and{' '}
+          <a href="/docs/errors">Error Codes</a> for the <code>error.code</code>{' '}
+          values.
+        </p>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Critical:</strong> Always call <code>finishTransaction</code>{' '}
-          after verifying a purchase. On Android, unfinished purchases are
-          automatically refunded after 3 days.
-        </div>
+        <Callout kind="warning" title="Critical">
+          Always call <code>finish_transaction</code> after verifying a
+          purchase. On Android, unfinished purchases are automatically refunded
+          after 3 days.
+        </Callout>
 
         <h3 id="fetch-products" className="anchor-heading">
           Fetching Products
@@ -519,18 +547,33 @@ func _on_purchase_error(error):
             #
           </a>
         </h3>
+        <p>
+          Query store metadata with a{' '}
+          <a href="/docs/types/product-request">
+            <code>ProductRequest</code>
+          </a>
+          ; results are platform-typed (<code>ProductAndroid</code> on Android,{' '}
+          <code>ProductIOS</code> on iOS):
+        </p>
         <CodeBlock language="gdscript">
           {`func _load_products():
     var request = Types.ProductRequest.new()
     request.skus = ["premium", "coins_100"]
     request.type = Types.ProductQueryType.InApp
 
-    var products: Array = await GodotIapPlugin.fetch_products(request)
+    var products: Array = await iap.fetch_products(request)
     for product in products:
         # On Android: Types.ProductAndroid
         # On iOS: Types.ProductIOS
         print(product.id, " - ", product.display_price)`}
         </CodeBlock>
+        <p>
+          See{' '}
+          <a href="/docs/apis/fetch-products">
+            <code>fetch_products</code>
+          </a>{' '}
+          for parameters and per-store behavior.
+        </p>
 
         <h3 id="purchase" className="anchor-heading">
           Making a Purchase
@@ -538,6 +581,11 @@ func _on_purchase_error(error):
             #
           </a>
         </h3>
+        <p>
+          Configure both platforms in a single request — the plugin picks the
+          branch matching the store the game is running on, so one purchase call
+          works everywhere:
+        </p>
         <CodeBlock language="gdscript">
           {`func _purchase(sku: String):
     var platforms = Types.RequestPurchasePropsByPlatforms.new()
@@ -548,24 +596,59 @@ func _on_purchase_error(error):
     platforms.google.skus = skus
     var props = Types.RequestPurchaseProps.in_app(platforms)
     # Returns Variant (PurchaseAndroid or PurchaseIOS, or null)
-    var purchase = await GodotIapPlugin.request_purchase(props)`}
+    var purchase = await iap.request_purchase(props)`}
         </CodeBlock>
+        <p>
+          See{' '}
+          <a href="/docs/apis/request-purchase">
+            <code>request_purchase</code>
+          </a>{' '}
+          for parameters and per-store behavior.
+        </p>
+      </section>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Note:</strong> GDScript uses <code>snake_case</code> for all
-          function names (<code>init_connection</code>,{' '}
-          <code>fetch_products</code>, <code>request_purchase</code>). Return
-          types use <code>Array</code> for lists and <code>Variant</code> for
-          platform-specific single results.
-        </div>
+      <section>
+        <h2 id="troubleshooting" className="anchor-heading">
+          Troubleshooting
+          <a href="#troubleshooting" className="anchor-link">
+            #
+          </a>
+        </h2>
+        <h3 id="products-not-found" className="anchor-heading">
+          Products not found
+          <a href="#products-not-found" className="anchor-link">
+            #
+          </a>
+        </h3>
+        <ul>
+          <li>
+            Ensure all agreements are signed in App Store Connect / Google Play
+            Console
+          </li>
+          <li>
+            Verify banking, legal, and tax information is complete and approved
+          </li>
+          <li>Check that bundle ID / package name matches exactly</li>
+          <li>
+            Products must be in "Ready to Submit" status (Apple) or "Active"
+            (Google)
+          </li>
+          <li>Wait 15-30 minutes after creating products before testing</li>
+        </ul>
+
+        <h3 id="ios-launch-crash" className="anchor-heading">
+          App crashes on launch (iOS)
+          <a href="#ios-launch-crash" className="anchor-link">
+            #
+          </a>
+        </h3>
+        <p>
+          A crash with{' '}
+          <code>Library not loaded: @rpath/GodotIap.framework/GodotIap</code>{' '}
+          means the frameworks were not embedded — see{' '}
+          <a href="#ios-xcode">iOS: Xcode Framework Embedding</a> and run{' '}
+          <code>fix_ios_embed.sh</code>.
+        </p>
       </section>
 
       <section>
@@ -593,8 +676,11 @@ func _on_purchase_error(error):
             multi-language examples
           </li>
           <li>
-            <a href="/docs/setup/store">Store Setup</a> — Horizon OS, Fire OS,
-            Vega OS support boundaries, and store target configuration
+            <a href="/docs/setup/store">Store Setup</a> — support boundaries for
+            alternative stores such as{' '}
+            <a href="/docs/setup/store/horizon">Horizon OS</a> (Meta Quest) and{' '}
+            <a href="/docs/setup/store/amazon">Fire OS / Vega OS</a> (Amazon);
+            godot-iap does not yet ship dedicated flavors for these targets
           </li>
           <li>
             <a
@@ -605,31 +691,6 @@ func _on_purchase_error(error):
               GitHub Source
             </a>
           </li>
-        </ul>
-      </section>
-
-      <section>
-        <h2 id="troubleshooting" className="anchor-heading">
-          Troubleshooting
-          <a href="#troubleshooting" className="anchor-link">
-            #
-          </a>
-        </h2>
-        <h3>Products not found</h3>
-        <ul>
-          <li>
-            Ensure all agreements are signed in App Store Connect / Google Play
-            Console
-          </li>
-          <li>
-            Verify banking, legal, and tax information is complete and approved
-          </li>
-          <li>Check that bundle ID / package name matches exactly</li>
-          <li>
-            Products must be in "Ready to Submit" status (Apple) or "Active"
-            (Google)
-          </li>
-          <li>Wait 15-30 minutes after creating products before testing</li>
         </ul>
       </section>
     </div>

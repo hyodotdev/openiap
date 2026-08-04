@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
 import {
@@ -18,38 +19,19 @@ function ExpoSetup() {
       />
       <h1>Expo Setup</h1>
       <p>
-        <code>expo-iap</code> provides in-app purchase support for Expo apps.
-        Works with both managed and bare workflows.
+        <code>expo-iap</code> provides in-app purchase support for Expo apps —
+        both the managed workflow and bare apps that prefer the Expo Modules
+        stack. For bare React Native we recommend{' '}
+        <Link to="/docs/setup/react-native">react-native-iap</Link> (same API);
+        see <a href="#rn-cli">React Native CLI Projects</a> for using expo-iap
+        in bare apps.
       </p>
 
-      <div
-        style={{
-          padding: '1rem',
-          background: 'rgba(164, 116, 101, 0.1)',
-          borderLeft: '4px solid var(--primary-color)',
-          borderRadius: '0.5rem',
-          margin: '1rem 0',
-        }}
-      >
-        Use this if you're using Expo managed workflow. If you're using bare
-        React Native, use{' '}
-        <a href="/docs/setup/react-native">react-native-iap</a> instead.
-      </div>
-
-      <div
-        style={{
-          padding: '1rem',
-          background: 'rgba(220, 104, 67, 0.1)',
-          borderLeft: '4px solid var(--accent-color)',
-          borderRadius: '0.5rem',
-          margin: '1rem 0',
-        }}
-      >
-        <strong>Before you start:</strong> Complete the store configuration
-        before integrating with your framework:{' '}
-        <a href="/docs/ios-setup">iOS Setup</a> |{' '}
-        <a href="/docs/android-setup">Android Setup</a>
-      </div>
+      <Callout kind="important" title="Before you start">
+        Complete the store configuration before integrating with your framework:{' '}
+        <Link to="/docs/ios-setup">iOS Setup</Link> |{' '}
+        <Link to="/docs/android-setup">Android Setup</Link>
+      </Callout>
 
       <section>
         <h2 id="prerequisites" className="anchor-heading">
@@ -93,18 +75,9 @@ function ExpoSetup() {
           </tbody>
         </table>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Development build required:</strong> In-app purchases require
-          native modules that are <strong>not available in Expo Go</strong>. You
-          must use a{' '}
+        <Callout kind="important" title="Development build required">
+          In-app purchases require native modules that are{' '}
+          <strong>not available in Expo Go</strong>. You must use a{' '}
           <a
             href="https://docs.expo.dev/development/create-development-builds/"
             target="_blank"
@@ -114,7 +87,7 @@ function ExpoSetup() {
           </a>
           . Testing also requires a <strong>physical device</strong> —
           simulators and emulators have limited IAP support.
-        </div>
+        </Callout>
       </section>
 
       <section>
@@ -139,12 +112,15 @@ function ExpoSetup() {
         </p>
         <ul>
           <li>
-            <strong>Expo SDK 54+:</strong> Use the default toolchain when it is
-            already Kotlin 2.2 compatible, or set the version explicitly below.
+            <strong>Expo SDK 54+:</strong> the default toolchain is often
+            sufficient, but the OpenIAP artifacts require Kotlin 2.2+ — if the
+            Android build fails on Kotlin metadata, set{' '}
+            <code>kotlinVersion</code> explicitly with expo-build-properties as
+            shown below.
           </li>
           <li>
-            <strong>Expo SDK 53:</strong> Explicitly set the Kotlin version when
-            building Android apps:
+            <strong>Expo SDK 53:</strong> Set the Kotlin version explicitly with
+            expo-build-properties:
           </li>
         </ul>
         <CodeBlock language="json">
@@ -165,21 +141,13 @@ function ExpoSetup() {
 }`}
         </CodeBlock>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Expo SDK 52 or earlier:</strong> Expo SDK 52 uses Kotlin
-          1.9.x, which is <strong>incompatible</strong> with Billing Library v8.
-          You must either upgrade to SDK 53+ (recommended) or use a custom
-          config plugin to downgrade the billing library. See the{' '}
-          <a href="#sdk52-workaround">SDK 52 workaround</a> below.
-        </div>
+        <Callout kind="warning" title="Expo SDK 52 or earlier">
+          Expo SDK 52 uses Kotlin 1.9.x, which is <strong>incompatible</strong>{' '}
+          with Billing Library v8. You must either upgrade to SDK 53+
+          (recommended) or use a custom config plugin to downgrade the billing
+          library. See the <a href="#sdk52-workaround">SDK 52 workaround</a>{' '}
+          below.
+        </Callout>
 
         <h3 id="prebuild" className="anchor-heading">
           Prebuild &amp; Development Build
@@ -237,18 +205,17 @@ export default {
           <strong>+ Capability</strong> &gt; <strong>In-App Purchase</strong>{' '}
           (after running <code>npx expo prebuild</code>).
         </p>
-        <p>
-          Xcode 27 builds must use the UIScene lifecycle. Regenerate with an
-          Expo template that creates React Native from{' '}
-          <code>ExpoAppSceneDelegate</code>, or migrate an older generated iOS
-          host before building. Confirm that <code>Info.plist</code> contains a
-          scene configuration and that <code>AppDelegate.swift</code> no longer
-          creates <code>UIWindow(frame: UIScreen.main.bounds)</code>. See the{' '}
+        <Callout kind="important" title="Building with Xcode 27?">
+          The generated iOS project must use the UIScene lifecycle. Follow the{' '}
           <Link to="/docs/ios-setup#xcode-27-scene-lifecycle">
             Xcode 27 UIScene checklist
-          </Link>
-          .
-        </p>
+          </Link>{' '}
+          to migrate: your <code>Info.plist</code> needs a scene configuration,
+          and <code>AppDelegate.swift</code> must no longer create{' '}
+          <code>UIWindow(frame: UIScreen.main.bounds)</code>. Newer Expo
+          templates (based on <code>ExpoAppSceneDelegate</code>) generate this
+          correctly.
+        </Callout>
 
         <h3 id="android-config" className="anchor-heading">
           Android Configuration
@@ -287,7 +254,17 @@ cd ios && pod install`}
             #
           </a>
         </h2>
-        <p>The expo-iap config plugin supports these options:</p>
+        <p>
+          The expo-iap config plugin does two things: it wires your IAPKit
+          publishable key into the app for hosted{' '}
+          <Link to="/docs/kit-backend">purchase verification</Link>, and it
+          enables optional store modules —{' '}
+          <Link to="/docs/setup/store/onside">Onside</Link> (an iOS alternative
+          marketplace), <Link to="/docs/setup/store/horizon">Horizon OS</Link>{' '}
+          (Meta Quest), and <Link to="/docs/setup/store/amazon">Amazon</Link>{' '}
+          (Fire OS devices and the Vega OS runtime). All modules are off by
+          default; enable only the stores you ship to.
+        </p>
         <CodeBlock language="json">
           {`{
   "expo": {
@@ -316,32 +293,19 @@ cd ios && pod install`}
 }`}
         </CodeBlock>
         <p>
-          Use this page for the Expo plugin shape. Store-specific values,
+          Use this page for the Expo plugin shape. Store-specific values —
           required developer-console fields, supported targets, and artifact
-          rules live in Store Setup:
+          rules — live in each store&apos;s setup page linked above.
         </p>
-        <ul>
-          <li>
-            <a href="/docs/setup/store/onside">Onside Store Setup</a> — iOS
-            alternative marketplace support
-          </li>
-          <li>
-            <a href="/docs/setup/store/horizon">Horizon OS Store Setup</a> —
-            Meta Quest app id and Android flavor configuration
-          </li>
-          <li>
-            <a href="/docs/setup/store/amazon">Amazon Store Setup</a> — Fire OS
-            Android artifacts and Vega OS runtime targets
-          </li>
-        </ul>
         <p>
-          Keep module enable flags under <code>modules</code> and
-          platform-specific values under <code>android</code> or{' '}
-          <code>ios</code>. For Amazon targets, use{' '}
-          <code>modules.amazon.fireOS</code> and{' '}
-          <code>modules.amazon.vegaOS</code>; use{' '}
-          <code>android.amazon.vegaOS</code> only when Vega metadata must differ
-          from the normal Expo app config.
+          Module enable flags live under <code>modules</code>; platform-specific
+          values live under <code>android</code> or <code>ios</code>. For
+          Amazon, <code>modules.amazon.fireOS</code> and{' '}
+          <code>modules.amazon.vegaOS</code> toggle each target; the separate{' '}
+          <code>android.amazon.vegaOS</code> block is only needed when your Vega
+          OS build requires different values (app id, artifacts) than your
+          regular Android config — see{' '}
+          <Link to="/docs/setup/store/amazon">Amazon Store Setup</Link>.
         </p>
       </section>
 
@@ -352,6 +316,41 @@ cd ios && pod install`}
             #
           </a>
         </h2>
+
+        <p>
+          Under the hood, the typical flow is{' '}
+          <Link to="/docs/apis/init-connection">
+            <code>initConnection</code>
+          </Link>{' '}
+          → set up{' '}
+          <Link to="/docs/events/purchase-updated-listener">
+            <code>purchaseUpdatedListener</code>
+          </Link>{' '}
+          and{' '}
+          <Link to="/docs/events/purchase-error-listener">
+            <code>purchaseErrorListener</code>
+          </Link>{' '}
+          →{' '}
+          <Link to="/docs/apis/fetch-products">
+            <code>fetchProducts</code>
+          </Link>{' '}
+          →{' '}
+          <Link to="/docs/apis/request-purchase">
+            <code>requestPurchase</code>
+          </Link>{' '}
+          →{' '}
+          <Link to="/docs/apis/finish-transaction">
+            <code>finishTransaction</code>
+          </Link>
+          , with{' '}
+          <Link to="/docs/apis/end-connection">
+            <code>endConnection</code>
+          </Link>{' '}
+          on teardown. The <code>useIAP</code> hook manages the connection and
+          listener steps for you. See the{' '}
+          <Link to="/docs/features/purchase">Purchase Guide</Link> for the
+          complete flow.
+        </p>
 
         <h3 id="useIAP-hook" className="anchor-heading">
           useIAP Hook (Recommended)
@@ -416,34 +415,37 @@ function Store() {
 }`}
         </CodeBlock>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Critical:</strong> Always call <code>finishTransaction</code>{' '}
-          after verifying a purchase. On Android, unfinished purchases are
-          automatically refunded after 3 days.
-        </div>
+        <p>
+          Each call here has a full reference — see{' '}
+          <Link to="/docs/apis/fetch-products">
+            <code>fetchProducts</code>
+          </Link>
+          ,{' '}
+          <Link to="/docs/apis/request-purchase">
+            <code>requestPurchase</code>
+          </Link>
+          , and{' '}
+          <Link to="/docs/apis/finish-transaction">
+            <code>finishTransaction</code>
+          </Link>{' '}
+          for parameters and per-store behavior, and{' '}
+          <Link to="/docs/errors">
+            <code>ErrorCode</code>
+          </Link>{' '}
+          for the full error reference.
+        </p>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Important:</strong> The <code>useIAP</code> hook API is
-          identical to react-native-iap. Methods return{' '}
-          <code>Promise&lt;void&gt;</code> and update internal state. Use{' '}
-          <code>onPurchaseSuccess</code> for purchase results.
-        </div>
+        <Callout kind="warning" title="Critical">
+          Always call <code>finishTransaction</code> after verifying a purchase.
+          On Android, unfinished purchases are automatically refunded after 3
+          days.
+        </Callout>
+
+        <p>
+          The <code>useIAP</code> hook API is identical to react-native-iap:
+          methods return <code>Promise&lt;void&gt;</code> and update internal
+          state — use <code>onPurchaseSuccess</code> for purchase results.
+        </p>
       </section>
 
       <section>
@@ -453,14 +455,23 @@ function Store() {
             #
           </a>
         </h2>
+        <p>
+          expo-iap and react-native-iap share the same OpenIAP API; they differ
+          only in tooling:
+        </p>
         <ul>
           <li>
             Uses <code>npx expo install</code> instead of{' '}
             <code>npm install</code>
           </li>
           <li>Supports Expo managed workflow (no manual native code needed)</li>
-          <li>Uses Expo modules architecture instead of Nitro Modules</li>
-          <li>Same API surface and hook behavior as react-native-iap</li>
+          <li>
+            Built on the Expo Modules architecture instead of{' '}
+            <Link to="/docs/setup/react-native#nitro-modules">
+              Nitro Modules
+            </Link>
+            , the C++/JSI binding layer react-native-iap uses
+          </li>
         </ul>
       </section>
 
@@ -504,50 +515,6 @@ switch (error.code) {
       </section>
 
       <section>
-        <h2 id="next-steps" className="anchor-heading">
-          Next Steps
-          <a href="#next-steps" className="anchor-link">
-            #
-          </a>
-        </h2>
-        <ul>
-          <li>
-            <a href="/docs/features/purchase">Purchase Guide</a> — Complete
-            purchase flow with validation and receipt verification
-          </li>
-          <li>
-            <a href="/docs/features/subscription">Subscription Guide</a> —
-            Subscription offers, renewal, and management
-          </li>
-          <li>
-            <a href="/docs/errors">Error Codes</a> — Full error reference and
-            handling strategies
-          </li>
-          <li>
-            <a href="/docs/apis">API Reference</a> — All available APIs with
-            multi-language examples
-          </li>
-          <li>
-            <a
-              href="https://www.npmjs.com/package/expo-iap"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              npm: expo-iap
-            </a>
-            {' | '}
-            <a
-              href="https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              GitHub Source
-            </a>
-          </li>
-        </ul>
-      </section>
-
-      <section>
         <h2 id="tvos" className="anchor-heading">
           tvOS Support
           <a href="#tvos" className="anchor-link">
@@ -566,7 +533,12 @@ switch (error.code) {
           . Requires <strong>tvOS 16.0+</strong>.
         </p>
 
-        <h3>Configuration</h3>
+        <h3 id="tvos-configuration" className="anchor-heading">
+          Configuration
+          <a href="#tvos-configuration" className="anchor-link">
+            #
+          </a>
+        </h3>
         <p>
           Replace <code>react-native</code> with <code>react-native-tvos</code>{' '}
           in your <code>package.json</code>:
@@ -620,19 +592,11 @@ EXPO_TV=1 npx expo prebuild --platform ios --clean
 EXPO_TV=1 npx expo run:ios --device "Apple TV 4K (3rd generation)"`}
         </CodeBlock>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(164, 116, 101, 0.1)',
-            borderLeft: '4px solid var(--primary-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Note:</strong> <code>presentCodeRedemptionSheetIOS</code> is{' '}
+        <Callout kind="note">
+          <code>presentCodeRedemptionSheetIOS</code> is{' '}
           <strong>not supported</strong> on tvOS. Direct users to redeem codes
           on their iPhone or through Apple TV settings instead.
-        </div>
+        </Callout>
       </section>
 
       <section>
@@ -643,20 +607,12 @@ EXPO_TV=1 npx expo run:ios --device "Apple TV 4K (3rd generation)"`}
           </a>
         </h2>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Warning:</strong> Expo SDK 52 (React Native 0.76.x) uses
-          Kotlin 1.9.x, which is incompatible with the current OpenIAP Android
-          artifacts. Upgrading to <strong>SDK 53+</strong> and setting Kotlin
-          2.2.0 is the recommended solution.
-        </div>
+        <Callout kind="warning">
+          Expo SDK 52 (React Native 0.76.x) uses Kotlin 1.9.x, which is
+          incompatible with the current OpenIAP Android artifacts — upgrading to{' '}
+          <strong>SDK 53+</strong> is the recommended fix (see{' '}
+          <a href="#android-kotlin">Android Kotlin Version</a>).
+        </Callout>
 
         <p>
           If you cannot upgrade, create a custom config plugin to force an older
@@ -697,7 +653,12 @@ module.exports = function withBillingLibraryDowngrade(config) {
           </a>
         </h2>
 
-        <h3>Products not found</h3>
+        <h3 id="products-not-found" className="anchor-heading">
+          Products not found
+          <a href="#products-not-found" className="anchor-link">
+            #
+          </a>
+        </h3>
         <ul>
           <li>
             Ensure all agreements are signed in App Store Connect / Google Play
@@ -714,7 +675,12 @@ module.exports = function withBillingLibraryDowngrade(config) {
           <li>Wait 15-30 minutes after creating products before testing</li>
         </ul>
 
-        <h3>Build issues</h3>
+        <h3 id="build-issues" className="anchor-heading">
+          Build issues
+          <a href="#build-issues" className="anchor-link">
+            #
+          </a>
+        </h3>
         <ul>
           <li>
             Clear and reinstall:{' '}
@@ -731,6 +697,55 @@ module.exports = function withBillingLibraryDowngrade(config) {
           </li>
           <li>
             Reset Metro cache: <code>npx react-native start --reset-cache</code>
+          </li>
+        </ul>
+      </section>
+
+      <section>
+        <h2 id="next-steps" className="anchor-heading">
+          Next Steps
+          <a href="#next-steps" className="anchor-link">
+            #
+          </a>
+        </h2>
+        <ul>
+          <li>
+            <Link to="/docs/features/purchase">Purchase Guide</Link> — Complete
+            purchase flow with validation and receipt verification
+          </li>
+          <li>
+            <Link to="/docs/features/subscription">Subscription Guide</Link> —
+            Subscription offers, renewal, and management
+          </li>
+          <li>
+            <Link to="/docs/errors">Error Codes</Link> — Full error reference
+            and handling strategies
+          </li>
+          <li>
+            <Link to="/docs/apis">API Reference</Link> — All available APIs with
+            multi-language examples
+          </li>
+          <li>
+            <Link to="/docs/setup/store">Store Setup</Link> — support boundaries
+            for Onside, Horizon OS (Meta Quest), and Amazon (Fire OS / Vega OS)
+            targets
+          </li>
+          <li>
+            <a
+              href="https://www.npmjs.com/package/expo-iap"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              npm: expo-iap
+            </a>
+            {' | '}
+            <a
+              href="https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              GitHub Source
+            </a>
           </li>
         </ul>
       </section>

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
+import Callout from '../../../components/Callout';
 import SEO from '../../../components/SEO';
 import { LIBRARIES } from '../../../lib/images';
 
@@ -477,14 +478,6 @@ const packageCompatibilityMigrations = [
   },
 ] as const;
 
-const calloutStyle = {
-  padding: '1rem',
-  background: 'rgba(220, 104, 67, 0.1)',
-  borderLeft: '4px solid var(--accent-color)',
-  borderRadius: '0.5rem',
-  margin: '1rem 0',
-};
-
 function Deprecations() {
   return (
     <div className="doc-page">
@@ -502,12 +495,11 @@ function Deprecations() {
         before upgrading.
       </p>
 
-      <div style={calloutStyle}>
-        <strong>Breaking major release:</strong> the listed versions do not
-        include compatibility wrappers, deprecated schema members, or legacy
-        custom-wire aliases. Upgrade coordinated native and framework
-        dependencies together.
-      </div>
+      <Callout kind="warning" title="Breaking major release">
+        The listed versions do not include compatibility wrappers, deprecated
+        schema members, or legacy custom-wire aliases. Upgrade coordinated
+        native and framework dependencies together.
+      </Callout>
 
       <section>
         <AnchorLink id="removal-schedule" level="h2">

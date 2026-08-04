@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
+import Callout from '../../../../components/Callout';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
@@ -41,18 +42,16 @@ function AcknowledgePurchaseAndroid() {
         .
       </p>
 
-      <div className="alert-card alert-card--warning">
-        <p>
-          ⚠️ <strong>Deprecated in Google Play Billing Library 8.2.0+.</strong>{' '}
-          Direct acknowledge / consume calls are being phased out — use the
-          cross-platform{' '}
-          <Link to="/docs/apis/finish-transaction">
-            <code>finishTransaction</code>
-          </Link>{' '}
-          API instead, which handles acknowledgment automatically and is the
-          recommended path for new code.
-        </p>
-      </div>
+      <Callout kind="warning">
+        <strong>Deprecated in Google Play Billing Library 8.2.0+.</strong>{' '}
+        Direct acknowledge / consume calls are being phased out — use the
+        cross-platform{' '}
+        <Link to="/docs/apis/finish-transaction">
+          <code>finishTransaction</code>
+        </Link>{' '}
+        API instead, which handles acknowledgment automatically and is the
+        recommended path for new code.
+      </Callout>
 
       <h2>Signature</h2>
       <LanguageTabs>

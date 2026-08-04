@@ -1,3 +1,4 @@
+import Callout from '../../components/Callout';
 import SEO from '../../components/SEO';
 import { GOOGLE_PLAY_BILLING, OPENIAP_VERSIONS } from '../../lib/versioning';
 
@@ -13,24 +14,11 @@ function AndroidSetup() {
       <h1>Android Setup Guide</h1>
       <p>
         Setting up in-app purchases for Android requires configuration in Google
-        Play Console and your Android project.
+        Play Console and your Android project. Building for another
+        Android-compatible store? See{' '}
+        <a href="/docs/setup/store">Store Setup</a> for Horizon OS, Fire OS,
+        Vega OS, and alternative marketplace targets.
       </p>
-
-      <div
-        style={{
-          padding: '1rem',
-          background: 'rgba(33, 150, 243, 0.1)',
-          borderLeft: '4px solid #2196F3',
-          borderRadius: '0.5rem',
-          margin: '1rem 0',
-        }}
-      >
-        <strong>📱 Building for another Android-compatible store?</strong> See{' '}
-        <a href="/docs/setup/store" className="external-link">
-          Store Setup
-        </a>
-        for Horizon OS, Fire OS, Vega OS, and alternative marketplace targets.
-      </div>
 
       <section>
         <h2 id="prerequisites" className="anchor-heading">
@@ -76,19 +64,11 @@ function AndroidSetup() {
           </li>
         </ul>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>⚠️ Important:</strong> The merchant account must be fully
-          verified before products become available. This verification can take
-          24-48 hours after submitting your information.
-        </div>
+        <Callout kind="important">
+          The merchant account must be fully verified before products become
+          available. This verification can take 24-48 hours after submitting
+          your information.
+        </Callout>
       </section>
 
       <section>
@@ -323,19 +303,11 @@ dependencies {
           <li>Test cards are automatically used - no real charges occur</li>
         </ul>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(164, 116, 101, 0.1)',
-            borderLeft: '4px solid var(--primary-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>💡 Tip:</strong> For faster testing during development, use
-          Android Debug Bridge (ADB) to clear Google Play Store cache:{' '}
+        <Callout kind="tip">
+          For faster testing during development, use Android Debug Bridge (ADB)
+          to clear Google Play Store cache:{' '}
           <code>adb shell pm clear com.android.vending</code>
-        </div>
+        </Callout>
       </section>
 
       <section>
@@ -378,22 +350,9 @@ dependencies {
 
         <p>
           These libraries implement the OpenIAP specification and handle
-          Android-specific requirements.
+          Android-specific requirements — refer to each library&apos;s
+          documentation for implementation details.
         </p>
-
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(164, 116, 101, 0.1)',
-            borderLeft: '4px solid var(--primary-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>💡 Note:</strong> Refer to the specific library documentation
-          for implementation details. Each library follows the OpenIAP
-          specification while handling platform-specific requirements.
-        </div>
       </section>
 
       <section>
@@ -412,7 +371,14 @@ dependencies {
         </h3>
         <p>
           Android requires acknowledging purchases within 3 days. Unacknowledged
-          purchases are automatically refunded by Google Play.
+          purchases are automatically refunded by Google Play. In OpenIAP SDKs
+          the completion order is: verify with a trusted verifier (your backend
+          or <a href="/docs/kit-backend">IAPKit</a>), grant and persist the
+          entitlement so it survives a restart, then acknowledge through{' '}
+          <a href="/docs/apis/finish-transaction">
+            <code>finishTransaction</code>
+          </a>
+          .
         </p>
 
         <h3 id="consumable-products" className="anchor-heading">
@@ -424,6 +390,11 @@ dependencies {
         <p>
           Consumable products must be consumed before they can be purchased
           again. This prevents duplicate purchases of items like coins or lives.
+          Consumption is the{' '}
+          <a href="/docs/apis/finish-transaction">
+            <code>finishTransaction</code>
+          </a>{' '}
+          call with <code>isConsumable: true</code>.
         </p>
 
         <h3 id="purchase-verification" className="anchor-heading">
@@ -434,8 +405,10 @@ dependencies {
         </h3>
         <p>
           Always verify purchases through a trusted verifier that calls the
-          Google Play Developer API, either your backend or IAPKit, to prevent
-          fraud and ensure purchase validity.
+          Google Play Developer API — either your backend or{' '}
+          <a href="/docs/kit-backend">IAPKit</a> — to prevent fraud and ensure
+          purchase validity. See the{' '}
+          <a href="/docs/features/validation">Purchase Verification guide</a>.
         </p>
 
         <h3 id="billing-choice" className="anchor-heading">
@@ -516,20 +489,11 @@ dependencies {
           <li>Renewal notifications</li>
         </ul>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>⚠️ Important:</strong> OpenIAP libraries handle these
-          Android-specific requirements automatically. Consult the library
-          documentation for your chosen framework to ensure proper
-          implementation.
-        </div>
+        <p>
+          OpenIAP libraries handle these Android-specific requirements
+          automatically. Consult the library documentation for your chosen
+          framework to ensure proper implementation.
+        </p>
       </section>
 
       <section>

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import Callout from '../../components/Callout';
 import HighlightText from '../../components/HighlightText';
 import SEO from '../../components/SEO';
 
@@ -62,20 +63,11 @@ function IOSSetup() {
           </li>
         </ul>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>⚠️ Important:</strong> These prerequisites are often
-          overlooked but are absolutely essential. Without completing these
-          steps, your products will not be found, even if everything else is
-          configured correctly.
-        </div>
+        <Callout kind="important">
+          These prerequisites are often overlooked but are absolutely essential.
+          Without completing these steps, your products will not be found, even
+          if everything else is configured correctly.
+        </Callout>
       </section>
 
       <section>
@@ -177,20 +169,11 @@ function IOSSetup() {
           </a>
         </h2>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(164, 116, 101, 0.1)',
-            borderLeft: '4px solid var(--primary-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>💡 Xcode Version Requirement:</strong> Use Xcode 16.4 or
-          later. Compile with Xcode 27 when you need the StoreKit 27 fields
-          documented by OpenIAP 3, and complete the UIScene migration below
-          before shipping that build.
-        </div>
+        <p>
+          Use Xcode 16.4 or later. Compile with Xcode 27 when you need the
+          StoreKit 27 fields documented by OpenIAP 3, and complete the UIScene
+          migration below before shipping that build.
+        </p>
 
         <h3 id="xcode-27-scene-lifecycle" className="anchor-heading">
           1. Adopt UIScene when building with Xcode 27
@@ -344,19 +327,11 @@ function IOSSetup() {
           </li>
         </ul>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(164, 116, 101, 0.1)',
-            borderLeft: '4px solid var(--primary-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>💡 Note:</strong> This is the recommended approach starting
-          from iOS 15+. The old method of signing into the App Store app with
-          sandbox credentials is no longer necessary and can cause confusion.
-        </div>
+        <Callout kind="note">
+          This is the recommended approach starting from iOS 15+. The old method
+          of signing into the App Store app with sandbox credentials is no
+          longer necessary and can cause confusion.
+        </Callout>
       </section>
 
       <section>
@@ -399,22 +374,9 @@ function IOSSetup() {
 
         <p>
           These libraries implement the OpenIAP specification and handle
-          iOS-specific requirements.
+          iOS-specific requirements — refer to each library&apos;s documentation
+          for implementation details.
         </p>
-
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(164, 116, 101, 0.1)',
-            borderLeft: '4px solid var(--primary-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>💡 Note:</strong> Refer to the specific library documentation
-          for implementation details. Each library follows the OpenIAP
-          specification while handling platform-specific requirements.
-        </div>
       </section>
 
       <section>
@@ -441,7 +403,11 @@ function IOSSetup() {
         <p>
           iOS requires purchase verification to validate purchases. StoreKit 2
           (iOS 15+) provides JWS (JSON Web Signature) for enhanced security,
-          while older versions use base64-encoded receipts.
+          while older versions use base64-encoded receipts. See the{' '}
+          <Link to="/docs/features/validation">
+            Purchase Verification guide
+          </Link>{' '}
+          for server-side and IAPKit verification flows.
         </p>
 
         <h3 id="transaction-finishing" className="anchor-heading">
@@ -468,7 +434,15 @@ function IOSSetup() {
         <p>
           iOS requires apps to provide a "Restore Purchases" button for users to
           recover their non-consumable purchases and active subscriptions on new
-          devices.
+          devices — wire it to{' '}
+          <Link to="/docs/apis/restore-purchases">
+            <code>restorePurchases</code>
+          </Link>{' '}
+          and read results with{' '}
+          <Link to="/docs/apis/get-available-purchases">
+            <code>getAvailablePurchases</code>
+          </Link>
+          .
         </p>
 
         <h3 id="subscription-management" className="anchor-heading">
@@ -485,20 +459,11 @@ function IOSSetup() {
           <li>Family Sharing support (iOS 14+)</li>
         </ul>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>⚠️ Important:</strong> OpenIAP libraries handle these
-          iOS-specific requirements automatically. Consult the library
-          documentation for your chosen framework to ensure proper
-          implementation.
-        </div>
+        <p>
+          OpenIAP libraries handle these iOS-specific requirements
+          automatically. Consult the library documentation for your chosen
+          framework to ensure proper implementation.
+        </p>
       </section>
 
       <section>

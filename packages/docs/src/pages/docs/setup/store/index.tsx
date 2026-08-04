@@ -16,11 +16,15 @@ function StoreSetup() {
       />
       <h1>Store Setup</h1>
       <p>
-        Start with your framework setup, then add the store target your release
-        artifact needs. Store setup is intentionally separate from feature
-        usage: purchase APIs stay consistent, while build-time and runtime store
-        selection differ by framework. Each store guide starts with the exact
-        values you need, where to get them, and where each framework reads them.
+        Apple App Store and Google Play need no extra store configuration — your{' '}
+        <Link to="/docs/setup">framework setup guide</Link> covers them. This
+        section is for additional store targets: Meta Quest (Horizon OS), the
+        Amazon Appstore (Fire OS and Vega OS), and the Onside iOS alternative
+        marketplace. Finish your framework setup first, then add the store
+        target your release artifact needs. The purchase APIs stay identical on
+        every store; only build-time and runtime store selection differ. Each
+        store guide lists the exact values you need, where to get them, and
+        where each framework reads them.
       </p>
 
       <section>
@@ -31,7 +35,7 @@ function StoreSetup() {
           <thead>
             <tr>
               <th>Target</th>
-              <th>Selection model</th>
+              <th>How it is selected</th>
               <th>Setup guide</th>
             </tr>
           </thead>
@@ -39,7 +43,8 @@ function StoreSetup() {
             <tr>
               <td>Horizon OS</td>
               <td>
-                Android <code>horizon</code> flavor for Meta Quest builds.
+                Build the Android Gradle <code>horizon</code> product flavor for
+                Meta Quest devices.
               </td>
               <td>
                 <Link to="/docs/setup/store/horizon">Horizon OS Setup</Link>
@@ -48,27 +53,35 @@ function StoreSetup() {
             <tr>
               <td>Amazon Fire OS</td>
               <td>
-                Android <code>amazon</code> flavor for Amazon Appstore builds.
+                Android <code>amazon</code> flavor for Amazon Appstore builds
+                (experimental, RC packages).
               </td>
               <td>
-                <Link to="/docs/setup/store/amazon">Amazon Store Setup</Link>
+                <Link to="/docs/setup/store/amazon#fire-os">
+                  Amazon Store Setup — Fire OS
+                </Link>
               </td>
             </tr>
             <tr>
               <td>Amazon Vega OS</td>
               <td>
-                Kepler runtime adapter for React Native for Vega and compatible
-                Expo Vega targets.
+                Vega devices run apps on Amazon's Kepler JavaScript runtime
+                instead of Android; <code>react-native-iap</code> and{' '}
+                <code>expo-iap</code> switch to their Kepler adapter at runtime
+                (experimental, RC packages).
               </td>
               <td>
                 <Link to="/docs/setup/store/amazon#vega-os">
-                  Amazon Store Setup
+                  Amazon Store Setup — Vega OS
                 </Link>
               </td>
             </tr>
             <tr>
               <td>Onside</td>
-              <td>iOS marketplace runtime selected by expo-iap.</td>
+              <td>
+                iOS alternative marketplace; <code>expo-iap</code> selects the
+                Onside runtime automatically (Expo only).
+              </td>
               <td>
                 <Link to="/docs/setup/store/onside">Onside Setup</Link>
               </td>
@@ -82,25 +95,22 @@ function StoreSetup() {
           Framework Model
         </AnchorLink>
         <p>
-          Expo can write native configuration during prebuild. Bare React
-          Native, Flutter, KMP, MAUI, Godot, and native Android projects own
-          their native build files directly.
+          Every store guide shows two setup paths, so know which one your
+          project uses. Expo projects declare store values in the Expo config,
+          and a config plugin writes the native files during{' '}
+          <code>expo prebuild</code>. Bare React Native, Flutter, KMP, MAUI,
+          Godot, and native Android projects edit their native build files
+          directly.
         </p>
         <ul>
           <li>
-            Use <Link to="/docs/setup/store/horizon">Horizon OS Setup</Link> for
-            Meta Quest app ids, Android flavor selection, and framework-specific
-            build configuration.
+            Fire OS and Vega OS are separate release artifacts even though both
+            use Amazon receipt verification — do not reuse one build for the
+            other.
           </li>
           <li>
-            Use <Link to="/docs/setup/store/amazon">Amazon Store Setup</Link>{' '}
-            for Fire OS Android artifacts and Vega OS runtime targets. Fire OS
-            and Vega OS are separate artifacts even when both use Amazon receipt
-            verification.
-          </li>
-          <li>
-            Use <Link to="/docs/setup/store/onside">Onside Setup</Link> for
-            Expo-only iOS alternative marketplace support.
+            Onside is currently <code>expo-iap</code> only; other frameworks
+            have no Onside build option.
           </li>
         </ul>
       </section>

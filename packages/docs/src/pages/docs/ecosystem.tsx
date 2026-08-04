@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import Callout from '../../components/Callout';
 import SEO from '../../components/SEO';
 import { useScrollToHash } from '../../hooks/useScrollToHash';
 
@@ -199,22 +200,12 @@ function Ecosystem() {
         </ul>
       </section>
 
-      <section
-        style={{
-          marginTop: '3rem',
-          padding: '1.5rem',
-          backgroundColor: 'var(--bg-secondary, #f5f5f5)',
-          borderRadius: '8px',
-          borderLeft: '4px solid #ea4aaa',
-        }}
-      >
-        <p style={{ margin: 0, fontStyle: 'italic' }}>
-          Maintaining open source libraries requires significant time and
-          effort. If you find OpenIAP helpful, please consider{' '}
-          <a href="/sponsors">sponsoring</a> to help us sustain and grow this
-          ecosystem.
-        </p>
-      </section>
+      <Callout kind="note">
+        Maintaining open source libraries requires significant time and effort.
+        If you find OpenIAP helpful, please consider{' '}
+        <a href="/sponsors">sponsoring</a> to help us sustain and grow this
+        ecosystem.
+      </Callout>
     </div>
   );
 }

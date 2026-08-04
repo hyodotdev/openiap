@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
+import Callout from '../../../../components/Callout';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
@@ -167,22 +168,14 @@ function AppTransactionIos() {
           </tbody>
         </table>
 
-        <div
-          style={{
-            margin: '1rem 0',
-            padding: '1rem',
-            borderLeft: '4px solid var(--accent-color)',
-            background: 'rgba(220, 104, 67, 0.08)',
-            borderRadius: '0.5rem',
-          }}
-        >
-          <strong>Xcode 27 boundary:</strong> StoreKit also exposes{' '}
-          <code>AppTransaction.all</code>, an async sequence of app-acquisition
-          records. OpenIAP 3 does not export that sequence.{' '}
-          <code>getAppTransactionIOS</code> returns the current verified app
-          transaction, while <code>getAllTransactionsIOS</code> remains in-app
-          purchase history; the two histories are not interchangeable.
-        </div>
+        <Callout kind="important" title="Xcode 27 boundary">
+          StoreKit also exposes <code>AppTransaction.all</code>, an async
+          sequence of app-acquisition records. OpenIAP 3 does not export that
+          sequence. <code>getAppTransactionIOS</code> returns the current
+          verified app transaction, while <code>getAllTransactionsIOS</code>{' '}
+          remains in-app purchase history; the two histories are not
+          interchangeable.
+        </Callout>
 
         <AnchorLink id="app-transaction-type-definition" level="h3">
           Type Definition

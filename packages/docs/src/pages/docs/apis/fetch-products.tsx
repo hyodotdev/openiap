@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
+import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
@@ -53,9 +54,8 @@ function FetchProducts() {
       <AnchorLink id="request-apis" level="h2">
         Note about <code>request*</code> APIs
       </AnchorLink>
-      <div className="alert-card alert-card--info">
+      <Callout kind="note">
         <p>
-          ℹ️{' '}
           <strong>This note is about sibling APIs, not fetchProducts.</strong>{' '}
           <code>fetchProducts</code> itself is a regular promise-based call —
           its <code>Promise&lt;FetchProductsResult&gt;</code> return value{' '}
@@ -87,7 +87,7 @@ function FetchProducts() {
           </a>
           .
         </p>
-      </div>
+      </Callout>
 
       <h2>Signature</h2>
       <LanguageTabs>

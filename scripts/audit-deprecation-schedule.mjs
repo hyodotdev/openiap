@@ -328,7 +328,7 @@ const requiredTexts = [
   {
     file: "packages/docs/src/pages/docs/updates/deprecations.tsx",
     values: [
-      "Breaking major release:",
+      'title="Breaking major release"',
       "Last compatible major",
       "Removed in",
       "react-native-iap 16.0.0",

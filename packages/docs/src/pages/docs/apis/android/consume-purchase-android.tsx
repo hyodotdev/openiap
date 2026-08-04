@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
+import Callout from '../../../../components/Callout';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
@@ -38,18 +39,15 @@ function ConsumePurchaseAndroid() {
         .
       </p>
 
-      <div className="alert-card alert-card--warning">
-        <p>
-          ⚠️ <strong>Deprecated in Google Play Billing Library 8.2.0+.</strong>{' '}
-          Use{' '}
-          <Link to="/docs/apis/finish-transaction">
-            <code>finishTransaction</code>
-          </Link>{' '}
-          with <code>isConsumable: true</code> instead — the unified path
-          consumes (or acknowledges) the purchase automatically and stays
-          forward-compatible with the new Billing Programs API.
-        </p>
-      </div>
+      <Callout kind="warning">
+        <strong>Deprecated in Google Play Billing Library 8.2.0+.</strong> Use{' '}
+        <Link to="/docs/apis/finish-transaction">
+          <code>finishTransaction</code>
+        </Link>{' '}
+        with <code>isConsumable: true</code> instead — the unified path consumes
+        (or acknowledges) the purchase automatically and stays
+        forward-compatible with the new Billing Programs API.
+      </Callout>
 
       <h2>Signature</h2>
       <LanguageTabs>

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
+import Callout from '../../../../components/Callout';
 import CodeBlock from '../../../../components/CodeBlock';
 import SEO from '../../../../components/SEO';
 import { useScrollToHash } from '../../../../hooks/useScrollToHash';
@@ -27,15 +28,13 @@ function SubscriptionBillingPlansIOS() {
         products, and commitment renewal details when StoreKit returns them.
       </p>
 
-      <div className="alert-card alert-card--info">
-        <p>
-          <strong>Availability:</strong> billing plan selection requires iOS,
-          iPadOS, macOS, tvOS, or visionOS 26.4+ and an app compiled with the
-          StoreKit billing-plan APIs available in Xcode 26.5+ / Swift 6.3+. On
-          older runtimes, omit <code>billingPlanType</code> and use the
-          store&apos;s default billing plan.
-        </p>
-      </div>
+      <Callout kind="note" title="Availability">
+        Billing plan selection requires iOS, iPadOS, macOS, tvOS, or visionOS
+        26.4+ and an app compiled with the StoreKit billing-plan APIs available
+        in Xcode 26.5+ / Swift 6.3+. On older runtimes, omit{' '}
+        <code>billingPlanType</code> and use the store&apos;s default billing
+        plan.
+      </Callout>
 
       <section>
         <AnchorLink id="subscription-billing-plan-type-ios" level="h2">

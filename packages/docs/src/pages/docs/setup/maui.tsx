@@ -1,3 +1,4 @@
+import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
 import { MAUI_PACKAGE } from '../../../lib/versioning';
@@ -19,28 +20,17 @@ function MauiSetup() {
         verified them.
       </p>
 
-      <div className="alert-card alert-card--info">
+      <Callout kind="important" title="Before you start">
         <p>
-          <strong>Package shape:</strong> apps reference only{' '}
-          <code>OpenIap.Maui</code>. OpenIAP-owned Android and iOS binding
-          outputs are flattened into that package. Google Billing, Play
-          Services, Gson, AndroidX, and Kotlin Android libraries stay as normal
-          NuGet dependencies so your app can deduplicate them with its own
-          package graph.
-        </p>
-      </div>
-
-      <div className="alert-card alert-card--warning">
-        <p>
-          <strong>Before you start:</strong> create the products in App Store
-          Connect and Google Play Console first. The product IDs in your MAUI
-          app must exactly match the store product IDs.
+          Create the products in App Store Connect and Google Play Console
+          first. The product IDs in your MAUI app must exactly match the store
+          product IDs.
         </p>
         <p>
           Platform setup guides: <a href="/docs/ios-setup">iOS Setup</a> |{' '}
           <a href="/docs/android-setup">Android Setup</a>
         </p>
-      </div>
+      </Callout>
 
       <section>
         <h2 id="prerequisites" className="anchor-heading">
@@ -73,9 +63,6 @@ function MauiSetup() {
               <td>
                 iOS 15+ / macCatalyst 15+, Apple Developer account, matching
                 bundle identifier, In-App Purchase capability, sandbox tester.
-                OpenIap.Maui 2.0.0 embeds an Apple XCFramework built with Xcode
-                27; custom source builds need Xcode 27 to include the guarded
-                StoreKit 27 implementation.
               </td>
             </tr>
             <tr>
@@ -121,18 +108,35 @@ function MauiSetup() {
 </ItemGroup>`}
         </CodeBlock>
 
-        <div className="alert-card alert-card--info">
-          <p>
-            <strong>Working from this monorepo before publishing?</strong> Use a
-            project reference to the main project only. The example app
-            re-declares local native references because MSBuild does not
-            propagate those transitively through <code>ProjectReference</code>.
-            Published NuGet consumers do not need that.
-          </p>
-          <CodeBlock language="xml">
-            {`<ProjectReference Include="path/to/openiap/libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj" />`}
-          </CodeBlock>
-        </div>
+        <p>
+          Your app references a single package, <code>OpenIap.Maui</code>. The
+          OpenIAP-owned iOS and Android bindings are bundled inside it, while
+          shared dependencies (Google Play Billing, Play Services, AndroidX,
+          Kotlin, Gson) remain ordinary NuGet dependencies so NuGet can
+          deduplicate them with the rest of your dependency graph.
+        </p>
+
+        <p>
+          If you are working from this monorepo before publishing, use a project
+          reference to the main project only. The example app re-declares local
+          native references because MSBuild does not propagate those
+          transitively through <code>ProjectReference</code>. Published NuGet
+          consumers do not need that.
+        </p>
+        <CodeBlock language="xml">
+          {`<ProjectReference Include="path/to/openiap/libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj" />`}
+        </CodeBlock>
+        <p>
+          Building the Apple library from source requires Xcode 27; the
+          published package already embeds a prebuilt XCFramework, so NuGet
+          consumers do not need Xcode 27 — their normal toolchain is enough.
+        </p>
+
+        <Callout kind="warning" title="Upgrading from OpenIap.Maui 1.x?">
+          OpenIap.Maui 2.x supports .NET 10 only. Retarget every{' '}
+          <code>net9.0-*</code> TFM to the matching <code>net10.0-*</code> TFM
+          and update the MAUI workload before upgrading the package.
+        </Callout>
       </section>
 
       <section>
@@ -142,6 +146,10 @@ function MauiSetup() {
             #
           </a>
         </h2>
+        <p>
+          Configure the app project once per platform before calling any store
+          API.
+        </p>
 
         <h3 id="target-frameworks" className="anchor-heading">
           Target Frameworks
@@ -216,6 +224,34 @@ function MauiSetup() {
             #
           </a>
         </h2>
+        <p>
+          The typical flow is: initialize the connection with{' '}
+          <a href="/docs/apis/init-connection">
+            <code>InitConnectionAsync</code>
+          </a>
+          , fetch products with{' '}
+          <a href="/docs/apis/fetch-products">
+            <code>FetchProductsAsync</code>
+          </a>
+          , register the{' '}
+          <a href="/docs/events/purchase-updated-listener">
+            <code>PurchaseUpdated</code>
+          </a>{' '}
+          and{' '}
+          <a href="/docs/events/purchase-error-listener">
+            <code>PurchaseError</code>
+          </a>{' '}
+          listeners, request a purchase with{' '}
+          <a href="/docs/apis/request-purchase">
+            <code>RequestPurchaseAsync</code>
+          </a>
+          , then finish the verified transaction with{' '}
+          <a href="/docs/apis/finish-transaction">
+            <code>FinishTransactionAsync</code>
+          </a>
+          . The <a href="/docs/features/purchase">Purchase Guide</a> covers the
+          complete flow.
+        </p>
 
         <h3 id="initialize" className="anchor-heading">
           Initialize and Fetch Products
@@ -247,6 +283,17 @@ var products = result is FetchProductsResultProducts { Value: { } list }
     ? list
     : Array.Empty<Product>();`}
         </CodeBlock>
+        <p>
+          Each call here has a full reference — see{' '}
+          <a href="/docs/apis/init-connection">
+            <code>InitConnectionAsync</code>
+          </a>{' '}
+          and{' '}
+          <a href="/docs/apis/fetch-products">
+            <code>FetchProductsAsync</code>
+          </a>{' '}
+          for parameters and per-store behavior.
+        </p>
 
         <h3 id="listen-before-purchase" className="anchor-heading">
           Listen Before Requesting a Purchase
@@ -256,8 +303,25 @@ var products = result is FetchProductsResultProducts { Value: { } list }
         </h3>
         <p>
           Purchase APIs are event-based. Register listeners before calling{' '}
-          <code>RequestPurchaseAsync</code>, then finish the transaction only
-          after server-side verification succeeds.
+          <a href="/docs/apis/request-purchase">
+            <code>RequestPurchaseAsync</code>
+          </a>
+          , then finish the transaction only after server-side verification
+          succeeds. See{' '}
+          <a href="/docs/events/purchase-updated-listener">
+            <code>PurchaseUpdated</code>
+          </a>
+          ,{' '}
+          <a href="/docs/events/purchase-error-listener">
+            <code>PurchaseError</code>
+          </a>
+          , and{' '}
+          <a href="/docs/apis/finish-transaction">
+            <code>FinishTransactionAsync</code>
+          </a>{' '}
+          for parameters and per-store behavior, and{' '}
+          <a href="/docs/errors">Error Codes</a> for the <code>error.Code</code>{' '}
+          values.
         </p>
         <CodeBlock language="csharp">
           {`IDisposable purchaseSub = iap.PurchaseUpdated.Subscribe(async purchase =>
@@ -295,14 +359,11 @@ await mutate.RequestPurchaseAsync(new RequestPurchaseProps
 });`}
         </CodeBlock>
 
-        <div className="alert-card alert-card--warning">
-          <p>
-            <strong>Do not skip finishing transactions.</strong> On Android,
-            unfinished purchases are refunded automatically after 3 days. On
-            iOS, unfinished transactions can be delivered again on the next app
-            launch.
-          </p>
-        </div>
+        <Callout kind="warning" title="Do not skip finishing transactions">
+          On Android, unfinished purchases are refunded automatically after 3
+          days. On iOS, unfinished transactions can be delivered again on the
+          next app launch.
+        </Callout>
 
         <h3 id="iapkit-api" className="anchor-heading">
           IAPKit API
@@ -311,11 +372,15 @@ await mutate.RequestPurchaseAsync(new RequestPurchaseProps
           </a>
         </h3>
         <p>
-          The MAUI package exposes the same IAPKit helper surface as the
-          JavaScript SDKs: create a kit client for status, entitlements, and
-          bind-user calls. These app-facing calls use the publishable key. Store
-          lifecycle webhooks flow into IAPKit only; there is no outbound webhook
-          stream in the MAUI package.
+          IAPKit is OpenIAP's hosted receipt-validation backend (see{' '}
+          <a href="/docs/kit-backend">Purchase Verification with IAPKit</a>).
+          The MAUI package ships the same app-facing helper as the other OpenIAP
+          SDKs: create a kit client with your publishable key to read purchase
+          status and entitlements and to bind a purchase to a user. Store
+          lifecycle events (App Store Server Notifications, Google Play RTDN)
+          are delivered to IAPKit's backend, not to your app — the client reads
+          current state through these bounded calls rather than subscribing to a
+          webhook stream.
         </p>
         <CodeBlock language="csharp">
           {`using OpenIap;
@@ -340,7 +405,11 @@ BindUserResponse bind = await kit.BindUserAsync(purchase.PurchaseToken!, "user_1
         </h3>
         <p>
           Dispose subscriptions and close the store connection when the page or
-          service that owns the purchase flow is torn down.
+          service that owns the purchase flow is torn down. See{' '}
+          <a href="/docs/apis/end-connection">
+            <code>EndConnectionAsync</code>
+          </a>{' '}
+          for its full reference.
         </p>
         <CodeBlock language="csharp">
           {`purchaseSub.Dispose();
@@ -364,12 +433,23 @@ await mutate.EndConnectionAsync();`}
           Flow, Subscription Flow, Available Purchases, Offer Code, Alternative
           Billing.
         </p>
+        <p>
+          The example app builds against the in-repo Android library, so rebuild
+          the OpenIAP Android AARs once before the first run (published-package
+          consumers skip this step):
+        </p>
         <CodeBlock language="bash">
           {`# From the OpenIAP repo root:
 (cd packages/google && ./gradlew :openiap:assemblePlayRelease)
-(cd libraries/maui-iap/android && ../../../packages/google/gradlew :openiap:assembleRelease)
-
-cd libraries/maui-iap/example/OpenIap.Maui.Example
+(cd libraries/maui-iap/android && ../../../packages/google/gradlew :openiap:assembleRelease)`}
+        </CodeBlock>
+        <p>
+          Then run the example (its application id is{' '}
+          <code>dev.hyo.martie</code>; uninstalling first clears stale native
+          code):
+        </p>
+        <CodeBlock language="bash">
+          {`cd libraries/maui-iap/example/OpenIap.Maui.Example
 
 # Android device or emulator
 adb uninstall dev.hyo.martie || true
@@ -381,14 +461,6 @@ dotnet build -t:Run -f net10.0-ios
 # macCatalyst
 dotnet build -t:Run -f net10.0-maccatalyst`}
         </CodeBlock>
-        <div className="alert-card alert-card--warning">
-          <p>
-            <strong>Upgrading from OpenIap.Maui 1.x?</strong> OpenIap.Maui 2.x
-            supports .NET 10 only. Retarget every <code>net9.0-*</code> TFM to
-            the matching <code>net10.0-*</code> TFM and update the MAUI workload
-            before upgrading the package.
-          </p>
-        </div>
         <p>
           VS Code launch configurations are available in{' '}
           <code>libraries/maui-iap/.vscode/launch.json</code>. The iOS device
@@ -406,6 +478,9 @@ dotnet build -t:Run -f net10.0-maccatalyst`}
             #
           </a>
         </h2>
+        <p>
+          Common failures and their causes, roughly in the order you hit them.
+        </p>
 
         <h3 id="products-not-loading" className="anchor-heading">
           Products Do Not Load
@@ -416,7 +491,10 @@ dotnet build -t:Run -f net10.0-maccatalyst`}
         <ul>
           <li>
             Confirm the store product IDs exactly match the IDs passed in{' '}
-            <code>ProductRequest.Skus</code>.
+            <a href="/docs/types/product-request">
+              <code>ProductRequest</code>
+            </a>
+            <code>.Skus</code>.
           </li>
           <li>
             Confirm the bundle identifier or Android package name matches the
@@ -441,9 +519,18 @@ dotnet build -t:Run -f net10.0-maccatalyst`}
         <p>
           If Google Play shows "This version of the application is not
           configured for billing through Google Play", the library reached
-          BillingClient correctly. The app build is not accepted by Play Billing
-          for that package, signing key, track, tester, or product setup yet.
+          BillingClient correctly - Play itself rejected the app build. Check
+          each of the following:
         </p>
+        <ul>
+          <li>
+            The installed build's package name and signing key match the
+            uploaded build.
+          </li>
+          <li>The build is on an internal or closed test track.</li>
+          <li>The signed-in account is a license tester.</li>
+          <li>The products are active in Play Console.</li>
+        </ul>
 
         <h3 id="old-billing-client" className="anchor-heading">
           Android Old BillingClient Error
@@ -485,9 +572,12 @@ dotnet build -t:Run -f net10.0-android`}
         <p>
           Verify the app is running on a signed device build with the matching
           bundle identifier and In-App Purchase capability. If you navigate away
-          from a purchase screen, call <code>EndConnectionAsync</code> from the
-          owning page or lifecycle service so the next screen can initialize a
-          fresh store connection.
+          from a purchase screen, call{' '}
+          <a href="/docs/apis/end-connection">
+            <code>EndConnectionAsync</code>
+          </a>{' '}
+          from the owning page or lifecycle service so the next screen can
+          initialize a fresh store connection.
         </p>
       </section>
 
@@ -514,8 +604,11 @@ dotnet build -t:Run -f net10.0-android`}
             <a href="/docs/apis">API Reference</a> - generated API reference
           </li>
           <li>
-            <a href="/docs/setup/store">Store Setup</a> - Horizon OS, Fire OS,
-            Vega OS support boundaries, and store target configuration
+            <a href="/docs/setup/store">Store Setup</a> - shipping beyond Apple
+            and Google: <a href="/docs/setup/store/amazon">Amazon Appstore</a>{' '}
+            (Fire OS and Vega OS devices) and{' '}
+            <a href="/docs/setup/store/horizon">Meta Quest (Horizon OS)</a>{' '}
+            support boundaries and store target configuration
           </li>
           <li>
             <a

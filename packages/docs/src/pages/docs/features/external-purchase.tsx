@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
+import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import PlatformTabs from '../../../components/PlatformTabs';
@@ -28,15 +29,12 @@ function ExternalPurchase() {
           methods and can reduce platform fees.
         </p>
 
-        <div className="alert-card alert-card--info">
-          <p>
-            <strong>ℹ️ Important:</strong> External purchase bypasses native
-            platform billing. You must implement your own payment processing,
-            verification, and entitlement systems. Platform-specific callbacks
-            (like <code>onPurchaseUpdated</code>) will NOT fire for external
-            purchases.
-          </p>
-        </div>
+        <Callout kind="important">
+          External purchase bypasses native platform billing. You must implement
+          your own payment processing, verification, and entitlement systems.
+          Platform-specific callbacks (like <code>onPurchaseUpdated</code>) will
+          NOT fire for external purchases.
+        </Callout>
 
         <h3>Platform Support</h3>
         <table className="error-table">
@@ -372,14 +370,11 @@ func handle_external_purchase_flow() -> void:
                   }}
                 </LanguageTabs>
 
-                <div className="alert-card alert-card--info">
-                  <p>
-                    <strong>ℹ️ Note:</strong> The iOS 18.2+ API provides a
-                    cleaner flow with dedicated methods for presenting the
-                    notice sheet and external purchase link. This is the
-                    recommended approach for iOS 18.2 and later.
-                  </p>
-                </div>
+                <Callout kind="note">
+                  The iOS 18.2+ API provides a cleaner flow with dedicated
+                  methods for presenting the notice sheet and external purchase
+                  link. This is the recommended approach for iOS 18.2 and later.
+                </Callout>
 
                 <h4>Requirements</h4>
                 <ul>
@@ -470,14 +465,12 @@ func handle_external_purchase_flow() -> void:
   <string>https://your-site.com/kr/checkout</string>
 </dict>`}</CodeBlock>
 
-                <div className="alert-card alert-card--warning">
-                  <p>
-                    <strong>⚠️ URL Requirements:</strong> URLs must use HTTPS,
-                    be valid absolute URLs, contain no query parameters, and be
-                    1,000 or fewer ASCII characters. URLs in Info.plist must
-                    match those in your app binary submitted to App Review.
-                  </p>
-                </div>
+                <Callout kind="important" title="URL Requirements">
+                  URLs must use HTTPS, be valid absolute URLs, contain no query
+                  parameters, and be 1,000 or fewer ASCII characters. URLs in
+                  Info.plist must match those in your app binary submitted to
+                  App Review.
+                </Callout>
 
                 <h5>3. SKExternalPurchaseMultiLink (iOS 17.5+)</h5>
                 <p>
@@ -505,18 +498,14 @@ func handle_external_purchase_flow() -> void:
   </array>
 </dict>`}</CodeBlock>
 
-                <div className="alert-card alert-card--warning">
-                  <p>
-                    <strong>⚠️ Link Limits:</strong> Music streaming apps
-                    qualifying for StoreKit External Purchase Link entitlement
-                    can provide up to <strong>5 links per country</strong> (EU +
-                    Iceland, Norway). Other apps:{' '}
-                    <strong>1 link per country</strong>. Total unique links
-                    across <code>SKExternalPurchaseMultiLink</code> and{' '}
-                    <code>SKExternalPurchaseLink</code> must not exceed the
-                    limit.
-                  </p>
-                </div>
+                <Callout kind="important" title="Link Limits">
+                  Music streaming apps qualifying for StoreKit External Purchase
+                  Link entitlement can provide up to{' '}
+                  <strong>5 links per country</strong> (EU + Iceland, Norway).
+                  Other apps: <strong>1 link per country</strong>. Total unique
+                  links across <code>SKExternalPurchaseMultiLink</code> and{' '}
+                  <code>SKExternalPurchaseLink</code> must not exceed the limit.
+                </Callout>
 
                 <h5>4. SKExternalPurchaseCustomLinkRegions (iOS 18.1+)</h5>
                 <p>
@@ -554,10 +543,7 @@ func handle_external_purchase_flow() -> void:
   <!-- Add other EU country codes -->
 </array>`}</CodeBlock>
 
-                <div className="alert-card alert-card--info">
-                  <p>
-                    <strong>ℹ️ Apple Documentation Links:</strong>
-                  </p>
+                <Callout kind="note" title="Apple Documentation Links">
                   <ul>
                     <li>
                       <a
@@ -610,7 +596,7 @@ func handle_external_purchase_flow() -> void:
                       - Music streaming apps only (iOS 18.2+)
                     </li>
                   </ul>
-                </div>
+                </Callout>
 
                 <h4>Common Issues (iOS)</h4>
                 <table className="error-table">
@@ -1011,15 +997,13 @@ func handle_external_purchase_with_billing_programs(product_id: String) -> void:
                   payment option directly in the purchase flow.
                 </p>
 
-                <div className="alert-card alert-card--info">
-                  <p>
-                    <strong>ℹ️ Availability:</strong> The External Payments
-                    program is currently only available in Japan. Users in other
-                    regions will not see the developer billing option. Check{' '}
-                    <code>isBillingProgramAvailable(EXTERNAL_PAYMENTS)</code> to
-                    verify availability.
-                  </p>
-                </div>
+                <Callout kind="note" title="Availability">
+                  The External Payments program is currently only available in
+                  Japan. Users in other regions will not see the developer
+                  billing option. Check{' '}
+                  <code>isBillingProgramAvailable(EXTERNAL_PAYMENTS)</code> to
+                  verify availability.
+                </Callout>
 
                 <h5>Key Differences from Other Programs</h5>
                 <ul>
@@ -1512,17 +1496,14 @@ func handle_purchase_with_external_payments(product_id: String) -> void:
                   </tbody>
                 </table>
 
-                <div className="alert-card alert-card--warning">
-                  <p>
-                    <strong>⚠️ Token Reporting Requirement:</strong> When a user
-                    completes a purchase through developer billing, you{' '}
-                    <strong>must report the externalTransactionToken</strong> to
-                    Google Play within 24 hours. Failure to report may result in
-                    account suspension. Use the Google Play Developer API's{' '}
-                    <code>externaltransactions.createexternaltransaction</code>{' '}
-                    endpoint to report the token.
-                  </p>
-                </div>
+                <Callout kind="warning" title="Token Reporting Requirement">
+                  When a user completes a purchase through developer billing,
+                  you <strong>must report the externalTransactionToken</strong>{' '}
+                  to Google Play within 24 hours. Failure to report may result
+                  in account suspension. Use the Google Play Developer API's{' '}
+                  <code>externaltransactions.createexternaltransaction</code>{' '}
+                  endpoint to report the token.
+                </Callout>
 
                 <h5>DeveloperBillingLaunchMode Options</h5>
                 <table className="error-table">
@@ -1779,14 +1760,12 @@ func _ready_user_choice() -> void:
                   </tbody>
                 </table>
 
-                <div className="alert-card alert-card--info">
-                  <p>
-                    <strong>ℹ️ Note:</strong> The iOS 18.2+ flow with dedicated
-                    APIs provides better user experience with Apple's official
-                    notice sheet. The entire flow happens within the app - no
-                    browser redirect or deep linking required.
-                  </p>
-                </div>
+                <Callout kind="note">
+                  The iOS 18.2+ flow with dedicated APIs provides better user
+                  experience with Apple's official notice sheet. The entire flow
+                  happens within the app - no browser redirect or deep linking
+                  required.
+                </Callout>
               </>
             ),
             android: (

@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
+import Callout from '../../../../components/Callout';
 import CodeBlock from '../../../../components/CodeBlock';
 import SEO from '../../../../components/SEO';
 import { useScrollToHash } from '../../../../hooks/useScrollToHash';
@@ -17,17 +18,58 @@ function AmazonStoreSetup() {
         keywords="Amazon Fire OS IAP, Vega OS IAP, openiap-google-amazon, expo-iap amazon, react-native-iap Vega, Amazon Appstore SDK"
       />
       <h1>Amazon Store Setup</h1>
-      <div className="alert-card alert-card--warning">
-        <strong>Experimental RC support:</strong> Fire OS and Vega OS support is
-        available from the current <code>next</code> / <code>rc</code> package
-        versions while the integration is being finalized.
-      </div>
+      <Callout kind="important" title="Experimental RC support">
+        Fire OS and Vega OS support is available from the current{' '}
+        <code>next</code> / <code>rc</code> package versions while the
+        integration is being finalized.
+      </Callout>
       <p>
-        Amazon support has two separate targets. Fire OS is an Android Appstore
-        build using the <code>amazon</code> Gradle flavor. Vega OS is a Kepler
-        runtime target for React Native for Vega and compatible Expo Vega
-        builds. Do not use <code>fireOsEnabled</code> as a Vega selector.
+        Amazon distributes apps to two different device families, and OpenIAP
+        treats them as two separate targets. Fire OS is Amazon's Android-based
+        OS (Fire TV, Fire tablets): an Amazon Appstore build is a regular
+        Android build that selects the <code>amazon</code> Gradle flavor. Vega
+        OS is Amazon's newer, non-Android OS: its apps run on the Kepler
+        JavaScript runtime and are built with React Native for Vega (or a
+        compatible Expo Vega build), so Vega is a separate project target rather
+        than an Android flavor.
       </p>
+
+      <section>
+        <AnchorLink id="target-model" level="h2">
+          Target Model
+        </AnchorLink>
+        <p>
+          OpenIAP selects each Amazon target through a different mechanism — a
+          Gradle flavor for Fire OS, a runtime-selected adapter for Vega OS:
+        </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Target</th>
+              <th>Runtime</th>
+              <th>OpenIAP selection</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>Fire OS</td>
+              <td>Android / Amazon Appstore SDK</td>
+              <td>
+                Android <code>amazon</code> flavor and{' '}
+                <code>openiap-google-amazon</code>.
+              </td>
+            </tr>
+            <tr>
+              <td>Vega OS</td>
+              <td>Amazon Kepler JavaScript runtime</td>
+              <td>
+                Runtime-selected <code>kepler</code> adapter in{' '}
+                <code>expo-iap</code> or <code>react-native-iap</code>.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
 
       <section>
         <AnchorLink id="required-values" level="h2">
@@ -35,7 +77,9 @@ function AmazonStoreSetup() {
         </AnchorLink>
         <p>
           Fire OS and Vega OS both validate through Amazon receipts, but their
-          app metadata is configured in different places.
+          app metadata is configured in different places. App Tester refers to
+          Amazon App Tester, Amazon's sideloaded sandbox app for exercising test
+          purchases on device.
         </p>
         <table className="doc-table">
           <thead>
@@ -110,42 +154,15 @@ function AmazonStoreSetup() {
       </section>
 
       <section>
-        <AnchorLink id="target-model" level="h2">
-          Target Model
-        </AnchorLink>
-        <table className="doc-table">
-          <thead>
-            <tr>
-              <th>Target</th>
-              <th>Runtime</th>
-              <th>OpenIAP selection</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Fire OS</td>
-              <td>Android / Amazon Appstore SDK</td>
-              <td>
-                Android <code>amazon</code> flavor and{' '}
-                <code>openiap-google-amazon</code>.
-              </td>
-            </tr>
-            <tr>
-              <td>Vega OS</td>
-              <td>Amazon Kepler JavaScript runtime</td>
-              <td>
-                Runtime-selected <code>kepler</code> adapter in{' '}
-                <code>expo-iap</code> or <code>react-native-iap</code>.
-              </td>
-            </tr>
-          </tbody>
-        </table>
-      </section>
-
-      <section>
         <AnchorLink id="framework-setup" level="h2">
           Framework Setup
         </AnchorLink>
+        <p>
+          The table below summarizes how each framework selects an Amazon
+          target; the <a href="#fire-os">Fire OS</a> and{' '}
+          <a href="#vega-os">Vega OS</a> sections that follow contain the full
+          configuration.
+        </p>
         <table className="doc-table">
           <thead>
             <tr>
@@ -231,6 +248,10 @@ function AmazonStoreSetup() {
         <AnchorLink id="native-android" level="h3">
           Native Android
         </AnchorLink>
+        <p>
+          Depend on the Amazon artifact and select the <code>amazon</code>{' '}
+          flavor in the app's Gradle build:
+        </p>
         <CodeBlock language="kotlin">{`dependencies {
     implementation("io.github.hyochan.openiap:openiap-google-amazon:${OPENIAP_VERSIONS.google}")
 }
@@ -265,8 +286,11 @@ android {
           React Native
         </AnchorLink>
         <p>
-          Bare React Native selects Fire OS at the Gradle layer. There is no RN
-          config plugin for Amazon options.
+          Bare React Native selects Fire OS at the Gradle layer; there is no RN
+          config plugin for Amazon options. The same switch also drives Horizon
+          OS (Meta Quest) builds — see{' '}
+          <Link to="/docs/setup/store/horizon">Horizon OS Setup</Link> — so keep{' '}
+          <code>horizonEnabled=false</code> in Amazon artifacts.
         </p>
         <CodeBlock language="properties">{`# android/gradle.properties
 fireOsEnabled=true
@@ -287,10 +311,15 @@ android {
         <AnchorLink id="flutter-fire-os" level="h3">
           Flutter
         </AnchorLink>
+        <p>
+          Flutter uses the same Gradle property model as bare React Native — set
+          the property, then map it to the plugin flavor in the app module:
+        </p>
         <CodeBlock language="properties">{`# android/gradle.properties
 fireOsEnabled=true
 horizonEnabled=false`}</CodeBlock>
-        <CodeBlock language="groovy">{`def horizonEnabled = project.findProperty('horizonEnabled')?.toBoolean() ?: false
+        <CodeBlock language="groovy">{`// android/app/build.gradle
+def horizonEnabled = project.findProperty('horizonEnabled')?.toBoolean() ?: false
 def fireOsEnabled = project.findProperty('fireOsEnabled')?.toBoolean() ?: false
 def flavor = fireOsEnabled ? 'amazon' : (horizonEnabled ? 'horizon' : 'play')
 
@@ -304,7 +333,7 @@ android {
           KMP and MAUI
         </AnchorLink>
         <p>
-          KMP exposes the Android <code>amazonRelease</code> variant and sets
+          KMP exposes the Android <code>amazonRelease</code> variant and sets{' '}
           <code>OPENIAP_STORE="amazon"</code>. MAUI selects the Amazon AAR
           flavor by MSBuild property.
         </p>
@@ -318,8 +347,13 @@ dotnet build -f net10.0-android -p:OpenIapAndroidStore=amazon`}</CodeBlock>
         </AnchorLink>
         <p>
           Vega OS is not an Android flavor. Keep Vega dependencies isolated in a
-          Vega target so regular iOS, Android, Fire OS, and Horizon builds do
-          not install Amazon Kepler packages.
+          Vega target so regular iOS, Android, Fire OS, and{' '}
+          <Link to="/docs/setup/store/horizon">Horizon</Link> builds do not
+          install Amazon Kepler packages.
+        </p>
+        <p>
+          <code>fireOsEnabled</code> selects the Fire OS Android flavor only —
+          it is not a Vega selector and has no effect on Vega builds.
         </p>
         <p>
           Check the{' '}
@@ -339,12 +373,9 @@ dotnet build -f net10.0-android -p:OpenIapAndroidStore=amazon`}</CodeBlock>
           Expo
         </AnchorLink>
         <p>
-          Expo can prepare the Vega target from config. <code>fireOS</code> and
-          <code>vegaOS</code> can both be present, but they still produce
-          separate artifacts. Keep the enable flags in{' '}
-          <code>modules.amazon</code>; use <code>android.amazon.vegaOS</code>{' '}
-          only when Vega metadata needs to differ from the normal Expo app
-          config.
+          Expo can prepare the Vega target from config. <code>fireOS</code> and{' '}
+          <code>vegaOS</code> can both be enabled, but they still produce
+          separate artifacts; keep both flags in <code>modules.amazon</code>.
         </p>
         <CodeBlock language="typescript">{`plugins: [
   [
@@ -404,9 +435,16 @@ id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreServ
           Verification
         </AnchorLink>
         <p>
-          Fire OS and Vega OS both use the IAPKit Amazon payload. Pass the
+          Fire OS and Vega OS both use the{' '}
+          <Link to="/docs/kit-backend">IAPKit</Link> Amazon payload. Pass the
           Amazon user id when available, the Amazon receipt id, and{' '}
           <code>sandbox: true</code> for Amazon App Tester validation.
+        </p>
+        <p>
+          The example below uses the TypeScript SDKs (<code>expo-iap</code>,{' '}
+          <code>react-native-iap</code>); other frameworks pass the same{' '}
+          <code>iapkit.amazon</code> payload through their own{' '}
+          <code>verifyPurchaseWithProvider</code> call.
         </p>
         <CodeBlock language="typescript">{`await verifyPurchaseWithProvider({
   provider: 'iapkit',
