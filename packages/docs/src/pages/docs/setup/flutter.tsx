@@ -504,10 +504,10 @@ final allPurchases = await iap.getAvailablePurchases(
 
         <h3>Purchase JSON missing dataAndroid (Flutter 10)</h3>
         <p>
-          The public Purchase field is <code>dataAndroid</code>. Flutter 10 does
-          not accept the former custom-channel alias. Native adapters,
-          MethodChannel fixtures, and mocks must emit <code>dataAndroid</code>.
-          See{' '}
+          The public <a href="/docs/types/purchase">Purchase</a> field is{' '}
+          <code>dataAndroid</code>. Flutter 10 does not accept the former
+          custom-channel alias. Native adapters, MethodChannel fixtures, and
+          mocks must emit <code>dataAndroid</code>. See{' '}
           <Link to="/docs/updates/deprecations#flutter-original-json-android">
             Deprecations &amp; 3.0 Migration
           </Link>

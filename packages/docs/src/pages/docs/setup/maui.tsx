@@ -491,7 +491,10 @@ dotnet build -t:Run -f net10.0-maccatalyst`}
         <ul>
           <li>
             Confirm the store product IDs exactly match the IDs passed in{' '}
-            <code>ProductRequest.Skus</code>.
+            <a href="/docs/types/product-request">
+              <code>ProductRequest</code>
+            </a>
+            <code>.Skus</code>.
           </li>
           <li>
             Confirm the bundle identifier or Android package name matches the

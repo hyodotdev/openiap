@@ -311,23 +311,28 @@ function Store() {
         <p>After calling methods, consume state from the hook:</p>
         <ul>
           <li>
-            <code>products</code> — Populated after{' '}
+            <code>products</code> (<a href="/docs/types/product">Product</a>[])
+            — Populated after{' '}
             <Link to="/docs/apis/fetch-products">
               <code>fetchProducts()</code>
             </Link>
           </li>
           <li>
-            <code>subscriptions</code> — Populated after fetching with type{' '}
-            <code>'subs'</code>
+            <code>subscriptions</code> (
+            <a href="/docs/types/subscription-product">ProductSubscription</a>
+            []) — Populated after fetching with type <code>'subs'</code>
           </li>
           <li>
-            <code>availablePurchases</code> — Populated after{' '}
+            <code>availablePurchases</code> (
+            <a href="/docs/types/purchase">Purchase</a>[]) — Populated after{' '}
             <Link to="/docs/apis/get-available-purchases">
               <code>getAvailablePurchases()</code>
             </Link>
           </li>
           <li>
-            <code>activeSubscriptions</code> — Populated after{' '}
+            <code>activeSubscriptions</code> (
+            <a href="/docs/types/active-subscription">ActiveSubscription</a>[])
+            — Populated after{' '}
             <Link to="/docs/apis/get-active-subscriptions">
               <code>getActiveSubscriptions()</code>
             </Link>

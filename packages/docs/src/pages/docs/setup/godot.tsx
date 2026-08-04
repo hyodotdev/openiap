@@ -548,8 +548,11 @@ func _on_purchase_error(error):
           </a>
         </h3>
         <p>
-          Query store metadata with a <code>ProductRequest</code>; results are
-          platform-typed (<code>ProductAndroid</code> on Android,{' '}
+          Query store metadata with a{' '}
+          <a href="/docs/types/product-request">
+            <code>ProductRequest</code>
+          </a>
+          ; results are platform-typed (<code>ProductAndroid</code> on Android,{' '}
           <code>ProductIOS</code> on iOS):
         </p>
         <CodeBlock language="gdscript">
