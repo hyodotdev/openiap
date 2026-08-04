@@ -403,7 +403,11 @@ function IOSSetup() {
         <p>
           iOS requires purchase verification to validate purchases. StoreKit 2
           (iOS 15+) provides JWS (JSON Web Signature) for enhanced security,
-          while older versions use base64-encoded receipts.
+          while older versions use base64-encoded receipts. See the{' '}
+          <Link to="/docs/features/validation">
+            Purchase Verification guide
+          </Link>{' '}
+          for server-side and IAPKit verification flows.
         </p>
 
         <h3 id="transaction-finishing" className="anchor-heading">
@@ -430,7 +434,15 @@ function IOSSetup() {
         <p>
           iOS requires apps to provide a "Restore Purchases" button for users to
           recover their non-consumable purchases and active subscriptions on new
-          devices.
+          devices — wire it to{' '}
+          <Link to="/docs/apis/restore-purchases">
+            <code>restorePurchases</code>
+          </Link>{' '}
+          and read results with{' '}
+          <Link to="/docs/apis/get-available-purchases">
+            <code>getAvailablePurchases</code>
+          </Link>
+          .
         </p>
 
         <h3 id="subscription-management" className="anchor-heading">

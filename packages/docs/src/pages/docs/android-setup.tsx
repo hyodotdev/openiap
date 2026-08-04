@@ -371,7 +371,12 @@ dependencies {
         </h3>
         <p>
           Android requires acknowledging purchases within 3 days. Unacknowledged
-          purchases are automatically refunded by Google Play.
+          purchases are automatically refunded by Google Play. In OpenIAP SDKs,
+          acknowledgment happens through{' '}
+          <a href="/docs/apis/finish-transaction">
+            <code>finishTransaction</code>
+          </a>{' '}
+          after your server verifies the purchase.
         </p>
 
         <h3 id="consumable-products" className="anchor-heading">
@@ -383,6 +388,11 @@ dependencies {
         <p>
           Consumable products must be consumed before they can be purchased
           again. This prevents duplicate purchases of items like coins or lives.
+          Consumption is the{' '}
+          <a href="/docs/apis/finish-transaction">
+            <code>finishTransaction</code>
+          </a>{' '}
+          call with <code>isConsumable: true</code>.
         </p>
 
         <h3 id="purchase-verification" className="anchor-heading">
@@ -393,8 +403,10 @@ dependencies {
         </h3>
         <p>
           Always verify purchases through a trusted verifier that calls the
-          Google Play Developer API, either your backend or IAPKit, to prevent
-          fraud and ensure purchase validity.
+          Google Play Developer API — either your backend or{' '}
+          <a href="/docs/kit-backend">IAPKit</a> — to prevent fraud and ensure
+          purchase validity. See the{' '}
+          <a href="/docs/features/validation">Purchase Verification guide</a>.
         </p>
 
         <h3 id="billing-choice" className="anchor-heading">
