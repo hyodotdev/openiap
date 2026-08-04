@@ -107,8 +107,8 @@ npm install react-native-iap react-native-nitro-modules`}
         </ul>
         <p>
           If you hit Swift 6 C++ interop errors in Nitro, see{' '}
-          <a href="#troubleshooting">Troubleshooting</a> for the Swift 5.10 pin
-          workaround.
+          <a href="#troubleshooting">Troubleshooting</a> for the Swift 5
+          language mode workaround.
         </p>
 
         <h3 id="ios-setup" className="anchor-heading">
@@ -189,6 +189,41 @@ npm install react-native-iap react-native-nitro-modules`}
           </a>
         </h2>
 
+        <p>
+          Under the hood, the typical flow is{' '}
+          <a href="/docs/apis/init-connection">
+            <code>initConnection</code>
+          </a>{' '}
+          → set up{' '}
+          <a href="/docs/events/purchase-updated-listener">
+            <code>purchaseUpdatedListener</code>
+          </a>{' '}
+          and{' '}
+          <a href="/docs/events/purchase-error-listener">
+            <code>purchaseErrorListener</code>
+          </a>{' '}
+          →{' '}
+          <a href="/docs/apis/fetch-products">
+            <code>fetchProducts</code>
+          </a>{' '}
+          →{' '}
+          <a href="/docs/apis/request-purchase">
+            <code>requestPurchase</code>
+          </a>{' '}
+          →{' '}
+          <a href="/docs/apis/finish-transaction">
+            <code>finishTransaction</code>
+          </a>
+          , with{' '}
+          <a href="/docs/apis/end-connection">
+            <code>endConnection</code>
+          </a>{' '}
+          on teardown. The <code>useIAP</code> hook manages the connection and
+          listener steps for you. See the{' '}
+          <a href="/docs/features/purchase">Purchase Guide</a> for the complete
+          flow.
+        </p>
+
         <h3 id="useIAP-hook" className="anchor-heading">
           useIAP Hook (Recommended)
           <a href="#useIAP-hook" className="anchor-link">
@@ -250,6 +285,26 @@ function Store() {
   );
 }`}
         </CodeBlock>
+
+        <p>
+          Each call here has a full reference — see{' '}
+          <a href="/docs/apis/fetch-products">
+            <code>fetchProducts</code>
+          </a>
+          ,{' '}
+          <a href="/docs/apis/request-purchase">
+            <code>requestPurchase</code>
+          </a>
+          , and{' '}
+          <a href="/docs/apis/finish-transaction">
+            <code>finishTransaction</code>
+          </a>{' '}
+          for parameters and per-store behavior, and{' '}
+          <a href="/docs/errors">
+            <code>ErrorCode</code>
+          </a>{' '}
+          for the full error reference.
+        </p>
 
         <div
           style={{
@@ -351,6 +406,37 @@ purchaseSub.remove();
 errorSub.remove();
 await endConnection();`}
         </CodeBlock>
+        <p>
+          Each call here has a full reference — see{' '}
+          <a href="/docs/apis/init-connection">
+            <code>initConnection</code>
+          </a>
+          ,{' '}
+          <a href="/docs/apis/fetch-products">
+            <code>fetchProducts</code>
+          </a>
+          ,{' '}
+          <a href="/docs/apis/request-purchase">
+            <code>requestPurchase</code>
+          </a>
+          ,{' '}
+          <a href="/docs/apis/finish-transaction">
+            <code>finishTransaction</code>
+          </a>
+          , and{' '}
+          <a href="/docs/apis/end-connection">
+            <code>endConnection</code>
+          </a>{' '}
+          for parameters and per-store behavior, and{' '}
+          <a href="/docs/events/purchase-updated-listener">
+            <code>purchaseUpdatedListener</code>
+          </a>{' '}
+          and{' '}
+          <a href="/docs/events/purchase-error-listener">
+            <code>purchaseErrorListener</code>
+          </a>{' '}
+          for the purchase events.
+        </p>
       </section>
 
       <section>
@@ -456,8 +542,9 @@ end`}
         <h3>Swift 6 C++ interop errors (Nitro)</h3>
         <p>
           If you see errors in <code>AnyMap.swift</code> related to{' '}
-          <code>cppPart.pointee</code>, pin Swift 5.10 for the{' '}
-          <code>NitroModules</code> pod as a temporary workaround:
+          <code>cppPart.pointee</code>, switch the <code>NitroModules</code> pod
+          to the Swift 5 language mode (<code>SWIFT_VERSION = '5.0'</code>) as a
+          temporary workaround:
         </p>
         <CodeBlock language="text">
           {`# ios/Podfile - add inside post_install block

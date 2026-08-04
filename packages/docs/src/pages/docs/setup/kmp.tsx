@@ -240,11 +240,34 @@ kotlin {
           </a>
         </h2>
         <p>
-          Results stream through Kotlin Flows: initialize the connection, attach
-          the purchase and error flows, then fetch and purchase. A successful{' '}
-          <code>initConnection()</code> followed by a non-empty{' '}
+          Results stream through Kotlin Flows: initialize the connection (
+          <a href="/docs/apis/init-connection">
+            <code>initConnection</code>
+          </a>
+          ), attach the purchase and error flows (
+          <a href="/docs/events/purchase-updated-listener">
+            <code>purchaseUpdatedListener</code>
+          </a>{' '}
+          and{' '}
+          <a href="/docs/events/purchase-error-listener">
+            <code>purchaseErrorListener</code>
+          </a>
+          ), then fetch and purchase (
+          <a href="/docs/apis/fetch-products">
+            <code>fetchProducts</code>
+          </a>
+          ,{' '}
+          <a href="/docs/apis/request-purchase">
+            <code>requestPurchase</code>
+          </a>
+          ,{' '}
+          <a href="/docs/apis/finish-transaction">
+            <code>finishTransaction</code>
+          </a>
+          ). A successful <code>initConnection()</code> followed by a non-empty{' '}
           <code>fetchProducts()</code> result is the quickest way to confirm the
-          platform setup above is working.
+          platform setup above is working. For the full flow, see the{' '}
+          <a href="/docs/features/purchase">Purchase Guide</a>.
         </p>
 
         <h3 id="instance" className="anchor-heading">
@@ -267,6 +290,13 @@ import io.github.hyochan.kmpiap.KmpIAP
 val kmpIAP = KmpIAP()
 scope.launch { kmpIAP.initConnection() }`}
         </CodeBlock>
+        <p>
+          See{' '}
+          <a href="/docs/apis/init-connection">
+            <code>initConnection</code>
+          </a>{' '}
+          for parameters and per-store behavior.
+        </p>
 
         <h3 id="flow-based" className="anchor-heading">
           Flow-Based Architecture
@@ -277,10 +307,16 @@ scope.launch { kmpIAP.initConnection() }`}
         <p>
           KMP IAP delivers purchase results through hot Kotlin{' '}
           <strong>Flows</strong> — despite the names,{' '}
-          <code>purchaseUpdatedListener</code> and{' '}
-          <code>purchaseErrorListener</code> are Flows, not one-shot callbacks.
-          Collect both in a long-lived coroutine scope before requesting a
-          purchase; events are emitted as they occur.
+          <a href="/docs/events/purchase-updated-listener">
+            <code>purchaseUpdatedListener</code>
+          </a>{' '}
+          and{' '}
+          <a href="/docs/events/purchase-error-listener">
+            <code>purchaseErrorListener</code>
+          </a>{' '}
+          are Flows, not one-shot callbacks. Collect both in a long-lived
+          coroutine scope before requesting a purchase; events are emitted as
+          they occur.
         </p>
         <CodeBlock language="kotlin">
           {`import io.github.hyochan.kmpiap.KmpIAP
@@ -306,6 +342,10 @@ scope.launch {
     }
 }`}
         </CodeBlock>
+        <p>
+          For the possible <code>error.code</code> values, see{' '}
+          <a href="/docs/errors">Error Codes</a>.
+        </p>
 
         <div
           style={{
@@ -316,7 +356,10 @@ scope.launch {
             margin: '1rem 0',
           }}
         >
-          <strong>Critical:</strong> Always call <code>finishTransaction</code>{' '}
+          <strong>Critical:</strong> Always call{' '}
+          <a href="/docs/apis/finish-transaction">
+            <code>finishTransaction</code>
+          </a>{' '}
           after verifying a purchase. On Android, unfinished purchases are
           automatically refunded after 3 days.
         </div>
@@ -330,7 +373,15 @@ scope.launch {
         <p>
           Fetch products once the connection is up, then request a purchase —
           the result arrives on <code>purchaseUpdatedListener</code>, not as a
-          return value.
+          return value. See{' '}
+          <a href="/docs/apis/fetch-products">
+            <code>fetchProducts</code>
+          </a>{' '}
+          and{' '}
+          <a href="/docs/apis/request-purchase">
+            <code>requestPurchase</code>
+          </a>{' '}
+          for parameters and per-store behavior.
         </p>
         <CodeBlock language="kotlin">
           {`import io.github.hyochan.kmpiap.openiap.*
@@ -363,9 +414,13 @@ scope.launch {
 }`}
         </CodeBlock>
         <p>
-          Call <code>endConnection()</code> when the owning screen or scope is
-          disposed — not right after <code>requestPurchase</code>, or the
-          connection may close before the purchase result arrives.
+          Call{' '}
+          <a href="/docs/apis/end-connection">
+            <code>endConnection()</code>
+          </a>{' '}
+          when the owning screen or scope is disposed — not right after{' '}
+          <code>requestPurchase</code>, or the connection may close before the
+          purchase result arrives.
         </p>
       </section>
 

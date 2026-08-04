@@ -363,6 +363,41 @@ cd ios && pod install`}
           </a>
         </h2>
 
+        <p>
+          Under the hood, the typical flow is{' '}
+          <Link to="/docs/apis/init-connection">
+            <code>initConnection</code>
+          </Link>{' '}
+          → set up{' '}
+          <Link to="/docs/events/purchase-updated-listener">
+            <code>purchaseUpdatedListener</code>
+          </Link>{' '}
+          and{' '}
+          <Link to="/docs/events/purchase-error-listener">
+            <code>purchaseErrorListener</code>
+          </Link>{' '}
+          →{' '}
+          <Link to="/docs/apis/fetch-products">
+            <code>fetchProducts</code>
+          </Link>{' '}
+          →{' '}
+          <Link to="/docs/apis/request-purchase">
+            <code>requestPurchase</code>
+          </Link>{' '}
+          →{' '}
+          <Link to="/docs/apis/finish-transaction">
+            <code>finishTransaction</code>
+          </Link>
+          , with{' '}
+          <Link to="/docs/apis/end-connection">
+            <code>endConnection</code>
+          </Link>{' '}
+          on teardown. The <code>useIAP</code> hook manages the connection and
+          listener steps for you. See the{' '}
+          <Link to="/docs/features/purchase">Purchase Guide</Link> for the
+          complete flow.
+        </p>
+
         <h3 id="useIAP-hook" className="anchor-heading">
           useIAP Hook (Recommended)
           <a href="#useIAP-hook" className="anchor-link">
@@ -425,6 +460,26 @@ function Store() {
   );
 }`}
         </CodeBlock>
+
+        <p>
+          Each call here has a full reference — see{' '}
+          <Link to="/docs/apis/fetch-products">
+            <code>fetchProducts</code>
+          </Link>
+          ,{' '}
+          <Link to="/docs/apis/request-purchase">
+            <code>requestPurchase</code>
+          </Link>
+          , and{' '}
+          <Link to="/docs/apis/finish-transaction">
+            <code>finishTransaction</code>
+          </Link>{' '}
+          for parameters and per-store behavior, and{' '}
+          <Link to="/docs/errors">
+            <code>ErrorCode</code>
+          </Link>{' '}
+          for the full error reference.
+        </p>
 
         <div
           style={{

@@ -232,9 +232,32 @@ function MauiSetup() {
           </a>
         </h2>
         <p>
-          The typical flow is: initialize the connection, fetch products,
-          register purchase listeners, request a purchase, then finish the
-          verified transaction.
+          The typical flow is: initialize the connection with{' '}
+          <a href="/docs/apis/init-connection">
+            <code>InitConnectionAsync</code>
+          </a>
+          , fetch products with{' '}
+          <a href="/docs/apis/fetch-products">
+            <code>FetchProductsAsync</code>
+          </a>
+          , register the{' '}
+          <a href="/docs/events/purchase-updated-listener">
+            <code>PurchaseUpdated</code>
+          </a>{' '}
+          and{' '}
+          <a href="/docs/events/purchase-error-listener">
+            <code>PurchaseError</code>
+          </a>{' '}
+          listeners, request a purchase with{' '}
+          <a href="/docs/apis/request-purchase">
+            <code>RequestPurchaseAsync</code>
+          </a>
+          , then finish the verified transaction with{' '}
+          <a href="/docs/apis/finish-transaction">
+            <code>FinishTransactionAsync</code>
+          </a>
+          . The <a href="/docs/features/purchase">Purchase Guide</a> covers the
+          complete flow.
         </p>
 
         <h3 id="initialize" className="anchor-heading">
@@ -267,6 +290,17 @@ var products = result is FetchProductsResultProducts { Value: { } list }
     ? list
     : Array.Empty<Product>();`}
         </CodeBlock>
+        <p>
+          Each call here has a full reference — see{' '}
+          <a href="/docs/apis/init-connection">
+            <code>InitConnectionAsync</code>
+          </a>{' '}
+          and{' '}
+          <a href="/docs/apis/fetch-products">
+            <code>FetchProductsAsync</code>
+          </a>{' '}
+          for parameters and per-store behavior.
+        </p>
 
         <h3 id="listen-before-purchase" className="anchor-heading">
           Listen Before Requesting a Purchase
@@ -276,8 +310,25 @@ var products = result is FetchProductsResultProducts { Value: { } list }
         </h3>
         <p>
           Purchase APIs are event-based. Register listeners before calling{' '}
-          <code>RequestPurchaseAsync</code>, then finish the transaction only
-          after server-side verification succeeds.
+          <a href="/docs/apis/request-purchase">
+            <code>RequestPurchaseAsync</code>
+          </a>
+          , then finish the transaction only after server-side verification
+          succeeds. See{' '}
+          <a href="/docs/events/purchase-updated-listener">
+            <code>PurchaseUpdated</code>
+          </a>
+          ,{' '}
+          <a href="/docs/events/purchase-error-listener">
+            <code>PurchaseError</code>
+          </a>
+          , and{' '}
+          <a href="/docs/apis/finish-transaction">
+            <code>FinishTransactionAsync</code>
+          </a>{' '}
+          for parameters and per-store behavior, and{' '}
+          <a href="/docs/errors">Error Codes</a> for the <code>error.Code</code>{' '}
+          values.
         </p>
         <CodeBlock language="csharp">
           {`IDisposable purchaseSub = iap.PurchaseUpdated.Subscribe(async purchase =>
@@ -364,7 +415,11 @@ BindUserResponse bind = await kit.BindUserAsync(purchase.PurchaseToken!, "user_1
         </h3>
         <p>
           Dispose subscriptions and close the store connection when the page or
-          service that owns the purchase flow is torn down.
+          service that owns the purchase flow is torn down. See{' '}
+          <a href="/docs/apis/end-connection">
+            <code>EndConnectionAsync</code>
+          </a>{' '}
+          for its full reference.
         </p>
         <CodeBlock language="csharp">
           {`purchaseSub.Dispose();
@@ -524,9 +579,12 @@ dotnet build -t:Run -f net10.0-android`}
         <p>
           Verify the app is running on a signed device build with the matching
           bundle identifier and In-App Purchase capability. If you navigate away
-          from a purchase screen, call <code>EndConnectionAsync</code> from the
-          owning page or lifecycle service so the next screen can initialize a
-          fresh store connection.
+          from a purchase screen, call{' '}
+          <a href="/docs/apis/end-connection">
+            <code>EndConnectionAsync</code>
+          </a>{' '}
+          from the owning page or lifecycle service so the next screen can
+          initialize a fresh store connection.
         </p>
       </section>
 

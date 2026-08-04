@@ -453,7 +453,6 @@ func _on_purchase_updated(purchase: Dictionary):
 func _on_purchase_error(error: Dictionary):
     print("Error: ", error)`}
         </CodeBlock>
-
         <div
           style={{
             padding: '1rem',
@@ -478,6 +477,34 @@ func _on_purchase_error(error: Dictionary):
             #
           </a>
         </h2>
+        <p>
+          The typical flow is{' '}
+          <a href="/docs/apis/init-connection">
+            <code>init_connection</code>
+          </a>{' '}
+          → connect the{' '}
+          <a href="/docs/events/purchase-updated-listener">
+            <code>purchase_updated</code>
+          </a>{' '}
+          and{' '}
+          <a href="/docs/events/purchase-error-listener">
+            <code>purchase_error</code>
+          </a>{' '}
+          signals →{' '}
+          <a href="/docs/apis/fetch-products">
+            <code>fetch_products</code>
+          </a>{' '}
+          →{' '}
+          <a href="/docs/apis/request-purchase">
+            <code>request_purchase</code>
+          </a>{' '}
+          →{' '}
+          <a href="/docs/apis/finish-transaction">
+            <code>finish_transaction</code>
+          </a>
+          . See the <a href="/docs/features/purchase">Purchase Guide</a> for the
+          complete flow.
+        </p>
         <p>
           The examples below use the <code>iap</code> reference created in Scene
           Setup (<code>@onready var iap = $GodotIapWrapper</code>).
@@ -522,12 +549,34 @@ func _ready():
 
 func _on_purchase_updated(purchase):
     # Validate receipt with your backend or IAPKit, then:
-    await iap.finish_transaction(purchase, true)
+    # (second argument: true only for consumable products)
+    await iap.finish_transaction(purchase, false)
     print("Purchased: ", purchase.product_id)
 
 func _on_purchase_error(error):
     print("Error: ", error.code, " - ", error.message)`}
         </CodeBlock>
+        <p>
+          Each call here has a full reference — see the{' '}
+          <a href="/docs/events/purchase-updated-listener">
+            <code>purchase_updated</code>
+          </a>{' '}
+          and{' '}
+          <a href="/docs/events/purchase-error-listener">
+            <code>purchase_error</code>
+          </a>{' '}
+          signals,{' '}
+          <a href="/docs/apis/init-connection">
+            <code>init_connection</code>
+          </a>
+          , and{' '}
+          <a href="/docs/apis/finish-transaction">
+            <code>finish_transaction</code>
+          </a>{' '}
+          for parameters and per-store behavior, and{' '}
+          <a href="/docs/errors">Error Codes</a> for the <code>error.code</code>{' '}
+          values.
+        </p>
 
         <div
           style={{
@@ -566,6 +615,13 @@ func _on_purchase_error(error):
         # On iOS: Types.ProductIOS
         print(product.id, " - ", product.display_price)`}
         </CodeBlock>
+        <p>
+          See{' '}
+          <a href="/docs/apis/fetch-products">
+            <code>fetch_products</code>
+          </a>{' '}
+          for parameters and per-store behavior.
+        </p>
 
         <h3 id="purchase" className="anchor-heading">
           Making a Purchase
@@ -590,6 +646,13 @@ func _on_purchase_error(error):
     # Returns Variant (PurchaseAndroid or PurchaseIOS, or null)
     var purchase = await iap.request_purchase(props)`}
         </CodeBlock>
+        <p>
+          See{' '}
+          <a href="/docs/apis/request-purchase">
+            <code>request_purchase</code>
+          </a>{' '}
+          for parameters and per-store behavior.
+        </p>
       </section>
 
       <section>

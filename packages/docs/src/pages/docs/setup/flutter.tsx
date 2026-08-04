@@ -244,11 +244,33 @@ function FlutterSetup() {
           </a>
         </h2>
         <p>
-          The typical flow is <code>initConnection</code> → set up purchase
-          listeners → <code>fetchProducts</code> → <code>requestPurchase</code>{' '}
-          → <code>finishTransaction</code>. The snippets below cover each step;
-          the <a href="/docs/features/purchase">Purchase Guide</a> shows the
-          full flow with receipt validation.
+          The typical flow is{' '}
+          <a href="/docs/apis/init-connection">
+            <code>initConnection</code>
+          </a>{' '}
+          → set up{' '}
+          <a href="/docs/events/purchase-updated-listener">
+            <code>purchaseUpdatedListener</code>
+          </a>{' '}
+          and{' '}
+          <a href="/docs/events/purchase-error-listener">
+            <code>purchaseErrorListener</code>
+          </a>{' '}
+          →{' '}
+          <a href="/docs/apis/fetch-products">
+            <code>fetchProducts</code>
+          </a>{' '}
+          →{' '}
+          <a href="/docs/apis/request-purchase">
+            <code>requestPurchase</code>
+          </a>{' '}
+          →{' '}
+          <a href="/docs/apis/finish-transaction">
+            <code>finishTransaction</code>
+          </a>
+          . The snippets below cover each step; the{' '}
+          <a href="/docs/features/purchase">Purchase Guide</a> shows the full
+          flow with receipt validation.
         </p>
 
         <h3 id="basic-setup" className="anchor-heading">
@@ -289,7 +311,10 @@ class _StoreScreenState extends State<StoreScreen> {
     // Setup listeners
     purchaseSub = iap.purchaseUpdatedListener.listen((purchase) async {
       // Verify the purchase (server-side), then finish it
-      await iap.finishTransaction(purchase: purchase, isConsumable: true);
+      await iap.finishTransaction(
+        purchase: purchase,
+        isConsumable: false, // true for consumables
+      );
     });
 
     errorSub = iap.purchaseErrorListener.listen((error) {
@@ -312,6 +337,31 @@ class _StoreScreenState extends State<StoreScreen> {
   }
 }`}
         </CodeBlock>
+        <p>
+          Each call here has a full reference — see{' '}
+          <a href="/docs/apis/init-connection">
+            <code>initConnection</code>
+          </a>
+          ,{' '}
+          <a href="/docs/events/purchase-updated-listener">
+            <code>purchaseUpdatedListener</code>
+          </a>
+          ,{' '}
+          <a href="/docs/events/purchase-error-listener">
+            <code>purchaseErrorListener</code>
+          </a>
+          ,{' '}
+          <a href="/docs/apis/finish-transaction">
+            <code>finishTransaction</code>
+          </a>
+          , and{' '}
+          <a href="/docs/apis/end-connection">
+            <code>endConnection</code>
+          </a>{' '}
+          for parameters and per-store behavior, and{' '}
+          <a href="/docs/errors">Error Codes</a> for the <code>ErrorCode</code>{' '}
+          values.
+        </p>
 
         <div
           style={{
@@ -351,6 +401,13 @@ for (final product in products) {
   print('\${product.title}: \${product.displayPrice}');
 }`}
         </CodeBlock>
+        <p>
+          See{' '}
+          <a href="/docs/apis/fetch-products">
+            <code>fetchProducts</code>
+          </a>{' '}
+          for parameters and per-store behavior.
+        </p>
 
         <h3 id="purchase" className="anchor-heading">
           Making a Purchase
@@ -359,11 +416,16 @@ for (final product in products) {
           </a>
         </h3>
         <p>
-          <code>requestPurchase</code> does not return the purchase. Results
-          arrive on the <code>purchaseUpdatedListener</code> stream you set up
-          in <a href="#basic-setup">Basic Setup</a> (unlike the callback-style
-          hooks in the React Native SDKs), so make sure both listeners are
-          active before you call it.
+          <a href="/docs/apis/request-purchase">
+            <code>requestPurchase</code>
+          </a>{' '}
+          does not return the purchase. Results arrive on the{' '}
+          <a href="/docs/events/purchase-updated-listener">
+            <code>purchaseUpdatedListener</code>
+          </a>{' '}
+          stream you set up in <a href="#basic-setup">Basic Setup</a> (unlike
+          the callback-style hooks in the React Native SDKs), so make sure both
+          listeners are active before you call it.
         </p>
 
         <CodeBlock language="dart">
@@ -402,6 +464,13 @@ final allPurchases = await iap.getAvailablePurchases(
   onlyIncludeActiveItemsIOS: false,
 );`}
         </CodeBlock>
+        <p>
+          See{' '}
+          <a href="/docs/apis/get-available-purchases">
+            <code>getAvailablePurchases</code>
+          </a>{' '}
+          for parameters and per-store behavior.
+        </p>
       </section>
 
       <section>
