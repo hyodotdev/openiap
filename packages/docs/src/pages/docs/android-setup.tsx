@@ -371,12 +371,14 @@ dependencies {
         </h3>
         <p>
           Android requires acknowledging purchases within 3 days. Unacknowledged
-          purchases are automatically refunded by Google Play. In OpenIAP SDKs,
-          acknowledgment happens through{' '}
+          purchases are automatically refunded by Google Play. In OpenIAP SDKs
+          the completion order is: verify with a trusted verifier (your backend
+          or <a href="/docs/kit-backend">IAPKit</a>), grant and persist the
+          entitlement so it survives a restart, then acknowledge through{' '}
           <a href="/docs/apis/finish-transaction">
             <code>finishTransaction</code>
-          </a>{' '}
-          after your server verifies the purchase.
+          </a>
+          .
         </p>
 
         <h3 id="consumable-products" className="anchor-heading">
