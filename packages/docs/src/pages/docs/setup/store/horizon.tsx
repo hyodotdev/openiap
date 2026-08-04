@@ -18,10 +18,11 @@ function HorizonStoreSetup() {
       />
       <h1>Horizon OS Store Setup</h1>
       <p>
-        Horizon OS support is an Android build target for Meta Quest devices.
-        Select the <code>horizon</code> platform flavor, provide the Horizon app
-        id from Meta Horizon Developer Hub, and ship a separate Quest artifact
-        from your Play or Fire OS artifacts.
+        Horizon OS is Meta's operating system for Quest headsets, and OpenIAP
+        treats it as an Android build target. Select the <code>horizon</code>{' '}
+        platform flavor, provide the Horizon app id from Meta Horizon Developer
+        Hub, and ship a Quest artifact that is separate from your Google Play or{' '}
+        <Link to="/docs/setup/store/amazon">Amazon Fire OS</Link> artifacts.
       </p>
 
       <section>
@@ -50,8 +51,10 @@ function HorizonStoreSetup() {
               </td>
               <td>
                 Expo uses <code>android.horizon.appId</code>. Bare React Native
-                and Flutter examples below use a Gradle property named{' '}
-                <code>horizonAppId</code> and write Android manifest meta-data{' '}
+                reads a Gradle property named <code>horizonAppId</code>; Flutter
+                reads <code>HORIZON_APP_ID</code> from{' '}
+                <code>android/local.properties</code>. Both write Android
+                manifest meta-data{' '}
                 <code>com.meta.horizon.platform.HORIZON_APP_ID</code>.
               </td>
             </tr>
@@ -65,7 +68,10 @@ function HorizonStoreSetup() {
             </tr>
             <tr>
               <td>Verification credentials</td>
-              <td>Your backend or IAPKit project configuration.</td>
+              <td>
+                Your backend or <Link to="/docs/kit-backend">IAPKit</Link>{' '}
+                project configuration.
+              </td>
               <td>
                 Runtime verification payloads use <code>horizon.sku</code>,{' '}
                 <code>horizon.userId</code>, and{' '}
@@ -81,21 +87,39 @@ function HorizonStoreSetup() {
         <AnchorLink id="store-prerequisites" level="h2">
           Store Prerequisites
         </AnchorLink>
-        <ul>
+        <p>
+          Complete these once per app in Meta Horizon Developer Hub before
+          configuring any framework:
+        </p>
+        <ol>
           <li>Register the app in Meta Horizon Developer Hub.</li>
-          <li>Configure products and subscriptions with stable SKUs.</li>
           <li>
-            Keep the Horizon app id available to the Android manifest at build
+            Create your products and subscriptions with stable SKUs — the same
+            strings you will pass to <code>fetchProducts</code> and{' '}
+            <code>requestPurchase</code>.
+          </li>
+          <li>
+            Copy the Horizon app id so the Android manifest can read it at build
             time.
           </li>
-          <li>Test on a Meta Quest device signed into an entitled account.</li>
-        </ul>
+          <li>
+            Prepare a Meta Quest device signed into an account that has access
+            to the app, such as a release-channel member or registered test
+            user.
+          </li>
+        </ol>
       </section>
 
       <section>
         <AnchorLink id="framework-setup" level="h2">
           Framework Setup
         </AnchorLink>
+        <p>
+          Every framework except Godot ships Quest support through the same
+          Android <code>horizon</code> flavor; only the switch location differs.
+          Find your framework here, then follow the matching section below for
+          full snippets.
+        </p>
         <table className="doc-table">
           <thead>
             <tr>
@@ -156,7 +180,10 @@ function HorizonStoreSetup() {
             </tr>
             <tr>
               <td>Godot</td>
-              <td>No dedicated Horizon flavor switch yet.</td>
+              <td>
+                No dedicated Horizon flavor switch yet, so there is no Godot
+                section below.
+              </td>
               <td>Not applicable.</td>
             </tr>
           </tbody>
@@ -216,9 +243,12 @@ android {
           React Native
         </AnchorLink>
         <p>
-          <code>react-native-iap</code> has no Expo config plugin. Select the
+          <code>react-native-iap</code> has no Expo config plugin, so select the
           Horizon flavor in the app Gradle build and write the app id in the
-          manifest yourself:
+          manifest yourself. <code>fireOsEnabled</code> is the switch for{' '}
+          <Link to="/docs/setup/store/amazon">Amazon Fire OS</Link> builds; the
+          two flavors are mutually exclusive, so keep it <code>false</code> for
+          Quest artifacts:
         </p>
         <CodeBlock language="properties">{`# android/gradle.properties
 horizonEnabled=true
@@ -252,11 +282,15 @@ android {
         <p>
           Flutter uses the same Gradle property model as bare React Native. The
           app module maps the property into the plugin flavor and injects the
-          app id through a manifest placeholder:
+          app id through a manifest placeholder; <code>localProperties</code> is
+          the loader the Flutter Android template already defines in{' '}
+          <code>android/app/build.gradle</code>:
         </p>
         <CodeBlock language="properties">{`# android/gradle.properties
 horizonEnabled=true
 fireOsEnabled=false`}</CodeBlock>
+        <CodeBlock language="properties">{`# android/local.properties
+HORIZON_APP_ID=YOUR_HORIZON_APP_ID`}</CodeBlock>
         <CodeBlock language="groovy">{`def horizonEnabled = project.findProperty('horizonEnabled')?.toBoolean() ?: false
 def fireOsEnabled = project.findProperty('fireOsEnabled')?.toBoolean() ?: false
 def flavor = fireOsEnabled ? 'amazon' : (horizonEnabled ? 'horizon' : 'play')
@@ -269,6 +303,10 @@ android {
         ]
     }
 }`}</CodeBlock>
+        <p>Reference the placeholder in the Android manifest:</p>
+        <CodeBlock language="xml">{`<meta-data
+    android:name="com.meta.horizon.platform.HORIZON_APP_ID"
+    android:value="\${HORIZON_APP_ID}" />`}</CodeBlock>
       </section>
 
       <section>
@@ -276,9 +314,11 @@ android {
           KMP and MAUI
         </AnchorLink>
         <p>
-          KMP publishes a dedicated Android <code>horizonRelease</code> variant.
-          Build that variant for Quest distribution and keep the app id in the
-          Android host manifest.
+          KMP publishes per-store Android variants of the library; Quest apps
+          consume the <code>horizonRelease</code> variant and keep the app id in
+          the Android host app's manifest, exactly as in the Native Android
+          section above. When building the library from source, assemble the
+          variant directly:
         </p>
         <CodeBlock language="bash">{`./gradlew :library:assembleHorizonRelease`}</CodeBlock>
         <p>MAUI selects the Horizon AAR flavor with an MSBuild property:</p>
@@ -290,10 +330,24 @@ android {
           Verification
         </AnchorLink>
         <p>
-          Client purchase calls stay the same. For server validation, pass the
-          Horizon receipt context to{' '}
-          <Link to="/docs/features/validation">Validation</Link> or IAPKit using
-          the <code>horizon</code> verification payload.
+          Client purchase calls stay the same on Quest —{' '}
+          <code>fetchProducts</code> and <code>requestPurchase</code> work
+          unchanged. For server validation, pass the Horizon receipt context to{' '}
+          <Link to="/docs/features/validation">Validation</Link> or to{' '}
+          <Link to="/docs/kit-backend">IAPKit</Link>, OpenIAP's hosted
+          verification backend, using the <code>horizon</code> payload:
+        </p>
+        <CodeBlock language="typescript">{`await verifyPurchase({
+  horizon: {
+    sku: purchase.productId,
+    userId: metaUserId,
+    accessToken: horizonAccessToken, // Meta app credential
+  },
+});`}</CodeBlock>
+        <p>
+          The access token is a Meta app credential. Keep Horizon verification
+          on trusted infrastructure — your backend or IAPKit — rather than
+          embedding the token in the shipped app.
         </p>
       </section>
     </div>

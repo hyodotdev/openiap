@@ -6214,7 +6214,7 @@ function checkFrameworkDependencyHygiene() {
     "packages/docs/src/pages/docs/setup/maui.tsx",
     [
       ".NET 10 SDK",
-      "Google Billing, Play",
+      "Google Play Billing, Play Services",
       "net10.0-ios;net10.0-android;net10.0-maccatalyst",
       "OpenIap.Maui 2.x",
       "supports .NET 10 only",

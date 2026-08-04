@@ -15,9 +15,12 @@ function ReactNativeSetup() {
       <h1>React Native Setup</h1>
       <p>
         <code>react-native-iap</code> provides in-app purchase support for React
-        Native apps using Nitro Modules. It supports StoreKit 2 on iOS and
-        Google Play Billing {GOOGLE_PLAY_BILLING.version}+ on Android by
-        default, with optional Horizon and Fire OS Android flavors.
+        Native apps using Nitro Modules, a high-performance native bridging
+        layer for React Native. It supports StoreKit 2 on iOS and Google Play
+        Billing {GOOGLE_PLAY_BILLING.version}+ on Android by default, with
+        optional build flavors for{' '}
+        <a href="/docs/setup/store/horizon">Horizon OS</a> (Meta Quest) and{' '}
+        <a href="/docs/setup/store/amazon">Fire OS</a> (Amazon Appstore).
       </p>
 
       <div
@@ -29,10 +32,14 @@ function ReactNativeSetup() {
           margin: '1rem 0',
         }}
       >
-        <strong>For bare React Native CLI projects only.</strong> Starting from
-        v15.0.0, react-native-iap no longer supports Expo. If you're using Expo,
-        use <a href="/docs/setup/expo">expo-iap</a> instead — it provides the
-        same API with Expo modules architecture.
+        <strong>Requirements:</strong> react-native-iap v15+ is for{' '}
+        <strong>bare React Native CLI</strong> projects only and requires{' '}
+        <strong>React Native 0.79+</strong> (Nitro Modules),{' '}
+        <strong>iOS 15.0+</strong> (StoreKit 2), and{' '}
+        <strong>Android minSdkVersion {ANDROID_SDK.minSdk}+</strong> with{' '}
+        <strong>compileSdkVersion {ANDROID_SDK.compileSdk}+</strong>. Expo
+        support ended in v15.0.0 — use <a href="/docs/setup/expo">expo-iap</a>{' '}
+        instead; it provides the same API on Expo Modules.
       </div>
 
       <div
@@ -58,28 +65,17 @@ function ReactNativeSetup() {
           </a>
         </h2>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Compatibility:</strong> <code>react-native-iap</code> v15+
-          uses Nitro Modules and requires <strong>React Native 0.79+</strong>.
-          It is designed for <strong>bare React Native CLI</strong> projects
-          only. If you're using Expo, use{' '}
-          <a href="/docs/setup/expo">expo-iap</a> instead.
-        </div>
+        <p>
+          react-native-iap requires <code>react-native-nitro-modules</code> as a
+          peer dependency — install both together.
+        </p>
 
         <CodeBlock language="bash">
           {`# Using yarn (recommended)
-yarn add react-native-iap
+yarn add react-native-iap react-native-nitro-modules
 
 # Using npm
-npm install react-native-iap`}
+npm install react-native-iap react-native-nitro-modules`}
         </CodeBlock>
 
         <h3 id="nitro-modules" className="anchor-heading">
@@ -91,7 +87,7 @@ npm install react-native-iap`}
         <p>
           react-native-iap v15+ is built on{' '}
           <a
-            href="https://github.com/nicklockwood/NitroModules"
+            href="https://github.com/mrousavy/nitro"
             target="_blank"
             rel="noopener noreferrer"
           >
@@ -108,49 +104,12 @@ npm install react-native-iap`}
             Native modules are <strong>automatically linked</strong> during your
             app's build process
           </li>
-          <li>
-            If you encounter <strong>Swift 6 C++ interop errors</strong> in
-            Nitro (e.g., <code>AnyMap.swift</code> using{' '}
-            <code>cppPart.pointee.*</code>), pin Swift 5.10 for the{' '}
-            <code>NitroModules</code> pod as a temporary workaround:
-          </li>
         </ul>
-        <CodeBlock language="typescript">
-          {`// ios/Podfile - add inside post_install block
-post_install do |installer|
-  installer.pods_project.targets.each do |target|
-    if target.name == 'NitroModules'
-      target.build_configurations.each do |config|
-        config.build_settings['SWIFT_VERSION'] = '5.0'
-      end
-    end
-  end
-end`}
-        </CodeBlock>
-
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(164, 116, 101, 0.1)',
-            borderLeft: '4px solid var(--primary-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Recommended path:</strong> Upgrade to RN 0.79+, update{' '}
-          <code>react-native-nitro-modules</code> and <code>nitro-codegen</code>{' '}
-          to latest, then <code>pod install</code> and do a clean build. If
-          issues persist, share a minimal repro (<code>package.json</code> +{' '}
-          <code>Podfile</code>) on{' '}
-          <a
-            href="https://github.com/hyodotdev/openiap/issues"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            GitHub Issues
-          </a>
-          .
-        </div>
+        <p>
+          If you hit Swift 6 C++ interop errors in Nitro, see{' '}
+          <a href="#troubleshooting">Troubleshooting</a> for the Swift 5.10 pin
+          workaround.
+        </p>
 
         <h3 id="ios-setup" className="anchor-heading">
           iOS
@@ -159,9 +118,6 @@ end`}
           </a>
         </h3>
         <ul>
-          <li>
-            Requires <strong>iOS 15.0+</strong> (StoreKit 2)
-          </li>
           <li>
             Install CocoaPods:
             <CodeBlock language="bash">
@@ -191,20 +147,19 @@ end`}
           </a>
         </h3>
         <ul>
-          <li>
-            Requires <strong>minSdkVersion {ANDROID_SDK.minSdk}+</strong> and{' '}
-            <strong>compileSdkVersion {ANDROID_SDK.compileSdk}+</strong>
-          </li>
           <li>No additional native configuration needed</li>
           <li>
             Uses Google Play Billing {GOOGLE_PLAY_BILLING.version}+ with
             automatic service reconnection
           </li>
           <li>
-            Store-specific Android targets such as Horizon OS, Fire OS, and Vega
-            OS have separate build artifacts. Keep the React Native setup here,
-            then use Store Setup for target-specific Gradle, manifest, and
-            runtime details.
+            Store-specific Android targets —{' '}
+            <a href="/docs/setup/store/horizon">Horizon OS</a> (Meta Quest) and{' '}
+            <a href="/docs/setup/store/amazon">Fire OS</a> (Amazon Appstore) —
+            ship as separate build flavors. Complete the setup on this page
+            first, then follow <a href="/docs/setup/store">Store Setup</a> for
+            target-specific Gradle, manifest, and runtime details. Vega OS is
+            not an Android flavor — see <a href="#vega-os">Vega OS</a> below.
           </li>
         </ul>
 
@@ -215,10 +170,14 @@ end`}
           </a>
         </h3>
         <p>
-          Bare React Native does not use an Expo config plugin. For Vega OS,
-          keep Amazon Kepler packages in a Vega-only React Native target and
-          follow Store Setup for package, manifest, and supported-version
-          details.
+          Vega OS is Amazon's newer, non-Android operating system; its apps run
+          on the Kepler runtime. react-native-iap supports it through a separate
+          React Native for Vega target — it is not an Android build flavor, and
+          unlike expo-iap there is no config plugin to enable it. Keep the
+          Amazon Kepler packages in that Vega-only target so regular iOS and
+          Android builds are unaffected, and follow{' '}
+          <a href="/docs/setup/store/amazon">Amazon Store Setup</a> for package,
+          manifest, and supported-version details.
         </p>
       </section>
 
@@ -434,54 +393,6 @@ switch (error.code) {
       </section>
 
       <section>
-        <h2 id="next-steps" className="anchor-heading">
-          Next Steps
-          <a href="#next-steps" className="anchor-link">
-            #
-          </a>
-        </h2>
-        <ul>
-          <li>
-            <a href="/docs/features/purchase">Purchase Guide</a> — Complete
-            purchase flow with validation and receipt verification
-          </li>
-          <li>
-            <a href="/docs/features/subscription">Subscription Guide</a> —
-            Subscription offers, renewal, and management
-          </li>
-          <li>
-            <a href="/docs/errors">Error Codes</a> — Full error reference and
-            handling strategies
-          </li>
-          <li>
-            <a href="/docs/apis">API Reference</a> — All available APIs with
-            multi-language examples
-          </li>
-          <li>
-            <a href="/docs/setup/store">Store Setup</a> — Horizon OS, Fire OS,
-            Vega OS, and other store target configuration
-          </li>
-          <li>
-            <a
-              href="https://www.npmjs.com/package/react-native-iap"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              npm: react-native-iap
-            </a>
-            {' | '}
-            <a
-              href="https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              GitHub Source
-            </a>
-          </li>
-        </ul>
-      </section>
-
-      <section>
         <h2 id="troubleshooting" className="anchor-heading">
           Troubleshooting
           <a href="#troubleshooting" className="anchor-link">
@@ -529,7 +440,7 @@ switch (error.code) {
           <code>RCT-Folly/folly/Expected.h</code>, add these defines to your{' '}
           <code>Podfile</code> post_install block:
         </p>
-        <CodeBlock language="typescript">
+        <CodeBlock language="text">
           {`post_install do |installer|
   installer.pods_project.targets.each do |target|
     target.build_configurations.each do |config|
@@ -545,10 +456,96 @@ end`}
         <h3>Swift 6 C++ interop errors (Nitro)</h3>
         <p>
           If you see errors in <code>AnyMap.swift</code> related to{' '}
-          <code>cppPart.pointee</code>, see the{' '}
-          <a href="#nitro-modules">Nitro Modules</a> section above for the Swift
-          5.10 pin workaround.
+          <code>cppPart.pointee</code>, pin Swift 5.10 for the{' '}
+          <code>NitroModules</code> pod as a temporary workaround:
         </p>
+        <CodeBlock language="text">
+          {`# ios/Podfile - add inside post_install block
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    if target.name == 'NitroModules'
+      target.build_configurations.each do |config|
+        config.build_settings['SWIFT_VERSION'] = '5.0'
+      end
+    end
+  end
+end`}
+        </CodeBlock>
+
+        <div
+          style={{
+            padding: '1rem',
+            background: 'rgba(164, 116, 101, 0.1)',
+            borderLeft: '4px solid var(--primary-color)',
+            borderRadius: '0.5rem',
+            margin: '1rem 0',
+          }}
+        >
+          <strong>Recommended path:</strong> Upgrade to RN 0.79+, update{' '}
+          <code>react-native-nitro-modules</code> and <code>nitro-codegen</code>{' '}
+          to latest, then <code>pod install</code> and do a clean build. If
+          issues persist, share a minimal repro (<code>package.json</code> +{' '}
+          <code>Podfile</code>) on{' '}
+          <a
+            href="https://github.com/hyodotdev/openiap/issues"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            GitHub Issues
+          </a>
+          .
+        </div>
+      </section>
+
+      <section>
+        <h2 id="next-steps" className="anchor-heading">
+          Next Steps
+          <a href="#next-steps" className="anchor-link">
+            #
+          </a>
+        </h2>
+        <ul>
+          <li>
+            <a href="/docs/features/purchase">Purchase Guide</a> — Complete
+            purchase flow with validation and receipt verification
+          </li>
+          <li>
+            <a href="/docs/features/subscription">Subscription Guide</a> —
+            Subscription offers, renewal, and management
+          </li>
+          <li>
+            <a href="/docs/errors">Error Codes</a> — Full error reference and
+            handling strategies
+          </li>
+          <li>
+            <a href="/docs/apis">API Reference</a> — All available APIs with
+            multi-language examples
+          </li>
+          <li>
+            <a href="/docs/setup/store">Store Setup</a> — targeting alternative
+            stores such as <a href="/docs/setup/store/horizon">Horizon OS</a>{' '}
+            (Meta Quest headsets) and{' '}
+            <a href="/docs/setup/store/amazon">Fire OS / Vega OS</a> (Amazon
+            Appstore)
+          </li>
+          <li>
+            <a
+              href="https://www.npmjs.com/package/react-native-iap"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              npm: react-native-iap
+            </a>
+            {' | '}
+            <a
+              href="https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              GitHub Source
+            </a>
+          </li>
+        </ul>
       </section>
     </div>
   );

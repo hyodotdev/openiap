@@ -19,17 +19,6 @@ function MauiSetup() {
         verified them.
       </p>
 
-      <div className="alert-card alert-card--info">
-        <p>
-          <strong>Package shape:</strong> apps reference only{' '}
-          <code>OpenIap.Maui</code>. OpenIAP-owned Android and iOS binding
-          outputs are flattened into that package. Google Billing, Play
-          Services, Gson, AndroidX, and Kotlin Android libraries stay as normal
-          NuGet dependencies so your app can deduplicate them with its own
-          package graph.
-        </p>
-      </div>
-
       <div className="alert-card alert-card--warning">
         <p>
           <strong>Before you start:</strong> create the products in App Store
@@ -73,9 +62,6 @@ function MauiSetup() {
               <td>
                 iOS 15+ / macCatalyst 15+, Apple Developer account, matching
                 bundle identifier, In-App Purchase capability, sandbox tester.
-                OpenIap.Maui 2.0.0 embeds an Apple XCFramework built with Xcode
-                27; custom source builds need Xcode 27 to include the guarded
-                StoreKit 27 implementation.
               </td>
             </tr>
             <tr>
@@ -123,6 +109,17 @@ function MauiSetup() {
 
         <div className="alert-card alert-card--info">
           <p>
+            <strong>Package shape:</strong> your app references a single
+            package, <code>OpenIap.Maui</code>. The OpenIAP-owned iOS and
+            Android bindings are bundled inside it, while shared dependencies
+            (Google Play Billing, Play Services, AndroidX, Kotlin, Gson) remain
+            ordinary NuGet dependencies so NuGet can deduplicate them with the
+            rest of your dependency graph.
+          </p>
+        </div>
+
+        <div className="alert-card alert-card--info">
+          <p>
             <strong>Working from this monorepo before publishing?</strong> Use a
             project reference to the main project only. The example app
             re-declares local native references because MSBuild does not
@@ -132,6 +129,20 @@ function MauiSetup() {
           <CodeBlock language="xml">
             {`<ProjectReference Include="path/to/openiap/libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj" />`}
           </CodeBlock>
+          <p>
+            Building the Apple library from source requires Xcode 27; the
+            published package already embeds a prebuilt XCFramework, so NuGet
+            consumers do not need Xcode 27 — their normal toolchain is enough.
+          </p>
+        </div>
+
+        <div className="alert-card alert-card--warning">
+          <p>
+            <strong>Upgrading from OpenIap.Maui 1.x?</strong> OpenIap.Maui 2.x
+            supports .NET 10 only. Retarget every <code>net9.0-*</code> TFM to
+            the matching <code>net10.0-*</code> TFM and update the MAUI workload
+            before upgrading the package.
+          </p>
         </div>
       </section>
 
@@ -142,6 +153,10 @@ function MauiSetup() {
             #
           </a>
         </h2>
+        <p>
+          Configure the app project once per platform before calling any store
+          API.
+        </p>
 
         <h3 id="target-frameworks" className="anchor-heading">
           Target Frameworks
@@ -216,6 +231,11 @@ function MauiSetup() {
             #
           </a>
         </h2>
+        <p>
+          The typical flow is: initialize the connection, fetch products,
+          register purchase listeners, request a purchase, then finish the
+          verified transaction.
+        </p>
 
         <h3 id="initialize" className="anchor-heading">
           Initialize and Fetch Products
@@ -311,11 +331,15 @@ await mutate.RequestPurchaseAsync(new RequestPurchaseProps
           </a>
         </h3>
         <p>
-          The MAUI package exposes the same IAPKit helper surface as the
-          JavaScript SDKs: create a kit client for status, entitlements, and
-          bind-user calls. These app-facing calls use the publishable key. Store
-          lifecycle webhooks flow into IAPKit only; there is no outbound webhook
-          stream in the MAUI package.
+          IAPKit is OpenIAP's hosted receipt-validation backend (see{' '}
+          <a href="/docs/kit-backend">Purchase Verification with IAPKit</a>).
+          The MAUI package ships the same app-facing helper as the other OpenIAP
+          SDKs: create a kit client with your publishable key to read purchase
+          status and entitlements and to bind a purchase to a user. Store
+          lifecycle events (App Store Server Notifications, Google Play RTDN)
+          are delivered to IAPKit's backend, not to your app — the client reads
+          current state through these bounded calls rather than subscribing to a
+          webhook stream.
         </p>
         <CodeBlock language="csharp">
           {`using OpenIap;
@@ -364,12 +388,23 @@ await mutate.EndConnectionAsync();`}
           Flow, Subscription Flow, Available Purchases, Offer Code, Alternative
           Billing.
         </p>
+        <p>
+          The example app builds against the in-repo Android library, so rebuild
+          the OpenIAP Android AARs once before the first run (published-package
+          consumers skip this step):
+        </p>
         <CodeBlock language="bash">
           {`# From the OpenIAP repo root:
 (cd packages/google && ./gradlew :openiap:assemblePlayRelease)
-(cd libraries/maui-iap/android && ../../../packages/google/gradlew :openiap:assembleRelease)
-
-cd libraries/maui-iap/example/OpenIap.Maui.Example
+(cd libraries/maui-iap/android && ../../../packages/google/gradlew :openiap:assembleRelease)`}
+        </CodeBlock>
+        <p>
+          Then run the example (its application id is{' '}
+          <code>dev.hyo.martie</code>; uninstalling first clears stale native
+          code):
+        </p>
+        <CodeBlock language="bash">
+          {`cd libraries/maui-iap/example/OpenIap.Maui.Example
 
 # Android device or emulator
 adb uninstall dev.hyo.martie || true
@@ -381,14 +416,6 @@ dotnet build -t:Run -f net10.0-ios
 # macCatalyst
 dotnet build -t:Run -f net10.0-maccatalyst`}
         </CodeBlock>
-        <div className="alert-card alert-card--warning">
-          <p>
-            <strong>Upgrading from OpenIap.Maui 1.x?</strong> OpenIap.Maui 2.x
-            supports .NET 10 only. Retarget every <code>net9.0-*</code> TFM to
-            the matching <code>net10.0-*</code> TFM and update the MAUI workload
-            before upgrading the package.
-          </p>
-        </div>
         <p>
           VS Code launch configurations are available in{' '}
           <code>libraries/maui-iap/.vscode/launch.json</code>. The iOS device
@@ -406,6 +433,9 @@ dotnet build -t:Run -f net10.0-maccatalyst`}
             #
           </a>
         </h2>
+        <p>
+          Common failures and their causes, roughly in the order you hit them.
+        </p>
 
         <h3 id="products-not-loading" className="anchor-heading">
           Products Do Not Load
@@ -441,9 +471,18 @@ dotnet build -t:Run -f net10.0-maccatalyst`}
         <p>
           If Google Play shows "This version of the application is not
           configured for billing through Google Play", the library reached
-          BillingClient correctly. The app build is not accepted by Play Billing
-          for that package, signing key, track, tester, or product setup yet.
+          BillingClient correctly - Play itself rejected the app build. Check
+          each of the following:
         </p>
+        <ul>
+          <li>
+            The installed build's package name and signing key match the
+            uploaded build.
+          </li>
+          <li>The build is on an internal or closed test track.</li>
+          <li>The signed-in account is a license tester.</li>
+          <li>The products are active in Play Console.</li>
+        </ul>
 
         <h3 id="old-billing-client" className="anchor-heading">
           Android Old BillingClient Error
@@ -514,8 +553,11 @@ dotnet build -t:Run -f net10.0-android`}
             <a href="/docs/apis">API Reference</a> - generated API reference
           </li>
           <li>
-            <a href="/docs/setup/store">Store Setup</a> - Horizon OS, Fire OS,
-            Vega OS support boundaries, and store target configuration
+            <a href="/docs/setup/store">Store Setup</a> - shipping beyond Apple
+            and Google: <a href="/docs/setup/store/amazon">Amazon Appstore</a>{' '}
+            (Fire OS and Vega OS devices) and{' '}
+            <a href="/docs/setup/store/horizon">Meta Quest (Horizon OS)</a>{' '}
+            support boundaries and store target configuration
           </li>
           <li>
             <a

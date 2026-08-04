@@ -34,6 +34,36 @@ function FlutterSetup() {
       </div>
 
       <section>
+        <h2 id="prerequisites" className="anchor-heading">
+          Prerequisites
+          <a href="#prerequisites" className="anchor-link">
+            #
+          </a>
+        </h2>
+        <ul>
+          <li>
+            Flutter with <strong>iOS 15.0+</strong> /{' '}
+            <strong>macOS 14.0+</strong> / Android{' '}
+            <code>minSdkVersion {ANDROID_SDK.minSdk}</code>+ (see the platform
+            sections below)
+          </li>
+          <li>
+            An active Apple Developer account and/or Google Play Developer
+            account
+          </li>
+          <li>
+            Products configured in the store consoles — see{' '}
+            <a href="/docs/ios-setup">iOS Setup</a> and{' '}
+            <a href="/docs/android-setup">Android Setup</a>
+          </li>
+          <li>
+            A real device for purchase testing — simulators and emulators cannot
+            complete purchases
+          </li>
+        </ul>
+      </section>
+
+      <section>
         <h2 id="installation" className="anchor-heading">
           Installation
           <a href="#installation" className="anchor-link">
@@ -106,8 +136,10 @@ function FlutterSetup() {
           </li>
         </ul>
         <p>
-          Add the following to your <code>ios/Runner/Info.plist</code> (iOS
-          14+):
+          Declaring <code>itms-apps</code> in <code>ios/Runner/Info.plist</code>{' '}
+          is only needed when your own code checks App Store links before
+          opening them (for example <code>canLaunchUrl</code> from url_launcher)
+          — the plugin itself does not require it:
         </p>
         <CodeBlock language="xml">
           {`<key>LSApplicationQueriesSchemes</key>
@@ -181,11 +213,15 @@ function FlutterSetup() {
             margin: '1rem 0',
           }}
         >
-          <strong>Note:</strong> The <code>missingDimensionStrategy</code>{' '}
-          configuration is required since v7.1.14 due to product flavor support
-          for Meta Horizon OS and Fire OS. Keep this page focused on Flutter
-          installation; use Store Setup for target-specific Android flavor
-          details.
+          <strong>Note:</strong> The <code>missingDimensionStrategy</code> line
+          is required since v7.1.14 because the Android library ships product
+          flavors for alternative stores — Meta Horizon OS (Quest headsets) and
+          Amazon Fire OS. Apps shipping to Google Play always select the{' '}
+          <code>play</code> flavor shown above. Targeting Meta Quest or Amazon
+          devices instead? See{' '}
+          <a href="/docs/setup/store/horizon">Horizon Store Setup</a> or{' '}
+          <a href="/docs/setup/store/amazon">Amazon Store Setup</a> for the
+          flavor to select there.
         </div>
 
         <h4>ProGuard Rules (if using ProGuard)</h4>
@@ -207,25 +243,13 @@ function FlutterSetup() {
             #
           </a>
         </h2>
-
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Android purchase JSON:</strong> the public Purchase field is{' '}
-          <code>dataAndroid</code>. Flutter 10 does not accept the former
-          custom-channel alias. Native adapters, MethodChannel fixtures, and
-          mocks must emit <code>dataAndroid</code>. See{' '}
-          <Link to="/docs/updates/deprecations#flutter-original-json-android">
-            Deprecations &amp; 3.0 Migration
-          </Link>
-          .
-        </div>
+        <p>
+          The typical flow is <code>initConnection</code> → set up purchase
+          listeners → <code>fetchProducts</code> → <code>requestPurchase</code>{' '}
+          → <code>finishTransaction</code>. The snippets below cover each step;
+          the <a href="/docs/features/purchase">Purchase Guide</a> shows the
+          full flow with receipt validation.
+        </p>
 
         <h3 id="basic-setup" className="anchor-heading">
           Basic Setup
@@ -235,35 +259,57 @@ function FlutterSetup() {
         </h3>
         <CodeBlock language="dart">
           {`import 'dart:async';
+
+import 'package:flutter/material.dart';
 import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
-final iap = FlutterInappPurchase.instance;
+class StoreScreen extends StatefulWidget {
+  const StoreScreen({super.key});
 
-late StreamSubscription purchaseSub;
-late StreamSubscription errorSub;
+  @override
+  State<StoreScreen> createState() => _StoreScreenState();
+}
 
-// Initialize connection
-await iap.initConnection();
+class _StoreScreenState extends State<StoreScreen> {
+  final iap = FlutterInappPurchase.instance;
 
-// Setup listeners
-purchaseSub = iap.purchaseUpdatedListener.listen((purchase) async {
-  // Validate receipt, then:
-  // CRITICAL: Android auto-refunds after 3 days if not called!
-  await iap.finishTransaction(purchase: purchase, isConsumable: true);
-});
+  StreamSubscription<Purchase>? purchaseSub;
+  StreamSubscription<PurchaseError>? errorSub;
 
-errorSub = iap.purchaseErrorListener.listen((error) {
-  if (error.code == ErrorCode.UserCancelled) return;
-  print('\${error.code}: \${error.message}');
-});
+  @override
+  void initState() {
+    super.initState();
+    _init();
+  }
 
-// Cleanup in dispose()
-@override
-void dispose() {
-  purchaseSub.cancel();
-  errorSub.cancel();
-  unawaited(iap.endConnection());
-  super.dispose();
+  Future<void> _init() async {
+    // Initialize connection
+    await iap.initConnection();
+
+    // Setup listeners
+    purchaseSub = iap.purchaseUpdatedListener.listen((purchase) async {
+      // Verify the purchase (server-side), then finish it
+      await iap.finishTransaction(purchase: purchase, isConsumable: true);
+    });
+
+    errorSub = iap.purchaseErrorListener.listen((error) {
+      if (error.code == ErrorCode.UserCancelled) return;
+      print('\${error.code}: \${error.message}');
+    });
+  }
+
+  @override
+  void dispose() {
+    purchaseSub?.cancel();
+    errorSub?.cancel();
+    unawaited(iap.endConnection());
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return const SizedBox.shrink(); // Your store UI
+  }
 }`}
         </CodeBlock>
 
@@ -312,6 +358,14 @@ for (final product in products) {
             #
           </a>
         </h3>
+        <p>
+          <code>requestPurchase</code> does not return the purchase. Results
+          arrive on the <code>purchaseUpdatedListener</code> stream you set up
+          in <a href="#basic-setup">Basic Setup</a> (unlike the callback-style
+          hooks in the React Native SDKs), so make sure both listeners are
+          active before you call it.
+        </p>
+
         <CodeBlock language="dart">
           {`// Request purchase (results come through purchaseUpdatedListener)
 await iap.requestPurchase(
@@ -333,22 +387,6 @@ await iap.requestPurchase(
 );`}
         </CodeBlock>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Important:</strong> Flutter uses <strong>Streams</strong> for
-          purchase events, not callbacks. Always set up{' '}
-          <code>purchaseUpdatedListener</code> and{' '}
-          <code>purchaseErrorListener</code> listeners before calling{' '}
-          <code>requestPurchase</code>.
-        </div>
-
         <h3 id="restore" className="anchor-heading">
           Restoring Purchases
           <a href="#restore" className="anchor-link">
@@ -364,54 +402,6 @@ final allPurchases = await iap.getAvailablePurchases(
   onlyIncludeActiveItemsIOS: false,
 );`}
         </CodeBlock>
-      </section>
-
-      <section>
-        <h2 id="next-steps" className="anchor-heading">
-          Next Steps
-          <a href="#next-steps" className="anchor-link">
-            #
-          </a>
-        </h2>
-        <ul>
-          <li>
-            <a href="/docs/features/purchase">Purchase Guide</a> — Complete
-            purchase flow with validation and receipt verification
-          </li>
-          <li>
-            <a href="/docs/features/subscription">Subscription Guide</a> —
-            Subscription offers, renewal, and management
-          </li>
-          <li>
-            <a href="/docs/errors">Error Codes</a> — Full error reference and
-            handling strategies
-          </li>
-          <li>
-            <a href="/docs/apis">API Reference</a> — All available APIs with
-            multi-language examples
-          </li>
-          <li>
-            <a href="/docs/setup/store">Store Setup</a> — Horizon OS, Fire OS,
-            Vega OS support boundaries, and store target configuration
-          </li>
-          <li>
-            <a
-              href="https://pub.dev/packages/flutter_inapp_purchase"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              pub.dev: flutter_inapp_purchase
-            </a>
-            {' | '}
-            <a
-              href="https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              GitHub Source
-            </a>
-          </li>
-        </ul>
       </section>
 
       <section>
@@ -465,6 +455,68 @@ final allPurchases = await iap.getAvailablePurchases(
           <li>Store pending purchases and check again later</li>
           <li>
             Implement proper handling for <code>PurchaseState.Pending</code>
+          </li>
+        </ul>
+
+        <h3>Purchase JSON missing dataAndroid (Flutter 10)</h3>
+        <p>
+          The public Purchase field is <code>dataAndroid</code>. Flutter 10 does
+          not accept the former custom-channel alias. Native adapters,
+          MethodChannel fixtures, and mocks must emit <code>dataAndroid</code>.
+          See{' '}
+          <Link to="/docs/updates/deprecations#flutter-original-json-android">
+            Deprecations &amp; 3.0 Migration
+          </Link>
+          .
+        </p>
+      </section>
+
+      <section>
+        <h2 id="next-steps" className="anchor-heading">
+          Next Steps
+          <a href="#next-steps" className="anchor-link">
+            #
+          </a>
+        </h2>
+        <ul>
+          <li>
+            <a href="/docs/features/purchase">Purchase Guide</a> — Complete
+            purchase flow with validation and receipt verification
+          </li>
+          <li>
+            <a href="/docs/features/subscription">Subscription Guide</a> —
+            Subscription offers, renewal, and management
+          </li>
+          <li>
+            <a href="/docs/errors">Error Codes</a> — Full error reference and
+            handling strategies
+          </li>
+          <li>
+            <a href="/docs/apis">API Reference</a> — All available APIs with
+            multi-language examples
+          </li>
+          <li>
+            <a href="/docs/setup/store">Store Setup</a> — targeting alternative
+            stores such as Meta Horizon OS (Quest headsets) and Amazon Fire OS,
+            plus which OpenIAP SDKs support each store (Amazon&apos;s Vega OS,
+            for example, is available only in the React Native and Expo SDKs)
+          </li>
+          <li>
+            <a
+              href="https://pub.dev/packages/flutter_inapp_purchase"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              pub.dev: flutter_inapp_purchase
+            </a>
+            {' | '}
+            <a
+              href="https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              GitHub Source
+            </a>
           </li>
         </ul>
       </section>
