@@ -320,8 +320,11 @@ function Testing() {
 
         <Callout kind="warning">
           Failing to call <code>finishTransaction</code> is the most common
-          cause of purchase issues. Always finish transactions after delivering
-          content, even if verification fails.
+          cause of purchase issues. Finish every transaction once verification
+          and delivery succeed — unfinished transactions replay on iOS and are
+          auto-refunded on Android. If verification fails with a transient
+          error, leave the transaction unfinished so it is redelivered and can
+          be retried.
         </Callout>
 
         <AnchorLink id="connection-failed" level="h3">

@@ -159,12 +159,12 @@ function SubscriptionUpgradeDowngrade() {
                     <strong>Key insight from Apple Developer Forums:</strong>
                   </p>
                   <Callout kind="note">
-                    <p>
+                    <blockquote>
                       "If the <code>autoRenewPreference</code> value is
                       different from the <code>productID</code> from{' '}
                       <code>currentEntitlements</code>, then you know that the
                       user already changed the subscription plan."
-                    </p>
+                    </blockquote>
                     <p>
                       — Apple Developer Forums:{' '}
                       <a
