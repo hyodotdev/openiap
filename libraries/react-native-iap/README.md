@@ -10,21 +10,6 @@
 <a href="https://openiap.dev"><img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/logo.png" alt="Open IAP" height="40" /></a>
 </div>
 
-## 🎨 Promotion
-
-<div align="center">
-  <a href="https://hyodotdev.github.io/kstyled">
-    <img src="https://hyodotdev.github.io/kstyled/img/logo.png" alt="kstyled Logo" width="120" />
-  </a>
-
-**Compile-time CSS-in-JS for React Native**
-
-✨ Banishing runtime overhead, one style at a time with **[kstyled](https://hyodotdev.github.io/kstyled)** - fully type-safe styling that compiles away.
-
-🚀 **[Explore kstyled →](https://hyodotdev.github.io/kstyled)**
-
-</div>
-
 ## 📚 Documentation
 
 **[📖 Visit our comprehensive documentation site →](https://openiap.dev/docs/setup/react-native)**

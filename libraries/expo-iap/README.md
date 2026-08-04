@@ -13,21 +13,6 @@ If you're shipping an app with expo-iap, we’d love to hear about it—please s
 
 </div>
 
-## 🎨 Promotion
-
-<div align="center">
-  <a href="https://hyodotdev.github.io/kstyled">
-    <img src="https://hyodotdev.github.io/kstyled/img/logo.png" alt="kstyled Logo" width="120" />
-  </a>
-
-**Compile-time CSS-in-JS for React Native**
-
-✨ Experience the next generation of styling with **[kstyled](https://hyodotdev.github.io/kstyled)** - a blazing-fast, fully type-safe CSS-in-JS solution with zero runtime overhead.
-
-🚀 **[Explore kstyled →](https://hyodotdev.github.io/kstyled)**
-
-</div>
-
 ## 📚 Documentation
 
 **[📖 Visit our comprehensive documentation site →](https://openiap.dev/docs/setup/expo)**
