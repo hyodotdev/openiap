@@ -62,7 +62,7 @@ Before adding a release card, inspect the newest entries and package tags.
 - Structure a consolidated train in this order: a short `Common changes`
   summary, hosted IAPKit changes, versioned native and framework changes grouped
   by package, migration or integration notes, and `Package Releases` at the
-  bottom.
+  bottom (see the exact card layout in Editing Release Notes).
 - IAPKit and its MCP deploy as services and have no package version. Include
   their user-visible behavior in the consolidated card, but never invent an
   IAPKit item in the versioned `Package Releases` list.
@@ -144,11 +144,29 @@ Follow the existing card pattern:
 - Use `AnchorLink` for the heading.
 - Keep package links in a `Package Releases` list when using assumed-published
   mode.
-- Name the expected version in each package-specific heading or bullet, as well
-  as in the linked `Package Releases` list.
+- Name the expected version in each package-specific bullet, as well as in the
+  linked `Package Releases` list.
 - Link issues and PRs when they exist.
 - Do not edit `packages/docs/src/generated/version-metadata.json` manually; it
   is produced by `./scripts/sync-versions.sh`.
+
+Card section layout (mandatory for multi-package cards):
+
+- Use `h5` headings only for shared groups, in this order: `Common changes`
+  (optional), `Shared spec and native packages`, `Framework libraries`,
+  `Integration notes` (or migration notes), then the bordered
+  `Package Releases` block.
+- Never add one `h5` heading per platform or framework (no `Apple`, `Google`,
+  `React Native`, `Expo`, ... headings). Each package's changes are exactly one
+  `<li>` inside the shared group list, written as
+  `<strong>package version</strong> - prose description`
+  (for example `<strong>react-native-iap 16.0.2</strong> - exposes ...`).
+- `Shared spec and native packages` holds `OpenIAP Spec`, `openiap-apple`, and
+  `openiap-google` bullets; `Framework libraries` holds the framework SDK
+  bullets. Omit a bullet entirely when that package has no user-facing change.
+- The July 29, 2026 card (`openiap-major-api-cleanup-2026-07-29`) and the
+  August 4, 2026 card (`amazon-rvs-user-data-patch-train-2026-08-04`) are the
+  reference implementations of this layout.
 
 ## Multi-package Release Trains
 
