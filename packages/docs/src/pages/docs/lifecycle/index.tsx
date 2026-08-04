@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import CodeBlock from '../../../components/CodeBlock';
 import AnchorLink from '../../../components/AnchorLink';
+import Callout from '../../../components/Callout';
 import HighlightText from '../../../components/HighlightText';
 import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
@@ -109,15 +110,13 @@ function LifeCycle() {
           </li>
         </ul>
 
-        <div className="alert-card alert-card--info">
-          <p style={{ margin: 0 }}>
-            <strong>ℹ️ Tip:</strong> Use{' '}
-            <Link to="/docs/features/validation#verify-purchase">
-              verifyPurchase
-            </Link>{' '}
-            for server-side purchase verification.
-          </p>
-        </div>
+        <Callout kind="tip">
+          Use{' '}
+          <Link to="/docs/features/validation#verify-purchase">
+            verifyPurchase
+          </Link>{' '}
+          for server-side purchase verification.
+        </Callout>
 
         <AnchorLink id="content-delivery" level="h3">
           6. Content Delivery

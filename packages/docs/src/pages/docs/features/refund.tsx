@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
+import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import PlatformTabs from '../../../components/PlatformTabs';
@@ -342,14 +343,12 @@ app.post('/webhooks/apple', async (req, res) => {
                   </li>
                 </ul>
 
-                <div className="alert-card alert-card--warning">
-                  <p>
-                    <strong>Critical:</strong> If you don't acknowledge an
-                    Android purchase within 3 days, Google will auto-refund the
-                    user. See <Link to="/docs/features/purchase">Purchase</Link>{' '}
-                    for the acknowledgment flow.
-                  </p>
-                </div>
+                <Callout kind="warning" title="Critical">
+                  If you don't acknowledge an Android purchase within 3 days,
+                  Google will auto-refund the user. See{' '}
+                  <Link to="/docs/features/purchase">Purchase</Link> for the
+                  acknowledgment flow.
+                </Callout>
 
                 <AnchorLink id="android-rtdn" level="h3">
                   Real-time Developer Notifications

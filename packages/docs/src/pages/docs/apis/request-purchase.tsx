@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
+import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
@@ -46,10 +47,10 @@ function RequestPurchase() {
         .
       </p>
 
-      <div className="alert-card alert-card--warning">
+      <Callout kind="important">
         <p>
-          ⚠️ <strong>Important:</strong> APIs starting with <code>request</code>{' '}
-          are event-based operations, not promise-based.
+          APIs starting with <code>request</code> are event-based operations,
+          not promise-based.
         </p>
         <p>
           While these APIs return values for various purposes, you should{' '}
@@ -82,7 +83,7 @@ function RequestPurchase() {
           The <code>request</code> prefix indicates that these are event
           requests — use the appropriate listeners to handle the actual results.
         </p>
-      </div>
+      </Callout>
 
       <h2>Signature</h2>
       <LanguageTabs>
@@ -423,20 +424,18 @@ await ((MutationResolver)OpenIapClient.Instance).RequestPurchaseAsync(new Reques
         }}
       </LanguageTabs>
 
-      <div className="alert-card alert-card--warning">
-        <p>
-          <strong>Important:</strong> requestPurchase is event-based, not
-          promise-based. Listen for the result via{' '}
-          <Link to="/docs/events/purchase-updated-listener">
-            <code>purchaseUpdatedListener</code>
-          </Link>{' '}
-          /{' '}
-          <Link to="/docs/events/purchase-error-listener">
-            <code>purchaseErrorListener</code>
-          </Link>
-          .
-        </p>
-      </div>
+      <Callout kind="important">
+        requestPurchase is event-based, not promise-based. Listen for the result
+        via{' '}
+        <Link to="/docs/events/purchase-updated-listener">
+          <code>purchaseUpdatedListener</code>
+        </Link>{' '}
+        /{' '}
+        <Link to="/docs/events/purchase-error-listener">
+          <code>purchaseErrorListener</code>
+        </Link>
+        .
+      </Callout>
 
       <p className="type-link">
         See:{' '}

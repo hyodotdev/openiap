@@ -1,5 +1,6 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import Callout from '../../../components/Callout';
 import SEO from '../../../components/SEO';
 import { useScrollToHash, getHashId } from '../../../hooks/useScrollToHash';
 import Pagination from '../../../components/Pagination';
@@ -34,14 +35,6 @@ const linkIconStyle = {
   color: 'var(--text-secondary)',
   textDecoration: 'none',
   fontSize: '1.2rem',
-};
-
-const calloutStyle = {
-  marginTop: '1.5rem',
-  padding: '1rem',
-  background: 'var(--bg-secondary)',
-  borderRadius: '0.5rem',
-  borderLeft: '4px solid var(--primary-color)',
 };
 
 interface Announcement {
@@ -159,7 +152,7 @@ function Announcements() {
             </li>
           </ul>
 
-          <p style={calloutStyle}>
+          <Callout kind="note">
             See the{' '}
             <Link to="/docs/updates/releases#openiap-major-api-cleanup-2026-07-29">
               complete OpenIAP 3 release notes
@@ -170,7 +163,7 @@ function Announcements() {
               Deprecations &amp; 3.0 Migration catalog
             </Link>
             .
-          </p>
+          </Callout>
         </div>
       ),
     },
@@ -235,14 +228,14 @@ function Announcements() {
             input fallback for the remainder of Flutter 9.x; the alias is not a
             public Purchase field and is removed in 10.0.0.
           </p>
-          <p style={calloutStyle}>
+          <Callout kind="note">
             See the complete{' '}
             <Link to="/docs/updates/deprecations">
               deprecation schedule and migration catalog
             </Link>
             . Each package reaches its major independently, so this notice does
             not promise a shared release date.
-          </p>
+          </Callout>
         </div>
       ),
     },
@@ -388,8 +381,8 @@ function Announcements() {
             cross-platform compatibility. Our core libraries remain MIT licensed
             and free to use.
           </p>
-          <div style={calloutStyle}>
-            <strong>Get started:</strong> Read the{' '}
+          <Callout kind="tip" title="Get started">
+            Read the{' '}
             <a
               href="/docs/setup/store/amazon#fire-os"
               className="external-link"
@@ -404,7 +397,7 @@ function Announcements() {
               Vega OS runtime guide
             </a>{' '}
             for React Native for Vega apps and compatible Expo projects.
-          </div>
+          </Callout>
         </div>
       ),
     },
@@ -484,9 +477,8 @@ function Announcements() {
               }}
             />
           </a>
-          <div style={calloutStyle}>
-            <strong>Getting Started:</strong> Install <code>OpenIap.Maui</code>{' '}
-            from NuGet or open the{' '}
+          <Callout kind="tip" title="Getting Started">
+            Install <code>OpenIap.Maui</code> from NuGet or open the{' '}
             <a
               href="https://github.com/hyodotdev/openiap/tree/main/libraries/maui-iap"
               target="_blank"
@@ -497,7 +489,7 @@ function Announcements() {
             </a>
             . See the <a href="/docs/setup/maui">.NET MAUI setup guide</a> for
             full documentation.
-          </div>
+          </Callout>
         </div>
       ),
     },
@@ -704,13 +696,13 @@ function Announcements() {
             </li>
           </ul>
 
-          <div style={calloutStyle}>
-            <strong>For existing users:</strong> There are no breaking changes.
-            The major version bump reflects the transition to the monorepo as
-            the new home for development and releases — not API changes. Package
-            names and installation commands remain the same. Just update to the
-            new version and you're good to go.
-          </div>
+          <Callout kind="note" title="For existing users">
+            There are no breaking changes. The major version bump reflects the
+            transition to the monorepo as the new home for development and
+            releases — not API changes. Package names and installation commands
+            remain the same. Just update to the new version and you're good to
+            go.
+          </Callout>
         </div>
       ),
     },
@@ -798,9 +790,8 @@ function Announcements() {
               }}
             />
           </a>
-          <div style={calloutStyle}>
-            <strong>Getting Started:</strong> Download GDScript type definitions
-            from the{' '}
+          <Callout kind="tip" title="Getting Started">
+            Download GDScript type definitions from the{' '}
             <a href="/docs/types" className="external-link">
               Types page
             </a>{' '}
@@ -814,7 +805,7 @@ function Announcements() {
               godot-iap repository
             </a>{' '}
             for full documentation.
-          </div>
+          </Callout>
         </div>
       ),
     },
@@ -908,9 +899,8 @@ function Announcements() {
               }}
             />
           </a>
-          <div style={calloutStyle}>
-            <strong>Getting Started:</strong> Use the new{' '}
-            <code>verifyPurchaseWithProvider</code> API with{' '}
+          <Callout kind="tip" title="Getting Started">
+            Use the new <code>verifyPurchaseWithProvider</code> API with{' '}
             <code>provider: 'iapkit'</code>. See the{' '}
             <a
               href="/docs/features/validation#verify-purchase-with-provider"
@@ -919,7 +909,7 @@ function Announcements() {
               API documentation
             </a>{' '}
             for details.
-          </div>
+          </Callout>
         </div>
       ),
     },
@@ -1008,14 +998,14 @@ function Announcements() {
               }}
             />
           </a>
-          <div style={calloutStyle}>
-            <strong>Getting Started:</strong> Available in{' '}
-            <code>openiap-google@1.3.0</code> and later. Check out the{' '}
+          <Callout kind="tip" title="Getting Started">
+            Available in <code>openiap-google@1.3.0</code> and later. Check out
+            the{' '}
             <a href="/docs/setup/store/horizon" className="external-link">
               Horizon OS guide
             </a>{' '}
             for details.
-          </div>
+          </Callout>
         </div>
       ),
     },
@@ -1164,10 +1154,10 @@ function Announcements() {
               </div>
             </div>
           </div>
-          <p style={calloutStyle}>
-            <strong>Next:</strong> We will be publishing quickstart guides and
-            API references within the Docs → Modules section.
-          </p>
+          <Callout kind="note" title="Next">
+            We will be publishing quickstart guides and API references within
+            the Docs → Modules section.
+          </Callout>
         </div>
       ),
     },
@@ -1213,12 +1203,11 @@ function Announcements() {
             Meta! This partnership marks a significant milestone in our mission
             to standardize and simplify in-app purchases across all platforms.
           </p>
-          <p style={calloutStyle}>
-            <strong>Note:</strong> OpenIAP will continue to operate
-            independently with the same commitment to developer experience and
-            cross-platform compatibility. Our core libraries remain MIT licensed
-            and free to use.
-          </p>
+          <Callout kind="note">
+            OpenIAP will continue to operate independently with the same
+            commitment to developer experience and cross-platform compatibility.
+            Our core libraries remain MIT licensed and free to use.
+          </Callout>
         </div>
       ),
     },

@@ -1,3 +1,4 @@
+import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
 import { MAUI_PACKAGE } from '../../../lib/versioning';
@@ -19,17 +20,17 @@ function MauiSetup() {
         verified them.
       </p>
 
-      <div className="alert-card alert-card--warning">
+      <Callout kind="important" title="Before you start">
         <p>
-          <strong>Before you start:</strong> create the products in App Store
-          Connect and Google Play Console first. The product IDs in your MAUI
-          app must exactly match the store product IDs.
+          Create the products in App Store Connect and Google Play Console
+          first. The product IDs in your MAUI app must exactly match the store
+          product IDs.
         </p>
         <p>
           Platform setup guides: <a href="/docs/ios-setup">iOS Setup</a> |{' '}
           <a href="/docs/android-setup">Android Setup</a>
         </p>
-      </div>
+      </Callout>
 
       <section>
         <h2 id="prerequisites" className="anchor-heading">
@@ -107,43 +108,35 @@ function MauiSetup() {
 </ItemGroup>`}
         </CodeBlock>
 
-        <div className="alert-card alert-card--info">
-          <p>
-            <strong>Package shape:</strong> your app references a single
-            package, <code>OpenIap.Maui</code>. The OpenIAP-owned iOS and
-            Android bindings are bundled inside it, while shared dependencies
-            (Google Play Billing, Play Services, AndroidX, Kotlin, Gson) remain
-            ordinary NuGet dependencies so NuGet can deduplicate them with the
-            rest of your dependency graph.
-          </p>
-        </div>
+        <p>
+          Your app references a single package, <code>OpenIap.Maui</code>. The
+          OpenIAP-owned iOS and Android bindings are bundled inside it, while
+          shared dependencies (Google Play Billing, Play Services, AndroidX,
+          Kotlin, Gson) remain ordinary NuGet dependencies so NuGet can
+          deduplicate them with the rest of your dependency graph.
+        </p>
 
-        <div className="alert-card alert-card--info">
-          <p>
-            <strong>Working from this monorepo before publishing?</strong> Use a
-            project reference to the main project only. The example app
-            re-declares local native references because MSBuild does not
-            propagate those transitively through <code>ProjectReference</code>.
-            Published NuGet consumers do not need that.
-          </p>
-          <CodeBlock language="xml">
-            {`<ProjectReference Include="path/to/openiap/libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj" />`}
-          </CodeBlock>
-          <p>
-            Building the Apple library from source requires Xcode 27; the
-            published package already embeds a prebuilt XCFramework, so NuGet
-            consumers do not need Xcode 27 — their normal toolchain is enough.
-          </p>
-        </div>
+        <p>
+          If you are working from this monorepo before publishing, use a project
+          reference to the main project only. The example app re-declares local
+          native references because MSBuild does not propagate those
+          transitively through <code>ProjectReference</code>. Published NuGet
+          consumers do not need that.
+        </p>
+        <CodeBlock language="xml">
+          {`<ProjectReference Include="path/to/openiap/libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj" />`}
+        </CodeBlock>
+        <p>
+          Building the Apple library from source requires Xcode 27; the
+          published package already embeds a prebuilt XCFramework, so NuGet
+          consumers do not need Xcode 27 — their normal toolchain is enough.
+        </p>
 
-        <div className="alert-card alert-card--warning">
-          <p>
-            <strong>Upgrading from OpenIap.Maui 1.x?</strong> OpenIap.Maui 2.x
-            supports .NET 10 only. Retarget every <code>net9.0-*</code> TFM to
-            the matching <code>net10.0-*</code> TFM and update the MAUI workload
-            before upgrading the package.
-          </p>
-        </div>
+        <Callout kind="warning" title="Upgrading from OpenIap.Maui 1.x?">
+          OpenIap.Maui 2.x supports .NET 10 only. Retarget every{' '}
+          <code>net9.0-*</code> TFM to the matching <code>net10.0-*</code> TFM
+          and update the MAUI workload before upgrading the package.
+        </Callout>
       </section>
 
       <section>
@@ -366,14 +359,11 @@ await mutate.RequestPurchaseAsync(new RequestPurchaseProps
 });`}
         </CodeBlock>
 
-        <div className="alert-card alert-card--warning">
-          <p>
-            <strong>Do not skip finishing transactions.</strong> On Android,
-            unfinished purchases are refunded automatically after 3 days. On
-            iOS, unfinished transactions can be delivered again on the next app
-            launch.
-          </p>
-        </div>
+        <Callout kind="warning" title="Do not skip finishing transactions">
+          On Android, unfinished purchases are refunded automatically after 3
+          days. On iOS, unfinished transactions can be delivered again on the
+          next app launch.
+        </Callout>
 
         <h3 id="iapkit-api" className="anchor-heading">
           IAPKit API

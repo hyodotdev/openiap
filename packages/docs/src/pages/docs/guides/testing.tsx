@@ -1,4 +1,5 @@
 import AnchorLink from '../../../components/AnchorLink';
+import Callout from '../../../components/Callout';
 import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
@@ -61,19 +62,10 @@ function Testing() {
           </a>
         </p>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Warning:</strong> Never use your personal Apple ID as a
-          sandbox account. Always create dedicated sandbox tester accounts in
-          App Store Connect.
-        </div>
+        <Callout kind="warning">
+          Never use your personal Apple ID as a sandbox account. Always create
+          dedicated sandbox tester accounts in App Store Connect.
+        </Callout>
 
         <AnchorLink id="storekit-testing-xcode" level="h3">
           StoreKit Testing in Xcode
@@ -326,20 +318,11 @@ function Testing() {
           </li>
         </ul>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Warning:</strong> Failing to call{' '}
-          <code>finishTransaction</code> is the most common cause of purchase
-          issues. Always finish transactions after delivering content, even if
-          verification fails.
-        </div>
+        <Callout kind="warning">
+          Failing to call <code>finishTransaction</code> is the most common
+          cause of purchase issues. Always finish transactions after delivering
+          content, even if verification fails.
+        </Callout>
 
         <AnchorLink id="connection-failed" level="h3">
           Connection Failed

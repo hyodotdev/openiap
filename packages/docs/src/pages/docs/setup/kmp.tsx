@@ -1,3 +1,4 @@
+import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
 import { LIBRARIES } from '../../../lib/images';
@@ -28,20 +29,11 @@ function KmpSetup() {
         <a href="#android-config">Android Configuration</a>.
       </p>
 
-      <div
-        style={{
-          padding: '1rem',
-          background: 'rgba(220, 104, 67, 0.1)',
-          borderLeft: '4px solid var(--accent-color)',
-          borderRadius: '0.5rem',
-          margin: '1rem 0',
-        }}
-      >
-        <strong>Before you start:</strong> Complete the store configuration
-        before integrating with your framework:{' '}
+      <Callout kind="important" title="Before you start">
+        Complete the store configuration before integrating with your framework:{' '}
         <a href="/docs/ios-setup">iOS Setup</a> |{' '}
         <a href="/docs/android-setup">Android Setup</a>
-      </div>
+      </Callout>
 
       <section>
         <h2 id="prerequisites" className="anchor-heading">
@@ -116,20 +108,11 @@ dependencies {
           <strong>CocoaPods</strong> or <strong>Swift Package Manager</strong>:
         </p>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(164, 116, 101, 0.1)',
-            borderLeft: '4px solid var(--primary-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Quick decision:</strong> Use <strong>CocoaPods</strong> if you
-          want automatic dependency management through Gradle. Use{' '}
-          <strong>SPM</strong> if you prefer modern iOS tooling and want to
-          avoid CocoaPods.
-        </div>
+        <Callout kind="tip" title="Quick decision">
+          Use <strong>CocoaPods</strong> if you want automatic dependency
+          management through Gradle. Use <strong>SPM</strong> if you prefer
+          modern iOS tooling and want to avoid CocoaPods.
+        </Callout>
 
         <h4>Option A: CocoaPods (Recommended)</h4>
         <p>Ensure your shared module has the CocoaPods plugin:</p>
@@ -171,18 +154,10 @@ kotlin {
           </li>
         </ol>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(164, 116, 101, 0.1)',
-            borderLeft: '4px solid var(--primary-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Note:</strong> With SPM, don't use the CocoaPods plugin.
-          You'll need to manually update OpenIAP when kmp-iap updates.
-        </div>
+        <Callout kind="note">
+          With SPM, don't use the CocoaPods plugin. You'll need to manually
+          update OpenIAP when kmp-iap updates.
+        </Callout>
 
         <h4>Enable In-App Purchase Capability</h4>
         <p>
@@ -347,22 +322,14 @@ scope.launch {
           <a href="/docs/errors">Error Codes</a>.
         </p>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Critical:</strong> Always call{' '}
+        <Callout kind="warning" title="Critical">
+          Always call{' '}
           <a href="/docs/apis/finish-transaction">
             <code>finishTransaction</code>
           </a>{' '}
           after verifying a purchase. On Android, unfinished purchases are
           automatically refunded after 3 days.
-        </div>
+        </Callout>
 
         <h3 id="products-purchase" className="anchor-heading">
           Products and Purchase

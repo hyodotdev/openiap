@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../components/AnchorLink';
+import Callout from '../../components/Callout';
 import CodeBlock from '../../components/CodeBlock';
 import LanguageTabs from '../../components/LanguageTabs';
 import SEO from '../../components/SEO';
@@ -709,7 +710,7 @@ async function refreshEntitlements(
   });
   return snapshot;
 }`}</CodeBlock>
-        <div className="alert-card alert-card--info">
+        <Callout kind="note">
           <p>
             <strong>A 304 still makes one Convex query invocation.</strong>{' '}
             Convex returns a time-independent row snapshot and invalidates its
@@ -738,7 +739,7 @@ async function refreshEntitlements(
             purchase tokens in general-purpose local storage when product IDs,
             states, and expiry times are sufficient.
           </p>
-        </div>
+        </Callout>
       </section>
 
       <section>
@@ -783,7 +784,7 @@ async function refreshEntitlements(
             response transfer but still uses a Convex query invocation.
           </li>
         </ul>
-        <div className="alert-card alert-card--warning">
+        <Callout kind="important">
           <p>
             <strong>Contact us before a high-volume production launch.</strong>{' '}
             If your organization expects to consume a meaningful share of hosted
@@ -819,7 +820,7 @@ async function refreshEntitlements(
             . For capacity planning or a separate written arrangement, contact{' '}
             <a href="mailto:hyo@hyo.dev">hyo@hyo.dev</a>.
           </p>
-        </div>
+        </Callout>
       </section>
 
       <section>
@@ -877,7 +878,7 @@ async function refreshEntitlements(
   "version": 3,
   "updatedAt": 1784160000000
 }`}</CodeBlock>
-        <div className="alert-card alert-card--warning">
+        <Callout kind="warning">
           <p>
             <strong>Client payloads are public app data.</strong> Anyone able to
             call the project's client endpoints may receive them. Never store
@@ -891,7 +892,7 @@ async function refreshEntitlements(
             independent builds or environments and never put a secret key in the
             app.
           </p>
-        </div>
+        </Callout>
 
         <AnchorLink id="fetch-client-payload-on-app-open" level="h3">
           Cache a known payload

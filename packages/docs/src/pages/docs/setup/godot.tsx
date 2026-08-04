@@ -1,3 +1,4 @@
+import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
 
@@ -17,20 +18,11 @@ function GodotSetup() {
         and Kotlin AAR for Android.
       </p>
 
-      <div
-        style={{
-          padding: '1rem',
-          background: 'rgba(220, 104, 67, 0.1)',
-          borderLeft: '4px solid var(--accent-color)',
-          borderRadius: '0.5rem',
-          margin: '1rem 0',
-        }}
-      >
-        <strong>Before you start:</strong> Complete the store configuration
-        before integrating with your framework:{' '}
+      <Callout kind="important" title="Before you start">
+        Complete the store configuration before integrating with your framework:{' '}
         <a href="/docs/ios-setup">iOS Setup</a> |{' '}
         <a href="/docs/android-setup">Android Setup</a>
-      </div>
+      </Callout>
 
       <section>
         <h2 id="prerequisites" className="anchor-heading">
@@ -276,17 +268,8 @@ codesign --force --deep --sign - --timestamp=none addons/godot-iap/bin/macos/God
           </ol>
         </details>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Warning:</strong> If the frameworks are not embedded, the app
-          will crash on launch with:{' '}
+        <Callout kind="warning">
+          If the frameworks are not embedded, the app will crash on launch with:{' '}
           <code>Library not loaded: @rpath/GodotIap.framework/GodotIap</code>.
           If the runpath is missing, it can crash with:{' '}
           <code>
@@ -294,7 +277,7 @@ codesign --force --deep --sign - --timestamp=none addons/godot-iap/bin/macos/God
             @rpath/SwiftGodotRuntime.framework/SwiftGodotRuntime
           </code>
           .
-        </div>
+        </Callout>
 
         <h3 id="ios-infoplist" className="anchor-heading">
           iOS: Missing Info.plist Fallback
@@ -347,19 +330,10 @@ fi`}
             Frameworks" phase
           </li>
         </ol>
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(164, 116, 101, 0.1)',
-            borderLeft: '4px solid var(--primary-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Tip:</strong> Prefer the post-export fixer when possible; the
-          build phase is only a fallback for projects that cannot run the script
-          after export.
-        </div>
+        <p>
+          Prefer the post-export fixer when possible; the build phase is only a
+          fallback for projects that cannot run the script after export.
+        </p>
       </section>
 
       <section>
@@ -453,21 +427,12 @@ func _on_purchase_updated(purchase: Dictionary):
 func _on_purchase_error(error: Dictionary):
     print("Error: ", error)`}
         </CodeBlock>
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(164, 116, 101, 0.1)',
-            borderLeft: '4px solid var(--primary-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Note:</strong> The native plugin is only available on iOS and
-          Android in the default release zip. In the editor and on desktop
-          platforms, store calls return fallback values or no-op results so you
-          can test your integration flow without opening a real store
-          connection.
-        </div>
+        <Callout kind="note">
+          The native plugin is only available on iOS and Android in the default
+          release zip. In the editor and on desktop platforms, store calls
+          return fallback values or no-op results so you can test your
+          integration flow without opening a real store connection.
+        </Callout>
       </section>
 
       <section>
@@ -510,21 +475,13 @@ func _on_purchase_error(error: Dictionary):
           Setup (<code>@onready var iap = $GodotIapWrapper</code>).
         </p>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(164, 116, 101, 0.1)',
-            borderLeft: '4px solid var(--primary-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Note:</strong> GDScript uses <code>snake_case</code> for all
-          function names (<code>init_connection</code>,{' '}
-          <code>fetch_products</code>, <code>request_purchase</code>). Return
-          types use <code>Array</code> for lists and <code>Variant</code> for
-          platform-specific single results.
-        </div>
+        <p>
+          GDScript uses <code>snake_case</code> for all function names (
+          <code>init_connection</code>, <code>fetch_products</code>,{' '}
+          <code>request_purchase</code>). Return types use <code>Array</code>{' '}
+          for lists and <code>Variant</code> for platform-specific single
+          results.
+        </p>
 
         <h3 id="signals" className="anchor-heading">
           Signal-Based Architecture
@@ -578,19 +535,11 @@ func _on_purchase_error(error):
           values.
         </p>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Critical:</strong> Always call <code>finish_transaction</code>{' '}
-          after verifying a purchase. On Android, unfinished purchases are
-          automatically refunded after 3 days.
-        </div>
+        <Callout kind="warning" title="Critical">
+          Always call <code>finish_transaction</code> after verifying a
+          purchase. On Android, unfinished purchases are automatically refunded
+          after 3 days.
+        </Callout>
 
         <h3 id="fetch-products" className="anchor-heading">
           Fetching Products

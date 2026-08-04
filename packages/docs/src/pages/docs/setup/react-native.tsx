@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
 import { ANDROID_SDK, GOOGLE_PLAY_BILLING } from '../../../lib/versioning';
@@ -23,39 +24,21 @@ function ReactNativeSetup() {
         <a href="/docs/setup/store/amazon">Fire OS</a> (Amazon Appstore).
       </p>
 
-      <div
-        style={{
-          padding: '1rem',
-          background: 'rgba(164, 116, 101, 0.1)',
-          borderLeft: '4px solid var(--primary-color)',
-          borderRadius: '0.5rem',
-          margin: '1rem 0',
-        }}
-      >
-        <strong>Requirements:</strong> react-native-iap v15+ is for{' '}
-        <strong>bare React Native CLI</strong> projects only and requires{' '}
-        <strong>React Native 0.79+</strong> (Nitro Modules),{' '}
-        <strong>iOS 15.0+</strong> (StoreKit 2), and{' '}
+      <p>
+        react-native-iap v15+ is for <strong>bare React Native CLI</strong>{' '}
+        projects only and requires <strong>React Native 0.79+</strong> (Nitro
+        Modules), <strong>iOS 15.0+</strong> (StoreKit 2), and{' '}
         <strong>Android minSdkVersion {ANDROID_SDK.minSdk}+</strong> with{' '}
         <strong>compileSdkVersion {ANDROID_SDK.compileSdk}+</strong>. Expo
         support ended in v15.0.0 — use <a href="/docs/setup/expo">expo-iap</a>{' '}
         instead; it provides the same API on Expo Modules.
-      </div>
+      </p>
 
-      <div
-        style={{
-          padding: '1rem',
-          background: 'rgba(220, 104, 67, 0.1)',
-          borderLeft: '4px solid var(--accent-color)',
-          borderRadius: '0.5rem',
-          margin: '1rem 0',
-        }}
-      >
-        <strong>Before you start:</strong> Complete the store configuration
-        before integrating with your framework:{' '}
+      <Callout kind="important" title="Before you start">
+        Complete the store configuration before integrating with your framework:{' '}
         <a href="/docs/ios-setup">iOS Setup</a> |{' '}
         <a href="/docs/android-setup">Android Setup</a>
-      </div>
+      </Callout>
 
       <section>
         <h2 id="installation" className="anchor-heading">
@@ -306,20 +289,18 @@ function Store() {
           for the full error reference.
         </p>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Important:</strong> Most <code>useIAP</code> methods return{' '}
-          <code>Promise&lt;void&gt;</code> and update internal state. Use{' '}
+        <Callout kind="warning" title="Critical">
+          Always call <code>finishTransaction</code> after verifying a purchase.
+          On Android, unfinished purchases are automatically refunded after 3
+          days.
+        </Callout>
+
+        <p>
+          Most <code>useIAP</code> methods return{' '}
+          <code>Promise&lt;void&gt;</code> and update internal state — use the{' '}
           <code>onPurchaseSuccess</code> callback to receive purchase results,
           not the return value of <code>requestPurchase</code>.
-        </div>
+        </p>
 
         <h3 id="hook-state" className="anchor-heading">
           Hook State
@@ -559,19 +540,11 @@ post_install do |installer|
 end`}
         </CodeBlock>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(164, 116, 101, 0.1)',
-            borderLeft: '4px solid var(--primary-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Recommended path:</strong> Upgrade to RN 0.79+, update{' '}
-          <code>react-native-nitro-modules</code> and <code>nitro-codegen</code>{' '}
-          to latest, then <code>pod install</code> and do a clean build. If
-          issues persist, share a minimal repro (<code>package.json</code> +{' '}
+        <Callout kind="tip" title="Recommended path">
+          Upgrade to RN 0.79+, update <code>react-native-nitro-modules</code>{' '}
+          and <code>nitro-codegen</code> to latest, then{' '}
+          <code>pod install</code> and do a clean build. If issues persist,
+          share a minimal repro (<code>package.json</code> +{' '}
           <code>Podfile</code>) on{' '}
           <a
             href="https://github.com/hyodotdev/openiap/issues"
@@ -581,7 +554,7 @@ end`}
             GitHub Issues
           </a>
           .
-        </div>
+        </Callout>
       </section>
 
       <section>

@@ -1,5 +1,6 @@
 import SEO from '../../../components/SEO';
 import AnchorLink from '../../../components/AnchorLink';
+import Callout from '../../../components/Callout';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 import { Link } from 'react-router-dom';
 
@@ -15,21 +16,10 @@ function FoundingSupporters() {
         keywords="OpenIAP founding supporter, open source sponsor, IAP standard supporter"
       />
       <h1>Become a Founding Supporter</h1>
-      <div
-        style={{
-          background: 'var(--bg-secondary)',
-          border: '1px solid var(--border-color)',
-          borderLeft: '3px solid var(--primary-color)',
-          borderRadius: '4px',
-          padding: '0.75rem 1rem',
-          marginBottom: '1.5rem',
-          fontSize: '0.9rem',
-          color: 'var(--text-secondary)',
-        }}
-      >
-        <strong>Draft</strong> — The Foundation section is currently being
-        prepared. Content may change as the governance structure is finalized.
-      </div>
+      <Callout kind="note" title="Draft">
+        The Foundation section is currently being prepared. Content may change
+        as the governance structure is finalized.
+      </Callout>
       <p>
         We're building OpenIAP into a vendor-neutral, open standard for in-app
         purchases — and we're looking for organizations to join as Founding

@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
 import { ANDROID_SDK, FLUTTER_PACKAGE } from '../../../lib/versioning';
@@ -18,20 +19,11 @@ function FlutterSetup() {
         Flutter apps on iOS, Android, and macOS.
       </p>
 
-      <div
-        style={{
-          padding: '1rem',
-          background: 'rgba(220, 104, 67, 0.1)',
-          borderLeft: '4px solid var(--accent-color)',
-          borderRadius: '0.5rem',
-          margin: '1rem 0',
-        }}
-      >
-        <strong>Before you start:</strong> Complete the store configuration
-        before integrating with your framework:{' '}
+      <Callout kind="important" title="Before you start">
+        Complete the store configuration before integrating with your framework:{' '}
         <a href="/docs/ios-setup">iOS Setup</a> |{' '}
         <a href="/docs/android-setup">Android Setup</a>
-      </div>
+      </Callout>
 
       <section>
         <h2 id="prerequisites" className="anchor-heading">
@@ -204,25 +196,16 @@ function FlutterSetup() {
 }`}
         </CodeBlock>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(164, 116, 101, 0.1)',
-            borderLeft: '4px solid var(--primary-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Note:</strong> The <code>missingDimensionStrategy</code> line
-          is required since v7.1.14 because the Android library ships product
-          flavors for alternative stores — Meta Horizon OS (Quest headsets) and
-          Amazon Fire OS. Apps shipping to Google Play always select the{' '}
-          <code>play</code> flavor shown above. Targeting Meta Quest or Amazon
-          devices instead? See{' '}
-          <a href="/docs/setup/store/horizon">Horizon Store Setup</a> or{' '}
+        <Callout kind="note">
+          The <code>missingDimensionStrategy</code> line is required since
+          v7.1.14 because the Android library ships product flavors for
+          alternative stores — Meta Horizon OS (Quest headsets) and Amazon Fire
+          OS. Apps shipping to Google Play always select the <code>play</code>{' '}
+          flavor shown above. Targeting Meta Quest or Amazon devices instead?
+          See <a href="/docs/setup/store/horizon">Horizon Store Setup</a> or{' '}
           <a href="/docs/setup/store/amazon">Amazon Store Setup</a> for the
           flavor to select there.
-        </div>
+        </Callout>
 
         <h4>ProGuard Rules (if using ProGuard)</h4>
         <p>
@@ -363,19 +346,11 @@ class _StoreScreenState extends State<StoreScreen> {
           values.
         </p>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Critical:</strong> Always call <code>finishTransaction</code>{' '}
-          after verifying a purchase. On Android, unfinished purchases are
-          automatically refunded after 3 days.
-        </div>
+        <Callout kind="warning" title="Critical">
+          Always call <code>finishTransaction</code> after verifying a purchase.
+          On Android, unfinished purchases are automatically refunded after 3
+          days.
+        </Callout>
 
         <h3 id="fetch-products" className="anchor-heading">
           Fetching Products

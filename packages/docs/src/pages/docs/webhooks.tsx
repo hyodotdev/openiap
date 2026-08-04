@@ -1,4 +1,5 @@
 import AnchorLink from '../../components/AnchorLink';
+import Callout from '../../components/Callout';
 import SEO from '../../components/SEO';
 import { useScrollToHash } from '../../hooks/useScrollToHash';
 
@@ -23,16 +24,14 @@ function Webhooks() {
       <pre>
         <code>Apple / Google → IAPKit</code>
       </pre>
-      <div className="alert-card alert-card--warning">
-        <p>
-          IAPKit does not stream webhook events to mobile SDKs. There is no
-          outbound SSE, WebSocket, push, or long-poll API. Apps should verify
-          purchases and refresh status or entitlements through the bounded
-          request/response APIs. If your own backend protects paid resources,
-          that backend remains responsible for its entitlement decision and any
-          app push notification.
-        </p>
-      </div>
+      <Callout kind="important">
+        IAPKit does not stream webhook events to mobile SDKs. There is no
+        outbound SSE, WebSocket, push, or long-poll API. Apps should verify
+        purchases and refresh status or entitlements through the bounded
+        request/response APIs. If your own backend protects paid resources, that
+        backend remains responsible for its entitlement decision and any app
+        push notification.
+      </Callout>
 
       <section>
         <AnchorLink id="setup" level="h2">

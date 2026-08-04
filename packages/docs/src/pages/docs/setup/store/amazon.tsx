@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
+import Callout from '../../../../components/Callout';
 import CodeBlock from '../../../../components/CodeBlock';
 import SEO from '../../../../components/SEO';
 import { useScrollToHash } from '../../../../hooks/useScrollToHash';
@@ -17,11 +18,11 @@ function AmazonStoreSetup() {
         keywords="Amazon Fire OS IAP, Vega OS IAP, openiap-google-amazon, expo-iap amazon, react-native-iap Vega, Amazon Appstore SDK"
       />
       <h1>Amazon Store Setup</h1>
-      <div className="alert-card alert-card--warning">
-        <strong>Experimental RC support:</strong> Fire OS and Vega OS support is
-        available from the current <code>next</code> / <code>rc</code> package
-        versions while the integration is being finalized.
-      </div>
+      <Callout kind="important" title="Experimental RC support">
+        Fire OS and Vega OS support is available from the current{' '}
+        <code>next</code> / <code>rc</code> package versions while the
+        integration is being finalized.
+      </Callout>
       <p>
         Amazon distributes apps to two different device families, and OpenIAP
         treats them as two separate targets. Fire OS is Amazon's Android-based

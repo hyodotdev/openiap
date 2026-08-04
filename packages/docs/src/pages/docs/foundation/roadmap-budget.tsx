@@ -1,5 +1,6 @@
 import SEO from '../../../components/SEO';
 import AnchorLink from '../../../components/AnchorLink';
+import Callout from '../../../components/Callout';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 
 function RoadmapBudget() {
@@ -14,21 +15,10 @@ function RoadmapBudget() {
         keywords="OpenIAP roadmap, funding plan, open source budget, IAP development roadmap"
       />
       <h1>Roadmap & Budget</h1>
-      <div
-        style={{
-          background: 'var(--bg-secondary)',
-          border: '1px solid var(--border-color)',
-          borderLeft: '3px solid var(--primary-color)',
-          borderRadius: '4px',
-          padding: '0.75rem 1rem',
-          marginBottom: '1.5rem',
-          fontSize: '0.9rem',
-          color: 'var(--text-secondary)',
-        }}
-      >
-        <strong>Draft</strong> — The Foundation section is currently being
-        prepared. Content may change as the governance structure is finalized.
-      </div>
+      <Callout kind="note" title="Draft">
+        The Foundation section is currently being prepared. Content may change
+        as the governance structure is finalized.
+      </Callout>
       <p>
         This document outlines how OpenIAP plans to grow and how sponsorship
         funding is allocated. Full transparency on where every dollar goes.

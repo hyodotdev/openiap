@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
+import Callout from '../../../../components/Callout';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
@@ -47,20 +48,17 @@ function CreateBillingProgramReportingDetailsAndroid() {
         </a>
         .
       </p>
-      <div className="alert-card alert-card--warning">
-        <p>
-          <strong>External Offer ordering:</strong> check availability, create
-          fresh reporting details immediately before the redirect, then call{' '}
-          <Link to="/docs/apis/android/launch-external-link-android">
-            <code>launchExternalLinkAndroid()</code>
-          </Link>
-          . After checkout, send that invocation&apos;s token to your backend
-          and report the transaction to Google within 24 hours. Never reuse a
-          token from an earlier launch attempt. See the complete{' '}
-          <Link to="/docs/features/external-purchase">External Offer flow</Link>
-          .
-        </p>
-      </div>
+      <Callout kind="important" title="External Offer ordering">
+        Check availability, create fresh reporting details immediately before
+        the redirect, then call{' '}
+        <Link to="/docs/apis/android/launch-external-link-android">
+          <code>launchExternalLinkAndroid()</code>
+        </Link>
+        . After checkout, send that invocation&apos;s token to your backend and
+        report the transaction to Google within 24 hours. Never reuse a token
+        from an earlier launch attempt. See the complete{' '}
+        <Link to="/docs/features/external-purchase">External Offer flow</Link>.
+      </Callout>
 
       <h2>Signature</h2>
       <LanguageTabs>

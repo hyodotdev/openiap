@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
+import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import IapKitBanner from '../../../components/IapKitBanner';
 import PlatformTabs from '../../../components/PlatformTabs';
@@ -83,14 +84,11 @@ OpenIapLog.enable(false)`}</CodeBlock>
           Android basePlanId Limitation
         </AnchorLink>
 
-        <div className="alert-card alert-card--warning">
-          <p>
-            <strong>Critical Limitation:</strong> On Android, the{' '}
-            <code>currentPlanId</code> and <code>basePlanIdAndroid</code> fields
-            may return incorrect values for subscription groups with multiple
-            base plans.
-          </p>
-        </div>
+        <Callout kind="warning" title="Critical Limitation">
+          On Android, the <code>currentPlanId</code> and{' '}
+          <code>basePlanIdAndroid</code> fields may return incorrect values for
+          subscription groups with multiple base plans.
+        </Callout>
 
         <h4>Root Cause</h4>
         <p>
@@ -108,15 +106,12 @@ OpenIapLog.enable(false)`}</CodeBlock>
           object.
         </p>
 
-        <div className="alert-card alert-card--info">
-          <p>
-            <strong>Warning log you may see:</strong>
-          </p>
+        <Callout kind="note" title="Warning log you may see">
           <code>
             Multiple offers (3) found for premium_subscription, using first
             basePlanId (may be inaccurate)
           </code>
-        </div>
+        </Callout>
 
         <h4>What Works Correctly</h4>
         <ul>
@@ -221,17 +216,15 @@ console.log('Actual basePlanId:', basePlanId);`}</CodeBlock>
           solution if your product design allows it.
         </p>
 
-        <div className="alert-card alert-card--info">
-          <p>
-            <strong>Note:</strong> This is a fundamental limitation of Google
-            Play Billing API, not a bug in this library. The{' '}
-            <Link to="/docs/types/purchase">
-              <code>Purchase</code>
-            </Link>{' '}
-            object from Google simply does not include <code>basePlanId</code>{' '}
-            information.
-          </p>
-        </div>
+        <Callout kind="note">
+          This is a fundamental limitation of Google Play Billing API, not a bug
+          in this library. The{' '}
+          <Link to="/docs/types/purchase">
+            <code>Purchase</code>
+          </Link>{' '}
+          object from Google simply does not include <code>basePlanId</code>{' '}
+          information.
+        </Callout>
       </section>
 
       <section>

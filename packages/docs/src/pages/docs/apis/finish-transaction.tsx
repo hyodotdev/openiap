@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
+import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
@@ -208,13 +209,11 @@ await ((MutationResolver)OpenIapClient.Instance).FinishTransactionAsync(
         }}
       </LanguageTabs>
 
-      <div className="alert-card alert-card--warning">
-        <p>
-          <strong>Critical:</strong> Android purchases must be acknowledged
-          within 3 days or they will be automatically refunded. iOS transactions
-          will replay on every app launch if not finished.
-        </p>
-      </div>
+      <Callout kind="warning" title="Critical">
+        Android purchases must be acknowledged within 3 days or they will be
+        automatically refunded. iOS transactions will replay on every app launch
+        if not finished.
+      </Callout>
     </div>
   );
 }

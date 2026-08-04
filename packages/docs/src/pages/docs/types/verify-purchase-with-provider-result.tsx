@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
+import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import LanguageTabs from '../../../components/LanguageTabs';
 import SEO from '../../../components/SEO';
@@ -257,15 +258,13 @@ function VerifyPurchaseWithProviderResult() {
           </tbody>
         </table>
 
-        <div className="alert-card alert-card--warning">
-          <p>
-            <strong>Public data:</strong> Anyone able to call the project's
-            client endpoints may receive this payload. Never put secrets,
-            credentials, signing keys, or private authorization rules in it.
-            Entitlement decisions must continue to use <code>isValid</code>,{' '}
-            <code>state</code>, and the store-verified <code>productId</code>.
-          </p>
-        </div>
+        <Callout kind="warning" title="Public data">
+          Anyone able to call the project's client endpoints may receive this
+          payload. Never put secrets, credentials, signing keys, or private
+          authorization rules in it. Entitlement decisions must continue to use{' '}
+          <code>isValid</code>, <code>state</code>, and the store-verified{' '}
+          <code>productId</code>.
+        </Callout>
 
         <p>
           The field is omitted by default and for invalid receipts, absent or

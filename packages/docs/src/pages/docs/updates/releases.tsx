@@ -2,6 +2,7 @@ import { Link } from 'react-router-dom';
 import { useMemo } from 'react';
 import SEO from '../../../components/SEO';
 import { useScrollToHash, getHashId } from '../../../hooks/useScrollToHash';
+import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import Pagination from '../../../components/Pagination';
 import AnchorLink from '../../../components/AnchorLink';
@@ -1054,16 +1055,7 @@ function Releases() {
             library.
           </p>
 
-          <div
-            style={{
-              marginTop: '1rem',
-              padding: '1rem',
-              background: 'rgba(220, 104, 67, 0.1)',
-              borderLeft: '4px solid var(--accent-color)',
-              borderRadius: '0.5rem',
-            }}
-          >
-            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+          <Callout kind="important" title="Package Releases">
             <ul
               style={{ margin: 0, paddingLeft: '1.25rem', fontSize: '0.9rem' }}
             >
@@ -1079,7 +1071,7 @@ function Releases() {
                 </li>
               ))}
             </ul>
-          </div>
+          </Callout>
         </div>
       ),
     },

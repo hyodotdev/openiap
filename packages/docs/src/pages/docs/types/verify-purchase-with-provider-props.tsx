@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../components/AnchorLink';
+import Callout from '../../../components/Callout';
 import SEO from '../../../components/SEO';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
 import { IAPKIT_URL, trackIapKitClick } from '../../../lib/config';
@@ -182,17 +183,15 @@ function VerifyPurchaseWithProviderProps() {
           </tbody>
         </table>
 
-        <div className="alert-card alert-card--warning">
-          <p>
-            <strong>Client-visible data only:</strong> Product client payloads
-            can be retrieved by apps and must never contain credentials, signing
-            keys, or server-authoritative rules. The body is limited to 16 KiB
-            measured as UTF-8 bytes. Use an <code>openiap-kit_pk_</code>{' '}
-            publishable key in the app. It is extractable and consumes project
-            quota, but cannot perform administrative operations. Never embed an{' '}
-            <code>openiap-kit_sk_</code> secret key.
-          </p>
-        </div>
+        <Callout kind="warning" title="Client-visible data only">
+          Product client payloads can be retrieved by apps and must never
+          contain credentials, signing keys, or server-authoritative rules. The
+          body is limited to 16 KiB measured as UTF-8 bytes. Use an{' '}
+          <code>openiap-kit_pk_</code> publishable key in the app. It is
+          extractable and consumes project quota, but cannot perform
+          administrative operations. Never embed an <code>openiap-kit_sk_</code>{' '}
+          secret key.
+        </Callout>
 
         <p>
           See the{' '}

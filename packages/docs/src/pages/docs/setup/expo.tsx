@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
 import {
@@ -18,40 +19,19 @@ function ExpoSetup() {
       />
       <h1>Expo Setup</h1>
       <p>
-        <code>expo-iap</code> provides in-app purchase support for Expo apps.
-        Works with both managed and bare workflows.
+        <code>expo-iap</code> provides in-app purchase support for Expo apps —
+        both the managed workflow and bare apps that prefer the Expo Modules
+        stack. For bare React Native we recommend{' '}
+        <Link to="/docs/setup/react-native">react-native-iap</Link> (same API);
+        see <a href="#rn-cli">React Native CLI Projects</a> for using expo-iap
+        in bare apps.
       </p>
 
-      <div
-        style={{
-          padding: '1rem',
-          background: 'rgba(164, 116, 101, 0.1)',
-          borderLeft: '4px solid var(--primary-color)',
-          borderRadius: '0.5rem',
-          margin: '1rem 0',
-        }}
-      >
-        Building with the Expo managed workflow? You're in the right place. For
-        bare React Native we recommend{' '}
-        <Link to="/docs/setup/react-native">react-native-iap</Link>, but
-        expo-iap also works in bare apps if you prefer the Expo Modules stack —
-        see <a href="#rn-cli">React Native CLI Projects</a> below.
-      </div>
-
-      <div
-        style={{
-          padding: '1rem',
-          background: 'rgba(220, 104, 67, 0.1)',
-          borderLeft: '4px solid var(--accent-color)',
-          borderRadius: '0.5rem',
-          margin: '1rem 0',
-        }}
-      >
-        <strong>Before you start:</strong> Complete the store configuration
-        before integrating with your framework:{' '}
+      <Callout kind="important" title="Before you start">
+        Complete the store configuration before integrating with your framework:{' '}
         <Link to="/docs/ios-setup">iOS Setup</Link> |{' '}
         <Link to="/docs/android-setup">Android Setup</Link>
-      </div>
+      </Callout>
 
       <section>
         <h2 id="prerequisites" className="anchor-heading">
@@ -95,18 +75,9 @@ function ExpoSetup() {
           </tbody>
         </table>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Development build required:</strong> In-app purchases require
-          native modules that are <strong>not available in Expo Go</strong>. You
-          must use a{' '}
+        <Callout kind="important" title="Development build required">
+          In-app purchases require native modules that are{' '}
+          <strong>not available in Expo Go</strong>. You must use a{' '}
           <a
             href="https://docs.expo.dev/development/create-development-builds/"
             target="_blank"
@@ -116,7 +87,7 @@ function ExpoSetup() {
           </a>
           . Testing also requires a <strong>physical device</strong> —
           simulators and emulators have limited IAP support.
-        </div>
+        </Callout>
       </section>
 
       <section>
@@ -170,21 +141,13 @@ function ExpoSetup() {
 }`}
         </CodeBlock>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Expo SDK 52 or earlier:</strong> Expo SDK 52 uses Kotlin
-          1.9.x, which is <strong>incompatible</strong> with Billing Library v8.
-          You must either upgrade to SDK 53+ (recommended) or use a custom
-          config plugin to downgrade the billing library. See the{' '}
-          <a href="#sdk52-workaround">SDK 52 workaround</a> below.
-        </div>
+        <Callout kind="warning" title="Expo SDK 52 or earlier">
+          Expo SDK 52 uses Kotlin 1.9.x, which is <strong>incompatible</strong>{' '}
+          with Billing Library v8. You must either upgrade to SDK 53+
+          (recommended) or use a custom config plugin to downgrade the billing
+          library. See the <a href="#sdk52-workaround">SDK 52 workaround</a>{' '}
+          below.
+        </Callout>
 
         <h3 id="prebuild" className="anchor-heading">
           Prebuild &amp; Development Build
@@ -242,17 +205,8 @@ export default {
           <strong>+ Capability</strong> &gt; <strong>In-App Purchase</strong>{' '}
           (after running <code>npx expo prebuild</code>).
         </p>
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Building with Xcode 27?</strong> The generated iOS project
-          must use the UIScene lifecycle. Follow the{' '}
+        <Callout kind="important" title="Building with Xcode 27?">
+          The generated iOS project must use the UIScene lifecycle. Follow the{' '}
           <Link to="/docs/ios-setup#xcode-27-scene-lifecycle">
             Xcode 27 UIScene checklist
           </Link>{' '}
@@ -261,7 +215,7 @@ export default {
           <code>UIWindow(frame: UIScreen.main.bounds)</code>. Newer Expo
           templates (based on <code>ExpoAppSceneDelegate</code>) generate this
           correctly.
-        </div>
+        </Callout>
 
         <h3 id="android-config" className="anchor-heading">
           Android Configuration
@@ -481,34 +435,17 @@ function Store() {
           for the full error reference.
         </p>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Critical:</strong> Always call <code>finishTransaction</code>{' '}
-          after verifying a purchase. On Android, unfinished purchases are
-          automatically refunded after 3 days.
-        </div>
+        <Callout kind="warning" title="Critical">
+          Always call <code>finishTransaction</code> after verifying a purchase.
+          On Android, unfinished purchases are automatically refunded after 3
+          days.
+        </Callout>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Important:</strong> The <code>useIAP</code> hook API is
-          identical to react-native-iap. Methods return{' '}
-          <code>Promise&lt;void&gt;</code> and update internal state. Use{' '}
-          <code>onPurchaseSuccess</code> for purchase results.
-        </div>
+        <p>
+          The <code>useIAP</code> hook API is identical to react-native-iap:
+          methods return <code>Promise&lt;void&gt;</code> and update internal
+          state — use <code>onPurchaseSuccess</code> for purchase results.
+        </p>
       </section>
 
       <section>
@@ -655,19 +592,11 @@ EXPO_TV=1 npx expo prebuild --platform ios --clean
 EXPO_TV=1 npx expo run:ios --device "Apple TV 4K (3rd generation)"`}
         </CodeBlock>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(164, 116, 101, 0.1)',
-            borderLeft: '4px solid var(--primary-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Note:</strong> <code>presentCodeRedemptionSheetIOS</code> is{' '}
+        <Callout kind="note">
+          <code>presentCodeRedemptionSheetIOS</code> is{' '}
           <strong>not supported</strong> on tvOS. Direct users to redeem codes
           on their iPhone or through Apple TV settings instead.
-        </div>
+        </Callout>
       </section>
 
       <section>
@@ -678,20 +607,12 @@ EXPO_TV=1 npx expo run:ios --device "Apple TV 4K (3rd generation)"`}
           </a>
         </h2>
 
-        <div
-          style={{
-            padding: '1rem',
-            background: 'rgba(220, 104, 67, 0.1)',
-            borderLeft: '4px solid var(--accent-color)',
-            borderRadius: '0.5rem',
-            margin: '1rem 0',
-          }}
-        >
-          <strong>Warning:</strong> Expo SDK 52 (React Native 0.76.x) uses
-          Kotlin 1.9.x, which is incompatible with the current OpenIAP Android
-          artifacts — upgrading to <strong>SDK 53+</strong> is the recommended
-          fix (see <a href="#android-kotlin">Android Kotlin Version</a>).
-        </div>
+        <Callout kind="warning">
+          Expo SDK 52 (React Native 0.76.x) uses Kotlin 1.9.x, which is
+          incompatible with the current OpenIAP Android artifacts — upgrading to{' '}
+          <strong>SDK 53+</strong> is the recommended fix (see{' '}
+          <a href="#android-kotlin">Android Kotlin Version</a>).
+        </Callout>
 
         <p>
           If you cannot upgrade, create a custom config plugin to force an older

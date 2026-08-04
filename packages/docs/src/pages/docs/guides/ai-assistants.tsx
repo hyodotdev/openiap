@@ -1,4 +1,5 @@
 import AnchorLink from '../../../components/AnchorLink';
+import Callout from '../../../components/Callout';
 import CodeBlock from '../../../components/CodeBlock';
 import SEO from '../../../components/SEO';
 import TLDRBox from '../../../components/TLDRBox';
@@ -283,35 +284,25 @@ getAvailablePurchases in OpenIAP?"`}</CodeBlock>
         </ul>
       </section>
 
-      <section
-        style={{
-          marginTop: '3rem',
-          padding: '1.5rem',
-          backgroundColor: 'var(--bg-secondary)',
-          borderRadius: '8px',
-          borderLeft: '4px solid var(--accent-color)',
-        }}
-      >
-        <p style={{ margin: 0 }}>
-          <strong>Tip:</strong> For complex implementations, start with{' '}
-          <a
-            href="https://openiap.dev/llms.txt"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            llms.txt
-          </a>{' '}
-          for quick answers, then reference{' '}
-          <a
-            href="https://openiap.dev/llms-full.txt"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            llms-full.txt
-          </a>{' '}
-          when you need detailed type information or platform-specific APIs.
-        </p>
-      </section>
+      <Callout kind="tip">
+        For complex implementations, start with{' '}
+        <a
+          href="https://openiap.dev/llms.txt"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          llms.txt
+        </a>{' '}
+        for quick answers, then reference{' '}
+        <a
+          href="https://openiap.dev/llms-full.txt"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          llms-full.txt
+        </a>{' '}
+        when you need detailed type information or platform-specific APIs.
+      </Callout>
     </div>
   );
 }

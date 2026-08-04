@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import Callout from '../../../../components/Callout';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
@@ -237,16 +238,13 @@ using var subscription = iap.PromotedProductIOS.Subscribe(async productId =>
         </Link>{' '}
         on app launch for pending promoted products.
       </p>
-      <div className="alert-card alert-card--info">
-        <p>
-          <strong>Note:</strong> In StoreKit 2, promoted products are purchased
-          through the standard{' '}
-          <Link to="/docs/apis/request-purchase">
-            <code>requestPurchase()</code>
-          </Link>{' '}
-          flow after the app receives or restores the promoted product.
-        </p>
-      </div>
+      <Callout kind="note">
+        In StoreKit 2, promoted products are purchased through the standard{' '}
+        <Link to="/docs/apis/request-purchase">
+          <code>requestPurchase()</code>
+        </Link>{' '}
+        flow after the app receives or restores the promoted product.
+      </Callout>
     </div>
   );
 }
