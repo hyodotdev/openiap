@@ -357,6 +357,15 @@
   text-align: center;
 }
 
+.section-subtitle a {
+  color: var(--accent-color);
+  text-decoration: none;
+}
+
+.section-subtitle a:hover {
+  text-decoration: underline;
+}
+
 /* Specification Grid */
 .specification-grid {
   display: grid;
