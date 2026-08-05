@@ -144,5 +144,6 @@ link; `/showcase` lists everything.
   the app is listed, and note that updates or removal are available anytime.
 - Public GitHub replies must be in English — see
   `knowledge/internal/06-git-deployment.md`.
-- Commit with `docs: add <App> to showcase`. Do not commit, push, or open a PR
-  unless the user already authorized it.
+- Commit with a lowercase subject after the tag, e.g.
+  `docs: add recallai to showcase`. Do not commit, push, or open a PR unless the
+  user already authorized it.

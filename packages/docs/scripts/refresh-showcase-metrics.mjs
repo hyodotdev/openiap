@@ -143,9 +143,21 @@ async function playMetrics(androidUrl) {
   const installs = />([\d.,]+\s*[KMB]?\+)<\/div><div class="[^"]+">Downloads</i.exec(
     html
   )?.[1];
+
+  // Play omits the review element entirely for apps with few or no reviews, so
+  // a missing count is legitimate. The install block renders on every app page,
+  // which makes it the canary for "our selectors still match Play's markup" —
+  // without it we cannot tell a real zero from a broken scrape, so fail instead
+  // of overwriting good numbers with zeros.
+  if (installs === undefined) {
+    throw new Error(
+      `install count not found for ${packageName} — Play markup likely changed`
+    );
+  }
+
   return {
-    ratings: reviews ? parseCompact(reviews) : undefined,
-    installs: installs ? parseCompact(installs) : undefined,
+    ratings: reviews ? parseCompact(reviews) : 0,
+    installs: parseCompact(installs),
   };
 }
 
@@ -155,6 +167,13 @@ let changed = 0;
 let stale = 0;
 
 for (const app of data.apps) {
+  // Web-only entries have no store to measure; leave whatever is on record
+  // instead of writing a zero that looks like a real reading.
+  if (!app.ios && !app.android) {
+    console.log(`  ${app.name}: no store links — metrics left untouched`);
+    continue;
+  }
+
   let ratings = 0;
   let installs;
   let appleMarkets = 0;
