@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   isProductNotFoundError,
   mapProductResponseToReceiptData,
+  selectProductLineItem,
   mapSubscriptionResponseToReceiptData,
   parseTimeToMillis,
   recordGooglePlayVerifiedSubscription,
@@ -561,5 +562,69 @@ describe("isProductNotFoundError", () => {
   it("is safe on null / undefined", () => {
     expect(isProductNotFoundError(null)).toBe(false);
     expect(isProductNotFoundError(undefined)).toBe(false);
+  });
+});
+
+// Issue #289: a token that covers more than one line item resolved to
+// whichever item Google listed first, so `expectedProductId` could be
+// compared against the wrong product and reject a valid purchase.
+describe("selectProductLineItem", () => {
+  const bulbs = { productId: "dev.hyo.martie.10bulbs" };
+  const premium = { productId: "dev.hyo.martie.premium" };
+
+  it("prefers the line item the caller expects", () => {
+    expect(
+      selectProductLineItem([bulbs, premium], "dev.hyo.martie.premium"),
+    ).toBe(premium);
+  });
+
+  it("falls back to the first item when the expectation doesn't match", () => {
+    expect(
+      selectProductLineItem([bulbs, premium], "dev.hyo.martie.absent"),
+    ).toBe(bulbs);
+  });
+
+  it("keeps the historical first-item behaviour when nothing is expected", () => {
+    expect(selectProductLineItem([bulbs, premium])).toBe(bulbs);
+  });
+
+  it("is safe on empty and missing line items", () => {
+    expect(selectProductLineItem([])).toBeUndefined();
+    expect(selectProductLineItem(undefined)).toBeUndefined();
+    expect(selectProductLineItem(null)).toBeUndefined();
+  });
+
+  it("resolves a multi-item token to the expected product end to end", () => {
+    const receipt = mapProductResponseToReceiptData({
+      packageName,
+      purchaseToken: "token-multi",
+      productResponse: {
+        purchaseStateContext: { purchaseState: "PURCHASED" },
+        acknowledgementState: "ACKNOWLEDGEMENT_STATE_PENDING",
+        productLineItem: [
+          {
+            productId: "dev.hyo.martie.10bulbs",
+            productOfferDetails: {
+              quantity: 1,
+              consumptionState: "CONSUMPTION_STATE_YET_TO_BE_CONSUMED",
+            },
+          },
+          {
+            productId: "dev.hyo.martie.premium",
+            productOfferDetails: {
+              quantity: 3,
+              consumptionState: "CONSUMPTION_STATE_YET_TO_BE_CONSUMED",
+            },
+          },
+        ],
+      },
+      expectedProductId: "dev.hyo.martie.premium",
+    });
+
+    expect(receipt.productId).toBe("dev.hyo.martie.premium");
+    expect(receipt.quantity).toBe(3);
+    // Would previously have been INAUTHENTIC: productId resolved to the
+    // first line item and then failed the expectedProductId comparison.
+    expect(mapToGooglePlayReceiptResponse(receipt).isValid).toBe(true);
   });
 });

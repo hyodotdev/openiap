@@ -1,7 +1,8 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, it, test } from "vitest";
 
 import {
   hashPayload,
+  isStableRejection,
   markPayloadFailure,
   tryConsumeReplay,
   type ReplayBucket,
@@ -243,5 +244,31 @@ describe("markPayloadFailure + tryConsumeReplay cooldown", () => {
     );
     expect(blocked.allowed).toBe(false);
     expect(blocked.reason).toBe("repeated_failure");
+  });
+});
+
+// Issue #289: the negative cooldown defaults to 300s, which almost
+// exactly spans Google's ~301s window for voiding an unacknowledged
+// purchase. Arming it on a non-terminal rejection meant one blip made
+// the purchase permanently unverifiable — and therefore un-acknowledgeable
+// — before Google voided it.
+describe("isStableRejection", () => {
+  it("arms the cooldown for settled store verdicts", () => {
+    for (const state of ["INAUTHENTIC", "CANCELED", "EXPIRED", "CONSUMED"]) {
+      expect(isStableRejection(state)).toBe(true);
+    }
+  });
+
+  it("does not arm the cooldown for states a retry can change", () => {
+    // PENDING resolves when the user finishes a deferred payment;
+    // UNKNOWN means we couldn't interpret the store's answer at all.
+    expect(isStableRejection("PENDING")).toBe(false);
+    expect(isStableRejection("UNKNOWN")).toBe(false);
+  });
+
+  it("is case-insensitive", () => {
+    expect(isStableRejection("pending")).toBe(false);
+    expect(isStableRejection("Unknown")).toBe(false);
+    expect(isStableRejection("inauthentic")).toBe(true);
   });
 });

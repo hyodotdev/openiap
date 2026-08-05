@@ -58,6 +58,27 @@ export interface ReplayGuardConfig {
 
 export type ReplayRejectReason = "burst" | "repeated_failure";
 
+// States whose `isValid: false` is NOT a settled verdict, so a retry can
+// legitimately return something different. Cooling these down for five
+// minutes is actively harmful: Google voids an unacknowledged purchase
+// at ~301s, which the default cooldown almost exactly spans, so one
+// blip made the purchase unrecoverable before it could be acknowledged
+// (issue #289). `PENDING` resolves when the user completes a deferred
+// payment; `UNKNOWN` means we could not interpret the store's answer at
+// all, which is a reason to ask again rather than to stonewall.
+const NON_TERMINAL_REJECTION_STATES = new Set(["PENDING", "UNKNOWN"]);
+
+/**
+ * Whether a rejected verification should arm the negative cooldown.
+ *
+ * The guard exists to stop someone replaying a receipt the store has
+ * definitively rejected (INAUTHENTIC, CANCELED, EXPIRED). Those verdicts
+ * don't change in seconds. Non-terminal ones do.
+ */
+export function isStableRejection(state: string): boolean {
+  return !NON_TERMINAL_REJECTION_STATES.has(state.toUpperCase());
+}
+
 export interface ReplayConsumeResult {
   allowed: boolean;
   remaining: number;
@@ -366,7 +387,11 @@ export function replayGuardMiddleware(
         // configuration / network errors aren't conflated with stable
         // receipt or product-match failures.
         const outcome = c.get("verifyOutcome");
-        if (outcome && outcome.isValid === false) {
+        if (
+          outcome &&
+          outcome.isValid === false &&
+          isStableRejection(outcome.state)
+        ) {
           markPayloadFailure(store, bucketKey, capacity, clock(), maxStoreSize);
         }
       }
