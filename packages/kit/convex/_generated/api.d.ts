@@ -25,6 +25,8 @@ import type * as files_storage from "../files/storage.js";
 import type * as files_validation from "../files/validation.js";
 import type * as http from "../http.js";
 import type * as migrations from "../migrations.js";
+import type * as orders_action from "../orders/action.js";
+import type * as orders_shared from "../orders/shared.js";
 import type * as organizations_internal from "../organizations/internal.js";
 import type * as organizations_mutation from "../organizations/mutation.js";
 import type * as organizations_query from "../organizations/query.js";
@@ -108,6 +110,8 @@ declare const fullApi: ApiFromModules<{
   "files/validation": typeof files_validation;
   http: typeof http;
   migrations: typeof migrations;
+  "orders/action": typeof orders_action;
+  "orders/shared": typeof orders_shared;
   "organizations/internal": typeof organizations_internal;
   "organizations/mutation": typeof organizations_mutation;
   "organizations/query": typeof organizations_query;

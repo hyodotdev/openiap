@@ -13,6 +13,7 @@ import {
   Layers,
   Webhook,
   BarChart3,
+  ReceiptText,
 } from "lucide-react";
 import { PageLoading } from "@/components/LoadingSpinner";
 
@@ -22,6 +23,7 @@ const TAB_IDS = [
   "dashboard",
   "purchases",
   "subscriptions",
+  "orders",
   "analytics",
   "products",
   "webhooks",
@@ -67,6 +69,12 @@ export default function ProjectIndex() {
       id: "subscriptions",
       label: "Subscriptions",
       icon: Activity,
+    },
+    {
+      id: "orders",
+      label: "Orders",
+      icon: ReceiptText,
+      badge: "Beta",
     },
     {
       id: "analytics",

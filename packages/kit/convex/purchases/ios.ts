@@ -222,7 +222,7 @@ function decodeJwsPayload(jws: string): JWSTransactionDecodedPayload {
   }
 }
 
-async function verifyJWSTransaction(
+export async function verifyJWSTransaction(
   jws: string,
   bundleId: string,
   environment: Environment,
@@ -295,7 +295,7 @@ type AppStoreServerCredentials = {
   privateKey: string;
 };
 
-async function getAppStoreServerCredentials(
+export async function getAppStoreServerCredentials(
   ctx: ActionCtx,
   project: Doc<"projects">,
 ): Promise<AppStoreServerCredentials> {
