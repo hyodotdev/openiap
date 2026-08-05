@@ -1,0 +1,43 @@
+{
+  "apps": [
+    {
+      "name": "Sudoku Rabbit",
+      "tagline": "The competitive sudoku app built for speed and comfort",
+      "logo": "/showcase/sudoku-rabbit.webp",
+      "library": "expo-iap",
+      "ios": "https://apps.apple.com/us/app/sudoku-rabbit-daily-puzzles/id6742900571",
+      "android": "https://play.google.com/store/apps/details?id=com.bustedout.sudokurabbit",
+      "ratings": 146,
+      "installs": 1000
+    },
+    {
+      "name": "Loader",
+      "tagline": "Media player and downloader — stream music, movies, and TV shows",
+      "logo": "/showcase/loader.webp",
+      "library": "react-native-iap",
+      "ios": "https://apps.apple.com/us/app/documents-loader/id1442498151",
+      "web": "https://loaderapp.info/",
+      "ratings": 9
+    },
+    {
+      "name": "Martie",
+      "tagline": "Daily trivia quiz — 5 questions a day to build a knowledge habit",
+      "logo": "/showcase/martie.webp",
+      "library": "expo-iap",
+      "ios": "https://apps.apple.com/us/app/martie-daily-trivia-quiz/id6740057833",
+      "android": "https://play.google.com/store/apps/details?id=dev.hyo.martie",
+      "ratings": 12,
+      "installs": 500
+    },
+    {
+      "name": "RecallAI",
+      "tagline": "Private, local-first AI memo and knowledge base",
+      "logo": "/showcase/recallai.webp",
+      "library": "expo-iap",
+      "ios": "https://apps.apple.com/us/app/recallai-ai-memo-chat/id6784931826",
+      "android": "https://play.google.com/store/apps/details?id=dev.hyo.recallai",
+      "ratings": 0,
+      "installs": 1
+    }
+  ]
+}

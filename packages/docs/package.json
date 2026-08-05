@@ -4,6 +4,7 @@
   "version": "3.0.1",
   "type": "module",
   "scripts": {
+    "showcase:metrics": "node scripts/refresh-showcase-metrics.mjs",
     "dev": "bunx vite",
     "build": "bun run typecheck && bunx vite build",
     "typecheck": "tsc --noEmit",

@@ -3,6 +3,12 @@ import { Link } from 'react-router-dom';
 import { OPENIAP_VERSIONS } from '../lib/versioning';
 import { LOGO_PATH } from '../lib/config';
 import { LIBRARIES } from '../lib/images';
+import { FEATURED_SHOWCASE_APPS, SHOWCASE_APPS } from '../lib/showcase';
+import {
+  ShowcaseAppCard,
+  ShowcaseSubmitCard,
+  showcaseGridStyle,
+} from '../components/ShowcaseCards';
 import SEO from '../components/SEO';
 
 const frameworkLinkStyle: CSSProperties = {
@@ -511,7 +517,7 @@ function Home() {
       </section>
 
       <section className="home-section section-who">
-        <div className="section-container" style={{ maxWidth: '640px' }}>
+        <div className="section-container" style={{ maxWidth: '960px' }}>
           <h2>Who uses OpenIAP?</h2>
           <p
             className="section-subtitle"
@@ -520,7 +526,14 @@ function Home() {
             Ship your app with OpenIAP or its libraries (
             {LIBRARIES.map((library, index) => (
               <span key={library.name}>
-                <Link to={library.setupPath}>{library.displayName}</Link>
+                <a
+                  href={library.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  title={`${library.displayName} on GitHub`}
+                >
+                  {library.displayName}
+                </a>
                 {index < LIBRARIES.length - 1 ? ', ' : ''}
               </span>
             ))}
@@ -528,66 +541,26 @@ function Home() {
             <br />
             We'd love to showcase it here.
           </p>
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '1.5rem',
-              marginTop: '2rem',
-              padding: '2rem',
-              border: '2px dashed var(--border-color)',
-              borderRadius: '1rem',
-              maxWidth: '480px',
-              margin: '2rem auto 0',
-            }}
-          >
-            <p
-              style={{
-                textAlign: 'center',
-                lineHeight: '1.7',
-                color: 'var(--text-secondary)',
-                margin: 0,
-              }}
-            >
-              Send us your app name, logo, platform links, and which library you
-              use — we'll add you to this section.
-            </p>
-            <a
-              href="mailto:hyo@hyo.dev?subject=OpenIAP Showcase Request&body=App Name:%0AApp Logo (URL or attached):%0APlatform Links:%0A- iOS: %0A- Android: %0A%0AWhich OpenIAP library do you use?"
-              style={{
-                display: 'inline-block',
-                padding: '0.75rem 2rem',
-                backgroundColor: 'var(--accent-color)',
-                color: 'white',
-                borderRadius: '0.5rem',
-                textDecoration: 'none',
-                fontWeight: '600',
-                fontSize: '1rem',
-              }}
-            >
-              Submit Your App
-            </a>
-            <p
-              style={{
-                fontSize: '0.8rem',
-                color: 'var(--text-secondary)',
-                margin: 0,
-              }}
-            >
-              Contact: Hyo — Lead Maintainer (
-              <a
-                href="mailto:hyo@hyo.dev"
+          <div style={{ ...showcaseGridStyle, marginTop: '2.5rem' }}>
+            {FEATURED_SHOWCASE_APPS.map((app) => (
+              <ShowcaseAppCard key={app.name} app={app} />
+            ))}
+            <ShowcaseSubmitCard />
+          </div>
+          {SHOWCASE_APPS.length > FEATURED_SHOWCASE_APPS.length ? (
+            <div style={{ marginTop: '1.5rem' }}>
+              <Link
+                to="/showcase"
                 style={{
                   color: 'var(--accent-color)',
-                  textDecoration: 'underline',
+                  fontWeight: 600,
+                  textDecoration: 'none',
                 }}
               >
-                hyo@hyo.dev
-              </a>
-              )
-            </p>
-          </div>
+                See all {SHOWCASE_APPS.length} apps →
+              </Link>
+            </div>
+          ) : null}
         </div>
       </section>
 
