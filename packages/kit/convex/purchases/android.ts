@@ -269,7 +269,7 @@ interface GoogleServiceAccountKey {
   universe_domain?: string;
 }
 
-function parseAndValidateServiceAccountKey(
+export function parseAndValidateServiceAccountKey(
   content: string,
 ): GoogleServiceAccountKey {
   let keyData;

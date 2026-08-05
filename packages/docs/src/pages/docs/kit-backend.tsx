@@ -17,7 +17,7 @@ function KitBackend() {
         title="Purchase Verification with IAPKit"
         description="Purchase verification with IAPKit at kit.openiap.dev handles Apple StoreKit 2, Google Play, Amazon Appstore, and Meta Horizon verification, public per-product client payloads, lifecycle webhooks, subscription state, revenue metrics, and store product sync."
         path="/docs/kit-backend"
-        keywords="IAPKit, kit.openiap.dev, OpenIAP kit, hosted backend, purchase verification, receipt validation, product client payload, TOML metadata, Amazon Fire OS, Vega OS, subscription state, App Store Connect, Play Console, MCP server"
+        keywords="IAPKit, kit.openiap.dev, OpenIAP kit, hosted backend, purchase verification, receipt validation, order lookup, product client payload, TOML metadata, Amazon Fire OS, Vega OS, subscription state, App Store Connect, Play Console, MCP server"
       />
       <h1>Purchase Verification</h1>
       <p>
@@ -192,10 +192,56 @@ function KitBackend() {
             payload editor for app-readable TOML, JSON, or text rules.
           </li>
           <li>
+            <strong>Orders</strong> — read-only Apple / Google order ID lookup
+            for customer support (see <a href="#order-lookup">Order lookup</a>).
+          </li>
+          <li>
             <strong>Webhooks</strong> — copyable inbound lifecycle webhook URLs
             for Apple ASN v2 and Google RTDN.
           </li>
         </ul>
+      </section>
+
+      <section>
+        <AnchorLink id="order-lookup" level="h2">
+          Order lookup
+        </AnchorLink>
+        <p>
+          Order lookup is read-only support tooling for customer inquiries:
+          paste an Apple or Google order ID from a customer receipt and IAPKit
+          returns the full order details, plus — when the order contains a
+          subscription and the store returns it — the current subscription
+          status. The subscription fetch is best-effort: if it fails, the order
+          result still stands and the reason is shown alongside it. It lives in
+          the project dashboard under <strong>Orders</strong>.
+        </p>
+        <p>
+          Lookups reuse the store credentials the project already configured for
+          purchase verification — the App Store Server API key for Apple and the
+          Play service-account JSON for Google — so in most projects there is
+          nothing new to set up.
+        </p>
+        <Callout kind="note">
+          <p>
+            <strong>Apple lookups are production-only.</strong> Order IDs exist
+            only for real App Store purchases, and the App Store Server API
+            order-lookup endpoint has no sandbox counterpart, so sandbox
+            transactions cannot be found by order ID. Because the lookup always
+            verifies against production, the project also needs its{' '}
+            <strong>App Apple ID</strong> filled in under Settings → iOS — it is
+            optional for sandbox-only verification, but required here.
+          </p>
+          <p>
+            <strong>Google lookups need financial data access.</strong> The
+            project&apos;s Play service account must have the{' '}
+            <em>View financial data</em> permission in Play Console; without it
+            the Play Developer API rejects order lookups.
+          </p>
+        </Callout>
+        <p>
+          Lookups are proxied live to the store APIs and never stored — IAPKit
+          keeps no record of searched order IDs or their results.
+        </p>
       </section>
 
       <section>

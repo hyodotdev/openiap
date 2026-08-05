@@ -19,6 +19,7 @@ import ProjectProducts from "./organization/project/products";
 import ProjectWebhooks from "./organization/project/webhooks";
 import ProjectSettings from "./organization/project/settings";
 import ProjectPurchaseDetail from "./organization/project/purchase-detail";
+import ProjectOrders from "./organization/project/orders";
 import OrganizationUsagePage from "./organization/usage";
 import BlogLayout from "../blog/BlogLayout";
 import BlogIndex from "../blog";
@@ -248,6 +249,14 @@ export default function AuthenticatedPages() {
             element={
               <PageWithTitle title="Project subscriptions">
                 <ProjectSubscriptions />
+              </PageWithTitle>
+            }
+          />
+          <Route
+            path="orders"
+            element={
+              <PageWithTitle title="Project orders">
+                <ProjectOrders />
               </PageWithTitle>
             }
           />
