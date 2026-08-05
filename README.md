@@ -71,7 +71,7 @@ Have a question or need help? Ask in the relevant [GitHub Discussions](https://g
 | ---------------------- | ----------------------------------------------------------------------------------------- |
 | openiap-apple          | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/openiap-apple)          |
 | openiap-google         | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/openiap-google)         |
-| iapkit                 | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/iapkit)                 |
+| IAPKit                 | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/iapkit)                 |
 | expo-iap               | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/expo-iap)               |
 | react-native-iap       | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/react-native-iap)       |
 | flutter_inapp_purchase | [Q&A](https://github.com/hyodotdev/openiap/discussions/categories/flutter_inapp_purchase) |
