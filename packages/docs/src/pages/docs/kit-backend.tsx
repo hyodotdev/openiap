@@ -209,9 +209,11 @@ function KitBackend() {
         <p>
           Order lookup is read-only support tooling for customer inquiries:
           paste an Apple or Google order ID from a customer receipt and IAPKit
-          returns the full order details, plus the current subscription status
-          when the order contains a subscription. It lives in the project
-          dashboard under <strong>Orders</strong>.
+          returns the full order details, plus — when the order contains a
+          subscription and the store returns it — the current subscription
+          status. The subscription fetch is best-effort: if it fails, the order
+          result still stands and the reason is shown alongside it. It lives in
+          the project dashboard under <strong>Orders</strong>.
         </p>
         <p>
           Lookups reuse the store credentials the project already configured for
