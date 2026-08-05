@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   basePlanIdForPeriod,
+  buildSubscriptionRegionalConfigs,
   mapModernPlayOneTimeState,
   moneyToMicros,
   playPriceMicrosToNumber,
@@ -41,37 +42,85 @@ describe("mapModernPlayOneTimeState", () => {
   });
 });
 
+/**
+ * Stubs the three Android Publisher calls the one-time upsert makes:
+ * `onetimeproducts.get` (read-before-write), `convertRegionPrices`, and
+ * the `onetimeproducts.patch` write. Each handler may return undefined
+ * to fall through to a default, or throw a `{code}` object to simulate
+ * an API error.
+ */
+function stubAndroidPublisher(handlers: {
+  get?: () => unknown;
+  convert?: () => unknown;
+}) {
+  const requests: Common.GaxiosOptions[] = [];
+  const androidpublisher = google.androidpublisher({
+    version: "v3",
+    adapter: async <T>(
+      request: Common.gaxios.GaxiosOptionsPrepared,
+    ): Promise<Common.GaxiosResponse<T>> => {
+      requests.push(request);
+      const url = new URL(String(request.url));
+      let data: unknown = {};
+
+      if (url.pathname.endsWith("/pricing:convertRegionPrices")) {
+        data = handlers.convert?.() ?? {};
+      } else if (request.method === "GET") {
+        const result = handlers.get?.();
+        if (result === undefined)
+          throw Object.assign(new Error("no"), { code: 404 });
+        data = result;
+      }
+
+      return Object.assign(new Response(null, { status: 200 }), {
+        config: request,
+        data: data as T,
+      });
+    },
+  });
+  return { androidpublisher, requests };
+}
+
+const BASE_ARGS = {
+  packageName: "com.example.moonlit",
+  productId: "hero.sage",
+  title: "Moon Sage",
+  description: "Unlock Moon Sage",
+  priceAmountMicros: 24_990_000,
+  currency: "USD",
+};
+
+function patchRequest(requests: Common.GaxiosOptions[]) {
+  return requests.find((request) => request.method === "PATCH");
+}
+
+function regionalConfigs(request: Common.GaxiosOptions | undefined) {
+  const data = request?.data as
+    | {
+        purchaseOptions?: Array<{
+          regionalPricingAndAvailabilityConfigs?: Array<{
+            regionCode?: string;
+            availability?: string;
+            price?: unknown;
+          }>;
+          newRegionsConfig?: unknown;
+        }>;
+      }
+    | undefined;
+  return data?.purchaseOptions?.[0];
+}
+
 describe("upsertModernAndroidOneTimeProduct", () => {
   it("uses the generated lowercase one-time-product PATCH route", async () => {
-    let capturedRequest: Common.GaxiosOptions | undefined;
-    const androidpublisher = google.androidpublisher({
-      version: "v3",
-      adapter: async <T>(
-        request: Common.gaxios.GaxiosOptionsPrepared,
-      ): Promise<Common.GaxiosResponse<T>> => {
-        capturedRequest = request;
-        return Object.assign(new Response(null, { status: 200 }), {
-          config: request,
-          data: {} as T,
-        });
-      },
+    const { androidpublisher, requests } = stubAndroidPublisher({});
+
+    await upsertModernAndroidOneTimeProduct(androidpublisher, BASE_ARGS, {
+      allowCreate: true,
     });
 
-    await upsertModernAndroidOneTimeProduct(
-      androidpublisher,
-      {
-        packageName: "com.example.moonlit",
-        productId: "hero.sage",
-        title: "Moon Sage",
-        description: "Unlock Moon Sage",
-        priceAmountMicros: 24_990_000,
-        currency: "USD",
-      },
-      { allowCreate: true },
-    );
-
-    expect(capturedRequest).toBeDefined();
-    const requestUrl = new URL(String(capturedRequest?.url));
+    const request = patchRequest(requests);
+    expect(request).toBeDefined();
+    const requestUrl = new URL(String(request?.url));
     expect(requestUrl.pathname).toBe(
       "/androidpublisher/v3/applications/com.example.moonlit/onetimeproducts/hero.sage",
     );
@@ -82,7 +131,7 @@ describe("upsertModernAndroidOneTimeProduct", () => {
     expect(requestUrl.searchParams.get("regionsVersion.version")).toBe(
       "2022/01",
     );
-    expect(capturedRequest?.data).toMatchObject({
+    expect(request?.data).toMatchObject({
       packageName: "com.example.moonlit",
       productId: "hero.sage",
       listings: [
@@ -92,23 +141,281 @@ describe("upsertModernAndroidOneTimeProduct", () => {
           description: "Unlock Moon Sage",
         },
       ],
-      purchaseOptions: [
-        {
-          purchaseOptionId: "buy",
-          regionalPricingAndAvailabilityConfigs: [
-            {
-              regionCode: "US",
-              availability: "AVAILABLE",
-              price: {
-                currencyCode: "USD",
-                units: "24",
-                nanos: 990_000_000,
-              },
-            },
-          ],
-        },
-      ],
     });
+  });
+
+  // Issue #288: the push wrote a single hardcoded `regionCode: "US"`
+  // config, so products were silently unbuyable in every other market.
+  it("publishes every region Play converts the base price into", async () => {
+    const { androidpublisher, requests } = stubAndroidPublisher({
+      convert: () => ({
+        convertedRegionPrices: {
+          US: {
+            regionCode: "US",
+            price: { currencyCode: "USD", units: "24", nanos: 990_000_000 },
+          },
+          KR: {
+            regionCode: "KR",
+            price: { currencyCode: "KRW", units: "33000", nanos: 0 },
+          },
+          JP: {
+            regionCode: "JP",
+            price: { currencyCode: "JPY", units: "3800", nanos: 0 },
+          },
+        },
+        convertedOtherRegionsPrice: {
+          usdPrice: { currencyCode: "USD", units: "24", nanos: 990_000_000 },
+          eurPrice: { currencyCode: "EUR", units: "22", nanos: 990_000_000 },
+        },
+      }),
+    });
+
+    const outcome = await upsertModernAndroidOneTimeProduct(
+      androidpublisher,
+      BASE_ARGS,
+      { allowCreate: true },
+    );
+
+    const option = regionalConfigs(patchRequest(requests));
+    expect(option?.regionalPricingAndAvailabilityConfigs).toEqual([
+      {
+        regionCode: "US",
+        availability: "AVAILABLE",
+        price: { currencyCode: "USD", units: "24", nanos: 990_000_000 },
+      },
+      {
+        regionCode: "KR",
+        availability: "AVAILABLE",
+        price: { currencyCode: "KRW", units: "33000", nanos: 0 },
+      },
+      {
+        regionCode: "JP",
+        availability: "AVAILABLE",
+        price: { currencyCode: "JPY", units: "3800", nanos: 0 },
+      },
+    ]);
+    // Markets Play launches later must be covered too, or the product
+    // silently stops being available as Play expands.
+    expect(option?.newRegionsConfig).toEqual({
+      availability: "AVAILABLE",
+      usdPrice: { currencyCode: "USD", units: "24", nanos: 990_000_000 },
+      eurPrice: { currencyCode: "EUR", units: "22", nanos: 990_000_000 },
+    });
+    expect(outcome.manualAction).toBeUndefined();
+  });
+
+  // `updateMask: "purchaseOptions"` REPLACES the repeated field, so an
+  // update that didn't read first would delete every region it omits —
+  // silently un-selling a live product outside the converted set.
+  it("never drops a region the product already had", async () => {
+    const { androidpublisher, requests } = stubAndroidPublisher({
+      get: () => ({
+        purchaseOptions: [
+          {
+            purchaseOptionId: "buy",
+            regionalPricingAndAvailabilityConfigs: [
+              {
+                regionCode: "US",
+                availability: "AVAILABLE",
+                price: { currencyCode: "USD", units: "19", nanos: 0 },
+              },
+              {
+                regionCode: "BR",
+                availability: "AVAILABLE",
+                price: { currencyCode: "BRL", units: "99", nanos: 0 },
+              },
+              {
+                regionCode: "RU",
+                availability: "NO_LONGER_AVAILABLE",
+                price: { currencyCode: "RUB", units: "1500", nanos: 0 },
+              },
+            ],
+          },
+        ],
+      }),
+      convert: () => ({
+        convertedRegionPrices: {
+          US: {
+            regionCode: "US",
+            price: { currencyCode: "USD", units: "24", nanos: 990_000_000 },
+          },
+        },
+      }),
+    });
+
+    await upsertModernAndroidOneTimeProduct(androidpublisher, BASE_ARGS, {
+      allowCreate: false,
+    });
+
+    const configs =
+      regionalConfigs(patchRequest(requests))
+        ?.regionalPricingAndAvailabilityConfigs ?? [];
+    const byRegion = new Map(configs.map((c) => [c.regionCode, c]));
+
+    // Converted region takes the new price.
+    expect(byRegion.get("US")?.price).toEqual({
+      currencyCode: "USD",
+      units: "24",
+      nanos: 990_000_000,
+    });
+    // Unconverted regions survive untouched rather than being deleted.
+    expect(byRegion.get("BR")?.price).toEqual({
+      currencyCode: "BRL",
+      units: "99",
+      nanos: 0,
+    });
+    // A market the operator deliberately withdrew stays withdrawn.
+    expect(byRegion.get("RU")?.availability).toBe("NO_LONGER_AVAILABLE");
+  });
+
+  it("preserves an operator's per-region availability while repricing", async () => {
+    const { androidpublisher, requests } = stubAndroidPublisher({
+      get: () => ({
+        purchaseOptions: [
+          {
+            purchaseOptionId: "buy",
+            regionalPricingAndAvailabilityConfigs: [
+              {
+                regionCode: "KR",
+                availability: "NO_LONGER_AVAILABLE",
+                price: { currencyCode: "KRW", units: "1000", nanos: 0 },
+              },
+            ],
+          },
+        ],
+      }),
+      convert: () => ({
+        convertedRegionPrices: {
+          KR: {
+            regionCode: "KR",
+            price: { currencyCode: "KRW", units: "33000", nanos: 0 },
+          },
+        },
+      }),
+    });
+
+    await upsertModernAndroidOneTimeProduct(androidpublisher, BASE_ARGS, {
+      allowCreate: false,
+    });
+
+    expect(
+      regionalConfigs(patchRequest(requests))
+        ?.regionalPricingAndAvailabilityConfigs,
+    ).toEqual([
+      {
+        regionCode: "KR",
+        availability: "NO_LONGER_AVAILABLE",
+        price: { currencyCode: "KRW", units: "33000", nanos: 0 },
+      },
+    ]);
+  });
+
+  it("reports a manual action instead of silently shipping a US-only product", async () => {
+    const { androidpublisher, requests } = stubAndroidPublisher({
+      convert: () => {
+        throw Object.assign(new Error("conversion unavailable"), { code: 500 });
+      },
+    });
+
+    const outcome = await upsertModernAndroidOneTimeProduct(
+      androidpublisher,
+      BASE_ARGS,
+      { allowCreate: true },
+    );
+
+    expect(
+      regionalConfigs(patchRequest(requests))
+        ?.regionalPricingAndAvailabilityConfigs,
+    ).toEqual([
+      {
+        regionCode: "US",
+        availability: "AVAILABLE",
+        price: { currencyCode: "USD", units: "24", nanos: 990_000_000 },
+      },
+    ]);
+    expect(outcome.manualAction).toMatchObject({
+      productId: "hero.sage",
+      code: "regional_pricing_incomplete",
+    });
+    expect(outcome.manualAction?.message).toContain("Play Console");
+  });
+
+  it("refuses to publish a non-USD price to the US fallback region", async () => {
+    const { androidpublisher } = stubAndroidPublisher({
+      convert: () => {
+        throw Object.assign(new Error("conversion unavailable"), { code: 500 });
+      },
+    });
+
+    // Play pairs each region with its own currency, so a KRW amount on
+    // regionCode "US" would 400. Fail with an actionable message instead.
+    await expect(
+      upsertModernAndroidOneTimeProduct(
+        androidpublisher,
+        { ...BASE_ARGS, currency: "KRW", priceAmountMicros: 700_000_000 },
+        { allowCreate: true },
+      ),
+    ).rejects.toThrow(/could not convert KRW/);
+  });
+});
+
+describe("buildSubscriptionRegionalConfigs", () => {
+  it("maps every converted region and opens it to new subscribers", () => {
+    expect(
+      buildSubscriptionRegionalConfigs(
+        {
+          convertedRegionPrices: {
+            US: {
+              regionCode: "US",
+              price: { currencyCode: "USD", units: "9", nanos: 990_000_000 },
+            },
+            KR: {
+              regionCode: "KR",
+              price: { currencyCode: "KRW", units: "13000", nanos: 0 },
+            },
+          },
+        },
+        { currencyCode: "USD", units: "9", nanos: 990_000_000 },
+        "premium_monthly",
+      ),
+    ).toEqual([
+      {
+        regionCode: "US",
+        price: { currencyCode: "USD", units: "9", nanos: 990_000_000 },
+        newSubscriberAvailability: true,
+      },
+      {
+        regionCode: "KR",
+        price: { currencyCode: "KRW", units: "13000", nanos: 0 },
+        newSubscriberAvailability: true,
+      },
+    ]);
+  });
+
+  it("falls back to the US base price when conversion is unavailable", () => {
+    expect(
+      buildSubscriptionRegionalConfigs(
+        undefined,
+        { currencyCode: "USD", units: "9", nanos: 990_000_000 },
+        "premium_monthly",
+      ),
+    ).toEqual([
+      {
+        regionCode: "US",
+        price: { currencyCode: "USD", units: "9", nanos: 990_000_000 },
+        newSubscriberAvailability: true,
+      },
+    ]);
+  });
+
+  it("rejects a non-USD fallback rather than emitting an invalid config", () => {
+    expect(() =>
+      buildSubscriptionRegionalConfigs(
+        undefined,
+        { currencyCode: "KRW", units: "13000", nanos: 0 },
+        "premium_monthly",
+      ),
+    ).toThrow(/could not convert KRW/);
   });
 });
 

@@ -120,6 +120,7 @@ export const runProductSyncAndroid = internalAction({
         deleted: result.deleted,
         failures: result.failures,
         plannedWrites: result.plannedWrites,
+        manualActions: result.manualActions,
       });
     } catch (error) {
       const cancelled = error instanceof ProductSyncCancelledError;
@@ -163,6 +164,19 @@ interface AndroidSyncResult {
   deleted?: number;
   failures: ProductSyncFailure[];
   plannedWrites?: Array<{ productId: string; step: string; detail?: string }>;
+  // Same operator-must-finish concept as the iOS path's
+  // AscManualReviewAction — the push succeeded but left upstream state
+  // that needs a human in Play Console (issue #288: regional prices
+  // couldn't be auto-converted, so the product is US-only until the
+  // operator sets them). The productSyncJobs schema and dashboard
+  // banner are already platform-agnostic, so this flows end-to-end.
+  manualActions?: AndroidManualAction[];
+}
+
+interface AndroidManualAction {
+  productId: string;
+  code: "regional_pricing_incomplete";
+  message: string;
 }
 
 async function performAndroidSync(
@@ -230,6 +244,7 @@ async function performAndroidSync(
     step: string;
     detail?: string;
   }> = [];
+  const manualActions: AndroidManualAction[] = [];
   let pulled = 0;
   let pushed = 0;
   let deleted = 0;
@@ -711,18 +726,20 @@ async function performAndroidSync(
               });
             } else {
               try {
-                await upsertAndroidOneTimeProduct(
-                  androidpublisher,
-                  auth,
-                  {
-                    packageName,
-                    productId: row.storeRef,
-                    title: row.title,
-                    description: row.description ?? row.title,
-                    priceAmountMicros: row.priceAmountMicros,
-                    currency: row.currency,
-                  },
-                  { allowCreate: false },
+                manualActions.push(
+                  ...(await upsertAndroidOneTimeProduct(
+                    androidpublisher,
+                    auth,
+                    {
+                      packageName,
+                      productId: row.storeRef,
+                      title: row.title,
+                      description: row.description ?? row.title,
+                      priceAmountMicros: row.priceAmountMicros,
+                      currency: row.currency,
+                    },
+                    { allowCreate: false },
+                  )),
                 );
               } catch (error) {
                 patchOk = false;
@@ -761,27 +778,47 @@ async function performAndroidSync(
               "Subscription requires priceAmountMicros + currency to mint a Play base plan; otherwise the product will not be purchasable.",
             );
           }
-          // Play's `regionalConfigs` requires the `currencyCode` to
-          // be the local currency of the `regionCode` it's paired
-          // with — pushing `regionCode: "US"` with a non-USD price
-          // returns a generic 400 from the API and leaves the
-          // operator chasing a confusing error message. Match the
-          // iOS path's currency-validation pattern (asc.ts intro
-          // offer push) and surface an actionable failure here so
-          // the row stays in Draft and the dashboard reports
-          // exactly which SKU failed and why (Gemini review on
-          // PR #127).
-          if (row.currency !== "USD") {
-            throw new Error(
-              `Subscription "${row.productId}" has currency "${row.currency}" but the kit→Play push currently only supports the US region (USD). Set the price in USD on the dashboard, or pre-create the subscription in Play Console with your preferred regional pricing and let the next pull-sync mirror it back into kit.`,
-            );
-          }
+          // Play's `regionalConfigs` requires the `currencyCode` to be
+          // the local currency of the `regionCode` it's paired with, so
+          // the base price can't simply be replicated across regions.
+          // Ask Play to convert it (same mechanism the one-time path
+          // uses) and write every region it returns — a base plan
+          // created with a lone US config is unbuyable everywhere else
+          // (issue #288). Conversion failure degrades to the base
+          // region plus a manual action rather than a hard failure.
           const basePlanId = basePlanIdForPeriod(row.billingPeriod);
+          const subscriptionBasePrice = microsToGoogleMoney(
+            row.priceAmountMicros,
+            row.currency,
+          );
+          const subscriptionConverted = dryRun
+            ? undefined
+            : await convertAndroidRegionPrices(
+                androidpublisher,
+                packageName,
+                subscriptionBasePrice,
+              );
+          const subscriptionRegionalConfigs = buildSubscriptionRegionalConfigs(
+            subscriptionConverted,
+            subscriptionBasePrice,
+            row.productId,
+          );
+          const subscriptionOtherRegions =
+            subscriptionConverted?.convertedOtherRegionsPrice;
+          if (!dryRun && !subscriptionConverted?.convertedRegionPrices) {
+            manualActions.push({
+              productId: row.productId,
+              code: "regional_pricing_incomplete",
+              message:
+                `Play could not convert ${row.currency} ${(row.priceAmountMicros / 1_000_000).toFixed(2)} into regional prices, so base plan "${basePlanId}" of "${row.productId}" ` +
+                `is available in ${subscriptionRegionalConfigs.length} region(s) only. Set the remaining regions in Play Console → the subscription's base plan → Set prices.`,
+            });
+          }
           if (dryRun) {
             plannedWrites.push({
               productId: row.productId,
               step: "create subscription",
-              detail: `${row.title} · base plan ${basePlanId} · ${row.billingPeriod ?? "P1M"} · ${row.currency} ${(row.priceAmountMicros / 1_000_000).toFixed(2)} (US)`,
+              detail: `${row.title} · base plan ${basePlanId} · ${row.billingPeriod ?? "P1M"} · ${row.currency} ${(row.priceAmountMicros / 1_000_000).toFixed(2)} (converted to all Play regions)`,
             });
             plannedWrites.push({
               productId: row.productId,
@@ -819,18 +856,19 @@ async function performAndroidSync(
                     autoRenewingBasePlanType: {
                       billingPeriodDuration: row.billingPeriod ?? "P1M",
                     },
-                    regionalConfigs: [
-                      {
-                        regionCode: "US",
-                        price: {
-                          currencyCode: row.currency,
-                          units: String(
-                            Math.trunc(row.priceAmountMicros / 1_000_000),
-                          ),
-                          nanos: (row.priceAmountMicros % 1_000_000) * 1_000,
-                        },
-                      },
-                    ],
+                    regionalConfigs: subscriptionRegionalConfigs,
+                    // Markets Play launches later. Requires both USD and
+                    // EUR, so it only goes out when conversion gave both.
+                    ...(subscriptionOtherRegions?.usdPrice &&
+                    subscriptionOtherRegions.eurPrice
+                      ? {
+                          otherRegionsConfig: {
+                            usdPrice: subscriptionOtherRegions.usdPrice,
+                            eurPrice: subscriptionOtherRegions.eurPrice,
+                            newSubscriberAvailability: true,
+                          },
+                        }
+                      : {}),
                   },
                 ],
               },
@@ -867,18 +905,20 @@ async function performAndroidSync(
                   : " · no price set"),
             });
           } else {
-            await upsertAndroidOneTimeProduct(
-              androidpublisher,
-              auth,
-              {
-                packageName,
-                productId: row.productId,
-                title: row.title,
-                description: row.description ?? row.title,
-                priceAmountMicros: row.priceAmountMicros,
-                currency: row.currency,
-              },
-              { allowCreate: true },
+            manualActions.push(
+              ...(await upsertAndroidOneTimeProduct(
+                androidpublisher,
+                auth,
+                {
+                  packageName,
+                  productId: row.productId,
+                  title: row.title,
+                  description: row.description ?? row.title,
+                  priceAmountMicros: row.priceAmountMicros,
+                  currency: row.currency,
+                },
+                { allowCreate: true },
+              )),
             );
           }
         }
@@ -920,6 +960,7 @@ async function performAndroidSync(
     ...(deleted > 0 ? { deleted } : {}),
     failures,
     plannedWrites: dryRun ? plannedWrites : undefined,
+    manualActions: manualActions.length > 0 ? manualActions : undefined,
   };
 }
 
@@ -960,26 +1001,33 @@ async function upsertAndroidOneTimeProduct(
   auth: Auth.GoogleAuth,
   args: AndroidOneTimeProductUpsertArgs,
   options: { allowCreate: boolean },
-): Promise<void> {
+): Promise<AndroidManualAction[]> {
   validateAndroidOneTimePrice(args);
+  const manualActions: AndroidManualAction[] = [];
 
   try {
-    await upsertModernAndroidOneTimeProduct(androidpublisher, args, options);
+    const outcome = await upsertModernAndroidOneTimeProduct(
+      androidpublisher,
+      args,
+      options,
+    );
+    if (outcome.manualAction) manualActions.push(outcome.manualAction);
   } catch (error) {
     if (!shouldFallbackToLegacyOneTimeProduct(error, options)) throw error;
 
     if (options.allowCreate) {
       await insertLegacyAndroidOneTimeProduct(androidpublisher, args);
-      return;
+      return manualActions;
     }
     await patchLegacyAndroidOneTimeProduct(androidpublisher, args);
-    return;
+    return manualActions;
   }
 
   // Activation errors describe the modern product we just upserted and must
   // not be reclassified as evidence that the product belongs to the legacy
   // catalog.
   await activateAndroidOneTimePurchaseOption(auth, args);
+  return manualActions;
 }
 
 function validateAndroidOneTimePrice(
@@ -990,21 +1038,164 @@ function validateAndroidOneTimePrice(
       "One-time product requires priceAmountMicros + currency to mint a Play purchase option; otherwise the product will not be purchasable.",
     );
   }
-  if (args.currency !== "USD") {
+}
+
+/**
+ * Asks Play to convert one base price into every region it sells in.
+ *
+ * Play has no `autoConvertMissingPrices` equivalent on the modern
+ * one-time-product API, so the only way to publish a product that is
+ * buyable outside the base region is to call this first and write every
+ * returned region explicitly (issue #288). Returns undefined when the
+ * conversion is unavailable, so callers can degrade to a single-region
+ * write plus a manual action instead of failing the whole push.
+ */
+async function convertAndroidRegionPrices(
+  androidpublisher: androidpublisher_v3.Androidpublisher,
+  packageName: string,
+  price: androidpublisher_v3.Schema$Money,
+): Promise<androidpublisher_v3.Schema$ConvertRegionPricesResponse | undefined> {
+  try {
+    const response = await androidpublisher.monetization.convertRegionPrices({
+      packageName,
+      requestBody: { price },
+    });
+    return response.data;
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Builds the regional pricing rows for a purchase option.
+ *
+ * `existingByRegion` carries the product's current configs on an update:
+ * a region Play already knows about keeps its own availability so a
+ * price refresh can never revoke a market, and regions Play returned
+ * prices for but the product doesn't have yet are only added on create.
+ * That asymmetry is deliberate — an operator who deliberately withdrew a
+ * region in Play Console must not have it silently reinstated by a
+ * routine price edit.
+ */
+function buildRegionalPricingConfigs(
+  converted: androidpublisher_v3.Schema$ConvertRegionPricesResponse | undefined,
+  basePrice: androidpublisher_v3.Schema$Money,
+  productId: string,
+  existingByRegion: Map<
+    string,
+    androidpublisher_v3.Schema$OneTimeProductPurchaseOptionRegionalPricingAndAvailabilityConfig
+  >,
+): androidpublisher_v3.Schema$OneTimeProductPurchaseOptionRegionalPricingAndAvailabilityConfig[] {
+  const configs = new Map<
+    string,
+    androidpublisher_v3.Schema$OneTimeProductPurchaseOptionRegionalPricingAndAvailabilityConfig
+  >();
+
+  for (const [regionCode, regionPrice] of Object.entries(
+    converted?.convertedRegionPrices ?? {},
+  )) {
+    if (!regionPrice.price) continue;
+    const existing = existingByRegion.get(regionCode);
+    configs.set(regionCode, {
+      regionCode,
+      // Play rejects a config that pairs a region with a currency that
+      // isn't its own, so the converted Money is the only safe price
+      // here — never the operator's base-currency amount.
+      price: regionPrice.price,
+      availability: existing?.availability ?? "AVAILABLE",
+    });
+  }
+
+  // Regions Play didn't return a conversion for (or the whole set when
+  // conversion failed) keep whatever they already had, so an update
+  // never drops a market from the product.
+  for (const [regionCode, existing] of existingByRegion) {
+    if (configs.has(regionCode)) continue;
+    configs.set(regionCode, existing);
+  }
+
+  if (configs.size === 0) {
+    // Nothing to preserve and no conversion — fall back to the base
+    // region so the product is at least purchasable somewhere. The
+    // caller reports this as a manual action rather than a silent
+    // success.
+    configs.set(assertUsdFallbackRegion(basePrice, productId), {
+      regionCode: "US",
+      availability: "AVAILABLE",
+      price: basePrice,
+    });
+  }
+
+  return Array.from(configs.values());
+}
+
+/**
+ * Guards the single-region fallback used when Play's price conversion is
+ * unavailable.
+ *
+ * Play requires a region's config to carry that region's own currency,
+ * so only a USD price may be published to the US fallback. A non-USD
+ * price would 400 with a generic message; fail here instead with one
+ * that says what to do. (Before issue #288 this constraint was enforced
+ * by rejecting every non-USD product outright — now it only applies on
+ * the degraded path, because conversion normally supplies each region's
+ * local currency.)
+ */
+function assertUsdFallbackRegion(
+  basePrice: androidpublisher_v3.Schema$Money,
+  productId: string,
+): string {
+  if (basePrice.currencyCode !== "USD") {
     throw new Error(
-      `One-time product "${args.productId}" has currency "${args.currency}" but the kit→Play push currently only supports the US region (USD). Set the price in USD on the dashboard, or pre-create the product in Play Console with your preferred regional pricing and let the next pull-sync mirror it back into kit.`,
+      `Play could not convert ${basePrice.currencyCode} into regional prices for "${productId}", and a non-USD amount cannot be published to the US fallback region. Retry the sync, or set this product's regional prices in Play Console and let the next pull-sync mirror them back.`,
     );
   }
+  return "US";
+}
+
+/**
+ * Regional base-plan configs for a subscription create.
+ *
+ * Same contract as {@link buildRegionalPricingConfigs} minus the merge
+ * arm: `subscriptions.create` only ever runs for a subscription that
+ * doesn't exist upstream yet, so there is nothing to preserve.
+ */
+export function buildSubscriptionRegionalConfigs(
+  converted: androidpublisher_v3.Schema$ConvertRegionPricesResponse | undefined,
+  basePrice: androidpublisher_v3.Schema$Money,
+  productId: string,
+): androidpublisher_v3.Schema$RegionalBasePlanConfig[] {
+  const configs: androidpublisher_v3.Schema$RegionalBasePlanConfig[] = [];
+
+  for (const [regionCode, regionPrice] of Object.entries(
+    converted?.convertedRegionPrices ?? {},
+  )) {
+    if (!regionPrice.price) continue;
+    configs.push({
+      regionCode,
+      price: regionPrice.price,
+      newSubscriberAvailability: true,
+    });
+  }
+
+  if (configs.length === 0) {
+    configs.push({
+      regionCode: assertUsdFallbackRegion(basePrice, productId),
+      price: basePrice,
+      newSubscriberAvailability: true,
+    });
+  }
+
+  return configs;
 }
 
 function buildAndroidOneTimeProduct(
   args: AndroidOneTimeProductUpsertArgs,
+  regionalPricingAndAvailabilityConfigs: androidpublisher_v3.Schema$OneTimeProductPurchaseOptionRegionalPricingAndAvailabilityConfig[],
+  newRegionsConfig:
+    | androidpublisher_v3.Schema$OneTimeProductPurchaseOptionNewRegionsConfig
+    | undefined,
 ): androidpublisher_v3.Schema$OneTimeProduct {
-  if (args.priceAmountMicros === undefined || !args.currency) {
-    throw new Error(
-      "One-time product requires priceAmountMicros + currency to mint a Play purchase option; otherwise the product will not be purchasable.",
-    );
-  }
   return {
     packageName: args.packageName,
     productId: args.productId,
@@ -1022,23 +1213,104 @@ function buildAndroidOneTimeProduct(
           legacyCompatible: true,
           multiQuantityEnabled: false,
         },
-        regionalPricingAndAvailabilityConfigs: [
-          {
-            regionCode: "US",
-            availability: "AVAILABLE",
-            price: microsToGoogleMoney(args.priceAmountMicros, args.currency),
-          },
-        ],
+        regionalPricingAndAvailabilityConfigs,
+        ...(newRegionsConfig ? { newRegionsConfig } : {}),
       },
     ],
   };
+}
+
+/**
+ * Reads the product's current `buy` purchase-option regional configs.
+ *
+ * `updateMask: "purchaseOptions"` makes Play REPLACE the repeated field,
+ * so an update that doesn't first read what's there wipes every region
+ * it omits. Returns an empty map when the product doesn't exist yet or
+ * can't be read — the caller then treats the write as a create.
+ */
+async function readExistingRegionalConfigs(
+  androidpublisher: androidpublisher_v3.Androidpublisher,
+  args: AndroidOneTimeProductUpsertArgs,
+): Promise<
+  Map<
+    string,
+    androidpublisher_v3.Schema$OneTimeProductPurchaseOptionRegionalPricingAndAvailabilityConfig
+  >
+> {
+  const existing = new Map<
+    string,
+    androidpublisher_v3.Schema$OneTimeProductPurchaseOptionRegionalPricingAndAvailabilityConfig
+  >();
+
+  let product: androidpublisher_v3.Schema$OneTimeProduct | undefined;
+  try {
+    const response = await androidpublisher.monetization.onetimeproducts.get({
+      packageName: args.packageName,
+      productId: args.productId,
+    });
+    product = response.data;
+  } catch (error) {
+    if (isGoogleNotFoundError(error)) return existing;
+    throw error;
+  }
+
+  const buyOption = (product.purchaseOptions ?? []).find(
+    (option) => option.purchaseOptionId === "buy",
+  );
+  for (const config of buyOption?.regionalPricingAndAvailabilityConfigs ?? []) {
+    if (config.regionCode) existing.set(config.regionCode, config);
+  }
+  return existing;
 }
 
 export async function upsertModernAndroidOneTimeProduct(
   androidpublisher: androidpublisher_v3.Androidpublisher,
   args: AndroidOneTimeProductUpsertArgs,
   options: { allowCreate: boolean },
-): Promise<void> {
+): Promise<{ manualAction?: AndroidManualAction }> {
+  if (args.priceAmountMicros === undefined || !args.currency) {
+    throw new Error(
+      "One-time product requires priceAmountMicros + currency to mint a Play purchase option; otherwise the product will not be purchasable.",
+    );
+  }
+  const basePrice = microsToGoogleMoney(args.priceAmountMicros, args.currency);
+
+  // Read before write: `updateMask: "purchaseOptions"` replaces the
+  // repeated field wholesale, so an update that skipped this would strip
+  // every region the operator has configured in Play Console. The read
+  // also runs on the create path — `allowMissing` upserts, so a "create"
+  // can land on a product that already exists (retry after a partial
+  // sync) and must not flatten it either.
+  const existingByRegion = await readExistingRegionalConfigs(
+    androidpublisher,
+    args,
+  );
+
+  const converted = await convertAndroidRegionPrices(
+    androidpublisher,
+    args.packageName,
+    basePrice,
+  );
+  const regionalConfigs = buildRegionalPricingConfigs(
+    converted,
+    basePrice,
+    args.productId,
+    existingByRegion,
+  );
+
+  // "Other regions" pricing covers markets Play launches later. Play
+  // requires both USD and EUR here, so it only goes out when the
+  // conversion supplied both.
+  const otherRegions = converted?.convertedOtherRegionsPrice;
+  const newRegionsConfig =
+    otherRegions?.usdPrice && otherRegions.eurPrice
+      ? {
+          availability: "AVAILABLE",
+          usdPrice: otherRegions.usdPrice,
+          eurPrice: otherRegions.eurPrice,
+        }
+      : undefined;
+
   // The generated method owns the PATCH route. In googleapis v157 the
   // upsert route is the lowercase `/onetimeproducts/{productId}` path,
   // which differs from the camel-case routes used by sibling methods.
@@ -1048,8 +1320,27 @@ export async function upsertModernAndroidOneTimeProduct(
     allowMissing: options.allowCreate,
     updateMask: "listings,purchaseOptions",
     "regionsVersion.version": "2022/01",
-    requestBody: buildAndroidOneTimeProduct(args),
+    requestBody: buildAndroidOneTimeProduct(
+      args,
+      regionalConfigs,
+      newRegionsConfig,
+    ),
   });
+
+  if (converted?.convertedRegionPrices) return {};
+
+  // Conversion failed. The product still went out — but only for the
+  // regions we could account for, so say so instead of reporting a
+  // clean success the operator would read as "available everywhere".
+  return {
+    manualAction: {
+      productId: args.productId,
+      code: "regional_pricing_incomplete",
+      message:
+        `Play could not convert ${args.currency} ${(args.priceAmountMicros / 1_000_000).toFixed(2)} into regional prices, so "${args.productId}" ` +
+        `is available in ${regionalConfigs.length} region(s) only. Set the remaining regions in Play Console → the product's purchase option → Set prices.`,
+    },
+  };
 }
 
 async function insertLegacyAndroidOneTimeProduct(
@@ -1058,6 +1349,10 @@ async function insertLegacyAndroidOneTimeProduct(
 ): Promise<void> {
   await androidpublisher.inappproducts.insert({
     packageName: args.packageName,
+    // Without this the legacy API prices the SKU in the merchant
+    // currency only and leaves every other region unbuyable — the
+    // legacy-path half of issue #288.
+    autoConvertMissingPrices: true,
     requestBody: {
       packageName: args.packageName,
       sku: args.productId,
@@ -1085,6 +1380,7 @@ async function patchLegacyAndroidOneTimeProduct(
   await androidpublisher.inappproducts.patch({
     packageName: args.packageName,
     sku: args.productId,
+    autoConvertMissingPrices: true,
     requestBody: {
       packageName: args.packageName,
       sku: args.productId,
