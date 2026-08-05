@@ -15,7 +15,7 @@
 
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { dirname, join } from 'node:path';
+import { dirname, join, resolve } from 'node:path';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const DATA_PATH = join(HERE, '..', 'showcase-apps.json');
@@ -133,108 +133,157 @@ async function appleRatings(iosUrl) {
   return { ratings, markets };
 }
 
-async function playMetrics(androidUrl) {
-  const packageName = /[?&]id=([^&]+)/.exec(androidUrl)?.[1];
-  if (!packageName) return {};
-  const html = await fetchText(
-    `https://play.google.com/store/apps/details?id=${packageName}&hl=en&gl=US`
-  );
-  const reviews = /">([\d.,]+\s*[KMB]?)\s*reviews</i.exec(html)?.[1];
+// Text nodes that end in "reviews" but are chrome, not a count.
+const PLAY_REVIEW_CHROME = /^(ratings and reviews|reviews|all reviews)$/i;
+
+/**
+ * Extracts Play metrics from a store page, fail-closed.
+ *
+ * Play omits the review element entirely for apps with few or no reviews, so an
+ * absent count is a legitimate zero. Anything else is treated as our selectors
+ * having drifted from Play's markup, which must not be written over a real
+ * number:
+ *
+ * - install block missing → the page shape changed (it renders on every app
+ *   page, so it is the canary that our selectors still match)
+ * - a count-shaped review node present but unparseable → the review markup
+ *   changed underneath us
+ */
+export function parsePlayMetrics(html, packageName = 'app') {
   const installs = />([\d.,]+\s*[KMB]?\+)<\/div><div class="[^"]+">Downloads</i.exec(
     html
   )?.[1];
-
-  // Play omits the review element entirely for apps with few or no reviews, so
-  // a missing count is legitimate. The install block renders on every app page,
-  // which makes it the canary for "our selectors still match Play's markup" —
-  // without it we cannot tell a real zero from a broken scrape, so fail instead
-  // of overwriting good numbers with zeros.
   if (installs === undefined) {
     throw new Error(
       `install count not found for ${packageName} — Play markup likely changed`
     );
   }
 
-  return {
-    ratings: reviews ? parseCompact(reviews) : 0,
-    installs: parseCompact(installs),
-  };
+  const reviews = /">([\d.,]+\s*[KMB]?)\s*reviews</i.exec(html)?.[1];
+  if (reviews !== undefined) {
+    const parsed = parseCompact(reviews);
+    if (parsed === undefined) {
+      throw new Error(
+        `review count "${reviews}" not parseable for ${packageName}`
+      );
+    }
+    return { ratings: parsed, installs: parseCompact(installs) };
+  }
+
+  const orphaned = [...html.matchAll(/>([^<]{0,40}?reviews)</gi)]
+    .map((match) => match[1].trim())
+    .filter((text) => !PLAY_REVIEW_CHROME.test(text))
+    .filter((text) => /\d/.test(text));
+
+  if (orphaned.length > 0) {
+    throw new Error(
+      `found review element "${orphaned[0]}" but could not read its count for ${packageName}`
+    );
+  }
+
+  return { ratings: 0, installs: parseCompact(installs) };
 }
 
-const data = JSON.parse(await readFile(DATA_PATH, 'utf8'));
-let changed = 0;
-
-let stale = 0;
-
-for (const app of data.apps) {
-  // Web-only entries have no store to measure; leave whatever is on record
-  // instead of writing a zero that looks like a real reading.
-  if (!app.ios && !app.android) {
-    console.log(`  ${app.name}: no store links — metrics left untouched`);
-    continue;
-  }
-
-  let ratings = 0;
-  let installs;
-  let appleMarkets = 0;
-  let incomplete = false;
-
-  if (app.ios) {
-    try {
-      const apple = await appleRatings(app.ios);
-      ratings += apple.ratings ?? 0;
-      appleMarkets = apple.markets;
-    } catch (error) {
-      console.warn(`  ! ${app.name}: App Store — ${error.message}`);
-      incomplete = true;
-    }
-  }
-
-  if (app.android) {
-    try {
-      const play = await playMetrics(app.android);
-      ratings += play.ratings ?? 0;
-      installs = play.installs;
-    } catch (error) {
-      console.warn(`  ! ${app.name}: Play — ${error.message}`);
-      incomplete = true;
-    }
-  }
-
-  if (incomplete) {
-    // Keep the previous numbers rather than replacing them with a partial sweep.
-    stale += 1;
-    console.log(`  ${app.name}: kept existing ratings=${app.ratings ?? 0}`);
-    continue;
-  }
-
-  const nextInstalls = installs ?? app.installs;
-  if (app.ratings !== ratings || app.installs !== nextInstalls) changed += 1;
-
-  app.ratings = ratings;
-  if (nextInstalls === undefined) delete app.installs;
-  else app.installs = nextInstalls;
-
-  console.log(
-    `  ${app.name}: ratings=${ratings}` +
-      (appleMarkets ? ` (App Store in ${appleMarkets} markets)` : '') +
-      (nextInstalls === undefined ? '' : ` installs=${nextInstalls}`)
+async function playMetrics(androidUrl) {
+  const packageName = /[?&]id=([^&]+)/.exec(androidUrl)?.[1];
+  if (!packageName) return {};
+  const html = await fetchText(
+    `https://play.google.com/store/apps/details?id=${packageName}&hl=en&gl=US`
   );
+  return parsePlayMetrics(html, packageName);
 }
 
-await writeFile(DATA_PATH, `${JSON.stringify(data, null, 2)}\n`);
+async function main() {
+  const data = JSON.parse(await readFile(DATA_PATH, 'utf8'));
+  let changed = 0;
 
-const ranking = [...data.apps]
-  .sort(
-    (a, b) =>
-      (b.ratings ?? 0) - (a.ratings ?? 0) ||
-      (b.installs ?? 0) - (a.installs ?? 0)
-  )
-  .map((app, index) => `  ${index + 1}. ${app.name} (${app.ratings ?? 0})`)
-  .join('\n');
+  let stale = 0;
 
-console.log(`\nUpdated ${changed} of ${data.apps.length} entries.`);
-if (stale > 0) {
-  console.log(`${stale} kept previous numbers — rerun to refresh them.`);
+  for (const app of data.apps) {
+    // Web-only entries have no store to measure; leave whatever is on record
+    // instead of writing a zero that looks like a real reading.
+    if (!app.ios && !app.android) {
+      console.log(`  ${app.name}: no store links — metrics left untouched`);
+      continue;
+    }
+
+    let ratings = 0;
+    let installs;
+    let appleMarkets = 0;
+    let incomplete = false;
+
+    if (app.ios) {
+      try {
+        const apple = await appleRatings(app.ios);
+        ratings += apple.ratings ?? 0;
+        appleMarkets = apple.markets;
+      } catch (error) {
+        console.warn(`  ! ${app.name}: App Store — ${error.message}`);
+        incomplete = true;
+      }
+    }
+
+    if (app.android) {
+      try {
+        const play = await playMetrics(app.android);
+        ratings += play.ratings ?? 0;
+        installs = play.installs;
+      } catch (error) {
+        console.warn(`  ! ${app.name}: Play — ${error.message}`);
+        incomplete = true;
+      }
+    }
+
+    // Last line of defence: every reading can look individually valid and still
+    // collapse a real count to zero if a selector drifts silently. Losing an
+    // established count is always a regression, never a legitimate reading.
+    if (ratings === 0 && (app.ratings ?? 0) > 0) {
+      incomplete = true;
+      console.warn(
+        `  ! ${app.name}: refusing to drop ratings ${app.ratings} → 0 — check the store selectors`
+      );
+    }
+
+    if (incomplete) {
+      // Keep the previous numbers rather than replacing them with a partial sweep.
+      stale += 1;
+      console.log(`  ${app.name}: kept existing ratings=${app.ratings ?? 0}`);
+      continue;
+    }
+
+    const nextInstalls = installs ?? app.installs;
+    if (app.ratings !== ratings || app.installs !== nextInstalls) changed += 1;
+
+    app.ratings = ratings;
+    if (nextInstalls === undefined) delete app.installs;
+    else app.installs = nextInstalls;
+
+    console.log(
+      `  ${app.name}: ratings=${ratings}` +
+        (appleMarkets ? ` (App Store in ${appleMarkets} markets)` : '') +
+        (nextInstalls === undefined ? '' : ` installs=${nextInstalls}`)
+    );
+  }
+
+  await writeFile(DATA_PATH, `${JSON.stringify(data, null, 2)}\n`);
+
+  const ranking = [...data.apps]
+    .sort(
+      (a, b) =>
+        (b.ratings ?? 0) - (a.ratings ?? 0) ||
+        (b.installs ?? 0) - (a.installs ?? 0)
+    )
+    .map((app, index) => `  ${index + 1}. ${app.name} (${app.ratings ?? 0})`)
+    .join('\n');
+
+  console.log(`\nUpdated ${changed} of ${data.apps.length} entries.`);
+  if (stale > 0) {
+    console.log(`${stale} kept previous numbers — rerun to refresh them.`);
+  }
+  console.log(`\nRanking\n${ranking}`);
 }
-console.log(`\nRanking\n${ranking}`);
+
+// Only refresh when run directly; importing for tests must stay side-effect free.
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  await main();
+}

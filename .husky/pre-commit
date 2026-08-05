@@ -176,6 +176,7 @@ if git diff --cached --name-only --diff-filter=ACMR \
   bun install --frozen-lockfile
   bun run --filter @hyodotdev/openiap-docs typecheck
   bun test "$REPO_ROOT/scripts/audit-docs.test.ts"
+  bun run --filter @hyodotdev/openiap-docs showcase:metrics:test
   bun run audit:docs
   (
     cd packages/docs && bunx prettier --check "src/**/*.{ts,tsx,css}"
