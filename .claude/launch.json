@@ -6,6 +6,20 @@
       "runtimeExecutable": "bun",
       "runtimeArgs": ["run", "--cwd", "packages/docs", "dev"],
       "port": 5173
+    },
+    {
+      "name": "kit-dashboard",
+      "runtimeExecutable": "bun",
+      "runtimeArgs": [
+        "run",
+        "--cwd",
+        "packages/kit",
+        "vite",
+        "--port",
+        "5174",
+        "--strictPort"
+      ],
+      "port": 5174
     }
   ]
 }

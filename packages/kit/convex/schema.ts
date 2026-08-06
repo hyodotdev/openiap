@@ -900,6 +900,12 @@ const schema = defineSchema({
         v.null(),
       ),
     ),
+    // Sales regions. Unset means "every region Play prices", which is
+    // the behaviour that fixes issue #288; a list restricts the product
+    // to exactly those markets. Nullable for the same reason
+    // `localizations` is — Convex treats `undefined` in a patch as
+    // "leave unchanged", so clearing needs an explicit null.
+    regions: v.optional(v.union(v.array(v.string()), v.null())),
     priceAmountMicros: v.optional(v.number()),
     currency: v.optional(v.string()),
     state: v.union(

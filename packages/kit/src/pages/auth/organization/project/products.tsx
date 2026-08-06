@@ -123,6 +123,9 @@ export default function ProjectProducts() {
   const [localizations, setLocalizations] = useState<
     Array<{ locale: string; title: string; description: string }>
   >([]);
+  // Comma-separated ISO region codes. Blank means "every region the
+  // store prices", which is the default that fixes US-only products.
+  const [regionsInput, setRegionsInput] = useState("");
   // Typing an existing productId means "edit this row", so show the
   // locales it already has. Without this the field is write-only: the
   // editor would look empty and the operator would have no way to see,
@@ -149,9 +152,13 @@ export default function ProjectProducts() {
       // row's translations — otherwise the next save would publish one
       // product's locales onto another. Rows typed for a brand-new
       // product (we were never editing) are left alone.
-      if (wasEditing) setLocalizations([]);
+      if (wasEditing) {
+        setLocalizations([]);
+        setRegionsInput("");
+      }
       return;
     }
+    setRegionsInput((editingExisting.regions ?? []).join(", "));
     setLocalizations(
       (editingExisting.localizations ?? []).map((entry) => ({
         locale: entry.locale,
@@ -310,6 +317,10 @@ export default function ProjectProducts() {
       toast.error("Every language needs both a locale and a title");
       return;
     }
+    const parsedRegions = regionsInput
+      .split(",")
+      .map((code) => code.trim())
+      .filter(Boolean);
     const filledLocalizations = touchedLocalizations.map((entry) => ({
       locale: entry.locale.trim(),
       title: entry.title.trim(),
@@ -328,13 +339,19 @@ export default function ProjectProducts() {
         billingPeriod,
         subscriptionGroupName,
         reviewNote,
-        // Undefined rather than [] when the operator added no languages,
-        // so re-submitting an existing productId to change its price
-        // preserves the locales already stored — same preserve-on-blank
-        // contract `description` has. Clearing every localization is a
-        // Play Console / ASC action, not something this add form can express.
+        // Editing an existing row prefills every stored locale and
+        // region, so an empty list there is a deliberate delete-all and
+        // must be sent as `[]` for the mutation to clear it. `undefined`
+        // is only for a brand-new row, where nothing was prefilled and
+        // an empty list just means "not specified".
         localizations:
-          filledLocalizations.length > 0 ? filledLocalizations : undefined,
+          editingExisting || filledLocalizations.length > 0
+            ? filledLocalizations
+            : undefined,
+        regions:
+          editingExisting || parsedRegions.length > 0
+            ? parsedRegions
+            : undefined,
         state: "Draft",
       });
     } catch (error) {
@@ -356,6 +373,7 @@ export default function ProjectProducts() {
       reviewNote: "",
     });
     setLocalizations([]);
+    setRegionsInput("");
   };
 
   const onSync = async (
@@ -601,6 +619,20 @@ export default function ProjectProducts() {
             />
           </Field>
         </div>
+        <Field label="Sales regions (optional)">
+          <input
+            value={regionsInput}
+            onChange={(e) => setRegionsInput(e.target.value)}
+            placeholder="Leave blank to sell everywhere — or e.g. US, KR, JP"
+            className="w-full px-2 py-1.5 rounded border border-border bg-background"
+          />
+          <p className="mt-1 text-[10px] text-muted-foreground">
+            Two-letter country codes, comma separated. Blank prices the product
+            in every region the store supports, converted from the price above.
+            A list restricts it to those markets and keeps it out of regions the
+            store adds later.
+          </p>
+        </Field>
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-muted-foreground">

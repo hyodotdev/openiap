@@ -7,6 +7,7 @@ import {
   normalizeProductLocalizations,
   productLocalizationsValidator,
 } from "./localizations";
+import { normalizeProductRegions, productRegionsValidator } from "./regions";
 import {
   resolveProjectByApiKeyFromDb,
   resolveProjectByIdForCurrentUserFromDb,
@@ -550,6 +551,7 @@ export const upsertProduct = mutation({
     title: v.string(),
     description: v.optional(v.string()),
     localizations: v.optional(productLocalizationsValidator),
+    regions: v.optional(productRegionsValidator),
     priceAmountMicros: v.optional(v.number()),
     currency: v.optional(v.string()),
     billingPeriod: v.optional(
@@ -594,6 +596,7 @@ export const upsertProduct = mutation({
       args.localizations,
       args.platform,
     );
+    const regions = normalizeProductRegions(args.regions);
 
     // iOS subscriptions REQUIRE a subscriptionGroupName upstream —
     // related tiers must share a group for StoreKit 2's native
@@ -644,6 +647,8 @@ export const upsertProduct = mutation({
           args.localizations === undefined
             ? existing.localizations
             : (localizations ?? null),
+        regions:
+          args.regions === undefined ? existing.regions : (regions ?? null),
         priceAmountMicros: args.priceAmountMicros ?? existing.priceAmountMicros,
         currency: args.currency ?? existing.currency,
         billingPeriod: args.billingPeriod ?? existing.billingPeriod,
@@ -681,6 +686,7 @@ export const upsertProduct = mutation({
       title: args.title,
       description: args.description,
       localizations,
+      regions,
       priceAmountMicros: args.priceAmountMicros,
       currency: args.currency,
       billingPeriod: args.billingPeriod,

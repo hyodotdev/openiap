@@ -369,6 +369,12 @@ function registerIapKitTools(server: McpServer) {
         .describe(
           'Store-listing text in other languages. `title` / `description` above are the base en-US listing; these add locales on top. Regional PRICING is converted automatically and is not configured here. Omit "en-US" — it is the base listing.',
         ),
+      regions: z
+        .array(z.string())
+        .optional()
+        .describe(
+          'Two-letter ISO 3166-1 region codes the product is sold in, e.g. ["US","KR","JP"]. Omit to price it in every region the store supports (converted automatically), which is the default. An explicit list also keeps the product out of regions the store adds later.',
+        ),
       priceAmountMicros: PRICE_AMOUNT_MICROS_PARAM.optional(),
       currency: z.string().optional(),
       billingPeriod: z
@@ -407,6 +413,7 @@ function registerIapKitTools(server: McpServer) {
             title: args.title,
             description: args.description,
             localizations: args.localizations,
+            regions: args.regions,
             priceAmountMicros: args.priceAmountMicros,
             currency: args.currency,
             billingPeriod: args.billingPeriod,

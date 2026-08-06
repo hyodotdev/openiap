@@ -752,7 +752,10 @@ async function performAndroidSync(
                   // (https://github.com/hyodotdev/openiap/pull/124)
                   // review. The googleapis SDK exposes this as a flat
                   // querystring param (`regionsVersion.version`).
-                  "regionsVersion.version": "2022/01",
+                  // This patch masks `listings` only and sends no
+                  // prices, so no conversion has to be aligned with and
+                  // the historical pin stays correct.
+                  "regionsVersion.version": FALLBACK_REGIONS_VERSION,
                   requestBody: {
                     productId: row.storeRef,
                     listings: await mergedSubscriptionListings(
@@ -802,6 +805,7 @@ async function performAndroidSync(
                       title: row.title,
                       description: row.description ?? row.title,
                       localizations: row.localizations,
+                      regions: row.regions,
                       priceAmountMicros: row.priceAmountMicros,
                       currency: row.currency,
                     },
@@ -879,14 +883,19 @@ async function performAndroidSync(
               subscriptionBasePrice,
             );
             const subscriptionConverted = subscriptionConversion.response;
+            const subscriptionAllowedRegions = row.regions?.length
+              ? new Set(row.regions)
+              : undefined;
             const subscriptionRegionalConfigs =
               buildSubscriptionRegionalConfigs(
                 subscriptionConverted,
                 subscriptionBasePrice,
                 row.productId,
+                subscriptionAllowedRegions,
               );
-            const subscriptionOtherRegions =
-              subscriptionConverted?.convertedOtherRegionsPrice;
+            const subscriptionOtherRegions = subscriptionAllowedRegions
+              ? undefined
+              : subscriptionConverted?.convertedOtherRegionsPrice;
             if (convertedRegionCount(subscriptionConverted) === 0) {
               manualActions.push({
                 productId: row.productId,
@@ -908,7 +917,9 @@ async function performAndroidSync(
               // shape changed). The request 400s without it. The
               // googleapis SDK exposes this as a flat querystring
               // param (`regionsVersion.version`).
-              "regionsVersion.version": "2022/01",
+              "regionsVersion.version": regionsVersionFor(
+                subscriptionConverted,
+              ),
               requestBody: {
                 productId: row.productId,
                 listings: listingRowsForProduct(row).map((listing) => ({
@@ -986,6 +997,7 @@ async function performAndroidSync(
                   title: row.title,
                   description: row.description ?? row.title,
                   localizations: row.localizations,
+                  regions: row.regions,
                   priceAmountMicros: row.priceAmountMicros,
                   currency: row.currency,
                 },
@@ -1118,6 +1130,7 @@ interface AndroidOneTimeProductUpsertArgs {
   title: string;
   description: string;
   localizations?: ProductLocalization[];
+  regions?: string[];
   priceAmountMicros?: number;
   currency?: string;
 }
@@ -1235,6 +1248,26 @@ function validateAndroidOneTimePrice(
  * and ships the product US-only while reporting a clean sync. Every
  * decision that depends on "did conversion work" must go through this.
  */
+/**
+ * Regions version to write a resource at.
+ *
+ * `convertRegionPrices` always converts using Play's CURRENT region
+ * definitions, but a write is validated against whatever version the
+ * request pins. Pinning an older version than the conversion used makes
+ * Play reject the write for any region whose currency changed since —
+ * e.g. Bulgaria moved from BGN to EUR, and a 2022/01 write of a
+ * freshly-converted EUR price fails with "Expected BGN but got EUR".
+ * So the write follows the conversion's own version, falling back to the
+ * historical pin when there is no conversion to align with.
+ */
+const FALLBACK_REGIONS_VERSION = "2022/01";
+
+function regionsVersionFor(
+  converted: androidpublisher_v3.Schema$ConvertRegionPricesResponse | undefined,
+): string {
+  return converted?.regionVersion?.version ?? FALLBACK_REGIONS_VERSION;
+}
+
 function convertedRegionCount(
   converted: androidpublisher_v3.Schema$ConvertRegionPricesResponse | undefined,
 ): number {
@@ -1280,6 +1313,22 @@ async function convertAndroidRegionPrices(
  * how many regions actually took the new amount so the caller can say
  * plainly that the rest did not.
  */
+/**
+ * Marks a region unavailable while keeping its config.
+ *
+ * `NO_LONGER_AVAILABLE` is only legal for a region that is currently
+ * `AVAILABLE`, so anything already withdrawn (or never released) is left
+ * exactly as Play has it.
+ */
+function withdrawRegion(
+  existing: androidpublisher_v3.Schema$OneTimeProductPurchaseOptionRegionalPricingAndAvailabilityConfig,
+): androidpublisher_v3.Schema$OneTimeProductPurchaseOptionRegionalPricingAndAvailabilityConfig {
+  if (existing.availability && existing.availability !== "AVAILABLE") {
+    return existing;
+  }
+  return { ...existing, availability: "NO_LONGER_AVAILABLE" };
+}
+
 function buildRegionalPricingConfigs(
   converted: androidpublisher_v3.Schema$ConvertRegionPricesResponse | undefined,
   basePrice: androidpublisher_v3.Schema$Money,
@@ -1288,6 +1337,7 @@ function buildRegionalPricingConfigs(
     string,
     androidpublisher_v3.Schema$OneTimeProductPurchaseOptionRegionalPricingAndAvailabilityConfig
   >,
+  allowedRegions?: Set<string>,
 ): {
   configs: androidpublisher_v3.Schema$OneTimeProductPurchaseOptionRegionalPricingAndAvailabilityConfig[];
   repriced: number;
@@ -1303,6 +1353,15 @@ function buildRegionalPricingConfigs(
   )) {
     if (!regionPrice.price) continue;
     const existing = existingByRegion.get(regionCode);
+    // Play refuses to drop a region once a purchase option has it
+    // ("Cannot remove region once it has been added"), so an excluded
+    // region can only be withdrawn, never omitted — and a region the
+    // product doesn't have yet is simply not added.
+    if (allowedRegions && !allowedRegions.has(regionCode)) {
+      if (!existing) continue;
+      configs.set(regionCode, withdrawRegion(existing));
+      continue;
+    }
     configs.set(regionCode, {
       regionCode,
       // Play rejects a config that pairs a region with a currency that
@@ -1316,6 +1375,10 @@ function buildRegionalPricingConfigs(
 
   for (const [regionCode, existing] of existingByRegion) {
     if (configs.has(regionCode)) continue;
+    if (allowedRegions && !allowedRegions.has(regionCode)) {
+      configs.set(regionCode, withdrawRegion(existing));
+      continue;
+    }
     // Without a conversion the new amount is still legal in any region
     // already denominated in the base currency. Writing it there keeps
     // a price edit from being silently dropped on the degraded path.
@@ -1381,6 +1444,7 @@ export function buildSubscriptionRegionalConfigs(
   converted: androidpublisher_v3.Schema$ConvertRegionPricesResponse | undefined,
   basePrice: androidpublisher_v3.Schema$Money,
   productId: string,
+  allowedRegions?: Set<string>,
 ): androidpublisher_v3.Schema$RegionalBasePlanConfig[] {
   const configs: androidpublisher_v3.Schema$RegionalBasePlanConfig[] = [];
 
@@ -1388,6 +1452,7 @@ export function buildSubscriptionRegionalConfigs(
     converted?.convertedRegionPrices ?? {},
   )) {
     if (!regionPrice.price) continue;
+    if (allowedRegions && !allowedRegions.has(regionCode)) continue;
     configs.push({
       regionCode,
       price: regionPrice.price,
@@ -1548,17 +1613,29 @@ export async function upsertModernAndroidOneTimeProduct(
     basePrice,
   );
   const converted = conversion.response;
+  const allowedRegions = args.regions?.length
+    ? new Set(args.regions)
+    : undefined;
   const { configs: regionalConfigs, repriced } = buildRegionalPricingConfigs(
     converted,
     basePrice,
     args.productId,
     existing.regionsByCode,
+    allowedRegions,
   );
 
   // "Other regions" pricing covers markets Play launches later. Play
   // requires both USD and EUR here, so it only goes out when the
   // conversion supplied both.
-  const otherRegions = converted?.convertedOtherRegionsPrice;
+  // "Other regions" opts the product into markets Play launches later.
+  // With an explicit footprint that has to be OFF — and merely omitting
+  // it is not enough, because the existing purchase option is spread
+  // into the write and would carry a previously-enabled config forward.
+  // It has to be actively withdrawn.
+  const existingNewRegions = existing.buyOption?.newRegionsConfig;
+  const otherRegions = allowedRegions
+    ? undefined
+    : converted?.convertedOtherRegionsPrice;
   const newRegionsConfig =
     otherRegions?.usdPrice && otherRegions.eurPrice
       ? {
@@ -1566,7 +1643,9 @@ export async function upsertModernAndroidOneTimeProduct(
           usdPrice: otherRegions.usdPrice,
           eurPrice: otherRegions.eurPrice,
         }
-      : undefined;
+      : allowedRegions && existingNewRegions?.availability === "AVAILABLE"
+        ? { ...existingNewRegions, availability: "NO_LONGER_AVAILABLE" }
+        : undefined;
 
   // The generated method owns the PATCH route. In googleapis v157 the
   // upsert route is the lowercase `/onetimeproducts/{productId}` path,
@@ -1576,7 +1655,7 @@ export async function upsertModernAndroidOneTimeProduct(
     productId: args.productId,
     allowMissing: options.allowCreate,
     updateMask: "listings,purchaseOptions",
-    "regionsVersion.version": "2022/01",
+    "regionsVersion.version": regionsVersionFor(converted),
     requestBody: buildAndroidOneTimeProduct(
       args,
       regionalConfigs,

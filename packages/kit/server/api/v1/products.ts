@@ -226,6 +226,7 @@ async function handleUpsertProduct(c: Context, apiKey: string) {
       title?: unknown;
       description?: unknown;
     }>;
+    regions?: unknown;
   };
   if (
     !isNonBlankString(payload.productId) ||
@@ -269,6 +270,14 @@ async function handleUpsertProduct(c: Context, apiKey: string) {
         c,
         "localizations must be an array of { locale, title, description? } strings",
       );
+    }
+  }
+  if (payload.regions !== undefined) {
+    if (
+      !Array.isArray(payload.regions) ||
+      payload.regions.some((code) => typeof code !== "string")
+    ) {
+      return invalidInput(c, "regions must be an array of strings");
     }
   }
   if (!payload.title.trim()) {
@@ -327,6 +336,7 @@ async function handleUpsertProduct(c: Context, apiKey: string) {
       localizations: payload.localizations as
         | Array<{ locale: string; title: string; description?: string }>
         | undefined,
+      regions: payload.regions as string[] | undefined,
       priceAmountMicros: payload.priceAmountMicros,
       currency: payload.currency,
       billingPeriod: payload.billingPeriod,

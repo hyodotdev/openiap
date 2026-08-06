@@ -906,3 +906,152 @@ describe("empty conversion response", () => {
     expect(outcome.manualAction?.code).toBe("regional_pricing_incomplete");
   });
 });
+
+// Found by live Play E2E, not by review: `convertRegionPrices` always
+// converts using Play's CURRENT region definitions, so pinning an older
+// regions version on the write makes Play reject any region whose
+// currency changed since — "Invalid currency for region code BG …
+// Expected BGN but got EUR".
+describe("regions version alignment", () => {
+  it("writes at the version the conversion was computed at", async () => {
+    const { androidpublisher, requests } = stubAndroidPublisher({
+      convert: () => ({
+        regionVersion: { version: "2026/02" },
+        convertedRegionPrices: {
+          US: {
+            regionCode: "US",
+            price: { currencyCode: "USD", units: "24", nanos: 990_000_000 },
+          },
+        },
+      }),
+    });
+
+    await upsertModernAndroidOneTimeProduct(androidpublisher, BASE_ARGS, {
+      allowCreate: true,
+    });
+
+    expect(
+      new URL(String(patchRequest(requests)?.url)).searchParams.get(
+        "regionsVersion.version",
+      ),
+    ).toBe("2026/02");
+  });
+
+  it("falls back to the historical pin when there is no conversion", async () => {
+    const { androidpublisher, requests } = stubAndroidPublisher({
+      convert: () => {
+        throw Object.assign(new Error("nope"), { code: 500 });
+      },
+    });
+
+    await upsertModernAndroidOneTimeProduct(androidpublisher, BASE_ARGS, {
+      allowCreate: true,
+    });
+
+    expect(
+      new URL(String(patchRequest(requests)?.url)).searchParams.get(
+        "regionsVersion.version",
+      ),
+    ).toBe("2022/01");
+  });
+});
+
+// Play refuses to drop a region once a purchase option has it ("Cannot
+// remove region once it has been added"), so an explicit footprint has
+// to withdraw the others rather than omit them.
+describe("explicit sales regions", () => {
+  const converted = {
+    convertedRegionPrices: {
+      US: {
+        regionCode: "US",
+        price: { currencyCode: "USD", units: "24", nanos: 990_000_000 },
+      },
+      KR: {
+        regionCode: "KR",
+        price: { currencyCode: "KRW", units: "33000", nanos: 0 },
+      },
+      DE: {
+        regionCode: "DE",
+        price: { currencyCode: "EUR", units: "22", nanos: 0 },
+      },
+    },
+    convertedOtherRegionsPrice: {
+      usdPrice: { currencyCode: "USD", units: "24", nanos: 990_000_000 },
+      eurPrice: { currencyCode: "EUR", units: "22", nanos: 0 },
+    },
+  };
+
+  it("adds only the listed regions on a create", async () => {
+    const { androidpublisher, requests } = stubAndroidPublisher({
+      convert: () => converted,
+    });
+
+    await upsertModernAndroidOneTimeProduct(
+      androidpublisher,
+      { ...BASE_ARGS, regions: ["US", "KR"] },
+      { allowCreate: true },
+    );
+
+    const option = regionalConfigs(patchRequest(requests));
+    expect(
+      option?.regionalPricingAndAvailabilityConfigs?.map((c) => c.regionCode),
+    ).toEqual(["US", "KR"]);
+    // An explicit footprint must not opt into markets Play adds later.
+    expect(option?.newRegionsConfig).toBeUndefined();
+  });
+
+  it("withdraws an excluded region instead of removing it", async () => {
+    const { androidpublisher, requests } = stubAndroidPublisher({
+      get: () => ({
+        purchaseOptions: [
+          {
+            purchaseOptionId: "buy",
+            newRegionsConfig: {
+              availability: "AVAILABLE",
+              usdPrice: { currencyCode: "USD", units: "19", nanos: 0 },
+              eurPrice: { currencyCode: "EUR", units: "17", nanos: 0 },
+            },
+            regionalPricingAndAvailabilityConfigs: [
+              {
+                regionCode: "US",
+                availability: "AVAILABLE",
+                price: { currencyCode: "USD", units: "19", nanos: 0 },
+              },
+              {
+                regionCode: "DE",
+                availability: "AVAILABLE",
+                price: { currencyCode: "EUR", units: "17", nanos: 0 },
+              },
+            ],
+          },
+        ],
+      }),
+      convert: () => converted,
+    });
+
+    await upsertModernAndroidOneTimeProduct(
+      androidpublisher,
+      { ...BASE_ARGS, regions: ["US", "KR"] },
+      { allowCreate: false },
+    );
+
+    const option = regionalConfigs(patchRequest(requests));
+    const byRegion = new Map(
+      (option?.regionalPricingAndAvailabilityConfigs ?? []).map((c) => [
+        c.regionCode,
+        c,
+      ]),
+    );
+    expect(byRegion.get("US")?.availability).toBe("AVAILABLE");
+    expect(byRegion.get("KR")?.availability).toBe("AVAILABLE");
+    // DE stays in the list — Play won't accept its removal — but stops
+    // being sellable.
+    expect(byRegion.get("DE")?.availability).toBe("NO_LONGER_AVAILABLE");
+    // An already-enabled "other regions" config is spread forward from
+    // the existing option, so it has to be actively withdrawn.
+    expect(
+      (option?.newRegionsConfig as { availability?: string } | undefined)
+        ?.availability,
+    ).toBe("NO_LONGER_AVAILABLE");
+  });
+});
