@@ -1,5 +1,7 @@
 import { internalMutation, internalQuery } from "../_generated/server";
 import { v } from "convex/values";
+
+import { productLocalizationsValidator } from "./localizations";
 import type { Doc, Id } from "../_generated/dataModel";
 import { assertProjectWritable } from "../projects/writable";
 
@@ -94,6 +96,7 @@ export const upsertFromStore = internalMutation({
     type: typeValidator,
     title: v.string(),
     description: v.optional(v.string()),
+    localizations: v.optional(productLocalizationsValidator),
     priceAmountMicros: v.optional(v.number()),
     currency: v.optional(v.string()),
     storeRef: v.string(),
@@ -173,6 +176,7 @@ export const upsertFromStore = internalMutation({
         type: args.type,
         title: args.title || existing.title,
         description: args.description ?? existing.description,
+        localizations: args.localizations ?? existing.localizations,
         priceAmountMicros: args.priceAmountMicros ?? existing.priceAmountMicros,
         currency: args.currency ?? existing.currency,
         storeRef: args.storeRef,
@@ -209,6 +213,7 @@ export const upsertFromStore = internalMutation({
       type: args.type,
       title: args.title,
       description: args.description,
+      localizations: args.localizations,
       priceAmountMicros: args.priceAmountMicros,
       currency: args.currency,
       storeRef: args.storeRef,
@@ -329,6 +334,11 @@ export const listExistingProductTypes = internalQuery({
     v.object({
       productId: v.string(),
       type: typeValidator,
+      // Lets the pull rank Play's regional prices by the currency the
+      // operator authored rather than always collapsing to US/USD,
+      // which would overwrite a KRW row with its converted dollar
+      // amount on the first sync after a push.
+      currency: v.optional(v.string()),
     }),
   ),
   handler: async (ctx, args) => {
@@ -341,6 +351,7 @@ export const listExistingProductTypes = internalQuery({
     return rows.map((row) => ({
       productId: row.productId,
       type: row.type,
+      currency: row.currency,
     }));
   },
 });
@@ -370,6 +381,7 @@ export const listDraftIosProducts = internalQuery({
       type: typeValidator,
       title: v.string(),
       description: v.optional(v.string()),
+      localizations: v.optional(productLocalizationsValidator),
       priceAmountMicros: v.optional(v.number()),
       currency: v.optional(v.string()),
       billingPeriod: v.optional(
@@ -430,6 +442,7 @@ export const listDraftIosProducts = internalQuery({
         type: row.type,
         title: row.title,
         description: row.description,
+        localizations: row.localizations,
         priceAmountMicros: row.priceAmountMicros,
         currency: row.currency,
         billingPeriod: row.billingPeriod,
@@ -455,6 +468,7 @@ export const listDraftAndroidProducts = internalQuery({
       type: typeValidator,
       title: v.string(),
       description: v.optional(v.string()),
+      localizations: v.optional(productLocalizationsValidator),
       priceAmountMicros: v.optional(v.number()),
       currency: v.optional(v.string()),
       billingPeriod: v.optional(
@@ -503,6 +517,7 @@ export const listDraftAndroidProducts = internalQuery({
         type: row.type,
         title: row.title,
         description: row.description,
+        localizations: row.localizations,
         priceAmountMicros: row.priceAmountMicros,
         currency: row.currency,
         billingPeriod: row.billingPeriod,

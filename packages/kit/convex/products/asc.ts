@@ -9,6 +9,7 @@ import { getProjectByApiKey } from "../purchases/shared";
 import { mapWithConcurrency } from "../utils/concurrency";
 import { validateAppleReviewScreenshotContent } from "../files/validation";
 import { mintAscJwt } from "./jwt";
+import { listingRowsForProduct } from "./localizations";
 import { coerceBillingPeriod } from "./sync";
 import {
   isProductSyncDeadlineReached,
@@ -2029,14 +2030,22 @@ async function performIosSync(
             }
             return;
           }
-          await upsertAscReviewLocalization({
-            request: reviewRequest,
-            kind,
-            versionId: reviewVersion.versionId,
-            name: row.title,
-            description: row.description ?? row.title,
-            checkCancelled,
-          });
+          // The base listing plus every locale the operator added.
+          // Apple keeps one localization resource per locale on the
+          // version, so this is an upsert per locale rather than a
+          // single replace — a locale added directly in ASC is left
+          // alone rather than deleted.
+          for (const listing of listingRowsForProduct(row)) {
+            await upsertAscReviewLocalization({
+              request: reviewRequest,
+              kind,
+              versionId: reviewVersion.versionId,
+              name: listing.title,
+              description: listing.description ?? listing.title,
+              locale: listing.locale,
+              checkCancelled,
+            });
+          }
         } catch (error) {
           // A 409 on an editable version is a benign replay from a partial
           // prior sync. Reads/comparisons against attached versions are never

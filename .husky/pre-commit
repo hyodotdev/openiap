@@ -68,7 +68,12 @@ node scripts/audit-non-godot-parity.mjs
 # Cost: roughly 30-60s on first run after a clean checkout, ~15-20s on
 # warm checkouts (lint + tests + smoke). If you really need to bypass,
 # fix the underlying issue rather than passing --no-verify.
-if git diff --cached --name-only --diff-filter=ACMR | grep -q '^packages/kit/'; then
+# `packages/mcp-server` is compiled into kit's Fly binary and served at
+# kit.openiap.dev/mcp, so its regressions ship with kit. deploy-kit.yml
+# triggers on both paths and runs both suites; mirror that here or a
+# commit touching only the MCP server would skip the gate entirely.
+if git diff --cached --name-only --diff-filter=ACMR \
+  | grep -qE '^packages/(kit|mcp-server)/'; then
   echo "🧰 kit-touched commit — running CI-equivalent gate…"
 
   # Lockfile must satisfy package.json. Without --frozen-lockfile,
@@ -103,6 +108,12 @@ if git diff --cached --name-only --diff-filter=ACMR | grep -q '^packages/kit/'; 
   # conflicts, missing dist/index.html, server.ts import order issues.
   echo "→ kit smoke (compile + boot probe)"
   bun run --filter @hyodotdev/openiap-kit smoke:server
+
+  # MCP server ships inside the same binary; its suite is the only
+  # coverage for the /mcp session-routing behaviour.
+  echo "→ mcp-server lint + tests"
+  bun run --filter @hyodotdev/openiap-mcp-server lint
+  bun run --filter @hyodotdev/openiap-mcp-server test
 fi
 
 # Paths-aware Flutter analyze. Triggers on any libraries/flutter_inapp_purchase

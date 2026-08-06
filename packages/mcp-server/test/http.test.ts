@@ -623,7 +623,7 @@ describe("remote MCP HTTP server", () => {
       "other77.7e33e2b1-9a45-4c8e-b1de-000000000000",
     );
     expect(foreign.status).toBe(204);
-    expect(foreign.headers.get("fly-replay")).toBe("instance=other77");
+    expect(foreign.headers.get("fly-replay")).toBe("prefer_instance=other77;timeout=5s");
 
     const replayed = await postMcp(
       baseUrl,

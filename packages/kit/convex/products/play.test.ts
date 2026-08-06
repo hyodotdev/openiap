@@ -204,6 +204,49 @@ describe("upsertModernAndroidOneTimeProduct", () => {
     expect(outcome.manualAction).toBeUndefined();
   });
 
+  // The same replace semantics apply to the purchase-option list itself:
+  // kit only models `buy`, so anything the operator added in Play Console
+  // has to be echoed back or the push deletes it.
+  it("never drops a purchase option kit doesn't model", async () => {
+    const rentOption = {
+      purchaseOptionId: "rent-48h",
+      rentOption: { rentalPeriod: "P2D" },
+      regionalPricingAndAvailabilityConfigs: [
+        {
+          regionCode: "US",
+          availability: "AVAILABLE",
+          price: { currencyCode: "USD", units: "4", nanos: 990_000_000 },
+        },
+      ],
+    };
+    const { androidpublisher, requests } = stubAndroidPublisher({
+      get: () => ({
+        purchaseOptions: [{ purchaseOptionId: "buy" }, rentOption],
+      }),
+      convert: () => ({
+        convertedRegionPrices: {
+          US: {
+            regionCode: "US",
+            price: { currencyCode: "USD", units: "24", nanos: 990_000_000 },
+          },
+        },
+      }),
+    });
+
+    await upsertModernAndroidOneTimeProduct(androidpublisher, BASE_ARGS, {
+      allowCreate: false,
+    });
+
+    const data = patchRequest(requests)?.data as {
+      purchaseOptions?: Array<{ purchaseOptionId?: string }>;
+    };
+    expect(data.purchaseOptions?.map((o) => o.purchaseOptionId)).toEqual([
+      "buy",
+      "rent-48h",
+    ]);
+    expect(data.purchaseOptions?.[1]).toEqual(rentOption);
+  });
+
   // `updateMask: "purchaseOptions"` REPLACES the repeated field, so an
   // update that didn't read first would delete every region it omits —
   // silently un-selling a live product outside the converted set.
@@ -577,5 +620,219 @@ describe("basePlanIdForPeriod", () => {
   it("falls back to monthly for undefined / unknown periods", () => {
     expect(basePlanIdForPeriod(undefined)).toBe("monthly");
     expect(basePlanIdForPeriod("P9X")).toBe("monthly");
+  });
+});
+
+describe("localized listings", () => {
+  it("publishes the base listing plus every operator locale", async () => {
+    const { androidpublisher, requests } = stubAndroidPublisher({
+      convert: () => ({
+        convertedRegionPrices: {
+          US: {
+            regionCode: "US",
+            price: { currencyCode: "USD", units: "24", nanos: 990_000_000 },
+          },
+        },
+      }),
+    });
+
+    await upsertModernAndroidOneTimeProduct(
+      androidpublisher,
+      {
+        ...BASE_ARGS,
+        localizations: [
+          { locale: "ko-KR", title: "문 세이지", description: "전체 해금" },
+          { locale: "ja-JP", title: "ムーンセージ" },
+        ],
+      },
+      { allowCreate: true },
+    );
+
+    const data = patchRequest(requests)?.data as {
+      listings?: Array<{
+        languageCode?: string;
+        title?: string;
+        description?: string;
+      }>;
+    };
+    expect(data.listings).toEqual([
+      {
+        languageCode: "en-US",
+        title: "Moon Sage",
+        description: "Unlock Moon Sage",
+      },
+      { languageCode: "ko-KR", title: "문 세이지", description: "전체 해금" },
+      // Play requires a description, so a locale that omits one reuses
+      // its title rather than sending null.
+      {
+        languageCode: "ja-JP",
+        title: "ムーンセージ",
+        description: "ムーンセージ",
+      },
+    ]);
+  });
+
+  it("sends exactly the pre-localization listing when none are set", async () => {
+    const { androidpublisher, requests } = stubAndroidPublisher({});
+
+    await upsertModernAndroidOneTimeProduct(androidpublisher, BASE_ARGS, {
+      allowCreate: true,
+    });
+
+    expect(
+      (patchRequest(requests)?.data as { listings?: unknown[] }).listings,
+    ).toEqual([
+      {
+        languageCode: "en-US",
+        title: "Moon Sage",
+        description: "Unlock Moon Sage",
+      },
+    ]);
+  });
+
+  // `updateMask` replaces the listings array too, so a locale added
+  // directly in Play Console would be deleted by a kit push.
+  it("never drops a locale the operator added in Play Console", async () => {
+    const { androidpublisher, requests } = stubAndroidPublisher({
+      get: () => ({
+        listings: [
+          { languageCode: "en-US", title: "Old", description: "Old" },
+          { languageCode: "de-DE", title: "Mondweiser", description: "Alles" },
+        ],
+        purchaseOptions: [{ purchaseOptionId: "buy" }],
+      }),
+      convert: () => ({
+        convertedRegionPrices: {
+          US: {
+            regionCode: "US",
+            price: { currencyCode: "USD", units: "24", nanos: 990_000_000 },
+          },
+        },
+      }),
+    });
+
+    await upsertModernAndroidOneTimeProduct(
+      androidpublisher,
+      {
+        ...BASE_ARGS,
+        localizations: [{ locale: "ko-KR", title: "문 세이지" }],
+      },
+      { allowCreate: false },
+    );
+
+    const listings = (
+      patchRequest(requests)?.data as {
+        listings?: Array<{ languageCode?: string; title?: string }>;
+      }
+    ).listings;
+    const byLocale = new Map(listings?.map((l) => [l.languageCode, l.title]));
+    // kit's own locales win…
+    expect(byLocale.get("en-US")).toBe("Moon Sage");
+    expect(byLocale.get("ko-KR")).toBe("문 세이지");
+    // …and the Play-Console-only locale survives.
+    expect(byLocale.get("de-DE")).toBe("Mondweiser");
+    expect(listings?.[0]?.languageCode).toBe("en-US");
+  });
+});
+
+// Issue #288 follow-up found in review: conversion failure on an UPDATE
+// preserved every existing region verbatim, which silently threw away
+// the price change the operator had just made.
+describe("conversion failure on an update", () => {
+  it("still applies the new amount to regions using the base currency", async () => {
+    const { androidpublisher, requests } = stubAndroidPublisher({
+      get: () => ({
+        purchaseOptions: [
+          {
+            purchaseOptionId: "buy",
+            regionalPricingAndAvailabilityConfigs: [
+              {
+                regionCode: "US",
+                availability: "AVAILABLE",
+                price: { currencyCode: "USD", units: "19", nanos: 0 },
+              },
+              {
+                regionCode: "KR",
+                availability: "AVAILABLE",
+                price: { currencyCode: "KRW", units: "25000", nanos: 0 },
+              },
+            ],
+          },
+        ],
+      }),
+      convert: () => {
+        throw Object.assign(new Error("nope"), { code: 500 });
+      },
+    });
+
+    const outcome = await upsertModernAndroidOneTimeProduct(
+      androidpublisher,
+      BASE_ARGS,
+      { allowCreate: false },
+    );
+
+    const configs =
+      regionalConfigs(patchRequest(requests))
+        ?.regionalPricingAndAvailabilityConfigs ?? [];
+    const byRegion = new Map(configs.map((c) => [c.regionCode, c]));
+    // USD region takes the operator's new $24.99…
+    expect(byRegion.get("US")?.price).toEqual({
+      currencyCode: "USD",
+      units: "24",
+      nanos: 990_000_000,
+    });
+    // …and the KRW region keeps its old price rather than being given
+    // a dollar amount Play would reject.
+    expect(byRegion.get("KR")?.price).toEqual({
+      currencyCode: "KRW",
+      units: "25000",
+      nanos: 0,
+    });
+    // The operator is told the rest did not move.
+    expect(outcome.manualAction?.message).toContain("1 region(s)");
+    expect(outcome.manualAction?.message).toContain(
+      "kept their previous price",
+    );
+  });
+});
+
+describe("existing purchase-option fields", () => {
+  it("preserves offer tags and tax settings on the buy option", async () => {
+    const { androidpublisher, requests } = stubAndroidPublisher({
+      get: () => ({
+        purchaseOptions: [
+          {
+            purchaseOptionId: "buy",
+            state: "ACTIVE",
+            offerTags: [{ tag: "launch" }],
+            taxAndComplianceSettings: { withdrawalRightType: "DIGITAL" },
+          },
+        ],
+      }),
+      convert: () => ({
+        convertedRegionPrices: {
+          US: {
+            regionCode: "US",
+            price: { currencyCode: "USD", units: "24", nanos: 990_000_000 },
+          },
+        },
+      }),
+    });
+
+    await upsertModernAndroidOneTimeProduct(androidpublisher, BASE_ARGS, {
+      allowCreate: false,
+    });
+
+    const option = regionalConfigs(patchRequest(requests)) as unknown as {
+      offerTags?: unknown;
+      taxAndComplianceSettings?: unknown;
+      state?: unknown;
+    };
+    expect(option.offerTags).toEqual([{ tag: "launch" }]);
+    expect(option.taxAndComplianceSettings).toEqual({
+      withdrawalRightType: "DIGITAL",
+    });
+    // `state` is output-only; echoing it back would 400.
+    expect(option.state).toBeUndefined();
   });
 });

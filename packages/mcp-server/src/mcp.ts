@@ -355,6 +355,20 @@ function registerIapKitTools(server: McpServer) {
       type: z.enum(["Subscription", "NonConsumable", "Consumable"]),
       title: TITLE_PARAM,
       description: z.string().optional(),
+      localizations: z
+        .array(
+          z.object({
+            locale: z
+              .string()
+              .describe('BCP-47 code, e.g. "ko-KR" or "ja-JP".'),
+            title: z.string(),
+            description: z.string().optional(),
+          }),
+        )
+        .optional()
+        .describe(
+          'Store-listing text in other languages. `title` / `description` above are the base en-US listing; these add locales on top. Regional PRICING is converted automatically and is not configured here. Omit "en-US" — it is the base listing.',
+        ),
       priceAmountMicros: PRICE_AMOUNT_MICROS_PARAM.optional(),
       currency: z.string().optional(),
       billingPeriod: z
@@ -392,6 +406,7 @@ function registerIapKitTools(server: McpServer) {
             type: args.type,
             title: args.title,
             description: args.description,
+            localizations: args.localizations,
             priceAmountMicros: args.priceAmountMicros,
             currency: args.currency,
             billingPeriod: args.billingPeriod,

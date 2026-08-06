@@ -95,7 +95,7 @@ describe("web MCP handler session routing", () => {
     );
 
     expect(response.status).toBe(204);
-    expect(response.headers.get("fly-replay")).toBe("instance=other77");
+    expect(response.headers.get("fly-replay")).toBe("prefer_instance=other77;timeout=5s");
   });
 
   it("returns 404 instead of replaying twice", async () => {
@@ -150,7 +150,7 @@ describe("web MCP handler session routing", () => {
         }),
       );
       expect(response.status).toBe(204);
-      expect(response.headers.get("fly-replay")).toBe("instance=other77");
+      expect(response.headers.get("fly-replay")).toBe("prefer_instance=other77;timeout=5s");
     }
   });
 

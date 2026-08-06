@@ -117,6 +117,12 @@ export default function ProjectProducts() {
     subscriptionGroupName: "",
     reviewNote: "",
   });
+  // Extra store-listing languages. The base en-US listing stays in
+  // `title` / `description`; these only add locales on top, so leaving
+  // the list empty publishes exactly what it always did.
+  const [localizations, setLocalizations] = useState<
+    Array<{ locale: string; title: string; description: string }>
+  >([]);
 
   const grouped = useMemo(() => {
     if (!products) return { ios: [], android: [] };
@@ -263,6 +269,13 @@ export default function ProjectProducts() {
       billingPeriod,
       subscriptionGroupName,
       reviewNote,
+      localizations: localizations
+        .filter((entry) => entry.locale.trim() && entry.title.trim())
+        .map((entry) => ({
+          locale: entry.locale.trim(),
+          title: entry.title.trim(),
+          description: entry.description.trim() || undefined,
+        })),
       state: "Draft",
     });
     setDraft({
@@ -274,6 +287,7 @@ export default function ProjectProducts() {
       subscriptionGroupName: "",
       reviewNote: "",
     });
+    setLocalizations([]);
   };
 
   const onSync = async (
@@ -518,6 +532,88 @@ export default function ProjectProducts() {
               className="w-full px-2 py-1.5 rounded border border-border bg-background"
             />
           </Field>
+        </div>
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">
+              Other languages (optional)
+            </span>
+            <button
+              onClick={() =>
+                setLocalizations([
+                  ...localizations,
+                  { locale: "", title: "", description: "" },
+                ])
+              }
+              className="flex items-center gap-1 text-xs text-primary hover:underline"
+            >
+              <Plus className="w-3 h-3" /> Add language
+            </button>
+          </div>
+          {localizations.length === 0 ? (
+            <p className="text-[10px] text-muted-foreground">
+              The title and description above publish as en-US. Add a language
+              to show a translated name in that store locale — pricing is
+              already converted per region automatically.
+            </p>
+          ) : (
+            localizations.map((entry, index) => (
+              <div
+                key={index}
+                className="grid md:grid-cols-[7rem_1fr_1fr_auto] gap-2 items-center"
+              >
+                <input
+                  value={entry.locale}
+                  onChange={(e) =>
+                    setLocalizations(
+                      localizations.map((row, i) =>
+                        i === index ? { ...row, locale: e.target.value } : row,
+                      ),
+                    )
+                  }
+                  placeholder="ko-KR"
+                  className="w-full px-2 py-1.5 rounded border border-border bg-background text-sm"
+                />
+                <input
+                  value={entry.title}
+                  onChange={(e) =>
+                    setLocalizations(
+                      localizations.map((row, i) =>
+                        i === index ? { ...row, title: e.target.value } : row,
+                      ),
+                    )
+                  }
+                  placeholder="Title in this language"
+                  className="w-full px-2 py-1.5 rounded border border-border bg-background text-sm"
+                />
+                <input
+                  value={entry.description}
+                  onChange={(e) =>
+                    setLocalizations(
+                      localizations.map((row, i) =>
+                        i === index
+                          ? { ...row, description: e.target.value }
+                          : row,
+                      ),
+                    )
+                  }
+                  placeholder="Description in this language"
+                  className="w-full px-2 py-1.5 rounded border border-border bg-background text-sm"
+                />
+                <button
+                  onClick={() =>
+                    setLocalizations(
+                      localizations.filter((_, i) => i !== index),
+                    )
+                  }
+                  aria-label={`Remove ${entry.locale || "language"}`}
+                  className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))
+          )}
         </div>
         <div className="grid md:grid-cols-[1fr_auto] gap-3 items-end">
           <Field label="Review note (optional)">

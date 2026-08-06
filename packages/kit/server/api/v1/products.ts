@@ -221,6 +221,11 @@ async function handleUpsertProduct(c: Context, apiKey: string) {
     reviewNote?: string;
     state?: ProductState;
     storeRef?: string;
+    localizations?: Array<{
+      locale?: unknown;
+      title?: unknown;
+      description?: unknown;
+    }>;
   };
   if (
     !isNonBlankString(payload.productId) ||
@@ -244,6 +249,27 @@ async function handleUpsertProduct(c: Context, apiKey: string) {
   }
   if (typeof payload.title !== "string") {
     return invalidInput(c, "title must be a string");
+  }
+  // Shape-check only; the Convex mutation owns locale-format, length,
+  // and duplicate validation so the dashboard, REST, and MCP callers
+  // all get identical rules from one place.
+  if (payload.localizations !== undefined) {
+    if (
+      !Array.isArray(payload.localizations) ||
+      payload.localizations.some(
+        (entry) =>
+          !isJsonObject(entry) ||
+          typeof entry.locale !== "string" ||
+          typeof entry.title !== "string" ||
+          (entry.description !== undefined &&
+            typeof entry.description !== "string"),
+      )
+    ) {
+      return invalidInput(
+        c,
+        "localizations must be an array of { locale, title, description? } strings",
+      );
+    }
   }
   if (!payload.title.trim()) {
     return invalidInput(c, "productId, platform, type, title are required");
@@ -298,6 +324,9 @@ async function handleUpsertProduct(c: Context, apiKey: string) {
       type: payload.type,
       title: payload.title,
       description: payload.description,
+      localizations: payload.localizations as
+        | Array<{ locale: string; title: string; description?: string }>
+        | undefined,
       priceAmountMicros: payload.priceAmountMicros,
       currency: payload.currency,
       billingPeriod: payload.billingPeriod,

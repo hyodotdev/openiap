@@ -492,7 +492,7 @@ export function isProductNotFoundError(error: unknown): boolean {
   return message.toLowerCase().includes("not found");
 }
 
-async function verifyPurchaseWithGooglePlay(
+export async function verifyPurchaseWithGooglePlay(
   androidpublisher: androidpublisher_v3.Androidpublisher,
   args: {
     packageName: string;
@@ -509,11 +509,16 @@ async function verifyPurchaseWithGooglePlay(
     () => lookUpGooglePlayPurchase(androidpublisher, args),
     {
       shouldRetry: isFreshTokenNotYetPropagated,
-      // ~2s of total backoff at worst. Cheap next to the alternative:
-      // Google voids an unacknowledged purchase at ~301s, and the app
-      // can't acknowledge what kit wouldn't verify.
-      maxAttempts: 4,
-      baseDelayMs: 300,
+      // Deliberately shallow. Each attempt costs TWO Play calls
+      // (product then subscription), so every extra attempt also
+      // multiplies the upstream cost of a token that genuinely doesn't
+      // exist — a bogus-token probe must not become an 8-call, 2-second
+      // hold. Propagation after a real purchase is sub-second, so three
+      // attempts inside ~750ms covers it while capping the abuse cost
+      // at 3x, against Google's ~301s window to acknowledge.
+      maxAttempts: 3,
+      baseDelayMs: 250,
+      maxDelayMs: 500,
     },
   );
 }

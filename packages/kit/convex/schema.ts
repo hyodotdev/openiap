@@ -878,6 +878,21 @@ const schema = defineSchema({
     ),
     title: v.string(),
     description: v.optional(v.string()),
+    // Store-listing text in additional languages. `title` /
+    // `description` above stay the base (en-US) listing that every
+    // product must have; this only adds locales on top, so a row
+    // without it behaves exactly as before. Locale codes are BCP-47
+    // ("ko-KR", "ja-JP"), which is what both Play `languageCode` and
+    // ASC localization `locale` accept.
+    localizations: v.optional(
+      v.array(
+        v.object({
+          locale: v.string(),
+          title: v.string(),
+          description: v.optional(v.string()),
+        }),
+      ),
+    ),
     priceAmountMicros: v.optional(v.number()),
     currency: v.optional(v.string()),
     state: v.union(

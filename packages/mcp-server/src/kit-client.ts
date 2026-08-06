@@ -173,6 +173,11 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
       type: "Subscription" | "NonConsumable" | "Consumable";
       title: string;
       description?: string;
+      localizations?: Array<{
+        locale: string;
+        title: string;
+        description?: string;
+      }>;
       priceAmountMicros?: number;
       currency?: string;
       billingPeriod?: "P1W" | "P1M" | "P2M" | "P3M" | "P6M" | "P1Y";

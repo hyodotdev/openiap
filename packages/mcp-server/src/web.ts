@@ -223,10 +223,17 @@ function unknownSessionResponse(
   if (routing.action === "replay") {
     // Fly's proxy intercepts any response carrying `fly-replay` and
     // re-sends the original request to the named machine; the client
-    // never sees this interim response.
+    // never sees this interim response. `prefer_instance` rather than
+    // `instance` so a destroyed or restarting owner degrades to "route
+    // anywhere" — that replay carries `fly-replay-src`, so wherever it
+    // lands answers 404 and the client re-initializes. A bare
+    // `instance=` would instead fail at the proxy after its timeout,
+    // and the 404 this fix depends on would never be produced.
     return new Response(null, {
       status: 204,
-      headers: { "fly-replay": `instance=${routing.targetMachineId}` },
+      headers: {
+        "fly-replay": `prefer_instance=${routing.targetMachineId};timeout=5s`,
+      },
     });
   }
 

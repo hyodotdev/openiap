@@ -4,6 +4,10 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { parse as parseToml } from "smol-toml";
 
 import {
+  normalizeProductLocalizations,
+  productLocalizationsValidator,
+} from "./localizations";
+import {
   resolveProjectByApiKeyFromDb,
   resolveProjectByIdForCurrentUserFromDb,
 } from "../projects/helpers";
@@ -545,6 +549,7 @@ export const upsertProduct = mutation({
     type: typeValidator,
     title: v.string(),
     description: v.optional(v.string()),
+    localizations: v.optional(productLocalizationsValidator),
     priceAmountMicros: v.optional(v.number()),
     currency: v.optional(v.string()),
     billingPeriod: v.optional(
@@ -581,6 +586,11 @@ export const upsertProduct = mutation({
     ) {
       throw new Error("priceAmountMicros must be a non-negative safe integer");
     }
+
+    // Throws on a malformed/duplicate locale or an over-long string so
+    // the operator sees the problem here rather than as an opaque 400
+    // from Play or ASC during the next push.
+    const localizations = normalizeProductLocalizations(args.localizations);
 
     // iOS subscriptions REQUIRE a subscriptionGroupName upstream —
     // related tiers must share a group for StoreKit 2's native
@@ -622,6 +632,12 @@ export const upsertProduct = mutation({
         type: args.type,
         title: args.title,
         description: args.description ?? existing.description,
+        // Explicitly authoritative, like every other field here: an
+        // operator who removes the last localization means to clear it.
+        localizations:
+          args.localizations !== undefined
+            ? localizations
+            : existing.localizations,
         priceAmountMicros: args.priceAmountMicros ?? existing.priceAmountMicros,
         currency: args.currency ?? existing.currency,
         billingPeriod: args.billingPeriod ?? existing.billingPeriod,
@@ -658,6 +674,7 @@ export const upsertProduct = mutation({
       type: args.type,
       title: args.title,
       description: args.description,
+      localizations,
       priceAmountMicros: args.priceAmountMicros,
       currency: args.currency,
       billingPeriod: args.billingPeriod,

@@ -1,8 +1,10 @@
+import { google, type Common } from "googleapis";
 import { describe, expect, it } from "vitest";
 import {
   isProductNotFoundError,
   mapProductResponseToReceiptData,
   selectProductLineItem,
+  verifyPurchaseWithGooglePlay,
   mapSubscriptionResponseToReceiptData,
   parseTimeToMillis,
   recordGooglePlayVerifiedSubscription,
@@ -626,5 +628,89 @@ describe("selectProductLineItem", () => {
     // Would previously have been INAUTHENTIC: productId resolved to the
     // first line item and then failed the expectedProductId comparison.
     expect(mapToGooglePlayReceiptResponse(receipt).isValid).toBe(true);
+  });
+});
+
+// Issue #289: productsv2/subscriptionsv2 are eventually consistent, so a
+// token seconds old can 404 in both. 4xx is excluded from
+// `retryOnTransient`, so that became a hard failure on the first attempt
+// — the app then never acknowledged, and Google voided the purchase at
+// ~301s.
+describe("verifyPurchaseWithGooglePlay fresh-token retry", () => {
+  function stubPublisher(responder: (attempt: number) => unknown) {
+    let calls = 0;
+    const androidpublisher = google.androidpublisher({
+      version: "v3",
+      // gaxios adds its own retry on top of every call. A thrown
+      // adapter error looks like a network failure to it, which would
+      // triple each count and hide what this test measures — kit's own
+      // retry depth. Production 404s arrive as HTTP responses and are
+      // not gaxios-retried, so disabling it here matches reality.
+      retryConfig: { retry: 0, noResponseRetries: 0 },
+      adapter: async <T>(
+        request: Common.gaxios.GaxiosOptionsPrepared,
+      ): Promise<Common.GaxiosResponse<T>> => {
+        calls += 1;
+        const data = responder(calls);
+        if (data === undefined) {
+          throw Object.assign(new Error("not found"), { code: 404 });
+        }
+        return Object.assign(new Response(null, { status: 200 }), {
+          config: request,
+          data: data as T,
+        });
+      },
+    });
+    return { androidpublisher, callCount: () => calls };
+  }
+
+  const freshPurchase = {
+    purchaseStateContext: { purchaseState: "PURCHASED" },
+    acknowledgementState: "ACKNOWLEDGEMENT_STATE_PENDING",
+    productLineItem: [
+      {
+        productId: "dev.hyo.martie.10bulbs",
+        productOfferDetails: {
+          quantity: 1,
+          consumptionState: "CONSUMPTION_STATE_YET_TO_BE_CONSUMED",
+        },
+      },
+    ],
+  };
+
+  it("recovers a token that has not propagated yet", async () => {
+    // Attempts 1-2 are the product+subscription pair for a token Google
+    // doesn't know about yet; the product lookup then succeeds.
+    const { androidpublisher, callCount } = stubPublisher((attempt) =>
+      attempt <= 2 ? undefined : freshPurchase,
+    );
+
+    const result = await verifyPurchaseWithGooglePlay(androidpublisher, {
+      packageName,
+      purchaseToken: "fresh-token",
+    });
+
+    expect(result.receiptData.productId).toBe("dev.hyo.martie.10bulbs");
+    expect(mapToGooglePlayReceiptResponse(result.receiptData).isValid).toBe(
+      true,
+    );
+    expect(callCount()).toBe(3);
+  });
+
+  it("gives up quickly on a token that genuinely does not exist", async () => {
+    // Every attempt 404s. The retry must stay shallow: each attempt
+    // costs TWO Play calls, so a bogus-token probe would otherwise
+    // multiply upstream cost and hold a request open.
+    const { androidpublisher, callCount } = stubPublisher(() => undefined);
+
+    await expect(
+      verifyPurchaseWithGooglePlay(androidpublisher, {
+        packageName,
+        purchaseToken: "bogus-token",
+      }),
+    ).rejects.toThrow();
+    // 3 attempts x (product + subscription). Each extra attempt would
+    // double the upstream cost of a token that will never resolve.
+    expect(callCount()).toBe(6);
   });
 });
