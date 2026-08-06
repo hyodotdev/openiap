@@ -58,15 +58,21 @@ export interface ReplayGuardConfig {
 
 export type ReplayRejectReason = "burst" | "repeated_failure";
 
-// States whose `isValid: false` is NOT a settled verdict, so a retry can
-// legitimately return something different. Cooling these down for five
+// A state whose `isValid: false` is NOT a settled verdict, so a retry
+// can legitimately return something different. Cooling it down for five
 // minutes is actively harmful: Google voids an unacknowledged purchase
-// at ~301s, which the default cooldown almost exactly spans, so one
-// blip made the purchase unrecoverable before it could be acknowledged
+// at ~301s, which the default cooldown almost exactly spans, so one blip
+// made the purchase unrecoverable before it could be acknowledged
 // (issue #289). `PENDING` resolves when the user completes a deferred
-// payment; `UNKNOWN` means we could not interpret the store's answer at
-// all, which is a reason to ask again rather than to stonewall.
-const NON_TERMINAL_REJECTION_STATES = new Set(["PENDING", "UNKNOWN"]);
+// payment.
+//
+// `UNKNOWN` is deliberately NOT here. It reads like "we could not
+// interpret the answer, so ask again", but the state Google's 410 "the
+// purchase token is no longer valid" maps to is exactly `UNKNOWN`
+// (convex/purchases/android.ts) — a captured-then-revoked receipt, which
+// is the case this guard exists to wall off. Exempting it would let that
+// replay through.
+const NON_TERMINAL_REJECTION_STATES = new Set(["PENDING"]);
 
 /**
  * Whether a rejected verification should arm the negative cooldown.

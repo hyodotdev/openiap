@@ -38,6 +38,10 @@ export function listingLimitsFor(
   type: ProductListingType,
 ): ListingLimits {
   if (platform === "IOS") return { title: 30, description: 45 };
+  // 200, not the 80 the bundled googleapis 157 types still claim: Play's
+  // live discovery document reports "Maximum length - 200 characters"
+  // for SubscriptionListing.description. Validating at 80 would refuse
+  // text Play accepts.
   if (type === "Subscription") return { description: 200 };
   return { title: 55, description: 200 };
 }

@@ -260,16 +260,21 @@ describe("isStableRejection", () => {
     }
   });
 
-  it("does not arm the cooldown for states a retry can change", () => {
-    // PENDING resolves when the user finishes a deferred payment;
-    // UNKNOWN means we couldn't interpret the store's answer at all.
+  it("does not arm the cooldown for a state a retry can change", () => {
+    // PENDING resolves when the user finishes a deferred payment.
     expect(isStableRejection("PENDING")).toBe(false);
-    expect(isStableRejection("UNKNOWN")).toBe(false);
+  });
+
+  // Google's 410 "purchase token is no longer valid" maps to UNKNOWN, so
+  // exempting it would let a captured-then-revoked receipt replay past
+  // the wall this guard exists to put up.
+  it("arms the cooldown for UNKNOWN, which is where a revoked token lands", () => {
+    expect(isStableRejection("UNKNOWN")).toBe(true);
   });
 
   it("is case-insensitive", () => {
     expect(isStableRejection("pending")).toBe(false);
-    expect(isStableRejection("Unknown")).toBe(false);
+    expect(isStableRejection("Unknown")).toBe(true);
     expect(isStableRejection("inauthentic")).toBe(true);
   });
 });
@@ -336,7 +341,7 @@ describe("replayGuardMiddleware cooldown wiring", () => {
   });
 
   it("does not arm it for a state a retry can change", async () => {
-    for (const state of ["PENDING", "UNKNOWN"]) {
+    for (const state of ["PENDING"]) {
       const store = new Map<string, ReplayBucket>();
       await runMiddleware({
         store,

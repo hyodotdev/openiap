@@ -5,6 +5,7 @@ import {
   basePlanIdForPeriod,
   buildSubscriptionRegionalConfigs,
   mapModernPlayOneTimeState,
+  mergedSubscriptionListings,
   pickPlayRegionalPrice,
   pickSubBasePlanPrice,
   moneyToMicros,
@@ -1143,5 +1144,254 @@ describe("manual-action arithmetic", () => {
     expect(outcome.manualAction?.message).toContain(
       "1 region(s) kept their previous price",
     );
+  });
+});
+
+// This merge is the only thing stopping a subscription patch deleting
+// locales an operator added in Play Console — `updateMask: "listings"`
+// replaces the array. It shipped with no coverage.
+describe("mergedSubscriptionListings", () => {
+  function stubSubscriptions(handler: () => unknown) {
+    return google.androidpublisher({
+      version: "v3",
+      retryConfig: { retry: 0, noResponseRetries: 0 },
+      adapter: async <T>(
+        request: Common.gaxios.GaxiosOptionsPrepared,
+      ): Promise<Common.GaxiosResponse<T>> => {
+        const data = handler();
+        return Object.assign(new Response(null, { status: 200 }), {
+          config: request,
+          data: data as T,
+        });
+      },
+    });
+  }
+
+  it("keeps a Play-Console locale and puts the base listing first", async () => {
+    const listings = await mergedSubscriptionListings(
+      stubSubscriptions(() => ({
+        listings: [
+          { languageCode: "de-DE", title: "Alt", description: "Alt" },
+          { languageCode: "en-US", title: "Old", description: "Old" },
+        ],
+      })),
+      "com.example.app",
+      "premium_monthly",
+      {
+        title: "Premium",
+        description: "All features",
+        localizations: [{ locale: "ko-KR", title: "프리미엄" }],
+      },
+    );
+
+    expect(listings[0]?.languageCode).toBe("en-US");
+    const byLocale = new Map(listings.map((l) => [l.languageCode, l.title]));
+    expect(byLocale.get("en-US")).toBe("Premium");
+    expect(byLocale.get("ko-KR")).toBe("프리미엄");
+    // The locale kit knows nothing about survives the patch.
+    expect(byLocale.get("de-DE")).toBe("Alt");
+  });
+
+  it("preserves fields kit does not model on a locale it overwrites", async () => {
+    const listings = await mergedSubscriptionListings(
+      stubSubscriptions(() => ({
+        listings: [
+          {
+            languageCode: "en-US",
+            title: "Old",
+            description: "Old",
+            benefits: ["Ad-free", "Offline"],
+          },
+        ],
+      })),
+      "com.example.app",
+      "premium_monthly",
+      { title: "Premium", description: "All features" },
+    );
+
+    expect(listings[0]?.benefits).toEqual(["Ad-free", "Offline"]);
+  });
+
+  it("propagates a read failure rather than replacing the listing set", async () => {
+    const failing = google.androidpublisher({
+      version: "v3",
+      retryConfig: { retry: 0, noResponseRetries: 0 },
+      adapter: async () => {
+        throw Object.assign(new Error("forbidden"), { code: 403 });
+      },
+    });
+
+    // Falling back to kit's own set here would delete every upstream
+    // locale — the exact outcome the read exists to prevent.
+    await expect(
+      mergedSubscriptionListings(
+        failing,
+        "com.example.app",
+        "premium_monthly",
+        {
+          title: "Premium",
+        },
+      ),
+    ).rejects.toThrow();
+  });
+});
+
+// The repair path is the whole point of #288: a product already live
+// with only a US config must GAIN the other regions on the next push.
+// Every existing test either creates fresh or preserves — none proved
+// a broken product gets fixed.
+describe("repairing an existing US-only product", () => {
+  it("adds the regions Play priced that the product lacks", async () => {
+    const { androidpublisher, requests } = stubAndroidPublisher({
+      get: () => ({
+        purchaseOptions: [
+          {
+            purchaseOptionId: "buy",
+            regionalPricingAndAvailabilityConfigs: [
+              {
+                regionCode: "US",
+                availability: "AVAILABLE",
+                price: { currencyCode: "USD", units: "19", nanos: 0 },
+              },
+            ],
+          },
+        ],
+      }),
+      convert: () => ({
+        convertedRegionPrices: {
+          US: {
+            regionCode: "US",
+            price: { currencyCode: "USD", units: "24", nanos: 990_000_000 },
+          },
+          KR: {
+            regionCode: "KR",
+            price: { currencyCode: "KRW", units: "33000", nanos: 0 },
+          },
+          JP: {
+            regionCode: "JP",
+            price: { currencyCode: "JPY", units: "3800", nanos: 0 },
+          },
+        },
+      }),
+    });
+
+    await upsertModernAndroidOneTimeProduct(androidpublisher, BASE_ARGS, {
+      allowCreate: false,
+    });
+
+    const codes = (
+      regionalConfigs(patchRequest(requests))
+        ?.regionalPricingAndAvailabilityConfigs ?? []
+    ).map((c) => c.regionCode);
+    expect(codes).toContain("KR");
+    expect(codes).toContain("JP");
+  });
+
+  it("does not reinstate a region the operator withdrew in Play Console", async () => {
+    const { androidpublisher, requests } = stubAndroidPublisher({
+      get: () => ({
+        purchaseOptions: [
+          {
+            purchaseOptionId: "buy",
+            regionalPricingAndAvailabilityConfigs: [
+              {
+                regionCode: "RU",
+                availability: "NO_LONGER_AVAILABLE",
+                price: { currencyCode: "RUB", units: "1500", nanos: 0 },
+              },
+            ],
+          },
+        ],
+      }),
+      convert: () => ({
+        convertedRegionPrices: {
+          RU: {
+            regionCode: "RU",
+            price: { currencyCode: "RUB", units: "2500", nanos: 0 },
+          },
+        },
+      }),
+    });
+
+    await upsertModernAndroidOneTimeProduct(androidpublisher, BASE_ARGS, {
+      allowCreate: false,
+    });
+
+    expect(
+      regionalConfigs(patchRequest(requests))
+        ?.regionalPricingAndAvailabilityConfigs?.[0]?.availability,
+    ).toBe("NO_LONGER_AVAILABLE");
+  });
+
+  it("keeps a withdrawn other-regions config withdrawn", async () => {
+    const { androidpublisher, requests } = stubAndroidPublisher({
+      get: () => ({
+        purchaseOptions: [
+          {
+            purchaseOptionId: "buy",
+            newRegionsConfig: {
+              availability: "NO_LONGER_AVAILABLE",
+              usdPrice: { currencyCode: "USD", units: "19", nanos: 0 },
+              eurPrice: { currencyCode: "EUR", units: "17", nanos: 0 },
+            },
+          },
+        ],
+      }),
+      convert: () => ({
+        convertedRegionPrices: {
+          US: {
+            regionCode: "US",
+            price: { currencyCode: "USD", units: "24", nanos: 990_000_000 },
+          },
+        },
+        convertedOtherRegionsPrice: {
+          usdPrice: { currencyCode: "USD", units: "24", nanos: 990_000_000 },
+          eurPrice: { currencyCode: "EUR", units: "22", nanos: 0 },
+        },
+      }),
+    });
+
+    await upsertModernAndroidOneTimeProduct(androidpublisher, BASE_ARGS, {
+      allowCreate: false,
+    });
+
+    // "Do not follow Play into new markets" is an operator decision a
+    // reprice must not quietly undo.
+    const cfg = regionalConfigs(patchRequest(requests))?.newRegionsConfig as
+      | { availability?: string }
+      | undefined;
+    expect(cfg?.availability).toBe("NO_LONGER_AVAILABLE");
+  });
+});
+
+describe("regionsVersionFor precedence", () => {
+  it("prefers the conversion's version over the product's", async () => {
+    const { androidpublisher, requests } = stubAndroidPublisher({
+      get: () => ({
+        regionsVersion: { version: "2024/01" },
+        purchaseOptions: [{ purchaseOptionId: "buy" }],
+      }),
+      convert: () => ({
+        regionVersion: { version: "2026/02" },
+        convertedRegionPrices: {
+          US: {
+            regionCode: "US",
+            price: { currencyCode: "USD", units: "24", nanos: 990_000_000 },
+          },
+        },
+      }),
+    });
+
+    await upsertModernAndroidOneTimeProduct(androidpublisher, BASE_ARGS, {
+      allowCreate: false,
+    });
+
+    // Inverting this precedence is what made every push fail with
+    // "Expected BGN but got EUR".
+    expect(
+      new URL(String(patchRequest(requests)?.url)).searchParams.get(
+        "regionsVersion.version",
+      ),
+    ).toBe("2026/02");
   });
 });

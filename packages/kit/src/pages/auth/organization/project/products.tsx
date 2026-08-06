@@ -332,9 +332,9 @@ export default function ProjectProducts() {
       title: entry.title.trim(),
       description: entry.description.trim() || undefined,
     }));
-    // Sending a language or region list for a product that already has
-    // one REPLACES it, so an operator who typed a single row without
-    // loading would silently drop the rest. Make them load first.
+    // Sending a language list for a product that already has one
+    // REPLACES it, so an operator who typed a single row without loading
+    // would silently drop the rest. Make them load first.
     if (editingExisting && !isLoadedRow && filledLocalizations.length > 0) {
       toast.error(
         "Load this product's stored languages first — saving now would replace them",

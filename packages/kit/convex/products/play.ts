@@ -1037,7 +1037,7 @@ async function performAndroidSync(
  * failure and the row stays Draft for the next sync — because a partial
  * write here is destructive, not merely incomplete.
  */
-async function mergedSubscriptionListings(
+export async function mergedSubscriptionListings(
   androidpublisher: androidpublisher_v3.Androidpublisher,
   packageName: string,
   productId: string,
@@ -1338,10 +1338,6 @@ function buildRegionalPricingConfigs(
   )) {
     if (!regionPrice.price) continue;
     const existing = existingByRegion.get(regionCode);
-    // Play refuses to drop a region once a purchase option has it
-    // ("Cannot remove region once it has been added"), so an excluded
-    // region can only be withdrawn, never omitted — and a region the
-    // product doesn't have yet is simply not added.
     configs.set(regionCode, {
       regionCode,
       // Play rejects a config that pairs a region with a currency that
@@ -1601,15 +1597,20 @@ export async function upsertModernAndroidOneTimeProduct(
   // "Other regions" pricing covers markets Play launches later. Play
   // requires both USD and EUR here, so it only goes out when the
   // conversion supplied both.
+  // Per-region availability is preserved below, so this has to be too:
+  // an operator who withdrew "other regions" in Play Console has said
+  // "do not follow Play into new markets", and re-pricing must not
+  // silently opt them back in. Only the amounts are refreshed.
   const otherRegions = converted?.convertedOtherRegionsPrice;
+  const existingNewRegions = existing.buyOption?.newRegionsConfig;
   const newRegionsConfig =
     otherRegions?.usdPrice && otherRegions.eurPrice
       ? {
-          availability: "AVAILABLE",
+          availability: existingNewRegions?.availability ?? "AVAILABLE",
           usdPrice: otherRegions.usdPrice,
           eurPrice: otherRegions.eurPrice,
         }
-      : undefined;
+      : existingNewRegions;
 
   // The generated method owns the PATCH route. In googleapis v157 the
   // upsert route is the lowercase `/onetimeproducts/{productId}` path,
@@ -1631,9 +1632,6 @@ export async function upsertModernAndroidOneTimeProduct(
     ),
   });
 
-  // Availability is optional in Play's schema and absent means
-  // AVAILABLE, so both the stale count and the unpriced check go through
-  // one predicate rather than testing the string directly.
   // Play omits `availability` when a region is available, and a region
   // priced ahead of release is still one the product is sold in — only
   // an explicit withdrawal means "not live".
