@@ -16,10 +16,10 @@
         "packages/kit",
         "vite",
         "--port",
-        "5174",
+        "5173",
         "--strictPort"
       ],
-      "port": 5174
+      "port": 5173
     }
   ]
 }

@@ -24,3 +24,24 @@ describe("normalizeProductRegions", () => {
     }
   });
 });
+
+// CodeRabbit round 4: the format check alone accepted reserved codes
+// like ZZ, which upsertProduct stored and the Android sync then silently
+// dropped.
+describe("assigned-region validation", () => {
+  it("accepts real territories, including ones in reserved ranges CLDR names", () => {
+    expect(normalizeProductRegions(["QA", "XK", "GB"])).toEqual([
+      "GB",
+      "QA",
+      "XK",
+    ]);
+  });
+
+  it("rejects reserved and unassigned codes", () => {
+    for (const code of ["ZZ", "AA", "QQ", "QM", "XA"]) {
+      expect(() => normalizeProductRegions([code])).toThrow(
+        /Invalid sales region/,
+      );
+    }
+  });
+});

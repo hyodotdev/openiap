@@ -1705,6 +1705,30 @@ export async function upsertModernAndroidOneTimeProduct(
     ),
   });
 
+  // A requested region Play returned no price for is silently absent
+  // from the write, so say so. This also backstops the region-code
+  // validator: a code that is well-formed and assigned but not a Play
+  // sales region reaches here rather than disappearing.
+  const unpricedRegions = allowedRegions
+    ? [...allowedRegions].filter(
+        (region) =>
+          !regionalConfigs.some(
+            (config) =>
+              config.regionCode === region &&
+              config.availability === "AVAILABLE",
+          ),
+      )
+    : [];
+  if (unpricedRegions.length > 0) {
+    return {
+      manualAction: {
+        productId: args.productId,
+        code: "regional_pricing_incomplete",
+        message: `Play does not sell "${args.productId}" in ${unpricedRegions.join(", ")}, so ${unpricedRegions.length === 1 ? "that region was" : "those regions were"} skipped. Remove ${unpricedRegions.length === 1 ? "it" : "them"} from the product's sales regions, or check the region code.`,
+      },
+    };
+  }
+
   if (convertedRegionCount(converted) > 0) return {};
 
   // Conversion failed. The write still went out, but only `repriced` of
