@@ -421,9 +421,20 @@ async function performAndroidSync(
             );
             const preferred =
               (authoredCurrency
-                ? priceCandidates.find(
+                ? // US first WITHIN the authored currency: Play prices
+                  // several non-US regions in USD (EC, SV, TL, ZW…), so
+                  // matching on currency alone would resolve a plain USD
+                  // row to whichever of those Play happened to list
+                  // first — regressing the common case while fixing the
+                  // KRW/JPY one.
+                  (priceCandidates.find(
+                    (p) =>
+                      p.regionCode === "US" &&
+                      p.currencyCode === authoredCurrency,
+                  ) ??
+                  priceCandidates.find(
                     (p) => p.currencyCode === authoredCurrency,
-                  )
+                  ))
                 : undefined) ??
               priceCandidates.find((p) => p.regionCode === "US") ??
               priceCandidates.find((p) => p.currencyCode === "USD") ??
@@ -559,7 +570,10 @@ async function performAndroidSync(
         for (const sub of subs.data.subscriptions ?? []) {
           if (!sub.productId) continue;
           const { priceAmountMicros, currency, basePlanId } =
-            pickSubBasePlanPrice(sub);
+            pickSubBasePlanPrice(
+              sub,
+              existingCurrencyByProductId.get(sub.productId ?? ""),
+            );
           const offers = collectPlaySubscriptionOffers(sub);
           // Pick the billingPeriod from the *same* base plan whose
           // price we just selected (`basePlanId` returned by
@@ -1867,7 +1881,10 @@ function pickPlayCurrency(
 // if any region offers it, otherwise return the first region with a
 // readable price. Currency + price come from the SAME regionalConfig
 // so they're always consistent.
-function pickSubBasePlanPrice(sub: androidpublisher_v3.Schema$Subscription): {
+function pickSubBasePlanPrice(
+  sub: androidpublisher_v3.Schema$Subscription,
+  preferredCurrency?: string,
+): {
   priceAmountMicros?: number;
   currency?: string;
   // The basePlanId of the plan whose price we picked, so the caller
@@ -1890,11 +1907,18 @@ function pickSubBasePlanPrice(sub: androidpublisher_v3.Schema$Subscription): {
     }
   }
   if (candidates.length === 0) return {};
-  // Prefer USD when any region offers it — it's the most universally
-  // recognizable in a dashboard. The operator can edit per-region
-  // prices in Play Console; this just picks a stable display value.
+  // Prefer the currency the kit row already carries. Pushing converts
+  // the operator's base price into every region, so a USD-first rule
+  // would read a KRW/JPY-authored row back as its converted dollar
+  // amount and the next push would convert from that already-converted
+  // number. Falls back to USD — the most universally recognizable
+  // dashboard value — for rows kit hasn't priced yet.
   const preferred =
-    candidates.find((c) => c.price.currencyCode === "USD") ?? candidates[0];
+    (preferredCurrency
+      ? candidates.find((c) => c.price.currencyCode === preferredCurrency)
+      : undefined) ??
+    candidates.find((c) => c.price.currencyCode === "USD") ??
+    candidates[0];
   return {
     priceAmountMicros: moneyToMicros(preferred.price),
     currency: preferred.price.currencyCode ?? undefined,

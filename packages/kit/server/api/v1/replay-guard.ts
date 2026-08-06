@@ -389,7 +389,8 @@ export function replayGuardMiddleware(
         const outcome = c.get("verifyOutcome");
         if (
           outcome &&
-          outcome.isValid === false
+          outcome.isValid === false &&
+          isStableRejection(outcome.state)
         ) {
           markPayloadFailure(store, bucketKey, capacity, clock(), maxStoreSize);
         }

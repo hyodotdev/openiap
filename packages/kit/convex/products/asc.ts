@@ -17,7 +17,7 @@ import {
   truncatePlannedWrites,
 } from "./syncResult";
 import {
-  ascReviewLocalizationMatches,
+  ascReviewLocalizationMismatch,
   ASC_REVIEW_SUBMISSION_ITEM_LIMIT,
   ASC_REVIEW_SYNC_BATCH_LIMIT,
   ensureAscReviewVersion,
@@ -2025,22 +2025,13 @@ async function performIosSync(
             // whose only change is a new or edited translation would
             // otherwise look identical to the locked version and get
             // silently marked pushed without that translation shipping.
-            let mismatchedLocale: string | undefined;
-            for (const listing of listingRowsForProduct(row)) {
-              const matches = await ascReviewLocalizationMatches({
-                request: reviewRequest,
-                kind,
-                versionId: reviewVersion.versionId,
-                name: listing.title,
-                description: listing.description ?? listing.title,
-                locale: listing.locale,
-                checkCancelled,
-              });
-              if (!matches) {
-                mismatchedLocale = listing.locale;
-                break;
-              }
-            }
+            const mismatchedLocale = await ascReviewLocalizationMismatch({
+              request: reviewRequest,
+              kind,
+              versionId: reviewVersion.versionId,
+              listings: listingRowsForProduct(row),
+              checkCancelled,
+            });
             if (mismatchedLocale) {
               recordFailure({
                 productId: `${row.productId} (review version)`,
@@ -2421,19 +2412,18 @@ async function performIosSync(
               reviewVersion.alreadySubmitted ||
               reviewVersion.attachedToSubmission
             ) {
-              const matches = await ascReviewLocalizationMatches({
+              const mismatchedLocale = await ascReviewLocalizationMismatch({
                 request: reviewRequest,
                 kind: "subscription",
                 versionId: reviewVersion.versionId,
-                name: row.title,
-                description: row.description ?? row.title,
+                listings: listingRowsForProduct(row),
                 checkCancelled,
               });
+              const matches = mismatchedLocale === undefined;
               if (!matches) {
                 recordFailure({
                   productId: `${row.productId} (review version)`,
-                  reason:
-                    "The current ASC review version is already attached or submitted and its en-US metadata differs from this Draft.",
+                  reason: `The current ASC review version is already attached or submitted and its ${mismatchedLocale} metadata differs from this Draft.`,
                 });
               } else {
                 plannedWrites.push({
@@ -2597,19 +2587,18 @@ async function performIosSync(
               reviewVersion.alreadySubmitted ||
               reviewVersion.attachedToSubmission
             ) {
-              const matches = await ascReviewLocalizationMatches({
+              const mismatchedLocale = await ascReviewLocalizationMismatch({
                 request: reviewRequest,
                 kind: "iap",
                 versionId: reviewVersion.versionId,
-                name: row.title,
-                description: row.description ?? row.title,
+                listings: listingRowsForProduct(row),
                 checkCancelled,
               });
+              const matches = mismatchedLocale === undefined;
               if (!matches) {
                 recordFailure({
                   productId: `${row.productId} (review version)`,
-                  reason:
-                    "The current ASC review version is already attached or submitted and its en-US metadata differs from this Draft.",
+                  reason: `The current ASC review version is already attached or submitted and its ${mismatchedLocale} metadata differs from this Draft.`,
                 });
               } else {
                 plannedWrites.push({

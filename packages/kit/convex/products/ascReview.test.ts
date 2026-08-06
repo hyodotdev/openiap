@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  ascReviewLocalizationMatches,
+  ascReviewLocalizationMismatch,
   classifyAscManualReviewAction,
   ensureAscReviewVersion,
   getAscReviewEligibilityActions,
@@ -1010,23 +1010,56 @@ describe("ASC version and submission workflow", () => {
     })) as unknown as AscJsonRequest;
 
     await expect(
-      ascReviewLocalizationMatches({
+      ascReviewLocalizationMismatch({
         request,
         kind: "iap",
         versionId: "attached-version",
-        name: "Coins",
-        description: "100 coins",
+        listings: [
+          { locale: "en-US", title: "Coins", description: "100 coins" },
+        ],
       }),
-    ).resolves.toBe(true);
+    ).resolves.toBeUndefined();
     await expect(
-      ascReviewLocalizationMatches({
+      ascReviewLocalizationMismatch({
         request,
         kind: "iap",
         versionId: "attached-version",
-        name: "Coins Plus",
-        description: "200 coins",
+        listings: [
+          { locale: "en-US", title: "Coins Plus", description: "200 coins" },
+        ],
       }),
-    ).resolves.toBe(false);
+    ).resolves.toBe("en-US");
+  });
+
+  // A Draft whose only change is a translation used to compare equal to
+  // the locked version, so it was marked pushed without the translation
+  // ever reaching ASC.
+  it("reports a locale the locked version is missing", async () => {
+    const request = (async () => ({
+      data: [
+        {
+          id: "loc-1",
+          type: "inAppPurchaseLocalizations",
+          attributes: {
+            locale: "en-US",
+            name: "Coins",
+            description: "100 coins",
+          },
+        },
+      ],
+    })) as unknown as AscJsonRequest;
+
+    await expect(
+      ascReviewLocalizationMismatch({
+        request,
+        kind: "iap",
+        versionId: "attached-version",
+        listings: [
+          { locale: "en-US", title: "Coins", description: "100 coins" },
+          { locale: "ko-KR", title: "코인", description: "코인 100개" },
+        ],
+      }),
+    ).resolves.toBe("ko-KR");
   });
 
   it("creates one review submission with IAP and subscription version items", async () => {

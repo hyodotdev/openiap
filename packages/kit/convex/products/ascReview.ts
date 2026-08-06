@@ -848,28 +848,42 @@ export async function upsertAscReviewLocalization(args: {
   });
 }
 
-export async function ascReviewLocalizationMatches(args: {
+/**
+ * Whether a locked review version already carries exactly the listings
+ * kit would push.
+ *
+ * Takes the whole set rather than one locale: the push writes every
+ * locale on the row, so comparing only the base pair would report
+ * "matches" for a Draft whose sole change is a translation — and that
+ * Draft would then be marked pushed without the translation shipping.
+ * One list fetch serves every comparison.
+ *
+ * @returns The first locale that differs, or undefined when all match.
+ */
+export async function ascReviewLocalizationMismatch(args: {
   request: AscJsonRequest;
   kind: AscReviewKind;
   versionId: string;
-  name: string;
-  description: string;
-  locale?: string;
+  listings: Array<{ locale: string; title: string; description?: string }>;
   checkCancelled?: () => Promise<void>;
-}): Promise<boolean> {
+}): Promise<string | undefined> {
   const config = VERSION_CONFIG[args.kind];
-  const locale = args.locale ?? "en-US";
   await (args.checkCancelled ?? (async () => undefined))();
   const localizations = await args.request<AscLocalizationResponse>(
     config.localizationListPath(args.versionId),
   );
-  const existing = localizations.data.find(
-    (localization) => localization.attributes?.locale === locale,
-  );
-  return (
-    existing?.attributes?.name === args.name &&
-    existing.attributes.description === args.description
-  );
+  for (const listing of args.listings) {
+    const existing = localizations.data.find(
+      (localization) => localization.attributes?.locale === listing.locale,
+    );
+    if (
+      existing?.attributes?.name !== listing.title ||
+      existing.attributes.description !== (listing.description ?? listing.title)
+    ) {
+      return listing.locale;
+    }
+  }
+  return undefined;
 }
 
 export async function submitAscReviewVersions(args: {
