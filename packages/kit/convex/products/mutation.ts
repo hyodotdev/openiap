@@ -598,6 +598,19 @@ export const upsertProduct = mutation({
       args.type,
     );
     const regions = normalizeProductRegions(args.regions);
+    // Only the Android one-time push applies a region footprint. App
+    // Store Connect prices per-territory through a different resource
+    // this workflow does not touch, and Play's subscription update masks
+    // `listings` only, so a base plan's regional configs are fixed at
+    // create. Accepting the field for those would make it a phantom —
+    // stored, shown in the dashboard, and silently never applied.
+    if (regions && (args.platform === "IOS" || args.type === "Subscription")) {
+      throw new Error(
+        args.platform === "IOS"
+          ? "Sales regions are currently Android-only. Set App Store availability in App Store Connect."
+          : "Sales regions cannot be set on a subscription. Play fixes a base plan's regional configs when it is created; change them in Play Console.",
+      );
+    }
 
     // iOS subscriptions REQUIRE a subscriptionGroupName upstream —
     // related tiers must share a group for StoreKit 2's native

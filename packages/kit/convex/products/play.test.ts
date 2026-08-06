@@ -1122,3 +1122,139 @@ describe("pickSubBasePlanPrice", () => {
     expect(pickSubBasePlanPrice(sub, "KRW").basePlanId).toBe("monthly");
   });
 });
+
+// Round 4: the regions-version fix only covered the success branch. On
+// the degraded path the write still echoes configs Play generated at a
+// NEWER version, so pinning the historical one reproduces the very
+// BG/BGN rejection the fix was for.
+describe("regions version on the degraded path", () => {
+  it("follows the version the preserved configs came from", async () => {
+    const { androidpublisher, requests } = stubAndroidPublisher({
+      get: () => ({
+        regionsVersion: { version: "2026/02" },
+        purchaseOptions: [
+          {
+            purchaseOptionId: "buy",
+            regionalPricingAndAvailabilityConfigs: [
+              {
+                regionCode: "BG",
+                availability: "AVAILABLE",
+                price: { currencyCode: "EUR", units: "17", nanos: 0 },
+              },
+            ],
+          },
+        ],
+      }),
+      convert: () => {
+        throw Object.assign(new Error("nope"), { code: 500 });
+      },
+    });
+
+    await upsertModernAndroidOneTimeProduct(androidpublisher, BASE_ARGS, {
+      allowCreate: false,
+    });
+
+    expect(
+      new URL(String(patchRequest(requests)?.url)).searchParams.get(
+        "regionsVersion.version",
+      ),
+    ).toBe("2026/02");
+  });
+});
+
+describe("sales regions edge cases", () => {
+  it("re-enables a region added back to the list", async () => {
+    const { androidpublisher, requests } = stubAndroidPublisher({
+      get: () => ({
+        purchaseOptions: [
+          {
+            purchaseOptionId: "buy",
+            regionalPricingAndAvailabilityConfigs: [
+              {
+                regionCode: "KR",
+                availability: "NO_LONGER_AVAILABLE",
+                price: { currencyCode: "KRW", units: "1000", nanos: 0 },
+              },
+            ],
+          },
+        ],
+      }),
+      convert: () => ({
+        convertedRegionPrices: {
+          KR: {
+            regionCode: "KR",
+            price: { currencyCode: "KRW", units: "33000", nanos: 0 },
+          },
+        },
+      }),
+    });
+
+    await upsertModernAndroidOneTimeProduct(
+      androidpublisher,
+      { ...BASE_ARGS, regions: ["KR"] },
+      { allowCreate: false },
+    );
+
+    // Without this the footprint is a one-way door: a region kit
+    // withdrew could never be sold in again.
+    expect(
+      regionalConfigs(patchRequest(requests))
+        ?.regionalPricingAndAvailabilityConfigs?.[0]?.availability,
+    ).toBe("AVAILABLE");
+  });
+
+  it("refuses to publish the US fallback to a footprint that excludes it", async () => {
+    const { androidpublisher } = stubAndroidPublisher({
+      convert: () => {
+        throw Object.assign(new Error("nope"), { code: 500 });
+      },
+    });
+
+    await expect(
+      upsertModernAndroidOneTimeProduct(
+        androidpublisher,
+        { ...BASE_ARGS, regions: ["KR", "JP"] },
+        { allowCreate: true },
+      ),
+    ).rejects.toThrow(/exclude the US fallback/);
+  });
+
+  it("does not count withdrawn regions as prices left stale", async () => {
+    const { androidpublisher } = stubAndroidPublisher({
+      get: () => ({
+        purchaseOptions: [
+          {
+            purchaseOptionId: "buy",
+            regionalPricingAndAvailabilityConfigs: [
+              {
+                regionCode: "US",
+                availability: "AVAILABLE",
+                price: { currencyCode: "USD", units: "19", nanos: 0 },
+              },
+              {
+                regionCode: "DE",
+                availability: "AVAILABLE",
+                price: { currencyCode: "EUR", units: "17", nanos: 0 },
+              },
+            ],
+          },
+        ],
+      }),
+      convert: () => {
+        throw Object.assign(new Error("nope"), { code: 500 });
+      },
+    });
+
+    const outcome = await upsertModernAndroidOneTimeProduct(
+      androidpublisher,
+      { ...BASE_ARGS, regions: ["US"] },
+      { allowCreate: false },
+    );
+
+    // DE was withdrawn on purpose; calling it a stale price would be
+    // alarming and wrong.
+    expect(outcome.manualAction?.message).not.toContain(
+      "kept their previous price",
+    );
+  });
+});

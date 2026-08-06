@@ -723,7 +723,7 @@ async function performAndroidSync(
               plannedWrites.push({
                 productId: row.productId,
                 step: "patch subscription listing",
-                detail: `${row.title} (storeRef=${row.storeRef}) · ${describePlayListingPlan(row)}`,
+                detail: `${row.title} (storeRef=${row.storeRef}) · ${describePlayListingPlan(row, { withRegions: false })}`,
               });
             } else {
               try {
@@ -849,7 +849,7 @@ async function performAndroidSync(
             plannedWrites.push({
               productId: row.productId,
               step: "create subscription",
-              detail: `${row.title} · base plan ${basePlanId} · ${row.billingPeriod ?? "P1M"} · ${row.currency} ${(row.priceAmountMicros / 1_000_000).toFixed(2)} · ${describePlayListingPlan(row)}`,
+              detail: `${row.title} · base plan ${basePlanId} · ${row.billingPeriod ?? "P1M"} · ${row.currency} ${(row.priceAmountMicros / 1_000_000).toFixed(2)} · ${describePlayListingPlan(row, { withRegions: false })}`,
             });
             plannedWrites.push({
               productId: row.productId,
@@ -870,19 +870,14 @@ async function performAndroidSync(
               subscriptionBasePrice,
             );
             const subscriptionConverted = subscriptionConversion.response;
-            const subscriptionAllowedRegions = row.regions?.length
-              ? new Set(row.regions)
-              : undefined;
             const subscriptionRegionalConfigs =
               buildSubscriptionRegionalConfigs(
                 subscriptionConverted,
                 subscriptionBasePrice,
                 row.productId,
-                subscriptionAllowedRegions,
               );
-            const subscriptionOtherRegions = subscriptionAllowedRegions
-              ? undefined
-              : subscriptionConverted?.convertedOtherRegionsPrice;
+            const subscriptionOtherRegions =
+              subscriptionConverted?.convertedOtherRegionsPrice;
             if (convertedRegionCount(subscriptionConverted) === 0) {
               manualActions.push({
                 productId: row.productId,
@@ -1088,15 +1083,22 @@ async function mergedSubscriptionListings(
   return base ? [base, ...rest] : rest;
 }
 
-/** Human summary of the locales and regions a push would publish. */
-function describePlayListingPlan(row: {
-  localizations?: ProductLocalization[];
-  regions?: string[];
-}): string {
+/**
+ * Human summary of what a push would publish.
+ *
+ * `withRegions` is false on paths that write listings only (the
+ * subscription patch), so the preview never advertises a footprint that
+ * write does not touch.
+ */
+function describePlayListingPlan(
+  row: { localizations?: ProductLocalization[]; regions?: string[] },
+  options: { withRegions: boolean } = { withRegions: true },
+): string {
   const locales = [
     BASE_LISTING_LOCALE,
     ...(row.localizations ?? []).map((l) => l.locale),
   ].join(", ");
+  if (!options.withRegions) return `locales ${locales}`;
   const regions = row.regions?.length
     ? row.regions.join(", ")
     : "all Play regions (converted)";
@@ -1266,8 +1268,19 @@ const FALLBACK_REGIONS_VERSION = "2022/01";
 
 function regionsVersionFor(
   converted: androidpublisher_v3.Schema$ConvertRegionPricesResponse | undefined,
+  existingVersion?: string,
 ): string {
-  return converted?.regionVersion?.version ?? FALLBACK_REGIONS_VERSION;
+  // The conversion's own version wins. Failing that, the write still
+  // echoes the configs Play generated at `existingVersion`, and pinning
+  // anything older makes Play reject them for the same reason a
+  // freshly-converted price fails at 2022/01 — a region whose currency
+  // changed since. The historical pin is only for a product Play has
+  // never priced.
+  return (
+    converted?.regionVersion?.version ??
+    existingVersion ??
+    FALLBACK_REGIONS_VERSION
+  );
 }
 
 function convertedRegionCount(
@@ -1370,7 +1383,14 @@ function buildRegionalPricingConfigs(
       // isn't its own, so the converted Money is the only safe price
       // here — never the operator's base-currency amount.
       price: regionPrice.price,
-      availability: existing?.availability ?? "AVAILABLE",
+      // A region kit itself withdrew must come back when the operator
+      // adds it to `regions` again, otherwise the footprint is a
+      // one-way door. A region the operator withdrew in Play Console is
+      // still respected: that only reaches here when the region is IN
+      // the allow-list, i.e. they asked for it back.
+      availability: allowedRegions
+        ? "AVAILABLE"
+        : (existing?.availability ?? "AVAILABLE"),
     });
     repriced += 1;
   }
@@ -1399,7 +1419,14 @@ function buildRegionalPricingConfigs(
     // Nothing to preserve and no conversion — fall back to the base
     // region so the product is at least purchasable somewhere. The
     // caller reports this as a manual action rather than a silent
-    // success.
+    // success. An operator who named their regions and left US out must
+    // not have it published anyway; there is simply nothing legal to
+    // write for them, so the push fails and says why.
+    if (allowedRegions && !allowedRegions.has("US")) {
+      throw new Error(
+        `Play could not convert ${basePrice.currencyCode} into regional prices for "${productId}", and its sales regions (${[...allowedRegions].join(", ")}) exclude the US fallback. Retry the sync, or set the prices in Play Console.`,
+      );
+    }
     configs.set(assertUsdFallbackRegion(basePrice, productId), {
       regionCode: "US",
       availability: "AVAILABLE",
@@ -1542,6 +1569,8 @@ interface ExistingOneTimeProductState {
   otherPurchaseOptions: androidpublisher_v3.Schema$OneTimeProductPurchaseOption[];
   /** Upstream listings, so locales kit doesn't model survive. */
   listings: androidpublisher_v3.Schema$OneTimeProductListing[];
+  /** Output-only version Play generated the preserved configs at. */
+  regionsVersion?: string;
 }
 
 /**
@@ -1586,6 +1615,7 @@ async function readExistingOneTimeProduct(
       (option) => option.purchaseOptionId !== "buy",
     ),
     listings: product.listings ?? [],
+    regionsVersion: product.regionsVersion?.version ?? undefined,
   };
 }
 
@@ -1657,7 +1687,10 @@ export async function upsertModernAndroidOneTimeProduct(
     productId: args.productId,
     allowMissing: options.allowCreate,
     updateMask: "listings,purchaseOptions",
-    "regionsVersion.version": regionsVersionFor(converted),
+    "regionsVersion.version": regionsVersionFor(
+      converted,
+      existing.regionsVersion,
+    ),
     requestBody: buildAndroidOneTimeProduct(
       args,
       regionalConfigs,
@@ -1672,7 +1705,15 @@ export async function upsertModernAndroidOneTimeProduct(
   // the product's regions could legally take the new amount — the rest
   // kept their previous prices. Report exactly that; "pushed, no
   // failures" would read as "the new price is live everywhere".
-  const stale = regionalConfigs.length - repriced;
+  // Deliberately withdrawn regions are not "stale prices" — counting
+  // them would tell an operator with a 3-region footprint that 170
+  // regions kept an old price, which is alarming and wrong.
+  const stale =
+    regionalConfigs.filter(
+      (config) =>
+        config.availability === "AVAILABLE" &&
+        !(allowedRegions && !allowedRegions.has(config.regionCode ?? "")),
+    ).length - repriced;
   const amount = `${args.currency} ${(args.priceAmountMicros / 1_000_000).toFixed(2)}`;
   return {
     manualAction: {
@@ -1707,10 +1748,28 @@ function legacyListingsMap(args: AndroidOneTimeProductUpsertArgs): {
   return listings;
 }
 
+/**
+ * The legacy `inappproducts` API has no region concept — it prices a SKU
+ * from `defaultPrice` and, with `autoConvertMissingPrices`, everywhere
+ * else. An operator who named their sales regions cannot be served by
+ * it, and silently publishing everywhere would be the opposite of what
+ * they asked for.
+ */
+function assertLegacyPathSupportsRegions(
+  args: AndroidOneTimeProductUpsertArgs,
+): void {
+  if (args.regions?.length) {
+    throw new Error(
+      `"${args.productId}" specifies sales regions, but this app is still on Play's legacy in-app-products API, which prices every region or none. Remove the region list, or migrate the app to Play's one-time products model.`,
+    );
+  }
+}
+
 async function insertLegacyAndroidOneTimeProduct(
   androidpublisher: androidpublisher_v3.Androidpublisher,
   args: AndroidOneTimeProductUpsertArgs,
 ): Promise<void> {
+  assertLegacyPathSupportsRegions(args);
   await androidpublisher.inappproducts.insert({
     packageName: args.packageName,
     // Without this the legacy API prices the SKU in the merchant
@@ -1736,6 +1795,7 @@ async function patchLegacyAndroidOneTimeProduct(
   androidpublisher: androidpublisher_v3.Androidpublisher,
   args: AndroidOneTimeProductUpsertArgs,
 ): Promise<void> {
+  assertLegacyPathSupportsRegions(args);
   await androidpublisher.inappproducts.patch({
     packageName: args.packageName,
     sku: args.productId,

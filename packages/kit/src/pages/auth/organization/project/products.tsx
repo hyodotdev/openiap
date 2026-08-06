@@ -145,10 +145,6 @@ export default function ProjectProducts() {
   // hand-authored content must survive, including when a half-typed
   // productId transiently matches an existing row.
   const prefilledKeyRef = useRef<string | null>(null);
-  // Set by every manual edit, cleared by a prefill. Guards the PREFILL:
-  // overwriting work the operator is in the middle of typing is the
-  // destructive direction here.
-  const dirtyRef = useRef(false);
   useEffect(() => {
     const key = editingExisting
       ? `${editingExisting.platform}\u0000${editingExisting.productId}`
@@ -162,14 +158,17 @@ export default function ProjectProducts() {
       }
       return;
     }
-    if (dirtyRef.current && prefilledKeyRef.current === null) {
-      // Hand-authored content and the id only just started matching —
-      // keep what they typed rather than replacing it with the stored
-      // row. They can clear the id and retype to load it deliberately.
-      return;
-    }
+    // Derived from what is actually on screen rather than a sticky
+    // "dirty" flag: a flag has to be reset on every path that empties
+    // the editors, and missing one either latches prefill off forever or
+    // lets an empty editor overwrite a stored product. Content is
+    // hand-authored exactly when it is present and did not come from a
+    // prefill.
+    const handAuthored =
+      prefilledKeyRef.current === null &&
+      (localizations.length > 0 || regionsInput.trim() !== "");
+    if (handAuthored) return;
     prefilledKeyRef.current = key;
-    dirtyRef.current = false;
     setRegionsInput((editingExisting.regions ?? []).join(", "));
     setLocalizations(
       (editingExisting.localizations ?? []).map((entry) => ({
@@ -178,6 +177,10 @@ export default function ProjectProducts() {
         description: entry.description ?? "",
       })),
     );
+    // Reading the editors here is a guard, not a dependency: re-running
+    // on every keystroke would defeat the "did this come from a prefill"
+    // test, so they are deliberately excluded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editingExisting]);
 
   const grouped = useMemo(() => {
@@ -390,7 +393,6 @@ export default function ProjectProducts() {
     // hand-authored; without this the next typed id would be treated as
     // a transient match and refuse to load.
     prefilledKeyRef.current = null;
-    dirtyRef.current = false;
   };
 
   const onSync = async (
@@ -639,10 +641,7 @@ export default function ProjectProducts() {
         <Field label="Sales regions (optional)">
           <input
             value={regionsInput}
-            onChange={(e) => {
-              dirtyRef.current = true;
-              setRegionsInput(e.target.value);
-            }}
+            onChange={(e) => setRegionsInput(e.target.value)}
             placeholder="Leave blank to sell everywhere — or e.g. US, KR, JP"
             className="w-full px-2 py-1.5 rounded border border-border bg-background"
           />
@@ -659,13 +658,12 @@ export default function ProjectProducts() {
               Other languages (optional)
             </span>
             <button
-              onClick={() => {
-                dirtyRef.current = true;
+              onClick={() =>
                 setLocalizations([
                   ...localizations,
                   { locale: "", title: "", description: "" },
-                ]);
-              }}
+                ])
+              }
               className="flex items-center gap-1 text-xs text-primary hover:underline"
             >
               <Plus className="w-3 h-3" /> Add language
@@ -685,42 +683,39 @@ export default function ProjectProducts() {
               >
                 <input
                   value={entry.locale}
-                  onChange={(e) => {
-                    dirtyRef.current = true;
+                  onChange={(e) =>
                     setLocalizations(
                       localizations.map((row, i) =>
                         i === index ? { ...row, locale: e.target.value } : row,
                       ),
-                    );
-                  }}
+                    )
+                  }
                   placeholder="ko-KR"
                   className="w-full px-2 py-1.5 rounded border border-border bg-background text-sm"
                 />
                 <input
                   value={entry.title}
-                  onChange={(e) => {
-                    dirtyRef.current = true;
+                  onChange={(e) =>
                     setLocalizations(
                       localizations.map((row, i) =>
                         i === index ? { ...row, title: e.target.value } : row,
                       ),
-                    );
-                  }}
+                    )
+                  }
                   placeholder="Title in this language"
                   className="w-full px-2 py-1.5 rounded border border-border bg-background text-sm"
                 />
                 <input
                   value={entry.description}
-                  onChange={(e) => {
-                    dirtyRef.current = true;
+                  onChange={(e) =>
                     setLocalizations(
                       localizations.map((row, i) =>
                         i === index
                           ? { ...row, description: e.target.value }
                           : row,
                       ),
-                    );
-                  }}
+                    )
+                  }
                   placeholder="Description in this language"
                   className="w-full px-2 py-1.5 rounded border border-border bg-background text-sm"
                 />

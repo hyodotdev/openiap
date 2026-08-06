@@ -35,7 +35,8 @@ export function buildSessionId(
 
 /** Routing decision for a session id this process doesn't recognize. */
 export type UnknownSessionRouting =
-  { action: "replay"; targetMachineId: string } | { action: "not-found" };
+  | { action: "replay"; targetMachineId: string }
+  | { action: "not-found" };
 
 /**
  * Decides what to do with a session id that isn't in the local
