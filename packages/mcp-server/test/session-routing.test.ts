@@ -17,7 +17,9 @@ describe("currentMachineId", () => {
     expect(currentMachineId({})).toBeUndefined();
     expect(currentMachineId({ FLY_MACHINE_ID: "" })).toBeUndefined();
     expect(currentMachineId({ FLY_MACHINE_ID: "bad.value" })).toBeUndefined();
-    expect(currentMachineId({ FLY_MACHINE_ID: "a".repeat(33) })).toBeUndefined();
+    expect(
+      currentMachineId({ FLY_MACHINE_ID: "a".repeat(33) }),
+    ).toBeUndefined();
   });
 });
 
