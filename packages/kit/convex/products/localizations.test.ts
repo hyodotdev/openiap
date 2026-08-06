@@ -8,7 +8,21 @@ import {
 } from "./localizations";
 
 describe("normalizeProductLocalizations", () => {
-  it("trims, drops blank descriptions, and sorts by locale", () => {
+  it("sorts by locale so a store request body is deterministic", () => {
+    expect(
+      normalizeProductLocalizations(
+        [
+          { locale: "ko-KR", title: "코인" },
+          { locale: "de-DE", title: "Münzen" },
+          { locale: "ja-JP", title: "コイン" },
+        ],
+        "Android",
+        "Consumable",
+      )?.map((l) => l.locale),
+    ).toEqual(["de-DE", "ja-JP", "ko-KR"]);
+  });
+
+  it("trims and drops blank descriptions", () => {
     expect(
       normalizeProductLocalizations(
         [

@@ -30,6 +30,7 @@ import {
   shouldShowProductSyncResult,
 } from "./product-sync-result";
 import { ProductSyncFailureList } from "./product-sync-failure-list";
+import { resolveProductLocalizations } from "./product-localizations";
 
 type DashboardProject = Omit<
   Doc<"projects">,
@@ -311,34 +312,13 @@ export default function ProjectProducts() {
       : undefined;
     const billingPeriod =
       draft.type === "Subscription" ? draft.billingPeriod : undefined;
-    // A row the operator started but didn't finish is a mistake, not an
-    // instruction to drop it: silently filtering it out would clear the
-    // form and lose the text they typed with no error shown.
-    const touchedLocalizations = localizations.filter((entry) =>
-      [entry.locale, entry.title, entry.description].some((value) =>
-        value.trim(),
-      ),
-    );
-    if (
-      touchedLocalizations.some(
-        (entry) => !entry.locale.trim() || !entry.title.trim(),
-      )
-    ) {
-      toast.error("Every language needs both a locale and a title");
-      return;
-    }
-    const filledLocalizations = touchedLocalizations.map((entry) => ({
-      locale: entry.locale.trim(),
-      title: entry.title.trim(),
-      description: entry.description.trim() || undefined,
-    }));
-    // Sending a language list for a product that already has one
-    // REPLACES it, so an operator who typed a single row without loading
-    // would silently drop the rest. Make them load first.
-    if (editingExisting && !isLoadedRow && filledLocalizations.length > 0) {
-      toast.error(
-        "Load this product's stored languages first — saving now would replace them",
-      );
+    const resolvedLocalizations = resolveProductLocalizations({
+      rows: localizations,
+      editingExisting: Boolean(editingExisting),
+      isLoadedRow,
+    });
+    if (!resolvedLocalizations.ok) {
+      toast.error(resolvedLocalizations.error);
       return;
     }
     try {
@@ -354,15 +334,7 @@ export default function ProjectProducts() {
         billingPeriod,
         subscriptionGroupName,
         reviewNote,
-        // Editing an existing row prefills every stored locale and
-        // region, so an empty list there is a deliberate delete-all and
-        // must be sent as `[]` for the mutation to clear it. `undefined`
-        // is only for a brand-new row, where nothing was prefilled and
-        // an empty list just means "not specified".
-        localizations:
-          isLoadedRow || filledLocalizations.length > 0
-            ? filledLocalizations
-            : undefined,
+        localizations: resolvedLocalizations.localizations,
         state: "Draft",
       });
     } catch (error) {

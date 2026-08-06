@@ -11,6 +11,7 @@ import {
   moneyToMicros,
   playPriceMicrosToNumber,
   shouldFallbackToLegacyOneTimeProduct,
+  upsertAndroidOneTimeProduct,
   upsertModernAndroidOneTimeProduct,
 } from "./play";
 
@@ -1393,5 +1394,134 @@ describe("regionsVersionFor precedence", () => {
         "regionsVersion.version",
       ),
     ).toBe("2026/02");
+  });
+});
+
+// The legacy `inappproducts` fallback is the other half of issue #288:
+// apps whose Play catalog predates the modern one-time-product API never
+// reach the conversion code above, so if this path forgets
+// `autoConvertMissingPrices` it publishes a merchant-currency-only SKU —
+// exactly the bug, just via a different door. Driven through the
+// exported wrapper so the fallback decision is exercised too, not just
+// the request builder.
+describe("legacy inappproducts fallback", () => {
+  function stubLegacyFallback(modernError: { code: number; message?: string }) {
+    const requests: Common.GaxiosOptions[] = [];
+    const androidpublisher = google.androidpublisher({
+      version: "v3",
+      adapter: async <T>(
+        request: Common.gaxios.GaxiosOptionsPrepared,
+      ): Promise<Common.GaxiosResponse<T>> => {
+        requests.push(request);
+        const url = new URL(String(request.url));
+        if (url.pathname.includes("/onetimeproducts")) {
+          throw Object.assign(new Error(modernError.message ?? "no"), {
+            code: modernError.code,
+          });
+        }
+        return Object.assign(new Response(null, { status: 200 }), {
+          config: request,
+          data: {} as T,
+        });
+      },
+    });
+    const auth = {} as never;
+    return { androidpublisher, auth, requests };
+  }
+
+  const legacyRequest = (requests: Common.GaxiosOptions[]) =>
+    requests.find((request) => String(request.url).includes("/inappproducts"));
+
+  const localizedArgs = {
+    ...BASE_ARGS,
+    localizations: [
+      { locale: "ko-KR", title: "문 세이지", description: "전체 해금" },
+      { locale: "ja-JP", title: "ムーンセージ" },
+    ],
+  };
+
+  // A create only reaches the legacy catalog when Play says so outright:
+  // `allowMissing=true` means a bare 404 cannot mean "product absent", so
+  // that case stays visible. An update falls back on a plain 404, since
+  // the SKU may exist only in the old catalog.
+  const FALLBACK_SIGNALS = [
+    {
+      allowCreate: true,
+      error: { code: 400, message: "Please use the InAppProducts API" },
+    },
+    { allowCreate: false, error: { code: 404 } },
+  ] as const;
+
+  for (const { allowCreate, error } of FALLBACK_SIGNALS) {
+    it(`prices every region and writes every locale (allowCreate=${allowCreate})`, async () => {
+      const { androidpublisher, auth, requests } = stubLegacyFallback(error);
+
+      await upsertAndroidOneTimeProduct(androidpublisher, auth, localizedArgs, {
+        allowCreate,
+      });
+
+      const request = legacyRequest(requests);
+      expect(request).toBeDefined();
+      expect(request?.method).toBe(allowCreate ? "POST" : "PATCH");
+      // Without this the legacy API prices the SKU in the merchant
+      // currency only and leaves every other region unbuyable.
+      expect(
+        new URL(String(request?.url)).searchParams.get(
+          "autoConvertMissingPrices",
+        ),
+      ).toBe("true");
+
+      const body = request?.data as {
+        defaultLanguage?: string;
+        listings?: Record<string, { title?: string; description?: string }>;
+      };
+      expect(body.listings?.["en-US"]).toEqual({
+        title: "Moon Sage",
+        description: "Unlock Moon Sage",
+      });
+      expect(body.listings?.["ko-KR"]).toEqual({
+        title: "문 세이지",
+        description: "전체 해금",
+      });
+      // Play requires a description; a locale that omits one repeats its
+      // title rather than sending an empty string the API rejects.
+      expect(body.listings?.["ja-JP"]).toEqual({
+        title: "ムーンセージ",
+        description: "ムーンセージ",
+      });
+    });
+  }
+
+  it("declares the base locale as the SKU default on create", async () => {
+    const { androidpublisher, auth, requests } = stubLegacyFallback({
+      code: 400,
+      message: "Please use the InAppProducts API",
+    });
+
+    await upsertAndroidOneTimeProduct(androidpublisher, auth, localizedArgs, {
+      allowCreate: true,
+    });
+
+    expect(
+      (legacyRequest(requests)?.data as { defaultLanguage?: string })
+        .defaultLanguage,
+    ).toBe("en-US");
+  });
+
+  it("does not swallow a modern error that is not a legacy-catalog signal", async () => {
+    // A 403 means the credential can't write, not "this SKU lives in the
+    // old catalog". Falling back would turn a permissions failure into a
+    // second failing call and hide the real cause.
+    const { androidpublisher, auth, requests } = stubLegacyFallback({
+      code: 403,
+      message: "The caller does not have permission",
+    });
+
+    await expect(
+      upsertAndroidOneTimeProduct(androidpublisher, auth, BASE_ARGS, {
+        allowCreate: true,
+      }),
+    ).rejects.toThrow(/permission/i);
+    expect(legacyRequest(requests)).toBeUndefined();
   });
 });

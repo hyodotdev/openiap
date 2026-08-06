@@ -497,7 +497,11 @@ export async function verifyPurchaseWithGooglePlay(
   args: {
     packageName: string;
     purchaseToken: string;
-    expectedProductId?: string;
+    // Required key, nullable value, on purpose: with `?` a caller that
+    // simply forgets to forward it still compiles, and the multi-line-item
+    // fix silently reverts to "first item wins". Making the key mandatory
+    // turns that omission into a type error.
+    expectedProductId: string | undefined;
   },
 ): Promise<GooglePlayVerificationResult> {
   // Neither catalog knowing the token can simply mean the purchase is
@@ -528,7 +532,7 @@ async function lookUpGooglePlayPurchase(
   args: {
     packageName: string;
     purchaseToken: string;
-    expectedProductId?: string;
+    expectedProductId: string | undefined;
   },
 ): Promise<GooglePlayVerificationResult> {
   let receiptData: GooglePlayReceiptData;

@@ -96,7 +96,12 @@ export const upsertFromStore = internalMutation({
     type: typeValidator,
     title: v.string(),
     description: v.optional(v.string()),
-    localizations: v.optional(v.union(productLocalizationsValidator, v.null())),
+    // No `v.null()` here, unlike the author-facing `upsertProduct`: on
+    // the pull path a store read never deletes a kit-authored locale
+    // (see the ASC call site), so `null` would be accepted and then
+    // silently coalesce back to the existing value. Rejecting it keeps
+    // the no-op from looking like a clear.
+    localizations: v.optional(productLocalizationsValidator),
     priceAmountMicros: v.optional(v.number()),
     currency: v.optional(v.string()),
     storeRef: v.string(),

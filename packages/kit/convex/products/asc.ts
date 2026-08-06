@@ -40,7 +40,7 @@ import {
 // Shared cancellation/deadline signal. The worker checks at phase and chunk
 // boundaries, AscClient checks before every API request, and the review helper
 // checks between upload operations and asset-delivery polls.
-class ProductSyncCancelledError extends Error {
+export class ProductSyncCancelledError extends Error {
   constructor() {
     super("Sync cancelled by operator");
     this.name = "ProductSyncCancelledError";
@@ -51,6 +51,48 @@ class ProductSyncDeadlineError extends Error {
   constructor() {
     super("Product sync reached its runtime deadline; retry to continue");
     this.name = "ProductSyncDeadlineError";
+  }
+}
+
+/**
+ * Pushes one ASC localization resource per locale.
+ *
+ * Apple keeps a separate resource per locale on a version, so this is an
+ * upsert per locale rather than a single replace — a locale added
+ * directly in ASC is left alone rather than deleted.
+ *
+ * The base listing propagates its error so the caller's benign-replay
+ * handling still applies and the row fails. Later locales fail
+ * individually and name themselves, because one bad translation must not
+ * strand the ones behind it. Aborts always keep unwinding: recording a
+ * cancellation or a deadline as a per-locale failure would let the loop
+ * grind on after the operator cancelled.
+ */
+export async function pushAscReviewLocalizations(args: {
+  listings: Array<{ locale: string; title: string; description?: string }>;
+  productId: string;
+  upsert: (listing: {
+    locale: string;
+    title: string;
+    description?: string;
+  }) => Promise<void>;
+  recordFailure: (failure: { productId: string; reason: string }) => void;
+}): Promise<void> {
+  for (const [index, listing] of args.listings.entries()) {
+    if (index === 0) {
+      await args.upsert(listing);
+      continue;
+    }
+    try {
+      await args.upsert(listing);
+    } catch (error) {
+      if (isProductSyncAbortError(error)) throw error;
+      if (isBenignAscRetryConflict(error)) continue;
+      args.recordFailure({
+        productId: `${args.productId} (localization ${listing.locale})`,
+        reason: error instanceof Error ? error.message : String(error),
+      });
+    }
   }
 }
 
@@ -2040,20 +2082,11 @@ async function performIosSync(
             }
             return;
           }
-          // The base listing plus every locale the operator added.
-          // Apple keeps one localization resource per locale on the
-          // version, so this is an upsert per locale rather than a
-          // single replace — a locale added directly in ASC is left
-          // alone rather than deleted.
-          const listings = listingRowsForProduct(row);
-          for (const [index, listing] of listings.entries()) {
-            // Each locale is its own ASC resource, so one failing locale
-            // must not strand the locales after it — and the operator
-            // needs to know WHICH locale failed. The base listing (index
-            // 0) still propagates so the outer handler can apply its
-            // benign-replay logic and fail the row.
-            if (index === 0) {
-              await upsertAscReviewLocalization({
+          await pushAscReviewLocalizations({
+            listings: listingRowsForProduct(row),
+            productId: row.productId,
+            upsert: (listing) =>
+              upsertAscReviewLocalization({
                 request: reviewRequest,
                 kind,
                 versionId: reviewVersion.versionId,
@@ -2061,32 +2094,9 @@ async function performIosSync(
                 description: listing.description ?? listing.title,
                 locale: listing.locale,
                 checkCancelled,
-              });
-              continue;
-            }
-            try {
-              await upsertAscReviewLocalization({
-                request: reviewRequest,
-                kind,
-                versionId: reviewVersion.versionId,
-                name: listing.title,
-                description: listing.description ?? listing.title,
-                locale: listing.locale,
-                checkCancelled,
-              });
-            } catch (error) {
-              // Cancellation and the worker deadline must keep
-              // unwinding: recording them as a per-locale failure would
-              // let the loop grind through the remaining locales after
-              // the operator cancelled or the action ran out of budget.
-              if (isProductSyncAbortError(error)) throw error;
-              if (isBenignAscRetryConflict(error)) continue;
-              recordFailure({
-                productId: `${row.productId} (localization ${listing.locale})`,
-                reason: error instanceof Error ? error.message : String(error),
-              });
-            }
-          }
+              }),
+            recordFailure,
+          });
         } catch (error) {
           // A 409 on an editable version is a benign replay from a partial
           // prior sync. Reads/comparisons against attached versions are never

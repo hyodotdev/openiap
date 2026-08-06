@@ -688,6 +688,7 @@ describe("verifyPurchaseWithGooglePlay fresh-token retry", () => {
     const result = await verifyPurchaseWithGooglePlay(androidpublisher, {
       packageName,
       purchaseToken: "fresh-token",
+      expectedProductId: undefined,
     });
 
     expect(result.receiptData.productId).toBe("dev.hyo.martie.10bulbs");
@@ -707,10 +708,101 @@ describe("verifyPurchaseWithGooglePlay fresh-token retry", () => {
       verifyPurchaseWithGooglePlay(androidpublisher, {
         packageName,
         purchaseToken: "bogus-token",
+        expectedProductId: undefined,
       }),
     ).rejects.toThrow();
     // 3 attempts x (product + subscription). Each extra attempt would
     // double the upstream cost of a token that will never resolve.
     expect(callCount()).toBe(6);
+  });
+
+  it("fails fast on a permission error instead of retrying it", async () => {
+    // The predicate is the whole point of the retry: only "Google has
+    // never heard of this token" is transient. Widening it to every
+    // error would sit on an operator's revoked service account for
+    // three rounds of two calls, and would do the same for a package
+    // mismatch that is never going to start working.
+    const { androidpublisher, callCount } = stubPublisher(() => {
+      throw Object.assign(new Error("The caller does not have permission"), {
+        code: 403,
+      });
+    });
+
+    await expect(
+      verifyPurchaseWithGooglePlay(androidpublisher, {
+        packageName,
+        purchaseToken: "any-token",
+        expectedProductId: undefined,
+      }),
+    ).rejects.toThrow(/permission/i);
+    // One product call. Not even the subscription fallback: a 403 is not
+    // "this token isn't a product", it's "this credential can't ask".
+    expect(callCount()).toBe(1);
+  });
+});
+
+// The multi-item fix has two independent wires: the action must pass
+// `expectedProductId` down to the lookup, and the lookup must pass it
+// into the mapper. Either can be cut without a unit test on
+// `selectProductLineItem` noticing.
+describe("expectedProductId hand-off", () => {
+  const multiItem = {
+    purchaseStateContext: { purchaseState: "PURCHASED" },
+    acknowledgementState: "ACKNOWLEDGEMENT_STATE_PENDING",
+    productLineItem: [
+      {
+        productId: "dev.hyo.martie.10bulbs",
+        productOfferDetails: {
+          quantity: 1,
+          consumptionState: "CONSUMPTION_STATE_YET_TO_BE_CONSUMED",
+        },
+      },
+      {
+        productId: "dev.hyo.martie.premium",
+        productOfferDetails: {
+          quantity: 2,
+          consumptionState: "CONSUMPTION_STATE_YET_TO_BE_CONSUMED",
+        },
+      },
+    ],
+  };
+
+  function stub(responder: () => unknown) {
+    return google.androidpublisher({
+      version: "v3",
+      retryConfig: { retry: 0, noResponseRetries: 0 },
+      adapter: async <T>(
+        request: Common.gaxios.GaxiosOptionsPrepared,
+      ): Promise<Common.GaxiosResponse<T>> =>
+        Object.assign(new Response(null, { status: 200 }), {
+          config: request,
+          data: responder() as T,
+        }),
+    });
+  }
+
+  it("resolves the expected item through verifyPurchaseWithGooglePlay", async () => {
+    const result = await verifyPurchaseWithGooglePlay(
+      stub(() => multiItem),
+      {
+        packageName,
+        purchaseToken: "multi",
+        expectedProductId: "dev.hyo.martie.premium",
+      },
+    );
+
+    // Severing the hand-off resolves to the first item instead, which
+    // then fails applyExpectedProductId and reports INAUTHENTIC.
+    expect(result.receiptData.productId).toBe("dev.hyo.martie.premium");
+    expect(result.receiptData.quantity).toBe(2);
+  });
+
+  it("keeps first-item behaviour when nothing is expected", async () => {
+    const result = await verifyPurchaseWithGooglePlay(
+      stub(() => multiItem),
+      { packageName, purchaseToken: "multi", expectedProductId: undefined },
+    );
+
+    expect(result.receiptData.productId).toBe("dev.hyo.martie.10bulbs");
   });
 });

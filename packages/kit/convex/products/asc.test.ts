@@ -1,6 +1,8 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  ProductSyncCancelledError,
+  pushAscReviewLocalizations,
   ascCustomerPriceToMicros,
   createAscReviewEligibilityLoader,
   getAscReviewFinalizeDisposition,
@@ -687,5 +689,78 @@ describe("parseIntroOffers", () => {
       ],
     });
     expect(out).toEqual([]);
+  });
+});
+
+describe("pushAscReviewLocalizations", () => {
+  const listings = [
+    { locale: "en-US", title: "Coins", description: "100 coins" },
+    { locale: "ko-KR", title: "코인" },
+    { locale: "ja-JP", title: "コイン" },
+  ];
+
+  it("writes every locale, not just the base listing", async () => {
+    const seen: string[] = [];
+    await pushAscReviewLocalizations({
+      listings,
+      productId: "coins",
+      upsert: async (l) => {
+        seen.push(l.locale);
+      },
+      recordFailure: () => {
+        throw new Error("unexpected failure");
+      },
+    });
+    expect(seen).toEqual(["en-US", "ko-KR", "ja-JP"]);
+  });
+
+  it("keeps going after one locale fails, and names it", async () => {
+    const seen: string[] = [];
+    const failures: Array<{ productId: string; reason: string }> = [];
+    await pushAscReviewLocalizations({
+      listings,
+      productId: "coins",
+      upsert: async (l) => {
+        seen.push(l.locale);
+        if (l.locale === "ko-KR") throw new Error("ASC rejected it");
+      },
+      recordFailure: (f) => failures.push(f),
+    });
+    // ja-JP must still be attempted.
+    expect(seen).toEqual(["en-US", "ko-KR", "ja-JP"]);
+    expect(failures).toEqual([
+      { productId: "coins (localization ko-KR)", reason: "ASC rejected it" },
+    ]);
+  });
+
+  it("propagates a base-listing failure so the row fails", async () => {
+    await expect(
+      pushAscReviewLocalizations({
+        listings,
+        productId: "coins",
+        upsert: async () => {
+          throw new Error("base blew up");
+        },
+        recordFailure: () => undefined,
+      }),
+    ).rejects.toThrow("base blew up");
+  });
+
+  it("lets a cancellation keep unwinding instead of grinding on", async () => {
+    const seen: string[] = [];
+    await expect(
+      pushAscReviewLocalizations({
+        listings,
+        productId: "coins",
+        upsert: async (l) => {
+          seen.push(l.locale);
+          if (l.locale === "ko-KR") throw new ProductSyncCancelledError();
+        },
+        recordFailure: () => {
+          throw new Error("cancellation must not be recorded as a failure");
+        },
+      }),
+    ).rejects.toBeInstanceOf(ProductSyncCancelledError);
+    expect(seen).toEqual(["en-US", "ko-KR"]);
   });
 });

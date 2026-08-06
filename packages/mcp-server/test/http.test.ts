@@ -649,6 +649,37 @@ describe("remote MCP HTTP server", () => {
     expect(lostOwn.status).toBe(404);
   });
 
+  it("routes GET and DELETE for an unknown session like POST does", async () => {
+    const baseUrl = await startServer({ machineId: "self42" });
+    const foreignSession = "other77.7e33e2b1-9a45-4c8e-b1de-000000000000";
+
+    for (const method of ["GET", "DELETE"] as const) {
+      const replayed = await fetch(`${baseUrl}/mcp`, {
+        method,
+        headers: {
+          accept: "application/json, text/event-stream",
+          "mcp-session-id": foreignSession,
+        },
+      });
+      expect(replayed.status).toBe(204);
+      expect(replayed.headers.get("fly-replay")).toBe(
+        "prefer_instance=other77;timeout=5s",
+      );
+
+      // Reverting this branch to the old "Invalid or missing
+      // mcp-session-id" 400 breaks the client's own recovery, since the
+      // MCP spec has it re-initialize on 404 only.
+      const lost = await fetch(`${baseUrl}/mcp`, {
+        method,
+        headers: {
+          accept: "application/json, text/event-stream",
+          "mcp-session-id": "self42.7e33e2b1-9a45-4c8e-b1de-000000000000",
+        },
+      });
+      expect(lost.status).toBe(404);
+    }
+  });
+
   it("returns client errors for invalid JSON and oversized payloads", async () => {
     const baseUrl = await startServer();
 

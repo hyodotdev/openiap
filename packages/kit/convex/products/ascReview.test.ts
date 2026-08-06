@@ -1025,7 +1025,20 @@ describe("ASC version and submission workflow", () => {
         kind: "iap",
         versionId: "attached-version",
         listings: [
-          { locale: "en-US", title: "Coins Plus", description: "200 coins" },
+          { locale: "en-US", title: "Coins Plus", description: "100 coins" },
+        ],
+      }),
+    ).resolves.toBe("en-US");
+    // Description alone, title untouched. A comparison that only looked
+    // at `name` would call this a match and mark the product pushed with
+    // the old description still live on the locked version.
+    await expect(
+      ascReviewLocalizationMismatch({
+        request,
+        kind: "iap",
+        versionId: "attached-version",
+        listings: [
+          { locale: "en-US", title: "Coins", description: "200 coins" },
         ],
       }),
     ).resolves.toBe("en-US");
