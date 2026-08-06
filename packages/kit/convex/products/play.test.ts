@@ -1202,6 +1202,11 @@ describe("pickSubBasePlanPrice", () => {
         basePlanId: "monthly",
         regionalConfigs: [
           { price: { currencyCode: "USD", units: "9", nanos: 990_000_000 } },
+        ],
+      },
+      {
+        basePlanId: "yearly",
+        regionalConfigs: [
           { price: { currencyCode: "KRW", units: "13000", nanos: 0 } },
         ],
       },
@@ -1217,7 +1222,7 @@ describe("pickSubBasePlanPrice", () => {
   });
 
   it("keeps the basePlanId paired with the price it picked", () => {
-    expect(pickSubBasePlanPrice(sub, "KRW").basePlanId).toBe("monthly");
+    expect(pickSubBasePlanPrice(sub, "KRW").basePlanId).toBe("yearly");
   });
 });
 
