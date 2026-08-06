@@ -2,6 +2,7 @@ import { google, type Common } from "googleapis";
 import { describe, expect, it } from "vitest";
 
 import {
+  assertLegacyPathUsableFor,
   basePlanIdForPeriod,
   buildSubscriptionRegionalConfigs,
   mapModernPlayOneTimeState,
@@ -1256,5 +1257,95 @@ describe("sales regions edge cases", () => {
     expect(outcome.manualAction?.message).not.toContain(
       "kept their previous price",
     );
+  });
+});
+
+// Round 5: the round-4 stale filter narrowed the numerator but left
+// `repriced` counting a different set, so a withdrawn-but-repriced
+// region made `stale` negative and silently dropped the whole warning.
+describe("manual-action arithmetic", () => {
+  it("reports stale regions when a withdrawn region was also repriced", async () => {
+    const { androidpublisher } = stubAndroidPublisher({
+      get: () => ({
+        purchaseOptions: [
+          {
+            purchaseOptionId: "buy",
+            regionalPricingAndAvailabilityConfigs: [
+              {
+                regionCode: "US",
+                availability: "AVAILABLE",
+                price: { currencyCode: "USD", units: "19", nanos: 0 },
+              },
+              // Same currency as the base price, so it gets repriced,
+              // but it is not live — it must not offset the stale count.
+              {
+                regionCode: "EC",
+                availability: "NO_LONGER_AVAILABLE",
+                price: { currencyCode: "USD", units: "19", nanos: 0 },
+              },
+              {
+                regionCode: "DE",
+                availability: "AVAILABLE",
+                price: { currencyCode: "EUR", units: "17", nanos: 0 },
+              },
+            ],
+          },
+        ],
+      }),
+      convert: () => {
+        throw Object.assign(new Error("nope"), { code: 500 });
+      },
+    });
+
+    const outcome = await upsertModernAndroidOneTimeProduct(
+      androidpublisher,
+      BASE_ARGS,
+      { allowCreate: false },
+    );
+
+    expect(outcome.manualAction?.message).toContain("applied to 1 region(s)");
+    expect(outcome.manualAction?.message).toContain(
+      "1 region(s) kept their previous price",
+    );
+  });
+
+  it("treats a config with no availability as live", async () => {
+    const { androidpublisher } = stubAndroidPublisher({
+      get: () => ({
+        purchaseOptions: [
+          {
+            purchaseOptionId: "buy",
+            regionalPricingAndAvailabilityConfigs: [
+              {
+                regionCode: "DE",
+                price: { currencyCode: "EUR", units: "17", nanos: 0 },
+              },
+            ],
+          },
+        ],
+      }),
+      convert: () => {
+        throw Object.assign(new Error("nope"), { code: 500 });
+      },
+    });
+
+    const outcome = await upsertModernAndroidOneTimeProduct(
+      androidpublisher,
+      BASE_ARGS,
+      { allowCreate: false },
+    );
+
+    expect(outcome.manualAction?.message).toContain(
+      "1 region(s) kept their previous price",
+    );
+  });
+
+  it("refuses the legacy path for a product with a region footprint", () => {
+    // Raised before the modern attempt, so a genuine modern failure is
+    // never replaced by this message.
+    expect(() =>
+      assertLegacyPathUsableFor({ ...BASE_ARGS, regions: ["US"] }),
+    ).toThrow(/legacy in-app-products API/);
+    expect(() => assertLegacyPathUsableFor(BASE_ARGS)).not.toThrow();
   });
 });

@@ -146,36 +146,25 @@ export default function ProjectProducts() {
       ),
     [products, draft.productId, draft.platform],
   );
-  // The key of the row the editors were actually prefilled from, or null
-  // when their contents are the operator's own. Leaving a prefilled row
-  // must clear, so one product's metadata is never saved onto another;
-  // hand-authored content must survive, including when a half-typed
-  // productId transiently matches an existing row.
-  const prefilledKeyRef = useRef<string | null>(null);
-  useEffect(() => {
-    const key = editingExisting
-      ? `${editingExisting.platform}\u0000${editingExisting.productId}`
-      : null;
-    if (key === prefilledKeyRef.current) return;
-    if (!editingExisting) {
-      if (prefilledKeyRef.current !== null) {
-        prefilledKeyRef.current = null;
-        setLocalizations([]);
-        setRegionsInput("");
-      }
-      return;
-    }
-    // Derived from what is actually on screen rather than a sticky
-    // "dirty" flag: a flag has to be reset on every path that empties
-    // the editors, and missing one either latches prefill off forever or
-    // lets an empty editor overwrite a stored product. Content is
-    // hand-authored exactly when it is present and did not come from a
-    // prefill.
-    const handAuthored =
-      prefilledKeyRef.current === null &&
-      (localizations.length > 0 || regionsInput.trim() !== "");
-    if (handAuthored) return;
-    prefilledKeyRef.current = key;
+  // Which stored row the editors were explicitly loaded from, or null.
+  //
+  // Loading is a button, not an effect. Inferring it from "the typed id
+  // happens to match a row" was rewritten three times and lost data
+  // three different ways — a half-typed id overwrote work in progress, a
+  // stale flag latched loading off forever, and a single blank language
+  // row made an apparently-empty editor delete a product's stored
+  // listings on save. An explicit action has none of those states.
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const editingKey = editingExisting
+    ? `${editingExisting.platform}\u0000${editingExisting.productId}`
+    : null;
+  // Only a row loaded from THIS product may send an empty array, which
+  // is how a delete-all reaches the mutation. Otherwise an empty editor
+  // means "not specified" and the stored value is preserved.
+  const isLoadedRow = loadedKey !== null && loadedKey === editingKey;
+  const loadStoredMetadata = () => {
+    if (!editingExisting || !editingKey) return;
+    setLoadedKey(editingKey);
     setRegionsInput((editingExisting.regions ?? []).join(", "));
     setLocalizations(
       (editingExisting.localizations ?? []).map((entry) => ({
@@ -184,11 +173,7 @@ export default function ProjectProducts() {
         description: entry.description ?? "",
       })),
     );
-    // Reading the editors here is a guard, not a dependency: re-running
-    // on every keystroke would defeat the "did this come from a prefill"
-    // test, so they are deliberately excluded.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [editingExisting]);
+  };
 
   const grouped = useMemo(() => {
     if (!products) return { ios: [], android: [] };
@@ -367,12 +352,12 @@ export default function ProjectProducts() {
         // is only for a brand-new row, where nothing was prefilled and
         // an empty list just means "not specified".
         localizations:
-          editingExisting || filledLocalizations.length > 0
+          isLoadedRow || filledLocalizations.length > 0
             ? filledLocalizations
             : undefined,
         regions: !supportsSalesRegions
           ? undefined
-          : editingExisting || parsedRegions.length > 0
+          : isLoadedRow || parsedRegions.length > 0
             ? parsedRegions
             : undefined,
         state: "Draft",
@@ -397,10 +382,7 @@ export default function ProjectProducts() {
     });
     setLocalizations([]);
     setRegionsInput("");
-    // The form is empty again, so nothing is prefilled and nothing is
-    // hand-authored; without this the next typed id would be treated as
-    // a transient match and refuse to load.
-    prefilledKeyRef.current = null;
+    setLoadedKey(null);
   };
 
   const onSync = async (
@@ -667,6 +649,14 @@ export default function ProjectProducts() {
             <span className="text-xs font-medium text-muted-foreground">
               Other languages (optional)
             </span>
+            {editingExisting && !isLoadedRow && (
+              <button
+                onClick={loadStoredMetadata}
+                className="text-xs text-primary hover:underline"
+              >
+                Load stored languages{supportsSalesRegions ? " & regions" : ""}
+              </button>
+            )}
             <button
               onClick={() =>
                 setLocalizations([
@@ -684,6 +674,9 @@ export default function ProjectProducts() {
               The title and description above publish as en-US. Add a language
               to show a translated name in that store locale — pricing is
               already converted per region automatically.
+              {editingExisting
+                ? " This product already exists: leaving this empty keeps its stored languages. Load them to edit or remove them."
+                : ""}
             </p>
           ) : (
             localizations.map((entry, index) => (

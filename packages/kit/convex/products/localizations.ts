@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 
 // Localized store-listing text. A product's `title` / `description`
 // remain the base listing every store requires; `localizations` only
@@ -94,6 +94,17 @@ function canonicalizeLocale(raw: string): string {
  * @throws When a locale is malformed, duplicated, collides with the base
  *   locale, has a blank title, or exceeds a store length limit.
  */
+/**
+ * Structured so the REST route and MCP tool map it to 400 rather than a
+ * generic 500 — these are operator input mistakes, not server faults.
+ */
+function invalidListing(message: string): ConvexError<{
+  code: string;
+  message: string;
+}> {
+  return new ConvexError({ code: "INVALID_INPUT", message });
+}
+
 export function normalizeProductLocalizations(
   localizations: ProductLocalization[] | undefined,
   platform: ProductPlatform,
@@ -112,12 +123,12 @@ export function normalizeProductLocalizations(
     // guard entirely.
     const locale = canonicalizeLocale(entry.locale);
     if (!LOCALE_PATTERN.test(locale)) {
-      throw new Error(
+      throw invalidListing(
         `Invalid localization locale "${entry.locale}". Use a BCP-47 code such as "ko" or "ko-KR".`,
       );
     }
     if (locale === BASE_LISTING_LOCALE) {
-      throw new Error(
+      throw invalidListing(
         `Localization locale "${BASE_LISTING_LOCALE}" is reserved for the product's own title and description. Edit those instead of adding a localization for it.`,
       );
     }
@@ -131,14 +142,14 @@ export function normalizeProductLocalizations(
       throw new Error(`Localization "${locale}" needs a title.`);
     }
     if (limits.title !== undefined && title.length > limits.title) {
-      throw new Error(
+      throw invalidListing(
         `Localization "${locale}" title is ${title.length} characters; ${platform} accepts at most ${limits.title}.`,
       );
     }
 
     const description = entry.description?.trim() || undefined;
     if (description && description.length > limits.description) {
-      throw new Error(
+      throw invalidListing(
         `Localization "${locale}" description is ${description.length} characters; ${platform} accepts at most ${limits.description}.`,
       );
     }

@@ -1,4 +1,4 @@
-import { v } from "convex/values";
+import { ConvexError, v } from "convex/values";
 
 // Where a product is sold. Leaving this unset keeps the default that
 // fixes issue #288 — price the product in every region Play converts
@@ -33,9 +33,11 @@ export function normalizeProductRegions(
   for (const raw of regions) {
     const code = raw.trim().toUpperCase();
     if (!REGION_PATTERN.test(code)) {
-      throw new Error(
-        `Invalid sales region "${raw}". Use a two-letter ISO 3166-1 code such as "US" or "KR".`,
-      );
+      // Structured so REST/MCP surface a 400 rather than a generic 500.
+      throw new ConvexError({
+        code: "INVALID_INPUT",
+        message: `Invalid sales region "${raw}". Use a two-letter ISO 3166-1 code such as "US" or "KR".`,
+      });
     }
     seen.add(code);
   }

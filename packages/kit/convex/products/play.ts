@@ -1195,6 +1195,10 @@ async function upsertAndroidOneTimeProduct(
   options: { allowCreate: boolean },
 ): Promise<AndroidManualAction[]> {
   validateAndroidOneTimePrice(args);
+  // Checked up front rather than inside the legacy fallback: raising it
+  // there would replace whatever the modern API actually failed with,
+  // hiding the real cause behind a message about regions.
+  assertLegacyPathUsableFor(args);
   const manualActions: AndroidManualAction[] = [];
 
   try {
@@ -1355,13 +1359,14 @@ function buildRegionalPricingConfigs(
   allowedRegions?: Set<string>,
 ): {
   configs: androidpublisher_v3.Schema$OneTimeProductPurchaseOptionRegionalPricingAndAvailabilityConfig[];
-  repriced: number;
+  /** Region codes that actually took the new amount. */
+  repricedRegions: Set<string>;
 } {
   const configs = new Map<
     string,
     androidpublisher_v3.Schema$OneTimeProductPurchaseOptionRegionalPricingAndAvailabilityConfig
   >();
-  let repriced = 0;
+  const repricedRegions = new Set<string>();
 
   for (const [regionCode, regionPrice] of Object.entries(
     converted?.convertedRegionPrices ?? {},
@@ -1392,7 +1397,7 @@ function buildRegionalPricingConfigs(
         ? "AVAILABLE"
         : (existing?.availability ?? "AVAILABLE"),
     });
-    repriced += 1;
+    repricedRegions.add(regionCode);
   }
 
   for (const [regionCode, existing] of existingByRegion) {
@@ -1409,7 +1414,7 @@ function buildRegionalPricingConfigs(
       existing.price?.currencyCode === basePrice.currencyCode
     ) {
       configs.set(regionCode, { ...existing, price: basePrice });
-      repriced += 1;
+      repricedRegions.add(regionCode);
       continue;
     }
     configs.set(regionCode, existing);
@@ -1432,10 +1437,10 @@ function buildRegionalPricingConfigs(
       availability: "AVAILABLE",
       price: basePrice,
     });
-    repriced += 1;
+    repricedRegions.add("US");
   }
 
-  return { configs: Array.from(configs.values()), repriced };
+  return { configs: Array.from(configs.values()), repricedRegions };
 }
 
 /**
@@ -1648,13 +1653,14 @@ export async function upsertModernAndroidOneTimeProduct(
   const allowedRegions = args.regions?.length
     ? new Set(args.regions)
     : undefined;
-  const { configs: regionalConfigs, repriced } = buildRegionalPricingConfigs(
-    converted,
-    basePrice,
-    args.productId,
-    existing.regionsByCode,
-    allowedRegions,
-  );
+  const { configs: regionalConfigs, repricedRegions } =
+    buildRegionalPricingConfigs(
+      converted,
+      basePrice,
+      args.productId,
+      existing.regionsByCode,
+      allowedRegions,
+    );
 
   // "Other regions" pricing covers markets Play launches later. Play
   // requires both USD and EUR here, so it only goes out when the
@@ -1705,22 +1711,27 @@ export async function upsertModernAndroidOneTimeProduct(
   // the product's regions could legally take the new amount — the rest
   // kept their previous prices. Report exactly that; "pushed, no
   // failures" would read as "the new price is live everywhere".
-  // Deliberately withdrawn regions are not "stale prices" — counting
-  // them would tell an operator with a 3-region footprint that 170
-  // regions kept an old price, which is alarming and wrong.
-  const stale =
-    regionalConfigs.filter(
-      (config) =>
-        config.availability === "AVAILABLE" &&
-        !(allowedRegions && !allowedRegions.has(config.regionCode ?? "")),
-    ).length - repriced;
+  // Both numbers must come from the SAME set of final configs. Mixing a
+  // filtered numerator with an unfiltered counter made `stale` go
+  // negative when a withdrawn region happened to be repriced, which
+  // silently dropped the whole warning.
+  const isLive = (
+    config: androidpublisher_v3.Schema$OneTimeProductPurchaseOptionRegionalPricingAndAvailabilityConfig,
+  ) =>
+    (config.availability ?? "AVAILABLE") === "AVAILABLE" &&
+    !(allowedRegions && !allowedRegions.has(config.regionCode ?? ""));
+  const live = regionalConfigs.filter(isLive);
+  const applied = live.filter((config) =>
+    repricedRegions.has(config.regionCode ?? ""),
+  ).length;
+  const stale = live.length - applied;
   const amount = `${args.currency} ${(args.priceAmountMicros / 1_000_000).toFixed(2)}`;
   return {
     manualAction: {
       productId: args.productId,
       code: "regional_pricing_incomplete",
       message:
-        `Play could not convert ${amount} into regional prices for "${args.productId}", so it applied to ${repriced} region(s)` +
+        `Play could not convert ${amount} into regional prices for "${args.productId}", so it applied to ${applied} region(s)` +
         (stale > 0 ? ` and ${stale} region(s) kept their previous price` : "") +
         `. Set the remaining prices in Play Console → the product's purchase option → Set prices, or re-run the sync.` +
         (conversion.error ? ` Play reported: ${conversion.error}` : ""),
@@ -1753,9 +1764,10 @@ function legacyListingsMap(args: AndroidOneTimeProductUpsertArgs): {
  * from `defaultPrice` and, with `autoConvertMissingPrices`, everywhere
  * else. An operator who named their sales regions cannot be served by
  * it, and silently publishing everywhere would be the opposite of what
- * they asked for.
+ * they asked for. Raised before the modern attempt so a genuine modern
+ * failure is reported as itself.
  */
-function assertLegacyPathSupportsRegions(
+export function assertLegacyPathUsableFor(
   args: AndroidOneTimeProductUpsertArgs,
 ): void {
   if (args.regions?.length) {
@@ -1769,7 +1781,6 @@ async function insertLegacyAndroidOneTimeProduct(
   androidpublisher: androidpublisher_v3.Androidpublisher,
   args: AndroidOneTimeProductUpsertArgs,
 ): Promise<void> {
-  assertLegacyPathSupportsRegions(args);
   await androidpublisher.inappproducts.insert({
     packageName: args.packageName,
     // Without this the legacy API prices the SKU in the merchant
@@ -1795,7 +1806,6 @@ async function patchLegacyAndroidOneTimeProduct(
   androidpublisher: androidpublisher_v3.Androidpublisher,
   args: AndroidOneTimeProductUpsertArgs,
 ): Promise<void> {
-  assertLegacyPathSupportsRegions(args);
   await androidpublisher.inappproducts.patch({
     packageName: args.packageName,
     sku: args.productId,
