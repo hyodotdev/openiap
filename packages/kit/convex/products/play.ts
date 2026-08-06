@@ -1188,17 +1188,13 @@ function listingsForAndroidProduct(
   return base ? [base, ...rest] : rest;
 }
 
-async function upsertAndroidOneTimeProduct(
+export async function upsertAndroidOneTimeProduct(
   androidpublisher: androidpublisher_v3.Androidpublisher,
   auth: Auth.GoogleAuth,
   args: AndroidOneTimeProductUpsertArgs,
   options: { allowCreate: boolean },
 ): Promise<AndroidManualAction[]> {
   validateAndroidOneTimePrice(args);
-  // Checked up front rather than inside the legacy fallback: raising it
-  // there would replace whatever the modern API actually failed with,
-  // hiding the real cause behind a message about regions.
-  assertLegacyPathUsableFor(args);
   const manualActions: AndroidManualAction[] = [];
 
   try {
@@ -1210,6 +1206,12 @@ async function upsertAndroidOneTimeProduct(
     if (outcome.manualAction) manualActions.push(outcome.manualAction);
   } catch (error) {
     if (!shouldFallbackToLegacyOneTimeProduct(error, options)) throw error;
+    // Only the LEGACY path cannot honour a region footprint, so the
+    // check belongs here — hoisting it above the modern attempt made
+    // every footprint fail before Play was ever contacted. Round 5's
+    // concern (a regions message hiding the real modern failure) is met
+    // by carrying that failure into the text instead.
+    assertLegacyPathUsableFor(args, error);
 
     if (options.allowCreate) {
       await insertLegacyAndroidOneTimeProduct(androidpublisher, args);
@@ -1705,50 +1707,61 @@ export async function upsertModernAndroidOneTimeProduct(
     ),
   });
 
-  // A requested region Play returned no price for is silently absent
-  // from the write, so say so. This also backstops the region-code
-  // validator: a code that is well-formed and assigned but not a Play
-  // sales region reaches here rather than disappearing.
-  const unpricedRegions = allowedRegions
-    ? [...allowedRegions].filter(
-        (region) =>
-          !regionalConfigs.some(
-            (config) =>
-              config.regionCode === region &&
-              config.availability === "AVAILABLE",
-          ),
-      )
-    : [];
-  if (unpricedRegions.length > 0) {
-    return {
-      manualAction: {
-        productId: args.productId,
-        code: "regional_pricing_incomplete",
-        message: `Play does not sell "${args.productId}" in ${unpricedRegions.join(", ")}, so ${unpricedRegions.length === 1 ? "that region was" : "those regions were"} skipped. Remove ${unpricedRegions.length === 1 ? "it" : "them"} from the product's sales regions, or check the region code.`,
-      },
-    };
-  }
-
-  if (convertedRegionCount(converted) > 0) return {};
-
-  // Conversion failed. The write still went out, but only `repriced` of
-  // the product's regions could legally take the new amount — the rest
-  // kept their previous prices. Report exactly that; "pushed, no
-  // failures" would read as "the new price is live everywhere".
-  // Both numbers must come from the SAME set of final configs. Mixing a
-  // filtered numerator with an unfiltered counter made `stale` go
-  // negative when a withdrawn region happened to be repriced, which
-  // silently dropped the whole warning.
+  // Availability is optional in Play's schema and absent means
+  // AVAILABLE, so both the stale count and the unpriced check go through
+  // one predicate rather than testing the string directly.
   const isLive = (
     config: androidpublisher_v3.Schema$OneTimeProductPurchaseOptionRegionalPricingAndAvailabilityConfig,
   ) =>
     (config.availability ?? "AVAILABLE") === "AVAILABLE" &&
     !(allowedRegions && !allowedRegions.has(config.regionCode ?? ""));
+
+  // A requested region Play returned no price for is silently absent
+  // from the write, so say so. This backstops the region-code validator:
+  // a code that is well-formed and assigned but not a Play sales region
+  // reaches here rather than disappearing.
+  const unpriced = allowedRegions
+    ? [...allowedRegions].filter(
+        (region) =>
+          !regionalConfigs.some(
+            (config) => config.regionCode === region && isLive(config),
+          ),
+      )
+    : [];
+  const unpricedNote =
+    unpriced.length > 0
+      ? ` Play does not sell "${args.productId}" in ${unpriced.join(", ")}, so ${unpriced.length === 1 ? "that region was" : "those regions were"} skipped — remove ${unpriced.length === 1 ? "it" : "them"} from the product's sales regions, or check the code.`
+      : "";
+
+  // Both numbers must come from the SAME set of final configs. Mixing a
+  // filtered numerator with an unfiltered counter made `stale` go
+  // negative when a withdrawn region happened to be repriced, which
+  // silently dropped the whole warning.
   const live = regionalConfigs.filter(isLive);
   const applied = live.filter((config) =>
     repricedRegions.has(config.regionCode ?? ""),
   ).length;
   const stale = live.length - applied;
+
+  if (convertedRegionCount(converted) > 0) {
+    // Conversion worked; the only thing left worth saying is whether a
+    // requested region has no Play price. Reported as its own action
+    // rather than short-circuiting the conversion-failure report below.
+    return unpricedNote
+      ? {
+          manualAction: {
+            productId: args.productId,
+            code: "regional_pricing_incomplete",
+            message: unpricedNote.trim(),
+          },
+        }
+      : {};
+  }
+
+  // Conversion failed. The write still went out, but only `applied` of
+  // the product's live regions could legally take the new amount — the
+  // rest kept their previous prices. Report exactly that; "pushed, no
+  // failures" would read as "the new price is live everywhere".
   const amount = `${args.currency} ${(args.priceAmountMicros / 1_000_000).toFixed(2)}`;
   return {
     manualAction: {
@@ -1758,7 +1771,8 @@ export async function upsertModernAndroidOneTimeProduct(
         `Play could not convert ${amount} into regional prices for "${args.productId}", so it applied to ${applied} region(s)` +
         (stale > 0 ? ` and ${stale} region(s) kept their previous price` : "") +
         `. Set the remaining prices in Play Console → the product's purchase option → Set prices, or re-run the sync.` +
-        (conversion.error ? ` Play reported: ${conversion.error}` : ""),
+        (conversion.error ? ` Play reported: ${conversion.error}` : "") +
+        unpricedNote,
     },
   };
 }
@@ -1791,14 +1805,25 @@ function legacyListingsMap(args: AndroidOneTimeProductUpsertArgs): {
  * they asked for. Raised before the modern attempt so a genuine modern
  * failure is reported as itself.
  */
+/** Message for an unknown upstream throwable, without "[object Object]". */
+function describeUpstreamError(error: unknown): string {
+  if (error instanceof Error) return error.message;
+  if (typeof error === "string") return error;
+  const message = (error as { message?: unknown } | null)?.message;
+  return typeof message === "string" ? message : "an unknown error";
+}
+
 export function assertLegacyPathUsableFor(
   args: AndroidOneTimeProductUpsertArgs,
+  modernError?: unknown,
 ): void {
-  if (args.regions?.length) {
-    throw new Error(
-      `"${args.productId}" specifies sales regions, but this app is still on Play's legacy in-app-products API, which prices every region or none. Remove the region list, or migrate the app to Play's one-time products model.`,
-    );
-  }
+  if (!args.regions?.length) return;
+  throw new Error(
+    `"${args.productId}" specifies sales regions, but this app fell back to Play's legacy in-app-products API, which prices every region or none. Remove the region list, or migrate the app to Play's one-time products model.` +
+      (modernError
+        ? ` The one-time-products API reported: ${describeUpstreamError(modernError)}`
+        : ""),
+  );
 }
 
 async function insertLegacyAndroidOneTimeProduct(

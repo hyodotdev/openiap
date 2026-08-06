@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   assertLegacyPathUsableFor,
+  upsertAndroidOneTimeProduct,
   basePlanIdForPeriod,
   buildSubscriptionRegionalConfigs,
   mapModernPlayOneTimeState,
@@ -55,6 +56,7 @@ describe("mapModernPlayOneTimeState", () => {
 function stubAndroidPublisher(handlers: {
   get?: () => unknown;
   convert?: () => unknown;
+  patchError?: () => unknown;
 }) {
   const requests: Common.GaxiosOptions[] = [];
   const androidpublisher = google.androidpublisher({
@@ -68,6 +70,8 @@ function stubAndroidPublisher(handlers: {
 
       if (url.pathname.endsWith("/pricing:convertRegionPrices")) {
         data = handlers.convert?.() ?? {};
+      } else if (request.method === "PATCH" && handlers.patchError) {
+        throw handlers.patchError();
       } else if (request.method === "GET") {
         const result = handlers.get?.();
         if (result === undefined)
@@ -1338,6 +1342,55 @@ describe("manual-action arithmetic", () => {
     expect(outcome.manualAction?.message).toContain(
       "1 region(s) kept their previous price",
     );
+  });
+
+  // Every regions test called `upsertModernAndroidOneTimeProduct`
+  // directly, so a guard hoisted into the WRAPPER broke the feature
+  // outright while the suite stayed green. These go through the wrapper.
+  it("reaches the modern API for a product with a region footprint", async () => {
+    const { androidpublisher, requests } = stubAndroidPublisher({
+      convert: () => ({
+        convertedRegionPrices: {
+          US: {
+            regionCode: "US",
+            price: { currencyCode: "USD", units: "24", nanos: 990_000_000 },
+          },
+        },
+      }),
+    });
+    const auth = {
+      getClient: async () => ({ request: async () => ({ data: {} }) }),
+    } as never;
+
+    await upsertAndroidOneTimeProduct(
+      androidpublisher,
+      auth,
+      { ...BASE_ARGS, regions: ["US"] },
+      { allowCreate: true },
+    );
+
+    expect(patchRequest(requests)).toBeDefined();
+  });
+
+  it("explains a legacy fallback without hiding the modern failure", async () => {
+    const { androidpublisher } = stubAndroidPublisher({
+      patchError: () =>
+        Object.assign(new Error("Please use the InAppProducts API"), {
+          code: 400,
+        }),
+    });
+    const auth = {
+      getClient: async () => ({ request: async () => ({ data: {} }) }),
+    } as never;
+
+    await expect(
+      upsertAndroidOneTimeProduct(
+        androidpublisher,
+        auth,
+        { ...BASE_ARGS, regions: ["US"] },
+        { allowCreate: true },
+      ),
+    ).rejects.toThrow(/InAppProducts API/);
   });
 
   it("refuses the legacy path for a product with a region footprint", () => {

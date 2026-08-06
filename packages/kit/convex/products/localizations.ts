@@ -133,13 +133,13 @@ export function normalizeProductLocalizations(
       );
     }
     if (seen.has(locale)) {
-      throw new Error(`Duplicate localization locale "${locale}".`);
+      throw invalidListing(`Duplicate localization locale "${locale}".`);
     }
     seen.add(locale);
 
     const title = entry.title.trim();
     if (!title) {
-      throw new Error(`Localization "${locale}" needs a title.`);
+      throw invalidListing(`Localization "${locale}" needs a title.`);
     }
     if (limits.title !== undefined && title.length > limits.title) {
       throw invalidListing(

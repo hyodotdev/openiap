@@ -289,6 +289,18 @@ export default function ProjectProducts() {
     return <PageLoading />;
   }
 
+  // Convex wraps a thrown ConvexError so `error.message` carries the
+  // framework's own prefix; the operator needs the guidance we wrote.
+  const convexErrorMessage = (error: unknown): string | undefined => {
+    const data = (error as { data?: unknown } | null)?.data;
+    if (data && typeof data === "object" && "message" in data) {
+      const message = (data as { message?: unknown }).message;
+      if (typeof message === "string") return message;
+    }
+    if (typeof data === "string") return data;
+    return error instanceof Error ? error.message : undefined;
+  };
+
   const onAdd = async () => {
     if (!draft.productId || !draft.title) return;
     // Empty strings → undefined so the mutation's `?? existing.X`
@@ -333,6 +345,19 @@ export default function ProjectProducts() {
       title: entry.title.trim(),
       description: entry.description.trim() || undefined,
     }));
+    // Sending a language or region list for a product that already has
+    // one REPLACES it, so an operator who typed a single row without
+    // loading would silently drop the rest. Make them load first.
+    if (
+      editingExisting &&
+      !isLoadedRow &&
+      (filledLocalizations.length > 0 || parsedRegions.length > 0)
+    ) {
+      toast.error(
+        "Load this product's stored languages first — saving now would replace them",
+      );
+      return;
+    }
     try {
       await upsert({
         projectId: project._id,
@@ -366,9 +391,7 @@ export default function ProjectProducts() {
       // The mutation rejects malformed locales, duplicates, and
       // over-long store text. Without this the promise rejected into
       // `void onAdd()` and the operator saw nothing happen.
-      toast.error(
-        error instanceof Error ? error.message : "Could not save product",
-      );
+      toast.error(convexErrorMessage(error) ?? "Could not save product");
       return;
     }
     setDraft({

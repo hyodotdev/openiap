@@ -45,3 +45,19 @@ describe("assigned-region validation", () => {
     }
   });
 });
+
+// Round 6: the reserved-range branch returned early for QA–QL, waving
+// unassigned codes past the CLDR check that would have caught them.
+describe("reserved-range handling", () => {
+  it("still rejects unassigned codes below the reserved span", () => {
+    for (const code of ["QB", "QL"]) {
+      expect(() => normalizeProductRegions([code])).toThrow(
+        /Invalid sales region/,
+      );
+    }
+  });
+
+  it("keeps QA, which is Qatar", () => {
+    expect(normalizeProductRegions(["QA"])).toEqual(["QA"]);
+  });
+});

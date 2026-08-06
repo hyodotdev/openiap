@@ -34,14 +34,16 @@ const RESERVED_REGION_PREFIXES = ["Q", "X"];
  */
 function isAssignedRegion(code: string): boolean {
   if (RESERVED_REGION_CODES.has(code)) return false;
-  if (
+  // ISO 3166-1 reserves QM–QZ and XA–XZ for user assignment. `XK` is the
+  // one code in those ranges CLDR actually names, so it is allowed and
+  // everything else in them is not. Codes outside the reserved span
+  // (QA–QL) still have to satisfy the CLDR check below rather than being
+  // waved through — QA is Qatar, QB is nothing.
+  const isReservedRange =
     code !== "XK" &&
     RESERVED_REGION_PREFIXES.includes(code[0]) &&
-    code[1] >= "A" &&
-    code[1] <= "Z"
-  ) {
-    return code[0] === "Q" ? code[1] < "M" : false;
-  }
+    (code[0] === "X" || code[1] >= "M");
+  if (isReservedRange) return false;
   try {
     return new Intl.DisplayNames(["en"], { type: "region" }).of(code) !== code;
   } catch {
