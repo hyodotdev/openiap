@@ -169,6 +169,17 @@ describe("resolveProductListingDraft", () => {
     });
   });
 
+  it("ignores region mode for products without sales-region support", () => {
+    expect(
+      resolve([], {
+        supportsSalesRegions: false,
+        regionMode: "all",
+        editingExisting: true,
+        isLoadedRow: false,
+      }),
+    ).toEqual({ ok: true, localizations: undefined, regions: undefined });
+  });
+
   it("uses an empty list to clear a loaded footprint back to inherit", () => {
     expect(
       resolve([], {

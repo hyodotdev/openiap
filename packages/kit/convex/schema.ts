@@ -635,10 +635,9 @@ const schema = defineSchema({
   // same messageId, and a project-less key would cross-pollute their
   // dedup state. (Apple's notificationUUID is globally unique so the
   // projectId scope is redundant for ASN, but matching one shape
-  // keeps the lookup path simple.) Duplicates detected here cause
-  // kit to silently ACK the upstream request with 200 without storing or
-  // reapplying the lifecycle transition, matching Apple's documented retry
-  // expectation and Google's at-least-once Pub/Sub contract.
+  // keeps the lookup path simple.) Duplicates detected here reuse the stored
+  // event while ingestion idempotently reapplies its lifecycle transition,
+  // allowing a retry to repair a partially completed first attempt.
   // `projectId` is optional during the rollout so already-written
   // rows still validate; new inserts always populate it.
   webhookIdempotencyKeys: defineTable({

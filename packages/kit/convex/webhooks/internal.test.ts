@@ -283,13 +283,20 @@ describe("webhook event-first dedup migration", () => {
         {
           _id: "event_google",
           projectId: "project_a",
+          type: "SubscriptionRenewed",
           source: "GooglePlayRealTimeDeveloperNotifications",
+          platform: "Android",
+          purchaseToken: "purchase_token",
+          productId: "premium_monthly",
+          subscriptionState: "Active",
           sourceNotificationId: "message_a",
         },
         {
           _id: "event_apple",
           projectId: "project_a",
+          type: "SubscriptionRenewed",
           source: "AppleAppStoreServerNotificationsV2",
+          platform: "IOS",
           sourceNotificationId: "message_a",
         },
       ],
@@ -305,11 +312,34 @@ describe("webhook event-first dedup migration", () => {
           sourceNotificationId: "message_a",
         },
       ),
-    ).resolves.toBe("event_google");
+    ).resolves.toEqual({
+      eventId: "event_google",
+      type: "SubscriptionRenewed",
+      platform: "Android",
+      purchaseToken: "purchase_token",
+      productId: "premium_monthly",
+      subscriptionState: "Active",
+      expiresAt: undefined,
+      renewsAt: undefined,
+      cancellationReason: undefined,
+      currency: undefined,
+      priceAmountMicros: undefined,
+    });
   });
 
   it("retains the project-keyed preflight fallback during phase 1", async () => {
     const db = createWritableDb({
+      webhookEvents: [
+        {
+          _id: "event_from_key",
+          projectId: "project_a",
+          type: "SubscriptionRenewed",
+          source: "GooglePlayRealTimeDeveloperNotifications",
+          platform: "Android",
+          purchaseToken: "purchase_token",
+          sourceNotificationId: "message_from_key",
+        },
+      ],
       webhookIdempotencyKeys: [
         {
           _id: "key_existing",
@@ -330,7 +360,14 @@ describe("webhook event-first dedup migration", () => {
           sourceNotificationId: "message_from_key",
         },
       ),
-    ).resolves.toBe("event_from_key");
+    ).resolves.toEqual(
+      expect.objectContaining({
+        eventId: "event_from_key",
+        type: "SubscriptionRenewed",
+        platform: "Android",
+        purchaseToken: "purchase_token",
+      }),
+    );
   });
 
   it("adopts a half-written legacy key when no event row exists", async () => {

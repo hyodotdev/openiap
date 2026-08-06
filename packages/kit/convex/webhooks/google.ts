@@ -149,14 +149,16 @@ export const ingestGoogleRtdn = action({
     // Pre-flight idempotency probe: if this messageId already resolves through
     // the source-aware webhookEvents index (or the phase-1 idempotency-key
     // fallback), this is a Pub/Sub redelivery for an event we already
-    // processed. Short-circuit BEFORE
-    // maybeFetchSubscriptionInfo so retries don't burn Play Developer
+    // recorded. Reapply the stored event BEFORE returning so a retry repairs
+    // the gap where the first attempt wrote webhookEvents and then failed
+    // before updating subscriptions. Still skip maybeFetchSubscriptionInfo so
+    // retries don't burn Play Developer
     // API quota on every redelivery — kit's webhook receiver becomes a
     // multiplier of Play API calls otherwise (one Pub/Sub retry per
     // outage minute → one Play API call per retry). The downstream
     // recordWebhookEvent + applySubscriptionEvent are still fully
     // idempotent, so this is purely a Play-quota / latency optimization.
-    const preFlightEventId = await ctx.runQuery(
+    const preFlightEvent = await ctx.runQuery(
       internal.webhooks.internal.lookupExistingEvent,
       {
         projectId: project._id,
@@ -164,9 +166,30 @@ export const ingestGoogleRtdn = action({
         sourceNotificationId: args.payload.messageId,
       },
     );
-    if (preFlightEventId) {
+    if (preFlightEvent) {
+      if (preFlightEvent.purchaseToken) {
+        await ctx.runMutation(
+          internal.subscriptions.internal.applySubscriptionEvent,
+          {
+            projectId: project._id,
+            eventId: preFlightEvent.eventId,
+            event: {
+              type: preFlightEvent.type,
+              productId: preFlightEvent.productId,
+              subscriptionState: preFlightEvent.subscriptionState,
+              expiresAt: preFlightEvent.expiresAt,
+              renewsAt: preFlightEvent.renewsAt,
+              cancellationReason: preFlightEvent.cancellationReason,
+              currency: preFlightEvent.currency,
+              priceAmountMicros: preFlightEvent.priceAmountMicros,
+              platform: preFlightEvent.platform,
+              purchaseToken: preFlightEvent.purchaseToken,
+            },
+          },
+        );
+      }
       return {
-        eventId: preFlightEventId,
+        eventId: preFlightEvent.eventId,
         type: "WebhookEvent",
         deduped: true,
       };

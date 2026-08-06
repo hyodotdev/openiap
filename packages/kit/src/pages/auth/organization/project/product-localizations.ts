@@ -99,14 +99,14 @@ export function resolveProductListingDraft(args: {
   // Sending a language or region list for a product that already has one
   // REPLACES it, so an operator who typed a single row without loading
   // would silently drop the rest. Make them load first.
+  const replacesRegions =
+    args.supportsSalesRegions &&
+    (parsedRegions.length > 0 || regionMode !== "inherit");
   if (
     args.editingExisting &&
     !args.isLoadedRow &&
-    (filled.length > 0 || parsedRegions.length > 0 || regionMode !== "inherit")
+    (filled.length > 0 || replacesRegions)
   ) {
-    const replacesRegions =
-      args.supportsSalesRegions &&
-      (parsedRegions.length > 0 || regionMode !== "inherit");
     return {
       ok: false,
       error: replacesRegions
