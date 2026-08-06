@@ -2035,16 +2035,42 @@ async function performIosSync(
           // version, so this is an upsert per locale rather than a
           // single replace — a locale added directly in ASC is left
           // alone rather than deleted.
-          for (const listing of listingRowsForProduct(row)) {
-            await upsertAscReviewLocalization({
-              request: reviewRequest,
-              kind,
-              versionId: reviewVersion.versionId,
-              name: listing.title,
-              description: listing.description ?? listing.title,
-              locale: listing.locale,
-              checkCancelled,
-            });
+          const listings = listingRowsForProduct(row);
+          for (const [index, listing] of listings.entries()) {
+            // Each locale is its own ASC resource, so one failing locale
+            // must not strand the locales after it — and the operator
+            // needs to know WHICH locale failed. The base listing (index
+            // 0) still propagates so the outer handler can apply its
+            // benign-replay logic and fail the row.
+            if (index === 0) {
+              await upsertAscReviewLocalization({
+                request: reviewRequest,
+                kind,
+                versionId: reviewVersion.versionId,
+                name: listing.title,
+                description: listing.description ?? listing.title,
+                locale: listing.locale,
+                checkCancelled,
+              });
+              continue;
+            }
+            try {
+              await upsertAscReviewLocalization({
+                request: reviewRequest,
+                kind,
+                versionId: reviewVersion.versionId,
+                name: listing.title,
+                description: listing.description ?? listing.title,
+                locale: listing.locale,
+                checkCancelled,
+              });
+            } catch (error) {
+              if (isBenignAscRetryConflict(error)) continue;
+              recordFailure({
+                productId: `${row.productId} (localization ${listing.locale})`,
+                reason: error instanceof Error ? error.message : String(error),
+              });
+            }
           }
         } catch (error) {
           // A 409 on an editable version is a benign replay from a partial

@@ -836,3 +836,73 @@ describe("existing purchase-option fields", () => {
     expect(option.state).toBeUndefined();
   });
 });
+
+// CodeRabbit caught this: `convertedRegionPrices` is an object, so a
+// bare truthiness check treats `{}` — Play answering with no
+// conversions — as success. The product would ship US-only while the
+// sync reported a clean push with no manual action.
+describe("empty conversion response", () => {
+  it("is treated as a failed conversion, not a silent success", async () => {
+    const { androidpublisher, requests } = stubAndroidPublisher({
+      convert: () => ({ convertedRegionPrices: {} }),
+    });
+
+    const outcome = await upsertModernAndroidOneTimeProduct(
+      androidpublisher,
+      BASE_ARGS,
+      { allowCreate: true },
+    );
+
+    expect(
+      regionalConfigs(patchRequest(requests))
+        ?.regionalPricingAndAvailabilityConfigs,
+    ).toEqual([
+      {
+        regionCode: "US",
+        availability: "AVAILABLE",
+        price: { currencyCode: "USD", units: "24", nanos: 990_000_000 },
+      },
+    ]);
+    expect(outcome.manualAction?.code).toBe("regional_pricing_incomplete");
+  });
+
+  it("also enables base-currency repricing on an update", async () => {
+    const { androidpublisher, requests } = stubAndroidPublisher({
+      get: () => ({
+        purchaseOptions: [
+          {
+            purchaseOptionId: "buy",
+            regionalPricingAndAvailabilityConfigs: [
+              {
+                regionCode: "US",
+                availability: "AVAILABLE",
+                price: { currencyCode: "USD", units: "19", nanos: 0 },
+              },
+            ],
+          },
+        ],
+      }),
+      // A region map with only price-less entries is equally empty.
+      convert: () => ({ convertedRegionPrices: { KR: { regionCode: "KR" } } }),
+    });
+
+    const outcome = await upsertModernAndroidOneTimeProduct(
+      androidpublisher,
+      BASE_ARGS,
+      { allowCreate: false },
+    );
+
+    const byRegion = new Map(
+      (
+        regionalConfigs(patchRequest(requests))
+          ?.regionalPricingAndAvailabilityConfigs ?? []
+      ).map((c) => [c.regionCode, c]),
+    );
+    expect(byRegion.get("US")?.price).toEqual({
+      currencyCode: "USD",
+      units: "24",
+      nanos: 990_000_000,
+    });
+    expect(outcome.manualAction?.code).toBe("regional_pricing_incomplete");
+  });
+});

@@ -33,11 +33,16 @@ export const productLocalizationsValidator = v.array(
   productLocalizationValidator,
 );
 
-// Deliberately narrower than full BCP-47: Play and ASC both want the
-// `language` or `language-REGION` forms in practice, and accepting
-// exotic subtags here would only surface as an opaque 400 from the
-// store two steps later.
-const LOCALE_PATTERN = /^[a-z]{2,3}(-[A-Z]{2})?$/;
+// Play and ASC do NOT share a locale vocabulary — Simplified Chinese is
+// `zh-CN` on Play and `zh-Hans` on ASC; Latin American Spanish is
+// `es-419` on Play and `es-MX` on ASC. A product row targets exactly one
+// platform, so the operator authors the codes that row's own store
+// expects and no translation layer is needed. The pattern therefore has
+// to admit script subtags (`zh-Hans`) and numeric region subtags
+// (`es-419`) alongside `ko` and `pt-BR`, while still rejecting the
+// obvious typos (`ko_KR`, `KO`, `korean`) that would otherwise surface
+// as an opaque 400 from the store two steps later.
+const LOCALE_PATTERN = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8}){0,2}$/;
 
 /**
  * Normalizes and validates operator-supplied localizations.

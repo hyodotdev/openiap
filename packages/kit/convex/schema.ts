@@ -884,13 +884,20 @@ const schema = defineSchema({
     // without it behaves exactly as before. Locale codes are BCP-47
     // ("ko-KR", "ja-JP"), which is what both Play `languageCode` and
     // ASC localization `locale` accept.
+    // Widened to include `null` because Convex treats `undefined` in a
+    // patch as "leave unchanged" — without a null the last localization
+    // could never be removed and every push would keep republishing it.
+    // Same reason `subscriptionGroupId` above is nullable.
     localizations: v.optional(
-      v.array(
-        v.object({
-          locale: v.string(),
-          title: v.string(),
-          description: v.optional(v.string()),
-        }),
+      v.union(
+        v.array(
+          v.object({
+            locale: v.string(),
+            title: v.string(),
+            description: v.optional(v.string()),
+          }),
+        ),
+        v.null(),
       ),
     ),
     priceAmountMicros: v.optional(v.number()),

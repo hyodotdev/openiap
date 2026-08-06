@@ -257,6 +257,13 @@ export default function ProjectProducts() {
       : undefined;
     const billingPeriod =
       draft.type === "Subscription" ? draft.billingPeriod : undefined;
+    const filledLocalizations = localizations
+      .filter((entry) => entry.locale.trim() && entry.title.trim())
+      .map((entry) => ({
+        locale: entry.locale.trim(),
+        title: entry.title.trim(),
+        description: entry.description.trim() || undefined,
+      }));
     await upsert({
       projectId: project._id,
       productId: draft.productId,
@@ -269,13 +276,13 @@ export default function ProjectProducts() {
       billingPeriod,
       subscriptionGroupName,
       reviewNote,
-      localizations: localizations
-        .filter((entry) => entry.locale.trim() && entry.title.trim())
-        .map((entry) => ({
-          locale: entry.locale.trim(),
-          title: entry.title.trim(),
-          description: entry.description.trim() || undefined,
-        })),
+      // Undefined rather than [] when the operator added no languages,
+      // so re-submitting an existing productId to change its price
+      // preserves the locales already stored — same preserve-on-blank
+      // contract `description` has. Clearing every localization is a
+      // Play Console / ASC action, not something this add form can express.
+      localizations:
+        filledLocalizations.length > 0 ? filledLocalizations : undefined,
       state: "Draft",
     });
     setDraft({

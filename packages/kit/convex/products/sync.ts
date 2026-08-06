@@ -96,7 +96,7 @@ export const upsertFromStore = internalMutation({
     type: typeValidator,
     title: v.string(),
     description: v.optional(v.string()),
-    localizations: v.optional(productLocalizationsValidator),
+    localizations: v.optional(v.union(productLocalizationsValidator, v.null())),
     priceAmountMicros: v.optional(v.number()),
     currency: v.optional(v.string()),
     storeRef: v.string(),
@@ -442,7 +442,10 @@ export const listDraftIosProducts = internalQuery({
         type: row.type,
         title: row.title,
         description: row.description,
-        localizations: row.localizations,
+        // Coerce the nullable column to optional at the worker
+        // boundary: "cleared" and "never set" are the same thing to a
+        // store push, and null would trip the validator.
+        localizations: row.localizations ?? undefined,
         priceAmountMicros: row.priceAmountMicros,
         currency: row.currency,
         billingPeriod: row.billingPeriod,
@@ -517,7 +520,10 @@ export const listDraftAndroidProducts = internalQuery({
         type: row.type,
         title: row.title,
         description: row.description,
-        localizations: row.localizations,
+        // Coerce the nullable column to optional at the worker
+        // boundary: "cleared" and "never set" are the same thing to a
+        // store push, and null would trip the validator.
+        localizations: row.localizations ?? undefined,
         priceAmountMicros: row.priceAmountMicros,
         currency: row.currency,
         billingPeriod: row.billingPeriod,

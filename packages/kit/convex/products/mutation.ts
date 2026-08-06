@@ -634,10 +634,13 @@ export const upsertProduct = mutation({
         description: args.description ?? existing.description,
         // Explicitly authoritative, like every other field here: an
         // operator who removes the last localization means to clear it.
+        // An explicitly supplied empty array is a clear request; Convex
+        // needs `null` for that, since `undefined` would be a no-op and
+        // silently keep republishing the old locales.
         localizations:
-          args.localizations !== undefined
-            ? localizations
-            : existing.localizations,
+          args.localizations === undefined
+            ? existing.localizations
+            : (localizations ?? null),
         priceAmountMicros: args.priceAmountMicros ?? existing.priceAmountMicros,
         currency: args.currency ?? existing.currency,
         billingPeriod: args.billingPeriod ?? existing.billingPeriod,

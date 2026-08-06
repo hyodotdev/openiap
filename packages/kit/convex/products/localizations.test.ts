@@ -25,14 +25,28 @@ describe("normalizeProductLocalizations", () => {
     expect(normalizeProductLocalizations([])).toBeUndefined();
   });
 
-  it("accepts bare-language and language-region codes", () => {
-    expect(
-      normalizeProductLocalizations([{ locale: "ko", title: "코인" }]),
-    ).toEqual([{ locale: "ko", title: "코인" }]);
+  // Play and ASC use different vocabularies (zh-CN vs zh-Hans, es-419 vs
+  // es-MX) and a row targets one platform, so both families must pass.
+  it("accepts every locale shape the two stores actually use", () => {
+    for (const locale of [
+      "ko",
+      "ko-KR",
+      "pt-BR",
+      "en-GB",
+      "zh-CN",
+      "zh-Hans",
+      "zh-Hant",
+      "es-419",
+      "zh-Hant-TW",
+    ]) {
+      expect(normalizeProductLocalizations([{ locale, title: "x" }])).toEqual([
+        { locale, title: "x" },
+      ]);
+    }
   });
 
   it("rejects malformed locales rather than letting the store 400", () => {
-    for (const locale of ["korean", "ko_KR", "ko-kr", "KO", "", "ko-KOR"]) {
+    for (const locale of ["ko_KR", "KO", "", "k", "ko-", "-KR", "ko KR"]) {
       expect(() =>
         normalizeProductLocalizations([{ locale, title: "x" }]),
       ).toThrow(/Invalid localization locale/);

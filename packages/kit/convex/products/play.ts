@@ -873,7 +873,7 @@ async function performAndroidSync(
               );
             const subscriptionOtherRegions =
               subscriptionConverted?.convertedOtherRegionsPrice;
-            if (!subscriptionConverted?.convertedRegionPrices) {
+            if (convertedRegionCount(subscriptionConverted) === 0) {
               manualActions.push({
                 productId: row.productId,
                 code: "regional_pricing_incomplete",
@@ -1213,6 +1213,22 @@ function validateAndroidOneTimePrice(
  * unavailable" and "your service account lacks pricing permission" need
  * very different responses.
  */
+/**
+ * Number of regions Play actually returned a usable price for.
+ *
+ * `convertedRegionPrices` is an object, so a bare truthiness check
+ * treats `{}` — Play answering with no conversions at all — as success
+ * and ships the product US-only while reporting a clean sync. Every
+ * decision that depends on "did conversion work" must go through this.
+ */
+function convertedRegionCount(
+  converted: androidpublisher_v3.Schema$ConvertRegionPricesResponse | undefined,
+): number {
+  return Object.values(converted?.convertedRegionPrices ?? {}).filter(
+    (region) => region.price,
+  ).length;
+}
+
 async function convertAndroidRegionPrices(
   androidpublisher: androidpublisher_v3.Androidpublisher,
   packageName: string,
@@ -1290,7 +1306,7 @@ function buildRegionalPricingConfigs(
     // already denominated in the base currency. Writing it there keeps
     // a price edit from being silently dropped on the degraded path.
     if (
-      !converted?.convertedRegionPrices &&
+      convertedRegionCount(converted) === 0 &&
       existing.price?.currencyCode === basePrice.currencyCode
     ) {
       configs.set(regionCode, { ...existing, price: basePrice });
@@ -1555,7 +1571,7 @@ export async function upsertModernAndroidOneTimeProduct(
     ),
   });
 
-  if (converted?.convertedRegionPrices) return {};
+  if (convertedRegionCount(converted) > 0) return {};
 
   // Conversion failed. The write still went out, but only `repriced` of
   // the product's regions could legally take the new amount — the rest
