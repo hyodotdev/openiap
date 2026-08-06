@@ -373,7 +373,7 @@ function registerIapKitTools(server: McpServer) {
         .array(z.string())
         .optional()
         .describe(
-          'Two-letter ISO 3166-1 region codes the product is sold in, e.g. ["US","KR","JP"]. Omit to price it in every region the store supports (converted automatically), which is the default. An explicit list also keeps the product out of regions the store adds later.',
+          'Android one-time products only — rejected for iOS and for subscriptions. Two-letter ISO 3166-1 region codes the product is sold in, e.g. ["US","KR","JP"]. Omit to price it in every region Play supports (converted automatically), which is the default. An explicit list also keeps the product out of regions Play adds later.',
         ),
       priceAmountMicros: PRICE_AMOUNT_MICROS_PARAM.optional(),
       currency: z.string().optional(),

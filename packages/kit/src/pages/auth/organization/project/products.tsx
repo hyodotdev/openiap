@@ -126,6 +126,13 @@ export default function ProjectProducts() {
   // Comma-separated ISO region codes. Blank means "every region the
   // store prices", which is the default that fixes US-only products.
   const [regionsInput, setRegionsInput] = useState("");
+  // Only the Android one-time push applies a region footprint: ASC
+  // prices per territory through a resource this workflow doesn't touch,
+  // and Play fixes a base plan's regional configs at create. Hiding the
+  // field is how the operator learns that, instead of tripping the
+  // mutation's guard on save.
+  const supportsSalesRegions =
+    draft.platform === "Android" && draft.type !== "Subscription";
   // Typing an existing productId means "edit this row", so show the
   // locales it already has. Without this the field is write-only: the
   // editor would look empty and the operator would have no way to see,
@@ -363,8 +370,9 @@ export default function ProjectProducts() {
           editingExisting || filledLocalizations.length > 0
             ? filledLocalizations
             : undefined,
-        regions:
-          editingExisting || parsedRegions.length > 0
+        regions: !supportsSalesRegions
+          ? undefined
+          : editingExisting || parsedRegions.length > 0
             ? parsedRegions
             : undefined,
         state: "Draft",
@@ -638,20 +646,22 @@ export default function ProjectProducts() {
             />
           </Field>
         </div>
-        <Field label="Sales regions (optional)">
-          <input
-            value={regionsInput}
-            onChange={(e) => setRegionsInput(e.target.value)}
-            placeholder="Leave blank to sell everywhere — or e.g. US, KR, JP"
-            className="w-full px-2 py-1.5 rounded border border-border bg-background"
-          />
-          <p className="mt-1 text-[10px] text-muted-foreground">
-            Two-letter country codes, comma separated. Blank prices the product
-            in every region the store supports, converted from the price above.
-            A list restricts it to those markets and keeps it out of regions the
-            store adds later.
-          </p>
-        </Field>
+        {supportsSalesRegions && (
+          <Field label="Sales regions (optional)">
+            <input
+              value={regionsInput}
+              onChange={(e) => setRegionsInput(e.target.value)}
+              placeholder="Leave blank to sell everywhere — or e.g. US, KR, JP"
+              className="w-full px-2 py-1.5 rounded border border-border bg-background"
+            />
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              Two-letter country codes, comma separated. Blank prices the
+              product in every region the store supports, converted from the
+              price above. A list restricts it to those markets and keeps it out
+              of regions the store adds later.
+            </p>
+          </Field>
+        )}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-muted-foreground">
