@@ -123,6 +123,41 @@ interface AscLocalizationResponse {
       description?: string;
     };
   }>;
+  links?: { next?: string | null };
+}
+
+const ASC_API_ORIGIN = "https://api.appstoreconnect.apple.com";
+
+function ascNextPath(next: string): string {
+  if (next.startsWith("/")) return next;
+  const url = new URL(next);
+  if (url.origin !== ASC_API_ORIGIN) {
+    throw new Error(
+      `ASC pagination returned an unexpected host: ${url.origin}`,
+    );
+  }
+  return `${url.pathname}${url.search}`;
+}
+
+async function readAllAscLocalizations(args: {
+  request: AscJsonRequest;
+  initialPath: string;
+  checkCancelled: () => Promise<void>;
+}): Promise<AscLocalizationResponse["data"]> {
+  const rows: AscLocalizationResponse["data"] = [];
+  let path: string | null = args.initialPath;
+  let pages = 0;
+  while (path && pages < 200) {
+    await args.checkCancelled();
+    const page: AscLocalizationResponse = await args.request(path);
+    rows.push(...page.data);
+    path = page.links?.next ? ascNextPath(page.links.next) : null;
+    pages += 1;
+  }
+  if (path) {
+    throw new Error("ASC localization pagination exceeded 200 pages");
+  }
+  return rows;
 }
 
 interface AscReviewSubmissionResponse {
@@ -712,6 +747,51 @@ export async function inspectAscReviewVersion(args: {
   return approved ? { versionId: approved.id, state: "approved" } : null;
 }
 
+/**
+ * Reads the localized metadata attached to the current ASC review version.
+ *
+ * Product names on the parent resource are internal reference names, not the
+ * customer-facing store listing. Pull-sync must read the version subresource
+ * or it will lose every ASC-authored locale and later publish the reference
+ * name as en-US.
+ */
+export async function readAscReviewListings(args: {
+  request: AscJsonRequest;
+  kind: AscReviewKind;
+  parentId: string;
+  checkCancelled?: () => Promise<void>;
+}): Promise<Array<{ locale: string; title: string; description?: string }>> {
+  const checkCancelled = args.checkCancelled ?? (async () => undefined);
+  const current = await inspectAscReviewVersion({
+    request: args.request,
+    kind: args.kind,
+    parentId: args.parentId,
+    checkCancelled,
+  });
+  if (!current) return [];
+
+  const resources = await readAllAscLocalizations({
+    request: args.request,
+    initialPath: VERSION_CONFIG[args.kind].localizationListPath(
+      current.versionId,
+    ),
+    checkCancelled,
+  });
+  return resources.flatMap((resource) => {
+    const locale = resource.attributes?.locale;
+    const title = resource.attributes?.name;
+    if (!locale || !title) return [];
+    const description = resource.attributes?.description;
+    return [
+      {
+        locale,
+        title,
+        ...(description ? { description } : {}),
+      },
+    ];
+  });
+}
+
 export async function ensureAscReviewVersion(args: {
   request: AscJsonRequest;
   kind: AscReviewKind;
@@ -868,12 +948,14 @@ export async function ascReviewLocalizationMismatch(args: {
   checkCancelled?: () => Promise<void>;
 }): Promise<string | undefined> {
   const config = VERSION_CONFIG[args.kind];
-  await (args.checkCancelled ?? (async () => undefined))();
-  const localizations = await args.request<AscLocalizationResponse>(
-    config.localizationListPath(args.versionId),
-  );
+  const checkCancelled = args.checkCancelled ?? (async () => undefined);
+  const localizations = await readAllAscLocalizations({
+    request: args.request,
+    initialPath: config.localizationListPath(args.versionId),
+    checkCancelled,
+  });
   for (const listing of args.listings) {
-    const existing = localizations.data.find(
+    const existing = localizations.find(
       (localization) => localization.attributes?.locale === listing.locale,
     );
     if (

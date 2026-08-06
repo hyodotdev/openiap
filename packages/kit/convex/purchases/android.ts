@@ -201,17 +201,14 @@ export const verifyGooglePlayReceiptInternalV1 = action({
         // have no way to differentiate between the two situations.
         isPlayStoreTokenNoLongerValidError(error)
       ) {
-        const harmonizedState = HarmonizedPurchaseState.UNKNOWN;
+        const receiptResponse = mapGoogleTokenNoLongerValidResponse();
 
         await persistFailedGoogleReceipt(ctx, {
           ...buildFailedReceiptParams(error),
-          state: harmonizedState,
+          state: receiptResponse.state,
         });
 
-        return {
-          isValid: false,
-          state: harmonizedState,
-        };
+        return receiptResponse;
       }
 
       if (
@@ -228,6 +225,17 @@ export const verifyGooglePlayReceiptInternalV1 = action({
     }
   },
 });
+
+export function mapGoogleTokenNoLongerValidResponse() {
+  return {
+    isValid: false,
+    state: HarmonizedPurchaseState.UNKNOWN,
+    // UNKNOWN normally remains retryable because successfully fetched
+    // future states also map there. Google's explicit 410 is different:
+    // the token is revoked and replaying it cannot change the verdict.
+    stableRejection: true,
+  } as const;
+}
 
 export async function recordGooglePlayVerifiedSubscription(
   ctx: Pick<ActionCtx, "runMutation">,
@@ -357,9 +365,11 @@ export function mapSubscriptionResponseToReceiptData(args: {
   packageName: string;
   purchaseToken: string;
   subscriptionResponse: androidpublisher_v3.Schema$SubscriptionPurchaseV2;
+  expectedProductId?: string;
 }): GooglePlayReceiptData {
   const lineItem = selectSubscriptionLineItem(
     args.subscriptionResponse.lineItems ?? [],
+    args.expectedProductId,
   );
   const purchaseDate =
     parseTimeToMillis(args.subscriptionResponse.startTime) ?? Date.now();
@@ -393,7 +403,15 @@ function selectSubscriptionLineItem(
   lineItems: NonNullable<
     androidpublisher_v3.Schema$SubscriptionPurchaseV2["lineItems"]
   >,
+  expectedProductId?: string,
 ): androidpublisher_v3.Schema$SubscriptionPurchaseLineItem | undefined {
+  if (expectedProductId !== undefined) {
+    const expected = lineItems.find(
+      (lineItem) => lineItem.productId === expectedProductId,
+    );
+    if (expected) return expected;
+  }
+
   return (
     lineItems.reduce<
       androidpublisher_v3.Schema$SubscriptionPurchaseLineItem | undefined
@@ -592,6 +610,7 @@ async function lookUpGooglePlayPurchase(
         packageName: args.packageName,
         purchaseToken: args.purchaseToken,
         subscriptionResponse: subResponse.data,
+        expectedProductId: args.expectedProductId,
       });
 
       remoteResponse = JSON.stringify(subResponse.data ?? null);

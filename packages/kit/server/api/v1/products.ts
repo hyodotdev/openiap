@@ -274,10 +274,14 @@ async function handleUpsertProduct(c: Context, apiKey: string) {
   }
   if (payload.regions !== undefined) {
     if (
-      !Array.isArray(payload.regions) ||
-      payload.regions.some((code) => typeof code !== "string")
+      payload.regions !== "all" &&
+      (!Array.isArray(payload.regions) ||
+        payload.regions.some((code) => typeof code !== "string"))
     ) {
-      return invalidInput(c, "regions must be an array of strings");
+      return invalidInput(
+        c,
+        'regions must be "all" or an array of two-letter region codes',
+      );
     }
   }
   if (!payload.title.trim()) {
@@ -336,7 +340,7 @@ async function handleUpsertProduct(c: Context, apiKey: string) {
       localizations: payload.localizations as
         | Array<{ locale: string; title: string; description?: string }>
         | undefined,
-      regions: payload.regions as string[] | undefined,
+      regions: payload.regions as "all" | string[] | undefined,
       priceAmountMicros: payload.priceAmountMicros,
       currency: payload.currency,
       billingPeriod: payload.billingPeriod,

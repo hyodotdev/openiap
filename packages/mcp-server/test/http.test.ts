@@ -149,6 +149,26 @@ describe("remote MCP HTTP server", () => {
         destructiveHint: true,
       },
     );
+    const createProduct = toolsByName.get("iapkit_create_product") as
+      | {
+          inputSchema?: {
+            properties?: {
+              regions?: {
+                anyOf?: Array<{ const?: string; type?: string }>;
+                description?: string;
+              };
+            };
+          };
+        }
+      | undefined;
+    const regionSchema = createProduct?.inputSchema?.properties?.regions;
+    expect(regionSchema?.anyOf).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ const: "all" }),
+        expect.objectContaining({ type: "array" }),
+      ]),
+    );
+    expect(regionSchema?.description).toContain("Send [] to clear");
   });
 
   it("returns 403 before a publishable key can initialize the admin MCP surface", async () => {

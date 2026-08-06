@@ -9,6 +9,7 @@ import {
   md5Hex,
   partitionAscReviewSubmissionItems,
   planAscReviewVersion,
+  readAscReviewListings,
   submitAscReviewVersions,
   uploadAscReviewScreenshot,
   upsertAscReviewLocalization,
@@ -23,6 +24,65 @@ class MockAscError extends Error {
     super(message);
   }
 }
+
+describe("readAscReviewListings", () => {
+  it("reads every locale from the current review version", async () => {
+    const paths: string[] = [];
+    const request: AscJsonRequest = async <T>(path: string) => {
+      paths.push(path);
+      if (path.includes("/versions")) {
+        return {
+          data: [
+            {
+              id: "version-current",
+              attributes: { state: "PREPARE_FOR_SUBMISSION" },
+            },
+          ],
+        } as T;
+      }
+      return {
+        data: [
+          {
+            id: "loc-ko",
+            type: "inAppPurchaseLocalizations",
+            attributes: {
+              locale: "ko-KR",
+              name: "문 세이지",
+              description: "전체 해금",
+            },
+          },
+          {
+            id: "loc-ja",
+            type: "inAppPurchaseLocalizations",
+            attributes: { locale: "ja-JP", name: "ムーンセージ" },
+          },
+        ],
+      } as T;
+    };
+
+    await expect(
+      readAscReviewListings({ request, kind: "iap", parentId: "iap-1" }),
+    ).resolves.toEqual([
+      { locale: "ko-KR", title: "문 세이지", description: "전체 해금" },
+      { locale: "ja-JP", title: "ムーンセージ" },
+    ]);
+    expect(paths).toEqual([
+      "/v2/inAppPurchases/iap-1/versions?limit=200",
+      "/v1/inAppPurchaseVersions/version-current/localizations?limit=200",
+    ]);
+  });
+
+  it("returns no listings when the product has no review version", async () => {
+    const request: AscJsonRequest = async <T>() => ({ data: [] }) as T;
+    await expect(
+      readAscReviewListings({
+        request,
+        kind: "subscription",
+        parentId: "sub-1",
+      }),
+    ).resolves.toEqual([]);
+  });
+});
 
 describe("uploadAscReviewScreenshot", () => {
   it("honors every IAP upload operation without forwarding ASC auth", async () => {
@@ -1073,6 +1133,54 @@ describe("ASC version and submission workflow", () => {
         ],
       }),
     ).resolves.toBe("ko-KR");
+  });
+
+  it("finds matching metadata on a later localization page", async () => {
+    const request = vi.fn(async (path: string) =>
+      path.includes("cursor=page-2")
+        ? {
+            data: [
+              {
+                id: "loc-ko",
+                type: "inAppPurchaseLocalizations",
+                attributes: {
+                  locale: "ko-KR",
+                  name: "코인",
+                  description: "코인 100개",
+                },
+              },
+            ],
+          }
+        : {
+            data: [
+              {
+                id: "loc-en",
+                type: "inAppPurchaseLocalizations",
+                attributes: {
+                  locale: "en-US",
+                  name: "Coins",
+                  description: "100 coins",
+                },
+              },
+            ],
+            links: {
+              next: `${"https://api.appstoreconnect.apple.com"}/v1/inAppPurchaseVersions/attached-version/localizations?cursor=page-2`,
+            },
+          },
+    ) as unknown as AscJsonRequest;
+
+    await expect(
+      ascReviewLocalizationMismatch({
+        request,
+        kind: "iap",
+        versionId: "attached-version",
+        listings: [
+          { locale: "en-US", title: "Coins", description: "100 coins" },
+          { locale: "ko-KR", title: "코인", description: "코인 100개" },
+        ],
+      }),
+    ).resolves.toBeUndefined();
+    expect(request).toHaveBeenCalledTimes(2);
   });
 
   it("creates one review submission with IAP and subscription version items", async () => {

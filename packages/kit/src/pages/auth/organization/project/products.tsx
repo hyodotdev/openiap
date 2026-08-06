@@ -118,15 +118,20 @@ export default function ProjectProducts() {
     subscriptionGroupName: "",
     reviewNote: "",
   });
-  // Extra store-listing languages. The base en-US listing stays in
-  // `title` / `description`; these only add locales on top, so leaving
-  // the list empty publishes exactly what it always did.
+  // Extra store-listing languages. `title` / `description` keep the row's
+  // base locale (en-US for new rows; a pulled store default may differ).
   const [localizations, setLocalizations] = useState<
     Array<{ locale: string; title: string; description: string }>
   >([]);
   // Comma-separated ISO region codes. Blank means "every region the
   // store prices", which is the default that fixes US-only products.
   const [regionsInput, setRegionsInput] = useState("");
+  // Three states, matching what the product actually stores. "inherit"
+  // is the default because expanding an existing product's markets is
+  // something the operator asks for, not something a price edit does.
+  const [regionMode, setRegionMode] = useState<"inherit" | "all" | "list">(
+    "inherit",
+  );
   // Only the Android one-time push applies a region footprint: ASC
   // prices per territory through a resource this workflow doesn't touch,
   // and Play fixes a base plan's regional configs at create. Hiding the
@@ -147,6 +152,7 @@ export default function ProjectProducts() {
       ),
     [products, draft.productId, draft.platform],
   );
+  const baseListingLocale = editingExisting?.baseLocale ?? "en-US";
   // Which stored row the editors were explicitly loaded from, or null.
   //
   // Loading is a button, not an effect. Inferring it from "the typed id
@@ -166,7 +172,17 @@ export default function ProjectProducts() {
   const loadStoredMetadata = () => {
     if (!editingExisting || !editingKey) return;
     setLoadedKey(editingKey);
-    setRegionsInput((editingExisting.regions ?? []).join(", "));
+    const storedRegions = editingExisting.regions;
+    setRegionMode(
+      storedRegions === "all"
+        ? "all"
+        : storedRegions?.length
+          ? "list"
+          : "inherit",
+    );
+    setRegionsInput(
+      Array.isArray(storedRegions) ? storedRegions.join(", ") : "",
+    );
     setLocalizations(
       (editingExisting.localizations ?? []).map((entry) => ({
         locale: entry.locale,
@@ -324,6 +340,7 @@ export default function ProjectProducts() {
     const resolvedDraft = resolveProductListingDraft({
       rows: localizations,
       regionsInput,
+      regionMode,
       supportsSalesRegions,
       editingExisting: Boolean(editingExisting),
       isLoadedRow,
@@ -614,18 +631,34 @@ export default function ProjectProducts() {
           </Field>
         </div>
         {supportsSalesRegions && (
-          <Field label="Sales regions (optional)">
-            <input
-              value={regionsInput}
-              onChange={(e) => setRegionsInput(e.target.value)}
-              placeholder="Leave blank to sell everywhere — or e.g. US, KR, JP"
+          <Field label="Sales regions">
+            <select
+              value={regionMode}
+              onChange={(e) =>
+                setRegionMode(e.target.value as "inherit" | "all" | "list")
+              }
               className="w-full px-2 py-1.5 rounded border border-border bg-background"
-            />
+            >
+              <option value="inherit">
+                Keep the store's current regions (new products: everywhere)
+              </option>
+              <option value="all">Sell in every region the store prices</option>
+              <option value="list">Only these regions…</option>
+            </select>
+            {regionMode === "list" && (
+              <input
+                value={regionsInput}
+                onChange={(e) => setRegionsInput(e.target.value)}
+                placeholder="US, KR, JP"
+                className="mt-2 w-full px-2 py-1.5 rounded border border-border bg-background"
+              />
+            )}
             <p className="mt-1 text-[10px] text-muted-foreground">
-              Two-letter country codes, comma separated. Blank prices the
-              product in every region the store supports, converted from the
-              price above. A list restricts it to those markets and keeps it out
-              of regions the store adds later.
+              {regionMode === "inherit"
+                ? "A product the store already has keeps exactly the regions it has today — a price change will not widen where it sells. A new product is priced in every region the store supports, converted from the price above."
+                : regionMode === "all"
+                  ? "Prices the product in every region the store supports, and follows the store into markets it adds later."
+                  : "Two-letter country codes, comma separated. Restricts the product to those markets and keeps it out of regions the store adds later. Stores refuse to drop a region once it has been added, so the others are withdrawn rather than removed."}
             </p>
           </Field>
         )}
@@ -656,9 +689,9 @@ export default function ProjectProducts() {
           </div>
           {localizations.length === 0 ? (
             <p className="text-[10px] text-muted-foreground">
-              The title and description above publish as en-US. Add a language
-              to show a translated name in that store locale — pricing is
-              already converted per region automatically.
+              The title and description above publish as {baseListingLocale}.
+              Add a language to show a translated name in that store locale —
+              pricing is already converted per region automatically.
               {editingExisting
                 ? " This product already exists: leaving this empty keeps its stored languages. Load them to edit or remove them."
                 : ""}
@@ -744,7 +777,7 @@ export default function ProjectProducts() {
         </div>
         {draft.platform === "IOS" && (
           <div className="rounded border border-border/80 bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
-            On iOS, Sync pushes the row to App Store Connect, creates an en-US
+            On iOS, Sync pushes the row to App Store Connect, creates the base
             localization, and sets the USA price tier. App Store Connect may
             still show &quot;Missing Metadata&quot; until review metadata and
             screenshots are added and the product is attached to an app version

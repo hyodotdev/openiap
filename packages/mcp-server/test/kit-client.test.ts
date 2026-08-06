@@ -76,6 +76,43 @@ describe("kitClient", () => {
     );
   });
 
+  it("forwards explicit and cleared sales-region states", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ id: "product-id", created: false }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    const client = kitClient({
+      apiKey: "custom-secret",
+      baseUrl: "https://kit.example",
+    });
+
+    for (const regions of ["all", []] as const) {
+      await client.upsertProduct({
+        productId: "coins",
+        platform: "Android",
+        type: "Consumable",
+        title: "Coins",
+        regions,
+      });
+      expect(fetchMock).toHaveBeenLastCalledWith(
+        "https://kit.example/v1/products",
+        expect.objectContaining({
+          body: JSON.stringify({
+            productId: "coins",
+            platform: "Android",
+            type: "Consumable",
+            title: "Coins",
+            regions,
+          }),
+        }),
+      );
+    }
+  });
+
   it("parses JSON response content types case-insensitively", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(JSON.stringify({ products: [] }), {

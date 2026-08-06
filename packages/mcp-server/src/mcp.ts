@@ -367,13 +367,13 @@ function registerIapKitTools(server: McpServer) {
         )
         .optional()
         .describe(
-          'Store-listing text in other languages. `title` / `description` above are the base en-US listing; these add locales on top. Regional PRICING is converted automatically and is not configured here. Omit "en-US" — it is the base listing.',
+          "Store-listing text in other languages. `title` / `description` are the base listing (en-US for a new product; a product pulled from a store preserves that store's base locale). These add locales on top. Do not repeat the product's base locale. Regional pricing is converted automatically and is not configured here.",
         ),
       regions: z
-        .array(z.string())
+        .union([z.literal("all"), z.array(z.string())])
         .optional()
         .describe(
-          'Android one-time products only — rejected for iOS and for subscriptions. Two-letter ISO 3166-1 region codes the product is sold in, e.g. ["US","KR","JP"]. Omit to price it in every region Play supports (converted automatically), which is the default. An explicit list also keeps the product out of regions Play adds later.',
+          'Android one-time products only — rejected for iOS and for subscriptions. A list of two-letter ISO 3166-1 codes, e.g. ["US","KR","JP"], restricts the product to those markets and keeps it out of regions Play adds later. "all" explicitly expands to every region Play prices and follows Play into new markets. On create, omission uses the safe default: every priced region. On update, omission preserves the stored choice. Send [] to clear a stored choice back to inherit; an existing Play product then keeps its current live footprint, while a product Play has never seen is created everywhere.',
         ),
       priceAmountMicros: PRICE_AMOUNT_MICROS_PARAM.optional(),
       currency: z.string().optional(),

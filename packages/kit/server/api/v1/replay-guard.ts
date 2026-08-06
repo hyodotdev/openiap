@@ -32,7 +32,7 @@ export interface ReplayBucket {
   tokens: number;
   lastRefillMs: number;
   // Set when the most recent verify call for this (key, payload)
-  // returned `isValid: false`. Subsequent
+  // returned a stable rejection. Subsequent
   // requests for the exact same payload are short-circuited with
   // `REPEATED_FAILURE` until the cooldown expires — re-asking
   // Apple / Google / Horizon / Amazon about a receipt they already
@@ -58,21 +58,18 @@ export interface ReplayGuardConfig {
 
 export type ReplayRejectReason = "burst" | "repeated_failure";
 
-// A state whose `isValid: false` is NOT a settled verdict, so a retry
-// can legitimately return something different. Cooling it down for five
-// minutes is actively harmful: Google voids an unacknowledged purchase
-// at ~301s, which the default cooldown almost exactly spans, so one blip
-// made the purchase unrecoverable before it could be acknowledged
-// (issue #289). `PENDING` resolves when the user completes a deferred
-// payment.
-//
-// `UNKNOWN` is deliberately NOT here. It reads like "we could not
-// interpret the answer, so ask again", but the state Google's 410 "the
-// purchase token is no longer valid" maps to is exactly `UNKNOWN`
-// (convex/purchases/android.ts) — a captured-then-revoked receipt, which
-// is the case this guard exists to wall off. Exempting it would let that
-// replay through.
-const NON_TERMINAL_REJECTION_STATES = new Set(["PENDING"]);
+// These states are settled store verdicts. Everything else remains
+// retryable unless the verifier supplies explicit stable provenance.
+// This matters for UNKNOWN: Google uses it both for a successfully
+// fetched future/unrecognized state and for the explicit 410 revoked-token
+// response. Amazon can likewise return a future product type that maps to
+// UNKNOWN. Only the 410 path should arm the five-minute cooldown.
+const STABLE_REJECTION_STATES = new Set([
+  "INAUTHENTIC",
+  "CANCELED",
+  "EXPIRED",
+  "CONSUMED",
+]);
 
 /**
  * Whether a rejected verification should arm the negative cooldown.
@@ -81,8 +78,13 @@ const NON_TERMINAL_REJECTION_STATES = new Set(["PENDING"]);
  * definitively rejected (INAUTHENTIC, CANCELED, EXPIRED). Those verdicts
  * don't change in seconds. Non-terminal ones do.
  */
-export function isStableRejection(state: string): boolean {
-  return !NON_TERMINAL_REJECTION_STATES.has(state.toUpperCase());
+export function isStableRejection(
+  state: string,
+  explicitStableRejection = false,
+): boolean {
+  return (
+    explicitStableRejection || STABLE_REJECTION_STATES.has(state.toUpperCase())
+  );
 }
 
 export interface ReplayConsumeResult {
@@ -220,9 +222,9 @@ export function tryConsumeReplay(
 /**
  * Mark the (key, payload) bucket as having just observed a failed
  * verification. Called from the middleware's finally block when the
- * handler explicitly set `verifyOutcome.isValid = false` — i.e. the
- * upstream store (Apple / Google / Horizon / Amazon) returned a definitive "this
- * receipt is invalid" verdict. Thrown errors from the handler (network
+ * handler supplied an explicit stable outcome — i.e. the upstream store
+ * (Apple / Google / Horizon / Amazon) returned a definitive "this receipt is
+ * invalid" verdict. Thrown errors from the handler (network
  * failures, configuration mistakes, project-not-found, etc.) do NOT
  * trigger the cooldown, since those aren't a verdict from the store
  * and a retry might legitimately succeed.
@@ -285,7 +287,11 @@ const sharedStore = new Map<string, ReplayBucket>();
 
 type ReplayGuardVars = {
   apiKeyHash?: string;
-  verifyOutcome?: { isValid: boolean; state: string };
+  verifyOutcome?: {
+    isValid: boolean;
+    state: string;
+    stableRejection?: boolean;
+  };
   verifyCapacityRejected?: boolean;
 };
 
@@ -396,7 +402,7 @@ export function replayGuardMiddleware(
         if (
           outcome &&
           outcome.isValid === false &&
-          isStableRejection(outcome.state)
+          isStableRejection(outcome.state, outcome.stableRejection === true)
         ) {
           markPayloadFailure(store, bucketKey, capacity, clock(), maxStoreSize);
         }

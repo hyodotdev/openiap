@@ -657,3 +657,103 @@ describe("upsertProduct localization clearing contract", () => {
     ]);
   });
 });
+
+describe("upsertProduct sales-region contract", () => {
+  const PROJECT = "projects_a" as Id<"projects">;
+  const base = {
+    projectId: PROJECT,
+    productId: "coins",
+    platform: "Android" as const,
+    type: "Consumable" as const,
+    title: "Coins",
+  };
+
+  beforeEach(() => {
+    projectMocks.byProjectId.mockResolvedValue({
+      project: { _id: PROJECT },
+      role: "admin",
+      userId: "user_a",
+    });
+  });
+
+  function seededCtx(regions: "all" | string[] = ["US"]) {
+    const ctx = makeCtx();
+    ctx.db.seed("products", {
+      _id: "product_android",
+      projectId: PROJECT,
+      productId: "coins",
+      platform: "Android",
+      type: "Consumable",
+      title: "Coins",
+      regions,
+    });
+    return ctx;
+  }
+
+  const storedRegions = (ctx: ReturnType<typeof makeCtx>) =>
+    (
+      ctx.db.rows("products").find((row) => row._id === "product_android") as
+        | { regions?: unknown }
+        | undefined
+    )?.regions;
+
+  it("preserves an existing footprint when omitted", async () => {
+    const ctx = seededCtx(["US"]);
+    await upsertProduct._handler(ctx, base);
+    expect(storedRegions(ctx)).toEqual(["US"]);
+  });
+
+  it('stores explicit "all" and clears back to inherit with []', async () => {
+    const ctx = seededCtx(["US"]);
+    await upsertProduct._handler(ctx, { ...base, regions: "all" });
+    expect(storedRegions(ctx)).toBe("all");
+
+    await upsertProduct._handler(ctx, { ...base, regions: [] });
+    expect(storedRegions(ctx)).toBeNull();
+  });
+
+  it("rejects explicit footprints on unsupported products", async () => {
+    const ctx = makeCtx();
+    await expect(
+      upsertProduct._handler(ctx, {
+        ...base,
+        platform: "IOS",
+        regions: "all",
+      }),
+    ).rejects.toThrow("Sales regions are currently Android-only");
+
+    await expect(
+      upsertProduct._handler(ctx, {
+        ...base,
+        type: "Subscription",
+        regions: ["US"],
+      }),
+    ).rejects.toThrow("Sales regions cannot be set on a subscription");
+  });
+
+  it("clears a stale footprint when a product becomes unsupported", async () => {
+    const ctx = seededCtx(["US"]);
+    await upsertProduct._handler(ctx, {
+      ...base,
+      type: "Subscription",
+    });
+    expect(storedRegions(ctx)).toBeNull();
+  });
+
+  it("revalidates preserved localizations when the product type changes", async () => {
+    const ctx = makeCtx();
+    ctx.db.seed("products", {
+      _id: "product_android",
+      projectId: PROJECT,
+      productId: "coins",
+      platform: "Android",
+      type: "Subscription",
+      title: "Coins",
+      localizations: [{ locale: "ko-KR", title: "x".repeat(56) }],
+    });
+
+    await expect(upsertProduct._handler(ctx, base)).rejects.toThrow(
+      /accepts at most 55/,
+    );
+  });
+});

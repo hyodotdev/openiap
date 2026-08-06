@@ -11,6 +11,7 @@ import {
   splitStoreListings,
   type ProductLocalization,
 } from "./localizations";
+import type { ProductRegions } from "./regions";
 import { coerceBillingPeriod } from "./sync";
 
 class ProductSyncCancelledError extends Error {
@@ -181,7 +182,10 @@ interface AndroidSyncResult {
 
 interface AndroidManualAction {
   productId: string;
-  code: "regional_pricing_incomplete" | "product_type_assumed";
+  code:
+    | "regional_pricing_incomplete"
+    | "regional_expansion_available"
+    | "product_type_assumed";
   message: string;
 }
 
@@ -513,8 +517,7 @@ async function performAndroidSync(
               existingType,
               mapPlayOneTimeType(product),
             ),
-            title: pickPlayTitle(product) ?? product.sku,
-            description: pickPlayDescription(product),
+            ...splitLegacyPlayListings(product),
             priceAmountMicros: parsePlayPriceMicros(product),
             currency: pickPlayCurrency(product),
             storeRef: product.sku,
@@ -791,6 +794,7 @@ async function performAndroidSync(
                       productId: row.storeRef,
                       title: row.title,
                       description: row.description ?? row.title,
+                      baseLocale: row.baseLocale,
                       localizations: row.localizations,
                       regions: row.regions,
                       priceAmountMicros: row.priceAmountMicros,
@@ -978,6 +982,7 @@ async function performAndroidSync(
                   productId: row.productId,
                   title: row.title,
                   description: row.description ?? row.title,
+                  baseLocale: row.baseLocale,
                   localizations: row.localizations,
                   regions: row.regions,
                   priceAmountMicros: row.priceAmountMicros,
@@ -1046,6 +1051,7 @@ export async function mergedSubscriptionListings(
   row: {
     title: string;
     description?: string;
+    baseLocale?: string;
     localizations?: ProductLocalization[];
   },
 ): Promise<androidpublisher_v3.Schema$SubscriptionListing[]> {
@@ -1076,9 +1082,10 @@ export async function mergedSubscriptionListings(
     });
   }
 
-  const base = byLocale.get(BASE_LISTING_LOCALE);
+  const baseLocale = row.baseLocale ?? BASE_LISTING_LOCALE;
+  const base = byLocale.get(baseLocale);
   const rest = Array.from(byLocale.entries())
-    .filter(([locale]) => locale !== BASE_LISTING_LOCALE)
+    .filter(([locale]) => locale !== baseLocale)
     .map(([, listing]) => listing);
   return base ? [base, ...rest] : rest;
 }
@@ -1091,17 +1098,24 @@ export async function mergedSubscriptionListings(
  * write does not touch.
  */
 function describePlayListingPlan(
-  row: { localizations?: ProductLocalization[]; regions?: string[] },
+  row: {
+    baseLocale?: string;
+    localizations?: ProductLocalization[];
+    regions?: ProductRegions;
+  },
   options: { withRegions: boolean } = { withRegions: true },
 ): string {
   const locales = [
-    BASE_LISTING_LOCALE,
+    row.baseLocale ?? BASE_LISTING_LOCALE,
     ...(row.localizations ?? []).map((l) => l.locale),
   ].join(", ");
   if (!options.withRegions) return `locales ${locales}`;
-  const regions = row.regions?.length
-    ? row.regions.join(", ")
-    : "all Play regions (converted)";
+  const regions =
+    row.regions === "all"
+      ? "all Play regions (converted)"
+      : row.regions?.length
+        ? row.regions.join(", ")
+        : "the regions Play already sells it in (all, if it is new)";
   return `locales ${locales} · regions ${regions}`;
 }
 
@@ -1133,8 +1147,9 @@ interface AndroidOneTimeProductUpsertArgs {
   productId: string;
   title: string;
   description: string;
+  baseLocale?: string;
   localizations?: ProductLocalization[];
-  regions?: string[];
+  regions?: ProductRegions;
   priceAmountMicros?: number;
   currency?: string;
 }
@@ -1154,6 +1169,7 @@ function listingsForAndroidProduct(
   args: {
     title: string;
     description: string;
+    baseLocale?: string;
     localizations?: ProductLocalization[];
   },
   existingListings: Array<{
@@ -1181,9 +1197,10 @@ function listingsForAndroidProduct(
   // Base locale first: Play's legacy path needs `defaultLanguage` to
   // match a listing, and a store that treats the first entry as default
   // should get the language the operator actually authored.
-  const base = byLocale.get(BASE_LISTING_LOCALE);
+  const baseLocale = args.baseLocale ?? BASE_LISTING_LOCALE;
+  const base = byLocale.get(baseLocale);
   const rest = Array.from(byLocale.entries())
-    .filter(([locale]) => locale !== BASE_LISTING_LOCALE)
+    .filter(([locale]) => locale !== baseLocale)
     .map(([, listing]) => listing);
   return base ? [base, ...rest] : rest;
 }
@@ -1319,13 +1336,10 @@ async function convertAndroidRegionPrices(
 /**
  * Builds the regional pricing rows for a purchase option.
  *
- * `existingByRegion` carries the product's current configs on an update:
- * a region Play already knows about keeps its own availability so a
- * price refresh can never revoke a market. Regions Play priced that the
- * product doesn't have yet ARE added — that is how an already-broken
- * US-only product gets repaired — but they are added as `AVAILABLE`
- * only when the product had no config for them at all, so a market the
- * operator withdrew in Play Console stays withdrawn.
+ * `existingByRegion` carries the product's current configs on an update.
+ * In inherit mode, only those regions are repriced and their availability
+ * stays unchanged. An explicit list or `"all"` may reactivate a withdrawn
+ * region because that is an operator-authored footprint change.
  *
  * When conversion is unavailable there is no legal price for a foreign
  * region (Play pairs each region with its own currency), so the base
@@ -1344,8 +1358,13 @@ async function convertAndroidRegionPrices(
 function withdrawRegion(
   existing: androidpublisher_v3.Schema$OneTimeProductPurchaseOptionRegionalPricingAndAvailabilityConfig,
 ): androidpublisher_v3.Schema$OneTimeProductPurchaseOptionRegionalPricingAndAvailabilityConfig {
-  if (existing.availability && existing.availability !== "AVAILABLE") {
+  if (existing.availability === "NO_LONGER_AVAILABLE") {
     return existing;
+  }
+  if (existing.availability && existing.availability !== "AVAILABLE") {
+    throw new Error(
+      `Play cannot withdraw region ${existing.regionCode ?? "(unknown)"} while its availability is ${existing.availability}. Google only permits NO_LONGER_AVAILABLE after AVAILABLE; change the pre-release or offer-only state in Play Console, then retry the sync.`,
+    );
   }
   return { ...existing, availability: "NO_LONGER_AVAILABLE" };
 }
@@ -1359,6 +1378,7 @@ function buildRegionalPricingConfigs(
     androidpublisher_v3.Schema$OneTimeProductPurchaseOptionRegionalPricingAndAvailabilityConfig
   >,
   allowedRegions?: Set<string>,
+  reactivateIncludedRegions = false,
 ): {
   configs: androidpublisher_v3.Schema$OneTimeProductPurchaseOptionRegionalPricingAndAvailabilityConfig[];
   /** Region codes that actually took the new amount. */
@@ -1381,7 +1401,14 @@ function buildRegionalPricingConfigs(
     // product doesn't have yet is simply not added.
     if (allowedRegions && !allowedRegions.has(regionCode)) {
       if (!existing) continue;
-      configs.set(regionCode, withdrawRegion(existing));
+      configs.set(regionCode, {
+        ...withdrawRegion(existing),
+        // The PATCH is pinned to the conversion's current regions version.
+        // Echoing an old config's price can pair a retired currency (for
+        // example BGN) with the new version that now requires EUR, even
+        // though the region is being withdrawn.
+        price: regionPrice.price,
+      });
       continue;
     }
     configs.set(regionCode, {
@@ -1391,11 +1418,11 @@ function buildRegionalPricingConfigs(
       // here — never the operator's base-currency amount.
       price: regionPrice.price,
       // A region kit itself withdrew must come back when the operator
-      // adds it to `regions` again, otherwise the footprint is a
-      // one-way door. A region the operator withdrew in Play Console is
-      // still respected: that only reaches here when the region is IN
-      // the allow-list, i.e. they asked for it back.
-      availability: allowedRegions
+      // explicitly adds it to a list or selects `"all"`; otherwise the
+      // footprint would be a one-way door. In inherit mode, preserve the
+      // availability Play returned so a price-only push cannot reopen a
+      // market the operator withdrew in Play Console.
+      availability: reactivateIncludedRegions
         ? "AVAILABLE"
         : (existing?.availability ?? "AVAILABLE"),
     });
@@ -1415,14 +1442,27 @@ function buildRegionalPricingConfigs(
       convertedRegionCount(converted) === 0 &&
       existing.price?.currencyCode === basePrice.currencyCode
     ) {
-      configs.set(regionCode, { ...existing, price: basePrice });
+      configs.set(regionCode, {
+        ...existing,
+        price: basePrice,
+        ...(reactivateIncludedRegions ? { availability: "AVAILABLE" } : {}),
+      });
       repricedRegions.add(regionCode);
       continue;
     }
     configs.set(regionCode, existing);
   }
 
-  if (configs.size === 0) {
+  const hasAvailableIncludedRegion = Array.from(configs.values()).some(
+    (config) =>
+      (!allowedRegions || allowedRegions.has(config.regionCode ?? "")) &&
+      (config.availability ?? "AVAILABLE") !== "NO_LONGER_AVAILABLE",
+  );
+
+  if (
+    configs.size === 0 ||
+    (reactivateIncludedRegions && !hasAvailableIncludedRegion)
+  ) {
     // Nothing to preserve and no conversion — fall back to the base
     // region so the product is at least purchasable somewhere. The
     // caller reports this as a manual action rather than a silent
@@ -1652,9 +1692,59 @@ export async function upsertModernAndroidOneTimeProduct(
     basePrice,
   );
   const converted = conversion.response;
-  const allowedRegions = args.regions?.length
+  const convertedVersion = converted?.regionVersion?.version;
+  if (
+    convertedVersion &&
+    existing.regionsVersion &&
+    convertedVersion !== existing.regionsVersion
+  ) {
+    const convertedCodes = new Set(
+      Object.entries(converted.convertedRegionPrices ?? {})
+        .filter(([, value]) => value.price)
+        .map(([regionCode]) => regionCode),
+    );
+    const staleBuyRegions = [...existing.regionsByCode.keys()].filter(
+      (regionCode) => !convertedCodes.has(regionCode),
+    );
+    const preservedOtherOptions = existing.otherPurchaseOptions.some(
+      (option) =>
+        (option.regionalPricingAndAvailabilityConfigs?.length ?? 0) > 0,
+    );
+    if (staleBuyRegions.length > 0 || preservedOtherOptions) {
+      throw new Error(
+        `Play moved "${args.productId}" from regions version ${existing.regionsVersion} to ${convertedVersion}, but kit cannot safely translate ` +
+          (staleBuyRegions.length > 0
+            ? `the preserved ${staleBuyRegions.join(", ")} price config${staleBuyRegions.length === 1 ? "" : "s"}`
+            : "prices on purchase options other than buy") +
+          ". Update those prices in Play Console, then run sync again so kit can read the current-version configs.",
+      );
+    }
+  }
+  // Three states, and the difference between the last two is the whole
+  // point of this block:
+  //
+  //   ["US","KR"] — an explicit footprint. Everything else is withdrawn.
+  //   "all"       — sell wherever Play prices. Expands on purpose.
+  //   unset       — inherit. A product Play has never seen goes out
+  //                 everywhere (Play Console's own default, and the fix
+  //                 for #288); one that already exists keeps the exact
+  //                 regions it has and is only repriced.
+  //
+  // That last case is why `unset` is not simply "all": pushing an
+  // existing US-only product would otherwise expand it to every market
+  // Play prices, on a sync the operator ran to change a price. Nothing
+  // is withdrawn here — the excluded regions have no config to withdraw,
+  // so the footprint branch below skips them.
+  const explicitFootprint = Array.isArray(args.regions)
     ? new Set(args.regions)
     : undefined;
+  const explicitlyManagedFootprint =
+    explicitFootprint !== undefined || args.regions === "all";
+  const inheritedFootprint =
+    args.regions === undefined && existing.regionsByCode.size > 0
+      ? new Set(existing.regionsByCode.keys())
+      : undefined;
+  const allowedRegions = explicitFootprint ?? inheritedFootprint;
   const { configs: regionalConfigs, repricedRegions } =
     buildRegionalPricingConfigs(
       converted,
@@ -1662,6 +1752,7 @@ export async function upsertModernAndroidOneTimeProduct(
       args.productId,
       existing.regionsByCode,
       allowedRegions,
+      explicitlyManagedFootprint,
     );
 
   // "Other regions" pricing covers markets Play launches later. Play
@@ -1676,21 +1767,38 @@ export async function upsertModernAndroidOneTimeProduct(
   // purchase option is spread into the write and would carry a
   // previously-enabled config forward. It has to be actively withdrawn.
   const existingNewRegions = existing.buyOption?.newRegionsConfig;
-  const otherRegions = allowedRegions
+  const otherRegions = explicitFootprint
     ? undefined
-    : converted?.convertedOtherRegionsPrice;
+    : // Inheriting: refresh the amounts if Play already follows new
+      // markets for this product, but never switch that on. Creating it
+      // here would opt an existing product into every market Play
+      // launches from now on — the same silent expansion the inherited
+      // footprint exists to prevent, just deferred.
+      inheritedFootprint && !existingNewRegions
+      ? undefined
+      : converted?.convertedOtherRegionsPrice;
   const newRegionsConfig =
     otherRegions?.usdPrice && otherRegions.eurPrice
       ? {
-          availability: existingNewRegions?.availability ?? "AVAILABLE",
+          // `"all"` is an explicit request to follow Play into future
+          // markets, so it reactivates a previously withdrawn config.
+          // Inherit mode preserves the operator's Play Console choice.
+          availability:
+            args.regions === "all"
+              ? "AVAILABLE"
+              : (existingNewRegions?.availability ?? "AVAILABLE"),
           usdPrice: otherRegions.usdPrice,
           eurPrice: otherRegions.eurPrice,
         }
-      : allowedRegions && existingNewRegions?.availability === "AVAILABLE"
+      : explicitFootprint &&
+          existingNewRegions &&
+          (existingNewRegions.availability ?? "AVAILABLE") === "AVAILABLE"
         ? { ...existingNewRegions, availability: "NO_LONGER_AVAILABLE" }
         : // Explicit, not omitted: `undefined` would rely on the spread
           // carrying the old value, which is the same reasoning that
-          // makes the withdrawal above necessary.
+          // makes the withdrawal above necessary. Only an explicit
+          // footprint withdraws — inheriting leaves the operator's own
+          // Play Console setting exactly as it is.
           existingNewRegions;
 
   // The generated method owns the PATCH route. In googleapis v157 the
@@ -1730,8 +1838,8 @@ export async function upsertModernAndroidOneTimeProduct(
   // from the write, so say so. This backstops the region-code validator:
   // a code that is well-formed and assigned but not a Play sales region
   // reaches here rather than disappearing.
-  const unpriced = allowedRegions
-    ? [...allowedRegions].filter(
+  const unpriced = explicitFootprint
+    ? [...explicitFootprint].filter(
         (region) =>
           !regionalConfigs.some(
             (config) => config.regionCode === region && isLive(config),
@@ -1753,16 +1861,47 @@ export async function upsertModernAndroidOneTimeProduct(
   ).length;
   const stale = live.length - applied;
 
+  // Inheriting a narrow footprint is the safe choice, not necessarily
+  // the intended one — an operator whose product is US-only because of
+  // the bug this release fixes would otherwise never find out. Say how
+  // many markets are being left on the table, once the numbers are known
+  // to be real (a failed conversion knows nothing about availability).
+  const convertedRegions = Object.entries(
+    converted?.convertedRegionPrices ?? {},
+  )
+    .filter(([, value]) => value.price)
+    .map(([region]) => region);
+  const inheritedLiveRegionCount = inheritedFootprint
+    ? convertedRegions.filter((region) => {
+        const config = existing.regionsByCode.get(region);
+        return (
+          config !== undefined &&
+          (config.availability ?? "AVAILABLE") !== "NO_LONGER_AVAILABLE"
+        );
+      }).length
+    : 0;
+  const expandable = inheritedFootprint
+    ? convertedRegions.length - inheritedLiveRegionCount
+    : 0;
+  const expansionNote =
+    expandable > 0
+      ? ` "${args.productId}" remains available in ${inheritedLiveRegionCount} of the ${convertedRegions.length} regions Play returned prices for. Its current footprint was preserved — set the product's sales regions to "all" to publish the other ${expandable}.`
+      : "";
+
   if (convertedRegionCount(converted) > 0) {
-    // Conversion worked; the only thing left worth saying is whether a
-    // requested region has no Play price. Reported as its own action
-    // rather than short-circuiting the conversion-failure report below.
-    return unpricedNote
+    // Conversion worked; what is left worth saying is whether a
+    // requested region has no Play price, and whether kit declined to
+    // expand. Reported as its own action rather than short-circuiting
+    // the conversion-failure report below.
+    const note = `${unpricedNote}${expansionNote}`.trim();
+    return note
       ? {
           manualAction: {
             productId: args.productId,
-            code: "regional_pricing_incomplete",
-            message: unpricedNote.trim(),
+            code: expansionNote
+              ? "regional_expansion_available"
+              : "regional_pricing_incomplete",
+            message: note,
           },
         }
       : {};
@@ -1792,12 +1931,17 @@ export async function upsertModernAndroidOneTimeProduct(
  * than an array. `defaultLanguage` must name one of these keys, which
  * the base locale always satisfies.
  */
-function legacyListingsMap(args: AndroidOneTimeProductUpsertArgs): {
+function legacyListingsMap(
+  args: AndroidOneTimeProductUpsertArgs,
+  existing: {
+    [locale: string]: androidpublisher_v3.Schema$InAppProductListing;
+  } = {},
+): {
   [locale: string]: androidpublisher_v3.Schema$InAppProductListing;
 } {
   const listings: {
     [locale: string]: androidpublisher_v3.Schema$InAppProductListing;
-  } = {};
+  } = { ...existing };
   for (const row of listingRowsForProduct(args)) {
     listings[row.locale] = {
       title: row.title,
@@ -1827,7 +1971,10 @@ export function assertLegacyPathUsableFor(
   args: AndroidOneTimeProductUpsertArgs,
   modernError?: unknown,
 ): void {
-  if (!args.regions?.length) return;
+  // "all" is not a footprint the legacy API cannot honour — it prices
+  // every region, which is exactly what "all" asks for. Only an explicit
+  // list has no legal expression there.
+  if (args.regions === "all" || !args.regions?.length) return;
   throw new Error(
     `"${args.productId}" specifies sales regions, but this app fell back to Play's legacy in-app-products API, which prices every region or none. Remove the region list, or migrate the app to Play's one-time products model.` +
       (modernError
@@ -1851,7 +1998,7 @@ async function insertLegacyAndroidOneTimeProduct(
       sku: args.productId,
       purchaseType: "managedUser",
       status: "active",
-      defaultLanguage: BASE_LISTING_LOCALE,
+      defaultLanguage: args.baseLocale ?? BASE_LISTING_LOCALE,
       listings: legacyListingsMap(args),
       defaultPrice: {
         priceMicros: String(args.priceAmountMicros),
@@ -1865,6 +2012,12 @@ async function patchLegacyAndroidOneTimeProduct(
   androidpublisher: androidpublisher_v3.Androidpublisher,
   args: AndroidOneTimeProductUpsertArgs,
 ): Promise<void> {
+  // PATCH replaces the locale-keyed map. Read first so a locale authored in
+  // Play Console is not deleted when kit updates only its own listings.
+  const existing = await androidpublisher.inappproducts.get({
+    packageName: args.packageName,
+    sku: args.productId,
+  });
   await androidpublisher.inappproducts.patch({
     packageName: args.packageName,
     sku: args.productId,
@@ -1873,7 +2026,9 @@ async function patchLegacyAndroidOneTimeProduct(
       packageName: args.packageName,
       sku: args.productId,
       purchaseType: "managedUser",
-      listings: legacyListingsMap(args),
+      defaultLanguage:
+        args.baseLocale ?? existing.data.defaultLanguage ?? BASE_LISTING_LOCALE,
+      listings: legacyListingsMap(args, existing.data.listings ?? {}),
       defaultPrice: {
         priceMicros: String(args.priceAmountMicros),
         currency: args.currency,
@@ -2037,20 +2192,6 @@ export function mapModernPlayOneTimeState(
   return "Removed";
 }
 
-function pickPlayTitle(
-  product: androidpublisher_v3.Schema$InAppProduct,
-): string | undefined {
-  const def = product.defaultLanguage ?? "en-US";
-  return product.listings?.[def]?.title ?? undefined;
-}
-
-function pickPlayDescription(
-  product: androidpublisher_v3.Schema$InAppProduct,
-): string | undefined {
-  const def = product.defaultLanguage ?? "en-US";
-  return product.listings?.[def]?.description ?? undefined;
-}
-
 export function playPriceMicrosToNumber(
   raw: string | undefined | null,
 ): number | undefined {
@@ -2058,6 +2199,21 @@ export function playPriceMicrosToNumber(
   if (!/^\d+$/.test(raw)) return undefined;
   const n = Number(raw);
   return Number.isSafeInteger(n) && n >= 0 ? n : undefined;
+}
+
+/** Preserve every legacy Play listing and its declared default locale. */
+export function splitLegacyPlayListings(
+  product: androidpublisher_v3.Schema$InAppProduct,
+): ReturnType<typeof splitStoreListings> {
+  return splitStoreListings(
+    Object.entries(product.listings ?? {}).map(([locale, listing]) => ({
+      locale,
+      title: listing.title,
+      description: listing.description,
+    })),
+    product.sku ?? "product",
+    product.defaultLanguage ?? BASE_LISTING_LOCALE,
+  );
 }
 
 function parsePlayPriceMicros(

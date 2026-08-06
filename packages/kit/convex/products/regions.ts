@@ -1,10 +1,9 @@
 import { ConvexError, v } from "convex/values";
 
-// Where a product is sold. Leaving this unset keeps the default that
-// fixes issue #288 — price the product in every region Play converts
-// into, matching Play Console's own bulk-pricing flow — while an
-// explicit list lets an operator who only ships to a few markets say so
-// instead of having kit decide for them.
+// Where a product is sold. Leaving this unset uses Play's sell-everywhere
+// default for a new product, while an existing product inherits its
+// current footprint. An explicit list lets an operator who only ships to
+// a few markets say so, and `"all"` requests a deliberate expansion.
 //
 // Note this is product-level. An app is only installable in the
 // countries it is distributed to, so regions beyond that are inert
@@ -12,46 +11,69 @@ import { ConvexError, v } from "convex/values";
 // state their footprint rather than inherit Play's whole map, and for
 // keeping a product out of regions Play adds in future.
 
-/** ISO 3166-1 alpha-2, which is what Play's `regionCode` accepts. */
-const REGION_PATTERN = /^[A-Z]{2}$/;
-
-// ISO 3166-1 reserves these for private/user assignment, and CLDR maps
-// `ZZ` to "Unknown Region", so `Intl` happily resolves several of them.
-// They are never a Play sales region. `XK` (Kosovo) sits in the
-// user-assigned range but is a real territory CLDR names, so it is not
-// listed here — whether Play prices it is answered by the sync, which
-// reports any requested region Play returns no price for.
-const RESERVED_REGION_CODES = new Set(["AA", "ZZ"]);
-const RESERVED_REGION_PREFIXES = ["Q", "X"];
+// The current ISO 3166-1 alpha-2 assignment table, plus XK (Kosovo),
+// which Play and CLDR commonly expose even though ISO reserves it for
+// user assignment. Keep this explicit: Intl.DisplayNames also recognizes
+// macroregions, compatibility aliases, deleted assignments, and CLDR
+// pseudo-regions that Play does not accept as country sales regions.
+const ASSIGNED_REGION_CODES = new Set(
+  `
+AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ
+BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ
+CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ
+DE DJ DK DM DO DZ
+EC EE EG EH ER ES ET
+FI FJ FK FM FO FR
+GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY
+HK HM HN HR HT HU
+ID IE IL IM IN IO IQ IR IS IT
+JE JM JO JP
+KE KG KH KI KM KN KP KR KW KY KZ
+LA LB LC LI LK LR LS LT LU LV LY
+MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ
+NA NC NE NF NG NI NL NO NP NR NU NZ
+OM
+PA PE PF PG PH PK PL PM PN PR PS PT PW PY
+QA
+RE RO RS RU RW
+SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ
+TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ
+UA UG UM US UY UZ
+VA VC VE VG VI VN VU
+WF WS
+XK
+YE YT
+ZA ZM ZW
+  `
+    .trim()
+    .split(/\s+/),
+);
 
 /**
- * Whether a code names a real territory.
- *
- * `Intl.DisplayNames` echoes the input back when it cannot resolve a
- * region, which catches ordinary typos ("QQ"). It does not catch the
- * reserved ranges, so those are excluded explicitly rather than by
- * shipping a hardcoded country list that would go stale.
+ * Whether a code names a current country or territory Play may price.
  */
 function isAssignedRegion(code: string): boolean {
-  if (RESERVED_REGION_CODES.has(code)) return false;
-  // ISO 3166-1 reserves QM–QZ and XA–XZ for user assignment. `XK` is the
-  // one code in those ranges CLDR actually names, so it is allowed and
-  // everything else in them is not. Codes outside the reserved span
-  // (QA–QL) still have to satisfy the CLDR check below rather than being
-  // waved through — QA is Qatar, QB is nothing.
-  const isReservedRange =
-    code !== "XK" &&
-    RESERVED_REGION_PREFIXES.includes(code[0]) &&
-    (code[0] === "X" || code[1] >= "M");
-  if (isReservedRange) return false;
-  try {
-    return new Intl.DisplayNames(["en"], { type: "region" }).of(code) !== code;
-  } catch {
-    return false;
-  }
+  return ASSIGNED_REGION_CODES.has(code);
 }
 
-export const productRegionsValidator = v.array(v.string());
+/**
+ * A product's sales footprint, as three distinct states:
+ *
+ * - `["US","KR"]` — exactly these regions; anything else is withdrawn.
+ * - `"all"` — wherever Play prices the product, including markets it
+ *   launches later. An expansion the operator asked for.
+ * - unset — inherit. New products go everywhere (Play Console's own
+ *   default); a product Play already knows keeps the regions it has.
+ *
+ * The third state exists because "unset" used to mean "all", which
+ * turned a price edit on a US-only product into a push to 173 markets.
+ */
+export const productRegionsValidator = v.union(
+  v.literal("all"),
+  v.array(v.string()),
+);
+
+export type ProductRegions = "all" | string[];
 
 /**
  * Normalizes and validates an operator-supplied sales-region list.
@@ -61,14 +83,19 @@ export const productRegionsValidator = v.array(v.string());
  * @throws When a code is not a two-letter ISO 3166-1 alpha-2 region.
  */
 export function normalizeProductRegions(
-  regions: string[] | undefined,
-): string[] | undefined {
+  regions: ProductRegions | undefined,
+): ProductRegions | undefined {
+  if (regions === "all") return "all";
+  // An empty list is not a footprint of zero regions — Play has no way
+  // to express "sold nowhere", and a product that reaches the write with
+  // one would be silently unbuyable. Treat it as unset, the same way a
+  // cleared field in the dashboard means "stop restricting".
   if (!regions || regions.length === 0) return undefined;
 
   const seen = new Set<string>();
   for (const raw of regions) {
     const code = raw.trim().toUpperCase();
-    if (!REGION_PATTERN.test(code) || !isAssignedRegion(code)) {
+    if (!isAssignedRegion(code)) {
       // Structured so REST/MCP surface a 400 rather than a generic 500.
       throw new ConvexError({
         code: "INVALID_INPUT",

@@ -879,9 +879,9 @@ const schema = defineSchema({
     title: v.string(),
     description: v.optional(v.string()),
     // Store-listing text in additional languages. `title` /
-    // `description` above stay the base (en-US) listing that every
-    // product must have; this only adds locales on top, so a row
-    // without it behaves exactly as before. Locale codes are BCP-47
+    // `description` above stay the base listing (en-US for authored rows;
+    // store pulls may preserve another `baseLocale`); this only adds
+    // locales on top. Locale codes are BCP-47
     // ("ko-KR", "ja-JP"), which is what both Play `languageCode` and
     // ASC localization `locale` accept.
     // Widened to include `null` because Convex treats `undefined` in a
@@ -900,12 +900,23 @@ const schema = defineSchema({
         v.null(),
       ),
     ),
-    // Sales regions. Unset means "every region Play prices", which is
-    // the behaviour that fixes issue #288; a list restricts the product
-    // to exactly those markets. Nullable for the same reason
-    // `localizations` is — Convex treats `undefined` in a patch as
-    // "leave unchanged", so clearing needs an explicit null.
-    regions: v.optional(v.union(v.array(v.string()), v.null())),
+    // Locale represented by the required `title` / `description` fields.
+    // Authored rows default to en-US; store pulls persist another locale
+    // when a catalog has no en-US listing so the next push cannot invent a
+    // mislabeled English listing. Optional for all historical rows.
+    baseLocale: v.optional(v.string()),
+    // Sales regions, in three states: a list restricts the product to
+    // exactly those markets; "all" sells wherever Play prices it,
+    // including markets Play launches later; unset inherits — a product
+    // Play has never seen goes out everywhere (the behaviour that fixes
+    // issue #288), and one that already exists keeps the regions it has
+    // rather than being expanded by a sync run to change its price.
+    // Nullable for the same reason `localizations` is — Convex treats
+    // `undefined` in a patch as "leave unchanged", so clearing needs an
+    // explicit null.
+    regions: v.optional(
+      v.union(v.literal("all"), v.array(v.string()), v.null()),
+    ),
     priceAmountMicros: v.optional(v.number()),
     currency: v.optional(v.string()),
     state: v.union(

@@ -113,6 +113,7 @@ export function normalizeProductLocalizations(
   localizations: ProductLocalization[] | undefined,
   platform: ProductPlatform,
   type: ProductListingType,
+  baseLocale: string = BASE_LISTING_LOCALE,
 ): ProductLocalization[] | undefined {
   if (!localizations || localizations.length === 0) return undefined;
 
@@ -131,9 +132,9 @@ export function normalizeProductLocalizations(
         `Invalid localization locale "${entry.locale}". Use a BCP-47 code such as "ko" or "ko-KR".`,
       );
     }
-    if (locale === BASE_LISTING_LOCALE) {
+    if (locale === baseLocale) {
       throw invalidListing(
-        `Localization locale "${BASE_LISTING_LOCALE}" is reserved for the product's own title and description. Edit those instead of adding a localization for it.`,
+        `Localization locale "${baseLocale}" is reserved for the product's own title and description. Edit those instead of adding a localization for it.`,
       );
     }
     if (seen.has(locale)) {
@@ -188,9 +189,11 @@ export function splitStoreListings(
     description?: string | null;
   }>,
   fallbackTitle: string,
+  preferredBaseLocale: string = BASE_LISTING_LOCALE,
 ): {
   title: string;
   description?: string;
+  baseLocale?: string;
   localizations?: ProductLocalization[];
 } {
   const usable = listings.filter(
@@ -204,14 +207,15 @@ export function splitStoreListings(
   );
   if (usable.length === 0) return { title: fallbackTitle };
 
-  const base = usable.find((listing) => listing.locale === BASE_LISTING_LOCALE);
-  // A store with no base-locale listing still has to yield a non-empty
-  // `title`, so the first listing is promoted into that slot — but it is
-  // ALSO kept as a localization. Dropping it would lose the locale, and
-  // the next push would then republish that text as en-US.
+  const base =
+    usable.find((listing) => listing.locale === preferredBaseLocale) ??
+    usable.find((listing) => listing.locale === BASE_LISTING_LOCALE);
+  // A store with no en-US listing still has to yield a non-empty `title`,
+  // so the first listing becomes the base. Keep its locale explicitly:
+  // without `baseLocale`, the next push would relabel that text as en-US.
   const promoted = base ?? usable[0];
   const others = usable
-    .filter((listing) => listing.locale !== BASE_LISTING_LOCALE)
+    .filter((listing) => listing.locale !== promoted.locale)
     .map((listing) => ({
       locale: listing.locale,
       title: listing.title,
@@ -221,6 +225,7 @@ export function splitStoreListings(
   return {
     title: promoted.title,
     ...(promoted.description ? { description: promoted.description } : {}),
+    baseLocale: promoted.locale,
     ...(others.length > 0 ? { localizations: others } : {}),
   };
 }
@@ -235,16 +240,18 @@ export function splitStoreListings(
 export function listingRowsForProduct(product: {
   title: string;
   description?: string;
+  baseLocale?: string;
   localizations?: ProductLocalization[];
 }): ProductLocalization[] {
+  const baseLocale = product.baseLocale ?? BASE_LISTING_LOCALE;
   return [
     {
-      locale: BASE_LISTING_LOCALE,
+      locale: baseLocale,
       title: product.title,
       ...(product.description ? { description: product.description } : {}),
     },
     ...(product.localizations ?? []).filter(
-      (entry) => entry.locale !== BASE_LISTING_LOCALE,
+      (entry) => entry.locale !== baseLocale,
     ),
   ];
 }

@@ -22,8 +22,12 @@ export interface ResolvedProductListingDraft {
     title: string;
     description?: string;
   }>;
-  /** Region codes as typed; `undefined` where the surface can't sell by region. */
-  regions?: string[];
+  /**
+   * `"all"` to sell everywhere, a list to restrict, `undefined` to leave
+   * the stored footprint alone (and, on a new product, to let the store
+   * default apply).
+   */
+  regions?: "all" | string[];
 }
 
 export type ProductListingDraftResolution =
@@ -32,8 +36,14 @@ export type ProductListingDraftResolution =
 
 export function resolveProductListingDraft(args: {
   rows: ProductLocalizationRow[];
-  /** Raw comma-separated field text. */
+  /** Raw comma-separated field text, used only when mode is "list". */
   regionsInput?: string;
+  /**
+   * "inherit" leaves the stored footprint alone, "all" sells everywhere,
+   * "list" restricts to `regionsInput`. Defaults to "inherit" so a form
+   * that never showed the control cannot widen a product's markets.
+   */
+  regionMode?: "inherit" | "all" | "list";
   /**
    * False for iOS and for subscriptions, where Play/ASC give kit no way
    * to set a per-product footprint. The field is hidden there, and any
@@ -64,12 +74,27 @@ export function resolveProductListingDraft(args: {
     description: row.description.trim() || undefined,
   }));
 
-  const parsedRegions = args.supportsSalesRegions
-    ? (args.regionsInput ?? "")
-        .split(",")
-        .map((code) => code.trim())
-        .filter(Boolean)
-    : [];
+  const regionMode = args.regionMode ?? "inherit";
+  const parsedRegions =
+    args.supportsSalesRegions && regionMode === "list"
+      ? (args.regionsInput ?? "")
+          .split(",")
+          .map((code) => code.trim())
+          .filter(Boolean)
+      : [];
+  if (
+    args.supportsSalesRegions &&
+    regionMode === "list" &&
+    !parsedRegions.length
+  ) {
+    // "Only these regions" with nothing typed would otherwise fall
+    // through as "inherit" and quietly ignore the choice.
+    return {
+      ok: false,
+      error:
+        "List at least one region, or choose a different sales-region option",
+    };
+  }
 
   // Sending a language or region list for a product that already has one
   // REPLACES it, so an operator who typed a single row without loading
@@ -77,12 +102,16 @@ export function resolveProductListingDraft(args: {
   if (
     args.editingExisting &&
     !args.isLoadedRow &&
-    (filled.length > 0 || parsedRegions.length > 0)
+    (filled.length > 0 || parsedRegions.length > 0 || regionMode !== "inherit")
   ) {
+    const replacesRegions =
+      args.supportsSalesRegions &&
+      (parsedRegions.length > 0 || regionMode !== "inherit");
     return {
       ok: false,
-      error:
-        "Load this product's stored languages first — saving now would replace them",
+      error: replacesRegions
+        ? "Load this product's stored languages and regions first — saving now would replace them"
+        : "Load this product's stored languages first — saving now would replace them",
     };
   }
 
@@ -96,10 +125,18 @@ export function resolveProductListingDraft(args: {
     ok: true,
     localizations:
       sendEmptyAsDeleteAll || filled.length > 0 ? filled : undefined,
+    // Region modes map to the stored states directly: "all" is a value,
+    // "inherit" is the absence of one. A loaded row that switched back
+    // to "inherit" sends `[]`, which the mutation stores as null — the
+    // same delete-all reasoning as the language list.
     regions: !args.supportsSalesRegions
       ? undefined
-      : sendEmptyAsDeleteAll || parsedRegions.length > 0
-        ? parsedRegions
-        : undefined,
+      : regionMode === "all"
+        ? "all"
+        : regionMode === "list"
+          ? parsedRegions
+          : sendEmptyAsDeleteAll
+            ? []
+            : undefined,
   };
 }

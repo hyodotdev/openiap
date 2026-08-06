@@ -225,6 +225,27 @@ describe("listingRowsForProduct", () => {
   });
 });
 
+describe("non-English base localization validation", () => {
+  it("reserves the actual base locale and permits en-US as an extra", () => {
+    expect(
+      normalizeProductLocalizations(
+        [{ locale: "en-US", title: "Moon Sage" }],
+        "Android",
+        "Consumable",
+        "ko-KR",
+      ),
+    ).toEqual([{ locale: "en-US", title: "Moon Sage" }]);
+    expect(() =>
+      normalizeProductLocalizations(
+        [{ locale: "ko-KR", title: "중복" }],
+        "Android",
+        "Consumable",
+        "ko-KR",
+      ),
+    ).toThrow(/ko-KR.*reserved/);
+  });
+});
+
 describe("splitStoreListings", () => {
   it("splits a pulled listing set into base plus localizations", () => {
     expect(
@@ -238,21 +259,19 @@ describe("splitStoreListings", () => {
     ).toEqual({
       title: "Moon Sage",
       description: "Unlock",
+      baseLocale: "en-US",
       localizations: [
         { locale: "ko-KR", title: "문 세이지", description: "전체 해금" },
       ],
     });
   });
 
-  // Promoting is unavoidable — `title` is required — but the promoted
-  // listing must ALSO stay a localization, or the locale is lost and the
-  // next push republishes that text as en-US.
-  it("promotes the first listing without losing its locale", () => {
+  it("promotes the first listing and records its locale", () => {
     expect(
       splitStoreListings([{ locale: "ko-KR", title: "문 세이지" }], "fallback"),
     ).toEqual({
       title: "문 세이지",
-      localizations: [{ locale: "ko-KR", title: "문 세이지" }],
+      baseLocale: "ko-KR",
     });
   });
 
@@ -264,10 +283,9 @@ describe("splitStoreListings", () => {
       ],
       "fallback",
     );
-    // ko-KR survives the round trip rather than being flattened into the
-    // en-US slot and disappearing.
+    // ko-KR stays the base rather than being flattened into a fabricated
+    // en-US listing on the next push.
     expect(listingRowsForProduct(pulled).map((row) => row.locale)).toEqual([
-      "en-US",
       "ko-KR",
       "ja-JP",
     ]);
@@ -293,6 +311,35 @@ describe("splitStoreListings", () => {
     };
     expect(
       splitStoreListings(listingRowsForProduct(product), "unused"),
+    ).toEqual({ ...product, baseLocale: "en-US" });
+  });
+
+  it("round-trips a non-en-US base without inventing another locale", () => {
+    const product = {
+      title: "문 세이지",
+      description: "전체 해금",
+      baseLocale: "ko-KR",
+      localizations: [{ locale: "ja-JP", title: "ムーンセージ" }],
+    };
+    expect(
+      splitStoreListings(listingRowsForProduct(product), "unused"),
     ).toEqual(product);
+  });
+
+  it("honors an explicit store default locale", () => {
+    expect(
+      splitStoreListings(
+        [
+          { locale: "en-US", title: "Moon Sage" },
+          { locale: "ko-KR", title: "문 세이지" },
+        ],
+        "unused",
+        "ko-KR",
+      ),
+    ).toEqual({
+      title: "문 세이지",
+      baseLocale: "ko-KR",
+      localizations: [{ locale: "en-US", title: "Moon Sage" }],
+    });
   });
 });

@@ -18,6 +18,7 @@ const resolve = (
     editingExisting?: boolean;
     isLoadedRow?: boolean;
     regionsInput?: string;
+    regionMode?: "inherit" | "all" | "list";
     supportsSalesRegions?: boolean;
   } = {},
 ) =>
@@ -26,6 +27,7 @@ const resolve = (
     editingExisting: state.editingExisting ?? false,
     isLoadedRow: state.isLoadedRow ?? false,
     regionsInput: state.regionsInput,
+    regionMode: state.regionMode,
     supportsSalesRegions: state.supportsSalesRegions ?? false,
   });
 
@@ -116,5 +118,65 @@ describe("resolveProductListingDraft", () => {
         { locale: "ko-KR", title: "코인", description: undefined },
       ],
     });
+  });
+
+  it("maps the three sales-region modes to the product contract", () => {
+    const base = { supportsSalesRegions: true } as const;
+
+    expect(resolve([], { ...base, regionMode: "inherit" })).toMatchObject({
+      ok: true,
+      regions: undefined,
+    });
+    expect(resolve([], { ...base, regionMode: "all" })).toMatchObject({
+      ok: true,
+      regions: "all",
+    });
+    expect(
+      resolve([], {
+        ...base,
+        regionMode: "list",
+        regionsInput: " kr, US ,kr ",
+      }),
+    ).toMatchObject({ ok: true, regions: ["kr", "US", "kr"] });
+  });
+
+  it("requires at least one code in list mode", () => {
+    expect(
+      resolve([], {
+        supportsSalesRegions: true,
+        regionMode: "list",
+        regionsInput: " , ",
+      }),
+    ).toEqual({
+      ok: false,
+      error:
+        "List at least one region, or choose a different sales-region option",
+    });
+  });
+
+  it("blocks footprint replacement until the stored row is loaded", () => {
+    expect(
+      resolve([], {
+        supportsSalesRegions: true,
+        regionMode: "all",
+        editingExisting: true,
+        isLoadedRow: false,
+      }),
+    ).toEqual({
+      ok: false,
+      error:
+        "Load this product's stored languages and regions first — saving now would replace them",
+    });
+  });
+
+  it("uses an empty list to clear a loaded footprint back to inherit", () => {
+    expect(
+      resolve([], {
+        supportsSalesRegions: true,
+        regionMode: "inherit",
+        editingExisting: true,
+        isLoadedRow: true,
+      }),
+    ).toMatchObject({ ok: true, regions: [] });
   });
 });

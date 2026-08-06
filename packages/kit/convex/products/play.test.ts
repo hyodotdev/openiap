@@ -12,6 +12,7 @@ import {
   moneyToMicros,
   playPriceMicrosToNumber,
   shouldFallbackToLegacyOneTimeProduct,
+  splitLegacyPlayListings,
   upsertAndroidOneTimeProduct,
   upsertModernAndroidOneTimeProduct,
 } from "./play";
@@ -264,6 +265,11 @@ describe("upsertModernAndroidOneTimeProduct", () => {
         purchaseOptions: [
           {
             purchaseOptionId: "buy",
+            newRegionsConfig: {
+              availability: "NO_LONGER_AVAILABLE",
+              usdPrice: { currencyCode: "USD", units: "19", nanos: 0 },
+              eurPrice: { currencyCode: "EUR", units: "17", nanos: 0 },
+            },
             regionalPricingAndAvailabilityConfigs: [
               {
                 regionCode: "US",
@@ -632,6 +638,28 @@ describe("basePlanIdForPeriod", () => {
 });
 
 describe("localized listings", () => {
+  it("keeps every legacy pull locale and its non-English default", () => {
+    expect(
+      splitLegacyPlayListings({
+        sku: "hero.sage",
+        defaultLanguage: "ko-KR",
+        listings: {
+          "en-US": { title: "Moon Sage", description: "Unlock" },
+          "ko-KR": { title: "문 세이지", description: "전체 해금" },
+          "ja-JP": { title: "ムーンセージ" },
+        },
+      }),
+    ).toEqual({
+      title: "문 세이지",
+      description: "전체 해금",
+      baseLocale: "ko-KR",
+      localizations: [
+        { locale: "en-US", title: "Moon Sage", description: "Unlock" },
+        { locale: "ja-JP", title: "ムーンセージ" },
+      ],
+    });
+  });
+
   it("publishes the base listing plus every operator locale", async () => {
     const { androidpublisher, requests } = stubAndroidPublisher({
       convert: () => ({
@@ -1062,6 +1090,70 @@ describe("explicit sales regions", () => {
         ?.availability,
     ).toBe("NO_LONGER_AVAILABLE");
   });
+
+  it("withdraws new regions when Play omits their available state", async () => {
+    const { androidpublisher, requests } = stubAndroidPublisher({
+      get: () => ({
+        purchaseOptions: [
+          {
+            purchaseOptionId: "buy",
+            newRegionsConfig: {
+              usdPrice: { currencyCode: "USD", units: "19", nanos: 0 },
+              eurPrice: { currencyCode: "EUR", units: "17", nanos: 0 },
+            },
+            regionalPricingAndAvailabilityConfigs: [
+              {
+                regionCode: "US",
+                price: { currencyCode: "USD", units: "19", nanos: 0 },
+              },
+            ],
+          },
+        ],
+      }),
+      convert: () => converted,
+    });
+
+    await upsertModernAndroidOneTimeProduct(
+      androidpublisher,
+      { ...BASE_ARGS, regions: ["US"] },
+      { allowCreate: false },
+    );
+
+    expect(regionalConfigs(patchRequest(requests))?.newRegionsConfig).toEqual({
+      availability: "NO_LONGER_AVAILABLE",
+      usdPrice: { currencyCode: "USD", units: "19", nanos: 0 },
+      eurPrice: { currencyCode: "EUR", units: "17", nanos: 0 },
+    });
+  });
+
+  it("fails instead of leaving an excluded pre-release region sellable", async () => {
+    const { androidpublisher, requests } = stubAndroidPublisher({
+      get: () => ({
+        purchaseOptions: [
+          {
+            purchaseOptionId: "buy",
+            regionalPricingAndAvailabilityConfigs: [
+              {
+                regionCode: "DE",
+                availability: "AVAILABLE_IF_RELEASED",
+                price: { currencyCode: "EUR", units: "17", nanos: 0 },
+              },
+            ],
+          },
+        ],
+      }),
+      convert: () => converted,
+    });
+
+    await expect(
+      upsertModernAndroidOneTimeProduct(
+        androidpublisher,
+        { ...BASE_ARGS, regions: ["US"] },
+        { allowCreate: false },
+      ),
+    ).rejects.toThrow(/cannot withdraw region DE.*AVAILABLE_IF_RELEASED/);
+    expect(requests.some((request) => request.method === "PATCH")).toBe(false);
+  });
 });
 
 // Both pull-ranking fixes shipped without coverage. The KRW case is the
@@ -1413,6 +1505,38 @@ describe("sales regions edge cases", () => {
     ).rejects.toThrow(/exclude the US fallback/);
   });
 
+  it("does not withdraw the last live region when conversion fails", async () => {
+    const { androidpublisher } = stubAndroidPublisher({
+      get: () => ({
+        purchaseOptions: [
+          {
+            purchaseOptionId: "buy",
+            regionalPricingAndAvailabilityConfigs: [
+              {
+                regionCode: "US",
+                availability: "AVAILABLE",
+                price: { currencyCode: "USD", units: "19", nanos: 0 },
+              },
+            ],
+          },
+        ],
+      }),
+      convert: () => {
+        throw Object.assign(new Error("nope"), { code: 500 });
+      },
+    });
+
+    // With no KRW conversion or existing KR price, applying this footprint
+    // would only withdraw US and leave the product unavailable everywhere.
+    await expect(
+      upsertModernAndroidOneTimeProduct(
+        androidpublisher,
+        { ...BASE_ARGS, regions: ["KR"] },
+        { allowCreate: false },
+      ),
+    ).rejects.toThrow(/exclude the US fallback/);
+  });
+
   it("does not count withdrawn regions as prices left stale", async () => {
     const { androidpublisher } = stubAndroidPublisher({
       get: () => ({
@@ -1447,6 +1571,8 @@ describe("sales regions edge cases", () => {
 
     // DE was withdrawn on purpose; calling it a stale price would be
     // alarming and wrong.
+    expect(outcome.manualAction).toBeDefined();
+    expect(outcome.manualAction?.message).toContain("applied to 1 region(s)");
     expect(outcome.manualAction?.message).not.toContain(
       "kept their previous price",
     );
@@ -1589,6 +1715,9 @@ describe("manual-action arithmetic", () => {
       assertLegacyPathUsableFor({ ...BASE_ARGS, regions: ["US"] }),
     ).toThrow(/legacy in-app-products API/);
     expect(() => assertLegacyPathUsableFor(BASE_ARGS)).not.toThrow();
+    expect(() =>
+      assertLegacyPathUsableFor({ ...BASE_ARGS, regions: "all" }),
+    ).not.toThrow();
   });
 });
 
@@ -1681,12 +1810,12 @@ describe("mergedSubscriptionListings", () => {
   });
 });
 
-// The repair path is the whole point of #288: a product already live
-// with only a US config must GAIN the other regions on the next push.
-// Every existing test either creates fresh or preserves — none proved
-// a broken product gets fixed.
-describe("repairing an existing US-only product", () => {
-  it("adds the regions Play priced that the product lacks", async () => {
+// Unset is deliberately different for new and existing products. A new
+// product still fixes #288 by going to every converted region, while a
+// product already in Play keeps its current footprint until the operator
+// explicitly selects `"all"`.
+describe("existing-product region inheritance", () => {
+  it("keeps a US-only footprint and reports the available expansion", async () => {
     const { androidpublisher, requests } = stubAndroidPublisher({
       get: () => ({
         purchaseOptions: [
@@ -1720,16 +1849,97 @@ describe("repairing an existing US-only product", () => {
       }),
     });
 
-    await upsertModernAndroidOneTimeProduct(androidpublisher, BASE_ARGS, {
-      allowCreate: false,
+    const outcome = await upsertModernAndroidOneTimeProduct(
+      androidpublisher,
+      BASE_ARGS,
+      { allowCreate: false },
+    );
+
+    const configs =
+      regionalConfigs(patchRequest(requests))
+        ?.regionalPricingAndAvailabilityConfigs ?? [];
+    expect(configs.map((config) => config.regionCode)).toEqual(["US"]);
+    expect(configs[0]?.price).toEqual({
+      currencyCode: "USD",
+      units: "24",
+      nanos: 990_000_000,
+    });
+    expect(outcome.manualAction).toMatchObject({
+      code: "regional_expansion_available",
+    });
+    expect(outcome.manualAction?.message).toContain(
+      "remains available in 1 of the 3 regions",
+    );
+    expect(outcome.manualAction?.message).toContain('sales regions to "all"');
+  });
+
+  it('expands an existing product when the operator selects "all"', async () => {
+    const { androidpublisher, requests } = stubAndroidPublisher({
+      get: () => ({
+        purchaseOptions: [
+          {
+            purchaseOptionId: "buy",
+            regionalPricingAndAvailabilityConfigs: [
+              {
+                regionCode: "US",
+                availability: "AVAILABLE",
+                price: { currencyCode: "USD", units: "19", nanos: 0 },
+              },
+              {
+                regionCode: "KR",
+                availability: "NO_LONGER_AVAILABLE",
+                price: { currencyCode: "KRW", units: "25000", nanos: 0 },
+              },
+            ],
+          },
+        ],
+      }),
+      convert: () => ({
+        convertedRegionPrices: {
+          US: {
+            regionCode: "US",
+            price: { currencyCode: "USD", units: "24", nanos: 990_000_000 },
+          },
+          KR: {
+            regionCode: "KR",
+            price: { currencyCode: "KRW", units: "33000", nanos: 0 },
+          },
+          JP: {
+            regionCode: "JP",
+            price: { currencyCode: "JPY", units: "3800", nanos: 0 },
+          },
+        },
+        convertedOtherRegionsPrice: {
+          usdPrice: {
+            currencyCode: "USD",
+            units: "24",
+            nanos: 990_000_000,
+          },
+          eurPrice: { currencyCode: "EUR", units: "22", nanos: 0 },
+        },
+      }),
     });
 
-    const codes = (
-      regionalConfigs(patchRequest(requests))
-        ?.regionalPricingAndAvailabilityConfigs ?? []
-    ).map((c) => c.regionCode);
-    expect(codes).toContain("KR");
-    expect(codes).toContain("JP");
+    const outcome = await upsertModernAndroidOneTimeProduct(
+      androidpublisher,
+      { ...BASE_ARGS, regions: "all" },
+      { allowCreate: false },
+    );
+
+    const option = regionalConfigs(patchRequest(requests));
+    const configs = option?.regionalPricingAndAvailabilityConfigs ?? [];
+    expect(configs.map((config) => config.regionCode)).toEqual([
+      "US",
+      "KR",
+      "JP",
+    ]);
+    expect(
+      configs.find((config) => config.regionCode === "KR")?.availability,
+    ).toBe("AVAILABLE");
+    expect(option?.newRegionsConfig).toMatchObject({
+      availability: "AVAILABLE",
+    });
+    expect(outcome.manualAction).toBeUndefined();
   });
 
   it("does not reinstate a region the operator withdrew in Play Console", async () => {
@@ -1839,6 +2049,92 @@ describe("regionsVersionFor precedence", () => {
       ),
     ).toBe("2026/02");
   });
+
+  it("rewrites an excluded region price before withdrawing under a new version", async () => {
+    const { androidpublisher, requests } = stubAndroidPublisher({
+      get: () => ({
+        regionsVersion: { version: "2024/01" },
+        purchaseOptions: [
+          {
+            purchaseOptionId: "buy",
+            regionalPricingAndAvailabilityConfigs: [
+              {
+                regionCode: "BG",
+                availability: "AVAILABLE",
+                price: { currencyCode: "BGN", units: "40", nanos: 0 },
+              },
+            ],
+          },
+        ],
+      }),
+      convert: () => ({
+        regionVersion: { version: "2026/02" },
+        convertedRegionPrices: {
+          BG: {
+            regionCode: "BG",
+            price: { currencyCode: "EUR", units: "20", nanos: 0 },
+          },
+          US: {
+            regionCode: "US",
+            price: { currencyCode: "USD", units: "24", nanos: 990_000_000 },
+          },
+        },
+      }),
+    });
+
+    await upsertModernAndroidOneTimeProduct(
+      androidpublisher,
+      { ...BASE_ARGS, regions: ["US"] },
+      { allowCreate: false },
+    );
+
+    const bg = regionalConfigs(
+      patchRequest(requests),
+    )?.regionalPricingAndAvailabilityConfigs?.find(
+      (config) => config.regionCode === "BG",
+    ) as { availability?: string; price?: { currencyCode?: string } };
+    expect(bg).toMatchObject({
+      availability: "NO_LONGER_AVAILABLE",
+      price: { currencyCode: "EUR" },
+    });
+  });
+
+  it("fails safely when another purchase option still carries old-version prices", async () => {
+    const { androidpublisher, requests } = stubAndroidPublisher({
+      get: () => ({
+        regionsVersion: { version: "2024/01" },
+        purchaseOptions: [
+          { purchaseOptionId: "buy" },
+          {
+            purchaseOptionId: "rent",
+            regionalPricingAndAvailabilityConfigs: [
+              {
+                regionCode: "BG",
+                availability: "AVAILABLE",
+                price: { currencyCode: "BGN", units: "10", nanos: 0 },
+              },
+            ],
+          },
+        ],
+      }),
+      convert: () => ({
+        regionVersion: { version: "2026/02" },
+        convertedRegionPrices: {
+          US: {
+            regionCode: "US",
+            price: { currencyCode: "USD", units: "24", nanos: 990_000_000 },
+          },
+        },
+      }),
+    });
+
+    await expect(
+      upsertModernAndroidOneTimeProduct(androidpublisher, BASE_ARGS, {
+        allowCreate: false,
+      }),
+    ).rejects.toThrow(/purchase options other than buy/);
+    expect(patchRequest(requests)).toBeUndefined();
+  });
 });
 
 // The legacy `inappproducts` fallback is the other half of issue #288:
@@ -1863,6 +2159,20 @@ describe("legacy inappproducts fallback", () => {
             code: modernError.code,
           });
         }
+        if (
+          url.pathname.includes("/inappproducts/") &&
+          request.method === "GET"
+        ) {
+          return Object.assign(new Response(null, { status: 200 }), {
+            config: request,
+            data: {
+              defaultLanguage: "en-US",
+              listings: {
+                "fr-FR": { title: "Sage lunaire", description: "Débloquer" },
+              },
+            } as T,
+          });
+        }
         return Object.assign(new Response(null, { status: 200 }), {
           config: request,
           data: {} as T,
@@ -1874,7 +2184,11 @@ describe("legacy inappproducts fallback", () => {
   }
 
   const legacyRequest = (requests: Common.GaxiosOptions[]) =>
-    requests.find((request) => String(request.url).includes("/inappproducts"));
+    requests.find(
+      (request) =>
+        String(request.url).includes("/inappproducts") &&
+        request.method !== "GET",
+    );
 
   const localizedArgs = {
     ...BASE_ARGS,
@@ -1933,6 +2247,12 @@ describe("legacy inappproducts fallback", () => {
         title: "ムーンセージ",
         description: "ムーンセージ",
       });
+      if (!allowCreate) {
+        expect(body.listings?.["fr-FR"]).toEqual({
+          title: "Sage lunaire",
+          description: "Débloquer",
+        });
+      }
     });
   }
 

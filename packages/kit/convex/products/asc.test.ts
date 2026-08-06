@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from "vitest";
 import {
   ProductSyncCancelledError,
   pushAscReviewLocalizations,
+  syncAscReviewLocalization,
   ascCustomerPriceToMicros,
   createAscReviewEligibilityLoader,
   getAscReviewFinalizeDisposition,
@@ -762,5 +763,33 @@ describe("pushAscReviewLocalizations", () => {
       }),
     ).rejects.toBeInstanceOf(ProductSyncCancelledError);
     expect(seen).toEqual(["en-US", "ko-KR"]);
+  });
+
+  it("propagates cancellation through the outer review sync boundary", async () => {
+    const seen: string[] = [];
+    const recordFailure = vi.fn();
+
+    await expect(
+      syncAscReviewLocalization({
+        reviewVersion: {
+          versionId: "version-1",
+          alreadySubmitted: false,
+          attachedToSubmission: false,
+        },
+        listings,
+        productId: "coins",
+        findMismatchedLocale: vi.fn(async () => undefined),
+        upsert: async (listing) => {
+          seen.push(listing.locale);
+          if (listing.locale === "ko-KR") {
+            throw new ProductSyncCancelledError();
+          }
+        },
+        recordFailure,
+      }),
+    ).rejects.toBeInstanceOf(ProductSyncCancelledError);
+
+    expect(seen).toEqual(["en-US", "ko-KR"]);
+    expect(recordFailure).not.toHaveBeenCalled();
   });
 });

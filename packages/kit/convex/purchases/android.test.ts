@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   isProductNotFoundError,
   mapProductResponseToReceiptData,
+  mapGoogleTokenNoLongerValidResponse,
   selectProductLineItem,
   verifyPurchaseWithGooglePlay,
   mapSubscriptionResponseToReceiptData,
@@ -34,6 +35,16 @@ describe("parseTimeToMillis", () => {
       parseTimeToMillis(String(Number.MAX_SAFE_INTEGER + 1)),
     ).toBeUndefined();
     expect(parseTimeToMillis("not-a-date")).toBeUndefined();
+  });
+});
+
+describe("revoked Google token response", () => {
+  it("marks the ambiguous UNKNOWN state as an explicit stable rejection", () => {
+    expect(mapGoogleTokenNoLongerValidResponse()).toEqual({
+      isValid: false,
+      state: HarmonizedPurchaseState.UNKNOWN,
+      stableRejection: true,
+    });
   });
 });
 
@@ -184,6 +195,37 @@ describe("Google Play v2 mappings", () => {
     expect(receipt.renewsAt).toBe(Date.parse(later));
     expect(receipt.currency).toBe("USD");
     expect(receipt.priceAmountMicros).toBe(49_990_000);
+  });
+
+  it("selects the expected subscription before expiry ranking", () => {
+    const expectedExpiry = "2099-01-01T00:00:00.000Z";
+    const laterOtherExpiry = "2099-02-01T00:00:00.000Z";
+    const receipt = mapSubscriptionResponseToReceiptData({
+      packageName,
+      purchaseToken: "multi-sub-token",
+      expectedProductId: "premium_monthly",
+      subscriptionResponse: {
+        subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+        acknowledgementState: "ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED",
+        lineItems: [
+          {
+            productId: "premium_monthly",
+            expiryTime: expectedExpiry,
+            latestSuccessfulOrderId: "GPA.monthly",
+          },
+          {
+            productId: "premium_yearly",
+            expiryTime: laterOtherExpiry,
+            latestSuccessfulOrderId: "GPA.yearly",
+          },
+        ],
+      },
+    });
+
+    expect(receipt.productId).toBe("premium_monthly");
+    expect(receipt.orderId).toBe("GPA.monthly");
+    expect(receipt.expiryTime).toBe(Date.parse(expectedExpiry));
+    expect(mapToGooglePlayReceiptResponse(receipt).isValid).toBe(true);
   });
 
   it("maps productsv2.get purchased consumable that has been consumed to CONSUMED", () => {
@@ -804,5 +846,47 @@ describe("expectedProductId hand-off", () => {
     );
 
     expect(result.receiptData.productId).toBe("dev.hyo.martie.10bulbs");
+  });
+
+  it("forwards the expected product to a multi-item subscription", async () => {
+    let calls = 0;
+    const publisher = google.androidpublisher({
+      version: "v3",
+      retryConfig: { retry: 0, noResponseRetries: 0 },
+      adapter: async <T>(
+        request: Common.gaxios.GaxiosOptionsPrepared,
+      ): Promise<Common.gaxios.GaxiosResponse<T>> => {
+        calls += 1;
+        if (calls === 1) {
+          throw Object.assign(new Error("not found"), { code: 404 });
+        }
+        return Object.assign(new Response(null, { status: 200 }), {
+          config: request,
+          data: {
+            subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+            acknowledgementState: "ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED",
+            lineItems: [
+              {
+                productId: "premium_monthly",
+                expiryTime: "2099-01-01T00:00:00.000Z",
+              },
+              {
+                productId: "premium_yearly",
+                expiryTime: "2099-02-01T00:00:00.000Z",
+              },
+            ],
+          } as T,
+        });
+      },
+    });
+
+    const result = await verifyPurchaseWithGooglePlay(publisher, {
+      packageName,
+      purchaseToken: "multi-sub",
+      expectedProductId: "premium_monthly",
+    });
+
+    expect(result.receiptData.productId).toBe("premium_monthly");
+    expect(calls).toBe(2);
   });
 });

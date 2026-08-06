@@ -837,6 +837,8 @@ describe("productsRoutes", () => {
       type: "Subscription",
       title: "Premium",
       description: undefined,
+      localizations: undefined,
+      regions: undefined,
       priceAmountMicros: undefined,
       currency: undefined,
       billingPeriod: "P1M",
@@ -845,6 +847,52 @@ describe("productsRoutes", () => {
       state: undefined,
       storeRef: undefined,
     });
+  });
+
+  it('forwards "all" and [] sales-region states to Convex', async () => {
+    const app = buildApp();
+    mocks.mutation.mockResolvedValue({ id: "product-id", created: false });
+
+    for (const regions of ["all", []] as const) {
+      const response = await app.request("/products/key", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          productId: "coins",
+          platform: "Android",
+          type: "Consumable",
+          title: "Coins",
+          regions,
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(mocks.mutation).toHaveBeenLastCalledWith(
+        "upsertProduct",
+        expect.objectContaining({ regions }),
+      );
+    }
+  });
+
+  it("rejects malformed sales-region states before calling Convex", async () => {
+    const app = buildApp();
+    for (const regions of ["inherit", { mode: "all" }, ["US", 1]]) {
+      mocks.mutation.mockClear();
+      const response = await app.request("/products/key", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          productId: "coins",
+          platform: "Android",
+          type: "Consumable",
+          title: "Coins",
+          regions,
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(mocks.mutation).not.toHaveBeenCalled();
+    }
   });
 
   it("strictly parses and forwards the bounded client-payload list opt-in", async () => {

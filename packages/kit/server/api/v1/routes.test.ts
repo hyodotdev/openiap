@@ -96,6 +96,74 @@ describe("apiRoutes", () => {
     expect(convexClientMock.query).not.toHaveBeenCalled();
   });
 
+  it("keeps fetched UNKNOWN outcomes retryable without exposing internal hints", async () => {
+    convexClientMock.action.mockResolvedValue({
+      isValid: false,
+      state: "UNKNOWN",
+      productId: "future.product",
+    });
+    const request = () =>
+      apiRoutes.request("/purchase/verify", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer route-test-future-unknown",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          store: "google",
+          purchaseToken: "future-unknown-token".repeat(3),
+        }),
+      });
+
+    const first = await request();
+    const second = await request();
+
+    expect(first.status).toBe(200);
+    expect(second.status).toBe(200);
+    expect(await first.json()).toEqual({
+      store: "google",
+      isValid: false,
+      state: "UNKNOWN",
+      productId: "future.product",
+    });
+    expect(convexClientMock.action).toHaveBeenCalledTimes(2);
+  });
+
+  it("cooldowns an explicitly revoked UNKNOWN without exposing provenance", async () => {
+    convexClientMock.action.mockResolvedValueOnce({
+      isValid: false,
+      state: "UNKNOWN",
+      stableRejection: true,
+    });
+    const request = () =>
+      apiRoutes.request("/purchase/verify", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer route-test-revoked-unknown",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          store: "google",
+          purchaseToken: "revoked-unknown-token".repeat(3),
+        }),
+      });
+
+    const first = await request();
+    const second = await request();
+
+    expect(first.status).toBe(200);
+    expect(await first.json()).toEqual({
+      store: "google",
+      isValid: false,
+      state: "UNKNOWN",
+    });
+    expect(second.status).toBe(429);
+    expect(await second.json()).toMatchObject({
+      errors: [{ code: "REPEATED_FAILURE" }],
+    });
+    expect(convexClientMock.action).toHaveBeenCalledTimes(1);
+  });
+
   it("enriches a valid Google receipt only when client payload is requested", async () => {
     convexClientMock.action.mockResolvedValueOnce({
       isValid: true,

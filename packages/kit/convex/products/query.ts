@@ -1,4 +1,5 @@
 import { productLocalizationsValidator } from "./localizations";
+import { productRegionsValidator } from "./regions";
 import { query, type QueryCtx } from "../_generated/server";
 import { ConvexError, v, type Infer } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -68,8 +69,9 @@ const productShape = v.object({
   ),
   title: v.string(),
   description: v.optional(v.string()),
+  baseLocale: v.optional(v.string()),
   localizations: v.optional(productLocalizationsValidator),
-  regions: v.optional(v.array(v.string())),
+  regions: v.optional(productRegionsValidator),
   priceAmountMicros: v.optional(v.number()),
   currency: v.optional(v.string()),
   state: v.union(
@@ -124,11 +126,22 @@ function shape(
     type: product.type,
     title: product.title,
     description: product.description,
+    baseLocale: product.baseLocale,
     // Coerce the nullable column to optional: "cleared" and "never set"
     // read the same, and the dashboard form needs this to prefill rather
     // than silently discarding stored locales on the next save.
     localizations: product.localizations ?? undefined,
-    regions: product.regions ?? undefined,
+    // Hide stale values written before region support was limited to
+    // Android one-time products. Returning them would make REST/MCP clients
+    // believe an iOS or subscription footprint is active even though no
+    // store push can apply it.
+    regions:
+      product.platform === "Android" &&
+      product.type !== "Subscription" &&
+      (product.regions === "all" ||
+        (Array.isArray(product.regions) && product.regions.length > 0))
+        ? product.regions
+        : undefined,
     priceAmountMicros: product.priceAmountMicros,
     currency: product.currency,
     state: product.state,

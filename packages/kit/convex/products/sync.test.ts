@@ -5,6 +5,7 @@ import {
   deletePlatformCatalog as registeredDeletePlatformCatalog,
   deleteRemovedProductRow as registeredDeleteRemovedProductRow,
   isSafePriceAmountMicros,
+  listDraftAndroidProducts as registeredListDraftAndroidProducts,
   listDraftIosProducts as registeredListDraftIosProducts,
   listRemovedAndroidProducts as registeredListRemovedAndroidProducts,
   markPushed as registeredMarkPushed,
@@ -18,6 +19,9 @@ const deleteRemovedProductRow = testableFunction(
   registeredDeleteRemovedProductRow,
 );
 const upsertFromStore = testableFunction(registeredUpsertFromStore);
+const listDraftAndroidProducts = testableFunction(
+  registeredListDraftAndroidProducts,
+);
 const listDraftIosProducts = testableFunction(registeredListDraftIosProducts);
 const listRemovedAndroidProducts = testableFunction(
   registeredListRemovedAndroidProducts,
@@ -398,6 +402,84 @@ describe("listDraftIosProducts review resumption", () => {
         lastAppleReviewScreenshotFileId: "file_current",
       }),
     );
+  });
+});
+
+describe("draft product region worker boundaries", () => {
+  const base = {
+    projectId: "project_a",
+    state: "Draft",
+    title: "Title",
+    origin: "kit",
+  };
+
+  it("never forwards stale region metadata to the iOS worker", async () => {
+    const db = new TestDb({
+      products: [
+        {
+          _id: "ios_product",
+          ...base,
+          platform: "IOS",
+          productId: "premium.ios",
+          type: "Consumable",
+          regions: ["US"],
+        },
+      ],
+    });
+
+    await expect(
+      listDraftIosProducts._handler(
+        { db },
+        { projectId: "project_a" as never },
+      ),
+    ).resolves.toEqual([
+      expect.not.objectContaining({ regions: expect.anything() }),
+    ]);
+  });
+
+  it("drops empty and subscription footprints before the Play worker", async () => {
+    const db = new TestDb({
+      products: [
+        {
+          _id: "empty_product",
+          ...base,
+          platform: "Android",
+          productId: "empty",
+          type: "Consumable",
+          regions: [],
+        },
+        {
+          _id: "subscription_product",
+          ...base,
+          platform: "Android",
+          productId: "subscription",
+          type: "Subscription",
+          regions: "all",
+        },
+        {
+          _id: "restricted_product",
+          ...base,
+          platform: "Android",
+          productId: "restricted",
+          type: "NonConsumable",
+          regions: ["US", "KR"],
+        },
+      ],
+    });
+
+    const rows = await listDraftAndroidProducts._handler(
+      { db },
+      { projectId: "project_a" as never },
+    );
+    expect(rows.find((row) => row.productId === "empty")?.regions).toBe(
+      undefined,
+    );
+    expect(rows.find((row) => row.productId === "subscription")?.regions).toBe(
+      undefined,
+    );
+    expect(rows.find((row) => row.productId === "restricted")).toMatchObject({
+      regions: ["US", "KR"],
+    });
   });
 });
 

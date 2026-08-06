@@ -11,9 +11,13 @@ describe("normalizeProductRegions", () => {
     ]);
   });
 
-  it("treats absent or empty as unset — the sell-everywhere default", () => {
+  it("treats absent or empty as the unset inheritance mode", () => {
     expect(normalizeProductRegions(undefined)).toBeUndefined();
     expect(normalizeProductRegions([])).toBeUndefined();
+  });
+
+  it('preserves the explicit "all" expansion mode', () => {
+    expect(normalizeProductRegions("all")).toBe("all");
   });
 
   it("rejects anything that is not an ISO 3166-1 alpha-2 code", () => {
@@ -29,12 +33,36 @@ describe("normalizeProductRegions", () => {
 // like ZZ, which upsertProduct stored and the Android sync then silently
 // dropped.
 describe("assigned-region validation", () => {
-  it("accepts real territories, including ones in reserved ranges CLDR names", () => {
+  it("accepts current ISO territories plus XK", () => {
     expect(normalizeProductRegions(["QA", "XK", "GB"])).toEqual([
       "GB",
       "QA",
       "XK",
     ]);
+  });
+
+  it("rejects macroregions and CLDR compatibility aliases", () => {
+    for (const code of ["EU", "EZ", "UN", "UK"]) {
+      expect(() => normalizeProductRegions([code])).toThrow(
+        /Invalid sales region/,
+      );
+    }
+  });
+
+  it("rejects deleted country assignments", () => {
+    for (const code of ["AN", "BU", "CS", "SU", "TP", "YU", "ZR"]) {
+      expect(() => normalizeProductRegions([code])).toThrow(
+        /Invalid sales region/,
+      );
+    }
+  });
+
+  it("rejects CLDR pseudo-regions", () => {
+    for (const code of ["AC", "CP", "DG", "EA", "IC", "TA"]) {
+      expect(() => normalizeProductRegions([code])).toThrow(
+        /Invalid sales region/,
+      );
+    }
   });
 
   it("rejects reserved and unassigned codes", () => {

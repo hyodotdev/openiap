@@ -9,7 +9,7 @@ import { getProjectByApiKey } from "../purchases/shared";
 import { mapWithConcurrency } from "../utils/concurrency";
 import { validateAppleReviewScreenshotContent } from "../files/validation";
 import { mintAscJwt } from "./jwt";
-import { listingRowsForProduct } from "./localizations";
+import { listingRowsForProduct, splitStoreListings } from "./localizations";
 import { coerceBillingPeriod } from "./sync";
 import {
   isProductSyncDeadlineReached,
@@ -25,6 +25,7 @@ import {
   isAscApprovedReviewHistoryState,
   inspectAscReviewVersion,
   planAscReviewVersion,
+  readAscReviewListings,
   partitionAscReviewSubmissionItems,
   submitAscReviewVersions,
   uploadAscReviewScreenshot,
@@ -90,6 +91,72 @@ export async function pushAscReviewLocalizations(args: {
       if (isBenignAscRetryConflict(error)) continue;
       args.recordFailure({
         productId: `${args.productId} (localization ${listing.locale})`,
+        reason: error instanceof Error ? error.message : String(error),
+      });
+    }
+  }
+}
+
+interface SyncAscReviewLocalizationArgs {
+  reviewVersion: {
+    versionId: string;
+    alreadySubmitted: boolean;
+    attachedToSubmission: boolean;
+  };
+  listings: Array<{ locale: string; title: string; description?: string }>;
+  productId: string;
+  findMismatchedLocale: () => Promise<string | undefined>;
+  upsert: (listing: {
+    locale: string;
+    title: string;
+    description?: string;
+  }) => Promise<void>;
+  recordFailure: (failure: { productId: string; reason: string }) => void;
+}
+
+/**
+ * Synchronizes the review localization boundary for one ASC version.
+ *
+ * This wrapper intentionally owns the outer failure policy as well as the
+ * per-locale writer. Cancellation and deadline errors can originate from any
+ * request in either layer, so they must escape before replay conflicts or
+ * ordinary localization failures are handled.
+ */
+export async function syncAscReviewLocalization(
+  args: SyncAscReviewLocalizationArgs,
+): Promise<void> {
+  try {
+    if (
+      args.reviewVersion.alreadySubmitted ||
+      args.reviewVersion.attachedToSubmission
+    ) {
+      const mismatchedLocale = await args.findMismatchedLocale();
+      if (mismatchedLocale) {
+        args.recordFailure({
+          productId: `${args.productId} (review version)`,
+          reason: `The current ASC review version is already attached or submitted and its ${mismatchedLocale} metadata differs from this Draft. Finish or cancel that review in App Store Connect, then run Push Sync again to create an editable version.`,
+        });
+      }
+      return;
+    }
+    await pushAscReviewLocalizations({
+      listings: args.listings,
+      productId: args.productId,
+      upsert: args.upsert,
+      recordFailure: args.recordFailure,
+    });
+  } catch (error) {
+    if (isProductSyncAbortError(error)) throw error;
+    // A 409 on an editable version is a benign replay from a partial prior
+    // sync. Reads/comparisons against attached versions are never treated as
+    // replay success.
+    if (
+      args.reviewVersion.alreadySubmitted ||
+      args.reviewVersion.attachedToSubmission ||
+      !isBenignAscRetryConflict(error)
+    ) {
+      args.recordFailure({
+        productId: `${args.productId} (localization)`,
         reason: error instanceof Error ? error.message : String(error),
       });
     }
@@ -1542,6 +1609,10 @@ async function performIosSync(
     { detailedErrors: true },
   );
   const client = new AscClient(issuerId, keyId, keyContent, checkCancelled);
+  const ascJsonRequest: AscJsonRequest = <T>(
+    path: string,
+    init?: RequestInit & { body?: string },
+  ) => client.request<T>(path, init);
 
   const direction = args.direction ?? "both";
   const failures: Array<{ productId: string; reason: string }> = [];
@@ -1596,17 +1667,46 @@ async function performIosSync(
           const productId = item.attributes.productId;
           if (!productId) return null;
           const type = mapAscIapType(item.attributes.inAppPurchaseType);
-          const pricePoint = await client.iapCurrentPrice(item.id);
+          const [pricePoint, listings] = await Promise.all([
+            client.iapCurrentPrice(item.id),
+            readAscReviewListings({
+              request: ascJsonRequest,
+              kind: "iap",
+              parentId: item.id,
+              checkCancelled,
+            }).catch((error) => {
+              if (isProductSyncAbortError(error)) throw error;
+              failures.push({
+                productId: `${productId} (localization lookup)`,
+                reason: error instanceof Error ? error.message : String(error),
+              });
+              return [];
+            }),
+          ]);
           const reviewProductType = mapAscReviewProductType(
             item.attributes.inAppPurchaseType,
             type,
           );
-          return { item, productId, type, pricePoint, reviewProductType };
+          return {
+            item,
+            productId,
+            type,
+            pricePoint,
+            listings,
+            reviewProductType,
+          };
         },
       );
       for (const result of iapResults) {
         if (!result) continue;
-        const { item, productId, type, pricePoint, reviewProductType } = result;
+        const {
+          item,
+          productId,
+          type,
+          pricePoint,
+          listings,
+          reviewProductType,
+        } = result;
         ascReviewProductTypeByStoreRef.set(item.id, reviewProductType);
         if (pricePoint instanceof Error) {
           failures.push({
@@ -1627,15 +1727,9 @@ async function performIosSync(
             productId,
             platform: "IOS",
             type,
-            title: item.attributes.name ?? productId,
-            // No `localizations` here on purpose. ASC keeps them on
-            // per-version sub-resources, so capturing them would cost an
-            // extra request per product per sync. Omitting the field
-            // makes `upsertFromStore` preserve whatever the row already
-            // has, so a pull never destroys kit-authored locales — it
-            // just doesn't discover ASC-authored ones. The push side
-            // upserts per locale and likewise never deletes them
-            // upstream, so the two directions stay consistent.
+            // The parent name is an internal reference. Customer-facing
+            // metadata lives on the current review-version localizations.
+            ...splitStoreListings(listings, item.attributes.name ?? productId),
             priceAmountMicros,
             currency,
             storeRef: item.id,
@@ -1684,16 +1778,30 @@ async function performIosSync(
           async (sub) => {
             const productId = sub.attributes.productId;
             if (!productId) return null;
-            const [pricePoint, introOffers] = await Promise.all([
+            const [pricePoint, introOffers, listings] = await Promise.all([
               client.subCurrentPrice(sub.id),
               client.subIntroductoryOffer(sub.id),
+              readAscReviewListings({
+                request: ascJsonRequest,
+                kind: "subscription",
+                parentId: sub.id,
+                checkCancelled,
+              }).catch((error) => {
+                if (isProductSyncAbortError(error)) throw error;
+                failures.push({
+                  productId: `${productId} (localization lookup)`,
+                  reason:
+                    error instanceof Error ? error.message : String(error),
+                });
+                return [];
+              }),
             ]);
-            return { sub, productId, pricePoint, introOffers };
+            return { sub, productId, pricePoint, introOffers, listings };
           },
         );
         for (const result of subResults) {
           if (!result) continue;
-          const { sub, productId, pricePoint, introOffers } = result;
+          const { sub, productId, pricePoint, introOffers, listings } = result;
           if (pricePoint instanceof Error) {
             failures.push({
               productId: `${productId} (price lookup)`,
@@ -1719,7 +1827,7 @@ async function performIosSync(
               productId,
               platform: "IOS",
               type: "Subscription",
-              title: sub.attributes.name ?? productId,
+              ...splitStoreListings(listings, sub.attributes.name ?? productId),
               priceAmountMicros,
               currency,
               storeRef: sub.id,
@@ -1820,10 +1928,7 @@ async function performIosSync(
       current: pulled,
       failuresCount: failures.length,
     });
-    const reviewRequest: AscJsonRequest = <T>(
-      path: string,
-      init?: RequestInit & { body?: string },
-    ) => client.request<T>(path, init);
+    const reviewRequest = ascJsonRequest;
     const reviewCleanupRequest: AscJsonRequest = <T>(
       path: string,
       init?: RequestInit & { body?: string },
@@ -2058,60 +2163,33 @@ async function performIosSync(
           attachedToSubmission: boolean;
         },
       ): Promise<void> => {
-        try {
-          if (
-            reviewVersion.alreadySubmitted ||
-            reviewVersion.attachedToSubmission
-          ) {
-            // Compare EVERY locale, not just the base pair: a Draft
-            // whose only change is a new or edited translation would
-            // otherwise look identical to the locked version and get
-            // silently marked pushed without that translation shipping.
-            const mismatchedLocale = await ascReviewLocalizationMismatch({
+        await syncAscReviewLocalization({
+          reviewVersion,
+          listings: listingRowsForProduct(row),
+          productId: row.productId,
+          // Compare EVERY locale, not just the base pair: a Draft whose only
+          // change is a new or edited translation would otherwise look
+          // identical to the locked version and get silently marked pushed.
+          findMismatchedLocale: () =>
+            ascReviewLocalizationMismatch({
               request: reviewRequest,
               kind,
               versionId: reviewVersion.versionId,
               listings: listingRowsForProduct(row),
               checkCancelled,
-            });
-            if (mismatchedLocale) {
-              recordFailure({
-                productId: `${row.productId} (review version)`,
-                reason: `The current ASC review version is already attached or submitted and its ${mismatchedLocale} metadata differs from this Draft. Finish or cancel that review in App Store Connect, then run Push Sync again to create an editable version.`,
-              });
-            }
-            return;
-          }
-          await pushAscReviewLocalizations({
-            listings: listingRowsForProduct(row),
-            productId: row.productId,
-            upsert: (listing) =>
-              upsertAscReviewLocalization({
-                request: reviewRequest,
-                kind,
-                versionId: reviewVersion.versionId,
-                name: listing.title,
-                description: listing.description ?? listing.title,
-                locale: listing.locale,
-                checkCancelled,
-              }),
-            recordFailure,
-          });
-        } catch (error) {
-          // A 409 on an editable version is a benign replay from a partial
-          // prior sync. Reads/comparisons against attached versions are never
-          // treated as replay success.
-          if (
-            reviewVersion.alreadySubmitted ||
-            reviewVersion.attachedToSubmission ||
-            !isBenignAscRetryConflict(error)
-          ) {
-            recordFailure({
-              productId: `${row.productId} (localization)`,
-              reason: error instanceof Error ? error.message : String(error),
-            });
-          }
-        }
+            }),
+          upsert: (listing) =>
+            upsertAscReviewLocalization({
+              request: reviewRequest,
+              kind,
+              versionId: reviewVersion.versionId,
+              name: listing.title,
+              description: listing.description ?? listing.title,
+              locale: listing.locale,
+              checkCancelled,
+            }),
+          recordFailure,
+        });
       };
       const finalizeReview = async (
         kind: "iap" | "subscription",

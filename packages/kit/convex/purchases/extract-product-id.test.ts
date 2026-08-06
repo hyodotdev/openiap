@@ -104,6 +104,21 @@ describe("extractProductIdFromRemoteResponse", () => {
     ).toBe("untold_full");
   });
 
+  it("uses the expected google v2 product line item", () => {
+    expect(
+      extractProductIdFromRemoteResponse(
+        "google",
+        JSON.stringify({
+          productLineItem: [
+            { productId: "coins_100" },
+            { productId: "premium_monthly" },
+          ],
+        }),
+        "premium_monthly",
+      ),
+    ).toBe("premium_monthly");
+  });
+
   it("reads productId from a google subscription lineItems array", () => {
     expect(
       extractProductIdFromRemoteResponse(
@@ -133,6 +148,27 @@ describe("extractProductIdFromRemoteResponse", () => {
         }),
       ),
     ).toBe("pro_yearly");
+  });
+
+  it("uses the expected subscription product before expiry ranking", () => {
+    expect(
+      extractProductIdFromRemoteResponse(
+        "google",
+        JSON.stringify({
+          lineItems: [
+            {
+              productId: "pro_monthly",
+              expiryTime: "2026-01-01T00:00:00.000Z",
+            },
+            {
+              productId: "pro_yearly",
+              expiryTime: "2026-02-01T00:00:00.000Z",
+            },
+          ],
+        }),
+        "pro_monthly",
+      ),
+    ).toBe("pro_monthly");
   });
 
   it("is null-safe when google line-item arrays are empty", () => {

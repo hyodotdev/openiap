@@ -261,20 +261,21 @@ describe("isStableRejection", () => {
   });
 
   it("does not arm the cooldown for a state a retry can change", () => {
-    // PENDING resolves when the user finishes a deferred payment.
-    expect(isStableRejection("PENDING")).toBe(false);
+    // PENDING resolves when the user finishes a deferred payment. UNKNOWN
+    // can be a successfully fetched future Play state or Amazon product type.
+    for (const state of ["PENDING", "UNKNOWN", "FUTURE_STORE_STATE"]) {
+      expect(isStableRejection(state)).toBe(false);
+    }
   });
 
-  // Google's 410 "purchase token is no longer valid" maps to UNKNOWN, so
-  // exempting it would let a captured-then-revoked receipt replay past
-  // the wall this guard exists to put up.
-  it("arms the cooldown for UNKNOWN, which is where a revoked token lands", () => {
-    expect(isStableRejection("UNKNOWN")).toBe(true);
+  it("arms ambiguous UNKNOWN only with explicit revoked-token provenance", () => {
+    expect(isStableRejection("UNKNOWN")).toBe(false);
+    expect(isStableRejection("UNKNOWN", true)).toBe(true);
   });
 
   it("is case-insensitive", () => {
     expect(isStableRejection("pending")).toBe(false);
-    expect(isStableRejection("Unknown")).toBe(true);
+    expect(isStableRejection("Unknown")).toBe(false);
     expect(isStableRejection("inauthentic")).toBe(true);
   });
 });
@@ -288,7 +289,11 @@ describe("replayGuardMiddleware cooldown wiring", () => {
 
   function runMiddleware(options: {
     store: Map<string, ReplayBucket>;
-    outcome?: { isValid: boolean; state: string };
+    outcome?: {
+      isValid: boolean;
+      state: string;
+      stableRejection?: boolean;
+    };
     now: number;
   }) {
     const middleware = replayGuardMiddleware({
@@ -341,7 +346,7 @@ describe("replayGuardMiddleware cooldown wiring", () => {
   });
 
   it("does not arm it for a state a retry can change", async () => {
-    for (const state of ["PENDING"]) {
+    for (const state of ["PENDING", "UNKNOWN", "FUTURE_STORE_STATE"]) {
       const store = new Map<string, ReplayBucket>();
       await runMiddleware({
         store,
@@ -353,6 +358,25 @@ describe("replayGuardMiddleware cooldown wiring", () => {
       const second = await runMiddleware({ store, now: 2_000 });
       expect(second.status).toBe(200);
     }
+  });
+
+  it("arms UNKNOWN when the verifier reports a revoked token", async () => {
+    const store = new Map<string, ReplayBucket>();
+    await runMiddleware({
+      store,
+      outcome: {
+        isValid: false,
+        state: "UNKNOWN",
+        stableRejection: true,
+      },
+      now: 1_000,
+    });
+
+    const second = await runMiddleware({ store, now: 2_000 });
+    expect(second.status).toBe(429);
+    expect(second.payload).toMatchObject({
+      errors: [{ code: "REPEATED_FAILURE" }],
+    });
   });
 
   it("does not arm it for a successful verification", async () => {
