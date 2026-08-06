@@ -142,8 +142,16 @@ export default function ProjectProducts() {
       ? `${editingExisting.platform}\u0000${editingExisting.productId}`
       : null;
     if (key === loadedLocalizationsKey.current) return;
+    const wasEditing = loadedLocalizationsKey.current !== null;
     loadedLocalizationsKey.current = key;
-    if (!editingExisting) return;
+    if (!editingExisting) {
+      // Retyping the id away from a row we had loaded must drop that
+      // row's translations — otherwise the next save would publish one
+      // product's locales onto another. Rows typed for a brand-new
+      // product (we were never editing) are left alone.
+      if (wasEditing) setLocalizations([]);
+      return;
+    }
     setLocalizations(
       (editingExisting.localizations ?? []).map((entry) => ({
         locale: entry.locale,
@@ -286,13 +294,27 @@ export default function ProjectProducts() {
       : undefined;
     const billingPeriod =
       draft.type === "Subscription" ? draft.billingPeriod : undefined;
-    const filledLocalizations = localizations
-      .filter((entry) => entry.locale.trim() && entry.title.trim())
-      .map((entry) => ({
-        locale: entry.locale.trim(),
-        title: entry.title.trim(),
-        description: entry.description.trim() || undefined,
-      }));
+    // A row the operator started but didn't finish is a mistake, not an
+    // instruction to drop it: silently filtering it out would clear the
+    // form and lose the text they typed with no error shown.
+    const touchedLocalizations = localizations.filter((entry) =>
+      [entry.locale, entry.title, entry.description].some((value) =>
+        value.trim(),
+      ),
+    );
+    if (
+      touchedLocalizations.some(
+        (entry) => !entry.locale.trim() || !entry.title.trim(),
+      )
+    ) {
+      toast.error("Every language needs both a locale and a title");
+      return;
+    }
+    const filledLocalizations = touchedLocalizations.map((entry) => ({
+      locale: entry.locale.trim(),
+      title: entry.title.trim(),
+      description: entry.description.trim() || undefined,
+    }));
     try {
       await upsert({
         projectId: project._id,

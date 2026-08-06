@@ -2428,18 +2428,27 @@ async function performIosSync(
               } else {
                 plannedWrites.push({
                   productId: row.productId,
-                  step: "keep locked en-US version localization",
-                  detail: "Current ASC metadata already matches.",
+                  step: "keep locked version localizations",
+                  detail: `Current ASC metadata already matches (${listingRowsForProduct(
+                    row,
+                  )
+                    .map((listing) => listing.locale)
+                    .join(", ")}).`,
                 });
               }
             } else {
-              plannedWrites.push({
-                productId: row.productId,
-                step: row.storeRef
-                  ? "patch en-US version localization"
-                  : "create en-US version localization",
-                detail: row.description ?? row.title,
-              });
+              // One planned line per locale: the real push writes them
+              // all, so a preview that mentioned only en-US would hide
+              // exactly the translations the operator is verifying.
+              for (const listing of listingRowsForProduct(row)) {
+                plannedWrites.push({
+                  productId: row.productId,
+                  step: row.storeRef
+                    ? `patch ${listing.locale} version localization`
+                    : `create ${listing.locale} version localization`,
+                  detail: listing.description ?? listing.title,
+                });
+              }
             }
           } else if (reviewVersion) {
             await syncReviewLocalization("subscription", reviewVersion);
@@ -2603,18 +2612,27 @@ async function performIosSync(
               } else {
                 plannedWrites.push({
                   productId: row.productId,
-                  step: "keep locked en-US version localization",
-                  detail: "Current ASC metadata already matches.",
+                  step: "keep locked version localizations",
+                  detail: `Current ASC metadata already matches (${listingRowsForProduct(
+                    row,
+                  )
+                    .map((listing) => listing.locale)
+                    .join(", ")}).`,
                 });
               }
             } else {
-              plannedWrites.push({
-                productId: row.productId,
-                step: row.storeRef
-                  ? "patch en-US version localization"
-                  : "create en-US version localization",
-                detail: row.description ?? row.title,
-              });
+              // One planned line per locale: the real push writes them
+              // all, so a preview that mentioned only en-US would hide
+              // exactly the translations the operator is verifying.
+              for (const listing of listingRowsForProduct(row)) {
+                plannedWrites.push({
+                  productId: row.productId,
+                  step: row.storeRef
+                    ? `patch ${listing.locale} version localization`
+                    : `create ${listing.locale} version localization`,
+                  detail: listing.description ?? listing.title,
+                });
+              }
             }
           } else if (reviewVersion) {
             await syncReviewLocalization("iap", reviewVersion);
