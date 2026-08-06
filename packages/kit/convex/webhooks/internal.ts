@@ -52,8 +52,9 @@ async function findWebhookEventByDedupKey(
 // already-processed messageId can short-circuit before
 // `purchases.subscriptionsv2.get` ever fires.
 //
-// Phase 1 of issue #241 treats webhookEvents as the authoritative fast path
-// while retaining the project-keyed idempotency row as a rollback fallback.
+// Phases 1-2 of issue #241 make webhookEvents the authoritative dedup
+// record. No new idempotency rows are written; the reads below remain
+// only for rows still in the table, and go away with it in phase 4.
 // Legacy rows (projectId == null) aren't checked here — they can still slip a
 // duplicate Play API call through, but `recordWebhookEvent` retains the legacy
 // fallback and will still dedup the actual event row.
@@ -173,10 +174,9 @@ export const recordWebhookEvent = internalMutation({
     // on transient 5xx, and Google Pub/Sub guarantees at-least-once
     // delivery — both are normal, both must result in HTTP 200 here.
     //
-    // Issue #241 phase 1: read the source-aware webhookEvents index first,
-    // but keep the idempotency-key fallback and writes below. That makes the
-    // event table the exercised dedup path before phase 2 stops writing keys,
-    // while preserving rollback compatibility and the legacy-row drain.
+    // Issue #241 phases 1-2: the source-aware webhookEvents index is the
+    // dedup record. The idempotency-key reads below are a drain-only
+    // fallback for rows written before phase 2 — nothing writes new ones.
     const storedSource = storedSourceForDedupSource(args.source);
     if (args.event.sourceFull !== storedSource) {
       throw new Error(
@@ -301,16 +301,20 @@ export const recordWebhookEvent = internalMutation({
       // Idempotency key existed without an eventId (a previous attempt
       // crashed between dedup-row insert and event insert). Patch it
       // to point at the newly-inserted event so future replays dedup.
+      // Still done for rows already in the table: until they drain, the
+      // fallback above can adopt one, and leaving it unlinked would let
+      // the orphan sweep delete a row a replay is relying on.
       await ctx.db.patch(existing._id, { eventId });
-    } else {
-      await ctx.db.insert("webhookIdempotencyKeys", {
-        projectId: args.projectId,
-        source: args.source,
-        sourceNotificationId: args.sourceNotificationId,
-        eventId,
-        firstSeenAt: now,
-      });
     }
+    // Issue #241 phase 2: no NEW idempotency row. The event inserted
+    // just above carries the same (projectId, source,
+    // sourceNotificationId) triple and is written in this transaction,
+    // so a replay is deduped by the index read at the top of this
+    // handler — the key row was a second copy of a guarantee
+    // webhookEvents already made, at double the write cost per webhook.
+    // Existing rows stay readable and prunable until they age out past
+    // WEBHOOK_RETENTION_MS, which is what phase 3 waits for before the
+    // table and its fallbacks can be dropped.
 
     return { eventId, deduped: false };
   },
