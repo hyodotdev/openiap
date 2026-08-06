@@ -419,26 +419,10 @@ async function performAndroidSync(
             const authoredCurrency = existingCurrencyByProductId.get(
               product.productId,
             );
-            const preferred =
-              (authoredCurrency
-                ? // US first WITHIN the authored currency: Play prices
-                  // several non-US regions in USD (EC, SV, TL, ZW…), so
-                  // matching on currency alone would resolve a plain USD
-                  // row to whichever of those Play happened to list
-                  // first — regressing the common case while fixing the
-                  // KRW/JPY one.
-                  (priceCandidates.find(
-                    (p) =>
-                      p.regionCode === "US" &&
-                      p.currencyCode === authoredCurrency,
-                  ) ??
-                  priceCandidates.find(
-                    (p) => p.currencyCode === authoredCurrency,
-                  ))
-                : undefined) ??
-              priceCandidates.find((p) => p.regionCode === "US") ??
-              priceCandidates.find((p) => p.currencyCode === "USD") ??
-              priceCandidates[0];
+            const preferred = pickPlayRegionalPrice(
+              priceCandidates,
+              authoredCurrency,
+            );
             const priceAmountMicros = preferred
               ? moneyToMicros({
                   units: preferred.units,
@@ -574,7 +558,10 @@ async function performAndroidSync(
               sub,
               existingCurrencyByProductId.get(sub.productId ?? ""),
             );
-          const offers = collectPlaySubscriptionOffers(sub);
+          const offers = collectPlaySubscriptionOffers(
+            sub,
+            existingCurrencyByProductId.get(sub.productId ?? ""),
+          );
           // Pick the billingPeriod from the *same* base plan whose
           // price we just selected (`basePlanId` returned by
           // pickSubBasePlanPrice). If we can't find that exact plan
@@ -736,7 +723,7 @@ async function performAndroidSync(
               plannedWrites.push({
                 productId: row.productId,
                 step: "patch subscription listing",
-                detail: `${row.title} (en-US, storeRef=${row.storeRef})`,
+                detail: `${row.title} (storeRef=${row.storeRef}) · ${describePlayListingPlan(row)}`,
               });
             } else {
               try {
@@ -788,7 +775,7 @@ async function performAndroidSync(
                 productId: row.productId,
                 step: "patch in-app product",
                 detail:
-                  `${row.title} (en-US, storeRef=${row.storeRef})` +
+                  `${row.title} (storeRef=${row.storeRef}) · ${describePlayListingPlan(row)}` +
                   (row.priceAmountMicros !== undefined && row.currency
                     ? ` · ${row.currency} ${(row.priceAmountMicros / 1_000_000).toFixed(2)}`
                     : ""),
@@ -862,7 +849,7 @@ async function performAndroidSync(
             plannedWrites.push({
               productId: row.productId,
               step: "create subscription",
-              detail: `${row.title} · base plan ${basePlanId} · ${row.billingPeriod ?? "P1M"} · ${row.currency} ${(row.priceAmountMicros / 1_000_000).toFixed(2)} (converted to all Play regions)`,
+              detail: `${row.title} · base plan ${basePlanId} · ${row.billingPeriod ?? "P1M"} · ${row.currency} ${(row.priceAmountMicros / 1_000_000).toFixed(2)} · ${describePlayListingPlan(row)}`,
             });
             plannedWrites.push({
               productId: row.productId,
@@ -981,7 +968,7 @@ async function performAndroidSync(
               productId: row.productId,
               step: "create in-app product",
               detail:
-                `${row.title} · ${row.type}` +
+                `${row.title} · ${row.type} · ${describePlayListingPlan(row)}` +
                 (row.priceAmountMicros !== undefined && row.currency
                   ? ` · ${row.currency} ${(row.priceAmountMicros / 1_000_000).toFixed(2)}`
                   : " · no price set"),
@@ -1099,6 +1086,21 @@ async function mergedSubscriptionListings(
     .filter(([locale]) => locale !== BASE_LISTING_LOCALE)
     .map(([, listing]) => listing);
   return base ? [base, ...rest] : rest;
+}
+
+/** Human summary of the locales and regions a push would publish. */
+function describePlayListingPlan(row: {
+  localizations?: ProductLocalization[];
+  regions?: string[];
+}): string {
+  const locales = [
+    BASE_LISTING_LOCALE,
+    ...(row.localizations ?? []).map((l) => l.locale),
+  ].join(", ");
+  const regions = row.regions?.length
+    ? row.regions.join(", ")
+    : "all Play regions (converted)";
+  return `locales ${locales} · regions ${regions}`;
 }
 
 function googleErrorStatus(error: unknown): number | undefined {
@@ -1960,7 +1962,36 @@ function pickPlayCurrency(
 // if any region offers it, otherwise return the first region with a
 // readable price. Currency + price come from the SAME regionalConfig
 // so they're always consistent.
-function pickSubBasePlanPrice(
+/**
+ * Chooses which region's price represents a pulled one-time product.
+ *
+ * Preference order, and why each step exists:
+ *   1. the authored currency in the US region, then anywhere — pushing
+ *      converts the operator's base price into every region, so a
+ *      US-first rule would read a KRW/JPY row back as its converted
+ *      dollar amount and the next push would convert from that already
+ *      converted number;
+ *   2. US, then any USD region — Play prices several non-US regions in
+ *      USD (EC, SV, TL, ZW…), so matching on currency alone would
+ *      resolve a plain USD row to whichever of those Play listed first;
+ *   3. whatever is left, for a first import kit has never priced.
+ */
+export function pickPlayRegionalPrice<
+  T extends { regionCode?: string | null; currencyCode?: string | null },
+>(candidates: T[], authoredCurrency?: string): T | undefined {
+  return (
+    (authoredCurrency
+      ? (candidates.find(
+          (c) => c.regionCode === "US" && c.currencyCode === authoredCurrency,
+        ) ?? candidates.find((c) => c.currencyCode === authoredCurrency))
+      : undefined) ??
+    candidates.find((c) => c.regionCode === "US") ??
+    candidates.find((c) => c.currencyCode === "USD") ??
+    candidates[0]
+  );
+}
+
+export function pickSubBasePlanPrice(
   sub: androidpublisher_v3.Schema$Subscription,
   preferredCurrency?: string,
 ): {
@@ -2009,11 +2040,13 @@ function pickSubBasePlanPrice(
 // into kit's uniform `offers[]` shape. Each base plan becomes a
 // `kind: "BasePlan"` row carrying its billing period + USD price; each
 // associated subscription offer (free trial / intro discount, set up
-// in Play Console) becomes a Free-Trial / IntroPay* row. Prefers USD
-// regional price when present (mirrors `pickSubBasePlanPrice`'s
-// rationale) so the dashboard shows a stable currency.
+// in Play Console) becomes a Free-Trial / IntroPay* row. Prefers the
+// currency the kit row already carries, then USD, so a KRW/JPY-authored
+// subscription doesn't show its base plan in one currency and its
+// offers in another.
 function collectPlaySubscriptionOffers(
   sub: androidpublisher_v3.Schema$Subscription,
+  preferredCurrency?: string,
 ): Array<{
   id: string;
   kind:
@@ -2063,6 +2096,10 @@ function collectPlaySubscriptionOffers(
     if (!plan.basePlanId) continue;
     const planRegions = plan.regionalConfigs ?? [];
     const planPrice =
+      (preferredCurrency
+        ? planRegions.find((r) => r.price?.currencyCode === preferredCurrency)
+            ?.price
+        : undefined) ??
       planRegions.find((r) => r.price?.currencyCode === "USD")?.price ??
       planRegions[0]?.price;
     out.push({
@@ -2085,6 +2122,11 @@ function collectPlaySubscriptionOffers(
       phases.forEach((phase, i) => {
         const phaseRegions = phase.regionalConfigs ?? [];
         const phasePrice =
+          (preferredCurrency
+            ? phaseRegions.find(
+                (r) => r.price?.currencyCode === preferredCurrency,
+              )?.price
+            : undefined) ??
           phaseRegions.find((r) => r.price?.currencyCode === "USD")?.price ??
           phaseRegions[0]?.price;
         // Phase with no price = free trial; with `recurrenceCount > 1`

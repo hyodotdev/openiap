@@ -595,6 +595,7 @@ export const upsertProduct = mutation({
     const localizations = normalizeProductLocalizations(
       args.localizations,
       args.platform,
+      args.type,
     );
     const regions = normalizeProductRegions(args.regions);
 

@@ -140,24 +140,35 @@ export default function ProjectProducts() {
     [products, draft.productId, draft.platform],
   );
   const loadedLocalizationsKey = useRef<string | null>(null);
+  // True once the operator edits the language/region editors by hand, so
+  // a productId that merely passes through an existing id while typing
+  // cannot wipe what they wrote.
+  const dirtyRef = useRef(false);
   useEffect(() => {
     const key = editingExisting
       ? `${editingExisting.platform}\u0000${editingExisting.productId}`
       : null;
     if (key === loadedLocalizationsKey.current) return;
-    const wasEditing = loadedLocalizationsKey.current !== null;
+    const previousKey = loadedLocalizationsKey.current;
     loadedLocalizationsKey.current = key;
     if (!editingExisting) {
-      // Retyping the id away from a row we had loaded must drop that
-      // row's translations — otherwise the next save would publish one
-      // product's locales onto another. Rows typed for a brand-new
-      // product (we were never editing) are left alone.
-      if (wasEditing) {
+      // Leaving a loaded row must drop its translations and regions, or
+      // the next save would publish one product's metadata onto another.
+      // Rows typed for a brand-new product are left alone.
+      //
+      // `dirtyRef` guards the case where the operator typed their own
+      // rows and the id only transiently matched an existing product
+      // while they were still typing: reverting to "no match" must not
+      // discard work they authored.
+      if (previousKey !== null && !dirtyRef.current) {
         setLocalizations([]);
         setRegionsInput("");
       }
       return;
     }
+    // Loading a different row replaces whatever was in the editor, so
+    // it is no longer operator-authored.
+    dirtyRef.current = false;
     setRegionsInput((editingExisting.regions ?? []).join(", "));
     setLocalizations(
       (editingExisting.localizations ?? []).map((entry) => ({
@@ -622,7 +633,10 @@ export default function ProjectProducts() {
         <Field label="Sales regions (optional)">
           <input
             value={regionsInput}
-            onChange={(e) => setRegionsInput(e.target.value)}
+            onChange={(e) => {
+              dirtyRef.current = true;
+              setRegionsInput(e.target.value);
+            }}
             placeholder="Leave blank to sell everywhere — or e.g. US, KR, JP"
             className="w-full px-2 py-1.5 rounded border border-border bg-background"
           />
@@ -639,12 +653,13 @@ export default function ProjectProducts() {
               Other languages (optional)
             </span>
             <button
-              onClick={() =>
+              onClick={() => {
+                dirtyRef.current = true;
                 setLocalizations([
                   ...localizations,
                   { locale: "", title: "", description: "" },
-                ])
-              }
+                ]);
+              }}
               className="flex items-center gap-1 text-xs text-primary hover:underline"
             >
               <Plus className="w-3 h-3" /> Add language
@@ -664,39 +679,42 @@ export default function ProjectProducts() {
               >
                 <input
                   value={entry.locale}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    dirtyRef.current = true;
                     setLocalizations(
                       localizations.map((row, i) =>
                         i === index ? { ...row, locale: e.target.value } : row,
                       ),
-                    )
-                  }
+                    );
+                  }}
                   placeholder="ko-KR"
                   className="w-full px-2 py-1.5 rounded border border-border bg-background text-sm"
                 />
                 <input
                   value={entry.title}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    dirtyRef.current = true;
                     setLocalizations(
                       localizations.map((row, i) =>
                         i === index ? { ...row, title: e.target.value } : row,
                       ),
-                    )
-                  }
+                    );
+                  }}
                   placeholder="Title in this language"
                   className="w-full px-2 py-1.5 rounded border border-border bg-background text-sm"
                 />
                 <input
                   value={entry.description}
-                  onChange={(e) =>
+                  onChange={(e) => {
+                    dirtyRef.current = true;
                     setLocalizations(
                       localizations.map((row, i) =>
                         i === index
                           ? { ...row, description: e.target.value }
                           : row,
                       ),
-                    )
-                  }
+                    );
+                  }}
                   placeholder="Description in this language"
                   className="w-full px-2 py-1.5 rounded border border-border bg-background text-sm"
                 />

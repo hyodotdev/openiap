@@ -13,17 +13,34 @@ import { v } from "convex/values";
 /** Locale every product's base `title` / `description` is published as. */
 export const BASE_LISTING_LOCALE = "en-US";
 
-// The two stores cap listing text differently: Play allows 55/200 on a
-// one-time product, App Store Connect allows 30/45 on an IAP
-// localization. Validate against the platform the row actually targets
-// so an Android operator isn't held to Apple's limit, and an iOS
-// operator isn't told their text is fine right up until ASC rejects it.
-export const LISTING_LIMITS = {
-  Android: { title: 55, description: 200 },
-  IOS: { title: 30, description: 45 },
-} as const;
+// The stores cap listing text differently, and Play differs again by
+// product type: it documents 55/200 for a one-time product but only a
+// description cap for a subscription, leaving the title uncapped. App
+// Store Connect allows 30/45. Validate against the exact surface the
+// row targets so an Android operator isn't held to Apple's limit, an
+// iOS operator isn't told their text is fine right up until ASC rejects
+// it, and a legal subscription title isn't refused for exceeding a
+// limit Play never states.
+export type ProductPlatform = "IOS" | "Android";
+export type ProductListingType =
+  | "Subscription"
+  | "NonConsumable"
+  | "Consumable";
 
-export type ProductPlatform = keyof typeof LISTING_LIMITS;
+export interface ListingLimits {
+  /** undefined = the store documents no cap for this surface. */
+  title?: number;
+  description: number;
+}
+
+export function listingLimitsFor(
+  platform: ProductPlatform,
+  type: ProductListingType,
+): ListingLimits {
+  if (platform === "IOS") return { title: 30, description: 45 };
+  if (type === "Subscription") return { description: 200 };
+  return { title: 55, description: 200 };
+}
 
 export interface ProductLocalization {
   locale: string;
@@ -80,10 +97,11 @@ function canonicalizeLocale(raw: string): string {
 export function normalizeProductLocalizations(
   localizations: ProductLocalization[] | undefined,
   platform: ProductPlatform,
+  type: ProductListingType,
 ): ProductLocalization[] | undefined {
   if (!localizations || localizations.length === 0) return undefined;
 
-  const limits = LISTING_LIMITS[platform];
+  const limits = listingLimitsFor(platform, type);
   const seen = new Set<string>();
   const normalized: ProductLocalization[] = [];
 
@@ -112,7 +130,7 @@ export function normalizeProductLocalizations(
     if (!title) {
       throw new Error(`Localization "${locale}" needs a title.`);
     }
-    if (title.length > limits.title) {
+    if (limits.title !== undefined && title.length > limits.title) {
       throw new Error(
         `Localization "${locale}" title is ${title.length} characters; ${platform} accepts at most ${limits.title}.`,
       );

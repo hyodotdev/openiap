@@ -16,6 +16,7 @@ describe("normalizeProductLocalizations", () => {
           { locale: "ko-KR", title: "문 세이지", description: " 전체 해금 " },
         ],
         "Android",
+        "Consumable",
       ),
     ).toEqual([
       { locale: "ja-JP", title: "ムーンセージ" },
@@ -24,8 +25,12 @@ describe("normalizeProductLocalizations", () => {
   });
 
   it("treats an absent or empty list as nothing to store", () => {
-    expect(normalizeProductLocalizations(undefined, "Android")).toBeUndefined();
-    expect(normalizeProductLocalizations([], "Android")).toBeUndefined();
+    expect(
+      normalizeProductLocalizations(undefined, "Android", "Consumable"),
+    ).toBeUndefined();
+    expect(
+      normalizeProductLocalizations([], "Android", "Consumable"),
+    ).toBeUndefined();
   });
 
   // Play and ASC use different vocabularies (zh-CN vs zh-Hans, es-419 vs
@@ -43,7 +48,11 @@ describe("normalizeProductLocalizations", () => {
       "zh-Hant-TW",
     ]) {
       expect(
-        normalizeProductLocalizations([{ locale, title: "x" }], "Android"),
+        normalizeProductLocalizations(
+          [{ locale, title: "x" }],
+          "Android",
+          "Consumable",
+        ),
       ).toEqual([{ locale, title: "x" }]);
     }
   });
@@ -51,7 +60,11 @@ describe("normalizeProductLocalizations", () => {
   it("rejects malformed locales rather than letting the store 400", () => {
     for (const locale of ["ko_KR", "", "k", "ko-", "-KR", "ko KR"]) {
       expect(() =>
-        normalizeProductLocalizations([{ locale, title: "x" }], "Android"),
+        normalizeProductLocalizations(
+          [{ locale, title: "x" }],
+          "Android",
+          "Consumable",
+        ),
       ).toThrow(/Invalid localization locale/);
     }
   });
@@ -61,6 +74,7 @@ describe("normalizeProductLocalizations", () => {
       normalizeProductLocalizations(
         [{ locale: BASE_LISTING_LOCALE, title: "Moon Sage" }],
         "Android",
+        "Consumable",
       ),
     ).toThrow(/reserved/);
   });
@@ -73,6 +87,7 @@ describe("normalizeProductLocalizations", () => {
           { locale: "ko-KR", title: "둘" },
         ],
         "Android",
+        "Consumable",
       ),
     ).toThrow(/Duplicate localization locale/);
   });
@@ -82,18 +97,21 @@ describe("normalizeProductLocalizations", () => {
       normalizeProductLocalizations(
         [{ locale: "ko-KR", title: "   " }],
         "Android",
+        "Consumable",
       ),
     ).toThrow(/needs a title/);
     expect(() =>
       normalizeProductLocalizations(
         [{ locale: "ko-KR", title: "가".repeat(56) }],
         "Android",
+        "Consumable",
       ),
     ).toThrow(/at most 55/);
     expect(() =>
       normalizeProductLocalizations(
         [{ locale: "ko-KR", title: "코인", description: "가".repeat(201) }],
         "Android",
+        "Consumable",
       ),
     ).toThrow(/at most 200/);
   });
@@ -103,10 +121,25 @@ describe("normalizeProductLocalizations", () => {
   // title or pass an iOS one that ASC then rejects.
   it("applies each platform's own store limits", () => {
     const long = { locale: "ko-KR", title: "가".repeat(40) };
-    expect(normalizeProductLocalizations([long], "Android")).toEqual([long]);
-    expect(() => normalizeProductLocalizations([long], "IOS")).toThrow(
-      /IOS accepts at most 30/,
-    );
+    expect(
+      normalizeProductLocalizations([long], "Android", "Consumable"),
+    ).toEqual([long]);
+    expect(() =>
+      normalizeProductLocalizations([long], "IOS", "Consumable"),
+    ).toThrow(/IOS accepts at most 30/);
+  });
+
+  // Play documents a 55-char title for a one-time product but no title
+  // cap for a subscription, so holding both to 55 would refuse a legal
+  // subscription name.
+  it("does not cap a Play subscription title", () => {
+    const long = { locale: "ko-KR", title: "가".repeat(80) };
+    expect(
+      normalizeProductLocalizations([long], "Android", "Subscription"),
+    ).toEqual([long]);
+    expect(() =>
+      normalizeProductLocalizations([long], "Android", "Consumable"),
+    ).toThrow(/at most 55/);
   });
 
   it("canonicalizes locale casing so ko-kr and ko-KR are one locale", () => {
@@ -114,12 +147,14 @@ describe("normalizeProductLocalizations", () => {
       normalizeProductLocalizations(
         [{ locale: "ko-kr", title: "코인" }],
         "Android",
+        "Consumable",
       ),
     ).toEqual([{ locale: "ko-KR", title: "코인" }]);
     expect(
       normalizeProductLocalizations(
         [{ locale: "zh-hans", title: "币" }],
         "Android",
+        "Consumable",
       ),
     ).toEqual([{ locale: "zh-Hans", title: "币" }]);
     // Case-insensitive input is a feature, not a typo to reject.
@@ -127,6 +162,7 @@ describe("normalizeProductLocalizations", () => {
       normalizeProductLocalizations(
         [{ locale: "KO", title: "코인" }],
         "Android",
+        "Consumable",
       ),
     ).toEqual([{ locale: "ko", title: "코인" }]);
     expect(() =>
@@ -136,6 +172,7 @@ describe("normalizeProductLocalizations", () => {
           { locale: "ko-kr", title: "둘" },
         ],
         "Android",
+        "Consumable",
       ),
     ).toThrow(/Duplicate localization locale/);
     // Casing must not let a caller sneak past the base-locale guard.
@@ -143,6 +180,7 @@ describe("normalizeProductLocalizations", () => {
       normalizeProductLocalizations(
         [{ locale: "EN-us", title: "x" }],
         "Android",
+        "Consumable",
       ),
     ).toThrow(/reserved/);
   });

@@ -2075,6 +2075,11 @@ async function performIosSync(
                 checkCancelled,
               });
             } catch (error) {
+              // Cancellation and the worker deadline must keep
+              // unwinding: recording them as a per-locale failure would
+              // let the loop grind through the remaining locales after
+              // the operator cancelled or the action ran out of budget.
+              if (isProductSyncAbortError(error)) throw error;
               if (isBenignAscRetryConflict(error)) continue;
               recordFailure({
                 productId: `${row.productId} (localization ${listing.locale})`,

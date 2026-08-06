@@ -5,6 +5,8 @@ import {
   basePlanIdForPeriod,
   buildSubscriptionRegionalConfigs,
   mapModernPlayOneTimeState,
+  pickPlayRegionalPrice,
+  pickSubBasePlanPrice,
   moneyToMicros,
   playPriceMicrosToNumber,
   shouldFallbackToLegacyOneTimeProduct,
@@ -1053,5 +1055,70 @@ describe("explicit sales regions", () => {
       (option?.newRegionsConfig as { availability?: string } | undefined)
         ?.availability,
     ).toBe("NO_LONGER_AVAILABLE");
+  });
+});
+
+// Both pull-ranking fixes shipped without coverage. The KRW case is the
+// one the fix was for; the USD cases are the regression it originally
+// caused — Play prices several non-US regions in USD, so matching on
+// currency alone resolved a plain USD row to whichever Play listed first.
+describe("pickPlayRegionalPrice", () => {
+  // Ordered the way Play returns them: US is NOT first.
+  const candidates = [
+    { regionCode: "EC", currencyCode: "USD" },
+    { regionCode: "JP", currencyCode: "JPY" },
+    { regionCode: "KR", currencyCode: "KRW" },
+    { regionCode: "US", currencyCode: "USD" },
+  ];
+
+  it("prefers US within the authored currency", () => {
+    expect(pickPlayRegionalPrice(candidates, "USD")?.regionCode).toBe("US");
+  });
+
+  it("falls back to any region in the authored currency", () => {
+    expect(pickPlayRegionalPrice(candidates, "KRW")?.regionCode).toBe("KR");
+    expect(pickPlayRegionalPrice(candidates, "JPY")?.regionCode).toBe("JP");
+  });
+
+  it("uses US, then any USD region, for a row kit has not priced", () => {
+    expect(pickPlayRegionalPrice(candidates)?.regionCode).toBe("US");
+    expect(
+      pickPlayRegionalPrice(candidates.filter((c) => c.regionCode !== "US"))
+        ?.regionCode,
+    ).toBe("EC");
+  });
+
+  it("ignores an authored currency no region offers", () => {
+    expect(pickPlayRegionalPrice(candidates, "GBP")?.regionCode).toBe("US");
+  });
+
+  it("is safe on an empty candidate list", () => {
+    expect(pickPlayRegionalPrice([], "USD")).toBeUndefined();
+  });
+});
+
+describe("pickSubBasePlanPrice", () => {
+  const sub = {
+    basePlans: [
+      {
+        basePlanId: "monthly",
+        regionalConfigs: [
+          { price: { currencyCode: "USD", units: "9", nanos: 990_000_000 } },
+          { price: { currencyCode: "KRW", units: "13000", nanos: 0 } },
+        ],
+      },
+    ],
+  };
+
+  it("prefers the authored currency over the USD default", () => {
+    expect(pickSubBasePlanPrice(sub, "KRW").currency).toBe("KRW");
+  });
+
+  it("still defaults to USD for a row kit has not priced", () => {
+    expect(pickSubBasePlanPrice(sub).currency).toBe("USD");
+  });
+
+  it("keeps the basePlanId paired with the price it picked", () => {
+    expect(pickSubBasePlanPrice(sub, "KRW").basePlanId).toBe("monthly");
   });
 });
