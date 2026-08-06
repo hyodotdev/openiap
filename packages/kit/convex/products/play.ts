@@ -708,8 +708,8 @@ async function performAndroidSync(
           let patchOk = true;
           if (row.type === "Subscription") {
             // Subscriptions: patch the listing via
-            // monetization.subscriptions.patch (en-US listing only —
-            // multi-language sync is a future feature). Base-plan
+            // monetization.subscriptions.patch (base listing plus every
+            // locale on the row, merged over what Play has). Base-plan
             // price changes have to go through a separate
             // monetization.subscriptions.basePlans endpoint, so we
             // intentionally don't try to mutate price here; that
@@ -1027,8 +1027,9 @@ async function performAndroidSync(
  *
  * `updateMask: "listings"` replaces the array, so a locale the operator
  * added in Play Console would be deleted by a push that sent only kit's
- * own set. A failed read degrades to kit's set rather than blocking the
- * title edit.
+ * own set. Read errors propagate — the caller turns them into a per-row
+ * failure and the row stays Draft for the next sync — because a partial
+ * write here is destructive, not merely incomplete.
  */
 async function mergedSubscriptionListings(
   androidpublisher: androidpublisher_v3.Androidpublisher,
@@ -1045,17 +1046,16 @@ async function mergedSubscriptionListings(
     androidpublisher_v3.Schema$SubscriptionListing
   >();
 
-  try {
-    const response = await androidpublisher.monetization.subscriptions.get({
-      packageName,
-      productId,
-    });
-    for (const listing of response.data.listings ?? []) {
-      if (listing.languageCode) byLocale.set(listing.languageCode, listing);
-    }
-  } catch {
-    // Fall through to kit's own set — worst case we restate the
-    // locales kit knows, which is what the pre-merge code always did.
+  // A read failure must NOT fall through to kit's own set: the patch
+  // replaces the listings array, so writing an unmerged set would delete
+  // exactly the upstream locales this read exists to protect. Surface it
+  // and let the caller record a failure instead.
+  const response = await androidpublisher.monetization.subscriptions.get({
+    packageName,
+    productId,
+  });
+  for (const listing of response.data.listings ?? []) {
+    if (listing.languageCode) byLocale.set(listing.languageCode, listing);
   }
 
   for (const listing of listingRowsForProduct(row)) {

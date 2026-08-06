@@ -123,6 +123,35 @@ export default function ProjectProducts() {
   const [localizations, setLocalizations] = useState<
     Array<{ locale: string; title: string; description: string }>
   >([]);
+  // Typing an existing productId means "edit this row", so show the
+  // locales it already has. Without this the field is write-only: the
+  // editor would look empty and the operator would have no way to see,
+  // correct, or intentionally keep what is stored.
+  const editingExisting = useMemo(
+    () =>
+      (products ?? []).find(
+        (product) =>
+          product.productId === draft.productId.trim() &&
+          product.platform === draft.platform,
+      ),
+    [products, draft.productId, draft.platform],
+  );
+  const loadedLocalizationsKey = useRef<string | null>(null);
+  useEffect(() => {
+    const key = editingExisting
+      ? `${editingExisting.platform}\u0000${editingExisting.productId}`
+      : null;
+    if (key === loadedLocalizationsKey.current) return;
+    loadedLocalizationsKey.current = key;
+    if (!editingExisting) return;
+    setLocalizations(
+      (editingExisting.localizations ?? []).map((entry) => ({
+        locale: entry.locale,
+        title: entry.title,
+        description: entry.description ?? "",
+      })),
+    );
+  }, [editingExisting]);
 
   const grouped = useMemo(() => {
     if (!products) return { ios: [], android: [] };
@@ -264,27 +293,37 @@ export default function ProjectProducts() {
         title: entry.title.trim(),
         description: entry.description.trim() || undefined,
       }));
-    await upsert({
-      projectId: project._id,
-      productId: draft.productId,
-      platform: draft.platform,
-      type: draft.type,
-      title: draft.title,
-      description,
-      priceAmountMicros,
-      currency: priceAmountMicros !== undefined ? "USD" : undefined,
-      billingPeriod,
-      subscriptionGroupName,
-      reviewNote,
-      // Undefined rather than [] when the operator added no languages,
-      // so re-submitting an existing productId to change its price
-      // preserves the locales already stored — same preserve-on-blank
-      // contract `description` has. Clearing every localization is a
-      // Play Console / ASC action, not something this add form can express.
-      localizations:
-        filledLocalizations.length > 0 ? filledLocalizations : undefined,
-      state: "Draft",
-    });
+    try {
+      await upsert({
+        projectId: project._id,
+        productId: draft.productId,
+        platform: draft.platform,
+        type: draft.type,
+        title: draft.title,
+        description,
+        priceAmountMicros,
+        currency: priceAmountMicros !== undefined ? "USD" : undefined,
+        billingPeriod,
+        subscriptionGroupName,
+        reviewNote,
+        // Undefined rather than [] when the operator added no languages,
+        // so re-submitting an existing productId to change its price
+        // preserves the locales already stored — same preserve-on-blank
+        // contract `description` has. Clearing every localization is a
+        // Play Console / ASC action, not something this add form can express.
+        localizations:
+          filledLocalizations.length > 0 ? filledLocalizations : undefined,
+        state: "Draft",
+      });
+    } catch (error) {
+      // The mutation rejects malformed locales, duplicates, and
+      // over-long store text. Without this the promise rejected into
+      // `void onAdd()` and the operator saw nothing happen.
+      toast.error(
+        error instanceof Error ? error.message : "Could not save product",
+      );
+      return;
+    }
     setDraft({
       ...draft,
       productId: "",

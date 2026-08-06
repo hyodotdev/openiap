@@ -10,10 +10,13 @@ import {
 describe("normalizeProductLocalizations", () => {
   it("trims, drops blank descriptions, and sorts by locale", () => {
     expect(
-      normalizeProductLocalizations([
-        { locale: " ja-JP ", title: " ムーンセージ ", description: "  " },
-        { locale: "ko-KR", title: "문 세이지", description: " 전체 해금 " },
-      ]),
+      normalizeProductLocalizations(
+        [
+          { locale: " ja-JP ", title: " ムーンセージ ", description: "  " },
+          { locale: "ko-KR", title: "문 세이지", description: " 전체 해금 " },
+        ],
+        "Android",
+      ),
     ).toEqual([
       { locale: "ja-JP", title: "ムーンセージ" },
       { locale: "ko-KR", title: "문 세이지", description: "전체 해금" },
@@ -21,8 +24,8 @@ describe("normalizeProductLocalizations", () => {
   });
 
   it("treats an absent or empty list as nothing to store", () => {
-    expect(normalizeProductLocalizations(undefined)).toBeUndefined();
-    expect(normalizeProductLocalizations([])).toBeUndefined();
+    expect(normalizeProductLocalizations(undefined, "Android")).toBeUndefined();
+    expect(normalizeProductLocalizations([], "Android")).toBeUndefined();
   });
 
   // Play and ASC use different vocabularies (zh-CN vs zh-Hans, es-419 vs
@@ -39,51 +42,109 @@ describe("normalizeProductLocalizations", () => {
       "es-419",
       "zh-Hant-TW",
     ]) {
-      expect(normalizeProductLocalizations([{ locale, title: "x" }])).toEqual([
-        { locale, title: "x" },
-      ]);
+      expect(
+        normalizeProductLocalizations([{ locale, title: "x" }], "Android"),
+      ).toEqual([{ locale, title: "x" }]);
     }
   });
 
   it("rejects malformed locales rather than letting the store 400", () => {
-    for (const locale of ["ko_KR", "KO", "", "k", "ko-", "-KR", "ko KR"]) {
+    for (const locale of ["ko_KR", "", "k", "ko-", "-KR", "ko KR"]) {
       expect(() =>
-        normalizeProductLocalizations([{ locale, title: "x" }]),
+        normalizeProductLocalizations([{ locale, title: "x" }], "Android"),
       ).toThrow(/Invalid localization locale/);
     }
   });
 
   it("reserves the base locale for the product's own title", () => {
     expect(() =>
-      normalizeProductLocalizations([
-        { locale: BASE_LISTING_LOCALE, title: "Moon Sage" },
-      ]),
+      normalizeProductLocalizations(
+        [{ locale: BASE_LISTING_LOCALE, title: "Moon Sage" }],
+        "Android",
+      ),
     ).toThrow(/reserved/);
   });
 
   it("rejects duplicate locales", () => {
     expect(() =>
-      normalizeProductLocalizations([
-        { locale: "ko-KR", title: "하나" },
-        { locale: "ko-KR", title: "둘" },
-      ]),
+      normalizeProductLocalizations(
+        [
+          { locale: "ko-KR", title: "하나" },
+          { locale: "ko-KR", title: "둘" },
+        ],
+        "Android",
+      ),
     ).toThrow(/Duplicate localization locale/);
   });
 
   it("rejects a blank title and over-long store text", () => {
     expect(() =>
-      normalizeProductLocalizations([{ locale: "ko-KR", title: "   " }]),
+      normalizeProductLocalizations(
+        [{ locale: "ko-KR", title: "   " }],
+        "Android",
+      ),
     ).toThrow(/needs a title/);
     expect(() =>
-      normalizeProductLocalizations([
-        { locale: "ko-KR", title: "가".repeat(56) },
-      ]),
+      normalizeProductLocalizations(
+        [{ locale: "ko-KR", title: "가".repeat(56) }],
+        "Android",
+      ),
     ).toThrow(/at most 55/);
     expect(() =>
-      normalizeProductLocalizations([
-        { locale: "ko-KR", title: "코인", description: "가".repeat(201) },
-      ]),
+      normalizeProductLocalizations(
+        [{ locale: "ko-KR", title: "코인", description: "가".repeat(201) }],
+        "Android",
+      ),
     ).toThrow(/at most 200/);
+  });
+
+  // ASC caps IAP localization name/description far below Play's limits;
+  // validating against one store would either block a legal Android
+  // title or pass an iOS one that ASC then rejects.
+  it("applies each platform's own store limits", () => {
+    const long = { locale: "ko-KR", title: "가".repeat(40) };
+    expect(normalizeProductLocalizations([long], "Android")).toEqual([long]);
+    expect(() => normalizeProductLocalizations([long], "IOS")).toThrow(
+      /IOS accepts at most 30/,
+    );
+  });
+
+  it("canonicalizes locale casing so ko-kr and ko-KR are one locale", () => {
+    expect(
+      normalizeProductLocalizations(
+        [{ locale: "ko-kr", title: "코인" }],
+        "Android",
+      ),
+    ).toEqual([{ locale: "ko-KR", title: "코인" }]);
+    expect(
+      normalizeProductLocalizations(
+        [{ locale: "zh-hans", title: "币" }],
+        "Android",
+      ),
+    ).toEqual([{ locale: "zh-Hans", title: "币" }]);
+    // Case-insensitive input is a feature, not a typo to reject.
+    expect(
+      normalizeProductLocalizations(
+        [{ locale: "KO", title: "코인" }],
+        "Android",
+      ),
+    ).toEqual([{ locale: "ko", title: "코인" }]);
+    expect(() =>
+      normalizeProductLocalizations(
+        [
+          { locale: "ko-KR", title: "하나" },
+          { locale: "ko-kr", title: "둘" },
+        ],
+        "Android",
+      ),
+    ).toThrow(/Duplicate localization locale/);
+    // Casing must not let a caller sneak past the base-locale guard.
+    expect(() =>
+      normalizeProductLocalizations(
+        [{ locale: "EN-us", title: "x" }],
+        "Android",
+      ),
+    ).toThrow(/reserved/);
   });
 });
 
@@ -131,10 +192,33 @@ describe("splitStoreListings", () => {
     });
   });
 
-  it("promotes the first listing when the store has no base locale", () => {
+  // Promoting is unavoidable — `title` is required — but the promoted
+  // listing must ALSO stay a localization, or the locale is lost and the
+  // next push republishes that text as en-US.
+  it("promotes the first listing without losing its locale", () => {
     expect(
       splitStoreListings([{ locale: "ko-KR", title: "문 세이지" }], "fallback"),
-    ).toEqual({ title: "문 세이지" });
+    ).toEqual({
+      title: "문 세이지",
+      localizations: [{ locale: "ko-KR", title: "문 세이지" }],
+    });
+  });
+
+  it("round-trips a store that has no en-US listing", () => {
+    const pulled = splitStoreListings(
+      [
+        { locale: "ko-KR", title: "문 세이지", description: "전체 해금" },
+        { locale: "ja-JP", title: "ムーンセージ" },
+      ],
+      "fallback",
+    );
+    // ko-KR survives the round trip rather than being flattened into the
+    // en-US slot and disappearing.
+    expect(listingRowsForProduct(pulled).map((row) => row.locale)).toEqual([
+      "en-US",
+      "ko-KR",
+      "ja-JP",
+    ]);
   });
 
   it("falls back to the product id when nothing is usable", () => {

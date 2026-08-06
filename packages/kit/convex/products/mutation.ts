@@ -590,7 +590,10 @@ export const upsertProduct = mutation({
     // Throws on a malformed/duplicate locale or an over-long string so
     // the operator sees the problem here rather than as an opaque 400
     // from Play or ASC during the next push.
-    const localizations = normalizeProductLocalizations(args.localizations);
+    const localizations = normalizeProductLocalizations(
+      args.localizations,
+      args.platform,
+    );
 
     // iOS subscriptions REQUIRE a subscriptionGroupName upstream —
     // related tiers must share a group for StoreKit 2's native

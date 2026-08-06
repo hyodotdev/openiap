@@ -1,3 +1,4 @@
+import { productLocalizationsValidator } from "./localizations";
 import { query, type QueryCtx } from "../_generated/server";
 import { ConvexError, v, type Infer } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
@@ -67,6 +68,7 @@ const productShape = v.object({
   ),
   title: v.string(),
   description: v.optional(v.string()),
+  localizations: v.optional(productLocalizationsValidator),
   priceAmountMicros: v.optional(v.number()),
   currency: v.optional(v.string()),
   state: v.union(
@@ -121,6 +123,10 @@ function shape(
     type: product.type,
     title: product.title,
     description: product.description,
+    // Coerce the nullable column to optional: "cleared" and "never set"
+    // read the same, and the dashboard form needs this to prefill rather
+    // than silently discarding stored locales on the next save.
+    localizations: product.localizations ?? undefined,
     priceAmountMicros: product.priceAmountMicros,
     currency: product.currency,
     state: product.state,

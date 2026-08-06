@@ -13,9 +13,17 @@ import { v } from "convex/values";
 /** Locale every product's base `title` / `description` is published as. */
 export const BASE_LISTING_LOCALE = "en-US";
 
-/** Play caps one-time-product titles at 55 chars, descriptions at 200. */
-export const MAX_LISTING_TITLE_LENGTH = 55;
-export const MAX_LISTING_DESCRIPTION_LENGTH = 200;
+// The two stores cap listing text differently: Play allows 55/200 on a
+// one-time product, App Store Connect allows 30/45 on an IAP
+// localization. Validate against the platform the row actually targets
+// so an Android operator isn't held to Apple's limit, and an iOS
+// operator isn't told their text is fine right up until ASC rejects it.
+export const LISTING_LIMITS = {
+  Android: { title: 55, description: 200 },
+  IOS: { title: 30, description: 45 },
+} as const;
+
+export type ProductPlatform = keyof typeof LISTING_LIMITS;
 
 export interface ProductLocalization {
   locale: string;
@@ -45,6 +53,23 @@ export const productLocalizationsValidator = v.array(
 const LOCALE_PATTERN = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8}){0,2}$/;
 
 /**
+ * Canonicalizes a BCP-47 tag's casing: lowercase language, Titlecase
+ * script, uppercase region — `ko-kr` → `ko-KR`, `zh-hans` → `zh-Hans`.
+ */
+function canonicalizeLocale(raw: string): string {
+  const parts = raw.trim().split("-");
+  return parts
+    .map((part, index) => {
+      if (index === 0) return part.toLowerCase();
+      if (part.length === 4) {
+        return part[0].toUpperCase() + part.slice(1).toLowerCase();
+      }
+      return part.toUpperCase();
+    })
+    .join("-");
+}
+
+/**
  * Normalizes and validates operator-supplied localizations.
  *
  * @param localizations Raw rows from the dashboard / MCP / a pull.
@@ -54,14 +79,20 @@ const LOCALE_PATTERN = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8}){0,2}$/;
  */
 export function normalizeProductLocalizations(
   localizations: ProductLocalization[] | undefined,
+  platform: ProductPlatform,
 ): ProductLocalization[] | undefined {
   if (!localizations || localizations.length === 0) return undefined;
 
+  const limits = LISTING_LIMITS[platform];
   const seen = new Set<string>();
   const normalized: ProductLocalization[] = [];
 
   for (const entry of localizations) {
-    const locale = entry.locale.trim();
+    // Canonicalize case before comparing: `ko-kr` and `ko-KR` are the
+    // same locale, so without this a duplicate slips through and the
+    // store rejects the pair — and `EN-us` would dodge the base-locale
+    // guard entirely.
+    const locale = canonicalizeLocale(entry.locale);
     if (!LOCALE_PATTERN.test(locale)) {
       throw new Error(
         `Invalid localization locale "${entry.locale}". Use a BCP-47 code such as "ko" or "ko-KR".`,
@@ -81,16 +112,16 @@ export function normalizeProductLocalizations(
     if (!title) {
       throw new Error(`Localization "${locale}" needs a title.`);
     }
-    if (title.length > MAX_LISTING_TITLE_LENGTH) {
+    if (title.length > limits.title) {
       throw new Error(
-        `Localization "${locale}" title is ${title.length} characters; stores accept at most ${MAX_LISTING_TITLE_LENGTH}.`,
+        `Localization "${locale}" title is ${title.length} characters; ${platform} accepts at most ${limits.title}.`,
       );
     }
 
     const description = entry.description?.trim() || undefined;
-    if (description && description.length > MAX_LISTING_DESCRIPTION_LENGTH) {
+    if (description && description.length > limits.description) {
       throw new Error(
-        `Localization "${locale}" description is ${description.length} characters; stores accept at most ${MAX_LISTING_DESCRIPTION_LENGTH}.`,
+        `Localization "${locale}" description is ${description.length} characters; ${platform} accepts at most ${limits.description}.`,
       );
     }
 
@@ -140,11 +171,14 @@ export function splitStoreListings(
   );
   if (usable.length === 0) return { title: fallbackTitle };
 
-  const base =
-    usable.find((listing) => listing.locale === BASE_LISTING_LOCALE) ??
-    usable[0];
+  const base = usable.find((listing) => listing.locale === BASE_LISTING_LOCALE);
+  // A store with no base-locale listing still has to yield a non-empty
+  // `title`, so the first listing is promoted into that slot — but it is
+  // ALSO kept as a localization. Dropping it would lose the locale, and
+  // the next push would then republish that text as en-US.
+  const promoted = base ?? usable[0];
   const others = usable
-    .filter((listing) => listing.locale !== base.locale)
+    .filter((listing) => listing.locale !== BASE_LISTING_LOCALE)
     .map((listing) => ({
       locale: listing.locale,
       title: listing.title,
@@ -152,8 +186,8 @@ export function splitStoreListings(
     }));
 
   return {
-    title: base.title,
-    ...(base.description ? { description: base.description } : {}),
+    title: promoted.title,
+    ...(promoted.description ? { description: promoted.description } : {}),
     ...(others.length > 0 ? { localizations: others } : {}),
   };
 }

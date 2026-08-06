@@ -1586,6 +1586,14 @@ async function performIosSync(
             platform: "IOS",
             type,
             title: item.attributes.name ?? productId,
+            // No `localizations` here on purpose. ASC keeps them on
+            // per-version sub-resources, so capturing them would cost an
+            // extra request per product per sync. Omitting the field
+            // makes `upsertFromStore` preserve whatever the row already
+            // has, so a pull never destroys kit-authored locales — it
+            // just doesn't discover ASC-authored ones. The push side
+            // upserts per locale and likewise never deletes them
+            // upstream, so the two directions stay consistent.
             priceAmountMicros,
             currency,
             storeRef: item.id,
@@ -2013,19 +2021,30 @@ async function performIosSync(
             reviewVersion.alreadySubmitted ||
             reviewVersion.attachedToSubmission
           ) {
-            const matches = await ascReviewLocalizationMatches({
-              request: reviewRequest,
-              kind,
-              versionId: reviewVersion.versionId,
-              name: row.title,
-              description: row.description ?? row.title,
-              checkCancelled,
-            });
-            if (!matches) {
+            // Compare EVERY locale, not just the base pair: a Draft
+            // whose only change is a new or edited translation would
+            // otherwise look identical to the locked version and get
+            // silently marked pushed without that translation shipping.
+            let mismatchedLocale: string | undefined;
+            for (const listing of listingRowsForProduct(row)) {
+              const matches = await ascReviewLocalizationMatches({
+                request: reviewRequest,
+                kind,
+                versionId: reviewVersion.versionId,
+                name: listing.title,
+                description: listing.description ?? listing.title,
+                locale: listing.locale,
+                checkCancelled,
+              });
+              if (!matches) {
+                mismatchedLocale = listing.locale;
+                break;
+              }
+            }
+            if (mismatchedLocale) {
               recordFailure({
                 productId: `${row.productId} (review version)`,
-                reason:
-                  "The current ASC review version is already attached or submitted and its en-US metadata differs from this Draft. Finish or cancel that review in App Store Connect, then run Push Sync again to create an editable version.",
+                reason: `The current ASC review version is already attached or submitted and its ${mismatchedLocale} metadata differs from this Draft. Finish or cancel that review in App Store Connect, then run Push Sync again to create an editable version.`,
               });
             }
             return;
