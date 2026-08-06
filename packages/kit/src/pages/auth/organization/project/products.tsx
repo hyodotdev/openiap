@@ -139,35 +139,36 @@ export default function ProjectProducts() {
       ),
     [products, draft.productId, draft.platform],
   );
-  const loadedLocalizationsKey = useRef<string | null>(null);
-  // True once the operator edits the language/region editors by hand, so
-  // a productId that merely passes through an existing id while typing
-  // cannot wipe what they wrote.
+  // The key of the row the editors were actually prefilled from, or null
+  // when their contents are the operator's own. Leaving a prefilled row
+  // must clear, so one product's metadata is never saved onto another;
+  // hand-authored content must survive, including when a half-typed
+  // productId transiently matches an existing row.
+  const prefilledKeyRef = useRef<string | null>(null);
+  // Set by every manual edit, cleared by a prefill. Guards the PREFILL:
+  // overwriting work the operator is in the middle of typing is the
+  // destructive direction here.
   const dirtyRef = useRef(false);
   useEffect(() => {
     const key = editingExisting
       ? `${editingExisting.platform}\u0000${editingExisting.productId}`
       : null;
-    if (key === loadedLocalizationsKey.current) return;
-    const previousKey = loadedLocalizationsKey.current;
-    loadedLocalizationsKey.current = key;
+    if (key === prefilledKeyRef.current) return;
     if (!editingExisting) {
-      // Leaving a loaded row must drop its translations and regions, or
-      // the next save would publish one product's metadata onto another.
-      // Rows typed for a brand-new product are left alone.
-      //
-      // `dirtyRef` guards the case where the operator typed their own
-      // rows and the id only transiently matched an existing product
-      // while they were still typing: reverting to "no match" must not
-      // discard work they authored.
-      if (previousKey !== null && !dirtyRef.current) {
+      if (prefilledKeyRef.current !== null) {
+        prefilledKeyRef.current = null;
         setLocalizations([]);
         setRegionsInput("");
       }
       return;
     }
-    // Loading a different row replaces whatever was in the editor, so
-    // it is no longer operator-authored.
+    if (dirtyRef.current && prefilledKeyRef.current === null) {
+      // Hand-authored content and the id only just started matching —
+      // keep what they typed rather than replacing it with the stored
+      // row. They can clear the id and retype to load it deliberately.
+      return;
+    }
+    prefilledKeyRef.current = key;
     dirtyRef.current = false;
     setRegionsInput((editingExisting.regions ?? []).join(", "));
     setLocalizations(
@@ -385,6 +386,11 @@ export default function ProjectProducts() {
     });
     setLocalizations([]);
     setRegionsInput("");
+    // The form is empty again, so nothing is prefilled and nothing is
+    // hand-authored; without this the next typed id would be treated as
+    // a transient match and refuse to load.
+    prefilledKeyRef.current = null;
+    dirtyRef.current = false;
   };
 
   const onSync = async (
