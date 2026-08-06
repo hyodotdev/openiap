@@ -178,7 +178,6 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
         title: string;
         description?: string;
       }>;
-      regions?: string[];
       priceAmountMicros?: number;
       currency?: string;
       billingPeriod?: "P1W" | "P1M" | "P2M" | "P3M" | "P6M" | "P1Y";

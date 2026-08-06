@@ -69,7 +69,6 @@ const productShape = v.object({
   title: v.string(),
   description: v.optional(v.string()),
   localizations: v.optional(productLocalizationsValidator),
-  regions: v.optional(v.array(v.string())),
   priceAmountMicros: v.optional(v.number()),
   currency: v.optional(v.string()),
   state: v.union(
@@ -128,7 +127,6 @@ function shape(
     // read the same, and the dashboard form needs this to prefill rather
     // than silently discarding stored locales on the next save.
     localizations: product.localizations ?? undefined,
-    regions: product.regions ?? undefined,
     priceAmountMicros: product.priceAmountMicros,
     currency: product.currency,
     state: product.state,

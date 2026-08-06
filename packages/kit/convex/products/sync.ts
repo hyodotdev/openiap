@@ -2,7 +2,6 @@ import { internalMutation, internalQuery } from "../_generated/server";
 import { v } from "convex/values";
 
 import { productLocalizationsValidator } from "./localizations";
-import { productRegionsValidator } from "./regions";
 import type { Doc, Id } from "../_generated/dataModel";
 import { assertProjectWritable } from "../projects/writable";
 
@@ -383,7 +382,6 @@ export const listDraftIosProducts = internalQuery({
       title: v.string(),
       description: v.optional(v.string()),
       localizations: v.optional(productLocalizationsValidator),
-      regions: v.optional(productRegionsValidator),
       priceAmountMicros: v.optional(v.number()),
       currency: v.optional(v.string()),
       billingPeriod: v.optional(
@@ -444,11 +442,10 @@ export const listDraftIosProducts = internalQuery({
         type: row.type,
         title: row.title,
         description: row.description,
-        // Coerce the nullable columns to optional at the worker
+        // Coerce the nullable column to optional at the worker
         // boundary: "cleared" and "never set" are the same thing to a
         // store push, and null would trip the validator.
         localizations: row.localizations ?? undefined,
-        regions: row.regions ?? undefined,
         priceAmountMicros: row.priceAmountMicros,
         currency: row.currency,
         billingPeriod: row.billingPeriod,
@@ -475,7 +472,6 @@ export const listDraftAndroidProducts = internalQuery({
       title: v.string(),
       description: v.optional(v.string()),
       localizations: v.optional(productLocalizationsValidator),
-      regions: v.optional(productRegionsValidator),
       priceAmountMicros: v.optional(v.number()),
       currency: v.optional(v.string()),
       billingPeriod: v.optional(
@@ -524,11 +520,10 @@ export const listDraftAndroidProducts = internalQuery({
         type: row.type,
         title: row.title,
         description: row.description,
-        // Coerce the nullable columns to optional at the worker
+        // Coerce the nullable column to optional at the worker
         // boundary: "cleared" and "never set" are the same thing to a
         // store push, and null would trip the validator.
         localizations: row.localizations ?? undefined,
-        regions: row.regions ?? undefined,
         priceAmountMicros: row.priceAmountMicros,
         currency: row.currency,
         billingPeriod: row.billingPeriod,
