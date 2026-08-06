@@ -7,6 +7,7 @@ import {
   normalizeProductLocalizations,
   productLocalizationsValidator,
 } from "./localizations";
+import { normalizeProductRegions, productRegionsValidator } from "./regions";
 import {
   resolveProjectByApiKeyFromDb,
   resolveProjectByIdForCurrentUserFromDb,
@@ -550,6 +551,7 @@ export const upsertProduct = mutation({
     title: v.string(),
     description: v.optional(v.string()),
     localizations: v.optional(productLocalizationsValidator),
+    regions: v.optional(productRegionsValidator),
     priceAmountMicros: v.optional(v.number()),
     currency: v.optional(v.string()),
     billingPeriod: v.optional(
@@ -595,6 +597,7 @@ export const upsertProduct = mutation({
       args.platform,
       args.type,
     );
+    const regions = normalizeProductRegions(args.regions);
 
     // iOS subscriptions REQUIRE a subscriptionGroupName upstream —
     // related tiers must share a group for StoreKit 2's native
@@ -626,6 +629,29 @@ export const upsertProduct = mutation({
       )
       .unique();
 
+    // Only the Android one-time push applies a region footprint. App
+    // Store Connect prices per-territory through a different resource
+    // this workflow does not touch, and Play's subscription update masks
+    // `listings` only, so a base plan's regional configs are fixed at
+    // create. Accepting the field for those would make it a phantom —
+    // stored, shown in the dashboard, and silently never applied.
+    // Checked against what the row will BE, not only what was sent: a
+    // Consumable with stored regions retyped as a Subscription would
+    // otherwise keep a footprint nothing applies.
+    const effectiveRegions =
+      args.regions === undefined ? (existing?.regions ?? undefined) : regions;
+    if (
+      effectiveRegions?.length &&
+      (args.platform === "IOS" || args.type === "Subscription")
+    ) {
+      throw clientPayloadError(
+        "CLIENT_PAYLOAD_INVALID",
+        args.platform === "IOS"
+          ? "Sales regions are currently Android-only. Set App Store availability in App Store Connect."
+          : "Sales regions cannot be set on a subscription. Play fixes a base plan's regional configs when it is created; change them in Play Console.",
+      );
+    }
+
     const now = Date.now();
     if (existing) {
       // State-only flips moved to `setProductState`. This mutation
@@ -645,6 +671,8 @@ export const upsertProduct = mutation({
           args.localizations === undefined
             ? existing.localizations
             : (localizations ?? null),
+        regions:
+          args.regions === undefined ? existing.regions : (regions ?? null),
         priceAmountMicros: args.priceAmountMicros ?? existing.priceAmountMicros,
         currency: args.currency ?? existing.currency,
         billingPeriod: args.billingPeriod ?? existing.billingPeriod,
@@ -682,6 +710,7 @@ export const upsertProduct = mutation({
       title: args.title,
       description: args.description,
       localizations,
+      regions,
       priceAmountMicros: args.priceAmountMicros,
       currency: args.currency,
       billingPeriod: args.billingPeriod,

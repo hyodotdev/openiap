@@ -39,6 +39,7 @@ import type * as products_localizations from "../products/localizations.js";
 import type * as products_mutation from "../products/mutation.js";
 import type * as products_play from "../products/play.js";
 import type * as products_query from "../products/query.js";
+import type * as products_regions from "../products/regions.js";
 import type * as products_sync from "../products/sync.js";
 import type * as products_syncResult from "../products/syncResult.js";
 import type * as projects_helpers from "../projects/helpers.js";
@@ -125,6 +126,7 @@ declare const fullApi: ApiFromModules<{
   "products/mutation": typeof products_mutation;
   "products/play": typeof products_play;
   "products/query": typeof products_query;
+  "products/regions": typeof products_regions;
   "products/sync": typeof products_sync;
   "products/syncResult": typeof products_syncResult;
   "projects/helpers": typeof projects_helpers;

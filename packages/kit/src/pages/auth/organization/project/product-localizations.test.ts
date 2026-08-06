@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { resolveProductLocalizations } from "./product-localizations";
+import { resolveProductListingDraft } from "./product-localizations";
 
 const row = (
   locale: string,
@@ -14,15 +14,22 @@ const row = (
 
 const resolve = (
   rows: Array<{ locale: string; title: string; description: string }>,
-  state: { editingExisting?: boolean; isLoadedRow?: boolean } = {},
+  state: {
+    editingExisting?: boolean;
+    isLoadedRow?: boolean;
+    regionsInput?: string;
+    supportsSalesRegions?: boolean;
+  } = {},
 ) =>
-  resolveProductLocalizations({
+  resolveProductListingDraft({
     rows,
     editingExisting: state.editingExisting ?? false,
     isLoadedRow: state.isLoadedRow ?? false,
+    regionsInput: state.regionsInput,
+    supportsSalesRegions: state.supportsSalesRegions ?? false,
   });
 
-describe("resolveProductLocalizations", () => {
+describe("resolveProductListingDraft", () => {
   it("trims and keeps a blank description off the payload", () => {
     expect(resolve([row(" ko-KR ", " 코인 ", "   ")])).toEqual({
       ok: true,
@@ -38,6 +45,7 @@ describe("resolveProductLocalizations", () => {
     expect(resolve([row("", "")])).toEqual({
       ok: true,
       localizations: undefined,
+      regions: undefined,
     });
   });
 

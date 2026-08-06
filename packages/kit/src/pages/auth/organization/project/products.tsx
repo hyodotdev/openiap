@@ -30,7 +30,7 @@ import {
   shouldShowProductSyncResult,
 } from "./product-sync-result";
 import { ProductSyncFailureList } from "./product-sync-failure-list";
-import { resolveProductLocalizations } from "./product-localizations";
+import { resolveProductListingDraft } from "./product-localizations";
 
 type DashboardProject = Omit<
   Doc<"projects">,
@@ -126,6 +126,14 @@ export default function ProjectProducts() {
   >([]);
   // Comma-separated ISO region codes. Blank means "every region the
   // store prices", which is the default that fixes US-only products.
+  const [regionsInput, setRegionsInput] = useState("");
+  // Only the Android one-time push applies a region footprint: ASC
+  // prices per territory through a resource this workflow doesn't touch,
+  // and Play fixes a base plan's regional configs at create. Hiding the
+  // field is how the operator learns that, instead of tripping the
+  // mutation's guard on save.
+  const supportsSalesRegions =
+    draft.platform === "Android" && draft.type !== "Subscription";
   // Typing an existing productId means "edit this row", so show the
   // locales it already has. Without this the field is write-only: the
   // editor would look empty and the operator would have no way to see,
@@ -158,6 +166,7 @@ export default function ProjectProducts() {
   const loadStoredMetadata = () => {
     if (!editingExisting || !editingKey) return;
     setLoadedKey(editingKey);
+    setRegionsInput((editingExisting.regions ?? []).join(", "));
     setLocalizations(
       (editingExisting.localizations ?? []).map((entry) => ({
         locale: entry.locale,
@@ -312,13 +321,15 @@ export default function ProjectProducts() {
       : undefined;
     const billingPeriod =
       draft.type === "Subscription" ? draft.billingPeriod : undefined;
-    const resolvedLocalizations = resolveProductLocalizations({
+    const resolvedDraft = resolveProductListingDraft({
       rows: localizations,
+      regionsInput,
+      supportsSalesRegions,
       editingExisting: Boolean(editingExisting),
       isLoadedRow,
     });
-    if (!resolvedLocalizations.ok) {
-      toast.error(resolvedLocalizations.error);
+    if (!resolvedDraft.ok) {
+      toast.error(resolvedDraft.error);
       return;
     }
     try {
@@ -334,7 +345,8 @@ export default function ProjectProducts() {
         billingPeriod,
         subscriptionGroupName,
         reviewNote,
-        localizations: resolvedLocalizations.localizations,
+        localizations: resolvedDraft.localizations,
+        regions: resolvedDraft.regions,
         state: "Draft",
       });
     } catch (error) {
@@ -354,6 +366,7 @@ export default function ProjectProducts() {
       reviewNote: "",
     });
     setLocalizations([]);
+    setRegionsInput("");
     setLoadedKey(null);
   };
 
@@ -600,6 +613,22 @@ export default function ProjectProducts() {
             />
           </Field>
         </div>
+        {supportsSalesRegions && (
+          <Field label="Sales regions (optional)">
+            <input
+              value={regionsInput}
+              onChange={(e) => setRegionsInput(e.target.value)}
+              placeholder="Leave blank to sell everywhere — or e.g. US, KR, JP"
+              className="w-full px-2 py-1.5 rounded border border-border bg-background"
+            />
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              Two-letter country codes, comma separated. Blank prices the
+              product in every region the store supports, converted from the
+              price above. A list restricts it to those markets and keeps it out
+              of regions the store adds later.
+            </p>
+          </Field>
+        )}
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <span className="text-xs font-medium text-muted-foreground">
@@ -610,7 +639,7 @@ export default function ProjectProducts() {
                 onClick={loadStoredMetadata}
                 className="text-xs text-primary hover:underline"
               >
-                Load stored languages
+                Load stored languages{supportsSalesRegions ? " & regions" : ""}
               </button>
             )}
             <button
