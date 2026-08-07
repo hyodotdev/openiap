@@ -81,18 +81,6 @@ describe("ingestGoogleRtdn preflight", () => {
     expect(runMutation.mock.calls[2]?.[1]).toEqual({
       projectId: "project_a",
       eventId: "event_existing",
-      event: {
-        type: "SubscriptionRenewed",
-        productId: "premium_monthly",
-        subscriptionState: "Active",
-        expiresAt: 2_000,
-        renewsAt: 2_000,
-        cancellationReason: undefined,
-        currency: "USD",
-        priceAmountMicros: 9_990_000,
-        platform: "Android",
-        purchaseToken: "purchase_token",
-      },
     });
   });
 });

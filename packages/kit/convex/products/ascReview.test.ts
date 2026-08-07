@@ -46,7 +46,7 @@ describe("readAscReviewListings", () => {
             id: "loc-ko",
             type: "inAppPurchaseLocalizations",
             attributes: {
-              locale: "ko-KR",
+              locale: "ko",
               name: "문 세이지",
               description: "전체 해금",
             },
@@ -54,7 +54,7 @@ describe("readAscReviewListings", () => {
           {
             id: "loc-ja",
             type: "inAppPurchaseLocalizations",
-            attributes: { locale: "ja-JP", name: "ムーンセージ" },
+            attributes: { locale: "ja", name: "ムーンセージ" },
           },
         ],
       } as T;
@@ -63,8 +63,8 @@ describe("readAscReviewListings", () => {
     await expect(
       readAscReviewListings({ request, kind: "iap", parentId: "iap-1" }),
     ).resolves.toEqual([
-      { locale: "ko-KR", title: "문 세이지", description: "전체 해금" },
-      { locale: "ja-JP", title: "ムーンセージ" },
+      { locale: "ko", title: "문 세이지", description: "전체 해금" },
+      { locale: "ja", title: "ムーンセージ" },
     ]);
     expect(paths).toEqual([
       "/v2/inAppPurchases/iap-1/versions?limit=200",
@@ -933,6 +933,37 @@ describe("ASC version and submission workflow", () => {
     });
   });
 
+  it("maps common Japanese and Korean BCP-47 tags at the ASC boundary", async () => {
+    const bodies: unknown[] = [];
+    const request: AscJsonRequest = async <T>(
+      path: string,
+      init?: RequestInit & { body?: string },
+    ) => {
+      if (path.includes("/localizations?")) return { data: [] } as T;
+      if (init?.body) bodies.push(JSON.parse(init.body));
+      return { data: { id: "loc-1" } } as T;
+    };
+
+    for (const locale of ["ja-JP", "ko-KR"]) {
+      await upsertAscReviewLocalization({
+        request,
+        kind: "iap",
+        versionId: "iap-version",
+        name: "Localized name",
+        description: "Localized description",
+        locale,
+      });
+    }
+
+    expect(
+      bodies.map(
+        (body) =>
+          (body as { data: { attributes: { locale: string } } }).data.attributes
+            .locale,
+      ),
+    ).toEqual(["ja", "ko"]);
+  });
+
   it("treats READY_FOR_REVIEW as attached and does not create a mutable version", async () => {
     const request = vi.fn(async () => ({
       data: [
@@ -1132,7 +1163,7 @@ describe("ASC version and submission workflow", () => {
           { locale: "ko-KR", title: "코인", description: "코인 100개" },
         ],
       }),
-    ).resolves.toBe("ko-KR");
+    ).resolves.toBe("ko");
   });
 
   it("finds matching metadata on a later localization page", async () => {
@@ -1144,7 +1175,7 @@ describe("ASC version and submission workflow", () => {
                 id: "loc-ko",
                 type: "inAppPurchaseLocalizations",
                 attributes: {
-                  locale: "ko-KR",
+                  locale: "ko",
                   name: "코인",
                   description: "코인 100개",
                 },

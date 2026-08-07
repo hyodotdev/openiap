@@ -1,5 +1,5 @@
 import { internalMutation, type MutationCtx } from "../_generated/server";
-import { v, type Infer } from "convex/values";
+import { v } from "convex/values";
 import type { Doc, Id } from "../_generated/dataModel";
 
 import { HarmonizedPurchaseState } from "../purchases/purchaseState";
@@ -11,37 +11,24 @@ import {
 import { applyStatsTransition, statsContributionFor } from "./stats";
 import { assertProjectWritable } from "../projects/writable";
 
-const subscriptionStateValidator = v.union(
-  v.literal("Active"),
-  v.literal("InGracePeriod"),
-  v.literal("InBillingRetry"),
-  v.literal("Expired"),
-  v.literal("Revoked"),
-  v.literal("Refunded"),
-  v.literal("Paused"),
-  v.literal("Unknown"),
-);
-
 const subscriptionPlatformValidator = v.union(
   v.literal("IOS"),
   v.literal("Android"),
 );
 
-const eventInputValidator = v.object({
-  type: v.string(),
-  productId: v.optional(v.string()),
-  subscriptionState: v.optional(subscriptionStateValidator),
-  expiresAt: v.optional(v.number()),
-  renewsAt: v.optional(v.number()),
-  cancellationReason: v.optional(v.string()),
-  currency: v.optional(v.string()),
-  priceAmountMicros: v.optional(v.number()),
-  platform: subscriptionPlatformValidator,
-  purchaseToken: v.string(),
-});
-
-type RawEventInput = Infer<typeof eventInputValidator>;
-type SubscriptionState = Infer<typeof subscriptionStateValidator>;
+type RawEventInput = Pick<
+  Doc<"webhookEvents">,
+  | "type"
+  | "productId"
+  | "subscriptionState"
+  | "expiresAt"
+  | "renewsAt"
+  | "cancellationReason"
+  | "currency"
+  | "priceAmountMicros"
+  | "platform"
+> & { purchaseToken: string };
+type SubscriptionState = Doc<"subscriptions">["state"];
 type SubscriptionCancellationReason = NonNullable<
   Doc<"subscriptions">["cancellationReason"]
 >;
@@ -109,79 +96,143 @@ interface PersistSubscriptionSnapshotArgs {
   lastEventId?: Id<"webhookEvents">;
 }
 
-// Apply a webhook event to the canonical `subscriptions` table. Idempotent
-// with respect to `lastEventId` so a re-run of the same event (after a
-// retry / replay) doesn't double-count metrics.
+interface ApplySubscriptionEventArgs {
+  projectId: Id<"projects">;
+  eventId: Id<"webhookEvents">;
+}
+
+interface ApplySubscriptionEventResult {
+  transition: string | null;
+  active: boolean;
+  subscriptionId?: Id<"subscriptions">;
+}
+
+// Apply a webhook event to the canonical `subscriptions` table. The event's
+// durable appliedAt marker is committed in the same Convex transaction as
+// the subscription and stats writes, so both retry gaps are safe: a crash
+// before this mutation can be repaired, while any event this mutation already
+// processed can never be replayed after a newer lastEventId replaces it.
 export const applySubscriptionEvent = internalMutation({
   args: {
     projectId: v.id("projects"),
     eventId: v.id("webhookEvents"),
-    event: eventInputValidator,
   },
   returns: v.object({
     transition: v.union(v.string(), v.null()),
     active: v.boolean(),
     subscriptionId: v.optional(v.id("subscriptions")),
   }),
-  handler: async (ctx, args) => {
-    await assertProjectWritable(ctx, args.projectId);
-    const existing = await findSubscriptionByToken(
-      ctx,
-      args.projectId,
-      args.event.purchaseToken,
-    );
+  handler: async (ctx, args) => applySubscriptionEventHandler(ctx, args),
+});
 
-    if (existing && existing.lastEventId === args.eventId) {
-      return {
-        transition: null,
-        active: isActive(existing),
-        subscriptionId: existing._id,
-      };
+export async function applySubscriptionEventHandler(
+  ctx: MutationCtx,
+  args: ApplySubscriptionEventArgs,
+): Promise<ApplySubscriptionEventResult> {
+  await assertProjectWritable(ctx, args.projectId);
+  const storedEvent = await ctx.db.get(args.eventId);
+  if (!storedEvent || storedEvent.projectId !== args.projectId) {
+    throw new Error("Webhook event not found for project");
+  }
+
+  const now = Date.now();
+  if (!storedEvent.purchaseToken) {
+    if (storedEvent.appliedAt === undefined) {
+      await ctx.db.patch(storedEvent._id, { appliedAt: now });
     }
+    return { transition: null, active: false };
+  }
 
-    const current: CurrentSubscription = existing
-      ? {
-          state: existing.state,
-          productId: existing.productId,
-          expiresAt: existing.expiresAt,
-          renewsAt: existing.renewsAt,
-          willRenew: existing.willRenew,
-          cancellationReason: existing.cancellationReason,
-          currency: existing.currency,
-          priceAmountMicros: existing.priceAmountMicros,
-        }
-      : null;
+  const existing = await findSubscriptionByToken(
+    ctx,
+    args.projectId,
+    storedEvent.purchaseToken,
+  );
+  const noOpResult = (): ApplySubscriptionEventResult => ({
+    transition: null,
+    active: existing ? isActive(existing) : false,
+    ...(existing ? { subscriptionId: existing._id } : {}),
+  });
 
-    const transition = applySubscriptionTransition(
-      current,
-      coerceEventInput(args.event),
-    );
+  if (storedEvent.appliedAt !== undefined) return noOpResult();
 
-    if (!transition.next) {
-      return {
-        transition: transition.transition ?? null,
-        active: false,
-        subscriptionId: existing?._id,
-      };
+  // Rollout compatibility for events written before appliedAt existed. The
+  // current last event proves itself applied; an event older than the current
+  // last event must be marked handled without being allowed to roll state
+  // backwards. A recorded-but-unapplied newest event still falls through and
+  // repairs the original action/mutation gap.
+  if (existing?.lastEventId) {
+    if (existing.lastEventId === args.eventId) {
+      await ctx.db.patch(storedEvent._id, { appliedAt: now });
+      return noOpResult();
     }
+    const lastEvent = await ctx.db.get(existing.lastEventId);
+    if (
+      lastEvent?.projectId === args.projectId &&
+      lastEvent.purchaseToken === storedEvent.purchaseToken &&
+      lastEvent.platform === storedEvent.platform &&
+      lastEvent.occurredAt >= storedEvent.occurredAt
+    ) {
+      await ctx.db.patch(storedEvent._id, { appliedAt: now });
+      return noOpResult();
+    }
+  }
 
-    const subscriptionId = await persistSubscriptionSnapshot(ctx, {
-      projectId: args.projectId,
-      platform: args.event.platform,
-      purchaseToken: args.event.purchaseToken,
-      existing,
-      next: transition.next,
-      now: Date.now(),
-      lastEventId: args.eventId,
-    });
+  const current: CurrentSubscription = existing
+    ? {
+        state: existing.state,
+        productId: existing.productId,
+        expiresAt: existing.expiresAt,
+        renewsAt: existing.renewsAt,
+        willRenew: existing.willRenew,
+        cancellationReason: existing.cancellationReason,
+        currency: existing.currency,
+        priceAmountMicros: existing.priceAmountMicros,
+      }
+    : null;
+  const event: RawEventInput = {
+    type: storedEvent.type,
+    productId: storedEvent.productId,
+    subscriptionState: storedEvent.subscriptionState,
+    expiresAt: storedEvent.expiresAt,
+    renewsAt: storedEvent.renewsAt,
+    cancellationReason: storedEvent.cancellationReason,
+    currency: storedEvent.currency,
+    priceAmountMicros: storedEvent.priceAmountMicros,
+    platform: storedEvent.platform,
+    purchaseToken: storedEvent.purchaseToken,
+  };
+  const transition = applySubscriptionTransition(
+    current,
+    coerceEventInput(event),
+  );
 
+  if (!transition.next) {
+    await ctx.db.patch(storedEvent._id, { appliedAt: now });
     return {
       transition: transition.transition ?? null,
-      active: transition.active,
-      subscriptionId,
+      active: false,
+      ...(existing ? { subscriptionId: existing._id } : {}),
     };
-  },
-});
+  }
+
+  const subscriptionId = await persistSubscriptionSnapshot(ctx, {
+    projectId: args.projectId,
+    platform: event.platform,
+    purchaseToken: event.purchaseToken,
+    existing,
+    next: transition.next,
+    now,
+    lastEventId: args.eventId,
+  });
+  await ctx.db.patch(storedEvent._id, { appliedAt: now });
+
+  return {
+    transition: transition.transition ?? null,
+    active: transition.active,
+    subscriptionId,
+  };
+}
 
 export function buildVerifiedSubscriptionSnapshot(
   input: VerifiedSubscriptionInput,
@@ -510,14 +561,12 @@ async function fetchBillingPeriod(
 
 function coerceEventInput(raw: RawEventInput): SubscriptionEventInput {
   return {
-    type: raw.type as SubscriptionEventInput["type"],
+    type: raw.type,
     productId: raw.productId,
     subscriptionState: raw.subscriptionState,
     expiresAt: raw.expiresAt,
     renewsAt: raw.renewsAt,
-    cancellationReason: raw.cancellationReason as
-      | SubscriptionEventInput["cancellationReason"]
-      | undefined,
+    cancellationReason: raw.cancellationReason,
     currency: raw.currency,
     priceAmountMicros: raw.priceAmountMicros,
   };

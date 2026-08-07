@@ -2,6 +2,8 @@
 
 import { createHash } from "node:crypto";
 
+import { localeForAppStoreConnect } from "./localizations";
+
 export type AscReviewKind = "iap" | "subscription";
 export const ASC_REVIEW_SUBMISSION_ITEM_LIMIT = 200;
 // Keep one worker's prepare→submit unit comfortably below Convex's action
@@ -880,7 +882,10 @@ export async function upsertAscReviewLocalization(args: {
   checkCancelled?: () => Promise<void>;
 }): Promise<void> {
   const config = VERSION_CONFIG[args.kind];
-  const locale = args.locale ?? "en-US";
+  // Normalize again at the ASC boundary so legacy rows saved before locale
+  // validation was strict do not keep replaying unsupported `ja-JP` / `ko-KR`
+  // values into App Store Connect.
+  const locale = localeForAppStoreConnect(args.locale ?? "en-US");
   const checkCancelled = args.checkCancelled ?? (async () => undefined);
   await checkCancelled();
   const localizations = await args.request<AscLocalizationResponse>(
@@ -955,14 +960,15 @@ export async function ascReviewLocalizationMismatch(args: {
     checkCancelled,
   });
   for (const listing of args.listings) {
+    const locale = localeForAppStoreConnect(listing.locale);
     const existing = localizations.find(
-      (localization) => localization.attributes?.locale === listing.locale,
+      (localization) => localization.attributes?.locale === locale,
     );
     if (
       existing?.attributes?.name !== listing.title ||
       existing.attributes.description !== (listing.description ?? listing.title)
     ) {
-      return listing.locale;
+      return locale;
     }
   }
   return undefined;

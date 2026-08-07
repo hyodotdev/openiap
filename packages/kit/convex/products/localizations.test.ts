@@ -71,6 +71,45 @@ describe("normalizeProductLocalizations", () => {
     }
   });
 
+  it("normalizes common Japanese and Korean tags to ASC shortcodes", () => {
+    expect(
+      normalizeProductLocalizations(
+        [
+          { locale: "ja-JP", title: "コイン" },
+          { locale: "ko-KR", title: "코인" },
+        ],
+        "IOS",
+        "Consumable",
+      ),
+    ).toEqual([
+      { locale: "ja", title: "コイン" },
+      { locale: "ko", title: "코인" },
+    ]);
+  });
+
+  it("rejects BCP-47 locales outside ASC's supported shortcode list", () => {
+    expect(() =>
+      normalizeProductLocalizations(
+        [{ locale: "es-419", title: "Monedas" }],
+        "IOS",
+        "Consumable",
+      ),
+    ).toThrow(/App Store Connect locale.*es-419/);
+  });
+
+  it("detects duplicates after applying ASC aliases", () => {
+    expect(() =>
+      normalizeProductLocalizations(
+        [
+          { locale: "ko", title: "하나" },
+          { locale: "ko-KR", title: "둘" },
+        ],
+        "IOS",
+        "Consumable",
+      ),
+    ).toThrow(/Duplicate localization locale/);
+  });
+
   it("rejects malformed locales rather than letting the store 400", () => {
     for (const locale of ["ko_KR", "", "k", "ko-", "-KR", "ko KR"]) {
       expect(() =>

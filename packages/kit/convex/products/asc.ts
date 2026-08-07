@@ -384,6 +384,17 @@ function isBenignAscRetryConflict(error: unknown): boolean {
   );
 }
 
+interface AscPriceStartAttributes {
+  startDate?: string;
+}
+
+/** Omitting startDate is ASC's representation for an immediate price. */
+export function ascPriceStartAttributes(
+  startDate?: string,
+): AscPriceStartAttributes {
+  return startDate === undefined ? {} : { startDate };
+}
+
 class AscClient {
   private cached: AscToken | null = null;
 
@@ -721,7 +732,6 @@ class AscClient {
     startDate?: string; // YYYY-MM-DD; omit for "effective immediately"
   }) {
     const priceLid = "${newPrice}";
-    const today = args.startDate ?? new Date().toISOString().slice(0, 10);
     return this.call<{ data: { id: string } }>(
       `/v1/inAppPurchasePriceSchedules`,
       {
@@ -745,7 +755,7 @@ class AscClient {
             {
               type: "inAppPurchasePrices",
               id: priceLid,
-              attributes: { startDate: today },
+              attributes: ascPriceStartAttributes(args.startDate),
               relationships: {
                 inAppPurchasePricePoint: {
                   data: {

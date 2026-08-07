@@ -65,13 +65,74 @@ export const productLocalizationsValidator = v.array(
 // Play and ASC do NOT share a locale vocabulary — Simplified Chinese is
 // `zh-CN` on Play and `zh-Hans` on ASC; Latin American Spanish is
 // `es-419` on Play and `es-MX` on ASC. A product row targets exactly one
-// platform, so the operator authors the codes that row's own store
-// expects and no translation layer is needed. The pattern therefore has
-// to admit script subtags (`zh-Hans`) and numeric region subtags
-// (`es-419`) alongside `ko` and `pt-BR`, while still rejecting the
-// obvious typos (`ko_KR`, `KO`, `korean`) that would otherwise surface
-// as an opaque 400 from the store two steps later.
+// platform. The pattern must admit script subtags (`zh-Hans`) and numeric
+// region subtags (`es-419`); platform-specific validation below then enforces
+// ASC's fixed shortcode inventory while Play keeps accepting general BCP-47.
 const LOCALE_PATTERN = /^[a-z]{2,3}(-[A-Za-z0-9]{2,8}){0,2}$/;
+
+// App Store Connect accepts a fixed locale-shortcode vocabulary rather than
+// every valid BCP-47 tag. In particular, Japanese and Korean are `ja` / `ko`,
+// not the equally valid region-qualified `ja-JP` / `ko-KR` forms that Play
+// accepts. Keep the store boundary explicit so a dashboard edit fails locally
+// instead of surfacing as an opaque ASC 409 during push-sync.
+// https://developer.apple.com/documentation/appstoreconnectapi/managing-metadata-in-your-app-by-using-locale-shortcodes
+const ASC_LOCALE_SHORTCODES = new Set([
+  "ar-SA",
+  "bn-BD",
+  "ca",
+  "zh-Hans",
+  "zh-Hant",
+  "hr",
+  "cs",
+  "da",
+  "nl-NL",
+  "en-AU",
+  "en-CA",
+  "en-GB",
+  "en-US",
+  "fi",
+  "fr-FR",
+  "fr-CA",
+  "de-DE",
+  "el",
+  "gu-IN",
+  "he",
+  "hi",
+  "hu",
+  "id",
+  "it",
+  "ja",
+  "kn-IN",
+  "ko",
+  "ms",
+  "ml-IN",
+  "mr-IN",
+  "no",
+  "or-IN",
+  "pl",
+  "pt-BR",
+  "pt-PT",
+  "pa-IN",
+  "ro",
+  "ru",
+  "sk",
+  "sl-SI",
+  "es-MX",
+  "es-ES",
+  "sv",
+  "ta-IN",
+  "te-IN",
+  "th",
+  "tr",
+  "uk",
+  "ur-PK",
+  "vi",
+]);
+
+const ASC_LOCALE_ALIASES = new Map([
+  ["ja-JP", "ja"],
+  ["ko-KR", "ko"],
+]);
 
 /**
  * Canonicalizes a BCP-47 tag's casing: lowercase language, Titlecase
@@ -88,6 +149,18 @@ function canonicalizeLocale(raw: string): string {
       return part.toUpperCase();
     })
     .join("-");
+}
+
+/** Converts a BCP-47 locale into the shortcode accepted by ASC. */
+export function localeForAppStoreConnect(raw: string): string {
+  const canonical = canonicalizeLocale(raw);
+  const locale = ASC_LOCALE_ALIASES.get(canonical) ?? canonical;
+  if (!ASC_LOCALE_SHORTCODES.has(locale)) {
+    throw invalidListing(
+      `Invalid App Store Connect locale "${raw}". Use an ASC locale shortcode such as "en-US", "ja", "ko", or "zh-Hans".`,
+    );
+  }
+  return locale;
 }
 
 /**
@@ -118,6 +191,10 @@ export function normalizeProductLocalizations(
   if (!localizations || localizations.length === 0) return undefined;
 
   const limits = listingLimitsFor(platform, type);
+  const normalizedBaseLocale =
+    platform === "IOS"
+      ? localeForAppStoreConnect(baseLocale)
+      : canonicalizeLocale(baseLocale);
   const seen = new Set<string>();
   const normalized: ProductLocalization[] = [];
 
@@ -126,15 +203,19 @@ export function normalizeProductLocalizations(
     // same locale, so without this a duplicate slips through and the
     // store rejects the pair — and `EN-us` would dodge the base-locale
     // guard entirely.
-    const locale = canonicalizeLocale(entry.locale);
+    const canonicalLocale = canonicalizeLocale(entry.locale);
+    const locale =
+      platform === "IOS"
+        ? localeForAppStoreConnect(canonicalLocale)
+        : canonicalLocale;
     if (!LOCALE_PATTERN.test(locale)) {
       throw invalidListing(
         `Invalid localization locale "${entry.locale}". Use a BCP-47 code such as "ko" or "ko-KR".`,
       );
     }
-    if (locale === baseLocale) {
+    if (locale === normalizedBaseLocale) {
       throw invalidListing(
-        `Localization locale "${baseLocale}" is reserved for the product's own title and description. Edit those instead of adding a localization for it.`,
+        `Localization locale "${normalizedBaseLocale}" is reserved for the product's own title and description. Edit those instead of adding a localization for it.`,
       );
     }
     if (seen.has(locale)) {

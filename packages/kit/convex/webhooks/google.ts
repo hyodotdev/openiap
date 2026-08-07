@@ -155,9 +155,8 @@ export const ingestGoogleRtdn = action({
     // retries don't burn Play Developer
     // API quota on every redelivery — kit's webhook receiver becomes a
     // multiplier of Play API calls otherwise (one Pub/Sub retry per
-    // outage minute → one Play API call per retry). The downstream
-    // recordWebhookEvent + applySubscriptionEvent are still fully
-    // idempotent, so this is purely a Play-quota / latency optimization.
+    // outage minute → one Play API call per retry). The downstream mutation
+    // reads the stored event and atomically marks its transition applied.
     const preFlightEvent = await ctx.runQuery(
       internal.webhooks.internal.lookupExistingEvent,
       {
@@ -173,18 +172,6 @@ export const ingestGoogleRtdn = action({
           {
             projectId: project._id,
             eventId: preFlightEvent.eventId,
-            event: {
-              type: preFlightEvent.type,
-              productId: preFlightEvent.productId,
-              subscriptionState: preFlightEvent.subscriptionState,
-              expiresAt: preFlightEvent.expiresAt,
-              renewsAt: preFlightEvent.renewsAt,
-              cancellationReason: preFlightEvent.cancellationReason,
-              currency: preFlightEvent.currency,
-              priceAmountMicros: preFlightEvent.priceAmountMicros,
-              platform: preFlightEvent.platform,
-              purchaseToken: preFlightEvent.purchaseToken,
-            },
           },
         );
       }
@@ -268,8 +255,8 @@ export const ingestGoogleRtdn = action({
     );
 
     // Always run applySubscriptionEvent — see the matching note in
-    // webhooks/apple.ts. The mutation is idempotent on lastEventId so
-    // a no-op replay is cheap, but skipping on dedup left the
+    // webhooks/apple.ts. The mutation is idempotent on webhookEvents.appliedAt,
+    // but skipping on dedup left the
     // subscription stranded if a previous attempt persisted the event
     // then crashed before patching the subscription row (every Google
     // RTDN retry would dedup before reaching the state mutation).
@@ -283,18 +270,6 @@ export const ingestGoogleRtdn = action({
         {
           projectId: project._id,
           eventId: result.eventId,
-          event: {
-            type: normalized.type,
-            productId: normalized.productId,
-            subscriptionState: normalized.subscriptionState,
-            expiresAt: normalized.expiresAt,
-            renewsAt: normalized.renewsAt,
-            cancellationReason: normalized.cancellationReason,
-            currency: normalized.currency,
-            priceAmountMicros: normalized.priceAmountMicros,
-            platform: normalized.platform,
-            purchaseToken: normalized.purchaseToken,
-          },
         },
       );
     }

@@ -612,6 +612,11 @@ const schema = defineSchema({
     rawSignedPayload: v.optional(v.string()),
     occurredAt: v.number(),
     receivedAt: v.number(),
+    // Set in the same mutation that applies the lifecycle transition and
+    // incremental stats delta. Unlike subscriptions.lastEventId, this remains
+    // attached to the retained event after newer events arrive, so an old
+    // Pub/Sub / ASN redelivery cannot replay its transition over current state.
+    appliedAt: v.optional(v.number()),
   })
     .index("by_project", ["projectId"])
     .index("by_purchase_token", ["purchaseToken"])

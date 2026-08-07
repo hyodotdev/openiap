@@ -2,6 +2,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import {
   ProductSyncCancelledError,
+  ascPriceStartAttributes,
   pushAscReviewLocalizations,
   syncAscReviewLocalization,
   ascCustomerPriceToMicros,
@@ -542,6 +543,18 @@ describe("mapAscOfferKind", () => {
   it("falls back to FreeTrial for unknown / undefined modes", () => {
     expect(mapAscOfferKind(undefined)).toBe("FreeTrial");
     expect(mapAscOfferKind("UNKNOWN")).toBe("FreeTrial");
+  });
+});
+
+describe("ascPriceStartAttributes", () => {
+  it("omits startDate for an immediately effective IAP price", () => {
+    expect(ascPriceStartAttributes()).toEqual({});
+  });
+
+  it("keeps an explicitly scheduled startDate", () => {
+    expect(ascPriceStartAttributes("2026-08-08")).toEqual({
+      startDate: "2026-08-08",
+    });
   });
 });
 
