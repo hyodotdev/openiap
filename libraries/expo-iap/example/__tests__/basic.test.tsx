@@ -10,28 +10,28 @@ const TestComponent = () => (
 );
 
 describe('Basic Tests', () => {
-  it('should render test component', () => {
-    const {getByText} = render(<TestComponent />);
+  it('should render test component', async () => {
+    const {getByText} = await render(<TestComponent />);
     expect(getByText('expo-iap Example App')).toBeTruthy();
   });
 
-  it('should pass basic math test', () => {
+  it('should pass basic math test', async () => {
     expect(1 + 1).toBe(2);
   });
 
-  it('should test string operations', () => {
+  it('should test string operations', async () => {
     const text = 'expo-iap';
     expect(text).toContain('iap');
     expect(text.length).toBe(8);
   });
 
-  it('should test array operations', () => {
+  it('should test array operations', async () => {
     const products = ['product1', 'product2', 'product3'];
     expect(products).toHaveLength(3);
     expect(products).toContain('product2');
   });
 
-  it('should test object operations', () => {
+  it('should test object operations', async () => {
     const product = {
       id: 'com.example.product',
       price: 9.99,

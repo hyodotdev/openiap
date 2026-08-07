@@ -1365,7 +1365,6 @@ class OpenIapModule(
             }
 
             OpenIapLog.info("=== END restorePurchases ===", TAG)
-            Unit
         }
     }
 
@@ -1578,11 +1577,11 @@ class OpenIapModule(
                     OpenIapLog.info("Processing ${purchases.size} successful purchases", TAG)
 
                     val mapped = purchases.map { purchase ->
-                        val productIds = purchase.products.orEmpty()
+                        val productIds = purchase.products
                         val correlatedRequest = pendingRequest?.takeIf { request ->
                             val launchStartedAtMillis = request.launchStartedAtMillis
                                 ?: return@takeIf false
-                            (purchase.purchaseTime ?: 0L).toDouble() >= launchStartedAtMillis &&
+                            purchase.purchaseTime.toDouble() >= launchStartedAtMillis &&
                                 productIds.any { it in request.requestedSkus }
                         }
                         val cachedSubscriptionProductIds = productIds.filterTo(mutableSetOf()) {

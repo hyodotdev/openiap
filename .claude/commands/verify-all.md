@@ -168,7 +168,10 @@ bash packages/apple/scripts/build-xcframework.sh
   dotnet build -p:TargetFrameworks=net10.0-maccatalyst --nologo)
 
 # Documentation/context consistency and patch hygiene
-bun test scripts/audit-docs.test.ts
+bun test \
+  --path-ignore-patterns='**/build/**' \
+  --path-ignore-patterns='**/.build/**' \
+  scripts/audit-docs.test.ts
 bun run audit:docs
 git diff --check
 ```
@@ -309,7 +312,10 @@ set -euo pipefail
 (cd scripts/agent && bun run compile:ai && bun test && bun run typecheck)
 bun run audit:parity
 bun run audit:release-state
-bun test scripts/audit-docs.test.ts
+bun test \
+  --path-ignore-patterns='**/build/**' \
+  --path-ignore-patterns='**/.build/**' \
+  scripts/audit-docs.test.ts
 bun run audit:docs
 git diff --check
 diff llms-full.txt packages/docs/public/llms-full.txt

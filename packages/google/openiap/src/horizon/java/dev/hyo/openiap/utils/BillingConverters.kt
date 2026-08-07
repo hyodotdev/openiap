@@ -123,7 +123,7 @@ internal object HorizonBillingConverters {
 
     fun HorizonPurchase.toPurchase(basePlanId: String? = null): PurchaseAndroid {
         val token = purchaseToken
-        val productsList = products ?: emptyList()
+        val productsList = products
         val state = PurchaseState.fromHorizonState(getPurchaseState())
         return PurchaseAndroid(
             autoRenewingAndroid = isAutoRenewing(),
@@ -144,10 +144,10 @@ internal object HorizonBillingConverters {
             productId = productsList.firstOrNull().orEmpty(),
             purchaseState = state,
             purchaseToken = token,
-            quantity = quantity ?: 1,
+            quantity = quantity,
             signatureAndroid = signature,
             store = IapStore.Horizon,
-            transactionDate = (purchaseTime ?: 0L).toDouble(),
+            transactionDate = purchaseTime.toDouble(),
             transactionId = orderId?.takeIf { it.isNotBlank() } ?: token,
             // Amazon-flavor-only fields; Horizon purchases never carry them.
             userIdAmazon = null,
@@ -160,10 +160,10 @@ internal object HorizonBillingConverters {
         basePlanIdAndroid = null,
         currentPlanId = null,
         isActive = true,
-        productId = products?.firstOrNull().orEmpty(),
+        productId = products.firstOrNull().orEmpty(),
         purchaseToken = purchaseToken,
         purchaseTokenAndroid = purchaseToken,
-        transactionDate = (purchaseTime ?: 0L).toDouble(),
+        transactionDate = purchaseTime.toDouble(),
         // Same blank-orderId fallback as toPurchase above.
         transactionId = orderId?.takeIf { it.isNotBlank() } ?: purchaseToken
     )

@@ -790,7 +790,6 @@ class OpenIapModule(
     override val restorePurchases: MutationRestorePurchasesHandler = {
         withContext(Dispatchers.IO) {
             requestPurchaseUpdates(reset = true)
-            Unit
         }
     }
 
@@ -800,7 +799,6 @@ class OpenIapModule(
                 .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
             runCatching { context.startActivity(intent) }
                 .onFailure { OpenIapLog.warn("Amazon subscription deep link unavailable: ${it.message}", TAG) }
-            Unit
         }
     }
 

@@ -131,7 +131,9 @@ fun ProductDetailModal(
                         DetailRow("Currency", product.currency)
                         product.price?.let { DetailRow("Raw Price", it.toString()) }
                         DetailRow("Platform", product.platform.rawValue)
-                        product.nameAndroid?.let { DetailRow("Android Name", it) }
+                        product.nameAndroid.takeIf { it.isNotEmpty() }?.let {
+                            DetailRow("Android Name", it)
+                        }
                     }
 
                     product.discountOffers?.takeIf { it.isNotEmpty() }?.let { offers ->

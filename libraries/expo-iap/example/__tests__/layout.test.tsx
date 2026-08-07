@@ -23,18 +23,18 @@ jest.mock('expo-router', () => {
 });
 
 describe('RootLayout', () => {
-  it('should render without crashing', () => {
-    const {toJSON} = render(<RootLayout />);
+  it('should render without crashing', async () => {
+    const {toJSON} = await render(<RootLayout />);
     expect(toJSON()).toBeDefined();
   });
 
-  it('should return a valid React element', () => {
+  it('should return a valid React element', async () => {
     const component = <RootLayout />;
     expect(React.isValidElement(component)).toBe(true);
   });
 
-  it('should register every example route', () => {
-    const {getByTestId} = render(<RootLayout />);
+  it('should register every example route', async () => {
+    const {getByTestId} = await render(<RootLayout />);
 
     [
       'index',

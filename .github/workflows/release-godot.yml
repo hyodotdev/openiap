@@ -66,17 +66,21 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
-      - name: Download godot-lib.aar
+      - name: Build against minimum Godot Android API
         run: |
           mkdir -p android/libs
           curl -L -o android/libs/godot-lib.aar \
             "https://github.com/godotengine/godot/releases/download/4.3-stable/godot-lib.4.3.stable.template_release.aar"
-
-      - name: Build Android AAR
-        run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleRelease
+          ./gradlew clean assembleRelease
+
+      - name: Build against latest Godot Android API
+        run: |
+          curl -L -o android/libs/godot-lib.aar \
+            "https://github.com/godotengine/godot/releases/download/4.7.1-stable/godot-lib.4.7.1.stable.template_release.aar"
+          cd android
+          ./gradlew clean assembleRelease
 
   validate-ios:
     needs: [release-branch]

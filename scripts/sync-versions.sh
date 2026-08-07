@@ -280,7 +280,9 @@ preserved_property_names = [
     "MauiBillingClientNuGetVersion",
     "MauiGoogleGsonNuGetVersion",
     "MauiAndroidXActivityVersion",
+    "MauiAndroidXCollectionVersion",
     "MauiAndroidXFragmentVersion",
+    "MauiAndroidXFragmentKtxVersion",
     "MauiAndroidXLifecycleVersion",
     "MauiAndroidXSavedStateVersion",
     "MauiKotlinStdLibVersion",
@@ -307,7 +309,9 @@ content = f"""<Project>
     <MauiBillingClientNuGetVersion>{preserved["MauiBillingClientNuGetVersion"]}</MauiBillingClientNuGetVersion>
     <MauiGoogleGsonNuGetVersion>{preserved["MauiGoogleGsonNuGetVersion"]}</MauiGoogleGsonNuGetVersion>
     <MauiAndroidXActivityVersion>{preserved["MauiAndroidXActivityVersion"]}</MauiAndroidXActivityVersion>
+    <MauiAndroidXCollectionVersion>{preserved["MauiAndroidXCollectionVersion"]}</MauiAndroidXCollectionVersion>
     <MauiAndroidXFragmentVersion>{preserved["MauiAndroidXFragmentVersion"]}</MauiAndroidXFragmentVersion>
+    <MauiAndroidXFragmentKtxVersion>{preserved["MauiAndroidXFragmentKtxVersion"]}</MauiAndroidXFragmentKtxVersion>
     <MauiAndroidXLifecycleVersion>{preserved["MauiAndroidXLifecycleVersion"]}</MauiAndroidXLifecycleVersion>
     <MauiAndroidXSavedStateVersion>{preserved["MauiAndroidXSavedStateVersion"]}</MauiAndroidXSavedStateVersion>
     <MauiKotlinStdLibVersion>{preserved["MauiKotlinStdLibVersion"]}</MauiKotlinStdLibVersion>

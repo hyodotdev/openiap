@@ -110,7 +110,7 @@ jest.mock('../../src', () => ({
 const SubscriptionFlow = require('../app/subscription-flow').default;
 
 async function renderConnectedSubscriptionFlow() {
-  const result = render(<SubscriptionFlow />);
+  const result = await render(<SubscriptionFlow />);
   await waitFor(() => expect(mockGetActiveSubscriptions).toHaveBeenCalled());
   return result;
 }
@@ -157,7 +157,7 @@ describe('SubscriptionFlow Component', () => {
   it('shows verification choices in the requested order', async () => {
     const {getByText} = await renderConnectedSubscriptionFlow();
 
-    fireEvent.press(getByText('Local (IAPKit)'));
+    await fireEvent.press(getByText('Local (IAPKit)'));
 
     expect(mockShowActionSheetWithOptions).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -191,7 +191,7 @@ describe('SubscriptionFlow Component', () => {
     const {getByText} = await renderConnectedSubscriptionFlow();
     const subscribeButton = getByText('Subscribe');
 
-    fireEvent.press(subscribeButton);
+    await fireEvent.press(subscribeButton);
 
     // The actual implementation triggers product fetch on mount
     expect(mockFetchProducts).toHaveBeenCalled();
@@ -304,7 +304,7 @@ describe('SubscriptionFlow Component', () => {
     expect(getByText('✅ Active')).toBeDefined();
   });
 
-  it('should show no subscriptions message when empty', () => {
+  it('should show no subscriptions message when empty', async () => {
     mockUseIAP.mockReturnValue({
       connected: true,
       subscriptions: [],
@@ -316,12 +316,12 @@ describe('SubscriptionFlow Component', () => {
       activeSubscriptions: [],
     });
 
-    const {getByText} = render(<SubscriptionFlow />);
+    const {getByText} = await render(<SubscriptionFlow />);
     expect(getByText(/No subscriptions found/)).toBeDefined();
     expect(getByText('Retry')).toBeDefined();
   });
 
-  it('should handle retry button click', () => {
+  it('should handle retry button click', async () => {
     mockUseIAP.mockReturnValue({
       connected: true,
       subscriptions: [],
@@ -333,17 +333,17 @@ describe('SubscriptionFlow Component', () => {
       activeSubscriptions: [],
     });
 
-    const {getByText} = render(<SubscriptionFlow />);
+    const {getByText} = await render(<SubscriptionFlow />);
     const retryButton = getByText('Retry');
 
-    fireEvent.press(retryButton);
+    await fireEvent.press(retryButton);
     expect(mockFetchProducts).toHaveBeenCalledWith({
       skus: ['dev.hyo.martie.premium', 'dev.hyo.martie.premium_year'],
       type: 'subs',
     });
   });
 
-  it('should show disconnected status when not connected', () => {
+  it('should show disconnected status when not connected', async () => {
     mockUseIAP.mockReturnValue({
       connected: false,
       subscriptions: [],
@@ -355,7 +355,7 @@ describe('SubscriptionFlow Component', () => {
       activeSubscriptions: [],
     });
 
-    const {getByText} = render(<SubscriptionFlow />);
+    const {getByText} = await render(<SubscriptionFlow />);
     // Check for disconnected in the status text
     expect(getByText(/Disconnected/)).toBeDefined();
     expect(getByText('Connecting to store...')).toBeDefined();
@@ -457,7 +457,7 @@ describe('SubscriptionFlow Component', () => {
     );
     const {getByText} = await renderConnectedSubscriptionFlow();
 
-    fireEvent.press(getByText('Local (IAPKit)'));
+    await fireEvent.press(getByText('Local (IAPKit)'));
     await waitFor(() => {
       expect(getByText('Local (Device)')).toBeDefined();
     });

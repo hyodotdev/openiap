@@ -198,7 +198,7 @@ writeFile(
         'build:vega': `react-native build-vega --build-type ${buildType} --reset-cache`,
       },
       dependencies: {
-        '@amazon-devices/keplerscript-appstore-iap-lib': '~2.12.13',
+        '@amazon-devices/keplerscript-appstore-iap-lib': '~2.13.0',
         '@amazon-devices/react-native-kepler': '^2.0.0',
         react: '18.2.0',
         'react-native': '0.72.0',
@@ -207,7 +207,7 @@ writeFile(
         '@amazon-devices/kepler-cli-platform': '~0.22.0',
         '@react-native-community/cli': '11.3.2',
         '@react-native/metro-config': '^0.72.6',
-        'metro-react-native-babel-preset': '~0.76.9',
+        '@react-native/babel-preset': '0.76.9',
         typescript: '4.8.4',
       },
       kepler: {
@@ -248,7 +248,7 @@ AppRegistry.registerComponent(appName, () => App);
 writeFile(
   'babel.config.js',
   `module.exports = {
-  presets: ['module:metro-react-native-babel-preset'],
+  presets: ['module:@react-native/babel-preset'],
 };
 `,
 );

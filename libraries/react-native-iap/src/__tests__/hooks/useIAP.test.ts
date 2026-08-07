@@ -1,6 +1,14 @@
 /* eslint-disable import/first */
-import React from 'react';
-import TestRenderer, {act} from 'react-test-renderer';
+import React, {act} from 'react';
+import {createRoot, type Root} from 'test-renderer';
+
+const TestRenderer = {
+  create(element: React.ReactElement): Root {
+    const root = createRoot();
+    root.render(element);
+    return root;
+  },
+};
 
 // Minimal Nitro mock used by index/useIAP under the hood
 const mockIap: any = {
@@ -77,6 +85,26 @@ describe('hooks/useIAP (renderer)', () => {
     jest
       .spyOn(IAP, 'promotedProductListenerIOS')
       .mockImplementation(() => ({remove: jest.fn()}));
+  });
+
+  it('starts only the current initialization in React Strict Mode', async () => {
+    const root = createRoot({isStrictMode: true});
+
+    await act(async () => {
+      root.render(
+        React.createElement(() => {
+          useIAP();
+          return null;
+        }),
+      );
+      await Promise.resolve();
+    });
+
+    expect(IAP.initConnection).toHaveBeenCalledTimes(1);
+
+    await act(async () => {
+      root.unmount();
+    });
   });
 
   it('connects on mount and updates state on purchase events', async () => {

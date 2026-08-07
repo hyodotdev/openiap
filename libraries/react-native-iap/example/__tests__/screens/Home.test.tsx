@@ -15,8 +15,8 @@ describe('Home Screen', () => {
     jest.clearAllMocks();
   });
 
-  it('renders header with correct title and subtitle', () => {
-    const {getByText} = render(
+  it('renders header with correct title and subtitle', async () => {
+    const {getByText} = await render(
       <Home navigation={{navigate: mockNavigate} as any} />,
     );
 
@@ -24,8 +24,8 @@ describe('Home Screen', () => {
     expect(getByText('Powered by Nitro Modules ⚡️')).toBeTruthy();
   });
 
-  it('renders all menu items', () => {
-    const {getByText} = render(
+  it('renders all menu items', async () => {
+    const {getByText} = await render(
       <Home navigation={{navigate: mockNavigate} as any} />,
     );
 
@@ -52,89 +52,89 @@ describe('Home Screen', () => {
     ).toBeTruthy();
   });
 
-  it('navigates to AllProducts when All Products menu item is pressed', () => {
-    const {getByText} = render(
+  it('navigates to AllProducts when All Products menu item is pressed', async () => {
+    const {getByText} = await render(
       <Home navigation={{navigate: mockNavigate} as any} />,
     );
 
     const allProductsButton = getByText('All Products').parent?.parent;
     if (allProductsButton) {
-      fireEvent.press(allProductsButton);
+      await fireEvent.press(allProductsButton);
     }
 
     expect(mockNavigate).toHaveBeenCalledWith('AllProducts');
   });
 
-  it('navigates to PurchaseFlow when Purchase Flow menu item is pressed', () => {
-    const {getByText} = render(
+  it('navigates to PurchaseFlow when Purchase Flow menu item is pressed', async () => {
+    const {getByText} = await render(
       <Home navigation={{navigate: mockNavigate} as any} />,
     );
 
     const purchaseFlowButton = getByText('Purchase Flow').parent?.parent;
     if (purchaseFlowButton) {
-      fireEvent.press(purchaseFlowButton);
+      await fireEvent.press(purchaseFlowButton);
     }
 
     expect(mockNavigate).toHaveBeenCalledWith('PurchaseFlow');
   });
 
-  it('navigates to SubscriptionFlow when Subscription Flow menu item is pressed', () => {
-    const {getByText} = render(
+  it('navigates to SubscriptionFlow when Subscription Flow menu item is pressed', async () => {
+    const {getByText} = await render(
       <Home navigation={{navigate: mockNavigate} as any} />,
     );
 
     const subscriptionFlowButton =
       getByText('Subscription Flow').parent?.parent;
     if (subscriptionFlowButton) {
-      fireEvent.press(subscriptionFlowButton);
+      await fireEvent.press(subscriptionFlowButton);
     }
 
     expect(mockNavigate).toHaveBeenCalledWith('SubscriptionFlow');
   });
 
-  it('navigates to AvailablePurchases when Available Purchases menu item is pressed', () => {
-    const {getByText} = render(
+  it('navigates to AvailablePurchases when Available Purchases menu item is pressed', async () => {
+    const {getByText} = await render(
       <Home navigation={{navigate: mockNavigate} as any} />,
     );
 
     const availablePurchasesButton = getByText('Available Purchases').parent
       ?.parent;
     if (availablePurchasesButton) {
-      fireEvent.press(availablePurchasesButton);
+      await fireEvent.press(availablePurchasesButton);
     }
 
     expect(mockNavigate).toHaveBeenCalledWith('AvailablePurchases');
   });
 
-  it('navigates to OfferCode when Offer Code menu item is pressed', () => {
-    const {getByText} = render(
+  it('navigates to OfferCode when Offer Code menu item is pressed', async () => {
+    const {getByText} = await render(
       <Home navigation={{navigate: mockNavigate} as any} />,
     );
 
     const offerCodeButton = getByText('Offer Code').parent?.parent;
     if (offerCodeButton) {
-      fireEvent.press(offerCodeButton);
+      await fireEvent.press(offerCodeButton);
     }
 
     expect(mockNavigate).toHaveBeenCalledWith('OfferCode');
   });
 
-  it('navigates to AlternativeBilling when Alternative Billing menu item is pressed', () => {
-    const {getByText} = render(
+  it('navigates to AlternativeBilling when Alternative Billing menu item is pressed', async () => {
+    const {getByText} = await render(
       <Home navigation={{navigate: mockNavigate} as any} />,
     );
 
     const alternativeBillingButton = getByText('Alternative Billing').parent
       ?.parent;
     if (alternativeBillingButton) {
-      fireEvent.press(alternativeBillingButton);
+      await fireEvent.press(alternativeBillingButton);
     }
 
     expect(mockNavigate).toHaveBeenCalledWith('AlternativeBilling');
   });
 
-  it('renders footer text', () => {
-    const {getByText} = render(
+  it('renders footer text', async () => {
+    const {getByText} = await render(
       <Home navigation={{navigate: mockNavigate} as any} />,
     );
 

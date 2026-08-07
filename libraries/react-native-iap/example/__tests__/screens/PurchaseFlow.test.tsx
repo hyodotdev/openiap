@@ -258,10 +258,10 @@ describe('PurchaseFlow Screen', () => {
     mockIapState();
   });
 
-  it('renders loading state when not connected', () => {
+  it('renders loading state when not connected', async () => {
     mockIapState({connected: false, products: []});
 
-    const {getByText} = render(<PurchaseFlow />);
+    const {getByText} = await render(<PurchaseFlow />);
 
     expect(getByText('Connecting to Store...')).toBeTruthy();
   });
@@ -269,7 +269,7 @@ describe('PurchaseFlow Screen', () => {
   it('fetches products when connected', async () => {
     const {fetchProducts} = mockIapState();
 
-    render(<PurchaseFlow />);
+    await render(<PurchaseFlow />);
 
     await waitFor(() => {
       expect(fetchProducts).toHaveBeenCalledWith({
@@ -279,19 +279,19 @@ describe('PurchaseFlow Screen', () => {
     });
   });
 
-  it('displays fetched products', () => {
-    const {getByText} = render(<PurchaseFlow />);
+  it('displays fetched products', async () => {
+    const {getByText} = await render(<PurchaseFlow />);
 
     expect(getByText('10 Bulbs')).toBeTruthy();
     expect(getByText('30 Bulbs')).toBeTruthy();
     expect(getByText('Local (IAPKit)')).toBeTruthy();
   });
 
-  it('initiates purchase when purchase button pressed', () => {
-    const {getAllByText} = render(<PurchaseFlow />);
+  it('initiates purchase when purchase button pressed', async () => {
+    const {getAllByText} = await render(<PurchaseFlow />);
 
     const purchaseButtons = getAllByText('Purchase');
-    fireEvent.press(purchaseButtons[0]!);
+    await fireEvent.press(purchaseButtons[0]!);
 
     expect(requestPurchaseMock).toHaveBeenCalledWith({
       request: {
@@ -311,7 +311,7 @@ describe('PurchaseFlow Screen', () => {
     const {finishTransaction, verifyPurchase, verifyPurchaseWithProvider} =
       mockIapState();
 
-    render(<PurchaseFlow />);
+    await render(<PurchaseFlow />);
 
     await act(async () => {
       await onPurchaseSuccess?.({
@@ -375,7 +375,7 @@ describe('PurchaseFlow Screen', () => {
       finishTransaction,
       verifyPurchaseWithProvider,
     });
-    const {rerender} = render(<PurchaseFlow />);
+    const {rerender} = await render(<PurchaseFlow />);
 
     await waitFor(() => {
       expect(verifyPurchaseWithProvider).toHaveBeenCalledWith({
@@ -397,7 +397,7 @@ describe('PurchaseFlow Screen', () => {
       finishTransaction,
       verifyPurchaseWithProvider,
     });
-    rerender(<PurchaseFlow />);
+    await rerender(<PurchaseFlow />);
     await act(async () => {
       await Promise.resolve();
     });
@@ -471,7 +471,7 @@ describe('PurchaseFlow Screen', () => {
         finishTransaction,
         verifyPurchaseWithProvider,
       });
-      const {getByText, queryByText} = render(<PurchaseFlow />);
+      const {getByText, queryByText} = await render(<PurchaseFlow />);
 
       await waitFor(() => {
         expect(
@@ -530,7 +530,7 @@ describe('PurchaseFlow Screen', () => {
       finishTransaction,
       verifyPurchaseWithProvider,
     });
-    const {rerender} = render(<PurchaseFlow />);
+    const {rerender} = await render(<PurchaseFlow />);
     const initialPurchaseSuccessHandler = onPurchaseSuccess;
     if (!initialPurchaseSuccessHandler) {
       throw new Error('Purchase success handler was not registered');
@@ -553,7 +553,7 @@ describe('PurchaseFlow Screen', () => {
       finishTransaction,
       verifyPurchaseWithProvider,
     });
-    rerender(<PurchaseFlow />);
+    await rerender(<PurchaseFlow />);
 
     mockIapState({
       connected: true,
@@ -561,7 +561,7 @@ describe('PurchaseFlow Screen', () => {
       finishTransaction,
       verifyPurchaseWithProvider,
     });
-    rerender(<PurchaseFlow />);
+    await rerender(<PurchaseFlow />);
     const replayedPurchaseSuccessHandler = onPurchaseSuccess;
     if (!replayedPurchaseSuccessHandler) {
       throw new Error('Purchase success handler was not registered');
@@ -600,7 +600,7 @@ describe('PurchaseFlow Screen', () => {
       finishTransaction,
       verifyPurchaseWithProvider,
     });
-    rerender(<PurchaseFlow />);
+    await rerender(<PurchaseFlow />);
     await act(async () => {
       await Promise.resolve();
     });
@@ -650,7 +650,7 @@ describe('PurchaseFlow Screen', () => {
       finishTransaction,
       verifyPurchaseWithProvider,
     });
-    const {unmount} = render(<PurchaseFlow />);
+    const {unmount} = await render(<PurchaseFlow />);
     const purchaseSuccessHandler = onPurchaseSuccess;
     if (!purchaseSuccessHandler) {
       throw new Error('Purchase success handler was not registered');
@@ -665,7 +665,7 @@ describe('PurchaseFlow Screen', () => {
     expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
     expect(finishTransaction).not.toHaveBeenCalled();
 
-    unmount();
+    await unmount();
 
     if (!resolveVerification || !processingPromise) {
       throw new Error('Pending verification was not initialized');
@@ -732,7 +732,7 @@ describe('PurchaseFlow Screen', () => {
       finishTransaction,
       verifyPurchaseWithProvider,
     });
-    const firstMount = render(<PurchaseFlow />);
+    const firstMount = await render(<PurchaseFlow />);
     const purchaseSuccessHandler = onPurchaseSuccess;
     if (!purchaseSuccessHandler) {
       throw new Error('Purchase success handler was not registered');
@@ -747,14 +747,14 @@ describe('PurchaseFlow Screen', () => {
 
     expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
     expect(finishTransaction).toHaveBeenCalledTimes(1);
-    firstMount.unmount();
+    await firstMount.unmount();
 
     mockIapState({
       availablePurchases: [purchase],
       finishTransaction,
       verifyPurchaseWithProvider,
     });
-    const secondMount = render(<PurchaseFlow />);
+    const secondMount = await render(<PurchaseFlow />);
     await act(async () => {
       await Promise.resolve();
     });
@@ -778,7 +778,7 @@ describe('PurchaseFlow Screen', () => {
 
     expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
     expect(finishTransaction).toHaveBeenCalledTimes(1);
-    secondMount.unmount();
+    await secondMount.unmount();
   });
 
   it('remembers a finished purchase after its unmounted owner task fully settles', async () => {
@@ -815,8 +815,8 @@ describe('PurchaseFlow Screen', () => {
           },
         }),
     );
-    let firstUnmount: (() => void) | undefined;
-    let secondUnmount: (() => void) | undefined;
+    let firstUnmount: (() => Promise<void>) | undefined;
+    let secondUnmount: (() => Promise<void>) | undefined;
     let ownerTask: Promise<void> | undefined;
 
     try {
@@ -825,7 +825,7 @@ describe('PurchaseFlow Screen', () => {
         finishTransaction,
         verifyPurchaseWithProvider,
       });
-      const firstMount = render(<PurchaseFlow />);
+      const firstMount = await render(<PurchaseFlow />);
       firstUnmount = firstMount.unmount;
       const firstPurchaseSuccessHandler = onPurchaseSuccess;
       if (!firstPurchaseSuccessHandler) {
@@ -843,7 +843,7 @@ describe('PurchaseFlow Screen', () => {
         expect(finishTransaction).toHaveBeenCalledTimes(1);
       });
 
-      firstMount.unmount();
+      await firstMount.unmount();
       firstUnmount = undefined;
 
       await act(async () => {
@@ -858,7 +858,7 @@ describe('PurchaseFlow Screen', () => {
         finishTransaction,
         verifyPurchaseWithProvider,
       });
-      const secondMount = render(<PurchaseFlow />);
+      const secondMount = await render(<PurchaseFlow />);
       secondUnmount = secondMount.unmount;
       const secondPurchaseSuccessHandler = onPurchaseSuccess;
       if (!secondPurchaseSuccessHandler) {
@@ -875,8 +875,8 @@ describe('PurchaseFlow Screen', () => {
       expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
       expect(finishTransaction).toHaveBeenCalledTimes(1);
     } finally {
-      firstUnmount?.();
-      secondUnmount?.();
+      await firstUnmount?.();
+      await secondUnmount?.();
       if (!finishSettled) {
         resolveFinish();
         await ownerTask;
@@ -911,7 +911,7 @@ describe('PurchaseFlow Screen', () => {
       finishTransaction,
       verifyPurchaseWithProvider,
     });
-    const {rerender} = render(<PurchaseFlow />);
+    const {rerender} = await render(<PurchaseFlow />);
     const purchaseSuccessHandler = onPurchaseSuccess;
     if (!purchaseSuccessHandler) {
       throw new Error('Purchase success handler was not registered');
@@ -930,7 +930,7 @@ describe('PurchaseFlow Screen', () => {
       finishTransaction,
       verifyPurchaseWithProvider,
     });
-    rerender(<PurchaseFlow />);
+    await rerender(<PurchaseFlow />);
     await act(async () => {
       await Promise.resolve();
     });
@@ -986,7 +986,7 @@ describe('PurchaseFlow Screen', () => {
       finishTransaction,
       verifyPurchaseWithProvider,
     });
-    render(<PurchaseFlow />);
+    await render(<PurchaseFlow />);
     const purchaseSuccessHandler = onPurchaseSuccess;
     if (!purchaseSuccessHandler) {
       throw new Error('Purchase success handler was not registered');
@@ -1013,9 +1013,9 @@ describe('PurchaseFlow Screen', () => {
       .mockImplementation((_options, callback) => callback(0));
     const {finishTransaction, verifyPurchase, verifyPurchaseWithProvider} =
       mockIapState();
-    const {getByText} = render(<PurchaseFlow />);
+    const {getByText} = await render(<PurchaseFlow />);
 
-    fireEvent.press(getByText('Local (IAPKit)'));
+    await fireEvent.press(getByText('Local (IAPKit)'));
     await waitFor(() => {
       expect(getByText('Local (Device)')).toBeTruthy();
     });
@@ -1054,9 +1054,9 @@ describe('PurchaseFlow Screen', () => {
       .spyOn(ActionSheetIOS, 'showActionSheetWithOptions')
       .mockImplementation((_options, callback) => callback(2));
     const {verifyPurchaseWithProvider} = mockIapState();
-    const {getByText} = render(<PurchaseFlow />);
+    const {getByText} = await render(<PurchaseFlow />);
 
-    fireEvent.press(getByText('Local (IAPKit)'));
+    await fireEvent.press(getByText('Local (IAPKit)'));
     await waitFor(() => {
       expect(getByText('IAPKit')).toBeTruthy();
     });
@@ -1085,9 +1085,9 @@ describe('PurchaseFlow Screen', () => {
 
   it('renders Android verification choices together in the requested order', async () => {
     Platform.OS = 'android';
-    const {getAllByTestId, getByText} = render(<PurchaseFlow />);
+    const {getAllByTestId, getByText} = await render(<PurchaseFlow />);
 
-    fireEvent.press(getByText('Local (IAPKit)'));
+    await fireEvent.press(getByText('Local (IAPKit)'));
 
     const options = getAllByTestId('verification-method-option');
     expect(options.map((option) => option.props.accessibilityLabel)).toEqual([
@@ -1097,7 +1097,7 @@ describe('PurchaseFlow Screen', () => {
       'None (Skip)',
     ]);
 
-    fireEvent.press(options[3]!);
+    await fireEvent.press(options[3]!);
     await waitFor(() => {
       expect(getByText('None (Skip)')).toBeTruthy();
     });
@@ -1106,7 +1106,7 @@ describe('PurchaseFlow Screen', () => {
   it('updates state on purchase success callback', async () => {
     const {finishTransaction} = mockIapState();
 
-    const {getByText, queryByText} = render(<PurchaseFlow />);
+    const {getByText, queryByText} = await render(<PurchaseFlow />);
 
     expect(
       queryByText(/Purchase completed and finished successfully/),
@@ -1143,7 +1143,7 @@ describe('PurchaseFlow Screen', () => {
   it('updates message on purchase error callback', async () => {
     mockIapState();
 
-    const {getByText} = render(<PurchaseFlow />);
+    const {getByText} = await render(<PurchaseFlow />);
 
     await act(async () => {
       onPurchaseError?.({
@@ -1164,7 +1164,7 @@ describe('PurchaseFlow Screen', () => {
   it('handles user cancelled error correctly', async () => {
     mockIapState();
 
-    const {getByText} = render(<PurchaseFlow />);
+    const {getByText} = await render(<PurchaseFlow />);
 
     await act(async () => {
       onPurchaseError?.({
@@ -1183,11 +1183,11 @@ describe('PurchaseFlow Screen', () => {
     it('displays product details modal with discount offers', async () => {
       mockIapState({products: [androidProductWithOffers]});
 
-      const {getByText, getAllByText} = render(<PurchaseFlow />);
+      const {getByText, getAllByText} = await render(<PurchaseFlow />);
 
       // Open modal
       const detailsButton = getAllByText('Details')[0];
-      fireEvent.press(detailsButton!);
+      await fireEvent.press(detailsButton!);
 
       await waitFor(() => {
         expect(getByText('Product Details')).toBeTruthy();
@@ -1198,11 +1198,11 @@ describe('PurchaseFlow Screen', () => {
     it('displays offer with percentage discount', async () => {
       mockIapState({products: [androidProductWithOffers]});
 
-      const {getByText, getAllByText} = render(<PurchaseFlow />);
+      const {getByText, getAllByText} = await render(<PurchaseFlow />);
 
       // Open modal
       const detailsButton = getAllByText('Details')[0];
-      fireEvent.press(detailsButton!);
+      await fireEvent.press(detailsButton!);
 
       await waitFor(() => {
         expect(getByText('20% off')).toBeTruthy();
@@ -1212,11 +1212,11 @@ describe('PurchaseFlow Screen', () => {
     it('displays offer with full price when discounted', async () => {
       mockIapState({products: [androidProductWithOffers]});
 
-      const {getByText, getAllByText} = render(<PurchaseFlow />);
+      const {getByText, getAllByText} = await render(<PurchaseFlow />);
 
       // Open modal
       const detailsButton = getAllByText('Details')[0];
-      fireEvent.press(detailsButton!);
+      await fireEvent.press(detailsButton!);
 
       await waitFor(() => {
         expect(getByText('Full Price (micros):')).toBeTruthy();
@@ -1227,11 +1227,11 @@ describe('PurchaseFlow Screen', () => {
     it('displays limited quantity info', async () => {
       mockIapState({products: [androidProductWithOffers]});
 
-      const {getByText, getAllByText} = render(<PurchaseFlow />);
+      const {getByText, getAllByText} = await render(<PurchaseFlow />);
 
       // Open modal
       const detailsButton = getAllByText('Details')[0];
-      fireEvent.press(detailsButton!);
+      await fireEvent.press(detailsButton!);
 
       await waitFor(() => {
         expect(getByText('Limited Quantity:')).toBeTruthy();
@@ -1242,11 +1242,11 @@ describe('PurchaseFlow Screen', () => {
     it('displays valid time window', async () => {
       mockIapState({products: [androidProductWithOffers]});
 
-      const {getByText, getAllByText} = render(<PurchaseFlow />);
+      const {getByText, getAllByText} = await render(<PurchaseFlow />);
 
       // Open modal
       const detailsButton = getAllByText('Details')[0];
-      fireEvent.press(detailsButton!);
+      await fireEvent.press(detailsButton!);
 
       await waitFor(() => {
         expect(getByText('Valid Window:')).toBeTruthy();
@@ -1256,11 +1256,11 @@ describe('PurchaseFlow Screen', () => {
     it('displays offer tags', async () => {
       mockIapState({products: [androidProductWithOffers]});
 
-      const {getByText, getAllByText} = render(<PurchaseFlow />);
+      const {getByText, getAllByText} = await render(<PurchaseFlow />);
 
       // Open modal
       const detailsButton = getAllByText('Details')[0];
-      fireEvent.press(detailsButton!);
+      await fireEvent.press(detailsButton!);
 
       await waitFor(() => {
         expect(getAllByText('Tags:').length).toBeGreaterThanOrEqual(1);
@@ -1271,11 +1271,11 @@ describe('PurchaseFlow Screen', () => {
     it('displays preorder details', async () => {
       mockIapState({products: [androidProductWithPreorder]});
 
-      const {getByText, getAllByText} = render(<PurchaseFlow />);
+      const {getByText, getAllByText} = await render(<PurchaseFlow />);
 
       // Open modal
       const detailsButton = getAllByText('Details')[0];
-      fireEvent.press(detailsButton!);
+      await fireEvent.press(detailsButton!);
 
       await waitFor(() => {
         expect(getByText('Pre-order Release:')).toBeTruthy();
@@ -1285,11 +1285,11 @@ describe('PurchaseFlow Screen', () => {
     it('displays rental details', async () => {
       mockIapState({products: [androidProductWithRental]});
 
-      const {getByText, getAllByText} = render(<PurchaseFlow />);
+      const {getByText, getAllByText} = await render(<PurchaseFlow />);
 
       // Open modal
       const detailsButton = getAllByText('Details')[0];
-      fireEvent.press(detailsButton!);
+      await fireEvent.press(detailsButton!);
 
       await waitFor(() => {
         expect(getByText('Rental:')).toBeTruthy();
@@ -1300,11 +1300,11 @@ describe('PurchaseFlow Screen', () => {
     it('displays formatted discount amount', async () => {
       mockIapState({products: [androidProductWithAbsoluteDiscount]});
 
-      const {getByText, getAllByText} = render(<PurchaseFlow />);
+      const {getByText, getAllByText} = await render(<PurchaseFlow />);
 
       // Open modal
       const detailsButton = getAllByText('Details')[0];
-      fireEvent.press(detailsButton!);
+      await fireEvent.press(detailsButton!);
 
       await waitFor(() => {
         expect(getByText('$1.00')).toBeTruthy();
@@ -1314,18 +1314,18 @@ describe('PurchaseFlow Screen', () => {
     it('closes modal when close button pressed', async () => {
       mockIapState({products: [androidProductWithOffers]});
 
-      const {getByText, getAllByText, queryByText} = render(<PurchaseFlow />);
+      const {getByText, getAllByText, queryByText} = await render(<PurchaseFlow />);
 
       // Open modal
       const detailsButton = getAllByText('Details')[0];
-      fireEvent.press(detailsButton!);
+      await fireEvent.press(detailsButton!);
 
       await waitFor(() => {
         expect(getByText('Product Details')).toBeTruthy();
       });
 
       // Close modal
-      fireEvent.press(getByText('Close'));
+      await fireEvent.press(getByText('Close'));
 
       await waitFor(() => {
         expect(queryByText('Discount Offers (2)')).toBeNull();
@@ -1335,11 +1335,11 @@ describe('PurchaseFlow Screen', () => {
     it('displays offer ID when present', async () => {
       mockIapState({products: [androidProductWithOffers]});
 
-      const {getByText, getAllByText} = render(<PurchaseFlow />);
+      const {getByText, getAllByText} = await render(<PurchaseFlow />);
 
       // Open modal
       const detailsButton = getAllByText('Details')[0];
-      fireEvent.press(detailsButton!);
+      await fireEvent.press(detailsButton!);
 
       await waitFor(() => {
         expect(getByText('base-offer')).toBeTruthy();

@@ -52,25 +52,34 @@ function ExpoSetup() {
               <td>
                 <strong>Expo SDK</strong>
               </td>
-              <td>53+ (React Native 0.79+)</td>
+              <td>53+; SDK 57 / React Native 0.86 is the validated baseline</td>
             </tr>
             <tr>
               <td>
                 <strong>iOS</strong>
               </td>
-              <td>iOS 15+ (StoreKit 2)</td>
+              <td>
+                Follow the Expo SDK baseline (SDK 57: iOS 16.4+; SDK 53: iOS
+                15.1+)
+              </td>
             </tr>
             <tr>
               <td>
                 <strong>Android</strong>
               </td>
-              <td>API level 21+</td>
+              <td>
+                Android 7 / API 24+ for supported Expo SDKs (native module
+                minimum: API 23)
+              </td>
             </tr>
             <tr>
               <td>
                 <strong>Node.js</strong>
               </td>
-              <td>16 or later</td>
+              <td>
+                Follow the Expo SDK baseline (SDK 57: 22.13.x; SDK 53–56:
+                Node.js 20.x)
+              </td>
             </tr>
           </tbody>
         </table>
@@ -107,20 +116,21 @@ function ExpoSetup() {
         </h3>
         <p>
           expo-iap uses OpenIAP Android artifacts backed by Google Play Billing
-          Library v{GOOGLE_PLAY_BILLING.version}. Use{' '}
-          <strong>Kotlin 2.2+</strong> for Android builds.
+          Library v{GOOGLE_PLAY_BILLING.version}. Keep the Kotlin version that
+          matches your Expo SDK instead of copying the newer compiler used to
+          publish the standalone OpenIAP Android library.
         </p>
         <ul>
           <li>
-            <strong>Expo SDK 54+:</strong> the default toolchain is often
-            sufficient, but the OpenIAP artifacts require Kotlin 2.2+ — if the
-            Android build fails on Kotlin metadata, set{' '}
-            <code>kotlinVersion</code> explicitly with expo-build-properties as
-            shown below.
+            <strong>Expo SDK 57:</strong> use Kotlin 2.1.20, which matches Expo
+            and React Native 0.86. The default toolchain is sufficient; if you
+            set <code>kotlinVersion</code> explicitly, use the value below.
           </li>
           <li>
-            <strong>Expo SDK 53:</strong> Set the Kotlin version explicitly with
-            expo-build-properties:
+            <strong>Earlier supported Expo SDKs:</strong> keep their documented
+            Kotlin version. Do not force Kotlin 2.3.x into the Expo build,
+            because Expo Gradle plugins compiled with an older Kotlin line
+            cannot load that metadata.
           </li>
         </ul>
         <CodeBlock language="json">
@@ -132,7 +142,7 @@ function ExpoSetup() {
         "expo-build-properties",
         {
           "android": {
-            "kotlinVersion": "2.2.0"
+            "kotlinVersion": "2.1.20"
           }
         }
       ]
@@ -141,12 +151,11 @@ function ExpoSetup() {
 }`}
         </CodeBlock>
 
-        <Callout kind="warning" title="Expo SDK 52 or earlier">
-          Expo SDK 52 uses Kotlin 1.9.x, which is <strong>incompatible</strong>{' '}
-          with Billing Library v8. You must either upgrade to SDK 53+
-          (recommended) or use a custom config plugin to downgrade the billing
-          library. See the <a href="#sdk52-workaround">SDK 52 workaround</a>{' '}
-          below.
+        <Callout kind="warning" title="Legacy Expo SDKs">
+          Expo SDK 52 uses Kotlin 1.9.x and cannot consume the current OpenIAP
+          Android artifacts. Upgrade to the validated Expo SDK 57 toolchain;
+          downgrading Google Play Billing alone is not a supported workaround.
+          See <a href="#legacy-expo-sdks">Legacy Expo SDKs</a> below.
         </Callout>
 
         <h3 id="prebuild" className="anchor-heading">
@@ -179,13 +188,16 @@ npx expo run:android`}
             #
           </a>
         </h3>
-        <p>Set the deployment target to iOS 15.0+ in your app config:</p>
+        <p>
+          Match your Expo SDK deployment target. The validated SDK 57 setup
+          requires iOS 16.4+:
+        </p>
         <CodeBlock language="typescript">
           {`// app.json
 {
   "expo": {
     "ios": {
-      "deploymentTarget": "15.0"
+      "deploymentTarget": "16.4"
     }
   }
 }
@@ -194,7 +206,7 @@ npx expo run:android`}
 export default {
   expo: {
     ios: {
-      deploymentTarget: '15.0',
+      deploymentTarget: '16.4',
     },
   },
 };`}
@@ -600,49 +612,26 @@ EXPO_TV=1 npx expo run:ios --device "Apple TV 4K (3rd generation)"`}
       </section>
 
       <section>
-        <h2 id="sdk52-workaround" className="anchor-heading">
-          Expo SDK 52 Workaround
-          <a href="#sdk52-workaround" className="anchor-link">
+        <h2 id="legacy-expo-sdks" className="anchor-heading">
+          Legacy Expo SDKs
+          <a href="#legacy-expo-sdks" className="anchor-link">
             #
           </a>
         </h2>
 
         <Callout kind="warning">
           Expo SDK 52 (React Native 0.76.x) uses Kotlin 1.9.x, which is
-          incompatible with the current OpenIAP Android artifacts — upgrading to{' '}
-          <strong>SDK 53+</strong> is the recommended fix (see{' '}
-          <a href="#android-kotlin">Android Kotlin Version</a>).
+          incompatible with the current OpenIAP Android artifacts. Upgrade to{' '}
+          <strong>Expo SDK 57</strong>, the version validated by the current
+          release (see <a href="#android-kotlin">Android Kotlin Version</a>).
         </Callout>
 
         <p>
-          If you cannot upgrade, create a custom config plugin to force an older
-          billing library:
+          Do not force an older Google Play Billing dependency with a config
+          plugin. The OpenIAP Android artifact, its Kotlin metadata, and the
+          Billing dependency are released and tested together; replacing only
+          Billing does not make an older Expo toolchain compatible.
         </p>
-        <CodeBlock language="javascript">
-          {`// plugins/withBillingLibraryDowngrade.js
-const { withGradleProperties } = require('@expo/config-plugins');
-
-module.exports = function withBillingLibraryDowngrade(config) {
-  return withGradleProperties(config, (config) => {
-    config.modResults.push({
-      type: 'property',
-      key: 'billingClientVersion',
-      value: '6.2.1',
-    });
-    return config;
-  });
-};`}
-        </CodeBlock>
-        <CodeBlock language="json">
-          {`{
-  "expo": {
-    "plugins": [
-      "./plugins/withBillingLibraryDowngrade",
-      "expo-iap"
-    ]
-  }
-}`}
-        </CodeBlock>
       </section>
 
       <section>

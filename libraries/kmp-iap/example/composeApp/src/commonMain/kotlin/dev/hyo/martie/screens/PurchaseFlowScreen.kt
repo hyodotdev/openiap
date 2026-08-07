@@ -46,7 +46,7 @@ import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultAndroid
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseResultHorizon
 import io.github.hyochan.kmpiap.getCurrentPlatform
 import kotlinx.coroutines.*
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 

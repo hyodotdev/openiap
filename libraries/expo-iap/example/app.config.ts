@@ -129,10 +129,10 @@ export default ({config}: ConfigContext): ExpoConfig => {
       'expo-build-properties',
       {
         android: {
-          kotlinVersion: '2.2.0',
+          kotlinVersion: '2.1.20',
         },
         ios: {
-          deploymentTarget: isTV ? '16.0' : isOnsideEnabled ? '16.0' : '15.1',
+          deploymentTarget: '16.4',
         },
       },
     ],

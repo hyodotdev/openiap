@@ -5,13 +5,15 @@
     <MauiPlayBillingVersion>9.1.0</MauiPlayBillingVersion>
     <MauiAmazonAppstoreSdkVersion>3.0.9</MauiAmazonAppstoreSdkVersion>
     <MauiHorizonBillingCompatibilityVersion>2.0.0</MauiHorizonBillingCompatibilityVersion>
-    <MauiHorizonPlatformKotlinVersion>0.2.0</MauiHorizonPlatformKotlinVersion>
+    <MauiHorizonPlatformKotlinVersion>0.2.2</MauiHorizonPlatformKotlinVersion>
     <MauiHorizonSerializationNuGetVersion>1.11.0.1</MauiHorizonSerializationNuGetVersion>
-    <MauiGsonVersion>2.10.1</MauiGsonVersion>
+    <MauiGsonVersion>2.14.0</MauiGsonVersion>
     <MauiBillingClientNuGetVersion>9.1.0.1</MauiBillingClientNuGetVersion>
-    <MauiGoogleGsonNuGetVersion>2.14.0</MauiGoogleGsonNuGetVersion>
+    <MauiGoogleGsonNuGetVersion>2.14.0.1</MauiGoogleGsonNuGetVersion>
     <MauiAndroidXActivityVersion>1.13.0.1</MauiAndroidXActivityVersion>
-    <MauiAndroidXFragmentVersion>1.8.9.4</MauiAndroidXFragmentVersion>
+    <MauiAndroidXCollectionVersion>1.6.0.1</MauiAndroidXCollectionVersion>
+    <MauiAndroidXFragmentVersion>1.8.9.3</MauiAndroidXFragmentVersion>
+    <MauiAndroidXFragmentKtxVersion>1.8.9.4</MauiAndroidXFragmentKtxVersion>
     <MauiAndroidXLifecycleVersion>2.11.0.1</MauiAndroidXLifecycleVersion>
     <MauiAndroidXSavedStateVersion>1.5.0.1</MauiAndroidXSavedStateVersion>
     <MauiKotlinStdLibVersion>2.4.0.1</MauiKotlinStdLibVersion>

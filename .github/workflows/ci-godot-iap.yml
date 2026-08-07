@@ -40,7 +40,7 @@ jobs:
       - name: Setup Godot
         uses: chickensoft-games/setup-godot@v2.4.1
         with:
-          version: 4.6.3
+          version: 4.7.1
           use-dotnet: false
 
       - name: Setup Java
@@ -66,7 +66,7 @@ jobs:
           test -f android/src/main/java/dev/hyo/godotiap/GodotIap.kt
           echo "All required Android plugin files exist"
 
-      - name: Build and test Android plugin
+      - name: Build and test Android plugin against minimum Godot
         run: |
           mkdir -p android/libs
           curl -L -o android/libs/godot-lib.aar \
@@ -74,7 +74,15 @@ jobs:
           cd android
           chmod +x gradlew
           "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" \
-            ./gradlew --no-daemon assembleDebug testDebugUnitTest
+            ./gradlew --no-daemon clean assembleDebug testDebugUnitTest
+
+      - name: Build and test Android plugin against latest Godot
+        run: |
+          curl -L -o android/libs/godot-lib.aar \
+            "https://github.com/godotengine/godot/releases/download/4.7.1-stable/godot-lib.4.7.1.stable.template_release.aar"
+          cd android
+          "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" \
+            ./gradlew --no-daemon clean assembleDebug testDebugUnitTest
 
       - name: Test generated types
         run: godot --headless --path Example --script res://tests/test_types_only.gd
@@ -90,8 +98,8 @@ jobs:
 
   swift-test:
     name: Swift Test
-    # SwiftGodot v0.74.0 uses Swift 6.2 standard-library APIs. Keep this
-    # source-build lane on the matching Xcode 26 runner.
+    # SwiftGodot v0.79.0 declares a Swift 6.3 package manifest. Keep this
+    # source-build lane on Xcode 26.5 or newer so Swift can parse it.
     runs-on: macos-26
     timeout-minutes: 15
     steps:
@@ -107,7 +115,7 @@ jobs:
       - name: Set up Xcode
         uses: maxim-lobanov/setup-xcode@v1
         with:
-          xcode-version: "26.0"
+          xcode-version: "26.6"
 
       - name: Checkout SwiftGodot
         working-directory: libraries/godot-iap

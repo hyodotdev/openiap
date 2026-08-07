@@ -31,7 +31,7 @@ sealed class OpenIapError : Exception() {
 
     open fun toJSON(): Map<String, Any?> = buildMap {
         put("code", toCode(this@OpenIapError))
-        put("message", this@OpenIapError.message ?: "")
+        put("message", this@OpenIapError.message)
         put("platform", "android")
         put("debugMessage", debugMessage)
         put("subResponseCodeAndroid", subResponseCode?.toJson())

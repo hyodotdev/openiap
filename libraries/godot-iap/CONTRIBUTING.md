@@ -7,8 +7,8 @@ Thank you for your interest in contributing to godot-iap! This guide will help y
 ### Prerequisites
 
 - macOS (required for iOS builds)
-- [Godot 4.3+](https://godotengine.org/download)
-- [Xcode 26+](https://developer.apple.com/xcode/) (Swift 6.2 is required by the pinned SwiftGodot runtime)
+- [Godot 4.7.1](https://godotengine.org/download) for source-build verification (the released plugin remains compatible with Godot 4.3+)
+- [Xcode 26.5+](https://developer.apple.com/xcode/) (Swift 6.3 is required by the pinned SwiftGodot runtime)
 - [Android Studio](https://developer.android.com/studio) with SDK (for Android)
 - Java 17+ (for Android builds)
 

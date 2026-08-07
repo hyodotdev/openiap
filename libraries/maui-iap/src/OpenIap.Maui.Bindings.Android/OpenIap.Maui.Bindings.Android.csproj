@@ -73,9 +73,9 @@
     <PackageReference Include="Xamarin.KotlinX.Serialization.Json.Jvm" Version="$(MauiHorizonSerializationNuGetVersion)" />
   </ItemGroup>
 
-  <!-- AndroidX (Activity, Core, Annotation, Fragment, Collection, etc.) come
-       in via MAUI's own AndroidX/Activity NuGets at 2.8.x — the verifier can't
-       see those as Maven coordinates so we tell it to skip them. -->
+  <!-- AndroidX artifacts come from the explicit NuGet references in the parent
+       OpenIap.Maui package. The verifier cannot see those as Maven coordinates,
+       so the corresponding embedded AAR coordinates are ignored here. -->
   <ItemGroup>
     <AndroidIgnoredJavaDependency Include="androidx.activity:activity:1.2.3" />
     <AndroidIgnoredJavaDependency Include="androidx.annotation:annotation:1.3.0" />

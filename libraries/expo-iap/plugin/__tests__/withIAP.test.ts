@@ -935,7 +935,7 @@ describe('vega project generation', () => {
     expect(result.dependencies?.expo).toBe('^54.0.0');
     expect(
       result.dependencies?.['@amazon-devices/keplerscript-appstore-iap-lib'],
-    ).toBe('~2.12.13');
+    ).toBe('~2.13.0');
     expect(
       result.devDependencies?.['@amazon-devices/kepler-cli-platform'],
     ).toBe('~0.22.0');
@@ -957,7 +957,7 @@ describe('vega project generation', () => {
     const result = mergeVegaPackageJson(
       {
         dependencies: {
-          '@amazon-devices/keplerscript-appstore-iap-lib': '~2.12.13',
+          '@amazon-devices/keplerscript-appstore-iap-lib': '~2.13.0',
         },
         devDependencies: {
           '@amazon-devices/kepler-cli-platform': '~0.22.0',
@@ -969,7 +969,7 @@ describe('vega project generation', () => {
 
     expect(
       result.dependencies?.['@amazon-devices/keplerscript-appstore-iap-lib'],
-    ).toBe('~2.12.13');
+    ).toBe('~2.13.0');
     expect(
       result.devDependencies?.['@amazon-devices/kepler-cli-platform'],
     ).toBe('~0.22.0');
@@ -991,7 +991,7 @@ describe('vega project generation', () => {
       {
         optionalDependencies: {
           '@amazon-devices/kepler-cli-platform': '~0.22.0',
-          '@amazon-devices/kepler-compatibility-metro-config': '^0.0.6',
+          '@amazon-devices/kepler-compatibility-metro-config': '^0.0.7',
           '@amazon-devices/kepler-module-resolver-preset': '^0.1.15',
           '@amazon-devices/react-native-kepler': '^2.0.0',
         },
@@ -1006,7 +1006,7 @@ describe('vega project generation', () => {
       result.devDependencies?.[
         '@amazon-devices/kepler-compatibility-metro-config'
       ],
-    ).toBe('^0.0.6');
+    ).toBe('^0.0.7');
     expect(
       result.devDependencies?.['@amazon-devices/kepler-module-resolver-preset'],
     ).toBe('^0.1.15');

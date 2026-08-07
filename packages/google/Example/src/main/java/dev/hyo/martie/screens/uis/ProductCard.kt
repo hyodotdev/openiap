@@ -141,13 +141,9 @@ fun ProductCard(
 
                 // Show discount badge using the standardized type.
                 if (hasDiscount) {
-                    val discountText: String = when {
-                        standardizedDiscount?.percentageDiscountAndroid != null ->
-                            "${standardizedDiscount.percentageDiscountAndroid}% OFF"
-                        standardizedDiscount?.formattedDiscountAmountAndroid != null ->
-                            standardizedDiscount.formattedDiscountAmountAndroid!!
-                        else -> "SALE"
-                    }
+                    val discountText = standardizedDiscount.percentageDiscountAndroid?.let {
+                        "$it% OFF"
+                    } ?: standardizedDiscount.formattedDiscountAmountAndroid ?: "SALE"
                     Surface(
                         shape = RoundedCornerShape(4.dp),
                         color = AppColors.danger.copy(alpha = 0.2f)

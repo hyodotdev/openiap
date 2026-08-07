@@ -24,9 +24,9 @@
 - See issue: [#168](https://github.com/hyochan/expo-iap/issues/168)
 - This is kept at `13.4` for compatibility with affected Expo SDKs
 - The actual iOS 15.0+ requirement is enforced at build time via @available annotations
-- Users must ensure their app target is set to iOS 15.0 or higher:
-  - app.json: `"expo": { "ios": { "deploymentTarget": "15.0" } }`
-  - or app.config.ts: `ios: { deploymentTarget: '15.0' }`
+- Users must follow the deployment target required by their Expo SDK. The
+  validated Expo SDK 57 example uses iOS 16.4; older supported SDKs must never
+  go below the module's iOS 15.0 runtime requirement.
 
 **tvOS Exception**: tvOS platform version MUST be `16.0` (not `13.4`) because:
 

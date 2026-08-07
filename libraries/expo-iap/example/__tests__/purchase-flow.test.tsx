@@ -83,27 +83,27 @@ describe('PurchaseFlow Component', () => {
   });
 
   it('should render without crashing', async () => {
-    const {getByText} = render(<PurchaseFlow />);
+    const {getByText} = await render(<PurchaseFlow />);
     await waitFor(() => expect(getStorefront).toHaveBeenCalled());
     expect(getByText('In-App Purchase Flow')).toBeDefined();
     expect(getByText('Available Purchases')).toBeDefined();
   });
 
   it('should show connected status', async () => {
-    const {getByText} = render(<PurchaseFlow />);
+    const {getByText} = await render(<PurchaseFlow />);
     await waitFor(() => expect(getStorefront).toHaveBeenCalled());
     // Look for the text that contains "Connected"
     expect(getByText(/✅ Connected/)).toBeDefined();
   });
 
   it('should load products on mount', async () => {
-    render(<PurchaseFlow />);
+    await render(<PurchaseFlow />);
     await waitFor(() => expect(mockFetchProducts).toHaveBeenCalled());
     expect(getStorefront).toHaveBeenCalled();
   });
 
   it('should display products', async () => {
-    const {getByText} = render(<PurchaseFlow />);
+    const {getByText} = await render(<PurchaseFlow />);
     await waitFor(() => expect(getStorefront).toHaveBeenCalled());
     expect(getByText('Test Product')).toBeDefined();
     // The price is rendered by getProductDisplayPrice which returns displayPrice
@@ -112,10 +112,10 @@ describe('PurchaseFlow Component', () => {
   });
 
   it('shows verification choices in the requested order', async () => {
-    const {getByText} = render(<PurchaseFlow />);
+    const {getByText} = await render(<PurchaseFlow />);
     await waitFor(() => expect(getStorefront).toHaveBeenCalled());
 
-    fireEvent.press(getByText('Local (IAPKit)'));
+    await fireEvent.press(getByText('Local (IAPKit)'));
 
     expect(mockShowActionSheetWithOptions).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -134,7 +134,7 @@ describe('PurchaseFlow Component', () => {
 
   it('should fetch and show storefront information', async () => {
     (getStorefront as jest.Mock).mockResolvedValue('KR');
-    const {getByText} = render(<PurchaseFlow />);
+    const {getByText} = await render(<PurchaseFlow />);
 
     await waitFor(() => expect(getStorefront).toHaveBeenCalled());
     await waitFor(() => expect(getByText('KR')).toBeDefined());
@@ -142,11 +142,11 @@ describe('PurchaseFlow Component', () => {
   });
 
   it('should handle purchase button click', async () => {
-    const {getByText} = render(<PurchaseFlow />);
+    const {getByText} = await render(<PurchaseFlow />);
     await waitFor(() => expect(getStorefront).toHaveBeenCalled());
 
     const purchaseButton = getByText('Purchase');
-    fireEvent.press(purchaseButton);
+    await fireEvent.press(purchaseButton);
 
     // The actual call includes store-specific request structure
     expect(requestPurchase).toHaveBeenCalledWith({
@@ -159,7 +159,7 @@ describe('PurchaseFlow Component', () => {
   });
 
   it('routes Local (IAPKit) through the configured local server', async () => {
-    render(<PurchaseFlow />);
+    await render(<PurchaseFlow />);
 
     await act(async () => {
       await mockOnPurchaseSuccess?.({
@@ -190,9 +190,9 @@ describe('PurchaseFlow Component', () => {
     mockShowActionSheetWithOptions.mockImplementation(
       (_options: unknown, callback: (index?: number) => void) => callback(0),
     );
-    const {getByText} = render(<PurchaseFlow />);
+    const {getByText} = await render(<PurchaseFlow />);
 
-    fireEvent.press(getByText('Local (IAPKit)'));
+    await fireEvent.press(getByText('Local (IAPKit)'));
     await waitFor(() => {
       expect(getByText('Local (Device)')).toBeDefined();
     });
@@ -227,9 +227,9 @@ describe('PurchaseFlow Component', () => {
     mockShowActionSheetWithOptions.mockImplementation(
       (_options: unknown, callback: (index?: number) => void) => callback(2),
     );
-    const {getByText} = render(<PurchaseFlow />);
+    const {getByText} = await render(<PurchaseFlow />);
 
-    fireEvent.press(getByText('Local (IAPKit)'));
+    await fireEvent.press(getByText('Local (IAPKit)'));
     await waitFor(() => {
       expect(getByText('IAPKit')).toBeDefined();
     });

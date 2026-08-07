@@ -35,18 +35,18 @@ describe('OfferCode Component', () => {
     });
   });
 
-  it('should render without crashing', () => {
-    const {getByText} = render(<OfferCode />);
+  it('should render without crashing', async () => {
+    const {getByText} = await render(<OfferCode />);
     expect(getByText('Offer Code Redemption')).toBeDefined();
   });
 
-  it('should show iOS instructions on iOS', () => {
+  it('should show iOS instructions on iOS', async () => {
     Object.defineProperty(Platform, 'OS', {
       get: jest.fn(() => 'ios'),
       configurable: true,
     });
 
-    const {getByText} = render(<OfferCode />);
+    const {getByText} = await render(<OfferCode />);
     // Check for iOS-specific text from the actual component
     expect(
       getByText(/Tap the button below to open the redemption sheet/),
@@ -56,13 +56,13 @@ describe('OfferCode Component', () => {
     ).toBeDefined();
   });
 
-  it('should show Android instructions on Android', () => {
+  it('should show Android instructions on Android', async () => {
     Object.defineProperty(Platform, 'OS', {
       get: jest.fn(() => 'android'),
       configurable: true,
     });
 
-    const {getByText} = render(<OfferCode />);
+    const {getByText} = await render(<OfferCode />);
     // Check for Android-specific text from the actual component
     expect(getByText(/Tap the button to open Google Play Store/)).toBeDefined();
     expect(
@@ -70,15 +70,15 @@ describe('OfferCode Component', () => {
     ).toBeDefined();
   });
 
-  it('should show Vega unsupported guidance without calling platform redemption APIs', () => {
+  it('should show Vega unsupported guidance without calling platform redemption APIs', async () => {
     Object.defineProperty(Platform, 'OS', {
       get: jest.fn(() => 'kepler'),
       configurable: true,
     });
 
-    const {getByText} = render(<OfferCode />);
+    const {getByText} = await render(<OfferCode />);
 
-    fireEvent.press(getByText('Amazon Vega IAP'));
+    await fireEvent.press(getByText('Amazon Vega IAP'));
 
     expect(ExpoIap.presentCodeRedemptionSheetIOS).not.toHaveBeenCalled();
     expect(ExpoIap.openRedeemOfferCodeAndroid).not.toHaveBeenCalled();
@@ -93,11 +93,11 @@ describe('OfferCode Component', () => {
       configurable: true,
     });
 
-    const {getByText} = render(<OfferCode />);
+    const {getByText} = await render(<OfferCode />);
     // The button text is "🎁 Redeem Offer Code" on iOS
     const redeemButton = getByText('🎁 Redeem Offer Code');
 
-    fireEvent.press(redeemButton);
+    await fireEvent.press(redeemButton);
 
     // Wait for async operation and Alert
     await waitFor(() => {
@@ -115,11 +115,11 @@ describe('OfferCode Component', () => {
       configurable: true,
     });
 
-    const {getByText} = render(<OfferCode />);
+    const {getByText} = await render(<OfferCode />);
     // The button text is "🎁 Open Play Store" on Android
     const redeemButton = getByText('🎁 Open Play Store');
 
-    fireEvent.press(redeemButton);
+    await fireEvent.press(redeemButton);
 
     // Wait for async operation and Alert
     await waitFor(() => {
@@ -140,8 +140,8 @@ describe('OfferCode Component', () => {
       .mocked(ExpoIap.presentCodeRedemptionSheetIOS)
       .mockResolvedValueOnce(null);
 
-    const {getByText} = render(<OfferCode />);
-    fireEvent.press(getByText('🎁 Redeem Offer Code'));
+    const {getByText} = await render(<OfferCode />);
+    await fireEvent.press(getByText('🎁 Redeem Offer Code'));
 
     await waitFor(() => {
       expect(Alert.alert).toHaveBeenCalledWith(
@@ -160,8 +160,8 @@ describe('OfferCode Component', () => {
       .mocked(ExpoIap.openRedeemOfferCodeAndroid)
       .mockResolvedValueOnce(false);
 
-    const {getByText} = render(<OfferCode />);
-    fireEvent.press(getByText('🎁 Open Play Store'));
+    const {getByText} = await render(<OfferCode />);
+    await fireEvent.press(getByText('🎁 Open Play Store'));
 
     await waitFor(() => {
       expect(Alert.alert).toHaveBeenCalledWith(

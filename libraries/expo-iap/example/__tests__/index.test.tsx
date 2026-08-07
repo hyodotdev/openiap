@@ -32,7 +32,7 @@ describe('Home Component', () => {
   });
 
   it('should render without crashing', async () => {
-    const {getByText} = render(<Home />);
+    const {getByText} = await render(<Home />);
     expect(getByText('expo-iap Examples')).toBeDefined();
 
     await waitFor(() => {
@@ -41,7 +41,7 @@ describe('Home Component', () => {
   });
 
   it('should render the full example menu', async () => {
-    const {getByText} = render(<Home />);
+    const {getByText} = await render(<Home />);
 
     expect(getByText('All Products')).toBeDefined();
     expect(getByText('In-App Purchase Flow')).toBeDefined();
@@ -62,7 +62,7 @@ describe('Home Component', () => {
       configurable: true,
     });
 
-    const {getByText} = render(<Home />);
+    const {getByText} = await render(<Home />);
     expect(getByText('expo-iap Examples')).toBeDefined();
 
     // Wait for async operations to complete
@@ -80,7 +80,7 @@ describe('Home Component', () => {
 
     const consoleLog = jest.spyOn(console, 'log').mockImplementation();
 
-    const {getByText} = render(<Home />);
+    const {getByText} = await render(<Home />);
     expect(getByText('expo-iap Examples')).toBeDefined();
 
     // getStorefront is called but resolves to empty string on unsupported platforms
@@ -91,13 +91,13 @@ describe('Home Component', () => {
     consoleLog.mockRestore();
   });
 
-  it('should skip storefront lookup on Vega', () => {
+  it('should skip storefront lookup on Vega', async () => {
     Object.defineProperty(Platform, 'OS', {
       get: jest.fn(() => 'kepler'),
       configurable: true,
     });
 
-    const {getByText} = render(<Home />);
+    const {getByText} = await render(<Home />);
     expect(getByText('expo-iap Examples')).toBeDefined();
     expect(ExpoIap.getStorefront).not.toHaveBeenCalled();
   });

@@ -1,5 +1,3 @@
-/* eslint-env jest, node */
-
 const {readFileSync} = require('fs');
 const {resolve} = require('path');
 

@@ -26,7 +26,7 @@ const APP_DELEGATE_SCENE_CONFIGURATION = `  public func application(
 const LEGACY_WINDOW_BOOTSTRAP =
   /#if os\(iOS\) \|\| os\(tvOS\)\n\s*window = UIWindow\(frame: UIScreen\.main\.bounds\)\n\s*factory\.startReactNative\(\n\s*withModuleName: "main",\n\s*in: window,\n\s*launchOptions: launchOptions\)\n#endif\n/;
 
-const EXPO_SCENE_DELEGATE_SOURCE = `import Expo
+const EXPO_SCENE_DELEGATE_SOURCE = `internal import Expo
 import React
 
 @objc(SceneDelegate)

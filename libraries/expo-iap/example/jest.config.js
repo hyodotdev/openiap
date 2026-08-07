@@ -1,14 +1,15 @@
+// Expo SDK 57 installs expo/fetch as the global fetch implementation by default.
+// These component tests do not exercise expo/fetch, so retain React Native's
+// Jest fetch implementation and avoid initializing native fetch response types.
+process.env.EXPO_PUBLIC_USE_RN_FETCH ??= '1';
+
 module.exports = {
   preset: 'jest-expo',
   // Remove testEnvironment override to let jest-expo handle it
   // testEnvironment: 'node',
   // Disable watchman to avoid sandbox/permission issues in CI and sandboxes
   watchman: false,
-  moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx'],
   testMatch: ['**/__tests__/**/*.test.{ts,tsx,js,jsx}'],
-  transform: {
-    '^.+\\.(js|jsx|ts|tsx)$': 'babel-jest',
-  },
   moduleNameMapper: {
     '^@/(.*)$': '<rootDir>/app/$1',
     '^../../src$': '<rootDir>/../src',

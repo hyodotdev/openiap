@@ -1,7 +1,7 @@
 // External dependencies
 import {useCallback, useEffect, useState, useRef} from 'react';
 import {Platform} from 'react-native';
-import {EventSubscription} from 'expo-modules-core';
+import type {EventSubscription} from 'expo-modules-core';
 
 // Internal modules
 import {
@@ -187,6 +187,9 @@ export function useIAP(options?: UseIAPOptions): UseIap {
 
   const optionsRef = useRef<UseIAPOptions | undefined>(options);
   const connectedRef = useRef<boolean>(false);
+  const isMountedRef = useRef<boolean>(false);
+  const initializationGenerationRef = useRef(0);
+  const startedInitializationGenerationRef = useRef(0);
   const deliveredPurchaseKeysRef = useRef(new Set<string>());
 
   // Helper function to merge arrays with duplicate checking
@@ -645,120 +648,149 @@ export function useIAP(options?: UseIAPOptions): UseIap {
     return undefined;
   }, []);
 
-  const initIapWithSubscriptions = useCallback(async (): Promise<void> => {
-    // CRITICAL: Register listeners BEFORE initConnection to avoid race condition
-    // Events might fire immediately after initConnection, so listeners must be ready
-    // Register purchase update listener BEFORE initConnection to avoid race conditions.
-    subscriptionsRef.current.purchaseUpdate = purchaseUpdatedListener(
-      async (purchase: Purchase) => {
-        if (!markPurchaseDelivered(purchase)) {
-          return;
-        }
+  const initIapWithSubscriptions = useCallback(
+    async (generation: number): Promise<void> => {
+      if (
+        !isMountedRef.current ||
+        initializationGenerationRef.current !== generation
+      ) {
+        return;
+      }
+      startedInitializationGenerationRef.current = generation;
 
-        // Refresh subscription status for both iOS and Android subscription purchases.
-        // refreshSubscriptionStatus internally checks whether the product is a known
-        // subscription, so it is safe to call unconditionally for any purchase event.
-        await refreshSubscriptionStatus(purchase.productId);
+      // CRITICAL: Register listeners BEFORE initConnection to avoid race condition
+      // Events might fire immediately after initConnection, so listeners must be ready
+      // Register purchase update listener BEFORE initConnection to avoid race conditions.
+      subscriptionsRef.current.purchaseUpdate = purchaseUpdatedListener(
+        async (purchase: Purchase) => {
+          if (!markPurchaseDelivered(purchase)) {
+            return;
+          }
 
-        if (optionsRef.current?.onPurchaseSuccess) {
-          optionsRef.current.onPurchaseSuccess(purchase);
-        }
-      },
-      optionsRef.current?.purchaseUpdatedListenerOptions,
-    );
+          // Refresh subscription status for both iOS and Android subscription purchases.
+          // refreshSubscriptionStatus internally checks whether the product is a known
+          // subscription, so it is safe to call unconditionally for any purchase event.
+          await refreshSubscriptionStatus(purchase.productId);
 
-    // Register purchase error listener EARLY. Ignore init-related errors until connected.
-    subscriptionsRef.current.purchaseError = purchaseErrorListener(
-      (error: PurchaseError) => {
-        if (!connectedRef.current && error.code === ErrorCode.InitConnection) {
-          return; // Ignore initialization error before connected
-        }
-        const friendly = getUserFriendlyErrorMessage(error);
-        if (
-          error?.code !== ErrorCode.AlreadyOwned &&
-          error?.code !== ErrorCode.ServiceTimeout &&
-          !isUserCancelledError(error) &&
-          !isRecoverableError(error)
-        ) {
-          ExpoIapConsole.warn('[useIAP] Purchase error:', friendly);
-        }
+          if (optionsRef.current?.onPurchaseSuccess) {
+            optionsRef.current.onPurchaseSuccess(purchase);
+          }
+        },
+        optionsRef.current?.purchaseUpdatedListenerOptions,
+      );
 
-        if (optionsRef.current?.onPurchaseError) {
-          optionsRef.current.onPurchaseError(error);
-        }
-      },
-    );
+      // Register purchase error listener EARLY. Ignore init-related errors until connected.
+      subscriptionsRef.current.purchaseError = purchaseErrorListener(
+        (error: PurchaseError) => {
+          if (
+            !connectedRef.current &&
+            error.code === ErrorCode.InitConnection
+          ) {
+            return; // Ignore initialization error before connected
+          }
+          const friendly = getUserFriendlyErrorMessage(error);
+          if (
+            error?.code !== ErrorCode.AlreadyOwned &&
+            error?.code !== ErrorCode.ServiceTimeout &&
+            !isUserCancelledError(error) &&
+            !isRecoverableError(error)
+          ) {
+            ExpoIapConsole.warn('[useIAP] Purchase error:', friendly);
+          }
 
-    if (
-      Platform.OS === 'android' &&
-      optionsRef.current?.onUserChoiceBillingAndroid
-    ) {
-      subscriptionsRef.current.userChoiceBillingAndroid =
-        userChoiceBillingListenerAndroid((details) => {
-          optionsRef.current?.onUserChoiceBillingAndroid?.(details);
-        });
-    }
-
-    if (
-      Platform.OS === 'android' &&
-      optionsRef.current?.onDeveloperProvidedBillingAndroid
-    ) {
-      subscriptionsRef.current.developerProvidedBillingAndroid =
-        developerProvidedBillingListenerAndroid((details) => {
-          optionsRef.current?.onDeveloperProvidedBillingAndroid?.(details);
-        });
-    }
-
-    subscriptionsRef.current.subscriptionBillingIssue =
-      subscriptionBillingIssueListener((purchase) => {
-        optionsRef.current?.onSubscriptionBillingIssue?.(purchase);
-      });
-
-    if (Platform.OS === 'ios') {
-      // iOS promoted products listener
-      subscriptionsRef.current.promotedProductIOS = promotedProductListenerIOS(
-        (product: Product) => {
-          setPromotedProductIOS(product);
-
-          if (optionsRef.current?.onPromotedProductIOS) {
-            optionsRef.current.onPromotedProductIOS(product);
+          if (optionsRef.current?.onPurchaseError) {
+            optionsRef.current.onPurchaseError(error);
           }
         },
       );
-    }
 
-    // NOW call initConnection after listeners are ready
-    const config = buildConnectionConfig();
+      if (
+        Platform.OS === 'android' &&
+        optionsRef.current?.onUserChoiceBillingAndroid
+      ) {
+        subscriptionsRef.current.userChoiceBillingAndroid =
+          userChoiceBillingListenerAndroid((details) => {
+            optionsRef.current?.onUserChoiceBillingAndroid?.(details);
+          });
+      }
 
-    try {
-      const result = await initConnection(config);
-      setConnected(result);
-      if (!result) {
-        // If connection failed, clean up listeners
-        ExpoIapConsole.warn(
-          '[useIAP] Connection failed, cleaning up listeners...',
-        );
+      if (
+        Platform.OS === 'android' &&
+        optionsRef.current?.onDeveloperProvidedBillingAndroid
+      ) {
+        subscriptionsRef.current.developerProvidedBillingAndroid =
+          developerProvidedBillingListenerAndroid((details) => {
+            optionsRef.current?.onDeveloperProvidedBillingAndroid?.(details);
+          });
+      }
+
+      subscriptionsRef.current.subscriptionBillingIssue =
+        subscriptionBillingIssueListener((purchase) => {
+          optionsRef.current?.onSubscriptionBillingIssue?.(purchase);
+        });
+
+      if (Platform.OS === 'ios') {
+        // iOS promoted products listener
+        subscriptionsRef.current.promotedProductIOS =
+          promotedProductListenerIOS((product: Product) => {
+            setPromotedProductIOS(product);
+
+            if (optionsRef.current?.onPromotedProductIOS) {
+              optionsRef.current.onPromotedProductIOS(product);
+            }
+          });
+      }
+
+      // NOW call initConnection after listeners are ready
+      const config = buildConnectionConfig();
+
+      try {
+        const result = await initConnection(config);
+        if (
+          !isMountedRef.current ||
+          initializationGenerationRef.current !== generation
+        ) {
+          if (startedInitializationGenerationRef.current === generation) {
+            startedInitializationGenerationRef.current = 0;
+            await endConnection();
+          }
+          return;
+        }
+        setConnected(result);
+        if (!result) {
+          // If connection failed, clean up listeners
+          ExpoIapConsole.warn(
+            '[useIAP] Connection failed, cleaning up listeners...',
+          );
+          subscriptionsRef.current.purchaseUpdate?.remove();
+          subscriptionsRef.current.promotedProductIOS?.remove();
+          subscriptionsRef.current.purchaseUpdate = undefined;
+          subscriptionsRef.current.promotedProductIOS = undefined;
+          // Keep purchaseError listener registered to capture subsequent retries
+        }
+      } catch (error) {
+        if (
+          !isMountedRef.current ||
+          initializationGenerationRef.current !== generation
+        ) {
+          return;
+        }
+        ExpoIapConsole.error('initConnection failed:', error);
+        invokeOnError(error);
+        // Clean up listeners on error
         subscriptionsRef.current.purchaseUpdate?.remove();
         subscriptionsRef.current.promotedProductIOS?.remove();
         subscriptionsRef.current.purchaseUpdate = undefined;
         subscriptionsRef.current.promotedProductIOS = undefined;
-        // Keep purchaseError listener registered to capture subsequent retries
       }
-    } catch (error) {
-      ExpoIapConsole.error('initConnection failed:', error);
-      invokeOnError(error);
-      // Clean up listeners on error
-      subscriptionsRef.current.purchaseUpdate?.remove();
-      subscriptionsRef.current.promotedProductIOS?.remove();
-      subscriptionsRef.current.purchaseUpdate = undefined;
-      subscriptionsRef.current.promotedProductIOS = undefined;
-    }
-  }, [
-    buildConnectionConfig,
-    markPurchaseDelivered,
-    refreshSubscriptionStatus,
-    invokeOnError,
-  ]);
+    },
+    [
+      buildConnectionConfig,
+      markPurchaseDelivered,
+      refreshSubscriptionStatus,
+      invokeOnError,
+    ],
+  );
 
   // Manual reconnect method for when the initial auto-connect fails.
   // Re-runs initConnection and updates the connected state.
@@ -818,17 +850,23 @@ export function useIAP(options?: UseIAPOptions): UseIap {
   ]);
 
   useEffect(() => {
-    initIapWithSubscriptions();
+    const generation = ++initializationGenerationRef.current;
+    isMountedRef.current = true;
+    void Promise.resolve().then(() => initIapWithSubscriptions(generation));
     const currentSubscriptions = subscriptionsRef.current;
 
     return () => {
+      isMountedRef.current = false;
       currentSubscriptions.purchaseUpdate?.remove();
       currentSubscriptions.purchaseError?.remove();
       currentSubscriptions.promotedProductIOS?.remove();
       currentSubscriptions.userChoiceBillingAndroid?.remove();
       currentSubscriptions.developerProvidedBillingAndroid?.remove();
       currentSubscriptions.subscriptionBillingIssue?.remove();
-      endConnection();
+      if (startedInitializationGenerationRef.current === generation) {
+        startedInitializationGenerationRef.current = 0;
+        void endConnection();
+      }
       setConnected(false);
     };
   }, [initIapWithSubscriptions]);

@@ -1,6 +1,14 @@
 /* eslint-disable import/first */
-import React from 'react';
-import TestRenderer, {act} from 'react-test-renderer';
+import React, {act} from 'react';
+import {createRoot, type Root} from 'test-renderer';
+
+const TestRenderer = {
+  create(element: React.ReactElement): Root {
+    const root = createRoot();
+    root.render(element);
+    return root;
+  },
+};
 
 // Minimal Nitro mock used by index/useIAP under the hood
 const mockIap: any = {

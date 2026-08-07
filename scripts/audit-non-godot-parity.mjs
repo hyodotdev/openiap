@@ -263,7 +263,9 @@ function checkNoOutboundWebhookStream() {
     for (const symbol of forbiddenGodotArtifactSymbols) {
       if (artifact.includes(Buffer.from(symbol))) {
         fail(
-          `${relativePath} still embeds removed outbound webhook symbol ${JSON.stringify(symbol)}; rebuild the tracked artifact`,
+          `${relativePath} still embeds removed outbound webhook symbol ${JSON.stringify(
+            symbol,
+          )}; rebuild the tracked artifact`,
         );
       }
     }
@@ -308,7 +310,9 @@ function checkNoOutboundWebhookStream() {
     for (const identifier of forbiddenIdentifiers) {
       if (text.includes(identifier)) {
         fail(
-          `${relativePath} reintroduces forbidden outbound webhook identifier ${JSON.stringify(identifier)}`,
+          `${relativePath} reintroduces forbidden outbound webhook identifier ${JSON.stringify(
+            identifier,
+          )}`,
         );
       }
     }
@@ -320,7 +324,9 @@ function checkNoOutboundWebhookStream() {
     for (const identifier of forbiddenIdentifiers) {
       if (text.includes(identifier)) {
         fail(
-          `${relativePath} documents forbidden outbound webhook identifier ${JSON.stringify(identifier)}`,
+          `${relativePath} documents forbidden outbound webhook identifier ${JSON.stringify(
+            identifier,
+          )}`,
         );
       }
     }
@@ -581,7 +587,9 @@ function expectFlutterHandlers(kind, block) {
   );
   if (missing.length > 0) {
     fail(
-      `Flutter ${kind}Handlers missing generated operations: ${missing.join(", ")}`,
+      `Flutter ${kind}Handlers missing generated operations: ${missing.join(
+        ", ",
+      )}`,
     );
   }
 }
@@ -736,12 +744,16 @@ function checkFrameworkOperationBindings() {
     if (expected === "Array") {
       if (!actual.startsWith("Array")) {
         fail(
-          `Godot wrapper ${field.snakeName} should return Array for ${field.returnType}, got ${actual || "(none)"}`,
+          `Godot wrapper ${field.snakeName} should return Array for ${
+            field.returnType
+          }, got ${actual || "(none)"}`,
         );
       }
     } else if (actual !== expected) {
       fail(
-        `Godot wrapper ${field.snakeName} should return ${expected} for ${field.returnType}, got ${actual || "(none)"}`,
+        `Godot wrapper ${field.snakeName} should return ${expected} for ${
+          field.returnType
+        }, got ${actual || "(none)"}`,
       );
     }
   }
@@ -855,7 +867,9 @@ function checkE2eExampleIds() {
   ]) {
     if (normalTargets.includes(staleName)) {
       fail(
-        `Expo E2E normal targets must not use stale Xcode name ${JSON.stringify(staleName)}`,
+        `Expo E2E normal targets must not use stale Xcode name ${JSON.stringify(
+          staleName,
+        )}`,
       );
     }
   }
@@ -1105,7 +1119,10 @@ function expectNoExampleStorefrontIOS() {
       const text = fs.readFileSync(file, "utf8");
       if (text.includes("getStorefrontIOS(")) {
         fail(
-          `example uses getStorefrontIOS instead of getStorefront: ${path.relative(root, file)}`,
+          `example uses getStorefrontIOS instead of getStorefront: ${path.relative(
+            root,
+            file,
+          )}`,
         );
       }
     }
@@ -2720,6 +2737,65 @@ function checkFrameworkDependencyHygiene() {
   if (typeof googleVersion !== "string" || googleVersion.length === 0) {
     fail("openiap-versions.json is missing a google version");
   }
+
+  // Expo SDK 57's lint ecosystem supports ESLint 9, but not ESLint 10 yet.
+  // Keep both JavaScript libraries on the newest supported major and preserve
+  // the flat-config migration so deprecated eslintrc files cannot return.
+  for (const packagePath of [
+    "libraries/expo-iap/package.json",
+    "libraries/react-native-iap/package.json",
+    "libraries/react-native-iap/example/package.json",
+  ]) {
+    const packageJson = readJson(packagePath);
+    if (packageJson.devDependencies?.eslint !== "^9.39.5") {
+      fail(`${packagePath} must use the audited ESLint 9.39.5 toolchain`);
+    }
+    if (packageJson.devDependencies?.globals !== "^17.9.0") {
+      fail(`${packagePath} must provide flat-config globals 17.9.0`);
+    }
+    if (
+      packageJson.eslintConfig ||
+      packageJson.eslintIgnore ||
+      packageJson.devDependencies?.["@react-native/eslint-config"]
+    ) {
+      fail(`${packagePath} must not restore legacy ESLint configuration`);
+    }
+  }
+  for (const configPath of [
+    "libraries/expo-iap/eslint.config.js",
+    "libraries/react-native-iap/eslint.config.js",
+    "libraries/react-native-iap/example/eslint.config.js",
+  ]) {
+    expectIncludes(
+      configPath,
+      ["eslint-config-expo/flat", "eslint-config-prettier/flat", "globals"],
+      `${configPath} ESLint 9 flat config`,
+    );
+  }
+  for (const legacyConfigPath of [
+    "libraries/expo-iap/.eslintignore",
+    "libraries/expo-iap/.eslintrc.js",
+    "libraries/react-native-iap/.eslintignore",
+    "libraries/react-native-iap/.eslintrc.js",
+    "libraries/react-native-iap/example/.eslintrc.js",
+  ]) {
+    if (exists(legacyConfigPath)) {
+      fail(
+        `${legacyConfigPath} must stay removed after the ESLint 9 migration`,
+      );
+    }
+  }
+  expectIncludes(
+    "libraries/react-native-iap/example/tsconfig.json",
+    ['"extends": "@react-native/typescript-config"'],
+    "React Native example TypeScript config export",
+  );
+  expectNotIncludes(
+    "libraries/react-native-iap/example/tsconfig.json",
+    ["@react-native/typescript-config/tsconfig.json"],
+    "React Native example must not use the removed TypeScript config subpath",
+  );
+
   const googleBuildGradle = read("packages/google/openiap/build.gradle.kts");
   const googleCoroutineVersions = uniqueMatches(
     googleBuildGradle,
@@ -2727,7 +2803,9 @@ function checkFrameworkDependencyHygiene() {
   );
   if (googleCoroutineVersions.length !== 1) {
     fail(
-      `packages/google must use one Kotlinx Coroutines version, found: ${googleCoroutineVersions.join(", ") || "(none)"}`,
+      `packages/google must use one Kotlinx Coroutines version, found: ${
+        googleCoroutineVersions.join(", ") || "(none)"
+      }`,
     );
   }
   const googleCoroutinesVersion = googleCoroutineVersions[0];
@@ -3427,6 +3505,9 @@ function checkFrameworkDependencyHygiene() {
   );
   const kmpExampleKotlinVersion =
     kmpExampleVersions.match(/^kotlin = "([^"]+)"/m)?.[1];
+  const kmpExampleGradleVersion = read(
+    "libraries/kmp-iap/example/gradle/wrapper/gradle-wrapper.properties",
+  ).match(/gradle-([^-]+)-bin\.zip/)?.[1];
   const kmpCompileSdk = kmpExampleVersions.match(
     /^android-compileSdk = "([^"]+)"/m,
   )?.[1];
@@ -3442,31 +3523,65 @@ function checkFrameworkDependencyHygiene() {
     fail(
       `KMP example Kotlin ${kmpExampleKotlinVersion} must match library Kotlin ${kmpKotlinVersion}`,
     );
+  } else if (kmpExampleGradleVersion !== kmpGradleVersion) {
+    fail(
+      `KMP example Gradle ${
+        kmpExampleGradleVersion || "(missing)"
+      } must match library Gradle ${kmpGradleVersion}`,
+    );
   } else {
     expectIncludes(
       "packages/docs/src/pages/docs/setup/kmp.tsx",
-      [`Kotlin ${kmpKotlinVersion}+`, `Gradle ${kmpGradleVersion}+`, "JDK 17+"],
+      [`Kotlin ${kmpKotlinVersion}`, `Gradle ${kmpGradleVersion}`, "JDK 17+"],
       "KMP setup docs toolchain versions",
     );
+    for (const mobileOnlyFile of [
+      "libraries/kmp-iap/example/README.md",
+      "libraries/kmp-iap/setup.sh",
+      "libraries/kmp-iap/setup.bat",
+      "libraries/kmp-iap/library/build.gradle.kts",
+    ]) {
+      expectNotIncludes(
+        mobileOnlyFile,
+        [
+          ":example:run",
+          "wasmJsBrowserDevelopmentRun",
+          "Android, iOS, Desktop, and Web",
+        ],
+        "KMP mobile-only targets must not advertise removed desktop or web tasks",
+      );
+    }
     expectIncludes(
-      "libraries/kmp-iap/example/composeApp/build.gradle.kts",
-      ["implementation(libs.kotlinx.coroutines.swing)"],
-      "KMP example desktop coroutines must use version catalog",
+      "libraries/kmp-iap/example/README.md",
+      [":example:composeApp:installPlayDebug", "Android and iOS"],
+      "KMP example docs must use the current mobile target and task",
     );
-    expectIncludes(
-      "libraries/kmp-iap/example/gradle/libs.versions.toml",
-      ["kotlinx-coroutines-swing"],
-      "KMP example coroutines aliases must match root catalog naming",
-    );
+    for (const removedKmpExamplePath of [
+      "libraries/kmp-iap/example/composeApp/src/jvmMain/kotlin/dev/hyo/martie/main.kt",
+      "libraries/kmp-iap/example/composeApp/src/jvmMain/kotlin/dev/hyo/martie/config/AppConfig.jvm.kt",
+      "libraries/kmp-iap/example/composeApp/src/jvmMain/kotlin/dev/hyo/martie/screens/PlatformTime.jvm.kt",
+      "libraries/kmp-iap/example/kotlin-js-store/wasm/yarn.lock",
+    ]) {
+      if (exists(removedKmpExamplePath)) {
+        fail(
+          `${removedKmpExamplePath} must remain removed with desktop and web targets`,
+        );
+      }
+    }
     expectNotIncludes(
       "libraries/kmp-iap/example/gradle/libs.versions.toml",
-      ["kotlinx-coroutinesSwing"],
-      "KMP example coroutines aliases must not use root-incompatible camel suffixes",
+      ["kotlinx-coroutines-swing", "kotlinx-coroutinesSwing"],
+      "KMP Android/iOS example must not retain desktop coroutine aliases",
     );
     expectNotIncludes(
       "libraries/kmp-iap/example/composeApp/build.gradle.kts",
-      ["org.jetbrains.kotlinx:kotlinx-coroutines-swing:"],
-      "KMP example desktop coroutines must not hardcode Maven versions",
+      [
+        'jvm("desktop")',
+        "wasmJs",
+        "compose.desktop",
+        "kotlinx-coroutines-swing",
+      ],
+      "KMP Android/iOS example must not retain unsupported desktop or Wasm targets",
     );
     expectIncludes(
       "libraries/kmp-iap/CONTRIBUTING.md",
@@ -3542,6 +3657,16 @@ function checkFrameworkDependencyHygiene() {
       'version.ref = "compose-material-icons"',
     ],
     "KMP standalone example Compose icon dependency",
+  );
+  expectIncludes(
+    "libraries/kmp-iap/example/gradle/libs.versions.toml",
+    ['androidx-lifecycle = "2.10.0"', "requires Android API 37 / AGP 9.1"],
+    "KMP standalone example Lifecycle compatibility cap",
+  );
+  expectNotIncludes(
+    "libraries/kmp-iap/example/gradle/libs.versions.toml",
+    ['androidx-lifecycle = "2.11.0"'],
+    "KMP standalone example must not exceed the API 36 compatible Lifecycle line",
   );
   expectIncludes(
     "libraries/kmp-iap/example/composeApp/build.gradle.kts",
@@ -4346,6 +4471,9 @@ function checkFrameworkDependencyHygiene() {
       "CLANG_ENABLE_CODE_COVERAGE=NO",
       "ENABLE_CODE_COVERAGE=NO",
       "SWIFT_ENABLE_CODE_COVERAGE=NO",
+      'android:value="$(GODOT_VERSION).stable"',
+      "describe --tags --exact-match",
+      "expected $(SWIFT_GODOT_VERSION)",
     ],
     "Godot release framework builds must disable code-coverage instrumentation",
   );
@@ -4358,10 +4486,22 @@ function checkFrameworkDependencyHygiene() {
       [
         "Verify tracked iOS framework toolchain",
         "bash scripts/verify-ios-toolchain.sh",
+        "godot-lib.4.3.stable.template_release.aar",
+        "godot-lib.4.7.1.stable.template_release.aar",
       ],
       `${godotWorkflow} must validate tracked iOS framework toolchain provenance`,
     );
   }
+  expectIncludes(
+    ".github/workflows/ci-godot-iap.yml",
+    ["version: 4.7.1", 'xcode-version: "26.6"', "SwiftGodot v0.79.0"],
+    "Godot CI must validate the pinned engine and SwiftGodot toolchain",
+  );
+  expectNotIncludes(
+    ".github/workflows/ci-godot-iap.yml",
+    ['xcode-version: "26.0"'],
+    "Godot CI must not retain stale engine or Swift toolchain pins",
+  );
   expectIncludes(
     ".github/workflows/release-godot.yml",
     [
@@ -4937,14 +5077,14 @@ function checkFrameworkDependencyHygiene() {
       "'google' version missing in openiap-versions.json",
       'id("com.android.library") version "8.13.2"',
       'id("com.android.application") version "8.13.2"',
-      'id("com.vanniktech.maven.publish") version "0.35.0"',
+      'id("com.vanniktech.maven.publish") version "0.37.0"',
     ],
     "packages/google root OpenIAP version",
   );
   expectIncludes(
     "packages/google/gradle/wrapper/gradle-wrapper.properties",
-    ["gradle-8.13-all.zip"],
-    "packages/google Gradle wrapper must support Vanniktech 0.35.0",
+    ["gradle-9.3.0-all.zip"],
+    "packages/google Gradle wrapper must support Vanniktech 0.37.0",
   );
   expectNotIncludes(
     "packages/google/build.gradle.kts",
@@ -4965,9 +5105,15 @@ function checkFrameworkDependencyHygiene() {
       "'google' version missing in openiap-versions.json",
       "compilerOptions",
       "JvmTarget.JVM_17",
+      "KotlinAndroidProjectExtension",
+      "ANDROID_GRADLE_PLUGIN_VERSION.substringBefore('.')",
+      'providers.gradleProperty("android.builtInKotlin")',
+      "if (!usesBuiltInKotlin)",
+      'pluginManager.apply("org.jetbrains.kotlin.android")',
       "val horizonBillingCompatibilityVersion =",
       "val horizonPlatformKotlinVersion =",
-      "val horizonSerializationVersion =",
+      'val horizonSerializationVersion = "1.9.0"',
+      "Expo SDK 57's Kotlin",
       "publishToMavenCentral()",
     ],
     "packages/google module OpenIAP version and Kotlin compiler settings",
@@ -4989,7 +5135,9 @@ function checkFrameworkDependencyHygiene() {
   );
   if (googleBillingVersions.length !== 1) {
     fail(
-      `packages/google must use one Play Billing version, found: ${googleBillingVersions.join(", ") || "(none)"}`,
+      `packages/google must use one Play Billing version, found: ${
+        googleBillingVersions.join(", ") || "(none)"
+      }`,
     );
   }
   const googleGsonVersions = uniqueMatches(
@@ -4998,13 +5146,27 @@ function checkFrameworkDependencyHygiene() {
   );
   if (googleGsonVersions.length !== 1) {
     fail(
-      `packages/google must use one Gson version, found: ${googleGsonVersions.join(", ") || "(none)"}`,
+      `packages/google must use one Gson version, found: ${
+        googleGsonVersions.join(", ") || "(none)"
+      }`,
     );
   }
   expectIncludes(
     "packages/google/openiap/build.gradle.kts",
-    ["com.android.billingclient:billing:$playBillingVersion"],
+    [
+      "com.android.billingclient:billing:$playBillingVersion",
+      "androidx.lifecycle:lifecycle-runtime:2.10.0",
+      "androidx.lifecycle:lifecycle-viewmodel:2.10.0",
+    ],
     "packages/google Play Billing dependency version",
+  );
+  expectNotIncludes(
+    "packages/google/openiap/build.gradle.kts",
+    [
+      "androidx.lifecycle:lifecycle-runtime:2.11.0",
+      "androidx.lifecycle:lifecycle-viewmodel:2.11.0",
+    ],
+    "packages/google must not exceed the API 36 compatible Lifecycle line",
   );
   expectNotIncludes(
     "packages/google/openiap/build.gradle.kts",
@@ -5015,6 +5177,16 @@ function checkFrameworkDependencyHygiene() {
     "libraries/kmp-iap/library/build.gradle.kts",
     ["com.android.billingclient:billing-ktx:"],
     "KMP Android compile classpaths must use the Billing core artifact",
+  );
+  expectIncludes(
+    "libraries/kmp-iap/library/build.gradle.kts",
+    ["org.robolectric:robolectric:4.16.1"],
+    "KMP Android unit-test runtime version",
+  );
+  expectNotIncludes(
+    "libraries/kmp-iap/library/build.gradle.kts",
+    ["org.robolectric:robolectric:4.13"],
+    "KMP Android unit-test runtime must not retain the old Robolectric pin",
   );
   expectNotIncludes(
     "packages/google/openiap/src/main/java/dev/hyo/openiap/store/OpenIapStore.kt",
@@ -5077,16 +5249,18 @@ function checkFrameworkDependencyHygiene() {
         "openIapBuildFile",
         'readOpenIapAndroidInt("compileSdk")',
         'readOpenIapAndroidInt("minSdk")',
-        'readOpenIapDependencyVersion("androidx.core:core-ktx")',
-        'readOpenIapDependencyVersion("androidx.lifecycle:lifecycle-runtime-ktx")',
-        'readOpenIapDependencyVersion("androidx.lifecycle:lifecycle-viewmodel-ktx")',
+        'readOpenIapDependencyVersion("androidx.core:core")',
+        'readOpenIapDependencyVersion("androidx.lifecycle:lifecycle-runtime")',
+        'readOpenIapDependencyVersion("androidx.lifecycle:lifecycle-viewmodel")',
         'readOpenIapDependencyVersion("junit:junit")',
         "compileSdk = openIapCompileSdk",
         "minSdk = openIapMinSdk",
         "targetSdk = openIapTargetSdk",
-        'implementation("androidx.core:core-ktx:$openIapCoreKtxVersion")',
-        'implementation("androidx.lifecycle:lifecycle-runtime-ktx:$openIapLifecycleRuntimeVersion")',
+        'implementation("androidx.core:core:$openIapCoreVersion")',
+        'implementation("androidx.lifecycle:lifecycle-runtime:$openIapLifecycleRuntimeVersion")',
         'implementation("androidx.lifecycle:lifecycle-viewmodel-compose:$openIapLifecycleViewModelVersion")',
+        'implementation("androidx.compose.material:material-icons-extended:$composeMaterialIconsVersion")',
+        "COMPOSE_MATERIAL_ICONS_VERSION",
         'testImplementation("junit:junit:$openIapJunitVersion")',
       ],
       "Google example overlapping Android versions must derive from openiap module",
@@ -5097,8 +5271,9 @@ function checkFrameworkDependencyHygiene() {
         "compileSdk = 35",
         "minSdk = 24",
         "targetSdk = 35",
-        "androidx.core:core-ktx:1.13.1",
-        "androidx.lifecycle:lifecycle-runtime-ktx:2.8.7",
+        "androidx.core:core-ktx:",
+        "androidx.lifecycle:lifecycle-runtime-ktx:",
+        "androidx.lifecycle:lifecycle-viewmodel-ktx:",
         "androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7",
         "junit:junit:4.13.2",
       ],
@@ -5195,6 +5370,9 @@ function checkFrameworkDependencyHygiene() {
         "readRequiredAndroidGradleProperty(projectDir, 'openIapAndroidAnnotationVersion')",
         'classpath "com.android.tools.build:gradle:$androidGradlePluginVersion"',
         "openiap-android-sdk.gradle",
+        "ANDROID_GRADLE_PLUGIN_VERSION.tokenize('.')",
+        "findProperty('android.builtInKotlin')",
+        "if (!usesBuiltInKotlin)",
         `openIapResolveAndroidSdkVersion('compileSdkVersion', 'compileSdk', ${googleCompileSdk})`,
         `openIapResolveAndroidSdkVersion('minSdkVersion', 'minSdk', ${googleMinSdk})`,
         `openIapResolveAndroidSdkVersion('targetSdkVersion', 'compileSdk', ${googleCompileSdk})`,
@@ -5223,6 +5401,9 @@ function checkFrameworkDependencyHygiene() {
       "libraries/flutter_inapp_purchase/example/android/app/build.gradle",
       [
         "openiap-android-sdk.gradle",
+        "ANDROID_GRADLE_PLUGIN_VERSION.tokenize('.')",
+        "findProperty('android.builtInKotlin')",
+        "if (!usesBuiltInKotlin)",
         "compileSdk = openIapCompileSdkVersion",
         "minSdkVersion = openIapMinSdkVersion",
         "targetSdkVersion = openIapTargetSdkVersion",
@@ -5279,7 +5460,7 @@ function checkFrameworkDependencyHygiene() {
       [
         `openIapAndroidGradlePluginVersion=${googleAndroidGradlePluginVersion}`,
         `openIapKotlinVersion=${googleKotlinVersion}`,
-        "openIapAndroidAnnotationVersion=",
+        "openIapAndroidAnnotationVersion=1.10.0",
         "openIapJunitVersion=",
       ],
       "Flutter Android Gradle plugin fallback versions",
@@ -5297,12 +5478,12 @@ function checkFrameworkDependencyHygiene() {
     );
     expectIncludes(
       "libraries/flutter_inapp_purchase/android/gradle/wrapper/gradle-wrapper.properties",
-      ["gradle-8.13-bin.zip"],
+      ["gradle-9.3.0-bin.zip"],
       "Flutter standalone Android Gradle wrapper must support packages/google AGP",
     );
     expectIncludes(
       "libraries/flutter_inapp_purchase/example/android/gradle/wrapper/gradle-wrapper.properties",
-      ["gradle-8.13-all.zip"],
+      ["gradle-9.3.0-all.zip"],
       "Flutter example Android Gradle wrapper must support packages/google AGP",
     );
     expectIncludes(
@@ -5324,7 +5505,7 @@ function checkFrameworkDependencyHygiene() {
     );
     expectIncludes(
       "libraries/godot-iap/android/gradle/wrapper/gradle-wrapper.properties",
-      ["gradle-8.13-bin.zip"],
+      ["gradle-9.3.0-bin.zip"],
       "Godot Android Gradle wrapper must support packages/google AGP",
     );
     expectIncludes(
@@ -5498,7 +5679,7 @@ function checkFrameworkDependencyHygiene() {
         "injectPluginManagement();",
         "readGradlePluginVersion(contents,",
         "setGradlePluginVersion(",
-        "vanniktechMavenPublish: '0.35.0'",
+        "vanniktechMavenPublish: '0.37.0'",
         "pluginVersions.vanniktechMavenPublish",
         "pluginVersions.kotlin",
       ],
@@ -5519,12 +5700,33 @@ function checkFrameworkDependencyHygiene() {
       ['version "0.29.0"', "new File('${androidModulePath"],
       "Expo local OpenIAP plugin Gradle plugin versions must not drift from packages/google",
     );
+    for (const vegaDependencyFile of [
+      "libraries/expo-iap/plugin/src/withVega.ts",
+      "libraries/expo-iap/example/scripts/build-vega-example.mjs",
+      "libraries/react-native-iap/example/scripts/build-vega-example.mjs",
+    ]) {
+      expectIncludes(
+        vegaDependencyFile,
+        ["~2.13.0"],
+        "Vega examples must install the current Amazon IAP peer",
+      );
+      expectNotIncludes(
+        vegaDependencyFile,
+        ["~2.12.13"],
+        "Vega examples must not recreate the old Amazon IAP dependency",
+      );
+    }
+    expectIncludes(
+      "libraries/expo-iap/plugin/src/withVega.ts",
+      ["^0.0.7"],
+      "Expo Vega plugin must install the current compatibility Metro config",
+    );
     expectOptionalIncludes(
       "libraries/expo-iap/example/android/settings.gradle",
       [
-        'id("com.vanniktech.maven.publish") version "0.35.0"',
-        'id("org.jetbrains.kotlin.android") version "2.2.0"',
-        'id("org.jetbrains.kotlin.plugin.compose") version "2.2.0"',
+        'id("com.vanniktech.maven.publish") version "0.37.0"',
+        'id("org.jetbrains.kotlin.android") version "2.1.20"',
+        'id("org.jetbrains.kotlin.plugin.compose") version "2.1.20"',
         "project(':openiap-google').projectDir = new File(settingsDir, '../../../../packages/google/openiap')",
       ],
       "Expo example local OpenIAP plugin versions",
@@ -5536,12 +5738,12 @@ function checkFrameworkDependencyHygiene() {
     );
     expectIncludes(
       "libraries/kmp-iap/gradle/libs.versions.toml",
-      ['vanniktech-publish = "0.35.0"'],
+      ['vanniktech-publish = "0.37.0"'],
       "KMP Vanniktech publish plugin version",
     );
     expectIncludes(
       "libraries/kmp-iap/example/gradle/libs.versions.toml",
-      ['vanniktech-publish = "0.35.0"'],
+      ['vanniktech-publish = "0.37.0"'],
       "KMP example Vanniktech publish plugin version",
     );
     expectIncludes(
@@ -5748,7 +5950,9 @@ function checkFrameworkDependencyHygiene() {
   );
   if (horizonBillingVersions.length !== 1) {
     fail(
-      `packages/google must use one Horizon Billing Compatibility version, found: ${horizonBillingVersions.join(", ") || "(none)"}`,
+      `packages/google must use one Horizon Billing Compatibility version, found: ${
+        horizonBillingVersions.join(", ") || "(none)"
+      }`,
     );
   }
   if (
@@ -5761,17 +5965,23 @@ function checkFrameworkDependencyHygiene() {
   }
   if (horizonPlatformKotlinVersions.length !== 1) {
     fail(
-      `packages/google must use one Horizon Platform Kotlin SDK version, found: ${horizonPlatformKotlinVersions.join(", ") || "(none)"}`,
+      `packages/google must use one Horizon Platform Kotlin SDK version, found: ${
+        horizonPlatformKotlinVersions.join(", ") || "(none)"
+      }`,
     );
   }
   if (horizonSerializationVersions.length !== 1) {
     fail(
-      `packages/google must use one Horizon serialization version, found: ${horizonSerializationVersions.join(", ") || "(none)"}`,
+      `packages/google must use one Horizon serialization version, found: ${
+        horizonSerializationVersions.join(", ") || "(none)"
+      }`,
     );
   }
   if (amazonAppstoreSdkVersions.length !== 1) {
     fail(
-      `packages/google must use one Amazon Appstore SDK version, found: ${amazonAppstoreSdkVersions.join(", ") || "(none)"}`,
+      `packages/google must use one Amazon Appstore SDK version, found: ${
+        amazonAppstoreSdkVersions.join(", ") || "(none)"
+      }`,
     );
   }
   expectIncludes(
@@ -5817,8 +6027,14 @@ function checkFrameworkDependencyHygiene() {
   const mauiAndroidXActivityVersion = mauiProps.match(
     /<MauiAndroidXActivityVersion>([^<]+)<\/MauiAndroidXActivityVersion>/,
   )?.[1];
+  const mauiAndroidXCollectionVersion = mauiProps.match(
+    /<MauiAndroidXCollectionVersion>([^<]+)<\/MauiAndroidXCollectionVersion>/,
+  )?.[1];
   const mauiAndroidXFragmentVersion = mauiProps.match(
     /<MauiAndroidXFragmentVersion>([^<]+)<\/MauiAndroidXFragmentVersion>/,
+  )?.[1];
+  const mauiAndroidXFragmentKtxVersion = mauiProps.match(
+    /<MauiAndroidXFragmentKtxVersion>([^<]+)<\/MauiAndroidXFragmentKtxVersion>/,
   )?.[1];
   const mauiAndroidXLifecycleVersion = mauiProps.match(
     /<MauiAndroidXLifecycleVersion>([^<]+)<\/MauiAndroidXLifecycleVersion>/,
@@ -5839,6 +6055,8 @@ function checkFrameworkDependencyHygiene() {
       "MauiBillingClientNuGetVersion",
       "MauiGoogleGsonNuGetVersion",
       "MauiAndroidXActivityVersion",
+      "MauiAndroidXCollectionVersion",
+      "MauiAndroidXFragmentKtxVersion",
       "MauiAndroidXLifecycleVersion",
       "mauiGsonVersion",
     ],
@@ -5878,7 +6096,9 @@ function checkFrameworkDependencyHygiene() {
       "MauiBillingClientNuGetVersion",
       "MauiGoogleGsonNuGetVersion",
       "MauiAndroidXActivityVersion",
+      "MauiAndroidXCollectionVersion",
       "MauiAndroidXFragmentVersion",
+      "MauiAndroidXFragmentKtxVersion",
       "MauiAndroidXLifecycleVersion",
       "MauiAndroidXSavedStateVersion",
     ],
@@ -5919,8 +6139,18 @@ function checkFrameworkDependencyHygiene() {
   if (!mauiAndroidXActivityVersion) {
     fail("MAUI Directory.Build.props must define MauiAndroidXActivityVersion");
   }
+  if (!mauiAndroidXCollectionVersion) {
+    fail(
+      "MAUI Directory.Build.props must define MauiAndroidXCollectionVersion",
+    );
+  }
   if (!mauiAndroidXFragmentVersion) {
     fail("MAUI Directory.Build.props must define MauiAndroidXFragmentVersion");
+  }
+  if (!mauiAndroidXFragmentKtxVersion) {
+    fail(
+      "MAUI Directory.Build.props must define MauiAndroidXFragmentKtxVersion",
+    );
   }
   if (!mauiAndroidXLifecycleVersion) {
     fail("MAUI Directory.Build.props must define MauiAndroidXLifecycleVersion");
@@ -6005,7 +6235,7 @@ function checkFrameworkDependencyHygiene() {
       'readGoogleAndroidInt("compileSdk")',
       'readGoogleAndroidInt("minSdk")',
       "readMauiAndroidMinSdk()",
-      'readGoogleDependencyVersion("androidx.core:core-ktx")',
+      'readGoogleDependencyVersion("androidx.core:core")',
       'readGoogleVariable("coroutinesVersion")',
       "compileSdk = googleCompileSdk",
       "minSdk = maxOf(googleMinSdk, mauiAndroidMinSdk)",
@@ -6014,7 +6244,7 @@ function checkFrameworkDependencyHygiene() {
       "openiap-google-horizon",
       'missingDimensionStrategy("platform", openIapAndroidStore)',
       "mauiGsonVersion",
-      'implementation("androidx.core:core-ktx:$googleCoreKtxVersion")',
+      'implementation("androidx.core:core:$googleCoreVersion")',
       "com.google.code.gson:gson:$gsonVersion",
       'implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:$googleCoroutinesVersion")',
     ],
@@ -6044,7 +6274,7 @@ function checkFrameworkDependencyHygiene() {
     [
       "compileSdk = 35",
       "minSdk = 24",
-      "androidx.core:core-ktx:1.13.1",
+      "androidx.core:core-ktx:",
       "kotlinx-coroutines-android:1.9.0",
     ],
     "MAUI Android facade versions must derive from openiap-google and MAUI metadata",
@@ -6109,14 +6339,22 @@ function checkFrameworkDependencyHygiene() {
       "Condition=\"'$(OpenIapGoogleAarFlavor)' == 'play'\"",
       "GoogleGson",
       'Version="$(MauiGoogleGsonNuGetVersion)"',
-      "Xamarin.AndroidX.Activity.Ktx",
+      "Xamarin.AndroidX.Activity",
       'Version="$(MauiAndroidXActivityVersion)"',
-      "Xamarin.AndroidX.Fragment.Ktx",
+      "Xamarin.AndroidX.Activity.Ktx",
+      "Xamarin.AndroidX.Collection.Ktx",
+      'Version="$(MauiAndroidXCollectionVersion)"',
+      "Xamarin.AndroidX.Fragment",
       'Version="$(MauiAndroidXFragmentVersion)"',
-      "Xamarin.AndroidX.Lifecycle.Runtime.Ktx",
+      "Xamarin.AndroidX.Fragment.Ktx",
+      'Version="$(MauiAndroidXFragmentKtxVersion)"',
+      "Xamarin.AndroidX.Lifecycle.Runtime",
       'Version="$(MauiAndroidXLifecycleVersion)"',
-      "Xamarin.AndroidX.SavedState.SavedState.Ktx",
+      "Xamarin.AndroidX.Lifecycle.Runtime.Ktx",
+      "Xamarin.AndroidX.Lifecycle.ViewModel.Ktx",
+      "Xamarin.AndroidX.SavedState",
       'Version="$(MauiAndroidXSavedStateVersion)"',
+      "Xamarin.AndroidX.SavedState.SavedState.Ktx",
       'Version="$(MauiKotlinStdLibVersion)"',
       'Version="$(MauiKotlinCoroutinesVersion)"',
       "openiap-release.aar",
@@ -6251,6 +6489,16 @@ function checkFrameworkDependencyHygiene() {
     );
   }
   expectIncludes(
+    "libraries/maui-iap/tests/OpenIap.Maui.Tests/OpenIap.Maui.Tests.csproj",
+    [
+      'Include="Microsoft.NET.Test.Sdk" Version="18.8.1"',
+      'Include="xunit" Version="2.9.3"',
+      'Include="xunit.analyzers" Version="1.27.0" PrivateAssets="all"',
+      'Include="xunit.runner.visualstudio" Version="3.1.5"',
+    ],
+    "MAUI test dependencies must stay current",
+  );
+  expectIncludes(
     "libraries/flutter_inapp_purchase/android/settings.gradle",
     ["new File(settingsDir, '../../../packages/google/openiap')"],
     "Flutter Android local OpenIAP module hint",
@@ -6310,7 +6558,7 @@ function checkFrameworkDependencyHygiene() {
       "libraries/react-native-iap/android/gradle.properties",
       [
         `NitroIap_coroutinesVersion=${googleCoroutineVersions[0]}`,
-        "NitroIap_playServicesBaseVersion=",
+        "NitroIap_playServicesBaseVersion=18.10.0",
         "NitroIap_junitVersion=",
       ],
       "React Native Android coroutines fallback version",
@@ -6353,6 +6601,29 @@ function checkFrameworkDependencyHygiene() {
       "prefab true",
     ],
     "React Native Android Gradle must avoid hardcoded drift and deprecated syntax",
+  );
+  expectIncludes(
+    "libraries/expo-iap/android/build.gradle",
+    ['testImplementation "org.json:json:20260719"'],
+    "Expo Android unit tests must use the current org.json artifact",
+  );
+  expectNotIncludes(
+    "libraries/expo-iap/android/build.gradle",
+    ["kotlin-stdlib-jdk7", "org.json:json:20180813"],
+    "Expo Android dependencies must not retain merged or stale artifacts",
+  );
+  expectIncludes(
+    ".github/workflows/release-expo.yml",
+    [
+      "Consumer install smoke test (pre-tag build)",
+      "bun run verify:consumer-install --pack-ignore-scripts",
+    ],
+    "Expo releases must build and smoke-test the package before tagging",
+  );
+  expectNotIncludes(
+    ".github/workflows/release-expo.yml",
+    ["Prepare package (build + codegen)", "run: bun run prepare"],
+    "Expo releases must not rely on the no-op prepare command before tagging",
   );
   expectIncludes(
     "libraries/react-native-iap/example/android/app/build.gradle",
@@ -6398,17 +6669,15 @@ function checkFrameworkDependencyHygiene() {
   }
 
   for (const kotlinVersionFile of [
-    "libraries/expo-iap/plugin/src/withLocalOpenIAP.ts",
     "libraries/flutter_inapp_purchase/android/gradle.properties",
     "libraries/flutter_inapp_purchase/example/android/gradle.properties",
     "libraries/flutter_inapp_purchase/example/android/settings.gradle",
     "libraries/godot-iap/android/gradle.properties",
     "libraries/react-native-iap/android/gradle.properties",
-    "libraries/react-native-iap/README.md",
   ]) {
     expectIncludes(
       kotlinVersionFile,
-      ["2.2.0"],
+      ["2.3.21"],
       `${kotlinVersionFile} Kotlin version`,
     );
     expectNotIncludes(
@@ -6417,17 +6686,59 @@ function checkFrameworkDependencyHygiene() {
       `${kotlinVersionFile} Kotlin version`,
     );
   }
+  expectIncludes(
+    "libraries/react-native-iap/README.md",
+    [
+      "React Native 0.79 or later",
+      "Node.js 18 or later",
+      "Android API level 23+",
+      "versions supplied by the host React Native project",
+      "standalone OpenIAP fallback (`2.3.21`)",
+    ],
+    "React Native requirements must distinguish host compatibility from standalone fallbacks",
+  );
+  expectNotIncludes(
+    "libraries/react-native-iap/README.md",
+    [
+      "React Native 0.64 or later",
+      "Node.js 16 or later",
+      "Android API level 21+",
+      "requires Kotlin 2.3.21+",
+    ],
+    "React Native requirements must not retain stale or incompatible minimums",
+  );
+  expectIncludes(
+    "packages/docs/src/pages/docs/setup/expo.tsx",
+    [
+      "SDK 57 / React Native 0.86",
+      "SDK 57: iOS 16.4+",
+      "Android 7 / API 24+",
+      "SDK 57: 22.13.x",
+      "deploymentTarget: '16.4'",
+    ],
+    "Expo setup docs must match the validated SDK 57 toolchain",
+  );
+  expectIncludes(
+    "libraries/expo-iap/plugin/src/withLocalOpenIAP.ts",
+    ["2.1.20"],
+    "Expo SDK 57 local OpenIAP Kotlin version",
+  );
+  expectNotIncludes(
+    "libraries/expo-iap/plugin/src/withLocalOpenIAP.ts",
+    ["2.3.21"],
+    "Expo local OpenIAP must not inject the standalone Google Kotlin version",
+  );
   for (const kotlinVersionFile of [
     "libraries/expo-iap/plugin/build/withLocalOpenIAP.js",
   ]) {
     expectOptionalIncludes(
       kotlinVersionFile,
-      ["2.2.0"],
+      ["2.1.20"],
       `${kotlinVersionFile} Kotlin version`,
     );
     expectOptionalNotIncludes(
       kotlinVersionFile,
-      ["2.0.21", "2.1.20", "2.1.0"],
+      ["2.3.21"],
       `${kotlinVersionFile} Kotlin version`,
     );
   }

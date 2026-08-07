@@ -1,7 +1,6 @@
 /* eslint-env jest */
 
-// Jest setup for example app
-import '@testing-library/jest-native/extend-expect';
+// React Native Testing Library includes its Jest matchers.
 
 // Mock expo modules
 jest.mock('expo-font', () => ({

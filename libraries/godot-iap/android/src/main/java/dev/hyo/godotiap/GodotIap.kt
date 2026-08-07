@@ -539,7 +539,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 val payload = serializeOpenIapError(error)
                 availablePurchasesFailure(
                     code = payload["code"]?.toString() ?: "service-error",
-                    message = error.message ?: "Failed to get available purchases",
+                    message = error.message,
                 )
             } catch (error: Exception) {
                 GodotIapLog.failure("getAvailablePurchasesResult", error)
@@ -660,7 +660,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 val payload = serializeOpenIapError(error)
                 activeSubscriptionsFailure(
                     code = payload["code"]?.toString() ?: "service-error",
-                    message = error.message ?: "Failed to get active subscriptions",
+                    message = error.message,
                 )
             } catch (error: Exception) {
                 GodotIapLog.failure("getActiveSubscriptionsResult", error)
@@ -988,7 +988,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 JSONObject().apply {
                     put("success", true)
                     put("billingProgram", billingProgram)
-                    put("externalTransactionToken", result.externalTransactionToken ?: "")
+                    put("externalTransactionToken", result.externalTransactionToken)
                 }.toString()
             } catch (e: Exception) {
                 GodotIapLog.failure("createBillingProgramReportingDetailsAndroid", e)
@@ -1119,7 +1119,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 GodotIapLog.result("getStorefrontAndroid", countryCode)
                 JSONObject().apply {
                     put("success", true)
-                    put("countryCode", countryCode ?: "")
+                    put("countryCode", countryCode)
                 }.toString()
             } catch (e: Exception) {
                 GodotIapLog.failure("getStorefrontAndroid", e)

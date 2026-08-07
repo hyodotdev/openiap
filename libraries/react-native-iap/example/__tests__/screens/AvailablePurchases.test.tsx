@@ -65,7 +65,7 @@ describe('AvailablePurchases Screen', () => {
     // The "Available Purchases" title is owned by the navigator
     // (navigation/index.tsx `options={{title: 'Available Purchases'}}`), so a
     // bare screen render is identified by its own header content instead.
-    const {getByText} = renderWithProviders(<AvailablePurchases />);
+    const {getByText} = await renderWithProviders(<AvailablePurchases />);
     await waitFor(() => {
       expect(getByText('📋 Purchase History')).toBeTruthy();
       expect(
@@ -75,14 +75,14 @@ describe('AvailablePurchases Screen', () => {
   });
 
   it('shows connection status when connected', async () => {
-    const {getByText} = renderWithProviders(<AvailablePurchases />);
+    const {getByText} = await renderWithProviders(<AvailablePurchases />);
     await waitFor(() => {
       expect(getByText('Store Connection: ✅ Connected')).toBeTruthy();
     });
   });
 
   it('loads subscription products on mount', async () => {
-    renderWithProviders(<AvailablePurchases />);
+    await renderWithProviders(<AvailablePurchases />);
 
     await waitFor(() => {
       expect(mockRequestProducts).toHaveBeenCalled();
@@ -90,10 +90,10 @@ describe('AvailablePurchases Screen', () => {
   });
 
   it('refreshes purchases when refresh button is pressed', async () => {
-    const {getByText} = renderWithProviders(<AvailablePurchases />);
+    const {getByText} = await renderWithProviders(<AvailablePurchases />);
 
     const refreshButton = getByText('🔄 Refresh Purchases');
-    fireEvent.press(refreshButton);
+    await fireEvent.press(refreshButton);
 
     await waitFor(() => {
       expect(mockGetAvailablePurchases).toHaveBeenCalled();
@@ -101,27 +101,27 @@ describe('AvailablePurchases Screen', () => {
     });
   });
 
-  it('displays purchase history section', () => {
-    const {getByText} = renderWithProviders(<AvailablePurchases />);
+  it('displays purchase history section', async () => {
+    const {getByText} = await renderWithProviders(<AvailablePurchases />);
 
     expect(getByText('📋 Purchase History')).toBeTruthy();
     expect(getByText('dev.hyo.martie.premium')).toBeTruthy();
   });
 
-  it('displays active subscriptions section', () => {
-    const {getByText} = renderWithProviders(<AvailablePurchases />);
+  it('displays active subscriptions section', async () => {
+    const {getByText} = await renderWithProviders(<AvailablePurchases />);
 
     expect(getByText('🔄 Active Subscriptions')).toBeTruthy();
   });
 
-  it('shows Vega guidance instead of opening unsupported subscription management deep links', () => {
+  it('shows Vega guidance instead of opening unsupported subscription management deep links', async () => {
     const originalPlatform = Platform.OS;
     (Platform as any).OS = 'kepler';
 
     try {
-      const {getByText} = renderWithProviders(<AvailablePurchases />);
+      const {getByText} = await renderWithProviders(<AvailablePurchases />);
 
-      fireEvent.press(getByText('👤 Manage Subscriptions'));
+      await fireEvent.press(getByText('👤 Manage Subscriptions'));
 
       expect(
         getByText(/Subscription management deep links are not exposed/),
@@ -133,7 +133,7 @@ describe('AvailablePurchases Screen', () => {
   });
 
   it('handles error when fetching purchases fails', async () => {
-    const {getByText} = renderWithProviders(<AvailablePurchases />);
+    const {getByText} = await renderWithProviders(<AvailablePurchases />);
 
     // The mount effect issues an initial getAvailablePurchases call whose
     // rejection is only logged. Wait for it so the one-shot rejection below is
@@ -147,7 +147,7 @@ describe('AvailablePurchases Screen', () => {
     );
 
     const refreshButton = getByText('🔄 Refresh Purchases');
-    fireEvent.press(refreshButton);
+    await fireEvent.press(refreshButton);
 
     await waitFor(() => {
       expect(Alert.alert).toHaveBeenCalledWith(
@@ -170,14 +170,14 @@ describe('AvailablePurchases Screen', () => {
       finishTransaction: mockFinishTransaction,
     });
 
-    const {getByText} = renderWithProviders(<AvailablePurchases />);
+    const {getByText} = await renderWithProviders(<AvailablePurchases />);
     await waitFor(() => {
       expect(getByText('No purchase history found')).toBeTruthy();
     });
   });
 
   it('shows transaction details for purchases', async () => {
-    const {getByText} = renderWithProviders(<AvailablePurchases />);
+    const {getByText} = await renderWithProviders(<AvailablePurchases />);
 
     // Check if transaction ID is displayed
     await waitFor(() => {

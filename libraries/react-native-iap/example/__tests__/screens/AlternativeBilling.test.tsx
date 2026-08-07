@@ -28,10 +28,10 @@ describe('AlternativeBilling Screen', () => {
     (Platform as any).OS = originalPlatform;
   });
 
-  it('renders Amazon Vega as unsupported for alternative billing', () => {
+  it('renders Amazon Vega as unsupported for alternative billing', async () => {
     (Platform as any).OS = 'kepler';
 
-    const {getByText} = render(<AlternativeBilling />);
+    const {getByText} = await render(<AlternativeBilling />);
 
     expect(getByText('Not supported on Amazon Vega')).toBeTruthy();
     expect(
@@ -39,8 +39,8 @@ describe('AlternativeBilling Screen', () => {
     ).toBeTruthy();
     expect(getByText('Current mode: Amazon Vega standard IAP')).toBeTruthy();
 
-    fireEvent.press(getByText('Test Consumable'));
+    await fireEvent.press(getByText('Test Consumable'));
 
-    expect(getByText('Not supported on Vega')).toBeTruthy();
+    expect(getByText('Not supported on Amazon Vega')).toBeTruthy();
   });
 });

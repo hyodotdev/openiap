@@ -75,29 +75,20 @@ React Native IAP is built with a modern architecture that emphasizes:
 
 Before installing React Native IAP, make sure you have:
 
-- React Native 0.64 or later
-- Node.js 16 or later
+- React Native 0.79 or later
+- Node.js 18 or later (and any higher minimum required by your React Native version)
 - iOS 15+ for iOS apps (StoreKit 2 requirement)
-- Android API level 21+ for Android apps
+- Android API level 23+ for the library (and any higher minimum required by React Native)
 
 ### Post Installation
 
 #### Android Configuration
 
-**Kotlin Version Requirement:** This library requires Kotlin 2.2+. Configure your project's Kotlin version:
-
-In your root `android/build.gradle`:
-
-```gradle
-buildscript {
-    ext {
-        kotlinVersion = "2.2.0"
-    }
-    dependencies {
-        classpath "org.jetbrains.kotlin:kotlin-gradle-plugin:$kotlinVersion"
-    }
-}
-```
+**Kotlin compatibility:** React Native IAP uses the Kotlin and Android Gradle
+Plugin versions supplied by the host React Native project. Do not force the
+standalone OpenIAP fallback (`2.3.21`) into an older React Native template;
+keep the compiler line supported by that React Native release. The fallback is
+used only when the library is built outside a host that supplies those versions.
 
 #### iOS Configuration
 

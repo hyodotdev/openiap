@@ -33,8 +33,12 @@ interface AndroidGradlePluginVersions {
 }
 
 const DEFAULT_ANDROID_GRADLE_PLUGIN_VERSIONS: AndroidGradlePluginVersions = {
-  kotlin: '2.2.0',
-  vanniktechMavenPublish: '0.35.0',
+  // Expo SDK 57 and React Native 0.86 compile their Gradle plugins with
+  // Kotlin 2.1.20. The standalone openiap-google build can use a newer
+  // compiler, but injecting it into an Expo consumer makes Expo modules load
+  // incompatible Kotlin metadata.
+  kotlin: '2.1.20',
+  vanniktechMavenPublish: '0.37.0',
 };
 
 const escapeRegExp = (value: string): string =>
@@ -75,9 +79,10 @@ const resolveAndroidGradlePluginVersions = (
   }
 
   const contents = fs.readFileSync(rootBuildGradle, 'utf8');
-  const kotlin =
-    readGradlePluginVersion(contents, 'org.jetbrains.kotlin.android') ??
-    DEFAULT_ANDROID_GRADLE_PLUGIN_VERSIONS.kotlin;
+  // Keep the consumer on Expo's compatible Kotlin line. The local module is
+  // source-compatible with it even when its standalone publishing build uses
+  // a newer Kotlin plugin.
+  const kotlin = DEFAULT_ANDROID_GRADLE_PLUGIN_VERSIONS.kotlin;
   const vanniktechMavenPublish =
     readGradlePluginVersion(contents, 'com.vanniktech.maven.publish') ??
     DEFAULT_ANDROID_GRADLE_PLUGIN_VERSIONS.vanniktechMavenPublish;

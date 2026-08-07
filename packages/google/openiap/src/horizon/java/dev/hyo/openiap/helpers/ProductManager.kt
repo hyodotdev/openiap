@@ -115,7 +115,7 @@ internal class ProductManager {
                     // Log subscription offer details
                     product.subscriptionOfferDetails?.forEachIndexed { index, offer ->
                         OpenIapLog.debug("    Offer[$index]: tokenPresent=${offer.offerToken.isNotBlank()}", TAG)
-                        offer.pricingPhases?.pricingPhaseList?.forEachIndexed { phaseIndex, phase ->
+                        offer.pricingPhases.pricingPhaseList.forEachIndexed { phaseIndex, phase ->
                             OpenIapLog.debug(
                                 "      Phase[$phaseIndex]: period=${phase.billingPeriod}, " +
                                 "price=${phase.formattedPrice}, " +

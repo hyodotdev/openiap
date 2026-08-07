@@ -139,6 +139,7 @@ describe('Xcode 27 scene lifecycle', () => {
     expect(resolveSceneDelegateContents('')).toContain(
       'class SceneDelegate: UIResponder, UIWindowSceneDelegate',
     );
+    expect(resolveSceneDelegateContents('')).toContain('internal import Expo');
     expect(() =>
       resolveSceneDelegateContents(
         'class SceneDelegate: UIResponder, UIWindowSceneDelegate {}',

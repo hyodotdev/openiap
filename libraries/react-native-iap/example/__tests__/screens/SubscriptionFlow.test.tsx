@@ -106,10 +106,10 @@ describe('SubscriptionFlow Screen', () => {
     Platform.OS = 'ios';
   });
 
-  it('renders loading state when not connected', () => {
+  it('renders loading state when not connected', async () => {
     mockIapState({connected: false, subscriptions: []});
 
-    const {getByText} = render(<SubscriptionFlow />);
+    const {getByText} = await render(<SubscriptionFlow />);
 
     expect(getByText('Connecting to Store...')).toBeTruthy();
   });
@@ -117,7 +117,7 @@ describe('SubscriptionFlow Screen', () => {
   it('fetches subscriptions when connected', async () => {
     const {fetchProducts} = mockIapState();
 
-    render(<SubscriptionFlow />);
+    await render(<SubscriptionFlow />);
 
     await waitFor(() => {
       expect(fetchProducts).toHaveBeenCalledWith({
@@ -127,18 +127,18 @@ describe('SubscriptionFlow Screen', () => {
     });
   });
 
-  it('displays subscription information', () => {
-    const {getByText} = render(<SubscriptionFlow />);
+  it('displays subscription information', async () => {
+    const {getByText} = await render(<SubscriptionFlow />);
 
     expect(getByText('Premium Subscription')).toBeTruthy();
     expect(getByText('$9.99/month')).toBeTruthy();
     expect(getByText('Local (IAPKit)')).toBeTruthy();
   });
 
-  it('initiates subscription purchase when button pressed', () => {
-    const {getByText} = render(<SubscriptionFlow />);
+  it('initiates subscription purchase when button pressed', async () => {
+    const {getByText} = await render(<SubscriptionFlow />);
 
-    fireEvent.press(getByText('Subscribe'));
+    await fireEvent.press(getByText('Subscribe'));
 
     expect(requestPurchaseMock).toHaveBeenCalledWith({
       request: {
@@ -164,9 +164,9 @@ describe('SubscriptionFlow Screen', () => {
       ],
     });
 
-    const {getByText} = render(<SubscriptionFlow />);
+    const {getByText} = await render(<SubscriptionFlow />);
 
-    fireEvent.press(getByText('Check Status'));
+    await fireEvent.press(getByText('Check Status'));
 
     await waitFor(() => {
       expect(getActiveSubscriptions).toHaveBeenCalled();
@@ -174,9 +174,9 @@ describe('SubscriptionFlow Screen', () => {
   });
 
   it('opens manage subscriptions when Manage pressed', async () => {
-    const {getByText} = render(<SubscriptionFlow />);
+    const {getByText} = await render(<SubscriptionFlow />);
 
-    fireEvent.press(getByText('Manage'));
+    await fireEvent.press(getByText('Manage'));
 
     await waitFor(() => {
       expect(deepLinkToSubscriptionsMock).toHaveBeenCalled();
@@ -186,7 +186,7 @@ describe('SubscriptionFlow Screen', () => {
   it('updates UI on purchase success callback', async () => {
     const alertSpy = jest.spyOn(Alert, 'alert');
 
-    const {getByText} = render(<SubscriptionFlow />);
+    const {getByText} = await render(<SubscriptionFlow />);
 
     await act(async () => {
       await onPurchaseSuccess?.({
@@ -214,9 +214,9 @@ describe('SubscriptionFlow Screen', () => {
       .mockImplementation((_options, callback) => callback(0));
     const {finishTransaction, verifyPurchase, verifyPurchaseWithProvider} =
       mockIapState();
-    const {getByText} = render(<SubscriptionFlow />);
+    const {getByText} = await render(<SubscriptionFlow />);
 
-    fireEvent.press(getByText('Local (IAPKit)'));
+    await fireEvent.press(getByText('Local (IAPKit)'));
     await waitFor(() => {
       expect(getByText('Local (Device)')).toBeTruthy();
     });
@@ -254,7 +254,7 @@ describe('SubscriptionFlow Screen', () => {
     const {finishTransaction, verifyPurchase, verifyPurchaseWithProvider} =
       mockIapState();
 
-    render(<SubscriptionFlow />);
+    await render(<SubscriptionFlow />);
 
     await act(async () => {
       await onPurchaseSuccess?.({
@@ -341,7 +341,7 @@ describe('SubscriptionFlow Screen', () => {
       finishTransaction,
       verifyPurchaseWithProvider,
     });
-    render(<SubscriptionFlow />);
+    await render(<SubscriptionFlow />);
 
     await waitFor(() => {
       expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(2);
@@ -429,7 +429,7 @@ describe('SubscriptionFlow Screen', () => {
         finishTransaction,
         verifyPurchaseWithProvider,
       });
-      const {getByText} = render(<SubscriptionFlow />);
+      const {getByText} = await render(<SubscriptionFlow />);
 
       await waitFor(() => {
         expect(getByText(/Subscription verification failed/)).toBeTruthy();
@@ -486,7 +486,7 @@ describe('SubscriptionFlow Screen', () => {
             });
       },
     );
-    let unmount: (() => void) | undefined;
+    let unmount: (() => Promise<void>) | undefined;
 
     try {
       mockIapState({
@@ -494,7 +494,7 @@ describe('SubscriptionFlow Screen', () => {
         finishTransaction,
         verifyPurchaseWithProvider,
       });
-      const rendered = render(<SubscriptionFlow />);
+      const rendered = await render(<SubscriptionFlow />);
       unmount = rendered.unmount;
 
       await act(async () => {
@@ -503,7 +503,7 @@ describe('SubscriptionFlow Screen', () => {
       expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
       expect(finishTransaction).not.toHaveBeenCalled();
 
-      rendered.unmount();
+      await rendered.unmount();
       unmount = undefined;
       const timerCountAfterUnmount = jest.getTimerCount();
 
@@ -528,7 +528,7 @@ describe('SubscriptionFlow Screen', () => {
         expect.any(String),
       );
     } finally {
-      unmount?.();
+      await unmount?.();
       jest.clearAllTimers();
       jest.useRealTimers();
     }
@@ -566,7 +566,7 @@ describe('SubscriptionFlow Screen', () => {
         }),
     );
     const getActiveSubscriptions = jest.fn(() => Promise.resolve([]));
-    let unmount: (() => void) | undefined;
+    let unmount: (() => Promise<void>) | undefined;
 
     try {
       mockIapState({
@@ -576,7 +576,7 @@ describe('SubscriptionFlow Screen', () => {
         getActiveSubscriptions,
         verifyPurchaseWithProvider,
       });
-      const rendered = render(<SubscriptionFlow />);
+      const rendered = await render(<SubscriptionFlow />);
       unmount = rendered.unmount;
       const purchaseSuccessHandler = onPurchaseSuccess;
       if (!purchaseSuccessHandler) {
@@ -593,10 +593,11 @@ describe('SubscriptionFlow Screen', () => {
       const timerCountWithRetry = jest.getTimerCount();
       expect(timerCountWithRetry).toBeGreaterThan(timerCountBeforePurchase);
 
-      rendered.unmount();
+      await rendered.unmount();
       unmount = undefined;
-      expect(jest.getTimerCount()).toBeLessThan(timerCountWithRetry);
 
+      // React Native Testing Library 14 may schedule renderer teardown timers,
+      // so verify cancellation by behavior instead of the global timer count.
       await act(async () => {
         jest.advanceTimersByTime(1000);
         await Promise.resolve();
@@ -606,7 +607,7 @@ describe('SubscriptionFlow Screen', () => {
       expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
       expect(getActiveSubscriptions).not.toHaveBeenCalled();
     } finally {
-      unmount?.();
+      await unmount?.();
       jest.clearAllTimers();
       jest.useRealTimers();
     }
@@ -653,7 +654,7 @@ describe('SubscriptionFlow Screen', () => {
       getActiveSubscriptions,
       verifyPurchaseWithProvider,
     });
-    const firstMount = render(<SubscriptionFlow />);
+    const firstMount = await render(<SubscriptionFlow />);
     const purchaseSuccessHandler = onPurchaseSuccess;
     if (!purchaseSuccessHandler) {
       throw new Error('Purchase success handler was not registered');
@@ -668,7 +669,7 @@ describe('SubscriptionFlow Screen', () => {
 
     expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
     expect(finishTransaction).toHaveBeenCalledTimes(1);
-    firstMount.unmount();
+    await firstMount.unmount();
 
     mockIapState({
       availablePurchases: [purchase],
@@ -676,7 +677,7 @@ describe('SubscriptionFlow Screen', () => {
       getActiveSubscriptions,
       verifyPurchaseWithProvider,
     });
-    const secondMount = render(<SubscriptionFlow />);
+    const secondMount = await render(<SubscriptionFlow />);
     await act(async () => {
       await Promise.resolve();
     });
@@ -701,7 +702,7 @@ describe('SubscriptionFlow Screen', () => {
     expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
     expect(finishTransaction).toHaveBeenCalledTimes(1);
     expect(getActiveSubscriptions).toHaveBeenCalledTimes(1);
-    secondMount.unmount();
+    await secondMount.unmount();
   });
 
   it('remembers a finished subscription after its unmounted owner task fully settles', async () => {
@@ -739,8 +740,8 @@ describe('SubscriptionFlow Screen', () => {
         }),
     );
     const getActiveSubscriptions = jest.fn(() => Promise.resolve([]));
-    let firstUnmount: (() => void) | undefined;
-    let secondUnmount: (() => void) | undefined;
+    let firstUnmount: (() => Promise<void>) | undefined;
+    let secondUnmount: (() => Promise<void>) | undefined;
     let ownerTask: Promise<void> | undefined;
 
     try {
@@ -750,7 +751,7 @@ describe('SubscriptionFlow Screen', () => {
         getActiveSubscriptions,
         verifyPurchaseWithProvider,
       });
-      const firstMount = render(<SubscriptionFlow />);
+      const firstMount = await render(<SubscriptionFlow />);
       firstUnmount = firstMount.unmount;
       const firstPurchaseSuccessHandler = onPurchaseSuccess;
       if (!firstPurchaseSuccessHandler) {
@@ -768,7 +769,7 @@ describe('SubscriptionFlow Screen', () => {
         expect(finishTransaction).toHaveBeenCalledTimes(1);
       });
 
-      firstMount.unmount();
+      await firstMount.unmount();
       firstUnmount = undefined;
 
       await act(async () => {
@@ -787,7 +788,7 @@ describe('SubscriptionFlow Screen', () => {
         getActiveSubscriptions,
         verifyPurchaseWithProvider,
       });
-      const secondMount = render(<SubscriptionFlow />);
+      const secondMount = await render(<SubscriptionFlow />);
       secondUnmount = secondMount.unmount;
       const secondPurchaseSuccessHandler = onPurchaseSuccess;
       if (!secondPurchaseSuccessHandler) {
@@ -805,8 +806,8 @@ describe('SubscriptionFlow Screen', () => {
       expect(finishTransaction).toHaveBeenCalledTimes(1);
       expect(getActiveSubscriptions).not.toHaveBeenCalled();
     } finally {
-      firstUnmount?.();
-      secondUnmount?.();
+      await firstUnmount?.();
+      await secondUnmount?.();
       if (!finishSettled) {
         resolveFinish();
         await ownerTask;
@@ -842,7 +843,7 @@ describe('SubscriptionFlow Screen', () => {
       finishTransaction,
       verifyPurchaseWithProvider,
     });
-    const {rerender} = render(<SubscriptionFlow />);
+    const {rerender} = await render(<SubscriptionFlow />);
     const purchaseSuccessHandler = onPurchaseSuccess;
     if (!purchaseSuccessHandler) {
       throw new Error('Purchase success handler was not registered');
@@ -861,7 +862,7 @@ describe('SubscriptionFlow Screen', () => {
       finishTransaction,
       verifyPurchaseWithProvider,
     });
-    rerender(<SubscriptionFlow />);
+    await rerender(<SubscriptionFlow />);
     await act(async () => {
       await Promise.resolve();
     });
@@ -935,7 +936,7 @@ describe('SubscriptionFlow Screen', () => {
           : Promise.resolve(refreshedVerification);
       },
     );
-    let unmount: (() => void) | undefined;
+    let unmount: (() => Promise<void>) | undefined;
 
     try {
       const {getActiveSubscriptions} = mockIapState({
@@ -944,7 +945,7 @@ describe('SubscriptionFlow Screen', () => {
         finishTransaction,
         verifyPurchaseWithProvider,
       });
-      const rendered = render(<SubscriptionFlow />);
+      const rendered = await render(<SubscriptionFlow />);
       unmount = rendered.unmount;
       const purchaseSuccessHandler = onPurchaseSuccess;
       if (!purchaseSuccessHandler) {
@@ -966,7 +967,7 @@ describe('SubscriptionFlow Screen', () => {
         finishTransaction,
         verifyPurchaseWithProvider,
       });
-      rendered.rerender(<SubscriptionFlow />);
+      await rendered.rerender(<SubscriptionFlow />);
       await act(async () => {
         await Promise.resolve();
       });
@@ -1004,7 +1005,7 @@ describe('SubscriptionFlow Screen', () => {
         finishTransaction,
         verifyPurchaseWithProvider,
       });
-      rendered.rerender(<SubscriptionFlow />);
+      await rendered.rerender(<SubscriptionFlow />);
       await act(async () => {
         await Promise.resolve();
       });
@@ -1039,7 +1040,7 @@ describe('SubscriptionFlow Screen', () => {
       expect(finishTransaction).toHaveBeenCalledTimes(1);
       expect(verifyPurchaseWithProvider).toHaveBeenCalledTimes(2);
     } finally {
-      unmount?.();
+      await unmount?.();
       jest.clearAllTimers();
       jest.useRealTimers();
     }
@@ -1076,7 +1077,7 @@ describe('SubscriptionFlow Screen', () => {
       finishTransaction,
       verifyPurchaseWithProvider,
     });
-    const {getByText} = render(<SubscriptionFlow />);
+    const {getByText} = await render(<SubscriptionFlow />);
     const purchaseSuccessHandler = onPurchaseSuccess;
     if (!purchaseSuccessHandler) {
       throw new Error('Purchase success handler was not registered');
@@ -1099,7 +1100,7 @@ describe('SubscriptionFlow Screen', () => {
   });
 
   it('shows error message on purchase error callback', async () => {
-    const {getByText} = render(<SubscriptionFlow />);
+    const {getByText} = await render(<SubscriptionFlow />);
 
     await act(async () => {
       onPurchaseError?.({message: 'Subscription failed'});
@@ -1178,7 +1179,7 @@ describe('SubscriptionFlow Screen', () => {
       ],
     });
 
-    const {getByText} = render(<SubscriptionFlow />);
+    const {getByText} = await render(<SubscriptionFlow />);
 
     // Should show upgrade button for monthly plan (Android only)
     await waitFor(() => {
@@ -1186,7 +1187,7 @@ describe('SubscriptionFlow Screen', () => {
     });
 
     // Press upgrade button
-    fireEvent.press(getByText('⬆️ Upgrade to Yearly Plan'));
+    await fireEvent.press(getByText('⬆️ Upgrade to Yearly Plan'));
 
     // Should show confirmation alert
     expect(alertSpy).toHaveBeenCalledWith(
@@ -1196,12 +1197,12 @@ describe('SubscriptionFlow Screen', () => {
     );
   });
 
-  it('displays empty state when no subscriptions available', () => {
+  it('displays empty state when no subscriptions available', async () => {
     mockIapState({
       subscriptions: [],
     });
 
-    const {getByText} = render(<SubscriptionFlow />);
+    const {getByText} = await render(<SubscriptionFlow />);
 
     expect(
       getByText('No subscriptions found. Configure products in the console.'),
@@ -1211,7 +1212,7 @@ describe('SubscriptionFlow Screen', () => {
     ).toBeTruthy();
   });
 
-  it('shows already subscribed for owned products', () => {
+  it('shows already subscribed for owned products', async () => {
     mockIapState({
       activeSubscriptions: [
         {
@@ -1220,7 +1221,7 @@ describe('SubscriptionFlow Screen', () => {
       ],
     });
 
-    const {getByText} = render(<SubscriptionFlow />);
+    const {getByText} = await render(<SubscriptionFlow />);
 
     // Button should show 'Already Subscribed' and be disabled
     const button = getByText('Already Subscribed');
@@ -1232,9 +1233,9 @@ describe('SubscriptionFlow Screen', () => {
       subscriptions: [],
     });
 
-    const {getByText} = render(<SubscriptionFlow />);
+    const {getByText} = await render(<SubscriptionFlow />);
 
-    fireEvent.press(getByText('Retry'));
+    await fireEvent.press(getByText('Retry'));
 
     await waitFor(() => {
       expect(fetchProducts).toHaveBeenCalledWith({
@@ -1244,12 +1245,12 @@ describe('SubscriptionFlow Screen', () => {
     });
   });
 
-  it('handles connection state changes', () => {
+  it('handles connection state changes', async () => {
     mockIapState({
       connected: false,
     });
 
-    const {getByText, rerender} = render(<SubscriptionFlow />);
+    const {getByText, rerender} = await render(<SubscriptionFlow />);
 
     expect(getByText('Connecting to Store...')).toBeTruthy();
 
@@ -1258,16 +1259,16 @@ describe('SubscriptionFlow Screen', () => {
       connected: true,
     });
 
-    rerender(<SubscriptionFlow />);
+    await rerender(<SubscriptionFlow />);
 
     expect(getByText('Available Subscriptions')).toBeTruthy();
   });
 
   it('opens subscription details modal', async () => {
-    const {getByText} = render(<SubscriptionFlow />);
+    const {getByText} = await render(<SubscriptionFlow />);
 
     // Open subscription details modal
-    fireEvent.press(getByText('ℹ️'));
+    await fireEvent.press(getByText('ℹ️'));
 
     await waitFor(() => {
       expect(getByText('Subscription Details')).toBeTruthy();
@@ -1281,17 +1282,17 @@ describe('SubscriptionFlow Screen', () => {
   it('logs redacted subscription data to console', async () => {
     const consoleSpy = jest.spyOn(console, 'log');
 
-    const {getByText} = render(<SubscriptionFlow />);
+    const {getByText} = await render(<SubscriptionFlow />);
 
     // Open subscription details modal
-    fireEvent.press(getByText('ℹ️'));
+    await fireEvent.press(getByText('ℹ️'));
 
     await waitFor(() => {
       expect(getByText('Subscription Details')).toBeTruthy();
     });
 
     // Log to console
-    fireEvent.press(getByText('🖥️ Console'));
+    await fireEvent.press(getByText('🖥️ Console'));
 
     expect(consoleSpy).toHaveBeenCalledWith('=== SUBSCRIPTION DATA ===');
     expect(consoleSpy).toHaveBeenCalledWith(
@@ -1303,17 +1304,17 @@ describe('SubscriptionFlow Screen', () => {
   });
 
   it('closes subscription details modal', async () => {
-    const {getByText, queryByText} = render(<SubscriptionFlow />);
+    const {getByText, queryByText} = await render(<SubscriptionFlow />);
 
     // Open modal
-    fireEvent.press(getByText('ℹ️'));
+    await fireEvent.press(getByText('ℹ️'));
 
     await waitFor(() => {
       expect(getByText('Subscription Details')).toBeTruthy();
     });
 
     // Close modal
-    fireEvent.press(getByText('✕'));
+    await fireEvent.press(getByText('✕'));
 
     await waitFor(() => {
       expect(queryByText('Subscription Details')).toBeNull();
@@ -1358,7 +1359,7 @@ describe('SubscriptionFlow Screen', () => {
     });
 
     const alertSpy = jest.spyOn(Alert, 'alert');
-    const {getByText} = render(<SubscriptionFlow />);
+    const {getByText} = await render(<SubscriptionFlow />);
 
     // Wait for upgrade button to appear
     await waitFor(() => {
@@ -1376,7 +1377,7 @@ describe('SubscriptionFlow Screen', () => {
     });
 
     // Press upgrade button
-    fireEvent.press(getByText('⬆️ Upgrade to Yearly Plan'));
+    await fireEvent.press(getByText('⬆️ Upgrade to Yearly Plan'));
 
     // Wait for requestPurchase to be called with proper parameters
     await waitFor(
@@ -1407,16 +1408,16 @@ describe('SubscriptionFlow Screen', () => {
     alertSpy.mockRestore();
   });
 
-  it('includes obfuscatedProfileId for new subscriptions', () => {
+  it('includes obfuscatedProfileId for new subscriptions', async () => {
     mockIapState({
       subscriptions: [sampleSubscription],
       activeSubscriptions: [], // No active subscriptions
     });
 
-    const {getByText} = render(<SubscriptionFlow />);
+    const {getByText} = await render(<SubscriptionFlow />);
 
     // Press subscribe for a new subscription
-    fireEvent.press(getByText('Subscribe'));
+    await fireEvent.press(getByText('Subscribe'));
 
     // Verify that requestPurchase was called
     expect(requestPurchaseMock).toHaveBeenCalled();

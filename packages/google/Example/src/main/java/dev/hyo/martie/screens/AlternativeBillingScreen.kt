@@ -327,7 +327,10 @@ fun AlternativeBillingScreen(navController: NavController) {
                                 },
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .menuAnchor(),
+                                    .menuAnchor(
+                                        type = ExposedDropdownMenuAnchorType.PrimaryNotEditable,
+                                        enabled = true
+                                    ),
                                 colors = OutlinedTextFieldDefaults.colors()
                             )
 
@@ -570,7 +573,7 @@ fun AlternativeBillingScreen(navController: NavController) {
                     PurchaseResultCard(
                         message = statusMessage.message,
                         status = statusMessage.status,
-                        code = statusMessage.code?.toString(),
+                        code = statusMessage.code,
                         onDismiss = { iapStore.clearStatusMessage() }
                     )
                 }
@@ -619,18 +622,18 @@ fun AlternativeBillingScreen(navController: NavController) {
                         ) {
                             Column {
                                 Text(
-                                    product.title ?: product.id,
+                                    product.title,
                                     style = MaterialTheme.typography.titleMedium,
                                     fontWeight = FontWeight.SemiBold
                                 )
                                 Text(
-                                    product.description ?: "",
+                                    product.description,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = AppColors.textSecondary
                                 )
                             }
                             Text(
-                                product.displayPrice ?: product.price?.toString() ?: "",
+                                product.displayPrice,
                                 style = MaterialTheme.typography.titleMedium,
                                 fontWeight = FontWeight.Bold,
                                 color = AppColors.primary
@@ -666,10 +669,10 @@ fun AlternativeBillingScreen(navController: NavController) {
                                 HorizontalDivider(modifier = Modifier.padding(vertical = 8.dp))
 
                                 DetailRow("ID", selectedProduct!!.id)
-                                DetailRow("Title", selectedProduct!!.title ?: "N/A")
-                                DetailRow("Description", selectedProduct!!.description ?: "N/A")
-                                DetailRow("Price", selectedProduct!!.displayPrice ?: "N/A")
-                                DetailRow("Currency", selectedProduct!!.currency ?: "N/A")
+                                DetailRow("Title", selectedProduct!!.title)
+                                DetailRow("Description", selectedProduct!!.description)
+                                DetailRow("Price", selectedProduct!!.displayPrice)
+                                DetailRow("Currency", selectedProduct!!.currency)
                                 DetailRow("Type", selectedProduct!!.type.toString())
                             }
                         }

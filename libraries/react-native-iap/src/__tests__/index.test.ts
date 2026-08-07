@@ -82,7 +82,6 @@ jest.mock('react-native-nitro-modules', () => ({
 
 // Import after mocks using require to ensure init-time mocks apply cleanly
 // (explicit require is used here to avoid dynamic import and to cooperate with jest.resetModules)
-// eslint-disable-next-line @typescript-eslint/no-var-requires
 let IAP: any = require('../index');
 
 describe('Public API (src/index.ts)', () => {
@@ -127,7 +126,6 @@ describe('Public API (src/index.ts)', () => {
     );
     // Ensure getAvailablePurchases always returns an empty array by default
     mockIap.getAvailablePurchases = jest.fn(async () => []);
-    // eslint-disable-next-line @typescript-eslint/no-var-requires
     IAP = require('../index');
   });
 
@@ -1206,7 +1204,6 @@ describe('Public API (src/index.ts)', () => {
         getVegaIapModule: jest.fn(() => mockIap),
         isVegaOS: jest.fn(() => true),
       }));
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
       IAP = require('../index');
 
       const nitro = {
@@ -3009,7 +3006,6 @@ describe('Public API (src/index.ts)', () => {
           createHybridObject: jest.fn(() => mockIap),
         },
       }));
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
       const freshIAP = require('../index');
 
       const handler = jest.fn();

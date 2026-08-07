@@ -1,7 +1,6 @@
 // External dependencies
 import {Platform} from 'react-native';
-// Side-effect import ensures Nitro installs its dispatcher before IAP is used (no-op in tests)
-import 'react-native-nitro-modules';
+// Importing NitroModules installs its dispatcher before IAP is used (no-op in tests).
 import {NitroModules} from 'react-native-nitro-modules';
 
 // Internal modules
@@ -16,9 +15,21 @@ import type {
 } from './specs/RnIap.nitro';
 import {ErrorCode} from './types';
 import type {
+  AppTransaction,
   AndroidSubscriptionOfferInput,
+  ActiveSubscription,
+  BillingChoiceInfoAndroid,
+  BillingProgramAndroid,
+  BillingProgramInformationDialogParamsAndroid,
+  BillingProgramReportingDetailsAndroid,
+  BillingResultAndroid,
+  DeveloperBillingTypeAndroid,
+  DeveloperProvidedBillingDetailsAndroid,
   DiscountOfferInputIOS,
   FetchProductsResult,
+  GetBillingChoiceInfoParamsAndroid,
+  InAppMessageParamsAndroid,
+  InAppMessageResultAndroid,
   MutationField,
   Product,
   ProductIOS,
@@ -29,7 +40,6 @@ import type {
   PurchaseUpdatedListenerOptions,
   PurchaseIOS,
   QueryField,
-  AppTransaction,
   VerifyPurchaseResultAndroid,
   VerifyPurchaseResultIOS,
   RequestPurchaseAndroidProps,
@@ -38,8 +48,6 @@ import type {
   RequestSubscriptionAndroidProps,
   RequestSubscriptionIosProps,
   RequestSubscriptionPropsByPlatforms,
-  ActiveSubscription,
-  DeveloperProvidedBillingDetailsAndroid,
   UserChoiceBillingDetails,
 } from './types';
 import {
@@ -69,20 +77,8 @@ import {getVegaIapModule, isVegaOS} from './vega';
 // Billing Programs API (Android 8.2.0+)
 // ------------------------------
 
-// Note: BillingProgramAndroid, ExternalLinkLaunchModeAndroid, and ExternalLinkTypeAndroid
+// BillingProgramAndroid, ExternalLinkLaunchModeAndroid, and ExternalLinkTypeAndroid
 // are exported from './types' (auto-generated from openiap-gql).
-// Import them here for use in this file's interfaces and functions.
-import type {
-  BillingChoiceInfoAndroid,
-  BillingProgramAndroid,
-  BillingProgramInformationDialogParamsAndroid,
-  BillingProgramReportingDetailsAndroid,
-  BillingResultAndroid,
-  DeveloperBillingTypeAndroid,
-  GetBillingChoiceInfoParamsAndroid,
-  InAppMessageParamsAndroid,
-  InAppMessageResultAndroid,
-} from './types';
 
 // Export all types
 export type {
@@ -888,8 +884,7 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
 
     if (normalizedType === 'all') {
       const converted = (await fetchAndConvert('all')) as (
-        | Product
-        | ProductSubscription
+        Product | ProductSubscription
       )[];
 
       RnIapConsole.debug(

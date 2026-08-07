@@ -1,4 +1,5 @@
 #include <jni.h>
+#include <fbjni/fbjni.h>
 
 #ifdef ANDROID
 #undef ANDROID
@@ -10,5 +11,7 @@
 #include "NitroIapOnLoad.hpp"
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void*) {
-  return margelo::nitro::iap::initialize(vm);
+  return facebook::jni::initialize(vm, []() {
+    margelo::nitro::iap::registerAllNatives();
+  });
 }

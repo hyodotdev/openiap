@@ -28,22 +28,22 @@ describe('OfferCode Screen', () => {
     mockGetAvailablePurchases.mockResolvedValue([]);
   });
 
-  it('renders the screen title and description', () => {
-    const {getByText} = render(<OfferCode />);
+  it('renders the screen title and description', async () => {
+    const {getByText} = await render(<OfferCode />);
 
     expect(getByText('Offer Code Redemption')).toBeTruthy();
     expect(getByText('How it works:')).toBeTruthy();
   });
 
-  it('shows connection status when connected', () => {
-    const {getByText} = render(<OfferCode />);
+  it('shows connection status when connected', async () => {
+    const {getByText} = await render(<OfferCode />);
 
     expect(getByText('Connected to Store')).toBeTruthy();
   });
 
-  it('displays iOS-specific redemption button on iOS', () => {
+  it('displays iOS-specific redemption button on iOS', async () => {
     Platform.OS = 'ios';
-    const {getByText} = render(<OfferCode />);
+    const {getByText} = await render(<OfferCode />);
 
     const redeemButton = getByText('🎁 Redeem Offer Code');
     expect(redeemButton).toBeTruthy();
@@ -53,10 +53,10 @@ describe('OfferCode Screen', () => {
     Platform.OS = 'ios';
     mockPresentCodeRedemptionSheetIOS.mockResolvedValue(undefined);
 
-    const {getByText} = render(<OfferCode />);
+    const {getByText} = await render(<OfferCode />);
 
     const redeemButton = getByText('🎁 Redeem Offer Code');
-    fireEvent.press(redeemButton);
+    await fireEvent.press(redeemButton);
 
     await waitFor(() => {
       expect(mockPresentCodeRedemptionSheetIOS).toHaveBeenCalled();
@@ -69,10 +69,10 @@ describe('OfferCode Screen', () => {
       new Error('Redemption failed'),
     );
 
-    const {getByText} = render(<OfferCode />);
+    const {getByText} = await render(<OfferCode />);
 
     const redeemButton = getByText('🎁 Redeem Offer Code');
-    fireEvent.press(redeemButton);
+    await fireEvent.press(redeemButton);
 
     await waitFor(() => {
       expect(Alert.alert).toHaveBeenCalledWith(
@@ -82,9 +82,9 @@ describe('OfferCode Screen', () => {
     });
   });
 
-  it('displays Android-specific message on Android', () => {
+  it('displays Android-specific message on Android', async () => {
     Platform.OS = 'android';
-    const {getByText} = render(<OfferCode />);
+    const {getByText} = await render(<OfferCode />);
 
     expect(getByText('🎁 Open Play Store')).toBeTruthy();
   });
@@ -93,10 +93,10 @@ describe('OfferCode Screen', () => {
     Platform.OS = 'android';
     mockOpenRedeemOfferCodeAndroid.mockResolvedValue(true);
 
-    const {getByText} = render(<OfferCode />);
+    const {getByText} = await render(<OfferCode />);
 
     const redeemButton = getByText('🎁 Open Play Store');
-    fireEvent.press(redeemButton);
+    await fireEvent.press(redeemButton);
 
     await waitFor(() => {
       expect(mockOpenRedeemOfferCodeAndroid).toHaveBeenCalled();
@@ -113,10 +113,10 @@ describe('OfferCode Screen', () => {
       new Error('Play Store unavailable'),
     );
 
-    const {getByText} = render(<OfferCode />);
+    const {getByText} = await render(<OfferCode />);
 
     const redeemButton = getByText('🎁 Open Play Store');
-    fireEvent.press(redeemButton);
+    await fireEvent.press(redeemButton);
 
     await waitFor(() => {
       expect(Alert.alert).toHaveBeenCalledWith(
@@ -126,11 +126,11 @@ describe('OfferCode Screen', () => {
     });
   });
 
-  it('shows Vega unsupported guidance without calling platform redemption APIs', () => {
+  it('shows Vega unsupported guidance without calling platform redemption APIs', async () => {
     (Platform as any).OS = 'kepler';
-    const {getByText} = render(<OfferCode />);
+    const {getByText} = await render(<OfferCode />);
 
-    fireEvent.press(getByText('Amazon Vega IAP'));
+    await fireEvent.press(getByText('Amazon Vega IAP'));
 
     expect(mockPresentCodeRedemptionSheetIOS).not.toHaveBeenCalled();
     expect(mockOpenRedeemOfferCodeAndroid).not.toHaveBeenCalled();
@@ -139,8 +139,8 @@ describe('OfferCode Screen', () => {
     ).toBeTruthy();
   });
 
-  it('shows testing offer codes section', () => {
-    const {getByText} = render(<OfferCode />);
+  it('shows testing offer codes section', async () => {
+    const {getByText} = await render(<OfferCode />);
 
     expect(getByText('Testing Offer Codes')).toBeTruthy();
   });
