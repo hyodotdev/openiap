@@ -205,7 +205,7 @@ dependencies {
     implementation("com.google.code.gson:gson:2.14.0")
 
     // Compose runtime (for CompositionLocal provider in IapContext)
-    val composeUiVersion = (project.findProperty("COMPOSE_UI_VERSION") as String?) ?: "1.10.6"
+    val composeUiVersion = (project.findProperty("COMPOSE_UI_VERSION") as String?) ?: "1.11.4"
     implementation("androidx.compose.runtime:runtime:$composeUiVersion")
     implementation("androidx.compose.ui:ui:$composeUiVersion")
 

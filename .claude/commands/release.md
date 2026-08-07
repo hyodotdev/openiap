@@ -214,7 +214,7 @@ Verify the registry, not only the GitHub Actions conclusion:
 | Godot        | GitHub Release and `godot-iap-{version}.zip` contents                    |
 | KMP          | Maven Central `kmp-iap-{version}.pom` and GitHub Release                 |
 | MAUI         | NuGet flat-container package and GitHub Release                          |
-| Docs         | Production `openiap.dev` asset content and `docs-{spec}` release         |
+| Docs         | Production `openiap.dev`; `docs-{spec}` only when `spec` advanced        |
 
 Registry indexing can lag. Poll until the artifact is public or report a real
 timeout; do not equate a successful upload response with completed indexing.

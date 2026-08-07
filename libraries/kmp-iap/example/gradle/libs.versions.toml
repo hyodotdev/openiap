@@ -12,6 +12,8 @@ androidx-espresso = "3.7.0"
 androidx-lifecycle = "2.10.0"
 androidx-testExt = "1.3.0"
 composeHotReload = "1.2.0"
+# Compose Multiplatform 1.11.x no longer resolves the iosX64 variants in this
+# example's support matrix. 1.10.3 is the latest stable compatible release.
 composeMultiplatform = "1.10.3"
 # JetBrains stopped publishing this compatibility artifact after 1.7.3 and
 # does not provide a cross-platform Material Symbols replacement yet.

@@ -444,21 +444,14 @@ jobs:
           if ! git diff --cached --quiet; then
             git commit -m "chore(release): godot-iap ${{ steps.version.outputs.VERSION }}"
           fi
-          STASHED=false
-          if ! git diff --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
-            git stash push --include-untracked -m "release artifacts"
-            STASHED=true
-          fi
-          git pull --rebase origin "$RELEASE_BRANCH"
-          if [ "$STASHED" = "true" ]; then
-            git stash pop
-          fi
+          node "$GITHUB_WORKSPACE/scripts/assert-release-head.mjs" "$RELEASE_BRANCH" "$GITHUB_SHA"
           git tag -a godot-iap-${{ steps.version.outputs.VERSION }} -m "Release godot-iap-${{ steps.version.outputs.VERSION }}"
           git push origin "HEAD:$RELEASE_BRANCH" --follow-tags
 
       - name: Create tag (current version)
         if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists != 'true' }}
         run: |
+          node "$GITHUB_WORKSPACE/scripts/assert-release-head.mjs" "$RELEASE_BRANCH" "$GITHUB_SHA"
           git tag -a godot-iap-${{ steps.version.outputs.VERSION }} -m "Release godot-iap-${{ steps.version.outputs.VERSION }}"
           git push origin godot-iap-${{ steps.version.outputs.VERSION }}
 

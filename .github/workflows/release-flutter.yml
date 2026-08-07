@@ -364,6 +364,9 @@ jobs:
           "$GITHUB_WORKSPACE/scripts/sync-release-generated.sh"
           git commit -m "chore(release): flutter_inapp_purchase ${NEW_VERSION}"
 
+      - name: Assert verified release head is unchanged
+        run: node "$GITHUB_WORKSPACE/scripts/assert-release-head.mjs" "$RELEASE_BRANCH" "$GITHUB_SHA"
+
       - name: Tag only (current version)
         if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists != 'true' }}
         env:
@@ -376,15 +379,6 @@ jobs:
         env:
           NEW_VERSION: ${{ steps.bump.outputs.version }}
         run: |
-          STASHED=false
-          if ! git diff --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
-            git stash push --include-untracked -m "release artifacts"
-            STASHED=true
-          fi
-          git pull --rebase origin "$RELEASE_BRANCH"
-          if [ "$STASHED" = "true" ]; then
-            git stash pop
-          fi
           git tag -a "flutter-iap-${NEW_VERSION}" -m "Release flutter-iap-${NEW_VERSION}"
           git push origin "HEAD:$RELEASE_BRANCH" --follow-tags
 

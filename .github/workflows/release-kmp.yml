@@ -256,7 +256,7 @@ jobs:
             echo "No version changes to commit"
           else
             git commit -m "chore(release): kmp-iap ${{ env.VERSION }}"
-            git pull --rebase origin "$RELEASE_BRANCH"
+            node "$GITHUB_WORKSPACE/scripts/assert-release-head.mjs" "$RELEASE_BRANCH" "$GITHUB_SHA"
             git push origin "HEAD:$RELEASE_BRANCH"
           fi
 

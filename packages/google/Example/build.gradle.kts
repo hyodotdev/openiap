@@ -144,7 +144,7 @@ kotlin {
 dependencies {
     implementation(project(":openiap"))
 
-    val composeUiVersion = (project.findProperty("COMPOSE_UI_VERSION") as String?) ?: "1.10.6"
+    val composeUiVersion = (project.findProperty("COMPOSE_UI_VERSION") as String?) ?: "1.11.4"
     val composeMaterialIconsVersion =
         (project.findProperty("COMPOSE_MATERIAL_ICONS_VERSION") as String?) ?: "1.7.8"
 

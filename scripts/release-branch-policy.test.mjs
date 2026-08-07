@@ -360,6 +360,38 @@ test("all package release workflows enforce the branch policy", () => {
   }
 });
 
+test("framework release workflows refuse stale dispatch heads", () => {
+  const guardScript = readFileSync(
+    resolve(repoRoot, "scripts/assert-release-head.mjs"),
+    "utf8",
+  );
+  assert.match(guardScript, /refs\/heads/);
+  assert.match(guardScript, /"ls-remote", "--exit-code", "origin", ref/);
+  assert.match(guardScript, /remoteHead !== expectedHead/);
+  assert.match(guardScript, /review, CI, and E2E evidence/);
+
+  for (const filename of [
+    "release-expo.yml",
+    "release-flutter.yml",
+    "release-godot.yml",
+    "release-kmp.yml",
+    "release-maui.yml",
+    "release-react-native.yml",
+  ]) {
+    const workflow = readWorkflow(filename);
+    assert.match(
+      workflow,
+      /assert-release-head\.mjs" "\$RELEASE_BRANCH" "\$GITHUB_SHA"/,
+      filename,
+    );
+    assert.doesNotMatch(
+      workflow,
+      /git pull --rebase origin "\$RELEASE_BRANCH"/,
+      filename,
+    );
+  }
+});
+
 test("Flutter publication has a single explicit dispatch path", () => {
   const releaseWorkflow = readWorkflow("release-flutter.yml");
   const publishWorkflow = readWorkflow("publish-flutter.yml");

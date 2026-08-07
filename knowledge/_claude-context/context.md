@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-08-03T19:50:11.359Z
+> Last updated: 2026-08-07T21:55:32.113Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -1922,6 +1922,12 @@ bun run audit:release-state
 node --test scripts/release-branch-policy.test.mjs
 ```
 
+Framework-library release workflows also require `origin/<release-branch>` to
+still equal the workflow dispatch SHA after validation. If the branch advanced,
+the workflow must stop instead of rebasing unverified commits into the release;
+rerun the complete review, CI, and E2E gates on the new head, then dispatch the
+release again.
+
 ### Deploying Apple Package (iOS/macOS)
 
 **Via GitHub Actions UI:**
@@ -2007,14 +2013,17 @@ This will:
 native floor; docs deployment is not a version-bump path.
 
 **Routine docs deployments stop here.** Do not follow them with a Docs GitHub
-Release: the spec version has not moved, so the release would carry no new
-version information and only adds tag churn. Run the stable Docs workflow only
-when the spec version itself is being released, or when the maintainer asks for
-it explicitly:
+Release: the spec version has not moved, so the immutable `docs-{spec}` tag
+cannot represent a new release. Run the stable Docs workflow only when the spec
+version itself advanced:
 
 ```bash
 gh workflow run release.yml --ref main -f version=current
 ```
+
+If a Docs GitHub Release is requested while `spec` is unchanged, stop and
+explain that the immutable tag scheme cannot represent it. Deploying the docs
+site is still valid and does not require a new GitHub Release.
 
 Verifying a docs deployment: `llms-full.txt` carries a `Generated:` timestamp
 that must match the committed file, and the deployed entry bundle should contain

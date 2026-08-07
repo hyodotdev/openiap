@@ -294,24 +294,9 @@ jobs:
             echo "No version changes to commit"
           else
             git commit -m "chore(maui): bump version to $VERSION"
-            for i in 1 2 3; do
-              if ! git pull --rebase origin "$RELEASE_BRANCH"; then
-                echo "❌ Rebase conflict while updating MAUI package version"
-                exit 1
-              fi
-              if git push origin "HEAD:$RELEASE_BRANCH"; then
-                echo "✅ Pushed version update"
-                break
-              else
-                if [ $i -lt 3 ]; then
-                  echo "⚠️ Push failed, retrying"
-                  sleep $((i * 2))
-                else
-                  echo "❌ Failed to push after 3 attempts"
-                  exit 1
-                fi
-              fi
-            done
+            node "$GITHUB_WORKSPACE/scripts/assert-release-head.mjs" "$RELEASE_BRANCH" "$GITHUB_SHA"
+            git push origin "HEAD:$RELEASE_BRANCH"
+            echo "✅ Pushed version update"
           fi
 
       # Re-build native artifacts on the publish runner; the validate-multitarget

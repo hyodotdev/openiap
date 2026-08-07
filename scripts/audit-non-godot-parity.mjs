@@ -4224,19 +4224,19 @@ function checkFrameworkDependencyHygiene() {
         `release-branch-policy.mjs guard ${packageId}`,
         "RELEASE_BRANCH: ${{ github.ref_name }}",
         "Commit version update",
-        "STASHED=false",
-        'git stash push --include-untracked -m "release artifacts"',
-        'git pull --rebase origin "$RELEASE_BRANCH"',
-        'if [ "$STASHED" = "true" ]; then',
-        "git stash pop",
+        "assert-release-head.mjs",
+        '"$RELEASE_BRANCH" "$GITHUB_SHA"',
         tagCommand,
         'git push origin "HEAD:$RELEASE_BRANCH" --follow-tags',
       ],
-      `${frameworkReleaseWorkflow} must tag after rebasing the release commit`,
+      `${frameworkReleaseWorkflow} must tag only the verified dispatch head`,
     );
     expectNotIncludes(
       frameworkReleaseWorkflow,
       [
+        "STASHED=false",
+        'git stash push --include-untracked -m "release artifacts"',
+        'git pull --rebase origin "$RELEASE_BRANCH"',
         "git stash --include-untracked",
         "git stash pop || true",
         "git push --follow-tags",
@@ -4245,7 +4245,31 @@ function checkFrameworkDependencyHygiene() {
         "create_release:",
         "inputs.create_release",
       ],
-      `${frameworkReleaseWorkflow} must push tags from the rebased HEAD explicitly`,
+      `${frameworkReleaseWorkflow} must not incorporate unverified branch changes`,
+    );
+  }
+  expectIncludes(
+    "scripts/assert-release-head.mjs",
+    [
+      '"ls-remote", "--exit-code", "origin", ref',
+      "remoteHead !== expectedHead",
+      "review, CI, and E2E evidence matches the published source",
+    ],
+    "framework release head guard",
+  );
+  for (const frameworkReleaseWorkflow of [
+    ".github/workflows/release-kmp.yml",
+    ".github/workflows/release-maui.yml",
+  ]) {
+    expectIncludes(
+      frameworkReleaseWorkflow,
+      ["assert-release-head.mjs", '"$RELEASE_BRANCH" "$GITHUB_SHA"'],
+      `${frameworkReleaseWorkflow} must reject a stale dispatch head`,
+    );
+    expectNotIncludes(
+      frameworkReleaseWorkflow,
+      ['git pull --rebase origin "$RELEASE_BRANCH"'],
+      `${frameworkReleaseWorkflow} must not incorporate unverified branch changes`,
     );
   }
   for (const [npmReleaseWorkflow, npmPackage] of [
@@ -4625,6 +4649,11 @@ function checkFrameworkDependencyHygiene() {
       "Creates Git tag `google-<google-version>`",
       "gh workflow run release.yml --ref main -f version=current",
       "`docs-{version}`",
+      "Run the stable Docs workflow only when the spec",
+      "If a Docs GitHub Release is requested while `spec` is unchanged",
+      "immutable tag scheme cannot represent it",
+      "still equal the workflow dispatch SHA after validation",
+      "stop instead of rebasing unverified commits into the release",
     ],
     "release deployment docs tag conventions",
   );
@@ -4655,6 +4684,7 @@ function checkFrameworkDependencyHygiene() {
       "Creates Git tag `apple-v<apple-version>`",
       "Creates Git tag `google-v<google-version>`",
       "Create Git tag `v<spec>`",
+      "or when the maintainer asks for",
     ],
     "release deployment docs must not mention legacy tag creation",
   );
@@ -4923,7 +4953,8 @@ function checkFrameworkDependencyHygiene() {
       './scripts/update-readme-version.sh "$VERSION"',
       "release-branch-policy.mjs guard kmp",
       "RELEASE_BRANCH: ${{ github.ref_name }}",
-      'git pull --rebase origin "$RELEASE_BRANCH"',
+      "assert-release-head.mjs",
+      '"$RELEASE_BRANCH" "$GITHUB_SHA"',
       'git push origin "HEAD:$RELEASE_BRANCH"',
       "https://repo1.maven.org/maven2/io/github/hyochan/kmp-iap/$VERSION/",
       "Unable to verify kmp-iap $VERSION on Maven Central",
@@ -6749,6 +6780,49 @@ function checkFrameworkDependencyHygiene() {
       `${kotlinVersionFile} Kotlin version`,
     );
   }
+  expectIncludes(
+    "packages/google/gradle.properties",
+    ["COMPOSE_UI_VERSION=1.11.4"],
+    "Google Compose UI version",
+  );
+  for (const googleGradleFile of [
+    "packages/google/openiap/build.gradle.kts",
+    "packages/google/Example/build.gradle.kts",
+  ]) {
+    expectIncludes(
+      googleGradleFile,
+      ['?: "1.11.4"'],
+      `${googleGradleFile} Compose UI fallback`,
+    );
+    expectNotIncludes(
+      googleGradleFile,
+      ['?: "1.10.6"'],
+      `${googleGradleFile} must not retain the superseded Compose UI fallback`,
+    );
+  }
+  for (const kmpCatalog of [
+    "libraries/kmp-iap/gradle/libs.versions.toml",
+    "libraries/kmp-iap/example/gradle/libs.versions.toml",
+  ]) {
+    expectIncludes(
+      kmpCatalog,
+      [
+        '= "1.10.3"',
+        "1.11.x no longer resolves the iosX64 variants",
+        "1.10.3 is the latest stable compatible release",
+      ],
+      `${kmpCatalog} Compose compatibility cap`,
+    );
+  }
+  expectIncludes(
+    "libraries/kmp-iap/CLAUDE.md",
+    [
+      "Keep Compose Multiplatform at `1.10.3`",
+      "Compose `1.11.x` does not resolve the required iOS x64 variants",
+      "Do not remove a supported target solely to make a dependency upgrade pass",
+    ],
+    "KMP Compose compatibility guidance",
+  );
   expectIncludes(
     "libraries/react-native-iap/README.md",
     [
