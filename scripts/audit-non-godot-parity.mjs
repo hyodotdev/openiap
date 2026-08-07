@@ -4329,7 +4329,7 @@ function checkFrameworkDependencyHygiene() {
     ".github/workflows/publish-flutter.yml",
     [
       "Check if pub.dev package already published",
-      'flutter-version: "3.41.9"',
+      'flutter-version: "3.44.0"',
       'HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}"',
       'HTTP_STATUS="${HTTP_STATUS:-000}"',
       "https://pub.dev/api/packages/flutter_inapp_purchase/versions/$VERSION",
@@ -4344,13 +4344,18 @@ function checkFrameworkDependencyHygiene() {
   ]) {
     expectIncludes(
       flutterWorkflow,
-      ['flutter-version: "3.41.9"'],
+      ['flutter-version: "3.44.0"'],
       `${flutterWorkflow} must pin Flutter SDK`,
     );
     expectNotIncludes(
       flutterWorkflow,
       ['flutter-version: "3.x"'],
       `${flutterWorkflow} must not float Flutter SDK`,
+    );
+    expectNotIncludes(
+      flutterWorkflow,
+      ['flutter-version: "3.41.9"'],
+      `${flutterWorkflow} must not use the deprecated Flutter 3.41 toolchain`,
     );
   }
   for (const releaseNotesWorkflow of [
@@ -6624,6 +6629,21 @@ function checkFrameworkDependencyHygiene() {
     ".github/workflows/release-expo.yml",
     ["Prepare package (build + codegen)", "run: bun run prepare"],
     "Expo releases must not rely on the no-op prepare command before tagging",
+  );
+  expectIncludes(
+    "libraries/expo-iap/package.json",
+    ['"prepare": "bun run build:plugin'],
+    "Expo workspace installs must build the config plugin explicitly",
+  );
+  expectNotIncludes(
+    "libraries/expo-iap/package.json",
+    ["expo-module prepare"],
+    "Expo package lifecycle must not rely on the removed prepare behavior",
+  );
+  expectIncludes(
+    ".github/workflows/ci-expo-iap.yml",
+    ["Build config plugin", "run: bun run build:plugin"],
+    "Expo iOS CI must build the config plugin before prebuild",
   );
   expectIncludes(
     "libraries/react-native-iap/example/android/app/build.gradle",

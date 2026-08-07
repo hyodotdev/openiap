@@ -114,6 +114,9 @@ jobs:
         working-directory: libraries/expo-iap/example
         run: bun install --frozen-lockfile
 
+      - name: Build config plugin
+        run: bun run build:plugin
+
       - name: Generate scene-based iOS project
         working-directory: libraries/expo-iap/example
         run: npx expo prebuild --platform ios --clean
