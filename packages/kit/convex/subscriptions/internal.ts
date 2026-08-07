@@ -159,8 +159,10 @@ export async function applySubscriptionEventHandler(
   // Rollout compatibility for events written before appliedAt existed. The
   // current last event proves itself applied; an event older than the current
   // last event must be marked handled without being allowed to roll state
-  // backwards. A recorded-but-unapplied newest event still falls through and
-  // repairs the original action/mutation gap.
+  // backwards. Store timestamps are only millisecond-precision, so ingestion
+  // order breaks ties between distinct same-timestamp events. A recorded-but-
+  // unapplied newest event still falls through and repairs the original
+  // action/mutation gap.
   if (existing?.lastEventId) {
     if (existing.lastEventId === args.eventId) {
       await ctx.db.patch(storedEvent._id, { appliedAt: now });
@@ -171,7 +173,9 @@ export async function applySubscriptionEventHandler(
       lastEvent?.projectId === args.projectId &&
       lastEvent.purchaseToken === storedEvent.purchaseToken &&
       lastEvent.platform === storedEvent.platform &&
-      lastEvent.occurredAt >= storedEvent.occurredAt
+      (lastEvent.occurredAt > storedEvent.occurredAt ||
+        (lastEvent.occurredAt === storedEvent.occurredAt &&
+          lastEvent._creationTime > storedEvent._creationTime))
     ) {
       await ctx.db.patch(storedEvent._id, { appliedAt: now });
       return noOpResult();

@@ -79,7 +79,7 @@ class MemDb {
     this.table(tableName).set(id, {
       ...doc,
       _id: id,
-      _creationTime: Date.now(),
+      _creationTime: Date.now() + this.counter / 1_000,
     });
     return id;
   }
@@ -202,7 +202,7 @@ describe("applySubscriptionEventHandler", () => {
     ]);
   });
 
-  it("does not let an old applied event roll newer state or stats back", async () => {
+  it("applies distinct same-timestamp events without replaying the old one", async () => {
     const db = new MemDb();
     db.seedProduct({
       projectId: PROJECT_ID,
@@ -218,7 +218,7 @@ describe("applySubscriptionEventHandler", () => {
     const expiredId = await seedWebhookEvent(db, {
       type: "SubscriptionExpired",
       notificationId: "message-b",
-      occurredAt: 2_000,
+      occurredAt: 1_000,
     });
 
     await applySubscriptionEventHandler(makeCtx(db), {
@@ -244,7 +244,7 @@ describe("applySubscriptionEventHandler", () => {
     ]);
   });
 
-  it("backfills an unmarked legacy event without replaying it over a newer event", async () => {
+  it("uses ingestion order to backfill a same-timestamp legacy event", async () => {
     const db = new MemDb();
     db.seedProduct({
       projectId: PROJECT_ID,
@@ -260,7 +260,7 @@ describe("applySubscriptionEventHandler", () => {
     const expiredId = await seedWebhookEvent(db, {
       type: "SubscriptionExpired",
       notificationId: "legacy-b",
-      occurredAt: 2_000,
+      occurredAt: 1_000,
     });
     await applySubscriptionEventHandler(makeCtx(db), {
       projectId: PROJECT_ID as never,
