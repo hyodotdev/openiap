@@ -77,8 +77,8 @@ function ExpoSetup() {
                 <strong>Node.js</strong>
               </td>
               <td>
-                Follow the Expo SDK baseline (SDK 57: 22.13.x; SDK 53–56:
-                Node.js 20.x)
+                Follow the Expo SDK baseline (SDK 57: Node.js 22.13.x; SDK
+                54–56: Node.js 20.19.x; SDK 53: Node.js 20+)
               </td>
             </tr>
           </tbody>
@@ -558,8 +558,8 @@ switch (error.code) {
         <CodeBlock language="json">
           {`{
   "dependencies": {
-    "react-native": "npm:react-native-tvos@0.81.5-1",
-    "@react-native-tvos/config-tv": "^0.1.4",
+    "react-native": "npm:react-native-tvos@0.86.2-0",
+    "@react-native-tvos/config-tv": "^0.1.6",
     ${EXPO_PACKAGE.dependencyLine}
   }
 }`}
@@ -587,7 +587,7 @@ export default ({ config }: ConfigContext): ExpoConfig => {
         'expo-build-properties',
         {
           ios: {
-            deploymentTarget: isTV ? '16.0' : '15.1',
+            deploymentTarget: isTV ? '16.0' : '16.4',
           },
         },
       ],

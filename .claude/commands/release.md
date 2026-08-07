@@ -125,7 +125,9 @@ For a multi-package release train, use this order when affected:
 6. `release-godot.yml`
 7. `release-kmp.yml`
 8. `release-maui.yml`
-9. `npm run deploy`, then `release.yml` with `version=current`
+9. `npm run deploy`; run `release.yml` with `version=current` only when the
+   native-derived `spec` advanced or the maintainer explicitly requested a Docs
+   GitHub Release
 
 Train rules (mistake guards):
 
@@ -143,8 +145,10 @@ Train rules (mistake guards):
   registry-verified, add the consolidated entry to
   `packages/docs/src/pages/docs/updates/releases.tsx` (see `generate-doc`),
   commit it directly to `main` together with any release-process doc updates,
-  then run the docs deployment and the Docs release workflow with
-  `version=current`.
+  then run the docs deployment. Run the Docs release workflow with
+  `version=current` only when the native-derived `spec` advanced or the
+  maintainer explicitly requested a Docs GitHub Release; otherwise skip it so an
+  immutable existing `docs-{spec}` tag is never reused.
 
 Fetch latest `main` before each dependent workflow so every release starts from
 the prior stable version commit. After an Apple or Google release, confirm the
@@ -171,7 +175,7 @@ independent version edits:
    flavors, and platform builds before committing. Then commit, push, and open a
    PR through the repository's commit workflow.
 5. Run `review-pr` against the exact PR head. Follow its canonical polling
-   cadence (currently about eight minutes), fix every valid finding, push the
+   cadence (currently every five minutes), fix every valid finding, push the
    verified fix batch, and repeat until CI, review threads, and reviewer or
    fallback coverage are clean for that exact head.
 6. Run the full device-backed E2E matrix only after the review gate is clean. If

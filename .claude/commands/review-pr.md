@@ -150,11 +150,11 @@ current head, alongside the normal thread and CI completion gates.
 
 The automated reviewers (Copilot, Gemini, and CodeRabbit) need a few minutes to
 produce feedback. After pushing a round of fixes and posting the reviewer
-triggers, schedule a wake-up in **~480 seconds (8 minutes)** and re-enter
+triggers, schedule a wake-up in **~300 seconds (5 minutes)** and re-enter
 `/review-pr $PR_NUMBER` to:
 
 1. Re-fetch unresolved review threads (`gh api repos/{owner}/{repo}/pulls/$PR_NUMBER/comments`) and reviewer request/status/review evidence.
-2. If new unresolved threads exist → fix them, push, post `/gemini review` again, and schedule another 8-minute wake-up.
+2. If new unresolved threads exist → fix them, push, post `/gemini review` again, and schedule another 5-minute wake-up.
 3. If a reviewer is unavailable for the current head → run or reuse the
    head-specific `$review-self` fallback above.
 4. If no unresolved threads exist, CI is terminal and successful, and every

@@ -4329,7 +4329,7 @@ function checkFrameworkDependencyHygiene() {
     ".github/workflows/publish-flutter.yml",
     [
       "Check if pub.dev package already published",
-      'flutter-version: "3.44.0"',
+      'flutter-version: "3.44.9"',
       'HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}"',
       'HTTP_STATUS="${HTTP_STATUS:-000}"',
       "https://pub.dev/api/packages/flutter_inapp_purchase/versions/$VERSION",
@@ -4344,7 +4344,7 @@ function checkFrameworkDependencyHygiene() {
   ]) {
     expectIncludes(
       flutterWorkflow,
-      ['flutter-version: "3.44.0"'],
+      ['flutter-version: "3.44.9"'],
       `${flutterWorkflow} must pin Flutter SDK`,
     );
     expectNotIncludes(
@@ -4354,10 +4354,40 @@ function checkFrameworkDependencyHygiene() {
     );
     expectNotIncludes(
       flutterWorkflow,
-      ['flutter-version: "3.41.9"'],
-      `${flutterWorkflow} must not use the deprecated Flutter 3.41 toolchain`,
+      ['flutter-version: "3.41.9"', 'flutter-version: "3.44.0"'],
+      `${flutterWorkflow} must not use a superseded Flutter toolchain`,
     );
   }
+  expectIncludes(
+    ".claude/commands/review-pr.md",
+    ["~300 seconds (5 minutes)", "5-minute wake-up"],
+    "review-pr must preserve the requested five-minute polling cadence",
+  );
+  expectNotIncludes(
+    ".claude/commands/review-pr.md",
+    ["~480 seconds (8 minutes)", "8-minute wake-up"],
+    "review-pr must not retain the old eight-minute polling cadence",
+  );
+  expectIncludes(
+    ".claude/commands/release.md",
+    [
+      "currently every five minutes",
+      "`npm run deploy`; run `release.yml` with `version=current` only when",
+      "then run the docs deployment. Run the Docs release workflow with",
+      "only when the native-derived `spec` advanced",
+      "immutable existing `docs-{spec}` tag is never reused",
+    ],
+    "dependency release gate must preserve review cadence and conditional Docs releases",
+  );
+  expectNotIncludes(
+    ".claude/commands/release.md",
+    [
+      "currently about eight minutes",
+      "`npm run deploy`, then `release.yml`",
+      "then run the docs deployment and the Docs release workflow",
+    ],
+    "dependency release gate must not unconditionally reuse a Docs release tag",
+  );
   for (const releaseNotesWorkflow of [
     ".github/workflows/release-apple.yml",
     ".github/workflows/release-google.yml",
@@ -6733,10 +6763,25 @@ function checkFrameworkDependencyHygiene() {
       "SDK 57 / React Native 0.86",
       "SDK 57: iOS 16.4+",
       "Android 7 / API 24+",
-      "SDK 57: 22.13.x",
+      "SDK 57: Node.js 22.13.x",
+      "54–56: Node.js 20.19.x",
+      "SDK 53: Node.js 20+",
+      "react-native-tvos@0.86.2-0",
+      '"@react-native-tvos/config-tv": "^0.1.6"',
+      "deploymentTarget: isTV ? '16.0' : '16.4'",
       "deploymentTarget: '16.4'",
     ],
     "Expo setup docs must match the validated SDK 57 toolchain",
+  );
+  expectNotIncludes(
+    "packages/docs/src/pages/docs/setup/expo.tsx",
+    [
+      "SDK 53–56: Node.js 20.x",
+      "react-native-tvos@0.81.5-1",
+      '"@react-native-tvos/config-tv": "^0.1.4"',
+      "deploymentTarget: isTV ? '16.0' : '15.1'",
+    ],
+    "Expo setup docs must not retain superseded SDK 57 prerequisites",
   );
   expectIncludes(
     "libraries/expo-iap/plugin/src/withLocalOpenIAP.ts",
@@ -7062,7 +7107,7 @@ function checkXcode27StoreKitCoverage() {
     expectIncludes(
       workflowPath,
       [
-        'flutter-version: "3.44.0"',
+        'flutter-version: "3.44.9"',
         "bash scripts/verify-apple-swiftpm-consumer-build.sh",
       ],
       `${workflowPath} Flutter Xcode 27 SwiftPM example build`,
