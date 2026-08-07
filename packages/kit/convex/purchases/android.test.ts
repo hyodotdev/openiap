@@ -1,7 +1,11 @@
+import { google, type Common } from "googleapis";
 import { describe, expect, it } from "vitest";
 import {
   isProductNotFoundError,
   mapProductResponseToReceiptData,
+  mapGoogleTokenNoLongerValidResponse,
+  selectProductLineItem,
+  verifyPurchaseWithGooglePlay,
   mapSubscriptionResponseToReceiptData,
   parseTimeToMillis,
   recordGooglePlayVerifiedSubscription,
@@ -31,6 +35,16 @@ describe("parseTimeToMillis", () => {
       parseTimeToMillis(String(Number.MAX_SAFE_INTEGER + 1)),
     ).toBeUndefined();
     expect(parseTimeToMillis("not-a-date")).toBeUndefined();
+  });
+});
+
+describe("revoked Google token response", () => {
+  it("marks the ambiguous UNKNOWN state as an explicit stable rejection", () => {
+    expect(mapGoogleTokenNoLongerValidResponse()).toEqual({
+      isValid: false,
+      state: HarmonizedPurchaseState.UNKNOWN,
+      stableRejection: true,
+    });
   });
 });
 
@@ -181,6 +195,37 @@ describe("Google Play v2 mappings", () => {
     expect(receipt.renewsAt).toBe(Date.parse(later));
     expect(receipt.currency).toBe("USD");
     expect(receipt.priceAmountMicros).toBe(49_990_000);
+  });
+
+  it("selects the expected subscription before expiry ranking", () => {
+    const expectedExpiry = "2099-01-01T00:00:00.000Z";
+    const laterOtherExpiry = "2099-02-01T00:00:00.000Z";
+    const receipt = mapSubscriptionResponseToReceiptData({
+      packageName,
+      purchaseToken: "multi-sub-token",
+      expectedProductId: "premium_monthly",
+      subscriptionResponse: {
+        subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+        acknowledgementState: "ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED",
+        lineItems: [
+          {
+            productId: "premium_monthly",
+            expiryTime: expectedExpiry,
+            latestSuccessfulOrderId: "GPA.monthly",
+          },
+          {
+            productId: "premium_yearly",
+            expiryTime: laterOtherExpiry,
+            latestSuccessfulOrderId: "GPA.yearly",
+          },
+        ],
+      },
+    });
+
+    expect(receipt.productId).toBe("premium_monthly");
+    expect(receipt.orderId).toBe("GPA.monthly");
+    expect(receipt.expiryTime).toBe(Date.parse(expectedExpiry));
+    expect(mapToGooglePlayReceiptResponse(receipt).isValid).toBe(true);
   });
 
   it("maps productsv2.get purchased consumable that has been consumed to CONSUMED", () => {
@@ -561,5 +606,287 @@ describe("isProductNotFoundError", () => {
   it("is safe on null / undefined", () => {
     expect(isProductNotFoundError(null)).toBe(false);
     expect(isProductNotFoundError(undefined)).toBe(false);
+  });
+});
+
+// Issue #289: a token that covers more than one line item resolved to
+// whichever item Google listed first, so `expectedProductId` could be
+// compared against the wrong product and reject a valid purchase.
+describe("selectProductLineItem", () => {
+  const bulbs = { productId: "dev.hyo.martie.10bulbs" };
+  const premium = { productId: "dev.hyo.martie.premium" };
+
+  it("prefers the line item the caller expects", () => {
+    expect(
+      selectProductLineItem([bulbs, premium], "dev.hyo.martie.premium"),
+    ).toBe(premium);
+  });
+
+  it("falls back to the first item when the expectation doesn't match", () => {
+    expect(
+      selectProductLineItem([bulbs, premium], "dev.hyo.martie.absent"),
+    ).toBe(bulbs);
+  });
+
+  it("keeps the historical first-item behaviour when nothing is expected", () => {
+    expect(selectProductLineItem([bulbs, premium])).toBe(bulbs);
+  });
+
+  it("is safe on empty and missing line items", () => {
+    expect(selectProductLineItem([])).toBeUndefined();
+    expect(selectProductLineItem(undefined)).toBeUndefined();
+    expect(selectProductLineItem(null)).toBeUndefined();
+  });
+
+  it("resolves a multi-item token to the expected product end to end", () => {
+    const receipt = mapProductResponseToReceiptData({
+      packageName,
+      purchaseToken: "token-multi",
+      productResponse: {
+        purchaseStateContext: { purchaseState: "PURCHASED" },
+        acknowledgementState: "ACKNOWLEDGEMENT_STATE_PENDING",
+        productLineItem: [
+          {
+            productId: "dev.hyo.martie.10bulbs",
+            productOfferDetails: {
+              quantity: 1,
+              consumptionState: "CONSUMPTION_STATE_YET_TO_BE_CONSUMED",
+            },
+          },
+          {
+            productId: "dev.hyo.martie.premium",
+            productOfferDetails: {
+              quantity: 3,
+              consumptionState: "CONSUMPTION_STATE_YET_TO_BE_CONSUMED",
+            },
+          },
+        ],
+      },
+      expectedProductId: "dev.hyo.martie.premium",
+    });
+
+    expect(receipt.productId).toBe("dev.hyo.martie.premium");
+    expect(receipt.quantity).toBe(3);
+    // Would previously have been INAUTHENTIC: productId resolved to the
+    // first line item and then failed the expectedProductId comparison.
+    expect(mapToGooglePlayReceiptResponse(receipt).isValid).toBe(true);
+  });
+});
+
+// Issue #289: productsv2/subscriptionsv2 are eventually consistent, so a
+// token seconds old can 404 in both. 4xx is excluded from
+// `retryOnTransient`, so that became a hard failure on the first attempt
+// — the app then never acknowledged, and Google voided the purchase at
+// ~301s.
+describe("verifyPurchaseWithGooglePlay fresh-token retry", () => {
+  function stubPublisher(responder: (attempt: number) => unknown) {
+    let calls = 0;
+    const androidpublisher = google.androidpublisher({
+      version: "v3",
+      // gaxios adds its own retry on top of every call. A thrown
+      // adapter error looks like a network failure to it, which would
+      // triple each count and hide what this test measures — kit's own
+      // retry depth. Production 404s arrive as HTTP responses and are
+      // not gaxios-retried, so disabling it here matches reality.
+      retryConfig: { retry: 0, noResponseRetries: 0 },
+      adapter: async <T>(
+        request: Common.gaxios.GaxiosOptionsPrepared,
+      ): Promise<Common.GaxiosResponse<T>> => {
+        calls += 1;
+        const data = responder(calls);
+        if (data === undefined) {
+          throw Object.assign(new Error("not found"), { code: 404 });
+        }
+        return Object.assign(new Response(null, { status: 200 }), {
+          config: request,
+          data: data as T,
+        });
+      },
+    });
+    return { androidpublisher, callCount: () => calls };
+  }
+
+  const freshPurchase = {
+    purchaseStateContext: { purchaseState: "PURCHASED" },
+    acknowledgementState: "ACKNOWLEDGEMENT_STATE_PENDING",
+    productLineItem: [
+      {
+        productId: "dev.hyo.martie.10bulbs",
+        productOfferDetails: {
+          quantity: 1,
+          consumptionState: "CONSUMPTION_STATE_YET_TO_BE_CONSUMED",
+        },
+      },
+    ],
+  };
+
+  it("recovers a token that has not propagated yet", async () => {
+    // Attempts 1-2 are the product+subscription pair for a token Google
+    // doesn't know about yet; the product lookup then succeeds.
+    const { androidpublisher, callCount } = stubPublisher((attempt) =>
+      attempt <= 2 ? undefined : freshPurchase,
+    );
+
+    const result = await verifyPurchaseWithGooglePlay(androidpublisher, {
+      packageName,
+      purchaseToken: "fresh-token",
+      expectedProductId: undefined,
+    });
+
+    expect(result.receiptData.productId).toBe("dev.hyo.martie.10bulbs");
+    expect(mapToGooglePlayReceiptResponse(result.receiptData).isValid).toBe(
+      true,
+    );
+    expect(callCount()).toBe(3);
+  });
+
+  it("gives up quickly on a token that genuinely does not exist", async () => {
+    // Every attempt 404s. The retry must stay shallow: each attempt
+    // costs TWO Play calls, so a bogus-token probe would otherwise
+    // multiply upstream cost and hold a request open.
+    const { androidpublisher, callCount } = stubPublisher(() => undefined);
+
+    await expect(
+      verifyPurchaseWithGooglePlay(androidpublisher, {
+        packageName,
+        purchaseToken: "bogus-token",
+        expectedProductId: undefined,
+      }),
+    ).rejects.toThrow();
+    // 3 attempts x (product + subscription). Each extra attempt would
+    // double the upstream cost of a token that will never resolve.
+    expect(callCount()).toBe(6);
+  });
+
+  it("fails fast on a permission error instead of retrying it", async () => {
+    // The predicate is the whole point of the retry: only "Google has
+    // never heard of this token" is transient. Widening it to every
+    // error would sit on an operator's revoked service account for
+    // three rounds of two calls, and would do the same for a package
+    // mismatch that is never going to start working.
+    const { androidpublisher, callCount } = stubPublisher(() => {
+      throw Object.assign(new Error("The caller does not have permission"), {
+        code: 403,
+      });
+    });
+
+    await expect(
+      verifyPurchaseWithGooglePlay(androidpublisher, {
+        packageName,
+        purchaseToken: "any-token",
+        expectedProductId: undefined,
+      }),
+    ).rejects.toThrow(/permission/i);
+    // One product call. Not even the subscription fallback: a 403 is not
+    // "this token isn't a product", it's "this credential can't ask".
+    expect(callCount()).toBe(1);
+  });
+});
+
+// The multi-item fix has two independent wires: the action must pass
+// `expectedProductId` down to the lookup, and the lookup must pass it
+// into the mapper. Either can be cut without a unit test on
+// `selectProductLineItem` noticing.
+describe("expectedProductId hand-off", () => {
+  const multiItem = {
+    purchaseStateContext: { purchaseState: "PURCHASED" },
+    acknowledgementState: "ACKNOWLEDGEMENT_STATE_PENDING",
+    productLineItem: [
+      {
+        productId: "dev.hyo.martie.10bulbs",
+        productOfferDetails: {
+          quantity: 1,
+          consumptionState: "CONSUMPTION_STATE_YET_TO_BE_CONSUMED",
+        },
+      },
+      {
+        productId: "dev.hyo.martie.premium",
+        productOfferDetails: {
+          quantity: 2,
+          consumptionState: "CONSUMPTION_STATE_YET_TO_BE_CONSUMED",
+        },
+      },
+    ],
+  };
+
+  function stub(responder: () => unknown) {
+    return google.androidpublisher({
+      version: "v3",
+      retryConfig: { retry: 0, noResponseRetries: 0 },
+      adapter: async <T>(
+        request: Common.gaxios.GaxiosOptionsPrepared,
+      ): Promise<Common.GaxiosResponse<T>> =>
+        Object.assign(new Response(null, { status: 200 }), {
+          config: request,
+          data: responder() as T,
+        }),
+    });
+  }
+
+  it("resolves the expected item through verifyPurchaseWithGooglePlay", async () => {
+    const result = await verifyPurchaseWithGooglePlay(
+      stub(() => multiItem),
+      {
+        packageName,
+        purchaseToken: "multi",
+        expectedProductId: "dev.hyo.martie.premium",
+      },
+    );
+
+    // Severing the hand-off resolves to the first item instead, which
+    // then fails applyExpectedProductId and reports INAUTHENTIC.
+    expect(result.receiptData.productId).toBe("dev.hyo.martie.premium");
+    expect(result.receiptData.quantity).toBe(2);
+  });
+
+  it("keeps first-item behaviour when nothing is expected", async () => {
+    const result = await verifyPurchaseWithGooglePlay(
+      stub(() => multiItem),
+      { packageName, purchaseToken: "multi", expectedProductId: undefined },
+    );
+
+    expect(result.receiptData.productId).toBe("dev.hyo.martie.10bulbs");
+  });
+
+  it("forwards the expected product to a multi-item subscription", async () => {
+    let calls = 0;
+    const publisher = google.androidpublisher({
+      version: "v3",
+      retryConfig: { retry: 0, noResponseRetries: 0 },
+      adapter: async <T>(
+        request: Common.gaxios.GaxiosOptionsPrepared,
+      ): Promise<Common.gaxios.GaxiosResponse<T>> => {
+        calls += 1;
+        if (calls === 1) {
+          throw Object.assign(new Error("not found"), { code: 404 });
+        }
+        return Object.assign(new Response(null, { status: 200 }), {
+          config: request,
+          data: {
+            subscriptionState: "SUBSCRIPTION_STATE_ACTIVE",
+            acknowledgementState: "ACKNOWLEDGEMENT_STATE_ACKNOWLEDGED",
+            lineItems: [
+              {
+                productId: "premium_monthly",
+                expiryTime: "2099-01-01T00:00:00.000Z",
+              },
+              {
+                productId: "premium_yearly",
+                expiryTime: "2099-02-01T00:00:00.000Z",
+              },
+            ],
+          } as T,
+        });
+      },
+    });
+
+    const result = await verifyPurchaseWithGooglePlay(publisher, {
+      packageName,
+      purchaseToken: "multi-sub",
+      expectedProductId: "premium_monthly",
+    });
+
+    expect(result.receiptData.productId).toBe("premium_monthly");
+    expect(calls).toBe(2);
   });
 });

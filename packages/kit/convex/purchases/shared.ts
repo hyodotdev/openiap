@@ -100,6 +100,11 @@ export const receiptResponseValidator = v.object({
   isValid: v.boolean(),
   state: harmonizedPurchaseStateValidator,
   productId: v.optional(v.string()),
+  // Internal edge hint for ambiguous states. For example, Google maps
+  // an explicit 410 revoked-token verdict to UNKNOWN, but a successfully
+  // fetched future Play state can also map to UNKNOWN and must stay
+  // retryable. The HTTP route consumes this without returning it publicly.
+  stableRejection: v.optional(v.boolean()),
 });
 
 export async function getProjectByApiKey(
@@ -475,6 +480,7 @@ export function isValidState(state: HarmonizedPurchaseState): boolean {
 export function extractOrderIdFromRemoteResponse(
   store: "apple" | "google" | "horizon" | "amazon",
   remoteResponse?: string | null,
+  expectedProductId?: string,
 ): string | null {
   if (store !== "google" || !remoteResponse) {
     return null;
@@ -501,11 +507,14 @@ export function extractOrderIdFromRemoteResponse(
     // Subscriptions V2: the top-level identifier is `latestOrderId`,
     // with `lineItems[].latestSuccessfulOrderId` as the per-line
     // fallback. `mapSubscriptionResponseToReceiptData` in android.ts
-    // selects the longest-dated line item, so mirror that selection
-    // here to keep the write-time column and the receipt-derived id
-    // in sync.
+    // selects an expected product first, then the longest-dated line
+    // item, so mirror that selection here to keep the write-time
+    // columns and the verified receipt in sync.
     if ("lineItems" in parsed && Array.isArray(parsed.lineItems)) {
-      const lineItem = selectGoogleSubscriptionLineItem(parsed.lineItems);
+      const lineItem = selectGoogleSubscriptionLineItem(
+        parsed.lineItems,
+        expectedProductId,
+      );
       if (
         lineItem &&
         "latestSuccessfulOrderId" in lineItem &&
@@ -544,6 +553,7 @@ export function extractOrderIdFromRemoteResponse(
 export function extractProductIdFromRemoteResponse(
   store: "apple" | "google" | "horizon" | "amazon",
   remoteResponse?: string | null,
+  expectedProductId?: string,
 ): string | null {
   if (!remoteResponse) {
     return null;
@@ -566,7 +576,10 @@ export function extractProductIdFromRemoteResponse(
           "productLineItem" in parsed &&
           Array.isArray(parsed.productLineItem)
         ) {
-          const productLineItem = parsed.productLineItem[0];
+          const productLineItem = selectGoogleProductLineItem(
+            parsed.productLineItem,
+            expectedProductId,
+          );
           if (
             productLineItem &&
             typeof productLineItem === "object" &&
@@ -578,7 +591,10 @@ export function extractProductIdFromRemoteResponse(
         }
 
         if ("lineItems" in parsed && Array.isArray(parsed.lineItems)) {
-          const lineItem = selectGoogleSubscriptionLineItem(parsed.lineItems);
+          const lineItem = selectGoogleSubscriptionLineItem(
+            parsed.lineItems,
+            expectedProductId,
+          );
           if (
             lineItem &&
             "productId" in lineItem &&
@@ -617,8 +633,29 @@ export function extractProductIdFromRemoteResponse(
   return null;
 }
 
+function selectGoogleProductLineItem(
+  lineItems: unknown[],
+  expectedProductId?: string,
+): Record<string, unknown> | null {
+  let fallback: Record<string, unknown> | null = null;
+
+  for (const lineItem of lineItems) {
+    if (!isRecord(lineItem)) continue;
+    fallback ??= lineItem;
+    if (
+      expectedProductId !== undefined &&
+      lineItem.productId === expectedProductId
+    ) {
+      return lineItem;
+    }
+  }
+
+  return fallback;
+}
+
 function selectGoogleSubscriptionLineItem(
   lineItems: unknown[],
+  expectedProductId?: string,
 ): Record<string, unknown> | null {
   let fallback: Record<string, unknown> | null = null;
   let selected: Record<string, unknown> | null = null;
@@ -627,6 +664,12 @@ function selectGoogleSubscriptionLineItem(
   for (const lineItem of lineItems) {
     if (!isRecord(lineItem)) continue;
     fallback ??= lineItem;
+    if (
+      expectedProductId !== undefined &&
+      lineItem.productId === expectedProductId
+    ) {
+      return lineItem;
+    }
 
     if (typeof lineItem.expiryTime !== "string") continue;
     const score = Date.parse(lineItem.expiryTime);

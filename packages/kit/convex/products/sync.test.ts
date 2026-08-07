@@ -5,6 +5,7 @@ import {
   deletePlatformCatalog as registeredDeletePlatformCatalog,
   deleteRemovedProductRow as registeredDeleteRemovedProductRow,
   isSafePriceAmountMicros,
+  listDraftAndroidProducts as registeredListDraftAndroidProducts,
   listDraftIosProducts as registeredListDraftIosProducts,
   listRemovedAndroidProducts as registeredListRemovedAndroidProducts,
   markPushed as registeredMarkPushed,
@@ -18,6 +19,9 @@ const deleteRemovedProductRow = testableFunction(
   registeredDeleteRemovedProductRow,
 );
 const upsertFromStore = testableFunction(registeredUpsertFromStore);
+const listDraftAndroidProducts = testableFunction(
+  registeredListDraftAndroidProducts,
+);
 const listDraftIosProducts = testableFunction(registeredListDraftIosProducts);
 const listRemovedAndroidProducts = testableFunction(
   registeredListRemovedAndroidProducts,
@@ -401,6 +405,84 @@ describe("listDraftIosProducts review resumption", () => {
   });
 });
 
+describe("draft product region worker boundaries", () => {
+  const base = {
+    projectId: "project_a",
+    state: "Draft",
+    title: "Title",
+    origin: "kit",
+  };
+
+  it("never forwards stale region metadata to the iOS worker", async () => {
+    const db = new TestDb({
+      products: [
+        {
+          _id: "ios_product",
+          ...base,
+          platform: "IOS",
+          productId: "premium.ios",
+          type: "Consumable",
+          regions: ["US"],
+        },
+      ],
+    });
+
+    await expect(
+      listDraftIosProducts._handler(
+        { db },
+        { projectId: "project_a" as never },
+      ),
+    ).resolves.toEqual([
+      expect.not.objectContaining({ regions: expect.anything() }),
+    ]);
+  });
+
+  it("drops empty and subscription footprints before the Play worker", async () => {
+    const db = new TestDb({
+      products: [
+        {
+          _id: "empty_product",
+          ...base,
+          platform: "Android",
+          productId: "empty",
+          type: "Consumable",
+          regions: [],
+        },
+        {
+          _id: "subscription_product",
+          ...base,
+          platform: "Android",
+          productId: "subscription",
+          type: "Subscription",
+          regions: "all",
+        },
+        {
+          _id: "restricted_product",
+          ...base,
+          platform: "Android",
+          productId: "restricted",
+          type: "NonConsumable",
+          regions: ["US", "KR"],
+        },
+      ],
+    });
+
+    const rows = await listDraftAndroidProducts._handler(
+      { db },
+      { projectId: "project_a" as never },
+    );
+    expect(rows.find((row) => row.productId === "empty")?.regions).toBe(
+      undefined,
+    );
+    expect(rows.find((row) => row.productId === "subscription")?.regions).toBe(
+      undefined,
+    );
+    expect(rows.find((row) => row.productId === "restricted")).toMatchObject({
+      regions: ["US", "KR"],
+    });
+  });
+});
+
 describe("catalog deletion client-payload retention", () => {
   it("keeps client metadata after a pushed Removed row is hard-deleted", async () => {
     const db = new TestDb({
@@ -546,4 +628,71 @@ describe("pending-deletion sync write guards", () => {
       expect(db.tables.products).toEqual([]);
     });
   }
+});
+
+describe("upsertFromStore localization preservation", () => {
+  const seeded = {
+    _id: "product_a",
+    projectId: "project_a",
+    platform: "IOS",
+    productId: "premium",
+    type: "Subscription",
+    title: "Premium",
+    state: "Active",
+    origin: "kit",
+    storeRef: "store_ref",
+    localizations: [{ locale: "ko-KR", title: "프리미엄" }],
+    updatedAt: 1,
+  };
+
+  function db() {
+    return new TestDb({
+      organizations: [{ _id: "organization_a", pendingDeletion: false }],
+      projects: [
+        {
+          _id: "project_a",
+          organizationId: "organization_a",
+          pendingDeletion: false,
+        },
+      ],
+      products: [{ ...seeded }],
+    });
+  }
+
+  const pull = (extra: Record<string, unknown>) => ({
+    projectId: "project_a" as never,
+    productId: "premium",
+    platform: "IOS" as const,
+    type: "Subscription" as const,
+    title: "Premium",
+    storeRef: "store_ref",
+    state: "Active" as const,
+    ...extra,
+  });
+
+  it("keeps kit-authored locales when the pull reports none", async () => {
+    // ASC omits the field entirely (its localizations live on version
+    // sub-resources), and Play omits it for a product whose only listing
+    // is the base locale. Overwriting here would delete a locale the
+    // operator authored in kit, and the push side — which merges rather
+    // than replaces — would then have nothing to republish.
+    const store = db();
+    await upsertFromStore._handler({ db: store }, pull({}));
+
+    expect(store.tables.products[0].localizations).toEqual([
+      { locale: "ko-KR", title: "프리미엄" },
+    ]);
+  });
+
+  it("adopts locales the store does report", async () => {
+    const store = db();
+    await upsertFromStore._handler(
+      { db: store },
+      pull({ localizations: [{ locale: "ja-JP", title: "プレミアム" }] }),
+    );
+
+    expect(store.tables.products[0].localizations).toEqual([
+      { locale: "ja-JP", title: "プレミアム" },
+    ]);
+  });
 });

@@ -123,8 +123,13 @@ export const backfillPurchaseStatsFromPurchases = migrations.define({
     const hasOrderId =
       typeof doc.orderId === "string" && doc.orderId.length > 0
         ? true
-        : extractOrderIdFromRemoteResponse(doc.store, doc.remoteResponse) !==
-          null;
+        : extractOrderIdFromRemoteResponse(
+            doc.store,
+            doc.remoteResponse,
+            doc.requestData.store === "google"
+              ? doc.requestData.expectedProductId
+              : undefined,
+          ) !== null;
 
     await applyPurchaseStatsDelta(
       ctx,
@@ -197,6 +202,9 @@ export const backfillPurchaseProductIds = migrations.define({
     const productId = extractProductIdFromRemoteResponse(
       doc.store,
       doc.remoteResponse,
+      doc.requestData.store === "google"
+        ? doc.requestData.expectedProductId
+        : undefined,
     );
 
     if (productId === null) {
@@ -242,6 +250,9 @@ export const backfillPurchaseOrderIds = migrations.define({
     const orderId = extractOrderIdFromRemoteResponse(
       doc.store,
       doc.remoteResponse,
+      doc.requestData.store === "google"
+        ? doc.requestData.expectedProductId
+        : undefined,
     );
 
     if (orderId === null) {

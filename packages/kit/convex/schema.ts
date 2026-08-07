@@ -612,6 +612,11 @@ const schema = defineSchema({
     rawSignedPayload: v.optional(v.string()),
     occurredAt: v.number(),
     receivedAt: v.number(),
+    // Set in the same mutation that applies the lifecycle transition and
+    // incremental stats delta. Unlike subscriptions.lastEventId, this remains
+    // attached to the retained event after newer events arrive, so an old
+    // Pub/Sub / ASN redelivery cannot replay its transition over current state.
+    appliedAt: v.optional(v.number()),
   })
     .index("by_project", ["projectId"])
     .index("by_purchase_token", ["purchaseToken"])
@@ -635,10 +640,9 @@ const schema = defineSchema({
   // same messageId, and a project-less key would cross-pollute their
   // dedup state. (Apple's notificationUUID is globally unique so the
   // projectId scope is redundant for ASN, but matching one shape
-  // keeps the lookup path simple.) Duplicates detected here cause
-  // kit to silently ACK the upstream request with 200 without storing or
-  // reapplying the lifecycle transition, matching Apple's documented retry
-  // expectation and Google's at-least-once Pub/Sub contract.
+  // keeps the lookup path simple.) Duplicates detected here reuse the stored
+  // event while ingestion idempotently reapplies its lifecycle transition,
+  // allowing a retry to repair a partially completed first attempt.
   // `projectId` is optional during the rollout so already-written
   // rows still validate; new inserts always populate it.
   webhookIdempotencyKeys: defineTable({
@@ -878,6 +882,45 @@ const schema = defineSchema({
     ),
     title: v.string(),
     description: v.optional(v.string()),
+    // Store-listing text in additional languages. `title` /
+    // `description` above stay the base listing (en-US for authored rows;
+    // store pulls may preserve another `baseLocale`); this only adds
+    // locales on top. Locale codes are BCP-47
+    // ("ko-KR", "ja-JP"), which is what both Play `languageCode` and
+    // ASC localization `locale` accept.
+    // Widened to include `null` because Convex treats `undefined` in a
+    // patch as "leave unchanged" — without a null the last localization
+    // could never be removed and every push would keep republishing it.
+    // Same reason `subscriptionGroupId` above is nullable.
+    localizations: v.optional(
+      v.union(
+        v.array(
+          v.object({
+            locale: v.string(),
+            title: v.string(),
+            description: v.optional(v.string()),
+          }),
+        ),
+        v.null(),
+      ),
+    ),
+    // Locale represented by the required `title` / `description` fields.
+    // Authored rows default to en-US; store pulls persist another locale
+    // when a catalog has no en-US listing so the next push cannot invent a
+    // mislabeled English listing. Optional for all historical rows.
+    baseLocale: v.optional(v.string()),
+    // Sales regions, in three states: a list restricts the product to
+    // exactly those markets; "all" sells wherever Play prices it,
+    // including markets Play launches later; unset inherits — a product
+    // Play has never seen goes out everywhere (the behaviour that fixes
+    // issue #288), and one that already exists keeps the regions it has
+    // rather than being expanded by a sync run to change its price.
+    // Nullable for the same reason `localizations` is — Convex treats
+    // `undefined` in a patch as "leave unchanged", so clearing needs an
+    // explicit null.
+    regions: v.optional(
+      v.union(v.literal("all"), v.array(v.string()), v.null()),
+    ),
     priceAmountMicros: v.optional(v.number()),
     currency: v.optional(v.string()),
     state: v.union(

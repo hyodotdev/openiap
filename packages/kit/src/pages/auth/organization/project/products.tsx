@@ -30,6 +30,7 @@ import {
   shouldShowProductSyncResult,
 } from "./product-sync-result";
 import { ProductSyncFailureList } from "./product-sync-failure-list";
+import { resolveProductListingDraft } from "./product-localizations";
 
 type DashboardProject = Omit<
   Doc<"projects">,
@@ -117,6 +118,79 @@ export default function ProjectProducts() {
     subscriptionGroupName: "",
     reviewNote: "",
   });
+  // Extra store-listing languages. `title` / `description` keep the row's
+  // base locale (en-US for new rows; a pulled store default may differ).
+  const [localizations, setLocalizations] = useState<
+    Array<{ locale: string; title: string; description: string }>
+  >([]);
+  // Comma-separated ISO region codes. Blank means "every region the
+  // store prices", which is the default that fixes US-only products.
+  const [regionsInput, setRegionsInput] = useState("");
+  // Three states, matching what the product actually stores. "inherit"
+  // is the default because expanding an existing product's markets is
+  // something the operator asks for, not something a price edit does.
+  const [regionMode, setRegionMode] = useState<"inherit" | "all" | "list">(
+    "inherit",
+  );
+  // Only the Android one-time push applies a region footprint: ASC
+  // prices per territory through a resource this workflow doesn't touch,
+  // and Play fixes a base plan's regional configs at create. Hiding the
+  // field is how the operator learns that, instead of tripping the
+  // mutation's guard on save.
+  const supportsSalesRegions =
+    draft.platform === "Android" && draft.type !== "Subscription";
+  // Typing an existing productId means "edit this row", so show the
+  // locales it already has. Without this the field is write-only: the
+  // editor would look empty and the operator would have no way to see,
+  // correct, or intentionally keep what is stored.
+  const editingExisting = useMemo(
+    () =>
+      (products ?? []).find(
+        (product) =>
+          product.productId === draft.productId.trim() &&
+          product.platform === draft.platform,
+      ),
+    [products, draft.productId, draft.platform],
+  );
+  const baseListingLocale = editingExisting?.baseLocale ?? "en-US";
+  // Which stored row the editors were explicitly loaded from, or null.
+  //
+  // Loading is a button, not an effect. Inferring it from "the typed id
+  // happens to match a row" was rewritten three times and lost data
+  // three different ways — a half-typed id overwrote work in progress, a
+  // stale flag latched loading off forever, and a single blank language
+  // row made an apparently-empty editor delete a product's stored
+  // listings on save. An explicit action has none of those states.
+  const [loadedKey, setLoadedKey] = useState<string | null>(null);
+  const editingKey = editingExisting
+    ? `${editingExisting.platform}\u0000${editingExisting.productId}`
+    : null;
+  // Only a row loaded from THIS product may send an empty array, which
+  // is how a delete-all reaches the mutation. Otherwise an empty editor
+  // means "not specified" and the stored value is preserved.
+  const isLoadedRow = loadedKey !== null && loadedKey === editingKey;
+  const loadStoredMetadata = () => {
+    if (!editingExisting || !editingKey) return;
+    setLoadedKey(editingKey);
+    const storedRegions = editingExisting.regions;
+    setRegionMode(
+      storedRegions === "all"
+        ? "all"
+        : storedRegions?.length
+          ? "list"
+          : "inherit",
+    );
+    setRegionsInput(
+      Array.isArray(storedRegions) ? storedRegions.join(", ") : "",
+    );
+    setLocalizations(
+      (editingExisting.localizations ?? []).map((entry) => ({
+        locale: entry.locale,
+        title: entry.title,
+        description: entry.description ?? "",
+      })),
+    );
+  };
 
   const grouped = useMemo(() => {
     if (!products) return { ios: [], android: [] };
@@ -232,6 +306,18 @@ export default function ProjectProducts() {
     return <PageLoading />;
   }
 
+  // Convex wraps a thrown ConvexError so `error.message` carries the
+  // framework's own prefix; the operator needs the guidance we wrote.
+  const convexErrorMessage = (error: unknown): string | undefined => {
+    const data = (error as { data?: unknown } | null)?.data;
+    if (data && typeof data === "object" && "message" in data) {
+      const message = (data as { message?: unknown }).message;
+      if (typeof message === "string") return message;
+    }
+    if (typeof data === "string") return data;
+    return error instanceof Error ? error.message : undefined;
+  };
+
   const onAdd = async () => {
     if (!draft.productId || !draft.title) return;
     // Empty strings → undefined so the mutation's `?? existing.X`
@@ -251,20 +337,42 @@ export default function ProjectProducts() {
       : undefined;
     const billingPeriod =
       draft.type === "Subscription" ? draft.billingPeriod : undefined;
-    await upsert({
-      projectId: project._id,
-      productId: draft.productId,
-      platform: draft.platform,
-      type: draft.type,
-      title: draft.title,
-      description,
-      priceAmountMicros,
-      currency: priceAmountMicros !== undefined ? "USD" : undefined,
-      billingPeriod,
-      subscriptionGroupName,
-      reviewNote,
-      state: "Draft",
+    const resolvedDraft = resolveProductListingDraft({
+      rows: localizations,
+      regionsInput,
+      regionMode,
+      supportsSalesRegions,
+      editingExisting: Boolean(editingExisting),
+      isLoadedRow,
     });
+    if (!resolvedDraft.ok) {
+      toast.error(resolvedDraft.error);
+      return;
+    }
+    try {
+      await upsert({
+        projectId: project._id,
+        productId: draft.productId,
+        platform: draft.platform,
+        type: draft.type,
+        title: draft.title,
+        description,
+        priceAmountMicros,
+        currency: priceAmountMicros !== undefined ? "USD" : undefined,
+        billingPeriod,
+        subscriptionGroupName,
+        reviewNote,
+        localizations: resolvedDraft.localizations,
+        regions: resolvedDraft.regions,
+        state: "Draft",
+      });
+    } catch (error) {
+      // The mutation rejects malformed locales, duplicates, and
+      // over-long store text. Without this the promise rejected into
+      // `void onAdd()` and the operator saw nothing happen.
+      toast.error(convexErrorMessage(error) ?? "Could not save product");
+      return;
+    }
     setDraft({
       ...draft,
       productId: "",
@@ -274,6 +382,9 @@ export default function ProjectProducts() {
       subscriptionGroupName: "",
       reviewNote: "",
     });
+    setLocalizations([]);
+    setRegionsInput("");
+    setLoadedKey(null);
   };
 
   const onSync = async (
@@ -519,6 +630,131 @@ export default function ProjectProducts() {
             />
           </Field>
         </div>
+        {supportsSalesRegions && (
+          <Field label="Sales regions">
+            <select
+              value={regionMode}
+              onChange={(e) =>
+                setRegionMode(e.target.value as "inherit" | "all" | "list")
+              }
+              className="w-full px-2 py-1.5 rounded border border-border bg-background"
+            >
+              <option value="inherit">
+                Keep the store's current regions (new products: everywhere)
+              </option>
+              <option value="all">Sell in every region the store prices</option>
+              <option value="list">Only these regions…</option>
+            </select>
+            {regionMode === "list" && (
+              <input
+                value={regionsInput}
+                onChange={(e) => setRegionsInput(e.target.value)}
+                placeholder="US, KR, JP"
+                className="mt-2 w-full px-2 py-1.5 rounded border border-border bg-background"
+              />
+            )}
+            <p className="mt-1 text-[10px] text-muted-foreground">
+              {regionMode === "inherit"
+                ? "A product the store already has keeps exactly the regions it has today — a price change will not widen where it sells. A new product is priced in every region the store supports, converted from the price above."
+                : regionMode === "all"
+                  ? "Prices the product in every region the store supports, and follows the store into markets it adds later."
+                  : "Two-letter country codes, comma separated. Restricts the product to those markets and keeps it out of regions the store adds later. Stores refuse to drop a region once it has been added, so the others are withdrawn rather than removed."}
+            </p>
+          </Field>
+        )}
+        <div className="space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-medium text-muted-foreground">
+              Other languages (optional)
+            </span>
+            {editingExisting && !isLoadedRow && (
+              <button
+                onClick={loadStoredMetadata}
+                className="text-xs text-primary hover:underline"
+              >
+                Load stored languages{supportsSalesRegions ? " & regions" : ""}
+              </button>
+            )}
+            <button
+              onClick={() =>
+                setLocalizations([
+                  ...localizations,
+                  { locale: "", title: "", description: "" },
+                ])
+              }
+              className="flex items-center gap-1 text-xs text-primary hover:underline"
+            >
+              <Plus className="w-3 h-3" /> Add language
+            </button>
+          </div>
+          {localizations.length === 0 ? (
+            <p className="text-[10px] text-muted-foreground">
+              The title and description above publish as {baseListingLocale}.
+              Add a language to show a translated name in that store locale —
+              pricing is already converted per region automatically.
+              {editingExisting
+                ? " This product already exists: leaving this empty keeps its stored languages. Load them to edit or remove them."
+                : ""}
+            </p>
+          ) : (
+            localizations.map((entry, index) => (
+              <div
+                key={index}
+                className="grid md:grid-cols-[7rem_1fr_1fr_auto] gap-2 items-center"
+              >
+                <input
+                  value={entry.locale}
+                  onChange={(e) =>
+                    setLocalizations(
+                      localizations.map((row, i) =>
+                        i === index ? { ...row, locale: e.target.value } : row,
+                      ),
+                    )
+                  }
+                  placeholder="ko-KR"
+                  className="w-full px-2 py-1.5 rounded border border-border bg-background text-sm"
+                />
+                <input
+                  value={entry.title}
+                  onChange={(e) =>
+                    setLocalizations(
+                      localizations.map((row, i) =>
+                        i === index ? { ...row, title: e.target.value } : row,
+                      ),
+                    )
+                  }
+                  placeholder="Title in this language"
+                  className="w-full px-2 py-1.5 rounded border border-border bg-background text-sm"
+                />
+                <input
+                  value={entry.description}
+                  onChange={(e) =>
+                    setLocalizations(
+                      localizations.map((row, i) =>
+                        i === index
+                          ? { ...row, description: e.target.value }
+                          : row,
+                      ),
+                    )
+                  }
+                  placeholder="Description in this language"
+                  className="w-full px-2 py-1.5 rounded border border-border bg-background text-sm"
+                />
+                <button
+                  onClick={() =>
+                    setLocalizations(
+                      localizations.filter((_, i) => i !== index),
+                    )
+                  }
+                  aria-label={`Remove ${entry.locale || "language"}`}
+                  className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted"
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            ))
+          )}
+        </div>
         <div className="grid md:grid-cols-[1fr_auto] gap-3 items-end">
           <Field label="Review note (optional)">
             <input
@@ -541,7 +777,7 @@ export default function ProjectProducts() {
         </div>
         {draft.platform === "IOS" && (
           <div className="rounded border border-border/80 bg-muted/30 px-3 py-2 text-[11px] text-muted-foreground">
-            On iOS, Sync pushes the row to App Store Connect, creates an en-US
+            On iOS, Sync pushes the row to App Store Connect, creates the base
             localization, and sets the USA price tier. App Store Connect may
             still show &quot;Missing Metadata&quot; until review metadata and
             screenshots are added and the product is attached to an app version

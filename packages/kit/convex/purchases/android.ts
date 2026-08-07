@@ -108,6 +108,7 @@ export const verifyGooglePlayReceiptInternalV1 = action({
         await verifyPurchaseWithGooglePlay(androidpublisher, {
           packageName,
           purchaseToken: args.purchaseToken,
+          expectedProductId: args.expectedProductId,
         });
 
       // The Play API cannot mark an inapp purchase as consumable, so consult
@@ -200,17 +201,14 @@ export const verifyGooglePlayReceiptInternalV1 = action({
         // have no way to differentiate between the two situations.
         isPlayStoreTokenNoLongerValidError(error)
       ) {
-        const harmonizedState = HarmonizedPurchaseState.UNKNOWN;
+        const receiptResponse = mapGoogleTokenNoLongerValidResponse();
 
         await persistFailedGoogleReceipt(ctx, {
           ...buildFailedReceiptParams(error),
-          state: harmonizedState,
+          state: receiptResponse.state,
         });
 
-        return {
-          isValid: false,
-          state: harmonizedState,
-        };
+        return receiptResponse;
       }
 
       if (
@@ -227,6 +225,17 @@ export const verifyGooglePlayReceiptInternalV1 = action({
     }
   },
 });
+
+export function mapGoogleTokenNoLongerValidResponse() {
+  return {
+    isValid: false,
+    state: HarmonizedPurchaseState.UNKNOWN,
+    // UNKNOWN normally remains retryable because successfully fetched
+    // future states also map there. Google's explicit 410 is different:
+    // the token is revoked and replaying it cannot change the verdict.
+    stableRejection: true,
+  } as const;
+}
 
 export async function recordGooglePlayVerifiedSubscription(
   ctx: Pick<ActionCtx, "runMutation">,
@@ -356,9 +365,11 @@ export function mapSubscriptionResponseToReceiptData(args: {
   packageName: string;
   purchaseToken: string;
   subscriptionResponse: androidpublisher_v3.Schema$SubscriptionPurchaseV2;
+  expectedProductId?: string;
 }): GooglePlayReceiptData {
   const lineItem = selectSubscriptionLineItem(
     args.subscriptionResponse.lineItems ?? [],
+    args.expectedProductId,
   );
   const purchaseDate =
     parseTimeToMillis(args.subscriptionResponse.startTime) ?? Date.now();
@@ -392,7 +403,15 @@ function selectSubscriptionLineItem(
   lineItems: NonNullable<
     androidpublisher_v3.Schema$SubscriptionPurchaseV2["lineItems"]
   >,
+  expectedProductId?: string,
 ): androidpublisher_v3.Schema$SubscriptionPurchaseLineItem | undefined {
+  if (expectedProductId !== undefined) {
+    const expected = lineItems.find(
+      (lineItem) => lineItem.productId === expectedProductId,
+    );
+    if (expected) return expected;
+  }
+
   return (
     lineItems.reduce<
       androidpublisher_v3.Schema$SubscriptionPurchaseLineItem | undefined
@@ -412,8 +431,12 @@ export function mapProductResponseToReceiptData(args: {
   packageName: string;
   purchaseToken: string;
   productResponse: androidpublisher_v3.Schema$ProductPurchaseV2;
+  expectedProductId?: string;
 }): GooglePlayReceiptData {
-  const lineItem = args.productResponse.productLineItem?.[0];
+  const lineItem = selectProductLineItem(
+    args.productResponse.productLineItem,
+    args.expectedProductId,
+  );
   const purchaseDate =
     parseTimeToMillis(args.productResponse.purchaseCompletionTime) ??
     Date.now();
@@ -433,11 +456,45 @@ export function mapProductResponseToReceiptData(args: {
     acknowledgementState:
       args.productResponse.acknowledgementState || undefined,
     consumptionState:
-      lineItem?.productOfferDetails?.consumptionState ||
-      args.productResponse.productLineItem?.[0]?.productOfferDetails
-        ?.consumptionState ||
-      undefined,
+      lineItem?.productOfferDetails?.consumptionState || undefined,
   };
+}
+
+/**
+ * Picks the line item a verification is about.
+ *
+ * Reading `productLineItem[0]` unconditionally is wrong once a token
+ * covers more than one item — Play's newer one-time-product model lets a
+ * single purchase carry several purchase options, and a multi-item token
+ * would resolve to whichever item Google happened to list first. When
+ * the caller told us which product it expects, honour that; otherwise
+ * keep the historical first-item behaviour.
+ */
+export function selectProductLineItem(
+  lineItems: androidpublisher_v3.Schema$ProductLineItem[] | undefined | null,
+  expectedProductId?: string,
+): androidpublisher_v3.Schema$ProductLineItem | undefined {
+  if (!lineItems?.length) return undefined;
+  if (expectedProductId) {
+    const match = lineItems.find(
+      (item) => item.productId === expectedProductId,
+    );
+    if (match) return match;
+  }
+  return lineItems[0];
+}
+
+/**
+ * True when Google says it has never heard of this purchase token.
+ *
+ * Right after a purchase completes, `productsv2` / `subscriptionsv2` can
+ * still 404 for a few hundred milliseconds — the write hasn't propagated
+ * yet. Clients verify immediately (the reporter in issue #289 measured
+ * t≈1s), so treating that 404 as final rejects a perfectly good purchase
+ * the app then refuses to acknowledge, and Google voids it at ~301s.
+ */
+function isFreshTokenNotYetPropagated(error: unknown): boolean {
+  return error instanceof PlayStorePurchaseNotFoundError;
 }
 
 export function isProductNotFoundError(error: unknown): boolean {
@@ -453,11 +510,47 @@ export function isProductNotFoundError(error: unknown): boolean {
   return message.toLowerCase().includes("not found");
 }
 
-async function verifyPurchaseWithGooglePlay(
+export async function verifyPurchaseWithGooglePlay(
   androidpublisher: androidpublisher_v3.Androidpublisher,
   args: {
     packageName: string;
     purchaseToken: string;
+    // Required key, nullable value, on purpose: with `?` a caller that
+    // simply forgets to forward it still compiles, and the multi-line-item
+    // fix silently reverts to "first item wins". Making the key mandatory
+    // turns that omission into a type error.
+    expectedProductId: string | undefined;
+  },
+): Promise<GooglePlayVerificationResult> {
+  // Neither catalog knowing the token can simply mean the purchase is
+  // seconds old and hasn't propagated yet, so retry the product →
+  // subscription pair before calling it unknown (issue #289). Only the
+  // "not found in either" outcome retries; auth, permission, and
+  // package-mismatch errors still fail fast.
+  return retryOnTransient(
+    () => lookUpGooglePlayPurchase(androidpublisher, args),
+    {
+      shouldRetry: isFreshTokenNotYetPropagated,
+      // Deliberately shallow. Each attempt costs TWO Play calls
+      // (product then subscription), so every extra attempt also
+      // multiplies the upstream cost of a token that genuinely doesn't
+      // exist — a bogus-token probe must not become an 8-call, 2-second
+      // hold. Propagation after a real purchase is sub-second, so three
+      // attempts inside ~750ms covers it while capping the abuse cost
+      // at 3x, against Google's ~301s window to acknowledge.
+      maxAttempts: 3,
+      baseDelayMs: 250,
+      maxDelayMs: 500,
+    },
+  );
+}
+
+async function lookUpGooglePlayPurchase(
+  androidpublisher: androidpublisher_v3.Androidpublisher,
+  args: {
+    packageName: string;
+    purchaseToken: string;
+    expectedProductId: string | undefined;
   },
 ): Promise<GooglePlayVerificationResult> {
   let receiptData: GooglePlayReceiptData;
@@ -485,6 +578,7 @@ async function verifyPurchaseWithGooglePlay(
       packageName: args.packageName,
       purchaseToken: args.purchaseToken,
       productResponse: productResponse.data,
+      expectedProductId: args.expectedProductId,
     });
 
     remoteResponse = JSON.stringify(productResponse.data ?? null);
@@ -516,6 +610,7 @@ async function verifyPurchaseWithGooglePlay(
         packageName: args.packageName,
         purchaseToken: args.purchaseToken,
         subscriptionResponse: subResponse.data,
+        expectedProductId: args.expectedProductId,
       });
 
       remoteResponse = JSON.stringify(subResponse.data ?? null);

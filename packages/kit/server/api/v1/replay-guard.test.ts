@@ -1,8 +1,10 @@
-import { describe, expect, test } from "vitest";
+import { describe, expect, it, test } from "vitest";
 
 import {
   hashPayload,
+  isStableRejection,
   markPayloadFailure,
+  replayGuardMiddleware,
   tryConsumeReplay,
   type ReplayBucket,
 } from "./replay-guard";
@@ -243,5 +245,147 @@ describe("markPayloadFailure + tryConsumeReplay cooldown", () => {
     );
     expect(blocked.allowed).toBe(false);
     expect(blocked.reason).toBe("repeated_failure");
+  });
+});
+
+// Issue #289: the negative cooldown defaults to 300s, which almost
+// exactly spans Google's ~301s window for voiding an unacknowledged
+// purchase. Arming it on a non-terminal rejection meant one blip made
+// the purchase permanently unverifiable — and therefore un-acknowledgeable
+// — before Google voided it.
+describe("isStableRejection", () => {
+  it("arms the cooldown for settled store verdicts", () => {
+    for (const state of ["INAUTHENTIC", "CANCELED", "EXPIRED", "CONSUMED"]) {
+      expect(isStableRejection(state)).toBe(true);
+    }
+  });
+
+  it("does not arm the cooldown for a state a retry can change", () => {
+    // PENDING resolves when the user finishes a deferred payment. UNKNOWN
+    // can be a successfully fetched future Play state or Amazon product type.
+    for (const state of ["PENDING", "UNKNOWN", "FUTURE_STORE_STATE"]) {
+      expect(isStableRejection(state)).toBe(false);
+    }
+  });
+
+  it("arms ambiguous UNKNOWN only with explicit revoked-token provenance", () => {
+    expect(isStableRejection("UNKNOWN")).toBe(false);
+    expect(isStableRejection("UNKNOWN", true)).toBe(true);
+  });
+
+  it("is case-insensitive", () => {
+    expect(isStableRejection("pending")).toBe(false);
+    expect(isStableRejection("Unknown")).toBe(false);
+    expect(isStableRejection("inauthentic")).toBe(true);
+  });
+});
+
+// The predicate above is pure; this exercises the wiring that actually
+// fixes issue #289 — the middleware only arming the cooldown for a
+// settled verdict. Without this, `isStableRejection` could be dropped
+// from the `finally` block and every test would still pass.
+describe("replayGuardMiddleware cooldown wiring", () => {
+  const capacity = 30;
+
+  function runMiddleware(options: {
+    store: Map<string, ReplayBucket>;
+    outcome?: {
+      isValid: boolean;
+      state: string;
+      stableRejection?: boolean;
+    };
+    now: number;
+  }) {
+    const middleware = replayGuardMiddleware({
+      capacity,
+      refillPerSecond: 1 / 60,
+      maxStoreSize: 1000,
+      failureCooldownMs: 300_000,
+      store: options.store,
+      now: () => options.now,
+    });
+    const vars: Record<string, unknown> = { apiKeyHash: "hash" };
+    const body = { store: "google" as const, purchaseToken: "tok" };
+    let status = 200;
+    let payload: unknown;
+    const ctx = {
+      var: vars,
+      get: (k: string) => vars[k],
+      set: (k: string, v: unknown) => {
+        vars[k] = v;
+      },
+      req: { valid: () => body },
+      header: () => undefined,
+      json: (b: unknown, s?: number) => {
+        payload = b;
+        status = s ?? 200;
+        return { status: s ?? 200 };
+      },
+    };
+    const next = async () => {
+      if (options.outcome) vars.verifyOutcome = options.outcome;
+    };
+    return middleware(ctx as never, next as never).then(() => ({
+      status,
+      payload,
+    }));
+  }
+
+  it("arms the cooldown for a settled rejection", async () => {
+    const store = new Map<string, ReplayBucket>();
+    await runMiddleware({
+      store,
+      outcome: { isValid: false, state: "INAUTHENTIC" },
+      now: 1_000,
+    });
+    const second = await runMiddleware({ store, now: 2_000 });
+    expect(second.status).toBe(429);
+    expect(second.payload).toMatchObject({
+      errors: [{ code: "REPEATED_FAILURE" }],
+    });
+  });
+
+  it("does not arm it for a state a retry can change", async () => {
+    for (const state of ["PENDING", "UNKNOWN", "FUTURE_STORE_STATE"]) {
+      const store = new Map<string, ReplayBucket>();
+      await runMiddleware({
+        store,
+        outcome: { isValid: false, state },
+        now: 1_000,
+      });
+      // Still inside the 300s window that spans Google's ~301s void
+      // deadline — the retry has to get through.
+      const second = await runMiddleware({ store, now: 2_000 });
+      expect(second.status).toBe(200);
+    }
+  });
+
+  it("arms UNKNOWN when the verifier reports a revoked token", async () => {
+    const store = new Map<string, ReplayBucket>();
+    await runMiddleware({
+      store,
+      outcome: {
+        isValid: false,
+        state: "UNKNOWN",
+        stableRejection: true,
+      },
+      now: 1_000,
+    });
+
+    const second = await runMiddleware({ store, now: 2_000 });
+    expect(second.status).toBe(429);
+    expect(second.payload).toMatchObject({
+      errors: [{ code: "REPEATED_FAILURE" }],
+    });
+  });
+
+  it("does not arm it for a successful verification", async () => {
+    const store = new Map<string, ReplayBucket>();
+    await runMiddleware({
+      store,
+      outcome: { isValid: true, state: "ENTITLED" },
+      now: 1_000,
+    });
+    expect((await runMiddleware({ store, now: 2_000 })).status).toBe(200);
   });
 });

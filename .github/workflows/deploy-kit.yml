@@ -9,12 +9,17 @@ on:
     branches: [main]
     paths:
       - "packages/kit/**"
+      # kit.openiap.dev/mcp is served by kit's Fly binary importing
+      # @hyodotdev/openiap-mcp-server/web straight from source, so an
+      # MCP-server change must redeploy kit or it never ships (issue #287).
+      - "packages/mcp-server/**"
       - ".github/workflows/deploy-kit.yml"
       - "bun.lock"
       - "package.json"
   pull_request:
     paths:
       - "packages/kit/**"
+      - "packages/mcp-server/**"
       - ".github/workflows/deploy-kit.yml"
       - "bun.lock"
       - "package.json"
@@ -55,6 +60,15 @@ jobs:
 
       - name: Run tests (convex + server unit tests)
         run: bun run test
+
+      - name: Lint + test MCP server (served by kit's /mcp route)
+        # kit's Fly binary imports @hyodotdev/openiap-mcp-server/web from
+        # source, so its regressions ship with kit deploys. This workflow
+        # is the only CI that runs the MCP server's own suite.
+        working-directory: packages/mcp-server
+        run: |
+          bun run lint
+          bun run test
 
       - name: Vite build
         env:

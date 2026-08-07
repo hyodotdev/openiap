@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { HarmonizedPurchaseState } from "../purchases/purchaseState";
 import {
+  applySubscriptionEventHandler,
   bindSubscriptionToUserHandler,
   buildVerifiedSubscriptionSnapshot,
   mergeVerifiedSubscriptionSnapshot,
@@ -78,7 +79,7 @@ class MemDb {
     this.table(tableName).set(id, {
       ...doc,
       _id: id,
-      _creationTime: Date.now(),
+      _creationTime: Date.now() + this.counter / 1_000,
     });
     return id;
   }
@@ -128,6 +129,167 @@ function makeCtx(db: MemDb) {
 
 const PROJECT_ID = "projects_seed_1";
 const TOKEN = "purchase_token_1";
+
+async function seedWebhookEvent(
+  db: MemDb,
+  args: {
+    type: "SubscriptionStarted" | "SubscriptionExpired";
+    notificationId: string;
+    occurredAt: number;
+  },
+): Promise<string> {
+  return await db.insert("webhookEvents", {
+    projectId: PROJECT_ID,
+    type: args.type,
+    source: "GooglePlayRealTimeDeveloperNotifications",
+    platform: "Android",
+    environment: "Sandbox",
+    purchaseToken: TOKEN,
+    sourceNotificationId: args.notificationId,
+    productId: "premium_monthly",
+    subscriptionState:
+      args.type === "SubscriptionExpired" ? "Expired" : "Active",
+    expiresAt: 1_800_000_000_000,
+    renewsAt: 1_800_000_000_000,
+    currency: "USD",
+    priceAmountMicros: 9_990_000,
+    occurredAt: args.occurredAt,
+    receivedAt: args.occurredAt,
+  });
+}
+
+describe("applySubscriptionEventHandler", () => {
+  beforeEach(() => {
+    vi.setSystemTime(new Date("2026-01-01T00:00:00.000Z"));
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
+  it("applies a recorded-but-unapplied event exactly once on redelivery", async () => {
+    const db = new MemDb();
+    db.seedProduct({
+      projectId: PROJECT_ID,
+      platform: "Android",
+      productId: "premium_monthly",
+      billingPeriod: "P1M",
+    });
+    const eventId = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "message-a",
+      occurredAt: 1_000,
+    });
+    const args = {
+      projectId: PROJECT_ID as never,
+      eventId: eventId as never,
+    };
+
+    await expect(
+      applySubscriptionEventHandler(makeCtx(db), args),
+    ).resolves.toMatchObject({ transition: "Started", active: true });
+    const appliedAt = db.rows("webhookEvents")[0]?.appliedAt;
+
+    await expect(
+      applySubscriptionEventHandler(makeCtx(db), args),
+    ).resolves.toMatchObject({ transition: null, active: true });
+    expect(db.rows("webhookEvents")[0]?.appliedAt).toBe(appliedAt);
+    expect(db.rows("subscriptions")).toMatchObject([
+      { state: "Active", lastEventId: eventId },
+    ]);
+    expect(db.rows("subscriptionStats")).toMatchObject([
+      { activeSubs: 1, mrrMicros: 9_990_000 },
+    ]);
+  });
+
+  it("applies distinct same-timestamp events without replaying the old one", async () => {
+    const db = new MemDb();
+    db.seedProduct({
+      projectId: PROJECT_ID,
+      platform: "Android",
+      productId: "premium_monthly",
+      billingPeriod: "P1M",
+    });
+    const startedId = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "message-a",
+      occurredAt: 1_000,
+    });
+    const expiredId = await seedWebhookEvent(db, {
+      type: "SubscriptionExpired",
+      notificationId: "message-b",
+      occurredAt: 1_000,
+    });
+
+    await applySubscriptionEventHandler(makeCtx(db), {
+      projectId: PROJECT_ID as never,
+      eventId: startedId as never,
+    });
+    await applySubscriptionEventHandler(makeCtx(db), {
+      projectId: PROJECT_ID as never,
+      eventId: expiredId as never,
+    });
+    await expect(
+      applySubscriptionEventHandler(makeCtx(db), {
+        projectId: PROJECT_ID as never,
+        eventId: startedId as never,
+      }),
+    ).resolves.toMatchObject({ transition: null, active: false });
+
+    expect(db.rows("subscriptions")).toMatchObject([
+      { state: "Expired", lastEventId: expiredId },
+    ]);
+    expect(db.rows("subscriptionStats")).toMatchObject([
+      { activeSubs: 0, mrrMicros: 0 },
+    ]);
+  });
+
+  it("uses ingestion order to backfill a same-timestamp legacy event", async () => {
+    const db = new MemDb();
+    db.seedProduct({
+      projectId: PROJECT_ID,
+      platform: "Android",
+      productId: "premium_monthly",
+      billingPeriod: "P1M",
+    });
+    const startedId = await seedWebhookEvent(db, {
+      type: "SubscriptionStarted",
+      notificationId: "legacy-a",
+      occurredAt: 1_000,
+    });
+    const expiredId = await seedWebhookEvent(db, {
+      type: "SubscriptionExpired",
+      notificationId: "legacy-b",
+      occurredAt: 1_000,
+    });
+    await applySubscriptionEventHandler(makeCtx(db), {
+      projectId: PROJECT_ID as never,
+      eventId: startedId as never,
+    });
+    await applySubscriptionEventHandler(makeCtx(db), {
+      projectId: PROJECT_ID as never,
+      eventId: expiredId as never,
+    });
+    await db.patch(startedId, { appliedAt: undefined });
+
+    await expect(
+      applySubscriptionEventHandler(makeCtx(db), {
+        projectId: PROJECT_ID as never,
+        eventId: startedId as never,
+      }),
+    ).resolves.toMatchObject({ transition: null, active: false });
+
+    expect(
+      db.rows("webhookEvents").find((row) => row._id === startedId),
+    ).toHaveProperty("appliedAt", Date.now());
+    expect(db.rows("subscriptions")).toMatchObject([
+      { state: "Expired", lastEventId: expiredId },
+    ]);
+    expect(db.rows("subscriptionStats")).toMatchObject([
+      { activeSubs: 0, mrrMicros: 0 },
+    ]);
+  });
+});
 
 describe("buildVerifiedSubscriptionSnapshot", () => {
   it("bootstraps an active subscription from an entitled Google verification", () => {

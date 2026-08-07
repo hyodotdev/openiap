@@ -580,6 +580,67 @@ describe("productsRoutes", () => {
     expect(mocks.mutation).not.toHaveBeenCalled();
   });
 
+  it("rejects malformed localizations and forwards valid ones", async () => {
+    const app = buildApp();
+    const base = {
+      productId: "coins_100",
+      platform: "Android",
+      type: "Consumable",
+      title: "100 coins",
+    };
+    const message =
+      "localizations must be an array of { locale, title, description? } strings";
+    const rejected = [
+      { ...base, localizations: "ko-KR" },
+      { ...base, localizations: [{ locale: "ko-KR" }] },
+      { ...base, localizations: [{ locale: 1, title: "코인" }] },
+      {
+        ...base,
+        localizations: [{ locale: "ko-KR", title: "코인", description: 5 }],
+      },
+      { ...base, localizations: [null] },
+    ];
+
+    for (const body of rejected) {
+      const response = await app.request("/products/key", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify(body),
+      });
+
+      expect(response.status).toBe(400);
+      await expect(response.json()).resolves.toEqual({
+        errors: [{ code: "INVALID_INPUT", message }],
+      });
+    }
+    expect(mocks.mutation).not.toHaveBeenCalled();
+
+    // The shape check must not become the validation: locale format,
+    // length, and duplicate rules live in the Convex mutation so every
+    // surface shares them, which only works if a well-shaped payload
+    // actually reaches it intact.
+    mocks.mutation.mockResolvedValueOnce({ id: "product_1", created: true });
+    const accepted = await app.request("/products/key", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        ...base,
+        localizations: [
+          { locale: "ko-KR", title: "코인 100개", description: "코인" },
+          { locale: "ja-JP", title: "コイン100個" },
+        ],
+      }),
+    });
+
+    expect(accepted.status).toBe(200);
+    expect(mocks.mutation.mock.calls[0]?.[1]).toMatchObject({
+      localizations: [
+        { locale: "ko-KR", title: "코인 100개", description: "코인" },
+        { locale: "ja-JP", title: "コイン100個" },
+      ],
+    });
+  });
+
   it("rejects invalid product prices before calling Convex", async () => {
     const app = buildApp();
 
@@ -776,6 +837,8 @@ describe("productsRoutes", () => {
       type: "Subscription",
       title: "Premium",
       description: undefined,
+      localizations: undefined,
+      regions: undefined,
       priceAmountMicros: undefined,
       currency: undefined,
       billingPeriod: "P1M",
@@ -784,6 +847,52 @@ describe("productsRoutes", () => {
       state: undefined,
       storeRef: undefined,
     });
+  });
+
+  it('forwards "all" and [] sales-region states to Convex', async () => {
+    const app = buildApp();
+    mocks.mutation.mockResolvedValue({ id: "product-id", created: false });
+
+    for (const regions of ["all", []] as const) {
+      const response = await app.request("/products/key", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          productId: "coins",
+          platform: "Android",
+          type: "Consumable",
+          title: "Coins",
+          regions,
+        }),
+      });
+
+      expect(response.status).toBe(200);
+      expect(mocks.mutation).toHaveBeenLastCalledWith(
+        "upsertProduct",
+        expect.objectContaining({ regions }),
+      );
+    }
+  });
+
+  it("rejects malformed sales-region states before calling Convex", async () => {
+    const app = buildApp();
+    for (const regions of ["inherit", { mode: "all" }, ["US", 1]]) {
+      mocks.mutation.mockClear();
+      const response = await app.request("/products/key", {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          productId: "coins",
+          platform: "Android",
+          type: "Consumable",
+          title: "Coins",
+          regions,
+        }),
+      });
+
+      expect(response.status).toBe(400);
+      expect(mocks.mutation).not.toHaveBeenCalled();
+    }
   });
 
   it("strictly parses and forwards the bounded client-payload list opt-in", async () => {

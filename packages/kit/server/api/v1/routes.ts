@@ -40,7 +40,11 @@ type V1AppVariables = {
   // in-flight limit → replay guard
   verifyCapacityRejected?: boolean;
   // verify-purchase handler → request-logger
-  verifyOutcome: { isValid: boolean; state: string };
+  verifyOutcome: {
+    isValid: boolean;
+    state: string;
+    stableRejection?: boolean;
+  };
 };
 
 const app = new Hono<{ Variables: V1AppVariables }>();
@@ -394,9 +398,19 @@ const verifyPurchaseHandler = async (
   };
   const sendReceiptResponse = async (
     store: VerifyPurchaseJson["store"],
-    receipt: { isValid: boolean; state: string; productId?: string },
+    receipt: {
+      isValid: boolean;
+      state: string;
+      productId?: string;
+      stableRejection?: boolean;
+    },
   ) => {
-    const outcome = { isValid: receipt.isValid, state: receipt.state };
+    const { stableRejection, ...publicReceipt } = receipt;
+    const outcome = {
+      isValid: receipt.isValid,
+      state: receipt.state,
+      ...(stableRejection === true ? { stableRejection: true } : {}),
+    };
     setOutcome(outcome);
 
     let clientPayload: ProductClientPayload | null = null;
@@ -431,7 +445,7 @@ const verifyPurchaseHandler = async (
 
     return c.json({
       store,
-      ...receipt,
+      ...publicReceipt,
       ...(clientPayload ? { clientPayload } : {}),
     });
   };

@@ -190,19 +190,49 @@ describe("recordWebhookEvent pending-deletion guard", () => {
 });
 
 describe("webhook event-first dedup migration", () => {
-  it("dedups a replay by the source-aware event index while retaining key writes", async () => {
+  it("dedups a replay by the source-aware event index, writing no key row", async () => {
     const db = createWritableDb();
     const args = webhookArgs("project_a", "apple", "notification_same");
 
     const first = await recordWebhookEvent._handler({ db }, args);
-    expect(db.rows("webhookIdempotencyKeys")).toHaveLength(1);
-    db.rows("webhookIdempotencyKeys").splice(0);
+    // Phase 2: the event row IS the dedup record. A second row saying
+    // the same thing doubled the write cost of every webhook.
+    expect(db.rows("webhookIdempotencyKeys")).toHaveLength(0);
+
     const replay = await recordWebhookEvent._handler({ db }, args);
 
     expect(first.deduped).toBe(false);
     expect(replay).toEqual({ eventId: first.eventId, deduped: true });
     expect(db.rows("webhookEvents")).toHaveLength(1);
     expect(db.rows("webhookIdempotencyKeys")).toHaveLength(0);
+  });
+
+  it("still adopts and links a half-written legacy key row", async () => {
+    // Rows written before phase 2 stay in the table for a retention
+    // window. One that never got an eventId (its event insert failed)
+    // must still be linked to the event this call creates — the orphan
+    // sweep deletes unlinked rows, and a replay arriving in between
+    // would otherwise be processed twice.
+    const db = createWritableDb({
+      webhookIdempotencyKeys: [
+        {
+          _id: "key_legacy",
+          source: "apple",
+          sourceNotificationId: "notification_half",
+          firstSeenAt: 1,
+        },
+      ],
+    });
+
+    const result = await recordWebhookEvent._handler(
+      { db },
+      webhookArgs("project_a", "apple", "notification_half"),
+    );
+
+    expect(result.deduped).toBe(false);
+    const keys = db.rows("webhookIdempotencyKeys");
+    expect(keys).toHaveLength(1);
+    expect(keys[0].eventId).toBe(result.eventId);
   });
 
   it("keeps equal notification ids from Apple and Google separate", async () => {
@@ -253,13 +283,20 @@ describe("webhook event-first dedup migration", () => {
         {
           _id: "event_google",
           projectId: "project_a",
+          type: "SubscriptionRenewed",
           source: "GooglePlayRealTimeDeveloperNotifications",
+          platform: "Android",
+          purchaseToken: "purchase_token",
+          productId: "premium_monthly",
+          subscriptionState: "Active",
           sourceNotificationId: "message_a",
         },
         {
           _id: "event_apple",
           projectId: "project_a",
+          type: "SubscriptionRenewed",
           source: "AppleAppStoreServerNotificationsV2",
+          platform: "IOS",
           sourceNotificationId: "message_a",
         },
       ],
@@ -275,11 +312,34 @@ describe("webhook event-first dedup migration", () => {
           sourceNotificationId: "message_a",
         },
       ),
-    ).resolves.toBe("event_google");
+    ).resolves.toEqual({
+      eventId: "event_google",
+      type: "SubscriptionRenewed",
+      platform: "Android",
+      purchaseToken: "purchase_token",
+      productId: "premium_monthly",
+      subscriptionState: "Active",
+      expiresAt: undefined,
+      renewsAt: undefined,
+      cancellationReason: undefined,
+      currency: undefined,
+      priceAmountMicros: undefined,
+    });
   });
 
   it("retains the project-keyed preflight fallback during phase 1", async () => {
     const db = createWritableDb({
+      webhookEvents: [
+        {
+          _id: "event_from_key",
+          projectId: "project_a",
+          type: "SubscriptionRenewed",
+          source: "GooglePlayRealTimeDeveloperNotifications",
+          platform: "Android",
+          purchaseToken: "purchase_token",
+          sourceNotificationId: "message_from_key",
+        },
+      ],
       webhookIdempotencyKeys: [
         {
           _id: "key_existing",
@@ -300,7 +360,14 @@ describe("webhook event-first dedup migration", () => {
           sourceNotificationId: "message_from_key",
         },
       ),
-    ).resolves.toBe("event_from_key");
+    ).resolves.toEqual(
+      expect.objectContaining({
+        eventId: "event_from_key",
+        type: "SubscriptionRenewed",
+        platform: "Android",
+        purchaseToken: "purchase_token",
+      }),
+    );
   });
 
   it("adopts a half-written legacy key when no event row exists", async () => {

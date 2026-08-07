@@ -16,6 +16,7 @@ import {
   MAX_PRODUCT_CLIENT_PAYLOAD_BYTES,
   nextStateForKitProductUpsert,
   removeProduct as registeredRemoveProduct,
+  upsertProduct as registeredUpsertProduct,
   removeProductClientPayload as registeredRemoveProductClientPayload,
   removeProductClientPayloadWithApiKey as registeredRemoveProductClientPayloadWithApiKey,
   upsertProductClientPayload as registeredUpsertProductClientPayload,
@@ -25,6 +26,7 @@ import {
 import { testableFunction } from "../test.setup";
 
 const removeProduct = testableFunction(registeredRemoveProduct);
+const upsertProduct = testableFunction(registeredUpsertProduct);
 const removeProductClientPayload = testableFunction(
   registeredRemoveProductClientPayload,
 );
@@ -580,5 +582,178 @@ describe("product client payload mutations", () => {
     expect(ctx.db.rows("products")[0]).toMatchObject({ state: "Removed" });
     expect(ctx.db.rows("productClientPayloads")).toHaveLength(1);
     expect(ctx.db.rows("productClientPayloadSummaries")).toHaveLength(1);
+  });
+});
+
+// The dashboard's delete-all depends entirely on this distinction, and
+// nothing asserted it: `undefined` means "not specified, keep what is
+// stored", an explicit `[]` means "the operator removed them all".
+// Convex treats `undefined` in a patch as a no-op, which is why the
+// clear has to become `null`.
+describe("upsertProduct localization clearing contract", () => {
+  const PROJECT = "projects_a" as Id<"projects">;
+
+  const storedLocalizations = (ctx: ReturnType<typeof makeCtx>) =>
+    (
+      ctx.db.rows("products").find((r) => r._id === "product_android") as
+        | { localizations?: unknown }
+        | undefined
+    )?.localizations;
+
+  function seededCtx() {
+    const ctx = makeCtx();
+    ctx.db.seed("products", {
+      _id: "product_android",
+      projectId: PROJECT,
+      platform: "Android",
+      productId: "premium.monthly",
+      type: "Consumable",
+      title: "Premium",
+      localizations: [{ locale: "ko-KR", title: "프리미엄" }],
+    });
+    return ctx;
+  }
+
+  const base = {
+    projectId: PROJECT,
+    productId: "premium.monthly",
+    platform: "Android" as const,
+    type: "Consumable" as const,
+    title: "Premium",
+  };
+
+  beforeEach(() => {
+    projectMocks.byProjectId.mockResolvedValue({
+      project: { _id: PROJECT },
+      role: "admin",
+      userId: "user_a",
+    });
+  });
+
+  it("preserves stored localizations when the field is omitted", async () => {
+    const ctx = seededCtx();
+    await upsertProduct._handler(ctx, base);
+    expect(storedLocalizations(ctx)).toEqual([
+      { locale: "ko-KR", title: "프리미엄" },
+    ]);
+  });
+
+  it("clears them with null when an explicit empty array is sent", async () => {
+    const ctx = seededCtx();
+    await upsertProduct._handler(ctx, { ...base, localizations: [] });
+    // Not `undefined` — Convex would read that as "leave unchanged" and
+    // the next push would republish the locale the operator deleted.
+    expect(storedLocalizations(ctx)).toBeNull();
+  });
+
+  it("replaces them when a new set is sent", async () => {
+    const ctx = seededCtx();
+    await upsertProduct._handler(ctx, {
+      ...base,
+      localizations: [{ locale: "ja-JP", title: "プレミアム" }],
+    });
+    expect(storedLocalizations(ctx)).toEqual([
+      { locale: "ja-JP", title: "プレミアム" },
+    ]);
+  });
+});
+
+describe("upsertProduct sales-region contract", () => {
+  const PROJECT = "projects_a" as Id<"projects">;
+  const base = {
+    projectId: PROJECT,
+    productId: "coins",
+    platform: "Android" as const,
+    type: "Consumable" as const,
+    title: "Coins",
+  };
+
+  beforeEach(() => {
+    projectMocks.byProjectId.mockResolvedValue({
+      project: { _id: PROJECT },
+      role: "admin",
+      userId: "user_a",
+    });
+  });
+
+  function seededCtx(regions: "all" | string[] = ["US"]) {
+    const ctx = makeCtx();
+    ctx.db.seed("products", {
+      _id: "product_android",
+      projectId: PROJECT,
+      productId: "coins",
+      platform: "Android",
+      type: "Consumable",
+      title: "Coins",
+      regions,
+    });
+    return ctx;
+  }
+
+  const storedRegions = (ctx: ReturnType<typeof makeCtx>) =>
+    (
+      ctx.db.rows("products").find((row) => row._id === "product_android") as
+        | { regions?: unknown }
+        | undefined
+    )?.regions;
+
+  it("preserves an existing footprint when omitted", async () => {
+    const ctx = seededCtx(["US"]);
+    await upsertProduct._handler(ctx, base);
+    expect(storedRegions(ctx)).toEqual(["US"]);
+  });
+
+  it('stores explicit "all" and clears back to inherit with []', async () => {
+    const ctx = seededCtx(["US"]);
+    await upsertProduct._handler(ctx, { ...base, regions: "all" });
+    expect(storedRegions(ctx)).toBe("all");
+
+    await upsertProduct._handler(ctx, { ...base, regions: [] });
+    expect(storedRegions(ctx)).toBeNull();
+  });
+
+  it("rejects explicit footprints on unsupported products", async () => {
+    const ctx = makeCtx();
+    await expect(
+      upsertProduct._handler(ctx, {
+        ...base,
+        platform: "IOS",
+        regions: "all",
+      }),
+    ).rejects.toThrow("Sales regions are currently Android-only");
+
+    await expect(
+      upsertProduct._handler(ctx, {
+        ...base,
+        type: "Subscription",
+        regions: ["US"],
+      }),
+    ).rejects.toThrow("Sales regions cannot be set on a subscription");
+  });
+
+  it("clears a stale footprint when a product becomes unsupported", async () => {
+    const ctx = seededCtx(["US"]);
+    await upsertProduct._handler(ctx, {
+      ...base,
+      type: "Subscription",
+    });
+    expect(storedRegions(ctx)).toBeNull();
+  });
+
+  it("revalidates preserved localizations when the product type changes", async () => {
+    const ctx = makeCtx();
+    ctx.db.seed("products", {
+      _id: "product_android",
+      projectId: PROJECT,
+      productId: "coins",
+      platform: "Android",
+      type: "Subscription",
+      title: "Coins",
+      localizations: [{ locale: "ko-KR", title: "x".repeat(56) }],
+    });
+
+    await expect(upsertProduct._handler(ctx, base)).rejects.toThrow(
+      /accepts at most 55/,
+    );
   });
 });

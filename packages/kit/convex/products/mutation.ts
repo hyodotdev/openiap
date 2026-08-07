@@ -4,6 +4,11 @@ import type { Doc, Id } from "../_generated/dataModel";
 import { parse as parseToml } from "smol-toml";
 
 import {
+  normalizeProductLocalizations,
+  productLocalizationsValidator,
+} from "./localizations";
+import { normalizeProductRegions, productRegionsValidator } from "./regions";
+import {
   resolveProjectByApiKeyFromDb,
   resolveProjectByIdForCurrentUserFromDb,
 } from "../projects/helpers";
@@ -545,6 +550,8 @@ export const upsertProduct = mutation({
     type: typeValidator,
     title: v.string(),
     description: v.optional(v.string()),
+    localizations: v.optional(productLocalizationsValidator),
+    regions: v.optional(productRegionsValidator),
     priceAmountMicros: v.optional(v.number()),
     currency: v.optional(v.string()),
     billingPeriod: v.optional(
@@ -582,6 +589,34 @@ export const upsertProduct = mutation({
       throw new Error("priceAmountMicros must be a non-negative safe integer");
     }
 
+    const existing: Doc<"products"> | null = await ctx.db
+      .query("products")
+      .withIndex("by_project_and_platform_and_product", (q) =>
+        q
+          .eq("projectId", project._id)
+          .eq("platform", args.platform)
+          .eq("productId", args.productId),
+      )
+      .unique();
+
+    // Throws on a malformed/duplicate locale or an over-long string so
+    // the operator sees the problem here rather than as an opaque 400
+    // from Play or ASC during the next push. Store-imported products can
+    // have a non-English base; reserve that actual locale, not en-US.
+    const localizationsForValidation =
+      args.localizations === undefined &&
+      existing !== null &&
+      existing.type !== args.type
+        ? (existing.localizations ?? undefined)
+        : args.localizations;
+    const localizations = normalizeProductLocalizations(
+      localizationsForValidation,
+      args.platform,
+      args.type,
+      existing?.baseLocale,
+    );
+    const regions = normalizeProductRegions(args.regions);
+
     // iOS subscriptions REQUIRE a subscriptionGroupName upstream —
     // related tiers must share a group for StoreKit 2's native
     // upgrade/downgrade UI to work. The Apple push-sync (asc.ts)
@@ -602,15 +637,28 @@ export const upsertProduct = mutation({
       );
     }
 
-    const existing: Doc<"products"> | null = await ctx.db
-      .query("products")
-      .withIndex("by_project_and_platform_and_product", (q) =>
-        q
-          .eq("projectId", project._id)
-          .eq("platform", args.platform)
-          .eq("productId", args.productId),
-      )
-      .unique();
+    // Only the Android one-time push applies a region footprint. App
+    // Store Connect prices per-territory through a different resource
+    // this workflow does not touch, and Play's subscription update masks
+    // `listings` only, so a base plan's regional configs are fixed at
+    // create. Accepting the field for those would make it a phantom —
+    // stored, shown in the dashboard, and silently never applied.
+    const supportsRegions =
+      args.platform === "Android" && args.type !== "Subscription";
+    // "all" is as much a declared footprint as a list is — it is what
+    // an operator picks to expand — so it has to be refused on the same
+    // surfaces, or the dashboard would offer a choice iOS silently
+    // drops.
+    const declaresFootprint =
+      regions === "all" || Boolean(Array.isArray(regions) && regions.length);
+    if (declaresFootprint && !supportsRegions) {
+      throw clientPayloadError(
+        "CLIENT_PAYLOAD_INVALID",
+        args.platform === "IOS"
+          ? "Sales regions are currently Android-only. Set App Store availability in App Store Connect."
+          : "Sales regions cannot be set on a subscription. Play fixes a base plan's regional configs when it is created; change them in Play Console.",
+      );
+    }
 
     const now = Date.now();
     if (existing) {
@@ -622,6 +670,24 @@ export const upsertProduct = mutation({
         type: args.type,
         title: args.title,
         description: args.description ?? existing.description,
+        // Explicitly authoritative, like every other field here: an
+        // operator who removes the last localization means to clear it.
+        // An explicitly supplied empty array is a clear request; Convex
+        // needs `null` for that, since `undefined` would be a no-op and
+        // silently keep republishing the old locales.
+        localizations:
+          args.localizations === undefined
+            ? existing.localizations
+            : (localizations ?? null),
+        // Retyping an Android one-time product as a subscription, or
+        // touching an old iOS row written before this guard existed, must
+        // clear the phantom footprint. An omitted field only preserves the
+        // stored value on a surface where the Play worker can apply it.
+        regions: !supportsRegions
+          ? null
+          : args.regions === undefined
+            ? existing.regions
+            : (regions ?? null),
         priceAmountMicros: args.priceAmountMicros ?? existing.priceAmountMicros,
         currency: args.currency ?? existing.currency,
         billingPeriod: args.billingPeriod ?? existing.billingPeriod,
@@ -658,6 +724,8 @@ export const upsertProduct = mutation({
       type: args.type,
       title: args.title,
       description: args.description,
+      localizations,
+      regions: supportsRegions ? regions : undefined,
       priceAmountMicros: args.priceAmountMicros,
       currency: args.currency,
       billingPeriod: args.billingPeriod,

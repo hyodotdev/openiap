@@ -149,14 +149,15 @@ export const ingestGoogleRtdn = action({
     // Pre-flight idempotency probe: if this messageId already resolves through
     // the source-aware webhookEvents index (or the phase-1 idempotency-key
     // fallback), this is a Pub/Sub redelivery for an event we already
-    // processed. Short-circuit BEFORE
-    // maybeFetchSubscriptionInfo so retries don't burn Play Developer
+    // recorded. Reapply the stored event BEFORE returning so a retry repairs
+    // the gap where the first attempt wrote webhookEvents and then failed
+    // before updating subscriptions. Still skip maybeFetchSubscriptionInfo so
+    // retries don't burn Play Developer
     // API quota on every redelivery — kit's webhook receiver becomes a
     // multiplier of Play API calls otherwise (one Pub/Sub retry per
-    // outage minute → one Play API call per retry). The downstream
-    // recordWebhookEvent + applySubscriptionEvent are still fully
-    // idempotent, so this is purely a Play-quota / latency optimization.
-    const preFlightEventId = await ctx.runQuery(
+    // outage minute → one Play API call per retry). The downstream mutation
+    // reads the stored event and atomically marks its transition applied.
+    const preFlightEvent = await ctx.runQuery(
       internal.webhooks.internal.lookupExistingEvent,
       {
         projectId: project._id,
@@ -164,9 +165,18 @@ export const ingestGoogleRtdn = action({
         sourceNotificationId: args.payload.messageId,
       },
     );
-    if (preFlightEventId) {
+    if (preFlightEvent) {
+      if (preFlightEvent.purchaseToken) {
+        await ctx.runMutation(
+          internal.subscriptions.internal.applySubscriptionEvent,
+          {
+            projectId: project._id,
+            eventId: preFlightEvent.eventId,
+          },
+        );
+      }
       return {
-        eventId: preFlightEventId,
+        eventId: preFlightEvent.eventId,
         type: "WebhookEvent",
         deduped: true,
       };
@@ -245,8 +255,8 @@ export const ingestGoogleRtdn = action({
     );
 
     // Always run applySubscriptionEvent — see the matching note in
-    // webhooks/apple.ts. The mutation is idempotent on lastEventId so
-    // a no-op replay is cheap, but skipping on dedup left the
+    // webhooks/apple.ts. The mutation is idempotent on webhookEvents.appliedAt,
+    // but skipping on dedup left the
     // subscription stranded if a previous attempt persisted the event
     // then crashed before patching the subscription row (every Google
     // RTDN retry would dedup before reaching the state mutation).
@@ -260,18 +270,6 @@ export const ingestGoogleRtdn = action({
         {
           projectId: project._id,
           eventId: result.eventId,
-          event: {
-            type: normalized.type,
-            productId: normalized.productId,
-            subscriptionState: normalized.subscriptionState,
-            expiresAt: normalized.expiresAt,
-            renewsAt: normalized.renewsAt,
-            cancellationReason: normalized.cancellationReason,
-            currency: normalized.currency,
-            priceAmountMicros: normalized.priceAmountMicros,
-            platform: normalized.platform,
-            purchaseToken: normalized.purchaseToken,
-          },
         },
       );
     }

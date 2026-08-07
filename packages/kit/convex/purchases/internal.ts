@@ -66,8 +66,18 @@ export async function savePurchaseInternal({
   }
 
   const now = Date.now();
-  const productId = extractProductIdFromRemoteResponse(store, remoteResponse);
-  const orderId = extractOrderIdFromRemoteResponse(store, remoteResponse);
+  const expectedProductId =
+    requestData.store === "google" ? requestData.expectedProductId : undefined;
+  const productId = extractProductIdFromRemoteResponse(
+    store,
+    remoteResponse,
+    expectedProductId,
+  );
+  const orderId = extractOrderIdFromRemoteResponse(
+    store,
+    remoteResponse,
+    expectedProductId,
+  );
 
   // Primary dedup: exact (projectId, remoteId) match. Most Apple and
   // Horizon flows — plus Google flows where the client replays the

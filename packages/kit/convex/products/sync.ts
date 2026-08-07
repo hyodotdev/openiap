@@ -1,5 +1,8 @@
 import { internalMutation, internalQuery } from "../_generated/server";
 import { v } from "convex/values";
+
+import { productLocalizationsValidator } from "./localizations";
+import { productRegionsValidator } from "./regions";
 import type { Doc, Id } from "../_generated/dataModel";
 import { assertProjectWritable } from "../projects/writable";
 
@@ -94,6 +97,13 @@ export const upsertFromStore = internalMutation({
     type: typeValidator,
     title: v.string(),
     description: v.optional(v.string()),
+    baseLocale: v.optional(v.string()),
+    // No `v.null()` here, unlike the author-facing `upsertProduct`: on
+    // the pull path a store read never deletes a kit-authored locale
+    // (see the ASC call site), so `null` would be accepted and then
+    // silently coalesce back to the existing value. Rejecting it keeps
+    // the no-op from looking like a clear.
+    localizations: v.optional(productLocalizationsValidator),
     priceAmountMicros: v.optional(v.number()),
     currency: v.optional(v.string()),
     storeRef: v.string(),
@@ -173,6 +183,8 @@ export const upsertFromStore = internalMutation({
         type: args.type,
         title: args.title || existing.title,
         description: args.description ?? existing.description,
+        baseLocale: args.baseLocale ?? existing.baseLocale,
+        localizations: args.localizations ?? existing.localizations,
         priceAmountMicros: args.priceAmountMicros ?? existing.priceAmountMicros,
         currency: args.currency ?? existing.currency,
         storeRef: args.storeRef,
@@ -209,6 +221,8 @@ export const upsertFromStore = internalMutation({
       type: args.type,
       title: args.title,
       description: args.description,
+      baseLocale: args.baseLocale,
+      localizations: args.localizations,
       priceAmountMicros: args.priceAmountMicros,
       currency: args.currency,
       storeRef: args.storeRef,
@@ -329,6 +343,11 @@ export const listExistingProductTypes = internalQuery({
     v.object({
       productId: v.string(),
       type: typeValidator,
+      // Lets the pull rank Play's regional prices by the currency the
+      // operator authored rather than always collapsing to US/USD,
+      // which would overwrite a KRW row with its converted dollar
+      // amount on the first sync after a push.
+      currency: v.optional(v.string()),
     }),
   ),
   handler: async (ctx, args) => {
@@ -341,6 +360,7 @@ export const listExistingProductTypes = internalQuery({
     return rows.map((row) => ({
       productId: row.productId,
       type: row.type,
+      currency: row.currency,
     }));
   },
 });
@@ -370,6 +390,8 @@ export const listDraftIosProducts = internalQuery({
       type: typeValidator,
       title: v.string(),
       description: v.optional(v.string()),
+      baseLocale: v.optional(v.string()),
+      localizations: v.optional(productLocalizationsValidator),
       priceAmountMicros: v.optional(v.number()),
       currency: v.optional(v.string()),
       billingPeriod: v.optional(
@@ -430,6 +452,11 @@ export const listDraftIosProducts = internalQuery({
         type: row.type,
         title: row.title,
         description: row.description,
+        baseLocale: row.baseLocale,
+        // Coerce the nullable columns to optional at the worker
+        // boundary: "cleared" and "never set" are the same thing to a
+        // store push, and null would trip the validator.
+        localizations: row.localizations ?? undefined,
         priceAmountMicros: row.priceAmountMicros,
         currency: row.currency,
         billingPeriod: row.billingPeriod,
@@ -455,6 +482,9 @@ export const listDraftAndroidProducts = internalQuery({
       type: typeValidator,
       title: v.string(),
       description: v.optional(v.string()),
+      baseLocale: v.optional(v.string()),
+      localizations: v.optional(productLocalizationsValidator),
+      regions: v.optional(productRegionsValidator),
       priceAmountMicros: v.optional(v.number()),
       currency: v.optional(v.string()),
       billingPeriod: v.optional(
@@ -503,6 +533,21 @@ export const listDraftAndroidProducts = internalQuery({
         type: row.type,
         title: row.title,
         description: row.description,
+        baseLocale: row.baseLocale,
+        // Coerce the nullable columns to optional at the worker
+        // boundary: "cleared" and "never set" are the same thing to a
+        // store push, and null would trip the validator.
+        localizations: row.localizations ?? undefined,
+        // Only Android one-time products have a writable product-level
+        // footprint. Old development rows can contain an empty list or a
+        // value left behind before this guard existed; never let either
+        // reach the Play worker as an explicit "withdraw everything" order.
+        regions:
+          row.type !== "Subscription" &&
+          (row.regions === "all" ||
+            (Array.isArray(row.regions) && row.regions.length > 0))
+            ? row.regions
+            : undefined,
         priceAmountMicros: row.priceAmountMicros,
         currency: row.currency,
         billingPeriod: row.billingPeriod,

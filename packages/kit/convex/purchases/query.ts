@@ -171,6 +171,9 @@ export const getReceiptsByProject = query({
         extractProductIdFromRemoteResponse(
           purchase.store,
           purchase.remoteResponse,
+          purchase.requestData.store === "google"
+            ? purchase.requestData.expectedProductId
+            : undefined,
         ),
     }));
 
@@ -224,6 +227,9 @@ export const getPurchaseById = query({
         extractProductIdFromRemoteResponse(
           purchase.store,
           purchase.remoteResponse,
+          purchase.requestData.store === "google"
+            ? purchase.requestData.expectedProductId
+            : undefined,
         ),
     };
   },

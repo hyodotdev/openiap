@@ -1,6 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
+  ProductSyncCancelledError,
+  ascPriceStartAttributes,
+  pushAscReviewLocalizations,
+  syncAscReviewLocalization,
   ascCustomerPriceToMicros,
   createAscReviewEligibilityLoader,
   getAscReviewFinalizeDisposition,
@@ -542,6 +546,18 @@ describe("mapAscOfferKind", () => {
   });
 });
 
+describe("ascPriceStartAttributes", () => {
+  it("omits startDate for an immediately effective IAP price", () => {
+    expect(ascPriceStartAttributes()).toEqual({});
+  });
+
+  it("keeps an explicitly scheduled startDate", () => {
+    expect(ascPriceStartAttributes("2026-08-08")).toEqual({
+      startDate: "2026-08-08",
+    });
+  });
+});
+
 describe("pickActivePriceRow", () => {
   const today = new Date().toISOString().slice(0, 10);
   const yesterday = new Date(Date.now() - 86_400_000)
@@ -687,5 +703,106 @@ describe("parseIntroOffers", () => {
       ],
     });
     expect(out).toEqual([]);
+  });
+});
+
+describe("pushAscReviewLocalizations", () => {
+  const listings = [
+    { locale: "en-US", title: "Coins", description: "100 coins" },
+    { locale: "ko-KR", title: "코인" },
+    { locale: "ja-JP", title: "コイン" },
+  ];
+
+  it("writes every locale, not just the base listing", async () => {
+    const seen: string[] = [];
+    await pushAscReviewLocalizations({
+      listings,
+      productId: "coins",
+      upsert: async (l) => {
+        seen.push(l.locale);
+      },
+      recordFailure: () => {
+        throw new Error("unexpected failure");
+      },
+    });
+    expect(seen).toEqual(["en-US", "ko-KR", "ja-JP"]);
+  });
+
+  it("keeps going after one locale fails, and names it", async () => {
+    const seen: string[] = [];
+    const failures: Array<{ productId: string; reason: string }> = [];
+    await pushAscReviewLocalizations({
+      listings,
+      productId: "coins",
+      upsert: async (l) => {
+        seen.push(l.locale);
+        if (l.locale === "ko-KR") throw new Error("ASC rejected it");
+      },
+      recordFailure: (f) => failures.push(f),
+    });
+    // ja-JP must still be attempted.
+    expect(seen).toEqual(["en-US", "ko-KR", "ja-JP"]);
+    expect(failures).toEqual([
+      { productId: "coins (localization ko-KR)", reason: "ASC rejected it" },
+    ]);
+  });
+
+  it("propagates a base-listing failure so the row fails", async () => {
+    await expect(
+      pushAscReviewLocalizations({
+        listings,
+        productId: "coins",
+        upsert: async () => {
+          throw new Error("base blew up");
+        },
+        recordFailure: () => undefined,
+      }),
+    ).rejects.toThrow("base blew up");
+  });
+
+  it("lets a cancellation keep unwinding instead of grinding on", async () => {
+    const seen: string[] = [];
+    await expect(
+      pushAscReviewLocalizations({
+        listings,
+        productId: "coins",
+        upsert: async (l) => {
+          seen.push(l.locale);
+          if (l.locale === "ko-KR") throw new ProductSyncCancelledError();
+        },
+        recordFailure: () => {
+          throw new Error("cancellation must not be recorded as a failure");
+        },
+      }),
+    ).rejects.toBeInstanceOf(ProductSyncCancelledError);
+    expect(seen).toEqual(["en-US", "ko-KR"]);
+  });
+
+  it("propagates cancellation through the outer review sync boundary", async () => {
+    const seen: string[] = [];
+    const recordFailure = vi.fn();
+
+    await expect(
+      syncAscReviewLocalization({
+        reviewVersion: {
+          versionId: "version-1",
+          alreadySubmitted: false,
+          attachedToSubmission: false,
+        },
+        listings,
+        productId: "coins",
+        findMismatchedLocale: vi.fn(async () => undefined),
+        upsert: async (listing) => {
+          seen.push(listing.locale);
+          if (listing.locale === "ko-KR") {
+            throw new ProductSyncCancelledError();
+          }
+        },
+        recordFailure,
+      }),
+    ).rejects.toBeInstanceOf(ProductSyncCancelledError);
+
+    expect(seen).toEqual(["en-US", "ko-KR"]);
+    expect(recordFailure).not.toHaveBeenCalled();
   });
 });

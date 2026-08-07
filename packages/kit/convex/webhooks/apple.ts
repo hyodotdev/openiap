@@ -196,10 +196,10 @@ export const ingestAppleAsnIOS = action({
       },
     );
 
-    // Always run applySubscriptionEvent — the mutation is idempotent
-    // against `lastEventId`, so a no-op when the row is already at
-    // this eventId is cheap. Skipping on dedup looked tidy in
-    // telemetry but left the subscription stranded if the previous
+    // Always run applySubscriptionEvent — the mutation atomically records
+    // `webhookEvents.appliedAt`, so every later replay is a no-op even after a
+    // newer event replaces subscriptions.lastEventId. Skipping on dedup looked
+    // tidy in telemetry but left the subscription stranded if the previous
     // attempt recorded the event then crashed before patching the
     // subscription row, since every Apple retry would dedup before
     // ever reaching the state mutation.
@@ -214,18 +214,6 @@ export const ingestAppleAsnIOS = action({
         {
           projectId: project._id,
           eventId: result.eventId,
-          event: {
-            type: normalized.type,
-            productId: normalized.productId,
-            subscriptionState: normalized.subscriptionState,
-            expiresAt: normalized.expiresAt,
-            renewsAt: normalized.renewsAt,
-            cancellationReason: normalized.cancellationReason,
-            currency: normalized.currency,
-            priceAmountMicros: normalized.priceAmountMicros,
-            platform: normalized.platform,
-            purchaseToken: normalized.purchaseToken,
-          },
         },
       );
     }

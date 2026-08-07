@@ -149,6 +149,26 @@ describe("remote MCP HTTP server", () => {
         destructiveHint: true,
       },
     );
+    const createProduct = toolsByName.get("iapkit_create_product") as
+      | {
+          inputSchema?: {
+            properties?: {
+              regions?: {
+                anyOf?: Array<{ const?: string; type?: string }>;
+                description?: string;
+              };
+            };
+          };
+        }
+      | undefined;
+    const regionSchema = createProduct?.inputSchema?.properties?.regions;
+    expect(regionSchema?.anyOf).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ const: "all" }),
+        expect.objectContaining({ type: "array" }),
+      ]),
+    );
+    expect(regionSchema?.description).toContain("Send [] to clear");
   });
 
   it("returns 403 before a publishable key can initialize the admin MCP surface", async () => {
@@ -599,6 +619,87 @@ describe("remote MCP HTTP server", () => {
     expect(payload.info).toContain("/v1/webhooks/{publishableKey}");
   });
 
+  it("replays foreign-machine sessions and 404s unrecoverable ones (issue #287)", async () => {
+    const baseUrl = await startServer({ machineId: "self42" });
+
+    const init = await postMcp(baseUrl, {
+      jsonrpc: "2.0",
+      id: 1,
+      method: "initialize",
+      params: {
+        protocolVersion: "2025-06-18",
+        capabilities: {},
+        clientInfo: { name: "vitest", version: "0.0.0" },
+      },
+    });
+    expect(init.headers.get("mcp-session-id")).toMatch(
+      /^self42\.[0-9a-f-]{36}$/,
+    );
+    await init.text();
+
+    const foreign = await postMcp(
+      baseUrl,
+      { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} },
+      "other77.7e33e2b1-9a45-4c8e-b1de-000000000000",
+    );
+    expect(foreign.status).toBe(204);
+    expect(foreign.headers.get("fly-replay")).toBe(
+      "prefer_instance=other77;timeout=5s",
+    );
+
+    const replayed = await postMcp(
+      baseUrl,
+      { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} },
+      "other77.7e33e2b1-9a45-4c8e-b1de-000000000000",
+      { "fly-replay-src": "instance=other77;state=;t=1754400000000000" },
+    );
+    expect(replayed.status).toBe(404);
+    await expect(replayed.json()).resolves.toMatchObject({
+      error: {
+        code: -32001,
+        message: "Session not found — initialize a new MCP session.",
+      },
+    });
+
+    const lostOwn = await postMcp(
+      baseUrl,
+      { jsonrpc: "2.0", id: 2, method: "tools/list", params: {} },
+      "self42.7e33e2b1-9a45-4c8e-b1de-000000000000",
+    );
+    expect(lostOwn.status).toBe(404);
+  });
+
+  it("routes GET and DELETE for an unknown session like POST does", async () => {
+    const baseUrl = await startServer({ machineId: "self42" });
+    const foreignSession = "other77.7e33e2b1-9a45-4c8e-b1de-000000000000";
+
+    for (const method of ["GET", "DELETE"] as const) {
+      const replayed = await fetch(`${baseUrl}/mcp`, {
+        method,
+        headers: {
+          accept: "application/json, text/event-stream",
+          "mcp-session-id": foreignSession,
+        },
+      });
+      expect(replayed.status).toBe(204);
+      expect(replayed.headers.get("fly-replay")).toBe(
+        "prefer_instance=other77;timeout=5s",
+      );
+
+      // Reverting this branch to the old "Invalid or missing
+      // mcp-session-id" 400 breaks the client's own recovery, since the
+      // MCP spec has it re-initialize on 404 only.
+      const lost = await fetch(`${baseUrl}/mcp`, {
+        method,
+        headers: {
+          accept: "application/json, text/event-stream",
+          "mcp-session-id": "self42.7e33e2b1-9a45-4c8e-b1de-000000000000",
+        },
+      });
+      expect(lost.status).toBe(404);
+    }
+  });
+
   it("returns client errors for invalid JSON and oversized payloads", async () => {
     const baseUrl = await startServer();
 
@@ -722,12 +823,13 @@ describe("remote MCP HTTP server", () => {
   });
 });
 
-async function startServer(): Promise<string> {
+async function startServer(options?: { machineId?: string }): Promise<string> {
   remote = createRemoteMcpHttpServer({
     logger: {
       error: () => undefined,
       info: () => undefined,
     },
+    ...options,
   });
 
   await new Promise<void>((resolve) => {

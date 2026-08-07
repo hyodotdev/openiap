@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  ascReviewLocalizationMatches,
+  ascReviewLocalizationMismatch,
   classifyAscManualReviewAction,
   ensureAscReviewVersion,
   getAscReviewEligibilityActions,
@@ -9,6 +9,7 @@ import {
   md5Hex,
   partitionAscReviewSubmissionItems,
   planAscReviewVersion,
+  readAscReviewListings,
   submitAscReviewVersions,
   uploadAscReviewScreenshot,
   upsertAscReviewLocalization,
@@ -23,6 +24,65 @@ class MockAscError extends Error {
     super(message);
   }
 }
+
+describe("readAscReviewListings", () => {
+  it("reads every locale from the current review version", async () => {
+    const paths: string[] = [];
+    const request: AscJsonRequest = async <T>(path: string) => {
+      paths.push(path);
+      if (path.includes("/versions")) {
+        return {
+          data: [
+            {
+              id: "version-current",
+              attributes: { state: "PREPARE_FOR_SUBMISSION" },
+            },
+          ],
+        } as T;
+      }
+      return {
+        data: [
+          {
+            id: "loc-ko",
+            type: "inAppPurchaseLocalizations",
+            attributes: {
+              locale: "ko",
+              name: "문 세이지",
+              description: "전체 해금",
+            },
+          },
+          {
+            id: "loc-ja",
+            type: "inAppPurchaseLocalizations",
+            attributes: { locale: "ja", name: "ムーンセージ" },
+          },
+        ],
+      } as T;
+    };
+
+    await expect(
+      readAscReviewListings({ request, kind: "iap", parentId: "iap-1" }),
+    ).resolves.toEqual([
+      { locale: "ko", title: "문 세이지", description: "전체 해금" },
+      { locale: "ja", title: "ムーンセージ" },
+    ]);
+    expect(paths).toEqual([
+      "/v2/inAppPurchases/iap-1/versions?limit=200",
+      "/v1/inAppPurchaseVersions/version-current/localizations?limit=200",
+    ]);
+  });
+
+  it("returns no listings when the product has no review version", async () => {
+    const request: AscJsonRequest = async <T>() => ({ data: [] }) as T;
+    await expect(
+      readAscReviewListings({
+        request,
+        kind: "subscription",
+        parentId: "sub-1",
+      }),
+    ).resolves.toEqual([]);
+  });
+});
 
 describe("uploadAscReviewScreenshot", () => {
   it("honors every IAP upload operation without forwarding ASC auth", async () => {
@@ -873,6 +933,37 @@ describe("ASC version and submission workflow", () => {
     });
   });
 
+  it("maps common Japanese and Korean BCP-47 tags at the ASC boundary", async () => {
+    const bodies: unknown[] = [];
+    const request: AscJsonRequest = async <T>(
+      path: string,
+      init?: RequestInit & { body?: string },
+    ) => {
+      if (path.includes("/localizations?")) return { data: [] } as T;
+      if (init?.body) bodies.push(JSON.parse(init.body));
+      return { data: { id: "loc-1" } } as T;
+    };
+
+    for (const locale of ["ja-JP", "ko-KR"]) {
+      await upsertAscReviewLocalization({
+        request,
+        kind: "iap",
+        versionId: "iap-version",
+        name: "Localized name",
+        description: "Localized description",
+        locale,
+      });
+    }
+
+    expect(
+      bodies.map(
+        (body) =>
+          (body as { data: { attributes: { locale: string } } }).data.attributes
+            .locale,
+      ),
+    ).toEqual(["ja", "ko"]);
+  });
+
   it("treats READY_FOR_REVIEW as attached and does not create a mutable version", async () => {
     const request = vi.fn(async () => ({
       data: [
@@ -1010,23 +1101,117 @@ describe("ASC version and submission workflow", () => {
     })) as unknown as AscJsonRequest;
 
     await expect(
-      ascReviewLocalizationMatches({
+      ascReviewLocalizationMismatch({
         request,
         kind: "iap",
         versionId: "attached-version",
-        name: "Coins",
-        description: "100 coins",
+        listings: [
+          { locale: "en-US", title: "Coins", description: "100 coins" },
+        ],
       }),
-    ).resolves.toBe(true);
+    ).resolves.toBeUndefined();
     await expect(
-      ascReviewLocalizationMatches({
+      ascReviewLocalizationMismatch({
         request,
         kind: "iap",
         versionId: "attached-version",
-        name: "Coins Plus",
-        description: "200 coins",
+        listings: [
+          { locale: "en-US", title: "Coins Plus", description: "100 coins" },
+        ],
       }),
-    ).resolves.toBe(false);
+    ).resolves.toBe("en-US");
+    // Description alone, title untouched. A comparison that only looked
+    // at `name` would call this a match and mark the product pushed with
+    // the old description still live on the locked version.
+    await expect(
+      ascReviewLocalizationMismatch({
+        request,
+        kind: "iap",
+        versionId: "attached-version",
+        listings: [
+          { locale: "en-US", title: "Coins", description: "200 coins" },
+        ],
+      }),
+    ).resolves.toBe("en-US");
+  });
+
+  // A Draft whose only change is a translation used to compare equal to
+  // the locked version, so it was marked pushed without the translation
+  // ever reaching ASC.
+  it("reports a locale the locked version is missing", async () => {
+    const request = (async () => ({
+      data: [
+        {
+          id: "loc-1",
+          type: "inAppPurchaseLocalizations",
+          attributes: {
+            locale: "en-US",
+            name: "Coins",
+            description: "100 coins",
+          },
+        },
+      ],
+    })) as unknown as AscJsonRequest;
+
+    await expect(
+      ascReviewLocalizationMismatch({
+        request,
+        kind: "iap",
+        versionId: "attached-version",
+        listings: [
+          { locale: "en-US", title: "Coins", description: "100 coins" },
+          { locale: "ko-KR", title: "코인", description: "코인 100개" },
+        ],
+      }),
+    ).resolves.toBe("ko");
+  });
+
+  it("finds matching metadata on a later localization page", async () => {
+    const request = vi.fn(async (path: string) =>
+      path.includes("cursor=page-2")
+        ? {
+            data: [
+              {
+                id: "loc-ko",
+                type: "inAppPurchaseLocalizations",
+                attributes: {
+                  locale: "ko",
+                  name: "코인",
+                  description: "코인 100개",
+                },
+              },
+            ],
+          }
+        : {
+            data: [
+              {
+                id: "loc-en",
+                type: "inAppPurchaseLocalizations",
+                attributes: {
+                  locale: "en-US",
+                  name: "Coins",
+                  description: "100 coins",
+                },
+              },
+            ],
+            links: {
+              next: `${"https://api.appstoreconnect.apple.com"}/v1/inAppPurchaseVersions/attached-version/localizations?cursor=page-2`,
+            },
+          },
+    ) as unknown as AscJsonRequest;
+
+    await expect(
+      ascReviewLocalizationMismatch({
+        request,
+        kind: "iap",
+        versionId: "attached-version",
+        listings: [
+          { locale: "en-US", title: "Coins", description: "100 coins" },
+          { locale: "ko-KR", title: "코인", description: "코인 100개" },
+        ],
+      }),
+    ).resolves.toBeUndefined();
+    expect(request).toHaveBeenCalledTimes(2);
   });
 
   it("creates one review submission with IAP and subscription version items", async () => {

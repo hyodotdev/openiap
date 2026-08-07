@@ -2,6 +2,8 @@
 
 import { createHash } from "node:crypto";
 
+import { localeForAppStoreConnect } from "./localizations";
+
 export type AscReviewKind = "iap" | "subscription";
 export const ASC_REVIEW_SUBMISSION_ITEM_LIMIT = 200;
 // Keep one worker's prepare→submit unit comfortably below Convex's action
@@ -123,6 +125,41 @@ interface AscLocalizationResponse {
       description?: string;
     };
   }>;
+  links?: { next?: string | null };
+}
+
+const ASC_API_ORIGIN = "https://api.appstoreconnect.apple.com";
+
+function ascNextPath(next: string): string {
+  if (next.startsWith("/")) return next;
+  const url = new URL(next);
+  if (url.origin !== ASC_API_ORIGIN) {
+    throw new Error(
+      `ASC pagination returned an unexpected host: ${url.origin}`,
+    );
+  }
+  return `${url.pathname}${url.search}`;
+}
+
+async function readAllAscLocalizations(args: {
+  request: AscJsonRequest;
+  initialPath: string;
+  checkCancelled: () => Promise<void>;
+}): Promise<AscLocalizationResponse["data"]> {
+  const rows: AscLocalizationResponse["data"] = [];
+  let path: string | null = args.initialPath;
+  let pages = 0;
+  while (path && pages < 200) {
+    await args.checkCancelled();
+    const page: AscLocalizationResponse = await args.request(path);
+    rows.push(...page.data);
+    path = page.links?.next ? ascNextPath(page.links.next) : null;
+    pages += 1;
+  }
+  if (path) {
+    throw new Error("ASC localization pagination exceeded 200 pages");
+  }
+  return rows;
 }
 
 interface AscReviewSubmissionResponse {
@@ -712,6 +749,51 @@ export async function inspectAscReviewVersion(args: {
   return approved ? { versionId: approved.id, state: "approved" } : null;
 }
 
+/**
+ * Reads the localized metadata attached to the current ASC review version.
+ *
+ * Product names on the parent resource are internal reference names, not the
+ * customer-facing store listing. Pull-sync must read the version subresource
+ * or it will lose every ASC-authored locale and later publish the reference
+ * name as en-US.
+ */
+export async function readAscReviewListings(args: {
+  request: AscJsonRequest;
+  kind: AscReviewKind;
+  parentId: string;
+  checkCancelled?: () => Promise<void>;
+}): Promise<Array<{ locale: string; title: string; description?: string }>> {
+  const checkCancelled = args.checkCancelled ?? (async () => undefined);
+  const current = await inspectAscReviewVersion({
+    request: args.request,
+    kind: args.kind,
+    parentId: args.parentId,
+    checkCancelled,
+  });
+  if (!current) return [];
+
+  const resources = await readAllAscLocalizations({
+    request: args.request,
+    initialPath: VERSION_CONFIG[args.kind].localizationListPath(
+      current.versionId,
+    ),
+    checkCancelled,
+  });
+  return resources.flatMap((resource) => {
+    const locale = resource.attributes?.locale;
+    const title = resource.attributes?.name;
+    if (!locale || !title) return [];
+    const description = resource.attributes?.description;
+    return [
+      {
+        locale,
+        title,
+        ...(description ? { description } : {}),
+      },
+    ];
+  });
+}
+
 export async function ensureAscReviewVersion(args: {
   request: AscJsonRequest;
   kind: AscReviewKind;
@@ -800,7 +882,10 @@ export async function upsertAscReviewLocalization(args: {
   checkCancelled?: () => Promise<void>;
 }): Promise<void> {
   const config = VERSION_CONFIG[args.kind];
-  const locale = args.locale ?? "en-US";
+  // Normalize again at the ASC boundary so legacy rows saved before locale
+  // validation was strict do not keep replaying unsupported `ja-JP` / `ko-KR`
+  // values into App Store Connect.
+  const locale = localeForAppStoreConnect(args.locale ?? "en-US");
   const checkCancelled = args.checkCancelled ?? (async () => undefined);
   await checkCancelled();
   const localizations = await args.request<AscLocalizationResponse>(
@@ -848,28 +933,45 @@ export async function upsertAscReviewLocalization(args: {
   });
 }
 
-export async function ascReviewLocalizationMatches(args: {
+/**
+ * Whether a locked review version already carries exactly the listings
+ * kit would push.
+ *
+ * Takes the whole set rather than one locale: the push writes every
+ * locale on the row, so comparing only the base pair would report
+ * "matches" for a Draft whose sole change is a translation — and that
+ * Draft would then be marked pushed without the translation shipping.
+ * One list fetch serves every comparison.
+ *
+ * @returns The first locale that differs, or undefined when all match.
+ */
+export async function ascReviewLocalizationMismatch(args: {
   request: AscJsonRequest;
   kind: AscReviewKind;
   versionId: string;
-  name: string;
-  description: string;
-  locale?: string;
+  listings: Array<{ locale: string; title: string; description?: string }>;
   checkCancelled?: () => Promise<void>;
-}): Promise<boolean> {
+}): Promise<string | undefined> {
   const config = VERSION_CONFIG[args.kind];
-  const locale = args.locale ?? "en-US";
-  await (args.checkCancelled ?? (async () => undefined))();
-  const localizations = await args.request<AscLocalizationResponse>(
-    config.localizationListPath(args.versionId),
-  );
-  const existing = localizations.data.find(
-    (localization) => localization.attributes?.locale === locale,
-  );
-  return (
-    existing?.attributes?.name === args.name &&
-    existing.attributes.description === args.description
-  );
+  const checkCancelled = args.checkCancelled ?? (async () => undefined);
+  const localizations = await readAllAscLocalizations({
+    request: args.request,
+    initialPath: config.localizationListPath(args.versionId),
+    checkCancelled,
+  });
+  for (const listing of args.listings) {
+    const locale = localeForAppStoreConnect(listing.locale);
+    const existing = localizations.find(
+      (localization) => localization.attributes?.locale === locale,
+    );
+    if (
+      existing?.attributes?.name !== listing.title ||
+      existing.attributes.description !== (listing.description ?? listing.title)
+    ) {
+      return locale;
+    }
+  }
+  return undefined;
 }
 
 export async function submitAscReviewVersions(args: {

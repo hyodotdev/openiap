@@ -21,6 +21,11 @@ import {
   IAPKIT_MCP_SERVER_NAME,
   IAPKIT_MCP_SERVER_VERSION,
 } from "./mcp.js";
+import {
+  buildSessionId,
+  currentMachineId,
+  routeUnknownSession,
+} from "./session-routing.js";
 
 const DEFAULT_MCP_PATH = "/mcp";
 const DEFAULT_PORT = 3939;
@@ -48,6 +53,13 @@ export interface RemoteMcpHttpServerOptions {
   allowedOrigins?: string[];
   /** Logger for lifecycle and request failures. Defaults to console. */
   logger?: Pick<Console, "error" | "info">;
+  /**
+   * Identity of this process for session affinity. Defaults to
+   * FLY_MACHINE_ID; session ids are prefixed with it so a follow-up
+   * request landing on a sibling machine can be replayed to the owner
+   * (GitHub issue #287). Undefined disables replay routing.
+   */
+  machineId?: string;
 }
 
 /** Runtime handle for an IAPKit remote MCP HTTP server. */
@@ -72,6 +84,7 @@ export function createRemoteMcpHttpServer(
   const allowedOrigins =
     options.allowedOrigins ??
     parseAllowedOrigins(process.env.IAPKIT_MCP_ALLOWED_ORIGINS);
+  const machineId = options.machineId ?? currentMachineId();
   const transports = new Map<string, StreamableHTTPServerTransport>();
 
   const server = createServer(async (req, res) => {
@@ -134,12 +147,13 @@ export function createRemoteMcpHttpServer(
           res,
           transports,
           logger,
+          machineId,
         );
         return;
       }
 
       if (req.method === "GET" || req.method === "DELETE") {
-        await handleExistingMcpSession(req, res, transports);
+        await handleExistingMcpSession(req, res, transports, machineId);
         return;
       }
 
@@ -223,6 +237,7 @@ async function handleMcpPost(
   res: ServerResponse,
   transports: Map<string, StreamableHTTPServerTransport>,
   logger: Pick<Console, "error" | "info">,
+  machineId: string | undefined,
 ): Promise<void> {
   const sessionId = headerString(req.headers["mcp-session-id"]);
   const body = await readJsonBody(req);
@@ -233,7 +248,12 @@ async function handleMcpPost(
     return;
   }
 
-  if (sessionId || !isInitializeRequest(body)) {
+  if (sessionId) {
+    writeUnknownSessionResponse(req, res, sessionId, machineId);
+    return;
+  }
+
+  if (!isInitializeRequest(body)) {
     writeJsonRpcError(
       res,
       400,
@@ -245,7 +265,7 @@ async function handleMcpPost(
 
   let transport!: StreamableHTTPServerTransport;
   transport = new StreamableHTTPServerTransport({
-    sessionIdGenerator: () => randomUUID(),
+    sessionIdGenerator: () => buildSessionId(machineId, randomUUID()),
     onsessioninitialized: (initializedSessionId) => {
       transports.set(initializedSessionId, transport);
       logger.info(`IAPKit MCP session initialized: ${initializedSessionId}`);
@@ -269,16 +289,65 @@ async function handleExistingMcpSession(
   req: IncomingMessage,
   res: ServerResponse,
   transports: Map<string, StreamableHTTPServerTransport>,
+  machineId: string | undefined,
 ): Promise<void> {
   const sessionId = headerString(req.headers["mcp-session-id"]);
   const transport = sessionId ? transports.get(sessionId) : undefined;
 
   if (!transport) {
+    if (sessionId) {
+      writeUnknownSessionResponse(req, res, sessionId, machineId);
+      return;
+    }
     writeJsonRpcError(res, 400, -32000, "Invalid or missing mcp-session-id");
     return;
   }
 
   await transport.handleRequest(req as AuthenticatedRequest, res);
+}
+
+/**
+ * Answers a request whose session id isn't in this process's transport
+ * map: replay it to the machine that minted the id when possible,
+ * otherwise 404 so a spec-compliant client transparently re-initializes.
+ * (The previous 400 "initialize first" reply broke that recovery path —
+ * GitHub issue #287.)
+ */
+function writeUnknownSessionResponse(
+  req: IncomingMessage,
+  res: ServerResponse,
+  sessionId: string,
+  machineId: string | undefined,
+): void {
+  const routing = routeUnknownSession({
+    sessionId,
+    machineId,
+    alreadyReplayed: req.headers["fly-replay-src"] !== undefined,
+  });
+
+  if (routing.action === "replay") {
+    // Fly's proxy intercepts any response carrying `fly-replay` and
+    // re-sends the original request to the named machine; the client
+    // never sees this interim response. `prefer_instance` rather than
+    // `instance` so a destroyed or restarting owner degrades to "route
+    // anywhere" — that replay carries `fly-replay-src`, so wherever it
+    // lands answers 404 and the client re-initializes. A bare
+    // `instance=` would instead fail at the proxy after its timeout,
+    // and the 404 this fix depends on would never be produced.
+    res
+      .writeHead(204, {
+        "fly-replay": `prefer_instance=${routing.targetMachineId};timeout=5s`,
+      })
+      .end();
+    return;
+  }
+
+  writeJsonRpcError(
+    res,
+    404,
+    -32001,
+    "Session not found — initialize a new MCP session.",
+  );
 }
 
 function attachAuthInfo(req: AuthenticatedRequest): void {

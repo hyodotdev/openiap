@@ -208,7 +208,11 @@ function buildArgs(overrides: {
   store?: "apple" | "google" | "horizon";
   applicationId?: string;
   requestData?:
-    | { store: "google"; purchaseToken: string }
+    | {
+        store: "google";
+        purchaseToken: string;
+        expectedProductId?: string;
+      }
     | { store: "apple"; jws: string }
     | { store: "horizon"; userId: string; sku: string };
 }) {
@@ -248,6 +252,29 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
     await savePurchaseInternal({ ctx, ...buildArgs({ remoteId: TOKEN }) });
 
     expect(db.purchaseCount()).toBe(1);
+  });
+
+  it("persists the verified expected item from a multi-item token", async () => {
+    await savePurchaseInternal({
+      ctx,
+      ...buildArgs({
+        remoteId: "multi-item-token",
+        requestData: {
+          store: "google",
+          purchaseToken: "multi-item-token",
+          expectedProductId: "premium_monthly",
+        },
+        remoteResponse: JSON.stringify({
+          productLineItem: [
+            { productId: "coins_100" },
+            { productId: "premium_monthly" },
+          ],
+        }),
+      }),
+    });
+
+    const rows = await db.query("purchases").collect();
+    expect(rows[0]?.productId).toBe("premium_monthly");
   });
 
   it("rejects writes while the project or organization deletion is pending", async () => {

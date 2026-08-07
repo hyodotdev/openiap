@@ -355,6 +355,26 @@ function registerIapKitTools(server: McpServer) {
       type: z.enum(["Subscription", "NonConsumable", "Consumable"]),
       title: TITLE_PARAM,
       description: z.string().optional(),
+      localizations: z
+        .array(
+          z.object({
+            locale: z
+              .string()
+              .describe('BCP-47 code, e.g. "ko-KR" or "ja-JP".'),
+            title: z.string(),
+            description: z.string().optional(),
+          }),
+        )
+        .optional()
+        .describe(
+          "Store-listing text in other languages. `title` / `description` are the base listing (en-US for a new product; a product pulled from a store preserves that store's base locale). These add locales on top. Do not repeat the product's base locale. Regional pricing is converted automatically and is not configured here.",
+        ),
+      regions: z
+        .union([z.literal("all"), z.array(z.string())])
+        .optional()
+        .describe(
+          'Android one-time products only — rejected for iOS and for subscriptions. A list of two-letter ISO 3166-1 codes, e.g. ["US","KR","JP"], restricts the product to those markets and keeps it out of regions Play adds later. "all" explicitly expands to every region Play prices and follows Play into new markets. On create, omission uses the safe default: every priced region. On update, omission preserves the stored choice. Send [] to clear a stored choice back to inherit; an existing Play product then keeps its current live footprint, while a product Play has never seen is created everywhere.',
+        ),
       priceAmountMicros: PRICE_AMOUNT_MICROS_PARAM.optional(),
       currency: z.string().optional(),
       billingPeriod: z
@@ -392,6 +412,8 @@ function registerIapKitTools(server: McpServer) {
             type: args.type,
             title: args.title,
             description: args.description,
+            localizations: args.localizations,
+            regions: args.regions,
             priceAmountMicros: args.priceAmountMicros,
             currency: args.currency,
             billingPeriod: args.billingPeriod,
