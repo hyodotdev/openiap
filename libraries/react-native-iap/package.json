@@ -51,7 +51,7 @@
     "lint:prettier": "prettier --write \"**/*.{md,js,jsx,ts,tsx}\"",
     "lint:tsc": "tsc -p tsconfig.json --noEmit --skipLibCheck",
     "lint:ci": "yarn lint:tsc && yarn lint:eslint && yarn lint:prettier",
-    "prepare": "npx tsx scripts/check-nitro-versions.ts && bob build && yarn nitrogen",
+    "prepare": "tsx scripts/check-nitro-versions.ts && bob build && yarn nitrogen",
     "nitrogen": "node --stack-size=65536 node_modules/nitrogen/lib/index.js",
     "specs": "yarn nitrogen --logLevel=\"debug\"",
     "test": "jest --coverage",
@@ -112,6 +112,7 @@
     "react-native-builder-bob": "^0.43.0",
     "react-native-nitro-modules": "^0.36.5",
     "test-renderer": "^1.2.0",
+    "tsx": "^4.23.11",
     "typescript": "^5.9.3"
   },
   "peerDependencies": {

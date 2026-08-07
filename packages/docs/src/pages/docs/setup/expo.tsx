@@ -78,7 +78,7 @@ function ExpoSetup() {
               </td>
               <td>
                 Follow the Expo SDK baseline (SDK 57: Node.js 22.13.x; SDK
-                54–56: Node.js 20.19.x; SDK 53: Node.js 20+)
+                54–56: Node.js 20.19.x; SDK 53: Node.js 20.18.x)
               </td>
             </tr>
           </tbody>

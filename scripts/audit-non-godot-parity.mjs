@@ -4304,6 +4304,16 @@ function checkFrameworkDependencyHygiene() {
       `${packageJsonPath} must expose npm consumer smoke test`,
     );
   }
+  expectIncludes(
+    "libraries/react-native-iap/package.json",
+    ['"prepare": "tsx scripts/check-nitro-versions.ts', '"tsx": "^4.23.11"'],
+    "React Native prepare must use the locked local tsx binary",
+  );
+  expectNotIncludes(
+    "libraries/react-native-iap/package.json",
+    ["npx tsx"],
+    "React Native prepare must not download an unpinned tsx at release time",
+  );
   for (const [workflowPath, command] of [
     [".github/workflows/ci-expo-iap.yml", "bun run verify:consumer-install"],
     [
@@ -4376,6 +4386,8 @@ function checkFrameworkDependencyHygiene() {
       "then run the docs deployment. Run the Docs release workflow with",
       "only when the native-derived `spec` advanced",
       "immutable existing `docs-{spec}` tag is never reused",
+      "If a Docs GitHub Release is requested while",
+      "stop and explain that the immutable",
     ],
     "dependency release gate must preserve review cadence and conditional Docs releases",
   );
@@ -4385,6 +4397,7 @@ function checkFrameworkDependencyHygiene() {
       "currently about eight minutes",
       "`npm run deploy`, then `release.yml`",
       "then run the docs deployment and the Docs release workflow",
+      "or the maintainer explicitly requested",
     ],
     "dependency release gate must not unconditionally reuse a Docs release tag",
   );
@@ -6765,7 +6778,7 @@ function checkFrameworkDependencyHygiene() {
       "Android 7 / API 24+",
       "SDK 57: Node.js 22.13.x",
       "54–56: Node.js 20.19.x",
-      "SDK 53: Node.js 20+",
+      "SDK 53: Node.js 20.18.x",
       "react-native-tvos@0.86.2-0",
       '"@react-native-tvos/config-tv": "^0.1.6"',
       "deploymentTarget: isTV ? '16.0' : '16.4'",
@@ -6777,6 +6790,7 @@ function checkFrameworkDependencyHygiene() {
     "packages/docs/src/pages/docs/setup/expo.tsx",
     [
       "SDK 53–56: Node.js 20.x",
+      "SDK 53: Node.js 20+",
       "react-native-tvos@0.81.5-1",
       '"@react-native-tvos/config-tv": "^0.1.4"',
       "deploymentTarget: isTV ? '16.0' : '15.1'",

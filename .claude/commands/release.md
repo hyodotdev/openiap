@@ -126,8 +126,9 @@ For a multi-package release train, use this order when affected:
 7. `release-kmp.yml`
 8. `release-maui.yml`
 9. `npm run deploy`; run `release.yml` with `version=current` only when the
-   native-derived `spec` advanced or the maintainer explicitly requested a Docs
-   GitHub Release
+   native-derived `spec` advanced. If a Docs GitHub Release is requested while
+   `spec` is unchanged, stop and explain that the immutable `docs-{spec}` tag
+   cannot represent a new release.
 
 Train rules (mistake guards):
 
@@ -146,9 +147,10 @@ Train rules (mistake guards):
   `packages/docs/src/pages/docs/updates/releases.tsx` (see `generate-doc`),
   commit it directly to `main` together with any release-process doc updates,
   then run the docs deployment. Run the Docs release workflow with
-  `version=current` only when the native-derived `spec` advanced or the
-  maintainer explicitly requested a Docs GitHub Release; otherwise skip it so an
-  immutable existing `docs-{spec}` tag is never reused.
+  `version=current` only when the native-derived `spec` advanced; otherwise skip
+  it so an immutable existing `docs-{spec}` tag is never reused. If a Docs
+  GitHub Release is requested while `spec` is unchanged, stop and explain that
+  the immutable tag scheme cannot represent a new release.
 
 Fetch latest `main` before each dependent workflow so every release starts from
 the prior stable version commit. After an Apple or Google release, confirm the
@@ -190,9 +192,10 @@ independent version edits:
 8. After every affected artifact is publicly available, use `generate-doc` to
    add one consolidated release entry with the actual published versions and
    GitHub Release links, then deploy docs last. Create a Docs GitHub Release
-   only when the native-derived `spec` version advanced or the maintainer
-   explicitly requested one; routine docs deployments must not reuse an
-   immutable existing `docs-{spec}` tag.
+   only when the native-derived `spec` version advanced; routine docs
+   deployments must not reuse an immutable existing `docs-{spec}` tag. If one
+   is requested while `spec` is unchanged, stop and explain that the immutable
+   tag scheme cannot represent a new release.
 
 Do not reuse review or E2E evidence from an earlier commit. A head change always
 restarts both gates.
