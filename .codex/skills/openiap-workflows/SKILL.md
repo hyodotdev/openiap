@@ -32,7 +32,9 @@ natural-language requests, execute the matching workflow:
   `.claude/commands/review-pr.md`. CodeRabbit is the only external reviewer for
   this workflow; do not invoke other review bots. If CodeRabbit cannot review
   the current head, also read `.codex/skills/review-self/SKILL.md` and run its
-  single-round `review-pr` fallback.
+  single-round `review-pr` fallback. At the clean end of the loop, remove the
+  temporary CodeRabbit trigger and terminal skip/unavailable top-level comments
+  exactly as defined by the command workflow.
 - Audit code, check latest APIs, or "audit-code": read
   `.claude/commands/audit-code.md`.
 - Compile knowledge or rebuild AI context: read

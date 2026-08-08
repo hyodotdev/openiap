@@ -134,21 +134,25 @@ fixes and posting its trigger, schedule a wake-up in **~300 seconds (5 minutes)*
    head-specific `$review-self` fallback above.
 4. If no unresolved threads exist, CI is terminal and successful, and
    unavailable CodeRabbit coverage has a clean fallback for the current head → the
-   PR is clean. Clean up the temporary review-trigger comments, end the loop,
-   and report completion to the user.
+   PR is clean. Clean up temporary review automation comments, including
+   terminal skip/unavailable notices, end the loop, and report completion to
+   the user.
 
 Use the `ScheduleWakeup` tool for the wake-up, passing `/review-pr $PR_NUMBER` back as the prompt so the next firing re-enters this skill with full context. Omit the call to stop the loop once all threads are resolved.
 
 Guard against infinite loops: if a reviewer keeps flagging the same finding after two fix attempts, stop scheduling wake-ups and hand back to the user with a summary of what remains disputed.
 
-### Cleanup Review Trigger Comments
+### Cleanup Review Automation Comments
 
-When the polling loop ends with no unresolved review threads, delete the temporary top-level comments created only to trigger bot reviews:
+When the polling loop ends with no unresolved review threads, delete temporary
+top-level comments that only record review automation activity:
 
 - Author comments whose body is exactly `@coderabbitai review`
 - CodeRabbit top-level "Action performed" replies created by those commands (`CodeRabbit review command invocation`)
+- CodeRabbit top-level terminal notices that explicitly say the review was
+  skipped or unavailable, including file-limit skips
 
-Do **not** delete inline review replies, actual reviewer summaries, CodeRabbit walkthrough comments, or any comment containing substantive review feedback. The cleanup is only for command noise left in the PR timeline.
+Do **not** delete human comments, inline review replies, actual reviewer summaries, CodeRabbit walkthrough comments, or any comment containing substantive review feedback. The cleanup is only for command and terminal unavailability noise left in the PR timeline.
 
 Use the issue comments API because PR conversation comments are issue comments:
 
@@ -158,6 +162,10 @@ gh api repos/hyodotdev/openiap/issues/$PR_NUMBER/comments --paginate --jq '
   | select(
       .body == "@coderabbitai review"
       or (.user.login == "coderabbitai[bot]" and (.body | contains("CodeRabbit review command invocation")))
+      or (
+        .user.login == "coderabbitai[bot]"
+        and (.body | test("review (was )?skipped|review unavailable|unable to review|too many files|file limit"; "i"))
+      )
     )
   | .id' | while read comment_id; do
   [ -n "$comment_id" ] && gh api -X DELETE "repos/hyodotdev/openiap/issues/comments/$comment_id"

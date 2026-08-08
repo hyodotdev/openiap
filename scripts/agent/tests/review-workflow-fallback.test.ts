@@ -44,10 +44,10 @@ describe("review workflow fallback contract", () => {
     expect(reviewPr).not.toContain("Copilot");
   });
 
-  test("review-pr removes only temporary CodeRabbit command noise", () => {
+  test("review-pr removes only temporary CodeRabbit automation noise", () => {
     const reviewPr = readRepositoryFile(".claude/commands/review-pr.md");
     const cleanupScript = reviewPr.match(
-      /### Cleanup Review Trigger Comments[\s\S]*?```bash\n([\s\S]*?)\n```/,
+      /### Cleanup Review Automation Comments[\s\S]*?```bash\n([\s\S]*?)\n```/,
     )?.[1];
 
     expect(normalizeWhitespace(cleanupScript ?? "")).toBe(
@@ -56,13 +56,17 @@ describe("review workflow fallback contract", () => {
   | select(
       .body == "@coderabbitai review"
       or (.user.login == "coderabbitai[bot]" and (.body | contains("CodeRabbit review command invocation")))
+      or (
+        .user.login == "coderabbitai[bot]"
+        and (.body | test("review (was )?skipped|review unavailable|unable to review|too many files|file limit"; "i"))
+      )
     )
   | .id' | while read comment_id; do
   [ -n "$comment_id" ] && gh api -X DELETE "repos/hyodotdev/openiap/issues/comments/$comment_id"
 done`),
     );
     expect(normalizeWhitespace(reviewPr)).toContain(
-      "Do **not** delete inline review replies, actual reviewer summaries, CodeRabbit walkthrough comments, or any comment containing substantive review feedback",
+      "Do **not** delete human comments, inline review replies, actual reviewer summaries, CodeRabbit walkthrough comments, or any comment containing substantive review feedback",
     );
   });
 

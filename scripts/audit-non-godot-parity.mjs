@@ -5008,10 +5008,11 @@ function checkFrameworkDependencyHygiene() {
       "clean CodeRabbit result is successful reviewer coverage",
       "one complete",
       "`$review-self` round",
-      "### Cleanup Review Trigger Comments",
+      "### Cleanup Review Automation Comments",
       '.body == "@coderabbitai review"',
       'or (.user.login == "coderabbitai[bot]" and (.body | contains("CodeRabbit review command invocation")))',
-      "Do **not** delete inline review replies, actual reviewer summaries, CodeRabbit walkthrough comments, or any comment containing substantive review feedback",
+      'test("review (was )?skipped|review unavailable|unable to review|too many files|file limit"; "i")',
+      "Do **not** delete human comments, inline review replies, actual reviewer summaries, CodeRabbit walkthrough comments, or any comment containing substantive review feedback",
     ],
     "review-pr must preserve the requested five-minute polling cadence",
   );
