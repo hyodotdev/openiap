@@ -4252,22 +4252,22 @@ function checkFrameworkDependencyHygiene() {
     [
       ".github/workflows/release-expo.yml",
       "expo",
-      'git tag -a "$RELEASE_TAG" "$TAG_TARGET"',
+      'git tag -a "$RELEASE_TAG" "$GITHUB_SHA"',
     ],
     [
       ".github/workflows/release-react-native.yml",
       "react-native",
-      'git tag -a "$RELEASE_TAG" "$TAG_TARGET"',
+      'git tag -a "$RELEASE_TAG" "$GITHUB_SHA"',
     ],
     [
       ".github/workflows/release-flutter.yml",
       "flutter",
-      'git tag -a "flutter-iap-${NEW_VERSION}"',
+      'git tag -a "$RELEASE_TAG" "$GITHUB_SHA"',
     ],
     [
       ".github/workflows/release-godot.yml",
       "godot",
-      'git tag -a "$RELEASE_TAG"',
+      'git tag -a "$RELEASE_TAG" "$GITHUB_SHA"',
     ],
   ]) {
     expectIncludes(
@@ -4284,7 +4284,8 @@ function checkFrameworkDependencyHygiene() {
         '"$RELEASE_BRANCH" "$GITHUB_SHA"',
         tagCommand,
         'git push --atomic origin "HEAD:$RELEASE_BRANCH" --follow-tags',
-        '"$GITHUB_SHA:refs/heads/$RELEASE_BRANCH"',
+        'git commit --allow-empty -m "chore(release): recover $RELEASE_TAG provenance"',
+        '"HEAD:refs/heads/$RELEASE_BRANCH"',
         '"refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"',
       ],
       `${frameworkReleaseWorkflow} must tag only the verified dispatch head`,
@@ -4326,6 +4327,8 @@ function checkFrameworkDependencyHygiene() {
         "assert-release-head.mjs",
         '"$RELEASE_BRANCH" "$GITHUB_SHA"',
         "published without a provenance tag",
+        'git commit --allow-empty -m "chore(release): recover $RELEASE_TAG provenance"',
+        'TAG_TARGET="$GITHUB_SHA"',
         "git push --atomic origin",
         '"HEAD:$RELEASE_BRANCH"',
         '"refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"',
@@ -4370,8 +4373,8 @@ function checkFrameworkDependencyHygiene() {
         `npm view "${npmPackage}@$VERSION" version`,
         `if NPM_OUTPUT=$(npm view "${npmPackage}@$VERSION" version 2>&1); then`,
         "grep -qiE 'E404|404 Not Found'",
-        `npm view "${npmPackage}@$NEW_VERSION" gitHead`,
-        'git cat-file -e "$PUBLISHED_GIT_HEAD^{commit}"',
+        "Refuse an untagged published version",
+        "published without a provenance tag",
         "if: steps.check_npm.outputs.exists == 'false'",
       ],
       `${npmReleaseWorkflow} must support npm release reruns`,
@@ -4383,9 +4386,38 @@ function checkFrameworkDependencyHygiene() {
         "node-version: 20.x",
         "set +e",
         "NPM_STATUS=$?",
+        "gitHead 2>/dev/null || true",
       ],
       `${npmReleaseWorkflow} must not drift npm trusted-publishing CLI version`,
     );
+    const npmReleaseSource = read(npmReleaseWorkflow);
+    if (
+      npmReleaseSource.indexOf(
+        "- name: Check if npm package already published",
+      ) > npmReleaseSource.indexOf("git tag -a")
+    ) {
+      fail(
+        `${npmReleaseWorkflow} must verify npm before creating a missing tag`,
+      );
+    }
+  }
+  expectIncludes(
+    ".github/workflows/release-flutter.yml",
+    [
+      "Check if pub.dev package already published",
+      "Unable to verify flutter_inapp_purchase $VERSION on pub.dev",
+      "Refuse an untagged published version",
+      "published without a provenance tag",
+    ],
+    "Flutter release must verify pub.dev before creating a missing tag",
+  );
+  const flutterReleaseSource = read(".github/workflows/release-flutter.yml");
+  if (
+    flutterReleaseSource.indexOf(
+      "- name: Check if pub.dev package already published",
+    ) > flutterReleaseSource.indexOf("git tag -a")
+  ) {
+    fail("Flutter release must verify pub.dev before creating a missing tag");
   }
   expectIncludes(
     "scripts/verify-npm-consumer-install.mjs",
@@ -4742,6 +4774,8 @@ function checkFrameworkDependencyHygiene() {
       "stop instead of rebasing unverified commits into the release",
       "immutable provenance tag must be pushed atomically before",
       "contains the version while its provenance tag is absent",
+      "empty provenance-recovery commit",
+      "Git omits up-to-date refs",
     ],
     "release deployment docs tag conventions",
   );
@@ -5061,7 +5095,7 @@ function checkFrameworkDependencyHygiene() {
       "Unable to verify kmp-iap $VERSION on Maven Central",
       "if: steps.check_maven.outputs.exists == 'false'",
       "Create and push tag",
-      'git tag -a "$RELEASE_TAG" -m "Release $RELEASE_TAG"',
+      'git tag -a "$RELEASE_TAG" "$TAG_TARGET" -m "Release $RELEASE_TAG"',
       "./gradlew :library:assembleRelease --no-daemon --stacktrace",
       "files: libraries/kmp-iap/release-artifacts.zip",
       'implementation("io.github.hyochan:kmp-iap:$VERSION")',
@@ -5159,7 +5193,7 @@ function checkFrameworkDependencyHygiene() {
     [
       "- name: Create and push tag",
       "if: success()",
-      'git tag -a "$RELEASE_TAG" -m "Release $RELEASE_TAG"',
+      'git tag -a "$RELEASE_TAG" "$TAG_TARGET" -m "Release $RELEASE_TAG"',
       "published without a provenance tag",
       "git push --atomic origin",
       '"HEAD:$RELEASE_BRANCH"',

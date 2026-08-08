@@ -173,6 +173,12 @@ reuse that tag to finish an interrupted publication, but if the registry already
 contains the version while its provenance tag is absent, stop instead of tagging
 the current branch tip as an unverified substitute.
 
+When `current` must create a missing tag for a version that is not yet published,
+the workflow creates an empty provenance-recovery commit and atomically pushes
+that real branch update with a tag targeting the verified dispatch SHA. A no-op
+branch refspec is not a compare-and-swap guard because Git omits up-to-date refs
+from the push transaction.
+
 ### Deploying Apple Package (iOS/macOS)
 
 **Via GitHub Actions UI:**

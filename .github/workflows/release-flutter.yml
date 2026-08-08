@@ -309,6 +309,36 @@ jobs:
             echo "✓ Tag $RELEASE_TAG does not exist"
           fi
 
+      - name: Check if pub.dev package already published
+        id: check_pub
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          HTTP_STATUS=$(curl -sS -L -o /dev/null -w "%{http_code}" "https://pub.dev/api/packages/flutter_inapp_purchase/versions/$VERSION" || true)
+          HTTP_STATUS="${HTTP_STATUS:-000}"
+          case "$HTTP_STATUS" in
+            200)
+              echo "exists=true" >> "$GITHUB_OUTPUT"
+              echo "⚠️ flutter_inapp_purchase $VERSION already exists on pub.dev"
+              ;;
+            404)
+              echo "exists=false" >> "$GITHUB_OUTPUT"
+              echo "✓ flutter_inapp_purchase $VERSION does not exist, will publish"
+              ;;
+            *)
+              echo "❌ Unable to verify flutter_inapp_purchase $VERSION on pub.dev (HTTP $HTTP_STATUS)"
+              exit 1
+              ;;
+          esac
+
+      - name: Refuse an untagged published version
+        if: ${{ steps.check_pub.outputs.exists == 'true' && steps.check_tag.outputs.exists != 'true' }}
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          echo "❌ flutter_inapp_purchase $VERSION is published without a provenance tag; refusing to tag an unverified source"
+          exit 1
+
       - name: Generate CHANGELOG entry
         if: ${{ inputs.version != 'current' }}
         env:
@@ -372,7 +402,9 @@ jobs:
         env:
           NEW_VERSION: ${{ steps.bump.outputs.version }}
         run: |
-          git tag -a "flutter-iap-${NEW_VERSION}" -m "Release flutter-iap-${NEW_VERSION}"
+          RELEASE_TAG="flutter-iap-${NEW_VERSION}"
+          git commit --allow-empty -m "chore(release): recover $RELEASE_TAG provenance"
+          git tag -a "$RELEASE_TAG" "$GITHUB_SHA" -m "Release $RELEASE_TAG"
 
       - name: Push commit and tags
         if: ${{ inputs.version != 'current' }}
@@ -389,7 +421,7 @@ jobs:
         run: |
           RELEASE_TAG="flutter-iap-${NEW_VERSION}"
           git push --atomic origin \
-            "$GITHUB_SHA:refs/heads/$RELEASE_BRANCH" \
+            "HEAD:refs/heads/$RELEASE_BRANCH" \
             "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
 
       - name: Generate release notes

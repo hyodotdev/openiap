@@ -406,10 +406,50 @@ test("framework release workflows refuse stale dispatch heads", () => {
       );
       assert.match(
         workflow,
-        /git push --atomic origin \\\n\s+"\$GITHUB_SHA:refs\/heads\/\$RELEASE_BRANCH" \\\n\s+"refs\/tags\/\$RELEASE_TAG:refs\/tags\/\$RELEASE_TAG"/,
+        /git push --atomic origin \\\n\s+"HEAD:refs\/heads\/\$RELEASE_BRANCH" \\\n\s+"refs\/tags\/\$RELEASE_TAG:refs\/tags\/\$RELEASE_TAG"/,
         `${filename} current-version push`,
       );
+      assert.match(
+        workflow,
+        /git commit --allow-empty -m "chore\(release\): recover \$RELEASE_TAG provenance"/,
+        `${filename} current-version compare-and-swap commit`,
+      );
+      assert.match(
+        workflow,
+        /git tag -a "\$RELEASE_TAG" "\$GITHUB_SHA" -m "Release \$RELEASE_TAG"/,
+        `${filename} current-version tag target`,
+      );
+      const recoveryIndex = workflow.indexOf("git commit --allow-empty");
+      const currentTagIndex = workflow.indexOf(
+        'git tag -a "$RELEASE_TAG" "$GITHUB_SHA"',
+      );
+      const guardedPushIndex = workflow.indexOf(
+        '"HEAD:refs/heads/$RELEASE_BRANCH"',
+      );
+      assert.ok(recoveryIndex < currentTagIndex, filename);
+      assert.ok(currentTagIndex < guardedPushIndex, filename);
     }
+  }
+
+  for (const [filename, registryStep] of [
+    ["release-expo.yml", "- name: Check if npm package already published"],
+    [
+      "release-react-native.yml",
+      "- name: Check if npm package already published",
+    ],
+    [
+      "release-flutter.yml",
+      "- name: Check if pub.dev package already published",
+    ],
+  ]) {
+    const workflow = readWorkflow(filename);
+    assert.match(workflow, /Refuse an untagged published version/);
+    assert.match(workflow, /published without a provenance tag/);
+    assert.ok(
+      workflow.indexOf(registryStep) < workflow.indexOf("git tag -a"),
+      `${filename} must verify its registry before creating a missing tag`,
+    );
+    assert.doesNotMatch(workflow, /gitHead 2>\/dev\/null \|\| true/);
   }
 
   const kmpWorkflow = readWorkflow("release-kmp.yml");
@@ -437,6 +477,22 @@ test("framework release workflows refuse stale dispatch heads", () => {
       filename,
     );
     assert.match(workflow, /published without a provenance tag/);
+    assert.match(
+      workflow,
+      /git commit --allow-empty -m "chore\(release\): recover \$RELEASE_TAG provenance"/,
+      filename,
+    );
+    assert.match(workflow, /TAG_TARGET="\$GITHUB_SHA"/, filename);
+    assert.ok(
+      workflow.indexOf("git commit --allow-empty") <
+        workflow.indexOf('git tag -a "$RELEASE_TAG" "$TAG_TARGET"'),
+      filename,
+    );
+    assert.ok(
+      workflow.indexOf('git tag -a "$RELEASE_TAG" "$TAG_TARGET"') <
+        workflow.indexOf('"HEAD:$RELEASE_BRANCH"'),
+      filename,
+    );
     assert.ok(
       workflow.indexOf("- name: Create and push tag") <
         workflow.indexOf(`- name: ${publishStep}`),
