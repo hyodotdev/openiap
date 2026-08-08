@@ -24,6 +24,16 @@ interface Note {
   element: React.ReactNode;
 }
 
+const dependencyModernizationReleases = [
+  ['openiap-google 3.1.0', 'google-3.1.0'],
+  ['react-native-iap 16.1.0', 'react-native-iap-16.1.0'],
+  ['expo-iap 5.1.0', 'expo-iap-5.1.0'],
+  ['flutter_inapp_purchase 10.1.0', 'flutter-iap-10.1.0'],
+  ['godot-iap 3.1.0', 'godot-iap-3.1.0'],
+  ['kmp-iap 3.1.0', 'kmp-iap-3.1.0'],
+  ['OpenIap.Maui 2.1.0', 'maui-iap-2.1.0'],
+] as const;
+
 const frameworkIosPatchReleases = [
   ['react-native-iap 16.0.1', 'react-native-iap-16.0.1'],
   ['godot-iap 3.0.1', 'godot-iap-3.0.1'],
@@ -158,6 +168,204 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // August 9, 2026 - Dependency and toolchain modernization
+    {
+      id: 'dependency-toolchain-modernization-2026-08-09',
+      date: new Date('2026-08-09'),
+      element: (
+        <div
+          key="dependency-toolchain-modernization-2026-08-09"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="dependency-toolchain-modernization-2026-08-09"
+            level="h4"
+          >
+            August 9, 2026 - Dependency and toolchain modernization
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes the coordinated minor release train from{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/294"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #294
+            </a>{' '}
+            across the Android native package and every framework library. The
+            train moves each maintained build to current supported dependencies,
+            migrates APIs and configuration deprecated by those upgrades, and
+            preserves the consumer compatibility bounds validated across Google
+            Play, Amazon Appstore, Meta Horizon Store, and Apple platforms.
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Common changes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              Standalone Android builds move to Kotlin 2.4.10, Gradle 9.3.0,
+              Android SDK 36, Kotlin Coroutines 1.11.0, and Gson 2.14.0. Host
+              integrations still use the compiler selected by React Native,
+              Expo, or Flutter instead of forcing the standalone Kotlin line
+              into an incompatible consumer build.
+            </li>
+            <li>
+              Obsolete AndroidX KTX coordinates are replaced by the merged base
+              artifacts, while compatibility caps remain explicit where newer
+              AndroidX releases require API 37 / AGP 9.1 or newer Kotlin
+              metadata than a supported host can read.
+            </li>
+            <li>
+              Deprecated lint, test, native-registration, Kotlin, publishing,
+              and MAUI dialog APIs are migrated to their supported replacements.
+              Release artifacts are also bound to immutable source tags, with
+              npm packages publishing verified Sigstore provenance.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Shared spec and native packages
+          </h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>openiap-google 3.1.0</strong> - modernizes the Play,
+              Amazon, and Horizon artifacts together, including Kotlin 2.4.10,
+              Coroutines 1.11.0, Gson 2.14.0, AndroidX base artifacts, and the
+              typed Vanniktech publishing API. AndroidX Core 1.18.0 and
+              Lifecycle 2.10.0 retain the API 36 / AGP 8.13 consumer line, and
+              Horizon serialization stays on 1.9.0 for Expo SDK 57 Kotlin
+              metadata compatibility.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>react-native-iap 16.1.0</strong> - updates the validated
+              React 19 / React Native 0.86 / Nitro 0.36.5 toolchain, adopts the
+              current <code>BaseReactPackage</code> and fbjni registration APIs,
+              and prevents a superseded or unmounted <code>useIAP</code>{' '}
+              initialization from installing listeners or updating state.
+            </li>
+            <li>
+              <strong>expo-iap 5.1.0</strong> - validates Expo SDK 57 and its
+              React Native 0.86 stack, keeps local Android builds on Expo's
+              compatible Kotlin 2.1.20 compiler, replaces deprecated Android and
+              Babel dependencies, and closes the corresponding{' '}
+              <code>useIAP</code> initialization and teardown race.
+            </li>
+            <li>
+              <strong>flutter_inapp_purchase 10.1.0</strong> - supports both
+              Flutter's transitional Kotlin plugin path and AGP 9 built-in
+              Kotlin, moves the Android build to SDK 36 and Coroutines 1.11.0,
+              and migrates the example to the current Flutter lints and
+              flutter_dotenv APIs.
+            </li>
+            <li>
+              <strong>godot-iap 3.1.0</strong> - refreshes the precompiled
+              Android and Apple artifacts with Godot 4.7.1, SwiftGodot 0.79.0,
+              Kotlin 2.4.10, Gradle 9.3.0, and Coroutines 1.11.0 while retaining
+              Godot 4.3+ compatibility for the released addon.
+            </li>
+            <li>
+              <strong>kmp-iap 3.1.0</strong> - moves the Android/iOS library to
+              Kotlin 2.4.10, Gradle 9.3.0, Compose Multiplatform 1.10.3, Dokka
+              2.2.0, Coroutines 1.11.0, Serialization 1.11.0, and the current
+              typed Maven publishing API. Compose remains capped at 1.10.3 for
+              iosX64 compatibility, and Material Icons remains at 1.7.3 because
+              no newer compatible artifact is published.
+            </li>
+            <li>
+              <strong>OpenIap.Maui 2.1.0</strong> - aligns the NuGet dependency
+              graph with .NET 10 MAUI 10.0.90 and the updated Android bindings,
+              while its example replaces deprecated dialog methods, routes Apple
+              JWS, Google tokens, and Amazon receipt identity to custom or local
+              IAPKit endpoints, and leaves transactions unfinished when
+              verification fails.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              No OpenIAP API migration is required; upgrade to the package
+              versions below through the normal package manager for each SDK.
+            </li>
+            <li>
+              React Native projects require React Native 0.79+ and Node.js 18+.
+              Expo projects should follow their SDK's Kotlin, Node.js, Android,
+              and iOS baselines; SDK 57 is the validated current setup, while
+              SDK 52 is no longer compatible with the Android artifacts.
+            </li>
+            <li>
+              The released Godot addon supports Godot 4.3+, while source builds
+              now require Godot 4.7.1, SwiftGodot 0.79.0, Swift 6.3, and Xcode
+              26.5+. KMP builds require Kotlin 2.4.10, Gradle 9.3.0, and JDK
+              17+.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {dependencyModernizationReleases.map(([label, tag]) => (
+                <li key={tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // August 4, 2026 - Amazon RVS user data & purchase reliability patch train
     {
       id: 'amazon-rvs-user-data-patch-train-2026-08-04',
