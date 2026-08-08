@@ -632,14 +632,16 @@ jobs:
         run: |
           RELEASE_TAG="expo-iap-$VERSION"
           VERIFIED=false
-          for attempt in {1..12}; do
+          # npm can expose package metadata before its attestation endpoint is
+          # ready. Allow five minutes for the immutable provenance to propagate.
+          for attempt in {1..30}; do
             if node "$GITHUB_WORKSPACE/scripts/verify-npm-release-provenance.mjs" \
               expo-iap "$VERSION" "$GITHUB_SHA" "$RELEASE_TAG" \
               release-expo.yml; then
               VERIFIED=true
               break
             fi
-            sleep 5
+            sleep 10
           done
           if [ "$VERIFIED" != "true" ]; then
             echo "::error::Published npm provenance did not become verifiable"

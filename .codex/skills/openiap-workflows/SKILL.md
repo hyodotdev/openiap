@@ -79,6 +79,11 @@ appropriate labels before merging.
 - For GraphQL schema/API changes, follow the SDK Parity Checklist in
   `knowledge/internal/04-platform-packages.md`.
 - Run the package-specific verification commands for touched paths.
+- For dependency modernization release trains, keep the entire train in one PR
+  and follow `.claude/commands/release.md` for the all-workflow preflight. If a
+  post-merge stable release reveals a CI-only blocker, pause the train, inspect
+  all remaining workflows, and group confirmed repairs into one recovery PR;
+  never create package-by-package or symptom-by-symptom recovery PRs.
 - For Android package work, compile Play, Horizon, and Amazon variants when relevant.
 - For docs/API/type docs changes, run `bun audit:docs` or the documented audit
   command before pushing.

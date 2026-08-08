@@ -163,6 +163,19 @@ Use this gate whenever a release train upgrades package or framework
 dependencies. Treat the whole train as one validation loop rather than a set of
 independent version edits:
 
+- Use one dependency-modernization PR for the entire train. Keep dependency
+  upgrades, deprecation migrations, shared guards, and fixes found before merge
+  in that PR; do not split PRs by package, platform, or CI symptom.
+- Before merging that PR, preflight every affected release workflow together,
+  including repository-root path assumptions, runner/toolchain compatibility,
+  registry authentication and provenance, immutable tag recovery, and public
+  registry verification.
+- If an actual stable release from `main` exposes a previously unknowable CI
+  problem, pause the train and inspect all remaining release workflows before
+  writing a fix. Group every confirmed train-wide repair into one recovery PR;
+  never open one recovery PR per failed package. Add later findings to the
+  existing mutable recovery PR when one exists.
+
 1. Inventory every affected package's direct dependencies, build plugins,
    language/toolchain versions, lockfiles, and example-app dependencies. Compare
    them with authoritative upstream release and compatibility documentation.
