@@ -10,6 +10,7 @@ on:
       - "packages/apple/Package.swift"
       - "openiap-versions.json"
       - ".github/workflows/ci-flutter-inapp-purchase.yml"
+      - ".github/workflows/release-flutter.yml"
   push:
     branches: [main, next]
     paths:
@@ -19,6 +20,7 @@ on:
       - "packages/apple/Package.swift"
       - "openiap-versions.json"
       - ".github/workflows/ci-flutter-inapp-purchase.yml"
+      - ".github/workflows/release-flutter.yml"
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -80,3 +82,30 @@ jobs:
 
       - name: Build iOS and macOS examples with SwiftPM
         run: bash scripts/verify-apple-swiftpm-consumer-build.sh
+
+  apple-cocoapods:
+    name: iOS CocoaPods consumer (Flutter 3.44 + Xcode 16.4)
+    if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      XCODE_VERSION: 16.4
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 1
+          persist-credentials: false
+
+      - uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          flutter-version: "3.44.9"
+          cache: true
+
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@v1
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
+
+      - name: Build iOS CocoaPods consumer
+        run: bash scripts/verify-ios-cocoapods-consumer-build.sh
