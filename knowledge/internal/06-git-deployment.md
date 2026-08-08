@@ -167,6 +167,12 @@ the workflow must stop instead of rebasing unverified commits into the release;
 rerun the complete review, CI, and E2E gates on the new head, then dispatch the
 release again.
 
+The version commit and immutable provenance tag must be pushed atomically before
+publishing a framework package to its external registry. A `current` retry may
+reuse that tag to finish an interrupted publication, but if the registry already
+contains the version while its provenance tag is absent, stop instead of tagging
+the current branch tip as an unverified substitute.
+
 ### Deploying Apple Package (iOS/macOS)
 
 **Via GitHub Actions UI:**

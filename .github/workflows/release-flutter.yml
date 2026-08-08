@@ -387,7 +387,10 @@ jobs:
         env:
           NEW_VERSION: ${{ steps.bump.outputs.version }}
         run: |
-          git push origin "flutter-iap-${NEW_VERSION}"
+          RELEASE_TAG="flutter-iap-${NEW_VERSION}"
+          git push --atomic origin \
+            "$GITHUB_SHA:refs/heads/$RELEASE_BRANCH" \
+            "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
 
       - name: Generate release notes
         id: release_notes

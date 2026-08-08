@@ -234,16 +234,15 @@ jobs:
         run: |
           "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" ./gradlew :openiap:assembleAmazonDebug
 
-      # Play lint covers the shared API-23 source set, and Horizon lint covers
-      # its flavor-specific implementation. Amazon lint currently crashes in
-      # the upstream Compose detector on Kotlin metadata 2.2; audit:parity
-      # guards the known API-24 set factory across every minSdk-23 source tree.
+      # Run every store flavor so flavor-specific API-23 regressions cannot
+      # bypass lint coverage.
       - name: Lint Android API compatibility
         working-directory: packages/google
         run: |
           "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" ./gradlew \
             :openiap:lintPlayDebug \
-            :openiap:lintHorizonDebug
+            :openiap:lintHorizonDebug \
+            :openiap:lintAmazonDebug
 
   test-ios:
     name: Test iOS

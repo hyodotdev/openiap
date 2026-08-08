@@ -2774,6 +2774,45 @@ function checkFrameworkDependencyHygiene() {
       fail(`${packagePath} must not restore legacy ESLint configuration`);
     }
   }
+  const reactNativeExamplePackage = readJson(
+    "libraries/react-native-iap/example/package.json",
+  );
+  for (const babelPackage of [
+    "@babel/core",
+    "@babel/preset-env",
+    "@babel/runtime",
+  ]) {
+    if (
+      reactNativeExamplePackage.devDependencies?.[babelPackage] !== "^7.29.7"
+    ) {
+      fail(
+        `React Native example ${babelPackage} must use the audited Babel 7.29.7 compatibility line`,
+      );
+    }
+  }
+  expectIncludes(
+    "libraries/react-native-iap/yarn.lock",
+    [
+      'resolution: "@babel/core@npm:7.29.7"',
+      'resolution: "@babel/preset-env@npm:7.29.7"',
+      'resolution: "@babel/runtime@npm:7.29.7"',
+    ],
+    "React Native example Babel compatibility lock",
+  );
+  expectIncludes(
+    ".github/workflows/ci.yml",
+    [
+      ":openiap:lintPlayDebug",
+      ":openiap:lintHorizonDebug",
+      ":openiap:lintAmazonDebug",
+    ],
+    "Google CI must lint every store flavor for API-23 compatibility",
+  );
+  expectNotIncludes(
+    ".github/workflows/ci.yml",
+    ["Amazon lint currently crashes"],
+    "Google CI must not retain the obsolete Amazon lint exclusion",
+  );
   for (const configPath of [
     "libraries/expo-iap/eslint.config.js",
     "libraries/react-native-iap/eslint.config.js",
@@ -4213,12 +4252,12 @@ function checkFrameworkDependencyHygiene() {
     [
       ".github/workflows/release-expo.yml",
       "expo",
-      'git tag -a "expo-iap-${NEW_VERSION}"',
+      'git tag -a "$RELEASE_TAG" "$TAG_TARGET"',
     ],
     [
       ".github/workflows/release-react-native.yml",
       "react-native",
-      'git tag -a "react-native-iap-${NEW_VERSION}"',
+      'git tag -a "$RELEASE_TAG" "$TAG_TARGET"',
     ],
     [
       ".github/workflows/release-flutter.yml",
@@ -4228,7 +4267,7 @@ function checkFrameworkDependencyHygiene() {
     [
       ".github/workflows/release-godot.yml",
       "godot",
-      "git tag -a godot-iap-${{ steps.version.outputs.VERSION }}",
+      'git tag -a "$RELEASE_TAG"',
     ],
   ]) {
     expectIncludes(
@@ -4245,6 +4284,8 @@ function checkFrameworkDependencyHygiene() {
         '"$RELEASE_BRANCH" "$GITHUB_SHA"',
         tagCommand,
         'git push --atomic origin "HEAD:$RELEASE_BRANCH" --follow-tags',
+        '"$GITHUB_SHA:refs/heads/$RELEASE_BRANCH"',
+        '"refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"',
       ],
       `${frameworkReleaseWorkflow} must tag only the verified dispatch head`,
     );
@@ -4281,12 +4322,23 @@ function checkFrameworkDependencyHygiene() {
   ]) {
     expectIncludes(
       frameworkReleaseWorkflow,
-      ["assert-release-head.mjs", '"$RELEASE_BRANCH" "$GITHUB_SHA"'],
+      [
+        "assert-release-head.mjs",
+        '"$RELEASE_BRANCH" "$GITHUB_SHA"',
+        "published without a provenance tag",
+        "git push --atomic origin",
+        '"HEAD:$RELEASE_BRANCH"',
+        '"refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"',
+      ],
       `${frameworkReleaseWorkflow} must reject a stale dispatch head`,
     );
     expectNotIncludes(
       frameworkReleaseWorkflow,
-      ['git pull --rebase origin "$RELEASE_BRANCH"'],
+      [
+        'git pull --rebase origin "$RELEASE_BRANCH"',
+        'git push origin "HEAD:$RELEASE_BRANCH"',
+        'git push origin "$RELEASE_TAG"',
+      ],
       `${frameworkReleaseWorkflow} must not incorporate unverified branch changes`,
     );
   }
@@ -4299,6 +4351,10 @@ function checkFrameworkDependencyHygiene() {
     ".github/workflows/release-maui.yml",
     [
       "steps.version.outputs.skip_version_commit != 'true' || steps.check_tag.outputs.exists != 'true'",
+      "Check if NuGet package already published",
+      "Unable to verify OpenIap.Maui $VERSION on NuGet.org",
+      "if: steps.check_nuget.outputs.exists == 'false'",
+      "NUGET_API_KEY secret is required",
     ],
     "MAUI current-mode release must verify an untagged dispatch head",
   );
@@ -4684,6 +4740,8 @@ function checkFrameworkDependencyHygiene() {
       "immutable tag scheme cannot represent it",
       "still equal the workflow dispatch SHA after validation",
       "stop instead of rebasing unverified commits into the release",
+      "immutable provenance tag must be pushed atomically before",
+      "contains the version while its provenance tag is absent",
     ],
     "release deployment docs tag conventions",
   );
@@ -4691,6 +4749,16 @@ function checkFrameworkDependencyHygiene() {
     "scripts/deploy.sh",
     ['git commit -m "chore: bump spec'],
     "deploy script commit message must be conventional",
+  );
+  expectIncludes(
+    "scripts/deploy.sh",
+    [
+      "DOCS_TAG_STATUS=$?",
+      '[ "$DOCS_TAG_STATUS" -eq 2 ]',
+      "Unable to determine whether $DOCS_TAG exists",
+      "Check the remote tag state before creating a Docs GitHub Release",
+    ],
+    "docs deployment must distinguish a missing tag from remote lookup failures",
   );
   expectNotIncludes(
     ".github/workflows/release.yml",
@@ -4985,13 +5053,15 @@ function checkFrameworkDependencyHygiene() {
       "RELEASE_BRANCH: ${{ github.ref_name }}",
       "assert-release-head.mjs",
       '"$RELEASE_BRANCH" "$GITHUB_SHA"',
-      'git push origin "HEAD:$RELEASE_BRANCH"',
+      "published without a provenance tag",
+      "git push --atomic origin",
+      '"HEAD:$RELEASE_BRANCH"',
+      '"refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"',
       "https://repo1.maven.org/maven2/io/github/hyochan/kmp-iap/$VERSION/",
       "Unable to verify kmp-iap $VERSION on Maven Central",
       "if: steps.check_maven.outputs.exists == 'false'",
       "Create and push tag",
       'git tag -a "$RELEASE_TAG" -m "Release $RELEASE_TAG"',
-      'git push origin "$RELEASE_TAG"',
       "./gradlew :library:assembleRelease --no-daemon --stacktrace",
       "files: libraries/kmp-iap/release-artifacts.zip",
       'implementation("io.github.hyochan:kmp-iap:$VERSION")',
@@ -5089,7 +5159,11 @@ function checkFrameworkDependencyHygiene() {
     [
       "- name: Create and push tag",
       "if: success()",
-      'git tag -a "maui-iap-$VERSION" -m "Release maui-iap $VERSION"',
+      'git tag -a "$RELEASE_TAG" -m "Release $RELEASE_TAG"',
+      "published without a provenance tag",
+      "git push --atomic origin",
+      '"HEAD:$RELEASE_BRANCH"',
+      '"refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"',
     ],
     "MAUI release workflow must create tags before GitHub Release creation",
   );

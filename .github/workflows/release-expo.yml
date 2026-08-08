@@ -280,8 +280,11 @@ jobs:
           if [ -n "$PUBLISHED_GIT_HEAD" ] && git cat-file -e "$PUBLISHED_GIT_HEAD^{commit}" 2>/dev/null; then
             TAG_TARGET="$PUBLISHED_GIT_HEAD"
           fi
-          git tag -a "expo-iap-${NEW_VERSION}" "$TAG_TARGET" -m "Release expo-iap-${NEW_VERSION}"
-          git push origin "expo-iap-${NEW_VERSION}"
+          RELEASE_TAG="expo-iap-${NEW_VERSION}"
+          git tag -a "$RELEASE_TAG" "$TAG_TARGET" -m "Release $RELEASE_TAG"
+          git push --atomic origin \
+            "$GITHUB_SHA:refs/heads/$RELEASE_BRANCH" \
+            "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
 
       - name: Resolve symlinks for npm publish
         run: |

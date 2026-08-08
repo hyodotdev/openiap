@@ -404,16 +404,49 @@ test("framework release workflows refuse stale dispatch heads", () => {
         /git push origin "HEAD:\$RELEASE_BRANCH" --follow-tags/,
         filename,
       );
+      assert.match(
+        workflow,
+        /git push --atomic origin \\\n\s+"\$GITHUB_SHA:refs\/heads\/\$RELEASE_BRANCH" \\\n\s+"refs\/tags\/\$RELEASE_TAG:refs\/tags\/\$RELEASE_TAG"/,
+        `${filename} current-version push`,
+      );
     }
   }
 
+  const kmpWorkflow = readWorkflow("release-kmp.yml");
+  const mauiWorkflow = readWorkflow("release-maui.yml");
   assert.match(
-    readWorkflow("release-kmp.yml"),
+    kmpWorkflow,
     /if: \$\{\{ inputs\.version != 'current' \|\| steps\.check_tag\.outputs\.exists != 'true' \}\}/,
   );
   assert.match(
-    readWorkflow("release-maui.yml"),
+    mauiWorkflow,
     /if: \$\{\{ steps\.version\.outputs\.skip_version_commit != 'true' \|\| steps\.check_tag\.outputs\.exists != 'true' \}\}/,
+  );
+  for (const [filename, workflow, publishStep] of [
+    ["release-kmp.yml", kmpWorkflow, "Publish to Maven Central"],
+    ["release-maui.yml", mauiWorkflow, "Publish to NuGet.org"],
+  ]) {
+    assert.match(
+      workflow,
+      /git push --atomic origin \\\n\s+"HEAD:\$RELEASE_BRANCH" \\\n\s+"refs\/tags\/\$RELEASE_TAG:refs\/tags\/\$RELEASE_TAG"/,
+      filename,
+    );
+    assert.doesNotMatch(
+      workflow,
+      /git push origin "(?:HEAD:\$RELEASE_BRANCH|\$RELEASE_TAG|(?:kmp|maui)-iap-\$VERSION)"/,
+      filename,
+    );
+    assert.match(workflow, /published without a provenance tag/);
+    assert.ok(
+      workflow.indexOf("- name: Create and push tag") <
+        workflow.indexOf(`- name: ${publishStep}`),
+      `${filename} must push immutable provenance before registry publication`,
+    );
+  }
+  assert.match(mauiWorkflow, /Check if NuGet package already published/);
+  assert.match(
+    mauiWorkflow,
+    /if: steps\.check_nuget\.outputs\.exists == 'false'/,
   );
 });
 
@@ -462,11 +495,18 @@ test("production docs are guarded as stable-only", () => {
   assert.match(deployScript, /OpenIAP Spec cannot be bumped independently/);
   assert.match(deployScript, /DOCS_TAG="docs-\$VERSION"/);
   assert.match(deployScript, /git ls-remote --exit-code --tags origin/);
+  assert.match(deployScript, /DOCS_TAG_STATUS=\$\?/);
+  assert.match(deployScript, /\[ "\$DOCS_TAG_STATUS" -eq 2 \]/);
   assert.match(
     deployScript,
     /already exists, so no new Docs GitHub Release is needed/,
   );
   assert.match(deployScript, /has no Docs GitHub Release yet/);
+  assert.match(deployScript, /Unable to determine whether \$DOCS_TAG exists/);
+  assert.match(
+    deployScript,
+    /Check the remote tag state before creating a Docs GitHub Release/,
+  );
   assert.doesNotMatch(
     deployScript,
     /(?:\.spec\s*=\s*\$version|git commit|git push origin HEAD:main)/,
