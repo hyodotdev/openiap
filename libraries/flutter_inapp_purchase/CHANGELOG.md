@@ -1,5 +1,13 @@
 # Changelog
 
+## 10.1.0 (2026-08-08)
+
+- fix: harden remaining dependency release CI (#298)
+- chore(google): bump version to 3.1.0
+- chore: modernize library dependencies (#294)
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
+
+
 ## 10.0.1 (2026-08-03)
 
 - chore(google): bump version to 3.0.1
