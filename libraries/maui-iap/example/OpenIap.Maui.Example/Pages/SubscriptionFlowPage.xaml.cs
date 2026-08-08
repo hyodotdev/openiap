@@ -650,7 +650,20 @@ public partial class SubscriptionFlowPage : ContentPage
 
         if (!isRestoration)
         {
-            await VerifySubscriptionIfNeededAsync(purchase);
+            var verificationPassed = await VerifySubscriptionIfNeededAsync(purchase);
+            if (!verificationPassed)
+            {
+                if (!string.IsNullOrEmpty(purchaseId))
+                {
+                    _handledPurchaseIds.Remove(purchaseId);
+                }
+
+                UpdateResult("Subscription verification failed; the transaction was not finalized.");
+                _isHandlingPurchase = false;
+                _isProcessing = false;
+                RenderSubscriptions();
+                return;
+            }
         }
 
         _ = FinishSubscriptionTransactionAsync(purchase);
@@ -684,12 +697,12 @@ public partial class SubscriptionFlowPage : ContentPage
         }
     }
 
-    private async Task VerifySubscriptionIfNeededAsync(Purchase purchase)
+    private async Task<bool> VerifySubscriptionIfNeededAsync(Purchase purchase)
     {
-        if (_verification == VerificationMethod.Ignore) return;
+        if (_verification == VerificationMethod.Ignore) return true;
 
         var common = (PurchaseCommon)purchase;
-        if (string.IsNullOrEmpty(common.ProductId)) return;
+        if (string.IsNullOrEmpty(common.ProductId)) return true;
 
         try
         {
@@ -709,6 +722,7 @@ public partial class SubscriptionFlowPage : ContentPage
                     },
                 });
                 Console.WriteLine("[SubscriptionFlow] local verification completed");
+                return true;
             }
             else if (_verification == VerificationMethod.Iapkit)
             {
@@ -716,13 +730,13 @@ public partial class SubscriptionFlowPage : ContentPage
                 if (string.IsNullOrEmpty(token))
                 {
                     await DisplayAlertAsync("Verification Failed", "No purchase token available for IAPKit verification", "OK");
-                    return;
+                    return false;
                 }
 
                 var result = await mutate.VerifyPurchaseWithProviderAsync(new VerifyPurchaseWithProviderProps
                 {
                     Provider = PurchaseVerificationProvider.Iapkit,
-                    Iapkit = IapKitSettings.CreateVerifyProps(token),
+                    Iapkit = IapKitSettings.CreateVerifyProps(purchase),
                 });
 
                 if (result.Iapkit is { } ik)
@@ -732,7 +746,10 @@ public partial class SubscriptionFlowPage : ContentPage
                         $"{status} IAPKit Verification",
                         $"Valid: {ik.IsValid}\nState: {ik.State.ToJson()}\nStore: {ik.Store.ToJson()}",
                         "OK");
+                    return ik.IsValid;
                 }
+
+                return false;
             }
         }
         catch (Exception ex)
@@ -740,7 +757,10 @@ public partial class SubscriptionFlowPage : ContentPage
             await DisplayAlertAsync("Verification Failed",
                 $"Purchase verification failed: {ErrorUtils.ExtractErrorMessage(ex)}",
                 "OK");
+            return false;
         }
+
+        return true;
     }
 
     private void OnPurchaseError(PurchaseError error)

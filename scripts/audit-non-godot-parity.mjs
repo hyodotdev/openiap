@@ -2009,6 +2009,41 @@ function checkMaui() {
     "MAUI product constants",
   );
   expectIncludes(
+    rel(base, "Utils/IapKitSettings.cs"),
+    [
+      "CreateVerifyProps(Purchase purchase)",
+      "BaseUrl = BaseUrl",
+      "IapStore.Apple",
+      "IapStore.Google",
+      "IapStore.Amazon",
+      "RequestVerifyPurchaseWithIapkitAmazonProps",
+      "UserId = (purchase as PurchaseAndroid)?.UserIdAmazon",
+      "ReceiptId = token",
+    ],
+    "MAUI IAPKit verification must select one store payload and preserve the configured endpoint",
+  );
+  expectIncludes(
+    rel(base, "Platforms/Android/AndroidManifest.xml"),
+    ['android:usesCleartextTraffic="true"'],
+    "MAUI example Android manifest must allow local IAPKit E2E endpoints",
+  );
+  expectIncludes(
+    rel(base, "Pages/PurchaseFlowPage.xaml.cs"),
+    [
+      "if (!verificationPassed)",
+      "Purchase verification failed; the transaction was not finalized.",
+    ],
+    "MAUI purchase flow must not finalize purchases that fail verification",
+  );
+  expectIncludes(
+    rel(base, "Pages/SubscriptionFlowPage.xaml.cs"),
+    [
+      "Task<bool> VerifySubscriptionIfNeededAsync",
+      "Subscription verification failed; the transaction was not finalized.",
+    ],
+    "MAUI subscription flow must not finalize purchases that fail verification",
+  );
+  expectIncludes(
     "libraries/maui-iap/src/OpenIap.Maui.Bindings.iOS/ApiDefinition.cs",
     ["requestPurchaseWithPayload:completion:", "getStorefrontWithCompletion:"],
     "MAUI iOS binding",

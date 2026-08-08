@@ -386,6 +386,8 @@ public partial class PurchaseFlowPage : ContentPage
         UpdateResult($"Purchase completed successfully (state: {common.PurchaseState.ToJson()}).");
         RenderProducts();
 
+        var verificationPassed = true;
+
         // Step 4: verify purchase (3 methods).
         if (_verification != VerificationMethod.Ignore && !string.IsNullOrEmpty(common.ProductId))
         {
@@ -413,30 +415,44 @@ public partial class PurchaseFlowPage : ContentPage
                     if (string.IsNullOrEmpty(token))
                     {
                         await DisplayAlertAsync("Verification Failed", "No purchase token available for IAPKit verification", "OK");
+                        verificationPassed = false;
                     }
                     else
                     {
                         var result = await mutate.VerifyPurchaseWithProviderAsync(new VerifyPurchaseWithProviderProps
                         {
                             Provider = PurchaseVerificationProvider.Iapkit,
-                            Iapkit = IapKitSettings.CreateVerifyProps(token),
+                            Iapkit = IapKitSettings.CreateVerifyProps(purchase),
                         });
                         if (result.Iapkit is { } ik)
                         {
+                            verificationPassed = ik.IsValid;
                             var emoji = ik.IsValid ? "✅" : "⚠️";
                             await DisplayAlertAsync(
                                 $"{emoji} IAPKit Verification",
                                 $"Valid: {ik.IsValid}\nState: {ik.State.ToJson()}\nStore: {ik.Store.ToJson()}",
                                 "OK");
                         }
+                        else
+                        {
+                            verificationPassed = false;
+                        }
                     }
                 }
             }
             catch (Exception ex)
             {
+                verificationPassed = false;
                 await DisplayAlertAsync("Verification Failed",
                     $"Purchase verification failed: {ErrorUtils.ExtractErrorMessage(ex)}", "OK");
             }
+        }
+
+        if (!verificationPassed)
+        {
+            UpdateResult("Purchase verification failed; the transaction was not finalized.");
+            RenderProducts();
+            return;
         }
 
         var consumable = Constants.ConsumableProductIdSet.Contains(common.ProductId);
