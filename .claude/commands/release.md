@@ -206,6 +206,13 @@ independent version edits:
    is requested while `spec` is unchanged, stop and explain that the immutable
    tag scheme cannot represent a new release.
 
+Every `current` retry that finds an existing tag must run
+`scripts/assert-release-tag.mjs` before checking it out. The guard binds the
+expected package version to the tag's own metadata, the local tag to the
+immutable origin tag, and the peeled tag commit to the validated `main` or
+`next` branch. Never execute package build scripts merely because an existing
+tag has the expected name.
+
 Do not reuse review or E2E evidence from an earlier commit. A head change always
 restarts both gates.
 

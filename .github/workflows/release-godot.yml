@@ -263,6 +263,15 @@ jobs:
             echo "✓ Tag $RELEASE_TAG does not exist"
           fi
 
+      - name: Verify current release tag provenance
+        if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists == 'true' }}
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          RELEASE_TAG="godot-iap-${VERSION}"
+          node "$GITHUB_WORKSPACE/scripts/assert-release-tag.mjs" \
+            godot "$RELEASE_BRANCH" "$RELEASE_TAG" "$VERSION"
+
       - name: Checkout release tag (current version)
         if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists == 'true' }}
         env:

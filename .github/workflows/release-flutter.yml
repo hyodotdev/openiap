@@ -205,6 +205,8 @@ jobs:
           NEW_VERSION=$(awk '/^version:/{print $2; exit}' pubspec.yaml)
           RELEASE_TAG="flutter-iap-${NEW_VERSION}"
           if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+            node "$GITHUB_WORKSPACE/scripts/assert-release-tag.mjs" \
+              flutter "$RELEASE_BRANCH" "$RELEASE_TAG" "$NEW_VERSION"
             git checkout "$RELEASE_TAG"
             echo "checked_out=true" >> "$GITHUB_OUTPUT"
           else

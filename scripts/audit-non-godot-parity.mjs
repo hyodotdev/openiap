@@ -164,6 +164,87 @@ function read(relativePath) {
   return fs.readFileSync(abs(relativePath), "utf8");
 }
 
+function extractRunBlockContaining(source, marker) {
+  const lines = source.split("\n");
+  const markerIndex = lines.findIndex((line) => line.includes(marker));
+  if (markerIndex < 0) return "";
+
+  let runIndex = markerIndex;
+  while (runIndex >= 0 && !/^\s*run:\s*\|\s*$/.test(lines[runIndex])) {
+    runIndex -= 1;
+  }
+  if (runIndex < 0) return "";
+
+  const runIndent = lines[runIndex].match(/^\s*/)[0].length;
+  let endIndex = runIndex + 1;
+  while (endIndex < lines.length) {
+    const line = lines[endIndex];
+    if (line.trim() !== "" && line.match(/^\s*/)[0].length <= runIndent) {
+      break;
+    }
+    endIndex += 1;
+  }
+  return lines.slice(runIndex, endIndex).join("\n");
+}
+
+function extractNamedWorkflowStep(source, name) {
+  const lines = source.split("\n");
+  const startIndex = lines.findIndex(
+    (line) => line.trim() === `- name: ${name}`,
+  );
+  if (startIndex < 0) return null;
+
+  const stepIndent = lines[startIndex].match(/^\s*/)[0].length;
+  let endIndex = startIndex + 1;
+  while (endIndex < lines.length) {
+    const line = lines[endIndex];
+    if (
+      line.trim() !== "" &&
+      line.match(/^\s*/)[0].length === stepIndent &&
+      line.trim().startsWith("- ")
+    ) {
+      break;
+    }
+    endIndex += 1;
+  }
+  return {
+    endIndex,
+    source: lines.slice(startIndex, endIndex).join("\n"),
+    startIndex,
+  };
+}
+
+function findExecutableLineIndex(source, pattern, startIndex = 0) {
+  return source.split("\n").findIndex((line, index) => {
+    if (index < startIndex || line.trimStart().startsWith("#")) return false;
+    return pattern.test(line);
+  });
+}
+
+function extractAppleExistingTagBranches(source) {
+  const lines = source.split("\n");
+  const bareStart = lines.findIndex((line) =>
+    line.includes('if git rev-parse "$VERSION"'),
+  );
+  const legacyStart = lines.findIndex((line) =>
+    line.includes('elif git rev-parse "apple-v$VERSION"'),
+  );
+  if (bareStart < 0 || legacyStart <= bareStart) return null;
+
+  const legacyIndent = lines[legacyStart].match(/^\s*/)[0].length;
+  const outerElse = lines.findIndex(
+    (line, index) =>
+      index > legacyStart &&
+      line.match(/^\s*/)[0].length === legacyIndent &&
+      line.trim() === "else",
+  );
+  if (outerElse <= legacyStart) return null;
+  return {
+    bare: lines.slice(bareStart, legacyStart).join("\n"),
+    legacy: lines.slice(legacyStart, outerElse).join("\n"),
+  };
+}
+
 function readJson(relativePath) {
   return JSON.parse(read(relativePath));
 }
@@ -4317,6 +4398,217 @@ function checkFrameworkDependencyHygiene() {
     ],
     "framework release head guard",
   );
+  expectIncludes(
+    "scripts/assert-release-tag.mjs",
+    [
+      'runGit(["show", `${tag}:${config.path}`])',
+      '"ls-remote"',
+      "`refs/tags/${tag}^{}`",
+      '"merge-base", "--is-ancestor"',
+      "metadata version is",
+      "does not match its immutable origin tag commit",
+      "is not reachable from origin/",
+    ],
+    "existing release tag provenance guard",
+  );
+  expectIncludes(
+    ".github/workflows/release-apple.yml",
+    [
+      "SKIP_VERSION_COMMIT: ${{ steps.version.outputs.skip_version_commit }}",
+      'if [ "$SKIP_VERSION_COMMIT" = "true" ]; then',
+      "Use 'current' to retry with existing version.",
+    ],
+    "Apple release must reject existing tags outside a current retry",
+  );
+  const appleExistingTagCheck = extractRunBlockContaining(
+    read(".github/workflows/release-apple.yml"),
+    "Use 'current' to retry with existing version.",
+  );
+  const appleTagBranches = extractAppleExistingTagBranches(
+    appleExistingTagCheck,
+  );
+  if (!appleTagBranches) {
+    fail(
+      "Apple release must reject both existing bare and legacy tags outside a current retry",
+    );
+  } else {
+    for (const [name, branch] of Object.entries(appleTagBranches)) {
+      const expectedError = new RegExp(
+        `${name === "legacy" ? "Legacy tag apple-v" : "Tag "}\\$VERSION already exists\\. Use 'current' to retry with existing version\\.`,
+      );
+      if (
+        !/if \[ "\$SKIP_VERSION_COMMIT" = "true" \]; then/.test(branch) ||
+        !expectedError.test(branch) ||
+        findExecutableLineIndex(branch, /^\s*exit 1\s*$/) < 0
+      ) {
+        fail(
+          `Apple ${name} existing-tag branch must execute exit 1 outside a current retry`,
+        );
+      }
+    }
+  }
+  for (const [frameworkReleaseWorkflow, packageId] of [
+    [".github/workflows/release-apple.yml", "apple"],
+    [".github/workflows/release-google.yml", "google"],
+    [".github/workflows/release-expo.yml", "expo"],
+    [".github/workflows/release-react-native.yml", "react-native"],
+    [".github/workflows/release-flutter.yml", "flutter"],
+    [".github/workflows/release-godot.yml", "godot"],
+    [".github/workflows/release-kmp.yml", "kmp"],
+    [".github/workflows/release-maui.yml", "maui"],
+  ]) {
+    expectIncludes(
+      frameworkReleaseWorkflow,
+      ["assert-release-tag.mjs", `${packageId} \"$RELEASE_BRANCH\"`],
+      `${frameworkReleaseWorkflow} must validate existing tag provenance`,
+    );
+    const workflowSource = read(frameworkReleaseWorkflow);
+    if (
+      workflowSource.indexOf("assert-release-tag.mjs") >
+      workflowSource.indexOf("git checkout")
+    ) {
+      fail(
+        `${frameworkReleaseWorkflow} must validate existing tag provenance before checkout`,
+      );
+    }
+  }
+  for (const [frameworkReleaseWorkflow, packageId] of [
+    [".github/workflows/release-apple.yml", "apple"],
+    [".github/workflows/release-google.yml", "google"],
+    [".github/workflows/release-expo.yml", "expo"],
+    [".github/workflows/release-react-native.yml", "react-native"],
+    [".github/workflows/release-flutter.yml", "flutter"],
+  ]) {
+    const existingTagRunBlock = extractRunBlockContaining(
+      read(frameworkReleaseWorkflow),
+      "assert-release-tag.mjs",
+    );
+    const guardIndex = findExecutableLineIndex(
+      existingTagRunBlock,
+      /^\s*node\b.*assert-release-tag\.mjs"?\s*\\\s*$/,
+    );
+    const packageIndex = findExecutableLineIndex(
+      existingTagRunBlock,
+      new RegExp(`^\\s*${packageId} "\\$RELEASE_BRANCH"`),
+      guardIndex + 1,
+    );
+    const checkoutIndex = findExecutableLineIndex(
+      existingTagRunBlock,
+      /^\s*git checkout\b/,
+      packageIndex + 1,
+    );
+    if (!(
+      guardIndex >= 0 &&
+      packageIndex === guardIndex + 1 &&
+      checkoutIndex > packageIndex
+    )) {
+      fail(
+        `${frameworkReleaseWorkflow} must guard and check out the existing tag in one shell block`,
+      );
+    }
+  }
+  for (const [frameworkReleaseWorkflow, expectedIf] of [
+    [
+      ".github/workflows/release-apple.yml",
+      "if: steps.version.outputs.skip_version_commit == 'true' && steps.check_tag.outputs.exists == 'true'",
+    ],
+    [
+      ".github/workflows/release-google.yml",
+      "if: steps.version.outputs.skip_version_commit == 'true' && steps.check_tag.outputs.exists == 'true'",
+    ],
+    [
+      ".github/workflows/release-expo.yml",
+      "if: ${{ inputs.version == 'current' }}",
+    ],
+    [
+      ".github/workflows/release-react-native.yml",
+      "if: ${{ inputs.version == 'current' }}",
+    ],
+    [
+      ".github/workflows/release-flutter.yml",
+      "if: ${{ inputs.version == 'current' }}",
+    ],
+  ]) {
+    const tagStep = extractNamedWorkflowStep(
+      read(frameworkReleaseWorkflow),
+      "Checkout release tag (current version)",
+    );
+    const tagStepIf = tagStep?.source
+      .split("\n")
+      .find((line) => line.trim().startsWith("if:"))
+      ?.trim();
+    const guardIndex = tagStep
+      ? findExecutableLineIndex(
+          tagStep.source,
+          /^\s*node\b.*assert-release-tag\.mjs"?\s*\\\s*$/,
+        )
+      : -1;
+    const checkoutIndex = tagStep
+      ? findExecutableLineIndex(
+          tagStep.source,
+          /^\s*git checkout\b/,
+          guardIndex + 1,
+        )
+      : -1;
+    if (
+      !tagStep ||
+      tagStepIf !== expectedIf ||
+      guardIndex < 0 ||
+      checkoutIndex <= guardIndex
+    ) {
+      fail(
+        `${frameworkReleaseWorkflow} must condition and execute its existing-tag guard before checkout`,
+      );
+    }
+  }
+  for (const [frameworkReleaseWorkflow, expectedIf] of [
+    [
+      ".github/workflows/release-godot.yml",
+      "if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists == 'true' }}",
+    ],
+    [
+      ".github/workflows/release-kmp.yml",
+      "if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists == 'true' }}",
+    ],
+    [
+      ".github/workflows/release-maui.yml",
+      "if: steps.version.outputs.skip_version_commit == 'true' && steps.check_tag.outputs.exists == 'true'",
+    ],
+  ]) {
+    const workflowSource = read(frameworkReleaseWorkflow);
+    const guardStep = extractNamedWorkflowStep(
+      workflowSource,
+      "Verify current release tag provenance",
+    );
+    const checkoutStep = extractNamedWorkflowStep(
+      workflowSource,
+      "Checkout release tag (current version)",
+    );
+    const guardIf = guardStep?.source
+      .split("\n")
+      .find((line) => line.trim().startsWith("if:"))
+      ?.trim();
+    const checkoutIf = checkoutStep?.source
+      .split("\n")
+      .find((line) => line.trim().startsWith("if:"))
+      ?.trim();
+    if (
+      !guardStep ||
+      !checkoutStep ||
+      guardIf !== expectedIf ||
+      checkoutIf !== expectedIf ||
+      findExecutableLineIndex(
+        guardStep.source,
+        /^\s*node\b.*assert-release-tag\.mjs"?\s*\\\s*$/,
+      ) < 0 ||
+      findExecutableLineIndex(checkoutStep.source, /^\s*git checkout\b/) < 0 ||
+      guardStep.endIndex !== checkoutStep.startIndex
+    ) {
+      fail(
+        `${frameworkReleaseWorkflow} must place an identically conditioned provenance guard immediately before existing-tag checkout`,
+      );
+    }
+  }
   for (const frameworkReleaseWorkflow of [
     ".github/workflows/release-react-native.yml",
     ".github/workflows/release-expo.yml",

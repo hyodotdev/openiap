@@ -19,6 +19,7 @@ import {
   validateVersion,
   withUpdatedNativeVersion,
 } from "./release-branch-policy.mjs";
+import { assertReleaseTag } from "./assert-release-tag.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -48,6 +49,103 @@ const prereleaseCiWorkflows = [
 function readWorkflow(filename) {
   return readFileSync(resolve(repoRoot, ".github/workflows", filename), "utf8");
 }
+
+function extractRunBlockContaining(workflow, marker) {
+  const lines = workflow.split("\n");
+  const markerIndex = lines.findIndex((line) => line.includes(marker));
+  assert.notEqual(markerIndex, -1, `missing run-block marker: ${marker}`);
+
+  let runIndex = markerIndex;
+  while (runIndex >= 0 && !/^\s*run:\s*\|\s*$/.test(lines[runIndex])) {
+    runIndex -= 1;
+  }
+  assert.notEqual(runIndex, -1, `missing run block for: ${marker}`);
+
+  const runIndent = lines[runIndex].match(/^\s*/)[0].length;
+  let endIndex = runIndex + 1;
+  while (endIndex < lines.length) {
+    const line = lines[endIndex];
+    if (line.trim() !== "" && line.match(/^\s*/)[0].length <= runIndent) {
+      break;
+    }
+    endIndex += 1;
+  }
+  return lines.slice(runIndex, endIndex).join("\n");
+}
+
+function extractNamedStep(workflow, name) {
+  const lines = workflow.split("\n");
+  const startIndex = lines.findIndex(
+    (line) => line.trim() === `- name: ${name}`,
+  );
+  assert.notEqual(startIndex, -1, `missing workflow step: ${name}`);
+
+  const stepIndent = lines[startIndex].match(/^\s*/)[0].length;
+  let endIndex = startIndex + 1;
+  while (endIndex < lines.length) {
+    const line = lines[endIndex];
+    if (
+      line.trim() !== "" &&
+      line.match(/^\s*/)[0].length === stepIndent &&
+      line.trim().startsWith("- ")
+    ) {
+      break;
+    }
+    endIndex += 1;
+  }
+  return {
+    endIndex,
+    source: lines.slice(startIndex, endIndex).join("\n"),
+    startIndex,
+  };
+}
+
+function findExecutableLineIndex(source, pattern, startIndex = 0) {
+  return source.split("\n").findIndex((line, index) => {
+    if (index < startIndex || line.trimStart().startsWith("#")) return false;
+    return pattern.test(line);
+  });
+}
+
+function extractAppleExistingTagBranches(source) {
+  const lines = source.split("\n");
+  const bareStart = lines.findIndex((line) =>
+    line.includes('if git rev-parse "$VERSION"'),
+  );
+  const legacyStart = lines.findIndex((line) =>
+    line.includes('elif git rev-parse "apple-v$VERSION"'),
+  );
+  assert.ok(bareStart >= 0 && legacyStart > bareStart);
+
+  const legacyIndent = lines[legacyStart].match(/^\s*/)[0].length;
+  const outerElse = lines.findIndex(
+    (line, index) =>
+      index > legacyStart &&
+      line.match(/^\s*/)[0].length === legacyIndent &&
+      line.trim() === "else",
+  );
+  assert.ok(outerElse > legacyStart);
+  return {
+    bare: lines.slice(bareStart, legacyStart).join("\n"),
+    legacy: lines.slice(legacyStart, outerElse).join("\n"),
+  };
+}
+
+test("workflow shell guards ignore commented command decoys", () => {
+  const commented = [
+    "# node scripts/assert-release-tag.mjs \\",
+    '#   apple "$RELEASE_BRANCH" "$RELEASE_TAG" "$VERSION"',
+    '# git checkout "$RELEASE_TAG"',
+  ].join("\n");
+  assert.equal(
+    findExecutableLineIndex(
+      commented,
+      /^\s*node\b.*assert-release-tag\.mjs"?\s*\\\s*$/,
+    ),
+    -1,
+  );
+  assert.equal(findExecutableLineIndex(commented, /^\s*git checkout\b/), -1);
+});
 
 test("normalizes Git branch refs", () => {
   assert.equal(normalizeBranch("refs/heads/next"), "next");
@@ -357,6 +455,82 @@ test("all package release workflows enforce the branch policy", () => {
   }
 });
 
+test("existing release tags must match metadata, origin, and release-branch ancestry", () => {
+  const tagCommit = "b".repeat(40);
+  const remoteHead = "c".repeat(40);
+  const cases = [
+    ["apple", "3.1.0", '{"apple":"3.1.0"}'],
+    ["google", "google-3.1.0", '{"google":"3.1.0"}'],
+    ["expo", "expo-iap-3.1.0", '{"version":"3.1.0"}'],
+    ["react-native", "react-native-iap-3.1.0", '{"version":"3.1.0"}'],
+    ["flutter", "flutter-iap-3.1.0", "version: 3.1.0\n"],
+    ["godot", "godot-iap-3.1.0", 'version="3.1.0"\n'],
+    ["kmp", "kmp-iap-3.1.0", "libraryVersion=3.1.0\n"],
+    [
+      "maui",
+      "maui-iap-3.1.0",
+      "<PropertyGroup><PackageVersion>3.1.0</PackageVersion></PropertyGroup>",
+    ],
+  ];
+
+  function gitMock(tag, metadata, overrides = {}) {
+    return (args) => {
+      switch (args[0]) {
+        case "show":
+          return overrides.metadata ?? metadata;
+        case "rev-parse":
+          return args[1].startsWith("refs/remotes/") ? remoteHead : tagCommit;
+        case "ls-remote":
+          return `${"a".repeat(40)}\trefs/tags/${tag}\n${overrides.remoteTagCommit ?? tagCommit}\trefs/tags/${tag}^{}`;
+        case "fetch":
+          return "";
+        case "merge-base":
+          if (overrides.offBranch) throw new Error("not an ancestor");
+          return "";
+        default:
+          throw new Error(`Unexpected git command: ${args.join(" ")}`);
+      }
+    };
+  }
+
+  for (const [packageId, tag, metadata] of cases) {
+    assert.doesNotThrow(() =>
+      assertReleaseTag(
+        { packageId, branch: "main", tag, expectedVersion: "3.1.0" },
+        gitMock(tag, metadata),
+      ),
+    );
+  }
+
+  const [packageId, tag, metadata] = cases.find(
+    ([candidate]) => candidate === "kmp",
+  );
+  assert.throws(
+    () =>
+      assertReleaseTag(
+        { packageId, branch: "main", tag, expectedVersion: "3.1.0" },
+        gitMock(tag, metadata, { metadata: "libraryVersion=9.9.9\n" }),
+      ),
+    /metadata version is 9\.9\.9, expected 3\.1\.0/,
+  );
+  assert.throws(
+    () =>
+      assertReleaseTag(
+        { packageId, branch: "main", tag, expectedVersion: "3.1.0" },
+        gitMock(tag, metadata, { remoteTagCommit: "d".repeat(40) }),
+      ),
+    /does not match its immutable origin tag commit/,
+  );
+  assert.throws(
+    () =>
+      assertReleaseTag(
+        { packageId, branch: "main", tag, expectedVersion: "3.1.0" },
+        gitMock(tag, metadata, { offBranch: true }),
+      ),
+    /is not reachable from origin\/main/,
+  );
+});
+
 test("framework release workflows refuse stale dispatch heads", () => {
   const guardScript = readFileSync(
     resolve(repoRoot, "scripts/assert-release-head.mjs"),
@@ -366,6 +540,171 @@ test("framework release workflows refuse stale dispatch heads", () => {
   assert.match(guardScript, /"ls-remote", "--exit-code", "origin", ref/);
   assert.match(guardScript, /remoteHead !== expectedHead/);
   assert.match(guardScript, /review, CI, and E2E evidence/);
+
+  const tagGuardScript = readFileSync(
+    resolve(repoRoot, "scripts/assert-release-tag.mjs"),
+    "utf8",
+  );
+  assert.match(tagGuardScript, /git.*show/s);
+  assert.match(tagGuardScript, /ls-remote/);
+  assert.match(tagGuardScript, /refs\/tags/);
+  assert.match(tagGuardScript, /merge-base/);
+  assert.match(tagGuardScript, /--is-ancestor/);
+  assert.match(tagGuardScript, /metadata version is/);
+
+  const appleExistingTagCheck = extractRunBlockContaining(
+    readWorkflow("release-apple.yml"),
+    "Use 'current' to retry with existing version.",
+  );
+  const appleTagBranches = extractAppleExistingTagBranches(
+    appleExistingTagCheck,
+  );
+  for (const [name, branch] of Object.entries(appleTagBranches)) {
+    assert.match(
+      branch,
+      /if \[ "\$SKIP_VERSION_COMMIT" = "true" \]; then/,
+      name,
+    );
+    assert.match(
+      branch,
+      new RegExp(
+        `${name === "legacy" ? "Legacy tag apple-v" : "Tag "}\\$VERSION already exists\\. Use 'current' to retry with existing version\\.`,
+      ),
+      name,
+    );
+    assert.notEqual(
+      findExecutableLineIndex(branch, /^\s*exit 1\s*$/),
+      -1,
+      `${name} existing-tag rejection must execute exit 1`,
+    );
+  }
+
+  for (const [filename, packageId] of [
+    ["release-apple.yml", "apple"],
+    ["release-google.yml", "google"],
+    ["release-expo.yml", "expo"],
+    ["release-react-native.yml", "react-native"],
+    ["release-flutter.yml", "flutter"],
+  ]) {
+    const workflow = readWorkflow(filename);
+    const existingTagRunBlock = extractRunBlockContaining(
+      workflow,
+      "assert-release-tag.mjs",
+    );
+    const guardIndex = findExecutableLineIndex(
+      existingTagRunBlock,
+      /^\s*node\b.*assert-release-tag\.mjs"?\s*\\\s*$/,
+    );
+    const packageArgumentIndex = findExecutableLineIndex(
+      existingTagRunBlock,
+      new RegExp(`^\\s*${packageId} "\\$RELEASE_BRANCH"`),
+      guardIndex + 1,
+    );
+    const checkoutIndex = findExecutableLineIndex(
+      existingTagRunBlock,
+      /^\s*git checkout\b/,
+      packageArgumentIndex + 1,
+    );
+    assert.ok(
+      guardIndex >= 0 &&
+        packageArgumentIndex === guardIndex + 1 &&
+        checkoutIndex > packageArgumentIndex,
+      `${filename} must verify and check out the tag in one shell block`,
+    );
+  }
+
+  for (const [filename, expectedIf] of [
+    [
+      "release-apple.yml",
+      "if: steps.version.outputs.skip_version_commit == 'true' && steps.check_tag.outputs.exists == 'true'",
+    ],
+    [
+      "release-google.yml",
+      "if: steps.version.outputs.skip_version_commit == 'true' && steps.check_tag.outputs.exists == 'true'",
+    ],
+    ["release-expo.yml", "if: ${{ inputs.version == 'current' }}"],
+    ["release-react-native.yml", "if: ${{ inputs.version == 'current' }}"],
+    ["release-flutter.yml", "if: ${{ inputs.version == 'current' }}"],
+  ]) {
+    const tagStep = extractNamedStep(
+      readWorkflow(filename),
+      "Checkout release tag (current version)",
+    );
+    const tagStepIf = tagStep.source
+      .split("\n")
+      .find((line) => line.trim().startsWith("if:"));
+    assert.equal(tagStepIf?.trim(), expectedIf, filename);
+    const guardIndex = findExecutableLineIndex(
+      tagStep.source,
+      /^\s*node\b.*assert-release-tag\.mjs"?\s*\\\s*$/,
+    );
+    const checkoutIndex = findExecutableLineIndex(
+      tagStep.source,
+      /^\s*git checkout\b/,
+      guardIndex + 1,
+    );
+    assert.ok(
+      guardIndex >= 0 && checkoutIndex > guardIndex,
+      `${filename} must execute the guard before checkout in the conditioned step`,
+    );
+  }
+
+  for (const [filename, expectedIf] of [
+    [
+      "release-godot.yml",
+      "if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists == 'true' }}",
+    ],
+    [
+      "release-kmp.yml",
+      "if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists == 'true' }}",
+    ],
+    [
+      "release-maui.yml",
+      "if: steps.version.outputs.skip_version_commit == 'true' && steps.check_tag.outputs.exists == 'true'",
+    ],
+  ]) {
+    const workflow = readWorkflow(filename);
+    const guardStep = extractNamedStep(
+      workflow,
+      "Verify current release tag provenance",
+    );
+    const checkoutStep = extractNamedStep(
+      workflow,
+      "Checkout release tag (current version)",
+    );
+    const guardIf = guardStep.source
+      .split("\n")
+      .find((line) => line.trim().startsWith("if:"));
+    const checkoutIf = checkoutStep.source
+      .split("\n")
+      .find((line) => line.trim().startsWith("if:"));
+    assert.equal(
+      guardIf?.trim(),
+      expectedIf,
+      `${filename} guard step must use the existing-tag condition`,
+    );
+    assert.equal(
+      checkoutIf?.trim(),
+      expectedIf,
+      `${filename} checkout step must use the same condition`,
+    );
+    assert.notEqual(
+      findExecutableLineIndex(
+        guardStep.source,
+        /^\s*node\b.*assert-release-tag\.mjs"?\s*\\\s*$/,
+      ),
+      -1,
+    );
+    assert.notEqual(
+      findExecutableLineIndex(checkoutStep.source, /^\s*git checkout\b/),
+      -1,
+    );
+    assert.equal(
+      guardStep.endIndex,
+      checkoutStep.startIndex,
+      `${filename} guard step must be immediately before checkout`,
+    );
+  }
 
   for (const filename of [
     "release-expo.yml",

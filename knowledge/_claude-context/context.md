@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-08-08T02:40:31.929Z
+> Last updated: 2026-08-08T03:11:28.150Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -1933,6 +1933,13 @@ publishing a framework package to its external registry. A `current` retry may
 reuse that tag to finish an interrupted publication, but if the registry already
 contains the version while its provenance tag is absent, stop instead of tagging
 the current branch tip as an unverified substitute.
+
+Before any `current` retry checks out an existing release tag, run
+`scripts/assert-release-tag.mjs`. The guard must prove that the local tag matches
+the immutable origin tag, its package metadata declares the expected version,
+and its peeled commit is reachable from the validated `main` or `next` release
+branch. Do this before executing build scripts or loading package content from
+the tag; a matching tag name alone is not reviewed-branch provenance.
 
 When `current` must create a missing tag for a version that is not yet published,
 the workflow creates an empty provenance-recovery commit and atomically pushes

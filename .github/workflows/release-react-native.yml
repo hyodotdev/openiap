@@ -194,6 +194,8 @@ jobs:
           NEW_VERSION=$(node -p "require('./package.json').version")
           RELEASE_TAG="react-native-iap-${NEW_VERSION}"
           if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+            node "$GITHUB_WORKSPACE/scripts/assert-release-tag.mjs" \
+              react-native "$RELEASE_BRANCH" "$RELEASE_TAG" "$NEW_VERSION"
             git checkout "$RELEASE_TAG"
           else
             echo "Tag $RELEASE_TAG does not exist; current mode will use HEAD."
