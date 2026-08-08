@@ -44,6 +44,28 @@ describe("review workflow fallback contract", () => {
     expect(reviewPr).not.toContain("Copilot");
   });
 
+  test("review-pr removes only temporary CodeRabbit command noise", () => {
+    const reviewPr = readRepositoryFile(".claude/commands/review-pr.md");
+    const cleanupScript = reviewPr.match(
+      /### Cleanup Review Trigger Comments[\s\S]*?```bash\n([\s\S]*?)\n```/,
+    )?.[1];
+
+    expect(normalizeWhitespace(cleanupScript ?? "")).toBe(
+      normalizeWhitespace(`gh api repos/hyodotdev/openiap/issues/$PR_NUMBER/comments --paginate --jq '
+  .[]
+  | select(
+      .body == "@coderabbitai review"
+      or (.user.login == "coderabbitai[bot]" and (.body | contains("CodeRabbit review command invocation")))
+    )
+  | .id' | while read comment_id; do
+  [ -n "$comment_id" ] && gh api -X DELETE "repos/hyodotdev/openiap/issues/comments/$comment_id"
+done`),
+    );
+    expect(normalizeWhitespace(reviewPr)).toContain(
+      "Do **not** delete inline review replies, actual reviewer summaries, CodeRabbit walkthrough comments, or any comment containing substantive review feedback",
+    );
+  });
+
   test("review-self exposes a non-recursive single-round fallback", () => {
     const reviewSelf = normalizeWhitespace(
       readRepositoryFile(".codex/skills/review-self/SKILL.md"),

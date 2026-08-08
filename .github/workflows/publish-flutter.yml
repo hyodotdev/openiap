@@ -80,28 +80,39 @@ jobs:
             exit 1
           fi
 
-          SOURCE_RUN_JSON=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID")
+          AUTHORIZATION_DIR="$RUNNER_TEMP/flutter-publish-authorization"
+          AUTHORIZATION_FILE="$AUTHORIZATION_DIR/flutter-publish-authorization.json"
+          gh run download "$SOURCE_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "$AUTHORIZATION_NAME" \
+            --dir "$AUTHORIZATION_DIR"
+          AUTHORIZATION_RUN_ID=$(jq -r '.sourceRunId // ""' "$AUTHORIZATION_FILE")
+          SOURCE_RUN_ATTEMPT=$(jq -r '.sourceRunAttempt // ""' "$AUTHORIZATION_FILE")
+          if [ "$AUTHORIZATION_RUN_ID" != "$SOURCE_RUN_ID" ] || \
+             ! [[ "$SOURCE_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]]; then
+            echo "::error::Release authorization does not identify its exact source run attempt"
+            exit 1
+          fi
+
+          SOURCE_RUN_JSON=$(gh api \
+            "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID/attempts/$SOURCE_RUN_ATTEMPT")
           SOURCE_REPOSITORY=$(jq -r '.repository.full_name // ""' <<< "$SOURCE_RUN_JSON")
           SOURCE_WORKFLOW_PATH=$(jq -r '.path // ""' <<< "$SOURCE_RUN_JSON")
           SOURCE_EVENT=$(jq -r '.event // ""' <<< "$SOURCE_RUN_JSON")
           SOURCE_BRANCH_ACTUAL=$(jq -r '.head_branch // ""' <<< "$SOURCE_RUN_JSON")
           SOURCE_HEAD_SHA=$(jq -r '.head_sha // ""' <<< "$SOURCE_RUN_JSON")
-          SOURCE_RUN_ATTEMPT=$(jq -r '.run_attempt // ""' <<< "$SOURCE_RUN_JSON")
+          SOURCE_RUN_ATTEMPT_ACTUAL=$(jq -r '.run_attempt // ""' <<< "$SOURCE_RUN_JSON")
           if [ "$SOURCE_REPOSITORY" != "$GITHUB_REPOSITORY" ] || \
              [ "$SOURCE_WORKFLOW_PATH" != ".github/workflows/release-flutter.yml" ] || \
              [ "$SOURCE_EVENT" != "workflow_dispatch" ] || \
-             [ "$SOURCE_BRANCH_ACTUAL" != "$SOURCE_BRANCH" ]; then
+             [ "$SOURCE_BRANCH_ACTUAL" != "$SOURCE_BRANCH" ] || \
+             [ "$SOURCE_RUN_ATTEMPT_ACTUAL" != "$SOURCE_RUN_ATTEMPT" ]; then
             echo "::error::Release authorization source does not match the guarded Flutter release workflow"
             exit 1
           fi
 
-          AUTHORIZATION_DIR="$RUNNER_TEMP/flutter-publish-authorization"
-          gh run download "$SOURCE_RUN_ID" \
-            --repo "$GITHUB_REPOSITORY" \
-            --name "$AUTHORIZATION_NAME" \
-            --dir "$AUTHORIZATION_DIR"
           node "$GITHUB_WORKSPACE/scripts/npm-publish-authorization.mjs" verify \
-            "$AUTHORIZATION_DIR/flutter-publish-authorization.json" \
+            "$AUTHORIZATION_FILE" \
             "$GITHUB_REPOSITORY" ".github/workflows/release-flutter.yml" \
             "$SOURCE_RUN_ID" "$SOURCE_RUN_ATTEMPT" "$SOURCE_BRANCH" \
             "$SOURCE_HEAD_SHA" "$GITHUB_REF_NAME" "$GITHUB_SHA"

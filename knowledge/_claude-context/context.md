@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-08-08T02:27:07.223Z
+> Last updated: 2026-08-08T02:40:31.929Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -1955,8 +1955,11 @@ was dispatched by a successful branch-ref run of the same release workflow. The
 branch run uploads an immutable, run-attempt-scoped authorization artifact that
 names the exact repository, workflow, source branch/SHA, release tag, and tag
 SHA; the tag publisher must download it from the supplied source run and match
-every field before publishing. A merely successful historical run is not valid
-authorization for another tag.
+every field before publishing. Resolve the authorization's recorded attempt with
+GitHub's attempt-specific run endpoint; a later rerun of the same source run ID
+must not invalidate an earlier valid artifact by substituting the run's latest
+attempt metadata. A merely successful historical run is not valid authorization
+for another tag.
 Before accepting an already-published version, and again after a new publish,
 run npm's signature audit to authenticate the Sigstore bundle and bind it to the
 published tarball, then inspect only that audit's returned verified bundle when

@@ -243,6 +243,11 @@ the guarded `release-flutter.yml` run before requesting OIDC. If an unpublished
 tag predates this authorization lane or its artifact expired, do not rerun its
 legacy publisher; release a new reviewed version.
 
+The publisher validates the exact source attempt recorded in the authorization
+artifact through GitHub's attempt-specific run endpoint. Rerunning the source
+release workflow must not replace that attempt with the run ID's latest attempt
+metadata or invalidate an otherwise valid immutable-tag retry.
+
 The repository's `pub.dev` GitHub Environment must have a required-reviewer or
 equivalent deployment-protection rule, and the pub.dev package Admin setting
 must require that exact `pub.dev` environment. Verify both external settings

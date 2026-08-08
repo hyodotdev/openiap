@@ -648,6 +648,19 @@ test("Flutter publication is triggered by the immutable tag push", () => {
     /SOURCE_WORKFLOW_PATH" != "\.github\/workflows\/release-flutter\.yml"/,
   );
   assert.match(publishWorkflow, /gh run download "\$SOURCE_RUN_ID"/);
+  assert.match(
+    publishWorkflow,
+    /SOURCE_RUN_ATTEMPT=\$\(jq -r '\.sourceRunAttempt \/\/ ""'/,
+  );
+  assert.match(
+    publishWorkflow,
+    /actions\/runs\/\$SOURCE_RUN_ID\/attempts\/\$SOURCE_RUN_ATTEMPT/,
+  );
+  assert.match(
+    publishWorkflow,
+    /SOURCE_RUN_ATTEMPT_ACTUAL" != "\$SOURCE_RUN_ATTEMPT"/,
+  );
+  assert.doesNotMatch(publishWorkflow, /actions\/runs\/\$SOURCE_RUN_ID"\)/);
   assert.match(publishWorkflow, /npm-publish-authorization\.mjs" verify/);
   assert.match(
     releaseWorkflow,
