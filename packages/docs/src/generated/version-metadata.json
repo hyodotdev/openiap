@@ -1,7 +1,7 @@
 {
   "_generatedBy": "scripts/sync-versions.sh",
   "expoPackageVersion": "5.0.1",
-  "reactNativePackageVersion": "16.0.2",
+  "reactNativePackageVersion": "16.1.0",
   "flutterPackageVersion": "10.0.1",
   "godotPackageVersion": "3.0.2",
   "kmpPackageVersion": "3.0.1",
