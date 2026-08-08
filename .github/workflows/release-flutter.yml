@@ -111,41 +111,8 @@ jobs:
         with:
           xcode-version: ${{ env.XCODE_VERSION }}
 
-      - name: Select CocoaPods fallback
-        run: |
-          perl -0pi -e \
-            's/enable-swift-package-manager: true/enable-swift-package-manager: false/' \
-            example/pubspec.yaml
-          grep -Fq "enable-swift-package-manager: false" example/pubspec.yaml
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Install example dependencies
-        working-directory: libraries/flutter_inapp_purchase/example
-        run: flutter pub get
-
-      - name: Prepare example env
-        working-directory: libraries/flutter_inapp_purchase/example
-        run: cp env.example env
-
-      - name: Install CocoaPods dependencies
-        working-directory: libraries/flutter_inapp_purchase/example/ios
-        run: |
-          pod install --repo-update
-          grep -Eq '^[[:space:]]+- openiap ' Podfile.lock
-
-      - name: Build iOS
-        working-directory: libraries/flutter_inapp_purchase/example/ios
-        run: |
-          set -o pipefail
-          xcodebuild build \
-            -workspace Runner.xcworkspace \
-            -scheme Runner \
-            -destination 'generic/platform=iOS Simulator' \
-            -configuration Debug \
-            CODE_SIGNING_ALLOWED=NO \
-            COMPILER_INDEX_STORE_ENABLE=NO
+      - name: Build iOS CocoaPods consumer
+        run: bash scripts/verify-ios-cocoapods-consumer-build.sh
 
   validate-apple-swiftpm:
     needs: [release-branch]

@@ -7959,30 +7959,69 @@ function checkXcode27StoreKitCoverage() {
       `${workflowPath} Flutter Xcode 27 SwiftPM example build`,
     );
   }
+  for (const workflowPath of [
+    ".github/workflows/ci-flutter-inapp-purchase.yml",
+    ".github/workflows/release-flutter.yml",
+  ]) {
+    expectIncludes(
+      workflowPath,
+      ["bash scripts/verify-ios-cocoapods-consumer-build.sh"],
+      `${workflowPath} Flutter CocoaPods consumer build`,
+    );
+  }
   expectIncludes(
     ".github/workflows/ci-flutter-inapp-purchase.yml",
     [
       "packages/apple/Sources/**",
       "packages/apple/Package.swift",
       "openiap-versions.json",
+      '".github/workflows/release-flutter.yml"',
+      "apple-cocoapods:",
+      "runs-on: macos-15",
+      "XCODE_VERSION: 16.4",
+      "maxim-lobanov/setup-xcode@v1",
+      "xcode-version: ${{ env.XCODE_VERSION }}",
     ],
-    "Flutter Xcode 27 SwiftPM trigger coverage",
+    "Flutter Apple dependency-manager trigger and toolchain coverage",
   );
   expectIncludes(
     ".github/workflows/release-flutter.yml",
     [
-      "Select CocoaPods fallback",
-      "enable-swift-package-manager: false",
-      "grep -Eq '^[[:space:]]+- openiap ' Podfile.lock",
+      "Build iOS CocoaPods consumer",
       "validate-apple-swiftpm",
       "needs: [validate-android, validate-ios, validate-apple-swiftpm]",
     ],
     "Flutter release Apple dependency-manager coverage",
   );
+  expectNotIncludes(
+    ".github/workflows/release-flutter.yml",
+    [
+      "Select CocoaPods fallback",
+      "enable-swift-package-manager: false",
+      "example/pubspec.yaml",
+    ],
+    "Flutter release must not mutate the tracked SwiftPM example into a CocoaPods consumer",
+  );
   expectIncludes(
     "libraries/flutter_inapp_purchase/example/pubspec.yaml",
     ["enable-swift-package-manager: true"],
     "Flutter example SwiftPM enablement",
+  );
+  expectIncludes(
+    "libraries/flutter_inapp_purchase/scripts/verify-ios-cocoapods-consumer-build.sh",
+    [
+      "XDG_CONFIG_HOME",
+      "flutter config --no-enable-swift-package-manager",
+      "flutter create",
+      "ios/flutter_inapp_purchase.podspec",
+      "minimum_ios_version=",
+      '"flutter_inapp_purchase@{path: $package_root}"',
+      "FlutterGeneratedPluginSwiftPackage|XCLocalSwiftPackageReference",
+      "flutter build ios --simulator --debug --no-codesign",
+      "flutter_inapp_purchase ",
+      "openiap ",
+    ],
+    "Flutter CocoaPods consumer build isolation",
   );
   expectIncludes(
     "libraries/flutter_inapp_purchase/scripts/verify-apple-swiftpm-consumer-build.sh",
