@@ -189,7 +189,7 @@ public partial class AlternativeBillingPage : ContentPage
     private async void OnSelectFlowClicked(object sender, EventArgs e)
     {
 #if ANDROID
-        var choice = await DisplayActionSheet(
+        var choice = await DisplayActionSheetAsync(
             "Select Billing Flow",
             "Cancel",
             null,
@@ -220,7 +220,7 @@ public partial class AlternativeBillingPage : ContentPage
     private async void OnSelectProgramClicked(object sender, EventArgs e)
     {
 #if ANDROID
-        var choice = await DisplayActionSheet(
+        var choice = await DisplayActionSheetAsync(
             "Select Billing Program",
             "Cancel",
             null,
@@ -299,7 +299,7 @@ public partial class AlternativeBillingPage : ContentPage
         var externalUrl = ExternalUrlEntry.Text?.Trim();
         if (string.IsNullOrWhiteSpace(externalUrl))
         {
-            await DisplayAlert("Error", "Please enter a valid external purchase URL", "OK");
+            await DisplayAlertAsync("Error", "Please enter a valid external purchase URL", "OK");
             return;
         }
 
@@ -312,18 +312,18 @@ public partial class AlternativeBillingPage : ContentPage
             if (!string.IsNullOrEmpty(result.Error))
             {
                 ShowResult($"❌ Error: {result.Error}");
-                await DisplayAlert("Error", result.Error, "OK");
+                await DisplayAlertAsync("Error", result.Error, "OK");
             }
             else if (result.Success)
             {
                 ShowResult($"✅ External purchase link opened successfully\n\nProduct: {common.Id}\nURL: {externalUrl}\n\nUser was redirected to external website.\n\nNote: Complete purchase on your website and implement server-side validation.");
-                await DisplayAlert("Redirected", "User was redirected to your external purchase website. Complete the purchase there.", "OK");
+                await DisplayAlertAsync("Redirected", "User was redirected to your external purchase website. Complete the purchase there.", "OK");
             }
         }
         catch (Exception ex)
         {
             ShowResult($"❌ Error: {ErrorUtils.ExtractErrorMessage(ex)}");
-            await DisplayAlert("Error", ErrorUtils.ExtractErrorMessage(ex), "OK");
+            await DisplayAlertAsync("Error", ErrorUtils.ExtractErrorMessage(ex), "OK");
         }
         finally
         {
@@ -344,7 +344,7 @@ public partial class AlternativeBillingPage : ContentPage
             if (!availability.IsAvailable)
             {
                 ShowResult($"❌ Billing program not available\n\nProgram: {availability.BillingProgram.ToJson()}");
-                await DisplayAlert("Error", $"{ProgramName(_billingProgram)} is not available for this user/device", "OK");
+                await DisplayAlertAsync("Error", $"{ProgramName(_billingProgram)} is not available for this user/device", "OK");
                 return;
             }
 
@@ -363,12 +363,12 @@ public partial class AlternativeBillingPage : ContentPage
                 ? "missing"
                 : "present";
             ShowResult($"✅ Billing Programs API flow completed\n\nProduct: {common.Id}\nProgram: {details.BillingProgram.ToJson()}\nToken: {tokenStatus}\n\n⚠️ Important:\n1. Report token to Google Play within 24 hours\n2. Process payment on your external site");
-            await DisplayAlert("Demo Complete", "Billing Programs API flow completed.\n\nIn production, report the token to Google Play backend within 24 hours.", "OK");
+            await DisplayAlertAsync("Demo Complete", "Billing Programs API flow completed.\n\nIn production, report the token to Google Play backend within 24 hours.", "OK");
         }
         catch (Exception ex)
         {
             ShowResult($"❌ Error: {ErrorUtils.ExtractErrorMessage(ex)}");
-            await DisplayAlert("Error", ErrorUtils.ExtractErrorMessage(ex), "OK");
+            await DisplayAlertAsync("Error", ErrorUtils.ExtractErrorMessage(ex), "OK");
         }
         finally
         {
@@ -401,7 +401,7 @@ public partial class AlternativeBillingPage : ContentPage
             ShowResult(ErrorUtils.IsUserCancelled(ex) ? $"⚠️ {message}" : $"❌ {message}");
             if (!ErrorUtils.IsUserCancelled(ex))
             {
-                await DisplayAlert("Error", ErrorUtils.ExtractErrorMessage(ex), "OK");
+                await DisplayAlertAsync("Error", ErrorUtils.ExtractErrorMessage(ex), "OK");
             }
             SetProcessing(false);
         }
@@ -442,7 +442,7 @@ public partial class AlternativeBillingPage : ContentPage
         else
         {
             ShowResult($"❌ Purchase failed: {error.Message}");
-            _ = DisplayAlert("Error", error.Message, "OK");
+            _ = DisplayAlertAsync("Error", error.Message, "OK");
         }
     }
 

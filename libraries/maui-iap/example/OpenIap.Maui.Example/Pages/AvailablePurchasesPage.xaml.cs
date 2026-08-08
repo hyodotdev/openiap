@@ -85,7 +85,7 @@ public partial class AvailablePurchasesPage : ContentPage
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Refresh Failed", ErrorUtils.ExtractErrorMessage(ex), "OK");
+            await DisplayAlertAsync("Refresh Failed", ErrorUtils.ExtractErrorMessage(ex), "OK");
         }
         finally
         {
@@ -180,7 +180,7 @@ public partial class AvailablePurchasesPage : ContentPage
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Error", ErrorUtils.ExtractErrorMessage(ex), "OK");
+            await DisplayAlertAsync("Error", ErrorUtils.ExtractErrorMessage(ex), "OK");
         }
     }
 
@@ -200,14 +200,14 @@ public partial class AvailablePurchasesPage : ContentPage
             StorefrontLabel.IsVisible = !string.IsNullOrEmpty(storefront);
             if (showAlert)
             {
-                await DisplayAlert("Storefront", string.IsNullOrEmpty(storefront) ? "(empty)" : storefront, "OK");
+                await DisplayAlertAsync("Storefront", string.IsNullOrEmpty(storefront) ? "(empty)" : storefront, "OK");
             }
         }
         catch (Exception ex)
         {
             if (showAlert)
             {
-                await DisplayAlert("Storefront", ErrorUtils.ExtractErrorMessage(ex), "OK");
+                await DisplayAlertAsync("Storefront", ErrorUtils.ExtractErrorMessage(ex), "OK");
             }
         }
     }

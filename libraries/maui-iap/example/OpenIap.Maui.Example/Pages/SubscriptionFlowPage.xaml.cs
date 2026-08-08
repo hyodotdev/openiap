@@ -141,7 +141,7 @@ public partial class SubscriptionFlowPage : ContentPage
             ActiveCountLabel.Text = $"⚠ {ErrorUtils.ExtractErrorMessage(ex)}";
             if (showAlert)
             {
-                await DisplayAlert("Refresh Failed", ErrorUtils.ExtractErrorMessage(ex), "OK");
+                await DisplayAlertAsync("Refresh Failed", ErrorUtils.ExtractErrorMessage(ex), "OK");
             }
         }
         finally
@@ -436,7 +436,7 @@ public partial class SubscriptionFlowPage : ContentPage
 
         if (isSubscribed && isCancelled)
         {
-            var reactivate = await DisplayAlert(
+            var reactivate = await DisplayAlertAsync(
                 "Reactivate Subscription",
                 "This subscription is cancelled but still active until expiry. Do you want to reactivate it?",
                 "Reactivate",
@@ -454,7 +454,7 @@ public partial class SubscriptionFlowPage : ContentPage
 
         if (upgradeInfo.IsPending)
         {
-            await DisplayAlert("Upgrade Scheduled",
+            await DisplayAlertAsync("Upgrade Scheduled",
                 upgradeInfo.Message ?? "This subscription upgrade is already scheduled.",
                 "OK");
             return;
@@ -469,7 +469,7 @@ public partial class SubscriptionFlowPage : ContentPage
             var detail = upgradeInfo.CanUpgrade
                 ? "Takes effect immediately. Pro-rated refund may apply."
                 : "Usually takes effect at the next renewal date.";
-            var proceed = await DisplayAlert(title,
+            var proceed = await DisplayAlertAsync(title,
                 $"{title.Replace(" Subscription", string.Empty)} from {currentTitle} to {targetTitle}?\n\n{detail}",
                 action,
                 "Cancel");
@@ -661,7 +661,7 @@ public partial class SubscriptionFlowPage : ContentPage
 
         if (!isRestoration)
         {
-            await DisplayAlert("Success", "New subscription activated successfully!", "OK");
+            await DisplayAlertAsync("Success", "New subscription activated successfully!", "OK");
         }
     }
 
@@ -715,7 +715,7 @@ public partial class SubscriptionFlowPage : ContentPage
                 var token = common.PurchaseToken ?? string.Empty;
                 if (string.IsNullOrEmpty(token))
                 {
-                    await DisplayAlert("Verification Failed", "No purchase token available for IAPKit verification", "OK");
+                    await DisplayAlertAsync("Verification Failed", "No purchase token available for IAPKit verification", "OK");
                     return;
                 }
 
@@ -728,7 +728,7 @@ public partial class SubscriptionFlowPage : ContentPage
                 if (result.Iapkit is { } ik)
                 {
                     var status = ik.IsValid ? "✅" : "⚠";
-                    await DisplayAlert(
+                    await DisplayAlertAsync(
                         $"{status} IAPKit Verification",
                         $"Valid: {ik.IsValid}\nState: {ik.State.ToJson()}\nStore: {ik.Store.ToJson()}",
                         "OK");
@@ -737,7 +737,7 @@ public partial class SubscriptionFlowPage : ContentPage
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Verification Failed",
+            await DisplayAlertAsync("Verification Failed",
                 $"Purchase verification failed: {ErrorUtils.ExtractErrorMessage(ex)}",
                 "OK");
         }
@@ -804,13 +804,13 @@ public partial class SubscriptionFlowPage : ContentPage
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Error", ErrorUtils.ExtractErrorMessage(ex), "OK");
+            await DisplayAlertAsync("Error", ErrorUtils.ExtractErrorMessage(ex), "OK");
         }
     }
 
     private async void OnChangeVerificationClicked(object sender, EventArgs e)
     {
-        var choice = await DisplayActionSheet(
+        var choice = await DisplayActionSheetAsync(
             "Select Purchase Verification Method",
             "Cancel",
             null,
@@ -838,7 +838,7 @@ public partial class SubscriptionFlowPage : ContentPage
     {
         if (string.IsNullOrEmpty(_purchaseResult)) return;
         await Clipboard.SetTextAsync(_purchaseResult);
-        await DisplayAlert("Copied", "Subscription message copied to clipboard", "OK");
+        await DisplayAlertAsync("Copied", "Subscription message copied to clipboard", "OK");
     }
 
     private void ShowDetails(ProductSubscription sub)
