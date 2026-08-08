@@ -175,7 +175,6 @@ jobs:
     needs: [validate-android, validate-ios, validate-apple-swiftpm]
     permissions:
       contents: write
-      id-token: write
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -395,6 +394,7 @@ jobs:
           git commit -m "chore(release): flutter_inapp_purchase ${NEW_VERSION}"
 
       - name: Assert verified release head is unchanged
+        if: ${{ inputs.version != 'current' || steps.check_tag.outputs.exists != 'true' }}
         run: node "$GITHUB_WORKSPACE/scripts/assert-release-head.mjs" "$RELEASE_BRANCH" "$GITHUB_SHA"
 
       - name: Tag only (current version)
@@ -406,13 +406,41 @@ jobs:
           git commit --allow-empty -m "chore: recover release ref"
           git tag -a "$RELEASE_TAG" "$GITHUB_SHA" -m "Release $RELEASE_TAG"
 
-      - name: Push commit and tags
+      - name: Create release tag
         if: ${{ inputs.version != 'current' }}
         env:
           NEW_VERSION: ${{ steps.bump.outputs.version }}
         run: |
           git tag -a "flutter-iap-${NEW_VERSION}" -m "Release flutter-iap-${NEW_VERSION}"
-          git push --atomic origin "HEAD:$RELEASE_BRANCH" --follow-tags
+
+      - name: Write Flutter publish authorization
+        if: ${{ steps.check_pub.outputs.exists == 'false' && steps.check_tag.outputs.exists != 'true' }}
+        id: flutter_auth
+        env:
+          NEW_VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          RELEASE_TAG="flutter-iap-${NEW_VERSION}"
+          TAG_SHA=$(git rev-parse "$RELEASE_TAG^{commit}")
+          node "$GITHUB_WORKSPACE/scripts/npm-publish-authorization.mjs" write \
+            "$RUNNER_TEMP/flutter-publish-authorization.json" \
+            "$GITHUB_REPOSITORY" ".github/workflows/release-flutter.yml" \
+            "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$RELEASE_BRANCH" \
+            "$GITHUB_SHA" "$RELEASE_TAG" "$TAG_SHA"
+          echo "tag_sha=$TAG_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Upload Flutter publish authorization
+        if: ${{ steps.check_pub.outputs.exists == 'false' && steps.check_tag.outputs.exists != 'true' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: flutter-publish-authorization-${{ steps.flutter_auth.outputs.tag_sha }}
+          path: ${{ runner.temp }}/flutter-publish-authorization.json
+          if-no-files-found: error
+          overwrite: true
+          retention-days: 90
+
+      - name: Push commit and tag
+        if: ${{ inputs.version != 'current' }}
+        run: git push --atomic origin "HEAD:$RELEASE_BRANCH" --follow-tags
 
       - name: Push tag (current version)
         if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists != 'true' }}
@@ -423,6 +451,75 @@ jobs:
           git push --atomic origin \
             "HEAD:refs/heads/$RELEASE_BRANCH" \
             "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+
+      - name: Wait for tag-push pub.dev publisher
+        if: ${{ steps.check_pub.outputs.exists == 'false' }}
+        env:
+          GH_TOKEN: ${{ secrets.DEPENDENCY_UPDATE_PAT }}
+          TAG: flutter-iap-${{ steps.bump.outputs.version }}
+          TAG_ALREADY_EXISTED: ${{ steps.check_tag.outputs.exists }}
+        run: |
+          TAG_COMMIT=$(git rev-parse "$TAG^{commit}")
+          if ! git grep -q "Verify release workflow authorization" "$TAG" -- \
+               .github/workflows/publish-flutter.yml || \
+             ! git cat-file -e "$TAG:scripts/npm-publish-authorization.mjs"; then
+            echo "::error::$TAG predates the authorized tag-push publisher and cannot be retried safely"
+            echo "::error::Release a new reviewed version instead of rerunning legacy publishing code"
+            exit 1
+          fi
+
+          AUTHORIZATION_NAME="flutter-publish-authorization-$TAG_COMMIT"
+          AUTHORIZATION_COUNT=$(gh api \
+            "repos/$GITHUB_REPOSITORY/actions/artifacts?name=$AUTHORIZATION_NAME&per_page=100" \
+            --jq '[.artifacts[] | select(.expired == false)] | length')
+          if [ "$AUTHORIZATION_COUNT" -lt 1 ]; then
+            echo "::error::No unexpired release authorization exists for $TAG at $TAG_COMMIT"
+            echo "::error::Release a new reviewed version instead of bypassing the guarded release workflow"
+            exit 1
+          fi
+
+          RUN_ID=""
+          RUN_STATUS=""
+          RUN_CONCLUSION=""
+
+          for attempt in $(seq 1 30); do
+            RUN_JSON=$(gh api \
+              "repos/$GITHUB_REPOSITORY/actions/workflows/publish-flutter.yml/runs?event=push&head_sha=$TAG_COMMIT&per_page=20" \
+              --jq ".workflow_runs | map(select(.head_branch == \"$TAG\" and .head_sha == \"$TAG_COMMIT\")) | sort_by(.created_at) | last // empty")
+            RUN_ID=$(jq -r '.id // empty' <<< "$RUN_JSON")
+            if [ -n "$RUN_ID" ]; then
+              RUN_STATUS=$(jq -r '.status // empty' <<< "$RUN_JSON")
+              RUN_CONCLUSION=$(jq -r '.conclusion // empty' <<< "$RUN_JSON")
+              break
+            fi
+            sleep 10
+          done
+
+          if [ -z "$RUN_ID" ]; then
+            echo "::error::No tag-push publish-flutter run exists for $TAG at $TAG_COMMIT"
+            echo "::error::pub.dev rejects workflow_dispatch publishing, and immutable release tags must not be recreated"
+            exit 1
+          fi
+
+          if [ "$TAG_ALREADY_EXISTED" = "true" ] && [ "$RUN_STATUS" = "completed" ] && [ "$RUN_CONCLUSION" != "success" ]; then
+            echo "Rerunning original tag-push publisher run $RUN_ID for $TAG"
+            gh run rerun "$RUN_ID"
+          fi
+
+          gh run watch "$RUN_ID" --exit-status
+
+          for attempt in $(seq 1 30); do
+            HTTP_STATUS=$(curl -sS -L -o /dev/null -w "%{http_code}" \
+              "https://pub.dev/api/packages/flutter_inapp_purchase/versions/${{ steps.bump.outputs.version }}" || true)
+            if [ "$HTTP_STATUS" = "200" ]; then
+              echo "flutter_inapp_purchase ${{ steps.bump.outputs.version }} is public on pub.dev"
+              exit 0
+            fi
+            sleep 10
+          done
+
+          echo "::error::Publisher completed, but flutter_inapp_purchase ${{ steps.bump.outputs.version }} is not public on pub.dev"
+          exit 1
 
       - name: Generate release notes
         id: release_notes
@@ -481,13 +578,3 @@ jobs:
           draft: false
           prerelease: ${{ steps.bump.outputs.is_prerelease }}
           body_path: /tmp/release-notes.md
-
-      # pub.dev OIDC requires a tag refType. Dispatch exactly once on the
-      # newly-created tag; publish-flutter.yml has no push trigger so a PAT tag
-      # push cannot create a duplicate publisher run.
-      - name: Dispatch pub.dev publish on tag ref
-        env:
-          GH_TOKEN: ${{ secrets.DEPENDENCY_UPDATE_PAT }}
-          TAG: flutter-iap-${{ steps.bump.outputs.version }}
-        run: |
-          gh workflow run publish-flutter.yml --ref "$TAG"

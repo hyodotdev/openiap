@@ -230,9 +230,25 @@ timeout; do not equate a successful upload response with completed indexing.
 
 ## Flutter Publisher
 
-`release-flutter.yml` dispatches `publish-flutter.yml` exactly once on the
-created tag. The publisher has no tag-push trigger. Do not manually dispatch a
-second run unless the first run failed before publication.
+pub.dev accepts GitHub OIDC publishing only when the workflow was triggered by
+pushing a matching version tag. `release-flutter.yml` therefore pushes the
+immutable `flutter-iap-{version}` tag and waits for the resulting
+`publish-flutter.yml` tag-push run. Never manually dispatch that publisher: a
+`workflow_dispatch` run is ineligible even when its ref is a tag. For a retry,
+rerun the original tag-push workflow run so its event, tag, and commit identity
+remain intact; do not delete or recreate the release tag. The publisher must
+also prove that the tag commit is reachable from `main` (stable) or `next`
+(prerelease) and download the exact tag/SHA authorization artifact created by
+the guarded `release-flutter.yml` run before requesting OIDC. If an unpublished
+tag predates this authorization lane or its artifact expired, do not rerun its
+legacy publisher; release a new reviewed version.
+
+The repository's `pub.dev` GitHub Environment must have a required-reviewer or
+equivalent deployment-protection rule, and the pub.dev package Admin setting
+must require that exact `pub.dev` environment. Verify both external settings
+before the first release after changing this lane. `environment: pub.dev` in
+the workflow is necessary but is not a security boundary by itself; never
+release while either side is unprotected.
 
 ## Godot Asset Library
 

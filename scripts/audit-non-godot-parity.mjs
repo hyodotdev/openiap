@@ -4318,6 +4318,20 @@ function checkFrameworkDependencyHygiene() {
     "framework release head guard",
   );
   for (const frameworkReleaseWorkflow of [
+    ".github/workflows/release-react-native.yml",
+    ".github/workflows/release-expo.yml",
+    ".github/workflows/release-flutter.yml",
+  ]) {
+    expectIncludes(
+      frameworkReleaseWorkflow,
+      [
+        "Assert verified release head is unchanged",
+        "if: ${{ inputs.version != 'current' || steps.check_tag.outputs.exists != 'true' }}",
+      ],
+      `${frameworkReleaseWorkflow} must skip the branch-only head helper after checking out an existing release tag`,
+    );
+  }
+  for (const frameworkReleaseWorkflow of [
     ".github/workflows/release-kmp.yml",
     ".github/workflows/release-maui.yml",
   ]) {
@@ -4614,6 +4628,23 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     ".github/workflows/publish-flutter.yml",
     [
+      "push:",
+      "tags:",
+      '"flutter-iap-*"',
+      'EXPECTED_REF="refs/tags/flutter-iap-${VERSION}"',
+      "GITHUB_EVENT_NAME",
+      "GITHUB_REF_TYPE",
+      "HEAD_COMMIT",
+      "GITHUB_SHA",
+      "actions: read",
+      "environment: pub.dev",
+      "fetch-depth: 0",
+      'git merge-base --is-ancestor "$GITHUB_SHA" "origin/$RELEASE_BRANCH"',
+      'AUTHORIZATION_NAME="flutter-publish-authorization-$GITHUB_SHA"',
+      "actions/artifacts?name=$AUTHORIZATION_NAME",
+      'SOURCE_WORKFLOW_PATH" != ".github/workflows/release-flutter.yml"',
+      'gh run download "$SOURCE_RUN_ID"',
+      'npm-publish-authorization.mjs" verify',
       "Check if pub.dev package already published",
       'flutter-version: "3.44.9"',
       'HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}"',
@@ -4622,6 +4653,35 @@ function checkFrameworkDependencyHygiene() {
       "if: steps.check_pub.outputs.exists == 'false'",
     ],
     "Flutter publish workflow must support pub.dev release reruns",
+  );
+  expectNotIncludes(
+    ".github/workflows/publish-flutter.yml",
+    ["workflow_dispatch:"],
+    "Flutter pub.dev publishing must only run from an eligible tag-push event",
+  );
+  expectIncludes(
+    ".github/workflows/release-flutter.yml",
+    [
+      "Wait for tag-push pub.dev publisher",
+      "Write Flutter publish authorization",
+      "Upload Flutter publish authorization",
+      "flutter-publish-authorization-${{ steps.flutter_auth.outputs.tag_sha }}",
+      "overwrite: true",
+      "retention-days: 90",
+      "predates the authorized tag-push publisher and cannot be retried safely",
+      'AUTHORIZATION_NAME="flutter-publish-authorization-$TAG_COMMIT"',
+      "AUTHORIZATION_COUNT",
+      "select(.expired == false)",
+      "event=push&head_sha=$TAG_COMMIT",
+      'gh run rerun "$RUN_ID"',
+      "pub.dev rejects workflow_dispatch publishing",
+    ],
+    "Flutter release must authorize, wait for, or rerun the original tag-push publisher",
+  );
+  expectNotIncludes(
+    ".github/workflows/release-flutter.yml",
+    ["gh workflow run publish-flutter.yml"],
+    "Flutter release must not replace the pub.dev-required tag-push event with workflow_dispatch",
   );
   for (const flutterWorkflow of [
     ".github/workflows/ci-flutter-inapp-purchase.yml",

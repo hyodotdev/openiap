@@ -35,6 +35,30 @@ test("rejects authorization from a different source run", () => {
   );
 });
 
+test("rejects authorization from a different release workflow", () => {
+  assert.throws(
+    () =>
+      verify({
+        workflowPath: ".github/workflows/release-flutter.yml",
+      }),
+    /workflowPath mismatch/,
+  );
+});
+
+test("rejects authorization from a different release branch", () => {
+  assert.throws(
+    () => verify({ sourceBranch: "next" }),
+    /sourceBranch mismatch/,
+  );
+});
+
+test("rejects authorization from a different source commit", () => {
+  assert.throws(
+    () => verify({ sourceHeadSha: "d".repeat(40) }),
+    /sourceHeadSha mismatch/,
+  );
+});
+
 test("rejects authorization for a different release tag", () => {
   assert.throws(() => verify({ tag: "expo-iap-5.2.0" }), /tag mismatch/);
 });

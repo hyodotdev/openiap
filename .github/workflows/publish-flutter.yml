@@ -1,16 +1,24 @@
 name: "Publish: flutter_inapp_purchase"
 
 on:
-  workflow_dispatch:
+  push:
+    tags:
+      - "flutter-iap-*"
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: publish-flutter
+  cancel-in-progress: false
 
 jobs:
   publish:
     permissions:
-      contents: write
+      actions: read
+      contents: read
       id-token: write
+    environment: pub.dev
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -18,13 +26,85 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
-      - name: Require a Flutter release tag
+      - name: Require the exact Flutter release tag
         run: |
-          if [[ "$GITHUB_REF" != refs/tags/flutter-iap-* ]]; then
-            echo "::error::Publish must be dispatched on a flutter-iap-* tag ref"
+          VERSION=$(awk '/^version:/{print $2; exit}' pubspec.yaml)
+          EXPECTED_REF="refs/tags/flutter-iap-${VERSION}"
+          HEAD_COMMIT=$(git rev-parse HEAD)
+          if [ "$GITHUB_EVENT_NAME" != "push" ] || [ "$GITHUB_REF_TYPE" != "tag" ]; then
+            echo "::error::pub.dev trusted publishing requires a tag-push event"
             exit 1
           fi
+          if [ "$GITHUB_REF" != "$EXPECTED_REF" ]; then
+            echo "::error::Expected $EXPECTED_REF for pubspec version $VERSION, got $GITHUB_REF"
+            exit 1
+          fi
+          if [ "$HEAD_COMMIT" != "$GITHUB_SHA" ]; then
+            echo "::error::Checked-out commit $HEAD_COMMIT does not match event commit $GITHUB_SHA"
+            exit 1
+          fi
+
+          if [[ "$VERSION" == *-* ]]; then
+            RELEASE_BRANCH="next"
+          else
+            RELEASE_BRANCH="main"
+          fi
+          git fetch --no-tags origin \
+            "refs/heads/$RELEASE_BRANCH:refs/remotes/origin/$RELEASE_BRANCH"
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" "origin/$RELEASE_BRANCH"; then
+            echo "::error::$GITHUB_REF_NAME is not reachable from origin/$RELEASE_BRANCH"
+            exit 1
+          fi
+
+      - name: Verify release workflow authorization
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          VERSION=$(awk '/^version:/{print $2; exit}' pubspec.yaml)
+          if [[ "$VERSION" == *-* ]]; then
+            SOURCE_BRANCH="next"
+          else
+            SOURCE_BRANCH="main"
+          fi
+          AUTHORIZATION_NAME="flutter-publish-authorization-$GITHUB_SHA"
+          ARTIFACT_JSON=$(gh api \
+            "repos/$GITHUB_REPOSITORY/actions/artifacts?name=$AUTHORIZATION_NAME&per_page=100" \
+            --jq '.artifacts | map(select(.expired == false)) | sort_by(.created_at) | last // empty')
+          SOURCE_RUN_ID=$(jq -r '.workflow_run.id // empty' <<< "$ARTIFACT_JSON")
+          if ! [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]; then
+            echo "::error::No unexpired release authorization exists for $GITHUB_REF_NAME at $GITHUB_SHA"
+            exit 1
+          fi
+
+          SOURCE_RUN_JSON=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID")
+          SOURCE_REPOSITORY=$(jq -r '.repository.full_name // ""' <<< "$SOURCE_RUN_JSON")
+          SOURCE_WORKFLOW_PATH=$(jq -r '.path // ""' <<< "$SOURCE_RUN_JSON")
+          SOURCE_EVENT=$(jq -r '.event // ""' <<< "$SOURCE_RUN_JSON")
+          SOURCE_BRANCH_ACTUAL=$(jq -r '.head_branch // ""' <<< "$SOURCE_RUN_JSON")
+          SOURCE_HEAD_SHA=$(jq -r '.head_sha // ""' <<< "$SOURCE_RUN_JSON")
+          SOURCE_RUN_ATTEMPT=$(jq -r '.run_attempt // ""' <<< "$SOURCE_RUN_JSON")
+          if [ "$SOURCE_REPOSITORY" != "$GITHUB_REPOSITORY" ] || \
+             [ "$SOURCE_WORKFLOW_PATH" != ".github/workflows/release-flutter.yml" ] || \
+             [ "$SOURCE_EVENT" != "workflow_dispatch" ] || \
+             [ "$SOURCE_BRANCH_ACTUAL" != "$SOURCE_BRANCH" ]; then
+            echo "::error::Release authorization source does not match the guarded Flutter release workflow"
+            exit 1
+          fi
+
+          AUTHORIZATION_DIR="$RUNNER_TEMP/flutter-publish-authorization"
+          gh run download "$SOURCE_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "$AUTHORIZATION_NAME" \
+            --dir "$AUTHORIZATION_DIR"
+          node "$GITHUB_WORKSPACE/scripts/npm-publish-authorization.mjs" verify \
+            "$AUTHORIZATION_DIR/flutter-publish-authorization.json" \
+            "$GITHUB_REPOSITORY" ".github/workflows/release-flutter.yml" \
+            "$SOURCE_RUN_ID" "$SOURCE_RUN_ATTEMPT" "$SOURCE_BRANCH" \
+            "$SOURCE_HEAD_SHA" "$GITHUB_REF_NAME" "$GITHUB_SHA"
 
       - name: Setup Flutter
         uses: subosito/flutter-action@v2

@@ -328,6 +328,25 @@ Each package uses a different tag format for GitHub Releases:
 > **Apple is the exception** — it tags with the bare semver version because
 > CocoaPods and Swift Package Manager resolve directly from the Git tag.
 
+Flutter's pub.dev trusted publisher is also event-sensitive: only
+`publish-flutter.yml` runs started by pushing a matching
+`flutter-iap-{version}` tag are eligible for OIDC publication. A manually
+dispatched workflow on that tag is still ineligible. The release workflow must
+wait for the tag-push run, and retries must rerun that original run without
+deleting or recreating the immutable tag. Before requesting OIDC, the publisher
+must prove that the tag commit is reachable from `main` for a stable version or
+`next` for a prerelease and verify the exact tag/SHA against the run-scoped
+authorization artifact uploaded by the guarded release workflow. An unpublished
+tag that predates this lane, or whose authorization artifact expired, must not
+rerun legacy publishing code; create a new reviewed release version instead.
+
+The `publish-flutter.yml` job must use the `pub.dev` GitHub Environment. That
+environment must have a required-reviewer or equivalent deployment-protection
+rule in GitHub, and the pub.dev package Admin configuration must require the
+same environment name. The workflow field alone does not create an external
+trust boundary. Verify both settings before releasing; do not publish Flutter
+while either side is unprotected.
+
 ### Release Docs Version Guard
 
 When documenting release package versions in

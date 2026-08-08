@@ -273,6 +273,7 @@ jobs:
         run: node .yarn/releases/yarn-3.6.1.cjs prepare
 
       - name: Assert verified release head is unchanged
+        if: ${{ inputs.version != 'current' || steps.check_tag.outputs.exists != 'true' }}
         run: node "$GITHUB_WORKSPACE/scripts/assert-release-head.mjs" "$RELEASE_BRANCH" "$GITHUB_SHA"
 
       - name: Check if npm package already published

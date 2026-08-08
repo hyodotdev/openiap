@@ -443,6 +443,11 @@ test("framework release workflows refuse stale dispatch heads", () => {
     ],
   ]) {
     const workflow = readWorkflow(filename);
+    assert.match(
+      workflow,
+      /- name: Assert verified release head is unchanged\n\s+if: \$\{\{ inputs\.version != 'current' \|\| steps\.check_tag\.outputs\.exists != 'true' \}\}/,
+      `${filename} must not load a branch-only guard script after checking out an existing release tag`,
+    );
     assert.match(workflow, /Refuse an untagged published version/);
     assert.match(workflow, /published without a provenance tag/);
     assert.ok(
@@ -598,17 +603,72 @@ test("framework release workflows refuse stale dispatch heads", () => {
   );
 });
 
-test("Flutter publication has a single explicit dispatch path", () => {
+test("Flutter publication is triggered by the immutable tag push", () => {
   const releaseWorkflow = readWorkflow("release-flutter.yml");
   const publishWorkflow = readWorkflow("publish-flutter.yml");
-  assert.equal(
-    (releaseWorkflow.match(/gh workflow run publish-flutter\.yml/g) ?? [])
-      .length,
-    1,
+  const createTagIndex = releaseWorkflow.indexOf("- name: Create release tag");
+  const writeAuthorizationIndex = releaseWorkflow.indexOf(
+    "- name: Write Flutter publish authorization",
   );
-  assert.match(publishWorkflow, /workflow_dispatch:/);
-  assert.doesNotMatch(publishWorkflow, /^\s+push:/m);
-  assert.match(publishWorkflow, /refs\/tags\/flutter-iap-\*/);
+  const uploadAuthorizationIndex = releaseWorkflow.indexOf(
+    "- name: Upload Flutter publish authorization",
+  );
+  const pushTagIndex = releaseWorkflow.indexOf("- name: Push commit and tag");
+  assert.doesNotMatch(releaseWorkflow, /gh workflow run publish-flutter\.yml/);
+  assert.doesNotMatch(publishWorkflow, /workflow_dispatch:/);
+  assert.match(
+    publishWorkflow,
+    /^  push:\n    tags:\n      - "flutter-iap-\*"/m,
+  );
+  assert.match(publishWorkflow, /group: publish-flutter/);
+  assert.match(publishWorkflow, /actions: read/);
+  assert.match(publishWorkflow, /^    environment: pub\.dev$/m);
+  assert.match(publishWorkflow, /fetch-depth: 0/);
+  assert.match(
+    publishWorkflow,
+    /EXPECTED_REF="refs\/tags\/flutter-iap-\$\{VERSION\}"/,
+  );
+  assert.match(publishWorkflow, /GITHUB_EVENT_NAME.*push/);
+  assert.match(publishWorkflow, /GITHUB_REF_TYPE.*tag/);
+  assert.match(publishWorkflow, /HEAD_COMMIT.*GITHUB_SHA/);
+  assert.match(
+    publishWorkflow,
+    /git merge-base --is-ancestor "\$GITHUB_SHA" "origin\/\$RELEASE_BRANCH"/,
+  );
+  assert.match(
+    publishWorkflow,
+    /AUTHORIZATION_NAME="flutter-publish-authorization-\$GITHUB_SHA"/,
+  );
+  assert.match(
+    publishWorkflow,
+    /actions\/artifacts\?name=\$AUTHORIZATION_NAME/,
+  );
+  assert.match(
+    publishWorkflow,
+    /SOURCE_WORKFLOW_PATH" != "\.github\/workflows\/release-flutter\.yml"/,
+  );
+  assert.match(publishWorkflow, /gh run download "\$SOURCE_RUN_ID"/);
+  assert.match(publishWorkflow, /npm-publish-authorization\.mjs" verify/);
+  assert.match(
+    releaseWorkflow,
+    /name: flutter-publish-authorization-\$\{\{ steps\.flutter_auth\.outputs\.tag_sha \}\}/,
+  );
+  assert.match(releaseWorkflow, /overwrite: true/);
+  assert.ok(createTagIndex < writeAuthorizationIndex);
+  assert.ok(writeAuthorizationIndex < uploadAuthorizationIndex);
+  assert.ok(uploadAuthorizationIndex < pushTagIndex);
+  assert.match(releaseWorkflow, /Wait for tag-push pub\.dev publisher/);
+  assert.match(
+    releaseWorkflow,
+    /predates the authorized tag-push publisher and cannot be retried safely/,
+  );
+  assert.match(
+    releaseWorkflow,
+    /AUTHORIZATION_NAME="flutter-publish-authorization-\$TAG_COMMIT"/,
+  );
+  assert.match(releaseWorkflow, /AUTHORIZATION_COUNT[\s\S]*?expired == false/);
+  assert.match(releaseWorkflow, /event=push&head_sha=\$TAG_COMMIT/);
+  assert.match(releaseWorkflow, /gh run rerun "\$RUN_ID"/);
 });
 
 test("production docs are guarded as stable-only", () => {
