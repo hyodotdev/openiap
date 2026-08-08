@@ -5140,6 +5140,22 @@ function checkFrameworkDependencyHygiene() {
     );
   }
   expectIncludes(
+    ".github/workflows/release-expo.yml",
+    [
+      "Expo SDK 57's expo-modules-jsi package declares Swift tools 6.2",
+      "runs-on: macos-26",
+      'XCODE_VERSION: "26.6"',
+      "maxim-lobanov/setup-xcode@v1",
+      "xcode-version: ${{ env.XCODE_VERSION }}",
+    ],
+    "Expo release must use an Xcode version that can parse Expo SDK 57 Swift 6.2 manifests",
+  );
+  expectNotIncludes(
+    ".github/workflows/release-expo.yml",
+    ["XCODE_VERSION: 16.4"],
+    "Expo release must not regress to Xcode 16.4 and Swift 6.1",
+  );
+  expectIncludes(
     ".github/workflows/ci-maui-iap.yml",
     [
       "app-store-artifact:",

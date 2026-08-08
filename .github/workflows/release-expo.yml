@@ -103,10 +103,12 @@ jobs:
 
   validate-ios:
     needs: [release-branch]
-    runs-on: macos-15
+    # Expo SDK 57's expo-modules-jsi package declares Swift tools 6.2.
+    # Xcode 16.4 only ships Swift 6.1 and cannot resolve that manifest.
+    runs-on: macos-26
     timeout-minutes: 60
     env:
-      XCODE_VERSION: 16.4
+      XCODE_VERSION: "26.6"
     defaults:
       run:
         working-directory: libraries/expo-iap
