@@ -218,7 +218,9 @@ internal class BoundedAmazonRequestIds(
         }
     }
 
-    fun addAll(requestIds: Collection<String>) = requestIds.forEach(::add)
+    fun addAll(requestIds: Collection<String>) {
+        for (requestId in requestIds) add(requestId)
+    }
 
     fun remove(requestId: String): Boolean = synchronized(lock) { ids.remove(requestId) }
 
@@ -480,7 +482,7 @@ class OpenIapModule(
             }
             timedOutRequestIds.addAll(abortedRequestIds)
             val abortedMappedSkus = mutableSetOf<String>()
-            abortedRequestIds.forEach { requestId ->
+            for (requestId in abortedRequestIds) {
                 purchaseSkuByRequestId[requestId]?.let { sku ->
                     abortedMappedSkus += sku
                     if (purchaseErrorsPublishedAtEnd.add(requestId)) {
@@ -711,7 +713,7 @@ class OpenIapModule(
                             productIdOverride = sku,
                             userData = response.userData
                         )
-                        purchaseUpdateListeners.forEach { listener ->
+                        for (listener in purchaseUpdateListeners) {
                             runCatching { listener.onPurchaseUpdated(purchase) }
                         }
                         listOf(purchase)
@@ -1113,7 +1115,7 @@ class OpenIapModule(
     }
 
     private fun emitPurchaseError(error: OpenIapError) {
-        purchaseErrorListeners.forEach { listener ->
+        for (listener in purchaseErrorListeners) {
             runCatching { listener.onPurchaseError(error) }
         }
     }
@@ -1320,9 +1322,9 @@ class OpenIapModule(
         expectedGeneration: Long,
     ) {
         val missingSkus = linkedSetOf<String>()
-        receipts.forEach { receipt ->
+        for (receipt in receipts) {
             val sku = receipt.sku.orEmpty()
-            if (sku.isBlank()) return@forEach
+            if (sku.isBlank()) continue
 
             val productType = receipt.productTypeOrNull()
             if (productType != null) {
@@ -1520,7 +1522,7 @@ class OpenIapModule(
         abortedRequestIds: Set<String>,
         debugMessage: String,
     ) {
-        abortedRequestIds.forEach { requestId ->
+        for (requestId in abortedRequestIds) {
             pending.remove(requestId)?.let { deferred ->
                 // Reuse the late-response suppression set so a store callback
                 // arriving after endConnection cannot be retained as an early

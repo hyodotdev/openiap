@@ -271,7 +271,7 @@ jobs:
           NEW_VERSION: ${{ steps.bump.outputs.version }}
         run: |
           git tag -a "react-native-iap-${NEW_VERSION}" -m "Release react-native-iap-${NEW_VERSION}"
-          git push origin "HEAD:$RELEASE_BRANCH" --follow-tags
+          git push --atomic origin "HEAD:$RELEASE_BRANCH" --follow-tags
 
       - name: Create tag (current version)
         if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists != 'true' }}

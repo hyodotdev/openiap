@@ -165,5 +165,10 @@ echo -e "${BLUE}📋 Summary:${NC}"
 echo -e "   ✅ Version files verified (derived spec: $VERSION)"
 echo -e "   ✅ Documentation deployed to Vercel"
 echo ""
-echo -e "${BLUE}ℹ️  To create a GitHub release, run the Release workflow manually:${NC}"
-echo -e "   ${GREEN}https://github.com/hyodotdev/openiap/actions/workflows/release.yml${NC}"
+DOCS_TAG="docs-$VERSION"
+if git ls-remote --exit-code --tags origin "refs/tags/$DOCS_TAG" "refs/tags/$DOCS_TAG^{}" >/dev/null 2>&1; then
+    echo -e "${BLUE}ℹ️  $DOCS_TAG already exists, so no new Docs GitHub Release is needed.${NC}"
+else
+    echo -e "${BLUE}ℹ️  The derived spec has no Docs GitHub Release yet. Run the Release workflow:${NC}"
+    echo -e "   ${GREEN}https://github.com/hyodotdev/openiap/actions/workflows/release.yml${NC}"
+fi

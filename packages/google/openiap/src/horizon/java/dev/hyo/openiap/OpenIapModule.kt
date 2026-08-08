@@ -994,7 +994,7 @@ class OpenIapModule(
                         }
                     }
 
-                    details.forEach { productDetails ->
+                    for (productDetails in details) {
                         val builder = BillingFlowParams.ProductDetailsParams.newBuilder()
                             .setProductDetails(productDetails)
 
@@ -1152,7 +1152,7 @@ class OpenIapModule(
                                         OpenIapLog.debug("Purchase polling found ${correlated.size} purchases", TAG)
                                         correlated.forEach { purchase ->
                                             if (!claimPurchaseDelivery(purchase)) return@forEach
-                                            purchaseUpdateListeners.forEach { listener ->
+                                            for (listener in purchaseUpdateListeners) {
                                                 runCatching { listener.onPurchaseUpdated(purchase) }
                                             }
                                         }
@@ -1354,7 +1354,7 @@ class OpenIapModule(
 
             all.forEachIndexed { index, purchase ->
                 OpenIapLog.info("  Restoring [$index] productId=${purchase.productId}", TAG)
-                purchaseUpdateListeners.forEach { listener ->
+                for (listener in purchaseUpdateListeners) {
                     runCatching {
                         listener.onPurchaseUpdated(purchase)
                         OpenIapLog.debug("  - Listener notified", TAG)
@@ -1481,7 +1481,7 @@ class OpenIapModule(
     )
 
     private fun emitPurchaseError(error: OpenIapError) {
-        purchaseErrorListeners.forEach { registeredListener ->
+        for (registeredListener in purchaseErrorListeners) {
             runCatching { registeredListener.onPurchaseError(error) }
         }
     }
@@ -1662,7 +1662,7 @@ class OpenIapModule(
                                     "purchase: productId=${converted.productId}",
                                 TAG,
                             )
-                            purchaseUpdateListeners.forEach { listener ->
+                            for (listener in purchaseUpdateListeners) {
                                 runCatching {
                                     listener.onPurchaseUpdated(converted)
                                     OpenIapLog.debug("Listener notified successfully", TAG)

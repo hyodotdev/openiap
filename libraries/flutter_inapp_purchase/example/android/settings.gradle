@@ -38,7 +38,7 @@ pluginManagement {
         ?: androidGradlePluginVersion
     def kotlinPluginVersion = googlePluginVersion('org.jetbrains.kotlin.android')
         ?: readGradleProperty('openIapKotlinVersion')
-        ?: '2.3.21'
+        ?: '2.4.10'
     def composePluginVersion = googlePluginVersion('org.jetbrains.kotlin.plugin.compose')
         ?: kotlinPluginVersion
     def vanniktechPluginVersion = googlePluginVersion('com.vanniktech.maven.publish')

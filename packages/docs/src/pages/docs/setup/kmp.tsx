@@ -44,7 +44,7 @@ function KmpSetup() {
         </h2>
         <ul>
           <li>
-            <strong>Kotlin 2.3.21</strong>, <strong>Gradle 9.3.0</strong>, and{' '}
+            <strong>Kotlin 2.4.10</strong>, <strong>Gradle 9.3.0</strong>, and{' '}
             <strong>JDK 17+</strong>
           </li>
           <li>Active Apple Developer account (for iOS)</li>

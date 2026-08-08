@@ -128,9 +128,9 @@ function ExpoSetup() {
           </li>
           <li>
             <strong>Earlier supported Expo SDKs:</strong> keep their documented
-            Kotlin version. Do not force Kotlin 2.3.x into the Expo build,
-            because Expo Gradle plugins compiled with an older Kotlin line
-            cannot load that metadata.
+            Kotlin version. Do not force the standalone Kotlin 2.4.x compiler
+            into the Expo build, because Expo Gradle plugins compiled with an
+            older Kotlin line cannot load that metadata.
           </li>
         </ul>
         <CodeBlock language="json">

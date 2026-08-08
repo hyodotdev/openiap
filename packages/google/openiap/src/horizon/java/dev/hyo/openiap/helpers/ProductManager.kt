@@ -20,7 +20,9 @@ internal class ProductManager {
         cache[CacheKey(productId, productType)]
 
     fun putAll(details: Collection<HorizonProductDetails>, productType: String) {
-        details.forEach { cache[CacheKey(it.productId, productType)] = it }
+        for (detail in details) {
+            cache[CacheKey(detail.productId, productType)] = detail
+        }
     }
 
     fun replaceQueryResults(
@@ -28,7 +30,9 @@ internal class ProductManager {
         details: Collection<HorizonProductDetails>,
         productType: String,
     ) {
-        requestedProductIds.forEach { cache.remove(CacheKey(it, productType)) }
+        for (productId in requestedProductIds) {
+            cache.remove(CacheKey(productId, productType))
+        }
         putAll(details, productType)
     }
 
@@ -109,7 +113,7 @@ internal class ProductManager {
                     return@queryProductDetailsAsync
                 }
 
-                list.forEach { product ->
+                for (product in list) {
                     OpenIapLog.debug("  - Product: ${product.productId}, type=${product.productType}", TAG)
 
                     // Log subscription offer details

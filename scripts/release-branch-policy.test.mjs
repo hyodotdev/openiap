@@ -206,11 +206,11 @@ test("native version file updates write one consistent manifest", () => {
   try {
     const manifestPath = resolve(temporaryRoot, "openiap-versions.json");
     const originalManifest = `${JSON.stringify({
-        apple: "2.4.2",
-        google: "2.5.0",
-        retained: true,
-        spec: "2.5.1",
-      })}\n`;
+      apple: "2.4.2",
+      google: "2.5.0",
+      retained: true,
+      spec: "2.5.1",
+    })}\n`;
     writeFileSync(manifestPath, originalManifest);
     assert.throws(
       () => updateNativeVersion("apple", "2.4.1", temporaryRoot),
@@ -218,15 +218,12 @@ test("native version file updates write one consistent manifest", () => {
     );
     assert.equal(readFileSync(manifestPath, "utf8"), originalManifest);
     updateNativeVersion("apple", "2.4.3", temporaryRoot);
-    assert.deepEqual(
-      JSON.parse(readFileSync(manifestPath, "utf8")),
-      {
-        apple: "2.4.3",
-        google: "2.5.0",
-        retained: true,
-        spec: "2.4.3",
-      },
-    );
+    assert.deepEqual(JSON.parse(readFileSync(manifestPath, "utf8")), {
+      apple: "2.4.3",
+      google: "2.5.0",
+      retained: true,
+      spec: "2.4.3",
+    });
   } finally {
     rmSync(temporaryRoot, { force: true, recursive: true });
   }
@@ -389,7 +386,35 @@ test("framework release workflows refuse stale dispatch heads", () => {
       /git pull --rebase origin "\$RELEASE_BRANCH"/,
       filename,
     );
+    if (
+      [
+        "release-expo.yml",
+        "release-flutter.yml",
+        "release-godot.yml",
+        "release-react-native.yml",
+      ].includes(filename)
+    ) {
+      assert.match(
+        workflow,
+        /git push --atomic origin "HEAD:\$RELEASE_BRANCH" --follow-tags/,
+        filename,
+      );
+      assert.doesNotMatch(
+        workflow,
+        /git push origin "HEAD:\$RELEASE_BRANCH" --follow-tags/,
+        filename,
+      );
+    }
   }
+
+  assert.match(
+    readWorkflow("release-kmp.yml"),
+    /if: \$\{\{ inputs\.version != 'current' \|\| steps\.check_tag\.outputs\.exists != 'true' \}\}/,
+  );
+  assert.match(
+    readWorkflow("release-maui.yml"),
+    /if: \$\{\{ steps\.version\.outputs\.skip_version_commit != 'true' \|\| steps\.check_tag\.outputs\.exists != 'true' \}\}/,
+  );
 });
 
 test("Flutter publication has a single explicit dispatch path", () => {
@@ -435,6 +460,13 @@ test("production docs are guarded as stable-only", () => {
   assert.match(deployScript, /Production docs accept stable versions only/);
   assert.match(deployScript, /requires a clean worktree/);
   assert.match(deployScript, /OpenIAP Spec cannot be bumped independently/);
+  assert.match(deployScript, /DOCS_TAG="docs-\$VERSION"/);
+  assert.match(deployScript, /git ls-remote --exit-code --tags origin/);
+  assert.match(
+    deployScript,
+    /already exists, so no new Docs GitHub Release is needed/,
+  );
+  assert.match(deployScript, /has no Docs GitHub Release yet/);
   assert.doesNotMatch(
     deployScript,
     /(?:\.spec\s*=\s*\$version|git commit|git push origin HEAD:main)/,
@@ -472,7 +504,9 @@ test("native release workflows converge the spec before every push", () => {
     const pullIndex = workflow.indexOf(
       'git pull --rebase origin "$RELEASE_BRANCH"',
     );
-    const rebaseContinueIndex = workflow.indexOf("GIT_EDITOR=true git rebase --continue");
+    const rebaseContinueIndex = workflow.indexOf(
+      "GIT_EDITOR=true git rebase --continue",
+    );
     const convergenceIndex = workflow.lastIndexOf(
       `update-native ${packageId} "$VERSION"`,
     );

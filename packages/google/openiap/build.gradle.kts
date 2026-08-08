@@ -169,6 +169,8 @@ dependencies {
 
     // AndroidX merged these KTX APIs into their base artifacts. Depending on
     // the empty compatibility artifacts keeps obsolete coordinates alive.
+    // 1.19.0 requires compileSdk 37 and AGP 9.1; 1.18.0 is the latest release
+    // compatible with this library's API 36 / AGP 8.13 support line.
     implementation("androidx.core:core:1.18.0")
     implementation("androidx.lifecycle:lifecycle-runtime:2.10.0")
 

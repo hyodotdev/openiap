@@ -34,7 +34,7 @@ Visit [**openiap.dev**](https://openiap.dev) for complete documentation, API ref
 - **Minimum SDK**: 23 (Android 6.0)
 - **Compile SDK**: 36
 - **Google Play Billing**: v9.1.0
-- **Kotlin**: 2.3.21+
+- **Kotlin**: 2.4.10+
 
 ## Installation
 

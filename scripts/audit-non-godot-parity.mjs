@@ -1130,6 +1130,8 @@ function expectNoExampleStorefrontIOS() {
 }
 
 function expectNoApi24ConcurrentKeySets() {
+  const listenerSetForEach =
+    /\b(?:purchaseUpdateListeners|purchaseErrorListeners|userChoiceBillingListeners|developerProvidedBillingListeners|subscriptionBillingIssueListeners)\.forEach\s*\{/;
   const androidSourceRoots = [
     "packages/google/Example/src",
     "packages/google/openiap/src",
@@ -1148,6 +1150,12 @@ function expectNoApi24ConcurrentKeySets() {
           `Android minSdk 23 source uses the reserved newKeySet identifier ` +
             `(ConcurrentHashMap.newKeySet is API 24+); use ` +
             `Collections.newSetFromMap instead: ${path.relative(root, file)}`,
+        );
+      }
+      if (listenerSetForEach.test(source)) {
+        fail(
+          `Android minSdk 23 listener sets must use an explicit for loop; ` +
+            `Java Set.forEach requires API 24+: ${path.relative(root, file)}`,
         );
       }
     }
@@ -2462,6 +2470,11 @@ function checkBillingChoiceFieldBindings() {
       'put("subResponseCode", result.subResponseCode?.toJson())',
     ],
     "Godot Billing Choice Android bridge fields",
+  );
+  expectNotIncludes(
+    "libraries/godot-iap/android/src/main/java/dev/hyo/godotiap/GodotIap.kt",
+    [".forEach"],
+    "Godot Android bridge collection iteration must remain compatible with API 23",
   );
   expectIncludes(
     "libraries/godot-iap/Example/tests/test_godot_iap.gd",
@@ -3907,6 +3920,10 @@ function checkFrameworkDependencyHygiene() {
       "REMOTE_HEAD=$(git rev-parse origin/main)",
       "OpenIAP Spec cannot be bumped independently",
       "Version metadata was not synchronized on main",
+      'DOCS_TAG="docs-$VERSION"',
+      "git ls-remote --exit-code --tags origin",
+      "already exists, so no new Docs GitHub Release is needed",
+      "has no Docs GitHub Release yet",
     ],
     "deploy script derived spec policy",
   );
@@ -4227,7 +4244,7 @@ function checkFrameworkDependencyHygiene() {
         "assert-release-head.mjs",
         '"$RELEASE_BRANCH" "$GITHUB_SHA"',
         tagCommand,
-        'git push origin "HEAD:$RELEASE_BRANCH" --follow-tags',
+        'git push --atomic origin "HEAD:$RELEASE_BRANCH" --follow-tags',
       ],
       `${frameworkReleaseWorkflow} must tag only the verified dispatch head`,
     );
@@ -4240,6 +4257,7 @@ function checkFrameworkDependencyHygiene() {
         "git stash --include-untracked",
         "git stash pop || true",
         "git push --follow-tags",
+        'git push origin "HEAD:$RELEASE_BRANCH" --follow-tags',
         "git tag -af",
         'git push origin "flutter-iap-${NEW_VERSION}" --force',
         "create_release:",
@@ -4272,6 +4290,18 @@ function checkFrameworkDependencyHygiene() {
       `${frameworkReleaseWorkflow} must not incorporate unverified branch changes`,
     );
   }
+  expectIncludes(
+    ".github/workflows/release-kmp.yml",
+    ["inputs.version != 'current' || steps.check_tag.outputs.exists != 'true'"],
+    "KMP current-mode release must verify an untagged dispatch head",
+  );
+  expectIncludes(
+    ".github/workflows/release-maui.yml",
+    [
+      "steps.version.outputs.skip_version_commit != 'true' || steps.check_tag.outputs.exists != 'true'",
+    ],
+    "MAUI current-mode release must verify an untagged dispatch head",
+  );
   for (const [npmReleaseWorkflow, npmPackage] of [
     [".github/workflows/release-expo.yml", "expo-iap"],
     [".github/workflows/release-react-native.yml", "react-native-iap"],
@@ -5280,6 +5310,25 @@ function checkFrameworkDependencyHygiene() {
       "alternativeBillingCallback?.onTokenCreated",
     ],
     "Google Play production module must use structured logging",
+  );
+  expectNotIncludes(
+    "packages/google/openiap/src/amazon/java/dev/hyo/openiap/OpenIapModule.kt",
+    [
+      "requestIds.forEach(::add)",
+      "abortedRequestIds.forEach",
+      "receipts.forEach",
+    ],
+    "Amazon Java collection iteration must remain compatible with API 23",
+  );
+  expectNotIncludes(
+    "packages/google/openiap/src/horizon/java/dev/hyo/openiap/OpenIapModule.kt",
+    ["details.forEach"],
+    "Horizon Java collection iteration must remain compatible with API 23",
+  );
+  expectNotIncludes(
+    "packages/google/openiap/src/horizon/java/dev/hyo/openiap/helpers/ProductManager.kt",
+    ["details.forEach", "requestedProductIds.forEach", "list.forEach"],
+    "Horizon product collection iteration must remain compatible with API 23",
   );
   const googleBuildRoot = read("packages/google/build.gradle.kts");
   const googleCompileSdk = googleBuildGradle.match(
@@ -6459,6 +6508,8 @@ function checkFrameworkDependencyHygiene() {
     [
       "DefaultItemExcludes",
       "obj/**;bin/**",
+      "<MauiControlsVersion>10.0.90</MauiControlsVersion>",
+      "<MicrosoftExtensionsLoggingDebugVersion>10.0.10</MicrosoftExtensionsLoggingDebugVersion>",
       "BaseIntermediateOutputPath",
       "BaseOutputPath",
       "$(OpenIapAndroidStore)",
@@ -6498,7 +6549,10 @@ function checkFrameworkDependencyHygiene() {
   );
   expectIncludes(
     "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
-    ["net10.0;net10.0-android;net10.0-ios;net10.0-maccatalyst"],
+    [
+      "net10.0;net10.0-android;net10.0-ios;net10.0-maccatalyst",
+      'Include="Microsoft.Maui.Controls" Version="$(MauiControlsVersion)" PrivateAssets="all"',
+    ],
     "MAUI 2.x package must target supported .NET 10 frameworks only",
   );
   expectIncludes(
@@ -6507,7 +6561,8 @@ function checkFrameworkDependencyHygiene() {
       "net10.0-android",
       "net10.0-ios",
       "net10.0-maccatalyst",
-      'Version="10.0.*"',
+      'Include="Microsoft.Maui.Controls" Version="$(MauiControlsVersion)"',
+      'Include="Microsoft.Extensions.Logging.Debug" Version="$(MicrosoftExtensionsLoggingDebugVersion)"',
     ],
     "MAUI example app must validate net10 target frameworks",
   );
@@ -6771,7 +6826,7 @@ function checkFrameworkDependencyHygiene() {
   ]) {
     expectIncludes(
       kotlinVersionFile,
-      ["2.3.21"],
+      ["2.4.10"],
       `${kotlinVersionFile} Kotlin version`,
     );
     expectNotIncludes(
@@ -6817,6 +6872,7 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     "libraries/kmp-iap/CLAUDE.md",
     [
+      "Kotlin `2.4.10` is the validated compiler line",
       "Keep Compose Multiplatform at `1.10.3`",
       "Compose `1.11.x` does not resolve the required iOS x64 variants",
       "Do not remove a supported target solely to make a dependency upgrade pass",
@@ -6830,7 +6886,7 @@ function checkFrameworkDependencyHygiene() {
       "Node.js 18 or later",
       "Android API level 23+",
       "versions supplied by the host React Native project",
-      "standalone OpenIAP fallback (`2.3.21`)",
+      "standalone OpenIAP fallback (`2.4.10`)",
     ],
     "React Native requirements must distinguish host compatibility from standalone fallbacks",
   );
@@ -6840,7 +6896,7 @@ function checkFrameworkDependencyHygiene() {
       "React Native 0.64 or later",
       "Node.js 16 or later",
       "Android API level 21+",
-      "requires Kotlin 2.3.21+",
+      "requires Kotlin 2.4.10+",
     ],
     "React Native requirements must not retain stale or incompatible minimums",
   );
@@ -6868,6 +6924,7 @@ function checkFrameworkDependencyHygiene() {
       "react-native-tvos@0.81.5-1",
       '"@react-native-tvos/config-tv": "^0.1.4"',
       "deploymentTarget: isTV ? '16.0' : '15.1'",
+      "Do not force Kotlin 2.3.x",
     ],
     "Expo setup docs must not retain superseded SDK 57 prerequisites",
   );
@@ -6878,7 +6935,7 @@ function checkFrameworkDependencyHygiene() {
   );
   expectNotIncludes(
     "libraries/expo-iap/plugin/src/withLocalOpenIAP.ts",
-    ["2.3.21"],
+    ["2.4.10"],
     "Expo local OpenIAP must not inject the standalone Google Kotlin version",
   );
   for (const kotlinVersionFile of [
@@ -6891,7 +6948,7 @@ function checkFrameworkDependencyHygiene() {
     );
     expectOptionalNotIncludes(
       kotlinVersionFile,
-      ["2.3.21"],
+      ["2.4.10"],
       `${kotlinVersionFile} Kotlin version`,
     );
   }

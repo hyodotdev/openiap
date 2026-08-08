@@ -446,7 +446,7 @@ jobs:
           fi
           node "$GITHUB_WORKSPACE/scripts/assert-release-head.mjs" "$RELEASE_BRANCH" "$GITHUB_SHA"
           git tag -a godot-iap-${{ steps.version.outputs.VERSION }} -m "Release godot-iap-${{ steps.version.outputs.VERSION }}"
-          git push origin "HEAD:$RELEASE_BRANCH" --follow-tags
+          git push --atomic origin "HEAD:$RELEASE_BRANCH" --follow-tags
 
       - name: Create tag (current version)
         if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists != 'true' }}

@@ -244,6 +244,10 @@ jobs:
           RELEASE_TAG="maui-iap-$VERSION"
           git checkout "$RELEASE_TAG"
 
+      - name: Assert verified release head is unchanged
+        if: ${{ steps.version.outputs.skip_version_commit != 'true' || steps.check_tag.outputs.exists != 'true' }}
+        run: node "$GITHUB_WORKSPACE/scripts/assert-release-head.mjs" "$RELEASE_BRANCH" "$GITHUB_SHA"
+
       - name: Update package version in OpenIap.Maui.csproj
         if: steps.version.outputs.skip_version_commit != 'true'
         env:
@@ -294,7 +298,6 @@ jobs:
             echo "No version changes to commit"
           else
             git commit -m "chore(maui): bump version to $VERSION"
-            node "$GITHUB_WORKSPACE/scripts/assert-release-head.mjs" "$RELEASE_BRANCH" "$GITHUB_SHA"
             git push origin "HEAD:$RELEASE_BRANCH"
             echo "✅ Pushed version update"
           fi

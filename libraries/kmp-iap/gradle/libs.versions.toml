@@ -1,6 +1,6 @@
 [versions]
 agp = "8.13.2"
-kotlin = "2.3.21"
+kotlin = "2.4.10"
 # Compose Multiplatform 1.11.x no longer resolves the iosX64 variants in this
 # library's support matrix. 1.10.3 is the latest stable compatible release.
 compose = "1.10.3"

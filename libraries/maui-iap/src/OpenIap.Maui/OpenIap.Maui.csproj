@@ -11,7 +11,8 @@
          Bindings.iOS, requiring iOS workload packs) — which defeats the
          purpose of having a workload-free fast lane in CI. -->
     <UseMaui Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) != ''">true</UseMaui>
-    <!-- Library — apps using us bring their own Maui.Controls reference. -->
+    <!-- Library — compile against the current MAUI servicing release without
+         leaking a hard Maui.Controls dependency into the public NuGet graph. -->
     <SkipValidateMauiImplicitPackageReferences>true</SkipValidateMauiImplicitPackageReferences>
     <!-- SingleProject auto-includes only the matching Platforms/<TFM>/ folder.
          We need iOS sources to also compile under macCatalyst, so opt out and
@@ -50,11 +51,13 @@
 
   <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
     <Compile Include="Platforms/Android/**/*.cs" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiControlsVersion)" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
     <!-- iOS resolver compiles for macCatalyst too — same xcframework, same StoreKit surface. -->
     <Compile Include="Platforms/iOS/**/*.cs" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiControlsVersion)" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">

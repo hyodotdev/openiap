@@ -107,6 +107,8 @@ kmpIapInstance.purchaseUpdatedListener.collect { purchase ->
 
 ### Compose Multiplatform Compatibility
 
+- Kotlin `2.4.10` is the validated compiler line for Gradle `9.3.0` and AGP
+  `8.13.2`; keep the library and example version catalogs aligned.
 - Keep Compose Multiplatform at `1.10.3` while the library and example support
   `iosX64`. Compose `1.11.x` does not resolve the required iOS x64 variants.
 - Before raising this cap, run the partially-resolved-dependencies checker plus

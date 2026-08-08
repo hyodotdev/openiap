@@ -2207,7 +2207,7 @@ class OpenIapModule(
     // before the first client instance is created.
 
     private fun emitPurchaseError(error: OpenIapError) {
-        purchaseErrorListeners.forEach { registeredListener ->
+        for (registeredListener in purchaseErrorListeners) {
             runCatching { registeredListener.onPurchaseError(error) }
         }
     }

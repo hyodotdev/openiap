@@ -84,11 +84,7 @@ Before installing React Native IAP, make sure you have:
 
 #### Android Configuration
 
-**Kotlin compatibility:** React Native IAP uses the Kotlin and Android Gradle
-Plugin versions supplied by the host React Native project. Do not force the
-standalone OpenIAP fallback (`2.3.21`) into an older React Native template;
-keep the compiler line supported by that React Native release. The fallback is
-used only when the library is built outside a host that supplies those versions.
+**Kotlin compatibility:** React Native IAP uses the Kotlin and Android Gradle Plugin versions supplied by the host React Native project. Do not force the standalone OpenIAP fallback (`2.4.10`) into an older React Native template; keep the compiler line supported by that React Native release. The fallback is used only when the library is built outside a host that supplies those versions.
 
 #### iOS Configuration
 
