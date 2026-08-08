@@ -4750,9 +4750,6 @@ function checkFrameworkDependencyHygiene() {
         "Assert npm publish source is unchanged",
         "Verify published npm release provenance",
         "if: steps.check_npm.outputs.exists == 'false'",
-        "Allow five minutes for the immutable provenance to propagate",
-        "for attempt in {1..30}; do",
-        "sleep 10",
       ],
       `${npmReleaseWorkflow} must support npm release reruns`,
     );
@@ -4768,6 +4765,24 @@ function checkFrameworkDependencyHygiene() {
       `${npmReleaseWorkflow} must not drift npm trusted-publishing CLI version`,
     );
     const npmReleaseSource = read(npmReleaseWorkflow);
+    const publishedProvenanceStep = extractNamedWorkflowStep(
+      npmReleaseSource,
+      "Verify published npm release provenance",
+    );
+    if (
+      !publishedProvenanceStep ||
+      !publishedProvenanceStep.source.includes(
+        "Allow five minutes for the immutable provenance to propagate",
+      ) ||
+      !/^\s*for attempt in \{1\.\.30\}; do\s*$/mu.test(
+        publishedProvenanceStep.source,
+      ) ||
+      !/^\s*sleep 10\s*$/mu.test(publishedProvenanceStep.source)
+    ) {
+      fail(
+        `${npmReleaseWorkflow} must wait up to five minutes for npm provenance inside its published-provenance step`,
+      );
+    }
     if (
       npmReleaseSource.indexOf(
         "- name: Check if npm package already published",
