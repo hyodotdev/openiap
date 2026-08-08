@@ -13,7 +13,7 @@ function normalizeWhitespace(value: string): string {
 }
 
 describe("review workflow fallback contract", () => {
-  test("review-pr replaces unavailable automated reviewers with review-self", () => {
+  test("review-pr replaces unavailable CodeRabbit coverage with review-self", () => {
     const reviewPr = normalizeWhitespace(
       readRepositoryFile(".claude/commands/review-pr.md"),
     );
@@ -23,17 +23,25 @@ describe("review workflow fallback contract", () => {
       "replace the missing coverage with one complete `$review-self` round",
     );
     expect(reviewPr).toContain(
-      "Reviewer unavailability alone is neither a blocker nor a clean result",
+      "CodeRabbit unavailability alone is neither a blocker nor a clean result",
     );
     expect(reviewPr).toContain(
-      "Cache fallback coverage by reviewer failure set and head SHA",
+      "Cache fallback coverage by CodeRabbit failure reason and head SHA",
     );
     expect(reviewPr).toContain(
-      "Inspect the response instead of treating the trigger comment itself as review success",
+      "inspect the response instead of treating the trigger comment itself as review success",
     );
     expect(reviewPr).toContain(
       "Do not classify a queued, requested, or actively running review as unavailable",
     );
+    expect(reviewPr).toContain(
+      "A terminal clean CodeRabbit result is successful reviewer coverage",
+    );
+    expect(reviewPr).toContain(
+      "CodeRabbit is the only configured external reviewer",
+    );
+    expect(reviewPr).not.toContain("/gemini review");
+    expect(reviewPr).not.toContain("Copilot");
   });
 
   test("review-self exposes a non-recursive single-round fallback", () => {
@@ -64,8 +72,10 @@ describe("review workflow fallback contract", () => {
     expect(codexWorkflow).toContain(
       "run its single-round `review-pr` fallback",
     );
+    expect(codexWorkflow).toContain("CodeRabbit is the only external reviewer");
     expect(claudeWorkflow).toContain(
       "including its `.claude/skills/review-self/SKILL.md` fallback",
     );
+    expect(claudeWorkflow).toContain("do not invoke other review bots");
   });
 });
