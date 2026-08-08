@@ -4750,6 +4750,9 @@ function checkFrameworkDependencyHygiene() {
         "Assert npm publish source is unchanged",
         "Verify published npm release provenance",
         "if: steps.check_npm.outputs.exists == 'false'",
+        "Allow five minutes for the immutable provenance to propagate",
+        "for attempt in {1..30}; do",
+        "sleep 10",
       ],
       `${npmReleaseWorkflow} must support npm release reruns`,
     );

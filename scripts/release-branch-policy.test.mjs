@@ -897,6 +897,16 @@ test("framework release workflows refuse stale dispatch heads", () => {
       assert.ok(sourceAuthorizationIndex < finalSourceGuardIndex, filename);
       assert.ok(finalSourceGuardIndex < publishIndex, filename);
       assert.ok(publishIndex < publishedProvenanceIndex, filename);
+      const publishedProvenanceStep = workflow.slice(publishedProvenanceIndex);
+      assert.match(
+        publishedProvenanceStep,
+        /Allow five minutes for the immutable provenance to propagate/,
+      );
+      assert.match(
+        publishedProvenanceStep,
+        /for attempt in \{1\.\.30\}; do/,
+      );
+      assert.match(publishedProvenanceStep, /sleep 10/);
     }
   }
 
