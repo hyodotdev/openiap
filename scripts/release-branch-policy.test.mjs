@@ -859,10 +859,17 @@ test("framework release workflows refuse stale dispatch heads", () => {
       assert.match(workflow, /actions\/runs\/\$SOURCE_RUN_ID/);
       assert.match(workflow, /SOURCE_CONCLUSION" != "success"/);
       assert.match(workflow, /actions\/upload-artifact@v4/);
-      assert.match(
-        workflow,
-        /git -C "\$GITHUB_WORKSPACE" grep -q '\^  publish-npm:'/,
-        `${filename} must inspect root workflow files from its library working directory`,
+      assert.ok(
+        workflow.includes(
+          `git -C "$GITHUB_WORKSPACE" grep -q '^  publish-npm:' "$TAG" -- .github/workflows/${filename}`,
+        ),
+        `${filename} must inspect its root workflow file from the library working directory`,
+      );
+      assert.ok(
+        workflow.includes(
+          'git -C "$GITHUB_WORKSPACE" cat-file -e "$TAG:scripts/npm-publish-authorization.mjs"',
+        ),
+        `${filename} must inspect its tag authorization script from the repository root`,
       );
       assert.match(
         workflow,
@@ -970,8 +977,8 @@ test("Flutter publication is triggered by the immutable tag push", () => {
   assert.match(publishWorkflow, /fetch-depth: 0/);
   assert.match(
     releaseWorkflow,
-    /git -C "\$GITHUB_WORKSPACE" grep -q "Verify release workflow authorization"/,
-    "Flutter release must inspect the root publish workflow from its library working directory",
+    /git -C "\$GITHUB_WORKSPACE" grep -q "Verify release workflow authorization" "\$TAG" -- \\\n+\s+\.github\/workflows\/publish-flutter\.yml \|\| \\\n+\s+! git -C "\$GITHUB_WORKSPACE" cat-file -e "\$TAG:scripts\/npm-publish-authorization\.mjs"/,
+    "Flutter release must inspect the root publish workflow and tag authorization script from its library working directory",
   );
   assert.match(
     publishWorkflow,
