@@ -861,6 +861,11 @@ test("framework release workflows refuse stale dispatch heads", () => {
       assert.match(workflow, /actions\/upload-artifact@v4/);
       assert.match(
         workflow,
+        /git -C "\$GITHUB_WORKSPACE" grep -q '\^  publish-npm:'/,
+        `${filename} must inspect root workflow files from its library working directory`,
+      );
+      assert.match(
+        workflow,
         /name: npm-publish-authorization-\$\{\{ github\.run_attempt \}\}/,
       );
       assert.match(workflow, /gh run download "\$SOURCE_RUN_ID"/);
@@ -963,6 +968,11 @@ test("Flutter publication is triggered by the immutable tag push", () => {
   assert.match(publishWorkflow, /actions: read/);
   assert.doesNotMatch(publishWorkflow, /^    environment: pub\.dev$/m);
   assert.match(publishWorkflow, /fetch-depth: 0/);
+  assert.match(
+    releaseWorkflow,
+    /git -C "\$GITHUB_WORKSPACE" grep -q "Verify release workflow authorization"/,
+    "Flutter release must inspect the root publish workflow from its library working directory",
+  );
   assert.match(
     publishWorkflow,
     /EXPECTED_REF="refs\/tags\/flutter-iap-\$\{VERSION\}"/,

@@ -4722,7 +4722,7 @@ function checkFrameworkDependencyHygiene() {
         "group: ${{ github.workflow }}-${{ inputs.publish_only && 'publish' || 'release' }}",
         "Dispatch npm publish on tag ref",
         "Require tag-ref npm publisher capability",
-        "if ! git grep -q '^  publish-npm:'",
+        "if ! git -C \"$GITHUB_WORKSPACE\" grep -q '^  publish-npm:'",
         "Upload npm publish authorization",
         "actions/upload-artifact@v4",
         "npm-publish-authorization-${{ github.run_attempt }}",
@@ -4997,6 +4997,7 @@ function checkFrameworkDependencyHygiene() {
     ".github/workflows/release-flutter.yml",
     [
       "Wait for tag-push pub.dev publisher",
+      'git -C "$GITHUB_WORKSPACE" grep -q "Verify release workflow authorization"',
       "Write Flutter publish authorization",
       "Upload Flutter publish authorization",
       "flutter-publish-authorization-${{ steps.flutter_auth.outputs.tag_sha }}",
