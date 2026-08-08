@@ -307,11 +307,15 @@ jobs:
           NEW_VERSION: ${{ steps.bump.outputs.version }}
         run: |
           RELEASE_TAG="react-native-iap-${NEW_VERSION}"
-          git commit --allow-empty -m "chore(release): recover $RELEASE_TAG provenance"
+          git commit --allow-empty -m "chore: recover release ref"
           git tag -a "$RELEASE_TAG" "$GITHUB_SHA" -m "Release $RELEASE_TAG"
           git push --atomic origin \
             "HEAD:refs/heads/$RELEASE_BRANCH" \
             "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+
+      - name: Restore tagged source for npm provenance
+        if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists != 'true' }}
+        run: git checkout --detach "$GITHUB_SHA"
 
       - name: Resolve symlinks for npm publish
         run: |

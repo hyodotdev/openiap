@@ -411,7 +411,7 @@ test("framework release workflows refuse stale dispatch heads", () => {
       );
       assert.match(
         workflow,
-        /git commit --allow-empty -m "chore\(release\): recover \$RELEASE_TAG provenance"/,
+        /git commit --allow-empty -m "chore: recover release ref"/,
         `${filename} current-version compare-and-swap commit`,
       );
       assert.match(
@@ -450,6 +450,18 @@ test("framework release workflows refuse stale dispatch heads", () => {
       `${filename} must verify its registry before creating a missing tag`,
     );
     assert.doesNotMatch(workflow, /gitHead 2>\/dev\/null \|\| true/);
+    if (["release-expo.yml", "release-react-native.yml"].includes(filename)) {
+      const recoveryPushIndex = workflow.indexOf(
+        '"refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"',
+      );
+      const restoreSourceIndex = workflow.indexOf(
+        'run: git checkout --detach "$GITHUB_SHA"',
+      );
+      const publishIndex = workflow.indexOf("- name: Publish to npm");
+      assert.match(workflow, /Restore tagged source for npm provenance/);
+      assert.ok(recoveryPushIndex < restoreSourceIndex, filename);
+      assert.ok(restoreSourceIndex < publishIndex, filename);
+    }
   }
 
   const kmpWorkflow = readWorkflow("release-kmp.yml");
@@ -479,7 +491,7 @@ test("framework release workflows refuse stale dispatch heads", () => {
     assert.match(workflow, /published without a provenance tag/);
     assert.match(
       workflow,
-      /git commit --allow-empty -m "chore\(release\): recover \$RELEASE_TAG provenance"/,
+      /git commit --allow-empty -m "chore: recover release ref"/,
       filename,
     );
     assert.match(workflow, /TAG_TARGET="\$GITHUB_SHA"/, filename);

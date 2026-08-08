@@ -367,7 +367,7 @@ jobs:
           else
             TAG_TARGET="HEAD"
             if [ "$SKIP_VERSION_COMMIT" = "true" ]; then
-              git commit --allow-empty -m "chore(release): recover $RELEASE_TAG provenance"
+              git commit --allow-empty -m "chore: recover release ref"
               TAG_TARGET="$GITHUB_SHA"
             fi
             git tag -a "$RELEASE_TAG" "$TAG_TARGET" -m "Release $RELEASE_TAG"

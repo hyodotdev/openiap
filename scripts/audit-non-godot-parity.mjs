@@ -4284,7 +4284,7 @@ function checkFrameworkDependencyHygiene() {
         '"$RELEASE_BRANCH" "$GITHUB_SHA"',
         tagCommand,
         'git push --atomic origin "HEAD:$RELEASE_BRANCH" --follow-tags',
-        'git commit --allow-empty -m "chore(release): recover $RELEASE_TAG provenance"',
+        'git commit --allow-empty -m "chore: recover release ref"',
         '"HEAD:refs/heads/$RELEASE_BRANCH"',
         '"refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"',
       ],
@@ -4327,7 +4327,7 @@ function checkFrameworkDependencyHygiene() {
         "assert-release-head.mjs",
         '"$RELEASE_BRANCH" "$GITHUB_SHA"',
         "published without a provenance tag",
-        'git commit --allow-empty -m "chore(release): recover $RELEASE_TAG provenance"',
+        'git commit --allow-empty -m "chore: recover release ref"',
         'TAG_TARGET="$GITHUB_SHA"',
         "git push --atomic origin",
         '"HEAD:$RELEASE_BRANCH"',
@@ -4375,6 +4375,8 @@ function checkFrameworkDependencyHygiene() {
         "grep -qiE 'E404|404 Not Found'",
         "Refuse an untagged published version",
         "published without a provenance tag",
+        "Restore tagged source for npm provenance",
+        'git checkout --detach "$GITHUB_SHA"',
         "if: steps.check_npm.outputs.exists == 'false'",
       ],
       `${npmReleaseWorkflow} must support npm release reruns`,
@@ -4398,6 +4400,21 @@ function checkFrameworkDependencyHygiene() {
     ) {
       fail(
         `${npmReleaseWorkflow} must verify npm before creating a missing tag`,
+      );
+    }
+    const recoveryPushIndex = npmReleaseSource.indexOf(
+      '"refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"',
+    );
+    const restoreSourceIndex = npmReleaseSource.indexOf(
+      'git checkout --detach "$GITHUB_SHA"',
+    );
+    const publishIndex = npmReleaseSource.indexOf("- name: Publish to npm");
+    if (
+      recoveryPushIndex >= restoreSourceIndex ||
+      restoreSourceIndex >= publishIndex
+    ) {
+      fail(
+        `${npmReleaseWorkflow} must publish from the immutable tag target after the recovery push`,
       );
     }
   }

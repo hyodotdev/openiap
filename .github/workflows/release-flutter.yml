@@ -403,7 +403,7 @@ jobs:
           NEW_VERSION: ${{ steps.bump.outputs.version }}
         run: |
           RELEASE_TAG="flutter-iap-${NEW_VERSION}"
-          git commit --allow-empty -m "chore(release): recover $RELEASE_TAG provenance"
+          git commit --allow-empty -m "chore: recover release ref"
           git tag -a "$RELEASE_TAG" "$GITHUB_SHA" -m "Release $RELEASE_TAG"
 
       - name: Push commit and tags
