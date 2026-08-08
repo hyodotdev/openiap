@@ -344,9 +344,9 @@ jobs:
         env:
           TAG: expo-iap-${{ steps.bump.outputs.version }}
         run: |
-          if ! git grep -q '^  publish-npm:' "$TAG" -- .github/workflows/release-expo.yml || \
-             ! git grep -q 'Upload npm publish authorization' "$TAG" -- .github/workflows/release-expo.yml || \
-             ! git cat-file -e "$TAG:scripts/npm-publish-authorization.mjs"; then
+          if ! git -C "$GITHUB_WORKSPACE" grep -q '^  publish-npm:' "$TAG" -- .github/workflows/release-expo.yml || \
+             ! git -C "$GITHUB_WORKSPACE" grep -q 'Upload npm publish authorization' "$TAG" -- .github/workflows/release-expo.yml || \
+             ! git -C "$GITHUB_WORKSPACE" cat-file -e "$TAG:scripts/npm-publish-authorization.mjs"; then
             echo "::error::$TAG predates the tag-ref npm publisher and cannot be retried safely. Release a new reviewed version instead."
             exit 1
           fi

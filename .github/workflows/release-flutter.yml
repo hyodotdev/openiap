@@ -462,9 +462,9 @@ jobs:
           TAG_ALREADY_EXISTED: ${{ steps.check_tag.outputs.exists }}
         run: |
           TAG_COMMIT=$(git rev-parse "$TAG^{commit}")
-          if ! git grep -q "Verify release workflow authorization" "$TAG" -- \
+          if ! git -C "$GITHUB_WORKSPACE" grep -q "Verify release workflow authorization" "$TAG" -- \
                .github/workflows/publish-flutter.yml || \
-             ! git cat-file -e "$TAG:scripts/npm-publish-authorization.mjs"; then
+             ! git -C "$GITHUB_WORKSPACE" cat-file -e "$TAG:scripts/npm-publish-authorization.mjs"; then
             echo "::error::$TAG predates the authorized tag-push publisher and cannot be retried safely"
             echo "::error::Release a new reviewed version instead of rerunning legacy publishing code"
             exit 1
