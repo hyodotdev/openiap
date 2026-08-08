@@ -1,7 +1,5 @@
 import groovy.json.JsonSlurper
-import org.jetbrains.compose.desktop.application.dsl.TargetFormat
 import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
-import org.jetbrains.kotlin.gradle.ExperimentalWasmDsl
 import org.jetbrains.kotlin.gradle.plugin.KotlinSourceSetTree
 import java.util.Properties
 
@@ -60,8 +58,6 @@ kotlin {
         instrumentedTestVariant.sourceSetTree.set(KotlinSourceSetTree.test)
     }
 
-    jvm("desktop")
-
     listOf(
         iosX64(),
         iosArm64(),
@@ -75,20 +71,13 @@ kotlin {
         }
     }
 
-    @OptIn(ExperimentalWasmDsl::class)
-    wasmJs {
-        browser {
-            commonWebpackConfig {
-                outputFileName = "kmpIapExample.js"
-            }
-        }
-        binaries.executable()
-    }
-
     sourceSets {
-        val desktopMain by getting
-
         commonMain.dependencies {
+            if (useLocalDev) {
+                implementation(project(":library"))
+            } else {
+                implementation("io.github.hyochan:kmp-iap:$kmpIapMode")
+            }
             implementation(libs.compose.runtime)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material.icons.extended)
@@ -105,25 +94,8 @@ kotlin {
             implementation(libs.androidx.activity.compose)
             implementation(libs.kotlinx.coroutines.android)
             implementation(libs.compose.ui.tooling.preview)
-            if (useLocalDev) {
-                implementation(project(":library"))
-            } else {
-                implementation("io.github.hyochan:kmp-iap:$kmpIapMode")
-            }
         }
 
-        iosMain.dependencies {
-            if (useLocalDev) {
-                implementation(project(":library"))
-            } else {
-                implementation("io.github.hyochan:kmp-iap:$kmpIapMode")
-            }
-        }
-
-        desktopMain.dependencies {
-            implementation(compose.desktop.currentOs)
-            implementation(libs.kotlinx.coroutines.swing)
-        }
     }
 }
 
@@ -182,17 +154,5 @@ android {
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
         targetCompatibility = JavaVersion.VERSION_11
-    }
-}
-
-compose.desktop {
-    application {
-        mainClass = "MainKt"
-
-        nativeDistributions {
-            targetFormats(TargetFormat.Dmg, TargetFormat.Msi, TargetFormat.Deb)
-            packageName = "io.github.hyochan.kmpiap.example"
-            packageVersion = "1.0.0"
-        }
     }
 }

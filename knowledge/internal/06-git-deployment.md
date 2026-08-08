@@ -161,6 +161,60 @@ bun run audit:release-state
 node --test scripts/release-branch-policy.test.mjs
 ```
 
+Framework-library release workflows also require `origin/<release-branch>` to
+still equal the workflow dispatch SHA after validation. If the branch advanced,
+the workflow must stop instead of rebasing unverified commits into the release;
+rerun the complete review, CI, and E2E gates on the new head, then dispatch the
+release again.
+
+The version commit and immutable provenance tag must be pushed atomically before
+publishing a framework package to its external registry. A `current` retry may
+reuse that tag to finish an interrupted publication, but if the registry already
+contains the version while its provenance tag is absent, stop instead of tagging
+the current branch tip as an unverified substitute.
+
+Before any `current` retry checks out an existing release tag, run
+`scripts/assert-release-tag.mjs`. The guard must prove that the local tag matches
+the immutable origin tag, its package metadata declares the expected version,
+and its peeled commit is reachable from the validated `main` or `next` release
+branch. Do this before executing build scripts or loading package content from
+the tag; a matching tag name alone is not reviewed-branch provenance.
+
+When `current` must create a missing tag for a version that is not yet published,
+the workflow creates an empty provenance-recovery commit and atomically pushes
+that real branch update with a tag targeting the verified dispatch SHA. A no-op
+branch refspec is not a compare-and-swap guard because Git omits up-to-date refs
+from the push transaction.
+
+For npm trusted publishing, the release workflow's branch-ref phase creates and
+pushes the immutable tag, then dispatches the same trusted-publisher workflow on
+that tag ref. Only the tag-ref publish job receives `id-token: write`. It must
+require the exact package/version tag and require the checked-out commit to equal
+the tag-ref event's `GITHUB_SHA` before running `npm publish --provenance`.
+Checking out or detaching to a tag inside a branch-dispatched retry is not enough:
+npm's provenance statement reads the immutable workflow event SHA, so changing
+only the local checkout can make package `gitHead` and attested source disagree.
+Serialize tag-ref publishers per package so concurrent versions cannot move the
+same npm dist-tag backward. The publisher must also prove that the tag is
+reachable from `main` for stable versions or `next` for prereleases and that it
+was dispatched by a successful branch-ref run of the same release workflow. The
+branch run uploads an immutable, run-attempt-scoped authorization artifact that
+names the exact repository, workflow, source branch/SHA, release tag, and tag
+SHA; the tag publisher must download it from the supplied source run and match
+every field before publishing. Resolve the authorization's recorded attempt with
+GitHub's attempt-specific run endpoint; a later rerun of the same source run ID
+must not invalidate an earlier valid artifact by substituting the run's latest
+attempt metadata. A merely successful historical run is not valid authorization
+for another tag.
+Before accepting an already-published version, and again after a new publish,
+run npm's signature audit to authenticate the Sigstore bundle and bind it to the
+published tarball, then inspect only that audit's returned verified bundle when
+matching registry `gitHead`, artifact SHA-512, and the decoded SLSA statement's
+repository, workflow ref, and resolved Git commit against the immutable release
+tag. A tag whose stored
+workflow predates the tag-ref publisher cannot be repaired safely through
+`current`; stop with an explicit instruction to release a new reviewed version.
+
 ### Deploying Apple Package (iOS/macOS)
 
 **Via GitHub Actions UI:**
@@ -246,14 +300,17 @@ This will:
 native floor; docs deployment is not a version-bump path.
 
 **Routine docs deployments stop here.** Do not follow them with a Docs GitHub
-Release: the spec version has not moved, so the release would carry no new
-version information and only adds tag churn. Run the stable Docs workflow only
-when the spec version itself is being released, or when the maintainer asks for
-it explicitly:
+Release: the spec version has not moved, so the immutable `docs-{spec}` tag
+cannot represent a new release. Run the stable Docs workflow only when the spec
+version itself advanced:
 
 ```bash
 gh workflow run release.yml --ref main -f version=current
 ```
+
+If a Docs GitHub Release is requested while `spec` is unchanged, stop and
+explain that the immutable tag scheme cannot represent it. Deploying the docs
+site is still valid and does not require a new GitHub Release.
 
 Verifying a docs deployment: `llms-full.txt` carries a `Generated:` timestamp
 that must match the committed file, and the deployed entry bundle should contain
@@ -280,6 +337,25 @@ Each package uses a different tag format for GitHub Releases:
 
 > **Apple is the exception** — it tags with the bare semver version because
 > CocoaPods and Swift Package Manager resolve directly from the Git tag.
+
+Flutter's pub.dev trusted publisher is also event-sensitive: only
+`publish-flutter.yml` runs started by pushing a matching
+`flutter-iap-{version}` tag are eligible for OIDC publication. A manually
+dispatched workflow on that tag is still ineligible. The release workflow must
+wait for the tag-push run, and retries must rerun that original run without
+deleting or recreating the immutable tag. Before requesting OIDC, the publisher
+must prove that the tag commit is reachable from `main` for a stable version or
+`next` for a prerelease and verify the exact tag/SHA against the run-scoped
+authorization artifact uploaded by the guarded release workflow. An unpublished
+tag that predates this lane, or whose authorization artifact expired, must not
+rerun legacy publishing code; create a new reviewed release version instead.
+
+GitHub Deployment Environments are optional pub.dev hardening, not a publishing
+prerequisite. This repository currently relies on its guarded tag-push CI lane
+without a required environment. Add an `environment` to the publisher only
+when a maintainer intentionally enables the matching requirement in the
+pub.dev package Admin settings; never make an unconfigured environment a
+release blocker.
 
 ### Release Docs Version Guard
 

@@ -2,15 +2,25 @@ import org.jetbrains.kotlin.gradle.dsl.JvmTarget
 
 plugins {
     id "com.android.application"
-    id "kotlin-android"
     id "dev.flutter.flutter-gradle-plugin"
+}
+
+// Flutter 3.44 can run AGP 9 with built-in Kotlin explicitly disabled. Honor
+// that host flag, while defaulting new AGP 9+ projects to built-in Kotlin.
+def androidGradlePluginMajor = com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION.tokenize('.')[0] as int
+def builtInKotlinProperty = project.findProperty('android.builtInKotlin')?.toString()
+def usesBuiltInKotlin = builtInKotlinProperty == null
+    ? androidGradlePluginMajor >= 9
+    : builtInKotlinProperty.toBoolean()
+if (!usesBuiltInKotlin) {
+    apply plugin: 'kotlin-android'
 }
 
 apply from: rootProject.file('../../android/openiap-android-sdk.gradle')
 
-def openIapCompileSdkVersion = openIapResolveAndroidSdkVersion('compileSdkVersion', 'compileSdk', 35)
+def openIapCompileSdkVersion = openIapResolveAndroidSdkVersion('compileSdkVersion', 'compileSdk', 36)
 def openIapResolvedMinSdkVersion = (openIapResolveAndroidSdkVersion('minSdkVersion', 'minSdk', 23) ?: 23) as Integer
-def openIapTargetSdkVersion = openIapResolveAndroidSdkVersion('targetSdkVersion', 'compileSdk', 35)
+def openIapTargetSdkVersion = openIapResolveAndroidSdkVersion('targetSdkVersion', 'compileSdk', 36)
 def openIapJunitVersion = openIapResolveDependencyVersion('junit:junit', 'openIapJunitVersion')
 def openIapAndroidTestRunnerVersion = openIapResolveDependencyVersion('androidx.test:runner', 'openIapAndroidTestRunnerVersion')
 def openIapEspressoCoreVersion = openIapResolveDependencyVersion('androidx.test.espresso:espresso-core', 'openIapEspressoCoreVersion')

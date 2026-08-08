@@ -307,11 +307,11 @@ class BillingConvertersTest {
         assertEquals(9.99, product.price ?: 0.0, 0.01)
 
         // But the subscription offer still contains the trial info
-        assertEquals("$0.00", product.subscriptionOffers?.first()?.displayPrice)
-        assertEquals(PaymentMode.FreeTrial, product.subscriptionOffers?.first()?.paymentMode)
+        assertEquals("$0.00", product.subscriptionOffers.first().displayPrice)
+        assertEquals(PaymentMode.FreeTrial, product.subscriptionOffers.first().paymentMode)
 
         // The pricing phases contain both trial and base phases
-        val phases = product.subscriptionOffers?.first()?.pricingPhasesAndroid?.pricingPhaseList
+        val phases = product.subscriptionOffers.first().pricingPhasesAndroid?.pricingPhaseList
         assertEquals(2, phases?.size)
 
         // Find the base phase (recurrenceMode = 1)
@@ -390,7 +390,7 @@ class BillingConvertersTest {
 
         assertEquals("", product.displayPrice)
         assertNull(product.price)
-        assertEquals(0, product.subscriptionOffers?.size)
+        assertEquals(0, product.subscriptionOffers.size)
     }
 
     @Test

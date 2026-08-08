@@ -1,6 +1,6 @@
 import {
   ExpoOnsideMarketplaceAvailabilityModule,
-  InstalledFromOnside,
+  type InstalledFromOnside,
 } from './ExpoOnsideMarketplaceAvailabilityModule';
 import {useEffect, useState} from 'react';
 

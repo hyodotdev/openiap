@@ -121,7 +121,7 @@ public partial class PurchaseFlowPage : ContentPage
             StorefrontErrorLabel.IsVisible = true;
             if (showAlert)
             {
-                await DisplayAlert("Storefront", ErrorUtils.ExtractErrorMessage(ex), "OK");
+                await DisplayAlertAsync("Storefront", ErrorUtils.ExtractErrorMessage(ex), "OK");
             }
         }
         finally
@@ -159,7 +159,7 @@ public partial class PurchaseFlowPage : ContentPage
             PurchasesCountLabel.Text = "Could not refresh purchases";
             if (showAlert)
             {
-                await DisplayAlert("Refresh Failed", ErrorUtils.ExtractErrorMessage(ex), "OK");
+                await DisplayAlertAsync("Refresh Failed", ErrorUtils.ExtractErrorMessage(ex), "OK");
             }
         }
         finally
@@ -386,6 +386,8 @@ public partial class PurchaseFlowPage : ContentPage
         UpdateResult($"Purchase completed successfully (state: {common.PurchaseState.ToJson()}).");
         RenderProducts();
 
+        var verificationPassed = true;
+
         // Step 4: verify purchase (3 methods).
         if (_verification != VerificationMethod.Ignore && !string.IsNullOrEmpty(common.ProductId))
         {
@@ -412,31 +414,45 @@ public partial class PurchaseFlowPage : ContentPage
                     var token = common.PurchaseToken ?? string.Empty;
                     if (string.IsNullOrEmpty(token))
                     {
-                        await DisplayAlert("Verification Failed", "No purchase token available for IAPKit verification", "OK");
+                        await DisplayAlertAsync("Verification Failed", "No purchase token available for IAPKit verification", "OK");
+                        verificationPassed = false;
                     }
                     else
                     {
                         var result = await mutate.VerifyPurchaseWithProviderAsync(new VerifyPurchaseWithProviderProps
                         {
                             Provider = PurchaseVerificationProvider.Iapkit,
-                            Iapkit = IapKitSettings.CreateVerifyProps(token),
+                            Iapkit = IapKitSettings.CreateVerifyProps(purchase),
                         });
                         if (result.Iapkit is { } ik)
                         {
+                            verificationPassed = ik.IsValid;
                             var emoji = ik.IsValid ? "✅" : "⚠️";
-                            await DisplayAlert(
+                            await DisplayAlertAsync(
                                 $"{emoji} IAPKit Verification",
                                 $"Valid: {ik.IsValid}\nState: {ik.State.ToJson()}\nStore: {ik.Store.ToJson()}",
                                 "OK");
+                        }
+                        else
+                        {
+                            verificationPassed = false;
                         }
                     }
                 }
             }
             catch (Exception ex)
             {
-                await DisplayAlert("Verification Failed",
+                verificationPassed = false;
+                await DisplayAlertAsync("Verification Failed",
                     $"Purchase verification failed: {ErrorUtils.ExtractErrorMessage(ex)}", "OK");
             }
+        }
+
+        if (!verificationPassed)
+        {
+            UpdateResult("Purchase verification failed; the transaction was not finalized.");
+            RenderProducts();
+            return;
         }
 
         var consumable = Constants.ConsumableProductIdSet.Contains(common.ProductId);
@@ -446,7 +462,7 @@ public partial class PurchaseFlowPage : ContentPage
         // the success path on slow StoreKit Transaction.all enumeration.
         _ = RefreshAvailablePurchasesAsync(showAlert: false);
         RenderProducts();
-        await DisplayAlert("Success", "Purchase completed successfully!", "OK");
+        await DisplayAlertAsync("Success", "Purchase completed successfully!", "OK");
     }
 
     private static async Task FinishPurchaseTransactionAsync(Purchase purchase, bool isConsumable)
@@ -517,7 +533,7 @@ public partial class PurchaseFlowPage : ContentPage
     {
         if (string.IsNullOrEmpty(_purchaseResult)) return;
         await Clipboard.SetTextAsync(_purchaseResult);
-        await DisplayAlert("Copied", "Purchase result copied to clipboard", "OK");
+        await DisplayAlertAsync("Copied", "Purchase result copied to clipboard", "OK");
     }
 
     private async void OnCheckAppTransactionClicked(object sender, EventArgs e)
@@ -529,10 +545,10 @@ public partial class PurchaseFlowPage : ContentPage
             var t = await query.GetAppTransactionIOSAsync();
             if (t is null)
             {
-                await DisplayAlert("App Transaction", "No app transaction found", "OK");
+                await DisplayAlertAsync("App Transaction", "No app transaction found", "OK");
                 return;
             }
-            await DisplayAlert(
+            await DisplayAlertAsync(
                 "App Transaction",
                 $"Original App Version: {t.OriginalAppVersion}\n" +
                 $"Purchase Date: {DateTimeOffset.FromUnixTimeMilliseconds((long)t.OriginalPurchaseDate).UtcDateTime:d}\n" +
@@ -542,10 +558,10 @@ public partial class PurchaseFlowPage : ContentPage
         }
         catch (Exception ex)
         {
-            await DisplayAlert("Error", ErrorUtils.ExtractErrorMessage(ex), "OK");
+            await DisplayAlertAsync("Error", ErrorUtils.ExtractErrorMessage(ex), "OK");
         }
 #else
-        await DisplayAlert("App Transaction", "App Transaction is iOS / macCatalyst only.", "OK");
+        await DisplayAlertAsync("App Transaction", "App Transaction is iOS / macCatalyst only.", "OK");
 #endif
     }
 

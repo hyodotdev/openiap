@@ -38,11 +38,11 @@ pluginManagement {
         ?: androidGradlePluginVersion
     def kotlinPluginVersion = googlePluginVersion('org.jetbrains.kotlin.android')
         ?: readGradleProperty('openIapKotlinVersion')
-        ?: '2.2.0'
+        ?: '2.4.10'
     def composePluginVersion = googlePluginVersion('org.jetbrains.kotlin.plugin.compose')
         ?: kotlinPluginVersion
     def vanniktechPluginVersion = googlePluginVersion('com.vanniktech.maven.publish')
-        ?: '0.35.0'
+        ?: '0.37.0'
 
     def flutterSdkPath = {
         def properties = new Properties()

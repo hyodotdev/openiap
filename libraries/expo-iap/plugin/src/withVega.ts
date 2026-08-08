@@ -275,14 +275,14 @@ export const mergeVegaPackageJson = <T extends MutablePackageJson>(
   setDependency(
     next,
     '@amazon-devices/keplerscript-appstore-iap-lib',
-    '~2.12.13',
+    '~2.13.0',
   );
 
   setDevDependency(next, '@amazon-devices/kepler-cli-platform', '~0.22.0');
   setDevDependency(
     next,
     '@amazon-devices/kepler-compatibility-metro-config',
-    '^0.0.6',
+    '^0.0.7',
   );
   setDevDependency(
     next,
@@ -293,11 +293,7 @@ export const mergeVegaPackageJson = <T extends MutablePackageJson>(
   setIfMissing(next.devDependencies, '@react-native-community/cli', '11.3.2');
   setIfMissing(next.devDependencies, '@react-native/metro-config', '^0.72.6');
   setIfMissing(next.devDependencies, 'babel-plugin-module-resolver', '^5.0.2');
-  setIfMissing(
-    next.devDependencies,
-    'metro-react-native-babel-preset',
-    '~0.76.9',
-  );
+  setIfMissing(next.devDependencies, '@react-native/babel-preset', '0.76.9');
 
   next.kepler = {
     ...(pkg.kepler ?? {}),

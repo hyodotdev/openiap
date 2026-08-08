@@ -30,13 +30,43 @@ internal static class IapKitSettings
         SavePreference(BaseUrlPreferenceKey, baseUrl);
     }
 
-    public static RequestVerifyPurchaseWithIapkitProps CreateVerifyProps(string token)
+    public static RequestVerifyPurchaseWithIapkitProps CreateVerifyProps(Purchase purchase)
     {
-        return new RequestVerifyPurchaseWithIapkitProps
+        var common = (PurchaseCommon)purchase;
+        var token = common.PurchaseToken?.Trim();
+        if (string.IsNullOrEmpty(token))
         {
-            ApiKey = ApiKey,
-            Apple = new RequestVerifyPurchaseWithIapkitAppleProps { Jws = token },
-            Google = new RequestVerifyPurchaseWithIapkitGoogleProps { PurchaseToken = token },
+            throw new InvalidOperationException("No purchase token available for IAPKit verification");
+        }
+
+        return common.Store switch
+        {
+            IapStore.Apple => new RequestVerifyPurchaseWithIapkitProps
+            {
+                ApiKey = ApiKey,
+                BaseUrl = BaseUrl,
+                Apple = new RequestVerifyPurchaseWithIapkitAppleProps { Jws = token },
+            },
+            IapStore.Google => new RequestVerifyPurchaseWithIapkitProps
+            {
+                ApiKey = ApiKey,
+                BaseUrl = BaseUrl,
+                Google = new RequestVerifyPurchaseWithIapkitGoogleProps { PurchaseToken = token },
+            },
+            IapStore.Amazon => new RequestVerifyPurchaseWithIapkitProps
+            {
+                ApiKey = ApiKey,
+                BaseUrl = BaseUrl,
+                Amazon = new RequestVerifyPurchaseWithIapkitAmazonProps
+                {
+                    ReceiptId = token,
+                    UserId = (purchase as PurchaseAndroid)?.UserIdAmazon,
+                    // The example catalog is exercised with Amazon App Tester.
+                    Sandbox = true,
+                },
+            },
+            _ => throw new NotSupportedException(
+                $"IAPKit verification is not supported for the {common.Store.ToJson()} store."),
         };
     }
 

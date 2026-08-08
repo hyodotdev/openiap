@@ -1021,7 +1021,7 @@ class OpenIapModule(
                     if (method.name == "onBillingProgramAvailabilityResponse") {
                         val result = (args?.get(0) as? BillingResult)
                             ?: billingResultError("Missing Billing Program availability result")
-                        OpenIapLog.debug("Billing program availability result: ${result?.responseCode} - ${result?.debugMessage}", TAG)
+                        OpenIapLog.debug("Billing program availability result: ${result.responseCode} - ${result.debugMessage}", TAG)
 
                         val isAvailable = when (result.responseCode) {
                             BillingClient.BillingResponseCode.OK -> true
@@ -1287,7 +1287,7 @@ class OpenIapModule(
                     if (method.name == "onLaunchExternalLinkResponse") {
                         val result = (args?.get(0) as? BillingResult)
                             ?: billingResultError("Missing external link launch result")
-                        OpenIapLog.debug("External link launch result: ${result?.responseCode} - ${result?.debugMessage}", TAG)
+                        OpenIapLog.debug("External link launch result: ${result.responseCode} - ${result.debugMessage}", TAG)
 
                         if (result.responseCode == BillingClient.BillingResponseCode.OK) {
                             operation.succeed(true)
@@ -2087,8 +2087,9 @@ class OpenIapModule(
 
     override val deepLinkToSubscriptions: MutationDeepLinkToSubscriptionsHandler = { options ->
         val pkg = options?.packageNameAndroid ?: context.packageName
-        val uri = if (!options?.skuAndroid.isNullOrBlank()) {
-            Uri.parse("https://play.google.com/store/account/subscriptions?sku=${options!!.skuAndroid}&package=$pkg")
+        val sku = options?.skuAndroid
+        val uri = if (!sku.isNullOrBlank()) {
+            Uri.parse("https://play.google.com/store/account/subscriptions?sku=$sku&package=$pkg")
         } else {
             Uri.parse("https://play.google.com/store/account/subscriptions?package=$pkg")
         }
@@ -2100,7 +2101,6 @@ class OpenIapModule(
         withContext(Dispatchers.IO) {
             val client = billingClient ?: throw OpenIapError.NotPrepared
             restorePurchasesHelper(client, activeOperations)
-            Unit
         }
     }
 
@@ -2207,7 +2207,7 @@ class OpenIapModule(
     // before the first client instance is created.
 
     private fun emitPurchaseError(error: OpenIapError) {
-        purchaseErrorListeners.forEach { registeredListener ->
+        for (registeredListener in purchaseErrorListeners) {
             runCatching { registeredListener.onPurchaseError(error) }
         }
     }

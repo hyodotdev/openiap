@@ -157,16 +157,28 @@ jobs:
       id: check_tag
       env:
         VERSION: ${{ steps.version.outputs.version }}
+        SKIP_VERSION_COMMIT: ${{ steps.version.outputs.skip_version_commit }}
       run: |
-        # Allow reusing existing semver tags (for reruns where CocoaPods succeeded but SPM failed)
         if git rev-parse "$VERSION" >/dev/null 2>&1; then
-          echo "exists=true" >> $GITHUB_OUTPUT
-          echo "bare_exists=true" >> $GITHUB_OUTPUT
-          echo "⚠️ Tag $VERSION already exists. Will reuse existing tag."
+          if [ "$SKIP_VERSION_COMMIT" = "true" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "bare_exists=true" >> $GITHUB_OUTPUT
+            echo "⚠️ Tag $VERSION already exists. Will reuse existing tag (current mode)."
+          else
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "❌ Tag $VERSION already exists. Use 'current' to retry with existing version."
+            exit 1
+          fi
         elif git rev-parse "apple-v$VERSION" >/dev/null 2>&1; then
-          echo "exists=true" >> $GITHUB_OUTPUT
-          echo "bare_exists=false" >> $GITHUB_OUTPUT
-          echo "⚠️ Legacy tag apple-v$VERSION already exists. Will reuse existing tag."
+          if [ "$SKIP_VERSION_COMMIT" = "true" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "bare_exists=false" >> $GITHUB_OUTPUT
+            echo "⚠️ Legacy tag apple-v$VERSION already exists. Will reuse existing tag (current mode)."
+          else
+            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "❌ Legacy tag apple-v$VERSION already exists. Use 'current' to retry with existing version."
+            exit 1
+          fi
         else
           echo "exists=false" >> $GITHUB_OUTPUT
           echo "bare_exists=false" >> $GITHUB_OUTPUT
@@ -181,10 +193,13 @@ jobs:
         RELEASE_TAG="$VERSION"
         LEGACY_TAG="apple-v$VERSION"
         if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
-          git checkout "$RELEASE_TAG"
+          SELECTED_TAG="$RELEASE_TAG"
         else
-          git checkout "$LEGACY_TAG"
+          SELECTED_TAG="$LEGACY_TAG"
         fi
+        node scripts/assert-release-tag.mjs \
+          apple "$RELEASE_BRANCH" "$SELECTED_TAG" "$VERSION"
+        git checkout "$SELECTED_TAG"
 
     - name: Update version in openiap-versions.json
       if: steps.version.outputs.skip_version_commit != 'true'

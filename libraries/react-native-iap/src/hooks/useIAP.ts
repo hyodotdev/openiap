@@ -47,8 +47,6 @@ import type {
   VerifyPurchaseWithProviderProps,
   VerifyPurchaseWithProviderResult,
   PurchaseOptions,
-} from '../types';
-import type {
   ActiveSubscription,
   Product,
   Purchase,
@@ -57,8 +55,8 @@ import type {
   ProductSubscription,
   MutationField,
   QueryField,
+  MutationFinishTransactionArgs,
 } from '../types';
-import type {MutationFinishTransactionArgs} from '../types';
 
 // Types for event subscriptions
 interface EventSubscription {
@@ -354,7 +352,8 @@ export function useIAP(options?: UseIapOptions): UseIap {
   }>({});
 
   // Track if component is mounted to prevent listener leaks on early unmount
-  const isMountedRef = useRef<boolean>(true);
+  const isMountedRef = useRef<boolean>(false);
+  const initializationGenerationRef = useRef(0);
 
   const subscriptionsRefState = useRef<ProductSubscription[]>([]);
 
@@ -693,37 +692,56 @@ export function useIAP(options?: UseIapOptions): UseIap {
     subscriptionsRef.current.subscriptionBillingIssue = undefined;
   }, []);
 
-  const initIapWithSubscriptions = useCallback(async (): Promise<void> => {
-    const config = buildAndroidConfig();
-
-    try {
-      const result = await initConnection(config);
-
-      if (!isMountedRef.current) {
+  const initIapWithSubscriptions = useCallback(
+    async (generation: number): Promise<void> => {
+      if (
+        !isMountedRef.current ||
+        initializationGenerationRef.current !== generation
+      ) {
         return;
       }
 
-      if (!result) {
+      const config = buildAndroidConfig();
+
+      try {
+        const result = await initConnection(config);
+
+        if (
+          !isMountedRef.current ||
+          initializationGenerationRef.current !== generation
+        ) {
+          return;
+        }
+
+        if (!result) {
+          cleanupListeners();
+          setConnected(false);
+          RnIapConsole.warn('[useIAP] initConnection returned false');
+          return;
+        }
+
+        // Android retains events emitted during connection setup in bounded
+        // native queues; registration flushes that backlog after Nitro is ready.
+        // Other platforms preserve the existing post-init listener ordering.
+        registerListeners();
+        setConnected(true);
+      } catch (error) {
+        if (
+          !isMountedRef.current ||
+          initializationGenerationRef.current !== generation
+        ) {
+          return;
+        }
+        RnIapConsole.error('initConnection failed:', error);
         cleanupListeners();
-        setConnected(false);
-        RnIapConsole.warn('[useIAP] initConnection returned false');
-        return;
+        if (isMountedRef.current) {
+          setConnected(false);
+        }
+        invokeOnError(error);
       }
-
-      // Android retains events emitted during connection setup in bounded
-      // native queues; registration flushes that backlog after Nitro is ready.
-      // Other platforms preserve the existing post-init listener ordering.
-      registerListeners();
-      setConnected(true);
-    } catch (error) {
-      RnIapConsole.error('initConnection failed:', error);
-      cleanupListeners();
-      if (isMountedRef.current) {
-        setConnected(false);
-      }
-      invokeOnError(error);
-    }
-  }, [buildAndroidConfig, registerListeners, cleanupListeners, invokeOnError]);
+    },
+    [buildAndroidConfig, registerListeners, cleanupListeners, invokeOnError],
+  );
 
   const reconnect = useCallback(async (): Promise<boolean> => {
     const config = buildAndroidConfig();
@@ -755,8 +773,9 @@ export function useIAP(options?: UseIapOptions): UseIap {
   }, [buildAndroidConfig, registerListeners, cleanupListeners, invokeOnError]);
 
   useEffect(() => {
+    const generation = ++initializationGenerationRef.current;
     isMountedRef.current = true;
-    initIapWithSubscriptions();
+    void Promise.resolve().then(() => initIapWithSubscriptions(generation));
 
     return () => {
       isMountedRef.current = false;

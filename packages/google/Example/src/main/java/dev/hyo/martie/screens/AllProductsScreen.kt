@@ -187,7 +187,7 @@ fun AllProductsScreen(
                                             fontWeight = FontWeight.Bold,
                                             color = AppColors.textPrimary
                                         )
-                                        product.description?.let { desc ->
+                                        product.description.takeIf { it.isNotEmpty() }?.let { desc ->
                                             Text(
                                                 desc,
                                                 style = MaterialTheme.typography.bodySmall,

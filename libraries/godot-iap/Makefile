@@ -8,9 +8,9 @@
 #   make run-android  - Export and run Android APK on device
 #   make run-ios      - Export iOS project and open in Xcode
 
-GODOT_VERSION ?= 4.3
+GODOT_VERSION ?= 4.7.1
 GODOT_LIB_URL = https://github.com/godotengine/godot/releases/download/$(GODOT_VERSION)-stable/godot-lib.$(GODOT_VERSION).stable.template_release.aar
-SWIFT_GODOT_VERSION ?= v0.74.0
+SWIFT_GODOT_VERSION ?= v0.79.0
 
 # Directories
 PROJECT_ROOT := $(shell pwd)
@@ -79,13 +79,17 @@ setup: setup-swiftgodot
 	@mkdir -p $(BIN_DIR)/ios-simulator
 	@mkdir -p $(BIN_DIR)/macos
 	@mkdir -p $(ADDON_DIR)/android
-	@if [ ! -f "$(ANDROID_DIR)/libs/godot-lib.aar" ]; then \
+	@if [ -f "$(ANDROID_DIR)/libs/godot-lib.aar" ] && \
+		unzip -p "$(ANDROID_DIR)/libs/godot-lib.aar" AndroidManifest.xml | \
+		grep -a -q 'android:value="$(GODOT_VERSION).stable"'; then \
+		echo "$(GREEN)✓ godot-lib.aar $(GODOT_VERSION) already exists$(NC)"; \
+	else \
 		echo "$(YELLOW)Downloading godot-lib.aar ($(GODOT_VERSION))...$(NC)"; \
-		curl -L -o "$(ANDROID_DIR)/libs/godot-lib.aar" "$(GODOT_LIB_URL)" || \
+		tmp_aar="$$(mktemp "$(ANDROID_DIR)/libs/godot-lib.aar.XXXXXX")"; \
+		curl -fL -o "$$tmp_aar" "$(GODOT_LIB_URL)" && \
+		mv "$$tmp_aar" "$(ANDROID_DIR)/libs/godot-lib.aar" || \
 		(echo "$(RED)Failed to download. Try manually from: $(GODOT_LIB_URL)$(NC)" && exit 1); \
 		echo "$(GREEN)✓ godot-lib.aar downloaded$(NC)"; \
-	else \
-		echo "$(GREEN)✓ godot-lib.aar already exists$(NC)"; \
 	fi
 	@echo "$(GREEN)Installing git hooks...$(NC)"
 	@$(PROJECT_ROOT)/scripts/install-hooks.sh
@@ -98,7 +102,12 @@ setup-swiftgodot:
 		(echo "$(RED)Failed to clone SwiftGodot$(NC)" && exit 1); \
 		echo "$(GREEN)✓ SwiftGodot cloned$(NC)"; \
 	else \
-		echo "$(GREEN)✓ SwiftGodot already exists$(NC)"; \
+		actual_tag="$$(git -C "$(PROJECT_ROOT)/SwiftGodot" describe --tags --exact-match 2>/dev/null || true)"; \
+		if [ "$$actual_tag" != "$(SWIFT_GODOT_VERSION)" ]; then \
+			echo "$(RED)SwiftGodot checkout is $$actual_tag; expected $(SWIFT_GODOT_VERSION). Move it aside and rerun setup.$(NC)"; \
+			exit 1; \
+		fi; \
+		echo "$(GREEN)✓ SwiftGodot $(SWIFT_GODOT_VERSION) already exists$(NC)"; \
 	fi
 
 # Build iOS plugin (automated with xcodebuild)
@@ -196,7 +205,7 @@ gradle-wrapper:
 		echo "$(YELLOW)Downloading Gradle wrapper...$(NC)"; \
 		mkdir -p $(ANDROID_DIR)/gradle/wrapper; \
 		curl -L -o $(ANDROID_DIR)/gradle/wrapper/gradle-wrapper.jar \
-			"https://raw.githubusercontent.com/gradle/gradle/v8.13.0/gradle/wrapper/gradle-wrapper.jar"; \
+			"https://raw.githubusercontent.com/gradle/gradle/v9.3.0/gradle/wrapper/gradle-wrapper.jar"; \
 		echo "$(GREEN)✓ Gradle wrapper downloaded$(NC)"; \
 	fi
 

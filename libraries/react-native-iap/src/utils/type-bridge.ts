@@ -19,8 +19,6 @@ import type {
   ProductTypeIOS,
   PurchaseState,
   SubscriptionPeriodIOS,
-} from '../types';
-import type {
   Product,
   ProductSubscription,
   Purchase,

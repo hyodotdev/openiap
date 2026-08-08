@@ -164,6 +164,87 @@ function read(relativePath) {
   return fs.readFileSync(abs(relativePath), "utf8");
 }
 
+function extractRunBlockContaining(source, marker) {
+  const lines = source.split("\n");
+  const markerIndex = lines.findIndex((line) => line.includes(marker));
+  if (markerIndex < 0) return "";
+
+  let runIndex = markerIndex;
+  while (runIndex >= 0 && !/^\s*run:\s*\|\s*$/.test(lines[runIndex])) {
+    runIndex -= 1;
+  }
+  if (runIndex < 0) return "";
+
+  const runIndent = lines[runIndex].match(/^\s*/)[0].length;
+  let endIndex = runIndex + 1;
+  while (endIndex < lines.length) {
+    const line = lines[endIndex];
+    if (line.trim() !== "" && line.match(/^\s*/)[0].length <= runIndent) {
+      break;
+    }
+    endIndex += 1;
+  }
+  return lines.slice(runIndex, endIndex).join("\n");
+}
+
+function extractNamedWorkflowStep(source, name) {
+  const lines = source.split("\n");
+  const startIndex = lines.findIndex(
+    (line) => line.trim() === `- name: ${name}`,
+  );
+  if (startIndex < 0) return null;
+
+  const stepIndent = lines[startIndex].match(/^\s*/)[0].length;
+  let endIndex = startIndex + 1;
+  while (endIndex < lines.length) {
+    const line = lines[endIndex];
+    if (
+      line.trim() !== "" &&
+      line.match(/^\s*/)[0].length === stepIndent &&
+      line.trim().startsWith("- ")
+    ) {
+      break;
+    }
+    endIndex += 1;
+  }
+  return {
+    endIndex,
+    source: lines.slice(startIndex, endIndex).join("\n"),
+    startIndex,
+  };
+}
+
+function findExecutableLineIndex(source, pattern, startIndex = 0) {
+  return source.split("\n").findIndex((line, index) => {
+    if (index < startIndex || line.trimStart().startsWith("#")) return false;
+    return pattern.test(line);
+  });
+}
+
+function extractAppleExistingTagBranches(source) {
+  const lines = source.split("\n");
+  const bareStart = lines.findIndex((line) =>
+    line.includes('if git rev-parse "$VERSION"'),
+  );
+  const legacyStart = lines.findIndex((line) =>
+    line.includes('elif git rev-parse "apple-v$VERSION"'),
+  );
+  if (bareStart < 0 || legacyStart <= bareStart) return null;
+
+  const legacyIndent = lines[legacyStart].match(/^\s*/)[0].length;
+  const outerElse = lines.findIndex(
+    (line, index) =>
+      index > legacyStart &&
+      line.match(/^\s*/)[0].length === legacyIndent &&
+      line.trim() === "else",
+  );
+  if (outerElse <= legacyStart) return null;
+  return {
+    bare: lines.slice(bareStart, legacyStart).join("\n"),
+    legacy: lines.slice(legacyStart, outerElse).join("\n"),
+  };
+}
+
 function readJson(relativePath) {
   return JSON.parse(read(relativePath));
 }
@@ -263,7 +344,9 @@ function checkNoOutboundWebhookStream() {
     for (const symbol of forbiddenGodotArtifactSymbols) {
       if (artifact.includes(Buffer.from(symbol))) {
         fail(
-          `${relativePath} still embeds removed outbound webhook symbol ${JSON.stringify(symbol)}; rebuild the tracked artifact`,
+          `${relativePath} still embeds removed outbound webhook symbol ${JSON.stringify(
+            symbol,
+          )}; rebuild the tracked artifact`,
         );
       }
     }
@@ -308,7 +391,9 @@ function checkNoOutboundWebhookStream() {
     for (const identifier of forbiddenIdentifiers) {
       if (text.includes(identifier)) {
         fail(
-          `${relativePath} reintroduces forbidden outbound webhook identifier ${JSON.stringify(identifier)}`,
+          `${relativePath} reintroduces forbidden outbound webhook identifier ${JSON.stringify(
+            identifier,
+          )}`,
         );
       }
     }
@@ -320,7 +405,9 @@ function checkNoOutboundWebhookStream() {
     for (const identifier of forbiddenIdentifiers) {
       if (text.includes(identifier)) {
         fail(
-          `${relativePath} documents forbidden outbound webhook identifier ${JSON.stringify(identifier)}`,
+          `${relativePath} documents forbidden outbound webhook identifier ${JSON.stringify(
+            identifier,
+          )}`,
         );
       }
     }
@@ -581,7 +668,9 @@ function expectFlutterHandlers(kind, block) {
   );
   if (missing.length > 0) {
     fail(
-      `Flutter ${kind}Handlers missing generated operations: ${missing.join(", ")}`,
+      `Flutter ${kind}Handlers missing generated operations: ${missing.join(
+        ", ",
+      )}`,
     );
   }
 }
@@ -736,12 +825,16 @@ function checkFrameworkOperationBindings() {
     if (expected === "Array") {
       if (!actual.startsWith("Array")) {
         fail(
-          `Godot wrapper ${field.snakeName} should return Array for ${field.returnType}, got ${actual || "(none)"}`,
+          `Godot wrapper ${field.snakeName} should return Array for ${
+            field.returnType
+          }, got ${actual || "(none)"}`,
         );
       }
     } else if (actual !== expected) {
       fail(
-        `Godot wrapper ${field.snakeName} should return ${expected} for ${field.returnType}, got ${actual || "(none)"}`,
+        `Godot wrapper ${field.snakeName} should return ${expected} for ${
+          field.returnType
+        }, got ${actual || "(none)"}`,
       );
     }
   }
@@ -855,7 +948,9 @@ function checkE2eExampleIds() {
   ]) {
     if (normalTargets.includes(staleName)) {
       fail(
-        `Expo E2E normal targets must not use stale Xcode name ${JSON.stringify(staleName)}`,
+        `Expo E2E normal targets must not use stale Xcode name ${JSON.stringify(
+          staleName,
+        )}`,
       );
     }
   }
@@ -1105,7 +1200,10 @@ function expectNoExampleStorefrontIOS() {
       const text = fs.readFileSync(file, "utf8");
       if (text.includes("getStorefrontIOS(")) {
         fail(
-          `example uses getStorefrontIOS instead of getStorefront: ${path.relative(root, file)}`,
+          `example uses getStorefrontIOS instead of getStorefront: ${path.relative(
+            root,
+            file,
+          )}`,
         );
       }
     }
@@ -1113,6 +1211,8 @@ function expectNoExampleStorefrontIOS() {
 }
 
 function expectNoApi24ConcurrentKeySets() {
+  const listenerSetForEach =
+    /\b(?:purchaseUpdateListeners|purchaseErrorListeners|userChoiceBillingListeners|developerProvidedBillingListeners|subscriptionBillingIssueListeners)\.forEach\s*\{/;
   const androidSourceRoots = [
     "packages/google/Example/src",
     "packages/google/openiap/src",
@@ -1131,6 +1231,12 @@ function expectNoApi24ConcurrentKeySets() {
           `Android minSdk 23 source uses the reserved newKeySet identifier ` +
             `(ConcurrentHashMap.newKeySet is API 24+); use ` +
             `Collections.newSetFromMap instead: ${path.relative(root, file)}`,
+        );
+      }
+      if (listenerSetForEach.test(source)) {
+        fail(
+          `Android minSdk 23 listener sets must use an explicit for loop; ` +
+            `Java Set.forEach requires API 24+: ${path.relative(root, file)}`,
         );
       }
     }
@@ -1903,6 +2009,41 @@ function checkMaui() {
     "MAUI product constants",
   );
   expectIncludes(
+    rel(base, "Utils/IapKitSettings.cs"),
+    [
+      "CreateVerifyProps(Purchase purchase)",
+      "BaseUrl = BaseUrl",
+      "IapStore.Apple",
+      "IapStore.Google",
+      "IapStore.Amazon",
+      "RequestVerifyPurchaseWithIapkitAmazonProps",
+      "UserId = (purchase as PurchaseAndroid)?.UserIdAmazon",
+      "ReceiptId = token",
+    ],
+    "MAUI IAPKit verification must select one store payload and preserve the configured endpoint",
+  );
+  expectIncludes(
+    rel(base, "Platforms/Android/AndroidManifest.xml"),
+    ['android:usesCleartextTraffic="true"'],
+    "MAUI example Android manifest must allow local IAPKit E2E endpoints",
+  );
+  expectIncludes(
+    rel(base, "Pages/PurchaseFlowPage.xaml.cs"),
+    [
+      "if (!verificationPassed)",
+      "Purchase verification failed; the transaction was not finalized.",
+    ],
+    "MAUI purchase flow must not finalize purchases that fail verification",
+  );
+  expectIncludes(
+    rel(base, "Pages/SubscriptionFlowPage.xaml.cs"),
+    [
+      "Task<bool> VerifySubscriptionIfNeededAsync",
+      "Subscription verification failed; the transaction was not finalized.",
+    ],
+    "MAUI subscription flow must not finalize purchases that fail verification",
+  );
+  expectIncludes(
     "libraries/maui-iap/src/OpenIap.Maui.Bindings.iOS/ApiDefinition.cs",
     ["requestPurchaseWithPayload:completion:", "getStorefrontWithCompletion:"],
     "MAUI iOS binding",
@@ -2446,6 +2587,11 @@ function checkBillingChoiceFieldBindings() {
     ],
     "Godot Billing Choice Android bridge fields",
   );
+  expectNotIncludes(
+    "libraries/godot-iap/android/src/main/java/dev/hyo/godotiap/GodotIap.kt",
+    [".forEach"],
+    "Godot Android bridge collection iteration must remain compatible with API 23",
+  );
   expectIncludes(
     "libraries/godot-iap/Example/tests/test_godot_iap.gd",
     [
@@ -2720,6 +2866,104 @@ function checkFrameworkDependencyHygiene() {
   if (typeof googleVersion !== "string" || googleVersion.length === 0) {
     fail("openiap-versions.json is missing a google version");
   }
+
+  // Expo SDK 57's lint ecosystem supports ESLint 9, but not ESLint 10 yet.
+  // Keep both JavaScript libraries on the newest supported major and preserve
+  // the flat-config migration so deprecated eslintrc files cannot return.
+  for (const packagePath of [
+    "libraries/expo-iap/package.json",
+    "libraries/react-native-iap/package.json",
+    "libraries/react-native-iap/example/package.json",
+  ]) {
+    const packageJson = readJson(packagePath);
+    if (packageJson.devDependencies?.eslint !== "^9.39.5") {
+      fail(`${packagePath} must use the audited ESLint 9.39.5 toolchain`);
+    }
+    if (packageJson.devDependencies?.globals !== "^17.9.0") {
+      fail(`${packagePath} must provide flat-config globals 17.9.0`);
+    }
+    if (
+      packageJson.eslintConfig ||
+      packageJson.eslintIgnore ||
+      packageJson.devDependencies?.["@react-native/eslint-config"]
+    ) {
+      fail(`${packagePath} must not restore legacy ESLint configuration`);
+    }
+  }
+  const reactNativeExamplePackage = readJson(
+    "libraries/react-native-iap/example/package.json",
+  );
+  for (const babelPackage of [
+    "@babel/core",
+    "@babel/preset-env",
+    "@babel/runtime",
+  ]) {
+    if (
+      reactNativeExamplePackage.devDependencies?.[babelPackage] !== "^7.29.7"
+    ) {
+      fail(
+        `React Native example ${babelPackage} must use the audited Babel 7.29.7 compatibility line`,
+      );
+    }
+  }
+  expectIncludes(
+    "libraries/react-native-iap/yarn.lock",
+    [
+      'resolution: "@babel/core@npm:7.29.7"',
+      'resolution: "@babel/preset-env@npm:7.29.7"',
+      'resolution: "@babel/runtime@npm:7.29.7"',
+    ],
+    "React Native example Babel compatibility lock",
+  );
+  expectIncludes(
+    ".github/workflows/ci.yml",
+    [
+      ":openiap:lintPlayDebug",
+      ":openiap:lintHorizonDebug",
+      ":openiap:lintAmazonDebug",
+    ],
+    "Google CI must lint every store flavor for API-23 compatibility",
+  );
+  expectNotIncludes(
+    ".github/workflows/ci.yml",
+    ["Amazon lint currently crashes"],
+    "Google CI must not retain the obsolete Amazon lint exclusion",
+  );
+  for (const configPath of [
+    "libraries/expo-iap/eslint.config.js",
+    "libraries/react-native-iap/eslint.config.js",
+    "libraries/react-native-iap/example/eslint.config.js",
+  ]) {
+    expectIncludes(
+      configPath,
+      ["eslint-config-expo/flat", "eslint-config-prettier/flat", "globals"],
+      `${configPath} ESLint 9 flat config`,
+    );
+  }
+  for (const legacyConfigPath of [
+    "libraries/expo-iap/.eslintignore",
+    "libraries/expo-iap/.eslintrc.js",
+    "libraries/react-native-iap/.eslintignore",
+    "libraries/react-native-iap/.eslintrc.js",
+    "libraries/react-native-iap/example/.eslintrc.js",
+  ]) {
+    if (exists(legacyConfigPath)) {
+      fail(
+        `${legacyConfigPath} must stay removed after the ESLint 9 migration`,
+      );
+    }
+  }
+  expectIncludes(
+    "libraries/react-native-iap/example/tsconfig.json",
+    ['"extends": "@react-native/typescript-config"'],
+    "React Native example TypeScript config export",
+  );
+  expectNotIncludes(
+    "libraries/react-native-iap/example/tsconfig.json",
+    ["@react-native/typescript-config/tsconfig.json"],
+    "React Native example must not use the removed TypeScript config subpath",
+  );
+
   const googleBuildGradle = read("packages/google/openiap/build.gradle.kts");
   const googleCoroutineVersions = uniqueMatches(
     googleBuildGradle,
@@ -2727,7 +2971,9 @@ function checkFrameworkDependencyHygiene() {
   );
   if (googleCoroutineVersions.length !== 1) {
     fail(
-      `packages/google must use one Kotlinx Coroutines version, found: ${googleCoroutineVersions.join(", ") || "(none)"}`,
+      `packages/google must use one Kotlinx Coroutines version, found: ${
+        googleCoroutineVersions.join(", ") || "(none)"
+      }`,
     );
   }
   const googleCoroutinesVersion = googleCoroutineVersions[0];
@@ -3427,6 +3673,9 @@ function checkFrameworkDependencyHygiene() {
   );
   const kmpExampleKotlinVersion =
     kmpExampleVersions.match(/^kotlin = "([^"]+)"/m)?.[1];
+  const kmpExampleGradleVersion = read(
+    "libraries/kmp-iap/example/gradle/wrapper/gradle-wrapper.properties",
+  ).match(/gradle-([^-]+)-bin\.zip/)?.[1];
   const kmpCompileSdk = kmpExampleVersions.match(
     /^android-compileSdk = "([^"]+)"/m,
   )?.[1];
@@ -3442,31 +3691,65 @@ function checkFrameworkDependencyHygiene() {
     fail(
       `KMP example Kotlin ${kmpExampleKotlinVersion} must match library Kotlin ${kmpKotlinVersion}`,
     );
+  } else if (kmpExampleGradleVersion !== kmpGradleVersion) {
+    fail(
+      `KMP example Gradle ${
+        kmpExampleGradleVersion || "(missing)"
+      } must match library Gradle ${kmpGradleVersion}`,
+    );
   } else {
     expectIncludes(
       "packages/docs/src/pages/docs/setup/kmp.tsx",
-      [`Kotlin ${kmpKotlinVersion}+`, `Gradle ${kmpGradleVersion}+`, "JDK 17+"],
+      [`Kotlin ${kmpKotlinVersion}`, `Gradle ${kmpGradleVersion}`, "JDK 17+"],
       "KMP setup docs toolchain versions",
     );
+    for (const mobileOnlyFile of [
+      "libraries/kmp-iap/example/README.md",
+      "libraries/kmp-iap/setup.sh",
+      "libraries/kmp-iap/setup.bat",
+      "libraries/kmp-iap/library/build.gradle.kts",
+    ]) {
+      expectNotIncludes(
+        mobileOnlyFile,
+        [
+          ":example:run",
+          "wasmJsBrowserDevelopmentRun",
+          "Android, iOS, Desktop, and Web",
+        ],
+        "KMP mobile-only targets must not advertise removed desktop or web tasks",
+      );
+    }
     expectIncludes(
-      "libraries/kmp-iap/example/composeApp/build.gradle.kts",
-      ["implementation(libs.kotlinx.coroutines.swing)"],
-      "KMP example desktop coroutines must use version catalog",
+      "libraries/kmp-iap/example/README.md",
+      [":example:composeApp:installPlayDebug", "Android and iOS"],
+      "KMP example docs must use the current mobile target and task",
     );
-    expectIncludes(
-      "libraries/kmp-iap/example/gradle/libs.versions.toml",
-      ["kotlinx-coroutines-swing"],
-      "KMP example coroutines aliases must match root catalog naming",
-    );
+    for (const removedKmpExamplePath of [
+      "libraries/kmp-iap/example/composeApp/src/jvmMain/kotlin/dev/hyo/martie/main.kt",
+      "libraries/kmp-iap/example/composeApp/src/jvmMain/kotlin/dev/hyo/martie/config/AppConfig.jvm.kt",
+      "libraries/kmp-iap/example/composeApp/src/jvmMain/kotlin/dev/hyo/martie/screens/PlatformTime.jvm.kt",
+      "libraries/kmp-iap/example/kotlin-js-store/wasm/yarn.lock",
+    ]) {
+      if (exists(removedKmpExamplePath)) {
+        fail(
+          `${removedKmpExamplePath} must remain removed with desktop and web targets`,
+        );
+      }
+    }
     expectNotIncludes(
       "libraries/kmp-iap/example/gradle/libs.versions.toml",
-      ["kotlinx-coroutinesSwing"],
-      "KMP example coroutines aliases must not use root-incompatible camel suffixes",
+      ["kotlinx-coroutines-swing", "kotlinx-coroutinesSwing"],
+      "KMP Android/iOS example must not retain desktop coroutine aliases",
     );
     expectNotIncludes(
       "libraries/kmp-iap/example/composeApp/build.gradle.kts",
-      ["org.jetbrains.kotlinx:kotlinx-coroutines-swing:"],
-      "KMP example desktop coroutines must not hardcode Maven versions",
+      [
+        'jvm("desktop")',
+        "wasmJs",
+        "compose.desktop",
+        "kotlinx-coroutines-swing",
+      ],
+      "KMP Android/iOS example must not retain unsupported desktop or Wasm targets",
     );
     expectIncludes(
       "libraries/kmp-iap/CONTRIBUTING.md",
@@ -3542,6 +3825,16 @@ function checkFrameworkDependencyHygiene() {
       'version.ref = "compose-material-icons"',
     ],
     "KMP standalone example Compose icon dependency",
+  );
+  expectIncludes(
+    "libraries/kmp-iap/example/gradle/libs.versions.toml",
+    ['androidx-lifecycle = "2.10.0"', "requires Android API 37 / AGP 9.1"],
+    "KMP standalone example Lifecycle compatibility cap",
+  );
+  expectNotIncludes(
+    "libraries/kmp-iap/example/gradle/libs.versions.toml",
+    ['androidx-lifecycle = "2.11.0"'],
+    "KMP standalone example must not exceed the API 36 compatible Lifecycle line",
   );
   expectIncludes(
     "libraries/kmp-iap/example/composeApp/build.gradle.kts",
@@ -3782,6 +4075,10 @@ function checkFrameworkDependencyHygiene() {
       "REMOTE_HEAD=$(git rev-parse origin/main)",
       "OpenIAP Spec cannot be bumped independently",
       "Version metadata was not synchronized on main",
+      'DOCS_TAG="docs-$VERSION"',
+      "git ls-remote --exit-code --tags origin",
+      "already exists, so no new Docs GitHub Release is needed",
+      "has no Docs GitHub Release yet",
     ],
     "deploy script derived spec policy",
   );
@@ -4071,22 +4368,22 @@ function checkFrameworkDependencyHygiene() {
     [
       ".github/workflows/release-expo.yml",
       "expo",
-      'git tag -a "expo-iap-${NEW_VERSION}"',
+      'git tag -a "$RELEASE_TAG" "$GITHUB_SHA"',
     ],
     [
       ".github/workflows/release-react-native.yml",
       "react-native",
-      'git tag -a "react-native-iap-${NEW_VERSION}"',
+      'git tag -a "$RELEASE_TAG" "$GITHUB_SHA"',
     ],
     [
       ".github/workflows/release-flutter.yml",
       "flutter",
-      'git tag -a "flutter-iap-${NEW_VERSION}"',
+      'git tag -a "$RELEASE_TAG" "$GITHUB_SHA"',
     ],
     [
       ".github/workflows/release-godot.yml",
       "godot",
-      "git tag -a godot-iap-${{ steps.version.outputs.VERSION }}",
+      'git tag -a "$RELEASE_TAG" "$GITHUB_SHA"',
     ],
   ]) {
     expectIncludes(
@@ -4099,30 +4396,312 @@ function checkFrameworkDependencyHygiene() {
         `release-branch-policy.mjs guard ${packageId}`,
         "RELEASE_BRANCH: ${{ github.ref_name }}",
         "Commit version update",
-        "STASHED=false",
-        'git stash push --include-untracked -m "release artifacts"',
-        'git pull --rebase origin "$RELEASE_BRANCH"',
-        'if [ "$STASHED" = "true" ]; then',
-        "git stash pop",
+        "assert-release-head.mjs",
+        '"$RELEASE_BRANCH" "$GITHUB_SHA"',
         tagCommand,
-        'git push origin "HEAD:$RELEASE_BRANCH" --follow-tags',
+        'git push --atomic origin "HEAD:$RELEASE_BRANCH" --follow-tags',
+        'git commit --allow-empty -m "chore: recover release ref"',
+        '"HEAD:refs/heads/$RELEASE_BRANCH"',
+        '"refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"',
       ],
-      `${frameworkReleaseWorkflow} must tag after rebasing the release commit`,
+      `${frameworkReleaseWorkflow} must tag only the verified dispatch head`,
     );
     expectNotIncludes(
       frameworkReleaseWorkflow,
       [
+        "STASHED=false",
+        'git stash push --include-untracked -m "release artifacts"',
+        'git pull --rebase origin "$RELEASE_BRANCH"',
         "git stash --include-untracked",
         "git stash pop || true",
         "git push --follow-tags",
+        'git push origin "HEAD:$RELEASE_BRANCH" --follow-tags',
         "git tag -af",
         'git push origin "flutter-iap-${NEW_VERSION}" --force',
         "create_release:",
         "inputs.create_release",
       ],
-      `${frameworkReleaseWorkflow} must push tags from the rebased HEAD explicitly`,
+      `${frameworkReleaseWorkflow} must not incorporate unverified branch changes`,
     );
   }
+  expectIncludes(
+    "scripts/assert-release-head.mjs",
+    [
+      '"ls-remote", "--exit-code", "origin", ref',
+      "remoteHead !== expectedHead",
+      "review, CI, and E2E evidence matches the published source",
+    ],
+    "framework release head guard",
+  );
+  expectIncludes(
+    "scripts/assert-release-tag.mjs",
+    [
+      'runGit(["show", `${tag}:${config.path}`])',
+      '"ls-remote"',
+      "`refs/tags/${tag}^{}`",
+      '"merge-base", "--is-ancestor"',
+      "metadata version is",
+      "does not match its immutable origin tag commit",
+      "is not reachable from origin/",
+    ],
+    "existing release tag provenance guard",
+  );
+  expectIncludes(
+    ".github/workflows/release-apple.yml",
+    [
+      "SKIP_VERSION_COMMIT: ${{ steps.version.outputs.skip_version_commit }}",
+      'if [ "$SKIP_VERSION_COMMIT" = "true" ]; then',
+      "Use 'current' to retry with existing version.",
+    ],
+    "Apple release must reject existing tags outside a current retry",
+  );
+  const appleExistingTagCheck = extractRunBlockContaining(
+    read(".github/workflows/release-apple.yml"),
+    "Use 'current' to retry with existing version.",
+  );
+  const appleTagBranches = extractAppleExistingTagBranches(
+    appleExistingTagCheck,
+  );
+  if (!appleTagBranches) {
+    fail(
+      "Apple release must reject both existing bare and legacy tags outside a current retry",
+    );
+  } else {
+    for (const [name, branch] of Object.entries(appleTagBranches)) {
+      const expectedError = new RegExp(
+        `${name === "legacy" ? "Legacy tag apple-v" : "Tag "}\\$VERSION already exists\\. Use 'current' to retry with existing version\\.`,
+      );
+      if (
+        !/if \[ "\$SKIP_VERSION_COMMIT" = "true" \]; then/.test(branch) ||
+        !expectedError.test(branch) ||
+        findExecutableLineIndex(branch, /^\s*exit 1\s*$/) < 0
+      ) {
+        fail(
+          `Apple ${name} existing-tag branch must execute exit 1 outside a current retry`,
+        );
+      }
+    }
+  }
+  for (const [frameworkReleaseWorkflow, packageId] of [
+    [".github/workflows/release-apple.yml", "apple"],
+    [".github/workflows/release-google.yml", "google"],
+    [".github/workflows/release-expo.yml", "expo"],
+    [".github/workflows/release-react-native.yml", "react-native"],
+    [".github/workflows/release-flutter.yml", "flutter"],
+    [".github/workflows/release-godot.yml", "godot"],
+    [".github/workflows/release-kmp.yml", "kmp"],
+    [".github/workflows/release-maui.yml", "maui"],
+  ]) {
+    expectIncludes(
+      frameworkReleaseWorkflow,
+      ["assert-release-tag.mjs", `${packageId} \"$RELEASE_BRANCH\"`],
+      `${frameworkReleaseWorkflow} must validate existing tag provenance`,
+    );
+    const workflowSource = read(frameworkReleaseWorkflow);
+    if (
+      workflowSource.indexOf("assert-release-tag.mjs") >
+      workflowSource.indexOf("git checkout")
+    ) {
+      fail(
+        `${frameworkReleaseWorkflow} must validate existing tag provenance before checkout`,
+      );
+    }
+  }
+  for (const [frameworkReleaseWorkflow, packageId] of [
+    [".github/workflows/release-apple.yml", "apple"],
+    [".github/workflows/release-google.yml", "google"],
+    [".github/workflows/release-expo.yml", "expo"],
+    [".github/workflows/release-react-native.yml", "react-native"],
+    [".github/workflows/release-flutter.yml", "flutter"],
+  ]) {
+    const existingTagRunBlock = extractRunBlockContaining(
+      read(frameworkReleaseWorkflow),
+      "assert-release-tag.mjs",
+    );
+    const guardIndex = findExecutableLineIndex(
+      existingTagRunBlock,
+      /^\s*node\b.*assert-release-tag\.mjs"?\s*\\\s*$/,
+    );
+    const packageIndex = findExecutableLineIndex(
+      existingTagRunBlock,
+      new RegExp(`^\\s*${packageId} "\\$RELEASE_BRANCH"`),
+      guardIndex + 1,
+    );
+    const checkoutIndex = findExecutableLineIndex(
+      existingTagRunBlock,
+      /^\s*git checkout\b/,
+      packageIndex + 1,
+    );
+    if (!(
+      guardIndex >= 0 &&
+      packageIndex === guardIndex + 1 &&
+      checkoutIndex > packageIndex
+    )) {
+      fail(
+        `${frameworkReleaseWorkflow} must guard and check out the existing tag in one shell block`,
+      );
+    }
+  }
+  for (const [frameworkReleaseWorkflow, expectedIf] of [
+    [
+      ".github/workflows/release-apple.yml",
+      "if: steps.version.outputs.skip_version_commit == 'true' && steps.check_tag.outputs.exists == 'true'",
+    ],
+    [
+      ".github/workflows/release-google.yml",
+      "if: steps.version.outputs.skip_version_commit == 'true' && steps.check_tag.outputs.exists == 'true'",
+    ],
+    [
+      ".github/workflows/release-expo.yml",
+      "if: ${{ inputs.version == 'current' }}",
+    ],
+    [
+      ".github/workflows/release-react-native.yml",
+      "if: ${{ inputs.version == 'current' }}",
+    ],
+    [
+      ".github/workflows/release-flutter.yml",
+      "if: ${{ inputs.version == 'current' }}",
+    ],
+  ]) {
+    const tagStep = extractNamedWorkflowStep(
+      read(frameworkReleaseWorkflow),
+      "Checkout release tag (current version)",
+    );
+    const tagStepIf = tagStep?.source
+      .split("\n")
+      .find((line) => line.trim().startsWith("if:"))
+      ?.trim();
+    const guardIndex = tagStep
+      ? findExecutableLineIndex(
+          tagStep.source,
+          /^\s*node\b.*assert-release-tag\.mjs"?\s*\\\s*$/,
+        )
+      : -1;
+    const checkoutIndex = tagStep
+      ? findExecutableLineIndex(
+          tagStep.source,
+          /^\s*git checkout\b/,
+          guardIndex + 1,
+        )
+      : -1;
+    if (
+      !tagStep ||
+      tagStepIf !== expectedIf ||
+      guardIndex < 0 ||
+      checkoutIndex <= guardIndex
+    ) {
+      fail(
+        `${frameworkReleaseWorkflow} must condition and execute its existing-tag guard before checkout`,
+      );
+    }
+  }
+  for (const [frameworkReleaseWorkflow, expectedIf] of [
+    [
+      ".github/workflows/release-godot.yml",
+      "if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists == 'true' }}",
+    ],
+    [
+      ".github/workflows/release-kmp.yml",
+      "if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists == 'true' }}",
+    ],
+    [
+      ".github/workflows/release-maui.yml",
+      "if: steps.version.outputs.skip_version_commit == 'true' && steps.check_tag.outputs.exists == 'true'",
+    ],
+  ]) {
+    const workflowSource = read(frameworkReleaseWorkflow);
+    const guardStep = extractNamedWorkflowStep(
+      workflowSource,
+      "Verify current release tag provenance",
+    );
+    const checkoutStep = extractNamedWorkflowStep(
+      workflowSource,
+      "Checkout release tag (current version)",
+    );
+    const guardIf = guardStep?.source
+      .split("\n")
+      .find((line) => line.trim().startsWith("if:"))
+      ?.trim();
+    const checkoutIf = checkoutStep?.source
+      .split("\n")
+      .find((line) => line.trim().startsWith("if:"))
+      ?.trim();
+    if (
+      !guardStep ||
+      !checkoutStep ||
+      guardIf !== expectedIf ||
+      checkoutIf !== expectedIf ||
+      findExecutableLineIndex(
+        guardStep.source,
+        /^\s*node\b.*assert-release-tag\.mjs"?\s*\\\s*$/,
+      ) < 0 ||
+      findExecutableLineIndex(checkoutStep.source, /^\s*git checkout\b/) < 0 ||
+      guardStep.endIndex !== checkoutStep.startIndex
+    ) {
+      fail(
+        `${frameworkReleaseWorkflow} must place an identically conditioned provenance guard immediately before existing-tag checkout`,
+      );
+    }
+  }
+  for (const frameworkReleaseWorkflow of [
+    ".github/workflows/release-react-native.yml",
+    ".github/workflows/release-expo.yml",
+    ".github/workflows/release-flutter.yml",
+  ]) {
+    expectIncludes(
+      frameworkReleaseWorkflow,
+      [
+        "Assert verified release head is unchanged",
+        "if: ${{ inputs.version != 'current' || steps.check_tag.outputs.exists != 'true' }}",
+      ],
+      `${frameworkReleaseWorkflow} must skip the branch-only head helper after checking out an existing release tag`,
+    );
+  }
+  for (const frameworkReleaseWorkflow of [
+    ".github/workflows/release-kmp.yml",
+    ".github/workflows/release-maui.yml",
+  ]) {
+    expectIncludes(
+      frameworkReleaseWorkflow,
+      [
+        "assert-release-head.mjs",
+        '"$RELEASE_BRANCH" "$GITHUB_SHA"',
+        "published without a provenance tag",
+        'git commit --allow-empty -m "chore: recover release ref"',
+        'TAG_TARGET="$GITHUB_SHA"',
+        "git push --atomic origin",
+        '"HEAD:$RELEASE_BRANCH"',
+        '"refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"',
+      ],
+      `${frameworkReleaseWorkflow} must reject a stale dispatch head`,
+    );
+    expectNotIncludes(
+      frameworkReleaseWorkflow,
+      [
+        'git pull --rebase origin "$RELEASE_BRANCH"',
+        'git push origin "HEAD:$RELEASE_BRANCH"',
+        'git push origin "$RELEASE_TAG"',
+      ],
+      `${frameworkReleaseWorkflow} must not incorporate unverified branch changes`,
+    );
+  }
+  expectIncludes(
+    ".github/workflows/release-kmp.yml",
+    ["inputs.version != 'current' || steps.check_tag.outputs.exists != 'true'"],
+    "KMP current-mode release must verify an untagged dispatch head",
+  );
+  expectIncludes(
+    ".github/workflows/release-maui.yml",
+    [
+      "steps.version.outputs.skip_version_commit != 'true' || steps.check_tag.outputs.exists != 'true'",
+      "Check if NuGet package already published",
+      "Unable to verify OpenIap.Maui $VERSION on NuGet.org",
+      "if: steps.check_nuget.outputs.exists == 'false'",
+      "NUGET_API_KEY secret is required",
+    ],
+    "MAUI current-mode release must verify an untagged dispatch head",
+  );
   for (const [npmReleaseWorkflow, npmPackage] of [
     [".github/workflows/release-expo.yml", "expo-iap"],
     [".github/workflows/release-react-native.yml", "react-native-iap"],
@@ -4131,12 +4710,44 @@ function checkFrameworkDependencyHygiene() {
       npmReleaseWorkflow,
       [
         "Check if npm package already published",
-        "npm install -g npm@11.5.1",
+        "npm install -g npm@11.19.0",
         `npm view "${npmPackage}@$VERSION" version`,
         `if NPM_OUTPUT=$(npm view "${npmPackage}@$VERSION" version 2>&1); then`,
         "grep -qiE 'E404|404 Not Found'",
-        `npm view "${npmPackage}@$NEW_VERSION" gitHead`,
-        'git cat-file -e "$PUBLISHED_GIT_HEAD^{commit}"',
+        "Refuse an untagged published version",
+        "published without a provenance tag",
+        "publish_only:",
+        "source_run_id:",
+        "if: ${{ !inputs.publish_only }}",
+        "group: ${{ github.workflow }}-${{ inputs.publish_only && 'publish' || 'release' }}",
+        "Dispatch npm publish on tag ref",
+        "Require tag-ref npm publisher capability",
+        "if ! git grep -q '^  publish-npm:'",
+        "Upload npm publish authorization",
+        "actions/upload-artifact@v4",
+        "npm-publish-authorization-${{ github.run_attempt }}",
+        "predates the tag-ref npm publisher and cannot be retried safely",
+        "gh workflow run release-",
+        '--ref "$TAG"',
+        "-f publish_only=true",
+        '-f source_run_id="$GITHUB_RUN_ID"',
+        "publish-npm:",
+        "if: ${{ inputs.publish_only }}",
+        "actions: read",
+        "fetch-depth: 0",
+        'if [ "$GITHUB_REF" != "$EXPECTED_REF" ]; then',
+        'if [ "$(git rev-parse HEAD)" != "$GITHUB_SHA" ]; then',
+        'git merge-base --is-ancestor "$GITHUB_SHA" "origin/$SOURCE_BRANCH"',
+        "Require successful source release run",
+        "actions/runs/$SOURCE_RUN_ID",
+        'SOURCE_CONCLUSION" != "success"',
+        "Verify source run authorized this release tag",
+        'gh run download "$SOURCE_RUN_ID"',
+        'npm-publish-authorization.mjs" verify',
+        "verify-npm-release-provenance.mjs",
+        "Verify existing npm release provenance",
+        "Assert npm publish source is unchanged",
+        "Verify published npm release provenance",
         "if: steps.check_npm.outputs.exists == 'false'",
       ],
       `${npmReleaseWorkflow} must support npm release reruns`,
@@ -4148,9 +4759,140 @@ function checkFrameworkDependencyHygiene() {
         "node-version: 20.x",
         "set +e",
         "NPM_STATUS=$?",
+        "gitHead 2>/dev/null || true",
       ],
       `${npmReleaseWorkflow} must not drift npm trusted-publishing CLI version`,
     );
+    const npmReleaseSource = read(npmReleaseWorkflow);
+    if (
+      npmReleaseSource.indexOf(
+        "- name: Check if npm package already published",
+      ) > npmReleaseSource.indexOf("git tag -a")
+    ) {
+      fail(
+        `${npmReleaseWorkflow} must verify npm before creating a missing tag`,
+      );
+    }
+    const recoveryPushIndex = npmReleaseSource.indexOf(
+      '"refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"',
+    );
+    const legacyGuardIndex = npmReleaseSource.indexOf(
+      "- name: Require tag-ref npm publisher capability",
+    );
+    const authorizationWriteIndex = npmReleaseSource.indexOf(
+      "- name: Write npm publish authorization",
+    );
+    const authorizationUploadIndex = npmReleaseSource.indexOf(
+      "- name: Upload npm publish authorization",
+    );
+    const dispatchIndex = npmReleaseSource.indexOf(
+      "- name: Dispatch npm publish on tag ref",
+    );
+    const workflowDispatchCommandIndex = npmReleaseSource.indexOf(
+      "gh workflow run release-",
+    );
+    const publishJobIndex = npmReleaseSource.indexOf("\n  publish-npm:\n");
+    const tagGuardIndex = npmReleaseSource.indexOf(
+      'if [ "$GITHUB_REF" != "$EXPECTED_REF" ]; then',
+    );
+    const sourceRunGuardIndex = npmReleaseSource.indexOf(
+      "- name: Require successful source release run",
+    );
+    const sourceAuthorizationIndex = npmReleaseSource.indexOf(
+      "- name: Verify source run authorized this release tag",
+    );
+    const finalSourceGuardIndex = npmReleaseSource.indexOf(
+      "- name: Assert npm publish source is unchanged",
+    );
+    const publishIndex = npmReleaseSource.indexOf("- name: Publish to npm");
+    const publishedProvenanceIndex = npmReleaseSource.indexOf(
+      "- name: Verify published npm release provenance",
+    );
+    if (
+      recoveryPushIndex >= legacyGuardIndex ||
+      legacyGuardIndex >= authorizationWriteIndex ||
+      authorizationWriteIndex >= authorizationUploadIndex ||
+      authorizationUploadIndex >= dispatchIndex ||
+      dispatchIndex >= workflowDispatchCommandIndex ||
+      workflowDispatchCommandIndex >= publishJobIndex ||
+      publishJobIndex >= tagGuardIndex ||
+      tagGuardIndex >= sourceRunGuardIndex ||
+      sourceRunGuardIndex >= sourceAuthorizationIndex ||
+      sourceAuthorizationIndex >= finalSourceGuardIndex ||
+      finalSourceGuardIndex >= publishIndex ||
+      publishIndex >= publishedProvenanceIndex
+    ) {
+      fail(
+        `${npmReleaseWorkflow} must publish in a tag-ref OIDC run after the immutable tag push`,
+      );
+    }
+    if ((npmReleaseSource.match(/id-token: write/g) ?? []).length !== 1) {
+      fail(
+        `${npmReleaseWorkflow} must grant OIDC only to its tag-ref npm publisher`,
+      );
+    }
+    if (npmReleaseSource.includes('git checkout --detach "$GITHUB_SHA"')) {
+      fail(
+        `${npmReleaseWorkflow} must not substitute checkout state for tag-ref OIDC provenance`,
+      );
+    }
+  }
+  expectIncludes(
+    "scripts/verify-npm-release-provenance.mjs",
+    [
+      "npm gitHead mismatch",
+      "https://slsa.dev/provenance/v1",
+      "resolvedDependencies",
+      "subject?.name === expectedSubject",
+      "subject?.digest?.sha512?.toLowerCase() === expectedArtifactDigest",
+      "workflow?.path === expectedWorkflowPath",
+      "workflow?.ref === expectedRef",
+      "workflow?.repository === expectedRepository",
+      "dependency?.digest?.gitCommit === expectedCommit",
+      "statement?._type === IN_TOTO_STATEMENT_V1",
+      "verifiedEntry?.attestationBundles",
+      "new URL(entry?.registry).origin",
+      '["audit", "signatures", "--json", "--include-attestations"]',
+      "verifyNpmSignatureAuditResult",
+    ],
+    "npm release provenance verifier must bind registry metadata and SLSA provenance to the immutable tag",
+  );
+  expectIncludes(
+    "scripts/npm-publish-authorization.mjs",
+    [
+      "sourceRunId",
+      "sourceRunAttempt",
+      "sourceHeadSha",
+      "tagSha",
+      "npm publish authorization",
+    ],
+    "npm tag publisher authorization must bind the exact source run to the exact tag commit",
+  );
+  expectIncludes(
+    ".github/workflows/ci.yml",
+    [
+      "scripts/npm-publish-authorization.test.mjs",
+      "scripts/verify-npm-release-provenance.test.mjs",
+    ],
+    "CI must test npm release provenance verification",
+  );
+  expectIncludes(
+    ".github/workflows/release-flutter.yml",
+    [
+      "Check if pub.dev package already published",
+      "Unable to verify flutter_inapp_purchase $VERSION on pub.dev",
+      "Refuse an untagged published version",
+      "published without a provenance tag",
+    ],
+    "Flutter release must verify pub.dev before creating a missing tag",
+  );
+  const flutterReleaseSource = read(".github/workflows/release-flutter.yml");
+  if (
+    flutterReleaseSource.indexOf(
+      "- name: Check if pub.dev package already published",
+    ) > flutterReleaseSource.indexOf("git tag -a")
+  ) {
+    fail("Flutter release must verify pub.dev before creating a missing tag");
   }
   expectIncludes(
     "scripts/verify-npm-consumer-install.mjs",
@@ -4179,6 +4921,16 @@ function checkFrameworkDependencyHygiene() {
       `${packageJsonPath} must expose npm consumer smoke test`,
     );
   }
+  expectIncludes(
+    "libraries/react-native-iap/package.json",
+    ['"prepare": "tsx scripts/check-nitro-versions.ts', '"tsx": "^4.23.11"'],
+    "React Native prepare must use the locked local tsx binary",
+  );
+  expectNotIncludes(
+    "libraries/react-native-iap/package.json",
+    ["npx tsx"],
+    "React Native prepare must not download an unpinned tsx at release time",
+  );
   for (const [workflowPath, command] of [
     [".github/workflows/ci-expo-iap.yml", "bun run verify:consumer-install"],
     [
@@ -4203,14 +4955,67 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     ".github/workflows/publish-flutter.yml",
     [
+      "push:",
+      "tags:",
+      '"flutter-iap-*"',
+      'EXPECTED_REF="refs/tags/flutter-iap-${VERSION}"',
+      "GITHUB_EVENT_NAME",
+      "GITHUB_REF_TYPE",
+      "HEAD_COMMIT",
+      "GITHUB_SHA",
+      "actions: read",
+      "fetch-depth: 0",
+      'git merge-base --is-ancestor "$GITHUB_SHA" "origin/$RELEASE_BRANCH"',
+      'AUTHORIZATION_NAME="flutter-publish-authorization-$GITHUB_SHA"',
+      "actions/artifacts?name=$AUTHORIZATION_NAME",
+      'SOURCE_WORKFLOW_PATH" != ".github/workflows/release-flutter.yml"',
+      'gh run download "$SOURCE_RUN_ID"',
+      "SOURCE_RUN_ATTEMPT=$(jq -r '.sourceRunAttempt // \"\"'",
+      "actions/runs/$SOURCE_RUN_ID/attempts/$SOURCE_RUN_ATTEMPT",
+      'SOURCE_RUN_ATTEMPT_ACTUAL" != "$SOURCE_RUN_ATTEMPT"',
+      'npm-publish-authorization.mjs" verify',
       "Check if pub.dev package already published",
-      'flutter-version: "3.41.9"',
+      'flutter-version: "3.44.9"',
       'HTTP_STATUS=$(curl -s -o /dev/null -w "%{http_code}"',
       'HTTP_STATUS="${HTTP_STATUS:-000}"',
       "https://pub.dev/api/packages/flutter_inapp_purchase/versions/$VERSION",
       "if: steps.check_pub.outputs.exists == 'false'",
     ],
     "Flutter publish workflow must support pub.dev release reruns",
+  );
+  expectNotIncludes(
+    ".github/workflows/publish-flutter.yml",
+    ["environment: pub.dev"],
+    "Flutter publishing must not require an unconfigured GitHub environment",
+  );
+  expectNotIncludes(
+    ".github/workflows/publish-flutter.yml",
+    ["workflow_dispatch:"],
+    "Flutter pub.dev publishing must only run from an eligible tag-push event",
+  );
+  expectIncludes(
+    ".github/workflows/release-flutter.yml",
+    [
+      "Wait for tag-push pub.dev publisher",
+      "Write Flutter publish authorization",
+      "Upload Flutter publish authorization",
+      "flutter-publish-authorization-${{ steps.flutter_auth.outputs.tag_sha }}",
+      "overwrite: true",
+      "retention-days: 90",
+      "predates the authorized tag-push publisher and cannot be retried safely",
+      'AUTHORIZATION_NAME="flutter-publish-authorization-$TAG_COMMIT"',
+      "AUTHORIZATION_COUNT",
+      "select(.expired == false)",
+      "event=push&head_sha=$TAG_COMMIT",
+      'gh run rerun "$RUN_ID"',
+      "pub.dev rejects workflow_dispatch publishing",
+    ],
+    "Flutter release must authorize, wait for, or rerun the original tag-push publisher",
+  );
+  expectNotIncludes(
+    ".github/workflows/release-flutter.yml",
+    ["gh workflow run publish-flutter.yml"],
+    "Flutter release must not replace the pub.dev-required tag-push event with workflow_dispatch",
   );
   for (const flutterWorkflow of [
     ".github/workflows/ci-flutter-inapp-purchase.yml",
@@ -4219,7 +5024,7 @@ function checkFrameworkDependencyHygiene() {
   ]) {
     expectIncludes(
       flutterWorkflow,
-      ['flutter-version: "3.41.9"'],
+      ['flutter-version: "3.44.9"'],
       `${flutterWorkflow} must pin Flutter SDK`,
     );
     expectNotIncludes(
@@ -4227,7 +5032,72 @@ function checkFrameworkDependencyHygiene() {
       ['flutter-version: "3.x"'],
       `${flutterWorkflow} must not float Flutter SDK`,
     );
+    expectNotIncludes(
+      flutterWorkflow,
+      ['flutter-version: "3.41.9"', 'flutter-version: "3.44.0"'],
+      `${flutterWorkflow} must not use a superseded Flutter toolchain`,
+    );
   }
+  expectIncludes(
+    ".claude/commands/review-pr.md",
+    [
+      "~300 seconds (5 minutes)",
+      "5-minute wake-up",
+      "CodeRabbit is the only configured external reviewer",
+      "clean CodeRabbit result is successful reviewer coverage",
+      "one complete",
+      "`$review-self` round",
+      "### Cleanup Review Automation Comments",
+      '.body == "@coderabbitai review"',
+      'or (.user.login == "coderabbitai[bot]" and (.body | contains("CodeRabbit review command invocation")))',
+      'test("review (was )?skipped|review unavailable|unable to review|too many files|file limit"; "i")',
+      "Do **not** delete human comments, inline review replies, actual reviewer summaries, CodeRabbit walkthrough comments, or any comment containing substantive review feedback",
+    ],
+    "review-pr must preserve the requested five-minute polling cadence",
+  );
+  expectNotIncludes(
+    ".claude/commands/review-pr.md",
+    [
+      "~480 seconds (8 minutes)",
+      "8-minute wake-up",
+      "/gemini review",
+      "Copilot",
+    ],
+    "review-pr must not retain superseded cadence or reviewer triggers",
+  );
+  for (const workflowSkill of [
+    ".codex/skills/openiap-workflows/SKILL.md",
+    ".claude/skills/openiap-workflows/SKILL.md",
+  ]) {
+    expectIncludes(
+      workflowSkill,
+      ["CodeRabbit", "review-self"],
+      `${workflowSkill} must route unavailable CodeRabbit review to review-self`,
+    );
+  }
+  expectIncludes(
+    ".claude/commands/release.md",
+    [
+      "currently every five minutes",
+      "`npm run deploy`; run `release.yml` with `version=current` only when",
+      "then run the docs deployment. Run the Docs release workflow with",
+      "only when the native-derived `spec` advanced",
+      "immutable existing `docs-{spec}` tag is never reused",
+      "If a Docs GitHub Release is requested while",
+      "stop and explain that the immutable",
+    ],
+    "dependency release gate must preserve review cadence and conditional Docs releases",
+  );
+  expectNotIncludes(
+    ".claude/commands/release.md",
+    [
+      "currently about eight minutes",
+      "`npm run deploy`, then `release.yml`",
+      "then run the docs deployment and the Docs release workflow",
+      "or the maintainer explicitly requested",
+    ],
+    "dependency release gate must not unconditionally reuse a Docs release tag",
+  );
   for (const releaseNotesWorkflow of [
     ".github/workflows/release-apple.yml",
     ".github/workflows/release-google.yml",
@@ -4346,6 +5216,9 @@ function checkFrameworkDependencyHygiene() {
       "CLANG_ENABLE_CODE_COVERAGE=NO",
       "ENABLE_CODE_COVERAGE=NO",
       "SWIFT_ENABLE_CODE_COVERAGE=NO",
+      'android:value="$(GODOT_VERSION).stable"',
+      "describe --tags --exact-match",
+      "expected $(SWIFT_GODOT_VERSION)",
     ],
     "Godot release framework builds must disable code-coverage instrumentation",
   );
@@ -4358,10 +5231,22 @@ function checkFrameworkDependencyHygiene() {
       [
         "Verify tracked iOS framework toolchain",
         "bash scripts/verify-ios-toolchain.sh",
+        "godot-lib.4.3.stable.template_release.aar",
+        "godot-lib.4.7.1.stable.template_release.aar",
       ],
       `${godotWorkflow} must validate tracked iOS framework toolchain provenance`,
     );
   }
+  expectIncludes(
+    ".github/workflows/ci-godot-iap.yml",
+    ["version: 4.7.1", 'xcode-version: "26.6"', "SwiftGodot v0.79.0"],
+    "Godot CI must validate the pinned engine and SwiftGodot toolchain",
+  );
+  expectNotIncludes(
+    ".github/workflows/ci-godot-iap.yml",
+    ['xcode-version: "26.0"'],
+    "Godot CI must not retain stale engine or Swift toolchain pins",
+  );
   expectIncludes(
     ".github/workflows/release-godot.yml",
     [
@@ -4437,6 +5322,15 @@ function checkFrameworkDependencyHygiene() {
       "Creates Git tag `google-<google-version>`",
       "gh workflow run release.yml --ref main -f version=current",
       "`docs-{version}`",
+      "Run the stable Docs workflow only when the spec",
+      "If a Docs GitHub Release is requested while `spec` is unchanged",
+      "immutable tag scheme cannot represent it",
+      "still equal the workflow dispatch SHA after validation",
+      "stop instead of rebasing unverified commits into the release",
+      "immutable provenance tag must be pushed atomically before",
+      "contains the version while its provenance tag is absent",
+      "empty provenance-recovery commit",
+      "Git omits up-to-date refs",
     ],
     "release deployment docs tag conventions",
   );
@@ -4444,6 +5338,16 @@ function checkFrameworkDependencyHygiene() {
     "scripts/deploy.sh",
     ['git commit -m "chore: bump spec'],
     "deploy script commit message must be conventional",
+  );
+  expectIncludes(
+    "scripts/deploy.sh",
+    [
+      "DOCS_TAG_STATUS=$?",
+      '[ "$DOCS_TAG_STATUS" -eq 2 ]',
+      "Unable to determine whether $DOCS_TAG exists",
+      "Check the remote tag state before creating a Docs GitHub Release",
+    ],
+    "docs deployment must distinguish a missing tag from remote lookup failures",
   );
   expectNotIncludes(
     ".github/workflows/release.yml",
@@ -4467,6 +5371,7 @@ function checkFrameworkDependencyHygiene() {
       "Creates Git tag `apple-v<apple-version>`",
       "Creates Git tag `google-v<google-version>`",
       "Create Git tag `v<spec>`",
+      "or when the maintainer asks for",
     ],
     "release deployment docs must not mention legacy tag creation",
   );
@@ -4735,14 +5640,17 @@ function checkFrameworkDependencyHygiene() {
       './scripts/update-readme-version.sh "$VERSION"',
       "release-branch-policy.mjs guard kmp",
       "RELEASE_BRANCH: ${{ github.ref_name }}",
-      'git pull --rebase origin "$RELEASE_BRANCH"',
-      'git push origin "HEAD:$RELEASE_BRANCH"',
+      "assert-release-head.mjs",
+      '"$RELEASE_BRANCH" "$GITHUB_SHA"',
+      "published without a provenance tag",
+      "git push --atomic origin",
+      '"HEAD:$RELEASE_BRANCH"',
+      '"refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"',
       "https://repo1.maven.org/maven2/io/github/hyochan/kmp-iap/$VERSION/",
       "Unable to verify kmp-iap $VERSION on Maven Central",
       "if: steps.check_maven.outputs.exists == 'false'",
       "Create and push tag",
-      'git tag -a "$RELEASE_TAG" -m "Release $RELEASE_TAG"',
-      'git push origin "$RELEASE_TAG"',
+      'git tag -a "$RELEASE_TAG" "$TAG_TARGET" -m "Release $RELEASE_TAG"',
       "./gradlew :library:assembleRelease --no-daemon --stacktrace",
       "files: libraries/kmp-iap/release-artifacts.zip",
       'implementation("io.github.hyochan:kmp-iap:$VERSION")',
@@ -4840,7 +5748,11 @@ function checkFrameworkDependencyHygiene() {
     [
       "- name: Create and push tag",
       "if: success()",
-      'git tag -a "maui-iap-$VERSION" -m "Release maui-iap $VERSION"',
+      'git tag -a "$RELEASE_TAG" "$TAG_TARGET" -m "Release $RELEASE_TAG"',
+      "published without a provenance tag",
+      "git push --atomic origin",
+      '"HEAD:$RELEASE_BRANCH"',
+      '"refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"',
     ],
     "MAUI release workflow must create tags before GitHub Release creation",
   );
@@ -4937,14 +5849,14 @@ function checkFrameworkDependencyHygiene() {
       "'google' version missing in openiap-versions.json",
       'id("com.android.library") version "8.13.2"',
       'id("com.android.application") version "8.13.2"',
-      'id("com.vanniktech.maven.publish") version "0.35.0"',
+      'id("com.vanniktech.maven.publish") version "0.37.0"',
     ],
     "packages/google root OpenIAP version",
   );
   expectIncludes(
     "packages/google/gradle/wrapper/gradle-wrapper.properties",
-    ["gradle-8.13-all.zip"],
-    "packages/google Gradle wrapper must support Vanniktech 0.35.0",
+    ["gradle-9.3.0-all.zip"],
+    "packages/google Gradle wrapper must support Vanniktech 0.37.0",
   );
   expectNotIncludes(
     "packages/google/build.gradle.kts",
@@ -4965,9 +5877,15 @@ function checkFrameworkDependencyHygiene() {
       "'google' version missing in openiap-versions.json",
       "compilerOptions",
       "JvmTarget.JVM_17",
+      "KotlinAndroidProjectExtension",
+      "ANDROID_GRADLE_PLUGIN_VERSION.substringBefore('.')",
+      'providers.gradleProperty("android.builtInKotlin")',
+      "if (!usesBuiltInKotlin)",
+      'pluginManager.apply("org.jetbrains.kotlin.android")',
       "val horizonBillingCompatibilityVersion =",
       "val horizonPlatformKotlinVersion =",
-      "val horizonSerializationVersion =",
+      'val horizonSerializationVersion = "1.9.0"',
+      "Expo SDK 57's Kotlin",
       "publishToMavenCentral()",
     ],
     "packages/google module OpenIAP version and Kotlin compiler settings",
@@ -4989,7 +5907,9 @@ function checkFrameworkDependencyHygiene() {
   );
   if (googleBillingVersions.length !== 1) {
     fail(
-      `packages/google must use one Play Billing version, found: ${googleBillingVersions.join(", ") || "(none)"}`,
+      `packages/google must use one Play Billing version, found: ${
+        googleBillingVersions.join(", ") || "(none)"
+      }`,
     );
   }
   const googleGsonVersions = uniqueMatches(
@@ -4998,13 +5918,27 @@ function checkFrameworkDependencyHygiene() {
   );
   if (googleGsonVersions.length !== 1) {
     fail(
-      `packages/google must use one Gson version, found: ${googleGsonVersions.join(", ") || "(none)"}`,
+      `packages/google must use one Gson version, found: ${
+        googleGsonVersions.join(", ") || "(none)"
+      }`,
     );
   }
   expectIncludes(
     "packages/google/openiap/build.gradle.kts",
-    ["com.android.billingclient:billing:$playBillingVersion"],
+    [
+      "com.android.billingclient:billing:$playBillingVersion",
+      "androidx.lifecycle:lifecycle-runtime:2.10.0",
+      "androidx.lifecycle:lifecycle-viewmodel:2.10.0",
+    ],
     "packages/google Play Billing dependency version",
+  );
+  expectNotIncludes(
+    "packages/google/openiap/build.gradle.kts",
+    [
+      "androidx.lifecycle:lifecycle-runtime:2.11.0",
+      "androidx.lifecycle:lifecycle-viewmodel:2.11.0",
+    ],
+    "packages/google must not exceed the API 36 compatible Lifecycle line",
   );
   expectNotIncludes(
     "packages/google/openiap/build.gradle.kts",
@@ -5015,6 +5949,16 @@ function checkFrameworkDependencyHygiene() {
     "libraries/kmp-iap/library/build.gradle.kts",
     ["com.android.billingclient:billing-ktx:"],
     "KMP Android compile classpaths must use the Billing core artifact",
+  );
+  expectIncludes(
+    "libraries/kmp-iap/library/build.gradle.kts",
+    ["org.robolectric:robolectric:4.16.1"],
+    "KMP Android unit-test runtime version",
+  );
+  expectNotIncludes(
+    "libraries/kmp-iap/library/build.gradle.kts",
+    ["org.robolectric:robolectric:4.13"],
+    "KMP Android unit-test runtime must not retain the old Robolectric pin",
   );
   expectNotIncludes(
     "packages/google/openiap/src/main/java/dev/hyo/openiap/store/OpenIapStore.kt",
@@ -5029,6 +5973,25 @@ function checkFrameworkDependencyHygiene() {
       "alternativeBillingCallback?.onTokenCreated",
     ],
     "Google Play production module must use structured logging",
+  );
+  expectNotIncludes(
+    "packages/google/openiap/src/amazon/java/dev/hyo/openiap/OpenIapModule.kt",
+    [
+      "requestIds.forEach(::add)",
+      "abortedRequestIds.forEach",
+      "receipts.forEach",
+    ],
+    "Amazon Java collection iteration must remain compatible with API 23",
+  );
+  expectNotIncludes(
+    "packages/google/openiap/src/horizon/java/dev/hyo/openiap/OpenIapModule.kt",
+    ["details.forEach"],
+    "Horizon Java collection iteration must remain compatible with API 23",
+  );
+  expectNotIncludes(
+    "packages/google/openiap/src/horizon/java/dev/hyo/openiap/helpers/ProductManager.kt",
+    ["details.forEach", "requestedProductIds.forEach", "list.forEach"],
+    "Horizon product collection iteration must remain compatible with API 23",
   );
   const googleBuildRoot = read("packages/google/build.gradle.kts");
   const googleCompileSdk = googleBuildGradle.match(
@@ -5077,16 +6040,18 @@ function checkFrameworkDependencyHygiene() {
         "openIapBuildFile",
         'readOpenIapAndroidInt("compileSdk")',
         'readOpenIapAndroidInt("minSdk")',
-        'readOpenIapDependencyVersion("androidx.core:core-ktx")',
-        'readOpenIapDependencyVersion("androidx.lifecycle:lifecycle-runtime-ktx")',
-        'readOpenIapDependencyVersion("androidx.lifecycle:lifecycle-viewmodel-ktx")',
+        'readOpenIapDependencyVersion("androidx.core:core")',
+        'readOpenIapDependencyVersion("androidx.lifecycle:lifecycle-runtime")',
+        'readOpenIapDependencyVersion("androidx.lifecycle:lifecycle-viewmodel")',
         'readOpenIapDependencyVersion("junit:junit")',
         "compileSdk = openIapCompileSdk",
         "minSdk = openIapMinSdk",
         "targetSdk = openIapTargetSdk",
-        'implementation("androidx.core:core-ktx:$openIapCoreKtxVersion")',
-        'implementation("androidx.lifecycle:lifecycle-runtime-ktx:$openIapLifecycleRuntimeVersion")',
+        'implementation("androidx.core:core:$openIapCoreVersion")',
+        'implementation("androidx.lifecycle:lifecycle-runtime:$openIapLifecycleRuntimeVersion")',
         'implementation("androidx.lifecycle:lifecycle-viewmodel-compose:$openIapLifecycleViewModelVersion")',
+        'implementation("androidx.compose.material:material-icons-extended:$composeMaterialIconsVersion")',
+        "COMPOSE_MATERIAL_ICONS_VERSION",
         'testImplementation("junit:junit:$openIapJunitVersion")',
       ],
       "Google example overlapping Android versions must derive from openiap module",
@@ -5097,8 +6062,9 @@ function checkFrameworkDependencyHygiene() {
         "compileSdk = 35",
         "minSdk = 24",
         "targetSdk = 35",
-        "androidx.core:core-ktx:1.13.1",
-        "androidx.lifecycle:lifecycle-runtime-ktx:2.8.7",
+        "androidx.core:core-ktx:",
+        "androidx.lifecycle:lifecycle-runtime-ktx:",
+        "androidx.lifecycle:lifecycle-viewmodel-ktx:",
         "androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7",
         "junit:junit:4.13.2",
       ],
@@ -5195,6 +6161,9 @@ function checkFrameworkDependencyHygiene() {
         "readRequiredAndroidGradleProperty(projectDir, 'openIapAndroidAnnotationVersion')",
         'classpath "com.android.tools.build:gradle:$androidGradlePluginVersion"',
         "openiap-android-sdk.gradle",
+        "ANDROID_GRADLE_PLUGIN_VERSION.tokenize('.')",
+        "findProperty('android.builtInKotlin')",
+        "if (!usesBuiltInKotlin)",
         `openIapResolveAndroidSdkVersion('compileSdkVersion', 'compileSdk', ${googleCompileSdk})`,
         `openIapResolveAndroidSdkVersion('minSdkVersion', 'minSdk', ${googleMinSdk})`,
         `openIapResolveAndroidSdkVersion('targetSdkVersion', 'compileSdk', ${googleCompileSdk})`,
@@ -5223,6 +6192,9 @@ function checkFrameworkDependencyHygiene() {
       "libraries/flutter_inapp_purchase/example/android/app/build.gradle",
       [
         "openiap-android-sdk.gradle",
+        "ANDROID_GRADLE_PLUGIN_VERSION.tokenize('.')",
+        "findProperty('android.builtInKotlin')",
+        "if (!usesBuiltInKotlin)",
         "compileSdk = openIapCompileSdkVersion",
         "minSdkVersion = openIapMinSdkVersion",
         "targetSdkVersion = openIapTargetSdkVersion",
@@ -5279,7 +6251,7 @@ function checkFrameworkDependencyHygiene() {
       [
         `openIapAndroidGradlePluginVersion=${googleAndroidGradlePluginVersion}`,
         `openIapKotlinVersion=${googleKotlinVersion}`,
-        "openIapAndroidAnnotationVersion=",
+        "openIapAndroidAnnotationVersion=1.10.0",
         "openIapJunitVersion=",
       ],
       "Flutter Android Gradle plugin fallback versions",
@@ -5297,12 +6269,12 @@ function checkFrameworkDependencyHygiene() {
     );
     expectIncludes(
       "libraries/flutter_inapp_purchase/android/gradle/wrapper/gradle-wrapper.properties",
-      ["gradle-8.13-bin.zip"],
+      ["gradle-9.3.0-bin.zip"],
       "Flutter standalone Android Gradle wrapper must support packages/google AGP",
     );
     expectIncludes(
       "libraries/flutter_inapp_purchase/example/android/gradle/wrapper/gradle-wrapper.properties",
-      ["gradle-8.13-all.zip"],
+      ["gradle-9.3.0-all.zip"],
       "Flutter example Android Gradle wrapper must support packages/google AGP",
     );
     expectIncludes(
@@ -5324,7 +6296,7 @@ function checkFrameworkDependencyHygiene() {
     );
     expectIncludes(
       "libraries/godot-iap/android/gradle/wrapper/gradle-wrapper.properties",
-      ["gradle-8.13-bin.zip"],
+      ["gradle-9.3.0-bin.zip"],
       "Godot Android Gradle wrapper must support packages/google AGP",
     );
     expectIncludes(
@@ -5498,7 +6470,7 @@ function checkFrameworkDependencyHygiene() {
         "injectPluginManagement();",
         "readGradlePluginVersion(contents,",
         "setGradlePluginVersion(",
-        "vanniktechMavenPublish: '0.35.0'",
+        "vanniktechMavenPublish: '0.37.0'",
         "pluginVersions.vanniktechMavenPublish",
         "pluginVersions.kotlin",
       ],
@@ -5519,12 +6491,33 @@ function checkFrameworkDependencyHygiene() {
       ['version "0.29.0"', "new File('${androidModulePath"],
       "Expo local OpenIAP plugin Gradle plugin versions must not drift from packages/google",
     );
+    for (const vegaDependencyFile of [
+      "libraries/expo-iap/plugin/src/withVega.ts",
+      "libraries/expo-iap/example/scripts/build-vega-example.mjs",
+      "libraries/react-native-iap/example/scripts/build-vega-example.mjs",
+    ]) {
+      expectIncludes(
+        vegaDependencyFile,
+        ["~2.13.0"],
+        "Vega examples must install the current Amazon IAP peer",
+      );
+      expectNotIncludes(
+        vegaDependencyFile,
+        ["~2.12.13"],
+        "Vega examples must not recreate the old Amazon IAP dependency",
+      );
+    }
+    expectIncludes(
+      "libraries/expo-iap/plugin/src/withVega.ts",
+      ["^0.0.7"],
+      "Expo Vega plugin must install the current compatibility Metro config",
+    );
     expectOptionalIncludes(
       "libraries/expo-iap/example/android/settings.gradle",
       [
-        'id("com.vanniktech.maven.publish") version "0.35.0"',
-        'id("org.jetbrains.kotlin.android") version "2.2.0"',
-        'id("org.jetbrains.kotlin.plugin.compose") version "2.2.0"',
+        'id("com.vanniktech.maven.publish") version "0.37.0"',
+        'id("org.jetbrains.kotlin.android") version "2.1.20"',
+        'id("org.jetbrains.kotlin.plugin.compose") version "2.1.20"',
         "project(':openiap-google').projectDir = new File(settingsDir, '../../../../packages/google/openiap')",
       ],
       "Expo example local OpenIAP plugin versions",
@@ -5536,12 +6529,12 @@ function checkFrameworkDependencyHygiene() {
     );
     expectIncludes(
       "libraries/kmp-iap/gradle/libs.versions.toml",
-      ['vanniktech-publish = "0.35.0"'],
+      ['vanniktech-publish = "0.37.0"'],
       "KMP Vanniktech publish plugin version",
     );
     expectIncludes(
       "libraries/kmp-iap/example/gradle/libs.versions.toml",
-      ['vanniktech-publish = "0.35.0"'],
+      ['vanniktech-publish = "0.37.0"'],
       "KMP example Vanniktech publish plugin version",
     );
     expectIncludes(
@@ -5748,7 +6741,9 @@ function checkFrameworkDependencyHygiene() {
   );
   if (horizonBillingVersions.length !== 1) {
     fail(
-      `packages/google must use one Horizon Billing Compatibility version, found: ${horizonBillingVersions.join(", ") || "(none)"}`,
+      `packages/google must use one Horizon Billing Compatibility version, found: ${
+        horizonBillingVersions.join(", ") || "(none)"
+      }`,
     );
   }
   if (
@@ -5761,17 +6756,23 @@ function checkFrameworkDependencyHygiene() {
   }
   if (horizonPlatformKotlinVersions.length !== 1) {
     fail(
-      `packages/google must use one Horizon Platform Kotlin SDK version, found: ${horizonPlatformKotlinVersions.join(", ") || "(none)"}`,
+      `packages/google must use one Horizon Platform Kotlin SDK version, found: ${
+        horizonPlatformKotlinVersions.join(", ") || "(none)"
+      }`,
     );
   }
   if (horizonSerializationVersions.length !== 1) {
     fail(
-      `packages/google must use one Horizon serialization version, found: ${horizonSerializationVersions.join(", ") || "(none)"}`,
+      `packages/google must use one Horizon serialization version, found: ${
+        horizonSerializationVersions.join(", ") || "(none)"
+      }`,
     );
   }
   if (amazonAppstoreSdkVersions.length !== 1) {
     fail(
-      `packages/google must use one Amazon Appstore SDK version, found: ${amazonAppstoreSdkVersions.join(", ") || "(none)"}`,
+      `packages/google must use one Amazon Appstore SDK version, found: ${
+        amazonAppstoreSdkVersions.join(", ") || "(none)"
+      }`,
     );
   }
   expectIncludes(
@@ -5817,8 +6818,14 @@ function checkFrameworkDependencyHygiene() {
   const mauiAndroidXActivityVersion = mauiProps.match(
     /<MauiAndroidXActivityVersion>([^<]+)<\/MauiAndroidXActivityVersion>/,
   )?.[1];
+  const mauiAndroidXCollectionVersion = mauiProps.match(
+    /<MauiAndroidXCollectionVersion>([^<]+)<\/MauiAndroidXCollectionVersion>/,
+  )?.[1];
   const mauiAndroidXFragmentVersion = mauiProps.match(
     /<MauiAndroidXFragmentVersion>([^<]+)<\/MauiAndroidXFragmentVersion>/,
+  )?.[1];
+  const mauiAndroidXFragmentKtxVersion = mauiProps.match(
+    /<MauiAndroidXFragmentKtxVersion>([^<]+)<\/MauiAndroidXFragmentKtxVersion>/,
   )?.[1];
   const mauiAndroidXLifecycleVersion = mauiProps.match(
     /<MauiAndroidXLifecycleVersion>([^<]+)<\/MauiAndroidXLifecycleVersion>/,
@@ -5839,6 +6846,8 @@ function checkFrameworkDependencyHygiene() {
       "MauiBillingClientNuGetVersion",
       "MauiGoogleGsonNuGetVersion",
       "MauiAndroidXActivityVersion",
+      "MauiAndroidXCollectionVersion",
+      "MauiAndroidXFragmentKtxVersion",
       "MauiAndroidXLifecycleVersion",
       "mauiGsonVersion",
     ],
@@ -5878,7 +6887,9 @@ function checkFrameworkDependencyHygiene() {
       "MauiBillingClientNuGetVersion",
       "MauiGoogleGsonNuGetVersion",
       "MauiAndroidXActivityVersion",
+      "MauiAndroidXCollectionVersion",
       "MauiAndroidXFragmentVersion",
+      "MauiAndroidXFragmentKtxVersion",
       "MauiAndroidXLifecycleVersion",
       "MauiAndroidXSavedStateVersion",
     ],
@@ -5919,8 +6930,18 @@ function checkFrameworkDependencyHygiene() {
   if (!mauiAndroidXActivityVersion) {
     fail("MAUI Directory.Build.props must define MauiAndroidXActivityVersion");
   }
+  if (!mauiAndroidXCollectionVersion) {
+    fail(
+      "MAUI Directory.Build.props must define MauiAndroidXCollectionVersion",
+    );
+  }
   if (!mauiAndroidXFragmentVersion) {
     fail("MAUI Directory.Build.props must define MauiAndroidXFragmentVersion");
+  }
+  if (!mauiAndroidXFragmentKtxVersion) {
+    fail(
+      "MAUI Directory.Build.props must define MauiAndroidXFragmentKtxVersion",
+    );
   }
   if (!mauiAndroidXLifecycleVersion) {
     fail("MAUI Directory.Build.props must define MauiAndroidXLifecycleVersion");
@@ -6005,7 +7026,7 @@ function checkFrameworkDependencyHygiene() {
       'readGoogleAndroidInt("compileSdk")',
       'readGoogleAndroidInt("minSdk")',
       "readMauiAndroidMinSdk()",
-      'readGoogleDependencyVersion("androidx.core:core-ktx")',
+      'readGoogleDependencyVersion("androidx.core:core")',
       'readGoogleVariable("coroutinesVersion")',
       "compileSdk = googleCompileSdk",
       "minSdk = maxOf(googleMinSdk, mauiAndroidMinSdk)",
@@ -6014,7 +7035,7 @@ function checkFrameworkDependencyHygiene() {
       "openiap-google-horizon",
       'missingDimensionStrategy("platform", openIapAndroidStore)',
       "mauiGsonVersion",
-      'implementation("androidx.core:core-ktx:$googleCoreKtxVersion")',
+      'implementation("androidx.core:core:$googleCoreVersion")',
       "com.google.code.gson:gson:$gsonVersion",
       'implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:$googleCoroutinesVersion")',
     ],
@@ -6044,7 +7065,7 @@ function checkFrameworkDependencyHygiene() {
     [
       "compileSdk = 35",
       "minSdk = 24",
-      "androidx.core:core-ktx:1.13.1",
+      "androidx.core:core-ktx:",
       "kotlinx-coroutines-android:1.9.0",
     ],
     "MAUI Android facade versions must derive from openiap-google and MAUI metadata",
@@ -6109,14 +7130,22 @@ function checkFrameworkDependencyHygiene() {
       "Condition=\"'$(OpenIapGoogleAarFlavor)' == 'play'\"",
       "GoogleGson",
       'Version="$(MauiGoogleGsonNuGetVersion)"',
-      "Xamarin.AndroidX.Activity.Ktx",
+      "Xamarin.AndroidX.Activity",
       'Version="$(MauiAndroidXActivityVersion)"',
-      "Xamarin.AndroidX.Fragment.Ktx",
+      "Xamarin.AndroidX.Activity.Ktx",
+      "Xamarin.AndroidX.Collection.Ktx",
+      'Version="$(MauiAndroidXCollectionVersion)"',
+      "Xamarin.AndroidX.Fragment",
       'Version="$(MauiAndroidXFragmentVersion)"',
-      "Xamarin.AndroidX.Lifecycle.Runtime.Ktx",
+      "Xamarin.AndroidX.Fragment.Ktx",
+      'Version="$(MauiAndroidXFragmentKtxVersion)"',
+      "Xamarin.AndroidX.Lifecycle.Runtime",
       'Version="$(MauiAndroidXLifecycleVersion)"',
-      "Xamarin.AndroidX.SavedState.SavedState.Ktx",
+      "Xamarin.AndroidX.Lifecycle.Runtime.Ktx",
+      "Xamarin.AndroidX.Lifecycle.ViewModel.Ktx",
+      "Xamarin.AndroidX.SavedState",
       'Version="$(MauiAndroidXSavedStateVersion)"',
+      "Xamarin.AndroidX.SavedState.SavedState.Ktx",
       'Version="$(MauiKotlinStdLibVersion)"',
       'Version="$(MauiKotlinCoroutinesVersion)"',
       "openiap-release.aar",
@@ -6142,6 +7171,8 @@ function checkFrameworkDependencyHygiene() {
     [
       "DefaultItemExcludes",
       "obj/**;bin/**",
+      "<MauiControlsVersion>10.0.90</MauiControlsVersion>",
+      "<MicrosoftExtensionsLoggingDebugVersion>10.0.10</MicrosoftExtensionsLoggingDebugVersion>",
       "BaseIntermediateOutputPath",
       "BaseOutputPath",
       "$(OpenIapAndroidStore)",
@@ -6181,7 +7212,10 @@ function checkFrameworkDependencyHygiene() {
   );
   expectIncludes(
     "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
-    ["net10.0;net10.0-android;net10.0-ios;net10.0-maccatalyst"],
+    [
+      "net10.0;net10.0-android;net10.0-ios;net10.0-maccatalyst",
+      'Include="Microsoft.Maui.Controls" Version="$(MauiControlsVersion)" PrivateAssets="all"',
+    ],
     "MAUI 2.x package must target supported .NET 10 frameworks only",
   );
   expectIncludes(
@@ -6190,7 +7224,8 @@ function checkFrameworkDependencyHygiene() {
       "net10.0-android",
       "net10.0-ios",
       "net10.0-maccatalyst",
-      'Version="10.0.*"',
+      'Include="Microsoft.Maui.Controls" Version="$(MauiControlsVersion)"',
+      'Include="Microsoft.Extensions.Logging.Debug" Version="$(MicrosoftExtensionsLoggingDebugVersion)"',
     ],
     "MAUI example app must validate net10 target frameworks",
   );
@@ -6251,6 +7286,16 @@ function checkFrameworkDependencyHygiene() {
     );
   }
   expectIncludes(
+    "libraries/maui-iap/tests/OpenIap.Maui.Tests/OpenIap.Maui.Tests.csproj",
+    [
+      'Include="Microsoft.NET.Test.Sdk" Version="18.8.1"',
+      'Include="xunit" Version="2.9.3"',
+      'Include="xunit.analyzers" Version="1.27.0" PrivateAssets="all"',
+      'Include="xunit.runner.visualstudio" Version="3.1.5"',
+    ],
+    "MAUI test dependencies must stay current",
+  );
+  expectIncludes(
     "libraries/flutter_inapp_purchase/android/settings.gradle",
     ["new File(settingsDir, '../../../packages/google/openiap')"],
     "Flutter Android local OpenIAP module hint",
@@ -6310,7 +7355,7 @@ function checkFrameworkDependencyHygiene() {
       "libraries/react-native-iap/android/gradle.properties",
       [
         `NitroIap_coroutinesVersion=${googleCoroutineVersions[0]}`,
-        "NitroIap_playServicesBaseVersion=",
+        "NitroIap_playServicesBaseVersion=18.10.0",
         "NitroIap_junitVersion=",
       ],
       "React Native Android coroutines fallback version",
@@ -6353,6 +7398,44 @@ function checkFrameworkDependencyHygiene() {
       "prefab true",
     ],
     "React Native Android Gradle must avoid hardcoded drift and deprecated syntax",
+  );
+  expectIncludes(
+    "libraries/expo-iap/android/build.gradle",
+    ['testImplementation "org.json:json:20260719"'],
+    "Expo Android unit tests must use the current org.json artifact",
+  );
+  expectNotIncludes(
+    "libraries/expo-iap/android/build.gradle",
+    ["kotlin-stdlib-jdk7", "org.json:json:20180813"],
+    "Expo Android dependencies must not retain merged or stale artifacts",
+  );
+  expectIncludes(
+    ".github/workflows/release-expo.yml",
+    [
+      "Consumer install smoke test (pre-tag build)",
+      "bun run verify:consumer-install --pack-ignore-scripts",
+    ],
+    "Expo releases must build and smoke-test the package before tagging",
+  );
+  expectNotIncludes(
+    ".github/workflows/release-expo.yml",
+    ["Prepare package (build + codegen)", "run: bun run prepare"],
+    "Expo releases must not rely on the no-op prepare command before tagging",
+  );
+  expectIncludes(
+    "libraries/expo-iap/package.json",
+    ['"prepare": "bun run build:plugin'],
+    "Expo workspace installs must build the config plugin explicitly",
+  );
+  expectNotIncludes(
+    "libraries/expo-iap/package.json",
+    ["expo-module prepare"],
+    "Expo package lifecycle must not rely on the removed prepare behavior",
+  );
+  expectIncludes(
+    ".github/workflows/ci-expo-iap.yml",
+    ["Build config plugin", "run: bun run build:plugin"],
+    "Expo iOS CI must build the config plugin before prebuild",
   );
   expectIncludes(
     "libraries/react-native-iap/example/android/app/build.gradle",
@@ -6398,17 +7481,15 @@ function checkFrameworkDependencyHygiene() {
   }
 
   for (const kotlinVersionFile of [
-    "libraries/expo-iap/plugin/src/withLocalOpenIAP.ts",
     "libraries/flutter_inapp_purchase/android/gradle.properties",
     "libraries/flutter_inapp_purchase/example/android/gradle.properties",
     "libraries/flutter_inapp_purchase/example/android/settings.gradle",
     "libraries/godot-iap/android/gradle.properties",
     "libraries/react-native-iap/android/gradle.properties",
-    "libraries/react-native-iap/README.md",
   ]) {
     expectIncludes(
       kotlinVersionFile,
-      ["2.2.0"],
+      ["2.4.10"],
       `${kotlinVersionFile} Kotlin version`,
     );
     expectNotIncludes(
@@ -6417,17 +7498,120 @@ function checkFrameworkDependencyHygiene() {
       `${kotlinVersionFile} Kotlin version`,
     );
   }
+  expectIncludes(
+    "packages/google/gradle.properties",
+    ["COMPOSE_UI_VERSION=1.11.4"],
+    "Google Compose UI version",
+  );
+  for (const googleGradleFile of [
+    "packages/google/openiap/build.gradle.kts",
+    "packages/google/Example/build.gradle.kts",
+  ]) {
+    expectIncludes(
+      googleGradleFile,
+      ['?: "1.11.4"'],
+      `${googleGradleFile} Compose UI fallback`,
+    );
+    expectNotIncludes(
+      googleGradleFile,
+      ['?: "1.10.6"'],
+      `${googleGradleFile} must not retain the superseded Compose UI fallback`,
+    );
+  }
+  for (const kmpCatalog of [
+    "libraries/kmp-iap/gradle/libs.versions.toml",
+    "libraries/kmp-iap/example/gradle/libs.versions.toml",
+  ]) {
+    expectIncludes(
+      kmpCatalog,
+      [
+        '= "1.10.3"',
+        "1.11.x no longer resolves the iosX64 variants",
+        "1.10.3 is the latest stable compatible release",
+      ],
+      `${kmpCatalog} Compose compatibility cap`,
+    );
+  }
+  expectIncludes(
+    "libraries/kmp-iap/CLAUDE.md",
+    [
+      "Kotlin `2.4.10` is the validated compiler line",
+      "Keep Compose Multiplatform at `1.10.3`",
+      "Compose `1.11.x` does not resolve the required iOS x64 variants",
+      "Do not remove a supported target solely to make a dependency upgrade pass",
+    ],
+    "KMP Compose compatibility guidance",
+  );
+  expectIncludes(
+    "libraries/react-native-iap/README.md",
+    [
+      "React Native 0.79 or later",
+      "Node.js 18 or later",
+      "Android API level 23+",
+      "versions supplied by the host React Native project",
+      "standalone OpenIAP fallback (`2.4.10`)",
+    ],
+    "React Native requirements must distinguish host compatibility from standalone fallbacks",
+  );
+  expectNotIncludes(
+    "libraries/react-native-iap/README.md",
+    [
+      "React Native 0.64 or later",
+      "Node.js 16 or later",
+      "Android API level 21+",
+      "requires Kotlin 2.4.10+",
+    ],
+    "React Native requirements must not retain stale or incompatible minimums",
+  );
+  expectIncludes(
+    "packages/docs/src/pages/docs/setup/expo.tsx",
+    [
+      "SDK 57 / React Native 0.86",
+      "SDK 57: iOS 16.4+",
+      "Android 7 / API 24+",
+      "SDK 57: Node.js 22.13.x",
+      "54–56: Node.js 20.19.x",
+      "SDK 53: Node.js 20.18.x",
+      "react-native-tvos@0.86.2-0",
+      '"@react-native-tvos/config-tv": "^0.1.6"',
+      "deploymentTarget: isTV ? '16.0' : '16.4'",
+      "deploymentTarget: '16.4'",
+    ],
+    "Expo setup docs must match the validated SDK 57 toolchain",
+  );
+  expectNotIncludes(
+    "packages/docs/src/pages/docs/setup/expo.tsx",
+    [
+      "SDK 53–56: Node.js 20.x",
+      "SDK 53: Node.js 20+",
+      "react-native-tvos@0.81.5-1",
+      '"@react-native-tvos/config-tv": "^0.1.4"',
+      "deploymentTarget: isTV ? '16.0' : '15.1'",
+      "Do not force Kotlin 2.3.x",
+    ],
+    "Expo setup docs must not retain superseded SDK 57 prerequisites",
+  );
+  expectIncludes(
+    "libraries/expo-iap/plugin/src/withLocalOpenIAP.ts",
+    ["2.1.20"],
+    "Expo SDK 57 local OpenIAP Kotlin version",
+  );
+  expectNotIncludes(
+    "libraries/expo-iap/plugin/src/withLocalOpenIAP.ts",
+    ["2.4.10"],
+    "Expo local OpenIAP must not inject the standalone Google Kotlin version",
+  );
   for (const kotlinVersionFile of [
     "libraries/expo-iap/plugin/build/withLocalOpenIAP.js",
   ]) {
     expectOptionalIncludes(
       kotlinVersionFile,
-      ["2.2.0"],
+      ["2.1.20"],
       `${kotlinVersionFile} Kotlin version`,
     );
     expectOptionalNotIncludes(
       kotlinVersionFile,
-      ["2.0.21", "2.1.20", "2.1.0"],
+      ["2.4.10"],
       `${kotlinVersionFile} Kotlin version`,
     );
   }
@@ -6731,7 +7915,7 @@ function checkXcode27StoreKitCoverage() {
     expectIncludes(
       workflowPath,
       [
-        'flutter-version: "3.44.0"',
+        'flutter-version: "3.44.9"',
         "bash scripts/verify-apple-swiftpm-consumer-build.sh",
       ],
       `${workflowPath} Flutter Xcode 27 SwiftPM example build`,

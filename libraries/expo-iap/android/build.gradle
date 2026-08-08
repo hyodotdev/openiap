@@ -64,9 +64,9 @@ def useManagedAndroidSdkVersions = false
 if (useManagedAndroidSdkVersions) {
   useDefaultAndroidSdkVersions()
 } else {
-  def openIapCompileSdkVersion = openIapResolveAndroidSdkVersion('compileSdkVersion', 'compileSdk', 35)
+  def openIapCompileSdkVersion = openIapResolveAndroidSdkVersion('compileSdkVersion', 'compileSdk', 36)
   def openIapMinSdkVersion = openIapResolveAndroidSdkVersion('minSdkVersion', 'minSdk', 23)
-  def openIapTargetSdkVersion = openIapResolveAndroidSdkVersion('targetSdkVersion', 'compileSdk', 35)
+  def openIapTargetSdkVersion = openIapResolveAndroidSdkVersion('targetSdkVersion', 'compileSdk', 36)
 
   project.android {
     compileSdk = openIapCompileSdkVersion
@@ -102,9 +102,8 @@ kotlin {
 }
 
 dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7"
     testImplementation "junit:junit:4.13.2"
-    testImplementation "org.json:json:20180813"
+    testImplementation "org.json:json:20260719"
 
     // Use OpenIAP Google module only; avoid direct BillingClient dependency
     if (findProject(":openiap-google") != null) {

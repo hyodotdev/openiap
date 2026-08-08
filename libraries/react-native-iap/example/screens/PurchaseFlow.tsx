@@ -349,13 +349,13 @@ function PurchaseFlow({
         <View style={styles.instructions}>
           <Text style={styles.instructionsTitle}>How to test:</Text>
           <Text style={styles.instructionsText}>
-            1. Make sure you're signed in with a Sandbox account
+            1. Make sure you’re signed in with a Sandbox account
           </Text>
           <Text style={styles.instructionsText}>
             2. Products must be configured in App Store Connect
           </Text>
           <Text style={styles.instructionsText}>
-            3. Tap "Purchase" to initiate the transaction
+            3. Tap “Purchase” to initiate the transaction
           </Text>
           <Text style={styles.instructionsText}>
             4. The transaction will be processed via the hook callbacks

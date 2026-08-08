@@ -48,7 +48,7 @@ public partial class OfferCodePage : ContentPage
     {
         if (!_connected)
         {
-            await DisplayAlert("Not Connected", "Please wait for store connection", "OK");
+            await DisplayAlertAsync("Not Connected", "Please wait for store connection", "OK");
             return;
         }
 

@@ -1,6 +1,9 @@
 <Project>
   <PropertyGroup>
     <DefaultItemExcludes>$(DefaultItemExcludes);obj/**;bin/**</DefaultItemExcludes>
+    <!-- Keep the library and example on the latest stable .NET 10 MAUI servicing release. -->
+    <MauiControlsVersion>10.0.90</MauiControlsVersion>
+    <MicrosoftExtensionsLoggingDebugVersion>10.0.10</MicrosoftExtensionsLoggingDebugVersion>
   </PropertyGroup>
 
   <!-- Android store variants share native artifact names. Keep MSBuild outputs

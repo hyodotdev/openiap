@@ -223,6 +223,15 @@ jobs:
             echo "✓ Tag $RELEASE_TAG does not exist"
           fi
 
+      - name: Verify current release tag provenance
+        if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists == 'true' }}
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          RELEASE_TAG="kmp-iap-$VERSION"
+          node "$GITHUB_WORKSPACE/scripts/assert-release-tag.mjs" \
+            kmp "$RELEASE_BRANCH" "$RELEASE_TAG" "$VERSION"
+
       - name: Checkout release tag (current version)
         if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists == 'true' }}
         env:
@@ -230,6 +239,10 @@ jobs:
         run: |
           RELEASE_TAG="kmp-iap-$VERSION"
           git checkout "$RELEASE_TAG"
+
+      - name: Assert verified release head is unchanged
+        if: ${{ inputs.version != 'current' || steps.check_tag.outputs.exists != 'true' }}
+        run: node "$GITHUB_WORKSPACE/scripts/assert-release-head.mjs" "$RELEASE_BRANCH" "$GITHUB_SHA"
 
       - name: Update release metadata
         if: ${{ inputs.version != 'current' }}
@@ -256,8 +269,6 @@ jobs:
             echo "No version changes to commit"
           else
             git commit -m "chore(release): kmp-iap ${{ env.VERSION }}"
-            git pull --rebase origin "$RELEASE_BRANCH"
-            git push origin "HEAD:$RELEASE_BRANCH"
           fi
 
       - name: Clean build artifacts
@@ -293,6 +304,33 @@ jobs:
               ;;
           esac
 
+      - name: Create and push tag
+        if: success()
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+          PACKAGE_EXISTS: ${{ steps.check_maven.outputs.exists }}
+          VERSION_TYPE: ${{ inputs.version }}
+        run: |
+          RELEASE_TAG="kmp-iap-$VERSION"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Tag $RELEASE_TAG already exists"
+          elif [ "$PACKAGE_EXISTS" = "true" ]; then
+            echo "❌ kmp-iap $VERSION is published without a provenance tag; refusing to tag an unverified source"
+            exit 1
+          else
+            TAG_TARGET="HEAD"
+            if [ "$VERSION_TYPE" = "current" ]; then
+              git commit --allow-empty -m "chore: recover release ref"
+              TAG_TARGET="$GITHUB_SHA"
+            fi
+            git tag -a "$RELEASE_TAG" "$TAG_TARGET" -m "Release $RELEASE_TAG"
+            git push --atomic origin \
+              "HEAD:$RELEASE_BRANCH" \
+              "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+          fi
+
       - name: Publish to Maven Central
         if: steps.check_maven.outputs.exists == 'false'
         env:
@@ -302,21 +340,6 @@ jobs:
           ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
           ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
         run: ./gradlew :library:publishAndReleaseToMavenCentral --no-daemon --no-parallel
-
-      - name: Create and push tag
-        if: success()
-        env:
-          VERSION: ${{ steps.version.outputs.VERSION }}
-        run: |
-          RELEASE_TAG="kmp-iap-$VERSION"
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
-            echo "Tag $RELEASE_TAG already exists"
-          else
-            git tag -a "$RELEASE_TAG" -m "Release $RELEASE_TAG"
-            git push origin "$RELEASE_TAG"
-          fi
 
       - name: Generate release notes
         if: success()

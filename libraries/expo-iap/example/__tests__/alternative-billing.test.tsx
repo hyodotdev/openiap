@@ -34,13 +34,13 @@ describe('AlternativeBilling Component', () => {
     });
   });
 
-  it('renders Amazon Vega as unsupported for alternative billing', () => {
+  it('renders Amazon Vega as unsupported for alternative billing', async () => {
     Object.defineProperty(Platform, 'OS', {
       get: jest.fn(() => 'kepler'),
       configurable: true,
     });
 
-    const {getByText} = render(<AlternativeBilling />);
+    const {getByText} = await render(<AlternativeBilling />);
 
     expect(getByText('Not supported on Amazon Vega')).toBeDefined();
     expect(
@@ -48,8 +48,8 @@ describe('AlternativeBilling Component', () => {
     ).toBeDefined();
     expect(getByText('Current mode: Amazon Vega standard IAP')).toBeDefined();
 
-    fireEvent.press(getByText('Test Consumable'));
+    await fireEvent.press(getByText('Test Consumable'));
 
-    expect(getByText('Not supported on Vega')).toBeDefined();
+    expect(getByText('Not supported on Amazon Vega')).toBeDefined();
   });
 });

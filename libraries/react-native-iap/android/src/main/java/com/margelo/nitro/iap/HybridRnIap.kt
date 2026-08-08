@@ -153,7 +153,7 @@ class HybridRnIap : HybridRnIapSpec() {
     private val connectionLifecycleQueue = ConnectionLifecycleQueue()
     
     // Connection methods
-    // Variant wrapper helpers for nitrogen 0.35.0 compatibility
+    // Variant wrapper helpers shared by the generated Nitrogen bindings.
     private fun String?.wrapVariant(): Variant_NullType_String? = this?.let { Variant_NullType_String.Second(it) }
     private fun Double?.wrapVariant(): Variant_NullType_Double? = this?.let { Variant_NullType_Double.Second(it) }
     private fun Boolean?.wrapVariant(): Variant_NullType_Boolean? = this?.let { Variant_NullType_Boolean.Second(it) }
@@ -229,7 +229,7 @@ class HybridRnIap : HybridRnIapSpec() {
                     })
                     openIap.addPurchaseErrorListener(OpenIapPurchaseErrorListener { e ->
                         val code = OpenIapError.toCode(e)
-                        val message = e.message ?: OpenIapError.defaultMessage(code)
+                        val message = e.message
                         runCatching {
                             RnIapLog.result(
                                 "purchaseErrorListener",
@@ -1573,7 +1573,7 @@ class HybridRnIap : HybridRnIapSpec() {
                 val nitroErrors = result.errors?.map { error ->
                     NitroVerifyPurchaseWithProviderError(
                         code = error.code?.let { Variant_NullType_String.Second(it) },
-                        message = error.message ?: ""
+                        message = error.message
                     )
                 }?.toTypedArray()
 
@@ -2171,7 +2171,7 @@ class HybridRnIap : HybridRnIapSpec() {
     ): String {
         val code = OpenIapError.Companion.toCode(error)
         val message = messageOverride?.takeIf { it.isNotBlank() }
-            ?: error.message?.takeIf { it.isNotBlank() }
+            ?: error.message.takeIf { it.isNotBlank() }
             ?: OpenIapError.Companion.defaultMessage(code)
         val diagnostics = error.toJSON()
         val responseCode = (diagnostics["responseCode"] as? Number)?.toInt()
@@ -2195,7 +2195,7 @@ class HybridRnIap : HybridRnIapSpec() {
         debugMessage
             ?.let { errorMap["debugMessage"] = it }
             ?: (diagnostics["debugMessage"] as? String)?.let { errorMap["debugMessage"] = it }
-            ?: error.message?.let { errorMap["debugMessage"] = it }
+            ?: error.message.let { errorMap["debugMessage"] = it }
         diagnosticProductId?.let { errorMap["productId"] = it }
         if (!productIds.isNullOrEmpty()) errorMap["productIds"] = productIds
         productType?.let { errorMap["productType"] = it }
@@ -2267,7 +2267,7 @@ class HybridRnIap : HybridRnIapSpec() {
     ): NitroPurchaseResult {
         val code = OpenIapError.Companion.toCode(error)
         val message = messageOverride?.takeIf { it.isNotBlank() }
-            ?: error.message?.takeIf { it.isNotBlank() }
+            ?: error.message.takeIf { it.isNotBlank() }
             ?: OpenIapError.Companion.defaultMessage(code)
         val diagnostics = error.toJSON()
         val responseCode = (diagnostics["responseCode"] as? Number)?.toDouble()

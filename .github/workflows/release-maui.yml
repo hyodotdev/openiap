@@ -236,6 +236,15 @@ jobs:
             echo "✓ Tag maui-iap-$VERSION does not exist, proceeding with release"
           fi
 
+      - name: Verify current release tag provenance
+        if: steps.version.outputs.skip_version_commit == 'true' && steps.check_tag.outputs.exists == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          RELEASE_TAG="maui-iap-$VERSION"
+          node scripts/assert-release-tag.mjs \
+            maui "$RELEASE_BRANCH" "$RELEASE_TAG" "$VERSION"
+
       - name: Checkout release tag (current version)
         if: steps.version.outputs.skip_version_commit == 'true' && steps.check_tag.outputs.exists == 'true'
         env:
@@ -243,6 +252,10 @@ jobs:
         run: |
           RELEASE_TAG="maui-iap-$VERSION"
           git checkout "$RELEASE_TAG"
+
+      - name: Assert verified release head is unchanged
+        if: ${{ steps.version.outputs.skip_version_commit != 'true' || steps.check_tag.outputs.exists != 'true' }}
+        run: node "$GITHUB_WORKSPACE/scripts/assert-release-head.mjs" "$RELEASE_BRANCH" "$GITHUB_SHA"
 
       - name: Update package version in OpenIap.Maui.csproj
         if: steps.version.outputs.skip_version_commit != 'true'
@@ -294,24 +307,6 @@ jobs:
             echo "No version changes to commit"
           else
             git commit -m "chore(maui): bump version to $VERSION"
-            for i in 1 2 3; do
-              if ! git pull --rebase origin "$RELEASE_BRANCH"; then
-                echo "❌ Rebase conflict while updating MAUI package version"
-                exit 1
-              fi
-              if git push origin "HEAD:$RELEASE_BRANCH"; then
-                echo "✅ Pushed version update"
-                break
-              else
-                if [ $i -lt 3 ]; then
-                  echo "⚠️ Push failed, retrying"
-                  sleep $((i * 2))
-                else
-                  echo "❌ Failed to push after 3 attempts"
-                  exit 1
-                fi
-              fi
-            done
           fi
 
       # Re-build native artifacts on the publish runner; the validate-multitarget
@@ -339,13 +334,65 @@ jobs:
             -p:Version=$VERSION \
             -o ./nupkgs
 
+      - name: Check if NuGet package already published
+        id: check_nuget
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          VERSION_NORMALIZED=$(printf '%s' "$VERSION" | tr '[:upper:]' '[:lower:]')
+          PACKAGE_URL="https://api.nuget.org/v3-flatcontainer/openiap.maui/$VERSION_NORMALIZED/openiap.maui.$VERSION_NORMALIZED.nupkg"
+          HTTP_STATUS=$(curl -sS -L -o /dev/null -w "%{http_code}" "$PACKAGE_URL" || true)
+          HTTP_STATUS="${HTTP_STATUS:-000}"
+          case "$HTTP_STATUS" in
+            200)
+              echo "exists=true" >> "$GITHUB_OUTPUT"
+              echo "⚠️ OpenIap.Maui $VERSION already exists on NuGet.org"
+              ;;
+            404)
+              echo "exists=false" >> "$GITHUB_OUTPUT"
+              echo "✓ OpenIap.Maui $VERSION does not exist, will publish"
+              ;;
+            *)
+              echo "❌ Unable to verify OpenIap.Maui $VERSION on NuGet.org (HTTP $HTTP_STATUS)"
+              exit 1
+              ;;
+          esac
+
+      - name: Create and push tag
+        if: success()
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          PACKAGE_EXISTS: ${{ steps.check_nuget.outputs.exists }}
+          SKIP_VERSION_COMMIT: ${{ steps.version.outputs.skip_version_commit }}
+        run: |
+          RELEASE_TAG="maui-iap-$VERSION"
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+            echo "Tag $RELEASE_TAG already exists"
+          elif [ "$PACKAGE_EXISTS" = "true" ]; then
+            echo "❌ OpenIap.Maui $VERSION is published without a provenance tag; refusing to tag an unverified source"
+            exit 1
+          else
+            TAG_TARGET="HEAD"
+            if [ "$SKIP_VERSION_COMMIT" = "true" ]; then
+              git commit --allow-empty -m "chore: recover release ref"
+              TAG_TARGET="$GITHUB_SHA"
+            fi
+            git tag -a "$RELEASE_TAG" "$TAG_TARGET" -m "Release $RELEASE_TAG"
+            git push --atomic origin \
+              "HEAD:$RELEASE_BRANCH" \
+              "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
+          fi
+
       - name: Publish to NuGet.org
+        if: steps.check_nuget.outputs.exists == 'false'
         env:
           NUGET_API_KEY: ${{ secrets.NUGET_API_KEY }}
         run: |
           if [ -z "$NUGET_API_KEY" ]; then
-            echo "⚠️ NUGET_API_KEY secret not set. Skipping push."
-            exit 0
+            echo "❌ NUGET_API_KEY secret is required to publish OpenIap.Maui"
+            exit 1
           fi
           dotnet nuget push './nupkgs/*.nupkg' \
             --api-key "$NUGET_API_KEY" \
@@ -403,20 +450,6 @@ jobs:
           - [NuGet](https://www.nuget.org/packages/OpenIap.Maui/$VERSION)
           - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/maui-iap-$VERSION/libraries/maui-iap)
           EOF
-
-      - name: Create and push tag
-        if: success()
-        env:
-          VERSION: ${{ steps.version.outputs.version }}
-        run: |
-          git config user.name "github-actions[bot]"
-          git config user.email "github-actions[bot]@users.noreply.github.com"
-          if git rev-parse "maui-iap-$VERSION" >/dev/null 2>&1; then
-            echo "Tag maui-iap-$VERSION already exists"
-          else
-            git tag -a "maui-iap-$VERSION" -m "Release maui-iap $VERSION"
-            git push origin "maui-iap-$VERSION"
-          fi
 
       - name: Create GitHub Release
         if: success()

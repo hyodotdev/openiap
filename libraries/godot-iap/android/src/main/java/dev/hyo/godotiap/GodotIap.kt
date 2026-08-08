@@ -241,23 +241,29 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
                 when (result) {
                     is FetchProductsResultProducts -> {
-                        result.value?.forEach { product ->
-                            productsArray.put(JSONObject(product.toJson()))
+                        result.value?.let { products ->
+                            for (product in products) {
+                                productsArray.put(JSONObject(product.toJson()))
+                            }
                         }
                     }
                     is FetchProductsResultSubscriptions -> {
-                        result.value?.forEach { subscription ->
-                            productsArray.put(JSONObject(subscription.toJson()))
+                        result.value?.let { subscriptions ->
+                            for (subscription in subscriptions) {
+                                productsArray.put(JSONObject(subscription.toJson()))
+                            }
                         }
                     }
                     is FetchProductsResultAll -> {
-                        result.value?.forEach { item ->
-                            when (item) {
-                                is ProductOrSubscription.ProductItem -> {
-                                    productsArray.put(JSONObject(item.value.toJson()))
-                                }
-                                is ProductOrSubscription.ProductSubscriptionItem -> {
-                                    productsArray.put(JSONObject(item.value.toJson()))
+                        result.value?.let { items ->
+                            for (item in items) {
+                                when (item) {
+                                    is ProductOrSubscription.ProductItem -> {
+                                        productsArray.put(JSONObject(item.value.toJson()))
+                                    }
+                                    is ProductOrSubscription.ProductSubscriptionItem -> {
+                                        productsArray.put(JSONObject(item.value.toJson()))
+                                    }
                                 }
                             }
                         }
@@ -449,7 +455,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 val purchases = store.getAvailablePurchases(null)
 
                 // Emit each purchase
-                purchases.forEach { purchase ->
+                for (purchase in purchases) {
                     val sanitized = GodotIapHelper.sanitizeDictionary(purchase.toJson())
                     emitSignal("purchase_updated", JSONObject(sanitized).toString())
                 }
@@ -521,7 +527,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
         return runBlocking {
             try {
                 val purchasesArray = JSONArray()
-                store.getAvailablePurchases(options).forEach { purchase ->
+                for (purchase in store.getAvailablePurchases(options)) {
                     val sanitized = GodotIapHelper.sanitizeDictionary(purchase.toJson())
                     purchasesArray.put(JSONObject(sanitized))
                 }
@@ -539,7 +545,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 val payload = serializeOpenIapError(error)
                 availablePurchasesFailure(
                     code = payload["code"]?.toString() ?: "service-error",
-                    message = error.message ?: "Failed to get available purchases",
+                    message = error.message,
                 )
             } catch (error: Exception) {
                 GodotIapLog.failure("getAvailablePurchasesResult", error)
@@ -570,7 +576,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 val purchases = store.getAvailablePurchases(options)
                 val purchasesArray = JSONArray()
 
-                purchases.forEach { purchase ->
+                for (purchase in purchases) {
                     val sanitized = GodotIapHelper.sanitizeDictionary(purchase.toJson())
                     purchasesArray.put(JSONObject(sanitized))
                 }
@@ -610,7 +616,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 val subscriptions = store.getActiveSubscriptions(subscriptionIds)
                 val subscriptionsArray = JSONArray()
 
-                subscriptions.forEach { sub ->
+                for (sub in subscriptions) {
                     val sanitized = GodotIapHelper.sanitizeDictionary(sub.toJson())
                     subscriptionsArray.put(JSONObject(sanitized))
                 }
@@ -647,7 +653,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                     list.takeIf { ids -> ids.isNotEmpty() }
                 }
                 val subscriptionsArray = JSONArray()
-                store.getActiveSubscriptions(subscriptionIds).forEach { subscription ->
+                for (subscription in store.getActiveSubscriptions(subscriptionIds)) {
                     val sanitized = GodotIapHelper.sanitizeDictionary(subscription.toJson())
                     subscriptionsArray.put(JSONObject(sanitized))
                 }
@@ -660,7 +666,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 val payload = serializeOpenIapError(error)
                 activeSubscriptionsFailure(
                     code = payload["code"]?.toString() ?: "service-error",
-                    message = error.message ?: "Failed to get active subscriptions",
+                    message = error.message,
                 )
             } catch (error: Exception) {
                 GodotIapLog.failure("getActiveSubscriptionsResult", error)
@@ -988,7 +994,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 JSONObject().apply {
                     put("success", true)
                     put("billingProgram", billingProgram)
-                    put("externalTransactionToken", result.externalTransactionToken ?: "")
+                    put("externalTransactionToken", result.externalTransactionToken)
                 }.toString()
             } catch (e: Exception) {
                 GodotIapLog.failure("createBillingProgramReportingDetailsAndroid", e)
@@ -1119,7 +1125,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
                 GodotIapLog.result("getStorefrontAndroid", countryCode)
                 JSONObject().apply {
                     put("success", true)
-                    put("countryCode", countryCode ?: "")
+                    put("countryCode", countryCode)
                 }.toString()
             } catch (e: Exception) {
                 GodotIapLog.failure("getStorefrontAndroid", e)

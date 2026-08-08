@@ -120,13 +120,24 @@ rootProject.allprojects {
 }
 
 apply plugin: 'com.android.library'
-apply plugin: 'kotlin-android'
+
+// AGP 9 can compile Kotlin through its built-in support. Flutter 3.44's
+// migrator can explicitly opt out with android.builtInKotlin=false, so honor
+// the host flag before falling back to the AGP-major default.
+def androidGradlePluginMajor = com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION.tokenize('.')[0] as int
+def builtInKotlinProperty = project.findProperty('android.builtInKotlin')?.toString()
+def usesBuiltInKotlin = builtInKotlinProperty == null
+    ? androidGradlePluginMajor >= 9
+    : builtInKotlinProperty.toBoolean()
+if (!usesBuiltInKotlin) {
+    apply plugin: 'kotlin-android'
+}
 
 apply from: project.file('openiap-android-sdk.gradle')
 
-def openIapCompileSdkVersion = openIapResolveAndroidSdkVersion('compileSdkVersion', 'compileSdk', 35)
+def openIapCompileSdkVersion = openIapResolveAndroidSdkVersion('compileSdkVersion', 'compileSdk', 36)
 def openIapMinSdkVersion = openIapResolveAndroidSdkVersion('minSdkVersion', 'minSdk', 23)
-def openIapTargetSdkVersion = openIapResolveAndroidSdkVersion('targetSdkVersion', 'compileSdk', 35)
+def openIapTargetSdkVersion = openIapResolveAndroidSdkVersion('targetSdkVersion', 'compileSdk', 36)
 
 android {
     if (project.android.hasProperty('namespace')) {
@@ -188,7 +199,7 @@ dependencies {
     }
 
     implementation "androidx.annotation:annotation:${readRequiredAndroidGradleProperty(projectDir, 'openIapAndroidAnnotationVersion')}"
-    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0'
+    implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:${readRequiredAndroidGradleProperty(projectDir, 'openIapKotlinxCoroutinesVersion')}"
 
     // Google Play Billing comes transitively from openiap-google so its
     // version stays centralized in packages/google.

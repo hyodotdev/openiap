@@ -994,7 +994,7 @@ class OpenIapModule(
                         }
                     }
 
-                    details.forEach { productDetails ->
+                    for (productDetails in details) {
                         val builder = BillingFlowParams.ProductDetailsParams.newBuilder()
                             .setProductDetails(productDetails)
 
@@ -1152,7 +1152,7 @@ class OpenIapModule(
                                         OpenIapLog.debug("Purchase polling found ${correlated.size} purchases", TAG)
                                         correlated.forEach { purchase ->
                                             if (!claimPurchaseDelivery(purchase)) return@forEach
-                                            purchaseUpdateListeners.forEach { listener ->
+                                            for (listener in purchaseUpdateListeners) {
                                                 runCatching { listener.onPurchaseUpdated(purchase) }
                                             }
                                         }
@@ -1354,7 +1354,7 @@ class OpenIapModule(
 
             all.forEachIndexed { index, purchase ->
                 OpenIapLog.info("  Restoring [$index] productId=${purchase.productId}", TAG)
-                purchaseUpdateListeners.forEach { listener ->
+                for (listener in purchaseUpdateListeners) {
                     runCatching {
                         listener.onPurchaseUpdated(purchase)
                         OpenIapLog.debug("  - Listener notified", TAG)
@@ -1365,7 +1365,6 @@ class OpenIapModule(
             }
 
             OpenIapLog.info("=== END restorePurchases ===", TAG)
-            Unit
         }
     }
 
@@ -1482,7 +1481,7 @@ class OpenIapModule(
     )
 
     private fun emitPurchaseError(error: OpenIapError) {
-        purchaseErrorListeners.forEach { registeredListener ->
+        for (registeredListener in purchaseErrorListeners) {
             runCatching { registeredListener.onPurchaseError(error) }
         }
     }
@@ -1578,11 +1577,11 @@ class OpenIapModule(
                     OpenIapLog.info("Processing ${purchases.size} successful purchases", TAG)
 
                     val mapped = purchases.map { purchase ->
-                        val productIds = purchase.products.orEmpty()
+                        val productIds = purchase.products
                         val correlatedRequest = pendingRequest?.takeIf { request ->
                             val launchStartedAtMillis = request.launchStartedAtMillis
                                 ?: return@takeIf false
-                            (purchase.purchaseTime ?: 0L).toDouble() >= launchStartedAtMillis &&
+                            purchase.purchaseTime.toDouble() >= launchStartedAtMillis &&
                                 productIds.any { it in request.requestedSkus }
                         }
                         val cachedSubscriptionProductIds = productIds.filterTo(mutableSetOf()) {
@@ -1663,7 +1662,7 @@ class OpenIapModule(
                                     "purchase: productId=${converted.productId}",
                                 TAG,
                             )
-                            purchaseUpdateListeners.forEach { listener ->
+                            for (listener in purchaseUpdateListeners) {
                                 runCatching {
                                     listener.onPurchaseUpdated(converted)
                                     OpenIapLog.debug("Listener notified successfully", TAG)

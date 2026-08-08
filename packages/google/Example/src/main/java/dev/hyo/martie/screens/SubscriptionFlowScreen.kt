@@ -548,7 +548,10 @@ fun SubscriptionFlowScreen(
                                 colors = ExposedDropdownMenuDefaults.outlinedTextFieldColors(),
                                 modifier = Modifier
                                     .fillMaxWidth()
-                                    .menuAnchor()
+                                    .menuAnchor(
+                                        type = ExposedDropdownMenuAnchorType.PrimaryNotEditable,
+                                        enabled = true
+                                    )
                             )
                             ExposedDropdownMenu(
                                 expanded = verificationDropdownExpanded,

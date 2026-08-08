@@ -1,14 +1,13 @@
 # KMP-IAP Example Application
 
-This is a Kotlin Multiplatform example project demonstrating the usage of the KMP-IAP library for in-app purchases across Android, iOS, Desktop, and Web.
+This Kotlin Multiplatform example demonstrates KMP-IAP on its supported mobile targets: Android and iOS.
 
 ## Project Structure
 
-* `/src` contains the shared Kotlin code:
-  * `commonMain` - Common code shared across all platforms
+* `/composeApp/src` contains the shared Kotlin code:
+  * `commonMain` - Common code shared by Android and iOS
   * `androidMain` - Android-specific implementations
   * `iosMain` - iOS-specific implementations
-  * `jvmMain` - Desktop (JVM) specific implementations
 
 * `/iosApp` - iOS application entry point using SwiftUI
 
@@ -16,21 +15,11 @@ This is a Kotlin Multiplatform example project demonstrating the usage of the KM
 
 ### Android
 ```bash
-./gradlew :example:installDebug
+./gradlew :example:composeApp:installPlayDebug
 ```
 
 ### iOS
 Open `/iosApp/iosApp.xcodeproj` in Xcode and run the project.
-
-### Desktop
-```bash
-./gradlew :example:run
-```
-
-### Web
-```bash
-./gradlew :example:wasmJsBrowserDevelopmentRun
-```
 
 ## Features Demonstrated
 

@@ -340,10 +340,10 @@ dependencies {
     add("androidUnitTestImplementation", "com.android.billingclient:billing:$playBillingVersion")
     // BillingClient Purchase parses Android JSONObject state internally; use
     // the same Android-aware JVM harness as packages/google for those tests.
-    add("androidUnitTestImplementation", "org.robolectric:robolectric:4.13")
+    add("androidUnitTestImplementation", "org.robolectric:robolectric:4.16.1")
     // openiap-google keeps gson implementation-scoped, so tests that replicate
     // its reflective parse of Play Developer API responses need it explicitly.
-    add("androidUnitTestImplementation", "com.google.code.gson:gson:2.10.1")
+    add("androidUnitTestImplementation", "com.google.code.gson:gson:2.14.0")
 }
 
 // Only configure publishing when we have signing credentials
@@ -365,13 +365,13 @@ mavenPublishing {
     configure(
         com.vanniktech.maven.publish.KotlinMultiplatform(
             javadocJar = com.vanniktech.maven.publish.JavadocJar.Empty(),
-            sourcesJar = true,
+            sourcesJar = com.vanniktech.maven.publish.SourcesJar.Sources(),
         )
     )
     
     pom {
         name.set("KMP IAP")
-        description.set("A Kotlin Multiplatform library for in app purchase on Android, iOS, Desktop, and Web platforms")
+        description.set("A Kotlin Multiplatform library for in-app purchases on Android and iOS")
         inceptionYear.set("2025")
         url.set("https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap")
         

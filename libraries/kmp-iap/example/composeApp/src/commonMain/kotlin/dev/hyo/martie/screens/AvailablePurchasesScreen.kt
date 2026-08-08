@@ -23,7 +23,7 @@ import dev.hyo.martie.theme.AppColors
 import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.openiap.*
 import io.github.hyochan.kmpiap.toPurchaseInput
-import kotlinx.datetime.Instant
+import kotlin.time.Instant
 import kotlinx.coroutines.*
 
 @OptIn(ExperimentalMaterial3Api::class, kotlin.time.ExperimentalTime::class)
@@ -589,7 +589,7 @@ fun PurchaseCard(
                 color = AppColors.Secondary
             )
 
-            val instant = kotlinx.datetime.Instant.fromEpochMilliseconds(purchase.transactionDate.toLong())
+            val instant = Instant.fromEpochMilliseconds(purchase.transactionDate.toLong())
             Text(
                 text = "Date: $instant",
                 fontSize = 12.sp,

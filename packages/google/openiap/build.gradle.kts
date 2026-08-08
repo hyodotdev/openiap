@@ -1,6 +1,10 @@
+import com.vanniktech.maven.publish.JavadocJar
+import com.vanniktech.maven.publish.MavenPublishBaseExtension
+import com.vanniktech.maven.publish.SourcesJar
 import groovy.json.JsonSlurper
-import java.io.File
+import org.jetbrains.kotlin.gradle.dsl.KotlinAndroidProjectExtension
 import org.jetbrains.kotlin.gradle.dsl.JvmTarget
+import java.io.File
 
 fun locateOpeniapVersionsFile(startDir: File): File {
     var current: File? = startDir
@@ -16,9 +20,36 @@ fun locateOpeniapVersionsFile(startDir: File): File {
 
 plugins {
     id("com.android.library")
-    id("org.jetbrains.kotlin.android")
-    id("org.jetbrains.kotlin.plugin.compose")
-    id("com.vanniktech.maven.publish")
+    id("org.jetbrains.kotlin.android") apply false
+    id("org.jetbrains.kotlin.plugin.compose") apply false
+    id("com.vanniktech.maven.publish") apply false
+}
+
+// AGP 9 provides built-in Kotlin, but Flutter 3.44's migrator can explicitly
+// disable it while retaining AGP 9. Honor the host flag before using the AGP
+// major as the default so this included build works in both migration states.
+val androidGradlePluginMajor =
+    com.android.Version.ANDROID_GRADLE_PLUGIN_VERSION.substringBefore('.').toInt()
+val builtInKotlinProperty = providers.gradleProperty("android.builtInKotlin").orNull
+val usesBuiltInKotlin =
+    builtInKotlinProperty?.let { value ->
+        when (value.lowercase()) {
+            "true" -> true
+            "false" -> false
+            else -> throw GradleException("android.builtInKotlin must be true or false")
+        }
+    } ?: (androidGradlePluginMajor >= 9)
+if (!usesBuiltInKotlin) {
+    pluginManager.apply("org.jetbrains.kotlin.android")
+}
+pluginManager.apply("org.jetbrains.kotlin.plugin.compose")
+
+// Consumer examples include this module in their own Gradle builds. Applying
+// the publication plugin there unnecessarily couples them to the standalone
+// Google package's AGP version (Vanniktech 0.37 requires AGP 8.13+).
+val isStandaloneGoogleBuild = rootProject.projectDir.canonicalFile == projectDir.parentFile.canonicalFile
+if (isStandaloneGoogleBuild) {
+    pluginManager.apply("com.vanniktech.maven.publish")
 }
 
 // Read version from Gradle property first, then from monorepo root openiap-versions.json.
@@ -26,21 +57,23 @@ plugins {
 // normal development builds use the repository SSOT file.
 val versionsFile = locateOpeniapVersionsFile(projectDir)
 val versionsJson = JsonSlurper().parseText(versionsFile.readText()) as Map<*, *>
-val openIapVersion: String = project.findProperty("openIapVersion")?.toString()?.takeIf { it.isNotBlank() }
-    ?: versionsJson["google"]?.toString()?.takeIf { it.isNotBlank() }
-    ?: throw GradleException("packages/google: 'google' version missing in openiap-versions.json")
-val isPublishTaskRequested = gradle.startParameter.taskNames.any { taskName ->
-    taskName.contains("publish", ignoreCase = true) ||
-        taskName.contains("mavenCentral", ignoreCase = true)
-}
+val openIapVersion: String =
+    project.findProperty("openIapVersion")?.toString()?.takeIf { it.isNotBlank() }
+        ?: versionsJson["google"]?.toString()?.takeIf { it.isNotBlank() }
+        ?: throw GradleException("packages/google: 'google' version missing in openiap-versions.json")
+val isPublishTaskRequested =
+    gradle.startParameter.taskNames.any { taskName ->
+        taskName.contains("publish", ignoreCase = true) ||
+            taskName.contains("mavenCentral", ignoreCase = true)
+    }
 
 android {
     namespace = "io.github.hyochan.openiap"
-    compileSdk = 35
+    compileSdk = 36
 
     defaultConfig {
         minSdk = 23
-        
+
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
     }
@@ -50,7 +83,7 @@ android {
             isMinifyEnabled = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
+                "proguard-rules.pro",
             )
         }
     }
@@ -119,7 +152,7 @@ android {
     }
 }
 
-kotlin {
+extensions.configure<KotlinAndroidProjectExtension> {
     compilerOptions {
         jvmTarget.set(JvmTarget.JVM_17)
     }
@@ -127,13 +160,19 @@ kotlin {
 
 dependencies {
     val playBillingVersion = "9.1.0"
-    val coroutinesVersion = "1.9.0"
+    val coroutinesVersion = "1.11.0"
     val horizonBillingCompatibilityVersion = "2.0.0"
-    val horizonPlatformKotlinVersion = "0.2.0"
-    val horizonSerializationVersion = "1.7.3"
+    val horizonPlatformKotlinVersion = "0.2.2"
+    // 1.10+ is compiled with Kotlin 2.3 metadata, which Expo SDK 57's Kotlin
+    // 2.1.20 compiler cannot consume. 1.9.0 is the newest readable release.
+    val horizonSerializationVersion = "1.9.0"
 
-    implementation("androidx.core:core-ktx:1.13.1")
-    implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    // AndroidX merged these KTX APIs into their base artifacts. Depending on
+    // the empty compatibility artifacts keeps obsolete coordinates alive.
+    // 1.19.0 requires compileSdk 37 and AGP 9.1; 1.18.0 is the latest release
+    // compatible with this library's API 36 / AGP 8.13 support line.
+    implementation("androidx.core:core:1.18.0")
+    implementation("androidx.lifecycle:lifecycle-runtime:2.10.0")
 
     // Billing libraries per flavor (completely independent):
     // - Play flavor uses Google Play Billing (main/ source uses it)
@@ -162,110 +201,118 @@ dependencies {
     // Kotlin Coroutines
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:$coroutinesVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutinesVersion")
-    implementation("androidx.lifecycle:lifecycle-viewmodel-ktx:2.8.7")
-    
+    implementation("androidx.lifecycle:lifecycle-viewmodel:2.10.0")
+
     // JSON handling
-    implementation("com.google.code.gson:gson:2.10.1")
+    implementation("com.google.code.gson:gson:2.14.0")
 
     // Compose runtime (for CompositionLocal provider in IapContext)
-    val composeUiVersion = (project.findProperty("COMPOSE_UI_VERSION") as String?) ?: "1.6.8"
+    val composeUiVersion = (project.findProperty("COMPOSE_UI_VERSION") as String?) ?: "1.11.4"
     implementation("androidx.compose.runtime:runtime:$composeUiVersion")
     implementation("androidx.compose.ui:ui:$composeUiVersion")
-    
+
     // Testing dependencies
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:$coroutinesVersion")
     // Add Google Play Billing for tests (all flavors need it for OpenIapErrorTest)
     testImplementation("com.android.billingclient:billing:$playBillingVersion")
     // Robolectric for lightweight Android JVM tests (e.g. Horizon no-op listener)
-    testImplementation("org.robolectric:robolectric:4.13")
-    testImplementation("androidx.test:core:1.5.0")
+    testImplementation("org.robolectric:robolectric:4.16.1")
+    testImplementation("androidx.test:core:1.7.0")
 
-    androidTestImplementation("androidx.test.ext:junit:1.1.5")
-    androidTestImplementation("androidx.test.espresso:espresso-core:3.5.1")
+    androidTestImplementation("androidx.test.ext:junit:1.3.0")
+    androidTestImplementation("androidx.test.espresso:espresso-core:3.7.0")
 }
 
 // Configure Vanniktech Maven Publish
 // Determine which variant to publish based on gradle.properties or default to play
 val publishVariant = project.findProperty("OPENIAP_PUBLISH_VARIANT")?.toString() ?: "play"
 
-mavenPublishing {
-    val groupId = project.findProperty("OPENIAP_GROUP_ID")?.toString() ?: "io.github.hyochan.openiap"
+if (isStandaloneGoogleBuild) {
+    extensions.configure<MavenPublishBaseExtension> {
+        val groupId = project.findProperty("OPENIAP_GROUP_ID")?.toString() ?: "io.github.hyochan.openiap"
 
-    when (publishVariant) {
-        "horizon" -> {
-            coordinates(groupId, "openiap-google-horizon", openIapVersion)
+        when (publishVariant) {
+            "horizon" -> {
+                coordinates(groupId, "openiap-google-horizon", openIapVersion)
 
-            // Publish the Horizon flavor (Meta Horizon Billing)
-            configure(com.vanniktech.maven.publish.AndroidSingleVariantLibrary(
-                variant = "horizonRelease",
-                sourcesJar = true,
-                publishJavadocJar = true
-            ))
+                // Publish the Horizon flavor (Meta Horizon Billing)
+                configure(
+                    com.vanniktech.maven.publish.AndroidSingleVariantLibrary(
+                        variant = "horizonRelease",
+                        sourcesJar = SourcesJar.Sources(),
+                        javadocJar = JavadocJar.Empty(),
+                    ),
+                )
 
-            pom {
-                name.set("OpenIAP Horizon")
-                description.set("OpenIAP Android library using Meta Horizon Billing Compatibility Library")
-                url.set("https://github.com/hyodotdev/openiap")
+                pom {
+                    name.set("OpenIAP Horizon")
+                    description.set("OpenIAP Android library using Meta Horizon Billing Compatibility Library")
+                    url.set("https://github.com/hyodotdev/openiap")
+                }
+            }
+            "amazon" -> {
+                coordinates(groupId, "openiap-google-amazon", openIapVersion)
+
+                // Publish the Amazon flavor (Amazon Appstore SDK)
+                configure(
+                    com.vanniktech.maven.publish.AndroidSingleVariantLibrary(
+                        variant = "amazonRelease",
+                        sourcesJar = SourcesJar.Sources(),
+                        javadocJar = JavadocJar.Empty(),
+                    ),
+                )
+
+                pom {
+                    name.set("OpenIAP Amazon")
+                    description.set("OpenIAP Android library using Amazon Appstore SDK IAP")
+                    url.set("https://github.com/hyodotdev/openiap")
+                }
+            }
+            else -> { // "play" is default
+                coordinates(groupId, "openiap-google", openIapVersion)
+
+                // Publish the Play flavor (Google Play Billing)
+                configure(
+                    com.vanniktech.maven.publish.AndroidSingleVariantLibrary(
+                        variant = "playRelease",
+                        sourcesJar = SourcesJar.Sources(),
+                        javadocJar = JavadocJar.Empty(),
+                    ),
+                )
+
+                pom {
+                    name.set("OpenIAP GMS")
+                    description.set("OpenIAP Android library using Google Play Billing v9.1")
+                    url.set("https://github.com/hyodotdev/openiap")
+                }
             }
         }
-        "amazon" -> {
-            coordinates(groupId, "openiap-google-amazon", openIapVersion)
 
-            // Publish the Amazon flavor (Amazon Appstore SDK)
-            configure(com.vanniktech.maven.publish.AndroidSingleVariantLibrary(
-                variant = "amazonRelease",
-                sourcesJar = true,
-                publishJavadocJar = true
-            ))
-
-            pom {
-                name.set("OpenIAP Amazon")
-                description.set("OpenIAP Android library using Amazon Appstore SDK IAP")
-                url.set("https://github.com/hyodotdev/openiap")
-            }
+        if (isPublishTaskRequested) {
+            // Use the Central Portal publishing path only for publishing tasks.
+            publishToMavenCentral()
+            signAllPublications()
         }
-        else -> { // "play" is default
-            coordinates(groupId, "openiap-google", openIapVersion)
 
-            // Publish the Play flavor (Google Play Billing)
-            configure(com.vanniktech.maven.publish.AndroidSingleVariantLibrary(
-                variant = "playRelease",
-                sourcesJar = true,
-                publishJavadocJar = true
-            ))
-
-            pom {
-                name.set("OpenIAP GMS")
-                description.set("OpenIAP Android library using Google Play Billing v9.1")
-                url.set("https://github.com/hyodotdev/openiap")
+        pom {
+            licenses {
+                license {
+                    name.set("MIT License")
+                    url.set("https://opensource.org/licenses/MIT")
+                }
             }
-        }
-    }
-
-    if (isPublishTaskRequested) {
-        // Use the Central Portal publishing path only for publishing tasks.
-        publishToMavenCentral()
-        signAllPublications()
-    }
-
-    pom {
-        licenses {
-            license {
-                name.set("MIT License")
-                url.set("https://opensource.org/licenses/MIT")
+            developers {
+                developer {
+                    id.set("hyochan")
+                    name.set("hyochan")
+                }
             }
-        }
-        developers {
-            developer {
-                id.set("hyochan")
-                name.set("hyochan")
+            scm {
+                connection.set("scm:git:git://github.com/hyodotdev/openiap.git")
+                developerConnection.set("scm:git:ssh://git@github.com/hyodotdev/openiap.git")
+                url.set("https://github.com/hyodotdev/openiap/tree/main/packages/google")
             }
-        }
-        scm {
-            connection.set("scm:git:git://github.com/hyodotdev/openiap.git")
-            developerConnection.set("scm:git:ssh://git@github.com/hyodotdev/openiap.git")
-            url.set("https://github.com/hyodotdev/openiap/tree/main/packages/google")
         }
     }
 }

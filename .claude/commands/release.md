@@ -125,7 +125,10 @@ For a multi-package release train, use this order when affected:
 6. `release-godot.yml`
 7. `release-kmp.yml`
 8. `release-maui.yml`
-9. `npm run deploy`, then `release.yml` with `version=current`
+9. `npm run deploy`; run `release.yml` with `version=current` only when the
+   native-derived `spec` advanced. If a Docs GitHub Release is requested while
+   `spec` is unchanged, stop and explain that the immutable `docs-{spec}` tag
+   cannot represent a new release.
 
 Train rules (mistake guards):
 
@@ -143,13 +146,75 @@ Train rules (mistake guards):
   registry-verified, add the consolidated entry to
   `packages/docs/src/pages/docs/updates/releases.tsx` (see `generate-doc`),
   commit it directly to `main` together with any release-process doc updates,
-  then run the docs deployment and the Docs release workflow with
-  `version=current`.
+  then run the docs deployment. Run the Docs release workflow with
+  `version=current` only when the native-derived `spec` advanced; otherwise skip
+  it so an immutable existing `docs-{spec}` tag is never reused. If a Docs
+  GitHub Release is requested while `spec` is unchanged, stop and explain that
+  the immutable tag scheme cannot represent a new release.
 
 Fetch latest `main` before each dependent workflow so every release starts from
 the prior stable version commit. After an Apple or Google release, confirm the
 native workflow has derived and synchronized the spec floor before dispatching
 the next package or docs release. Do not dispatch the full list in parallel.
+
+## Dependency Modernization Release Gate
+
+Use this gate whenever a release train upgrades package or framework
+dependencies. Treat the whole train as one validation loop rather than a set of
+independent version edits:
+
+1. Inventory every affected package's direct dependencies, build plugins,
+   language/toolchain versions, lockfiles, and example-app dependencies. Compare
+   them with authoritative upstream release and compatibility documentation.
+2. Upgrade to the newest stable versions supported by the repository's current
+   consumer compatibility contract. Record intentional caps with the upstream
+   compatibility reason; do not force a major platform baseline change into a
+   minor dependency release.
+3. Search for removed, renamed, or deprecated packages, APIs, coordinates, and
+   configuration syntax introduced by the upgrades. Migrate each use before
+   treating the dependency audit as complete.
+4. Run package tests, examples, generated-output/parity audits, all store
+   flavors, and platform builds before committing. Then commit, push, and open a
+   PR through the repository's commit workflow.
+5. Run `review-pr` against the exact PR head. Follow its canonical polling
+   cadence (currently every five minutes), fix every valid finding, push the
+   verified fix batch, and repeat until CI, review threads, and reviewer or
+   fallback coverage are clean for that exact head.
+6. Run the full device-backed E2E matrix only after the review gate is clean. If
+   any E2E or later verification changes the code, invalidate the clean result:
+   rerun focused checks, commit and push, restart `review-pr` polling for the new
+   head, and rerun the full E2E matrix.
+7. Merge only when the final head remains review-clean and E2E-clean. Release
+   only affected packages and libraries, one at a time, with the requested
+   stable bump (normally `minor` for a dependency modernization train),
+   following the native and framework ordering above and verifying each public
+   registry before the next dispatch.
+8. For React Native and Expo, treat the tag-ref npm publisher triggered by the
+   release workflow as part of the same release. Verify that child run used the
+   exact release tag ref, matched the source run's run-scoped authorization
+   artifact for that tag/SHA, and succeeded before accepting the npm registry
+   result. Verify npm's Sigstore signature audit, registry `gitHead`, artifact
+   digest, and the audit-returned SLSA provenance bundle against the immutable
+   tag. A branch-ref checkout of an existing tag does not align npm's OIDC event
+   SHA. If the tag predates this publisher lane, do not retrofit provenance;
+   release a new reviewed version.
+9. After every affected artifact is publicly available, use `generate-doc` to
+   add one consolidated release entry with the actual published versions and
+   GitHub Release links, then deploy docs last. Create a Docs GitHub Release
+   only when the native-derived `spec` version advanced; routine docs
+   deployments must not reuse an immutable existing `docs-{spec}` tag. If one
+   is requested while `spec` is unchanged, stop and explain that the immutable
+   tag scheme cannot represent a new release.
+
+Every `current` retry that finds an existing tag must run
+`scripts/assert-release-tag.mjs` before checking it out. The guard binds the
+expected package version to the tag's own metadata, the local tag to the
+immutable origin tag, and the peeled tag commit to the validated `main` or
+`next` branch. Never execute package build scripts merely because an existing
+tag has the expected name.
+
+Do not reuse review or E2E evidence from an earlier commit. A head change always
+restarts both gates.
 
 ## Verification Sources
 
@@ -165,16 +230,37 @@ Verify the registry, not only the GitHub Actions conclusion:
 | Godot        | GitHub Release and `godot-iap-{version}.zip` contents                    |
 | KMP          | Maven Central `kmp-iap-{version}.pom` and GitHub Release                 |
 | MAUI         | NuGet flat-container package and GitHub Release                          |
-| Docs         | Production `openiap.dev` asset content and `docs-{spec}` release         |
+| Docs         | Production `openiap.dev`; `docs-{spec}` only when `spec` advanced        |
 
 Registry indexing can lag. Poll until the artifact is public or report a real
 timeout; do not equate a successful upload response with completed indexing.
 
 ## Flutter Publisher
 
-`release-flutter.yml` dispatches `publish-flutter.yml` exactly once on the
-created tag. The publisher has no tag-push trigger. Do not manually dispatch a
-second run unless the first run failed before publication.
+pub.dev accepts GitHub OIDC publishing only when the workflow was triggered by
+pushing a matching version tag. `release-flutter.yml` therefore pushes the
+immutable `flutter-iap-{version}` tag and waits for the resulting
+`publish-flutter.yml` tag-push run. Never manually dispatch that publisher: a
+`workflow_dispatch` run is ineligible even when its ref is a tag. For a retry,
+rerun the original tag-push workflow run so its event, tag, and commit identity
+remain intact; do not delete or recreate the release tag. The publisher must
+also prove that the tag commit is reachable from `main` (stable) or `next`
+(prerelease) and download the exact tag/SHA authorization artifact created by
+the guarded `release-flutter.yml` run before requesting OIDC. If an unpublished
+tag predates this authorization lane or its artifact expired, do not rerun its
+legacy publisher; release a new reviewed version.
+
+The publisher validates the exact source attempt recorded in the authorization
+artifact through GitHub's attempt-specific run endpoint. Rerunning the source
+release workflow must not replace that attempt with the run ID's latest attempt
+metadata or invalidate an otherwise valid immutable-tag retry.
+
+GitHub Deployment Environments are optional pub.dev hardening, not a publishing
+prerequisite. This repository currently relies on its guarded tag-push CI lane
+without a required environment. Add `environment: <name>` only when a
+maintainer intentionally enables the matching requirement in the pub.dev
+package Admin settings; do not make an unconfigured environment a release
+blocker.
 
 ## Godot Asset Library
 

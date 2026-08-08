@@ -6,7 +6,7 @@ This document outlines conventions and guidelines for the godot-iap project.
 
 godot-iap is a Godot 4.x plugin for in-app purchases following the [OpenIAP](https://openiap.dev) specification.
 The SwiftGodot runtime requires iOS 17 or later; Android supports API 24 or later.
-Source builds use pinned SwiftGodot v0.74.0 and therefore require Swift 6.2 / Xcode 26 or later.
+Source builds use Godot 4.7.1 and pinned SwiftGodot v0.79.0, which requires Swift 6.3 / Xcode 26.5 or later.
 
 ### Architecture
 

@@ -56,7 +56,7 @@ describe('AvailablePurchases Component', () => {
   });
 
   it('loads and renders purchase status', async () => {
-    const {getByText} = render(<AvailablePurchases />);
+    const {getByText} = await render(<AvailablePurchases />);
 
     expect(getByText('Store Connection: ✅ Connected')).toBeDefined();
     expect(getByText('🔄 Active Subscriptions')).toBeDefined();
@@ -68,10 +68,10 @@ describe('AvailablePurchases Component', () => {
     });
   });
 
-  it('shows purchase-token presence without rendering its value', () => {
-    const {getByText, queryByText} = render(<AvailablePurchases />);
+  it('shows purchase-token presence without rendering its value', async () => {
+    const {getByText, queryByText} = await render(<AvailablePurchases />);
 
-    fireEvent.press(getByText('✅ Active'));
+    await fireEvent.press(getByText('✅ Active'));
 
     expect(getByText('Present')).toBeDefined();
     expect(queryByText('token-1')).toBeNull();
@@ -83,13 +83,13 @@ describe('AvailablePurchases Component', () => {
       configurable: true,
     });
 
-    const {getByText} = render(<AvailablePurchases />);
+    const {getByText} = await render(<AvailablePurchases />);
 
     await waitFor(() => {
       expect(mockGetActiveSubscriptions).toHaveBeenCalled();
     });
 
-    fireEvent.press(getByText('🔗 Manage Subscriptions'));
+    await fireEvent.press(getByText('🔗 Manage Subscriptions'));
 
     expect(
       getByText(/Subscription management deep links are not exposed/),

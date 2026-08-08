@@ -7,7 +7,7 @@ module.exports = function (api) {
 
     return {
       presets: [
-        ['module:metro-react-native-babel-preset'],
+        ['module:@react-native/babel-preset'],
         'module:@amazon-devices/kepler-module-resolver-preset',
       ],
       plugins: [

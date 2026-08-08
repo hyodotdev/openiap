@@ -66,17 +66,21 @@ jobs:
           distribution: "temurin"
           java-version: "17"
 
-      - name: Download godot-lib.aar
+      - name: Build against minimum Godot Android API
         run: |
           mkdir -p android/libs
           curl -L -o android/libs/godot-lib.aar \
             "https://github.com/godotengine/godot/releases/download/4.3-stable/godot-lib.4.3.stable.template_release.aar"
-
-      - name: Build Android AAR
-        run: |
           cd android
           chmod +x gradlew
-          ./gradlew assembleRelease
+          ./gradlew clean assembleRelease
+
+      - name: Build against latest Godot Android API
+        run: |
+          curl -L -o android/libs/godot-lib.aar \
+            "https://github.com/godotengine/godot/releases/download/4.7.1-stable/godot-lib.4.7.1.stable.template_release.aar"
+          cd android
+          ./gradlew clean assembleRelease
 
   validate-ios:
     needs: [release-branch]
@@ -259,6 +263,15 @@ jobs:
             echo "✓ Tag $RELEASE_TAG does not exist"
           fi
 
+      - name: Verify current release tag provenance
+        if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists == 'true' }}
+        env:
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          RELEASE_TAG="godot-iap-${VERSION}"
+          node "$GITHUB_WORKSPACE/scripts/assert-release-tag.mjs" \
+            godot "$RELEASE_BRANCH" "$RELEASE_TAG" "$VERSION"
+
       - name: Checkout release tag (current version)
         if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists == 'true' }}
         env:
@@ -440,23 +453,20 @@ jobs:
           if ! git diff --cached --quiet; then
             git commit -m "chore(release): godot-iap ${{ steps.version.outputs.VERSION }}"
           fi
-          STASHED=false
-          if ! git diff --quiet || [ -n "$(git ls-files --others --exclude-standard)" ]; then
-            git stash push --include-untracked -m "release artifacts"
-            STASHED=true
-          fi
-          git pull --rebase origin "$RELEASE_BRANCH"
-          if [ "$STASHED" = "true" ]; then
-            git stash pop
-          fi
+          node "$GITHUB_WORKSPACE/scripts/assert-release-head.mjs" "$RELEASE_BRANCH" "$GITHUB_SHA"
           git tag -a godot-iap-${{ steps.version.outputs.VERSION }} -m "Release godot-iap-${{ steps.version.outputs.VERSION }}"
-          git push origin "HEAD:$RELEASE_BRANCH" --follow-tags
+          git push --atomic origin "HEAD:$RELEASE_BRANCH" --follow-tags
 
       - name: Create tag (current version)
         if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists != 'true' }}
         run: |
-          git tag -a godot-iap-${{ steps.version.outputs.VERSION }} -m "Release godot-iap-${{ steps.version.outputs.VERSION }}"
-          git push origin godot-iap-${{ steps.version.outputs.VERSION }}
+          node "$GITHUB_WORKSPACE/scripts/assert-release-head.mjs" "$RELEASE_BRANCH" "$GITHUB_SHA"
+          RELEASE_TAG="godot-iap-${{ steps.version.outputs.VERSION }}"
+          git commit --allow-empty -m "chore: recover release ref"
+          git tag -a "$RELEASE_TAG" "$GITHUB_SHA" -m "Release $RELEASE_TAG"
+          git push --atomic origin \
+            "HEAD:refs/heads/$RELEASE_BRANCH" \
+            "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
 
       - name: Generate release notes
         id: release_notes

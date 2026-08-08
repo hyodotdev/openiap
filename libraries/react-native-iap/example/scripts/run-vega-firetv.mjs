@@ -142,16 +142,19 @@ const pushToDevice = (deviceId, source, destination) => {
 };
 
 const copyToDevice = (deviceId, source, destinationDirectory, options = {}) => {
-  run([
-    'device',
-    'copy-to',
-    '-d',
-    deviceId,
-    '-s',
-    source,
-    '-o',
-    destinationDirectory,
-  ], options);
+  run(
+    [
+      'device',
+      'copy-to',
+      '-d',
+      deviceId,
+      '-s',
+      source,
+      '-o',
+      destinationDirectory,
+    ],
+    options,
+  );
 };
 
 if (!fs.existsSync(packageFile)) {
@@ -188,11 +191,14 @@ const cancelQueuedInstalls = () => {
 };
 const installApp = () => {
   try {
-    run(['device', '-d', deviceId, 'install-app', '--packagePath', packageFile], {
-      timeout: 90000,
-    });
+    run(
+      ['device', '-d', deviceId, 'install-app', '--packagePath', packageFile],
+      {
+        timeout: 90000,
+      },
+    );
     return;
-  } catch (error) {
+  } catch {
     console.warn(
       'vega device install-app failed; retrying with vpm install-async.',
     );

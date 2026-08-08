@@ -6,8 +6,8 @@ void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
   setUp(() {
-    dotenv.testLoad(
-      fileInput: 'IAPKIT_API_KEY=\nIAPKIT_BASE_URL=https://kit.openiap.dev\n',
+    dotenv.loadFromString(
+      envString: 'IAPKIT_API_KEY=\nIAPKIT_BASE_URL=https://kit.openiap.dev\n',
     );
   });
 

@@ -12,13 +12,22 @@ jest.mock('react-native', () => ({
 
 /* eslint-disable import/first */
 import * as React from 'react';
-import * as ReactTestRenderer from 'react-test-renderer';
+import {createRoot, type Root} from 'test-renderer';
 import {Platform} from 'react-native';
 import ExpoIapModule from '../ExpoIapModule';
 import {ErrorCode} from '../types';
 import {useIAP, UseIAPOptions} from '../useIAP';
 import * as AndroidApi from '../modules/android';
 /* eslint-enable import/first */
+
+const ReactTestRenderer = {
+  act: React.act,
+  create(element: React.ReactElement): Root {
+    const root = createRoot();
+    root.render(element);
+    return root;
+  },
+};
 
 // Suppress console output during tests
 const consoleErrorSpy = jest
@@ -73,6 +82,24 @@ describe('useIAP hook', () => {
     (ExpoIapModule.addListener as jest.Mock) = jest.fn().mockReturnValue({
       remove: jest.fn(),
     });
+  });
+
+  it('starts only the current initialization in React Strict Mode', async () => {
+    const root = createRoot({isStrictMode: true});
+
+    await ReactTestRenderer.act(async () => {
+      root.render(<TestComponent onHookReady={() => {}} />);
+      await flushPromises();
+    });
+
+    expect(ExpoIapModule.initConnection).toHaveBeenCalledTimes(1);
+    expect(ExpoIapModule.endConnection).not.toHaveBeenCalled();
+
+    await ReactTestRenderer.act(async () => {
+      root.unmount();
+    });
+
+    expect(ExpoIapModule.endConnection).toHaveBeenCalledTimes(1);
   });
 
   describe('Android Billing Choice options', () => {

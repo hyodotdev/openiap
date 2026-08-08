@@ -29,8 +29,11 @@ jobs:
       - name: Reject prerelease metadata on main
         run: node scripts/release-branch-policy.mjs audit
 
-      - name: Test release branch policy
-        run: node --test scripts/release-branch-policy.test.mjs
+      - name: Test release automation
+        run: >-
+          node --test scripts/release-branch-policy.test.mjs
+          scripts/npm-publish-authorization.test.mjs
+          scripts/verify-npm-release-provenance.test.mjs
 
       - name: Test Gradle network retry helper
         run: node --test scripts/ci/retry-gradle.test.mjs
@@ -207,8 +210,8 @@ jobs:
       - name: Setup Java
         uses: actions/setup-java@v5
         with:
-          distribution: 'temurin'
-          java-version: '17'
+          distribution: "temurin"
+          java-version: "17"
 
       - name: Grant execute permission
         working-directory: packages/google
@@ -234,16 +237,15 @@ jobs:
         run: |
           "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" ./gradlew :openiap:assembleAmazonDebug
 
-      # Play lint covers the shared API-23 source set, and Horizon lint covers
-      # its flavor-specific implementation. Amazon lint currently crashes in
-      # the upstream Compose detector on Kotlin metadata 2.2; audit:parity
-      # guards the known API-24 set factory across every minSdk-23 source tree.
+      # Run every store flavor so flavor-specific API-23 regressions cannot
+      # bypass lint coverage.
       - name: Lint Android API compatibility
         working-directory: packages/google
         run: |
           "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" ./gradlew \
             :openiap:lintPlayDebug \
-            :openiap:lintHorizonDebug
+            :openiap:lintHorizonDebug \
+            :openiap:lintAmazonDebug
 
   test-ios:
     name: Test iOS

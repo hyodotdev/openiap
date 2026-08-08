@@ -105,13 +105,13 @@ internal object BillingConverters {
                     remainingQuantity = info.remainingQuantity
                 )
             },
-            preorderDetailsAndroid = runCatching { preorderDetails }?.getOrNull()?.let { details ->
+            preorderDetailsAndroid = runCatching { preorderDetails }.getOrNull()?.let { details ->
                 PreorderDetailsAndroid(
                     preorderPresaleEndTimeMillis = details.preorderPresaleEndTimeMillis.toString(),
                     preorderReleaseTimeMillis = details.preorderReleaseTimeMillis.toString()
                 )
             },
-            rentalDetailsAndroid = runCatching { rentalDetails }?.getOrNull()?.let { details ->
+            rentalDetailsAndroid = runCatching { rentalDetails }.getOrNull()?.let { details ->
                 RentalDetailsAndroid(
                     rentalPeriod = details.rentalPeriod,
                     rentalExpirationPeriod = runCatching { details.rentalExpirationPeriod }.getOrNull()
@@ -196,7 +196,7 @@ internal object BillingConverters {
         }
 
         // Extract installment plan details if available (Billing Library 7.0+)
-        val installmentDetails = runCatching { installmentPlanDetails }?.getOrNull()?.let { details ->
+        val installmentDetails = runCatching { installmentPlanDetails }.getOrNull()?.let { details ->
             InstallmentPlanDetailsAndroid(
                 commitmentPaymentsCount = details.installmentPlanCommitmentPaymentsCount,
                 subsequentCommitmentPaymentsCount = details.subsequentInstallmentPlanCommitmentPaymentsCount
@@ -309,7 +309,7 @@ internal object BillingConverters {
         }
 
         // Extract pending purchase update for subscription upgrades/downgrades (Billing Library 5.0+)
-        val pendingUpdate = runCatching { pendingPurchaseUpdate }?.getOrNull()?.let { update ->
+        val pendingUpdate = runCatching { pendingPurchaseUpdate }.getOrNull()?.let { update ->
             PendingPurchaseUpdateAndroid(
                 products = update.products,
                 purchaseToken = update.purchaseToken

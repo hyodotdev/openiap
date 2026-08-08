@@ -170,7 +170,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
             return@OpenIapPurchaseErrorListener
         }
         val code = OpenIapError.toCode(error)
-        val message = error.message?.takeIf { it.isNotBlank() } ?: OpenIapError.defaultMessage(code)
+        val message = error.message.takeIf { it.isNotBlank() } ?: OpenIapError.defaultMessage(code)
         setStatusMessage(
             message = message,
             status = PurchaseResultStatus.Error,

@@ -11,7 +11,8 @@
          Bindings.iOS, requiring iOS workload packs) — which defeats the
          purpose of having a workload-free fast lane in CI. -->
     <UseMaui Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) != ''">true</UseMaui>
-    <!-- Library — apps using us bring their own Maui.Controls reference. -->
+    <!-- Library — compile against the current MAUI servicing release without
+         leaking a hard Maui.Controls dependency into the public NuGet graph. -->
     <SkipValidateMauiImplicitPackageReferences>true</SkipValidateMauiImplicitPackageReferences>
     <!-- SingleProject auto-includes only the matching Platforms/<TFM>/ folder.
          We need iOS sources to also compile under macCatalyst, so opt out and
@@ -50,11 +51,13 @@
 
   <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'android'">
     <Compile Include="Platforms/Android/**/*.cs" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiControlsVersion)" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'ios' or $([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
     <!-- iOS resolver compiles for macCatalyst too — same xcframework, same StoreKit surface. -->
     <Compile Include="Platforms/iOS/**/*.cs" />
+    <PackageReference Include="Microsoft.Maui.Controls" Version="$(MauiControlsVersion)" PrivateAssets="all" />
   </ItemGroup>
 
   <ItemGroup Condition="$([MSBuild]::GetTargetPlatformIdentifier('$(TargetFramework)')) == 'maccatalyst'">
@@ -76,14 +79,25 @@
     <ProjectReference Include="..\OpenIap.Maui.Bindings.Android\OpenIap.Maui.Bindings.Android.csproj" PrivateAssets="all" OutputItemType="Reference" />
     <PackageReference Include="Xamarin.Android.Google.BillingClient" Version="$(MauiBillingClientNuGetVersion)" Condition="'$(OpenIapGoogleAarFlavor)' == 'play'" />
     <PackageReference Include="GoogleGson" Version="$(MauiGoogleGsonNuGetVersion)" />
+    <PackageReference Include="Xamarin.AndroidX.Activity" Version="$(MauiAndroidXActivityVersion)" />
+    <!-- MAUI Navigation still brings older KTX compatibility packages with
+         strict upper bounds. Pin the current bindings so NuGet resolves the
+         compatibility artifacts alongside their base AndroidX packages. The
+         OpenIAP implementation itself uses the merged base APIs. -->
     <PackageReference Include="Xamarin.AndroidX.Activity.Ktx" Version="$(MauiAndroidXActivityVersion)" />
-    <PackageReference Include="Xamarin.AndroidX.Fragment.Ktx" Version="$(MauiAndroidXFragmentVersion)" />
+    <PackageReference Include="Xamarin.AndroidX.Collection.Ktx" Version="$(MauiAndroidXCollectionVersion)" />
+    <PackageReference Include="Xamarin.AndroidX.Fragment" Version="$(MauiAndroidXFragmentVersion)" />
+    <PackageReference Include="Xamarin.AndroidX.Fragment.Ktx" Version="$(MauiAndroidXFragmentKtxVersion)" />
     <PackageReference Include="Xamarin.AndroidX.Lifecycle.LiveData" Version="$(MauiAndroidXLifecycleVersion)" />
+    <PackageReference Include="Xamarin.AndroidX.Lifecycle.LiveData.Core" Version="$(MauiAndroidXLifecycleVersion)" />
     <PackageReference Include="Xamarin.AndroidX.Lifecycle.LiveData.Core.Ktx" Version="$(MauiAndroidXLifecycleVersion)" />
     <PackageReference Include="Xamarin.AndroidX.Lifecycle.Process" Version="$(MauiAndroidXLifecycleVersion)" />
+    <PackageReference Include="Xamarin.AndroidX.Lifecycle.Runtime" Version="$(MauiAndroidXLifecycleVersion)" />
     <PackageReference Include="Xamarin.AndroidX.Lifecycle.Runtime.Ktx" Version="$(MauiAndroidXLifecycleVersion)" />
     <PackageReference Include="Xamarin.AndroidX.Lifecycle.Runtime.Ktx.Android" Version="$(MauiAndroidXLifecycleVersion)" />
+    <PackageReference Include="Xamarin.AndroidX.Lifecycle.ViewModel" Version="$(MauiAndroidXLifecycleVersion)" />
     <PackageReference Include="Xamarin.AndroidX.Lifecycle.ViewModel.Ktx" Version="$(MauiAndroidXLifecycleVersion)" />
+    <PackageReference Include="Xamarin.AndroidX.SavedState" Version="$(MauiAndroidXSavedStateVersion)" />
     <PackageReference Include="Xamarin.AndroidX.SavedState.SavedState.Ktx" Version="$(MauiAndroidXSavedStateVersion)" />
     <PackageReference Include="Xamarin.Kotlin.StdLib" Version="$(MauiKotlinStdLibVersion)" />
     <PackageReference Include="Xamarin.KotlinX.Coroutines.Core" Version="$(MauiKotlinCoroutinesVersion)" />

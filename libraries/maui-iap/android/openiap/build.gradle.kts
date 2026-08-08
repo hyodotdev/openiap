@@ -63,7 +63,7 @@ fun readMauiAndroidMinSdk(): Int {
 val googleCompileSdk = readGoogleAndroidInt("compileSdk")
 val googleMinSdk = readGoogleAndroidInt("minSdk")
 val mauiAndroidMinSdk = readMauiAndroidMinSdk()
-val googleCoreKtxVersion = readGoogleDependencyVersion("androidx.core:core-ktx")
+val googleCoreVersion = readGoogleDependencyVersion("androidx.core:core")
 val googleCoroutinesVersion = readGoogleVariable("coroutinesVersion")
 val horizonEnabled = providers.gradleProperty("horizonEnabled").orNull?.toBooleanStrictOrNull() ?: false
 val fireOsEnabled = providers.gradleProperty("fireOsEnabled").orNull?.toBooleanStrictOrNull() ?: false
@@ -123,7 +123,7 @@ kotlin {
 dependencies {
     compileOnly("io.github.hyochan.openiap:$openIapGoogleArtifact:$openIapGoogleVersion")
 
-    implementation("androidx.core:core-ktx:$googleCoreKtxVersion")
+    implementation("androidx.core:core:$googleCoreVersion")
     implementation("com.google.code.gson:gson:$gsonVersion")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:$googleCoroutinesVersion")
 }
