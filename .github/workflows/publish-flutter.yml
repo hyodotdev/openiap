@@ -18,7 +18,6 @@ jobs:
       actions: read
       contents: read
       id-token: write
-    environment: pub.dev
     runs-on: ubuntu-latest
     defaults:
       run:

@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-08-08T03:11:28.150Z
+> Last updated: 2026-08-08T10:05:12.433Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -2111,12 +2111,12 @@ authorization artifact uploaded by the guarded release workflow. An unpublished
 tag that predates this lane, or whose authorization artifact expired, must not
 rerun legacy publishing code; create a new reviewed release version instead.
 
-The `publish-flutter.yml` job must use the `pub.dev` GitHub Environment. That
-environment must have a required-reviewer or equivalent deployment-protection
-rule in GitHub, and the pub.dev package Admin configuration must require the
-same environment name. The workflow field alone does not create an external
-trust boundary. Verify both settings before releasing; do not publish Flutter
-while either side is unprotected.
+GitHub Deployment Environments are optional pub.dev hardening, not a publishing
+prerequisite. This repository currently relies on its guarded tag-push CI lane
+without a required environment. Add an `environment` to the publisher only
+when a maintainer intentionally enables the matching requirement in the
+pub.dev package Admin settings; never make an unconfigured environment a
+release blocker.
 
 ### Release Docs Version Guard
 

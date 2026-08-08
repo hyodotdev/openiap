@@ -255,12 +255,12 @@ artifact through GitHub's attempt-specific run endpoint. Rerunning the source
 release workflow must not replace that attempt with the run ID's latest attempt
 metadata or invalidate an otherwise valid immutable-tag retry.
 
-The repository's `pub.dev` GitHub Environment must have a required-reviewer or
-equivalent deployment-protection rule, and the pub.dev package Admin setting
-must require that exact `pub.dev` environment. Verify both external settings
-before the first release after changing this lane. `environment: pub.dev` in
-the workflow is necessary but is not a security boundary by itself; never
-release while either side is unprotected.
+GitHub Deployment Environments are optional pub.dev hardening, not a publishing
+prerequisite. This repository currently relies on its guarded tag-push CI lane
+without a required environment. Add `environment: <name>` only when a
+maintainer intentionally enables the matching requirement in the pub.dev
+package Admin settings; do not make an unconfigured environment a release
+blocker.
 
 ## Godot Asset Library
 

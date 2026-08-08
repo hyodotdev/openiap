@@ -961,7 +961,7 @@ test("Flutter publication is triggered by the immutable tag push", () => {
   );
   assert.match(publishWorkflow, /group: publish-flutter/);
   assert.match(publishWorkflow, /actions: read/);
-  assert.match(publishWorkflow, /^    environment: pub\.dev$/m);
+  assert.doesNotMatch(publishWorkflow, /^    environment: pub\.dev$/m);
   assert.match(publishWorkflow, /fetch-depth: 0/);
   assert.match(
     publishWorkflow,

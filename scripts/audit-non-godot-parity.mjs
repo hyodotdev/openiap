@@ -4929,7 +4929,6 @@ function checkFrameworkDependencyHygiene() {
       "HEAD_COMMIT",
       "GITHUB_SHA",
       "actions: read",
-      "environment: pub.dev",
       "fetch-depth: 0",
       'git merge-base --is-ancestor "$GITHUB_SHA" "origin/$RELEASE_BRANCH"',
       'AUTHORIZATION_NAME="flutter-publish-authorization-$GITHUB_SHA"',
@@ -4948,6 +4947,11 @@ function checkFrameworkDependencyHygiene() {
       "if: steps.check_pub.outputs.exists == 'false'",
     ],
     "Flutter publish workflow must support pub.dev release reruns",
+  );
+  expectNotIncludes(
+    ".github/workflows/publish-flutter.yml",
+    ["environment: pub.dev"],
+    "Flutter publishing must not require an unconfigured GitHub environment",
   );
   expectNotIncludes(
     ".github/workflows/publish-flutter.yml",
