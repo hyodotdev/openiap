@@ -189,7 +189,16 @@ independent version edits:
    stable bump (normally `minor` for a dependency modernization train),
    following the native and framework ordering above and verifying each public
    registry before the next dispatch.
-8. After every affected artifact is publicly available, use `generate-doc` to
+8. For React Native and Expo, treat the tag-ref npm publisher triggered by the
+   release workflow as part of the same release. Verify that child run used the
+   exact release tag ref, matched the source run's run-scoped authorization
+   artifact for that tag/SHA, and succeeded before accepting the npm registry
+   result. Verify npm's Sigstore signature audit, registry `gitHead`, artifact
+   digest, and the audit-returned SLSA provenance bundle against the immutable
+   tag. A branch-ref checkout of an existing tag does not align npm's OIDC event
+   SHA. If the tag predates this publisher lane, do not retrofit provenance;
+   release a new reviewed version.
+9. After every affected artifact is publicly available, use `generate-doc` to
    add one consolidated release entry with the actual published versions and
    GitHub Release links, then deploy docs last. Create a Docs GitHub Release
    only when the native-derived `spec` version advanced; routine docs

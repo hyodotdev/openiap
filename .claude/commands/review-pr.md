@@ -61,49 +61,23 @@ For each comment:
 4. **Reply directly to the inline review comment** (NOT a general PR comment)
 5. **Resolve the conversation** via GraphQL API
 
-After the fix batch is pushed (once per round, not per comment), trigger a fresh round from every automated reviewer wired into this repo:
+After the fix batch is pushed (once per round, not per comment), trigger a fresh
+CodeRabbit review:
 
 ```bash
-# Re-request Copilot review (note: capital C; the bot login is literally "Copilot").
-# GOTCHA: if Copilot has already submitted a review on an earlier commit, the
-# REST POST below returns HTTP 201 but silently leaves `requested_reviewers`
-# empty — it's idempotent against reviewers whose prior review is still on
-# record, so a plain re-POST does nothing. The reliable workaround is DELETE
-# + POST so GitHub treats it as a fresh request.
-gh api -X DELETE "repos/hyodotdev/openiap/pulls/$PR_NUMBER/requested_reviewers" \
-  -f 'reviewers[]=Copilot' >/dev/null 2>&1 || true
-sleep 2
-gh api -X POST "repos/hyodotdev/openiap/pulls/$PR_NUMBER/requested_reviewers" \
-  -f 'reviewers[]=Copilot' >/dev/null
-
-# Verify it actually took — GitHub occasionally still drops the re-request
-# even after DELETE. If the list is empty, warn so the user can hit "Re-request
-# review" in the GitHub UI manually as a last resort (the UI uses a
-# privileged endpoint that works even when the API silently no-ops).
-if [ -z "$(gh api repos/hyodotdev/openiap/pulls/$PR_NUMBER --jq '.requested_reviewers | map(select(.login == "Copilot")) | .[0].login // empty')" ]; then
-  echo "WARN: Copilot re-request didn't stick via API; click Re-request review in the GitHub UI if you need it."
-fi
-
-# Kick off a new Gemini review pass
-gh pr comment "$PR_NUMBER" --body "/gemini review"
-
-# Kick off a new CodeRabbit review pass
 gh pr comment "$PR_NUMBER" --body "@coderabbitai review"
 ```
 
-`/gemini review` and `@coderabbitai review` are the supported review triggers,
-but an accepted command can still return a terminal availability failure.
-Inspect the response instead of treating the trigger comment itself as review
-success. Copilot's bot is flakier — the DELETE+POST dance is the best
-programmatic option, and the verification step flags the cases where manual
-intervention is needed so we don't pretend the re-request succeeded when it
-silently didn't.
+CodeRabbit is the only configured external reviewer for this workflow. Do not
+request other review bots or post their trigger comments. An accepted CodeRabbit
+command can still return a terminal availability failure, so inspect the
+response instead of treating the trigger comment itself as review success.
 
 ## Automated Reviewer Fallback
 
-External reviewers are useful review inputs, not a completion dependency. If one
-or more configured reviewers cannot review the current head, replace the missing
-coverage with one complete `$review-self` round.
+CodeRabbit is a useful review input, not a completion dependency. If it cannot
+review the current head, replace the missing coverage with one complete
+`$review-self` round. Do not substitute another external reviewer.
 
 Treat a reviewer as unavailable for the current head when either condition is
 met:
@@ -112,15 +86,17 @@ met:
   could not run because of quota, rate limits, billing or credits, file-count or
   diff-size limits, authentication or permissions, service shutdown, or another
   explicit availability failure.
-- Two consecutive polling rounds after the request produce neither an actionable
-  review nor an in-progress/requested state.
+- Two consecutive polling rounds after the request produce neither a terminal
+  review result (clean or actionable) nor an in-progress/requested state.
 
 Do not classify a queued, requested, or actively running review as unavailable.
-Keep polling it until it completes or meets an unavailable condition.
+Keep polling it until it completes or meets an unavailable condition. A terminal
+clean CodeRabbit result is successful reviewer coverage and must not trigger the
+fallback.
 
 When fallback is required:
 
-1. Record the affected reviewer names, terminal reasons, and current head SHA.
+1. Record CodeRabbit's terminal reason and the current head SHA.
 2. Invoke the current surface's `review-self` skill for **one complete review
    round** against the PR's actual base and current head. The canonical procedure
    is `.codex/skills/review-self/SKILL.md`; Claude Code uses its
@@ -132,33 +108,32 @@ When fallback is required:
    schedule its own five-minute loop. It may inspect current review/CI evidence,
    but this workflow owns thread handling and polling.
 4. Fix and verify every validated finding using the normal response rules. If a
-   fix changes the head, request the external reviewers again after the fix batch
-   and run fallback again only if they are unavailable for the new head.
-5. Mark the unavailable reviewers as covered only after the fallback round is
-   clean and its required checks pass. A single complete fallback round may cover
-   multiple unavailable reviewers for the same head.
+   fix changes the head, request CodeRabbit again after the fix batch and run
+   fallback again only if it remains unavailable for the new head.
+5. Mark CodeRabbit's unavailable coverage as satisfied only after the fallback
+   round is clean and its required checks pass.
 
-Cache fallback coverage by reviewer failure set and head SHA. Do not repeat an
-unchanged self-review on no-op polls. Any head change invalidates the cached
+Cache fallback coverage by CodeRabbit failure reason and head SHA. Do not repeat
+an unchanged self-review on no-op polls. Any head change invalidates the cached
 coverage.
 
-Reviewer unavailability alone is neither a blocker nor a clean result. The PR is
-clean only after every unavailable reviewer has fallback coverage for the
-current head, alongside the normal thread and CI completion gates.
+CodeRabbit unavailability alone is neither a blocker nor a clean result. The PR
+is clean only after the current head has clean fallback coverage alongside the
+normal thread and CI completion gates.
 
 ## Polling Loop (after fix batch)
 
-The automated reviewers (Copilot, Gemini, and CodeRabbit) need a few minutes to
-produce feedback. After pushing a round of fixes and posting the reviewer
-triggers, schedule a wake-up in **~300 seconds (5 minutes)** and re-enter
+CodeRabbit needs a few minutes to produce feedback. After pushing a round of
+fixes and posting its trigger, schedule a wake-up in **~300 seconds (5 minutes)** and re-enter
 `/review-pr $PR_NUMBER` to:
 
 1. Re-fetch unresolved review threads (`gh api repos/{owner}/{repo}/pulls/$PR_NUMBER/comments`) and reviewer request/status/review evidence.
-2. If new unresolved threads exist → fix them, push, post `/gemini review` again, and schedule another 5-minute wake-up.
-3. If a reviewer is unavailable for the current head → run or reuse the
+2. If new unresolved threads exist → fix them, push, request CodeRabbit again,
+   and schedule another 5-minute wake-up.
+3. If CodeRabbit is unavailable for the current head → run or reuse the
    head-specific `$review-self` fallback above.
-4. If no unresolved threads exist, CI is terminal and successful, and every
-   unavailable reviewer has clean fallback coverage for the current head → the
+4. If no unresolved threads exist, CI is terminal and successful, and
+   unavailable CodeRabbit coverage has a clean fallback for the current head → the
    PR is clean. Clean up the temporary review-trigger comments, end the loop,
    and report completion to the user.
 
@@ -170,7 +145,6 @@ Guard against infinite loops: if a reviewer keeps flagging the same finding afte
 
 When the polling loop ends with no unresolved review threads, delete the temporary top-level comments created only to trigger bot reviews:
 
-- Author comments whose body is exactly `/gemini review`
 - Author comments whose body is exactly `@coderabbitai review`
 - CodeRabbit top-level "Action performed" replies created by those commands (`CodeRabbit review command invocation`)
 
@@ -182,8 +156,7 @@ Use the issue comments API because PR conversation comments are issue comments:
 gh api repos/hyodotdev/openiap/issues/$PR_NUMBER/comments --paginate --jq '
   .[]
   | select(
-      .body == "/gemini review"
-      or .body == "@coderabbitai review"
+      .body == "@coderabbitai review"
       or (.user.login == "coderabbitai[bot]" and (.body | contains("CodeRabbit review command invocation")))
     )
   | .id' | while read comment_id; do

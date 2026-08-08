@@ -179,6 +179,32 @@ that real branch update with a tag targeting the verified dispatch SHA. A no-op
 branch refspec is not a compare-and-swap guard because Git omits up-to-date refs
 from the push transaction.
 
+For npm trusted publishing, the release workflow's branch-ref phase creates and
+pushes the immutable tag, then dispatches the same trusted-publisher workflow on
+that tag ref. Only the tag-ref publish job receives `id-token: write`. It must
+require the exact package/version tag and require the checked-out commit to equal
+the tag-ref event's `GITHUB_SHA` before running `npm publish --provenance`.
+Checking out or detaching to a tag inside a branch-dispatched retry is not enough:
+npm's provenance statement reads the immutable workflow event SHA, so changing
+only the local checkout can make package `gitHead` and attested source disagree.
+Serialize tag-ref publishers per package so concurrent versions cannot move the
+same npm dist-tag backward. The publisher must also prove that the tag is
+reachable from `main` for stable versions or `next` for prereleases and that it
+was dispatched by a successful branch-ref run of the same release workflow. The
+branch run uploads an immutable, run-attempt-scoped authorization artifact that
+names the exact repository, workflow, source branch/SHA, release tag, and tag
+SHA; the tag publisher must download it from the supplied source run and match
+every field before publishing. A merely successful historical run is not valid
+authorization for another tag.
+Before accepting an already-published version, and again after a new publish,
+run npm's signature audit to authenticate the Sigstore bundle and bind it to the
+published tarball, then inspect only that audit's returned verified bundle when
+matching registry `gitHead`, artifact SHA-512, and the decoded SLSA statement's
+repository, workflow ref, and resolved Git commit against the immutable release
+tag. A tag whose stored
+workflow predates the tag-ref publisher cannot be repaired safely through
+`current`; stop with an explicit instruction to release a new reviewed version.
+
 ### Deploying Apple Package (iOS/macOS)
 
 **Via GitHub Actions UI:**

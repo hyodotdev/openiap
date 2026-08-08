@@ -19,8 +19,18 @@ on:
         required: false
         default: false
         type: boolean
+      publish_only:
+        description: "Internal: publish an existing release tag to npm"
+        required: false
+        default: false
+        type: boolean
+      source_run_id:
+        description: "Internal: validated branch release workflow run"
+        required: false
+        default: ""
+        type: string
 concurrency:
-  group: ${{ github.workflow }}
+  group: ${{ github.workflow }}-${{ inputs.publish_only && 'publish' || 'release' }}
   cancel-in-progress: false
 
 env:
@@ -32,6 +42,7 @@ permissions:
 jobs:
   release-branch:
     name: Validate release branch
+    if: ${{ !inputs.publish_only }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
@@ -149,7 +160,6 @@ jobs:
     needs: [validate-android, validate-ios]
     permissions:
       contents: write
-      id-token: write
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -165,6 +175,14 @@ jobs:
         with:
           node-version: 20
           registry-url: "https://registry.npmjs.org"
+
+      - name: Preserve npm release verifiers
+        run: |
+          cp "$GITHUB_WORKSPACE/scripts/verify-npm-release-provenance.mjs" "$RUNNER_TEMP/verify-npm-release-provenance.mjs"
+          cp "$GITHUB_WORKSPACE/scripts/npm-publish-authorization.mjs" "$RUNNER_TEMP/npm-publish-authorization.mjs"
+
+      - name: Ensure npm CLI v11.19.0 for signature verification
+        run: npm install -g npm@11.19.0
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -254,9 +272,6 @@ jobs:
       - name: Assert verified release head is unchanged
         run: node "$GITHUB_WORKSPACE/scripts/assert-release-head.mjs" "$RELEASE_BRANCH" "$GITHUB_SHA"
 
-      - name: Ensure npm CLI v11.5.1 or later (required for OIDC)
-        run: npm install -g npm@11.5.1
-
       - name: Check if npm package already published
         id: check_npm
         env:
@@ -281,6 +296,17 @@ jobs:
         run: |
           echo "❌ expo-iap@$VERSION is published without a provenance tag; refusing to tag an unverified source"
           exit 1
+
+      - name: Verify existing npm release provenance
+        if: ${{ steps.check_npm.outputs.exists == 'true' && steps.check_tag.outputs.exists == 'true' }}
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          RELEASE_TAG="expo-iap-$VERSION"
+          EXPECTED_COMMIT=$(git rev-parse "$RELEASE_TAG^{commit}")
+          node "$RUNNER_TEMP/verify-npm-release-provenance.mjs" \
+            expo-iap "$VERSION" "$EXPECTED_COMMIT" "$RELEASE_TAG" \
+            release-expo.yml
 
       - name: Commit version update
         if: ${{ inputs.version != 'current' }}
@@ -310,25 +336,39 @@ jobs:
             "HEAD:refs/heads/$RELEASE_BRANCH" \
             "refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"
 
-      - name: Restore tagged source for npm provenance
-        if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists != 'true' }}
-        run: git checkout --detach "$GITHUB_SHA"
-
-      - name: Resolve symlinks for npm publish
-        run: |
-          # npm ignores symlinks — replace with real file
-          if [ -L openiap-versions.json ]; then
-            cp --remove-destination "$(readlink openiap-versions.json)" openiap-versions.json
-          fi
-
-      - name: Publish to npm with OIDC trusted publishing
+      - name: Require tag-ref npm publisher capability
         if: steps.check_npm.outputs.exists == 'false'
+        env:
+          TAG: expo-iap-${{ steps.bump.outputs.version }}
         run: |
-          if [ "${{ steps.bump.outputs.is_prerelease }}" = "true" ]; then
-            npm publish --tag next --access public --provenance
-          else
-            npm publish --access public --provenance
+          if ! git grep -q '^  publish-npm:' "$TAG" -- .github/workflows/release-expo.yml || \
+             ! git grep -q 'Upload npm publish authorization' "$TAG" -- .github/workflows/release-expo.yml || \
+             ! git cat-file -e "$TAG:scripts/npm-publish-authorization.mjs"; then
+            echo "::error::$TAG predates the tag-ref npm publisher and cannot be retried safely. Release a new reviewed version instead."
+            exit 1
           fi
+
+      - name: Write npm publish authorization
+        if: steps.check_npm.outputs.exists == 'false'
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          RELEASE_TAG="expo-iap-$VERSION"
+          TAG_SHA=$(git rev-parse "$RELEASE_TAG^{commit}")
+          node "$RUNNER_TEMP/npm-publish-authorization.mjs" write \
+            "$RUNNER_TEMP/npm-publish-authorization.json" \
+            "$GITHUB_REPOSITORY" ".github/workflows/release-expo.yml" \
+            "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$RELEASE_BRANCH" \
+            "$GITHUB_SHA" "$RELEASE_TAG" "$TAG_SHA"
+
+      - name: Upload npm publish authorization
+        if: steps.check_npm.outputs.exists == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-publish-authorization-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/npm-publish-authorization.json
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Generate release notes
         id: release_notes
@@ -383,3 +423,220 @@ jobs:
           draft: false
           prerelease: ${{ steps.bump.outputs.is_prerelease }}
           body_path: /tmp/release-notes.md
+
+      # npm provenance reads the immutable workflow event GITHUB_SHA. Dispatch
+      # this same trusted-publisher workflow on the tag so the event SHA, npm
+      # package gitHead, and release tag all identify the same source commit.
+      - name: Dispatch npm publish on tag ref
+        if: steps.check_npm.outputs.exists == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.DEPENDENCY_UPDATE_PAT }}
+          TAG: expo-iap-${{ steps.bump.outputs.version }}
+        run: |
+          gh workflow run release-expo.yml --ref "$TAG" \
+            -f version=current \
+            -f publish_only=true \
+            -f source_run_id="$GITHUB_RUN_ID"
+
+  publish-npm:
+    name: Publish npm from release tag
+    if: ${{ inputs.publish_only }}
+    permissions:
+      actions: read
+      contents: read
+      id-token: write
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: libraries/expo-iap
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v7
+        with:
+          node-version: 20
+          registry-url: "https://registry.npmjs.org"
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+
+      - name: Require the matching release tag
+        id: release
+        run: |
+          VERSION=$(node -p "require('./package.json').version")
+          EXPECTED_REF="refs/tags/expo-iap-$VERSION"
+          if [ "$GITHUB_REF" != "$EXPECTED_REF" ]; then
+            echo "::error::npm publish must be dispatched on $EXPECTED_REF"
+            exit 1
+          fi
+          if [ "$(git rev-parse HEAD)" != "$GITHUB_SHA" ]; then
+            echo "::error::Checked-out source does not match the workflow event SHA"
+            exit 1
+          fi
+          if [[ "$VERSION" == *-* ]]; then
+            SOURCE_BRANCH="next"
+          else
+            SOURCE_BRANCH="main"
+          fi
+          git fetch --no-tags origin "+refs/heads/$SOURCE_BRANCH:refs/remotes/origin/$SOURCE_BRANCH"
+          if ! git merge-base --is-ancestor "$GITHUB_SHA" "origin/$SOURCE_BRANCH"; then
+            echo "::error::$EXPECTED_REF is not reachable from origin/$SOURCE_BRANCH"
+            exit 1
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "source_branch=$SOURCE_BRANCH" >> "$GITHUB_OUTPUT"
+
+      - name: Require successful source release run
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_BRANCH: ${{ steps.release.outputs.source_branch }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+        run: |
+          if ! [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]; then
+            echo "::error::A validated source release run id is required"
+            exit 1
+          fi
+          for attempt in {1..12}; do
+            SOURCE_RUN_JSON=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID")
+            SOURCE_STATUS=$(jq -r '.status // ""' <<<"$SOURCE_RUN_JSON")
+            if [ "$SOURCE_STATUS" = "completed" ]; then
+              break
+            fi
+            sleep 5
+          done
+          SOURCE_PATH=$(jq -r '.path // ""' <<<"$SOURCE_RUN_JSON")
+          SOURCE_EVENT=$(jq -r '.event // ""' <<<"$SOURCE_RUN_JSON")
+          SOURCE_HEAD_BRANCH=$(jq -r '.head_branch // ""' <<<"$SOURCE_RUN_JSON")
+          SOURCE_HEAD_SHA=$(jq -r '.head_sha // ""' <<<"$SOURCE_RUN_JSON")
+          SOURCE_RUN_ATTEMPT=$(jq -r '.run_attempt // ""' <<<"$SOURCE_RUN_JSON")
+          SOURCE_REPOSITORY=$(jq -r '.repository.full_name // ""' <<<"$SOURCE_RUN_JSON")
+          SOURCE_CONCLUSION=$(jq -r '.conclusion // ""' <<<"$SOURCE_RUN_JSON")
+          if [ "$SOURCE_STATUS" != "completed" ] || [ "$SOURCE_CONCLUSION" != "success" ]; then
+            echo "::error::Source release run $SOURCE_RUN_ID did not complete successfully"
+            exit 1
+          fi
+          if [ "$SOURCE_PATH" != ".github/workflows/release-expo.yml" ] || \
+             [ "$SOURCE_EVENT" != "workflow_dispatch" ] || \
+             [ "$SOURCE_HEAD_BRANCH" != "$SOURCE_BRANCH" ] || \
+             [ "$SOURCE_REPOSITORY" != "$GITHUB_REPOSITORY" ] || \
+             ! [[ "$SOURCE_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]]; then
+            echo "::error::Source run does not match the required release workflow and branch"
+            exit 1
+          fi
+          if ! git merge-base --is-ancestor "$SOURCE_HEAD_SHA" "origin/$SOURCE_BRANCH"; then
+            echo "::error::Source release run is not reachable from origin/$SOURCE_BRANCH"
+            exit 1
+          fi
+          echo "head_sha=$SOURCE_HEAD_SHA" >> "$GITHUB_OUTPUT"
+          echo "run_attempt=$SOURCE_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+
+      - name: Verify source run authorized this release tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_BRANCH: ${{ steps.release.outputs.source_branch }}
+          SOURCE_HEAD_SHA: ${{ steps.source.outputs.head_sha }}
+          SOURCE_RUN_ATTEMPT: ${{ steps.source.outputs.run_attempt }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          AUTHORIZATION_DIR="$RUNNER_TEMP/npm-publish-authorization"
+          gh run download "$SOURCE_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "npm-publish-authorization-$SOURCE_RUN_ATTEMPT" \
+            --dir "$AUTHORIZATION_DIR"
+          node "$GITHUB_WORKSPACE/scripts/npm-publish-authorization.mjs" verify \
+            "$AUTHORIZATION_DIR/npm-publish-authorization.json" \
+            "$GITHUB_REPOSITORY" ".github/workflows/release-expo.yml" \
+            "$SOURCE_RUN_ID" "$SOURCE_RUN_ATTEMPT" "$SOURCE_BRANCH" \
+            "$SOURCE_HEAD_SHA" "expo-iap-$VERSION" "$GITHUB_SHA"
+
+      - name: Ensure npm CLI v11.19.0 for OIDC and signature verification
+        run: npm install -g npm@11.19.0
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Resolve symlinks for npm publish
+        run: |
+          # npm ignores symlinks — replace with real file
+          if [ -L openiap-versions.json ]; then
+            cp --remove-destination "$(readlink openiap-versions.json)" openiap-versions.json
+          fi
+
+      - name: Consumer install smoke test
+        run: bun run verify:consumer-install --pack-ignore-scripts
+
+      - name: Check if npm package already published
+        id: check_npm
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if NPM_OUTPUT=$(npm view "expo-iap@$VERSION" version 2>&1); then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "⚠️ expo-iap@$VERSION already exists on npm"
+          elif echo "$NPM_OUTPUT" | grep -qiE 'E404|404 Not Found'; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "✓ expo-iap@$VERSION does not exist, will publish"
+          else
+            echo "❌ Unable to verify expo-iap@$VERSION on npm"
+            echo "$NPM_OUTPUT"
+            exit 1
+          fi
+
+      - name: Verify existing npm release provenance
+        if: steps.check_npm.outputs.exists == 'true'
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          RELEASE_TAG="expo-iap-$VERSION"
+          node "$GITHUB_WORKSPACE/scripts/verify-npm-release-provenance.mjs" \
+            expo-iap "$VERSION" "$GITHUB_SHA" "$RELEASE_TAG" \
+            release-expo.yml
+
+      - name: Assert npm publish source is unchanged
+        if: steps.check_npm.outputs.exists == 'false'
+        run: |
+          if [ "$GITHUB_REF" != "refs/tags/expo-iap-${{ steps.release.outputs.version }}" ] || \
+             [ "$(git rev-parse HEAD)" != "$GITHUB_SHA" ]; then
+            echo "::error::npm publish source changed after release-tag validation"
+            exit 1
+          fi
+
+      - name: Publish to npm with OIDC trusted publishing
+        if: steps.check_npm.outputs.exists == 'false'
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if [[ "$VERSION" == *-* ]]; then
+            npm publish --tag next --access public --provenance
+          else
+            npm publish --access public --provenance
+          fi
+
+      - name: Verify published npm release provenance
+        if: steps.check_npm.outputs.exists == 'false'
+        env:
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          RELEASE_TAG="expo-iap-$VERSION"
+          VERIFIED=false
+          for attempt in {1..12}; do
+            if node "$GITHUB_WORKSPACE/scripts/verify-npm-release-provenance.mjs" \
+              expo-iap "$VERSION" "$GITHUB_SHA" "$RELEASE_TAG" \
+              release-expo.yml; then
+              VERIFIED=true
+              break
+            fi
+            sleep 5
+          done
+          if [ "$VERIFIED" != "true" ]; then
+            echo "::error::Published npm provenance did not become verifiable"
+            exit 1
+          fi

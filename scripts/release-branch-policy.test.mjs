@@ -454,13 +454,93 @@ test("framework release workflows refuse stale dispatch heads", () => {
       const recoveryPushIndex = workflow.indexOf(
         '"refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"',
       );
-      const restoreSourceIndex = workflow.indexOf(
-        'run: git checkout --detach "$GITHUB_SHA"',
+      const legacyGuardIndex = workflow.indexOf(
+        "- name: Require tag-ref npm publisher capability",
+      );
+      const authorizationWriteIndex = workflow.indexOf(
+        "- name: Write npm publish authorization",
+      );
+      const authorizationUploadIndex = workflow.indexOf(
+        "- name: Upload npm publish authorization",
+      );
+      const dispatchIndex = workflow.indexOf(
+        "- name: Dispatch npm publish on tag ref",
+      );
+      const workflowDispatchCommandIndex = workflow.indexOf(
+        "gh workflow run release-",
+      );
+      const publishJobIndex = workflow.indexOf("\n  publish-npm:\n");
+      const tagGuardIndex = workflow.indexOf(
+        'if [ "$GITHUB_REF" != "$EXPECTED_REF" ]; then',
+      );
+      const sourceRunGuardIndex = workflow.indexOf(
+        "- name: Require successful source release run",
+      );
+      const sourceAuthorizationIndex = workflow.indexOf(
+        "- name: Verify source run authorized this release tag",
+      );
+      const finalSourceGuardIndex = workflow.indexOf(
+        "- name: Assert npm publish source is unchanged",
       );
       const publishIndex = workflow.indexOf("- name: Publish to npm");
-      assert.match(workflow, /Restore tagged source for npm provenance/);
-      assert.ok(recoveryPushIndex < restoreSourceIndex, filename);
-      assert.ok(restoreSourceIndex < publishIndex, filename);
+      const publishedProvenanceIndex = workflow.indexOf(
+        "- name: Verify published npm release provenance",
+      );
+      assert.match(workflow, /publish_only:/);
+      assert.match(workflow, /source_run_id:/);
+      assert.match(workflow, /if: \$\{\{ !inputs\.publish_only \}\}/);
+      assert.match(
+        workflow,
+        /group: \$\{\{ github\.workflow \}\}-\$\{\{ inputs\.publish_only && 'publish' \|\| 'release' \}\}/,
+      );
+      assert.match(
+        workflow,
+        /gh workflow run release-(?:expo|react-native)\.yml --ref "\$TAG" \\\n\s+-f version=current \\\n\s+-f publish_only=true \\\n\s+-f source_run_id="\$GITHUB_RUN_ID"/,
+      );
+      assert.match(workflow, /if: \$\{\{ inputs\.publish_only \}\}/);
+      assert.match(workflow, /actions: read/);
+      assert.match(workflow, /fetch-depth: 0/);
+      assert.match(
+        workflow,
+        /EXPECTED_REF="refs\/tags\/(?:expo|react-native)-iap-\$VERSION"/,
+      );
+      assert.match(
+        workflow,
+        /if \[ "\$\(git rev-parse HEAD\)" != "\$GITHUB_SHA" \]; then/,
+      );
+      assert.match(
+        workflow,
+        /git merge-base --is-ancestor "\$GITHUB_SHA" "origin\/\$SOURCE_BRANCH"/,
+      );
+      assert.match(workflow, /actions\/runs\/\$SOURCE_RUN_ID/);
+      assert.match(workflow, /SOURCE_CONCLUSION" != "success"/);
+      assert.match(workflow, /actions\/upload-artifact@v4/);
+      assert.match(
+        workflow,
+        /name: npm-publish-authorization-\$\{\{ github\.run_attempt \}\}/,
+      );
+      assert.match(workflow, /gh run download "\$SOURCE_RUN_ID"/);
+      assert.match(workflow, /npm-publish-authorization\.mjs" verify/);
+      assert.match(workflow, /verify-npm-release-provenance\.mjs/);
+      assert.match(workflow, /npm install -g npm@11\.19\.0/);
+      assert.equal(
+        (workflow.match(/id-token: write/g) ?? []).length,
+        1,
+        `${filename} OIDC permission must be isolated to the tag publisher`,
+      );
+      assert.doesNotMatch(workflow, /git checkout --detach "\$GITHUB_SHA"/);
+      assert.ok(recoveryPushIndex < legacyGuardIndex, filename);
+      assert.ok(legacyGuardIndex < authorizationWriteIndex, filename);
+      assert.ok(authorizationWriteIndex < authorizationUploadIndex, filename);
+      assert.ok(authorizationUploadIndex < dispatchIndex, filename);
+      assert.ok(dispatchIndex < workflowDispatchCommandIndex, filename);
+      assert.ok(workflowDispatchCommandIndex < publishJobIndex, filename);
+      assert.ok(publishJobIndex < tagGuardIndex, filename);
+      assert.ok(tagGuardIndex < sourceRunGuardIndex, filename);
+      assert.ok(sourceRunGuardIndex < sourceAuthorizationIndex, filename);
+      assert.ok(sourceAuthorizationIndex < finalSourceGuardIndex, filename);
+      assert.ok(finalSourceGuardIndex < publishIndex, filename);
+      assert.ok(publishIndex < publishedProvenanceIndex, filename);
     }
   }
 

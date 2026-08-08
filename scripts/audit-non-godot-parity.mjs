@@ -4369,14 +4369,44 @@ function checkFrameworkDependencyHygiene() {
       npmReleaseWorkflow,
       [
         "Check if npm package already published",
-        "npm install -g npm@11.5.1",
+        "npm install -g npm@11.19.0",
         `npm view "${npmPackage}@$VERSION" version`,
         `if NPM_OUTPUT=$(npm view "${npmPackage}@$VERSION" version 2>&1); then`,
         "grep -qiE 'E404|404 Not Found'",
         "Refuse an untagged published version",
         "published without a provenance tag",
-        "Restore tagged source for npm provenance",
-        'git checkout --detach "$GITHUB_SHA"',
+        "publish_only:",
+        "source_run_id:",
+        "if: ${{ !inputs.publish_only }}",
+        "group: ${{ github.workflow }}-${{ inputs.publish_only && 'publish' || 'release' }}",
+        "Dispatch npm publish on tag ref",
+        "Require tag-ref npm publisher capability",
+        "if ! git grep -q '^  publish-npm:'",
+        "Upload npm publish authorization",
+        "actions/upload-artifact@v4",
+        "npm-publish-authorization-${{ github.run_attempt }}",
+        "predates the tag-ref npm publisher and cannot be retried safely",
+        "gh workflow run release-",
+        '--ref "$TAG"',
+        "-f publish_only=true",
+        '-f source_run_id="$GITHUB_RUN_ID"',
+        "publish-npm:",
+        "if: ${{ inputs.publish_only }}",
+        "actions: read",
+        "fetch-depth: 0",
+        'if [ "$GITHUB_REF" != "$EXPECTED_REF" ]; then',
+        'if [ "$(git rev-parse HEAD)" != "$GITHUB_SHA" ]; then',
+        'git merge-base --is-ancestor "$GITHUB_SHA" "origin/$SOURCE_BRANCH"',
+        "Require successful source release run",
+        "actions/runs/$SOURCE_RUN_ID",
+        'SOURCE_CONCLUSION" != "success"',
+        "Verify source run authorized this release tag",
+        'gh run download "$SOURCE_RUN_ID"',
+        'npm-publish-authorization.mjs" verify',
+        "verify-npm-release-provenance.mjs",
+        "Verify existing npm release provenance",
+        "Assert npm publish source is unchanged",
+        "Verify published npm release provenance",
         "if: steps.check_npm.outputs.exists == 'false'",
       ],
       `${npmReleaseWorkflow} must support npm release reruns`,
@@ -4405,19 +4435,106 @@ function checkFrameworkDependencyHygiene() {
     const recoveryPushIndex = npmReleaseSource.indexOf(
       '"refs/tags/$RELEASE_TAG:refs/tags/$RELEASE_TAG"',
     );
-    const restoreSourceIndex = npmReleaseSource.indexOf(
-      'git checkout --detach "$GITHUB_SHA"',
+    const legacyGuardIndex = npmReleaseSource.indexOf(
+      "- name: Require tag-ref npm publisher capability",
+    );
+    const authorizationWriteIndex = npmReleaseSource.indexOf(
+      "- name: Write npm publish authorization",
+    );
+    const authorizationUploadIndex = npmReleaseSource.indexOf(
+      "- name: Upload npm publish authorization",
+    );
+    const dispatchIndex = npmReleaseSource.indexOf(
+      "- name: Dispatch npm publish on tag ref",
+    );
+    const workflowDispatchCommandIndex = npmReleaseSource.indexOf(
+      "gh workflow run release-",
+    );
+    const publishJobIndex = npmReleaseSource.indexOf("\n  publish-npm:\n");
+    const tagGuardIndex = npmReleaseSource.indexOf(
+      'if [ "$GITHUB_REF" != "$EXPECTED_REF" ]; then',
+    );
+    const sourceRunGuardIndex = npmReleaseSource.indexOf(
+      "- name: Require successful source release run",
+    );
+    const sourceAuthorizationIndex = npmReleaseSource.indexOf(
+      "- name: Verify source run authorized this release tag",
+    );
+    const finalSourceGuardIndex = npmReleaseSource.indexOf(
+      "- name: Assert npm publish source is unchanged",
     );
     const publishIndex = npmReleaseSource.indexOf("- name: Publish to npm");
+    const publishedProvenanceIndex = npmReleaseSource.indexOf(
+      "- name: Verify published npm release provenance",
+    );
     if (
-      recoveryPushIndex >= restoreSourceIndex ||
-      restoreSourceIndex >= publishIndex
+      recoveryPushIndex >= legacyGuardIndex ||
+      legacyGuardIndex >= authorizationWriteIndex ||
+      authorizationWriteIndex >= authorizationUploadIndex ||
+      authorizationUploadIndex >= dispatchIndex ||
+      dispatchIndex >= workflowDispatchCommandIndex ||
+      workflowDispatchCommandIndex >= publishJobIndex ||
+      publishJobIndex >= tagGuardIndex ||
+      tagGuardIndex >= sourceRunGuardIndex ||
+      sourceRunGuardIndex >= sourceAuthorizationIndex ||
+      sourceAuthorizationIndex >= finalSourceGuardIndex ||
+      finalSourceGuardIndex >= publishIndex ||
+      publishIndex >= publishedProvenanceIndex
     ) {
       fail(
-        `${npmReleaseWorkflow} must publish from the immutable tag target after the recovery push`,
+        `${npmReleaseWorkflow} must publish in a tag-ref OIDC run after the immutable tag push`,
+      );
+    }
+    if ((npmReleaseSource.match(/id-token: write/g) ?? []).length !== 1) {
+      fail(
+        `${npmReleaseWorkflow} must grant OIDC only to its tag-ref npm publisher`,
+      );
+    }
+    if (npmReleaseSource.includes('git checkout --detach "$GITHUB_SHA"')) {
+      fail(
+        `${npmReleaseWorkflow} must not substitute checkout state for tag-ref OIDC provenance`,
       );
     }
   }
+  expectIncludes(
+    "scripts/verify-npm-release-provenance.mjs",
+    [
+      "npm gitHead mismatch",
+      "https://slsa.dev/provenance/v1",
+      "resolvedDependencies",
+      "subject?.name === expectedSubject",
+      "subject?.digest?.sha512?.toLowerCase() === expectedArtifactDigest",
+      "workflow?.path === expectedWorkflowPath",
+      "workflow?.ref === expectedRef",
+      "workflow?.repository === expectedRepository",
+      "dependency?.digest?.gitCommit === expectedCommit",
+      "statement?._type === IN_TOTO_STATEMENT_V1",
+      "verifiedEntry?.attestationBundles",
+      "new URL(entry?.registry).origin",
+      '["audit", "signatures", "--json", "--include-attestations"]',
+      "verifyNpmSignatureAuditResult",
+    ],
+    "npm release provenance verifier must bind registry metadata and SLSA provenance to the immutable tag",
+  );
+  expectIncludes(
+    "scripts/npm-publish-authorization.mjs",
+    [
+      "sourceRunId",
+      "sourceRunAttempt",
+      "sourceHeadSha",
+      "tagSha",
+      "npm publish authorization",
+    ],
+    "npm tag publisher authorization must bind the exact source run to the exact tag commit",
+  );
+  expectIncludes(
+    ".github/workflows/ci.yml",
+    [
+      "scripts/npm-publish-authorization.test.mjs",
+      "scripts/verify-npm-release-provenance.test.mjs",
+    ],
+    "CI must test npm release provenance verification",
+  );
   expectIncludes(
     ".github/workflows/release-flutter.yml",
     [
@@ -4529,14 +4646,36 @@ function checkFrameworkDependencyHygiene() {
   }
   expectIncludes(
     ".claude/commands/review-pr.md",
-    ["~300 seconds (5 minutes)", "5-minute wake-up"],
+    [
+      "~300 seconds (5 minutes)",
+      "5-minute wake-up",
+      "CodeRabbit is the only configured external reviewer",
+      "clean CodeRabbit result is successful reviewer coverage",
+      "one complete",
+      "`$review-self` round",
+    ],
     "review-pr must preserve the requested five-minute polling cadence",
   );
   expectNotIncludes(
     ".claude/commands/review-pr.md",
-    ["~480 seconds (8 minutes)", "8-minute wake-up"],
-    "review-pr must not retain the old eight-minute polling cadence",
+    [
+      "~480 seconds (8 minutes)",
+      "8-minute wake-up",
+      "/gemini review",
+      "Copilot",
+    ],
+    "review-pr must not retain superseded cadence or reviewer triggers",
   );
+  for (const workflowSkill of [
+    ".codex/skills/openiap-workflows/SKILL.md",
+    ".claude/skills/openiap-workflows/SKILL.md",
+  ]) {
+    expectIncludes(
+      workflowSkill,
+      ["CodeRabbit", "review-self"],
+      `${workflowSkill} must route unavailable CodeRabbit review to review-self`,
+    );
+  }
   expectIncludes(
     ".claude/commands/release.md",
     [
