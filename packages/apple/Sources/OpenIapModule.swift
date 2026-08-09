@@ -1179,7 +1179,10 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         let product = try await storeProduct(for: sku)
 
         let entitlements: Transaction.Transactions
-        #if compiler(>=6.1)
+        // Product.currentEntitlements ships in the Xcode 26 SDK and is
+        // back-deployed by StoreKit. Xcode 16.4 also uses Swift 6.1, so the
+        // compiler guard must stay at Swift 6.2+ to keep that SDK buildable.
+        #if compiler(>=6.2)
         if #available(iOS 18.4, macOS 15.4, tvOS 18.4, watchOS 11.4, visionOS 2.4, *) {
             entitlements = product.currentEntitlements
         } else {
