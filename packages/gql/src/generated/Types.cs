@@ -2245,6 +2245,9 @@ public sealed record AdvancedCommerceInfoIOS
     /// <summary>The items purchased as part of this transaction</summary>
     [JsonPropertyName("items")]
     public required IReadOnlyList<AdvancedCommerceItemIOS> Items { get; init; }
+    /// <summary>Subscription period for this transaction</summary>
+    [JsonPropertyName("period")]
+    public SubscriptionPeriodValueIOS? Period { get; init; }
     /// <summary>Request reference identifier for tracking</summary>
     [JsonPropertyName("requestReferenceId")]
     public string? RequestReferenceId { get; init; }
@@ -4175,11 +4178,14 @@ public interface MutationResolver
     Task<bool> OpenRedeemOfferCodeAndroidAsync();
 
     /// <summary>Show the App Store offer code redemption sheet.</summary>
-    /// <summary>On iOS 27+, Mac Catalyst 27+, and visionOS 27+, returns the verified</summary>
-    /// <summary>transaction produced by the redemption. Earlier iOS and Mac Catalyst</summary>
-    /// <summary>versions present the legacy sheet and return null; reconcile purchases</summary>
-    /// <summary>through the normal transaction listener or an explicit available-purchases</summary>
-    /// <summary>refresh.</summary>
+    /// <summary>When built with Xcode 27+ and running on iOS 27+, Mac Catalyst 27+, or</summary>
+    /// <summary>visionOS 27+, returns the verified transaction produced by the redemption.</summary>
+    /// <summary>Other supported paths present the system sheet and return null: StoreKit 2&apos;s</summary>
+    /// <summary>scene-based sheet on iOS and Mac Catalyst 16–26, visionOS 1–26, or Apple 27</summary>
+    /// <summary>runtimes from an older build; and the StoreKit 1 fallback on iOS or Mac</summary>
+    /// <summary>Catalyst 15.</summary>
+    /// <summary>Reconcile null results through the normal transaction listener or an explicit</summary>
+    /// <summary>available-purchases refresh.</summary>
     /// <summary>See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios</summary>
     Task<PurchaseIOS?> PresentCodeRedemptionSheetIOSAsync();
 
@@ -4298,7 +4304,12 @@ public interface QueryResolver
     /// <summary>See: https://openiap.dev/docs/apis/ios/get-pending-transactions-ios</summary>
     Task<IReadOnlyList<PurchaseIOS>> GetPendingTransactionsIOSAsync();
 
-    /// <summary>Read the App Store-promoted product, if any (iOS 11+).</summary>
+    /// <summary>Read the App Store-promoted product, if any (iOS 15+).</summary>
+    /// <summary>OpenIAP consumes PurchaseIntent.intents on iOS 16.4+ and uses the</summary>
+    /// <summary>StoreKit 1 observer only on iOS 15–16.3. When PurchaseIntent carries an</summary>
+    /// <summary>externally redeemed win-back offer, OpenIAP preserves it for the next</summary>
+    /// <summary>matching requestPurchase unless the caller supplies an explicit win-back or</summary>
+    /// <summary>promotional offer.</summary>
     /// <summary>See: https://openiap.dev/docs/apis/ios/get-promoted-product-ios</summary>
     Task<ProductIOS?> GetPromotedProductIOSAsync();
 
@@ -4353,7 +4364,10 @@ public interface SubscriptionResolver
     /// <summary>openiap-google 2.3.0 (requires Play Billing 9.1.0+).</summary>
     Task<DeveloperProvidedBillingDetailsAndroid> DeveloperProvidedBillingAndroidAsync();
 
-    /// <summary>Fires when the App Store surfaces a promoted product (iOS only)</summary>
+    /// <summary>Fires when the App Store surfaces a promoted product (iOS only).</summary>
+    /// <summary>A win-back offer attached to PurchaseIntent is preserved for the next</summary>
+    /// <summary>matching requestPurchase unless the caller supplies an explicit win-back or</summary>
+    /// <summary>promotional offer.</summary>
     Task<string> PromotedProductIOSAsync();
 
     /// <summary>Fires when a purchase fails or is cancelled</summary>

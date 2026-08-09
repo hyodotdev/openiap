@@ -728,6 +728,10 @@ type AdvancedCommerceInfoIOS {
   """
   items: [AdvancedCommerceItemIOS!]!
   """
+  Subscription period for this transaction
+  """
+  period: SubscriptionPeriodValueIOS
+  """
   Request reference identifier for tracking
   """
   requestReferenceId: String
