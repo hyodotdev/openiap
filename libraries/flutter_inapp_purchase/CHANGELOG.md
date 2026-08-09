@@ -1,5 +1,13 @@
 # Changelog
 
+## 10.2.0 (2026-08-09)
+
+- chore(google): bump version to 3.2.0
+- chore(apple): bump version to 3.1.0
+- fix: modernize store API integrations (#299)
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
+
+
 ## 10.1.0 (2026-08-08)
 
 - fix: harden remaining dependency release CI (#298)
