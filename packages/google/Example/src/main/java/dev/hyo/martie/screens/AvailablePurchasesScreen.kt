@@ -23,17 +23,15 @@ import dev.hyo.martie.screens.uis.*
 import dev.hyo.martie.util.PREMIUM_SUBSCRIPTION_PRODUCT_ID
 import dev.hyo.openiap.PurchaseAndroid
 import dev.hyo.openiap.PurchaseState
-import dev.hyo.openiap.store.OpenIapStore
 import dev.hyo.openiap.store.PurchaseResultStatus
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AvailablePurchasesScreen(
-    navController: NavController,
-    storeParam: OpenIapStore? = null
+    navController: NavController
 ) {
-    val iapStore = currentOpenIapStore(storeParam)
+    val iapStore = currentOpenIapStore()
     val purchases by iapStore.availablePurchases.collectAsState()
     val status by iapStore.status.collectAsState()
     val connectionStatus by iapStore.isConnected.collectAsState()

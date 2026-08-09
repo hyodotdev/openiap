@@ -19,7 +19,6 @@ import dev.hyo.martie.IapConstants
 import dev.hyo.martie.models.AppColors
 import dev.hyo.martie.screens.uis.*
 import dev.hyo.openiap.IapkitPurchaseState
-import dev.hyo.openiap.store.OpenIapStore
 import dev.hyo.openiap.store.PurchaseResultStatus
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
@@ -53,11 +52,10 @@ enum class VerificationMethod(val displayName: String) {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun PurchaseFlowScreen(
-    navController: NavController,
-    storeParam: OpenIapStore? = null
+    navController: NavController
 ) {
     val uiScope = rememberCoroutineScope()
-    val iapStore = currentOpenIapStore(storeParam)
+    val iapStore = currentOpenIapStore()
     val products by iapStore.products.collectAsState()
     val purchases by iapStore.availablePurchases.collectAsState()
     val androidProducts = remember(products) { products.filterIsInstance<ProductAndroid>() }

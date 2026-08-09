@@ -132,11 +132,13 @@ the missing external review coverage with the full self-review procedure.
 - Carry a compact state capsule in the scheduled prompt or monitor state. Include
   the original goal and acceptance criteria, target and base, head/tree and
   working-tree fingerprints, seen feedback and check IDs, poll count, clean
-  count, start time, the current pending-state fingerprint and first-seen time,
-  finding fingerprints with fix attempts, and the existing commit/push
-  authority.
+  count, start time, the requested interval, the active interval, the current
+  pending-state fingerprint and first-seen time, finding fingerprints with fix
+  attempts, and the existing commit/push authority.
 - Keep loop state out of tracked repository files. Revalidate it against disk and
   remote state on every wake-up.
+- Validate the requested and active intervals on every wake-up. Preserve an
+  explicit user interval unless the user changes it; otherwise use the default.
 - Increment the clean count only after a complete round has no actionable
   findings, all requested verification passes, required checks are terminal and
   successful or explicitly allowed to skip, no actionable feedback remains, and

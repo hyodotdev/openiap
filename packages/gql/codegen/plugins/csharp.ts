@@ -263,9 +263,15 @@ export class CSharpPlugin extends CodegenPlugin {
   private emitDoc(description: string | undefined, indent: string = ''): void {
     if (!description) return;
     const lines = description.split(/\r?\n/);
-    for (const line of lines) {
-      this.emit(`${indent}/// <summary>${escapeXml(line)}</summary>`);
+    if (lines.length === 1) {
+      this.emit(`${indent}/// <summary>${escapeXml(lines[0])}</summary>`);
+      return;
     }
+    this.emit(`${indent}/// <summary>`);
+    for (const line of lines) {
+      this.emit(line ? `${indent}/// ${escapeXml(line)}` : `${indent}///`);
+    }
+    this.emit(`${indent}/// </summary>`);
   }
 
   // ============================================================================

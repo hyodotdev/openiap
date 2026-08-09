@@ -26,17 +26,15 @@ import dev.hyo.openiap.ProductQueryType
 import dev.hyo.openiap.ProductType
 import dev.hyo.openiap.ProductRequest
 import dev.hyo.openiap.ProductSubscription
-import dev.hyo.openiap.store.OpenIapStore
 import dev.hyo.openiap.store.PurchaseResultStatus
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AllProductsScreen(
-    navController: NavController,
-    storeParam: OpenIapStore? = null
+    navController: NavController
 ) {
-    val iapStore = currentOpenIapStore(storeParam)
+    val iapStore = currentOpenIapStore()
     val products by iapStore.products.collectAsState()
     val subscriptions by iapStore.subscriptions.collectAsState()
     val status by iapStore.status.collectAsState()

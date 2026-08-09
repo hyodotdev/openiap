@@ -278,6 +278,8 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      * Convenience overload — calls the config-accepting variant with `null`.
      *
      * @return `true` once the Play Billing client is connected.
+     * @throws OpenIapError.MissingCurrentActivity when Horizon has no Activity supplied by
+     *   the constructor, [setActivity], or [IapContext.OpenIapProvider].
      * @throws OpenIapError.InitConnection when the billing client fails to initialize
      *   (e.g. Play Store missing, version too old).
      *

@@ -21,18 +21,16 @@ import androidx.navigation.NavController
 import dev.hyo.martie.models.AppColors
 import dev.hyo.martie.screens.uis.*
 import dev.hyo.martie.util.findActivity
-import dev.hyo.openiap.store.OpenIapStore
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OfferCodeScreen(
-    navController: NavController,
-    storeParam: OpenIapStore? = null
+    navController: NavController
 ) {
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
-    val iapStore = currentOpenIapStore(storeParam)
+    val iapStore = currentOpenIapStore()
 
     var showResult by remember { mutableStateOf(false) }
     var resultMessage by remember { mutableStateOf("") }

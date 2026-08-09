@@ -17,8 +17,10 @@ namespace OpenIap;
 // Enums
 // ============================================================================
 
-/// <summary>Play Billing choice image layout (Android)</summary>
-/// <summary>Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).</summary>
+/// <summary>
+/// Play Billing choice image layout (Android)
+/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+/// </summary>
 [JsonConverter(typeof(BillingChoiceImageLayoutAndroidJsonConverter))]
 public enum BillingChoiceImageLayoutAndroid
 {
@@ -72,8 +74,10 @@ public static class BillingChoiceImageLayoutAndroidExtensions
     public static BillingChoiceImageLayoutAndroid FromJson(string value) => BillingChoiceImageLayoutAndroidJsonConverter.FromRawString(value);
 }
 
-/// <summary>Choice screen renderer for Billing Choice availability (Android)</summary>
-/// <summary>Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).</summary>
+/// <summary>
+/// Choice screen renderer for Billing Choice availability (Android)
+/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+/// </summary>
 [JsonConverter(typeof(BillingChoiceScreenTypeAndroidJsonConverter))]
 public enum BillingChoiceScreenTypeAndroid
 {
@@ -127,36 +131,48 @@ public static class BillingChoiceScreenTypeAndroidExtensions
     public static BillingChoiceScreenTypeAndroid FromJson(string value) => BillingChoiceScreenTypeAndroidJsonConverter.FromRawString(value);
 }
 
-/// <summary>Billing program types for Google Play Billing Programs (Android)</summary>
-/// <summary>Available in Google Play Billing Library 8.2.0 (External Offer and External Content Link</summary>
-/// <summary>integrations require 8.2.1+), EXTERNAL_PAYMENTS added in 8.3.0,</summary>
-/// <summary>BILLING_CHOICE added in OpenIAP Spec 2.1.0 / openiap-google 2.3.0</summary>
-/// <summary>(requires Play Billing 9.1.0+).</summary>
+/// <summary>
+/// Billing program types for Google Play Billing Programs (Android)
+/// Available in Google Play Billing Library 8.2.0 (External Offer and External Content Link
+/// integrations require 8.2.1+), EXTERNAL_PAYMENTS added in 8.3.0,
+/// BILLING_CHOICE added in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+/// (requires Play Billing 9.1.0+).
+/// </summary>
 [JsonConverter(typeof(BillingProgramAndroidJsonConverter))]
 public enum BillingProgramAndroid
 {
     /// <summary>Unspecified billing program. Do not use.</summary>
     Unspecified,
-    /// <summary>User Choice Billing program.</summary>
-    /// <summary>User can select between Google Play Billing or alternative billing.</summary>
-    /// <summary>Available in Google Play Billing Library 7.0+</summary>
+    /// <summary>
+    /// User Choice Billing program.
+    /// User can select between Google Play Billing or alternative billing.
+    /// Available in Google Play Billing Library 7.0+
+    /// </summary>
     UserChoiceBilling,
-    /// <summary>External Content Links program.</summary>
-    /// <summary>Allows linking to external content outside the app.</summary>
-    /// <summary>Available in Google Play Billing Library 8.2.0+</summary>
+    /// <summary>
+    /// External Content Links program.
+    /// Allows linking to external content outside the app.
+    /// Available in Google Play Billing Library 8.2.0+
+    /// </summary>
     ExternalContentLink,
-    /// <summary>External Offers program.</summary>
-    /// <summary>Allows offering digital content purchases outside the app.</summary>
-    /// <summary>Available in Google Play Billing Library 8.2.0+</summary>
+    /// <summary>
+    /// External Offers program.
+    /// Allows offering digital content purchases outside the app.
+    /// Available in Google Play Billing Library 8.2.0+
+    /// </summary>
     ExternalOffer,
-    /// <summary>External Payments program (Japan only).</summary>
-    /// <summary>Allows presenting a side-by-side choice between Google Play Billing and developer&apos;s external payment option.</summary>
-    /// <summary>Users can choose to complete the purchase on the developer&apos;s website.</summary>
-    /// <summary>Available in Google Play Billing Library 8.3.0+</summary>
+    /// <summary>
+    /// External Payments program (Japan only).
+    /// Allows presenting a side-by-side choice between Google Play Billing and developer&apos;s external payment option.
+    /// Users can choose to complete the purchase on the developer&apos;s website.
+    /// Available in Google Play Billing Library 8.3.0+
+    /// </summary>
     ExternalPayments,
-    /// <summary>Billing Choice program.</summary>
-    /// <summary>Allows presenting Google Play Billing alongside an alternative in-app billing system or external web link.</summary>
-    /// <summary>Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).</summary>
+    /// <summary>
+    /// Billing Choice program.
+    /// Allows presenting Google Play Billing alongside an alternative in-app billing system or external web link.
+    /// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+    /// </summary>
     BillingChoice
 }
 
@@ -211,19 +227,25 @@ public static class BillingProgramAndroidExtensions
     public static BillingProgramAndroid FromJson(string value) => BillingProgramAndroidJsonConverter.FromRawString(value);
 }
 
-/// <summary>Launch mode for developer billing option (Android)</summary>
-/// <summary>Determines how the external payment URL is launched</summary>
-/// <summary>Available in Google Play Billing Library 8.3.0+</summary>
+/// <summary>
+/// Launch mode for developer billing option (Android)
+/// Determines how the external payment URL is launched
+/// Available in Google Play Billing Library 8.3.0+
+/// </summary>
 [JsonConverter(typeof(DeveloperBillingLaunchModeAndroidJsonConverter))]
 public enum DeveloperBillingLaunchModeAndroid
 {
     /// <summary>Unspecified launch mode. Do not use.</summary>
     Unspecified,
-    /// <summary>Google Play will launch the link in an external browser or eligible app.</summary>
-    /// <summary>Use this when you want Play to handle launching the external payment URL.</summary>
+    /// <summary>
+    /// Google Play will launch the link in an external browser or eligible app.
+    /// Use this when you want Play to handle launching the external payment URL.
+    /// </summary>
     LaunchInExternalBrowserOrApp,
-    /// <summary>The caller app will launch the link after Play returns control.</summary>
-    /// <summary>Use this when you want to handle launching the external payment URL yourself.</summary>
+    /// <summary>
+    /// The caller app will launch the link after Play returns control.
+    /// Use this when you want to handle launching the external payment URL yourself.
+    /// </summary>
     CallerWillLaunchLink
 }
 
@@ -269,8 +291,10 @@ public static class DeveloperBillingLaunchModeAndroidExtensions
     public static DeveloperBillingLaunchModeAndroid FromJson(string value) => DeveloperBillingLaunchModeAndroidJsonConverter.FromRawString(value);
 }
 
-/// <summary>Developer-provided billing destination type for Billing Program reporting details (Android)</summary>
-/// <summary>Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).</summary>
+/// <summary>
+/// Developer-provided billing destination type for Billing Program reporting details (Android)
+/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+/// </summary>
 [JsonConverter(typeof(DeveloperBillingTypeAndroidJsonConverter))]
 public enum DeveloperBillingTypeAndroid
 {
@@ -324,8 +348,10 @@ public static class DeveloperBillingTypeAndroidExtensions
     public static DeveloperBillingTypeAndroid FromJson(string value) => DeveloperBillingTypeAndroidJsonConverter.FromRawString(value);
 }
 
-/// <summary>Discount offer type enumeration.</summary>
-/// <summary>Categorizes the type of discount or promotional offer.</summary>
+/// <summary>
+/// Discount offer type enumeration.
+/// Categorizes the type of discount or promotional offer.
+/// </summary>
 [JsonConverter(typeof(DiscountOfferTypeJsonConverter))]
 public enum DiscountOfferType
 {
@@ -600,10 +626,12 @@ public static class ErrorCodeExtensions
     public static ErrorCode FromJson(string value) => ErrorCodeJsonConverter.FromRawString(value);
 }
 
-/// <summary>Launch mode for external link flow (Android)</summary>
-/// <summary>Determines how the external URL is launched</summary>
-/// <summary>Introduced in Google Play Billing Library 8.2.0. External Offer and External Content Link</summary>
-/// <summary>integrations require 8.2.1+ and fresh details immediately before every redirect session.</summary>
+/// <summary>
+/// Launch mode for external link flow (Android)
+/// Determines how the external URL is launched
+/// Introduced in Google Play Billing Library 8.2.0. External Offer and External Content Link
+/// integrations require 8.2.1+ and fresh details immediately before every redirect session.
+/// </summary>
 [JsonConverter(typeof(ExternalLinkLaunchModeAndroidJsonConverter))]
 public enum ExternalLinkLaunchModeAndroid
 {
@@ -657,9 +685,11 @@ public static class ExternalLinkLaunchModeAndroidExtensions
     public static ExternalLinkLaunchModeAndroid FromJson(string value) => ExternalLinkLaunchModeAndroidJsonConverter.FromRawString(value);
 }
 
-/// <summary>Link type for external link flow (Android)</summary>
-/// <summary>Specifies the type of external link destination</summary>
-/// <summary>Available in Google Play Billing Library 8.2.0+</summary>
+/// <summary>
+/// Link type for external link flow (Android)
+/// Specifies the type of external link destination
+/// Available in Google Play Billing Library 8.2.0+
+/// </summary>
 [JsonConverter(typeof(ExternalLinkTypeAndroidJsonConverter))]
 public enum ExternalLinkTypeAndroid
 {
@@ -713,14 +743,18 @@ public static class ExternalLinkTypeAndroidExtensions
     public static ExternalLinkTypeAndroid FromJson(string value) => ExternalLinkTypeAndroidJsonConverter.FromRawString(value);
 }
 
-/// <summary>Notice types for ExternalPurchaseCustomLink (iOS 18.1+).</summary>
-/// <summary>Determines the style of disclosure notice to display.</summary>
-/// <summary>Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/noticetype</summary>
+/// <summary>
+/// Notice types for ExternalPurchaseCustomLink (iOS 18.1+).
+/// Determines the style of disclosure notice to display.
+/// Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/noticetype
+/// </summary>
 [JsonConverter(typeof(ExternalPurchaseCustomLinkNoticeTypeIOSJsonConverter))]
 public enum ExternalPurchaseCustomLinkNoticeTypeIOS
 {
-    /// <summary>Notice type indicating external purchases will be displayed in a browser</summary>
-    /// <summary>or destination of the app&apos;s choice.</summary>
+    /// <summary>
+    /// Notice type indicating external purchases will be displayed in a browser
+    /// or destination of the app&apos;s choice.
+    /// </summary>
     Browser
 }
 
@@ -761,17 +795,23 @@ public static class ExternalPurchaseCustomLinkNoticeTypeIOSExtensions
     public static ExternalPurchaseCustomLinkNoticeTypeIOS FromJson(string value) => ExternalPurchaseCustomLinkNoticeTypeIOSJsonConverter.FromRawString(value);
 }
 
-/// <summary>Token types for ExternalPurchaseCustomLink (iOS 18.1+).</summary>
-/// <summary>Used to request different types of external purchase tokens for reporting to Apple.</summary>
-/// <summary>Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)</summary>
+/// <summary>
+/// Token types for ExternalPurchaseCustomLink (iOS 18.1+).
+/// Used to request different types of external purchase tokens for reporting to Apple.
+/// Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
+/// </summary>
 [JsonConverter(typeof(ExternalPurchaseCustomLinkTokenTypeIOSJsonConverter))]
 public enum ExternalPurchaseCustomLinkTokenTypeIOS
 {
-    /// <summary>Token for customer acquisition tracking.</summary>
-    /// <summary>Use this when a new customer makes their first purchase through external link.</summary>
+    /// <summary>
+    /// Token for customer acquisition tracking.
+    /// Use this when a new customer makes their first purchase through external link.
+    /// </summary>
     Acquisition,
-    /// <summary>Token for ongoing services tracking.</summary>
-    /// <summary>Use this for existing customers making additional purchases.</summary>
+    /// <summary>
+    /// Token for ongoing services tracking.
+    /// Use this for existing customers making additional purchases.
+    /// </summary>
     Services
 }
 
@@ -874,16 +914,20 @@ public enum IapEvent
     PurchaseError,
     PromotedProductIOS,
     UserChoiceBillingAndroid,
-    /// <summary>Fired for External Payments (8.3.0+) and Google-rendered Billing Choice</summary>
-    /// <summary>developer billing selections on Android. Billing Choice is available in</summary>
-    /// <summary>OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).</summary>
+    /// <summary>
+    /// Fired for External Payments (8.3.0+) and Google-rendered Billing Choice
+    /// developer billing selections on Android. Billing Choice is available in
+    /// OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+    /// </summary>
     DeveloperProvidedBillingAndroid,
-    /// <summary>Fired when a subscription enters a billing-issue state that requires user attention.</summary>
-    /// <summary>A StoreKit billing-retry subscription may no longer be a current entitlement.</summary>
-    /// <summary>Cross-platform unification of StoreKit 2 Message.billingIssue (iOS 16.4+,</summary>
-    /// <summary>Mac Catalyst 16.4+, visionOS 1.0+) and</summary>
-    /// <summary>Play Billing 8.1+ isSuspended. NOT emitted by Amazon Appstore or the Horizon</summary>
-    /// <summary>flavor, whose Billing Compatibility SDK implements only Play Billing 7.0.</summary>
+    /// <summary>
+    /// Fired when a subscription enters a billing-issue state that requires user attention.
+    /// A StoreKit billing-retry subscription may no longer be a current entitlement.
+    /// Cross-platform unification of StoreKit 2 Message.billingIssue (iOS 16.4+,
+    /// Mac Catalyst 16.4+, visionOS 1.0+) and
+    /// Play Billing 8.1+ isSuspended. NOT emitted by Amazon Appstore or the Horizon
+    /// flavor, whose Billing Compatibility SDK implements only Play Billing 7.0.
+    /// </summary>
     SubscriptionBillingIssue
 }
 
@@ -1192,9 +1236,11 @@ public static class IapStoreExtensions
     public static IapStore FromJson(string value) => IapStoreJsonConverter.FromRawString(value);
 }
 
-/// <summary>High-level in-app message category (Android)</summary>
-/// <summary>Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0</summary>
-/// <summary>(upstream API available since Play Billing 4.1.0).</summary>
+/// <summary>
+/// High-level in-app message category (Android)
+/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+/// (upstream API available since Play Billing 4.1.0).
+/// </summary>
 [JsonConverter(typeof(InAppMessageCategoryAndroidJsonConverter))]
 public enum InAppMessageCategoryAndroid
 {
@@ -1243,9 +1289,11 @@ public static class InAppMessageCategoryAndroidExtensions
     public static InAppMessageCategoryAndroid FromJson(string value) => InAppMessageCategoryAndroidJsonConverter.FromRawString(value);
 }
 
-/// <summary>Response code from Play billing in-app messages (Android)</summary>
-/// <summary>Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0</summary>
-/// <summary>(upstream API available since Play Billing 4.1.0).</summary>
+/// <summary>
+/// Response code from Play billing in-app messages (Android)
+/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+/// (upstream API available since Play Billing 4.1.0).
+/// </summary>
 [JsonConverter(typeof(InAppMessageResponseCodeAndroidJsonConverter))]
 public enum InAppMessageResponseCodeAndroid
 {
@@ -1294,8 +1342,10 @@ public static class InAppMessageResponseCodeAndroidExtensions
     public static InAppMessageResponseCodeAndroid FromJson(string value) => InAppMessageResponseCodeAndroidJsonConverter.FromRawString(value);
 }
 
-/// <summary>Payment mode for subscription offers.</summary>
-/// <summary>Determines how the user pays during the offer period.</summary>
+/// <summary>
+/// Payment mode for subscription offers.
+/// Determines how the user pays during the offer period.
+/// </summary>
 [JsonConverter(typeof(PaymentModeJsonConverter))]
 public enum PaymentMode
 {
@@ -1469,10 +1519,12 @@ public static class ProductQueryTypeExtensions
     public static ProductQueryType FromJson(string value) => ProductQueryTypeJsonConverter.FromRawString(value);
 }
 
-/// <summary>Status code for individual products returned from queryProductDetailsAsync (Android)</summary>
-/// <summary>Prior to 8.0, products that couldn&apos;t be fetched were simply not returned.</summary>
-/// <summary>With 8.0+, these products are returned with a status code explaining why.</summary>
-/// <summary>Available in Google Play Billing Library 8.0.0+</summary>
+/// <summary>
+/// Status code for individual products returned from queryProductDetailsAsync (Android)
+/// Prior to 8.0, products that couldn&apos;t be fetched were simply not returned.
+/// With 8.0+, these products are returned with a status code explaining why.
+/// Available in Google Play Billing Library 8.0.0+
+/// </summary>
 [JsonConverter(typeof(ProductStatusAndroidJsonConverter))]
 public enum ProductStatusAndroid
 {
@@ -1745,8 +1797,10 @@ public static class PurchaseVerificationProviderExtensions
     public static PurchaseVerificationProvider FromJson(string value) => PurchaseVerificationProviderJsonConverter.FromRawString(value);
 }
 
-/// <summary>Sub-response codes for more granular purchase error information (Android)</summary>
-/// <summary>Available in Google Play Billing Library 8.0.0+</summary>
+/// <summary>
+/// Sub-response codes for more granular purchase error information (Android)
+/// Available in Google Play Billing Library 8.0.0+
+/// </summary>
 [JsonConverter(typeof(SubResponseCodeAndroidJsonConverter))]
 public enum SubResponseCodeAndroid
 {
@@ -1861,8 +1915,10 @@ public enum SubscriptionOfferTypeIOS
 {
     Introductory,
     Promotional,
-    /// <summary>Win-back offer type (iOS 18+)</summary>
-    /// <summary>Used to re-engage churned subscribers with a discount or free trial.</summary>
+    /// <summary>
+    /// Win-back offer type (iOS 18+)
+    /// Used to re-engage churned subscribers with a discount or free trial.
+    /// </summary>
     WinBack
 }
 
@@ -2038,9 +2094,11 @@ public static class SubscriptionPeriodUnitExtensions
     public static SubscriptionPeriodUnit FromJson(string value) => SubscriptionPeriodUnitJsonConverter.FromRawString(value);
 }
 
-/// <summary>Replacement mode for subscription changes (Android)</summary>
-/// <summary>These modes determine how the subscription replacement affects billing.</summary>
-/// <summary>Available in Google Play Billing Library 8.1.0+</summary>
+/// <summary>
+/// Replacement mode for subscription changes (Android)
+/// These modes determine how the subscription replacement affects billing.
+/// Available in Google Play Billing Library 8.1.0+
+/// </summary>
 [JsonConverter(typeof(SubscriptionReplacementModeAndroidJsonConverter))]
 public enum SubscriptionReplacementModeAndroid
 {
@@ -2134,10 +2192,12 @@ public interface ProductCommon
 
 public interface PurchaseCommon
 {
-    /// <summary>The current plan identifier. This is:</summary>
-    /// <summary>- On Android: the basePlanId (e.g., &quot;premium&quot;, &quot;premium-year&quot;)</summary>
-    /// <summary>- On iOS: the productId (e.g., &quot;com.example.premium_monthly&quot;, &quot;com.example.premium_yearly&quot;)</summary>
-    /// <summary>This provides a unified way to identify which specific plan/tier the user is subscribed to.</summary>
+    /// <summary>
+    /// The current plan identifier. This is:
+    /// - On Android: the basePlanId (e.g., &quot;premium&quot;, &quot;premium-year&quot;)
+    /// - On iOS: the productId (e.g., &quot;com.example.premium_monthly&quot;, &quot;com.example.premium_yearly&quot;)
+    /// This provides a unified way to identify which specific plan/tier the user is subscribed to.
+    /// </summary>
     string? CurrentPlanId { get; }
     string Id { get; }
     IReadOnlyList<string>? Ids { get; }
@@ -2195,10 +2255,12 @@ public sealed record ActiveSubscription
     public bool? AutoRenewingAndroid { get; init; }
     [JsonPropertyName("basePlanIdAndroid")]
     public string? BasePlanIdAndroid { get; init; }
-    /// <summary>The current plan identifier. This is:</summary>
-    /// <summary>- On Android: the basePlanId (e.g., &quot;premium&quot;, &quot;premium-year&quot;)</summary>
-    /// <summary>- On iOS: the productId (e.g., &quot;com.example.premium_monthly&quot;, &quot;com.example.premium_yearly&quot;)</summary>
-    /// <summary>This provides a unified way to identify which specific plan/tier the user is subscribed to.</summary>
+    /// <summary>
+    /// The current plan identifier. This is:
+    /// - On Android: the basePlanId (e.g., &quot;premium&quot;, &quot;premium-year&quot;)
+    /// - On iOS: the productId (e.g., &quot;com.example.premium_monthly&quot;, &quot;com.example.premium_yearly&quot;)
+    /// This provides a unified way to identify which specific plan/tier the user is subscribed to.
+    /// </summary>
     [JsonPropertyName("currentPlanId")]
     public string? CurrentPlanId { get; init; }
     [JsonPropertyName("daysUntilExpirationIOS")]
@@ -2216,8 +2278,10 @@ public sealed record ActiveSubscription
     /// <summary>Required for subscription upgrade/downgrade on Android</summary>
     [JsonPropertyName("purchaseTokenAndroid")]
     public string? PurchaseTokenAndroid { get; init; }
-    /// <summary>Renewal information from StoreKit 2 (iOS only). Contains details about subscription renewal status,</summary>
-    /// <summary>pending upgrades/downgrades, and auto-renewal preferences.</summary>
+    /// <summary>
+    /// Renewal information from StoreKit 2 (iOS only). Contains details about subscription renewal status,
+    /// pending upgrades/downgrades, and auto-renewal preferences.
+    /// </summary>
     [JsonPropertyName("renewalInfoIOS")]
     public RenewalInfoIOS? RenewalInfoIOS { get; init; }
     /// <summary>Unix timestamp in milliseconds since January 1, 1970 UTC.</summary>
@@ -2227,10 +2291,12 @@ public sealed record ActiveSubscription
     public required string TransactionId { get; init; }
 }
 
-/// <summary>Advanced Commerce metadata from a transaction (iOS 18.4+).</summary>
-/// <summary>Contains item details, tax information, and refund data for purchases</summary>
-/// <summary>made through the Advanced Commerce API using generic SKUs.</summary>
-/// <summary>Only present for transactions that use the Advanced Commerce API.</summary>
+/// <summary>
+/// Advanced Commerce metadata from a transaction (iOS 18.4+).
+/// Contains item details, tax information, and refund data for purchases
+/// made through the Advanced Commerce API using generic SKUs.
+/// Only present for transactions that use the Advanced Commerce API.
+/// </summary>
 public sealed record AdvancedCommerceInfoIOS
 {
     /// <summary>Optional description</summary>
@@ -2245,10 +2311,12 @@ public sealed record AdvancedCommerceInfoIOS
     /// <summary>The items purchased as part of this transaction</summary>
     [JsonPropertyName("items")]
     public required IReadOnlyList<AdvancedCommerceItemIOS> Items { get; init; }
-    /// <summary>Subscription period for this transaction.</summary>
-    /// <summary>Available in OpenIAP Spec 3.1.0 / openiap-apple 3.1.0</summary>
-    /// <summary>(requires iOS 18.4+, macOS 15.4+, tvOS 18.4+, watchOS 11.4+,</summary>
-    /// <summary>or visionOS 2.4+).</summary>
+    /// <summary>
+    /// Subscription period for this transaction.
+    /// Available in OpenIAP Spec 3.1.0 / openiap-apple 3.1.0
+    /// (requires iOS 18.4+, macOS 15.4+, tvOS 18.4+, watchOS 11.4+,
+    /// or visionOS 2.4+).
+    /// </summary>
     [JsonPropertyName("period")]
     public SubscriptionPeriodValueIOS? Period { get; init; }
     /// <summary>Request reference identifier for tracking</summary>
@@ -2273,8 +2341,10 @@ public sealed record AdvancedCommerceItemDetailsIOS
     public string? JsonRepresentation { get; init; }
 }
 
-/// <summary>An item purchased through the Advanced Commerce API (iOS 18.4+).</summary>
-/// <summary>Represents a developer-defined product within a generic SKU transaction.</summary>
+/// <summary>
+/// An item purchased through the Advanced Commerce API (iOS 18.4+).
+/// Represents a developer-defined product within a generic SKU transaction.
+/// </summary>
 public sealed record AdvancedCommerceItemIOS
 {
     /// <summary>The item&apos;s detail information</summary>
@@ -2316,28 +2386,36 @@ public sealed record AppTransaction
     public required string Environment { get; init; }
     [JsonPropertyName("originalAppVersion")]
     public required string OriginalAppVersion { get; init; }
-    /// <summary>Original App Store platform raw value. Xcode 27 adds the back-deployed managed</summary>
-    /// <summary>acquisition-platform value.</summary>
+    /// <summary>
+    /// Original App Store platform raw value. Xcode 27 adds the back-deployed managed
+    /// acquisition-platform value.
+    /// </summary>
     [JsonPropertyName("originalPlatform")]
     public string? OriginalPlatform { get; init; }
     [JsonPropertyName("originalPurchaseDate")]
     public required double OriginalPurchaseDate { get; init; }
     [JsonPropertyName("preorderDate")]
     public double? PreorderDate { get; init; }
-    /// <summary>Date the app-acquisition transaction was revoked (epoch milliseconds).</summary>
-    /// <summary>Available through the Xcode 27 SDK and back-deployed to Apple 16+.</summary>
+    /// <summary>
+    /// Date the app-acquisition transaction was revoked (epoch milliseconds).
+    /// Available through the Xcode 27 SDK and back-deployed to Apple 16+.
+    /// </summary>
     [JsonPropertyName("revocationDate")]
     public double? RevocationDate { get; init; }
     [JsonPropertyName("signedDate")]
     public required double SignedDate { get; init; }
-    /// <summary>Store channel of the original app purchase: consumer, education, enterprise,</summary>
-    /// <summary>or another future StoreKit value (Apple 27+ beta).</summary>
+    /// <summary>
+    /// Store channel of the original app purchase: consumer, education, enterprise,
+    /// or another future StoreKit value (Apple 27+ beta).
+    /// </summary>
     [JsonPropertyName("storeType")]
     public string? StoreType { get; init; }
 }
 
-/// <summary>Display information for developer-rendered Billing Choice screens (Android)</summary>
-/// <summary>Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).</summary>
+/// <summary>
+/// Display information for developer-rendered Billing Choice screens (Android)
+/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+/// </summary>
 public sealed record BillingChoiceInfoAndroid
 {
     /// <summary>URL for the Play Billing choice image matching the requested layout.</summary>
@@ -2348,44 +2426,56 @@ public sealed record BillingChoiceInfoAndroid
     public string? PlayBillingLoyaltyInfo { get; init; }
 }
 
-/// <summary>Result of checking billing program availability (Android)</summary>
-/// <summary>Available in Google Play Billing Library 8.2.0+</summary>
+/// <summary>
+/// Result of checking billing program availability (Android)
+/// Available in Google Play Billing Library 8.2.0+
+/// </summary>
 public sealed record BillingProgramAvailabilityResultAndroid
 {
     /// <summary>The billing program that was checked</summary>
     [JsonPropertyName("billingProgram")]
     public required BillingProgramAndroid BillingProgram { get; init; }
-    /// <summary>Billing Choice screen renderer. Populated only for available BILLING_CHOICE results.</summary>
-    /// <summary>Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0.</summary>
+    /// <summary>
+    /// Billing Choice screen renderer. Populated only for available BILLING_CHOICE results.
+    /// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0.
+    /// </summary>
     [JsonPropertyName("choiceScreenType")]
     public BillingChoiceScreenTypeAndroid? ChoiceScreenType { get; init; }
     /// <summary>Whether the billing program is available for the user</summary>
     [JsonPropertyName("isAvailable")]
     public required bool IsAvailable { get; init; }
-    /// <summary>Whether external-link payment is available for Billing Choice.</summary>
-    /// <summary>Populated only for available BILLING_CHOICE results.</summary>
-    /// <summary>Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0.</summary>
+    /// <summary>
+    /// Whether external-link payment is available for Billing Choice.
+    /// Populated only for available BILLING_CHOICE results.
+    /// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0.
+    /// </summary>
     [JsonPropertyName("isExternalLinkAvailable")]
     public bool? IsExternalLinkAvailable { get; init; }
 }
 
-/// <summary>Reporting details for transactions made outside of Google Play Billing (Android)</summary>
-/// <summary>Contains the external transaction token needed for reporting</summary>
-/// <summary>Available in Google Play Billing Library 8.2.0+</summary>
+/// <summary>
+/// Reporting details for transactions made outside of Google Play Billing (Android)
+/// Contains the external transaction token needed for reporting
+/// Available in Google Play Billing Library 8.2.0+
+/// </summary>
 public sealed record BillingProgramReportingDetailsAndroid
 {
     /// <summary>The billing program that the reporting details are associated with</summary>
     [JsonPropertyName("billingProgram")]
     public required BillingProgramAndroid BillingProgram { get; init; }
-    /// <summary>External transaction token used to report transactions made outside of Google Play Billing.</summary>
-    /// <summary>Do not cache it for a later redirect session. For External Offer, the same token may report</summary>
-    /// <summary>multiple purchases made during the session that generated it.</summary>
+    /// <summary>
+    /// External transaction token used to report transactions made outside of Google Play Billing.
+    /// Do not cache it for a later redirect session. For External Offer, the same token may report
+    /// multiple purchases made during the session that generated it.
+    /// </summary>
     [JsonPropertyName("externalTransactionToken")]
     public required string ExternalTransactionToken { get; init; }
 }
 
-/// <summary>Extended billing result with sub-response code (Android)</summary>
-/// <summary>Available in Google Play Billing Library 8.0.0+</summary>
+/// <summary>
+/// Extended billing result with sub-response code (Android)
+/// Available in Google Play Billing Library 8.0.0+
+/// </summary>
 public sealed record BillingResultAndroid
 {
     /// <summary>Debug message from the billing library</summary>
@@ -2394,14 +2484,18 @@ public sealed record BillingResultAndroid
     /// <summary>The response code from the billing operation</summary>
     [JsonPropertyName("responseCode")]
     public required int ResponseCode { get; init; }
-    /// <summary>Sub-response code for more granular error information (8.0+).</summary>
-    /// <summary>Provides additional context when responseCode indicates an error.</summary>
+    /// <summary>
+    /// Sub-response code for more granular error information (8.0+).
+    /// Provides additional context when responseCode indicates an error.
+    /// </summary>
     [JsonPropertyName("subResponseCode")]
     public SubResponseCodeAndroid? SubResponseCode { get; init; }
 }
 
-/// <summary>Metadata for one auto-renewable subscription included in an Apple</summary>
-/// <summary>subscription bundle (Apple 27+ beta).</summary>
+/// <summary>
+/// Metadata for one auto-renewable subscription included in an Apple
+/// subscription bundle (Apple 27+ beta).
+/// </summary>
 public sealed record BundledSubscriptionIOS
 {
     [JsonPropertyName("description")]
@@ -2424,21 +2518,29 @@ public sealed record BundledSubscriptionIOS
     public required int SubscriptionGroupLevel { get; init; }
 }
 
-/// <summary>Details provided when user selects developer billing option (Android)</summary>
-/// <summary>Received via DeveloperProvidedBillingListener callback</summary>
-/// <summary>Available in Google Play Billing Library 8.3.0+</summary>
+/// <summary>
+/// Details provided when user selects developer billing option (Android)
+/// Received via DeveloperProvidedBillingListener callback
+/// Available in Google Play Billing Library 8.3.0+
+/// </summary>
 public sealed record DeveloperProvidedBillingDetailsAndroid
 {
-    /// <summary>External transaction token used to report transactions made through developer billing.</summary>
-    /// <summary>Nullable for flows such as external payments where no token is returned.</summary>
+    /// <summary>
+    /// External transaction token used to report transactions made through developer billing.
+    /// Nullable for flows such as external payments where no token is returned.
+    /// </summary>
     [JsonPropertyName("externalTransactionToken")]
     public string? ExternalTransactionToken { get; init; }
-    /// <summary>URI to launch for an external-link Billing Choice flow, when provided by</summary>
-    /// <summary>Google Play.</summary>
+    /// <summary>
+    /// URI to launch for an external-link Billing Choice flow, when provided by
+    /// Google Play.
+    /// </summary>
     [JsonPropertyName("linkUri")]
     public string? LinkUri { get; init; }
-    /// <summary>Original external transaction ID when replacing a subscription that was</summary>
-    /// <summary>purchased through developer billing.</summary>
+    /// <summary>
+    /// Original external transaction ID when replacing a subscription that was
+    /// purchased through developer billing.
+    /// </summary>
     [JsonPropertyName("originalExternalTransactionId")]
     public string? OriginalExternalTransactionId { get; init; }
     /// <summary>Products selected for the developer billing flow.</summary>
@@ -2460,8 +2562,10 @@ public sealed record DeveloperProvidedBillingProductAndroid
     public required ProductType Type { get; init; }
 }
 
-/// <summary>Discount amount details for one-time purchase offers (Android)</summary>
-/// <summary>Available in Google Play Billing Library 8.0+</summary>
+/// <summary>
+/// Discount amount details for one-time purchase offers (Android)
+/// Available in Google Play Billing Library 8.0+
+/// </summary>
 public sealed record DiscountAmountAndroid
 {
     /// <summary>Discount amount in micro-units (1,000,000 = 1 unit of currency)</summary>
@@ -2472,35 +2576,45 @@ public sealed record DiscountAmountAndroid
     public required string FormattedDiscountAmount { get; init; }
 }
 
-/// <summary>Discount display information for one-time purchase offers (Android)</summary>
-/// <summary>Available in Google Play Billing Library 8.0+</summary>
+/// <summary>
+/// Discount display information for one-time purchase offers (Android)
+/// Available in Google Play Billing Library 8.0+
+/// </summary>
 public sealed record DiscountDisplayInfoAndroid
 {
-    /// <summary>Absolute discount amount details</summary>
-    /// <summary>Only returned for fixed amount discounts</summary>
+    /// <summary>
+    /// Absolute discount amount details
+    /// Only returned for fixed amount discounts
+    /// </summary>
     [JsonPropertyName("discountAmount")]
     public DiscountAmountAndroid? DiscountAmount { get; init; }
-    /// <summary>Percentage discount (e.g., 33 for 33% off)</summary>
-    /// <summary>Only returned for percentage-based discounts</summary>
+    /// <summary>
+    /// Percentage discount (e.g., 33 for 33% off)
+    /// Only returned for percentage-based discounts
+    /// </summary>
     [JsonPropertyName("percentageDiscount")]
     public int? PercentageDiscount { get; init; }
 }
 
-/// <summary>Standardized one-time product discount offer.</summary>
-/// <summary>Provides a platform-neutral OpenIAP shape for Google Play one-time product</summary>
-/// <summary>purchase options and offers.</summary>
-/// <summary></summary>
-/// <summary>Currently populated only on Android (Google Play Billing 8.0+).</summary>
-/// <summary>iOS does not populate this type.</summary>
-/// <summary></summary>
-/// <summary>@see https://openiap.dev/docs/types/discount-offer</summary>
+/// <summary>
+/// Standardized one-time product discount offer.
+/// Provides a platform-neutral OpenIAP shape for Google Play one-time product
+/// purchase options and offers.
+///
+/// Currently populated only on Android (Google Play Billing 8.0+).
+/// iOS does not populate this type.
+///
+/// @see https://openiap.dev/docs/types/discount-offer
+/// </summary>
 public sealed record DiscountOffer
 {
     /// <summary>Currency code (ISO 4217, e.g., &quot;USD&quot;)</summary>
     [JsonPropertyName("currency")]
     public required string Currency { get; init; }
-    /// <summary>[Android] Fixed discount amount in micro-units.</summary>
-    /// <summary>Only present for fixed amount discounts.</summary>
+    /// <summary>
+    /// [Android] Fixed discount amount in micro-units.
+    /// Only present for fixed amount discounts.
+    /// </summary>
     [JsonPropertyName("discountAmountMicrosAndroid")]
     public string? DiscountAmountMicrosAndroid { get; init; }
     /// <summary>Formatted display price string (e.g., &quot;$4.99&quot;)</summary>
@@ -2509,53 +2623,71 @@ public sealed record DiscountOffer
     /// <summary>[Android] Formatted discount amount including its currency sign (e.g., &quot;$5.00&quot;).</summary>
     [JsonPropertyName("formattedDiscountAmountAndroid")]
     public string? FormattedDiscountAmountAndroid { get; init; }
-    /// <summary>[Android] Original full price in micro-units before discount.</summary>
-    /// <summary>Divide by 1,000,000 to get the actual price.</summary>
-    /// <summary>Use for displaying strikethrough original price.</summary>
+    /// <summary>
+    /// [Android] Original full price in micro-units before discount.
+    /// Divide by 1,000,000 to get the actual price.
+    /// Use for displaying strikethrough original price.
+    /// </summary>
     [JsonPropertyName("fullPriceMicrosAndroid")]
     public string? FullPriceMicrosAndroid { get; init; }
-    /// <summary>Unique identifier for the offer.</summary>
-    /// <summary>- iOS: Not applicable (one-time discounts not supported)</summary>
-    /// <summary>- Android: offerId from the Google Play one-time purchase option</summary>
+    /// <summary>
+    /// Unique identifier for the offer.
+    /// - iOS: Not applicable (one-time discounts not supported)
+    /// - Android: offerId from the Google Play one-time purchase option
+    /// </summary>
     [JsonPropertyName("id")]
     public string? Id { get; init; }
-    /// <summary>[Android] Limited quantity information.</summary>
-    /// <summary>Contains maximumQuantity and remainingQuantity.</summary>
+    /// <summary>
+    /// [Android] Limited quantity information.
+    /// Contains maximumQuantity and remainingQuantity.
+    /// </summary>
     [JsonPropertyName("limitedQuantityInfoAndroid")]
     public LimitedQuantityInfoAndroid? LimitedQuantityInfoAndroid { get; init; }
     /// <summary>[Android] List of tags associated with this offer.</summary>
     [JsonPropertyName("offerTagsAndroid")]
     public IReadOnlyList<string>? OfferTagsAndroid { get; init; }
-    /// <summary>[Android] Offer token required for purchase.</summary>
-    /// <summary>Must be passed to requestPurchase() when purchasing with this offer.</summary>
+    /// <summary>
+    /// [Android] Offer token required for purchase.
+    /// Must be passed to requestPurchase() when purchasing with this offer.
+    /// </summary>
     [JsonPropertyName("offerTokenAndroid")]
     public string? OfferTokenAndroid { get; init; }
-    /// <summary>[Android] Percentage discount (e.g., 33 for 33% off).</summary>
-    /// <summary>Only present for percentage-based discounts.</summary>
+    /// <summary>
+    /// [Android] Percentage discount (e.g., 33 for 33% off).
+    /// Only present for percentage-based discounts.
+    /// </summary>
     [JsonPropertyName("percentageDiscountAndroid")]
     public int? PercentageDiscountAndroid { get; init; }
-    /// <summary>[Android] Pre-order details if this is a pre-order offer.</summary>
-    /// <summary>Available in Google Play Billing Library 8.1.0+</summary>
+    /// <summary>
+    /// [Android] Pre-order details if this is a pre-order offer.
+    /// Available in Google Play Billing Library 8.1.0+
+    /// </summary>
     [JsonPropertyName("preorderDetailsAndroid")]
     public PreorderDetailsAndroid? PreorderDetailsAndroid { get; init; }
     /// <summary>Numeric price value</summary>
     [JsonPropertyName("price")]
     public required double Price { get; init; }
-    /// <summary>[Android] Purchase option ID for this offer.</summary>
-    /// <summary>Used to identify which purchase option the user selected.</summary>
-    /// <summary>Available in Google Play Billing Library 8.0+</summary>
+    /// <summary>
+    /// [Android] Purchase option ID for this offer.
+    /// Used to identify which purchase option the user selected.
+    /// Available in Google Play Billing Library 8.0+
+    /// </summary>
     [JsonPropertyName("purchaseOptionIdAndroid")]
     public string? PurchaseOptionIdAndroid { get; init; }
     /// <summary>[Android] Rental details if this is a rental offer.</summary>
     [JsonPropertyName("rentalDetailsAndroid")]
     public RentalDetailsAndroid? RentalDetailsAndroid { get; init; }
-    /// <summary>Offer category. DiscountOffer currently represents Android one-time product</summary>
-    /// <summary>offers and is populated as OneTime. Introductory and Promotional are used by</summary>
-    /// <summary>SubscriptionOffer.</summary>
+    /// <summary>
+    /// Offer category. DiscountOffer currently represents Android one-time product
+    /// offers and is populated as OneTime. Introductory and Promotional are used by
+    /// SubscriptionOffer.
+    /// </summary>
     [JsonPropertyName("type")]
     public required DiscountOfferType Type { get; init; }
-    /// <summary>[Android] Valid time window for the offer.</summary>
-    /// <summary>Contains startTimeMillis and endTimeMillis.</summary>
+    /// <summary>
+    /// [Android] Valid time window for the offer.
+    /// Contains startTimeMillis and endTimeMillis.
+    /// </summary>
     [JsonPropertyName("validTimeWindowAndroid")]
     public ValidTimeWindowAndroid? ValidTimeWindowAndroid { get; init; }
 }
@@ -2587,8 +2719,10 @@ public sealed record ExternalPurchaseCustomLinkTokenResultIOS
     /// <summary>Optional error message if token retrieval failed</summary>
     [JsonPropertyName("error")]
     public string? Error { get; init; }
-    /// <summary>The external purchase token string.</summary>
-    /// <summary>Report this token to Apple&apos;s External Purchase Server API.</summary>
+    /// <summary>
+    /// The external purchase token string.
+    /// Report this token to Apple&apos;s External Purchase Server API.
+    /// </summary>
     [JsonPropertyName("token")]
     public string? Token { get; init; }
 }
@@ -2604,16 +2738,20 @@ public sealed record ExternalPurchaseLinkResultIOS
     public required bool Success { get; init; }
 }
 
-/// <summary>Result of presenting external purchase notice sheet (iOS 17.4+)</summary>
-/// <summary>Returns the token when user continues to external purchase.</summary>
+/// <summary>
+/// Result of presenting external purchase notice sheet (iOS 17.4+)
+/// Returns the token when user continues to external purchase.
+/// </summary>
 public sealed record ExternalPurchaseNoticeResultIOS
 {
     /// <summary>Optional error message if the presentation failed</summary>
     [JsonPropertyName("error")]
     public string? Error { get; init; }
-    /// <summary>External purchase token returned when user continues (iOS 17.4+).</summary>
-    /// <summary>This token should be reported to Apple&apos;s External Purchase Server API.</summary>
-    /// <summary>Only present when result is Continue.</summary>
+    /// <summary>
+    /// External purchase token returned when user continues (iOS 17.4+).
+    /// This token should be reported to Apple&apos;s External Purchase Server API.
+    /// Only present when result is Continue.
+    /// </summary>
     [JsonPropertyName("externalPurchaseToken")]
     public string? ExternalPurchaseToken { get; init; }
     /// <summary>Notice result indicating user action</summary>
@@ -2629,8 +2767,10 @@ public sealed record FetchProductsResultProducts(IReadOnlyList<Product>? Value) 
 
 public sealed record FetchProductsResultSubscriptions(IReadOnlyList<ProductSubscription>? Value) : FetchProductsResult;
 
-/// <summary>Public app-facing data attached to one store product in IAPKit.</summary>
-/// <summary>Never place credentials, signing keys, or server-authoritative rules here.</summary>
+/// <summary>
+/// Public app-facing data attached to one store product in IAPKit.
+/// Never place credentials, signing keys, or server-authoritative rules here.
+/// </summary>
 public sealed record IapkitProductClientPayload
 {
     [JsonPropertyName("body")]
@@ -2643,9 +2783,11 @@ public sealed record IapkitProductClientPayload
     public required double Version { get; init; }
 }
 
-/// <summary>Result from showing Play billing in-app messages (Android)</summary>
-/// <summary>Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0</summary>
-/// <summary>(upstream API available since Play Billing 4.1.0).</summary>
+/// <summary>
+/// Result from showing Play billing in-app messages (Android)
+/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+/// (upstream API available since Play Billing 4.1.0).
+/// </summary>
 public sealed record InAppMessageResultAndroid
 {
     /// <summary>Purchase token returned when a subscription status changed.</summary>
@@ -2656,26 +2798,34 @@ public sealed record InAppMessageResultAndroid
     public required InAppMessageResponseCodeAndroid ResponseCode { get; init; }
 }
 
-/// <summary>Installment plan details for subscription offers (Android)</summary>
-/// <summary>Contains information about the installment plan commitment.</summary>
-/// <summary>Available in Google Play Billing Library 7.0+</summary>
+/// <summary>
+/// Installment plan details for subscription offers (Android)
+/// Contains information about the installment plan commitment.
+/// Available in Google Play Billing Library 7.0+
+/// </summary>
 public sealed record InstallmentPlanDetailsAndroid
 {
-    /// <summary>Committed payments count after a user signs up for this subscription plan.</summary>
-    /// <summary>For example, for a monthly subscription with commitmentPaymentsCount of 12,</summary>
-    /// <summary>users will be charged monthly for 12 months after signup.</summary>
+    /// <summary>
+    /// Committed payments count after a user signs up for this subscription plan.
+    /// For example, for a monthly subscription with commitmentPaymentsCount of 12,
+    /// users will be charged monthly for 12 months after signup.
+    /// </summary>
     [JsonPropertyName("commitmentPaymentsCount")]
     public required int CommitmentPaymentsCount { get; init; }
-    /// <summary>Subsequent committed payments count after the subscription plan renews.</summary>
-    /// <summary>For example, for a monthly subscription with subsequentCommitmentPaymentsCount of 12,</summary>
-    /// <summary>users will be committed to another 12 monthly payments when the plan renews.</summary>
-    /// <summary>Returns 0 if the installment plan has no subsequent commitment (reverts to normal plan).</summary>
+    /// <summary>
+    /// Subsequent committed payments count after the subscription plan renews.
+    /// For example, for a monthly subscription with subsequentCommitmentPaymentsCount of 12,
+    /// users will be committed to another 12 monthly payments when the plan renews.
+    /// Returns 0 if the installment plan has no subsequent commitment (reverts to normal plan).
+    /// </summary>
     [JsonPropertyName("subsequentCommitmentPaymentsCount")]
     public required int SubsequentCommitmentPaymentsCount { get; init; }
 }
 
-/// <summary>Limited quantity information for one-time purchase offers (Android)</summary>
-/// <summary>Available in Google Play Billing Library 8.0+</summary>
+/// <summary>
+/// Limited quantity information for one-time purchase offers (Android)
+/// Available in Google Play Billing Library 8.0+
+/// </summary>
 public sealed record LimitedQuantityInfoAndroid
 {
     /// <summary>Maximum quantity a user can purchase</summary>
@@ -2686,33 +2836,45 @@ public sealed record LimitedQuantityInfoAndroid
     public required int RemainingQuantity { get; init; }
 }
 
-/// <summary>Pending purchase update for subscription upgrades/downgrades (Android)</summary>
-/// <summary>When a user initiates a subscription change (upgrade/downgrade), the new purchase</summary>
-/// <summary>may be pending until the current billing period ends. This type contains the</summary>
-/// <summary>details of the pending change.</summary>
-/// <summary>Available in Google Play Billing Library 5.0+</summary>
+/// <summary>
+/// Pending purchase update for subscription upgrades/downgrades (Android)
+/// When a user initiates a subscription change (upgrade/downgrade), the new purchase
+/// may be pending until the current billing period ends. This type contains the
+/// details of the pending change.
+/// Available in Google Play Billing Library 5.0+
+/// </summary>
 public sealed record PendingPurchaseUpdateAndroid
 {
-    /// <summary>Product IDs for the pending purchase update.</summary>
-    /// <summary>These are the new products the user is switching to.</summary>
+    /// <summary>
+    /// Product IDs for the pending purchase update.
+    /// These are the new products the user is switching to.
+    /// </summary>
     [JsonPropertyName("products")]
     public required IReadOnlyList<string> Products { get; init; }
-    /// <summary>Purchase token for the pending transaction.</summary>
-    /// <summary>Use this token to track or manage the pending purchase update.</summary>
+    /// <summary>
+    /// Purchase token for the pending transaction.
+    /// Use this token to track or manage the pending purchase update.
+    /// </summary>
     [JsonPropertyName("purchaseToken")]
     public required string PurchaseToken { get; init; }
 }
 
-/// <summary>Pre-order details for one-time purchase products (Android)</summary>
-/// <summary>Available in Google Play Billing Library 8.1.0+</summary>
+/// <summary>
+/// Pre-order details for one-time purchase products (Android)
+/// Available in Google Play Billing Library 8.1.0+
+/// </summary>
 public sealed record PreorderDetailsAndroid
 {
-    /// <summary>Pre-order presale end time in milliseconds since epoch.</summary>
-    /// <summary>This is when the presale period ends and the product will be released.</summary>
+    /// <summary>
+    /// Pre-order presale end time in milliseconds since epoch.
+    /// This is when the presale period ends and the product will be released.
+    /// </summary>
     [JsonPropertyName("preorderPresaleEndTimeMillis")]
     public required string PreorderPresaleEndTimeMillis { get; init; }
-    /// <summary>Pre-order release time in milliseconds since epoch.</summary>
-    /// <summary>This is when the product will be available to users who pre-ordered.</summary>
+    /// <summary>
+    /// Pre-order release time in milliseconds since epoch.
+    /// This is when the product will be available to users who pre-ordered.
+    /// </summary>
     [JsonPropertyName("preorderReleaseTimeMillis")]
     public required string PreorderReleaseTimeMillis { get; init; }
 }
@@ -2747,9 +2909,11 @@ public sealed record ProductAndroid : Product, ProductCommon
     public string? DebugDescription { get; init; }
     [JsonPropertyName("description")]
     public required string Description { get; init; }
-    /// <summary>Standardized Android one-time product purchase options and offers.</summary>
-    /// <summary>Native metadata uses Android-suffixed fields.</summary>
-    /// <summary>@see https://openiap.dev/docs/types/discount-offer</summary>
+    /// <summary>
+    /// Standardized Android one-time product purchase options and offers.
+    /// Native metadata uses Android-suffixed fields.
+    /// @see https://openiap.dev/docs/types/discount-offer
+    /// </summary>
     [JsonPropertyName("discountOffers")]
     public IReadOnlyList<DiscountOffer>? DiscountOffers { get; init; }
     [JsonPropertyName("displayName")]
@@ -2764,16 +2928,20 @@ public sealed record ProductAndroid : Product, ProductCommon
     public IapPlatform Platform { get; init; } = global::OpenIap.IapPlatform.Android;
     [JsonPropertyName("price")]
     public double? Price { get; init; }
-    /// <summary>Product-level status code indicating fetch result (Android 8.0+)</summary>
-    /// <summary>OK = product fetched successfully</summary>
-    /// <summary>NOT_FOUND = SKU doesn&apos;t exist</summary>
-    /// <summary>NO_OFFERS_AVAILABLE = user not eligible for any offers</summary>
-    /// <summary>Available in Google Play Billing Library 8.0.0+</summary>
+    /// <summary>
+    /// Product-level status code indicating fetch result (Android 8.0+)
+    /// OK = product fetched successfully
+    /// NOT_FOUND = SKU doesn&apos;t exist
+    /// NO_OFFERS_AVAILABLE = user not eligible for any offers
+    /// Available in Google Play Billing Library 8.0.0+
+    /// </summary>
     [JsonPropertyName("productStatusAndroid")]
     public ProductStatusAndroid? ProductStatusAndroid { get; init; }
-    /// <summary>Standardized subscription offers.</summary>
-    /// <summary>Cross-platform type with Android-specific fields using suffix.</summary>
-    /// <summary>@see https://openiap.dev/docs/types/subscription-offer</summary>
+    /// <summary>
+    /// Standardized subscription offers.
+    /// Cross-platform type with Android-specific fields using suffix.
+    /// @see https://openiap.dev/docs/types/subscription-offer
+    /// </summary>
     [JsonPropertyName("subscriptionOffers")]
     public IReadOnlyList<SubscriptionOffer>? SubscriptionOffers { get; init; }
     [JsonPropertyName("title")]
@@ -2806,14 +2974,18 @@ public sealed record ProductIOS : Product, ProductCommon
     public IapPlatform Platform { get; init; } = global::OpenIap.IapPlatform.IOS;
     [JsonPropertyName("price")]
     public double? Price { get; init; }
-    /// <summary>iOS 26.4+ subscription pricing terms, including billing plan metadata for</summary>
-    /// <summary>monthly subscriptions with a 12-month commitment.</summary>
+    /// <summary>
+    /// iOS 26.4+ subscription pricing terms, including billing plan metadata for
+    /// monthly subscriptions with a 12-month commitment.
+    /// </summary>
     [JsonPropertyName("pricingTermsIOS")]
     public IReadOnlyList<SubscriptionPricingTermsIOS>? PricingTermsIOS { get; init; }
-    /// <summary>Standardized subscription offers.</summary>
-    /// <summary>Cross-platform type with iOS-specific fields using suffix.</summary>
-    /// <summary>Note: iOS does not support one-time product discounts.</summary>
-    /// <summary>@see https://openiap.dev/docs/types/subscription-offer</summary>
+    /// <summary>
+    /// Standardized subscription offers.
+    /// Cross-platform type with iOS-specific fields using suffix.
+    /// Note: iOS does not support one-time product discounts.
+    /// @see https://openiap.dev/docs/types/subscription-offer
+    /// </summary>
     [JsonPropertyName("subscriptionOffers")]
     public IReadOnlyList<SubscriptionOffer>? SubscriptionOffers { get; init; }
     [JsonPropertyName("title")]
@@ -2844,16 +3016,20 @@ public sealed record ProductSubscriptionAndroid : ProductSubscription, ProductCo
     public IapPlatform Platform { get; init; } = global::OpenIap.IapPlatform.Android;
     [JsonPropertyName("price")]
     public double? Price { get; init; }
-    /// <summary>Product-level status code indicating fetch result (Android 8.0+)</summary>
-    /// <summary>OK = product fetched successfully</summary>
-    /// <summary>NOT_FOUND = SKU doesn&apos;t exist</summary>
-    /// <summary>NO_OFFERS_AVAILABLE = user not eligible for any offers</summary>
-    /// <summary>Available in Google Play Billing Library 8.0.0+</summary>
+    /// <summary>
+    /// Product-level status code indicating fetch result (Android 8.0+)
+    /// OK = product fetched successfully
+    /// NOT_FOUND = SKU doesn&apos;t exist
+    /// NO_OFFERS_AVAILABLE = user not eligible for any offers
+    /// Available in Google Play Billing Library 8.0.0+
+    /// </summary>
     [JsonPropertyName("productStatusAndroid")]
     public ProductStatusAndroid? ProductStatusAndroid { get; init; }
-    /// <summary>Standardized subscription offers.</summary>
-    /// <summary>Cross-platform type with Android-specific fields using suffix.</summary>
-    /// <summary>@see https://openiap.dev/docs/types/subscription-offer</summary>
+    /// <summary>
+    /// Standardized subscription offers.
+    /// Cross-platform type with Android-specific fields using suffix.
+    /// @see https://openiap.dev/docs/types/subscription-offer
+    /// </summary>
     [JsonPropertyName("subscriptionOffers")]
     public required IReadOnlyList<SubscriptionOffer> SubscriptionOffers { get; init; }
     [JsonPropertyName("title")]
@@ -2864,8 +3040,10 @@ public sealed record ProductSubscriptionAndroid : ProductSubscription, ProductCo
 
 public sealed record ProductSubscriptionIOS : ProductSubscription, ProductCommon
 {
-    /// <summary>Subscriptions included in this Apple subscription bundle. Empty or null for</summary>
-    /// <summary>every other product type (Apple 27+ beta).</summary>
+    /// <summary>
+    /// Subscriptions included in this Apple subscription bundle. Empty or null for
+    /// every other product type (Apple 27+ beta).
+    /// </summary>
     [JsonPropertyName("bundledSubscriptionsIOS")]
     public IReadOnlyList<BundledSubscriptionIOS>? BundledSubscriptionsIOS { get; init; }
     [JsonPropertyName("currency")]
@@ -2900,16 +3078,20 @@ public sealed record ProductSubscriptionIOS : ProductSubscription, ProductCommon
     public IapPlatform Platform { get; init; } = global::OpenIap.IapPlatform.IOS;
     [JsonPropertyName("price")]
     public double? Price { get; init; }
-    /// <summary>iOS 26.4+ subscription pricing terms, including billing plan metadata for</summary>
-    /// <summary>monthly subscriptions with a 12-month commitment.</summary>
+    /// <summary>
+    /// iOS 26.4+ subscription pricing terms, including billing plan metadata for
+    /// monthly subscriptions with a 12-month commitment.
+    /// </summary>
     [JsonPropertyName("pricingTermsIOS")]
     public IReadOnlyList<SubscriptionPricingTermsIOS>? PricingTermsIOS { get; init; }
     /// <summary>App Store subscription group identifier for intro-offer eligibility checks.</summary>
     [JsonPropertyName("subscriptionGroupIdIOS")]
     public string? SubscriptionGroupIdIOS { get; init; }
-    /// <summary>Standardized subscription offers.</summary>
-    /// <summary>Cross-platform type with iOS-specific fields using suffix.</summary>
-    /// <summary>@see https://openiap.dev/docs/types/subscription-offer</summary>
+    /// <summary>
+    /// Standardized subscription offers.
+    /// Cross-platform type with iOS-specific fields using suffix.
+    /// @see https://openiap.dev/docs/types/subscription-offer
+    /// </summary>
     [JsonPropertyName("subscriptionOffers")]
     public IReadOnlyList<SubscriptionOffer>? SubscriptionOffers { get; init; }
     [JsonPropertyName("subscriptionPeriodNumberIOS")]
@@ -2942,11 +3124,13 @@ public sealed record PurchaseAndroid : Purchase, PurchaseCommon
     public bool? IsAcknowledgedAndroid { get; init; }
     [JsonPropertyName("isAutoRenewing")]
     public required bool IsAutoRenewing { get; init; }
-    /// <summary>Whether the subscription is suspended (Android)</summary>
-    /// <summary>A suspended subscription means the user&apos;s payment method failed and they need to fix it.</summary>
-    /// <summary>Users should be directed to the subscription center to resolve the issue.</summary>
-    /// <summary>Do NOT grant entitlements for suspended subscriptions.</summary>
-    /// <summary>Available in Google Play Billing Library 8.1.0+</summary>
+    /// <summary>
+    /// Whether the subscription is suspended (Android)
+    /// A suspended subscription means the user&apos;s payment method failed and they need to fix it.
+    /// Users should be directed to the subscription center to resolve the issue.
+    /// Do NOT grant entitlements for suspended subscriptions.
+    /// Available in Google Play Billing Library 8.1.0+
+    /// </summary>
     [JsonPropertyName("isSuspendedAndroid")]
     public bool? IsSuspendedAndroid { get; init; }
     [JsonPropertyName("obfuscatedAccountIdAndroid")]
@@ -2955,10 +3139,12 @@ public sealed record PurchaseAndroid : Purchase, PurchaseCommon
     public string? ObfuscatedProfileIdAndroid { get; init; }
     [JsonPropertyName("packageNameAndroid")]
     public string? PackageNameAndroid { get; init; }
-    /// <summary>Pending purchase update for uncommitted subscription upgrade/downgrade (Android)</summary>
-    /// <summary>Contains the new products and purchase token for the pending transaction.</summary>
-    /// <summary>Returns null if no pending update exists.</summary>
-    /// <summary>Available in Google Play Billing Library 5.0+</summary>
+    /// <summary>
+    /// Pending purchase update for uncommitted subscription upgrade/downgrade (Android)
+    /// Contains the new products and purchase token for the pending transaction.
+    /// Returns null if no pending update exists.
+    /// Available in Google Play Billing Library 5.0+
+    /// </summary>
     [JsonPropertyName("pendingPurchaseUpdateAndroid")]
     public PendingPurchaseUpdateAndroid? PendingPurchaseUpdateAndroid { get; init; }
     [JsonPropertyName("productId")]
@@ -2979,13 +3165,17 @@ public sealed record PurchaseAndroid : Purchase, PurchaseCommon
     public required double TransactionDate { get; init; }
     [JsonPropertyName("transactionId")]
     public string? TransactionId { get; init; }
-    /// <summary>Amazon Appstore user id (PurchaseResponse.getUserData().getUserId()).</summary>
-    /// <summary>Only populated on the Amazon flavor; required for server-side Amazon RVS</summary>
-    /// <summary>receipt verification (userId + receiptId). Null on Google Play and Horizon.</summary>
+    /// <summary>
+    /// Amazon Appstore user id (PurchaseResponse.getUserData().getUserId()).
+    /// Only populated on the Amazon flavor; required for server-side Amazon RVS
+    /// receipt verification (userId + receiptId). Null on Google Play and Horizon.
+    /// </summary>
     [JsonPropertyName("userIdAmazon")]
     public string? UserIdAmazon { get; init; }
-    /// <summary>Amazon Appstore marketplace (PurchaseResponse.getUserData().getMarketplace()),</summary>
-    /// <summary>for example &quot;US&quot; or &quot;FR&quot;. Only populated on the Amazon flavor.</summary>
+    /// <summary>
+    /// Amazon Appstore marketplace (PurchaseResponse.getUserData().getMarketplace()),
+    /// for example &quot;US&quot; or &quot;FR&quot;. Only populated on the Amazon flavor.
+    /// </summary>
     [JsonPropertyName("userMarketplaceAmazon")]
     public string? UserMarketplaceAmazon { get; init; }
 }
@@ -3014,9 +3204,11 @@ public sealed record PurchaseError
 
 public sealed record PurchaseIOS : Purchase, PurchaseCommon
 {
-    /// <summary>Advanced Commerce API metadata (iOS 18.4+).</summary>
-    /// <summary>Present only for transactions that use the Advanced Commerce API.</summary>
-    /// <summary>Contains item details, tax information, and refund data for generic SKU purchases.</summary>
+    /// <summary>
+    /// Advanced Commerce API metadata (iOS 18.4+).
+    /// Present only for transactions that use the Advanced Commerce API.
+    /// Contains item details, tax information, and refund data for generic SKU purchases.
+    /// </summary>
     [JsonPropertyName("advancedCommerceInfoIOS")]
     public AdvancedCommerceInfoIOS? AdvancedCommerceInfoIOS { get; init; }
     [JsonPropertyName("appAccountToken")]
@@ -3026,8 +3218,10 @@ public sealed record PurchaseIOS : Purchase, PurchaseCommon
     /// <summary>iOS 26.4+ billing plan selected for this transaction.</summary>
     [JsonPropertyName("billingPlanTypeIOS")]
     public SubscriptionBillingPlanTypeIOS? BillingPlanTypeIOS { get; init; }
-    /// <summary>Original transaction identifier for the subscription bundle that produced</summary>
-    /// <summary>this transaction (Apple 27+ SDK; back-deployed by StoreKit).</summary>
+    /// <summary>
+    /// Original transaction identifier for the subscription bundle that produced
+    /// this transaction (Apple 27+ SDK; back-deployed by StoreKit).
+    /// </summary>
     [JsonPropertyName("bundleOriginalTransactionIdIOS")]
     public string? BundleOriginalTransactionIdIOS { get; init; }
     /// <summary>Product identifier of the subscription bundle that produced this transaction.</summary>
@@ -3071,8 +3265,10 @@ public sealed record PurchaseIOS : Purchase, PurchaseCommon
     /// <summary>StoreKit ownership raw value. Xcode 27 adds the back-deployed assigned value.</summary>
     [JsonPropertyName("ownershipTypeIOS")]
     public string? OwnershipTypeIOS { get; init; }
-    /// <summary>Original transaction identifier replaced when moving between a standalone</summary>
-    /// <summary>subscription and a subscription bundle.</summary>
+    /// <summary>
+    /// Original transaction identifier replaced when moving between a standalone
+    /// subscription and a subscription bundle.
+    /// </summary>
     [JsonPropertyName("previousOriginalTransactionIdIOS")]
     public string? PreviousOriginalTransactionIdIOS { get; init; }
     [JsonPropertyName("productId")]
@@ -3096,8 +3292,10 @@ public sealed record PurchaseIOS : Purchase, PurchaseCommon
     /// <summary>Normalized StoreKit revocation reason, including upgraded_to_bundle.</summary>
     [JsonPropertyName("revocationReasonIOS")]
     public string? RevocationReasonIOS { get; init; }
-    /// <summary>StoreKit revocation type, including assignment-revocation on Apple 26.4+</summary>
-    /// <summary>when compiled with the Xcode 27 SDK.</summary>
+    /// <summary>
+    /// StoreKit revocation type, including assignment-revocation on Apple 26.4+
+    /// when compiled with the Xcode 27 SDK.
+    /// </summary>
     [JsonPropertyName("revocationTypeIOS")]
     public string? RevocationTypeIOS { get; init; }
     /// <summary>Store where purchase was made</summary>
@@ -3150,8 +3348,10 @@ public sealed record RenewalCommitmentInfoIOS
     public required double CommitmentRenewalPrice { get; init; }
 }
 
-/// <summary>Subscription renewal information from Product.SubscriptionInfo.RenewalInfo</summary>
-/// <summary>https://developer.apple.com/documentation/storekit/product/subscriptioninfo/renewalinfo</summary>
+/// <summary>
+/// Subscription renewal information from Product.SubscriptionInfo.RenewalInfo
+/// https://developer.apple.com/documentation/storekit/product/subscriptioninfo/renewalinfo
+/// </summary>
 public sealed record RenewalInfoIOS
 {
     [JsonPropertyName("autoRenewPreference")]
@@ -3165,44 +3365,60 @@ public sealed record RenewalInfoIOS
     /// <summary>Subscription-group identifier for the bundle used by the next renewal.</summary>
     [JsonPropertyName("bundleSubscriptionGroupId")]
     public string? BundleSubscriptionGroupId { get; init; }
-    /// <summary>iOS 26.4+ renewal commitment metadata for monthly subscriptions with a</summary>
-    /// <summary>12-month commitment.</summary>
+    /// <summary>
+    /// iOS 26.4+ renewal commitment metadata for monthly subscriptions with a
+    /// 12-month commitment.
+    /// </summary>
     [JsonPropertyName("commitmentInfo")]
     public RenewalCommitmentInfoIOS? CommitmentInfo { get; init; }
-    /// <summary>StoreKit&apos;s raw integer expiration-reason value represented as a string.</summary>
-    /// <summary>Xcode 27 adds the back-deployed unbundled case. Preserve unknown future values.</summary>
+    /// <summary>
+    /// StoreKit&apos;s raw integer expiration-reason value represented as a string.
+    /// Xcode 27 adds the back-deployed unbundled case. Preserve unknown future values.
+    /// </summary>
     [JsonPropertyName("expirationReason")]
     public string? ExpirationReason { get; init; }
-    /// <summary>Grace period expiration date (milliseconds since epoch)</summary>
-    /// <summary>When set, subscription is in grace period (billing issue but still has access)</summary>
+    /// <summary>
+    /// Grace period expiration date (milliseconds since epoch)
+    /// When set, subscription is in grace period (billing issue but still has access)
+    /// </summary>
     [JsonPropertyName("gracePeriodExpirationDate")]
     public double? GracePeriodExpirationDate { get; init; }
-    /// <summary>True if subscription failed to renew due to billing issue and is retrying</summary>
-    /// <summary>StoreKit exposes this directly as RenewalInfo.isInBillingRetry.</summary>
+    /// <summary>
+    /// True if subscription failed to renew due to billing issue and is retrying
+    /// StoreKit exposes this directly as RenewalInfo.isInBillingRetry.
+    /// </summary>
     [JsonPropertyName("isInBillingRetry")]
     public bool? IsInBillingRetry { get; init; }
     [JsonPropertyName("jsonRepresentation")]
     public string? JsonRepresentation { get; init; }
-    /// <summary>Product ID that will be used on next renewal (when user upgrades/downgrades)</summary>
-    /// <summary>If set and different from current productId, subscription will change on expiration</summary>
+    /// <summary>
+    /// Product ID that will be used on next renewal (when user upgrades/downgrades)
+    /// If set and different from current productId, subscription will change on expiration
+    /// </summary>
     [JsonPropertyName("pendingUpgradeProductId")]
     public string? PendingUpgradeProductId { get; init; }
-    /// <summary>User&apos;s response to subscription price increase</summary>
-    /// <summary>Possible values: &quot;AGREED&quot;, &quot;PENDING&quot;, null (no price increase)</summary>
+    /// <summary>
+    /// User&apos;s response to subscription price increase
+    /// Possible values: &quot;AGREED&quot;, &quot;PENDING&quot;, null (no price increase)
+    /// </summary>
     [JsonPropertyName("priceIncreaseStatus")]
     public string? PriceIncreaseStatus { get; init; }
     /// <summary>iOS 26.4+ billing plan that will renew after the current period.</summary>
     [JsonPropertyName("renewalBillingPlanType")]
     public SubscriptionBillingPlanTypeIOS? RenewalBillingPlanType { get; init; }
-    /// <summary>Expected renewal date (milliseconds since epoch)</summary>
-    /// <summary>For active subscriptions, when the next renewal/charge will occur</summary>
+    /// <summary>
+    /// Expected renewal date (milliseconds since epoch)
+    /// For active subscriptions, when the next renewal/charge will occur
+    /// </summary>
     [JsonPropertyName("renewalDate")]
     public double? RenewalDate { get; init; }
     /// <summary>Offer ID applied to next renewal (promotional offer, subscription offer code, etc.)</summary>
     [JsonPropertyName("renewalOfferId")]
     public string? RenewalOfferId { get; init; }
-    /// <summary>Type of offer applied to next renewal</summary>
-    /// <summary>Possible values: &quot;PROMOTIONAL&quot;, &quot;SUBSCRIPTION_OFFER_CODE&quot;, &quot;WIN_BACK&quot;, etc.</summary>
+    /// <summary>
+    /// Type of offer applied to next renewal
+    /// Possible values: &quot;PROMOTIONAL&quot;, &quot;SUBSCRIPTION_OFFER_CODE&quot;, &quot;WIN_BACK&quot;, etc.
+    /// </summary>
     [JsonPropertyName("renewalOfferType")]
     public string? RenewalOfferType { get; init; }
     [JsonPropertyName("willAutoRenew")]
@@ -3212,12 +3428,16 @@ public sealed record RenewalInfoIOS
     public bool? WillUnbundle { get; init; }
 }
 
-/// <summary>Rental details for one-time purchase products that can be rented (Android)</summary>
-/// <summary>Available in Google Play Billing Library 8.0+</summary>
+/// <summary>
+/// Rental details for one-time purchase products that can be rented (Android)
+/// Available in Google Play Billing Library 8.0+
+/// </summary>
 public sealed record RentalDetailsAndroid
 {
-    /// <summary>Rental expiration period in ISO 8601 format</summary>
-    /// <summary>Time after rental period ends when user can still extend</summary>
+    /// <summary>
+    /// Rental expiration period in ISO 8601 format
+    /// Time after rental period ends when user can still extend
+    /// </summary>
     [JsonPropertyName("rentalExpirationPeriod")]
     public string? RentalExpirationPeriod { get; init; }
     /// <summary>Rental period in ISO 8601 format (e.g., P7D for 7 days)</summary>
@@ -3233,19 +3453,25 @@ public sealed record RequestPurchaseResultPurchases(IReadOnlyList<Purchase>? Val
 
 public sealed record RequestVerifyPurchaseWithIapkitResult
 {
-    /// <summary>Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.</summary>
-    /// <summary>Public product payload when includeClientPayload was requested, the</summary>
-    /// <summary>Apple or Google receipt is valid, and a payload exists for that product.</summary>
+    /// <summary>
+    /// Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+    /// Public product payload when includeClientPayload was requested, the
+    /// Apple or Google receipt is valid, and a payload exists for that product.
+    /// </summary>
     [JsonPropertyName("clientPayload")]
     public IapkitProductClientPayload? ClientPayload { get; init; }
-    /// <summary>True when the purchase is valid and actionable.</summary>
-    /// <summary>Only entitled, pending-acknowledgment, or ready-to-consume return true.</summary>
-    /// <summary>Callers must still match productId and use the platform plus app-owned product</summary>
-    /// <summary>type to choose the fulfillment path.</summary>
+    /// <summary>
+    /// True when the purchase is valid and actionable.
+    /// Only entitled, pending-acknowledgment, or ready-to-consume return true.
+    /// Callers must still match productId and use the platform plus app-owned product
+    /// type to choose the fulfillment path.
+    /// </summary>
     [JsonPropertyName("isValid")]
     public required bool IsValid { get; init; }
-    /// <summary>Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.</summary>
-    /// <summary>Store-verified product identifier when the provider returns one.</summary>
+    /// <summary>
+    /// Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+    /// Store-verified product identifier when the provider returns one.
+    /// </summary>
     [JsonPropertyName("productId")]
     public string? ProductId { get; init; }
     /// <summary>The current state of the purchase.</summary>
@@ -3265,18 +3491,22 @@ public sealed record SubscriptionCommitmentInfoIOS
     public required double Price { get; init; }
 }
 
-/// <summary>Standardized subscription discount/promotional offer.</summary>
-/// <summary>Provides a unified interface for subscription offers across iOS and Android.</summary>
-/// <summary></summary>
-/// <summary>Both platforms support subscription offers with different implementations:</summary>
-/// <summary>- iOS: Introductory offers, promotional offers with server-side signatures</summary>
-/// <summary>- Android: Offer tokens with pricing phases</summary>
-/// <summary></summary>
-/// <summary>@see https://openiap.dev/docs/types/subscription-offer</summary>
+/// <summary>
+/// Standardized subscription discount/promotional offer.
+/// Provides a unified interface for subscription offers across iOS and Android.
+///
+/// Both platforms support subscription offers with different implementations:
+/// - iOS: Introductory offers, promotional offers with server-side signatures
+/// - Android: Offer tokens with pricing phases
+///
+/// @see https://openiap.dev/docs/types/subscription-offer
+/// </summary>
 public sealed record SubscriptionOffer
 {
-    /// <summary>[Android] Base plan identifier.</summary>
-    /// <summary>Identifies which base plan this offer belongs to.</summary>
+    /// <summary>
+    /// [Android] Base plan identifier.
+    /// Identifies which base plan this offer belongs to.
+    /// </summary>
     [JsonPropertyName("basePlanIdAndroid")]
     public string? BasePlanIdAndroid { get; init; }
     /// <summary>Currency code (ISO 4217, e.g., &quot;USD&quot;)</summary>
@@ -3285,25 +3515,33 @@ public sealed record SubscriptionOffer
     /// <summary>Formatted display price string (e.g., &quot;$9.99/month&quot;)</summary>
     [JsonPropertyName("displayPrice")]
     public required string DisplayPrice { get; init; }
-    /// <summary>Unique identifier for the offer.</summary>
-    /// <summary>- iOS: Discount identifier from App Store Connect</summary>
-    /// <summary>- Android: offerId from the Google Play subscription offer</summary>
+    /// <summary>
+    /// Unique identifier for the offer.
+    /// - iOS: Discount identifier from App Store Connect
+    /// - Android: offerId from the Google Play subscription offer
+    /// </summary>
     [JsonPropertyName("id")]
     public required string Id { get; init; }
-    /// <summary>[Android] Installment plan details for this subscription offer.</summary>
-    /// <summary>Only set for installment subscription plans; null for non-installment plans.</summary>
-    /// <summary>Available in Google Play Billing Library 7.0+</summary>
+    /// <summary>
+    /// [Android] Installment plan details for this subscription offer.
+    /// Only set for installment subscription plans; null for non-installment plans.
+    /// Available in Google Play Billing Library 7.0+
+    /// </summary>
     [JsonPropertyName("installmentPlanDetailsAndroid")]
     public InstallmentPlanDetailsAndroid? InstallmentPlanDetailsAndroid { get; init; }
-    /// <summary>[iOS] Key identifier for signature validation.</summary>
-    /// <summary>Used with server-side signature generation for promotional offers.</summary>
+    /// <summary>
+    /// [iOS] Key identifier for signature validation.
+    /// Used with server-side signature generation for promotional offers.
+    /// </summary>
     [JsonPropertyName("keyIdentifierIOS")]
     public string? KeyIdentifierIOS { get; init; }
     /// <summary>[iOS] Localized price string.</summary>
     [JsonPropertyName("localizedPriceIOS")]
     public string? LocalizedPriceIOS { get; init; }
-    /// <summary>[iOS] Cryptographic nonce (UUID) for signature validation.</summary>
-    /// <summary>Must be generated server-side for each purchase attempt.</summary>
+    /// <summary>
+    /// [iOS] Cryptographic nonce (UUID) for signature validation.
+    /// Must be generated server-side for each purchase attempt.
+    /// </summary>
     [JsonPropertyName("nonceIOS")]
     public string? NonceIOS { get; init; }
     /// <summary>[iOS] Number of billing periods for this discount.</summary>
@@ -3312,8 +3550,10 @@ public sealed record SubscriptionOffer
     /// <summary>[Android] List of tags associated with this offer.</summary>
     [JsonPropertyName("offerTagsAndroid")]
     public IReadOnlyList<string>? OfferTagsAndroid { get; init; }
-    /// <summary>[Android] Offer token required for purchase.</summary>
-    /// <summary>Must be passed to requestPurchase() when purchasing with this offer.</summary>
+    /// <summary>
+    /// [Android] Offer token required for purchase.
+    /// Must be passed to requestPurchase() when purchasing with this offer.
+    /// </summary>
     [JsonPropertyName("offerTokenAndroid")]
     public string? OfferTokenAndroid { get; init; }
     /// <summary>Payment mode during the offer period</summary>
@@ -3328,16 +3568,22 @@ public sealed record SubscriptionOffer
     /// <summary>Numeric price value</summary>
     [JsonPropertyName("price")]
     public required double Price { get; init; }
-    /// <summary>[Android] Pricing phases for this subscription offer.</summary>
-    /// <summary>Contains detailed pricing information for each phase (trial, intro, regular).</summary>
+    /// <summary>
+    /// [Android] Pricing phases for this subscription offer.
+    /// Contains detailed pricing information for each phase (trial, intro, regular).
+    /// </summary>
     [JsonPropertyName("pricingPhasesAndroid")]
     public PricingPhasesAndroid? PricingPhasesAndroid { get; init; }
-    /// <summary>[iOS] Server-generated signature for promotional offer validation.</summary>
-    /// <summary>Required when applying promotional offers on iOS.</summary>
+    /// <summary>
+    /// [iOS] Server-generated signature for promotional offer validation.
+    /// Required when applying promotional offers on iOS.
+    /// </summary>
     [JsonPropertyName("signatureIOS")]
     public string? SignatureIOS { get; init; }
-    /// <summary>[iOS] Timestamp when the signature was generated.</summary>
-    /// <summary>Used for signature validation.</summary>
+    /// <summary>
+    /// [iOS] Timestamp when the signature was generated.
+    /// Used for signature validation.
+    /// </summary>
     [JsonPropertyName("timestampIOS")]
     public double? TimestampIOS { get; init; }
     /// <summary>Type of subscription offer (Introductory or Promotional)</summary>
@@ -3400,22 +3646,28 @@ public sealed record TransactionCommitmentInfoIOS
     public required int TotalBillingPeriods { get; init; }
 }
 
-/// <summary>User Choice Billing event details (Android)</summary>
-/// <summary>Fired when a user selects alternative billing in the User Choice Billing dialog</summary>
+/// <summary>
+/// User Choice Billing event details (Android)
+/// Fired when a user selects alternative billing in the User Choice Billing dialog
+/// </summary>
 public sealed record UserChoiceBillingDetails
 {
     /// <summary>Token that must be reported to Google Play within 24 hours</summary>
     [JsonPropertyName("externalTransactionToken")]
     public required string ExternalTransactionToken { get; init; }
-    /// <summary>External transaction ID of the originating subscription when the user is</summary>
-    /// <summary>upgrading or downgrading a developer-billed subscription. Available in</summary>
-    /// <summary>OpenIAP Spec 2.3.0 / openiap-google 2.3.1 (requires Play Billing 9.1+).</summary>
+    /// <summary>
+    /// External transaction ID of the originating subscription when the user is
+    /// upgrading or downgrading a developer-billed subscription. Available in
+    /// OpenIAP Spec 2.3.0 / openiap-google 2.3.1 (requires Play Billing 9.1+).
+    /// </summary>
     [JsonPropertyName("originalExternalTransactionId")]
     public string? OriginalExternalTransactionId { get; init; }
-    /// <summary>Structured product details selected in the user-choice flow, including the</summary>
-    /// <summary>product type and offer token. Legacy payloads may omit this field; use</summary>
-    /// <summary>products as the product-ID fallback. Available in OpenIAP Spec 2.3.0 /</summary>
-    /// <summary>openiap-google 2.3.1 (requires Play Billing 9.1+).</summary>
+    /// <summary>
+    /// Structured product details selected in the user-choice flow, including the
+    /// product type and offer token. Legacy payloads may omit this field; use
+    /// products as the product-ID fallback. Available in OpenIAP Spec 2.3.0 /
+    /// openiap-google 2.3.1 (requires Play Billing 9.1+).
+    /// </summary>
     [JsonPropertyName("productDetailsAndroid")]
     public IReadOnlyList<DeveloperProvidedBillingProductAndroid>? ProductDetailsAndroid { get; init; }
     /// <summary>List of product IDs selected by the user</summary>
@@ -3423,8 +3675,10 @@ public sealed record UserChoiceBillingDetails
     public required IReadOnlyList<string> Products { get; init; }
 }
 
-/// <summary>Valid time window for when an offer is available (Android)</summary>
-/// <summary>Available in Google Play Billing Library 8.0+</summary>
+/// <summary>
+/// Valid time window for when an offer is available (Android)
+/// Available in Google Play Billing Library 8.0+
+/// </summary>
 public sealed record ValidTimeWindowAndroid
 {
     /// <summary>End time in milliseconds since epoch</summary>
@@ -3475,8 +3729,10 @@ public sealed record VerifyPurchaseResultAndroid : VerifyPurchaseResult
     public required bool TestTransaction { get; init; }
 }
 
-/// <summary>Result from Meta Horizon verify_entitlement API.</summary>
-/// <summary>Returns verification status and grant time for the entitlement.</summary>
+/// <summary>
+/// Result from Meta Horizon verify_entitlement API.
+/// Returns verification status and grant time for the entitlement.
+/// </summary>
 public sealed record VerifyPurchaseResultHorizon : VerifyPurchaseResult
 {
     /// <summary>Unix timestamp (seconds) when the entitlement was granted.</summary>
@@ -3539,8 +3795,10 @@ public sealed record AndroidSubscriptionOfferInput
     public required string OfferToken { get; init; }
 }
 
-/// <summary>Parameters for showing a billing program information dialog (Android)</summary>
-/// <summary>Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).</summary>
+/// <summary>
+/// Parameters for showing a billing program information dialog (Android)
+/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+/// </summary>
 public sealed record BillingProgramInformationDialogParamsAndroid
 {
     /// <summary>Billing program. Currently only BILLING_CHOICE is supported.</summary>
@@ -3561,26 +3819,34 @@ public sealed record DeepLinkOptions
     public string? PackageNameAndroid { get; init; }
 }
 
-/// <summary>Parameters for a developer billing option in a purchase flow (Android).</summary>
-/// <summary>Used with BillingFlowParams for external payments (8.3.0+) and Billing Choice</summary>
-/// <summary>(OpenIAP Spec 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+).</summary>
-/// <summary>Only billingProgram is required; link fields are used when the selected program</summary>
-/// <summary>links outside the app.</summary>
+/// <summary>
+/// Parameters for a developer billing option in a purchase flow (Android).
+/// Used with BillingFlowParams for external payments (8.3.0+) and Billing Choice
+/// (OpenIAP Spec 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+).
+/// Only billingProgram is required; link fields are used when the selected program
+/// links outside the app.
+/// </summary>
 public sealed record DeveloperBillingOptionParamsAndroid
 {
     /// <summary>The billing program. Use EXTERNAL_PAYMENTS or BILLING_CHOICE.</summary>
     [JsonPropertyName("billingProgram")]
     public required BillingProgramAndroid BillingProgram { get; init; }
-    /// <summary>The URI where the external payment will be processed.</summary>
-    /// <summary>Required only when the selected billing program links outside the app.</summary>
+    /// <summary>
+    /// The URI where the external payment will be processed.
+    /// Required only when the selected billing program links outside the app.
+    /// </summary>
     [JsonPropertyName("linkUri")]
     public string? LinkUri { get; init; }
-    /// <summary>The launch mode for the external payment link.</summary>
-    /// <summary>Required only when the selected billing program links outside the app.</summary>
+    /// <summary>
+    /// The launch mode for the external payment link.
+    /// Required only when the selected billing program links outside the app.
+    /// </summary>
     [JsonPropertyName("launchMode")]
     public DeveloperBillingLaunchModeAndroid? LaunchMode { get; init; }
-    /// <summary>A pre-generated external transaction token for a Billing Choice external-link</summary>
-    /// <summary>flow. Omit it when Google Play should provide the token in the callback.</summary>
+    /// <summary>
+    /// A pre-generated external transaction token for a Billing Choice external-link
+    /// flow. Omit it when Google Play should provide the token in the callback.
+    /// </summary>
     [JsonPropertyName("externalTransactionToken")]
     public string? ExternalTransactionToken { get; init; }
 }
@@ -3604,8 +3870,10 @@ public sealed record DiscountOfferInputIOS
     public required double Timestamp { get; init; }
 }
 
-/// <summary>Parameters for fetching Billing Choice display information (Android)</summary>
-/// <summary>Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).</summary>
+/// <summary>
+/// Parameters for fetching Billing Choice display information (Android)
+/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+/// </summary>
 public sealed record GetBillingChoiceInfoParamsAndroid
 {
     /// <summary>Billing program. Currently only BILLING_CHOICE is supported.</summary>
@@ -3619,9 +3887,11 @@ public sealed record GetBillingChoiceInfoParamsAndroid
     public string? UserLocale { get; init; }
 }
 
-/// <summary>Parameters for showing Play billing in-app messages (Android)</summary>
-/// <summary>Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0</summary>
-/// <summary>(upstream API available since Play Billing 4.1.0).</summary>
+/// <summary>
+/// Parameters for showing Play billing in-app messages (Android)
+/// Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+/// (upstream API available since Play Billing 4.1.0).
+/// </summary>
 public sealed record InAppMessageParamsAndroid
 {
     /// <summary>In-app message categories to show. Defaults to transactional messages.</summary>
@@ -3632,31 +3902,37 @@ public sealed record InAppMessageParamsAndroid
 /// <summary>Connection initialization configuration</summary>
 public sealed record InitConnectionConfig
 {
-    /// <summary>Enable a specific billing program for Android (7.0+)</summary>
-    /// <summary>When set, enables the specified billing program for external transactions.</summary>
-    /// <summary>- USER_CHOICE_BILLING: User can select between Google Play or alternative (7.0+)</summary>
-    /// <summary>- EXTERNAL_CONTENT_LINK: Link to external content (introduced in 8.2.0; use 8.2.1+)</summary>
-    /// <summary>- EXTERNAL_OFFER: External offers for digital content (introduced in 8.2.0; use 8.2.1+)</summary>
-    /// <summary>- EXTERNAL_PAYMENTS: Developer provided billing, Japan only (8.3.0+)</summary>
-    /// <summary>- BILLING_CHOICE: Google-rendered or developer-rendered billing choice</summary>
-    /// <summary>  (OpenIAP Spec 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+)</summary>
+    /// <summary>
+    /// Enable a specific billing program for Android (7.0+)
+    /// When set, enables the specified billing program for external transactions.
+    /// - USER_CHOICE_BILLING: User can select between Google Play or alternative (7.0+)
+    /// - EXTERNAL_CONTENT_LINK: Link to external content (introduced in 8.2.0; use 8.2.1+)
+    /// - EXTERNAL_OFFER: External offers for digital content (introduced in 8.2.0; use 8.2.1+)
+    /// - EXTERNAL_PAYMENTS: Developer provided billing, Japan only (8.3.0+)
+    /// - BILLING_CHOICE: Google-rendered or developer-rendered billing choice
+    ///   (OpenIAP Spec 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+)
+    /// </summary>
     [JsonPropertyName("enableBillingProgramAndroid")]
     public BillingProgramAndroid? EnableBillingProgramAndroid { get; init; }
-    /// <summary>Billing Choice renderer configured in Play Console. Available in OpenIAP</summary>
-    /// <summary>Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).</summary>
-    /// <summary>GOOGLE_RENDERED registers the developer-provided billing listener so OpenIAP</summary>
-    /// <summary>can emit the selection event. DEVELOPER_RENDERED omits that listener so the</summary>
-    /// <summary>app can render its own choice screen and use the reporting/dialog/link APIs.</summary>
-    /// <summary>Must match choiceScreenType returned by isBillingProgramAvailableAndroid.</summary>
-    /// <summary>Defaults to GOOGLE_RENDERED.</summary>
+    /// <summary>
+    /// Billing Choice renderer configured in Play Console. Available in OpenIAP
+    /// Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+    /// GOOGLE_RENDERED registers the developer-provided billing listener so OpenIAP
+    /// can emit the selection event. DEVELOPER_RENDERED omits that listener so the
+    /// app can render its own choice screen and use the reporting/dialog/link APIs.
+    /// Must match choiceScreenType returned by isBillingProgramAvailableAndroid.
+    /// Defaults to GOOGLE_RENDERED.
+    /// </summary>
     [JsonPropertyName("billingChoiceScreenTypeAndroid")]
     public BillingChoiceScreenTypeAndroid? BillingChoiceScreenTypeAndroid { get; init; } = global::OpenIap.BillingChoiceScreenTypeAndroid.GoogleRendered;
 }
 
-/// <summary>Parameters for launching an external link (Android)</summary>
-/// <summary>Used with launchExternalLink to initiate external offer, app install, or</summary>
-/// <summary>developer-rendered Billing Choice flows</summary>
-/// <summary>Available in Google Play Billing Library 8.2.0+</summary>
+/// <summary>
+/// Parameters for launching an external link (Android)
+/// Used with launchExternalLink to initiate external offer, app install, or
+/// developer-rendered Billing Choice flows
+/// Available in Google Play Billing Library 8.2.0+
+/// </summary>
 public sealed record LaunchExternalLinkParamsAndroid
 {
     /// <summary>The billing program (EXTERNAL_CONTENT_LINK, EXTERNAL_OFFER, or BILLING_CHOICE)</summary>
@@ -3671,9 +3947,11 @@ public sealed record LaunchExternalLinkParamsAndroid
     /// <summary>The URI where the content will be accessed from</summary>
     [JsonPropertyName("linkUri")]
     public required string LinkUri { get; init; }
-    /// <summary>External transaction token for a developer-rendered Billing Choice external-link</summary>
-    /// <summary>flow. Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0</summary>
-    /// <summary>(requires Play Billing 9.1.0+). Generate it with createBillingProgramReportingDetailsAndroid.</summary>
+    /// <summary>
+    /// External transaction token for a developer-rendered Billing Choice external-link
+    /// flow. Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+    /// (requires Play Billing 9.1.0+). Generate it with createBillingProgramReportingDetailsAndroid.
+    /// </summary>
     [JsonPropertyName("externalTransactionToken")]
     public string? ExternalTransactionToken { get; init; }
 }
@@ -3686,18 +3964,22 @@ public sealed record ProductRequest
     public ProductQueryType? Type { get; init; } = global::OpenIap.ProductQueryType.InApp;
 }
 
-/// <summary>JWS promotional offer input for iOS 15+ (StoreKit 2, WWDC 2025).</summary>
-/// <summary>New signature format using compact JWS string for promotional offers.</summary>
-/// <summary>This provides a simpler alternative to the legacy signature-based promotional offers.</summary>
-/// <summary>Back-deployed to iOS 15.</summary>
+/// <summary>
+/// JWS promotional offer input for iOS 15+ (StoreKit 2, WWDC 2025).
+/// New signature format using compact JWS string for promotional offers.
+/// This provides a simpler alternative to the legacy signature-based promotional offers.
+/// Back-deployed to iOS 15.
+/// </summary>
 public sealed record PromotionalOfferJWSInputIOS
 {
     /// <summary>The promotional offer identifier from App Store Connect</summary>
     [JsonPropertyName("offerId")]
     public required string OfferId { get; init; }
-    /// <summary>Compact JWS string signed by your server.</summary>
-    /// <summary>The JWS should contain the promotional offer signature data.</summary>
-    /// <summary>Format: header.payload.signature (base64url encoded)</summary>
+    /// <summary>
+    /// Compact JWS string signed by your server.
+    /// The JWS should contain the promotional offer signature data.
+    /// Format: header.payload.signature (base64url encoded)
+    /// </summary>
     [JsonPropertyName("jws")]
     public required string Jws { get; init; }
 }
@@ -3714,19 +3996,23 @@ public sealed record PurchaseOptions
     /// <summary>Limit to currently active items on iOS</summary>
     [JsonPropertyName("onlyIncludeActiveItemsIOS")]
     public bool? OnlyIncludeActiveItemsIOS { get; init; }
-    /// <summary>Include suspended subscriptions in the result (Android 8.1+).</summary>
-    /// <summary>Suspended subscriptions have isSuspendedAndroid=true and should NOT be granted entitlements.</summary>
-    /// <summary>Users should be directed to the subscription center to resolve payment issues.</summary>
-    /// <summary>Default: false (only active subscriptions are returned)</summary>
+    /// <summary>
+    /// Include suspended subscriptions in the result (Android 8.1+).
+    /// Suspended subscriptions have isSuspendedAndroid=true and should NOT be granted entitlements.
+    /// Users should be directed to the subscription center to resolve payment issues.
+    /// Default: false (only active subscriptions are returned)
+    /// </summary>
     [JsonPropertyName("includeSuspendedAndroid")]
     public bool? IncludeSuspendedAndroid { get; init; }
 }
 
 public sealed record PurchaseUpdatedListenerOptions
 {
-    /// <summary>iOS only. Defaults to true. When false, listener callbacks also receive</summary>
-    /// <summary>StoreKit replay events for a transaction ID that was already emitted during</summary>
-    /// <summary>the current connection session. Android ignores this option.</summary>
+    /// <summary>
+    /// iOS only. Defaults to true. When false, listener callbacks also receive
+    /// StoreKit replay events for a transaction ID that was already emitted during
+    /// the current connection session. Android ignores this option.
+    /// </summary>
     [JsonPropertyName("dedupeTransactionIOS")]
     public bool? DedupeTransactionIOS { get; init; }
 }
@@ -3742,18 +4028,24 @@ public sealed record RequestPurchaseAndroidProps
     /// <summary>Obfuscated profile ID</summary>
     [JsonPropertyName("obfuscatedProfileId")]
     public string? ObfuscatedProfileId { get; init; }
-    /// <summary>Personalized offer flag.</summary>
-    /// <summary>When true, indicates the price was customized for this user.</summary>
+    /// <summary>
+    /// Personalized offer flag.
+    /// When true, indicates the price was customized for this user.
+    /// </summary>
     [JsonPropertyName("isOfferPersonalized")]
     public bool? IsOfferPersonalized { get; init; }
-    /// <summary>Offer token for one-time purchase discounts (8.0+).</summary>
-    /// <summary>Pass the offerToken from discountOffers</summary>
-    /// <summary>to apply a discount offer to the purchase.</summary>
+    /// <summary>
+    /// Offer token for one-time purchase discounts (8.0+).
+    /// Pass the offerToken from discountOffers
+    /// to apply a discount offer to the purchase.
+    /// </summary>
     [JsonPropertyName("offerToken")]
     public string? OfferToken { get; init; }
-    /// <summary>Developer billing option parameters for external payments and Billing Choice.</summary>
-    /// <summary>Billing Choice is available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0</summary>
-    /// <summary>(requires Play Billing 9.1.0+).</summary>
+    /// <summary>
+    /// Developer billing option parameters for external payments and Billing Choice.
+    /// Billing Choice is available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+    /// (requires Play Billing 9.1.0+).
+    /// </summary>
     [JsonPropertyName("developerBillingOption")]
     public DeveloperBillingOptionParamsAndroid? DeveloperBillingOption { get; init; }
 }
@@ -3772,14 +4064,18 @@ public sealed record RequestPurchaseIosProps
     /// <summary>Purchase quantity</summary>
     [JsonPropertyName("quantity")]
     public int? Quantity { get; init; }
-    /// <summary>Promotional offer to apply (subscriptions only, ignored for one-time purchases).</summary>
-    /// <summary>iOS only supports promotional offers for auto-renewable subscriptions.</summary>
+    /// <summary>
+    /// Promotional offer to apply (subscriptions only, ignored for one-time purchases).
+    /// iOS only supports promotional offers for auto-renewable subscriptions.
+    /// </summary>
     [JsonPropertyName("withOffer")]
     public DiscountOfferInputIOS? WithOffer { get; init; }
-    /// <summary>Advanced commerce data token (iOS 15+).</summary>
-    /// <summary>Used with StoreKit 2&apos;s Product.PurchaseOption.custom API for passing</summary>
-    /// <summary>campaign tokens, affiliate IDs, or other attribution data.</summary>
-    /// <summary>The data is formatted as JSON: {&quot;signatureInfo&quot;: {&quot;token&quot;: &quot;&lt;value&gt;&quot;}}</summary>
+    /// <summary>
+    /// Advanced commerce data token (iOS 15+).
+    /// Used with StoreKit 2&apos;s Product.PurchaseOption.custom API for passing
+    /// campaign tokens, affiliate IDs, or other attribution data.
+    /// The data is formatted as JSON: {&quot;signatureInfo&quot;: {&quot;token&quot;: &quot;&lt;value&gt;&quot;}}
+    /// </summary>
     [JsonPropertyName("advancedCommerceData")]
     public string? AdvancedCommerceData { get; init; }
 }
@@ -3813,13 +4109,15 @@ public sealed record RequestPurchaseProps : IJsonOnDeserialized
     void IJsonOnDeserialized.OnDeserialized() => Validate();
 }
 
-/// <summary>Platform-specific purchase request parameters.</summary>
-/// <summary></summary>
-/// <summary>Note: &quot;Platforms&quot; refers to the SDK/OS level (apple, google), not the store.</summary>
-/// <summary>- apple: Always targets App Store</summary>
-/// <summary>- google: Targets Play Store by default, Horizon when built with horizon flavor,</summary>
-/// <summary>  or Fire OS when built with amazon flavor</summary>
-/// <summary>  (determined at build time, not runtime)</summary>
+/// <summary>
+/// Platform-specific purchase request parameters.
+///
+/// Note: &quot;Platforms&quot; refers to the SDK/OS level (apple, google), not the store.
+/// - apple: Always targets App Store
+/// - google: Targets Play Store by default, Horizon when built with horizon flavor,
+///   or Fire OS when built with amazon flavor
+///   (determined at build time, not runtime)
+/// </summary>
 public sealed record RequestPurchasePropsByPlatforms
 {
     /// <summary>Apple-specific purchase parameters</summary>
@@ -3841,31 +4139,39 @@ public sealed record RequestSubscriptionAndroidProps
     /// <summary>Obfuscated profile ID</summary>
     [JsonPropertyName("obfuscatedProfileId")]
     public string? ObfuscatedProfileId { get; init; }
-    /// <summary>Personalized offer flag.</summary>
-    /// <summary>When true, indicates the price was customized for this user.</summary>
+    /// <summary>
+    /// Personalized offer flag.
+    /// When true, indicates the price was customized for this user.
+    /// </summary>
     [JsonPropertyName("isOfferPersonalized")]
     public bool? IsOfferPersonalized { get; init; }
     /// <summary>Purchase token for upgrades/downgrades</summary>
     [JsonPropertyName("purchaseToken")]
     public string? PurchaseToken { get; init; }
-    /// <summary>Original external transaction ID for replacing a subscription that was</summary>
-    /// <summary>purchased through developer billing. Available in OpenIAP Spec 2.1.0 /</summary>
-    /// <summary>openiap-google 2.3.0 (requires Play Billing 9.1.0+).</summary>
+    /// <summary>
+    /// Original external transaction ID for replacing a subscription that was
+    /// purchased through developer billing. Available in OpenIAP Spec 2.1.0 /
+    /// openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+    /// </summary>
     [JsonPropertyName("originalExternalTransactionId")]
     public string? OriginalExternalTransactionId { get; init; }
     /// <summary>Subscription offers</summary>
     [JsonPropertyName("subscriptionOffers")]
     public IReadOnlyList<AndroidSubscriptionOfferInput>? SubscriptionOffers { get; init; }
-    /// <summary>Product-level replacement parameters (8.1.0+)</summary>
-    /// <summary>Use this instead of replacementMode for item-level replacement</summary>
-    /// <summary>This singular form requires skus to contain exactly one target product.</summary>
-    /// <summary>Multi-item subscription changes need a per-target replacement mapping and</summary>
-    /// <summary>are rejected rather than applying one oldProductId to multiple products.</summary>
+    /// <summary>
+    /// Product-level replacement parameters (8.1.0+)
+    /// Use this instead of replacementMode for item-level replacement
+    /// This singular form requires skus to contain exactly one target product.
+    /// Multi-item subscription changes need a per-target replacement mapping and
+    /// are rejected rather than applying one oldProductId to multiple products.
+    /// </summary>
     [JsonPropertyName("subscriptionProductReplacementParams")]
     public SubscriptionProductReplacementParamsAndroid? SubscriptionProductReplacementParams { get; init; }
-    /// <summary>Developer billing option parameters for external payments and Billing Choice.</summary>
-    /// <summary>Billing Choice is available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0</summary>
-    /// <summary>(requires Play Billing 9.1.0+).</summary>
+    /// <summary>
+    /// Developer billing option parameters for external payments and Billing Choice.
+    /// Billing Choice is available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+    /// (requires Play Billing 9.1.0+).
+    /// </summary>
     [JsonPropertyName("developerBillingOption")]
     public DeveloperBillingOptionParamsAndroid? DeveloperBillingOption { get; init; }
 }
@@ -3880,46 +4186,60 @@ public sealed record RequestSubscriptionIosProps
     public string? AppAccountToken { get; init; }
     [JsonPropertyName("quantity")]
     public int? Quantity { get; init; }
-    /// <summary>Promotional offer to apply for subscription purchases.</summary>
-    /// <summary>Requires server-signed offer with nonce, timestamp, keyId, and signature.</summary>
+    /// <summary>
+    /// Promotional offer to apply for subscription purchases.
+    /// Requires server-signed offer with nonce, timestamp, keyId, and signature.
+    /// </summary>
     [JsonPropertyName("withOffer")]
     public DiscountOfferInputIOS? WithOffer { get; init; }
-    /// <summary>Win-back offer to apply (iOS 18+)</summary>
-    /// <summary>Used to re-engage churned subscribers with a discount or free trial.</summary>
-    /// <summary>The offer is available when the customer is eligible and can be discovered</summary>
-    /// <summary>via StoreKit Message (automatic) or subscription offer APIs.</summary>
+    /// <summary>
+    /// Win-back offer to apply (iOS 18+)
+    /// Used to re-engage churned subscribers with a discount or free trial.
+    /// The offer is available when the customer is eligible and can be discovered
+    /// via StoreKit Message (automatic) or subscription offer APIs.
+    /// </summary>
     [JsonPropertyName("winBackOffer")]
     public WinBackOfferInputIOS? WinBackOffer { get; init; }
-    /// <summary>JWS promotional offer (iOS 15+, WWDC 2025).</summary>
-    /// <summary>New signature format using compact JWS string for promotional offers.</summary>
-    /// <summary>Back-deployed to iOS 15.</summary>
+    /// <summary>
+    /// JWS promotional offer (iOS 15+, WWDC 2025).
+    /// New signature format using compact JWS string for promotional offers.
+    /// Back-deployed to iOS 15.
+    /// </summary>
     [JsonPropertyName("promotionalOfferJWS")]
     public PromotionalOfferJWSInputIOS? PromotionalOfferJws { get; init; }
-    /// <summary>Billing plan to use when purchasing an annual subscription that offers</summary>
-    /// <summary>monthly billing with a 12-month commitment (iOS 26.4+).</summary>
+    /// <summary>
+    /// Billing plan to use when purchasing an annual subscription that offers
+    /// monthly billing with a 12-month commitment (iOS 26.4+).
+    /// </summary>
     [JsonPropertyName("billingPlanType")]
     public SubscriptionBillingPlanTypeIOS? BillingPlanType { get; init; }
-    /// <summary>Compact JWS string for overriding introductory offer eligibility</summary>
-    /// <summary>(iOS 15+, WWDC 2025). When nil, the system determines eligibility.</summary>
-    /// <summary>Generate the JWS on your server and pass it to StoreKit&apos;s</summary>
-    /// <summary>introductoryOfferEligibility(compactJWS:) purchase option.</summary>
+    /// <summary>
+    /// Compact JWS string for overriding introductory offer eligibility
+    /// (iOS 15+, WWDC 2025). When nil, the system determines eligibility.
+    /// Generate the JWS on your server and pass it to StoreKit&apos;s
+    /// introductoryOfferEligibility(compactJWS:) purchase option.
+    /// </summary>
     [JsonPropertyName("compactJWS")]
     public string? CompactJws { get; init; }
-    /// <summary>Advanced commerce data token (iOS 15+).</summary>
-    /// <summary>Used with StoreKit 2&apos;s Product.PurchaseOption.custom API for passing</summary>
-    /// <summary>campaign tokens, affiliate IDs, or other attribution data.</summary>
-    /// <summary>The data is formatted as JSON: {&quot;signatureInfo&quot;: {&quot;token&quot;: &quot;&lt;value&gt;&quot;}}</summary>
+    /// <summary>
+    /// Advanced commerce data token (iOS 15+).
+    /// Used with StoreKit 2&apos;s Product.PurchaseOption.custom API for passing
+    /// campaign tokens, affiliate IDs, or other attribution data.
+    /// The data is formatted as JSON: {&quot;signatureInfo&quot;: {&quot;token&quot;: &quot;&lt;value&gt;&quot;}}
+    /// </summary>
     [JsonPropertyName("advancedCommerceData")]
     public string? AdvancedCommerceData { get; init; }
 }
 
-/// <summary>Platform-specific subscription request parameters.</summary>
-/// <summary></summary>
-/// <summary>Note: &quot;Platforms&quot; refers to the SDK/OS level (apple, google), not the store.</summary>
-/// <summary>- apple: Always targets App Store</summary>
-/// <summary>- google: Targets Play Store by default, Horizon when built with horizon flavor,</summary>
-/// <summary>  or Fire OS when built with amazon flavor</summary>
-/// <summary>  (determined at build time, not runtime)</summary>
+/// <summary>
+/// Platform-specific subscription request parameters.
+///
+/// Note: &quot;Platforms&quot; refers to the SDK/OS level (apple, google), not the store.
+/// - apple: Always targets App Store
+/// - google: Targets Play Store by default, Horizon when built with horizon flavor,
+///   or Fire OS when built with amazon flavor
+///   (determined at build time, not runtime)
+/// </summary>
 public sealed record RequestSubscriptionPropsByPlatforms
 {
     /// <summary>Apple-specific subscription parameters</summary>
@@ -3957,26 +4277,32 @@ public sealed record RequestVerifyPurchaseWithIapkitGoogleProps
     public required string PurchaseToken { get; init; }
 }
 
-/// <summary>Platform-specific verification parameters for IAPKit.</summary>
-/// <summary></summary>
-/// <summary>- apple: Verifies via App Store (JWS token)</summary>
-/// <summary>- google: Verifies via Play Store (purchase token)</summary>
-/// <summary>- amazon: Verifies via Amazon Appstore RVS (userId + receiptId)</summary>
+/// <summary>
+/// Platform-specific verification parameters for IAPKit.
+///
+/// - apple: Verifies via App Store (JWS token)
+/// - google: Verifies via Play Store (purchase token)
+/// - amazon: Verifies via Amazon Appstore RVS (userId + receiptId)
+/// </summary>
 public sealed record RequestVerifyPurchaseWithIapkitProps
 {
     /// <summary>API key used for the Authorization header (Bearer {apiKey}).</summary>
     [JsonPropertyName("apiKey")]
     public string? ApiKey { get; init; }
-    /// <summary>Available in OpenIAP Spec 2.3.1 / openiap-apple 2.4.0 / openiap-google 2.4.0.</summary>
-    /// <summary>Base URL for the IAPKit server. Defaults to https://kit.openiap.dev.</summary>
-    /// <summary>Set this to a reachable HTTP(S) origin when self-hosting or testing a local IAPKit server.</summary>
-    /// <summary>The apiKey must be issued by the same IAPKit/Convex deployment as this server.</summary>
+    /// <summary>
+    /// Available in OpenIAP Spec 2.3.1 / openiap-apple 2.4.0 / openiap-google 2.4.0.
+    /// Base URL for the IAPKit server. Defaults to https://kit.openiap.dev.
+    /// Set this to a reachable HTTP(S) origin when self-hosting or testing a local IAPKit server.
+    /// The apiKey must be issued by the same IAPKit/Convex deployment as this server.
+    /// </summary>
     [JsonPropertyName("baseUrl")]
     public string? BaseUrl { get; init; }
-    /// <summary>Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.</summary>
-    /// <summary>Include the product&apos;s public IAPKit client payload in a valid Apple or</summary>
-    /// <summary>Google verification response. Defaults to false so existing response</summary>
-    /// <summary>shapes and bandwidth remain unchanged.</summary>
+    /// <summary>
+    /// Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1.
+    /// Include the product&apos;s public IAPKit client payload in a valid Apple or
+    /// Google verification response. Defaults to false so existing response
+    /// shapes and bandwidth remain unchanged.
+    /// </summary>
     [JsonPropertyName("includeClientPayload")]
     public bool? IncludeClientPayload { get; init; }
     /// <summary>Apple App Store verification parameters.</summary>
@@ -3990,9 +4316,11 @@ public sealed record RequestVerifyPurchaseWithIapkitProps
     public RequestVerifyPurchaseWithIapkitAmazonProps? Amazon { get; init; }
 }
 
-/// <summary>Product-level subscription replacement parameters (Android)</summary>
-/// <summary>Used with setSubscriptionProductReplacementParams in BillingFlowParams.ProductDetailsParams</summary>
-/// <summary>Available in Google Play Billing Library 8.1.0+</summary>
+/// <summary>
+/// Product-level subscription replacement parameters (Android)
+/// Used with setSubscriptionProductReplacementParams in BillingFlowParams.ProductDetailsParams
+/// Available in Google Play Billing Library 8.1.0+
+/// </summary>
 public sealed record SubscriptionProductReplacementParamsAndroid
 {
     /// <summary>The old product ID that needs to be replaced</summary>
@@ -4003,8 +4331,10 @@ public sealed record SubscriptionProductReplacementParamsAndroid
     public required SubscriptionReplacementModeAndroid ReplacementMode { get; init; }
 }
 
-/// <summary>Apple App Store verification parameters.</summary>
-/// <summary>Used for server-side receipt validation via App Store Server API.</summary>
+/// <summary>
+/// Apple App Store verification parameters.
+/// Used for server-side receipt validation via App Store Server API.
+/// </summary>
 public sealed record VerifyPurchaseAppleOptions
 {
     /// <summary>Product SKU to validate</summary>
@@ -4012,10 +4342,12 @@ public sealed record VerifyPurchaseAppleOptions
     public required string Sku { get; init; }
 }
 
-/// <summary>Google Play Store verification parameters.</summary>
-/// <summary>Used for server-side receipt validation via Google Play Developer API.</summary>
-/// <summary></summary>
-/// <summary>⚠️ SECURITY: Contains sensitive tokens (accessToken, purchaseToken). Do not log or persist this data.</summary>
+/// <summary>
+/// Google Play Store verification parameters.
+/// Used for server-side receipt validation via Google Play Developer API.
+///
+/// ⚠️ SECURITY: Contains sensitive tokens (accessToken, purchaseToken). Do not log or persist this data.
+/// </summary>
 public sealed record VerifyPurchaseGoogleOptions
 {
     /// <summary>Product SKU to validate</summary>
@@ -4024,12 +4356,16 @@ public sealed record VerifyPurchaseGoogleOptions
     /// <summary>Android package name (e.g., com.example.app)</summary>
     [JsonPropertyName("packageName")]
     public required string PackageName { get; init; }
-    /// <summary>Purchase token from the purchase response.</summary>
-    /// <summary>⚠️ Sensitive: Do not log this value.</summary>
+    /// <summary>
+    /// Purchase token from the purchase response.
+    /// ⚠️ Sensitive: Do not log this value.
+    /// </summary>
     [JsonPropertyName("purchaseToken")]
     public required string PurchaseToken { get; init; }
-    /// <summary>Google OAuth2 access token for API authentication.</summary>
-    /// <summary>⚠️ Sensitive: Do not log this value.</summary>
+    /// <summary>
+    /// Google OAuth2 access token for API authentication.
+    /// ⚠️ Sensitive: Do not log this value.
+    /// </summary>
     [JsonPropertyName("accessToken")]
     public required string AccessToken { get; init; }
     /// <summary>Whether this is a subscription purchase (affects API endpoint used)</summary>
@@ -4037,11 +4373,13 @@ public sealed record VerifyPurchaseGoogleOptions
     public bool? IsSub { get; init; }
 }
 
-/// <summary>Meta Horizon (Quest) verification parameters.</summary>
-/// <summary>Used for server-side entitlement verification via Meta&apos;s S2S API.</summary>
-/// <summary>POST https://graph.oculus.com/$APP_ID/verify_entitlement</summary>
-/// <summary></summary>
-/// <summary>⚠️ SECURITY: Contains sensitive token (accessToken). Do not log or persist this data.</summary>
+/// <summary>
+/// Meta Horizon (Quest) verification parameters.
+/// Used for server-side entitlement verification via Meta&apos;s S2S API.
+/// POST https://graph.oculus.com/$APP_ID/verify_entitlement
+///
+/// ⚠️ SECURITY: Contains sensitive token (accessToken). Do not log or persist this data.
+/// </summary>
 public sealed record VerifyPurchaseHorizonOptions
 {
     /// <summary>The SKU for the add-on item, defined in Meta Developer Dashboard</summary>
@@ -4050,17 +4388,21 @@ public sealed record VerifyPurchaseHorizonOptions
     /// <summary>The user ID of the user whose purchase you want to verify</summary>
     [JsonPropertyName("userId")]
     public required string UserId { get; init; }
-    /// <summary>Access token for Meta API authentication (OC|$APP_ID|$APP_SECRET or User Access Token).</summary>
-    /// <summary>⚠️ Sensitive: Do not log this value.</summary>
+    /// <summary>
+    /// Access token for Meta API authentication (OC|$APP_ID|$APP_SECRET or User Access Token).
+    /// ⚠️ Sensitive: Do not log this value.
+    /// </summary>
     [JsonPropertyName("accessToken")]
     public required string AccessToken { get; init; }
 }
 
-/// <summary>Platform-specific purchase verification parameters.</summary>
-/// <summary></summary>
-/// <summary>- apple: Verifies via App Store Server API</summary>
-/// <summary>- google: Verifies via Google Play Developer API</summary>
-/// <summary>- horizon: Verifies via Meta&apos;s S2S API (verify_entitlement endpoint)</summary>
+/// <summary>
+/// Platform-specific purchase verification parameters.
+///
+/// - apple: Verifies via App Store Server API
+/// - google: Verifies via Google Play Developer API
+/// - horizon: Verifies via Meta&apos;s S2S API (verify_entitlement endpoint)
+/// </summary>
 public sealed record VerifyPurchaseProps
 {
     /// <summary>Apple App Store verification parameters.</summary>
@@ -4082,10 +4424,12 @@ public sealed record VerifyPurchaseWithProviderProps
     public RequestVerifyPurchaseWithIapkitProps? Iapkit { get; init; }
 }
 
-/// <summary>Win-back offer input for iOS 18+ (StoreKit 2)</summary>
-/// <summary>Win-back offers are used to re-engage churned subscribers.</summary>
-/// <summary>The offer is automatically presented via StoreKit Message when eligible,</summary>
-/// <summary>or can be applied programmatically during purchase.</summary>
+/// <summary>
+/// Win-back offer input for iOS 18+ (StoreKit 2)
+/// Win-back offers are used to re-engage churned subscribers.
+/// The offer is automatically presented via StoreKit Message when eligible,
+/// or can be applied programmatically during purchase.
+/// </summary>
 public sealed record WinBackOfferInputIOS
 {
     /// <summary>The win-back offer ID from App Store Connect</summary>
@@ -4100,306 +4444,404 @@ public sealed record WinBackOfferInputIOS
 /// <summary>GraphQL root mutation operations.</summary>
 public interface MutationResolver
 {
-    /// <summary>Acknowledge a non-consumable purchase. Required within 3 days or Google auto-refunds.</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/android/acknowledge-purchase-android</summary>
+    /// <summary>
+    /// Acknowledge a non-consumable purchase. Required within 3 days or Google auto-refunds.
+    /// See: https://openiap.dev/docs/apis/android/acknowledge-purchase-android
+    /// </summary>
     Task<bool> AcknowledgePurchaseAndroidAsync(string purchaseToken);
 
-    /// <summary>Present the refund request sheet (iOS 15+). See also Features → Refund.</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/ios/begin-refund-request-ios</summary>
+    /// <summary>
+    /// Present the refund request sheet (iOS 15+). See also Features → Refund.
+    /// See: https://openiap.dev/docs/apis/ios/begin-refund-request-ios
+    /// </summary>
     Task<string?> BeginRefundRequestIOSAsync(string sku);
 
-    /// <summary>Clear pending transactions in the queue (sandbox helper).</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/ios/clear-transaction-ios</summary>
+    /// <summary>
+    /// Clear pending transactions in the queue (sandbox helper).
+    /// See: https://openiap.dev/docs/apis/ios/clear-transaction-ios
+    /// </summary>
     Task<bool> ClearTransactionIOSAsync();
 
-    /// <summary>Consume a consumable purchase so it can be re-bought.</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/android/consume-purchase-android</summary>
+    /// <summary>
+    /// Consume a consumable purchase so it can be re-bought.
+    /// See: https://openiap.dev/docs/apis/android/consume-purchase-android
+    /// </summary>
     Task<bool> ConsumePurchaseAndroidAsync(string purchaseToken);
 
-    /// <summary>Create the reporting details and external transaction token required by a billing program.</summary>
-    /// <summary>Introduced in Play Billing 8.2.0. External Offer and External Content Link integrations</summary>
-    /// <summary>must use 8.2.1+ and create fresh details immediately before every redirect session;</summary>
-    /// <summary>do not cache the token for a later redirect. The same token may report multiple purchases</summary>
-    /// <summary>made during one External Offer session.</summary>
-    /// <summary>Replaces the deprecated createExternalOfferReportingDetailsAsync API.</summary>
-    /// <summary>Returns external transaction token needed for reporting external transactions.</summary>
-    /// <summary>developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted,</summary>
-    /// <summary>native Android defaults it to IN_APP.</summary>
-    /// <summary>The Billing Choice extension is available in OpenIAP Spec 2.1.0 /</summary>
-    /// <summary>openiap-google 2.3.0 (requires Play Billing 9.1.0+).</summary>
-    /// <summary>Throws OpenIapError.NotPrepared if billing client not ready.</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android</summary>
+    /// <summary>
+    /// Create the reporting details and external transaction token required by a billing program.
+    /// Introduced in Play Billing 8.2.0. External Offer and External Content Link integrations
+    /// must use 8.2.1+ and create fresh details immediately before every redirect session;
+    /// do not cache the token for a later redirect. The same token may report multiple purchases
+    /// made during one External Offer session.
+    /// Replaces the deprecated createExternalOfferReportingDetailsAsync API.
+    /// Returns external transaction token needed for reporting external transactions.
+    /// developerBillingType is optional. When program is BILLING_CHOICE and developerBillingType is omitted,
+    /// native Android defaults it to IN_APP.
+    /// The Billing Choice extension is available in OpenIAP Spec 2.1.0 /
+    /// openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+    /// Throws OpenIapError.NotPrepared if billing client not ready.
+    /// See: https://openiap.dev/docs/apis/android/create-billing-program-reporting-details-android
+    /// </summary>
     Task<BillingProgramReportingDetailsAndroid> CreateBillingProgramReportingDetailsAndroidAsync(BillingProgramAndroid program, DeveloperBillingTypeAndroid? developerBillingType = null);
 
-    /// <summary>Open the platform&apos;s subscription management UI.</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/deep-link-to-subscriptions</summary>
+    /// <summary>
+    /// Open the platform&apos;s subscription management UI.
+    /// See: https://openiap.dev/docs/apis/deep-link-to-subscriptions
+    /// </summary>
     Task<string> DeepLinkToSubscriptionsAsync(DeepLinkOptions? options = null);
 
-    /// <summary>Close the store connection and release resources.</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/end-connection</summary>
+    /// <summary>
+    /// Close the store connection and release resources.
+    /// See: https://openiap.dev/docs/apis/end-connection
+    /// </summary>
     Task<bool> EndConnectionAsync();
 
-    /// <summary>Complete a transaction after server-side verification. Required on Android within 3 days.</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/finish-transaction</summary>
+    /// <summary>
+    /// Complete a transaction after server-side verification. Required on Android within 3 days.
+    /// See: https://openiap.dev/docs/apis/finish-transaction
+    /// </summary>
     Task<string> FinishTransactionAsync(PurchaseInput purchase, bool? isConsumable = null);
 
-    /// <summary>Initialize the store connection. Call before any IAP API.</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/init-connection</summary>
+    /// <summary>
+    /// Initialize the store connection. Call before any IAP API.
+    /// See: https://openiap.dev/docs/apis/init-connection
+    /// </summary>
     Task<bool> InitConnectionAsync(InitConnectionConfig? config = null);
 
-    /// <summary>Check whether a billing program (e.g., External Payments) is available for the current user.</summary>
-    /// <summary>Replaces the deprecated isExternalOfferAvailableAsync API.</summary>
-    /// <summary>Introduced in Google Play Billing Library 8.2.0. External Offer and External</summary>
-    /// <summary>Content Link integrations must use 8.2.1+ because 8.2.1 fixes this API.</summary>
-    /// <summary>Returns availability result with isAvailable flag.</summary>
-    /// <summary>Throws OpenIapError.NotPrepared if billing client not ready.</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/android/is-billing-program-available-android</summary>
+    /// <summary>
+    /// Check whether a billing program (e.g., External Payments) is available for the current user.
+    /// Replaces the deprecated isExternalOfferAvailableAsync API.
+    /// Introduced in Google Play Billing Library 8.2.0. External Offer and External
+    /// Content Link integrations must use 8.2.1+ because 8.2.1 fixes this API.
+    /// Returns availability result with isAvailable flag.
+    /// Throws OpenIapError.NotPrepared if billing client not ready.
+    /// See: https://openiap.dev/docs/apis/android/is-billing-program-available-android
+    /// </summary>
     Task<BillingProgramAvailabilityResultAndroid> IsBillingProgramAvailableAndroidAsync(BillingProgramAndroid program);
 
-    /// <summary>Launch an external content/offer link from inside the Billing Programs flow (introduced in</summary>
-    /// <summary>Play Billing 8.2.0; External Offer and External Content Link require 8.2.1+),</summary>
-    /// <summary>including developer-rendered Billing Choice external-link flows.</summary>
-    /// <summary>Billing Choice availability: OpenIAP Spec 2.1.0 / openiap-google 2.3.0</summary>
-    /// <summary>(requires Play Billing 9.1.0+).</summary>
-    /// <summary>Replaces the deprecated showExternalOfferInformationDialog API.</summary>
-    /// <summary>Shows Play Store dialog and optionally launches external URL.</summary>
-    /// <summary>Throws OpenIapError.NotPrepared if billing client not ready.</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/android/launch-external-link-android</summary>
+    /// <summary>
+    /// Launch an external content/offer link from inside the Billing Programs flow (introduced in
+    /// Play Billing 8.2.0; External Offer and External Content Link require 8.2.1+),
+    /// including developer-rendered Billing Choice external-link flows.
+    /// Billing Choice availability: OpenIAP Spec 2.1.0 / openiap-google 2.3.0
+    /// (requires Play Billing 9.1.0+).
+    /// Replaces the deprecated showExternalOfferInformationDialog API.
+    /// Shows Play Store dialog and optionally launches external URL.
+    /// Throws OpenIapError.NotPrepared if billing client not ready.
+    /// See: https://openiap.dev/docs/apis/android/launch-external-link-android
+    /// </summary>
     Task<bool> LaunchExternalLinkAndroidAsync(LaunchExternalLinkParamsAndroid @params);
 
-    /// <summary>Open the Google Play offer/promo code redemption flow so the user can enter a code.</summary>
-    /// <summary>On Google Play builds, launches the Play Store redeem page</summary>
-    /// <summary>(https://play.google.com/redeem). A purchase listener can receive the redeemed</summary>
-    /// <summary>purchase while the app is running with an active billing connection; always</summary>
-    /// <summary>reconcile with getAvailablePurchases when the app resumes.</summary>
-    /// <summary>Does not require the billing client to be initialized (no Play Billing version requirement).</summary>
-    /// <summary>Available in OpenIAP Spec 2.4.2 / openiap-google 2.5.0.</summary>
-    /// <summary>Android counterpart of presentCodeRedemptionSheetIOS.</summary>
-    /// <summary>Returns true when the redemption flow was launched, or false when the current</summary>
-    /// <summary>store flavor does not provide an equivalent redemption flow.</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android</summary>
+    /// <summary>
+    /// Open the Google Play offer/promo code redemption flow so the user can enter a code.
+    /// On Google Play builds, launches the Play Store redeem page
+    /// (https://play.google.com/redeem). A purchase listener can receive the redeemed
+    /// purchase while the app is running with an active billing connection; always
+    /// reconcile with getAvailablePurchases when the app resumes.
+    /// Does not require the billing client to be initialized (no Play Billing version requirement).
+    /// Available in OpenIAP Spec 2.4.2 / openiap-google 2.5.0.
+    /// Android counterpart of presentCodeRedemptionSheetIOS.
+    /// Returns true when the redemption flow was launched, or false when the current
+    /// store flavor does not provide an equivalent redemption flow.
+    /// See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
+    /// </summary>
     Task<bool> OpenRedeemOfferCodeAndroidAsync();
 
-    /// <summary>Show the App Store offer code redemption sheet.</summary>
-    /// <summary>When built with Xcode 27+ and running on iOS 27+, Mac Catalyst 27+, or</summary>
-    /// <summary>visionOS 27+, returns the verified transaction produced by the redemption.</summary>
-    /// <summary>StoreKit 2&apos;s scene-based sheet returns null after presentation on iOS 16–26,</summary>
-    /// <summary>visionOS 1–26, and those platforms on Apple 27 when built with an older SDK.</summary>
-    /// <summary>iOS 15 uses the StoreKit 1 sheet and also returns null. On Mac Catalyst, the</summary>
-    /// <summary>scene-based API throws StoreKitError.unknown, while the Catalyst 15 StoreKit 1</summary>
-    /// <summary>call has no effect and returns null. Reconcile null results from a presented</summary>
-    /// <summary>sheet through the normal transaction listener or an explicit</summary>
-    /// <summary>available-purchases refresh.</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios</summary>
+    /// <summary>
+    /// Show the App Store offer code redemption sheet.
+    /// When built with Xcode 27+ and running on iOS 27+, Mac Catalyst 27+, or
+    /// visionOS 27+, returns the verified transaction produced by the redemption.
+    /// StoreKit 2&apos;s scene-based sheet returns null after presentation on iOS 16–26,
+    /// visionOS 1–26, and those platforms on Apple 27 when built with an older SDK.
+    /// iOS 15 uses the StoreKit 1 sheet and also returns null. On Mac Catalyst, the
+    /// scene-based API throws StoreKitError.unknown, while the Catalyst 15 StoreKit 1
+    /// call has no effect and returns null. Reconcile null results from a presented
+    /// sheet through the normal transaction listener or an explicit
+    /// available-purchases refresh.
+    /// See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
+    /// </summary>
     Task<PurchaseIOS?> PresentCodeRedemptionSheetIOSAsync();
 
-    /// <summary>Present an external purchase link, StoreKit External (iOS 16+).</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios</summary>
+    /// <summary>
+    /// Present an external purchase link, StoreKit External (iOS 16+).
+    /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
+    /// </summary>
     Task<ExternalPurchaseLinkResultIOS> PresentExternalPurchaseLinkIOSAsync(string url);
 
-    /// <summary>Present the external purchase notice sheet (iOS 17.4+).</summary>
-    /// <summary>Uses ExternalPurchase.presentNoticeSheet() which returns a token when the user continues.</summary>
-    /// <summary>Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet()</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios</summary>
+    /// <summary>
+    /// Present the external purchase notice sheet (iOS 17.4+).
+    /// Uses ExternalPurchase.presentNoticeSheet() which returns a token when the user continues.
+    /// Reference: https://developer.apple.com/documentation/storekit/externalpurchase/presentnoticesheet()
+    /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-notice-sheet-ios
+    /// </summary>
     Task<ExternalPurchaseNoticeResultIOS> PresentExternalPurchaseNoticeSheetIOSAsync();
 
-    /// <summary>Initiate a purchase or subscription flow; rely on events for final state.</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/request-purchase</summary>
+    /// <summary>
+    /// Initiate a purchase or subscription flow; rely on events for final state.
+    /// See: https://openiap.dev/docs/apis/request-purchase
+    /// </summary>
     Task<RequestPurchaseResult?> RequestPurchaseAsync(RequestPurchaseProps @params);
 
-    /// <summary>Restore non-consumable and active subscription purchases.</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/restore-purchases</summary>
+    /// <summary>
+    /// Restore non-consumable and active subscription purchases.
+    /// See: https://openiap.dev/docs/apis/restore-purchases
+    /// </summary>
     Task<string> RestorePurchasesAsync();
 
-    /// <summary>Show Google&apos;s mandatory information dialog before a developer-rendered,</summary>
-    /// <summary>in-app Billing Choice screen.</summary>
-    /// <summary>OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).</summary>
-    /// <summary>Throws OpenIapError.NotPrepared if billing client not ready.</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android</summary>
+    /// <summary>
+    /// Show Google&apos;s mandatory information dialog before a developer-rendered,
+    /// in-app Billing Choice screen.
+    /// OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+    /// Throws OpenIapError.NotPrepared if billing client not ready.
+    /// See: https://openiap.dev/docs/apis/android/show-billing-program-information-dialog-android
+    /// </summary>
     Task<BillingResultAndroid> ShowBillingProgramInformationDialogAndroidAsync(BillingProgramInformationDialogParamsAndroid @params);
 
-    /// <summary>Present the disclosure sheet required before linking out via ExternalPurchaseCustomLink (iOS 18.1+).</summary>
-    /// <summary>Call this after a deliberate customer interaction before linking out to external purchases.</summary>
-    /// <summary>Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/shownotice(type:)</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios</summary>
-    /// <summary>Parameter noticeType: Notice type determining the style of disclosure</summary>
+    /// <summary>
+    /// Present the disclosure sheet required before linking out via ExternalPurchaseCustomLink (iOS 18.1+).
+    /// Call this after a deliberate customer interaction before linking out to external purchases.
+    /// Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/shownotice(type:)
+    /// See: https://openiap.dev/docs/apis/ios/show-external-purchase-custom-link-notice-ios
+    /// Parameter noticeType: Notice type determining the style of disclosure
+    /// </summary>
     Task<ExternalPurchaseCustomLinkNoticeResultIOS> ShowExternalPurchaseCustomLinkNoticeIOSAsync(ExternalPurchaseCustomLinkNoticeTypeIOS noticeType);
 
-    /// <summary>Overlay Play billing in-app messages, such as payment issues or subscription price-change confirmations.</summary>
-    /// <summary>OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0</summary>
-    /// <summary>(upstream API available since Play Billing 4.1.0).</summary>
-    /// <summary>Returns a response code and, when the subscription status changes, the related purchase token.</summary>
-    /// <summary>Throws OpenIapError.NotPrepared if billing client not ready.</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/android/show-in-app-messages-android</summary>
+    /// <summary>
+    /// Overlay Play billing in-app messages, such as payment issues or subscription price-change confirmations.
+    /// OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0
+    /// (upstream API available since Play Billing 4.1.0).
+    /// Returns a response code and, when the subscription status changes, the related purchase token.
+    /// Throws OpenIapError.NotPrepared if billing client not ready.
+    /// See: https://openiap.dev/docs/apis/android/show-in-app-messages-android
+    /// </summary>
     Task<InAppMessageResultAndroid> ShowInAppMessagesAndroidAsync(InAppMessageParamsAndroid? @params = null);
 
-    /// <summary>Present the manage-subscriptions sheet and return changed purchases (iOS 15+).</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/ios/show-manage-subscriptions-ios</summary>
+    /// <summary>
+    /// Present the manage-subscriptions sheet and return changed purchases (iOS 15+).
+    /// See: https://openiap.dev/docs/apis/ios/show-manage-subscriptions-ios
+    /// </summary>
     Task<IReadOnlyList<PurchaseIOS>> ShowManageSubscriptionsIOSAsync();
 
-    /// <summary>Force sync transactions with the App Store (iOS 15+).</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/ios/sync-ios</summary>
+    /// <summary>
+    /// Force sync transactions with the App Store (iOS 15+).
+    /// See: https://openiap.dev/docs/apis/ios/sync-ios
+    /// </summary>
     Task<bool> SyncIOSAsync();
 
-    /// <summary>Verify a purchase against your own backend. Returns a platform-specific</summary>
-    /// <summary>variant of VerifyPurchaseResult — VerifyPurchaseResultIOS exposes isValid</summary>
-    /// <summary>+ receipt/JWS metadata, VerifyPurchaseResultAndroid carries Play Store</summary>
-    /// <summary>receipt fields (no isValid), and VerifyPurchaseResultHorizon uses success.</summary>
-    /// <summary>Inspect the concrete variant before reading fields.</summary>
-    /// <summary>See: https://openiap.dev/docs/features/validation#verify-purchase</summary>
+    /// <summary>
+    /// Verify a purchase against your own backend. Returns a platform-specific
+    /// variant of VerifyPurchaseResult — VerifyPurchaseResultIOS exposes isValid
+    /// + receipt/JWS metadata, VerifyPurchaseResultAndroid carries Play Store
+    /// receipt fields (no isValid), and VerifyPurchaseResultHorizon uses success.
+    /// Inspect the concrete variant before reading fields.
+    /// See: https://openiap.dev/docs/features/validation#verify-purchase
+    /// </summary>
     Task<VerifyPurchaseResult> VerifyPurchaseAsync(VerifyPurchaseProps options);
 
-    /// <summary>Verify via a managed provider without standing up your own server. The</summary>
-    /// <summary>PurchaseVerificationProvider enum currently exposes only IAPKit; platform</summary>
-    /// <summary>availability may differ by implementation.</summary>
-    /// <summary>See: https://openiap.dev/docs/features/validation#verify-purchase-with-provider</summary>
+    /// <summary>
+    /// Verify via a managed provider without standing up your own server. The
+    /// PurchaseVerificationProvider enum currently exposes only IAPKit; platform
+    /// availability may differ by implementation.
+    /// See: https://openiap.dev/docs/features/validation#verify-purchase-with-provider
+    /// </summary>
     Task<VerifyPurchaseWithProviderResult> VerifyPurchaseWithProviderAsync(VerifyPurchaseWithProviderProps options);
 }
 
 /// <summary>GraphQL root query operations.</summary>
 public interface QueryResolver
 {
-    /// <summary>Check eligibility for the external purchase notice sheet (iOS 17.4+).</summary>
-    /// <summary>Uses ExternalPurchase.canPresent.</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios</summary>
+    /// <summary>
+    /// Check eligibility for the external purchase notice sheet (iOS 17.4+).
+    /// Uses ExternalPurchase.canPresent.
+    /// See: https://openiap.dev/docs/apis/ios/can-present-external-purchase-notice-ios
+    /// </summary>
     Task<bool> CanPresentExternalPurchaseNoticeIOSAsync();
 
-    /// <summary>Get the user&apos;s current entitlement for a product, using StoreKit 2 (iOS 15+).</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/ios/current-entitlement-ios</summary>
+    /// <summary>
+    /// Get the user&apos;s current entitlement for a product, using StoreKit 2 (iOS 15+).
+    /// See: https://openiap.dev/docs/apis/ios/current-entitlement-ios
+    /// </summary>
     Task<PurchaseIOS?> CurrentEntitlementIOSAsync(string sku);
 
-    /// <summary>Fetch products or subscriptions from the store.</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/fetch-products</summary>
+    /// <summary>
+    /// Fetch products or subscriptions from the store.
+    /// See: https://openiap.dev/docs/apis/fetch-products
+    /// </summary>
     Task<FetchProductsResult> FetchProductsAsync(ProductRequest @params);
 
-    /// <summary>Get details of all currently active subscriptions (filters by subscriptionIds when provided).</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/get-active-subscriptions</summary>
+    /// <summary>
+    /// Get details of all currently active subscriptions (filters by subscriptionIds when provided).
+    /// See: https://openiap.dev/docs/apis/get-active-subscriptions
+    /// </summary>
     Task<IReadOnlyList<ActiveSubscription>> GetActiveSubscriptionsAsync(IReadOnlyList<string>? subscriptionIds = null);
 
-    /// <summary>List every StoreKit transaction (finished + unfinished) for the current user.</summary>
-    /// <summary>Requires the SKIncludeConsumableInAppPurchaseHistory Info.plist key in the host app</summary>
-    /// <summary>for finished consumables to be included (iOS 18+).</summary>
-    /// <summary>Unlike getAvailablePurchases, always returns the iOS-specific PurchaseIOS shape.</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/ios/get-all-transactions-ios</summary>
+    /// <summary>
+    /// List every StoreKit transaction (finished + unfinished) for the current user.
+    /// Requires the SKIncludeConsumableInAppPurchaseHistory Info.plist key in the host app
+    /// for finished consumables to be included (iOS 18+).
+    /// Unlike getAvailablePurchases, always returns the iOS-specific PurchaseIOS shape.
+    /// See: https://openiap.dev/docs/apis/ios/get-all-transactions-ios
+    /// </summary>
     Task<IReadOnlyList<PurchaseIOS>> GetAllTransactionsIOSAsync();
 
-    /// <summary>Fetch the app transaction (iOS 16+).</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/ios/get-app-transaction-ios</summary>
+    /// <summary>
+    /// Fetch the app transaction (iOS 16+).
+    /// See: https://openiap.dev/docs/apis/ios/get-app-transaction-ios
+    /// </summary>
     Task<AppTransaction?> GetAppTransactionIOSAsync();
 
-    /// <summary>List active purchases for the current user.</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/get-available-purchases</summary>
+    /// <summary>
+    /// List active purchases for the current user.
+    /// See: https://openiap.dev/docs/apis/get-available-purchases
+    /// </summary>
     Task<IReadOnlyList<Purchase>> GetAvailablePurchasesAsync(PurchaseOptions? options = null);
 
-    /// <summary>Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens.</summary>
-    /// <summary>OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).</summary>
-    /// <summary>Throws OpenIapError.NotPrepared if billing client is not ready.</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/android/get-billing-choice-info-android</summary>
+    /// <summary>
+    /// Fetch Play Billing assets and loyalty text for developer-rendered Billing Choice screens.
+    /// OpenIAP availability: Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+    /// Throws OpenIapError.NotPrepared if billing client is not ready.
+    /// See: https://openiap.dev/docs/apis/android/get-billing-choice-info-android
+    /// </summary>
     Task<BillingChoiceInfoAndroid> GetBillingChoiceInfoAndroidAsync(GetBillingChoiceInfoParamsAndroid @params);
 
-    /// <summary>Fetch a token for Apple&apos;s External Purchase Server reporting API (iOS 18.1+).</summary>
-    /// <summary>Use this token to report transactions made through ExternalPurchaseCustomLink.</summary>
-    /// <summary>Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios</summary>
-    /// <summary>Parameter tokenType: Token type: acquisition (new customers) or services (existing customers)</summary>
+    /// <summary>
+    /// Fetch a token for Apple&apos;s External Purchase Server reporting API (iOS 18.1+).
+    /// Use this token to report transactions made through ExternalPurchaseCustomLink.
+    /// Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/token(for:)
+    /// See: https://openiap.dev/docs/apis/ios/get-external-purchase-custom-link-token-ios
+    /// Parameter tokenType: Token type: acquisition (new customers) or services (existing customers)
+    /// </summary>
     Task<ExternalPurchaseCustomLinkTokenResultIOS> GetExternalPurchaseCustomLinkTokenIOSAsync(ExternalPurchaseCustomLinkTokenTypeIOS tokenType);
 
-    /// <summary>List unfinished StoreKit transactions in the queue.</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/ios/get-pending-transactions-ios</summary>
+    /// <summary>
+    /// List unfinished StoreKit transactions in the queue.
+    /// See: https://openiap.dev/docs/apis/ios/get-pending-transactions-ios
+    /// </summary>
     Task<IReadOnlyList<PurchaseIOS>> GetPendingTransactionsIOSAsync();
 
-    /// <summary>Read the App Store-promoted product, if any (iOS 15+).</summary>
-    /// <summary>OpenIAP consumes PurchaseIntent.intents on iOS 16.4+ and uses the</summary>
-    /// <summary>StoreKit 1 observer only on iOS 15–16.3. When PurchaseIntent carries an</summary>
-    /// <summary>externally redeemed win-back offer, OpenIAP preserves it for the next</summary>
-    /// <summary>matching requestPurchase unless the caller supplies an explicit win-back or</summary>
-    /// <summary>promotional offer.</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/ios/get-promoted-product-ios</summary>
+    /// <summary>
+    /// Read the App Store-promoted product, if any (iOS 15+).
+    /// OpenIAP consumes PurchaseIntent.intents on iOS 16.4+ and uses the
+    /// StoreKit 1 observer only on iOS 15–16.3. When PurchaseIntent carries an
+    /// externally redeemed win-back offer, OpenIAP preserves it for the next
+    /// matching requestPurchase unless the caller supplies an explicit win-back or
+    /// promotional offer.
+    /// See: https://openiap.dev/docs/apis/ios/get-promoted-product-ios
+    /// </summary>
     Task<ProductIOS?> GetPromotedProductIOSAsync();
 
-    /// <summary>Get base64-encoded receipt data (legacy validation).</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/ios/get-receipt-data-ios</summary>
+    /// <summary>
+    /// Get base64-encoded receipt data (legacy validation).
+    /// See: https://openiap.dev/docs/apis/ios/get-receipt-data-ios
+    /// </summary>
     Task<string?> GetReceiptDataIOSAsync();
 
-    /// <summary>Return the store-authoritative country code: ISO 3166-1 alpha-3 on Apple</summary>
-    /// <summary>platforms and alpha-2 on Android. The operation fails when the store cannot</summary>
-    /// <summary>provide a value; implementations must not synthesize a locale fallback.</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/get-storefront</summary>
+    /// <summary>
+    /// Return the store-authoritative country code: ISO 3166-1 alpha-3 on Apple
+    /// platforms and alpha-2 on Android. The operation fails when the store cannot
+    /// provide a value; implementations must not synthesize a locale fallback.
+    /// See: https://openiap.dev/docs/apis/get-storefront
+    /// </summary>
     Task<string> GetStorefrontAsync();
 
-    /// <summary>Return the JWS string for a transaction (StoreKit 2).</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/ios/get-transaction-jws-ios</summary>
+    /// <summary>
+    /// Return the JWS string for a transaction (StoreKit 2).
+    /// See: https://openiap.dev/docs/apis/ios/get-transaction-jws-ios
+    /// </summary>
     Task<string?> GetTransactionJwsIOSAsync(string sku);
 
-    /// <summary>Check whether the user has any active subscription.</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/has-active-subscriptions</summary>
+    /// <summary>
+    /// Check whether the user has any active subscription.
+    /// See: https://openiap.dev/docs/apis/has-active-subscriptions
+    /// </summary>
     Task<bool> HasActiveSubscriptionsAsync(IReadOnlyList<string>? subscriptionIds = null);
 
-    /// <summary>Check eligibility for the custom-link variant of external purchase (iOS 18.1+).</summary>
-    /// <summary>Returns true if the app can use custom external purchase links.</summary>
-    /// <summary>Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios</summary>
+    /// <summary>
+    /// Check eligibility for the custom-link variant of external purchase (iOS 18.1+).
+    /// Returns true if the app can use custom external purchase links.
+    /// Reference: https://developer.apple.com/documentation/storekit/externalpurchasecustomlink/iseligible
+    /// See: https://openiap.dev/docs/apis/ios/is-eligible-for-external-purchase-custom-link-ios
+    /// </summary>
     Task<bool> IsEligibleForExternalPurchaseCustomLinkIOSAsync();
 
-    /// <summary>Check intro-offer eligibility for a subscription group.</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios</summary>
+    /// <summary>
+    /// Check intro-offer eligibility for a subscription group.
+    /// See: https://openiap.dev/docs/apis/ios/is-eligible-for-intro-offer-ios
+    /// </summary>
     Task<bool> IsEligibleForIntroOfferIOSAsync(string groupId);
 
-    /// <summary>Check whether a transaction&apos;s JWS verification passed (StoreKit 2).</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/ios/is-transaction-verified-ios</summary>
+    /// <summary>
+    /// Check whether a transaction&apos;s JWS verification passed (StoreKit 2).
+    /// See: https://openiap.dev/docs/apis/ios/is-transaction-verified-ios
+    /// </summary>
     Task<bool> IsTransactionVerifiedIOSAsync(string sku);
 
-    /// <summary>Get the latest verified transaction for a product, using StoreKit 2.</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/ios/latest-transaction-ios</summary>
+    /// <summary>
+    /// Get the latest verified transaction for a product, using StoreKit 2.
+    /// See: https://openiap.dev/docs/apis/ios/latest-transaction-ios
+    /// </summary>
     Task<PurchaseIOS?> LatestTransactionIOSAsync(string sku);
 
-    /// <summary>Get subscription status objects from StoreKit 2 (iOS 15+).</summary>
-    /// <summary>See: https://openiap.dev/docs/apis/ios/subscription-status-ios</summary>
+    /// <summary>
+    /// Get subscription status objects from StoreKit 2 (iOS 15+).
+    /// See: https://openiap.dev/docs/apis/ios/subscription-status-ios
+    /// </summary>
     Task<IReadOnlyList<SubscriptionStatusIOS>> SubscriptionStatusIOSAsync(string sku);
 }
 
 /// <summary>GraphQL root subscription operations.</summary>
 public interface SubscriptionResolver
 {
-    /// <summary>Fires when a user selects developer billing in an External Payments or</summary>
-    /// <summary>Billing Choice flow (Android only). The payload can contain an external</summary>
-    /// <summary>transaction token, link URI, original transaction ID, and selected products.</summary>
-    /// <summary>Billing Choice payload fields are available in OpenIAP Spec 2.1.0 /</summary>
-    /// <summary>openiap-google 2.3.0 (requires Play Billing 9.1.0+).</summary>
+    /// <summary>
+    /// Fires when a user selects developer billing in an External Payments or
+    /// Billing Choice flow (Android only). The payload can contain an external
+    /// transaction token, link URI, original transaction ID, and selected products.
+    /// Billing Choice payload fields are available in OpenIAP Spec 2.1.0 /
+    /// openiap-google 2.3.0 (requires Play Billing 9.1.0+).
+    /// </summary>
     Task<DeveloperProvidedBillingDetailsAndroid> DeveloperProvidedBillingAndroidAsync();
 
-    /// <summary>Fires when the App Store surfaces a promoted product (iOS only).</summary>
-    /// <summary>A win-back offer attached to PurchaseIntent is preserved for the next</summary>
-    /// <summary>matching requestPurchase unless the caller supplies an explicit win-back or</summary>
-    /// <summary>promotional offer.</summary>
+    /// <summary>
+    /// Fires when the App Store surfaces a promoted product (iOS only).
+    /// A win-back offer attached to PurchaseIntent is preserved for the next
+    /// matching requestPurchase unless the caller supplies an explicit win-back or
+    /// promotional offer.
+    /// </summary>
     Task<string> PromotedProductIOSAsync();
 
     /// <summary>Fires when a purchase fails or is cancelled</summary>
     Task<PurchaseError> PurchaseErrorAsync();
 
-    /// <summary>Fires when a purchase completes successfully or a pending purchase resolves</summary>
-    /// <summary>Options can opt iOS listeners into duplicate StoreKit transaction replays</summary>
-    /// <summary>for diagnostics; default listeners receive one event per transaction ID</summary>
-    /// <summary>during a single connection session.</summary>
+    /// <summary>
+    /// Fires when a purchase completes successfully or a pending purchase resolves
+    /// Options can opt iOS listeners into duplicate StoreKit transaction replays
+    /// for diagnostics; default listeners receive one event per transaction ID
+    /// during a single connection session.
+    /// </summary>
     Task<Purchase> PurchaseUpdatedAsync(PurchaseUpdatedListenerOptions? options = null);
 
-    /// <summary>Fires when a subscription enters a billing-issue state that needs user action</summary>
-    /// <summary>(payment method failed, card expired, etc.). Cross-platform unification:</summary>
-    /// <summary></summary>
-    /// <summary>- iOS 16.4+ / Mac Catalyst 16.4+ / visionOS 1.0+: delivered via StoreKit 2</summary>
-    /// <summary>  `Message.Reason.billingIssue`.</summary>
-    /// <summary>- Android (Play flavor, Billing 8.1+): emitted when `isSuspended == true` is first detected</summary>
-    /// <summary>  on a previously healthy subscription. Requires Google Play Billing Library 8.1.0 or newer.</summary>
-    /// <summary>- Android (Horizon flavor): NOT emitted. The Horizon Billing Compatibility SDK implements</summary>
-    /// <summary>  the Play Billing 7.0 API surface which does not expose a suspended-subscription signal.</summary>
-    /// <summary>- Android (Amazon flavor): NOT emitted. Amazon Appstore IAP does not expose an</summary>
-    /// <summary>  equivalent subscription billing-issue signal.</summary>
-    /// <summary></summary>
-    /// <summary>Listeners should not assume the event will fire on every store. Direct users to the</summary>
-    /// <summary>platform subscription management UI (`deepLinkToSubscriptions`) to resolve the issue.</summary>
+    /// <summary>
+    /// Fires when a subscription enters a billing-issue state that needs user action
+    /// (payment method failed, card expired, etc.). Cross-platform unification:
+    ///
+    /// - iOS 16.4+ / Mac Catalyst 16.4+ / visionOS 1.0+: delivered via StoreKit 2
+    ///   `Message.Reason.billingIssue`.
+    /// - Android (Play flavor, Billing 8.1+): emitted when `isSuspended == true` is first detected
+    ///   on a previously healthy subscription. Requires Google Play Billing Library 8.1.0 or newer.
+    /// - Android (Horizon flavor): NOT emitted. The Horizon Billing Compatibility SDK implements
+    ///   the Play Billing 7.0 API surface which does not expose a suspended-subscription signal.
+    /// - Android (Amazon flavor): NOT emitted. Amazon Appstore IAP does not expose an
+    ///   equivalent subscription billing-issue signal.
+    ///
+    /// Listeners should not assume the event will fire on every store. Direct users to the
+    /// platform subscription management UI (`deepLinkToSubscriptions`) to resolve the issue.
+    /// </summary>
     Task<Purchase> SubscriptionBillingIssueAsync();
 
-    /// <summary>Fires when a user selects alternative billing in the User Choice Billing dialog (Android only)</summary>
-    /// <summary>Only triggered when the user selects alternative billing instead of Google Play billing</summary>
+    /// <summary>
+    /// Fires when a user selects alternative billing in the User Choice Billing dialog (Android only)
+    /// Only triggered when the user selects alternative billing instead of Google Play billing
+    /// </summary>
     Task<UserChoiceBillingDetails> UserChoiceBillingAndroidAsync();
 }

@@ -29,7 +29,6 @@ import dev.hyo.openiap.ProductType
 import dev.hyo.openiap.ProductSubscriptionAndroid
 import dev.hyo.openiap.PurchaseAndroid
 import dev.hyo.openiap.PurchaseState
-import dev.hyo.openiap.store.OpenIapStore
 import dev.hyo.openiap.store.PurchaseResultStatus
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.ProductRequest
@@ -84,8 +83,7 @@ private fun formatRemaining(deltaMillis: Long): String {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SubscriptionFlowScreen(
-    navController: NavController,
-    storeParam: OpenIapStore? = null
+    navController: NavController
 ) {
     val context = LocalContext.current
     val uiScope = rememberCoroutineScope()
@@ -93,7 +91,7 @@ fun SubscriptionFlowScreen(
 
     // SharedPreferences to track current offer (necessary since Google doesn't provide offer info)
     val prefs = remember { context.getSharedPreferences(SUBSCRIPTION_PREFS_NAME, Context.MODE_PRIVATE) }
-    val iapStore = currentOpenIapStore(storeParam)
+    val iapStore = currentOpenIapStore()
     val products by iapStore.products.collectAsState()
     val subscriptions by iapStore.subscriptions.collectAsState()
     val purchases by iapStore.availablePurchases.collectAsState()
