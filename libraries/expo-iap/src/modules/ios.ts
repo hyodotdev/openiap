@@ -283,9 +283,9 @@ export const getTransactionJwsIOS: QueryField<'getTransactionJwsIOS'> = async (
  * Note: This only works on real devices, not simulators.
  *
  * @returns The verified redeemed purchase when built with Xcode 27+ and
- * running on Apple 27+, or null when the system sheet cannot return the
- * transaction directly (StoreKit 2 on iOS/Catalyst 16–26 and visionOS 1–26;
- * StoreKit 1 on iOS/Catalyst 15).
+ * running on Apple 27+. Earlier iOS/visionOS system sheets return null;
+ * Catalyst 16–26 surfaces StoreKitError.unknown, and Catalyst 15 is a no-op
+ * that returns null.
  * @throws Error if called on non-iOS platform or tvOS
  *
  * @platform iOS
@@ -486,9 +486,8 @@ export const getExternalPurchaseCustomLinkTokenIOS: QueryField<
       "getExternalPurchaseCustomLinkTokenIOS requires a tokenType ('acquisition' or 'services')",
     );
   }
-  const result = await ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS(
-    tokenType,
-  );
+  const result =
+    await ExpoIapModule.getExternalPurchaseCustomLinkTokenIOS(tokenType);
   return result as ExternalPurchaseCustomLinkTokenResultIOS;
 };
 
@@ -513,9 +512,8 @@ export const showExternalPurchaseCustomLinkNoticeIOS: MutationField<
       "showExternalPurchaseCustomLinkNoticeIOS requires a noticeType ('browser')",
     );
   }
-  const result = await ExpoIapModule.showExternalPurchaseCustomLinkNoticeIOS(
-    noticeType,
-  );
+  const result =
+    await ExpoIapModule.showExternalPurchaseCustomLinkNoticeIOS(noticeType);
   return result as ExternalPurchaseCustomLinkNoticeResultIOS;
 };
 

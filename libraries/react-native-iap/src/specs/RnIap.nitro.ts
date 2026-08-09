@@ -128,22 +128,16 @@ export type BillingChoiceImageLayoutAndroid =
   | 'rectangular-two-by-two';
 
 export type BillingChoiceScreenTypeAndroid =
-  | 'unspecified'
-  | 'developer-rendered'
-  | 'google-rendered';
+  'unspecified' | 'developer-rendered' | 'google-rendered';
 
 export type DeveloperBillingTypeAndroid =
-  | 'developer-billing-type-unspecified'
-  | 'in-app'
-  | 'external-link';
+  'developer-billing-type-unspecified' | 'in-app' | 'external-link';
 
 export type InAppMessageCategoryAndroid =
-  | 'unknown-in-app-message-category-id'
-  | 'transactional';
+  'unknown-in-app-message-category-id' | 'transactional';
 
 export type InAppMessageResponseCodeAndroid =
-  | 'no-action-needed'
-  | 'subscription-status-updated';
+  'no-action-needed' | 'subscription-status-updated';
 
 // Developer Billing Launch Mode (Android 8.3.0+)
 // Defined locally for Nitro codegen
@@ -162,9 +156,7 @@ export type ExternalLinkLaunchModeAndroid =
 // External Link Type (Android 8.2.0+)
 // Defined locally for Nitro codegen
 export type ExternalLinkTypeAndroid =
-  | 'unspecified'
-  | 'link-to-digital-content-offer'
-  | 'link-to-app-download';
+  'unspecified' | 'link-to-digital-content-offer' | 'link-to-app-download';
 
 // ╔══════════════════════════════════════════════════════════════════════════╗
 // ║                                  PARAMS                                  ║
@@ -837,9 +829,9 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
   /**
    * Present the code redemption sheet for offer codes (iOS only)
    * @returns The verified redeemed purchase when built with Xcode 27+ and
-   * running on Apple 27+, or null when the system sheet cannot return the
-   * transaction directly (StoreKit 2 on iOS/Catalyst 16–26 and visionOS 1–26;
-   * StoreKit 1 on iOS/Catalyst 15).
+   * running on Apple 27+. Earlier iOS/visionOS system sheets return null;
+   * Catalyst 16–26 surfaces StoreKitError.unknown, and Catalyst 15 is a no-op
+   * that returns null.
    * @platform iOS
    */
   presentCodeRedemptionSheetIOS(): Promise<NitroPurchase | null>;

@@ -4180,11 +4180,12 @@ public interface MutationResolver
     /// <summary>Show the App Store offer code redemption sheet.</summary>
     /// <summary>When built with Xcode 27+ and running on iOS 27+, Mac Catalyst 27+, or</summary>
     /// <summary>visionOS 27+, returns the verified transaction produced by the redemption.</summary>
-    /// <summary>Other supported paths present the system sheet and return null: StoreKit 2&apos;s</summary>
-    /// <summary>scene-based sheet on iOS and Mac Catalyst 16–26, visionOS 1–26, or Apple 27</summary>
-    /// <summary>runtimes from an older build; and the StoreKit 1 fallback on iOS or Mac</summary>
-    /// <summary>Catalyst 15.</summary>
-    /// <summary>Reconcile null results through the normal transaction listener or an explicit</summary>
+    /// <summary>StoreKit 2&apos;s scene-based sheet returns null after presentation on iOS 16–26,</summary>
+    /// <summary>visionOS 1–26, and those platforms on Apple 27 when built with an older SDK.</summary>
+    /// <summary>iOS 15 uses the StoreKit 1 sheet and also returns null. On Mac Catalyst, the</summary>
+    /// <summary>scene-based API throws StoreKitError.unknown, while the Catalyst 15 StoreKit 1</summary>
+    /// <summary>call has no effect and returns null. Reconcile null results from a presented</summary>
+    /// <summary>sheet through the normal transaction listener or an explicit</summary>
     /// <summary>available-purchases refresh.</summary>
     /// <summary>See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios</summary>
     Task<PurchaseIOS?> PresentCodeRedemptionSheetIOSAsync();

@@ -5530,11 +5530,12 @@ public interface MutationResolver {
      * Show the App Store offer code redemption sheet.
      * When built with Xcode 27+ and running on iOS 27+, Mac Catalyst 27+, or
      * visionOS 27+, returns the verified transaction produced by the redemption.
-     * Other supported paths present the system sheet and return null: StoreKit 2's
-     * scene-based sheet on iOS and Mac Catalyst 16–26, visionOS 1–26, or Apple 27
-     * runtimes from an older build; and the StoreKit 1 fallback on iOS or Mac
-     * Catalyst 15.
-     * Reconcile null results through the normal transaction listener or an explicit
+     * StoreKit 2's scene-based sheet returns null after presentation on iOS 16–26,
+     * visionOS 1–26, and those platforms on Apple 27 when built with an older SDK.
+     * iOS 15 uses the StoreKit 1 sheet and also returns null. On Mac Catalyst, the
+     * scene-based API throws StoreKitError.unknown, while the Catalyst 15 StoreKit 1
+     * call has no effect and returns null. Reconcile null results from a presented
+     * sheet through the normal transaction listener or an explicit
      * available-purchases refresh.
      * See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
      */
@@ -5918,11 +5919,12 @@ public data class MutationHandlers(
      * Show the App Store offer code redemption sheet.
      * When built with Xcode 27+ and running on iOS 27+, Mac Catalyst 27+, or
      * visionOS 27+, returns the verified transaction produced by the redemption.
-     * Other supported paths present the system sheet and return null: StoreKit 2's
-     * scene-based sheet on iOS and Mac Catalyst 16–26, visionOS 1–26, or Apple 27
-     * runtimes from an older build; and the StoreKit 1 fallback on iOS or Mac
-     * Catalyst 15.
-     * Reconcile null results through the normal transaction listener or an explicit
+     * StoreKit 2's scene-based sheet returns null after presentation on iOS 16–26,
+     * visionOS 1–26, and those platforms on Apple 27 when built with an older SDK.
+     * iOS 15 uses the StoreKit 1 sheet and also returns null. On Mac Catalyst, the
+     * scene-based API throws StoreKitError.unknown, while the Catalyst 15 StoreKit 1
+     * call has no effect and returns null. Reconcile null results from a presented
+     * sheet through the normal transaction listener or an explicit
      * available-purchases refresh.
      * See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
      */

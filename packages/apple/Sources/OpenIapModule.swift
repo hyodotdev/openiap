@@ -138,7 +138,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
     private override init() {
         super.init()
-        startPromotedPurchaseIntentListenerIfAvailable()
+        startPromotedPurchaseIntentListenerIfAvailableIOS()
         registerPromotedPurchaseObserverIfNeeded()
     }
 
@@ -387,7 +387,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         #else
         let purchaseIntentOffer: StoreKit.Product.SubscriptionOffer? = nil
         #endif
-        let options = try StoreKitTypesBridge.purchaseOptions(
+        let options = try StoreKitTypesBridge.purchaseOptionsIOS(
             from: iosProps,
             product: product,
             purchaseIntentOffer: purchaseIntentOffer
@@ -1337,9 +1337,10 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
     /// Present a sheet for redeeming offer codes.
     /// - Note: Builds made with Xcode 27+ return the verified transaction on
-    ///   iOS 27+, Mac Catalyst 27+, and visionOS 27+. Other supported paths
-    ///   return nil after presenting the system sheet, so callers must reconcile
-    ///   through the transaction listener or an available-purchases refresh.
+    ///   iOS 27+, Mac Catalyst 27+, and visionOS 27+. Earlier iOS and visionOS
+    ///   paths return nil after presenting the system sheet. Mac Catalyst 16–26
+    ///   throws StoreKitError.unknown, and Catalyst 15 returns nil after a
+    ///   StoreKit 1 call that has no effect.
     /// - SeeAlso: https://developer.apple.com/documentation/storekit/appstore/presentoffercoderedeemsheet(from:options:)
     ///
     /// See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
@@ -1782,7 +1783,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         resources.unfinishedTransactionTask?.cancel()
     }
 
-    private func startPromotedPurchaseIntentListenerIfAvailable() {
+    private func startPromotedPurchaseIntentListenerIfAvailableIOS() {
         #if os(iOS)
         if #available(iOS 16.4, macCatalyst 16.4, *) {
             guard promotedPurchaseIntentTask == nil else { return }

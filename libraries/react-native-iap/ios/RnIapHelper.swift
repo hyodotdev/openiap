@@ -129,7 +129,7 @@ enum RnIapHelper {
         return .second(value)
     }
 
-    static func wrapSubscriptionPeriodValue(
+    static func wrapSubscriptionPeriodValueIOS(
         _ value: SubscriptionPeriodValueIOS?
     ) -> Variant_NullType_SubscriptionPeriodValueIOS? {
         guard let value = value else { return nil }
@@ -192,8 +192,8 @@ enum RnIapHelper {
             displayName: wrapString(dictionary["displayName"] as? String),
             estimatedTax: wrapString(dictionary["estimatedTax"] as? String),
             items: items,
-            period: wrapSubscriptionPeriodValue(
-                convertSubscriptionPeriodValue(dictionary["period"])
+            period: wrapSubscriptionPeriodValueIOS(
+                convertSubscriptionPeriodValueIOS(dictionary["period"])
             ),
             requestReferenceId: wrapString(dictionary["requestReferenceId"] as? String),
             taxCode: wrapString(dictionary["taxCode"] as? String),
@@ -202,11 +202,13 @@ enum RnIapHelper {
         )
     }
 
-    static func convertSubscriptionPeriodValue(_ value: Any?) -> SubscriptionPeriodValueIOS? {
+    static func convertSubscriptionPeriodValueIOS(_ value: Any?) -> SubscriptionPeriodValueIOS? {
         guard let dictionary = value as? [String: Any],
               let unitValue = dictionary["unit"] as? String,
               let unit = SubscriptionPeriodIOS(fromString: unitValue),
-              let periodValue = doubleValue(dictionary["value"]) else {
+              let periodValue = doubleValue(dictionary["value"]),
+              periodValue.isFinite,
+              Int32(exactly: periodValue) != nil else {
             return nil
         }
         return SubscriptionPeriodValueIOS(unit: unit, value: periodValue)

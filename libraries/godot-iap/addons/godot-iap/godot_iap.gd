@@ -1341,8 +1341,11 @@ func get_all_transactions_ios() -> Array:
 	return purchases
 
 ## Present the code redemption sheet (iOS only).
-## @return Types.PurchaseIOS when built with Xcode 27+ and running on Apple 27+,
-## or null when the system sheet cannot return the transaction directly.
+## @return Types.PurchaseIOS for a verified Apple 27+ redemption from an Xcode
+## 27+ build. Returns null on unsupported platforms, native request failures,
+## missing or invalid purchaseJson, and system-sheet paths that cannot return
+## the transaction directly. Mac Catalyst 15 also returns null without showing
+## a sheet because StoreKit 1 has no effect there.
 ##
 ## See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
 func present_code_redemption_sheet_ios() -> Variant:

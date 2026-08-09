@@ -226,7 +226,7 @@ internal fun subscriptionUpdateSourceCount(
 ): Int = listOf(purchaseToken, originalExternalTransactionId)
     .count { !it.isNullOrBlank() }
 
-internal fun availablePurchasesQueryParams(
+internal fun availablePurchasesQueryParamsAndroid(
     client: BillingClient,
     productType: String,
     includeSuspendedSubscriptions: Boolean,
@@ -1790,7 +1790,7 @@ internal class InAppPurchaseAndroid(
                     // Include suspended subscriptions (Google Play Billing Library 8.1+)
                     // Suspended subscriptions have isSuspendedAndroid=true and should NOT be granted entitlements.
                     // Users should be directed to the subscription center to resolve payment issues.
-                    val params = availablePurchasesQueryParams(
+                    val params = availablePurchasesQueryParamsAndroid(
                         client,
                         type,
                         includeSuspendedSubs,

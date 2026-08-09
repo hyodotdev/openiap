@@ -380,7 +380,7 @@ enum StoreKitTypesBridge {
         }
     }
 
-    static func purchaseOptions(
+    static func purchaseOptionsIOS(
         from props: some IosPropsProtocol,
         product: StoreKit.Product? = nil,
         purchaseIntentOffer: StoreKit.Product.SubscriptionOffer? = nil
@@ -766,7 +766,7 @@ enum StoreKitTypesBridge {
         }
     }
 
-    static func standardizedDiscountOfferType(
+    static func standardizedDiscountOfferTypeIOS(
         from type: StoreKit.Product.SubscriptionOffer.OfferType
     ) -> DiscountOfferType? {
         #if compiler(>=6.1)
@@ -780,7 +780,7 @@ enum StoreKitTypesBridge {
         return nil
     }
 
-    static func purchaseOfferTypeString(from type: StoreKit.Transaction.OfferType) -> String {
+    static func purchaseOfferTypeStringIOS(from type: StoreKit.Transaction.OfferType) -> String {
         #if compiler(>=6.1)
         if type == .winBack {
             return SubscriptionOfferTypeIOS.winBack.rawValue
@@ -838,7 +838,7 @@ private extension StoreKitTypesBridge {
     @available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *)
     static func makeSubscriptionPricingTerm(from terms: StoreKit.Product.SubscriptionInfo.PricingTerms) -> SubscriptionPricingTermsIOS {
         let offers = terms.subscriptionOffers.compactMap { offer in
-            standardizedDiscountOfferType(from: offer.type).map { type in
+            standardizedDiscountOfferTypeIOS(from: offer.type).map { type in
                 makeStandardizedSubscriptionOffer(from: offer, type: type)
             }
         }
@@ -1083,7 +1083,7 @@ private extension StoreKitTypesBridge {
             paymentModeString = PaymentModeIOS.empty.rawValue
         }
 
-        let typeString = purchaseOfferTypeString(from: offer.type)
+        let typeString = purchaseOfferTypeStringIOS(from: offer.type)
 
         return PurchaseOfferIOS(
             id: offer.id ?? "",

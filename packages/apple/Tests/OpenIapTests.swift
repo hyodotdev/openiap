@@ -45,7 +45,7 @@ final class OpenIapTests: XCTestCase {
         }
     }
 
-    func testEntitlementSelectionUsesLatestDateThenTransactionId() {
+    func testEntitlementSelectionUsesLatestDateThenTransactionIdIOS() {
         let earlier = EntitlementSelectionKey(
             purchaseDate: Date(timeIntervalSince1970: 1),
             transactionId: 100
@@ -63,7 +63,7 @@ final class OpenIapTests: XCTestCase {
         XCTAssertLessThan(later, sameDateHigherId)
     }
 
-    func testPromotedPurchaseIntentOfferIsProductScopedAndOneShot() async {
+    func testPromotedPurchaseIntentOfferIsProductScopedAndOneShotIOS() async {
         let store = PromotedPurchaseIntentOfferStore<String>()
         await store.record("win-back", for: "subscription")
 
@@ -894,16 +894,16 @@ final class OpenIapTests: XCTestCase {
     @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, *)
     func testStoreKitOfferTypeMappingsPreserveWinBack() {
         XCTAssertEqual(
-            StoreKitTypesBridge.standardizedDiscountOfferType(from: .introductory),
+            StoreKitTypesBridge.standardizedDiscountOfferTypeIOS(from: .introductory),
             .introductory
         )
         XCTAssertEqual(
-            StoreKitTypesBridge.standardizedDiscountOfferType(from: .promotional),
+            StoreKitTypesBridge.standardizedDiscountOfferTypeIOS(from: .promotional),
             .promotional
         )
-        XCTAssertNil(StoreKitTypesBridge.standardizedDiscountOfferType(from: .winBack))
+        XCTAssertNil(StoreKitTypesBridge.standardizedDiscountOfferTypeIOS(from: .winBack))
         XCTAssertEqual(
-            StoreKitTypesBridge.purchaseOfferTypeString(from: .winBack),
+            StoreKitTypesBridge.purchaseOfferTypeStringIOS(from: .winBack),
             SubscriptionOfferTypeIOS.winBack.rawValue
         )
     }

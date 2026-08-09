@@ -67,17 +67,17 @@ class BillingQueryLifecycleTest {
         val supportedClient = LifecycleBillingClient(
             suspendedSubscriptionsSupported = true,
         )
-        val subscriptionParams = availablePurchasesQueryParams(
+        val subscriptionParams = availablePurchasesQueryParamsAndroid(
             supportedClient,
             BillingClient.ProductType.SUBS,
             includeSuspendedSubscriptions = true,
         )
-        val inAppParams = availablePurchasesQueryParams(
+        val inAppParams = availablePurchasesQueryParamsAndroid(
             supportedClient,
             BillingClient.ProductType.INAPP,
             includeSuspendedSubscriptions = true,
         )
-        val unsupportedParams = availablePurchasesQueryParams(
+        val unsupportedParams = availablePurchasesQueryParamsAndroid(
             LifecycleBillingClient(suspendedSubscriptionsSupported = false),
             BillingClient.ProductType.SUBS,
             includeSuspendedSubscriptions = true,

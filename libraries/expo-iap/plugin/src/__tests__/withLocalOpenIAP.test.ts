@@ -20,10 +20,12 @@ describe('ensureLocalOpenIapFlavorStrategy', () => {
     );
 
     expect(result).toContain('subprojects { subproject ->');
-    expect(result).toContain('subproject.plugins.withId("com.android.library")');
-    expect(result).toContain('missingDimensionStrategy "platform", "play"');
     expect(result).toContain(
-      'layout.buildDirectory.set(rootProject.layout.buildDirectory.dir("openiap-google"))',
+      'subproject.plugins.withId("com.android.library")',
+    );
+    expect(result).toContain('missingDimensionStrategy "platform", "play"');
+    expect(result).toMatch(
+      /project\(":openiap-google"\)\s*\{\s*layout\.buildDirectory\.set\(rootProject\.layout\.buildDirectory\.dir\("openiap-google"\)\)\s*\}/,
     );
   });
 
@@ -38,12 +40,9 @@ describe('ensureLocalOpenIapFlavorStrategy', () => {
     expect(result).toContain(
       'extensions.configure<com.android.build.gradle.LibraryExtension>("android")',
     );
-    expect(result).toContain(
-      'missingDimensionStrategy("platform", "horizon")',
-    );
-    expect(result).toContain('project(":openiap-google")');
-    expect(result).toContain(
-      'layout.buildDirectory.set(rootProject.layout.buildDirectory.dir("openiap-google"))',
+    expect(result).toContain('missingDimensionStrategy("platform", "horizon")');
+    expect(result).toMatch(
+      /project\(":openiap-google"\)\s*\{\s*layout\.buildDirectory\.set\(rootProject\.layout\.buildDirectory\.dir\("openiap-google"\)\)\s*\}/,
     );
     expect(result).not.toContain(
       'missingDimensionStrategy "platform", "horizon"',
