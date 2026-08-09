@@ -24,6 +24,17 @@ interface Note {
   element: React.ReactNode;
 }
 
+const storeApiModernizationReleases = [
+  ['openiap-apple 3.1.0', '3.1.0'],
+  ['openiap-google 3.2.0', 'google-3.2.0'],
+  ['react-native-iap 16.2.0', 'react-native-iap-16.2.0'],
+  ['expo-iap 5.2.0', 'expo-iap-5.2.0'],
+  ['flutter_inapp_purchase 10.2.0', 'flutter-iap-10.2.0'],
+  ['godot-iap 3.2.0', 'godot-iap-3.2.0'],
+  ['kmp-iap 3.2.0', 'kmp-iap-3.2.0'],
+  ['OpenIap.Maui 2.2.0', 'maui-iap-2.2.0'],
+] as const;
+
 const dependencyModernizationReleases = [
   ['openiap-google 3.1.0', 'google-3.1.0'],
   ['react-native-iap 16.1.0', 'react-native-iap-16.1.0'],
@@ -168,6 +179,159 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // August 10, 2026 - Store API contract modernization
+    {
+      id: 'store-api-contract-modernization-2026-08-10',
+      date: new Date('2026-08-10'),
+      element: (
+        <div
+          key="store-api-contract-modernization-2026-08-10"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="store-api-contract-modernization-2026-08-10"
+            level="h4"
+          >
+            August 10, 2026 - Store API contract modernization
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes the coordinated stable release train from{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/299"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="external-link"
+            >
+              PR #299
+            </a>
+            . The release modernizes StoreKit purchase-intent and redemption
+            behavior, makes Google Play subscription recovery capability-aware,
+            tightens Meta Horizon purchase preconditions, and synchronizes the
+            resulting contracts across every maintained SDK.
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Native store behavior</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>openiap-apple 3.1.0</strong> preserves externally redeemed
+              win-back offers until the matching promoted purchase is completed,
+              selects the newest verified current entitlement deterministically,
+              and returns a verified redemption purchase on Apple 27+ when built
+              with Xcode 27+. Older supported system-sheet paths continue to
+              return <code>null</code> after presentation.
+            </li>
+            <li>
+              <strong>openiap-google 3.2.0</strong> requests suspended
+              subscriptions only when the connected Play Store supports that
+              capability, otherwise falling back to active purchases. Horizon
+              initialization now requires a foreground <code>Activity</code>,
+              and Horizon purchase requests reject multi-product payloads before
+              invoking the store.
+            </li>
+            <li>
+              Advanced Commerce purchase metadata now carries its optional{' '}
+              <code>period</code> across the shared schema and generated Apple,
+              TypeScript, Dart, GDScript, Kotlin, and C# models.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>react-native-iap 16.2.0</strong> and{' '}
+              <strong>expo-iap 5.2.0</strong> expose the synchronized Apple
+              period metadata and updated promoted-product, redemption, and
+              Horizon contracts. Expo prebuilds also isolate the local OpenIAP
+              composite-build output from other Android consumers.
+            </li>
+            <li>
+              <strong>flutter_inapp_purchase 10.2.0</strong>,{' '}
+              <strong>godot-iap 3.2.0</strong>, and{' '}
+              <strong>OpenIap.Maui 2.2.0</strong> publish the synchronized Apple
+              purchase metadata and corrected redemption guidance for their
+              generated types, wrappers, tests, and examples.
+            </li>
+            <li>
+              <strong>kmp-iap 3.2.0</strong> adds the same Apple metadata while
+              applying the Play suspended-subscription capability fallback to
+              its Android restore path.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              No public API call signature was removed. Upgrade through each
+              SDK's normal package manager to pick up the store-safety fixes.
+            </li>
+            <li>
+              Start Horizon billing only while the app has a foreground Android
+              activity, and submit exactly one product in each Horizon purchase
+              request.
+            </li>
+            <li>
+              Treat a <code>null</code> offer-code redemption result as a
+              successfully presented system sheet on supported older paths, then
+              refresh purchases or entitlements after the customer completes
+              redemption.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {storeApiModernizationReleases.map(([label, tag]) => (
+                <li key={tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // August 9, 2026 - Dependency and toolchain modernization
     {
       id: 'dependency-toolchain-modernization-2026-08-09',
