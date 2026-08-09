@@ -1,6 +1,5 @@
 package dev.hyo.martie.screens
 
-import android.app.Activity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
@@ -13,21 +12,15 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import dev.hyo.martie.IapConstants
 import dev.hyo.martie.models.AppColors
 import dev.hyo.martie.screens.uis.*
-import dev.hyo.openiap.IapContext
 import dev.hyo.openiap.IapkitPurchaseState
 import dev.hyo.openiap.store.OpenIapStore
 import dev.hyo.openiap.store.PurchaseResultStatus
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -49,7 +42,6 @@ import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitGoogleProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps
 import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitResult
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
-import dev.hyo.martie.util.findActivity
 import dev.hyo.martie.BuildConfig
 
 enum class VerificationMethod(val displayName: String) {
@@ -64,13 +56,8 @@ fun PurchaseFlowScreen(
     navController: NavController,
     storeParam: OpenIapStore? = null
 ) {
-    val context = LocalContext.current
-    val activity = remember(context) { context.findActivity() }
     val uiScope = rememberCoroutineScope()
-    val appContext = remember(context) { context.applicationContext }
-    val iapStore = storeParam ?: remember(appContext) {
-        OpenIapStore(appContext)
-    }
+    val iapStore = currentOpenIapStore(storeParam)
     val products by iapStore.products.collectAsState()
     val purchases by iapStore.availablePurchases.collectAsState()
     val androidProducts = remember(products) { products.filterIsInstance<ProductAndroid>() }
@@ -130,7 +117,6 @@ fun PurchaseFlowScreen(
 
     fun launchPurchase(product: ProductAndroid) {
         uiScope.launch {
-            iapStore.setActivity(activity)
             try {
                 iapStore.requestPurchase(purchasePropsFor(product))
             } catch (e: Exception) {
@@ -143,15 +129,6 @@ fun PurchaseFlowScreen(
         }
     }
 
-    // Use a dedicated scope for cleanup that won't be cancelled with composition
-    val cleanupScope = remember { CoroutineScope(Dispatchers.Main + SupervisorJob()) }
-
-    DisposableEffect(cleanupScope) {
-        onDispose {
-            cleanupScope.cancel()
-        }
-    }
-
     // Initialize and connect on first composition (spec-aligned names)
     LaunchedEffect(Unit) {
         // Enable OpenIapLog for debugging
@@ -160,7 +137,6 @@ fun PurchaseFlowScreen(
         try {
             val connected = iapStore.initConnection()
             if (connected) {
-                iapStore.setActivity(activity)
                 val request = ProductRequest(
                     skus = IapConstants.INAPP_SKUS,
                     type = ProductQueryType.InApp
@@ -183,16 +159,6 @@ fun PurchaseFlowScreen(
         }
     }
 
-    DisposableEffect(Unit) {
-        onDispose {
-            // Use dedicated cleanup scope to avoid cancellation race
-            cleanupScope.launch {
-                runCatching { iapStore.endConnection() }
-                runCatching { iapStore.clear() }
-            }
-        }
-    }
-    
     Scaffold(
         topBar = {
             TopAppBar(
@@ -208,7 +174,6 @@ fun PurchaseFlowScreen(
                         onClick = {
                             scope.launch {
                                 try {
-                                    iapStore.setActivity(activity)
                                     val request = ProductRequest(
                                         skus = IapConstants.INAPP_SKUS,
                                         type = ProductQueryType.InApp

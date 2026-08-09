@@ -15,7 +15,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
-import android.app.Activity
 import android.content.Context
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -24,7 +23,6 @@ import dev.hyo.martie.models.AppColors
 import dev.hyo.martie.IapConstants
 import dev.hyo.martie.BuildConfig
 import dev.hyo.martie.screens.uis.*
-import dev.hyo.openiap.IapContext
 import dev.hyo.openiap.ProductAndroid
 import dev.hyo.openiap.ProductQueryType
 import dev.hyo.openiap.ProductType
@@ -46,13 +44,9 @@ import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitProps
 import dev.hyo.openiap.SubscriptionProductReplacementParamsAndroid
 import dev.hyo.openiap.SubscriptionReplacementModeAndroid
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
-import dev.hyo.martie.util.findActivity
 import dev.hyo.martie.util.PREMIUM_SUBSCRIPTION_PRODUCT_ID
 import dev.hyo.martie.util.SUBSCRIPTION_PREFS_NAME
 import dev.hyo.martie.util.resolvePremiumOfferInfo
@@ -94,15 +88,12 @@ fun SubscriptionFlowScreen(
     storeParam: OpenIapStore? = null
 ) {
     val context = LocalContext.current
-    val activity = remember(context) { context.findActivity() }
     val uiScope = rememberCoroutineScope()
     val appContext = remember(context) { context.applicationContext }
 
     // SharedPreferences to track current offer (necessary since Google doesn't provide offer info)
     val prefs = remember { context.getSharedPreferences(SUBSCRIPTION_PREFS_NAME, Context.MODE_PRIVATE) }
-    val iapStore = storeParam ?: remember(appContext) {
-        OpenIapStore(appContext)
-    }
+    val iapStore = currentOpenIapStore(storeParam)
     val products by iapStore.products.collectAsState()
     val subscriptions by iapStore.subscriptions.collectAsState()
     val purchases by iapStore.availablePurchases.collectAsState()
@@ -157,15 +148,6 @@ fun SubscriptionFlowScreen(
         runCatching { BuildConfig.IAPKIT_API_KEY.takeIf { it.isNotBlank() } }.getOrNull()
     }
 
-    // Use a dedicated scope for cleanup that won't be cancelled with composition
-    val cleanupScope = remember { CoroutineScope(Dispatchers.Main + SupervisorJob()) }
-
-    DisposableEffect(cleanupScope) {
-        onDispose {
-            cleanupScope.cancel()
-        }
-    }
-
     // Load subscription data on screen entry
     LaunchedEffect(Unit) {
         // Enable OpenIapLog for debugging
@@ -178,7 +160,6 @@ fun SubscriptionFlowScreen(
 
             val connected = iapStore.initConnection()
             if (connected) {
-                iapStore.setActivity(activity)
 
             // TEST: Use getActiveSubscriptions instead of getAvailablePurchases for example usage
             println("SubscriptionFlow: Testing getActiveSubscriptions...")
@@ -243,16 +224,6 @@ fun SubscriptionFlowScreen(
             )
         } finally {
             isInitializing = false
-        }
-    }
-
-    DisposableEffect(Unit) {
-        onDispose {
-            // Use dedicated cleanup scope to avoid cancellation race
-            cleanupScope.launch {
-                runCatching { iapStore.endConnection() }
-                runCatching { iapStore.clear() }
-            }
         }
     }
 
@@ -356,7 +327,6 @@ fun SubscriptionFlowScreen(
                         onClick = {
                             scope.launch {
                                 try {
-                                    iapStore.setActivity(activity)
                                     val request = ProductRequest(
                                         skus = subscriptionSkus,
                                         type = ProductQueryType.Subs
@@ -475,7 +445,7 @@ fun SubscriptionFlowScreen(
                                 horizontalArrangement = Arrangement.spacedBy(8.dp)
                             ) {
                                 Button(onClick = {
-                                    cleanupScope.launch {
+                                    uiScope.launch {
                                         runCatching {
                                             iapStore.deepLinkToSubscriptions(
                                                 dev.hyo.openiap.DeepLinkOptions(
@@ -851,8 +821,6 @@ fun SubscriptionFlowScreen(
                                                 onClick = {
                                                     scope.launch {
                                                         try {
-                                                            iapStore.setActivity(activity)
-
                                                             val purchaseToken = subscription.purchaseToken
                                                             if (purchaseToken == null) {
                                                                 iapStore.postStatusMessage(
@@ -1080,8 +1048,6 @@ fun SubscriptionFlowScreen(
                                                 onClick = {
                                                     scope.launch {
                                                         try {
-                                                            iapStore.setActivity(activity)
-
                                                             val purchaseToken = subscription.purchaseToken
                                                             if (purchaseToken == null) {
                                                                 iapStore.postStatusMessage(
@@ -1217,8 +1183,6 @@ fun SubscriptionFlowScreen(
                             }
 
                             scope.launch {
-                                iapStore.setActivity(activity)
-
                                 val props = if (product.type == ProductType.Subs) {
                                     // Determine if this is an upgrade or downgrade
                                     val purchaseToken = otherPremiumSubscription?.purchaseToken
@@ -1558,7 +1522,6 @@ fun SubscriptionFlowScreen(
             onDismiss = { selectedProduct = null },
             onPurchase = {
                 uiScope.launch {
-                    iapStore.setActivity(activity)
                     val props = if (product.type == ProductType.Subs) {
                         RequestPurchaseProps(
                             request = RequestPurchaseProps.Request.Subscription(

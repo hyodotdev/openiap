@@ -46,6 +46,7 @@ import dev.hyo.openiap.InAppMessageResultAndroid
 import dev.hyo.openiap.LaunchExternalLinkParamsAndroid
 import android.app.Activity
 import android.content.Context
+import dev.hyo.openiap.IapContext
 import dev.hyo.openiap.OpenIapError
 import dev.hyo.openiap.OpenIapLog
 // OpenIapModule is loaded via reflection to support both Play and Horizon flavors
@@ -53,6 +54,8 @@ import dev.hyo.openiap.OpenIapProtocol
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.utils.toProduct
+import dev.hyo.openiap.utils.findActivity
+import dev.hyo.openiap.utils.OwnerScopedValueBinding
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -77,13 +80,28 @@ internal object OpenIapStorePurchaseRequestResolver {
  * and exposes suspend APIs with observable StateFlows for UI layers to consume.
  */
 class OpenIapStore(private val module: OpenIapProtocol) {
+    private val manualActivityOwner = Any()
+    private val activityBindings = OwnerScopedValueBinding<Activity>(module::setActivity)
+
     init {
         OpenIapLog.info("Initialized with module: ${module.javaClass.simpleName}", "OpenIapStore")
     }
 
-    constructor(context: Context) : this(buildModule(context, null, null))
-    constructor(context: Context, store: String?) : this(buildModule(context, store, null))
-    constructor(context: Context, store: String?, appId: String?) : this(buildModule(context, store, appId))
+    constructor(context: Context) : this(buildModule(context.applicationContext, null, null)) {
+        setActivity(context.findActivity())
+    }
+
+    constructor(context: Context, store: String?) : this(
+        buildModule(context.applicationContext, store, null)
+    ) {
+        setActivity(context.findActivity())
+    }
+
+    constructor(context: Context, store: String?, appId: String?) : this(
+        buildModule(context.applicationContext, store, appId)
+    ) {
+        setActivity(context.findActivity())
+    }
 
     // Play-specific alternative billing constructors moved to play/store/OpenIapStoreExtensions.kt
 
@@ -188,7 +206,19 @@ class OpenIapStore(private val module: OpenIapProtocol) {
 
     // Expose a way to set the current Activity for purchase flows
     fun setActivity(activity: Activity?) {
-        module.setActivity(activity)
+        activityBindings.set(manualActivityOwner, activity)
+    }
+
+    /** Binds an Activity without allowing another lifecycle owner to clear it. */
+    internal fun bindActivity(owner: Any, activity: Activity) {
+        // A managed lifecycle supersedes the constructor/manual bootstrap value.
+        activityBindings.set(manualActivityOwner, null)
+        activityBindings.set(owner, activity)
+    }
+
+    /** Clears only the Activity registered by [owner]. */
+    internal fun unbindActivity(owner: Any) {
+        activityBindings.set(owner, null)
     }
 
     init {
@@ -202,6 +232,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
     fun clear() {
         module.removePurchaseUpdateListener(purchaseUpdateListener)
         module.removePurchaseErrorListener(purchaseErrorListener)
+        activityBindings.clear()
         processedPurchaseTokens.clear()
         pendingRequestProductId = null
         storeScope.cancel()
@@ -217,6 +248,8 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      * @param config Optional [InitConnectionConfig]. Use `enableBillingProgramAndroid` to
      *   opt in to External Payments / similar Play Billing programs. Pass `null` for default.
      * @return `true` once the Play Billing client is connected.
+     * @throws OpenIapError.MissingCurrentActivity when Horizon has no Activity supplied by
+     *   the constructor, [setActivity], or [IapContext.OpenIapProvider].
      * @throws OpenIapError.InitConnection when the billing client fails to initialize
      *   (e.g. Play Store missing, version too old).
      *

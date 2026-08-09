@@ -14,15 +14,12 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
 import dev.hyo.martie.models.AppColors
 import dev.hyo.martie.screens.uis.*
 import dev.hyo.martie.IapConstants
-import dev.hyo.martie.util.findActivity
-import dev.hyo.openiap.IapContext
 import dev.hyo.openiap.Product
 import dev.hyo.openiap.ProductAndroid
 import dev.hyo.openiap.ProductQueryType
@@ -39,10 +36,7 @@ fun AllProductsScreen(
     navController: NavController,
     storeParam: OpenIapStore? = null
 ) {
-    val context = LocalContext.current
-    val activity = remember(context) { context.findActivity() }
-    val appContext = remember(context) { context.applicationContext }
-    val iapStore = storeParam ?: remember(appContext) { OpenIapStore(appContext) }
+    val iapStore = currentOpenIapStore(storeParam)
     val products by iapStore.products.collectAsState()
     val subscriptions by iapStore.subscriptions.collectAsState()
     val status by iapStore.status.collectAsState()
@@ -55,31 +49,20 @@ fun AllProductsScreen(
 
     val scope = rememberCoroutineScope()
 
-    // Initialize and connect on first composition
-    val startupScope = rememberCoroutineScope()
-    DisposableEffect(Unit) {
-        startupScope.launch {
-            try {
-                val connected = iapStore.initConnection()
-                if (connected) {
-                    iapStore.setActivity(activity)
-                    // Fetch all products at once using ProductQueryType.All
-                    // This fetches both in-app and subscription products in a single call
-                    val request = ProductRequest(
-                        skus = IapConstants.INAPP_SKUS + IapConstants.SUBS_SKUS,
-                        type = ProductQueryType.All
-                    )
-                    iapStore.fetchProducts(request)
-                }
-            } catch (_: Exception) { }
-        }
-        onDispose {
-            // End connection when screen leaves
-            startupScope.launch {
-                runCatching { iapStore.endConnection() }
-                runCatching { iapStore.clear() }
+    // The Activity owns and closes the shared store.
+    LaunchedEffect(iapStore) {
+        try {
+            val connected = iapStore.initConnection()
+            if (connected) {
+                // Fetch all products at once using ProductQueryType.All
+                // This fetches both in-app and subscription products in a single call
+                val request = ProductRequest(
+                    skus = IapConstants.INAPP_SKUS + IapConstants.SUBS_SKUS,
+                    type = ProductQueryType.All
+                )
+                iapStore.fetchProducts(request)
             }
-        }
+        } catch (_: Exception) { }
     }
 
     Scaffold(
@@ -140,7 +123,6 @@ fun AllProductsScreen(
                                 try {
                                     val connected = iapStore.initConnection()
                                     if (connected) {
-                                        iapStore.setActivity(activity)
                                         // Fetch all products after reconnecting using ProductQueryType.All
                                         val request = ProductRequest(
                                             skus = IapConstants.INAPP_SKUS + IapConstants.SUBS_SKUS,

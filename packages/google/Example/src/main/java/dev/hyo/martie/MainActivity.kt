@@ -43,6 +43,7 @@ class MainActivity : ComponentActivity() {
                 iapStore.endConnection()
             }
         }
+        iapStore.clear()
         super.onDestroy()
     }
 }
