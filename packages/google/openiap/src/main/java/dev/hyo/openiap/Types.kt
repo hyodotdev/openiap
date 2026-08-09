@@ -1439,6 +1439,10 @@ public data class AdvancedCommerceInfoIOS(
      */
     val items: List<AdvancedCommerceItemIOS>,
     /**
+     * Subscription period for this transaction
+     */
+    val period: SubscriptionPeriodValueIOS? = null,
+    /**
      * Request reference identifier for tracking
      */
     val requestReferenceId: String? = null,
@@ -1463,6 +1467,7 @@ public data class AdvancedCommerceInfoIOS(
                 displayName = json["displayName"] as? String,
                 estimatedTax = json["estimatedTax"] as? String,
                 items = (json["items"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { AdvancedCommerceItemIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for AdvancedCommerceItemIOS") } ?: emptyList(),
+                period = (json["period"] as? Map<String, Any?>)?.let { SubscriptionPeriodValueIOS.fromJson(it) },
                 requestReferenceId = json["requestReferenceId"] as? String,
                 taxCode = json["taxCode"] as? String,
                 taxExclusivePrice = json["taxExclusivePrice"] as? String,
@@ -1477,6 +1482,7 @@ public data class AdvancedCommerceInfoIOS(
         "displayName" to displayName,
         "estimatedTax" to estimatedTax,
         "items" to items.map { it.toJson() },
+        "period" to period?.toJson(),
         "requestReferenceId" to requestReferenceId,
         "taxCode" to taxCode,
         "taxExclusivePrice" to taxExclusivePrice,
@@ -5574,11 +5580,15 @@ public interface MutationResolver {
     suspend fun openRedeemOfferCodeAndroid(): Boolean
     /**
      * Show the App Store offer code redemption sheet.
-     * On iOS 27+, Mac Catalyst 27+, and visionOS 27+, returns the verified
-     * transaction produced by the redemption. Earlier iOS and Mac Catalyst
-     * versions present the legacy sheet and return null; reconcile purchases
-     * through the normal transaction listener or an explicit available-purchases
-     * refresh.
+     * When built with Xcode 27+ and running on iOS 27+, Mac Catalyst 27+, or
+     * visionOS 27+, returns the verified transaction produced by the redemption.
+     * StoreKit 2's scene-based sheet returns null after presentation on iOS 16–26,
+     * visionOS 1–26, and those platforms on Apple 27 when built with an older SDK.
+     * iOS 15 uses the StoreKit 1 sheet and also returns null. On Mac Catalyst, the
+     * scene-based API throws StoreKitError.unknown, while the Catalyst 15 StoreKit 1
+     * call has no effect and returns null. Reconcile null results from a presented
+     * sheet through the normal transaction listener or an explicit
+     * available-purchases refresh.
      * See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
      */
     suspend fun presentCodeRedemptionSheetIOS(): PurchaseIOS?
@@ -5721,7 +5731,12 @@ public interface QueryResolver {
      */
     suspend fun getPendingTransactionsIOS(): List<PurchaseIOS>
     /**
-     * Read the App Store-promoted product, if any (iOS 11+).
+     * Read the App Store-promoted product, if any (iOS 15+).
+     * OpenIAP consumes PurchaseIntent.intents on iOS 16.4+ and uses the
+     * StoreKit 1 observer only on iOS 15–16.3. When PurchaseIntent carries an
+     * externally redeemed win-back offer, OpenIAP preserves it for the next
+     * matching requestPurchase unless the caller supplies an explicit win-back or
+     * promotional offer.
      * See: https://openiap.dev/docs/apis/ios/get-promoted-product-ios
      */
     suspend fun getPromotedProductIOS(): ProductIOS?
@@ -5789,7 +5804,10 @@ public interface SubscriptionResolver {
      */
     suspend fun developerProvidedBillingAndroid(): DeveloperProvidedBillingDetailsAndroid
     /**
-     * Fires when the App Store surfaces a promoted product (iOS only)
+     * Fires when the App Store surfaces a promoted product (iOS only).
+     * A win-back offer attached to PurchaseIntent is preserved for the next
+     * matching requestPurchase unless the caller supplies an explicit win-back or
+     * promotional offer.
      */
     suspend fun promotedProductIOS(): String
     /**
@@ -5951,11 +5969,15 @@ public data class MutationHandlers(
     val openRedeemOfferCodeAndroid: MutationOpenRedeemOfferCodeAndroidHandler? = null,
     /**
      * Show the App Store offer code redemption sheet.
-     * On iOS 27+, Mac Catalyst 27+, and visionOS 27+, returns the verified
-     * transaction produced by the redemption. Earlier iOS and Mac Catalyst
-     * versions present the legacy sheet and return null; reconcile purchases
-     * through the normal transaction listener or an explicit available-purchases
-     * refresh.
+     * When built with Xcode 27+ and running on iOS 27+, Mac Catalyst 27+, or
+     * visionOS 27+, returns the verified transaction produced by the redemption.
+     * StoreKit 2's scene-based sheet returns null after presentation on iOS 16–26,
+     * visionOS 1–26, and those platforms on Apple 27 when built with an older SDK.
+     * iOS 15 uses the StoreKit 1 sheet and also returns null. On Mac Catalyst, the
+     * scene-based API throws StoreKitError.unknown, while the Catalyst 15 StoreKit 1
+     * call has no effect and returns null. Reconcile null results from a presented
+     * sheet through the normal transaction listener or an explicit
+     * available-purchases refresh.
      * See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
      */
     val presentCodeRedemptionSheetIOS: MutationPresentCodeRedemptionSheetIOSHandler? = null,
@@ -6118,7 +6140,12 @@ public data class QueryHandlers(
      */
     val getPendingTransactionsIOS: QueryGetPendingTransactionsIOSHandler? = null,
     /**
-     * Read the App Store-promoted product, if any (iOS 11+).
+     * Read the App Store-promoted product, if any (iOS 15+).
+     * OpenIAP consumes PurchaseIntent.intents on iOS 16.4+ and uses the
+     * StoreKit 1 observer only on iOS 15–16.3. When PurchaseIntent carries an
+     * externally redeemed win-back offer, OpenIAP preserves it for the next
+     * matching requestPurchase unless the caller supplies an explicit win-back or
+     * promotional offer.
      * See: https://openiap.dev/docs/apis/ios/get-promoted-product-ios
      */
     val getPromotedProductIOS: QueryGetPromotedProductIOSHandler? = null,
@@ -6192,7 +6219,10 @@ public data class SubscriptionHandlers(
      */
     val developerProvidedBillingAndroid: SubscriptionDeveloperProvidedBillingAndroidHandler? = null,
     /**
-     * Fires when the App Store surfaces a promoted product (iOS only)
+     * Fires when the App Store surfaces a promoted product (iOS only).
+     * A win-back offer attached to PurchaseIntent is preserved for the next
+     * matching requestPurchase unless the caller supplies an explicit win-back or
+     * promotional offer.
      */
     val promotedProductIOS: SubscriptionPromotedProductIOSHandler? = null,
     /**

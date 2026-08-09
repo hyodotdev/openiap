@@ -14,7 +14,7 @@ struct TestingNotesCard: View {
             VStack(alignment: .leading, spacing: 12) {
                 TestingNote(
                     icon: "checkmark.circle",
-                    text: "Requires iOS 14.0+ for offer code redemption",
+                    text: "Requires iOS 15.0+ for offer code redemption",
                     color: AppColors.success
                 )
                 
@@ -47,4 +47,3 @@ struct TestingNotesCard: View {
         .padding(.horizontal)
     }
 }
-

@@ -90,7 +90,7 @@ export default function OfferCodeScreen() {
         } else {
           Alert.alert(
             'Redemption Sheet Presented',
-            'This iOS version uses the legacy sheet. Refresh available purchases after completing redemption.',
+            'The system sheet did not return a transaction directly. Refresh available purchases after completing redemption.',
           );
         }
       } else {

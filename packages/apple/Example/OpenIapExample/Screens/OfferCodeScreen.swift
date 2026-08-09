@@ -132,7 +132,7 @@ struct OfferCodeScreen: View {
             if let purchase {
                 print("✅ [OfferCode] Verified redemption: \(purchase.productId) (\(purchase.id))")
             } else {
-                print("✅ [OfferCode] Legacy redemption sheet presented; refresh purchases after completion")
+                print("✅ [OfferCode] System redemption sheet presented; refresh purchases after completion")
             }
         } catch {
             await MainActor.run {

@@ -210,7 +210,7 @@ void main() {
       },
     );
 
-    test('presentCodeRedemptionSheetIOS preserves legacy null', () async {
+    test('presentCodeRedemptionSheetIOS preserves a null result', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall methodCall) async {
         if (methodCall.method == 'presentCodeRedemptionSheetIOS') return null;

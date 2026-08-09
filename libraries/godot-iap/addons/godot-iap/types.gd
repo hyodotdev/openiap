@@ -439,6 +439,8 @@ class ActiveSubscription:
 class AdvancedCommerceInfoIOS:
 	## The items purchased as part of this transaction
 	var items: Array[AdvancedCommerceItemIOS] = []
+	## Subscription period for this transaction
+	var period: SubscriptionPeriodValueIOS
 	## Request reference identifier for tracking
 	var request_reference_id: Variant = null
 	## Tax code for the transaction
@@ -465,6 +467,11 @@ class AdvancedCommerceInfoIOS:
 					elif item is AdvancedCommerceItemIOS:
 						arr.append(item)
 				obj.items = arr
+		if data.has("period") and data["period"] != null:
+			if data["period"] is Dictionary:
+				obj.period = SubscriptionPeriodValueIOS.from_dict(data["period"])
+			else:
+				obj.period = data["period"]
 		if data.has("requestReferenceId") and data["requestReferenceId"] != null:
 			obj.request_reference_id = data["requestReferenceId"]
 		if data.has("taxCode") and data["taxCode"] != null:
@@ -493,6 +500,10 @@ class AdvancedCommerceInfoIOS:
 			dict["items"] = arr
 		else:
 			dict["items"] = null
+		if period != null and period.has_method("to_dict"):
+			dict["period"] = period.to_dict()
+		else:
+			dict["period"] = period
 		if request_reference_id != null:
 			dict["requestReferenceId"] = request_reference_id
 		if tax_code != null:
@@ -5348,7 +5359,7 @@ class Query:
 		const return_type = "String"
 		const is_array = false
 
-	## Read the App Store-promoted product, if any (iOS 11+). See: https://openiap.dev/docs/apis/ios/get-promoted-product-ios
+	## Read the App Store-promoted product, if any (iOS 15+). OpenIAP consumes PurchaseIntent.intents on iOS 16.4+ and uses the StoreKit 1 observer only on iOS 15–16.3. When PurchaseIntent carries an externally redeemed win-back offer, OpenIAP preserves it for the next matching requestPurchase unless the caller supplies an explicit win-back or promotional offer. See: https://openiap.dev/docs/apis/ios/get-promoted-product-ios
 	class getPromotedProductIOSField:
 		const name = "getPromotedProductIOS"
 		const snake_name = "get_promoted_product_ios"
@@ -5785,7 +5796,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Show the App Store offer code redemption sheet. On iOS 27+, Mac Catalyst 27+, and visionOS 27+, returns the verified transaction produced by the redemption. Earlier iOS and Mac Catalyst versions present the legacy sheet and return null; reconcile purchases through the normal transaction listener or an explicit available-purchases refresh. See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
+	## Show the App Store offer code redemption sheet. When built with Xcode 27+ and running on iOS 27+, Mac Catalyst 27+, or visionOS 27+, returns the verified transaction produced by the redemption. StoreKit 2's scene-based sheet returns null after presentation on iOS 16–26, visionOS 1–26, and those platforms on Apple 27 when built with an older SDK. iOS 15 uses the StoreKit 1 sheet and also returns null. On Mac Catalyst, the scene-based API throws StoreKitError.unknown, while the Catalyst 15 StoreKit 1 call has no effect and returns null. Reconcile null results from a presented sheet through the normal transaction listener or an explicit available-purchases refresh. See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
 	class presentCodeRedemptionSheetIOSField:
 		const name = "presentCodeRedemptionSheetIOS"
 		const snake_name = "present_code_redemption_sheet_ios"
@@ -6073,7 +6084,7 @@ static func has_active_subscriptions_args(subscription_ids: Variant = null) -> D
 static func get_storefront_args() -> Dictionary:
 	return {}
 
-## Read the App Store-promoted product, if any (iOS 11+). See: https://openiap.dev/docs/apis/ios/get-promoted-product-ios
+## Read the App Store-promoted product, if any (iOS 15+). OpenIAP consumes PurchaseIntent.intents on iOS 16.4+ and uses the StoreKit 1 observer only on iOS 15–16.3. When PurchaseIntent carries an externally redeemed win-back offer, OpenIAP preserves it for the next matching requestPurchase unless the caller supplies an explicit win-back or promotional offer. See: https://openiap.dev/docs/apis/ios/get-promoted-product-ios
 static func get_promoted_product_ios_args() -> Dictionary:
 	return {}
 
@@ -6246,7 +6257,7 @@ static func begin_refund_request_ios_args(sku: String) -> Dictionary:
 static func sync_ios_args() -> Dictionary:
 	return {}
 
-## Show the App Store offer code redemption sheet. On iOS 27+, Mac Catalyst 27+, and visionOS 27+, returns the verified transaction produced by the redemption. Earlier iOS and Mac Catalyst versions present the legacy sheet and return null; reconcile purchases through the normal transaction listener or an explicit available-purchases refresh. See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
+## Show the App Store offer code redemption sheet. When built with Xcode 27+ and running on iOS 27+, Mac Catalyst 27+, or visionOS 27+, returns the verified transaction produced by the redemption. StoreKit 2's scene-based sheet returns null after presentation on iOS 16–26, visionOS 1–26, and those platforms on Apple 27 when built with an older SDK. iOS 15 uses the StoreKit 1 sheet and also returns null. On Mac Catalyst, the scene-based API throws StoreKitError.unknown, while the Catalyst 15 StoreKit 1 call has no effect and returns null. Reconcile null results from a presented sheet through the normal transaction listener or an explicit available-purchases refresh. See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
 static func present_code_redemption_sheet_ios_args() -> Dictionary:
 	return {}
 

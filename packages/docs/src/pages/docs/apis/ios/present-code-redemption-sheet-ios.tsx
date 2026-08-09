@@ -28,13 +28,19 @@ function PresentCodeRedemptionSheetIOS() {
         .
       </p>
       <p>
-        On iOS 27, Mac Catalyst 27, and visionOS 27 or later, this calls{' '}
+        In Xcode 27+ builds on iOS 27, Mac Catalyst 27, and visionOS 27 or
+        later, this calls{' '}
         <code>AppStore.presentOfferCodeRedeemSheet(from:options:)</code> and
-        returns the verified transaction produced by redemption. On iOS 14–26
-        and Mac Catalyst 14–26, it presents the legacy{' '}
-        <code>SKPaymentQueue</code> sheet and returns <code>null</code>; use the
-        purchase listener or refresh available purchases after the sheet closes.
-        See the{' '}
+        returns the verified transaction produced by redemption. On iOS 16–26
+        and visionOS 1–26, it uses the StoreKit 2 scene-based sheet and returns{' '}
+        <code>null</code>; an older SDK uses that same path on those platforms
+        at Apple 27. iOS 15 uses the StoreKit 1 fallback and also returns{' '}
+        <code>null</code>. In Mac Catalyst apps, the scene-based API throws{' '}
+        <code>StoreKitError.unknown</code> (surfaced by OpenIAP as a purchase
+        error), while the Catalyst 15 StoreKit 1 call has no effect and returns{' '}
+        <code>null</code>. Reconcile null results only from an actually
+        presented sheet through the purchase listener or an available-purchases
+        refresh. See the{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/appstore/presentoffercoderedeemsheet(from:options:)"
           target="_blank"
@@ -74,9 +80,12 @@ function PresentCodeRedemptionSheetIOS() {
       </AnchorLink>
       <p>
         <code>PurchaseIOS | null</code> — the verified redeemed transaction on
-        Apple 27+ runtimes. A <code>null</code> result means the legacy sheet
-        was presented successfully but cannot return its transaction directly;
-        it does not mean the feature is unsupported or that redemption failed.
+        Apple 27+ runtimes from Xcode 27+ builds. A <code>null</code> result
+        normally means the iOS or visionOS system sheet was presented but that
+        API path cannot return its transaction directly. Mac Catalyst 15 is the
+        exception: StoreKit 1 has no effect there and OpenIAP returns{' '}
+        <code>null</code>. Mac Catalyst 16–26 rejects the scene API with an
+        error instead of returning <code>null</code>.
       </p>
 
       <h2>Example</h2>
@@ -87,7 +96,8 @@ function PresentCodeRedemptionSheetIOS() {
 if let purchase {
     print("Verified redemption:", purchase.productId)
 } else {
-    // iOS 14–26: reconcile through the listener or refresh purchases.
+    // iOS/visionOS: reconcile through the listener or refresh purchases.
+    // Mac Catalyst 15: StoreKit 1 has no effect, so no sheet was shown.
 }`}</CodeBlock>
           ),
           kotlin: (
@@ -100,8 +110,14 @@ if (purchase != null) println("Verified redemption: " + purchase.productId)`}</C
 import { presentCodeRedemptionSheetIOS } from 'expo-iap';
 
 if (Platform.OS === 'ios') {
-  const purchase = await presentCodeRedemptionSheetIOS();
-  if (purchase) console.log('Verified redemption:', purchase.productId);
+  try {
+    const purchase = await presentCodeRedemptionSheetIOS();
+    if (purchase) console.log('Verified redemption:', purchase.productId);
+    // Null requires reconciliation on iOS/visionOS; Catalyst 15 is a no-op.
+  } catch (error) {
+    // Catalyst 16–26 reports StoreKitError.unknown through PurchaseError.
+    console.warn('Offer-code sheet unavailable:', error);
+  }
 }`}</CodeBlock>
           ),
           dart: (

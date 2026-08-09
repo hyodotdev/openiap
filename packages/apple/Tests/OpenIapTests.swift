@@ -45,6 +45,42 @@ final class OpenIapTests: XCTestCase {
         }
     }
 
+    func testEntitlementSelectionUsesLatestDateThenTransactionIdIOS() {
+        let earlier = EntitlementSelectionKey(
+            purchaseDate: Date(timeIntervalSince1970: 1),
+            transactionId: 100
+        )
+        let later = EntitlementSelectionKey(
+            purchaseDate: Date(timeIntervalSince1970: 2),
+            transactionId: 1
+        )
+        let sameDateHigherId = EntitlementSelectionKey(
+            purchaseDate: later.purchaseDate,
+            transactionId: 2
+        )
+
+        XCTAssertLessThan(earlier, later)
+        XCTAssertLessThan(later, sameDateHigherId)
+    }
+
+    func testPromotedPurchaseIntentOfferIsProductScopedAndOneShotIOS() async {
+        let store = PromotedPurchaseIntentOfferStore<String>()
+        await store.record("win-back", for: "subscription")
+
+        let unrelated = await store.take(for: "other")
+        let matching = await store.take(for: "subscription")
+        let consumed = await store.take(for: "subscription")
+
+        XCTAssertNil(unrelated)
+        XCTAssertEqual(matching, "win-back")
+        XCTAssertNil(consumed)
+
+        await store.record("stale", for: "subscription")
+        await store.record(nil, for: "subscription")
+        let cleared = await store.take(for: "subscription")
+        XCTAssertNil(cleared)
+    }
+
     func testConnectedGenerationIsInvalidatedWhenEndingBegins() async throws {
         let lifecycle = OpenIapConnectionLifecycle()
         let initWork = try XCTUnwrap(lifecycle.makeInitTask { _ in true })
@@ -840,6 +876,38 @@ final class OpenIapTests: XCTestCase {
         XCTAssertTrue(jsonString.contains("advancedCommerceData"))
         XCTAssertTrue(jsonString.contains("promo_code_abc"))
     }
+
+    func testAdvancedCommerceInfoPeriodSerialization() throws {
+        let info = AdvancedCommerceInfoIOS(
+            items: [],
+            period: SubscriptionPeriodValueIOS(unit: .month, value: 1)
+        )
+
+        let data = try JSONEncoder().encode(info)
+        let decoded = try JSONDecoder().decode(AdvancedCommerceInfoIOS.self, from: data)
+
+        XCTAssertEqual(decoded.period?.unit, .month)
+        XCTAssertEqual(decoded.period?.value, 1)
+    }
+
+    #if compiler(>=6.1)
+    @available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, *)
+    func testStoreKitOfferTypeMappingsPreserveWinBack() {
+        XCTAssertEqual(
+            StoreKitTypesBridge.standardizedDiscountOfferTypeIOS(from: .introductory),
+            .introductory
+        )
+        XCTAssertEqual(
+            StoreKitTypesBridge.standardizedDiscountOfferTypeIOS(from: .promotional),
+            .promotional
+        )
+        XCTAssertNil(StoreKitTypesBridge.standardizedDiscountOfferTypeIOS(from: .winBack))
+        XCTAssertEqual(
+            StoreKitTypesBridge.purchaseOfferTypeStringIOS(from: .winBack),
+            SubscriptionOfferTypeIOS.winBack.rawValue
+        )
+    }
+    #endif
 
     // MARK: - Subscription-Only Props Tests
 

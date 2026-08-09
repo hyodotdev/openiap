@@ -74,7 +74,7 @@ class _OfferCodeScreenState extends State<OfferCodeScreen> {
       setState(() {
         _statusMessage = purchase != null
             ? 'Verified redemption: ${purchase.productId} (${purchase.id}).'
-            : 'Legacy redemption sheet presented. Refresh purchases after completing redemption.';
+            : 'The system sheet did not return a transaction directly. Refresh purchases after completing redemption.';
         _isSuccess = true;
       });
     } catch (e) {

@@ -226,6 +226,24 @@ internal fun subscriptionUpdateSourceCount(
 ): Int = listOf(purchaseToken, originalExternalTransactionId)
     .count { !it.isNullOrBlank() }
 
+internal fun availablePurchasesQueryParamsAndroid(
+    client: BillingClient,
+    productType: String,
+    includeSuspendedSubscriptions: Boolean,
+): QueryPurchasesParams {
+    val builder = QueryPurchasesParams.newBuilder().setProductType(productType)
+    if (
+        productType == BillingClient.ProductType.SUBS &&
+        includeSuspendedSubscriptions &&
+        client.isFeatureSupported(
+            BillingClient.FeatureType.INCLUDE_SUSPENDED_SUBSCRIPTIONS,
+        ).responseCode == BillingClient.BillingResponseCode.OK
+    ) {
+        builder.includeSuspendedSubscriptions(true)
+    }
+    return builder.build()
+}
+
 private fun Any.invokeOptionalStringGetter(methodName: String): String? =
     runCatching { javaClass.getMethod(methodName).invoke(this) as? String }
         .getOrNull()
@@ -1769,23 +1787,14 @@ internal class InAppPurchaseAndroid(
                     expectedGeneration = expectedGeneration,
                     captureOwner = captureOwner,
                 ) { client, complete ->
-                    val paramsBuilder = QueryPurchasesParams.newBuilder().setProductType(type)
-
                     // Include suspended subscriptions (Google Play Billing Library 8.1+)
                     // Suspended subscriptions have isSuspendedAndroid=true and should NOT be granted entitlements.
                     // Users should be directed to the subscription center to resolve payment issues.
-                    if (type == BillingClient.ProductType.SUBS && includeSuspendedSubs) {
-                        runCatching {
-                            // Use reflection to maintain backward compatibility with older billing library versions
-                            val setIncludeSuspendedMethod = paramsBuilder::class.java.getMethod(
-                                "setIncludeSuspended",
-                                Boolean::class.javaPrimitiveType
-                            )
-                            setIncludeSuspendedMethod.invoke(paramsBuilder, true)
-                        }
-                    }
-
-                    val params = paramsBuilder.build()
+                    val params = availablePurchasesQueryParamsAndroid(
+                        client,
+                        type,
+                        includeSuspendedSubs,
+                    )
                     client.queryPurchasesAsync(params) { result, purchases ->
                         if (result.responseCode == BillingClient.BillingResponseCode.OK) {
                             complete(Result.success(purchases.map { it.toPurchase() }))

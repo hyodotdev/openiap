@@ -370,7 +370,7 @@ function OnePager() {
           </li>
           <li>
             <strong>Store APIs Supported</strong>: Apple StoreKit 2, Google Play
-            Billing 9.1.0, Meta Horizon 1.1
+            Billing 9.1.0, Meta Horizon Billing Compatibility 2.0.0
           </li>
           <li>
             <strong>Sponsor</strong>: Meta (founding sponsor)

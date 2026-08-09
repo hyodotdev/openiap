@@ -161,7 +161,7 @@ export const apiData: ApiItem[] = [
     id: 'get-promoted-product-ios',
     title: 'getPromotedProductIOS',
     category: 'iOS Specific',
-    description: 'Get the currently promoted product (iOS 11+)',
+    description: 'Get the currently promoted product (iOS 15+)',
     parameters: '',
     returns: 'ProductIOS',
     path: '/docs/apis/ios/get-promoted-product-ios',
@@ -261,9 +261,9 @@ export const apiData: ApiItem[] = [
     title: 'presentCodeRedemptionSheetIOS',
     category: 'iOS Specific',
     description:
-      'Present the App Store code redemption sheet and return its verified transaction on Apple 27+',
+      'Present the App Store code redemption sheet; Xcode 27+ builds return a verified transaction on Apple 27+, while other supported paths return null',
     parameters: '',
-    returns: 'PurchaseIOS',
+    returns: 'PurchaseIOS | null',
     path: '/docs/apis/ios/present-code-redemption-sheet-ios',
   },
   {

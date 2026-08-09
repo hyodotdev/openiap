@@ -249,3 +249,18 @@ actor IapState {
         listenerRegistry.hasSubscriptionBillingIssueListeners()
     }
 }
+
+/// Keeps the StoreKit offer attached to a promoted purchase intent until the
+/// app starts the matching purchase. The generic form makes the one-shot,
+/// product-scoped behavior testable without constructing StoreKit offers.
+actor PromotedPurchaseIntentOfferStore<Offer: Sendable> {
+    private var offersByProductId: [String: Offer] = [:]
+
+    func record(_ offer: Offer?, for productId: String) {
+        offersByProductId[productId] = offer
+    }
+
+    func take(for productId: String) -> Offer? {
+        offersByProductId.removeValue(forKey: productId)
+    }
+}

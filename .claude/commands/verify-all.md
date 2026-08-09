@@ -65,7 +65,7 @@ set -euo pipefail
     COMPILER_INDEX_STORE_ENABLE=NO)
 
 # Expo bridge tests and clean native prebuilds/consumer builds
-(cd libraries/expo-iap && bun run lint:tsc && bun run test)
+(cd libraries/expo-iap && bun run build:plugin && bun run lint:tsc && bun run test)
 (cd libraries/expo-iap/example && bun run test -- --runInBand)
 (cd libraries/expo-iap/example && \
   npx expo prebuild --platform android --clean)
@@ -92,7 +92,13 @@ set -euo pipefail
   ([ -f env ] || cp env.example env) && \
   flutter build apk --debug)
 (cd libraries/flutter_inapp_purchase/example/ios && \
-  pod install --repo-update && \
+  pod install --repo-update)
+# CocoaPods regenerates FlutterGeneratedPluginSwiftPackage at Flutter's iOS 13
+# default. Run Flutter's configuration step afterward so it raises that
+# aggregate package to the app/plugin iOS 15 deployment target.
+(cd libraries/flutter_inapp_purchase/example && \
+  flutter build ios --config-only --simulator)
+(cd libraries/flutter_inapp_purchase/example/ios && \
   xcodebuild build \
     -workspace Runner.xcworkspace \
     -scheme Runner \

@@ -131,7 +131,7 @@ describe('OfferCode Component', () => {
     });
   });
 
-  it('should explain the legacy iOS redemption result', async () => {
+  it('should explain a nil iOS redemption result', async () => {
     Object.defineProperty(Platform, 'OS', {
       get: jest.fn(() => 'ios'),
       configurable: true,
@@ -146,7 +146,7 @@ describe('OfferCode Component', () => {
     await waitFor(() => {
       expect(Alert.alert).toHaveBeenCalledWith(
         'Redemption Sheet Presented',
-        'This iOS version uses the legacy sheet. Refresh available purchases after completing redemption.',
+        'The system sheet did not return a transaction directly. Refresh available purchases after completing redemption.',
       );
     });
   });

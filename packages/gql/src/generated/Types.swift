@@ -557,6 +557,8 @@ public struct AdvancedCommerceInfoIOS: Codable {
     public var estimatedTax: String? = nil
     /// The items purchased as part of this transaction
     public var items: [AdvancedCommerceItemIOS]
+    /// Subscription period for this transaction
+    public var period: SubscriptionPeriodValueIOS? = nil
     /// Request reference identifier for tracking
     public var requestReferenceId: String? = nil
     /// Tax code for the transaction
@@ -2623,11 +2625,15 @@ public protocol MutationResolver {
     /// See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
     func openRedeemOfferCodeAndroid() async throws -> Bool
     /// Show the App Store offer code redemption sheet.
-    /// On iOS 27+, Mac Catalyst 27+, and visionOS 27+, returns the verified
-    /// transaction produced by the redemption. Earlier iOS and Mac Catalyst
-    /// versions present the legacy sheet and return null; reconcile purchases
-    /// through the normal transaction listener or an explicit available-purchases
-    /// refresh.
+    /// When built with Xcode 27+ and running on iOS 27+, Mac Catalyst 27+, or
+    /// visionOS 27+, returns the verified transaction produced by the redemption.
+    /// StoreKit 2's scene-based sheet returns null after presentation on iOS 16–26,
+    /// visionOS 1–26, and those platforms on Apple 27 when built with an older SDK.
+    /// iOS 15 uses the StoreKit 1 sheet and also returns null. On Mac Catalyst, the
+    /// scene-based API throws StoreKitError.unknown, while the Catalyst 15 StoreKit 1
+    /// call has no effect and returns null. Reconcile null results from a presented
+    /// sheet through the normal transaction listener or an explicit
+    /// available-purchases refresh.
     /// See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
     func presentCodeRedemptionSheetIOS() async throws -> PurchaseIOS?
     /// Present an external purchase link, StoreKit External (iOS 16+).
@@ -2724,7 +2730,12 @@ public protocol QueryResolver {
     /// List unfinished StoreKit transactions in the queue.
     /// See: https://openiap.dev/docs/apis/ios/get-pending-transactions-ios
     func getPendingTransactionsIOS() async throws -> [PurchaseIOS]
-    /// Read the App Store-promoted product, if any (iOS 11+).
+    /// Read the App Store-promoted product, if any (iOS 15+).
+    /// OpenIAP consumes PurchaseIntent.intents on iOS 16.4+ and uses the
+    /// StoreKit 1 observer only on iOS 15–16.3. When PurchaseIntent carries an
+    /// externally redeemed win-back offer, OpenIAP preserves it for the next
+    /// matching requestPurchase unless the caller supplies an explicit win-back or
+    /// promotional offer.
     /// See: https://openiap.dev/docs/apis/ios/get-promoted-product-ios
     func getPromotedProductIOS() async throws -> ProductIOS?
     /// Get base64-encoded receipt data (legacy validation).
@@ -2768,7 +2779,10 @@ public protocol SubscriptionResolver {
     /// Billing Choice payload fields are available in OpenIAP Spec 2.1.0 /
     /// openiap-google 2.3.0 (requires Play Billing 9.1.0+).
     func developerProvidedBillingAndroid() async throws -> DeveloperProvidedBillingDetailsAndroid
-    /// Fires when the App Store surfaces a promoted product (iOS only)
+    /// Fires when the App Store surfaces a promoted product (iOS only).
+    /// A win-back offer attached to PurchaseIntent is preserved for the next
+    /// matching requestPurchase unless the caller supplies an explicit win-back or
+    /// promotional offer.
     func promotedProductIOS() async throws -> String
     /// Fires when a purchase fails or is cancelled
     func purchaseError() async throws -> PurchaseError

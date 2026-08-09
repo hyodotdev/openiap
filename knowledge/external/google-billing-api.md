@@ -361,11 +361,16 @@ if (purchase.isSuspended) {
 ### Query Suspended Subscriptions (8.1+)
 
 ```kotlin
-// Include suspended subscriptions in query results
-val params = QueryPurchasesParams.newBuilder()
+// Include suspended subscriptions when the connected Play Store supports it.
+val paramsBuilder = QueryPurchasesParams.newBuilder()
     .setProductType(BillingClient.ProductType.SUBS)
-    .setIncludeSuspended(true)  // New in 8.1
-    .build()
+if (billingClient.isFeatureSupported(
+        BillingClient.FeatureType.INCLUDE_SUSPENDED_SUBSCRIPTIONS
+    ).responseCode == BillingClient.BillingResponseCode.OK
+) {
+    paramsBuilder.includeSuspendedSubscriptions(true) // New in 8.1
+}
+val params = paramsBuilder.build()
 
 billingClient.queryPurchasesAsync(params) { billingResult, purchases ->
     purchases.forEach { purchase ->

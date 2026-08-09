@@ -190,6 +190,29 @@ class HorizonPurchaseSafetyTest {
     }
 
     @Test
+    fun `Horizon purchase requires exactly one sku`() {
+        assertTrue(horizonPurchaseSkuCountError(emptyList()) is OpenIapError.EmptySkuList)
+        assertNull(horizonPurchaseSkuCountError(listOf("coins")))
+
+        val multipleSkuError = horizonPurchaseSkuCountError(listOf("coins", "gems"))
+        assertTrue(multipleSkuError is OpenIapError.DeveloperError)
+        assertEquals(
+            "Meta Horizon Billing purchases one SKU at a time",
+            multipleSkuError?.debugMessage,
+        )
+    }
+
+    @Test
+    fun `Horizon initConnection requires a current Activity`() = runTest {
+        val context = ApplicationProvider.getApplicationContext<android.content.Context>()
+        val module = OpenIapModule(context)
+
+        val thrown = runCatching { module.initConnection(null) }.exceptionOrNull()
+
+        assertTrue(thrown is OpenIapError.MissingCurrentActivity)
+    }
+
+    @Test
     fun `subscription management deep link fails fast when unsupported`() = runTest {
         val context = ApplicationProvider.getApplicationContext<android.content.Context>()
         val module = OpenIapModule(context)

@@ -4,34 +4,34 @@ This document provides external API reference for Apple's StoreKit 2 framework.
 
 ## Recent StoreKit Features
 
-| Feature                                                        | iOS Version                        | Description                                                                                         |
-| -------------------------------------------------------------- | ---------------------------------- | --------------------------------------------------------------------------------------------------- |
-| Win-back offers                                                | iOS 18.0                           | Re-engage churned subscribers                                                                       |
-| `Product.SubscriptionInfo.RenewalInfo.eligibleWinBackOfferIDs` | iOS 18.0                           | Query win-back offer eligibility before purchase                                                    |
-| Consumable transaction history                                 | iOS 18.0                           | Opt-in via `SKIncludeConsumableInAppPurchaseHistory` Info.plist key                                 |
-| StoreKit `Message.billingIssue`                                | iOS / Mac Catalyst 16.4, visionOS 1.0 | Listener for subscription billing issues (`Message` is unavailable on macOS, tvOS, and watchOS)   |
-| UI context for purchases                                       | iOS 18.2                           | Required for proper payment sheet display                                                           |
-| External purchase notice                                       | iOS 17.4                           | `ExternalPurchase.presentNoticeSheet()`                                                             |
-| `appTransactionID`                                             | iOS 18.4                           | Globally unique app transaction identifier (back-deployed to iOS 15)                                |
-| `originalPlatform`                                             | iOS 18.4                           | Original purchase platform (back-deployed to iOS 15)                                                |
-| `Transaction.offerPeriod`                                      | iOS 18.4                           | Offer period information on Transaction                                                             |
-| `Transaction.advancedCommerceInfo`                             | iOS 18.4                           | Advanced Commerce API data on Transaction                                                           |
-| `Transaction.appTransactionID`                                 | iOS 18.4                           | Per-Apple-Account identifier on Transaction                                                         |
-| Expanded offer codes                                           | iOS 18.4                           | Offer codes for consumables/non-consumables                                                         |
-| JWS promotional offers                                         | WWDC 2025                          | New `promotionalOffer` purchase option with JWS format                                              |
-| `introductoryOfferEligibility`                                 | WWDC 2025                          | Set eligibility via purchase option                                                                 |
-| `SubscriptionStatus` by Transaction ID                         | WWDC 2025                          | `status(for: transactionID:)`                                                                       |
-| Monthly subscriptions with a 12-month commitment               | iOS 26.4+ runtime / Xcode 26.5 SDK | Monthly billing option for annual auto-renewable subscriptions                                      |
-| Subscription Bundles and Suites                               | Apple 27 / Xcode 27 beta SDK       | Read-only product, bundled-subscription, transaction, and renewal metadata                           |
-| Bundle ownership and revocation metadata                      | Xcode 27 beta SDK                   | Back-deployed assigned ownership, bundle-upgrade reason, assignment revocation, and unbundling data  |
-| `AppTransaction.storeType`, `revocationDate`                  | Xcode 27 beta SDK                   | App-acquisition channel and back-deployed revocation timestamp                                       |
-| `AppTransaction.all`                                          | Apple 27 / Xcode 27 beta SDK       | Async sequence of app-acquisition records; not exported as an OpenIAP 3 operation                    |
-| `AppStore.Platform.managed`                                   | Xcode 27 beta SDK                   | Back-deployed managed-distribution acquisition platform                                              |
-| Advanced Commerce item partners                               | Apple 27 / Xcode 27 beta SDK       | Partner identifiers and names in each item-details JSON payload                                      |
-| Group purchases and volume purchasing                          | Announced at WWDC 2026             | Group Purchases are planned for later in 2026; Xcode 27 beta 4 has no public StoreKit group API      |
-| Retention Messaging                                            | WWDC 2026                          | Cancellation-flow messaging and offers, including real-time server decisioning                      |
-| Retention offer type                                           | WWDC 2026                          | Signed transaction / renewal info can report offer type `5` for retention offers                    |
-| Offer codes for all IAP types                                  | 2026                               | Offer codes expand beyond auto-renewable subscriptions; IAP promo-code creation ends March 26, 2026 |
+| Feature                                                        | iOS Version                           | Description                                                                                         |
+| -------------------------------------------------------------- | ------------------------------------- | --------------------------------------------------------------------------------------------------- |
+| Win-back offers                                                | iOS 18.0                              | Re-engage churned subscribers                                                                       |
+| `Product.SubscriptionInfo.RenewalInfo.eligibleWinBackOfferIDs` | iOS 18.0                              | Query win-back offer eligibility before purchase                                                    |
+| Consumable transaction history                                 | iOS 18.0                              | Opt-in via `SKIncludeConsumableInAppPurchaseHistory` Info.plist key                                 |
+| StoreKit `Message.billingIssue`                                | iOS / Mac Catalyst 16.4, visionOS 1.0 | Listener for subscription billing issues (`Message` is unavailable on macOS, tvOS, and watchOS)     |
+| UI context for purchases                                       | iOS 18.2                              | Required for proper payment sheet display                                                           |
+| External purchase notice                                       | iOS 17.4                              | `ExternalPurchase.presentNoticeSheet()`                                                             |
+| `appTransactionID`                                             | iOS 18.4                              | Globally unique app transaction identifier (back-deployed to iOS 15)                                |
+| `originalPlatform`                                             | iOS 18.4                              | Original purchase platform (back-deployed to iOS 15)                                                |
+| `Transaction.offerPeriod`                                      | iOS 18.4                              | Offer period information on Transaction                                                             |
+| `Transaction.advancedCommerceInfo`                             | iOS 18.4                              | Advanced Commerce API data on Transaction                                                           |
+| `Transaction.appTransactionID`                                 | iOS 18.4                              | Per-Apple-Account identifier on Transaction                                                         |
+| Expanded offer codes                                           | iOS 18.4                              | Offer codes for consumables/non-consumables                                                         |
+| JWS promotional offers                                         | WWDC 2025                             | New `promotionalOffer` purchase option with JWS format                                              |
+| `introductoryOfferEligibility`                                 | WWDC 2025                             | Set eligibility via purchase option                                                                 |
+| `SubscriptionStatus` by Transaction ID                         | WWDC 2025                             | `status(for: transactionID:)`                                                                       |
+| Monthly subscriptions with a 12-month commitment               | iOS 26.4+ runtime / Xcode 26.5 SDK    | Monthly billing option for annual auto-renewable subscriptions                                      |
+| Subscription Bundles and Suites                                | Apple 27 / Xcode 27 beta SDK          | Read-only product, bundled-subscription, transaction, and renewal metadata                          |
+| Bundle ownership and revocation metadata                       | Xcode 27 beta SDK                     | Back-deployed assigned ownership, bundle-upgrade reason, assignment revocation, and unbundling data |
+| `AppTransaction.storeType`, `revocationDate`                   | Xcode 27 beta SDK                     | App-acquisition channel and back-deployed revocation timestamp                                      |
+| `AppTransaction.all`                                           | Apple 27 / Xcode 27 beta SDK          | Async sequence of app-acquisition records; not exported as an OpenIAP 3 operation                   |
+| `AppStore.Platform.managed`                                    | Xcode 27 beta SDK                     | Back-deployed managed-distribution acquisition platform                                             |
+| Advanced Commerce item partners                                | Apple 27 / Xcode 27 beta SDK          | Partner identifiers and names in each item-details JSON payload                                     |
+| Group purchases and volume purchasing                          | Announced at WWDC 2026                | Group Purchases are planned for later in 2026; Xcode 27 beta 4 has no public StoreKit group API     |
+| Retention Messaging                                            | WWDC 2026                             | Cancellation-flow messaging and offers, including real-time server decisioning                      |
+| Retention offer type                                           | WWDC 2026                             | Signed transaction / renewal info can report offer type `5` for retention offers                    |
+| Offer codes for all IAP types                                  | 2026                                  | Offer codes expand beyond auto-renewable subscriptions; IAP promo-code creation ends March 26, 2026 |
 
 ### StoreKit Message presentation
 
@@ -77,16 +77,21 @@ let result = try await AppStore.presentOfferCodeRedeemSheet(
 
 SwiftUI exposes the same result through
 `offerCodeRedemption(options:isPresented:onCompletion:)`. These APIs require the
-Xcode 27 beta SDK and are currently beta. Xcode 26.x SDKs expose only the
-legacy redemption sheet API.
+Xcode 27 beta SDK and are currently beta. Xcode 26.x SDKs expose the StoreKit 2
+scene-based `AppStore.presentOfferCodeRedeemSheet(in:)` API, which presents the
+sheet but does not return the redeemed transaction.
 
 OpenIAP 3 changes `presentCodeRedemptionSheetIOS` to return `PurchaseIOS?`.
 Xcode 27 builds call the new API, require a verified result, and return the
-mapped transaction. Xcode 26 builds retain the legacy sheet; iOS and Mac
-Catalyst 14–26 therefore return `nil` after presentation and rely on the
+mapped transaction on Apple 27+ runtimes. Older result paths use the StoreKit 2
+scene API on iOS 16+ and visionOS 1+ and return `nil` after presentation; iOS 15
+retains the StoreKit 1 fallback. In Mac Catalyst apps, the scene API throws
+`StoreKitError.unknown`, while the Catalyst 15 StoreKit 1 call has no effect and
+returns `nil`. Nil results from an actually presented sheet rely on the
 transaction listener or explicit purchase reconciliation. Xcode 27 beta 4
-declares `RedeemOption`, but its public symbol graph exposes no constructible
-option values, so OpenIAP currently passes an empty set.
+declares `RedeemOption`,
+but its public symbol graph exposes no constructible option values, so OpenIAP
+currently passes an empty set.
 
 ### Subscription Bundles and Suites (Xcode 27 beta)
 
@@ -369,17 +374,28 @@ let result = try await product.purchase(confirmIn: window)
 
 > **OpenIAP Note**: UI context is handled automatically in OpenIAP using the active window scene.
 
-## AppTransaction Updates (iOS 18.4+)
+## AppTransaction Identity Updates (Xcode 16.4+; back-deployed)
 
 ```swift
 let appTransaction = try await AppTransaction.shared
 
-// New in iOS 18.4 (back-deployed to iOS 15)
+// Introduced in iOS 18.4 (back-deployed to the AppTransaction baseline)
 let appTransactionID = appTransaction.appTransactionID  // Globally unique per Apple Account
-let originalPlatform = appTransaction.originalPlatform   // Original purchase platform
+let originalPlatform = appTransaction.originalPlatform   // Typed value on iOS 18.4+
+```
+
+OpenIAP uses `originalPlatformStringRepresentation` on older runtimes. The typed
+`originalPlatform` property starts at iOS 18.4, macOS 15.4, tvOS 18.4, watchOS
+11.4, and visionOS 2.4.
+
+## AppTransaction Acquisition Updates (Xcode 27 SDK)
+
+```swift
+let appTransaction = try await AppTransaction.shared
 
 // Public in the Xcode 27 SDK and back-deployed to these existing runtimes
 let revocationDate = appTransaction.revocationDate        // App-acquisition revocation
+// Runtime-gated to Apple 27+
 let storeType = appTransaction.storeType                  // Acquisition store channel
 ```
 
@@ -424,6 +440,10 @@ if let advancedInfo = product.advancedCommerceInfo {
     // Handle large catalog monetization
 }
 ```
+
+For Advanced Commerce transactions, OpenIAP maps
+`AdvancedCommerceInfoIOS.period` as an optional `SubscriptionPeriodValueIOS`
+containing the subscription period `unit` and integer `value`.
 
 ## Monthly Subscriptions With 12-Month Commitment (iOS 26.4+)
 

@@ -813,7 +813,7 @@ interface PurchaseError {
 
 ### iOS
 - syncIOS() - Sync with App Store
-- presentCodeRedemptionSheetIOS() - Show offer code UI and return a verified PurchaseIOS on Apple 27+ (null after the legacy sheet)
+- presentCodeRedemptionSheetIOS() - Show offer code UI; Xcode 27+ builds return a verified PurchaseIOS on Apple 27+, while other supported system-sheet paths return null
 - showManageSubscriptionsIOS() - Open subscription management
 - beginRefundRequestIOS() - Start refund flow
 

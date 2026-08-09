@@ -129,6 +129,13 @@ enum RnIapHelper {
         return .second(value)
     }
 
+    static func wrapSubscriptionPeriodValueIOS(
+        _ value: SubscriptionPeriodValueIOS?
+    ) -> Variant_NullType_SubscriptionPeriodValueIOS? {
+        guard let value = value else { return nil }
+        return .second(value)
+    }
+
     static func wrapTransactionCommitmentInfo(
         _ value: TransactionCommitmentInfoIOS?
     ) -> Variant_NullType_TransactionCommitmentInfoIOS? {
@@ -185,11 +192,26 @@ enum RnIapHelper {
             displayName: wrapString(dictionary["displayName"] as? String),
             estimatedTax: wrapString(dictionary["estimatedTax"] as? String),
             items: items,
+            period: wrapSubscriptionPeriodValueIOS(
+                convertSubscriptionPeriodValueIOS(dictionary["period"])
+            ),
             requestReferenceId: wrapString(dictionary["requestReferenceId"] as? String),
             taxCode: wrapString(dictionary["taxCode"] as? String),
             taxExclusivePrice: wrapString(dictionary["taxExclusivePrice"] as? String),
             taxRate: wrapString(dictionary["taxRate"] as? String)
         )
+    }
+
+    static func convertSubscriptionPeriodValueIOS(_ value: Any?) -> SubscriptionPeriodValueIOS? {
+        guard let dictionary = value as? [String: Any],
+              let unitValue = dictionary["unit"] as? String,
+              let unit = SubscriptionPeriodIOS(fromString: unitValue),
+              let periodValue = doubleValue(dictionary["value"]),
+              periodValue.isFinite,
+              Int32(exactly: periodValue) != nil else {
+            return nil
+        }
+        return SubscriptionPeriodValueIOS(unit: unit, value: periodValue)
     }
 
     static func convertAdvancedCommerceItem(_ dictionary: [String: Any]) -> AdvancedCommerceItemIOS {

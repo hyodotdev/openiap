@@ -51,6 +51,7 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.concurrent.thread
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -249,6 +250,37 @@ class QueryPurchasesRaceTest {
     }
 
     @Test
+    fun `queryPurchases includes suspended subscriptions when requested`() = runTest {
+        val client = DuplicateBillingClient()
+
+        queryPurchases(
+            client,
+            operations(client),
+            BillingClient.ProductType.SUBS,
+            includeSuspended = true,
+        )
+
+        assertTrue(client.lastQueryPurchasesParams!!.getIncludeSuspendedSubscriptions())
+    }
+
+    @Test
+    fun `queryPurchases falls back when suspended subscriptions are unsupported`() = runTest {
+        val client = DuplicateBillingClient(
+            suspendedSubscriptionsFeatureResponseCode =
+                BillingClient.BillingResponseCode.FEATURE_NOT_SUPPORTED,
+        )
+
+        queryPurchases(
+            client,
+            operations(client),
+            BillingClient.ProductType.SUBS,
+            includeSuspended = true,
+        )
+
+        assertFalse(client.lastQueryPurchasesParams!!.getIncludeSuspendedSubscriptions())
+    }
+
+    @Test
     fun `restorePurchases rejects partial success`() = runTest {
         val client = DuplicateBillingClient(
             purchaseResponseCodes = listOf(
@@ -317,9 +349,13 @@ class QueryPurchasesRaceTest {
         private val purchases: List<Purchase> = emptyList(),
         private val throwsOnQueryPurchases: Boolean = false,
         purchaseResponseCodes: List<Int> = emptyList(),
+        private val suspendedSubscriptionsFeatureResponseCode: Int =
+            BillingClient.BillingResponseCode.OK,
     ) : BillingClient() {
         val callbackFailures = Collections.synchronizedList(mutableListOf<Throwable>())
         val productDetailsQueryCount = AtomicInteger(0)
+        var lastQueryPurchasesParams: QueryPurchasesParams? = null
+            private set
         private val purchaseResponseCodes =
             java.util.concurrent.ConcurrentLinkedQueue(purchaseResponseCodes)
 
@@ -327,6 +363,7 @@ class QueryPurchasesRaceTest {
             params: QueryPurchasesParams,
             listener: PurchasesResponseListener
         ) {
+            lastQueryPurchasesParams = params
             if (throwsOnQueryPurchases) {
                 throw IllegalStateException("query failed")
             }
@@ -418,7 +455,13 @@ class QueryPurchasesRaceTest {
         override fun getConnectionState(): Int = ConnectionState.CONNECTED
 
         override fun isFeatureSupported(feature: String): BillingResult =
-            unsupported()
+            if (feature == FeatureType.INCLUDE_SUSPENDED_SUBSCRIPTIONS) {
+                BillingResult.newBuilder()
+                    .setResponseCode(suspendedSubscriptionsFeatureResponseCode)
+                    .build()
+            } else {
+                unsupported()
+            }
 
         override fun launchBillingFlow(
             activity: Activity,

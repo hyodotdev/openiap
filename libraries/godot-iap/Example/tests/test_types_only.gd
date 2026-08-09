@@ -739,6 +739,10 @@ func _test_purchase_ios_json_round_trip() -> void:
 	offer.payment_mode = "payAsYouGo"
 	purchase.offer_ios = offer
 	var advanced_info = Types.AdvancedCommerceInfoIOS.new()
+	var advanced_period = Types.SubscriptionPeriodValueIOS.new()
+	advanced_period.unit = Types.SubscriptionPeriodIOS.MONTH
+	advanced_period.value = 1
+	advanced_info.period = advanced_period
 	advanced_info.request_reference_id = "request-reference"
 	advanced_info.display_name = "Premium bundle"
 	var advanced_item = Types.AdvancedCommerceItemIOS.new()
@@ -762,6 +766,16 @@ func _test_purchase_ios_json_round_trip() -> void:
 		parsed.advanced_commerce_info_ios.request_reference_id,
 		"request-reference",
 		"advancedCommerceInfoIOS should survive the wire round trip"
+	)
+	_assert_equal(
+		parsed.advanced_commerce_info_ios.period.unit,
+		Types.SubscriptionPeriodIOS.MONTH,
+		"advancedCommerceInfoIOS period unit should survive the wire round trip"
+	)
+	_assert_equal(
+		parsed.advanced_commerce_info_ios.period.value,
+		1,
+		"advancedCommerceInfoIOS period value should survive the wire round trip"
 	)
 	_assert_equal(
 		parsed.advanced_commerce_info_ios.items[0].details.json_representation,

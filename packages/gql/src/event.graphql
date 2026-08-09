@@ -13,7 +13,10 @@ extend type Subscription {
   """
   purchaseError: PurchaseError!
   """
-  Fires when the App Store surfaces a promoted product (iOS only)
+  Fires when the App Store surfaces a promoted product (iOS only).
+  A win-back offer attached to PurchaseIntent is preserved for the next
+  matching requestPurchase unless the caller supplies an explicit win-back or
+  promotional offer.
   """
   promotedProductIOS: String!
   """

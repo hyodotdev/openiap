@@ -26,13 +26,15 @@ function OfferCodeRedemption() {
         <strong>Current API boundary:</strong>{' '}
         <code>presentCodeRedemptionSheetIOS</code> returns the verified{' '}
         <code>PurchaseIOS</code> produced by Apple&apos;s new StoreKit API on
-        iOS 27, Mac Catalyst 27, and visionOS 27 or later. On iOS and Mac
-        Catalyst 14–26 it presents the legacy system sheet and returns{' '}
+        iOS 27, Mac Catalyst 27, and visionOS 27 or later. Earlier iOS and
+        visionOS runtimes present Apple&apos;s system sheet and return{' '}
         <code>null</code>, so observe the redeemed purchase through{' '}
         <Link to="/docs/events/purchase-updated-listener">
           <code>purchaseUpdatedListener</code>
         </Link>{' '}
-        or an explicit available-purchases refresh.
+        or an explicit available-purchases refresh. Mac Catalyst 16–26 instead
+        throws <code>StoreKitError.unknown</code>, and the Catalyst 15 StoreKit
+        1 call has no effect.
       </p>
 
       <section>
@@ -91,10 +93,15 @@ function OfferCodeRedemption() {
                 <p>
                   Initialize the store connection before presenting the sheet,
                   and register a purchase listener before the user redeems a
-                  code. Apple 27+ returns the verified redeemed purchase
-                  directly. Earlier iOS versions return <code>null</code> after
-                  presenting the legacy sheet, and the redeemed transaction
-                  arrives through the listener or a subsequent refresh.
+                  code. Builds made with Xcode 27+ return the verified redeemed
+                  purchase directly on Apple 27+ runtimes. Earlier iOS and
+                  visionOS paths return <code>null</code> after presenting the
+                  system sheet, and the redeemed transaction arrives through the
+                  listener or a subsequent refresh. Mac Catalyst 16–26 rejects
+                  the StoreKit 2 scene API with{' '}
+                  <code>StoreKitError.unknown</code>; its StoreKit 1 call on
+                  Catalyst 15 has no effect. iOS 15 keeps the functional
+                  StoreKit 1 fallback.
                 </p>
                 <LanguageTabs>
                   {{
@@ -266,9 +273,11 @@ func _exit_tree() -> void:
                   </li>
                   <li>
                     The pre-built Godot GDExtension must also have been compiled
-                    with Xcode 27; an Xcode 26-built framework uses the legacy{' '}
-                    <code>null</code> result even on Apple 27. Build from source
-                    or confirm the release artifact toolchain.
+                    with Xcode 27; an Xcode 26-built framework uses the older
+                    API path even on Apple 27. On iOS and visionOS it returns{' '}
+                    <code>null</code>; on Mac Catalyst it follows the
+                    platform-specific error or no-op behavior above. Build from
+                    source or confirm the release artifact toolchain.
                   </li>
                   <li>
                     Use a physical device for an actual App Store sandbox or

@@ -17,7 +17,7 @@ final class AppAccountTokenTests: XCTestCase {
         )
 
         // Should not throw for valid UUID
-        XCTAssertNoThrow(try StoreKitTypesBridge.purchaseOptions(from: props))
+        XCTAssertNoThrow(try StoreKitTypesBridge.purchaseOptionsIOS(from: props))
     }
 
     func testAppAccountToken_ValidUUID_Uppercase_DoesNotThrow() throws {
@@ -31,7 +31,7 @@ final class AppAccountTokenTests: XCTestCase {
         )
 
         // Should not throw for valid uppercase UUID
-        XCTAssertNoThrow(try StoreKitTypesBridge.purchaseOptions(from: props))
+        XCTAssertNoThrow(try StoreKitTypesBridge.purchaseOptionsIOS(from: props))
     }
 
     func testAppAccountToken_GeneratedUUID_DoesNotThrow() throws {
@@ -45,7 +45,7 @@ final class AppAccountTokenTests: XCTestCase {
         )
 
         // Should not throw for UUID generated from Foundation
-        XCTAssertNoThrow(try StoreKitTypesBridge.purchaseOptions(from: props))
+        XCTAssertNoThrow(try StoreKitTypesBridge.purchaseOptionsIOS(from: props))
     }
 
     func testAppAccountToken_Nil_DoesNotThrow() throws {
@@ -59,7 +59,7 @@ final class AppAccountTokenTests: XCTestCase {
         )
 
         // Should not throw when appAccountToken is nil
-        XCTAssertNoThrow(try StoreKitTypesBridge.purchaseOptions(from: props))
+        XCTAssertNoThrow(try StoreKitTypesBridge.purchaseOptionsIOS(from: props))
     }
 
     // MARK: - Invalid UUID Format Tests
@@ -75,7 +75,7 @@ final class AppAccountTokenTests: XCTestCase {
         )
 
         // Should throw developerError for non-UUID format
-        XCTAssertThrowsError(try StoreKitTypesBridge.purchaseOptions(from: props)) { error in
+        XCTAssertThrowsError(try StoreKitTypesBridge.purchaseOptionsIOS(from: props)) { error in
             guard let purchaseError = error as? PurchaseError else {
                 XCTFail("Expected PurchaseError, got \(type(of: error))")
                 return
@@ -97,7 +97,7 @@ final class AppAccountTokenTests: XCTestCase {
             withOffer: nil
         )
 
-        XCTAssertThrowsError(try StoreKitTypesBridge.purchaseOptions(from: props)) { error in
+        XCTAssertThrowsError(try StoreKitTypesBridge.purchaseOptionsIOS(from: props)) { error in
             guard let purchaseError = error as? PurchaseError else {
                 XCTFail("Expected PurchaseError, got \(type(of: error))")
                 return
@@ -117,7 +117,7 @@ final class AppAccountTokenTests: XCTestCase {
             withOffer: nil
         )
 
-        XCTAssertThrowsError(try StoreKitTypesBridge.purchaseOptions(from: props)) { error in
+        XCTAssertThrowsError(try StoreKitTypesBridge.purchaseOptionsIOS(from: props)) { error in
             guard let purchaseError = error as? PurchaseError else {
                 XCTFail("Expected PurchaseError, got \(type(of: error))")
                 return
@@ -136,7 +136,7 @@ final class AppAccountTokenTests: XCTestCase {
             withOffer: nil
         )
 
-        XCTAssertThrowsError(try StoreKitTypesBridge.purchaseOptions(from: props)) { error in
+        XCTAssertThrowsError(try StoreKitTypesBridge.purchaseOptionsIOS(from: props)) { error in
             guard let purchaseError = error as? PurchaseError else {
                 XCTFail("Expected PurchaseError, got \(type(of: error))")
                 return
@@ -156,7 +156,7 @@ final class AppAccountTokenTests: XCTestCase {
             withOffer: nil
         )
 
-        XCTAssertThrowsError(try StoreKitTypesBridge.purchaseOptions(from: props)) { error in
+        XCTAssertThrowsError(try StoreKitTypesBridge.purchaseOptionsIOS(from: props)) { error in
             guard let purchaseError = error as? PurchaseError else {
                 XCTFail("Expected PurchaseError, got \(type(of: error))")
                 return
@@ -176,7 +176,7 @@ final class AppAccountTokenTests: XCTestCase {
             withOffer: nil
         )
 
-        XCTAssertThrowsError(try StoreKitTypesBridge.purchaseOptions(from: props)) { error in
+        XCTAssertThrowsError(try StoreKitTypesBridge.purchaseOptionsIOS(from: props)) { error in
             guard let purchaseError = error as? PurchaseError else {
                 XCTFail("Expected PurchaseError, got \(type(of: error))")
                 return
@@ -197,7 +197,7 @@ final class AppAccountTokenTests: XCTestCase {
             withOffer: nil
         )
 
-        XCTAssertNoThrow(try StoreKitTypesBridge.purchaseOptions(from: props))
+        XCTAssertNoThrow(try StoreKitTypesBridge.purchaseOptionsIOS(from: props))
     }
 
     func testAppAccountToken_SubscriptionProps_InvalidUUID_ThrowsDeveloperError() throws {
@@ -210,7 +210,7 @@ final class AppAccountTokenTests: XCTestCase {
             withOffer: nil
         )
 
-        XCTAssertThrowsError(try StoreKitTypesBridge.purchaseOptions(from: props)) { error in
+        XCTAssertThrowsError(try StoreKitTypesBridge.purchaseOptionsIOS(from: props)) { error in
             guard let purchaseError = error as? PurchaseError else {
                 XCTFail("Expected PurchaseError, got \(type(of: error))")
                 return
@@ -233,7 +233,7 @@ final class AppAccountTokenTests: XCTestCase {
             withOffer: nil
         )
 
-        XCTAssertThrowsError(try StoreKitTypesBridge.purchaseOptions(from: props)) { error in
+        XCTAssertThrowsError(try StoreKitTypesBridge.purchaseOptionsIOS(from: props)) { error in
             guard let purchaseError = error as? PurchaseError else {
                 XCTFail("Expected PurchaseError")
                 return

@@ -22,6 +22,18 @@ val androidVersion = System.getenv("ORG_GRADLE_PROJECT_openIapVersion") ?: run {
 
 extra["OPENIAP_VERSION"] = androidVersion
 
+// Composite consumers must not reuse packages/google/build with standalone or
+// sibling consumer builds. AGP and Kotlin keep variant intermediates in that
+// directory, and different composite roots can otherwise invalidate each
+// other's outputs while Gradle still considers downstream tasks up to date.
+gradle.parent?.rootProject?.let { consumerRoot ->
+    val isolatedBuildRoot = consumerRoot.layout.buildDirectory
+        .get()
+        .asFile
+        .resolve("included-openiap-google")
+    layout.buildDirectory.set(isolatedBuildRoot)
+}
+
 // Configure Maven Central publishing at the root.
 // Credentials are sourced from env or gradle.properties.
 // Maven Central publishing is configured per-module via Vanniktech plugin.
