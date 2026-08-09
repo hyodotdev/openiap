@@ -31,6 +31,8 @@ Based on changed files, run these checks BEFORE committing:
 
 When reviewing, check these project-specific rules:
 
+- **KISS/SSOT**: Enforce the canonical release rules in
+  `knowledge/internal/03-coding-style.md`
 - **iOS functions**: Must end with `IOS` suffix (e.g., `syncIOS`)
 - **Android functions in packages/google**: NO `Android` suffix (it's Android-only)
 - **Generated files**: Do NOT edit `packages/apple/Sources/Models/Types.swift` or `packages/google/openiap/src/main/java/dev/hyo/openiap/Types.kt`
