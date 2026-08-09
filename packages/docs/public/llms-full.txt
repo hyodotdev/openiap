@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-08-09T18:46:39.272Z
+> Generated: 2026-08-09T19:03:18.451Z
 
 ## Table of Contents
 1. Installation
@@ -61,7 +61,7 @@ Download `godot-iap-3.2.0.zip` from GitHub Releases, extract it to
 ### Kotlin Multiplatform
 ```kotlin
 dependencies {
-    implementation("io.github.hyochan:kmp-iap:3.1.0")
+    implementation("io.github.hyochan:kmp-iap:3.2.0")
 }
 ```
 
