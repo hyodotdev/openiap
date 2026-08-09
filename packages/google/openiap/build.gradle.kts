@@ -44,10 +44,25 @@ if (!usesBuiltInKotlin) {
 }
 pluginManager.apply("org.jetbrains.kotlin.plugin.compose")
 
-// Consumer examples include this module in their own Gradle builds. Applying
-// the publication plugin there unnecessarily couples them to the standalone
-// Google package's AGP version (Vanniktech 0.37 requires AGP 8.13+).
-val isStandaloneGoogleBuild = rootProject.projectDir.canonicalFile == projectDir.parentFile.canonicalFile
+// Consumer examples include this module in their own Gradle builds, while KMP
+// and MAUI consume the Google root as a composite build. Keep every consumer's
+// intermediates under its own root build directory so sequential or parallel
+// builds cannot corrupt packages/google/openiap/build. Applying the publication
+// plugin there would also couple consumers to the standalone publishing setup.
+val isStandaloneGoogleBuild =
+    gradle.parent == null &&
+        rootProject.projectDir.canonicalFile == projectDir.parentFile.canonicalFile
+if (!isStandaloneGoogleBuild) {
+    layout.buildDirectory.set(rootProject.layout.buildDirectory.dir("openiap-google"))
+    tasks.configureEach {
+        // The same source project is embedded by hosts that intentionally use
+        // different AGP/Kotlin versions. Gradle's shared build cache can restore
+        // a host-incompatible classes jar even though the isolated build path is
+        // correct. Keep normal up-to-date checks, but never exchange cached task
+        // outputs between embedded consumers.
+        outputs.doNotCacheIf("embedded OpenIAP Google host toolchains differ") { true }
+    }
+}
 if (isStandaloneGoogleBuild) {
     pluginManager.apply("com.vanniktech.maven.publish")
 }

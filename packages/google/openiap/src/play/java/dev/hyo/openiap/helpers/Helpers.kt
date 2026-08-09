@@ -45,15 +45,14 @@ internal suspend fun queryPurchases(
     // Include suspended subscriptions (Google Play Billing Library 8.1+)
     // Suspended subscriptions have isSuspendedAndroid=true and should NOT be granted entitlements.
     // Users should be directed to the subscription center to resolve payment issues.
-    if (productType == BillingClient.ProductType.SUBS && includeSuspended) {
-        runCatching {
-            // Use reflection to maintain backward compatibility with older billing library versions
-            val setIncludeSuspendedMethod = paramsBuilder::class.java.getMethod(
-                "setIncludeSuspended",
-                Boolean::class.javaPrimitiveType
-            )
-            setIncludeSuspendedMethod.invoke(paramsBuilder, true)
-        }
+    if (
+        productType == BillingClient.ProductType.SUBS &&
+        includeSuspended &&
+        billingClient.isFeatureSupported(
+            BillingClient.FeatureType.INCLUDE_SUSPENDED_SUBSCRIPTIONS
+        ).responseCode == BillingClient.BillingResponseCode.OK
+    ) {
+        paramsBuilder.includeSuspendedSubscriptions(true)
     }
 
     val params = paramsBuilder.build()

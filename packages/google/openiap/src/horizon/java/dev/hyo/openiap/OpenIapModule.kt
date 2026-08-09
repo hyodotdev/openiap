@@ -180,6 +180,14 @@ internal fun horizonUnsupportedPurchaseError(
     else -> null
 }
 
+internal fun horizonPurchaseSkuCountError(skus: Collection<String>): OpenIapError? = when {
+    skus.isEmpty() -> OpenIapError.EmptySkuList
+    skus.size != 1 -> OpenIapError.DeveloperError(
+        "Meta Horizon Billing purchases one SKU at a time"
+    )
+    else -> null
+}
+
 internal fun matchesRequestedProductIds(
     primaryProductId: String,
     productIds: Collection<String>,
@@ -491,12 +499,25 @@ class OpenIapModule(
                 } ?: false
             }
 
-            val contextForInit = currentActivityRef?.get() ?: fallbackActivity ?: context
-            OpenIapLog.debug("Building BillingClient with ${contextForInit.javaClass.simpleName}...", TAG)
+            val activityForInit = currentActivityRef?.get() ?: fallbackActivity
+            if (activityForInit == null) {
+                val error = OpenIapError.MissingCurrentActivity
+                synchronized(connectionLifecycleLock) {
+                    if (
+                        connectionAttempt === attempt &&
+                        connectionGeneration == attempt.generation
+                    ) {
+                        connectionAttempt = null
+                    }
+                }
+                attempt.completion.completeExceptionally(error)
+                return@withContext attempt.completion.await()
+            }
+            OpenIapLog.debug("Building BillingClient with ${activityForInit.javaClass.simpleName}...", TAG)
             lateinit var client: BillingClient
             client = runCatching {
                 buildBillingClient(
-                    contextForInit,
+                    activityForInit,
                     PurchasesUpdatedListener { result, purchases ->
                         onPurchasesUpdated(client, attempt.generation, result, purchases)
                     },
@@ -899,9 +920,8 @@ class OpenIapModule(
                 return@withContext emptyList()
             }
 
-            if (androidArgs.skus.isEmpty()) {
-                val err = OpenIapError.EmptySkuList
-                emitPurchaseError(err)
+            horizonPurchaseSkuCountError(androidArgs.skus)?.let { error ->
+                emitPurchaseError(error)
                 return@withContext emptyList()
             }
 
@@ -1744,27 +1764,22 @@ class OpenIapModule(
      * Build BillingClient with the provided context.
      *
      * CRITICAL: Horizon SDK requires Activity to properly initialize OVRPlatform with returnComponent.
-     * If Context (non-Activity) is provided, Horizon SDK will run in limited mode and may cause
-     * NullPointerException during purchase flow.
+     * initConnection rejects a missing Activity before reaching this builder.
      *
-     * @param contextForBilling Activity (preferred) or Application Context (fallback)
+     * @param activity Activity required by the Horizon Billing Compatibility SDK
      */
     private fun buildBillingClient(
-        contextForBilling: Context,
+        activity: Activity,
         listener: PurchasesUpdatedListener,
     ): BillingClient {
-        if (contextForBilling is Activity) {
-            OpenIapLog.debug("Building BillingClient with Activity", TAG)
-        } else {
-            OpenIapLog.warn("Building BillingClient with Context (not Activity) - Horizon SDK will run in limited mode", TAG)
-        }
+        OpenIapLog.debug("Building BillingClient with Activity", TAG)
 
         val pendingPurchasesParams = com.meta.horizon.billingclient.api.PendingPurchasesParams.newBuilder()
             .enableOneTimeProducts()
             .build()
 
         val builder = BillingClient
-            .newBuilder(contextForBilling)
+            .newBuilder(activity)
             .setListener(listener)
             .enablePendingPurchases(pendingPurchasesParams)
 
