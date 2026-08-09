@@ -24,10 +24,15 @@ function CurrentEntitlementIOS() {
         Get current StoreKit 2 entitlement for a product (iOS 15+, macOS 14+).
       </p>
       <p>
-        Wraps <code>Transaction.currentEntitlement(for:)</code> — single-product
-        convenience over <code>currentEntitlements</code>. See the{' '}
+        Uses <code>Product.currentEntitlements</code> where available and
+        otherwise filters <code>Transaction.currentEntitlements</code> by SKU.
+        This avoids StoreKit&apos;s deprecated singular{' '}
+        <code>Product.currentEntitlement</code> property. Generic Advanced
+        Commerce SKUs can yield multiple current transactions, so OpenIAP
+        returns the latest verified entitlement by purchase date and transaction
+        ID. See the{' '}
         <a
-          href="https://developer.apple.com/documentation/storekit/transaction/currententitlement(for:)"
+          href="https://developer.apple.com/documentation/storekit/product/currententitlements"
           target="_blank"
           rel="noopener noreferrer"
         >

@@ -539,6 +539,12 @@ function Purchase() {
                       </tr>
                       <tr>
                         <td>
+                          <code>period</code>
+                        </td>
+                        <td>Subscription period unit and value (optional)</td>
+                      </tr>
+                      <tr>
+                        <td>
                           <code>requestReferenceId</code>
                         </td>
                         <td>

@@ -26,9 +26,9 @@ function OfferCodeRedemption() {
         <strong>Current API boundary:</strong>{' '}
         <code>presentCodeRedemptionSheetIOS</code> returns the verified{' '}
         <code>PurchaseIOS</code> produced by Apple&apos;s new StoreKit API on
-        iOS 27, Mac Catalyst 27, and visionOS 27 or later. On iOS and Mac
-        Catalyst 14–26 it presents the legacy system sheet and returns{' '}
-        <code>null</code>, so observe the redeemed purchase through{' '}
+        iOS 27, Mac Catalyst 27, and visionOS 27 or later. Earlier supported
+        runtimes present Apple&apos;s system sheet and return <code>null</code>,
+        so observe the redeemed purchase through{' '}
         <Link to="/docs/events/purchase-updated-listener">
           <code>purchaseUpdatedListener</code>
         </Link>{' '}
@@ -91,10 +91,13 @@ function OfferCodeRedemption() {
                 <p>
                   Initialize the store connection before presenting the sheet,
                   and register a purchase listener before the user redeems a
-                  code. Apple 27+ returns the verified redeemed purchase
-                  directly. Earlier iOS versions return <code>null</code> after
-                  presenting the legacy sheet, and the redeemed transaction
-                  arrives through the listener or a subsequent refresh.
+                  code. Builds made with Xcode 27+ return the verified redeemed
+                  purchase directly on Apple 27+ runtimes. Other supported paths
+                  return <code>null</code> after presenting the system sheet,
+                  and the redeemed transaction arrives through the listener or a
+                  subsequent refresh. The implementation uses StoreKit 2 on iOS
+                  and Mac Catalyst 16+ and visionOS 1+, and keeps the StoreKit 1
+                  fallback only for iOS and Mac Catalyst 15.
                 </p>
                 <LanguageTabs>
                   {{
@@ -266,9 +269,10 @@ func _exit_tree() -> void:
                   </li>
                   <li>
                     The pre-built Godot GDExtension must also have been compiled
-                    with Xcode 27; an Xcode 26-built framework uses the legacy{' '}
-                    <code>null</code> result even on Apple 27. Build from source
-                    or confirm the release artifact toolchain.
+                    with Xcode 27; an Xcode 26-built framework uses the
+                    scene-based StoreKit 2 API and returns <code>null</code>{' '}
+                    even on Apple 27. Build from source or confirm the release
+                    artifact toolchain.
                   </li>
                   <li>
                     Use a physical device for an actual App Store sandbox or

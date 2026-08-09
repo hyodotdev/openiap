@@ -100,6 +100,10 @@ import com.meta.horizon.billingclient.api.*
 
 ### Important Notes
 
+- The Billing Compatibility SDK initializes Horizon platform state from an
+  Android `Activity`. OpenIAP therefore requires a current foreground Activity
+  for Horizon `initConnection`; it returns `MissingCurrentActivity` instead of
+  falling back to an application context.
 - Horizon Billing Compatibility 2.x reads the app id from Android manifest
   meta-data key `com.meta.horizon.platform.HORIZON_APP_ID`. The older
   `com.meta.horizon.platform.ovr.OCULUS_APP_ID` key is deprecated; OpenIAP also

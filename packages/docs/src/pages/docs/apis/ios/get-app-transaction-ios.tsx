@@ -117,8 +117,8 @@ var appTx = await ((QueryResolver)OpenIapClient.Instance).GetAppTransactionIOSAs
         <code>originalPurchaseDate</code>, <code>environment</code>,{' '}
         <code>deviceVerification</code>, <code>deviceVerificationNonce</code>,{' '}
         <code>signedDate</code>, <code>appId</code>, <code>appVersionId</code>,{' '}
-        <code>preorderDate</code>, plus iOS 18.4+ additions like{' '}
-        <code>appTransactionId</code> and <code>originalPlatform</code>).
+        <code>preorderDate</code>, the back-deployed{' '}
+        <code>appTransactionId</code>, and <code>originalPlatform</code>).
       </p>
     </div>
   );

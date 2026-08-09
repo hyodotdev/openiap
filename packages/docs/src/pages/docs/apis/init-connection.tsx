@@ -23,8 +23,9 @@ function InitConnection() {
       </p>
       <p>
         <strong>iOS:</strong> Verifies <code>AppStore.canMakePayments</code>,
-        registers the <code>SKPaymentQueue</code> observer for promoted IAPs,
-        and starts a <code>Transaction.updates</code> listener that drives the
+        receives promoted IAPs through <code>PurchaseIntent.intents</code> on
+        iOS 16.4+ (and <code>SKPaymentQueue</code> only on iOS 15–16.3), and
+        starts a <code>Transaction.updates</code> listener that drives the
         purchase event stream. Safe to call repeatedly.{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/transaction/updates"
@@ -35,7 +36,10 @@ function InitConnection() {
         </a>
         . <strong>Android:</strong> Starts <code>BillingClient</code> and waits
         for <code>onBillingSetupFinished</code>. Required before any other Play
-        Billing call.{' '}
+        Billing call. Meta Horizon additionally requires a current foreground{' '}
+        <code>Activity</code>; initialization fails with{' '}
+        <code>MissingCurrentActivity</code> instead of falling back to an
+        application context.{' '}
         <a
           href="https://developer.android.com/reference/com/android/billingclient/api/BillingClient#startConnection(com.android.billingclient.api.BillingClientStateListener)"
           target="_blank"

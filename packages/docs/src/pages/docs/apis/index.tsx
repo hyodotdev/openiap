@@ -492,8 +492,9 @@ function APIsIndex() {
                 </Link>
               </td>
               <td>
-                Show the App Store offer code redemption sheet and return its
-                verified transaction on Apple 27+. See{' '}
+                Show the App Store offer code redemption sheet. Xcode 27+ builds
+                return its verified transaction on Apple 27+; other supported
+                system-sheet paths return <code>null</code>. See{' '}
                 <Link to="/docs/features/offer-code-redemption">
                   Offer Code Redemption
                 </Link>

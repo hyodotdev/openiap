@@ -123,10 +123,10 @@ make android
             offer code redemption
           </a>{' '}
           only returns a verified result when the framework was built with Xcode
-          27 or later — a framework built with Xcode 26 falls back to the legacy
-          redemption sheet and returns <code>null</code>, even on devices
-          running the latest OS. The published godot-iap 3.0.0 framework is
-          built with Xcode 27. If you build from source and use offer codes,
+          27 or later — a framework built with Xcode 26 uses the scene-based
+          StoreKit 2 redemption sheet and returns <code>null</code>, even on
+          devices running the latest OS. The published godot-iap 3.0.0 framework
+          is built with Xcode 27. If you build from source and use offer codes,
           build with Xcode 27 or later.
         </p>
 

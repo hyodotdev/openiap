@@ -57,7 +57,11 @@ IObservable<string> promotedProducts = OpenIapClient.Instance.PromotedProductIOS
           ),
         }}
       </LanguageTabs>
-      <p>Registers a listener for App Store promoted product events.</p>
+      <p>
+        Registers a listener for App Store promoted product events. OpenIAP uses{' '}
+        <code>PurchaseIntent.intents</code> on iOS 16.4+ and the StoreKit 1
+        observer only on iOS 15–16.3, so both mechanisms never run together.
+      </p>
 
       <LanguageTabs>
         {{
@@ -243,7 +247,10 @@ using var subscription = iap.PromotedProductIOS.Subscribe(async productId =>
         <Link to="/docs/apis/request-purchase">
           <code>requestPurchase()</code>
         </Link>{' '}
-        flow after the app receives or restores the promoted product.
+        flow after the app receives or restores the promoted product. If the
+        purchase intent contains an externally redeemed win-back offer, OpenIAP
+        automatically carries it into the next matching purchase unless that
+        request supplies an explicit win-back or promotional offer.
       </Callout>
     </div>
   );

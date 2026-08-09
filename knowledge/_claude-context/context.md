@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-08-08T10:05:12.433Z
+> Last updated: 2026-08-09T12:55:09.925Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -3420,11 +3420,16 @@ if (purchase.isSuspended) {
 ### Query Suspended Subscriptions (8.1+)
 
 ```kotlin
-// Include suspended subscriptions in query results
-val params = QueryPurchasesParams.newBuilder()
+// Include suspended subscriptions when the connected Play Store supports it.
+val paramsBuilder = QueryPurchasesParams.newBuilder()
     .setProductType(BillingClient.ProductType.SUBS)
-    .setIncludeSuspended(true)  // New in 8.1
-    .build()
+if (billingClient.isFeatureSupported(
+        BillingClient.FeatureType.INCLUDE_SUSPENDED_SUBSCRIPTIONS
+    ).responseCode == BillingClient.BillingResponseCode.OK
+) {
+    paramsBuilder.includeSuspendedSubscriptions(true) // New in 8.1
+}
+val params = paramsBuilder.build()
 
 billingClient.queryPurchasesAsync(params) { billingResult, purchases ->
     purchases.forEach { purchase ->
@@ -3847,6 +3852,10 @@ import com.meta.horizon.billingclient.api.*
 
 ### Important Notes
 
+- The Billing Compatibility SDK initializes Horizon platform state from an
+  Android `Activity`. OpenIAP therefore requires a current foreground Activity
+  for Horizon `initConnection`; it returns `MissingCurrentActivity` instead of
+  falling back to an application context.
 - Horizon Billing Compatibility 2.x reads the app id from Android manifest
   meta-data key `com.meta.horizon.platform.HORIZON_APP_ID`. The older
   `com.meta.horizon.platform.ovr.OCULUS_APP_ID` key is deprecated; OpenIAP also
@@ -4111,16 +4120,19 @@ let result = try await AppStore.presentOfferCodeRedeemSheet(
 
 SwiftUI exposes the same result through
 `offerCodeRedemption(options:isPresented:onCompletion:)`. These APIs require the
-Xcode 27 beta SDK and are currently beta. Xcode 26.x SDKs expose only the
-legacy redemption sheet API.
+Xcode 27 beta SDK and are currently beta. Xcode 26.x SDKs expose the StoreKit 2
+scene-based `AppStore.presentOfferCodeRedeemSheet(in:)` API, which presents the
+sheet but does not return the redeemed transaction.
 
 OpenIAP 3 changes `presentCodeRedemptionSheetIOS` to return `PurchaseIOS?`.
 Xcode 27 builds call the new API, require a verified result, and return the
-mapped transaction. Xcode 26 builds retain the legacy sheet; iOS and Mac
-Catalyst 14–26 therefore return `nil` after presentation and rely on the
+mapped transaction. Xcode 26 builds use the StoreKit 2 scene API on iOS and Mac
+Catalyst 16+ and visionOS 1+, and return `nil` after presentation; iOS and Mac
+Catalyst 15 retain the StoreKit 1 fallback. Both nil-returning paths rely on the
 transaction listener or explicit purchase reconciliation. Xcode 27 beta 4
-declares `RedeemOption`, but its public symbol graph exposes no constructible
-option values, so OpenIAP currently passes an empty set.
+declares `RedeemOption`,
+but its public symbol graph exposes no constructible option values, so OpenIAP
+currently passes an empty set.
 
 ### Subscription Bundles and Suites (Xcode 27 beta)
 
@@ -4403,7 +4415,7 @@ let result = try await product.purchase(confirmIn: window)
 
 > **OpenIAP Note**: UI context is handled automatically in OpenIAP using the active window scene.
 
-## AppTransaction Updates (iOS 18.4+)
+## AppTransaction Updates (Xcode 16.4+; back-deployed)
 
 ```swift
 let appTransaction = try await AppTransaction.shared

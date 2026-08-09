@@ -136,15 +136,21 @@ function AppTransactionIos() {
               <td>
                 <code>appTransactionId</code>
               </td>
-              <td>App transaction ID (iOS 18.4+)</td>
+              <td>
+                Stable app transaction ID. StoreKit back-deploys this property
+                across the supported AppTransaction runtime range when built
+                with Xcode 16.4+.
+              </td>
             </tr>
             <tr>
               <td>
                 <code>originalPlatform</code>
               </td>
               <td>
-                Original platform (iOS 18.4+), including the Xcode 27 SDK&apos;s
-                back-deployed <code>managed</code> value
+                Original platform. OpenIAP uses StoreKit&apos;s compatibility
+                string on the AppTransaction baseline and the typed value on iOS
+                18.4+, including the Xcode 27 SDK&apos;s back-deployed{' '}
+                <code>managed</code> value.
               </td>
             </tr>
             <tr>

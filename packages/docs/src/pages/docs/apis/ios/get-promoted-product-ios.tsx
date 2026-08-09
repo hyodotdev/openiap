@@ -12,7 +12,7 @@ function GetPromotedProductIOS() {
     <div className="doc-page">
       <SEO
         title="getPromotedProductIOS"
-        description="Get the currently promoted product from App Store (iOS 11+)."
+        description="Get the currently promoted product from App Store (iOS 15+)."
         path="/docs/apis/ios/get-promoted-product-ios"
         keywords="getPromotedProductIOS, promoted product, App Store"
       />
@@ -20,11 +20,15 @@ function GetPromotedProductIOS() {
         <span className="platform-badge platform-badge--ios">iOS</span>{' '}
         getPromotedProductIOS
       </h1>
-      <p>Get the currently promoted product from App Store (iOS 11+).</p>
+      <p>Get the currently promoted product from App Store (iOS 15+).</p>
       <p>
-        Reads the product surfaced via App Store promoted IAP campaigns (
-        <code>SKPaymentTransactionObserver.shouldAddStorePayment</code>). iOS
-        11+. See the{' '}
+        Reads the product surfaced via App Store promoted IAP campaigns. OpenIAP
+        listens to <code>PurchaseIntent.intents</code> on iOS 16.4+ and uses{' '}
+        <code>SKPaymentTransactionObserver.shouldAddStorePayment</code> only on
+        iOS 15–16.3. When a purchase intent contains an externally redeemed
+        win-back offer, OpenIAP preserves that exact offer for the next matching{' '}
+        <code>requestPurchase</code> call unless the caller supplies an explicit
+        win-back or promotional offer. See the{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/in-app-purchase/promoting-in-app-purchases"
           target="_blank"

@@ -77,16 +77,19 @@ let result = try await AppStore.presentOfferCodeRedeemSheet(
 
 SwiftUI exposes the same result through
 `offerCodeRedemption(options:isPresented:onCompletion:)`. These APIs require the
-Xcode 27 beta SDK and are currently beta. Xcode 26.x SDKs expose only the
-legacy redemption sheet API.
+Xcode 27 beta SDK and are currently beta. Xcode 26.x SDKs expose the StoreKit 2
+scene-based `AppStore.presentOfferCodeRedeemSheet(in:)` API, which presents the
+sheet but does not return the redeemed transaction.
 
 OpenIAP 3 changes `presentCodeRedemptionSheetIOS` to return `PurchaseIOS?`.
 Xcode 27 builds call the new API, require a verified result, and return the
-mapped transaction. Xcode 26 builds retain the legacy sheet; iOS and Mac
-Catalyst 14–26 therefore return `nil` after presentation and rely on the
+mapped transaction. Xcode 26 builds use the StoreKit 2 scene API on iOS and Mac
+Catalyst 16+ and visionOS 1+, and return `nil` after presentation; iOS and Mac
+Catalyst 15 retain the StoreKit 1 fallback. Both nil-returning paths rely on the
 transaction listener or explicit purchase reconciliation. Xcode 27 beta 4
-declares `RedeemOption`, but its public symbol graph exposes no constructible
-option values, so OpenIAP currently passes an empty set.
+declares `RedeemOption`,
+but its public symbol graph exposes no constructible option values, so OpenIAP
+currently passes an empty set.
 
 ### Subscription Bundles and Suites (Xcode 27 beta)
 
@@ -369,7 +372,7 @@ let result = try await product.purchase(confirmIn: window)
 
 > **OpenIAP Note**: UI context is handled automatically in OpenIAP using the active window scene.
 
-## AppTransaction Updates (iOS 18.4+)
+## AppTransaction Updates (Xcode 16.4+; back-deployed)
 
 ```swift
 let appTransaction = try await AppTransaction.shared

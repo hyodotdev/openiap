@@ -79,7 +79,7 @@ const migrationGroups = [
       ['willExpireSoon', 'daysUntilExpirationIOS'],
       [
         'presentCodeRedemptionSheetIOS Boolean result',
-        'nullable PurchaseIOS result: verified on Apple 27+; null after the legacy sheet on iOS or Mac Catalyst 14–26',
+        'nullable PurchaseIOS result: verified on Apple 27+ with Xcode 27+; null after the system sheet on iOS/Catalyst 15–26, visionOS 1–26, or Apple 27 from an older build',
       ],
       ['receipt-failed', 'purchase-verification-failed'],
       ['receipt-finished', 'purchase-verification-finished'],

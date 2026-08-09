@@ -28,13 +28,16 @@ function PresentCodeRedemptionSheetIOS() {
         .
       </p>
       <p>
-        On iOS 27, Mac Catalyst 27, and visionOS 27 or later, this calls{' '}
+        In Xcode 27+ builds on iOS 27, Mac Catalyst 27, and visionOS 27 or
+        later, this calls{' '}
         <code>AppStore.presentOfferCodeRedeemSheet(from:options:)</code> and
-        returns the verified transaction produced by redemption. On iOS 14–26
-        and Mac Catalyst 14–26, it presents the legacy{' '}
-        <code>SKPaymentQueue</code> sheet and returns <code>null</code>; use the
-        purchase listener or refresh available purchases after the sheet closes.
-        See the{' '}
+        returns the verified transaction produced by redemption. On iOS and Mac
+        Catalyst 16–26 and visionOS 1–26, it uses the StoreKit 2 scene-based
+        sheet and returns <code>null</code>. Builds made with an older SDK use
+        that same path on Apple 27 runtimes. iOS and Mac Catalyst 15 use the
+        StoreKit 1 fallback and also return <code>null</code>. For any
+        nil-returning path, use the purchase listener or refresh available
+        purchases after the sheet closes. See the{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/appstore/presentoffercoderedeemsheet(from:options:)"
           target="_blank"
@@ -74,9 +77,10 @@ function PresentCodeRedemptionSheetIOS() {
       </AnchorLink>
       <p>
         <code>PurchaseIOS | null</code> — the verified redeemed transaction on
-        Apple 27+ runtimes. A <code>null</code> result means the legacy sheet
-        was presented successfully but cannot return its transaction directly;
-        it does not mean the feature is unsupported or that redemption failed.
+        Apple 27+ runtimes from Xcode 27+ builds. A <code>null</code> result
+        means the system sheet was presented successfully but that API path
+        cannot return its transaction directly; it does not mean the feature is
+        unsupported or that redemption failed.
       </p>
 
       <h2>Example</h2>
@@ -87,7 +91,7 @@ function PresentCodeRedemptionSheetIOS() {
 if let purchase {
     print("Verified redemption:", purchase.productId)
 } else {
-    // iOS 14–26: reconcile through the listener or refresh purchases.
+    // Nil result: reconcile through the listener or refresh purchases.
 }`}</CodeBlock>
           ),
           kotlin: (
