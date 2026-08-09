@@ -2245,7 +2245,10 @@ public sealed record AdvancedCommerceInfoIOS
     /// <summary>The items purchased as part of this transaction</summary>
     [JsonPropertyName("items")]
     public required IReadOnlyList<AdvancedCommerceItemIOS> Items { get; init; }
-    /// <summary>Subscription period for this transaction</summary>
+    /// <summary>Subscription period for this transaction.</summary>
+    /// <summary>Available in OpenIAP Spec 3.1.0 / openiap-apple 3.1.0</summary>
+    /// <summary>(requires iOS 18.4+, macOS 15.4+, tvOS 18.4+, watchOS 11.4+,</summary>
+    /// <summary>or visionOS 2.4+).</summary>
     [JsonPropertyName("period")]
     public SubscriptionPeriodValueIOS? Period { get; init; }
     /// <summary>Request reference identifier for tracking</summary>
