@@ -67,17 +67,48 @@ final class OpenIapTests: XCTestCase {
         let store = PromotedPurchaseIntentOfferStore<String>()
         await store.record("win-back", for: "subscription")
 
-        let unrelated = await store.take(for: "other")
-        let matching = await store.take(for: "subscription")
-        let consumed = await store.take(for: "subscription")
+        let unrelated = await store.lease(for: "other")
+        let matching = await store.lease(for: "subscription")
+        let reserved = await store.lease(for: "subscription")
 
         XCTAssertNil(unrelated)
-        XCTAssertEqual(matching, "win-back")
+        XCTAssertEqual(matching?.offer, "win-back")
+        XCTAssertNil(reserved)
+
+        if let matching {
+            await store.release(matching, for: "subscription")
+            await store.consume(matching, for: "subscription")
+        }
+        let retry = await store.lease(for: "subscription")
+        XCTAssertEqual(retry?.offer, "win-back")
+
+        if let retry {
+            await store.consume(retry, for: "subscription")
+        }
+        let consumed = await store.lease(for: "subscription")
         XCTAssertNil(consumed)
+
+        await store.record("first", for: "subscription")
+        let staleLease = await store.lease(for: "subscription")
+        await store.record("replacement", for: "subscription")
+        if let staleLease {
+            await store.release(staleLease, for: "subscription")
+        }
+        let replacement = await store.lease(for: "subscription")
+        XCTAssertEqual(replacement?.offer, "replacement")
+
+        await store.record("first", for: "subscription")
+        let consumedStaleLease = await store.lease(for: "subscription")
+        await store.record("newest", for: "subscription")
+        if let consumedStaleLease {
+            await store.consume(consumedStaleLease, for: "subscription")
+        }
+        let newest = await store.lease(for: "subscription")
+        XCTAssertEqual(newest?.offer, "newest")
 
         await store.record("stale", for: "subscription")
         await store.record(nil, for: "subscription")
-        let cleared = await store.take(for: "subscription")
+        let cleared = await store.lease(for: "subscription")
         XCTAssertNil(cleared)
     }
 

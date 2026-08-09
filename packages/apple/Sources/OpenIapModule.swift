@@ -383,15 +383,39 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         let sku = iosProps.sku
         let product = try await storeProduct(for: sku)
         #if os(iOS)
-        let purchaseIntentOffer = await promotedPurchaseIntentOffers.take(for: sku)
+        let canUsePurchaseIntentOffer: Bool
+        if let subscriptionProps = iosProps as? RequestSubscriptionIosProps {
+            canUsePurchaseIntentOffer = subscriptionProps.winBackOffer == nil &&
+                subscriptionProps.withOffer == nil &&
+                subscriptionProps.promotionalOfferJWS == nil
+        } else {
+            canUsePurchaseIntentOffer = false
+        }
+        let purchaseIntentOfferLease = canUsePurchaseIntentOffer
+            ? await promotedPurchaseIntentOffers.lease(for: sku)
+            : nil
+        let purchaseIntentOffer = purchaseIntentOfferLease?.offer
         #else
         let purchaseIntentOffer: StoreKit.Product.SubscriptionOffer? = nil
         #endif
-        let options = try StoreKitTypesBridge.purchaseOptionsIOS(
-            from: iosProps,
-            product: product,
-            purchaseIntentOffer: purchaseIntentOffer
-        )
+        let options: Set<StoreKit.Product.PurchaseOption>
+        do {
+            options = try StoreKitTypesBridge.purchaseOptionsIOS(
+                from: iosProps,
+                product: product,
+                purchaseIntentOffer: purchaseIntentOffer
+            )
+        } catch {
+            #if os(iOS)
+            if let purchaseIntentOfferLease {
+                await promotedPurchaseIntentOffers.release(
+                    purchaseIntentOfferLease,
+                    for: sku
+                )
+            }
+            #endif
+            throw error
+        }
 
         if StoreKitTypesBridge.isAutoRenewingSubscriptionProductType(product.type) {
             await preflightInactiveUnfinishedSubscriptions(productId: sku)
@@ -426,6 +450,14 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             result = try await product.purchase(options: options)
             #endif
         } catch {
+            #if os(iOS)
+            if let purchaseIntentOfferLease {
+                await promotedPurchaseIntentOffers.release(
+                    purchaseIntentOfferLease,
+                    for: sku
+                )
+            }
+            #endif
             // Enhanced error handling for promotional offers
             if iosProps.withOffer != nil {
                 OpenIapLog.error("Purchase with promotional offer failed: \(error.localizedDescription)")
@@ -451,6 +483,18 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             let purchaseError = PurchaseError.wrap(error, fallback: .purchaseError, productId: sku)
             throw purchaseError
         }
+
+        // Keep the intent offer available across local validation and
+        // presentation-context failures. Consume only after StoreKit has
+        // accepted the matching purchase attempt and returned a result.
+        #if os(iOS)
+        if let purchaseIntentOfferLease {
+            await promotedPurchaseIntentOffers.consume(
+                purchaseIntentOfferLease,
+                for: sku
+            )
+        }
+        #endif
 
         switch result {
         case .success(let verification):
