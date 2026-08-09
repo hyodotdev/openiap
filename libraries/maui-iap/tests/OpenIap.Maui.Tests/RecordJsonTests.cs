@@ -201,6 +201,10 @@ public class RecordJsonTests
                 "revocationDate": 1720000000111
               }
             ],
+            "period": {
+              "unit": "month",
+              "value": 1
+            },
             "requestReferenceId": "request-reference",
             "taxCode": "digital-goods",
             "taxExclusivePrice": "9.00",
@@ -365,6 +369,8 @@ public class RecordJsonTests
         Assert.Equal("1999999999", ios.PreviousOriginalTransactionIdIOS);
         Assert.Equal(3, ios.CommitmentInfoIOS?.BillingPeriodNumber);
         Assert.Equal("request-reference", ios.AdvancedCommerceInfoIOS?.RequestReferenceId);
+        Assert.Equal(SubscriptionPeriodIOS.Month, ios.AdvancedCommerceInfoIOS?.Period?.Unit);
+        Assert.Equal(1, ios.AdvancedCommerceInfoIOS?.Period?.Value);
         Assert.Equal(
             """{"sku":"premium.bundle"}""",
             ios.AdvancedCommerceInfoIOS?.Items[0].Details?.JsonRepresentation);

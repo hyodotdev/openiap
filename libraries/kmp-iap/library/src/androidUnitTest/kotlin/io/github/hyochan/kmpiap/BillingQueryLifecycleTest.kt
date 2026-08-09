@@ -63,6 +63,32 @@ import kotlin.test.assertTrue
 
 class BillingQueryLifecycleTest {
     @Test
+    fun `available purchases requests suspended subscriptions only when supported`() {
+        val supportedClient = LifecycleBillingClient(
+            suspendedSubscriptionsSupported = true,
+        )
+        val subscriptionParams = availablePurchasesQueryParams(
+            supportedClient,
+            BillingClient.ProductType.SUBS,
+            includeSuspendedSubscriptions = true,
+        )
+        val inAppParams = availablePurchasesQueryParams(
+            supportedClient,
+            BillingClient.ProductType.INAPP,
+            includeSuspendedSubscriptions = true,
+        )
+        val unsupportedParams = availablePurchasesQueryParams(
+            LifecycleBillingClient(suspendedSubscriptionsSupported = false),
+            BillingClient.ProductType.SUBS,
+            includeSuspendedSubscriptions = true,
+        )
+
+        assertTrue(subscriptionParams.getIncludeSuspendedSubscriptions())
+        assertFalse(inAppParams.getIncludeSuspendedSubscriptions())
+        assertFalse(unsupportedParams.getIncludeSuspendedSubscriptions())
+    }
+
+    @Test
     fun `end fails fetchProducts when its native callback never arrives`() =
         runTest {
             val client = LifecycleBillingClient()
@@ -446,6 +472,7 @@ class BillingQueryLifecycleTest {
 
 private class LifecycleBillingClient(
     private val completeFirstProductQuery: Boolean = false,
+    private val suspendedSubscriptionsSupported: Boolean = false,
 ) : BillingClient() {
     @Volatile
     var ready = true
@@ -496,7 +523,19 @@ private class LifecycleBillingClient(
 
     override fun endConnection() = Unit
 
-    override fun isFeatureSupported(feature: String): BillingResult = unsupported()
+    override fun isFeatureSupported(feature: String): BillingResult =
+        if (feature == FeatureType.INCLUDE_SUSPENDED_SUBSCRIPTIONS) {
+            BillingResult.newBuilder()
+                .setResponseCode(
+                    if (suspendedSubscriptionsSupported) {
+                        BillingResponseCode.OK
+                    } else {
+                        BillingResponseCode.FEATURE_NOT_SUPPORTED
+                    },
+                ).build()
+        } else {
+            unsupported()
+        }
 
     override fun launchBillingFlow(
         activity: Activity,

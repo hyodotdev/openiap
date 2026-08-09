@@ -63,7 +63,7 @@ public partial class OfferCodePage : ContentPage
             ResultPanel.IsVisible = true;
             ResultLabel.Text = purchase is not null
                 ? $"Verified redemption: {purchase.ProductId} ({purchase.TransactionId})"
-                : "The legacy redemption sheet was presented. Refresh available purchases after completing redemption.";
+                : "The system sheet did not return a transaction directly. Refresh available purchases after completing redemption.";
         }
         catch (Exception ex)
         {

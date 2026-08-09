@@ -282,8 +282,10 @@ export const getTransactionJwsIOS: QueryField<'getTransactionJwsIOS'> = async (
  *
  * Note: This only works on real devices, not simulators.
  *
- * @returns The verified redeemed purchase on iOS 27+, or null after the
- * legacy sheet is presented on earlier iOS versions.
+ * @returns The verified redeemed purchase when built with Xcode 27+ and
+ * running on Apple 27+, or null when the system sheet cannot return the
+ * transaction directly (StoreKit 2 on iOS/Catalyst 16–26 and visionOS 1–26;
+ * StoreKit 1 on iOS/Catalyst 15).
  * @throws Error if called on non-iOS platform or tvOS
  *
  * @platform iOS

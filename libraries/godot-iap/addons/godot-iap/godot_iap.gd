@@ -1341,8 +1341,8 @@ func get_all_transactions_ios() -> Array:
 	return purchases
 
 ## Present the code redemption sheet (iOS only).
-## @return Types.PurchaseIOS on iOS 27+ after verified redemption, or null
-## after the legacy sheet is presented on earlier iOS versions.
+## @return Types.PurchaseIOS when built with Xcode 27+ and running on Apple 27+,
+## or null when the system sheet cannot return the transaction directly.
 ##
 ## See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
 func present_code_redemption_sheet_ios() -> Variant:

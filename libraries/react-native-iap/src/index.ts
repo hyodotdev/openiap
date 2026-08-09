@@ -2258,8 +2258,10 @@ export const syncIOS: MutationField<'syncIOS'> = async () => {
 
 /**
  * Present the code redemption sheet for offer codes (iOS only)
- * @returns The verified redeemed purchase on iOS 27+, or null after the
- * legacy sheet is presented on earlier iOS versions.
+ * @returns The verified redeemed purchase when built with Xcode 27+ and
+ * running on Apple 27+, or null when the system sheet cannot return the
+ * transaction directly (StoreKit 2 on iOS/Catalyst 16–26 and visionOS 1–26;
+ * StoreKit 1 on iOS/Catalyst 15).
  * @platform iOS
  *
  * @see {@link https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios}

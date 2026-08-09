@@ -127,7 +127,11 @@ export const ensureLocalOpenIapFlavorStrategy = (
 
   const strategyBlock =
     language === 'kotlin'
-      ? `subprojects {
+      ? `project(":openiap-google") {
+  layout.buildDirectory.set(rootProject.layout.buildDirectory.dir("openiap-google"))
+}
+
+subprojects {
   plugins.withId("com.android.library") {
     extensions.configure<com.android.build.gradle.LibraryExtension>("android") {
       defaultConfig {
@@ -136,7 +140,11 @@ export const ensureLocalOpenIapFlavorStrategy = (
     }
   }
 }`
-      : `subprojects { subproject ->
+      : `project(":openiap-google") {
+  layout.buildDirectory.set(rootProject.layout.buildDirectory.dir("openiap-google"))
+}
+
+subprojects { subproject ->
   subproject.plugins.withId("com.android.library") {
     subproject.android {
       defaultConfig {

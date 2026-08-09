@@ -136,7 +136,7 @@ fun OfferCodeScreen(navController: NavController) {
                                     result = if (purchase != null) {
                                         "Verified redemption: ${purchase.productId} (${purchase.id})"
                                     } else {
-                                        "Legacy redemption sheet presented; refresh purchases after completion"
+                                        "The system sheet did not return a transaction directly; refresh purchases after completion"
                                     }
                                 } catch (e: Exception) {
                                     result = "Failed to present sheet: ${e.message}"

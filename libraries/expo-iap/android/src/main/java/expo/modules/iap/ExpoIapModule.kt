@@ -130,7 +130,7 @@ class ExpoIapModule : Module() {
                                     ExpoIapLog.debug("Activity available: ${it.javaClass.name}")
                                     openIap.setActivity(it)
                                 }.onFailure {
-                                    ExpoIapLog.warning("Activity not available during initConnection - OpenIAP will use Context")
+                                    ExpoIapLog.warning("Activity not available during initConnection")
                                 }
 
                             // If already connected, short-circuit

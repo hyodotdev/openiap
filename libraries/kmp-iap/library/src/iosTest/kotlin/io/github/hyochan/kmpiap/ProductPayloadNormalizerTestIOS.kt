@@ -3,6 +3,7 @@ package io.github.hyochan.kmpiap
 import io.github.hyochan.kmpiap.openiap.ErrorCode
 import io.github.hyochan.kmpiap.openiap.ProductSubscriptionIOS
 import io.github.hyochan.kmpiap.openiap.SubscriptionBillingPlanTypeIOS
+import io.github.hyochan.kmpiap.openiap.SubscriptionPeriodIOS
 import platform.Foundation.NSNull
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -158,6 +159,10 @@ class ProductPayloadNormalizerTestIOS {
             "transactionDate" to 1_700_000_000_000.0,
             "advancedCommerceInfoIOS" to mapOf<Any?, Any?>(
                 "items" to emptyList<Any?>(),
+                "period" to mapOf(
+                    "unit" to "month",
+                    "value" to 1,
+                ),
                 "requestReferenceId" to "request-reference",
             ),
             "billingPlanTypeIOS" to "monthly",
@@ -183,6 +188,8 @@ class ProductPayloadNormalizerTestIOS {
         val purchase = assertNotNull(decodePurchasePayloadIOS(payload))
 
         assertEquals("request-reference", purchase.advancedCommerceInfoIOS?.requestReferenceId)
+        assertEquals(SubscriptionPeriodIOS.Month, purchase.advancedCommerceInfoIOS?.period?.unit)
+        assertEquals(1, purchase.advancedCommerceInfoIOS?.period?.value)
         assertEquals(SubscriptionBillingPlanTypeIOS.Monthly, purchase.billingPlanTypeIOS)
         assertEquals(12, purchase.commitmentInfoIOS?.totalBillingPeriods)
         assertEquals("monthly-plan", purchase.currentPlanId)

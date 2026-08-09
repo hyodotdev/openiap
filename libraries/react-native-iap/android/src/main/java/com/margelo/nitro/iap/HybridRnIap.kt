@@ -197,7 +197,7 @@ class HybridRnIap : HybridRnIapSpec() {
                             }
                         }
                         .onFailure {
-                            RnIapLog.warn("Activity not available during initConnection - OpenIAP will use Context")
+                            RnIapLog.warn("Activity not available during initConnection")
                         }
                 }
             } catch (err: CancellationException) {
