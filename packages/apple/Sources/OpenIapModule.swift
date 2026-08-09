@@ -6,6 +6,18 @@ private struct IndexedProductEntry: @unchecked Sendable {
     let index: Int
     let entry: OpenIAP.ProductOrSubscription
 }
+
+struct EntitlementSelectionKey: Comparable {
+    let purchaseDate: Date
+    let transactionId: UInt64
+
+    static func < (lhs: Self, rhs: Self) -> Bool {
+        if lhs.purchaseDate != rhs.purchaseDate {
+            return lhs.purchaseDate < rhs.purchaseDate
+        }
+        return lhs.transactionId < rhs.transactionId
+    }
+}
 // UIKit: Required for UIApplication, UIWindowScene on iOS/tvOS/visionOS
 #if canImport(UIKit)
 import UIKit
@@ -114,6 +126,9 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     private let promotedPurchaseObserverLock = NSLock()
     private var didRegisterPromotedPurchaseObserver = false
     private var isPromotedPurchaseObserverTransitionInFlight = false
+    private var promotedPurchaseIntentTask: Task<Void, Never>?
+    private let promotedPurchaseIntentOffers =
+        PromotedPurchaseIntentOfferStore<StoreKit.Product.SubscriptionOffer>()
     #endif
 
     private enum SubscriptionPreflightOutcome {
@@ -123,10 +138,14 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
     private override init() {
         super.init()
+        startPromotedPurchaseIntentListenerIfAvailable()
         registerPromotedPurchaseObserverIfNeeded()
     }
 
     deinit {
+        #if os(iOS)
+        promotedPurchaseIntentTask?.cancel()
+        #endif
         unregisterPromotedPurchaseObserverIfNeeded()
         cancelConnectionTasksForDeinit()
     }
@@ -363,7 +382,16 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         let iosProps = try resolveIOSPurchaseProps(from: params)
         let sku = iosProps.sku
         let product = try await storeProduct(for: sku)
-        let options = try StoreKitTypesBridge.purchaseOptions(from: iosProps, product: product)
+        #if os(iOS)
+        let purchaseIntentOffer = await promotedPurchaseIntentOffers.take(for: sku)
+        #else
+        let purchaseIntentOffer: StoreKit.Product.SubscriptionOffer? = nil
+        #endif
+        let options = try StoreKitTypesBridge.purchaseOptions(
+            from: iosProps,
+            product: product,
+            purchaseIntentOffer: purchaseIntentOffer
+        )
 
         if StoreKitTypesBridge.isAutoRenewingSubscriptionProductType(product.type) {
             await preflightInactiveUnfinishedSubscriptions(productId: sku)
@@ -1149,15 +1177,48 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     public func currentEntitlementIOS(sku: String) async throws -> PurchaseIOS? {
         try await ensureConnection()
         let product = try await storeProduct(for: sku)
-        guard let result = await product.currentEntitlement else { return nil }
-        do {
-            let transaction = try checkVerified(result)
-            return await StoreKitTypesBridge.purchaseIOS(from: transaction, jwsRepresentation: result.jwsRepresentation)
-        } catch {
-            let error = makePurchaseError(code: .transactionValidationFailed, message: error.localizedDescription)
-            emitPurchaseError(error)
-            throw error
+
+        let entitlements: Transaction.Transactions
+        #if compiler(>=6.1)
+        if #available(iOS 18.4, macOS 15.4, tvOS 18.4, watchOS 11.4, visionOS 2.4, *) {
+            entitlements = product.currentEntitlements
+        } else {
+            entitlements = Transaction.currentEntitlements
         }
+        #else
+        entitlements = Transaction.currentEntitlements
+        #endif
+
+        var latest: (
+            key: EntitlementSelectionKey,
+            transaction: StoreKit.Transaction,
+            jwsRepresentation: String
+        )?
+        for await result in entitlements {
+            guard result.unsafePayloadValue.productID == sku else { continue }
+            do {
+                let transaction = try checkVerified(result)
+                let key = EntitlementSelectionKey(
+                    purchaseDate: transaction.purchaseDate,
+                    transactionId: transaction.id
+                )
+                if latest.map({ $0.key < key }) ?? true {
+                    latest = (key, transaction, result.jwsRepresentation)
+                }
+            } catch {
+                let error = makePurchaseError(
+                    code: .transactionValidationFailed,
+                    message: error.localizedDescription
+                )
+                emitPurchaseError(error)
+                throw error
+            }
+        }
+        guard let latest else { return nil }
+        return await StoreKitTypesBridge.purchaseIOS(
+            from: latest.transaction,
+            jwsRepresentation: latest.jwsRepresentation
+        )
     }
 
     /// Get the latest verified transaction for a product.
@@ -1272,10 +1333,10 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     }
 
     /// Present a sheet for redeeming offer codes.
-    /// - Note: iOS 27+, Mac Catalyst 27+, and visionOS 27+ return the verified
-    ///   transaction produced by the redemption. Earlier iOS versions present
-    ///   the legacy sheet and return nil, so callers must reconcile through the
-    ///   transaction listener or an explicit available-purchases refresh.
+    /// - Note: Builds made with Xcode 27+ return the verified transaction on
+    ///   iOS 27+, Mac Catalyst 27+, and visionOS 27+. Other supported paths
+    ///   return nil after presenting the system sheet, so callers must reconcile
+    ///   through the transaction listener or an available-purchases refresh.
     /// - SeeAlso: https://developer.apple.com/documentation/storekit/appstore/presentoffercoderedeemsheet(from:options:)
     ///
     /// See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
@@ -1284,7 +1345,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
         #if compiler(>=6.4)
         #if os(iOS) || os(visionOS)
-        if #available(iOS 27.0, visionOS 27.0, *) {
+        if #available(iOS 27.0, macCatalyst 27.0, visionOS 27.0, *) {
             guard let viewController = await activeViewController() else {
                 throw makePurchaseError(
                     code: .purchaseError,
@@ -1309,8 +1370,26 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         #endif
         #endif
 
-        // The legacy sheet cannot return the redeemed transaction directly.
-        // It is only available on iOS and Mac Catalyst.
+        // StoreKit 2's scene-based sheet is available before the result-returning
+        // Apple 27 API, but cannot return the redeemed transaction directly.
+        #if os(iOS) || os(visionOS)
+        if #available(iOS 16.0, macCatalyst 16.0, visionOS 1.0, *) {
+            guard let scene = await activeWindowScene() else {
+                throw makePurchaseError(
+                    code: .purchaseError,
+                    message: "Cannot find an active window scene for offer-code redemption"
+                )
+            }
+            do {
+                try await AppStore.presentOfferCodeRedeemSheet(in: scene)
+                return nil
+            } catch {
+                throw PurchaseError.wrap(error, fallback: .purchaseError)
+            }
+        }
+        #endif
+
+        // iOS 15 requires the original StoreKit sheet.
         #if os(iOS)
         await MainActor.run {
             SKPaymentQueue.default().presentCodeRedemptionSheet()
@@ -1700,8 +1779,37 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         resources.unfinishedTransactionTask?.cancel()
     }
 
+    private func startPromotedPurchaseIntentListenerIfAvailable() {
+        #if os(iOS)
+        if #available(iOS 16.4, macCatalyst 16.4, *) {
+            guard promotedPurchaseIntentTask == nil else { return }
+            promotedPurchaseIntentTask = Task { [weak self] in
+                for await intent in PurchaseIntent.intents {
+                    guard !Task.isCancelled, let self else { return }
+                    let offer: StoreKit.Product.SubscriptionOffer?
+                    if #available(iOS 18.0, macCatalyst 18.0, *) {
+                        offer = intent.offer
+                    } else {
+                        offer = nil
+                    }
+                    await self.promotedPurchaseIntentOffers.record(
+                        offer,
+                        for: intent.product.id
+                    )
+                    if let productManager = self.connection.currentProductManager() {
+                        await productManager.addProduct(intent.product)
+                    }
+                    self.emitPromotedProduct(intent.product.id)
+                }
+            }
+        }
+        #endif
+    }
+
     private func registerPromotedPurchaseObserverIfNeeded() {
         #if os(iOS)
+        if #available(iOS 16.4, macCatalyst 16.4, *) { return }
+
         promotedPurchaseObserverLock.lock()
         let shouldRegister = !didRegisterPromotedPurchaseObserver &&
             !isPromotedPurchaseObserverTransitionInFlight
@@ -1731,6 +1839,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
 
     private func unregisterPromotedPurchaseObserverIfNeeded() {
         #if os(iOS)
+        if #available(iOS 16.4, macCatalyst 16.4, *) { return }
+
         promotedPurchaseObserverLock.lock()
         let shouldUnregister = didRegisterPromotedPurchaseObserver &&
             !isPromotedPurchaseObserverTransitionInFlight
@@ -2412,11 +2522,14 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         var revocationDateValue: Double? = nil
         var storeTypeValue: String? = nil
 
-        // Swift 6.1 compiler+ (Xcode 16.4+): AppTransaction.appTransactionID and originalPlatform available
+        // Swift 6.1 compiler+ (Xcode 16.4+): appTransactionID is back-deployed
+        // to the AppTransaction baseline; originalPlatform itself starts at 18.4.
         #if compiler(>=6.1)
+        appTransactionId = transaction.appTransactionID
         if #available(iOS 18.4, macOS 15.4, tvOS 18.4, watchOS 11.4, visionOS 2.4, *) {
-            appTransactionId = String(transaction.appTransactionID)
             originalPlatformValue = transaction.originalPlatform.rawValue
+        } else {
+            originalPlatformValue = transaction.originalPlatformStringRepresentation
         }
         #endif // compiler(>=6.1)
 

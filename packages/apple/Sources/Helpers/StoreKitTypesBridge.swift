@@ -380,7 +380,11 @@ enum StoreKitTypesBridge {
         }
     }
 
-    static func purchaseOptions(from props: some IosPropsProtocol, product: StoreKit.Product? = nil) throws -> Set<StoreKit.Product.PurchaseOption> {
+    static func purchaseOptions(
+        from props: some IosPropsProtocol,
+        product: StoreKit.Product? = nil,
+        purchaseIntentOffer: StoreKit.Product.SubscriptionOffer? = nil
+    ) throws -> Set<StoreKit.Product.PurchaseOption> {
         var options: Set<StoreKit.Product.PurchaseOption> = []
         if let quantity = props.quantity, quantity > 1 {
             options.insert(.quantity(quantity))
@@ -492,6 +496,13 @@ enum StoreKitTypesBridge {
                         productId: props.sku,
                         message: "Win-back offers are only supported on iOS 18+ / macOS 15+ / tvOS 18+ / watchOS 11+ / visionOS 2+."
                     )
+                }
+            } else if let purchaseIntentOffer,
+                      props.withOffer == nil,
+                      subscriptionProps.promotionalOfferJWS == nil {
+                if #available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *) {
+                    options.insert(.winBackOffer(purchaseIntentOffer))
+                    OpenIapLog.debug("✅ Added win-back offer from PurchaseIntent")
                 }
             }
 
@@ -754,6 +765,35 @@ enum StoreKitTypesBridge {
             return nil
         }
     }
+
+    static func standardizedDiscountOfferType(
+        from type: StoreKit.Product.SubscriptionOffer.OfferType
+    ) -> DiscountOfferType? {
+        #if compiler(>=6.1)
+        if #available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *),
+           type == .winBack {
+            return nil
+        }
+        #endif
+        if type == .introductory { return .introductory }
+        if type == .promotional { return .promotional }
+        return nil
+    }
+
+    static func purchaseOfferTypeString(from type: StoreKit.Transaction.OfferType) -> String {
+        #if compiler(>=6.1)
+        if type == .winBack {
+            return SubscriptionOfferTypeIOS.winBack.rawValue
+        }
+        #endif
+        if type == .introductory {
+            return SubscriptionOfferTypeIOS.introductory.rawValue
+        }
+        if type == .promotional {
+            return SubscriptionOfferTypeIOS.promotional.rawValue
+        }
+        return String(describing: type)
+    }
 }
 
 @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
@@ -797,8 +837,10 @@ private extension StoreKitTypesBridge {
     #if compiler(>=6.3)
     @available(iOS 26.4, macOS 26.4, tvOS 26.4, watchOS 26.4, visionOS 26.4, *)
     static func makeSubscriptionPricingTerm(from terms: StoreKit.Product.SubscriptionInfo.PricingTerms) -> SubscriptionPricingTermsIOS {
-        let offers = terms.subscriptionOffers.map { offer in
-            makeStandardizedSubscriptionOffer(from: offer, type: discountOfferType(from: offer))
+        let offers = terms.subscriptionOffers.compactMap { offer in
+            standardizedDiscountOfferType(from: offer.type).map { type in
+                makeStandardizedSubscriptionOffer(from: offer, type: type)
+            }
         }
         return SubscriptionPricingTermsIOS(
             billingDisplayPrice: terms.billingDisplayPrice,
@@ -905,15 +947,6 @@ private extension StoreKitTypesBridge {
             timestampIOS: nil,
             type: type
         )
-    }
-
-    static func discountOfferType(from offer: StoreKit.Product.SubscriptionOffer) -> DiscountOfferType {
-        #if compiler(>=6.1)
-        if #available(iOS 18.0, macOS 15.0, tvOS 18.0, watchOS 11.0, visionOS 2.0, *) {
-            return offer.type == .introductory ? .introductory : .promotional
-        }
-        #endif
-        return .promotional
     }
 
     static func introductoryPriceAmount(from offer: StoreKit.Product.SubscriptionOffer?) -> String? {
@@ -1050,16 +1083,7 @@ private extension StoreKitTypesBridge {
             paymentModeString = PaymentModeIOS.empty.rawValue
         }
 
-        // Map offer type to SubscriptionOfferTypeIOS enum
-        let typeString: String
-        switch offer.type {
-        case .introductory:
-            typeString = SubscriptionOfferTypeIOS.introductory.rawValue
-        case .promotional:
-            typeString = SubscriptionOfferTypeIOS.promotional.rawValue
-        default:
-            typeString = String(describing: offer.type)
-        }
+        let typeString = purchaseOfferTypeString(from: offer.type)
 
         return PurchaseOfferIOS(
             id: offer.id ?? "",
@@ -1172,6 +1196,12 @@ private extension StoreKitTypesBridge {
                 displayName: info.displayName,
                 estimatedTax: decimalString(info.estimatedTax),
                 items: items,
+                period: info.period.map {
+                    SubscriptionPeriodValueIOS(
+                        unit: $0.unit.subscriptionPeriodIOS,
+                        value: $0.value
+                    )
+                },
                 requestReferenceId: info.requestReferenceID,
                 taxCode: info.taxCode,
                 taxExclusivePrice: decimalString(info.taxExclusivePrice),
