@@ -21,20 +21,16 @@ import androidx.navigation.NavController
 import dev.hyo.martie.models.AppColors
 import dev.hyo.martie.screens.uis.*
 import dev.hyo.martie.util.findActivity
-import dev.hyo.openiap.IapContext
-import dev.hyo.openiap.store.OpenIapStore
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun OfferCodeScreen(
-    navController: NavController,
-    storeParam: OpenIapStore? = null
+    navController: NavController
 ) {
     val context = LocalContext.current
     val activity = remember(context) { context.findActivity() }
-    val iapStore = storeParam ?: (IapContext.LocalOpenIapStore.current
-        ?: IapContext.rememberOpenIapStore())
+    val iapStore = currentOpenIapStore()
 
     var showResult by remember { mutableStateOf(false) }
     var resultMessage by remember { mutableStateOf("") }
@@ -42,9 +38,8 @@ fun OfferCodeScreen(
     
     // Initialize and connect on first composition (spec-aligned names)
     val startupScope = rememberCoroutineScope()
-    DisposableEffect(Unit) {
-        startupScope.launch { runCatching { iapStore.initConnection() } }
-        onDispose { startupScope.launch { runCatching { iapStore.endConnection() } } }
+    LaunchedEffect(iapStore) {
+        runCatching { iapStore.initConnection() }
     }
 
     val lifecycleOwner = LocalLifecycleOwner.current

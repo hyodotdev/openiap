@@ -1,4 +1,4 @@
 interface:
   display_name: "Review Self"
-  short_description: "Review current work in five-minute loops"
-  default_prompt: "Use $review-self to review the current work, fix actionable findings, and recheck it every five minutes until stable."
+  short_description: "Review and simplify current work until stable"
+  default_prompt: "Use $review-self to review and simplify the current work under KISS and SSOT rules, fix actionable findings, and recheck at the requested interval until stable."

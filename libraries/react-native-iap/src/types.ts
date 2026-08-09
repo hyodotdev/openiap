@@ -46,7 +46,12 @@ export interface AdvancedCommerceInfoIOS {
   estimatedTax?: (string | null);
   /** The items purchased as part of this transaction */
   items: AdvancedCommerceItemIOS[];
-  /** Subscription period for this transaction */
+  /**
+   * Subscription period for this transaction.
+   * Available in OpenIAP Spec 3.1.0 / openiap-apple 3.1.0
+   * (requires iOS 18.4+, macOS 15.4+, tvOS 18.4+, watchOS 11.4+,
+   * or visionOS 2.4+).
+   */
   period?: (SubscriptionPeriodValueIOS | null);
   /** Request reference identifier for tracking */
   requestReferenceId?: (string | null);

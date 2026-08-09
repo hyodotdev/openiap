@@ -74,6 +74,12 @@ Before posting or editing issues, pull requests, reviews, discussions, commits,
 release notes, or GitHub Releases, follow the mandatory language guard in
 [`knowledge/internal/06-git-deployment.md`](knowledge/internal/06-git-deployment.md#public-github-communication-language).
 
+### KISS and SSOT
+
+KISS and SSOT are mandatory release criteria. The canonical rules live in
+[`knowledge/internal/03-coding-style.md`](knowledge/internal/03-coding-style.md#0-kiss-and-ssot-are-release-requirements).
+Apply that section before implementation and during every review.
+
 ### Platform Function Naming
 
 - **iOS functions**: Must end with `IOS` suffix (e.g., `syncIOS`, `getReceiptDataIOS`)
@@ -255,7 +261,8 @@ keep its wording agent-neutral.
 1. Reviews the complete current diff, including staged, unstaged, and untracked
    work, against the original request and repository conventions
 2. Fixes validated in-scope findings and runs path-specific verification
-3. Rechecks through a real recurring wake-up after five minutes
+3. Rechecks through a real recurring wake-up at the user's requested interval,
+   defaulting to five minutes
 4. Finishes after two consecutive clean snapshots, or reports the exact blocker
 
 `review-self` does not grant commit, push, PR, merge, deploy, or release authority

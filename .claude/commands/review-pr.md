@@ -31,6 +31,8 @@ Based on changed files, run these checks BEFORE committing:
 
 When reviewing, check these project-specific rules:
 
+- **KISS/SSOT**: Enforce the canonical release rules in
+  `knowledge/internal/03-coding-style.md`
 - **iOS functions**: Must end with `IOS` suffix (e.g., `syncIOS`)
 - **Android functions in packages/google**: NO `Android` suffix (it's Android-only)
 - **Generated files**: Do NOT edit `packages/apple/Sources/Models/Types.swift` or `packages/google/openiap/src/main/java/dev/hyo/openiap/Types.kt`
@@ -104,9 +106,10 @@ When fallback is required:
    acceptance criteria, changed-path conventions, and existing commit/push
    authority. Explicitly request one pass so `review-pr` remains the only polling
    owner.
-3. Do not let the fallback round re-enter `review-pr`, request reviewers, or
-   schedule its own five-minute loop. It may inspect current review/CI evidence,
-   but this workflow owns thread handling and polling.
+3. Do not let the fallback round re-enter `review-pr`, request reviewers, handle
+   trigger comments, invoke this fallback again, or schedule any recurring loop.
+   It may inspect current review/CI evidence, but this workflow owns thread
+   handling and polling.
 4. Fix and verify every validated finding using the normal response rules. If a
    fix changes the head, request CodeRabbit again after the fix batch and run
    fallback again only if it remains unavailable for the new head.

@@ -53,6 +53,18 @@ function objectSchema(fields: IRField[], enums: IREnum[]): IRSchema {
 }
 
 describe('codegen defaults', () => {
+  it('wraps multiline C# documentation in one XML summary element', () => {
+    const documentedField = field('value', stringType);
+    documentedField.description = 'First line.\nSecond <line>.';
+
+    const output = new CSharpPlugin({ outputPath: 'Types.cs' }).generate(schema([documentedField]));
+
+    expect(output).toContain(
+      ['    /// <summary>', '    /// First line.', '    /// Second &lt;line&gt;.', '    /// </summary>'].join('\n'),
+    );
+    expect(output).not.toContain('</summary>\n    /// <summary>');
+  });
+
   it('keeps unsupported non-null C# defaults required and escapes string literals', () => {
     const output = new CSharpPlugin({ outputPath: 'Types.cs' }).generate(
       schema([field('unsupportedDefault', stringType, { raw: 'unsupported' }), field('escapedString', stringType, 'quote " and slash \\')]),

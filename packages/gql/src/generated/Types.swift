@@ -557,7 +557,10 @@ public struct AdvancedCommerceInfoIOS: Codable {
     public var estimatedTax: String? = nil
     /// The items purchased as part of this transaction
     public var items: [AdvancedCommerceItemIOS]
-    /// Subscription period for this transaction
+    /// Subscription period for this transaction.
+    /// Available in OpenIAP Spec 3.1.0 / openiap-apple 3.1.0
+    /// (requires iOS 18.4+, macOS 15.4+, tvOS 18.4+, watchOS 11.4+,
+    /// or visionOS 2.4+).
     public var period: SubscriptionPeriodValueIOS? = nil
     /// Request reference identifier for tracking
     public var requestReferenceId: String? = nil

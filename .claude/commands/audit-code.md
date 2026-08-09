@@ -148,6 +148,8 @@ Compare current implementation against latest platform APIs:
 
 **Internal Rules Compliance:**
 
+- [ ] Canonical KISS/SSOT rules in `03-coding-style.md` pass
+
 packages/apple (Swift):
 
 - [ ] iOS-specific functions end with `IOS` suffix
@@ -192,7 +194,8 @@ After identifying issues:
 
 1. Read the relevant knowledge file for the rule
 2. Read the violating code file
-3. Fix the code to comply with the rule
+3. Fix the code to comply with the rule, simplifying or consolidating before
+   adding another layer
 4. For missing features: add to roadmap or implement
 
 ### 7. Update Documentation

@@ -48,6 +48,10 @@ val promotedProductListener: Flow<String?>`}</CodeBlock>
             <CodeBlock language="dart">{`// iOS only
 Stream<String?> get purchasePromoted;`}</CodeBlock>
           ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`# iOS only
+signal promoted_product_ios(product_id: String)`}</CodeBlock>
+          ),
           csharp: (
             <CodeBlock language="csharp">{`using OpenIap;
 using OpenIap.Maui;
@@ -67,22 +71,39 @@ IObservable<string> promotedProducts = OpenIapClient.Instance.PromotedProductIOS
         {{
           typescript: (
             <CodeBlock language="typescript">{`import {
+  fetchProducts,
   promotedProductListenerIOS,
   requestPurchase
 } from 'expo-iap';
 
 const subscription = promotedProductListenerIOS(async (product) => {
-  const productId = product.id;
-  console.log('Promoted product tapped:', productId);
+  try {
+    const productId = product.id;
+    console.log('Promoted product tapped:', productId);
 
-  // expo-iap and react-native-iap deliver the fetched Product object.
-  const confirmed = await showPurchaseConfirmation(product);
+    // Refetch as "all" because the listener's legacy Product payload does not
+    // distinguish promoted subscriptions at the type level.
+    const items = (await fetchProducts({ skus: [productId], type: 'all' })) ?? [];
+    const item = items.find((candidate) => candidate.id === productId);
+    if (!item) return;
 
-  if (confirmed) {
-    await requestPurchase({
-      request: { apple: { sku: productId } },
-      type: 'in-app'
-    });
+    const confirmed = await showPurchaseConfirmation(item);
+
+    if (confirmed) {
+      if (item.type === 'subs') {
+        await requestPurchase({
+          request: { apple: { sku: productId } },
+          type: 'subs'
+        });
+      } else {
+        await requestPurchase({
+          request: { apple: { sku: productId } },
+          type: 'in-app'
+        });
+      }
+    }
+  } catch (error) {
+    console.error('Promoted purchase failed:', error);
   }
 });
 
@@ -98,21 +119,35 @@ let subscription = OpenIapModule.shared.promotedProductListenerIOS { productId i
 
         do {
             let result = try await OpenIapModule.shared.fetchProducts(
-                ProductRequest(skus: [productId], type: .inApp)
+                ProductRequest(skus: [productId], type: .all)
             )
-            guard case let .products(products) = result,
-                  let product = products?.first,
-                  await showPurchaseConfirmation(product) else { return }
+            guard case let .all(items) = result,
+                  let item = items?.first else { return }
 
-            try await OpenIapModule.shared.requestPurchase(
-                RequestPurchaseProps(
-                    request: .purchase(
-                        RequestPurchasePropsByPlatforms(
-                            apple: RequestPurchaseIosProps(sku: productId)
+            switch item {
+            case let .product(product):
+                guard await showPurchaseConfirmation(product) else { return }
+                try await OpenIapModule.shared.requestPurchase(
+                    RequestPurchaseProps(
+                        request: .purchase(
+                            RequestPurchasePropsByPlatforms(
+                                apple: RequestPurchaseIosProps(sku: productId)
+                            )
                         )
                     )
                 )
-            )
+            case let .productSubscription(subscription):
+                guard await showPurchaseConfirmation(subscription) else { return }
+                try await OpenIapModule.shared.requestPurchase(
+                    RequestPurchaseProps(
+                        request: .subscription(
+                            RequestSubscriptionPropsByPlatforms(
+                                apple: RequestSubscriptionIosProps(sku: productId)
+                            )
+                        )
+                    )
+                )
+            }
         } catch {
             print("Promoted purchase failed: \\(error.localizedDescription)")
         }
@@ -127,6 +162,7 @@ func stopListeningForPromotedProducts() {
           kmp: (
             <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.KmpIAP
 import io.github.hyochan.kmpiap.openiap.*
+import kotlinx.coroutines.CancellationException
 
 val iap = KmpIAP()
 
@@ -134,24 +170,47 @@ scope.launch {
     iap.promotedProductListener.collect { productId ->
         productId ?: return@collect
 
-        val result = iap.fetchProducts(
-            ProductRequest(skus = listOf(productId), type = ProductQueryType.InApp)
-        )
-        val product = (result as? FetchProductsResultProducts)
-            ?.value
-            ?.firstOrNull()
-
-        if (product != null && showPurchaseConfirmation(product)) {
-            iap.requestPurchase(
-                RequestPurchaseProps(
-                    request = RequestPurchaseProps.Request.Purchase(
-                        RequestPurchasePropsByPlatforms(
-                            apple = RequestPurchaseIosProps(sku = productId)
-                        )
-                    ),
-                    type = ProductQueryType.InApp
-                )
+        try {
+            val result = iap.fetchProducts(
+                ProductRequest(skus = listOf(productId), type = ProductQueryType.All)
             )
+            val item = (result as? FetchProductsResultAll)
+                ?.value
+                ?.firstOrNull()
+
+            when (item) {
+                is ProductOrSubscription.ProductItem -> {
+                    if (!showPurchaseConfirmation(item.value)) return@collect
+                    iap.requestPurchase(
+                        RequestPurchaseProps(
+                            request = RequestPurchaseProps.Request.Purchase(
+                                RequestPurchasePropsByPlatforms(
+                                    apple = RequestPurchaseIosProps(sku = productId)
+                                )
+                            ),
+                            type = ProductQueryType.InApp
+                        )
+                    )
+                }
+                is ProductOrSubscription.ProductSubscriptionItem -> {
+                    if (!showPurchaseConfirmation(item.value)) return@collect
+                    iap.requestPurchase(
+                        RequestPurchaseProps(
+                            request = RequestPurchaseProps.Request.Subscription(
+                                RequestSubscriptionPropsByPlatforms(
+                                    apple = RequestSubscriptionIosProps(sku = productId)
+                                )
+                            ),
+                            type = ProductQueryType.Subs
+                        )
+                    )
+                }
+                null -> Unit
+            }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            println("Promoted purchase failed: \${error.message}")
         }
     }
 }`}</CodeBlock>
@@ -163,32 +222,77 @@ scope.launch {
 final iap = FlutterInappPurchase.instance;
 final subscription = iap.purchasePromoted.listen((productId) async {
   if (productId == null) return;
-  print('Promoted product tapped: $productId');
+  try {
+    print('Promoted product tapped: $productId');
 
-  // Fetch product details
-  final products = await iap.fetchProducts<Product>(
-    skus: [productId],
-    type: ProductQueryType.InApp,
-  );
+    final products = await iap.fetchProducts<ProductCommon>(
+      skus: [productId],
+      type: ProductQueryType.All,
+    );
 
-  if (products.isNotEmpty) {
-    // Show product info to user and confirm purchase
-    final confirmed = await showPurchaseConfirmation(products.first);
+    if (products.isNotEmpty) {
+      final confirmed = await showPurchaseConfirmation(products.first);
 
-    if (confirmed) {
-      // Purchase directly using requestPurchase with the received SKU
-      await iap.requestPurchase(
-        RequestPurchaseProps.inApp((
-          apple: RequestPurchaseIosProps(sku: productId),
-          google: null,
-        )),
-      );
+      if (confirmed) {
+        if (products.first.type == ProductType.Subs) {
+          await iap.requestPurchase(
+            RequestPurchaseProps.subs((
+              apple: RequestSubscriptionIosProps(sku: productId),
+              google: null,
+            )),
+          );
+        } else {
+          await iap.requestPurchase(
+            RequestPurchaseProps.inApp((
+              apple: RequestPurchaseIosProps(sku: productId),
+              google: null,
+            )),
+          );
+        }
+      }
     }
+  } catch (error) {
+    print('Promoted purchase failed: $error');
   }
 });
 
 // Cleanup when done
 subscription.cancel();`}</CodeBlock>
+          ),
+          gdscript: (
+            <CodeBlock language="gdscript">{`const Types = preload("res://addons/godot-iap/types.gd")
+
+func _ready() -> void:
+    GodotIapPlugin.promoted_product_ios.connect(_on_promoted_product_ios)
+
+func _on_promoted_product_ios(product_id: String) -> void:
+    var request := Types.ProductRequest.new()
+    var skus: Array[String] = [product_id]
+    request.skus = skus
+    request.type = Types.ProductQueryType.ALL
+
+    var items = await GodotIapPlugin.fetch_products(request)
+    if items.is_empty():
+        return
+
+    var item = items[0]
+    if not await show_purchase_confirmation(item):
+        return
+
+    var props := Types.RequestPurchaseProps.new()
+    if item is Types.ProductSubscriptionIOS:
+        props.request_subscription = Types.RequestSubscriptionPropsByPlatforms.new()
+        props.request_subscription.apple = Types.RequestSubscriptionIosProps.new()
+        props.request_subscription.apple.sku = product_id
+        props.type = Types.ProductQueryType.SUBS
+    else:
+        props.request = Types.RequestPurchasePropsByPlatforms.new()
+        props.request.apple = Types.RequestPurchaseIosProps.new()
+        props.request.apple.sku = product_id
+        props.type = Types.ProductQueryType.IN_APP
+
+    # Results arrive through purchase_updated or purchase_error.
+    GodotIapPlugin.request_purchase(props)`}</CodeBlock>
           ),
           csharp: (
             <CodeBlock language="csharp">{`using OpenIap;
@@ -198,25 +302,48 @@ var iap = OpenIapClient.Instance;
 var query = (QueryResolver)iap;
 var mutate = (MutationResolver)iap;
 
-using var subscription = iap.PromotedProductIOS.Subscribe(async productId =>
+async Task HandlePromotedProductAsync(string productId)
 {
-    var result = await query.FetchProductsAsync(new ProductRequest
+    try
     {
-        Skus = new[] { productId },
-        Type = ProductQueryType.InApp,
-    });
-
-    var product = (result as FetchProductsResultProducts)?.Value?.FirstOrDefault();
-    if (product is null || !await ShowPurchaseConfirmationAsync(product)) return;
-
-    await mutate.RequestPurchaseAsync(new RequestPurchaseProps
-    {
-        RequestPurchase = new RequestPurchasePropsByPlatforms
+        var result = await query.FetchProductsAsync(new ProductRequest
         {
-            Apple = new RequestPurchaseIosProps { Sku = productId },
-        },
-        Type = ProductQueryType.InApp,
-    });
+            Skus = new[] { productId },
+            Type = ProductQueryType.All,
+        });
+
+        var product = (result as FetchProductsResultAll)?.Value?.FirstOrDefault();
+        if (product is null || !await ShowPurchaseConfirmationAsync(product)) return;
+
+        var props = product is ProductSubscription
+            ? new RequestPurchaseProps
+            {
+                RequestSubscription = new RequestSubscriptionPropsByPlatforms
+                {
+                    Apple = new RequestSubscriptionIosProps { Sku = productId },
+                },
+                Type = ProductQueryType.Subs,
+            }
+            : new RequestPurchaseProps
+            {
+                RequestPurchase = new RequestPurchasePropsByPlatforms
+                {
+                    Apple = new RequestPurchaseIosProps { Sku = productId },
+                },
+                Type = ProductQueryType.InApp,
+            };
+
+        await mutate.RequestPurchaseAsync(props);
+    }
+    catch (Exception error)
+    {
+        Console.Error.WriteLine($"Promoted purchase failed: {error.Message}");
+    }
+}
+
+using var subscription = iap.PromotedProductIOS.Subscribe(productId =>
+{
+    _ = HandlePromotedProductAsync(productId);
 });`}</CodeBlock>
           ),
         }}

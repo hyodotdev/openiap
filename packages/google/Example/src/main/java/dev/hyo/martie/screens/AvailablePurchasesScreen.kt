@@ -14,7 +14,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
@@ -22,26 +21,17 @@ import dev.hyo.martie.BuildConfig
 import dev.hyo.martie.models.AppColors
 import dev.hyo.martie.screens.uis.*
 import dev.hyo.martie.util.PREMIUM_SUBSCRIPTION_PRODUCT_ID
-import dev.hyo.openiap.IapContext
 import dev.hyo.openiap.PurchaseAndroid
 import dev.hyo.openiap.PurchaseState
-import dev.hyo.openiap.store.OpenIapStore
 import dev.hyo.openiap.store.PurchaseResultStatus
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AvailablePurchasesScreen(
-    navController: NavController,
-    storeParam: OpenIapStore? = null
+    navController: NavController
 ) {
-    val context = LocalContext.current
-    val iapStore = storeParam ?: (IapContext.LocalOpenIapStore.current
-        ?: IapContext.rememberOpenIapStore())
+    val iapStore = currentOpenIapStore()
     val purchases by iapStore.availablePurchases.collectAsState()
     val status by iapStore.status.collectAsState()
     val connectionStatus by iapStore.isConnected.collectAsState()
@@ -61,15 +51,6 @@ fun AvailablePurchasesScreen(
     var isInitializing by remember { mutableStateOf(true) }
     var initError by remember { mutableStateOf<String?>(null) }
 
-    // Use a dedicated scope for cleanup that won't be cancelled with composition
-    val cleanupScope = remember { CoroutineScope(Dispatchers.Main + SupervisorJob()) }
-
-    DisposableEffect(cleanupScope) {
-        onDispose {
-            cleanupScope.cancel()
-        }
-    }
-
     // Initialize and connect on first composition (spec-aligned names)
     LaunchedEffect(Unit) {
         try {
@@ -86,16 +67,6 @@ fun AvailablePurchasesScreen(
         }
     }
 
-    DisposableEffect(Unit) {
-        onDispose {
-            // Use dedicated cleanup scope to avoid cancellation race
-            cleanupScope.launch {
-                runCatching { iapStore.endConnection() }
-                runCatching { iapStore.clear() }
-            }
-        }
-    }
-    
     Scaffold(
         topBar = {
             TopAppBar(

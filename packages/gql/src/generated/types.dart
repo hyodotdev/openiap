@@ -1238,7 +1238,10 @@ class AdvancedCommerceInfoIOS {
   final String? estimatedTax;
   /// The items purchased as part of this transaction
   final List<AdvancedCommerceItemIOS> items;
-  /// Subscription period for this transaction
+  /// Subscription period for this transaction.
+  /// Available in OpenIAP Spec 3.1.0 / openiap-apple 3.1.0
+  /// (requires iOS 18.4+, macOS 15.4+, tvOS 18.4+, watchOS 11.4+,
+  /// or visionOS 2.4+).
   final SubscriptionPeriodValueIOS? period;
   /// Request reference identifier for tracking
   final String? requestReferenceId;

@@ -254,13 +254,45 @@ actor IapState {
 /// app starts the matching purchase. The generic form makes the one-shot,
 /// product-scoped behavior testable without constructing StoreKit offers.
 actor PromotedPurchaseIntentOfferStore<Offer: Sendable> {
-    private var offersByProductId: [String: Offer] = [:]
-
-    func record(_ offer: Offer?, for productId: String) {
-        offersByProductId[productId] = offer
+    struct Lease: Sendable {
+        fileprivate let id: UInt64
+        let offer: Offer
     }
 
-    func take(for productId: String) -> Offer? {
-        offersByProductId.removeValue(forKey: productId)
+    private enum Slot: Sendable {
+        case available(id: UInt64, offer: Offer)
+        case leased(id: UInt64)
+    }
+
+    private var nextId: UInt64 = 0
+    private var slotsByProductId: [String: Slot] = [:]
+
+    func record(_ offer: Offer?, for productId: String) {
+        nextId &+= 1
+        guard let offer else {
+            slotsByProductId.removeValue(forKey: productId)
+            return
+        }
+        slotsByProductId[productId] = .available(id: nextId, offer: offer)
+    }
+
+    func lease(for productId: String) -> Lease? {
+        guard case let .available(id, offer) = slotsByProductId[productId] else {
+            return nil
+        }
+        slotsByProductId[productId] = .leased(id: id)
+        return Lease(id: id, offer: offer)
+    }
+
+    func release(_ lease: Lease, for productId: String) {
+        guard case let .leased(id) = slotsByProductId[productId],
+              id == lease.id else { return }
+        slotsByProductId[productId] = .available(id: lease.id, offer: lease.offer)
+    }
+
+    func consume(_ lease: Lease, for productId: String) {
+        guard case let .leased(id) = slotsByProductId[productId],
+              id == lease.id else { return }
+        slotsByProductId.removeValue(forKey: productId)
     }
 }

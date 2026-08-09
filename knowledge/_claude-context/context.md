@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-08-09T13:54:08.141Z
+> Last updated: 2026-08-09T21:46:58.647Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -540,6 +540,28 @@ isBillingProgramAvailableAndroid(program: BillingProgramAndroid!): BillingProgra
 > All code must follow these style guidelines.
 
 ## General Principles
+
+### 0. KISS and SSOT Are Release Requirements
+
+Prefer the simplest correct design that satisfies verified requirements. KISS
+does not justify skipping error handling, lifecycle safety, tests, or public
+contracts; it requires meeting them with the fewest independent concepts.
+
+- Give each stateful resource one clear owner and one terminal cleanup path.
+  Pass or reference that owner instead of creating fallback stores, scopes,
+  caches, or managers at multiple layers.
+- Keep each fact in one canonical source. Generate or link mirrors and adapters;
+  never maintain equivalent rules, versions, schemas, or lifecycle decisions in
+  parallel files.
+- Reuse an existing abstraction when it already owns the invariant. Add a new
+  helper only for real reuse, a necessary platform boundary, or isolated testing;
+  keep single-use helpers local.
+- Do not add speculative configuration, indirection, background work, or state.
+  Every new layer must name the invariant it protects, its owner, its cleanup,
+  and the test that proves it is needed.
+- When fixing a bug, first look for state or code that can be deleted or
+  consolidated. Prefer one understandable path over several defensive fallback
+  paths.
 
 ### 1. Explicit Over Implicit
 

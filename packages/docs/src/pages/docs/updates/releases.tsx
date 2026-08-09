@@ -25,6 +25,7 @@ interface Note {
 }
 
 const storeApiModernizationReleases = [
+  ['OpenIAP Spec 3.1.0', 'docs-3.1.0'],
   ['openiap-apple 3.1.0', '3.1.0'],
   ['openiap-google 3.2.0', 'google-3.2.0'],
   ['react-native-iap 16.2.0', 'react-native-iap-16.2.0'],
@@ -33,6 +34,18 @@ const storeApiModernizationReleases = [
   ['godot-iap 3.2.0', 'godot-iap-3.2.0'],
   ['kmp-iap 3.2.0', 'kmp-iap-3.2.0'],
   ['OpenIap.Maui 2.2.0', 'maui-iap-2.2.0'],
+] as const;
+
+const storeApiFollowupReleases = [
+  ['OpenIAP Spec 3.1.1', 'docs-3.1.1'],
+  ['openiap-apple 3.1.1', '3.1.1'],
+  ['openiap-google 3.2.1', 'google-3.2.1'],
+  ['react-native-iap 16.2.1', 'react-native-iap-16.2.1'],
+  ['expo-iap 5.2.1', 'expo-iap-5.2.1'],
+  ['flutter_inapp_purchase 10.2.1', 'flutter-iap-10.2.1'],
+  ['godot-iap 3.2.1', 'godot-iap-3.2.1'],
+  ['kmp-iap 3.2.1', 'kmp-iap-3.2.1'],
+  ['OpenIap.Maui 2.2.1', 'maui-iap-2.2.1'],
 ] as const;
 
 const dependencyModernizationReleases = [
@@ -179,6 +192,153 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // August 10, 2026 - Store API follow-up hardening
+    {
+      id: 'store-api-follow-up-hardening-2026-08-10',
+      date: new Date('2026-08-10'),
+      element: (
+        <div
+          key="store-api-follow-up-hardening-2026-08-10"
+          style={noteCardStyle}
+        >
+          <AnchorLink id="store-api-follow-up-hardening-2026-08-10" level="h4">
+            August 10, 2026 - Store API follow-up hardening
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes a coordinated patch train from the final cross-SDK
+            self-review of the Store API modernization release. It closes two
+            runtime edge cases without removing or renaming public APIs.
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Common changes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              Promoted-product examples now refetch mixed product details and
+              select the subscription request branch when the promoted item is a
+              subscription. The Advanced Commerce period field also carries its
+              precise OpenIAP and Apple availability in every generated SDK.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Shared spec and native packages
+          </h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>OpenIAP Spec 3.1.1</strong> - synchronizes the Advanced
+              Commerce period availability clarification used by every generated
+              SDK.
+            </li>
+            <li>
+              <strong>openiap-apple 3.1.1</strong> - exclusively reserves an
+              externally redeemed win-back offer for one matching promoted
+              purchase attempt. Local validation and presentation failures
+              release the reservation for a safe retry, while newer purchase
+              intents cannot be overwritten by a stale attempt.
+            </li>
+            <li>
+              <strong>openiap-google 3.2.1</strong> - makes native convenience
+              Activity binding lifecycle-aware and owner-scoped. A paused or
+              disposed Compose owner no longer clears another active owner, and
+              Horizon ViewModel callers have an explicit Activity-based
+              initialization path.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>react-native-iap 16.2.1</strong> - consumes the corrected
+              native behavior and synchronized generated contract comments.
+            </li>
+            <li>
+              <strong>expo-iap 5.2.1</strong> - consumes the corrected native
+              behavior and synchronized generated contract comments.
+            </li>
+            <li>
+              <strong>flutter_inapp_purchase 10.2.1</strong> - synchronizes the
+              generated Apple availability contract.
+            </li>
+            <li>
+              <strong>godot-iap 3.2.1</strong> - synchronizes the generated
+              Apple availability contract.
+            </li>
+            <li>
+              <strong>kmp-iap 3.2.1</strong> - synchronizes the generated Apple
+              availability contract.
+            </li>
+            <li>
+              <strong>OpenIap.Maui 2.2.1</strong> - synchronizes the generated
+              Apple availability contract.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <p style={{ marginBottom: '1rem', fontSize: '0.9rem' }}>
+            Framework API call sites remain unchanged. Native Android ViewModel
+            users targeting Horizon should migrate from the deprecated
+            <code> initConnection(config)</code> overload to{' '}
+            <code>initConnection(activity, config)</code>; Compose users receive
+            lifecycle binding automatically. Upgrade all coordinated packages to
+            the versions below so the native fixes and generated contracts stay
+            aligned.
+          </p>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {storeApiFollowupReleases.map(([label, tag]) => (
+                <li key={tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // August 10, 2026 - Store API contract modernization
     {
       id: 'store-api-contract-modernization-2026-08-10',
@@ -225,12 +385,12 @@ function Releases() {
             }}
           >
             <li>
-              <strong>openiap-apple 3.1.0</strong> preserves externally redeemed
-              win-back offers until the matching promoted purchase is completed,
-              selects the newest verified current entitlement deterministically,
-              and returns a verified redemption purchase on Apple 27+ when built
-              with Xcode 27+. Older supported system-sheet paths continue to
-              return <code>null</code> after presentation.
+              <strong>openiap-apple 3.1.0</strong> captures externally redeemed
+              win-back offers for matching promoted purchases, selects the
+              newest verified current entitlement deterministically, and returns
+              a verified redemption purchase on Apple 27+ when built with Xcode
+              27+. Older supported system-sheet paths continue to return{' '}
+              <code>null</code> after presentation.
             </li>
             <li>
               <strong>openiap-google 3.2.0</strong> requests suspended
