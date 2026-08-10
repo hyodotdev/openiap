@@ -249,7 +249,11 @@ clean-all: clean
 # required by the AndroidX dependencies shipped through openiap-google.
 prepare-android-export-template:
 	@set -e; \
-	actual_version="$$($(GODOT) --version | cut -d. -f1-3)"; \
+	version_output="$$($(GODOT) --version)" || { \
+		echo "$(RED)Unable to run Godot to read its version.$(NC)"; \
+		exit 1; \
+	}; \
+	actual_version="$$(printf '%s\n' "$$version_output" | cut -d. -f1-3)"; \
 	if [ "$$actual_version" != "$(GODOT_VERSION)" ]; then \
 		echo "$(RED)Godot $$actual_version found; $(GODOT_VERSION) is required for source exports.$(NC)"; \
 		exit 1; \
