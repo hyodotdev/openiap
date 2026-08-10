@@ -1,5 +1,11 @@
 # Changelog
 
+## 10.2.3 (2026-08-10)
+
+- ci: configure monorepo coverage reporting (#306)
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
+
+
 ## 10.2.2 (2026-08-10)
 
 - chore(google): bump version to 3.2.2
