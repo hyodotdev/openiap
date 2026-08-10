@@ -888,6 +888,15 @@ function checkFrameworkCiAndCoverageBadges() {
         `${workflowPath} ${contract.testJob} must upload exactly one coverage report`,
       );
     }
+    const coverageAssertionIndex = testJob.indexOf(
+      "run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info 90",
+    );
+    const uploadIndex = testJob.indexOf("uses: codecov/codecov-action@v7");
+    if (coverageAssertionIndex < 0 || uploadIndex <= coverageAssertionIndex) {
+      fail(
+        `${workflowPath} must enforce LCOV coverage before uploading coverage`,
+      );
+    }
     if (/^\s+token:/m.test(testJob)) {
       fail(`${workflowPath} must use Codecov OIDC without a stored token`);
     }

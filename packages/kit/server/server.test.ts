@@ -108,6 +108,7 @@ describe("server entrypoint", () => {
   });
 
   it("caches a missing SPA shell failure", async () => {
+    serverState.readFile.mockClear();
     serverState.readFile.mockRejectedValueOnce(new Error("missing index"));
     vi.resetModules();
     await import("./server");
@@ -120,6 +121,6 @@ describe("server entrypoint", () => {
       expect(response.status).toBe(500);
       expect(await response.text()).toContain("index.html missing");
     }
-    expect(serverState.readFile).toHaveBeenCalledTimes(2);
+    expect(serverState.readFile).toHaveBeenCalledTimes(1);
   });
 });

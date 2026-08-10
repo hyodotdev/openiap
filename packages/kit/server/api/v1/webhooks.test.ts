@@ -10,6 +10,10 @@ import {
 import { Hono } from "hono";
 
 const originalConvexUrl = process.env.VITE_KIT_CONVEX_URL;
+const originalGooglePubsubPushAudience =
+  process.env.GOOGLE_PUBSUB_PUSH_AUDIENCE;
+const originalAllowUnauthenticatedPubsub =
+  process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB;
 let client: typeof import("../../convex").client;
 let helpers: typeof import("./webhooks");
 
@@ -28,8 +32,17 @@ afterAll(() => {
 });
 
 afterEach(() => {
-  delete process.env.GOOGLE_PUBSUB_PUSH_AUDIENCE;
-  delete process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB;
+  if (originalGooglePubsubPushAudience === undefined) {
+    delete process.env.GOOGLE_PUBSUB_PUSH_AUDIENCE;
+  } else {
+    process.env.GOOGLE_PUBSUB_PUSH_AUDIENCE = originalGooglePubsubPushAudience;
+  }
+  if (originalAllowUnauthenticatedPubsub === undefined) {
+    delete process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB;
+  } else {
+    process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB =
+      originalAllowUnauthenticatedPubsub;
+  }
   vi.restoreAllMocks();
 });
 
@@ -278,6 +291,8 @@ describe("webhooksRoutes", () => {
   });
 
   it("fails closed when Google Pub/Sub audience is not configured", async () => {
+    delete process.env.GOOGLE_PUBSUB_PUSH_AUDIENCE;
+    delete process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB;
     const error = vi.spyOn(console, "error").mockImplementation(() => {});
     const data = Buffer.from(
       JSON.stringify({ packageName: "dev.hyo.app" }),
@@ -297,6 +312,7 @@ describe("webhooksRoutes", () => {
   });
 
   it("rejects malformed Google Pub/Sub message data in local dev mode", async () => {
+    delete process.env.GOOGLE_PUBSUB_PUSH_AUDIENCE;
     process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB = "1";
     vi.spyOn(console, "warn").mockImplementation(() => {});
 
@@ -323,6 +339,7 @@ describe("webhooksRoutes", () => {
   });
 
   it("accepts Google Pub/Sub lifecycle events in explicit local dev mode", async () => {
+    delete process.env.GOOGLE_PUBSUB_PUSH_AUDIENCE;
     process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB = "1";
     vi.spyOn(console, "warn").mockImplementation(() => {});
     vi.spyOn(client, "action").mockResolvedValueOnce({
