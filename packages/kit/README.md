@@ -4,6 +4,11 @@
   <img src="./public/logo.webp" alt="IAPKit" width="120" height="120" />
 </p>
 
+<p align="center">
+  <a href="https://github.com/hyodotdev/openiap/actions/workflows/deploy-kit.yml?branch=main"><img src="https://github.com/hyodotdev/openiap/actions/workflows/deploy-kit.yml/badge.svg?branch=main" alt="CI" /></a>
+  <a href="https://app.codecov.io/gh/hyodotdev/openiap/tree/main/packages/kit/server"><img src="https://codecov.io/gh/hyodotdev/openiap/branch/main/graph/badge.svg?component=iapkit-server" alt="IAPKit server coverage" /></a>
+</p>
+
 Hosted receipt-validation SaaS and dashboard managed by [OpenIAP](https://openiap.dev). Validates App Store and Google Play receipts on your backend so one-time in-app purchases cannot be faked, replayed, or tampered with.
 
 The **official hosted instance** is deployed only at

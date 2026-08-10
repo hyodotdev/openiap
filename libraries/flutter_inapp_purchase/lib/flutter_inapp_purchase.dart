@@ -3057,8 +3057,20 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
           );
           return value ?? '';
         },
-        purchaseError: () async =>
-            await purchaseErrorListener.first as gentype.PurchaseError,
+        purchaseError: () async {
+          final error = await purchaseErrorListener.first;
+          return gentype.PurchaseError(
+            code: error.code ?? gentype.ErrorCode.Unknown,
+            debugMessage: error.debugMessage,
+            isEmptyProductList: error.isEmptyProductList,
+            message: error.message,
+            productId: error.productId,
+            productIds: error.productIds,
+            productType: error.productType,
+            responseCode: error.responseCode,
+            subResponseCodeAndroid: error.subResponseCodeAndroid,
+          );
+        },
         purchaseUpdated: ({bool? dedupeTransactionIOS}) async {
           final options = gentype.PurchaseUpdatedListenerOptions(
             dedupeTransactionIOS: dedupeTransactionIOS,

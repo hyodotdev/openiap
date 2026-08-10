@@ -20,6 +20,7 @@ on:
     paths:
       - "packages/kit/**"
       - "packages/mcp-server/**"
+      - "codecov.yml"
       - ".github/workflows/deploy-kit.yml"
       - "bun.lock"
       - "package.json"
@@ -29,11 +30,17 @@ jobs:
   verify:
     name: Typecheck + Build (kit)
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
     defaults:
       run:
         working-directory: packages/kit
     steps:
       - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
       - name: Setup Bun
         uses: oven-sh/setup-bun@v2
@@ -59,7 +66,22 @@ jobs:
         run: bunx prettier --check "src/**/*.{ts,tsx,css,json}" "server/**/*.ts" "convex/**/*.ts"
 
       - name: Run tests (convex + server unit tests)
-        run: bun run test
+        run: bun run test:coverage
+
+      - name: Enforce server line coverage
+        run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info 90
+
+      - name: Upload server coverage
+        uses: codecov/codecov-action@v7
+        with:
+          use_oidc: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+          fail_ci_if_error: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+          disable_search: true
+          files: coverage/lcov.info
+          flags: iapkit-server
+          name: iapkit-server
+          network_prefix: packages/kit/
+          working-directory: packages/kit
 
       - name: Lint + test MCP server (served by kit's /mcp route)
         # kit's Fly binary imports @hyodotdev/openiap-mcp-server/web from
