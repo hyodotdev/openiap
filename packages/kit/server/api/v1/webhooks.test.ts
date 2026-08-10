@@ -1,12 +1,30 @@
-import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { Hono } from "hono";
-import { client } from "../../convex";
 
+const originalConvexUrl = process.env.VITE_KIT_CONVEX_URL;
+let client: typeof import("../../convex").client;
 let helpers: typeof import("./webhooks");
 
 beforeAll(async () => {
   process.env.VITE_KIT_CONVEX_URL = "https://placeholder.convex.cloud";
+  ({ client } = await import("../../convex"));
   helpers = await import("./webhooks");
+});
+
+afterAll(() => {
+  if (originalConvexUrl === undefined) {
+    delete process.env.VITE_KIT_CONVEX_URL;
+  } else {
+    process.env.VITE_KIT_CONVEX_URL = originalConvexUrl;
+  }
 });
 
 afterEach(() => {

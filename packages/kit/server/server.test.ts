@@ -20,12 +20,14 @@ vi.mock("node:fs", () => ({
 describe("server entrypoint", () => {
   const originalPort = process.env.PORT;
   const originalStaticRoot = process.env.STATIC_ROOT;
+  const originalConvexUrl = process.env.VITE_KIT_CONVEX_URL;
   const originalSigtermListeners = process.listeners("SIGTERM");
   const originalSigintListeners = process.listeners("SIGINT");
 
   beforeAll(async () => {
     process.env.PORT = "3010";
     process.env.STATIC_ROOT = "/tmp/openiap-kit-static";
+    process.env.VITE_KIT_CONVEX_URL = "https://placeholder.convex.cloud";
     vi.stubGlobal("Bun", {
       serve: vi.fn(
         (options: {
@@ -56,6 +58,11 @@ describe("server entrypoint", () => {
     else process.env.PORT = originalPort;
     if (originalStaticRoot === undefined) delete process.env.STATIC_ROOT;
     else process.env.STATIC_ROOT = originalStaticRoot;
+    if (originalConvexUrl === undefined) {
+      delete process.env.VITE_KIT_CONVEX_URL;
+    } else {
+      process.env.VITE_KIT_CONVEX_URL = originalConvexUrl;
+    }
     vi.unstubAllGlobals();
   });
 
