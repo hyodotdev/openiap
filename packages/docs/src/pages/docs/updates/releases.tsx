@@ -39,10 +39,10 @@ const storeApiModernizationReleases = [
 const storeApiFollowupReleases = [
   ['OpenIAP Spec 3.1.1', 'docs-3.1.1'],
   ['openiap-apple 3.1.1', '3.1.1'],
-  ['openiap-google 3.2.1', 'google-3.2.1'],
-  ['react-native-iap 16.2.1', 'react-native-iap-16.2.1'],
-  ['expo-iap 5.2.1', 'expo-iap-5.2.1'],
-  ['flutter_inapp_purchase 10.2.1', 'flutter-iap-10.2.1'],
+  ['openiap-google 3.2.2', 'google-3.2.2'],
+  ['react-native-iap 16.2.2', 'react-native-iap-16.2.2'],
+  ['expo-iap 5.2.2', 'expo-iap-5.2.2'],
+  ['flutter_inapp_purchase 10.2.2', 'flutter-iap-10.2.2'],
   ['godot-iap 3.2.1', 'godot-iap-3.2.1'],
   ['kmp-iap 3.2.1', 'kmp-iap-3.2.1'],
   ['OpenIap.Maui 2.2.1', 'maui-iap-2.2.1'],
@@ -211,9 +211,17 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            Publishes a coordinated patch train from the final cross-SDK
-            self-review of the Store API modernization release. It closes two
-            runtime edge cases without removing or renaming public APIs.
+            Publishes the completed Store API follow-up and Android Kotlin
+            consumer-compatibility replacement train. It closes two runtime edge
+            cases and the binary compatibility regression reported in{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/issues/304"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              issue #304
+            </a>{' '}
+            without removing or renaming public APIs.
           </p>
 
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Common changes</h5>
@@ -255,11 +263,22 @@ function Releases() {
               intents cannot be overwritten by a stale attempt.
             </li>
             <li>
-              <strong>openiap-google 3.2.1</strong> - makes native convenience
+              <strong>openiap-google 3.2.2</strong> - makes native convenience
               Activity binding lifecycle-aware and owner-scoped. A paused or
               disposed Compose owner no longer clears another active owner, and
               Horizon ViewModel callers have an explicit Activity-based
-              initialization path.
+              initialization path. It also restores Kotlin 2.1.20+ consumer
+              compatibility by publishing Kotlin 2.2.0 metadata and validating
+              Play, Horizon, and Amazon from an independent Kotlin 2.1.20
+              consumer before publication ({' '}
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/305"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                PR #305
+              </a>
+              ).
             </li>
           </ul>
 
@@ -272,32 +291,49 @@ function Releases() {
             }}
           >
             <li>
-              <strong>react-native-iap 16.2.1</strong> - consumes the corrected
-              native behavior and synchronized generated contract comments.
+              <strong>react-native-iap 16.2.2</strong> - consumes the corrected
+              native lifecycle behavior, Kotlin-compatible Android artifacts,
+              and synchronized generated contract comments.
             </li>
             <li>
-              <strong>expo-iap 5.2.1</strong> - consumes the corrected native
-              behavior and synchronized generated contract comments.
+              <strong>expo-iap 5.2.2</strong> - consumes the corrected native
+              lifecycle behavior, Kotlin-compatible Android artifacts, and
+              synchronized generated contract comments.
             </li>
             <li>
-              <strong>flutter_inapp_purchase 10.2.1</strong> - synchronizes the
-              generated Apple availability contract.
+              <strong>flutter_inapp_purchase 10.2.2</strong> - resolves the
+              Kotlin-compatible Android artifact and synchronizes the generated
+              Apple availability contract.
             </li>
             <li>
               <strong>godot-iap 3.2.1</strong> - synchronizes the generated
               Apple availability contract.
             </li>
             <li>
-              <strong>kmp-iap 3.2.1</strong> - synchronizes the generated Apple
-              availability contract.
+              <strong>kmp-iap 3.2.1</strong> - resolves the Kotlin-compatible
+              Android artifact and synchronizes the generated Apple availability
+              contract.
             </li>
             <li>
-              <strong>OpenIap.Maui 2.2.1</strong> - synchronizes the generated
+              <strong>OpenIap.Maui 2.2.1</strong> - resolves the
+              Kotlin-compatible Android artifact and synchronizes the generated
               Apple availability contract.
             </li>
           </ul>
 
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <Callout kind="warning" title="Kotlin compatibility notice">
+            <p>
+              Android projects using Kotlin 2.1.20 or 2.2.x must replace
+              openiap-google 3.1.0 through 3.2.1 with 3.2.2. React Native users
+              must replace react-native-iap 16.1.0 through 16.2.1 with 16.2.2;
+              Expo users must replace expo-iap 5.1.0 through 5.2.1 with 5.2.2;
+              and Flutter users must replace flutter_inapp_purchase 10.1.0
+              through 10.2.1 with 10.2.2. The affected npm versions are
+              deprecated, the affected Flutter versions are retracted, and the
+              immutable Google 3.2.1 Maven release carries an upgrade warning.
+            </p>
+          </Callout>
           <p style={{ marginBottom: '1rem', fontSize: '0.9rem' }}>
             Framework API call sites remain unchanged. Native Android ViewModel
             users targeting Horizon should migrate from the deprecated
