@@ -39,6 +39,11 @@ execFileSync(
 );
 execFileSync(
   process.execPath,
+  ["--test", path.resolve(root, "scripts/assert-lcov-coverage.test.mjs")],
+  { stdio: "inherit" },
+);
+execFileSync(
+  process.execPath,
   [
     "--test",
     path.resolve(root, "scripts/audit-purchase-payload-parity.test.mjs"),
@@ -590,6 +595,19 @@ function checkFrameworkCiAndCoverageBadges() {
       testJob: "analyze-and-test",
       workflowFile: "ci-flutter-inapp-purchase.yml",
     },
+    {
+      codecovTargetPath: "packages/kit/server",
+      codecovConfigPush: false,
+      componentId: "iapkit-server",
+      componentName: "IAPKit Server",
+      coveragePath: "packages/kit/server",
+      generatedCoverageFile: null,
+      libraryPath: "packages/kit",
+      readmePath: "packages/kit/README.md",
+      testCommand: "run: bun run test:coverage",
+      testJob: "verify",
+      workflowFile: "deploy-kit.yml",
+    },
   ];
 
   function extractHttpsUrls(source) {
@@ -780,7 +798,9 @@ function checkFrameworkCiAndCoverageBadges() {
     expectSameSet("Codecov flags", expectedComponentIds, flagIds);
     expectSameSet("Codecov components", expectedComponentIds, componentIds);
     for (const contract of contracts) {
-      const generatedCoveragePath = `${contract.coveragePath}/${contract.generatedCoverageFile}`;
+      const generatedCoveragePath = contract.generatedCoverageFile
+        ? `${contract.coveragePath}/${contract.generatedCoverageFile}`
+        : null;
       const flagBlock = [
         `  ${contract.componentId}:`,
         "    paths:",
@@ -805,9 +825,26 @@ function checkFrameworkCiAndCoverageBadges() {
           `codecov.yml must map component ${contract.componentId} to its matching path and flag`,
         );
       }
-      if (!codecovConfig.includes(`  - "${generatedCoveragePath}"`)) {
+      if (
+        generatedCoveragePath &&
+        !codecovConfig.includes(`  - "${generatedCoveragePath}"`)
+      ) {
         fail(
           `codecov.yml must ignore generated coverage file ${generatedCoveragePath}`,
+        );
+      }
+      const statusBlock = [
+        `      ${contract.componentId}:`,
+        "        target: 90%",
+        "        threshold: 0%",
+        "        informational: false",
+        "        flags:",
+        `          - ${contract.componentId}`,
+      ].join("\n");
+      const statusOccurrences = codecovConfig.split(statusBlock).length - 1;
+      if (statusOccurrences !== 2) {
+        fail(
+          `codecov.yml project and patch statuses must enforce 90% for ${contract.componentId}`,
         );
       }
     }
@@ -829,6 +866,7 @@ function checkFrameworkCiAndCoverageBadges() {
       "permissions:\n      contents: read\n      id-token: write",
       "fetch-depth: 0\n          persist-credentials: false",
       contract.testCommand,
+      "run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info 90",
       "uses: codecov/codecov-action@v7",
       "use_oidc: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}",
       "fail_ci_if_error: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}",
@@ -850,13 +888,32 @@ function checkFrameworkCiAndCoverageBadges() {
         `${workflowPath} ${contract.testJob} must upload exactly one coverage report`,
       );
     }
+    const coverageAssertionIndex = testJob.indexOf(
+      "run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info 90",
+    );
+    const uploadIndex = testJob.indexOf("uses: codecov/codecov-action@v7");
+    if (coverageAssertionIndex < 0 || uploadIndex <= coverageAssertionIndex) {
+      fail(
+        `${workflowPath} must enforce LCOV coverage before uploading coverage`,
+      );
+    }
     if (/^\s+token:/m.test(testJob)) {
       fail(`${workflowPath} must use Codecov OIDC without a stored token`);
     }
-    if ((workflowSource.match(/- "codecov\.yml"/g) ?? []).length !== 2) {
+    const eventBlock = (eventName) =>
+      workflowSource.match(
+        new RegExp(`^  ${eventName}:\\n[\\s\\S]*?(?=^  [a-z_]+:|^jobs:)`, "m"),
+      )?.[0] ?? "";
+    if (!eventBlock("pull_request").includes('- "codecov.yml"')) {
+      fail(`${workflowPath} pull_request paths must include root codecov.yml`);
+    }
+    const pushIncludesCodecov = eventBlock("push").includes('- "codecov.yml"');
+    if (contract.codecovConfigPush === false && pushIncludesCodecov) {
       fail(
-        `${workflowPath} pull_request and push paths must both include root codecov.yml`,
+        `${workflowPath} must not deploy production for a codecov.yml-only push`,
       );
+    } else if (contract.codecovConfigPush !== false && !pushIncludesCodecov) {
+      fail(`${workflowPath} push paths must include root codecov.yml`);
     }
 
     if (contract.componentId === "flutter-inapp-purchase") {
@@ -892,7 +949,7 @@ function checkFrameworkCiAndCoverageBadges() {
       (url) =>
         url.hostname === "app.codecov.io" &&
         url.pathname ===
-          `/gh/hyodotdev/openiap/tree/main/${contract.libraryPath}`,
+          `/gh/hyodotdev/openiap/tree/main/${contract.codecovTargetPath ?? contract.libraryPath}`,
     );
     if (!codecovBadge) {
       fail(

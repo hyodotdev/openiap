@@ -69,6 +69,9 @@ jobs:
       - name: Filter generated coverage
         run: dart run tool/filter_coverage.dart
 
+      - name: Enforce line coverage
+        run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info 90
+
       - name: Upload coverage
         uses: codecov/codecov-action@v7
         with:

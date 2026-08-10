@@ -42,6 +42,15 @@ const purchase = (overrides: Partial<NitroPurchase> = {}): NitroPurchase => ({
 });
 
 describe('type-bridge utilities', () => {
+  beforeEach(() => {
+    jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   describe('convertNitroProductToProduct', () => {
     it('converts iOS product metadata and normalizes enums', () => {
       const result = convertNitroProductToProduct(
@@ -177,6 +186,66 @@ describe('type-bridge utilities', () => {
       expect(iosResult).not.toHaveProperty('discountOffers');
       expect(androidResult.subscriptionOffers).toEqual([]);
     });
+
+    it('normalizes native aliases and malformed optional metadata', () => {
+      const fallbackPlatform = convertNitroProductToProduct(
+        product({platform: 'unknown' as never}),
+      );
+      const result = convertNitroProductToProduct(
+        product({
+          typeIOS: 'mystery' as never,
+          introductoryPricePaymentModeIOS: 'payAsYouGo' as never,
+          introductoryPriceSubscriptionPeriodIOS: 'DAY' as never,
+          subscriptionPeriodUnitIOS: 'WEEK' as never,
+          pricingTermsIOS: '{',
+          bundledSubscriptionsIOS: '{',
+        }),
+      ) as any;
+
+      expect(fallbackPlatform.platform).toBe('android');
+      expect(result.typeIOS).toBe('non-consumable');
+      expect(result.introductoryPricePaymentModeIOS).toBe('pay-as-you-go');
+      expect(result.introductoryPriceSubscriptionPeriodIOS).toBe('day');
+      expect(result.subscriptionPeriodUnitIOS).toBe('week');
+      expect(result.pricingTermsIOS).toBeNull();
+      expect(result.bundledSubscriptionsIOS).toBeNull();
+      expect(console.warn).toHaveBeenCalled();
+    });
+
+    it.each([
+      ['consumable', 'consumable'],
+      ['non_consumable', 'non-consumable'],
+      ['nonRenewingSubscription', 'non-renewing-subscription'],
+      ['subscriptionSuite', 'subscription-suite'],
+    ] as const)('normalizes iOS type %s', (nativeType, expected) => {
+      expect(
+        (
+          convertNitroProductToProduct(
+            product({typeIOS: nativeType as never}),
+          ) as any
+        ).typeIOS,
+      ).toBe(expected);
+    });
+
+    it('handles non-array iOS metadata and invalid Android discounts', () => {
+      const ios = convertNitroProductToProduct(
+        product({
+          pricingTermsIOS: '{}',
+          bundledSubscriptionsIOS: '{}',
+          introductoryPricePaymentModeIOS: 'payUpFront' as never,
+          introductoryPriceSubscriptionPeriodIOS: 'invalid' as never,
+        }),
+      ) as any;
+      const android = convertNitroProductToProduct(
+        product({platform: 'android', discountOffers: '{'}),
+      ) as any;
+
+      expect(ios.pricingTermsIOS).toBeNull();
+      expect(ios.bundledSubscriptionsIOS).toBeNull();
+      expect(ios.introductoryPricePaymentModeIOS).toBe('pay-up-front');
+      expect(ios.introductoryPriceSubscriptionPeriodIOS).toBe('empty');
+      expect(android.discountOffers).toBeNull();
+    });
   });
 
   it('preserves subscription type when casting a product', () => {
@@ -185,6 +254,14 @@ describe('type-bridge utilities', () => {
     );
 
     expect(subscription.type).toBe('subs');
+  });
+
+  it('warns when casting an in-app product as a subscription', () => {
+    const result = convertProductToProductSubscription(
+      convertNitroProductToProduct(product()),
+    );
+    expect(result.id).toBe('com.example.product');
+    expect(console.warn).toHaveBeenCalled();
   });
 
   describe('convertNitroPurchaseToPurchase', () => {
@@ -332,6 +409,48 @@ describe('type-bridge utilities', () => {
         purchaseToken: 'pending-token',
       });
     });
+
+    it('normalizes numeric states and nullable native primitives', () => {
+      const purchased = convertNitroPurchaseToPurchase(
+        purchase({
+          store: 'google',
+          purchaseState: 1 as never,
+          transactionId: null,
+          isAutoRenewing: false,
+          autoRenewingAndroid: 1 as never,
+          isAcknowledgedAndroid: 'true' as never,
+        }),
+      ) as PurchaseAndroid;
+      const pending = convertNitroPurchaseToPurchase(
+        purchase({store: 'google', purchaseState: 2 as never}),
+      );
+      const unknown = convertNitroPurchaseToPurchase(
+        purchase({store: 'other' as never, purchaseState: 99 as never}),
+      );
+
+      expect(purchased.purchaseState).toBe('purchased');
+      expect(purchased.autoRenewingAndroid).toBe(true);
+      expect(purchased.isAcknowledgedAndroid).toBe(true);
+      expect(pending.purchaseState).toBe('pending');
+      expect(unknown.purchaseState).toBe('unknown');
+      expect(unknown.store).toBe('unknown');
+    });
+
+    it('drops malformed optional Apple offer JSON', () => {
+      const result = convertNitroPurchaseToPurchase(
+        purchase({
+          offerIOS: '{',
+          quantityIOS: '2' as never,
+          expirationDateIOS: 'not-a-number' as never,
+          isUpgradedIOS: 'true' as never,
+        }),
+      ) as PurchaseIOS;
+
+      expect(result.offerIOS).toBeNull();
+      expect(result.quantityIOS).toBe(2);
+      expect(result.expirationDateIOS).toBeNull();
+      expect(result.isUpgradedIOS).toBe(true);
+    });
   });
 
   it('converts iOS subscription status renewal metadata', () => {
@@ -360,48 +479,47 @@ describe('type-bridge utilities', () => {
     );
   });
 
+  it('converts an iOS subscription status without renewal metadata', () => {
+    expect(
+      convertNitroSubscriptionStatusToSubscriptionStatusIOS({
+        state: null,
+        platform: 'ios',
+        renewalInfo: null,
+      } as never),
+    ).toEqual({state: '', renewalInfo: undefined});
+  });
+
   describe('validation helpers', () => {
     it('validates the required NitroProduct fields', () => {
-      const consoleErrorSpy = jest
-        .spyOn(console, 'error')
-        .mockImplementation(() => undefined);
+      expect(validateNitroProduct(product())).toBe(true);
+      expect(
+        validateNitroProduct({title: 'missing fields'} as NitroProduct),
+      ).toBe(false);
+      expect(console.error).toHaveBeenCalledWith(
+        '[RN-IAP]',
+        'NitroProduct missing required field: id',
+        {title: 'missing fields'},
+      );
+    });
 
-      try {
-        expect(validateNitroProduct(product())).toBe(true);
-        expect(
-          validateNitroProduct({title: 'missing fields'} as NitroProduct),
-        ).toBe(false);
-        expect(consoleErrorSpy).toHaveBeenCalledWith(
-          '[RN-IAP]',
-          'NitroProduct missing required field: id',
-          {title: 'missing fields'},
-        );
-      } finally {
-        consoleErrorSpy.mockRestore();
-      }
+    it('rejects non-object products and purchases', () => {
+      expect(validateNitroProduct(null as never)).toBe(false);
+      expect(validateNitroPurchase(null as never)).toBe(false);
     });
 
     it('requires store when validating NitroPurchase', () => {
-      const consoleErrorSpy = jest
-        .spyOn(console, 'error')
-        .mockImplementation(() => undefined);
-
-      try {
-        expect(validateNitroPurchase(purchase())).toBe(true);
-        expect(
-          validateNitroPurchase({
-            id: 'id',
-            productId: 'sku',
-            transactionDate: 1,
-          } as NitroPurchase),
-        ).toBe(false);
-        expect(consoleErrorSpy).toHaveBeenCalledWith(
-          '[RN-IAP]',
-          'NitroPurchase has invalid required field: store',
-        );
-      } finally {
-        consoleErrorSpy.mockRestore();
-      }
+      expect(validateNitroPurchase(purchase())).toBe(true);
+      expect(
+        validateNitroPurchase({
+          id: 'id',
+          productId: 'sku',
+          transactionDate: 1,
+        } as NitroPurchase),
+      ).toBe(false);
+      expect(console.error).toHaveBeenCalledWith(
+        '[RN-IAP]',
+        'NitroPurchase has invalid required field: store',
+      );
     });
 
     it('accepts only decodable object JSON for the Nitro iOS offer', () => {
@@ -420,6 +538,22 @@ describe('type-bridge utilities', () => {
         false,
       );
       expect(validateNitroPurchase(purchase({offerIOS: '[]'}))).toBe(false);
+    });
+
+    it.each([
+      ['id', {id: ''}],
+      ['productId', {productId: ''}],
+      ['transactionDate', {transactionDate: Number.NaN}],
+      ['purchaseState', {purchaseState: ''}],
+      ['quantity', {quantity: 1.5}],
+      ['isAutoRenewing', {isAutoRenewing: null}],
+      ['transactionId', {transactionId: null}],
+      ['ids', {ids: [1]}],
+      ['pendingPurchaseUpdateAndroid', {pendingPurchaseUpdateAndroid: []}],
+      ['renewalInfoIOS', {renewalInfoIOS: 'invalid'}],
+      ['offerIOS', {offerIOS: 1}],
+    ] as const)('rejects invalid %s metadata', (_field, overrides) => {
+      expect(validateNitroPurchase(purchase(overrides as never))).toBe(false);
     });
   });
 

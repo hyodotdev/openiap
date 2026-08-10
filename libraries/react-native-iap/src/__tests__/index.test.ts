@@ -29,6 +29,8 @@ const mockIap: any = {
   removePromotedProductListenerIOS: jest.fn(),
   addSubscriptionBillingIssueListener: jest.fn(),
   removeSubscriptionBillingIssueListener: jest.fn(),
+  addUserChoiceBillingListenerAndroid: jest.fn(),
+  removeUserChoiceBillingListenerAndroid: jest.fn(),
 
   // iOS-only
   getAppTransactionIOS: jest.fn(async () => null),
@@ -1354,6 +1356,39 @@ describe('Public API (src/index.ts)', () => {
       );
     });
 
+    it('getAppTransactionIOS accepts JSON and object bridge results', async () => {
+      const value = {
+        appId: 1,
+        appVersion: '1.0.0',
+        appVersionId: 2,
+        bundleId: 'dev.hyo.app',
+        deviceVerification: 'verification',
+        deviceVerificationNonce: 'nonce',
+        environment: 'Sandbox',
+        originalAppVersion: '1.0.0',
+        originalPurchaseDate: 3,
+        signedDate: 4,
+      };
+
+      mockIap.getAppTransactionIOS
+        .mockResolvedValueOnce(JSON.stringify(value))
+        .mockResolvedValueOnce(value);
+
+      await expect(IAP.getAppTransactionIOS()).resolves.toMatchObject(value);
+      await expect(IAP.getAppTransactionIOS()).resolves.toBe(value);
+    });
+
+    it('getAppTransactionIOS rejects malformed and native failures', async () => {
+      mockIap.getAppTransactionIOS.mockResolvedValueOnce('{');
+      await expect(IAP.getAppTransactionIOS()).rejects.toThrow(
+        /Unable to parse app transaction payload/,
+      );
+
+      const nativeError = new Error('app transaction failed');
+      mockIap.getAppTransactionIOS.mockRejectedValueOnce(nativeError);
+      await expect(IAP.getAppTransactionIOS()).rejects.toBe(nativeError);
+    });
+
     it('presentCodeRedemptionSheetIOS returns the verified purchase', async () => {
       (Platform as any).OS = 'ios';
       mockIap.presentCodeRedemptionSheetIOS.mockResolvedValueOnce({
@@ -1605,6 +1640,71 @@ describe('Public API (src/index.ts)', () => {
         message: 'App Store purchase sync did not complete',
       });
       expect(mockIap.getAvailablePurchases).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('Android user choice billing listener', () => {
+    it('fans out native events, isolates callbacks, and removes listeners', () => {
+      (Platform as any).OS = 'android';
+      const first = IAP.userChoiceBillingListenerAndroid(() => {
+        throw new Error('consumer failed');
+      });
+      const listener = jest.fn();
+      const second = IAP.userChoiceBillingListenerAndroid(listener);
+      const nativeListener =
+        mockIap.addUserChoiceBillingListenerAndroid.mock.calls[0][0];
+      const details = {
+        products: ['premium'],
+        externalTransactionToken: 'opaque',
+      };
+
+      nativeListener(details);
+      first.remove();
+      second.remove();
+
+      expect(listener).toHaveBeenCalledWith(details);
+      expect(console.error).toHaveBeenCalled();
+      expect(mockIap.addUserChoiceBillingListenerAndroid).toHaveBeenCalledTimes(
+        1,
+      );
+      expect(
+        mockIap.removeUserChoiceBillingListenerAndroid,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        mockIap.removeUserChoiceBillingListenerAndroid,
+      ).toHaveBeenCalledWith(nativeListener);
+    });
+
+    it('returns an inert subscription outside Android', () => {
+      (Platform as any).OS = 'ios';
+      const subscription = IAP.userChoiceBillingListenerAndroid(jest.fn());
+      expect(() => subscription.remove()).not.toThrow();
+      expect(
+        mockIap.addUserChoiceBillingListenerAndroid,
+      ).not.toHaveBeenCalled();
+    });
+
+    it('keeps the listener inert while Nitro initializes', () => {
+      (Platform as any).OS = 'android';
+      mockIap.addUserChoiceBillingListenerAndroid.mockImplementationOnce(() => {
+        throw new Error('Nitro runtime not installed');
+      });
+
+      expect(() =>
+        IAP.userChoiceBillingListenerAndroid(jest.fn()),
+      ).not.toThrow();
+      expect(console.warn).toHaveBeenCalled();
+    });
+
+    it('surfaces unexpected native listener failures', () => {
+      (Platform as any).OS = 'android';
+      mockIap.addUserChoiceBillingListenerAndroid.mockImplementationOnce(() => {
+        throw new Error('native listener failed');
+      });
+
+      expect(() => IAP.userChoiceBillingListenerAndroid(jest.fn())).toThrow(
+        'native listener failed',
+      );
     });
   });
 
@@ -3012,6 +3112,353 @@ describe('Public API (src/index.ts)', () => {
       expect(() => freshIAP.subscriptionBillingIssueListener(handler)).toThrow(
         'native failure',
       );
+    });
+  });
+
+  describe('native failure normalization', () => {
+    const replacedNativeMethods = new Map<string, unknown>();
+    const replaceNativeMethod = (name: string, value: unknown) => {
+      if (!replacedNativeMethods.has(name)) {
+        replacedNativeMethods.set(name, mockIap[name]);
+      }
+      mockIap[name] = value;
+    };
+
+    afterEach(() => {
+      for (const [name, value] of replacedNativeMethods) {
+        if (value === undefined) delete mockIap[name];
+        else mockIap[name] = value;
+      }
+      replacedNativeMethods.clear();
+    });
+
+    const iosFailureCases: {
+      name: string;
+      nativeMethod: string;
+      invoke: () => Promise<unknown>;
+    }[] = [
+      {
+        name: 'get promoted product',
+        nativeMethod: 'getPromotedProductIOS',
+        invoke: () => IAP.getPromotedProductIOS(),
+      },
+      {
+        name: 'subscription status',
+        nativeMethod: 'subscriptionStatusIOS',
+        invoke: () => IAP.subscriptionStatusIOS('premium'),
+      },
+      {
+        name: 'current entitlement',
+        nativeMethod: 'currentEntitlementIOS',
+        invoke: () => IAP.currentEntitlementIOS('premium'),
+      },
+      {
+        name: 'latest transaction',
+        nativeMethod: 'latestTransactionIOS',
+        invoke: () => IAP.latestTransactionIOS('premium'),
+      },
+      {
+        name: 'pending transactions',
+        nativeMethod: 'getPendingTransactionsIOS',
+        invoke: () => IAP.getPendingTransactionsIOS(),
+      },
+      {
+        name: 'all transactions',
+        nativeMethod: 'getAllTransactionsIOS',
+        invoke: () => IAP.getAllTransactionsIOS(),
+      },
+      {
+        name: 'manage subscriptions',
+        nativeMethod: 'showManageSubscriptionsIOS',
+        invoke: () => IAP.showManageSubscriptionsIOS(),
+      },
+      {
+        name: 'intro offer eligibility',
+        nativeMethod: 'isEligibleForIntroOfferIOS',
+        invoke: () => IAP.isEligibleForIntroOfferIOS('group'),
+      },
+      {
+        name: 'receipt data',
+        nativeMethod: 'getReceiptDataIOS',
+        invoke: () => IAP.getReceiptDataIOS(),
+      },
+      {
+        name: 'receipt refresh',
+        nativeMethod: 'requestReceiptRefreshIOS',
+        invoke: () => IAP.requestReceiptRefreshIOS(),
+      },
+      {
+        name: 'transaction verification',
+        nativeMethod: 'isTransactionVerifiedIOS',
+        invoke: () => IAP.isTransactionVerifiedIOS('premium'),
+      },
+      {
+        name: 'transaction JWS',
+        nativeMethod: 'getTransactionJwsIOS',
+        invoke: () => IAP.getTransactionJwsIOS('premium'),
+      },
+      {
+        name: 'StoreKit sync',
+        nativeMethod: 'syncIOS',
+        invoke: () => IAP.syncIOS(),
+      },
+      {
+        name: 'code redemption sheet',
+        nativeMethod: 'presentCodeRedemptionSheetIOS',
+        invoke: () => IAP.presentCodeRedemptionSheetIOS(),
+      },
+      {
+        name: 'refund request',
+        nativeMethod: 'beginRefundRequestIOS',
+        invoke: () => IAP.beginRefundRequestIOS('premium'),
+      },
+      {
+        name: 'iOS subscription deep link',
+        nativeMethod: 'deepLinkToSubscriptionsIOS',
+        invoke: () => IAP.deepLinkToSubscriptionsIOS(),
+      },
+    ];
+
+    it.each(iosFailureCases)('normalizes $name failures', async (testCase) => {
+      const nativeError = new Error('native failure');
+      replaceNativeMethod(
+        testCase.nativeMethod,
+        jest.fn().mockRejectedValue(nativeError),
+      );
+
+      await expect(testCase.invoke()).rejects.toMatchObject({
+        message: 'native failure',
+      });
+    });
+
+    it('normalizes connection lifecycle failures', async () => {
+      replaceNativeMethod(
+        'initConnection',
+        jest.fn().mockRejectedValueOnce(new Error('init failed')),
+      );
+      await expect(IAP.initConnection()).rejects.toMatchObject({
+        message: 'init failed',
+      });
+
+      replaceNativeMethod('initConnection', jest.fn().mockResolvedValue(true));
+      expect(IAP.isNitroReady()).toBe(true);
+      replaceNativeMethod(
+        'endConnection',
+        jest.fn().mockRejectedValueOnce(new Error('end failed')),
+      );
+      await expect(IAP.endConnection()).rejects.toMatchObject({
+        message: 'end failed',
+      });
+    });
+
+    it.each([
+      {
+        name: 'Billing Choice info',
+        nativeMethod: 'getBillingChoiceInfoAndroid',
+        invoke: () => IAP.getBillingChoiceInfoAndroid(),
+      },
+      {
+        name: 'Billing Choice dialog',
+        nativeMethod: 'showBillingProgramInformationDialogAndroid',
+        invoke: () =>
+          IAP.showBillingProgramInformationDialogAndroid({
+            externalTransactionToken: 'opaque',
+          }),
+      },
+      {
+        name: 'in-app messages',
+        nativeMethod: 'showInAppMessagesAndroid',
+        invoke: () => IAP.showInAppMessagesAndroid(),
+      },
+      {
+        name: 'external link',
+        nativeMethod: 'launchExternalLinkAndroid',
+        invoke: () =>
+          IAP.launchExternalLinkAndroid({
+            billingProgram: 'external-offer',
+            launchMode: 'launch-in-external-browser-or-app',
+            linkType: 'link-to-digital-content-offer',
+            linkUri: 'https://example.test',
+          }),
+      },
+    ])('surfaces Android $name failures', async (testCase) => {
+      (Platform as any).OS = 'android';
+      const nativeError = new Error('android failure');
+      replaceNativeMethod(
+        testCase.nativeMethod,
+        jest.fn().mockRejectedValue(nativeError),
+      );
+
+      await expect(testCase.invoke()).rejects.toBe(nativeError);
+    });
+
+    it.each([
+      {
+        name: 'external notice sheet',
+        nativeMethod: 'presentExternalPurchaseNoticeSheetIOS',
+        invoke: () => IAP.presentExternalPurchaseNoticeSheetIOS(),
+      },
+      {
+        name: 'external purchase link',
+        nativeMethod: 'presentExternalPurchaseLinkIOS',
+        invoke: () =>
+          IAP.presentExternalPurchaseLinkIOS('https://example.test/purchase'),
+      },
+    ])('surfaces iOS $name failures', async (testCase) => {
+      const nativeError = new Error('external purchase failure');
+      replaceNativeMethod(
+        testCase.nativeMethod,
+        jest.fn().mockRejectedValue(nativeError),
+      );
+
+      await expect(testCase.invoke()).rejects.toBe(nativeError);
+    });
+  });
+
+  describe('listener failure isolation', () => {
+    const validPurchase = {
+      id: 'transaction',
+      transactionId: 'transaction',
+      productId: 'premium',
+      transactionDate: Date.now(),
+      store: 'apple',
+      quantity: 1,
+      purchaseState: 'purchased',
+      isAutoRenewing: false,
+    };
+
+    it('isolates throwing purchase update and error listeners', () => {
+      IAP.purchaseUpdatedListener(() => {
+        throw new Error('consumer update failed');
+      });
+      mockIap.addPurchaseUpdatedListener.mock.calls[0][0](validPurchase);
+
+      IAP.purchaseErrorListener(() => {
+        throw new Error('consumer error failed');
+      });
+      mockIap.addPurchaseErrorListener.mock.calls[0][0]({
+        code: 'network-error',
+        message: 'offline',
+      });
+
+      expect(console.error).toHaveBeenCalled();
+    });
+
+    it('drops invalid native promoted products and isolates callback errors', () => {
+      const listener = jest.fn(() => {
+        throw new Error('consumer promoted product failed');
+      });
+      IAP.promotedProductListenerIOS(listener);
+      const nativeHandler =
+        mockIap.addPromotedProductListenerIOS.mock.calls[0][0];
+
+      nativeHandler({id: null});
+      nativeHandler({
+        id: 'premium',
+        title: 'Premium',
+        description: 'Premium access',
+        displayName: 'Premium',
+        displayPrice: '$1.00',
+        currency: 'USD',
+        price: 1,
+        platform: 'ios',
+        type: 'in-app',
+      });
+
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it('drops malformed billing issue events and isolates callback errors', () => {
+      const listener = jest.fn(() => {
+        throw new Error('consumer billing issue failed');
+      });
+      IAP.subscriptionBillingIssueListener(listener);
+      const nativeHandler =
+        mockIap.addSubscriptionBillingIssueListener.mock.calls[0][0];
+
+      nativeHandler({productId: null});
+      nativeHandler(validPurchase);
+
+      expect(listener).toHaveBeenCalledTimes(1);
+    });
+
+    it.each([
+      {
+        api: 'purchaseUpdatedListener',
+        nativeMethod: 'addPurchaseUpdatedListener',
+      },
+      {api: 'purchaseErrorListener', nativeMethod: 'addPurchaseErrorListener'},
+      {
+        api: 'promotedProductListenerIOS',
+        nativeMethod: 'addPromotedProductListenerIOS',
+      },
+    ])('keeps $api inert while Nitro initializes', ({api, nativeMethod}) => {
+      mockIap[nativeMethod] = jest.fn(() => {
+        throw new Error('Nitro runtime not installed');
+      });
+
+      expect(() => IAP[api](jest.fn())).not.toThrow();
+      expect(console.warn).toHaveBeenCalled();
+    });
+  });
+
+  describe('request payload coverage', () => {
+    it('forwards optional Apple purchase fields', async () => {
+      await IAP.requestPurchase({
+        request: {
+          apple: {
+            sku: 'premium',
+            andDangerouslyFinishTransactionAutomatically: false,
+            appAccountToken: '00000000-0000-0000-0000-000000000000',
+            quantity: 2,
+          },
+        },
+        type: 'in-app',
+      });
+
+      expect(mockIap.requestPurchase).toHaveBeenCalledWith({
+        apple: {
+          sku: 'premium',
+          andDangerouslyFinishTransactionAutomatically: false,
+          appAccountToken: '00000000-0000-0000-0000-000000000000',
+          quantity: 2,
+        },
+      });
+    });
+
+    it('forwards optional Android purchase fields', async () => {
+      (Platform as any).OS = 'android';
+      await IAP.requestPurchase({
+        request: {
+          google: {
+            skus: ['coins'],
+            obfuscatedAccountId: 'account-alias',
+            obfuscatedProfileId: 'profile-alias',
+            isOfferPersonalized: false,
+            offerToken: 'opaque-offer',
+          },
+        },
+        type: 'in-app',
+      });
+
+      expect(mockIap.requestPurchase).toHaveBeenCalledWith({
+        google: {
+          skus: ['coins'],
+          obfuscatedAccountId: 'account-alias',
+          obfuscatedProfileId: 'profile-alias',
+          isOfferPersonalized: false,
+          offerToken: 'opaque-offer',
+        },
+      });
+    });
+
+    it('rejects a missing request and unsupported product type', async () => {
+      await expect(
+        IAP.requestPurchase({request: undefined, type: 'in-app'}),
+      ).rejects.toThrow(/Missing purchase request configuration/);
+      await expect(
+        IAP.fetchProducts({skus: ['premium'], type: 'legacy'}),
+      ).rejects.toThrow(/Unsupported product type/);
     });
   });
 });

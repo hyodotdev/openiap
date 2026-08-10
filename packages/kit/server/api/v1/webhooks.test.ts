@@ -1,11 +1,49 @@
-import { beforeAll, describe, expect, it } from "vitest";
+import {
+  afterAll,
+  afterEach,
+  beforeAll,
+  describe,
+  expect,
+  it,
+  vi,
+} from "vitest";
 import { Hono } from "hono";
 
+const originalConvexUrl = process.env.VITE_KIT_CONVEX_URL;
+const originalGooglePubsubPushAudience =
+  process.env.GOOGLE_PUBSUB_PUSH_AUDIENCE;
+const originalAllowUnauthenticatedPubsub =
+  process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB;
+let client: typeof import("../../convex").client;
 let helpers: typeof import("./webhooks");
 
 beforeAll(async () => {
   process.env.VITE_KIT_CONVEX_URL = "https://placeholder.convex.cloud";
+  ({ client } = await import("../../convex"));
   helpers = await import("./webhooks");
+});
+
+afterAll(() => {
+  if (originalConvexUrl === undefined) {
+    delete process.env.VITE_KIT_CONVEX_URL;
+  } else {
+    process.env.VITE_KIT_CONVEX_URL = originalConvexUrl;
+  }
+});
+
+afterEach(() => {
+  if (originalGooglePubsubPushAudience === undefined) {
+    delete process.env.GOOGLE_PUBSUB_PUSH_AUDIENCE;
+  } else {
+    process.env.GOOGLE_PUBSUB_PUSH_AUDIENCE = originalGooglePubsubPushAudience;
+  }
+  if (originalAllowUnauthenticatedPubsub === undefined) {
+    delete process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB;
+  } else {
+    process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB =
+      originalAllowUnauthenticatedPubsub;
+  }
+  vi.restoreAllMocks();
 });
 
 describe("pubSubOidcAudiences", () => {
@@ -33,6 +71,12 @@ describe("pubSubOidcAudiences", () => {
 });
 
 describe("webhooksRoutes", () => {
+  function createApp() {
+    const app = new Hono();
+    app.route("/webhooks", helpers.webhooksRoutes);
+    return app;
+  }
+
   it("does not expose outbound webhook stream routes", async () => {
     const app = new Hono();
     app.route("/webhooks", helpers.webhooksRoutes);
@@ -159,6 +203,176 @@ describe("webhooksRoutes", () => {
         ],
       });
     }
+  });
+
+  it("rejects malformed JSON before store detection", async () => {
+    const response = await createApp().request(
+      "/webhooks/openiap-kit_pk_mobile",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: "{",
+      },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      errors: [{ code: "INVALID_INPUT", message: "Body is not JSON" }],
+    });
+  });
+
+  it("accepts Apple lifecycle events and preserves the public response", async () => {
+    vi.spyOn(client, "action").mockResolvedValueOnce({
+      type: "DID_RENEW",
+      deduped: false,
+    });
+
+    const response = await createApp().request(
+      "/webhooks/openiap-kit_pk_mobile",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ signedPayload: "opaque-signed-payload" }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      eventType: "DID_RENEW",
+      deduped: false,
+    });
+  });
+
+  it("rejects empty Apple signed payloads", async () => {
+    const response = await createApp().request(
+      "/webhooks/openiap-kit_pk_mobile",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ signedPayload: "" }),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      errors: [
+        { code: "INVALID_INPUT", message: "Missing or invalid signedPayload" },
+      ],
+    });
+  });
+
+  it("returns a sanitized 500 for unexpected Apple ingest failures", async () => {
+    vi.spyOn(client, "action").mockRejectedValueOnce(new Error("internal"));
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+
+    const response = await createApp().request(
+      "/webhooks/openiap-kit_pk_mobile",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ signedPayload: "opaque-signed-payload" }),
+      },
+    );
+
+    expect(response.status).toBe(500);
+    expect(error).toHaveBeenCalledWith(
+      "[webhooks/apple] unexpected error",
+      "Error",
+    );
+    await expect(response.json()).resolves.toEqual({
+      errors: [
+        {
+          code: "WEBHOOK_INTERNAL_ERROR",
+          message: "Webhook processing failed",
+        },
+      ],
+    });
+  });
+
+  it("fails closed when Google Pub/Sub audience is not configured", async () => {
+    delete process.env.GOOGLE_PUBSUB_PUSH_AUDIENCE;
+    delete process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB;
+    const error = vi.spyOn(console, "error").mockImplementation(() => {});
+    const data = Buffer.from(
+      JSON.stringify({ packageName: "dev.hyo.app" }),
+    ).toString("base64");
+
+    const response = await createApp().request(
+      "/webhooks/openiap-kit_pk_mobile",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ message: { data, messageId: "message" } }),
+      },
+    );
+
+    expect(response.status).toBe(503);
+    expect(error).toHaveBeenCalled();
+  });
+
+  it("rejects malformed Google Pub/Sub message data in local dev mode", async () => {
+    delete process.env.GOOGLE_PUBSUB_PUSH_AUDIENCE;
+    process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB = "1";
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+
+    const response = await createApp().request(
+      "/webhooks/openiap-kit_pk_mobile",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({
+          message: { data: "not base64", messageId: "message" },
+        }),
+      },
+    );
+
+    expect(response.status).toBe(400);
+    await expect(response.json()).resolves.toEqual({
+      errors: [
+        {
+          code: "INVALID_INPUT",
+          message: "Pub/Sub message.data is not base64-encoded JSON",
+        },
+      ],
+    });
+  });
+
+  it("accepts Google Pub/Sub lifecycle events in explicit local dev mode", async () => {
+    delete process.env.GOOGLE_PUBSUB_PUSH_AUDIENCE;
+    process.env.KIT_ALLOW_UNAUTHENTICATED_PUBSUB = "1";
+    vi.spyOn(console, "warn").mockImplementation(() => {});
+    vi.spyOn(client, "action").mockResolvedValueOnce({
+      type: "SUBSCRIPTION_RENEWED",
+      deduped: true,
+    });
+    const data = Buffer.from(
+      JSON.stringify({
+        packageName: "dev.hyo.app",
+        eventTimeMillis: "1700000000000",
+        subscriptionNotification: {
+          notificationType: 2,
+          purchaseToken: "opaque",
+          subscriptionId: "premium",
+        },
+      }),
+    ).toString("base64");
+
+    const response = await createApp().request(
+      "/webhooks/openiap-kit_pk_mobile",
+      {
+        method: "POST",
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ message: { data, messageId: "message" } }),
+      },
+    );
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toEqual({
+      ok: true,
+      eventType: "SUBSCRIPTION_RENEWED",
+      deduped: true,
+    });
   });
 });
 

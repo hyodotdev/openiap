@@ -121,19 +121,19 @@ type CachedClientPayload = KitClientPayloadResponse & {
   etag?: string;
 };
 
+type InternalRequestInit = Omit<RequestInit, "headers"> & {
+  headers?: Record<string, string>;
+};
+
 const DEFAULT_BASE_URL = "https://kit.openiap.dev";
 
-// Merge caller-supplied headers with kit defaults (`accept`,
-// optionally `content-type`). When the runtime exposes a global
-// `Headers` constructor we use it directly so callers passing a
-// `Headers` instance (a `HeadersInit`) keep that exact instance's
-// values. When `Headers` is missing — older React Native builds where
-// the operator wires up `fetchImpl` without a `Headers` polyfill —
-// we fall back to a case-insensitive merge into a plain record so
-// the request still goes through. Either way, caller-set values take
-// precedence over kit defaults.
+// Merge the request's internal headers with kit defaults (`accept`,
+// optionally `content-type`). When `Headers` is missing — older React
+// Native builds where the operator wires up `fetchImpl` without a
+// `Headers` polyfill — the internal request sites use plain records,
+// so a small case-insensitive merge is sufficient.
 function mergeHeaders(
-  callerHeaders: HeadersInit | undefined,
+  callerHeaders: Record<string, string> | undefined,
   hasBody: boolean,
 ): HeadersInit {
   if (typeof Headers === "function") {
@@ -144,41 +144,16 @@ function mergeHeaders(
     }
     return merged;
   }
-  // Plain-object fallback path. Build a case-insensitive name map
-  // from whatever the caller passed (Headers-shaped, array-of-pairs,
-  // or plain record) and re-emit as a record `fetchImpl` accepts.
+  // Plain-object fallback path. Build a case-insensitive name map and
+  // re-emit it as a record `fetchImpl` accepts.
   const lower = new Map<string, { name: string; value: string }>();
   const setIfAbsent = (name: string, value: string) => {
     const key = name.toLowerCase();
     if (!lower.has(key)) lower.set(key, { name, value });
   };
-  const setForce = (name: string, value: string) => {
-    const key = name.toLowerCase();
-    lower.set(key, { name, value });
-  };
   if (callerHeaders) {
-    if (Array.isArray(callerHeaders)) {
-      for (const [name, value] of callerHeaders) setForce(name, value);
-    } else if (
-      typeof (callerHeaders as { forEach?: unknown }).forEach === "function"
-    ) {
-      // `Headers`-like (without being our `typeof Headers === "function"`
-      // global). RN polyfills sometimes attach `Headers` only to
-      // request/response instances rather than the global scope.
-      // Standard signature is `forEach((value, key, parent))`; we
-      // bind the first two positionally so a polyfill that omits
-      // the third argument still works. `key` is the header name.
-      (
-        callerHeaders as {
-          forEach: (cb: (value: string, key: string) => void) => void;
-        }
-      ).forEach((value, key) => setForce(key, value));
-    } else {
-      for (const [name, value] of Object.entries(
-        callerHeaders as Record<string, string>,
-      )) {
-        setForce(name, value);
-      }
+    for (const [name, value] of Object.entries(callerHeaders)) {
+      lower.set(name.toLowerCase(), { name, value });
     }
   }
   setIfAbsent("accept", "application/json");
@@ -212,16 +187,18 @@ export function kitApi(options: KitApiOptions) {
       );
     })();
 
-  async function request(path: string, init?: RequestInit): Promise<Response> {
+  async function request(
+    path: string,
+    init?: InternalRequestInit,
+  ): Promise<Response> {
     // Normalize headers without depending on a global `Headers`
     // constructor: older React Native runtimes ship `fetch` (or a
     // polyfill via `fetchImpl`) without exposing `Headers` globally.
     // The prior implementation crashed before the first request on
-    // those runtimes. We use `new Headers()` when available (preserves
-    // caller-supplied `Headers` instances exactly), and otherwise fall
-    // back to a small case-insensitive merge into a plain record.
-    // Either way, kit defaults only apply when the caller hasn't set
-    // the same name.
+    // those runtimes. We use `new Headers()` when available and
+    // otherwise fall back to a small case-insensitive merge into a
+    // plain record. Either way, kit defaults only apply when the
+    // internal request hasn't set the same name.
     const headers = mergeHeaders(init?.headers, init?.body != null);
     // Prepend a leading slash if `path` is missing one. Today's
     // call sites all hard-code the leading "/", but normalizing here
@@ -278,7 +255,7 @@ export function kitApi(options: KitApiOptions) {
     return parsed as T;
   }
 
-  async function call<T>(path: string, init?: RequestInit): Promise<T> {
+  async function call<T>(path: string, init?: InternalRequestInit): Promise<T> {
     return parseResponse<T>(await request(path, init), path);
   }
 

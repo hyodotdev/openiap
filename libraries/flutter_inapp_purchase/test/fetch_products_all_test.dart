@@ -139,4 +139,22 @@ void main() {
       contains(isA<types.ProductOrSubscriptionProduct>()),
     );
   });
+
+  test('queryHandlers fetchProducts preserves typed result branches', () async {
+    final iap = FlutterInappPurchase.private(
+      FakePlatform(operatingSystem: 'ios'),
+    );
+    await iap.initConnection();
+
+    final subscriptions = await iap.queryHandlers.fetchProducts!(
+      skus: const ['premium_monthly'],
+      type: types.ProductQueryType.Subs,
+    );
+    final products = await iap.queryHandlers.fetchProducts!(
+      skus: const ['coin_pack'],
+    );
+
+    expect(subscriptions, isA<types.FetchProductsResultSubscriptions>());
+    expect(products, isA<types.FetchProductsResultProducts>());
+  });
 }

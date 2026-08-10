@@ -4,6 +4,7 @@ import {
   openRedeemOfferCodeAndroid,
   requestPurchase,
 } from '../index.kepler';
+import * as Kepler from '../index.kepler';
 import {getVegaIapModule} from '../vega';
 
 jest.mock('../vega', () => ({
@@ -88,5 +89,142 @@ describe('Amazon Vega public API', () => {
     await expect(getAvailablePurchases()).rejects.toMatchObject({
       code: 'billing-response-json-parse-error',
     });
+  });
+
+  it('reports a missing Vega native module', async () => {
+    (getVegaIapModule as jest.Mock).mockReturnValue(null);
+
+    await expect(Kepler.initConnection()).rejects.toThrow(
+      'Amazon Vega IAP module is unavailable',
+    );
+  });
+
+  it('delegates listeners and connection lifecycle calls', async () => {
+    const subscription = {remove: jest.fn()};
+    const module = {
+      addListener: jest.fn().mockReturnValue(subscription),
+      removeListener: jest.fn(),
+      initConnection: jest.fn().mockResolvedValue(true),
+      endConnection: jest.fn().mockResolvedValue(true),
+    };
+    (getVegaIapModule as jest.Mock).mockReturnValue(module);
+    const listener = jest.fn();
+
+    expect(
+      Kepler.emitter.addListener(Kepler.OpenIapEvent.PurchaseUpdated, listener),
+    ).toBe(subscription);
+    Kepler.emitter.removeListener(
+      Kepler.OpenIapEvent.PurchaseUpdated,
+      listener,
+    );
+    expect(module.removeListener).toHaveBeenCalledWith(
+      Kepler.OpenIapEvent.PurchaseUpdated,
+      listener,
+    );
+    const purchaseSub = Kepler.purchaseUpdatedListener(listener);
+    const purchaseHandler = module.addListener.mock.lastCall?.[1];
+    const errorSub = Kepler.purchaseErrorListener(listener);
+    const errorHandler = module.addListener.mock.lastCall?.[1];
+    expect(purchaseSub).toBe(subscription);
+    expect(errorSub).toBe(subscription);
+    purchaseHandler?.({productId: 'premium'});
+    errorHandler?.({code: 'network-error'});
+    expect(listener).toHaveBeenCalledTimes(2);
+
+    await expect(Kepler.initConnection()).resolves.toBe(true);
+    await expect(Kepler.endConnection()).resolves.toBe(true);
+    expect(module.initConnection).toHaveBeenCalledWith(null);
+  });
+
+  it('delegates purchase completion and catalog helpers', async () => {
+    const module = {
+      requestPurchase: jest.fn().mockResolvedValue([]),
+      getAvailableItems: jest.fn().mockResolvedValue([]),
+      consumePurchaseAndroid: jest.fn().mockResolvedValue(undefined),
+      acknowledgePurchaseAndroid: jest.fn().mockResolvedValue(undefined),
+      getActiveSubscriptions: jest.fn().mockResolvedValue([]),
+      hasActiveSubscriptions: jest.fn().mockResolvedValue(false),
+      getStorefront: jest.fn().mockResolvedValue('USA'),
+      verifyPurchaseWithProvider: jest.fn().mockResolvedValue({isValid: true}),
+    };
+    (getVegaIapModule as jest.Mock).mockReturnValue(module);
+    const purchase = {
+      id: 'transaction',
+      productId: 'premium',
+      purchaseToken: 'opaque-token',
+    } as any;
+
+    await expect(
+      Kepler.requestPurchase({
+        request: {google: {skus: ['premium']}},
+        type: 'subs',
+      } as any),
+    ).resolves.toEqual([]);
+    await Kepler.finishTransaction({purchase, isConsumable: true});
+    await Kepler.finishTransaction({purchase, isConsumable: false});
+    await expect(Kepler.acknowledgePurchaseAndroid('opaque')).resolves.toBe(
+      true,
+    );
+    await expect(Kepler.consumePurchaseAndroid('opaque')).resolves.toBe(true);
+    await Kepler.restorePurchases();
+    await expect(Kepler.getActiveSubscriptions()).resolves.toEqual([]);
+    await expect(Kepler.hasActiveSubscriptions()).resolves.toBe(false);
+    await expect(Kepler.getStorefront()).resolves.toBe('USA');
+    await expect(
+      Kepler.verifyPurchaseWithProvider({
+        provider: 'iapkit',
+        iapkit: {
+          apiKey: 'public-test-key',
+          amazon: {receiptId: 'redacted', sandbox: true},
+        },
+      }),
+    ).resolves.toEqual({isValid: true});
+
+    expect(module.consumePurchaseAndroid).toHaveBeenCalledWith('opaque-token');
+    expect(module.acknowledgePurchaseAndroid).toHaveBeenCalledWith(
+      'opaque-token',
+    );
+  });
+
+  it('rejects transaction completion without a purchase token', async () => {
+    await expect(
+      Kepler.finishTransaction({
+        purchase: {productId: 'premium'} as any,
+        isConsumable: false,
+      }),
+    ).rejects.toMatchObject({
+      code: 'developer-error',
+      productId: 'premium',
+    });
+  });
+
+  it.each([
+    'verifyPurchase',
+    'syncIOS',
+    'presentExternalPurchaseLinkIOS',
+    'deepLinkToSubscriptions',
+    'isBillingProgramAvailableAndroid',
+    'getBillingChoiceInfoAndroid',
+    'launchExternalLinkAndroid',
+    'createBillingProgramReportingDetailsAndroid',
+    'showBillingProgramInformationDialogAndroid',
+    'showInAppMessagesAndroid',
+  ])('rejects unsupported %s calls', async (api) => {
+    await expect((Kepler as any)[api]()).rejects.toThrow(
+      'not supported on Amazon Vega',
+    );
+  });
+
+  it('returns inert subscriptions for unavailable listener APIs', () => {
+    expect(typeof Kepler.promotedProductListenerIOS().remove).toBe('function');
+    expect(typeof Kepler.userChoiceBillingListenerAndroid().remove).toBe(
+      'function',
+    );
+    expect(typeof Kepler.developerProvidedBillingListenerAndroid().remove).toBe(
+      'function',
+    );
+    expect(typeof Kepler.subscriptionBillingIssueListener().remove).toBe(
+      'function',
+    );
   });
 });
