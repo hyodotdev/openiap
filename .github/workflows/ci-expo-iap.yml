@@ -67,6 +67,7 @@ jobs:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - uses: oven-sh/setup-bun@v2
         with:
@@ -91,7 +92,7 @@ jobs:
         uses: codecov/codecov-action@v7
         with:
           use_oidc: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
-          fail_ci_if_error: true
+          fail_ci_if_error: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
           disable_search: true
           files: coverage/lcov.info
           flags: expo-iap

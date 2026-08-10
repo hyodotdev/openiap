@@ -641,6 +641,11 @@ function checkFrameworkCiAndCoverageBadges() {
   }
 
   function checkDedicatedWorkflowBadge({ readmePath, workflowFile }) {
+    const workflowPath = `.github/workflows/${workflowFile}`;
+    expectFile(workflowPath);
+    expectFile(readmePath);
+    if (!exists(workflowPath) || !exists(readmePath)) return;
+
     const readmeUrls = extractHttpsUrls(read(readmePath))
       .map(parseUrl)
       .filter((url) => url !== null);
@@ -743,11 +748,17 @@ function checkFrameworkCiAndCoverageBadges() {
       fail(`${nestedConfigPath} duplicates the root codecov.yml SSOT`);
     }
   }
-  for (const duplicateRootConfig of [
+  const alternateCodecovConfigs = [
     ".codecov.yml",
     ".codecov.yaml",
     "codecov.yaml",
-  ]) {
+    ...[".github", "dev"].flatMap((directory) =>
+      [".codecov.yml", ".codecov.yaml", "codecov.yml", "codecov.yaml"].map(
+        (filename) => `${directory}/${filename}`,
+      ),
+    ),
+  ];
+  for (const duplicateRootConfig of alternateCodecovConfigs) {
     if (exists(duplicateRootConfig)) {
       fail(`${duplicateRootConfig} duplicates the canonical root codecov.yml`);
     }
@@ -804,6 +815,10 @@ function checkFrameworkCiAndCoverageBadges() {
 
   for (const contract of contracts) {
     const workflowPath = `.github/workflows/${contract.workflowFile}`;
+    expectFile(workflowPath);
+    expectFile(contract.readmePath);
+    if (!exists(workflowPath) || !exists(contract.readmePath)) continue;
+
     const workflowSource = read(workflowPath);
     const testJob = extractWorkflowJob(workflowSource, contract.testJob);
     if (!testJob) {
@@ -812,11 +827,11 @@ function checkFrameworkCiAndCoverageBadges() {
     }
     for (const needle of [
       "permissions:\n      contents: read\n      id-token: write",
-      "fetch-depth: 0",
+      "fetch-depth: 0\n          persist-credentials: false",
       contract.testCommand,
       "uses: codecov/codecov-action@v7",
       "use_oidc: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}",
-      "fail_ci_if_error: true",
+      "fail_ci_if_error: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}",
       "disable_search: true",
       "files: coverage/lcov.info",
       `flags: ${contract.componentId}`,
