@@ -11,6 +11,8 @@
 GODOT_VERSION ?= 4.7.1
 GODOT_LIB_URL = https://github.com/godotengine/godot/releases/download/$(GODOT_VERSION)-stable/godot-lib.$(GODOT_VERSION).stable.template_release.aar
 SWIFT_GODOT_VERSION ?= v0.79.0
+# AndroidX Core 1.18.0 declares AGP 8.9.1 as its minimum consumer version.
+ANDROID_EXPORT_AGP_VERSION ?= 8.9.1
 
 # Directories
 PROJECT_ROOT := $(shell pwd)
@@ -33,7 +35,7 @@ YELLOW := \033[0;33m
 RED := \033[0;31m
 NC := \033[0m # No Color
 
-.PHONY: all setup setup-swiftgodot ios ios-build macos macos-build android clean help run-android run-ios export-ios export-android test-setup test-android test-ios export-test-android export-test-ios test
+.PHONY: all setup setup-swiftgodot ios ios-build macos macos-build android clean help run-android run-ios prepare-android-export-template export-ios export-android test-setup test-android test-ios export-test-android export-test-ios test
 
 help:
 	@echo "GodotIap Build System"
@@ -68,6 +70,7 @@ help:
 	@echo "Environment variables:"
 	@echo "  GODOT_VERSION  - Godot version to use (default: $(GODOT_VERSION))"
 	@echo "  GODOT          - Path to Godot executable (default: $(GODOT))"
+	@echo "  ANDROID_EXPORT_AGP_VERSION - Android export AGP floor (default: $(ANDROID_EXPORT_AGP_VERSION))"
 	@echo "  MACOS_ARCHS    - macOS architectures for source builds (default: $(MACOS_ARCHS))"
 	@echo "  RELEASE_TAG    - GitHub release tag to test (default: latest)"
 
@@ -241,11 +244,43 @@ clean-all: clean
 	@rm -rf $(IOS_GDEXT_DIR)/Package.resolved
 	@echo "$(GREEN)✓ Deep clean complete$(NC)"
 
+# Install a clean source template before every export. This avoids stale
+# resources when the local Godot version changes and applies the minimum AGP
+# required by the AndroidX dependencies shipped through openiap-google.
+prepare-android-export-template:
+	@set -e; \
+	version_output="$$($(GODOT) --version)" || { \
+		echo "$(RED)Unable to run Godot to read its version.$(NC)"; \
+		exit 1; \
+	}; \
+	actual_version="$$(printf '%s\n' "$$version_output" | cut -d. -f1-3)"; \
+	if [ "$$actual_version" != "$(GODOT_VERSION)" ]; then \
+		echo "$(RED)Godot $$actual_version found; $(GODOT_VERSION) is required for source exports.$(NC)"; \
+		exit 1; \
+	fi; \
+	case "$$(uname -s)" in \
+		Darwin) template_root="$$HOME/Library/Application Support/Godot" ;; \
+		Linux) template_root="$${XDG_DATA_HOME:-$$HOME/.local/share}/godot" ;; \
+		*) echo "$(RED)Unsupported host for Android export templates: $$(uname -s)$(NC)"; exit 1 ;; \
+	esac; \
+	template_zip="$$template_root/export_templates/$(GODOT_VERSION).stable/android_source.zip"; \
+	if [ ! -f "$$template_zip" ]; then \
+		echo "$(RED)Missing Godot $(GODOT_VERSION) Android source template: $$template_zip$(NC)"; \
+		exit 1; \
+	fi; \
+	rm -rf "$(EXAMPLE_DIR)/android/build"; \
+	mkdir -p "$(EXAMPLE_DIR)/android/build"; \
+	unzip -q "$$template_zip" -d "$(EXAMPLE_DIR)/android/build"; \
+	config="$(EXAMPLE_DIR)/android/build/config.gradle"; \
+	perl -0pi -e "s/androidGradlePlugin:\\s*'[^']+'/androidGradlePlugin: '$(ANDROID_EXPORT_AGP_VERSION)'/" "$$config"; \
+	grep -q "androidGradlePlugin: '$(ANDROID_EXPORT_AGP_VERSION)'" "$$config" || \
+		(echo "$(RED)Failed to set Android export AGP $(ANDROID_EXPORT_AGP_VERSION).$(NC)" && exit 1)
+
 # Export Android APK
-export-android: android
+export-android: android prepare-android-export-template
 	@echo "$(GREEN)Exporting Android APK...$(NC)"
 	@mkdir -p $(EXAMPLE_DIR)/android
-	@cd $(EXAMPLE_DIR) && $(GODOT) --headless --install-android-build-template --export-debug "Android" android/Martie.apk
+	@cd $(EXAMPLE_DIR) && $(GODOT) --headless --export-debug "Android" android/Martie.apk
 	@echo "$(GREEN)✓ APK exported to $(EXAMPLE_DIR)/android/Martie.apk$(NC)"
 
 # Run Android - Build, export and install on device
