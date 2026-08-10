@@ -1,0 +1,62 @@
+coverage:
+  precision: 2
+  round: down
+  range: "50...100"
+  status:
+    project:
+      default:
+        target: auto
+        threshold: 1%
+        informational: true
+    patch:
+      default:
+        target: auto
+        threshold: 1%
+        informational: true
+
+flags:
+  react-native-iap:
+    paths:
+      - "libraries/react-native-iap/src/**"
+    carryforward: true
+  expo-iap:
+    paths:
+      - "libraries/expo-iap/src/**"
+    carryforward: true
+  flutter-inapp-purchase:
+    paths:
+      - "libraries/flutter_inapp_purchase/lib/**"
+    carryforward: true
+
+component_management:
+  individual_components:
+    - component_id: react-native-iap
+      name: React Native IAP
+      paths:
+        - "libraries/react-native-iap/src/**"
+      flag_regexes:
+        - "^react-native-iap$"
+    - component_id: expo-iap
+      name: Expo IAP
+      paths:
+        - "libraries/expo-iap/src/**"
+      flag_regexes:
+        - "^expo-iap$"
+    - component_id: flutter-inapp-purchase
+      name: flutter_inapp_purchase
+      paths:
+        - "libraries/flutter_inapp_purchase/lib/**"
+      flag_regexes:
+        - "^flutter-inapp-purchase$"
+
+comment:
+  layout: "reach,diff,flags,components,files"
+  behavior: default
+  require_changes: false
+  require_base: false
+  require_head: true
+
+ignore:
+  - "libraries/react-native-iap/src/types.ts"
+  - "libraries/expo-iap/src/types.ts"
+  - "libraries/flutter_inapp_purchase/lib/types.dart"

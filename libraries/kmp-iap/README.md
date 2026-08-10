@@ -4,9 +4,8 @@
   <img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/libraries/kmp-iap/docs/static/img/logo.png" width="200" alt="kmp-iap logo" />
   
   <a href="https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap"><img src="https://img.shields.io/maven-central/v/io.github.hyochan/kmp-iap.svg?style=flat-square" alt="Maven Central" /></a>
-  <a href="https://github.com/hyodotdev/openiap/actions/workflows/gradle.yml"><img src="https://github.com/hyodotdev/openiap/actions/workflows/gradle.yml/badge.svg" alt="Java CI with Gradle" /></a>
+  <a href="https://github.com/hyodotdev/openiap/actions/workflows/ci-kmp-iap.yml?query=branch%3Amain"><img src="https://github.com/hyodotdev/openiap/actions/workflows/ci-kmp-iap.yml/badge.svg?branch=main" alt="KMP CI" /></a>
   <a href="https://openiap.dev"><img src="https://img.shields.io/badge/OpenIAP-Compliant-green?style=flat-square" alt="OpenIAP Compliant" /></a>
-  <a href="https://codecov.io/gh/hyodotdev/openiap"><img src="https://codecov.io/gh/hyodotdev/openiap/branch/main/graph/badge.svg?token=YOUR_TOKEN" alt="Coverage Status" /></a>
   <img src="https://img.shields.io/badge/license-Apache--2.0-blue.svg" alt="License" />
   
   A comprehensive Kotlin Multiplatform library for in-app purchases on Android and iOS platforms that conforms to the <a href="https://openiap.dev">Open IAP specification</a>

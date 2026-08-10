@@ -9,6 +9,7 @@ on:
       - "packages/apple/Sources/**"
       - "packages/apple/Package.swift"
       - "openiap-versions.json"
+      - "codecov.yml"
       - ".github/workflows/ci-flutter-inapp-purchase.yml"
       - ".github/workflows/release-flutter.yml"
   push:
@@ -19,6 +20,7 @@ on:
       - "packages/apple/Sources/**"
       - "packages/apple/Package.swift"
       - "openiap-versions.json"
+      - "codecov.yml"
       - ".github/workflows/ci-flutter-inapp-purchase.yml"
       - ".github/workflows/release-flutter.yml"
 
@@ -35,10 +37,14 @@ jobs:
     name: Analyze & Test
     runs-on: ubuntu-latest
     timeout-minutes: 30
+    permissions:
+      contents: read
+      id-token: write
     steps:
       - uses: actions/checkout@v7
         with:
-          fetch-depth: 1
+          fetch-depth: 0
+          persist-credentials: false
 
       - uses: subosito/flutter-action@v2
         with:
@@ -58,7 +64,22 @@ jobs:
         run: flutter analyze
 
       - name: Test
-        run: flutter test
+        run: flutter test --coverage
+
+      - name: Filter generated coverage
+        run: dart run tool/filter_coverage.dart
+
+      - name: Upload coverage
+        uses: codecov/codecov-action@v7
+        with:
+          use_oidc: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+          fail_ci_if_error: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+          disable_search: true
+          files: coverage/lcov.info
+          flags: flutter-inapp-purchase
+          name: flutter-inapp-purchase
+          network_prefix: libraries/flutter_inapp_purchase/
+          working-directory: libraries/flutter_inapp_purchase
 
       - name: Android consumer build smoke test
         run: bash scripts/verify-android-consumer-build.sh

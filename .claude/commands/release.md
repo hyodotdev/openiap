@@ -250,30 +250,12 @@ timeout; do not equate a successful upload response with completed indexing.
 
 ## Flutter Publisher
 
-pub.dev accepts GitHub OIDC publishing only when the workflow was triggered by
-pushing a matching version tag. `release-flutter.yml` therefore pushes the
-immutable `flutter-iap-{version}` tag and waits for the resulting
-`publish-flutter.yml` tag-push run. Never manually dispatch that publisher: a
-`workflow_dispatch` run is ineligible even when its ref is a tag. For a retry,
-rerun the original tag-push workflow run so its event, tag, and commit identity
-remain intact; do not delete or recreate the release tag. The publisher must
-also prove that the tag commit is reachable from `main` (stable) or `next`
-(prerelease) and download the exact tag/SHA authorization artifact created by
-the guarded `release-flutter.yml` run before requesting OIDC. If an unpublished
-tag predates this authorization lane or its artifact expired, do not rerun its
-legacy publisher; release a new reviewed version.
-
-The publisher validates the exact source attempt recorded in the authorization
-artifact through GitHub's attempt-specific run endpoint. Rerunning the source
-release workflow must not replace that attempt with the run ID's latest attempt
-metadata or invalidate an otherwise valid immutable-tag retry.
-
-GitHub Deployment Environments are optional pub.dev hardening, not a publishing
-prerequisite. This repository currently relies on its guarded tag-push CI lane
-without a required environment. Add `environment: <name>` only when a
-maintainer intentionally enables the matching requirement in the pub.dev
-package Admin settings; do not make an unconfigured environment a release
-blocker.
+Follow the canonical CI-only publishing and Flutter OIDC policy in
+`knowledge/internal/06-git-deployment.md#ci-only-package-publishing` and the
+tag invariants in its release-tag section. Dispatch `release-flutter.yml`; never
+publish locally or manually dispatch `publish-flutter.yml`. Retry only the
+original tag-push publisher run. If its immutable authorization cannot be
+validated, release a new reviewed version instead of recreating the tag.
 
 ## Godot Asset Library
 
