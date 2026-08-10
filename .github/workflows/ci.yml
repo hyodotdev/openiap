@@ -237,6 +237,10 @@ jobs:
         run: |
           "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" ./gradlew :openiap:assembleAmazonDebug
 
+      - name: Verify Kotlin 2.1 consumer compatibility
+        working-directory: packages/google
+        run: bash scripts/verify-kotlin-2.1-consumer.sh
+
       # Run every store flavor so flavor-specific API-23 regressions cannot
       # bypass lint coverage.
       - name: Lint Android API compatibility

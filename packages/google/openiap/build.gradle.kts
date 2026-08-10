@@ -76,10 +76,9 @@ val openIapVersion: String =
     project.findProperty("openIapVersion")?.toString()?.takeIf { it.isNotBlank() }
         ?: versionsJson["google"]?.toString()?.takeIf { it.isNotBlank() }
         ?: throw GradleException("packages/google: 'google' version missing in openiap-versions.json")
-val isPublishTaskRequested =
+val isCentralPublishTaskRequested =
     gradle.startParameter.taskNames.any { taskName ->
-        taskName.contains("publish", ignoreCase = true) ||
-            taskName.contains("mavenCentral", ignoreCase = true)
+        taskName.contains("mavenCentral", ignoreCase = true)
     }
 
 android {
@@ -304,8 +303,8 @@ if (isStandaloneGoogleBuild) {
             }
         }
 
-        if (isPublishTaskRequested) {
-            // Use the Central Portal publishing path only for publishing tasks.
+        if (isCentralPublishTaskRequested) {
+            // Local compatibility tests publish without release credentials.
             publishToMavenCentral()
             signAllPublications()
         }

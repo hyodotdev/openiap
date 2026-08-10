@@ -6042,6 +6042,12 @@ function checkFrameworkDependencyHygiene() {
   const googleKotlinVersion = googleBuildRoot.match(
     /org\.jetbrains\.kotlin\.android"\) version "([^"]+)"/,
   )?.[1];
+  const googleKotlinConsumerBuild = read(
+    "packages/google/compatibility/kotlin-2.1-consumer/build.gradle.kts",
+  );
+  const googleKotlinConsumerVersion = googleKotlinConsumerBuild.match(
+    /org\.jetbrains\.kotlin\.android"\) version "([^"]+)"/,
+  )?.[1];
   if (!googleCompileSdk)
     fail("packages/google openiap build.gradle.kts must declare compileSdk");
   if (!googleMinSdk)
@@ -6054,11 +6060,16 @@ function checkFrameworkDependencyHygiene() {
     fail(
       "packages/google build.gradle.kts must declare Kotlin Android plugin version",
     );
+  if (!googleKotlinConsumerVersion)
+    fail("packages/google Kotlin consumer fixture must pin a compiler version");
+  if (googleKotlinConsumerVersion !== "2.1.20")
+    fail("packages/google Kotlin consumer baseline must remain 2.1.20");
   if (
     googleCompileSdk &&
     googleMinSdk &&
     googleBillingVersions.length === 1 &&
-    googleKotlinVersion
+    googleKotlinVersion &&
+    googleKotlinConsumerVersion
   ) {
     expectIncludes(
       "packages/google/README.md",
@@ -6068,7 +6079,7 @@ function checkFrameworkDependencyHygiene() {
         `**Minimum SDK**: ${googleMinSdk}`,
         `**Compile SDK**: ${googleCompileSdk}`,
         `**Google Play Billing**: v${googleBillingVersions[0]}`,
-        `**Kotlin**: ${googleKotlinVersion}+`,
+        `**Kotlin compiler (consumer)**: ${googleKotlinConsumerVersion}+`,
       ],
       "Google README requirements",
     );
@@ -6288,22 +6299,22 @@ function checkFrameworkDependencyHygiene() {
       "libraries/flutter_inapp_purchase/android/gradle.properties",
       [
         `openIapAndroidGradlePluginVersion=${googleAndroidGradlePluginVersion}`,
-        `openIapKotlinVersion=${googleKotlinVersion}`,
+        "openIapKotlinVersion=2.4.10",
         "openIapAndroidAnnotationVersion=1.10.0",
         "openIapJunitVersion=",
       ],
-      "Flutter Android Gradle plugin fallback versions",
+      "Flutter Android fallback versions",
     );
     expectIncludes(
       "libraries/flutter_inapp_purchase/example/android/gradle.properties",
       [
         `openIapAndroidGradlePluginVersion=${googleAndroidGradlePluginVersion}`,
-        `openIapKotlinVersion=${googleKotlinVersion}`,
+        "openIapKotlinVersion=2.4.10",
         "openIapJunitVersion=",
         "openIapAndroidTestRunnerVersion=",
         "openIapEspressoCoreVersion=",
       ],
-      "Flutter example Android Gradle plugin fallback versions",
+      "Flutter example Android fallback versions",
     );
     expectIncludes(
       "libraries/flutter_inapp_purchase/android/gradle/wrapper/gradle-wrapper.properties",
@@ -6328,9 +6339,9 @@ function checkFrameworkDependencyHygiene() {
       "libraries/godot-iap/android/gradle.properties",
       [
         `androidGradlePluginVersion=${googleAndroidGradlePluginVersion}`,
-        `kotlinVersion=${googleKotlinVersion}`,
+        "kotlinVersion=2.4.10",
       ],
-      "Godot Android Gradle plugin fallback versions",
+      "Godot Android fallback versions",
     );
     expectIncludes(
       "libraries/godot-iap/android/gradle/wrapper/gradle-wrapper.properties",
@@ -7523,7 +7534,6 @@ function checkFrameworkDependencyHygiene() {
     "libraries/flutter_inapp_purchase/example/android/gradle.properties",
     "libraries/flutter_inapp_purchase/example/android/settings.gradle",
     "libraries/godot-iap/android/gradle.properties",
-    "libraries/react-native-iap/android/gradle.properties",
   ]) {
     expectIncludes(
       kotlinVersionFile,
@@ -7534,6 +7544,47 @@ function checkFrameworkDependencyHygiene() {
       kotlinVersionFile,
       ["2.0.21", "2.1.20", "2.1.0"],
       `${kotlinVersionFile} Kotlin version`,
+    );
+  }
+  expectIncludes(
+    "libraries/react-native-iap/android/gradle.properties",
+    ["NitroIap_kotlinVersion=2.2.0"],
+    "React Native standalone Kotlin fallback must remain consumer-compatible",
+  );
+  expectIncludes(
+    "packages/google/scripts/verify-kotlin-2.1-consumer.sh",
+    [
+      "compatibility/kotlin-2.1-consumer",
+      "play:openiap-google",
+      "horizon:openiap-google-horizon",
+      "amazon:openiap-google-amazon",
+      "compileDebugKotlin",
+    ],
+    "Google Kotlin consumer compatibility verifier",
+  );
+  for (const workflowFile of [
+    ".github/workflows/ci.yml",
+    ".github/workflows/release-google.yml",
+  ]) {
+    expectIncludes(
+      workflowFile,
+      ["bash scripts/verify-kotlin-2.1-consumer.sh"],
+      `${workflowFile} Kotlin consumer compatibility gate`,
+    );
+  }
+  const kotlinConsumerGateIndex = googleReleaseWorkflow.indexOf(
+    "bash scripts/verify-kotlin-2.1-consumer.sh",
+  );
+  const mavenCentralPublishIndex = googleReleaseWorkflow.indexOf(
+    ":openiap:publishAndReleaseToMavenCentral",
+  );
+  if (
+    kotlinConsumerGateIndex < 0 ||
+    mavenCentralPublishIndex < 0 ||
+    kotlinConsumerGateIndex >= mavenCentralPublishIndex
+  ) {
+    fail(
+      ".github/workflows/release-google.yml must verify Kotlin 2.1.20 consumers before Maven Central publication",
     );
   }
   expectIncludes(
@@ -7586,8 +7637,10 @@ function checkFrameworkDependencyHygiene() {
       "React Native 0.79 or later",
       "Node.js 18 or later",
       "Android API level 23+",
+      "Kotlin 2.1.20 or later",
       "versions supplied by the host React Native project",
-      "standalone OpenIAP fallback (`2.4.10`)",
+      "validated against Kotlin `2.1.20`",
+      "standalone source-build fallback is Kotlin `2.2.0`",
     ],
     "React Native requirements must distinguish host compatibility from standalone fallbacks",
   );
