@@ -1,5 +1,12 @@
 # Changelog
 
+## 10.2.2 (2026-08-10)
+
+- chore(google): bump version to 3.2.2
+- fix(google): restore Kotlin consumer compatibility (#305)
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
+
+
 ## 10.2.1 (2026-08-10)
 
 - chore(google): bump version to 3.2.1
