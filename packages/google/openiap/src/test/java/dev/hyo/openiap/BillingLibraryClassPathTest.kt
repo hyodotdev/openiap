@@ -9,128 +9,13 @@ import org.junit.Test
 import java.util.Locale
 
 /**
- * Tests to verify that reflection-based class paths used in OpenIapModule
+ * Tests to verify that reflection-based class paths still used in OpenIapModule
  * match the actual Google Play Billing Library class structure.
- *
- * These tests prevent issues like #70 where SubscriptionProductReplacementParams
- * was referenced at the wrong path (missing ProductDetailsParams in the hierarchy).
  *
  * IMPORTANT: Every Class.forName() and getMethod() call in OpenIapModule.kt
  * should have a corresponding test here to catch API changes early.
- *
- * @see <a href="https://github.com/hyodotdev/openiap/issues/70">Issue #70</a>
  */
 class BillingLibraryClassPathTest {
-
-    // ============================================================================
-    // MARK: - SubscriptionProductReplacementParams (Billing Library 8.1.0+)
-    // Used in: OpenIapModule.applySubscriptionProductReplacementParams()
-    // ============================================================================
-
-    @Test
-    fun `SubscriptionProductReplacementParams class exists at correct path`() {
-        // Issue #70: Was incorrectly using BillingFlowParams$SubscriptionProductReplacementParams
-        // Correct path: BillingFlowParams$ProductDetailsParams$SubscriptionProductReplacementParams
-        val className = "com.android.billingclient.api.BillingFlowParams\$ProductDetailsParams\$SubscriptionProductReplacementParams"
-        assertClassExists(className, "8.1.0+")
-    }
-
-    @Test
-    fun `SubscriptionProductReplacementParams Builder class exists at correct path`() {
-        val className = "com.android.billingclient.api.BillingFlowParams\$ProductDetailsParams\$SubscriptionProductReplacementParams\$Builder"
-        assertClassExists(className, "8.1.0+")
-    }
-
-    @Test
-    fun `SubscriptionProductReplacementParams has newBuilder method`() {
-        assertClassHasMethod(
-            "com.android.billingclient.api.BillingFlowParams\$ProductDetailsParams\$SubscriptionProductReplacementParams",
-            "newBuilder"
-        )
-    }
-
-    @Test
-    fun `SubscriptionProductReplacementParams Builder has setOldProductId method`() {
-        assertClassHasMethod(
-            "com.android.billingclient.api.BillingFlowParams\$ProductDetailsParams\$SubscriptionProductReplacementParams\$Builder",
-            "setOldProductId",
-            String::class.java
-        )
-    }
-
-    @Test
-    fun `SubscriptionProductReplacementParams Builder has setReplacementMode method`() {
-        assertClassHasMethod(
-            "com.android.billingclient.api.BillingFlowParams\$ProductDetailsParams\$SubscriptionProductReplacementParams\$Builder",
-            "setReplacementMode",
-            Int::class.javaPrimitiveType!!
-        )
-    }
-
-    @Test
-    fun `SubscriptionProductReplacementParams Builder has build method`() {
-        assertClassHasMethod(
-            "com.android.billingclient.api.BillingFlowParams\$ProductDetailsParams\$SubscriptionProductReplacementParams\$Builder",
-            "build"
-        )
-    }
-
-    @Test
-    fun `WRONG path for SubscriptionProductReplacementParams should NOT exist`() {
-        // This is the WRONG path that was causing Issue #70
-        val wrongClassName = "com.android.billingclient.api.BillingFlowParams\$SubscriptionProductReplacementParams"
-        assertClassDoesNotExist(wrongClassName)
-    }
-
-    @Test
-    fun `SubscriptionProductReplacementParams ReplacementMode annotation exists`() {
-        val className = "com.android.billingclient.api.BillingFlowParams\$ProductDetailsParams\$SubscriptionProductReplacementParams\$ReplacementMode"
-        try {
-            val clazz = Class.forName(className)
-            assertNotNull("ReplacementMode annotation should exist", clazz)
-            assertTrue("ReplacementMode should be an annotation", clazz.isAnnotation)
-        } catch (e: ClassNotFoundException) {
-            fail("ReplacementMode annotation not found: $className")
-        }
-    }
-
-    // ============================================================================
-    // MARK: - ProductDetailsParams (base class)
-    // Used in: OpenIapModule for subscription replacement params
-    // ============================================================================
-
-    @Test
-    fun `ProductDetailsParams class exists`() {
-        assertClassExists(
-            "com.android.billingclient.api.BillingFlowParams\$ProductDetailsParams",
-            "5.0+"
-        )
-    }
-
-    @Test
-    fun `ProductDetailsParams Builder class exists`() {
-        assertClassExists(
-            "com.android.billingclient.api.BillingFlowParams\$ProductDetailsParams\$Builder",
-            "5.0+"
-        )
-    }
-
-    @Test
-    fun `ProductDetailsParams Builder has setSubscriptionProductReplacementParams method`() {
-        val builderClassName = "com.android.billingclient.api.BillingFlowParams\$ProductDetailsParams\$Builder"
-        val replacementParamsClassName = "com.android.billingclient.api.BillingFlowParams\$ProductDetailsParams\$SubscriptionProductReplacementParams"
-
-        try {
-            val builderClass = Class.forName(builderClassName)
-            val replacementParamsClass = Class.forName(replacementParamsClassName)
-            val setMethod = builderClass.getMethod("setSubscriptionProductReplacementParams", replacementParamsClass)
-            assertNotNull("setSubscriptionProductReplacementParams method should exist", setMethod)
-        } catch (e: ClassNotFoundException) {
-            fail("Class not found: ${e.message}")
-        } catch (e: NoSuchMethodException) {
-            fail("setSubscriptionProductReplacementParams method not found. Requires Billing Library 8.1.0+")
-        }
-    }
 
     // ============================================================================
     // MARK: - SubscriptionUpdateParams (legacy)
@@ -1027,16 +912,6 @@ class BillingLibraryClassPathTest {
             assertNotNull("$className should exist", clazz)
         } catch (e: ClassNotFoundException) {
             fail("$className not found. Requires Billing Library $minVersion")
-        }
-    }
-
-    private fun assertClassDoesNotExist(className: String) {
-        try {
-            Class.forName(className)
-            fail("Class should NOT exist at: $className")
-        } catch (e: ClassNotFoundException) {
-            // Expected - the class should not exist
-            assertTrue("Class correctly does not exist at $className", true)
         }
     }
 

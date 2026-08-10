@@ -1737,7 +1737,9 @@ class OpenIapModule(
 
                             // Apply per-product subscription replacement params (8.1.0+)
                             androidArgs.subscriptionProductReplacementParams?.let { replacementParams ->
-                                applySubscriptionProductReplacementParams(builder, replacementParams)
+                                builder.setSubscriptionProductReplacementParams(
+                                    replacementParams.toBillingSubscriptionProductReplacementParams()
+                                )
                             }
                         } else if (androidArgs.type == ProductQueryType.InApp && !androidArgs.offerToken.isNullOrEmpty()) {
                             // Handle one-time purchase discount offers (Android 8.0+)
@@ -2835,74 +2837,6 @@ class OpenIapModule(
 
     override fun setActivity(activity: Activity?) {
         currentActivityRef = activity?.let { WeakReference(it) }
-    }
-
-    /**
-     * Apply SubscriptionProductReplacementParams to ProductDetailsParams builder using reflection.
-     * This enables per-product replacement mode configuration (Billing Library 8.1.0+).
-     *
-     * @param builder The ProductDetailsParams.Builder to configure
-     * @param params The replacement parameters containing oldProductId and replacementMode
-     */
-    private fun applySubscriptionProductReplacementParams(
-        builder: BillingFlowParams.ProductDetailsParams.Builder,
-        params: SubscriptionProductReplacementParamsAndroid
-    ) {
-        try {
-            // Convert our enum to BillingClient SubscriptionProductReplacementParams.ReplacementMode constant
-            val replacementModeConstant = params.replacementMode.toReplacementModeConstant()
-
-            // Build SubscriptionProductReplacementParams using reflection
-            // Note: SubscriptionProductReplacementParams is nested under ProductDetailsParams (Billing Library 8.1.0+)
-            val replacementParamsClass = Class.forName(
-                "com.android.billingclient.api.BillingFlowParams\$ProductDetailsParams\$SubscriptionProductReplacementParams"
-            )
-            val replacementBuilderClass = Class.forName(
-                "com.android.billingclient.api.BillingFlowParams\$ProductDetailsParams\$SubscriptionProductReplacementParams\$Builder"
-            )
-
-            // Create new builder
-            val newBuilderMethod = replacementParamsClass.getMethod("newBuilder")
-            val replacementBuilder = newBuilderMethod.invoke(null)
-
-            // Set old product ID
-            val setOldProductIdMethod = replacementBuilderClass.getMethod("setOldProductId", String::class.java)
-            setOldProductIdMethod.invoke(replacementBuilder, params.oldProductId)
-
-            // Set replacement mode
-            val setReplacementModeMethod = replacementBuilderClass.getMethod("setReplacementMode", Int::class.javaPrimitiveType)
-            setReplacementModeMethod.invoke(replacementBuilder, replacementModeConstant)
-
-            // Build the params
-            val buildMethod = replacementBuilderClass.getMethod("build")
-            val subscriptionReplacementParams = buildMethod.invoke(replacementBuilder)
-
-            // Apply to ProductDetailsParams builder
-            val setSubsReplacementParamsMethod = builder.javaClass.getMethod(
-                "setSubscriptionProductReplacementParams",
-                replacementParamsClass
-            )
-            setSubsReplacementParamsMethod.invoke(builder, subscriptionReplacementParams)
-
-            OpenIapLog.debug("Applied SubscriptionProductReplacementParams: oldProductId=${params.oldProductId}, mode=${params.replacementMode} (constant=$replacementModeConstant)", TAG)
-        } catch (e: NoSuchMethodException) {
-            OpenIapLog.warn("setSubscriptionProductReplacementParams not found. Requires Billing Library 8.1.0+.", TAG)
-            throw OpenIapError.FeatureNotSupported(
-                "Subscription product replacement requires Play Billing 8.1.0+"
-            )
-        } catch (e: ClassNotFoundException) {
-            OpenIapLog.warn("SubscriptionProductReplacementParams class not found. Requires Billing Library 8.1.0+.", TAG)
-            throw OpenIapError.FeatureNotSupported(
-                "Subscription product replacement requires Play Billing 8.1.0+"
-            )
-        } catch (e: OpenIapError) {
-            throw e
-        } catch (e: Exception) {
-            OpenIapLog.error("Failed to apply SubscriptionProductReplacementParams: ${e.message}", e, TAG)
-            throw OpenIapError.DeveloperError(
-                e.message ?: "Invalid subscription product replacement parameters"
-            )
-        }
     }
 
     /**
