@@ -167,6 +167,28 @@ the workflow must stop instead of rebasing unverified commits into the release;
 rerun the complete review, CI, and E2E gates on the new head, then dispatch the
 release again.
 
+### CI-Only Package Publishing
+
+External registry publication for npm and Flutter packages is CI-only. Never
+run `npm publish`, `flutter pub publish`, or an equivalent package-publishing
+command from a local terminal.
+
+- Enter a stable or prerelease package release only through its guarded
+  `workflow_dispatch` source workflow on the allowed release branch.
+- React Native and Expo source workflows create an immutable release tag; the
+  tag-ref child publisher performs the npm registry write with OIDC.
+- The Flutter source workflow is dispatched, but the actual pub.dev registry
+  write runs only from the immutable tag-push `publish-flutter.yml` workflow.
+  pub.dev rejects OIDC publishing from a `workflow_dispatch` event even when
+  that run checks out a tag.
+- Local registry-facing commands in a release workflow are limited to read-only
+  verification; local build and test commands remain allowed.
+
+Exact-version `npm deprecate` and retraction through the signed-in pub.dev Admin
+UI are authenticated lifecycle-maintenance exceptions, not package publishing.
+Use them only after the replacement version is publicly verified. Do not add a
+token- or OTP-backed CI mutation path for either operation.
+
 The version commit and immutable provenance tag must be pushed atomically before
 publishing a framework package to its external registry. A `current` retry may
 reuse that tag to finish an interrupted publication, but if the registry already

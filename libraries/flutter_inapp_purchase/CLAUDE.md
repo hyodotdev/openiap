@@ -105,7 +105,10 @@ Before committing any changes, run these commands in order and ensure ALL pass:
 
 ### Code Coverage (Codecov)
 
-This project uses Codecov with two checks: **codecov/patch** (new/modified lines) and **codecov/project** (overall project coverage). Both must pass for CI to succeed.
+This project uploads coverage to the OpenIAP monorepo Codecov project. The
+**codecov/patch** (new or modified lines) and **codecov/project** (overall
+project coverage) statuses are informational while the monorepo baselines are
+established, but coverage generation and upload failures still fail CI.
 
 **When adding or modifying code:**
 
@@ -117,7 +120,8 @@ This project uses Codecov with two checks: **codecov/patch** (new/modified lines
    dart run tool/filter_coverage.dart
    ```
 
-3. The project target is `auto` (must not decrease from base branch). If codecov/project fails, add more tests until overall coverage meets or exceeds the base
+3. The project target is `auto`. Review any decrease from the base branch and
+   add tests for uncovered behavior before merging.
 4. Focus coverage on:
    - All new public methods and their error paths
    - Both `on PlatformException catch` and generic `catch` blocks
@@ -125,7 +129,8 @@ This project uses Codecov with two checks: **codecov/patch** (new/modified lines
    - Edge cases (null values, empty strings, missing fields)
 5. Files with 0% coverage are easy wins - prioritize testing those first when coverage needs improvement
 
-**Configuration:** `.codecov.yml` - `lib/types.dart` is ignored (generated file).
+**Configuration:** [`../../codecov.yml`](../../codecov.yml) is the monorepo
+SSOT; `lib/types.dart` is ignored because it is generated.
 
 ### Commit Message Convention
 

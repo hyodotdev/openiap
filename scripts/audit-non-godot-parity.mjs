@@ -555,6 +555,348 @@ function expectSameSet(label, ssotValues, registryValues) {
   }
 }
 
+function checkFrameworkCiAndCoverageBadges() {
+  const contracts = [
+    {
+      componentId: "react-native-iap",
+      componentName: "React Native IAP",
+      coveragePath: "libraries/react-native-iap/src",
+      generatedCoveragePath: "libraries/react-native-iap/src/types.ts",
+      libraryPath: "libraries/react-native-iap",
+      readmePath: "libraries/react-native-iap/README.md",
+      testCommand: "run: yarn test:ci",
+      testJob: "test",
+      workflowFile: "ci-react-native-iap.yml",
+    },
+    {
+      componentId: "expo-iap",
+      componentName: "Expo IAP",
+      coveragePath: "libraries/expo-iap/src",
+      generatedCoveragePath: "libraries/expo-iap/src/types.ts",
+      libraryPath: "libraries/expo-iap",
+      readmePath: "libraries/expo-iap/README.md",
+      testCommand: "run: bun run test:coverage",
+      testJob: "test",
+      workflowFile: "ci-expo-iap.yml",
+    },
+    {
+      componentId: "flutter-inapp-purchase",
+      componentName: "flutter_inapp_purchase",
+      coveragePath: "libraries/flutter_inapp_purchase/lib",
+      generatedCoveragePath: "libraries/flutter_inapp_purchase/lib/types.dart",
+      libraryPath: "libraries/flutter_inapp_purchase",
+      readmePath: "libraries/flutter_inapp_purchase/README.md",
+      testCommand: "run: flutter test --coverage",
+      testJob: "analyze-and-test",
+      workflowFile: "ci-flutter-inapp-purchase.yml",
+    },
+  ];
+
+  function extractHttpsUrls(source) {
+    return [...source.matchAll(/https:\/\/[^\s"'<>()[\]]+/g)].map((match) =>
+      match[0].replace(/[,.;]+$/, ""),
+    );
+  }
+
+  function parseUrl(value) {
+    try {
+      return new URL(value);
+    } catch {
+      return null;
+    }
+  }
+
+  function hasMainBranchFilter(url) {
+    if (url.searchParams.get("branch") === "main") return true;
+    const query = url.searchParams.get("query") ?? "";
+    return /(?:^|\s)branch:main(?:$|\s)/.test(query);
+  }
+
+  function extractWorkflowJob(source, jobName) {
+    const lines = source.split("\n");
+    const startIndex = lines.findIndex((line) => line === `  ${jobName}:`);
+    if (startIndex < 0) return "";
+    let endIndex = startIndex + 1;
+    while (
+      endIndex < lines.length &&
+      !/^  [A-Za-z0-9_-]+:$/.test(lines[endIndex])
+    ) {
+      endIndex += 1;
+    }
+    return lines.slice(startIndex, endIndex).join("\n");
+  }
+
+  function extractTopLevelYamlSection(source, sectionName) {
+    const lines = source.split("\n");
+    const startIndex = lines.findIndex((line) => line === `${sectionName}:`);
+    if (startIndex < 0) return "";
+    let endIndex = startIndex + 1;
+    while (
+      endIndex < lines.length &&
+      (lines[endIndex].trim() === "" || /^\s/.test(lines[endIndex]))
+    ) {
+      endIndex += 1;
+    }
+    return lines.slice(startIndex, endIndex).join("\n");
+  }
+
+  function checkDedicatedWorkflowBadge({ readmePath, workflowFile }) {
+    const readmeUrls = extractHttpsUrls(read(readmePath))
+      .map(parseUrl)
+      .filter((url) => url !== null);
+    const expectedWorkflowPath = `/hyodotdev/openiap/actions/workflows/${workflowFile}`;
+    const workflowUrls = readmeUrls.filter(
+      (url) =>
+        url.hostname === "github.com" &&
+        url.pathname.startsWith("/hyodotdev/openiap/actions/workflows/"),
+    );
+    const workflowBadge = workflowUrls.find(
+      (url) => url.pathname === `${expectedWorkflowPath}/badge.svg`,
+    );
+    const workflowTarget = workflowUrls.find(
+      (url) => url.pathname === expectedWorkflowPath,
+    );
+    if (!workflowBadge || !hasMainBranchFilter(workflowBadge)) {
+      fail(`${readmePath} must render the main-branch ${workflowFile} badge`);
+    }
+    if (!workflowTarget || !hasMainBranchFilter(workflowTarget)) {
+      fail(`${readmePath} must link to main-branch ${workflowFile} runs`);
+    }
+    if (
+      workflowUrls.some(
+        (url) =>
+          url.pathname !== expectedWorkflowPath &&
+          url.pathname !== `${expectedWorkflowPath}/badge.svg`,
+      )
+    ) {
+      fail(
+        `${readmePath} must not use a different GitHub Actions workflow badge or target`,
+      );
+    }
+  }
+
+  const markdownPaths = listTrackedFiles(".").filter((relativePath) =>
+    /\.mdx?$/i.test(relativePath),
+  );
+  for (const markdownPath of markdownPaths) {
+    const source = read(markdownPath);
+    for (const match of source.matchAll(
+      /https:\/\/github\.com\/hyodotdev\/openiap\/actions\/workflows\/([^/?#\s"'<>()[\]]+\.ya?ml)\b/gi,
+    )) {
+      let workflowFile = match[1];
+      try {
+        workflowFile = decodeURIComponent(workflowFile);
+      } catch {
+        fail(
+          `${markdownPath} contains a malformed GitHub Actions workflow URL`,
+        );
+        continue;
+      }
+      if (!exists(`.github/workflows/${workflowFile}`)) {
+        fail(
+          `${markdownPath} links to missing GitHub Actions workflow ${workflowFile}`,
+        );
+      }
+    }
+
+    for (const value of extractHttpsUrls(source)) {
+      const url = parseUrl(value);
+      if (!url || !/(?:^|\.)codecov\.io$/i.test(url.hostname)) continue;
+
+      if (
+        [...url.searchParams.keys()].some((key) => /token/i.test(key)) ||
+        /(?:your[_-]?token|placeholder)/i.test(value)
+      ) {
+        fail(`${markdownPath} must not expose a Codecov token or placeholder`);
+      }
+
+      const repository = url.pathname.match(
+        /^\/(?:gh|github)\/([^/]+)(?:\/([^/]+))?/i,
+      );
+      if (
+        repository &&
+        (repository[1] !== "hyodotdev" || repository[2] !== "openiap")
+      ) {
+        fail(
+          `${markdownPath} must link Codecov to the hyodotdev/openiap monorepo`,
+        );
+      }
+    }
+  }
+  for (const ciBadgeContract of [
+    ...contracts,
+    {
+      readmePath: "libraries/kmp-iap/README.md",
+      workflowFile: "ci-kmp-iap.yml",
+    },
+  ]) {
+    checkDedicatedWorkflowBadge(ciBadgeContract);
+  }
+
+  expectFile("codecov.yml");
+  for (const nestedConfigPath of contracts.flatMap(({ libraryPath }) =>
+    [".codecov.yml", ".codecov.yaml", "codecov.yml", "codecov.yaml"].map(
+      (filename) => `${libraryPath}/${filename}`,
+    ),
+  )) {
+    if (exists(nestedConfigPath)) {
+      fail(`${nestedConfigPath} duplicates the root codecov.yml SSOT`);
+    }
+  }
+  for (const duplicateRootConfig of [
+    ".codecov.yml",
+    ".codecov.yaml",
+    "codecov.yaml",
+  ]) {
+    if (exists(duplicateRootConfig)) {
+      fail(`${duplicateRootConfig} duplicates the canonical root codecov.yml`);
+    }
+  }
+
+  if (exists("codecov.yml")) {
+    const codecovConfig = read("codecov.yml");
+    const expectedComponentIds = contracts.map(
+      ({ componentId }) => componentId,
+    );
+    const flagIds = uniqueMatches(
+      extractTopLevelYamlSection(codecovConfig, "flags"),
+      /^  ([A-Za-z0-9_-]+):$/gm,
+    );
+    const componentIds = uniqueMatches(
+      extractTopLevelYamlSection(codecovConfig, "component_management"),
+      /^    - component_id:\s*([A-Za-z0-9_-]+)$/gm,
+    );
+    expectSameSet("Codecov flags", expectedComponentIds, flagIds);
+    expectSameSet("Codecov components", expectedComponentIds, componentIds);
+    for (const contract of contracts) {
+      const flagBlock = [
+        `  ${contract.componentId}:`,
+        "    paths:",
+        `      - \"${contract.coveragePath}/**\"`,
+        "    carryforward: true",
+      ].join("\n");
+      const componentBlock = [
+        `    - component_id: ${contract.componentId}`,
+        `      name: ${contract.componentName}`,
+        "      paths:",
+        `        - \"${contract.coveragePath}/**\"`,
+        "      flag_regexes:",
+        `        - \"^${contract.componentId}$\"`,
+      ].join("\n");
+      if (!codecovConfig.includes(flagBlock)) {
+        fail(
+          `codecov.yml must define the ${contract.componentId} carryforward flag for ${contract.coveragePath}`,
+        );
+      }
+      if (!codecovConfig.includes(componentBlock)) {
+        fail(
+          `codecov.yml must map component ${contract.componentId} to its matching path and flag`,
+        );
+      }
+      if (!codecovConfig.includes(`  - "${contract.generatedCoveragePath}"`)) {
+        fail(
+          `codecov.yml must ignore generated coverage file ${contract.generatedCoveragePath}`,
+        );
+      }
+    }
+  }
+
+  for (const contract of contracts) {
+    const workflowPath = `.github/workflows/${contract.workflowFile}`;
+    const workflowSource = read(workflowPath);
+    const testJob = extractWorkflowJob(workflowSource, contract.testJob);
+    if (!testJob) {
+      fail(`${workflowPath} is missing the ${contract.testJob} coverage job`);
+      continue;
+    }
+    for (const needle of [
+      "permissions:\n      contents: read\n      id-token: write",
+      "fetch-depth: 0",
+      contract.testCommand,
+      "uses: codecov/codecov-action@v7",
+      "use_oidc: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}",
+      "fail_ci_if_error: true",
+      "disable_search: true",
+      `files: ${contract.libraryPath}/coverage/lcov.info`,
+      `flags: ${contract.componentId}`,
+      `name: ${contract.componentId}`,
+      `root_dir: ${contract.libraryPath}`,
+      `network_prefix: ${contract.libraryPath}/`,
+    ]) {
+      if (!testJob.includes(needle)) {
+        fail(
+          `${workflowPath} ${contract.testJob} must include ${JSON.stringify(needle)}`,
+        );
+      }
+    }
+    if ((testJob.match(/codecov\/codecov-action@v7/g) ?? []).length !== 1) {
+      fail(
+        `${workflowPath} ${contract.testJob} must upload exactly one coverage report`,
+      );
+    }
+    if (/^\s+token:/m.test(testJob)) {
+      fail(`${workflowPath} must use Codecov OIDC without a stored token`);
+    }
+    if ((workflowSource.match(/- "codecov\.yml"/g) ?? []).length !== 2) {
+      fail(
+        `${workflowPath} pull_request and push paths must both include root codecov.yml`,
+      );
+    }
+
+    if (contract.componentId === "flutter-inapp-purchase") {
+      const testIndex = testJob.indexOf(contract.testCommand);
+      const filterIndex = testJob.indexOf(
+        "run: dart run tool/filter_coverage.dart",
+      );
+      const uploadIndex = testJob.indexOf("uses: codecov/codecov-action@v7");
+      if (
+        testIndex < 0 ||
+        filterIndex <= testIndex ||
+        uploadIndex <= filterIndex
+      ) {
+        fail(
+          `${workflowPath} must filter generated Flutter coverage before upload`,
+        );
+      }
+    }
+
+    const readmeUrls = extractHttpsUrls(read(contract.readmePath))
+      .map(parseUrl)
+      .filter((url) => url !== null);
+    const expectedCodecovBadgePath =
+      "/gh/hyodotdev/openiap/branch/main/graph/badge.svg";
+    const codecovBadge = readmeUrls.find(
+      (url) =>
+        url.hostname === "codecov.io" &&
+        url.pathname === expectedCodecovBadgePath &&
+        url.searchParams.get("component") === contract.componentId &&
+        [...url.searchParams.keys()].length === 1,
+    );
+    const codecovTarget = readmeUrls.find(
+      (url) =>
+        url.hostname === "app.codecov.io" &&
+        url.pathname ===
+          `/gh/hyodotdev/openiap/tree/main/${contract.libraryPath}`,
+    );
+    if (!codecovBadge) {
+      fail(
+        `${contract.readmePath} must render the token-free ${contract.componentId} Codecov component badge`,
+      );
+    }
+    if (!codecovTarget) {
+      fail(
+        `${contract.readmePath} must link Codecov to its monorepo package tree`,
+      );
+    }
+  }
+
+  expectNoMatch(
+    "libraries/kmp-iap/README.md",
+    /https:\/\/(?:[A-Za-z0-9-]+\.)*codecov\.io\//i,
+    "KMP README must not advertise Codecov before it produces a coverage report",
+  );
+}
+
 function uniqueMatches(text, regex) {
   return [
     ...new Set([...text.matchAll(regex)].map((match) => match[1])),
@@ -8176,6 +8518,7 @@ checkGoogle();
 checkMaui();
 checkNativeApis();
 checkBillingChoiceFieldBindings();
+checkFrameworkCiAndCoverageBadges();
 checkFrameworkDependencyHygiene();
 checkReleaseNoteGroupingGuidance();
 checkXcode27StoreKitCoverage();

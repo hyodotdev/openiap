@@ -3,7 +3,7 @@
 <div align="center">
   <img src="https://openiap.dev/frameworks/flutter.svg" width="200" alt="flutter_inapp_purchase logo" />
   
-  [![Pub Version](https://img.shields.io/pub/v/flutter_inapp_purchase.svg?style=flat-square)](https://pub.dartlang.org/packages/flutter_inapp_purchase) [![Flutter CI](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml/badge.svg)](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml) [![OpenIAP](https://img.shields.io/badge/OpenIAP-Compliant-green?style=flat-square)](https://openiap.dev) [![Coverage Status](https://codecov.io/gh/hyodotdev/openiap/branch/main/graph/badge.svg?token=WXBlKvRB2G)](https://codecov.io/gh/hyodotdev/openiap) ![License](https://img.shields.io/badge/license-MIT-blue.svg)
+  [![Pub Version](https://img.shields.io/pub/v/flutter_inapp_purchase.svg?style=flat-square)](https://pub.dartlang.org/packages/flutter_inapp_purchase) [![Flutter CI](https://github.com/hyodotdev/openiap/actions/workflows/ci-flutter-inapp-purchase.yml/badge.svg?branch=main)](https://github.com/hyodotdev/openiap/actions/workflows/ci-flutter-inapp-purchase.yml?query=branch%3Amain) [![OpenIAP](https://img.shields.io/badge/OpenIAP-Compliant-green?style=flat-square)](https://openiap.dev) [![Coverage Status](https://codecov.io/gh/hyodotdev/openiap/branch/main/graph/badge.svg?component=flutter-inapp-purchase)](https://app.codecov.io/gh/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase) ![License](https://img.shields.io/badge/license-MIT-blue.svg)
   
   A comprehensive Flutter plugin for implementing in-app purchases that conforms to the [Open IAP specification](https://openiap.dev)
 
