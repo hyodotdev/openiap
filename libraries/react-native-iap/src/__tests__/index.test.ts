@@ -1667,6 +1667,12 @@ describe('Public API (src/index.ts)', () => {
       expect(mockIap.addUserChoiceBillingListenerAndroid).toHaveBeenCalledTimes(
         1,
       );
+      expect(
+        mockIap.removeUserChoiceBillingListenerAndroid,
+      ).toHaveBeenCalledTimes(1);
+      expect(
+        mockIap.removeUserChoiceBillingListenerAndroid,
+      ).toHaveBeenCalledWith(nativeListener);
     });
 
     it('returns an inert subscription outside Android', () => {
@@ -3110,11 +3116,27 @@ describe('Public API (src/index.ts)', () => {
   });
 
   describe('native failure normalization', () => {
-    const iosFailureCases: Array<{
+    const replacedNativeMethods = new Map<string, unknown>();
+    const replaceNativeMethod = (name: string, value: unknown) => {
+      if (!replacedNativeMethods.has(name)) {
+        replacedNativeMethods.set(name, mockIap[name]);
+      }
+      mockIap[name] = value;
+    };
+
+    afterEach(() => {
+      for (const [name, value] of replacedNativeMethods) {
+        if (value === undefined) delete mockIap[name];
+        else mockIap[name] = value;
+      }
+      replacedNativeMethods.clear();
+    });
+
+    const iosFailureCases: {
       name: string;
       nativeMethod: string;
       invoke: () => Promise<unknown>;
-    }> = [
+    }[] = [
       {
         name: 'get promoted product',
         nativeMethod: 'getPromotedProductIOS',
@@ -3199,7 +3221,10 @@ describe('Public API (src/index.ts)', () => {
 
     it.each(iosFailureCases)('normalizes $name failures', async (testCase) => {
       const nativeError = new Error('native failure');
-      mockIap[testCase.nativeMethod] = jest.fn().mockRejectedValue(nativeError);
+      replaceNativeMethod(
+        testCase.nativeMethod,
+        jest.fn().mockRejectedValue(nativeError),
+      );
 
       await expect(testCase.invoke()).rejects.toMatchObject({
         message: 'native failure',
@@ -3207,18 +3232,20 @@ describe('Public API (src/index.ts)', () => {
     });
 
     it('normalizes connection lifecycle failures', async () => {
-      mockIap.initConnection = jest
-        .fn()
-        .mockRejectedValueOnce(new Error('init failed'));
+      replaceNativeMethod(
+        'initConnection',
+        jest.fn().mockRejectedValueOnce(new Error('init failed')),
+      );
       await expect(IAP.initConnection()).rejects.toMatchObject({
         message: 'init failed',
       });
 
-      mockIap.initConnection = jest.fn().mockResolvedValue(true);
+      replaceNativeMethod('initConnection', jest.fn().mockResolvedValue(true));
       expect(IAP.isNitroReady()).toBe(true);
-      mockIap.endConnection = jest
-        .fn()
-        .mockRejectedValueOnce(new Error('end failed'));
+      replaceNativeMethod(
+        'endConnection',
+        jest.fn().mockRejectedValueOnce(new Error('end failed')),
+      );
       await expect(IAP.endConnection()).rejects.toMatchObject({
         message: 'end failed',
       });
@@ -3257,7 +3284,10 @@ describe('Public API (src/index.ts)', () => {
     ])('surfaces Android $name failures', async (testCase) => {
       (Platform as any).OS = 'android';
       const nativeError = new Error('android failure');
-      mockIap[testCase.nativeMethod] = jest.fn().mockRejectedValue(nativeError);
+      replaceNativeMethod(
+        testCase.nativeMethod,
+        jest.fn().mockRejectedValue(nativeError),
+      );
 
       await expect(testCase.invoke()).rejects.toBe(nativeError);
     });
@@ -3276,7 +3306,10 @@ describe('Public API (src/index.ts)', () => {
       },
     ])('surfaces iOS $name failures', async (testCase) => {
       const nativeError = new Error('external purchase failure');
-      mockIap[testCase.nativeMethod] = jest.fn().mockRejectedValue(nativeError);
+      replaceNativeMethod(
+        testCase.nativeMethod,
+        jest.fn().mockRejectedValue(nativeError),
+      );
 
       await expect(testCase.invoke()).rejects.toBe(nativeError);
     });

@@ -117,12 +117,18 @@ describe('Amazon Vega public API', () => {
       Kepler.OpenIapEvent.PurchaseUpdated,
       listener,
     );
+    expect(module.removeListener).toHaveBeenCalledWith(
+      Kepler.OpenIapEvent.PurchaseUpdated,
+      listener,
+    );
     const purchaseSub = Kepler.purchaseUpdatedListener(listener);
+    const purchaseHandler = module.addListener.mock.lastCall?.[1];
     const errorSub = Kepler.purchaseErrorListener(listener);
+    const errorHandler = module.addListener.mock.lastCall?.[1];
     expect(purchaseSub).toBe(subscription);
     expect(errorSub).toBe(subscription);
-    module.addListener.mock.calls[1][1]({productId: 'premium'});
-    module.addListener.mock.calls[2][1]({code: 'network-error'});
+    purchaseHandler?.({productId: 'premium'});
+    errorHandler?.({code: 'network-error'});
     expect(listener).toHaveBeenCalledTimes(2);
 
     await expect(Kepler.initConnection()).resolves.toBe(true);

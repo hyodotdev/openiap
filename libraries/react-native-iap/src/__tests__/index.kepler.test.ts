@@ -11,7 +11,7 @@ describe('Amazon Vega public API', () => {
   const fetchProductsNative = jest.fn().mockResolvedValue([]);
   const requestPurchaseNative = jest.fn().mockResolvedValue([]);
   const getAvailablePurchasesNative = jest.fn().mockResolvedValue([]);
-  const module = {
+  const vegaModule = {
     initConnection: jest.fn().mockResolvedValue(true),
     endConnection: jest.fn().mockResolvedValue(true),
     fetchProducts: fetchProductsNative,
@@ -33,7 +33,7 @@ describe('Amazon Vega public API', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (getVegaIapModule as jest.Mock).mockReturnValue(module);
+    (getVegaIapModule as jest.Mock).mockReturnValue(vegaModule);
   });
 
   it('returns false when offer-code redemption is unsupported', async () => {
@@ -155,13 +155,13 @@ describe('Amazon Vega public API', () => {
       }),
     ).resolves.toEqual({ok: true});
 
-    expect(module.initConnection).toHaveBeenCalledWith(null);
-    expect(module.getActiveSubscriptions).toHaveBeenCalledWith(undefined);
-    expect(module.hasActiveSubscriptions).toHaveBeenCalledWith(['premium']);
+    expect(vegaModule.initConnection).toHaveBeenCalledWith(null);
+    expect(vegaModule.getActiveSubscriptions).toHaveBeenCalledWith(undefined);
+    expect(vegaModule.hasActiveSubscriptions).toHaveBeenCalledWith(['premium']);
   });
 
   it('normalizes product queries and maps subscriptions', async () => {
-    fetchProductsNative.mockResolvedValue([
+    fetchProductsNative.mockResolvedValueOnce([
       {
         id: 'premium',
         title: 'Premium',
@@ -209,7 +209,7 @@ describe('Amazon Vega public API', () => {
       purchase: {productId: 'coins', purchaseToken: 'receipt'} as any,
       isConsumable: true,
     });
-    expect(module.finishTransaction).toHaveBeenCalledWith({
+    expect(vegaModule.finishTransaction).toHaveBeenCalledWith({
       android: {purchaseToken: 'receipt', isConsumable: true},
     });
   });
@@ -219,15 +219,18 @@ describe('Amazon Vega public API', () => {
     await expect(IAP.acknowledgePurchaseAndroid('receipt')).resolves.toBe(true);
     await expect(IAP.consumePurchaseAndroid('receipt')).resolves.toBe(true);
 
-    expect(module.restorePurchases).toHaveBeenCalledTimes(1);
-    expect(module.acknowledgePurchaseAndroid).toHaveBeenCalledWith('receipt');
-    expect(module.consumePurchaseAndroid).toHaveBeenCalledWith('receipt');
+    expect(vegaModule.restorePurchases).toHaveBeenCalledTimes(1);
+    expect(vegaModule.acknowledgePurchaseAndroid).toHaveBeenCalledWith(
+      'receipt',
+    );
+    expect(vegaModule.consumePurchaseAndroid).toHaveBeenCalledWith('receipt');
   });
 
   it('adapts purchase listeners and removes native subscriptions', () => {
     const purchaseListener = jest.fn();
     const subscription = IAP.purchaseUpdatedListener(purchaseListener);
-    const nativeListener = module.addPurchaseUpdatedListener.mock.calls[0][0];
+    const nativeListener =
+      vegaModule.addPurchaseUpdatedListener.mock.calls[0][0];
 
     nativeListener({
       id: 'purchase',
@@ -243,13 +246,13 @@ describe('Amazon Vega public API', () => {
     subscription.remove();
 
     expect(purchaseListener).toHaveBeenCalledTimes(1);
-    expect(module.removePurchaseUpdatedListener).toHaveBeenCalledWith(7);
+    expect(vegaModule.removePurchaseUpdatedListener).toHaveBeenCalledWith(7);
   });
 
   it('normalizes purchase errors and removes the same callback', () => {
     const listener = jest.fn();
     const subscription = IAP.purchaseErrorListener(listener);
-    const nativeListener = module.addPurchaseErrorListener.mock.calls[0][0];
+    const nativeListener = vegaModule.addPurchaseErrorListener.mock.calls[0][0];
 
     nativeListener({});
     subscription.remove();
@@ -258,7 +261,7 @@ describe('Amazon Vega public API', () => {
       code: 'service-error',
       message: 'Amazon Vega purchase failed',
     });
-    expect(module.removePurchaseErrorListener).toHaveBeenCalledWith(
+    expect(vegaModule.removePurchaseErrorListener).toHaveBeenCalledWith(
       nativeListener,
     );
   });

@@ -42,6 +42,15 @@ const purchase = (overrides: Partial<NitroPurchase> = {}): NitroPurchase => ({
 });
 
 describe('type-bridge utilities', () => {
+  beforeEach(() => {
+    jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   describe('convertNitroProductToProduct', () => {
     it('converts iOS product metadata and normalizes enums', () => {
       const result = convertNitroProductToProduct(
@@ -179,33 +188,28 @@ describe('type-bridge utilities', () => {
     });
 
     it('normalizes native aliases and malformed optional metadata', () => {
-      const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
-      try {
-        const fallbackPlatform = convertNitroProductToProduct(
-          product({platform: 'unknown' as never}),
-        );
-        const result = convertNitroProductToProduct(
-          product({
-            typeIOS: 'mystery' as never,
-            introductoryPricePaymentModeIOS: 'payAsYouGo' as never,
-            introductoryPriceSubscriptionPeriodIOS: 'DAY' as never,
-            subscriptionPeriodUnitIOS: 'WEEK' as never,
-            pricingTermsIOS: '{',
-            bundledSubscriptionsIOS: '{',
-          }),
-        ) as any;
+      const fallbackPlatform = convertNitroProductToProduct(
+        product({platform: 'unknown' as never}),
+      );
+      const result = convertNitroProductToProduct(
+        product({
+          typeIOS: 'mystery' as never,
+          introductoryPricePaymentModeIOS: 'payAsYouGo' as never,
+          introductoryPriceSubscriptionPeriodIOS: 'DAY' as never,
+          subscriptionPeriodUnitIOS: 'WEEK' as never,
+          pricingTermsIOS: '{',
+          bundledSubscriptionsIOS: '{',
+        }),
+      ) as any;
 
-        expect(fallbackPlatform.platform).toBe('android');
-        expect(result.typeIOS).toBe('non-consumable');
-        expect(result.introductoryPricePaymentModeIOS).toBe('pay-as-you-go');
-        expect(result.introductoryPriceSubscriptionPeriodIOS).toBe('day');
-        expect(result.subscriptionPeriodUnitIOS).toBe('week');
-        expect(result.pricingTermsIOS).toBeNull();
-        expect(result.bundledSubscriptionsIOS).toBeNull();
-        expect(warn).toHaveBeenCalled();
-      } finally {
-        warn.mockRestore();
-      }
+      expect(fallbackPlatform.platform).toBe('android');
+      expect(result.typeIOS).toBe('non-consumable');
+      expect(result.introductoryPricePaymentModeIOS).toBe('pay-as-you-go');
+      expect(result.introductoryPriceSubscriptionPeriodIOS).toBe('day');
+      expect(result.subscriptionPeriodUnitIOS).toBe('week');
+      expect(result.pricingTermsIOS).toBeNull();
+      expect(result.bundledSubscriptionsIOS).toBeNull();
+      expect(console.warn).toHaveBeenCalled();
     });
 
     it.each([
@@ -253,16 +257,11 @@ describe('type-bridge utilities', () => {
   });
 
   it('warns when casting an in-app product as a subscription', () => {
-    const warn = jest.spyOn(console, 'warn').mockImplementation(() => {});
-    try {
-      const result = convertProductToProductSubscription(
-        convertNitroProductToProduct(product()),
-      );
-      expect(result.id).toBe('com.example.product');
-      expect(warn).toHaveBeenCalled();
-    } finally {
-      warn.mockRestore();
-    }
+    const result = convertProductToProductSubscription(
+      convertNitroProductToProduct(product()),
+    );
+    expect(result.id).toBe('com.example.product');
+    expect(console.warn).toHaveBeenCalled();
   });
 
   describe('convertNitroPurchaseToPurchase', () => {
@@ -492,23 +491,15 @@ describe('type-bridge utilities', () => {
 
   describe('validation helpers', () => {
     it('validates the required NitroProduct fields', () => {
-      const consoleErrorSpy = jest
-        .spyOn(console, 'error')
-        .mockImplementation(() => undefined);
-
-      try {
-        expect(validateNitroProduct(product())).toBe(true);
-        expect(
-          validateNitroProduct({title: 'missing fields'} as NitroProduct),
-        ).toBe(false);
-        expect(consoleErrorSpy).toHaveBeenCalledWith(
-          '[RN-IAP]',
-          'NitroProduct missing required field: id',
-          {title: 'missing fields'},
-        );
-      } finally {
-        consoleErrorSpy.mockRestore();
-      }
+      expect(validateNitroProduct(product())).toBe(true);
+      expect(
+        validateNitroProduct({title: 'missing fields'} as NitroProduct),
+      ).toBe(false);
+      expect(console.error).toHaveBeenCalledWith(
+        '[RN-IAP]',
+        'NitroProduct missing required field: id',
+        {title: 'missing fields'},
+      );
     });
 
     it('rejects non-object products and purchases', () => {
@@ -517,26 +508,18 @@ describe('type-bridge utilities', () => {
     });
 
     it('requires store when validating NitroPurchase', () => {
-      const consoleErrorSpy = jest
-        .spyOn(console, 'error')
-        .mockImplementation(() => undefined);
-
-      try {
-        expect(validateNitroPurchase(purchase())).toBe(true);
-        expect(
-          validateNitroPurchase({
-            id: 'id',
-            productId: 'sku',
-            transactionDate: 1,
-          } as NitroPurchase),
-        ).toBe(false);
-        expect(consoleErrorSpy).toHaveBeenCalledWith(
-          '[RN-IAP]',
-          'NitroPurchase has invalid required field: store',
-        );
-      } finally {
-        consoleErrorSpy.mockRestore();
-      }
+      expect(validateNitroPurchase(purchase())).toBe(true);
+      expect(
+        validateNitroPurchase({
+          id: 'id',
+          productId: 'sku',
+          transactionDate: 1,
+        } as NitroPurchase),
+      ).toBe(false);
+      expect(console.error).toHaveBeenCalledWith(
+        '[RN-IAP]',
+        'NitroPurchase has invalid required field: store',
+      );
     });
 
     it('accepts only decodable object JSON for the Nitro iOS offer', () => {
@@ -570,14 +553,7 @@ describe('type-bridge utilities', () => {
       ['renewalInfoIOS', {renewalInfoIOS: 'invalid'}],
       ['offerIOS', {offerIOS: 1}],
     ] as const)('rejects invalid %s metadata', (_field, overrides) => {
-      const consoleErrorSpy = jest
-        .spyOn(console, 'error')
-        .mockImplementation(() => undefined);
-      try {
-        expect(validateNitroPurchase(purchase(overrides as never))).toBe(false);
-      } finally {
-        consoleErrorSpy.mockRestore();
-      }
+      expect(validateNitroPurchase(purchase(overrides as never))).toBe(false);
     });
   });
 

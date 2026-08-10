@@ -176,9 +176,13 @@ describe('utils/errorMapping', () => {
     [ErrorCode.ServiceDisconnected, true],
     [ErrorCode.BillingUnavailable, true],
     [ErrorCode.UserCancelled, false],
-    [undefined, false],
   ])('classifies network error %s', (code, expected) => {
-    expect(isNetworkError(code ? {code} : null)).toBe(expected);
+    expect(isNetworkError({code})).toBe(expected);
+  });
+
+  test('treats missing error codes and objects as non-network errors', () => {
+    expect(isNetworkError({code: undefined})).toBe(false);
+    expect(isNetworkError(null)).toBe(false);
   });
 
   test.each([

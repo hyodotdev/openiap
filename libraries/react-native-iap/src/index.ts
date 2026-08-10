@@ -648,9 +648,29 @@ export const userChoiceBillingListenerAndroid = (
     }
   }
 
+  let removed = false;
   return {
     remove: () => {
+      if (removed) return;
+      removed = true;
       userChoiceBillingJsListeners.delete(listener);
+      if (
+        userChoiceBillingJsListeners.size > 0 ||
+        !userChoiceBillingNativeAttached
+      ) {
+        return;
+      }
+      try {
+        IAP.instance.removeUserChoiceBillingListenerAndroid(
+          userChoiceBillingNativeHandler,
+        );
+        userChoiceBillingNativeAttached = false;
+      } catch (e) {
+        RnIapConsole.warn(
+          '[userChoiceBillingListenerAndroid] native remove failed:',
+          e,
+        );
+      }
     },
   };
 };
