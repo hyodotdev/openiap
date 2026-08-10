@@ -248,7 +248,8 @@ clean-all: clean
 # resources when the local Godot version changes and applies the minimum AGP
 # required by the AndroidX dependencies shipped through openiap-google.
 prepare-android-export-template:
-	@actual_version="$$($(GODOT) --version | cut -d. -f1-3)"; \
+	@set -e; \
+	actual_version="$$($(GODOT) --version | cut -d. -f1-3)"; \
 	if [ "$$actual_version" != "$(GODOT_VERSION)" ]; then \
 		echo "$(RED)Godot $$actual_version found; $(GODOT_VERSION) is required for source exports.$(NC)"; \
 		exit 1; \
