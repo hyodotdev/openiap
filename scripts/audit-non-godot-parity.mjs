@@ -561,7 +561,7 @@ function checkFrameworkCiAndCoverageBadges() {
       componentId: "react-native-iap",
       componentName: "React Native IAP",
       coveragePath: "libraries/react-native-iap/src",
-      generatedCoveragePath: "libraries/react-native-iap/src/types.ts",
+      generatedCoverageFile: "types.ts",
       libraryPath: "libraries/react-native-iap",
       readmePath: "libraries/react-native-iap/README.md",
       testCommand: "run: yarn test:ci",
@@ -572,7 +572,7 @@ function checkFrameworkCiAndCoverageBadges() {
       componentId: "expo-iap",
       componentName: "Expo IAP",
       coveragePath: "libraries/expo-iap/src",
-      generatedCoveragePath: "libraries/expo-iap/src/types.ts",
+      generatedCoverageFile: "types.ts",
       libraryPath: "libraries/expo-iap",
       readmePath: "libraries/expo-iap/README.md",
       testCommand: "run: bun run test:coverage",
@@ -583,7 +583,7 @@ function checkFrameworkCiAndCoverageBadges() {
       componentId: "flutter-inapp-purchase",
       componentName: "flutter_inapp_purchase",
       coveragePath: "libraries/flutter_inapp_purchase/lib",
-      generatedCoveragePath: "libraries/flutter_inapp_purchase/lib/types.dart",
+      generatedCoverageFile: "types.dart",
       libraryPath: "libraries/flutter_inapp_purchase",
       readmePath: "libraries/flutter_inapp_purchase/README.md",
       testCommand: "run: flutter test --coverage",
@@ -769,6 +769,7 @@ function checkFrameworkCiAndCoverageBadges() {
     expectSameSet("Codecov flags", expectedComponentIds, flagIds);
     expectSameSet("Codecov components", expectedComponentIds, componentIds);
     for (const contract of contracts) {
+      const generatedCoveragePath = `${contract.coveragePath}/${contract.generatedCoverageFile}`;
       const flagBlock = [
         `  ${contract.componentId}:`,
         "    paths:",
@@ -793,9 +794,9 @@ function checkFrameworkCiAndCoverageBadges() {
           `codecov.yml must map component ${contract.componentId} to its matching path and flag`,
         );
       }
-      if (!codecovConfig.includes(`  - "${contract.generatedCoveragePath}"`)) {
+      if (!codecovConfig.includes(`  - "${generatedCoveragePath}"`)) {
         fail(
-          `codecov.yml must ignore generated coverage file ${contract.generatedCoveragePath}`,
+          `codecov.yml must ignore generated coverage file ${generatedCoveragePath}`,
         );
       }
     }
@@ -817,11 +818,11 @@ function checkFrameworkCiAndCoverageBadges() {
       "use_oidc: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}",
       "fail_ci_if_error: true",
       "disable_search: true",
-      `files: ${contract.libraryPath}/coverage/lcov.info`,
+      "files: coverage/lcov.info",
       `flags: ${contract.componentId}`,
       `name: ${contract.componentId}`,
-      `root_dir: ${contract.libraryPath}`,
       `network_prefix: ${contract.libraryPath}/`,
+      `working-directory: ${contract.libraryPath}`,
     ]) {
       if (!testJob.includes(needle)) {
         fail(

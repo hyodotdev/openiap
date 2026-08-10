@@ -98,11 +98,11 @@ jobs:
           use_oidc: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
           fail_ci_if_error: true
           disable_search: true
-          files: libraries/react-native-iap/coverage/lcov.info
+          files: coverage/lcov.info
           flags: react-native-iap
           name: react-native-iap
-          root_dir: libraries/react-native-iap
           network_prefix: libraries/react-native-iap/
+          working-directory: libraries/react-native-iap
 
       - name: Consumer install smoke test
         run: yarn verify:consumer-install

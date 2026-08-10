@@ -74,11 +74,11 @@ jobs:
           use_oidc: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
           fail_ci_if_error: true
           disable_search: true
-          files: libraries/flutter_inapp_purchase/coverage/lcov.info
+          files: coverage/lcov.info
           flags: flutter-inapp-purchase
           name: flutter-inapp-purchase
-          root_dir: libraries/flutter_inapp_purchase
           network_prefix: libraries/flutter_inapp_purchase/
+          working-directory: libraries/flutter_inapp_purchase
 
       - name: Android consumer build smoke test
         run: bash scripts/verify-android-consumer-build.sh
