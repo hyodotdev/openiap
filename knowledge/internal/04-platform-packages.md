@@ -312,6 +312,13 @@ The Google package supports **three build flavors**:
    storage. Subscription and entitlement state must come from the store response,
    restore/query APIs, or Kit/server verification so client state cannot drift
    from server truth.
+6. **Keep published AARs readable by the Kotlin 2.1 consumer baseline**:
+   changing the producer compiler can raise Kotlin metadata and stdlib versions
+   even when every repository example still builds with the same newer compiler.
+   Run `bash scripts/verify-kotlin-2.1-consumer.sh` from `packages/google`; it
+   locally publishes and compiles the Play, Horizon, and Amazon artifacts from
+   independent Kotlin 2.1 Android consumers. CI and the Google release workflow
+   run the same guard before Maven Central publication.
 
 ### Build Commands
 

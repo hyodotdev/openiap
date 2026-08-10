@@ -100,7 +100,7 @@ internal class AmazonRequestLifecycle {
 
     fun beginIssue(): Long = synchronized(lock) {
         issuesInProgressByGeneration[generation] =
-            issuesInProgressByGeneration.getOrDefault(generation, 0) + 1
+            (issuesInProgressByGeneration[generation] ?: 0) + 1
         generation
     }
 
@@ -119,7 +119,7 @@ internal class AmazonRequestLifecycle {
         }
         val capturedGeneration = generation
         issuesInProgressByGeneration[capturedGeneration] =
-            issuesInProgressByGeneration.getOrDefault(capturedGeneration, 0) + 1
+            (issuesInProgressByGeneration[capturedGeneration] ?: 0) + 1
         try {
             AmazonNativeIssue(capturedGeneration, issue())
         } catch (error: Throwable) {
@@ -153,7 +153,7 @@ internal class AmazonRequestLifecycle {
 
     fun cacheIfCurrent(requestId: String, cache: () -> Unit): Boolean = synchronized(lock) {
         if (
-            issuesInProgressByGeneration.getOrDefault(generation, 0) <= 0 &&
+            (issuesInProgressByGeneration[generation] ?: 0) <= 0 &&
             issuedGenerations[requestId] != generation
         ) {
             return@synchronized false
@@ -195,7 +195,7 @@ internal class AmazonRequestLifecycle {
     }
 
     private fun finishIssueLocked(capturedGeneration: Long) {
-        val remaining = issuesInProgressByGeneration.getOrDefault(capturedGeneration, 0) - 1
+        val remaining = (issuesInProgressByGeneration[capturedGeneration] ?: 0) - 1
         if (remaining > 0) {
             issuesInProgressByGeneration[capturedGeneration] = remaining
         } else {

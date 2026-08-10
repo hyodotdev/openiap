@@ -73,6 +73,10 @@ jobs:
       working-directory: packages/google
       run: ./gradlew :openiap:test --no-daemon --stacktrace
 
+    - name: Verify Kotlin 2.1 consumer compatibility
+      working-directory: packages/google
+      run: bash scripts/verify-kotlin-2.1-consumer.sh
+
   release:
     needs: [validate-android]
     runs-on: ubuntu-latest
