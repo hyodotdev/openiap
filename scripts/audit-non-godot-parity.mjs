@@ -7572,6 +7572,21 @@ function checkFrameworkDependencyHygiene() {
       `${workflowFile} Kotlin consumer compatibility gate`,
     );
   }
+  const kotlinConsumerGateIndex = googleReleaseWorkflow.indexOf(
+    "bash scripts/verify-kotlin-2.1-consumer.sh",
+  );
+  const mavenCentralPublishIndex = googleReleaseWorkflow.indexOf(
+    ":openiap:publishAndReleaseToMavenCentral",
+  );
+  if (
+    kotlinConsumerGateIndex < 0 ||
+    mavenCentralPublishIndex < 0 ||
+    kotlinConsumerGateIndex >= mavenCentralPublishIndex
+  ) {
+    fail(
+      ".github/workflows/release-google.yml must verify Kotlin 2.1.20 consumers before Maven Central publication",
+    );
+  }
   expectIncludes(
     "packages/google/gradle.properties",
     ["COMPOSE_UI_VERSION=1.11.4"],
