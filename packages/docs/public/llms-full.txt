@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-08-10T09:36:47.016Z
+> Generated: 2026-08-10T11:37:15.898Z
 
 ## Table of Contents
 1. Installation
@@ -40,13 +40,13 @@ pod 'openiap', '~> 3.1.1'
 ### Kotlin (Android)
 ```kotlin
 // Gradle (build.gradle.kts)
-implementation("io.github.hyochan.openiap:openiap-google:3.2.1")
+implementation("io.github.hyochan.openiap:openiap-google:3.2.2")
 
 // For Meta Horizon OS
-implementation("io.github.hyochan.openiap:openiap-google-horizon:3.2.1")
+implementation("io.github.hyochan.openiap:openiap-google-horizon:3.2.2")
 
 // For Fire OS (Amazon Appstore)
-implementation("io.github.hyochan.openiap:openiap-google-amazon:3.2.1")
+implementation("io.github.hyochan.openiap:openiap-google-amazon:3.2.2")
 ```
 
 ### Flutter
