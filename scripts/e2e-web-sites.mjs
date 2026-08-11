@@ -123,6 +123,12 @@ function isIgnoredConsole(text) {
   return CONSOLE_IGNORE.some((pattern) => pattern.test(text));
 }
 
+function isHttpResourceConsoleError(text) {
+  return /^Failed to load resource: the server responded with a status of \d+/i.test(
+    text,
+  );
+}
+
 function absoluteUrl(baseUrl, path) {
   return new URL(path, `${baseUrl}/`).toString();
 }
@@ -166,8 +172,29 @@ async function collectPageErrors(page) {
   page.on("console", (message) => {
     if (message.type() !== "error") return;
     const text = message.text();
-    if (!isIgnoredConsole(text)) {
-      errors.push(`console.error: ${text}`);
+    if (isIgnoredConsole(text)) return;
+
+    // Chromium's HTTP resource error omits the URL from `message.text()`,
+    // which made harmless ignored assets and real broken assets
+    // indistinguishable (and produced route-random CI failures). The response
+    // listener below records the same failure with its exact URL and type.
+    if (isHttpResourceConsoleError(text)) return;
+
+    const location = message.location();
+    const source = location.url
+      ? ` (${location.url}:${location.lineNumber}:${location.columnNumber})`
+      : "";
+    errors.push(`console.error: ${text}${source}`);
+  });
+
+  page.on("response", (response) => {
+    if (response.status() < 400) return;
+
+    const request = response.request();
+    const resourceType = request.resourceType();
+    const url = response.url();
+    if (!isIgnoredConsole(url)) {
+      errors.push(`response ${response.status()} ${resourceType}: ${url}`);
     }
   });
 
@@ -175,7 +202,7 @@ async function collectPageErrors(page) {
     const url = request.url();
     const resourceType = request.resourceType();
     const failure = request.failure();
-    if (["image", "stylesheet", "script", "document"].includes(resourceType)) {
+    if (!isIgnoredConsole(url)) {
       errors.push(
         `requestfailed ${resourceType}: ${url} (${failure?.errorText ?? "unknown"})`,
       );
