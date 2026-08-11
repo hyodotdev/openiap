@@ -1,5 +1,14 @@
 # Changelog
 
+## 10.3.0 (2026-08-11)
+
+- chore(google): bump version to 3.3.0
+- chore(apple): bump version to 3.2.0
+- fix(kit): harden store verification integrity (#313)
+- docs: formalize community service and governance
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
+
+
 ## 10.2.4 (2026-08-11)
 
 - chore(google): bump version to 3.2.3
