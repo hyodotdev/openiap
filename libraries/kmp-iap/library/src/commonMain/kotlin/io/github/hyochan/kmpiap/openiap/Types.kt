@@ -3434,6 +3434,14 @@ public data class RequestVerifyPurchaseWithIapkitResult(
     var productId: String? = null
         private set
 
+    /**
+     * Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
+     * Amazon RVS environment selected by IAPKit. Present as `Sandbox` or
+     * `Production` on handled Amazon verification results.
+     */
+    var environment: String? = null
+        private set
+
     constructor(
         isValid: Boolean,
         state: IapkitPurchaseState,
@@ -3449,6 +3457,23 @@ public data class RequestVerifyPurchaseWithIapkitResult(
         this.productId = productId
     }
 
+    constructor(
+        isValid: Boolean,
+        state: IapkitPurchaseState,
+        store: IapStore,
+        clientPayload: IapkitProductClientPayload?,
+        productId: String?,
+        environment: String?,
+    ) : this(
+        isValid = isValid,
+        state = state,
+        store = store,
+    ) {
+        this.clientPayload = clientPayload
+        this.productId = productId
+        this.environment = environment
+    }
+
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitResult {
             return RequestVerifyPurchaseWithIapkitResult(
@@ -3457,6 +3482,7 @@ public data class RequestVerifyPurchaseWithIapkitResult(
                 store = runCatching { (json["store"] as? String)?.let { IapStore.fromJson(it) } }.getOrNull() ?: IapStore.Unknown,
                 clientPayload = (json["clientPayload"] as? Map<String, Any?>)?.let { IapkitProductClientPayload.fromJson(it) },
                 productId = json["productId"] as? String,
+                environment = json["environment"] as? String,
             )
         }
     }
@@ -3464,6 +3490,7 @@ public data class RequestVerifyPurchaseWithIapkitResult(
     fun toJson(): Map<String, Any?> = mapOf(
         "__typename" to "RequestVerifyPurchaseWithIapkitResult",
         "store" to store.toJson(),
+        "environment" to environment,
         "isValid" to isValid,
         "state" to state.toJson(),
         "productId" to productId,
@@ -4959,24 +4986,48 @@ public data class RequestVerifyPurchaseWithIapkitAmazonProps(
      */
     val userId: String? = null
 ) {
+
+    /**
+     * Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
+     * Optional Amazon product id that must match the product id verified by RVS.
+     */
+    var expectedProductId: String? = null
+        private set
+
+    constructor(
+        receiptId: String,
+        sandbox: Boolean? = null,
+        userId: String? = null,
+        expectedProductId: String?,
+    ) : this(
+        receiptId = receiptId,
+        sandbox = sandbox,
+        userId = userId,
+    ) {
+        this.expectedProductId = expectedProductId
+    }
+
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitAmazonProps? {
             val receiptId = json["receiptId"] as? String
             val sandbox = json["sandbox"] as? Boolean
             val userId = json["userId"] as? String
+            val expectedProductId = json["expectedProductId"] as? String
             if (receiptId == null) return null
             return RequestVerifyPurchaseWithIapkitAmazonProps(
                 receiptId = receiptId,
                 sandbox = sandbox,
                 userId = userId,
+                expectedProductId = expectedProductId,
             )
         }
     }
 
     fun toJson(): Map<String, Any?> = mapOf(
+        "expectedProductId" to expectedProductId,
+        "userId" to userId,
         "receiptId" to receiptId,
         "sandbox" to sandbox,
-        "userId" to userId,
     )
 }
 

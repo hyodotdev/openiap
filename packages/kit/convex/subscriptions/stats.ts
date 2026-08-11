@@ -216,12 +216,11 @@ async function touchStatsRow(
 // share its budget with N project recomputes, which exceeds the
 // 40k cap once batchSize × per-project-reads > 40k.
 //
-// Why: the incremental path in `applySubscriptionEvent` /
-// `recordHorizonStatus` is correct in steady state, but a missed
-// invocation (action timeout, schema drift during rollout, manual
-// db.patch) can drift the counters. Running a full recompute daily
-// keeps the dashboard self-healing without needing operator
-// intervention.
+// Why: the incremental path in `applySubscriptionEvent` is correct in
+// steady state, but a missed invocation (action timeout, schema drift
+// during rollout, manual db.patch) can drift the counters. Running a
+// full recompute daily keeps the dashboard self-healing without needing
+// operator intervention.
 export const recomputeAllSubscriptionStats = internalMutation({
   args: {
     // Per-tick cap on how many projects to schedule. Each project
@@ -437,13 +436,12 @@ async function runRecomputePageInline(
   }
 
   // Concurrent-write detection. If any subscription row was updated
-  // since the recompute started, the incremental path
-  // (applySubscriptionEvent / recordHorizonStatus) has already
-  // applied that delta to subscriptionStats — our paged snapshot is
-  // stale and must NOT overwrite it. Abort the commit; the next
-  // cron tick will pick this project back up. Convex mutations are
-  // transactional, so this read + the delete/insert below run in a
-  // single serialized txn — no further race window.
+  // since the recompute started, `applySubscriptionEvent` has already
+  // applied that delta to subscriptionStats — our paged snapshot is stale
+  // and must NOT overwrite it. Abort the commit; the next cron tick will
+  // pick this project back up. Convex mutations are transactional, so this
+  // read + the delete/insert below run in a single serialized txn — no
+  // further race window.
   const concurrentWrite = await ctx.db
     .query("subscriptions")
     .withIndex("by_project_and_updated", (q) =>

@@ -44,6 +44,11 @@ execFileSync(
 );
 execFileSync(
   process.execPath,
+  ["--test", path.resolve(root, "scripts/e2e-web-sites.test.mjs")],
+  { stdio: "inherit" },
+);
+execFileSync(
+  process.execPath,
   [
     "--test",
     path.resolve(root, "scripts/audit-purchase-payload-parity.test.mjs"),
@@ -596,19 +601,53 @@ function checkFrameworkCiAndCoverageBadges() {
       workflowFile: "ci-flutter-inapp-purchase.yml",
     },
     {
+      additionalCoverageComponents: [
+        {
+          componentId: "iapkit-convex",
+          componentName: "IAPKit Convex",
+          coveragePath: "packages/kit/convex",
+          coverageTarget: 48,
+          generatedCoverageFile: null,
+          ignoredCoveragePaths: [
+            "packages/kit/convex/_generated/**",
+            "packages/kit/convex/**/*.test.ts",
+            "packages/kit/convex/test.setup.ts",
+          ],
+          statusPath: "packages/kit/convex",
+        },
+      ],
       codecovTargetPath: "packages/kit/server",
       codecovConfigPush: false,
+      coverageAssertions: [
+        "run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info 90 server/",
+        "run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info 48 convex/",
+      ],
       componentId: "iapkit-server",
       componentName: "IAPKit Server",
       coveragePath: "packages/kit/server",
+      expectedCoverageCommand:
+        "vitest run --coverage --coverage.include='server/**/*.ts' --coverage.include='convex/**/*.ts' --coverage.exclude='**/*.test.ts' --coverage.exclude='convex/_generated/**' --coverage.exclude='convex/test.setup.ts' --coverage.reporter=text --coverage.reporter=lcov",
       generatedCoverageFile: null,
       libraryPath: "packages/kit",
       readmePath: "packages/kit/README.md",
+      statusPath: "packages/kit/server",
       testCommand: "run: bun run test:coverage",
       testJob: "verify",
+      uploadFlag: "iapkit",
+      uploadName: "iapkit",
       workflowFile: "deploy-kit.yml",
     },
   ];
+  const coverageComponents = contracts.flatMap((contract) => {
+    const uploadFlag = contract.uploadFlag ?? contract.componentId;
+    return [
+      { ...contract, uploadFlag },
+      ...(contract.additionalCoverageComponents ?? []).map((component) => ({
+        ...component,
+        uploadFlag: component.uploadFlag ?? uploadFlag,
+      })),
+    ];
+  });
 
   function extractHttpsUrls(source) {
     return [...source.matchAll(/https:\/\/[^\s"'<>()[\]]+/g)].map((match) =>
@@ -784,9 +823,26 @@ function checkFrameworkCiAndCoverageBadges() {
 
   if (exists("codecov.yml")) {
     const codecovConfig = read("codecov.yml");
-    const expectedComponentIds = contracts.map(
+    const lcovParserBlock = [
+      "parsers:",
+      "  lcov:",
+      "    partials_as_hits: true",
+    ].join("\n");
+    if (!codecovConfig.includes(lcovParserBlock)) {
+      fail(
+        "codecov.yml must count LCOV partial lines as hits to match the local line-coverage gates",
+      );
+    }
+    const expectedComponentIds = coverageComponents.map(
       ({ componentId }) => componentId,
     );
+    const coverageFlagComponents = new Map();
+    for (const component of coverageComponents) {
+      const components = coverageFlagComponents.get(component.uploadFlag) ?? [];
+      components.push(component);
+      coverageFlagComponents.set(component.uploadFlag, components);
+    }
+    const expectedFlagIds = [...coverageFlagComponents.keys()];
     const flagIds = uniqueMatches(
       extractTopLevelYamlSection(codecovConfig, "flags"),
       /^  ([A-Za-z0-9_-]+):$/gm,
@@ -795,56 +851,68 @@ function checkFrameworkCiAndCoverageBadges() {
       extractTopLevelYamlSection(codecovConfig, "component_management"),
       /^    - component_id:\s*([A-Za-z0-9_-]+)$/gm,
     );
-    expectSameSet("Codecov flags", expectedComponentIds, flagIds);
+    expectSameSet("Codecov flags", expectedFlagIds, flagIds);
     expectSameSet("Codecov components", expectedComponentIds, componentIds);
-    for (const contract of contracts) {
-      const generatedCoveragePath = contract.generatedCoverageFile
-        ? `${contract.coveragePath}/${contract.generatedCoverageFile}`
-        : null;
+    for (const [flagId, components] of coverageFlagComponents) {
+      const coveragePaths = [
+        ...new Set(components.map(({ coveragePath }) => coveragePath)),
+      ];
       const flagBlock = [
-        `  ${contract.componentId}:`,
+        `  ${flagId}:`,
         "    paths:",
-        `      - \"${contract.coveragePath}/**\"`,
+        ...coveragePaths.map(
+          (coveragePath) => `      - \"${coveragePath}/**\"`,
+        ),
         "    carryforward: true",
       ].join("\n");
+      if (!codecovConfig.includes(flagBlock)) {
+        fail(
+          `codecov.yml must define the ${flagId} carryforward flag for ${coveragePaths.join(", ")}`,
+        );
+      }
+    }
+    for (const contract of coverageComponents) {
       const componentBlock = [
         `    - component_id: ${contract.componentId}`,
         `      name: ${contract.componentName}`,
         "      paths:",
         `        - \"${contract.coveragePath}/**\"`,
         "      flag_regexes:",
-        `        - \"^${contract.componentId}$\"`,
+        `        - \"^${contract.uploadFlag}$\"`,
       ].join("\n");
-      if (!codecovConfig.includes(flagBlock)) {
-        fail(
-          `codecov.yml must define the ${contract.componentId} carryforward flag for ${contract.coveragePath}`,
-        );
-      }
       if (!codecovConfig.includes(componentBlock)) {
         fail(
           `codecov.yml must map component ${contract.componentId} to its matching path and flag`,
         );
       }
-      if (
-        generatedCoveragePath &&
-        !codecovConfig.includes(`  - "${generatedCoveragePath}"`)
-      ) {
-        fail(
-          `codecov.yml must ignore generated coverage file ${generatedCoveragePath}`,
-        );
+      const ignoredCoveragePaths = [
+        ...(contract.generatedCoverageFile
+          ? [`${contract.coveragePath}/${contract.generatedCoverageFile}`]
+          : []),
+        ...(contract.ignoredCoveragePaths ?? []),
+      ];
+      for (const ignoredCoveragePath of ignoredCoveragePaths) {
+        if (!codecovConfig.includes(`  - "${ignoredCoveragePath}"`)) {
+          fail(
+            `codecov.yml must ignore generated or test coverage path ${ignoredCoveragePath}`,
+          );
+        }
       }
+      const coverageTarget = contract.coverageTarget ?? 90;
+      const statusScope = contract.statusPath
+        ? ["        paths:", `          - \"${contract.statusPath}/**\"`]
+        : ["        flags:", `          - ${contract.uploadFlag}`];
       const statusBlock = [
         `      ${contract.componentId}:`,
-        "        target: 90%",
+        `        target: ${coverageTarget}%`,
         "        threshold: 0%",
         "        informational: false",
-        "        flags:",
-        `          - ${contract.componentId}`,
+        ...statusScope,
       ].join("\n");
       const statusOccurrences = codecovConfig.split(statusBlock).length - 1;
       if (statusOccurrences !== 2) {
         fail(
-          `codecov.yml project and patch statuses must enforce 90% for ${contract.componentId}`,
+          `codecov.yml project and patch statuses must enforce ${coverageTarget}% for ${contract.componentId}`,
         );
       }
     }
@@ -856,24 +924,41 @@ function checkFrameworkCiAndCoverageBadges() {
     expectFile(contract.readmePath);
     if (!exists(workflowPath) || !exists(contract.readmePath)) continue;
 
+    if (contract.expectedCoverageCommand) {
+      const packageJsonPath = `${contract.libraryPath}/package.json`;
+      expectFile(packageJsonPath);
+      if (exists(packageJsonPath)) {
+        const coverageCommand =
+          readJson(packageJsonPath).scripts?.["test:coverage"];
+        if (coverageCommand !== contract.expectedCoverageCommand) {
+          fail(
+            `${packageJsonPath} must collect all ${contract.uploadFlag} coverage in one guarded Vitest run`,
+          );
+        }
+      }
+    }
+
     const workflowSource = read(workflowPath);
     const testJob = extractWorkflowJob(workflowSource, contract.testJob);
     if (!testJob) {
       fail(`${workflowPath} is missing the ${contract.testJob} coverage job`);
       continue;
     }
+    const coverageAssertions = contract.coverageAssertions ?? [
+      "run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info 90",
+    ];
     for (const needle of [
       "permissions:\n      contents: read\n      id-token: write",
       "fetch-depth: 0\n          persist-credentials: false",
       contract.testCommand,
-      "run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info 90",
+      ...coverageAssertions,
       "uses: codecov/codecov-action@v7",
       "use_oidc: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}",
       "fail_ci_if_error: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}",
       "disable_search: true",
       "files: coverage/lcov.info",
-      `flags: ${contract.componentId}`,
-      `name: ${contract.componentId}`,
+      `flags: ${contract.uploadFlag ?? contract.componentId}`,
+      `name: ${contract.uploadName ?? contract.componentId}`,
       `network_prefix: ${contract.libraryPath}/`,
       `working-directory: ${contract.libraryPath}`,
     ]) {
@@ -888,14 +973,14 @@ function checkFrameworkCiAndCoverageBadges() {
         `${workflowPath} ${contract.testJob} must upload exactly one coverage report`,
       );
     }
-    const coverageAssertionIndex = testJob.indexOf(
-      "run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info 90",
-    );
     const uploadIndex = testJob.indexOf("uses: codecov/codecov-action@v7");
-    if (coverageAssertionIndex < 0 || uploadIndex <= coverageAssertionIndex) {
-      fail(
-        `${workflowPath} must enforce LCOV coverage before uploading coverage`,
-      );
+    for (const coverageAssertion of coverageAssertions) {
+      const coverageAssertionIndex = testJob.indexOf(coverageAssertion);
+      if (coverageAssertionIndex < 0 || uploadIndex <= coverageAssertionIndex) {
+        fail(
+          `${workflowPath} must enforce LCOV coverage before uploading coverage`,
+        );
+      }
     }
     if (/^\s+token:/m.test(testJob)) {
       fail(`${workflowPath} must use Codecov OIDC without a stored token`);
@@ -2252,6 +2337,113 @@ function checkKmp() {
     "libraries/kmp-iap/example/gradle.properties",
     ["kotlin.apple.xcodeCompatibility.nowarn=true"],
     "KMP example Xcode compatibility warning suppression",
+  );
+}
+
+function checkIapkitAmazonContractWiring() {
+  expectIncludes(
+    "packages/apple/Sources/OpenIapModule.swift",
+    [
+      "expectedProductId: amazon.expectedProductId",
+      "let environment = try Self.iapkitEnvironment",
+      "environment: environment",
+    ],
+    "Apple IAPKit Amazon verification contract",
+  );
+  expectIncludes(
+    "packages/google/openiap/src/main/java/dev/hyo/openiap/utils/PurchaseVerificationValidator.kt",
+    [
+      'amazon.expectedProductId?.let { put("expectedProductId", it) }',
+      'it == "Sandbox" || it == "Production"',
+      "environment = environment",
+    ],
+    "Google IAPKit Amazon verification contract",
+  );
+  expectIncludes(
+    "packages/google/openiap/src/amazon/java/dev/hyo/openiap/OpenIapModule.kt",
+    [
+      "expectedProductId = amazon.expectedProductId",
+      "includeClientPayload = options.includeClientPayload",
+      "withResolvedAmazonUserId(options, userId)",
+    ],
+    "Amazon user-data resolution must preserve IAPKit verification options",
+  );
+  expectNotIncludes(
+    "packages/google/openiap/src/amazon/java/dev/hyo/openiap/OpenIapModule.kt",
+    ["options.copy(amazon = amazon.copy"],
+    "Amazon IAPKit options must not use data-class copy for compatibility fields",
+  );
+  expectIncludes(
+    "libraries/react-native-iap/src/specs/RnIap.nitro.ts",
+    ["expectedProductId?: string | null", "environment?: string | null"],
+    "React Native Nitro IAPKit Amazon contract",
+  );
+  for (const [file, needles, label] of [
+    [
+      "libraries/react-native-iap/ios/HybridRnIap.swift",
+      ['amazonDict["expectedProductId"]', "environment: RnIapHelper.wrapString"],
+      "React Native iOS IAPKit bridge",
+    ],
+    [
+      "libraries/react-native-iap/android/src/main/java/com/margelo/nitro/iap/HybridRnIap.kt",
+      ['amazonMap["expectedProductId"]', "environment = item.environment"],
+      "React Native Android IAPKit bridge",
+    ],
+    [
+      "libraries/react-native-iap/src/vega-adapter.ts",
+      ["expectedProductId: amazon.expectedProductId", "environment !== 'Production'"],
+      "React Native Vega IAPKit bridge",
+    ],
+    [
+      "libraries/expo-iap/src/vega-adapter.ts",
+      ["expectedProductId: amazon.expectedProductId", "environment !== 'Production'"],
+      "Expo Vega IAPKit bridge",
+    ],
+  ]) {
+    expectIncludes(file, needles, label);
+  }
+  expectIncludes(
+    "libraries/flutter_inapp_purchase/lib/flutter_inapp_purchase.dart",
+    [
+      "'expectedProductId':",
+      "environmentValue != 'Production'",
+      "environment: environmentValue as String?",
+    ],
+    "Flutter IAPKit Amazon contract",
+  );
+  for (const file of [
+    "libraries/flutter_inapp_purchase/android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
+    "libraries/flutter_inapp_purchase/ios/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift",
+    "libraries/flutter_inapp_purchase/macos/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift",
+  ]) {
+    expectIncludes(
+      file,
+      ["expectedProductId"],
+      `${file} Amazon product binding`,
+    );
+  }
+  for (const file of [
+    "libraries/flutter_inapp_purchase/ios/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift",
+    "libraries/flutter_inapp_purchase/macos/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift",
+  ]) {
+    expectNotIncludes(
+      file,
+      ["trimmedExpectedProductId"],
+      `${file} must preserve exact Amazon product ids`,
+    );
+  }
+  expectIncludes(
+    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseAndroid.kt",
+    [
+      "expectedProductId = amazon.expectedProductId",
+      "environment = androidResult.environment",
+    ],
+    "KMP Android IAPKit Amazon contract",
+  );
+  expectIncludes(
+    "libraries/kmp-iap/library/src/iosMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseIOS.kt",
+    ['"Sandbox", "Production"', "environment = environment"],
+    "KMP iOS IAPKit response contract",
   );
 }
 
@@ -4613,6 +4805,9 @@ function checkFrameworkDependencyHygiene() {
       "no-store liveness metadata",
       "public revision",
       "no Convex round-trip",
+      '{ store: "amazon", userId, receiptId, sandbox?, expectedProductId? }',
+      "sandbox requires the project's explicit",
+      '"environment": "Sandbox"',
     ],
     "Kit compact assistant contract must match authentication and safety SSOT",
   );
@@ -4626,7 +4821,7 @@ function checkFrameworkDependencyHygiene() {
     [
       "github.com/hyodotdev/openiap/tree/main/packages/kit",
       ".github/workflows/deploy-kit.yml",
-      "Apple/Amazon: consumable ready for durable fulfillment",
+      "Apple, Amazon, or catalog-known Google consumable ready for durable fulfillment",
       "deploys additive Convex functions",
       '"apiVersion": "v1"',
       '"revision": "a1b2c3d4e5f6"',
@@ -8608,6 +8803,7 @@ checkExpoRouterExample("libraries/expo-iap/example", "src/utils/constants.ts");
 checkReactNativeClassic();
 checkFlutter();
 checkKmp();
+checkIapkitAmazonContractWiring();
 checkApple();
 checkGoogle();
 checkMaui();

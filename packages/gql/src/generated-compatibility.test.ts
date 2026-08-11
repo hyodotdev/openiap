@@ -475,12 +475,19 @@ export interface WrongOwner {
       kotlin.indexOf('public data class RequestVerifyPurchaseWithIapkitResult('),
       kotlin.indexOf('public data class SubscriptionCommitmentInfoIOS('),
     );
+    const iapkitAmazonProps = kotlin.slice(
+      kotlin.indexOf('public data class RequestVerifyPurchaseWithIapkitAmazonProps('),
+      kotlin.indexOf('public data class RequestVerifyPurchaseWithIapkitAppleProps('),
+    );
     const iapkitProps = kotlin.slice(
       kotlin.indexOf('public data class RequestVerifyPurchaseWithIapkitProps('),
       kotlin.indexOf('public data class SubscriptionProductReplacementParamsAndroid('),
     );
     const withoutDocComments = (value: string) => value.replace(/\/\*\*[\s\S]*?\*\//g, '').replace(/\s+/g, ' ');
     const iapkitResultPrimary = withoutDocComments(iapkitResult.slice(0, iapkitResult.indexOf(') {') + 3));
+    const iapkitAmazonPropsPrimary = withoutDocComments(
+      iapkitAmazonProps.slice(0, iapkitAmazonProps.indexOf(') {') + 3),
+    );
     const iapkitPropsPrimary = withoutDocComments(iapkitProps.slice(0, iapkitProps.indexOf(') {') + 3));
 
     expect(userChoice).toContain('val externalTransactionToken: String,');
@@ -494,13 +501,30 @@ export interface WrongOwner {
     );
     expect(iapkitResult).toContain('var clientPayload: IapkitProductClientPayload? = null');
     expect(iapkitResult).toContain('var productId: String? = null');
+    expect(iapkitResult).toContain('var environment: String? = null');
+    expect(iapkitResult).toContain(`        productId: String? = null,
+    ) : this(`);
+    expect(iapkitResult).toContain(`        productId: String?,
+        environment: String?,
+    ) : this(`);
     expect(iapkitResultPrimary).not.toContain('clientPayload');
     expect(iapkitResultPrimary).not.toContain('productId');
+    expect(iapkitResultPrimary).not.toContain('environment');
+    expect(iapkitAmazonPropsPrimary).toContain(
+      'public data class RequestVerifyPurchaseWithIapkitAmazonProps( val receiptId: String, val sandbox: Boolean? = null, val userId: String? = null ) {',
+    );
+    expect(iapkitAmazonProps).toContain('var expectedProductId: String? = null');
+    expect(iapkitAmazonPropsPrimary).not.toContain('expectedProductId');
+    expect(iapkitAmazonProps).toContain(
+      'fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitAmazonProps?',
+    );
+    expect(iapkitAmazonProps).toContain('if (receiptId == null) return null');
     expect(iapkitPropsPrimary).toContain(
       'public data class RequestVerifyPurchaseWithIapkitProps( val amazon: RequestVerifyPurchaseWithIapkitAmazonProps? = null, val apiKey: String? = null, val apple: RequestVerifyPurchaseWithIapkitAppleProps? = null, val baseUrl: String? = null, val google: RequestVerifyPurchaseWithIapkitGoogleProps? = null ) {',
     );
     expect(iapkitProps).toContain('var includeClientPayload: Boolean? = null');
     expect(iapkitResult).toContain('private set');
+    expect(iapkitAmazonProps).toContain('private set');
     expect(iapkitProps).toContain('private set');
     expect(iapkitPropsPrimary).not.toContain('includeClientPayload');
   });

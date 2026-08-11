@@ -475,6 +475,9 @@ class HybridRnIap: HybridRnIapSpec {
                         var amazonDict: [String: Any] = [
                             "receiptId": amazon.receiptId
                         ]
+                        if case .second(let expectedProductId) = amazon.expectedProductId {
+                            amazonDict["expectedProductId"] = expectedProductId
+                        }
                         if case .second(let sandbox) = amazon.sandbox {
                             amazonDict["sandbox"] = sandbox
                         }
@@ -506,6 +509,7 @@ class HybridRnIap: HybridRnIapSpec {
                     }
                     nitroIapkitResult = NitroVerifyPurchaseWithIapkitResult(
                         clientPayload: clientPayload.map { .second($0) },
+                        environment: RnIapHelper.wrapString(item.environment),
                         isValid: item.isValid,
                         productId: RnIapHelper.wrapString(item.productId),
                         state: IapkitPurchaseState(fromString: item.state.rawValue) ?? .unknown,

@@ -59,6 +59,7 @@ internal static class IapKitSettings
                 BaseUrl = BaseUrl,
                 Amazon = new RequestVerifyPurchaseWithIapkitAmazonProps
                 {
+                    ExpectedProductId = common.ProductId,
                     ReceiptId = token,
                     UserId = (purchase as PurchaseAndroid)?.UserIdAmazon,
                     // The example catalog is exercised with Amazon App Tester.

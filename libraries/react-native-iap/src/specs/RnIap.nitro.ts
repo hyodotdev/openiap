@@ -441,6 +441,8 @@ export interface NitroVerifyPurchaseWithIapkitGoogleProps {
 }
 
 export interface NitroVerifyPurchaseWithIapkitAmazonProps {
+  /** Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0. Optional Amazon product id that must match the product id verified by RVS. */
+  expectedProductId?: string | null;
   /** Amazon Appstore receipt id returned by PurchaseResponse.getReceipt().getReceiptId(). */
   receiptId: string;
   /** Use Amazon RVS Cloud Sandbox for App Tester receipts. */
@@ -475,6 +477,8 @@ export interface NitroVerifyPurchaseWithProviderProps {
 export interface NitroVerifyPurchaseWithIapkitResult {
   /** Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1. */
   clientPayload?: NitroIapkitProductClientPayload | null;
+  /** Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0. Amazon RVS environment selected by IAPKit. */
+  environment?: string | null;
   isValid: boolean;
   /** Available in OpenIAP Spec 2.4.0 / openiap-apple 2.4.1 / openiap-google 2.4.1. */
   productId?: string | null;

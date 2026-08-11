@@ -532,6 +532,40 @@ public class RecordJsonTests
         Assert.Equal(1720000000789D, payload.UpdatedAt);
     }
 
+    [Fact]
+    public void AmazonIapkitContract_RoundTripsProductBindingAndEnvironment()
+    {
+        var props = new RequestVerifyPurchaseWithIapkitAmazonProps
+        {
+            ExpectedProductId = "dev.hyo.martie.10bulbs",
+            ReceiptId = "amzn1.receipt.test",
+            Sandbox = true,
+            UserId = "amzn1.account.test",
+        };
+        var result = new RequestVerifyPurchaseWithIapkitResult
+        {
+            Environment = "Sandbox",
+            IsValid = true,
+            ProductId = "dev.hyo.martie.10bulbs",
+            State = IapkitPurchaseState.ReadyToConsume,
+            Store = IapStore.Amazon,
+        };
+
+        var restoredProps = JsonSerializer.Deserialize<RequestVerifyPurchaseWithIapkitAmazonProps>(
+            JsonSerializer.Serialize(props, Options),
+            Options
+        );
+        var restoredResult = JsonSerializer.Deserialize<RequestVerifyPurchaseWithIapkitResult>(
+            JsonSerializer.Serialize(result, Options),
+            Options
+        );
+
+        Assert.Equal(props.ExpectedProductId, restoredProps?.ExpectedProductId);
+        Assert.Equal(props.ReceiptId, restoredProps?.ReceiptId);
+        Assert.Equal("Sandbox", restoredResult?.Environment);
+        Assert.Equal(IapStore.Amazon, restoredResult?.Store);
+    }
+
     // ------------------------------------------------------------------
     // RequestPurchaseProps input validation
     // ------------------------------------------------------------------

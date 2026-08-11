@@ -17,7 +17,7 @@ import {
   getStorefront,
   ErrorCode,
 } from 'react-native-iap';
-import {IAPKIT_API_KEY, IAPKIT_BASE_URL} from '@env';
+import {AMAZON_RVS_SANDBOX, IAPKIT_API_KEY, IAPKIT_BASE_URL} from '@env';
 import Loading from '../src/components/Loading';
 import {
   CONSUMABLE_PRODUCT_IDS,
@@ -697,7 +697,7 @@ function PurchaseFlowContainer() {
     setIsProcessing(false);
 
     setPurchaseResult(
-      `Purchase received (state: ${purchase.purchaseState}). Finishing transaction...`,
+      `Purchase received (state: ${purchase.purchaseState}). Verifying purchase...`,
     );
 
     const isConsumablePurchase = CONSUMABLE_PRODUCT_ID_SET.has(productId);
@@ -772,6 +772,7 @@ function PurchaseFlowContainer() {
             purchase,
             jwsOrToken,
             apiKey,
+            AMAZON_RVS_SANDBOX === 'true',
             baseUrl,
           );
           const verifyRequest: VerifyPurchaseWithProviderProps = {
@@ -788,6 +789,8 @@ function PurchaseFlowContainer() {
           const verificationError = getIapkitVerificationError(
             result,
             productId,
+            isConsumablePurchase,
+            AMAZON_RVS_SANDBOX === 'true',
           );
           if (verificationError) {
             throw new Error(verificationError);

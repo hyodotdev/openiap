@@ -1848,6 +1848,8 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                     'includeClientPayload': iapkit.includeClientPayload,
                   if (iapkit.amazon != null)
                     'amazon': {
+                      if (iapkit.amazon!.expectedProductId != null)
+                        'expectedProductId': iapkit.amazon!.expectedProductId,
                       'receiptId': iapkit.amazon!.receiptId,
                       if (iapkit.amazon!.sandbox != null)
                         'sandbox': iapkit.amazon!.sandbox,
@@ -1919,6 +1921,18 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                   );
                 }
 
+                final environmentValue = itemMap['environment'];
+                if (environmentValue != null &&
+                    (environmentValue is! String ||
+                        (environmentValue != 'Sandbox' &&
+                            environmentValue != 'Production'))) {
+                  throw PurchaseError(
+                    code: gentype.ErrorCode.PurchaseVerificationFailed,
+                    message:
+                        'Malformed IAPKit verification result: environment must be Sandbox or Production',
+                  );
+                }
+
                 gentype.IapkitProductClientPayload? clientPayload;
                 final clientPayloadValue = itemMap['clientPayload'];
                 if (clientPayloadValue != null) {
@@ -1977,6 +1991,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
 
                 return gentype.RequestVerifyPurchaseWithIapkitResult(
                   clientPayload: clientPayload,
+                  environment: environmentValue as String?,
                   isValid: isValid,
                   productId: productIdValue as String?,
                   state: gentype.IapkitPurchaseState.fromJson(

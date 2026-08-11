@@ -458,6 +458,24 @@ class VerificationTest {
         assertNotNull(json["apple"])
     }
 
+    @Test
+    fun testAmazonIapkitPropsRoundTripPreservesExpectedProductId() {
+        val original = RequestVerifyPurchaseWithIapkitAmazonProps(
+            expectedProductId = "dev.hyo.martie.10bulbs",
+            receiptId = "amzn1.receipt.test",
+            sandbox = true,
+            userId = "amzn1.account.test"
+        )
+
+        val restored = RequestVerifyPurchaseWithIapkitAmazonProps.fromJson(original.toJson())
+
+        assertNotNull(restored)
+        assertEquals(original.expectedProductId, restored.expectedProductId)
+        assertEquals(original.receiptId, restored.receiptId)
+        assertEquals(original.sandbox, restored.sandbox)
+        assertEquals(original.userId, restored.userId)
+    }
+
     // MARK: - RequestVerifyPurchaseWithIapkitResult Tests
 
     @Test
@@ -721,6 +739,7 @@ class VerificationTest {
                 updatedAt = 1720000000000.0,
                 version = 2.0
             ),
+            environment = "Sandbox",
             isValid = true,
             productId = "premium.monthly",
             state = IapkitPurchaseState.Entitled,
@@ -730,6 +749,7 @@ class VerificationTest {
         val restored = RequestVerifyPurchaseWithIapkitResult.fromJson(json)
 
         assertEquals(original.isValid, restored.isValid)
+        assertEquals(original.environment, restored.environment)
         assertEquals(original.productId, restored.productId)
         assertEquals(original.clientPayload?.body, restored.clientPayload?.body)
         assertEquals(original.clientPayload?.format, restored.clientPayload?.format)

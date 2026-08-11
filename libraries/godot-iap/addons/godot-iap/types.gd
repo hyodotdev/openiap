@@ -2755,6 +2755,8 @@ class RentalDetailsAndroid:
 
 class RequestVerifyPurchaseWithIapkitResult:
 	var store: IapStore
+	## Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0. Amazon RVS environment selected by IAPKit. Present as `Sandbox` or `Production` on handled Amazon verification results.
+	var environment: Variant = null
 	## True when the purchase is valid and actionable. Only entitled, pending-acknowledgment, or ready-to-consume return true. Callers must still match productId and use the platform plus app-owned product type to choose the fulfillment path.
 	var is_valid: bool = false
 	## The current state of the purchase.
@@ -2772,6 +2774,8 @@ class RequestVerifyPurchaseWithIapkitResult:
 				obj.store = IAP_STORE_FROM_STRING.get(enum_str, IapStore.UNKNOWN)
 			else:
 				obj.store = enum_str
+		if data.has("environment") and data["environment"] != null:
+			obj.environment = data["environment"]
 		if data.has("isValid") and data["isValid"] != null:
 			obj.is_valid = data["isValid"]
 		if data.has("state") and data["state"] != null:
@@ -2795,6 +2799,8 @@ class RequestVerifyPurchaseWithIapkitResult:
 			dict["store"] = IAP_STORE_VALUES[store]
 		else:
 			dict["store"] = store
+		if environment != null:
+			dict["environment"] = environment
 		dict["isValid"] = is_valid
 		if IAPKIT_PURCHASE_STATE_VALUES.has(state):
 			dict["state"] = IAPKIT_PURCHASE_STATE_VALUES[state]
@@ -4400,6 +4406,8 @@ class RequestSubscriptionPropsByPlatforms:
 		return dict
 
 class RequestVerifyPurchaseWithIapkitAmazonProps:
+	## Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0. Optional Amazon product id that must match the product id verified by RVS.
+	var expected_product_id: Variant = null
 	## Amazon Appstore user id returned by PurchaseResponse.getUserData().getUserId().
 	var user_id: Variant = null
 	## Amazon Appstore receipt id returned by PurchaseResponse.getReceipt().getReceiptId().
@@ -4409,6 +4417,8 @@ class RequestVerifyPurchaseWithIapkitAmazonProps:
 
 	static func from_dict(data: Dictionary) -> RequestVerifyPurchaseWithIapkitAmazonProps:
 		var obj = RequestVerifyPurchaseWithIapkitAmazonProps.new()
+		if data.has("expectedProductId") and data["expectedProductId"] != null:
+			obj.expected_product_id = data["expectedProductId"]
 		if data.has("userId") and data["userId"] != null:
 			obj.user_id = data["userId"]
 		if data.has("receiptId") and data["receiptId"] != null:
@@ -4419,6 +4429,8 @@ class RequestVerifyPurchaseWithIapkitAmazonProps:
 
 	func to_dict() -> Dictionary:
 		var dict = {}
+		if expected_product_id != null:
+			dict["expectedProductId"] = expected_product_id
 		if user_id != null:
 			dict["userId"] = user_id
 		if receipt_id != null:

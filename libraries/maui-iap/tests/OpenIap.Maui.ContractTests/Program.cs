@@ -18,6 +18,7 @@ internal static class Program
         (nameof(ProductsDeserializeNestedClientPayload), ProductsDeserializeNestedClientPayload),
         (nameof(ClientPayloadUsesEscapedUriAndDeserializes), ClientPayloadUsesEscapedUriAndDeserializes),
         (nameof(GeneratedVerificationResultDeserializesClientPayload), GeneratedVerificationResultDeserializesClientPayload),
+        (nameof(GeneratedAmazonVerificationContractRoundTrips), GeneratedAmazonVerificationContractRoundTrips),
     ];
 
     public static async Task<int> Main()
@@ -204,6 +205,40 @@ internal static class Program
         AssertEqual("tier = \"gold\"", payload.Body, "generated payload body");
         AssertEqual(5D, payload.Version, "generated payload version");
         AssertEqual(1720000000789D, payload.UpdatedAt, "generated payload updatedAt");
+        return Task.CompletedTask;
+    }
+
+    private static Task GeneratedAmazonVerificationContractRoundTrips()
+    {
+        var props = new RequestVerifyPurchaseWithIapkitAmazonProps
+        {
+            ExpectedProductId = "dev.hyo.martie.10bulbs",
+            ReceiptId = "amzn1.receipt.test",
+            Sandbox = true,
+            UserId = "amzn1.account.test",
+        };
+        var result = new RequestVerifyPurchaseWithIapkitResult
+        {
+            Environment = "Sandbox",
+            IsValid = true,
+            ProductId = "dev.hyo.martie.10bulbs",
+            State = IapkitPurchaseState.ReadyToConsume,
+            Store = IapStore.Amazon,
+        };
+
+        var restoredProps = AssertNotNull(
+            JsonSerializer.Deserialize<RequestVerifyPurchaseWithIapkitAmazonProps>(
+                JsonSerializer.Serialize(props)),
+            "generated Amazon verification props");
+        var restoredResult = AssertNotNull(
+            JsonSerializer.Deserialize<RequestVerifyPurchaseWithIapkitResult>(
+                JsonSerializer.Serialize(result)),
+            "generated Amazon verification result");
+
+        AssertEqual(props.ExpectedProductId, restoredProps.ExpectedProductId, "expected product id");
+        AssertEqual(props.ReceiptId, restoredProps.ReceiptId, "Amazon receipt id");
+        AssertEqual("Sandbox", restoredResult.Environment, "Amazon environment");
+        AssertEqual(IapStore.Amazon, restoredResult.Store, "Amazon store");
         return Task.CompletedTask;
     }
 

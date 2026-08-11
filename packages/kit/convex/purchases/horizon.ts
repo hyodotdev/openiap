@@ -16,7 +16,11 @@ import {
   isValidState,
   receiptResponseValidator,
 } from "./shared";
-import { retryOnTransient } from "./retry";
+import {
+  extractHttpStatus,
+  isTransientHttpError,
+  retryOnTransient,
+} from "./retry";
 
 // Meta's S2S entitlement endpoint. Follows the exact shape the
 // client SDK uses for its own direct-to-Meta fallback — IAPKit just
@@ -30,13 +34,125 @@ import { retryOnTransient } from "./retry";
 //   sku           = add-on SKU configured in Meta Developer Dashboard
 // Response JSON: { success: boolean, grant_time?: number }
 //
-// Docs: https://developers.meta.com/horizon/documentation/native/ps-iap
+// Docs: https://developers.meta.com/horizon/documentation/native/ps-iap-s2s/
 const META_GRAPH_BASE = "https://graph.oculus.com";
+const META_REQUEST_TIMEOUT_MS = 10_000;
+
+class InvalidHorizonResponseError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "InvalidHorizonResponseError";
+  }
+}
 
 function describeError(error: unknown): string {
+  if (error instanceof InvalidHorizonResponseError) {
+    return error.message;
+  }
   const status = (error as { code?: unknown })?.code;
   const type = error instanceof Error ? error.name : typeof error;
   return typeof status === "number" ? `${type} ${status}` : type;
+}
+
+function isAbortError(error: unknown): boolean {
+  return (
+    error !== null &&
+    typeof error === "object" &&
+    (error as { name?: unknown }).name === "AbortError"
+  );
+}
+
+function hasTransientCause(error: unknown): boolean {
+  if (!error || typeof error !== "object") return false;
+
+  const seen = new Set<unknown>([error]);
+  let cause = (error as { cause?: unknown }).cause;
+  while (cause && typeof cause === "object" && !seen.has(cause)) {
+    if (
+      isAbortError(cause) ||
+      isTransientHttpError(cause) ||
+      cause instanceof TypeError
+    ) {
+      return true;
+    }
+    seen.add(cause);
+    cause = (cause as { cause?: unknown }).cause;
+  }
+  return false;
+}
+
+function shouldRetryHorizonError(error: unknown): boolean {
+  const status = extractHttpStatus(error);
+  if (status === 429) return true;
+  if (isAbortError(error) || isTransientHttpError(error)) return true;
+
+  // Node's fetch reports transport failures as `TypeError: fetch failed`,
+  // often with the useful network code nested under `cause`. All TypeErrors
+  // raised in this block originate at the fetch boundary, so they are safe to
+  // retry; JSON parsing failures are converted to InvalidHorizonResponseError.
+  return error instanceof TypeError || hasTransientCause(error);
+}
+
+async function requestHorizonVerification(
+  url: string,
+  body: string,
+): Promise<HorizonVerifyResult> {
+  return await retryOnTransient(
+    async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(
+        () => controller.abort(),
+        META_REQUEST_TIMEOUT_MS,
+      );
+
+      try {
+        const response = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/x-www-form-urlencoded" },
+          body,
+          signal: controller.signal,
+        });
+
+        if (!response.ok) {
+          // We intentionally do not read error bodies because they can contain
+          // upstream details or stall indefinitely. Dispose the stream before
+          // retrying so undici can release the connection; cancellation is
+          // best-effort and must not replace the authoritative HTTP status.
+          try {
+            await response.body?.cancel();
+          } catch {
+            // The status below still determines retryability.
+          }
+          // Keep upstream response bodies out of logs and Convex errors. The
+          // status is enough to classify retryability and diagnose the call.
+          const error = new Error(
+            `Meta Graph API returned HTTP ${response.status}`,
+          );
+          (error as { code?: number }).code = response.status;
+          throw error;
+        }
+
+        let responseBody: unknown;
+        try {
+          responseBody = (await response.json()) as unknown;
+        } catch (error) {
+          // `Response.json()` can fail for the same transient reasons as the
+          // initial fetch (for example, the peer disconnects or the body
+          // stalls until our AbortController fires). Preserve those errors so
+          // the shared retry policy can recover; only deterministic JSON
+          // syntax failures become a protocol error.
+          if (shouldRetryHorizonError(error)) throw error;
+          throw new InvalidHorizonResponseError(
+            "Meta Graph API returned invalid JSON.",
+          );
+        }
+        return parseHorizonResponse(responseBody);
+      } finally {
+        clearTimeout(timeout);
+      }
+    },
+    { shouldRetry: shouldRetryHorizonError },
+  );
 }
 
 export const verifyMetaHorizonReceiptInternalV1 = action({
@@ -73,58 +189,23 @@ export const verifyMetaHorizonReceiptInternalV1 = action({
     const appAccessToken = `OC|${project.horizonAppId}|${project.horizonAppSecret}`;
     const url = `${META_GRAPH_BASE}/${encodeURIComponent(project.horizonAppId)}/verify_entitlement`;
 
-    let parsedBody: unknown;
+    let verified: HorizonVerifyResult;
     try {
-      parsedBody = await retryOnTransient(async () => {
-        const res = await fetch(url, {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams({
-            access_token: appAccessToken,
-            user_id: args.userId,
-            sku: args.sku,
-          }).toString(),
-        });
-
-        if (!res.ok) {
-          // Attach the status as `code` so retryOnTransient can
-          // decide whether to retry: 5xx yes, 4xx no. This matches
-          // the gaxios / googleapis error shape the retry helper
-          // already understands.
-          const text = await res.text().catch(() => "");
-          const err = new Error(
-            `Meta Graph API ${res.status}: ${text.slice(0, 512)}`,
-          );
-          (err as { code?: number }).code = res.status;
-          throw err;
-        }
-
-        return (await res.json()) as unknown;
-      });
-    } catch (error) {
-      const message = describeError(error);
-      // Persist the failure so it shows up in the dashboard, mirroring
-      // Apple / Google paths.
-      await ctx.runMutation(internal.purchases.internal.saveReceiptInternal, {
-        projectId: project._id,
-        store: "horizon",
-        applicationId: project.horizonAppId,
-        remoteId: buildHorizonRemoteId(args.userId, args.sku),
-        requestData,
-        remoteResponse: JSON.stringify({
-          error: "META_HORIZON_VERIFICATION_ERROR",
-          message,
+      verified = await requestHorizonVerification(
+        url,
+        new URLSearchParams({
+          access_token: appAccessToken,
+          user_id: args.userId,
           sku: args.sku,
-        }),
-        state: HarmonizedPurchaseState.INAUTHENTIC,
-        isValid: false,
-        requestIp: args.requestIp,
-        verificationDurationMs: Date.now() - verificationStart,
-      });
-      throw new MetaHorizonVerificationError(message);
+        }).toString(),
+      );
+    } catch (error) {
+      // An HTTP error, timeout, network failure, or malformed body is not a
+      // negative entitlement verdict. Preserve the last confirmed result
+      // instead of replacing it with INAUTHENTIC.
+      throw new MetaHorizonVerificationError(describeError(error));
     }
 
-    const verified = parseHorizonResponse(parsedBody);
     const state = verified.success
       ? HarmonizedPurchaseState.ENTITLED
       : HarmonizedPurchaseState.INAUTHENTIC;
@@ -179,14 +260,19 @@ export function buildHorizonRemoteId(userId: string, sku: string): string {
   return `${encodeURIComponent(userId)}:${encodeURIComponent(sku)}`;
 }
 
-function parseHorizonResponse(raw: unknown): HorizonVerifyResult {
+export function parseHorizonResponse(raw: unknown): HorizonVerifyResult {
   if (!raw || typeof raw !== "object") {
-    throw new MetaHorizonVerificationError(
+    throw new InvalidHorizonResponseError(
       "Meta Graph API returned an unparseable body.",
     );
   }
   const record = raw as Record<string, unknown>;
-  const success = record.success === true;
+  if (typeof record.success !== "boolean") {
+    throw new InvalidHorizonResponseError(
+      "Meta Graph API response is missing a boolean success field.",
+    );
+  }
+  const success = record.success;
   const grantTimeRaw = record.grant_time;
   // Meta's `grant_time` is a Unix timestamp in **seconds**. The rest
   // of IAPKit (persisted purchase rows, dashboards, anything that

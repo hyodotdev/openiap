@@ -328,6 +328,16 @@ if result is VerifyPurchaseResultIOS and result.is_valid:
           the app. The local purchase ID is an expected value, not a fallback
           when verification omits the ID.
         </p>
+        <p>
+          For Amazon, send that expected value as{' '}
+          <code>iapkit.amazon.expectedProductId</code>. Amazon App Tester
+          receipts also require enabling{' '}
+          <strong>Allow Amazon App Tester / RVS Cloud Sandbox</strong> in the
+          IAPKit project before passing <code>sandbox: true</code>. Handled
+          Amazon results report exactly <code>'Sandbox'</code> or{' '}
+          <code>'Production'</code> in <code>environment</code>; require the
+          value expected by the build.
+        </p>
         <LanguageTabs>
           {{
             typescript: (
@@ -591,7 +601,8 @@ try {
   const stateAllowsFulfillment = isConsumable
     ? isApple
       ? verified?.state === 'ready-to-consume'
-      : verified?.state === 'entitled' ||
+      : verified?.state === 'ready-to-consume' ||
+        verified?.state === 'entitled' ||
         verified?.state === 'pending-acknowledgment'
     : verified?.state === 'entitled' ||
       (!isApple && verified?.state === 'pending-acknowledgment');

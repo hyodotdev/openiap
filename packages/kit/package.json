@@ -19,7 +19,7 @@
     "lint:convex": "convex typecheck",
     "lint:eslint": "env NODE_OPTIONS=--max-old-space-size=4096 eslint ./src ./server ./convex --ext ts,tsx --report-unused-disable-directives --no-warn-ignored",
     "test": "vitest run",
-    "test:coverage": "vitest run --coverage --coverage.include='server/**/*.ts' --coverage.exclude='server/**/*.test.ts' --coverage.reporter=text --coverage.reporter=lcov",
+    "test:coverage": "vitest run --coverage --coverage.include='server/**/*.ts' --coverage.include='convex/**/*.ts' --coverage.exclude='**/*.test.ts' --coverage.exclude='convex/_generated/**' --coverage.exclude='convex/test.setup.ts' --coverage.reporter=text --coverage.reporter=lcov",
     "test:watch": "vitest",
     "clean": "rm -rf node_modules bun.lock bun.lockb dist openiap-kit-server",
     "clean:cache": "rm -rf node_modules/.vite",

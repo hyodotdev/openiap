@@ -8,7 +8,7 @@ export default function VerificationHorizonPage() {
     <DocsPage
       slug="verification/horizon"
       title="Meta Horizon setup"
-      description="Verify Quest entitlements via Meta's Graph API — App Secret stays server-side."
+      description="Verify Quest entitlements synchronously via Meta's Graph API — App Secret stays server-side."
     >
       <p>
         Meta Horizon (Quest / Meta VR) uses a billing SDK that's{" "}
@@ -81,6 +81,24 @@ export default function VerificationHorizonPage() {
         </p>
       </Callout>
 
+      <Callout kind="note" title="Synchronous raw REST verification only">
+        <p>
+          Horizon verification is currently available through the raw{" "}
+          <code>POST /v1/purchase/verify</code> route shown below. It is not a
+          member of the first-party SDK verification request type, does not
+          create a subscription record, and does not run a background
+          reconciliation job. Reverify the exact <code>userId</code> +{" "}
+          <code>sku</code> pair whenever your backend needs a current
+          entitlement decision.
+        </p>
+        <p>
+          Meta&apos;s binary response does not identify whether the SKU is a
+          consumable, durable, or subscription, nor does it provide a billing
+          term. IAPKit therefore does not infer subscription lifecycle events or
+          Horizon revenue from this response.
+        </p>
+      </Callout>
+
       <h2 className="mt-10 text-2xl font-semibold">Verify call</h2>
       <CodeBlock title="POST /v1/purchase/verify" language="bash">
         {`curl -X POST https://kit.openiap.dev/v1/purchase/verify \\
@@ -118,6 +136,13 @@ access_token=OC%7C{APP_ID}%7C{APP_SECRET}&user_id={userId}&sku={sku}
         it stays in milliseconds (the same unit Apple and Google store).{" "}
         <code>success: true</code> maps to <code>ENTITLED</code>,{" "}
         <code>false</code> to <code>INAUTHENTIC</code>.
+      </p>
+      <p>
+        A receipt-history row is written only when Meta returns a successful
+        HTTP response containing an actual boolean <code>success</code> field.
+        Rate limits, server or network failures, timeouts, invalid JSON, and
+        ambiguous response shapes return an error without replacing the last
+        confirmed result.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Error codes</h2>

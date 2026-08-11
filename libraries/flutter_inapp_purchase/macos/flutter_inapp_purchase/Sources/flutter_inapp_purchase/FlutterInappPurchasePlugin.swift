@@ -914,6 +914,9 @@ public class FlutterInappPurchasePlugin: NSObject, FlutterPlugin {
                         if let sandbox = amazon["sandbox"] as? Bool {
                             amazonDict["sandbox"] = sandbox
                         }
+                        if let expectedProductId = amazon["expectedProductId"] as? String {
+                            amazonDict["expectedProductId"] = expectedProductId
+                        }
                         if let userId = amazon["userId"] as? String {
                             let trimmedUserId = userId.trimmingCharacters(in: .whitespacesAndNewlines)
                             if !trimmedUserId.isEmpty {

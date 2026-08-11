@@ -37,6 +37,27 @@ describe("verifyPurchaseSuccessResponseSchema", () => {
     expect(result.success).toBe(false);
   });
 
+  test("accepts Amazon environments and rejects unknown values", () => {
+    for (const environment of ["Sandbox", "Production"]) {
+      expect(
+        parse({
+          store: "amazon",
+          isValid: true,
+          state: "ENTITLED",
+          environment,
+        }).success,
+      ).toBe(true);
+    }
+    expect(
+      parse({
+        store: "amazon",
+        isValid: true,
+        state: "ENTITLED",
+        environment: "AppTester",
+      }).success,
+    ).toBe(false);
+  });
+
   test("accepts the complete optional client payload", () => {
     const result = parse({
       store: "google",

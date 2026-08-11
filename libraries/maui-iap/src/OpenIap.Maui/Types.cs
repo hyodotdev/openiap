@@ -3461,6 +3461,13 @@ public sealed record RequestVerifyPurchaseWithIapkitResult
     [JsonPropertyName("clientPayload")]
     public IapkitProductClientPayload? ClientPayload { get; init; }
     /// <summary>
+    /// Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
+    /// Amazon RVS environment selected by IAPKit. Present as `Sandbox` or
+    /// `Production` on handled Amazon verification results.
+    /// </summary>
+    [JsonPropertyName("environment")]
+    public string? Environment { get; init; }
+    /// <summary>
     /// True when the purchase is valid and actionable.
     /// Only entitled, pending-acknowledgment, or ready-to-consume return true.
     /// Callers must still match productId and use the platform plus app-owned product
@@ -4252,6 +4259,12 @@ public sealed record RequestSubscriptionPropsByPlatforms
 
 public sealed record RequestVerifyPurchaseWithIapkitAmazonProps
 {
+    /// <summary>
+    /// Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
+    /// Optional Amazon product id that must match the product id verified by RVS.
+    /// </summary>
+    [JsonPropertyName("expectedProductId")]
+    public string? ExpectedProductId { get; init; }
     /// <summary>Amazon Appstore user id returned by PurchaseResponse.getUserData().getUserId().</summary>
     [JsonPropertyName("userId")]
     public string? UserId { get; init; }

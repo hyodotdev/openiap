@@ -2208,6 +2208,7 @@ describe('Public API (src/index.ts)', () => {
       const mockResult = {
         provider: 'iapkit',
         iapkit: {
+          environment: 'Sandbox',
           isValid: true,
           state: 'ready-to-consume',
           store: 'amazon',
@@ -2220,6 +2221,7 @@ describe('Public API (src/index.ts)', () => {
         iapkit: {
           apiKey: 'test-api-key',
           amazon: {
+            expectedProductId: 'amazon.premium.monthly',
             userId: 'amazon-user',
             receiptId: 'amazon-receipt',
             sandbox: true,
@@ -2232,12 +2234,14 @@ describe('Public API (src/index.ts)', () => {
         iapkit: {
           apiKey: 'test-api-key',
           amazon: {
+            expectedProductId: 'amazon.premium.monthly',
             userId: 'amazon-user',
             receiptId: 'amazon-receipt',
             sandbox: true,
           },
         },
       });
+      expect(result.iapkit?.environment).toBe('Sandbox');
       expect(result.iapkit?.store).toBe('amazon');
     });
 

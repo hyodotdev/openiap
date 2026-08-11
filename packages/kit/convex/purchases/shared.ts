@@ -2,6 +2,7 @@ import { v, Infer } from "convex/values";
 import { internal } from "../_generated/api";
 import { ActionCtx } from "../_generated/server";
 import { InvalidApiKeyError } from "./errors";
+import { receiptEnvironmentValidator } from "../schema";
 import {
   harmonizedPurchaseStateValidator,
   HarmonizedPurchaseState,
@@ -100,12 +101,21 @@ export const receiptResponseValidator = v.object({
   isValid: v.boolean(),
   state: harmonizedPurchaseStateValidator,
   productId: v.optional(v.string()),
+  environment: v.optional(receiptEnvironmentValidator),
   // Internal edge hint for ambiguous states. For example, Google maps
   // an explicit 410 revoked-token verdict to UNKNOWN, but a successfully
   // fetched future Play state can also map to UNKNOWN and must stay
   // retryable. The HTTP route consumes this without returning it publicly.
   stableRejection: v.optional(v.boolean()),
 });
+
+// Amazon asks developers to revisit every active receipt within 72 hours.
+// Rows become due at 48 hours; this is a scheduling cadence, not a completion
+// guarantee, because the bounded worker's backlog and retries add delay.
+export const AMAZON_RECONCILE_INTERVAL_MS = 48 * 60 * 60 * 1_000;
+export const AMAZON_RECONCILE_BATCH_LIMIT = 20;
+export const AMAZON_RECONCILE_LEASE_MS = 12 * 60 * 1_000;
+export const AMAZON_RECONCILE_RETRY_MS = 60 * 60 * 1_000;
 
 export async function getProjectByApiKey(
   ctx: ActionCtx,

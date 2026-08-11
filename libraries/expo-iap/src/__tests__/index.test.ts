@@ -1938,11 +1938,12 @@ describe('Public API (index.ts)', () => {
         provider: 'iapkit',
         iapkit: {
           clientPayload: null,
+          environment: 'Sandbox',
           futureProviderField: 'preserved',
           isValid: true,
           productId: null,
           state: 'ready-to-consume',
-          store: 'google',
+          store: 'amazon',
         },
       };
       (ExpoIapModule.verifyPurchaseWithProvider as jest.Mock) = jest
@@ -1953,8 +1954,12 @@ describe('Public API (index.ts)', () => {
         provider: 'iapkit' as const,
         iapkit: {
           apiKey: 'test-api-key',
-          apple: {jws: 'jws-token'},
-          google: {purchaseToken: 'purchase-token'},
+          amazon: {
+            expectedProductId: 'amazon.premium.monthly',
+            receiptId: 'amazon-receipt',
+            sandbox: true,
+            userId: 'amazon-user',
+          },
         },
       };
 
@@ -1964,12 +1969,13 @@ describe('Public API (index.ts)', () => {
         request,
       );
       expect(result.iapkit).toEqual({
+        environment: 'Sandbox',
         futureProviderField: 'preserved',
         isValid: true,
         state: 'ready-to-consume',
-        store: 'google',
+        store: 'amazon',
       });
-      expect(result.iapkit?.store).toBe('google');
+      expect(result.iapkit?.store).toBe('amazon');
     });
 
     it('throws on unsupported platform', async () => {

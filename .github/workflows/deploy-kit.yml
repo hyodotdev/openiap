@@ -82,17 +82,20 @@ jobs:
         run: bun run test:coverage
 
       - name: Enforce server line coverage
-        run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info 90
+        run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info 90 server/
 
-      - name: Upload server coverage
+      - name: Enforce Convex line coverage
+        run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info 48 convex/
+
+      - name: Upload Kit coverage
         uses: codecov/codecov-action@v7
         with:
           use_oidc: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
           fail_ci_if_error: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
           disable_search: true
           files: coverage/lcov.info
-          flags: iapkit-server
-          name: iapkit-server
+          flags: iapkit
+          name: iapkit
           network_prefix: packages/kit/
           working-directory: packages/kit
 

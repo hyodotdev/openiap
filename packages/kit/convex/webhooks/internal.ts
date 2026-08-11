@@ -182,7 +182,6 @@ export const recordWebhookEvent = internalMutation({
       sourceFull: v.union(
         v.literal("AppleAppStoreServerNotificationsV2"),
         v.literal("GooglePlayRealTimeDeveloperNotifications"),
-        v.literal("MetaHorizonReconciler"),
       ),
       platform: v.union(v.literal("IOS"), v.literal("Android")),
       environment: v.union(

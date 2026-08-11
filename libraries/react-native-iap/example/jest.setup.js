@@ -9,6 +9,7 @@ global.__fbBatchedBridgeConfig = {
 jest.mock(
   '@env',
   () => ({
+    AMAZON_RVS_SANDBOX: 'false',
     IAPKIT_API_KEY: '',
     IAPKIT_BASE_URL: '',
   }),

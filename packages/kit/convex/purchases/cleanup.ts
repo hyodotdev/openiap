@@ -2,7 +2,12 @@ import { v } from "convex/values";
 
 import { internalMutation, MutationCtx } from "../_generated/server";
 import { Id } from "../_generated/dataModel";
-import { applyPurchaseStatsDelta, type PurchaseStatsDelta } from "./stats";
+import {
+  applyPurchaseStatsDelta,
+  deltaForCountedPurchaseRemoval,
+  mergePurchaseStatsDeltas,
+  type PurchaseStatsDelta,
+} from "./stats";
 
 export type CollapseDuplicateArgs = {
   cursor?: string | null;
@@ -100,6 +105,12 @@ export async function collapseDuplicatePurchasesByOrderIdHandler(
       continue;
     }
 
+    if (siblings.some((sibling) => sibling.statsCounted !== true)) {
+      throw new Error(
+        "Complete migrations:backfillPurchaseStatsFromPurchases before running purchases/cleanup:collapseDuplicatePurchasesByOrderId.",
+      );
+    }
+
     duplicateGroupsProcessed += 1;
 
     const newest = siblings.reduce((acc, candidate) =>
@@ -120,13 +131,21 @@ export async function collapseDuplicatePurchasesByOrderIdHandler(
 
       const isValid = sibling.isValid ?? false;
       const existing = projectDeltas.get(sibling.projectId) ?? {};
-      projectDeltas.set(sibling.projectId, {
-        total: (existing.total ?? 0) - 1,
-        google: (existing.google ?? 0) - 1,
-        // googleOrders intentionally untouched — see header comment.
-        valid: (existing.valid ?? 0) + (isValid ? -1 : 0),
-        invalid: (existing.invalid ?? 0) + (isValid ? 0 : -1),
-      });
+      projectDeltas.set(
+        sibling.projectId,
+        mergePurchaseStatsDeltas(
+          existing,
+          deltaForCountedPurchaseRemoval(
+            sibling.store,
+            isValid,
+            // The surviving sibling still owns this logical order, so deleting
+            // a duplicate row must not decrement `googleOrders`.
+            false,
+            sibling.statsCounted === true,
+            sibling.storeStatsCounted === true,
+          ),
+        ),
+      );
     }
   }
 
@@ -161,14 +180,23 @@ export async function collapseDuplicatePurchasesByOrderIdHandler(
  *   - keep the row with the greatest `_creationTime` (newest)
  *   - delete the older rows
  *   - accumulate a `purchaseStats` delta per project that decrements
- *     `total`, the store bucket, and `valid` / `invalid` per deleted
- *     row. We DO NOT decrement `googleOrders` — that counter
+ *     the sentinel-owned row counters per deleted row. We DO NOT
+ *     decrement `googleOrders` — that counter
  *     represents the count of distinct Google orderIds, which is
  *     unchanged by removing a duplicate (the surviving sibling still
- *     carries the same orderId). The recommended deploy order
- *     therefore puts `recomputeAllPurchaseStats` AFTER this mutation
- *     so any residual drift from the per-row backfill is corrected
- *     last.
+ *     carries the same orderId).
+ *   - fail before deletion if any sibling has not completed
+ *     `backfillPurchaseStatsFromPurchases`. Convex rolls the mutation
+ *     back if a later group fails the same check.
+ *
+ * Required migration order: complete
+ * `backfillPurchaseStatsFromPurchases`, run this duplicate cleanup,
+ * then run `recomputeAllPurchaseStats` last whenever non-dry cleanup
+ * deletes rows. The recompute is optional only when cleanup is not run
+ * or reports `rowsDeleted: 0`. `backfillPurchaseStatsStoreBuckets` is
+ * independent of the Google duplicate cleanup and may run before or
+ * after it, but it must also finish before the recompute when one is
+ * required.
  *
  * Rows with no `orderId` are NEVER touched — they can't be safely
  * correlated to any logical order and include legitimate

@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { getFunctionName } from "convex/server";
 
 vi.mock("hono/bun", () => ({
   getConnInfo: () => ({ remote: { address: "127.0.0.1" } }),
@@ -95,6 +96,112 @@ describe("apiRoutes", () => {
     );
     expect(convexClientMock.query).not.toHaveBeenCalled();
   });
+
+  it("forwards Amazon sandbox and expected product checks and exposes the RVS environment", async () => {
+    convexClientMock.action.mockResolvedValueOnce({
+      isValid: true,
+      state: "ENTITLED",
+      productId: "amazon.premium.monthly",
+      environment: "Sandbox",
+    });
+
+    const response = await apiRoutes.request("/purchase/verify", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer route-test-amazon-forwarding",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        store: "amazon",
+        userId: "amzn1.account.ABC123",
+        receiptId: "amzn1.receipt.ABC123456789=:1",
+        sandbox: true,
+        expectedProductId: "amazon.premium.monthly",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      store: "amazon",
+      isValid: true,
+      state: "ENTITLED",
+      productId: "amazon.premium.monthly",
+      environment: "Sandbox",
+    });
+    expect(convexClientMock.action).toHaveBeenCalledOnce();
+    const [functionReference, args] = convexClientMock.action.mock.calls[0];
+    expect(getFunctionName(functionReference)).toBe(
+      "purchases/amazon:verifyAmazonReceiptInternalV1",
+    );
+    expect(args).toEqual({
+      apiKey: "route-test-amazon-forwarding",
+      userId: "amzn1.account.ABC123",
+      receiptId: "amzn1.receipt.ABC123456789=:1",
+      sandbox: true,
+      expectedProductId: "amazon.premium.monthly",
+      requestIp: undefined,
+    });
+  });
+
+  it.each([
+    {
+      label: "Apple",
+      apiKey: "route-test-apple-forwarding",
+      body: {
+        store: "apple",
+        jws: `${"a".repeat(40)}.${"b".repeat(40)}.${"c".repeat(40)}`,
+        expectedProductId: "apple.premium.monthly",
+      },
+      functionName: "purchases/ios:verifyAppStoreReceiptInternalV1",
+      expectedArgs: {
+        apiKey: "route-test-apple-forwarding",
+        jws: `${"a".repeat(40)}.${"b".repeat(40)}.${"c".repeat(40)}`,
+        expectedProductId: "apple.premium.monthly",
+        requestIp: undefined,
+      },
+    },
+    {
+      label: "Horizon",
+      apiKey: "route-test-horizon-forwarding",
+      body: {
+        store: "horizon",
+        userId: "123456789",
+        sku: "horizon.premium.monthly",
+      },
+      functionName: "purchases/horizon:verifyMetaHorizonReceiptInternalV1",
+      expectedArgs: {
+        apiKey: "route-test-horizon-forwarding",
+        userId: "123456789",
+        sku: "horizon.premium.monthly",
+        requestIp: undefined,
+      },
+    },
+  ])(
+    "forwards $label verification to the store-specific action",
+    async ({ apiKey, body, functionName, expectedArgs }) => {
+      convexClientMock.action.mockResolvedValueOnce({
+        isValid: true,
+        state: "ENTITLED",
+        productId:
+          "expectedProductId" in body ? body.expectedProductId : body.sku,
+      });
+
+      const response = await apiRoutes.request("/purchase/verify", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${apiKey}`,
+          "content-type": "application/json",
+        },
+        body: JSON.stringify(body),
+      });
+
+      expect(response.status).toBe(200);
+      expect(convexClientMock.action).toHaveBeenCalledOnce();
+      const [functionReference, args] = convexClientMock.action.mock.calls[0];
+      expect(getFunctionName(functionReference)).toBe(functionName);
+      expect(args).toEqual(expectedArgs);
+    },
+  );
 
   it("keeps fetched UNKNOWN outcomes retryable without exposing internal hints", async () => {
     convexClientMock.action.mockResolvedValue({

@@ -167,6 +167,7 @@ export default ({config}: ConfigContext): ExpoConfig => {
     },
     extra: {
       ...config.extra,
+      amazonRvsSandbox: process.env.EXPO_PUBLIC_AMAZON_RVS_SANDBOX,
       iapkitApiKey: process.env.EXPO_PUBLIC_IAPKIT_API_KEY,
       iapkitBaseUrl: process.env.EXPO_PUBLIC_IAPKIT_BASE_URL,
     },

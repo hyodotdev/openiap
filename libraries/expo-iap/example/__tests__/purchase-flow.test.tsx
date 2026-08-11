@@ -43,7 +43,7 @@ const mockUseIAP = {
       platform: 'ios',
     },
   ],
-  availablePurchases: [],
+  availablePurchases: [] as Record<string, unknown>[],
   fetchProducts: mockFetchProducts,
   finishTransaction: mockFinishTransaction,
   getAvailablePurchases: mockGetAvailablePurchases,
@@ -74,10 +74,13 @@ describe('PurchaseFlow Component', () => {
     mockVerifyPurchaseWithProvider.mockResolvedValue({
       iapkit: {
         isValid: true,
-        state: 'purchased',
+        productId: 'dev.hyo.martie.10bulbs',
+        state: 'ready-to-consume',
         store: 'apple',
       },
     });
+    mockUseIAP.connected = true;
+    mockUseIAP.availablePurchases = [];
     mockOnPurchaseSuccess = undefined;
     (getStorefront as jest.Mock).mockResolvedValue('US');
   });
@@ -186,6 +189,70 @@ describe('PurchaseFlow Component', () => {
     ).toBeLessThan(mockFinishTransaction.mock.invocationCallOrder[0]!);
   });
 
+  it('finishes a ready-to-consume Google consumable after verification', async () => {
+    mockVerifyPurchaseWithProvider.mockResolvedValue({
+      provider: 'iapkit',
+      iapkit: {
+        isValid: true,
+        productId: 'dev.hyo.martie.10bulbs',
+        state: 'ready-to-consume',
+        store: 'google',
+      },
+    });
+    const purchase = {
+      id: 'google-consumable-1',
+      productId: 'dev.hyo.martie.10bulbs',
+      purchaseToken: 'google-token-1',
+      store: 'google',
+      transactionDate: Date.now(),
+      purchaseState: 'purchased',
+    };
+
+    await render(<PurchaseFlow />);
+    await act(async () => {
+      await mockOnPurchaseSuccess?.(purchase);
+    });
+
+    expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledWith({
+      provider: 'iapkit',
+      iapkit: {
+        apiKey: 'test-api-key',
+        baseUrl: 'http://192.168.0.10:3100',
+        google: {purchaseToken: 'google-token-1'},
+      },
+    });
+    expect(mockFinishTransaction).toHaveBeenCalledWith({
+      purchase,
+      isConsumable: true,
+    });
+  });
+
+  it('does not refresh or re-enqueue after finishing persistently fails', async () => {
+    mockFinishTransaction.mockRejectedValue(new Error('finish failed'));
+    const purchase = {
+      id: 'finish-failure-1',
+      productId: 'dev.hyo.martie.10bulbs',
+      purchaseToken: 'finish-failure-jws',
+      store: 'apple',
+      transactionDate: Date.now(),
+      purchaseState: 'purchased',
+    };
+
+    await render(<PurchaseFlow />);
+    await waitFor(() => {
+      expect(mockGetAvailablePurchases).toHaveBeenCalledTimes(1);
+    });
+    mockGetAvailablePurchases.mockClear();
+
+    await act(async () => {
+      await mockOnPurchaseSuccess?.(purchase);
+    });
+
+    expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
+    expect(mockFinishTransaction).toHaveBeenCalledTimes(1);
+    expect(mockGetAvailablePurchases).not.toHaveBeenCalled();
+  });
+
   it('keeps Local (Device) on direct Apple/Google verification', async () => {
     mockShowActionSheetWithOptions.mockImplementation(
       (_options: unknown, callback: (index?: number) => void) => callback(0),
@@ -252,5 +319,395 @@ describe('PurchaseFlow Component', () => {
         apple: {jws: 'hosted-apple-jws'},
       },
     });
+  });
+
+  it.each([
+    {
+      label: 'an invalid result',
+      result: {
+        provider: 'iapkit',
+        iapkit: {
+          isValid: false,
+          productId: 'dev.hyo.martie.10bulbs',
+          state: 'consumed',
+          store: 'apple',
+        },
+      },
+    },
+    {
+      label: 'a mismatched product',
+      result: {
+        provider: 'iapkit',
+        iapkit: {
+          isValid: true,
+          productId: 'dev.hyo.martie.30bulbs',
+          state: 'ready-to-consume',
+          store: 'apple',
+        },
+      },
+    },
+  ])('does not finish after $label', async ({result}) => {
+    mockVerifyPurchaseWithProvider.mockResolvedValue(result);
+    await render(<PurchaseFlow />);
+
+    await act(async () => {
+      await mockOnPurchaseSuccess?.({
+        id: 'transaction-rejected-1',
+        productId: 'dev.hyo.martie.10bulbs',
+        purchaseToken: 'rejected-apple-jws',
+        store: 'apple',
+        transactionDate: Date.now(),
+        purchaseState: 'purchased',
+      });
+    });
+
+    expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
+    expect(mockFinishTransaction).not.toHaveBeenCalled();
+  });
+
+  it('verifies a restored purchase and keeps a rejected one unfinished', async () => {
+    mockUseIAP.availablePurchases = [
+      {
+        id: 'restored-transaction-1',
+        productId: 'dev.hyo.martie.10bulbs',
+        purchaseToken: 'restored-apple-jws',
+        store: 'apple',
+        transactionDate: Date.now(),
+        purchaseState: 'purchased',
+      },
+    ];
+    mockVerifyPurchaseWithProvider.mockResolvedValue({
+      provider: 'iapkit',
+      iapkit: {
+        isValid: false,
+        productId: 'dev.hyo.martie.10bulbs',
+        state: 'consumed',
+        store: 'apple',
+      },
+    });
+
+    await render(<PurchaseFlow />);
+
+    await waitFor(() => {
+      expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
+    });
+    expect(mockFinishTransaction).not.toHaveBeenCalled();
+  });
+
+  it('verifies and finishes multiple restored purchases sequentially', async () => {
+    mockUseIAP.availablePurchases = [
+      {
+        id: 'restored-transaction-10',
+        productId: 'dev.hyo.martie.10bulbs',
+        purchaseToken: 'restored-10-jws',
+        store: 'apple',
+        transactionDate: Date.now(),
+        purchaseState: 'purchased',
+      },
+      {
+        id: 'restored-transaction-30',
+        productId: 'dev.hyo.martie.30bulbs',
+        purchaseToken: 'restored-30-jws',
+        store: 'apple',
+        transactionDate: Date.now() + 1,
+        purchaseState: 'purchased',
+      },
+    ];
+    mockVerifyPurchaseWithProvider.mockImplementation((request) => {
+      const token = (request as {iapkit?: {apple?: {jws?: string}}}).iapkit
+        ?.apple?.jws;
+      return Promise.resolve({
+        provider: 'iapkit',
+        iapkit: {
+          isValid: true,
+          productId:
+            token === 'restored-30-jws'
+              ? 'dev.hyo.martie.30bulbs'
+              : 'dev.hyo.martie.10bulbs',
+          state: 'ready-to-consume',
+          store: 'apple',
+        },
+      });
+    });
+
+    await render(<PurchaseFlow />);
+
+    await waitFor(() => {
+      expect(mockFinishTransaction).toHaveBeenCalledTimes(2);
+    });
+    expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(2);
+    expect(
+      mockVerifyPurchaseWithProvider.mock.invocationCallOrder[0],
+    ).toBeLessThan(mockFinishTransaction.mock.invocationCallOrder[0]!);
+    expect(mockFinishTransaction.mock.invocationCallOrder[0]).toBeLessThan(
+      mockVerifyPurchaseWithProvider.mock.invocationCallOrder[1]!,
+    );
+    expect(
+      mockVerifyPurchaseWithProvider.mock.invocationCallOrder[1],
+    ).toBeLessThan(mockFinishTransaction.mock.invocationCallOrder[1]!);
+  });
+
+  it('keeps a preclaimed restore queue intact across an available-purchases rerender', async () => {
+    const restoredPurchases = [
+      {
+        id: 'rerender-restored-10',
+        productId: 'dev.hyo.martie.10bulbs',
+        purchaseToken: 'rerender-restored-10-jws',
+        store: 'apple',
+        transactionDate: Date.now(),
+        purchaseState: 'purchased',
+      },
+      {
+        id: 'rerender-restored-30',
+        productId: 'dev.hyo.martie.30bulbs',
+        purchaseToken: 'rerender-restored-30-jws',
+        store: 'apple',
+        transactionDate: Date.now() + 1,
+        purchaseState: 'purchased',
+      },
+    ];
+    const firstResult = {
+      provider: 'iapkit',
+      iapkit: {
+        isValid: true,
+        productId: 'dev.hyo.martie.10bulbs',
+        state: 'ready-to-consume',
+        store: 'apple',
+      },
+    };
+    let resolveFirst: ((value: typeof firstResult) => void) | undefined;
+    const firstVerification = new Promise<typeof firstResult>((resolve) => {
+      resolveFirst = resolve;
+    });
+    mockVerifyPurchaseWithProvider.mockImplementation((request) => {
+      const token = (request as {iapkit?: {apple?: {jws?: string}}}).iapkit
+        ?.apple?.jws;
+      if (token === 'rerender-restored-10-jws') return firstVerification;
+      return Promise.resolve({
+        provider: 'iapkit',
+        iapkit: {
+          isValid: true,
+          productId: 'dev.hyo.martie.30bulbs',
+          state: 'ready-to-consume',
+          store: 'apple',
+        },
+      });
+    });
+    mockUseIAP.availablePurchases = restoredPurchases;
+
+    const {rerender} = await render(<PurchaseFlow />);
+    await waitFor(() => {
+      expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
+    });
+
+    mockUseIAP.availablePurchases = restoredPurchases.map((purchase) => ({
+      ...purchase,
+    }));
+    await rerender(<PurchaseFlow />);
+    expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
+
+    if (!resolveFirst) throw new Error('first verification was not pending');
+    await act(async () => {
+      resolveFirst?.(firstResult);
+    });
+    await waitFor(() => {
+      expect(mockFinishTransaction).toHaveBeenCalledTimes(2);
+    });
+    expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(2);
+    expect(mockFinishTransaction.mock.invocationCallOrder[0]).toBeLessThan(
+      mockVerifyPurchaseWithProvider.mock.invocationCallOrder[1]!,
+    );
+  });
+
+  it('keeps an in-flight restored purchase deduped across reconnect', async () => {
+    const restoredPurchase = {
+      id: 'reconnect-restored-10',
+      productId: 'dev.hyo.martie.10bulbs',
+      purchaseToken: 'reconnect-restored-10-jws',
+      store: 'apple',
+      transactionDate: Date.now(),
+      purchaseState: 'purchased',
+    };
+    const result = {
+      provider: 'iapkit',
+      iapkit: {
+        isValid: true,
+        productId: 'dev.hyo.martie.10bulbs',
+        state: 'ready-to-consume',
+        store: 'apple',
+      },
+    };
+    let resolveVerification: ((value: typeof result) => void) | undefined;
+    mockVerifyPurchaseWithProvider.mockImplementation(
+      () =>
+        new Promise<typeof result>((resolve) => {
+          resolveVerification = resolve;
+        }),
+    );
+    mockUseIAP.availablePurchases = [restoredPurchase];
+
+    const {rerender} = await render(<PurchaseFlow />);
+    await waitFor(() => {
+      expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
+    });
+
+    mockUseIAP.connected = false;
+    mockUseIAP.availablePurchases = [];
+    await rerender(<PurchaseFlow />);
+    mockUseIAP.connected = true;
+    mockUseIAP.availablePurchases = [{...restoredPurchase}];
+    await rerender(<PurchaseFlow />);
+
+    if (!resolveVerification) {
+      throw new Error('restored purchase verification was not pending');
+    }
+    await act(async () => {
+      resolveVerification?.(result);
+      await new Promise<void>((resolve) => setTimeout(resolve, 0));
+    });
+    await waitFor(() => {
+      expect(mockFinishTransaction).toHaveBeenCalledTimes(1);
+    });
+    expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
+    expect(mockFinishTransaction).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not duplicate verification or finish across a remount while finish is pending', async () => {
+    const purchase = {
+      id: 'remount-pending-finish-10',
+      productId: 'dev.hyo.martie.10bulbs',
+      purchaseToken: 'remount-pending-finish-10-jws',
+      store: 'apple',
+      transactionDate: Date.now(),
+      purchaseState: 'purchased',
+    };
+    let resolveFinish: (() => void) | undefined;
+    mockFinishTransaction.mockImplementation(
+      () =>
+        new Promise<void>((resolve) => {
+          resolveFinish = resolve;
+        }),
+    );
+
+    const firstMount = await render(<PurchaseFlow />);
+    const firstPurchaseSuccessHandler = mockOnPurchaseSuccess;
+    if (!firstPurchaseSuccessHandler) {
+      throw new Error('purchase success handler was not registered');
+    }
+
+    let processingPromise: Promise<void> | undefined;
+    await act(async () => {
+      processingPromise = Promise.resolve(
+        firstPurchaseSuccessHandler(purchase),
+      );
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
+    expect(mockFinishTransaction).toHaveBeenCalledTimes(1);
+    await firstMount.unmount();
+
+    mockUseIAP.availablePurchases = [{...purchase}];
+    const secondMount = await render(<PurchaseFlow />);
+    await act(async () => {
+      await Promise.resolve();
+      await Promise.resolve();
+    });
+
+    expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
+    expect(mockFinishTransaction).toHaveBeenCalledTimes(1);
+
+    if (!resolveFinish || !processingPromise) {
+      throw new Error('pending finish was not initialized');
+    }
+    await act(async () => {
+      resolveFinish?.();
+      await processingPromise;
+      await Promise.resolve();
+    });
+
+    const remountedPurchaseSuccessHandler = mockOnPurchaseSuccess;
+    if (!remountedPurchaseSuccessHandler) {
+      throw new Error('remounted purchase success handler was not registered');
+    }
+    await act(async () => {
+      await remountedPurchaseSuccessHandler({...purchase});
+    });
+
+    expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
+    expect(mockFinishTransaction).toHaveBeenCalledTimes(1);
+    await secondMount.unmount();
+  });
+
+  it('serializes two overlapping live purchase callbacks', async () => {
+    const purchases = [
+      {
+        id: 'live-purchase-10',
+        productId: 'dev.hyo.martie.10bulbs',
+        purchaseToken: 'live-purchase-10-jws',
+        store: 'apple',
+        transactionDate: Date.now(),
+        purchaseState: 'purchased',
+      },
+      {
+        id: 'live-purchase-30',
+        productId: 'dev.hyo.martie.30bulbs',
+        purchaseToken: 'live-purchase-30-jws',
+        store: 'apple',
+        transactionDate: Date.now() + 1,
+        purchaseState: 'purchased',
+      },
+    ];
+    const firstResult = {
+      provider: 'iapkit',
+      iapkit: {
+        isValid: true,
+        productId: 'dev.hyo.martie.10bulbs',
+        state: 'ready-to-consume',
+        store: 'apple',
+      },
+    };
+    let resolveFirst: ((value: typeof firstResult) => void) | undefined;
+    const firstVerification = new Promise<typeof firstResult>((resolve) => {
+      resolveFirst = resolve;
+    });
+    mockVerifyPurchaseWithProvider.mockImplementation((request) => {
+      const token = (request as {iapkit?: {apple?: {jws?: string}}}).iapkit
+        ?.apple?.jws;
+      if (token === 'live-purchase-10-jws') return firstVerification;
+      return Promise.resolve({
+        provider: 'iapkit',
+        iapkit: {
+          isValid: true,
+          productId: 'dev.hyo.martie.30bulbs',
+          state: 'ready-to-consume',
+          store: 'apple',
+        },
+      });
+    });
+    await render(<PurchaseFlow />);
+    if (!mockOnPurchaseSuccess) {
+      throw new Error('purchase success handler was not registered');
+    }
+
+    const firstCallback = mockOnPurchaseSuccess(purchases[0]!);
+    const secondCallback = mockOnPurchaseSuccess(purchases[1]!);
+    await waitFor(() => {
+      expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(1);
+    });
+    expect(mockFinishTransaction).not.toHaveBeenCalled();
+
+    if (!resolveFirst) throw new Error('first verification was not pending');
+    await act(async () => {
+      resolveFirst?.(firstResult);
+      await Promise.all([firstCallback, secondCallback]);
+    });
+
+    expect(mockVerifyPurchaseWithProvider).toHaveBeenCalledTimes(2);
+    expect(mockFinishTransaction).toHaveBeenCalledTimes(2);
+    expect(mockFinishTransaction.mock.invocationCallOrder[0]).toBeLessThan(
+      mockVerifyPurchaseWithProvider.mock.invocationCallOrder[1]!,
+    );
   });
 });

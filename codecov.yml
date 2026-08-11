@@ -1,3 +1,7 @@
+parsers:
+  lcov:
+    partials_as_hits: true
+
 coverage:
   precision: 2
   round: down
@@ -30,8 +34,14 @@ coverage:
         target: 90%
         threshold: 0%
         informational: false
-        flags:
-          - iapkit-server
+        paths:
+          - "packages/kit/server/**"
+      iapkit-convex:
+        target: 48%
+        threshold: 0%
+        informational: false
+        paths:
+          - "packages/kit/convex/**"
     patch:
       default:
         target: auto
@@ -59,8 +69,14 @@ coverage:
         target: 90%
         threshold: 0%
         informational: false
-        flags:
-          - iapkit-server
+        paths:
+          - "packages/kit/server/**"
+      iapkit-convex:
+        target: 48%
+        threshold: 0%
+        informational: false
+        paths:
+          - "packages/kit/convex/**"
 
 flags:
   react-native-iap:
@@ -75,9 +91,10 @@ flags:
     paths:
       - "libraries/flutter_inapp_purchase/lib/**"
     carryforward: true
-  iapkit-server:
+  iapkit:
     paths:
       - "packages/kit/server/**"
+      - "packages/kit/convex/**"
     carryforward: true
 
 component_management:
@@ -105,7 +122,13 @@ component_management:
       paths:
         - "packages/kit/server/**"
       flag_regexes:
-        - "^iapkit-server$"
+        - "^iapkit$"
+    - component_id: iapkit-convex
+      name: IAPKit Convex
+      paths:
+        - "packages/kit/convex/**"
+      flag_regexes:
+        - "^iapkit$"
 
 comment:
   layout: "reach,diff,flags,components,files"
@@ -118,3 +141,6 @@ ignore:
   - "libraries/react-native-iap/src/types.ts"
   - "libraries/expo-iap/src/types.ts"
   - "libraries/flutter_inapp_purchase/lib/types.dart"
+  - "packages/kit/convex/_generated/**"
+  - "packages/kit/convex/**/*.test.ts"
+  - "packages/kit/convex/test.setup.ts"

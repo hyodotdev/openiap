@@ -1,5 +1,11 @@
 import { describe, expect, it } from "vitest";
-import { deltaForInsert, deltaForUpdate } from "./stats";
+import {
+  deltaForCountedPurchaseRemoval,
+  deltaForInsert,
+  deltaForMissingPurchaseStats,
+  deltaForUpdate,
+  mergePurchaseStatsDeltas,
+} from "./stats";
 
 describe("deltaForInsert", () => {
   it("counts an apple valid insert", () => {
@@ -7,6 +13,8 @@ describe("deltaForInsert", () => {
       total: 1,
       apple: 1,
       google: 0,
+      horizon: 0,
+      amazon: 0,
       googleOrders: 0,
       valid: 1,
       invalid: 0,
@@ -18,6 +26,8 @@ describe("deltaForInsert", () => {
       total: 1,
       apple: 1,
       google: 0,
+      horizon: 0,
+      amazon: 0,
       googleOrders: 0,
       valid: 0,
       invalid: 1,
@@ -29,6 +39,8 @@ describe("deltaForInsert", () => {
       total: 1,
       apple: 0,
       google: 1,
+      horizon: 0,
+      amazon: 0,
       googleOrders: 0,
       valid: 1,
       invalid: 0,
@@ -40,6 +52,8 @@ describe("deltaForInsert", () => {
       total: 1,
       apple: 0,
       google: 1,
+      horizon: 0,
+      amazon: 0,
       googleOrders: 1,
       valid: 1,
       invalid: 0,
@@ -51,6 +65,8 @@ describe("deltaForInsert", () => {
       total: 1,
       apple: 0,
       google: 1,
+      horizon: 0,
+      amazon: 0,
       googleOrders: 1,
       valid: 0,
       invalid: 1,
@@ -64,9 +80,34 @@ describe("deltaForInsert", () => {
       total: 1,
       apple: 1,
       google: 0,
+      horizon: 0,
+      amazon: 0,
       googleOrders: 0,
       valid: 1,
       invalid: 0,
+    });
+  });
+
+  it("counts Horizon and Amazon in their own store buckets", () => {
+    expect(deltaForInsert("horizon", true)).toEqual({
+      total: 1,
+      apple: 0,
+      google: 0,
+      horizon: 1,
+      amazon: 0,
+      googleOrders: 0,
+      valid: 1,
+      invalid: 0,
+    });
+    expect(deltaForInsert("amazon", false)).toEqual({
+      total: 1,
+      apple: 0,
+      google: 0,
+      horizon: 0,
+      amazon: 1,
+      googleOrders: 0,
+      valid: 0,
+      invalid: 1,
     });
   });
 });
@@ -118,6 +159,13 @@ describe("deltaForUpdate", () => {
     });
   });
 
+  it("moves between Amazon and Horizon store buckets", () => {
+    expect(deltaForUpdate("amazon", true, "horizon", true)).toEqual({
+      horizon: 1,
+      amazon: -1,
+    });
+  });
+
   it("never touches the total counter (update preserves count)", () => {
     const delta = deltaForUpdate("apple", true, "google", false);
     expect(delta.total).toBeUndefined();
@@ -157,5 +205,77 @@ describe("deltaForUpdate", () => {
       invalid: -1,
       googleOrders: 1,
     });
+  });
+});
+
+describe("legacy stats sentinels", () => {
+  it("lets the base and store migrations run in either order", () => {
+    const baseFirst = deltaForMissingPurchaseStats(
+      "amazon",
+      true,
+      false,
+      false,
+      false,
+    );
+    const storeAfterBase = deltaForMissingPurchaseStats(
+      "amazon",
+      true,
+      false,
+      true,
+      true,
+    );
+    expect(mergePurchaseStatsDeltas(baseFirst, storeAfterBase)).toEqual({
+      total: 1,
+      amazon: 1,
+      valid: 1,
+    });
+
+    const storeFirst = deltaForMissingPurchaseStats(
+      "amazon",
+      true,
+      false,
+      true,
+      false,
+    );
+    const baseAfterStore = deltaForMissingPurchaseStats(
+      "amazon",
+      true,
+      false,
+      false,
+      true,
+    );
+    expect(mergePurchaseStatsDeltas(storeFirst, baseAfterStore)).toEqual({
+      total: 1,
+      amazon: 1,
+      valid: 1,
+    });
+  });
+
+  it("bootstraps a legacy row before applying its store transition", () => {
+    expect(
+      mergePurchaseStatsDeltas(
+        deltaForMissingPurchaseStats("amazon", true, false, false, false),
+        deltaForUpdate("amazon", true, "horizon", false),
+      ),
+    ).toEqual({
+      total: 1,
+      horizon: 1,
+      invalid: 1,
+    });
+  });
+
+  it("removes only contributions whose sentinels were committed", () => {
+    expect(
+      deltaForCountedPurchaseRemoval("amazon", true, false, false, false),
+    ).toEqual({});
+    expect(
+      deltaForCountedPurchaseRemoval("amazon", true, false, false, true),
+    ).toEqual({ amazon: -1 });
+    expect(
+      deltaForCountedPurchaseRemoval("amazon", true, false, true, false),
+    ).toEqual({ total: -1, valid: -1 });
+    expect(
+      deltaForCountedPurchaseRemoval("amazon", true, false, true, true),
+    ).toEqual({ total: -1, amazon: -1, valid: -1 });
   });
 });

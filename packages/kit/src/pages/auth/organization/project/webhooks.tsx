@@ -86,7 +86,7 @@ export default function ProjectWebhooks() {
             settingsHref={settingsHref}
           />
           <SetupBadge
-            label="Horizon (polling)"
+            label="Horizon REST"
             configured={setup.horizon.configured}
             missing={setup.horizon.missing}
             settingsHref={settingsHref}

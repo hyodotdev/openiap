@@ -276,6 +276,9 @@ export const createProject = mutation({
       apiKey, // Keep for backward compatibility, will be deprecated
       legacyApiKeyFallbackDisabledAt: now,
       reportingCurrency: DEFAULT_REPORTING_CURRENCY,
+      // Cloud Sandbox accepts any non-empty secret, so new projects must
+      // opt in deliberately before App Tester receipts can be verified.
+      amazonSandboxEnabled: false,
       createdAt: now,
       updatedAt: now,
       ...(args.platform ? { platform: args.platform } : {}),
@@ -328,6 +331,7 @@ export const updateProject = mutation({
     horizonAppId: v.optional(v.string()),
     horizonAppSecret: v.optional(v.string()),
     amazonSharedSecret: v.optional(v.union(v.string(), v.null())),
+    amazonSandboxEnabled: v.optional(v.boolean()),
     reportingCurrency: v.optional(v.string()),
   },
   handler: async (ctx, args) => {
@@ -424,6 +428,9 @@ export const updateProject = mutation({
         args.amazonSharedSecret === null
           ? null
           : normalizeAmazonSharedSecret(args.amazonSharedSecret);
+    }
+    if (args.amazonSandboxEnabled !== undefined) {
+      updates.amazonSandboxEnabled = args.amazonSandboxEnabled;
     }
 
     // Invariant: enabling Horizon without both credentials leaves the

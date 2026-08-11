@@ -22,6 +22,7 @@ const mocks = vi.hoisted(() => ({
     iosAppStoreIssuerId: "12345678-ABCD-1234-ABCD-1234567890AB",
     iosAppStoreKeyId: "ABCDE12345",
     androidPackageName: "com.markhub.markly",
+    amazonSandboxEnabled: false,
   },
   saveFile: vi.fn(),
   toastError: vi.fn(),
@@ -117,6 +118,7 @@ const AUTHORIZATION_LOST_MESSAGE =
 
 describe("ProjectSettings", () => {
   beforeEach(() => {
+    mocks.project.amazonSandboxEnabled = false;
     mocks.downloadFile.mockReset();
     mocks.fetch.mockReset();
     mocks.generateUploadUrl.mockReset();
@@ -193,6 +195,32 @@ describe("ProjectSettings", () => {
         "A saved Android package name can only be updated to correct capitalization.",
       ),
     ).toBeTruthy();
+  });
+
+  it("saves an Amazon sandbox opt-in without requiring a production secret", async () => {
+    mocks.otherMutation.mockResolvedValueOnce(undefined);
+    render(<ProjectSettings />);
+
+    fireEvent.click(
+      screen.getByRole("checkbox", {
+        name: /Allow Amazon App Tester \/ RVS Cloud Sandbox/,
+      }),
+    );
+    const save = screen.getByRole<HTMLButtonElement>("button", {
+      name: "Save Amazon config",
+    });
+    expect(save.disabled).toBe(false);
+    fireEvent.click(save);
+
+    await waitFor(() => {
+      expect(mocks.otherMutation).toHaveBeenCalledWith({
+        projectId: "projects_test",
+        amazonSandboxEnabled: true,
+      });
+    });
+    expect(mocks.toastSuccess).toHaveBeenCalledWith(
+      "Amazon RVS configuration saved.",
+    );
   });
 
   it.each([

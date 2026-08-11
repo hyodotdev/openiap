@@ -2194,6 +2194,7 @@ internal class InAppPurchaseAndroid(
                 apple = null,
                 amazon = amazonOptions?.let { amazon ->
                     AndroidVerifyPurchaseWithIapkitAmazonProps(
+                        expectedProductId = amazon.expectedProductId,
                         receiptId = amazon.receiptId,
                         sandbox = amazon.sandbox,
                         userId = amazon.userId
@@ -2219,6 +2220,7 @@ internal class InAppPurchaseAndroid(
                         version = payload.version
                     )
                 },
+                environment = androidResult.environment,
                 isValid = androidResult.isValid,
                 productId = androidResult.productId,
                 state = IapkitPurchaseState.fromJson(androidResult.state.toJson()),

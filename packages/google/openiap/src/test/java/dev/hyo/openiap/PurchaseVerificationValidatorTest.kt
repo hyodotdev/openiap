@@ -431,16 +431,21 @@ class PurchaseVerificationValidatorTest {
             amazon = RequestVerifyPurchaseWithIapkitAmazonProps(
                 userId = "amzn1.account.ABC123",
                 receiptId = "amzn1.receipt.ABC123456789",
-                sandbox = true
+                sandbox = true,
+                expectedProductId = "premium.monthly"
             )
         )
 
-        val connection = FakeHttpURLConnection(200, """{"store":"amazon","isValid":true,"state":"ENTITLED"}""")
+        val connection = FakeHttpURLConnection(
+            200,
+            """{"store":"amazon","isValid":true,"state":"ENTITLED","environment":"Sandbox"}"""
+        )
         val result = verifyPurchaseWithIapkit(props, "TEST") { _ -> connection }
 
         assertEquals(IapStore.Amazon, result.store)
         assertTrue(result.isValid)
         assertEquals(IapkitPurchaseState.Entitled, result.state)
+        assertEquals("Sandbox", result.environment)
         assertEquals("Bearer secret", connection.headers["Authorization"])
 
         val bodyMap = Gson().fromJson(requireNotNull(connection.writtenBody), Map::class.java) as Map<*, *>
@@ -448,6 +453,61 @@ class PurchaseVerificationValidatorTest {
         assertEquals("amzn1.account.ABC123", bodyMap["userId"])
         assertEquals("amzn1.receipt.ABC123456789", bodyMap["receiptId"])
         assertEquals(true, bodyMap["sandbox"])
+        assertEquals("premium.monthly", bodyMap["expectedProductId"])
+    }
+
+    @Test
+    fun `verifyPurchaseWithIapkit accepts absent null and production environments`() = runTest {
+        val props = RequestVerifyPurchaseWithIapkitProps(
+            amazon = RequestVerifyPurchaseWithIapkitAmazonProps(
+                userId = "amzn1.account.ABC123",
+                receiptId = "amzn1.receipt.ABC123456789"
+            )
+        )
+        val responses = listOf(
+            """{"store":"amazon","isValid":true,"state":"ENTITLED"}""" to null,
+            """{"store":"amazon","isValid":true,"state":"ENTITLED","environment":null}""" to null,
+            """{"store":"amazon","isValid":true,"state":"ENTITLED","environment":"Production"}""" to "Production"
+        )
+
+        for ((response, expectedEnvironment) in responses) {
+            val result = verifyPurchaseWithIapkit(props, "TEST") { _ ->
+                FakeHttpURLConnection(200, response)
+            }
+            assertEquals(expectedEnvironment, result.environment)
+        }
+    }
+
+    @Test
+    fun `verifyPurchaseWithIapkit rejects invalid environments`() = runTest {
+        val props = RequestVerifyPurchaseWithIapkitProps(
+            amazon = RequestVerifyPurchaseWithIapkitAmazonProps(
+                userId = "amzn1.account.ABC123",
+                receiptId = "amzn1.receipt.ABC123456789"
+            )
+        )
+        val invalidEnvironments = listOf(
+            "\"sandbox\"",
+            "\"Xcode\"",
+            "42",
+            "true",
+            "{}",
+            "[]"
+        )
+
+        for (environment in invalidEnvironments) {
+            try {
+                verifyPurchaseWithIapkit(props, "TEST") { _ ->
+                    FakeHttpURLConnection(
+                        200,
+                        """{"store":"amazon","isValid":true,"state":"ENTITLED","environment":$environment}"""
+                    )
+                }
+                throw AssertionError("Expected malformed environment to fail: $environment")
+            } catch (error: OpenIapError.PurchaseVerificationFailed) {
+                assertTrue(error.message.contains("malformed"))
+            }
+        }
     }
 
     @Test

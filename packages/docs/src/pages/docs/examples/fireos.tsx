@@ -651,7 +651,9 @@ function FireOSExample() {
               <td>
                 Use the IAPKit Amazon payload with <code>sandbox: true</code>{' '}
                 for tester receipts so Amazon RVS validation is routed to the
-                correct environment.
+                correct environment. This requires enabling{' '}
+                <strong>Allow Amazon App Tester / RVS Cloud Sandbox</strong> in
+                the IAPKit project settings first.
               </td>
             </tr>
             <tr>
@@ -732,9 +734,11 @@ function FireOSExample() {
                 </CodeLink>
               </td>
               <td>
-                For Amazon, pass the IAPKit Amazon payload with the receipt ID;
-                the provider path can resolve the Amazon user ID when supported
-                by the platform adapter.
+                For Amazon, pass the receipt ID and{' '}
+                <code>expectedProductId</code>. The provider path can resolve
+                the Amazon user ID when supported by the platform adapter.
+                Handled results identify the RVS environment as{' '}
+                <code>'Sandbox'</code> or <code>'Production'</code>.
               </td>
             </tr>
             <tr>
@@ -778,6 +782,7 @@ async function onPurchaseUpdated(purchase: Purchase) {
     provider: 'iapkit',
     iapkit: {
       amazon: {
+        expectedProductId: purchase.productId,
         receiptId: purchase.purchaseToken ?? purchase.id,
         sandbox: true,
       },
@@ -787,6 +792,7 @@ async function onPurchaseUpdated(purchase: Purchase) {
   const verified = result.iapkit;
   if (
     verified?.isValid === true &&
+    verified.environment === 'Sandbox' &&
     verified.productId != null &&
     verified.productId === purchase.productId
   ) {

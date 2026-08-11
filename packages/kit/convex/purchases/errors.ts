@@ -75,6 +75,15 @@ export class AmazonSharedSecretNotConfiguredError extends ReceiptVerificationErr
   }
 }
 
+export class AmazonSandboxNotEnabledError extends ReceiptVerificationError {
+  constructor() {
+    super(
+      "AMAZON_SANDBOX_NOT_ENABLED",
+      "Amazon RVS Cloud Sandbox is not enabled for this project. Enable the explicit App Tester sandbox opt-in in project settings before sending sandbox receipts.",
+    );
+  }
+}
+
 export class AmazonReceiptInvalidError extends ReceiptVerificationError {
   constructor(status: number, detail: string) {
     super(

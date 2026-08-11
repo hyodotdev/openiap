@@ -13,6 +13,7 @@ import type {
 jest.mock(
   '@env',
   () => ({
+    AMAZON_RVS_SANDBOX: 'false',
     IAPKIT_API_KEY: 'test-api-key',
     IAPKIT_BASE_URL: 'http://192.168.0.10:3100',
   }),

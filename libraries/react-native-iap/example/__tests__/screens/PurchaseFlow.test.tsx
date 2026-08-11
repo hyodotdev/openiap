@@ -14,6 +14,7 @@ import type {
 jest.mock(
   '@env',
   () => ({
+    AMAZON_RVS_SANDBOX: 'false',
     IAPKIT_API_KEY: 'test-api-key',
     IAPKIT_BASE_URL: 'http://192.168.0.10:3100',
   }),
@@ -219,7 +220,7 @@ describe('PurchaseFlow Screen', () => {
         iapkit: {
           isValid: true,
           productId: 'dev.hyo.martie.10bulbs',
-          state: 'ready-to-consume',
+          state: 'entitled',
           store: 'google',
         },
       }),
@@ -338,7 +339,7 @@ describe('PurchaseFlow Screen', () => {
     );
   });
 
-  it('verifies and finishes a restored Local IAPKit consumable exactly once without a success callback', async () => {
+  it('verifies and finishes a restored ready-to-consume Google purchase exactly once', async () => {
     Platform.OS = 'android';
     const restoredPurchase: Purchase = {
       id: 'transaction-restored-1',
@@ -437,7 +438,7 @@ describe('PurchaseFlow Screen', () => {
         iapkit: {
           isValid: true,
           productId: 'dev.hyo.martie.30bulbs',
-          state: 'ready-to-consume',
+          state: 'entitled',
           store: 'google',
         },
       },
@@ -504,7 +505,7 @@ describe('PurchaseFlow Screen', () => {
       iapkit: {
         isValid: true,
         productId: purchase.productId,
-        state: 'ready-to-consume',
+        state: 'entitled',
         store: 'google',
       },
     };
@@ -679,7 +680,7 @@ describe('PurchaseFlow Screen', () => {
         iapkit: {
           isValid: true,
           productId: purchase.productId,
-          state: 'ready-to-consume',
+          state: 'entitled',
           store: 'google',
         },
       });
@@ -721,7 +722,7 @@ describe('PurchaseFlow Screen', () => {
           iapkit: {
             isValid: true,
             productId: purchase.productId,
-            state: 'ready-to-consume',
+            state: 'entitled',
             store: 'google',
           },
         }),
@@ -810,7 +811,7 @@ describe('PurchaseFlow Screen', () => {
           iapkit: {
             isValid: true,
             productId: purchase.productId,
-            state: 'ready-to-consume',
+            state: 'entitled',
             store: 'google',
           },
         }),
@@ -943,7 +944,7 @@ describe('PurchaseFlow Screen', () => {
         iapkit: {
           isValid: true,
           productId: 'dev.hyo.martie.10bulbs',
-          state: 'ready-to-consume',
+          state: 'entitled',
           store: 'google',
         },
       });
@@ -1314,7 +1315,9 @@ describe('PurchaseFlow Screen', () => {
     it('closes modal when close button pressed', async () => {
       mockIapState({products: [androidProductWithOffers]});
 
-      const {getByText, getAllByText, queryByText} = await render(<PurchaseFlow />);
+      const {getByText, getAllByText, queryByText} = await render(
+        <PurchaseFlow />,
+      );
 
       // Open modal
       const detailsButton = getAllByText('Details')[0];

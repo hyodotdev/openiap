@@ -1071,6 +1071,13 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                         is String -> rawProductId
                         else -> throw IllegalArgumentException("IAPKit result productId must be a string")
                     }
+                    val environment = when (val rawEnvironment = map["environment"]) {
+                        null, is NSNull -> null
+                        "Sandbox", "Production" -> rawEnvironment as String
+                        else -> throw IllegalArgumentException(
+                            "IAPKit result environment must be Sandbox or Production"
+                        )
+                    }
                     val clientPayload = when (val rawClientPayload = map["clientPayload"]) {
                         null, is NSNull -> null
                         is Map<*, *> -> {
@@ -1102,6 +1109,7 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                     }
                     val iapkitResult = RequestVerifyPurchaseWithIapkitResult(
                         clientPayload = clientPayload,
+                        environment = environment,
                         isValid = isValid,
                         productId = productId,
                         state = state,

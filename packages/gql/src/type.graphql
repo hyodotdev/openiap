@@ -298,6 +298,11 @@ input RequestVerifyPurchaseWithIapkitGoogleProps {
 
 input RequestVerifyPurchaseWithIapkitAmazonProps {
   """
+  Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
+  Optional Amazon product id that must match the product id verified by RVS.
+  """
+  expectedProductId: String
+  """
   Amazon Appstore user id returned by PurchaseResponse.getUserData().getUserId().
   """
   userId: String
@@ -415,6 +420,12 @@ type IapkitProductClientPayload {
 
 type RequestVerifyPurchaseWithIapkitResult {
   store: IapStore!
+  """
+  Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
+  Amazon RVS environment selected by IAPKit. Present as `Sandbox` or
+  `Production` on handled Amazon verification results.
+  """
+  environment: String
   """
   True when the purchase is valid and actionable.
   Only entitled, pending-acknowledgment, or ready-to-consume return true.

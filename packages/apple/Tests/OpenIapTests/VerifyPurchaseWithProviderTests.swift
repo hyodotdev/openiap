@@ -125,6 +125,44 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
         }
     }
 
+    func testIapkitEnvironmentAcceptsOnlyCanonicalValues() throws {
+        XCTAssertNil(try OpenIapModule.iapkitEnvironment(from: nil))
+        XCTAssertNil(try OpenIapModule.iapkitEnvironment(from: NSNull()))
+        XCTAssertEqual("Sandbox", try OpenIapModule.iapkitEnvironment(from: "Sandbox"))
+        XCTAssertEqual("Production", try OpenIapModule.iapkitEnvironment(from: "Production"))
+
+        for invalidValue: Any in ["sandbox", "Xcode", "", 1, true, [:], []] {
+            XCTAssertThrowsError(
+                try OpenIapModule.iapkitEnvironment(from: invalidValue)
+            )
+        }
+    }
+
+    func testIapkitAmazonPayloadForwardsExpectedProductId() throws {
+        let payload = try OpenIapModule.iapkitAmazonPayload(
+            from: RequestVerifyPurchaseWithIapkitAmazonProps(
+                expectedProductId: "premium.monthly",
+                receiptId: "  amzn1.receipt.ABC123456789  ",
+                sandbox: true,
+                userId: "  amzn1.account.ABC123  "
+            ),
+            includeClientPayload: false
+        )
+
+        XCTAssertEqual(.amazon, payload.store)
+        XCTAssertEqual("premium.monthly", payload.expectedProductId)
+        XCTAssertEqual("amzn1.receipt.ABC123456789", payload.receiptId)
+        XCTAssertEqual(true, payload.sandbox)
+        XCTAssertEqual("amzn1.account.ABC123", payload.userId)
+        XCTAssertEqual(false, payload.includeClientPayload)
+
+        let encoded = try JSONEncoder().encode(payload)
+        let body = try XCTUnwrap(
+            JSONSerialization.jsonObject(with: encoded) as? [String: Any]
+        )
+        XCTAssertEqual("premium.monthly", body["expectedProductId"] as? String)
+    }
+
     @MainActor
     func testStoreReturnsIapkitResult() async throws {
         let iapkitResult = RequestVerifyPurchaseWithIapkitResult(

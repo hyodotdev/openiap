@@ -58,6 +58,26 @@ private const val AMAZON_PRODUCT_DATA_BATCH_SIZE = 100
 private const val AMAZON_PURCHASE_UPDATES_MAX_PAGES = 100
 private const val AMAZON_EARLY_RESPONSE_CACHE_MAX = 128
 
+internal fun withResolvedAmazonUserId(
+    options: RequestVerifyPurchaseWithIapkitProps,
+    userId: String,
+): RequestVerifyPurchaseWithIapkitProps {
+    val amazon = requireNotNull(options.amazon)
+    return RequestVerifyPurchaseWithIapkitProps(
+        amazon = RequestVerifyPurchaseWithIapkitAmazonProps(
+            expectedProductId = amazon.expectedProductId,
+            receiptId = amazon.receiptId,
+            sandbox = amazon.sandbox,
+            userId = userId,
+        ),
+        apiKey = options.apiKey,
+        apple = options.apple,
+        baseUrl = options.baseUrl,
+        google = options.google,
+        includeClientPayload = options.includeClientPayload,
+    )
+}
+
 internal fun shouldIncludeAmazonReceipt(
     isCanceled: Boolean,
     hasCancelDate: Boolean,
@@ -828,7 +848,7 @@ class OpenIapModule(
             val userDataResponse = requestUserData()
             val userId = userDataResponse.userData?.userId
                 ?: throw OpenIapError.DeveloperError("Amazon IAPKit verification could not resolve userId")
-            options.copy(amazon = amazon.copy(userId = userId))
+            withResolvedAmazonUserId(options, userId)
         } else {
             options
         }

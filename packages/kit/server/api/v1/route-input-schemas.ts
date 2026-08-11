@@ -39,9 +39,9 @@ const AMAZON_RECEIPT_ID_MIN_LENGTH = 10;
 // token is an opaque URL-safe string; Meta's userId in practice is a
 // numeric string but the pattern below stays URL-safe-ish so a future
 // non-numeric format from Meta (or our own dev fixtures) doesn't
-// regress; Meta's sku is app-defined but restricted to a URL-safe
-// subset by Meta's dashboard. Anything failing these is definitionally
-// not a real verification request — 400 INVALID_INPUT and move on.
+// regress; Meta's sku is app-defined and subscription-term SKUs use
+// `{SKU}:SUBSCRIPTION__{TERM}`. Anything failing these is definitionally not
+// a real verification request — 400 INVALID_INPUT and move on.
 //
 // IMPORTANT: these patterns are intentionally lax enough to match
 // every legitimate shape we've seen. Tightening them further has a
@@ -50,7 +50,7 @@ export const APPLE_JWS_PATTERN =
   /^[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+\.[A-Za-z0-9_-]+$/;
 const GOOGLE_PURCHASE_TOKEN_PATTERN = /^[A-Za-z0-9._~-]+$/;
 const HORIZON_USER_ID_PATTERN = /^[A-Za-z0-9_-]+$/;
-const HORIZON_SKU_PATTERN = /^[A-Za-z0-9._-]+$/;
+const HORIZON_SKU_PATTERN = /^[A-Za-z0-9._:-]+$/;
 const EXPECTED_PRODUCT_ID_PATTERN = /^[A-Za-z0-9._-]+$/;
 const AMAZON_USER_ID_PATTERN = /^[A-Za-z0-9._~=-]+$/;
 const AMAZON_RECEIPT_ID_PATTERN = /^[A-Za-z0-9._~:=/+-]+$/;
@@ -164,7 +164,7 @@ export const verifyPurchaseInputSchema = v.variant("store", [
         ),
         v.regex(
           HORIZON_SKU_PATTERN,
-          "sku must contain only letters, digits, '.', '_' or '-'.",
+          "sku must contain only letters, digits, '.', '_', ':' or '-'.",
         ),
         v.description(
           "Add-on SKU as configured in the Meta Developer Dashboard.",
@@ -219,10 +219,11 @@ export const verifyPurchaseInputSchema = v.variant("store", [
         v.pipe(
           v.boolean(),
           v.description(
-            "Use Amazon RVS Cloud Sandbox for App Tester receipts.",
+            "Use Amazon RVS Cloud Sandbox for App Tester receipts. The project must explicitly enable Amazon sandbox verification first.",
           ),
         ),
       ),
+      expectedProductId: expectedProductIdSchema,
       includeClientPayload: includeClientPayloadSchema,
     }),
     v.title("Amazon Appstore"),

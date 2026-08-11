@@ -156,7 +156,7 @@ export default function OrganizationLayout() {
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
         {/* Top Header */}
         <header className="h-14 bg-card border-b-thin px-6 flex items-center justify-between">
           <div className="flex items-center gap-4">
@@ -199,8 +199,10 @@ export default function OrganizationLayout() {
             Child pages should NOT add their own `overflow-y-auto` —
             nested scrolls previously caused the inner container to
             scroll past the visible content while the outer still had
-            room to move. */}
-        <main className="flex-1 overflow-y-auto overscroll-none bg-background">
+            room to move. Horizontal overflow belongs to page-local
+            table / tab scrollers; letting this shell scroll sideways
+            moves the entire page underneath the pinned sidebar. */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden overscroll-none bg-background">
           <FreeTransitionNotice
             hadBillingRelationship={Boolean(
               organization.stripeCustomerId ||

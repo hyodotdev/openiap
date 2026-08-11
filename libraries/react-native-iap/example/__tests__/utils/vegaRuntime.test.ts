@@ -19,6 +19,7 @@ describe('Vega runtime example helpers', () => {
       } as unknown as Purchase,
       'receipt-1',
       'test-api-key',
+      true,
       'http://localhost:3100',
     );
 
@@ -26,6 +27,7 @@ describe('Vega runtime example helpers', () => {
       apiKey: 'test-api-key',
       baseUrl: 'http://localhost:3100',
       amazon: {
+        expectedProductId: 'dev.hyo.martie.10bulbs',
         receiptId: 'receipt-1',
         sandbox: true,
       },
@@ -42,6 +44,7 @@ describe('Vega runtime example helpers', () => {
       } as unknown as Purchase,
       'token-1',
       'test-api-key',
+      false,
     );
 
     expect(payload).toMatchObject({
@@ -62,6 +65,7 @@ describe('Vega runtime example helpers', () => {
       } as unknown as Purchase,
       'jws-1',
       'test-api-key',
+      false,
     );
 
     expect(payload).toMatchObject({
@@ -105,6 +109,7 @@ describe('Vega runtime example helpers', () => {
         } as unknown as Purchase,
         'token-1',
         '  ',
+        false,
       ),
     ).toThrow('IAPKIT_API_KEY not configured');
   });
@@ -117,11 +122,13 @@ describe('Vega runtime example helpers', () => {
           iapkit: {
             isValid: true,
             productId: 'dev.hyo.martie.10bulbs',
-            state: 'ready-to-consume',
+            state: 'entitled',
             store: 'google',
           },
         },
         'dev.hyo.martie.10bulbs',
+        true,
+        false,
       ),
     ).toBeNull();
   });
@@ -139,6 +146,8 @@ describe('Vega runtime example helpers', () => {
           },
         },
         'dev.hyo.martie.10bulbs',
+        true,
+        false,
       ),
     ).toContain('state: consumed');
   });
@@ -151,15 +160,111 @@ describe('Vega runtime example helpers', () => {
           iapkit: {
             isValid: true,
             productId: 'dev.hyo.martie.30bulbs',
+            state: 'entitled',
+            store: 'google',
+          },
+        },
+        'dev.hyo.martie.10bulbs',
+        true,
+        false,
+      ),
+    ).toContain(
+      'IAPKit verified dev.hyo.martie.30bulbs, expected dev.hyo.martie.10bulbs',
+    );
+  });
+
+  it('requires an Amazon product ID before fulfillment', () => {
+    expect(
+      getIapkitVerificationError(
+        {
+          provider: 'iapkit',
+          iapkit: {
+            environment: 'Production',
+            isValid: true,
+            state: 'ready-to-consume',
+            store: 'amazon',
+          },
+        },
+        'dev.hyo.martie.10bulbs',
+        true,
+        false,
+      ),
+    ).toBe('IAPKit did not return a product ID for amazon');
+  });
+
+  it('requires the configured Amazon environment', () => {
+    expect(
+      getIapkitVerificationError(
+        {
+          provider: 'iapkit',
+          iapkit: {
+            environment: 'Sandbox',
+            isValid: true,
+            productId: 'dev.hyo.martie.10bulbs',
+            state: 'ready-to-consume',
+            store: 'amazon',
+          },
+        },
+        'dev.hyo.martie.10bulbs',
+        true,
+        false,
+      ),
+    ).toContain('expected Production');
+  });
+
+  it('accepts ready-to-consume only for Google consumables', () => {
+    expect(
+      getIapkitVerificationError(
+        {
+          provider: 'iapkit',
+          iapkit: {
+            isValid: true,
+            productId: 'dev.hyo.martie.10bulbs',
             state: 'ready-to-consume',
             store: 'google',
           },
         },
         'dev.hyo.martie.10bulbs',
+        true,
+        false,
       ),
-    ).toContain(
-      'IAPKit verified dev.hyo.martie.30bulbs, expected dev.hyo.martie.10bulbs',
-    );
+    ).toBeNull();
+
+    expect(
+      getIapkitVerificationError(
+        {
+          provider: 'iapkit',
+          iapkit: {
+            isValid: true,
+            productId: 'dev.hyo.martie.10bulbs',
+            state: 'ready-to-consume',
+            store: 'google',
+          },
+        },
+        'dev.hyo.martie.10bulbs',
+        false,
+        false,
+      ),
+    ).toContain('cannot fulfill this non-consumable google purchase');
+
+    for (const state of ['entitled', 'pending-acknowledgment'] as const) {
+      expect(
+        getIapkitVerificationError(
+          {
+            provider: 'iapkit',
+            iapkit: {
+              isValid: true,
+              productId: 'dev.hyo.martie.10bulbs',
+              state,
+              store: 'google',
+            },
+          },
+          'dev.hyo.martie.10bulbs',
+          true,
+          false,
+        ),
+      ).toBeNull();
+    }
   });
 
   it('keeps the completed purchase cache bounded and refreshes recency', () => {

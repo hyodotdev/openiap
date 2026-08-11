@@ -30,6 +30,7 @@ import {
 interface CompatibleDataClassShape {
   primaryFields: string[];
   extraFields: string[];
+  legacyExtraFieldCounts?: number[];
 }
 
 const COMPATIBLE_DATA_CLASS_SHAPES: Record<string, CompatibleDataClassShape> = {
@@ -43,11 +44,16 @@ const COMPATIBLE_DATA_CLASS_SHAPES: Record<string, CompatibleDataClassShape> = {
   },
   RequestVerifyPurchaseWithIapkitResult: {
     primaryFields: ['isValid', 'state', 'store'],
-    extraFields: ['clientPayload', 'productId'],
+    extraFields: ['clientPayload', 'productId', 'environment'],
+    legacyExtraFieldCounts: [2],
   },
 };
 
 const COMPATIBLE_INPUT_DATA_CLASS_SHAPES: Record<string, CompatibleDataClassShape> = {
+  RequestVerifyPurchaseWithIapkitAmazonProps: {
+    primaryFields: ['receiptId', 'sandbox', 'userId'],
+    extraFields: ['expectedProductId'],
+  },
   RequestVerifyPurchaseWithIapkitProps: {
     primaryFields: ['amazon', 'apiKey', 'apple', 'baseUrl', 'google'],
     extraFields: ['includeClientPayload'],
@@ -383,25 +389,36 @@ export class KotlinPlugin extends CodegenPlugin {
       this.emit('');
     }
 
-    this.emit('    constructor(');
-    for (const value of primaryFields) {
-      const defaultValue = this.getObjectFieldDefault(value);
-      this.emit(`        ${value.name}: ${this.getPropertyType(value.type)}${defaultValue},`);
+    const constructorExtraFieldCounts = [
+      ...new Set([...(shape.legacyExtraFieldCounts ?? []), extraFields.length]),
+    ];
+    for (const extraFieldCount of constructorExtraFieldCounts) {
+      if (extraFieldCount < 1 || extraFieldCount > extraFields.length) {
+        throw new Error(`${irObject.name} has an invalid compatibility constructor size`);
+      }
+      const constructorExtraFields = extraFields.slice(0, extraFieldCount);
+      const isCurrentConstructor = extraFieldCount === extraFields.length;
+      const hasLegacyConstructor = (shape.legacyExtraFieldCounts?.length ?? 0) > 0;
+      this.emit('    constructor(');
+      for (const value of primaryFields) {
+        const defaultValue = this.getObjectFieldDefault(value);
+        this.emit(`        ${value.name}: ${this.getPropertyType(value.type)}${defaultValue},`);
+      }
+      constructorExtraFields.forEach((value, index) => {
+        const defaultValue = index === 0 || (isCurrentConstructor && hasLegacyConstructor) ? '' : ' = null';
+        this.emit(`        ${value.name}: ${this.getPropertyType(value.type)}${defaultValue},`);
+      });
+      this.emit('    ) : this(');
+      for (const value of primaryFields) {
+        this.emit(`        ${value.name} = ${value.name},`);
+      }
+      this.emit('    ) {');
+      for (const value of constructorExtraFields) {
+        this.emit(`        this.${value.name} = ${value.name}`);
+      }
+      this.emit('    }');
+      this.emit('');
     }
-    extraFields.forEach((value, index) => {
-      const defaultValue = index === 0 ? '' : ' = null';
-      this.emit(`        ${value.name}: ${this.getPropertyType(value.type)}${defaultValue},`);
-    });
-    this.emit('    ) : this(');
-    for (const value of primaryFields) {
-      this.emit(`        ${value.name} = ${value.name},`);
-    }
-    this.emit('    ) {');
-    for (const value of extraFields) {
-      this.emit(`        this.${value.name} = ${value.name}`);
-    }
-    this.emit('    }');
-    this.emit('');
 
     this.emit('    companion object {');
     this.emit(`        fun fromJson(json: Map<String, Any?>): ${irObject.name} {`);
@@ -614,18 +631,43 @@ export class KotlinPlugin extends CodegenPlugin {
     this.emit('    }');
     this.emit('');
 
+    const allFields = [...primaryFields, ...extraFields];
+    const requiredFields = allFields.filter(
+      (value) => !value.type.nullable && !this.hasSchemaDefault(value) && value.type.kind !== 'enum',
+    );
+    const hasRequiredFields = requiredFields.length > 0;
+
     this.emit('    companion object {');
-    this.emit(`        fun fromJson(json: Map<String, Any?>): ${irInput.name} {`);
-    this.emit(`            return ${irInput.name}(`);
-    for (const value of [...primaryFields, ...extraFields]) {
-      const expression = this.buildFromJsonExpression(
-        value.type,
-        `json["${value.name}"]`,
-        false,
-        false,
-        this.buildDefaultValueExpression(value),
-      );
-      this.emit(`                ${value.name} = ${expression},`);
+    this.emit(`        fun fromJson(json: Map<String, Any?>): ${irInput.name}${hasRequiredFields ? '?' : ''} {`);
+    if (hasRequiredFields) {
+      for (const value of allFields) {
+        const expression = this.buildFromJsonExpression(
+          value.type,
+          `json["${value.name}"]`,
+          false,
+          true,
+          this.buildDefaultValueExpression(value),
+        );
+        this.emit(`            val ${value.name} = ${expression}`);
+      }
+      const nullChecks = requiredFields.map((value) => `${value.name} == null`).join(' || ');
+      this.emit(`            if (${nullChecks}) return null`);
+      this.emit(`            return ${irInput.name}(`);
+      for (const value of allFields) {
+        this.emit(`                ${value.name} = ${value.name},`);
+      }
+    } else {
+      this.emit(`            return ${irInput.name}(`);
+      for (const value of allFields) {
+        const expression = this.buildFromJsonExpression(
+          value.type,
+          `json["${value.name}"]`,
+          false,
+          false,
+          this.buildDefaultValueExpression(value),
+        );
+        this.emit(`                ${value.name} = ${expression},`);
+      }
     }
     this.emit('            )');
     this.emit('        }');

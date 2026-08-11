@@ -17,8 +17,9 @@ export default function IntroductionPage() {
         without building their own receipt server. You send a store-specific
         receipt to <code>/v1/purchase/verify</code>, IAPKit calls the upstream
         store with credentials it already holds for your project, and returns a
-        normalized <code>{`{ store, isValid, state, productId? }`}</code> result
-        your app can use.
+        normalized{" "}
+        <code>{`{ store, isValid, state, productId?, environment? }`}</code>{" "}
+        result your app can use.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">When to reach for IAPKit</h2>
@@ -77,7 +78,7 @@ export default function IntroductionPage() {
         <StoreCard
           icon={<ShoppingBag className="h-5 w-5" />}
           title="Amazon Appstore"
-          detail="Fire OS receipts verified through Amazon RVS using the project's shared secret. Clients send only (userId, receiptId)."
+          detail="Fire OS receipts verified and periodically refreshed through Amazon RVS. Cloud Sandbox is disabled by default and requires an explicit project opt-in."
           slug="api"
         />
       </div>
@@ -98,7 +99,7 @@ export default function IntroductionPage() {
       { store, ... }                                           Horizon / Amazon
                                                           ◄── verified receipt
       { store, isValid, state,
-        productId? }     ◄───     harmonized state
+        productId?, environment? } ◄── harmonized state
 `}</code>
       </pre>
 
