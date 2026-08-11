@@ -1037,6 +1037,9 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                                         (amazon["sandbox"] as? Boolean)?.let { sandbox ->
                                             amazonMap["sandbox"] = sandbox
                                         }
+                                        (amazon["expectedProductId"] as? String)?.let { expectedProductId ->
+                                            amazonMap["expectedProductId"] = expectedProductId
+                                        }
                                         (amazon["userId"] as? String)?.let { userId ->
                                             amazonMap["userId"] = userId
                                         }

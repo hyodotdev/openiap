@@ -54,7 +54,40 @@ describe("ProjectIndex responsive tabs", () => {
     cleanup();
     mocks.navigate.mockReset();
     mocks.pathname = "/hyo-dev/project/martie/purchases";
+    mocks.project.name = "Martie";
+    mocks.project.slug = "martie";
+    delete (mocks.project as typeof mocks.project & { platform?: string })
+      .platform;
     vi.restoreAllMocks();
+  });
+
+  it("contains long project identity text and exposes its full value", () => {
+    const longProjectName = "Martie".repeat(40);
+    const longProjectSlug = "martie-".repeat(40);
+    mocks.project.name = longProjectName;
+    mocks.project.slug = longProjectSlug;
+    Object.assign(mocks.project, { platform: "react-native" });
+
+    render(<ProjectIndex />);
+
+    const heading = screen.getByRole("heading", { name: longProjectName });
+    expect(heading.classList.contains("min-w-0")).toBe(true);
+    expect(heading.classList.contains("flex-1")).toBe(true);
+    expect(heading.classList.contains("truncate")).toBe(true);
+    expect(heading.getAttribute("title")).toBe(longProjectName);
+
+    const identityPath = screen.getByTitle(`hyo-dev/${longProjectSlug}`);
+    expect(identityPath.classList.contains("truncate")).toBe(true);
+    expect(identityPath.parentElement?.classList.contains("min-w-0")).toBe(
+      true,
+    );
+
+    const identity = identityPath.parentElement?.parentElement;
+    expect(identity?.classList.contains("min-w-0")).toBe(true);
+    expect(identity?.classList.contains("flex-1")).toBe(true);
+    expect(
+      screen.getByText("React Native").classList.contains("shrink-0"),
+    ).toBe(true);
   });
 
   it("keeps the tab row in its own horizontal scroller without wrapping", () => {

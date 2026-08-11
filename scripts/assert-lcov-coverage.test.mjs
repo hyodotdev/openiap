@@ -112,6 +112,30 @@ describe("LCOV line coverage guard", () => {
     );
   });
 
+  it("resolves parent-directory segments before prefix matching", () => {
+    const source = [
+      "SF:convex/../server/api.ts",
+      "LF:4",
+      "LH:4",
+      "end_of_record",
+      "SF:convex/purchases/amazon.ts",
+      "LF:6",
+      "LH:3",
+      "end_of_record",
+    ].join("\n");
+
+    assert.deepEqual(readLcovLineCoverage(source, "convex/"), {
+      found: 6,
+      hit: 3,
+      percentage: 50,
+    });
+    assert.deepEqual(readLcovLineCoverage(source, "server/"), {
+      found: 4,
+      hit: 4,
+      percentage: 100,
+    });
+  });
+
   it("accepts the exact minimum and rejects lower coverage", () => {
     assert.doesNotThrow(() =>
       assertLcovLineCoverage(report("LF:10\nLH:9\n"), 90),

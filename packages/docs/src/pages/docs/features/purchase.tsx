@@ -809,6 +809,16 @@ async Task<bool> VerifyOnServerAsync(Purchase purchase)
           product your app expected; <code>isValid</code> alone is not enough.
         </p>
 
+        <p>
+          For Amazon, include <code>expectedProductId</code> in the verification
+          payload. Amazon App Tester receipts require enabling{' '}
+          <strong>Allow Amazon App Tester / RVS Cloud Sandbox</strong> in the
+          IAPKit project before passing <code>sandbox: true</code>. Handled
+          Amazon results report exactly <code>'Sandbox'</code> or{' '}
+          <code>'Production'</code> in <code>environment</code>; require the
+          value expected by the build.
+        </p>
+
         <Callout kind="note" title="Get a project key">
           Sign up at{' '}
           <a
@@ -835,6 +845,9 @@ import { verifyPurchaseWithProvider, type Purchase } from 'expo-iap';
 // Same API in react-native-iap:
 // import { verifyPurchaseWithProvider, type Purchase } from 'react-native-iap';
 
+const amazonSandbox =
+  process.env.EXPO_PUBLIC_AMAZON_RVS_SANDBOX === 'true';
+
 const iapkitPayloadFor = async (purchase: Purchase) => {
   const token = purchase.purchaseToken ?? '';
   const runtimeOS = Platform.OS as string;
@@ -848,8 +861,9 @@ const iapkitPayloadFor = async (purchase: Purchase) => {
   if (isAmazonRuntime) {
     return {
       amazon: {
+        expectedProductId: purchase.productId,
         receiptId: token,
-        sandbox: __DEV__,
+        sandbox: amazonSandbox,
       },
     };
   }
@@ -870,8 +884,12 @@ const verifyWithIapkit = async (purchase: Purchase) => {
 
   const verified = result.iapkit;
   const verifiedProductId = verified?.productId;
+  const hasExpectedEnvironment =
+    verified?.store !== 'amazon' ||
+    verified?.environment === (amazonSandbox ? 'Sandbox' : 'Production');
   if (
     verified?.isValid === true &&
+    hasExpectedEnvironment &&
     verifiedProductId != null &&
     verifiedProductId === purchase.productId
   ) {
@@ -899,6 +917,9 @@ function PurchaseScreen() {
       const verified = result.iapkit;
       if (
         verified?.isValid !== true ||
+        (verified.store === 'amazon' &&
+          verified.environment !==
+            (amazonSandbox ? 'Sandbox' : 'Production')) ||
         verified.productId == null ||
         verified.productId !== purchase.productId
       ) {
@@ -956,7 +977,9 @@ suspend fun verifyWithIapkit(purchase: PurchaseAndroid): Boolean {
                     google = RequestVerifyPurchaseWithIapkitGoogleProps(
                         purchaseToken = purchase.purchaseToken.orEmpty()
                     )
-                    // Fire OS: replace google with amazon(userId, receiptId, sandbox).
+                    // Fire OS: replace google with amazon(expectedProductId,
+                    // userId, receiptId, sandbox). App Tester needs project opt-in;
+                    // handled Amazon results expose environment.
                 )
             )
         )
@@ -992,7 +1015,9 @@ suspend fun verifyWithIapkit(purchase: PurchaseAndroid): Boolean {
                     google = RequestVerifyPurchaseWithIapkitGoogleProps(
                         purchaseToken = purchase.purchaseToken.orEmpty()
                     )
-                    // Fire OS builds use amazon(userId, receiptId, sandbox).
+                    // Fire OS builds use amazon(expectedProductId, userId,
+                    // receiptId, sandbox). App Tester needs project opt-in;
+                    // handled Amazon results expose environment.
                 )
             )
         )
@@ -1036,7 +1061,9 @@ Future<bool> verifyWithIapkit(Purchase purchase) async {
                 purchaseToken: purchase.purchaseToken ?? '',
               )
             : null,
-        // Fire OS builds can pass amazon with userId, receiptId, and sandbox.
+        // Fire OS builds can pass amazon with expectedProductId, userId,
+        // receiptId, and sandbox. App Tester needs project opt-in;
+        // handled Amazon results expose environment.
       ),
     );
 

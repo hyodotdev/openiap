@@ -80,8 +80,12 @@ export const getSetupStatus = query({
     if (!project.horizonAppId) horizonMissing.push("horizonAppId");
     if (!project.horizonAppSecret) horizonMissing.push("horizonAppSecret");
 
+    const amazonConfigured =
+      (typeof project.amazonSharedSecret === "string" &&
+        project.amazonSharedSecret.trim().length > 0) ||
+      project.amazonSandboxEnabled === true;
     const amazonMissing: string[] = [];
-    if (!project.amazonSharedSecret) {
+    if (!amazonConfigured) {
       amazonMissing.push("amazonSharedSecret");
     }
 
@@ -101,7 +105,7 @@ export const getSetupStatus = query({
         missing: horizonMissing,
       },
       amazon: {
-        configured: amazonMissing.length === 0,
+        configured: amazonConfigured,
         missing: amazonMissing,
       },
       // The webhook receivers ALSO need the .p8 / service-account JSON

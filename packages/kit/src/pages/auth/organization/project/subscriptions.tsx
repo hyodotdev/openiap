@@ -140,7 +140,7 @@ export default function ProjectSubscriptions() {
         </div>
       )}
 
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
         <MetricCard
           icon={XCircle}
           label="Refunded (30d)"
@@ -174,53 +174,55 @@ export default function ProjectSubscriptions() {
             </button>
           ))}
         </div>
-        <table className="w-full text-sm">
-          <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
-            <tr>
-              <th className="px-4 py-2 text-left">User</th>
-              <th className="px-4 py-2 text-left">Product</th>
-              <th className="px-4 py-2 text-left">Platform</th>
-              <th className="px-4 py-2 text-left">State</th>
-              <th className="px-4 py-2 text-left">Expires</th>
-              <th className="px-4 py-2 text-left">Updated</th>
-            </tr>
-          </thead>
-          <tbody>
-            {subscriptions.items.length === 0 && (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[720px] text-sm">
+            <thead className="bg-muted/40 text-xs uppercase text-muted-foreground">
               <tr>
-                <td
-                  colSpan={6}
-                  className="px-4 py-8 text-center text-muted-foreground"
-                >
-                  No subscriptions for this filter yet. Webhook events from
-                  Apple / Google will populate this table.
-                </td>
+                <th className="px-4 py-2 text-left">User</th>
+                <th className="px-4 py-2 text-left">Product</th>
+                <th className="px-4 py-2 text-left">Platform</th>
+                <th className="px-4 py-2 text-left">State</th>
+                <th className="px-4 py-2 text-left">Expires</th>
+                <th className="px-4 py-2 text-left">Updated</th>
               </tr>
-            )}
-            {subscriptions.items.map((sub) => (
-              <tr key={sub.id} className="border-t border-border/50">
-                <td className="px-4 py-2 font-mono text-xs">
-                  {sub.userId ?? <span className="opacity-50">unbound</span>}
-                </td>
-                <td className="px-4 py-2">{sub.productId}</td>
-                <td className="px-4 py-2">
-                  <Badge variant="default" size="xs">
-                    {sub.platform}
-                  </Badge>
-                </td>
-                <td className="px-4 py-2">
-                  <StateBadge state={sub.state} />
-                </td>
-                <td className="px-4 py-2 text-muted-foreground">
-                  {sub.expiresAt ? formatDate(sub.expiresAt) : "—"}
-                </td>
-                <td className="px-4 py-2 text-muted-foreground">
-                  {formatDate(sub.updatedAt)}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {subscriptions.items.length === 0 && (
+                <tr>
+                  <td
+                    colSpan={6}
+                    className="px-4 py-8 text-center text-muted-foreground"
+                  >
+                    No subscriptions for this filter yet. Webhook events from
+                    Apple / Google will populate this table.
+                  </td>
+                </tr>
+              )}
+              {subscriptions.items.map((sub) => (
+                <tr key={sub.id} className="border-t border-border/50">
+                  <td className="px-4 py-2 font-mono text-xs">
+                    {sub.userId ?? <span className="opacity-50">unbound</span>}
+                  </td>
+                  <td className="px-4 py-2">{sub.productId}</td>
+                  <td className="px-4 py-2">
+                    <Badge variant="default" size="xs">
+                      {sub.platform}
+                    </Badge>
+                  </td>
+                  <td className="px-4 py-2">
+                    <StateBadge state={sub.state} />
+                  </td>
+                  <td className="px-4 py-2 text-muted-foreground">
+                    {sub.expiresAt ? formatDate(sub.expiresAt) : "—"}
+                  </td>
+                  <td className="px-4 py-2 text-muted-foreground">
+                    {formatDate(sub.updatedAt)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
     </div>
   );

@@ -564,6 +564,40 @@ that URL against the committed [`production.env`](production.env) SSOT before
 either deployment proceeds. A development deploy key therefore cannot publish a
 production Fly bundle.
 
+Self-hosted deployments that never completed the original row-wise purchase
+stats backfill should run it first (already-completed deployments no-op):
+
+```bash
+npx convex run migrations:run \
+  '{"fn":"migrations:backfillPurchaseStatsFromPurchases"}'
+```
+
+Deployments with purchase history from before the Amazon and Horizon stats
+buckets were added should also run the new resumable migration from
+`packages/kit/`:
+
+```bash
+npx convex run migrations:run \
+  '{"fn":"migrations:backfillPurchaseStatsStoreBuckets"}'
+```
+
+It processes one purchase per mutation. An atomic per-purchase sentinel makes
+partial resumes and resets safe without a project-wide receipt scan, while new
+purchases are skipped because their store buckets are already counted. The
+hosted IAPKit audit found no historical Amazon or Horizon purchases, so no
+hosted migration run was needed or performed.
+
+For deployments that also need to clean up legacy duplicate Google orders, the
+required order is: complete `backfillPurchaseStatsFromPurchases`, run
+`collapseDuplicatePurchasesByOrderId`, then run the full-project
+`recomputeAllPurchaseStats` last whenever a non-dry cleanup run reports
+`rowsDeleted > 0`. The recompute is optional only if cleanup is not run or
+deletes no rows. The Amazon/Horizon `backfillPurchaseStatsStoreBuckets`
+migration is independent of the Google duplicate cleanup, so those two steps
+may run in either order after the base backfill. Both must finish before any
+required recompute. The recompute does not write per-purchase sentinels, so
+running it first would let a later row backfill replay counts.
+
 `VITE_*` values have to be passed at **build time**, not just runtime
 secrets — Vite inlines them into the SPA bundle at `bun run build`
 time. The deploy script sends the Convex-CLI-verified

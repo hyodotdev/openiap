@@ -224,6 +224,33 @@ describe("verifyMetaHorizonReceiptInternalV1", () => {
     expect(ctx.runMutation).toHaveBeenCalledTimes(1);
   });
 
+  test("cancels an HTTP error body without masking its retryable status", async () => {
+    vi.useFakeTimers();
+    const cancel = vi.fn().mockRejectedValue(new Error("already closed"));
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: false,
+        status: 503,
+        body: { cancel },
+      } as unknown as Response)
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ success: true }), { status: 200 }),
+      );
+    const ctx = makeContext();
+
+    const resultPromise = capture(
+      verifyMetaHorizonReceipt._handler(ctx, VERIFY_ARGS),
+    );
+    await vi.runAllTimersAsync();
+    const result = await resultPromise;
+
+    expect(result.error).toBeUndefined();
+    expect(result.value).toMatchObject({ isValid: true, state: "ENTITLED" });
+    expect(cancel).toHaveBeenCalledTimes(1);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(ctx.runMutation).toHaveBeenCalledTimes(1);
+  });
+
   test("retries a fetch network failure before persisting a confirmed result", async () => {
     vi.useFakeTimers();
     fetchMock
@@ -248,6 +275,31 @@ describe("verifyMetaHorizonReceiptInternalV1", () => {
     expect(ctx.runMutation).toHaveBeenCalledTimes(1);
   });
 
+  test("retries a response-body network failure before persisting a confirmed result", async () => {
+    vi.useFakeTimers();
+    fetchMock
+      .mockResolvedValueOnce({
+        ok: true,
+        status: 200,
+        json: vi.fn().mockRejectedValue(new TypeError("terminated")),
+      } as unknown as Response)
+      .mockResolvedValueOnce(
+        new Response(JSON.stringify({ success: true }), { status: 200 }),
+      );
+    const ctx = makeContext();
+
+    const resultPromise = capture(
+      verifyMetaHorizonReceipt._handler(ctx, VERIFY_ARGS),
+    );
+    await vi.runAllTimersAsync();
+    const result = await resultPromise;
+
+    expect(result.error).toBeUndefined();
+    expect(result.value).toMatchObject({ isValid: true, state: "ENTITLED" });
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    expect(ctx.runMutation).toHaveBeenCalledTimes(1);
+  });
+
   test("retries each timed-out request and never persists an inferred verdict", async () => {
     vi.useFakeTimers();
     fetchMock.mockImplementation(
@@ -263,6 +315,41 @@ describe("verifyMetaHorizonReceiptInternalV1", () => {
             { once: true },
           );
         }),
+    );
+    const ctx = makeContext();
+
+    const resultPromise = capture(
+      verifyMetaHorizonReceipt._handler(ctx, VERIFY_ARGS),
+    );
+    await vi.runAllTimersAsync();
+    const result = await resultPromise;
+
+    const error = expectHorizonError(result.error);
+    expect(error.errorMessage).toContain("AbortError");
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(ctx.runMutation).not.toHaveBeenCalled();
+  });
+
+  test("retries each timed-out response body without persisting a verdict", async () => {
+    vi.useFakeTimers();
+    fetchMock.mockImplementation(
+      async (_input: URL | RequestInfo, init?: RequestInit) =>
+        ({
+          ok: true,
+          status: 200,
+          json: async () =>
+            await new Promise<never>((_resolve, reject) => {
+              init?.signal?.addEventListener(
+                "abort",
+                () => {
+                  const error = new Error("response body timed out");
+                  error.name = "AbortError";
+                  reject(error);
+                },
+                { once: true },
+              );
+            }),
+        }) as unknown as Response,
     );
     const ctx = makeContext();
 

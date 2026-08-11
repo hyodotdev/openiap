@@ -305,6 +305,47 @@ func _test_iapkit_product_client_payload() -> void:
 	_assert_equal(round_trip.client_payload.version, 2.0, "Nested payload should round-trip version")
 	_assert_equal(round_trip.client_payload.updated_at, 1720000000000.0, "Nested payload should round-trip updatedAt")
 
+	var amazon_props = Types.RequestVerifyPurchaseWithIapkitAmazonProps.from_dict({
+		"expectedProductId": "dev.hyo.martie.10bulbs",
+		"receiptId": "amzn1.receipt.test",
+		"sandbox": true,
+		"userId": "amzn1.account.test"
+	})
+	var amazon_props_round_trip = Types.RequestVerifyPurchaseWithIapkitAmazonProps.from_dict(
+		amazon_props.to_dict()
+	)
+	_assert_equal(
+		amazon_props_round_trip.expected_product_id,
+		"dev.hyo.martie.10bulbs",
+		"Amazon verification props should round-trip expectedProductId"
+	)
+	_assert_equal(
+		amazon_props_round_trip.receipt_id,
+		"amzn1.receipt.test",
+		"Amazon verification props should round-trip receiptId"
+	)
+
+	var amazon_result = Types.RequestVerifyPurchaseWithIapkitResult.from_dict({
+		"environment": "Sandbox",
+		"isValid": true,
+		"productId": "dev.hyo.martie.10bulbs",
+		"state": "ready-to-consume",
+		"store": "amazon"
+	})
+	var amazon_result_round_trip = Types.RequestVerifyPurchaseWithIapkitResult.from_dict(
+		amazon_result.to_dict()
+	)
+	_assert_equal(
+		amazon_result_round_trip.environment,
+		"Sandbox",
+		"Amazon verification result should round-trip environment"
+	)
+	_assert_equal(
+		amazon_result_round_trip.store,
+		Types.IapStore.AMAZON,
+		"Amazon verification result should round-trip store"
+	)
+
 
 # ============================================
 # VoidResult Tests

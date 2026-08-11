@@ -13,6 +13,7 @@ const tempPackageSourceRoot = path.join(
   'openiap-react-native-iap-src',
 );
 const buildType = process.argv[2] === 'Release' ? 'Release' : 'Debug';
+const amazonRvsSandbox = process.env.AMAZON_RVS_SANDBOX ?? '';
 const iapkitApiKey = process.env.IAPKIT_API_KEY ?? '';
 const iapkitBaseUrl = process.env.IAPKIT_BASE_URL ?? '';
 
@@ -145,7 +146,8 @@ const copyExampleSources = () => {
 const writeExampleShims = () => {
   writeLocalJavaScriptModule(
     '@env',
-    `export const IAPKIT_API_KEY = ${JSON.stringify(iapkitApiKey)};
+    `export const AMAZON_RVS_SANDBOX = ${JSON.stringify(amazonRvsSandbox)};
+export const IAPKIT_API_KEY = ${JSON.stringify(iapkitApiKey)};
 export const IAPKIT_BASE_URL = ${JSON.stringify(iapkitBaseUrl)};
 `,
   );

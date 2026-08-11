@@ -2,7 +2,9 @@ import {Alert, Platform} from 'react-native';
 import Constants from 'expo-constants';
 import type {
   Purchase,
+  VerifyPurchaseResult,
   VerifyPurchaseWithProviderProps,
+  VerifyPurchaseWithProviderResult,
 } from '../../../src/types';
 
 export type IapkitVerificationPayload = NonNullable<
@@ -10,6 +12,7 @@ export type IapkitVerificationPayload = NonNullable<
 >;
 
 type ExpoExtraWithIapkit = {
+  amazonRvsSandbox?: string;
   iapkitApiKey?: string;
   iapkitBaseUrl?: string;
 };
@@ -28,6 +31,13 @@ function getConfiguredIapkitApiKey(): string | undefined {
 function getConfiguredIapkitBaseUrl(): string | undefined {
   const extra = Constants.expoConfig?.extra as ExpoExtraWithIapkit | undefined;
   return extra?.iapkitBaseUrl ?? process.env.EXPO_PUBLIC_IAPKIT_BASE_URL;
+}
+
+function isAmazonRvsSandboxEnabled(): boolean {
+  const extra = Constants.expoConfig?.extra as ExpoExtraWithIapkit | undefined;
+  const configuredValue =
+    extra?.amazonRvsSandbox ?? process.env.EXPO_PUBLIC_AMAZON_RVS_SANDBOX;
+  return configuredValue === 'true';
 }
 
 export function getDefaultVerificationMethod(
@@ -99,6 +109,103 @@ export function showNativeAlert(title: string, message?: string): void {
   }
 }
 
+function isIapkitStateReadyForFulfillment(
+  verified: NonNullable<VerifyPurchaseWithProviderResult['iapkit']>,
+  isConsumable: boolean,
+): boolean {
+  switch (verified.store) {
+    case 'apple':
+    case 'amazon':
+      return (
+        verified.state === (isConsumable ? 'ready-to-consume' : 'entitled')
+      );
+    case 'google':
+      return (
+        verified.state === 'entitled' ||
+        verified.state === 'pending-acknowledgment' ||
+        (isConsumable && verified.state === 'ready-to-consume')
+      );
+    default:
+      return false;
+  }
+}
+
+export function getIapkitVerificationError(
+  result: VerifyPurchaseWithProviderResult,
+  expectedProductId: string,
+  isConsumable: boolean,
+): string | null {
+  const verified = result.iapkit;
+  if (!verified) {
+    const providerErrors = result.errors
+      ?.map((error) =>
+        error.code ? `[${error.code}] ${error.message}` : error.message,
+      )
+      .filter(Boolean);
+    return providerErrors?.length
+      ? providerErrors.join('\n')
+      : 'IAPKit did not return a verification result';
+  }
+
+  if (!verified.isValid) {
+    return `IAPKit rejected the purchase (state: ${verified.state}, store: ${verified.store})`;
+  }
+
+  if (!verified.productId) {
+    return `IAPKit did not return a product ID for ${verified.store}`;
+  }
+
+  if (verified.productId !== expectedProductId) {
+    return `IAPKit verified ${verified.productId}, expected ${expectedProductId}`;
+  }
+
+  if (verified.store === 'amazon') {
+    const expectedEnvironment = isAmazonRvsSandboxEnabled()
+      ? 'Sandbox'
+      : 'Production';
+    if (verified.environment !== expectedEnvironment) {
+      return `IAPKit verified Amazon in ${
+        verified.environment ?? 'an unknown environment'
+      }, expected ${expectedEnvironment}`;
+    }
+  }
+
+  if (!isIapkitStateReadyForFulfillment(verified, isConsumable)) {
+    return `IAPKit state ${verified.state} cannot fulfill this ${
+      isConsumable ? 'consumable' : 'non-consumable'
+    } ${verified.store} purchase`;
+  }
+
+  return null;
+}
+
+export function getDirectVerificationError(
+  result: VerifyPurchaseResult,
+): string | null {
+  if ('isValid' in result && result.isValid === false) {
+    return 'Store verification returned an invalid receipt';
+  }
+  if ('success' in result && result.success === false) {
+    return 'Store verification rejected the entitlement';
+  }
+  return null;
+}
+
+export function rememberCompletedPurchaseKey(
+  completedKeys: Set<string>,
+  key: string,
+  maxSize = 100,
+): void {
+  completedKeys.delete(key);
+  completedKeys.add(key);
+
+  while (completedKeys.size > maxSize) {
+    const oldestKey = completedKeys.values().next().value;
+    if (typeof oldestKey !== 'string') break;
+    completedKeys.delete(oldestKey);
+  }
+}
+
 export function createIapkitVerificationPayload(
   purchase: Purchase,
   purchaseToken: string,
@@ -117,8 +224,9 @@ export function createIapkitVerificationPayload(
       {
         apiKey,
         amazon: {
+          expectedProductId: purchase.productId,
           receiptId: purchaseToken,
-          sandbox: __DEV__,
+          sandbox: isAmazonRvsSandboxEnabled(),
         },
       },
       baseUrl,

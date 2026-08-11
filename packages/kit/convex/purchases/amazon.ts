@@ -20,6 +20,7 @@ import {
 } from "./retry";
 import {
   AMAZON_RECONCILE_BATCH_LIMIT,
+  AMAZON_RECONCILE_INTERVAL_MS,
   AMAZON_RECONCILE_RETRY_MS,
   applyExpectedProductId,
   getProjectByApiKey,
@@ -328,7 +329,9 @@ async function requestAmazonReceipt(args: {
           );
         }
         if (response.status === 496) {
-          throw new AmazonReceiptVerificationError("invalid shared secret");
+          throw new AmazonReceiptVerificationError("invalid shared secret", {
+            status: 496,
+          });
         }
         if (!response.ok) {
           const error = new Error(
@@ -392,13 +395,14 @@ async function persistAmazonVerdict(
 async function rescheduleAmazonProbe(
   ctx: ActionCtx,
   probe: { purchaseId: Id<"purchases">; leaseUntil: number },
+  delayMs = AMAZON_RECONCILE_RETRY_MS,
 ): Promise<void> {
   await ctx.runMutation(
     internal.purchases.internal.rescheduleAmazonPurchaseReconciliation,
     {
       purchaseId: probe.purchaseId,
       claimedLeaseUntil: probe.leaseUntil,
-      retryAt: Date.now() + AMAZON_RECONCILE_RETRY_MS,
+      retryAt: Date.now() + delayMs,
     },
   );
 }
@@ -593,7 +597,10 @@ export const reconcileAmazonPurchases = internalAction({
         });
       } catch (error) {
         failures += 1;
-        await rescheduleAmazonProbe(ctx, probe);
+        // Missing credentials or a disabled sandbox cannot recover through a
+        // rapid retry. Put the row back on the normal cadence so one
+        // misconfigured project cannot monopolize the global due queue.
+        await rescheduleAmazonProbe(ctx, probe, AMAZON_RECONCILE_INTERVAL_MS);
         console.warn("[amazon-reconciler] configuration unavailable", {
           purchaseId: probe.purchaseId,
           error: error instanceof Error ? error.name : typeof error,
@@ -639,7 +646,12 @@ export const reconcileAmazonPurchases = internalAction({
         }
 
         failures += 1;
-        await rescheduleAmazonProbe(ctx, probe);
+        const retryDelayMs =
+          error instanceof AmazonReceiptVerificationError &&
+          error.errorDetails?.status === 496
+            ? AMAZON_RECONCILE_INTERVAL_MS
+            : AMAZON_RECONCILE_RETRY_MS;
+        await rescheduleAmazonProbe(ctx, probe, retryDelayMs);
         console.warn("[amazon-reconciler] RVS check failed", {
           purchaseId: probe.purchaseId,
           error: error instanceof Error ? error.name : typeof error,

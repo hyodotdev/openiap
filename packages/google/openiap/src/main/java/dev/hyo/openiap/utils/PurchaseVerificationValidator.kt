@@ -246,6 +246,7 @@ suspend fun verifyPurchaseWithIapkit(
             "receiptId" to receiptId
         ).apply {
             amazon.sandbox?.let { put("sandbox", it) }
+            amazon.expectedProductId?.let { put("expectedProductId", it) }
         }
     }
 
@@ -386,9 +387,17 @@ suspend fun verifyPurchaseWithIapkit(
                 is String -> rawProductId
                 else -> throw malformedIapkitResponse()
             }
+            val environment = when (val rawEnvironment = parsed["environment"]) {
+                null -> null
+                is String -> rawEnvironment.takeIf {
+                    it == "Sandbox" || it == "Production"
+                } ?: throw malformedIapkitResponse()
+                else -> throw malformedIapkitResponse()
+            }
 
             return RequestVerifyPurchaseWithIapkitResult(
                 clientPayload = clientPayload,
+                environment = environment,
                 isValid = isValid,
                 productId = productId,
                 state = parsedState,

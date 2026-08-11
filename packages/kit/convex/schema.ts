@@ -454,6 +454,10 @@ const schema = defineSchema({
     // migration flips it true for legacy rows after applying the
     // delta to `purchaseStats`.
     statsCounted: v.optional(v.boolean()),
+    // Sentinel for the later Horizon/Amazon store-bucket backfill. New rows
+    // already update those buckets and are born marked; the bounded migration
+    // claims each legacy row atomically with its one-bucket delta.
+    storeStatsCounted: v.optional(v.boolean()),
     updatedAt: v.optional(v.number()),
   })
     .index("by_project", ["projectId"])
@@ -490,6 +494,10 @@ const schema = defineSchema({
     total: v.number(),
     apple: v.number(),
     google: v.number(),
+    // Widen-safe store buckets. Existing rows predate these counters and
+    // readers treat an absent value as zero; every new write populates both.
+    horizon: v.optional(v.number()),
+    amazon: v.optional(v.number()),
     // Count of distinct Google `orderId`s present on this project's
     // `purchases` rows. Diverges from `google` when the table carries
     // rows without an `orderId` (e.g. pending-acknowledgement responses

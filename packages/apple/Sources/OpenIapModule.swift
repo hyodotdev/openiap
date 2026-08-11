@@ -7,6 +7,15 @@ private struct IndexedProductEntry: @unchecked Sendable {
     let entry: OpenIAP.ProductOrSubscription
 }
 
+struct IapkitAmazonVerificationPayload: Codable {
+    let store: IapStore
+    let expectedProductId: String?
+    let receiptId: String
+    let sandbox: Bool?
+    let userId: String?
+    let includeClientPayload: Bool?
+}
+
 struct EntitlementSelectionKey: Comparable {
     let purchaseDate: Date
     let transactionId: UInt64
@@ -107,6 +116,39 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         }
 
         return value.boolValue
+    }
+
+    static func iapkitEnvironment(from rawValue: Any?) throws -> String? {
+        guard let rawValue, !(rawValue is NSNull) else { return nil }
+        guard let environment = rawValue as? String,
+              environment == "Sandbox" || environment == "Production" else {
+            throw PurchaseError.make(
+                code: .purchaseVerificationFailed,
+                message: "IAPKit returned malformed response"
+            )
+        }
+
+        return environment
+    }
+
+    static func iapkitAmazonPayload(
+        from amazon: RequestVerifyPurchaseWithIapkitAmazonProps,
+        includeClientPayload: Bool?
+    ) throws -> IapkitAmazonVerificationPayload {
+        let receiptId = amazon.receiptId.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard receiptId.isEmpty == false else {
+            throw PurchaseError.make(code: .developerError, message: "Amazon receiptId is required")
+        }
+        let userId = amazon.userId?.trimmingCharacters(in: .whitespacesAndNewlines)
+
+        return IapkitAmazonVerificationPayload(
+            store: .amazon,
+            expectedProductId: amazon.expectedProductId,
+            receiptId: receiptId,
+            sandbox: amazon.sandbox,
+            userId: userId?.isEmpty == true ? nil : userId,
+            includeClientPayload: includeClientPayload
+        )
     }
 
     /// Objective-C accessor for [OpenIapModule.shared]. Exists so the .NET MAUI
@@ -829,13 +871,6 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             let jws: String
             let includeClientPayload: Bool?
         }
-        struct IapkitAmazonPayload: Codable {
-            let store: IapStore
-            let receiptId: String
-            let sandbox: Bool?
-            let userId: String?
-            let includeClientPayload: Bool?
-        }
         struct IapkitGooglePayload: Codable {
             let store: IapStore
             let purchaseToken: String
@@ -906,16 +941,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             }
 
             if let amazon = props.amazon {
-                let receiptId = amazon.receiptId.trimmingCharacters(in: .whitespacesAndNewlines)
-                guard receiptId.isEmpty == false else {
-                    throw makePurchaseError(code: .developerError, message: "Amazon receiptId is required")
-                }
-                let userId = amazon.userId?.trimmingCharacters(in: .whitespacesAndNewlines)
-                let payload = IapkitAmazonPayload(
-                    store: .amazon,
-                    receiptId: receiptId,
-                    sandbox: amazon.sandbox,
-                    userId: userId?.isEmpty == true ? nil : userId,
+                let payload = try Self.iapkitAmazonPayload(
+                    from: amazon,
                     includeClientPayload: props.includeClientPayload
                 )
                 return (.amazon, try encoder.encode(payload))
@@ -1004,6 +1031,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             } else {
                 productId = nil
             }
+            let environment = try Self.iapkitEnvironment(from: json["environment"])
             let clientPayload: IapkitProductClientPayload?
             do {
                 clientPayload = try Self.iapkitClientPayload(from: json["clientPayload"])
@@ -1014,6 +1042,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             OpenIapLog.info("IAPKit verification result: store=\(parsedStore.rawValue), isValid=\(isValid), state=\(parsedState.rawValue)")
             return RequestVerifyPurchaseWithIapkitResult(
                 clientPayload: clientPayload,
+                environment: environment,
                 isValid: isValid,
                 productId: productId,
                 state: parsedState,

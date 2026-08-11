@@ -186,7 +186,8 @@ const FIREOS_CONFIG: StoreExampleConfig = {
       explanation: (
         <>
           Use <code>verifyPurchaseWithProvider</code> with an{' '}
-          <code>iapkit.amazon</code> payload containing the Amazon receipt ID.
+          <code>iapkit.amazon</code> payload containing the receipt ID and{' '}
+          <code>expectedProductId</code>.
         </>
       ),
     },
@@ -194,8 +195,9 @@ const FIREOS_CONFIG: StoreExampleConfig = {
       part: 'Unlock decision',
       explanation: (
         <>
-          Grant access only after verification succeeds; do not trust a
-          client-only premium flag or a button tap.
+          Grant access only after the verified product ID and RVS environment
+          match the request; do not trust a client-only premium flag or a button
+          tap.
         </>
       ),
     },
@@ -260,7 +262,9 @@ const FIREOS_CONFIG: StoreExampleConfig = {
       expected: (
         <>
           Use the IAPKit Amazon payload with <code>sandbox: true</code> for
-          tester receipts so RVS validation uses the correct environment.
+          tester receipts so RVS validation uses the correct environment. First
+          enable <strong>Allow Amazon App Tester / RVS Cloud Sandbox</strong> in
+          the IAPKit project settings.
         </>
       ),
     },
@@ -275,9 +279,9 @@ const FIREOS_CONFIG: StoreExampleConfig = {
   ),
   frameworkNote: (
     <>
-      For Amazon, pass the IAPKit Amazon payload with the receipt ID. Expo and
-      React Native reuse the Android purchase request shape while the Fire OS
-      build selects the Amazon native module underneath.
+      For Amazon, pass the receipt ID and expected product ID in the IAPKit
+      Amazon payload. Expo and React Native reuse the Android purchase request
+      shape while the Fire OS build selects the Amazon native module underneath.
     </>
   ),
   frameworkVerificationApi: {
@@ -310,6 +314,7 @@ async function onPurchaseUpdated(purchase: Purchase) {
     provider: 'iapkit',
     iapkit: {
       amazon: {
+        expectedProductId: purchase.productId,
         receiptId: purchase.purchaseToken ?? purchase.id,
         sandbox: true,
       },
@@ -319,6 +324,7 @@ async function onPurchaseUpdated(purchase: Purchase) {
   const verified = result.iapkit;
   if (
     verified?.isValid === true &&
+    verified.environment === 'Sandbox' &&
     verified.productId != null &&
     verified.productId === purchase.productId
   ) {

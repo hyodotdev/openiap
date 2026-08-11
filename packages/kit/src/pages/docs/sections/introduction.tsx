@@ -17,8 +17,9 @@ export default function IntroductionPage() {
         without building their own receipt server. You send a store-specific
         receipt to <code>/v1/purchase/verify</code>, IAPKit calls the upstream
         store with credentials it already holds for your project, and returns a
-        normalized <code>{`{ store, isValid, state, productId? }`}</code> result
-        your app can use.
+        normalized{" "}
+        <code>{`{ store, isValid, state, productId?, environment? }`}</code>{" "}
+        result your app can use.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">When to reach for IAPKit</h2>

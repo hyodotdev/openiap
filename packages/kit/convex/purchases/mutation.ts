@@ -2,7 +2,12 @@ import { internalMutation } from "../_generated/server";
 import { v } from "convex/values";
 import { createError, ErrorCode } from "../utils/errors";
 import { HarmonizedPurchaseState } from "./purchaseState";
-import { applyPurchaseStatsDelta, deltaForUpdate } from "./stats";
+import {
+  applyPurchaseStatsDelta,
+  deltaForMissingPurchaseStats,
+  deltaForUpdate,
+  mergePurchaseStatsDeltas,
+} from "./stats";
 import { getProjectById } from "../projects/helpers";
 
 // Mark purchase as inauthentic.
@@ -42,6 +47,8 @@ export const markReceiptInvalid = internalMutation({
     await ctx.db.patch(args.purchaseId, {
       state: HarmonizedPurchaseState.INAUTHENTIC,
       isValid: false,
+      statsCounted: true,
+      storeStatsCounted: true,
       updatedAt: Date.now(),
     });
 
@@ -51,13 +58,22 @@ export const markReceiptInvalid = internalMutation({
     await applyPurchaseStatsDelta(
       ctx,
       purchase.projectId,
-      deltaForUpdate(
-        purchase.store,
-        prevIsValid,
-        purchase.store,
-        false,
-        hasOrderId,
-        hasOrderId,
+      mergePurchaseStatsDeltas(
+        deltaForMissingPurchaseStats(
+          purchase.store,
+          prevIsValid,
+          hasOrderId,
+          purchase.statsCounted === true,
+          purchase.storeStatsCounted === true,
+        ),
+        deltaForUpdate(
+          purchase.store,
+          prevIsValid,
+          purchase.store,
+          false,
+          hasOrderId,
+          hasOrderId,
+        ),
       ),
     );
 

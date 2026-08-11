@@ -1791,6 +1791,11 @@ export interface RequestSubscriptionPropsByPlatforms {
 }
 
 export interface RequestVerifyPurchaseWithIapkitAmazonProps {
+  /**
+   * Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
+   * Optional Amazon product id that must match the product id verified by RVS.
+   */
+  expectedProductId?: (string | null);
   /** Amazon Appstore receipt id returned by PurchaseResponse.getReceipt().getReceiptId(). */
   receiptId: string;
   /** Use Amazon RVS Cloud Sandbox for App Tester receipts. */
@@ -1848,6 +1853,12 @@ export interface RequestVerifyPurchaseWithIapkitResult {
    * Apple or Google receipt is valid, and a payload exists for that product.
    */
   clientPayload?: (IapkitProductClientPayload | null);
+  /**
+   * Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
+   * Amazon RVS environment selected by IAPKit. Present as `Sandbox` or
+   * `Production` on handled Amazon verification results.
+   */
+  environment?: (string | null);
   /**
    * True when the purchase is valid and actionable.
    * Only entitled, pending-acknowledgment, or ready-to-consume return true.

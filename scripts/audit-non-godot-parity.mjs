@@ -44,6 +44,11 @@ execFileSync(
 );
 execFileSync(
   process.execPath,
+  ["--test", path.resolve(root, "scripts/e2e-web-sites.test.mjs")],
+  { stdio: "inherit" },
+);
+execFileSync(
+  process.execPath,
   [
     "--test",
     path.resolve(root, "scripts/audit-purchase-payload-parity.test.mjs"),
@@ -2322,6 +2327,113 @@ function checkKmp() {
     "libraries/kmp-iap/example/gradle.properties",
     ["kotlin.apple.xcodeCompatibility.nowarn=true"],
     "KMP example Xcode compatibility warning suppression",
+  );
+}
+
+function checkIapkitAmazonContractWiring() {
+  expectIncludes(
+    "packages/apple/Sources/OpenIapModule.swift",
+    [
+      "expectedProductId: amazon.expectedProductId",
+      "let environment = try Self.iapkitEnvironment",
+      "environment: environment",
+    ],
+    "Apple IAPKit Amazon verification contract",
+  );
+  expectIncludes(
+    "packages/google/openiap/src/main/java/dev/hyo/openiap/utils/PurchaseVerificationValidator.kt",
+    [
+      'amazon.expectedProductId?.let { put("expectedProductId", it) }',
+      'it == "Sandbox" || it == "Production"',
+      "environment = environment",
+    ],
+    "Google IAPKit Amazon verification contract",
+  );
+  expectIncludes(
+    "packages/google/openiap/src/amazon/java/dev/hyo/openiap/OpenIapModule.kt",
+    [
+      "expectedProductId = amazon.expectedProductId",
+      "includeClientPayload = options.includeClientPayload",
+      "withResolvedAmazonUserId(options, userId)",
+    ],
+    "Amazon user-data resolution must preserve IAPKit verification options",
+  );
+  expectNotIncludes(
+    "packages/google/openiap/src/amazon/java/dev/hyo/openiap/OpenIapModule.kt",
+    ["options.copy(amazon = amazon.copy"],
+    "Amazon IAPKit options must not use data-class copy for compatibility fields",
+  );
+  expectIncludes(
+    "libraries/react-native-iap/src/specs/RnIap.nitro.ts",
+    ["expectedProductId?: string | null", "environment?: string | null"],
+    "React Native Nitro IAPKit Amazon contract",
+  );
+  for (const [file, needles, label] of [
+    [
+      "libraries/react-native-iap/ios/HybridRnIap.swift",
+      ['amazonDict["expectedProductId"]', "environment: RnIapHelper.wrapString"],
+      "React Native iOS IAPKit bridge",
+    ],
+    [
+      "libraries/react-native-iap/android/src/main/java/com/margelo/nitro/iap/HybridRnIap.kt",
+      ['amazonMap["expectedProductId"]', "environment = item.environment"],
+      "React Native Android IAPKit bridge",
+    ],
+    [
+      "libraries/react-native-iap/src/vega-adapter.ts",
+      ["expectedProductId: amazon.expectedProductId", "environment !== 'Production'"],
+      "React Native Vega IAPKit bridge",
+    ],
+    [
+      "libraries/expo-iap/src/vega-adapter.ts",
+      ["expectedProductId: amazon.expectedProductId", "environment !== 'Production'"],
+      "Expo Vega IAPKit bridge",
+    ],
+  ]) {
+    expectIncludes(file, needles, label);
+  }
+  expectIncludes(
+    "libraries/flutter_inapp_purchase/lib/flutter_inapp_purchase.dart",
+    [
+      "'expectedProductId':",
+      "environmentValue != 'Production'",
+      "environment: environmentValue as String?",
+    ],
+    "Flutter IAPKit Amazon contract",
+  );
+  for (const file of [
+    "libraries/flutter_inapp_purchase/android/src/main/kotlin/io/github/hyochan/flutter_inapp_purchase/AndroidInappPurchasePlugin.kt",
+    "libraries/flutter_inapp_purchase/ios/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift",
+    "libraries/flutter_inapp_purchase/macos/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift",
+  ]) {
+    expectIncludes(
+      file,
+      ["expectedProductId"],
+      `${file} Amazon product binding`,
+    );
+  }
+  for (const file of [
+    "libraries/flutter_inapp_purchase/ios/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift",
+    "libraries/flutter_inapp_purchase/macos/flutter_inapp_purchase/Sources/flutter_inapp_purchase/FlutterInappPurchasePlugin.swift",
+  ]) {
+    expectNotIncludes(
+      file,
+      ["trimmedExpectedProductId"],
+      `${file} must preserve exact Amazon product ids`,
+    );
+  }
+  expectIncludes(
+    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseAndroid.kt",
+    [
+      "expectedProductId = amazon.expectedProductId",
+      "environment = androidResult.environment",
+    ],
+    "KMP Android IAPKit Amazon contract",
+  );
+  expectIncludes(
+    "libraries/kmp-iap/library/src/iosMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseIOS.kt",
+    ['"Sandbox", "Production"', "environment = environment"],
+    "KMP iOS IAPKit response contract",
   );
 }
 
@@ -4683,6 +4795,9 @@ function checkFrameworkDependencyHygiene() {
       "no-store liveness metadata",
       "public revision",
       "no Convex round-trip",
+      '{ store: "amazon", userId, receiptId, sandbox?, expectedProductId? }',
+      "sandbox requires the project's explicit",
+      '"environment": "Sandbox"',
     ],
     "Kit compact assistant contract must match authentication and safety SSOT",
   );
@@ -4696,7 +4811,7 @@ function checkFrameworkDependencyHygiene() {
     [
       "github.com/hyodotdev/openiap/tree/main/packages/kit",
       ".github/workflows/deploy-kit.yml",
-      "Apple/Amazon: consumable ready for durable fulfillment",
+      "Apple, Amazon, or catalog-known Google consumable ready for durable fulfillment",
       "deploys additive Convex functions",
       '"apiVersion": "v1"',
       '"revision": "a1b2c3d4e5f6"',
@@ -8678,6 +8793,7 @@ checkExpoRouterExample("libraries/expo-iap/example", "src/utils/constants.ts");
 checkReactNativeClassic();
 checkFlutter();
 checkKmp();
+checkIapkitAmazonContractWiring();
 checkApple();
 checkGoogle();
 checkMaui();

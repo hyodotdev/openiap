@@ -1271,8 +1271,20 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
           `IAPKit returned malformed response (HTTP ${status}).`,
         );
       }
+      const environment = json.environment;
+      if (
+        environment != null &&
+        (typeof environment !== 'string' ||
+          (environment !== 'Sandbox' && environment !== 'Production'))
+      ) {
+        throw createVegaError(
+          ErrorCode.PurchaseVerificationFailed,
+          `IAPKit returned malformed response (HTTP ${status}).`,
+        );
+      }
 
       return {
+        ...(environment == null ? {} : {environment}),
         isValid: json.isValid,
         ...(productId == null ? {} : {productId}),
         state: normalizeIapkitState(json.state),
@@ -1341,6 +1353,9 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
           store: 'amazon',
           userId,
           receiptId,
+          ...(amazon.expectedProductId == null
+            ? {}
+            : {expectedProductId: amazon.expectedProductId}),
           ...(amazon.sandbox == null ? {} : {sandbox: amazon.sandbox}),
         }),
         signal: controller.signal,

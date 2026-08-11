@@ -283,7 +283,7 @@ guidance, webhook simulation, and project inspection. Setup guides:
 | ------------------------ | :-------: | ------------------------------------------------------ |
 | `ENTITLED`               |   true    | Paid, not refunded, entitlement active                 |
 | `PENDING_ACKNOWLEDGMENT` |   true    | Google Play: awaiting acknowledgement or consumption   |
-| `READY_TO_CONSUME`       |   true    | Apple/Amazon: consumable ready for durable fulfillment |
+| `READY_TO_CONSUME`       |   true    | Apple, Amazon, or catalog-known Google consumable ready for durable fulfillment |
 | `PENDING`                |   false   | In progress or awaiting confirmation                   |
 | `CONSUMED`               |   false   | Google Play: consumable already fulfilled              |
 | `CANCELED`               |   false   | Refunded, revoked, or canceled                         |
@@ -445,7 +445,7 @@ Domains under `convex/` follow a CQRS layout — each has `query.ts`,
 - `projects/` — a single app; holds store credentials (Apple / Google /
   Horizon), owns API keys, owns verify events
 - `apiKeys/` — per-project bearer tokens, stored hashed
-- `purchases/` — receipt validation history (apple, google, horizon)
+- `purchases/` — receipt validation history (apple, google, horizon, amazon)
 - `certificates/` — uploaded `.p8` / service-account JSON blobs
 - `files/` — generic file store used by certificates
 - `migrations/` — one-off schema migrations

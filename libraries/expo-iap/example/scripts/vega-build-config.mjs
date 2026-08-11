@@ -13,6 +13,7 @@ export const loadVegaBuildEnvironment = ({
   });
 
   return {
+    amazonRvsSandbox: systemEnv.EXPO_PUBLIC_AMAZON_RVS_SANDBOX ?? '',
     iapkitApiKey: systemEnv.EXPO_PUBLIC_IAPKIT_API_KEY ?? '',
     iapkitBaseUrl: systemEnv.EXPO_PUBLIC_IAPKIT_BASE_URL ?? '',
   };

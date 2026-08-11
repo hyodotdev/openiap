@@ -109,6 +109,15 @@ describe("verifyPurchaseInputSchema", () => {
     expect(result.success).toBe(true);
   });
 
+  test("accepts a Horizon subscription-term SKU", () => {
+    const result = parse({
+      store: "horizon",
+      userId: "1234567890",
+      sku: "subs-bronze:SUBSCRIPTION__MONTHLY",
+    });
+    expect(result.success).toBe(true);
+  });
+
   test("accepts a well-formed Amazon payload", () => {
     const result = parse({
       store: "amazon",

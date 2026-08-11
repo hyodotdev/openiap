@@ -17,6 +17,10 @@ import {
   AmazonSharedSecretNotConfiguredError,
 } from "./errors";
 import { HarmonizedPurchaseState } from "./purchaseState";
+import {
+  AMAZON_RECONCILE_INTERVAL_MS,
+  AMAZON_RECONCILE_RETRY_MS,
+} from "./shared";
 
 const USER_ID = "amzn1.account.test-user";
 const RECEIPT_ID = "amzn1.receipt.test-receipt";
@@ -543,10 +547,10 @@ describe("Amazon purchase reconciler", () => {
       }),
     );
 
+    vi.useFakeTimers({ now: 20_000 });
     for (const response of [
       () => Promise.reject(new TypeError("network down")),
       () => Promise.resolve(new Response("invalid json")),
-      () => Promise.resolve(new Response("secret", { status: 496 })),
     ]) {
       const failed = reconcileContext([probe()]);
       vi.stubGlobal("fetch", vi.fn().mockImplementation(response));
@@ -557,11 +561,32 @@ describe("Amazon purchase reconciler", () => {
         expect.objectContaining({
           purchaseId: "purchases_due",
           claimedLeaseUntil: 10_000,
-          retryAt: expect.any(Number),
+          retryAt: 20_000 + AMAZON_RECONCILE_RETRY_MS,
         }),
       );
       expect(failed.runMutation.mock.calls[1]?.[1]).not.toHaveProperty("state");
     }
+  });
+
+  test("defers an invalid configured secret on the normal cadence", async () => {
+    vi.useFakeTimers({ now: 25_000 });
+    const { ctx, runMutation } = reconcileContext([probe()]);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn().mockResolvedValue(new Response("secret", { status: 496 })),
+    );
+
+    await expect(
+      testableFunction(reconcileAmazonPurchases)._handler(ctx, {}),
+    ).resolves.toEqual({ claimed: 1, checked: 1, updated: 0, failures: 1 });
+    expect(runMutation.mock.calls[1]?.[1]).toEqual(
+      expect.objectContaining({
+        purchaseId: "purchases_due",
+        claimedLeaseUntil: 10_000,
+        retryAt: 25_000 + AMAZON_RECONCILE_INTERVAL_MS,
+      }),
+    );
+    expect(runMutation.mock.calls[1]?.[1]).not.toHaveProperty("state");
   });
 
   test.each([
@@ -623,6 +648,7 @@ describe("Amazon purchase reconciler", () => {
   });
 
   test("reschedules a disabled sandbox row without contacting Amazon", async () => {
+    vi.useFakeTimers({ now: 30_000 });
     const { ctx, runMutation } = reconcileContext([
       probe({
         requestData: {
@@ -643,7 +669,10 @@ describe("Amazon purchase reconciler", () => {
     ).resolves.toEqual({ claimed: 1, checked: 0, updated: 0, failures: 1 });
     expect(fetchMock).not.toHaveBeenCalled();
     expect(runMutation.mock.calls[1]?.[1]).toEqual(
-      expect.objectContaining({ purchaseId: "purchases_due" }),
+      expect.objectContaining({
+        purchaseId: "purchases_due",
+        retryAt: 30_000 + AMAZON_RECONCILE_INTERVAL_MS,
+      }),
     );
   });
 

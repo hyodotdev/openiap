@@ -10,6 +10,8 @@ export type PurchaseStats = {
   total: number;
   apple: number;
   google: number;
+  horizon: number;
+  amazon: number;
   /**
    * Count of distinct Google `orderId`s across this project's purchase
    * rows. On post-fix data this equals the number of `google` rows that
@@ -27,6 +29,8 @@ const ZERO_STATS: PurchaseStats = {
   total: 0,
   apple: 0,
   google: 0,
+  horizon: 0,
+  amazon: 0,
   googleOrders: 0,
   valid: 0,
   invalid: 0,
@@ -49,6 +53,8 @@ export async function readPurchaseStats(
     total: row.total,
     apple: row.apple,
     google: row.google,
+    horizon: row.horizon ?? 0,
+    amazon: row.amazon ?? 0,
     googleOrders: row.googleOrders ?? 0,
     valid: row.valid,
     invalid: row.invalid,
@@ -56,6 +62,29 @@ export async function readPurchaseStats(
 }
 
 export type PurchaseStatsDelta = Partial<PurchaseStats>;
+
+const PURCHASE_STATS_KEYS: (keyof PurchaseStatsDelta)[] = [
+  "total",
+  "apple",
+  "google",
+  "horizon",
+  "amazon",
+  "googleOrders",
+  "valid",
+  "invalid",
+];
+
+/** Merge several counter transitions while dropping zero-value fields. */
+export function mergePurchaseStatsDeltas(
+  ...deltas: PurchaseStatsDelta[]
+): PurchaseStatsDelta {
+  const merged: PurchaseStatsDelta = {};
+  for (const key of PURCHASE_STATS_KEYS) {
+    const value = deltas.reduce((sum, delta) => sum + (delta[key] ?? 0), 0);
+    if (value !== 0) merged[key] = value;
+  }
+  return merged;
+}
 
 /**
  * Result of applying a stats delta. `wasFirstValidTransition` lets
@@ -89,6 +118,8 @@ export async function applyPurchaseStatsDelta(
     !delta.total &&
     !delta.apple &&
     !delta.google &&
+    !delta.horizon &&
+    !delta.amazon &&
     !delta.googleOrders &&
     !delta.valid &&
     !delta.invalid
@@ -113,6 +144,8 @@ export async function applyPurchaseStatsDelta(
       total: Math.max(delta.total ?? 0, 0),
       apple: Math.max(delta.apple ?? 0, 0),
       google: Math.max(delta.google ?? 0, 0),
+      horizon: Math.max(delta.horizon ?? 0, 0),
+      amazon: Math.max(delta.amazon ?? 0, 0),
       googleOrders: Math.max(delta.googleOrders ?? 0, 0),
       valid: nextValid,
       invalid: Math.max(delta.invalid ?? 0, 0),
@@ -134,6 +167,8 @@ export async function applyPurchaseStatsDelta(
     total: Math.max(row.total + (delta.total ?? 0), 0),
     apple: Math.max(row.apple + (delta.apple ?? 0), 0),
     google: Math.max(row.google + (delta.google ?? 0), 0),
+    horizon: Math.max((row.horizon ?? 0) + (delta.horizon ?? 0), 0),
+    amazon: Math.max((row.amazon ?? 0) + (delta.amazon ?? 0), 0),
     googleOrders: Math.max(
       (row.googleOrders ?? 0) + (delta.googleOrders ?? 0),
       0,
@@ -154,8 +189,8 @@ export async function applyPurchaseStatsDelta(
  * error body) still counts toward total / google / valid / invalid —
  * nothing about the existing call-count semantics changes — but it
  * doesn't increment `googleOrders`, because it doesn't represent a
- * logical Play Console order yet. Apple and Horizon always contribute
- * to their respective counters; they don't have an orderId concept.
+ * logical Play Console order yet. Every store also contributes to its
+ * own row-count bucket.
  */
 export function deltaForInsert(
   store: PurchaseStore,
@@ -166,10 +201,73 @@ export function deltaForInsert(
     total: 1,
     apple: store === "apple" ? 1 : 0,
     google: store === "google" ? 1 : 0,
+    horizon: store === "horizon" ? 1 : 0,
+    amazon: store === "amazon" ? 1 : 0,
     googleOrders: store === "google" && hasOrderId ? 1 : 0,
     valid: isValid ? 1 : 0,
     invalid: isValid ? 0 : 1,
   };
+}
+
+/**
+ * Contributions still missing for one persisted purchase.
+ *
+ * `statsCounted` owns the original total/Apple/Google/order/validity buckets;
+ * `storeStatsCounted` separately owns the later Horizon/Amazon buckets. Keeping
+ * the two lanes explicit lets either migration run first without double
+ * counting and lets a live update claim both atomically before transitioning.
+ */
+export function deltaForMissingPurchaseStats(
+  store: PurchaseStore,
+  isValid: boolean,
+  hasOrderId: boolean,
+  statsCounted: boolean,
+  storeStatsCounted: boolean,
+): PurchaseStatsDelta {
+  const delta: PurchaseStatsDelta = {};
+
+  if (!statsCounted) {
+    delta.total = 1;
+    if (store === "apple") delta.apple = 1;
+    if (store === "google") delta.google = 1;
+    if (store === "google" && hasOrderId) delta.googleOrders = 1;
+    if (isValid) delta.valid = 1;
+    else delta.invalid = 1;
+  }
+
+  if (!storeStatsCounted) {
+    if (store === "horizon") delta.horizon = 1;
+    if (store === "amazon") delta.amazon = 1;
+  }
+
+  return delta;
+}
+
+/** Reverse only the contributions whose per-row sentinels were committed. */
+export function deltaForCountedPurchaseRemoval(
+  store: PurchaseStore,
+  isValid: boolean,
+  hasOrderId: boolean,
+  statsCounted: boolean,
+  storeStatsCounted: boolean,
+): PurchaseStatsDelta {
+  const delta: PurchaseStatsDelta = {};
+
+  if (statsCounted) {
+    delta.total = -1;
+    if (store === "apple") delta.apple = -1;
+    if (store === "google") delta.google = -1;
+    if (store === "google" && hasOrderId) delta.googleOrders = -1;
+    if (isValid) delta.valid = -1;
+    else delta.invalid = -1;
+  }
+
+  if (storeStatsCounted) {
+    if (store === "horizon") delta.horizon = -1;
+    if (store === "amazon") delta.amazon = -1;
+  }
+
+  return delta;
 }
 
 /**
@@ -194,8 +292,12 @@ export function deltaForUpdate(
   if (prevStore !== nextStore) {
     if (prevStore === "apple") delta.apple = (delta.apple ?? 0) - 1;
     if (prevStore === "google") delta.google = (delta.google ?? 0) - 1;
+    if (prevStore === "horizon") delta.horizon = (delta.horizon ?? 0) - 1;
+    if (prevStore === "amazon") delta.amazon = (delta.amazon ?? 0) - 1;
     if (nextStore === "apple") delta.apple = (delta.apple ?? 0) + 1;
     if (nextStore === "google") delta.google = (delta.google ?? 0) + 1;
+    if (nextStore === "horizon") delta.horizon = (delta.horizon ?? 0) + 1;
+    if (nextStore === "amazon") delta.amazon = (delta.amazon ?? 0) + 1;
   }
 
   if (prevIsValid !== nextIsValid) {
@@ -260,7 +362,8 @@ export async function recomputePurchaseStatsForProject(
       if (purchase.orderId) {
         distinctGoogleOrders.add(purchase.orderId);
       }
-    }
+    } else if (purchase.store === "horizon") totals.horizon += 1;
+    else if (purchase.store === "amazon") totals.amazon += 1;
     if (purchase.isValid) totals.valid += 1;
     else totals.invalid += 1;
   }

@@ -3333,6 +3333,7 @@ class RequestPurchaseResultPurchases extends RequestPurchaseResult {
 class RequestVerifyPurchaseWithIapkitResult {
   const RequestVerifyPurchaseWithIapkitResult({
     this.clientPayload,
+    this.environment,
     required this.isValid,
     this.productId,
     required this.state,
@@ -3343,6 +3344,10 @@ class RequestVerifyPurchaseWithIapkitResult {
   /// Public product payload when includeClientPayload was requested, the
   /// Apple or Google receipt is valid, and a payload exists for that product.
   final IapkitProductClientPayload? clientPayload;
+  /// Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
+  /// Amazon RVS environment selected by IAPKit. Present as `Sandbox` or
+  /// `Production` on handled Amazon verification results.
+  final String? environment;
   /// True when the purchase is valid and actionable.
   /// Only entitled, pending-acknowledgment, or ready-to-consume return true.
   /// Callers must still match productId and use the platform plus app-owned product
@@ -3358,6 +3363,7 @@ class RequestVerifyPurchaseWithIapkitResult {
   factory RequestVerifyPurchaseWithIapkitResult.fromJson(Map<String, dynamic> json) {
     return RequestVerifyPurchaseWithIapkitResult(
       clientPayload: json['clientPayload'] != null ? IapkitProductClientPayload.fromJson(json['clientPayload'] as Map<String, dynamic>) : null,
+      environment: json['environment'] as String?,
       isValid: json['isValid'] as bool,
       productId: json['productId'] as String?,
       state: IapkitPurchaseState.fromJson(json['state'] as String),
@@ -3369,6 +3375,7 @@ class RequestVerifyPurchaseWithIapkitResult {
     return {
       '__typename': 'RequestVerifyPurchaseWithIapkitResult',
       'clientPayload': clientPayload?.toJson(),
+      'environment': environment,
       'isValid': isValid,
       'productId': productId,
       'state': state.toJson(),
@@ -4774,11 +4781,15 @@ class RequestSubscriptionPropsByPlatforms {
 
 class RequestVerifyPurchaseWithIapkitAmazonProps {
   const RequestVerifyPurchaseWithIapkitAmazonProps({
+    this.expectedProductId,
     required this.receiptId,
     this.sandbox,
     this.userId,
   });
 
+  /// Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
+  /// Optional Amazon product id that must match the product id verified by RVS.
+  final String? expectedProductId;
   /// Amazon Appstore receipt id returned by PurchaseResponse.getReceipt().getReceiptId().
   final String receiptId;
   /// Use Amazon RVS Cloud Sandbox for App Tester receipts.
@@ -4788,6 +4799,7 @@ class RequestVerifyPurchaseWithIapkitAmazonProps {
 
   factory RequestVerifyPurchaseWithIapkitAmazonProps.fromJson(Map<String, dynamic> json) {
     return RequestVerifyPurchaseWithIapkitAmazonProps(
+      expectedProductId: json['expectedProductId'] as String?,
       receiptId: json['receiptId'] as String,
       sandbox: json['sandbox'] as bool?,
       userId: json['userId'] as String?,
@@ -4796,6 +4808,7 @@ class RequestVerifyPurchaseWithIapkitAmazonProps {
 
   Map<String, dynamic> toJson() {
     return {
+      'expectedProductId': expectedProductId,
       'receiptId': receiptId,
       'sandbox': sandbox,
       'userId': userId,

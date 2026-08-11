@@ -1,0 +1,81 @@
+import { beforeEach, describe, expect, it, vi } from "vitest";
+
+const projectMocks = vi.hoisted(() => ({
+  byApiKey: vi.fn(),
+  byProjectId: vi.fn(),
+}));
+
+vi.mock("./helpers", () => ({
+  resolveProjectByApiKeyFromDb: projectMocks.byApiKey,
+  resolveProjectByIdForCurrentUserFromDb: projectMocks.byProjectId,
+}));
+
+import { getSetupStatus as registeredGetSetupStatus } from "./setupStatus";
+import { testableFunction } from "../test.setup";
+
+const getSetupStatus = testableFunction(registeredGetSetupStatus);
+
+const ctx = {
+  db: {
+    query: vi.fn(() => ({
+      withIndex: vi.fn(() => ({
+        collect: vi.fn().mockResolvedValue([]),
+      })),
+    })),
+  },
+};
+
+function project(overrides: Record<string, unknown> = {}) {
+  return {
+    _id: "projects_test",
+    organizationId: "organizations_test",
+    iosBundleId: "com.example.app",
+    iosAppAppleId: "123456789",
+    iosAppStoreIssuerId: "issuer_test",
+    iosAppStoreKeyId: "key_test",
+    androidPackageName: "com.example.app",
+    horizonEnabled: true,
+    horizonAppId: "horizon_app",
+    horizonAppSecret: "horizon_secret",
+    ...overrides,
+  };
+}
+
+describe("getSetupStatus Amazon readiness", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+  });
+
+  it("treats an explicit sandbox-only project as configured", async () => {
+    projectMocks.byProjectId.mockResolvedValue({
+      project: project({
+        amazonSandboxEnabled: true,
+        amazonSharedSecret: undefined,
+      }),
+    });
+
+    const result = await getSetupStatus._handler(ctx, {
+      projectId: "projects_test" as never,
+    });
+
+    expect(result.amazon).toEqual({ configured: true, missing: [] });
+  });
+
+  it("keeps Amazon unconfigured when neither readiness path is enabled", async () => {
+    projectMocks.byProjectId.mockResolvedValue({
+      project: project({
+        amazonSandboxEnabled: undefined,
+        amazonSharedSecret: undefined,
+      }),
+    });
+
+    const result = await getSetupStatus._handler(ctx, {
+      projectId: "projects_test" as never,
+    });
+
+    expect(result.amazon).toEqual({
+      configured: false,
+      missing: ["amazonSharedSecret"],
+    });
+  });
+});

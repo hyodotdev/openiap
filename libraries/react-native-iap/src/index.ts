@@ -2194,9 +2194,11 @@ export const verifyPurchase: MutationField<'verifyPurchase'> = async (
  *     // apple: { jws: purchase.purchaseToken },
  *     // google: { purchaseToken: purchase.purchaseToken },
  *     amazon: {
+ *       expectedProductId: purchase.productId,
  *       userId: amazonUserId,
  *       receiptId: purchase.purchaseToken,
- *       sandbox: __DEV__,
+ *       // Enable only for App Tester after the IAPKit project opt-in.
+ *       sandbox: amazonSandboxEnabled,
  *     },
  *   },
  * });
@@ -2226,6 +2228,9 @@ export const verifyPurchaseWithProvider: MutationField<
             ...(result.iapkit.clientPayload == null
               ? {}
               : {clientPayload: result.iapkit.clientPayload}),
+            ...(result.iapkit.environment == null
+              ? {}
+              : {environment: result.iapkit.environment}),
             isValid: result.iapkit.isValid,
             ...(result.iapkit.productId == null
               ? {}

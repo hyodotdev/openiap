@@ -273,9 +273,13 @@ function KitBackend() {
         </p>
         <p>
           For Fire OS and Vega OS, choose the Amazon branch and pass the Amazon
-          receipt ID. The SDK resolves the Amazon user ID from the runtime when
-          available. Set <code>sandbox: true</code> when validating Amazon App
-          Tester sandbox receipts.
+          receipt ID plus <code>expectedProductId</code>. The SDK resolves the
+          Amazon user ID from the runtime when available. Before setting{' '}
+          <code>sandbox: true</code> for an Amazon App Tester receipt, enable{' '}
+          <strong>Allow Amazon App Tester / RVS Cloud Sandbox</strong> in the
+          IAPKit project settings. Handled Amazon results identify the selected
+          environment as exactly <code>'Sandbox'</code> or{' '}
+          <code>'Production'</code>; require the value expected by the build.
         </p>
         <p>
           Grant access only when IAPKit returns a store-verified{' '}
@@ -294,6 +298,8 @@ const token = purchase.purchaseToken ?? '';
 const runtimeOS = Platform.OS as string;
 const isFireOSBuild = process.env.EXPO_PUBLIC_STORE === 'amazon';
 const isAmazonRuntime = runtimeOS === 'kepler' || isFireOSBuild;
+const amazonSandbox =
+  process.env.EXPO_PUBLIC_AMAZON_RVS_SANDBOX === 'true';
 const result = await verifyPurchaseWithProvider({
   provider: 'iapkit',
   iapkit: {
@@ -307,8 +313,10 @@ const result = await verifyPurchaseWithProvider({
       : isAmazonRuntime
         ? {
             amazon: {
+              expectedProductId: purchase.productId,
               receiptId: token,
-              sandbox: __DEV__,
+              // Requires the matching IAPKit project opt-in.
+              sandbox: amazonSandbox,
             },
           }
       : { google: { purchaseToken: token } }),
@@ -322,9 +330,13 @@ const hasAllowedState =
   (Platform.OS === 'android' &&
     !isAmazonRuntime &&
     verified?.state === 'pending-acknowledgment');
+const hasExpectedEnvironment =
+  verified?.store !== 'amazon' ||
+  verified?.environment === (amazonSandbox ? 'Sandbox' : 'Production');
 if (
   verified?.isValid === true &&
   hasAllowedState &&
+  hasExpectedEnvironment &&
   verifiedProductId != null &&
   verifiedProductId === purchase.productId
 ) {
@@ -371,7 +383,8 @@ val result = module.verifyPurchaseWithProvider(
             ),
             includeClientPayload = true,
             // Fire OS: use amazon = RequestVerifyPurchaseWithIapkitAmazonProps(...)
-            // with userId, receiptId, and sandbox for Amazon App Tester.
+            // with expectedProductId, userId, receiptId, and sandbox.
+            // Amazon App Tester sandbox needs the IAPKit project opt-in.
         ),
     ),
 )
@@ -408,7 +421,8 @@ final result = await FlutterInappPurchase.instance.verifyPurchaseWithProvider(
           )
         : null,
     includeClientPayload: true,
-    // Fire OS builds can pass amazon with userId, receiptId, and sandbox.
+    // Fire OS builds can pass amazon with expectedProductId, userId,
+    // receiptId, and sandbox. App Tester sandbox needs the project opt-in.
   ),
 );
 
@@ -448,7 +462,8 @@ var result = await mutate.VerifyPurchaseWithProviderAsync(
             Google = isIos
                 ? null
                 : new RequestVerifyPurchaseWithIapkitGoogleProps { PurchaseToken = token },
-            // Amazon Fire OS uses Amazon = new RequestVerifyPurchaseWithIapkitAmazonProps { ... }.
+            // Amazon Fire OS uses Amazon with ExpectedProductId, UserId,
+            // ReceiptId, and Sandbox. App Tester needs the project opt-in.
         },
     });
 
@@ -477,7 +492,8 @@ val result = kmpIapInstance.verifyPurchaseWithProvider(
             apple = if (isIos) RequestVerifyPurchaseWithIapkitAppleProps(jws = token) else null,
             google = if (!isIos) RequestVerifyPurchaseWithIapkitGoogleProps(purchaseToken = token) else null,
             includeClientPayload = true,
-            // Amazon Fire OS builds use amazon with userId, receiptId, and sandbox.
+            // Amazon Fire OS builds use amazon with expectedProductId, userId,
+            // receiptId, and sandbox. App Tester needs the project opt-in.
         ),
     ),
 )
@@ -507,7 +523,9 @@ var result = await GodotIapPlugin.verify_purchase_with_provider({
 			"purchaseToken": purchase.get("purchaseToken", ""),
 		},
 		# iOS: use "apple": { "jws": token }
-		# Fire OS: use "amazon": { "userId": user_id, "receiptId": receipt_id }
+		# Fire OS: use "amazon": { "expectedProductId": product_id,
+		#   "userId": user_id, "receiptId": receipt_id, "sandbox": true }
+		# App Tester sandbox requires the IAPKit project opt-in.
 	},
 })
 
@@ -529,10 +547,11 @@ if (
         <p>
           These checks cover non-consumables and subscriptions. Choose the
           finish path from the app-owned product type and platform, not the
-          state alone: Apple and Amazon consumables use{' '}
-          <code>ready-to-consume</code>, while an unconsumed Google product may
-          be <code>entitled</code> or <code>pending-acknowledgment</code>.
-          Persist consumable delivery before finishing it; see the{' '}
+          state alone: Apple, Amazon, and catalog-known Google consumables use{' '}
+          <code>ready-to-consume</code>. When the catalog type is unknown, an
+          unconsumed Google product may instead be <code>entitled</code> or{' '}
+          <code>pending-acknowledgment</code>. Persist consumable delivery
+          before finishing it; see the{' '}
           <Link to="/docs/features/validation#verify-purchase-with-provider">
             state-aware verification flow
           </Link>

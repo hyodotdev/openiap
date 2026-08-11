@@ -297,6 +297,9 @@ describe("replayGuardMiddleware cooldown wiring", () => {
 
   function runMiddleware(options: {
     store: Map<string, ReplayBucket>;
+    body?:
+      | { store: "google"; purchaseToken: string }
+      | { store: "horizon"; userId: string; sku: string };
     outcome?: {
       isValid: boolean;
       state: string;
@@ -313,9 +316,13 @@ describe("replayGuardMiddleware cooldown wiring", () => {
       now: () => options.now,
     });
     const vars: Record<string, unknown> = { apiKeyHash: "hash" };
-    const body = { store: "google" as const, purchaseToken: "tok" };
+    const body = options.body ?? {
+      store: "google" as const,
+      purchaseToken: "tok",
+    };
     let status = 200;
     let payload: unknown;
+    let reachedUpstream = false;
     const ctx = {
       var: vars,
       get: (k: string) => vars[k],
@@ -331,11 +338,13 @@ describe("replayGuardMiddleware cooldown wiring", () => {
       },
     };
     const next = async () => {
+      reachedUpstream = true;
       if (options.outcome) vars.verifyOutcome = options.outcome;
     };
     return middleware(ctx as never, next as never).then(() => ({
       status,
       payload,
+      reachedUpstream,
     }));
   }
 
@@ -366,6 +375,25 @@ describe("replayGuardMiddleware cooldown wiring", () => {
       const second = await runMiddleware({ store, now: 2_000 });
       expect(second.status).toBe(200);
     }
+  });
+
+  it("lets Horizon recheck ownership immediately after success=false", async () => {
+    const store = new Map<string, ReplayBucket>();
+    const body = {
+      store: "horizon" as const,
+      userId: "meta-user-123",
+      sku: "premium:SUBSCRIPTION__MONTHLY",
+    };
+    await runMiddleware({
+      store,
+      body,
+      outcome: { isValid: false, state: "INAUTHENTIC" },
+      now: 1_000,
+    });
+
+    const second = await runMiddleware({ store, body, now: 2_000 });
+    expect(second.status).toBe(200);
+    expect(second.reachedUpstream).toBe(true);
   });
 
   it("arms UNKNOWN when the verifier reports a revoked token", async () => {

@@ -11,7 +11,9 @@ vi.mock("../purchases/stats", () => ({
     wasFirstValidTransition: false,
   }),
   deletePurchaseStatsForProject: vi.fn().mockResolvedValue(undefined),
+  deltaForMissingPurchaseStats: vi.fn().mockReturnValue({}),
   deltaForUpdate: vi.fn().mockReturnValue({}),
+  mergePurchaseStatsDeltas: vi.fn().mockReturnValue({}),
 }));
 
 import {

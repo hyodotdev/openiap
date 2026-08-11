@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-08-11T07:10:55.303Z
+> Last updated: 2026-08-11T08:49:51.526Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -4761,9 +4761,11 @@ Meta Horizon has no inbound webhook or background lifecycle lane in IAPKit.
 rows, but those synthetic events are excluded from current revenue rollups.
 
 Amazon RVS also has no inbound webhook receiver in IAPKit. A bounded purchase
-reconciler revisits active Amazon receipt rows within Amazon's 72-hour guidance;
-it updates state only from authoritative RVS outcomes and preserves the last
-confirmed state across transient or malformed responses.
+reconciler schedules active Amazon receipt rows for revisits on a 48-hour due
+cadence, but backlog, retries, and lease recovery mean it does not guarantee
+that every row is checked within 72 hours. It updates state only from
+authoritative RVS outcomes and preserves the last confirmed state across
+transient or malformed responses.
 
 
 ---

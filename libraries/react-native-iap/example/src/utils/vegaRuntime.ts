@@ -52,9 +52,32 @@ export function showNativeAlert(title: string, message?: string): void {
   }
 }
 
+function isIapkitStateReadyForFulfillment(
+  verified: NonNullable<VerifyPurchaseWithProviderResult['iapkit']>,
+  isConsumable: boolean,
+): boolean {
+  switch (verified.store) {
+    case 'apple':
+    case 'amazon':
+      return (
+        verified.state === (isConsumable ? 'ready-to-consume' : 'entitled')
+      );
+    case 'google':
+      return (
+        verified.state === 'entitled' ||
+        verified.state === 'pending-acknowledgment' ||
+        (isConsumable && verified.state === 'ready-to-consume')
+      );
+    default:
+      return false;
+  }
+}
+
 export function getIapkitVerificationError(
   result: VerifyPurchaseWithProviderResult,
   expectedProductId: string,
+  isConsumable: boolean,
+  amazonRvsSandbox: boolean,
 ): string | null {
   const verified = result.iapkit;
   if (!verified) {
@@ -72,14 +95,27 @@ export function getIapkitVerificationError(
     return `IAPKit rejected the purchase (state: ${verified.state}, store: ${verified.store})`;
   }
 
-  const requiresProductId =
-    verified.store === 'apple' || verified.store === 'google';
-  if (requiresProductId && !verified.productId) {
+  if (!verified.productId) {
     return `IAPKit did not return a product ID for ${verified.store}`;
   }
 
-  if (verified.productId && verified.productId !== expectedProductId) {
+  if (verified.productId !== expectedProductId) {
     return `IAPKit verified ${verified.productId}, expected ${expectedProductId}`;
+  }
+
+  if (verified.store === 'amazon') {
+    const expectedEnvironment = amazonRvsSandbox ? 'Sandbox' : 'Production';
+    if (verified.environment !== expectedEnvironment) {
+      return `IAPKit verified Amazon in ${
+        verified.environment ?? 'an unknown environment'
+      }, expected ${expectedEnvironment}`;
+    }
+  }
+
+  if (!isIapkitStateReadyForFulfillment(verified, isConsumable)) {
+    return `IAPKit state ${verified.state} cannot fulfill this ${
+      isConsumable ? 'consumable' : 'non-consumable'
+    } ${verified.store} purchase`;
   }
 
   return null;
@@ -116,6 +152,7 @@ export function createIapkitVerificationPayload(
   purchase: Purchase,
   purchaseToken: string,
   apiKey: string,
+  amazonRvsSandbox: boolean,
   baseUrl?: string | null,
 ): IapkitVerificationPayload {
   const trimmedApiKey = apiKey.trim();
@@ -131,8 +168,9 @@ export function createIapkitVerificationPayload(
       {
         apiKey: trimmedApiKey,
         amazon: {
+          expectedProductId: purchase.productId,
           receiptId: purchaseToken,
-          sandbox: __DEV__,
+          sandbox: amazonRvsSandbox,
         },
       },
       baseUrl,

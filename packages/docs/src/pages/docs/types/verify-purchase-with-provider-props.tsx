@@ -271,7 +271,8 @@ function VerifyPurchaseWithProviderProps() {
         <p>
           Amazon Appstore receipt verification parameters. Fire OS and Vega OS
           both use this <code>amazon</code> payload when verifying through
-          IAPKit.
+          IAPKit. Amazon App Tester receipts also require the project-level{' '}
+          <strong>Allow Amazon App Tester / RVS Cloud Sandbox</strong> opt-in.
         </p>
         <table className="doc-table">
           <thead>
@@ -282,6 +283,19 @@ function VerifyPurchaseWithProviderProps() {
             </tr>
           </thead>
           <tbody>
+            <tr>
+              <td>
+                <code>expectedProductId</code>
+              </td>
+              <td>
+                <code>string?</code>
+              </td>
+              <td>
+                Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 /
+                openiap-google 3.3.0. Optional product ID that must exactly
+                match the product ID returned by Amazon RVS.
+              </td>
+            </tr>
             <tr>
               <td>
                 <code>userId</code>
@@ -314,7 +328,8 @@ function VerifyPurchaseWithProviderProps() {
                 <code>boolean?</code>
               </td>
               <td>
-                Use Amazon RVS Cloud Sandbox for Amazon App Tester receipts.
+                Use Amazon RVS Cloud Sandbox for Amazon App Tester receipts. The
+                IAPKit project opt-in is disabled by default.
               </td>
             </tr>
           </tbody>

@@ -77,6 +77,13 @@ export default function QuickstartPage() {
           </Link>{" "}
           — App ID + App Secret (inside the Android card).
         </li>
+        <li>
+          <Link to="/docs/api" className="text-primary underline">
+            Amazon Appstore
+          </Link>{" "}
+          — RVS shared secret for production, or explicit App Tester / Cloud
+          Sandbox opt-in (inside the Android card).
+        </li>
       </ul>
 
       <h2 className="mt-10 text-2xl font-semibold">4. Issue an API key</h2>

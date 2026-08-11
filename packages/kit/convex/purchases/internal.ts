@@ -14,14 +14,18 @@ import {
 import { recordVerificationUsageForOrganization } from "../organizations/internal";
 import {
   applyPurchaseStatsDelta,
+  deltaForCountedPurchaseRemoval,
   deltaForInsert,
+  deltaForMissingPurchaseStats,
   deltaForUpdate,
+  mergePurchaseStatsDeltas,
   type PurchaseStatsDelta,
 } from "./stats";
 import {
   AMAZON_RECONCILE_BATCH_LIMIT,
   AMAZON_RECONCILE_INTERVAL_MS,
   AMAZON_RECONCILE_LEASE_MS,
+  AMAZON_RECONCILE_RETRY_MS,
   extractOrderIdFromRemoteResponse,
   extractProductIdFromRemoteResponse,
   isValidState,
@@ -240,6 +244,9 @@ export async function savePurchaseInternal({
     // Mark as already counted so the `backfillPurchaseStatsFromPurchases`
     // migration skips rows inserted after the counter table went live.
     statsCounted: true,
+    // The hot path below updates every store bucket, so the later bounded
+    // Horizon/Amazon backfill must never replay this row.
+    storeStatsCounted: true,
     ...(productId !== null ? { productId } : {}),
     ...(orderId !== null ? { orderId } : {}),
     ...(verificationDurationMs !== undefined ? { verificationDurationMs } : {}),
@@ -297,14 +304,13 @@ function deltaForConflictingRowRemoval(
   // `markReceiptInvalid`: an empty-string `orderId` never represented
   // a real Google order and must not count toward `googleOrders`.
   const hadOrderId = typeof row.orderId === "string" && row.orderId.length > 0;
-  return {
-    total: -1,
-    apple: row.store === "apple" ? -1 : 0,
-    google: row.store === "google" ? -1 : 0,
-    googleOrders: row.store === "google" && hadOrderId ? -1 : 0,
-    valid: isValid ? -1 : 0,
-    invalid: isValid ? 0 : -1,
-  };
+  return deltaForCountedPurchaseRemoval(
+    row.store,
+    isValid,
+    hadOrderId,
+    row.statsCounted === true,
+    row.storeStatsCounted === true,
+  );
 }
 
 /**
@@ -327,29 +333,6 @@ async function collapseConflictingOrderIdRow(
   return deltaForConflictingRowRemoval(row);
 }
 
-function mergeStatsDeltas(
-  a: PurchaseStatsDelta,
-  b: PurchaseStatsDelta,
-): PurchaseStatsDelta {
-  const keys: (keyof PurchaseStatsDelta)[] = [
-    "total",
-    "apple",
-    "google",
-    "googleOrders",
-    "valid",
-    "invalid",
-  ];
-  const out: PurchaseStatsDelta = {};
-  for (const k of keys) {
-    const av = a[k] ?? 0;
-    const bv = b[k] ?? 0;
-    if (av + bv !== 0) {
-      out[k] = av + bv;
-    }
-  }
-  return out;
-}
-
 async function patchExistingPurchase(
   ctx: MutationCtx,
   projectId: Id<"projects">,
@@ -358,6 +341,8 @@ async function patchExistingPurchase(
     store: PurchaseStore;
     isValid?: boolean;
     orderId?: string;
+    statsCounted?: boolean;
+    storeStatsCounted?: boolean;
   },
   args: PurchasePatchArgs,
   extraDelta: PurchaseStatsDelta = {},
@@ -379,6 +364,17 @@ async function patchExistingPurchase(
   // `deltaForUpdate` doesn't decrement `googleOrders` for a row whose
   // orderId hasn't actually gone away.
   const nextHasOrderId = prevHasOrderId || args.orderId !== null;
+  // A legacy row may be reverified while the store-bucket migration is in
+  // flight. Claim its original contribution in this same transaction before
+  // applying a possible store transition. Convex retries either this mutation
+  // or the migration on conflict, and the sentinel prevents a second claim.
+  const legacyStatsDelta = deltaForMissingPurchaseStats(
+    prevStore,
+    prevIsValid,
+    prevHasOrderId,
+    existing.statsCounted === true,
+    existing.storeStatsCounted === true,
+  );
   await ctx.db.patch(existing._id, {
     store: args.store,
     applicationId: args.applicationId,
@@ -387,6 +383,8 @@ async function patchExistingPurchase(
     remoteResponse: args.remoteResponse,
     state: args.state,
     isValid: args.isValid,
+    statsCounted: true,
+    storeStatsCounted: true,
     updatedAt: args.updatedAt,
     ...(args.environment !== undefined
       ? { environment: args.environment }
@@ -416,7 +414,7 @@ async function patchExistingPurchase(
   return await applyPurchaseStatsDelta(
     ctx,
     projectId,
-    mergeStatsDeltas(patchDelta, extraDelta),
+    mergePurchaseStatsDeltas(legacyStatsDelta, patchDelta, extraDelta),
   );
 }
 
@@ -541,7 +539,9 @@ export const claimAmazonPurchasesForReconciliation = internalMutation({
       ) {
         // Keep a malformed legacy row from monopolizing the front of the due
         // index while project deletion or an operator repair catches up.
-        await ctx.db.patch(purchase._id, { nextAmazonReconcileAt: leaseUntil });
+        await ctx.db.patch(purchase._id, {
+          nextAmazonReconcileAt: now + AMAZON_RECONCILE_RETRY_MS,
+        });
         continue;
       }
 

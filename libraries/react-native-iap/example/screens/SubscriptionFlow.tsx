@@ -50,7 +50,7 @@ import {
 } from '../src/utils/vegaRuntime';
 import PurchaseSummaryRow from '../src/components/PurchaseSummaryRow';
 import VerificationMethodSelectorModal from '../src/components/VerificationMethodSelectorModal';
-import {IAPKIT_API_KEY, IAPKIT_BASE_URL} from '@env';
+import {AMAZON_RVS_SANDBOX, IAPKIT_API_KEY, IAPKIT_BASE_URL} from '@env';
 
 type InFlightSubscriptionTask = {
   result: Promise<'abandoned' | 'failed' | 'finished'>;
@@ -1755,7 +1755,7 @@ function SubscriptionFlowContainer() {
     setIsProcessing(false);
 
     setPurchaseResult(
-      `Subscription received; finishing transaction...\n` +
+      `Subscription received; verifying purchase...\n` +
         `Product: ${purchase.productId}\n` +
         `Transaction ID: ${purchase.id}\n` +
         `Date: ${formatPurchaseDate(purchase.transactionDate)}`,
@@ -1834,6 +1834,7 @@ function SubscriptionFlowContainer() {
             purchase,
             jwsOrToken,
             apiKey,
+            AMAZON_RVS_SANDBOX === 'true',
             baseUrl,
           );
           const verifyRequest: VerifyPurchaseWithProviderProps = {
@@ -1851,6 +1852,8 @@ function SubscriptionFlowContainer() {
           const verificationError = getIapkitVerificationError(
             result,
             productId,
+            false,
+            AMAZON_RVS_SANDBOX === 'true',
           );
           if (verificationError) {
             throw new Error(verificationError);

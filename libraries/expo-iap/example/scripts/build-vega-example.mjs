@@ -15,10 +15,11 @@ const packageRoot = path.resolve(exampleRoot, '..');
 const tempRoot = path.join(os.tmpdir(), 'openiap-expo-iap-vega-example');
 const tempPackageSourceRoot = path.join(tempRoot, 'openiap-expo-iap-src');
 const buildType = process.argv[2] === 'Release' ? 'Release' : 'Debug';
-const {iapkitApiKey, iapkitBaseUrl} = loadVegaBuildEnvironment({
-  buildType,
-  projectRoot: exampleRoot,
-});
+const {amazonRvsSandbox, iapkitApiKey, iapkitBaseUrl} =
+  loadVegaBuildEnvironment({
+    buildType,
+    projectRoot: exampleRoot,
+  });
 const vegaPackageId = 'dev.hyo.openiap.expo.example';
 const vegaComponentId = `${vegaPackageId}.main`;
 const vegaAppName = 'ExpoIapVegaExample';
@@ -195,6 +196,7 @@ export const getStringAsync = async () => value;
     `export default {
   expoConfig: {
     extra: {
+      amazonRvsSandbox: ${JSON.stringify(amazonRvsSandbox)},
       iapkitApiKey: ${JSON.stringify(iapkitApiKey)},
       iapkitBaseUrl: ${JSON.stringify(iapkitBaseUrl)},
     },

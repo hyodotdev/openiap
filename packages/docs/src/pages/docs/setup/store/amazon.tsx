@@ -141,8 +141,9 @@ function AmazonStoreSetup() {
             <tr>
               <td>Verification payload</td>
               <td>
-                <code>iapkit.amazon.receiptId</code>, optional{' '}
-                <code>userId</code>, and <code>sandbox</code> for App Tester.
+                <code>iapkit.amazon.receiptId</code>; optional{' '}
+                <code>userId</code> and <code>expectedProductId</code>; plus{' '}
+                <code>sandbox</code> for App Tester.
               </td>
               <td>
                 Same <code>iapkit.amazon</code> payload. The Vega adapter can
@@ -438,7 +439,10 @@ id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreServ
           Fire OS and Vega OS both use the{' '}
           <Link to="/docs/kit-backend">IAPKit</Link> Amazon payload. Pass the
           Amazon user id when available, the Amazon receipt id, and{' '}
-          <code>sandbox: true</code> for Amazon App Tester validation.
+          <code>expectedProductId</code> for server-side product binding. For
+          Amazon App Tester, first enable{' '}
+          <strong>Allow Amazon App Tester / RVS Cloud Sandbox</strong> in the
+          IAPKit project settings, then pass <code>sandbox: true</code>.
         </p>
         <p>
           The example below uses the TypeScript SDKs (<code>expo-iap</code>,{' '}
@@ -446,18 +450,29 @@ id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreServ
           <code>iapkit.amazon</code> payload through their own{' '}
           <code>verifyPurchaseWithProvider</code> call.
         </p>
-        <CodeBlock language="typescript">{`await verifyPurchaseWithProvider({
+        <CodeBlock language="typescript">{`const expectedProductId = 'dev.your.app.product';
+const result = await verifyPurchaseWithProvider({
   provider: 'iapkit',
   iapkit: {
     // Use an openiap-kit_pk_ publishable key in the app.
     apiKey: process.env.EXPO_PUBLIC_IAPKIT_PUBLISHABLE_KEY,
     amazon: {
+      expectedProductId,
       userId: amazonUserId,
       receiptId,
       sandbox: true,
     },
   },
-});`}</CodeBlock>
+});
+
+const verified = result.iapkit;
+if (
+  verified?.isValid !== true ||
+  verified.environment !== 'Sandbox' ||
+  verified.productId !== expectedProductId
+) {
+  throw new Error('Amazon Sandbox verification failed');
+}`}</CodeBlock>
         <p>
           See <Link to="/docs/features/validation">Validation</Link> for the
           cross-store verification model.

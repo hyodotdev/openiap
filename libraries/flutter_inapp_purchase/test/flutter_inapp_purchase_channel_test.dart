@@ -2817,6 +2817,7 @@ void main() {
                 'isValid': true,
                 'state': 'entitled',
                 'store': 'amazon',
+                'environment': 'Sandbox',
               },
             });
         }
@@ -2834,6 +2835,7 @@ void main() {
         iapkit: const types.RequestVerifyPurchaseWithIapkitProps(
           apiKey: 'test-api-key',
           amazon: types.RequestVerifyPurchaseWithIapkitAmazonProps(
+            expectedProductId: 'dev.hyo.martie.10bulbs',
             receiptId: 'amzn1.receipt.test',
             sandbox: true,
             userId: 'amzn1.account.test',
@@ -2857,11 +2859,16 @@ void main() {
         iapkitPayload['amazon'] as Map<dynamic, dynamic>,
       );
       expect(amazonPayload['receiptId'], 'amzn1.receipt.test');
+      expect(
+        amazonPayload['expectedProductId'],
+        'dev.hyo.martie.10bulbs',
+      );
       expect(amazonPayload['sandbox'], true);
       expect(amazonPayload['userId'], 'amzn1.account.test');
 
       expect(result.iapkit, isNotNull);
       expect(result.iapkit!.isValid, true);
+      expect(result.iapkit!.environment, 'Sandbox');
       expect(result.iapkit!.state, types.IapkitPurchaseState.Entitled);
       expect(result.iapkit!.store, types.IapStore.Amazon);
     });
@@ -3117,6 +3124,44 @@ void main() {
             includeClientPayload: true,
             apple: types.RequestVerifyPurchaseWithIapkitAppleProps(
               jws: 'test-jws-token',
+            ),
+          ),
+        ),
+        throwsA(isA<PurchaseError>()),
+      );
+    });
+
+    test('rejects malformed IAPKit environment', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        switch (call.method) {
+          case 'initConnection':
+            return true;
+          case 'verifyPurchaseWithProvider':
+            return {
+              'provider': 'iapkit',
+              'iapkit': {
+                'environment': true,
+                'isValid': true,
+                'state': 'entitled',
+                'store': 'amazon',
+              },
+            };
+        }
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'android'),
+      );
+      await iap.initConnection();
+
+      await expectLater(
+        iap.verifyPurchaseWithProvider(
+          provider: types.PurchaseVerificationProvider.Iapkit,
+          iapkit: const types.RequestVerifyPurchaseWithIapkitProps(
+            amazon: types.RequestVerifyPurchaseWithIapkitAmazonProps(
+              receiptId: 'amzn1.receipt.test',
             ),
           ),
         ),

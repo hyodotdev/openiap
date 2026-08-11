@@ -1,5 +1,7 @@
 #!/usr/bin/env node
 import { chromium, request as playwrightRequest } from "@playwright/test";
+import path from "node:path";
+import { fileURLToPath } from "node:url";
 
 const DEFAULT_TIMEOUT_MS = Number(process.env.WEB_E2E_TIMEOUT_MS ?? 30_000);
 const STRICT = process.env.WEB_E2E_STRICT === "1";
@@ -56,12 +58,19 @@ const SITES = [
   },
 ];
 
-const CONSOLE_IGNORE = [
+const CONSOLE_MESSAGE_IGNORE = [
   /favicon/i,
   /ResizeObserver loop/i,
   /Failed to load resource.*analytics/i,
   /Failed to load resource.*sentry/i,
   /Failed to load resource.*mixpanel/i,
+];
+
+const RESOURCE_URL_IGNORE = [
+  /(?:^|\.)sentry\.io$/i,
+  /(?:^|\.)mixpanel\.com$/i,
+  /(?:^|\.)google-analytics\.com$/i,
+  /(?:^|\.)googletagmanager\.com$/i,
 ];
 
 const PERFORMANCE_BUDGETS = {
@@ -120,7 +129,18 @@ function compact(value) {
 }
 
 function isIgnoredConsole(text) {
-  return CONSOLE_IGNORE.some((pattern) => pattern.test(text));
+  return CONSOLE_MESSAGE_IGNORE.some((pattern) => pattern.test(text));
+}
+
+export function isIgnoredResourceUrl(value) {
+  try {
+    const url = new URL(value);
+    const basename = url.pathname.split("/").at(-1) ?? "";
+    if (/^favicon(?:[-.].*)?$/i.test(basename)) return true;
+    return RESOURCE_URL_IGNORE.some((pattern) => pattern.test(url.hostname));
+  } catch {
+    return false;
+  }
 }
 
 function isHttpResourceConsoleError(text) {
@@ -193,7 +213,7 @@ async function collectPageErrors(page) {
     const request = response.request();
     const resourceType = request.resourceType();
     const url = response.url();
-    if (!isIgnoredConsole(url)) {
+    if (!isIgnoredResourceUrl(url)) {
       errors.push(`response ${response.status()} ${resourceType}: ${url}`);
     }
   });
@@ -202,7 +222,7 @@ async function collectPageErrors(page) {
     const url = request.url();
     const resourceType = request.resourceType();
     const failure = request.failure();
-    if (!isIgnoredConsole(url)) {
+    if (!isIgnoredResourceUrl(url)) {
       errors.push(
         `requestfailed ${resourceType}: ${url} (${failure?.errorText ?? "unknown"})`,
       );
@@ -716,8 +736,14 @@ async function main() {
   console.log("web-e2e: docs and IAPKit passed");
 }
 
-main().catch((error) => {
-  console.error("web-e2e: unexpected failure");
-  console.error(error);
-  process.exitCode = 1;
-});
+const isMain =
+  process.argv[1] &&
+  fileURLToPath(import.meta.url) === path.resolve(process.argv[1]);
+
+if (isMain) {
+  main().catch((error) => {
+    console.error("web-e2e: unexpected failure");
+    console.error(error);
+    process.exitCode = 1;
+  });
+}

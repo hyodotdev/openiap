@@ -262,6 +262,62 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
     await savePurchaseInternal({ ctx, ...buildArgs({ remoteId: TOKEN }) });
 
     expect(db.purchaseCount()).toBe(1);
+    const rows = await db.query("purchases").collect();
+    expect(rows[0]).toMatchObject({
+      statsCounted: true,
+      storeStatsCounted: true,
+    });
+  });
+
+  it("bootstraps both sentinels before transitioning an uncounted legacy row", async () => {
+    await db.insert("purchases", {
+      projectId: PROJECT_ID,
+      store: "amazon",
+      applicationId: "com.test.app",
+      remoteId: "legacy-shared-id",
+      requestData: {
+        store: "amazon",
+        userId: "amazon-user",
+        receiptId: "legacy-shared-id",
+      },
+      state: HarmonizedPurchaseState.ENTITLED,
+      isValid: true,
+    });
+
+    await savePurchaseInternal({
+      ctx,
+      ...buildArgs({
+        store: "horizon",
+        remoteId: "legacy-shared-id",
+        requestData: {
+          store: "horizon",
+          userId: "horizon-user",
+          sku: "premium_monthly",
+        },
+        remoteResponse: JSON.stringify({ sku: "premium_monthly" }),
+        state: HarmonizedPurchaseState.INAUTHENTIC,
+        isValid: false,
+      }),
+    });
+
+    const rows = await db.query("purchases").collect();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      store: "horizon",
+      isValid: false,
+      statsCounted: true,
+      storeStatsCounted: true,
+    });
+    await expect(readPurchaseStats(ctx, PROJECT_ID as never)).resolves.toEqual({
+      total: 1,
+      apple: 0,
+      google: 0,
+      horizon: 1,
+      amazon: 0,
+      googleOrders: 0,
+      valid: 0,
+      invalid: 1,
+    });
   });
 
   it("persists Amazon environment and schedules valid upserts on the 48-hour due cadence", async () => {
@@ -638,6 +694,22 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
       productLineItem: [{ productId: "premium_monthly" }],
     });
 
+    // Keep an unrelated counted row in the same project. This pins the
+    // conflict delta to exactly one removed sibling; counter clamping cannot
+    // hide an accidental double subtraction.
+    await savePurchaseInternal({
+      ctx,
+      ...buildArgs({
+        remoteId: "token_baseline",
+        remoteResponse: JSON.stringify({
+          kind: "androidpublisher#productPurchase",
+          orderId: "GPA.unrelated-baseline-order",
+          acknowledgementState: "ACKNOWLEDGMENT_STATE_ACKNOWLEDGED",
+          productLineItem: [{ productId: "premium_monthly" }],
+        }),
+      }),
+    });
+
     // Step 1: pre-ack row on token_initial (no orderId)
     await savePurchaseInternal({
       ctx,
@@ -651,7 +723,7 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
       ctx,
       ...buildArgs({ remoteId: "token_reissue", remoteResponse: ackResponse }),
     });
-    expect(db.purchaseCount()).toBe(2);
+    expect(db.purchaseCount()).toBe(3);
 
     // Step 3: delayed replay with token_initial returns orderId=O1
     await savePurchaseInternal({
@@ -660,17 +732,19 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
     });
 
     // The pre-existing ack row under token_reissue was collapsed into
-    // the primary-dedup survivor (token_initial) — one row, one
-    // orderId, googleOrders stays at 1 instead of drifting to 2.
-    expect(db.purchaseCount()).toBe(1);
+    // the primary-dedup survivor (token_initial). Together with the unrelated
+    // baseline there are two rows and two orderIds; only one duplicate row's
+    // contribution may be reversed.
+    expect(db.purchaseCount()).toBe(2);
     const rows = await db.query("purchases").collect();
-    expect(rows[0]?.remoteId).toBe("token_initial");
-    expect(rows[0]?.orderId).toBe("GPA.only-one-logical-order");
+    const survivor = rows.find((row) => row.remoteId === "token_initial");
+    expect(survivor?.orderId).toBe("GPA.only-one-logical-order");
 
     const stats = await readPurchaseStats(ctx, PROJECT_ID as never);
-    expect(stats.google).toBe(1);
-    expect(stats.googleOrders).toBe(1);
-    expect(stats.total).toBe(1);
+    expect(stats.google).toBe(2);
+    expect(stats.googleOrders).toBe(2);
+    expect(stats.total).toBe(2);
+    expect(stats.valid).toBe(2);
   });
 
   it("orderId dedup scopes by applicationId — same orderId under different apps do not collide", async () => {

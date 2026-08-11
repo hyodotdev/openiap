@@ -1524,6 +1524,9 @@ class HybridRnIap : HybridRnIapSpec() {
                         val amazonMap = mutableMapOf<String, Any?>(
                             "receiptId" to amazon.receiptId
                         )
+                        amazon.expectedProductId.unwrapString()?.let {
+                            amazonMap["expectedProductId"] = it
+                        }
                         amazon.userId.unwrapString()?.let { amazonMap["userId"] = it }
                         amazon.sandbox.unwrapBool()?.let { amazonMap["sandbox"] = it }
                         iapkitMap["amazon"] = amazonMap
@@ -1558,6 +1561,7 @@ class HybridRnIap : HybridRnIapSpec() {
                         clientPayload = clientPayload?.let {
                             Variant_NullType_NitroIapkitProductClientPayload.Second(it)
                         },
+                        environment = item.environment?.let { Variant_NullType_String.Second(it) },
                         isValid = item.isValid,
                         productId = item.productId?.let { Variant_NullType_String.Second(it) },
                         // Use rawValue ("pending-acknowledgment"), not the Kotlin

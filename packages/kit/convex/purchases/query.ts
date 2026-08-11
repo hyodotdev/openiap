@@ -180,7 +180,8 @@ export const getReceiptsByProject = query({
     // Read the maintained per-project counters instead of iterating every
     // receipt. Counters are kept in sync by `savePurchaseInternal`,
     // `markReceiptInvalid`, and `deleteProjectWithData`; existing rows are
-    // seeded by the `backfillPurchaseStats` migration.
+    // seeded by the row-bounded `backfillPurchaseStatsFromPurchases`
+    // migration.
     const stats = await readPurchaseStats(ctx, args.projectId);
 
     return {

@@ -1128,7 +1128,7 @@ function DryRunButton({
 // background subscription tracking.
 function HorizonCatalogNotice() {
   return (
-    <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 flex items-start gap-3 text-xs text-blue-200">
+    <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 flex items-start gap-3 text-xs text-blue-700 dark:text-blue-200">
       <Info className="w-4 h-4 mt-0.5 shrink-0" />
       <div className="flex-1 space-y-1">
         <div className="font-medium">Horizon catalog sync is not supported</div>
@@ -1142,7 +1142,7 @@ function HorizonCatalogNotice() {
           href="https://developers.meta.com/horizon/documentation/native/ps-iap-s2s/"
           target="_blank"
           rel="noopener noreferrer"
-          className="inline-flex items-center gap-1 underline hover:text-blue-100"
+          className="inline-flex items-center gap-1 underline hover:text-blue-800 dark:hover:text-blue-100"
         >
           Open Meta Horizon documentation
           <ExternalLink className="w-3 h-3" />

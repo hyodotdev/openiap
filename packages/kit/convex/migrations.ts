@@ -8,7 +8,7 @@ import {
 } from "./purchases/shared.js";
 import {
   applyPurchaseStatsDelta,
-  deltaForInsert,
+  deltaForMissingPurchaseStats,
   recomputePurchaseStatsForProject,
 } from "./purchases/stats.js";
 
@@ -97,10 +97,13 @@ export const removePurchaseIdFromRequestData = migrations.define({
  * Iterates the `purchases` table. Each `migrateOne` call runs as its own
  * mutation — bounded to one purchase + one stats-row upsert — so
  * per-project receipt volume never blows the per-transaction read/write
- * budget. `statsCounted` on the purchase doc acts as a per-row sentinel
- * so the migration is safe to resume after partial runs; new purchases
- * from `savePurchaseInternal` are created with `statsCounted: true` so
- * they're skipped here.
+ * budget. The base `statsCounted` and later `storeStatsCounted` sentinels
+ * make the migration safe to resume after partial runs and coordinate it
+ * with `backfillPurchaseStatsStoreBuckets` in either order. New purchases
+ * from `savePurchaseInternal` are created with both sentinels set.
+ * Complete this base backfill before running
+ * `collapseDuplicatePurchasesByOrderId`; the cleanup fails fast when a
+ * duplicate sibling has not claimed its base contribution.
  *
  * Run ONCE per dataset. Concurrent writes during the migration window
  * are safe because: (a) new inserts are already marked counted, and
@@ -111,10 +114,9 @@ export const removePurchaseIdFromRequestData = migrations.define({
  */
 export const backfillPurchaseStatsFromPurchases = migrations.define({
   table: "purchases",
+  batchSize: 1,
   migrateOne: async (ctx, doc) => {
-    if (doc.statsCounted === true) {
-      return doc;
-    }
+    if (doc.statsCounted === true && doc.storeStatsCounted === true) return;
 
     // Prefer the stored `orderId` column, but fall back to extracting
     // from `remoteResponse` so the stats backfill can run before OR
@@ -134,10 +136,16 @@ export const backfillPurchaseStatsFromPurchases = migrations.define({
     await applyPurchaseStatsDelta(
       ctx,
       doc.projectId,
-      deltaForInsert(doc.store, doc.isValid ?? false, hasOrderId),
+      deltaForMissingPurchaseStats(
+        doc.store,
+        doc.isValid ?? false,
+        hasOrderId,
+        doc.statsCounted === true,
+        doc.storeStatsCounted === true,
+      ),
     );
 
-    return { ...doc, statsCounted: true };
+    return { statsCounted: true, storeStatsCounted: true };
   },
 });
 
@@ -158,14 +166,18 @@ export const backfillPurchaseStats = migrations.define({
 /**
  * Migration: Recompute every project's `purchaseStats` row from scratch.
  *
- * Run this as the FINAL step of the deploy sequence, after both
- * `backfillPurchaseOrderIds` and `collapseDuplicatePurchasesByOrderId`.
+ * Run this as the FINAL step of the deploy sequence. Complete
+ * `backfillPurchaseStatsFromPurchases` before
+ * `collapseDuplicatePurchasesByOrderId`; the independent
+ * `backfillPurchaseStatsStoreBuckets` migration may run before or after that
+ * cleanup. Finish all of them (and `backfillPurchaseOrderIds`, when needed)
+ * before this recompute.
  * The per-row `backfillPurchaseStatsFromPurchases` path can slightly
  * over-count `googleOrders` while duplicate-orderId rows still exist;
  * running this mutation last rebuilds `googleOrders` as the true
- * distinct-orderId count and re-aligns `total` / `apple` / `google` /
- * `valid` / `invalid` against whatever the `purchases` table actually
- * contains after the collapse.
+ * distinct-orderId count and re-aligns the total, per-store, valid, and
+ * invalid counters against whatever the `purchases` table actually contains
+ * after the collapse.
  *
  * Runs in a single mutation per project. For every project in the
  * current dataset this fits inside Convex's per-transaction read
@@ -177,11 +189,52 @@ export const backfillPurchaseStats = migrations.define({
  * a good template. This migration will fail fast (read-bytes limit
  * error) rather than produce a bad stats row, so the failure mode is
  * safe.
+ *
+ * Do not run this before the two row migrations above: a full recompute does
+ * not mark per-purchase sentinels, so a later row migration would replay the
+ * same contribution. Run it last whenever a non-dry duplicate cleanup
+ * deletes rows; otherwise it remains an optional final drift-correction step.
  */
 export const recomputeAllPurchaseStats = migrations.define({
   table: "projects",
   migrateOne: async (ctx, project) => {
     await recomputePurchaseStatsForProject(ctx, project._id);
+  },
+});
+
+/**
+ * Migration: Populate the Horizon and Amazon purchase-stat buckets.
+ *
+ * This intentionally has a new migration identity. Deployments that already
+ * completed `recomputeAllPurchaseStats` will not rerun that migration after
+ * its implementation changes, and their legacy `purchaseStats` rows predate
+ * the store-specific counters.
+ *
+ * Each mutation handles one purchase row. `storeStatsCounted` is written in
+ * the same transaction as the Horizon/Amazon delta, so an interrupted or reset
+ * run cannot double count a repaired row. New purchases are born marked after
+ * updating the widened stats row and are therefore skipped safely while this
+ * migration is in flight.
+ */
+export const backfillPurchaseStatsStoreBuckets = migrations.define({
+  table: "purchases",
+  batchSize: 1,
+  migrateOne: async (ctx, purchase) => {
+    if (purchase.storeStatsCounted === true) return;
+
+    await applyPurchaseStatsDelta(
+      ctx,
+      purchase.projectId,
+      deltaForMissingPurchaseStats(
+        purchase.store,
+        purchase.isValid ?? false,
+        false,
+        true,
+        false,
+      ),
+    );
+
+    return { storeStatsCounted: true };
   },
 });
 

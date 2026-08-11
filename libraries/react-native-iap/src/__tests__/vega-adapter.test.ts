@@ -1228,6 +1228,7 @@ describe('Amazon Vega adapter', () => {
     const fetchMock = jest.fn(
       async (_input: RequestInfo | URL, _init?: RequestInit) =>
         Response.json({
+          environment: 'Sandbox',
           isValid: true,
           state: 'READY_TO_CONSUME',
           store: 'amazon',
@@ -1244,6 +1245,7 @@ describe('Amazon Vega adapter', () => {
           iapkit: {
             apiKey: 'kit-key',
             amazon: {
+              expectedProductId: 'amazon.premium.monthly',
               receiptId: 'receipt-vega-1',
               sandbox: true,
             },
@@ -1252,6 +1254,7 @@ describe('Amazon Vega adapter', () => {
       ).resolves.toEqual({
         provider: 'iapkit',
         iapkit: {
+          environment: 'Sandbox',
           isValid: true,
           state: 'ready-to-consume',
           store: 'amazon',
@@ -1275,6 +1278,7 @@ describe('Amazon Vega adapter', () => {
         store: 'amazon',
         userId: 'amazon-user',
         receiptId: 'receipt-vega-1',
+        expectedProductId: 'amazon.premium.monthly',
         sandbox: true,
       });
     } finally {
@@ -1681,6 +1685,41 @@ describe('Amazon Vega adapter', () => {
       globalThis.fetch = originalFetch;
     }
   });
+
+  it.each([42, 'Staging'])(
+    'rejects an invalid IAPKit environment: %s',
+    async (environment) => {
+      const service = createService();
+      const originalFetch = globalThis.fetch;
+      const fetchMock = jest.fn(async () =>
+        Response.json({
+          environment,
+          isValid: true,
+          state: 'ENTITLED',
+          store: 'amazon',
+        }),
+      ) as unknown as jest.MockedFunction<typeof fetch>;
+      globalThis.fetch = fetchMock;
+
+      try {
+        const module = createVegaIapModule(service);
+
+        await expect(
+          module.verifyPurchaseWithProvider({
+            provider: 'iapkit',
+            iapkit: {
+              amazon: {
+                userId: 'amazon-user',
+                receiptId: 'receipt-vega-1',
+              },
+            },
+          }),
+        ).rejects.toThrow('IAPKit returned malformed response (HTTP 200).');
+      } finally {
+        globalThis.fetch = originalFetch;
+      }
+    },
+  );
 
   it('rejects successful IAPKit payloads for another store', async () => {
     const service = createService();

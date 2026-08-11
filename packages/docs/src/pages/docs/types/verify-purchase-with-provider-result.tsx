@@ -158,6 +158,20 @@ function VerifyPurchaseWithProviderResult() {
             </tr>
             <tr>
               <td>
+                <code>environment</code>
+              </td>
+              <td>
+                <code>string?</code>
+              </td>
+              <td>
+                Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 /
+                openiap-google 3.3.0. Amazon RVS environment. Handled Amazon
+                responses use exactly <code>'Sandbox'</code> or{' '}
+                <code>'Production'</code>; other stores omit it.
+              </td>
+            </tr>
+            <tr>
+              <td>
                 <code>state</code>
               </td>
               <td>
@@ -654,9 +668,10 @@ if (
           These examples cover non-consumables and subscriptions: Apple examples
           require <code>entitled</code>, while Google examples also allow{' '}
           <code>pending-acknowledgment</code>. Choose the finish path from the
-          app-owned product type and platform, not the state alone. Apple and
-          Amazon consumables use <code>ready-to-consume</code>, while an
-          unconsumed Google product may be <code>entitled</code> or{' '}
+          app-owned product type and platform, not the state alone. Apple,
+          Amazon, and catalog-known Google consumables use{' '}
+          <code>ready-to-consume</code>. When the catalog type is unknown, an
+          unconsumed Google product may instead be <code>entitled</code> or{' '}
           <code>pending-acknowledgment</code>. Persist consumable delivery
           before finishing it; see the{' '}
           <Link to="/docs/features/validation#verify-purchase-with-provider">

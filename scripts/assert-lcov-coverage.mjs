@@ -5,8 +5,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 
 function sourcePathSegments(sourcePath) {
-  return sourcePath
-    .replaceAll("\\", "/")
+  return path.posix
+    .normalize(sourcePath.replaceAll("\\", "/"))
     .split("/")
     .filter((segment) => segment !== "" && segment !== ".");
 }

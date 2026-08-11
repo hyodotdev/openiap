@@ -1230,6 +1230,10 @@ public struct RequestVerifyPurchaseWithIapkitResult: Codable {
     /// Public product payload when includeClientPayload was requested, the
     /// Apple or Google receipt is valid, and a payload exists for that product.
     public var clientPayload: IapkitProductClientPayload? = nil
+    /// Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
+    /// Amazon RVS environment selected by IAPKit. Present as `Sandbox` or
+    /// `Production` on handled Amazon verification results.
+    public var environment: String? = nil
     /// True when the purchase is valid and actionable.
     /// Only entitled, pending-acknowledgment, or ready-to-consume return true.
     /// Callers must still match productId and use the platform plus app-owned product
@@ -2027,6 +2031,9 @@ public struct RequestSubscriptionPropsByPlatforms: Codable {
 }
 
 public struct RequestVerifyPurchaseWithIapkitAmazonProps: Codable {
+    /// Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
+    /// Optional Amazon product id that must match the product id verified by RVS.
+    public var expectedProductId: String?
     /// Amazon Appstore receipt id returned by PurchaseResponse.getReceipt().getReceiptId().
     public var receiptId: String
     /// Use Amazon RVS Cloud Sandbox for App Tester receipts.
@@ -2035,10 +2042,12 @@ public struct RequestVerifyPurchaseWithIapkitAmazonProps: Codable {
     public var userId: String?
 
     public init(
+        expectedProductId: String? = nil,
         receiptId: String,
         sandbox: Bool? = nil,
         userId: String? = nil
     ) {
+        self.expectedProductId = expectedProductId
         self.receiptId = receiptId
         self.sandbox = sandbox
         self.userId = userId

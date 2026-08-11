@@ -124,6 +124,14 @@ class MemDb {
   }
 
   seedProject(id: string, organizationId: string): string {
+    this.table("organizations").set(organizationId, {
+      _id: organizationId,
+      _creationTime: Date.now(),
+      name: "Test Organization",
+      slug: "test-organization",
+      createdAt: Date.now(),
+      updatedAt: Date.now(),
+    });
     this.table("projects").set(id, {
       _id: id,
       _creationTime: Date.now(),
@@ -144,6 +152,8 @@ class MemDb {
     orderId?: string;
     creationTime: number;
     isValid?: boolean;
+    statsCounted?: boolean;
+    storeStatsCounted?: boolean;
   }): void {
     this.table("purchases").set(attrs.id, {
       _id: attrs.id,
@@ -154,6 +164,8 @@ class MemDb {
       orderId: attrs.orderId,
       isValid: attrs.isValid ?? true,
       state: "ENTITLED",
+      statsCounted: attrs.statsCounted ?? true,
+      storeStatsCounted: attrs.storeStatsCounted ?? true,
     });
   }
 
@@ -283,6 +295,62 @@ describe("collapseDuplicatePurchasesByOrderId — defensive store filter", () =>
     expect(result.duplicateGroupsProcessed).toBe(0);
     expect(result.rowsDeleted).toBe(0);
     expect(db.countPurchases()).toBe(2);
+  });
+
+  it("fails before deleting when a sibling has not completed the stats backfill", async () => {
+    db.seedPurchase({
+      id: "p_google_counted_old",
+      projectId: PROJECT,
+      store: "google",
+      applicationId: APP,
+      orderId: "GPA.order-mixed",
+      creationTime: 100,
+      isValid: true,
+      statsCounted: true,
+      storeStatsCounted: true,
+    });
+    db.seedPurchase({
+      id: "p_google_uncounted_new",
+      projectId: PROJECT,
+      store: "google",
+      applicationId: APP,
+      orderId: "GPA.order-mixed",
+      creationTime: 200,
+      isValid: false,
+      statsCounted: false,
+      storeStatsCounted: false,
+    });
+    await db.insert("purchaseStats", {
+      projectId: PROJECT,
+      total: 1,
+      apple: 0,
+      google: 1,
+      horizon: 0,
+      amazon: 0,
+      googleOrders: 1,
+      valid: 1,
+      invalid: 0,
+      updatedAt: 1,
+    });
+
+    await expect(handler(makeCtx(db), {})).rejects.toThrow(
+      "migrations:backfillPurchaseStatsFromPurchases",
+    );
+
+    expect(db.allPurchases()).toHaveLength(2);
+    expect(
+      db
+        .allPurchases()
+        .map((row) => row._id)
+        .sort(),
+    ).toEqual(["p_google_counted_old", "p_google_uncounted_new"]);
+    await expect(db.query("purchaseStats").first()).resolves.toMatchObject({
+      total: 1,
+      google: 1,
+      googleOrders: 1,
+      valid: 1,
+      invalid: 0,
+    });
   });
 
   it("dryRun reports what would be deleted without mutating the table", async () => {

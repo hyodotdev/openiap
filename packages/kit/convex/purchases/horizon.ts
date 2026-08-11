@@ -114,6 +114,15 @@ async function requestHorizonVerification(
         });
 
         if (!response.ok) {
+          // We intentionally do not read error bodies because they can contain
+          // upstream details or stall indefinitely. Dispose the stream before
+          // retrying so undici can release the connection; cancellation is
+          // best-effort and must not replace the authoritative HTTP status.
+          try {
+            await response.body?.cancel();
+          } catch {
+            // The status below still determines retryability.
+          }
           // Keep upstream response bodies out of logs and Convex errors. The
           // status is enough to classify retryability and diagnose the call.
           const error = new Error(
@@ -126,7 +135,13 @@ async function requestHorizonVerification(
         let responseBody: unknown;
         try {
           responseBody = (await response.json()) as unknown;
-        } catch {
+        } catch (error) {
+          // `Response.json()` can fail for the same transient reasons as the
+          // initial fetch (for example, the peer disconnects or the body
+          // stalls until our AbortController fires). Preserve those errors so
+          // the shared retry policy can recover; only deterministic JSON
+          // syntax failures become a protocol error.
+          if (shouldRetryHorizonError(error)) throw error;
           throw new InvalidHorizonResponseError(
             "Meta Graph API returned invalid JSON.",
           );

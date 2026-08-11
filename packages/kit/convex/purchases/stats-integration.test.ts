@@ -3,11 +3,25 @@ import { beforeEach, describe, expect, it } from "vitest";
 import {
   applyPurchaseStatsDelta,
   deletePurchaseStatsForProject,
+  deltaForMissingPurchaseStats,
   deltaForInsert,
   deltaForUpdate,
+  mergePurchaseStatsDeltas,
   readPurchaseStats,
   recomputePurchaseStatsForProject,
 } from "./stats";
+import {
+  backfillPurchaseStatsFromPurchases,
+  backfillPurchaseStatsStoreBuckets,
+} from "../migrations";
+import { testableFunction } from "../test.setup";
+
+const runStoreBucketBackfill = testableFunction(
+  backfillPurchaseStatsStoreBuckets,
+);
+const runBaseStatsBackfill = testableFunction(
+  backfillPurchaseStatsFromPurchases,
+);
 
 /**
  * Minimal in-memory stand-in for the slice of `ctx.db` the stats helpers
@@ -45,6 +59,20 @@ class MemQuery {
 
   async collect(): Promise<Row[]> {
     return [...this.rows];
+  }
+
+  async paginate(args: { cursor: string | null; numItems: number }): Promise<{
+    continueCursor: string;
+    isDone: boolean;
+    page: Row[];
+  }> {
+    const start = args.cursor === null ? 0 : Number(args.cursor);
+    const end = Math.min(start + args.numItems, this.rows.length);
+    return {
+      continueCursor: String(end),
+      isDone: end >= this.rows.length,
+      page: this.rows.slice(start, end),
+    };
   }
 
   async *[Symbol.asyncIterator](): AsyncIterator<Row> {
@@ -101,7 +129,21 @@ class MemDb {
     return null;
   }
 
-  async patch(id: string, patch: Record<string, unknown>): Promise<void> {
+  async patch(
+    tableOrId: string,
+    idOrPatch: string | Record<string, unknown>,
+    migrationPatch?: Record<string, unknown>,
+  ): Promise<void> {
+    // Convex supports both db.patch(id, value) and the table-explicit form
+    // used by @convex-dev/migrations: db.patch(table, id, value).
+    const id = migrationPatch
+      ? typeof idOrPatch === "string"
+        ? idOrPatch
+        : (() => {
+            throw new Error("patch: migration id must be a string");
+          })()
+      : tableOrId;
+    const patch = migrationPatch ?? (idOrPatch as Record<string, unknown>);
     for (const table of this.tables.values()) {
       const row = table.get(id);
       if (row) {
@@ -145,9 +187,35 @@ describe("stats helpers — round-trip integration", () => {
       total: 0,
       apple: 0,
       google: 0,
+      horizon: 0,
+      amazon: 0,
       googleOrders: 0,
       valid: 0,
       invalid: 0,
+    });
+  });
+
+  it("treats missing widened store counters on a legacy row as zero", async () => {
+    await db.insert("purchaseStats", {
+      projectId: PROJECT_ID,
+      total: 7,
+      apple: 3,
+      google: 4,
+      googleOrders: 2,
+      valid: 5,
+      invalid: 2,
+      updatedAt: 1,
+    });
+
+    await expect(readPurchaseStats(ctx, PROJECT_ID as never)).resolves.toEqual({
+      total: 7,
+      apple: 3,
+      google: 4,
+      horizon: 0,
+      amazon: 0,
+      googleOrders: 2,
+      valid: 5,
+      invalid: 2,
     });
   });
 
@@ -165,6 +233,8 @@ describe("stats helpers — round-trip integration", () => {
       total: 0,
       apple: 0,
       google: 0,
+      horizon: 0,
+      amazon: 0,
       googleOrders: 0,
       valid: 0,
       invalid: 0,
@@ -183,6 +253,8 @@ describe("stats helpers — round-trip integration", () => {
       total: 1,
       apple: 1,
       google: 0,
+      horizon: 0,
+      amazon: 0,
       googleOrders: 0,
       valid: 1,
       invalid: 0,
@@ -212,16 +284,28 @@ describe("stats helpers — round-trip integration", () => {
       PROJECT_ID as never,
       deltaForInsert("apple", false),
     );
+    await applyPurchaseStatsDelta(
+      ctx,
+      PROJECT_ID as never,
+      deltaForInsert("horizon", true),
+    );
+    await applyPurchaseStatsDelta(
+      ctx,
+      PROJECT_ID as never,
+      deltaForInsert("amazon", false),
+    );
 
     const stats = await readPurchaseStats(ctx, PROJECT_ID as never);
     expect(stats).toEqual({
-      total: 4,
+      total: 6,
       apple: 2,
       google: 2,
+      horizon: 1,
+      amazon: 1,
       // only the second google insert had an orderId
       googleOrders: 1,
-      valid: 2,
-      invalid: 2,
+      valid: 3,
+      invalid: 3,
     });
   });
 
@@ -247,10 +331,40 @@ describe("stats helpers — round-trip integration", () => {
       total: 1,
       apple: 1,
       google: 0,
+      horizon: 0,
+      amazon: 0,
       googleOrders: 0,
       valid: 0,
       invalid: 1,
     });
+  });
+
+  it("markReceiptInvalid claims an uncounted legacy row before invalidating it", async () => {
+    await applyPurchaseStatsDelta(
+      ctx,
+      PROJECT_ID as never,
+      mergePurchaseStatsDeltas(
+        deltaForMissingPurchaseStats("amazon", true, false, false, false),
+        deltaForUpdate("amazon", true, "amazon", false),
+      ),
+    );
+
+    await expect(readPurchaseStats(ctx, PROJECT_ID as never)).resolves.toEqual({
+      total: 1,
+      apple: 0,
+      google: 0,
+      horizon: 0,
+      amazon: 1,
+      googleOrders: 0,
+      valid: 0,
+      invalid: 1,
+    });
+
+    // Both sentinels are claimed by markReceiptInvalid, so either later
+    // migration order contributes nothing for the now-invalid row.
+    expect(
+      deltaForMissingPurchaseStats("amazon", false, false, true, true),
+    ).toEqual({});
   });
 
   describe("wasFirstValidTransition", () => {
@@ -374,6 +488,8 @@ describe("stats helpers — round-trip integration", () => {
       total: 0,
       apple: 0,
       google: 0,
+      horizon: 0,
+      amazon: 0,
       googleOrders: 0,
       valid: 0,
       invalid: 0,
@@ -427,6 +543,18 @@ describe("stats helpers — round-trip integration", () => {
       state: "ENTITLED",
       orderId: "GPA.order-1",
     });
+    await db.insert("purchases", {
+      projectId: PROJECT_ID,
+      store: "horizon",
+      isValid: true,
+      state: "ENTITLED",
+    });
+    await db.insert("purchases", {
+      projectId: PROJECT_ID,
+      store: "amazon",
+      isValid: false,
+      state: "CANCELED",
+    });
     // Different project — must not bleed into this project's stats.
     await db.insert("purchases", {
       projectId: "projects_other",
@@ -441,14 +569,16 @@ describe("stats helpers — round-trip integration", () => {
       PROJECT_ID as never,
     );
     expect(totals).toEqual({
-      total: 5,
+      total: 7,
       apple: 2,
       google: 3,
+      horizon: 1,
+      amazon: 1,
       // GPA.order-1 counted once despite two rows; pending-ack row
       // doesn't contribute.
       googleOrders: 1,
-      valid: 4,
-      invalid: 1,
+      valid: 5,
+      invalid: 2,
     });
 
     // Persisted to the stats table so subsequent reads are O(1).
@@ -481,4 +611,185 @@ describe("stats helpers — round-trip integration", () => {
     );
     expect(second).toEqual(first);
   });
+
+  it("repairs legacy store buckets one row at a time without double counting on resume", async () => {
+    // This row represents a deployment that completed the original stats
+    // migration before Horizon/Amazon buckets existed. The purchase sentinels
+    // are already true, so replaying the old row-by-row migration cannot repair
+    // it; the new uniquely named store-bucket migration must do so.
+    await db.insert("purchaseStats", {
+      projectId: PROJECT_ID,
+      total: 4,
+      apple: 1,
+      google: 1,
+      googleOrders: 1,
+      valid: 3,
+      invalid: 1,
+      updatedAt: 1,
+    });
+    const legacyPurchaseIds: string[] = [];
+    for (const [store, isValid] of [
+      ["apple", true],
+      ["google", true],
+      ["horizon", true],
+      ["amazon", false],
+    ] as const) {
+      legacyPurchaseIds.push(
+        await db.insert("purchases", {
+          projectId: PROJECT_ID,
+          store,
+          isValid,
+          state: isValid ? "ENTITLED" : "CANCELED",
+          statsCounted: true,
+          ...(store === "google" ? { orderId: "GPA.legacy-order" } : {}),
+        }),
+      );
+    }
+
+    const runBatch = async (cursor: string | null) =>
+      await runStoreBucketBackfill._handler(ctx, {
+        cursor,
+        dryRun: false,
+        oneBatchOnly: true,
+      });
+
+    // Stop after two rows to model an interrupted deployment. Each batch is
+    // hard-bounded to one purchase and atomically marks the row it handled.
+    await expect(runBatch(null)).resolves.toEqual({
+      continueCursor: "1",
+      isDone: false,
+      processed: 1,
+    });
+    await expect(runBatch("1")).resolves.toEqual({
+      continueCursor: "2",
+      isDone: false,
+      processed: 1,
+    });
+    expect((await db.get(legacyPurchaseIds[0]))?.storeStatsCounted).toBe(true);
+    expect((await db.get(legacyPurchaseIds[1]))?.storeStatsCounted).toBe(true);
+    await expect(
+      readPurchaseStats(ctx, PROJECT_ID as never),
+    ).resolves.toMatchObject({ horizon: 0, amazon: 0 });
+
+    // A purchase arriving between migration batches has already updated the
+    // widened stats row and is born marked. The resumed migration must skip it.
+    await db.insert("purchases", {
+      projectId: PROJECT_ID,
+      store: "amazon",
+      isValid: true,
+      state: "ENTITLED",
+      statsCounted: true,
+      storeStatsCounted: true,
+    });
+    await applyPurchaseStatsDelta(
+      ctx,
+      PROJECT_ID as never,
+      deltaForInsert("amazon", true),
+    );
+
+    // Resume at the saved cursor: legacy Horizon and Amazon each contribute
+    // once, then the already-counted new Amazon row is skipped.
+    await expect(runBatch("2")).resolves.toMatchObject({
+      continueCursor: "3",
+      processed: 1,
+    });
+    await expect(runBatch("3")).resolves.toMatchObject({
+      continueCursor: "4",
+      processed: 1,
+    });
+    await expect(runBatch("4")).resolves.toEqual({
+      continueCursor: "5",
+      isDone: true,
+      processed: 1,
+    });
+
+    await expect(readPurchaseStats(ctx, PROJECT_ID as never)).resolves.toEqual({
+      total: 5,
+      apple: 1,
+      google: 1,
+      horizon: 1,
+      amazon: 2,
+      googleOrders: 1,
+      valid: 4,
+      invalid: 1,
+    });
+
+    // A reset starts from the first row again. Every sentinel makes it a no-op,
+    // proving partial retries and deliberate reruns cannot double count.
+    let resetCursor: string | null = null;
+    let isDone = false;
+    while (!isDone) {
+      const result = await runBatch(resetCursor);
+      resetCursor = result.continueCursor;
+      isDone = result.isDone;
+    }
+    await expect(
+      readPurchaseStats(ctx, PROJECT_ID as never),
+    ).resolves.toMatchObject({ horizon: 1, amazon: 2 });
+  });
+
+  it.each(["base-first", "store-first"] as const)(
+    "coordinates the base and store migrations in %s order",
+    async (order) => {
+      for (const [store, requestData] of [
+        ["horizon", { store: "horizon", userId: "user-1", sku: "coins" }],
+        [
+          "amazon",
+          { store: "amazon", userId: "user-2", receiptId: "receipt-2" },
+        ],
+      ] as const) {
+        await db.insert("purchases", {
+          projectId: PROJECT_ID,
+          store,
+          applicationId: "dev.hyo.martie",
+          requestData,
+          isValid: true,
+          state: "ENTITLED",
+        });
+      }
+
+      const drain = async (handler: typeof runBaseStatsBackfill) => {
+        let cursor: string | null = null;
+        let isDone = false;
+        while (!isDone) {
+          const result = await handler._handler(ctx, {
+            cursor,
+            dryRun: false,
+            oneBatchOnly: true,
+            batchSize: 1,
+          });
+          if (!result) throw new Error("migration batch returned no cursor");
+          cursor = result.continueCursor;
+          isDone = result.isDone;
+        }
+      };
+
+      if (order === "base-first") {
+        await drain(runBaseStatsBackfill);
+        await drain(runStoreBucketBackfill);
+      } else {
+        await drain(runStoreBucketBackfill);
+        await drain(runBaseStatsBackfill);
+      }
+
+      await expect(
+        readPurchaseStats(ctx, PROJECT_ID as never),
+      ).resolves.toEqual({
+        total: 2,
+        apple: 0,
+        google: 0,
+        horizon: 1,
+        amazon: 1,
+        googleOrders: 0,
+        valid: 2,
+        invalid: 0,
+      });
+      for (const purchase of await db.query("purchases").collect()) {
+        expect(purchase).toMatchObject({
+          statsCounted: true,
+          storeStatsCounted: true,
+        });
+      }
+    },
+  );
 });

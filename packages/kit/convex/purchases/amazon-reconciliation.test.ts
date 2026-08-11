@@ -7,7 +7,7 @@ import {
   rescheduleAmazonPurchaseReconciliation,
 } from "./internal";
 import { HarmonizedPurchaseState } from "./purchaseState";
-import { AMAZON_RECONCILE_LEASE_MS } from "./shared";
+import { AMAZON_RECONCILE_LEASE_MS, AMAZON_RECONCILE_RETRY_MS } from "./shared";
 
 type Row = Record<string, unknown> & { _id: string };
 
@@ -48,15 +48,15 @@ class MemQuery {
     );
   }
 
-  order(_direction: "asc" | "desc"): MemQuery {
+  order(direction: "asc" | "desc"): MemQuery {
     return new MemQuery(
       [...this.rows].sort((left, right) => {
         const leftAt = left.nextAmazonReconcileAt;
         const rightAt = right.nextAmazonReconcileAt;
-        return (
+        const comparison =
           (typeof leftAt === "number" ? leftAt : -Infinity) -
-          (typeof rightAt === "number" ? rightAt : -Infinity)
-        );
+          (typeof rightAt === "number" ? rightAt : -Infinity);
+        return direction === "asc" ? comparison : -comparison;
       }),
     );
   }
@@ -69,6 +69,27 @@ class MemQuery {
     return this.rows[0] ?? null;
   }
 }
+
+describe("MemQuery", () => {
+  test("orders optional schedule values in either direction", async () => {
+    const query = new MemQuery([
+      { _id: "missing" },
+      { _id: "earlier", nextAmazonReconcileAt: 100 },
+      { _id: "later", nextAmazonReconcileAt: 200 },
+    ]);
+
+    await expect(query.order("asc").take(3)).resolves.toEqual([
+      { _id: "missing" },
+      { _id: "earlier", nextAmazonReconcileAt: 100 },
+      { _id: "later", nextAmazonReconcileAt: 200 },
+    ]);
+    await expect(query.order("desc").take(3)).resolves.toEqual([
+      { _id: "later", nextAmazonReconcileAt: 200 },
+      { _id: "earlier", nextAmazonReconcileAt: 100 },
+      { _id: "missing" },
+    ]);
+  });
+});
 
 class MemDb {
   readonly rows = new Map<string, Row>();
@@ -196,6 +217,30 @@ describe("claimAmazonPurchasesForReconciliation", () => {
     );
     expect(overlapping).toEqual([]);
   });
+
+  test("defers unusable due rows for the retry interval", async () => {
+    const db = new MemDb();
+    db.seed("purchases_missing_project", "purchases", {
+      projectId: "projects_missing",
+      store: "amazon",
+      applicationId: "com.example.amazon",
+      remoteId: "production:missing-project",
+      requestData: amazonRequest(),
+      state: HarmonizedPurchaseState.ENTITLED,
+      isValid: true,
+      nextAmazonReconcileAt: 900,
+    });
+
+    const handler = testableFunction(
+      claimAmazonPurchasesForReconciliation,
+    )._handler;
+    await expect(handler({ db }, { now: 1_000, limit: 20 })).resolves.toEqual(
+      [],
+    );
+    expect(
+      db.rows.get("purchases_missing_project")?.nextAmazonReconcileAt,
+    ).toBe(1_000 + AMAZON_RECONCILE_RETRY_MS);
+  });
 });
 
 describe("Amazon reconciliation compare-and-set mutations", () => {
@@ -302,6 +347,7 @@ describe("Amazon reconciliation compare-and-set mutations", () => {
       }),
       state: HarmonizedPurchaseState.ENTITLED,
       isValid: true,
+      statsCounted: true,
       nextAmazonReconcileAt: 10_000,
     });
     const handler = testableFunction(applyAmazonReconciliationVerdict)._handler;
