@@ -301,8 +301,10 @@ function Governance() {
           License
         </AnchorLink>
         <p>
-          OpenIAP is licensed under the <strong>MIT License</strong>. All
-          contributions must be compatible with this license.
+          OpenIAP is licensed under the <strong>MIT License</strong>, with one
+          exception: <code>kmp-iap</code> is licensed under{' '}
+          <strong>Apache-2.0</strong>. All contributions must be compatible with
+          the license of the package they touch.
         </p>
 
         <AnchorLink id="contributions" level="h3">
@@ -313,10 +315,11 @@ function Governance() {
             All contributors must agree to the project's contribution terms
           </li>
           <li>
-            <strong>DCO (Developer Certificate of Origin)</strong>: All commits
-            must include a <code>Signed-off-by</code> line, certifying the
-            contributor has the right to submit the code under the project's
-            license
+            <strong>DCO (Developer Certificate of Origin)</strong>: adoption is
+            planned as part of foundation onboarding. Until CI enforcement is
+            enabled, contributions are accepted under the project license
+            through pull-request review; a <code>Signed-off-by</code> line is
+            welcome but not yet required
           </li>
           <li>
             Future consideration: Migration to a CLA (Contributor License
@@ -354,6 +357,37 @@ function Governance() {
             </tr>
           </tbody>
         </table>
+
+        <AnchorLink id="hosted-services" level="h3">
+          Hosted Services
+        </AnchorLink>
+        <p>
+          The IAPKit instance at{' '}
+          <a
+            href="https://kit.openiap.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            kit.openiap.dev
+          </a>{' '}
+          is a{' '}
+          <strong>community service operated under project governance</strong>:
+          its source is open (<code>packages/kit</code>, MIT, self-hostable as a
+          single binary), its infrastructure costs are funded through the
+          project's{' '}
+          <a
+            href="https://opencollective.com/openiap"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            OpenCollective
+          </a>{' '}
+          with transparent expenses, and its fair-use and capacity policies are
+          documented in the package README. It is operated by project
+          maintainers on the project's behalf — not as a separate commercial
+          offering — and would transfer with the other project assets upon
+          foundation hosting.
+        </p>
       </section>
 
       <section>

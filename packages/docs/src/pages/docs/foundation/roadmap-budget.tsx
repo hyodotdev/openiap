@@ -203,8 +203,9 @@ function RoadmapBudget() {
               </td>
               <td>15%</td>
               <td>
-                CI/CD compute (GitHub Actions), hosting (Vercel), domain
-                registration, code signing certificates
+                CI/CD compute (GitHub Actions), hosting (Vercel), the IAPKit
+                community instance (Convex), domain registration, code signing
+                certificates
               </td>
             </tr>
             <tr>
@@ -267,6 +268,14 @@ function RoadmapBudget() {
               <td>openiap.dev</td>
             </tr>
             <tr>
+              <td>IAPKit community instance (Convex)</td>
+              <td>~$20</td>
+              <td>
+                kit.openiap.dev receipt validation — community service funded
+                through OpenCollective
+              </td>
+            </tr>
+            <tr>
               <td>Domain registration</td>
               <td>~$3</td>
               <td>openiap.dev annual amortized</td>
@@ -301,7 +310,7 @@ function RoadmapBudget() {
                 <strong>Total baseline</strong>
               </td>
               <td>
-                <strong>$330–380/month</strong>
+                <strong>$350–400/month</strong>
               </td>
               <td>Excluding maintainer time</td>
             </tr>

@@ -9,21 +9,26 @@
   <a href="https://app.codecov.io/gh/hyodotdev/openiap/tree/main/packages/kit/server"><img src="https://codecov.io/gh/hyodotdev/openiap/branch/main/graph/badge.svg?component=iapkit-server" alt="IAPKit server coverage" /></a>
 </p>
 
-Hosted receipt-validation SaaS and dashboard managed by [OpenIAP](https://openiap.dev). Validates App Store and Google Play receipts on your backend so one-time in-app purchases cannot be faked, replayed, or tampered with.
+Hosted receipt-validation SaaS and dashboard operated as a community
+service under [OpenIAP](https://openiap.dev) project governance. Validates App
+Store and Google Play receipts on your backend so one-time in-app purchases
+cannot be faked, replayed, or tampered with.
 
-The **official hosted instance** is deployed only at
+The community-operated instance run by the OpenIAP project lives at
 **[kit.openiap.dev](https://kit.openiap.dev)**. Other domains running
-this code are community forks and are **not affiliated with OpenIAP**
-— do not paste production API keys or receipts into instances you
-don't control.
+this code are independent deployments and are **not operated by the
+OpenIAP project** — do not paste production API keys or receipts into
+instances you don't control.
 
 > IAPKit is provided **as-is** with best-effort support. There is no
-> SLA on the hosted instance. If you need guaranteed response times,
-> self-host from `packages/kit/` or contact the maintainers before launch.
-> Organizations expecting to use a significant share of hosted capacity are
-> asked to help fund shared infrastructure through
-> [GitHub Sponsors](https://github.com/sponsors/hyodotdev) or
-> [OpenCollective](https://opencollective.com/openiap).
+> SLA on the community instance. If you need guaranteed response times,
+> self-host from `packages/kit/` (single binary) or contact the maintainers
+> before launch. Organizations expecting to use a significant share of shared
+> capacity are asked to help fund project infrastructure through
+> [OpenCollective](https://opencollective.com/openiap) (project fund; covers
+> hosting costs transparently) or
+> [GitHub Sponsors](https://github.com/sponsors/hyodotdev) (maintainer
+> sponsorship).
 
 ## What's Inside
 
@@ -150,7 +155,7 @@ bun run build:all      # Vite build + Bun compile → ./openiap-kit-server
 
 ### Hosted fair use and capacity planning
 
-The official hosted service is a shared, community-funded resource for the
+The community-operated service is a shared, community-funded resource for the
 OpenIAP ecosystem. It is free to use without a request-based billing meter, but
 it is not unlimited infrastructure and does not include dedicated capacity or
 an SLA. Clients must cache stable reads, avoid continuous polling, and honor
@@ -173,8 +178,10 @@ If an organization expects sustained high volume or a meaningful share of the
 hosted service, contact [hyo@hyo.dev](mailto:hyo@hyo.dev) before production
 launch. We ask organizations at that scale to help fund server capacity,
 monitoring, security, and load testing through
-[GitHub Sponsors](https://github.com/sponsors/hyodotdev) or
-[OpenCollective](https://opencollective.com/openiap). Sponsorship supports the
+[OpenCollective](https://opencollective.com/openiap) (the project fund with
+transparent hosting expenses) or
+[GitHub Sponsors](https://github.com/sponsors/hyodotdev) (maintainer
+sponsorship). Sponsorship supports the
 shared service; it does not automatically reserve capacity or create an SLA.
 Self-host this MIT-licensed server when you need predictable scaling, dedicated
 resources, or full operational control.

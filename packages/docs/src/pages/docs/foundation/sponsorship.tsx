@@ -273,6 +273,66 @@ function Sponsorship() {
       </section>
 
       <section>
+        <AnchorLink id="channels" level="h2">
+          Sponsorship Channels
+        </AnchorLink>
+        <p>
+          OpenIAP keeps project money and personal maintainer support on
+          separate, clearly labeled rails:
+        </p>
+        <table className="doc-table">
+          <thead>
+            <tr>
+              <th>Channel</th>
+              <th>Use It For</th>
+              <th>Where the Money Goes</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <td>
+                <a
+                  href="https://opencollective.com/openiap"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  OpenCollective
+                </a>
+              </td>
+              <td>
+                Corporate sponsorship tiers, project funding, IAPKit community
+                instance infrastructure
+              </td>
+              <td>
+                The project fund, with a public ledger — expenses (hosting,
+                maintainer compensation per the{' '}
+                <Link to="/docs/foundation/roadmap-budget">
+                  budget allocation
+                </Link>
+                ) are transparent
+              </td>
+            </tr>
+            <tr>
+              <td>
+                <a
+                  href="https://github.com/sponsors/hyodotdev"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  GitHub Sponsors
+                </a>
+              </td>
+              <td>Personal appreciation for the maintainer's work</td>
+              <td>
+                The maintainer directly — disclosed here for transparency, and
+                separate from project accounting
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section>
         <AnchorLink id="what-funding-supports" level="h2">
           What Your Funding Supports
         </AnchorLink>

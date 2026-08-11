@@ -330,10 +330,11 @@ function Sponsors() {
                 lineHeight: '1.6',
               }}
             >
-              GitHub Sponsors is the primary funding channel. Tiers scale from
-              individual contributors to companies shipping OpenIAP in
-              production. OpenCollective is also available for transparent
-              community funding.
+              OpenCollective is the project fund — corporate sponsorship tiers
+              and infrastructure costs (including the IAPKit community instance)
+              flow through its public, transparent ledger. GitHub Sponsors
+              supports the maintainer directly and is kept separate from project
+              accounting.
             </p>
             <div
               style={{
