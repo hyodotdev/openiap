@@ -58,6 +58,18 @@ const subscriptionReplacementR8Releases = [
   ['OpenIap.Maui 2.2.2', 'maui-iap-2.2.2'],
 ] as const;
 
+const storeVerificationIntegrityReleases = [
+  ['OpenIAP Spec 3.2.0', 'docs-3.2.0'],
+  ['openiap-apple 3.2.0', '3.2.0'],
+  ['openiap-google 3.3.0', 'google-3.3.0'],
+  ['react-native-iap 16.3.0', 'react-native-iap-16.3.0'],
+  ['expo-iap 5.3.0', 'expo-iap-5.3.0'],
+  ['flutter_inapp_purchase 10.3.0', 'flutter-iap-10.3.0'],
+  ['godot-iap 3.3.0', 'godot-iap-3.3.0'],
+  ['kmp-iap 3.3.0', 'kmp-iap-3.3.0'],
+  ['OpenIap.Maui 2.3.0', 'maui-iap-2.3.0'],
+] as const;
+
 const dependencyModernizationReleases = [
   ['openiap-google 3.1.0', 'google-3.1.0'],
   ['react-native-iap 16.1.0', 'react-native-iap-16.1.0'],
@@ -202,6 +214,238 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // August 12, 2026 - Store verification integrity and Amazon provenance
+    {
+      id: 'store-verification-integrity-amazon-provenance-2026-08-12',
+      date: new Date('2026-08-12'),
+      element: (
+        <div
+          key="store-verification-integrity-amazon-provenance-2026-08-12"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="store-verification-integrity-amazon-provenance-2026-08-12"
+            level="h4"
+          >
+            August 12, 2026 - Store verification integrity and Amazon provenance
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes the store-verification integrity release from{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/313"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              PR #313
+            </a>
+            . The release makes Amazon sandbox provenance and product binding
+            first-class across every SDK, removes the unfinished Horizon
+            subscription lane, and keeps transient store failures from replacing
+            the last authoritative purchase state.
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Common changes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              Hosted IAPKit now requires an explicit project opt-in for Amazon
+              App Tester and RVS Cloud Sandbox, records <code>Sandbox</code> or{' '}
+              <code>Production</code> provenance, and supports caller-provided{' '}
+              <code>expectedProductId</code> binding. A bounded receipt
+              reconciler refreshes active Amazon purchase rows without
+              overwriting authoritative state on timeout, throttling, secret,
+              network, or malformed-response failures, resolving{' '}
+              <a
+                href="https://github.com/hyodotdev/openiap/issues/311"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                issue #311
+              </a>
+              .
+            </li>
+            <li>
+              Horizon verification is now a conservative synchronous REST path:
+              only strict boolean ownership verdicts are persisted, retryable or
+              ambiguous responses leave the last confirmed snapshot untouched,
+              and the structurally unsafe background subscription reconciler and
+              its synthetic revenue events are retired. This resolves{' '}
+              <a
+                href="https://github.com/hyodotdev/openiap/issues/310"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                issue #310
+              </a>
+              .
+            </li>
+            <li>
+              Purchase analytics add Amazon and Horizon store counters. The
+              project shell, tabs, filters, tables, metric cards, and long
+              project identities now keep horizontal scrolling local and remain
+              usable with an expanded sidebar at tablet and desktop widths.
+            </li>
+            <li>
+              Kit CI now measures the Convex verifier tree separately from the
+              server, with blocking line-coverage gates and path-scoped Codecov
+              reporting. This closes the blind spot reported in{' '}
+              <a
+                href="https://github.com/hyodotdev/openiap/issues/312"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                issue #312
+              </a>
+              .
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Shared spec and native packages
+          </h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>OpenIAP Spec 3.2.0</strong> - adds optional Amazon{' '}
+              <code>expectedProductId</code> input and optional verification{' '}
+              <code>environment</code> output while keeping existing request and
+              result constructors source-compatible.
+            </li>
+            <li>
+              <strong>openiap-apple 3.2.0</strong> - forwards the Amazon product
+              guard and preserves a validated <code>Sandbox</code> or{' '}
+              <code>Production</code> result through the provider verification
+              bridge.
+            </li>
+            <li>
+              <strong>openiap-google 3.3.0</strong> - carries the same input and
+              provenance through Play, Amazon, and Horizon builds, including the
+              Fire OS path that obtains a missing Amazon user ID before
+              verification.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>react-native-iap 16.3.0</strong> - exposes Amazon product
+              binding and environment provenance through Nitro, native, and Vega
+              paths. The example uses explicit sandbox configuration and never
+              finishes a purchase before verification succeeds.
+            </li>
+            <li>
+              <strong>expo-iap 5.3.0</strong> - preserves the new fields across
+              Expo Modules and Vega, and serializes restored or overlapping
+              purchase callbacks so remounts and reconnects cannot verify or
+              finish the same receipt twice.
+            </li>
+            <li>
+              <strong>flutter_inapp_purchase 10.3.0</strong> - forwards the
+              exact Amazon product identifier through Dart and every native
+              channel, then validates and returns the optional environment.
+            </li>
+            <li>
+              <strong>godot-iap 3.3.0</strong> - ships the generated Amazon
+              input and environment result contract in the GDScript plugin and
+              updated Android and iOS release artifacts.
+            </li>
+            <li>
+              <strong>kmp-iap 3.3.0</strong> - maps the new fields through the
+              Android and iOS bridges and publishes matching Play, Amazon,
+              Horizon, and Apple variants.
+            </li>
+            <li>
+              <strong>OpenIap.Maui 2.3.0</strong> - adds the generated C#
+              contract and uses the requested product ID in the Amazon example
+              while preserving the environment in verification results.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              Enable{' '}
+              <strong>Allow Amazon App Tester / RVS Cloud Sandbox</strong> in
+              the IAPKit project before sending <code>sandbox: true</code>.
+              Production verification still requires the project's Amazon RVS
+              shared secret. Check both the verified product ID and expected
+              environment before granting or finishing a purchase.
+            </li>
+            <li>
+              Amazon reconciliation updates purchase rows only. It uses{' '}
+              <code>cancelDate</code> as Amazon's loss-of-access signal and does
+              not create subscription rows or infer expiry from a past{' '}
+              <code>renewalDate</code>. Horizon likewise remains raw ownership
+              verification without background subscription lifecycle state.
+            </li>
+            <li>
+              Self-hosted IAPKit deployments with historical Amazon or Horizon
+              purchases should run{' '}
+              <code>migrations:backfillPurchaseStatsStoreBuckets</code> after
+              the base purchase-stats backfill. The hosted audit found no
+              historical rows that required this migration.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {storeVerificationIntegrityReleases.map(([label, tag]) => (
+                <li key={tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // August 11, 2026 - Android subscription replacement R8 fix
     {
       id: 'subscription-replacement-r8-fix-2026-08-11',
