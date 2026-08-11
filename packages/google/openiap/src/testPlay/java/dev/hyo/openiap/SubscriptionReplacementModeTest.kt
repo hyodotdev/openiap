@@ -84,6 +84,19 @@ class SubscriptionReplacementModeTest {
     }
 
     @Test
+    fun `subscription replacement params use the native Billing builder`() {
+        for (mode in SubscriptionReplacementModeAndroid.entries) {
+            val params = SubscriptionProductReplacementParamsAndroid(
+                oldProductId = "old.product",
+                replacementMode = mode,
+            ).toBillingSubscriptionProductReplacementParams()
+
+            assertEquals("old.product", params.oldProductId)
+            assertEquals(mode.toReplacementModeConstant(), params.replacementMode)
+        }
+    }
+
+    @Test
     fun `SubscriptionReplacementModeAndroid fromJson parses correctly`() {
         assertEquals(SubscriptionReplacementModeAndroid.UnknownReplacementMode, SubscriptionReplacementModeAndroid.fromJson("unknown-replacement-mode"))
         assertEquals(SubscriptionReplacementModeAndroid.WithTimeProration, SubscriptionReplacementModeAndroid.fromJson("with-time-proration"))

@@ -1,5 +1,6 @@
 package dev.hyo.openiap
 
+import com.android.billingclient.api.BillingFlowParams.ProductDetailsParams.SubscriptionProductReplacementParams
 import com.android.billingclient.api.BillingFlowParams.ProductDetailsParams.SubscriptionProductReplacementParams.ReplacementMode
 
 /**
@@ -25,4 +26,15 @@ internal fun SubscriptionReplacementModeAndroid.toReplacementModeConstant(): Int
         SubscriptionReplacementModeAndroid.Deferred -> ReplacementMode.DEFERRED
         SubscriptionReplacementModeAndroid.KeepExisting -> ReplacementMode.KEEP_EXISTING
     }
+}
+
+/**
+ * Builds the native replacement parameters through typed Billing API calls so
+ * minified consumer apps do not depend on class or method names.
+ */
+internal fun SubscriptionProductReplacementParamsAndroid.toBillingSubscriptionProductReplacementParams(): SubscriptionProductReplacementParams {
+    return SubscriptionProductReplacementParams.newBuilder()
+        .setOldProductId(oldProductId)
+        .setReplacementMode(replacementMode.toReplacementModeConstant())
+        .build()
 }
