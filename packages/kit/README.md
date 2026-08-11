@@ -517,23 +517,25 @@ SMOKE_PORT=3200 ./scripts/smoke-server.sh
 
 ```bash
 flyctl auth login
-# From the repository root, deploy the additive backend first.
-bun run deploy:kit
-# Then fill packages/kit/.env.production from .env.example and deploy Fly.
 cd packages/kit
+# Optionally fill .env.production from .env.example with a deploy key and
+# analytics settings when they are not already available in your environment.
 bun run deploy:prod
 ```
 
-Keep this order: the new Convex functions remain compatible with the currently
-running Fly app, while a new Fly app may depend on functions that are not yet
-deployed.
+The script deploys additive Convex functions first, then Fly. It asks the Convex
+CLI for the canonical URL selected by the current deploy credentials and checks
+that URL against the committed [`production.env`](production.env) SSOT before
+either deployment proceeds. A development deploy key therefore cannot publish a
+production Fly bundle.
 
 `VITE_*` values have to be passed at **build time**, not just runtime
 secrets — Vite inlines them into the SPA bundle at `bun run build`
-time. The deploy script sends `VITE_KIT_CONVEX_URL` and
-`VITE_KIT_SENTRY_DSN` as build args, and sends `VITE_KIT_MIXPANEL_TOKEN`
-as a BuildKit secret only to avoid Docker's TOKEN-named ARG/ENV warning.
-Omitting Sentry or Mixpanel is fine; the SPA skips those integrations.
+time. The deploy script sends the Convex-CLI-verified
+`VITE_KIT_CONVEX_URL` and `VITE_KIT_SENTRY_DSN` as build args, and sends
+`VITE_KIT_MIXPANEL_TOKEN` as a BuildKit secret only to avoid Docker's
+TOKEN-named ARG/ENV warning. Omitting Sentry or Mixpanel is fine; the SPA skips
+those integrations.
 
 Server-side runtime secrets (read by the compiled Bun binary at boot)
 are set once with `flyctl secrets set`:
@@ -558,24 +560,24 @@ namespace them away from other monorepo secrets):
 Manual workflow dispatches from non-`main` refs run verification only. Select
 `main` explicitly when a production redeploy is intended.
 
-> **Note**: `VITE_KIT_*` values are **not actually secret** — Vite
-> inlines them into the SPA bundle at build time, so anyone with
-> DevTools open can read them. They live in GitHub Actions secrets
-> for build-time injection convenience only. Treat them as public
-> configuration. Real secrets (deploy auth) are flagged below.
+The production Convex URL is public Vite configuration, so it is not stored in
+a GitHub secret. The workflow obtains the canonical URL from the Convex CLI and
+requires it to match [`production.env`](production.env) before deploying either
+surface. Optional `VITE_KIT_*` integrations are also inlined into the SPA and
+must be treated as public configuration even though Actions stores them as
+secrets for injection convenience.
 
 | Secret                    | Real secret? | Purpose                                                 |
 | ------------------------- | ------------ | ------------------------------------------------------- |
 | `KIT_FLY_API_TOKEN`       | ✅ yes       | `flyctl deploy` auth — keep private                     |
 | `KIT_CONVEX_DEPLOY_KEY`   | ✅ yes       | Convex function deploy                                  |
-| `VITE_KIT_CONVEX_URL`     | ⚠️ public    | Build arg for SPA — visible in deployed JS bundle       |
 | `VITE_KIT_SENTRY_DSN`     | ⚠️ public    | Build arg for SPA (optional — SPA skips init if absent) |
 | `VITE_KIT_MIXPANEL_TOKEN` | ⚠️ public    | BuildKit secret for SPA (optional — analytics opt-in)   |
 
-The workflow validates all required deployment values before changing either
-surface. A missing `KIT_CONVEX_DEPLOY_KEY`, `KIT_FLY_API_TOKEN`, or
-`VITE_KIT_CONVEX_URL` fails the deployment instead of publishing only half of
-the release. Set the Convex key with:
+The workflow validates both deployment credentials and the selected Convex
+target before changing either surface. A missing `KIT_CONVEX_DEPLOY_KEY` or
+`KIT_FLY_API_TOKEN`, or a Convex URL mismatch, fails the deployment instead of
+publishing only half of the release. Set the Convex key with:
 
 ```bash
 # Value from Convex dashboard → Settings → Deploy Keys
