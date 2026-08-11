@@ -2802,8 +2802,9 @@ void main() {
       expect(result.iapkit!.store, types.IapStore.Google);
     });
 
-    test('sends correct payload for Amazon verification', () async {
+    test('sends Amazon payload and preserves valid environments', () async {
       final calls = <MethodCall>[];
+      var environment = 'Sandbox';
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall call) async {
         calls.add(call);
@@ -2817,7 +2818,7 @@ void main() {
                 'isValid': true,
                 'state': 'entitled',
                 'store': 'amazon',
-                'environment': 'Sandbox',
+                'environment': environment,
               },
             });
         }
@@ -2830,17 +2831,18 @@ void main() {
 
       await iap.initConnection();
 
+      const verificationRequest = types.RequestVerifyPurchaseWithIapkitProps(
+        apiKey: 'test-api-key',
+        amazon: types.RequestVerifyPurchaseWithIapkitAmazonProps(
+          expectedProductId: 'dev.hyo.martie.10bulbs',
+          receiptId: 'amzn1.receipt.test',
+          sandbox: true,
+          userId: 'amzn1.account.test',
+        ),
+      );
       final result = await iap.verifyPurchaseWithProvider(
         provider: types.PurchaseVerificationProvider.Iapkit,
-        iapkit: const types.RequestVerifyPurchaseWithIapkitProps(
-          apiKey: 'test-api-key',
-          amazon: types.RequestVerifyPurchaseWithIapkitAmazonProps(
-            expectedProductId: 'dev.hyo.martie.10bulbs',
-            receiptId: 'amzn1.receipt.test',
-            sandbox: true,
-            userId: 'amzn1.account.test',
-          ),
-        ),
+        iapkit: verificationRequest,
       );
 
       final verifyCall = calls.singleWhere(
@@ -2871,6 +2873,13 @@ void main() {
       expect(result.iapkit!.environment, 'Sandbox');
       expect(result.iapkit!.state, types.IapkitPurchaseState.Entitled);
       expect(result.iapkit!.store, types.IapStore.Amazon);
+
+      environment = 'Production';
+      final productionResult = await iap.verifyPurchaseWithProvider(
+        provider: types.PurchaseVerificationProvider.Iapkit,
+        iapkit: verificationRequest,
+      );
+      expect(productionResult.iapkit!.environment, 'Production');
     });
 
     test('throws PurchaseError on platform exception', () async {
