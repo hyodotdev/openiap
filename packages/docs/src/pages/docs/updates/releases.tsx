@@ -48,6 +48,16 @@ const storeApiFollowupReleases = [
   ['OpenIap.Maui 2.2.1', 'maui-iap-2.2.1'],
 ] as const;
 
+const subscriptionReplacementR8Releases = [
+  ['openiap-google 3.2.3', 'google-3.2.3'],
+  ['react-native-iap 16.2.4', 'react-native-iap-16.2.4'],
+  ['expo-iap 5.2.4', 'expo-iap-5.2.4'],
+  ['flutter_inapp_purchase 10.2.4', 'flutter-iap-10.2.4'],
+  ['godot-iap 3.2.2', 'godot-iap-3.2.2'],
+  ['kmp-iap 3.2.2', 'kmp-iap-3.2.2'],
+  ['OpenIap.Maui 2.2.2', 'maui-iap-2.2.2'],
+] as const;
+
 const dependencyModernizationReleases = [
   ['openiap-google 3.1.0', 'google-3.1.0'],
   ['react-native-iap 16.1.0', 'react-native-iap-16.1.0'],
@@ -192,6 +202,161 @@ function Releases() {
   useScrollToHash();
 
   const allNotes: Note[] = [
+    // August 11, 2026 - Android subscription replacement R8 fix
+    {
+      id: 'subscription-replacement-r8-fix-2026-08-11',
+      date: new Date('2026-08-11'),
+      element: (
+        <div
+          key="subscription-replacement-r8-fix-2026-08-11"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="subscription-replacement-r8-fix-2026-08-11"
+            level="h4"
+          >
+            August 11, 2026 - Android subscription replacement R8 fix
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Publishes the Android subscription replacement reliability fix from{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/pull/309"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              PR #309
+            </a>
+            . Minified Google Play release builds now construct product-level
+            replacement parameters through typed Play Billing 9.1 APIs instead
+            of class- and method-name reflection.
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Shared spec and native packages
+          </h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>openiap-google 3.2.3</strong> - replaces reflective
+              construction of subscription product replacement parameters with
+              typed Play Billing 9.1 calls, so R8 can safely rewrite the
+              references without an OpenIAP-specific broad Billing keep rule.
+              All seven replacement modes retain their native values, resolving{' '}
+              <a
+                href="https://github.com/hyodotdev/openiap/issues/307"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                issue #307
+              </a>
+              .
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>react-native-iap 16.2.4</strong> - selects openiap-google
+              3.2.3 so minified Android release builds receive the typed
+              subscription replacement path.
+            </li>
+            <li>
+              <strong>expo-iap 5.2.4</strong> - selects openiap-google 3.2.3 to
+              restore subscription upgrades and downgrades in R8-minified Expo
+              release builds.
+            </li>
+            <li>
+              <strong>flutter_inapp_purchase 10.2.4</strong> - selects
+              openiap-google 3.2.3 for the same R8-safe Android replacement
+              behavior.
+            </li>
+            <li>
+              <strong>godot-iap 3.2.2</strong> - refreshes its Android plugin
+              artifact with the typed Play Billing replacement path.
+            </li>
+            <li>
+              <strong>kmp-iap 3.2.2</strong> - publishes its Android target
+              against openiap-google 3.2.3 for minified Play builds.
+            </li>
+            <li>
+              <strong>OpenIap.Maui 2.2.2</strong> - refreshes its Android
+              binding against openiap-google 3.2.3 for the corrected replacement
+              flow.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              Public APIs and request shapes are unchanged. Existing call sites
+              using <code>subscriptionProductReplacementParams</code> need no
+              changes after upgrading.
+            </li>
+            <li>
+              Apps that added a broad Billing keep rule solely for this OpenIAP
+              workaround can remove it after upgrading and validating their
+              minified release build.
+            </li>
+            <li>
+              The runtime change is specific to Google Play; Amazon and Horizon
+              store integrations are unchanged.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {subscriptionReplacementR8Releases.map(([label, tag]) => (
+                <li key={tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // August 10, 2026 - Store API follow-up hardening
     {
       id: 'store-api-follow-up-hardening-2026-08-10',
