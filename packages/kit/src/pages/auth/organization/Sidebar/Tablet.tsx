@@ -157,7 +157,7 @@ export function TabletSidebar({
       // exactly viewport height, so no actual scroll happens, but the
       // browser stops propagating to main. `no-scrollbar` keeps the
       // visual unchanged.
-      className={`hidden md:flex flex-col bg-card border-r-thin transition-all duration-300 overflow-y-auto overscroll-contain no-scrollbar ${
+      className={`hidden md:flex shrink-0 flex-col bg-card border-r-thin transition-all duration-300 overflow-y-auto overscroll-contain no-scrollbar ${
         isSidebarOpen ? "w-64" : "w-16"
       }`}
     >

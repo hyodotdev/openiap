@@ -1,4 +1,4 @@
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef } from "react";
 import { useParams, useNavigate, useLocation, Outlet } from "react-router-dom";
 import { useQuery } from "convex/react";
 import { Badge, PlatformBadge } from "../../../../components/Badge";
@@ -131,6 +131,25 @@ export default function ProjectIndex() {
 
     return DEFAULT_TAB;
   }, [location.pathname, orgSlug, projectSlug]);
+  const tabScrollerRef = useRef<HTMLDivElement>(null);
+  const activeTabButtonRef = useRef<HTMLButtonElement>(null);
+
+  useEffect(() => {
+    const scroller = tabScrollerRef.current;
+    const activeButton = activeTabButtonRef.current;
+    if (!scroller || !activeButton) return;
+
+    const scrollerRect = scroller.getBoundingClientRect();
+    const activeButtonRect = activeButton.getBoundingClientRect();
+    const leftOverflow = activeButtonRect.left - scrollerRect.left;
+    const rightOverflow = activeButtonRect.right - scrollerRect.right;
+
+    if (leftOverflow < 0) {
+      scroller.scrollLeft += leftOverflow;
+    } else if (rightOverflow > 0) {
+      scroller.scrollLeft += rightOverflow;
+    }
+  }, [activeTab, project?._id]);
 
   // Show loading while organization is being fetched
   if (currentOrg === undefined) {
@@ -217,17 +236,27 @@ export default function ProjectIndex() {
           </div>
         </div>
 
-        {/* Tabs */}
-        <div className="container max-w-7xl mx-auto px-4">
-          <div className="flex gap-1">
+        {/* Keep wide project navigation in its own horizontal scroller.
+            Otherwise `<main>` becomes the scroller and shifts the page body
+            underneath the fixed-width organization sidebar. */}
+        <div
+          ref={tabScrollerRef}
+          className="container max-w-7xl mx-auto px-4 overflow-x-auto overscroll-x-contain"
+        >
+          <nav
+            aria-label="Project sections"
+            className="flex w-max min-w-full gap-1"
+          >
             {tabs.map((tab) => {
               const Icon = tab.icon;
               const isActive = activeTab === tab.id;
               return (
                 <button
                   key={tab.id}
+                  ref={isActive ? activeTabButtonRef : undefined}
                   onClick={() => handleTabChange(tab.id)}
-                  className={`flex items-center gap-2 px-4 py-3 border-b-2 transition-colors ${
+                  aria-current={isActive ? "page" : undefined}
+                  className={`flex shrink-0 items-center gap-2 whitespace-nowrap px-4 py-3 border-b-2 transition-colors ${
                     isActive
                       ? "border-primary text-primary"
                       : "border-transparent text-muted-foreground hover:text-foreground"
@@ -243,12 +272,12 @@ export default function ProjectIndex() {
                 </button>
               );
             })}
-          </div>
+          </nav>
         </div>
       </div>
 
       {/* Content */}
-      <div className="container max-w-7xl mx-auto p-8">
+      <div className="container max-w-7xl min-w-0 mx-auto p-8">
         <Outlet context={{ project }} />
       </div>
     </div>
