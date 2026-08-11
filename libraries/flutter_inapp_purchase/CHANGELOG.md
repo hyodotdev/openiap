@@ -1,5 +1,13 @@
 # Changelog
 
+## 10.2.4 (2026-08-11)
+
+- chore(google): bump version to 3.2.3
+- fix(google): avoid r8 billing reflection (#309)
+- test: enforce 90 percent SDK coverage (#308)
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
+
+
 ## 10.2.3 (2026-08-10)
 
 - ci: configure monorepo coverage reporting (#306)
