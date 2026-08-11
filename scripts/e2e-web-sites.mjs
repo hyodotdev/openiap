@@ -71,6 +71,8 @@ const RESOURCE_URL_IGNORE = [
   /(?:^|\.)mixpanel\.com$/i,
   /(?:^|\.)google-analytics\.com$/i,
   /(?:^|\.)googletagmanager\.com$/i,
+  /^fonts\.googleapis\.com$/i,
+  /^fonts\.gstatic\.com$/i,
 ];
 
 const PERFORMANCE_BUDGETS = {

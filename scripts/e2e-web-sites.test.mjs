@@ -4,7 +4,7 @@ import { describe, it } from "node:test";
 import { isIgnoredResourceUrl } from "./e2e-web-sites.mjs";
 
 describe("web E2E resource URL filtering", () => {
-  it("ignores only attributable favicon and third-party telemetry URLs", () => {
+  it("ignores only attributable favicon and explicit third-party URLs", () => {
     assert.equal(
       isIgnoredResourceUrl("https://kit.openiap.dev/favicon.ico"),
       true,
@@ -16,6 +16,18 @@ describe("web E2E resource URL filtering", () => {
     assert.equal(
       isIgnoredResourceUrl(
         "https://o123.ingest.us.sentry.io/api/456/envelope/",
+      ),
+      true,
+    );
+    assert.equal(
+      isIgnoredResourceUrl(
+        "https://fonts.gstatic.com/s/roboto/v51/missing.woff2",
+      ),
+      true,
+    );
+    assert.equal(
+      isIgnoredResourceUrl(
+        "https://fonts.googleapis.com/css2?family=Roboto:wght@400",
       ),
       true,
     );
@@ -32,6 +44,10 @@ describe("web E2E resource URL filtering", () => {
     );
     assert.equal(
       isIgnoredResourceUrl("https://cdn.example.test/missing.js"),
+      false,
+    );
+    assert.equal(
+      isIgnoredResourceUrl("https://kit.openiap.dev/fonts/missing.woff2"),
       false,
     );
   });
