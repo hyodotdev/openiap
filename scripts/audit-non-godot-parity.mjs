@@ -823,6 +823,16 @@ function checkFrameworkCiAndCoverageBadges() {
 
   if (exists("codecov.yml")) {
     const codecovConfig = read("codecov.yml");
+    const lcovParserBlock = [
+      "parsers:",
+      "  lcov:",
+      "    partials_as_hits: true",
+    ].join("\n");
+    if (!codecovConfig.includes(lcovParserBlock)) {
+      fail(
+        "codecov.yml must count LCOV partial lines as hits to match the local line-coverage gates",
+      );
+    }
     const expectedComponentIds = coverageComponents.map(
       ({ componentId }) => componentId,
     );

@@ -1,3 +1,7 @@
+parsers:
+  lcov:
+    partials_as_hits: true
+
 coverage:
   precision: 2
   round: down
