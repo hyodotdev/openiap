@@ -4527,20 +4527,41 @@ function checkFrameworkDependencyHygiene() {
     ".github/workflows/deploy-kit.yml",
     [
       "if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')",
-      "- name: Validate required deployment secrets",
+      "- name: Validate deployment credentials",
       "- name: Deploy Convex functions",
+      "verify-production-convex-target.sh",
+      "--cmd-url-env-var-name VITE_KIT_CONVEX_URL",
       "- name: Deploy",
     ],
-    "Kit deploy must be main-only and validate both deployment surfaces",
+    "Kit deploy must be main-only and bind Fly to the verified Convex target",
   );
   expectNotIncludes(
     ".github/workflows/deploy-kit.yml",
     [
       "if: ${{ env.KIT_CONVEX_DEPLOY_KEY != '' }}",
+      "secrets.VITE_KIT_CONVEX_URL",
       "--typecheck=disable",
       "--typecheck disable",
     ],
     "Kit production deploy must neither skip Convex nor disable its typecheck",
+  );
+  expectIncludes(
+    "packages/kit/production.env",
+    ["IAPKIT_PRODUCTION_CONVEX_URL=https://healthy-kudu-836.convex.cloud"],
+    "Kit production Convex target must have one committed public SSOT",
+  );
+  expectIncludes(
+    "packages/kit/scripts/verify-production-convex-target.sh",
+    ['source "$SCRIPT_DIR/../production.env"', "$IAPKIT_PRODUCTION_CONVEX_URL"],
+    "Kit deploy target guard must use the committed production SSOT",
+  );
+  expectIncludes(
+    "packages/kit/scripts/deploy-prod.sh",
+    [
+      "verify-production-convex-target.sh",
+      "--cmd-url-env-var-name VITE_KIT_CONVEX_URL",
+    ],
+    "Kit manual deploy must run the shared production target guard",
   );
   expectIncludes(
     "packages/kit/package.json",
@@ -4561,21 +4582,21 @@ function checkFrameworkDependencyHygiene() {
     "Convex typecheck must not hide test TypeScript",
   );
   const kitDeployWorkflow = read(".github/workflows/deploy-kit.yml");
-  const validateDeploySecrets = kitDeployWorkflow.indexOf(
-    "- name: Validate required deployment secrets",
+  const validateDeployCredentials = kitDeployWorkflow.indexOf(
+    "- name: Validate deployment credentials",
   );
   const deployConvex = kitDeployWorkflow.indexOf(
     "- name: Deploy Convex functions",
   );
   const deployFly = kitDeployWorkflow.indexOf("- name: Deploy\n");
   if (
-    validateDeploySecrets === -1 ||
+    validateDeployCredentials === -1 ||
     deployConvex === -1 ||
     deployFly === -1 ||
-    !(validateDeploySecrets < deployConvex && deployConvex < deployFly)
+    !(validateDeployCredentials < deployConvex && deployConvex < deployFly)
   ) {
     fail(
-      "Kit production deploy must validate secrets, then deploy Convex before Fly",
+      "Kit production deploy must validate credentials, then deploy Convex before Fly",
     );
   }
   expectIncludes(

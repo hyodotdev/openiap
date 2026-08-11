@@ -140,10 +140,9 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Validate required deployment secrets
+      - name: Validate deployment credentials
         env:
           FLY_API_TOKEN: ${{ secrets.KIT_FLY_API_TOKEN }}
-          VITE_KIT_CONVEX_URL: ${{ secrets.VITE_KIT_CONVEX_URL }}
         run: |
           if [ -z "$KIT_CONVEX_DEPLOY_KEY" ]; then
             echo "::error::KIT_CONVEX_DEPLOY_KEY secret not set."
@@ -151,10 +150,6 @@ jobs:
           fi
           if [ -z "$FLY_API_TOKEN" ]; then
             echo "::error::KIT_FLY_API_TOKEN secret not set."
-            exit 1
-          fi
-          if [ -z "$VITE_KIT_CONVEX_URL" ]; then
-            echo "::error::VITE_KIT_CONVEX_URL secret not set (production Convex URL)."
             exit 1
           fi
 
@@ -176,7 +171,13 @@ jobs:
             echo "Attempt $attempt failed. Retrying..."
             sleep 5
           done
-          bunx convex deploy --yes
+          # Convex resolves the canonical URL for the deployment selected by
+          # CONVEX_DEPLOY_KEY. Abort before pushing functions if it does not
+          # match the committed production SSOT, then pass that same resolved
+          # URL to the later Fly build through GITHUB_ENV.
+          bunx convex deploy --yes \
+            --cmd './scripts/verify-production-convex-target.sh && printf "VITE_KIT_CONVEX_URL=%s\n" "$VITE_KIT_CONVEX_URL" >> "$GITHUB_ENV"' \
+            --cmd-url-env-var-name VITE_KIT_CONVEX_URL
 
       - name: Setup flyctl
         # Pinned to the `1.6` release rather than `@master` so the action
@@ -192,7 +193,6 @@ jobs:
         # the lockfile — it lives at root, not under packages/kit/.
         env:
           FLY_API_TOKEN: ${{ secrets.KIT_FLY_API_TOKEN }}
-          VITE_KIT_CONVEX_URL: ${{ secrets.VITE_KIT_CONVEX_URL }}
           VITE_KIT_SENTRY_DSN: ${{ secrets.VITE_KIT_SENTRY_DSN }}
           VITE_KIT_MIXPANEL_TOKEN: ${{ secrets.VITE_KIT_MIXPANEL_TOKEN }}
         run: |

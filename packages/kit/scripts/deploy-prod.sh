@@ -3,17 +3,13 @@
 # Convex SPA bundle.
 #
 # Normally the `deploy` job in `.github/workflows/deploy-kit.yml`
-# handles prod deploys and reads `VITE_KIT_CONVEX_URL` /
-# `VITE_KIT_SENTRY_DSN` / `VITE_KIT_MIXPANEL_TOKEN` directly from
-# GitHub Actions secrets (KIT_-prefixed). This
-# script is only for the rare case where CI is unavailable (billing
-# pause, emergency revert, etc.) and a human has to run `flyctl deploy`
-# from their laptop. To keep that path from accidentally shipping a
-# dev SPA, it reads from `.env.production` — which is git-ignored and
-# MUST be created locally by the deployer before the first run (see
-# `.env.example`). Direct `source .env.local && flyctl deploy ...`
-# has baked the DEV Convex URL into kit.openiap.dev before; don't do
-# that again.
+# handles production deploys. This script is only for the rare case where CI
+# is unavailable (billing pause, emergency revert, etc.) and a human has to
+# deploy from their laptop. Both paths ask the Convex CLI for the canonical URL
+# selected by its deploy key, compare it with the committed `production.env`
+# SSOT, and pass that exact URL to Fly. `.env.production` is optional and may
+# contain only credentials or optional analytics settings; it never chooses
+# the production Convex deployment.
 #
 # Usage: bash scripts/deploy-prod.sh
 set -euo pipefail
@@ -25,36 +21,15 @@ KIT_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 REPO_ROOT="$(cd "$KIT_DIR/../.." && pwd)"
 cd "$KIT_DIR"
 
-if [ ! -f .env.production ]; then
-  echo "error: .env.production missing. This file is git-ignored —"
-  echo "create it locally from .env.example and fill in the PROD"
-  echo "values (at minimum VITE_KIT_CONVEX_URL). Do NOT commit it."
-  exit 1
-fi
-
 # shellcheck disable=SC1091
 set -a
-source .env.production
+if [ -f .env.production ]; then
+  source .env.production
+fi
 if [ -f .env.production.local ]; then
   source .env.production.local
 fi
 set +a
-
-if [ -z "${VITE_KIT_CONVEX_URL:-}" ]; then
-  echo "error: VITE_KIT_CONVEX_URL not set after sourcing .env.production"
-  exit 1
-fi
-
-# Guard against ever sending a localhost or dev-labelled URL to Fly.
-case "$VITE_KIT_CONVEX_URL" in
-  *localhost*|*127.0.0.1*|*fabulous-gnat-876*)
-    echo "error: VITE_KIT_CONVEX_URL looks like a dev URL ($VITE_KIT_CONVEX_URL)."
-    echo "Refusing to deploy that to prod. Fix .env.production first."
-    exit 1
-    ;;
-esac
-
-echo "Deploying to Fly with VITE_KIT_CONVEX_URL=$VITE_KIT_CONVEX_URL"
 
 # The health response identifies the deployed Git revision. Refuse a manual
 # build from a dirty checkout, where that revision would not describe the
@@ -64,6 +39,21 @@ if [ -n "$(git -C "$REPO_ROOT" status --porcelain)" ]; then
   echo "Commit or remove tracked/untracked source changes first." >&2
   exit 1
 fi
+
+# Deploy Convex first and capture the canonical cloud URL selected by the same
+# credentials. `convex deploy` runs --cmd before pushing functions, so a target
+# mismatch stops both the Convex and Fly deployments.
+CONVEX_URL_FILE="$(mktemp)"
+trap 'rm -f "$CONVEX_URL_FILE"' EXIT
+export IAPKIT_CONVEX_URL_FILE="$CONVEX_URL_FILE"
+bunx convex deploy --yes \
+  --cmd './scripts/verify-production-convex-target.sh && printf "%s\n" "$VITE_KIT_CONVEX_URL" > "$IAPKIT_CONVEX_URL_FILE"' \
+  --cmd-url-env-var-name VITE_KIT_CONVEX_URL
+VITE_KIT_CONVEX_URL="$(tr -d '\r\n' < "$CONVEX_URL_FILE")"
+rm -f "$CONVEX_URL_FILE"
+trap - EXIT
+
+echo "Deploying to Fly with verified VITE_KIT_CONVEX_URL=$VITE_KIT_CONVEX_URL"
 
 IAPKIT_REVISION="$(git -C "$REPO_ROOT" rev-parse HEAD)"
 BUILD_FLAGS=(
