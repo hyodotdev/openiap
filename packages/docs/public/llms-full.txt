@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-08-11T00:30:33.163Z
+> Generated: 2026-08-11T01:48:10.548Z
 
 ## Table of Contents
 1. Installation
@@ -55,7 +55,7 @@ flutter pub add flutter_inapp_purchase
 ```
 
 ### Godot
-Download `godot-iap-3.2.1.zip` from GitHub Releases, extract it to
+Download `godot-iap-3.2.2.zip` from GitHub Releases, extract it to
 `addons/godot-iap/`, then enable the plugin in Project Settings.
 
 ### Kotlin Multiplatform
