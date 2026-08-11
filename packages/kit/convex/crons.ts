@@ -66,25 +66,23 @@ crons.interval(
   { olderThanMs: WEBHOOK_RETENTION_MS },
 );
 
-// Meta Horizon Store has no webhook system — Meta only exposes a
-// synchronous `verify_entitlement` Graph API. We poll every 6h to
-// reconcile Active / InGracePeriod / Paused subscriptions against
-// Meta's authoritative answer, feeding the deltas through the same
-// state machine the Apple/Google webhook receivers use.
+// Amazon recommends checking every active RVS receipt within 72 hours.
+// Rows become due on a 48-hour cadence; the bounded worker processes at most
+// 20 per tick, so backlog and retries can delay completion beyond that target.
 crons.interval(
-  "reconcile horizon entitlements",
-  { hours: 6 },
-  internal.subscriptions.horizon.reconcileHorizonEntitlements,
+  "reconcile amazon purchases",
+  { minutes: 5 },
+  internal.purchases.amazon.reconcileAmazonPurchases,
   {},
 );
 
 // Daily drift correction for the incrementally-maintained
 // `subscriptionStats` table. The incremental path in
-// applySubscriptionEvent / recordHorizonStatus is correct in steady
-// state, but a missed invocation (action timeout, manual db.patch,
-// schema drift during rollout) can drift the counters. Recomputing
-// the most-stale 100 projects per tick keeps the dashboard self-
-// healing without operator intervention.
+// applySubscriptionEvent is correct in steady state, but a missed
+// invocation (action timeout, manual db.patch, schema drift during
+// rollout) can drift the counters. Recomputing the most-stale 100
+// projects per tick keeps the dashboard self-healing without operator
+// intervention.
 crons.interval(
   "recompute subscription stats (drift correction)",
   { hours: 24 },

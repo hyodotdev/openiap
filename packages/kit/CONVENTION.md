@@ -196,7 +196,7 @@ action result open is bounded much more aggressively (iOS Safari
 aborts pending fetches when a tab backgrounds or the network
 flips, surfacing as `TypeError: Load failed`). Anything that walks
 an external catalog or fans out per-product API calls — App Store
-Connect / Play Console sync, Meta Horizon reconciliation, future
+Connect / Play Console sync, Amazon RVS reconciliation, future
 Stripe price sync — must run as a background job, not as a
 synchronous public action the dashboard awaits.
 

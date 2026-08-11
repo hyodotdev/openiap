@@ -33,6 +33,85 @@ describe("LCOV line coverage guard", () => {
     );
   });
 
+  it("scopes line totals to matching source paths", () => {
+    const source = [
+      "SF:server/api.ts",
+      "LF:10",
+      "LH:9",
+      "end_of_record",
+      "SF:convex/purchases/amazon.ts",
+      "LF:8",
+      "LH:4",
+      "end_of_record",
+      "SF:convex\\purchases\\horizon.ts",
+      "LF:2",
+      "LH:2",
+      "end_of_record",
+    ].join("\n");
+
+    assert.deepEqual(readLcovLineCoverage(source, "server/"), {
+      found: 10,
+      hit: 9,
+      percentage: 90,
+    });
+    assert.deepEqual(readLcovLineCoverage(source, "./convex/"), {
+      found: 10,
+      hit: 6,
+      percentage: 60,
+    });
+    const reportPath = report(source);
+    assert.doesNotThrow(() =>
+      assertLcovLineCoverage(reportPath, 60, "convex/"),
+    );
+    assert.throws(
+      () => assertLcovLineCoverage(reportPath, 61, "convex/"),
+      /60\.00%.*below 61\.00%/,
+    );
+  });
+
+  it("matches relative and absolute paths on directory boundaries", () => {
+    const source = [
+      "SF:convex/purchases/amazon.ts",
+      "LF:4",
+      "LH:2",
+      "end_of_record",
+      "SF:/workspace/openiap/packages/kit/convex/purchases/horizon.ts",
+      "LF:3",
+      "LH:3",
+      "end_of_record",
+      "SF:C:\\workspace\\openiap\\packages\\kit\\convex\\purchases\\ios.ts",
+      "LF:3",
+      "LH:1",
+      "end_of_record",
+      "SF:/workspace/openiap/packages/kit/convexity/not-convex.ts",
+      "LF:100",
+      "LH:0",
+      "end_of_record",
+    ].join("\n");
+
+    assert.deepEqual(readLcovLineCoverage(source, "convex"), {
+      found: 10,
+      hit: 6,
+      percentage: 60,
+    });
+    assert.deepEqual(readLcovLineCoverage(source, "./convex/"), {
+      found: 10,
+      hit: 6,
+      percentage: 60,
+    });
+  });
+
+  it("does not match a source directory that only shares the prefix", () => {
+    assert.throws(
+      () =>
+        readLcovLineCoverage(
+          "SF:/workspace/packages/kit/convexity/file.ts\nLF:1\nLH:1\n",
+          "convex",
+        ),
+      /source prefix "convex"/,
+    );
+  });
+
   it("accepts the exact minimum and rejects lower coverage", () => {
     assert.doesNotThrow(() =>
       assertLcovLineCoverage(report("LF:10\nLH:9\n"), 90),
@@ -51,6 +130,14 @@ describe("LCOV line coverage guard", () => {
     assert.throws(
       () => assertLcovLineCoverage(report("LF:1\nLH:1\n"), 101),
       /between 0 and 100/,
+    );
+    assert.throws(
+      () =>
+        readLcovLineCoverage(
+          "SF:server/api.ts\nLF:1\nLH:1\nend_of_record\n",
+          "convex/",
+        ),
+      /source prefix "convex\/"/,
     );
   });
 });

@@ -106,9 +106,20 @@ export default function ApiReferencePage() {
   "store": "amazon",
   "userId": "amzn1.account.ABC123",        // Amazon user id   (≤ 512 chars)
   "receiptId": "amzn1.receipt.ABC123",     // Amazon receipt id (≤ 4 KB)
-  "sandbox": true                          // App Tester / RVS sandbox
+  "sandbox": true,                         // requires project opt-in
+  "expectedProductId": "premium_monthly"  // optional match guard
 }`}
       </CodeBlock>
+
+      <Callout kind="warning" title="Amazon sandbox is an explicit opt-in">
+        <p>
+          Enable <strong>Allow Amazon App Tester / RVS Cloud Sandbox</strong> in
+          project settings before sending <code>sandbox: true</code>. Amazon
+          accepts any non-empty shared secret in Cloud Sandbox, so IAPKit keeps
+          it disabled by default and never sends your production shared secret
+          to the sandbox endpoint.
+        </p>
+      </Callout>
 
       <Callout kind="note" title="Malformed inputs stop at the edge">
         <p>
@@ -127,7 +138,8 @@ export default function ApiReferencePage() {
   "store": "amazon",
   "isValid": true,
   "state": "ENTITLED",
-  "productId": "premium_monthly"
+  "productId": "premium_monthly",
+  "environment": "Sandbox"
 }`}
       </CodeBlock>
 
@@ -136,7 +148,22 @@ export default function ApiReferencePage() {
         <code>state</code> permits that operation, and the store-verified
         <code>productId</code> is present and matches the product your app
         expected. For Meta Horizon, <code>productId</code> is the SKU IAPKit
-        checked.
+        checked. Amazon responses also identify the server-selected{" "}
+        <code>environment</code> as <code>Sandbox</code> or{" "}
+        <code>Production</code>. A caller-supplied Amazon{" "}
+        <code>expectedProductId</code> mismatch returns <code>INAUTHENTIC</code>{" "}
+        without changing the persisted RVS verdict.
+      </p>
+      <p>
+        Active Amazon purchase rows become due for another RVS check after 48
+        hours. This is a scheduling cadence, not a completion guarantee: the
+        worker handles at most 20 rows per five-minute tick (5,760/day, or
+        17,280 over 72 hours before failures), and backlog or retries add delay.
+        Request starts remain below Amazon&apos;s 10 TPS polling ceiling. A
+        non-null <code>cancelDate</code> is authoritative loss of access; a past{" "}
+        <code>renewalDate</code> alone is not treated as expiry. These checks
+        refresh purchase snapshots only and do not create Amazon subscription
+        rows.
       </p>
       <p>
         Apple and Google requests that explicitly send{" "}
@@ -191,9 +218,10 @@ export default function ApiReferencePage() {
       <p>
         If your own backend keeps an entitlement ledger, do not trust a
         client-provided product id. Send <code>expectedProductId</code> with the
-        Apple or Google request. IAPKit compares it against the store-verified{" "}
-        <code>productId</code> and returns <code>isValid: false</code> with{" "}
-        <code>state: "INAUTHENTIC"</code> on mismatch.
+        Apple, Google, or Amazon request. IAPKit compares it against the
+        store-verified <code>productId</code> and returns{" "}
+        <code>isValid: false</code> with <code>state: "INAUTHENTIC"</code> on
+        mismatch.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">
@@ -542,7 +570,7 @@ async function refreshEntitlements(
             <tr>
               <td className="px-3 py-2 font-mono text-xs">200</td>
               <td className="px-3 py-2">
-                <code>{`{ store, isValid, state, productId?, clientPayload? }`}</code>
+                <code>{`{ store, isValid, state, productId?, environment?, clientPayload? }`}</code>
               </td>
               <td className="px-3 py-2">Verification completed.</td>
             </tr>

@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-08-10T16:17:58.157Z
+> Last updated: 2026-08-11T07:10:55.303Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -4755,9 +4755,15 @@ Retention:
 - Events are retained for the bounded IAPKit operational window and pruned by a
   Convex cron job. They are not exposed as a public replay stream.
 
-Meta Horizon has no inbound webhook. Its bounded polling reconciler may record
-synthetic lifecycle events under the `MetaHorizonReconciler` source for the same
-private state machine and retention policy.
+Meta Horizon has no inbound webhook or background lifecycle lane in IAPKit.
+`POST /v1/purchase/verify` performs a synchronous entitlement check only. The
+`MetaHorizonReconciler` source remains schema-compatible for legacy retained
+rows, but those synthetic events are excluded from current revenue rollups.
+
+Amazon RVS also has no inbound webhook receiver in IAPKit. A bounded purchase
+reconciler revisits active Amazon receipt rows within Amazon's 72-hour guidance;
+it updates state only from authoritative RVS outcomes and preserves the last
+confirmed state across transient or malformed responses.
 
 
 ---

@@ -3,6 +3,7 @@ import { beforeEach, describe, expect, it } from "vitest";
 import { savePurchaseInternal } from "./internal";
 import { HarmonizedPurchaseState } from "./purchaseState";
 import { readPurchaseStats } from "./stats";
+import { AMAZON_RECONCILE_INTERVAL_MS } from "./shared";
 
 /**
  * Regression guard for the dedup behavior that keeps IAPKit's
@@ -205,8 +206,9 @@ function buildArgs(overrides: {
   state?: HarmonizedPurchaseState;
   isValid?: boolean;
   remoteResponse?: string;
-  store?: "apple" | "google" | "horizon";
+  store?: "apple" | "google" | "horizon" | "amazon";
   applicationId?: string;
+  environment?: "Sandbox" | "Production";
   requestData?:
     | {
         store: "google";
@@ -214,7 +216,14 @@ function buildArgs(overrides: {
         expectedProductId?: string;
       }
     | { store: "apple"; jws: string }
-    | { store: "horizon"; userId: string; sku: string };
+    | { store: "horizon"; userId: string; sku: string }
+    | {
+        store: "amazon";
+        userId: string;
+        receiptId: string;
+        sandbox?: boolean;
+        expectedProductId?: string;
+      };
 }) {
   return {
     projectId: PROJECT_ID as never,
@@ -233,6 +242,7 @@ function buildArgs(overrides: {
       }),
     state: overrides.state ?? HarmonizedPurchaseState.ENTITLED,
     isValid: overrides.isValid ?? true,
+    environment: overrides.environment,
   };
 }
 
@@ -252,6 +262,40 @@ describe("savePurchaseInternal — idempotency regression guard", () => {
     await savePurchaseInternal({ ctx, ...buildArgs({ remoteId: TOKEN }) });
 
     expect(db.purchaseCount()).toBe(1);
+  });
+
+  it("persists Amazon environment and schedules valid upserts on the 48-hour due cadence", async () => {
+    const before = Date.now();
+    const args = buildArgs({
+      store: "amazon",
+      remoteId: "production:amazon-user:amazon-receipt",
+      requestData: {
+        store: "amazon",
+        userId: "amazon-user",
+        receiptId: "amazon-receipt",
+        sandbox: false,
+        expectedProductId: "premium_monthly",
+      },
+      remoteResponse: JSON.stringify({
+        productId: "premium_monthly",
+        productType: "SUBSCRIPTION",
+      }),
+      environment: "Production",
+    });
+
+    await savePurchaseInternal({ ctx, ...args });
+    await savePurchaseInternal({ ctx, ...args });
+
+    const rows = await db.query("purchases").collect();
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.environment).toBe("Production");
+    expect(rows[0]?.productId).toBe("premium_monthly");
+    expect(rows[0]?.nextAmazonReconcileAt).toBeGreaterThanOrEqual(
+      before + AMAZON_RECONCILE_INTERVAL_MS,
+    );
+    expect(rows[0]?.nextAmazonReconcileAt).toBeLessThanOrEqual(
+      Date.now() + AMAZON_RECONCILE_INTERVAL_MS,
+    );
   });
 
   it("persists the verified expected item from a multi-item token", async () => {

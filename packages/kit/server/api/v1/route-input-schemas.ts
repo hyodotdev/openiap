@@ -219,10 +219,11 @@ export const verifyPurchaseInputSchema = v.variant("store", [
         v.pipe(
           v.boolean(),
           v.description(
-            "Use Amazon RVS Cloud Sandbox for App Tester receipts.",
+            "Use Amazon RVS Cloud Sandbox for App Tester receipts. The project must explicitly enable Amazon sandbox verification first.",
           ),
         ),
       ),
+      expectedProductId: expectedProductIdSchema,
       includeClientPayload: includeClientPayloadSchema,
     }),
     v.title("Amazon Appstore"),

@@ -460,6 +460,41 @@ never sees the secret. Verify calls use
 
 See [`convex/purchases/horizon.ts`](convex/purchases/horizon.ts).
 
+### Amazon Appstore RVS
+
+Amazon requests use
+`{ "store": "amazon", "userId": "...", "receiptId": "...", "sandbox"?: true, "expectedProductId"?: "..." }`.
+Production verification requires the project's write-only RVS shared secret.
+Cloud Sandbox is disabled by default because Amazon accepts any non-empty
+secret there; a project operator must explicitly enable **Allow Amazon App Tester
+/ RVS Cloud Sandbox** in project settings. Sandbox calls always use an IAPKit
+placeholder and never place the production secret in the sandbox URL.
+
+Handled Amazon responses include `environment: "Sandbox" | "Production"`, and
+purchase rows persist the same provenance. `expectedProductId` is a
+caller-scoped guard: a mismatch returns `INAUTHENTIC`, while the purchase row
+keeps the store-verified product and state.
+
+Valid Amazon purchase rows become due for another RVS check 48 hours after the
+latest authoritative write. This is a scheduling cadence, not a completion
+guarantee: the bounded worker claims at most 20 due rows per five-minute tick
+(5,760/day, or 17,280 over Amazon's 72-hour window before failures), with a
+12-minute crash-recovery lease. Deployments approaching that active-row ceiling
+must monitor the due backlog rather than assume every row will complete within
+48 or 72 hours. The worker makes one 10-second attempt per row and spaces request
+starts by 200 ms (at most 5 TPS). Definitive 400/497 and 410 responses update the
+row; network, timeout, throttling, secret, and response-protocol failures only
+reschedule the claim and never overwrite a newer authoritative snapshot. The
+compare-and-set apply mutation also prevents a slow worker from replacing a
+foreground verification that completed after the claim.
+
+Amazon's `cancelDate` is treated as the loss-of-access signal. `renewalDate` is
+the next renewal date and is not inferred as expiry when it is in the past.
+This reconciler updates the unified `purchases` table only; it does not create
+Amazon `subscriptions` rows or claim webhook-style subscription semantics.
+
+See [`convex/purchases/amazon.ts`](convex/purchases/amazon.ts).
+
 ### Apple refund detection
 
 The Apple verify path calls `AppStoreServerAPIClient.getTransactionInfo`

@@ -78,9 +78,17 @@ describe("hashPayload", () => {
       receiptId: "c",
       sandbox: false,
     });
+    const differentExpectedProduct = hashPayload({
+      store: "amazon",
+      userId: "ab",
+      receiptId: "c",
+      sandbox: true,
+      expectedProductId: "different.product",
+    });
 
     expect(tupleLeft).not.toBe(tupleRight);
     expect(tupleLeft).not.toBe(production);
+    expect(tupleLeft).not.toBe(differentExpectedProduct);
   });
 });
 
@@ -262,7 +270,7 @@ describe("isStableRejection", () => {
 
   it("does not arm the cooldown for a state a retry can change", () => {
     // PENDING resolves when the user finishes a deferred payment. UNKNOWN
-    // can be a successfully fetched future Play state or Amazon product type.
+    // can be a successfully fetched future Play state.
     for (const state of ["PENDING", "UNKNOWN", "FUTURE_STORE_STATE"]) {
       expect(isStableRejection(state)).toBe(false);
     }

@@ -176,9 +176,17 @@ export default function QuickstartPage() {
     "store": "amazon",
     "userId": "amzn1.account.ABC123",
     "receiptId": "amzn1.receipt.ABC123456789",
-    "sandbox": true
+    "sandbox": true,
+    "expectedProductId": "premium_monthly"
   }'`}
       </CodeBlock>
+
+      <p>
+        Sandbox requests are rejected until you explicitly enable Amazon App
+        Tester / RVS Cloud Sandbox in project settings. Leave{" "}
+        <code>sandbox</code> unset for production, which requires the stored
+        Amazon RVS shared secret.
+      </p>
 
       <p>Expected response:</p>
       <CodeBlock title="200 OK" language="json">
@@ -186,7 +194,8 @@ export default function QuickstartPage() {
   "store": "amazon",
   "isValid": true,
   "state": "ENTITLED",
-  "productId": "premium_monthly"
+  "productId": "premium_monthly",
+  "environment": "Sandbox"
 }`}
       </CodeBlock>
 

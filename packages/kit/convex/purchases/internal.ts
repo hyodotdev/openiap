@@ -5,6 +5,7 @@ import { internal } from "../_generated/api";
 import {
   purchaseRequestDataValidator,
   purchaseStoreValidator,
+  receiptEnvironmentValidator,
 } from "../schema";
 import {
   harmonizedPurchaseStateValidator,
@@ -18,12 +19,17 @@ import {
   type PurchaseStatsDelta,
 } from "./stats";
 import {
+  AMAZON_RECONCILE_BATCH_LIMIT,
+  AMAZON_RECONCILE_INTERVAL_MS,
+  AMAZON_RECONCILE_LEASE_MS,
   extractOrderIdFromRemoteResponse,
   extractProductIdFromRemoteResponse,
+  isValidState,
 } from "./shared";
 
 type PurchaseStore = Infer<typeof purchaseStoreValidator>;
 type PurchaseRequestData = Infer<typeof purchaseRequestDataValidator>;
+type ReceiptEnvironment = Infer<typeof receiptEnvironmentValidator>;
 
 export type SavePurchaseArgs = {
   ctx: MutationCtx;
@@ -35,6 +41,7 @@ export type SavePurchaseArgs = {
   remoteResponse?: string;
   state: HarmonizedPurchaseState;
   isValid: boolean;
+  environment?: ReceiptEnvironment;
   requestIp?: string;
   verificationDurationMs?: number;
 };
@@ -49,6 +56,7 @@ export async function savePurchaseInternal({
   remoteResponse,
   state,
   isValid,
+  environment,
   requestIp,
   verificationDurationMs,
 }: SavePurchaseArgs) {
@@ -66,6 +74,10 @@ export async function savePurchaseInternal({
   }
 
   const now = Date.now();
+  const nextAmazonReconcileAt =
+    store === "amazon" && isValid
+      ? now + AMAZON_RECONCILE_INTERVAL_MS
+      : undefined;
   const expectedProductId =
     requestData.store === "google" ? requestData.expectedProductId : undefined;
   const productId = extractProductIdFromRemoteResponse(
@@ -141,6 +153,8 @@ export async function savePurchaseInternal({
           state,
           isValid,
           updatedAt: now,
+          environment,
+          nextAmazonReconcileAt,
           productId,
           orderId,
           verificationDurationMs,
@@ -197,6 +211,8 @@ export async function savePurchaseInternal({
           state,
           isValid,
           updatedAt: now,
+          environment,
+          nextAmazonReconcileAt,
           productId,
           orderId,
           verificationDurationMs,
@@ -219,6 +235,8 @@ export async function savePurchaseInternal({
     remoteResponse,
     state,
     isValid,
+    ...(environment !== undefined ? { environment } : {}),
+    ...(nextAmazonReconcileAt !== undefined ? { nextAmazonReconcileAt } : {}),
     // Mark as already counted so the `backfillPurchaseStatsFromPurchases`
     // migration skips rows inserted after the counter table went live.
     statsCounted: true,
@@ -253,6 +271,8 @@ type PurchasePatchArgs = {
   state: HarmonizedPurchaseState;
   isValid: boolean;
   updatedAt: number;
+  environment?: ReceiptEnvironment;
+  nextAmazonReconcileAt?: number;
   productId: string | null;
   orderId: string | null;
   verificationDurationMs?: number;
@@ -368,6 +388,12 @@ async function patchExistingPurchase(
     state: args.state,
     isValid: args.isValid,
     updatedAt: args.updatedAt,
+    ...(args.environment !== undefined
+      ? { environment: args.environment }
+      : {}),
+    ...(args.nextAmazonReconcileAt !== undefined
+      ? { nextAmazonReconcileAt: args.nextAmazonReconcileAt }
+      : {}),
     ...(args.productId !== null ? { productId: args.productId } : {}),
     ...(args.orderId !== null ? { orderId: args.orderId } : {}),
     ...(args.verificationDurationMs !== undefined
@@ -445,6 +471,7 @@ export const saveReceiptInternal = internalMutation({
     remoteResponse: v.optional(v.string()),
     state: harmonizedPurchaseStateValidator,
     isValid: v.boolean(),
+    environment: v.optional(receiptEnvironmentValidator),
     requestIp: v.optional(v.string()),
     verificationDurationMs: v.optional(v.number()),
   },
@@ -461,8 +488,151 @@ export const saveReceiptInternal = internalMutation({
       remoteResponse: args.remoteResponse,
       state: args.state,
       isValid: args.isValid,
+      environment: args.environment,
       requestIp: args.requestIp,
       verificationDurationMs: args.verificationDurationMs,
     });
+  },
+});
+
+/**
+ * Atomically claim a bounded page of due Amazon purchase snapshots.
+ *
+ * `nextAmazonReconcileAt` doubles as the lease deadline. Convex mutations are
+ * serializable, so advancing it before returning prevents overlapping cron
+ * actions from receiving the same row. If the worker crashes, the row becomes
+ * due again when the lease expires.
+ */
+export const claimAmazonPurchasesForReconciliation = internalMutation({
+  args: {
+    limit: v.optional(v.number()),
+    now: v.optional(v.number()),
+  },
+  handler: async (ctx, args) => {
+    const now = args.now ?? Date.now();
+    const requestedLimit = Math.trunc(
+      args.limit ?? AMAZON_RECONCILE_BATCH_LIMIT,
+    );
+    const limit = Math.min(
+      Math.max(requestedLimit, 1),
+      AMAZON_RECONCILE_BATCH_LIMIT,
+    );
+    const leaseUntil = now + AMAZON_RECONCILE_LEASE_MS;
+    const due = await ctx.db
+      .query("purchases")
+      .withIndex("by_store_isValid_nextAmazonReconcileAt", (q) =>
+        q
+          .eq("store", "amazon")
+          .eq("isValid", true)
+          .lte("nextAmazonReconcileAt", now),
+      )
+      .order("asc")
+      .take(limit);
+
+    const claimed = [];
+    for (const purchase of due) {
+      const requestData = purchase.requestData;
+      const project = await ctx.db.get(purchase.projectId);
+      if (
+        requestData.store !== "amazon" ||
+        !purchase.remoteId ||
+        !project ||
+        project.pendingDeletion
+      ) {
+        // Keep a malformed legacy row from monopolizing the front of the due
+        // index while project deletion or an operator repair catches up.
+        await ctx.db.patch(purchase._id, { nextAmazonReconcileAt: leaseUntil });
+        continue;
+      }
+
+      await ctx.db.patch(purchase._id, { nextAmazonReconcileAt: leaseUntil });
+      claimed.push({
+        purchaseId: purchase._id,
+        requestData,
+        leaseUntil,
+        amazonSandboxEnabled: project.amazonSandboxEnabled === true,
+        ...(typeof project.amazonSharedSecret === "string"
+          ? { amazonSharedSecret: project.amazonSharedSecret }
+          : {}),
+      });
+    }
+
+    return claimed;
+  },
+});
+
+/**
+ * Move a failed claim to its retry slot without racing a newer foreground
+ * verification. A public verify or another authoritative write changes the
+ * schedule, making this compare-and-set a no-op.
+ */
+export const rescheduleAmazonPurchaseReconciliation = internalMutation({
+  args: {
+    purchaseId: v.id("purchases"),
+    claimedLeaseUntil: v.number(),
+    retryAt: v.number(),
+  },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    const purchase = await ctx.db.get(args.purchaseId);
+    if (
+      !purchase ||
+      purchase.store !== "amazon" ||
+      purchase.isValid !== true ||
+      purchase.nextAmazonReconcileAt !== args.claimedLeaseUntil
+    ) {
+      return false;
+    }
+
+    await ctx.db.patch(purchase._id, {
+      nextAmazonReconcileAt: args.retryAt,
+    });
+    return true;
+  },
+});
+
+/**
+ * Apply an RVS verdict only while this worker still owns the claimed row.
+ * The lease comparison and purchase upsert run in one serializable mutation,
+ * so a newer foreground verification wins instead of being overwritten by a
+ * slower background response. A deleted row also stays deleted.
+ */
+export const applyAmazonReconciliationVerdict = internalMutation({
+  args: {
+    purchaseId: v.id("purchases"),
+    claimedLeaseUntil: v.number(),
+    remoteResponse: v.string(),
+    state: harmonizedPurchaseStateValidator,
+    verificationDurationMs: v.optional(v.number()),
+  },
+  returns: v.boolean(),
+  handler: async (ctx, args) => {
+    const purchase = await ctx.db.get(args.purchaseId);
+    if (
+      !purchase ||
+      purchase.store !== "amazon" ||
+      purchase.isValid !== true ||
+      purchase.nextAmazonReconcileAt !== args.claimedLeaseUntil ||
+      purchase.requestData.store !== "amazon" ||
+      !purchase.remoteId
+    ) {
+      return false;
+    }
+
+    await savePurchaseInternal({
+      ctx,
+      projectId: purchase.projectId,
+      store: "amazon",
+      applicationId: purchase.applicationId,
+      remoteId: purchase.remoteId,
+      requestData: purchase.requestData,
+      remoteResponse: args.remoteResponse,
+      state: args.state,
+      isValid: isValidState(args.state),
+      environment:
+        purchase.requestData.sandbox === true ? "Sandbox" : "Production",
+      verificationDurationMs: args.verificationDurationMs,
+    });
+    return true;
   },
 });

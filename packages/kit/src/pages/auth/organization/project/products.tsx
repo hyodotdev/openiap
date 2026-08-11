@@ -1122,33 +1122,29 @@ function DryRunButton({
   );
 }
 
-// Meta Horizon doesn't expose a catalog REST API — only
-// `verify_entitlement` (purchase check) and `consume_entitlement`
-// (consumable burn-down) are reachable from the server side. SKU
-// definitions live exclusively in Meta Quest Developer Hub. We
-// surface the constraint here so a Horizon-enabled project's
-// operator doesn't keep looking for a missing "Sync with Meta"
-// button — kit handles entitlements (receipt verification +
-// 6-hour reconciliation cron) but cannot mirror the catalog.
+// IAPKit does not currently implement Meta Horizon catalog sync. Surface that
+// product boundary here so an operator does not keep looking for a missing
+// "Sync with Meta" button or mistake synchronous entitlement verification for
+// background subscription tracking.
 function HorizonCatalogNotice() {
   return (
     <div className="rounded-lg border border-blue-500/30 bg-blue-500/10 p-3 flex items-start gap-3 text-xs text-blue-200">
       <Info className="w-4 h-4 mt-0.5 shrink-0" />
       <div className="flex-1 space-y-1">
-        <div className="font-medium">Horizon catalog is upstream-only</div>
+        <div className="font-medium">Horizon catalog sync is not supported</div>
         <p className="leading-relaxed">
-          Meta doesn&apos;t expose a catalog API — manage Quest / Horizon SKUs
-          in Meta Quest Developer Hub. kit verifies Horizon receipts and
-          reconciles subscription entitlements every 6 hours, but the SKU list
-          itself can&apos;t be synced.
+          Manage Quest / Horizon SKUs in Meta Horizon Developer Dashboard.
+          IAPKit currently supports on-demand entitlement checks through its raw
+          REST verification route; it does not sync the catalog or run
+          background Horizon subscription reconciliation.
         </p>
         <a
-          href="https://developers.meta.com/horizon/"
+          href="https://developers.meta.com/horizon/documentation/native/ps-iap-s2s/"
           target="_blank"
           rel="noopener noreferrer"
           className="inline-flex items-center gap-1 underline hover:text-blue-100"
         >
-          Open Meta Quest Developer Hub
+          Open Meta Horizon documentation
           <ExternalLink className="w-3 h-3" />
         </a>
       </div>

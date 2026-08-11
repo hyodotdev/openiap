@@ -26,6 +26,11 @@ export const purchaseStoreValidator = v.union(
   v.literal("amazon"),
 );
 
+export const receiptEnvironmentValidator = v.union(
+  v.literal("Sandbox"),
+  v.literal("Production"),
+);
+
 export const purchaseRequestDataValidator = v.union(
   v.object({
     store: v.literal("apple"),
@@ -41,7 +46,7 @@ export const purchaseRequestDataValidator = v.union(
   // or Apple-style opaque receipt; instead Meta's Graph API verifies
   // an entitlement by (userId, sku) with a server-side App Access
   // Token the IAPKit server holds. See
-  // https://developers.meta.com/horizon/documentation/native/ps-iap
+  // https://developers.meta.com/horizon/documentation/native/ps-iap-s2s/
   v.object({
     store: v.literal("horizon"),
     userId: v.string(),
@@ -56,6 +61,7 @@ export const purchaseRequestDataValidator = v.union(
     userId: v.string(),
     receiptId: v.string(),
     sandbox: v.optional(v.boolean()),
+    expectedProductId: v.optional(v.string()),
   }),
 );
 
@@ -242,9 +248,10 @@ const schema = defineSchema({
 
     // Amazon Appstore Receipt Verification Service (RVS). Production
     // calls require the developer shared secret; Cloud Sandbox accepts
-    // any non-empty shared secret but we keep one project-level field
-    // so clients don't ever ship the production secret.
+    // any non-empty shared secret. Sandbox access is an explicit project
+    // opt-in because App Tester responses are not production evidence.
     amazonSharedSecret: v.optional(v.union(v.string(), v.null())),
+    amazonSandboxEnabled: v.optional(v.boolean()),
 
     // Stable presentation currency for dashboard analytics. Raw
     // purchases/subscriptions keep their original store currency;
@@ -278,11 +285,7 @@ const schema = defineSchema({
     .index("by_organization", ["organizationId"])
     .index("by_api_key", ["apiKey"])
     .index("by_org_and_slug", ["organizationId", "slug"])
-    .index("by_pending_deletion", ["pendingDeletion"])
-    // Horizon polling reconciler iterates only the projects that
-    // opted into Meta Horizon billing — without this index the cron
-    // would full-scan every project on each tick.
-    .index("by_horizon_enabled", ["horizonEnabled"]),
+    .index("by_pending_deletion", ["pendingDeletion"]),
 
   // API Keys table - Multiple API keys per project
   apiKeys: defineTable({
@@ -424,6 +427,14 @@ const schema = defineSchema({
     state: harmonizedPurchaseStateValidator,
     isValid: v.optional(v.boolean()), // computed from state at time of verification
     verificationDurationMs: v.optional(v.number()),
+    // Amazon is the only request-selected verification environment. Keep
+    // it first-class so operators never have to infer provenance from a
+    // stored request JSON blob.
+    environment: v.optional(receiptEnvironmentValidator),
+    // Active Amazon receipt snapshots are rechecked through RVS. Claiming
+    // a row temporarily advances this timestamp as a lease, which keeps
+    // overlapping five-minute cron ticks from probing the same receipt.
+    nextAmazonReconcileAt: v.optional(v.number()),
     // Extracted on write so the list query doesn't re-parse
     // `remoteResponse` for every page item.
     productId: v.optional(v.string()),
@@ -457,6 +468,11 @@ const schema = defineSchema({
     .index("by_application", ["applicationId"])
     .index("by_project_and_remote", ["projectId", "remoteId"])
     .index("by_project_app_orderId", ["projectId", "applicationId", "orderId"])
+    .index("by_store_isValid_nextAmazonReconcileAt", [
+      "store",
+      "isValid",
+      "nextAmazonReconcileAt",
+    ])
     .searchIndex("search_request_ip_by_project", {
       searchField: "requestIp",
       filterFields: ["projectId"],
@@ -562,8 +578,8 @@ const schema = defineSchema({
     source: v.union(
       v.literal("AppleAppStoreServerNotificationsV2"),
       v.literal("GooglePlayRealTimeDeveloperNotifications"),
-      // Synthetic source for Meta Horizon Store entitlement
-      // transitions discovered by the polling reconciler.
+      // Legacy source retained until pre-removal synthetic rows age out.
+      // Current ingestion and analytics never create or count these rows.
       v.literal("MetaHorizonReconciler"),
     ),
     platform: v.union(v.literal("IOS"), v.literal("Android")),
@@ -746,14 +762,9 @@ const schema = defineSchema({
       "state",
       "productId",
     ])
-    // Composite (projectId, state, updatedAt) for the Horizon
-    // reconciler's per-state, oldest-first pagination. With this index
-    // we walk the staleest subs in each mutable state per cron tick;
-    // after Meta verify_entitlement writes the fresh `updatedAt`, the
-    // row moves to the back of the queue automatically. That makes
-    // the reconciler self-paginating across ticks — no separate
-    // continuation cursor needed (PR #124
-    // (https://github.com/hyodotdev/openiap/pull/124) review).
+    // Composite (projectId, state, updatedAt) lets revenue rollups scan
+    // each counted subscription state in update order without walking
+    // unrelated states for the project.
     .index("by_project_and_state_and_updated", [
       "projectId",
       "state",

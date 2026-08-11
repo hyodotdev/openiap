@@ -62,8 +62,6 @@ import type * as purchases_query from "../purchases/query.js";
 import type * as purchases_retry from "../purchases/retry.js";
 import type * as purchases_shared from "../purchases/shared.js";
 import type * as purchases_stats from "../purchases/stats.js";
-import type * as subscriptions_horizon from "../subscriptions/horizon.js";
-import type * as subscriptions_horizonInternal from "../subscriptions/horizonInternal.js";
 import type * as subscriptions_internal from "../subscriptions/internal.js";
 import type * as subscriptions_monthlyMicros from "../subscriptions/monthlyMicros.js";
 import type * as subscriptions_mutation from "../subscriptions/mutation.js";
@@ -149,8 +147,6 @@ declare const fullApi: ApiFromModules<{
   "purchases/retry": typeof purchases_retry;
   "purchases/shared": typeof purchases_shared;
   "purchases/stats": typeof purchases_stats;
-  "subscriptions/horizon": typeof subscriptions_horizon;
-  "subscriptions/horizonInternal": typeof subscriptions_horizonInternal;
   "subscriptions/internal": typeof subscriptions_internal;
   "subscriptions/monthlyMicros": typeof subscriptions_monthlyMicros;
   "subscriptions/mutation": typeof subscriptions_mutation;

@@ -3,10 +3,12 @@
 import { v } from "convex/values";
 
 import { internal } from "../_generated/api";
-import { action } from "../_generated/server";
+import type { Id } from "../_generated/dataModel";
+import { action, internalAction, type ActionCtx } from "../_generated/server";
 import {
   AmazonReceiptInvalidError,
   AmazonReceiptVerificationError,
+  AmazonSandboxNotEnabledError,
   AmazonSharedSecretNotConfiguredError,
   ReceiptVerificationError,
 } from "./errors";
@@ -17,6 +19,9 @@ import {
   retryOnTransient,
 } from "./retry";
 import {
+  AMAZON_RECONCILE_BATCH_LIMIT,
+  AMAZON_RECONCILE_RETRY_MS,
+  applyExpectedProductId,
   getProjectByApiKey,
   isValidState,
   receiptResponseValidator,
@@ -26,21 +31,45 @@ const AMAZON_RVS_BASE_URL = "https://appstore-sdk.amazon.com";
 const AMAZON_RVS_VERSION = "1.0";
 const AMAZON_SANDBOX_SHARED_SECRET = "iapkit-sandbox";
 const AMAZON_RVS_FETCH_TIMEOUT_MS = 10_000;
+const AMAZON_RECONCILE_MIN_REQUEST_INTERVAL_MS = 200;
+
+type AmazonEnvironment = "Sandbox" | "Production";
 
 export interface AmazonReceiptData {
   autoRenewing?: boolean;
-  cancelDate?: number | null;
+  cancelDate: number | null;
   cancelReason?: number | null;
   gracePeriodEndDate?: number | null;
-  productId?: string;
-  productType?: string;
+  productId: string;
+  productType: "CONSUMABLE" | "ENTITLED" | "SUBSCRIPTION";
   purchaseDate?: number;
   quantity?: number | null;
-  receiptId?: string;
+  receiptId: string;
   renewalDate?: number | null;
   term?: string | null;
   termSku?: string | null;
   testTransaction?: boolean;
+  [key: string]: unknown;
+}
+
+interface AmazonRequestData {
+  store: "amazon";
+  userId: string;
+  receiptId: string;
+  sandbox?: boolean;
+  expectedProductId?: string;
+}
+
+interface PersistAmazonVerdictArgs {
+  projectId: Id<"projects">;
+  applicationId: string;
+  remoteId: string;
+  requestData: AmazonRequestData;
+  environment: AmazonEnvironment;
+  remoteResponse: string;
+  state: HarmonizedPurchaseState;
+  requestIp?: string;
+  verificationDurationMs?: number;
 }
 
 function describeError(error: unknown): string {
@@ -60,11 +89,20 @@ function isAbortError(error: unknown): boolean {
   );
 }
 
+function isAmazonTransientError(error: unknown): boolean {
+  return (
+    isAbortError(error) ||
+    error instanceof TypeError ||
+    extractHttpStatus(error) === 429 ||
+    isTransientHttpError(error)
+  );
+}
+
 function encodePathSegment(value: string): string {
   return encodeURIComponent(value);
 }
 
-function buildAmazonRvsUrl(args: {
+export function buildAmazonRvsUrl(args: {
   sharedSecret: string;
   userId: string;
   receiptId: string;
@@ -94,16 +132,18 @@ export function buildAmazonRemoteId(args: {
 export function mapAmazonReceiptState(
   receipt: AmazonReceiptData,
 ): HarmonizedPurchaseState {
-  if (receipt.cancelDate !== undefined && receipt.cancelDate !== null) {
+  // Amazon defines cancelDate as the moment access was lost: it is set when
+  // a purchase is canceled or a subscription expires and stays null while a
+  // subscription is valid. renewalDate is only the next renewal date, so a
+  // past renewalDate must never be treated as an expiry signal.
+  if (receipt.cancelDate !== null) {
     return HarmonizedPurchaseState.CANCELED;
   }
 
-  const productType = receipt.productType?.toUpperCase();
-  switch (productType) {
+  switch (receipt.productType.toUpperCase()) {
     case "CONSUMABLE":
       return HarmonizedPurchaseState.READY_TO_CONSUME;
     case "ENTITLED":
-      return HarmonizedPurchaseState.ENTITLED;
     case "SUBSCRIPTION":
       return HarmonizedPurchaseState.ENTITLED;
     default:
@@ -111,14 +151,98 @@ export function mapAmazonReceiptState(
   }
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+function assertOptionalBoolean(
+  value: Record<string, unknown>,
+  field: string,
+): void {
+  if (field in value && typeof value[field] !== "boolean") {
+    throw new AmazonReceiptVerificationError(
+      `Amazon RVS field ${field} must be a boolean.`,
+    );
+  }
+}
+
+function assertOptionalNumber(
+  value: Record<string, unknown>,
+  field: string,
+  nullable: boolean,
+): void {
+  if (!(field in value)) return;
+  const fieldValue = value[field];
+  if (nullable && fieldValue === null) return;
+  if (typeof fieldValue !== "number" || !Number.isFinite(fieldValue)) {
+    throw new AmazonReceiptVerificationError(
+      `Amazon RVS field ${field} must be a finite number${nullable ? " or null" : ""}.`,
+    );
+  }
+}
+
+function assertOptionalString(
+  value: Record<string, unknown>,
+  field: string,
+  nullable: boolean,
+): void {
+  if (!(field in value)) return;
+  const fieldValue = value[field];
+  if (nullable && fieldValue === null) return;
+  if (typeof fieldValue !== "string") {
+    throw new AmazonReceiptVerificationError(
+      `Amazon RVS field ${field} must be a string${nullable ? " or null" : ""}.`,
+    );
+  }
+}
+
 export function parseAmazonReceiptResponse(raw: unknown): AmazonReceiptData {
-  if (!raw || typeof raw !== "object") {
+  if (!isRecord(raw)) {
     throw new AmazonReceiptVerificationError(
       "Amazon RVS returned an unparseable body.",
     );
   }
 
-  return raw;
+  if (typeof raw.productId !== "string" || raw.productId.trim().length === 0) {
+    throw new AmazonReceiptVerificationError(
+      "Amazon RVS returned no usable productId.",
+    );
+  }
+  if (
+    raw.productType !== "CONSUMABLE" &&
+    raw.productType !== "ENTITLED" &&
+    raw.productType !== "SUBSCRIPTION"
+  ) {
+    throw new AmazonReceiptVerificationError(
+      "Amazon RVS returned an unsupported productType.",
+    );
+  }
+  if (
+    !("cancelDate" in raw) ||
+    (raw.cancelDate !== null &&
+      (typeof raw.cancelDate !== "number" || !Number.isFinite(raw.cancelDate)))
+  ) {
+    throw new AmazonReceiptVerificationError(
+      "Amazon RVS field cancelDate must be a finite number or null.",
+    );
+  }
+  if (typeof raw.receiptId !== "string" || raw.receiptId.trim().length === 0) {
+    throw new AmazonReceiptVerificationError(
+      "Amazon RVS returned no usable receiptId.",
+    );
+  }
+
+  assertOptionalBoolean(raw, "autoRenewing");
+  assertOptionalBoolean(raw, "testTransaction");
+  assertOptionalNumber(raw, "cancelReason", true);
+  assertOptionalNumber(raw, "gracePeriodEndDate", true);
+  assertOptionalNumber(raw, "purchaseDate", false);
+  assertOptionalNumber(raw, "quantity", true);
+  assertOptionalNumber(raw, "renewalDate", true);
+  assertOptionalString(raw, "term", true);
+  assertOptionalString(raw, "termSku", true);
+
+  return raw as AmazonReceiptData;
 }
 
 function parseAmazonJsonBody(bodyText: string): unknown {
@@ -144,12 +268,190 @@ function parseAmazonJsonBody(bodyText: string): unknown {
   }
 }
 
+function resolveAmazonSharedSecret(args: {
+  sandbox: boolean;
+  amazonSandboxEnabled: boolean;
+  amazonSharedSecret?: string | null;
+}): string {
+  if (args.sandbox) {
+    if (!args.amazonSandboxEnabled) {
+      throw new AmazonSandboxNotEnabledError();
+    }
+    // Cloud Sandbox ignores the value as long as it is non-empty. Never put a
+    // configured production credential in the sandbox URL.
+    return AMAZON_SANDBOX_SHARED_SECRET;
+  }
+
+  const sharedSecret = args.amazonSharedSecret?.trim();
+  if (!sharedSecret) {
+    throw new AmazonSharedSecretNotConfiguredError();
+  }
+  return sharedSecret;
+}
+
+async function requestAmazonReceipt(args: {
+  sharedSecret: string;
+  userId: string;
+  receiptId: string;
+  sandbox: boolean;
+  maxAttempts: number;
+}): Promise<AmazonReceiptData> {
+  const url = buildAmazonRvsUrl(args);
+  const parsedBody = await retryOnTransient(
+    async () => {
+      const controller = new AbortController();
+      const timeout = setTimeout(
+        () => controller.abort(),
+        AMAZON_RVS_FETCH_TIMEOUT_MS,
+      );
+      try {
+        const response = await fetch(url, {
+          method: "GET",
+          headers: { Accept: "application/json" },
+          signal: controller.signal,
+        });
+        // Keep the same timeout through body consumption. Clearing it after
+        // headers would let a stalled response body pin the action forever.
+        const bodyText = await response.text();
+
+        if (response.status === 400 || response.status === 497) {
+          throw new AmazonReceiptInvalidError(
+            response.status,
+            bodyText.slice(0, 512) ||
+              (response.status === 497 ? "invalid user ID" : "invalid receipt"),
+          );
+        }
+        if (response.status === 410) {
+          throw new AmazonReceiptInvalidError(
+            response.status,
+            bodyText.slice(0, 512) || "receipt is no longer valid",
+          );
+        }
+        if (response.status === 496) {
+          throw new AmazonReceiptVerificationError("invalid shared secret");
+        }
+        if (!response.ok) {
+          const error = new Error(
+            `Amazon RVS ${response.status}: ${bodyText.slice(0, 512)}`,
+          );
+          (error as { code?: number }).code = response.status;
+          throw error;
+        }
+
+        return parseAmazonJsonBody(bodyText);
+      } finally {
+        clearTimeout(timeout);
+      }
+    },
+    {
+      maxAttempts: args.maxAttempts,
+      shouldRetry: isAmazonTransientError,
+    },
+  );
+
+  const receipt = parseAmazonReceiptResponse(parsedBody);
+  if (receipt.receiptId !== args.receiptId) {
+    throw new AmazonReceiptVerificationError(
+      "Amazon RVS returned a receiptId that does not match the request.",
+    );
+  }
+  return receipt;
+}
+
+function environmentForSandbox(sandbox: boolean): AmazonEnvironment {
+  return sandbox ? "Sandbox" : "Production";
+}
+
+function stateForAmazonInvalidError(
+  error: AmazonReceiptInvalidError,
+): HarmonizedPurchaseState {
+  return error.errorDetails?.status === 410
+    ? HarmonizedPurchaseState.CANCELED
+    : HarmonizedPurchaseState.INAUTHENTIC;
+}
+
+async function persistAmazonVerdict(
+  ctx: ActionCtx,
+  args: PersistAmazonVerdictArgs,
+): Promise<void> {
+  await ctx.runMutation(internal.purchases.internal.saveReceiptInternal, {
+    projectId: args.projectId,
+    store: "amazon",
+    applicationId: args.applicationId,
+    remoteId: args.remoteId,
+    requestData: args.requestData,
+    remoteResponse: args.remoteResponse,
+    state: args.state,
+    isValid: isValidState(args.state),
+    environment: args.environment,
+    requestIp: args.requestIp,
+    verificationDurationMs: args.verificationDurationMs,
+  });
+}
+
+async function rescheduleAmazonProbe(
+  ctx: ActionCtx,
+  probe: { purchaseId: Id<"purchases">; leaseUntil: number },
+): Promise<void> {
+  await ctx.runMutation(
+    internal.purchases.internal.rescheduleAmazonPurchaseReconciliation,
+    {
+      purchaseId: probe.purchaseId,
+      claimedLeaseUntil: probe.leaseUntil,
+      retryAt: Date.now() + AMAZON_RECONCILE_RETRY_MS,
+    },
+  );
+}
+
+async function applyAmazonReconciliationVerdict(
+  ctx: ActionCtx,
+  probe: { purchaseId: Id<"purchases">; leaseUntil: number },
+  args: {
+    remoteResponse: string;
+    state: HarmonizedPurchaseState;
+    verificationDurationMs: number;
+  },
+): Promise<boolean> {
+  return await ctx.runMutation(
+    internal.purchases.internal.applyAmazonReconciliationVerdict,
+    {
+      purchaseId: probe.purchaseId,
+      claimedLeaseUntil: probe.leaseUntil,
+      remoteResponse: args.remoteResponse,
+      state: args.state,
+      verificationDurationMs: args.verificationDurationMs,
+    },
+  );
+}
+
+function realSleep(ms: number): Promise<void> {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+export async function waitForAmazonRateSlot(args: {
+  lastStartedAt?: number;
+  now?: () => number;
+  sleep?: (ms: number) => Promise<void>;
+}): Promise<number> {
+  const now = args.now ?? Date.now;
+  const sleep = args.sleep ?? realSleep;
+  if (args.lastStartedAt !== undefined) {
+    const waitMs = Math.max(
+      0,
+      args.lastStartedAt + AMAZON_RECONCILE_MIN_REQUEST_INTERVAL_MS - now(),
+    );
+    if (waitMs > 0) await sleep(waitMs);
+  }
+  return now();
+}
+
 export const verifyAmazonReceiptInternalV1 = action({
   args: {
     apiKey: v.string(),
     userId: v.string(),
     receiptId: v.string(),
     sandbox: v.optional(v.boolean()),
+    expectedProductId: v.optional(v.string()),
     requestIp: v.optional(v.string()),
   },
   returns: receiptResponseValidator,
@@ -157,17 +459,20 @@ export const verifyAmazonReceiptInternalV1 = action({
     const verificationStart = Date.now();
     const project = await getProjectByApiKey(ctx, args.apiKey);
     const sandbox = args.sandbox === true;
-    const sharedSecret = project.amazonSharedSecret?.trim();
-
-    if (!sandbox && !sharedSecret) {
-      throw new AmazonSharedSecretNotConfiguredError();
-    }
-
-    const requestData = {
-      store: "amazon" as const,
+    const environment = environmentForSandbox(sandbox);
+    const sharedSecret = resolveAmazonSharedSecret({
+      sandbox,
+      amazonSandboxEnabled: project.amazonSandboxEnabled === true,
+      amazonSharedSecret: project.amazonSharedSecret,
+    });
+    const requestData: AmazonRequestData = {
+      store: "amazon",
       userId: args.userId,
       receiptId: args.receiptId,
       sandbox,
+      ...(args.expectedProductId !== undefined
+        ? { expectedProductId: args.expectedProductId }
+        : {}),
     };
     const applicationId = project.androidPackageName ?? `amazon:${project._id}`;
     const remoteId = buildAmazonRemoteId({
@@ -175,154 +480,174 @@ export const verifyAmazonReceiptInternalV1 = action({
       receiptId: args.receiptId,
       sandbox,
     });
-    const url = buildAmazonRvsUrl({
-      sharedSecret: sharedSecret || AMAZON_SANDBOX_SHARED_SECRET,
-      userId: args.userId,
-      receiptId: args.receiptId,
-      sandbox,
-    });
-
-    const saveFailedReceipt = async (failure: {
-      error: string;
-      message: string;
-      details?: unknown;
-      state?: HarmonizedPurchaseState;
-    }) => {
-      await ctx.runMutation(internal.purchases.internal.saveReceiptInternal, {
-        projectId: project._id,
-        store: "amazon",
-        applicationId,
-        remoteId,
-        requestData,
-        remoteResponse: JSON.stringify({
-          error: failure.error,
-          message: failure.message,
-          details: failure.details ?? null,
-        }),
-        state: failure.state ?? HarmonizedPurchaseState.UNKNOWN,
-        isValid: false,
-        requestIp: args.requestIp,
-        verificationDurationMs: Date.now() - verificationStart,
-      });
-    };
-
-    let parsedBody: unknown;
-    try {
-      parsedBody = await retryOnTransient(
-        async () => {
-          const controller = new AbortController();
-          const timeout = setTimeout(
-            () => controller.abort(),
-            AMAZON_RVS_FETCH_TIMEOUT_MS,
-          );
-          const res = await fetch(url, {
-            method: "GET",
-            headers: { Accept: "application/json" },
-            signal: controller.signal,
-          }).finally(() => clearTimeout(timeout));
-          const bodyText = await res.text().catch(() => "");
-
-          if (res.status === 400 || res.status === 497) {
-            throw new AmazonReceiptInvalidError(
-              res.status,
-              bodyText.slice(0, 512) ||
-                (res.status === 497 ? "invalid user ID" : "invalid receipt"),
-            );
-          }
-          if (res.status === 410) {
-            throw new AmazonReceiptInvalidError(
-              res.status,
-              bodyText.slice(0, 512) || "receipt is no longer valid",
-            );
-          }
-          if (res.status === 496) {
-            throw new AmazonReceiptVerificationError("invalid shared secret");
-          }
-          if (!res.ok) {
-            const err = new Error(
-              `Amazon RVS ${res.status}: ${bodyText.slice(0, 512)}`,
-            );
-            (err as { code?: number }).code = res.status;
-            throw err;
-          }
-
-          return parseAmazonJsonBody(bodyText);
-        },
-        {
-          shouldRetry: (error) =>
-            isAbortError(error) ||
-            extractHttpStatus(error) === 429 ||
-            isTransientHttpError(error),
-        },
-      );
-    } catch (error) {
-      if (error instanceof AmazonReceiptInvalidError) {
-        const state =
-          error.errorDetails?.status === 410
-            ? HarmonizedPurchaseState.CANCELED
-            : HarmonizedPurchaseState.INAUTHENTIC;
-        await saveFailedReceipt({
-          error: error.errorCode,
-          message: error.errorMessage,
-          details: error.errorDetails ?? null,
-          state,
-        });
-        return { isValid: false, state };
-      }
-
-      const message = describeError(error);
-      await saveFailedReceipt({
-        error:
-          error instanceof ReceiptVerificationError
-            ? error.errorCode
-            : "AMAZON_RECEIPT_VERIFICATION_ERROR",
-        message,
-        details:
-          error instanceof ReceiptVerificationError
-            ? error.errorDetails
-            : undefined,
-      });
-      throw new AmazonReceiptVerificationError(message);
-    }
 
     let receiptData: AmazonReceiptData;
-    let state: HarmonizedPurchaseState;
-    let remoteResponse: string;
     try {
-      receiptData = parseAmazonReceiptResponse(parsedBody);
-      state = mapAmazonReceiptState(receiptData);
-      remoteResponse = JSON.stringify(receiptData);
-    } catch (error) {
-      const message = describeError(error);
-      await saveFailedReceipt({
-        error: "AMAZON_RECEIPT_PARSE_ERROR",
-        message,
-        details: {
-          rawResponse: parsedBody,
-          stack: error instanceof Error ? error.stack : undefined,
-        },
+      receiptData = await requestAmazonReceipt({
+        sharedSecret,
+        userId: args.userId,
+        receiptId: args.receiptId,
+        sandbox,
+        maxAttempts: 3,
       });
-      throw new AmazonReceiptVerificationError(message);
+    } catch (error) {
+      if (error instanceof AmazonReceiptInvalidError) {
+        const state = stateForAmazonInvalidError(error);
+        await persistAmazonVerdict(ctx, {
+          projectId: project._id,
+          applicationId,
+          remoteId,
+          requestData,
+          environment,
+          remoteResponse: JSON.stringify({
+            error: error.errorCode,
+            message: error.errorMessage,
+            details: error.errorDetails ?? null,
+          }),
+          state,
+          requestIp: args.requestIp,
+          verificationDurationMs: Date.now() - verificationStart,
+        });
+        return { isValid: false, state, environment };
+      }
+
+      // Network, timeout, throttling, configuration, and protocol failures are
+      // not store verdicts. Never replace a previously valid snapshot with an
+      // UNKNOWN row just because this attempt could not reach/parse RVS.
+      if (error instanceof ReceiptVerificationError) throw error;
+      throw new AmazonReceiptVerificationError(describeError(error));
     }
 
-    await ctx.runMutation(internal.purchases.internal.saveReceiptInternal, {
+    const state = mapAmazonReceiptState(receiptData);
+    const storeReceiptResponse = {
+      isValid: isValidState(state),
+      state,
+      productId: receiptData.productId,
+      environment,
+    };
+    const receiptResponse = applyExpectedProductId(
+      storeReceiptResponse,
+      args.expectedProductId,
+    );
+
+    // Persist Amazon's verdict, not the caller-scoped expectedProductId check.
+    // This mirrors Apple/Google and keeps a typo from corrupting the row that
+    // the background reconciler will refresh later.
+    await persistAmazonVerdict(ctx, {
       projectId: project._id,
-      store: "amazon",
       applicationId,
       remoteId,
       requestData,
-      remoteResponse,
+      environment,
+      remoteResponse: JSON.stringify(receiptData),
       state,
-      isValid: isValidState(state),
       requestIp: args.requestIp,
       verificationDurationMs: Date.now() - verificationStart,
     });
 
-    return {
-      isValid: isValidState(state),
-      state,
-      ...(receiptData.productId ? { productId: receiptData.productId } : {}),
-    };
+    return receiptResponse;
+  },
+});
+
+/**
+ * Reconcile active Amazon purchase snapshots without inventing subscription
+ * semantics. One attempt per claimed row plus the 10-second request timeout
+ * caps the 20-row worst case near 200 seconds, below the five-minute cron
+ * interval so independent workers do not overlap their per-worker TPS budget.
+ * Starts are spaced by 200ms (at most 5 TPS), reserving half of Amazon's
+ * documented 10 TPS ceiling for foreground verification traffic.
+ */
+export const reconcileAmazonPurchases = internalAction({
+  args: {},
+  returns: v.object({
+    claimed: v.number(),
+    checked: v.number(),
+    updated: v.number(),
+    failures: v.number(),
+  }),
+  handler: async (
+    ctx,
+  ): Promise<{
+    claimed: number;
+    checked: number;
+    updated: number;
+    failures: number;
+  }> => {
+    const probes = await ctx.runMutation(
+      internal.purchases.internal.claimAmazonPurchasesForReconciliation,
+      { limit: AMAZON_RECONCILE_BATCH_LIMIT },
+    );
+    let checked = 0;
+    let updated = 0;
+    let failures = 0;
+    let lastRequestStartedAt: number | undefined;
+
+    for (const probe of probes) {
+      const sandbox = probe.requestData.sandbox === true;
+      let sharedSecret: string;
+      try {
+        sharedSecret = resolveAmazonSharedSecret({
+          sandbox,
+          amazonSandboxEnabled: probe.amazonSandboxEnabled,
+          amazonSharedSecret: probe.amazonSharedSecret,
+        });
+      } catch (error) {
+        failures += 1;
+        await rescheduleAmazonProbe(ctx, probe);
+        console.warn("[amazon-reconciler] configuration unavailable", {
+          purchaseId: probe.purchaseId,
+          error: error instanceof Error ? error.name : typeof error,
+        });
+        continue;
+      }
+
+      lastRequestStartedAt = await waitForAmazonRateSlot({
+        lastStartedAt: lastRequestStartedAt,
+      });
+      checked += 1;
+      const verificationStart = Date.now();
+
+      try {
+        const receiptData = await requestAmazonReceipt({
+          sharedSecret,
+          userId: probe.requestData.userId,
+          receiptId: probe.requestData.receiptId,
+          sandbox,
+          maxAttempts: 1,
+        });
+        const state = mapAmazonReceiptState(receiptData);
+        const applied = await applyAmazonReconciliationVerdict(ctx, probe, {
+          remoteResponse: JSON.stringify(receiptData),
+          state,
+          verificationDurationMs: Date.now() - verificationStart,
+        });
+        if (applied) updated += 1;
+      } catch (error) {
+        if (error instanceof AmazonReceiptInvalidError) {
+          const state = stateForAmazonInvalidError(error);
+          const applied = await applyAmazonReconciliationVerdict(ctx, probe, {
+            remoteResponse: JSON.stringify({
+              error: error.errorCode,
+              message: error.errorMessage,
+              details: error.errorDetails ?? null,
+            }),
+            state,
+            verificationDurationMs: Date.now() - verificationStart,
+          });
+          if (applied) updated += 1;
+          continue;
+        }
+
+        failures += 1;
+        await rescheduleAmazonProbe(ctx, probe);
+        console.warn("[amazon-reconciler] RVS check failed", {
+          purchaseId: probe.purchaseId,
+          error: error instanceof Error ? error.name : typeof error,
+        });
+      }
+    }
+
+    return { claimed: probes.length, checked, updated, failures };
   },
 });
 

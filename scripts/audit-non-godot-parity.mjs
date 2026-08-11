@@ -596,19 +596,53 @@ function checkFrameworkCiAndCoverageBadges() {
       workflowFile: "ci-flutter-inapp-purchase.yml",
     },
     {
+      additionalCoverageComponents: [
+        {
+          componentId: "iapkit-convex",
+          componentName: "IAPKit Convex",
+          coveragePath: "packages/kit/convex",
+          coverageTarget: 48,
+          generatedCoverageFile: null,
+          ignoredCoveragePaths: [
+            "packages/kit/convex/_generated/**",
+            "packages/kit/convex/**/*.test.ts",
+            "packages/kit/convex/test.setup.ts",
+          ],
+          statusPath: "packages/kit/convex",
+        },
+      ],
       codecovTargetPath: "packages/kit/server",
       codecovConfigPush: false,
+      coverageAssertions: [
+        "run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info 90 server/",
+        "run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info 48 convex/",
+      ],
       componentId: "iapkit-server",
       componentName: "IAPKit Server",
       coveragePath: "packages/kit/server",
+      expectedCoverageCommand:
+        "vitest run --coverage --coverage.include='server/**/*.ts' --coverage.include='convex/**/*.ts' --coverage.exclude='**/*.test.ts' --coverage.exclude='convex/_generated/**' --coverage.exclude='convex/test.setup.ts' --coverage.reporter=text --coverage.reporter=lcov",
       generatedCoverageFile: null,
       libraryPath: "packages/kit",
       readmePath: "packages/kit/README.md",
+      statusPath: "packages/kit/server",
       testCommand: "run: bun run test:coverage",
       testJob: "verify",
+      uploadFlag: "iapkit",
+      uploadName: "iapkit",
       workflowFile: "deploy-kit.yml",
     },
   ];
+  const coverageComponents = contracts.flatMap((contract) => {
+    const uploadFlag = contract.uploadFlag ?? contract.componentId;
+    return [
+      { ...contract, uploadFlag },
+      ...(contract.additionalCoverageComponents ?? []).map((component) => ({
+        ...component,
+        uploadFlag: component.uploadFlag ?? uploadFlag,
+      })),
+    ];
+  });
 
   function extractHttpsUrls(source) {
     return [...source.matchAll(/https:\/\/[^\s"'<>()[\]]+/g)].map((match) =>
@@ -784,9 +818,16 @@ function checkFrameworkCiAndCoverageBadges() {
 
   if (exists("codecov.yml")) {
     const codecovConfig = read("codecov.yml");
-    const expectedComponentIds = contracts.map(
+    const expectedComponentIds = coverageComponents.map(
       ({ componentId }) => componentId,
     );
+    const coverageFlagComponents = new Map();
+    for (const component of coverageComponents) {
+      const components = coverageFlagComponents.get(component.uploadFlag) ?? [];
+      components.push(component);
+      coverageFlagComponents.set(component.uploadFlag, components);
+    }
+    const expectedFlagIds = [...coverageFlagComponents.keys()];
     const flagIds = uniqueMatches(
       extractTopLevelYamlSection(codecovConfig, "flags"),
       /^  ([A-Za-z0-9_-]+):$/gm,
@@ -795,56 +836,68 @@ function checkFrameworkCiAndCoverageBadges() {
       extractTopLevelYamlSection(codecovConfig, "component_management"),
       /^    - component_id:\s*([A-Za-z0-9_-]+)$/gm,
     );
-    expectSameSet("Codecov flags", expectedComponentIds, flagIds);
+    expectSameSet("Codecov flags", expectedFlagIds, flagIds);
     expectSameSet("Codecov components", expectedComponentIds, componentIds);
-    for (const contract of contracts) {
-      const generatedCoveragePath = contract.generatedCoverageFile
-        ? `${contract.coveragePath}/${contract.generatedCoverageFile}`
-        : null;
+    for (const [flagId, components] of coverageFlagComponents) {
+      const coveragePaths = [
+        ...new Set(components.map(({ coveragePath }) => coveragePath)),
+      ];
       const flagBlock = [
-        `  ${contract.componentId}:`,
+        `  ${flagId}:`,
         "    paths:",
-        `      - \"${contract.coveragePath}/**\"`,
+        ...coveragePaths.map(
+          (coveragePath) => `      - \"${coveragePath}/**\"`,
+        ),
         "    carryforward: true",
       ].join("\n");
+      if (!codecovConfig.includes(flagBlock)) {
+        fail(
+          `codecov.yml must define the ${flagId} carryforward flag for ${coveragePaths.join(", ")}`,
+        );
+      }
+    }
+    for (const contract of coverageComponents) {
       const componentBlock = [
         `    - component_id: ${contract.componentId}`,
         `      name: ${contract.componentName}`,
         "      paths:",
         `        - \"${contract.coveragePath}/**\"`,
         "      flag_regexes:",
-        `        - \"^${contract.componentId}$\"`,
+        `        - \"^${contract.uploadFlag}$\"`,
       ].join("\n");
-      if (!codecovConfig.includes(flagBlock)) {
-        fail(
-          `codecov.yml must define the ${contract.componentId} carryforward flag for ${contract.coveragePath}`,
-        );
-      }
       if (!codecovConfig.includes(componentBlock)) {
         fail(
           `codecov.yml must map component ${contract.componentId} to its matching path and flag`,
         );
       }
-      if (
-        generatedCoveragePath &&
-        !codecovConfig.includes(`  - "${generatedCoveragePath}"`)
-      ) {
-        fail(
-          `codecov.yml must ignore generated coverage file ${generatedCoveragePath}`,
-        );
+      const ignoredCoveragePaths = [
+        ...(contract.generatedCoverageFile
+          ? [`${contract.coveragePath}/${contract.generatedCoverageFile}`]
+          : []),
+        ...(contract.ignoredCoveragePaths ?? []),
+      ];
+      for (const ignoredCoveragePath of ignoredCoveragePaths) {
+        if (!codecovConfig.includes(`  - "${ignoredCoveragePath}"`)) {
+          fail(
+            `codecov.yml must ignore generated or test coverage path ${ignoredCoveragePath}`,
+          );
+        }
       }
+      const coverageTarget = contract.coverageTarget ?? 90;
+      const statusScope = contract.statusPath
+        ? ["        paths:", `          - \"${contract.statusPath}/**\"`]
+        : ["        flags:", `          - ${contract.uploadFlag}`];
       const statusBlock = [
         `      ${contract.componentId}:`,
-        "        target: 90%",
+        `        target: ${coverageTarget}%`,
         "        threshold: 0%",
         "        informational: false",
-        "        flags:",
-        `          - ${contract.componentId}`,
+        ...statusScope,
       ].join("\n");
       const statusOccurrences = codecovConfig.split(statusBlock).length - 1;
       if (statusOccurrences !== 2) {
         fail(
-          `codecov.yml project and patch statuses must enforce 90% for ${contract.componentId}`,
+          `codecov.yml project and patch statuses must enforce ${coverageTarget}% for ${contract.componentId}`,
         );
       }
     }
@@ -856,24 +909,41 @@ function checkFrameworkCiAndCoverageBadges() {
     expectFile(contract.readmePath);
     if (!exists(workflowPath) || !exists(contract.readmePath)) continue;
 
+    if (contract.expectedCoverageCommand) {
+      const packageJsonPath = `${contract.libraryPath}/package.json`;
+      expectFile(packageJsonPath);
+      if (exists(packageJsonPath)) {
+        const coverageCommand =
+          readJson(packageJsonPath).scripts?.["test:coverage"];
+        if (coverageCommand !== contract.expectedCoverageCommand) {
+          fail(
+            `${packageJsonPath} must collect all ${contract.uploadFlag} coverage in one guarded Vitest run`,
+          );
+        }
+      }
+    }
+
     const workflowSource = read(workflowPath);
     const testJob = extractWorkflowJob(workflowSource, contract.testJob);
     if (!testJob) {
       fail(`${workflowPath} is missing the ${contract.testJob} coverage job`);
       continue;
     }
+    const coverageAssertions = contract.coverageAssertions ?? [
+      "run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info 90",
+    ];
     for (const needle of [
       "permissions:\n      contents: read\n      id-token: write",
       "fetch-depth: 0\n          persist-credentials: false",
       contract.testCommand,
-      "run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info 90",
+      ...coverageAssertions,
       "uses: codecov/codecov-action@v7",
       "use_oidc: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}",
       "fail_ci_if_error: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}",
       "disable_search: true",
       "files: coverage/lcov.info",
-      `flags: ${contract.componentId}`,
-      `name: ${contract.componentId}`,
+      `flags: ${contract.uploadFlag ?? contract.componentId}`,
+      `name: ${contract.uploadName ?? contract.componentId}`,
       `network_prefix: ${contract.libraryPath}/`,
       `working-directory: ${contract.libraryPath}`,
     ]) {
@@ -888,14 +958,14 @@ function checkFrameworkCiAndCoverageBadges() {
         `${workflowPath} ${contract.testJob} must upload exactly one coverage report`,
       );
     }
-    const coverageAssertionIndex = testJob.indexOf(
-      "run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info 90",
-    );
     const uploadIndex = testJob.indexOf("uses: codecov/codecov-action@v7");
-    if (coverageAssertionIndex < 0 || uploadIndex <= coverageAssertionIndex) {
-      fail(
-        `${workflowPath} must enforce LCOV coverage before uploading coverage`,
-      );
+    for (const coverageAssertion of coverageAssertions) {
+      const coverageAssertionIndex = testJob.indexOf(coverageAssertion);
+      if (coverageAssertionIndex < 0 || uploadIndex <= coverageAssertionIndex) {
+        fail(
+          `${workflowPath} must enforce LCOV coverage before uploading coverage`,
+        );
+      }
     }
     if (/^\s+token:/m.test(testJob)) {
       fail(`${workflowPath} must use Codecov OIDC without a stored token`);

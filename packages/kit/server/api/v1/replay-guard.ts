@@ -62,8 +62,8 @@ export type ReplayRejectReason = "burst" | "repeated_failure";
 // retryable unless the verifier supplies explicit stable provenance.
 // This matters for UNKNOWN: Google uses it both for a successfully
 // fetched future/unrecognized state and for the explicit 410 revoked-token
-// response. Amazon can likewise return a future product type that maps to
-// UNKNOWN. Only the 410 path should arm the five-minute cooldown.
+// response. Only a verdict with stable provenance should arm the five-minute
+// cooldown.
 const STABLE_REJECTION_STATES = new Set([
   "INAUTHENTIC",
   "CANCELED",
@@ -104,7 +104,13 @@ export function hashPayload(
     | { store: "apple"; jws: string; expectedProductId?: string }
     | { store: "google"; purchaseToken: string; expectedProductId?: string }
     | { store: "horizon"; userId: string; sku: string }
-    | { store: "amazon"; userId: string; receiptId: string; sandbox?: boolean },
+    | {
+        store: "amazon";
+        userId: string;
+        receiptId: string;
+        sandbox?: boolean;
+        expectedProductId?: string;
+      },
 ): string {
   const hasher = crypto.createHash("sha256");
   hasher.update(body.store);
@@ -135,6 +141,10 @@ export function hashPayload(
       hasher.update(body.receiptId);
       hasher.update("\0");
       hasher.update(body.sandbox === true ? "sandbox" : "production");
+      if (body.expectedProductId !== undefined) {
+        hasher.update("\0");
+        hasher.update(body.expectedProductId);
+      }
       break;
   }
   return hasher.digest("hex").slice(0, 16);
@@ -352,6 +362,7 @@ export function replayGuardMiddleware(
           userId: string;
           receiptId: string;
           sandbox?: boolean;
+          expectedProductId?: string;
         };
 
     const bucketKey = `${apiKeyHash}:${hashPayload(body)}`;

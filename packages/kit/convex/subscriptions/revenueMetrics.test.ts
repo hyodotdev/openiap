@@ -697,6 +697,17 @@ describe("pickRevenueMetricsProjects", () => {
       projects.filter((projectId) => projectId === PROJECT_ID),
     ).toHaveLength(1);
   });
+
+  it("does not seed work from legacy Meta Horizon reconciler events", async () => {
+    await seedEvent(db, {
+      type: "SubscriptionRenewed",
+      source: "MetaHorizonReconciler",
+      projectId: PROJECT_ID,
+      receivedAt: NOW,
+    });
+
+    expect(await pickRevenueMetricsProjects(ctx, 10)).toEqual([]);
+  });
 });
 
 describe("runRecompute — round-trip integration", () => {
@@ -746,6 +757,31 @@ describe("runRecompute — round-trip integration", () => {
       refunds: 0,
       revenueMicros: 9_990_000,
       activeSubs: 0,
+    });
+  });
+
+  it("excludes legacy Meta Horizon reconciler events from rollups", async () => {
+    await seedEvent(db, {
+      type: "SubscriptionStarted",
+      priceAmountMicros: 99_000_000,
+      source: "MetaHorizonReconciler",
+      platform: "Android",
+      receivedAt: Date.parse(`${TODAY}T09:00:00Z`),
+    });
+    await seedEvent(db, {
+      type: "SubscriptionStarted",
+      priceAmountMicros: 9_990_000,
+      receivedAt: Date.parse(`${TODAY}T10:00:00Z`),
+    });
+
+    await runRecompute(ctx, PROJECT_ID, NOW);
+
+    const rows = await rollupRows(db);
+    expect(rows).toHaveLength(1);
+    expect(rows[0]).toMatchObject({
+      platform: "IOS",
+      newSubs: 1,
+      revenueMicros: 9_990_000,
     });
   });
 

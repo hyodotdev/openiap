@@ -77,7 +77,7 @@ export default function IntroductionPage() {
         <StoreCard
           icon={<ShoppingBag className="h-5 w-5" />}
           title="Amazon Appstore"
-          detail="Fire OS receipts verified through Amazon RVS using the project's shared secret. Clients send only (userId, receiptId)."
+          detail="Fire OS receipts verified and periodically refreshed through Amazon RVS. Cloud Sandbox is disabled by default and requires an explicit project opt-in."
           slug="api"
         />
       </div>
@@ -98,7 +98,7 @@ export default function IntroductionPage() {
       { store, ... }                                           Horizon / Amazon
                                                           ◄── verified receipt
       { store, isValid, state,
-        productId? }     ◄───     harmonized state
+        productId?, environment? } ◄── harmonized state
 `}</code>
       </pre>
 

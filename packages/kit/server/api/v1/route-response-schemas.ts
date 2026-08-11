@@ -83,6 +83,14 @@ const baseReceiptResponseSchema = v.object({
       ),
     ),
   ),
+  environment: v.optional(
+    v.pipe(
+      v.union([v.literal("Sandbox"), v.literal("Production")]),
+      v.description(
+        "Amazon RVS environment selected by IAPKit. Present on handled Amazon verification results.",
+      ),
+    ),
+  ),
   clientPayload: v.optional(
     v.pipe(
       clientPayloadSchema,

@@ -1,8 +1,8 @@
 // Daily revenue rollup populator. Reads `webhookEvents` (the canonical
-// store-side event log — Apple ASN v2 / Google RTDN / Meta Horizon
-// reconciler all converge here) over a trailing window and writes
-// per-(project, day, productId, currency) rollups to
-// `revenueMetricsDaily`.
+// store-notification event log for Apple ASN v2 and Google RTDN) over a
+// trailing window and writes per-(project, day, productId, currency) rollups
+// to `revenueMetricsDaily`. Legacy synthetic Horizon reconciler rows are
+// retained for schema compatibility but explicitly excluded below.
 //
 // Using the event log instead of walking `subscriptions` is what lets
 // us count renewals correctly: the `subscriptions` table holds the
@@ -217,6 +217,10 @@ export async function pickRevenueMetricsProjects(
     .order("desc")
     .take(scanCap);
   for (const row of recentEvents) {
+    // Quarantine events synthesized by the removed experimental Horizon
+    // reconciler. They were not store notifications and had no authoritative
+    // product-type, term, or price data, so they must not seed revenue work.
+    if (row.source === "MetaHorizonReconciler") continue;
     await addUnseededProjectOnce(
       ctx,
       projects,
@@ -475,6 +479,10 @@ async function processEventsPage(
     .paginate({ numItems: EVENTS_PAGE_SIZE, cursor: args.paginationCursor });
 
   for (const event of result.page) {
+    // Legacy events from the removed Horizon reconciler were synthetic guesses
+    // rather than store notifications. Keep the schema literal so existing
+    // rows remain readable, but never fold those rows into revenue metrics.
+    if (event.source === "MetaHorizonReconciler") continue;
     if (!event.productId) continue;
     const day = utcDayKey(event.occurredAt);
     // Skip events whose store-side day falls outside the bucket
@@ -485,10 +493,7 @@ async function processEventsPage(
     // a rounding error — Apple/Google both quarantine those.
     if (day < firstDay || day > lastDay) continue;
     const currency = event.currency ?? "";
-    // The webhookEvents schema only allows `IOS` / `Android` for
-    // `platform`; the Meta Horizon reconciler synthesizes events
-    // under `platform: "Android"` because Quest devices map to the
-    // Play store's commerce model. No third value to handle here.
+    // The webhookEvents schema only allows `IOS` / `Android` for platform.
     const platform = event.platform;
     const key = bucketKey(day, event.productId, currency, platform);
     const bucket = getOrCreateBucket(

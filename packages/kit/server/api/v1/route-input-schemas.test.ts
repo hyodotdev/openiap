@@ -115,8 +115,20 @@ describe("verifyPurchaseInputSchema", () => {
       userId: VALID_AMAZON_USER_ID,
       receiptId: VALID_AMAZON_RECEIPT_ID,
       sandbox: true,
+      expectedProductId: "amazon.premium.monthly",
     });
     expect(result.success).toBe(true);
+  });
+
+  test("rejects a malformed Amazon expectedProductId", () => {
+    expect(
+      parse({
+        store: "amazon",
+        userId: VALID_AMAZON_USER_ID,
+        receiptId: VALID_AMAZON_RECEIPT_ID,
+        expectedProductId: "premium/monthly",
+      }).success,
+    ).toBe(false);
   });
 
   test("rejects empty Amazon userId / receiptId", () => {

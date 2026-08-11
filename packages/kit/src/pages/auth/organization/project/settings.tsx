@@ -184,6 +184,7 @@ interface ProjectData {
   // receives this boolean so the browser never sees the production
   // secret after setup.
   hasAmazonSharedSecret?: boolean;
+  amazonSandboxEnabled?: boolean;
 }
 
 interface OutletContext {
@@ -254,6 +255,9 @@ export default function ProjectSettings() {
   const [amazonSharedSecret, setAmazonSharedSecret] = useState("");
   const [isReplacingAmazonSharedSecret, setIsReplacingAmazonSharedSecret] =
     useState(false);
+  const [amazonSandboxEnabled, setAmazonSandboxEnabled] = useState(
+    project?.amazonSandboxEnabled === true,
+  );
   const [savingMetadata, setSavingMetadata] = useState(false);
   const [savingReportingCurrency, setSavingReportingCurrency] = useState(false);
   const [savingHorizon, setSavingHorizon] = useState(false);
@@ -314,6 +318,7 @@ export default function ProjectSettings() {
   const hasAmazonSharedSecretConfigured = Boolean(
     project?.hasAmazonSharedSecret,
   );
+  const originalAmazonSandboxEnabled = project?.amazonSandboxEnabled === true;
 
   useEffect(() => {
     if (!project) {
@@ -335,6 +340,7 @@ export default function ProjectSettings() {
     setIsReplacingHorizonAppSecret(false);
     setAmazonSharedSecret("");
     setIsReplacingAmazonSharedSecret(false);
+    setAmazonSandboxEnabled(originalAmazonSandboxEnabled);
   }, [
     project,
     originalAndroidPackageName,
@@ -348,6 +354,7 @@ export default function ProjectSettings() {
     originalHorizonAppId,
     hasHorizonAppSecretConfigured,
     hasAmazonSharedSecretConfigured,
+    originalAmazonSandboxEnabled,
   ]);
 
   const trimmedAndroidPackageName = androidPackageName.trim();
@@ -543,11 +550,11 @@ export default function ProjectSettings() {
   const amazonSharedSecretNeeded =
     !hasAmazonSharedSecretConfigured || isReplacingAmazonSharedSecret;
   const amazonSharedSecretValid =
-    !amazonSharedSecretNeeded ||
-    (trimmedAmazonSharedSecret.length > 0 &&
-      trimmedAmazonSharedSecret.length <= 2_048);
+    trimmedAmazonSharedSecret.length === 0 ||
+    trimmedAmazonSharedSecret.length <= 2_048;
   const amazonHasChanges =
-    amazonSharedSecretNeeded && trimmedAmazonSharedSecret.length > 0;
+    amazonSandboxEnabled !== originalAmazonSandboxEnabled ||
+    (amazonSharedSecretNeeded && trimmedAmazonSharedSecret.length > 0);
   const disableSaveAmazon =
     !amazonHasChanges || !amazonSharedSecretValid || savingAmazon;
 
@@ -656,10 +663,18 @@ export default function ProjectSettings() {
 
     setSavingAmazon(true);
     try {
-      await updateProject({
+      const payload: {
+        projectId: Id<"projects">;
+        amazonSandboxEnabled: boolean;
+        amazonSharedSecret?: string;
+      } = {
         projectId: project._id,
-        amazonSharedSecret: trimmedAmazonSharedSecret,
-      });
+        amazonSandboxEnabled,
+      };
+      if (trimmedAmazonSharedSecret.length > 0) {
+        payload.amazonSharedSecret = trimmedAmazonSharedSecret;
+      }
+      await updateProject(payload);
 
       setAmazonSharedSecret("");
       setIsReplacingAmazonSharedSecret(false);
@@ -2206,6 +2221,27 @@ export default function ProjectSettings() {
                     server-side through RVS with a project-level shared
                     secret. */}
                   <div className="pt-4 border-t">
+                    <label className="flex items-start gap-3 cursor-pointer select-none mb-4">
+                      <input
+                        type="checkbox"
+                        className="mt-1 h-4 w-4 rounded border-border text-primary focus:ring-primary"
+                        checked={amazonSandboxEnabled}
+                        onChange={(event) =>
+                          setAmazonSandboxEnabled(event.target.checked)
+                        }
+                      />
+                      <span className="flex-1">
+                        <span className="text-sm font-medium block">
+                          {"Allow Amazon App Tester / RVS Cloud Sandbox"}
+                        </span>
+                        <span className="text-sm text-muted-foreground block mt-1 break-words">
+                          {
+                            "Cloud Sandbox accepts any non-empty shared secret and is not production evidence. Keep this disabled unless this project is actively testing App Tester receipts."
+                          }
+                        </span>
+                      </span>
+                    </label>
+
                     <div>
                       <label
                         htmlFor="amazon-shared-secret"
@@ -2266,7 +2302,7 @@ export default function ProjectSettings() {
                       )}
                       <p className="text-sm text-muted-foreground mt-1 break-words">
                         {
-                          "Required for production Amazon Appstore receipt verification. App Tester sandbox requests can run without exposing this secret to clients."
+                          "Required for production Amazon Appstore receipt verification. Sandbox uses an IAPKit placeholder only after the explicit project opt-in above."
                         }
                       </p>
                       {!amazonSharedSecretValid &&

@@ -180,12 +180,14 @@ const verifyPurchaseRouteDescription = describeRoute({
     '  • Horizon — `{ store: "horizon", userId, sku }` (Meta Quest;' +
     " IAPKit holds the App ID + App Secret and composes" +
     " `OC|APP_ID|APP_SECRET` server-side)\n" +
-    '  • Amazon — `{ store: "amazon", userId, receiptId, sandbox? }`' +
-    " (Amazon Appstore SDK RVS; IAPKit holds the shared secret)\n\n" +
-    "`expectedProductId` is optional for Apple / Google. When present, " +
+    '  • Amazon — `{ store: "amazon", userId, receiptId, sandbox?, expectedProductId? }`' +
+    " (Amazon Appstore SDK RVS; IAPKit holds the shared secret; sandbox " +
+    "requires an explicit project opt-in)\n\n" +
+    "`expectedProductId` is optional for Apple / Google / Amazon. When present, " +
     "IAPKit compares it against the product id verified by the upstream " +
     'store and returns `isValid: false`, `state: "INAUTHENTIC"` on ' +
-    "mismatch. Successful responses include `productId` when the store " +
+    "mismatch without changing the persisted store verdict. Successful " +
+    "responses include `productId` when the store " +
     "response exposes one; for Horizon this is the checked `sku`.\n\n" +
     "Set `includeClientPayload: true` on Apple or Google requests to " +
     "attach the matching public product payload when the receipt is valid " +
@@ -366,6 +368,7 @@ type VerifyPurchaseJson =
       userId: string;
       receiptId: string;
       sandbox?: boolean;
+      expectedProductId?: string;
       includeClientPayload?: boolean;
     };
 
@@ -402,6 +405,7 @@ const verifyPurchaseHandler = async (
       isValid: boolean;
       state: string;
       productId?: string;
+      environment?: "Sandbox" | "Production";
       stableRejection?: boolean;
     },
   ) => {
@@ -504,6 +508,7 @@ const verifyPurchaseHandler = async (
             userId: json.userId,
             receiptId: json.receiptId,
             sandbox: json.sandbox,
+            expectedProductId: json.expectedProductId,
             requestIp,
           },
         );

@@ -248,8 +248,8 @@ X-RateLimit-Remaining: 599`}
           <code>productId</code> ≤ 256 chars (catalog / subscriptions)
         </li>
         <li>
-          <code>expectedProductId</code> ≤ 256 chars (optional Apple / Google
-          verify match guard)
+          <code>expectedProductId</code> ≤ 256 chars (optional Apple / Google /
+          Amazon verify match guard)
         </li>
       </ul>
       <p>
