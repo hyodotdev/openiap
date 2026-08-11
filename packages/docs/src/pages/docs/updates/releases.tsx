@@ -296,19 +296,6 @@ function Releases() {
               project identities now keep horizontal scrolling local and remain
               usable with an expanded sidebar at tablet and desktop widths.
             </li>
-            <li>
-              Kit CI now measures the Convex verifier tree separately from the
-              server, with blocking line-coverage gates and path-scoped Codecov
-              reporting. This closes the blind spot reported in{' '}
-              <a
-                href="https://github.com/hyodotdev/openiap/issues/312"
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                issue #312
-              </a>
-              .
-            </li>
           </ul>
 
           <h5 style={{ margin: '0 0 0.5rem 0' }}>
@@ -352,8 +339,9 @@ function Releases() {
             <li>
               <strong>react-native-iap 16.3.0</strong> - exposes Amazon product
               binding and environment provenance through Nitro, native, and Vega
-              paths. The example uses explicit sandbox configuration and never
-              finishes a purchase before verification succeeds.
+              paths. When verification is enabled, the example uses explicit
+              sandbox configuration and finishes a purchase only after
+              verification succeeds.
             </li>
             <li>
               <strong>expo-iap 5.3.0</strong> - preserves the new fields across
