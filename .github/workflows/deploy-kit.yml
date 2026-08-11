@@ -59,6 +59,19 @@ jobs:
             sleep 5
           done
 
+      - name: Test production Convex target guard
+        run: |
+          set -a
+          source production.env
+          set +a
+          VITE_KIT_CONVEX_URL="$IAPKIT_PRODUCTION_CONVEX_URL" \
+            ./scripts/verify-production-convex-target.sh
+          if VITE_KIT_CONVEX_URL=https://invalid-dev.convex.cloud \
+            ./scripts/verify-production-convex-target.sh; then
+            echo "::error::Production target guard accepted a development deployment."
+            exit 1
+          fi
+
       - name: Lint (app + Convex typecheck + eslint)
         run: bun run lint
 

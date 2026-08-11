@@ -4527,6 +4527,7 @@ function checkFrameworkDependencyHygiene() {
     ".github/workflows/deploy-kit.yml",
     [
       "if: github.ref == 'refs/heads/main' && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')",
+      "- name: Test production Convex target guard",
       "- name: Validate deployment credentials",
       "- name: Deploy Convex functions",
       "verify-production-convex-target.sh",
