@@ -518,6 +518,12 @@ public protocol PurchaseCommon: Codable {
     var transactionDate: Double { get }
 }
 
+/// Validity shared by every store-specific purchase verification result.
+public protocol VerifyPurchaseResultCommon: Codable {
+    /// Whether the purchase is valid, without inspecting the concrete result variant.
+    var isValid: Bool { get }
+}
+
 // MARK: - Objects
 
 public struct ActiveSubscription: Codable {
@@ -1374,7 +1380,7 @@ public struct ValidTimeWindowAndroid: Codable {
     public var startTimeMillis: String
 }
 
-public struct VerifyPurchaseResultAndroid: Codable {
+public struct VerifyPurchaseResultAndroid: Codable, VerifyPurchaseResultCommon {
     public var autoRenewing: Bool
     public var betaProduct: Bool
     public var cancelDate: Double? = nil
@@ -1400,7 +1406,7 @@ public struct VerifyPurchaseResultAndroid: Codable {
 
 /// Result from Meta Horizon verify_entitlement API.
 /// Returns verification status and grant time for the entitlement.
-public struct VerifyPurchaseResultHorizon: Codable {
+public struct VerifyPurchaseResultHorizon: Codable, VerifyPurchaseResultCommon {
     /// Unix timestamp (seconds) when the entitlement was granted.
     public var grantTime: Double? = nil
     /// Whether the purchase is valid. Uniform across every VerifyPurchaseResult
@@ -1411,7 +1417,7 @@ public struct VerifyPurchaseResultHorizon: Codable {
     public var success: Bool
 }
 
-public struct VerifyPurchaseResultIOS: Codable {
+public struct VerifyPurchaseResultIOS: Codable, VerifyPurchaseResultCommon {
     /// Whether the receipt is valid
     public var isValid: Bool
     /// JWS representation
@@ -2565,10 +2571,22 @@ public enum Purchase: Codable, PurchaseCommon {
     }
 }
 
-public enum VerifyPurchaseResult: Codable {
+public enum VerifyPurchaseResult: Codable, VerifyPurchaseResultCommon {
     case verifyPurchaseResultAndroid(VerifyPurchaseResultAndroid)
     case verifyPurchaseResultIos(VerifyPurchaseResultIOS)
     case verifyPurchaseResultHorizon(VerifyPurchaseResultHorizon)
+
+    /// Whether the purchase is valid, without inspecting the concrete result variant.
+    public var isValid: Bool {
+        switch self {
+        case let .verifyPurchaseResultAndroid(value):
+            return value.isValid
+        case let .verifyPurchaseResultIos(value):
+            return value.isValid
+        case let .verifyPurchaseResultHorizon(value):
+            return value.isValid
+        }
+    }
 }
 
 // MARK: - Root Operations

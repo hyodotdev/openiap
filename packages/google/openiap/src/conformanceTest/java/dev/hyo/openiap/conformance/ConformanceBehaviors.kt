@@ -45,7 +45,7 @@ object ConformanceBehaviors {
 
     /** Capability level per store, from packages/gql/src/capability-matrix.mjs. */
     val CAPABILITY_MATRIX: Map<String, Map<String, String>> = mapOf(
-        "pendingPurchases" to mapOf("Google" to "required", "Horizon" to "required", "Amazon" to "unsupported"),
+        "pendingPurchases" to mapOf("Google" to "required", "Horizon" to "required", "Amazon" to "required"),
         "subscriptionBillingIssue" to mapOf("Google" to "required", "Horizon" to "unsupported", "Amazon" to "unsupported"),
         "offerCodeRedemption" to mapOf("Google" to "required", "Horizon" to "unsupported", "Amazon" to "unsupported"),
     )

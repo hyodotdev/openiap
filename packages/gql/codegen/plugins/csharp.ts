@@ -385,14 +385,37 @@ export class CSharpPlugin extends CodegenPlugin {
     for (const name of concrete) {
       this.emit(`[JsonDerivedType(typeof(${name}), "${name}")]`);
     }
-    // Concrete members implement any shared interface directly. We don't
-    // attach the interface to the abstract record because that would force
-    // us to emit `abstract` overrides for every interface member and double
-    // the property declarations on each concrete record.
     const parent = this.nestedUnionParents.get(irUnion.name);
-    const inheritance = parent ? ` : ${parent}` : '';
-    this.emit(`public abstract record ${irUnion.name}${inheritance};`);
+    const baseTypes = [parent, ...irUnion.sharedInterfaces].filter(Boolean);
+    const inheritance = baseTypes.length > 0 ? ` : ${baseTypes.join(', ')}` : '';
+    const sharedFields = this.sharedInterfaceFields(irUnion);
+    if (sharedFields.length === 0) {
+      this.emit(`public abstract record ${irUnion.name}${inheritance};`);
+      this.emit('');
+      return;
+    }
+
+    this.emit(`public abstract record ${irUnion.name}${inheritance}`);
+    this.emit('{');
+    for (const field of sharedFields) {
+      this.emitDoc(field.description, '    ');
+      const propType = this.propertyType(field.type);
+      const propName = this.fieldNameCase(field.name);
+      this.emit(`    public abstract ${propType} ${propName} { get; init; }`);
+    }
+    this.emit('}');
     this.emit('');
+  }
+
+  private sharedInterfaceFields(irUnion: IRUnion): IRField[] {
+    const fields = new Map<string, IRField>();
+    for (const interfaceName of irUnion.sharedInterfaces) {
+      const irInterface = this.schema.interfaces.find((item) => item.name === interfaceName);
+      for (const field of irInterface?.fields ?? []) {
+        fields.set(field.name, field);
+      }
+    }
+    return [...fields.values()].sort((a, b) => a.name.localeCompare(b.name));
   }
 
   private flattenUnionMembers(irUnion: IRUnion): string[] {
@@ -439,7 +462,7 @@ export class CSharpPlugin extends CodegenPlugin {
     const inheritance = baseTypes.length > 0 ? ` : ${baseTypes.join(', ')}` : '';
     this.emit(`public sealed record ${irObject.name}${inheritance}`);
     this.emit('{');
-    this.emitProperties(sortedFields);
+    this.emitProperties(sortedFields, this.inheritedUnionFieldNames(irObject));
     this.emit('}');
     this.emit('');
   }
@@ -450,21 +473,40 @@ export class CSharpPlugin extends CodegenPlugin {
     // are dropped since C# records cannot multi-inherit — consumers use the
     // primary union (e.g., ProductOrSubscription is handled via wrapper).
     const baseTypes: string[] = [];
+    const inheritedInterfaces = new Set<string>();
     if (irObject.unions.length > 0) {
       baseTypes.push(irObject.unions[0]);
+      const baseUnion = this.schema.unions.find((item) => item.name === irObject.unions[0]);
+      for (const interfaceName of baseUnion?.sharedInterfaces ?? []) {
+        inheritedInterfaces.add(interfaceName);
+      }
     }
     for (const iface of irObject.interfaces) {
-      baseTypes.push(iface);
+      if (!inheritedInterfaces.has(iface)) {
+        baseTypes.push(iface);
+      }
     }
     return baseTypes;
   }
 
-  private emitProperties(fields: IRField[]): void {
+  private inheritedUnionFieldNames(irObject: IRObject): Set<string> {
+    const names = new Set<string>();
+    for (const unionName of irObject.unions) {
+      const union = this.schema.unions.find((item) => item.name === unionName);
+      for (const field of union ? this.sharedInterfaceFields(union) : []) {
+        names.add(field.name);
+      }
+    }
+    return names;
+  }
+
+  private emitProperties(fields: IRField[], inheritedFields = new Set<string>()): void {
     fields.forEach((field) => {
       this.emitDoc(field.description, '    ');
       const propType = this.propertyType(field.type);
       const propName = this.fieldNameCase(field.name);
       const jsonName = field.name;
+      const overrideModifier = inheritedFields.has(field.name) ? 'override ' : '';
       this.emit(`    [JsonPropertyName("${jsonName}")]`);
 
       // Required vs. nullable — non-nullable scalars/objects get the C#
@@ -473,16 +515,16 @@ export class CSharpPlugin extends CodegenPlugin {
       if (field.type.nullable) {
         const defaultValue = this.buildDefaultValueExpression(field);
         const initializer = defaultValue ? ` = ${defaultValue};` : '';
-        this.emit(`    public ${propType} ${propName} { get; init; }${initializer}`);
+        this.emit(`    public ${overrideModifier}${propType} ${propName} { get; init; }${initializer}`);
       } else if (field.defaultValue !== undefined) {
         const defaultValue = this.buildDefaultValueExpression(field);
         if (defaultValue) {
-          this.emit(`    public ${propType} ${propName} { get; init; } = ${defaultValue};`);
+          this.emit(`    public ${overrideModifier}${propType} ${propName} { get; init; } = ${defaultValue};`);
         } else {
-          this.emit(`    public required ${propType} ${propName} { get; init; }`);
+          this.emit(`    public ${overrideModifier}required ${propType} ${propName} { get; init; }`);
         }
       } else {
-        this.emit(`    public required ${propType} ${propName} { get; init; }`);
+        this.emit(`    public ${overrideModifier}required ${propType} ${propName} { get; init; }`);
       }
     });
   }

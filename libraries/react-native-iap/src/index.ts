@@ -9,6 +9,7 @@ import type {
   NitroPurchaseVerificationParams,
   NitroPurchaseVerificationResultIOS,
   NitroPurchaseVerificationResultAndroid,
+  NitroPurchaseVerificationResultHorizon,
   NitroPurchaseUpdatedListenerOptions,
   NitroSubscriptionStatus,
   RnIap,
@@ -41,6 +42,7 @@ import type {
   PurchaseIOS,
   QueryField,
   VerifyPurchaseResultAndroid,
+  VerifyPurchaseResultHorizon,
   VerifyPurchaseResultIOS,
   RequestPurchaseAndroidProps,
   RequestPurchaseIosProps,
@@ -2141,14 +2143,20 @@ export const verifyPurchase: MutationField<'verifyPurchase'> = async (
           : undefined,
       };
       return result;
+    } else if (horizon) {
+      const horizonResult =
+        nitroResult as NitroPurchaseVerificationResultHorizon;
+      const result: VerifyPurchaseResultHorizon = {
+        isValid: horizonResult.isValid,
+        grantTime: horizonResult.grantTime,
+        success: horizonResult.success,
+      };
+      return result;
     } else {
-      // Android
       const androidResult =
         nitroResult as NitroPurchaseVerificationResultAndroid;
       const result: VerifyPurchaseResultAndroid = {
-        // The native layer throws on a failed verification, so reaching here
-        // means the store returned a purchase record.
-        isValid: true,
+        isValid: androidResult.isValid,
         autoRenewing: androidResult.autoRenewing,
         betaProduct: androidResult.betaProduct,
         cancelDate: androidResult.cancelDate,

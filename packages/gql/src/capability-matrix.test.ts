@@ -78,7 +78,7 @@ describe('store capability matrix', () => {
 
   it('exposes required and unsupported behavior sets per store', () => {
     expect(requiredBehaviors('Google')).toContain('pendingPurchases');
-    expect(unsupportedBehaviors('Amazon')).toContain('pendingPurchases');
+    expect(requiredBehaviors('Amazon')).toContain('pendingPurchases');
     expect(unsupportedBehaviors('Apple')).toContain('alreadyOwnedError');
     expect(requiredBehaviors('Apple')).not.toContain('alreadyOwnedError');
   });

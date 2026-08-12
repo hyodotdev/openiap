@@ -24,7 +24,10 @@ class PlayStoreConformanceTest : StoreConformanceSuite() {
         override fun toActiveSubscription(purchase: PurchaseAndroid): ActiveSubscription =
             purchase.toActiveSubscription()
 
-        override fun errorForResponseCode(responseCode: Int): OpenIapError =
-            OpenIapError.fromBillingResponseCode(responseCode)
+        override val normativeErrorCases = playBillingErrorCases(OpenIapError::fromBillingResponseCode)
+
+        override val unrecognizedError = OpenIapError.fromBillingResponseCode(9999)
+
+        override fun unsupportedOperationResult(): Boolean? = null
     }
 }

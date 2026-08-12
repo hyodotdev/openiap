@@ -120,6 +120,11 @@ export class ReferenceImplementation {
     return (await this.getActiveSubscriptions()).some((subscription) => subscription.isActive);
   }
 
+  /** Documented no-op for an operation unsupported by this fake store. */
+  async openUnsupportedOperation() {
+    return false;
+  }
+
   #toPurchase(record) {
     return {
       id: record.token,

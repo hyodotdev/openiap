@@ -280,10 +280,7 @@ export function createReferenceAdapter({ store = 'Google' } = {}) {
 
       // --- capabilities --------------------------------------------------
       'capabilities.unsupported-operations-degrade-predictably': async () => {
-        // The reference implementation exposes no unsupported operation; the
-        // contract is that one would return its documented no-op, not throw.
-        const impl = fresh();
-        assert.equal(await impl.hasActiveSubscriptions(), false);
+        assert.equal(await fresh().openUnsupportedOperation(), false);
       },
 
       'capabilities.declared-capabilities-match-the-matrix': async () => {

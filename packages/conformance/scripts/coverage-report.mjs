@@ -57,8 +57,18 @@ const IMPLEMENTATIONS = [];
     'packages/google/openiap/src/conformanceTest/java/dev/hyo/openiap/conformance/StoreConformanceSuite.kt',
   );
   const ids = declaredIds(suite, 'private val coveredBehaviors', table, /ConformanceBehaviors\.(\w+)/g);
+  const unsupportedStoreIds = declaredIds(
+    suite,
+    'private val unsupportedStoreBehaviors',
+    table,
+    /ConformanceBehaviors\.(\w+)/g,
+  );
   for (const store of ['Google', 'Horizon', 'Amazon']) {
-    IMPLEMENTATIONS.push({ name: `android-${store.toLowerCase()}`, store, covered: ids });
+    IMPLEMENTATIONS.push({
+      name: `android-${store.toLowerCase()}`,
+      store,
+      covered: store === 'Google' ? ids : [...ids, ...unsupportedStoreIds],
+    });
   }
 }
 

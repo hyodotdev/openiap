@@ -8,6 +8,7 @@ import type { IREnum, IRField, IRSchema, IRType } from '../codegen/core/types';
 
 const stringType: IRType = { kind: 'scalar', name: 'String', nullable: false };
 const floatType: IRType = { kind: 'scalar', name: 'Float', nullable: false };
+const booleanType: IRType = { kind: 'scalar', name: 'Boolean', nullable: false };
 
 function field(name: string, type: IRType, defaultValue?: unknown): IRField {
   return {
@@ -53,6 +54,35 @@ function objectSchema(fields: IRField[], enums: IREnum[]): IRSchema {
 }
 
 describe('codegen defaults', () => {
+  it('exposes shared interface fields through C# union bases', () => {
+    const isValid = field('isValid', booleanType);
+    const output = new CSharpPlugin({ outputPath: 'Types.cs' }).generate({
+      ...schema([]),
+      interfaces: [{ name: 'ResultCommon', fields: [isValid] }],
+      unions: [
+        {
+          name: 'Result',
+          members: [{ name: 'ResultAndroid', isNestedUnion: false }],
+          sharedInterfaces: ['ResultCommon'],
+        },
+      ],
+      objects: [
+        {
+          name: 'ResultAndroid',
+          fields: [isValid],
+          interfaces: ['ResultCommon'],
+          unions: ['Result'],
+          isResultUnion: false,
+        },
+      ],
+    });
+
+    expect(output).toContain('public abstract record Result : ResultCommon');
+    expect(output).toContain('public abstract bool IsValid { get; init; }');
+    expect(output).toContain('public sealed record ResultAndroid : Result');
+    expect(output).toContain('public override required bool IsValid { get; init; }');
+  });
+
   it('wraps multiline C# documentation in one XML summary element', () => {
     const documentedField = field('value', stringType);
     documentedField.description = 'First line.\nSecond <line>.';

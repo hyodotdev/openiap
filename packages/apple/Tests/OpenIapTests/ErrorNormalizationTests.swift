@@ -93,6 +93,12 @@ final class ErrorNormalizationTests: XCTestCase {
         XCTAssertEqual(PurchaseError.wrap(error).code, .iapNotAvailable)
     }
 
+    func testWrapNormalizesPaymentNotAllowedInsideStoreKitSystemError() {
+        let error = StoreKitError.systemError(SKError(.paymentNotAllowed))
+
+        XCTAssertEqual(PurchaseError.wrap(error).code, .iapNotAvailable)
+    }
+
     func testWrapStillFallsBackForUnmappedConditions() {
         let unmapped = NSError(domain: "com.example.other", code: 99)
 

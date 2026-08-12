@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-08-12T12:37:01.631Z
+> Last updated: 2026-08-12T17:12:21.769Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -2608,6 +2608,15 @@ KMP iOS product-response normalizer may fill an empty canonical placeholder
 from a populated upstream native response label because that transport recovery
 is not user-authored legacy input.
 
+### R14 — Verification result docs expose the shared validity contract
+
+Every store-specific `VerifyPurchaseResult` documentation table must list all
+required fields from the generated TypeScript `VerifyPurchaseResultCommon`
+interface. The audit derives this field set from the generated type instead of
+maintaining a second list. While Horizon's `success` compatibility property
+exists, its table must also mark that property as a deprecated alias for
+`isValid`.
+
 ## Pre-commit checklist
 
 Run before every `git push` on docs / SDK changes:
@@ -2646,6 +2655,7 @@ parses every `/docs/apis/*.tsx` and `/docs/types/*.tsx` page, extracts:
 - published release entries and docs-local version metadata
 - focused recurring phantom shapes from active fenced code examples
 - canonical offer semantics, generated enum snippets, and search entries
+- shared purchase-verification fields and the Horizon compatibility alias
 
 Field mentions are cross-referenced against generated TypeScript shapes.
 Canonical offer snippets are compared with the generated TypeScript, Swift,

@@ -38,11 +38,16 @@ abstract class StoreConformanceSuite {
         ConformanceBehaviors.CAPABILITIES_DECLARED_CAPABILITIES_MATCH_THE_MATRIX,
     )
 
+    private val unsupportedStoreBehaviors = listOf(
+        ConformanceBehaviors.CAPABILITIES_UNSUPPORTED_OPERATIONS_DEGRADE_PREDICTABLY,
+    )
+
     @Test
     fun `suite declares the spec behaviors it covers`() {
-        assertEquals(8, coveredBehaviors.size)
-        assertEquals(coveredBehaviors.size, coveredBehaviors.toSet().size)
-        for (id in coveredBehaviors) {
+        val declarations = coveredBehaviors + unsupportedStoreBehaviors
+        assertEquals(9, declarations.size)
+        assertEquals(declarations.size, declarations.toSet().size)
+        for (id in declarations) {
             assertTrue("behavior id must be non-blank", id.isNotBlank())
             assertTrue("behavior id must be namespaced: $id", id.contains('.'))
         }
@@ -118,27 +123,36 @@ abstract class StoreConformanceSuite {
     }
 
     // --- Normalized error codes -------------------------------------------
-    // Every Android store speaks Play Billing response codes (Amazon via its
-    // compatibility shim), so one table governs all of them.
+    // Adapters bind these assertions to their store-native production mapper.
 
     @Test
-    fun `billing response codes normalize to the specified error codes`() {
-        for ((responseCode, expected) in NORMATIVE_ERROR_MAPPING) {
+    fun `store response codes normalize to the specified error codes`() {
+        for (errorCase in adapter.normativeErrorCases) {
             assertEquals(
-                "${adapter.store}: response code $responseCode must normalize to ${expected.rawValue}",
-                expected.rawValue,
-                adapter.errorForResponseCode(responseCode).code,
+                "${adapter.store}: ${errorCase.nativeCode} must normalize to ${errorCase.expected.rawValue}",
+                errorCase.expected.rawValue,
+                errorCase.actual.code,
             )
         }
     }
 
     @Test
-    fun `unrecognized billing response codes normalize to Unknown`() {
+    fun `unrecognized store response codes normalize to Unknown`() {
         assertEquals(
             "${adapter.store}: an unrecognized response code must normalize to Unknown",
             ErrorCode.Unknown.rawValue,
-            adapter.errorForResponseCode(UNRECOGNIZED_RESPONSE_CODE).code,
+            adapter.unrecognizedError.code,
         )
+    }
+
+    @Test
+    fun `unsupported offer code redemption returns its documented no-op`() {
+        val result = adapter.unsupportedOperationResult()
+        if (StoreCapability.OfferCodeRedemption in adapter.capabilities) {
+            assertEquals(null, result)
+        } else {
+            assertEquals(false, result)
+        }
     }
 
     // --- Capabilities ------------------------------------------------------
@@ -204,24 +218,4 @@ abstract class StoreConformanceSuite {
         transactionId = token,
     )
 
-    private companion object {
-        /** Normative Play Billing response code -> OpenIAP ErrorCode. */
-        val NORMATIVE_ERROR_MAPPING = listOf(
-            1 to ErrorCode.UserCancelled,
-            2 to ErrorCode.ServiceError,
-            3 to ErrorCode.BillingUnavailable,
-            4 to ErrorCode.ItemUnavailable,
-            5 to ErrorCode.DeveloperError,
-            6 to ErrorCode.ServiceError,
-            7 to ErrorCode.AlreadyOwned,
-            8 to ErrorCode.ItemNotOwned,
-            -1 to ErrorCode.ServiceDisconnected,
-            -2 to ErrorCode.FeatureNotSupported,
-            -3 to ErrorCode.ServiceTimeout,
-            12 to ErrorCode.NetworkError,
-        )
-
-        /** Not a Play Billing response code in any current version. */
-        const val UNRECOGNIZED_RESPONSE_CODE = 9999
-    }
 }

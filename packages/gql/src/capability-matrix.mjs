@@ -71,7 +71,7 @@ export const CAPABILITY_MATRIX = Object.freeze({
     stores: {
       Apple: 'required',
       Google: 'required',
-      Amazon: 'unsupported',
+      Amazon: 'required',
       Horizon: 'required',
     },
     notes: {
@@ -80,7 +80,7 @@ export const CAPABILITY_MATRIX = Object.freeze({
     },
     evidence: {
       Amazon:
-        'packages/google/openiap/src/amazon/java/dev/hyo/openiap/OpenIapModule.kt — Amazon receipts carry no deferred state; buildAmazonPurchase emits Purchased or Unknown.',
+        'packages/google/openiap/src/amazon/java/dev/hyo/openiap/OpenIapModule.kt — pending purchases are enabled and PurchaseResponse.RequestStatus.PENDING maps to DeferredPurchase.',
     },
   },
 

@@ -40,7 +40,7 @@ export const CAPABILITY_MATRIX = Object.freeze({
   "pendingPurchases": {
     "Apple": "required",
     "Google": "required",
-    "Amazon": "unsupported",
+    "Amazon": "required",
     "Horizon": "required"
   },
   "subscriptionBillingIssue": {

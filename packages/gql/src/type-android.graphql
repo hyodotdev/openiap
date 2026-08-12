@@ -509,7 +509,7 @@ input VerifyPurchaseHorizonOptions {
 Result from Meta Horizon verify_entitlement API.
 Returns verification status and grant time for the entitlement.
 """
-type VerifyPurchaseResultHorizon {
+type VerifyPurchaseResultHorizon implements VerifyPurchaseResultCommon {
   """
   Whether the purchase is valid. Uniform across every VerifyPurchaseResult
   variant so callers can gate entitlement without inspecting the concrete type.
@@ -528,7 +528,7 @@ type VerifyPurchaseResultHorizon {
   grantTime: Float
 }
 
-type VerifyPurchaseResultAndroid {
+type VerifyPurchaseResultAndroid implements VerifyPurchaseResultCommon {
   """
   Whether the purchase is valid. Uniform across every VerifyPurchaseResult
   variant so callers can gate entitlement without inspecting the concrete type.

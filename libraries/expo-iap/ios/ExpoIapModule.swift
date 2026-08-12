@@ -210,7 +210,14 @@ public final class ExpoIapModule: Module {
         }
 
         AsyncFunction("verifyPurchase") { (params: [String: Any]) async throws -> [String: Any] in
-            ExpoIapLog.payload("verifyPurchase", payload: params)
+            ExpoIapLog.payload(
+                "verifyPurchase",
+                payload: [
+                    "hasApple": params["apple"] != nil,
+                    "hasGoogle": params["google"] != nil,
+                    "hasHorizon": params["horizon"] != nil,
+                ]
+            )
             do {
                 let props = try OpenIapSerialization.verifyPurchaseProps(from: params)
                 let result = try await OpenIapModule.shared.verifyPurchase(props)

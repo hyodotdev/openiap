@@ -102,6 +102,8 @@ jobs:
     defaults:
       run:
         working-directory: packages/conformance
+    env:
+      RELEASE_BRANCH: ${{ github.ref_name }}
     outputs:
       version: ${{ steps.bump.outputs.version }}
     steps:
@@ -115,6 +117,14 @@ jobs:
         with:
           node-version: 20
           registry-url: "https://registry.npmjs.org"
+
+      - name: Preserve npm release verifiers
+        run: |
+          cp "$GITHUB_WORKSPACE/scripts/verify-npm-release-provenance.mjs" "$RUNNER_TEMP/verify-npm-release-provenance.mjs"
+          cp "$GITHUB_WORKSPACE/scripts/npm-publish-authorization.mjs" "$RUNNER_TEMP/npm-publish-authorization.mjs"
+
+      - name: Ensure npm CLI v11.19.0 for signature verification
+        run: npm install -g npm@11.19.0
 
       - name: Configure git identity
         run: |
@@ -147,15 +157,71 @@ jobs:
           echo "version=$NEW_VERSION" >> "$GITHUB_OUTPUT"
           echo "is_prerelease=$IS_PRE" >> "$GITHUB_OUTPUT"
 
-      - name: Check npm for an existing version
-        id: check_npm
+      - name: Check release tag
+        id: check_tag
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+          VERSION_TYPE: ${{ inputs.version }}
         run: |
-          VERSION="${{ steps.bump.outputs.version }}"
-          if npm view "openiap-conformance@$VERSION" version >/dev/null 2>&1; then
+          TAG="openiap-conformance-$VERSION"
+          git fetch --tags origin
+          if git rev-parse "$TAG" >/dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
+            if [ "$VERSION_TYPE" != "current" ]; then
+              echo "::error::$TAG already exists. Use current to retry this version."
+              exit 1
+            fi
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
+
+      - name: Checkout release tag (current version)
+        if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists == 'true' }}
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          TAG="openiap-conformance-$VERSION"
+          node "$GITHUB_WORKSPACE/scripts/assert-release-tag.mjs" \
+            conformance "$RELEASE_BRANCH" "$TAG" "$VERSION"
+          git checkout "$TAG"
+
+      - name: Assert verified release head is unchanged
+        if: ${{ inputs.version != 'current' || steps.check_tag.outputs.exists != 'true' }}
+        working-directory: ${{ github.workspace }}
+        run: node scripts/assert-release-head.mjs "$RELEASE_BRANCH" "$GITHUB_SHA"
+
+      - name: Check npm for an existing version
+        id: check_npm
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          if NPM_OUTPUT=$(npm view "openiap-conformance@$VERSION" version 2>&1); then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          elif echo "$NPM_OUTPUT" | grep -qiE 'E404|404 Not Found'; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Unable to verify openiap-conformance@$VERSION on npm"
+            echo "$NPM_OUTPUT"
+            exit 1
+          fi
+
+      - name: Refuse an untagged published version
+        if: ${{ steps.check_npm.outputs.exists == 'true' && steps.check_tag.outputs.exists != 'true' }}
+        run: |
+          echo "::error::Published version has no immutable release tag"
+          exit 1
+
+      - name: Verify existing npm release provenance
+        if: ${{ steps.check_npm.outputs.exists == 'true' && steps.check_tag.outputs.exists == 'true' }}
+        working-directory: ${{ github.workspace }}
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          TAG="openiap-conformance-$VERSION"
+          EXPECTED_COMMIT=$(git rev-parse "$TAG^{commit}")
+          node "$RUNNER_TEMP/verify-npm-release-provenance.mjs" \
+            openiap-conformance "$VERSION" "$EXPECTED_COMMIT" "$TAG" \
+            release-conformance.yml
 
       - name: Commit and tag
         if: ${{ inputs.version != 'current' }}
@@ -166,8 +232,55 @@ jobs:
           git add packages/conformance/package.json
           git commit -m "chore(release): openiap-conformance $VERSION"
           git tag -a "$TAG" -m "Release $TAG"
-          git push origin "HEAD:$GITHUB_REF_NAME"
-          git push origin "$TAG"
+          git push --atomic origin "HEAD:$RELEASE_BRANCH" --follow-tags
+
+      - name: Create tag (current version)
+        if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists != 'true' }}
+        working-directory: ${{ github.workspace }}
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          TAG="openiap-conformance-$VERSION"
+          git commit --allow-empty -m "chore: recover release ref"
+          git tag -a "$TAG" "$GITHUB_SHA" -m "Release $TAG"
+          git push --atomic origin \
+            "HEAD:refs/heads/$RELEASE_BRANCH" \
+            "refs/tags/$TAG:refs/tags/$TAG"
+
+      - name: Require tag-ref npm publisher capability
+        if: steps.check_npm.outputs.exists == 'false'
+        working-directory: ${{ github.workspace }}
+        env:
+          TAG: openiap-conformance-${{ steps.bump.outputs.version }}
+        run: |
+          if ! git grep -q '^  publish-npm:' "$TAG" -- .github/workflows/release-conformance.yml || \
+             ! git grep -q 'Upload npm publish authorization' "$TAG" -- .github/workflows/release-conformance.yml || \
+             ! git cat-file -e "$TAG:scripts/npm-publish-authorization.mjs"; then
+            echo "::error::$TAG predates the authorized tag-ref npm publisher. Release a new reviewed version instead."
+            exit 1
+          fi
+
+      - name: Write npm publish authorization
+        if: steps.check_npm.outputs.exists == 'false'
+        env:
+          VERSION: ${{ steps.bump.outputs.version }}
+        run: |
+          TAG="openiap-conformance-$VERSION"
+          TAG_SHA=$(git rev-parse "$TAG^{commit}")
+          node "$RUNNER_TEMP/npm-publish-authorization.mjs" write \
+            "$RUNNER_TEMP/npm-publish-authorization.json" \
+            "$GITHUB_REPOSITORY" ".github/workflows/release-conformance.yml" \
+            "$GITHUB_RUN_ID" "$GITHUB_RUN_ATTEMPT" "$RELEASE_BRANCH" \
+            "$GITHUB_SHA" "$TAG" "$TAG_SHA"
+
+      - name: Upload npm publish authorization
+        if: steps.check_npm.outputs.exists == 'false'
+        uses: actions/upload-artifact@v4
+        with:
+          name: npm-publish-authorization-${{ github.run_attempt }}
+          path: ${{ runner.temp }}/npm-publish-authorization.json
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Write release notes
         working-directory: ${{ github.workspace }}
@@ -261,32 +374,72 @@ jobs:
             exit 1
           fi
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+          echo "source_branch=$SOURCE_BRANCH" >> "$GITHUB_OUTPUT"
 
       - name: Require successful source release run
+        id: source
         env:
           GH_TOKEN: ${{ github.token }}
+          SOURCE_BRANCH: ${{ steps.release.outputs.source_branch }}
           SOURCE_RUN_ID: ${{ inputs.source_run_id }}
         run: |
           if ! [[ "$SOURCE_RUN_ID" =~ ^[1-9][0-9]*$ ]]; then
             echo "::error::A validated source release run id is required"
             exit 1
           fi
-          SOURCE_RUN_JSON=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID")
+          for _ in {1..12}; do
+            SOURCE_RUN_JSON=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID")
+            SOURCE_STATUS=$(jq -r '.status // ""' <<<"$SOURCE_RUN_JSON")
+            if [ "$SOURCE_STATUS" = "completed" ]; then
+              break
+            fi
+            sleep 5
+          done
           SOURCE_PATH=$(jq -r '.path // ""' <<<"$SOURCE_RUN_JSON")
+          SOURCE_EVENT=$(jq -r '.event // ""' <<<"$SOURCE_RUN_JSON")
+          SOURCE_HEAD_BRANCH=$(jq -r '.head_branch // ""' <<<"$SOURCE_RUN_JSON")
+          SOURCE_HEAD_SHA=$(jq -r '.head_sha // ""' <<<"$SOURCE_RUN_JSON")
+          SOURCE_RUN_ATTEMPT=$(jq -r '.run_attempt // ""' <<<"$SOURCE_RUN_JSON")
           SOURCE_CONCLUSION=$(jq -r '.conclusion // ""' <<<"$SOURCE_RUN_JSON")
           SOURCE_REPOSITORY=$(jq -r '.repository.full_name // ""' <<<"$SOURCE_RUN_JSON")
-          if [ "$SOURCE_CONCLUSION" != "success" ]; then
-            echo "::error::Source release run $SOURCE_RUN_ID did not succeed"
+          if [ "$SOURCE_STATUS" != "completed" ] || [ "$SOURCE_CONCLUSION" != "success" ]; then
+            echo "::error::Source release run $SOURCE_RUN_ID did not complete successfully"
             exit 1
           fi
-          if [ "$SOURCE_PATH" != ".github/workflows/release-conformance.yml" ]; then
-            echo "::error::Source run did not come from this workflow"
+          if [ "$SOURCE_PATH" != ".github/workflows/release-conformance.yml" ] || \
+             [ "$SOURCE_EVENT" != "workflow_dispatch" ] || \
+             [ "$SOURCE_HEAD_BRANCH" != "$SOURCE_BRANCH" ] || \
+             [ "$SOURCE_REPOSITORY" != "$GITHUB_REPOSITORY" ] || \
+             ! [[ "$SOURCE_RUN_ATTEMPT" =~ ^[1-9][0-9]*$ ]]; then
+            echo "::error::Source run does not match the required release workflow and branch"
             exit 1
           fi
-          if [ "$SOURCE_REPOSITORY" != "$GITHUB_REPOSITORY" ]; then
-            echo "::error::Source run belongs to another repository"
+          if ! git merge-base --is-ancestor "$SOURCE_HEAD_SHA" "origin/$SOURCE_BRANCH"; then
+            echo "::error::Source release run is not reachable from origin/$SOURCE_BRANCH"
             exit 1
           fi
+          echo "head_sha=$SOURCE_HEAD_SHA" >> "$GITHUB_OUTPUT"
+          echo "run_attempt=$SOURCE_RUN_ATTEMPT" >> "$GITHUB_OUTPUT"
+
+      - name: Verify source run authorized this release tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_BRANCH: ${{ steps.release.outputs.source_branch }}
+          SOURCE_HEAD_SHA: ${{ steps.source.outputs.head_sha }}
+          SOURCE_RUN_ATTEMPT: ${{ steps.source.outputs.run_attempt }}
+          SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          AUTHORIZATION_DIR="$RUNNER_TEMP/npm-publish-authorization"
+          gh run download "$SOURCE_RUN_ID" \
+            --repo "$GITHUB_REPOSITORY" \
+            --name "npm-publish-authorization-$SOURCE_RUN_ATTEMPT" \
+            --dir "$AUTHORIZATION_DIR"
+          node "$GITHUB_WORKSPACE/scripts/npm-publish-authorization.mjs" verify \
+            "$AUTHORIZATION_DIR/npm-publish-authorization.json" \
+            "$GITHUB_REPOSITORY" ".github/workflows/release-conformance.yml" \
+            "$SOURCE_RUN_ID" "$SOURCE_RUN_ATTEMPT" "$SOURCE_BRANCH" \
+            "$SOURCE_HEAD_SHA" "openiap-conformance-$VERSION" "$GITHUB_SHA"
 
       # Re-verify at the tag: a suite published with drifted ids would
       # invalidate every report produced against it.
@@ -296,9 +449,24 @@ jobs:
           node packages/conformance/scripts/generate-behavior-ids.mjs --check
           node packages/conformance/scripts/coverage-report.mjs --check
 
-      - name: Publish to npm
+      - name: Check if npm package already published
+        id: check_npm
         env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          VERSION: ${{ steps.release.outputs.version }}
+        run: |
+          if NPM_OUTPUT=$(npm view "openiap-conformance@$VERSION" version 2>&1); then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+          elif echo "$NPM_OUTPUT" | grep -qiE 'E404|404 Not Found'; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Unable to verify openiap-conformance@$VERSION on npm"
+            echo "$NPM_OUTPUT"
+            exit 1
+          fi
+
+      - name: Publish to npm
+        if: steps.check_npm.outputs.exists == 'false'
+        env:
           VERSION: ${{ steps.release.outputs.version }}
         run: |
           if [[ "$VERSION" == *-* ]]; then

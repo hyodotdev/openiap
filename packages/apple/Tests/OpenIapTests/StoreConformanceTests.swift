@@ -20,7 +20,6 @@ final class StoreConformanceTests: XCTestCase {
         ConformanceBehaviors.errorsUnrecognizedStoreCodeNormalizesToUnknown,
         ConformanceBehaviors.errorsUnsupportedCodesAreNotSynthesized,
         ConformanceBehaviors.identifiersPurchaseCarriesAConcreteStore,
-        ConformanceBehaviors.capabilitiesUnsupportedOperationsDegradePredictably,
         ConformanceBehaviors.verificationResultExposesUniformValidity,
     ]
 
@@ -40,6 +39,7 @@ final class StoreConformanceTests: XCTestCase {
         ConformanceBehaviors.restorationAvailablePurchasesReturnsOwnedItems: "requires a live StoreKit session",
         ConformanceBehaviors.restorationAvailablePurchasesExcludesConsumedItems: "requires a live StoreKit session",
         ConformanceBehaviors.restorationAvailablePurchasesIsEmptyForNewUser: "requires a live StoreKit session",
+        ConformanceBehaviors.capabilitiesUnsupportedOperationsDegradePredictably: "no unsupported Apple operation is exposed by this Swift package",
     ]
 
     func testSuiteDeclaresDistinctBehaviorIds() {
@@ -141,13 +141,4 @@ final class StoreConformanceTests: XCTestCase {
         XCTAssertEqual(horizon.isValid, horizon.success, "isValid must agree with the deprecated success field")
     }
 
-    // capabilities.unsupported-operations-degrade-predictably
-    func testUnsupportedErrorCodesRemainRepresentableWithoutBeingProduced() {
-        // The Android-only codes stay decodable so a cross-platform payload
-        // round-trips, even though StoreKit never produces them.
-        for code in [ErrorCode.alreadyOwned, .billingUnavailable, .serviceDisconnected, .serviceTimeout] {
-            XCTAssertEqual(ErrorCode(rawValue: code.rawValue), code)
-            XCTAssertFalse(PurchaseError.defaultMessage(for: code).isEmpty)
-        }
-    }
 }

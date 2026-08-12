@@ -85,19 +85,21 @@ export const myAdapter = {
 - **Capability gating comes from the matrix, not the adapter.** An
   implementation cannot excuse itself from its own store's requirements. A
   behavior gated on a capability your store must support is required; one gated
-  on a capability your store cannot support becomes an absence check.
+  on a capability your store cannot support becomes an absence check. An
+  optional capability is checked when implemented and otherwise reported as
+  not applicable.
 - **Unknown stores fail closed.** If `store` is not in the capability matrix,
-  gated behaviors are not silently treated as passing.
+  the runner rejects the adapter instead of silently treating gated behaviors
+  as not applicable.
 
 ### Outcomes
 
 | Outcome | Meaning |
 | --- | --- |
 | `pass` | Behavior verified |
-| `fail` | MUST behavior violated or unimplemented — blocks conformance |
+| `fail` | MUST behavior violated or unimplemented — including `NOT_IMPLEMENTED`; blocks conformance |
 | `warn` | SHOULD behavior violated or unimplemented |
-| `skip` | Adapter explicitly returned `NOT_IMPLEMENTED` |
-| `not-applicable` | Store cannot support the gating capability, no absence check supplied |
+| `not-applicable` | Store cannot support the gating capability, or an optional capability is not implemented |
 
 ## Fake store
 

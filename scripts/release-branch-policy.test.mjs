@@ -461,6 +461,7 @@ test("existing release tags must match metadata, origin, and release-branch ance
   const cases = [
     ["apple", "3.1.0", '{"apple":"3.1.0"}'],
     ["google", "google-3.1.0", '{"google":"3.1.0"}'],
+    ["conformance", "openiap-conformance-3.1.0", '{"version":"3.1.0"}'],
     ["expo", "expo-iap-3.1.0", '{"version":"3.1.0"}'],
     ["react-native", "react-native-iap-3.1.0", '{"version":"3.1.0"}'],
     ["flutter", "flutter-iap-3.1.0", "version: 3.1.0\n"],

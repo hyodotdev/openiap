@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { BEHAVIORS } from '../src/spec/behaviors.mjs';
-import { runConformance } from '../src/runner/runner.mjs';
+import { NOT_IMPLEMENTED, runConformance } from '../src/runner/runner.mjs';
 import { formatReport, toJsonReport } from '../src/runner/report.mjs';
 import { createReferenceAdapter } from '../src/adapters/reference-adapter.mjs';
 
@@ -35,6 +35,25 @@ describe('conformance runner', () => {
     expect(report.results.every((result) => result.outcome !== 'pass')).toBe(true);
   });
 
+  it('fails an applicable MUST behavior that explicitly reports not-implemented', async () => {
+    const behavior = clientBehaviors.find(
+      (item) => item.id === 'identifiers.purchase-carries-a-concrete-store',
+    );
+    const adapter = {
+      implementation: 'not-implemented',
+      store: 'Google',
+      behaviors: { [behavior.id]: async () => NOT_IMPLEMENTED },
+    };
+
+    const report = await runConformance(adapter, { behaviors: [behavior] });
+
+    expect(report.conformant).toBe(false);
+    expect(report.results[0]).toMatchObject({
+      outcome: 'fail',
+      reason: 'adapter reported not-implemented',
+    });
+  });
+
   it('propagates a violated assertion as a failure with its reason', async () => {
     const adapter = createReferenceAdapter();
     adapter.behaviors['identifiers.purchase-carries-a-concrete-store'] = async () => {
@@ -54,14 +73,14 @@ describe('conformance runner', () => {
   // Capability gating must come from the matrix, not from the adapter, or an
   // implementation could excuse itself from its own requirements.
   it('marks capability-gated behavior not-applicable for a store that cannot support it', async () => {
-    const adapter = createReferenceAdapter({ store: 'Amazon' });
+    const adapter = createReferenceAdapter({ store: 'Apple' });
     const report = await runConformance(adapter, { behaviors: clientBehaviors });
 
-    const pending = report.results.find(
-      (item) => item.id === 'purchases.pending-purchase-is-not-delivered-as-purchased',
+    const alreadyOwned = report.results.find(
+      (item) => item.id === 'purchases.already-owned-surfaces-already-owned-error',
     );
-    expect(pending.outcome).toBe('not-applicable');
-    expect(pending.capabilityLevel).toBe('unsupported');
+    expect(alreadyOwned.outcome).toBe('not-applicable');
+    expect(alreadyOwned.capabilityLevel).toBe('unsupported');
   });
 
   it('still requires capability-gated behavior of a store that must support it', async () => {
@@ -76,30 +95,73 @@ describe('conformance runner', () => {
     expect(pending.capabilityLevel).toBe('required');
   });
 
+  it('does not require an optional capability that the adapter omits', async () => {
+    const behavior = BEHAVIORS.find(
+      (item) => item.id === 'lifecycle.purchase-starts-active-entitlement',
+    );
+    const adapter = { implementation: 'amazon-without-webhooks', store: 'Amazon', behaviors: {} };
+
+    const report = await runConformance(adapter, { behaviors: [behavior] });
+
+    expect(report.conformant).toBe(true);
+    expect(report.results[0]).toMatchObject({
+      outcome: 'not-applicable',
+      capabilityLevel: 'optional',
+    });
+  });
+
+  it('checks an optional capability when the adapter implements it', async () => {
+    const behavior = BEHAVIORS.find(
+      (item) => item.id === 'lifecycle.purchase-starts-active-entitlement',
+    );
+    const adapter = {
+      implementation: 'amazon-with-webhooks',
+      store: 'Amazon',
+      behaviors: {
+        [behavior.id]: async () => {
+          throw new Error('optional implementation violated the behavior');
+        },
+      },
+    };
+
+    const report = await runConformance(adapter, { behaviors: [behavior] });
+
+    expect(report.conformant).toBe(false);
+    expect(report.results[0]).toMatchObject({
+      outcome: 'fail',
+      capabilityLevel: 'optional',
+    });
+  });
+
   it('runs an absence check for an unsupported capability when the adapter supplies one', async () => {
-    const adapter = createReferenceAdapter({ store: 'Amazon' });
+    const adapter = createReferenceAdapter({ store: 'Apple' });
     let ran = false;
     adapter.absenceChecks = {
-      'purchases.pending-purchase-is-not-delivered-as-purchased': async () => {
+      'purchases.already-owned-surfaces-already-owned-error': async () => {
         ran = true;
       },
     };
 
     const report = await runConformance(adapter, { behaviors: clientBehaviors });
-    const pending = report.results.find(
-      (item) => item.id === 'purchases.pending-purchase-is-not-delivered-as-purchased',
+    const alreadyOwned = report.results.find(
+      (item) => item.id === 'purchases.already-owned-surfaces-already-owned-error',
     );
 
     expect(ran).toBe(true);
-    expect(pending.outcome).toBe('pass');
+    expect(alreadyOwned.outcome).toBe('pass');
   });
 
   it('rejects an adapter missing its identity', async () => {
     await expect(runConformance({ store: 'Google' })).rejects.toThrow(/implementation is required/);
     await expect(runConformance({ implementation: 'x' })).rejects.toThrow(/store is required/);
   });
-});
 
+  it('rejects a store that is absent from the capability matrix', async () => {
+    await expect(
+      runConformance({ implementation: 'future-store', store: 'Samsung', behaviors: {} }),
+    ).rejects.toThrow(/adapter\.store must be one of/);
+  });
+});
 describe('conformance report', () => {
   it('renders a human-readable verdict naming both versions', async () => {
     const report = await runConformance(createReferenceAdapter(), { behaviors: clientBehaviors });

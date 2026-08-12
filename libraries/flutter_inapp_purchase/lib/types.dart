@@ -1134,6 +1134,12 @@ abstract class PurchaseCommon {
   double get transactionDate;
 }
 
+/// Validity shared by every store-specific purchase verification result.
+abstract class VerifyPurchaseResultCommon {
+  /// Whether the purchase is valid, without inspecting the concrete result variant.
+  bool get isValid;
+}
+
 // MARK: - Objects
 
 class ActiveSubscription {
@@ -3769,7 +3775,7 @@ class ValidTimeWindowAndroid {
   }
 }
 
-class VerifyPurchaseResultAndroid extends VerifyPurchaseResult {
+class VerifyPurchaseResultAndroid extends VerifyPurchaseResult implements VerifyPurchaseResultCommon {
   const VerifyPurchaseResultAndroid({
     required this.autoRenewing,
     required this.betaProduct,
@@ -3867,7 +3873,7 @@ class VerifyPurchaseResultAndroid extends VerifyPurchaseResult {
 
 /// Result from Meta Horizon verify_entitlement API.
 /// Returns verification status and grant time for the entitlement.
-class VerifyPurchaseResultHorizon extends VerifyPurchaseResult {
+class VerifyPurchaseResultHorizon extends VerifyPurchaseResult implements VerifyPurchaseResultCommon {
   const VerifyPurchaseResultHorizon({
     this.grantTime,
     required this.isValid,
@@ -3902,7 +3908,7 @@ class VerifyPurchaseResultHorizon extends VerifyPurchaseResult {
   }
 }
 
-class VerifyPurchaseResultIOS extends VerifyPurchaseResult {
+class VerifyPurchaseResultIOS extends VerifyPurchaseResult implements VerifyPurchaseResultCommon {
   const VerifyPurchaseResultIOS({
     required this.isValid,
     required this.jwsRepresentation,
@@ -5309,7 +5315,7 @@ sealed class Purchase implements PurchaseCommon {
   Map<String, dynamic> toJson();
 }
 
-sealed class VerifyPurchaseResult {
+sealed class VerifyPurchaseResult implements VerifyPurchaseResultCommon {
   const VerifyPurchaseResult();
 
   factory VerifyPurchaseResult.fromJson(Map<String, dynamic> json) {
@@ -5324,6 +5330,10 @@ sealed class VerifyPurchaseResult {
     }
     throw ArgumentError('Unknown __typename for VerifyPurchaseResult: $typeName');
   }
+
+  /// Whether the purchase is valid, without inspecting the concrete result variant.
+  @override
+  bool get isValid;
 
   Map<String, dynamic> toJson();
 }

@@ -917,14 +917,15 @@ export const apiData: ApiItem[] = [
     title: 'VerifyPurchaseResultAndroid',
     category: 'Types (Android)',
     description:
-      'Android verification result: autoRenewing, cancelDate, renewalDate, transactionId',
+      'Android verification result: isValid, autoRenewing, cancelDate, renewalDate, transactionId',
     path: '/docs/types/verify-purchase#verify-purchase-result-android',
   },
   {
     id: 'verify-purchase-result-horizon',
     title: 'VerifyPurchaseResultHorizon',
     category: 'Types (Horizon)',
-    description: 'Meta Quest verification result: success, grantTime',
+    description:
+      'Meta Quest verification result: isValid, grantTime, deprecated success alias',
     path: '/docs/types/verify-purchase#verify-purchase-result-horizon',
   },
 

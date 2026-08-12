@@ -395,6 +395,24 @@ internal fun buildAmazonPurchase(
  */
 internal suspend fun unsupportedRedeemOfferCode(): Boolean = false
 
+internal fun amazonPurchaseError(
+    status: String?,
+    sku: String,
+): OpenIapError? = when (status) {
+    "SUCCESSFUL" -> null
+    "ALREADY_PURCHASED" ->
+        OpenIapError.ItemAlreadyOwned("Amazon reported the item is already purchased").withProductId(sku)
+    "INVALID_SKU" -> OpenIapError.SkuNotFound(sku)
+    "NOT_SUPPORTED" ->
+        OpenIapError.FeatureNotSupported("Amazon Appstore IAP is not supported on this device").withProductId(sku)
+    "INACTIVE_BASE_SUBSCRIPTION" ->
+        OpenIapError.ItemUnavailable("Amazon add-on purchase requires an active base subscription").withProductId(sku)
+    "PENDING" -> OpenIapError.DeferredPurchase().withProductId(sku)
+    "FAILED" ->
+        OpenIapError.UserCancelled("Amazon purchase failed or was cancelled").withProductId(sku)
+    else -> OpenIapError.UnknownError("Unrecognized Amazon purchase response").withProductId(sku)
+}
+
 class OpenIapModule(
     private val context: Context,
 ) : OpenIapProtocol, PurchasingListener {
@@ -727,35 +745,9 @@ class OpenIapModule(
                         }
                         listOf(purchase)
                     }
-                    PurchaseResponse.RequestStatus.ALREADY_PURCHASED -> {
-                        val error = OpenIapError.ItemAlreadyOwned("Amazon reported the item is already purchased")
-                            .withProductId(sku)
-                        emitPurchaseErrorAndThrow(error)
-                    }
-                    PurchaseResponse.RequestStatus.INVALID_SKU -> {
-                        val error = OpenIapError.SkuNotFound(sku)
-                        emitPurchaseErrorAndThrow(error)
-                    }
-                    PurchaseResponse.RequestStatus.NOT_SUPPORTED -> {
-                        val error = OpenIapError.FeatureNotSupported("Amazon Appstore IAP is not supported on this device")
-                            .withProductId(sku)
-                        emitPurchaseErrorAndThrow(error)
-                    }
-                    PurchaseResponse.RequestStatus.INACTIVE_BASE_SUBSCRIPTION -> {
-                        val error = OpenIapError.ItemUnavailable(
-                            "Amazon add-on purchase requires an active base subscription",
-                        ).withProductId(sku)
-                        emitPurchaseErrorAndThrow(error)
-                    }
-                    PurchaseResponse.RequestStatus.PENDING -> {
-                        val error = OpenIapError.DeferredPurchase().withProductId(sku)
-                        emitPurchaseErrorAndThrow(error)
-                    }
-                    PurchaseResponse.RequestStatus.FAILED -> {
-                        val error = OpenIapError.UserCancelled("Amazon purchase failed or was cancelled")
-                            .withProductId(sku)
-                        emitPurchaseErrorAndThrow(error)
-                    }
+                    else -> emitPurchaseErrorAndThrow(
+                        checkNotNull(amazonPurchaseError(response.requestStatus.name, sku))
+                    )
                 }
             }
         } catch (_: OpenIapError) {

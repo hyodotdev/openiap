@@ -168,27 +168,31 @@ public extension PurchaseError {
 
         // Map StoreKit 2 errors to PurchaseError
         if let storeKitError = error as? StoreKitError {
-            let errorCode: ErrorCode
+            let mappedCode: ErrorCode
             switch storeKitError {
             case .userCancelled:
-                errorCode = .userCancelled
+                mappedCode = .userCancelled
             case .networkError:
-                errorCode = .networkError
+                mappedCode = .networkError
             case .notAvailableInStorefront:
-                errorCode = .itemUnavailable
+                mappedCode = .itemUnavailable
             case .notEntitled:
-                errorCode = .itemNotOwned
-            case .systemError:
-                errorCode = .serviceError
+                mappedCode = .itemNotOwned
+            case .systemError(let underlyingError):
+                if let skErrorCode = skErrorCode(from: underlyingError) {
+                    mappedCode = errorCode(for: skErrorCode) ?? .serviceError
+                } else {
+                    mappedCode = .serviceError
+                }
             case .unknown:
-                errorCode = .unknown
+                mappedCode = .unknown
             case .unsupported:
-                errorCode = .featureNotSupported
+                mappedCode = .featureNotSupported
             @unknown default:
-                errorCode = fallback
+                mappedCode = fallback
             }
             return make(
-                code: errorCode,
+                code: mappedCode,
                 productId: productId,
                 message: error.localizedDescription,
                 debugMessage: error.localizedDescription

@@ -1343,6 +1343,16 @@ public interface PurchaseCommon {
     val transactionDate: Double
 }
 
+/**
+ * Validity shared by every store-specific purchase verification result.
+ */
+public interface VerifyPurchaseResultCommon {
+    /**
+     * Whether the purchase is valid, without inspecting the concrete result variant.
+     */
+    val isValid: Boolean
+}
+
 // MARK: - Objects
 
 public data class ActiveSubscription(
@@ -3965,7 +3975,7 @@ public data class VerifyPurchaseResultAndroid(
      * Whether the purchase is valid. Uniform across every VerifyPurchaseResult
      * variant so callers can gate entitlement without inspecting the concrete type.
      */
-    val isValid: Boolean,
+    override val isValid: Boolean,
     val parentProductId: String,
     val productId: String,
     val productType: String,
@@ -3976,7 +3986,7 @@ public data class VerifyPurchaseResultAndroid(
     val term: String,
     val termSku: String,
     val testTransaction: Boolean
-) : VerifyPurchaseResult {
+) : VerifyPurchaseResultCommon, VerifyPurchaseResult {
 
     companion object {
         fun fromJson(json: Map<String, Any?>): VerifyPurchaseResultAndroid {
@@ -4041,14 +4051,14 @@ public data class VerifyPurchaseResultHorizon(
      * Whether the purchase is valid. Uniform across every VerifyPurchaseResult
      * variant so callers can gate entitlement without inspecting the concrete type.
      */
-    val isValid: Boolean,
+    override val isValid: Boolean,
     /**
      * Whether the entitlement verification succeeded.
      * @deprecated Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0.
      */
     @Deprecated("Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0.")
     val success: Boolean
-) : VerifyPurchaseResult {
+) : VerifyPurchaseResultCommon, VerifyPurchaseResult {
 
     companion object {
         fun fromJson(json: Map<String, Any?>): VerifyPurchaseResultHorizon {
@@ -4072,7 +4082,7 @@ public data class VerifyPurchaseResultIOS(
     /**
      * Whether the receipt is valid
      */
-    val isValid: Boolean,
+    override val isValid: Boolean,
     /**
      * JWS representation
      */
@@ -4085,7 +4095,7 @@ public data class VerifyPurchaseResultIOS(
      * Receipt data string
      */
     val receiptData: String
-) : VerifyPurchaseResult {
+) : VerifyPurchaseResultCommon, VerifyPurchaseResult {
 
     companion object {
         fun fromJson(json: Map<String, Any?>): VerifyPurchaseResultIOS {
@@ -5535,7 +5545,7 @@ public sealed interface Purchase : PurchaseCommon {
     }
 }
 
-public sealed interface VerifyPurchaseResult {
+public sealed interface VerifyPurchaseResult : VerifyPurchaseResultCommon {
     fun toJson(): Map<String, Any?>
 
     companion object {

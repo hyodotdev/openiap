@@ -1,4 +1,4 @@
-import { capabilityLevel } from '../spec/generated-spec.mjs';
+import { CAPABILITY_STORES, capabilityLevel } from '../spec/generated-spec.mjs';
 import { BEHAVIORS } from '../spec/behaviors.mjs';
 import { SUITE_VERSION, specVersion } from '../spec/version.mjs';
 
@@ -39,6 +39,15 @@ async function runOne(behavior, adapter) {
   const { applicable, level, reason } = resolveApplicability(behavior, adapter);
   const check = adapter.behaviors?.[behavior.id];
 
+  if (level === 'unknown') {
+    return {
+      id: behavior.id,
+      outcome: behavior.level === 'MUST' ? 'fail' : 'warn',
+      capabilityLevel: level,
+      reason,
+    };
+  }
+
   if (!applicable) {
     // An unsupported store must still degrade predictably. If the adapter
     // provides an absence check, run it; otherwise record not-applicable.
@@ -59,6 +68,15 @@ async function runOne(behavior, adapter) {
     }
   }
 
+  if (level === 'optional' && !check) {
+    return {
+      id: behavior.id,
+      outcome: 'not-applicable',
+      capabilityLevel: level,
+      reason: `${adapter.store} optionally supports ${behavior.capability}`,
+    };
+  }
+
   if (!check) {
     // An unimplemented MUST is a failure, not a skip. Silent gaps are how a
     // suite ends up reporting compliance it never checked.
@@ -73,7 +91,20 @@ async function runOne(behavior, adapter) {
   try {
     const result = await check();
     if (result === NOT_IMPLEMENTED) {
-      return { id: behavior.id, outcome: 'skip', capabilityLevel: level, reason: 'adapter reported not-implemented' };
+      if (level === 'optional') {
+        return {
+          id: behavior.id,
+          outcome: 'not-applicable',
+          capabilityLevel: level,
+          reason: 'optional capability not implemented',
+        };
+      }
+      return {
+        id: behavior.id,
+        outcome: behavior.level === 'MUST' ? 'fail' : 'warn',
+        capabilityLevel: level,
+        reason: 'adapter reported not-implemented',
+      };
     }
     return { id: behavior.id, outcome: 'pass', capabilityLevel: level };
   } catch (error) {
@@ -93,6 +124,11 @@ async function runOne(behavior, adapter) {
 export async function runConformance(adapter, options = {}) {
   if (!adapter?.implementation) throw new Error('adapter.implementation is required');
   if (!adapter?.store) throw new Error('adapter.store is required');
+  if (!CAPABILITY_STORES.includes(adapter.store)) {
+    throw new Error(
+      `adapter.store must be one of: ${CAPABILITY_STORES.join(', ')}; received ${adapter.store}`,
+    );
+  }
 
   const behaviors = options.behaviors ?? BEHAVIORS;
   const results = [];

@@ -133,6 +133,29 @@ class PurchaseVerificationValidatorTest {
     }
 
     @Test
+    fun `verifyPurchaseWithGooglePlay defaults fields omitted by Play`() = runTest {
+        val props = VerifyPurchaseProps(
+            google = VerifyPurchaseGoogleOptions(
+                accessToken = "token",
+                isSub = false,
+                packageName = "dev.hyo.app",
+                purchaseToken = "purchaseToken",
+                sku = "premium"
+            )
+        )
+
+        val result = verifyPurchaseWithGooglePlay(
+            props,
+            "TEST_TAG"
+        ) { _ -> FakeHttpURLConnection(200, """{"purchaseState":0}""") }
+
+        assertTrue(result.isValid)
+        assertEquals("", result.parentProductId)
+        assertEquals("", result.productId)
+        assertEquals("", result.receiptId)
+    }
+
+    @Test
     fun `verifyPurchaseWithGooglePlay wraps non-2xx as InvalidPurchaseVerification`() = runTest {
         val googleOptions = VerifyPurchaseGoogleOptions(
             accessToken = "token",

@@ -55,6 +55,7 @@ import type {
   VerifyPurchaseGoogleOptions,
   VerifyPurchaseHorizonOptions,
   VerifyPurchaseResultAndroid,
+  VerifyPurchaseResultHorizon,
   RequestPurchaseIosProps,
   RequestPurchaseResult,
   RequestSubscriptionAndroidProps,
@@ -408,6 +409,7 @@ export interface NitroPurchaseVerificationResultIOS {
 }
 
 export interface NitroPurchaseVerificationResultAndroid {
+  isValid: VerifyPurchaseResultAndroid['isValid'];
   autoRenewing: VerifyPurchaseResultAndroid['autoRenewing'];
   betaProduct: VerifyPurchaseResultAndroid['betaProduct'];
   cancelDate: VerifyPurchaseResultAndroid['cancelDate'];
@@ -426,6 +428,12 @@ export interface NitroPurchaseVerificationResultAndroid {
   term: VerifyPurchaseResultAndroid['term'];
   termSku: VerifyPurchaseResultAndroid['termSku'];
   testTransaction: VerifyPurchaseResultAndroid['testTransaction'];
+}
+
+export interface NitroPurchaseVerificationResultHorizon {
+  isValid: VerifyPurchaseResultHorizon['isValid'];
+  grantTime?: VerifyPurchaseResultHorizon['grantTime'];
+  success: VerifyPurchaseResultHorizon['success'];
 }
 
 // VerifyPurchaseWithProvider types
@@ -994,12 +1002,14 @@ export interface RnIap extends HybridObject<{ios: 'swift'; android: 'kotlin'}> {
   /**
    * Verify a purchase on the appropriate platform.
    * @param params - Purchase verification parameters including platform-specific options
-   * @returns Promise<NitroPurchaseVerificationResultIOS | NitroPurchaseVerificationResultAndroid>
+   * @returns Promise with the platform-specific verification result
    */
   verifyPurchase(
     params: NitroPurchaseVerificationParams,
   ): Promise<
-    NitroPurchaseVerificationResultIOS | NitroPurchaseVerificationResultAndroid
+    | NitroPurchaseVerificationResultIOS
+    | NitroPurchaseVerificationResultAndroid
+    | NitroPurchaseVerificationResultHorizon
   >;
 
   /**

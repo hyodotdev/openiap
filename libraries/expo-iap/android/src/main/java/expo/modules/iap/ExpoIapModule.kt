@@ -20,6 +20,7 @@ import dev.hyo.openiap.RequestPurchaseResultPurchases
 import dev.hyo.openiap.RequestSubscriptionAndroidProps
 import dev.hyo.openiap.RequestSubscriptionPropsByPlatforms
 import dev.hyo.openiap.VerifyPurchaseGoogleOptions
+import dev.hyo.openiap.VerifyPurchaseHorizonOptions
 import dev.hyo.openiap.VerifyPurchaseProps
 import dev.hyo.openiap.VerifyPurchaseWithProviderProps
 import dev.hyo.openiap.store.OpenIapStore
@@ -71,6 +72,31 @@ internal fun deliverPurchaseRequestFailure(
         emitLocalError()
     }
     rejectPendingPromises(errorCode, errorEnvelope)
+}
+
+@Suppress("UNCHECKED_CAST")
+internal fun verifyPurchasePropsFromMap(params: Map<String, Any?>): VerifyPurchaseProps {
+    fun requiredOption(options: Map<String, Any?>, scope: String, field: String): String =
+        (options[field] as? String)?.takeIf { it.isNotEmpty() }
+            ?: throw IllegalArgumentException("Missing or empty required parameter: $scope.$field")
+
+    val googleOptions = (params["google"] as? Map<String, Any?>)?.let { options ->
+        VerifyPurchaseGoogleOptions(
+            sku = requiredOption(options, "google", "sku"),
+            accessToken = requiredOption(options, "google", "accessToken"),
+            packageName = requiredOption(options, "google", "packageName"),
+            purchaseToken = requiredOption(options, "google", "purchaseToken"),
+            isSub = options["isSub"] as? Boolean,
+        )
+    }
+    val horizonOptions = (params["horizon"] as? Map<String, Any?>)?.let { options ->
+        VerifyPurchaseHorizonOptions(
+            sku = requiredOption(options, "horizon", "sku"),
+            userId = requiredOption(options, "horizon", "userId"),
+            accessToken = requiredOption(options, "horizon", "accessToken"),
+        )
+    }
+    return VerifyPurchaseProps(google = googleOptions, horizon = horizonOptions)
 }
 
 class ExpoIapModule : Module() {
@@ -497,35 +523,17 @@ class ExpoIapModule : Module() {
                 }
             }
 
-            @Suppress("UNCHECKED_CAST")
             AsyncFunction("verifyPurchase") { params: Map<String, Any?>, promise: Promise ->
-                ExpoIapLog.payload("verifyPurchase", params)
+                ExpoIapLog.payload(
+                    "verifyPurchase",
+                    mapOf(
+                        "hasGoogle" to (params["google"] != null),
+                        "hasHorizon" to (params["horizon"] != null),
+                    ),
+                )
                 scope.launch {
                     try {
-                        val googleOptions =
-                            (params["google"] as? Map<String, Any?>)?.let { opts ->
-                                VerifyPurchaseGoogleOptions(
-                                    sku =
-                                        (opts["sku"] as? String)?.takeIf { it.isNotEmpty() }
-                                            ?: throw IllegalArgumentException("Missing or empty required parameter: google.sku"),
-                                    accessToken =
-                                        (opts["accessToken"] as? String)?.takeIf { it.isNotEmpty() }
-                                            ?: throw IllegalArgumentException("Missing or empty required parameter: google.accessToken"),
-                                    packageName =
-                                        (opts["packageName"] as? String)?.takeIf { it.isNotEmpty() }
-                                            ?: throw IllegalArgumentException("Missing or empty required parameter: google.packageName"),
-                                    purchaseToken =
-                                        (opts["purchaseToken"] as? String)?.takeIf { it.isNotEmpty() }
-                                            ?: throw IllegalArgumentException("Missing or empty required parameter: google.purchaseToken"),
-                                    isSub = opts["isSub"] as? Boolean,
-                                )
-                            }
-
-                        val props =
-                            VerifyPurchaseProps(
-                                google = googleOptions,
-                            )
-
+                        val props = verifyPurchasePropsFromMap(params)
                         val result = openIap.verifyPurchase(props)
                         val resultMap = result.toJson()
                         ExpoIapLog.result("verifyPurchase", resultMap)

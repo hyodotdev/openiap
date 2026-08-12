@@ -2187,7 +2187,7 @@ export interface VerifyPurchaseProps {
 
 export type VerifyPurchaseResult = VerifyPurchaseResultAndroid | VerifyPurchaseResultHorizon | VerifyPurchaseResultIOS;
 
-export interface VerifyPurchaseResultAndroid {
+export interface VerifyPurchaseResultAndroid extends VerifyPurchaseResultCommon {
   autoRenewing: boolean;
   betaProduct: boolean;
   cancelDate?: (number | null);
@@ -2213,11 +2213,17 @@ export interface VerifyPurchaseResultAndroid {
   testTransaction: boolean;
 }
 
+/** Validity shared by every store-specific purchase verification result. */
+export interface VerifyPurchaseResultCommon {
+  /** Whether the purchase is valid, without inspecting the concrete result variant. */
+  isValid: boolean;
+}
+
 /**
  * Result from Meta Horizon verify_entitlement API.
  * Returns verification status and grant time for the entitlement.
  */
-export interface VerifyPurchaseResultHorizon {
+export interface VerifyPurchaseResultHorizon extends VerifyPurchaseResultCommon {
   /** Unix timestamp (seconds) when the entitlement was granted. */
   grantTime?: (number | null);
   /**
@@ -2232,7 +2238,7 @@ export interface VerifyPurchaseResultHorizon {
   success: boolean;
 }
 
-export interface VerifyPurchaseResultIOS {
+export interface VerifyPurchaseResultIOS extends VerifyPurchaseResultCommon {
   /** Whether the receipt is valid */
   isValid: boolean;
   /** JWS representation */
