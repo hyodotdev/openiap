@@ -37,6 +37,8 @@ natural-language requests, execute the matching workflow:
   exactly as defined by the command workflow.
 - Audit code, check latest APIs, or "audit-code": read
   `.claude/commands/audit-code.md`.
+- Audit SBOM quality, release provenance, workflow permissions, or
+  supply-chain/security posture: read `.claude/commands/audit-security.md`.
 - Compile knowledge or rebuild AI context: read
   `.claude/commands/compile-knowledge.md`.
 - Resolve a GitHub issue: read `.claude/commands/resolve-issue.md`.

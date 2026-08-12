@@ -6,9 +6,15 @@ Compliance). It records what exists, what does not, and what is deliberately
 out of scope.
 
 This is an internal gap list, **not a conformance claim**. OpenIAP has not
-submitted a self-certification. The reference material is the OpenChain
-specification text and the [Trusted OSS](https://trustedoss.github.io/en)
-self-study guide, both openly licensed.
+submitted a self-certification.
+
+Reference material, all openly licensed:
+
+| Source                                                                                                                                                          | Use                                                         |
+| --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ----------------------------------------------------------- |
+| [OpenChain ISO/IEC 18974](https://openchainproject.org/security-assurance) ([spec text](https://github.com/OpenChain-Project/Security-Assurance-Specification)) | Security-assurance requirements assessed below              |
+| [OpenChain ISO/IEC 5230](https://openchainproject.org/license-compliance)                                                                                       | License-compliance requirements                             |
+| [Trusted OSS](https://trustedoss.github.io/en)                                                                                                                  | Self-study guide mapping the standards to concrete evidence |
 
 Why bother: 18974 is the closest existing standard to what the CRA expects of
 software suppliers, and it is expressed as verifiable materials rather than

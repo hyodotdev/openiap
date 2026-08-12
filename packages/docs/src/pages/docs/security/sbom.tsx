@@ -1,7 +1,140 @@
+import type { ReactNode } from 'react';
 import SEO from '../../../components/SEO';
 import AnchorLink from '../../../components/AnchorLink';
 import Callout from '../../../components/Callout';
+import DataTable from '../../../components/DataTable';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
+
+function ExternalLink({
+  href,
+  children,
+}: {
+  href: string;
+  children: ReactNode;
+}) {
+  return (
+    <a href={href} target="_blank" rel="noopener noreferrer">
+      {children}
+    </a>
+  );
+}
+
+interface Standard {
+  concern: string;
+  standard: ReactNode;
+}
+
+const STANDARDS: Standard[] = [
+  {
+    concern: 'Document format',
+    standard: (
+      <ExternalLink href="https://cyclonedx.org/specification/overview/">
+        CycloneDX 1.6
+      </ExternalLink>
+    ),
+  },
+  {
+    concern: 'Component identity',
+    standard: (
+      <ExternalLink href="https://github.com/package-url/purl-spec">
+        Package URL (purl)
+      </ExternalLink>
+    ),
+  },
+  {
+    concern: 'License identity',
+    standard: (
+      <ExternalLink href="https://spdx.org/licenses/">
+        SPDX identifiers
+      </ExternalLink>
+    ),
+  },
+  {
+    concern: 'Required data fields',
+    standard: (
+      <ExternalLink href="https://www.ntia.gov/report/2021/minimum-elements-software-bill-materials-sbom">
+        NTIA minimum elements
+      </ExternalLink>
+    ),
+  },
+  {
+    concern: 'Vulnerability analysis',
+    standard: (
+      <ExternalLink href="https://cyclonedx.org/capabilities/vex/">
+        CycloneDX VEX
+      </ExternalLink>
+    ),
+  },
+  {
+    concern: 'Provenance',
+    standard: (
+      <>
+        <ExternalLink href="https://slsa.dev/provenance/v1">SLSA</ExternalLink>{' '}
+        in <ExternalLink href="https://in-toto.io/">in-toto</ExternalLink>{' '}
+        statements, signed via{' '}
+        <ExternalLink href="https://www.sigstore.dev/">Sigstore</ExternalLink>
+      </>
+    ),
+  },
+];
+
+interface VerifyTool {
+  href: string;
+  name: string;
+  role: string;
+  license: string;
+}
+
+const VERIFY_TOOLS: VerifyTool[] = [
+  {
+    href: 'https://cli.github.com/manual/gh_attestation_verify',
+    name: 'gh attestation verify',
+    role: 'Confirm CI provenance against Sigstore',
+    license: 'MIT',
+  },
+  {
+    href: 'https://github.com/CycloneDX/cyclonedx-cli',
+    name: 'cyclonedx-cli',
+    role: 'Validate against the published schema',
+    license: 'Apache-2.0',
+  },
+  {
+    href: 'https://github.com/interlynk-io/sbomqs',
+    name: 'sbomqs',
+    role: 'Score quality and NTIA compliance',
+    license: 'Apache-2.0',
+  },
+  {
+    href: 'https://github.com/google/osv-scanner',
+    name: 'osv-scanner',
+    role: 'Match components against the OSV database',
+    license: 'Apache-2.0',
+  },
+  {
+    href: 'https://github.com/anchore/grype',
+    name: 'grype',
+    role: 'Match components against vulnerability feeds',
+    license: 'Apache-2.0',
+  },
+];
+
+interface Limit {
+  title: string;
+  detail: string;
+}
+
+const LIMITS: Limit[] = [
+  {
+    title: 'Transitive dependencies',
+    detail:
+      "are included only where the ecosystem's resolver output is available. Direct runtime dependencies are always complete.",
+  },
+  {
+    title: 'Licenses and suppliers',
+    detail:
+      'resolve for every direct dependency except two structural cases: pub.dev packages, whose metadata exposes neither field, and NuGet packages whose nuspec gives only a non-SPDX license URL.',
+  },
+];
 
 function SecuritySbom() {
   useScrollToHash();
@@ -12,7 +145,7 @@ function SecuritySbom() {
         title="SBOM"
         description="Every OpenIAP release ships a CycloneDX SBOM as a GitHub Release asset — how to download, verify, and reproduce it."
         path="/docs/security/sbom"
-        keywords="OpenIAP SBOM, CycloneDX, software bill of materials, purl, attestation, dependency inventory"
+        keywords="OpenIAP SBOM, CycloneDX, software bill of materials, purl, attestation, dependency inventory, NTIA minimum elements"
       />
       <h1>Software Bill of Materials</h1>
       <p>
@@ -70,6 +203,26 @@ flutter_inapp_purchase-10.3.0.cdx.json`}</code>
           <code>{`cyclonedx validate --input-file react-native-iap-16.3.0.cdx.json \\
   --input-format json --input-version v1_6 --fail-on-errors`}</code>
         </pre>
+        <p>
+          Every tool below is independent of this repository, so verification
+          never requires trusting our tooling:
+        </p>
+        <DataTable
+          rows={VERIFY_TOOLS}
+          rowKey={(row) => row.name}
+          columns={[
+            {
+              header: 'Tool',
+              cell: (row) => (
+                <ExternalLink href={row.href}>
+                  <code>{row.name}</code>
+                </ExternalLink>
+              ),
+            },
+            { header: 'Role', cell: (row) => row.role },
+            { header: 'License', cell: (row) => row.license },
+          ]}
+        />
         <Callout kind="tip" title="Reproducible">
           Generation is deterministic. The document timestamp is the release
           commit&apos;s timestamp, and the serial number is derived from the
@@ -97,7 +250,8 @@ flutter_inapp_purchase-10.3.0.cdx.json`}</code>
             mismatched
           </li>
           <li>
-            Every direct runtime dependency, with version, purl, and license
+            Every direct runtime dependency, with version, purl, supplier, and
+            license
           </li>
         </ul>
         <p>
@@ -133,22 +287,41 @@ flutter_inapp_purchase-10.3.0.cdx.json`}</code>
       </section>
 
       <section>
+        <AnchorLink id="standards" level="h2">
+          Standards and tooling
+        </AnchorLink>
+        <p>
+          Everything here is an open standard, most of it maintained under the
+          Linux Foundation or OWASP.
+        </p>
+        <DataTable
+          rows={STANDARDS}
+          rowKey={(row) => row.concern}
+          columns={[
+            { header: 'Concern', cell: (row) => row.concern },
+            { header: 'Standard', cell: (row) => row.standard },
+          ]}
+        />
+        <Callout kind="note" title="The generator has no dependencies">
+          <code>scripts/generate-sbom.mjs</code> uses only the Node.js standard
+          library — no npm package, no vendored code, no external binary. A tool
+          that reports what you depend on should not quietly add dependencies of
+          its own. It reads package registries over HTTPS only to resolve
+          declared licenses and suppliers.
+        </Callout>
+      </section>
+
+      <section>
         <AnchorLink id="limits" level="h2">
           Current limits
         </AnchorLink>
         <p>Stated plainly, so you can judge the evidence:</p>
         <ul>
-          <li>
-            <strong>Transitive dependencies</strong> are included only where the
-            ecosystem&apos;s resolver output is available. Direct runtime
-            dependencies are always complete.
-          </li>
-          <li>
-            <strong>Licenses</strong> resolve for every direct dependency except
-            two structural cases: pub.dev packages, which expose no standard
-            license field in package metadata, and NuGet packages whose nuspec
-            gives only a non-SPDX license URL.
-          </li>
+          {LIMITS.map((limit) => (
+            <li key={limit.title}>
+              <strong>{limit.title}</strong> {limit.detail}
+            </li>
+          ))}
         </ul>
         <p>
           Where a dependency cannot be resolved, generation fails rather than

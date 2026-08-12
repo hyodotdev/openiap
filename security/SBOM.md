@@ -40,9 +40,13 @@ Dependabot instead — see [README.md](README.md).
 
 ## Standards
 
-- **Format:** CycloneDX 1.6, JSON encoding.
-- **Identifiers:** Package URL (purl) for every component.
-- **Attestation:** in-toto/SLSA provenance via GitHub Artifact Attestations.
+| Concern            | Standard                                                                                                                                                   |
+| ------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Document format    | [CycloneDX 1.6](https://cyclonedx.org/specification/overview/), JSON encoding ([schema](https://github.com/CycloneDX/specification))                       |
+| Component identity | [Package URL (purl)](https://github.com/package-url/purl-spec)                                                                                             |
+| License identity   | [SPDX license identifiers](https://spdx.org/licenses/)                                                                                                     |
+| Vulnerability data | [CycloneDX VEX](https://cyclonedx.org/capabilities/vex/)                                                                                                   |
+| Attestation        | [in-toto](https://in-toto.io/) statements carrying [SLSA provenance](https://slsa.dev/provenance/v1), signed through [Sigstore](https://www.sigstore.dev/) |
 
 CycloneDX is the primary format. It was chosen over SPDX because purl coverage
 across the six ecosystems this repository publishes into (npm, Maven, NuGet,
@@ -50,6 +54,41 @@ pub, CocoaPods, generic) is more direct, and because vulnerability tooling in
 these ecosystems consumes CycloneDX with less translation. There is no second
 format: publishing two documents that can disagree is a liability, not a
 feature.
+
+## What this system depends on
+
+An SBOM pipeline is itself a supply-chain surface, so its own inputs are listed
+here rather than left implicit.
+
+**The generator** (`scripts/generate-sbom.mjs`, `scripts/sbom-dependencies.mjs`)
+uses **only the Node.js standard library** — no npm dependency, no vendored
+code, no external binary. It is plain ESM run by the Node version already
+pinned in CI. This is deliberate: a tool that reports what you depend on should
+not quietly add dependencies of its own.
+
+**At generation time** it reads package registries over HTTPS, and only to
+resolve declared licenses:
+
+| Registry                                          | Used for                    |
+| ------------------------------------------------- | --------------------------- |
+| [Maven Central](https://repo1.maven.org/maven2/)  | Maven coordinate POMs       |
+| [Google Maven](https://maven.google.com/)         | androidx / com.android POMs |
+| [nuget.org](https://www.nuget.org/)               | NuGet `.nuspec`             |
+| [registry.npmjs.org](https://registry.npmjs.org/) | npm package metadata        |
+
+A registry failure degrades to a missing license field; it never blocks a
+release.
+
+**In CI**, `.github/workflows/sbom.yml` uses these actions:
+
+| Action                                                                                  | Purpose                    | License |
+| --------------------------------------------------------------------------------------- | -------------------------- | ------- |
+| [`actions/checkout`](https://github.com/actions/checkout)                               | Check out the released tag | MIT     |
+| [`actions/setup-node`](https://github.com/actions/setup-node)                           | Provide the Node runtime   | MIT     |
+| [`actions/attest-build-provenance`](https://github.com/actions/attest-build-provenance) | Sign SLSA provenance       | MIT     |
+| [`gh` CLI](https://cli.github.com/)                                                     | Upload the release asset   | MIT     |
+
+Action versions are pinned in the workflow and kept current by Dependabot.
 
 ## Naming convention
 
@@ -243,6 +282,21 @@ gh attestation verify react-native-iap-16.3.0.cdx.json \
 cyclonedx validate --input-file react-native-iap-16.3.0.cdx.json \
   --input-format json --input-version v1_6 --fail-on-errors
 ```
+
+Every tool above is independent of this repository, so verification does not
+require trusting our tooling:
+
+| Tool                                                                           | Role                                         | License    |
+| ------------------------------------------------------------------------------ | -------------------------------------------- | ---------- |
+| [`gh attestation verify`](https://cli.github.com/manual/gh_attestation_verify) | Confirm CI provenance against Sigstore       | MIT        |
+| [`cyclonedx-cli`](https://github.com/CycloneDX/cyclonedx-cli)                  | Validate against the published schema        | Apache-2.0 |
+| [`bomlens`](https://github.com/sktelecom/bomlens)                              | Local-first SBOM validation and risk report  | Apache-2.0 |
+| [`osv-scanner`](https://github.com/google/osv-scanner)                         | Match components against the OSV database    | Apache-2.0 |
+| [`grype`](https://github.com/anchore/grype)                                    | Match components against vulnerability feeds | Apache-2.0 |
+
+OpenIAP runs none of these in CI — see [README.md](README.md#scanning-posture)
+for why — but each accepts a CycloneDX 1.6 document directly, so a consumer can
+point their own scanner at a release asset on their own schedule.
 
 Maintainers can additionally reproduce it. Generation is deterministic for a
 given commit — the document timestamp is the commit timestamp and the serial

@@ -50,7 +50,9 @@ the purl of the dependency, exactly as generated.
 
 ## States
 
-CycloneDX defines six analysis states:
+CycloneDX defines six analysis states
+([VEX capability](https://cyclonedx.org/capabilities/vex/),
+[`vulnerabilities` schema](https://cyclonedx.org/docs/1.6/json/#vulnerabilities)):
 
 | State                    | Meaning                                                   |
 | ------------------------ | --------------------------------------------------------- |

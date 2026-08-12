@@ -351,6 +351,10 @@ function dependencyComponent(entry) {
     purl: entry.purl,
     scope: "required",
   };
+  // NTIA minimum elements name the supplier as required data.
+  if (entry.supplier) {
+    component.supplier = { name: entry.supplier };
+  }
   if (entry.licenses?.length) {
     component.licenses = entry.licenses;
   }
@@ -408,6 +412,8 @@ export function buildSbom({
     metadata: {
       timestamp,
       lifecycles: [{ phase: "build" }],
+      // NTIA minimum elements require an author distinct from the supplier.
+      authors: [{ name: SUPPLIER.name }],
       tools: {
         components: [
           {
@@ -460,18 +466,21 @@ async function fetchText(url) {
 }
 
 /**
- * Look up a dependency's declared license in its own registry.
+ * Look up a dependency's declared license and supplier in its own registry.
+ *
+ * Both are NTIA minimum elements, and both come from the same document, so
+ * they are fetched together rather than in two passes.
  *
  * The registry is the only authoritative source; guessing from a name would
  * produce confident, wrong compliance data. A lookup that fails leaves the
- * component without a license rather than failing the build — the license
- * field is compliance metadata, not part of the security inventory, and a
- * registry outage must not block a release.
+ * field empty rather than failing the build — this is compliance metadata,
+ * not part of the security inventory, and a registry outage must not block a
+ * release.
  *
  * (name, version) pairs are immutable in every registry used here, so this
  * stays reproducible in practice.
  */
-async function lookupLicense(entry) {
+async function lookupComponentMetadata(entry) {
   try {
     if (entry.purl.startsWith("pkg:maven/")) {
       const [, coordinates] = entry.purl.split("pkg:maven/");
@@ -487,10 +496,18 @@ async function lookupLicense(entry) {
         "https://dl.google.com/dl/android/maven2",
       ]) {
         const pom = await fetchText(`${base}/${path}`);
-        const name = pom?.match(
+        if (!pom) continue;
+        const license = pom.match(
           /<licenses>[\s\S]*?<name>([^<]+)<\/name>/u,
         )?.[1];
-        if (name) return normalizeLicense(name);
+        // The publishing organisation, falling back to the group id, which is
+        // the coordinate's own namespace claim.
+        const supplier =
+          pom.match(/<organization>[\s\S]*?<name>([^<]+)<\/name>/u)?.[1] ??
+          group;
+        if (license || supplier) {
+          return { license: normalizeLicense(license), supplier };
+        }
       }
       return null;
     }
@@ -500,25 +517,35 @@ async function lookupLicense(entry) {
       const nuspec = await fetchText(
         `https://api.nuget.org/v3-flatcontainer/${id}/${entry.version}/${id}.nuspec`,
       );
-      const expression = nuspec?.match(
+      if (!nuspec) return null;
+      const expression = nuspec.match(
         /<license\s+type="expression">([^<]+)<\/license>/u,
       )?.[1];
-      if (expression) return normalizeLicense(expression);
-      const url = nuspec?.match(/<licenseUrl>([^<]+)<\/licenseUrl>/u)?.[1];
+      const url = nuspec.match(/<licenseUrl>([^<]+)<\/licenseUrl>/u)?.[1];
       const fromUrl = url?.match(/licenses\.nuget\.org\/(.+)$/u)?.[1];
-      return fromUrl ? normalizeLicense(decodeURIComponent(fromUrl)) : null;
+      const raw = expression ?? (fromUrl && decodeURIComponent(fromUrl));
+      return {
+        license: normalizeLicense(raw),
+        supplier: nuspec.match(/<authors>([^<]+)<\/authors>/u)?.[1]?.trim(),
+      };
     }
 
     if (entry.purl.startsWith("pkg:npm/")) {
       // A scoped name contains a slash, which would otherwise be read as a
       // path separator and 404.
-      const metadata = await fetchText(
+      const raw = await fetchText(
         `https://registry.npmjs.org/${encodeURIComponent(entry.name)}/${entry.version}`,
       );
-      const license = metadata ? JSON.parse(metadata).license : null;
-      return normalizeLicense(
-        typeof license === "string" ? license : license?.type,
-      );
+      if (!raw) return null;
+      const metadata = JSON.parse(raw);
+      const license = metadata.license;
+      const author = metadata.author;
+      return {
+        license: normalizeLicense(
+          typeof license === "string" ? license : license?.type,
+        ),
+        supplier: typeof author === "string" ? author : author?.name,
+      };
     }
   } catch {
     // Network failure, timeout, or malformed registry response.
@@ -530,14 +557,18 @@ async function lookupLicense(entry) {
   return null;
 }
 
-async function attachLicenses(dependencies) {
-  const resolved = await Promise.all(
+async function attachRegistryMetadata(dependencies) {
+  return Promise.all(
     dependencies.map(async (entry) => {
-      const license = await lookupLicense(entry);
-      return license ? { ...entry, licenses: [license] } : entry;
+      const found = await lookupComponentMetadata(entry);
+      if (!found) return entry;
+      return {
+        ...entry,
+        ...(found.license ? { licenses: [found.license] } : {}),
+        ...(found.supplier ? { supplier: found.supplier } : {}),
+      };
     }),
   );
-  return resolved;
 }
 
 /** CycloneDX 1.6 analysis states, in the order a finding moves through them. */
@@ -638,7 +669,9 @@ export async function generateSbom(
   const merged = resolvedFile
     ? mergeResolved(direct, readResolvedFile(resolvedFile))
     : direct;
-  const dependencies = withLicenses ? await attachLicenses(merged) : merged;
+  const dependencies = withLicenses
+    ? await attachRegistryMetadata(merged)
+    : merged;
 
   const vulnerabilities = readVexStatements(root, componentId);
 

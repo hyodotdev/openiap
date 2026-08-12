@@ -1,7 +1,102 @@
+import type { ReactNode } from 'react';
 import SEO from '../../../components/SEO';
 import AnchorLink from '../../../components/AnchorLink';
 import Callout from '../../../components/Callout';
+import DataTable from '../../../components/DataTable';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
+
+interface Deadline {
+  date: string;
+  applies: ReactNode;
+}
+
+const DEADLINES: Deadline[] = [
+  {
+    date: '11 September 2026',
+    applies:
+      'Reporting obligations. Actively exploited vulnerabilities and severe incidents must be reported to ENISA and the relevant national CSIRT — 24-hour early warning, 72-hour notification, 14-day final report',
+  },
+  {
+    date: '11 December 2027',
+    applies:
+      'The main product security requirements, including the essential cybersecurity requirements and conformity assessment',
+  },
+];
+
+interface Provision {
+  need: string;
+  provided: ReactNode;
+}
+
+const PROVISIONS: Provision[] = [
+  {
+    need: 'Component inventory for a product you ship',
+    provided: (
+      <>
+        The per-release <a href="/docs/security/sbom">SBOM</a>, in CycloneDX 1.6
+      </>
+    ),
+  },
+  {
+    need: 'Evidence of where a release came from',
+    provided:
+      'Provenance attestation on the SBOM, npm provenance on npm packages, and immutable release tags',
+  },
+  {
+    need: 'A channel to report a vulnerability you found',
+    provided: (
+      <>
+        Private reporting with a documented response timeline — see{' '}
+        <a href="/docs/security/overview#reporting">Overview</a>
+      </>
+    ),
+  },
+  {
+    need: 'Whether a flagged CVE actually affects you',
+    provided: 'VEX statements carried in the SBOM, where an analysis exists',
+  },
+  {
+    need: 'Evidence the SDK behaves to specification',
+    provided: 'The conformance suite, below',
+  },
+];
+
+interface Source {
+  href: string;
+  label: string;
+  note?: string;
+}
+
+const SOURCES: Source[] = [
+  {
+    href: 'https://eur-lex.europa.eu/eli/reg/2024/2847/oj',
+    label: 'Regulation (EU) 2024/2847',
+    note: 'the Cyber Resilience Act itself',
+  },
+  {
+    href: 'https://digital-strategy.ec.europa.eu/en/policies/cra-open-source',
+    label: 'European Commission — CRA and open source',
+  },
+  {
+    href: 'https://policy.openssf.org/CRA/stewards-playbook.html',
+    label: 'OpenSSF CRA Stewards Playbook',
+    note: 'the practical checklist behind the obligations above',
+  },
+  {
+    href: 'https://cra.orcwg.org/faq/stewards/',
+    label: 'Open Regulatory Compliance WG — steward FAQ',
+  },
+  {
+    href: 'https://openchainproject.org/security-assurance',
+    label: 'OpenChain ISO/IEC 18974',
+    note: 'the security-assurance standard the gap assessment uses',
+  },
+  {
+    href: 'https://openchainproject.org/license-compliance',
+    label: 'OpenChain ISO/IEC 5230',
+    note: 'its license-compliance counterpart',
+  },
+];
 
 function SecurityCompliance() {
   useScrollToHash();
@@ -32,36 +127,14 @@ function SecurityCompliance() {
         <AnchorLink id="timeline" level="h2">
           The dates that matter
         </AnchorLink>
-        <table>
-          <thead>
-            <tr>
-              <th>Date</th>
-              <th>What applies</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                <strong>11 September 2026</strong>
-              </td>
-              <td>
-                Reporting obligations. Actively exploited vulnerabilities and
-                severe incidents must be reported to ENISA and the relevant
-                national CSIRT — 24-hour early warning, 72-hour notification,
-                14-day final report
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <strong>11 December 2027</strong>
-              </td>
-              <td>
-                The main product security requirements, including the essential
-                cybersecurity requirements and conformity assessment
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <DataTable
+          rows={DEADLINES}
+          rowKey={(row) => row.date}
+          columns={[
+            { header: 'Date', cell: (row) => <strong>{row.date}</strong> },
+            { header: 'What applies', cell: (row) => row.applies },
+          ]}
+        />
         <p>
           Reporting starts more than a year before the product requirements do,
           which is why the reporting path is the part worth having ready first.
@@ -72,47 +145,14 @@ function SecurityCompliance() {
         <AnchorLink id="what-openiap-provides" level="h2">
           What OpenIAP provides
         </AnchorLink>
-        <table>
-          <thead>
-            <tr>
-              <th>Your need</th>
-              <th>What to use</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>Component inventory for a product you ship</td>
-              <td>
-                The per-release <a href="/docs/security/sbom">SBOM</a>, in
-                CycloneDX 1.6
-              </td>
-            </tr>
-            <tr>
-              <td>Evidence of where a release came from</td>
-              <td>
-                Provenance attestation on the SBOM, npm provenance on npm
-                packages, and immutable release tags
-              </td>
-            </tr>
-            <tr>
-              <td>A channel to report a vulnerability you found</td>
-              <td>
-                Private reporting with a documented response timeline — see{' '}
-                <a href="/docs/security/overview#reporting">Overview</a>
-              </td>
-            </tr>
-            <tr>
-              <td>Whether a flagged CVE actually affects you</td>
-              <td>
-                VEX statements carried in the SBOM, where an analysis exists
-              </td>
-            </tr>
-            <tr>
-              <td>Evidence the SDK behaves to specification</td>
-              <td>The conformance suite, below</td>
-            </tr>
-          </tbody>
-        </table>
+        <DataTable
+          rows={PROVISIONS}
+          rowKey={(row) => row.need}
+          columns={[
+            { header: 'Your need', cell: (row) => row.need },
+            { header: 'What to use', cell: (row) => row.provided },
+          ]}
+        />
         <p>
           What OpenIAP will <strong>not</strong> issue is a compliance
           attestation or warranty on behalf of a downstream manufacturer. That
@@ -171,10 +211,10 @@ function SecurityCompliance() {
         <p>
           OpenIAP maintains an internal gap assessment against{' '}
           <strong>ISO/IEC 18974</strong> (open source security assurance) and{' '}
-          <strong>ISO/IEC 5230</strong> (license compliance). These are the
-          closest existing standards to what the CRA expects of a software
-          supplier, and they are expressed as verifiable materials rather than
-          legal language.
+          <strong>ISO/IEC 5230</strong> (license compliance). These are Linux
+          Foundation standards, they are the closest existing ones to what the
+          CRA expects of a software supplier, and they are expressed as
+          verifiable materials rather than legal language.
         </p>
         <p>
           The assessment is published as a gap list, not a conformance claim —
@@ -212,6 +252,26 @@ function SecurityCompliance() {
           inventory and a working reporting path does not depend on which label
           applies.
         </p>
+      </section>
+
+      <section>
+        <AnchorLink id="sources" level="h2">
+          Sources
+        </AnchorLink>
+        <p>
+          This page is a reading of public material, not legal advice. Where it
+          and the regulation disagree, the regulation governs.
+        </p>
+        <ul>
+          {SOURCES.map((source) => (
+            <li key={source.href}>
+              <a href={source.href} target="_blank" rel="noopener noreferrer">
+                {source.label}
+              </a>
+              {source.note ? ` — ${source.note}` : null}
+            </li>
+          ))}
+        </ul>
       </section>
     </div>
   );

@@ -1,7 +1,113 @@
+import type { ReactNode } from 'react';
 import SEO from '../../../components/SEO';
 import AnchorLink from '../../../components/AnchorLink';
 import Callout from '../../../components/Callout';
+import DataTable from '../../../components/DataTable';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
+
+interface Artifact {
+  name: string;
+  answers: string;
+}
+
+const RELEASE_ARTIFACTS: Artifact[] = [
+  {
+    name: 'CycloneDX SBOM',
+    answers:
+      'Exactly which third-party components this version contains, with versions, package URLs, suppliers, and licenses',
+  },
+  {
+    name: 'Provenance attestation',
+    answers:
+      "Cryptographic proof that the SBOM was produced by OpenIAP's CI from a specific commit, not written by hand",
+  },
+  {
+    name: 'npm provenance',
+    answers:
+      'For npm packages, that the published tarball was built from this repository',
+  },
+  {
+    name: 'Immutable release tag',
+    answers:
+      'Which source commit produced the release, verified at publish time',
+  },
+];
+
+interface Trigger {
+  when: string;
+  what: string;
+}
+
+const AUTOMATION: Trigger[] = [
+  {
+    when: 'Every pull request',
+    what: "The SBOM generator's own tests run. They read the real dependency manifests in the repository, so if a build file changes shape and the inventory would go stale, CI fails there rather than at release time",
+  },
+  {
+    when: 'Merge to main',
+    what: 'Same checks, plus release-state audits that keep versions and tags consistent',
+  },
+  {
+    when: 'A release is published',
+    what: 'The SBOM workflow identifies which component the tag belongs to, generates its SBOM at that exact commit, resolves licenses and suppliers, verifies the version/tag/commit all agree, signs a provenance attestation, and attaches the file to the release',
+  },
+  {
+    when: 'Weekly',
+    what: "Dependabot opens update pull requests for IAPKit's dependencies, the GitHub Actions used in workflows, and the IAPKit container image. OpenSSF Scorecard re-checks the repository's own security posture",
+  },
+  {
+    when: 'A vulnerability is reported',
+    what: 'The response path above — accelerated if it is being actively exploited',
+  },
+];
+
+interface Layer {
+  name: string;
+  question: ReactNode;
+}
+
+const POSTURE_LAYERS: Layer[] = [
+  {
+    name: 'Dependabot',
+    question:
+      'are the dependencies we use current and free of known vulnerabilities?',
+  },
+  {
+    name: 'SBOM',
+    question: 'what exactly did each published version contain?',
+  },
+  {
+    name: 'OpenSSF Scorecard',
+    question:
+      'is the process that produced it sound? It checks branch protection, workflow token permissions, action pinning, and dangerous workflow patterns, and publishes a score anyone can verify',
+  },
+];
+
+interface FurtherReading {
+  href: string;
+  label: string;
+  note: string;
+  external?: boolean;
+}
+
+const FURTHER_READING: FurtherReading[] = [
+  {
+    href: '/docs/security/sbom',
+    label: 'SBOM',
+    note: 'download, verify, and reproduce a release inventory',
+  },
+  {
+    href: '/docs/security/compliance',
+    label: 'Compliance',
+    note: 'CRA readiness, OpenChain self-assessment, and the behavioral conformance suite',
+  },
+  {
+    href: 'https://github.com/hyodotdev/openiap/tree/main/security',
+    label: 'security/',
+    note: 'the maintainer-facing policy documents',
+    external: true,
+  },
+];
 
 function SecurityOverview() {
   useScrollToHash();
@@ -26,52 +132,14 @@ function SecurityOverview() {
         <AnchorLink id="what-you-get" level="h2">
           What every release publishes
         </AnchorLink>
-        <table>
-          <thead>
-            <tr>
-              <th>Artifact</th>
-              <th>What it answers</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                <strong>CycloneDX SBOM</strong>
-              </td>
-              <td>
-                Exactly which third-party components this version contains, with
-                versions, package URLs, and licenses
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <strong>Provenance attestation</strong>
-              </td>
-              <td>
-                Cryptographic proof that the SBOM was produced by OpenIAP&apos;s
-                CI from a specific commit, not written by hand
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <strong>npm provenance</strong>
-              </td>
-              <td>
-                For npm packages, that the published tarball was built from this
-                repository
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <strong>Immutable release tag</strong>
-              </td>
-              <td>
-                Which source commit produced the release, verified at publish
-                time
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <DataTable
+          rows={RELEASE_ARTIFACTS}
+          rowKey={(row) => row.name}
+          columns={[
+            { header: 'Artifact', cell: (row) => <strong>{row.name}</strong> },
+            { header: 'What it answers', cell: (row) => row.answers },
+          ]}
+        />
         <p>
           See <a href="/docs/security/sbom">SBOM</a> for how to download and
           verify one.
@@ -145,67 +213,14 @@ function SecurityOverview() {
           All of it is automated. Nothing in this section requires a maintainer
           to remember a step.
         </p>
-        <table>
-          <thead>
-            <tr>
-              <th>Trigger</th>
-              <th>What happens automatically</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr>
-              <td>
-                <strong>Every pull request</strong>
-              </td>
-              <td>
-                The SBOM generator&apos;s own tests run. They read the real
-                dependency manifests in the repository, so if a build file
-                changes shape and the inventory would go stale, CI fails there
-                rather than at release time
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <strong>Merge to main</strong>
-              </td>
-              <td>
-                Same checks, plus release-state audits that keep versions and
-                tags consistent
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <strong>A release is published</strong>
-              </td>
-              <td>
-                The SBOM workflow identifies which component the tag belongs to,
-                generates its SBOM at that exact commit, resolves licenses,
-                verifies the version/tag/commit all agree, signs a provenance
-                attestation, and attaches the file to the release
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <strong>Weekly</strong>
-              </td>
-              <td>
-                Dependabot opens update pull requests for IAPKit&apos;s
-                dependencies, the GitHub Actions used in workflows, and the
-                IAPKit container image. OpenSSF Scorecard re-checks the
-                repository&apos;s own security posture
-              </td>
-            </tr>
-            <tr>
-              <td>
-                <strong>A vulnerability is reported</strong>
-              </td>
-              <td>
-                The response path above — accelerated if it is being actively
-                exploited
-              </td>
-            </tr>
-          </tbody>
-        </table>
+        <DataTable
+          rows={AUTOMATION}
+          rowKey={(row) => row.when}
+          columns={[
+            { header: 'Trigger', cell: (row) => <strong>{row.when}</strong> },
+            { header: 'What happens automatically', cell: (row) => row.what },
+          ]}
+        />
         <p>
           The important design choice: SBOMs are generated{' '}
           <strong>after a release is published</strong>, not on every commit. A
@@ -250,20 +265,11 @@ function SecurityOverview() {
           Three layers cover different things, and none substitutes for another:
         </p>
         <ul>
-          <li>
-            <strong>Dependabot</strong> — are the dependencies we use current
-            and free of known vulnerabilities?
-          </li>
-          <li>
-            <strong>SBOM</strong> — what exactly did each published version
-            contain?
-          </li>
-          <li>
-            <strong>OpenSSF Scorecard</strong> — is the process that produced it
-            sound? It checks branch protection, workflow token permissions,
-            action pinning, and dangerous workflow patterns, and publishes a
-            score anyone can verify
-          </li>
+          {POSTURE_LAYERS.map((layer) => (
+            <li key={layer.name}>
+              <strong>{layer.name}</strong> — {layer.question}
+            </li>
+          ))}
         </ul>
       </section>
 
@@ -272,24 +278,19 @@ function SecurityOverview() {
           Further reading
         </AnchorLink>
         <ul>
-          <li>
-            <a href="/docs/security/sbom">SBOM</a> — download, verify, and
-            reproduce a release inventory
-          </li>
-          <li>
-            <a href="/docs/security/compliance">Compliance</a> — CRA readiness,
-            OpenChain self-assessment, and the behavioral conformance suite
-          </li>
-          <li>
-            <a
-              href="https://github.com/hyodotdev/openiap/tree/main/security"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              security/
-            </a>{' '}
-            — the maintainer-facing policy documents
-          </li>
+          {FURTHER_READING.map((item) => (
+            <li key={item.href}>
+              <a
+                href={item.href}
+                {...(item.external
+                  ? { target: '_blank', rel: 'noopener noreferrer' }
+                  : {})}
+              >
+                {item.label}
+              </a>{' '}
+              — {item.note}
+            </li>
+          ))}
         </ul>
       </section>
     </div>

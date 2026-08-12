@@ -65,6 +65,22 @@ Article 15 additionally allows **voluntary** reporting of vulnerabilities,
 incidents, and near misses by any party, including those with no mandatory
 duty.
 
+## Sources
+
+This document is a reading of public material, not legal advice. The primary
+sources are:
+
+| Source                                                                                                         | What it provides                                             |
+| -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
+| [Regulation (EU) 2024/2847](https://eur-lex.europa.eu/eli/reg/2024/2847/oj)                                    | The regulation itself, including Articles 14, 15, 24, and 64 |
+| [European Commission — CRA implementation](https://digital-strategy.ec.europa.eu/en/policies/cra-summary)      | Official summary and implementation guidance                 |
+| [European Commission — CRA and open source](https://digital-strategy.ec.europa.eu/en/policies/cra-open-source) | Open-source-specific position                                |
+| [OpenSSF CRA Stewards Playbook](https://policy.openssf.org/CRA/stewards-playbook.html)                         | Practical checklist behind the obligations described here    |
+| [Open Regulatory Compliance WG](https://orcwg.org/cra/) and its [FAQ](https://cra.orcwg.org/faq/stewards/)     | Community reading of steward vs manufacturer scope           |
+| [ENISA](https://www.enisa.europa.eu/)                                                                          | Operates the Single Reporting Platform reports are filed to  |
+
+Where this document and the regulation disagree, the regulation governs.
+
 ## What maintainers are responsible for
 
 ### 1. SBOM
