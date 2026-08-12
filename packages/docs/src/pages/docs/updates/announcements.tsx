@@ -159,7 +159,7 @@ function Announcements() {
             </Link>{' '}
             for exact package versions, per-SDK changes, platform availability,
             and release links. Before upgrading, follow the{' '}
-            <Link to="/docs/updates/deprecations">
+            <Link to="/docs/updates/migration">
               Deprecations &amp; 3.0 Migration catalog
             </Link>
             .
@@ -230,7 +230,7 @@ function Announcements() {
           </p>
           <Callout kind="note">
             See the complete{' '}
-            <Link to="/docs/updates/deprecations">
+            <Link to="/docs/updates/migration">
               deprecation schedule and migration catalog
             </Link>
             . Each package reaches its major independently, so this notice does

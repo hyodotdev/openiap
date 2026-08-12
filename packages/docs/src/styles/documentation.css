@@ -333,12 +333,15 @@
   color: #666;
 }
 
-.docs-sidebar-resizer {
+/* The rail carries a single bookmark-shaped handle: click it to collapse or
+   restore the sidebar, drag it to resize. Below 769px the drawer toggle in the
+   top nav owns that job instead, so the rail is hidden. */
+.docs-sidebar-rail {
   display: none;
 }
 
 @media (min-width: 769px) {
-  .docs-sidebar-resizer {
+  .docs-sidebar-rail {
     position: sticky;
     top: 56px;
     z-index: 2;
@@ -350,12 +353,11 @@
     align-self: flex-start;
     margin-left: -9px;
     margin-right: 9px;
-    cursor: col-resize;
-    touch-action: none;
-    outline: none;
   }
 
-  .docs-sidebar-resizer::after {
+  /* Guide line for the drag only. It spans the full height, so showing it on
+     hover reads as a stray scrollbar; the bookmark already marks the edge. */
+  .docs-sidebar-rail::after {
     content: '';
     position: absolute;
     top: var(--spacing-md);
@@ -366,12 +368,111 @@
     background: var(--primary-color);
     opacity: 0;
     transition: opacity 0.15s ease;
+    pointer-events: none;
   }
 
-  .docs-sidebar-resizer:hover::after,
-  .docs-sidebar-resizer:focus-visible::after,
-  .docs-sidebar-resizer.is-resizing::after {
+  .docs-sidebar-rail.is-resizing::after {
     opacity: 0.8;
+  }
+
+  .docs-sidebar-rail.is-collapsed::after {
+    opacity: 0;
+  }
+
+  .docs-sidebar-handle {
+    --docs-bookmark: #e0a94f;
+    --docs-bookmark-hover: #cf9438;
+    position: absolute;
+    top: 10px;
+    /* Rotated a quarter turn, the bookmark's notch points back at the sidebar,
+       so straddling the border reads as "clipped over the edge". The rail is
+       18px wide with a -9px margin, i.e. its midpoint IS the border. */
+    left: 1px;
+    display: flex;
+    width: 26px;
+    height: 18px;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    border-radius: 4px;
+    background: transparent;
+    color: var(--docs-bookmark);
+    /* Click is the primary action, so a pointer - not col-resize, which made
+       it look like a scrollbar grip. The drag cursor is set on <body> for the
+       duration of an actual drag instead. */
+    cursor: pointer;
+    touch-action: none;
+    transition:
+      color 0.15s ease,
+      background 0.15s ease;
+  }
+
+  .docs-sidebar-handle:hover,
+  .docs-sidebar-rail.is-resizing .docs-sidebar-handle {
+    background: rgba(224, 169, 79, 0.16);
+    color: var(--docs-bookmark-hover);
+  }
+
+  .docs-sidebar-handle:focus-visible {
+    outline: 2px solid var(--docs-bookmark-hover);
+    outline-offset: 2px;
+  }
+
+  /* Collapsed: the sidebar is out of the flow entirely and the handle becomes
+     a standalone tab, so it reads as "open me" rather than a resize grip. */
+  /* Collapse by animating the column shut rather than display:none, which
+     cannot transition. visibility flips only after the width finishes, so the
+     hidden links leave the tab order without cutting the animation short. */
+  .docs-sidebar {
+    transition:
+      flex-basis 0.24s ease,
+      width 0.24s ease,
+      opacity 0.16s ease,
+      visibility 0s linear;
+  }
+
+  .docs-container.is-sidebar-collapsed .docs-sidebar {
+    flex-basis: 0;
+    width: 0;
+    min-width: 0;
+    overflow: hidden;
+    opacity: 0;
+    visibility: hidden;
+    /* width:0 with box-sizing:border-box still leaves the 1px border behind */
+    border-right-width: 0;
+    pointer-events: none;
+    transition:
+      flex-basis 0.24s ease,
+      width 0.24s ease,
+      opacity 0.16s ease,
+      visibility 0s linear 0.24s;
+  }
+
+  /* .docs-content stays capped at the prose measure, so without the sidebar it
+     would hug the left edge and leave the freed space dead on the right. An
+     `auto` margin cannot be interpolated, so pad the container instead - that
+     animates, and keeps the content sliding rather than jumping. */
+  .docs-container {
+    transition: padding-left 0.24s ease;
+  }
+
+  /* the 18px rail stays in flow, so discount it to land visually centred */
+  .docs-container.is-sidebar-collapsed {
+    padding-left: max(0px, calc((100% - 900px) / 2 - 18px));
+  }
+
+  .docs-sidebar-rail.is-collapsed .docs-sidebar-handle {
+    left: 9px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .docs-sidebar-rail::after,
+  .docs-sidebar-handle,
+  .docs-sidebar,
+  .docs-container {
+    transition: none;
   }
 }
 
@@ -729,19 +830,27 @@
     min-width: 0;
   }
 
+  /* Headers are nowrap site-wide, which under table-layout:fixed makes
+     "Last compatible major" overflow its track and collide with the next
+     header. Inside this fixed-width table they wrap instead. */
+  .doc-page table.deprecation-schedule-table th {
+    white-space: normal;
+    overflow-wrap: break-word;
+  }
+
   .doc-page table.deprecation-schedule-table th:first-child,
   .doc-page table.deprecation-schedule-table td:first-child {
-    width: 30%;
+    width: 40%;
   }
 
   .doc-page table.deprecation-schedule-table th:nth-child(2),
   .doc-page table.deprecation-schedule-table td:nth-child(2) {
-    width: 26%;
+    width: 30%;
   }
 
   .doc-page table.deprecation-schedule-table th:nth-child(3),
   .doc-page table.deprecation-schedule-table td:nth-child(3) {
-    width: 44%;
+    width: 30%;
   }
 }
 
@@ -1068,6 +1177,21 @@
     display: block;
     backdrop-filter: blur(6px);
     -webkit-backdrop-filter: blur(6px);
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
+    transition:
+      opacity 0.26s ease,
+      visibility 0s linear 0.26s;
+  }
+
+  .sidebar-overlay.is-visible {
+    opacity: 1;
+    visibility: visible;
+    pointer-events: auto;
+    transition:
+      opacity 0.26s ease,
+      visibility 0s linear;
   }
 
   .docs-sidebar {
@@ -1089,10 +1213,14 @@
     max-height: calc(100vh - 56px) !important;
     background: var(--bg-secondary);
     z-index: 9000;
+    /* Slide only. Fading it out at the same time made the drawer read as
+       "vanishing" instead of "sliding away", and the 0.2s opacity/visibility
+       against a 0.25s transform meant it went invisible mid-slide. visibility
+       now flips only after the slide finishes, so the exit stays on screen for
+       its whole travel while still leaving the tab order afterwards. */
     transition:
-      transform 0.25s ease,
-      opacity 0.2s ease,
-      visibility 0.2s ease;
+      transform 0.26s cubic-bezier(0.4, 0, 0.2, 1),
+      visibility 0s linear 0.26s;
     border-right: 1px solid var(--border-color);
     padding: var(--spacing-xl) 0;
     box-shadow: 4px 0 24px rgba(0, 0, 0, 0.15);
@@ -1103,7 +1231,6 @@
        hit-test area, and pointer-events: none turns off hit-testing for
        this entire subtree even if the transform isn't honored. */
     transform: translateX(-100%);
-    opacity: 0;
     visibility: hidden;
     pointer-events: none;
     overflow-y: auto;
@@ -1118,9 +1245,11 @@
 
   .docs-sidebar.open {
     transform: translateX(0);
-    opacity: 1;
     visibility: visible;
     pointer-events: auto;
+    transition:
+      transform 0.26s cubic-bezier(0.4, 0, 0.2, 1),
+      visibility 0s linear;
   }
 
   .docs-content {

@@ -287,8 +287,10 @@ from OpenIAP 3.0, `react-native-iap` 16.0.0, `expo-iap` 5.0.0,
   redirects may name removed surfaces when they clearly describe history or
   route readers to the replacement.
 - The public migration catalog remains
-  `/docs/updates/deprecations`. It records the removed-to-replacement mapping
-  and the exact package major boundary.
+  `/docs/updates/migration` (published at `/docs/updates/deprecations` until
+  2026-08; that path still redirects). It is organized as one section per
+  coordinated major train, and each train records the removed-to-replacement
+  mapping and the exact package major boundary.
 - A future deprecation must be introduced through the canonical GraphQL
   deprecation directives or an explicit package-local notice, name one future
   major boundary, include a canonical replacement, and update the migration

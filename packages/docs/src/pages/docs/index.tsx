@@ -5,6 +5,7 @@ import type {
   PointerEvent as ReactPointerEvent,
 } from 'react';
 import { createPortal } from 'react-dom';
+import { Bookmark } from 'lucide-react';
 import {
   Route,
   Routes,
@@ -122,7 +123,7 @@ import KmpSetup from './setup/kmp';
 import MauiSetup from './setup/maui';
 import Example from './example';
 import Announcements from './updates/announcements';
-import Deprecations from './updates/deprecations';
+import Migration from './updates/migration';
 import Releases from './updates/releases';
 import Versions from './updates/versions';
 import AIAssistants from './guides/ai-assistants';
@@ -147,10 +148,17 @@ function NavigatePreservingHash({ to }: { to: string }) {
 }
 
 const SIDEBAR_WIDTH_STORAGE_KEY = 'openiap-docs-sidebar-width-v2';
+const SIDEBAR_COLLAPSED_STORAGE_KEY = 'openiap-docs-sidebar-collapsed-v1';
 const SIDEBAR_DEFAULT_WIDTH = 340;
 const SIDEBAR_MIN_WIDTH = 300;
 const SIDEBAR_MAX_WIDTH = 480;
 const SIDEBAR_KEYBOARD_STEP = 16;
+// Drag this far past the minimum and the sidebar snaps shut instead of
+// refusing to move: below ~300px the nav labels start truncating, so hiding it
+// outright is more useful than an unreadably narrow column.
+const SIDEBAR_COLLAPSE_SLACK = 60;
+// Pointer travel that separates "clicked the handle" from "dragged the handle".
+const SIDEBAR_DRAG_THRESHOLD = 4;
 
 function clampSidebarWidth(width: number) {
   return Math.min(
@@ -172,14 +180,26 @@ function readSavedSidebarWidth() {
     : SIDEBAR_DEFAULT_WIDTH;
 }
 
+function readSavedSidebarCollapsed() {
+  if (typeof window === 'undefined') {
+    return false;
+  }
+
+  return window.localStorage.getItem(SIDEBAR_COLLAPSED_STORAGE_KEY) === 'true';
+}
+
 function Docs() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [sidebarWidth, setSidebarWidth] = useState(readSavedSidebarWidth);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(
+    readSavedSidebarCollapsed
+  );
   const [isResizingSidebar, setIsResizingSidebar] = useState(false);
   const [isSidebarScrolling, setIsSidebarScrolling] = useState(false);
   const sidebarRef = useRef<HTMLElement | null>(null);
   const sidebarScrollTimeoutRef = useRef<number | null>(null);
+  const dragRef = useRef<{ startX: number; moved: boolean } | null>(null);
 
   const closeSidebar = () => setIsSidebarOpen(false);
 
@@ -200,6 +220,13 @@ function Docs() {
   }, [sidebarWidth]);
 
   useEffect(() => {
+    window.localStorage.setItem(
+      SIDEBAR_COLLAPSED_STORAGE_KEY,
+      String(isSidebarCollapsed)
+    );
+  }, [isSidebarCollapsed]);
+
+  useEffect(() => {
     return () => {
       if (sidebarScrollTimeoutRef.current !== null) {
         window.clearTimeout(sidebarScrollTimeoutRef.current);
@@ -218,11 +245,42 @@ function Docs() {
     document.body.style.userSelect = 'none';
 
     const handlePointerMove = (event: PointerEvent) => {
+      const drag = dragRef.current;
+
+      if (!drag) {
+        return;
+      }
+
+      if (
+        !drag.moved &&
+        Math.abs(event.clientX - drag.startX) < SIDEBAR_DRAG_THRESHOLD
+      ) {
+        return;
+      }
+
+      drag.moved = true;
+
       const sidebarLeft = sidebarRef.current?.getBoundingClientRect().left ?? 0;
-      setSidebarWidth(clampSidebarWidth(event.clientX - sidebarLeft));
+      const nextWidth = event.clientX - sidebarLeft;
+
+      if (nextWidth < SIDEBAR_MIN_WIDTH - SIDEBAR_COLLAPSE_SLACK) {
+        // Dragged past the minimum: snap shut and end the drag.
+        setIsSidebarCollapsed(true);
+        setIsResizingSidebar(false);
+        return;
+      }
+
+      setIsSidebarCollapsed(false);
+      setSidebarWidth(clampSidebarWidth(nextWidth));
     };
 
     const stopResizing = () => {
+      // Released without travelling: that was a click, so toggle instead.
+      if (dragRef.current && !dragRef.current.moved) {
+        setIsSidebarCollapsed((collapsed) => !collapsed);
+      }
+
+      dragRef.current = null;
       setIsResizingSidebar(false);
     };
 
@@ -239,12 +297,13 @@ function Docs() {
     };
   }, [isResizingSidebar]);
 
-  const startSidebarResize = (event: ReactPointerEvent<HTMLDivElement>) => {
+  const startSidebarResize = (event: ReactPointerEvent<HTMLButtonElement>) => {
     if (window.innerWidth <= 768) {
       return;
     }
 
     event.preventDefault();
+    dragRef.current = { startX: event.clientX, moved: false };
     setIsResizingSidebar(true);
   };
 
@@ -262,8 +321,32 @@ function Docs() {
   };
 
   const handleSidebarResizerKeyDown = (
-    event: KeyboardEvent<HTMLDivElement>
+    event: KeyboardEvent<HTMLButtonElement>
   ) => {
+    // Enter/Space are the handle's primary action, matching a plain click.
+    // preventDefault stops the browser also synthesizing a click from them.
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault();
+      setIsSidebarCollapsed((collapsed) => !collapsed);
+      return;
+    }
+
+    if (isSidebarCollapsed) {
+      // Collapsed, so the only meaningful direction is back open.
+      if (event.key === 'ArrowRight') {
+        event.preventDefault();
+        setIsSidebarCollapsed(false);
+      }
+      return;
+    }
+
+    // At the minimum width the only place left to go is closed.
+    if (event.key === 'ArrowLeft' && sidebarWidth === SIDEBAR_MIN_WIDTH) {
+      event.preventDefault();
+      setIsSidebarCollapsed(true);
+      return;
+    }
+
     if (event.key === 'ArrowLeft' || event.key === 'ArrowRight') {
       event.preventDefault();
       setSidebarWidth((width) =>
@@ -284,11 +367,6 @@ function Docs() {
     if (event.key === 'End') {
       event.preventDefault();
       setSidebarWidth(SIDEBAR_MAX_WIDTH);
-    }
-
-    if (event.key === 'Enter') {
-      event.preventDefault();
-      setSidebarWidth(SIDEBAR_DEFAULT_WIDTH);
     }
   };
 
@@ -337,15 +415,24 @@ function Docs() {
       );
 
   return (
-    <div className="docs-container">
+    <div
+      className={`docs-container ${
+        isSidebarCollapsed ? 'is-sidebar-collapsed' : ''
+      }`}
+    >
       {sidebarToggle}
 
-      {isSidebarOpen && (
-        <div className="sidebar-overlay" onClick={closeSidebar}></div>
-      )}
+      {/* Kept mounted so it can fade OUT with the drawer; unmounting it on
+          close made the backdrop vanish instantly while the drawer was still
+          sliding. Hidden state is visibility + pointer-events, not unmount. */}
+      <div
+        className={`sidebar-overlay ${isSidebarOpen ? 'is-visible' : ''}`}
+        onClick={closeSidebar}
+      ></div>
 
       <aside
         ref={sidebarRef}
+        id="docs-sidebar"
         className={`docs-sidebar ${isSidebarOpen ? 'open' : ''} ${
           isResizingSidebar ? 'is-resizing' : ''
         } ${isSidebarScrolling ? 'is-sidebar-scrolling' : ''}`}
@@ -940,11 +1027,11 @@ function Docs() {
             </li>
             <li>
               <NavLink
-                to="/docs/updates/deprecations"
+                to="/docs/updates/migration"
                 className={({ isActive }) => (isActive ? 'active' : '')}
                 onClick={closeSidebar}
               >
-                Deprecations &amp; Migration
+                Migration
               </NavLink>
             </li>
             <li>
@@ -960,20 +1047,39 @@ function Docs() {
         </nav>
       </aside>
       <div
-        className={`docs-sidebar-resizer ${
+        className={`docs-sidebar-rail ${
           isResizingSidebar ? 'is-resizing' : ''
-        }`}
-        role="separator"
-        aria-label="Resize documentation navigation"
-        aria-orientation="vertical"
-        aria-valuemin={SIDEBAR_MIN_WIDTH}
-        aria-valuemax={SIDEBAR_MAX_WIDTH}
-        aria-valuenow={sidebarWidth}
-        tabIndex={0}
-        onPointerDown={startSidebarResize}
-        onDoubleClick={() => setSidebarWidth(SIDEBAR_DEFAULT_WIDTH)}
-        onKeyDown={handleSidebarResizerKeyDown}
-      />
+        } ${isSidebarCollapsed ? 'is-collapsed' : ''}`}
+      >
+        {/* One bookmark-style handle does both jobs: click toggles the
+            sidebar, drag resizes it. A drag is only recognized past
+            SIDEBAR_DRAG_THRESHOLD px, so a plain click never nudges the
+            width. Keyboard users get arrow keys instead of the drag. */}
+        <button
+          type="button"
+          className="docs-sidebar-handle"
+          aria-expanded={!isSidebarCollapsed}
+          aria-controls="docs-sidebar"
+          aria-label={
+            isSidebarCollapsed
+              ? 'Show documentation navigation'
+              : 'Hide documentation navigation. Arrow keys resize it.'
+          }
+          title={isSidebarCollapsed ? 'Show navigation' : 'Hide navigation'}
+          onPointerDown={startSidebarResize}
+          onKeyDown={handleSidebarResizerKeyDown}
+        >
+          {/* Quarter turn so it hangs off the edge like a clipped-in bookmark.
+              Filled while the nav is showing, outlined once it is put away. */}
+          <Bookmark
+            size={17}
+            strokeWidth={2}
+            fill={isSidebarCollapsed ? 'none' : 'currentColor'}
+            style={{ transform: 'rotate(90deg)' }}
+            aria-hidden="true"
+          />
+        </button>
+      </div>
       <main className="docs-content">
         <Routes>
           <Route
@@ -1498,7 +1604,13 @@ function Docs() {
             element={<Navigate to="/docs/updates/releases" replace />}
           />
           <Route path="updates/releases" element={<Releases />} />
-          <Route path="updates/deprecations" element={<Deprecations />} />
+          <Route path="updates/migration" element={<Migration />} />
+          {/* the page was published at updates/deprecations until 2026-08;
+              keep the old path working for existing links and search results */}
+          <Route
+            path="updates/deprecations"
+            element={<NavigatePreservingHash to="/docs/updates/migration" />}
+          />
           <Route path="updates/versions" element={<Versions />} />
           <Route path="*" element={<NotFound />} />
         </Routes>

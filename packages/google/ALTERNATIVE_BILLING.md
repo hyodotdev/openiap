@@ -161,6 +161,6 @@ evidence.
 ## Resources
 
 - [OpenIAP external purchase guide](https://openiap.dev/docs/features/external-purchase)
-- [OpenIAP deprecation schedule](https://openiap.dev/docs/updates/deprecations)
+- [OpenIAP deprecation schedule](https://openiap.dev/docs/updates/migration)
 - [Google Play alternative billing documentation](https://developer.android.com/google/play/billing/alternative)
 - [Google Play external transaction reporting](https://developer.android.com/google/play/billing/alternative/reporting)

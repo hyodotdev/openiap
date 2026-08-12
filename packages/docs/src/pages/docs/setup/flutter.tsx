@@ -508,7 +508,7 @@ final allPurchases = await iap.getAvailablePurchases(
           <code>dataAndroid</code>. Flutter 10 does not accept the former
           custom-channel alias. Native adapters, MethodChannel fixtures, and
           mocks must emit <code>dataAndroid</code>. See{' '}
-          <Link to="/docs/updates/deprecations#flutter-original-json-android">
+          <Link to="/docs/updates/migration#flutter-original-json-android">
             Deprecations &amp; 3.0 Migration
           </Link>
           .

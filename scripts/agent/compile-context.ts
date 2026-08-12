@@ -231,7 +231,7 @@ async function generateLlmsTxt(): Promise<{ quick: number; full: number }> {
   replacement, generated warnings where supported, migration documentation,
   and executable absence checks at the removal boundary. Patch and minor
   releases must not remove them early.
-- See https://openiap.dev/docs/updates/deprecations for the complete mapping.
+- See https://openiap.dev/docs/updates/migration for the complete mapping.
 `;
 
   // Read all external API docs
