@@ -163,10 +163,13 @@ function Subscription() {
             , but server validation is still recommended for production apps.
           </p>
           <p>
-            <strong>Android</strong>: client-side data is limited to{' '}
+            <strong>Android</strong>: client-side{' '}
+            <em>subscription lifecycle</em> data is limited to{' '}
             <code>isAutoRenewing</code>, <code>isSuspendedAndroid</code>, and{' '}
-            <code>pendingPurchaseUpdateAndroid</code>. Expiry and renewal dates
-            and detailed subscription state still require{' '}
+            <code>pendingPurchaseUpdateAndroid</code> — the purchase itself
+            still carries <code>productId</code>, <code>purchaseToken</code>,{' '}
+            <code>transactionDate</code>, and <code>purchaseState</code>. Expiry
+            and renewal dates and detailed subscription state require{' '}
             <strong>server-side validation</strong>.
           </p>
           <p>
@@ -1123,7 +1126,10 @@ function Subscription() {
                     <code>SUBSCRIPTION_STATE_PAUSED</code>,{' '}
                     <code>SUBSCRIPTION_STATE_ON_HOLD</code>,{' '}
                     <code>SUBSCRIPTION_STATE_IN_GRACE_PERIOD</code>,{' '}
-                    <code>SUBSCRIPTION_STATE_EXPIRED</code>)
+                    <code>SUBSCRIPTION_STATE_EXPIRED</code>,{' '}
+                    <code>SUBSCRIPTION_STATE_PENDING</code>,{' '}
+                    <code>SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED</code>,{' '}
+                    <code>SUBSCRIPTION_STATE_UNSPECIFIED</code>)
                   </li>
                 </ul>
               </section>
@@ -1152,7 +1158,16 @@ function Subscription() {
                     <code>SUBSCRIPTION_STATE_IN_GRACE_PERIOD</code>,{' '}
                     <code>SUBSCRIPTION_STATE_ON_HOLD</code>,{' '}
                     <code>SUBSCRIPTION_STATE_PAUSED</code>,{' '}
-                    <code>SUBSCRIPTION_STATE_EXPIRED</code>)
+                    <code>SUBSCRIPTION_STATE_EXPIRED</code>,{' '}
+                    <code>SUBSCRIPTION_STATE_PENDING</code>,{' '}
+                    <code>SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED</code>,{' '}
+                    <code>SUBSCRIPTION_STATE_UNSPECIFIED</code>).{' '}
+                    <code>SUBSCRIPTION_STATE_PENDING</code> means the initial
+                    purchase has not completed;{' '}
+                    <code>SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED</code> is
+                    a pending upgrade or downgrade that was cancelled — resolve
+                    the still-active subscription it belongs to through{' '}
+                    <code>linkedPurchaseToken</code>.
                   </li>
                   <li>
                     <strong>expiryTime</strong>: When the subscription expires
@@ -1428,9 +1443,9 @@ function Subscription() {
             <h3 style={{ marginTop: 0 }}>Android</h3>
             <ul style={{ marginBottom: 0 }}>
               <li>
-                Client-side data limited to <code>isAutoRenewing</code>,{' '}
-                <code>isSuspendedAndroid</code>, and{' '}
-                <code>pendingPurchaseUpdateAndroid</code>
+                Client-side <em>subscription lifecycle</em> data limited to{' '}
+                <code>isAutoRenewing</code>, <code>isSuspendedAndroid</code>,
+                and <code>pendingPurchaseUpdateAndroid</code>
               </li>
               <li>Server-side required for detailed subscription info</li>
               <li>Use Google Play Developer API for authoritative data</li>
