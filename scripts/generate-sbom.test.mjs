@@ -14,6 +14,7 @@ import { fileURLToPath } from "node:url";
 import {
   __testing as generatorTesting,
   buildSbom,
+  componentFromTag,
   generateSbom,
   listComponentIds,
   normalizeLicense,
@@ -22,6 +23,7 @@ import {
   releaseTagFor,
   sbomFileName,
 } from "./generate-sbom.mjs";
+import { PACKAGE_CONFIG } from "./assert-release-tag.mjs";
 import {
   __testing as dependencyTesting,
   mergeResolved,
@@ -77,6 +79,36 @@ test("release tags match the release-tag SSOT", () => {
   );
   assert.equal(releaseTagFor("google", "3.3.0"), "google-3.3.0");
   assert.equal(releaseTagFor("docs", "3.2.0"), "docs-3.2.0");
+});
+
+test("every release tag pattern resolves back to its own component", () => {
+  // `sbom.yml` identifies the component from the published tag alone. If a tag
+  // pattern is added to the release SSOT and TAG_PREFIXES does not learn it,
+  // that release is silently skipped and ships with no SBOM. This iterates the
+  // SSOT so the divergence fails here rather than at release time.
+  for (const [componentId, config] of Object.entries(PACKAGE_CONFIG)) {
+    for (const tag of config.tags("9.9.9")) {
+      assert.deepEqual(
+        componentFromTag(tag),
+        { componentId, version: "9.9.9" },
+        `${componentId} tag ${tag}`,
+      );
+    }
+  }
+
+  // `docs` releases the spec and is absent from PACKAGE_CONFIG.
+  assert.deepEqual(componentFromTag("docs-9.9.9"), {
+    componentId: "docs",
+    version: "9.9.9",
+  });
+
+  // A prefix must not swallow a longer one, and a tag we do not own is skipped
+  // rather than misattributed.
+  assert.equal(componentFromTag("google-v1.2.3").componentId, "google");
+  assert.equal(componentFromTag("apple-v1.2.3").componentId, "apple");
+  assert.equal(componentFromTag("1.2.3").componentId, "apple");
+  assert.equal(componentFromTag("some-unrelated-tag"), null);
+  assert.equal(componentFromTag(""), null);
 });
 
 test("serial number is derived from release identity, not randomness", () => {
