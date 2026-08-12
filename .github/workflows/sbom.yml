@@ -1,0 +1,149 @@
+name: "Security: SBOM"
+
+# Generates a CycloneDX SBOM for whichever component a published release
+# belongs to, attaches it to that release, and attests that this workflow
+# produced it.
+#
+# This runs *after* a release is published rather than inside each release
+# workflow: the existing release workflows stay untouched, and every component —
+# including any added later — is covered by the same code path. The release tag
+# is the input, so the SBOM can only ever describe the commit that shipped.
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to (re)generate an SBOM for"
+        required: true
+        type: string
+
+concurrency:
+  group: sbom-${{ github.event.release.tag_name || inputs.tag }}
+  cancel-in-progress: false
+
+# Read-only by default; the publish job widens this to exactly what the
+# attestation and upload steps require.
+permissions:
+  contents: read
+
+jobs:
+  sbom:
+    name: Generate and publish SBOM
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # upload the SBOM as a release asset
+      id-token: write # request the Sigstore signing certificate
+      attestations: write # record the provenance attestation
+    steps:
+      - name: Resolve release tag
+        id: tag
+        env:
+          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+        run: |
+          if [ -z "$RELEASE_TAG" ]; then
+            echo "::error::No release tag available"
+            exit 1
+          fi
+          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+
+      - name: Checkout the released commit
+        uses: actions/checkout@v7
+        with:
+          ref: ${{ steps.tag.outputs.tag }}
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@v7
+        with:
+          node-version: 20
+
+      - name: Identify the released component
+        id: component
+        # Pass the tag through the environment rather than interpolating it
+        # into the shell command; a ref name must never be able to extend the
+        # command it is an argument to.
+        env:
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+        run: node scripts/generate-sbom.mjs resolve-tag "$RELEASE_TAG"
+
+      - name: Verify SBOM generator behaviour
+        if: ${{ steps.component.outputs.matched == 'true' }}
+        run: node --test scripts/generate-sbom.test.mjs
+
+      - name: Generate CycloneDX SBOM
+        id: generate
+        if: ${{ steps.component.outputs.matched == 'true' }}
+        # `--with-licenses` resolves each dependency's declared license from its
+        # own registry. A registry outage degrades to a missing license field
+        # rather than failing the release.
+        env:
+          COMPONENT: ${{ steps.component.outputs.component }}
+        run: |
+          node scripts/generate-sbom.mjs "$COMPONENT" \
+            --output-dir sbom \
+            --commit "$(git rev-parse HEAD)" \
+            --with-licenses
+
+      - name: Verify the SBOM describes this release
+        if: ${{ steps.component.outputs.matched == 'true' }}
+        env:
+          SBOM_FILE: ${{ steps.generate.outputs.sbom-file }}
+          EXPECTED_VERSION: ${{ steps.component.outputs.version }}
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          # A version mismatch means the tag and the manifest disagree, which
+          # would attach a misleading inventory to a real release.
+          ACTUAL_VERSION=$(jq -r '.metadata.component.version' "$SBOM_FILE")
+          ACTUAL_TAG=$(jq -r '
+            .metadata.component.properties[]
+            | select(.name == "openiap:release:tag") | .value
+          ' "$SBOM_FILE")
+          ACTUAL_COMMIT=$(jq -r '
+            .metadata.component.properties[]
+            | select(.name == "openiap:release:commit") | .value
+          ' "$SBOM_FILE")
+
+          if [ "$ACTUAL_VERSION" != "$EXPECTED_VERSION" ]; then
+            echo "::error::SBOM version $ACTUAL_VERSION does not match tag version $EXPECTED_VERSION"
+            exit 1
+          fi
+          if [ "$ACTUAL_TAG" != "$RELEASE_TAG" ]; then
+            echo "::error::SBOM tag $ACTUAL_TAG does not match release tag $RELEASE_TAG"
+            exit 1
+          fi
+          if [ "$ACTUAL_COMMIT" != "$(git rev-parse HEAD)" ]; then
+            echo "::error::SBOM commit $ACTUAL_COMMIT does not match the released commit"
+            exit 1
+          fi
+
+          # Fail closed if a local path ever reaches a published document.
+          if grep -qE '/Users/|/home/[a-z]|/tmp/' "$SBOM_FILE"; then
+            echo "::error::SBOM contains a local filesystem path"
+            exit 1
+          fi
+
+          echo "SBOM verified for $RELEASE_TAG at $ACTUAL_COMMIT"
+
+      - name: Attest SBOM provenance
+        if: ${{ steps.component.outputs.matched == 'true' }}
+        uses: actions/attest-build-provenance@v4
+        with:
+          subject-path: ${{ steps.generate.outputs.sbom-file }}
+
+      - name: Attach SBOM to the release
+        if: ${{ steps.component.outputs.matched == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+          SBOM_FILE: ${{ steps.generate.outputs.sbom-file }}
+        run: gh release upload "$RELEASE_TAG" "$SBOM_FILE" --clobber
+
+      - name: Report a skipped tag
+        if: ${{ steps.component.outputs.matched != 'true' }}
+        env:
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+        run: |
+          echo "::notice::$RELEASE_TAG is not a component release tag; no SBOM generated."

@@ -9,7 +9,7 @@ const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const semverPattern =
   /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-((?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*)(?:\.(?:0|[1-9]\d*|[0-9A-Za-z-]*[A-Za-z-][0-9A-Za-z-]*))*))?(?:\+([0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*))?$/;
 
-const versionSources = {
+export const versionSources = {
   apple: {
     label: "openiap-apple",
     read: (root) => readJson(root, "openiap-versions.json").apple,

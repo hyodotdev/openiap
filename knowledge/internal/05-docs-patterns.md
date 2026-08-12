@@ -140,6 +140,58 @@ Use `MenuDropdown` for collapsible parent-child navigation:
 
 ---
 
+## Separate Content Data From Rendering
+
+> **Priority: MANDATORY**
+
+Repeated page content — table rows, link lists, card grids, comparison
+matrices — is **data**. Declare it as a typed module-level constant and render
+it with `.map()`. Do not hand-write repeated JSX blocks that differ only in
+their text.
+
+```tsx
+interface Standard {
+  concern: string;
+  standard: ReactNode;
+}
+
+const STANDARDS: Standard[] = [
+  { concern: "Document format", standard: <a href="...">CycloneDX 1.6</a> },
+  { concern: "Component identity", standard: <a href="...">purl</a> },
+];
+
+// …then render it
+<DataTable
+  rows={STANDARDS}
+  rowKey={(row) => row.concern}
+  columns={[
+    { header: "Concern", cell: (row) => row.concern },
+    { header: "Standard", cell: (row) => row.standard },
+  ]}
+/>;
+```
+
+Why this is mandatory rather than stylistic:
+
+- Editing a fact means editing one object, not hunting through `<tr>` markup.
+- A reviewer can read the content of a page without stepping through JSX.
+- Adding a row cannot accidentally break table structure.
+- Content becomes greppable and, when needed, exportable to another surface.
+
+Rules:
+
+- Use `src/components/DataTable.tsx` for tabular content rather than
+  hand-writing `<table>`; pass `columns` and `rows`.
+- Name the constant in `SCREAMING_SNAKE_CASE`, type it with an `interface`, and
+  place it above the component.
+- `rowKey` must be a stable field, never the array index.
+- Prose paragraphs stay inline as JSX. This rule is about **repeated
+  structures**, not about extracting every sentence into a variable.
+- A one-off two-row table is not worth a constant; use judgement, and extract
+  once the structure repeats or grows.
+
+---
+
 ## React Component Organization
 
 ### Component Structure

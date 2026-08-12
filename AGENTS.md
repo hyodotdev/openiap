@@ -276,6 +276,7 @@ Cursor-specific files.
 | `$rebase-main`       | Pull main and safely rebase the current branch     | `$rebase-main`                        |
 | `/review-pr`         | Review PR comments, fix issues, resolve threads    | `/review-pr 65` or `/review-pr <url>` |
 | `/audit-code`        | Audit code against knowledge rules and latest APIs | `/audit-code`                         |
+| `/audit-security`    | Audit SBOM, provenance, and supply-chain posture   | `/audit-security`                     |
 | `/compile-knowledge` | Compile knowledge base for Claude context          | `/compile-knowledge`                  |
 | `/resolve-issue`     | Analyze an issue, label it, and fix/comment        | `/resolve-issue 88`                   |
 | `/verify-all`        | Run the full monorepo health check                 | `/verify-all`                         |
