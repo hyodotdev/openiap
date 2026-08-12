@@ -47,8 +47,8 @@ Inspect the complete commit message, PR title, and PR body before sending them.
 If the staged changes only touch internal agent/workflow files, do not push or
 create a PR unless the user explicitly asked to publish, PR, or merge them.
 Internal workflow files include `.claude/commands/`, `.claude/skills/`,
-`.codex/skills/`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and agent
-automation notes.
+`.codex/skills/`, `.cursor/rules/`, `AGENTS.md`, `CLAUDE.md`, `GEMINI.md`, and
+agent automation notes.
 
 For those internal-only changes, prefer a local commit or local working-tree
 change and report the files changed. If the user explicitly asks to open or

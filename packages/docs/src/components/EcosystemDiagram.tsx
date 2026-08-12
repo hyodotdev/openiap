@@ -245,28 +245,76 @@ function EcosystemDiagram() {
               const mark = FRAMEWORK_MARKS[lib.name] ?? lib.image;
 
               return (
-                <Link key={lib.name} className="eco-node" to={lib.setupPath}>
-                  <img
-                    className={artClass(icon, 'eco-icon')}
-                    src={icon}
-                    alt=""
-                    loading="lazy"
-                  />
-                  <span className="eco-node-text">
-                    <span className="eco-node-name">{lib.displayName}</span>
-                    <span className="eco-node-note">{lib.description}</span>
-                  </span>
-                  <span className="eco-node-marks">
-                    <span className="eco-node-version">{lib.version}</span>
+                <div
+                  key={lib.name}
+                  className={`eco-library${
+                    lib.modules?.length ? ' eco-library--has-modules' : ''
+                  }`}
+                >
+                  <Link
+                    className="eco-node eco-node--library"
+                    to={lib.setupPath}
+                  >
                     <img
-                      className={artClass(mark, 'eco-mark')}
-                      src={mark}
-                      alt={lib.frameworkName}
-                      title={lib.frameworkName}
+                      className={artClass(icon, 'eco-icon')}
+                      src={icon}
+                      alt=""
                       loading="lazy"
                     />
-                  </span>
-                </Link>
+                    <span className="eco-node-text">
+                      <span className="eco-node-name">{lib.displayName}</span>
+                      <span className="eco-node-note">{lib.description}</span>
+                      {lib.modules?.length ? (
+                        <span className="eco-node-module-count">
+                          {lib.modules.length}{' '}
+                          {lib.modules.length === 1 ? 'module' : 'modules'}
+                          <span aria-hidden="true"> ↓</span>
+                        </span>
+                      ) : null}
+                    </span>
+                    <span className="eco-node-marks">
+                      <span className="eco-node-version">{lib.version}</span>
+                      <img
+                        className={artClass(mark, 'eco-mark')}
+                        src={mark}
+                        alt={lib.frameworkName}
+                        title={lib.frameworkName}
+                        loading="lazy"
+                      />
+                    </span>
+                  </Link>
+                  {lib.modules?.length ? (
+                    <div
+                      className="eco-modules"
+                      role="group"
+                      aria-label={`${lib.displayName} modules`}
+                    >
+                      <div className="eco-modules-inner">
+                        <span className="eco-modules-label">Modules</span>
+                        {lib.modules.map((module) => (
+                          <Link
+                            key={module.name}
+                            className="eco-module"
+                            to={module.setupPath}
+                          >
+                            <span className="eco-module-name">
+                              {module.name}
+                            </span>
+                            <span className="eco-module-description">
+                              {module.description}
+                            </span>
+                            <span
+                              className="eco-module-arrow"
+                              aria-hidden="true"
+                            >
+                              →
+                            </span>
+                          </Link>
+                        ))}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
               );
             })}
             <a className="eco-more" href="mailto:hyo@hyo.dev">
@@ -280,7 +328,7 @@ function EcosystemDiagram() {
         <strong>openiap-gql</strong> generates the type system for the core
         native packages <em>and</em> for every framework library, and the core
         packages are bundled into each library. Select any node to open its
-        project.
+        documentation or project.
       </figcaption>
     </figure>
   );

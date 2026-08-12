@@ -1,4 +1,4 @@
 interface:
   display_name: "Generate OpenIAP Docs"
   short_description: "Document expected releases without duplicate trains"
-  default_prompt: "Use $generate-doc to update the existing unreleased OpenIAP card in place with common changes, per-package native and framework notes, and expected Package Releases links at the bottom."
+  default_prompt: "Use $generate-doc to update the existing unreleased OpenIAP card with concise user-visible changes for affected packages and the expected Package Releases links."

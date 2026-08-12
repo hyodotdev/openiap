@@ -17,8 +17,11 @@ function OnsideStoreSetup() {
       />
       <h1>Onside Store Setup</h1>
       <p>
-        Onside support is currently available in <strong>expo-iap</strong>. It
-        is an iOS runtime integration for apps distributed through the Onside
+        <a href="https://onside.io" target="_blank" rel="noopener noreferrer">
+          Onside
+        </a>{' '}
+        support is currently available in <strong>expo-iap</strong>. It is an
+        iOS runtime integration for apps distributed through the Onside
         marketplace, not a React Native, Flutter, KMP, MAUI, or Godot build
         option.
       </p>

@@ -59,10 +59,10 @@ Before adding a release card, inspect the newest entries and package tags.
   belong to the same release train, expand that card into the single
   consolidated release entry and advance its date and title. Do not create a
   second card for the package versions.
-- Structure a consolidated train in this order: a short `Common changes`
-  summary, hosted IAPKit changes, versioned native and framework changes grouped
-  by package, migration or integration notes, and `Package Releases` at the
-  bottom (see the exact card layout in Editing Release Notes).
+- Use only sections with distinct user-visible behavior or required action.
+  Keep any shared summary first, affected native and framework notes next,
+  migration or integration action after them, and `Package Releases` at the
+  bottom (see Editing Release Notes).
 - IAPKit and its MCP deploy as services and have no package version. Include
   their user-visible behavior in the consolidated card, but never invent an
   IAPKit item in the versioned `Package Releases` list.
@@ -152,21 +152,36 @@ Follow the existing card pattern:
 
 Card section layout (mandatory for multi-package cards):
 
-- Use `h5` headings only for shared groups, in this order: `Common changes`
-  (optional), `Shared spec and native packages`, `Framework libraries`,
-  `Integration notes` (or migration notes), then the bordered
-  `Package Releases` block.
+- Use only the sections that contain distinct user-visible behavior or
+  information readers must act on. When present, keep this order:
+  1. `Common changes`
+  2. `Shared spec and native packages`
+  3. `Framework libraries`
+  4. `Integration notes` (or migration notes)
+  5. The bordered `Package Releases` block
 - Never add one `h5` heading per platform or framework (no `Apple`, `Google`,
-  `React Native`, `Expo`, ... headings). Each package's changes are exactly one
-  `<li>` inside the shared group list, written as
+  `React Native`, `Expo`, ... headings). Each package-specific behavior gets at
+  most one `<li>` inside the shared group list, written as
   `<strong>package version</strong> - prose description`
   (for example `<strong>react-native-iap 16.0.2</strong> - exposes ...`).
 - `Shared spec and native packages` holds `OpenIAP Spec`, `openiap-apple`, and
   `openiap-google` bullets; `Framework libraries` holds the framework SDK
-  bullets. Omit a bullet entirely when that package has no user-facing change.
+  bullets. Omit the section when it would be empty.
+- A package whose only change is selecting a shared native dependency,
+  regenerating types, or republishing the same behavior belongs only in
+  `Package Releases`. Do not manufacture one boilerplate bullet per wrapper.
+- One bullet may name multiple packages when the same user-visible behavior and
+  caveats apply to all of them. Keep distinct behavior in distinct bullets.
 - The July 29, 2026 card (`openiap-major-api-cleanup-2026-07-29`) and the
   August 4, 2026 card (`amazon-rvs-user-data-patch-train-2026-08-04`) are the
   reference implementations of this layout.
+
+## Reader-First Writing Standard
+
+Apply the canonical standard in
+`knowledge/internal/05-docs-patterns.md#reader-first-writing-standard` to every
+new or edited release card. Render the result and remove repeated facts,
+wrapper-only dependency boilerplate, and sections with no reader action.
 
 ## Multi-package Release Trains
 
@@ -180,9 +195,10 @@ project decision recorded from issue #206.
 - Group notable changes under the affected platform package or framework
   library (Google, Apple, IAPKit, React Native, Expo, Flutter, Godot, KMP, and
   MAUI). Omit groups with no user-facing change.
-- Keep each group concise. State the behavior users gain or the regression that
-  was fixed; do not list commit mechanics, version-bump-only commits, generated
-  files, or repeated cross-framework boilerplate.
+- Apply the Reader-First Writing Standard above. State the behavior users gain
+  or the regression that was fixed; do not list commit mechanics,
+  version-bump-only commits, generated files, or repeated cross-framework
+  boilerplate.
 - Put truly shared schema or release-process changes in one short shared group,
   then describe framework-specific wiring or caveats in the relevant framework
   group.
