@@ -71,10 +71,14 @@ jobs:
       - name: Generate CycloneDX SBOM
         id: generate
         if: ${{ steps.component.outputs.matched == 'true' }}
+        # `--with-licenses` resolves each dependency's declared license from its
+        # own registry. A registry outage degrades to a missing license field
+        # rather than failing the release.
         run: |
           node scripts/generate-sbom.mjs "${{ steps.component.outputs.component }}" \
             --output-dir sbom \
-            --commit "$(git rev-parse HEAD)"
+            --commit "$(git rev-parse HEAD)" \
+            --with-licenses
 
       - name: Verify the SBOM describes this release
         if: ${{ steps.component.outputs.matched == 'true' }}

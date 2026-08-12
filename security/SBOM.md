@@ -72,9 +72,10 @@ table.
 ## Generation
 
 ```bash
-bun run sbom <component>              # writes ./sbom/<name>-<version>.cdx.json
-bun run sbom <component> --stdout     # print instead of writing
-bun run sbom resolve-tag <tag>        # which component does this tag belong to?
+bun run sbom <component>                  # writes ./sbom/<name>-<version>.cdx.json
+bun run sbom <component> --with-licenses  # also resolve licenses from registries
+bun run sbom <component> --stdout         # print instead of writing
+bun run sbom resolve-tag <tag>            # which component does this tag belong to?
 ```
 
 The generator (`scripts/generate-sbom.mjs`) reads:
@@ -108,6 +109,28 @@ transitive dependencies when a resolver export is supplied (see below).
   application's SBOM, not ours.
 - **Operating-system frameworks.** StoreKit is not a distributed package.
 
+### Licenses
+
+`--with-licenses` resolves each dependency's declared license from its own
+registry — Maven Central and Google's Maven repository for Maven coordinates,
+nuget.org for NuGet, registry.npmjs.org for npm. The release workflow passes
+this flag; local runs default to offline.
+
+Licenses are never guessed. A registry value is emitted as an SPDX identifier
+only when it is a recognised one; anything else is recorded as a free-text
+license name, because downstream tooling treats `license.id` as authoritative
+and a confident wrong identifier is worse than an absent one. A lookup failure
+leaves the field empty rather than failing the release — license data is
+compliance metadata, not part of the security inventory.
+
+Current coverage is **43 of 47** direct dependencies. The gaps are structural,
+not bugs:
+
+- **pub.dev packages** (`http`, `meta`, `platform`) — Dart declares licensing
+  in a `LICENSE` file, and package metadata exposes no standard license field.
+- **`Xamarin.Android.Google.BillingClient`** — its nuspec carries only a
+  license URL that does not map to an SPDX identifier.
+
 ### Transitive dependencies
 
 Direct dependencies are read from the manifest. A complete transitive closure
@@ -126,6 +149,35 @@ name only its direct dependencies.
 Where a manifest declares a coordinate this reader cannot resolve, generation
 **fails** rather than emitting a shorter list. An SBOM that silently omits a
 dependency is worse than no SBOM, because it is trusted.
+
+#### Planned: replace manifest parsing with resolver output
+
+The Gradle, NuGet, and pub readers in `scripts/sbom-dependencies.mjs` parse
+build manifests with regular expressions. That is a deliberate stopgap, and it
+is the one part of this system expected to need maintenance: `build.gradle.kts`
+is arbitrary Kotlin, so new declaration shapes will keep appearing. Two already
+did — `for (module in listOf(...))` expansion and `project.findProperty(...)`
+resolution.
+
+**Do not keep growing the parsers.** When transitive support is implemented,
+move these ecosystems onto their own resolvers instead:
+
+| Ecosystem | Replace parser with                                            |
+| --------- | -------------------------------------------------------------- |
+| Gradle    | `cyclonedx-gradle-plugin`, or `gradlew :<module>:dependencies` |
+| NuGet     | `dotnet list package --include-transitive --format json`       |
+| pub       | `flutter pub deps --json`                                      |
+
+That removes roughly 350 lines of parsing and delivers the transitive closure
+in the same change — the ecosystem readers shrink rather than grow. It was not
+done in the initial implementation because no JDK, Flutter, or .NET toolchain
+was available to verify the result, and unverified code in a release path is
+worse than a verified stopgap.
+
+Until then, the parsers are safe to rely on for one reason: a coordinate they
+cannot resolve raises an error instead of being dropped, and the tests read the
+real manifests in this repository, so drift fails CI rather than silently
+shortening an inventory.
 
 ## Release integration
 

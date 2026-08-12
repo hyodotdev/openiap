@@ -129,6 +129,9 @@ import Versions from './updates/versions';
 import AIAssistants from './guides/ai-assistants';
 import MCPServer from './guides/mcp-server';
 import Testing from './guides/testing';
+import SecurityOverview from './security/overview';
+import SecuritySbom from './security/sbom';
+import SecurityCompliance from './security/compliance';
 import FoundationGovernance from './foundation/governance';
 import FoundationOnePager from './foundation/one-pager';
 import FoundationSponsorship from './foundation/sponsorship';
@@ -1015,6 +1018,18 @@ function Docs() {
               </NavLink>
             </li>
           </ul>
+          <h3 style={{ marginTop: '2rem' }}>Security</h3>
+          <ul>
+            <MenuDropdown
+              title="Overview"
+              titleTo="/docs/security/overview"
+              items={[
+                { to: '/docs/security/sbom', label: 'SBOM' },
+                { to: '/docs/security/compliance', label: 'Compliance' },
+              ]}
+              onItemClick={closeSidebar}
+            />
+          </ul>
           <h3 style={{ marginTop: '2rem' }}>Foundation</h3>
           <ul>
             <MenuDropdown
@@ -1611,6 +1626,9 @@ function Docs() {
           <Route path="guides/ai-assistants" element={<AIAssistants />} />
           <Route path="guides/mcp-server" element={<MCPServer />} />
           <Route path="guides/testing" element={<Testing />} />
+          <Route path="security/overview" element={<SecurityOverview />} />
+          <Route path="security/sbom" element={<SecuritySbom />} />
+          <Route path="security/compliance" element={<SecurityCompliance />} />
           <Route path="foundation/about" element={<FoundationOnePager />} />
           <Route
             path="foundation/governance"

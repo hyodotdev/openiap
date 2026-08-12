@@ -1,0 +1,61 @@
+name: "Security: Scorecard"
+
+# OpenSSF Scorecard checks the security posture of the repository itself —
+# branch protection, workflow token permissions, action pinning, dangerous
+# workflow patterns, release signing.
+#
+# This is the one thing neither Dependabot nor the SBOM covers. Dependabot
+# watches dependencies; the SBOM records what shipped; Scorecard checks whether
+# the process that produced it is sound. It adds no code and no dependency —
+# it reads the repository through the GitHub API.
+
+on:
+  branch_protection_rule:
+  schedule:
+    # Weekly, off the hour to avoid the scheduler's busiest minute.
+    - cron: "37 5 * * 1"
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions: read-all
+
+jobs:
+  analysis:
+    name: Scorecard analysis
+    runs-on: ubuntu-latest
+    permissions:
+      # Upload results to the code-scanning dashboard.
+      security-events: write
+      # Publish results so the score is verifiable by third parties.
+      id-token: write
+      contents: read
+      actions: read
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Run analysis
+        uses: ossf/scorecard-action@v2.4.4
+        with:
+          results_file: results.sarif
+          results_format: sarif
+          # Publishes the score to the OpenSSF API so it can be cited as
+          # evidence and shown as a badge. Requires the repository to be public.
+          publish_results: true
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: scorecard-results
+          path: results.sarif
+          retention-days: 5
+
+      - name: Upload to code scanning
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: results.sarif

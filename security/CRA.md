@@ -18,6 +18,53 @@ repository should be read as a claim of certified or guaranteed compliance.
 The practices below are designed to support OpenIAP's software-supply-chain
 security and its preparation for applicable CRA requirements.
 
+### Roles the CRA defines
+
+Three roles carry different obligations. The distinction matters because it
+decides whether the reporting duties below are mandatory or voluntary.
+
+| Role                    | Who it covers                                                                                                                                 |
+| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Manufacturer**        | Places a product with digital elements on the EU market under its own name, commercially                                                      |
+| **Open-source steward** | A **legal person** that systematically provides sustained support for FOSS intended for commercial activities, without directly monetising it |
+| **Neither**             | Individual maintainers and unincorporated projects — they lack legal personhood and fall outside the steward definition                       |
+
+Two consequences follow for this repository as it stands today:
+
+- The steward role requires a **legal person**. A project maintained by
+  individuals, without a foundation or company behind it, is generally
+  outside that definition. If OpenIAP is later hosted by a foundation, that
+  foundation would be the candidate steward, not the repository.
+- `packages/kit` is operated as a hosted service and is a separate question
+  from the distributed SDKs. It is not covered by the SDK analysis here.
+
+Stewards cannot be fined (Article 64(10)), and stewards must never issue
+compliance attestations or warranties on behalf of downstream manufacturers —
+that would improperly move legal responsibility upstream. OpenIAP issues no
+such attestation.
+
+## Reporting timeline
+
+Article 14 reporting obligations apply from **11 September 2026**, ahead of the
+main product requirements on 11 December 2027. Reports go to the relevant
+national CSIRT and ENISA through ENISA's Single Reporting Platform (SRP).
+
+| Trigger                                           | Early warning | Notification | Final report |
+| ------------------------------------------------- | ------------- | ------------ | ------------ |
+| Actively exploited vulnerability                  | 24 hours      | 72 hours     | 14 days      |
+| Severe incident affecting operated infrastructure | 24 hours      | 72 hours     | 1 month      |
+
+These clocks start when the responsible party **becomes aware**, not when a fix
+exists. The operational procedure OpenIAP follows on becoming aware of an
+actively exploited vulnerability is in
+[`SECURITY.md`](../SECURITY.md#actively-exploited-vulnerabilities); it is
+maintained whether or not the obligation is legally binding here, because the
+first 24 hours are the part that cannot be improvised.
+
+Article 15 additionally allows **voluntary** reporting of vulnerabilities,
+incidents, and near misses by any party, including those with no mandatory
+duty.
+
 ## What maintainers are responsible for
 
 ### 1. SBOM

@@ -7,7 +7,9 @@ the reasoning behind it; the automation lives in `scripts/` and
 | Document                           | Covers                                                                      |
 | ---------------------------------- | --------------------------------------------------------------------------- |
 | [SBOM.md](SBOM.md)                 | Per-release dependency inventories: scope, format, generation, verification |
+| [vex/](vex/README.md)              | Recorded judgements on whether a known CVE actually affects a component     |
 | [CRA.md](CRA.md)                   | How these practices map to EU Cyber Resilience Act expectations             |
+| [openchain.md](openchain.md)       | Self-assessment against ISO/IEC 18974 and 5230, with the current gap list   |
 | [`../SECURITY.md`](../SECURITY.md) | Vulnerability reporting, disclosure, supported versions                     |
 
 Vulnerability reporting stays at the repository root, where GitHub and most

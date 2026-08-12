@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -8,7 +10,9 @@ import {
   buildSbom,
   generateSbom,
   listComponentIds,
+  normalizeLicense,
   readComponentVersion,
+  readVexStatements,
   releaseTagFor,
   sbomFileName,
 } from "./generate-sbom.mjs";
@@ -125,9 +129,9 @@ test("SBOM carries the metadata a release must be traceable by", () => {
   assert.equal(properties["openiap:release:tag"], "react-native-iap-16.3.0");
 });
 
-test("generated SBOM version always matches the shipped manifest", () => {
+test("generated SBOM version always matches the shipped manifest", async () => {
   for (const componentId of listComponentIds()) {
-    const result = generateSbom(componentId, {
+    const result = await generateSbom(componentId, {
       root: repoRoot,
       runGit: stubGit,
     });
@@ -140,9 +144,9 @@ test("generated SBOM version always matches the shipped manifest", () => {
   }
 });
 
-test("generated SBOMs never embed local filesystem paths", () => {
+test("generated SBOMs never embed local filesystem paths", async () => {
   for (const componentId of listComponentIds()) {
-    const { document } = generateSbom(componentId, {
+    const { document } = await generateSbom(componentId, {
       root: repoRoot,
       runGit: stubGit,
     });
@@ -214,7 +218,7 @@ test("an unmodelled Gradle coordinate fails instead of silently vanishing", () =
   });
 });
 
-test("KMP test source sets are excluded", () => {
+test("KMP test source sets are excluded", async () => {
   const stripped = stripTestSourceSets(
     "val commonMain by getting {\n dependencies { api(libs.a) }\n}\n" +
       "val commonTest by getting {\n dependencies { implementation(libs.b) }\n}\n",
@@ -222,10 +226,8 @@ test("KMP test source sets are excluded", () => {
   assert.match(stripped, /libs\.a/u);
   assert.doesNotMatch(stripped, /libs\.b/u);
 
-  const names = generateSbom("kmp", {
-    root: repoRoot,
-    runGit: stubGit,
-  }).document.components.map((entry) => entry.name);
+  const kmp = await generateSbom("kmp", { root: repoRoot, runGit: stubGit });
+  const names = kmp.document.components.map((entry) => entry.name);
   assert.ok(!names.includes("org.jetbrains.kotlin:kotlin-test"));
   assert.ok(!names.includes("org.jetbrains.kotlinx:kotlinx-coroutines-test"));
 });
@@ -262,11 +264,11 @@ test("pub dependencies exclude the Flutter SDK itself", () => {
   assert.deepEqual(names, ["http", "meta", "platform"]);
 });
 
-test("npm components publish no third-party runtime dependencies", () => {
+test("npm components publish no third-party runtime dependencies", async () => {
   // These ship with an empty `dependencies` block; peer dependencies are the
   // host app's to provide, so they are not part of this artifact's inventory.
   for (const componentId of ["conformance", "expo", "react-native"]) {
-    const { document } = generateSbom(componentId, {
+    const { document } = await generateSbom(componentId, {
       root: repoRoot,
       runGit: stubGit,
     });
@@ -284,6 +286,99 @@ test("resolver output adds transitive entries without losing direct ones", () =>
   assert.equal(merged.length, 2);
   assert.equal(merged.find((e) => e.name === "a").transitive, undefined);
   assert.equal(merged.find((e) => e.name === "b").transitive, true);
+});
+
+test("a registry license only becomes an SPDX id when it really is one", () => {
+  // Downstream tooling treats `license.id` as authoritative, so an unrecognised
+  // string must degrade to a free-text name rather than be asserted as SPDX.
+  assert.deepEqual(normalizeLicense("MIT"), { license: { id: "MIT" } });
+  assert.deepEqual(
+    normalizeLicense("The Apache Software License, Version 2.0"),
+    {
+      license: { id: "Apache-2.0" },
+    },
+  );
+  assert.deepEqual(normalizeLicense("MIT AND Apache-2.0"), {
+    expression: "MIT AND Apache-2.0",
+  });
+  assert.deepEqual(
+    normalizeLicense("Android Software Development Kit License"),
+    {
+      license: { name: "Android Software Development Kit License" },
+    },
+  );
+  // A compound expression with an unknown operand is not a valid SPDX
+  // expression, so it stays free text.
+  assert.deepEqual(normalizeLicense("MIT AND Some-Proprietary-Thing"), {
+    license: { name: "MIT AND Some-Proprietary-Thing" },
+  });
+  assert.equal(normalizeLicense(""), null);
+  assert.equal(normalizeLicense(undefined), null);
+});
+
+test("license lookup is opt-in so generation stays offline by default", async () => {
+  const { document } = await generateSbom("google", {
+    root: repoRoot,
+    runGit: stubGit,
+  });
+  assert.ok(document.components.length > 0);
+  for (const component of document.components) {
+    assert.equal(component.licenses, undefined, component.name);
+  }
+});
+
+test("VEX statements are validated, and absent by default", (t) => {
+  const scratch = mkdtempSync(resolve(tmpdir(), "openiap-vex-"));
+  const vexDir = resolve(scratch, "security/vex");
+  mkdirSync(vexDir, { recursive: true });
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+
+  // No file is the normal state and must not be an error.
+  assert.deepEqual(readVexStatements(scratch, "google"), []);
+
+  const write = (body) =>
+    writeFileSync(resolve(vexDir, "google.json"), JSON.stringify(body));
+
+  write({
+    vulnerabilities: [
+      {
+        id: "CVE-2026-0001",
+        affects: [{ ref: "pkg:maven/g/a@1.0.0" }],
+        analysis: { state: "not_affected", justification: "code_not_present" },
+      },
+    ],
+  });
+  assert.equal(readVexStatements(scratch, "google").length, 1);
+
+  write({ vulnerabilities: [{ id: "CVE-2026-0002", analysis: {} }] });
+  assert.throws(() => readVexStatements(scratch, "google"), /expected one of/u);
+
+  // "not affected" with no stated reason is not reviewable.
+  write({
+    vulnerabilities: [
+      { id: "CVE-2026-0003", analysis: { state: "not_affected" } },
+    ],
+  });
+  assert.throws(
+    () => readVexStatements(scratch, "google"),
+    /without a justification or detail/u,
+  );
+
+  write({ vulnerabilities: [{ analysis: { state: "in_triage" } }] });
+  assert.throws(() => readVexStatements(scratch, "google"), /without an id/u);
+});
+
+test("an SBOM with no analysed vulnerabilities omits the section", () => {
+  const document = buildSbom({
+    componentId: "google",
+    version: "3.3.0",
+    commit: stubCommit,
+    timestamp: "2026-01-01T00:00:00.000Z",
+    dependencies: [],
+  });
+  // An empty array would read as "checked, none found", which is a stronger
+  // claim than the absence of analysis.
+  assert.equal("vulnerabilities" in document, false);
 });
 
 test("only direct dependencies are listed as the component's dependsOn", () => {

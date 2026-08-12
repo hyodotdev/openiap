@@ -23,7 +23,7 @@
 
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
-import { mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -282,6 +282,66 @@ function deterministicSerialNumber(identity) {
   return `urn:uuid:${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
 }
 
+/**
+ * SPDX identifiers seen in this repository's dependency tree. A registry value
+ * outside this set is recorded as a free-text license name rather than being
+ * asserted as an SPDX id, because a wrong identifier is worse than an absent
+ * one — downstream tooling treats ids as authoritative.
+ */
+const KNOWN_SPDX_IDS = new Set([
+  "0BSD",
+  "Apache-2.0",
+  "BSD-2-Clause",
+  "BSD-3-Clause",
+  "CC0-1.0",
+  "EPL-1.0",
+  "EPL-2.0",
+  "GPL-2.0-only",
+  "GPL-2.0-with-classpath-exception",
+  "ISC",
+  "LGPL-2.1-only",
+  "MIT",
+  "MPL-2.0",
+  "Unlicense",
+]);
+
+/** Common registry spellings that are unambiguous but not SPDX-formatted. */
+const LICENSE_ALIASES = new Map([
+  ["apache license 2.0", "Apache-2.0"],
+  ["apache license, version 2.0", "Apache-2.0"],
+  ["apache-2.0", "Apache-2.0"],
+  ["apache 2.0", "Apache-2.0"],
+  ["the apache license, version 2.0", "Apache-2.0"],
+  ["the apache software license, version 2.0", "Apache-2.0"],
+  ["mit", "MIT"],
+  ["mit license", "MIT"],
+  ["the mit license", "MIT"],
+  ["bsd-3-clause", "BSD-3-Clause"],
+  ["eclipse public license 1.0", "EPL-1.0"],
+  ["eclipse public license - v 2.0", "EPL-2.0"],
+]);
+
+export function normalizeLicense(raw) {
+  const value = String(raw ?? "").trim();
+  if (!value) return null;
+
+  if (KNOWN_SPDX_IDS.has(value)) return { license: { id: value } };
+
+  const alias = LICENSE_ALIASES.get(value.toLowerCase());
+  if (alias) return { license: { id: alias } };
+
+  // A compound expression such as "MIT AND Apache-2.0" is valid CycloneDX only
+  // in the `expression` form, and only if every operand is a known id.
+  if (/\s(AND|OR|WITH)\s/u.test(value)) {
+    const operands = value.split(/\s(?:AND|OR|WITH)\s/u).map((p) => p.trim());
+    if (operands.every((operand) => KNOWN_SPDX_IDS.has(operand))) {
+      return { expression: value };
+    }
+  }
+
+  return { license: { name: value } };
+}
+
 function dependencyComponent(entry) {
   const component = {
     "bom-ref": entry.purl,
@@ -291,6 +351,9 @@ function dependencyComponent(entry) {
     purl: entry.purl,
     scope: "required",
   };
+  if (entry.licenses?.length) {
+    component.licenses = entry.licenses;
+  }
   if (entry.transitive) {
     component.properties = [
       { name: "openiap:sbom:relationship", value: "transitive" },
@@ -305,6 +368,7 @@ export function buildSbom({
   commit,
   timestamp,
   dependencies,
+  vulnerabilities = [],
 }) {
   const definition = COMPONENTS[componentId];
   if (!definition) {
@@ -366,7 +430,157 @@ export function buildSbom({
       },
       ...dependencies.map((entry) => ({ ref: entry.purl, dependsOn: [] })),
     ],
+    // Omitted entirely when there is nothing analysed, rather than emitted as
+    // an empty array that reads like "we checked and found none".
+    ...(vulnerabilities.length > 0 ? { vulnerabilities } : {}),
   };
+}
+
+async function fetchText(url) {
+  const response = await fetch(url, {
+    headers: { "user-agent": `${GENERATOR_NAME}/${GENERATOR_VERSION}` },
+    signal: AbortSignal.timeout(20_000),
+  });
+  if (!response.ok) return null;
+  return response.text();
+}
+
+/**
+ * Look up a dependency's declared license in its own registry.
+ *
+ * The registry is the only authoritative source; guessing from a name would
+ * produce confident, wrong compliance data. A lookup that fails leaves the
+ * component without a license rather than failing the build — the license
+ * field is compliance metadata, not part of the security inventory, and a
+ * registry outage must not block a release.
+ *
+ * (name, version) pairs are immutable in every registry used here, so this
+ * stays reproducible in practice.
+ */
+async function lookupLicense(entry) {
+  try {
+    if (entry.purl.startsWith("pkg:maven/")) {
+      const [, coordinates] = entry.purl.split("pkg:maven/");
+      const [group, rest] = coordinates.split("/");
+      const [artifact] = rest.split("@");
+      const groupPath = group.replace(/\./gu, "/");
+      const path = `${groupPath}/${artifact}/${entry.version}/${artifact}-${entry.version}.pom`;
+
+      // androidx, com.android.*, and com.google.android.* publish to Google's
+      // Maven repository, not Maven Central.
+      for (const base of [
+        "https://repo1.maven.org/maven2",
+        "https://dl.google.com/dl/android/maven2",
+      ]) {
+        const pom = await fetchText(`${base}/${path}`);
+        const name = pom?.match(
+          /<licenses>[\s\S]*?<name>([^<]+)<\/name>/u,
+        )?.[1];
+        if (name) return normalizeLicense(name);
+      }
+      return null;
+    }
+
+    if (entry.purl.startsWith("pkg:nuget/")) {
+      const id = entry.name.toLowerCase();
+      const nuspec = await fetchText(
+        `https://api.nuget.org/v3-flatcontainer/${id}/${entry.version}/${id}.nuspec`,
+      );
+      const expression = nuspec?.match(
+        /<license\s+type="expression">([^<]+)<\/license>/u,
+      )?.[1];
+      if (expression) return normalizeLicense(expression);
+      const url = nuspec?.match(/<licenseUrl>([^<]+)<\/licenseUrl>/u)?.[1];
+      const fromUrl = url?.match(/licenses\.nuget\.org\/(.+)$/u)?.[1];
+      return fromUrl ? normalizeLicense(decodeURIComponent(fromUrl)) : null;
+    }
+
+    if (entry.purl.startsWith("pkg:npm/")) {
+      const metadata = await fetchText(
+        `https://registry.npmjs.org/${entry.name}/${entry.version}`,
+      );
+      const license = metadata ? JSON.parse(metadata).license : null;
+      return normalizeLicense(
+        typeof license === "string" ? license : license?.type,
+      );
+    }
+  } catch {
+    // Network failure, timeout, or malformed registry response.
+    return null;
+  }
+
+  // pub.dev has no standard license field in package metadata; Dart packages
+  // declare licensing in a LICENSE file that the API does not expose.
+  return null;
+}
+
+async function attachLicenses(dependencies) {
+  const resolved = await Promise.all(
+    dependencies.map(async (entry) => {
+      const license = await lookupLicense(entry);
+      return license ? { ...entry, licenses: [license] } : entry;
+    }),
+  );
+  return resolved;
+}
+
+/** CycloneDX 1.6 analysis states, in the order a finding moves through them. */
+const VEX_STATES = new Set([
+  "in_triage",
+  "exploitable",
+  "resolved",
+  "resolved_with_pedigree",
+  "false_positive",
+  "not_affected",
+]);
+
+/**
+ * Load recorded VEX statements for a component, if any exist.
+ *
+ * Unlike the dependency inventory, VEX cannot be generated: whether a CVE
+ * actually affects this product is a human judgement. What automation can do
+ * is make sure a recorded judgement travels with the release it applies to,
+ * and refuse a malformed one.
+ *
+ * No file means no analysed vulnerabilities, which is the normal state.
+ */
+export function readVexStatements(root, componentId) {
+  const path = resolve(root, "security/vex", `${componentId}.json`);
+  if (!existsSync(path)) return [];
+
+  const parsed = JSON.parse(readFileSync(path, "utf8"));
+  const statements = Array.isArray(parsed) ? parsed : parsed.vulnerabilities;
+  if (!Array.isArray(statements)) {
+    throw new Error(
+      `VEX file must be an array or {"vulnerabilities": [...]}: ${path}`,
+    );
+  }
+
+  for (const statement of statements) {
+    if (!statement?.id) {
+      throw new Error(`VEX statement without an id in ${path}`);
+    }
+    const state = statement.analysis?.state;
+    if (!VEX_STATES.has(state)) {
+      throw new Error(
+        `VEX statement ${statement.id} has state '${state ?? "(missing)"}'; ` +
+          `expected one of ${[...VEX_STATES].join(", ")}`,
+      );
+    }
+    // An unaffected claim without a reason is not reviewable, and reviewers
+    // are the whole point of publishing one.
+    if (
+      (state === "not_affected" || state === "false_positive") &&
+      !statement.analysis.justification &&
+      !statement.analysis.detail
+    ) {
+      throw new Error(
+        `VEX statement ${statement.id} claims '${state}' without a justification or detail`,
+      );
+    }
+  }
+
+  return statements;
 }
 
 function readResolvedFile(path) {
@@ -380,9 +594,15 @@ function readResolvedFile(path) {
   return entries;
 }
 
-export function generateSbom(
+export async function generateSbom(
   componentId,
-  { root = repoRoot, commit, resolvedFile, runGit = defaultRunGit } = {},
+  {
+    root = repoRoot,
+    commit,
+    resolvedFile,
+    withLicenses = false,
+    runGit = defaultRunGit,
+  } = {},
 ) {
   const definition = COMPONENTS[componentId];
   if (!definition) {
@@ -399,9 +619,12 @@ export function generateSbom(
   ).toISOString();
 
   const direct = extractDirectDependencies(root, definition.source);
-  const dependencies = resolvedFile
+  const merged = resolvedFile
     ? mergeResolved(direct, readResolvedFile(resolvedFile))
     : direct;
+  const dependencies = withLicenses ? await attachLicenses(merged) : merged;
+
+  const vulnerabilities = readVexStatements(root, componentId);
 
   const document = buildSbom({
     componentId,
@@ -409,6 +632,7 @@ export function generateSbom(
     commit: resolvedCommit,
     timestamp,
     dependencies,
+    vulnerabilities,
   });
 
   return {
@@ -417,6 +641,9 @@ export function generateSbom(
     fileName: sbomFileName(componentId, version),
     directCount: direct.length,
     totalCount: dependencies.length,
+    licensedCount: dependencies.filter((entry) => entry.licenses?.length)
+      .length,
+    vexCount: vulnerabilities.length,
   };
 }
 
@@ -434,6 +661,8 @@ function parseArguments(argv) {
       options.tag = argv[++index];
     } else if (argument === "--stdout") {
       options.toStdout = true;
+    } else if (argument === "--with-licenses") {
+      options.withLicenses = true;
     } else if (argument.startsWith("--")) {
       throw new Error(`Unknown option: ${argument}`);
     } else if (!options.componentId) {
@@ -455,13 +684,13 @@ function parseArguments(argv) {
 
   if (!options.componentId) {
     throw new Error(
-      `Usage: generate-sbom.mjs <${listComponentIds().join("|")}|--tag TAG> [--output-dir DIR] [--commit SHA] [--resolved FILE] [--stdout]`,
+      `Usage: generate-sbom.mjs <${listComponentIds().join("|")}|--tag TAG> [--output-dir DIR] [--commit SHA] [--resolved FILE] [--with-licenses] [--stdout]`,
     );
   }
   return options;
 }
 
-function main() {
+async function main() {
   const [maybeCommand] = process.argv.slice(2);
 
   // `resolve-tag` lets a workflow map a published release back to its component
@@ -480,9 +709,10 @@ function main() {
   }
 
   const options = parseArguments(process.argv.slice(2));
-  const result = generateSbom(options.componentId, {
+  const result = await generateSbom(options.componentId, {
     commit: options.commit,
     resolvedFile: options.resolvedFile,
+    withLicenses: options.withLicenses,
   });
   const serialized = `${JSON.stringify(result.document, null, 2)}\n`;
 
@@ -501,7 +731,11 @@ function main() {
       (result.totalCount !== result.directCount
         ? `, ${result.totalCount - result.directCount} transitive`
         : "") +
-      ` runtime dependencies`,
+      ` runtime dependencies` +
+      (options.withLicenses
+        ? `, ${result.licensedCount}/${result.totalCount} with license data`
+        : "") +
+      (result.vexCount > 0 ? `, ${result.vexCount} VEX statements` : ""),
   );
   if (process.env.GITHUB_OUTPUT) {
     writeFileSync(
@@ -513,12 +747,10 @@ function main() {
 }
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
-  try {
-    main();
-  } catch (error) {
+  main().catch((error) => {
     console.error(`::error::${error.message}`);
     process.exitCode = 1;
-  }
+  });
 }
 
 export const __testing = { COMPONENTS, deterministicSerialNumber };
