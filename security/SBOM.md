@@ -315,9 +315,12 @@ diff /tmp/verify/react-native-iap-16.3.0.cdx.json ./react-native-iap-16.3.0.cdx.
 - SBOMs are **immutable once published**, exactly like the release tag they
   belong to. A dependency change ships as a new release with a new SBOM; a
   published SBOM is never edited in place.
-- If a release predates this system, its SBOM can be generated retroactively
-  with `workflow_dispatch` against that tag. The result describes that tag's
-  commit, not today's `main`.
+- A release that predates this system can be described retroactively with
+  `workflow_dispatch` against its tag. The workflow reads the dependency
+  manifests from that tag's commit but takes the generator itself from the
+  default branch, so a tag older than the generator can still be described and
+  a generator fix reaches every regenerated document. The result describes the
+  tag's dependencies, not today's `main`.
 - Changes to the generator are covered by `scripts/generate-sbom.test.mjs`,
   which runs in CI on every pull request. The test asserting that every
   releasable component has SBOM metadata fails if a new component is added

@@ -55,6 +55,25 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Take the generator from the default branch
+        # The generator is a tool; the release tag is its input. Running the
+        # copy that happens to sit in the tagged commit would pin the tool to
+        # that release — a generator fix would never reach a regenerated SBOM,
+        # and any tag older than the generator could not be described at all.
+        # Only the tool is replaced. Every dependency manifest it reads still
+        # comes from the released commit.
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          git fetch --no-tags --depth=1 origin "$DEFAULT_BRANCH"
+          git checkout FETCH_HEAD -- \
+            scripts/generate-sbom.mjs \
+            scripts/sbom-dependencies.mjs \
+            scripts/generate-sbom.test.mjs \
+            scripts/release-branch-policy.mjs \
+            scripts/assert-release-tag.mjs
+          echo "Generator taken from $DEFAULT_BRANCH at $(git rev-parse --short FETCH_HEAD)"
+
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
