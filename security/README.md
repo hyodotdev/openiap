@@ -112,6 +112,19 @@ Closing this gap properly would mean submitting a snapshot through the
 [dependency submission API](https://docs.github.com/en/rest/dependency-graph/dependency-submission),
 which is tracked as future work rather than done here.
 
+## Known gaps
+
+Recorded rather than silently carried. Each is repository-wide work that does
+not belong to whichever change surfaced it.
+
+| Gap                                                        | Why it is open                                                                                                                                                                            |
+| ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Actions are pinned by major tag, not commit SHA**        | A mutable tag in a privileged publish or signing path is a supply-chain risk. Fixing it means pinning every workflow at once and reconfiguring Dependabot, not two workflows in isolation |
+| **Several CI workflows declare no `permissions:` block**   | They inherit the repository default instead of least privilege. OpenSSF Scorecard's Token-Permissions check reports this                                                                  |
+| **GitHub's dependency graph is empty for this repository** | Bun lockfiles are unsupported and Gradle is not resolved from source, so Dependabot security alerts cannot cover the tree. Closing it needs the dependency submission API                 |
+
+`/audit-security` re-checks each of these and prints the current state.
+
 ## Scanning posture
 
 OpenIAP does not run a separate vulnerability scanner
