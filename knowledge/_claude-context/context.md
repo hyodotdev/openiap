@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-08-12T06:58:01.676Z
+> Last updated: 2026-08-12T12:37:01.631Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -793,6 +793,50 @@ throw new Error('Product not found');
 ```
 
 ## Comments
+
+### Keep Them Short — Especially AI-Generated Ones
+
+A comment costs reading time on every future visit. Long ones get skimmed, then
+skipped, then trusted while stale. **Default to one line; two or three only when
+the reasoning genuinely needs them.**
+
+This rule exists because AI-authored comments consistently over-explain. When an
+agent writes code here, it must apply the checklist below before committing.
+
+Delete a comment when it:
+
+- restates the code (`// increment counter`)
+- narrates the change or its history (`// previously this used X, now it uses Y`,
+  `// refactored to fix the bug where...`) — that belongs in the commit message
+  or PR description
+- explains a language feature or a well-known API
+- repeats what the function/variable name, type signature, or nearby test
+  already says
+- editorializes (`// this is the important part`, `// note that`)
+- restates a doc block that sits three lines above it
+
+Keep a comment when it records something the code cannot show:
+
+- a non-obvious constraint (`// Play Billing requires ack within 3 days`)
+- a store/platform quirk that looks like a mistake without it
+- why an obvious-looking alternative was rejected
+- a normative rule and where it comes from
+
+```kotlin
+// ✅ CORRECT — one line, states the constraint
+// A pending purchase is unpaid; it must never count as an entitlement.
+isActive = purchaseState == PurchaseState.Purchased
+
+// ❌ INCORRECT — narrates history and over-explains
+// Previously this was hardcoded to `true`, which meant that pending
+// purchases were incorrectly reported as active entitlements. This was
+// discovered during the conformance audit and has now been fixed so that
+// the value gates on the Purchased state, matching the Play flavor.
+isActive = purchaseState == PurchaseState.Purchased
+```
+
+Section banners (`// --- Runner ---`) are fine when a file has genuinely
+distinct parts; do not add them to short files.
 
 ### Document "Why", Not "What"
 
