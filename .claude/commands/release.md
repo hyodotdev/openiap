@@ -125,7 +125,12 @@ For a multi-package release train, use this order when affected:
 6. `release-godot.yml`
 7. `release-kmp.yml`
 8. `release-maui.yml`
-9. `npm run deploy`; run `release.yml` with `version=current` only when the
+9. `release-conformance.yml` — independent of the native/spec floor. Release it
+   when the behavior spec, runner, or adapter contract changed; skip it
+   otherwise. Its version is the conformance **suite** version, not the spec
+   version, so it does not participate in the `spec = min(google, apple)`
+   invariant.
+10. `npm run deploy`; run `release.yml` with `version=current` only when the
    native-derived `spec` advanced. If a Docs GitHub Release is requested while
    `spec` is unchanged, stop and explain that the immutable `docs-{spec}` tag
    cannot represent a new release.

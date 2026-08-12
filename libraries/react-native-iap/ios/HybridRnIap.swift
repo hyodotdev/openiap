@@ -399,7 +399,7 @@ class HybridRnIap: HybridRnIapSpec {
         }
     }
     
-    func verifyPurchase(params: NitroPurchaseVerificationParams) throws -> Promise<Variant_NitroPurchaseVerificationResultIOS_NitroPurchaseVerificationResultAndroid> {
+    func verifyPurchase(params: NitroPurchaseVerificationParams) throws -> Promise<Variant_NitroPurchaseVerificationResultIOS_NitroPurchaseVerificationResultAndroid_NitroPurchaseVerificationResultHorizon> {
         return Promise.async {
             do {
                 // Extract SKU from apple options (new platform-specific structure)

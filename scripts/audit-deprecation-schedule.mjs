@@ -5,6 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { extractSchemaDeprecations } from "../packages/gql/schema-deprecations.mjs";
 import { SCHEMA_FILE_NAMES } from "../packages/gql/schema-files.mjs";
+import { validateVersion } from "./release-branch-policy.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 
@@ -455,19 +456,62 @@ export const collectRepositorySchemaDeprecations = () => {
   return extractSchemaDeprecations(sources);
 };
 
-export const collectCompletedRemovalFailures = () => {
+export const collectSchemaDeprecationFailures = (
+  schemaDeprecations,
+  specVersion,
+) => {
   const failures = [];
-  const schemaDeprecations = collectRepositorySchemaDeprecations();
   for (const issue of schemaDeprecations.issues) {
     failures.push(
       `${issue.file}:${issue.line ?? 1}: invalid schema deprecation metadata: ${issue.message}`,
     );
   }
-  for (const entry of schemaDeprecations.entries) {
-    failures.push(
-      `${entry.file}:${entry.line ?? 1}: completed major train must not retain schema deprecation ${entry.ownerPath}`,
+
+  let currentSpecMajor;
+  try {
+    const normalizedVersion = validateVersion(
+      specVersion,
+      "OpenIAP Spec version",
     );
+    currentSpecMajor = BigInt(normalizedVersion.split(".")[0]);
+  } catch (error) {
+    failures.push(
+      `openiap-versions.json: ${error instanceof Error ? error.message : String(error)}`,
+    );
+    return failures;
   }
+
+  // A deprecation is a failure only when its removal is due: the train it was
+  // scheduled for has already shipped. Scheduling one for a future major is how
+  // the spec is supposed to evolve, so those pass.
+  for (const entry of schemaDeprecations.entries) {
+    const removalMatch = /OpenIAP (\d+)\.\d+\.$/.exec(entry.reason);
+    if (!removalMatch) {
+      failures.push(
+        `${entry.file}:${entry.line ?? 1}: schema deprecation ${entry.ownerPath} must name its removal train`,
+      );
+      continue;
+    }
+    const removalMajor = BigInt(removalMatch[1]);
+    if (removalMajor <= currentSpecMajor) {
+      failures.push(
+        `${entry.file}:${entry.line ?? 1}: schema deprecation ${entry.ownerPath} is due for removal in OpenIAP ${removalMajor} (spec is ${currentSpecMajor})`,
+      );
+    }
+  }
+
+  return failures;
+};
+
+export const collectCompletedRemovalFailures = () => {
+  const failures = [];
+  const schemaDeprecations = collectRepositorySchemaDeprecations();
+  const specVersion = JSON.parse(
+    fs.readFileSync(path.join(root, "openiap-versions.json"), "utf8"),
+  ).spec;
+  failures.push(
+    ...collectSchemaDeprecationFailures(schemaDeprecations, specVersion),
+  );
 
   for (const rule of completedRemovalRules) {
     for (const match of collectForbiddenMatches(rule)) {

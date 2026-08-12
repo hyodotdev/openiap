@@ -885,11 +885,11 @@ export interface Mutation {
    */
   syncIOS: Promise<boolean>;
   /**
-   * Verify a purchase against your own backend. Returns a platform-specific
-   * variant of VerifyPurchaseResult — VerifyPurchaseResultIOS exposes isValid
-   * + receipt/JWS metadata, VerifyPurchaseResultAndroid carries Play Store
-   * receipt fields (no isValid), and VerifyPurchaseResultHorizon uses success.
-   * Inspect the concrete variant before reading fields.
+   * Verify a purchase against your own backend. Every VerifyPurchaseResult
+   * variant exposes isValid, so entitlement can be gated without inspecting the
+   * concrete type. Variants add their own metadata on top: IOS carries
+   * receipt/JWS fields, Android carries Play Store receipt fields, and Horizon
+   * carries grantTime.
    * See: https://openiap.dev/docs/features/validation#verify-purchase
    */
   verifyPurchase: Promise<VerifyPurchaseResult>;
@@ -2187,7 +2187,7 @@ export interface VerifyPurchaseProps {
 
 export type VerifyPurchaseResult = VerifyPurchaseResultAndroid | VerifyPurchaseResultHorizon | VerifyPurchaseResultIOS;
 
-export interface VerifyPurchaseResultAndroid {
+export interface VerifyPurchaseResultAndroid extends VerifyPurchaseResultCommon {
   autoRenewing: boolean;
   betaProduct: boolean;
   cancelDate?: (number | null);
@@ -2196,6 +2196,11 @@ export interface VerifyPurchaseResultAndroid {
   deferredSku?: (string | null);
   freeTrialEndDate: number;
   gracePeriodEndDate: number;
+  /**
+   * Whether the purchase is valid. Uniform across every VerifyPurchaseResult
+   * variant so callers can gate entitlement without inspecting the concrete type.
+   */
+  isValid: boolean;
   parentProductId: string;
   productId: string;
   productType: string;
@@ -2208,18 +2213,32 @@ export interface VerifyPurchaseResultAndroid {
   testTransaction: boolean;
 }
 
+/** Validity shared by every store-specific purchase verification result. */
+export interface VerifyPurchaseResultCommon {
+  /** Whether the purchase is valid, without inspecting the concrete result variant. */
+  isValid: boolean;
+}
+
 /**
  * Result from Meta Horizon verify_entitlement API.
  * Returns verification status and grant time for the entitlement.
  */
-export interface VerifyPurchaseResultHorizon {
+export interface VerifyPurchaseResultHorizon extends VerifyPurchaseResultCommon {
   /** Unix timestamp (seconds) when the entitlement was granted. */
   grantTime?: (number | null);
-  /** Whether the entitlement verification succeeded. */
+  /**
+   * Whether the purchase is valid. Uniform across every VerifyPurchaseResult
+   * variant so callers can gate entitlement without inspecting the concrete type.
+   */
+  isValid: boolean;
+  /**
+   * Whether the entitlement verification succeeded.
+   * @deprecated Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0.
+   */
   success: boolean;
 }
 
-export interface VerifyPurchaseResultIOS {
+export interface VerifyPurchaseResultIOS extends VerifyPurchaseResultCommon {
   /** Whether the receipt is valid */
   isValid: boolean;
   /** JWS representation */

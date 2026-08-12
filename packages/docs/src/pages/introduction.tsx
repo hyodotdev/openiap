@@ -140,21 +140,6 @@ function Introduction() {
             native code for each target platform.
           </p>
 
-          <div className="intro-image-container">
-            <Link to="/docs/ecosystem">
-              <img
-                src="/ecosystem.webp"
-                alt="OpenIAP Architecture - GraphQL schema generates native modules"
-                width={800}
-                height={450}
-                className="intro-image"
-              />
-            </Link>
-            <p className="intro-image-caption">
-              <Link to="/docs/ecosystem">View ecosystem documentation →</Link>
-            </p>
-          </div>
-
           <h3>Code Generation</h3>
           <p className="intro-text">
             The{' '}

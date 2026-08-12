@@ -2213,6 +2213,13 @@ public interface PurchaseCommon
     double TransactionDate { get; }
 }
 
+/// <summary>Validity shared by every store-specific purchase verification result.</summary>
+public interface VerifyPurchaseResultCommon
+{
+    /// <summary>Whether the purchase is valid, without inspecting the concrete result variant.</summary>
+    bool IsValid { get; }
+}
+
 // ============================================================================
 // Unions
 // ============================================================================
@@ -2220,7 +2227,19 @@ public interface PurchaseCommon
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "__typename")]
 [JsonDerivedType(typeof(ProductAndroid), "ProductAndroid")]
 [JsonDerivedType(typeof(ProductIOS), "ProductIOS")]
-public abstract record Product : ProductOrSubscription;
+public abstract record Product : ProductOrSubscription, ProductCommon
+{
+    public abstract string Currency { get; init; }
+    public abstract string? DebugDescription { get; init; }
+    public abstract string Description { get; init; }
+    public abstract string? DisplayName { get; init; }
+    public abstract string DisplayPrice { get; init; }
+    public abstract string Id { get; init; }
+    public abstract IapPlatform Platform { get; init; }
+    public abstract double? Price { get; init; }
+    public abstract string Title { get; init; }
+    public abstract ProductType Type { get; init; }
+}
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "__typename")]
 [JsonDerivedType(typeof(ProductAndroid), "ProductAndroid")]
@@ -2232,18 +2251,55 @@ public abstract record ProductOrSubscription;
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "__typename")]
 [JsonDerivedType(typeof(ProductSubscriptionAndroid), "ProductSubscriptionAndroid")]
 [JsonDerivedType(typeof(ProductSubscriptionIOS), "ProductSubscriptionIOS")]
-public abstract record ProductSubscription : ProductOrSubscription;
+public abstract record ProductSubscription : ProductOrSubscription, ProductCommon
+{
+    public abstract string Currency { get; init; }
+    public abstract string? DebugDescription { get; init; }
+    public abstract string Description { get; init; }
+    public abstract string? DisplayName { get; init; }
+    public abstract string DisplayPrice { get; init; }
+    public abstract string Id { get; init; }
+    public abstract IapPlatform Platform { get; init; }
+    public abstract double? Price { get; init; }
+    public abstract string Title { get; init; }
+    public abstract ProductType Type { get; init; }
+}
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "__typename")]
 [JsonDerivedType(typeof(PurchaseAndroid), "PurchaseAndroid")]
 [JsonDerivedType(typeof(PurchaseIOS), "PurchaseIOS")]
-public abstract record Purchase;
+public abstract record Purchase : PurchaseCommon
+{
+    /// <summary>
+    /// The current plan identifier. This is:
+    /// - On Android: the basePlanId (e.g., &quot;premium&quot;, &quot;premium-year&quot;)
+    /// - On iOS: the productId (e.g., &quot;com.example.premium_monthly&quot;, &quot;com.example.premium_yearly&quot;)
+    /// This provides a unified way to identify which specific plan/tier the user is subscribed to.
+    /// </summary>
+    public abstract string? CurrentPlanId { get; init; }
+    public abstract string Id { get; init; }
+    public abstract IReadOnlyList<string>? Ids { get; init; }
+    public abstract bool IsAutoRenewing { get; init; }
+    public abstract string ProductId { get; init; }
+    public abstract PurchaseState PurchaseState { get; init; }
+    /// <summary>Unified purchase token (iOS JWS, Android purchaseToken)</summary>
+    public abstract string? PurchaseToken { get; init; }
+    public abstract int Quantity { get; init; }
+    /// <summary>Store where purchase was made</summary>
+    public abstract IapStore Store { get; init; }
+    /// <summary>Unix timestamp in milliseconds since January 1, 1970 UTC.</summary>
+    public abstract double TransactionDate { get; init; }
+}
 
 [JsonPolymorphic(TypeDiscriminatorPropertyName = "__typename")]
 [JsonDerivedType(typeof(VerifyPurchaseResultAndroid), "VerifyPurchaseResultAndroid")]
 [JsonDerivedType(typeof(VerifyPurchaseResultHorizon), "VerifyPurchaseResultHorizon")]
 [JsonDerivedType(typeof(VerifyPurchaseResultIOS), "VerifyPurchaseResultIOS")]
-public abstract record VerifyPurchaseResult;
+public abstract record VerifyPurchaseResult : VerifyPurchaseResultCommon
+{
+    /// <summary>Whether the purchase is valid, without inspecting the concrete result variant.</summary>
+    public abstract bool IsValid { get; init; }
+}
 
 // ============================================================================
 // Objects
@@ -2901,14 +2957,14 @@ public sealed record PricingPhasesAndroid
     public required IReadOnlyList<PricingPhaseAndroid> PricingPhaseList { get; init; }
 }
 
-public sealed record ProductAndroid : Product, ProductCommon
+public sealed record ProductAndroid : Product
 {
     [JsonPropertyName("currency")]
-    public required string Currency { get; init; }
+    public override required string Currency { get; init; }
     [JsonPropertyName("debugDescription")]
-    public string? DebugDescription { get; init; }
+    public override string? DebugDescription { get; init; }
     [JsonPropertyName("description")]
-    public required string Description { get; init; }
+    public override required string Description { get; init; }
     /// <summary>
     /// Standardized Android one-time product purchase options and offers.
     /// Native metadata uses Android-suffixed fields.
@@ -2917,17 +2973,17 @@ public sealed record ProductAndroid : Product, ProductCommon
     [JsonPropertyName("discountOffers")]
     public IReadOnlyList<DiscountOffer>? DiscountOffers { get; init; }
     [JsonPropertyName("displayName")]
-    public string? DisplayName { get; init; }
+    public override string? DisplayName { get; init; }
     [JsonPropertyName("displayPrice")]
-    public required string DisplayPrice { get; init; }
+    public override required string DisplayPrice { get; init; }
     [JsonPropertyName("id")]
-    public required string Id { get; init; }
+    public override required string Id { get; init; }
     [JsonPropertyName("nameAndroid")]
     public required string NameAndroid { get; init; }
     [JsonPropertyName("platform")]
-    public IapPlatform Platform { get; init; } = global::OpenIap.IapPlatform.Android;
+    public override IapPlatform Platform { get; init; } = global::OpenIap.IapPlatform.Android;
     [JsonPropertyName("price")]
-    public double? Price { get; init; }
+    public override double? Price { get; init; }
     /// <summary>
     /// Product-level status code indicating fetch result (Android 8.0+)
     /// OK = product fetched successfully
@@ -2945,35 +3001,35 @@ public sealed record ProductAndroid : Product, ProductCommon
     [JsonPropertyName("subscriptionOffers")]
     public IReadOnlyList<SubscriptionOffer>? SubscriptionOffers { get; init; }
     [JsonPropertyName("title")]
-    public required string Title { get; init; }
+    public override required string Title { get; init; }
     [JsonPropertyName("type")]
-    public ProductType Type { get; init; } = global::OpenIap.ProductType.InApp;
+    public override ProductType Type { get; init; } = global::OpenIap.ProductType.InApp;
 }
 
-public sealed record ProductIOS : Product, ProductCommon
+public sealed record ProductIOS : Product
 {
     [JsonPropertyName("currency")]
-    public required string Currency { get; init; }
+    public override required string Currency { get; init; }
     [JsonPropertyName("debugDescription")]
-    public string? DebugDescription { get; init; }
+    public override string? DebugDescription { get; init; }
     [JsonPropertyName("description")]
-    public required string Description { get; init; }
+    public override required string Description { get; init; }
     [JsonPropertyName("displayName")]
-    public string? DisplayName { get; init; }
+    public override string? DisplayName { get; init; }
     [JsonPropertyName("displayNameIOS")]
     public required string DisplayNameIOS { get; init; }
     [JsonPropertyName("displayPrice")]
-    public required string DisplayPrice { get; init; }
+    public override required string DisplayPrice { get; init; }
     [JsonPropertyName("id")]
-    public required string Id { get; init; }
+    public override required string Id { get; init; }
     [JsonPropertyName("isFamilyShareableIOS")]
     public required bool IsFamilyShareableIOS { get; init; }
     [JsonPropertyName("jsonRepresentationIOS")]
     public required string JsonRepresentationIOS { get; init; }
     [JsonPropertyName("platform")]
-    public IapPlatform Platform { get; init; } = global::OpenIap.IapPlatform.IOS;
+    public override IapPlatform Platform { get; init; } = global::OpenIap.IapPlatform.IOS;
     [JsonPropertyName("price")]
-    public double? Price { get; init; }
+    public override double? Price { get; init; }
     /// <summary>
     /// iOS 26.4+ subscription pricing terms, including billing plan metadata for
     /// monthly subscriptions with a 12-month commitment.
@@ -2989,33 +3045,33 @@ public sealed record ProductIOS : Product, ProductCommon
     [JsonPropertyName("subscriptionOffers")]
     public IReadOnlyList<SubscriptionOffer>? SubscriptionOffers { get; init; }
     [JsonPropertyName("title")]
-    public required string Title { get; init; }
+    public override required string Title { get; init; }
     [JsonPropertyName("type")]
-    public ProductType Type { get; init; } = global::OpenIap.ProductType.InApp;
+    public override ProductType Type { get; init; } = global::OpenIap.ProductType.InApp;
     [JsonPropertyName("typeIOS")]
     public required ProductTypeIOS TypeIOS { get; init; }
 }
 
-public sealed record ProductSubscriptionAndroid : ProductSubscription, ProductCommon
+public sealed record ProductSubscriptionAndroid : ProductSubscription
 {
     [JsonPropertyName("currency")]
-    public required string Currency { get; init; }
+    public override required string Currency { get; init; }
     [JsonPropertyName("debugDescription")]
-    public string? DebugDescription { get; init; }
+    public override string? DebugDescription { get; init; }
     [JsonPropertyName("description")]
-    public required string Description { get; init; }
+    public override required string Description { get; init; }
     [JsonPropertyName("displayName")]
-    public string? DisplayName { get; init; }
+    public override string? DisplayName { get; init; }
     [JsonPropertyName("displayPrice")]
-    public required string DisplayPrice { get; init; }
+    public override required string DisplayPrice { get; init; }
     [JsonPropertyName("id")]
-    public required string Id { get; init; }
+    public override required string Id { get; init; }
     [JsonPropertyName("nameAndroid")]
     public required string NameAndroid { get; init; }
     [JsonPropertyName("platform")]
-    public IapPlatform Platform { get; init; } = global::OpenIap.IapPlatform.Android;
+    public override IapPlatform Platform { get; init; } = global::OpenIap.IapPlatform.Android;
     [JsonPropertyName("price")]
-    public double? Price { get; init; }
+    public override double? Price { get; init; }
     /// <summary>
     /// Product-level status code indicating fetch result (Android 8.0+)
     /// OK = product fetched successfully
@@ -3033,12 +3089,12 @@ public sealed record ProductSubscriptionAndroid : ProductSubscription, ProductCo
     [JsonPropertyName("subscriptionOffers")]
     public required IReadOnlyList<SubscriptionOffer> SubscriptionOffers { get; init; }
     [JsonPropertyName("title")]
-    public required string Title { get; init; }
+    public override required string Title { get; init; }
     [JsonPropertyName("type")]
-    public ProductType Type { get; init; } = global::OpenIap.ProductType.Subs;
+    public override ProductType Type { get; init; } = global::OpenIap.ProductType.Subs;
 }
 
-public sealed record ProductSubscriptionIOS : ProductSubscription, ProductCommon
+public sealed record ProductSubscriptionIOS : ProductSubscription
 {
     /// <summary>
     /// Subscriptions included in this Apple subscription bundle. Empty or null for
@@ -3047,19 +3103,19 @@ public sealed record ProductSubscriptionIOS : ProductSubscription, ProductCommon
     [JsonPropertyName("bundledSubscriptionsIOS")]
     public IReadOnlyList<BundledSubscriptionIOS>? BundledSubscriptionsIOS { get; init; }
     [JsonPropertyName("currency")]
-    public required string Currency { get; init; }
+    public override required string Currency { get; init; }
     [JsonPropertyName("debugDescription")]
-    public string? DebugDescription { get; init; }
+    public override string? DebugDescription { get; init; }
     [JsonPropertyName("description")]
-    public required string Description { get; init; }
+    public override required string Description { get; init; }
     [JsonPropertyName("displayName")]
-    public string? DisplayName { get; init; }
+    public override string? DisplayName { get; init; }
     [JsonPropertyName("displayNameIOS")]
     public required string DisplayNameIOS { get; init; }
     [JsonPropertyName("displayPrice")]
-    public required string DisplayPrice { get; init; }
+    public override required string DisplayPrice { get; init; }
     [JsonPropertyName("id")]
-    public required string Id { get; init; }
+    public override required string Id { get; init; }
     [JsonPropertyName("introductoryPriceAsAmountIOS")]
     public string? IntroductoryPriceAsAmountIOS { get; init; }
     [JsonPropertyName("introductoryPriceIOS")]
@@ -3075,9 +3131,9 @@ public sealed record ProductSubscriptionIOS : ProductSubscription, ProductCommon
     [JsonPropertyName("jsonRepresentationIOS")]
     public required string JsonRepresentationIOS { get; init; }
     [JsonPropertyName("platform")]
-    public IapPlatform Platform { get; init; } = global::OpenIap.IapPlatform.IOS;
+    public override IapPlatform Platform { get; init; } = global::OpenIap.IapPlatform.IOS;
     [JsonPropertyName("price")]
-    public double? Price { get; init; }
+    public override double? Price { get; init; }
     /// <summary>
     /// iOS 26.4+ subscription pricing terms, including billing plan metadata for
     /// monthly subscriptions with a 12-month commitment.
@@ -3099,31 +3155,31 @@ public sealed record ProductSubscriptionIOS : ProductSubscription, ProductCommon
     [JsonPropertyName("subscriptionPeriodUnitIOS")]
     public SubscriptionPeriodIOS? SubscriptionPeriodUnitIOS { get; init; }
     [JsonPropertyName("title")]
-    public required string Title { get; init; }
+    public override required string Title { get; init; }
     [JsonPropertyName("type")]
-    public ProductType Type { get; init; } = global::OpenIap.ProductType.Subs;
+    public override ProductType Type { get; init; } = global::OpenIap.ProductType.Subs;
     [JsonPropertyName("typeIOS")]
     public required ProductTypeIOS TypeIOS { get; init; }
 }
 
-public sealed record PurchaseAndroid : Purchase, PurchaseCommon
+public sealed record PurchaseAndroid : Purchase
 {
     [JsonPropertyName("autoRenewingAndroid")]
     public bool? AutoRenewingAndroid { get; init; }
     [JsonPropertyName("currentPlanId")]
-    public string? CurrentPlanId { get; init; }
+    public override string? CurrentPlanId { get; init; }
     [JsonPropertyName("dataAndroid")]
     public string? DataAndroid { get; init; }
     [JsonPropertyName("developerPayloadAndroid")]
     public string? DeveloperPayloadAndroid { get; init; }
     [JsonPropertyName("id")]
-    public required string Id { get; init; }
+    public override required string Id { get; init; }
     [JsonPropertyName("ids")]
-    public IReadOnlyList<string>? Ids { get; init; }
+    public override IReadOnlyList<string>? Ids { get; init; }
     [JsonPropertyName("isAcknowledgedAndroid")]
     public bool? IsAcknowledgedAndroid { get; init; }
     [JsonPropertyName("isAutoRenewing")]
-    public required bool IsAutoRenewing { get; init; }
+    public override required bool IsAutoRenewing { get; init; }
     /// <summary>
     /// Whether the subscription is suspended (Android)
     /// A suspended subscription means the user&apos;s payment method failed and they need to fix it.
@@ -3148,21 +3204,21 @@ public sealed record PurchaseAndroid : Purchase, PurchaseCommon
     [JsonPropertyName("pendingPurchaseUpdateAndroid")]
     public PendingPurchaseUpdateAndroid? PendingPurchaseUpdateAndroid { get; init; }
     [JsonPropertyName("productId")]
-    public required string ProductId { get; init; }
+    public override required string ProductId { get; init; }
     [JsonPropertyName("purchaseState")]
-    public required PurchaseState PurchaseState { get; init; }
+    public override required PurchaseState PurchaseState { get; init; }
     [JsonPropertyName("purchaseToken")]
-    public string? PurchaseToken { get; init; }
+    public override string? PurchaseToken { get; init; }
     [JsonPropertyName("quantity")]
-    public required int Quantity { get; init; }
+    public override required int Quantity { get; init; }
     [JsonPropertyName("signatureAndroid")]
     public string? SignatureAndroid { get; init; }
     /// <summary>Store where purchase was made</summary>
     [JsonPropertyName("store")]
-    public required IapStore Store { get; init; }
+    public override required IapStore Store { get; init; }
     /// <summary>Unix timestamp in milliseconds since January 1, 1970 UTC.</summary>
     [JsonPropertyName("transactionDate")]
-    public required double TransactionDate { get; init; }
+    public override required double TransactionDate { get; init; }
     [JsonPropertyName("transactionId")]
     public string? TransactionId { get; init; }
     /// <summary>
@@ -3202,7 +3258,7 @@ public sealed record PurchaseError
     public SubResponseCodeAndroid? SubResponseCodeAndroid { get; init; }
 }
 
-public sealed record PurchaseIOS : Purchase, PurchaseCommon
+public sealed record PurchaseIOS : Purchase
 {
     /// <summary>
     /// Advanced Commerce API metadata (iOS 18.4+).
@@ -3243,17 +3299,17 @@ public sealed record PurchaseIOS : Purchase, PurchaseCommon
     [JsonPropertyName("currencySymbolIOS")]
     public string? CurrencySymbolIOS { get; init; }
     [JsonPropertyName("currentPlanId")]
-    public string? CurrentPlanId { get; init; }
+    public override string? CurrentPlanId { get; init; }
     [JsonPropertyName("environmentIOS")]
     public string? EnvironmentIOS { get; init; }
     [JsonPropertyName("expirationDateIOS")]
     public double? ExpirationDateIOS { get; init; }
     [JsonPropertyName("id")]
-    public required string Id { get; init; }
+    public override required string Id { get; init; }
     [JsonPropertyName("ids")]
-    public IReadOnlyList<string>? Ids { get; init; }
+    public override IReadOnlyList<string>? Ids { get; init; }
     [JsonPropertyName("isAutoRenewing")]
-    public required bool IsAutoRenewing { get; init; }
+    public override required bool IsAutoRenewing { get; init; }
     [JsonPropertyName("isUpgradedIOS")]
     public bool? IsUpgradedIOS { get; init; }
     [JsonPropertyName("offerIOS")]
@@ -3272,13 +3328,13 @@ public sealed record PurchaseIOS : Purchase, PurchaseCommon
     [JsonPropertyName("previousOriginalTransactionIdIOS")]
     public string? PreviousOriginalTransactionIdIOS { get; init; }
     [JsonPropertyName("productId")]
-    public required string ProductId { get; init; }
+    public override required string ProductId { get; init; }
     [JsonPropertyName("purchaseState")]
-    public required PurchaseState PurchaseState { get; init; }
+    public override required PurchaseState PurchaseState { get; init; }
     [JsonPropertyName("purchaseToken")]
-    public string? PurchaseToken { get; init; }
+    public override string? PurchaseToken { get; init; }
     [JsonPropertyName("quantity")]
-    public required int Quantity { get; init; }
+    public override required int Quantity { get; init; }
     [JsonPropertyName("quantityIOS")]
     public int? QuantityIOS { get; init; }
     [JsonPropertyName("reasonIOS")]
@@ -3300,14 +3356,14 @@ public sealed record PurchaseIOS : Purchase, PurchaseCommon
     public string? RevocationTypeIOS { get; init; }
     /// <summary>Store where purchase was made</summary>
     [JsonPropertyName("store")]
-    public required IapStore Store { get; init; }
+    public override required IapStore Store { get; init; }
     [JsonPropertyName("storefrontCountryCodeIOS")]
     public string? StorefrontCountryCodeIOS { get; init; }
     [JsonPropertyName("subscriptionGroupIdIOS")]
     public string? SubscriptionGroupIdIOS { get; init; }
     /// <summary>Unix timestamp in milliseconds since January 1, 1970 UTC.</summary>
     [JsonPropertyName("transactionDate")]
-    public required double TransactionDate { get; init; }
+    public override required double TransactionDate { get; init; }
     [JsonPropertyName("transactionId")]
     public required string TransactionId { get; init; }
     [JsonPropertyName("transactionReasonIOS")]
@@ -3714,6 +3770,12 @@ public sealed record VerifyPurchaseResultAndroid : VerifyPurchaseResult
     public required double FreeTrialEndDate { get; init; }
     [JsonPropertyName("gracePeriodEndDate")]
     public required double GracePeriodEndDate { get; init; }
+    /// <summary>
+    /// Whether the purchase is valid. Uniform across every VerifyPurchaseResult
+    /// variant so callers can gate entitlement without inspecting the concrete type.
+    /// </summary>
+    [JsonPropertyName("isValid")]
+    public override required bool IsValid { get; init; }
     [JsonPropertyName("parentProductId")]
     public required string ParentProductId { get; init; }
     [JsonPropertyName("productId")]
@@ -3745,16 +3807,26 @@ public sealed record VerifyPurchaseResultHorizon : VerifyPurchaseResult
     /// <summary>Unix timestamp (seconds) when the entitlement was granted.</summary>
     [JsonPropertyName("grantTime")]
     public double? GrantTime { get; init; }
-    /// <summary>Whether the entitlement verification succeeded.</summary>
+    /// <summary>
+    /// Whether the purchase is valid. Uniform across every VerifyPurchaseResult
+    /// variant so callers can gate entitlement without inspecting the concrete type.
+    /// </summary>
+    [JsonPropertyName("isValid")]
+    public override required bool IsValid { get; init; }
+    /// <summary>
+    /// Whether the entitlement verification succeeded.
+    /// @deprecated Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0.
+    /// </summary>
+    [Obsolete("Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0.")]
     [JsonPropertyName("success")]
-    public required bool Success { get; init; }
+    public bool Success { get; init; }
 }
 
 public sealed record VerifyPurchaseResultIOS : VerifyPurchaseResult
 {
     /// <summary>Whether the receipt is valid</summary>
     [JsonPropertyName("isValid")]
-    public required bool IsValid { get; init; }
+    public override required bool IsValid { get; init; }
     /// <summary>JWS representation</summary>
     [JsonPropertyName("jwsRepresentation")]
     public required string JwsRepresentation { get; init; }
@@ -4643,11 +4715,11 @@ public interface MutationResolver
     Task<bool> SyncIOSAsync();
 
     /// <summary>
-    /// Verify a purchase against your own backend. Returns a platform-specific
-    /// variant of VerifyPurchaseResult — VerifyPurchaseResultIOS exposes isValid
-    /// + receipt/JWS metadata, VerifyPurchaseResultAndroid carries Play Store
-    /// receipt fields (no isValid), and VerifyPurchaseResultHorizon uses success.
-    /// Inspect the concrete variant before reading fields.
+    /// Verify a purchase against your own backend. Every VerifyPurchaseResult
+    /// variant exposes isValid, so entitlement can be gated without inspecting the
+    /// concrete type. Variants add their own metadata on top: IOS carries
+    /// receipt/JWS fields, Android carries Play Store receipt fields, and Horizon
+    /// carries grantTime.
     /// See: https://openiap.dev/docs/features/validation#verify-purchase
     /// </summary>
     Task<VerifyPurchaseResult> VerifyPurchaseAsync(VerifyPurchaseProps options);

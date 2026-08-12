@@ -133,6 +133,24 @@ class ExpoIapHelperTest {
         }
 
     @Test
+    fun `verify purchase parser preserves Horizon options`() {
+        val props = verifyPurchasePropsFromMap(
+            mapOf(
+                "horizon" to mapOf(
+                    "sku" to "premium",
+                    "userId" to "user-1",
+                    "accessToken" to "secret",
+                ),
+            ),
+        )
+
+        assertEquals("premium", props.horizon?.sku)
+        assertEquals("user-1", props.horizon?.userId)
+        assertEquals("secret", props.horizon?.accessToken)
+        assertEquals(null, props.google)
+    }
+
+    @Test
     fun `end connection preserves OpenIapError code`() {
         assertEquals(OpenIapError.NetworkError.CODE, endConnectionErrorCode(OpenIapError.NetworkError))
     }

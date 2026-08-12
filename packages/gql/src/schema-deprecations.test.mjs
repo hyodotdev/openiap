@@ -111,11 +111,21 @@ type Query {
     expect(OPENIAP_REMOVAL_NOTICE_PATTERN.test(deprecations.entries[0].reason)).toBe(true);
   });
 
-  it('contains no scheduled repository deprecations after the OpenIAP 3 removal', () => {
+  // Every scheduled deprecation is listed here on purpose: an unlisted one is
+  // either an accident or a removal someone forgot to carry out.
+  it('schedules only the deprecations this repository has agreed to', () => {
     const deprecations = extractSchemaDeprecations(repositorySchemaSources());
 
     expect(deprecations.issues).toEqual([]);
-    expect(deprecations.entries).toEqual([]);
+    expect(
+      deprecations.entries.map((entry) => ({ owner: entry.ownerPath, reason: entry.reason })),
+    ).toEqual([
+      {
+        owner: 'VerifyPurchaseResultHorizon.success',
+        reason:
+          'Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0.',
+      },
+    ]);
     expect(deprecations.typeReasons).toEqual(new Map());
     expect(deprecations.operationArguments).toEqual([]);
   });

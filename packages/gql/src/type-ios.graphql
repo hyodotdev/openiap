@@ -431,7 +431,7 @@ input VerifyPurchaseAppleOptions {
   sku: String!
 }
 
-type VerifyPurchaseResultIOS {
+type VerifyPurchaseResultIOS implements VerifyPurchaseResultCommon {
   """
   Whether the receipt is valid
   """

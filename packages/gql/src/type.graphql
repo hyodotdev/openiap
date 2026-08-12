@@ -277,6 +277,16 @@ input VerifyPurchaseProps {
   horizon: VerifyPurchaseHorizonOptions
 }
 
+"""
+Validity shared by every store-specific purchase verification result.
+"""
+interface VerifyPurchaseResultCommon {
+  """
+  Whether the purchase is valid, without inspecting the concrete result variant.
+  """
+  isValid: Boolean!
+}
+
 union VerifyPurchaseResult =
   | VerifyPurchaseResultAndroid
   | VerifyPurchaseResultIOS

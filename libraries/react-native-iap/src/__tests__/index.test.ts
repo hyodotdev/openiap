@@ -1785,6 +1785,7 @@ describe('Public API (src/index.ts)', () => {
     it('Android path maps NitroPurchaseVerificationResultAndroid', async () => {
       (Platform as any).OS = 'android';
       mockIap.verifyPurchase.mockResolvedValueOnce({
+        isValid: false,
         autoRenewing: false,
         betaProduct: false,
         cancelDate: null,
@@ -1813,8 +1814,83 @@ describe('Public API (src/index.ts)', () => {
         },
       });
       expect(res).toEqual(
-        expect.objectContaining({productId: 'sku', productType: 'inapp'}),
+        expect.objectContaining({
+          isValid: false,
+          productId: 'sku',
+          productType: 'inapp',
+        }),
       );
+    });
+
+    it('Horizon path forwards options and maps its result variant', async () => {
+      (Platform as any).OS = 'android';
+      mockIap.verifyPurchase.mockResolvedValueOnce({
+        isValid: true,
+        grantTime: 1744148687,
+        success: true,
+      });
+
+      const res = await IAP.verifyPurchase({
+        horizon: {
+          sku: 'premium',
+          userId: 'user-1',
+          accessToken: 'secret',
+        },
+      });
+
+      expect(mockIap.verifyPurchase).toHaveBeenCalledWith({
+        apple: null,
+        google: null,
+        horizon: {
+          sku: 'premium',
+          userId: 'user-1',
+          accessToken: 'secret',
+        },
+      });
+      expect(res).toEqual({
+        isValid: true,
+        grantTime: 1744148687,
+        success: true,
+      });
+    });
+
+    it('uses the normalized Google variant when Horizon options are empty', async () => {
+      (Platform as any).OS = 'android';
+      mockIap.verifyPurchase.mockResolvedValueOnce({
+        isValid: false,
+        productId: 'sku',
+        productType: 'inapp',
+      });
+
+      const res = await IAP.verifyPurchase({
+        google: {
+          sku: 'sku',
+          packageName: 'com.app',
+          purchaseToken: 'tok',
+          accessToken: 'acc',
+        },
+        horizon: {},
+      } as any);
+
+      expect(mockIap.verifyPurchase).toHaveBeenCalledWith({
+        apple: null,
+        google: {
+          sku: 'sku',
+          packageName: 'com.app',
+          purchaseToken: 'tok',
+          accessToken: 'acc',
+          isSub: undefined,
+        },
+        horizon: null,
+      });
+      expect(res).toEqual(
+        expect.objectContaining({
+          isValid: false,
+          productId: 'sku',
+          productType: 'inapp',
+        }),
+      );
+      expect(res).not.toHaveProperty('success');
     });
   });
 

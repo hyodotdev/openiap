@@ -81,8 +81,14 @@ suspend fun verifyPurchaseWithGooglePlay(
         }
 
         try {
-            gson.fromJson(responseBody, VerifyPurchaseResultAndroid::class.java)
+            // Play returns the purchase record only on 2xx; every other status
+            // threw above. Parse through the generated decoder so omitted Play
+            // fields receive their Kotlin defaults instead of Gson leaving
+            // non-null constructor properties as JVM nulls.
+            val mapType = object : TypeToken<Map<String, Any?>>() {}.type
+            val parsed = gson.fromJson<Map<String, Any?>>(responseBody, mapType)
                 ?: throw OpenIapError.InvalidPurchaseVerification
+            VerifyPurchaseResultAndroid.fromJson(parsed + ("isValid" to true))
         } catch (jsonError: JsonSyntaxException) {
             OpenIapLog.warn("Failed to parse purchase verification response: ${jsonError.message}", tag)
             throw OpenIapError.InvalidPurchaseVerification
@@ -154,8 +160,10 @@ suspend fun verifyPurchaseWithHorizon(
             val success = parsed["success"] as? Boolean ?: false
             val grantTime = (parsed["grant_time"] as? Number)?.toDouble()
 
+            @Suppress("DEPRECATION")
             VerifyPurchaseResultHorizon(
                 grantTime = grantTime,
+                isValid = success,
                 success = success
             )
         } catch (jsonError: JsonSyntaxException) {

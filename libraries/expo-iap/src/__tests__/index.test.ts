@@ -685,7 +685,7 @@ describe('Public API (index.ts)', () => {
       (Platform as any).OS = 'ios';
       await expect(
         requestPurchase({request: {apple: {}} as any, type: 'in-app'} as any),
-      ).rejects.toThrow(/sku/);
+      ).rejects.toMatchObject({code: ErrorCode.EmptySkuList});
     });
 
     it('Android rejects when skus missing', async () => {
@@ -1872,6 +1872,26 @@ describe('Public API (index.ts)', () => {
           accessToken: 'access',
         },
       });
+      expect(result).toEqual(mockResult);
+    });
+
+    it('forwards Horizon verification options to the native module', async () => {
+      (Platform as any).OS = 'android';
+      const mockResult = {isValid: true, success: true};
+      (ExpoIapModule.verifyPurchase as jest.Mock) = jest
+        .fn()
+        .mockResolvedValue(mockResult);
+      const options = {
+        horizon: {
+          sku: 'premium',
+          userId: 'user-1',
+          accessToken: 'secret',
+        },
+      };
+
+      const result = await verifyPurchase(options);
+
+      expect(ExpoIapModule.verifyPurchase).toHaveBeenCalledWith(options);
       expect(result).toEqual(mockResult);
     });
 

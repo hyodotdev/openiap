@@ -85,6 +85,7 @@ jobs:
           filters: |
             gql:
               - 'packages/gql/**'
+              - 'packages/conformance/**'
               - 'scripts/**'
               - 'package.json'
               - 'bun.lock'
@@ -117,6 +118,56 @@ jobs:
               - 'package.json'
               - 'bun.lock'
               - '.github/workflows/ci.yml'
+  test-conformance:
+    name: Test Conformance Suite
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.13
+
+      - name: Install dependencies
+        run: |
+          for i in 1 2 3; do
+            bun install --frozen-lockfile && break
+            [ $i -eq 3 ] && exit 1
+            echo "Attempt $i failed. Retrying..."
+            sleep 5
+          done
+
+      - name: Run conformance suite tests
+        working-directory: packages/conformance
+        run: bun run test
+
+      - name: Verify cross-language behavior ids are in sync
+        run: node packages/conformance/scripts/generate-behavior-ids.mjs --check
+
+      - name: Reference conformance report
+        run: node packages/conformance/scripts/run-reference-report.mjs
+
+      - name: Ecosystem coverage report
+        run: |
+          node packages/conformance/scripts/coverage-report.mjs
+          node packages/conformance/scripts/coverage-report.mjs --json > conformance-coverage.json
+          node packages/conformance/scripts/run-reference-report.mjs --json > conformance-report.json
+
+      - name: Upload conformance report
+        uses: actions/upload-artifact@v4
+        with:
+          name: conformance-report
+          path: |
+            conformance-report.json
+            conformance-coverage.json
+          if-no-files-found: error
+
   audit-parity:
     name: Audit SDK Parity
     runs-on: ubuntu-latest

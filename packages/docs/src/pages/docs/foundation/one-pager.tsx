@@ -198,7 +198,10 @@ function OnePager() {
                 <strong>Conformance Tests</strong>
               </td>
               <td>
-                Cross-platform test matrix ensuring behavioral consistency
+                Shared behavioral suites executed against every Android store
+                implementation and every IAPKit verification provider, plus a
+                machine-checked store capability matrix. Framework binding
+                coverage is in progress.
               </td>
             </tr>
           </tbody>

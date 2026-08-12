@@ -9,6 +9,7 @@ import type {
   NitroPurchaseVerificationParams,
   NitroPurchaseVerificationResultIOS,
   NitroPurchaseVerificationResultAndroid,
+  NitroPurchaseVerificationResultHorizon,
   NitroPurchaseUpdatedListenerOptions,
   NitroSubscriptionStatus,
   RnIap,
@@ -41,6 +42,7 @@ import type {
   PurchaseIOS,
   QueryField,
   VerifyPurchaseResultAndroid,
+  VerifyPurchaseResultHorizon,
   VerifyPurchaseResultIOS,
   RequestPurchaseAndroidProps,
   RequestPurchaseIosProps,
@@ -884,7 +886,10 @@ export const fetchProducts: QueryField<'fetchProducts'> = async (request) => {
 
   try {
     if (!skus?.length) {
-      throw new Error('No SKUs provided');
+      throw createPurchaseError({
+        message: 'No SKUs provided',
+        code: ErrorCode.EmptySkuList,
+      });
     }
 
     const normalizedType = normalizeProductQueryType(type);
@@ -1691,15 +1696,18 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
 
     if (Platform.OS === 'ios') {
       if (!iosRequestSource?.sku) {
-        throw new Error(
-          'Invalid request for iOS. The `sku` property is required.',
-        );
+        throw createPurchaseError({
+          message: 'Invalid request for iOS. The `sku` property is required.',
+          code: ErrorCode.EmptySkuList,
+        });
       }
     } else if (isAndroidStoreRuntime()) {
       if (!androidRequestSource?.skus?.length) {
-        throw new Error(
-          'Invalid request for Android. The `skus` property is required and must be a non-empty array.',
-        );
+        throw createPurchaseError({
+          message:
+            'Invalid request for Android. The `skus` property is required and must be a non-empty array.',
+          code: ErrorCode.EmptySkuList,
+        });
       }
     } else {
       throw unsupportedPlatformError();
@@ -2135,11 +2143,20 @@ export const verifyPurchase: MutationField<'verifyPurchase'> = async (
           : undefined,
       };
       return result;
+    } else if (params.horizon !== null) {
+      const horizonResult =
+        nitroResult as NitroPurchaseVerificationResultHorizon;
+      const result: VerifyPurchaseResultHorizon = {
+        isValid: horizonResult.isValid,
+        grantTime: horizonResult.grantTime,
+        success: horizonResult.success,
+      };
+      return result;
     } else {
-      // Android
       const androidResult =
         nitroResult as NitroPurchaseVerificationResultAndroid;
       const result: VerifyPurchaseResultAndroid = {
+        isValid: androidResult.isValid,
         autoRenewing: androidResult.autoRenewing,
         betaProduct: androidResult.betaProduct,
         cancelDate: androidResult.cancelDate,

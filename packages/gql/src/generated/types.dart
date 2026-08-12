@@ -1134,6 +1134,12 @@ abstract class PurchaseCommon {
   double get transactionDate;
 }
 
+/// Validity shared by every store-specific purchase verification result.
+abstract class VerifyPurchaseResultCommon {
+  /// Whether the purchase is valid, without inspecting the concrete result variant.
+  bool get isValid;
+}
+
 // MARK: - Objects
 
 class ActiveSubscription {
@@ -3769,7 +3775,7 @@ class ValidTimeWindowAndroid {
   }
 }
 
-class VerifyPurchaseResultAndroid extends VerifyPurchaseResult {
+class VerifyPurchaseResultAndroid extends VerifyPurchaseResult implements VerifyPurchaseResultCommon {
   const VerifyPurchaseResultAndroid({
     required this.autoRenewing,
     required this.betaProduct,
@@ -3779,6 +3785,7 @@ class VerifyPurchaseResultAndroid extends VerifyPurchaseResult {
     this.deferredSku,
     required this.freeTrialEndDate,
     required this.gracePeriodEndDate,
+    required this.isValid,
     required this.parentProductId,
     required this.productId,
     required this.productType,
@@ -3799,6 +3806,9 @@ class VerifyPurchaseResultAndroid extends VerifyPurchaseResult {
   final String? deferredSku;
   final double freeTrialEndDate;
   final double gracePeriodEndDate;
+  /// Whether the purchase is valid. Uniform across every VerifyPurchaseResult
+  /// variant so callers can gate entitlement without inspecting the concrete type.
+  final bool isValid;
   final String parentProductId;
   final String productId;
   final String productType;
@@ -3820,6 +3830,7 @@ class VerifyPurchaseResultAndroid extends VerifyPurchaseResult {
       deferredSku: json['deferredSku'] as String?,
       freeTrialEndDate: (json['freeTrialEndDate'] as num).toDouble(),
       gracePeriodEndDate: (json['gracePeriodEndDate'] as num).toDouble(),
+      isValid: json['isValid'] as bool,
       parentProductId: json['parentProductId'] as String,
       productId: json['productId'] as String,
       productType: json['productType'] as String,
@@ -3845,6 +3856,7 @@ class VerifyPurchaseResultAndroid extends VerifyPurchaseResult {
       'deferredSku': deferredSku,
       'freeTrialEndDate': freeTrialEndDate,
       'gracePeriodEndDate': gracePeriodEndDate,
+      'isValid': isValid,
       'parentProductId': parentProductId,
       'productId': productId,
       'productType': productType,
@@ -3861,20 +3873,26 @@ class VerifyPurchaseResultAndroid extends VerifyPurchaseResult {
 
 /// Result from Meta Horizon verify_entitlement API.
 /// Returns verification status and grant time for the entitlement.
-class VerifyPurchaseResultHorizon extends VerifyPurchaseResult {
+class VerifyPurchaseResultHorizon extends VerifyPurchaseResult implements VerifyPurchaseResultCommon {
   const VerifyPurchaseResultHorizon({
     this.grantTime,
+    required this.isValid,
     required this.success,
   });
 
   /// Unix timestamp (seconds) when the entitlement was granted.
   final double? grantTime;
+  /// Whether the purchase is valid. Uniform across every VerifyPurchaseResult
+  /// variant so callers can gate entitlement without inspecting the concrete type.
+  final bool isValid;
   /// Whether the entitlement verification succeeded.
+  /// @deprecated Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0.
   final bool success;
 
   factory VerifyPurchaseResultHorizon.fromJson(Map<String, dynamic> json) {
     return VerifyPurchaseResultHorizon(
       grantTime: (json['grantTime'] as num?)?.toDouble(),
+      isValid: json['isValid'] as bool,
       success: json['success'] as bool,
     );
   }
@@ -3884,12 +3902,13 @@ class VerifyPurchaseResultHorizon extends VerifyPurchaseResult {
     return {
       '__typename': 'VerifyPurchaseResultHorizon',
       'grantTime': grantTime,
+      'isValid': isValid,
       'success': success,
     };
   }
 }
 
-class VerifyPurchaseResultIOS extends VerifyPurchaseResult {
+class VerifyPurchaseResultIOS extends VerifyPurchaseResult implements VerifyPurchaseResultCommon {
   const VerifyPurchaseResultIOS({
     required this.isValid,
     required this.jwsRepresentation,
@@ -5296,7 +5315,7 @@ sealed class Purchase implements PurchaseCommon {
   Map<String, dynamic> toJson();
 }
 
-sealed class VerifyPurchaseResult {
+sealed class VerifyPurchaseResult implements VerifyPurchaseResultCommon {
   const VerifyPurchaseResult();
 
   factory VerifyPurchaseResult.fromJson(Map<String, dynamic> json) {
@@ -5311,6 +5330,10 @@ sealed class VerifyPurchaseResult {
     }
     throw ArgumentError('Unknown __typename for VerifyPurchaseResult: $typeName');
   }
+
+  /// Whether the purchase is valid, without inspecting the concrete result variant.
+  @override
+  bool get isValid;
 
   Map<String, dynamic> toJson();
 }
@@ -5461,11 +5484,11 @@ abstract class MutationResolver {
   /// Force sync transactions with the App Store (iOS 15+).
   /// See: https://openiap.dev/docs/apis/ios/sync-ios
   Future<bool> syncIOS();
-  /// Verify a purchase against your own backend. Returns a platform-specific
-  /// variant of VerifyPurchaseResult — VerifyPurchaseResultIOS exposes isValid
-  /// + receipt/JWS metadata, VerifyPurchaseResultAndroid carries Play Store
-  /// receipt fields (no isValid), and VerifyPurchaseResultHorizon uses success.
-  /// Inspect the concrete variant before reading fields.
+  /// Verify a purchase against your own backend. Every VerifyPurchaseResult
+  /// variant exposes isValid, so entitlement can be gated without inspecting the
+  /// concrete type. Variants add their own metadata on top: IOS carries
+  /// receipt/JWS fields, Android carries Play Store receipt fields, and Horizon
+  /// carries grantTime.
   /// See: https://openiap.dev/docs/features/validation#verify-purchase
   Future<VerifyPurchaseResult> verifyPurchase({
     VerifyPurchaseAppleOptions? apple,

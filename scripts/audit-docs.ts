@@ -30,26 +30,57 @@
  * Read knowledge/internal/07-docs-consistency.md for the rules this
  * script enforces.
  */
-import { readFileSync, statSync } from 'node:fs';
-import { readdir } from 'node:fs/promises';
-import { join, relative, resolve } from 'node:path';
-import ts from 'typescript';
-import { GENERATED_SYNC_MANIFEST } from '../packages/gql/generated-sync-manifest.mjs';
-import { assertSpecMatchesNativeFloor } from './release-branch-policy.mjs';
+import { readFileSync, statSync } from "node:fs";
+import { readdir } from "node:fs/promises";
+import { join, relative, resolve } from "node:path";
+import ts from "typescript";
+import { GENERATED_SYNC_MANIFEST } from "../packages/gql/generated-sync-manifest.mjs";
+import { assertSpecMatchesNativeFloor } from "./release-branch-policy.mjs";
 
-const REPO_ROOT = resolve(import.meta.dir, '..');
-const DOC_ROOTS = [resolve(REPO_ROOT, 'packages/docs/src/pages/docs/apis'), resolve(REPO_ROOT, 'packages/docs/src/pages/docs/types')];
-const DOC_PAGES_DIR = resolve(REPO_ROOT, 'packages/docs/src/pages');
-const ACTIVE_DOCS_ROOT = resolve(REPO_ROOT, 'packages/docs/src/pages/docs');
-const TYPES_FILE = resolve(REPO_ROOT, GENERATED_SYNC_MANIFEST.typescript.source);
-const RELEASE_NOTES_FILE = resolve(REPO_ROOT, 'packages/docs/src/pages/docs/updates/releases.tsx');
-const VERSIONING_FILE = resolve(REPO_ROOT, 'packages/docs/src/lib/versioning.ts');
-const DOC_VERSIONS_FILE = resolve(REPO_ROOT, 'packages/docs/openiap-versions.json');
-const ROOT_VERSIONS_FILE = resolve(REPO_ROOT, 'openiap-versions.json');
-const DOC_VERSION_METADATA_FILE = resolve(REPO_ROOT, 'packages/docs/src/generated/version-metadata.json');
-const DISCOUNT_OFFER_DOC_FILE = resolve(REPO_ROOT, 'packages/docs/src/pages/docs/types/discount-offer.tsx');
-const SUBSCRIPTION_OFFER_DOC_FILE = resolve(REPO_ROOT, 'packages/docs/src/pages/docs/types/subscription-offer.tsx');
-const SEARCH_DATA_FILE = resolve(REPO_ROOT, 'packages/docs/src/lib/searchData.ts');
+const REPO_ROOT = resolve(import.meta.dir, "..");
+const DOC_ROOTS = [
+  resolve(REPO_ROOT, "packages/docs/src/pages/docs/apis"),
+  resolve(REPO_ROOT, "packages/docs/src/pages/docs/types"),
+];
+const DOC_PAGES_DIR = resolve(REPO_ROOT, "packages/docs/src/pages");
+const ACTIVE_DOCS_ROOT = resolve(REPO_ROOT, "packages/docs/src/pages/docs");
+const TYPES_FILE = resolve(
+  REPO_ROOT,
+  GENERATED_SYNC_MANIFEST.typescript.source,
+);
+const RELEASE_NOTES_FILE = resolve(
+  REPO_ROOT,
+  "packages/docs/src/pages/docs/updates/releases.tsx",
+);
+const VERSIONING_FILE = resolve(
+  REPO_ROOT,
+  "packages/docs/src/lib/versioning.ts",
+);
+const DOC_VERSIONS_FILE = resolve(
+  REPO_ROOT,
+  "packages/docs/openiap-versions.json",
+);
+const ROOT_VERSIONS_FILE = resolve(REPO_ROOT, "openiap-versions.json");
+const DOC_VERSION_METADATA_FILE = resolve(
+  REPO_ROOT,
+  "packages/docs/src/generated/version-metadata.json",
+);
+const DISCOUNT_OFFER_DOC_FILE = resolve(
+  REPO_ROOT,
+  "packages/docs/src/pages/docs/types/discount-offer.tsx",
+);
+const SUBSCRIPTION_OFFER_DOC_FILE = resolve(
+  REPO_ROOT,
+  "packages/docs/src/pages/docs/types/subscription-offer.tsx",
+);
+const SEARCH_DATA_FILE = resolve(
+  REPO_ROOT,
+  "packages/docs/src/lib/searchData.ts",
+);
+const VERIFY_PURCHASE_DOC_FILE = resolve(
+  REPO_ROOT,
+  "packages/docs/src/pages/docs/types/verify-purchase.tsx",
+);
 const GENERATED_OFFER_TYPE_FILES = {
   typescript: TYPES_FILE,
   swift: resolve(REPO_ROOT, GENERATED_SYNC_MANIFEST.swift.source),
@@ -73,7 +104,10 @@ export type CanonicalOfferDocsSources = {
   discountOffer: SourceFile;
   subscriptionOffer: SourceFile;
   searchData: SourceFile;
-  generatedOfferTypes: Record<'typescript' | 'swift' | 'kotlin' | 'dart', SourceFile>;
+  generatedOfferTypes: Record<
+    "typescript" | "swift" | "kotlin" | "dart",
+    SourceFile
+  >;
 };
 
 type CodeExampleRule = {
@@ -82,73 +116,198 @@ type CodeExampleRule = {
   message: string;
 };
 
+function requiredInterfaceFields(
+  source: string,
+  interfaceName: string,
+): string[] {
+  const sourceFile = ts.createSourceFile(
+    "generated-types.ts",
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
+  for (const statement of sourceFile.statements) {
+    if (
+      !ts.isInterfaceDeclaration(statement) ||
+      statement.name.text !== interfaceName
+    )
+      continue;
+    return statement.members
+      .filter(ts.isPropertySignature)
+      .filter((member) => !member.questionToken && ts.isIdentifier(member.name))
+      .map((member) => (member.name as ts.Identifier).text);
+  }
+  return [];
+}
+
+export function auditVerifyPurchaseDocs(
+  file: string,
+  source: string,
+  generatedTypesSource: string,
+): Drift[] {
+  const section = (id: string, nextId?: string): string => {
+    const start = source.indexOf(`id="${id}"`);
+    if (start < 0) return "";
+    const end = nextId
+      ? source.indexOf(`id="${nextId}"`, start)
+      : source.length;
+    return source.slice(start, end < 0 ? source.length : end);
+  };
+  const ios = section(
+    "verify-purchase-result-ios",
+    "verify-purchase-result-android",
+  );
+  const android = section(
+    "verify-purchase-result-android",
+    "verify-purchase-result-horizon",
+  );
+  const horizon = section("verify-purchase-result-horizon");
+  const drifts: Drift[] = [];
+  const requiredFields = requiredInterfaceFields(
+    generatedTypesSource,
+    "VerifyPurchaseResultCommon",
+  );
+  if (requiredFields.length === 0) {
+    return [
+      {
+        file: TYPES_FILE,
+        line: 1,
+        rule: "R14",
+        message:
+          "The generated TypeScript SSOT must declare required VerifyPurchaseResultCommon fields.",
+      },
+    ];
+  }
+  for (const [name, content] of [
+    ["iOS", ios],
+    ["Android", android],
+    ["Horizon", horizon],
+  ] as const) {
+    const documentedFields = [
+      ...content.matchAll(/<tr>\s*<td>\s*<code>([^<]+)<\/code>\s*<\/td>/g),
+    ].map((match) => match[1]);
+    for (const field of requiredFields) {
+      const occurrences = documentedFields.filter(
+        (documented) => documented === field,
+      ).length;
+      if (occurrences !== 1) {
+        drifts.push({
+          file,
+          line: 1,
+          rule: "R14",
+          message: `${name} VerifyPurchaseResult docs must list the required ${field} field exactly once.`,
+        });
+      }
+    }
+  }
+  const horizonSuccessRows = [
+    ...horizon.matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/gi),
+  ]
+    .map((match) => match[0])
+    .filter((row) => /<code>\s*success\s*<\/code>/i.test(row));
+  const horizonSuccessRow = horizonSuccessRows[0];
+  if (
+    horizonSuccessRows.length !== 1 ||
+    !horizonSuccessRow ||
+    !/deprecated/i.test(horizonSuccessRow) ||
+    !/<code>\s*isValid\s*<\/code>/i.test(horizonSuccessRow)
+  ) {
+    drifts.push({
+      file,
+      line: 1,
+      rule: "R14",
+      message:
+        "Horizon VerifyPurchaseResult docs must mark success as a deprecated isValid alias.",
+    });
+  }
+  return drifts;
+}
+
 const CODE_EXAMPLE_RULES: CodeExampleRule[] = [
   {
-    language: 'csharp',
+    language: "csharp",
     pattern: /@Deprecated|Task<(?:Boolean|String|List<)|\bList<String>\b/,
-    message: 'C# examples must use C# attributes and primitive/collection types (`[Obsolete]`, `bool`, `string`, `IReadOnlyList<T>`).',
-  },
-  {
-    language: 'csharp',
-    pattern: /\?:\s*return|\bwhen\s*\(|(?:^|\n)\s*(?:else|null)\s*->|\?\.let\s*\{|\bprintln\s*\(/m,
-    message: 'C# example contains Kotlin syntax.',
-  },
-  {
-    language: 'dart',
-    pattern: /\b(?:purchaseUpdatedStream|purchaseErrorStream|userChoiceBillingStream)\b/,
     message:
-      'Flutter examples must use the current listener streams (`purchaseUpdatedListener`, `purchaseErrorListener`, or `userChoiceBillingAndroid`).',
+      "C# examples must use C# attributes and primitive/collection types (`[Obsolete]`, `bool`, `string`, `IReadOnlyList<T>`).",
   },
   {
-    language: 'dart',
+    language: "csharp",
+    pattern:
+      /\?:\s*return|\bwhen\s*\(|(?:^|\n)\s*(?:else|null)\s*->|\?\.let\s*\{|\bprintln\s*\(/m,
+    message: "C# example contains Kotlin syntax.",
+  },
+  {
+    language: "dart",
+    pattern:
+      /\b(?:purchaseUpdatedStream|purchaseErrorStream|userChoiceBillingStream)\b/,
+    message:
+      "Flutter examples must use the current listener streams (`purchaseUpdatedListener`, `purchaseErrorListener`, or `userChoiceBillingAndroid`).",
+  },
+  {
+    language: "dart",
     pattern: /\.finishTransaction\(\s*(?!purchase\s*:)[A-Za-z_]\w*\s*(?:,|\))/,
-    message: 'Flutter `finishTransaction` requires the named `purchase:` argument.',
+    message:
+      "Flutter `finishTransaction` requires the named `purchase:` argument.",
   },
   {
     pattern: /OpenIapStore\.shared/,
-    message: 'Apple/native store examples must construct or inject `OpenIapStore`; no `shared` singleton exists.',
+    message:
+      "Apple/native store examples must construct or inject `OpenIapStore`; no `shared` singleton exists.",
   },
   {
-    pattern: /\b(?:verifyPurchase|verify_purchase)\b[\s\S]{0,400}\b(?:serverUrl|server_url)\b/,
-    message: '`verifyPurchase` accepts platform verification options, not a Purchase plus server URL.',
+    pattern:
+      /\b(?:verifyPurchase|verify_purchase)\b[\s\S]{0,400}\b(?:serverUrl|server_url)\b/,
+    message:
+      "`verifyPurchase` accepts platform verification options, not a Purchase plus server URL.",
   },
   {
-    language: 'typescript',
+    language: "typescript",
     pattern: /requestPurchase\(\{\s*(?:sku|purchaseToken|replacementMode)\s*:/,
-    message: 'TypeScript `requestPurchase` must use the `request` platform union and explicit `type`.',
+    message:
+      "TypeScript `requestPurchase` must use the `request` platform union and explicit `type`.",
   },
   {
-    language: 'swift',
+    language: "swift",
     pattern: /\bsubscription\.remove\(\)/,
-    message: 'Swift listener tokens are removed with `OpenIapModule.shared.removeListener(subscription)`.',
+    message:
+      "Swift listener tokens are removed with `OpenIapModule.shared.removeListener(subscription)`.",
   },
   {
-    language: 'gdscript',
-    pattern: /\bvar\s+([A-Za-z_]\w*)\s*=\s*(?:Types\.)?RequestPurchaseProps\.new\(\)[\s\S]{0,200}\b\1\.sku\s*=/,
-    message: 'RequestPurchaseProps has no top-level sku; populate one request branch or use in_app().',
+    language: "gdscript",
+    pattern:
+      /\bvar\s+([A-Za-z_]\w*)\s*=\s*(?:Types\.)?RequestPurchaseProps\.new\(\)[\s\S]{0,200}\b\1\.sku\s*=/,
+    message:
+      "RequestPurchaseProps has no top-level sku; populate one request branch or use in_app().",
   },
   {
-    language: 'kotlin',
+    language: "kotlin",
     pattern: /\.\s*requestPurchase\s*\(\s*(?:activity|props)\s*=/,
     message:
-      'Kotlin and KMP `requestPurchase` accept one positional `RequestPurchaseProps` argument; `activity` and `props` are not parameters.',
+      "Kotlin and KMP `requestPurchase` accept one positional `RequestPurchaseProps` argument; `activity` and `props` are not parameters.",
   },
   {
-    pattern: /(?:console\.log|println|print|Console\.WriteLine|Log\.[a-z]+)\([^)]{0,200}\b(?:offerToken|offer_token|OfferToken)\b/,
-    message: 'Offer tokens must not be written to application logs.',
+    pattern:
+      /(?:console\.log|println|print|Console\.WriteLine|Log\.[a-z]+)\([^)]{0,200}\b(?:offerToken|offer_token|OfferToken)\b/,
+    message: "Offer tokens must not be written to application logs.",
   },
 ];
 
-export function auditActiveCodeExampleSource(filePath: string, src: string): Drift[] {
+export function auditActiveCodeExampleSource(
+  filePath: string,
+  src: string,
+): Drift[] {
   if (resolve(filePath) === RELEASE_NOTES_FILE) return [];
 
   const drifts: Drift[] = [];
-  const blockRe = /<CodeBlock\b[^>]*\blanguage="([^"]+)"[^>]*>\s*\{`([\s\S]*?)`\}\s*<\/CodeBlock>/g;
+  const blockRe =
+    /<CodeBlock\b[^>]*\blanguage="([^"]+)"[^>]*>\s*\{`([\s\S]*?)`\}\s*<\/CodeBlock>/g;
   let blockMatch: RegExpExecArray | null;
   while ((blockMatch = blockRe.exec(src)) !== null) {
     const language = blockMatch[1];
     const block = blockMatch[2];
-    const auditedBlock = language === 'kotlin' ? stripCommentsPreservingLayout(block) : block;
+    const auditedBlock =
+      language === "kotlin" ? stripCommentsPreservingLayout(block) : block;
     const blockOffset = blockMatch.index + blockMatch[0].indexOf(block);
 
     for (const rule of CODE_EXAMPLE_RULES) {
@@ -158,7 +317,7 @@ export function auditActiveCodeExampleSource(filePath: string, src: string): Dri
       drifts.push({
         file: filePath,
         line: lineNumberAt(src, blockOffset + violation.index),
-        rule: 'R11',
+        rule: "R11",
         message: `${rule.message} (language: ${language})`,
       });
     }
@@ -166,9 +325,18 @@ export function auditActiveCodeExampleSource(filePath: string, src: string): Dri
   return drifts;
 }
 
-function findSearchEntriesByTitle(source: string, title: string): { line: number; path: string | null; pathLine: number }[] {
+function findSearchEntriesByTitle(
+  source: string,
+  title: string,
+): { line: number; path: string | null; pathLine: number }[] {
   const entries: { line: number; path: string | null; pathLine: number }[] = [];
-  const sourceFile = ts.createSourceFile('searchData.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const sourceFile = ts.createSourceFile(
+    "searchData.ts",
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
   let apiData: ts.ArrayLiteralExpression | null = null;
 
   const unwrapExpression = (expression: ts.Expression): ts.Expression => {
@@ -189,7 +357,11 @@ function findSearchEntriesByTitle(source: string, title: string): { line: number
   for (const statement of sourceFile.statements) {
     if (!ts.isVariableStatement(statement)) continue;
     for (const declaration of statement.declarationList.declarations) {
-      if (!ts.isIdentifier(declaration.name) || declaration.name.text !== 'apiData' || !declaration.initializer) {
+      if (
+        !ts.isIdentifier(declaration.name) ||
+        declaration.name.text !== "apiData" ||
+        !declaration.initializer
+      ) {
         continue;
       }
       const initializer = unwrapExpression(declaration.initializer);
@@ -199,14 +371,18 @@ function findSearchEntriesByTitle(source: string, title: string): { line: number
 
   if (!apiData) return entries;
 
-  const propertyName = (property: ts.ObjectLiteralElementLike): string | null => {
+  const propertyName = (
+    property: ts.ObjectLiteralElementLike,
+  ): string | null => {
     if (!property.name) return null;
     if (ts.isIdentifier(property.name) || ts.isStringLiteral(property.name)) {
       return property.name.text;
     }
     return null;
   };
-  const stringValue = (property: ts.ObjectLiteralElementLike): string | null => {
+  const stringValue = (
+    property: ts.ObjectLiteralElementLike,
+  ): string | null => {
     if (!ts.isPropertyAssignment(property)) return null;
     const initializer = unwrapExpression(property.initializer);
     return ts.isStringLiteralLike(initializer) ? initializer.text : null;
@@ -215,34 +391,59 @@ function findSearchEntriesByTitle(source: string, title: string): { line: number
   for (const element of apiData.elements) {
     const entry = unwrapExpression(element);
     if (!ts.isObjectLiteralExpression(entry)) continue;
-    const titleProperty = entry.properties.find((property) => propertyName(property) === 'title');
+    const titleProperty = entry.properties.find(
+      (property) => propertyName(property) === "title",
+    );
     if (!titleProperty || stringValue(titleProperty) !== title) continue;
-    const pathProperty = entry.properties.find((property) => propertyName(property) === 'path');
-    const line = sourceFile.getLineAndCharacterOfPosition(titleProperty.getStart(sourceFile)).line + 1;
+    const pathProperty = entry.properties.find(
+      (property) => propertyName(property) === "path",
+    );
+    const line =
+      sourceFile.getLineAndCharacterOfPosition(
+        titleProperty.getStart(sourceFile),
+      ).line + 1;
     entries.push({
       line,
       path: pathProperty ? stringValue(pathProperty) : null,
-      pathLine: pathProperty ? sourceFile.getLineAndCharacterOfPosition(pathProperty.getStart(sourceFile)).line + 1 : line,
+      pathLine: pathProperty
+        ? sourceFile.getLineAndCharacterOfPosition(
+            pathProperty.getStart(sourceFile),
+          ).line + 1
+        : line,
     });
   }
 
   return entries;
 }
 
-function parseTypeScriptDiscountOfferType(source: string): { index: number; members: string[] | null } | null {
-  const sourceFile = ts.createSourceFile('discount-offer-types.ts', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+function parseTypeScriptDiscountOfferType(
+  source: string,
+): { index: number; members: string[] | null } | null {
+  const sourceFile = ts.createSourceFile(
+    "discount-offer-types.ts",
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
   const declaration = sourceFile.statements.find(
     (statement): statement is ts.TypeAliasDeclaration =>
-      ts.isTypeAliasDeclaration(statement) && statement.name.text === 'DiscountOfferType',
+      ts.isTypeAliasDeclaration(statement) &&
+      statement.name.text === "DiscountOfferType",
   );
   if (!declaration) return null;
 
   let offerType: ts.TypeNode = declaration.type;
   while (ts.isParenthesizedTypeNode(offerType)) offerType = offerType.type;
-  const rawMembers = ts.isUnionTypeNode(offerType) ? offerType.types : [offerType];
+  const rawMembers = ts.isUnionTypeNode(offerType)
+    ? offerType.types
+    : [offerType];
   const members: string[] = [];
   for (const rawMember of rawMembers) {
-    if (!ts.isLiteralTypeNode(rawMember) || !ts.isStringLiteral(rawMember.literal)) {
+    if (
+      !ts.isLiteralTypeNode(rawMember) ||
+      !ts.isStringLiteral(rawMember.literal)
+    ) {
       return {
         index: declaration.getStart(sourceFile),
         members: null,
@@ -257,8 +458,11 @@ function parseTypeScriptDiscountOfferType(source: string): { index: number; memb
   };
 }
 
-function findTypeScriptDiscountOfferType(source: string): { line: number; members: string[] | null } | null {
-  const blockRe = /<CodeBlock\b[^>]*\blanguage="typescript"[^>]*>\s*\{`([\s\S]*?)`\}\s*<\/CodeBlock>/g;
+function findTypeScriptDiscountOfferType(
+  source: string,
+): { line: number; members: string[] | null } | null {
+  const blockRe =
+    /<CodeBlock\b[^>]*\blanguage="typescript"[^>]*>\s*\{`([\s\S]*?)`\}\s*<\/CodeBlock>/g;
   let blockMatch: RegExpExecArray | null;
 
   while ((blockMatch = blockRe.exec(source)) !== null) {
@@ -267,7 +471,10 @@ function findTypeScriptDiscountOfferType(source: string): { line: number; member
     if (!declaration) continue;
 
     return {
-      line: lineNumberAt(source, blockMatch.index + blockMatch[0].indexOf(block) + declaration.index),
+      line: lineNumberAt(
+        source,
+        blockMatch.index + blockMatch[0].indexOf(block) + declaration.index,
+      ),
       members: declaration.members,
     };
   }
@@ -275,10 +482,13 @@ function findTypeScriptDiscountOfferType(source: string): { line: number; member
   return null;
 }
 
-type NamedOfferTypeLanguage = 'swift' | 'kotlin' | 'dart';
+type NamedOfferTypeLanguage = "swift" | "kotlin" | "dart";
 
-function maskNativeNonCodePreservingLayout(source: string, maskStrings: boolean): string {
-  const output = source.split('');
+function maskNativeNonCodePreservingLayout(
+  source: string,
+  maskStrings: boolean,
+): string {
+  const output = source.split("");
   let quote: "'" | '"' | null = null;
   let tripleQuoted = false;
   let escaped = false;
@@ -290,17 +500,17 @@ function maskNativeNonCodePreservingLayout(source: string, maskStrings: boolean)
     const next = source[i + 1];
 
     if (inLineComment) {
-      if (ch === '\n') {
+      if (ch === "\n") {
         inLineComment = false;
       } else {
-        output[i] = ' ';
+        output[i] = " ";
       }
       continue;
     }
     if (inBlockComment) {
-      if (ch !== '\n') output[i] = ' ';
-      if (ch === '*' && next === '/') {
-        output[i + 1] = ' ';
+      if (ch !== "\n") output[i] = " ";
+      if (ch === "*" && next === "/") {
+        output[i + 1] = " ";
         inBlockComment = false;
         i += 1;
       }
@@ -309,20 +519,20 @@ function maskNativeNonCodePreservingLayout(source: string, maskStrings: boolean)
     if (quote !== null) {
       if (tripleQuoted && source.slice(i, i + 3) === quote.repeat(3)) {
         if (maskStrings) {
-          output[i] = ' ';
-          output[i + 1] = ' ';
-          output[i + 2] = ' ';
+          output[i] = " ";
+          output[i + 1] = " ";
+          output[i + 2] = " ";
         }
         quote = null;
         tripleQuoted = false;
         i += 2;
         continue;
       }
-      if (maskStrings && ch !== '\n') output[i] = ' ';
+      if (maskStrings && ch !== "\n") output[i] = " ";
       if (tripleQuoted) continue;
       if (escaped) {
         escaped = false;
-      } else if (ch === '\\') {
+      } else if (ch === "\\") {
         escaped = true;
       } else if (ch === quote) {
         quote = null;
@@ -333,42 +543,45 @@ function maskNativeNonCodePreservingLayout(source: string, maskStrings: boolean)
       quote = ch;
       tripleQuoted = source.slice(i, i + 3) === ch.repeat(3);
       if (maskStrings) {
-        output[i] = ' ';
+        output[i] = " ";
         if (tripleQuoted) {
-          output[i + 1] = ' ';
-          output[i + 2] = ' ';
+          output[i + 1] = " ";
+          output[i + 2] = " ";
         }
       }
       if (tripleQuoted) i += 2;
       continue;
     }
-    if (ch === '/' && next === '/') {
-      output[i] = ' ';
-      output[i + 1] = ' ';
+    if (ch === "/" && next === "/") {
+      output[i] = " ";
+      output[i + 1] = " ";
       inLineComment = true;
       i += 1;
       continue;
     }
-    if (ch === '/' && next === '*') {
-      output[i] = ' ';
-      output[i + 1] = ' ';
+    if (ch === "/" && next === "*") {
+      output[i] = " ";
+      output[i + 1] = " ";
       inBlockComment = true;
       i += 1;
     }
   }
 
-  return output.join('');
+  return output.join("");
 }
 
 function stripCommentsPreservingLayout(source: string): string {
   return maskNativeNonCodePreservingLayout(source, false);
 }
 
-function findMatchingBrace(source: string, openingBrace: number): number | null {
+function findMatchingBrace(
+  source: string,
+  openingBrace: number,
+): number | null {
   let depth = 1;
   for (let i = openingBrace + 1; i < source.length; i += 1) {
-    if (source[i] === '{') depth += 1;
-    if (source[i] !== '}') continue;
+    if (source[i] === "{") depth += 1;
+    if (source[i] !== "}") continue;
     depth -= 1;
     if (depth === 0) return i;
   }
@@ -378,26 +591,30 @@ function findMatchingBrace(source: string, openingBrace: number): number | null 
 function braceDepthAt(source: string, index: number): number {
   let depth = 0;
   for (let i = 0; i < index; i += 1) {
-    if (source[i] === '{') depth += 1;
-    else if (source[i] === '}') depth = Math.max(0, depth - 1);
+    if (source[i] === "{") depth += 1;
+    else if (source[i] === "}") depth = Math.max(0, depth - 1);
   }
   return depth;
 }
 
-function findTopLevelMemberBoundary(source: string, language: NamedOfferTypeLanguage): number {
+function findTopLevelMemberBoundary(
+  source: string,
+  language: NamedOfferTypeLanguage,
+): number {
   let depth = 0;
   for (let i = 0; i < source.length; i += 1) {
-    if (source[i] === '{') {
+    if (source[i] === "{") {
       depth += 1;
       continue;
     }
-    if (source[i] === '}') {
+    if (source[i] === "}") {
       depth = Math.max(0, depth - 1);
       continue;
     }
     if (depth !== 0) continue;
-    if (language === 'dart' && source[i] === ';') return i;
-    if (language === 'kotlin' && /^companion\s+object\b/.test(source.slice(i))) return i;
+    if (language === "dart" && source[i] === ";") return i;
+    if (language === "kotlin" && /^companion\s+object\b/.test(source.slice(i)))
+      return i;
   }
   return source.length;
 }
@@ -409,17 +626,18 @@ function parseNamedDiscountOfferTypeMembers(
   const code = stripCommentsPreservingLayout(source);
   const structuralCode = maskNativeNonCodePreservingLayout(source, true);
   const declarationRe =
-    language === 'swift'
+    language === "swift"
       ? /\benum\s+DiscountOfferType\b[^{}]*\{/g
-      : language === 'kotlin'
+      : language === "kotlin"
         ? /\benum\s+class\s+DiscountOfferType(?:\s*\([^)]*\))?\s*\{/g
         : /\benum\s+DiscountOfferType\s*\{/g;
-  const declarations: { index: number; bodyStart: number; bodyEnd: number }[] = [];
+  const declarations: { index: number; bodyStart: number; bodyEnd: number }[] =
+    [];
   let declaration: RegExpExecArray | null;
 
   while ((declaration = declarationRe.exec(structuralCode)) !== null) {
     if (braceDepthAt(structuralCode, declaration.index) !== 0) continue;
-    const openingBrace = declaration.index + declaration[0].lastIndexOf('{');
+    const openingBrace = declaration.index + declaration[0].lastIndexOf("{");
     const closingBrace = findMatchingBrace(structuralCode, openingBrace);
     if (closingBrace === null) {
       return { index: declaration.index, members: null };
@@ -436,18 +654,28 @@ function parseNamedDiscountOfferTypeMembers(
   }
 
   const selected = declarations[0];
-  const structuralBody = structuralCode.slice(selected.bodyStart, selected.bodyEnd);
+  const structuralBody = structuralCode.slice(
+    selected.bodyStart,
+    selected.bodyEnd,
+  );
   const memberBoundary = findTopLevelMemberBoundary(structuralBody, language);
 
   const memberRe =
-    language === 'swift'
+    language === "swift"
       ? /(?:\bcase|,)\s*([A-Za-z]\w*)\s*=\s*"([^"]+)"/g
-      : language === 'kotlin'
+      : language === "kotlin"
         ? /\b([A-Z]\w*)\s*\(\s*"([^"]+)"\s*\)/g
         : /\b([A-Z]\w*)\s*\(\s*(['"])([^'"]+)\2\s*\)/g;
-  const memberSection = code.slice(selected.bodyStart, selected.bodyStart + memberBoundary);
-  const members = Array.from(memberSection.matchAll(memberRe), (match) => `${match[1]}=${match[language === 'dart' ? 3 : 2]}`);
-  const unmatchedMembers = memberSection.replace(memberRe, '').replace(/[\s,;]/g, '').length > 0;
+  const memberSection = code.slice(
+    selected.bodyStart,
+    selected.bodyStart + memberBoundary,
+  );
+  const members = Array.from(
+    memberSection.matchAll(memberRe),
+    (match) => `${match[1]}=${match[language === "dart" ? 3 : 2]}`,
+  );
+  const unmatchedMembers =
+    memberSection.replace(memberRe, "").replace(/[\s,;]/g, "").length > 0;
 
   return {
     index: selected.index,
@@ -459,7 +687,10 @@ function findNamedDiscountOfferTypeMembers(
   source: string,
   language: NamedOfferTypeLanguage,
 ): { line: number; members: string[] | null } | null {
-  const blockRe = new RegExp(`<CodeBlock\\b[^>]*\\blanguage="${language}"[^>]*>\\s*\\{\`([\\s\\S]*?)\`\\}\\s*</CodeBlock>`, 'g');
+  const blockRe = new RegExp(
+    `<CodeBlock\\b[^>]*\\blanguage="${language}"[^>]*>\\s*\\{\`([\\s\\S]*?)\`\\}\\s*</CodeBlock>`,
+    "g",
+  );
   let blockMatch: RegExpExecArray | null;
 
   while ((blockMatch = blockRe.exec(source)) !== null) {
@@ -468,7 +699,10 @@ function findNamedDiscountOfferTypeMembers(
     if (!declaration) continue;
 
     return {
-      line: lineNumberAt(source, blockMatch.index + blockMatch[0].indexOf(block) + declaration.index),
+      line: lineNumberAt(
+        source,
+        blockMatch.index + blockMatch[0].indexOf(block) + declaration.index,
+      ),
       members: declaration.members,
     };
   }
@@ -487,8 +721,14 @@ type RenderedProse = {
  * CodeBlock examples are deliberately excluded from the evidence.
  */
 function collectRenderedProse(source: string): RenderedProse {
-  const sourceFile = ts.createSourceFile('offer-doc.tsx', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.TSX);
-  const segments: RenderedProse['segments'] = [];
+  const sourceFile = ts.createSourceFile(
+    "offer-doc.tsx",
+    source,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TSX,
+  );
+  const segments: RenderedProse["segments"] = [];
   let outputLength = 0;
 
   const append = (text: string, sourceStart: number): void => {
@@ -499,7 +739,9 @@ function collectRenderedProse(source: string): RenderedProse {
   };
 
   const collectedComponents = new Set<ts.FunctionLikeDeclaration>();
-  let resolveComponent: (expression: ts.Expression) => ts.FunctionLikeDeclaration | null;
+  let resolveComponent: (
+    expression: ts.Expression,
+  ) => ts.FunctionLikeDeclaration | null;
   let collectFunction: (component: ts.FunctionLikeDeclaration) => void;
 
   const collectLocalComponent = (tagName: ts.JsxTagNameExpression): boolean => {
@@ -512,7 +754,7 @@ function collectRenderedProse(source: string): RenderedProse {
 
   const collectJsx = (node: ts.Node): void => {
     if (ts.isJsxElement(node)) {
-      if (node.openingElement.tagName.getText(sourceFile) === 'CodeBlock') {
+      if (node.openingElement.tagName.getText(sourceFile) === "CodeBlock") {
         return;
       }
       if (collectLocalComponent(node.openingElement.tagName)) return;
@@ -520,7 +762,7 @@ function collectRenderedProse(source: string): RenderedProse {
       return;
     }
     if (ts.isJsxSelfClosingElement(node)) {
-      if (node.tagName.getText(sourceFile) === 'CodeBlock') return;
+      if (node.tagName.getText(sourceFile) === "CodeBlock") return;
       collectLocalComponent(node.tagName);
       return;
     }
@@ -539,13 +781,19 @@ function collectRenderedProse(source: string): RenderedProse {
       }
       if (ts.isStringLiteralLike(expression)) {
         append(expression.text, expression.getStart(sourceFile));
-      } else if (ts.isJsxElement(expression) || ts.isJsxSelfClosingElement(expression) || ts.isJsxFragment(expression)) {
+      } else if (
+        ts.isJsxElement(expression) ||
+        ts.isJsxSelfClosingElement(expression) ||
+        ts.isJsxFragment(expression)
+      ) {
         collectJsx(expression);
       }
     }
   };
 
-  const unwrapRenderedExpression = (expression: ts.Expression): ts.Expression => {
+  const unwrapRenderedExpression = (
+    expression: ts.Expression,
+  ): ts.Expression => {
     let current = expression;
     while (
       ts.isParenthesizedExpression(current) ||
@@ -560,7 +808,11 @@ function collectRenderedProse(source: string): RenderedProse {
 
   const collectExpression = (expression: ts.Expression): void => {
     const rendered = unwrapRenderedExpression(expression);
-    if (ts.isJsxElement(rendered) || ts.isJsxSelfClosingElement(rendered) || ts.isJsxFragment(rendered)) {
+    if (
+      ts.isJsxElement(rendered) ||
+      ts.isJsxSelfClosingElement(rendered) ||
+      ts.isJsxFragment(rendered)
+    ) {
       collectJsx(rendered);
     } else if (ts.isConditionalExpression(rendered)) {
       collectExpression(rendered.whenTrue);
@@ -588,7 +840,9 @@ function collectRenderedProse(source: string): RenderedProse {
     visitReturn(component.body);
   };
 
-  resolveComponent = (expression: ts.Expression): ts.FunctionLikeDeclaration | null => {
+  resolveComponent = (
+    expression: ts.Expression,
+  ): ts.FunctionLikeDeclaration | null => {
     const unwrapped = unwrapRenderedExpression(expression);
     if (ts.isArrowFunction(unwrapped) || ts.isFunctionExpression(unwrapped)) {
       return unwrapped;
@@ -599,12 +853,19 @@ function collectRenderedProse(source: string): RenderedProse {
     if (!ts.isIdentifier(unwrapped)) return null;
 
     for (const statement of sourceFile.statements) {
-      if (ts.isFunctionDeclaration(statement) && statement.name?.text === unwrapped.text) {
+      if (
+        ts.isFunctionDeclaration(statement) &&
+        statement.name?.text === unwrapped.text
+      ) {
         return statement;
       }
       if (!ts.isVariableStatement(statement)) continue;
       for (const declaration of statement.declarationList.declarations) {
-        if (ts.isIdentifier(declaration.name) && declaration.name.text === unwrapped.text && declaration.initializer) {
+        if (
+          ts.isIdentifier(declaration.name) &&
+          declaration.name.text === unwrapped.text &&
+          declaration.initializer
+        ) {
           return resolveComponent(declaration.initializer);
         }
       }
@@ -616,8 +877,12 @@ function collectRenderedProse(source: string): RenderedProse {
   for (const statement of sourceFile.statements) {
     if (
       ts.isFunctionDeclaration(statement) &&
-      statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword) &&
-      statement.modifiers.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword)
+      statement.modifiers?.some(
+        (modifier) => modifier.kind === ts.SyntaxKind.DefaultKeyword,
+      ) &&
+      statement.modifiers.some(
+        (modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword,
+      )
     ) {
       component = statement;
       break;
@@ -630,15 +895,23 @@ function collectRenderedProse(source: string): RenderedProse {
   if (component) collectFunction(component);
 
   return {
-    text: segments.map((segment) => segment.text).join(' '),
+    text: segments.map((segment) => segment.text).join(" "),
     segments,
   };
 }
 
-function renderedSourceOffset(rendered: RenderedProse, outputOffset: number): number {
-  const segment = [...rendered.segments].reverse().find((candidate) => candidate.outputStart <= outputOffset);
+function renderedSourceOffset(
+  rendered: RenderedProse,
+  outputOffset: number,
+): number {
+  const segment = [...rendered.segments]
+    .reverse()
+    .find((candidate) => candidate.outputStart <= outputOffset);
   if (!segment) return 0;
-  return segment.sourceStart + Math.min(outputOffset - segment.outputStart, segment.text.length);
+  return (
+    segment.sourceStart +
+    Math.min(outputOffset - segment.outputStart, segment.text.length)
+  );
 }
 
 /**
@@ -650,7 +923,9 @@ function renderedSourceOffset(rendered: RenderedProse, outputOffset: number): nu
  *
  * Sources are injected to keep this check deterministic and fault-testable.
  */
-export function auditCanonicalOfferDocs(sources: CanonicalOfferDocsSources): Drift[] {
+export function auditCanonicalOfferDocs(
+  sources: CanonicalOfferDocsSources,
+): Drift[] {
   const drifts: Drift[] = [];
   const discount = sources.discountOffer;
   const subscription = sources.subscriptionOffer;
@@ -661,33 +936,45 @@ export function auditCanonicalOfferDocs(sources: CanonicalOfferDocsSources): Dri
     drifts.push({
       file: discount.file,
       line: 1,
-      rule: 'R12',
-      message: 'DiscountOffer must reference the Android `ProductDetails.OneTimePurchaseOfferDetails` native source.',
+      rule: "R12",
+      message:
+        "DiscountOffer must reference the Android `ProductDetails.OneTimePurchaseOfferDetails` native source.",
     });
   }
 
   const oneTimeAndroidClaim =
-    /\bone-time\b[\s\S]{0,240}\b(?:Android|Google Play)\b/i.test(discountProse.text) ||
-    /\b(?:Android|Google Play)\b[\s\S]{0,240}\bone-time\b/i.test(discountProse.text);
+    /\bone-time\b[\s\S]{0,240}\b(?:Android|Google Play)\b/i.test(
+      discountProse.text,
+    ) ||
+    /\b(?:Android|Google Play)\b[\s\S]{0,240}\bone-time\b/i.test(
+      discountProse.text,
+    );
   if (!oneTimeAndroidClaim) {
     drifts.push({
       file: discount.file,
       line: 1,
-      rule: 'R12',
-      message: 'DiscountOffer must state that it represents one-time product offers on Android/Google Play.',
+      rule: "R12",
+      message:
+        "DiscountOffer must state that it represents one-time product offers on Android/Google Play.",
     });
   }
 
-  const generatedTypeScriptOfferType = parseTypeScriptDiscountOfferType(sources.generatedOfferTypes.typescript.source);
+  const generatedTypeScriptOfferType = parseTypeScriptDiscountOfferType(
+    sources.generatedOfferTypes.typescript.source,
+  );
   const expectedOfferTypeMembers = generatedTypeScriptOfferType?.members;
   if (!expectedOfferTypeMembers) {
     drifts.push({
       file: sources.generatedOfferTypes.typescript.file,
       line: generatedTypeScriptOfferType
-        ? lineNumberAt(sources.generatedOfferTypes.typescript.source, generatedTypeScriptOfferType.index)
+        ? lineNumberAt(
+            sources.generatedOfferTypes.typescript.source,
+            generatedTypeScriptOfferType.index,
+          )
         : 1,
-      rule: 'R12',
-      message: 'The generated TypeScript SSOT must declare DiscountOfferType as a string-literal union.',
+      rule: "R12",
+      message:
+        "The generated TypeScript SSOT must declare DiscountOfferType as a string-literal union.",
     });
   }
 
@@ -699,31 +986,41 @@ export function auditCanonicalOfferDocs(sources: CanonicalOfferDocsSources): Dri
     actualOfferTypeMembers !== null &&
     actualOfferTypeMembers !== undefined &&
     actualOfferTypeMembers.length === expectedOfferTypeMembers.length &&
-    expectedOfferTypeMembers.every((member) => actualOfferTypeMembers.includes(member));
+    expectedOfferTypeMembers.every((member) =>
+      actualOfferTypeMembers.includes(member),
+    );
   if (expectedOfferTypeMembers && !hasExactOfferTypeMembers) {
     drifts.push({
       file: discount.file,
       line: typeScriptOfferType?.line ?? 1,
-      rule: 'R12',
+      rule: "R12",
       message: `The canonical DiscountOffer TypeScript snippet must declare DiscountOfferType with exactly the generated wire values ${formatQuotedList(expectedOfferTypeMembers ?? [])}.`,
     });
   }
 
-  for (const language of ['swift', 'kotlin', 'dart'] as const) {
+  for (const language of ["swift", "kotlin", "dart"] as const) {
     const generatedSource = sources.generatedOfferTypes[language];
-    const generatedDeclaration = parseNamedDiscountOfferTypeMembers(generatedSource.source, language);
+    const generatedDeclaration = parseNamedDiscountOfferTypeMembers(
+      generatedSource.source,
+      language,
+    );
     const expectedMembers = generatedDeclaration?.members;
     if (!expectedMembers) {
       drifts.push({
         file: generatedSource.file,
-        line: generatedDeclaration ? lineNumberAt(generatedSource.source, generatedDeclaration.index) : 1,
-        rule: 'R12',
+        line: generatedDeclaration
+          ? lineNumberAt(generatedSource.source, generatedDeclaration.index)
+          : 1,
+        rule: "R12",
         message: `The generated ${language} SSOT must declare DiscountOfferType members with explicit wire values.`,
       });
       continue;
     }
 
-    const declaration = findNamedDiscountOfferTypeMembers(discount.source, language);
+    const declaration = findNamedDiscountOfferTypeMembers(
+      discount.source,
+      language,
+    );
     const actualMembers = declaration?.members;
     const hasExactMembers =
       actualMembers !== null &&
@@ -735,7 +1032,7 @@ export function auditCanonicalOfferDocs(sources: CanonicalOfferDocsSources): Dri
     drifts.push({
       file: discount.file,
       line: declaration?.line ?? 1,
-      rule: 'R12',
+      rule: "R12",
       message: `The canonical DiscountOffer ${language} snippet must declare exactly the generated DiscountOfferType members and wire values.`,
     });
   }
@@ -747,17 +1044,22 @@ export function auditCanonicalOfferDocs(sources: CanonicalOfferDocsSources): Dri
     {
       pattern: /\bProduct\.SubscriptionOffer\b/,
       message:
-        'DiscountOffer must not map to StoreKit Product.SubscriptionOffer; use the canonical SubscriptionOffer page for subscription discounts.',
+        "DiscountOffer must not map to StoreKit Product.SubscriptionOffer; use the canonical SubscriptionOffer page for subscription discounts.",
     },
     {
       pattern: /\b(?:ProductDetails\.)?SubscriptionOfferDetails\b/,
-      message: 'DiscountOffer must not map to Play SubscriptionOfferDetails; it represents one-time product offers.',
+      message:
+        "DiscountOffer must not map to Play SubscriptionOfferDetails; it represents one-time product offers.",
     },
   ];
-  if (expectedOfferTypeMembers && !expectedOfferTypeMembers.includes('win-back')) {
+  if (
+    expectedOfferTypeMembers &&
+    !expectedOfferTypeMembers.includes("win-back")
+  ) {
     forbiddenDiscountClaims.push({
       pattern: /\bWinBack\b/i,
-      message: 'DiscountOffer must not claim WinBack support; WinBack is not a generated DiscountOfferType member.',
+      message:
+        "DiscountOffer must not claim WinBack support; WinBack is not a generated DiscountOfferType member.",
     });
   }
 
@@ -766,45 +1068,59 @@ export function auditCanonicalOfferDocs(sources: CanonicalOfferDocsSources): Dri
     if (!match) continue;
     drifts.push({
       file: discount.file,
-      line: lineNumberAt(discount.source, renderedSourceOffset(discountProse, match.index)),
-      rule: 'R12',
+      line: lineNumberAt(
+        discount.source,
+        renderedSourceOffset(discountProse, match.index),
+      ),
+      rule: "R12",
       message: claim.message,
     });
   }
 
   const subscriptionWinBack = /\bWinBack\b/i.exec(subscriptionProse.text);
-  if (subscriptionWinBack && expectedOfferTypeMembers && !expectedOfferTypeMembers.includes('win-back')) {
+  if (
+    subscriptionWinBack &&
+    expectedOfferTypeMembers &&
+    !expectedOfferTypeMembers.includes("win-back")
+  ) {
     drifts.push({
       file: subscription.file,
-      line: lineNumberAt(subscription.source, renderedSourceOffset(subscriptionProse, subscriptionWinBack.index)),
-      rule: 'R12',
-      message: 'SubscriptionOffer must not claim WinBack support; WinBack is not a generated DiscountOfferType member.',
+      line: lineNumberAt(
+        subscription.source,
+        renderedSourceOffset(subscriptionProse, subscriptionWinBack.index),
+      ),
+      rule: "R12",
+      message:
+        "SubscriptionOffer must not claim WinBack support; WinBack is not a generated DiscountOfferType member.",
     });
   }
 
   for (const [pattern, nativeType] of [
-    [/\bProduct\.SubscriptionOffer\b/, 'Product.SubscriptionOffer'],
-    [/\b(?:ProductDetails\.)?SubscriptionOfferDetails\b/, 'ProductDetails.SubscriptionOfferDetails'],
+    [/\bProduct\.SubscriptionOffer\b/, "Product.SubscriptionOffer"],
+    [
+      /\b(?:ProductDetails\.)?SubscriptionOfferDetails\b/,
+      "ProductDetails.SubscriptionOfferDetails",
+    ],
   ] as const) {
     if (pattern.test(subscriptionProse.text)) continue;
     drifts.push({
       file: subscription.file,
       line: 1,
-      rule: 'R12',
+      rule: "R12",
       message: `SubscriptionOffer must reference its native ${nativeType} source.`,
     });
   }
 
   for (const [title, expectedPath] of [
-    ['DiscountOffer', '/docs/types/discount-offer'],
-    ['SubscriptionOffer', '/docs/types/subscription-offer'],
+    ["DiscountOffer", "/docs/types/discount-offer"],
+    ["SubscriptionOffer", "/docs/types/subscription-offer"],
   ] as const) {
     const entries = findSearchEntriesByTitle(sources.searchData.source, title);
     if (entries.length === 0) {
       drifts.push({
         file: sources.searchData.file,
         line: 1,
-        rule: 'R12',
+        rule: "R12",
         message: `Search data must include a canonical ${title} entry pointing to ${expectedPath}.`,
       });
       continue;
@@ -814,7 +1130,7 @@ export function auditCanonicalOfferDocs(sources: CanonicalOfferDocsSources): Dri
       drifts.push({
         file: sources.searchData.file,
         line: entries[1].line,
-        rule: 'R12',
+        rule: "R12",
         message: `Search data must contain exactly one canonical ${title} entry.`,
       });
     }
@@ -824,8 +1140,8 @@ export function auditCanonicalOfferDocs(sources: CanonicalOfferDocsSources): Dri
       drifts.push({
         file: sources.searchData.file,
         line: entry.pathLine,
-        rule: 'R12',
-        message: `The canonical ${title} search entry must point to ${expectedPath}, not ${entry.path ?? 'a missing path'}.`,
+        rule: "R12",
+        message: `The canonical ${title} search entry must point to ${expectedPath}, not ${entry.path ?? "a missing path"}.`,
       });
     }
   }
@@ -846,7 +1162,7 @@ async function walkTsxFiles(root: string): Promise<string[]> {
       const full = join(dir, entry.name);
       if (entry.isDirectory()) {
         await recurse(full);
-      } else if (entry.isFile() && entry.name.endsWith('.tsx')) {
+      } else if (entry.isFile() && entry.name.endsWith(".tsx")) {
         out.push(full);
       }
     }
@@ -862,24 +1178,37 @@ async function walkTsxFiles(root: string): Promise<string[]> {
  * documented parameter exists on any generated shape.
  */
 function buildKnownFields(): Set<string> {
-  const src = readFileSync(TYPES_FILE, 'utf8');
+  const src = readFileSync(TYPES_FILE, "utf8");
   const fields = new Set<string>();
-  const sourceFile = ts.createSourceFile(TYPES_FILE, src, ts.ScriptTarget.Latest, true, ts.ScriptKind.TS);
+  const sourceFile = ts.createSourceFile(
+    TYPES_FILE,
+    src,
+    ts.ScriptTarget.Latest,
+    true,
+    ts.ScriptKind.TS,
+  );
 
   for (const statement of sourceFile.statements) {
-    const isExported = statement.modifiers?.some((modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword);
+    const isExported = statement.modifiers?.some(
+      (modifier) => modifier.kind === ts.SyntaxKind.ExportKeyword,
+    );
     if (!isExported) continue;
 
     const members = ts.isInterfaceDeclaration(statement)
       ? statement.members
-      : ts.isTypeAliasDeclaration(statement) && ts.isTypeLiteralNode(statement.type)
+      : ts.isTypeAliasDeclaration(statement) &&
+          ts.isTypeLiteralNode(statement.type)
         ? statement.type.members
         : undefined;
     if (!members) continue;
 
     for (const member of members) {
       if (!ts.isPropertySignature(member) || !member.name) continue;
-      if (ts.isIdentifier(member.name) || ts.isStringLiteral(member.name) || ts.isNumericLiteral(member.name)) {
+      if (
+        ts.isIdentifier(member.name) ||
+        ts.isStringLiteral(member.name) ||
+        ts.isNumericLiteral(member.name)
+      ) {
         fields.add(member.name.text);
       }
     }
@@ -899,8 +1228,8 @@ function buildKnownFields(): Set<string> {
  * non-field mentions to enumerate cleanly).
  */
 function parseDocPage(filePath: string) {
-  const src = readFileSync(filePath, 'utf8');
-  const lines = src.split('\n');
+  const src = readFileSync(filePath, "utf8");
+  const lines = src.split("\n");
 
   const linkTargets: { line: number; href: string }[] = [];
   const fieldMentions: { line: number; field: string }[] = [];
@@ -921,7 +1250,7 @@ function parseDocPage(filePath: string) {
     }
     if (line.includes('className="api-params"')) inParamsList = true;
     if (inParamsList) {
-      if (line.includes('</ul>')) {
+      if (line.includes("</ul>")) {
         inParamsList = false;
         liExpectingField = false;
         continue;
@@ -935,7 +1264,11 @@ function parseDocPage(filePath: string) {
           // notation. Take the LEAF identifier — that's the field on
           // some intermediate type.
           const leaf = token.split(/[.[\s]/).pop() ?? token;
-          if (/^[a-z_$][\w$]*$/.test(leaf) && leaf.length > 1 && !RESERVED_WORDS.has(leaf)) {
+          if (
+            /^[a-z_$][\w$]*$/.test(leaf) &&
+            leaf.length > 1 &&
+            !RESERVED_WORDS.has(leaf)
+          ) {
             fieldMentions.push({ line: lineNo, field: leaf });
           }
           liExpectingField = false;
@@ -949,7 +1282,8 @@ function parseDocPage(filePath: string) {
 
 const PACKAGE_RELEASE_ITEM_RE =
   /\b(?:openiap-(?:gql|apple|google)|react-native-iap|expo-iap|flutter_inapp_purchase|godot-iap|kmp-iap|maui-iap)\s+v?\d+\.\d+\.\d+(?:[-\w.]+)?\b/;
-const GITHUB_RELEASE_LINK_RE = /href=["']https:\/\/github\.com\/hyodotdev\/openiap\/releases\/tag\/[^"']+["']/;
+const GITHUB_RELEASE_LINK_RE =
+  /href=["']https:\/\/github\.com\/hyodotdev\/openiap\/releases\/tag\/[^"']+["']/;
 
 function lineNumberAt(src: string, index: number): number {
   let line = 1;
@@ -961,10 +1295,10 @@ function lineNumberAt(src: string, index: number): number {
 
 function formatQuotedList(values: string[]): string {
   const quoted = values.map((value) => `'${value}'`);
-  if (quoted.length === 0) return 'no generated values';
+  if (quoted.length === 0) return "no generated values";
   if (quoted.length === 1) return quoted[0];
   if (quoted.length === 2) return `${quoted[0]} and ${quoted[1]}`;
-  return `${quoted.slice(0, -1).join(', ')}, and ${quoted.at(-1)}`;
+  return `${quoted.slice(0, -1).join(", ")}, and ${quoted.at(-1)}`;
 }
 
 /**
@@ -974,20 +1308,21 @@ function formatQuotedList(values: string[]): string {
  * package text is a docs regression.
  */
 function auditReleaseNotePackageLinks(filePath: string): Drift[] {
-  const src = readFileSync(filePath, 'utf8');
+  const src = readFileSync(filePath, "utf8");
   const drifts: Drift[] = [];
-  const headingRe = /<h5[^>]*>\s*(Planned Package Releases|Package Releases)\s*<\/h5>/g;
+  const headingRe =
+    /<h5[^>]*>\s*(Planned Package Releases|Package Releases)\s*<\/h5>/g;
 
   let headingMatch: RegExpExecArray | null;
   while ((headingMatch = headingRe.exec(src)) !== null) {
     const heading = headingMatch[1];
-    const ulStart = src.indexOf('<ul', headingRe.lastIndex);
+    const ulStart = src.indexOf("<ul", headingRe.lastIndex);
     if (ulStart === -1) continue;
-    const ulEnd = src.indexOf('</ul>', ulStart);
+    const ulEnd = src.indexOf("</ul>", ulStart);
     if (ulEnd === -1) continue;
     const ul = src.slice(ulStart, ulEnd);
 
-    if (heading !== 'Package Releases') continue;
+    if (heading !== "Package Releases") continue;
 
     const liRe = /<li\b[^>]*>([\s\S]*?)<\/li>/g;
     let liMatch: RegExpExecArray | null;
@@ -999,9 +1334,9 @@ function auditReleaseNotePackageLinks(filePath: string): Drift[] {
       drifts.push({
         file: filePath,
         line: lineNumberAt(src, ulStart + liMatch.index),
-        rule: 'R9',
+        rule: "R9",
         message:
-          '`Package Releases` entries must link package/version items to their GitHub Release URL. Use `Planned Package Releases` only while a release is not published.',
+          "`Package Releases` entries must link package/version items to their GitHub Release URL. Use `Planned Package Releases` only while a release is not published.",
       });
     }
   }
@@ -1009,10 +1344,19 @@ function auditReleaseNotePackageLinks(filePath: string): Drift[] {
   return drifts;
 }
 
-function readJsonRecord(filePath: string, drifts: Drift[], rule: string, label: string): Record<string, unknown> | null {
+function readJsonRecord(
+  filePath: string,
+  drifts: Drift[],
+  rule: string,
+  label: string,
+): Record<string, unknown> | null {
   try {
-    const parsed = JSON.parse(readFileSync(filePath, 'utf8')) as unknown;
-    if (parsed === null || typeof parsed !== 'object' || Array.isArray(parsed)) {
+    const parsed = JSON.parse(readFileSync(filePath, "utf8")) as unknown;
+    if (
+      parsed === null ||
+      typeof parsed !== "object" ||
+      Array.isArray(parsed)
+    ) {
       drifts.push({
         file: filePath,
         line: 1,
@@ -1033,23 +1377,28 @@ function readJsonRecord(filePath: string, drifts: Drift[], rule: string, label: 
   }
 }
 
-function requireRegexValue(filePath: string, pattern: RegExp, drifts: Drift[], label: string): string | null {
+function requireRegexValue(
+  filePath: string,
+  pattern: RegExp,
+  drifts: Drift[],
+  label: string,
+): string | null {
   if (!statSyncSafe(filePath)) {
     drifts.push({
       file: filePath,
       line: 1,
-      rule: 'R10',
+      rule: "R10",
       message: `${label} source file is missing.`,
     });
     return null;
   }
-  const source = readFileSync(filePath, 'utf8');
+  const source = readFileSync(filePath, "utf8");
   const value = source.match(pattern)?.[1]?.trim();
   if (!value) {
     drifts.push({
       file: filePath,
       line: 1,
-      rule: 'R10',
+      rule: "R10",
       message: `${label} source value was not found.`,
     });
     return null;
@@ -1057,14 +1406,19 @@ function requireRegexValue(filePath: string, pattern: RegExp, drifts: Drift[], l
   return value;
 }
 
-function requireJsonString(filePath: string, key: string, drifts: Drift[], label: string): string | null {
-  const data = readJsonRecord(filePath, drifts, 'R10', label);
+function requireJsonString(
+  filePath: string,
+  key: string,
+  drifts: Drift[],
+  label: string,
+): string | null {
+  const data = readJsonRecord(filePath, drifts, "R10", label);
   const value = data?.[key];
-  if (typeof value !== 'string' || value.trim() === '') {
+  if (typeof value !== "string" || value.trim() === "") {
     drifts.push({
       file: filePath,
       line: 1,
-      rule: 'R10',
+      rule: "R10",
       message: `${label} missing "${key}" string.`,
     });
     return null;
@@ -1080,8 +1434,18 @@ function metadataKeyLine(source: string, key: string): number {
 function auditVersionMetadata(): Drift[] {
   const drifts: Drift[] = [];
 
-  const rootVersions = readJsonRecord(ROOT_VERSIONS_FILE, drifts, 'R10', 'openiap-versions.json');
-  const docsVersions = readJsonRecord(DOC_VERSIONS_FILE, drifts, 'R10', 'packages/docs/openiap-versions.json');
+  const rootVersions = readJsonRecord(
+    ROOT_VERSIONS_FILE,
+    drifts,
+    "R10",
+    "openiap-versions.json",
+  );
+  const docsVersions = readJsonRecord(
+    DOC_VERSIONS_FILE,
+    drifts,
+    "R10",
+    "packages/docs/openiap-versions.json",
+  );
   if (rootVersions) {
     try {
       assertSpecMatchesNativeFloor(rootVersions);
@@ -1089,8 +1453,11 @@ function auditVersionMetadata(): Drift[] {
       drifts.push({
         file: ROOT_VERSIONS_FILE,
         line: 1,
-        rule: 'R10',
-        message: error instanceof Error ? error.message : 'OpenIAP Spec must match the native version floor.',
+        rule: "R10",
+        message:
+          error instanceof Error
+            ? error.message
+            : "OpenIAP Spec must match the native version floor.",
       });
     }
   }
@@ -1101,94 +1468,106 @@ function auditVersionMetadata(): Drift[] {
       drifts.push({
         file: DOC_VERSIONS_FILE,
         line: 1,
-        rule: 'R10',
-        message: 'Docs openiap-versions.json must be a real synced copy of the root openiap-versions.json for Vercel.',
+        rule: "R10",
+        message:
+          "Docs openiap-versions.json must be a real synced copy of the root openiap-versions.json for Vercel.",
       });
     }
   }
 
-  const metadata = readJsonRecord(DOC_VERSION_METADATA_FILE, drifts, 'R10', 'packages/docs/src/generated/version-metadata.json');
+  const metadata = readJsonRecord(
+    DOC_VERSION_METADATA_FILE,
+    drifts,
+    "R10",
+    "packages/docs/src/generated/version-metadata.json",
+  );
   if (metadata) {
-    const metadataSource = readFileSync(DOC_VERSION_METADATA_FILE, 'utf8');
+    const metadataSource = readFileSync(DOC_VERSION_METADATA_FILE, "utf8");
     const expected: Record<string, string | null> = {
-      _generatedBy: 'scripts/sync-versions.sh',
+      _generatedBy: "scripts/sync-versions.sh",
       expoPackageVersion: requireJsonString(
-        resolve(REPO_ROOT, 'libraries/expo-iap/package.json'),
-        'version',
+        resolve(REPO_ROOT, "libraries/expo-iap/package.json"),
+        "version",
         drifts,
-        'expo-iap package.json',
+        "expo-iap package.json",
       ),
       reactNativePackageVersion: requireJsonString(
-        resolve(REPO_ROOT, 'libraries/react-native-iap/package.json'),
-        'version',
+        resolve(REPO_ROOT, "libraries/react-native-iap/package.json"),
+        "version",
         drifts,
-        'react-native-iap package.json',
+        "react-native-iap package.json",
       ),
       flutterPackageVersion: requireRegexValue(
-        resolve(REPO_ROOT, 'libraries/flutter_inapp_purchase/pubspec.yaml'),
+        resolve(REPO_ROOT, "libraries/flutter_inapp_purchase/pubspec.yaml"),
         /^version:\s*(.+)$/m,
         drifts,
-        'flutter_inapp_purchase pubspec.yaml version',
+        "flutter_inapp_purchase pubspec.yaml version",
       ),
       godotPackageVersion: requireRegexValue(
-        resolve(REPO_ROOT, 'libraries/godot-iap/addons/godot-iap/plugin.cfg'),
+        resolve(REPO_ROOT, "libraries/godot-iap/addons/godot-iap/plugin.cfg"),
         /^version="([^"]+)"$/m,
         drifts,
-        'godot-iap plugin.cfg version',
+        "godot-iap plugin.cfg version",
       ),
       kmpPackageVersion: requireRegexValue(
-        resolve(REPO_ROOT, 'libraries/kmp-iap/gradle.properties'),
+        resolve(REPO_ROOT, "libraries/kmp-iap/gradle.properties"),
         /^libraryVersion=(.+)$/m,
         drifts,
-        'kmp-iap libraryVersion',
+        "kmp-iap libraryVersion",
       ),
       mauiPackageId: requireRegexValue(
-        resolve(REPO_ROOT, 'libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj'),
+        resolve(
+          REPO_ROOT,
+          "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
+        ),
         /<PackageId>([^<]+)<\/PackageId>/,
         drifts,
-        'MAUI PackageId',
+        "MAUI PackageId",
       ),
       mauiPackageVersion: requireRegexValue(
-        resolve(REPO_ROOT, 'libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj'),
+        resolve(
+          REPO_ROOT,
+          "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
+        ),
         /<PackageVersion>([^<]+)<\/PackageVersion>/,
         drifts,
-        'MAUI PackageVersion',
+        "MAUI PackageVersion",
       ),
       googleCompileSdk: requireRegexValue(
-        resolve(REPO_ROOT, 'packages/google/openiap/build.gradle.kts'),
+        resolve(REPO_ROOT, "packages/google/openiap/build.gradle.kts"),
         /compileSdk\s*=\s*(\d+)/,
         drifts,
-        'openiap-google compileSdk',
+        "openiap-google compileSdk",
       ),
       googleMinSdk: requireRegexValue(
-        resolve(REPO_ROOT, 'packages/google/openiap/build.gradle.kts'),
+        resolve(REPO_ROOT, "packages/google/openiap/build.gradle.kts"),
         /minSdk\s*=\s*(\d+)/,
         drifts,
-        'openiap-google minSdk',
+        "openiap-google minSdk",
       ),
       googlePlayBillingVersion: requireRegexValue(
-        resolve(REPO_ROOT, 'packages/google/openiap/build.gradle.kts'),
+        resolve(REPO_ROOT, "packages/google/openiap/build.gradle.kts"),
         /val\s+playBillingVersion\s*=\s*"([^"]+)"/,
         drifts,
-        'openiap-google Play Billing version',
+        "openiap-google Play Billing version",
       ),
       kmpCompileSdk: requireRegexValue(
-        resolve(REPO_ROOT, 'libraries/kmp-iap/gradle/libs.versions.toml'),
+        resolve(REPO_ROOT, "libraries/kmp-iap/gradle/libs.versions.toml"),
         /^android-compileSdk = "([^"]+)"/m,
         drifts,
-        'kmp-iap android-compileSdk',
+        "kmp-iap android-compileSdk",
       ),
       kmpMinSdk: requireRegexValue(
-        resolve(REPO_ROOT, 'libraries/kmp-iap/gradle/libs.versions.toml'),
+        resolve(REPO_ROOT, "libraries/kmp-iap/gradle/libs.versions.toml"),
         /^android-minSdk = "([^"]+)"/m,
         drifts,
-        'kmp-iap android-minSdk',
+        "kmp-iap android-minSdk",
       ),
       kmpTargetSdk: requireRegexValue(
-        resolve(REPO_ROOT, 'libraries/kmp-iap/gradle/libs.versions.toml'),
+        resolve(REPO_ROOT, "libraries/kmp-iap/gradle/libs.versions.toml"),
         /^android-targetSdk = "([^"]+)"/m,
         drifts,
-        'kmp-iap android-targetSdk',
+        "kmp-iap android-targetSdk",
       ),
     };
 
@@ -1198,7 +1577,7 @@ function auditVersionMetadata(): Drift[] {
         drifts.push({
           file: DOC_VERSION_METADATA_FILE,
           line: metadataKeyLine(metadataSource, key),
-          rule: 'R10',
+          rule: "R10",
           message: `${key} must match the package/library SSOT value "${expectedValue}". Run ./scripts/sync-versions.sh.`,
         });
       }
@@ -1209,29 +1588,31 @@ function auditVersionMetadata(): Drift[] {
     drifts.push({
       file: VERSIONING_FILE,
       line: 1,
-      rule: 'R10',
-      message: 'versioning.ts is missing.',
+      rule: "R10",
+      message: "versioning.ts is missing.",
     });
     return drifts;
   }
 
-  const source = readFileSync(VERSIONING_FILE, 'utf8');
-  if (!source.includes('../generated/version-metadata.json')) {
+  const source = readFileSync(VERSIONING_FILE, "utf8");
+  if (!source.includes("../generated/version-metadata.json")) {
     drifts.push({
       file: VERSIONING_FILE,
       line: 1,
-      rule: 'R10',
-      message: 'versioning.ts must read framework package versions from generated version-metadata.json.',
+      rule: "R10",
+      message:
+        "versioning.ts must read framework package versions from generated version-metadata.json.",
     });
   }
-  for (const forbidden of ['../../../../libraries/', '../../../../packages/']) {
+  for (const forbidden of ["../../../../libraries/", "../../../../packages/"]) {
     const index = source.indexOf(forbidden);
     if (index !== -1) {
       drifts.push({
         file: VERSIONING_FILE,
         line: lineNumberAt(source, index),
-        rule: 'R10',
-        message: 'versioning.ts must not raw-import files outside packages/docs; Vercel deploys the docs package root.',
+        rule: "R10",
+        message:
+          "versioning.ts must not raw-import files outside packages/docs; Vercel deploys the docs package root.",
       });
     }
   }
@@ -1240,66 +1621,66 @@ function auditVersionMetadata(): Drift[] {
 }
 
 const RESERVED_WORDS = new Set([
-  'true',
-  'false',
-  'null',
-  'void',
-  'any',
-  'never',
-  'string',
-  'number',
-  'boolean',
-  'object',
-  'undefined',
-  'this',
-  'self',
-  'super',
-  'async',
-  'await',
-  'yield',
-  'try',
-  'catch',
-  'finally',
-  'throw',
-  'return',
-  'if',
-  'else',
-  'for',
-  'while',
-  'do',
-  'switch',
-  'case',
-  'break',
-  'continue',
-  'const',
-  'let',
-  'var',
-  'function',
-  'class',
-  'extends',
-  'implements',
-  'interface',
-  'type',
-  'enum',
-  'public',
-  'private',
-  'protected',
-  'static',
-  'readonly',
-  'abstract',
-  'as',
-  'is',
-  'in',
-  'of',
-  'new',
-  'delete',
-  'typeof',
-  'instanceof',
-  'import',
-  'export',
-  'from',
-  'default',
-  'package',
+  "true",
+  "false",
+  "null",
+  "void",
+  "any",
+  "never",
+  "string",
+  "number",
+  "boolean",
+  "object",
+  "undefined",
+  "this",
+  "self",
+  "super",
+  "async",
+  "await",
+  "yield",
+  "try",
+  "catch",
+  "finally",
+  "throw",
+  "return",
+  "if",
+  "else",
+  "for",
+  "while",
+  "do",
+  "switch",
+  "case",
+  "break",
+  "continue",
+  "const",
+  "let",
+  "var",
+  "function",
+  "class",
+  "extends",
+  "implements",
+  "interface",
+  "type",
+  "enum",
+  "public",
+  "private",
+  "protected",
+  "static",
+  "readonly",
+  "abstract",
+  "as",
+  "is",
+  "in",
+  "of",
+  "new",
+  "delete",
+  "typeof",
+  "instanceof",
+  "import",
+  "export",
+  "from",
+  "default",
+  "package",
 ]);
 
 /**
@@ -1307,11 +1688,14 @@ const RESERVED_WORDS = new Set([
  * containing folder's `index.tsx`).
  */
 function linkResolves(target: string): boolean {
-  const [pathPart] = target.split('#');
+  const [pathPart] = target.split("#");
   // strip leading /docs and trailing slash
-  const slug = pathPart.replace(/^\/docs\/?/, '').replace(/\/$/, '');
-  if (!slug) return statSyncSafe(join(DOC_PAGES_DIR, 'docs/index.tsx'));
-  const candidates = [join(DOC_PAGES_DIR, 'docs', `${slug}.tsx`), join(DOC_PAGES_DIR, 'docs', slug, 'index.tsx')];
+  const slug = pathPart.replace(/^\/docs\/?/, "").replace(/\/$/, "");
+  if (!slug) return statSyncSafe(join(DOC_PAGES_DIR, "docs/index.tsx"));
+  const candidates = [
+    join(DOC_PAGES_DIR, "docs", `${slug}.tsx`),
+    join(DOC_PAGES_DIR, "docs", slug, "index.tsx"),
+  ];
   return candidates.some(statSyncSafe);
 }
 
@@ -1337,98 +1721,98 @@ async function main() {
   // Common framework + JS / Dart / Kotlin words that appear in code
   // examples without being IAP fields. Excluded from the fallback.
   const SAFE_WORDS = new Set([
-    'console',
-    'log',
-    'error',
-    'warn',
-    'instance',
-    'shared',
-    'connected',
-    'await',
-    'use',
-    'effect',
-    'callback',
-    'fn',
-    'cb',
-    'i',
-    'j',
-    'k',
-    'p',
-    'a',
-    'b',
-    'c',
-    'x',
-    'y',
-    'value',
-    'name',
-    'message',
-    'code',
-    'reason',
-    'data',
-    'json',
-    'token',
-    'url',
-    'sku',
-    'id',
-    'type',
-    'platform',
-    'native',
-    'success',
-    'result',
-    'error',
-    'props',
-    'options',
-    'params',
-    'config',
-    'request',
-    'args',
-    'purchase',
-    'product',
-    'subscription',
+    "console",
+    "log",
+    "error",
+    "warn",
+    "instance",
+    "shared",
+    "connected",
+    "await",
+    "use",
+    "effect",
+    "callback",
+    "fn",
+    "cb",
+    "i",
+    "j",
+    "k",
+    "p",
+    "a",
+    "b",
+    "c",
+    "x",
+    "y",
+    "value",
+    "name",
+    "message",
+    "code",
+    "reason",
+    "data",
+    "json",
+    "token",
+    "url",
+    "sku",
+    "id",
+    "type",
+    "platform",
+    "native",
+    "success",
+    "result",
+    "error",
+    "props",
+    "options",
+    "params",
+    "config",
+    "request",
+    "args",
+    "purchase",
+    "product",
+    "subscription",
     // Top-level scalar/list function parameters. These legitimately appear
     // in API parameter lists but are not generated object fields.
-    'program',
-    'subscriptionIds',
-    'tokenType',
-    'groupId',
-    'noticeType',
-    'continued',
-    'reconnect',
-    'cancel',
-    'open',
-    'close',
-    'state',
-    'status',
-    'group',
-    'ok',
-    'os',
-    'isIOS',
-    'isAndroid',
-    'productId',
-    'orderId',
-    'transactionId',
-    'purchaseToken',
-    'currency',
-    'price',
-    'count',
-    'index',
-    'size',
-    'length',
-    'env',
-    'process',
-    'self',
-    'this',
-    'super',
-    'continuation',
-    'deferred',
-    'completion',
-    'handler',
-    'listener',
-    'emitter',
-    'subscriber',
-    'unsubscribe',
-    'remove',
-    'add',
+    "program",
+    "subscriptionIds",
+    "tokenType",
+    "groupId",
+    "noticeType",
+    "continued",
+    "reconnect",
+    "cancel",
+    "open",
+    "close",
+    "state",
+    "status",
+    "group",
+    "ok",
+    "os",
+    "isIOS",
+    "isAndroid",
+    "productId",
+    "orderId",
+    "transactionId",
+    "purchaseToken",
+    "currency",
+    "price",
+    "count",
+    "index",
+    "size",
+    "length",
+    "env",
+    "process",
+    "self",
+    "this",
+    "super",
+    "continuation",
+    "deferred",
+    "completion",
+    "handler",
+    "listener",
+    "emitter",
+    "subscriber",
+    "unsubscribe",
+    "remove",
+    "add",
   ]);
 
   const allDocPages: string[] = [];
@@ -1446,7 +1830,7 @@ async function main() {
         drifts.push({
           file,
           line,
-          rule: 'R5',
+          rule: "R5",
           message: `<Link to="${href}"> does not resolve to an existing /docs page.`,
         });
       }
@@ -1461,7 +1845,7 @@ async function main() {
       drifts.push({
         file,
         line,
-        rule: 'R3',
+        rule: "R3",
         message: `<code>${field}</code> is not a known field on any generated TypeScript type. Did you rename or invent it?`,
       });
     }
@@ -1470,41 +1854,50 @@ async function main() {
   const activeDocPages = await walkTsxFiles(ACTIVE_DOCS_ROOT);
   for (const file of activeDocPages) {
     if (resolve(file) === RELEASE_NOTES_FILE) continue;
-    drifts.push(...auditActiveCodeExampleSource(file, readFileSync(file, 'utf8')));
+    drifts.push(
+      ...auditActiveCodeExampleSource(file, readFileSync(file, "utf8")),
+    );
   }
 
   drifts.push(...auditReleaseNotePackageLinks(RELEASE_NOTES_FILE));
   drifts.push(...auditVersionMetadata());
   drifts.push(
+    ...auditVerifyPurchaseDocs(
+      VERIFY_PURCHASE_DOC_FILE,
+      readFileSync(VERIFY_PURCHASE_DOC_FILE, "utf8"),
+      readFileSync(TYPES_FILE, "utf8"),
+    ),
+  );
+  drifts.push(
     ...auditCanonicalOfferDocs({
       discountOffer: {
         file: DISCOUNT_OFFER_DOC_FILE,
-        source: readFileSync(DISCOUNT_OFFER_DOC_FILE, 'utf8'),
+        source: readFileSync(DISCOUNT_OFFER_DOC_FILE, "utf8"),
       },
       subscriptionOffer: {
         file: SUBSCRIPTION_OFFER_DOC_FILE,
-        source: readFileSync(SUBSCRIPTION_OFFER_DOC_FILE, 'utf8'),
+        source: readFileSync(SUBSCRIPTION_OFFER_DOC_FILE, "utf8"),
       },
       searchData: {
         file: SEARCH_DATA_FILE,
-        source: readFileSync(SEARCH_DATA_FILE, 'utf8'),
+        source: readFileSync(SEARCH_DATA_FILE, "utf8"),
       },
       generatedOfferTypes: {
         typescript: {
           file: GENERATED_OFFER_TYPE_FILES.typescript,
-          source: readFileSync(GENERATED_OFFER_TYPE_FILES.typescript, 'utf8'),
+          source: readFileSync(GENERATED_OFFER_TYPE_FILES.typescript, "utf8"),
         },
         swift: {
           file: GENERATED_OFFER_TYPE_FILES.swift,
-          source: readFileSync(GENERATED_OFFER_TYPE_FILES.swift, 'utf8'),
+          source: readFileSync(GENERATED_OFFER_TYPE_FILES.swift, "utf8"),
         },
         kotlin: {
           file: GENERATED_OFFER_TYPE_FILES.kotlin,
-          source: readFileSync(GENERATED_OFFER_TYPE_FILES.kotlin, 'utf8'),
+          source: readFileSync(GENERATED_OFFER_TYPE_FILES.kotlin, "utf8"),
         },
         dart: {
           file: GENERATED_OFFER_TYPE_FILES.dart,
-          source: readFileSync(GENERATED_OFFER_TYPE_FILES.dart, 'utf8'),
+          source: readFileSync(GENERATED_OFFER_TYPE_FILES.dart, "utf8"),
         },
       },
     }),
@@ -1516,11 +1909,11 @@ async function main() {
   // legitimately appear in `<ul className="api-params">` lists without
   // being a field of any type — the audit can't tell them apart from
   // genuine drift without knowing each function's signature.
-  const hardFailures = drifts.filter((d) => d.rule !== 'R3');
-  const warnings = drifts.filter((d) => d.rule === 'R3');
+  const hardFailures = drifts.filter((d) => d.rule !== "R3");
+  const warnings = drifts.filter((d) => d.rule === "R3");
 
   if (hardFailures.length === 0 && warnings.length === 0) {
-    console.log('audit-docs: clean — 0 drift detected');
+    console.log("audit-docs: clean — 0 drift detected");
     process.exit(0);
   }
 
@@ -1530,7 +1923,7 @@ async function main() {
       const rel = relative(REPO_ROOT, d.file);
       console.log(`  [${d.rule}] ${rel}:${d.line}\n    ${d.message}`);
     }
-    console.log('');
+    console.log("");
   }
 
   if (hardFailures.length > 0) {
@@ -1542,13 +1935,13 @@ async function main() {
     process.exit(1);
   }
 
-  console.log('audit-docs: no hard failures (warnings above are advisory)');
+  console.log("audit-docs: no hard failures (warnings above are advisory)");
   process.exit(0);
 }
 
 if (import.meta.main) {
   main().catch((err) => {
-    console.error('audit-docs: fatal error');
+    console.error("audit-docs: fatal error");
     console.error(err);
     process.exit(2);
   });

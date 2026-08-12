@@ -180,6 +180,12 @@ function VerifyPurchase() {
                   <tbody>
                     <tr>
                       <td>
+                        <code>isValid</code>
+                      </td>
+                      <td>Whether the entitlement verification succeeded</td>
+                    </tr>
+                    <tr>
+                      <td>
                         <code>autoRenewing</code>
                       </td>
                       <td>Whether subscription will auto-renew</td>
@@ -314,9 +320,18 @@ function VerifyPurchase() {
                   <tbody>
                     <tr>
                       <td>
-                        <code>success</code>
+                        <code>isValid</code>
                       </td>
                       <td>Whether the entitlement verification succeeded</td>
+                    </tr>
+                    <tr>
+                      <td>
+                        <code>success</code>
+                      </td>
+                      <td>
+                        Deprecated alias for <code>isValid</code>; scheduled for
+                        removal in OpenIAP 4.0
+                      </td>
                     </tr>
                     <tr>
                       <td>

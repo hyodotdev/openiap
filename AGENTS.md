@@ -80,6 +80,15 @@ KISS and SSOT are mandatory release criteria. The canonical rules live in
 [`knowledge/internal/03-coding-style.md`](knowledge/internal/03-coding-style.md#0-kiss-and-ssot-are-release-requirements).
 Apply that section before implementation and during every review.
 
+### Comment Style
+
+Keep comments short — default to one line. AI-authored comments over-explain by
+default, so trim before committing: no restating the code, no narrating the
+change or its history (that belongs in the commit message), no explaining
+well-known APIs. Keep only what the code cannot show: platform quirks, non-obvious
+constraints, and why an obvious alternative was rejected. Full checklist in
+[`knowledge/internal/03-coding-style.md`](knowledge/internal/03-coding-style.md#keep-them-short--especially-ai-generated-ones).
+
 ### Platform Function Naming
 
 - **iOS functions**: Must end with `IOS` suffix (e.g., `syncIOS`, `getReceiptDataIOS`)

@@ -31,8 +31,10 @@ import dev.hyo.openiap.SubResponseCodeAndroid as OpenIapSubResponseCodeAndroid
 import dev.hyo.openiap.SubscriptionProductReplacementParamsAndroid as OpenIapSubscriptionProductReplacementParams
 import dev.hyo.openiap.SubscriptionReplacementModeAndroid as OpenIapSubscriptionReplacementMode
 import dev.hyo.openiap.VerifyPurchaseGoogleOptions
+import dev.hyo.openiap.VerifyPurchaseHorizonOptions
 import dev.hyo.openiap.VerifyPurchaseProps
 import dev.hyo.openiap.VerifyPurchaseResultAndroid
+import dev.hyo.openiap.VerifyPurchaseResultHorizon
 import dev.hyo.openiap.InitConnectionConfig as OpenIapInitConnectionConfig
 import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
@@ -1405,10 +1407,45 @@ class HybridRnIap : HybridRnIapSpec() {
     }
 
     // Receipt validation - calls OpenIAP's verifyPurchase
-    override fun verifyPurchase(params: NitroPurchaseVerificationParams): Promise<Variant_NitroPurchaseVerificationResultIOS_NitroPurchaseVerificationResultAndroid> {
+    override fun verifyPurchase(params: NitroPurchaseVerificationParams): Promise<Variant_NitroPurchaseVerificationResultIOS_NitroPurchaseVerificationResultAndroid_NitroPurchaseVerificationResultHorizon> {
         return Promise.async {
             try {
-                // For Android, we need the google options to be provided (new platform-specific structure)
+                val nitroHorizonOptions =
+                    (params.horizon as? Variant_NullType_NitroPurchaseVerificationHorizonOptions.Second)?.value
+                if (nitroHorizonOptions != null) {
+                    val validations = mapOf(
+                        "horizon.sku" to nitroHorizonOptions.sku,
+                        "horizon.userId" to nitroHorizonOptions.userId,
+                        "horizon.accessToken" to nitroHorizonOptions.accessToken
+                    )
+                    for ((name, value) in validations) {
+                        if (value.isEmpty()) {
+                            throw OpenIapException(toErrorJson(OpenIapError.DeveloperError(), debugMessage = "Missing or empty required parameter: $name"))
+                        }
+                    }
+
+                    RnIapLog.payload("verifyPurchase", mapOf(
+                        "store" to "horizon",
+                        "sku" to nitroHorizonOptions.sku
+                    ))
+                    val props = VerifyPurchaseProps(
+                        horizon = VerifyPurchaseHorizonOptions(
+                            sku = nitroHorizonOptions.sku,
+                            userId = nitroHorizonOptions.userId,
+                            accessToken = nitroHorizonOptions.accessToken
+                        )
+                    )
+                    val horizonResult = openIap.verifyPurchase(props) as? VerifyPurchaseResultHorizon
+                        ?: throw OpenIapException(toErrorJson(OpenIapError.InvalidPurchaseVerification, debugMessage = "Unexpected Horizon result type from verifyPurchase"))
+                    @Suppress("DEPRECATION")
+                    val result = NitroPurchaseVerificationResultHorizon(
+                        isValid = horizonResult.isValid,
+                        grantTime = horizonResult.grantTime.wrapVariant(),
+                        success = horizonResult.success
+                    )
+                    return@async Variant_NitroPurchaseVerificationResultIOS_NitroPurchaseVerificationResultAndroid_NitroPurchaseVerificationResultHorizon.Third(result)
+                }
+
                 val nitroGoogleOptions = (params.google as? Variant_NullType_NitroPurchaseVerificationGoogleOptions.Second)?.value
                     ?: throw OpenIapException(toErrorJson(OpenIapError.DeveloperError(), debugMessage = "Missing required parameter: google options"))
 
@@ -1459,6 +1496,7 @@ class HybridRnIap : HybridRnIapSpec() {
 
                 // Convert OpenIAP result to Nitro result
                 val result = NitroPurchaseVerificationResultAndroid(
+                    isValid = androidResult.isValid,
                     autoRenewing = androidResult.autoRenewing,
                     betaProduct = androidResult.betaProduct,
                     cancelDate = androidResult.cancelDate.wrapVariant(),
@@ -1479,7 +1517,7 @@ class HybridRnIap : HybridRnIapSpec() {
                     testTransaction = androidResult.testTransaction
                 )
 
-                Variant_NitroPurchaseVerificationResultIOS_NitroPurchaseVerificationResultAndroid.Second(result)
+                Variant_NitroPurchaseVerificationResultIOS_NitroPurchaseVerificationResultAndroid_NitroPurchaseVerificationResultHorizon.Second(result)
 
             } catch (e: OpenIapException) {
                 RnIapLog.failure("verifyPurchase", e)

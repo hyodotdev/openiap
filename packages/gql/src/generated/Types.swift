@@ -518,6 +518,12 @@ public protocol PurchaseCommon: Codable {
     var transactionDate: Double { get }
 }
 
+/// Validity shared by every store-specific purchase verification result.
+public protocol VerifyPurchaseResultCommon: Codable {
+    /// Whether the purchase is valid, without inspecting the concrete result variant.
+    var isValid: Bool { get }
+}
+
 // MARK: - Objects
 
 public struct ActiveSubscription: Codable {
@@ -1374,7 +1380,7 @@ public struct ValidTimeWindowAndroid: Codable {
     public var startTimeMillis: String
 }
 
-public struct VerifyPurchaseResultAndroid: Codable {
+public struct VerifyPurchaseResultAndroid: Codable, VerifyPurchaseResultCommon {
     public var autoRenewing: Bool
     public var betaProduct: Bool
     public var cancelDate: Double? = nil
@@ -1383,6 +1389,9 @@ public struct VerifyPurchaseResultAndroid: Codable {
     public var deferredSku: String? = nil
     public var freeTrialEndDate: Double
     public var gracePeriodEndDate: Double
+    /// Whether the purchase is valid. Uniform across every VerifyPurchaseResult
+    /// variant so callers can gate entitlement without inspecting the concrete type.
+    public var isValid: Bool
     public var parentProductId: String
     public var productId: String
     public var productType: String
@@ -1397,14 +1406,19 @@ public struct VerifyPurchaseResultAndroid: Codable {
 
 /// Result from Meta Horizon verify_entitlement API.
 /// Returns verification status and grant time for the entitlement.
-public struct VerifyPurchaseResultHorizon: Codable {
+public struct VerifyPurchaseResultHorizon: Codable, VerifyPurchaseResultCommon {
     /// Unix timestamp (seconds) when the entitlement was granted.
     public var grantTime: Double? = nil
+    /// Whether the purchase is valid. Uniform across every VerifyPurchaseResult
+    /// variant so callers can gate entitlement without inspecting the concrete type.
+    public var isValid: Bool
     /// Whether the entitlement verification succeeded.
+    /// @deprecated Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0.
+    @available(*, deprecated, message: "Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0.")
     public var success: Bool
 }
 
-public struct VerifyPurchaseResultIOS: Codable {
+public struct VerifyPurchaseResultIOS: Codable, VerifyPurchaseResultCommon {
     /// Whether the receipt is valid
     public var isValid: Bool
     /// JWS representation
@@ -2558,10 +2572,22 @@ public enum Purchase: Codable, PurchaseCommon {
     }
 }
 
-public enum VerifyPurchaseResult: Codable {
+public enum VerifyPurchaseResult: Codable, VerifyPurchaseResultCommon {
     case verifyPurchaseResultAndroid(VerifyPurchaseResultAndroid)
     case verifyPurchaseResultIos(VerifyPurchaseResultIOS)
     case verifyPurchaseResultHorizon(VerifyPurchaseResultHorizon)
+
+    /// Whether the purchase is valid, without inspecting the concrete result variant.
+    public var isValid: Bool {
+        switch self {
+        case let .verifyPurchaseResultAndroid(value):
+            return value.isValid
+        case let .verifyPurchaseResultIos(value):
+            return value.isValid
+        case let .verifyPurchaseResultHorizon(value):
+            return value.isValid
+        }
+    }
 }
 
 // MARK: - Root Operations
@@ -2687,11 +2713,11 @@ public protocol MutationResolver {
     /// Force sync transactions with the App Store (iOS 15+).
     /// See: https://openiap.dev/docs/apis/ios/sync-ios
     func syncIOS() async throws -> Bool
-    /// Verify a purchase against your own backend. Returns a platform-specific
-    /// variant of VerifyPurchaseResult — VerifyPurchaseResultIOS exposes isValid
-    /// + receipt/JWS metadata, VerifyPurchaseResultAndroid carries Play Store
-    /// receipt fields (no isValid), and VerifyPurchaseResultHorizon uses success.
-    /// Inspect the concrete variant before reading fields.
+    /// Verify a purchase against your own backend. Every VerifyPurchaseResult
+    /// variant exposes isValid, so entitlement can be gated without inspecting the
+    /// concrete type. Variants add their own metadata on top: IOS carries
+    /// receipt/JWS fields, Android carries Play Store receipt fields, and Horizon
+    /// carries grantTime.
     /// See: https://openiap.dev/docs/features/validation#verify-purchase
     func verifyPurchase(_ options: VerifyPurchaseProps) async throws -> VerifyPurchaseResult
     /// Verify via a managed provider without standing up your own server. The

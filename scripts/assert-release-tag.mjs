@@ -11,6 +11,11 @@ const PACKAGE_CONFIG = {
     tags: (version) => [version, `apple-v${version}`],
     version: (content) => JSON.parse(content).apple,
   },
+  conformance: {
+    path: "packages/conformance/package.json",
+    tags: (version) => [`openiap-conformance-${version}`],
+    version: (content) => JSON.parse(content).version,
+  },
   expo: {
     path: "libraries/expo-iap/package.json",
     tags: (version) => [`expo-iap-${version}`],

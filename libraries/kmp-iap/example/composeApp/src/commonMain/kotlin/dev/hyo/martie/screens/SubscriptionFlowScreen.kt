@@ -145,7 +145,7 @@ fun SubscriptionFlowScreen(navController: NavController) {
                                                     "Product: ${result.productId}\n" +
                                                     "Receipt ID: ${credentialStatus(result.receiptId)}"
                                                 is VerifyPurchaseResultHorizon -> "📱 Horizon Verification:\n" +
-                                                    "Success: ${result.success}\n" +
+                                                    "Valid: ${result.isValid}\n" +
                                                     "Grant Time: ${result.grantTime ?: "N/A"}"
                                             }
                                         }

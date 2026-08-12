@@ -127,6 +127,32 @@ class PurchaseVerificationValidatorTest {
         assertEquals(true, result.autoRenewing)
         assertEquals(false, result.betaProduct)
         assertEquals(1, result.quantity)
+        // Play sends no validity field; a parsed 2xx purchase record is the
+        // signal, and gson would otherwise leave this false.
+        assertTrue(result.isValid)
+    }
+
+    @Test
+    fun `verifyPurchaseWithGooglePlay defaults fields omitted by Play`() = runTest {
+        val props = VerifyPurchaseProps(
+            google = VerifyPurchaseGoogleOptions(
+                accessToken = "token",
+                isSub = false,
+                packageName = "dev.hyo.app",
+                purchaseToken = "purchaseToken",
+                sku = "premium"
+            )
+        )
+
+        val result = verifyPurchaseWithGooglePlay(
+            props,
+            "TEST_TAG"
+        ) { _ -> FakeHttpURLConnection(200, """{"purchaseState":0}""") }
+
+        assertTrue(result.isValid)
+        assertEquals("", result.parentProductId)
+        assertEquals("", result.productId)
+        assertEquals("", result.receiptId)
     }
 
     @Test
@@ -150,6 +176,47 @@ class PurchaseVerificationValidatorTest {
             // InvalidPurchaseVerification is the expected exception
             assertTrue(true)
         }
+    }
+
+    @Test
+    fun `verifyPurchaseWithHorizon maps success onto isValid`() = runTest {
+        val props = VerifyPurchaseProps(
+            horizon = VerifyPurchaseHorizonOptions(
+                accessToken = "token",
+                sku = "premium_monthly",
+                userId = "user-1"
+            )
+        )
+
+        val result = verifyPurchaseWithHorizon(
+            props,
+            "app-id",
+            "TEST_TAG"
+        ) { _ -> FakeHttpURLConnection(200, """{"success":true,"grant_time":1744148687}""") }
+
+        assertTrue(result.isValid)
+        // The schema documents grantTime in seconds; IAPKit's millisecond
+        // conversion is internal to its own storage, not this field.
+        assertEquals(1744148687.0, result.grantTime!!, 0.0)
+    }
+
+    @Test
+    fun `verifyPurchaseWithHorizon reports an unsuccessful entitlement as invalid`() = runTest {
+        val props = VerifyPurchaseProps(
+            horizon = VerifyPurchaseHorizonOptions(
+                accessToken = "token",
+                sku = "premium_monthly",
+                userId = "user-1"
+            )
+        )
+
+        val result = verifyPurchaseWithHorizon(
+            props,
+            "app-id",
+            "TEST_TAG"
+        ) { _ -> FakeHttpURLConnection(200, """{"success":false}""") }
+
+        assertEquals(false, result.isValid)
     }
 
     @Test

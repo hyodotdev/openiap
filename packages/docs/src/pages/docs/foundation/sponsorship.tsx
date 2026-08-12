@@ -65,8 +65,9 @@ function Sponsorship() {
                 <strong>Conformance and test matrix</strong>
               </td>
               <td>
-                Cross-platform tests catch regressions before they hit your
-                production apps
+                Shared behavioral tests run every store implementation through
+                the same expectations, so normalization regressions are caught
+                before they reach your production apps
               </td>
             </tr>
             <tr>

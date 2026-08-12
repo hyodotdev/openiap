@@ -966,8 +966,9 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
     const normalizedRequest = normalizeRequestProps(request, 'ios');
 
     if (!normalizedRequest?.sku) {
-      throw new Error(
-        'Invalid request for Apple. The `sku` property is required and must be a string.\n\n' +
+      throw createPurchaseError({
+        message:
+          'Invalid request for Apple. The `sku` property is required and must be a string.\n\n' +
           'Expected format:\n' +
           '  requestPurchase({\n' +
           '    request: {\n' +
@@ -977,7 +978,8 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
           '    type: "in-app"\n' +
           '  })\n\n' +
           'See: https://openiap.dev/docs/apis/request-purchase',
-      );
+        code: ErrorCode.EmptySkuList,
+      });
     }
 
     if (canonical !== 'in-app' && canonical !== 'subs') {
@@ -1020,7 +1022,8 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
       ) as RequestPurchaseAndroidProps | null | undefined;
 
       if (!normalizedRequest?.skus?.length) {
-        throw new Error(
+        throw createPurchaseError({
+          message:
           'Invalid request for Google. The `skus` property is required and must be a non-empty array.\n\n' +
             'Expected format:\n' +
             '  requestPurchase({\n' +
@@ -1031,7 +1034,8 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
             '    type: "in-app"\n' +
             '  })\n\n' +
             'See: https://openiap.dev/docs/apis/request-purchase',
-        );
+          code: ErrorCode.EmptySkuList,
+        });
       }
 
       const {
@@ -1075,7 +1079,8 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
       ) as RequestSubscriptionAndroidProps | null | undefined;
 
       if (!normalizedRequest?.skus?.length) {
-        throw new Error(
+        throw createPurchaseError({
+          message:
           'Invalid request for Google. The `skus` property is required and must be a non-empty array.\n\n' +
             'Expected format:\n' +
             '  requestPurchase({\n' +
@@ -1086,7 +1091,8 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
             '    type: "subs"\n' +
             '  })\n\n' +
             'See: https://openiap.dev/docs/apis/request-purchase',
-        );
+          code: ErrorCode.EmptySkuList,
+        });
       }
 
       const {

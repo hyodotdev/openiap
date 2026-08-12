@@ -1395,7 +1395,7 @@ class OpenIapModule(
                 "Horizon verifyPurchase requires appId to be set during initConnection"
             )
             val horizonResult = verifyPurchaseWithHorizon(props, horizonAppId, TAG)
-            if (!horizonResult.success) {
+            if (!horizonResult.isValid) {
                 throw OpenIapError.InvalidPurchaseVerification
             }
             horizonResult

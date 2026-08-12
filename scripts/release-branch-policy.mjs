@@ -14,6 +14,10 @@ const versionSources = {
     label: "openiap-apple",
     read: (root) => readJson(root, "openiap-versions.json").apple,
   },
+  conformance: {
+    label: "openiap-conformance",
+    read: (root) => readJson(root, "packages/conformance/package.json").version,
+  },
   docs: {
     label: "OpenIAP Spec",
     read: (root) => readJson(root, "openiap-versions.json").spec,
