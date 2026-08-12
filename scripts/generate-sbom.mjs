@@ -379,6 +379,20 @@ export function buildSbom({
   const tag = releaseTagFor(componentId, version);
   const componentRef = purl;
 
+  // A VEX statement that points at a bom-ref this SBOM does not contain says
+  // nothing a consumer's scanner can act on. Catch it here rather than
+  // shipping an analysis nobody can match to a component.
+  const knownRefs = new Set([componentRef, ...dependencies.map((d) => d.purl)]);
+  for (const statement of vulnerabilities) {
+    for (const affected of statement.affects ?? []) {
+      if (!knownRefs.has(affected.ref)) {
+        throw new Error(
+          `VEX statement ${statement.id} affects '${affected.ref}', which is not a component of ${definition.sbomName}@${version}`,
+        );
+      }
+    }
+  }
+
   const externalReferences = [
     { type: "vcs", url: `${REPOSITORY_URL}.git` },
     { type: "distribution", url: definition.distribution(version) },
@@ -496,8 +510,10 @@ async function lookupLicense(entry) {
     }
 
     if (entry.purl.startsWith("pkg:npm/")) {
+      // A scoped name contains a slash, which would otherwise be read as a
+      // path separator and 404.
       const metadata = await fetchText(
-        `https://registry.npmjs.org/${entry.name}/${entry.version}`,
+        `https://registry.npmjs.org/${encodeURIComponent(entry.name)}/${entry.version}`,
       );
       const license = metadata ? JSON.parse(metadata).license : null;
       return normalizeLicense(

@@ -368,6 +368,46 @@ test("VEX statements are validated, and absent by default", (t) => {
   assert.throws(() => readVexStatements(scratch, "google"), /without an id/u);
 });
 
+test("a VEX statement must point at a component this SBOM contains", () => {
+  const dependencies = [
+    { name: "a", version: "1.0.0", purl: "pkg:maven/g/a@1.0.0" },
+  ];
+  const base = {
+    componentId: "google",
+    version: "3.3.0",
+    commit: stubCommit,
+    timestamp: "2026-01-01T00:00:00.000Z",
+    dependencies,
+  };
+
+  const good = buildSbom({
+    ...base,
+    vulnerabilities: [
+      {
+        id: "CVE-2026-0001",
+        affects: [{ ref: "pkg:maven/g/a@1.0.0" }],
+        analysis: { state: "not_affected", justification: "code_not_present" },
+      },
+    ],
+  });
+  assert.equal(good.vulnerabilities.length, 1);
+
+  assert.throws(
+    () =>
+      buildSbom({
+        ...base,
+        vulnerabilities: [
+          {
+            id: "CVE-2026-0002",
+            affects: [{ ref: "pkg:maven/g/typo@9.9.9" }],
+            analysis: { state: "exploitable" },
+          },
+        ],
+      }),
+    /is not a component of/u,
+  );
+});
+
 test("an SBOM with no analysed vulnerabilities omits the section", () => {
   const document = buildSbom({
     componentId: "google",
