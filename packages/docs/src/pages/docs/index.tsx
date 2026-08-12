@@ -199,7 +199,12 @@ function Docs() {
   const [isSidebarScrolling, setIsSidebarScrolling] = useState(false);
   const sidebarRef = useRef<HTMLElement | null>(null);
   const sidebarScrollTimeoutRef = useRef<number | null>(null);
-  const dragRef = useRef<{ startX: number; moved: boolean } | null>(null);
+  const dragRef = useRef<{
+    startX: number;
+    moved: boolean;
+    startedCollapsed: boolean;
+    reopened: boolean;
+  } | null>(null);
 
   const closeSidebar = () => setIsSidebarOpen(false);
 
@@ -263,20 +268,40 @@ function Docs() {
       const sidebarLeft = sidebarRef.current?.getBoundingClientRect().left ?? 0;
       const nextWidth = event.clientX - sidebarLeft;
 
+      if (drag.startedCollapsed) {
+        // Collapsed, the sidebar is 0 wide and the handle sits on its edge, so
+        // nextWidth is only ~25px however the pointer moves. Falling through to
+        // the collapse branch below would make any small jitter a no-op and
+        // strand the user - above 768px this handle is the only way back. Only
+        // a deliberate drag out past the minimum reopens; anything shorter is
+        // left to stopResizing, which treats the release as a toggle.
+        if (nextWidth >= SIDEBAR_MIN_WIDTH - SIDEBAR_COLLAPSE_SLACK) {
+          drag.reopened = true;
+          setIsSidebarCollapsed(false);
+          setSidebarWidth(clampSidebarWidth(nextWidth));
+        }
+
+        return;
+      }
+
       if (nextWidth < SIDEBAR_MIN_WIDTH - SIDEBAR_COLLAPSE_SLACK) {
-        // Dragged past the minimum: snap shut and end the drag.
+        // Dragged past the minimum: snap shut and end the drag. Clear the drag
+        // so a trailing pointerup cannot toggle it straight back open.
+        dragRef.current = null;
         setIsSidebarCollapsed(true);
         setIsResizingSidebar(false);
         return;
       }
 
-      setIsSidebarCollapsed(false);
       setSidebarWidth(clampSidebarWidth(nextWidth));
     };
 
     const stopResizing = () => {
-      // Released without travelling: that was a click, so toggle instead.
-      if (dragRef.current && !dragRef.current.moved) {
+      const drag = dragRef.current;
+
+      // Toggle on a plain click, and also when a gesture that started collapsed
+      // never travelled far enough to count as a reopen drag.
+      if (drag && !drag.reopened && (!drag.moved || drag.startedCollapsed)) {
         setIsSidebarCollapsed((collapsed) => !collapsed);
       }
 
@@ -303,7 +328,12 @@ function Docs() {
     }
 
     event.preventDefault();
-    dragRef.current = { startX: event.clientX, moved: false };
+    dragRef.current = {
+      startX: event.clientX,
+      moved: false,
+      startedCollapsed: isSidebarCollapsed,
+      reopened: false,
+    };
     setIsResizingSidebar(true);
   };
 

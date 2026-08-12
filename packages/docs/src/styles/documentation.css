@@ -476,11 +476,21 @@
   }
 }
 
+/* Selectors here must match or beat the rules they suppress: the collapsed and
+   open states re-declare `transition` at (0,3,0) and (0,2,0), so a bare
+   `.docs-sidebar` at (0,1,0) would lose and only the restore direction would
+   stop animating. */
 @media (prefers-reduced-motion: reduce) {
   .docs-sidebar-rail::after,
   .docs-sidebar-handle,
   .docs-sidebar,
-  .docs-container {
+  .docs-sidebar.open,
+  .docs-sidebar.is-resizing,
+  .docs-container,
+  .docs-container.is-sidebar-collapsed .docs-sidebar,
+  .docs-container.is-sidebar-collapsed .docs-sidebar.is-resizing,
+  .sidebar-overlay,
+  .sidebar-overlay.is-visible {
     transition: none;
   }
 }

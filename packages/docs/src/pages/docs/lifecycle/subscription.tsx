@@ -233,11 +233,15 @@ function Subscription() {
             </strong>
             : Returns the purchases the store still holds — owned
             non-consumables, active subscriptions, and unfinished transactions.
-            On iOS the default (<code>onlyIncludeActiveItemsIOS: false</code>)
-            reads <code>Transaction.all</code>, so expired and revoked entries
-            are included too; Android&apos;s <code>queryPurchasesAsync</code>{' '}
-            returns only currently-owned purchases, so it cannot be used as a
-            purchase-history source. For full iOS history use{' '}
+            It is <strong>not</strong> a purchase-history source on either
+            platform. The framework SDKs default{' '}
+            <code>onlyIncludeActiveItemsIOS</code> to <code>true</code>, so iOS
+            reads <code>Transaction.currentEntitlements</code>; pass{' '}
+            <code>{'{ onlyIncludeActiveItemsIOS: false }'}</code> to read{' '}
+            <code>Transaction.all</code> including expired and revoked entries.
+            Android&apos;s <code>queryPurchasesAsync</code> returns only
+            currently-owned purchases and has no equivalent option. For full iOS
+            history use{' '}
             <Link to="/docs/apis/ios/get-all-transactions-ios">
               getAllTransactionsIOS
             </Link>
@@ -408,22 +412,21 @@ function Subscription() {
                   payment sheet
                 </div>
                 <div>2. purchaseUpdatedListener receives PurchaseIOS</div>
-                <div>3. Check purchaseState:</div>
                 <div className="lifecycle-indent">
-                  • <strong>purchased</strong> → validate → deliver →
-                  finishTransaction()
-                </div>
-                <div className="lifecycle-indent">
-                  • <strong>pending</strong> → payment processing or Ask to Buy
-                  awaiting parental approval; wait for the listener
-                </div>
-                <div className="lifecycle-indent">
-                  • <strong>unknown</strong> → unrecognized state, handle
-                  defensively
+                  → validate → deliver → finishTransaction()
                 </div>
                 <div style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}>
-                  Failures are not a purchaseState value — they arrive as a
-                  PurchaseError through purchaseErrorListener.
+                  A delivered <code>PurchaseIOS</code> always carries{' '}
+                  <code>purchaseState: &apos;purchased&apos;</code> — StoreKit
+                  only hands the listener completed transactions, so the{' '}
+                  <code>pending</code> and <code>unknown</code> members of the
+                  shared enum never appear on iOS. Anything that is not a
+                  completed purchase arrives through{' '}
+                  <code>purchaseErrorListener</code> instead: Ask to Buy and
+                  other deferred payments as{' '}
+                  <code>ErrorCode.DeferredPayment</code> (
+                  <code>&apos;deferred-payment&apos;</code>), cancellations as{' '}
+                  <code>ErrorCode.UserCancelled</code>.
                 </div>
               </div>
             ),

@@ -134,11 +134,13 @@
 }
 
 .eco-band-body--pair {
-  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  /* min() so the track can shrink under its preferred width; a bare 240px
+     floor overflows the band on a ~320px viewport. */
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
 }
 
 .eco-band-body--grid {
-  grid-template-columns: repeat(auto-fit, minmax(290px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(290px, 100%), 1fr));
 }
 
 /* ---------- nodes ---------------------------------------------------------
@@ -371,8 +373,9 @@
 /* Reclaim part of the .docs-content side padding (2rem each side above 768px)
    so the figure is wider than the prose measure, while leaving a full 1rem
    gutter on both sides - taking all of it puts the Libraries border flush
-   against the content edge. This one rule is viewport-based on purpose: that
-   padding is itself viewport-based (documentation.css:412 / :1128). */
+   against the content edge. This one rule is viewport-based on purpose:
+   `.docs-content` padding is itself viewport-based - `--spacing-2xl` at
+   >=769px, `--spacing-lg` inside documentation.css's max-width: 768px block. */
 @media (min-width: 769px) {
   .doc-page .eco-diagram {
     width: calc(100% + 2 * var(--spacing-lg));
@@ -516,6 +519,15 @@
 }
 
 /* ---------- narrow container ---------------------------------------------- */
+
+/* Title and chip both ride the band's top border - one left, one right, both
+   nowrap. Under ~340px they overlap and the chip's opaque pill paints over the
+   heading, so drop the chip; the figcaption still states the relationship. */
+@container eco (max-width: 340px) {
+  .doc-page .eco-diagram .eco-grid a.eco-band-chip {
+    display: none;
+  }
+}
 
 @container eco (max-width: 419px) {
   .eco-grid {
