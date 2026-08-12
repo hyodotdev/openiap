@@ -219,7 +219,7 @@ function ActiveSubscription() {
             android: (
               <>
                 <AnchorLink id="active-subscription-android" level="h4">
-                  ActiveSubscriptionAndroid
+                  Android Fields
                 </AnchorLink>
                 <table className="doc-table">
                   <thead>

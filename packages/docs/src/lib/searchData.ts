@@ -896,7 +896,7 @@ export const apiData: ApiItem[] = [
   },
   {
     id: 'active-subscription-android',
-    title: 'ActiveSubscriptionAndroid',
+    title: 'ActiveSubscription (Android fields)',
     category: 'Types (Android)',
     description:
       'Android active subscription: autoRenewingAndroid, basePlanIdAndroid, purchaseTokenAndroid',
