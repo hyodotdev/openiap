@@ -478,35 +478,52 @@ const packageCompatibilityMigrations = [
   },
 ] as const;
 
-function Deprecations() {
+function Migration() {
   return (
     <div className="doc-page">
       <SEO
-        title="Deprecations & 3.0 Migration"
-        description="OpenIAP deprecated API policy, removal versions, and migration replacements for native and framework packages."
-        path="/docs/updates/deprecations"
-        keywords="OpenIAP 3.0, deprecated API, migration, breaking changes, legacy compatibility"
+        title="Migration"
+        description="OpenIAP migration guides per major train: removal versions and canonical replacements for native and framework packages."
+        path="/docs/updates/migration"
+        keywords="OpenIAP migration, deprecated API, breaking changes, major upgrade, legacy compatibility"
       />
 
-      <h1>Deprecations &amp; 3.0 Migration</h1>
+      <h1>Migration</h1>
       <p className="lead">
-        The coordinated major train removes the previously deprecated,
-        OpenIAP-owned compatibility surface. Use this catalog to update calls
-        before upgrading.
+        One section per coordinated major train. Each train lists the versions
+        that drop the previously deprecated, OpenIAP-owned compatibility surface
+        and the canonical call to use instead.
       </p>
 
-      <Callout kind="warning" title="Breaking major release">
-        The listed versions do not include compatibility wrappers, deprecated
-        schema members, or legacy custom-wire aliases. Upgrade coordinated
-        native and framework dependencies together.
-      </Callout>
-
+      {/* ---------------------------------------------------------------
+          Migration train: 2.x -> 3.0
+          Add the next train as a sibling <section> ABOVE this one (newest
+          first), with its own AnchorLink id (for example "v3-to-v4") and its
+          own removal table. Keep the heading ids inside a train unique across
+          the page - other docs deep-link to them. The train-independent
+          policy section stays last.
+          --------------------------------------------------------------- */}
       <section>
-        <AnchorLink id="removal-schedule" level="h2">
+        <AnchorLink id="v2-to-v3" level="h2">
+          2.x &rarr; 3.0
+        </AnchorLink>
+        <p>
+          The coordinated major train removes the previously deprecated,
+          OpenIAP-owned compatibility surface. Use this catalog to update calls
+          before upgrading.
+        </p>
+
+        <Callout kind="warning" title="Breaking major release">
+          The listed versions do not include compatibility wrappers, deprecated
+          schema members, or legacy custom-wire aliases. Upgrade coordinated
+          native and framework dependencies together.
+        </Callout>
+
+        <AnchorLink id="removal-schedule" level="h3">
           Removal boundaries
         </AnchorLink>
 
-        <h3>OpenIAP specification and native packages</h3>
+        <h4>OpenIAP specification and native packages</h4>
         <table className="doc-table deprecation-schedule-table">
           <thead>
             <tr>
@@ -530,7 +547,7 @@ function Deprecations() {
           </tbody>
         </table>
 
-        <h3>Framework libraries</h3>
+        <h4>Framework libraries</h4>
         <table className="doc-table deprecation-schedule-table">
           <thead>
             <tr>
@@ -574,10 +591,7 @@ function Deprecations() {
           Removed aliases are rejected or ignored; they never override missing
           canonical input.
         </p>
-      </section>
-
-      <section>
-        <AnchorLink id="flutter-original-json-android" level="h2">
+        <AnchorLink id="flutter-original-json-android" level="h3">
           Flutter purchase payload compatibility
         </AnchorLink>
         <p>
@@ -619,7 +633,7 @@ function Deprecations() {
           The canonical <code>id</code> purchase identity is not deprecated.
           Flutter 10 requires an explicit <code>transactionId</code>.
         </p>
-        <h3>Issue #248 and Android raw purchase JSON</h3>
+        <h4>Issue #248 and Android raw purchase JSON</h4>
         <ul>
           <li>
             Before Flutter 9.6.1, issue{' '}
@@ -659,10 +673,7 @@ function Deprecations() {
           </Link>
           .
         </p>
-      </section>
-
-      <section>
-        <AnchorLink id="flutter-10-package-migrations" level="h2">
+        <AnchorLink id="flutter-10-package-migrations" level="h3">
           Flutter 10 package-specific migrations
         </AnchorLink>
         <p>
@@ -691,7 +702,7 @@ function Deprecations() {
           </tbody>
         </table>
 
-        <h3>Custom MethodChannel integrations</h3>
+        <h4>Custom MethodChannel integrations</h4>
         <p>
           Applications normally use the Dart API and never call these internal
           channel names. Flutter 10 custom integrations must use the
@@ -718,7 +729,7 @@ function Deprecations() {
           </tbody>
         </table>
 
-        <h3>Custom MethodChannel payloads</h3>
+        <h4>Custom MethodChannel payloads</h4>
         <p>
           The official Dart API emits the canonical forms below. Flutter 10 no
           longer normalizes the historical custom-channel inputs.
@@ -743,10 +754,7 @@ function Deprecations() {
             ))}
           </tbody>
         </table>
-      </section>
-
-      <section>
-        <AnchorLink id="migration-catalog" level="h2">
+        <AnchorLink id="migration-catalog" level="h3">
           Removed schema migration catalog
         </AnchorLink>
         <p>
@@ -756,7 +764,7 @@ function Deprecations() {
 
         {migrationGroups.map((group) => (
           <div key={group.title}>
-            <h3>{group.title}</h3>
+            <h4>{group.title}</h4>
             <table className="doc-table">
               <thead>
                 <tr>
@@ -779,10 +787,7 @@ function Deprecations() {
             </table>
           </div>
         ))}
-      </section>
-
-      <section>
-        <AnchorLink id="package-compatibility-shims" level="h2">
+        <AnchorLink id="package-compatibility-shims" level="h3">
           Removed package-specific compatibility shims
         </AnchorLink>
         <p>
@@ -793,7 +798,7 @@ function Deprecations() {
 
         {packageCompatibilityMigrations.map((group) => (
           <div key={group.title}>
-            <h3>{group.title}</h3>
+            <h4>{group.title}</h4>
             <table className="doc-table">
               <thead>
                 <tr>
@@ -866,4 +871,4 @@ function Deprecations() {
   );
 }
 
-export default Deprecations;
+export default Migration;

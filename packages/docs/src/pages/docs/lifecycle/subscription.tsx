@@ -104,7 +104,9 @@ function Subscription() {
                 <td style={{ textAlign: 'center' }}>
                   ✅ <code>pendingUpgradeProductId</code>
                 </td>
-                <td style={{ textAlign: 'center' }}>❌</td>
+                <td style={{ textAlign: 'center' }}>
+                  ✅ <code>pendingPurchaseUpdateAndroid</code>
+                </td>
                 <td style={{ textAlign: 'center' }}>✅</td>
               </tr>
               <tr>
@@ -128,7 +130,10 @@ function Subscription() {
                 <td style={{ textAlign: 'center' }}>
                   ✅ <code>isInBillingRetry</code>
                 </td>
-                <td style={{ textAlign: 'center' }}>❌</td>
+                <td style={{ textAlign: 'center' }}>
+                  ⚠️ <code>isSuspendedAndroid</code> (state only, no retry
+                  details)
+                </td>
                 <td style={{ textAlign: 'center' }}>✅</td>
               </tr>
               <tr>
@@ -158,9 +163,14 @@ function Subscription() {
             , but server validation is still recommended for production apps.
           </p>
           <p>
-            <strong>Android</strong>: Only <code>isAutoRenewing</code> available
-            client-side. Server-side validation is <strong>required</strong> for
-            complete subscription management.
+            <strong>Android</strong>: client-side{' '}
+            <em>subscription lifecycle</em> data is limited to{' '}
+            <code>isAutoRenewing</code>, <code>isSuspendedAndroid</code>, and{' '}
+            <code>pendingPurchaseUpdateAndroid</code> — the purchase itself
+            still carries <code>productId</code>, <code>purchaseToken</code>,{' '}
+            <code>transactionDate</code>, and <code>purchaseState</code>. Expiry
+            and renewal dates and detailed subscription state require{' '}
+            <strong>server-side validation</strong>.
           </p>
           <p>
             <strong>Both platforms</strong>: Use{' '}
@@ -177,11 +187,12 @@ function Subscription() {
           <p>
             <strong>Recommendation</strong>: Use{' '}
             <a
-              href="https://kit.openiap.dev"
+              href={IAPKIT_URL}
               target="_blank"
               rel="noopener noreferrer"
+              onClick={trackIapKitClick}
             >
-              iapkit
+              IAPKit
             </a>{' '}
             for server-side verification to get unified subscription data across
             both platforms—including all the iOS-only fields for Android
@@ -220,8 +231,21 @@ function Subscription() {
                 getAvailablePurchases
               </Link>
             </strong>
-            : Returns all purchases including expired subscriptions. Useful for
-            showing purchase history.
+            : Returns the purchases the store still holds — owned
+            non-consumables, active subscriptions, and unfinished transactions.
+            It is <strong>not</strong> a purchase-history source on either
+            platform. The framework SDKs default{' '}
+            <code>onlyIncludeActiveItemsIOS</code> to <code>true</code>, so iOS
+            reads <code>Transaction.currentEntitlements</code>; pass{' '}
+            <code>{'{ onlyIncludeActiveItemsIOS: false }'}</code> to read{' '}
+            <code>Transaction.all</code> including expired and revoked entries.
+            Android&apos;s <code>queryPurchasesAsync</code> returns only
+            currently-owned purchases and has no equivalent option. For full iOS
+            history use{' '}
+            <Link to="/docs/apis/ios/get-all-transactions-ios">
+              getAllTransactionsIOS
+            </Link>
+            .
           </li>
         </ul>
         <p>
@@ -253,8 +277,8 @@ function Subscription() {
           defaultOpen
         >
           <p>
-            Setting up server-side verification can be complex. OpenIAP's
-            partner{' '}
+            Setting up server-side verification can be complex. OpenIAP&apos;s
+            hosted backend{' '}
             <a
               href={IAPKIT_URL}
               target="_blank"
@@ -273,13 +297,9 @@ function Subscription() {
           </p>
           <p>
             Learn more about IAPKit integration in our{' '}
-            <a
-              href="https://openiap.dev/docs/updates/announcements#2025-12-09"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
+            <Link to="/docs/updates/announcements#2025-12-09">
               announcement
-            </a>
+            </Link>
             .
           </p>
         </Accordion>
@@ -336,7 +356,7 @@ function Subscription() {
                 <div>1. initConnection()</div>
                 <div>2. getAvailablePurchases() → [PurchaseIOS]</div>
                 <div>3. For each purchase:</div>
-                <div className="lifecycle-indent">→ check transactionState</div>
+                <div className="lifecycle-indent">→ check purchaseState</div>
                 <div className="lifecycle-indent">→ validate with server</div>
                 <div className="lifecycle-indent">
                   → update local entitlements
@@ -355,7 +375,9 @@ function Subscription() {
                 <div>2. getAvailablePurchases() → [PurchaseAndroid]</div>
                 <div>3. For each purchase:</div>
                 <div className="lifecycle-indent">→ check purchaseState</div>
-                <div className="lifecycle-indent">→ check isAcknowledged</div>
+                <div className="lifecycle-indent">
+                  → check isAcknowledgedAndroid
+                </div>
                 <div className="lifecycle-indent">→ validate with server</div>
                 <div className="lifecycle-indent">
                   → update local entitlements
@@ -384,43 +406,54 @@ function Subscription() {
           {{
             ios: (
               <div className="lifecycle-flow">
-                <div>1. requestPurchase(sku) → StoreKit payment sheet</div>
+                <div>
+                  1. requestPurchase(&#123; request: &#123; apple: &#123; sku
+                  &#125; &#125;, type: &apos;subs&apos; &#125;) → StoreKit
+                  payment sheet
+                </div>
                 <div>2. purchaseUpdatedListener receives PurchaseIOS</div>
-                <div>3. Check transactionState:</div>
                 <div className="lifecycle-indent">
-                  • <strong>purchased</strong> → validate → deliver →
-                  finishTransaction()
+                  → validate → deliver → finishTransaction()
                 </div>
-                <div className="lifecycle-indent">
-                  • <strong>pending</strong> → payment processing, wait for
-                  update
-                </div>
-                <div className="lifecycle-indent">
-                  • <strong>failed</strong> → show error, check
-                  purchaseErrorListener
-                </div>
-                <div className="lifecycle-indent">
-                  • <strong>deferred</strong> → Ask to Buy (parental approval
-                  needed)
+                <div style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}>
+                  A delivered <code>PurchaseIOS</code> always carries{' '}
+                  <code>purchaseState: &apos;purchased&apos;</code> — StoreKit
+                  only hands the listener completed transactions, so the{' '}
+                  <code>pending</code> and <code>unknown</code> members of the
+                  shared enum never appear on iOS. Anything that is not a
+                  completed purchase arrives through{' '}
+                  <code>purchaseErrorListener</code> instead: Ask to Buy and
+                  other deferred payments as{' '}
+                  <code>ErrorCode.DeferredPayment</code> (
+                  <code>&apos;deferred-payment&apos;</code>), cancellations as{' '}
+                  <code>ErrorCode.UserCancelled</code>.
                 </div>
               </div>
             ),
             android: (
               <div className="lifecycle-flow">
-                <div>1. requestPurchase(sku) → Google Play payment sheet</div>
+                <div>
+                  1. requestPurchase(&#123; request: &#123; google: &#123; skus
+                  &#125; &#125;, type: &apos;subs&apos; &#125;) → Google Play
+                  payment sheet
+                </div>
                 <div>2. purchaseUpdatedListener receives PurchaseAndroid</div>
                 <div>3. Check purchaseState:</div>
                 <div className="lifecycle-indent">
-                  • <strong>PURCHASED (1)</strong> → validate → deliver →
+                  • <strong>purchased</strong> → validate → deliver →
                   finishTransaction()
                 </div>
                 <div className="lifecycle-indent">
-                  • <strong>PENDING (2)</strong> → awaiting payment (slow
-                  payment methods)
+                  • <strong>pending</strong> → awaiting payment (slow payment
+                  methods)
                 </div>
                 <div className="lifecycle-indent">
-                  • <strong>UNSPECIFIED (0)</strong> → unknown state, handle as
-                  error
+                  • <strong>unknown</strong> → unrecognized state, handle
+                  defensively
+                </div>
+                <div style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}>
+                  These are the OpenIAP wire values. The underlying Play Billing
+                  constants are PURCHASED = 1, PENDING = 2, UNSPECIFIED = 0.
                 </div>
                 <div
                   style={{ marginTop: '0.5rem', color: 'var(--text-warning)' }}
@@ -469,15 +502,14 @@ function Subscription() {
             ),
             android: (
               <div className="lifecycle-flow">
-                <div>
-                  1. getActiveSubscriptions() → [ActiveSubscriptionAndroid]
-                </div>
+                <div>1. getActiveSubscriptions() → [ActiveSubscription]</div>
                 <div>2. For each subscription:</div>
                 <div className="lifecycle-indent">
                   • isActive = true → grant access
                 </div>
                 <div className="lifecycle-indent">
-                  • check isAutoRenewing only (limited client data)
+                  • check autoRenewingAndroid, currentPlanId / basePlanIdAndroid
+                  (limited client data)
                 </div>
                 <div>3. No active subscriptions → revoke access</div>
                 <div style={{ marginTop: '0.5rem', fontSize: '0.85rem' }}>
@@ -785,7 +817,7 @@ function Subscription() {
                 </AnchorLink>
                 <p>
                   This type is available on{' '}
-                  <Link to="/docs/types/purchase">
+                  <Link to="/docs/types/purchase#purchase-ios">
                     <code>PurchaseIOS</code>
                   </Link>{' '}
                   and{' '}
@@ -817,12 +849,11 @@ function Subscription() {
                     in milliseconds).
                   </li>
                   <li>
-                    <strong>expirationReason</strong>: Why the subscription
-                    expired — <code>"VOLUNTARY"</code>,{' '}
-                    <code>"BILLING_ERROR"</code>,{' '}
-                    <code>"DID_NOT_AGREE_TO_PRICE_INCREASE"</code>,{' '}
-                    <code>"PRODUCT_NOT_AVAILABLE"</code>, or{' '}
-                    <code>"UNKNOWN"</code>.
+                    <strong>expirationReason</strong>: StoreKit&apos;s raw
+                    integer expiration-reason value represented as a string (
+                    <code>&quot;1&quot;</code>, <code>&quot;2&quot;</code>, …),
+                    not a symbolic name. Preserve unknown future values rather
+                    than mapping them to a fallback.
                   </li>
                   <li>
                     <strong>gracePeriodExpirationDate</strong>: Grace period end
@@ -833,8 +864,12 @@ function Subscription() {
                     currently retrying a failed payment.
                   </li>
                   <li>
-                    <strong>offerType / offerIdentifier</strong>: Information
-                    about any active promotional offer.
+                    <strong>renewalOfferId / renewalOfferType</strong>: The
+                    offer applied to the next renewal.{' '}
+                    <code>renewalOfferType</code> carries values such as{' '}
+                    <code>&quot;PROMOTIONAL&quot;</code>,{' '}
+                    <code>&quot;SUBSCRIPTION_OFFER_CODE&quot;</code>, and{' '}
+                    <code>&quot;WIN_BACK&quot;</code>.
                   </li>
                 </ul>
               </section>
@@ -1041,13 +1076,24 @@ function Subscription() {
                   </li>
                   <li>
                     <strong>isAutoRenewing</strong>: Whether the subscription
-                    will auto-renew (the only renewal-related field)
+                    will auto-renew
                   </li>
                   <li>
-                    <strong>purchaseTime</strong>: Original purchase timestamp
+                    <strong>isSuspendedAndroid</strong>: Whether the
+                    subscription is suspended by a billing issue
                   </li>
                   <li>
-                    <strong>purchaseState</strong>: PURCHASED, PENDING, etc.
+                    <strong>pendingPurchaseUpdateAndroid</strong>: The product
+                    IDs and purchase token of an uncommitted plan change (Play
+                    Billing 5.0+)
+                  </li>
+                  <li>
+                    <strong>transactionDate</strong>: Original purchase
+                    timestamp (Unix milliseconds)
+                  </li>
+                  <li>
+                    <strong>purchaseState</strong>: <code>purchased</code>,{' '}
+                    <code>pending</code>, or <code>unknown</code>
                   </li>
                 </ul>
 
@@ -1064,13 +1110,29 @@ function Subscription() {
                 </p>
                 <ul>
                   <li>Next renewal date / Expiration date</li>
-                  <li>Pending upgrade/downgrade information</li>
+                  <li>
+                    The effective date of a pending upgrade/downgrade — the
+                    pending change itself is on the client as{' '}
+                    <code>pendingPurchaseUpdateAndroid</code>
+                  </li>
                   <li>Expiration reason</li>
                   <li>Grace period status</li>
-                  <li>Billing retry status</li>
                   <li>
-                    Detailed subscription state (ACTIVE, CANCELED, PAUSED,
-                    ON_HOLD, IN_GRACE_PERIOD, EXPIRED)
+                    Billing retry <em>details</em> (attempt counts, next retry
+                    time) — the billing-issue state itself is on the client as{' '}
+                    <code>isSuspendedAndroid</code>
+                  </li>
+                  <li>
+                    Detailed subscription state (
+                    <code>SUBSCRIPTION_STATE_ACTIVE</code>,{' '}
+                    <code>SUBSCRIPTION_STATE_CANCELED</code>,{' '}
+                    <code>SUBSCRIPTION_STATE_PAUSED</code>,{' '}
+                    <code>SUBSCRIPTION_STATE_ON_HOLD</code>,{' '}
+                    <code>SUBSCRIPTION_STATE_IN_GRACE_PERIOD</code>,{' '}
+                    <code>SUBSCRIPTION_STATE_EXPIRED</code>,{' '}
+                    <code>SUBSCRIPTION_STATE_PENDING</code>,{' '}
+                    <code>SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED</code>,{' '}
+                    <code>SUBSCRIPTION_STATE_UNSPECIFIED</code>)
                   </li>
                 </ul>
               </section>
@@ -1093,8 +1155,22 @@ function Subscription() {
                 </p>
                 <ul>
                   <li>
-                    <strong>subscriptionState</strong>: Current state (ACTIVE,
-                    CANCELED, IN_GRACE_PERIOD, ON_HOLD, PAUSED, EXPIRED)
+                    <strong>subscriptionState</strong>: Current state (
+                    <code>SUBSCRIPTION_STATE_ACTIVE</code>,{' '}
+                    <code>SUBSCRIPTION_STATE_CANCELED</code>,{' '}
+                    <code>SUBSCRIPTION_STATE_IN_GRACE_PERIOD</code>,{' '}
+                    <code>SUBSCRIPTION_STATE_ON_HOLD</code>,{' '}
+                    <code>SUBSCRIPTION_STATE_PAUSED</code>,{' '}
+                    <code>SUBSCRIPTION_STATE_EXPIRED</code>,{' '}
+                    <code>SUBSCRIPTION_STATE_PENDING</code>,{' '}
+                    <code>SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED</code>,{' '}
+                    <code>SUBSCRIPTION_STATE_UNSPECIFIED</code>).{' '}
+                    <code>SUBSCRIPTION_STATE_PENDING</code> means the initial
+                    purchase has not completed;{' '}
+                    <code>SUBSCRIPTION_STATE_PENDING_PURCHASE_CANCELED</code> is
+                    a pending upgrade or downgrade that was cancelled — resolve
+                    the still-active subscription it belongs to through{' '}
+                    <code>linkedPurchaseToken</code>.
                   </li>
                   <li>
                     <strong>expiryTime</strong>: When the subscription expires
@@ -1144,8 +1220,9 @@ function Subscription() {
                     failed, grace period started
                   </li>
                   <li>
-                    <strong>SUBSCRIPTION_ON_HOLD</strong> (5): Paused due to
-                    billing issues
+                    <strong>SUBSCRIPTION_ON_HOLD</strong> (5): Account hold
+                    after the grace period ended — entitlement suspended
+                    (distinct from the user-initiated PAUSED state)
                   </li>
                   <li>
                     <strong>SUBSCRIPTION_RECOVERED</strong> (1): Billing retry
@@ -1251,8 +1328,10 @@ function Subscription() {
                   Upgrades/Downgrades
                 </AnchorLink>
                 <p>
-                  Since Android doesn't expose pending tier changes client-side,
-                  track them via server:
+                  The client exposes the pending change itself via{' '}
+                  <code>pendingPurchaseUpdateAndroid</code> (the new product IDs
+                  and purchase token), but its effective date and linkage still
+                  come from the server:
                 </p>
                 <ul>
                   <li>
@@ -1367,7 +1446,9 @@ function Subscription() {
             <h3 style={{ marginTop: 0 }}>Android</h3>
             <ul style={{ marginBottom: 0 }}>
               <li>
-                Only <code>isAutoRenewing</code> available client-side
+                Client-side <em>subscription lifecycle</em> data limited to{' '}
+                <code>isAutoRenewing</code>, <code>isSuspendedAndroid</code>,
+                and <code>pendingPurchaseUpdateAndroid</code>
               </li>
               <li>Server-side required for detailed subscription info</li>
               <li>Use Google Play Developer API for authoritative data</li>

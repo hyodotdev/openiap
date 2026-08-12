@@ -295,7 +295,7 @@ const activeDocsExcluded = [
   "packages/docs/src/pages/docs/index.tsx",
   "packages/docs/src/pages/docs/apis/index.tsx",
   "packages/docs/src/pages/docs/updates/announcements.tsx",
-  "packages/docs/src/pages/docs/updates/deprecations.tsx",
+  "packages/docs/src/pages/docs/updates/migration.tsx",
   "packages/docs/src/pages/docs/updates/releases.tsx",
 ];
 
@@ -320,13 +320,13 @@ const requiredTexts = [
       "`godot-iap` 3.0.0",
       "`kmp-iap` 3.0.0",
       "`OpenIap.Maui` 2.0.0",
-      "/docs/updates/deprecations",
+      "/docs/updates/migration",
       "Historical release notes, migration catalogs, archives, and URL",
       "internal React Native, Expo, KMP, or Godot native-response",
     ],
   },
   {
-    file: "packages/docs/src/pages/docs/updates/deprecations.tsx",
+    file: "packages/docs/src/pages/docs/updates/migration.tsx",
     values: [
       'title="Breaking major release"',
       "Last compatible major",

@@ -4,28 +4,28 @@
     "price": 0.99,
     "title": "10 Bulbs",
     "description": "A small pack of bulbs for testing consumable purchases",
-    "smallIconUrl": "https://openiap.dev/img/logo.png"
+    "smallIconUrl": "https://openiap.dev/logo.webp"
   },
   "dev.hyo.martie.30bulbs": {
     "itemType": "CONSUMABLE",
     "price": 1.99,
     "title": "30 Bulbs",
     "description": "A larger pack of bulbs for testing consumable purchases",
-    "smallIconUrl": "https://openiap.dev/img/logo.png"
+    "smallIconUrl": "https://openiap.dev/logo.webp"
   },
   "dev.hyo.martie.certified": {
     "itemType": "ENTITLED",
     "price": 4.99,
     "title": "Certified",
     "description": "A non-consumable entitlement for OpenIAP example testing",
-    "smallIconUrl": "https://openiap.dev/img/logo.png"
+    "smallIconUrl": "https://openiap.dev/logo.webp"
   },
   "dev.hyo.martie.premium": {
     "itemType": "SUBSCRIPTION",
     "price": 4.99,
     "title": "Premium Monthly",
     "description": "Monthly premium access for OpenIAP example testing",
-    "smallIconUrl": "https://openiap.dev/img/logo.png",
+    "smallIconUrl": "https://openiap.dev/logo.webp",
     "subscriptionBase": "dev.hyo.martie.premium.base",
     "subscriptionParent": "dev.hyo.martie.premium.parent",
     "term": "Monthly"
@@ -35,7 +35,7 @@
     "price": 49.99,
     "title": "Premium Yearly",
     "description": "Yearly premium access for OpenIAP example testing",
-    "smallIconUrl": "https://openiap.dev/img/logo.png",
+    "smallIconUrl": "https://openiap.dev/logo.webp",
     "subscriptionBase": "dev.hyo.martie.premium.base",
     "subscriptionParent": "dev.hyo.martie.premium.parent",
     "term": "Yearly"

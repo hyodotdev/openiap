@@ -1,0 +1,560 @@
+/* =============================================================================
+   Ecosystem architecture diagram (src/components/EcosystemDiagram.tsx)
+
+   Layout switches on the CONTAINER width, not the viewport. The docs sidebar is
+   user-resizable (300-480px), so .doc-page can be ~350px wide at a 769px
+   viewport - a viewport media query would be wrong by construction here.
+   ============================================================================= */
+
+.doc-page .eco-diagram {
+  container-type: inline-size;
+  container-name: eco;
+  margin: var(--spacing-xl) 0 var(--spacing-2xl);
+
+  /* light theme */
+  --eco-line: rgba(0, 0, 0, 0.24);
+  --eco-border: rgba(0, 0, 0, 0.11);
+  --eco-band-bg: var(--bg-secondary);
+  --eco-card-bg: var(--bg-primary);
+  --eco-shadow: rgba(0, 0, 0, 0.09);
+
+  /* Package names and versions share one stack; only the multi-word families
+     need quoting. */
+  --eco-mono: 'SF Mono', Monaco, Consolas, 'Liberation Mono', monospace;
+
+  /* geometry */
+  --eco-radius: 16px;
+  --eco-gutter: 0px;
+  --eco-icon: 38px;
+  --eco-mark: 22px;
+}
+
+:root.dark .doc-page .eco-diagram {
+  --eco-line: rgba(255, 255, 255, 0.3);
+  --eco-border: rgba(255, 255, 255, 0.14);
+  --eco-band-bg: rgba(255, 255, 255, 0.035);
+  --eco-card-bg: rgba(255, 255, 255, 0.07);
+  --eco-shadow: rgba(0, 0, 0, 0.45);
+}
+
+/* ---------- grid ---------------------------------------------------------- */
+
+/* Size-dependent tokens live here, not on .eco-diagram: an @container rule only
+   ever matches descendants of the container it queries, never the container
+   element itself. */
+/* Stacked by default: Spec -> Core -> Libraries in one column. The two-column
+   form is defined in the wide-container block at the bottom. */
+.eco-grid {
+  display: grid;
+  /* the band labels ride the top border, so leave room for the first one */
+  padding-top: 0.6rem;
+  grid-template-columns: minmax(0, 1fr);
+}
+
+/* ---------- bands --------------------------------------------------------- */
+
+.doc-page .eco-diagram .eco-band {
+  position: relative;
+  margin: 0;
+  padding: 1rem 0.85rem 0.85rem;
+  border: 1px solid var(--eco-border);
+  border-radius: var(--eco-radius);
+  background: var(--eco-band-bg);
+}
+
+/* Label chips ride the top border, the way the original diagram framed its
+   Core / Libraries groups. */
+.doc-page .eco-diagram .eco-band-title {
+  position: absolute;
+  top: -0.6rem;
+  left: 0.9rem;
+  margin: 0;
+  padding: 0 0.45rem;
+  border: 0;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 0.6875rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  line-height: 1.2;
+  text-transform: uppercase;
+}
+
+/* Stand-in for the bypass connector while the container is too narrow to draw
+   it. Hidden again once .eco-bypass appears. */
+.doc-page .eco-diagram .eco-grid a.eco-band-chip,
+:root.dark .doc-page .eco-diagram .eco-grid a.eco-band-chip {
+  position: absolute;
+  top: -0.65rem;
+  right: 0.9rem;
+  padding: 0.1rem 0.5rem;
+  border: 1px solid var(--eco-border);
+  border-radius: 999px;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  line-height: 1.5;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.doc-page .eco-diagram .eco-grid a.eco-band-chip:hover,
+:root.dark .doc-page .eco-diagram .eco-grid a.eco-band-chip:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+/* The Spec group is semantic only - its children are laid out by .eco-grid
+   directly, so a connector can align to openiap-gql rather than to a box. */
+.eco-spec {
+  display: contents;
+}
+
+.eco-hidden-title {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
+.eco-band-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.eco-band-body--pair,
+.eco-band-body--grid {
+  display: grid;
+  gap: 0.55rem;
+}
+
+.eco-band-body--pair {
+  /* min() so the track can shrink under its preferred width; a bare 240px
+     floor overflows the band on a ~320px viewport. */
+  grid-template-columns: repeat(auto-fit, minmax(min(240px, 100%), 1fr));
+}
+
+.eco-band-body--grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(290px, 100%), 1fr));
+}
+
+/* ---------- nodes ---------------------------------------------------------
+   documentation.css themes every .doc-page anchor: a link color, a bottom
+   border, and display:inline-flex for `a[target='_blank']`. Its dark-mode
+   overrides reach (0,5,1) specificity, so every anchor rule below is written
+   twice - once plain, once :root.dark-prefixed - to sit one class above that
+   in both themes regardless of stylesheet order.                            */
+
+.doc-page .eco-diagram .eco-grid a.eco-node,
+:root.dark .doc-page .eco-diagram .eco-grid a.eco-node {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.6rem 0.7rem;
+  border: 1px solid var(--eco-border);
+  border-radius: 12px;
+  background: var(--eco-card-bg);
+  color: var(--text-primary);
+  text-decoration: none;
+  transition:
+    transform 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.doc-page .eco-diagram .eco-grid a.eco-node:hover,
+:root.dark .doc-page .eco-diagram .eco-grid a.eco-node:hover {
+  border-color: var(--primary-color);
+  box-shadow: 0 6px 16px var(--eco-shadow);
+  transform: translateY(-2px);
+}
+
+.doc-page .eco-diagram .eco-grid a.eco-node:focus-visible,
+.doc-page .eco-diagram a.eco-band-chip:focus-visible,
+.doc-page .eco-diagram .eco-grid a.eco-more:focus-visible {
+  outline: 2px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+.eco-node-text {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.12rem;
+}
+
+.eco-node-name {
+  overflow: hidden;
+  font-family: var(--eco-mono);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  color: var(--text-primary);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eco-node-note {
+  font-size: 0.6875rem;
+  line-height: 1.35;
+  color: var(--text-secondary);
+}
+
+.eco-node-marks {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+/* Core cards carry platform marks rather than a version chip; sitting them on
+   the card's baseline reads as "this package targets these" instead of
+   floating mid-card. */
+.eco-band--core .eco-node-marks {
+  align-self: end;
+}
+
+.eco-node-version {
+  font-family: var(--eco-mono);
+  font-size: 0.625rem;
+  font-variant-numeric: tabular-nums;
+  color: var(--text-secondary);
+  opacity: 0.85;
+}
+
+.doc-page .eco-diagram .eco-grid a.eco-more,
+:root.dark .doc-page .eco-diagram .eco-grid a.eco-more {
+  grid-column: 1 / -1;
+  padding: 0.55rem 0.7rem;
+  border: 1px dashed var(--eco-border);
+  border-radius: 12px;
+  background: none;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  text-align: center;
+  text-decoration: none;
+}
+
+.doc-page .eco-diagram .eco-grid a.eco-more:hover,
+:root.dark .doc-page .eco-diagram .eco-grid a.eco-more:hover {
+  border-color: var(--primary-color);
+  color: var(--primary-color);
+}
+
+/* ---------- artwork -------------------------------------------------------
+   Most marks are transparent full-color logos and need no treatment. The two
+   exceptions are declared per asset in EcosystemDiagram.tsx: artwork with its
+   own opaque square background gets cropped to a rounded tile, and flat
+   single-ink artwork is inverted for whichever theme it would vanish into.  */
+
+.eco-icon {
+  width: var(--eco-icon);
+  height: var(--eco-icon);
+  object-fit: contain;
+}
+
+.eco-mark {
+  width: var(--eco-mark);
+  height: var(--eco-mark);
+  object-fit: contain;
+}
+
+.eco-icon.eco-art--square {
+  border-radius: 9px;
+  object-fit: cover;
+}
+
+.eco-mark.eco-art--square {
+  border-radius: 5px;
+  object-fit: cover;
+}
+
+/* Optical size: a tall, narrow glyph fitted into a square box draws narrower
+   than a full-bleed neighbour. Scaling the box matches the drawn widths. */
+.eco-mark.eco-art--compact {
+  width: calc(var(--eco-mark) * 1.2);
+  height: calc(var(--eco-mark) * 1.2);
+}
+
+.eco-art--white-ink {
+  filter: invert(1);
+}
+
+:root.dark .eco-art--black-ink {
+  filter: invert(1);
+}
+
+:root.dark .eco-art--white-ink {
+  filter: none;
+}
+
+/* ---------- connectors ---------------------------------------------------- */
+
+.eco-rail {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 58px;
+}
+
+.eco-rail::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 9px;
+  left: 50%;
+  width: 2px;
+  margin-left: -1px;
+  background: var(--eco-line);
+}
+
+.eco-rail::after {
+  content: '';
+  position: absolute;
+  bottom: 0;
+  left: 50%;
+  width: 0;
+  height: 0;
+  margin-left: -5px;
+  border-right: 5px solid transparent;
+  border-left: 5px solid transparent;
+  border-top: 9px solid var(--eco-line);
+}
+
+/* Only the two-column form has a gutter to route this through. Stacked, the
+   Libraries band carries the same meaning via its .eco-band-chip. Declared
+   after .eco-rail so it wins the same-specificity tie on `display`. */
+.eco-rail--bypass {
+  display: none;
+}
+
+.eco-rail-label {
+  position: relative;
+  z-index: 1;
+  padding: 0 0.55rem;
+  background: var(--bg-primary);
+  color: var(--text-secondary);
+  font-size: 0.625rem;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+/* openiap -> openiap-gql */
+.eco-flow-arrow {
+  position: relative;
+  justify-self: center;
+  width: 2px;
+  height: 22px;
+  margin: 7px 0 15px;
+  background: var(--eco-line);
+}
+
+.eco-flow-arrow::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  width: 0;
+  height: 0;
+  margin-left: -5px;
+  border-right: 5px solid transparent;
+  border-left: 5px solid transparent;
+  border-top: 8px solid var(--eco-line);
+}
+
+/* Reclaim part of the .docs-content side padding (2rem each side above 768px)
+   so the figure is wider than the prose measure, while leaving a full 1rem
+   gutter on both sides - taking all of it puts the Libraries border flush
+   against the content edge. This one rule is viewport-based on purpose:
+   `.docs-content` padding is itself viewport-based - `--spacing-2xl` at
+   >=769px, `--spacing-lg` inside documentation.css's max-width: 768px block. */
+@media (min-width: 769px) {
+  .doc-page .eco-diagram {
+    width: calc(100% + 2 * var(--spacing-lg));
+    margin-right: calc(-1 * var(--spacing-lg));
+    margin-left: calc(-1 * var(--spacing-lg));
+  }
+}
+
+/* ---------- caption ------------------------------------------------------- */
+
+.doc-page .eco-diagram .eco-caption {
+  margin: 0.9rem 0 0;
+  color: var(--text-secondary);
+  font-size: var(--font-size-xs);
+  line-height: 1.6;
+  text-align: center;
+}
+
+/* =============================================================================
+   Wide container
+   ============================================================================= */
+
+/* =============================================================================
+   Two-column form. Spec and Core stack down the left, Libraries fills the right
+   in a single tall column, and both gutter arrows point into it - the same
+   left-to-right reading order as the original diagram. Keeping the six library
+   rows beside the left column instead of below it is what makes the figure wide
+   rather than tall.
+   ============================================================================= */
+
+@container eco (min-width: 700px) {
+  .eco-grid {
+    --eco-gutter: 78px;
+
+    grid-template-columns:
+      minmax(0, 0.92fr) var(--eco-gutter)
+      minmax(0, 1.13fr);
+    /* openiap sits alone on row 1; openiap-gql gets row 3 so both "generate
+       types" arrows can leave from it. Row 6 soaks up whatever the taller
+       Libraries column adds, keeping the connectors at their natural size. */
+    grid-template-rows: auto auto auto auto auto minmax(0, 1fr);
+    column-gap: 0;
+  }
+
+  .eco-node--root {
+    grid-column: 1;
+    grid-row: 1;
+  }
+
+  .eco-flow-arrow {
+    grid-column: 1;
+    grid-row: 2;
+  }
+
+  .eco-node--gql {
+    grid-column: 1;
+    grid-row: 3;
+  }
+
+  .eco-rail--a {
+    grid-column: 1;
+    grid-row: 4;
+  }
+
+  .eco-band--core {
+    grid-column: 1;
+    grid-row: 5;
+    align-self: start;
+  }
+
+  /* openiap-gql -> Libraries, level with openiap-gql itself */
+  .eco-rail--bypass {
+    display: flex;
+    grid-column: 2;
+    grid-row: 3;
+  }
+
+  /* Core -> Libraries, level with the Core band */
+  .eco-rail--b {
+    grid-column: 2;
+    grid-row: 5;
+  }
+
+  /* Centred, not stretched: whichever column is shorter keeps its natural
+     height instead of growing a block of empty space at the bottom. */
+  .eco-band--libs {
+    grid-column: 3;
+    grid-row: 1 / -1;
+    align-self: center;
+  }
+
+  /* Gutter rails turn horizontal: line left-to-right, label above it. */
+  .eco-rail--bypass,
+  .eco-rail--b {
+    height: 44px;
+    align-self: center;
+  }
+
+  .eco-rail--bypass::before,
+  .eco-rail--b::before {
+    top: 50%;
+    right: 10px;
+    bottom: auto;
+    left: 0;
+    width: auto;
+    height: 2px;
+    margin-top: -1px;
+    margin-left: 0;
+  }
+
+  .eco-rail--bypass::after,
+  .eco-rail--b::after {
+    top: 50%;
+    right: 0;
+    bottom: auto;
+    left: auto;
+    margin: -5px 0 0;
+    border-top: 5px solid transparent;
+    border-right: 0;
+    border-bottom: 5px solid transparent;
+    border-left: 10px solid var(--eco-line);
+  }
+
+  .eco-rail--bypass .eco-rail-label,
+  .eco-rail--b .eco-rail-label {
+    position: absolute;
+    right: 0;
+    bottom: calc(50% + 7px);
+    left: 0;
+    padding: 0;
+    background: none;
+    line-height: 1.25;
+    text-align: center;
+    white-space: normal;
+  }
+
+  /* the gutter arrows now carry this meaning graphically */
+  .doc-page .eco-diagram .eco-grid a.eco-band-chip {
+    display: none;
+  }
+}
+
+/* ---------- narrow container ---------------------------------------------- */
+
+/* Title and chip both ride the band's top border - one left, one right, both
+   nowrap. Under ~340px they overlap and the chip's opaque pill paints over the
+   heading, so drop the chip; the figcaption still states the relationship. */
+@container eco (max-width: 340px) {
+  .doc-page .eco-diagram .eco-grid a.eco-band-chip {
+    display: none;
+  }
+}
+
+@container eco (max-width: 419px) {
+  .eco-grid {
+    --eco-icon: 32px;
+    --eco-mark: 20px;
+  }
+
+  .eco-node-version {
+    display: none;
+  }
+}
+
+/* ---------- motion / forced colors ---------------------------------------- */
+
+@media (prefers-reduced-motion: reduce) {
+  .doc-page .eco-diagram .eco-grid a.eco-node {
+    transition: none;
+  }
+
+  .doc-page .eco-diagram .eco-grid a.eco-node:hover {
+    transform: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .doc-page .eco-diagram .eco-band,
+  .doc-page .eco-diagram .eco-grid a.eco-node {
+    border-color: CanvasText;
+  }
+}

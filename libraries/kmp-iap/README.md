@@ -1,7 +1,7 @@
 # kmp-iap
 
 <div align="center">
-  <img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/libraries/kmp-iap/docs/static/img/logo.png" width="200" alt="kmp-iap logo" />
+  <img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/packages/docs/public/logos/kmp-iap.webp" width="200" alt="kmp-iap logo" />
   
   <a href="https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap"><img src="https://img.shields.io/maven-central/v/io.github.hyochan/kmp-iap.svg?style=flat-square" alt="Maven Central" /></a>
   <a href="https://github.com/hyodotdev/openiap/actions/workflows/ci-kmp-iap.yml?query=branch%3Amain"><img src="https://github.com/hyodotdev/openiap/actions/workflows/ci-kmp-iap.yml/badge.svg?branch=main" alt="KMP CI" /></a>
@@ -10,7 +10,7 @@
   
   A comprehensive Kotlin Multiplatform library for in-app purchases on Android and iOS platforms that conforms to the <a href="https://openiap.dev">Open IAP specification</a>
   
-  <a href="https://openiap.dev"><img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/logo.png" alt="Open IAP" height="40" /></a>
+  <a href="https://openiap.dev"><img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/logo.webp" alt="Open IAP" height="40" /></a>
 </div>
 
 ## 📚 Documentation
@@ -127,7 +127,7 @@ kmpIAP.finishTransaction(
 
 ## Powered by OpenIAP
 
-<a href="https://openiap.dev"><img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/logo.png" alt="OpenIAP" height="50" /></a>
+<a href="https://openiap.dev"><img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/logo.webp" alt="OpenIAP" height="50" /></a>
 
 kmp-iap conforms to the **[OpenIAP specification](https://openiap.dev)** — an open, vendor-neutral interoperability standard for in-app purchases. OpenIAP provides:
 

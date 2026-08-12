@@ -13,7 +13,7 @@ A comprehensive in-app purchase plugin for Godot 4.x that conforms to the <a hre
 
 Requires Godot 4.3+, iOS 17+ for the Swift GDExtension, or Android API 24+.
 
-<a href="https://openiap.dev"><img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/logo.png" alt="Open IAP" height="40" /></a>
+<a href="https://openiap.dev"><img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/logo.webp" alt="Open IAP" height="40" /></a>
 
 </div>
 
@@ -80,7 +80,7 @@ See the [Quick Start Guide](https://openiap.dev/docs/setup/godot) for complete c
 
 ## Powered by OpenIAP
 
-<a href="https://openiap.dev"><img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/logo.png" alt="OpenIAP" height="50" /></a>
+<a href="https://openiap.dev"><img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/logo.webp" alt="OpenIAP" height="50" /></a>
 
 godot-iap conforms to the **[OpenIAP specification](https://openiap.dev)** — an open, vendor-neutral interoperability standard for in-app purchases. OpenIAP provides:
 

@@ -744,7 +744,7 @@ function Purchase() {
                 <Callout kind="warning" title="Flutter 10">
                   Only <code>dataAndroid</code> is accepted. Custom adapters and
                   fixtures must use the canonical field. See{' '}
-                  <Link to="/docs/updates/deprecations#flutter-original-json-android">
+                  <Link to="/docs/updates/migration#flutter-original-json-android">
                     the migration schedule
                   </Link>
                   .

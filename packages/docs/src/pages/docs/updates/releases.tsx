@@ -1991,7 +1991,7 @@ function Releases() {
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Migration notes</h5>
           <p style={{ fontSize: '0.9rem' }}>
             Review the complete{' '}
-            <Link to="/docs/updates/deprecations">
+            <Link to="/docs/updates/migration">
               Deprecations &amp; 3.0 Migration catalog
             </Link>{' '}
             before upgrading. Existing bookmarks for removed API pages redirect
@@ -2389,7 +2389,7 @@ function Releases() {
               fields with handwritten bridges and keeps source-first mappings,
               alternative-store plan changes, and round-trip regressions
               executable across wrappers. See{' '}
-              <Link to="/docs/updates/deprecations#flutter-original-json-android">
+              <Link to="/docs/updates/migration#flutter-original-json-android">
                 Deprecations &amp; 3.0 Migration
               </Link>{' '}
               for the complete replacement and removal schedule.
