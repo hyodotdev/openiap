@@ -424,24 +424,6 @@
   margin-bottom: 0.75rem;
 }
 
-.intro-image-container {
-  margin: 1.5rem 0;
-  text-align: center;
-}
-
-.intro-image {
-  max-width: 100%;
-  height: auto;
-  border-radius: 8px;
-  border: 1px solid var(--border-color);
-}
-
-.intro-image-caption {
-  font-size: 0.85rem;
-  color: var(--text-secondary);
-  margin-top: 0.75rem;
-}
-
 .intro-code-output {
   background: var(--bg-secondary);
   border-radius: 8px;
