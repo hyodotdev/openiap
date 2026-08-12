@@ -493,11 +493,11 @@ export class CSharpPlugin extends CodegenPlugin {
 
   private inheritedUnionFieldNames(irObject: IRObject): Set<string> {
     const names = new Set<string>();
-    for (const unionName of irObject.unions) {
-      const union = this.schema.unions.find((item) => item.name === unionName);
-      for (const field of union ? this.sharedInterfaceFields(union) : []) {
-        names.add(field.name);
-      }
+    const baseUnionName = irObject.unions[0];
+    if (!baseUnionName) return names;
+    const baseUnion = this.schema.unions.find((item) => item.name === baseUnionName);
+    for (const field of baseUnion ? this.sharedInterfaceFields(baseUnion) : []) {
+      names.add(field.name);
     }
     return names;
   }

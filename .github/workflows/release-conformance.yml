@@ -255,6 +255,7 @@ jobs:
         run: |
           if ! git grep -q '^  publish-npm:' "$TAG" -- .github/workflows/release-conformance.yml || \
              ! git grep -q 'Upload npm publish authorization' "$TAG" -- .github/workflows/release-conformance.yml || \
+             ! git cat-file -e "$TAG:scripts/verify-npm-release-provenance.mjs" || \
              ! git cat-file -e "$TAG:scripts/npm-publish-authorization.mjs"; then
             echo "::error::$TAG predates the authorized tag-ref npm publisher. Release a new reviewed version instead."
             exit 1
@@ -387,14 +388,23 @@ jobs:
             echo "::error::A validated source release run id is required"
             exit 1
           fi
-          for _ in {1..12}; do
-            SOURCE_RUN_JSON=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID")
+          SOURCE_RUN_JSON=""
+          SOURCE_STATUS=""
+          for _ in {1..60}; do
+            SOURCE_RUN_JSON=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$SOURCE_RUN_ID") || {
+              sleep 5
+              continue
+            }
             SOURCE_STATUS=$(jq -r '.status // ""' <<<"$SOURCE_RUN_JSON")
             if [ "$SOURCE_STATUS" = "completed" ]; then
               break
             fi
             sleep 5
           done
+          if [ "$SOURCE_STATUS" != "completed" ]; then
+            echo "::error::Source release run $SOURCE_RUN_ID did not complete within the wait window"
+            exit 1
+          fi
           SOURCE_PATH=$(jq -r '.path // ""' <<<"$SOURCE_RUN_JSON")
           SOURCE_EVENT=$(jq -r '.event // ""' <<<"$SOURCE_RUN_JSON")
           SOURCE_HEAD_BRANCH=$(jq -r '.head_branch // ""' <<<"$SOURCE_RUN_JSON")

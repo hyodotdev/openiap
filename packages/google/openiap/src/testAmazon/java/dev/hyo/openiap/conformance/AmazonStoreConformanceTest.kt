@@ -29,7 +29,7 @@ class AmazonStoreConformanceTest : StoreConformanceSuite() {
             errorCase("NOT_SUPPORTED", ErrorCode.FeatureNotSupported),
             errorCase("INACTIVE_BASE_SUBSCRIPTION", ErrorCode.ItemUnavailable),
             errorCase("PENDING", ErrorCode.DeferredPayment),
-            errorCase("FAILED", ErrorCode.UserCancelled),
+            errorCase("FAILED", ErrorCode.PurchaseError),
         )
 
         override val unrecognizedError = checkNotNull(amazonPurchaseError(null, "sku"))

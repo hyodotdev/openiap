@@ -83,6 +83,44 @@ describe('codegen defaults', () => {
     expect(output).toContain('public override required bool IsValid { get; init; }');
   });
 
+  it('only marks fields inherited from the emitted C# base union as overrides', () => {
+    const primaryId = field('primaryId', stringType);
+    const secondaryOnly = field('secondaryOnly', stringType);
+    const output = new CSharpPlugin({ outputPath: 'Types.cs' }).generate({
+      ...schema([]),
+      interfaces: [
+        { name: 'PrimaryCommon', fields: [primaryId] },
+        { name: 'SecondaryCommon', fields: [secondaryOnly] },
+      ],
+      unions: [
+        {
+          name: 'PrimaryResult',
+          members: [{ name: 'CombinedResult', isNestedUnion: false }],
+          sharedInterfaces: ['PrimaryCommon'],
+        },
+        {
+          name: 'SecondaryResult',
+          members: [{ name: 'CombinedResult', isNestedUnion: false }],
+          sharedInterfaces: ['SecondaryCommon'],
+        },
+      ],
+      objects: [
+        {
+          name: 'CombinedResult',
+          fields: [primaryId, secondaryOnly],
+          interfaces: ['PrimaryCommon', 'SecondaryCommon'],
+          unions: ['PrimaryResult', 'SecondaryResult'],
+          isResultUnion: false,
+        },
+      ],
+    });
+
+    expect(output).toContain('public sealed record CombinedResult : PrimaryResult, SecondaryCommon');
+    expect(output).toContain('public override required string PrimaryId { get; init; }');
+    expect(output).toContain('public required string SecondaryOnly { get; init; }');
+    expect(output).not.toContain('public override required string SecondaryOnly { get; init; }');
+  });
+
   it('wraps multiline C# documentation in one XML summary element', () => {
     const documentedField = field('value', stringType);
     documentedField.description = 'First line.\nSecond <line>.';

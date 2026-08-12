@@ -57,6 +57,62 @@ describe("verify purchase type docs", () => {
 
     expect(drifts.some((drift) => drift.message.includes("iOS"))).toBe(true);
   });
+
+  test("rejects unrelated deprecation prose outside the success row", () => {
+    const invalid = valid.replace(
+      "<tr><td><code>success</code></td><td>Deprecated alias for <code>isValid</code></td></tr>",
+      "<tr><td><code>success</code></td><td>Legacy alias</td></tr><p>Deprecated elsewhere</p>",
+    );
+
+    const drifts = auditVerifyPurchaseDocs(
+      "verify-purchase.tsx",
+      invalid,
+      generatedTypes,
+    );
+
+    expect(
+      drifts.some((drift) =>
+        drift.message.includes("deprecated isValid alias"),
+      ),
+    ).toBe(true);
+  });
+
+  test("rejects a deprecated success row without the isValid alias", () => {
+    const invalid = valid.replace(
+      "Deprecated alias for <code>isValid</code>",
+      "Deprecated legacy field",
+    );
+
+    const drifts = auditVerifyPurchaseDocs(
+      "verify-purchase.tsx",
+      invalid,
+      generatedTypes,
+    );
+
+    expect(
+      drifts.some((drift) =>
+        drift.message.includes("deprecated isValid alias"),
+      ),
+    ).toBe(true);
+  });
+
+  test("rejects duplicate Horizon success rows", () => {
+    const successRow =
+      "<tr><td><code>success</code></td><td>Deprecated alias for <code>isValid</code></td></tr>";
+    const invalid = valid.replace(successRow, `${successRow}${successRow}`);
+
+    const drifts = auditVerifyPurchaseDocs(
+      "verify-purchase.tsx",
+      invalid,
+      generatedTypes,
+    );
+
+    expect(
+      drifts.some((drift) =>
+        drift.message.includes("deprecated isValid alias"),
+      ),
+    ).toBe(true);
+  });
 });
 
 const VALID_GENERATED_OFFER_TYPES = {

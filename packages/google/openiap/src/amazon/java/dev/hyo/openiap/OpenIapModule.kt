@@ -409,7 +409,7 @@ internal fun amazonPurchaseError(
         OpenIapError.ItemUnavailable("Amazon add-on purchase requires an active base subscription").withProductId(sku)
     "PENDING" -> OpenIapError.DeferredPurchase().withProductId(sku)
     "FAILED" ->
-        OpenIapError.UserCancelled("Amazon purchase failed or was cancelled").withProductId(sku)
+        OpenIapError.PurchaseFailed("Amazon purchase did not complete successfully").withProductId(sku)
     else -> OpenIapError.UnknownError("Unrecognized Amazon purchase response").withProductId(sku)
 }
 

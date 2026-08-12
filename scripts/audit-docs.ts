@@ -201,9 +201,17 @@ export function auditVerifyPurchaseDocs(
       }
     }
   }
+  const horizonSuccessRows = [
+    ...horizon.matchAll(/<tr\b[^>]*>[\s\S]*?<\/tr>/gi),
+  ]
+    .map((match) => match[0])
+    .filter((row) => /<code>\s*success\s*<\/code>/i.test(row));
+  const horizonSuccessRow = horizonSuccessRows[0];
   if (
-    !horizon.includes("<code>success</code>") ||
-    !/deprecated/i.test(horizon)
+    horizonSuccessRows.length !== 1 ||
+    !horizonSuccessRow ||
+    !/deprecated/i.test(horizonSuccessRow) ||
+    !/<code>\s*isValid\s*<\/code>/i.test(horizonSuccessRow)
   ) {
     drifts.push({
       file,

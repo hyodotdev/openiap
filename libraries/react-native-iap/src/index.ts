@@ -2143,7 +2143,7 @@ export const verifyPurchase: MutationField<'verifyPurchase'> = async (
           : undefined,
       };
       return result;
-    } else if (horizon) {
+    } else if (params.horizon !== null) {
       const horizonResult =
         nitroResult as NitroPurchaseVerificationResultHorizon;
       const result: VerifyPurchaseResultHorizon = {

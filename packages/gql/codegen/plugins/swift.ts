@@ -523,6 +523,7 @@ export class SwiftPlugin extends CodegenPlugin {
     const interfaceFieldsArray = [...interfaceFields.entries()].sort((a, b) => a[0].localeCompare(b[0]));
     interfaceFieldsArray.forEach(([fieldName, field], index) => {
       this.generateDocComment(field.description, '    ');
+      this.generateDeprecationAnnotation(field.description, '    ');
       const propertyType = this.getPropertyType(field.type);
       const propertyName = this.escapeKeyword(this.fieldNameCase(fieldName));
 

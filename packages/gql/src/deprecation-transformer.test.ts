@@ -178,6 +178,26 @@ describe('deprecation documentation transformation', () => {
     );
   });
 
+  it('preserves shared-interface deprecations on Swift union accessors', () => {
+    const schema = transform(`
+      interface ResultCommon {
+        legacy: String @deprecated(reason: "Use current instead. Scheduled for removal in OpenIAP 3.0.")
+      }
+      type FirstResult implements ResultCommon {
+        legacy: String @deprecated(reason: "Use current instead. Scheduled for removal in OpenIAP 3.0.")
+      }
+      type SecondResult implements ResultCommon {
+        legacy: String @deprecated(reason: "Use current instead. Scheduled for removal in OpenIAP 3.0.")
+      }
+      union Result = FirstResult | SecondResult
+    `);
+
+    const swift = new SwiftPlugin({ outputPath: 'Types.swift' }).generate(schema);
+    expect(swift).toContain(
+      '    @available(*, deprecated, message: "Use current instead. Scheduled for removal in OpenIAP 3.0.")\n    public var legacy:',
+    );
+  });
+
   it('preserves type-level reasons on operation roots', () => {
     const schema = transform(`
       """Legacy query root."""
