@@ -31,9 +31,9 @@ const outputPath = resolve(
 );
 const purchaseCapturePath = resolve(
   scriptDir,
-  '../public/docs/images/openiap-mcp-iphone-purchase.png'
+  '../public/docs/images/openiap-mcp-iphone-purchase.webp'
 );
-const purchaseCaptureDataUri = `data:image/png;base64,${readFileSync(
+const purchaseCaptureDataUri = `data:image/webp;base64,${readFileSync(
   purchaseCapturePath
 ).toString('base64')}`;
 
