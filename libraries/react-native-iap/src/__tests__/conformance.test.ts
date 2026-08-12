@@ -51,7 +51,7 @@ function toPurchase(record: FakeRecord) {
     purchaseState: record.state === 'purchased' ? 'purchased' : 'pending',
     isAutoRenewing: record.type === 'subs' && record.state === 'purchased',
     quantity: 1,
-    store: 'android',
+    store: 'google',
     platform: 'android',
     transactionDate: 1_700_000_000_000,
     transactionId: record.token,
@@ -66,9 +66,9 @@ const mockIap: Record<string, unknown> = {
   initConnection: jest.fn(async () => true),
   endConnection: jest.fn(async () => true),
 
-  fetchProducts: jest.fn(async (request: {skus: string[]; type?: string}) => {
-    const type = request.type === 'all' ? undefined : request.type;
-    return request.skus
+  fetchProducts: jest.fn(async (skus: string[], nitroType?: string) => {
+    const type = !nitroType || nitroType === 'all' ? undefined : nitroType;
+    return skus
       .filter((sku) => CATALOG[sku])
       .filter((sku) => (type ? CATALOG[sku] === type : true))
       .map((sku) => ({
@@ -128,13 +128,16 @@ const mockIap: Record<string, unknown> = {
     return purchase;
   }),
 
-  getAvailablePurchases: jest.fn(async () =>
-    [...store.owned.values()].map((record) => toPurchase(record)),
-  ),
+  getAvailablePurchases: jest.fn(async (options?: any) => {
+    const type = options?.android?.type;
+    return [...store.owned.values()]
+      .filter((record) => (type ? record.type === type : true))
+      .map((record) => toPurchase(record));
+  }),
 
   finishTransaction: jest.fn(async (params: any) => {
-    const token = params?.purchase?.purchaseToken ?? params?.purchaseToken;
-    if (params?.isConsumable) store.owned.delete(token);
+    const android = params?.android;
+    if (android?.isConsumable) store.owned.delete(android.purchaseToken);
     return true;
   }),
 

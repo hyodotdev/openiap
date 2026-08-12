@@ -2418,6 +2418,7 @@ void main() {
           case 'verifyPurchase':
             return {
               '__typename': 'VerifyPurchaseResultAndroid',
+              'isValid': true,
               'productId': 'premium.upgrade',
               'productType': 'inapp',
               'purchaseDate': 1705315800000.0,
@@ -2473,6 +2474,7 @@ void main() {
       expect(androidResult.productId, 'premium.upgrade');
       expect(androidResult.productType, 'inapp');
       expect(androidResult.autoRenewing, false);
+      expect(androidResult.isValid, isTrue);
     });
 
     test('sends and parses Horizon verification payloads', () async {
@@ -2487,6 +2489,7 @@ void main() {
             return jsonEncode(<String, dynamic>{
               '__typename': 'VerifyPurchaseResultHorizon',
               'grantTime': 1705315800,
+              'isValid': true,
               'success': true,
             });
         }
@@ -2520,6 +2523,7 @@ void main() {
 
       expect(result, isA<types.VerifyPurchaseResultHorizon>());
       final horizonResult = result as types.VerifyPurchaseResultHorizon;
+      expect(horizonResult.isValid, isTrue);
       expect(horizonResult.success, isTrue);
       expect(horizonResult.grantTime, 1705315800);
     });
