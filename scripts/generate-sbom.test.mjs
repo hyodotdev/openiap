@@ -1,5 +1,11 @@
 import assert from "node:assert/strict";
-import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import {
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  rmSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
 import test from "node:test";
@@ -368,6 +374,41 @@ test("VEX statements are validated, and absent by default", (t) => {
   assert.throws(() => readVexStatements(scratch, "google"), /without an id/u);
 });
 
+test("each component's declared licence matches what it publishes", async () => {
+  // A wrong licence is worse than a missing one: it is confident and it is
+  // consumed by compliance tooling. kmp-iap ships Apache-2.0 while the rest of
+  // the repository is MIT, so the SBOM must not blanket-assert MIT.
+  const declared = async (componentId) => {
+    const { document } = await generateSbom(componentId, {
+      root: repoRoot,
+      runGit: stubGit,
+    });
+    return document.metadata.component.licenses[0].license.id;
+  };
+
+  assert.equal(await declared("kmp"), "Apache-2.0");
+  for (const componentId of ["apple", "expo", "react-native", "conformance"]) {
+    assert.equal(await declared(componentId), "MIT", componentId);
+  }
+
+  // The npm components state it in their own manifest; keep the two in step.
+  for (const [componentId, manifest] of [
+    ["expo", "libraries/expo-iap/package.json"],
+    ["react-native", "libraries/react-native-iap/package.json"],
+    ["conformance", "packages/conformance/package.json"],
+  ]) {
+    const pkg = JSON.parse(readFileSync(resolve(repoRoot, manifest), "utf8"));
+    assert.equal(await declared(componentId), pkg.license, componentId);
+  }
+
+  // kmp declares Apache-2.0 in its POM block; fail if that ever diverges.
+  const kmpBuild = readFileSync(
+    resolve(repoRoot, "libraries/kmp-iap/library/build.gradle.kts"),
+    "utf8",
+  );
+  assert.match(kmpBuild, /Apache-2\.0|Apache License 2\.0/u);
+});
+
 test("a VEX statement must point at a component this SBOM contains", () => {
   const dependencies = [
     { name: "a", version: "1.0.0", purl: "pkg:maven/g/a@1.0.0" },
@@ -421,7 +462,10 @@ test("an SBOM with no analysed vulnerabilities omits the section", () => {
   assert.equal("vulnerabilities" in document, false);
 });
 
-test("only direct dependencies are listed as the component's dependsOn", () => {
+test("every component is reachable from the root of the dependency graph", () => {
+  // A transitive entry missing from `dependsOn` would still appear under
+  // `components`, but a consumer walking the graph from the root would never
+  // reach it. Standard CycloneDX tooling uses the graph, not our property.
   const document = buildSbom({
     componentId: "google",
     version: "3.3.0",
@@ -441,6 +485,15 @@ test("only direct dependencies are listed as the component's dependsOn", () => {
   const root = document.dependencies.find(
     (entry) => entry.ref === document.metadata.component.purl,
   );
-  assert.deepEqual(root.dependsOn, ["pkg:maven/g/a@1.0.0"]);
+  assert.deepEqual(root.dependsOn, [
+    "pkg:maven/g/a@1.0.0",
+    "pkg:maven/g/b@2.0.0",
+  ]);
   assert.equal(document.components.length, 2);
+
+  // The transitive marker stays a property, so the distinction is not lost.
+  const transitive = document.components.find((c) => c.name === "b");
+  assert.deepEqual(transitive.properties, [
+    { name: "openiap:sbom:relationship", value: "transitive" },
+  ]);
 });

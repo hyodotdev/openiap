@@ -151,6 +151,16 @@ function stripTestSourceSets(source) {
       else if (result[index] === "}") depth -= 1;
       index += 1;
     }
+    // The counter also sees braces inside strings and comments. If it never
+    // returns to zero, everything after this point would be discarded and the
+    // SBOM would silently lose real dependencies — the one failure mode this
+    // module exists to prevent.
+    if (depth !== 0) {
+      throw new Error(
+        `Unbalanced braces while removing a test source set at offset ${match.index}; ` +
+          `refusing to drop the remainder of the manifest.`,
+      );
+    }
     result = result.slice(0, match.index) + result.slice(index);
     opener.lastIndex = 0;
   }

@@ -121,10 +121,18 @@ Require `$e2e-tests` when the diff touches any of:
 
 When it is required, **stop without merging even if the PR is otherwise
 clean**. Report the exact regression-matrix rows the diff implicates and hand
-back to the user to run `$e2e-tests`, or to confirm the change is covered
-without it. Record that result on the PR before any merge. A clean CI run is
-not a substitute: CI does not exercise purchase dialogs, store accounts, or
-device wiring.
+back to the user. The loop does not merge such a change on its own authority.
+
+Exactly two things clear the gate, and both are recorded on the PR before any
+merge:
+
+1. A `$e2e-tests` run covering the implicated rows, with its result posted.
+2. An explicit written waiver from the user in this conversation, naming the
+   rows waived and the reason. Record it verbatim on the PR. Absence of an
+   objection is not a waiver, and the loop must never grant one to itself.
+
+A clean CI run is not a substitute: CI does not exercise purchase dialogs,
+store accounts, or device wiring.
 
 When it is not required, say so explicitly in the final report and name the
 paths that justify it. Silence here reads as an untested merge.

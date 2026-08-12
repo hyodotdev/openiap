@@ -38,10 +38,16 @@ Two consequences follow for this repository as it stands today:
 - `packages/kit` is operated as a hosted service and is a separate question
   from the distributed SDKs. It is not covered by the SDK analysis here.
 
-Stewards cannot be fined (Article 64(10)), and stewards must never issue
-compliance attestations or warranties on behalf of downstream manufacturers —
-that would improperly move legal responsibility upstream. OpenIAP issues no
-such attestation.
+Article 64(10) exempts open-source software stewards from the administrative
+fines set out in Article 64(3) to (9). That is a scoped exemption, not a
+blanket one — other provisions, including Article 64(2), and the obligations
+Article 24(3) applies to stewards, are outside it. Treat the precise liability
+position as a question for legal advice rather than something this repository
+settles.
+
+Separately, stewards must never issue compliance attestations or warranties on
+behalf of downstream manufacturers — that would improperly move legal
+responsibility upstream. OpenIAP issues no such attestation.
 
 ## Reporting timeline
 
@@ -49,15 +55,21 @@ Article 14 reporting obligations apply from **11 September 2026**, ahead of the
 main product requirements on 11 December 2027. Reports go to the relevant
 national CSIRT and ENISA through ENISA's Single Reporting Platform (SRP).
 
-| Trigger                                           | Early warning | Notification | Final report |
-| ------------------------------------------------- | ------------- | ------------ | ------------ |
-| Actively exploited vulnerability                  | 24 hours      | 72 hours     | 14 days      |
-| Severe incident affecting operated infrastructure | 24 hours      | 72 hours     | 1 month      |
+Each stage starts from a different event, which is easy to get wrong:
 
-These clocks start when the responsible party **becomes aware**, not when a fix
-exists. The operational procedure OpenIAP follows on becoming aware of an
-actively exploited vulnerability is in
-[`SECURITY.md`](../SECURITY.md#actively-exploited-vulnerabilities); it is
+| Trigger                                           | Early warning       | Notification        | Final report                                                  |
+| ------------------------------------------------- | ------------------- | ------------------- | ------------------------------------------------------------- |
+| Actively exploited vulnerability                  | 24 h from awareness | 72 h from awareness | 14 days after a corrective or mitigating measure is available |
+| Severe incident affecting operated infrastructure | 24 h from awareness | 72 h from awareness | 1 month after the 72-hour notification                        |
+
+Only the first two clocks run from **becoming aware**. The final report for a
+vulnerability runs from the availability of a fix or mitigation, and the final
+report for an incident runs from the notification.
+
+The operational procedure OpenIAP follows on becoming aware of an actively
+exploited vulnerability is in
+[`SECURITY.md`](../SECURITY.md#actively-exploited-vulnerabilities). That is an
+**internal service level**, not a restatement of the statutory deadlines: it is
 maintained whether or not the obligation is legally binding here, because the
 first 24 hours are the part that cannot be improvised.
 

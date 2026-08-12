@@ -41,6 +41,9 @@ const SUPPLIER = {
   name: "OpenIAP",
   url: ["https://openiap.dev"],
 };
+// The repository LICENSE. A component that publishes under different terms
+// must override this, or its SBOM would assert a licence it does not ship.
+const DEFAULT_LICENSE = "MIT";
 const GENERATOR_NAME = "openiap-sbom-generator";
 const GENERATOR_VERSION = "1.0.0";
 const SPEC_VERSION = "1.6";
@@ -142,6 +145,9 @@ const COMPONENTS = {
   kmp: {
     sbomName: "kmp-iap",
     type: "library",
+    // Published under Apache-2.0, unlike the rest of the repository.
+    // See the POM licence block in libraries/kmp-iap/library/build.gradle.kts.
+    license: "Apache-2.0",
     purl: (version) => `pkg:maven/io.github.hyochan/kmp-iap@${version}`,
     distribution: (version) =>
       `https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap/${version}`,
@@ -430,7 +436,7 @@ export function buildSbom({
         version,
         purl,
         supplier: SUPPLIER,
-        licenses: [{ license: { id: "MIT" } }],
+        licenses: [{ license: { id: definition.license ?? DEFAULT_LICENSE } }],
         externalReferences,
         properties: [
           { name: "openiap:release:tag", value: tag },
@@ -443,10 +449,13 @@ export function buildSbom({
     components: dependencies.map(dependencyComponent),
     dependencies: [
       {
+        // Every component is reachable from the root. A transitive entry left
+        // out of `dependsOn` would appear in `components` with no inbound edge,
+        // so a consumer walking the graph would never reach it. The
+        // openiap:sbom:relationship property, not the graph, is what marks an
+        // entry as transitive.
         ref: componentRef,
-        dependsOn: dependencies
-          .filter((entry) => !entry.transitive)
-          .map((entry) => entry.purl),
+        dependsOn: dependencies.map((entry) => entry.purl),
       },
       ...dependencies.map((entry) => ({ ref: entry.purl, dependsOn: [] })),
     ],

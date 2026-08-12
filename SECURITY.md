@@ -68,11 +68,14 @@ If a vulnerability in an OpenIAP component is **being exploited in the wild**,
 say so explicitly in your report — put `[SECURITY][ACTIVE]` in the subject.
 That changes the response path:
 
-| When                         | What happens                                                                                                                  |
-| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| Within 24 hours of awareness | Triage and an initial assessment: which components and published versions are affected, and whether exploitation is confirmed |
-| Within 72 hours              | Assessment updated with severity, impact, and any mitigation available to users                                               |
-| Within 14 days               | Final assessment: root cause, fix or mitigation, and affected-version list                                                    |
+This is an **internal service level**, not a restatement of any statutory
+deadline:
+
+| When                                                  | What happens                                                                                                                  |
+| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| Within 24 hours of awareness                          | Triage and an initial assessment: which components and published versions are affected, and whether exploitation is confirmed |
+| Within 72 hours of awareness                          | Assessment updated with severity, impact, and any mitigation available to users                                               |
+| Within 14 days of a fix or mitigation being available | Final assessment: root cause, the fix or mitigation, and the affected-version list                                            |
 
 Affected published versions are determined from the SBOM attached to each
 release, so the answer is derived from what actually shipped rather than
@@ -80,9 +83,10 @@ reconstructed from memory. Users are informed through the GitHub Security
 Advisory, the release notes of the fixing release, and the repository README
 when the impact is broad.
 
-These timelines mirror the EU Cyber Resilience Act's Article 14 reporting
-windows, which apply from 11 September 2026. Whether OpenIAP is legally
-required to report is a separate question — see
+These windows are modelled on the EU Cyber Resilience Act's Article 14 staging,
+which applies from 11 September 2026, but they are not the statutory deadlines
+themselves and do not discharge anyone's reporting duty. Whether OpenIAP is
+legally required to report is a separate question — see
 [`security/CRA.md`](security/CRA.md) — but the process is maintained either
 way, because the first 24 hours are the part that cannot be improvised.
 
@@ -101,8 +105,8 @@ integrators can plan a migration rather than discover it during an incident.
 
 ## Supply Chain
 
-Every published release carries a CycloneDX SBOM as a GitHub Release asset, so
-you can check whether a specific version contains a given dependency:
+Every supported component release carries a CycloneDX SBOM as a GitHub Release
+asset, so you can check whether a specific version contains a given dependency:
 
 ```bash
 gh release download react-native-iap-16.3.0 -p '*.cdx.json'
