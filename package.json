@@ -16,6 +16,8 @@
     "audit:parity": "node scripts/audit-non-godot-parity.mjs",
     "audit:docs": "bun run scripts/audit-docs.ts",
     "audit:release-state": "node scripts/release-branch-policy.mjs audit",
+    "sbom": "node scripts/generate-sbom.mjs",
+    "sbom:test": "node --test scripts/generate-sbom.test.mjs",
     "clean": "rm -rf packages/*/node_modules node_modules",
     "generate": "cd packages/gql && bun run generate",
     "version:sync": "bun scripts/sync-versions.mjs",

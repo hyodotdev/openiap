@@ -38,3 +38,20 @@ are prioritized.
 Security fixes land on `main` and ship in the next release of each affected
 package. The latest published version of each package is supported; older
 majors receive fixes only for critical vulnerabilities, judged case by case.
+
+## Supply Chain
+
+Every published release carries a CycloneDX SBOM as a GitHub Release asset, so
+you can check whether a specific version contains a given dependency:
+
+```bash
+gh release download react-native-iap-16.3.0 -p '*.cdx.json'
+gh attestation verify react-native-iap-16.3.0.cdx.json --repo hyodotdev/openiap
+```
+
+- [`security/SBOM.md`](security/SBOM.md) — what the SBOMs cover, how they are
+  generated, and how to verify or reproduce one
+- [`security/README.md`](security/README.md) — dependency monitoring, artifact
+  provenance, and release integrity
+- [`security/CRA.md`](security/CRA.md) — how these practices map to EU Cyber
+  Resilience Act expectations

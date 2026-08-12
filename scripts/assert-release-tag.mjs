@@ -5,7 +5,7 @@ import { fileURLToPath } from "node:url";
 
 import { validateVersion } from "./release-branch-policy.mjs";
 
-const PACKAGE_CONFIG = {
+export const PACKAGE_CONFIG = {
   apple: {
     path: "openiap-versions.json",
     tags: (version) => [version, `apple-v${version}`],

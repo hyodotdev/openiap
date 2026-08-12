@@ -11,6 +11,12 @@ dist/
 build/
 .turbo/
 
+# Generated SBOMs. These are release artifacts published to GitHub Releases,
+# never committed — a checked-in copy would drift from the release it claims
+# to describe. See security/SBOM.md.
+sbom/
+*.cdx.json
+
 # Synced version files (generated from root openiap-versions.json)
 packages/*/openiap-versions.json
 packages/apple/Sources/openiap-versions.json
