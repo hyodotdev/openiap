@@ -236,7 +236,9 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            Publishes the store-verification integrity release from{' '}
+            Amazon verification now checks product identity and returns sandbox
+            or production provenance across every SDK. Horizon now keeps the
+            last confirmed purchase state when verification is ambiguous (
             <a
               href="https://github.com/hyodotdev/openiap/pull/313"
               target="_blank"
@@ -244,10 +246,7 @@ function Releases() {
             >
               PR #313
             </a>
-            . The release makes Amazon sandbox provenance and product binding
-            first-class across every SDK, removes the unfinished Horizon
-            subscription lane, and keeps transient store failures from replacing
-            the last authoritative purchase state.
+            ).
           </p>
 
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Common changes</h5>
@@ -259,13 +258,9 @@ function Releases() {
             }}
           >
             <li>
-              Hosted IAPKit now requires an explicit project opt-in for Amazon
-              App Tester and RVS Cloud Sandbox, records <code>Sandbox</code> or{' '}
-              <code>Production</code> provenance, and supports caller-provided{' '}
-              <code>expectedProductId</code> binding. A bounded receipt
-              reconciler refreshes active Amazon purchase rows without
-              overwriting authoritative state on timeout, throttling, secret,
-              network, or malformed-response failures, resolving{' '}
+              Hosted IAPKit requires explicit Amazon sandbox opt-in, records the
+              verification environment, checks <code>expectedProductId</code>,
+              and preserves authoritative state on non-authoritative failures (
               <a
                 href="https://github.com/hyodotdev/openiap/issues/311"
                 target="_blank"
@@ -273,14 +268,12 @@ function Releases() {
               >
                 issue #311
               </a>
-              .
+              ).
             </li>
             <li>
-              Horizon verification is now a conservative synchronous REST path:
-              only strict boolean ownership verdicts are persisted, retryable or
-              ambiguous responses leave the last confirmed snapshot untouched,
-              and the structurally unsafe background subscription reconciler and
-              its synthetic revenue events are retired. This resolves{' '}
+              Horizon persists only explicit ownership results; ambiguous
+              responses keep the last snapshot, and the background subscription
+              reconciler and synthetic revenue events are removed (
               <a
                 href="https://github.com/hyodotdev/openiap/issues/310"
                 target="_blank"
@@ -288,13 +281,11 @@ function Releases() {
               >
                 issue #310
               </a>
-              .
+              ).
             </li>
             <li>
-              Purchase analytics add Amazon and Horizon store counters. The
-              project shell, tabs, filters, tables, metric cards, and long
-              project identities now keep horizontal scrolling local and remain
-              usable with an expanded sidebar at tablet and desktop widths.
+              Purchase analytics include Amazon and Horizon, and wide dashboard
+              content now scrolls inside its own container.
             </li>
           </ul>
 
@@ -309,22 +300,15 @@ function Releases() {
             }}
           >
             <li>
-              <strong>OpenIAP Spec 3.2.0</strong> - adds optional Amazon{' '}
+              <strong>OpenIAP Spec 3.2.0</strong> - adds optional{' '}
               <code>expectedProductId</code> input and optional verification{' '}
-              <code>environment</code> output while keeping existing request and
-              result constructors source-compatible.
+              <code>environment</code> output without breaking existing
+              constructors.
             </li>
             <li>
-              <strong>openiap-apple 3.2.0</strong> - forwards the Amazon product
-              guard and preserves a validated <code>Sandbox</code> or{' '}
-              <code>Production</code> result through the provider verification
-              bridge.
-            </li>
-            <li>
-              <strong>openiap-google 3.3.0</strong> - carries the same input and
-              provenance through Play, Amazon, and Horizon builds, including the
-              Fire OS path that obtains a missing Amazon user ID before
-              verification.
+              <strong>openiap-apple 3.2.0</strong> and{' '}
+              <strong>openiap-google 3.3.0</strong> forward both fields; Fire OS
+              also fetches a missing Amazon user ID before verification.
             </li>
           </ul>
 
@@ -337,37 +321,14 @@ function Releases() {
             }}
           >
             <li>
-              <strong>react-native-iap 16.3.0</strong> - exposes Amazon product
-              binding and environment provenance through Nitro, native, and Vega
-              paths. When verification is enabled, the example uses explicit
-              sandbox configuration and finishes a purchase only after
+              <strong>react-native-iap 16.3.0</strong> - forwards Amazon product
+              binding and provenance; its example finishes purchases only after
               verification succeeds.
             </li>
             <li>
-              <strong>expo-iap 5.3.0</strong> - preserves the new fields across
-              Expo Modules and Vega, and serializes restored or overlapping
-              purchase callbacks so remounts and reconnects cannot verify or
-              finish the same receipt twice.
-            </li>
-            <li>
-              <strong>flutter_inapp_purchase 10.3.0</strong> - forwards the
-              exact Amazon product identifier through Dart and every native
-              channel, then validates and returns the optional environment.
-            </li>
-            <li>
-              <strong>godot-iap 3.3.0</strong> - ships the generated Amazon
-              input and environment result contract in the GDScript plugin and
-              updated Android and iOS release artifacts.
-            </li>
-            <li>
-              <strong>kmp-iap 3.3.0</strong> - maps the new fields through the
-              Android and iOS bridges and publishes matching Play, Amazon,
-              Horizon, and Apple variants.
-            </li>
-            <li>
-              <strong>OpenIap.Maui 2.3.0</strong> - adds the generated C#
-              contract and uses the requested product ID in the Amazon example
-              while preserving the environment in verification results.
+              <strong>expo-iap 5.3.0</strong> - serializes overlapping purchase
+              callbacks so remounts and reconnects cannot verify or finish one
+              receipt twice.
             </li>
           </ul>
 
@@ -382,24 +343,23 @@ function Releases() {
             <li>
               Enable{' '}
               <strong>Allow Amazon App Tester / RVS Cloud Sandbox</strong> in
-              the IAPKit project before sending <code>sandbox: true</code>.
-              Production verification still requires the project's Amazon RVS
-              shared secret. Check both the verified product ID and expected
-              environment before granting or finishing a purchase.
+              IAPKit before sending <code>sandbox: true</code>; production still
+              requires the Amazon RVS shared secret.
             </li>
             <li>
-              Amazon reconciliation updates purchase rows only. It uses{' '}
-              <code>cancelDate</code> as Amazon's loss-of-access signal and does
-              not create subscription rows or infer expiry from a past{' '}
-              <code>renewalDate</code>. Horizon likewise remains raw ownership
-              verification without background subscription lifecycle state.
+              Grant access only when the verified product ID and environment
+              match the request.
+            </li>
+            <li>
+              Amazon uses <code>cancelDate</code> for lost access, creates no
+              subscription rows, and infers no expiry from{' '}
+              <code>renewalDate</code>; Horizon remains ownership-only.
             </li>
             <li>
               Self-hosted IAPKit deployments with historical Amazon or Horizon
               purchases should run{' '}
               <code>migrations:backfillPurchaseStatsStoreBuckets</code> after
-              the base purchase-stats backfill. The hosted audit found no
-              historical rows that required this migration.
+              the base purchase-stats backfill.
             </li>
           </ul>
 
@@ -456,7 +416,8 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            Publishes the Android subscription replacement reliability fix from{' '}
+            Google Play subscription upgrades and downgrades now survive R8
+            minification by using typed Billing 9.1 replacement parameters (
             <a
               href="https://github.com/hyodotdev/openiap/pull/309"
               target="_blank"
@@ -464,9 +425,7 @@ function Releases() {
             >
               PR #309
             </a>
-            . Minified Google Play release builds now construct product-level
-            replacement parameters through typed Play Billing 9.1 APIs instead
-            of class- and method-name reflection.
+            ).
           </p>
 
           <h5 style={{ margin: '0 0 0.5rem 0' }}>
@@ -480,11 +439,9 @@ function Releases() {
             }}
           >
             <li>
-              <strong>openiap-google 3.2.3</strong> - replaces reflective
-              construction of subscription product replacement parameters with
-              typed Play Billing 9.1 calls, so R8 can safely rewrite the
-              references without an OpenIAP-specific broad Billing keep rule.
-              All seven replacement modes retain their native values, resolving{' '}
+              <strong>openiap-google 3.2.3</strong> - replaces reflection with
+              typed Billing calls while preserving all seven replacement modes,
+              resolving{' '}
               <a
                 href="https://github.com/hyodotdev/openiap/issues/307"
                 target="_blank"
@@ -493,44 +450,6 @@ function Releases() {
                 issue #307
               </a>
               .
-            </li>
-          </ul>
-
-          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
-          <ul
-            style={{
-              marginBottom: '1rem',
-              paddingLeft: '1.25rem',
-              fontSize: '0.9rem',
-            }}
-          >
-            <li>
-              <strong>react-native-iap 16.2.4</strong> - selects openiap-google
-              3.2.3 so minified Android release builds receive the typed
-              subscription replacement path.
-            </li>
-            <li>
-              <strong>expo-iap 5.2.4</strong> - selects openiap-google 3.2.3 to
-              restore subscription upgrades and downgrades in R8-minified Expo
-              release builds.
-            </li>
-            <li>
-              <strong>flutter_inapp_purchase 10.2.4</strong> - selects
-              openiap-google 3.2.3 for the same R8-safe Android replacement
-              behavior.
-            </li>
-            <li>
-              <strong>godot-iap 3.2.2</strong> - refreshes its Android plugin
-              artifact with the typed Play Billing replacement path.
-            </li>
-            <li>
-              <strong>kmp-iap 3.2.2</strong> - publishes its Android target
-              against openiap-google 3.2.3 for minified Play builds.
-            </li>
-            <li>
-              <strong>OpenIap.Maui 2.2.2</strong> - refreshes its Android
-              binding against openiap-google 3.2.3 for the corrected replacement
-              flow.
             </li>
           </ul>
 
@@ -543,18 +462,9 @@ function Releases() {
             }}
           >
             <li>
-              Public APIs and request shapes are unchanged. Existing call sites
-              using <code>subscriptionProductReplacementParams</code> need no
-              changes after upgrading.
-            </li>
-            <li>
-              Apps that added a broad Billing keep rule solely for this OpenIAP
-              workaround can remove it after upgrading and validating their
-              minified release build.
-            </li>
-            <li>
-              The runtime change is specific to Google Play; Amazon and Horizon
-              store integrations are unchanged.
+              Existing <code>subscriptionProductReplacementParams</code> calls
+              need no changes; remove any OpenIAP-specific broad Billing keep
+              rule after validating a minified release build.
             </li>
           </ul>
 
@@ -608,17 +518,16 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            Publishes the completed Store API follow-up and Android Kotlin
-            consumer-compatibility replacement train. It closes two runtime edge
-            cases and the binary compatibility regression reported in{' '}
+            Fixes promoted-purchase races, Android Activity ownership, and
+            Kotlin 2.1.20+ consumer compatibility without removing public APIs (
             <a
               href="https://github.com/hyodotdev/openiap/issues/304"
               target="_blank"
               rel="noopener noreferrer"
             >
               issue #304
-            </a>{' '}
-            without removing or renaming public APIs.
+            </a>
+            ).
           </p>
 
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Common changes</h5>
@@ -630,10 +539,8 @@ function Releases() {
             }}
           >
             <li>
-              Promoted-product examples now refetch mixed product details and
-              select the subscription request branch when the promoted item is a
-              subscription. The Advanced Commerce period field also carries its
-              precise OpenIAP and Apple availability in every generated SDK.
+              Promoted-product examples now select the correct product type, and
+              Advanced Commerce period docs identify their exact availability.
             </li>
           </ul>
 
@@ -648,26 +555,15 @@ function Releases() {
             }}
           >
             <li>
-              <strong>OpenIAP Spec 3.1.1</strong> - synchronizes the Advanced
-              Commerce period availability clarification used by every generated
-              SDK.
+              <strong>openiap-apple 3.1.1</strong> - reserves a redeemed
+              win-back offer for one matching promoted purchase and safely
+              releases it after failure without letting a stale attempt replace
+              a newer purchase intent.
             </li>
             <li>
-              <strong>openiap-apple 3.1.1</strong> - exclusively reserves an
-              externally redeemed win-back offer for one matching promoted
-              purchase attempt. Local validation and presentation failures
-              release the reservation for a safe retry, while newer purchase
-              intents cannot be overwritten by a stale attempt.
-            </li>
-            <li>
-              <strong>openiap-google 3.2.2</strong> - makes native convenience
-              Activity binding lifecycle-aware and owner-scoped. A paused or
-              disposed Compose owner no longer clears another active owner, and
-              Horizon ViewModel callers have an explicit Activity-based
-              initialization path. It also restores Kotlin 2.1.20+ consumer
-              compatibility by publishing Kotlin 2.2.0 metadata and validating
-              Play, Horizon, and Amazon from an independent Kotlin 2.1.20
-              consumer before publication ({' '}
+              <strong>openiap-google 3.2.2</strong> - prevents one Compose owner
+              from clearing another owner&apos;s Activity and restores Kotlin
+              2.1.20+ compatibility (
               <a
                 href="https://github.com/hyodotdev/openiap/pull/305"
                 target="_blank"
@@ -679,66 +575,30 @@ function Releases() {
             </li>
           </ul>
 
-          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
-          <ul
-            style={{
-              marginBottom: '1rem',
-              paddingLeft: '1.25rem',
-              fontSize: '0.9rem',
-            }}
-          >
-            <li>
-              <strong>react-native-iap 16.2.2</strong> - consumes the corrected
-              native lifecycle behavior, Kotlin-compatible Android artifacts,
-              and synchronized generated contract comments.
-            </li>
-            <li>
-              <strong>expo-iap 5.2.2</strong> - consumes the corrected native
-              lifecycle behavior, Kotlin-compatible Android artifacts, and
-              synchronized generated contract comments.
-            </li>
-            <li>
-              <strong>flutter_inapp_purchase 10.2.2</strong> - resolves the
-              Kotlin-compatible Android artifact and synchronizes the generated
-              Apple availability contract.
-            </li>
-            <li>
-              <strong>godot-iap 3.2.1</strong> - synchronizes the generated
-              Apple availability contract.
-            </li>
-            <li>
-              <strong>kmp-iap 3.2.1</strong> - resolves the Kotlin-compatible
-              Android artifact and synchronizes the generated Apple availability
-              contract.
-            </li>
-            <li>
-              <strong>OpenIap.Maui 2.2.1</strong> - resolves the
-              Kotlin-compatible Android artifact and synchronizes the generated
-              Apple availability contract.
-            </li>
-          </ul>
-
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
           <Callout kind="warning" title="Kotlin compatibility notice">
             <p>
-              Android projects using Kotlin 2.1.20 or 2.2.x must replace
-              openiap-google 3.1.0 through 3.2.1 with 3.2.2. React Native users
-              must replace react-native-iap 16.1.0 through 16.2.1 with 16.2.2;
-              Expo users must replace expo-iap 5.1.0 through 5.2.1 with 5.2.2;
-              and Flutter users must replace flutter_inapp_purchase 10.1.0
-              through 10.2.1 with 10.2.2. The affected npm versions are
-              deprecated, the affected Flutter versions are retracted, and the
-              immutable Google 3.2.1 Maven release carries an upgrade warning.
+              Kotlin 2.1.20 or 2.2.x projects must upgrade these affected
+              ranges:
+            </p>
+            <ul>
+              <li>openiap-google 3.1.0-3.2.1 to 3.2.2</li>
+              <li>
+                react-native-iap 16.1.0-16.2.1 to 16.2.2, and expo-iap
+                5.1.0-5.2.1 to 5.2.2
+              </li>
+              <li>flutter_inapp_purchase 10.1.0-10.2.1 to 10.2.2</li>
+            </ul>
+            <p>
+              The affected npm versions are deprecated, the Flutter versions are
+              retracted, and Google 3.2.1 carries an upgrade warning.
             </p>
           </Callout>
           <p style={{ marginBottom: '1rem', fontSize: '0.9rem' }}>
-            Framework API call sites remain unchanged. Native Android ViewModel
-            users targeting Horizon should migrate from the deprecated
-            <code> initConnection(config)</code> overload to{' '}
-            <code>initConnection(activity, config)</code>; Compose users receive
-            lifecycle binding automatically. Upgrade all coordinated packages to
-            the versions below so the native fixes and generated contracts stay
-            aligned.
+            Horizon ViewModel users should replace the deprecated{' '}
+            <code>initConnection(config)</code> overload with{' '}
+            <code>initConnection(activity, config)</code>. Compose users receive
+            Activity binding automatically.
           </p>
 
           <div
@@ -794,7 +654,9 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            Publishes the coordinated stable release train from{' '}
+            Improves Apple promoted purchases and offer redemption, makes Play
+            subscription recovery capability-aware, and validates Horizon
+            purchase preconditions (
             <a
               href="https://github.com/hyodotdev/openiap/pull/299"
               target="_blank"
@@ -803,13 +665,12 @@ function Releases() {
             >
               PR #299
             </a>
-            . The release modernizes StoreKit purchase-intent and redemption
-            behavior, makes Google Play subscription recovery capability-aware,
-            tightens Meta Horizon purchase preconditions, and synchronizes the
-            resulting contracts across every maintained SDK.
+            ).
           </p>
 
-          <h5 style={{ margin: '0 0 0.5rem 0' }}>Native store behavior</h5>
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Shared spec and native packages
+          </h5>
           <ul
             style={{
               marginBottom: '1rem',
@@ -818,25 +679,19 @@ function Releases() {
             }}
           >
             <li>
-              <strong>openiap-apple 3.1.0</strong> captures externally redeemed
-              win-back offers for matching promoted purchases, selects the
-              newest verified current entitlement deterministically, and returns
-              a verified redemption purchase on Apple 27+ when built with Xcode
-              27+. Older supported system-sheet paths continue to return{' '}
-              <code>null</code> after presentation.
+              <strong>openiap-apple 3.1.0</strong> - matches redeemed win-back
+              offers to promoted purchases, selects the newest verified current
+              entitlement, and returns a verified redemption purchase on Apple
+              27+ with Xcode 27+.
             </li>
             <li>
-              <strong>openiap-google 3.2.0</strong> requests suspended
-              subscriptions only when the connected Play Store supports that
-              capability, otherwise falling back to active purchases. Horizon
-              initialization now requires a foreground <code>Activity</code>,
-              and Horizon purchase requests reject multi-product payloads before
-              invoking the store.
+              <strong>openiap-google 3.2.0</strong> - fetches suspended Play
+              subscriptions only when supported; Horizon requires a foreground{' '}
+              <code>Activity</code> and one product per purchase request.
             </li>
             <li>
-              Advanced Commerce purchase metadata now carries its optional{' '}
-              <code>period</code> across the shared schema and generated Apple,
-              TypeScript, Dart, GDScript, Kotlin, and C# models.
+              <strong>OpenIAP Spec 3.1.0</strong> - adds optional Advanced
+              Commerce <code>period</code> metadata to every generated SDK.
             </li>
           </ul>
 
@@ -849,23 +704,12 @@ function Releases() {
             }}
           >
             <li>
-              <strong>react-native-iap 16.2.0</strong> and{' '}
-              <strong>expo-iap 5.2.0</strong> expose the synchronized Apple
-              period metadata and updated promoted-product, redemption, and
-              Horizon contracts. Expo prebuilds also isolate the local OpenIAP
-              composite-build output from other Android consumers.
+              <strong>expo-iap 5.2.0</strong> - isolates local OpenIAP composite
+              build output so it cannot affect other Android consumers.
             </li>
             <li>
-              <strong>flutter_inapp_purchase 10.2.0</strong>,{' '}
-              <strong>godot-iap 3.2.0</strong>, and{' '}
-              <strong>OpenIap.Maui 2.2.0</strong> publish the synchronized Apple
-              purchase metadata and corrected redemption guidance for their
-              generated types, wrappers, tests, and examples.
-            </li>
-            <li>
-              <strong>kmp-iap 3.2.0</strong> adds the same Apple metadata while
-              applying the Play suspended-subscription capability fallback to
-              its Android restore path.
+              <strong>kmp-iap 3.2.0</strong> - applies the Play suspended-
+              subscription capability fallback to Android restore.
             </li>
           </ul>
 
@@ -878,19 +722,13 @@ function Releases() {
             }}
           >
             <li>
-              No public API call signature was removed. Upgrade through each
-              SDK's normal package manager to pick up the store-safety fixes.
-            </li>
-            <li>
               Start Horizon billing only while the app has a foreground Android
-              activity, and submit exactly one product in each Horizon purchase
+              Activity, and submit exactly one product in each Horizon purchase
               request.
             </li>
             <li>
-              Treat a <code>null</code> offer-code redemption result as a
-              successfully presented system sheet on supported older paths, then
-              refresh purchases or entitlements after the customer completes
-              redemption.
+              On older Apple paths, <code>null</code> means the redemption sheet
+              was presented; refresh purchases after the customer finishes.
             </li>
           </ul>
 
@@ -947,7 +785,9 @@ function Releases() {
               color: 'var(--text-secondary)',
             }}
           >
-            Publishes the coordinated minor release train from{' '}
+            Updates supported build toolchains while preserving host compiler
+            compatibility. React Native and Expo also fix stale{' '}
+            <code>useIAP</code> initialization (
             <a
               href="https://github.com/hyodotdev/openiap/pull/294"
               target="_blank"
@@ -955,42 +795,9 @@ function Releases() {
               className="external-link"
             >
               PR #294
-            </a>{' '}
-            across the Android native package and every framework library. The
-            train moves each maintained build to current supported dependencies,
-            migrates APIs and configuration deprecated by those upgrades, and
-            preserves the consumer compatibility bounds validated across Google
-            Play, Amazon Appstore, Meta Horizon Store, and Apple platforms.
+            </a>
+            ).
           </p>
-
-          <h5 style={{ margin: '0 0 0.5rem 0' }}>Common changes</h5>
-          <ul
-            style={{
-              marginBottom: '1rem',
-              paddingLeft: '1.25rem',
-              fontSize: '0.9rem',
-            }}
-          >
-            <li>
-              Standalone Android builds move to Kotlin 2.4.10, Gradle 9.3.0,
-              Android SDK 36, Kotlin Coroutines 1.11.0, and Gson 2.14.0. Host
-              integrations still use the compiler selected by React Native,
-              Expo, or Flutter instead of forcing the standalone Kotlin line
-              into an incompatible consumer build.
-            </li>
-            <li>
-              Obsolete AndroidX KTX coordinates are replaced by the merged base
-              artifacts, while compatibility caps remain explicit where newer
-              AndroidX releases require API 37 / AGP 9.1 or newer Kotlin
-              metadata than a supported host can read.
-            </li>
-            <li>
-              Deprecated lint, test, native-registration, Kotlin, publishing,
-              and MAUI dialog APIs are migrated to their supported replacements.
-              Release artifacts are also bound to immutable source tags, with
-              npm packages publishing verified Sigstore provenance.
-            </li>
-          </ul>
 
           <h5 style={{ margin: '0 0 0.5rem 0' }}>
             Shared spec and native packages
@@ -1003,13 +810,10 @@ function Releases() {
             }}
           >
             <li>
-              <strong>openiap-google 3.1.0</strong> - modernizes the Play,
-              Amazon, and Horizon artifacts together, including Kotlin 2.4.10,
-              Coroutines 1.11.0, Gson 2.14.0, AndroidX base artifacts, and the
-              typed Vanniktech publishing API. AndroidX Core 1.18.0 and
-              Lifecycle 2.10.0 retain the API 36 / AGP 8.13 consumer line, and
-              Horizon serialization stays on 1.9.0 for Expo SDK 57 Kotlin
-              metadata compatibility.
+              <strong>openiap-google 3.1.0</strong> - moves standalone builds to
+              Kotlin 2.4.10, Gradle 9.3.0, and SDK 36, keeps AndroidX Core
+              1.18.0 and Lifecycle 2.10.0 on the API 36 / AGP 8.13 consumer
+              line, and holds Horizon serialization at 1.9.0 for Expo SDK 57.
             </li>
           </ul>
 
@@ -1022,47 +826,32 @@ function Releases() {
             }}
           >
             <li>
-              <strong>react-native-iap 16.1.0</strong> - updates the validated
-              React 19 / React Native 0.86 / Nitro 0.36.5 toolchain, adopts the
-              current <code>BaseReactPackage</code> and fbjni registration APIs,
-              and prevents a superseded or unmounted <code>useIAP</code>{' '}
-              initialization from installing listeners or updating state.
+              <strong>react-native-iap 16.1.0</strong> - validates React 19,
+              React Native 0.86, and Nitro 0.36.5, and prevents stale{' '}
+              <code>useIAP</code> initialization from installing listeners.
             </li>
             <li>
-              <strong>expo-iap 5.1.0</strong> - validates Expo SDK 57 and its
-              React Native 0.86 stack, keeps local Android builds on Expo's
-              compatible Kotlin 2.1.20 compiler, replaces deprecated Android and
-              Babel dependencies, and closes the corresponding{' '}
-              <code>useIAP</code> initialization and teardown race.
+              <strong>expo-iap 5.1.0</strong> - validates Expo SDK 57 with
+              Kotlin 2.1.20 and fixes the same <code>useIAP</code>{' '}
+              initialization race.
             </li>
             <li>
-              <strong>flutter_inapp_purchase 10.1.0</strong> - supports both
-              Flutter's transitional Kotlin plugin path and AGP 9 built-in
-              Kotlin, moves the Android build to SDK 36 and Coroutines 1.11.0,
-              and migrates the example to the current Flutter lints and
-              flutter_dotenv APIs.
+              <strong>flutter_inapp_purchase 10.1.0</strong> - supports both the
+              transitional Kotlin plugin and AGP 9 built-in Kotlin on SDK 36.
             </li>
             <li>
-              <strong>godot-iap 3.1.0</strong> - refreshes the precompiled
-              Android and Apple artifacts with Godot 4.7.1, SwiftGodot 0.79.0,
-              Kotlin 2.4.10, Gradle 9.3.0, and Coroutines 1.11.0 while retaining
-              Godot 4.3+ compatibility for the released addon.
+              <strong>godot-iap 3.1.0</strong> - refreshes precompiled artifacts
+              with Godot 4.7.1 and SwiftGodot 0.79.0 while retaining Godot 4.3+
+              runtime compatibility.
             </li>
             <li>
-              <strong>kmp-iap 3.1.0</strong> - moves the Android/iOS library to
-              Kotlin 2.4.10, Gradle 9.3.0, Compose Multiplatform 1.10.3, Dokka
-              2.2.0, Coroutines 1.11.0, Serialization 1.11.0, and the current
-              typed Maven publishing API. Compose remains capped at 1.10.3 for
-              iosX64 compatibility, and Material Icons remains at 1.7.3 because
-              no newer compatible artifact is published.
+              <strong>kmp-iap 3.1.0</strong> - moves to Kotlin 2.4.10, Gradle
+              9.3.0, and Compose 1.10.3; Compose remains capped for iosX64.
             </li>
             <li>
-              <strong>OpenIap.Maui 2.1.0</strong> - aligns the NuGet dependency
-              graph with .NET 10 MAUI 10.0.90 and the updated Android bindings,
-              while its example replaces deprecated dialog methods, routes Apple
-              JWS, Google tokens, and Amazon receipt identity to custom or local
-              IAPKit endpoints, and leaves transactions unfinished when
-              verification fails.
+              <strong>OpenIap.Maui 2.1.0</strong> - supports .NET 10 MAUI
+              10.0.90; its example sends store receipts to IAPKit and leaves
+              failed verifications unfinished.
             </li>
           </ul>
 
@@ -1075,20 +864,14 @@ function Releases() {
             }}
           >
             <li>
-              No OpenIAP API migration is required; upgrade to the package
-              versions below through the normal package manager for each SDK.
+              React Native projects require React Native 0.79+ and Node.js 18+;
+              Expo SDK 57 is validated, while SDK 52 is incompatible with these
+              Android artifacts.
             </li>
             <li>
-              React Native projects require React Native 0.79+ and Node.js 18+.
-              Expo projects should follow their SDK's Kotlin, Node.js, Android,
-              and iOS baselines; SDK 57 is the validated current setup, while
-              SDK 52 is no longer compatible with the Android artifacts.
-            </li>
-            <li>
-              The released Godot addon supports Godot 4.3+, while source builds
-              now require Godot 4.7.1, SwiftGodot 0.79.0, Swift 6.3, and Xcode
-              26.5+. KMP builds require Kotlin 2.4.10, Gradle 9.3.0, and JDK
-              17+.
+              Godot source builds require Godot 4.7.1, SwiftGodot 0.79.0, Swift
+              6.3, and Xcode 26.5+; KMP builds require Kotlin 2.4.10, Gradle
+              9.3.0, and JDK 17+.
             </li>
           </ul>
 

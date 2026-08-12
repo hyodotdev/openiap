@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated for Claude Code**
-> Last updated: 2026-08-12T17:12:21.769Z
+> Last updated: 2026-08-12T21:14:33.370Z
 >
 > Usage: `claude --context knowledge/_claude-context/context.md`
 
@@ -1540,6 +1540,27 @@ Before committing any changes:
 > **Priority: MANDATORY**
 > Follow these patterns when working on packages/docs.
 
+## Reader-First Writing Standard
+
+Apply this standard to every user-facing page, guide, API reference, migration
+note, example explanation, announcement, and release note:
+
+- Lead with the outcome, then identify who is affected and any required action.
+- Use direct, active sentences and scannable headings or bullets. Keep one idea
+  per sentence where practical.
+- State each fact once. Link to deeper reference material instead of repeating
+  the same explanation across sections or pages.
+- Omit filler, internal implementation narration, generated-file inventories,
+  test-process narration, and details that do not change user behavior.
+- Keep necessary compatibility, migration, security, data-safety, and
+  platform-specific caveats. Concision must not hide a requirement or risk.
+- Prefer concrete behavior and commands over adjectives such as "robust",
+  "comprehensive", "seamless", or "modernized."
+
+Before finishing, read the rendered page as a user. Remove any sentence that
+does not clarify what changed, how to use it, who is affected, or what action is
+required.
+
 ## Modal Pattern with Preact Signals
 
 ### Global Modal Management
@@ -1724,6 +1745,36 @@ Framework implementation listings must be derived from
 ### Location
 
 Release notes are located at `packages/docs/src/pages/docs/updates/releases.tsx`.
+
+### Release Note Writing Limits
+
+Apply the project-wide Reader-First Writing Standard above. Release notes are a
+changelog for package users, not an implementation audit or a narrative of how
+a release was produced.
+
+- Lead with the user-visible outcome. Do not restate the title or begin with
+  filler such as "Publishes the coordinated release train."
+- Keep the opening summary to at most two sentences and roughly 50 words.
+- Keep each bullet to one sentence and normally 30 words or fewer. Use up to 45
+  only when a compatibility range or migration command cannot be split safely.
+- State each fact once. Do not repeat one fix in the summary, native section,
+  every wrapper bullet, and integration notes.
+- Describe behavior, compatibility, and required user action. Omit commit
+  mechanics, generated-file inventories, test matrices, release automation,
+  internal architecture, and dependency lists that do not change consumer
+  requirements.
+- A package whose only change is selecting a native dependency, regenerating
+  types, or republishing shared behavior belongs only in `Package Releases`.
+  One bullet may group packages that have the same behavior and caveats.
+- Use `Integration notes` only for required migration, configuration, or
+  compatibility action. Omit no-op reassurance and unchanged-platform lists.
+- Link a PR or issue once where it supplies useful context.
+- Prefer concrete verbs such as "fixes", "adds", "rejects", "requires",
+  "removes", and "preserves". Avoid vague verbs unless the sentence immediately
+  names the observable result.
+- Preserve historical IDs, dates, versions, links, compatibility boundaries,
+  migration commands, and shipped behavior when shortening an existing note.
+  Leave a statement unchanged when its source evidence is incomplete.
 
 ### Package-specific grouping for shared releases
 
@@ -2671,249 +2722,6 @@ bun run audit:docs
 ```
 
 Exit code 1 means at least one drift; 0 means clean.
-
-
----
-
-<!-- Source: internal/08-gv-cloud-workspaces.md -->
-
-# GV Cloud Workspace Policy
-
-> **Priority: MANDATORY**
-> Follow this policy when using TabTabTab `gv` cloud environments with OpenIAP.
-
-`gv` can be useful for OpenIAP as a safe remote maintenance runner, not as a
-release, signing, or production-credential environment. Treat every GV
-workspace as an external cloud workspace with GitHub access and no local secret
-trust by default.
-
-## Safe role for OpenIAP
-
-Use GV for secret-free OSS maintenance work:
-
-- Documentation edits, release notes, docs typecheck, and docs consistency
-  audits.
-- `packages/gql` tests and schema/codegen review work that does not require
-  private credentials.
-- `packages/kit` typecheck and unit tests that run without production env vars.
-- PR review response work on isolated branches/worktrees.
-- Long-running lint/test/build smoke checks that should survive local laptop
-  sleep or high local resource use.
-
-Do not treat GV as the source of truth for full OpenIAP release validation.
-Native Apple signing, Play/App Store production credentials, package publishing,
-and deployment stay in the existing local or CI release systems.
-
-## Required boundaries
-
-Always keep these boundaries unless the repository owner explicitly changes this
-policy:
-
-- Onboard the repo with env capture disabled:
-
-  ```bash
-  gv repo add . --skip-env
-  ```
-
-- First test of any new GV version or environment should be:
-
-  ```bash
-  gv repo add . --dry-run --skip-env
-  ```
-
-- GitHub App access must be limited to the selected `hyodotdev/openiap`
-  repository. Do not grant all-repository access.
-- Do not enable OpenAI/Codex auth mirroring for OpenIAP by default.
-- Do not enable local profile, CLI, shell, editor, or credential mirroring by
-  default.
-- Do not add production, payment, signing, release, or deployment secrets to GV.
-- If credentials are ever needed for a GV experiment, use sandbox/test-only
-  credentials with explicit owner approval.
-
-## Forbidden commands and actions
-
-Never run or recommend these for OpenIAP GV work:
-
-```bash
-gv repo add . --yes
-gv repo env list --reveal
-gv env info --reveal
-gv env info --qr
-```
-
-Also do not upload, reveal, or sync:
-
-- `.env`, `.env.local`, `.env.*`
-- App Store Connect `.p8` keys
-- Google service-account JSON files
-- signing keys, provisioning profiles, certificates, keystores, and JKS files
-- npm, NuGet, Maven Central, CocoaPods, Fly, Convex, App Store, Google Play, or
-  payment provider credentials
-
-One-time GV login URLs and workspace URLs should be treated as sensitive access
-links. Do not paste them into issues, PRs, public docs, or long-lived logs.
-
-## Known GV baseline for this repo
-
-Validated on 2026-05-08 with a GV `agent-sandbox` environment:
-
-- Repo onboarding with `--skip-env` completed.
-- `gv repo env list --repo openiap --json` returned an empty env var list.
-- OpenAI auth status was disabled.
-- GitHub access was enabled only after selected-repository approval.
-- Cloud clone was clean on `main` from
-  `https://github.com/hyodotdev/openiap.git`.
-- The default environment had `node`, `npm`, `corepack`, `python3`, `git`, and
-  `docker`.
-- The default environment did not have `bun`, `yarn`, `java`, `swift`,
-  `flutter`, or `dotnet`.
-- No `.devcontainer/devcontainer.json` existed in the repo at validation time.
-
-Because Bun is not available in the default GV environment, the safe current
-pattern is to run Bun checks inside Docker containers with the workspace mounted
-read-only.
-
-## Day-to-day usage
-
-Use GV by opening an agent or editor attached to the cloud environment, then
-give the task prompt there. The prompt is not a shell command.
-
-```bash
-gv env use agent-sandbox
-
-# Open a cloud-attached agent/editor.
-gv open opencode --env agent-sandbox
-gv open codex --env agent-sandbox
-```
-
-Use `gv ssh` for direct terminal checks in the cloud workspace:
-
-```bash
-gv ssh --env agent-sandbox
-cd ~/workspace/openiap
-git status --short --branch
-```
-
-For investigation-only work, make the boundary explicit:
-
-```text
-Investigate issue 104 and the GQL -> SDK sync flow.
-List the affected packages and propose a fix plan.
-Do not change code, commit, push, create PRs, read env files, or run deploy,
-release, signing, publish, or credential-related commands.
-```
-
-For maintenance work that may edit code, require an isolated branch and scoped
-verification:
-
-```text
-Create a branch named codex/<task>.
-Make the smallest safe change for the requested docs/GQL/kit issue.
-Do not touch env, signing, release, deploy, or publish files.
-Run only the relevant secret-free checks, then summarize the diff and results.
-```
-
-## Safe verification pattern
-
-Prefer an ephemeral Docker container with a read-only repo mount and an internal
-copy:
-
-```bash
-gv ssh --env agent-sandbox -- \
-  'set -eu
-  OPENIAP_PATH="${OPENIAP_PATH:-$HOME/workspace/openiap}"
-  test -d "$OPENIAP_PATH"
-  docker run --rm \
-    -v "$OPENIAP_PATH:/src:ro" \
-    -w /work \
-    oven/bun:1.3.13 \
-    bash -lc "cp -a /src/. /work && bun install --frozen-lockfile && bun run audit:docs"'
-```
-
-Why this pattern:
-
-- `:ro` prevents the container from writing to the GV checkout.
-- `/work` is a temporary container copy, so `node_modules`, build output, and
-  generated files disappear when the container exits.
-- It avoids syncing local env files or local uncommitted changes.
-
-After any GV run, verify both workspace cleanliness and env state:
-
-```bash
-gv ssh --env agent-sandbox -- \
-  'cd ~/workspace/openiap && git status --short --branch'
-
-gv repo env list --repo openiap --json
-```
-
-## Verified safe smoke checks
-
-These checks have run successfully inside the Docker `/work` copy in the
-GV read-only pattern, not directly in the default GV host shell. Bun is not
-available in the default GV environment unless a future setup script installs
-it.
-
-```bash
-# GQL tests
-cd packages/gql && bun run test
-
-# Docs typecheck
-cd packages/docs && bun run typecheck
-
-# Kit typecheck and tests
-cd packages/kit && bun run typecheck && bun run test
-
-# Docs consistency audit
-bun run audit:docs
-```
-
-Use these as the first GV regression suite for docs, GQL, and IAPKit
-maintenance work.
-
-## Out of scope for GV until explicitly proven
-
-Do not use GV as the default runner for:
-
-- `packages/apple` SwiftPM/Xcode signing or release workflows.
-- iOS/macOS Godot, Expo, React Native, KMP, Flutter, or MAUI device builds.
-- Android/KMP release publishing that needs Maven Central signing credentials.
-- Flutter pub.dev, npm, NuGet, CocoaPods trunk, GitHub release, or deployment
-  publishing.
-- Fly/Convex production deploys.
-- Any flow that requires production IAP, payment, App Store Connect, Google
-  Play, or signing credentials.
-
-Linux-friendly Android/KMP checks may become reasonable after the repository has
-a minimal GV/devcontainer setup with Java installed, but production credentials
-still remain out of scope.
-
-## Branch and PR workflow
-
-Use GV for isolated work, not direct `main` edits:
-
-1. Start from the clean cloud clone.
-2. Create a branch such as `codex/docs-gv-audit` or `codex/kit-gv-smoke`.
-3. Run only secret-free checks.
-4. Review `git diff` and `git status`.
-5. Push only intentional source changes.
-6. Open a PR for normal CI review.
-
-Do not push release, signing, or deployment changes from GV without explicit
-owner approval.
-
-## Future improvement
-
-If GV becomes part of regular maintenance, add a minimal devcontainer or setup
-script for the Linux-friendly subset:
-
-- Bun pinned to the root `packageManager`.
-- Node/Corepack.
-- Java for Gradle checks.
-- Optional Android command-line tooling if needed.
-
-Do not add Swift, Xcode, Flutter, .NET, signing tools, or production secret
-setup to the first GV devcontainer. Keep the first iteration small and focused
-on docs, GQL, kit, and non-release Android/KMP smoke checks.
 
 
 ---

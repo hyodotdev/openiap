@@ -1,0 +1,15 @@
+---
+description: OpenIAP repository instruction routing
+globs:
+alwaysApply: true
+---
+
+- Treat `AGENTS.md` as the root project instruction SSOT. `CLAUDE.md` and
+  `GEMINI.md` are symlinks to it; do not maintain separate copies.
+- Before editing a package or library, read the relevant files linked from
+  `AGENTS.md`.
+- For any user-facing documentation, apply
+  `knowledge/internal/05-docs-patterns.md#reader-first-writing-standard` and the
+  package convention. Keep prose concise, actionable, and free of repetition.
+- Keep detailed rules in their canonical files. This Cursor adapter only routes
+  to them.

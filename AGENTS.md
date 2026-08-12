@@ -15,7 +15,6 @@ This document provides an overview for AI agents working across the OpenIAP mono
 | Docs Patterns           | [`knowledge/internal/05-docs-patterns.md`](knowledge/internal/05-docs-patterns.md)                                                                                         |
 | Git & Deployment        | [`knowledge/internal/06-git-deployment.md`](knowledge/internal/06-git-deployment.md)                                                                                       |
 | Docs Consistency / SSOT | [`knowledge/internal/07-docs-consistency.md`](knowledge/internal/07-docs-consistency.md) (run `bun audit:docs` before pushing API/Type doc edits)                          |
-| GV Cloud Workspaces     | [`knowledge/internal/08-gv-cloud-workspaces.md`](knowledge/internal/08-gv-cloud-workspaces.md)                                                                             |
 
 ## Monorepo Structure
 
@@ -88,6 +87,16 @@ change or its history (that belongs in the commit message), no explaining
 well-known APIs. Keep only what the code cannot show: platform quirks, non-obvious
 constraints, and why an obvious alternative was rejected. Full checklist in
 [`knowledge/internal/03-coding-style.md`](knowledge/internal/03-coding-style.md#keep-them-short--especially-ai-generated-ones).
+
+### Reader-First Documentation
+
+Write every user-facing document for scanning and action. Lead with the outcome,
+state each fact once, and remove filler, implementation narration, repeated
+cross-package boilerplate, and detail that does not change user behavior. Keep
+required compatibility, migration, safety, and platform caveats. Apply the
+canonical standard in
+[`knowledge/internal/05-docs-patterns.md`](knowledge/internal/05-docs-patterns.md#reader-first-writing-standard),
+including its stricter release-note limits.
 
 ### Platform Function Naming
 
@@ -205,9 +214,9 @@ Codex-compatible local skills in `.codex/skills/`, including
 `openiap-workflows` for mapping Claude slash-command workflows and `review-self`
 for repeated self-review of current work.
 
-Codex discovers `review-self` from this repository. Install the globally unique
-skills (`openiap-workflows` and `generate-doc`) into your local Codex home when
-needed:
+Codex discovers `review-self` and `loop-review` from this repository. Install
+the globally unique skills (`openiap-workflows` and `generate-doc`) into your
+local Codex home when needed:
 
 ```bash
 ./.codex/scripts/install-skills.sh
@@ -217,9 +226,9 @@ After installation, ask Codex normally (for example, "review PR 65" or
 "resolve issue 88"), or explicitly mention `$openiap-workflows` or
 `$review-self`.
 
-Keep `$review-self` repo-local. Other repositories provide project-specific
-skills with the same name, so globally linking it would make the most recently
-installed project overwrite the others.
+Keep `$review-self` and `$loop-review` repo-local. Their review, merge, and
+release-safety policies are project-specific; globally linking them could apply
+the wrong repository workflow elsewhere.
 
 ## Claude Code Compatibility
 
@@ -250,11 +259,20 @@ config at `.codex-plugin/mcp.json`) and `.claude-plugin/plugin.json` (Claude
 Code, inline MCP config). The `skills/` folder is shared by both agents, so
 keep its wording agent-neutral.
 
+## Cursor Compatibility
+
+Cursor reads the root `AGENTS.md` and `CLAUDE.md`; because `CLAUDE.md` is a
+symlink, both resolve to this SSOT. `.cursor/rules/openiap-ssot.mdc` is only a
+short always-applied router to the root and docs SSOT. Keep detailed project
+rules in `AGENTS.md` or `knowledge/internal/` instead of copying them into
+Cursor-specific files.
+
 ## Available Skills (Slash Commands / Codex Workflows)
 
 | Skill                | Description                                        | Usage                                 |
 | -------------------- | -------------------------------------------------- | ------------------------------------- |
 | `$review-self`       | Review and improve current work until stable       | `$review-self` or `$review-self <PR>` |
+| `$loop-review`       | Start from current main, review, PR, and merge     | `$loop-review`                        |
 | `$rebase-main`       | Pull main and safely rebase the current branch     | `$rebase-main`                        |
 | `/review-pr`         | Review PR comments, fix issues, resolve threads    | `/review-pr 65` or `/review-pr <url>` |
 | `/audit-code`        | Audit code against knowledge rules and latest APIs | `/audit-code`                         |
@@ -298,4 +316,3 @@ All comprehensive rules are documented in [`knowledge/internal/`](knowledge/inte
 5. **05-docs-patterns.md** - React modal patterns, component organization
 6. **06-git-deployment.md** - Commit format, deployment workflows
 7. **07-docs-consistency.md** - Docs/API/type consistency audits
-8. **08-gv-cloud-workspaces.md** - Safe TabTabTab `gv` cloud workspace policy

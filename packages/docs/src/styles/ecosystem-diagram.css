@@ -175,11 +175,56 @@
   transform: translateY(-2px);
 }
 
+.eco-library {
+  overflow: hidden;
+  border: 1px solid var(--eco-border);
+  border-radius: 12px;
+  background: var(--eco-card-bg);
+  transition:
+    transform 0.15s ease,
+    border-color 0.15s ease,
+    box-shadow 0.15s ease;
+}
+
+.eco-library:hover,
+.eco-library:focus-within {
+  border-color: var(--primary-color);
+  box-shadow: 0 6px 16px var(--eco-shadow);
+  transform: translateY(-2px);
+}
+
+.doc-page .eco-diagram .eco-grid .eco-library > a.eco-node--library,
+:root.dark .doc-page .eco-diagram .eco-grid .eco-library > a.eco-node--library {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+.doc-page .eco-diagram .eco-grid .eco-library > a.eco-node--library:hover,
+:root.dark
+  .doc-page
+  .eco-diagram
+  .eco-grid
+  .eco-library
+  > a.eco-node--library:hover {
+  box-shadow: none;
+  transform: none;
+}
+
 .doc-page .eco-diagram .eco-grid a.eco-node:focus-visible,
 .doc-page .eco-diagram a.eco-band-chip:focus-visible,
-.doc-page .eco-diagram .eco-grid a.eco-more:focus-visible {
+.doc-page .eco-diagram .eco-grid a.eco-more:focus-visible,
+.doc-page .eco-diagram .eco-grid a.eco-module:focus-visible {
   outline: 2px solid var(--primary-color);
   outline-offset: 2px;
+}
+
+.doc-page
+  .eco-diagram
+  .eco-grid
+  .eco-library
+  > a.eco-node--library:focus-visible {
+  outline-offset: -3px;
 }
 
 .eco-node-text {
@@ -205,6 +250,15 @@
   color: var(--text-secondary);
 }
 
+.eco-node-module-count {
+  align-self: flex-start;
+  margin-top: 0.08rem;
+  color: var(--primary-color);
+  font-size: 0.625rem;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
 .eco-node-marks {
   display: flex;
   flex: none;
@@ -225,6 +279,74 @@
   font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
   opacity: 0.85;
+}
+
+.eco-modules {
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  transition:
+    max-height 0.2s ease,
+    opacity 0.15s ease;
+}
+
+.eco-library--has-modules:hover .eco-modules,
+.eco-library--has-modules:focus-within .eco-modules {
+  max-height: 12rem;
+  opacity: 1;
+}
+
+.eco-modules-inner {
+  margin: 0 0.7rem 0.7rem;
+  padding-top: 0.55rem;
+  border-top: 1px solid var(--eco-border);
+}
+
+.eco-modules-label {
+  display: block;
+  margin-bottom: 0.35rem;
+  color: var(--text-secondary);
+  font-size: 0.625rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.doc-page .eco-diagram .eco-grid a.eco-module,
+:root.dark .doc-page .eco-diagram .eco-grid a.eco-module {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 0.45rem;
+  padding: 0.45rem 0.5rem;
+  border: 1px solid transparent;
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--primary-color) 8%, transparent);
+  color: var(--text-primary);
+  text-decoration: none;
+}
+
+.doc-page .eco-diagram .eco-grid a.eco-module:hover,
+:root.dark .doc-page .eco-diagram .eco-grid a.eco-module:hover {
+  border-color: var(--primary-color);
+}
+
+.eco-module-name {
+  font-family: var(--eco-mono);
+  font-size: 0.6875rem;
+  font-weight: 700;
+}
+
+.eco-module-description {
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 0.625rem;
+  line-height: 1.35;
+}
+
+.eco-module-arrow {
+  color: var(--primary-color);
+  font-weight: 700;
 }
 
 .doc-page .eco-diagram .eco-grid a.eco-more,
@@ -543,18 +665,33 @@
 /* ---------- motion / forced colors ---------------------------------------- */
 
 @media (prefers-reduced-motion: reduce) {
-  .doc-page .eco-diagram .eco-grid a.eco-node {
+  .doc-page .eco-diagram .eco-grid a.eco-node,
+  .eco-library,
+  .eco-modules {
     transition: none;
   }
 
   .doc-page .eco-diagram .eco-grid a.eco-node:hover {
     transform: none;
   }
+
+  .eco-library:hover,
+  .eco-library:focus-within {
+    transform: none;
+  }
+}
+
+@media (hover: none) {
+  .eco-library--has-modules .eco-modules {
+    max-height: 12rem;
+    opacity: 1;
+  }
 }
 
 @media (forced-colors: active) {
   .doc-page .eco-diagram .eco-band,
-  .doc-page .eco-diagram .eco-grid a.eco-node {
+  .doc-page .eco-diagram .eco-grid a.eco-node,
+  .eco-library {
     border-color: CanvasText;
   }
 }

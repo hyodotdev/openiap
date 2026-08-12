@@ -52,7 +52,6 @@ knowledge/
 │   ├── 05-docs-patterns.md         # React modal patterns, components
 │   ├── 06-git-deployment.md        # Git conventions, deployment
 │   ├── 07-docs-consistency.md      # Documentation SSOT audits
-│   ├── 08-gv-cloud-workspaces.md   # Cloud workspace safety
 │   └── sandbox-subscription-billing-issue.md
 ├── external/                        # REFERENCE - External APIs
 │   ├── amazon-iap-api.md           # Amazon Appstore SDK reference

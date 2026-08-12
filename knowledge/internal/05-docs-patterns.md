@@ -3,6 +3,27 @@
 > **Priority: MANDATORY**
 > Follow these patterns when working on packages/docs.
 
+## Reader-First Writing Standard
+
+Apply this standard to every user-facing page, guide, API reference, migration
+note, example explanation, announcement, and release note:
+
+- Lead with the outcome, then identify who is affected and any required action.
+- Use direct, active sentences and scannable headings or bullets. Keep one idea
+  per sentence where practical.
+- State each fact once. Link to deeper reference material instead of repeating
+  the same explanation across sections or pages.
+- Omit filler, internal implementation narration, generated-file inventories,
+  test-process narration, and details that do not change user behavior.
+- Keep necessary compatibility, migration, security, data-safety, and
+  platform-specific caveats. Concision must not hide a requirement or risk.
+- Prefer concrete behavior and commands over adjectives such as "robust",
+  "comprehensive", "seamless", or "modernized."
+
+Before finishing, read the rendered page as a user. Remove any sentence that
+does not clarify what changed, how to use it, who is affected, or what action is
+required.
+
 ## Modal Pattern with Preact Signals
 
 ### Global Modal Management
@@ -187,6 +208,36 @@ Framework implementation listings must be derived from
 ### Location
 
 Release notes are located at `packages/docs/src/pages/docs/updates/releases.tsx`.
+
+### Release Note Writing Limits
+
+Apply the project-wide Reader-First Writing Standard above. Release notes are a
+changelog for package users, not an implementation audit or a narrative of how
+a release was produced.
+
+- Lead with the user-visible outcome. Do not restate the title or begin with
+  filler such as "Publishes the coordinated release train."
+- Keep the opening summary to at most two sentences and roughly 50 words.
+- Keep each bullet to one sentence and normally 30 words or fewer. Use up to 45
+  only when a compatibility range or migration command cannot be split safely.
+- State each fact once. Do not repeat one fix in the summary, native section,
+  every wrapper bullet, and integration notes.
+- Describe behavior, compatibility, and required user action. Omit commit
+  mechanics, generated-file inventories, test matrices, release automation,
+  internal architecture, and dependency lists that do not change consumer
+  requirements.
+- A package whose only change is selecting a native dependency, regenerating
+  types, or republishing shared behavior belongs only in `Package Releases`.
+  One bullet may group packages that have the same behavior and caveats.
+- Use `Integration notes` only for required migration, configuration, or
+  compatibility action. Omit no-op reassurance and unchanged-platform lists.
+- Link a PR or issue once where it supplies useful context.
+- Prefer concrete verbs such as "fixes", "adds", "rejects", "requires",
+  "removes", and "preserves". Avoid vague verbs unless the sentence immediately
+  names the observable result.
+- Preserve historical IDs, dates, versions, links, compatibility boundaries,
+  migration commands, and shipped behavior when shortening an existing note.
+  Leave a statement unchanged when its source evidence is incomplete.
 
 ### Package-specific grouping for shared releases
 

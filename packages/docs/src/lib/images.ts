@@ -39,11 +39,18 @@ export type FrameworkLibraryName =
   | 'maui-iap'
   | 'godot-iap';
 
+export interface LibraryModuleInfo {
+  name: string;
+  description: string;
+  setupPath: string;
+}
+
 export interface LibraryInfo {
   name: FrameworkLibraryName;
   displayName: string;
   frameworkName: string;
   homeLabel: string;
+  modules?: readonly LibraryModuleInfo[];
   version: string;
   deprecatedApiRemovalVersion: string;
   setupPath: string;
@@ -65,6 +72,13 @@ export const LIBRARIES: LibraryInfo[] = [
     displayName: 'expo-iap',
     frameworkName: 'Expo',
     homeLabel: 'Expo',
+    modules: [
+      {
+        name: 'Onside',
+        description: 'Alternative iOS marketplace integration',
+        setupPath: '/docs/setup/store/onside',
+      },
+    ],
     version: EXPO_PACKAGE.version,
     deprecatedApiRemovalVersion: '5.0.0',
     setupPath: '/docs/setup/expo',
