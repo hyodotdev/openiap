@@ -104,7 +104,35 @@ Clean means all of the following hold for the same head SHA:
 - the PR is mergeable and the branch contains every required update from main;
 - the worktree is clean and the final diff has been reread.
 
-## 6. Merge And Close The Loop
+## 6. Gate Device Regression Before Merging
+
+Device-backed regression needs real hardware, store accounts, and sandbox
+purchases, so this loop cannot run it unattended. Decide whether the change
+requires it **before** merging, not after.
+
+Require `$e2e-tests` when the diff touches any of:
+
+- `packages/apple/`, `packages/google/`, or `packages/kit/`;
+- any `libraries/<sdk>/` implementation, example app, or podspec/gradle/csproj
+  manifest;
+- `packages/gql/src/*.graphql` or the generated types synced from it;
+- native build configuration, dependency placement, config plugins, or store
+  metadata for any of the above.
+
+When it is required, **stop without merging even if the PR is otherwise
+clean**. Report the exact regression-matrix rows the diff implicates and hand
+back to the user to run `$e2e-tests`, or to confirm the change is covered
+without it. Record that result on the PR before any merge. A clean CI run is
+not a substitute: CI does not exercise purchase dialogs, store accounts, or
+device wiring.
+
+When it is not required, say so explicitly in the final report and name the
+paths that justify it. Silence here reads as an untested merge.
+
+A change confined to documentation, repository automation, agent workflows, or
+release/security tooling does not need device regression.
+
+## 7. Merge And Close The Loop
 
 Immediately before merging, refetch the PR and confirm its head still equals the
 clean reviewed SHA. Use the repository-supported merge method, defaulting to a
@@ -125,5 +153,6 @@ After merge:
 
 Stop without merging when a required choice lacks authority, the same finding
 survives two fix attempts, an access blocker repeats under the source workflow's
-threshold, or the exact head cannot satisfy the clean gate. Report the concrete
-blocker; never describe a pending or partially reviewed PR as clean.
+threshold, the change requires device regression that has not been run, or the
+exact head cannot satisfy the clean gate. Report the concrete blocker; never
+describe a pending or partially reviewed PR as clean.
