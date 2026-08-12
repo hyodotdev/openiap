@@ -144,10 +144,10 @@ flutter_inapp_purchase-10.3.0.cdx.json`}</code>
             dependencies are always complete.
           </li>
           <li>
-            <strong>License coverage</strong> is 43 of 47 direct dependencies.
-            The gaps are pub.dev packages, which expose no standard license
-            field in package metadata, and one NuGet package whose license is
-            given only as a non-SPDX URL.
+            <strong>Licenses</strong> resolve for every direct dependency except
+            two structural cases: pub.dev packages, which expose no standard
+            license field in package metadata, and NuGet packages whose nuspec
+            gives only a non-SPDX license URL.
           </li>
         </ul>
         <p>

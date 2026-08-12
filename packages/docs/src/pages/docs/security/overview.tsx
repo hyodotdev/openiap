@@ -210,8 +210,8 @@ function SecurityOverview() {
           The important design choice: SBOMs are generated{' '}
           <strong>after a release is published</strong>, not on every commit. A
           release tag is the only moment an inventory is meaningful, and it
-          means the nine existing release workflows did not have to change — a
-          new SDK added later is covered by the same path automatically.
+          means the existing release workflows did not have to change — a new
+          SDK added later is covered by the same path automatically.
         </p>
       </section>
 

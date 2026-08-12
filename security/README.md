@@ -68,10 +68,9 @@ contributors look for it.
 Dependabot is configured for `packages/kit`, GitHub Actions, and the kit
 Dockerfile. That is a deliberate scope, not an oversight:
 
-- **`packages/kit`** is a deployed service with 34 direct runtime dependencies
-  and a large transitive tree. It is the component where a vulnerable
-  dependency has the most immediate consequence, and where we control the
-  deployed version.
+- **`packages/kit`** is a deployed service with a large runtime dependency
+  tree. It is the component where a vulnerable dependency has the most
+  immediate consequence, and where we control the deployed version.
 - **The published SDKs** (`react-native-iap`, `expo-iap`,
   `openiap-conformance`) declare **no runtime `dependencies`**. There is no
   third-party runtime tree to monitor. Their peer dependencies are resolved and

@@ -123,13 +123,17 @@ and a confident wrong identifier is worse than an absent one. A lookup failure
 leaves the field empty rather than failing the release — license data is
 compliance metadata, not part of the security inventory.
 
-Current coverage is **43 of 47** direct dependencies. The gaps are structural,
-not bugs:
+Every direct dependency resolves a license except two structural cases, which
+are limitations of the source metadata rather than bugs:
 
-- **pub.dev packages** (`http`, `meta`, `platform`) — Dart declares licensing
-  in a `LICENSE` file, and package metadata exposes no standard license field.
-- **`Xamarin.Android.Google.BillingClient`** — its nuspec carries only a
-  license URL that does not map to an SPDX identifier.
+- **pub.dev packages** — Dart declares licensing in a `LICENSE` file, and
+  package metadata exposes no standard license field.
+- **NuGet packages whose nuspec carries only a license URL** that does not map
+  to an SPDX identifier, such as `Xamarin.Android.Google.BillingClient`.
+
+`bun run sbom <component> --with-licenses` prints the resolved count for a
+component, so current coverage is checkable rather than quoted here — a fixed
+number would go stale the next time a dependency changes.
 
 ### Transitive dependencies
 
@@ -182,7 +186,7 @@ shortening an inventory.
 ## Release integration
 
 `.github/workflows/sbom.yml` runs on `release: published` and on manual
-dispatch. It does not modify the nine release workflows; it reacts to the
+dispatch. It does not modify the existing release workflows; it reacts to the
 releases they create, so every component — including ones added later — is
 covered by the same code path.
 

@@ -5,7 +5,7 @@ name: "Security: SBOM"
 # produced it.
 #
 # This runs *after* a release is published rather than inside each release
-# workflow: the nine release workflows stay untouched, and every component —
+# workflow: the existing release workflows stay untouched, and every component —
 # including any added later — is covered by the same code path. The release tag
 # is the input, so the SBOM can only ever describe the commit that shipped.
 
@@ -62,7 +62,12 @@ jobs:
 
       - name: Identify the released component
         id: component
-        run: node scripts/generate-sbom.mjs resolve-tag "${{ steps.tag.outputs.tag }}"
+        # Pass the tag through the environment rather than interpolating it
+        # into the shell command; a ref name must never be able to extend the
+        # command it is an argument to.
+        env:
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+        run: node scripts/generate-sbom.mjs resolve-tag "$RELEASE_TAG"
 
       - name: Verify SBOM generator behaviour
         if: ${{ steps.component.outputs.matched == 'true' }}
@@ -74,8 +79,10 @@ jobs:
         # `--with-licenses` resolves each dependency's declared license from its
         # own registry. A registry outage degrades to a missing license field
         # rather than failing the release.
+        env:
+          COMPONENT: ${{ steps.component.outputs.component }}
         run: |
-          node scripts/generate-sbom.mjs "${{ steps.component.outputs.component }}" \
+          node scripts/generate-sbom.mjs "$COMPONENT" \
             --output-dir sbom \
             --commit "$(git rev-parse HEAD)" \
             --with-licenses
@@ -136,5 +143,7 @@ jobs:
 
       - name: Report a skipped tag
         if: ${{ steps.component.outputs.matched != 'true' }}
+        env:
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
         run: |
-          echo "::notice::${{ steps.tag.outputs.tag }} is not a component release tag; no SBOM generated."
+          echo "::notice::$RELEASE_TAG is not a component release tag; no SBOM generated."

@@ -36,12 +36,12 @@ OpenChain is a Linux Foundation project.
 
 Only the parts touched by the SBOM work are assessed here.
 
-| Area                                                 | Status        | Notes                                                                                                                                                                               |
-| ---------------------------------------------------- | ------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Component license inventory                          | **Partial**   | 43 of 47 direct dependencies carry license data in published SBOMs; the gaps are pub.dev packages and one NuGet package with a non-SPDX license URL ([`SBOM.md`](SBOM.md#licenses)) |
-| License policy (allowed/conditional/forbidden tiers) | **Missing**   | No declared policy on which licenses may enter the dependency tree                                                                                                                  |
-| Attribution / NOTICE generation                      | **Missing**   | Not generated. Low urgency: the published SDKs have no runtime dependencies to attribute                                                                                            |
-| Per-package LICENSE files                            | **Known gap** | Tracked separately as foundation-readiness work                                                                                                                                     |
+| Area                                                 | Status        | Notes                                                                                                                                                                 |
+| ---------------------------------------------------- | ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Component license inventory                          | **Partial**   | Published SBOMs carry license data for every direct dependency except pub.dev packages and NuGet packages with a non-SPDX license URL ([`SBOM.md`](SBOM.md#licenses)) |
+| License policy (allowed/conditional/forbidden tiers) | **Missing**   | No declared policy on which licenses may enter the dependency tree                                                                                                    |
+| Attribution / NOTICE generation                      | **Missing**   | Not generated. Low urgency: the published SDKs have no runtime dependencies to attribute                                                                              |
+| Per-package LICENSE files                            | **Known gap** | Tracked separately as foundation-readiness work                                                                                                                       |
 
 ## Proportionality
 
