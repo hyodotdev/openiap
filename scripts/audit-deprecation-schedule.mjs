@@ -463,10 +463,25 @@ export const collectCompletedRemovalFailures = () => {
       `${issue.file}:${issue.line ?? 1}: invalid schema deprecation metadata: ${issue.message}`,
     );
   }
+  // A deprecation is a failure only when its removal is due: the train it was
+  // scheduled for has already shipped. Scheduling one for a future major is how
+  // the spec is supposed to evolve, so those pass.
+  const currentSpecMajor = Number(
+    JSON.parse(fs.readFileSync(path.join(root, "openiap-versions.json"), "utf8")).spec.split(".")[0],
+  );
   for (const entry of schemaDeprecations.entries) {
-    failures.push(
-      `${entry.file}:${entry.line ?? 1}: completed major train must not retain schema deprecation ${entry.ownerPath}`,
-    );
+    const removalMajor = Number(/OpenIAP (\d+)\.\d+\.$/.exec(entry.reason)?.[1]);
+    if (!Number.isFinite(removalMajor)) {
+      failures.push(
+        `${entry.file}:${entry.line ?? 1}: schema deprecation ${entry.ownerPath} must name its removal train`,
+      );
+      continue;
+    }
+    if (removalMajor <= currentSpecMajor) {
+      failures.push(
+        `${entry.file}:${entry.line ?? 1}: schema deprecation ${entry.ownerPath} is due for removal in OpenIAP ${removalMajor} (spec is ${currentSpecMajor})`,
+      );
+    }
   }
 
   for (const rule of completedRemovalRules) {

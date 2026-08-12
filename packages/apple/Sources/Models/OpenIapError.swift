@@ -180,11 +180,26 @@ public extension PurchaseError {
                 errorCode = .itemNotOwned
             case .systemError:
                 errorCode = .serviceError
-            default:
+            case .unknown:
+                errorCode = .unknown
+            case .unsupported:
+                errorCode = .featureNotSupported
+            @unknown default:
                 errorCode = fallback
             }
             return make(
                 code: errorCode,
+                productId: productId,
+                message: error.localizedDescription,
+                debugMessage: error.localizedDescription
+            )
+        }
+
+        // StoreKit 1 conditions reach `wrap` through promoted purchases,
+        // offer-code redemption, and the legacy payment queue.
+        if let skErrorCode = skErrorCode(from: error) {
+            return make(
+                code: errorCode(for: skErrorCode) ?? fallback,
                 productId: productId,
                 message: error.localizedDescription,
                 debugMessage: error.localizedDescription
@@ -198,5 +213,48 @@ public extension PurchaseError {
             message: error.localizedDescription,
             debugMessage: error.localizedDescription
         )
+    }
+
+    /// Accepts a typed `SKError` or a bridged `NSError` in the StoreKit domain.
+    static func skErrorCode(from error: Error) -> SKError.Code? {
+        if let skError = error as? SKError {
+            return skError.code
+        }
+        let nsError = error as NSError
+        guard nsError.domain == SKError.errorDomain else { return nil }
+        return SKError.Code(rawValue: nsError.code)
+    }
+
+    /// Normative StoreKit 1 error mapping. Returns `nil` when no OpenIAP code
+    /// faithfully represents the condition, so the caller's `fallback` applies
+    /// rather than a fabricated mapping.
+    ///
+    /// `.alreadyOwned`, `.billingUnavailable`, `.serviceDisconnected`, and
+    /// `.serviceTimeout` are deliberately unreachable here — StoreKit has no
+    /// equivalent condition. See `packages/gql/src/capability-matrix.mjs`.
+    static func errorCode(for code: SKError.Code) -> ErrorCode? {
+        switch code {
+        case .paymentCancelled:
+            return .userCancelled
+        case .paymentNotAllowed:
+            // Parental controls or MDM restriction, not a transient failure.
+            return .iapNotAvailable
+        case .storeProductNotAvailable:
+            return .itemUnavailable
+        case .clientInvalid, .paymentInvalid:
+            return .developerError
+        case .cloudServiceNetworkConnectionFailed:
+            return .networkError
+        case .cloudServicePermissionDenied, .cloudServiceRevoked, .privacyAcknowledgementRequired:
+            return .serviceError
+        case .invalidOfferIdentifier, .invalidOfferPrice, .missingOfferParams:
+            return .skuOfferMismatch
+        case .invalidSignature, .unauthorizedRequestData:
+            return .transactionValidationFailed
+        case .unknown:
+            return .unknown
+        default:
+            return nil
+        }
     }
 }

@@ -3714,6 +3714,12 @@ public sealed record VerifyPurchaseResultAndroid : VerifyPurchaseResult
     public required double FreeTrialEndDate { get; init; }
     [JsonPropertyName("gracePeriodEndDate")]
     public required double GracePeriodEndDate { get; init; }
+    /// <summary>
+    /// Whether the purchase is valid. Uniform across every VerifyPurchaseResult
+    /// variant so callers can gate entitlement without inspecting the concrete type.
+    /// </summary>
+    [JsonPropertyName("isValid")]
+    public required bool IsValid { get; init; }
     [JsonPropertyName("parentProductId")]
     public required string ParentProductId { get; init; }
     [JsonPropertyName("productId")]
@@ -3745,7 +3751,16 @@ public sealed record VerifyPurchaseResultHorizon : VerifyPurchaseResult
     /// <summary>Unix timestamp (seconds) when the entitlement was granted.</summary>
     [JsonPropertyName("grantTime")]
     public double? GrantTime { get; init; }
-    /// <summary>Whether the entitlement verification succeeded.</summary>
+    /// <summary>
+    /// Whether the purchase is valid. Uniform across every VerifyPurchaseResult
+    /// variant so callers can gate entitlement without inspecting the concrete type.
+    /// </summary>
+    [JsonPropertyName("isValid")]
+    public required bool IsValid { get; init; }
+    /// <summary>
+    /// Whether the entitlement verification succeeded.
+    /// @deprecated Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0.
+    /// </summary>
     [JsonPropertyName("success")]
     public required bool Success { get; init; }
 }
@@ -4643,11 +4658,11 @@ public interface MutationResolver
     Task<bool> SyncIOSAsync();
 
     /// <summary>
-    /// Verify a purchase against your own backend. Returns a platform-specific
-    /// variant of VerifyPurchaseResult — VerifyPurchaseResultIOS exposes isValid
-    /// + receipt/JWS metadata, VerifyPurchaseResultAndroid carries Play Store
-    /// receipt fields (no isValid), and VerifyPurchaseResultHorizon uses success.
-    /// Inspect the concrete variant before reading fields.
+    /// Verify a purchase against your own backend. Every VerifyPurchaseResult
+    /// variant exposes isValid, so entitlement can be gated without inspecting the
+    /// concrete type. Variants add their own metadata on top: IOS carries
+    /// receipt/JWS fields, Android carries Play Store receipt fields, and Horizon
+    /// carries grantTime.
     /// See: https://openiap.dev/docs/features/validation#verify-purchase
     /// </summary>
     Task<VerifyPurchaseResult> VerifyPurchaseAsync(VerifyPurchaseProps options);

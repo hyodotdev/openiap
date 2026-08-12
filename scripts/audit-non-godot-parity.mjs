@@ -1587,6 +1587,153 @@ const GOOGLE_FLAVOR_MODULES = [
   "packages/google/openiap/src/amazon/java/dev/hyo/openiap/OpenIapModule.kt",
 ];
 
+const CONFORMANCE_SUITE_DIR = "src/conformanceTest/java";
+
+const GOOGLE_CONFORMANCE_ADAPTERS = {
+  testPlay:
+    "packages/google/openiap/src/testPlay/java/dev/hyo/openiap/conformance/PlayStoreConformanceTest.kt",
+  testHorizon:
+    "packages/google/openiap/src/testHorizon/java/dev/hyo/openiap/conformance/HorizonStoreConformanceTest.kt",
+  testAmazon:
+    "packages/google/openiap/src/testAmazon/java/dev/hyo/openiap/conformance/AmazonStoreConformanceTest.kt",
+};
+
+// The conformance suite is the versioned public contract. These files carry
+// behavior ids that appear in published reports, so losing one silently would
+// invalidate every claim made against it.
+function checkConformanceSuite() {
+  for (const relativePath of [
+    "packages/conformance/package.json",
+    "packages/conformance/README.md",
+    "packages/conformance/src/spec/behaviors.mjs",
+    "packages/conformance/src/spec/version.mjs",
+    "packages/conformance/src/runner/runner.mjs",
+    "packages/conformance/src/runner/report.mjs",
+    "packages/conformance/scripts/generate-behavior-ids.mjs",
+    "packages/conformance/scripts/coverage-report.mjs",
+    "packages/gql/src/capability-matrix.mjs",
+    // Per-implementation adapters. Deleting one silently drops that
+    // implementation from the coverage report instead of failing.
+    "packages/apple/Tests/OpenIapTests/StoreConformanceTests.swift",
+    "libraries/react-native-iap/src/__tests__/conformance.test.ts",
+    "libraries/expo-iap/src/__tests__/conformance.test.ts",
+  ]) {
+    expectFile(relativePath);
+  }
+
+  // Every MUST behavior needs at least one implementation covering it.
+  try {
+    execFileSync(
+      process.execPath,
+      [
+        path.resolve(root, "packages/conformance/scripts/coverage-report.mjs"),
+        "--check",
+      ],
+      { stdio: "pipe" },
+    );
+  } catch (error) {
+    const output = [error?.stdout, error?.stderr]
+      .filter(Boolean)
+      .map((buffer) => buffer.toString().trim())
+      .join(" ");
+    fail(`Conformance coverage gate failed. ${output}`);
+  }
+
+  // Generated behavior ids must match the spec, or the native suites assert
+  // against identifiers the spec no longer defines.
+  try {
+    execFileSync(
+      process.execPath,
+      [
+        path.resolve(root, "packages/conformance/scripts/generate-behavior-ids.mjs"),
+        "--check",
+      ],
+      { stdio: "pipe" },
+    );
+  } catch (error) {
+    const output = [error?.stdout, error?.stderr]
+      .filter(Boolean)
+      .map((buffer) => buffer.toString().trim())
+      .join(" ");
+    fail(`Conformance behavior ids are out of sync. ${output}`);
+  }
+}
+
+// Conformance fixtures ship a fake store and test scaffolding. They must stay
+// out of every published artifact, so the exclusions are asserted rather than
+// assumed.
+function checkConformanceNotPublished() {
+  const expoIgnore = read("libraries/expo-iap/.npmignore");
+  if (!/^__tests__$/m.test(expoIgnore)) {
+    fail(
+      "libraries/expo-iap/.npmignore must exclude __tests__ so conformance fixtures are not published",
+    );
+  }
+
+  const rnFiles = readJson("libraries/react-native-iap/package.json").files ?? [];
+  if (!rnFiles.includes("!**/__tests__")) {
+    fail(
+      'libraries/react-native-iap/package.json "files" must keep "!**/__tests__" so conformance fixtures are not published',
+    );
+  }
+
+  // The podspec ships Sources only; Tests holds the Apple conformance suite.
+  const podspec = read("packages/apple/openiap.podspec");
+  if (!/source_files\s*=.*Sources/.test(podspec) || /source_files\s*=.*Tests/.test(podspec)) {
+    fail("packages/apple/openiap.podspec must publish Sources only, never Tests");
+  }
+
+  // conformanceTest belongs to unit-test variants; wiring it into a shipped
+  // source set would compile it into the AAR.
+  const gradle = read("packages/google/openiap/build.gradle.kts");
+  for (const sourceSet of ["main", "play", "horizon", "amazon"]) {
+    const block = new RegExp(
+      `named\\("${sourceSet}"\\)\\s*\\{([\\s\\S]*?)\\n\\s{8}\\}`,
+    ).exec(gradle)?.[1];
+    if (block?.includes(CONFORMANCE_SUITE_DIR)) {
+      fail(
+        `packages/google/openiap/build.gradle.kts: ${sourceSet} must not include "${CONFORMANCE_SUITE_DIR}" — it would ship in the AAR`,
+      );
+    }
+  }
+}
+
+// The shared suite only protects stores that actually compile it, so a missing
+// adapter or an unwired srcDir silently drops that store's coverage.
+function checkGoogleStoreConformanceSuite() {
+  expectFile(
+    "packages/google/openiap/src/conformanceTest/java/dev/hyo/openiap/conformance/StoreConformanceSuite.kt",
+  );
+  expectFile(
+    "packages/google/openiap/src/conformanceTest/java/dev/hyo/openiap/conformance/StoreConformanceAdapter.kt",
+  );
+
+  const gradle = read("packages/google/openiap/build.gradle.kts");
+  for (const [sourceSet, adapterPath] of Object.entries(
+    GOOGLE_CONFORMANCE_ADAPTERS,
+  )) {
+    expectFile(adapterPath);
+    if (!exists(adapterPath)) continue;
+
+    expectIncludes(
+      adapterPath,
+      [": StoreConformanceSuite()", "override val adapter"],
+      `${adapterPath} must bind into the shared conformance suite`,
+    );
+
+    // Read the raw text: the shared Kotlin masking helper blanks string
+    // literals, which would erase the srcDir path being checked.
+    const block = new RegExp(
+      `named\\("${sourceSet}"\\)\\s*\\{([\\s\\S]*?)\\n\\s{8}\\}`,
+    ).exec(gradle)?.[1];
+    if (!block?.includes(CONFORMANCE_SUITE_DIR)) {
+      fail(
+        `packages/google/openiap/build.gradle.kts: ${sourceSet} must include "${CONFORMANCE_SUITE_DIR}" so the shared conformance suite runs for that flavor`,
+      );
+    }
+  }
+}
+
 // Kotlin comments and string literals may contain brackets or commas (e.g.
 // `// (optional)` or `"a, b"`) that must not affect the structural
 // bracket-depth and argument-split scans below. Blank their contents out with
@@ -8798,6 +8945,9 @@ for (const issue of collectPurchasePayloadParityFailures(root)) {
 checkGqlRuntimeExports();
 checkOperationRegistry();
 checkGoogleFlavorHandlerWiring();
+checkConformanceSuite();
+checkConformanceNotPublished();
+checkGoogleStoreConformanceSuite();
 checkFrameworkOperationBindings();
 checkExpoRouterExample("libraries/expo-iap/example", "src/utils/constants.ts");
 checkReactNativeClassic();

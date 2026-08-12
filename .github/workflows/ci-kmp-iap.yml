@@ -78,8 +78,12 @@ jobs:
         with:
           cache-read-only: true
 
-      - name: Compile iOS simulator source set
+      # `iosSimulatorArm64Test` also compiles the source set, so this replaces
+      # the previous compile-only step rather than adding to it. Without it the
+      # iosTest suite (IosErrorMappingTest, IosConnectionLifecycleTest) never
+      # ran in CI.
+      - name: Compile and test iOS simulator source set
         run: |
           chmod +x gradlew
           "$GITHUB_WORKSPACE/scripts/ci/retry-gradle.sh" \
-            ./gradlew --no-parallel :library:compileKotlinIosSimulatorArm64
+            ./gradlew --no-parallel :library:iosSimulatorArm64Test

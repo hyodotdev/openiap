@@ -321,7 +321,9 @@ describe('generated compatibility', () => {
     const implementors = interfaceImplementors();
     const unionOwners = interfaceUnionOwners();
 
-    expect(entries).toEqual([]);
+    // The per-language assertions below are the real check; this guards against
+    // the list silently emptying and making them vacuous.
+    expect(entries.length).toBeGreaterThan(0);
     for (const file of generatedFiles) {
       const source = generated(file);
       const representableEntries = entries.filter((entry) => {

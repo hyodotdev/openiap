@@ -511,9 +511,17 @@ Returns verification status and grant time for the entitlement.
 """
 type VerifyPurchaseResultHorizon {
   """
+  Whether the purchase is valid. Uniform across every VerifyPurchaseResult
+  variant so callers can gate entitlement without inspecting the concrete type.
+  """
+  isValid: Boolean!
+  """
   Whether the entitlement verification succeeded.
   """
   success: Boolean!
+    @deprecated(
+      reason: "Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0."
+    )
   """
   Unix timestamp (seconds) when the entitlement was granted.
   """
@@ -521,6 +529,11 @@ type VerifyPurchaseResultHorizon {
 }
 
 type VerifyPurchaseResultAndroid {
+  """
+  Whether the purchase is valid. Uniform across every VerifyPurchaseResult
+  variant so callers can gate entitlement without inspecting the concrete type.
+  """
+  isValid: Boolean!
   autoRenewing: Boolean!
   betaProduct: Boolean!
   cancelDate: Float

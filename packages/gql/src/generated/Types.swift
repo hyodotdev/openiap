@@ -1383,6 +1383,9 @@ public struct VerifyPurchaseResultAndroid: Codable {
     public var deferredSku: String? = nil
     public var freeTrialEndDate: Double
     public var gracePeriodEndDate: Double
+    /// Whether the purchase is valid. Uniform across every VerifyPurchaseResult
+    /// variant so callers can gate entitlement without inspecting the concrete type.
+    public var isValid: Bool
     public var parentProductId: String
     public var productId: String
     public var productType: String
@@ -1400,7 +1403,11 @@ public struct VerifyPurchaseResultAndroid: Codable {
 public struct VerifyPurchaseResultHorizon: Codable {
     /// Unix timestamp (seconds) when the entitlement was granted.
     public var grantTime: Double? = nil
+    /// Whether the purchase is valid. Uniform across every VerifyPurchaseResult
+    /// variant so callers can gate entitlement without inspecting the concrete type.
+    public var isValid: Bool
     /// Whether the entitlement verification succeeded.
+    /// @deprecated Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0.
     public var success: Bool
 }
 
@@ -2687,11 +2694,11 @@ public protocol MutationResolver {
     /// Force sync transactions with the App Store (iOS 15+).
     /// See: https://openiap.dev/docs/apis/ios/sync-ios
     func syncIOS() async throws -> Bool
-    /// Verify a purchase against your own backend. Returns a platform-specific
-    /// variant of VerifyPurchaseResult — VerifyPurchaseResultIOS exposes isValid
-    /// + receipt/JWS metadata, VerifyPurchaseResultAndroid carries Play Store
-    /// receipt fields (no isValid), and VerifyPurchaseResultHorizon uses success.
-    /// Inspect the concrete variant before reading fields.
+    /// Verify a purchase against your own backend. Every VerifyPurchaseResult
+    /// variant exposes isValid, so entitlement can be gated without inspecting the
+    /// concrete type. Variants add their own metadata on top: IOS carries
+    /// receipt/JWS fields, Android carries Play Store receipt fields, and Horizon
+    /// carries grantTime.
     /// See: https://openiap.dev/docs/features/validation#verify-purchase
     func verifyPurchase(_ options: VerifyPurchaseProps) async throws -> VerifyPurchaseResult
     /// Verify via a managed provider without standing up your own server. The

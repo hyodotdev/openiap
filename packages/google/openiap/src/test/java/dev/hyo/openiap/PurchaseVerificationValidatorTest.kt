@@ -127,6 +127,9 @@ class PurchaseVerificationValidatorTest {
         assertEquals(true, result.autoRenewing)
         assertEquals(false, result.betaProduct)
         assertEquals(1, result.quantity)
+        // Play sends no validity field; a parsed 2xx purchase record is the
+        // signal, and gson would otherwise leave this false.
+        assertTrue(result.isValid)
     }
 
     @Test
@@ -150,6 +153,45 @@ class PurchaseVerificationValidatorTest {
             // InvalidPurchaseVerification is the expected exception
             assertTrue(true)
         }
+    }
+
+    @Test
+    fun `verifyPurchaseWithHorizon maps success onto isValid`() = runTest {
+        val props = VerifyPurchaseProps(
+            horizon = VerifyPurchaseHorizonOptions(
+                accessToken = "token",
+                sku = "premium_monthly",
+                userId = "user-1"
+            )
+        )
+
+        val result = verifyPurchaseWithHorizon(
+            props,
+            "app-id",
+            "TEST_TAG"
+        ) { _ -> FakeHttpURLConnection(200, """{"success":true,"grant_time":1744148687}""") }
+
+        assertTrue(result.isValid)
+        assertEquals(1744148687000.0, result.grantTime!!, 0.0)
+    }
+
+    @Test
+    fun `verifyPurchaseWithHorizon reports an unsuccessful entitlement as invalid`() = runTest {
+        val props = VerifyPurchaseProps(
+            horizon = VerifyPurchaseHorizonOptions(
+                accessToken = "token",
+                sku = "premium_monthly",
+                userId = "user-1"
+            )
+        )
+
+        val result = verifyPurchaseWithHorizon(
+            props,
+            "app-id",
+            "TEST_TAG"
+        ) { _ -> FakeHttpURLConnection(200, """{"success":false}""") }
+
+        assertEquals(false, result.isValid)
     }
 
     @Test

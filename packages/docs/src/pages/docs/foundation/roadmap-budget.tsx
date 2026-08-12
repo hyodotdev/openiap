@@ -68,10 +68,12 @@ function RoadmapBudget() {
             <tr>
               <td>Conformance test suite v1</td>
               <td>
-                Basic cross-platform tests ensuring behavioral consistency
-                across generated types
+                Shared behavioral expectations executed against every store
+                implementation and verification provider, backed by a
+                machine-checked capability matrix. Android stores and IAPKit
+                providers are covered; framework bindings are next.
               </td>
-              <td>Planned</td>
+              <td>In Progress</td>
             </tr>
             <tr>
               <td>Founding supporter outreach</td>

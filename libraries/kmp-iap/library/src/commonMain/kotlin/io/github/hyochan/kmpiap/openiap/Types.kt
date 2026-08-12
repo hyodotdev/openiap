@@ -3909,6 +3909,11 @@ public data class VerifyPurchaseResultAndroid(
     val deferredSku: String? = null,
     val freeTrialEndDate: Double,
     val gracePeriodEndDate: Double,
+    /**
+     * Whether the purchase is valid. Uniform across every VerifyPurchaseResult
+     * variant so callers can gate entitlement without inspecting the concrete type.
+     */
+    val isValid: Boolean,
     val parentProductId: String,
     val productId: String,
     val productType: String,
@@ -3932,6 +3937,7 @@ public data class VerifyPurchaseResultAndroid(
                 deferredSku = json["deferredSku"] as? String,
                 freeTrialEndDate = (json["freeTrialEndDate"] as? Number)?.toDouble() ?: 0.0,
                 gracePeriodEndDate = (json["gracePeriodEndDate"] as? Number)?.toDouble() ?: 0.0,
+                isValid = json["isValid"] as? Boolean ?: false,
                 parentProductId = json["parentProductId"] as? String ?: "",
                 productId = json["productId"] as? String ?: "",
                 productType = json["productType"] as? String ?: "",
@@ -3956,6 +3962,7 @@ public data class VerifyPurchaseResultAndroid(
         "deferredSku" to deferredSku,
         "freeTrialEndDate" to freeTrialEndDate,
         "gracePeriodEndDate" to gracePeriodEndDate,
+        "isValid" to isValid,
         "parentProductId" to parentProductId,
         "productId" to productId,
         "productType" to productType,
@@ -3979,8 +3986,15 @@ public data class VerifyPurchaseResultHorizon(
      */
     val grantTime: Double? = null,
     /**
-     * Whether the entitlement verification succeeded.
+     * Whether the purchase is valid. Uniform across every VerifyPurchaseResult
+     * variant so callers can gate entitlement without inspecting the concrete type.
      */
+    val isValid: Boolean,
+    /**
+     * Whether the entitlement verification succeeded.
+     * @deprecated Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0.
+     */
+    @Deprecated("Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0.")
     val success: Boolean
 ) : VerifyPurchaseResult {
 
@@ -3988,6 +4002,7 @@ public data class VerifyPurchaseResultHorizon(
         fun fromJson(json: Map<String, Any?>): VerifyPurchaseResultHorizon {
             return VerifyPurchaseResultHorizon(
                 grantTime = (json["grantTime"] as? Number)?.toDouble(),
+                isValid = json["isValid"] as? Boolean ?: false,
                 success = json["success"] as? Boolean ?: false,
             )
         }
@@ -3996,6 +4011,7 @@ public data class VerifyPurchaseResultHorizon(
     override fun toJson(): Map<String, Any?> = mapOf(
         "__typename" to "VerifyPurchaseResultHorizon",
         "grantTime" to grantTime,
+        "isValid" to isValid,
         "success" to success,
     )
 }
@@ -5652,11 +5668,11 @@ public interface MutationResolver {
      */
     suspend fun syncIOS(): Boolean
     /**
-     * Verify a purchase against your own backend. Returns a platform-specific
-     * variant of VerifyPurchaseResult — VerifyPurchaseResultIOS exposes isValid
-     * + receipt/JWS metadata, VerifyPurchaseResultAndroid carries Play Store
-     * receipt fields (no isValid), and VerifyPurchaseResultHorizon uses success.
-     * Inspect the concrete variant before reading fields.
+     * Verify a purchase against your own backend. Every VerifyPurchaseResult
+     * variant exposes isValid, so entitlement can be gated without inspecting the
+     * concrete type. Variants add their own metadata on top: IOS carries
+     * receipt/JWS fields, Android carries Play Store receipt fields, and Horizon
+     * carries grantTime.
      * See: https://openiap.dev/docs/features/validation#verify-purchase
      */
     suspend fun verifyPurchase(options: VerifyPurchaseProps): VerifyPurchaseResult
@@ -6041,11 +6057,11 @@ public data class MutationHandlers(
      */
     val syncIOS: MutationSyncIOSHandler? = null,
     /**
-     * Verify a purchase against your own backend. Returns a platform-specific
-     * variant of VerifyPurchaseResult — VerifyPurchaseResultIOS exposes isValid
-     * + receipt/JWS metadata, VerifyPurchaseResultAndroid carries Play Store
-     * receipt fields (no isValid), and VerifyPurchaseResultHorizon uses success.
-     * Inspect the concrete variant before reading fields.
+     * Verify a purchase against your own backend. Every VerifyPurchaseResult
+     * variant exposes isValid, so entitlement can be gated without inspecting the
+     * concrete type. Variants add their own metadata on top: IOS carries
+     * receipt/JWS fields, Android carries Play Store receipt fields, and Horizon
+     * carries grantTime.
      * See: https://openiap.dev/docs/features/validation#verify-purchase
      */
     val verifyPurchase: MutationVerifyPurchaseHandler? = null,

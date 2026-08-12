@@ -26,6 +26,7 @@ import dev.hyo.openiap.listener.OpenIapPurchaseErrorListener
 import dev.hyo.openiap.listener.OpenIapPurchaseUpdateListener
 import dev.hyo.openiap.listener.OpenIapSubscriptionBillingIssueListener
 import dev.hyo.openiap.listener.OpenIapUserChoiceBillingListener
+import dev.hyo.openiap.utils.toActiveSubscription
 import dev.hyo.openiap.utils.verifyPurchaseWithIapkit
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CancellationException
@@ -619,19 +620,7 @@ class OpenIapModule(
                 .filter { purchase ->
                     purchase.isAutoRenewing && (ids.isEmpty() || purchase.productId in ids)
                 }
-                .map { purchase ->
-                    ActiveSubscription(
-                        autoRenewingAndroid = purchase.autoRenewingAndroid,
-                        basePlanIdAndroid = purchase.currentPlanId,
-                        currentPlanId = purchase.currentPlanId,
-                        isActive = purchase.purchaseState == PurchaseState.Purchased,
-                        productId = purchase.productId,
-                        purchaseToken = purchase.purchaseToken,
-                        purchaseTokenAndroid = purchase.purchaseToken,
-                        transactionDate = purchase.transactionDate,
-                        transactionId = purchase.transactionId ?: purchase.id
-                    )
-                }
+                .map { purchase -> purchase.toActiveSubscription() }
         }
     }
 

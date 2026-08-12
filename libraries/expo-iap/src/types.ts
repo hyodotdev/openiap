@@ -885,11 +885,11 @@ export interface Mutation {
    */
   syncIOS: Promise<boolean>;
   /**
-   * Verify a purchase against your own backend. Returns a platform-specific
-   * variant of VerifyPurchaseResult — VerifyPurchaseResultIOS exposes isValid
-   * + receipt/JWS metadata, VerifyPurchaseResultAndroid carries Play Store
-   * receipt fields (no isValid), and VerifyPurchaseResultHorizon uses success.
-   * Inspect the concrete variant before reading fields.
+   * Verify a purchase against your own backend. Every VerifyPurchaseResult
+   * variant exposes isValid, so entitlement can be gated without inspecting the
+   * concrete type. Variants add their own metadata on top: IOS carries
+   * receipt/JWS fields, Android carries Play Store receipt fields, and Horizon
+   * carries grantTime.
    * See: https://openiap.dev/docs/features/validation#verify-purchase
    */
   verifyPurchase: Promise<VerifyPurchaseResult>;
@@ -2196,6 +2196,11 @@ export interface VerifyPurchaseResultAndroid {
   deferredSku?: (string | null);
   freeTrialEndDate: number;
   gracePeriodEndDate: number;
+  /**
+   * Whether the purchase is valid. Uniform across every VerifyPurchaseResult
+   * variant so callers can gate entitlement without inspecting the concrete type.
+   */
+  isValid: boolean;
   parentProductId: string;
   productId: string;
   productType: string;
@@ -2215,7 +2220,15 @@ export interface VerifyPurchaseResultAndroid {
 export interface VerifyPurchaseResultHorizon {
   /** Unix timestamp (seconds) when the entitlement was granted. */
   grantTime?: (number | null);
-  /** Whether the entitlement verification succeeded. */
+  /**
+   * Whether the purchase is valid. Uniform across every VerifyPurchaseResult
+   * variant so callers can gate entitlement without inspecting the concrete type.
+   */
+  isValid: boolean;
+  /**
+   * Whether the entitlement verification succeeded.
+   * @deprecated Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0.
+   */
   success: boolean;
 }
 

@@ -3243,6 +3243,8 @@ class ValidTimeWindowAndroid:
 		return dict
 
 class VerifyPurchaseResultAndroid:
+	## Whether the purchase is valid. Uniform across every VerifyPurchaseResult variant so callers can gate entitlement without inspecting the concrete type.
+	var is_valid: bool = false
 	var auto_renewing: bool = false
 	var beta_product: bool = false
 	var cancel_date: Variant = null
@@ -3264,6 +3266,8 @@ class VerifyPurchaseResultAndroid:
 
 	static func from_dict(data: Dictionary) -> VerifyPurchaseResultAndroid:
 		var obj = VerifyPurchaseResultAndroid.new()
+		if data.has("isValid") and data["isValid"] != null:
+			obj.is_valid = data["isValid"]
 		if data.has("autoRenewing") and data["autoRenewing"] != null:
 			obj.auto_renewing = data["autoRenewing"]
 		if data.has("betaProduct") and data["betaProduct"] != null:
@@ -3304,6 +3308,7 @@ class VerifyPurchaseResultAndroid:
 
 	func to_dict() -> Dictionary:
 		var dict = {}
+		dict["isValid"] = is_valid
 		dict["autoRenewing"] = auto_renewing
 		dict["betaProduct"] = beta_product
 		if cancel_date != null:
@@ -3330,13 +3335,17 @@ class VerifyPurchaseResultAndroid:
 
 ## Result from Meta Horizon verify_entitlement API. Returns verification status and grant time for the entitlement.
 class VerifyPurchaseResultHorizon:
-	## Whether the entitlement verification succeeded.
+	## Whether the purchase is valid. Uniform across every VerifyPurchaseResult variant so callers can gate entitlement without inspecting the concrete type.
+	var is_valid: bool = false
+	## Whether the entitlement verification succeeded. @deprecated Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0.
 	var success: bool = false
 	## Unix timestamp (seconds) when the entitlement was granted.
 	var grant_time: Variant = null
 
 	static func from_dict(data: Dictionary) -> VerifyPurchaseResultHorizon:
 		var obj = VerifyPurchaseResultHorizon.new()
+		if data.has("isValid") and data["isValid"] != null:
+			obj.is_valid = data["isValid"]
 		if data.has("success") and data["success"] != null:
 			obj.success = data["success"]
 		if data.has("grantTime") and data["grantTime"] != null:
@@ -3345,6 +3354,7 @@ class VerifyPurchaseResultHorizon:
 
 	func to_dict() -> Dictionary:
 		var dict = {}
+		dict["isValid"] = is_valid
 		dict["success"] = success
 		if grant_time != null:
 			dict["grantTime"] = grant_time
@@ -5721,7 +5731,7 @@ class Mutation:
 		const return_type = "VoidResult"
 		const is_array = false
 
-	## Verify a purchase against your own backend. Returns a platform-specific variant of VerifyPurchaseResult — VerifyPurchaseResultIOS exposes isValid + receipt/JWS metadata, VerifyPurchaseResultAndroid carries Play Store receipt fields (no isValid), and VerifyPurchaseResultHorizon uses success. Inspect the concrete variant before reading fields. See: https://openiap.dev/docs/features/validation#verify-purchase
+	## Verify a purchase against your own backend. Every VerifyPurchaseResult variant exposes isValid, so entitlement can be gated without inspecting the concrete type. Variants add their own metadata on top: IOS carries receipt/JWS fields, Android carries Play Store receipt fields, and Horizon carries grantTime. See: https://openiap.dev/docs/features/validation#verify-purchase
 	class verifyPurchaseField:
 		const name = "verifyPurchase"
 		const snake_name = "verify_purchase"
@@ -6231,7 +6241,7 @@ static func deep_link_to_subscriptions_args(options: Variant = null) -> Dictiona
 			args["options"] = options
 	return args
 
-## Verify a purchase against your own backend. Returns a platform-specific variant of VerifyPurchaseResult — VerifyPurchaseResultIOS exposes isValid + receipt/JWS metadata, VerifyPurchaseResultAndroid carries Play Store receipt fields (no isValid), and VerifyPurchaseResultHorizon uses success. Inspect the concrete variant before reading fields. See: https://openiap.dev/docs/features/validation#verify-purchase
+## Verify a purchase against your own backend. Every VerifyPurchaseResult variant exposes isValid, so entitlement can be gated without inspecting the concrete type. Variants add their own metadata on top: IOS carries receipt/JWS fields, Android carries Play Store receipt fields, and Horizon carries grantTime. See: https://openiap.dev/docs/features/validation#verify-purchase
 static func verify_purchase_args(options: VerifyPurchaseProps) -> Dictionary:
 	var args = {}
 	if options != null:

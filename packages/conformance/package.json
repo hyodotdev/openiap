@@ -1,0 +1,44 @@
+{
+  "name": "openiap-conformance",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "Versioned OpenIAP conformance suite: behavioral spec, runner, and adapter contract",
+  "exports": {
+    ".": "./src/index.mjs",
+    "./spec": "./src/spec/behaviors.mjs",
+    "./runner": "./src/runner/runner.mjs",
+    "./report": "./src/runner/report.mjs",
+    "./fake-store": "./src/fake-store/fake-store.mjs"
+  },
+  "scripts": {
+    "test": "vitest run test",
+    "report": "node scripts/run-reference-report.mjs",
+    "generate:ids": "node scripts/generate-behavior-ids.mjs",
+    "coverage": "node scripts/coverage-report.mjs"
+  },
+  "keywords": [
+    "openiap",
+    "conformance",
+    "iap"
+  ],
+  "author": "hyodotdev",
+  "license": "MIT",
+  "devDependencies": {
+    "vitest": "^4.1.5"
+  },
+  "packageManager": "bun@1.3.13",
+  "files": [
+    "src",
+    "scripts/run-reference-report.mjs",
+    "README.md"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/hyodotdev/openiap.git",
+    "directory": "packages/conformance"
+  },
+  "homepage": "https://openiap.dev",
+  "bin": {
+    "openiap-conformance-report": "./scripts/run-reference-report.mjs"
+  }
+}

@@ -148,14 +148,18 @@ android {
             java.srcDirs("src/amazon/java")
             manifest.srcFile("src/amazon/AndroidManifest.xml")
         }
+        // src/conformanceTest/java holds the shared behavioral conformance
+        // suite. It is compiled into every store flavor's unit tests so a
+        // behavior is declared once and executed against all of them; each
+        // flavor supplies only a StoreConformanceAdapter from its own set.
         named("testPlay") {
-            java.srcDirs("src/testPlay/java")
+            java.srcDirs("src/testPlay/java", "src/conformanceTest/java")
         }
         named("testHorizon") {
-            java.srcDirs("src/testHorizon/java")
+            java.srcDirs("src/testHorizon/java", "src/conformanceTest/java")
         }
         named("testAmazon") {
-            java.srcDirs("src/testAmazon/java")
+            java.srcDirs("src/testAmazon/java", "src/conformanceTest/java")
         }
     }
 

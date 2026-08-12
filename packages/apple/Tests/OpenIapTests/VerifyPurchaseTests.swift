@@ -33,6 +33,7 @@ final class VerifyPurchaseTests: XCTestCase {
             deferredSku: nil,
             freeTrialEndDate: 0,
             gracePeriodEndDate: 0,
+            isValid: true,
             parentProductId: "parent",
             productId: "android.sku",
             productType: "subs",
