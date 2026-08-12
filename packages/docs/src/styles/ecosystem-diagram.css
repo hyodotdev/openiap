@@ -18,6 +18,10 @@
   --eco-card-bg: var(--bg-primary);
   --eco-shadow: rgba(0, 0, 0, 0.09);
 
+  /* Package names and versions share one stack; only the multi-word families
+     need quoting. */
+  --eco-mono: 'SF Mono', Monaco, Consolas, 'Liberation Mono', monospace;
+
   /* geometry */
   --eco-radius: 16px;
   --eco-gutter: 0px;
@@ -185,7 +189,7 @@
 
 .eco-node-name {
   overflow: hidden;
-  font-family: 'SF Mono', 'Monaco', 'Consolas', 'Liberation Mono', monospace;
+  font-family: var(--eco-mono);
   font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--text-primary);
@@ -214,7 +218,7 @@
 }
 
 .eco-node-version {
-  font-family: 'SF Mono', 'Monaco', 'Consolas', 'Liberation Mono', monospace;
+  font-family: var(--eco-mono);
   font-size: 0.625rem;
   font-variant-numeric: tabular-nums;
   color: var(--text-secondary);
@@ -402,6 +406,7 @@
 @container eco (min-width: 700px) {
   .eco-grid {
     --eco-gutter: 78px;
+
     grid-template-columns:
       minmax(0, 0.92fr) var(--eco-gutter)
       minmax(0, 1.13fr);

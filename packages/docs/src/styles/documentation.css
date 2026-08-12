@@ -382,6 +382,7 @@
   .docs-sidebar-handle {
     --docs-bookmark: #e0a94f;
     --docs-bookmark-hover: #cf9438;
+
     position: absolute;
     top: 10px;
     /* Rotated a quarter turn, the bookmark's notch points back at the sidebar,
@@ -430,6 +431,14 @@
       width 0.24s ease,
       opacity 0.16s ease,
       visibility 0s linear;
+  }
+
+  /* A drag sets a new width on every pointermove; animating each of those makes
+     the column lag the cursor by the transition duration. Snap while dragging,
+     animate only the collapse/restore. */
+  .docs-sidebar.is-resizing,
+  .docs-container.is-sidebar-collapsed .docs-sidebar.is-resizing {
+    transition: none;
   }
 
   .docs-container.is-sidebar-collapsed .docs-sidebar {
