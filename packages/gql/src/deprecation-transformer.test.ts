@@ -128,7 +128,7 @@ describe('deprecation documentation transformation', () => {
       """Legacy offer metadata."""
       type LegacyOffer @openiapDeprecated(reason: "Use DiscountOffer instead. Scheduled for removal in OpenIAP 3.0.") {
         """Legacy identifier."""
-        legacyId: String @deprecated(reason: "Use id instead. Scheduled for removal in OpenIAP 3.0.")
+        legacyId: String! @deprecated(reason: "Use id instead. Scheduled for removal in OpenIAP 3.0.")
       }
 
       """Legacy billing selector."""
@@ -160,6 +160,15 @@ describe('deprecation documentation transformation', () => {
     );
     expect(kotlin).toContain(
       '    @Deprecated("Use id instead. Scheduled for removal in OpenIAP 3.0.", ReplaceWith("id"))\n    val legacyId:',
+    );
+    expect(new SwiftPlugin({ outputPath: 'Types.swift' }).generate(schema)).toContain(
+      '    @available(*, deprecated, message: "Use id instead. Scheduled for removal in OpenIAP 3.0.")\n    public var legacyId:',
+    );
+    expect(new CSharpPlugin({ outputPath: 'Types.cs' }).generate(schema)).toContain(
+      '    [Obsolete("Use id instead. Scheduled for removal in OpenIAP 3.0.")]\n    [JsonPropertyName("legacyId")]',
+    );
+    expect(new CSharpPlugin({ outputPath: 'Types.cs' }).generate(schema)).toContain(
+      '    public string LegacyId { get; init; }',
     );
     expect(kotlin).toContain(
       '@Deprecated("Use BillingProgram instead. Scheduled for removal in OpenIAP 3.0.", ReplaceWith("BillingProgram"))\npublic enum class LegacyBillingMode',

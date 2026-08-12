@@ -357,6 +357,7 @@ export class CSharpPlugin extends CodegenPlugin {
     const sortedFields = [...irInterface.fields].sort((a, b) => a.name.localeCompare(b.name));
     for (const field of sortedFields) {
       this.emitDoc(field.description, '    ');
+      this.emitDeprecation(field.description, '    ');
       const propType = this.propertyType(field.type);
       const propName = this.fieldNameCase(field.name);
       this.emit(`    ${propType} ${propName} { get; }`);
@@ -399,6 +400,7 @@ export class CSharpPlugin extends CodegenPlugin {
     this.emit('{');
     for (const field of sharedFields) {
       this.emitDoc(field.description, '    ');
+      this.emitDeprecation(field.description, '    ');
       const propType = this.propertyType(field.type);
       const propName = this.fieldNameCase(field.name);
       this.emit(`    public abstract ${propType} ${propName} { get; init; }`);
@@ -503,6 +505,8 @@ export class CSharpPlugin extends CodegenPlugin {
   private emitProperties(fields: IRField[], inheritedFields = new Set<string>()): void {
     fields.forEach((field) => {
       this.emitDoc(field.description, '    ');
+      this.emitDeprecation(field.description, '    ');
+      const isDeprecated = this.deprecationReason(field.description) !== null;
       const propType = this.propertyType(field.type);
       const propName = this.fieldNameCase(field.name);
       const jsonName = field.name;
@@ -523,6 +527,11 @@ export class CSharpPlugin extends CodegenPlugin {
         } else {
           this.emit(`    public ${overrideModifier}required ${propType} ${propName} { get; init; }`);
         }
+      } else if (isDeprecated) {
+        // C# rejects ObsoleteAttribute on required members (CS9042). Keep the
+        // non-null wire type while allowing callers to initialize only the
+        // replacement field.
+        this.emit(`    public ${overrideModifier}${propType} ${propName} { get; init; }`);
       } else {
         this.emit(`    public ${overrideModifier}required ${propType} ${propName} { get; init; }`);
       }
@@ -557,6 +566,16 @@ export class CSharpPlugin extends CodegenPlugin {
 
   private csharpStringLiteral(value: string): string {
     return `"${value.replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\r/g, '\\r').replace(/\n/g, '\\n').replace(/\t/g, '\\t')}"`;
+  }
+
+  private emitDeprecation(description: string | undefined, indent: string = ''): void {
+    const reason = this.deprecationReason(description);
+    if (!reason) return;
+    this.emit(`${indent}[Obsolete(${this.csharpStringLiteral(reason)})]`);
+  }
+
+  private deprecationReason(description: string | undefined): string | null {
+    return description?.match(/(?:^|\n)@deprecated\s+([^\n]+)/)?.[1]?.trim() || null;
   }
 
   private generateResultUnionObject(irObject: IRObject): void {

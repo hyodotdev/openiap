@@ -22,6 +22,8 @@ const OUTCOME_TO_ERROR_CODE = {
   [StoreOutcome.Unknown]: 'sku-not-found',
 };
 
+const STORES_WITH_ALREADY_OWNED = new Set(['Google', 'Amazon', 'Horizon']);
+
 export class ReferenceImplementation {
   /** @param {import('./fake-store.mjs').FakeStore} store */
   constructor(store, { iapStore = 'Google' } = {}) {
@@ -73,7 +75,11 @@ export class ReferenceImplementation {
       return purchase;
     }
 
-    const code = OUTCOME_TO_ERROR_CODE[result.outcome] ?? 'unknown';
+    const mappedCode = OUTCOME_TO_ERROR_CODE[result.outcome] ?? 'unknown';
+    const code =
+      mappedCode === 'already-owned' && !STORES_WITH_ALREADY_OWNED.has(this.iapStore)
+        ? 'unknown'
+        : mappedCode;
     const error = new ConformanceError(code, `purchase failed: ${result.outcome}`);
     this.purchaseErrorListeners.forEach((listener) => listener(error));
     throw error;

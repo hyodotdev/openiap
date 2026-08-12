@@ -11,6 +11,7 @@ import {
   behaviorIds,
 } from '../src/spec/behaviors.mjs';
 import { SUITE_VERSION, specVersion } from '../src/spec/version.mjs';
+import { runConformance } from '../src/runner/runner.mjs';
 
 describe('conformance behavior spec', () => {
   it('gives every behavior a unique id', () => {
@@ -74,7 +75,13 @@ describe('conformance behavior spec', () => {
     expect(() => behaviorById('nope.not-real')).toThrow(/Unknown conformance behavior/);
   });
 
-  it('keeps every capability-matrix store addressable by the runner', () => {
-    expect(CAPABILITY_STORES.length).toBeGreaterThan(0);
+  it('keeps every capability-matrix store addressable by the runner', async () => {
+    for (const store of CAPABILITY_STORES) {
+      const report = await runConformance(
+        { implementation: `matrix-addressability-${store}`, store, behaviors: {} },
+        { behaviors: [] },
+      );
+      expect(report.store).toBe(store);
+    }
   });
 });

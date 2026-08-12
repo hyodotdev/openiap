@@ -70,8 +70,9 @@ function RoadmapBudget() {
               <td>
                 Shared behavioral expectations executed against every store
                 implementation and verification provider, backed by a
-                machine-checked capability matrix. Android stores and IAPKit
-                providers are covered; framework bindings are next.
+                machine-checked capability matrix. Android stores, Apple, IAPKit
+                providers, React Native IAP, and Expo IAP are covered; Flutter,
+                KMP, MAUI, and Godot adapters are next.
               </td>
               <td>In Progress</td>
             </tr>

@@ -35,11 +35,16 @@ function resolveConstants(generatedSource, pattern) {
 
 function declaredIds(source, blockMarker, constantTable, referencePattern) {
   const start = source.indexOf(blockMarker);
-  if (start < 0) return [];
+  if (start < 0) {
+    throw new Error(`coverage parser: block marker not found: ${blockMarker}`);
+  }
   // Read to the closing paren/bracket of the declaration block.
   const rest = source.slice(start);
-  const end = rest.indexOf('\n    )');
-  const block = rest.slice(0, end > 0 ? end : rest.indexOf('\n    ]'));
+  const terminator = /\n[ \t]*[)\]]/.exec(rest);
+  if (!terminator || terminator.index === 0) {
+    throw new Error(`coverage parser: no block terminator after ${blockMarker}`);
+  }
+  const block = rest.slice(0, terminator.index);
   return [...block.matchAll(referencePattern)]
     .map((match) => constantTable.get(match[1]))
     .filter(Boolean);
@@ -111,6 +116,14 @@ for (const [name, path] of [
 }
 
 // --- Build the matrix -------------------------------------------------------
+const emptyImplementations = IMPLEMENTATIONS.filter((impl) => impl.covered.length === 0);
+if (emptyImplementations.length > 0) {
+  console.error(
+    `Parsed no behavior ids for: ${emptyImplementations.map((impl) => impl.name).join(', ')} — the parser is likely broken.`,
+  );
+  process.exit(1);
+}
+
 const rows = BEHAVIORS.map((behavior) => {
   const by = IMPLEMENTATIONS.filter((impl) => impl.covered.includes(behavior.id)).map(
     (impl) => impl.name,
@@ -180,9 +193,4 @@ if (process.argv.includes('--check')) {
     }
     process.exit(1);
   }
-}
-
-if (realImplementations.length === 0) {
-  console.error('No real implementations were discovered — the parser is likely broken.');
-  process.exit(1);
 }

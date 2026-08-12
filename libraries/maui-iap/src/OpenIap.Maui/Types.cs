@@ -3817,8 +3817,9 @@ public sealed record VerifyPurchaseResultHorizon : VerifyPurchaseResult
     /// Whether the entitlement verification succeeded.
     /// @deprecated Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0.
     /// </summary>
+    [Obsolete("Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0.")]
     [JsonPropertyName("success")]
-    public required bool Success { get; init; }
+    public bool Success { get; init; }
 }
 
 public sealed record VerifyPurchaseResultIOS : VerifyPurchaseResult

@@ -1414,6 +1414,7 @@ public struct VerifyPurchaseResultHorizon: Codable, VerifyPurchaseResultCommon {
     public var isValid: Bool
     /// Whether the entitlement verification succeeded.
     /// @deprecated Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0.
+    @available(*, deprecated, message: "Renamed to isValid so every VerifyPurchaseResult variant answers validity the same way. Scheduled for removal in OpenIAP 4.0.")
     public var success: Bool
 }
 

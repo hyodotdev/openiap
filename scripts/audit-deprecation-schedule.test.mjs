@@ -9,6 +9,7 @@ import {
   collectForbiddenMatches,
   collectMissingRequiredTexts,
   collectRepositorySchemaDeprecations,
+  collectSchemaDeprecationFailures,
   completedRemovalRules,
 } from "./audit-deprecation-schedule.mjs";
 
@@ -197,7 +198,6 @@ test("repository schema deprecations all target a future removal train", () => {
 });
 
 test("overdue schema deprecations are reported as failures", () => {
-  // Guards the rule itself: a past-train deprecation must still fail.
   const overdue = extractSchemaDeprecations([
     {
       sourceId: "overdue.graphql",
@@ -208,4 +208,15 @@ test("overdue schema deprecations are reported as failures", () => {
   ]);
   assert.equal(overdue.entries.length, 1);
   assert.match(overdue.entries[0].reason, /OpenIAP 1\.0\.$/);
+  assert.match(
+    collectSchemaDeprecationFailures(overdue, "2.0.0")[0],
+    /is due for removal in OpenIAP 1 \(spec is 2\)/,
+  );
+});
+
+test("schema deprecation audit rejects malformed spec versions", () => {
+  assert.deepEqual(
+    collectSchemaDeprecationFailures({ entries: [], issues: [] }, "not-semver"),
+    ["openiap-versions.json: Invalid OpenIAP Spec version: 'not-semver'"],
+  );
 });

@@ -290,7 +290,7 @@ describe('conformance: expo-iap', () => {
 
   it('restoration.available-purchases-excludes-consumed-items', async () => {
     const purchase = (await buy('dev.hyo.martie.10bulbs')) as any;
-    fakeStore.owned.delete(purchase.purchaseToken);
+    await IAP.finishTransaction({purchase, isConsumable: true});
 
     const available = (await IAP.getAvailablePurchases()) as any[];
     expect(available.some((item) => item.purchaseToken === purchase.purchaseToken)).toBe(false);

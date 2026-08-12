@@ -237,13 +237,13 @@ export function createReferenceAdapter({ store = 'Google' } = {}) {
       },
 
       'errors.unsupported-codes-are-not-synthesized': async () => {
-        // The reference store is Google, which may reach already-owned.
-        // Implementations whose store cannot must not emit it.
-        const impl = fresh();
-        await impl.requestPurchase({ sku: 'dev.hyo.martie.lifetime' });
+        const appleStore = new FakeStore({ catalog: CATALOG, store: 'Apple' });
+        const apple = new ReferenceImplementation(appleStore, { iapStore: 'Apple' });
+        appleStore.forceOutcome('dev.hyo.martie.lifetime', StoreOutcome.AlreadyOwned);
         await assert.rejects(
-          () => impl.requestPurchase({ sku: 'dev.hyo.martie.lifetime' }),
-          (error) => error.code === 'already-owned',
+          () => apple.requestPurchase({ sku: 'dev.hyo.martie.lifetime' }),
+          (error) => error.code === 'unknown',
+          'Apple must not synthesize the Android-only already-owned code',
         );
       },
 

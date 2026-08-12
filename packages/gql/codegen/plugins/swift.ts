@@ -151,6 +151,7 @@ export class SwiftPlugin extends CodegenPlugin {
     const sortedFields = [...irInterface.fields].sort((a, b) => a.name.localeCompare(b.name));
     for (const field of sortedFields) {
       this.generateDocComment(field.description, '    ');
+      this.generateDeprecationAnnotation(field.description, '    ');
       const propertyType = this.getPropertyType(field.type);
       const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
       this.emit(`    var ${propertyName}: ${propertyType} { get }`);
@@ -189,6 +190,7 @@ export class SwiftPlugin extends CodegenPlugin {
     // Properties
     for (const field of sortedFields) {
       this.generateDocComment(field.description, '    ');
+      this.generateDeprecationAnnotation(field.description, '    ');
       const propertyType = this.getPropertyType(field.type);
       const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
 
@@ -253,6 +255,7 @@ export class SwiftPlugin extends CodegenPlugin {
     // Properties
     for (const field of sortedFields) {
       this.generateDocComment(field.description, '    ');
+      this.generateDeprecationAnnotation(field.description, '    ');
       const propertyType = this.getPropertyType(field.type);
       const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
       this.emit(`    public var ${propertyName}: ${propertyType}`);
@@ -737,5 +740,12 @@ export class SwiftPlugin extends CodegenPlugin {
     for (const line of description.split(/\r?\n/)) {
       this.emit(`${indent}/// ${line}`);
     }
+  }
+
+  private generateDeprecationAnnotation(description: string | undefined, indent: string = ''): void {
+    const reason = description?.match(/(?:^|\n)@deprecated\s+([^\n]+)/)?.[1]?.trim();
+    if (!reason) return;
+    const escapedReason = reason.replaceAll('\\', '\\\\').replaceAll('"', '\\"');
+    this.emit(`${indent}@available(*, deprecated, message: "${escapedReason}")`);
   }
 }

@@ -30,10 +30,12 @@ const CATALOG: Record<string, 'in-app' | 'subs'> = {
 
 const store = {
   owned: new Map<string, FakeRecord>(),
+  unfinished: new Set<string>(),
   forced: new Map<string, string>(),
   sequence: 0,
   reset() {
     this.owned.clear();
+    this.unfinished.clear();
     this.forced.clear();
     this.sequence = 0;
   },
@@ -123,6 +125,7 @@ const mockIap: Record<string, unknown> = {
       state: forced === 'pending' ? 'pending' : 'purchased',
     };
     store.owned.set(record.token, record);
+    store.unfinished.add(record.token);
     const purchase = toPurchase(record);
     purchaseUpdatedListeners.forEach((listener) => listener(purchase));
     return purchase;
@@ -137,6 +140,7 @@ const mockIap: Record<string, unknown> = {
 
   finishTransaction: jest.fn(async (params: any) => {
     const android = params?.android;
+    if (android?.purchaseToken) store.unfinished.delete(android.purchaseToken);
     if (android?.isConsumable) store.owned.delete(android.purchaseToken);
     return true;
   }),
@@ -315,10 +319,10 @@ describe('conformance: react-native-iap', () => {
 
   it('completion.finish-removes-transaction-from-pending', async () => {
     const purchase = await IAP.requestPurchase(androidRequest('dev.hyo.martie.10bulbs'));
-    await IAP.finishTransaction({purchase, isConsumable: true});
+    expect(store.unfinished.has(purchase.purchaseToken)).toBe(true);
 
-    const available = await IAP.getAvailablePurchases();
-    expect(available.some((item: any) => item.purchaseToken === purchase.purchaseToken)).toBe(false);
+    await IAP.finishTransaction({purchase, isConsumable: true});
+    expect(store.unfinished.has(purchase.purchaseToken)).toBe(false);
   });
 
   it('completion.finish-is-idempotent', async () => {
