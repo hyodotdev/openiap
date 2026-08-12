@@ -23,6 +23,7 @@ COPY packages/docs/package.json ./packages/docs/
 # root lockfile and `--frozen-lockfile` rejects the install with
 # "lockfile had changes, but lockfile is frozen".
 COPY packages/mcp-server/package.json ./packages/mcp-server/
+COPY packages/conformance/package.json ./packages/conformance/
 RUN bun install --frozen-lockfile --filter @hyodotdev/openiap-kit
 
 # --- Build the unified app (Vite SPA + compiled Bun server) --------------

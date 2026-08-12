@@ -172,7 +172,9 @@ class PurchaseVerificationValidatorTest {
         ) { _ -> FakeHttpURLConnection(200, """{"success":true,"grant_time":1744148687}""") }
 
         assertTrue(result.isValid)
-        assertEquals(1744148687000.0, result.grantTime!!, 0.0)
+        // The schema documents grantTime in seconds; IAPKit's millisecond
+        // conversion is internal to its own storage, not this field.
+        assertEquals(1744148687.0, result.grantTime!!, 0.0)
     }
 
     @Test

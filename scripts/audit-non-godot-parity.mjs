@@ -1659,6 +1659,22 @@ function checkConformanceSuite() {
   }
 }
 
+// bun's workspace resolver needs every member's package.json before
+// --frozen-lockfile will plan the install, so a new workspace package breaks
+// the kit image until its manifest is copied. This has already cost two
+// rounds (mcp-server, conformance) and only fails inside Docker.
+function checkKitDockerfileCopiesWorkspaceManifests() {
+  const dockerfile = read("packages/kit/Dockerfile");
+  for (const name of listDirectories("packages")) {
+    if (!exists(`packages/${name}/package.json`)) continue;
+    if (!dockerfile.includes(`COPY packages/${name}/package.json`)) {
+      fail(
+        `packages/kit/Dockerfile must COPY packages/${name}/package.json before bun install --frozen-lockfile`,
+      );
+    }
+  }
+}
+
 // Conformance fixtures ship a fake store and test scaffolding. They must stay
 // out of every published artifact, so the exclusions are asserted rather than
 // assumed.
@@ -8947,6 +8963,7 @@ checkOperationRegistry();
 checkGoogleFlavorHandlerWiring();
 checkConformanceSuite();
 checkConformanceNotPublished();
+checkKitDockerfileCopiesWorkspaceManifests();
 checkGoogleStoreConformanceSuite();
 checkFrameworkOperationBindings();
 checkExpoRouterExample("libraries/expo-iap/example", "src/utils/constants.ts");
