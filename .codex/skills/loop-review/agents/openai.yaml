@@ -1,4 +1,4 @@
 interface:
   display_name: "Loop Review"
-  short_description: "Review, publish, and merge a clean OpenIAP change"
+  short_description: "Review, open a PR, and merge a clean OpenIAP change"
   default_prompt: "Use $loop-review to start from the latest origin/main, stabilize the change, open a PR, address reviews, and merge it."

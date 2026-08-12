@@ -152,10 +152,13 @@ Follow the existing card pattern:
 
 Card section layout (mandatory for multi-package cards):
 
-- Use only the sections that contain information readers must act on. Keep them
-  in this order when present: `Common changes`, `Shared spec and native
-  packages`, `Framework libraries`, `Integration notes` (or migration notes),
-  then the bordered `Package Releases` block.
+- Use only the sections that contain distinct user-visible behavior or
+  information readers must act on. When present, keep this order:
+  1. `Common changes`
+  2. `Shared spec and native packages`
+  3. `Framework libraries`
+  4. `Integration notes` (or migration notes)
+  5. The bordered `Package Releases` block
 - Never add one `h5` heading per platform or framework (no `Apple`, `Google`,
   `React Native`, `Expo`, ... headings). Each package-specific behavior gets at
   most one `<li>` inside the shared group list, written as
