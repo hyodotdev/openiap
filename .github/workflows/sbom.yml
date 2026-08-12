@@ -69,7 +69,6 @@ jobs:
           git checkout FETCH_HEAD -- \
             scripts/generate-sbom.mjs \
             scripts/sbom-dependencies.mjs \
-            scripts/generate-sbom.test.mjs \
             scripts/release-branch-policy.mjs \
             scripts/assert-release-tag.mjs
           echo "Generator taken from $DEFAULT_BRANCH at $(git rev-parse --short FETCH_HEAD)"
@@ -88,9 +87,11 @@ jobs:
           RELEASE_TAG: ${{ steps.tag.outputs.tag }}
         run: node scripts/generate-sbom.mjs resolve-tag "$RELEASE_TAG"
 
-      - name: Verify SBOM generator behaviour
-        if: ${{ steps.component.outputs.matched == 'true' }}
-        run: node --test scripts/generate-sbom.test.mjs
+      # The generator's own tests run in ci.yml on every pull request, against
+      # the tree that owns them. Running them here would point them at the
+      # released commit instead — a tag from before a component existed fails
+      # on a manifest that was never there. The real guard is the next step,
+      # which verifies the produced document rather than the tree.
 
       - name: Generate CycloneDX SBOM
         id: generate
