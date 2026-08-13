@@ -347,6 +347,7 @@ func test_product_variant_mapping() -> void:
 		"displayPrice": "$9.99",
 		"currency": "USD",
 		"type": "subs",
+		"typeIOS": "auto-renewable-subscription",
 		"subscriptionOffers": [{
 			"id": "intro",
 			"displayPrice": "Free",
