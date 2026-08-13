@@ -329,7 +329,7 @@ enum ErrorCode {
       case 'duplicate-purchase':
         return ErrorCode.DuplicatePurchase;
     }
-    throw ArgumentError('Unknown ErrorCode value: $value');
+    return ErrorCode.Unknown;
   }
 
   String toJson() => value;
@@ -584,7 +584,7 @@ enum IapkitPurchaseState {
       case 'inauthentic':
         return IapkitPurchaseState.Inauthentic;
     }
-    throw ArgumentError('Unknown IapkitPurchaseState value: $value');
+    return IapkitPurchaseState.Unknown;
   }
 
   String toJson() => value;
@@ -635,7 +635,7 @@ enum IapStore {
       case 'amazon':
         return IapStore.Amazon;
     }
-    throw ArgumentError('Unknown IapStore value: $value');
+    return IapStore.Unknown;
   }
 
   String toJson() => value;
@@ -661,7 +661,7 @@ enum InAppMessageCategoryAndroid {
       case 'transactional':
         return InAppMessageCategoryAndroid.Transactional;
     }
-    throw ArgumentError('Unknown InAppMessageCategoryAndroid value: $value');
+    return InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId;
   }
 
   String toJson() => value;
@@ -720,7 +720,7 @@ enum PaymentMode {
       case 'unknown':
         return PaymentMode.Unknown;
     }
-    throw ArgumentError('Unknown PaymentMode value: $value');
+    return PaymentMode.Unknown;
   }
 
   String toJson() => value;
@@ -806,7 +806,7 @@ enum ProductStatusAndroid {
       case 'unknown':
         return ProductStatusAndroid.Unknown;
     }
-    throw ArgumentError('Unknown ProductStatusAndroid value: $value');
+    return ProductStatusAndroid.Unknown;
   }
 
   String toJson() => value;
@@ -886,7 +886,7 @@ enum PurchaseState {
       case 'unknown':
         return PurchaseState.Unknown;
     }
-    throw ArgumentError('Unknown PurchaseState value: $value');
+    return PurchaseState.Unknown;
   }
 
   String toJson() => value;
@@ -960,7 +960,7 @@ enum SubscriptionBillingPlanTypeIOS {
       case 'up-front':
         return SubscriptionBillingPlanTypeIOS.UpFront;
     }
-    throw ArgumentError('Unknown SubscriptionBillingPlanTypeIOS value: $value');
+    return SubscriptionBillingPlanTypeIOS.Unknown;
   }
 
   String toJson() => value;
@@ -1047,7 +1047,7 @@ enum SubscriptionPeriodUnit {
       case 'unknown':
         return SubscriptionPeriodUnit.Unknown;
     }
-    throw ArgumentError('Unknown SubscriptionPeriodUnit value: $value');
+    return SubscriptionPeriodUnit.Unknown;
   }
 
   String toJson() => value;
@@ -1093,7 +1093,7 @@ enum SubscriptionReplacementModeAndroid {
       case 'keep-existing':
         return SubscriptionReplacementModeAndroid.KeepExisting;
     }
-    throw ArgumentError('Unknown SubscriptionReplacementModeAndroid value: $value');
+    return SubscriptionReplacementModeAndroid.UnknownReplacementMode;
   }
 
   String toJson() => value;
@@ -1264,7 +1264,7 @@ class AdvancedCommerceInfoIOS {
       displayName: json['displayName'] as String?,
       estimatedTax: json['estimatedTax'] as String?,
       items: (json['items'] as List<dynamic>).map((e) => AdvancedCommerceItemIOS.fromJson(e as Map<String, dynamic>)).toList(),
-      period: json['period'] != null ? SubscriptionPeriodValueIOS.fromJson(json['period'] as Map<String, dynamic>) : null,
+      period: json['period'] is Map<String, dynamic> ? SubscriptionPeriodValueIOS._tryFromJson(json['period'] as Map<String, dynamic>) : null,
       requestReferenceId: json['requestReferenceId'] as String?,
       taxCode: json['taxCode'] as String?,
       taxExclusivePrice: json['taxExclusivePrice'] as String?,
@@ -2090,6 +2090,16 @@ class IapkitProductClientPayload {
       updatedAt: (json['updatedAt'] as num).toDouble(),
       version: (json['version'] as num).toDouble(),
     );
+  }
+
+  static IapkitProductClientPayload? _tryFromJson(Map<String, dynamic> json) {
+    try {
+      return IapkitProductClientPayload.fromJson(json);
+    } on ArgumentError {
+      return null;
+    } on TypeError {
+      return null;
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -3374,7 +3384,7 @@ class RequestVerifyPurchaseWithIapkitResult {
 
   factory RequestVerifyPurchaseWithIapkitResult.fromJson(Map<String, dynamic> json) {
     return RequestVerifyPurchaseWithIapkitResult(
-      clientPayload: json['clientPayload'] != null ? IapkitProductClientPayload.fromJson(json['clientPayload'] as Map<String, dynamic>) : null,
+      clientPayload: json['clientPayload'] is Map<String, dynamic> ? IapkitProductClientPayload._tryFromJson(json['clientPayload'] as Map<String, dynamic>) : null,
       environment: json['environment'] as String?,
       isValid: json['isValid'] as bool,
       productId: json['productId'] as String?,
@@ -3598,6 +3608,16 @@ class SubscriptionPeriodValueIOS {
       unit: SubscriptionPeriodIOS.fromJson(json['unit'] as String),
       value: json['value'] as int,
     );
+  }
+
+  static SubscriptionPeriodValueIOS? _tryFromJson(Map<String, dynamic> json) {
+    try {
+      return SubscriptionPeriodValueIOS.fromJson(json);
+    } on ArgumentError {
+      return null;
+    } on TypeError {
+      return null;
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -4126,6 +4146,16 @@ class DeveloperBillingOptionParamsAndroid {
     );
   }
 
+  static DeveloperBillingOptionParamsAndroid? _tryFromJson(Map<String, dynamic> json) {
+    try {
+      return DeveloperBillingOptionParamsAndroid.fromJson(json);
+    } on ArgumentError {
+      return null;
+    } on TypeError {
+      return null;
+    }
+  }
+
   Map<String, dynamic> toJson() {
     return {
       'billingProgram': billingProgram.toJson(),
@@ -4466,7 +4496,7 @@ class RequestPurchaseAndroidProps {
 
   factory RequestPurchaseAndroidProps.fromJson(Map<String, dynamic> json) {
     return RequestPurchaseAndroidProps(
-      developerBillingOption: json['developerBillingOption'] != null ? DeveloperBillingOptionParamsAndroid.fromJson(json['developerBillingOption'] as Map<String, dynamic>) : null,
+      developerBillingOption: json['developerBillingOption'] is Map<String, dynamic> ? DeveloperBillingOptionParamsAndroid._tryFromJson(json['developerBillingOption'] as Map<String, dynamic>) : null,
       isOfferPersonalized: json['isOfferPersonalized'] as bool?,
       obfuscatedAccountId: json['obfuscatedAccountId'] as String?,
       obfuscatedProfileId: json['obfuscatedProfileId'] as String?,
@@ -4669,7 +4699,7 @@ class RequestSubscriptionAndroidProps {
 
   factory RequestSubscriptionAndroidProps.fromJson(Map<String, dynamic> json) {
     return RequestSubscriptionAndroidProps(
-      developerBillingOption: json['developerBillingOption'] != null ? DeveloperBillingOptionParamsAndroid.fromJson(json['developerBillingOption'] as Map<String, dynamic>) : null,
+      developerBillingOption: json['developerBillingOption'] is Map<String, dynamic> ? DeveloperBillingOptionParamsAndroid._tryFromJson(json['developerBillingOption'] as Map<String, dynamic>) : null,
       isOfferPersonalized: json['isOfferPersonalized'] as bool?,
       obfuscatedAccountId: json['obfuscatedAccountId'] as String?,
       obfuscatedProfileId: json['obfuscatedProfileId'] as String?,

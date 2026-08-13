@@ -470,8 +470,6 @@ class AdvancedCommerceInfoIOS:
 		if data.has("period") and data["period"] != null:
 			if data["period"] is Dictionary:
 				obj.period = SubscriptionPeriodValueIOS.from_dict(data["period"])
-			else:
-				obj.period = data["period"]
 		if data.has("requestReferenceId") and data["requestReferenceId"] != null:
 			obj.request_reference_id = data["requestReferenceId"]
 		if data.has("taxCode") and data["taxCode"] != null:
@@ -1259,6 +1257,8 @@ class IapkitProductClientPayload:
 	var updated_at: float = 0.0
 
 	static func from_dict(data: Dictionary) -> IapkitProductClientPayload:
+		if not data.has("format") or not data["format"] is String or not IAPKIT_CLIENT_PAYLOAD_FORMAT_FROM_STRING.has(data["format"]):
+			return null
 		var obj = IapkitProductClientPayload.new()
 		if data.has("format") and data["format"] != null:
 			var enum_str = data["format"]
@@ -1522,8 +1522,10 @@ class ProductAndroid:
 			var enum_str = data["productStatusAndroid"]
 			if enum_str is String:
 				obj.product_status_android = PRODUCT_STATUS_ANDROID_FROM_STRING.get(enum_str, ProductStatusAndroid.UNKNOWN)
-			else:
+			elif enum_str is int:
 				obj.product_status_android = enum_str
+			else:
+				obj.product_status_android = ProductStatusAndroid.UNKNOWN
 		if data.has("discountOffers") and data["discountOffers"] != null:
 			if data["discountOffers"] is Array:
 				var arr: Array[DiscountOffer] = []
@@ -1778,8 +1780,10 @@ class ProductSubscriptionAndroid:
 			var enum_str = data["productStatusAndroid"]
 			if enum_str is String:
 				obj.product_status_android = PRODUCT_STATUS_ANDROID_FROM_STRING.get(enum_str, ProductStatusAndroid.UNKNOWN)
-			else:
+			elif enum_str is int:
 				obj.product_status_android = enum_str
+			else:
+				obj.product_status_android = ProductStatusAndroid.UNKNOWN
 		if data.has("subscriptionOffers") and data["subscriptionOffers"] != null:
 			if data["subscriptionOffers"] is Array:
 				var arr: Array[SubscriptionOffer] = []
@@ -2098,16 +2102,20 @@ class PurchaseAndroid:
 			var enum_str = data["store"]
 			if enum_str is String:
 				obj.store = IAP_STORE_FROM_STRING.get(enum_str, IapStore.UNKNOWN)
-			else:
+			elif enum_str is int:
 				obj.store = enum_str
+			else:
+				obj.store = IapStore.UNKNOWN
 		if data.has("quantity") and data["quantity"] != null:
 			obj.quantity = data["quantity"]
 		if data.has("purchaseState") and data["purchaseState"] != null:
 			var enum_str = data["purchaseState"]
 			if enum_str is String:
 				obj.purchase_state = PURCHASE_STATE_FROM_STRING.get(enum_str, PurchaseState.UNKNOWN)
-			else:
+			elif enum_str is int:
 				obj.purchase_state = enum_str
+			else:
+				obj.purchase_state = PurchaseState.UNKNOWN
 		if data.has("isAutoRenewing") and data["isAutoRenewing"] != null:
 			obj.is_auto_renewing = data["isAutoRenewing"]
 		if data.has("currentPlanId") and data["currentPlanId"] != null:
@@ -2208,8 +2216,10 @@ class PurchaseError:
 			var enum_str = data["code"]
 			if enum_str is String:
 				obj.code = ERROR_CODE_FROM_STRING.get(enum_str, ErrorCode.UNKNOWN)
-			else:
+			elif enum_str is int:
 				obj.code = enum_str
+			else:
+				obj.code = ErrorCode.UNKNOWN
 		if data.has("message") and data["message"] != null:
 			obj.message = data["message"]
 		if data.has("productId") and data["productId"] != null:
@@ -2340,16 +2350,20 @@ class PurchaseIOS:
 			var enum_str = data["store"]
 			if enum_str is String:
 				obj.store = IAP_STORE_FROM_STRING.get(enum_str, IapStore.UNKNOWN)
-			else:
+			elif enum_str is int:
 				obj.store = enum_str
+			else:
+				obj.store = IapStore.UNKNOWN
 		if data.has("quantity") and data["quantity"] != null:
 			obj.quantity = data["quantity"]
 		if data.has("purchaseState") and data["purchaseState"] != null:
 			var enum_str = data["purchaseState"]
 			if enum_str is String:
 				obj.purchase_state = PURCHASE_STATE_FROM_STRING.get(enum_str, PurchaseState.UNKNOWN)
-			else:
+			elif enum_str is int:
 				obj.purchase_state = enum_str
+			else:
+				obj.purchase_state = PurchaseState.UNKNOWN
 		if data.has("isAutoRenewing") and data["isAutoRenewing"] != null:
 			obj.is_auto_renewing = data["isAutoRenewing"]
 		if data.has("currentPlanId") and data["currentPlanId"] != null:
@@ -2412,8 +2426,10 @@ class PurchaseIOS:
 			var enum_str = data["billingPlanTypeIOS"]
 			if enum_str is String:
 				obj.billing_plan_type_ios = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING.get(enum_str, SubscriptionBillingPlanTypeIOS.UNKNOWN)
-			else:
+			elif enum_str is int:
 				obj.billing_plan_type_ios = enum_str
+			else:
+				obj.billing_plan_type_ios = SubscriptionBillingPlanTypeIOS.UNKNOWN
 		if data.has("commitmentInfoIOS") and data["commitmentInfoIOS"] != null:
 			if data["commitmentInfoIOS"] is Dictionary:
 				obj.commitment_info_ios = TransactionCommitmentInfoIOS.from_dict(data["commitmentInfoIOS"])
@@ -2590,8 +2606,10 @@ class RenewalCommitmentInfoIOS:
 			var enum_str = data["commitmentRenewalBillingPlanType"]
 			if enum_str is String:
 				obj.commitment_renewal_billing_plan_type = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING.get(enum_str, SubscriptionBillingPlanTypeIOS.UNKNOWN)
-			else:
+			elif enum_str is int:
 				obj.commitment_renewal_billing_plan_type = enum_str
+			else:
+				obj.commitment_renewal_billing_plan_type = SubscriptionBillingPlanTypeIOS.UNKNOWN
 		if data.has("commitmentRenewalDate") and data["commitmentRenewalDate"] != null:
 			obj.commitment_renewal_date = data["commitmentRenewalDate"]
 		if data.has("commitmentRenewalPrice") and data["commitmentRenewalPrice"] != null:
@@ -2672,8 +2690,10 @@ class RenewalInfoIOS:
 			var enum_str = data["renewalBillingPlanType"]
 			if enum_str is String:
 				obj.renewal_billing_plan_type = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING.get(enum_str, SubscriptionBillingPlanTypeIOS.UNKNOWN)
-			else:
+			elif enum_str is int:
 				obj.renewal_billing_plan_type = enum_str
+			else:
+				obj.renewal_billing_plan_type = SubscriptionBillingPlanTypeIOS.UNKNOWN
 		if data.has("commitmentInfo") and data["commitmentInfo"] != null:
 			if data["commitmentInfo"] is Dictionary:
 				obj.commitment_info = RenewalCommitmentInfoIOS.from_dict(data["commitmentInfo"])
@@ -2772,8 +2792,10 @@ class RequestVerifyPurchaseWithIapkitResult:
 			var enum_str = data["store"]
 			if enum_str is String:
 				obj.store = IAP_STORE_FROM_STRING.get(enum_str, IapStore.UNKNOWN)
-			else:
+			elif enum_str is int:
 				obj.store = enum_str
+			else:
+				obj.store = IapStore.UNKNOWN
 		if data.has("environment") and data["environment"] != null:
 			obj.environment = data["environment"]
 		if data.has("isValid") and data["isValid"] != null:
@@ -2782,15 +2804,15 @@ class RequestVerifyPurchaseWithIapkitResult:
 			var enum_str = data["state"]
 			if enum_str is String:
 				obj.state = IAPKIT_PURCHASE_STATE_FROM_STRING.get(enum_str, IapkitPurchaseState.UNKNOWN)
-			else:
+			elif enum_str is int:
 				obj.state = enum_str
+			else:
+				obj.state = IapkitPurchaseState.UNKNOWN
 		if data.has("productId") and data["productId"] != null:
 			obj.product_id = data["productId"]
 		if data.has("clientPayload") and data["clientPayload"] != null:
 			if data["clientPayload"] is Dictionary:
 				obj.client_payload = IapkitProductClientPayload.from_dict(data["clientPayload"])
-			else:
-				obj.client_payload = data["clientPayload"]
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -2910,8 +2932,10 @@ class SubscriptionOffer:
 			var enum_str = data["paymentMode"]
 			if enum_str is String:
 				obj.payment_mode = PAYMENT_MODE_FROM_STRING.get(enum_str, PaymentMode.UNKNOWN)
-			else:
+			elif enum_str is int:
 				obj.payment_mode = enum_str
+			else:
+				obj.payment_mode = PaymentMode.UNKNOWN
 		if data.has("keyIdentifierIOS") and data["keyIdentifierIOS"] != null:
 			obj.key_identifier_ios = data["keyIdentifierIOS"]
 		if data.has("nonceIOS") and data["nonceIOS"] != null:
@@ -3009,8 +3033,10 @@ class SubscriptionPeriod:
 			var enum_str = data["unit"]
 			if enum_str is String:
 				obj.unit = SUBSCRIPTION_PERIOD_UNIT_FROM_STRING.get(enum_str, SubscriptionPeriodUnit.UNKNOWN)
-			else:
+			elif enum_str is int:
 				obj.unit = enum_str
+			else:
+				obj.unit = SubscriptionPeriodUnit.UNKNOWN
 		if data.has("value") and data["value"] != null:
 			obj.value = data["value"]
 		return obj
@@ -3029,6 +3055,8 @@ class SubscriptionPeriodValueIOS:
 	var value: int = 0
 
 	static func from_dict(data: Dictionary) -> SubscriptionPeriodValueIOS:
+		if not data.has("unit") or not data["unit"] is String or not SUBSCRIPTION_PERIOD_IOS_FROM_STRING.has(data["unit"]):
+			return null
 		var obj = SubscriptionPeriodValueIOS.new()
 		if data.has("unit") and data["unit"] != null:
 			var enum_str = data["unit"]
@@ -3070,8 +3098,10 @@ class SubscriptionPricingTermsIOS:
 			var enum_str = data["billingPlanType"]
 			if enum_str is String:
 				obj.billing_plan_type = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING.get(enum_str, SubscriptionBillingPlanTypeIOS.UNKNOWN)
-			else:
+			elif enum_str is int:
 				obj.billing_plan_type = enum_str
+			else:
+				obj.billing_plan_type = SubscriptionBillingPlanTypeIOS.UNKNOWN
 		if data.has("billingPrice") and data["billingPrice"] != null:
 			obj.billing_price = data["billingPrice"]
 		if data.has("commitmentInfo") and data["commitmentInfo"] != null:
@@ -3566,6 +3596,8 @@ class DeveloperBillingOptionParamsAndroid:
 	var external_transaction_token: Variant = null
 
 	static func from_dict(data: Dictionary) -> DeveloperBillingOptionParamsAndroid:
+		if not data.has("billingProgram") or not data["billingProgram"] is String or not BILLING_PROGRAM_ANDROID_FROM_STRING.has(data["billingProgram"]):
+			return null
 		var obj = DeveloperBillingOptionParamsAndroid.new()
 		if data.has("billingProgram") and data["billingProgram"] != null:
 			var enum_str = data["billingProgram"]
@@ -3697,8 +3729,8 @@ class InAppMessageParamsAndroid:
 			if data["categories"] is Array:
 				var arr: Array[InAppMessageCategoryAndroid] = []
 				for item in data["categories"]:
-					if item is String and IN_APP_MESSAGE_CATEGORY_ANDROID_FROM_STRING.has(item):
-						arr.append(IN_APP_MESSAGE_CATEGORY_ANDROID_FROM_STRING[item])
+					if item is String:
+						arr.append(IN_APP_MESSAGE_CATEGORY_ANDROID_FROM_STRING.get(item, InAppMessageCategoryAndroid.UNKNOWN_IN_APP_MESSAGE_CATEGORY_ID))
 					elif item is int:
 						arr.append(item)
 				obj.categories = arr
@@ -3904,16 +3936,20 @@ class PurchaseInput:
 			var enum_str = data["store"]
 			if enum_str is String:
 				obj.store = IAP_STORE_FROM_STRING.get(enum_str, IapStore.UNKNOWN)
-			else:
+			elif enum_str is int:
 				obj.store = enum_str
+			else:
+				obj.store = IapStore.UNKNOWN
 		if data.has("quantity") and data["quantity"] != null:
 			obj.quantity = data["quantity"]
 		if data.has("purchaseState") and data["purchaseState"] != null:
 			var enum_str = data["purchaseState"]
 			if enum_str is String:
 				obj.purchase_state = PURCHASE_STATE_FROM_STRING.get(enum_str, PurchaseState.UNKNOWN)
-			else:
+			elif enum_str is int:
 				obj.purchase_state = enum_str
+			else:
+				obj.purchase_state = PurchaseState.UNKNOWN
 		if data.has("isAutoRenewing") and data["isAutoRenewing"] != null:
 			obj.is_auto_renewing = data["isAutoRenewing"]
 		return obj
@@ -4024,8 +4060,6 @@ class RequestPurchaseAndroidProps:
 		if data.has("developerBillingOption") and data["developerBillingOption"] != null:
 			if data["developerBillingOption"] is Dictionary:
 				obj.developer_billing_option = DeveloperBillingOptionParamsAndroid.from_dict(data["developerBillingOption"])
-			else:
-				obj.developer_billing_option = data["developerBillingOption"]
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -4251,8 +4285,6 @@ class RequestSubscriptionAndroidProps:
 		if data.has("developerBillingOption") and data["developerBillingOption"] != null:
 			if data["developerBillingOption"] is Dictionary:
 				obj.developer_billing_option = DeveloperBillingOptionParamsAndroid.from_dict(data["developerBillingOption"])
-			else:
-				obj.developer_billing_option = data["developerBillingOption"]
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -4336,8 +4368,10 @@ class RequestSubscriptionIosProps:
 			var enum_str = data["billingPlanType"]
 			if enum_str is String:
 				obj.billing_plan_type = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING.get(enum_str, SubscriptionBillingPlanTypeIOS.UNKNOWN)
-			else:
+			elif enum_str is int:
 				obj.billing_plan_type = enum_str
+			else:
+				obj.billing_plan_type = SubscriptionBillingPlanTypeIOS.UNKNOWN
 		if data.has("compactJWS") and data["compactJWS"] != null:
 			obj.compact_jws = data["compactJWS"]
 		if data.has("advancedCommerceData") and data["advancedCommerceData"] != null:
@@ -4559,10 +4593,12 @@ class SubscriptionProductReplacementParamsAndroid:
 			obj.old_product_id = data["oldProductId"]
 		if data.has("replacementMode") and data["replacementMode"] != null:
 			var enum_str = data["replacementMode"]
-			if enum_str is String and SUBSCRIPTION_REPLACEMENT_MODE_ANDROID_FROM_STRING.has(enum_str):
-				obj.replacement_mode = SUBSCRIPTION_REPLACEMENT_MODE_ANDROID_FROM_STRING[enum_str]
-			else:
+			if enum_str is String:
+				obj.replacement_mode = SUBSCRIPTION_REPLACEMENT_MODE_ANDROID_FROM_STRING.get(enum_str, SubscriptionReplacementModeAndroid.UNKNOWN_REPLACEMENT_MODE)
+			elif enum_str is int:
 				obj.replacement_mode = enum_str
+			else:
+				obj.replacement_mode = SubscriptionReplacementModeAndroid.UNKNOWN_REPLACEMENT_MODE
 		return obj
 
 	func to_dict() -> Dictionary:

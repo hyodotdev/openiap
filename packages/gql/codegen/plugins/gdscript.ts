@@ -316,7 +316,7 @@ export class GDScriptPlugin extends CodegenPlugin {
 
   private getEnumUnknownFallback(typeName: string): string | null {
     const irEnum = this.schema.enums.find((e) => e.name === typeName);
-    const unknown = irEnum?.values.find((value) => value.name.toLowerCase() === 'unknown' || value.rawValue.toLowerCase() === 'unknown');
+    const unknown = irEnum ? this.enumUnknownValue(irEnum) : null;
     return unknown ? `${typeName}.${this.enumValueCase(unknown.name)}` : null;
   }
 
@@ -328,8 +328,10 @@ export class GDScriptPlugin extends CodegenPlugin {
     if (fallback) {
       this.emit(`${indent}if enum_str is String:`);
       this.emit(`${indent}\t${target} = ${enumReverseLookup}.get(enum_str, ${fallback})`);
-      this.emit(`${indent}else:`);
+      this.emit(`${indent}elif enum_str is int:`);
       this.emit(`${indent}\t${target} = enum_str`);
+      this.emit(`${indent}else:`);
+      this.emit(`${indent}\t${target} = ${fallback}`);
       return;
     }
 
@@ -403,6 +405,9 @@ export class GDScriptPlugin extends CodegenPlugin {
       // from_dict method
       this.emit('');
       this.emit(`\tstatic func from_dict(data: Dictionary) -> ${irObject.name}:`);
+      if (this.typeNeedsTolerantNullableDecoder(irObject.name, this.schema)) {
+        this.emitRequiredEnumGuards(fields);
+      }
       this.emit(`\t\tvar obj = ${irObject.name}.new()`);
       for (const field of fields) {
         const fieldName = this.getGdscriptFieldName(field.name, irObject.name);
@@ -436,8 +441,10 @@ export class GDScriptPlugin extends CodegenPlugin {
       const typeName = type.name!;
       this.emit(`\t\t\tif data["${graphqlName}"] is Dictionary:`);
       this.emit(`\t\t\t\tobj.${fieldName} = ${typeName}.from_dict(data["${graphqlName}"])`);
-      this.emit(`\t\t\telse:`);
-      this.emit(`\t\t\t\tobj.${fieldName} = data["${graphqlName}"]`);
+      if (!type.nullable || !this.typeHasRequiredEnumWithoutUnknown(typeName, this.schema)) {
+        this.emit(`\t\t\telse:`);
+        this.emit(`\t\t\t\tobj.${fieldName} = data["${graphqlName}"]`);
+      }
     } else if (type.kind === 'enum') {
       this.emitEnumFromDictAssignment('\t\t\t', `obj.${fieldName}`, type.name!, `data["${graphqlName}"]`);
     } else {
@@ -625,6 +632,9 @@ export class GDScriptPlugin extends CodegenPlugin {
       // from_dict method
       this.emit('');
       this.emit(`\tstatic func from_dict(data: Dictionary) -> ${irInput.name}:`);
+      if (this.typeNeedsTolerantNullableDecoder(irInput.name, this.schema)) {
+        this.emitRequiredEnumGuards(fields);
+      }
       this.emit(`\t\tvar obj = ${irInput.name}.new()`);
       for (const field of fields) {
         const fieldName = this.getGdscriptFieldName(field.name, irInput.name);
@@ -644,6 +654,24 @@ export class GDScriptPlugin extends CodegenPlugin {
     }
 
     this.emit('');
+  }
+
+  private emitRequiredEnumGuards(fields: IRField[]): void {
+    for (const field of fields) {
+      if (field.type.kind !== 'enum' || field.type.nullable || !field.type.name) continue;
+      const irEnum = this.schema.enums.find((candidate) => candidate.name === field.type.name);
+      if (!irEnum || this.enumUnknownValue(irEnum)) continue;
+      const source = `data["${field.name}"]`;
+      const lookup = `${toConstantCase(field.type.name)}_FROM_STRING`;
+      if (field.defaultValue === undefined) {
+        this.emit(`\t\tif not data.has("${field.name}") or not ${source} is String or not ${lookup}.has(${source}):`);
+      } else {
+        this.emit(
+          `\t\tif data.has("${field.name}") and ${source} != null and (not ${source} is String or not ${lookup}.has(${source})):`,
+        );
+      }
+      this.emit('\t\t\treturn null');
+    }
   }
 
   /**
@@ -739,8 +767,10 @@ export class GDScriptPlugin extends CodegenPlugin {
       const typeName = type.name!;
       this.emit(`\t\t\tif data["${graphqlName}"] is Dictionary:`);
       this.emit(`\t\t\t\tobj.${fieldName} = ${typeName}.from_dict(data["${graphqlName}"])`);
-      this.emit(`\t\t\telse:`);
-      this.emit(`\t\t\t\tobj.${fieldName} = data["${graphqlName}"]`);
+      if (!type.nullable || !this.typeHasRequiredEnumWithoutUnknown(typeName, this.schema)) {
+        this.emit(`\t\t\telse:`);
+        this.emit(`\t\t\t\tobj.${fieldName} = data["${graphqlName}"]`);
+      }
     } else if (type.kind === 'enum') {
       this.emitEnumFromDictAssignment('\t\t\t', `obj.${fieldName}`, type.name!, `data["${graphqlName}"]`);
     } else {

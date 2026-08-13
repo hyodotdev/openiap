@@ -392,7 +392,7 @@ public enum class ErrorCode(val rawValue: String) {
             "duplicate-purchase" -> ErrorCode.DuplicatePurchase
             "DUPLICATE_PURCHASE" -> ErrorCode.DuplicatePurchase
             "DuplicatePurchase" -> ErrorCode.DuplicatePurchase
-            else -> throw IllegalArgumentException("Unknown ErrorCode value: $value")
+            else -> ErrorCode.Unknown
         }
     }
 
@@ -687,7 +687,7 @@ public enum class IapkitPurchaseState(val rawValue: String) {
             "UNKNOWN" -> IapkitPurchaseState.Unknown
             "inauthentic" -> IapkitPurchaseState.Inauthentic
             "INAUTHENTIC" -> IapkitPurchaseState.Inauthentic
-            else -> throw IllegalArgumentException("Unknown IapkitPurchaseState value: $value")
+            else -> IapkitPurchaseState.Unknown
         }
     }
 
@@ -736,7 +736,7 @@ public enum class IapStore(val rawValue: String) {
             "amazon" -> IapStore.Amazon
             "AMAZON" -> IapStore.Amazon
             "Amazon" -> IapStore.Amazon
-            else -> throw IllegalArgumentException("Unknown IapStore value: $value")
+            else -> IapStore.Unknown
         }
     }
 
@@ -764,7 +764,7 @@ public enum class InAppMessageCategoryAndroid(val rawValue: String) {
             "UNKNOWN_IN_APP_MESSAGE_CATEGORY_ID" -> InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId
             "transactional" -> InAppMessageCategoryAndroid.Transactional
             "TRANSACTIONAL" -> InAppMessageCategoryAndroid.Transactional
-            else -> throw IllegalArgumentException("Unknown InAppMessageCategoryAndroid value: $value")
+            else -> InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId
         }
     }
 
@@ -835,7 +835,7 @@ public enum class PaymentMode(val rawValue: String) {
             "unknown" -> PaymentMode.Unknown
             "UNKNOWN" -> PaymentMode.Unknown
             "Unknown" -> PaymentMode.Unknown
-            else -> throw IllegalArgumentException("Unknown PaymentMode value: $value")
+            else -> PaymentMode.Unknown
         }
     }
 
@@ -926,7 +926,7 @@ public enum class ProductStatusAndroid(val rawValue: String) {
             "NO_OFFERS_AVAILABLE" -> ProductStatusAndroid.NoOffersAvailable
             "unknown" -> ProductStatusAndroid.Unknown
             "UNKNOWN" -> ProductStatusAndroid.Unknown
-            else -> throw IllegalArgumentException("Unknown ProductStatusAndroid value: $value")
+            else -> ProductStatusAndroid.Unknown
         }
     }
 
@@ -1009,7 +1009,7 @@ public enum class PurchaseState(val rawValue: String) {
             "unknown" -> PurchaseState.Unknown
             "UNKNOWN" -> PurchaseState.Unknown
             "Unknown" -> PurchaseState.Unknown
-            else -> throw IllegalArgumentException("Unknown PurchaseState value: $value")
+            else -> PurchaseState.Unknown
         }
     }
 
@@ -1089,7 +1089,7 @@ public enum class SubscriptionBillingPlanTypeIOS(val rawValue: String) {
             "up-front" -> SubscriptionBillingPlanTypeIOS.UpFront
             "UP_FRONT" -> SubscriptionBillingPlanTypeIOS.UpFront
             "UpFront" -> SubscriptionBillingPlanTypeIOS.UpFront
-            else -> throw IllegalArgumentException("Unknown SubscriptionBillingPlanTypeIOS value: $value")
+            else -> SubscriptionBillingPlanTypeIOS.Unknown
         }
     }
 
@@ -1181,7 +1181,7 @@ public enum class SubscriptionPeriodUnit(val rawValue: String) {
             "unknown" -> SubscriptionPeriodUnit.Unknown
             "UNKNOWN" -> SubscriptionPeriodUnit.Unknown
             "Unknown" -> SubscriptionPeriodUnit.Unknown
-            else -> throw IllegalArgumentException("Unknown SubscriptionPeriodUnit value: $value")
+            else -> SubscriptionPeriodUnit.Unknown
         }
     }
 
@@ -1239,7 +1239,7 @@ public enum class SubscriptionReplacementModeAndroid(val rawValue: String) {
             "DEFERRED" -> SubscriptionReplacementModeAndroid.Deferred
             "keep-existing" -> SubscriptionReplacementModeAndroid.KeepExisting
             "KEEP_EXISTING" -> SubscriptionReplacementModeAndroid.KeepExisting
-            else -> throw IllegalArgumentException("Unknown SubscriptionReplacementModeAndroid value: $value")
+            else -> SubscriptionReplacementModeAndroid.UnknownReplacementMode
         }
     }
 
@@ -1426,7 +1426,7 @@ public data class AdvancedCommerceInfoIOS(
                 displayName = json["displayName"] as? String,
                 estimatedTax = json["estimatedTax"] as? String,
                 items = (json["items"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { AdvancedCommerceItemIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for AdvancedCommerceItemIOS") } ?: emptyList(),
-                period = (json["period"] as? Map<String, Any?>)?.let { SubscriptionPeriodValueIOS.fromJson(it) },
+                period = (json["period"] as? Map<String, Any?>)?.let { runCatching { SubscriptionPeriodValueIOS.fromJson(it) }.getOrNull() },
                 requestReferenceId = json["requestReferenceId"] as? String,
                 taxCode = json["taxCode"] as? String,
                 taxExclusivePrice = json["taxExclusivePrice"] as? String,
@@ -2260,7 +2260,7 @@ public data class IapkitProductClientPayload(
         fun fromJson(json: Map<String, Any?>): IapkitProductClientPayload {
             return IapkitProductClientPayload(
                 body = json["body"] as? String ?: "",
-                format = (json["format"] as? String)?.let { IapkitClientPayloadFormat.fromJson(it) } ?: IapkitClientPayloadFormat.Toml,
+                format = (json["format"] as? String)?.let { IapkitClientPayloadFormat.fromJson(it) } ?: throw IllegalArgumentException("Missing required enum value for IapkitClientPayloadFormat"),
                 updatedAt = (json["updatedAt"] as? Number)?.toDouble() ?: 0.0,
                 version = (json["version"] as? Number)?.toDouble() ?: 0.0,
             )
@@ -2543,7 +2543,7 @@ public data class ProductAndroid(
                 nameAndroid = json["nameAndroid"] as? String ?: "",
                 platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: IapPlatform.Ios,
                 price = (json["price"] as? Number)?.toDouble(),
-                productStatusAndroid = (json["productStatusAndroid"] as? String)?.let { runCatching { ProductStatusAndroid.fromJson(it) }.getOrNull() ?: ProductStatusAndroid.Unknown },
+                productStatusAndroid = (json["productStatusAndroid"] as? String)?.let { ProductStatusAndroid.fromJson(it) },
                 subscriptionOffers = (json["subscriptionOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionOffer.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionOffer") },
                 title = json["title"] as? String ?: "",
                 type = (json["type"] as? String)?.let { ProductType.fromJson(it) } ?: ProductType.InApp,
@@ -2683,7 +2683,7 @@ public data class ProductSubscriptionAndroid(
                 nameAndroid = json["nameAndroid"] as? String ?: "",
                 platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: IapPlatform.Ios,
                 price = (json["price"] as? Number)?.toDouble(),
-                productStatusAndroid = (json["productStatusAndroid"] as? String)?.let { runCatching { ProductStatusAndroid.fromJson(it) }.getOrNull() ?: ProductStatusAndroid.Unknown },
+                productStatusAndroid = (json["productStatusAndroid"] as? String)?.let { ProductStatusAndroid.fromJson(it) },
                 subscriptionOffers = (json["subscriptionOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionOffer.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionOffer") } ?: emptyList(),
                 title = json["title"] as? String ?: "",
                 type = (json["type"] as? String)?.let { ProductType.fromJson(it) } ?: ProductType.InApp,
@@ -2886,11 +2886,11 @@ public data class PurchaseAndroid(
                 packageNameAndroid = json["packageNameAndroid"] as? String,
                 pendingPurchaseUpdateAndroid = (json["pendingPurchaseUpdateAndroid"] as? Map<String, Any?>)?.let { PendingPurchaseUpdateAndroid.fromJson(it) },
                 productId = json["productId"] as? String ?: "",
-                purchaseState = runCatching { (json["purchaseState"] as? String)?.let { PurchaseState.fromJson(it) } }.getOrNull() ?: PurchaseState.Unknown,
+                purchaseState = (json["purchaseState"] as? String)?.let { PurchaseState.fromJson(it) } ?: PurchaseState.Unknown,
                 purchaseToken = json["purchaseToken"] as? String,
                 quantity = (json["quantity"] as? Number)?.toInt() ?: 0,
                 signatureAndroid = json["signatureAndroid"] as? String,
-                store = runCatching { (json["store"] as? String)?.let { IapStore.fromJson(it) } }.getOrNull() ?: IapStore.Unknown,
+                store = (json["store"] as? String)?.let { IapStore.fromJson(it) } ?: IapStore.Unknown,
                 transactionDate = (json["transactionDate"] as? Number)?.toDouble() ?: 0.0,
                 transactionId = json["transactionId"] as? String,
                 userIdAmazon = json["userIdAmazon"] as? String,
@@ -2967,7 +2967,7 @@ public data class PurchaseError(
     companion object {
         fun fromJson(json: Map<String, Any?>): PurchaseError {
             return PurchaseError(
-                code = runCatching { (json["code"] as? String)?.let { ErrorCode.fromJson(it) } }.getOrNull() ?: ErrorCode.Unknown,
+                code = (json["code"] as? String)?.let { ErrorCode.fromJson(it) } ?: ErrorCode.Unknown,
                 debugMessage = json["debugMessage"] as? String,
                 isEmptyProductList = json["isEmptyProductList"] as? Boolean,
                 message = json["message"] as? String ?: "",
@@ -3089,7 +3089,7 @@ public data class PurchaseIOS(
                 advancedCommerceInfoIOS = (json["advancedCommerceInfoIOS"] as? Map<String, Any?>)?.let { AdvancedCommerceInfoIOS.fromJson(it) },
                 appAccountToken = json["appAccountToken"] as? String,
                 appBundleIdIOS = json["appBundleIdIOS"] as? String,
-                billingPlanTypeIOS = (json["billingPlanTypeIOS"] as? String)?.let { runCatching { SubscriptionBillingPlanTypeIOS.fromJson(it) }.getOrNull() ?: SubscriptionBillingPlanTypeIOS.Unknown },
+                billingPlanTypeIOS = (json["billingPlanTypeIOS"] as? String)?.let { SubscriptionBillingPlanTypeIOS.fromJson(it) },
                 bundleOriginalTransactionIdIOS = json["bundleOriginalTransactionIdIOS"] as? String,
                 bundleProductIdIOS = json["bundleProductIdIOS"] as? String,
                 bundleSubscriptionGroupIdIOS = json["bundleSubscriptionGroupIdIOS"] as? String,
@@ -3111,7 +3111,7 @@ public data class PurchaseIOS(
                 ownershipTypeIOS = json["ownershipTypeIOS"] as? String,
                 previousOriginalTransactionIdIOS = json["previousOriginalTransactionIdIOS"] as? String,
                 productId = json["productId"] as? String ?: "",
-                purchaseState = runCatching { (json["purchaseState"] as? String)?.let { PurchaseState.fromJson(it) } }.getOrNull() ?: PurchaseState.Unknown,
+                purchaseState = (json["purchaseState"] as? String)?.let { PurchaseState.fromJson(it) } ?: PurchaseState.Unknown,
                 purchaseToken = json["purchaseToken"] as? String,
                 quantity = (json["quantity"] as? Number)?.toInt() ?: 0,
                 quantityIOS = (json["quantityIOS"] as? Number)?.toInt(),
@@ -3121,7 +3121,7 @@ public data class PurchaseIOS(
                 revocationDateIOS = (json["revocationDateIOS"] as? Number)?.toDouble(),
                 revocationReasonIOS = json["revocationReasonIOS"] as? String,
                 revocationTypeIOS = json["revocationTypeIOS"] as? String,
-                store = runCatching { (json["store"] as? String)?.let { IapStore.fromJson(it) } }.getOrNull() ?: IapStore.Unknown,
+                store = (json["store"] as? String)?.let { IapStore.fromJson(it) } ?: IapStore.Unknown,
                 storefrontCountryCodeIOS = json["storefrontCountryCodeIOS"] as? String,
                 subscriptionGroupIdIOS = json["subscriptionGroupIdIOS"] as? String,
                 transactionDate = (json["transactionDate"] as? Number)?.toDouble() ?: 0.0,
@@ -3237,7 +3237,7 @@ public data class RenewalCommitmentInfoIOS(
             return RenewalCommitmentInfoIOS(
                 commitmentAutoRenewProductId = json["commitmentAutoRenewProductId"] as? String ?: "",
                 commitmentAutoRenewStatus = json["commitmentAutoRenewStatus"] as? Boolean ?: false,
-                commitmentRenewalBillingPlanType = runCatching { (json["commitmentRenewalBillingPlanType"] as? String)?.let { SubscriptionBillingPlanTypeIOS.fromJson(it) } }.getOrNull() ?: SubscriptionBillingPlanTypeIOS.Unknown,
+                commitmentRenewalBillingPlanType = (json["commitmentRenewalBillingPlanType"] as? String)?.let { SubscriptionBillingPlanTypeIOS.fromJson(it) } ?: SubscriptionBillingPlanTypeIOS.Unknown,
                 commitmentRenewalDate = (json["commitmentRenewalDate"] as? Number)?.toDouble() ?: 0.0,
                 commitmentRenewalPrice = (json["commitmentRenewalPrice"] as? Number)?.toDouble() ?: 0.0,
             )
@@ -3342,7 +3342,7 @@ public data class RenewalInfoIOS(
                 jsonRepresentation = json["jsonRepresentation"] as? String,
                 pendingUpgradeProductId = json["pendingUpgradeProductId"] as? String,
                 priceIncreaseStatus = json["priceIncreaseStatus"] as? String,
-                renewalBillingPlanType = (json["renewalBillingPlanType"] as? String)?.let { runCatching { SubscriptionBillingPlanTypeIOS.fromJson(it) }.getOrNull() ?: SubscriptionBillingPlanTypeIOS.Unknown },
+                renewalBillingPlanType = (json["renewalBillingPlanType"] as? String)?.let { SubscriptionBillingPlanTypeIOS.fromJson(it) },
                 renewalDate = (json["renewalDate"] as? Number)?.toDouble(),
                 renewalOfferId = json["renewalOfferId"] as? String,
                 renewalOfferType = json["renewalOfferType"] as? String,
@@ -3492,9 +3492,9 @@ public data class RequestVerifyPurchaseWithIapkitResult(
         fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitResult {
             return RequestVerifyPurchaseWithIapkitResult(
                 isValid = json["isValid"] as? Boolean ?: false,
-                state = runCatching { (json["state"] as? String)?.let { IapkitPurchaseState.fromJson(it) } }.getOrNull() ?: IapkitPurchaseState.Unknown,
-                store = runCatching { (json["store"] as? String)?.let { IapStore.fromJson(it) } }.getOrNull() ?: IapStore.Unknown,
-                clientPayload = (json["clientPayload"] as? Map<String, Any?>)?.let { IapkitProductClientPayload.fromJson(it) },
+                state = (json["state"] as? String)?.let { IapkitPurchaseState.fromJson(it) } ?: IapkitPurchaseState.Unknown,
+                store = (json["store"] as? String)?.let { IapStore.fromJson(it) } ?: IapStore.Unknown,
+                clientPayload = (json["clientPayload"] as? Map<String, Any?>)?.let { runCatching { IapkitProductClientPayload.fromJson(it) }.getOrNull() },
                 productId = json["productId"] as? String,
                 environment = json["environment"] as? String,
             )
@@ -3650,7 +3650,7 @@ public data class SubscriptionOffer(
                 numberOfPeriodsIOS = (json["numberOfPeriodsIOS"] as? Number)?.toInt(),
                 offerTagsAndroid = (json["offerTagsAndroid"] as? List<*>)?.mapNotNull { it as? String },
                 offerTokenAndroid = json["offerTokenAndroid"] as? String,
-                paymentMode = (json["paymentMode"] as? String)?.let { runCatching { PaymentMode.fromJson(it) }.getOrNull() ?: PaymentMode.Unknown },
+                paymentMode = (json["paymentMode"] as? String)?.let { PaymentMode.fromJson(it) },
                 period = (json["period"] as? Map<String, Any?>)?.let { SubscriptionPeriod.fromJson(it) },
                 periodCount = (json["periodCount"] as? Number)?.toInt(),
                 price = (json["price"] as? Number)?.toDouble() ?: 0.0,
@@ -3703,7 +3703,7 @@ public data class SubscriptionPeriod(
     companion object {
         fun fromJson(json: Map<String, Any?>): SubscriptionPeriod {
             return SubscriptionPeriod(
-                unit = runCatching { (json["unit"] as? String)?.let { SubscriptionPeriodUnit.fromJson(it) } }.getOrNull() ?: SubscriptionPeriodUnit.Unknown,
+                unit = (json["unit"] as? String)?.let { SubscriptionPeriodUnit.fromJson(it) } ?: SubscriptionPeriodUnit.Unknown,
                 value = (json["value"] as? Number)?.toInt() ?: 0,
             )
         }
@@ -3751,7 +3751,7 @@ public data class SubscriptionPricingTermsIOS(
             return SubscriptionPricingTermsIOS(
                 billingDisplayPrice = json["billingDisplayPrice"] as? String ?: "",
                 billingPeriod = (json["billingPeriod"] as? Map<String, Any?>)?.let { SubscriptionPeriodValueIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionPeriodValueIOS"),
-                billingPlanType = runCatching { (json["billingPlanType"] as? String)?.let { SubscriptionBillingPlanTypeIOS.fromJson(it) } }.getOrNull() ?: SubscriptionBillingPlanTypeIOS.Unknown,
+                billingPlanType = (json["billingPlanType"] as? String)?.let { SubscriptionBillingPlanTypeIOS.fromJson(it) } ?: SubscriptionBillingPlanTypeIOS.Unknown,
                 billingPrice = (json["billingPrice"] as? Number)?.toDouble() ?: 0.0,
                 commitmentInfo = (json["commitmentInfo"] as? Map<String, Any?>)?.let { SubscriptionCommitmentInfoIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionCommitmentInfoIOS"),
                 subscriptionOffers = (json["subscriptionOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionOffer.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionOffer") },
@@ -4239,7 +4239,7 @@ public data class DeveloperBillingOptionParamsAndroid(
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): DeveloperBillingOptionParamsAndroid? {
-            val billingProgram = (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJson(it) } ?: BillingProgramAndroid.Unspecified
+            val billingProgram = (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJson(it) } ?: throw IllegalArgumentException("Missing required enum value for BillingProgramAndroid")
             val externalTransactionToken = json["externalTransactionToken"] as? String
             val launchMode = (json["launchMode"] as? String)?.let { DeveloperBillingLaunchModeAndroid.fromJson(it) }
             val linkUri = json["linkUri"] as? String
@@ -4358,7 +4358,7 @@ public data class InAppMessageParamsAndroid(
     companion object {
         fun fromJson(json: Map<String, Any?>): InAppMessageParamsAndroid {
             return InAppMessageParamsAndroid(
-                categories = (json["categories"] as? List<*>)?.mapNotNull { runCatching { (it as? String)?.let { InAppMessageCategoryAndroid.fromJson(it) } }.getOrNull() ?: InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId } ?: listOf(InAppMessageCategoryAndroid.Transactional),
+                categories = (json["categories"] as? List<*>)?.mapNotNull { (it as? String)?.let { InAppMessageCategoryAndroid.fromJson(it) } ?: InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId } ?: listOf(InAppMessageCategoryAndroid.Transactional),
             )
         }
     }
@@ -4614,7 +4614,7 @@ public data class RequestPurchaseAndroidProps(
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestPurchaseAndroidProps? {
-            val developerBillingOption = (json["developerBillingOption"] as? Map<String, Any?>)?.let { DeveloperBillingOptionParamsAndroid.fromJson(it) }
+            val developerBillingOption = (json["developerBillingOption"] as? Map<String, Any?>)?.let { runCatching { DeveloperBillingOptionParamsAndroid.fromJson(it) }.getOrNull() }
             val isOfferPersonalized = json["isOfferPersonalized"] as? Boolean
             val obfuscatedAccountId = json["obfuscatedAccountId"] as? String
             val obfuscatedProfileId = json["obfuscatedProfileId"] as? String
@@ -4846,7 +4846,7 @@ public data class RequestSubscriptionAndroidProps(
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestSubscriptionAndroidProps? {
-            val developerBillingOption = (json["developerBillingOption"] as? Map<String, Any?>)?.let { DeveloperBillingOptionParamsAndroid.fromJson(it) }
+            val developerBillingOption = (json["developerBillingOption"] as? Map<String, Any?>)?.let { runCatching { DeveloperBillingOptionParamsAndroid.fromJson(it) }.getOrNull() }
             val isOfferPersonalized = json["isOfferPersonalized"] as? Boolean
             val obfuscatedAccountId = json["obfuscatedAccountId"] as? String
             val obfuscatedProfileId = json["obfuscatedProfileId"] as? String
@@ -4931,7 +4931,7 @@ public data class RequestSubscriptionIosProps(
             val advancedCommerceData = json["advancedCommerceData"] as? String
             val andDangerouslyFinishTransactionAutomatically = json["andDangerouslyFinishTransactionAutomatically"] as? Boolean
             val appAccountToken = json["appAccountToken"] as? String
-            val billingPlanType = (json["billingPlanType"] as? String)?.let { runCatching { SubscriptionBillingPlanTypeIOS.fromJson(it) }.getOrNull() ?: SubscriptionBillingPlanTypeIOS.Unknown }
+            val billingPlanType = (json["billingPlanType"] as? String)?.let { SubscriptionBillingPlanTypeIOS.fromJson(it) }
             val compactJWS = json["compactJWS"] as? String
             val promotionalOfferJWS = (json["promotionalOfferJWS"] as? Map<String, Any?>)?.let { PromotionalOfferJWSInputIOS.fromJson(it) }
             val quantity = (json["quantity"] as? Number)?.toInt()
@@ -5203,7 +5203,7 @@ public data class SubscriptionProductReplacementParamsAndroid(
     companion object {
         fun fromJson(json: Map<String, Any?>): SubscriptionProductReplacementParamsAndroid? {
             val oldProductId = json["oldProductId"] as? String
-            val replacementMode = runCatching { (json["replacementMode"] as? String)?.let { SubscriptionReplacementModeAndroid.fromJson(it) } }.getOrNull() ?: SubscriptionReplacementModeAndroid.UnknownReplacementMode
+            val replacementMode = (json["replacementMode"] as? String)?.let { SubscriptionReplacementModeAndroid.fromJson(it) } ?: SubscriptionReplacementModeAndroid.UnknownReplacementMode
             if (oldProductId == null) return null
             return SubscriptionProductReplacementParamsAndroid(
                 oldProductId = oldProductId,

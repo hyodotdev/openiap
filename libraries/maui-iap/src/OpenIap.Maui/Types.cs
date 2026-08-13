@@ -607,7 +607,7 @@ public sealed class ErrorCodeJsonConverter : JsonConverter<ErrorCode>
     {
         var raw = reader.GetString();
         if (raw is not null && _fromString.TryGetValue(raw, out var value)) return value;
-        throw new JsonException($"Unknown ErrorCode value: {raw}");
+        return ErrorCode.Unknown;
     }
 
     public override void Write(Utf8JsonWriter writer, ErrorCode value, JsonSerializerOptions options)
@@ -617,7 +617,7 @@ public sealed class ErrorCodeJsonConverter : JsonConverter<ErrorCode>
 
     internal static string ToRawString(ErrorCode value) => _toString[value];
     internal static ErrorCode FromRawString(string value) =>
-        _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown ErrorCode value: {value}");
+        _fromString.TryGetValue(value, out var v) ? v : ErrorCode.Unknown;
 }
 
 public static class ErrorCodeExtensions
@@ -1107,7 +1107,7 @@ public sealed class IapkitPurchaseStateJsonConverter : JsonConverter<IapkitPurch
     {
         var raw = reader.GetString();
         if (raw is not null && _fromString.TryGetValue(raw, out var value)) return value;
-        throw new JsonException($"Unknown IapkitPurchaseState value: {raw}");
+        return IapkitPurchaseState.Unknown;
     }
 
     public override void Write(Utf8JsonWriter writer, IapkitPurchaseState value, JsonSerializerOptions options)
@@ -1117,7 +1117,7 @@ public sealed class IapkitPurchaseStateJsonConverter : JsonConverter<IapkitPurch
 
     internal static string ToRawString(IapkitPurchaseState value) => _toString[value];
     internal static IapkitPurchaseState FromRawString(string value) =>
-        _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown IapkitPurchaseState value: {value}");
+        _fromString.TryGetValue(value, out var v) ? v : IapkitPurchaseState.Unknown;
 }
 
 public static class IapkitPurchaseStateExtensions
@@ -1217,7 +1217,7 @@ public sealed class IapStoreJsonConverter : JsonConverter<IapStore>
     {
         var raw = reader.GetString();
         if (raw is not null && _fromString.TryGetValue(raw, out var value)) return value;
-        throw new JsonException($"Unknown IapStore value: {raw}");
+        return IapStore.Unknown;
     }
 
     public override void Write(Utf8JsonWriter writer, IapStore value, JsonSerializerOptions options)
@@ -1227,7 +1227,7 @@ public sealed class IapStoreJsonConverter : JsonConverter<IapStore>
 
     internal static string ToRawString(IapStore value) => _toString[value];
     internal static IapStore FromRawString(string value) =>
-        _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown IapStore value: {value}");
+        _fromString.TryGetValue(value, out var v) ? v : IapStore.Unknown;
 }
 
 public static class IapStoreExtensions
@@ -1270,7 +1270,7 @@ public sealed class InAppMessageCategoryAndroidJsonConverter : JsonConverter<InA
     {
         var raw = reader.GetString();
         if (raw is not null && _fromString.TryGetValue(raw, out var value)) return value;
-        throw new JsonException($"Unknown InAppMessageCategoryAndroid value: {raw}");
+        return InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId;
     }
 
     public override void Write(Utf8JsonWriter writer, InAppMessageCategoryAndroid value, JsonSerializerOptions options)
@@ -1280,7 +1280,7 @@ public sealed class InAppMessageCategoryAndroidJsonConverter : JsonConverter<InA
 
     internal static string ToRawString(InAppMessageCategoryAndroid value) => _toString[value];
     internal static InAppMessageCategoryAndroid FromRawString(string value) =>
-        _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown InAppMessageCategoryAndroid value: {value}");
+        _fromString.TryGetValue(value, out var v) ? v : InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId;
 }
 
 public static class InAppMessageCategoryAndroidExtensions
@@ -1389,7 +1389,7 @@ public sealed class PaymentModeJsonConverter : JsonConverter<PaymentMode>
     {
         var raw = reader.GetString();
         if (raw is not null && _fromString.TryGetValue(raw, out var value)) return value;
-        throw new JsonException($"Unknown PaymentMode value: {raw}");
+        return PaymentMode.Unknown;
     }
 
     public override void Write(Utf8JsonWriter writer, PaymentMode value, JsonSerializerOptions options)
@@ -1399,7 +1399,7 @@ public sealed class PaymentModeJsonConverter : JsonConverter<PaymentMode>
 
     internal static string ToRawString(PaymentMode value) => _toString[value];
     internal static PaymentMode FromRawString(string value) =>
-        _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown PaymentMode value: {value}");
+        _fromString.TryGetValue(value, out var v) ? v : PaymentMode.Unknown;
 }
 
 public static class PaymentModeExtensions
@@ -1564,7 +1564,7 @@ public sealed class ProductStatusAndroidJsonConverter : JsonConverter<ProductSta
     {
         var raw = reader.GetString();
         if (raw is not null && _fromString.TryGetValue(raw, out var value)) return value;
-        throw new JsonException($"Unknown ProductStatusAndroid value: {raw}");
+        return ProductStatusAndroid.Unknown;
     }
 
     public override void Write(Utf8JsonWriter writer, ProductStatusAndroid value, JsonSerializerOptions options)
@@ -1574,7 +1574,7 @@ public sealed class ProductStatusAndroidJsonConverter : JsonConverter<ProductSta
 
     internal static string ToRawString(ProductStatusAndroid value) => _toString[value];
     internal static ProductStatusAndroid FromRawString(string value) =>
-        _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown ProductStatusAndroid value: {value}");
+        _fromString.TryGetValue(value, out var v) ? v : ProductStatusAndroid.Unknown;
 }
 
 public static class ProductStatusAndroidExtensions
@@ -1735,7 +1735,7 @@ public sealed class PurchaseStateJsonConverter : JsonConverter<PurchaseState>
     {
         var raw = reader.GetString();
         if (raw is not null && _fromString.TryGetValue(raw, out var value)) return value;
-        throw new JsonException($"Unknown PurchaseState value: {raw}");
+        return PurchaseState.Unknown;
     }
 
     public override void Write(Utf8JsonWriter writer, PurchaseState value, JsonSerializerOptions options)
@@ -1745,7 +1745,7 @@ public sealed class PurchaseStateJsonConverter : JsonConverter<PurchaseState>
 
     internal static string ToRawString(PurchaseState value) => _toString[value];
     internal static PurchaseState FromRawString(string value) =>
-        _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown PurchaseState value: {value}");
+        _fromString.TryGetValue(value, out var v) ? v : PurchaseState.Unknown;
 }
 
 public static class PurchaseStateExtensions
@@ -1891,7 +1891,7 @@ public sealed class SubscriptionBillingPlanTypeIOSJsonConverter : JsonConverter<
     {
         var raw = reader.GetString();
         if (raw is not null && _fromString.TryGetValue(raw, out var value)) return value;
-        throw new JsonException($"Unknown SubscriptionBillingPlanTypeIOS value: {raw}");
+        return SubscriptionBillingPlanTypeIOS.Unknown;
     }
 
     public override void Write(Utf8JsonWriter writer, SubscriptionBillingPlanTypeIOS value, JsonSerializerOptions options)
@@ -1901,7 +1901,7 @@ public sealed class SubscriptionBillingPlanTypeIOSJsonConverter : JsonConverter<
 
     internal static string ToRawString(SubscriptionBillingPlanTypeIOS value) => _toString[value];
     internal static SubscriptionBillingPlanTypeIOS FromRawString(string value) =>
-        _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown SubscriptionBillingPlanTypeIOS value: {value}");
+        _fromString.TryGetValue(value, out var v) ? v : SubscriptionBillingPlanTypeIOS.Unknown;
 }
 
 public static class SubscriptionBillingPlanTypeIOSExtensions
@@ -2075,7 +2075,7 @@ public sealed class SubscriptionPeriodUnitJsonConverter : JsonConverter<Subscrip
     {
         var raw = reader.GetString();
         if (raw is not null && _fromString.TryGetValue(raw, out var value)) return value;
-        throw new JsonException($"Unknown SubscriptionPeriodUnit value: {raw}");
+        return SubscriptionPeriodUnit.Unknown;
     }
 
     public override void Write(Utf8JsonWriter writer, SubscriptionPeriodUnit value, JsonSerializerOptions options)
@@ -2085,7 +2085,7 @@ public sealed class SubscriptionPeriodUnitJsonConverter : JsonConverter<Subscrip
 
     internal static string ToRawString(SubscriptionPeriodUnit value) => _toString[value];
     internal static SubscriptionPeriodUnit FromRawString(string value) =>
-        _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown SubscriptionPeriodUnit value: {value}");
+        _fromString.TryGetValue(value, out var v) ? v : SubscriptionPeriodUnit.Unknown;
 }
 
 public static class SubscriptionPeriodUnitExtensions
@@ -2153,7 +2153,7 @@ public sealed class SubscriptionReplacementModeAndroidJsonConverter : JsonConver
     {
         var raw = reader.GetString();
         if (raw is not null && _fromString.TryGetValue(raw, out var value)) return value;
-        throw new JsonException($"Unknown SubscriptionReplacementModeAndroid value: {raw}");
+        return SubscriptionReplacementModeAndroid.UnknownReplacementMode;
     }
 
     public override void Write(Utf8JsonWriter writer, SubscriptionReplacementModeAndroid value, JsonSerializerOptions options)
@@ -2163,7 +2163,7 @@ public sealed class SubscriptionReplacementModeAndroidJsonConverter : JsonConver
 
     internal static string ToRawString(SubscriptionReplacementModeAndroid value) => _toString[value];
     internal static SubscriptionReplacementModeAndroid FromRawString(string value) =>
-        _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown SubscriptionReplacementModeAndroid value: {value}");
+        _fromString.TryGetValue(value, out var v) ? v : SubscriptionReplacementModeAndroid.UnknownReplacementMode;
 }
 
 public static class SubscriptionReplacementModeAndroidExtensions
@@ -2374,6 +2374,7 @@ public sealed record AdvancedCommerceInfoIOS
     /// or visionOS 2.4+).
     /// </summary>
     [JsonPropertyName("period")]
+    [JsonConverter(typeof(SubscriptionPeriodValueIOSNullableJsonConverter))]
     public SubscriptionPeriodValueIOS? Period { get; init; }
     /// <summary>Request reference identifier for tracking</summary>
     [JsonPropertyName("requestReferenceId")]
@@ -2837,6 +2838,29 @@ public sealed record IapkitProductClientPayload
     public required double UpdatedAt { get; init; }
     [JsonPropertyName("version")]
     public required double Version { get; init; }
+}
+
+public sealed class IapkitProductClientPayloadNullableJsonConverter : JsonConverter<IapkitProductClientPayload?>
+{
+    public override IapkitProductClientPayload? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        using var document = JsonDocument.ParseValue(ref reader);
+        try
+        {
+            return document.RootElement.Deserialize<IapkitProductClientPayload>(options);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+    }
+
+    public override void Write(Utf8JsonWriter writer, IapkitProductClientPayload? value, JsonSerializerOptions options) =>
+        JsonSerializer.Serialize(writer, value, options);
 }
 
 /// <summary>
@@ -3515,6 +3539,7 @@ public sealed record RequestVerifyPurchaseWithIapkitResult
     /// Apple or Google receipt is valid, and a payload exists for that product.
     /// </summary>
     [JsonPropertyName("clientPayload")]
+    [JsonConverter(typeof(IapkitProductClientPayloadNullableJsonConverter))]
     public IapkitProductClientPayload? ClientPayload { get; init; }
     /// <summary>
     /// Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
@@ -3677,6 +3702,29 @@ public sealed record SubscriptionPeriodValueIOS
     public required SubscriptionPeriodIOS Unit { get; init; }
     [JsonPropertyName("value")]
     public required int Value { get; init; }
+}
+
+public sealed class SubscriptionPeriodValueIOSNullableJsonConverter : JsonConverter<SubscriptionPeriodValueIOS?>
+{
+    public override SubscriptionPeriodValueIOS? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        using var document = JsonDocument.ParseValue(ref reader);
+        try
+        {
+            return document.RootElement.Deserialize<SubscriptionPeriodValueIOS>(options);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+    }
+
+    public override void Write(Utf8JsonWriter writer, SubscriptionPeriodValueIOS? value, JsonSerializerOptions options) =>
+        JsonSerializer.Serialize(writer, value, options);
 }
 
 public sealed record SubscriptionPricingTermsIOS
@@ -3936,6 +3984,29 @@ public sealed record DeveloperBillingOptionParamsAndroid
     public string? ExternalTransactionToken { get; init; }
 }
 
+public sealed class DeveloperBillingOptionParamsAndroidNullableJsonConverter : JsonConverter<DeveloperBillingOptionParamsAndroid?>
+{
+    public override DeveloperBillingOptionParamsAndroid? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        using var document = JsonDocument.ParseValue(ref reader);
+        try
+        {
+            return document.RootElement.Deserialize<DeveloperBillingOptionParamsAndroid>(options);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+    }
+
+    public override void Write(Utf8JsonWriter writer, DeveloperBillingOptionParamsAndroid? value, JsonSerializerOptions options) =>
+        JsonSerializer.Serialize(writer, value, options);
+}
+
 public sealed record DiscountOfferInputIOS
 {
     /// <summary>Discount identifier</summary>
@@ -4132,6 +4203,7 @@ public sealed record RequestPurchaseAndroidProps
     /// (requires Play Billing 9.1.0+).
     /// </summary>
     [JsonPropertyName("developerBillingOption")]
+    [JsonConverter(typeof(DeveloperBillingOptionParamsAndroidNullableJsonConverter))]
     public DeveloperBillingOptionParamsAndroid? DeveloperBillingOption { get; init; }
 }
 
@@ -4258,6 +4330,7 @@ public sealed record RequestSubscriptionAndroidProps
     /// (requires Play Billing 9.1.0+).
     /// </summary>
     [JsonPropertyName("developerBillingOption")]
+    [JsonConverter(typeof(DeveloperBillingOptionParamsAndroidNullableJsonConverter))]
     public DeveloperBillingOptionParamsAndroid? DeveloperBillingOption { get; init; }
 }
 

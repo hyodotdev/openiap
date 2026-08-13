@@ -239,6 +239,30 @@ export abstract class CodegenPlugin {
     return fields;
   }
 
+  protected enumUnknownValue(irEnum: IREnum): IREnum['values'][number] | null {
+    return irEnum.values.find((value) => value.name.toLowerCase().startsWith('unknown')) ?? null;
+  }
+
+  protected typeHasRequiredEnumWithoutUnknown(typeName: string, schema: IRSchema): boolean {
+    const container = [...schema.objects, ...schema.inputs].find((candidate) => candidate.name === typeName);
+    return (
+      container?.fields.some((field) => {
+        if (field.type.kind !== 'enum' || field.type.nullable || !field.type.name) return false;
+        const irEnum = schema.enums.find((candidate) => candidate.name === field.type.name);
+        return irEnum !== undefined && this.enumUnknownValue(irEnum) === null;
+      }) ?? false
+    );
+  }
+
+  protected typeNeedsTolerantNullableDecoder(typeName: string, schema: IRSchema): boolean {
+    if (!this.typeHasRequiredEnumWithoutUnknown(typeName, schema)) return false;
+    return [...schema.objects, ...schema.inputs].some((container) =>
+      container.fields.some(
+        (field) => field.type.nullable && ['object', 'input'].includes(field.type.kind) && field.type.name === typeName,
+      ),
+    );
+  }
+
   /**
    * Resolve a custom input in canonical contract order. Language plugins own
    * rendering only; the field set and order live in CUSTOM_INPUT_CONTRACTS.

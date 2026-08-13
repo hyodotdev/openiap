@@ -184,7 +184,12 @@ export class DartPlugin extends CodegenPlugin {
     }
 
     this.emit('    }');
-    this.emit(`    throw ArgumentError('Unknown ${irEnum.name} value: \$value');`);
+    const unknownValue = this.enumUnknownValue(irEnum);
+    if (unknownValue) {
+      this.emit(`    return ${irEnum.name}.${this.escapeKeyword(this.enumValueCase(unknownValue.name))};`);
+    } else {
+      this.emit(`    throw ArgumentError('Unknown ${irEnum.name} value: \$value');`);
+    }
     this.emit('  }');
     this.emit('');
     this.emit('  String toJson() => value;');
@@ -295,6 +300,7 @@ export class DartPlugin extends CodegenPlugin {
     }
     this.emit('    );');
     this.emit('  }');
+    this.emitTolerantFromJsonHelper(irObject.name);
 
     // toJson method
     this.emit('');
@@ -398,6 +404,7 @@ export class DartPlugin extends CodegenPlugin {
     }
     this.emit('    );');
     this.emit('  }');
+    this.emitTolerantFromJsonHelper(irInput.name);
 
     // toJson method
     this.emit('');
@@ -824,12 +831,29 @@ export class DartPlugin extends CodegenPlugin {
     }
 
     if (['object', 'input', 'interface', 'union'].includes(type.kind)) {
+      if (type.nullable && this.typeHasRequiredEnumWithoutUnknown(type.name!, this.schema)) {
+        return `${sourceExpr} is Map<String, dynamic> ? ${type.name}._tryFromJson(${sourceExpr} as Map<String, dynamic>) : null`;
+      }
       return type.nullable
         ? `${sourceExpr} != null ? ${type.name}.fromJson(${sourceExpr} as Map<String, dynamic>) : null`
         : `${type.name}.fromJson(${sourceExpr} as Map<String, dynamic>)`;
     }
 
     return sourceExpr;
+  }
+
+  private emitTolerantFromJsonHelper(typeName: string): void {
+    if (!this.typeNeedsTolerantNullableDecoder(typeName, this.schema)) return;
+    this.emit('');
+    this.emit(`  static ${typeName}? _tryFromJson(Map<String, dynamic> json) {`);
+    this.emit('    try {');
+    this.emit(`      return ${typeName}.fromJson(json);`);
+    this.emit('    } on ArgumentError {');
+    this.emit('      return null;');
+    this.emit('    } on TypeError {');
+    this.emit('      return null;');
+    this.emit('    }');
+    this.emit('  }');
   }
 
   private buildDefaultValueExpression(field: IRField): string | null {

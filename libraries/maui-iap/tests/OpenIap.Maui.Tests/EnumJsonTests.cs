@@ -110,10 +110,10 @@ public class EnumJsonTests
     }
 
     [Fact]
-    public void ErrorCode_RejectsUnknownRawValue()
+    public void ErrorCode_DegradesUnknownRawValue()
     {
-        Assert.Throws<ArgumentException>(() => ErrorCodeExtensions.FromJson("no-such-code"));
-        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<ErrorCode>("\"no-such-code\""));
+        Assert.Equal(ErrorCode.Unknown, ErrorCodeExtensions.FromJson("no-such-code"));
+        Assert.Equal(ErrorCode.Unknown, JsonSerializer.Deserialize<ErrorCode>("\"no-such-code\""));
     }
 
     [Theory]

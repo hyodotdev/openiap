@@ -135,6 +135,46 @@ public class KitApiClientTests
     }
 
     [Fact]
+    public async Task Products_DropUnreadableProductsAndOffersIndependently()
+    {
+        using var handler = new RecordingHttpMessageHandler("""
+            {
+              "products": [
+                {
+                  "productId": "future.product",
+                  "platform": "Horizon",
+                  "type": "in-app",
+                  "title": "Future Product",
+                  "state": "active",
+                  "updatedAt": 1720000000000
+                },
+                {
+                  "productId": "premium.monthly",
+                  "platform": "IOS",
+                  "type": "subscription",
+                  "title": "Premium Monthly",
+                  "state": "active",
+                  "updatedAt": 1720000000001,
+                  "offers": [
+                    { "id": "broken-offer" },
+                    { "id": "intro", "kind": "introductory", "duration": "P1M" }
+                  ]
+                }
+              ]
+            }
+            """);
+        using var httpClient = new HttpClient(handler);
+        var client = CreateClient(httpClient);
+
+        var response = await client.ProductsAsync();
+
+        var product = Assert.Single(response.Products);
+        Assert.Equal("premium.monthly", product.ProductId);
+        var offer = Assert.Single(Assert.IsAssignableFrom<IReadOnlyList<KitProductOffer>>(product.Offers));
+        Assert.Equal("intro", offer.Id);
+    }
+
+    [Fact]
     public async Task ClientPayload_UsesEscapedUriAndDeserializes()
     {
         using var handler = new RecordingHttpMessageHandler("""
@@ -242,6 +282,32 @@ public class KitApiClientTests
     }
 
     [Fact]
+    public async Task Status_DropsSubscriptionWithUnknownPlatform()
+    {
+        using var handler = new RecordingHttpMessageHandler("""
+            {
+              "active": true,
+              "subscription": {
+                "id": "sub-1",
+                "productId": "premium.monthly",
+                "platform": "horizon",
+                "state": "active",
+                "startedAt": 1719000000000,
+                "updatedAt": 1720000000000,
+                "purchaseToken": "token-1"
+              }
+            }
+            """);
+        using var httpClient = new HttpClient(handler);
+        var client = CreateClient(httpClient);
+
+        var response = await client.StatusAsync("user-1");
+
+        Assert.True(response.Active);
+        Assert.Null(response.Subscription);
+    }
+
+    [Fact]
     public async Task Entitlements_BuildsUriAndDeserializes()
     {
         using var handler = new RecordingHttpMessageHandler("""
@@ -262,6 +328,44 @@ public class KitApiClientTests
         Assert.Equal("user-1", response.UserId);
         Assert.Equal(new[] { "premium.monthly", "coins.100" }, response.ProductIds);
         Assert.Empty(response.Subscriptions);
+    }
+
+    [Fact]
+    public async Task Entitlements_DropOnlySubscriptionsWithUnknownPlatform()
+    {
+        using var handler = new RecordingHttpMessageHandler("""
+            {
+              "userId": "user-1",
+              "productIds": ["premium.monthly"],
+              "subscriptions": [
+                {
+                  "id": "sub-future",
+                  "productId": "future.plan",
+                  "platform": "horizon",
+                  "state": "active",
+                  "startedAt": 1719000000000,
+                  "updatedAt": 1720000000000,
+                  "purchaseToken": "token-future"
+                },
+                {
+                  "id": "sub-ios",
+                  "productId": "premium.monthly",
+                  "platform": "ios",
+                  "state": "active",
+                  "startedAt": 1719000000001,
+                  "updatedAt": 1720000000001,
+                  "purchaseToken": "token-ios"
+                }
+              ]
+            }
+            """);
+        using var httpClient = new HttpClient(handler);
+        var client = CreateClient(httpClient);
+
+        var response = await client.EntitlementsAsync("user-1");
+
+        var subscription = Assert.Single(response.Subscriptions);
+        Assert.Equal("sub-ios", subscription.Id);
     }
 
     [Fact]

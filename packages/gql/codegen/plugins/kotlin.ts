@@ -227,7 +227,11 @@ export class KotlinPlugin extends CodegenPlugin {
       }
     }
 
-    this.emit(`            else -> throw IllegalArgumentException("Unknown ${irEnum.name} value: $value")`);
+    const unknownValue = this.enumUnknownValue(irEnum);
+    const unknownExpression = unknownValue
+      ? `${irEnum.name}.${this.escapeKeyword(this.enumValueCase(unknownValue.name))}`
+      : `throw IllegalArgumentException("Unknown ${irEnum.name} value: $value")`;
+    this.emit(`            else -> ${unknownExpression}`);
     this.emit('        }');
     this.emit('    }');
     this.emit('');
@@ -326,9 +330,18 @@ export class KotlinPlugin extends CodegenPlugin {
     this.emit(`        fun fromJson(json: Map<String, Any?>): ${irObject.name} {`);
     this.emit(`            return ${irObject.name}(`);
 
+    const rejectMissingStrictEnums = this.typeNeedsTolerantNullableDecoder(irObject.name, this.schema);
+
     for (const field of sortedFields) {
       const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
-      const expression = this.buildFromJsonExpression(field.type, `json["${field.name}"]`);
+      const expression = this.buildFromJsonExpression(
+        field.type,
+        `json["${field.name}"]`,
+        false,
+        false,
+        undefined,
+        rejectMissingStrictEnums,
+      );
       this.emit(`                ${propertyName} = ${expression},`);
     }
 
@@ -423,8 +436,16 @@ export class KotlinPlugin extends CodegenPlugin {
     this.emit('    companion object {');
     this.emit(`        fun fromJson(json: Map<String, Any?>): ${irObject.name} {`);
     this.emit(`            return ${irObject.name}(`);
+    const rejectMissingStrictEnums = this.typeNeedsTolerantNullableDecoder(irObject.name, this.schema);
     for (const value of [...primaryFields, ...extraFields]) {
-      const expression = this.buildFromJsonExpression(value.type, `json["${value.name}"]`);
+      const expression = this.buildFromJsonExpression(
+        value.type,
+        `json["${value.name}"]`,
+        false,
+        false,
+        undefined,
+        rejectMissingStrictEnums,
+      );
       this.emit(`                ${value.name} = ${expression},`);
     }
     this.emit('            )');
@@ -485,6 +506,7 @@ export class KotlinPlugin extends CodegenPlugin {
 
     // Sort fields alphabetically for Kotlin
     const sortedFields = [...irInput.fields].sort((a, b) => a.name.localeCompare(b.name));
+    const rejectMissingStrictEnums = this.typeNeedsTolerantNullableDecoder(irInput.name, this.schema);
 
     this.generateDocComment(irInput.description);
     this.generateDeprecationAnnotation(irInput.description);
@@ -518,6 +540,7 @@ export class KotlinPlugin extends CodegenPlugin {
           false,
           true,
           this.buildDefaultValueExpression(field),
+          rejectMissingStrictEnums,
         );
         this.emit(`            val ${propertyName} = ${expression}`);
       }
@@ -548,6 +571,7 @@ export class KotlinPlugin extends CodegenPlugin {
           false,
           false,
           this.buildDefaultValueExpression(field),
+          rejectMissingStrictEnums,
         );
         this.emit(`                ${propertyName} = ${expression},`);
       }
@@ -703,6 +727,7 @@ export class KotlinPlugin extends CodegenPlugin {
   }
 
   private generateStandardInput(irInput: IRInput): void {
+    const rejectMissingStrictEnums = this.typeNeedsTolerantNullableDecoder(irInput.name, this.schema);
     this.generateDocComment(irInput.description);
     this.generateDeprecationAnnotation(irInput.description);
     this.emit(`public data class ${irInput.name}(`);
@@ -735,6 +760,7 @@ export class KotlinPlugin extends CodegenPlugin {
           false,
           true,
           this.buildDefaultValueExpression(field),
+          rejectMissingStrictEnums,
         );
         this.emit(`            val ${propertyName} = ${expression}`);
       }
@@ -765,6 +791,7 @@ export class KotlinPlugin extends CodegenPlugin {
           false,
           false,
           this.buildDefaultValueExpression(field),
+          rejectMissingStrictEnums,
         );
         this.emit(`                ${propertyName} = ${expression},`);
       }
@@ -1039,9 +1066,17 @@ export class KotlinPlugin extends CodegenPlugin {
     isListElement: boolean = false,
     forNullableFromJson: boolean = false,
     defaultExpression?: string | null,
+    rejectMissingStrictEnums: boolean = false,
   ): string {
     if (type.kind === 'list') {
-      const element = this.buildFromJsonExpression(type.elementType!, 'it', true, forNullableFromJson);
+      const element = this.buildFromJsonExpression(
+        type.elementType!,
+        'it',
+        true,
+        forNullableFromJson,
+        undefined,
+        rejectMissingStrictEnums,
+      );
       const mapFn = type.elementType!.nullable ? 'map' : 'mapNotNull';
       if (defaultExpression) {
         return `(${sourceExpr} as? List<*>)?.${mapFn} { ${element} } ?: ${defaultExpression}`;
@@ -1088,9 +1123,9 @@ export class KotlinPlugin extends CodegenPlugin {
       }
       if (unknownFallback) {
         if (type.nullable) {
-          return `(${sourceExpr} as? String)?.let { runCatching { ${type.name}.fromJson(it) }.getOrNull() ?: ${unknownFallback} }`;
+          return enumRead;
         }
-        return `runCatching { ${enumRead} }.getOrNull() ?: ${unknownFallback}`;
+        return `${enumRead} ?: ${unknownFallback}`;
       }
       if (type.nullable) {
         return enumRead;
@@ -1102,15 +1137,19 @@ export class KotlinPlugin extends CodegenPlugin {
         return `(${sourceExpr} as? String)?.let { ${type.name}.fromJson(it) } ?: ${type.name}.Empty`;
       }
       const firstValue = irEnum?.values[0];
-      const fallback = firstValue
-        ? `${type.name}.${this.escapeKeyword(this.enumValueCase(firstValue.name))}`
-        : `throw IllegalArgumentException("Missing required enum value for ${type.name}")`;
+      const fallback =
+        rejectMissingStrictEnums || !firstValue
+          ? `throw IllegalArgumentException("Missing required enum value for ${type.name}")`
+          : `${type.name}.${this.escapeKeyword(this.enumValueCase(firstValue.name))}`;
       return `(${sourceExpr} as? String)?.let { ${type.name}.fromJson(it) } ?: ${fallback}`;
     }
 
     if (['object', 'input', 'interface', 'union'].includes(type.kind)) {
       const callTarget = type.name!;
       if (type.nullable || forNullableFromJson) {
+        if (this.typeHasRequiredEnumWithoutUnknown(callTarget, this.schema)) {
+          return `(${sourceExpr} as? Map<String, Any?>)?.let { runCatching { ${callTarget}.fromJson(it) }.getOrNull() }`;
+        }
         return `(${sourceExpr} as? Map<String, Any?>)?.let { ${callTarget}.fromJson(it) }`;
       }
       // Check if input has required fields (nullable fromJson)
@@ -1180,7 +1219,7 @@ export class KotlinPlugin extends CodegenPlugin {
   private buildUnknownEnumFallbackExpression(type: IRType): string | null {
     if (type.kind !== 'enum' || !type.name) return null;
     const irEnum = this.schema.enums.find((e) => e.name === type.name);
-    const unknownValue = irEnum?.values.find((value) => value.name.toLowerCase().startsWith('unknown'));
+    const unknownValue = irEnum ? this.enumUnknownValue(irEnum) : null;
     return unknownValue ? `${type.name}.${this.escapeKeyword(this.enumValueCase(unknownValue.name))}` : null;
   }
 

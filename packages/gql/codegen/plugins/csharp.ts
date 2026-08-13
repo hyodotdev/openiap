@@ -319,7 +319,12 @@ export class CSharpPlugin extends CodegenPlugin {
     this.emit('    {');
     this.emit('        var raw = reader.GetString();');
     this.emit(`        if (raw is not null && _fromString.TryGetValue(raw, out var value)) return value;`);
-    this.emit(`        throw new JsonException($"Unknown ${irEnum.name} value: {raw}");`);
+    const unknownValue = this.enumUnknownValue(irEnum);
+    if (unknownValue) {
+      this.emit(`        return ${irEnum.name}.${this.enumValueCase(unknownValue.name)};`);
+    } else {
+      this.emit(`        throw new JsonException($"Unknown ${irEnum.name} value: {raw}");`);
+    }
     this.emit('    }');
     this.emit('');
     this.emit(`    public override void Write(Utf8JsonWriter writer, ${irEnum.name} value, JsonSerializerOptions options)`);
@@ -329,9 +334,10 @@ export class CSharpPlugin extends CodegenPlugin {
     this.emit('');
     this.emit(`    internal static string ToRawString(${irEnum.name} value) => _toString[value];`);
     this.emit(`    internal static ${irEnum.name} FromRawString(string value) =>`);
-    this.emit(
-      `        _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown ${irEnum.name} value: {value}");`,
-    );
+    const fromRawFallback = unknownValue
+      ? `${irEnum.name}.${this.enumValueCase(unknownValue.name)}`
+      : `throw new ArgumentException($"Unknown ${irEnum.name} value: {value}")`;
+    this.emit(`        _fromString.TryGetValue(value, out var v) ? v : ${fromRawFallback};`);
     this.emit('}');
     this.emit('');
 
@@ -467,6 +473,7 @@ export class CSharpPlugin extends CodegenPlugin {
     this.emitProperties(sortedFields, this.inheritedUnionFieldNames(irObject));
     this.emit('}');
     this.emit('');
+    this.emitNullableJsonConverter(irObject.name);
   }
 
   private computeBaseTypes(irObject: IRObject): string[] {
@@ -512,6 +519,13 @@ export class CSharpPlugin extends CodegenPlugin {
       const jsonName = field.name;
       const overrideModifier = inheritedFields.has(field.name) ? 'override ' : '';
       this.emit(`    [JsonPropertyName("${jsonName}")]`);
+      if (
+        field.type.nullable &&
+        ['object', 'input'].includes(field.type.kind) &&
+        this.typeHasRequiredEnumWithoutUnknown(field.type.name!, this.schema)
+      ) {
+        this.emit(`    [JsonConverter(typeof(${field.type.name}NullableJsonConverter))]`);
+      }
 
       // Required vs. nullable — non-nullable scalars/objects get the C#
       // `required` modifier so callers must initialize them; nullable
@@ -616,6 +630,38 @@ export class CSharpPlugin extends CodegenPlugin {
     this.emit(`public sealed record ${irInput.name}`);
     this.emit('{');
     this.emitProperties(irInput.fields);
+    this.emit('}');
+    this.emit('');
+    this.emitNullableJsonConverter(irInput.name);
+  }
+
+  private emitNullableJsonConverter(typeName: string): void {
+    if (!this.typeNeedsTolerantNullableDecoder(typeName, this.schema)) return;
+    this.emit(`public sealed class ${typeName}NullableJsonConverter : JsonConverter<${typeName}?>`);
+    this.emit('{');
+    this.emit(
+      `    public override ${typeName}? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)`,
+    );
+    this.emit('    {');
+    this.emit('        using var document = JsonDocument.ParseValue(ref reader);');
+    this.emit('        try');
+    this.emit('        {');
+    this.emit(`            return document.RootElement.Deserialize<${typeName}>(options);`);
+    this.emit('        }');
+    this.emit('        catch (JsonException)');
+    this.emit('        {');
+    this.emit('            return null;');
+    this.emit('        }');
+    this.emit('        catch (InvalidOperationException)');
+    this.emit('        {');
+    this.emit('            return null;');
+    this.emit('        }');
+    this.emit('    }');
+    this.emit('');
+    this.emit(
+      `    public override void Write(Utf8JsonWriter writer, ${typeName}? value, JsonSerializerOptions options) =>`,
+    );
+    this.emit('        JsonSerializer.Serialize(writer, value, options);');
     this.emit('}');
     this.emit('');
   }
