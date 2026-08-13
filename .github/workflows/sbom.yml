@@ -15,7 +15,7 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: "Release tag to (re)generate an SBOM for"
+        description: "Release tag to generate an SBOM for"
         required: true
         type: string
 
@@ -55,6 +55,22 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
+      - name: Take the generator from the default branch
+        id: generator
+        # Keep release manifests at the tag while using the current generator.
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+        run: |
+          git fetch --no-tags --depth=1 origin "$DEFAULT_BRANCH"
+          GENERATOR_COMMIT=$(git rev-parse FETCH_HEAD)
+          git checkout "$GENERATOR_COMMIT" -- \
+            scripts/generate-sbom.mjs \
+            scripts/sbom-dependencies.mjs \
+            scripts/release-branch-policy.mjs \
+            scripts/assert-release-tag.mjs
+          echo "commit=$GENERATOR_COMMIT" >> "$GITHUB_OUTPUT"
+          echo "Generator taken from $DEFAULT_BRANCH at $GENERATOR_COMMIT"
+
       - name: Setup Node
         uses: actions/setup-node@v7
         with:
@@ -69,9 +85,7 @@ jobs:
           RELEASE_TAG: ${{ steps.tag.outputs.tag }}
         run: node scripts/generate-sbom.mjs resolve-tag "$RELEASE_TAG"
 
-      - name: Verify SBOM generator behaviour
-        if: ${{ steps.component.outputs.matched == 'true' }}
-        run: node --test scripts/generate-sbom.test.mjs
+      # CI tests the generator and its historical fixtures in their owning tree.
 
       - name: Generate CycloneDX SBOM
         id: generate
@@ -80,11 +94,13 @@ jobs:
         # own registry. A registry outage degrades to a missing license field
         # rather than failing the release.
         env:
-          COMPONENT: ${{ steps.component.outputs.component }}
+          GENERATOR_COMMIT: ${{ steps.generator.outputs.commit }}
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
         run: |
-          node scripts/generate-sbom.mjs "$COMPONENT" \
+          node scripts/generate-sbom.mjs --tag "$RELEASE_TAG" \
             --output-dir sbom \
             --commit "$(git rev-parse HEAD)" \
+            --generator-commit "$GENERATOR_COMMIT" \
             --with-licenses
 
       - name: Verify the SBOM describes this release
@@ -92,6 +108,7 @@ jobs:
         env:
           SBOM_FILE: ${{ steps.generate.outputs.sbom-file }}
           EXPECTED_VERSION: ${{ steps.component.outputs.version }}
+          EXPECTED_GENERATOR_COMMIT: ${{ steps.generator.outputs.commit }}
           RELEASE_TAG: ${{ steps.tag.outputs.tag }}
         run: |
           # A version mismatch means the tag and the manifest disagree, which
@@ -105,6 +122,12 @@ jobs:
             .metadata.component.properties[]
             | select(.name == "openiap:release:commit") | .value
           ' "$SBOM_FILE")
+          ACTUAL_GENERATOR_COMMIT=$(jq -r '
+            .metadata.tools.components[]
+            | select(.name == "openiap-sbom-generator")
+            | .properties[]
+            | select(.name == "openiap:generator:commit") | .value
+          ' "$SBOM_FILE")
 
           if [ "$ACTUAL_VERSION" != "$EXPECTED_VERSION" ]; then
             echo "::error::SBOM version $ACTUAL_VERSION does not match tag version $EXPECTED_VERSION"
@@ -116,6 +139,10 @@ jobs:
           fi
           if [ "$ACTUAL_COMMIT" != "$(git rev-parse HEAD)" ]; then
             echo "::error::SBOM commit $ACTUAL_COMMIT does not match the released commit"
+            exit 1
+          fi
+          if [ "$ACTUAL_GENERATOR_COMMIT" != "$EXPECTED_GENERATOR_COMMIT" ]; then
+            echo "::error::SBOM generator $ACTUAL_GENERATOR_COMMIT does not match $EXPECTED_GENERATOR_COMMIT"
             exit 1
           fi
 
@@ -139,7 +166,7 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ steps.tag.outputs.tag }}
           SBOM_FILE: ${{ steps.generate.outputs.sbom-file }}
-        run: gh release upload "$RELEASE_TAG" "$SBOM_FILE" --clobber
+        run: gh release upload "$RELEASE_TAG" "$SBOM_FILE"
 
       - name: Report a skipped tag
         if: ${{ steps.component.outputs.matched != 'true' }}

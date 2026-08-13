@@ -96,10 +96,11 @@ grep -rlE '/Users/|/home/[a-z]|/tmp/|ghp_|npm_[A-Za-z0-9]|BEGIN [A-Z ]*PRIVATE K
   /tmp/sbom-audit/ && echo "LEAK" || echo "clean"
 ```
 
-## 5. Determinism
+## 5. Core determinism
 
-Regeneration at the same commit must be byte-identical, or the reproducibility
-claim in `security/SBOM.md` is false.
+The dependency inventory must be byte-identical for the same release commit,
+generator commit, and resolver input. Do not pass `--with-licenses` here: live
+registry license and supplier metadata is point-in-time enrichment.
 
 ```bash
 node scripts/generate-sbom.mjs google --output-dir /tmp/sbom-audit-2

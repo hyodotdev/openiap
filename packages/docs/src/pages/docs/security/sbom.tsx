@@ -132,7 +132,7 @@ const LIMITS: Limit[] = [
   {
     title: 'Licenses and suppliers',
     detail:
-      'resolve for every direct dependency except two structural cases: pub.dev packages, whose metadata exposes neither field, and NuGet packages whose nuspec gives only a non-SPDX license URL.',
+      'come from live registries. Unavailable metadata is omitted, and pub.dev and some NuGet packages do not expose a standard value.',
   },
 ];
 
@@ -143,7 +143,7 @@ function SecuritySbom() {
     <div className="doc-page">
       <SEO
         title="SBOM"
-        description="Every OpenIAP release ships a CycloneDX SBOM as a GitHub Release asset — how to download, verify, and reproduce it."
+        description="Every OpenIAP release ships a CycloneDX SBOM as a GitHub Release asset — how to download, verify, and reproduce its core inventory."
         path="/docs/security/sbom"
         keywords="OpenIAP SBOM, CycloneDX, software bill of materials, purl, attestation, dependency inventory, NTIA minimum elements"
       />
@@ -223,12 +223,10 @@ flutter_inapp_purchase-10.3.0.cdx.json`}</code>
             { header: 'License', cell: (row) => row.license },
           ]}
         />
-        <Callout kind="tip" title="Reproducible">
-          Generation is deterministic. The document timestamp is the release
-          commit&apos;s timestamp, and the serial number is derived from the
-          release identity rather than randomly generated — so regenerating at
-          the released commit produces a byte-identical file. You can rebuild it
-          yourself and compare.
+        <Callout kind="tip" title="Reproducible core inventory">
+          The SBOM records both the release commit and the exact generator
+          commit, so you can reproduce its dependency inventory. Licenses and
+          suppliers come from live registries and may differ on a later run.
         </Callout>
       </section>
 
@@ -245,6 +243,7 @@ flutter_inapp_purchase-10.3.0.cdx.json`}</code>
           <li>
             The repository URL and the exact commit the release was built from
           </li>
+          <li>The exact generator commit used to create the SBOM</li>
           <li>
             The release tag, so an artifact and its inventory cannot be
             mismatched

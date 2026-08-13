@@ -9,15 +9,17 @@
  * being describable here, and a version can never disagree with the release
  * that produced it.
  *
- * Output is deterministic for a given (component, version, commit): the
- * document timestamp comes from the commit, and the serial number is derived
- * from the release identity rather than randomly generated. Re-running this on
- * the same commit reproduces the same bytes.
+ * The core inventory is deterministic for a given release tag, release commit,
+ * generator commit, and resolver input. Registry enrichment requested with
+ * `--with-licenses` is point-in-time metadata and can vary between runs.
  *
  * Usage:
  *   node scripts/generate-sbom.mjs <component> [--output-dir DIR]
  *                                              [--commit SHA]
+ *                                              [--generator-commit SHA]
  *                                              [--resolved FILE]
+ *                                              [--tag TAG]
+ *                                              [--with-licenses]
  *                                              [--stdout]
  */
 
@@ -376,6 +378,8 @@ export function buildSbom({
   componentId,
   version,
   commit,
+  generatorCommit,
+  releaseTag,
   timestamp,
   dependencies,
   vulnerabilities = [],
@@ -386,7 +390,17 @@ export function buildSbom({
   }
 
   const purl = definition.purl(version);
-  const tag = releaseTagFor(componentId, version);
+  const tag = releaseTag ?? releaseTagFor(componentId, version);
+  const resolvedTag = componentFromTag(tag);
+  if (
+    resolvedTag?.componentId !== componentId ||
+    resolvedTag.version !== version
+  ) {
+    throw new Error(
+      `Release tag '${tag}' does not match ${componentId} ${version}`,
+    );
+  }
+  const resolvedGeneratorCommit = generatorCommit ?? commit;
   const componentRef = purl;
 
   // A VEX statement that points at a bom-ref this SBOM does not contain says
@@ -426,6 +440,12 @@ export function buildSbom({
             type: "application",
             name: GENERATOR_NAME,
             version: GENERATOR_VERSION,
+            properties: [
+              {
+                name: "openiap:generator:commit",
+                value: resolvedGeneratorCommit,
+              },
+            ],
           },
         ],
       },
@@ -486,8 +506,8 @@ async function fetchText(url) {
  * not part of the security inventory, and a registry outage must not block a
  * release.
  *
- * (name, version) pairs are immutable in every registry used here, so this
- * stays reproducible in practice.
+ * Registry availability and metadata can change, so enriched output is not
+ * byte-identical across runs.
  */
 async function lookupComponentMetadata(entry) {
   try {
@@ -655,6 +675,8 @@ export async function generateSbom(
   {
     root = repoRoot,
     commit,
+    generatorCommit,
+    releaseTag,
     resolvedFile,
     withLicenses = false,
     runGit = defaultRunGit,
@@ -669,7 +691,9 @@ export async function generateSbom(
 
   const version = readComponentVersion(componentId, root);
   const resolvedCommit = commit || runGit(["rev-parse", "HEAD"]);
-  // Commit time, not wall-clock time, keeps regeneration byte-identical.
+  const resolvedGeneratorCommit =
+    generatorCommit || runGit(["rev-parse", "HEAD"]);
+  // Commit time keeps the core inventory deterministic.
   const timestamp = new Date(
     runGit(["show", "-s", "--format=%cI", resolvedCommit]),
   ).toISOString();
@@ -688,6 +712,8 @@ export async function generateSbom(
     componentId,
     version,
     commit: resolvedCommit,
+    generatorCommit: resolvedGeneratorCommit,
+    releaseTag,
     timestamp,
     dependencies,
     vulnerabilities,
@@ -713,6 +739,8 @@ function parseArguments(argv) {
       options.outputDir = argv[++index];
     } else if (argument === "--commit") {
       options.commit = argv[++index];
+    } else if (argument === "--generator-commit") {
+      options.generatorCommit = argv[++index];
     } else if (argument === "--resolved") {
       options.resolvedFile = argv[++index];
     } else if (argument === "--tag") {
@@ -730,11 +758,16 @@ function parseArguments(argv) {
     }
   }
 
-  if (options.tag && !options.componentId) {
+  if (options.tag) {
     const resolved = componentFromTag(options.tag);
     if (!resolved) {
       throw new Error(
         `Release tag '${options.tag}' does not belong to a known SBOM component`,
+      );
+    }
+    if (options.componentId && options.componentId !== resolved.componentId) {
+      throw new Error(
+        `Release tag '${options.tag}' belongs to ${resolved.componentId}, not ${options.componentId}`,
       );
     }
     options.componentId = resolved.componentId;
@@ -742,7 +775,7 @@ function parseArguments(argv) {
 
   if (!options.componentId) {
     throw new Error(
-      `Usage: generate-sbom.mjs <${listComponentIds().join("|")}|--tag TAG> [--output-dir DIR] [--commit SHA] [--resolved FILE] [--with-licenses] [--stdout]`,
+      `Usage: generate-sbom.mjs <${listComponentIds().join("|")}|--tag TAG> [--output-dir DIR] [--commit SHA] [--generator-commit SHA] [--resolved FILE] [--with-licenses] [--stdout]`,
     );
   }
   return options;
@@ -769,6 +802,8 @@ async function main() {
   const options = parseArguments(process.argv.slice(2));
   const result = await generateSbom(options.componentId, {
     commit: options.commit,
+    generatorCommit: options.generatorCommit,
+    releaseTag: options.tag,
     resolvedFile: options.resolvedFile,
     withLicenses: options.withLicenses,
   });

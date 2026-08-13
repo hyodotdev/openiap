@@ -114,6 +114,7 @@ table.
 bun run sbom <component>                  # writes ./sbom/<name>-<version>.cdx.json
 bun run sbom <component> --with-licenses  # also resolve licenses from registries
 bun run sbom <component> --stdout         # print instead of writing
+bun run sbom --tag <release-tag>          # preserve the published tag identity
 bun run sbom resolve-tag <tag>            # which component does this tag belong to?
 ```
 
@@ -246,9 +247,9 @@ release workflow  →  GitHub Release published
             attest provenance   upload as release asset
 ```
 
-Before upload, the workflow asserts that the SBOM's version, release tag, and
-commit all match the release being processed, and that no local filesystem
-path leaked into the document. Any mismatch fails the run.
+Before upload, the workflow asserts that the SBOM's version, release tag,
+release commit, and recorded generator commit match its inputs, and that no
+local filesystem path leaked into the document. Any mismatch fails the run.
 
 Tags that do not belong to a component are skipped with a notice rather than
 failing.
@@ -298,15 +299,45 @@ OpenIAP runs none of these in CI — see [README.md](README.md#scanning-posture)
 for why — but each accepts a CycloneDX 1.6 document directly, so a consumer can
 point their own scanner at a release asset on their own schedule.
 
-Maintainers can additionally reproduce it. Generation is deterministic for a
-given commit — the document timestamp is the commit timestamp and the serial
-number is derived from the release identity, not randomly generated — so
-regenerating at the released commit yields a byte-identical file:
+Maintainers can reproduce the core dependency inventory from the published tag
+and the generator commit recorded under `openiap:generator:commit`. The release
+workflow uses live registries to enrich dependencies with licenses and
+suppliers, so those fields are point-in-time metadata and are not guaranteed to
+be byte-identical later.
 
 ```bash
-git checkout react-native-iap-16.3.0
-bun run sbom react-native --output-dir /tmp/verify
-diff /tmp/verify/react-native-iap-16.3.0.cdx.json ./react-native-iap-16.3.0.cdx.json
+RELEASE_TAG=react-native-iap-16.3.0
+PUBLISHED_SBOM=/absolute/path/react-native-iap-16.3.0.cdx.json
+GENERATOR_COMMIT=$(jq -r '
+  .metadata.tools.components[]
+  | select(.name == "openiap-sbom-generator")
+  | .properties[]
+  | select(.name == "openiap:generator:commit") | .value
+' "$PUBLISHED_SBOM")
+
+git fetch origin main --tags
+SBOM_REPRO_DIR=$(mktemp -d)
+git worktree add --detach "$SBOM_REPRO_DIR" "$RELEASE_TAG"
+git -C "$SBOM_REPRO_DIR" checkout "$GENERATOR_COMMIT" -- \
+  scripts/generate-sbom.mjs \
+  scripts/sbom-dependencies.mjs \
+  scripts/release-branch-policy.mjs \
+  scripts/assert-release-tag.mjs
+(
+  cd "$SBOM_REPRO_DIR"
+  node scripts/generate-sbom.mjs --tag "$RELEASE_TAG" \
+    --commit "$(git rev-parse HEAD)" \
+    --generator-commit "$GENERATOR_COMMIT" \
+    --output-dir sbom
+)
+
+jq '(.components[]? |= del(.licenses, .supplier))' \
+  "$PUBLISHED_SBOM" > /tmp/published-core.json
+jq '(.components[]? |= del(.licenses, .supplier))' \
+  "$SBOM_REPRO_DIR/sbom/react-native-iap-16.3.0.cdx.json" \
+  > /tmp/generated-core.json
+diff /tmp/published-core.json /tmp/generated-core.json
+git worktree remove --force "$SBOM_REPRO_DIR"
 ```
 
 ## Update policy
@@ -315,13 +346,13 @@ diff /tmp/verify/react-native-iap-16.3.0.cdx.json ./react-native-iap-16.3.0.cdx.
 - SBOMs are **immutable once published**, exactly like the release tag they
   belong to. A dependency change ships as a new release with a new SBOM; a
   published SBOM is never edited in place.
-- If a release predates this system, its SBOM can be generated retroactively
-  with `workflow_dispatch` against that tag. The result describes that tag's
-  commit, not today's `main`.
+- A release that predates this system and has no SBOM asset can be described
+  with `workflow_dispatch`. The workflow reads manifests from the release tag,
+  records the exact default-branch generator commit, and refuses to overwrite
+  an existing asset.
 - Changes to the generator are covered by `scripts/generate-sbom.test.mjs`,
-  which runs in CI on every pull request. The test asserting that every
-  releasable component has SBOM metadata fails if a new component is added
-  without one.
+  including a historical release-tree fixture and every accepted tag alias.
+  CI also fails if a releasable component has no SBOM metadata.
 
 ## Relationship to vulnerability management
 
