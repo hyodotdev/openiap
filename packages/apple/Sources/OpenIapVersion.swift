@@ -14,7 +14,23 @@ public struct OpenIapVersion {
         version(for: "spec")
     }
 
+    /// Current OpenIAP specification version, or nil when the bundled
+    /// `openiap-versions.json` cannot be located. Callers on the purchase path
+    /// must use this rather than `specVersion`: the resource is bundled
+    /// differently by SwiftPM, CocoaPods and the xcframework, and reporting a
+    /// version is never worth trapping in the middle of a purchase.
+    public static var specVersionIfAvailable: String? {
+        optionalVersion(for: "spec")
+    }
+
     private static func version(for key: String) -> String {
+        guard let version = optionalVersion(for: key) else {
+            fatalError("OpenIAP: missing \(key) version in openiap-versions.json")
+        }
+        return version
+    }
+
+    private static func optionalVersion(for key: String) -> String? {
         let versionURL: URL?
 
         #if SWIFT_PACKAGE
@@ -30,7 +46,7 @@ public struct OpenIapVersion {
             let version = json[key] as? String,
             !version.isEmpty
         else {
-            fatalError("OpenIAP: missing \(key) version in openiap-versions.json")
+            return nil
         }
         return version
     }

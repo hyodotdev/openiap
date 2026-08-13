@@ -225,7 +225,12 @@ const verifyPurchaseRouteDescription = describeRoute({
     "Meta `userId` ≤ 256 chars, `sku` ≤ 256 chars. " +
     "Amazon `userId` ≤ 512 chars and `receiptId` ≤ 4 KB. " +
     "Oversized fields return `400 INVALID_INPUT`; oversized request " +
-    "bodies return `413 PAYLOAD_TOO_LARGE`. Neither hits the upstream store.",
+    "bodies return `413 PAYLOAD_TOO_LARGE`. Neither hits the upstream store.\n\n" +
+    "Optional `X-OpenIAP-Spec` request header: the OpenIAP spec version the " +
+    "calling SDK was built against (for example `3.2.0`). IAPKit records it so " +
+    "a response-contract change can be rolled out against real client-version " +
+    "data. It never changes how a receipt is verified, and an unrecognised " +
+    "value is ignored rather than rejected.",
   security: [{ apiKey: [] }],
   responses: {
     200: {

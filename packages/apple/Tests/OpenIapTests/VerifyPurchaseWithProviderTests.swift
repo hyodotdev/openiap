@@ -154,6 +154,37 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
         }
     }
 
+    func testIapkitRequestReportsTheSpecItWasBuiltAgainst() throws {
+        let url = try XCTUnwrap(URL(string: "https://kit.openiap.dev/v1/purchase/verify"))
+        let request = OpenIapModule.makeIapkitRequest(
+            url: url,
+            apiKey: "  iapkit_pk_test  ",
+            body: Data("{}".utf8)
+        )
+
+        XCTAssertEqual("POST", request.httpMethod)
+        XCTAssertEqual("application/json", request.value(forHTTPHeaderField: "Content-Type"))
+        XCTAssertEqual("Bearer iapkit_pk_test", request.value(forHTTPHeaderField: "Authorization"))
+        XCTAssertEqual(
+            OpenIapVersion.specVersionIfAvailable,
+            request.value(forHTTPHeaderField: "X-OpenIAP-Spec")
+        )
+        XCTAssertEqual(Data("{}".utf8), request.httpBody)
+    }
+
+    func testIapkitRequestOmitsAuthorizationForABlankApiKey() throws {
+        let url = try XCTUnwrap(URL(string: "https://kit.openiap.dev/v1/purchase/verify"))
+
+        for blank in [nil, "", "   "] as [String?] {
+            let request = OpenIapModule.makeIapkitRequest(
+                url: url,
+                apiKey: blank,
+                body: Data()
+            )
+            XCTAssertNil(request.value(forHTTPHeaderField: "Authorization"))
+        }
+    }
+
     func testIapkitAmazonPayloadForwardsExpectedProductId() throws {
         let payload = try OpenIapModule.iapkitAmazonPayload(
             from: RequestVerifyPurchaseWithIapkitAmazonProps(

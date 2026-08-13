@@ -76,6 +76,13 @@ val openIapVersion: String =
     project.findProperty("openIapVersion")?.toString()?.takeIf { it.isNotBlank() }
         ?: versionsJson["google"]?.toString()?.takeIf { it.isNotBlank() }
         ?: throw GradleException("packages/google: 'google' version missing in openiap-versions.json")
+// The OpenIAP spec version this artifact was compiled against. Reported to
+// IAPKit on verify requests so a response contract change can be rolled out
+// against real client-version data. Never a gradle property: it describes the
+// contract, not the artifact's own version.
+val openIapSpecVersion: String =
+    versionsJson["spec"]?.toString()?.takeIf { it.isNotBlank() }
+        ?: throw GradleException("packages/google: 'spec' version missing in openiap-versions.json")
 val isCentralPublishTaskRequested =
     gradle.startParameter.taskNames.any { taskName ->
         taskName.contains("mavenCentral", ignoreCase = true)
@@ -90,6 +97,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")
+        buildConfigField("String", "OPENIAP_SPEC_VERSION", "\"$openIapSpecVersion\"")
     }
 
     buildTypes {

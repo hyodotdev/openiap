@@ -14,6 +14,7 @@ import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitResult
 import dev.hyo.openiap.VerifyPurchaseProps
 import dev.hyo.openiap.VerifyPurchaseResultAndroid
 import dev.hyo.openiap.VerifyPurchaseResultHorizon
+import io.github.hyochan.openiap.BuildConfig
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import java.io.IOException
@@ -351,6 +352,10 @@ suspend fun verifyPurchaseWithIapkit(
         requestMethod = "POST"
         doOutput = true
         setRequestProperty("Content-Type", "application/json")
+        // Tells IAPKit which response contract this build was compiled
+        // against, so an enum it gains later can be rolled out against real
+        // client-version data. Reported, never negotiated.
+        setRequestProperty("X-OpenIAP-Spec", BuildConfig.OPENIAP_SPEC_VERSION)
         props.apiKey?.takeIf { it.isNotBlank() }?.let { apiKey ->
             setRequestProperty("Authorization", "Bearer $apiKey")
         }

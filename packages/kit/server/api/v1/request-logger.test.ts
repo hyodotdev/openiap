@@ -3,6 +3,7 @@ import { Hono } from "hono";
 
 import { apiKeyMiddleware } from "./middleware";
 import {
+  readSpecVersion,
   requestLoggerMiddleware,
   type VerifyDebugLogLine,
   type VerifyLogLine,
@@ -99,6 +100,20 @@ describe("requestLoggerMiddleware", () => {
     expect(line.apiKeyHash).toMatch(/^[0-9a-f]{16}$/);
     expect(line.apiKeyHash).not.toContain("key-abc");
     expect(line.durationMs).toBeGreaterThanOrEqual(0);
+  });
+
+  test("records a plausible client spec version and ignores anything else", async () => {
+    // Caller-controlled, so it is shape-checked and bounded before it reaches
+    // a log line. Nothing branches on it — an SDK must not be able to change
+    // how its receipt is verified by claiming a version.
+    expect(readSpecVersion("3.2.0")).toBe("3.2.0");
+    expect(readSpecVersion("3.2.0-rc.1")).toBe("3.2.0-rc.1");
+    expect(readSpecVersion(undefined)).toBeUndefined();
+    expect(readSpecVersion("")).toBeUndefined();
+    expect(readSpecVersion("latest")).toBeUndefined();
+    expect(readSpecVersion("3.2")).toBeUndefined();
+    expect(readSpecVersion(`3.2.0-${"a".repeat(64)}`)).toBeUndefined();
+    expect(readSpecVersion('3.2.0"}\n{"level":"info"')).toBeUndefined();
   });
 
   test("still logs when the validator rejects the payload (400)", async () => {

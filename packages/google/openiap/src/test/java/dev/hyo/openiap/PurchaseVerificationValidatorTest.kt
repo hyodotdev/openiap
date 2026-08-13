@@ -554,6 +554,28 @@ class PurchaseVerificationValidatorTest {
     }
 
     @Test
+    fun `verifyPurchaseWithIapkit reports the spec it was built against`() = runTest {
+        val props = RequestVerifyPurchaseWithIapkitProps(
+            apiKey = "iapkit_pk_test",
+            google = RequestVerifyPurchaseWithIapkitGoogleProps(purchaseToken = "token-123")
+        )
+        lateinit var connection: FakeHttpURLConnection
+
+        verifyPurchaseWithIapkit(props, "TEST") { _ ->
+            FakeHttpURLConnection(
+                200,
+                """{"store":"google","isValid":true,"state":"ENTITLED"}"""
+            ).also { connection = it }
+        }
+
+        assertEquals(
+            io.github.hyochan.openiap.BuildConfig.OPENIAP_SPEC_VERSION,
+            connection.headers["X-OpenIAP-Spec"]
+        )
+        assertEquals("Bearer iapkit_pk_test", connection.headers["Authorization"])
+    }
+
+    @Test
     fun `verifyPurchaseWithIapkit never fails a receipt over the environment`() = runTest {
         val props = RequestVerifyPurchaseWithIapkitProps(
             amazon = RequestVerifyPurchaseWithIapkitAmazonProps(

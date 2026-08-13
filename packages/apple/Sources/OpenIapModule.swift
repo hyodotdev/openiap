@@ -108,6 +108,26 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         )
     }
 
+    /// Builds the IAPKit verify request. `X-OpenIAP-Spec` tells the server
+    /// which response contract this build was compiled against, so an enum it
+    /// gains later can be rolled out against real client-version data instead
+    /// of a guess. It is reported, never negotiated: the header is omitted when
+    /// the version cannot be read, and the server must not gate on it.
+    static func makeIapkitRequest(url: URL, apiKey: String?, body: Data) -> URLRequest {
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        if let specVersion = OpenIapVersion.specVersionIfAvailable {
+            request.setValue(specVersion, forHTTPHeaderField: "X-OpenIAP-Spec")
+        }
+        let trimmedApiKey = apiKey?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let trimmedApiKey, trimmedApiKey.isEmpty == false {
+            request.setValue("Bearer \(trimmedApiKey)", forHTTPHeaderField: "Authorization")
+        }
+        request.httpBody = body
+        return request
+    }
+
     static func iapkitBoolean(from rawValue: Any?) throws -> Bool {
         guard let value = rawValue as? NSNumber,
               CFGetTypeID(value) == CFBooleanGetTypeID() else {
@@ -962,14 +982,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             let store = payload.store
             let body = payload.body
 
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            let apiKey = props.apiKey?.trimmingCharacters(in: .whitespacesAndNewlines)
-            if let apiKey, apiKey.isEmpty == false {
-                request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-            }
-            request.httpBody = body
+            let request = Self.makeIapkitRequest(url: url, apiKey: props.apiKey, body: body)
 
             OpenIapLog.debug("IAPKit request URL: \(url.absoluteString)")
             OpenIapLog.debug("IAPKit request body bytes=\(body.count)")
