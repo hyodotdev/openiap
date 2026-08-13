@@ -10,11 +10,25 @@ import org.junit.Test
 
 class GodotIapHelperTest {
     @Test
-    fun `in-app message categories reject malformed input`() {
-        val params = GodotIapHelper.parseInAppMessageParams(
-            """{"categories":["transactional"]}""",
+    fun `omitted in-app message categories preserve the transactional default`() {
+        assertEquals(
+            listOf(InAppMessageCategoryAndroid.Transactional),
+            validateGodotInAppMessageParams("{}").categories,
         )
-        assertEquals(InAppMessageCategoryAndroid.Transactional, params.categories?.single())
+    }
+
+    @Test
+    fun `in-app message categories reject malformed input`() {
+        val params = validateGodotInAppMessageParams(
+            """{"categories":["transactional","unknown-in-app-message-category-id"]}""",
+        )
+        assertEquals(
+            listOf(
+                InAppMessageCategoryAndroid.Transactional,
+                InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId,
+            ),
+            params.categories,
+        )
 
         listOf(
             """{"categories":["future-category"]}""",
@@ -22,7 +36,7 @@ class GodotIapHelperTest {
             """{"categories":"transactional"}""",
         ).forEach { json ->
             assertThrows(IllegalArgumentException::class.java) {
-                GodotIapHelper.parseInAppMessageParams(json)
+                validateGodotInAppMessageParams(json)
             }
         }
     }

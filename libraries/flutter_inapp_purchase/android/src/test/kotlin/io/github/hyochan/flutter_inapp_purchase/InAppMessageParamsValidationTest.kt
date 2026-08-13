@@ -7,10 +7,26 @@ import org.junit.Test
 
 class InAppMessageParamsValidationTest {
     @Test
-    fun `known message categories are accepted`() {
-        val params = validateFlutterInAppMessageParams(listOf("transactional"))
+    fun `omitted categories preserve the transactional default`() {
+        assertEquals(
+            listOf(InAppMessageCategoryAndroid.Transactional),
+            validateFlutterInAppMessageParams(null).categories,
+        )
+    }
 
-        assertEquals(InAppMessageCategoryAndroid.Transactional, params.categories?.single())
+    @Test
+    fun `known message categories are accepted`() {
+        val params = validateFlutterInAppMessageParams(
+            listOf("transactional", "unknown-in-app-message-category-id"),
+        )
+
+        assertEquals(
+            listOf(
+                InAppMessageCategoryAndroid.Transactional,
+                InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId,
+            ),
+            params.categories,
+        )
     }
 
     @Test

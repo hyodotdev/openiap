@@ -1077,7 +1077,7 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
         return runBlocking {
             try {
-                val params = GodotIapHelper.parseInAppMessageParams(paramsJson)
+                val params = validateGodotInAppMessageParams(paramsJson)
                 val result = store.showInAppMessages(
                     activity,
                     params
