@@ -145,6 +145,11 @@ const LIMITS: Limit[] = [
       'uses the published Android Play POM so openiap-google is included. An iOS-only application should use its resolved target graph.',
   },
   {
+    title: 'MAUI target scope',
+    detail:
+      "is the union of the published nuspec's target-framework groups. Use the consuming application's resolved graph to narrow it to Android, iOS, or Mac Catalyst.",
+  },
+  {
     title: 'Google 3.3.0 history',
     detail:
       'predates the published-POM reader and remains immutable. Use its published POM instead of that release asset for dependency matching.',

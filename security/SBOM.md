@@ -132,6 +132,10 @@ The generator (`scripts/generate-sbom.mjs`) reads:
 | Godot / Gradle | Released addon `build.gradle.kts`                           |
 | Swift          | Released `Package.swift`                                    |
 
+The MAUI inventory is the union of the published nuspec's target-framework
+groups. Use the consuming application's resolved graph to narrow dependencies
+to Android, iOS, or Mac Catalyst.
+
 ### What is included
 
 **Runtime dependencies of the published artifact.** Direct dependencies always;

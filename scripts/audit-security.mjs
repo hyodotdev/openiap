@@ -20,7 +20,10 @@ export function findWorkflowRunInterpolations(
     if (opener[2].includes("${{")) {
       findings.push(`${filename}:${index + 1}: ${lines[index].trim()}`);
     }
-    if (!/^[|>][-+]?\s*$/u.test(opener[2])) continue;
+    if (
+      !/^[|>](?:(?:[1-9][-+]?)|(?:[-+][1-9]?))?(?:\s+#.*)?\s*$/u.test(opener[2])
+    )
+      continue;
 
     for (let runIndex = index + 1; runIndex < lines.length; runIndex += 1) {
       const line = lines[runIndex];

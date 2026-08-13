@@ -94,7 +94,7 @@ non-SPDX license URL.
 
 Optionally score the result with
 [`sbomqs`](https://github.com/interlynk-io/sbomqs):
-`sbomqs score /tmp/sbom-audit/*.cdx.json`.
+`sbomqs score "$SECURITY_AUDIT_ROOT"/core-a/*.cdx.json`.
 
 ## 4. No leaked paths or secrets
 

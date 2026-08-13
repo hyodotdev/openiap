@@ -20,6 +20,7 @@ import {
   generateSbom,
   listComponentIds,
   normalizeLicense,
+  PUBLISHED_METADATA_UNAVAILABLE_EXIT_CODE,
   readComponentVersion,
   readVexStatements,
   releaseTagFor,
@@ -28,7 +29,9 @@ import {
 import { PACKAGE_CONFIG } from "./assert-release-tag.mjs";
 import {
   __testing as dependencyTesting,
+  extractDirectDependencies,
   mergeResolved,
+  PublishedMetadataUnavailableError,
 } from "./sbom-dependencies.mjs";
 import { versionSources } from "./release-branch-policy.mjs";
 
@@ -260,6 +263,10 @@ test("every GitHub release workflow dispatches the SBOM workflow", () => {
     );
     const dispatchIndex = source.indexOf("gh workflow run sbom.yml");
     assert.ok(dispatchIndex > releaseIndex, `${name} dispatch order`);
+    const dispatchCommand = source
+      .slice(dispatchIndex)
+      .match(/^gh workflow run sbom\.yml[^\n]*(?:\\\n\s+[^\n]*)*/u)?.[0];
+    assert.match(dispatchCommand, /-f tag="\$RELEASE_TAG"/u, `${name} tag`);
     assert.match(source, /actions: write/u, name);
   }
 });
@@ -271,8 +278,23 @@ test("SBOM publication waits for registry propagation and repairs daily", () => 
   );
   assert.match(source, /cron: "23 3 \* \* \*"/u);
   assert.match(source, /for attempt in \{1\.\.16\}/u);
-  assert.match(source, /Published \(POM\|nuspec\) not found/u);
+  assert.match(source, /\[ "\$STATUS" -ne 75 \]/u);
+  assert.doesNotMatch(source, /grep.+Published/u);
+  assert.match(source, /ASSET_NAMES=\$\(gh release view/u);
+  assert.match(source, /persist-credentials: false/u);
   assert.match(source, /sleep 120/u);
+});
+
+test("Google releases fail when an unpublished flavor lacks credentials", () => {
+  const source = readFileSync(
+    resolve(repoRoot, ".github/workflows/release-google.yml"),
+    "utf8",
+  );
+  assert.equal(
+    source.match(/Maven Central credentials are required to publish/gu)?.length,
+    3,
+  );
+  assert.doesNotMatch(source, /Skipping publish/u);
 });
 
 test("generated SBOMs preserve accepted release tag aliases", () => {
@@ -544,6 +566,23 @@ test("published metadata fetches retry transport failures", async () => {
 
   assert.equal(result, "<project />");
   assert.equal(attempts, 2);
+});
+
+test("missing published metadata has a dedicated error type", async () => {
+  assert.equal(PUBLISHED_METADATA_UNAVAILABLE_EXIT_CODE, 75);
+  await assert.rejects(
+    () =>
+      extractDirectDependencies(
+        repoRoot,
+        {
+          kind: "maven-pom",
+          coordinate: "example:package",
+          repositories: ["https://example.com/maven"],
+        },
+        { version: "1.0.0", fetchText: async () => null },
+      ),
+    (error) => error instanceof PublishedMetadataUnavailableError,
+  );
 });
 
 test("pub dependencies exclude the Flutter SDK itself", () => {

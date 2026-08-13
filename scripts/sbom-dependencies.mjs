@@ -11,6 +11,8 @@
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
+export class PublishedMetadataUnavailableError extends Error {}
+
 function readText(root, relativePath) {
   return readFileSync(resolve(root, relativePath), "utf8");
 }
@@ -306,7 +308,9 @@ async function extractMavenPom(_root, source, context) {
       failures.push(url);
     }
   }
-  throw new Error(`Published POM not found: ${failures.join(", ")}`);
+  throw new PublishedMetadataUnavailableError(
+    `Published POM not found: ${failures.join(", ")}`,
+  );
 }
 
 function parseNugetNuspec(source, context) {
@@ -347,7 +351,11 @@ async function extractNugetNuspec(_root, source, context) {
     `https://api.nuget.org/v3-flatcontainer/${packageId}/${version}/` +
     `${packageId}.nuspec`;
   const document = await context.fetchText(url);
-  if (!document) throw new Error(`Published nuspec not found: ${url}`);
+  if (!document) {
+    throw new PublishedMetadataUnavailableError(
+      `Published nuspec not found: ${url}`,
+    );
+  }
   return parseNugetNuspec(document, { ...context, url });
 }
 

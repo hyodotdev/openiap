@@ -25,6 +25,15 @@ test("workflow scan detects expressions in scalar and block run steps", () => {
   ]);
 });
 
+test("workflow scan recognizes YAML block-scalar header variants", () => {
+  for (const header of ["|2", ">-2", "|2-", ">+2", "| # note", "|2 # note"]) {
+    const workflow = `steps:\n  - run: ${header}\n      echo "${"${{"} inputs.value }}"\n`;
+    assert.deepEqual(findWorkflowRunInterpolations(workflow, "fixture.yml"), [
+      'fixture.yml:3: echo "${{ inputs.value }}"',
+    ]);
+  }
+});
+
 test("URL extraction removes JSX and Markdown delimiters", () => {
   const source =
     `href='https://example.com/path' [docs](https://example.org/a). ` +

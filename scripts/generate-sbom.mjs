@@ -34,6 +34,7 @@ import { validateVersion, versionSources } from "./release-branch-policy.mjs";
 import {
   extractDirectDependencies,
   mergeResolved,
+  PublishedMetadataUnavailableError,
 } from "./sbom-dependencies.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
@@ -49,6 +50,7 @@ const DEFAULT_LICENSE = "MIT";
 const GENERATOR_NAME = "openiap-sbom-generator";
 const GENERATOR_VERSION = "1.0.0";
 const SPEC_VERSION = "1.6";
+export const PUBLISHED_METADATA_UNAVAILABLE_EXIT_CODE = 75;
 
 /**
  * SBOM-specific metadata per releasable component.
@@ -227,13 +229,13 @@ export function sbomFileName(componentId, version) {
 export function findMissingLatestSbomTags(releases) {
   const seen = new Set();
   const missing = [];
-  const newestFirst = [...releases].sort(
-    (left, right) =>
-      Date.parse(right?.published_at ?? 0) -
-      Date.parse(left?.published_at ?? 0),
-  );
+  const newestFirst = releases
+    .filter((release) => !release?.draft && release?.published_at)
+    .sort(
+      (left, right) =>
+        Date.parse(right.published_at) - Date.parse(left.published_at),
+    );
   for (const release of newestFirst) {
-    if (release?.draft || !release?.published_at) continue;
     const resolvedTag = componentFromTag(release.tag_name);
     if (!resolvedTag || seen.has(resolvedTag.componentId)) continue;
     seen.add(resolvedTag.componentId);
@@ -910,8 +912,12 @@ async function main() {
 
 if (process.argv[1] === fileURLToPath(import.meta.url)) {
   main().catch((error) => {
-    console.error(`::error::${error.message}`);
-    process.exitCode = 1;
+    const message = error instanceof Error ? error.message : String(error);
+    console.error(`::error::${message}`);
+    process.exitCode =
+      error instanceof PublishedMetadataUnavailableError
+        ? PUBLISHED_METADATA_UNAVAILABLE_EXIT_CODE
+        : 1;
   });
 }
 
