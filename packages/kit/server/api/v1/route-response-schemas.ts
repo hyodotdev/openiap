@@ -51,11 +51,16 @@ const unifiedPurchaseStates = [
   },
 ] as const;
 
-const unifiedPurchaseStateSchema = v.union(
+export const unifiedPurchaseStateSchema = v.union(
   unifiedPurchaseStates.map(({ name, description }) =>
     v.pipe(v.literal(name), v.description(description)),
   ),
 );
+
+// The state a response degrades to when the verified value is outside the
+// published enum. Never changes `isValid`: the verdict is authoritative and a
+// metadata drift must not revoke a real entitlement.
+export const FALLBACK_PURCHASE_STATE = "UNKNOWN";
 
 const verifyStoreSchema = v.union([
   v.literal("apple"),
@@ -64,33 +69,33 @@ const verifyStoreSchema = v.union([
   v.literal("amazon"),
 ]);
 
-const clientPayloadSchema = v.object({
+export const clientPayloadSchema = v.object({
   format: v.union([v.literal("toml"), v.literal("json"), v.literal("text")]),
   body: v.string(),
   version: v.number(),
   updatedAt: v.number(),
 });
 
+export const productIdSchema = v.pipe(
+  v.string(),
+  v.description(
+    "Product id verified by the upstream store. For Meta Horizon this is the SKU IAPKit checked.",
+  ),
+);
+
+export const environmentSchema = v.pipe(
+  v.union([v.literal("Sandbox"), v.literal("Production")]),
+  v.description(
+    "Amazon RVS environment selected by IAPKit. Present on handled Amazon verification results.",
+  ),
+);
+
 const baseReceiptResponseSchema = v.object({
   store: verifyStoreSchema,
   isValid: v.boolean(),
   state: unifiedPurchaseStateSchema,
-  productId: v.optional(
-    v.pipe(
-      v.string(),
-      v.description(
-        "Product id verified by the upstream store. For Meta Horizon this is the SKU IAPKit checked.",
-      ),
-    ),
-  ),
-  environment: v.optional(
-    v.pipe(
-      v.union([v.literal("Sandbox"), v.literal("Production")]),
-      v.description(
-        "Amazon RVS environment selected by IAPKit. Present on handled Amazon verification results.",
-      ),
-    ),
-  ),
+  productId: v.optional(productIdSchema),
+  environment: v.optional(environmentSchema),
   clientPayload: v.optional(
     v.pipe(
       clientPayloadSchema,

@@ -472,4 +472,64 @@ describe("apiRoutes", () => {
     }
     expect(convexClientMock.query).not.toHaveBeenCalled();
   });
+
+  it("degrades an out-of-contract state instead of publishing it", async () => {
+    // Shipped SDKs decode this body with parsers they cannot update, so a
+    // state Convex knows but the published schema does not must not reach one.
+    convexClientMock.action.mockResolvedValueOnce({
+      isValid: true,
+      state: "REFUNDED",
+      productId: "premium.monthly",
+    });
+
+    const response = await apiRoutes.request("/purchase/verify", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer route-test-state-drift",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        store: "google",
+        purchaseToken: "token".repeat(8),
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      store: "google",
+      isValid: true,
+      state: "UNKNOWN",
+      productId: "premium.monthly",
+    });
+  });
+
+  it("drops an environment value no shipped SDK accepts", async () => {
+    convexClientMock.action.mockResolvedValueOnce({
+      isValid: true,
+      state: "ENTITLED",
+      productId: "amazon.premium.monthly",
+      environment: "Xcode",
+    });
+
+    const response = await apiRoutes.request("/purchase/verify", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer route-test-environment-drift",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        store: "amazon",
+        userId: "amzn1.account.ABC123",
+        receiptId: "amzn1.receipt.ABC123456789=:1",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      store: "amazon",
+      isValid: true,
+      state: "ENTITLED",
+      productId: "amazon.premium.monthly",
+    });
+  });
 });

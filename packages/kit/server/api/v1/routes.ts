@@ -13,6 +13,7 @@ import {
   apiErrorResponseSchema,
   verifyPurchaseSuccessResponseSchema,
 } from "./route-response-schemas";
+import { enforceVerifyResponseContract } from "./response-contract";
 import { apiKeyMiddleware } from "./middleware";
 import { getRequestIp, multiAxisRateLimitMiddleware } from "./rate-limit";
 import { replayGuardMiddleware } from "./replay-guard";
@@ -447,11 +448,40 @@ const verifyPurchaseHandler = async (
       }
     }
 
-    return c.json({
+    const contract = enforceVerifyResponseContract({
       store,
       ...publicReceipt,
       ...(clientPayload ? { clientPayload } : {}),
     });
+    if (contract.violations.length > 0) {
+      // Field names only — never values. A drift here means the emitted body
+      // left the schema the OpenAPI document publishes and shipped SDKs decode.
+      console.error(
+        "[purchase/verify] RESPONSE_CONTRACT_VIOLATION: store=%s fields=%s",
+        store,
+        contract.violations.join(","),
+      );
+    }
+    if (!contract.ok) {
+      const errorId = crypto.randomUUID();
+      console.error(
+        "Unexpected error (%s) when verifying purchase: malformed verdict",
+        errorId,
+      );
+      return c.json(
+        {
+          errors: [
+            {
+              code: "UNKNOWN_ERROR",
+              message: util.format("Unknown error: %s", errorId),
+            },
+          ],
+        },
+        500,
+      );
+    }
+
+    return c.json(contract.response);
   };
 
   try {
