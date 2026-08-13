@@ -102,8 +102,9 @@ product contains.
 
 **How OpenIAP does this:** a CycloneDX 1.6 SBOM is generated for every
 published release of every releasable component and attached to its GitHub
-Release. Generation is automated, reads the same manifests the build reads, and
-is reproducible from the released commit.
+Release. Generation records the release and generator commits, and the core
+dependency inventory is reproducible from those inputs. Registry-sourced
+license and supplier metadata is point-in-time enrichment.
 
 See [SBOM.md](SBOM.md). Practical constraint: transitive closure is complete
 only where an ecosystem resolver export is supplied; direct runtime
@@ -143,6 +144,7 @@ through the workflows in `.github/workflows/`, and each produces a new SBOM.
 | Which SBOM version corresponds to it?    | SBOM filename and `metadata.component.version`; the workflow refuses to upload on a mismatch                                             |
 | Which workflow generated it?             | The provenance attestation on the SBOM, verifiable with `gh attestation verify`                                                          |
 | Which commit was it built from?          | `openiap:release:commit` property inside the SBOM, and the attestation subject                                                           |
+| Which generator revision was used?       | `openiap:generator:commit` property on the SBOM generator component                                                                      |
 | Was the npm artifact itself built by us? | npm provenance (`npm publish --provenance`), checked at release time by `scripts/verify-npm-release-provenance.mjs`                      |
 
 ## Deliberate boundaries

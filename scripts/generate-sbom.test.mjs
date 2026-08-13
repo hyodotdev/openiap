@@ -31,6 +31,10 @@ import {
 import { versionSources } from "./release-branch-policy.mjs";
 
 const repoRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
+const historicalGoogleRoot = resolve(
+  repoRoot,
+  "scripts/fixtures/historical-releases/google-v1.3.0",
+);
 const { COMPONENTS } = generatorTesting;
 const {
   expandGradleForLoops,
@@ -111,6 +115,76 @@ test("every release tag pattern resolves back to its own component", () => {
   assert.equal(componentFromTag(""), null);
 });
 
+test("generated SBOMs preserve accepted release tag aliases", () => {
+  for (const [componentId, config] of Object.entries(PACKAGE_CONFIG)) {
+    for (const tag of config.tags("9.9.9")) {
+      const document = buildSbom({
+        componentId,
+        version: "9.9.9",
+        commit: stubCommit,
+        generatorCommit: stubCommit,
+        releaseTag: tag,
+        timestamp: "2026-01-01T00:00:00.000Z",
+        dependencies: [],
+      });
+      const properties = Object.fromEntries(
+        document.metadata.component.properties.map((property) => [
+          property.name,
+          property.value,
+        ]),
+      );
+      assert.equal(properties["openiap:release:tag"], tag, tag);
+    }
+  }
+});
+
+test("current generator supports the google-v1.3.0 release tree", async () => {
+  const releaseCommit = "768dc142634a3f34e6a97b9eda4cdd9574d9c2ed";
+  const generatorCommit = "f".repeat(40);
+  const { document, directCount } = await generateSbom("google", {
+    root: historicalGoogleRoot,
+    commit: releaseCommit,
+    generatorCommit,
+    releaseTag: "google-v1.3.0",
+    runGit: stubGit,
+  });
+
+  assert.equal(document.metadata.component.version, "1.3.0");
+  assert.equal(directCount, 10);
+  assert.deepEqual(
+    document.components.map((component) => component.name),
+    [
+      "androidx.compose.runtime:runtime",
+      "androidx.compose.ui:ui",
+      "androidx.core:core-ktx",
+      "androidx.lifecycle:lifecycle-runtime-ktx",
+      "androidx.lifecycle:lifecycle-viewmodel-ktx",
+      "com.android.billingclient:billing-ktx",
+      "com.google.code.gson:gson",
+      "com.meta.horizon.billingclient.api:horizon-billing-compatibility",
+      "org.jetbrains.kotlinx:kotlinx-coroutines-android",
+      "org.jetbrains.kotlinx:kotlinx-coroutines-core",
+    ],
+  );
+
+  const releaseProperties = Object.fromEntries(
+    document.metadata.component.properties.map((property) => [
+      property.name,
+      property.value,
+    ]),
+  );
+  assert.equal(releaseProperties["openiap:release:tag"], "google-v1.3.0");
+  assert.equal(releaseProperties["openiap:release:commit"], releaseCommit);
+
+  const toolProperties = Object.fromEntries(
+    document.metadata.tools.components[0].properties.map((property) => [
+      property.name,
+      property.value,
+    ]),
+  );
+  assert.equal(toolProperties["openiap:generator:commit"], generatorCommit);
+});
+
 test("serial number is derived from release identity, not randomness", () => {
   const identity = {
     componentId: "expo",
@@ -165,6 +239,13 @@ test("SBOM carries the metadata a release must be traceable by", () => {
   );
   assert.equal(properties["openiap:release:commit"], stubCommit);
   assert.equal(properties["openiap:release:tag"], "react-native-iap-16.3.0");
+  const toolProperties = Object.fromEntries(
+    document.metadata.tools.components[0].properties.map((property) => [
+      property.name,
+      property.value,
+    ]),
+  );
+  assert.equal(toolProperties["openiap:generator:commit"], stubCommit);
 });
 
 test("generated SBOM version always matches the shipped manifest", async () => {
