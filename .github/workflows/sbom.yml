@@ -9,8 +9,6 @@ name: "Security: SBOM"
 # any missed dispatch for the newest release of each component.
 
 on:
-  release:
-    types: [published]
   push:
     branches: [main]
     paths:
@@ -27,7 +25,7 @@ on:
         type: string
 
 concurrency:
-  group: sbom-${{ github.event.release.tag_name || inputs.tag }}
+  group: sbom-${{ inputs.tag || github.ref }}
   cancel-in-progress: false
 
 permissions:
@@ -67,7 +65,9 @@ jobs:
 
   sbom:
     name: Generate and publish SBOM
-    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
+    if: >-
+      github.event_name == 'workflow_dispatch' &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     runs-on: ubuntu-latest
     permissions:
       contents: write # upload the SBOM as a release asset
@@ -77,7 +77,7 @@ jobs:
       - name: Resolve release tag
         id: tag
         env:
-          RELEASE_TAG: ${{ github.event.release.tag_name || inputs.tag }}
+          RELEASE_TAG: ${{ inputs.tag }}
         run: |
           if [ -z "$RELEASE_TAG" ]; then
             echo "::error::No release tag available"
@@ -126,6 +126,7 @@ jobs:
         id: existing
         if: ${{ steps.component.outputs.matched == 'true' }}
         env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPAIR_DIGEST: ${{ steps.component.outputs.repair-digest }}
           RELEASE_TAG: ${{ steps.tag.outputs.tag }}
@@ -142,18 +143,36 @@ jobs:
           STAGED_ASSET=$(jq -c --arg name "$SBOM_NAME.replacement" \
             '[.assets[] | select(.name == $name)][0] // empty' \
             <<< "$RELEASE_JSON")
-          if [ -n "$REPAIR_DIGEST" ] && [ -n "$STAGED_ASSET" ]; then
+          ASSET_DIGEST=$(jq -r '.digest // ""' <<< "$ASSET")
+          if [ -n "$ASSET" ] && \
+            { [ -z "$REPAIR_DIGEST" ] || [ "$ASSET_DIGEST" != "$REPAIR_DIGEST" ]; }; then
+            ASSET_ID=$(jq -r '.id' <<< "$ASSET")
+            EXISTING_FILE="$RUNNER_TEMP/$SBOM_NAME"
+            gh api "repos/$GITHUB_REPOSITORY/releases/assets/$ASSET_ID" \
+              -H "Accept: application/octet-stream" > "$EXISTING_FILE"
+            node scripts/generate-sbom.mjs verify-file "$EXISTING_FILE" \
+              --tag "$RELEASE_TAG" --digest "$ASSET_DIGEST"
+            CERT_IDENTITY="https://github.com/$GITHUB_REPOSITORY/.github/workflows/sbom.yml@refs/heads/$DEFAULT_BRANCH"
+            gh attestation verify "$EXISTING_FILE" \
+              --repo "$GITHUB_REPOSITORY" \
+              --cert-identity "$CERT_IDENTITY" \
+              --deny-self-hosted-runners
+            if [ -n "$REPAIR_DIGEST" ] && [ -n "$STAGED_ASSET" ]; then
+              STAGED_ASSET_ID=$(jq -r '.id' <<< "$STAGED_ASSET")
+              gh api --method DELETE \
+                "repos/$GITHUB_REPOSITORY/releases/assets/$STAGED_ASSET_ID"
+              echo "::notice::Removed a stale staged repair after verifying $SBOM_NAME."
+            fi
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::$SBOM_NAME is verified and will be preserved."
+          elif [ -n "$REPAIR_DIGEST" ] && [ -n "$STAGED_ASSET" ]; then
             echo "exists=false" >> "$GITHUB_OUTPUT"
             echo "::notice::A staged legacy repair will be reconciled."
           elif [ -z "$ASSET" ]; then
             echo "exists=false" >> "$GITHUB_OUTPUT"
-          elif [ -n "$REPAIR_DIGEST" ] && \
-            [ "$(jq -r '.digest // ""' <<< "$ASSET")" = "$REPAIR_DIGEST" ]; then
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::$SBOM_NAME matches a known inaccurate legacy digest and will be replaced once."
           else
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "::notice::$SBOM_NAME is already attached; preserving it."
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::$SBOM_NAME matches a guarded legacy digest and will be replaced once."
           fi
 
       # CI tests the generator and its historical fixtures in their owning tree.
@@ -196,52 +215,12 @@ jobs:
         if: ${{ steps.component.outputs.matched == 'true' && steps.existing.outputs.exists == 'false' }}
         env:
           SBOM_FILE: ${{ steps.generate.outputs.sbom-file }}
-          EXPECTED_VERSION: ${{ steps.component.outputs.version }}
           EXPECTED_GENERATOR_COMMIT: ${{ steps.generator.outputs.commit }}
           RELEASE_TAG: ${{ steps.tag.outputs.tag }}
         run: |
-          # A version mismatch means the tag and the manifest disagree, which
-          # would attach a misleading inventory to a real release.
-          ACTUAL_VERSION=$(jq -r '.metadata.component.version' "$SBOM_FILE")
-          ACTUAL_TAG=$(jq -r '
-            .metadata.component.properties[]
-            | select(.name == "openiap:release:tag") | .value
-          ' "$SBOM_FILE")
-          ACTUAL_COMMIT=$(jq -r '
-            .metadata.component.properties[]
-            | select(.name == "openiap:release:commit") | .value
-          ' "$SBOM_FILE")
-          ACTUAL_GENERATOR_COMMIT=$(jq -r '
-            .metadata.tools.components[]
-            | select(.name == "openiap-sbom-generator")
-            | .properties[]
-            | select(.name == "openiap:generator:commit") | .value
-          ' "$SBOM_FILE")
-
-          if [ "$ACTUAL_VERSION" != "$EXPECTED_VERSION" ]; then
-            echo "::error::SBOM version $ACTUAL_VERSION does not match tag version $EXPECTED_VERSION"
-            exit 1
-          fi
-          if [ "$ACTUAL_TAG" != "$RELEASE_TAG" ]; then
-            echo "::error::SBOM tag $ACTUAL_TAG does not match release tag $RELEASE_TAG"
-            exit 1
-          fi
-          if [ "$ACTUAL_COMMIT" != "$(git rev-parse HEAD)" ]; then
-            echo "::error::SBOM commit $ACTUAL_COMMIT does not match the released commit"
-            exit 1
-          fi
-          if [ "$ACTUAL_GENERATOR_COMMIT" != "$EXPECTED_GENERATOR_COMMIT" ]; then
-            echo "::error::SBOM generator $ACTUAL_GENERATOR_COMMIT does not match $EXPECTED_GENERATOR_COMMIT"
-            exit 1
-          fi
-
-          # Fail closed if a local path ever reaches a published document.
-          if grep -qE '/Users/|/home/[a-z]|/tmp/' "$SBOM_FILE"; then
-            echo "::error::SBOM contains a local filesystem path"
-            exit 1
-          fi
-
-          echo "SBOM verified for $RELEASE_TAG at $ACTUAL_COMMIT"
+          node scripts/generate-sbom.mjs verify-file "$SBOM_FILE" \
+            --tag "$RELEASE_TAG" \
+            --generator-commit "$EXPECTED_GENERATOR_COMMIT"
 
       - name: Attest SBOM provenance
         if: ${{ steps.component.outputs.matched == 'true' && steps.existing.outputs.exists == 'false' }}
@@ -293,15 +272,6 @@ jobs:
             return 1
           }
 
-          if [ -n "$CANONICAL_ASSET_ID" ] && [ "$CANONICAL_DIGEST" != "$REPAIR_DIGEST" ]; then
-            if [ -n "$STAGED_ASSET_ID" ]; then
-              gh api --method DELETE \
-                "repos/$GITHUB_REPOSITORY/releases/assets/$STAGED_ASSET_ID"
-            fi
-            echo "::notice::$SBOM_NAME is already corrected; any staged repair was removed."
-            exit 0
-          fi
-
           if [ -z "$CANONICAL_ASSET_ID" ]; then
             if [ -n "$STAGED_ASSET_ID" ] && [ "$STAGED_DIGEST" = "$LOCAL_DIGEST" ]; then
               finalize_staged_asset
@@ -335,13 +305,16 @@ jobs:
             exit 1
           fi
 
+          if [ "$CANONICAL_DIGEST" != "$REPAIR_DIGEST" ]; then
+            echo "::error::$SBOM_NAME changed during repair; leaving the staged asset for verified reconciliation."
+            exit 1
+          fi
+
           CURRENT_DIGEST=$(gh api \
             "repos/$GITHUB_REPOSITORY/releases/assets/$CANONICAL_ASSET_ID" \
             --jq '.digest // ""')
           if [ "$CURRENT_DIGEST" != "$REPAIR_DIGEST" ]; then
-            gh api --method DELETE \
-              "repos/$GITHUB_REPOSITORY/releases/assets/$STAGED_ASSET_ID"
-            echo "::error::The legacy SBOM asset changed during repair; refusing to replace it."
+            echo "::error::The legacy SBOM asset changed during repair; leaving the staged asset for verified reconciliation."
             exit 1
           fi
           gh api --method DELETE \

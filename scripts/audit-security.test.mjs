@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { resolve } from "node:path";
 import test from "node:test";
@@ -62,4 +62,21 @@ test("empty workflow scans fail instead of reporting a vacuous pass", async (t) 
 
 test("empty URL extraction is explicit", () => {
   assert.deepEqual(extractExternalUrls("no links"), []);
+});
+
+test("published SBOM audit fails fast and trusts only main", () => {
+  const source = readFileSync(
+    new URL("../.claude/commands/audit-security.md", import.meta.url),
+    "utf8",
+  );
+  const block = source.match(
+    /## 6\. Published current-release assets[\s\S]*?```bash\n([\s\S]*?)```/u,
+  )?.[1];
+
+  assert.ok(block, "published asset audit command is missing");
+  assert.match(block, /^set -euo pipefail$/mu);
+  assert.match(block, /@refs\/heads\/main/u);
+  assert.match(block, /--cert-identity "\$cert_identity"/u);
+  assert.match(block, /--deny-self-hosted-runners \|\| exit 1/u);
+  assert.doesNotMatch(block, /--signer-workflow/u);
 });

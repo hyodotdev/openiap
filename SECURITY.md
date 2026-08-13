@@ -112,7 +112,11 @@ check whether a specific version declares a given dependency:
 ```bash
 gh release download react-native-iap-16.3.0 \
   --repo hyodotdev/openiap -p '*.cdx.json'
-gh attestation verify react-native-iap-16.3.0.cdx.json --repo hyodotdev/openiap
+CERT_IDENTITY=https://github.com/hyodotdev/openiap
+CERT_IDENTITY="$CERT_IDENTITY/.github/workflows/sbom.yml@refs/heads/main"
+gh attestation verify react-native-iap-16.3.0.cdx.json \
+  --repo hyodotdev/openiap --cert-identity "$CERT_IDENTITY" \
+  --deny-self-hosted-runners
 ```
 
 - [`security/SBOM.md`](security/SBOM.md) — what the SBOMs cover, how they are

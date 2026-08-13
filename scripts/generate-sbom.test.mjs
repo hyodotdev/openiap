@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import {
   mkdirSync,
   mkdtempSync,
@@ -18,14 +19,16 @@ import {
   componentFromTag,
   findMissingLatestSbomTags,
   generateSbom,
-  inaccurateSbomDigestForTag,
+  latestSbomAssets,
   listComponentIds,
   normalizeLicense,
   PUBLISHED_METADATA_UNAVAILABLE_EXIT_CODE,
   readComponentVersion,
   readVexStatements,
   releaseTagFor,
+  repairSbomDigestForTag,
   sbomFileName,
+  verifyPublishedSbom,
 } from "./generate-sbom.mjs";
 import { PACKAGE_CONFIG } from "./assert-release-tag.mjs";
 import {
@@ -244,19 +247,48 @@ test("backfill selects only the newest missing SBOM per component", () => {
   assert.deepEqual(findMissingLatestSbomTags(releases), ["kmp-iap-3.3.0"]);
 });
 
-test("backfill repairs only the exact known inaccurate SBOM", () => {
-  const tag = "google-3.3.0";
-  const name = "openiap-google-3.3.0.cdx.json";
+test("backfill repairs only exact guarded legacy SBOMs", () => {
   const published_at = "2026-08-11T00:00:00Z";
-  const inaccurate = inaccurateSbomDigestForTag(tag);
+  const repairs = [
+    [
+      "google-3.3.0",
+      "openiap-google-3.3.0.cdx.json",
+      "sha256:7256739c147689fbbb1257a738f85e7d030bb3612fd52a903c4cc9ca72b00e66",
+    ],
+    [
+      "react-native-iap-16.3.0",
+      "react-native-iap-16.3.0.cdx.json",
+      "sha256:f93f56530a9042d8c31289bfac765d295d6549701e0fbcedce395c55c0191a1d",
+    ],
+  ];
 
-  assert.match(inaccurate, /^sha256:[0-9a-f]{64}$/u);
-  assert.deepEqual(
-    findMissingLatestSbomTags([
-      { tag_name: tag, published_at, assets: [{ name, digest: inaccurate }] },
-    ]),
-    [tag],
-  );
+  for (const [tag, name, expectedDigest] of repairs) {
+    const repairDigest = repairSbomDigestForTag(tag);
+    assert.equal(repairDigest, expectedDigest);
+    assert.deepEqual(
+      findMissingLatestSbomTags([
+        {
+          tag_name: tag,
+          published_at,
+          assets: [{ name, digest: repairDigest }],
+        },
+      ]),
+      [tag],
+    );
+    assert.deepEqual(
+      findMissingLatestSbomTags([
+        {
+          tag_name: tag,
+          published_at,
+          assets: [{ name, digest: `sha256:${"0".repeat(64)}` }],
+        },
+      ]),
+      [],
+    );
+  }
+
+  const [tag, name] = repairs[0];
+  const repairDigest = repairSbomDigestForTag(tag);
   assert.deepEqual(
     findMissingLatestSbomTags([
       {
@@ -273,24 +305,53 @@ test("backfill repairs only the exact known inaccurate SBOM", () => {
   assert.deepEqual(
     findMissingLatestSbomTags([
       {
-        tag_name: tag,
-        published_at,
-        assets: [{ name, digest: `sha256:${"0".repeat(64)}` }],
-      },
-    ]),
-    [],
-  );
-  assert.deepEqual(
-    findMissingLatestSbomTags([
-      {
         tag_name: "google-3.4.0",
         published_at: "2026-08-12T00:00:00Z",
         assets: [{ name: "openiap-google-3.4.0.cdx.json" }],
       },
-      { tag_name: tag, published_at, assets: [{ name, digest: inaccurate }] },
+      {
+        tag_name: tag,
+        published_at,
+        assets: [{ name, digest: repairDigest }],
+      },
     ]),
     [tag],
   );
+});
+
+test("latest release inventory fails closed when an asset is missing", () => {
+  const published_at = "2026-08-11T00:00:00Z";
+  const digest = `sha256:${"1".repeat(64)}`;
+  assert.deepEqual(
+    latestSbomAssets([
+      {
+        tag_name: "google-3.3.0",
+        published_at,
+        assets: [
+          {
+            name: "openiap-google-3.3.0.cdx.json",
+            digest,
+          },
+        ],
+      },
+    ]),
+    [
+      {
+        componentId: "google",
+        tag: "google-3.3.0",
+        fileName: "openiap-google-3.3.0.cdx.json",
+        digest,
+      },
+    ],
+  );
+  assert.throws(
+    () =>
+      latestSbomAssets([
+        { tag_name: "google-3.3.0", published_at, assets: [] },
+      ]),
+    /Missing published SBOM asset/u,
+  );
+  assert.throws(() => latestSbomAssets([]), /No published component releases/u);
 });
 
 test("every GitHub release workflow dispatches the SBOM workflow", () => {
@@ -316,6 +377,7 @@ test("every GitHub release workflow dispatches the SBOM workflow", () => {
     const dispatchCommand = source
       .slice(dispatchIndex)
       .match(/^gh workflow run sbom\.yml[^\n]*(?:\\\n\s+[^\n]*)*/u)?.[0];
+    assert.match(dispatchCommand, /--ref main/u, `${name} workflow ref`);
     assert.match(dispatchCommand, /-f tag="\$RELEASE_TAG"/u, `${name} tag`);
     assert.match(source, /actions: write/u, name);
   }
@@ -325,6 +387,11 @@ test("SBOM publication waits for registry propagation and repairs daily", () => 
   const source = readFileSync(
     resolve(repoRoot, ".github/workflows/sbom.yml"),
     "utf8",
+  );
+  assert.doesNotMatch(source, /^  release:$/mu);
+  assert.match(
+    source,
+    /github\.ref == format\('refs\/heads\/\{0\}', github\.event\.repository\.default_branch\)/u,
   );
   assert.match(source, /cron: "23 3 \* \* \*"/u);
   assert.match(source, /for attempt in \{1\.\.16\}/u);
@@ -349,6 +416,38 @@ test("SBOM publication waits for registry propagation and repairs daily", () => 
   assert.match(source, /STAGED_NAME="\$SBOM_NAME\.replacement"/u);
   assert.match(source, /if \[ -z "\$CANONICAL_ASSET_ID" \]/u);
   assert.match(source, /STAGED_DIGEST" = "\$LOCAL_DIGEST/u);
+  assert.match(source, /verify-file "\$EXISTING_FILE"/u);
+  assert.match(source, /--digest "\$ASSET_DIGEST"/u);
+  assert.match(source, /verify-file "\$SBOM_FILE"/u);
+  assert.match(source, /gh attestation verify "\$EXISTING_FILE"/u);
+  assert.match(source, /--cert-identity "\$CERT_IDENTITY"/u);
+  assert.match(source, /refs\/heads\/\$DEFAULT_BRANCH/u);
+  assert.doesNotMatch(source, /--signer-workflow/u);
+  assert.match(source, /--deny-self-hosted-runners/u);
+  assert.ok(
+    source.indexOf('verify-file "$EXISTING_FILE"') <
+      source.indexOf("A staged legacy repair will be reconciled"),
+    "canonical verification must precede staged repair reconciliation",
+  );
+  assert.match(source, /Removed a stale staged repair after verifying/u);
+  const changedDuringRepair = source.indexOf(
+    "changed during repair; leaving the staged asset",
+  );
+  assert.ok(
+    changedDuringRepair > stagedUpload,
+    "a repair race must leave a staged marker for the next verified retry",
+  );
+  const finalRaceBlock = source.match(
+    /if \[ "\$CURRENT_DIGEST" != "\$REPAIR_DIGEST" \]; then\n([\s\S]*?)\n\s+fi/u,
+  )?.[1];
+  assert.ok(finalRaceBlock, "final live-digest race guard is missing");
+  assert.match(finalRaceBlock, /leaving the staged asset/u);
+  assert.match(finalRaceBlock, /^\s+exit 1$/mu);
+  assert.doesNotMatch(finalRaceBlock, /--method DELETE|STAGED_ASSET_ID/u);
+  assert.doesNotMatch(
+    source,
+    /already corrected; any staged repair was removed/u,
+  );
   assert.match(source, /persist-credentials: false/u);
   assert.match(source, /sleep 120/u);
 });
@@ -497,6 +596,84 @@ test("SBOM carries the metadata a release must be traceable by", () => {
     ]),
   );
   assert.equal(toolProperties["openiap:generator:commit"], stubCommit);
+});
+
+test("published SBOM verification requires reproducible release evidence", () => {
+  const generatorCommit = "1".repeat(40);
+  const document = buildSbom({
+    componentId: "react-native",
+    version: "16.3.0",
+    commit: stubCommit,
+    generatorCommit,
+    timestamp: "2026-01-01T00:00:00.000Z",
+    dependencies: [],
+  });
+  const serialized = `${JSON.stringify(document, null, 2)}\n`;
+  const digest = `sha256:${createHash("sha256").update(serialized).digest("hex")}`;
+
+  assert.deepEqual(
+    verifyPublishedSbom(serialized, {
+      fileName: "/tmp/react-native-iap-16.3.0.cdx.json",
+      releaseTag: "react-native-iap-16.3.0",
+      releaseCommit: stubCommit,
+      generatorCommit,
+      digest,
+    }),
+    { componentId: "react-native", version: "16.3.0", generatorCommit },
+  );
+
+  const legacy = structuredClone(document);
+  delete legacy.metadata.tools.components[0].properties;
+  assert.throws(
+    () =>
+      verifyPublishedSbom(JSON.stringify(legacy), {
+        fileName: "react-native-iap-16.3.0.cdx.json",
+        releaseTag: "react-native-iap-16.3.0",
+        releaseCommit: stubCommit,
+      }),
+    /openiap:generator:commit/u,
+  );
+  assert.throws(
+    () =>
+      verifyPublishedSbom(serialized, {
+        fileName: "react-native-iap-16.3.0.cdx.json",
+        releaseTag: "react-native-iap-16.3.0",
+        releaseCommit: "2".repeat(40),
+      }),
+    /properties do not match/u,
+  );
+  assert.throws(
+    () =>
+      verifyPublishedSbom(serialized, {
+        fileName: "react-native-iap-16.3.0.cdx.json",
+        releaseTag: "react-native-iap-16.3.0",
+        releaseCommit: stubCommit,
+        digest: `sha256:${"0".repeat(64)}`,
+      }),
+    /digest/u,
+  );
+  assert.throws(
+    () =>
+      verifyPublishedSbom(serialized, {
+        fileName: "react-native-iap-16.3.0.cdx.json",
+        releaseTag: "react-native-iap-16.3.0",
+        releaseCommit: stubCommit,
+        digest: "",
+      }),
+    /Invalid published SBOM digest/u,
+  );
+
+  const incomplete = structuredClone(document);
+  delete incomplete.components;
+  assert.throws(
+    () =>
+      verifyPublishedSbom(JSON.stringify(incomplete), {
+        fileName: "react-native-iap-16.3.0.cdx.json",
+        releaseTag: "react-native-iap-16.3.0",
+        releaseCommit: stubCommit,
+      }),
+    /components array/u,
+  );
 });
 
 test("generated SBOM version always matches the shipped manifest", async () => {

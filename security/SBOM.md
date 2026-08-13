@@ -258,11 +258,13 @@ release commit, and recorded generator commit match its inputs, and that no
 local filesystem path leaked into the document. Any mismatch fails the run.
 
 Tags that do not belong to a component are skipped with a notice rather than
-failing. A duplicate dispatch preserves an existing SBOM. The repair scan
-recognizes the exact digest of the inaccurate Google 3.3.0 asset produced by the
-retired source-manifest reader and replaces that asset once. It uploads and
-verifies the corrected document under a temporary name before removing the
-legacy asset; no other existing asset is overwritten.
+failing. A duplicate dispatch verifies an existing SBOM's identity, generator
+commit, GitHub digest, and provenance before preserving it. The repair scan
+recognizes only the exact digests of approved legacy assets: the inaccurate
+Google 3.3.0 inventory and the React Native 16.3.0 document that predates the
+generator-commit field. It uploads and verifies a corrected document under a
+temporary name before removing the legacy asset; no other existing asset is
+overwritten.
 
 ## Storage location
 
@@ -286,9 +288,12 @@ Any consumer can independently verify a published SBOM:
 gh release download react-native-iap-16.3.0 \
   --repo hyodotdev/openiap -p '*.cdx.json'
 
-# 2. Confirm this repository's CI produced it
+# 2. Confirm the main-branch workflow produced it on a GitHub-hosted runner
+CERT_IDENTITY=https://github.com/hyodotdev/openiap
+CERT_IDENTITY="$CERT_IDENTITY/.github/workflows/sbom.yml@refs/heads/main"
 gh attestation verify react-native-iap-16.3.0.cdx.json \
-  --repo hyodotdev/openiap
+  --repo hyodotdev/openiap --cert-identity "$CERT_IDENTITY" \
+  --deny-self-hosted-runners
 
 # 3. Validate it against the CycloneDX schema
 cyclonedx validate --input-file react-native-iap-16.3.0.cdx.json \
@@ -306,9 +311,11 @@ require trusting our tooling:
 | [`osv-scanner`](https://github.com/google/osv-scanner)                         | Match components against the OSV database    | Apache-2.0 |
 | [`grype`](https://github.com/anchore/grype)                                    | Match components against vulnerability feeds | Apache-2.0 |
 
-OpenIAP runs none of these in CI — see [README.md](README.md#scanning-posture)
-for why — but each accepts a CycloneDX 1.6 document directly, so a consumer can
-point their own scanner at a release asset on their own schedule.
+OpenIAP runs `gh attestation verify` in CI as a provenance gate. It does not run
+the listed quality or vulnerability scanners in CI — see
+[README.md](README.md#scanning-posture) for why. Those scanners accept a
+CycloneDX 1.6 document directly, so a consumer can inspect a release asset on
+their own schedule.
 
 Maintainers can reproduce the core dependency inventory from the published tag
 and the generator commit recorded under `openiap:generator:commit`. The release

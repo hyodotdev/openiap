@@ -208,8 +208,11 @@ flutter_inapp_purchase-10.3.0.cdx.json`}</code>
           OpenIAP&apos;s CI produced it rather than trusting the file on sight:
         </p>
         <pre>
-          <code>{`gh attestation verify react-native-iap-16.3.0.cdx.json \\
-  --repo hyodotdev/openiap`}</code>
+          <code>{`CERT_IDENTITY=https://github.com/hyodotdev/openiap
+CERT_IDENTITY="$CERT_IDENTITY/.github/workflows/sbom.yml@refs/heads/main"
+gh attestation verify react-native-iap-16.3.0.cdx.json \\
+  --repo hyodotdev/openiap --cert-identity "$CERT_IDENTITY" \\
+  --deny-self-hosted-runners`}</code>
         </pre>
         <p>And validate it against the CycloneDX schema:</p>
         <pre>
