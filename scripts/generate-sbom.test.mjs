@@ -18,6 +18,7 @@ import {
   componentFromTag,
   findMissingLatestSbomTags,
   generateSbom,
+  inaccurateSbomDigestForTag,
   listComponentIds,
   normalizeLicense,
   PUBLISHED_METADATA_UNAVAILABLE_EXIT_CODE,
@@ -243,6 +244,31 @@ test("backfill selects only the newest missing SBOM per component", () => {
   assert.deepEqual(findMissingLatestSbomTags(releases), ["kmp-iap-3.3.0"]);
 });
 
+test("backfill repairs only the exact known inaccurate SBOM", () => {
+  const tag = "google-3.3.0";
+  const name = "openiap-google-3.3.0.cdx.json";
+  const published_at = "2026-08-11T00:00:00Z";
+  const inaccurate = inaccurateSbomDigestForTag(tag);
+
+  assert.match(inaccurate, /^sha256:[0-9a-f]{64}$/u);
+  assert.deepEqual(
+    findMissingLatestSbomTags([
+      { tag_name: tag, published_at, assets: [{ name, digest: inaccurate }] },
+    ]),
+    [tag],
+  );
+  assert.deepEqual(
+    findMissingLatestSbomTags([
+      {
+        tag_name: tag,
+        published_at,
+        assets: [{ name, digest: `sha256:${"0".repeat(64)}` }],
+      },
+    ]),
+    [],
+  );
+});
+
 test("every GitHub release workflow dispatches the SBOM workflow", () => {
   const workflowDir = resolve(repoRoot, ".github/workflows");
   const workflows = readdirSync(workflowDir)
@@ -280,7 +306,8 @@ test("SBOM publication waits for registry propagation and repairs daily", () => 
   assert.match(source, /for attempt in \{1\.\.16\}/u);
   assert.match(source, /\[ "\$STATUS" -ne 75 \]/u);
   assert.doesNotMatch(source, /grep.+Published/u);
-  assert.match(source, /ASSET_NAMES=\$\(gh release view/u);
+  assert.match(source, /replace-asset-id=/u);
+  assert.match(source, /CURRENT_DIGEST.*!=.*REPAIR_DIGEST/u);
   assert.match(source, /persist-credentials: false/u);
   assert.match(source, /sleep 120/u);
 });

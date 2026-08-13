@@ -52,6 +52,13 @@ const GENERATOR_VERSION = "1.0.0";
 const SPEC_VERSION = "1.6";
 export const PUBLISHED_METADATA_UNAVAILABLE_EXIT_CODE = 75;
 
+const INACCURATE_SBOM_DIGESTS = new Map([
+  [
+    "google-3.3.0",
+    "sha256:7256739c147689fbbb1257a738f85e7d030bb3612fd52a903c4cc9ca72b00e66",
+  ],
+]);
+
 /**
  * SBOM-specific metadata per releasable component.
  *
@@ -225,7 +232,11 @@ export function sbomFileName(componentId, version) {
   return `${COMPONENTS[componentId].sbomName}-${version}.cdx.json`;
 }
 
-/** Return the newest published release per component that lacks its SBOM. */
+export function inaccurateSbomDigestForTag(tag) {
+  return INACCURATE_SBOM_DIGESTS.get(tag) ?? "";
+}
+
+/** Return newest component releases with a missing or known-inaccurate SBOM. */
 export function findMissingLatestSbomTags(releases) {
   const seen = new Set();
   const missing = [];
@@ -241,7 +252,9 @@ export function findMissingLatestSbomTags(releases) {
     seen.add(resolvedTag.componentId);
     const expected = sbomFileName(resolvedTag.componentId, resolvedTag.version);
     const assets = Array.isArray(release.assets) ? release.assets : [];
-    if (!assets.some((asset) => asset?.name === expected)) {
+    const asset = assets.find((entry) => entry?.name === expected);
+    const inaccurateDigest = inaccurateSbomDigestForTag(release.tag_name);
+    if (!asset || (inaccurateDigest && asset.digest === inaccurateDigest)) {
       missing.push(release.tag_name);
     }
   }
@@ -861,7 +874,7 @@ async function main() {
     const tag = process.argv[3];
     const resolved = componentFromTag(tag);
     const line = resolved
-      ? `component=${resolved.componentId}\nversion=${resolved.version}\nsbom-name=${sbomFileName(resolved.componentId, resolved.version)}\nmatched=true\n`
+      ? `component=${resolved.componentId}\nversion=${resolved.version}\nsbom-name=${sbomFileName(resolved.componentId, resolved.version)}\nrepair-digest=${inaccurateSbomDigestForTag(tag)}\nmatched=true\n`
       : "matched=false\n";
     process.stdout.write(line);
     if (process.env.GITHUB_OUTPUT) {

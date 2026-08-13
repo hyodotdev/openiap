@@ -122,24 +122,33 @@ jobs:
           RELEASE_TAG: ${{ steps.tag.outputs.tag }}
         run: node scripts/generate-sbom.mjs resolve-tag "$RELEASE_TAG"
 
-      - name: Check for an existing immutable asset
+      - name: Inspect the existing asset
         id: existing
         if: ${{ steps.component.outputs.matched == 'true' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPAIR_DIGEST: ${{ steps.component.outputs.repair-digest }}
           RELEASE_TAG: ${{ steps.tag.outputs.tag }}
           SBOM_NAME: ${{ steps.component.outputs.sbom-name }}
         run: |
-          if ! ASSET_NAMES=$(gh release view "$RELEASE_TAG" --json assets \
-            --jq '.assets[].name'); then
+          if ! RELEASE_JSON=$(gh api \
+            "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG"); then
             echo "::error::Unable to inspect release assets for $RELEASE_TAG"
             exit 1
           fi
-          if grep -Fxq "$SBOM_NAME" <<< "$ASSET_NAMES"; then
+          ASSET=$(jq -c --arg name "$SBOM_NAME" \
+            '[.assets[] | select(.name == $name)][0] // empty' \
+            <<< "$RELEASE_JSON")
+          if [ -z "$ASSET" ]; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          elif [ -n "$REPAIR_DIGEST" ] && \
+            [ "$(jq -r '.digest // ""' <<< "$ASSET")" = "$REPAIR_DIGEST" ]; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "replace-asset-id=$(jq -r '.id' <<< "$ASSET")" >> "$GITHUB_OUTPUT"
+            echo "::notice::$SBOM_NAME matches a known inaccurate legacy digest and will be replaced once."
+          else
             echo "exists=true" >> "$GITHUB_OUTPUT"
             echo "::notice::$SBOM_NAME is already attached; preserving it."
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
           fi
 
       # CI tests the generator and its historical fixtures in their owning tree.
@@ -239,9 +248,23 @@ jobs:
         if: ${{ steps.component.outputs.matched == 'true' && steps.existing.outputs.exists == 'false' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPAIR_DIGEST: ${{ steps.component.outputs.repair-digest }}
+          REPLACE_ASSET_ID: ${{ steps.existing.outputs.replace-asset-id }}
           RELEASE_TAG: ${{ steps.tag.outputs.tag }}
           SBOM_FILE: ${{ steps.generate.outputs.sbom-file }}
-        run: gh release upload "$RELEASE_TAG" "$SBOM_FILE"
+        run: |
+          if [ -n "$REPLACE_ASSET_ID" ]; then
+            CURRENT_DIGEST=$(gh api \
+              "repos/$GITHUB_REPOSITORY/releases/assets/$REPLACE_ASSET_ID" \
+              --jq '.digest // ""')
+            if [ "$CURRENT_DIGEST" != "$REPAIR_DIGEST" ]; then
+              echo "::error::The legacy SBOM asset changed during repair; refusing to replace it."
+              exit 1
+            fi
+            gh api --method DELETE \
+              "repos/$GITHUB_REPOSITORY/releases/assets/$REPLACE_ASSET_ID"
+          fi
+          gh release upload "$RELEASE_TAG" "$SBOM_FILE"
 
       - name: Report a skipped tag
         if: ${{ steps.component.outputs.matched != 'true' }}

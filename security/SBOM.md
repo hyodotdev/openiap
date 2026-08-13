@@ -258,8 +258,10 @@ release commit, and recorded generator commit match its inputs, and that no
 local filesystem path leaked into the document. Any mismatch fails the run.
 
 Tags that do not belong to a component are skipped with a notice rather than
-failing. A duplicate dispatch preserves an existing SBOM rather than
-overwriting an immutable release asset.
+failing. A duplicate dispatch preserves an existing SBOM. The repair scan
+recognizes the exact digest of the inaccurate Google 3.3.0 asset produced by the
+retired source-manifest reader and replaces that asset once; no other existing
+asset is overwritten.
 
 ## Storage location
 
@@ -313,10 +315,9 @@ workflow uses live registries to enrich dependencies with licenses and
 suppliers, so those fields are point-in-time metadata and are not guaranteed to
 be byte-identical later.
 
-The example below intentionally reproduces the immutable Google 3.3.0 asset.
-That asset predates the published-POM reader and contains the older
-source-manifest inventory; use the published POM, not that historical SBOM, for
-Google 3.3.0 dependency matching.
+The example below reproduces the corrected Google 3.3.0 asset from its recorded
+generator commit. The one-time repair replaces the known inaccurate legacy
+digest with the published-POM inventory before this procedure is used.
 
 ```bash
 RELEASE_TAG=google-3.3.0
@@ -357,8 +358,9 @@ git worktree remove --force "$SBOM_REPRO_DIR"
 
 - Every current release workflow produces an SBOM automatically.
 - SBOMs are **immutable once published**, exactly like the release tag they
-  belong to. A dependency change ships as a new release with a new SBOM; a
-  published SBOM is never edited in place.
+  belong to. The only migration exception is the exact known-inaccurate Google
+  3.3.0 digest, which the repair job replaces once. No other existing asset is
+  overwritten.
 - A release that predates this system and has no SBOM asset can be described
   with `workflow_dispatch`. The workflow reads released inputs, records the
   exact default-branch generator commit, and refuses to overwrite an existing
