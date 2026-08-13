@@ -7,6 +7,15 @@
 // SDK type. Nothing else in the repo compares them, so a kit-only change could
 // put a value on the wire that shipped SDKs and published docs know nothing
 // about. This audit is that comparison.
+//
+// Scope: the /v1 verify RESPONSE contract only. kit's write path declares the
+// client-payload format set again in convex/schema.ts (twice),
+// convex/products/{query,mutation}.ts and server/api/v1/products.ts, and the
+// environment pair again in convex/schema.ts and convex/purchases/shared.ts.
+// Those live on the other side of kit's server/convex tsconfig split, so they
+// cannot share a constant without moving a module; until they do, a format
+// accepted on write but absent from the response schema is silently dropped by
+// enforceVerifyResponseContract rather than caught here.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -23,45 +32,94 @@ export const RESPONSE_SCHEMA_FILE =
 const read = (relativePath) =>
   fs.readFileSync(path.join(root, relativePath), "utf8");
 
+// These are source-text parsers, so the two ways they can lie are worse than
+// the ways they can fail: matching the wrong declaration, or reading a value
+// that is commented out. Both would report agreement over a drifted repo.
+// `matchExactlyOnce` closes the first, `stripComments` the second, and every
+// parser rejects an empty result rather than comparing two empty lists.
+
+const matchExactlyOnce = (source, pattern, label) => {
+  const matches = [...source.matchAll(new RegExp(pattern, "g"))];
+  if (matches.length === 0) throw new Error(`${label} not found`);
+  if (matches.length > 1) {
+    throw new Error(
+      `${label} matched ${matches.length} times — the anchor is ambiguous, so the audit cannot tell which declaration is the contract`,
+    );
+  }
+  return matches[0];
+};
+
+const stripComments = (source) =>
+  source.replace(/\/\*[\s\S]*?\*\//g, "").replace(/(^|\s)\/\/.*$/gm, "$1");
+
+const nonEmpty = (values, label) => {
+  if (values.length === 0) throw new Error(`${label} parsed to an empty list`);
+  return values;
+};
+
 /** GraphQL enum members, with docstrings and comments stripped. */
 export const parseGraphqlEnum = (source, name) => {
-  const block = new RegExp(`\\benum\\s+${name}\\s*\\{([\\s\\S]*?)\\n\\}`).exec(
+  const block = matchExactlyOnce(
     source,
+    `\\benum\\s+${name}\\s*\\{([\\s\\S]*?)\\n\\}`,
+    `enum ${name}`,
   );
-  if (!block) throw new Error(`enum ${name} not found`);
-  return block[1]
-    .replace(/"""[\s\S]*?"""/g, "")
-    .split("\n")
-    .map((line) => line.replace(/#.*$/, "").trim())
-    .filter((line) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(line));
+  return nonEmpty(
+    block[1]
+      .replace(/"""[\s\S]*?"""/g, "")
+      .split("\n")
+      .map((line) => line.replace(/#.*$/, "").trim())
+      .filter((line) => /^[A-Za-z_][A-Za-z0-9_]*$/.test(line)),
+    `enum ${name}`,
+  );
 };
 
 /** `export enum Name { KEY = "VALUE" }` — the string values reach the wire. */
 export const parseTypescriptEnum = (source, name) => {
-  const block = new RegExp(
+  const block = matchExactlyOnce(
+    source,
     `\\bexport enum\\s+${name}\\s*\\{([\\s\\S]*?)\\n\\}`,
-  ).exec(source);
-  if (!block) throw new Error(`enum ${name} not found`);
-  return [...block[1].matchAll(/=\s*"([^"]+)"/g)].map((match) => match[1]);
+    `enum ${name}`,
+  );
+  return nonEmpty(
+    [...stripComments(block[1]).matchAll(/=\s*"([^"]+)"/g)].map(
+      (match) => match[1],
+    ),
+    `enum ${name}`,
+  );
 };
 
 /** The `unifiedPurchaseStates` table documenting `/v1/purchase/verify`. */
 export const parseDocumentedStates = (source) => {
-  const block = /const unifiedPurchaseStates = \[([\s\S]*?)\n\] as const;/.exec(
+  const block = matchExactlyOnce(
     source,
+    `const unifiedPurchaseStates = \\[([\\s\\S]*?)\\n\\] as const;`,
+    "unifiedPurchaseStates table",
   );
-  if (!block) throw new Error("unifiedPurchaseStates table not found");
-  return [...block[1].matchAll(/name:\s*"([^"]+)"/g)].map((match) => match[1]);
+  return nonEmpty(
+    [...stripComments(block[1]).matchAll(/name:\s*"([^"]+)"/g)].map(
+      (match) => match[1],
+    ),
+    "unifiedPurchaseStates table",
+  );
 };
 
-/** Literal members of a valibot union, located by the text preceding it. */
+/**
+ * Literal members of a valibot union. `anchor` must name the owning
+ * declaration, not just the field, so a second field of the same name
+ * elsewhere in the file is a loud failure rather than a wrong answer.
+ */
 export const parseValibotLiteralUnion = (source, anchor) => {
-  const block = new RegExp(`${anchor}v\\.union\\(\\[([\\s\\S]*?)\\]\\)`).exec(
+  const block = matchExactlyOnce(
     source,
+    `${anchor}v\\.union\\(\\[([\\s\\S]*?)\\]\\)`,
+    `valibot union after ${anchor.trim()}`,
   );
-  if (!block) throw new Error(`valibot union after ${anchor.trim()} not found`);
-  return [...block[1].matchAll(/v\.literal\("([^"]+)"\)/g)].map(
-    (match) => match[1],
+  return nonEmpty(
+    [...stripComments(block[1]).matchAll(/v\.literal\("([^"]+)"\)/g)].map(
+      (match) => match[1],
+    ),
+    `valibot union after ${anchor.trim()}`,
   );
 };
 
@@ -106,7 +164,12 @@ export const collectContractFailures = ({
     ...compare(
       `${RESPONSE_SCHEMA_FILE} clientPayload format vs ${SCHEMA_FILE} IapkitClientPayloadFormat`,
       specFormats,
-      parseValibotLiteralUnion(responseSchema, "format: "),
+      // Anchored on the owning declaration: `format:` alone would silently
+      // read a different schema's field if one were added above this one.
+      parseValibotLiteralUnion(
+        responseSchema,
+        "clientPayloadSchema = v\\.object\\(\\{\\s*format:\\s*",
+      ),
     ),
     // Stores are one-directional: kit may verify fewer stores than the spec
     // names, but never one the spec omits — no SDK could ask for it.

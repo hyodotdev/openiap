@@ -334,19 +334,35 @@ describe("isValidState", () => {
   });
 
   // `isValid` is the field every SDK gates entitlement on, and IAPKit deploys
-  // from main without an SDK release — widening or narrowing this set changes
-  // what already-published apps unlock, for every user, immediately. Pinning
-  // the whole set (rather than testing states one by one) means a state added
-  // later cannot default into either answer unnoticed.
-  it("entitles exactly these states", () => {
-    const entitling = Object.values(HarmonizedPurchaseState).filter(
-      isValidState,
+  // from main without an SDK release — changing this table changes what
+  // already-published apps unlock, for every user, immediately.
+  //
+  // The table is keyed by the full enum rather than listing only the entitling
+  // states: `Record<HarmonizedPurchaseState, boolean>` makes TypeScript reject
+  // a newly added state until someone classifies it, so the far more likely
+  // drift — a new state quietly defaulting to "does not entitle" — cannot pass
+  // unnoticed either. Being a record also makes it order-independent, so
+  // reordering the enum is not a false failure.
+  const ENTITLEMENT_GOLDEN: Record<HarmonizedPurchaseState, boolean> = {
+    [HarmonizedPurchaseState.ENTITLED]: true,
+    [HarmonizedPurchaseState.PENDING_ACKNOWLEDGMENT]: true,
+    [HarmonizedPurchaseState.READY_TO_CONSUME]: true,
+    [HarmonizedPurchaseState.PENDING]: false,
+    [HarmonizedPurchaseState.CANCELED]: false,
+    [HarmonizedPurchaseState.EXPIRED]: false,
+    [HarmonizedPurchaseState.CONSUMED]: false,
+    [HarmonizedPurchaseState.UNKNOWN]: false,
+    [HarmonizedPurchaseState.INAUTHENTIC]: false,
+  };
+
+  it("classifies every declared state exactly as pinned", () => {
+    const actual = Object.fromEntries(
+      Object.values(HarmonizedPurchaseState).map((state) => [
+        state,
+        isValidState(state),
+      ]),
     );
 
-    expect(entitling).toEqual([
-      HarmonizedPurchaseState.ENTITLED,
-      HarmonizedPurchaseState.PENDING_ACKNOWLEDGMENT,
-      HarmonizedPurchaseState.READY_TO_CONSUME,
-    ]);
+    expect(actual).toEqual(ENTITLEMENT_GOLDEN);
   });
 });

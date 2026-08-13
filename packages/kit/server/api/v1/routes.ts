@@ -11,6 +11,7 @@ import { verifyPurchaseInputSchema } from "./route-input-schemas";
 import { client, handleConvexError } from "../../convex";
 import {
   apiErrorResponseSchema,
+  FALLBACK_PURCHASE_STATE,
   verifyPurchaseSuccessResponseSchema,
 } from "./route-response-schemas";
 import { enforceVerifyResponseContract } from "./response-contract";
@@ -463,6 +464,9 @@ const verifyPurchaseHandler = async (
       );
     }
     if (!contract.ok) {
+      // The client is about to see a 500, so the request log must not keep
+      // reporting the verdict this handler computed.
+      setOutcome({ isValid: false, state: FALLBACK_PURCHASE_STATE });
       const errorId = crypto.randomUUID();
       console.error(
         "Unexpected error (%s) when verifying purchase: malformed verdict",

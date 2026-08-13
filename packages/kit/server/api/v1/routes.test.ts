@@ -503,6 +503,32 @@ describe("apiRoutes", () => {
     });
   });
 
+  it("refuses to publish a verdict that cannot be made contract-valid", async () => {
+    // Only a server defect produces this — Convex's own validator pins
+    // isValid to a boolean — but a body no SDK can trust must not be sent.
+    convexClientMock.action.mockResolvedValueOnce({
+      isValid: "true",
+      state: "ENTITLED",
+    });
+
+    const response = await apiRoutes.request("/purchase/verify", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer route-test-malformed-verdict",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        store: "google",
+        purchaseToken: "token".repeat(8),
+      }),
+    });
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toMatchObject({
+      errors: [{ code: "UNKNOWN_ERROR" }],
+    });
+  });
+
   it("drops an environment value no shipped SDK accepts", async () => {
     convexClientMock.action.mockResolvedValueOnce({
       isValid: true,

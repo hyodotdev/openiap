@@ -55,6 +55,9 @@ const clientPayloadSchema = v.object({
 });
 `;
 
+const CLIENT_PAYLOAD_FORMAT_ANCHOR =
+  "clientPayloadSchema = v\\.object\\(\\{\\s*format:\\s*";
+
 const sources = (overrides = {}) => ({
   schema: SCHEMA,
   convexState: CONVEX_STATE,
@@ -79,10 +82,72 @@ test("parsers read each declaration style", () => {
     parseValibotLiteralUnion(RESPONSE_SCHEMA, "const verifyStoreSchema = "),
     ["apple", "google"],
   );
-  assert.deepEqual(parseValibotLiteralUnion(RESPONSE_SCHEMA, "format: "), [
-    "toml",
-    "json",
-  ]);
+  assert.deepEqual(
+    parseValibotLiteralUnion(RESPONSE_SCHEMA, CLIENT_PAYLOAD_FORMAT_ANCHOR),
+    ["toml", "json"],
+  );
+});
+
+// The parsers read source text, so their dangerous failure is agreeing over a
+// drifted repo. Both cases below returned no failures before the anchors were
+// qualified and comments stripped.
+
+test("a second format union cannot be mistaken for the contract", () => {
+  const withDecoy = RESPONSE_SCHEMA.replace(
+    "const unifiedPurchaseStates",
+    'const decoySchema = v.object({\n  format: v.union([v.literal("toml"), v.literal("json")]),\n});\n\nconst unifiedPurchaseStates',
+  ).replace(
+    'v.literal("json")]),\n  body:',
+    'v.literal("json"), v.literal("yaml")]),\n  body:',
+  );
+
+  const failures = collectContractFailures(
+    sources({ responseSchema: withDecoy }),
+  );
+  assert.equal(failures.length, 1);
+  assert.match(failures[0], /clientPayload format.*unexpected.*yaml/);
+});
+
+test("an ambiguous anchor throws instead of picking a declaration", () => {
+  const twice = `${RESPONSE_SCHEMA}\nconst verifyStoreSchema = v.union([v.literal("apple")]);\n`;
+  assert.throws(
+    () => parseValibotLiteralUnion(twice, "const verifyStoreSchema = "),
+    /matched 2 times/,
+  );
+});
+
+test("a commented-out documented state is not counted", () => {
+  const failures = collectContractFailures(
+    sources({
+      responseSchema: RESPONSE_SCHEMA.replace(
+        '  { name: "EXPIRED", description: "Entitlement has expired." },',
+        '  // { name: "EXPIRED", description: "Entitlement has expired." },',
+      ),
+    }),
+  );
+  assert.equal(failures.length, 1);
+  assert.match(failures[0], /unifiedPurchaseStates.*missing.*EXPIRED/);
+});
+
+test("a commented-out literal is not counted", () => {
+  const failures = collectContractFailures(
+    sources({
+      responseSchema: RESPONSE_SCHEMA.replace(
+        'v.union([v.literal("toml"), v.literal("json")])',
+        'v.union([v.literal("toml") /* , v.literal("json") */])',
+      ),
+    }),
+  );
+  assert.equal(failures.length, 1);
+  assert.match(failures[0], /clientPayload format.*missing.*json/);
+});
+
+test("a declaration that parses to nothing is a failure, not agreement", () => {
+  assert.throws(
+    () =>
+      parseTypescriptEnum("export enum Empty {\n  // nothing\n}\n", "Empty"),
+    /parsed to an empty list/,
+  );
 });
 
 test("aligned declarations produce no failures", () => {
