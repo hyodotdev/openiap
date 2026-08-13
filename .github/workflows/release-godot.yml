@@ -497,7 +497,11 @@ jobs:
 
           Download \`godot-iap-$VERSION.zip\` from the Assets section below and extract into your project's \`addons/\` directory, or install via the Godot Asset Library.
 
-          Minimum Godot version: **4.3**.
+          ### Minimum versions
+
+          - Godot **4.3**
+          - iOS **17.0** (SwiftGodot runtime)
+          - Android API **24**
 
           ### Documentation
 
