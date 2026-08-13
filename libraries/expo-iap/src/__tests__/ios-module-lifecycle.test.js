@@ -25,6 +25,9 @@ describe('iOS module lifecycle', () => {
       'guard activeListenerGeneration == listenerGeneration else { return nil }',
     );
     expect(helper).toContain('private static var pendingConnectionCleanup');
+    expect(helper).toMatch(
+      /let previousTask = pendingConnectionCleanup\?\.task\s+let task = Task \{\s+await previousTask\?\.value\s+_ = try\? await OpenIapModule\.shared\.endConnection\(\)/,
+    );
     expect(helper).toContain('await pendingConnectionCleanupTask()?.value');
   });
 

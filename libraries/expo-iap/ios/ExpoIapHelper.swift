@@ -250,7 +250,9 @@ enum ExpoIapHelper {
         guard activeListenerGeneration == listenerGeneration else { return nil }
         cleanupListenersLocked()
         activeListenerGeneration = nil
+        let previousTask = pendingConnectionCleanup?.task
         let task = Task {
+            await previousTask?.value
             _ = try? await OpenIapModule.shared.endConnection()
         }
         pendingConnectionCleanup = (listenerGeneration, task)
