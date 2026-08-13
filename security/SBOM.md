@@ -2,11 +2,12 @@
 
 ## Purpose
 
-Every supported OpenIAP component release carries a machine-readable inventory
-of its direct third-party dependencies. That inventory lets a consumer — or a
-maintainer responding to a new advisory — identify the released dependency
-contract without reconstructing it from build scripts. Exact application
-exposure still comes from the consumer's resolved dependency graph.
+Current OpenIAP release workflows attach a machine-readable inventory of direct
+third-party dependencies, and a daily repair job fills missed latest-release
+assets. That inventory lets a consumer — or a maintainer responding to a new
+advisory — identify the released dependency contract without reconstructing it
+from build scripts. Exact application exposure still comes from the consumer's
+resolved dependency graph.
 
 SBOMs are generated from the released manifest or the registry descriptor that
 consumers resolve. No one edits an SBOM by hand, and none are committed to the
@@ -90,7 +91,8 @@ a missing license field and does not block the release.
 | [`actions/attest-build-provenance`](https://github.com/actions/attest-build-provenance) | Sign SLSA provenance       | MIT     |
 | [`gh` CLI](https://cli.github.com/)                                                     | Upload the release asset   | MIT     |
 
-Action versions are pinned in the workflow and kept current by Dependabot.
+Action versions use reviewed major-version tags and are kept current by
+Dependabot. Commit-SHA pinning remains a documented repository-wide gap.
 
 ## Naming convention
 
@@ -124,7 +126,7 @@ The generator (`scripts/generate-sbom.mjs`) reads:
 | Ecosystem      | Dependency source                                           |
 | -------------- | ----------------------------------------------------------- |
 | npm            | Released `package.json` (`dependencies`)                    |
-| Maven / Gradle | Published POM for the consumer artifact                     |
+| Maven / Gradle | Published POM for the selected consumer artifact            |
 | NuGet          | Published nuspec dependency groups                          |
 | pub            | Released `pubspec.yaml`; constraints are preserved verbatim |
 | Godot / Gradle | Released addon `build.gradle.kts`                           |
@@ -214,6 +216,11 @@ flavor-aware and includes dependencies injected by the publishing toolchain,
 such as Kotlin's standard library. Pub constraints remain constraints because a
 library release does not choose the application's eventual resolved version.
 
+The KMP release spans platform variants. Its release SBOM uses the published
+`io.github.hyochan:kmp-iap-android-play` POM so the Android dependency on
+`openiap-google` is not omitted. An iOS-only consumer should use its resolved
+application graph for target-specific dependencies.
+
 The small Godot Gradle reader remains because its GitHub release is the artifact
 of record. It rejects unknown configurations, unresolved coordinates, catalog
 accessors, and unsupported coordinate shapes instead of silently dropping them.
@@ -223,7 +230,7 @@ accessors, and unsupported coordinate shapes instead of silently dropping them.
 Every component release workflow dispatches `.github/workflows/sbom.yml` after
 creating its GitHub Release. This explicit dispatch is required because a
 release created with `GITHUB_TOKEN` does not trigger another workflow. A scan on
-SBOM changes and a weekly schedule dispatch any missing newest-component asset.
+SBOM changes and a daily schedule dispatch any missing newest-component asset.
 
 ```text
 release workflow  →  GitHub Release published
@@ -302,6 +309,11 @@ workflow uses live registries to enrich dependencies with licenses and
 suppliers, so those fields are point-in-time metadata and are not guaranteed to
 be byte-identical later.
 
+The example below intentionally reproduces the immutable Google 3.3.0 asset.
+That asset predates the published-POM reader and contains the older
+source-manifest inventory; use the published POM, not that historical SBOM, for
+Google 3.3.0 dependency matching.
+
 ```bash
 RELEASE_TAG=google-3.3.0
 PUBLISHED_SBOM=/absolute/path/openiap-google-3.3.0.cdx.json
@@ -348,7 +360,7 @@ git worktree remove --force "$SBOM_REPRO_DIR"
   exact default-branch generator commit, and refuses to overwrite an existing
   asset.
 - The newest release of each component is checked after SBOM changes and every
-  week, so a missed release-time dispatch is repaired without manual triage.
+  day, so a missed release-time dispatch is repaired without manual triage.
 - Changes to the generator are covered by `scripts/generate-sbom.test.mjs`,
   including a historical release-tree fixture and every accepted tag alias.
   CI also fails if a releasable component has no SBOM metadata.

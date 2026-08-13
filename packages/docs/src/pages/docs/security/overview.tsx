@@ -52,7 +52,7 @@ const AUTOMATION: Trigger[] = [
     what: 'The release workflow dispatches SBOM generation for its tag. The SBOM job verifies the identity, signs provenance, and attaches the immutable asset',
   },
   {
-    when: 'Weekly',
+    when: 'Daily',
     what: 'The missing-SBOM safety net runs. Dependabot and OpenSSF Scorecard also re-check the dependency and repository posture on their schedules',
   },
   {

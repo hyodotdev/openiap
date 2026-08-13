@@ -105,8 +105,9 @@ integrators can plan a migration rather than discover it during an incident.
 
 ## Supply Chain
 
-Every supported component release carries a CycloneDX SBOM as a GitHub Release
-asset, so you can check whether a specific version contains a given dependency:
+Current component release workflows attach a CycloneDX SBOM as a GitHub Release
+asset, and a daily repair job fills any missed latest-release asset. Use it to
+check whether a specific version declares a given dependency:
 
 ```bash
 gh release download react-native-iap-16.3.0 \

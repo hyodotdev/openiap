@@ -100,9 +100,10 @@ Where this document and the regulation disagree, the regulation governs.
 **Expectation:** maintain a machine-readable inventory of the components a
 product contains.
 
-**How OpenIAP does this:** a CycloneDX 1.6 SBOM is generated for every supported
-component release and attached to its GitHub Release. Generation records the
-release and generator commits, and the core
+**How OpenIAP does this:** current component release workflows generate a
+CycloneDX 1.6 SBOM and attach it to the GitHub Release; a daily scan repairs
+missed latest-release assets. Generation records the release and generator
+commits, and the core
 dependency inventory is reproducible from those inputs. Registry-sourced
 license and supplier metadata is point-in-time enrichment.
 

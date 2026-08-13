@@ -18,7 +18,7 @@ on:
       - "scripts/generate-sbom.mjs"
       - "scripts/sbom-dependencies.mjs"
   schedule:
-    - cron: "23 3 * * 0"
+    - cron: "23 3 * * *"
   workflow_dispatch:
     inputs:
       tag:
@@ -141,18 +141,33 @@ jobs:
       - name: Generate CycloneDX SBOM
         id: generate
         if: ${{ steps.component.outputs.matched == 'true' && steps.existing.outputs.exists == 'false' }}
-        # `--with-licenses` resolves each dependency's declared license from its
-        # own registry. A registry outage degrades to a missing license field
-        # rather than failing the release.
+        # License lookups degrade when unavailable; required POM/nuspec reads
+        # retry for the registry propagation window and then fail closed.
         env:
           GENERATOR_COMMIT: ${{ steps.generator.outputs.commit }}
           RELEASE_TAG: ${{ steps.tag.outputs.tag }}
         run: |
-          node scripts/generate-sbom.mjs --tag "$RELEASE_TAG" \
-            --output-dir sbom \
-            --commit "$(git rev-parse HEAD)" \
-            --generator-commit "$GENERATOR_COMMIT" \
-            --with-licenses
+          for attempt in {1..16}; do
+            if OUTPUT=$(node scripts/generate-sbom.mjs --tag "$RELEASE_TAG" \
+              --output-dir sbom \
+              --commit "$(git rev-parse HEAD)" \
+              --generator-commit "$GENERATOR_COMMIT" \
+              --with-licenses 2>&1); then
+              echo "$OUTPUT"
+              exit 0
+            fi
+
+            echo "$OUTPUT"
+            if ! grep -Eq '^::error::Published (POM|nuspec) not found:' <<< "$OUTPUT"; then
+              exit 1
+            fi
+            if [ "$attempt" -eq 16 ]; then
+              echo "::error::Published dependency metadata remained unavailable after the registry propagation retry window."
+              exit 1
+            fi
+            echo "::notice::Registry metadata is still indexing; retrying in 120 seconds."
+            sleep 120
+          done
 
       - name: Verify the SBOM describes this release
         if: ${{ steps.component.outputs.matched == 'true' && steps.existing.outputs.exists == 'false' }}

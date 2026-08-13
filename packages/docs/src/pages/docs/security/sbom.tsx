@@ -127,7 +127,7 @@ const LIMITS: Limit[] = [
   {
     title: 'Transitive dependencies',
     detail:
-      "are included only where the ecosystem's resolver output is available. Direct runtime dependencies are always complete.",
+      "are included only where the ecosystem's resolver output is available. Release SBOMs otherwise describe the documented direct-dependency source.",
   },
   {
     title: 'Licenses and suppliers',
@@ -139,6 +139,16 @@ const LIMITS: Limit[] = [
     detail:
       'remain constraints when a library manifest does not select one exact version. Use the consuming application lockfile for exact CVE matching.',
   },
+  {
+    title: 'KMP target scope',
+    detail:
+      'uses the published Android Play POM so openiap-google is included. An iOS-only application should use its resolved target graph.',
+  },
+  {
+    title: 'Google 3.3.0 history',
+    detail:
+      'predates the published-POM reader and remains immutable. Use its published POM instead of that release asset for dependency matching.',
+  },
 ];
 
 function SecuritySbom() {
@@ -148,18 +158,17 @@ function SecuritySbom() {
     <div className="doc-page">
       <SEO
         title="SBOM"
-        description="Supported OpenIAP releases ship a CycloneDX SBOM as a GitHub Release asset — how to download, verify, and reproduce its core inventory."
+        description="OpenIAP release workflows publish CycloneDX SBOM assets — how to download, verify, and reproduce their core inventory."
         path="/docs/security/sbom"
         keywords="OpenIAP SBOM, CycloneDX, software bill of materials, purl, attestation, dependency inventory, NTIA minimum elements"
       />
       <h1>Software Bill of Materials</h1>
       <p>
-        Every supported OpenIAP component release carries a machine-readable
-        inventory of its direct third-party dependencies, attached to its GitHub
-        Release as a <strong>CycloneDX 1.6 JSON</strong> file. It exposes the
-        released dependency contract without reconstructing build scripts; exact
-        application exposure comes from the consumer&apos;s resolved dependency
-        graph.
+        Current OpenIAP release workflows attach a machine-readable inventory of
+        direct third-party dependencies to each GitHub Release as a{' '}
+        <strong>CycloneDX 1.6 JSON</strong> file. A daily repair job fills
+        missed latest-release assets. Exact application exposure comes from the
+        consumer&apos;s resolved dependency graph.
       </p>
 
       <section>

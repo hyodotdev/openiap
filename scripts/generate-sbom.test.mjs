@@ -37,7 +37,7 @@ const historicalGoogleRoot = resolve(
   repoRoot,
   "scripts/fixtures/historical-releases/google-v1.3.0",
 );
-const { COMPONENTS } = generatorTesting;
+const { COMPONENTS, fetchPublishedText } = generatorTesting;
 const {
   extractGradle,
   extractPub,
@@ -264,6 +264,17 @@ test("every GitHub release workflow dispatches the SBOM workflow", () => {
   }
 });
 
+test("SBOM publication waits for registry propagation and repairs daily", () => {
+  const source = readFileSync(
+    resolve(repoRoot, ".github/workflows/sbom.yml"),
+    "utf8",
+  );
+  assert.match(source, /cron: "23 3 \* \* \*"/u);
+  assert.match(source, /for attempt in \{1\.\.16\}/u);
+  assert.match(source, /Published \(POM\|nuspec\) not found/u);
+  assert.match(source, /sleep 120/u);
+});
+
 test("generated SBOMs preserve accepted release tag aliases", () => {
   for (const [componentId, config] of Object.entries(PACKAGE_CONFIG)) {
     for (const tag of config.tags("9.9.9")) {
@@ -480,7 +491,7 @@ test("published metadata matches the consumer-visible artifacts", async () => {
   );
 });
 
-test("published metadata parsers reject incomplete dependencies", () => {
+test("published metadata parsers reject unsupported dependencies", () => {
   assert.throws(
     () =>
       parseMavenPom(
@@ -498,6 +509,41 @@ test("published metadata parsers reject incomplete dependencies", () => {
       ),
     /Incomplete published NuGet dependency/u,
   );
+  assert.throws(
+    () =>
+      parseMavenPom(mavenPom([["g", "a", "1.0.0", "unclassified"]]), {
+        url: "fixture.pom",
+        version: "1.0.0",
+      }),
+    /Unsupported Maven scope/u,
+  );
+  assert.throws(
+    () =>
+      parseMavenPom(
+        "<project><profiles><profile><dependencies><dependency>" +
+          "<groupId>g</groupId><artifactId>a</artifactId>" +
+          "<version>1.0.0</version></dependency></dependencies>" +
+          "</profile></profiles></project>",
+        { url: "fixture.pom", version: "1.0.0" },
+      ),
+    /Unsupported profiled Maven dependency/u,
+  );
+});
+
+test("published metadata fetches retry transport failures", async () => {
+  let attempts = 0;
+  const result = await fetchPublishedText("https://example.com/package.pom", {
+    fetcher: async () => {
+      attempts += 1;
+      if (attempts === 1) throw new Error("temporary DNS failure");
+      return "<project />";
+    },
+    retryDelays: [0],
+    wait: async () => {},
+  });
+
+  assert.equal(result, "<project />");
+  assert.equal(attempts, 2);
 });
 
 test("pub dependencies exclude the Flutter SDK itself", () => {

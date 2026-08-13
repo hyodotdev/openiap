@@ -522,12 +522,24 @@ async function fetchText(url) {
   return response.text();
 }
 
-async function fetchPublishedText(url) {
-  for (let attempt = 0; attempt < 6; attempt += 1) {
-    const result = await fetchText(url);
-    if (result) return result;
-    if (attempt < 5) {
-      await new Promise((resolveDelay) => setTimeout(resolveDelay, 5_000));
+async function fetchPublishedText(
+  url,
+  {
+    fetcher = fetchText,
+    retryDelays = Array(5).fill(5_000),
+    wait = (delay) =>
+      new Promise((resolveDelay) => setTimeout(resolveDelay, delay)),
+  } = {},
+) {
+  for (let attempt = 0; attempt <= retryDelays.length; attempt += 1) {
+    try {
+      const result = await fetcher(url);
+      if (result) return result;
+    } catch {
+      // Registry transport failures are retryable just like an indexing 404.
+    }
+    if (attempt < retryDelays.length) {
+      await wait(retryDelays[attempt]);
     }
   }
   return null;
@@ -903,4 +915,8 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
   });
 }
 
-export const __testing = { COMPONENTS, deterministicSerialNumber };
+export const __testing = {
+  COMPONENTS,
+  deterministicSerialNumber,
+  fetchPublishedText,
+};

@@ -231,9 +231,15 @@ function parseMavenPom(source, context) {
     }
   }
 
+  const profiles = source.match(/<profiles>([\s\S]*?)<\/profiles>/u)?.[1];
+  if (profiles && /<dependency\b/u.test(profiles)) {
+    throw new Error(`Unsupported profiled Maven dependency in ${context.url}`);
+  }
+
   const withoutManaged = source
     .replace(/<dependencyManagement>[\s\S]*?<\/dependencyManagement>/gu, "")
-    .replace(/<profiles>[\s\S]*?<\/profiles>/gu, "");
+    .replace(/<profiles>[\s\S]*?<\/profiles>/gu, "")
+    .replace(/<build>[\s\S]*?<\/build>/gu, "");
   const found = new Map();
 
   for (const match of withoutManaged.matchAll(
@@ -242,6 +248,13 @@ function parseMavenPom(source, context) {
     const block = match[1];
     const scope = xmlValue(block, "scope") ?? "compile";
     const optional = xmlValue(block, "optional")?.toLowerCase() === "true";
+    if (
+      !["compile", "runtime", "test", "provided", "system", "import"].includes(
+        scope,
+      )
+    ) {
+      throw new Error(`Unsupported Maven scope '${scope}' in ${context.url}`);
+    }
     if (["test", "provided", "system", "import"].includes(scope) || optional) {
       continue;
     }
