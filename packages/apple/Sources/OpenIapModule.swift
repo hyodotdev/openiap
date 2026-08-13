@@ -77,7 +77,11 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         return url
     }
 
-    static func iapkitClientPayload(from rawValue: Any?) throws -> IapkitProductClientPayload? {
+    /// Optional public product metadata. Returns nil for anything this build
+    /// cannot represent — including a `format` added to IAPKit after this
+    /// version shipped. Receipt verification is the security boundary; losing
+    /// enrichment must never fail a purchase the store already confirmed.
+    static func iapkitClientPayload(from rawValue: Any?) -> IapkitProductClientPayload? {
         guard let rawValue, !(rawValue is NSNull) else { return nil }
         guard let payload = rawValue as? [String: Any],
               let formatString = payload["format"] as? String,
@@ -92,10 +96,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
               version.doubleValue.rounded(.towardZero) == version.doubleValue,
               updatedAt.doubleValue.isFinite,
               updatedAt.doubleValue >= 0 else {
-            throw PurchaseError.make(
-                code: .purchaseVerificationFailed,
-                message: "IAPKit returned malformed client payload"
-            )
+            OpenIapLog.warn("Ignoring an IAPKit client payload this build cannot read")
+            return nil
         }
 
         return IapkitProductClientPayload(
@@ -118,14 +120,16 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         return value.boolValue
     }
 
-    static func iapkitEnvironment(from rawValue: Any?) throws -> String? {
+    /// Optional store environment. `environment` is String in the spec, not an
+    /// enum: the Sandbox/Production pair is IAPKit's constraint to enforce, and
+    /// re-deriving it here would only let a value IAPKit adds later — App Store
+    /// Server also names `Xcode` and `LocalTesting` — fail a receipt the store
+    /// already confirmed.
+    static func iapkitEnvironment(from rawValue: Any?) -> String? {
         guard let rawValue, !(rawValue is NSNull) else { return nil }
-        guard let environment = rawValue as? String,
-              environment == "Sandbox" || environment == "Production" else {
-            throw PurchaseError.make(
-                code: .purchaseVerificationFailed,
-                message: "IAPKit returned malformed response"
-            )
+        guard let environment = rawValue as? String, environment.isEmpty == false else {
+            OpenIapLog.warn("Ignoring an IAPKit environment this build cannot read")
+            return nil
         }
 
         return environment
@@ -1031,14 +1035,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             } else {
                 productId = nil
             }
-            let environment = try Self.iapkitEnvironment(from: json["environment"])
-            let clientPayload: IapkitProductClientPayload?
-            do {
-                clientPayload = try Self.iapkitClientPayload(from: json["clientPayload"])
-            } catch {
-                OpenIapLog.warn("IAPKit verification response contains a malformed clientPayload")
-                throw error
-            }
+            let environment = Self.iapkitEnvironment(from: json["environment"])
+            let clientPayload = Self.iapkitClientPayload(from: json["clientPayload"])
             OpenIapLog.info("IAPKit verification result: store=\(parsedStore.rawValue), isValid=\(isValid), state=\(parsedState.rawValue)")
             return RequestVerifyPurchaseWithIapkitResult(
                 clientPayload: clientPayload,

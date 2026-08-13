@@ -250,8 +250,22 @@ internal class AmazonInAppPurchaseAndroid(
             )
         }
         val androidResult = verifyPurchaseWithIapkitAndroid(androidOptions, "kmp-iap-android-$storeName")
+        // The generated decoder throws on a value this module's Types.kt
+        // predates. openiap-google already produced a safe result, so a decode
+        // miss must surface as a typed error rather than escaping this suspend
+        // function as a raw IllegalArgumentException.
+        val iapkitResult = runCatching {
+            RequestVerifyPurchaseWithIapkitResult.fromJson(androidResult.toJson())
+        }.getOrElse {
+            failWith(
+                PurchaseError(
+                    code = ErrorCode.PurchaseVerificationFailed,
+                    message = "IAPKit returned a verification result this build cannot read"
+                )
+            )
+        }
         return VerifyPurchaseWithProviderResult(
-            iapkit = RequestVerifyPurchaseWithIapkitResult.fromJson(androidResult.toJson()),
+            iapkit = iapkitResult,
             provider = options.provider
         )
     }

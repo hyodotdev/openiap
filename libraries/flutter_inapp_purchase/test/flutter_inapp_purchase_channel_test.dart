@@ -2346,6 +2346,62 @@ void main() {
       );
     });
 
+    // IAPKit deploys from main while this build is frozen inside a published
+    // app, so a value it adds later must degrade rather than fail a purchase
+    // the store already confirmed. `isValid` stays authoritative throughout.
+    test('never fails a receipt over metadata this build predates', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        switch (call.method) {
+          case 'initConnection':
+            return true;
+          case 'verifyPurchaseWithProvider':
+            return {
+              'provider': 'iapkit',
+              'iapkit': {
+                'isValid': true,
+                'productId': 'premium.monthly',
+                'state': 'grace-period',
+                'store': 'apple',
+                'environment': 'Xcode',
+                'clientPayload': {
+                  'format': 'yaml',
+                  'body': 'tier: gold',
+                  'version': 2,
+                  'updatedAt': 1720000000000,
+                },
+              },
+            };
+        }
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'ios'),
+      );
+      await iap.initConnection();
+
+      final result = await iap.verifyPurchaseWithProvider(
+        provider: types.PurchaseVerificationProvider.Iapkit,
+        iapkit: const types.RequestVerifyPurchaseWithIapkitProps(
+          apiKey: 'test-api-key',
+          includeClientPayload: true,
+          apple: types.RequestVerifyPurchaseWithIapkitAppleProps(
+            jws: 'test-jws-token',
+          ),
+        ),
+      );
+
+      expect(result.iapkit!.isValid, isTrue);
+      expect(result.iapkit!.productId, 'premium.monthly');
+      // An unknown state degrades to the neutral member, an unknown format
+      // drops only the optional payload, and an open-string environment is
+      // forwarded untouched.
+      expect(result.iapkit!.state, types.IapkitPurchaseState.Unknown);
+      expect(result.iapkit!.clientPayload, isNull);
+      expect(result.iapkit!.environment, 'Xcode');
+    });
+
     test('sends correct payload for iOS verification', () async {
       final calls = <MethodCall>[];
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger

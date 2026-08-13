@@ -2508,7 +2508,7 @@ function checkIapkitAmazonContractWiring() {
     "packages/apple/Sources/OpenIapModule.swift",
     [
       "expectedProductId: amazon.expectedProductId",
-      "let environment = try Self.iapkitEnvironment",
+      "let environment = Self.iapkitEnvironment",
       "environment: environment",
     ],
     "Apple IAPKit Amazon verification contract",
@@ -2517,7 +2517,7 @@ function checkIapkitAmazonContractWiring() {
     "packages/google/openiap/src/main/java/dev/hyo/openiap/utils/PurchaseVerificationValidator.kt",
     [
       'amazon.expectedProductId?.let { put("expectedProductId", it) }',
-      'it == "Sandbox" || it == "Production"',
+      'parsed["environment"] as? String',
       "environment = environment",
     ],
     "Google IAPKit Amazon verification contract",
@@ -2554,12 +2554,18 @@ function checkIapkitAmazonContractWiring() {
     ],
     [
       "libraries/react-native-iap/src/vega-adapter.ts",
-      ["expectedProductId: amazon.expectedProductId", "environment !== 'Production'"],
+      [
+        "expectedProductId: amazon.expectedProductId",
+        "const rawEnvironment = json.environment",
+      ],
       "React Native Vega IAPKit bridge",
     ],
     [
       "libraries/expo-iap/src/vega-adapter.ts",
-      ["expectedProductId: amazon.expectedProductId", "environment !== 'Production'"],
+      [
+        "expectedProductId: amazon.expectedProductId",
+        "const rawEnvironment = json.environment",
+      ],
       "Expo Vega IAPKit bridge",
     ],
   ]) {
@@ -2569,8 +2575,8 @@ function checkIapkitAmazonContractWiring() {
     "libraries/flutter_inapp_purchase/lib/flutter_inapp_purchase.dart",
     [
       "'expectedProductId':",
-      "environmentValue != 'Production'",
-      "environment: environmentValue as String?",
+      "final environmentValue = itemMap['environment']",
+      "environment: environment,",
     ],
     "Flutter IAPKit Amazon contract",
   );
@@ -2605,7 +2611,7 @@ function checkIapkitAmazonContractWiring() {
   );
   expectIncludes(
     "libraries/kmp-iap/library/src/iosMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseIOS.kt",
-    ['"Sandbox", "Production"', "environment = environment"],
+    ['map["environment"] as? String', "environment = environment"],
     "KMP iOS IAPKit response contract",
   );
 }

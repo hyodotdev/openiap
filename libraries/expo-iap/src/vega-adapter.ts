@@ -1177,17 +1177,15 @@ export function createExpoIapVegaModule(
           `IAPKit returned malformed response (HTTP ${status}).`,
         );
       }
-      const environment = json.environment;
-      if (
-        environment != null &&
-        (typeof environment !== 'string' ||
-          (environment !== 'Sandbox' && environment !== 'Production'))
-      ) {
-        throw createVegaError(
-          ErrorCode.PurchaseVerificationFailed,
-          `IAPKit returned malformed response (HTTP ${status}).`,
-        );
-      }
+      // `environment` is String in the spec, not an enum: the
+      // Sandbox/Production pair is IAPKit's constraint to enforce, and
+      // re-deriving it here would only let a value IAPKit adds later fail a
+      // receipt the store already confirmed.
+      const rawEnvironment = json.environment;
+      const environment =
+        typeof rawEnvironment === 'string' && rawEnvironment.length > 0
+          ? rawEnvironment
+          : undefined;
 
       return {
         ...(environment == null ? {} : {environment}),

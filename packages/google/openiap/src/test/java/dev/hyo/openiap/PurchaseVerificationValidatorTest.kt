@@ -22,6 +22,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import kotlinx.coroutines.test.runTest
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -420,50 +421,57 @@ class PurchaseVerificationValidatorTest {
     }
 
     @Test
-    fun `verifyPurchaseWithIapkit rejects malformed client payload`() = runTest {
+    fun `verifyPurchaseWithIapkit drops client payloads it cannot read`() = runTest {
         val props = RequestVerifyPurchaseWithIapkitProps(
             google = RequestVerifyPurchaseWithIapkitGoogleProps(
                 purchaseToken = "token-123"
             ),
             includeClientPayload = true
+        )
+        // `yaml` stands in for a format IAPKit adds after this build ships; the
+        // rest are structural defects. Both drop the optional payload and keep
+        // the verified receipt, because enrichment is not the security boundary.
+        val unreadablePayloads = listOf(
+            """{"format":"toml","body":"missing timestamps"}""",
+            """{"format":"yaml","body":"tier: gold","version":1,"updatedAt":1}""",
+            """{"format":"TOML","body":"x=1","version":1,"updatedAt":1}""",
+            """{"format":"toml","body":"x=1","version":0,"updatedAt":1}""",
+            """{"format":"toml","body":"x=1","version":1.5,"updatedAt":1}""",
+            """{"format":"toml","body":"x=1","version":1,"updatedAt":-1}"""
+        )
+
+        for (payload in unreadablePayloads) {
+            val result = verifyPurchaseWithIapkit(props, "TEST") { _ ->
+                FakeHttpURLConnection(
+                    200,
+                    """{"store":"google","isValid":true,"state":"ENTITLED","clientPayload":$payload}"""
+                )
+            }
+
+            assertTrue(result.isValid)
+            assertEquals(IapkitPurchaseState.Entitled, result.state)
+            assertNull(result.clientPayload)
+        }
+    }
+
+    @Test
+    fun `verifyPurchaseWithIapkit rejects a non-string productId`() = runTest {
+        val props = RequestVerifyPurchaseWithIapkitProps(
+            google = RequestVerifyPurchaseWithIapkitGoogleProps(
+                purchaseToken = "token-123"
+            )
         )
 
         try {
             verifyPurchaseWithIapkit(props, "TEST") { _ ->
                 FakeHttpURLConnection(
                     200,
-                    """{"store":"google","isValid":true,"state":"ENTITLED","clientPayload":{"format":"toml","body":"missing timestamps"}}"""
+                    """{"store":"google","isValid":true,"state":"ENTITLED","productId":42}"""
                 )
             }
-            throw AssertionError("Expected PurchaseVerificationFailed for malformed client payload")
+            throw AssertionError("Expected a non-string productId to fail")
         } catch (error: OpenIapError.PurchaseVerificationFailed) {
             assertTrue(error.message.contains("malformed"))
-        }
-    }
-
-    @Test
-    fun `verifyPurchaseWithIapkit rejects invalid payload numbers and productId`() = runTest {
-        val props = RequestVerifyPurchaseWithIapkitProps(
-            google = RequestVerifyPurchaseWithIapkitGoogleProps(
-                purchaseToken = "token-123"
-            ),
-            includeClientPayload = true
-        )
-        val invalidResponses = listOf(
-            """{"store":"google","isValid":true,"state":"ENTITLED","productId":42}""",
-            """{"store":"google","isValid":true,"state":"ENTITLED","clientPayload":{"format":"TOML","body":"x=1","version":1,"updatedAt":1}}""",
-            """{"store":"google","isValid":true,"state":"ENTITLED","clientPayload":{"format":"toml","body":"x=1","version":0,"updatedAt":1}}""",
-            """{"store":"google","isValid":true,"state":"ENTITLED","clientPayload":{"format":"toml","body":"x=1","version":1.5,"updatedAt":1}}""",
-            """{"store":"google","isValid":true,"state":"ENTITLED","clientPayload":{"format":"toml","body":"x=1","version":1,"updatedAt":-1}}"""
-        )
-
-        for (response in invalidResponses) {
-            try {
-                verifyPurchaseWithIapkit(props, "TEST") { _ -> FakeHttpURLConnection(200, response) }
-                throw AssertionError("Expected malformed IAPKit response to fail: $response")
-            } catch (error: OpenIapError.PurchaseVerificationFailed) {
-                assertTrue(error.message.contains("malformed"))
-            }
         }
     }
 
@@ -546,34 +554,38 @@ class PurchaseVerificationValidatorTest {
     }
 
     @Test
-    fun `verifyPurchaseWithIapkit rejects invalid environments`() = runTest {
+    fun `verifyPurchaseWithIapkit never fails a receipt over the environment`() = runTest {
         val props = RequestVerifyPurchaseWithIapkitProps(
             amazon = RequestVerifyPurchaseWithIapkitAmazonProps(
                 userId = "amzn1.account.ABC123",
                 receiptId = "amzn1.receipt.ABC123456789"
             )
         )
-        val invalidEnvironments = listOf(
-            "\"sandbox\"",
-            "\"Xcode\"",
-            "42",
-            "true",
-            "{}",
-            "[]"
+        // The spec types `environment` as String, so a value IAPKit adds later
+        // is forwarded; only a non-string has nothing to forward. "Xcode" and
+        // "LocalTesting" are real App Store Server environments.
+        val cases = listOf(
+            "\"Sandbox\"" to "Sandbox",
+            "\"Xcode\"" to "Xcode",
+            "\"LocalTesting\"" to "LocalTesting",
+            "\"sandbox\"" to "sandbox",
+            "42" to null,
+            "true" to null,
+            "{}" to null,
+            "[]" to null,
+            "\"\"" to null
         )
 
-        for (environment in invalidEnvironments) {
-            try {
-                verifyPurchaseWithIapkit(props, "TEST") { _ ->
-                    FakeHttpURLConnection(
-                        200,
-                        """{"store":"amazon","isValid":true,"state":"ENTITLED","environment":$environment}"""
-                    )
-                }
-                throw AssertionError("Expected malformed environment to fail: $environment")
-            } catch (error: OpenIapError.PurchaseVerificationFailed) {
-                assertTrue(error.message.contains("malformed"))
+        for ((environment, expected) in cases) {
+            val result = verifyPurchaseWithIapkit(props, "TEST") { _ ->
+                FakeHttpURLConnection(
+                    200,
+                    """{"store":"amazon","isValid":true,"state":"ENTITLED","environment":$environment}"""
+                )
             }
+
+            assertTrue(result.isValid)
+            assertEquals(expected, result.environment)
         }
     }
 

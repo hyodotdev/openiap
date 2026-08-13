@@ -64,7 +64,7 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
         XCTAssertTrue(OpenIapModule.shared.responds(to: clientPayloadSelector))
     }
 
-    func testIapkitClientPayloadParsesAndRejectsMalformedValues() throws {
+    func testIapkitClientPayloadParsesAndDropsUnreadableValues() throws {
         let payload = try XCTUnwrap(
             OpenIapModule.iapkitClientPayload(from: [
                 "format": "toml",
@@ -77,26 +77,36 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
         XCTAssertEqual(.toml, payload.format)
         XCTAssertEqual("tier = \"gold\"", payload.body)
         XCTAssertEqual(2, payload.version)
-        XCTAssertNil(try OpenIapModule.iapkitClientPayload(from: nil))
-        XCTAssertNil(try OpenIapModule.iapkitClientPayload(from: NSNull()))
-        XCTAssertThrowsError(
-            try OpenIapModule.iapkitClientPayload(from: [
+        XCTAssertNil(OpenIapModule.iapkitClientPayload(from: nil))
+        XCTAssertNil(OpenIapModule.iapkitClientPayload(from: NSNull()))
+        // A format IAPKit adds after this build shipped, and every structural
+        // defect, drop the payload instead of failing the verified receipt.
+        XCTAssertNil(
+            OpenIapModule.iapkitClientPayload(from: [
+                "format": "yaml",
+                "body": "tier: gold",
+                "version": 1,
+                "updatedAt": 1,
+            ])
+        )
+        XCTAssertNil(
+            OpenIapModule.iapkitClientPayload(from: [
                 "format": "TOML",
                 "body": "invalid format",
                 "version": 1,
                 "updatedAt": 1,
             ])
         )
-        XCTAssertThrowsError(
-            try OpenIapModule.iapkitClientPayload(from: [
+        XCTAssertNil(
+            OpenIapModule.iapkitClientPayload(from: [
                 "format": "toml",
                 "body": "missing version",
                 "updatedAt": 1,
             ])
         )
         for invalidVersion: Any in [true, 0, 1.5] {
-            XCTAssertThrowsError(
-                try OpenIapModule.iapkitClientPayload(from: [
+            XCTAssertNil(
+                OpenIapModule.iapkitClientPayload(from: [
                     "format": "toml",
                     "body": "invalid version",
                     "version": invalidVersion,
@@ -104,8 +114,8 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
                 ])
             )
         }
-        XCTAssertThrowsError(
-            try OpenIapModule.iapkitClientPayload(from: [
+        XCTAssertNil(
+            OpenIapModule.iapkitClientPayload(from: [
                 "format": "toml",
                 "body": "invalid timestamp",
                 "version": 1,
@@ -125,16 +135,22 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
         }
     }
 
-    func testIapkitEnvironmentAcceptsOnlyCanonicalValues() throws {
-        XCTAssertNil(try OpenIapModule.iapkitEnvironment(from: nil))
-        XCTAssertNil(try OpenIapModule.iapkitEnvironment(from: NSNull()))
-        XCTAssertEqual("Sandbox", try OpenIapModule.iapkitEnvironment(from: "Sandbox"))
-        XCTAssertEqual("Production", try OpenIapModule.iapkitEnvironment(from: "Production"))
+    func testIapkitEnvironmentForwardsAnyStringAndNeverFails() throws {
+        XCTAssertNil(OpenIapModule.iapkitEnvironment(from: nil))
+        XCTAssertNil(OpenIapModule.iapkitEnvironment(from: NSNull()))
+        XCTAssertEqual("Sandbox", OpenIapModule.iapkitEnvironment(from: "Sandbox"))
+        XCTAssertEqual("Production", OpenIapModule.iapkitEnvironment(from: "Production"))
 
-        for invalidValue: Any in ["sandbox", "Xcode", "", 1, true, [:], []] {
-            XCTAssertThrowsError(
-                try OpenIapModule.iapkitEnvironment(from: invalidValue)
-            )
+        // The spec types `environment` as String, so a value IAPKit adds later
+        // is forwarded rather than dropped. "Xcode" and "LocalTesting" are real
+        // App Store Server environments.
+        for forwarded in ["sandbox", "Xcode", "LocalTesting", "Staging"] {
+            XCTAssertEqual(forwarded, OpenIapModule.iapkitEnvironment(from: forwarded))
+        }
+
+        // Only a non-string, or an empty string, has nothing to forward.
+        for unreadableValue: Any in ["", 1, true, [:], []] {
+            XCTAssertNil(OpenIapModule.iapkitEnvironment(from: unreadableValue))
         }
     }
 

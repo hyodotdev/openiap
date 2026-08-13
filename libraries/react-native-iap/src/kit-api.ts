@@ -283,9 +283,14 @@ export function kitApi(options: KitApiOptions) {
       if (!raw) return null;
       const candidate = JSON.parse(raw) as Partial<CachedClientPayload>;
       const payload = candidate.clientPayload;
+      // Only the invariants the cache itself depends on. `format` is opaque
+      // here: rejecting a format IAPKit added later would evict the entry,
+      // stop the ETag revalidation below from ever being sent, and leave
+      // offline reads with nothing — for a value the live path passes through
+      // to the caller unchanged anyway.
       if (
         !payload ||
-        !["toml", "json", "text"].includes(payload.format) ||
+        typeof payload.format !== "string" ||
         typeof payload.body !== "string" ||
         !Number.isSafeInteger(payload.version) ||
         payload.version < 1 ||

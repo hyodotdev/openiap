@@ -186,6 +186,38 @@ suspend fun verifyPurchaseWithIapkit(
     fun malformedIapkitResponse(): OpenIapError.PurchaseVerificationFailed =
         OpenIapError.PurchaseVerificationFailed("IAPKit returned malformed response")
 
+    fun unreadableIapkitClientPayload(): IapkitProductClientPayload? {
+        OpenIapLog.warn("Ignoring an IAPKit client payload this build cannot read", tag)
+        return null
+    }
+
+    fun readIapkitClientPayload(raw: Any?): IapkitProductClientPayload? {
+        if (raw == null) return null
+        val payload = raw as? Map<*, *> ?: return unreadableIapkitClientPayload()
+        // Derived from the generated enum rather than a literal set, so a
+        // format added to the spec is readable as soon as Types.kt regenerates.
+        val format = (payload["format"] as? String)
+            ?.let { raw -> IapkitClientPayloadFormat.entries.firstOrNull { it.rawValue == raw } }
+            ?: return unreadableIapkitClientPayload()
+        val body = payload["body"] as? String
+            ?: return unreadableIapkitClientPayload()
+        val version = (payload["version"] as? Number)?.toDouble()
+            ?: return unreadableIapkitClientPayload()
+        val updatedAt = (payload["updatedAt"] as? Number)?.toDouble()
+            ?: return unreadableIapkitClientPayload()
+        if (!version.isFinite() || version <= 0.0 || version % 1.0 != 0.0 ||
+            !updatedAt.isFinite() || updatedAt < 0.0
+        ) {
+            return unreadableIapkitClientPayload()
+        }
+        return IapkitProductClientPayload(
+            body = body,
+            format = format,
+            updatedAt = updatedAt,
+            version = version
+        )
+    }
+
     fun resolveIapkitEndpoint(): String {
         val requestedBaseUrl = props.baseUrl?.trim()
         if (requestedBaseUrl.isNullOrEmpty()) {
@@ -361,47 +393,21 @@ suspend fun verifyPurchaseWithIapkit(
                 IapkitPurchaseState.fromJson(normalizedState)
             }.getOrDefault(IapkitPurchaseState.Unknown)
 
-            val clientPayload = when (val rawClientPayload = parsed["clientPayload"]) {
-                null -> null
-                is Map<*, *> -> {
-                    val formatValue = rawClientPayload["format"] as? String
-                        ?: throw malformedIapkitResponse()
-                    if (formatValue !in setOf("toml", "json", "text")) {
-                        throw malformedIapkitResponse()
-                    }
-                    val format = IapkitClientPayloadFormat.fromJson(formatValue)
-                    val payloadBody = rawClientPayload["body"] as? String
-                        ?: throw malformedIapkitResponse()
-                    val version = (rawClientPayload["version"] as? Number)?.toDouble()
-                        ?: throw malformedIapkitResponse()
-                    val updatedAt = (rawClientPayload["updatedAt"] as? Number)?.toDouble()
-                        ?: throw malformedIapkitResponse()
-                    if (!version.isFinite() || version <= 0.0 || version % 1.0 != 0.0 ||
-                        !updatedAt.isFinite() || updatedAt < 0.0
-                    ) {
-                        throw malformedIapkitResponse()
-                    }
-                    IapkitProductClientPayload(
-                        body = payloadBody,
-                        format = format,
-                        updatedAt = updatedAt,
-                        version = version
-                    )
-                }
-                else -> throw malformedIapkitResponse()
-            }
+            // Optional enrichment: anything this build cannot represent — a
+            // client payload format or environment IAPKit adds later included
+            // — is dropped, never thrown. Receipt verification is the security
+            // boundary, and losing metadata must not fail a confirmed purchase.
+            val clientPayload = readIapkitClientPayload(parsed["clientPayload"])
             val productId = when (val rawProductId = parsed["productId"]) {
                 null -> null
                 is String -> rawProductId
                 else -> throw malformedIapkitResponse()
             }
-            val environment = when (val rawEnvironment = parsed["environment"]) {
-                null -> null
-                is String -> rawEnvironment.takeIf {
-                    it == "Sandbox" || it == "Production"
-                } ?: throw malformedIapkitResponse()
-                else -> throw malformedIapkitResponse()
-            }
+            // `environment` is String in the spec, not an enum: the
+            // Sandbox/Production pair is IAPKit's constraint to enforce, and
+            // re-deriving it here would only let a value IAPKit adds later
+            // fail a receipt the store already confirmed.
+            val environment = (parsed["environment"] as? String)?.takeIf { it.isNotEmpty() }
 
             return RequestVerifyPurchaseWithIapkitResult(
                 clientPayload = clientPayload,

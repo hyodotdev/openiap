@@ -348,6 +348,33 @@ describe('kitApi cache resilience', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
+  // IAPKit can add a client-payload format from a main deploy. Rejecting the
+  // cached entry would evict it, stop the ETag revalidation from ever being
+  // sent, and leave offline reads with nothing — for a value the live path
+  // hands back to the caller unchanged anyway.
+  it('serves a cached payload whose format this build predates', async () => {
+    const stored = {
+      clientPayload: {format: 'yaml', body: 'tier: gold', version: 2, updatedAt: 9},
+      etag: 'W/"cached"',
+    };
+    const cache = {
+      getItem: jest.fn().mockResolvedValue(JSON.stringify(stored)),
+      setItem: jest.fn(),
+      removeItem: jest.fn(),
+    };
+    const fetchImpl = jest.fn();
+
+    await expect(
+      kitApi({
+        apiKey: 'key',
+        fetchImpl,
+        clientPayloadCache: cache,
+      }).clientPayload('premium', 'IOS'),
+    ).resolves.toEqual({clientPayload: stored.clientPayload});
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(cache.removeItem).not.toHaveBeenCalled();
+  });
+
   it('keeps successful reads when cache operations fail', async () => {
     const cache = {
       getItem: jest.fn().mockRejectedValue(new Error('read failed')),

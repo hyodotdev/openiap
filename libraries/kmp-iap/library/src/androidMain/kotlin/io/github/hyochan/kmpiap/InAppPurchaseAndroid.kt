@@ -2211,20 +2211,31 @@ internal class InAppPurchaseAndroid(
 
             val androidResult = verifyPurchaseWithIapkitAndroid(openIapProps, "kmp-iap-android")
 
+            // openiap-google has already decoded these safely; re-mapping them
+            // through this module's own generated enums must not re-impose a
+            // fail-closed gate when the two versions drift apart.
             val iapkitResult = RequestVerifyPurchaseWithIapkitResult(
                 clientPayload = androidResult.clientPayload?.let { payload ->
-                    IapkitProductClientPayload(
-                        body = payload.body,
-                        format = IapkitClientPayloadFormat.fromJson(payload.format.toJson()),
-                        updatedAt = payload.updatedAt,
-                        version = payload.version
-                    )
+                    val format = IapkitClientPayloadFormat.entries
+                        .firstOrNull { it.rawValue == payload.format.toJson() }
+                    format?.let {
+                        IapkitProductClientPayload(
+                            body = payload.body,
+                            format = it,
+                            updatedAt = payload.updatedAt,
+                            version = payload.version
+                        )
+                    }
                 },
                 environment = androidResult.environment,
                 isValid = androidResult.isValid,
                 productId = androidResult.productId,
-                state = IapkitPurchaseState.fromJson(androidResult.state.toJson()),
-                store = IapStore.fromJson(androidResult.store.toJson())
+                state = runCatching {
+                    IapkitPurchaseState.fromJson(androidResult.state.toJson())
+                }.getOrDefault(IapkitPurchaseState.Unknown),
+                store = runCatching {
+                    IapStore.fromJson(androidResult.store.toJson())
+                }.getOrDefault(IapStore.Unknown)
             )
 
             VerifyPurchaseWithProviderResult(
