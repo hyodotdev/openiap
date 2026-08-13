@@ -2,6 +2,7 @@ package dev.hyo.openiap
 
 import com.android.billingclient.api.BillingFlowParams.ProductDetailsParams.SubscriptionProductReplacementParams.ReplacementMode
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 /**
@@ -20,11 +21,10 @@ import org.junit.Test
 class SubscriptionReplacementModeTest {
 
     @Test
-    fun `UnknownReplacementMode maps to native UNKNOWN_REPLACEMENT_MODE`() {
-        assertEquals(
-            ReplacementMode.UNKNOWN_REPLACEMENT_MODE,
+    fun `UnknownReplacementMode is rejected before purchase`() {
+        assertThrows(IllegalArgumentException::class.java) {
             SubscriptionReplacementModeAndroid.UnknownReplacementMode.toReplacementModeConstant()
-        )
+        }
     }
 
     @Test
@@ -77,15 +77,19 @@ class SubscriptionReplacementModeTest {
 
     @Test
     fun `all enum values are covered by toReplacementModeConstant`() {
-        assertEquals(7, SubscriptionReplacementModeAndroid.entries.size)
-        for (mode in SubscriptionReplacementModeAndroid.entries) {
+        val concreteModes = SubscriptionReplacementModeAndroid.entries -
+            SubscriptionReplacementModeAndroid.UnknownReplacementMode
+        assertEquals(6, concreteModes.size)
+        for (mode in concreteModes) {
             mode.toReplacementModeConstant()
         }
     }
 
     @Test
     fun `subscription replacement params use the native Billing builder`() {
-        for (mode in SubscriptionReplacementModeAndroid.entries) {
+        val concreteModes = SubscriptionReplacementModeAndroid.entries -
+            SubscriptionReplacementModeAndroid.UnknownReplacementMode
+        for (mode in concreteModes) {
             val params = SubscriptionProductReplacementParamsAndroid(
                 oldProductId = "old.product",
                 replacementMode = mode,
@@ -93,6 +97,34 @@ class SubscriptionReplacementModeTest {
 
             assertEquals("old.product", params.oldProductId)
             assertEquals(mode.toReplacementModeConstant(), params.replacementMode)
+        }
+    }
+
+    @Test
+    fun `subscription replacement params reject unknown mode`() {
+        val params = SubscriptionProductReplacementParamsAndroid(
+            oldProductId = "old.product",
+            replacementMode = SubscriptionReplacementModeAndroid.UnknownReplacementMode,
+        )
+
+        assertThrows(IllegalArgumentException::class.java) {
+            params.toBillingSubscriptionProductReplacementParams()
+        }
+    }
+
+    @Test
+    fun `decoded unknown and missing replacement modes are rejected`() {
+        val inputs = listOf(
+            mapOf("oldProductId" to "old.product", "replacementMode" to "future-mode"),
+            mapOf("oldProductId" to "old.product"),
+        )
+
+        for (input in inputs) {
+            val params = requireNotNull(SubscriptionProductReplacementParamsAndroid.fromJson(input))
+            assertEquals(SubscriptionReplacementModeAndroid.UnknownReplacementMode, params.replacementMode)
+            assertThrows(IllegalArgumentException::class.java) {
+                params.toBillingSubscriptionProductReplacementParams()
+            }
         }
     }
 

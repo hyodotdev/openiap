@@ -4146,16 +4146,6 @@ class DeveloperBillingOptionParamsAndroid {
     );
   }
 
-  static DeveloperBillingOptionParamsAndroid? _tryFromJson(Map<String, dynamic> json) {
-    try {
-      return DeveloperBillingOptionParamsAndroid.fromJson(json);
-    } on ArgumentError {
-      return null;
-    } on TypeError {
-      return null;
-    }
-  }
-
   Map<String, dynamic> toJson() {
     return {
       'billingProgram': billingProgram.toJson(),
@@ -4496,7 +4486,7 @@ class RequestPurchaseAndroidProps {
 
   factory RequestPurchaseAndroidProps.fromJson(Map<String, dynamic> json) {
     return RequestPurchaseAndroidProps(
-      developerBillingOption: json['developerBillingOption'] is Map<String, dynamic> ? DeveloperBillingOptionParamsAndroid._tryFromJson(json['developerBillingOption'] as Map<String, dynamic>) : null,
+      developerBillingOption: json['developerBillingOption'] != null ? DeveloperBillingOptionParamsAndroid.fromJson(json['developerBillingOption'] as Map<String, dynamic>) : null,
       isOfferPersonalized: json['isOfferPersonalized'] as bool?,
       obfuscatedAccountId: json['obfuscatedAccountId'] as String?,
       obfuscatedProfileId: json['obfuscatedProfileId'] as String?,
@@ -4699,7 +4689,7 @@ class RequestSubscriptionAndroidProps {
 
   factory RequestSubscriptionAndroidProps.fromJson(Map<String, dynamic> json) {
     return RequestSubscriptionAndroidProps(
-      developerBillingOption: json['developerBillingOption'] is Map<String, dynamic> ? DeveloperBillingOptionParamsAndroid._tryFromJson(json['developerBillingOption'] as Map<String, dynamic>) : null,
+      developerBillingOption: json['developerBillingOption'] != null ? DeveloperBillingOptionParamsAndroid.fromJson(json['developerBillingOption'] as Map<String, dynamic>) : null,
       isOfferPersonalized: json['isOfferPersonalized'] as bool?,
       obfuscatedAccountId: json['obfuscatedAccountId'] as String?,
       obfuscatedProfileId: json['obfuscatedProfileId'] as String?,

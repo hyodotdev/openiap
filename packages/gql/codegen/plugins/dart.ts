@@ -831,7 +831,7 @@ export class DartPlugin extends CodegenPlugin {
     }
 
     if (['object', 'input', 'interface', 'union'].includes(type.kind)) {
-      if (type.nullable && this.typeHasRequiredEnumWithoutUnknown(type.name!, this.schema)) {
+      if (type.nullable && this.typeNeedsTolerantNullableDecoder(type.name!, this.schema)) {
         return `${sourceExpr} is Map<String, dynamic> ? ${type.name}._tryFromJson(${sourceExpr} as Map<String, dynamic>) : null`;
       }
       return type.nullable

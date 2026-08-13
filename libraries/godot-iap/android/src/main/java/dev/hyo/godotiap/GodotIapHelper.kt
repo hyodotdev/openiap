@@ -117,22 +117,23 @@ internal object GodotIapHelper {
         // Parse subscriptionProductReplacementParams (8.1.0+)
         val subscriptionProductReplacementParams = if (json.has("subscriptionProductReplacementParams")) {
             val paramsObj = json.optJSONObject("subscriptionProductReplacementParams")
-            if (paramsObj != null) {
-                val oldProductId = paramsObj.optString("oldProductId").takeIf { it.isNotEmpty() }
-                val mode = paramsObj.optString("replacementMode").takeIf { it.isNotEmpty() }
-                val parsedMode = parseSubscriptionReplacementMode(mode)
-                if (oldProductId != null && parsedMode != null) {
-                    SubscriptionProductReplacementParamsAndroid(
-                        oldProductId = oldProductId,
-                        replacementMode = parsedMode
-                    )
-                } else null
-            } else null
+                ?: throw IllegalArgumentException("subscriptionProductReplacementParams must be an object")
+            val oldProductId = paramsObj.optString("oldProductId").takeIf { it.isNotEmpty() }
+                ?: throw IllegalArgumentException("subscriptionProductReplacementParams.oldProductId is required")
+            val mode = paramsObj.optString("replacementMode").takeIf { it.isNotEmpty() }
+            val parsedMode = parseSubscriptionReplacementMode(mode)
+                ?: throw IllegalArgumentException("A concrete subscription replacement mode is required")
+            SubscriptionProductReplacementParamsAndroid(
+                oldProductId = oldProductId,
+                replacementMode = parsedMode
+            )
         } else null
 
-        val developerBillingOption = json.optJSONObject("developerBillingOption")?.let {
-            DeveloperBillingOptionParamsAndroid.fromJson(jsonObjectToMap(it))
-        }
+        val developerBillingOption = if (json.has("developerBillingOption")) {
+            val option = json.optJSONObject("developerBillingOption")
+                ?: throw IllegalArgumentException("developerBillingOption must be an object")
+            DeveloperBillingOptionParamsAndroid.fromJson(jsonObjectToMap(option))
+        } else null
 
         val offerToken = json.optStringOrNull("offerToken")
 
@@ -150,6 +151,15 @@ internal object GodotIapHelper {
                     )
                 }
             }
+        }
+
+        val productType = parseProductQueryType(
+            rawType = type,
+            defaultType = ProductQueryType.InApp,
+            allowAll = false,
+        )
+        if (subscriptionProductReplacementParams != null && productType != ProductQueryType.Subs) {
+            throw IllegalArgumentException("subscriptionProductReplacementParams requires type `subs`")
         }
 
         return RequestPurchaseParams(
@@ -173,12 +183,12 @@ internal object GodotIapHelper {
      */
     private fun parseSubscriptionReplacementMode(mode: String?): SubscriptionReplacementModeAndroid? {
         return when (mode?.lowercase(Locale.US)?.replace("-", "_")) {
-            "unknown_replacement_mode" -> SubscriptionReplacementModeAndroid.UnknownReplacementMode
             "with_time_proration" -> SubscriptionReplacementModeAndroid.WithTimeProration
             "charge_prorated_price" -> SubscriptionReplacementModeAndroid.ChargeProratedPrice
             "without_proration" -> SubscriptionReplacementModeAndroid.WithoutProration
             "charge_full_price" -> SubscriptionReplacementModeAndroid.ChargeFullPrice
             "deferred" -> SubscriptionReplacementModeAndroid.Deferred
+            "keep_existing" -> SubscriptionReplacementModeAndroid.KeepExisting
             else -> null
         }
     }

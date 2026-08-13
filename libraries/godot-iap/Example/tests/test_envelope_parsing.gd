@@ -182,6 +182,7 @@ func _run_all_tests() -> void:
 	test_request_purchase_unsupported_platform()
 	test_ios_request_purchase_requires_sku()
 	test_android_purchase_uses_canonical_native_wire()
+	test_android_purchase_rejects_invalid_optional_request_fields()
 	test_removed_purchase_inputs_are_rejected()
 	test_ambiguous_purchase_branches_are_rejected()
 	await test_android_finish_transaction_envelopes()
@@ -755,6 +756,51 @@ func test_android_purchase_uses_canonical_native_wire() -> void:
 	_assert_equal(sent.get("offerToken"), "canonical-offer-token", "One-time offerToken should use its canonical key")
 	_assert_false(sent.has("offerTokenArr"), "Canonical calls should never emit legacy offerTokenArr")
 	_assert_false(sent.has("replacementMode"), "Missing replacement options should remain absent")
+	_assert_false(
+		sent.has("subscriptionProductReplacementParams"),
+		"Missing product replacement params should remain absent"
+	)
+	_assert_false(
+		sent.has("developerBillingOption"),
+		"Missing developer billing options should remain absent"
+	)
+	_uninstall_fake()
+
+
+func test_android_purchase_rejects_invalid_optional_request_fields() -> void:
+	var fake = _install_android_fake()
+	var null_replacement = GodotIapPlugin._request_purchase_raw({
+		"type": "subs",
+		"requestSubscription": {"google": {
+			"skus": ["subscription"],
+			"subscriptionProductReplacementParams": null,
+		}},
+	})
+	_assert_equal(null_replacement.get("success"), false, "Explicit null replacement params should fail")
+	_assert_equal(fake.last_method, "", "Null replacement params must not reach the native plugin")
+
+	var null_billing = GodotIapPlugin._request_purchase_raw({
+		"type": "in-app",
+		"requestPurchase": {"google": {
+			"skus": ["coins"],
+			"developerBillingOption": null,
+		}},
+	})
+	_assert_equal(null_billing.get("success"), false, "Explicit null developer billing options should fail")
+	_assert_equal(fake.last_method, "", "Null developer billing options must not reach the native plugin")
+
+	var in_app_replacement = GodotIapPlugin._request_purchase_raw({
+		"type": "in-app",
+		"requestPurchase": {"google": {
+			"skus": ["coins"],
+			"subscriptionProductReplacementParams": {
+				"oldProductId": "legacy",
+				"replacementMode": "without-proration",
+			},
+		}},
+	})
+	_assert_equal(in_app_replacement.get("success"), false, "In-app replacement params should fail")
+	_assert_equal(fake.last_method, "", "In-app replacement params must not reach the native plugin")
 	_uninstall_fake()
 
 
@@ -1074,6 +1120,7 @@ func test_ios_immediate_payload_envelope() -> void:
 				"title": "iOS Product",
 				"description": "A product",
 				"type": "in-app",
+				"typeIOS": "consumable",
 				"platform": "ios",
 				"displayPrice": "$1.99",
 				"currency": "USD",

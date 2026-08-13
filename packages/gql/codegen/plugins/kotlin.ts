@@ -330,7 +330,7 @@ export class KotlinPlugin extends CodegenPlugin {
     this.emit(`        fun fromJson(json: Map<String, Any?>): ${irObject.name} {`);
     this.emit(`            return ${irObject.name}(`);
 
-    const rejectMissingStrictEnums = this.typeNeedsTolerantNullableDecoder(irObject.name, this.schema);
+    const rejectMissingStrictEnums = this.typeHasRequiredEnumWithoutUnknown(irObject.name, this.schema);
 
     for (const field of sortedFields) {
       const propertyName = this.escapeKeyword(this.fieldNameCase(field.name));
@@ -339,7 +339,7 @@ export class KotlinPlugin extends CodegenPlugin {
         `json["${field.name}"]`,
         false,
         false,
-        undefined,
+        this.buildDefaultValueExpression(field),
         rejectMissingStrictEnums,
       );
       this.emit(`                ${propertyName} = ${expression},`);
@@ -436,14 +436,14 @@ export class KotlinPlugin extends CodegenPlugin {
     this.emit('    companion object {');
     this.emit(`        fun fromJson(json: Map<String, Any?>): ${irObject.name} {`);
     this.emit(`            return ${irObject.name}(`);
-    const rejectMissingStrictEnums = this.typeNeedsTolerantNullableDecoder(irObject.name, this.schema);
+    const rejectMissingStrictEnums = this.typeHasRequiredEnumWithoutUnknown(irObject.name, this.schema);
     for (const value of [...primaryFields, ...extraFields]) {
       const expression = this.buildFromJsonExpression(
         value.type,
         `json["${value.name}"]`,
         false,
         false,
-        undefined,
+        this.buildDefaultValueExpression(value),
         rejectMissingStrictEnums,
       );
       this.emit(`                ${value.name} = ${expression},`);
@@ -506,7 +506,7 @@ export class KotlinPlugin extends CodegenPlugin {
 
     // Sort fields alphabetically for Kotlin
     const sortedFields = [...irInput.fields].sort((a, b) => a.name.localeCompare(b.name));
-    const rejectMissingStrictEnums = this.typeNeedsTolerantNullableDecoder(irInput.name, this.schema);
+    const rejectMissingStrictEnums = this.typeHasRequiredEnumWithoutUnknown(irInput.name, this.schema);
 
     this.generateDocComment(irInput.description);
     this.generateDeprecationAnnotation(irInput.description);
@@ -727,7 +727,7 @@ export class KotlinPlugin extends CodegenPlugin {
   }
 
   private generateStandardInput(irInput: IRInput): void {
-    const rejectMissingStrictEnums = this.typeNeedsTolerantNullableDecoder(irInput.name, this.schema);
+    const rejectMissingStrictEnums = this.typeHasRequiredEnumWithoutUnknown(irInput.name, this.schema);
     this.generateDocComment(irInput.description);
     this.generateDeprecationAnnotation(irInput.description);
     this.emit(`public data class ${irInput.name}(`);
@@ -1146,8 +1146,11 @@ export class KotlinPlugin extends CodegenPlugin {
 
     if (['object', 'input', 'interface', 'union'].includes(type.kind)) {
       const callTarget = type.name!;
+      if (type.kind === 'input' && type.nullable) {
+        return `${sourceExpr}?.let { value -> (value as? Map<String, Any?>)?.let { ${callTarget}.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for ${callTarget}") }`;
+      }
       if (type.nullable || forNullableFromJson) {
-        if (this.typeHasRequiredEnumWithoutUnknown(callTarget, this.schema)) {
+        if (this.typeNeedsTolerantNullableDecoder(callTarget, this.schema)) {
           return `(${sourceExpr} as? Map<String, Any?>)?.let { runCatching { ${callTarget}.fromJson(it) }.getOrNull() }`;
         }
         return `(${sourceExpr} as? Map<String, Any?>)?.let { ${callTarget}.fromJson(it) }`;

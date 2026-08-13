@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -54,7 +55,9 @@ internal sealed class TolerantJsonObjectConverter<T> : JsonConverter<T?>
     public override T? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
         using var document = JsonDocument.ParseValue(ref reader);
-        return TolerantJson.Deserialize<T>(document.RootElement, options);
+        var value = TolerantJson.Deserialize<T>(document.RootElement, options);
+        if (value is null) Trace.TraceWarning("Skipped unreadable {0} object.", typeof(T).Name);
+        return value;
     }
 
     public override void Write(Utf8JsonWriter writer, T? value, JsonSerializerOptions options)
@@ -73,10 +76,19 @@ internal sealed class TolerantJsonListConverter<T> : JsonConverter<IReadOnlyList
         }
 
         var values = new List<T>();
+        var index = 0;
         foreach (var element in document.RootElement.EnumerateArray())
         {
             var value = TolerantJson.Deserialize<T>(element, options);
-            if (value is not null) values.Add(value);
+            if (value is not null)
+            {
+                values.Add(value);
+            }
+            else
+            {
+                Trace.TraceWarning("Skipped unreadable {0} row at index {1}.", typeof(T).Name, index);
+            }
+            index++;
         }
         return values;
     }

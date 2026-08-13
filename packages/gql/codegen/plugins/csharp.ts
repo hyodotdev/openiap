@@ -522,9 +522,16 @@ export class CSharpPlugin extends CodegenPlugin {
       if (
         field.type.nullable &&
         ['object', 'input'].includes(field.type.kind) &&
-        this.typeHasRequiredEnumWithoutUnknown(field.type.name!, this.schema)
+        this.typeNeedsTolerantNullableDecoder(field.type.name!, this.schema)
       ) {
         this.emit(`    [JsonConverter(typeof(${field.type.name}NullableJsonConverter))]`);
+      } else if (
+        field.type.kind === 'list' &&
+        field.type.elementType?.nullable === true &&
+        field.type.elementType.kind === 'object' &&
+        this.typeNeedsTolerantNullableDecoder(field.type.elementType.name!, this.schema)
+      ) {
+        this.emit(`    [JsonConverter(typeof(${field.type.elementType.name}NullableElementListJsonConverter))]`);
       }
 
       // Required vs. nullable — non-nullable scalars/objects get the C#
@@ -660,6 +667,53 @@ export class CSharpPlugin extends CodegenPlugin {
     this.emit('');
     this.emit(
       `    public override void Write(Utf8JsonWriter writer, ${typeName}? value, JsonSerializerOptions options) =>`,
+    );
+    this.emit('        JsonSerializer.Serialize(writer, value, options);');
+    this.emit('}');
+    this.emit('');
+
+    const needsListConverter = this.schema.objects.some((container) =>
+      container.fields.some(
+        (field) =>
+          field.type.kind === 'list' &&
+          field.type.elementType?.nullable === true &&
+          field.type.elementType.kind === 'object' &&
+          field.type.elementType.name === typeName,
+      ),
+    );
+    if (!needsListConverter) return;
+    this.emit(`public sealed class ${typeName}NullableElementListJsonConverter : JsonConverter<IReadOnlyList<${typeName}?>>`);
+    this.emit('{');
+    this.emit(
+      `    public override IReadOnlyList<${typeName}?> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)`,
+    );
+    this.emit('    {');
+    this.emit('        using var document = JsonDocument.ParseValue(ref reader);');
+    this.emit('        if (document.RootElement.ValueKind != JsonValueKind.Array)');
+    this.emit('        {');
+    this.emit(`            throw new JsonException("Expected an array of ${typeName} values.");`);
+    this.emit('        }');
+    this.emit(`        var values = new List<${typeName}?>();`);
+    this.emit('        foreach (var element in document.RootElement.EnumerateArray())');
+    this.emit('        {');
+    this.emit('            try');
+    this.emit('            {');
+    this.emit(`                values.Add(element.Deserialize<${typeName}>(options));`);
+    this.emit('            }');
+    this.emit('            catch (JsonException)');
+    this.emit('            {');
+    this.emit('                values.Add(null);');
+    this.emit('            }');
+    this.emit('            catch (InvalidOperationException)');
+    this.emit('            {');
+    this.emit('                values.Add(null);');
+    this.emit('            }');
+    this.emit('        }');
+    this.emit('        return values;');
+    this.emit('    }');
+    this.emit('');
+    this.emit(
+      `    public override void Write(Utf8JsonWriter writer, IReadOnlyList<${typeName}?> value, JsonSerializerOptions options) =>`,
     );
     this.emit('        JsonSerializer.Serialize(writer, value, options);');
     this.emit('}');

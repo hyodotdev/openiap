@@ -1668,7 +1668,7 @@ public data class BillingProgramAvailabilityResultAndroid(
     companion object {
         fun fromJson(json: Map<String, Any?>): BillingProgramAvailabilityResultAndroid {
             return BillingProgramAvailabilityResultAndroid(
-                billingProgram = (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJson(it) } ?: BillingProgramAndroid.Unspecified,
+                billingProgram = (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJson(it) } ?: throw IllegalArgumentException("Missing required enum value for BillingProgramAndroid"),
                 choiceScreenType = (json["choiceScreenType"] as? String)?.let { BillingChoiceScreenTypeAndroid.fromJson(it) },
                 isAvailable = json["isAvailable"] as? Boolean ?: false,
                 isExternalLinkAvailable = json["isExternalLinkAvailable"] as? Boolean,
@@ -1706,7 +1706,7 @@ public data class BillingProgramReportingDetailsAndroid(
     companion object {
         fun fromJson(json: Map<String, Any?>): BillingProgramReportingDetailsAndroid {
             return BillingProgramReportingDetailsAndroid(
-                billingProgram = (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJson(it) } ?: BillingProgramAndroid.Unspecified,
+                billingProgram = (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJson(it) } ?: throw IllegalArgumentException("Missing required enum value for BillingProgramAndroid"),
                 externalTransactionToken = json["externalTransactionToken"] as? String ?: "",
             )
         }
@@ -1873,7 +1873,7 @@ public data class DeveloperProvidedBillingProductAndroid(
             return DeveloperProvidedBillingProductAndroid(
                 id = json["id"] as? String ?: "",
                 offerToken = json["offerToken"] as? String,
-                type = (json["type"] as? String)?.let { ProductType.fromJson(it) } ?: ProductType.InApp,
+                type = (json["type"] as? String)?.let { ProductType.fromJson(it) } ?: throw IllegalArgumentException("Missing required enum value for ProductType"),
             )
         }
     }
@@ -2058,7 +2058,7 @@ public data class DiscountOffer(
                 price = (json["price"] as? Number)?.toDouble() ?: 0.0,
                 purchaseOptionIdAndroid = json["purchaseOptionIdAndroid"] as? String,
                 rentalDetailsAndroid = (json["rentalDetailsAndroid"] as? Map<String, Any?>)?.let { RentalDetailsAndroid.fromJson(it) },
-                type = (json["type"] as? String)?.let { DiscountOfferType.fromJson(it) } ?: DiscountOfferType.Introductory,
+                type = (json["type"] as? String)?.let { DiscountOfferType.fromJson(it) } ?: throw IllegalArgumentException("Missing required enum value for DiscountOfferType"),
                 validTimeWindowAndroid = (json["validTimeWindowAndroid"] as? Map<String, Any?>)?.let { ValidTimeWindowAndroid.fromJson(it) },
             )
         }
@@ -2226,7 +2226,7 @@ public data class ExternalPurchaseNoticeResultIOS(
             return ExternalPurchaseNoticeResultIOS(
                 error = json["error"] as? String,
                 externalPurchaseToken = json["externalPurchaseToken"] as? String,
-                result = (json["result"] as? String)?.let { ExternalPurchaseNoticeAction.fromJson(it) } ?: ExternalPurchaseNoticeAction.Continue,
+                result = (json["result"] as? String)?.let { ExternalPurchaseNoticeAction.fromJson(it) } ?: throw IllegalArgumentException("Missing required enum value for ExternalPurchaseNoticeAction"),
             )
         }
     }
@@ -2298,7 +2298,7 @@ public data class InAppMessageResultAndroid(
         fun fromJson(json: Map<String, Any?>): InAppMessageResultAndroid {
             return InAppMessageResultAndroid(
                 purchaseToken = json["purchaseToken"] as? String,
-                responseCode = (json["responseCode"] as? String)?.let { InAppMessageResponseCodeAndroid.fromJson(it) } ?: InAppMessageResponseCodeAndroid.NoActionNeeded,
+                responseCode = (json["responseCode"] as? String)?.let { InAppMessageResponseCodeAndroid.fromJson(it) } ?: throw IllegalArgumentException("Missing required enum value for InAppMessageResponseCodeAndroid"),
             )
         }
     }
@@ -2543,7 +2543,7 @@ public data class ProductAndroid(
                 displayPrice = json["displayPrice"] as? String ?: "",
                 id = json["id"] as? String ?: "",
                 nameAndroid = json["nameAndroid"] as? String ?: "",
-                platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: IapPlatform.Ios,
+                platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: IapPlatform.Android,
                 price = (json["price"] as? Number)?.toDouble(),
                 productStatusAndroid = (json["productStatusAndroid"] as? String)?.let { ProductStatusAndroid.fromJson(it) },
                 subscriptionOffers = (json["subscriptionOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionOffer.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionOffer") },
@@ -2619,7 +2619,7 @@ public data class ProductIOS(
                 subscriptionOffers = (json["subscriptionOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionOffer.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionOffer") },
                 title = json["title"] as? String ?: "",
                 type = (json["type"] as? String)?.let { ProductType.fromJson(it) } ?: ProductType.InApp,
-                typeIOS = (json["typeIOS"] as? String)?.let { ProductTypeIOS.fromJson(it) } ?: ProductTypeIOS.Consumable,
+                typeIOS = (json["typeIOS"] as? String)?.let { ProductTypeIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required enum value for ProductTypeIOS"),
             )
         }
     }
@@ -2683,12 +2683,12 @@ public data class ProductSubscriptionAndroid(
                 displayPrice = json["displayPrice"] as? String ?: "",
                 id = json["id"] as? String ?: "",
                 nameAndroid = json["nameAndroid"] as? String ?: "",
-                platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: IapPlatform.Ios,
+                platform = (json["platform"] as? String)?.let { IapPlatform.fromJson(it) } ?: IapPlatform.Android,
                 price = (json["price"] as? Number)?.toDouble(),
                 productStatusAndroid = (json["productStatusAndroid"] as? String)?.let { ProductStatusAndroid.fromJson(it) },
                 subscriptionOffers = (json["subscriptionOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { SubscriptionOffer.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for SubscriptionOffer") } ?: emptyList(),
                 title = json["title"] as? String ?: "",
-                type = (json["type"] as? String)?.let { ProductType.fromJson(it) } ?: ProductType.InApp,
+                type = (json["type"] as? String)?.let { ProductType.fromJson(it) } ?: ProductType.Subs,
             )
         }
     }
@@ -2781,8 +2781,8 @@ public data class ProductSubscriptionIOS(
                 subscriptionPeriodNumberIOS = json["subscriptionPeriodNumberIOS"] as? String,
                 subscriptionPeriodUnitIOS = (json["subscriptionPeriodUnitIOS"] as? String)?.let { SubscriptionPeriodIOS.fromJson(it) },
                 title = json["title"] as? String ?: "",
-                type = (json["type"] as? String)?.let { ProductType.fromJson(it) } ?: ProductType.InApp,
-                typeIOS = (json["typeIOS"] as? String)?.let { ProductTypeIOS.fromJson(it) } ?: ProductTypeIOS.Consumable,
+                type = (json["type"] as? String)?.let { ProductType.fromJson(it) } ?: ProductType.Subs,
+                typeIOS = (json["typeIOS"] as? String)?.let { ProductTypeIOS.fromJson(it) } ?: throw IllegalArgumentException("Missing required enum value for ProductTypeIOS"),
             )
         }
     }
@@ -3659,7 +3659,7 @@ public data class SubscriptionOffer(
                 pricingPhasesAndroid = (json["pricingPhasesAndroid"] as? Map<String, Any?>)?.let { PricingPhasesAndroid.fromJson(it) },
                 signatureIOS = json["signatureIOS"] as? String,
                 timestampIOS = (json["timestampIOS"] as? Number)?.toDouble(),
-                type = (json["type"] as? String)?.let { DiscountOfferType.fromJson(it) } ?: DiscountOfferType.Introductory,
+                type = (json["type"] as? String)?.let { DiscountOfferType.fromJson(it) } ?: throw IllegalArgumentException("Missing required enum value for DiscountOfferType"),
             )
         }
     }
@@ -4109,7 +4109,7 @@ public data class VerifyPurchaseWithProviderResult(
             return VerifyPurchaseWithProviderResult(
                 errors = (json["errors"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { VerifyPurchaseWithProviderError.fromJson(it) } ?: throw IllegalArgumentException("Missing required object for VerifyPurchaseWithProviderError") },
                 iapkit = (json["iapkit"] as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitResult.fromJson(it) },
-                provider = (json["provider"] as? String)?.let { PurchaseVerificationProvider.fromJson(it) } ?: PurchaseVerificationProvider.Iapkit,
+                provider = (json["provider"] as? String)?.let { PurchaseVerificationProvider.fromJson(it) } ?: throw IllegalArgumentException("Missing required enum value for PurchaseVerificationProvider"),
             )
         }
     }
@@ -4443,10 +4443,10 @@ public data class LaunchExternalLinkParamsAndroid(
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): LaunchExternalLinkParamsAndroid? {
-            val billingProgram = (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJson(it) } ?: BillingProgramAndroid.Unspecified
+            val billingProgram = (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJson(it) } ?: throw IllegalArgumentException("Missing required enum value for BillingProgramAndroid")
             val externalTransactionToken = json["externalTransactionToken"] as? String
-            val launchMode = (json["launchMode"] as? String)?.let { ExternalLinkLaunchModeAndroid.fromJson(it) } ?: ExternalLinkLaunchModeAndroid.Unspecified
-            val linkType = (json["linkType"] as? String)?.let { ExternalLinkTypeAndroid.fromJson(it) } ?: ExternalLinkTypeAndroid.Unspecified
+            val launchMode = (json["launchMode"] as? String)?.let { ExternalLinkLaunchModeAndroid.fromJson(it) } ?: throw IllegalArgumentException("Missing required enum value for ExternalLinkLaunchModeAndroid")
+            val linkType = (json["linkType"] as? String)?.let { ExternalLinkTypeAndroid.fromJson(it) } ?: throw IllegalArgumentException("Missing required enum value for ExternalLinkTypeAndroid")
             val linkUri = json["linkUri"] as? String
             if (linkUri == null) return null
             return LaunchExternalLinkParamsAndroid(
@@ -4616,7 +4616,7 @@ public data class RequestPurchaseAndroidProps(
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestPurchaseAndroidProps? {
-            val developerBillingOption = (json["developerBillingOption"] as? Map<String, Any?>)?.let { runCatching { DeveloperBillingOptionParamsAndroid.fromJson(it) }.getOrNull() }
+            val developerBillingOption = json["developerBillingOption"]?.let { value -> (value as? Map<String, Any?>)?.let { DeveloperBillingOptionParamsAndroid.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for DeveloperBillingOptionParamsAndroid") }
             val isOfferPersonalized = json["isOfferPersonalized"] as? Boolean
             val obfuscatedAccountId = json["obfuscatedAccountId"] as? String
             val obfuscatedProfileId = json["obfuscatedProfileId"] as? String
@@ -4681,7 +4681,7 @@ public data class RequestPurchaseIosProps(
             val appAccountToken = json["appAccountToken"] as? String
             val quantity = (json["quantity"] as? Number)?.toInt()
             val sku = json["sku"] as? String
-            val withOffer = (json["withOffer"] as? Map<String, Any?>)?.let { DiscountOfferInputIOS.fromJson(it) }
+            val withOffer = json["withOffer"]?.let { value -> (value as? Map<String, Any?>)?.let { DiscountOfferInputIOS.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for DiscountOfferInputIOS") }
             if (sku == null) return null
             return RequestPurchaseIosProps(
                 advancedCommerceData = advancedCommerceData,
@@ -4787,8 +4787,8 @@ public data class RequestPurchasePropsByPlatforms(
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestPurchasePropsByPlatforms {
             return RequestPurchasePropsByPlatforms(
-                apple = (json["apple"] as? Map<String, Any?>)?.let { RequestPurchaseIosProps.fromJson(it) },
-                google = (json["google"] as? Map<String, Any?>)?.let { RequestPurchaseAndroidProps.fromJson(it) },
+                apple = json["apple"]?.let { value -> (value as? Map<String, Any?>)?.let { RequestPurchaseIosProps.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for RequestPurchaseIosProps") },
+                google = json["google"]?.let { value -> (value as? Map<String, Any?>)?.let { RequestPurchaseAndroidProps.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for RequestPurchaseAndroidProps") },
             )
         }
     }
@@ -4848,7 +4848,7 @@ public data class RequestSubscriptionAndroidProps(
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestSubscriptionAndroidProps? {
-            val developerBillingOption = (json["developerBillingOption"] as? Map<String, Any?>)?.let { runCatching { DeveloperBillingOptionParamsAndroid.fromJson(it) }.getOrNull() }
+            val developerBillingOption = json["developerBillingOption"]?.let { value -> (value as? Map<String, Any?>)?.let { DeveloperBillingOptionParamsAndroid.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for DeveloperBillingOptionParamsAndroid") }
             val isOfferPersonalized = json["isOfferPersonalized"] as? Boolean
             val obfuscatedAccountId = json["obfuscatedAccountId"] as? String
             val obfuscatedProfileId = json["obfuscatedProfileId"] as? String
@@ -4856,7 +4856,7 @@ public data class RequestSubscriptionAndroidProps(
             val purchaseToken = json["purchaseToken"] as? String
             val skus = (json["skus"] as? List<*>)?.mapNotNull { it as? String }
             val subscriptionOffers = (json["subscriptionOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { AndroidSubscriptionOfferInput.fromJson(it) } }
-            val subscriptionProductReplacementParams = (json["subscriptionProductReplacementParams"] as? Map<String, Any?>)?.let { SubscriptionProductReplacementParamsAndroid.fromJson(it) }
+            val subscriptionProductReplacementParams = json["subscriptionProductReplacementParams"]?.let { value -> (value as? Map<String, Any?>)?.let { SubscriptionProductReplacementParamsAndroid.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for SubscriptionProductReplacementParamsAndroid") }
             if (skus == null) return null
             return RequestSubscriptionAndroidProps(
                 developerBillingOption = developerBillingOption,
@@ -4935,11 +4935,11 @@ public data class RequestSubscriptionIosProps(
             val appAccountToken = json["appAccountToken"] as? String
             val billingPlanType = (json["billingPlanType"] as? String)?.let { SubscriptionBillingPlanTypeIOS.fromJson(it) }
             val compactJWS = json["compactJWS"] as? String
-            val promotionalOfferJWS = (json["promotionalOfferJWS"] as? Map<String, Any?>)?.let { PromotionalOfferJWSInputIOS.fromJson(it) }
+            val promotionalOfferJWS = json["promotionalOfferJWS"]?.let { value -> (value as? Map<String, Any?>)?.let { PromotionalOfferJWSInputIOS.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for PromotionalOfferJWSInputIOS") }
             val quantity = (json["quantity"] as? Number)?.toInt()
             val sku = json["sku"] as? String
-            val winBackOffer = (json["winBackOffer"] as? Map<String, Any?>)?.let { WinBackOfferInputIOS.fromJson(it) }
-            val withOffer = (json["withOffer"] as? Map<String, Any?>)?.let { DiscountOfferInputIOS.fromJson(it) }
+            val winBackOffer = json["winBackOffer"]?.let { value -> (value as? Map<String, Any?>)?.let { WinBackOfferInputIOS.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for WinBackOfferInputIOS") }
+            val withOffer = json["withOffer"]?.let { value -> (value as? Map<String, Any?>)?.let { DiscountOfferInputIOS.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for DiscountOfferInputIOS") }
             if (sku == null) return null
             return RequestSubscriptionIosProps(
                 advancedCommerceData = advancedCommerceData,
@@ -4992,8 +4992,8 @@ public data class RequestSubscriptionPropsByPlatforms(
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestSubscriptionPropsByPlatforms {
             return RequestSubscriptionPropsByPlatforms(
-                apple = (json["apple"] as? Map<String, Any?>)?.let { RequestSubscriptionIosProps.fromJson(it) },
-                google = (json["google"] as? Map<String, Any?>)?.let { RequestSubscriptionAndroidProps.fromJson(it) },
+                apple = json["apple"]?.let { value -> (value as? Map<String, Any?>)?.let { RequestSubscriptionIosProps.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for RequestSubscriptionIosProps") },
+                google = json["google"]?.let { value -> (value as? Map<String, Any?>)?.let { RequestSubscriptionAndroidProps.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for RequestSubscriptionAndroidProps") },
             )
         }
     }
@@ -5167,11 +5167,11 @@ public data class RequestVerifyPurchaseWithIapkitProps(
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitProps {
             return RequestVerifyPurchaseWithIapkitProps(
-                amazon = (json["amazon"] as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitAmazonProps.fromJson(it) },
+                amazon = json["amazon"]?.let { value -> (value as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitAmazonProps.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for RequestVerifyPurchaseWithIapkitAmazonProps") },
                 apiKey = json["apiKey"] as? String,
-                apple = (json["apple"] as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitAppleProps.fromJson(it) },
+                apple = json["apple"]?.let { value -> (value as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitAppleProps.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for RequestVerifyPurchaseWithIapkitAppleProps") },
                 baseUrl = json["baseUrl"] as? String,
-                google = (json["google"] as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitGoogleProps.fromJson(it) },
+                google = json["google"]?.let { value -> (value as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitGoogleProps.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for RequestVerifyPurchaseWithIapkitGoogleProps") },
                 includeClientPayload = json["includeClientPayload"] as? Boolean,
             )
         }
@@ -5369,9 +5369,9 @@ public data class VerifyPurchaseProps(
     companion object {
         fun fromJson(json: Map<String, Any?>): VerifyPurchaseProps {
             return VerifyPurchaseProps(
-                apple = (json["apple"] as? Map<String, Any?>)?.let { VerifyPurchaseAppleOptions.fromJson(it) },
-                google = (json["google"] as? Map<String, Any?>)?.let { VerifyPurchaseGoogleOptions.fromJson(it) },
-                horizon = (json["horizon"] as? Map<String, Any?>)?.let { VerifyPurchaseHorizonOptions.fromJson(it) },
+                apple = json["apple"]?.let { value -> (value as? Map<String, Any?>)?.let { VerifyPurchaseAppleOptions.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for VerifyPurchaseAppleOptions") },
+                google = json["google"]?.let { value -> (value as? Map<String, Any?>)?.let { VerifyPurchaseGoogleOptions.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for VerifyPurchaseGoogleOptions") },
+                horizon = json["horizon"]?.let { value -> (value as? Map<String, Any?>)?.let { VerifyPurchaseHorizonOptions.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for VerifyPurchaseHorizonOptions") },
             )
         }
     }
@@ -5389,8 +5389,8 @@ public data class VerifyPurchaseWithProviderProps(
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): VerifyPurchaseWithProviderProps? {
-            val iapkit = (json["iapkit"] as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitProps.fromJson(it) }
-            val provider = (json["provider"] as? String)?.let { PurchaseVerificationProvider.fromJson(it) } ?: PurchaseVerificationProvider.Iapkit
+            val iapkit = json["iapkit"]?.let { value -> (value as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitProps.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for RequestVerifyPurchaseWithIapkitProps") }
+            val provider = (json["provider"] as? String)?.let { PurchaseVerificationProvider.fromJson(it) } ?: throw IllegalArgumentException("Missing required enum value for PurchaseVerificationProvider")
             return VerifyPurchaseWithProviderProps(
                 iapkit = iapkit,
                 provider = provider,

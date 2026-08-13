@@ -588,10 +588,27 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 			)
 		var offer_token = google_props.get("offerToken", "")
 		var subscription_offers = google_props.get("subscriptionOffers", [])
+		var has_replacement_params = google_props.has("subscriptionProductReplacementParams")
 		var replacement_params = google_props.get("subscriptionProductReplacementParams", null)
+		if has_replacement_params and replacement_params == null:
+			return _purchase_failure(
+				"developer-error",
+				"Invalid request: subscriptionProductReplacementParams must not be null"
+			)
+		if has_replacement_params and purchase_type != "subs":
+			return _purchase_failure(
+				"developer-error",
+				"Invalid request: subscriptionProductReplacementParams requires type `subs`"
+			)
 		if typeof(replacement_params) == TYPE_OBJECT and replacement_params.has_method("to_dict"):
 			replacement_params = replacement_params.to_dict()
+		var has_developer_billing_option = google_props.has("developerBillingOption")
 		var developer_billing_option = google_props.get("developerBillingOption", null)
+		if has_developer_billing_option and developer_billing_option == null:
+			return _purchase_failure(
+				"developer-error",
+				"Invalid request: developerBillingOption must not be null"
+			)
 		if typeof(developer_billing_option) == TYPE_OBJECT and developer_billing_option.has_method("to_dict"):
 			developer_billing_option = developer_billing_option.to_dict()
 		var params = {
@@ -603,9 +620,11 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 			"subscriptionOffers": subscription_offers,
 			"purchaseToken": google_props.get("purchaseToken", ""),
 			"originalExternalTransactionId": google_props.get("originalExternalTransactionId", ""),
-			"subscriptionProductReplacementParams": replacement_params,
-			"developerBillingOption": developer_billing_option,
 		}
+		if has_replacement_params:
+			params["subscriptionProductReplacementParams"] = replacement_params
+		if has_developer_billing_option:
+			params["developerBillingOption"] = developer_billing_option
 		if purchase_type == "in-app" and not str(offer_token).is_empty():
 			params["offerToken"] = str(offer_token)
 		var params_json = JSON.stringify(params)

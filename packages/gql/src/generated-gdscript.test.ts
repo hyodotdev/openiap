@@ -49,7 +49,10 @@ describe('generated GDScript list decoding', () => {
     const source = classSource('ProductIOS', 'ProductSubscriptionAndroid');
 
     expect(source).toContain('var arr: Array[SubscriptionOffer] = []');
-    expect(source).toContain('arr.append(SubscriptionOffer.from_dict(item))');
+    expect(source).toContain('var decoded_subscription_offer = SubscriptionOffer.from_dict(item, report_errors)');
+    expect(source).toContain('if decoded_subscription_offer == null:');
+    expect(source).toContain('return null');
+    expect(source).toContain('arr.append(decoded_subscription_offer)');
     expect(source).toContain('elif item is SubscriptionOffer:');
     expect(source).toContain('var arr: Array[SubscriptionPricingTermsIOS] = []');
   });
@@ -110,6 +113,19 @@ describe('generated GDScript list decoding', () => {
               },
               isOverride: false,
             },
+            {
+              name: 'nullableStrictStatuses',
+              type: {
+                kind: 'list',
+                nullable: false,
+                elementType: {
+                  kind: 'enum',
+                  name: 'StrictStatus',
+                  nullable: true,
+                },
+              },
+              isOverride: false,
+            },
           ],
           interfaces: [],
           unions: [],
@@ -125,8 +141,15 @@ describe('generated GDScript list decoding', () => {
     expect(source).toContain('## Status values from the schema. Preserves every documentation line. @see https://openiap.dev/docs/types');
     expect(source).toContain('if data["statuses"] is Array:');
     expect(source).toContain('arr.append(TEST_STATUS_FROM_STRING.get(item, TestStatus.UNKNOWN))');
+    expect(source).toContain('elif item is int and TEST_STATUS_VALUES.has(item):');
+    expect(source).toContain('arr.append(TestStatus.UNKNOWN)');
     expect(source).toContain('if item is String and STRICT_STATUS_FROM_STRING.has(item):');
     expect(source).toContain('arr.append(STRICT_STATUS_FROM_STRING[item])');
-    expect(source).toContain('elif item is int:');
+    expect(source).toContain('elif item is int and STRICT_STATUS_VALUES.has(item):');
+    expect(source).toContain('push_error("Invalid StrictStatus list value for strictStatuses")');
+    expect(source).toContain('return null');
+    expect(source).toContain('var nullable_strict_statuses: Array[Variant] = []');
+    expect(source).toContain('if data["nullableStrictStatuses"] is Array:\n\t\t\t\tvar arr: Array[Variant] = []');
+    expect(source).toContain('\t\t\t\t\tarr.append(null)');
   });
 });

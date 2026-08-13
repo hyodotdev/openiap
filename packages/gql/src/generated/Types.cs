@@ -3984,29 +3984,6 @@ public sealed record DeveloperBillingOptionParamsAndroid
     public string? ExternalTransactionToken { get; init; }
 }
 
-public sealed class DeveloperBillingOptionParamsAndroidNullableJsonConverter : JsonConverter<DeveloperBillingOptionParamsAndroid?>
-{
-    public override DeveloperBillingOptionParamsAndroid? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
-    {
-        using var document = JsonDocument.ParseValue(ref reader);
-        try
-        {
-            return document.RootElement.Deserialize<DeveloperBillingOptionParamsAndroid>(options);
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
-        catch (InvalidOperationException)
-        {
-            return null;
-        }
-    }
-
-    public override void Write(Utf8JsonWriter writer, DeveloperBillingOptionParamsAndroid? value, JsonSerializerOptions options) =>
-        JsonSerializer.Serialize(writer, value, options);
-}
-
 public sealed record DiscountOfferInputIOS
 {
     /// <summary>Discount identifier</summary>
@@ -4203,7 +4180,6 @@ public sealed record RequestPurchaseAndroidProps
     /// (requires Play Billing 9.1.0+).
     /// </summary>
     [JsonPropertyName("developerBillingOption")]
-    [JsonConverter(typeof(DeveloperBillingOptionParamsAndroidNullableJsonConverter))]
     public DeveloperBillingOptionParamsAndroid? DeveloperBillingOption { get; init; }
 }
 
@@ -4330,7 +4306,6 @@ public sealed record RequestSubscriptionAndroidProps
     /// (requires Play Billing 9.1.0+).
     /// </summary>
     [JsonPropertyName("developerBillingOption")]
-    [JsonConverter(typeof(DeveloperBillingOptionParamsAndroidNullableJsonConverter))]
     public DeveloperBillingOptionParamsAndroid? DeveloperBillingOption { get; init; }
 }
 

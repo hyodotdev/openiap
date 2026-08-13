@@ -50,6 +50,7 @@ func _run_all_tests() -> void:
 
 	# Enum tests
 	_test_enums()
+	_test_enum_list_decoding()
 
 	# New types tests (v1.3.12)
 	_test_discount_offer()
@@ -111,6 +112,7 @@ func _test_product_request() -> void:
 func _test_product_nested_arrays() -> void:
 	print("Testing nested product arrays...")
 
+	var valid_period = {"unit": "month", "value": 1}
 	var offer_data = {
 		"id": "intro",
 		"displayPrice": "Free",
@@ -124,11 +126,18 @@ func _test_product_nested_arrays() -> void:
 		"description": "Premium subscription",
 		"type": "subs",
 		"platform": "ios",
-		"subscriptionOffers": [offer_data, "invalid", null],
+		"typeIOS": "auto-renewable-subscription",
+		"subscriptionOffers": [offer_data],
 		"pricingTermsIOS": [{
 			"billingDisplayPrice": "$9.99",
+			"billingPeriod": valid_period,
 			"billingPlanType": "monthly",
 			"billingPrice": 9.99,
+			"commitmentInfo": {
+				"displayPrice": "$119.88",
+				"period": valid_period,
+				"price": 119.88
+			},
 			"subscriptionOffers": [offer_data]
 		}]
 	})
@@ -140,6 +149,34 @@ func _test_product_nested_arrays() -> void:
 		"launch",
 		"Nested scalar arrays should remain typed"
 	)
+
+	var invalid_offer_product = Types.ProductIOS.from_dict({
+		"type": "subs",
+		"platform": "ios",
+		"typeIOS": "auto-renewable-subscription",
+		"subscriptionOffers": [
+			{"id": "future", "displayPrice": "$1.99", "price": 1.99, "type": "future-offer"}
+		]
+	}, false)
+	_assert_equal(invalid_offer_product, null, "Unreadable non-null offer rows should reject the parent")
+
+	var invalid_pricing_product = Types.ProductIOS.from_dict({
+		"type": "subs",
+		"platform": "ios",
+		"typeIOS": "auto-renewable-subscription",
+		"pricingTermsIOS": [{
+			"billingDisplayPrice": "$19.99",
+			"billingPeriod": {"unit": "future-period", "value": 1},
+			"billingPlanType": "monthly",
+			"billingPrice": 19.99,
+			"commitmentInfo": {
+				"displayPrice": "$239.88",
+				"period": valid_period,
+				"price": 239.88
+			}
+		}]
+	}, false)
+	_assert_equal(invalid_pricing_product, null, "Unreadable transitive pricing rows should reject the parent")
 
 	var android_product = Types.ProductSubscriptionAndroid.from_dict({
 		"id": "premium.android",
@@ -382,6 +419,23 @@ func _test_enums() -> void:
 
 	# ErrorCode
 	_assert_equal(Types.ErrorCode.UNKNOWN, 0, "ErrorCode.UNKNOWN should be 0")
+
+
+func _test_enum_list_decoding() -> void:
+	print("Testing enum list decoding...")
+	var nullable_strict_values: Array[Variant] = [null]
+	_assert_equal(nullable_strict_values[0], null, "Nullable enum lists should accept unreadable values as null")
+	var decoded_request_values: Array[Variant] = []
+	decoded_request_values.append(null)
+	nullable_strict_values = decoded_request_values
+	_assert_equal(nullable_strict_values.size(), 1, "Nullable enum request arrays should remain assignable")
+	var params = Types.InAppMessageParamsAndroid.from_dict({"categories": [999]})
+	_assert_equal(params.categories.size(), 1, "Unknown neutral enum list values should be retained")
+	_assert_equal(
+		params.categories[0],
+		Types.InAppMessageCategoryAndroid.UNKNOWN_IN_APP_MESSAGE_CATEGORY_ID,
+		"Unknown neutral enum list integers should use the neutral member"
+	)
 
 
 # ============================================

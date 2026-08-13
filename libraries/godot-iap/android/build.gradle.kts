@@ -99,6 +99,7 @@ dependencies {
 
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:$googleCoroutinesVersion")
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.json:json:20260719")
 }
 
 // Copy the built AAR to the addons directory for Godot
