@@ -357,10 +357,9 @@ git worktree remove --force "$SBOM_REPRO_DIR"
 ## Update policy
 
 - Every current release workflow produces an SBOM automatically.
-- SBOMs are **immutable once published**, exactly like the release tag they
-  belong to. The only migration exception is the exact known-inaccurate Google
-  3.3.0 digest, which the repair job replaces once. No other existing asset is
-  overwritten.
+- SBOMs are **immutable once published**. See
+  [Release integration](#release-integration) for the authoritative repair
+  exception and overwrite rule.
 - A release that predates this system and has no SBOM asset can be described
   with `workflow_dispatch`. The workflow reads released inputs, records the
   exact default-branch generator commit, and refuses to overwrite an existing
