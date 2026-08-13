@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
 import {
+  AppStoreProductType,
+  narrowAppleEnvironment,
+  AppStoreTransactionReason,
   mapAppStorePurchaseState,
   mapGooglePlayPurchaseState,
   mapToPurchaseType,
@@ -213,6 +216,100 @@ describe("mapAppStorePurchaseState", () => {
 
     expect(state).toBe(HarmonizedPurchaseState.EXPIRED);
   });
+
+  // Golden table: a mapping change ships to published apps without an SDK
+  // release, so it must show up here as an explicit diff.
+  const APP_STORE_GOLDEN: Array<{
+    label: string;
+    reason?: AppStoreTransactionReason;
+    expiresDate?: number;
+    type?: AppStoreProductType;
+    revocationDate?: number;
+    expected: HarmonizedPurchaseState;
+  }> = [
+    {
+      label: "revoked transaction outranks everything else",
+      reason: AppStoreTransactionReason.PURCHASE,
+      revocationDate: 1_700_000_000_000,
+      type: AppStoreProductType.NON_CONSUMABLE,
+      expected: HarmonizedPurchaseState.CANCELED,
+    },
+    {
+      label: "lapsed subscription",
+      reason: AppStoreTransactionReason.RENEWAL,
+      expiresDate: 1_700_000_000_000,
+      type: AppStoreProductType.AUTO_RENEWABLE_SUBSCRIPTION,
+      expected: HarmonizedPurchaseState.EXPIRED,
+    },
+    {
+      label: "first purchase of a consumable",
+      reason: AppStoreTransactionReason.PURCHASE,
+      type: AppStoreProductType.CONSUMABLE,
+      expected: HarmonizedPurchaseState.READY_TO_CONSUME,
+    },
+    {
+      label: "first purchase of a non-consumable",
+      reason: AppStoreTransactionReason.PURCHASE,
+      type: AppStoreProductType.NON_CONSUMABLE,
+      expected: HarmonizedPurchaseState.ENTITLED,
+    },
+    {
+      label: "subscription renewal",
+      reason: AppStoreTransactionReason.RENEWAL,
+      type: AppStoreProductType.AUTO_RENEWABLE_SUBSCRIPTION,
+      expected: HarmonizedPurchaseState.ENTITLED,
+    },
+    {
+      label: "renewal of a consumable is still a renewal",
+      reason: AppStoreTransactionReason.RENEWAL,
+      type: AppStoreProductType.CONSUMABLE,
+      expected: HarmonizedPurchaseState.ENTITLED,
+    },
+    {
+      label: "consumable without a transaction reason",
+      type: AppStoreProductType.CONSUMABLE,
+      expected: HarmonizedPurchaseState.READY_TO_CONSUME,
+    },
+    {
+      label: "non-renewing subscription without a transaction reason",
+      type: AppStoreProductType.NON_RENEWING_SUBSCRIPTION,
+      expected: HarmonizedPurchaseState.ENTITLED,
+    },
+    {
+      label: "unexpired transaction with nothing else known",
+      expiresDate: Date.now() + 86_400_000,
+      expected: HarmonizedPurchaseState.ENTITLED,
+    },
+  ];
+
+  it.each(APP_STORE_GOLDEN)("maps $label", (row) => {
+    expect(
+      mapAppStorePurchaseState(
+        row.reason,
+        row.expiresDate,
+        row.type,
+        row.revocationDate,
+      ),
+    ).toBe(row.expected);
+  });
+});
+
+describe("narrowAppleEnvironment", () => {
+  it("keeps Production and narrows every non-production value to Sandbox", () => {
+    expect(narrowAppleEnvironment("Production")).toBe("Production");
+    // Apple's Environment enum also defines Xcode and LocalTesting; a receipt
+    // row stores the pair, so neither may be reported as a real purchase.
+    for (const value of [
+      "Sandbox",
+      "Xcode",
+      "LocalTesting",
+      "",
+      undefined,
+      null,
+    ]) {
+      expect(narrowAppleEnvironment(value)).toBe("Sandbox");
+    }
+  });
 });
 
 describe("isValidState", () => {
@@ -252,5 +349,31 @@ describe("isValidState", () => {
 
   it("returns false for INAUTHENTIC state", () => {
     expect(isValidState(HarmonizedPurchaseState.INAUTHENTIC)).toBe(false);
+  });
+
+  // `isValid` gates entitlement in every SDK, and kit ships without an SDK
+  // release. Keyed by the full enum so TypeScript rejects a new state until
+  // someone classifies it, in either direction, and order does not matter.
+  const ENTITLEMENT_GOLDEN: Record<HarmonizedPurchaseState, boolean> = {
+    [HarmonizedPurchaseState.ENTITLED]: true,
+    [HarmonizedPurchaseState.PENDING_ACKNOWLEDGMENT]: true,
+    [HarmonizedPurchaseState.READY_TO_CONSUME]: true,
+    [HarmonizedPurchaseState.PENDING]: false,
+    [HarmonizedPurchaseState.CANCELED]: false,
+    [HarmonizedPurchaseState.EXPIRED]: false,
+    [HarmonizedPurchaseState.CONSUMED]: false,
+    [HarmonizedPurchaseState.UNKNOWN]: false,
+    [HarmonizedPurchaseState.INAUTHENTIC]: false,
+  };
+
+  it("classifies every declared state exactly as pinned", () => {
+    const actual = Object.fromEntries(
+      Object.values(HarmonizedPurchaseState).map((state) => [
+        state,
+        isValidState(state),
+      ]),
+    );
+
+    expect(actual).toEqual(ENTITLEMENT_GOLDEN);
   });
 });

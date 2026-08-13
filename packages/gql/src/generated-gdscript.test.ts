@@ -85,7 +85,7 @@ describe('generated GDScript list decoding', () => {
           fields: [
             {
               name: 'statuses',
-              description: 'Status values from the schema.\nPreserves every documentation line.\n@see https://openiap.dev/docs/types',
+              description: 'Status values from the schema.\n\nPreserves every documentation line.\n@see https://openiap.dev/docs/types',
               type: {
                 kind: 'list',
                 nullable: false,

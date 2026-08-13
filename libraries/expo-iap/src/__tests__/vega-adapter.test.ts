@@ -65,7 +65,7 @@ const createService = (): jest.Mocked<VegaPurchasingService> =>
     notifyFulfillment: jest.fn(async () => ({
       responseCode: 1,
     })),
-  }) as unknown as jest.Mocked<VegaPurchasingService>;
+  } as unknown as jest.Mocked<VegaPurchasingService>);
 
 describe('Amazon Vega Expo adapter', () => {
   it('initializes without fetching Amazon user data', async () => {
@@ -266,6 +266,61 @@ describe('Amazon Vega Expo adapter', () => {
     expect(service.notifyFulfillment).toHaveBeenCalledWith({
       fulfillmentResult: 1,
       receiptId: 'receipt-1',
+    });
+  });
+
+  it('supports subscription checks and consumption', async () => {
+    const service = createService();
+    const module = createExpoIapVegaModule(service);
+
+    await expect(module.hasActiveSubscriptions()).resolves.toBe(true);
+    await expect(
+      module.consumePurchaseAndroid('sub-receipt'),
+    ).resolves.toBeUndefined();
+
+    expect(service.notifyFulfillment).toHaveBeenCalledWith({
+      fulfillmentResult: 1,
+      receiptId: 'sub-receipt',
+    });
+  });
+
+  it('clears cached state and removed listeners on disconnect', async () => {
+    const service = createService();
+    const module = createExpoIapVegaModule(service);
+    const subscriptionListener = jest.fn();
+    const directListener = jest.fn();
+    const subscription = module.addListener(
+      'purchase-updated',
+      subscriptionListener,
+    );
+    module.addListener('purchase-updated', directListener);
+
+    await module.getStorefront();
+    subscription.remove();
+    module.removeListener('purchase-updated', directListener);
+    await module.requestPurchase({skus: ['coins_100'], type: 'in-app'});
+    await expect(module.endConnection()).resolves.toBe(true);
+    await module.getStorefront();
+
+    expect(subscriptionListener).not.toHaveBeenCalled();
+    expect(directListener).not.toHaveBeenCalled();
+    expect(service.getUserData).toHaveBeenCalledTimes(2);
+  });
+
+  it('normalizes non-error purchase failures for listeners', async () => {
+    const service = createService();
+    service.purchase.mockRejectedValueOnce('purchase failed');
+    const module = createExpoIapVegaModule(service);
+    const listener = jest.fn();
+    module.addListener('purchase-error', listener);
+
+    await expect(
+      module.requestPurchase({skus: ['coins_100'], type: 'in-app'}),
+    ).rejects.toBe('purchase failed');
+    expect(listener).toHaveBeenCalledWith({
+      code: ErrorCode.PurchaseError,
+      message: 'Failed to complete Amazon Vega purchase',
+      productId: 'coins_100',
     });
   });
 
@@ -1265,6 +1320,10 @@ describe('Amazon Vega Expo adapter', () => {
     ['http://192.168.0.4:3100', 'http://192.168.0.4:3100/v1/purchase/verify'],
     ['http://[::1]:3100', 'http://[::1]:3100/v1/purchase/verify'],
     [
+      'http://[::ffff:192.168.0.1]:3100',
+      'http://[::ffff:192.168.0.1]:3100/v1/purchase/verify',
+    ],
+    [
       'https://[2001:db8::1]:65535///',
       'https://[2001:db8::1]:65535/v1/purchase/verify',
     ],
@@ -1635,9 +1694,16 @@ describe('Amazon Vega Expo adapter', () => {
     }
   });
 
-  it.each([42, 'Staging'])(
-    'rejects an invalid IAPKit environment: %s',
-    async (environment) => {
+  // Forwarded opaquely; only a non-string is dropped. Neither fails.
+  it.each([
+    {environment: 'Xcode', expected: 'Xcode'},
+    {environment: 'LocalTesting', expected: 'LocalTesting'},
+    {environment: 'Staging', expected: 'Staging'},
+    {environment: 42, expected: undefined},
+    {environment: '', expected: undefined},
+  ])(
+    'never fails a receipt over the IAPKit environment: $environment',
+    async ({environment, expected}) => {
       const service = createService();
       const originalFetch = globalThis.fetch;
       const fetchMock = jest.fn(async () =>
@@ -1653,20 +1719,18 @@ describe('Amazon Vega Expo adapter', () => {
       try {
         const module = createExpoIapVegaModule(service);
 
-        await expect(
-          module.verifyPurchaseWithProvider({
-            provider: 'iapkit',
-            iapkit: {
-              amazon: {
-                userId: 'amazon-user',
-                receiptId: 'receipt-vega-1',
-              },
+        const result = await module.verifyPurchaseWithProvider({
+          provider: 'iapkit',
+          iapkit: {
+            amazon: {
+              userId: 'amazon-user',
+              receiptId: 'receipt-vega-1',
             },
-          }),
-        ).rejects.toMatchObject({
-          code: ErrorCode.PurchaseVerificationFailed,
-          message: 'IAPKit returned malformed response (HTTP 200).',
+          },
         });
+
+        expect(result.iapkit?.isValid).toBe(true);
+        expect(result.iapkit?.environment).toBe(expected);
       } finally {
         globalThis.fetch = originalFetch;
       }

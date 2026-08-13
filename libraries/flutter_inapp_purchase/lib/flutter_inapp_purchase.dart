@@ -1921,17 +1921,12 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                   );
                 }
 
+                // Forwarded opaquely: `environment` is String in the spec.
                 final environmentValue = itemMap['environment'];
-                if (environmentValue != null &&
-                    (environmentValue is! String ||
-                        (environmentValue != 'Sandbox' &&
-                            environmentValue != 'Production'))) {
-                  throw PurchaseError(
-                    code: gentype.ErrorCode.PurchaseVerificationFailed,
-                    message:
-                        'Malformed IAPKit verification result: environment must be Sandbox or Production',
-                  );
-                }
+                final environment =
+                    environmentValue is String && environmentValue.isNotEmpty
+                        ? environmentValue
+                        : null;
 
                 gentype.IapkitProductClientPayload? clientPayload;
                 final clientPayloadValue = itemMap['clientPayload'];
@@ -1956,47 +1951,45 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                   final updatedAt = updatedAtValue is num
                       ? updatedAtValue.toDouble()
                       : double.nan;
-                  if (format is! String ||
-                      (format != 'toml' &&
-                          format != 'json' &&
-                          format != 'text') ||
-                      body is! String ||
-                      !version.isFinite ||
-                      version <= 0 ||
-                      version.truncateToDouble() != version ||
-                      !updatedAt.isFinite ||
-                      updatedAt < 0) {
-                    throw PurchaseError(
-                      code: gentype.ErrorCode.PurchaseVerificationFailed,
-                      message:
-                          'Malformed IAPKit verification result: invalid clientPayload',
-                    );
+                  // Optional enrichment: dropped, never thrown.
+                  if (format is String &&
+                      body is String &&
+                      version.isFinite &&
+                      version > 0 &&
+                      version.truncateToDouble() == version &&
+                      updatedAt.isFinite &&
+                      updatedAt >= 0) {
+                    try {
+                      clientPayload = gentype.IapkitProductClientPayload(
+                        body: body,
+                        format:
+                            gentype.IapkitClientPayloadFormat.fromJson(format),
+                        updatedAt: updatedAt,
+                        version: version,
+                      );
+                    } on ArgumentError {
+                      clientPayload = null;
+                    }
                   }
+                }
+
+                gentype.IapkitPurchaseState parseState() {
                   try {
-                    clientPayload = gentype.IapkitProductClientPayload(
-                      body: body,
-                      format:
-                          gentype.IapkitClientPayloadFormat.fromJson(format),
-                      updatedAt: updatedAt,
-                      version: version,
+                    return gentype.IapkitPurchaseState.fromJson(
+                      state.toString(),
                     );
                   } on ArgumentError {
-                    throw PurchaseError(
-                      code: gentype.ErrorCode.PurchaseVerificationFailed,
-                      message:
-                          'Malformed IAPKit verification result: invalid clientPayload format',
-                    );
+                    // A state added after this build shipped; `isValid` stands.
+                    return gentype.IapkitPurchaseState.Unknown;
                   }
                 }
 
                 return gentype.RequestVerifyPurchaseWithIapkitResult(
                   clientPayload: clientPayload,
-                  environment: environmentValue as String?,
+                  environment: environment,
                   isValid: isValid,
                   productId: productIdValue as String?,
-                  state: gentype.IapkitPurchaseState.fromJson(
-                    state.toString(),
-                  ),
+                  state: parseState(),
                   store: gentype.IapStore.fromJson(store.toString()),
                 );
               }

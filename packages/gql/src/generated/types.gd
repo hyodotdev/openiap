@@ -993,7 +993,7 @@ class DiscountDisplayInfoAndroid:
 			dict["discountAmount"] = discount_amount
 		return dict
 
-## Standardized one-time product discount offer. Provides a platform-neutral OpenIAP shape for Google Play one-time product purchase options and offers.  Currently populated only on Android (Google Play Billing 8.0+). iOS does not populate this type.  @see https://openiap.dev/docs/types/discount-offer
+## Standardized one-time product discount offer. Provides a platform-neutral OpenIAP shape for Google Play one-time product purchase options and offers. Currently populated only on Android (Google Play Billing 8.0+). iOS does not populate this type. @see https://openiap.dev/docs/types/discount-offer
 class DiscountOffer:
 	## Unique identifier for the offer. - iOS: Not applicable (one-time discounts not supported) - Android: offerId from the Google Play one-time purchase option
 	var id: Variant = null
@@ -2755,7 +2755,7 @@ class RentalDetailsAndroid:
 
 class RequestVerifyPurchaseWithIapkitResult:
 	var store: IapStore
-	## Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0. Amazon RVS environment selected by IAPKit. Present as `Sandbox` or `Production` on handled Amazon verification results.
+	## Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0. Amazon RVS environment selected by IAPKit. Present as `Sandbox` or `Production` on handled Amazon verification results. Deliberately String, not an enum: the value space belongs to IAPKit and the stores behind it, and Apple's App Store Server alone also names `Xcode` and `LocalTesting`. SDKs must forward this value opaquely. Never reject a verification because the environment is unrecognised — that fails a purchase the store already confirmed.
 	var environment: Variant = null
 	## True when the purchase is valid and actionable. Only entitled, pending-acknowledgment, or ready-to-consume return true. Callers must still match productId and use the platform plus app-owned product type to choose the fulfillment path.
 	var is_valid: bool = false
@@ -2842,7 +2842,7 @@ class SubscriptionCommitmentInfoIOS:
 		dict["price"] = price
 		return dict
 
-## Standardized subscription discount/promotional offer. Provides a unified interface for subscription offers across iOS and Android.  Both platforms support subscription offers with different implementations: - iOS: Introductory offers, promotional offers with server-side signatures - Android: Offer tokens with pricing phases  @see https://openiap.dev/docs/types/subscription-offer
+## Standardized subscription discount/promotional offer. Provides a unified interface for subscription offers across iOS and Android. Both platforms support subscription offers with different implementations: - iOS: Introductory offers, promotional offers with server-side signatures - Android: Offer tokens with pricing phases @see https://openiap.dev/docs/types/subscription-offer
 class SubscriptionOffer:
 	## Unique identifier for the offer. - iOS: Discount identifier from App Store Connect - Android: offerId from the Google Play subscription offer
 	var id: String = ""
@@ -3718,7 +3718,7 @@ class InAppMessageParamsAndroid:
 
 ## Connection initialization configuration
 class InitConnectionConfig:
-	## Enable a specific billing program for Android (7.0+) When set, enables the specified billing program for external transactions. - USER_CHOICE_BILLING: User can select between Google Play or alternative (7.0+) - EXTERNAL_CONTENT_LINK: Link to external content (introduced in 8.2.0; use 8.2.1+) - EXTERNAL_OFFER: External offers for digital content (introduced in 8.2.0; use 8.2.1+) - EXTERNAL_PAYMENTS: Developer provided billing, Japan only (8.3.0+) - BILLING_CHOICE: Google-rendered or developer-rendered billing choice   (OpenIAP Spec 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+)
+	## Enable a specific billing program for Android (7.0+) When set, enables the specified billing program for external transactions. - USER_CHOICE_BILLING: User can select between Google Play or alternative (7.0+) - EXTERNAL_CONTENT_LINK: Link to external content (introduced in 8.2.0; use 8.2.1+) - EXTERNAL_OFFER: External offers for digital content (introduced in 8.2.0; use 8.2.1+) - EXTERNAL_PAYMENTS: Developer provided billing, Japan only (8.3.0+) - BILLING_CHOICE: Google-rendered or developer-rendered billing choice (OpenIAP Spec 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+)
 	var enable_billing_program_android: Variant = null
 	## Billing Choice renderer configured in Play Console. Available in OpenIAP Spec 2.1.0 / openiap-google 2.3.0 (requires Play Billing 9.1.0+). GOOGLE_RENDERED registers the developer-provided billing listener so OpenIAP can emit the selection event. DEVELOPER_RENDERED omits that listener so the app can render its own choice screen and use the reporting/dialog/link APIs. Must match choiceScreenType returned by isBillingProgramAvailableAndroid. Defaults to GOOGLE_RENDERED.
 	var billing_choice_screen_type_android: BillingChoiceScreenTypeAndroid = BillingChoiceScreenTypeAndroid.GOOGLE_RENDERED
@@ -4160,7 +4160,7 @@ class RequestPurchaseProps:
 		dict["type"] = PRODUCT_QUERY_TYPE_VALUES.get(type, type)
 		return dict
 
-## Platform-specific purchase request parameters.  Note: "Platforms" refers to the SDK/OS level (apple, google), not the store. - apple: Always targets App Store - google: Targets Play Store by default, Horizon when built with horizon flavor,   or Fire OS when built with amazon flavor   (determined at build time, not runtime)
+## Platform-specific purchase request parameters. Note: "Platforms" refers to the SDK/OS level (apple, google), not the store. - apple: Always targets App Store - google: Targets Play Store by default, Horizon when built with horizon flavor, or Fire OS when built with amazon flavor (determined at build time, not runtime)
 class RequestPurchasePropsByPlatforms:
 	## Apple-specific purchase parameters
 	var apple: RequestPurchaseIosProps
@@ -4380,7 +4380,7 @@ class RequestSubscriptionIosProps:
 			dict["advancedCommerceData"] = advanced_commerce_data
 		return dict
 
-## Platform-specific subscription request parameters.  Note: "Platforms" refers to the SDK/OS level (apple, google), not the store. - apple: Always targets App Store - google: Targets Play Store by default, Horizon when built with horizon flavor,   or Fire OS when built with amazon flavor   (determined at build time, not runtime)
+## Platform-specific subscription request parameters. Note: "Platforms" refers to the SDK/OS level (apple, google), not the store. - apple: Always targets App Store - google: Targets Play Store by default, Horizon when built with horizon flavor, or Fire OS when built with amazon flavor (determined at build time, not runtime)
 class RequestSubscriptionPropsByPlatforms:
 	## Apple-specific subscription parameters
 	var apple: RequestSubscriptionIosProps
@@ -4481,7 +4481,7 @@ class RequestVerifyPurchaseWithIapkitGoogleProps:
 			dict["purchaseToken"] = purchase_token
 		return dict
 
-## Platform-specific verification parameters for IAPKit.  - apple: Verifies via App Store (JWS token) - google: Verifies via Play Store (purchase token) - amazon: Verifies via Amazon Appstore RVS (userId + receiptId)
+## Platform-specific verification parameters for IAPKit. - apple: Verifies via App Store (JWS token) - google: Verifies via Play Store (purchase token) - amazon: Verifies via Amazon Appstore RVS (userId + receiptId)
 class RequestVerifyPurchaseWithIapkitProps:
 	## API key used for the Authorization header (Bearer {apiKey}).
 	var api_key: Variant = null
@@ -4593,7 +4593,7 @@ class VerifyPurchaseAppleOptions:
 			dict["sku"] = sku
 		return dict
 
-## Google Play Store verification parameters. Used for server-side receipt validation via Google Play Developer API.  ⚠️ SECURITY: Contains sensitive tokens (accessToken, purchaseToken). Do not log or persist this data.
+## Google Play Store verification parameters. Used for server-side receipt validation via Google Play Developer API. ⚠️ SECURITY: Contains sensitive tokens (accessToken, purchaseToken). Do not log or persist this data.
 class VerifyPurchaseGoogleOptions:
 	## Product SKU to validate
 	var sku: String = ""
@@ -4634,7 +4634,7 @@ class VerifyPurchaseGoogleOptions:
 			dict["isSub"] = is_sub
 		return dict
 
-## Meta Horizon (Quest) verification parameters. Used for server-side entitlement verification via Meta's S2S API. POST https://graph.oculus.com/$APP_ID/verify_entitlement  ⚠️ SECURITY: Contains sensitive token (accessToken). Do not log or persist this data.
+## Meta Horizon (Quest) verification parameters. Used for server-side entitlement verification via Meta's S2S API. POST https://graph.oculus.com/$APP_ID/verify_entitlement ⚠️ SECURITY: Contains sensitive token (accessToken). Do not log or persist this data.
 class VerifyPurchaseHorizonOptions:
 	## The SKU for the add-on item, defined in Meta Developer Dashboard
 	var sku: String = ""
@@ -4663,7 +4663,7 @@ class VerifyPurchaseHorizonOptions:
 			dict["accessToken"] = access_token
 		return dict
 
-## Platform-specific purchase verification parameters.  - apple: Verifies via App Store Server API - google: Verifies via Google Play Developer API - horizon: Verifies via Meta's S2S API (verify_entitlement endpoint)
+## Platform-specific purchase verification parameters. - apple: Verifies via App Store Server API - google: Verifies via Google Play Developer API - horizon: Verifies via Meta's S2S API (verify_entitlement endpoint)
 class VerifyPurchaseProps:
 	## Apple App Store verification parameters.
 	var apple: VerifyPurchaseAppleOptions

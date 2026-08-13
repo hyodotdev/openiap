@@ -523,6 +523,66 @@ describe("remote MCP HTTP server", () => {
     }
   });
 
+  it("forwards an unrecognized client payload format instead of rejecting it", async () => {
+    const apiKey = "openiap-kit_sk_payload_format";
+    const previousBaseUrl = process.env.IAPKIT_BASE_URL;
+    let forwardedFormat: unknown;
+    process.env.IAPKIT_BASE_URL = await startKitApi((req, res) => {
+      let raw = "";
+      req.on("data", (chunk) => {
+        raw += chunk;
+      });
+      req.on("end", () => {
+        forwardedFormat = JSON.parse(raw).format;
+        res.writeHead(200, { "content-type": "application/json" });
+        res.end(
+          JSON.stringify({
+            id: "payload_2",
+            created: false,
+            changed: true,
+            version: 2,
+            updatedAt: 456,
+          }),
+        );
+      });
+    });
+
+    try {
+      const { baseUrl, sessionId } = await initializeMcpSession(apiKey);
+      const response = await postMcp(
+        baseUrl,
+        {
+          jsonrpc: "2.0",
+          id: 2,
+          method: "tools/call",
+          params: {
+            name: "iapkit_set_client_payload",
+            arguments: {
+              productId: "premium_monthly",
+              platform: "IOS",
+              // A format IAPKit could add after this SDK shipped.
+              format: "yaml",
+              body: "rule: premium",
+            },
+          },
+        },
+        sessionId,
+        { authorization: `Bearer ${apiKey}` },
+      );
+      const event = parseSseJson(await response.text());
+
+      expect(event.result.isError).toBeFalsy();
+      expect(forwardedFormat).toBe("yaml");
+      expect(JSON.parse(event.result.content[0].text)).toMatchObject({
+        changed: true,
+        version: 2,
+      });
+    } finally {
+      if (previousBaseUrl === undefined) delete process.env.IAPKIT_BASE_URL;
+      else process.env.IAPKIT_BASE_URL = previousBaseUrl;
+    }
+  });
+
   it("posts UTF-8-safe synthetic Android webhook payloads", async () => {
     const secretKey = "openiap-kit_sk_webhook_admin";
     const publishableKey = "openiap-kit_pk_webhook_client";

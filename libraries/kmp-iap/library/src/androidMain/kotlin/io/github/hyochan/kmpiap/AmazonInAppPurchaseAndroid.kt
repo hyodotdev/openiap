@@ -55,7 +55,6 @@ import io.github.hyochan.kmpiap.openiap.RequestPurchaseProps
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseResult
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseResultPurchase
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseResultPurchases
-import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitResult
 import io.github.hyochan.kmpiap.openiap.SubscriptionStatusIOS
 import io.github.hyochan.kmpiap.openiap.UserChoiceBillingDetails
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseProps
@@ -249,11 +248,26 @@ internal class AmazonInAppPurchaseAndroid(
                 )
             )
         }
-        val androidResult = verifyPurchaseWithIapkitAndroid(androidOptions, "kmp-iap-android-$storeName")
-        return VerifyPurchaseWithProviderResult(
-            iapkit = RequestVerifyPurchaseWithIapkitResult.fromJson(androidResult.toJson()),
-            provider = options.provider
-        )
+        // The validator also throws IllegalArgumentException for a malformed
+        // options shape, so catch broadly like the Play path rather than only
+        // the typed OpenIapError.
+        return try {
+            val androidResult =
+                verifyPurchaseWithIapkitAndroid(androidOptions, "kmp-iap-android-$storeName")
+            VerifyPurchaseWithProviderResult(
+                iapkit = androidResult.toKmpIapkitResult(),
+                provider = options.provider
+            )
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Exception) {
+            failWith(
+                PurchaseError(
+                    code = ErrorCode.PurchaseVerificationFailed,
+                    message = error.message ?: "Purchase verification failed"
+                )
+            )
+        }
     }
 
     override suspend fun verifyPurchase(options: VerifyPurchaseProps): VerifyPurchaseResult =

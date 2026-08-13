@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getFunctionName } from "convex/server";
 
 vi.mock("hono/bun", () => ({
@@ -19,10 +19,28 @@ vi.mock("../../convex", () => ({
 const { apiRoutes } = await import("./routes");
 
 describe("apiRoutes", () => {
+  // The logger writes one JSON line per request to stdout.
+  let logLines: Array<Record<string, unknown>>;
+  let logSpy: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
     convexClientMock.action.mockReset();
     convexClientMock.mutation.mockReset();
     convexClientMock.query.mockReset();
+    logLines = [];
+    logSpy = vi.spyOn(console, "log").mockImplementation((...args) => {
+      const [first] = args;
+      if (typeof first !== "string") return;
+      try {
+        logLines.push(JSON.parse(first) as Record<string, unknown>);
+      } catch {
+        // Not a structured line; ignore.
+      }
+    });
+  });
+
+  afterEach(() => {
+    logSpy.mockRestore();
   });
 
   it("serves the generated OpenAPI specification", async () => {
@@ -471,5 +489,126 @@ describe("apiRoutes", () => {
       expect(await response.json()).not.toHaveProperty("clientPayload");
     }
     expect(convexClientMock.query).not.toHaveBeenCalled();
+  });
+
+  it("degrades an out-of-contract state instead of publishing it", async () => {
+    // A state Convex knows but the published schema does not must not ship.
+    convexClientMock.action.mockResolvedValueOnce({
+      isValid: true,
+      state: "REFUNDED",
+      productId: "premium.monthly",
+    });
+
+    const response = await apiRoutes.request("/purchase/verify", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer route-test-state-drift",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        store: "google",
+        purchaseToken: "token".repeat(8),
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      store: "google",
+      isValid: true,
+      state: "UNKNOWN",
+      productId: "premium.monthly",
+    });
+  });
+
+  it("refuses to publish a verdict that cannot be made contract-valid", async () => {
+    // Server-defect path: Convex's validator pins isValid to a boolean.
+    convexClientMock.action.mockResolvedValueOnce({
+      isValid: "true",
+      state: "ENTITLED",
+    });
+
+    const response = await apiRoutes.request("/purchase/verify", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer route-test-malformed-verdict",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        store: "google",
+        purchaseToken: "token".repeat(8),
+      }),
+    });
+
+    expect(response.status).toBe(500);
+    expect(await response.json()).toMatchObject({
+      errors: [{ code: "UNKNOWN_ERROR" }],
+    });
+    // The client saw a failure; the log must not report a success verdict.
+    const verifyLine = logLines.find((line) => line.kind === "verify_request");
+    expect(verifyLine).toMatchObject({
+      statusCode: 500,
+      isValid: false,
+      state: "UNKNOWN",
+    });
+  });
+
+  it("keeps a stable rejection armed through a malformed verdict", async () => {
+    // The reported state is overwritten on this path, so the cooldown has to be
+    // derived before the reset — otherwise a revoked receipt becomes replayable.
+    convexClientMock.action.mockResolvedValue({
+      isValid: "false",
+      state: "INAUTHENTIC",
+    });
+    const send = () =>
+      apiRoutes.request("/purchase/verify", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer route-test-stable-rejection-500",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          store: "google",
+          purchaseToken: "stablereject".repeat(4),
+        }),
+      });
+
+    expect((await send()).status).toBe(500);
+
+    const replayed = await send();
+    expect(replayed.status).toBe(429);
+    expect(await replayed.json()).toMatchObject({
+      errors: [{ code: "REPEATED_FAILURE" }],
+    });
+  });
+
+  it("forwards an opaque environment value", async () => {
+    convexClientMock.action.mockResolvedValueOnce({
+      isValid: true,
+      state: "ENTITLED",
+      productId: "amazon.premium.monthly",
+      environment: "Xcode",
+    });
+
+    const response = await apiRoutes.request("/purchase/verify", {
+      method: "POST",
+      headers: {
+        Authorization: "Bearer route-test-environment-drift",
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        store: "amazon",
+        userId: "amzn1.account.ABC123",
+        receiptId: "amzn1.receipt.ABC123456789=:1",
+      }),
+    });
+
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({
+      store: "amazon",
+      isValid: true,
+      state: "ENTITLED",
+      productId: "amazon.premium.monthly",
+      environment: "Xcode",
+    });
   });
 });

@@ -133,6 +133,21 @@ describe('codegen defaults', () => {
     expect(output).not.toContain('</summary>\n    /// <summary>');
   });
 
+  it('emits blank Swift and Dart doc lines without trailing whitespace', () => {
+    const documentedField = field('value', stringType);
+    documentedField.description = 'First line.\n\nSecond line.';
+
+    for (const output of [
+      new SwiftPlugin({ outputPath: 'Types.swift' }).generate(schema([documentedField])),
+      new DartPlugin({ outputPath: 'types.dart' }).generate(schema([documentedField])),
+    ]) {
+      expect(output).toContain('/// First line.');
+      expect(output).toContain('///\n');
+      expect(output).toContain('/// Second line.');
+      expect(output).not.toMatch(/[ \t]+$/m);
+    }
+  });
+
   it('keeps unsupported non-null C# defaults required and escapes string literals', () => {
     const output = new CSharpPlugin({ outputPath: 'Types.cs' }).generate(
       schema([field('unsupportedDefault', stringType, { raw: 'unsupported' }), field('escapedString', stringType, 'quote " and slash \\')]),

@@ -212,6 +212,13 @@ jobs:
       - name: Run non-Godot SDK parity audit
         run: node scripts/audit-non-godot-parity.mjs
 
+      # Unconditional: kit and the spec deploy on separate workflows.
+      - name: Test IAPKit spec contract audit
+        run: node --test scripts/audit-kit-spec-contract.test.mjs
+
+      - name: Run IAPKit spec contract audit
+        run: node scripts/audit-kit-spec-contract.mjs
+
   test-gql:
     name: Test GQL Types
     runs-on: ubuntu-latest

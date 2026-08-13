@@ -1686,9 +1686,16 @@ describe('Amazon Vega adapter', () => {
     }
   });
 
-  it.each([42, 'Staging'])(
-    'rejects an invalid IAPKit environment: %s',
-    async (environment) => {
+  // Forwarded opaquely; only a non-string is dropped. Neither fails.
+  it.each([
+    {environment: 'Xcode', expected: 'Xcode'},
+    {environment: 'LocalTesting', expected: 'LocalTesting'},
+    {environment: 'Staging', expected: 'Staging'},
+    {environment: 42, expected: undefined},
+    {environment: '', expected: undefined},
+  ])(
+    'never fails a receipt over the IAPKit environment: $environment',
+    async ({environment, expected}) => {
       const service = createService();
       const originalFetch = globalThis.fetch;
       const fetchMock = jest.fn(async () =>
@@ -1704,17 +1711,18 @@ describe('Amazon Vega adapter', () => {
       try {
         const module = createVegaIapModule(service);
 
-        await expect(
-          module.verifyPurchaseWithProvider({
-            provider: 'iapkit',
-            iapkit: {
-              amazon: {
-                userId: 'amazon-user',
-                receiptId: 'receipt-vega-1',
-              },
+        const result = await module.verifyPurchaseWithProvider({
+          provider: 'iapkit',
+          iapkit: {
+            amazon: {
+              userId: 'amazon-user',
+              receiptId: 'receipt-vega-1',
             },
-          }),
-        ).rejects.toThrow('IAPKit returned malformed response (HTTP 200).');
+          },
+        });
+
+        expect(result.iapkit?.isValid).toBe(true);
+        expect(result.iapkit?.environment).toBe(expected);
       } finally {
         globalThis.fetch = originalFetch;
       }

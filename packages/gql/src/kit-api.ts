@@ -58,7 +58,8 @@ export type StatusResponse = {
 export type KitProductPlatform = "IOS" | "Android";
 
 export type KitProductClientPayload = {
-  format: "toml" | "json" | "text";
+  /** Current values are toml, json, and text; preserve unknown values. */
+  format: string;
   body: string;
   version: number;
   updatedAt: number;
@@ -283,9 +284,11 @@ export function kitApi(options: KitApiOptions) {
       if (!raw) return null;
       const candidate = JSON.parse(raw) as Partial<CachedClientPayload>;
       const payload = candidate.clientPayload;
+      // Only the invariants the cache depends on. `format` is opaque: evicting
+      // on an unknown one would kill ETag revalidation and offline reads.
       if (
         !payload ||
-        !["toml", "json", "text"].includes(payload.format) ||
+        typeof payload.format !== "string" ||
         typeof payload.body !== "string" ||
         !Number.isSafeInteger(payload.version) ||
         payload.version < 1 ||

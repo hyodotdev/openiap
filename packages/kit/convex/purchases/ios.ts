@@ -23,6 +23,7 @@ import {
   AppStoreProductType,
   receiptResponseValidator,
   isValidState,
+  narrowAppleEnvironment,
 } from "./shared";
 import { HarmonizedPurchaseState } from "./purchaseState";
 import {
@@ -262,7 +263,7 @@ export async function verifyJWSTransaction(
       currency: verifiedTransaction.currency,
       storefront: verifiedTransaction.storefront,
       storefrontId: verifiedTransaction.storefrontId,
-      environment: verifiedTransaction.environment as "Sandbox" | "Production",
+      environment: narrowAppleEnvironment(verifiedTransaction.environment),
       webOrderLineItemId: verifiedTransaction.webOrderLineItemId,
       subscriptionGroupIdentifier:
         verifiedTransaction.subscriptionGroupIdentifier,
@@ -549,7 +550,7 @@ function buildFailedAppStoreReceiptData(
     currency: payload.currency,
     storefront: payload.storefront,
     storefrontId: payload.storefrontId,
-    environment: payload.environment as "Sandbox" | "Production",
+    environment: narrowAppleEnvironment(payload.environment),
     webOrderLineItemId: payload.webOrderLineItemId,
     subscriptionGroupIdentifier: payload.subscriptionGroupIdentifier,
     expiresDate: payload.expiresDate,

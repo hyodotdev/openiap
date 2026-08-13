@@ -11,11 +11,13 @@ import { verifyPurchaseInputSchema } from "./route-input-schemas";
 import { client, handleConvexError } from "../../convex";
 import {
   apiErrorResponseSchema,
+  FALLBACK_PURCHASE_STATE,
   verifyPurchaseSuccessResponseSchema,
 } from "./route-response-schemas";
+import { enforceVerifyResponseContract } from "./response-contract";
 import { apiKeyMiddleware } from "./middleware";
 import { getRequestIp, multiAxisRateLimitMiddleware } from "./rate-limit";
-import { replayGuardMiddleware } from "./replay-guard";
+import { isStableRejection, replayGuardMiddleware } from "./replay-guard";
 import { inFlightLimitMiddleware } from "./in-flight-limit";
 import { requestLoggerMiddleware } from "./request-logger";
 import { validator } from "./validator";
@@ -223,8 +225,23 @@ const verifyPurchaseRouteDescription = describeRoute({
     "Meta `userId` ≤ 256 chars, `sku` ≤ 256 chars. " +
     "Amazon `userId` ≤ 512 chars and `receiptId` ≤ 4 KB. " +
     "Oversized fields return `400 INVALID_INPUT`; oversized request " +
-    "bodies return `413 PAYLOAD_TOO_LARGE`. Neither hits the upstream store.",
+    "bodies return `413 PAYLOAD_TOO_LARGE`. Neither hits the upstream store.\n\n" +
+    "Optional `X-OpenIAP-Spec` request header: the OpenIAP spec version the " +
+    "calling SDK was built against (for example `3.2.0`). IAPKit records it so " +
+    "a response-contract change can be rolled out against real client-version " +
+    "data. It never changes how a receipt is verified, and an unrecognised " +
+    "value is ignored rather than rejected.",
   security: [{ apiKey: [] }],
+  parameters: [
+    {
+      in: "header" as const,
+      name: "X-OpenIAP-Spec",
+      required: false,
+      description:
+        "OpenIAP spec version the calling SDK was built against, for example `3.2.0`. Recorded for rollout measurement only: it never changes how a receipt is verified, and an unrecognised value is ignored rather than rejected.",
+      schema: { type: "string" as const },
+    },
+  ],
   responses: {
     200: {
       description: "Successful verification",
@@ -447,11 +464,49 @@ const verifyPurchaseHandler = async (
       }
     }
 
-    return c.json({
+    const contract = enforceVerifyResponseContract({
       store,
       ...publicReceipt,
       ...(clientPayload ? { clientPayload } : {}),
     });
+    if (contract.violations.length > 0) {
+      // Field names only — never values.
+      console.error(
+        "[purchase/verify] RESPONSE_CONTRACT_VIOLATION: store=%s fields=%s",
+        store,
+        contract.violations.join(","),
+      );
+    }
+    if (!contract.ok) {
+      // Reset only the reported verdict. The rejection's stability is resolved
+      // first, because `state` is about to be overwritten and the replay guard
+      // derives the cooldown from it. Defect-only path: Convex pins isValid.
+      setOutcome({
+        isValid: false,
+        state: FALLBACK_PURCHASE_STATE,
+        ...(isStableRejection(outcome.state, outcome.stableRejection === true)
+          ? { stableRejection: true }
+          : {}),
+      });
+      const errorId = crypto.randomUUID();
+      console.error(
+        "Unexpected error (%s) when verifying purchase: malformed verdict",
+        errorId,
+      );
+      return c.json(
+        {
+          errors: [
+            {
+              code: "UNKNOWN_ERROR",
+              message: util.format("Unknown error: %s", errorId),
+            },
+          ],
+        },
+        500,
+      );
+    }
+
+    return c.json(contract.response);
   };
 
   try {

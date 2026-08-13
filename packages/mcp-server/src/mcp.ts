@@ -767,7 +767,11 @@ function registerIapKitTools(server: McpServer) {
     {
       productId: PRODUCT_ID_PARAM,
       platform: z.enum(["IOS", "Android"]),
-      format: z.enum(["toml", "json", "text"]),
+      // Opaque: IAPKit owns this value space, so a stale enum here would
+      // reject a format the server already accepts.
+      format: kitTextParam("format").describe(
+        "Payload format, currently toml, json, or text. Forwarded as-is for IAPKit to validate.",
+      ),
       body: z
         .string()
         .max(MAX_CLIENT_PAYLOAD_BYTES)

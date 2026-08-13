@@ -1,4 +1,4 @@
-import {kitApi, KitApiError} from '../kit-api';
+import {kitApi, KitApiError, type KitProductClientPayload} from '../kit-api';
 
 const payload = {
   clientPayload: {
@@ -346,6 +346,37 @@ describe('kitApi cache resilience', () => {
       }).clientPayload('premium', 'IOS'),
     ).resolves.toEqual(payload);
     expect(fetchImpl).toHaveBeenCalledTimes(1);
+  });
+
+  // Evicting on an unknown format would kill ETag revalidation and offline
+  // reads, for a value the live path forwards unchanged.
+  it('serves a cached payload whose format this build predates', async () => {
+    const clientPayload: KitProductClientPayload = {
+      format: 'yaml',
+      body: 'tier: gold',
+      version: 2,
+      updatedAt: 9,
+    };
+    const stored = {
+      clientPayload,
+      etag: 'W/"cached"',
+    };
+    const cache = {
+      getItem: jest.fn().mockResolvedValue(JSON.stringify(stored)),
+      setItem: jest.fn(),
+      removeItem: jest.fn(),
+    };
+    const fetchImpl = jest.fn();
+
+    await expect(
+      kitApi({
+        apiKey: 'key',
+        fetchImpl,
+        clientPayloadCache: cache,
+      }).clientPayload('premium', 'IOS'),
+    ).resolves.toEqual({clientPayload: stored.clientPayload});
+    expect(fetchImpl).not.toHaveBeenCalled();
+    expect(cache.removeItem).not.toHaveBeenCalled();
   });
 
   it('keeps successful reads when cache operations fail', async () => {

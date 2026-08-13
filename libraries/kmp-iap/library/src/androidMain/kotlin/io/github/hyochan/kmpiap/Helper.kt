@@ -16,6 +16,11 @@ import io.github.hyochan.kmpiap.openiap.ExternalLinkLaunchModeAndroid
 import io.github.hyochan.kmpiap.openiap.ExternalLinkTypeAndroid
 import io.github.hyochan.kmpiap.openiap.IapPlatform
 import io.github.hyochan.kmpiap.openiap.IapStore
+import dev.hyo.openiap.RequestVerifyPurchaseWithIapkitResult as AndroidRequestVerifyPurchaseWithIapkitResult
+import io.github.hyochan.kmpiap.openiap.IapkitClientPayloadFormat
+import io.github.hyochan.kmpiap.openiap.IapkitProductClientPayload
+import io.github.hyochan.kmpiap.openiap.IapkitPurchaseState
+import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitResult
 import io.github.hyochan.kmpiap.openiap.InstallmentPlanDetailsAndroid
 import io.github.hyochan.kmpiap.openiap.LaunchExternalLinkParamsAndroid
 import io.github.hyochan.kmpiap.openiap.LimitedQuantityInfoAndroid
@@ -773,4 +778,34 @@ internal fun LaunchExternalLinkParamsAndroid.toOpenIapParams(): OpenIapLaunchExt
         launchMode = launchMode.toOpenIapLaunchMode(),
         linkType = linkType.toOpenIapLinkType(),
         linkUri = linkUri
+    )
+
+/**
+ * Re-shapes an openiap-google IAPKit result into this module's generated types.
+ * openiap-google has already decoded it safely, so unknown values degrade here
+ * rather than re-imposing a fail-closed gate when the two versions drift.
+ */
+internal fun AndroidRequestVerifyPurchaseWithIapkitResult.toKmpIapkitResult(): RequestVerifyPurchaseWithIapkitResult =
+    RequestVerifyPurchaseWithIapkitResult(
+        clientPayload = clientPayload?.let { payload ->
+            IapkitClientPayloadFormat.entries
+                .firstOrNull { it.rawValue == payload.format.toJson() }
+                ?.let { format ->
+                    IapkitProductClientPayload(
+                        body = payload.body,
+                        format = format,
+                        updatedAt = payload.updatedAt,
+                        version = payload.version
+                    )
+                }
+        },
+        environment = environment,
+        isValid = isValid,
+        productId = productId,
+        state = runCatching {
+            IapkitPurchaseState.fromJson(state.toJson())
+        }.getOrDefault(IapkitPurchaseState.Unknown),
+        store = runCatching {
+            IapStore.fromJson(store.toJson())
+        }.getOrDefault(IapStore.Unknown)
     )

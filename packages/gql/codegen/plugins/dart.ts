@@ -149,7 +149,7 @@ export class DartPlugin extends CodegenPlugin {
   protected generateDocComment(description: string | undefined, indent: string = ''): void {
     if (!description) return;
     for (const line of description.split(/\r?\n/)) {
-      this.emit(`${indent}/// ${line}`);
+      this.emit(line ? `${indent}/// ${line}` : `${indent}///`);
     }
   }
 

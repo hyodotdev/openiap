@@ -151,6 +151,32 @@ client-payload endpoints. A developer backend may send APNs/FCM notifications
 for resources it protects, but IAPKit must not publish project-wide lifecycle
 events to shipped apps.
 
+## `/v1` response contract
+
+IAPKit deploys from `main` on its own workflow. The SDKs that decode its
+responses are frozen inside apps already on the stores, so a kit-only change
+reaches every user at once with no SDK release and no way to roll forward.
+Treat the `/v1` response shape as a published API:
+
+- **Additive only.** Never remove a field, rename one, or change what an
+  existing value means. New fields must be optional, and anything that changes
+  a response shape should be gated on an explicit request flag, the way
+  `includeClientPayload` is.
+- **Enum values are spec changes.** `IapkitPurchaseState`,
+  `IapkitClientPayloadFormat`, and `IapStore` live in
+  `packages/gql/src/type.graphql`. Change the schema first, regenerate, and
+  confirm each SDK degrades an unknown value instead of failing the receipt —
+  `bun audit:kit-contract` compares the three declarations and fails on drift.
+- **`isValid` is the entitlement gate.** `isValidState` in
+  `convex/purchases/shared.ts` decides what published apps unlock. Widening or
+  narrowing it, or changing `mapAppStorePurchaseState` /
+  `mapGooglePlayPurchaseState`, changes live behavior for existing users.
+  Golden tests in `shared.test.ts` pin both; update them deliberately.
+- **The emitted body is validated.** `enforceVerifyResponseContract` holds
+  responses to `verifyPurchaseSuccessResponseSchema` before they are sent, so
+  the OpenAPI document cannot drift from what clients receive. Extend the
+  schema when you add a field; do not bypass the check.
+
 ## Icons
 
 Always use icon components, never inline `<svg>`:

@@ -52,6 +52,11 @@ fi
 echo "🔎 SDK parity audit — running CI mirror…"
 node scripts/audit-non-godot-parity.mjs
 
+# Unconditional: either side of the kit/spec contract can move.
+echo "🔎 IAPKit spec contract audit — running CI mirror…"
+node --test scripts/audit-kit-spec-contract.test.mjs
+node scripts/audit-kit-spec-contract.mjs
+
 # Paths-aware kit pre-commit gate. Only runs when staged changes touch
 # packages/kit/**, so unrelated edits to apple/google/gql/docs/libraries
 # aren't blocked.

@@ -72,6 +72,11 @@ jobs:
             exit 1
           fi
 
+      # ci.yml runs independently, so the guard has to gate the deploy here too.
+      - name: Run IAPKit spec contract audit
+        working-directory: ${{ github.workspace }}
+        run: node scripts/audit-kit-spec-contract.mjs
+
       - name: Lint (app + Convex typecheck + eslint)
         run: bun run lint
 

@@ -77,7 +77,9 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         return url
     }
 
-    static func iapkitClientPayload(from rawValue: Any?) throws -> IapkitProductClientPayload? {
+    /// Optional enrichment: returns nil for anything this build cannot read,
+    /// including a `format` IAPKit added later. Never fails the receipt.
+    static func iapkitClientPayload(from rawValue: Any?) -> IapkitProductClientPayload? {
         guard let rawValue, !(rawValue is NSNull) else { return nil }
         guard let payload = rawValue as? [String: Any],
               let formatString = payload["format"] as? String,
@@ -92,10 +94,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
               version.doubleValue.rounded(.towardZero) == version.doubleValue,
               updatedAt.doubleValue.isFinite,
               updatedAt.doubleValue >= 0 else {
-            throw PurchaseError.make(
-                code: .purchaseVerificationFailed,
-                message: "IAPKit returned malformed client payload"
-            )
+            OpenIapLog.warn("Ignoring an IAPKit client payload this build cannot read")
+            return nil
         }
 
         return IapkitProductClientPayload(
@@ -104,6 +104,25 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             updatedAt: updatedAt.doubleValue,
             version: version.doubleValue
         )
+    }
+
+    /// Reports the compile-time response contract; never used for negotiation.
+    static func makeIapkitRequest(
+        url: URL,
+        apiKey: String?,
+        body: Data,
+        specVersion: String = OpenIapVersion.specVersion
+    ) -> URLRequest {
+        var request = URLRequest(url: url)
+        request.httpMethod = "POST"
+        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        request.setValue(specVersion, forHTTPHeaderField: "X-OpenIAP-Spec")
+        let trimmedApiKey = apiKey?.trimmingCharacters(in: .whitespacesAndNewlines)
+        if let trimmedApiKey, trimmedApiKey.isEmpty == false {
+            request.setValue("Bearer \(trimmedApiKey)", forHTTPHeaderField: "Authorization")
+        }
+        request.httpBody = body
+        return request
     }
 
     static func iapkitBoolean(from rawValue: Any?) throws -> Bool {
@@ -118,14 +137,13 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         return value.boolValue
     }
 
-    static func iapkitEnvironment(from rawValue: Any?) throws -> String? {
+    /// Forwarded opaquely: `environment` is String in the spec, and App Store
+    /// Server also names `Xcode` and `LocalTesting`.
+    static func iapkitEnvironment(from rawValue: Any?) -> String? {
         guard let rawValue, !(rawValue is NSNull) else { return nil }
-        guard let environment = rawValue as? String,
-              environment == "Sandbox" || environment == "Production" else {
-            throw PurchaseError.make(
-                code: .purchaseVerificationFailed,
-                message: "IAPKit returned malformed response"
-            )
+        guard let environment = rawValue as? String, environment.isEmpty == false else {
+            OpenIapLog.warn("Ignoring an IAPKit environment this build cannot read")
+            return nil
         }
 
         return environment
@@ -958,14 +976,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             let store = payload.store
             let body = payload.body
 
-            var request = URLRequest(url: url)
-            request.httpMethod = "POST"
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-            let apiKey = props.apiKey?.trimmingCharacters(in: .whitespacesAndNewlines)
-            if let apiKey, apiKey.isEmpty == false {
-                request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
-            }
-            request.httpBody = body
+            let request = Self.makeIapkitRequest(url: url, apiKey: props.apiKey, body: body)
 
             OpenIapLog.debug("IAPKit request URL: \(url.absoluteString)")
             OpenIapLog.debug("IAPKit request body bytes=\(body.count)")
@@ -1031,14 +1042,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             } else {
                 productId = nil
             }
-            let environment = try Self.iapkitEnvironment(from: json["environment"])
-            let clientPayload: IapkitProductClientPayload?
-            do {
-                clientPayload = try Self.iapkitClientPayload(from: json["clientPayload"])
-            } catch {
-                OpenIapLog.warn("IAPKit verification response contains a malformed clientPayload")
-                throw error
-            }
+            let environment = Self.iapkitEnvironment(from: json["environment"])
+            let clientPayload = Self.iapkitClientPayload(from: json["clientPayload"])
             OpenIapLog.info("IAPKit verification result: store=\(parsedStore.rawValue), isValid=\(isValid), state=\(parsedState.rawValue)")
             return RequestVerifyPurchaseWithIapkitResult(
                 clientPayload: clientPayload,

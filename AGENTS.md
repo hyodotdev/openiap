@@ -55,7 +55,7 @@ openiap/
    - [`packages/google/CONVENTION.md`](packages/google/CONVENTION.md)
    - [`packages/apple/CONVENTION.md`](packages/apple/CONVENTION.md)
    - [`packages/docs/CONVENTION.md`](packages/docs/CONVENTION.md)
-   - [`packages/kit/CONVENTION.md`](packages/kit/CONVENTION.md) — kit is a deployable SaaS (not a library); has its own Convex schema and isn't part of the GQL type-sync chain
+   - [`packages/kit/CONVENTION.md`](packages/kit/CONVENTION.md) — kit is a deployable SaaS (not a library); has its own Convex schema and isn't part of the GQL type-sync chain. Its `/v1` responses are still a published contract that shipped SDKs decode: read the `/v1` response contract section and run `bun audit:kit-contract` before changing a response enum, `isValidState`, or a purchase-state mapping
 3. **For framework libraries, read the library-specific CLAUDE.md**:
    - [`libraries/react-native-iap/CLAUDE.md`](libraries/react-native-iap/CLAUDE.md) — Yarn 3, Nitro Modules, useIAP hook semantics, error handling
    - [`libraries/expo-iap/CLAUDE.md`](libraries/expo-iap/CLAUDE.md) — Bun, Expo Modules, iOS podspec 13.4 workaround, tvOS 16.0 requirement
@@ -121,6 +121,7 @@ including its stricter release-note limits.
 ### Auto-Generated Files (DO NOT EDIT)
 
 - `packages/gql/src/generated/*` - All generated type files (SSOT)
+- `packages/apple/Sources/OpenIapGeneratedVersion.swift` - Synced from `openiap-versions.json`
 - `packages/apple/Sources/Models/Types.swift` - Synced from GQL
 - `packages/google/openiap/src/main/java/dev/hyo/openiap/Types.kt` - Synced from GQL
 - `libraries/react-native-iap/src/types.ts` - Synced from GQL

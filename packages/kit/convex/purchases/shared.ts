@@ -90,6 +90,15 @@ export type AppStoreReceiptData = Infer<typeof appStoreReceiptDataValidator>;
 
 export type ReceiptResponse = Infer<typeof receiptResponseValidator>;
 
+// Apple reports four environments; a receipt row stores the pair. Anything that
+// is not Production is a non-production purchase, so it narrows to Sandbox
+// rather than being cast — the cast would fail this validator at the boundary.
+export function narrowAppleEnvironment(
+  value: string | null | undefined,
+): "Sandbox" | "Production" {
+  return value === "Production" ? "Production" : "Sandbox";
+}
+
 export const purchaseTypeValidator = v.union(
   v.literal("NON_CONSUMABLE"),
   v.literal("SUBSCRIPTION"),

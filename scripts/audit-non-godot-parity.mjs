@@ -1645,7 +1645,10 @@ function checkConformanceSuite() {
     execFileSync(
       process.execPath,
       [
-        path.resolve(root, "packages/conformance/scripts/generate-behavior-ids.mjs"),
+        path.resolve(
+          root,
+          "packages/conformance/scripts/generate-behavior-ids.mjs",
+        ),
         "--check",
       ],
       { stdio: "pipe" },
@@ -1686,7 +1689,8 @@ function checkConformanceNotPublished() {
     );
   }
 
-  const rnFiles = readJson("libraries/react-native-iap/package.json").files ?? [];
+  const rnFiles =
+    readJson("libraries/react-native-iap/package.json").files ?? [];
   if (!rnFiles.includes("!**/__tests__")) {
     fail(
       'libraries/react-native-iap/package.json "files" must keep "!**/__tests__" so conformance fixtures are not published',
@@ -1695,8 +1699,13 @@ function checkConformanceNotPublished() {
 
   // The podspec ships Sources only; Tests holds the Apple conformance suite.
   const podspec = read("packages/apple/openiap.podspec");
-  if (!/source_files\s*=.*Sources/.test(podspec) || /source_files\s*=.*Tests/.test(podspec)) {
-    fail("packages/apple/openiap.podspec must publish Sources only, never Tests");
+  if (
+    !/source_files\s*=.*Sources/.test(podspec) ||
+    /source_files\s*=.*Tests/.test(podspec)
+  ) {
+    fail(
+      "packages/apple/openiap.podspec must publish Sources only, never Tests",
+    );
   }
 
   // conformanceTest belongs to unit-test variants; wiring it into a shipped
@@ -2508,7 +2517,7 @@ function checkIapkitAmazonContractWiring() {
     "packages/apple/Sources/OpenIapModule.swift",
     [
       "expectedProductId: amazon.expectedProductId",
-      "let environment = try Self.iapkitEnvironment",
+      "let environment = Self.iapkitEnvironment",
       "environment: environment",
     ],
     "Apple IAPKit Amazon verification contract",
@@ -2517,7 +2526,7 @@ function checkIapkitAmazonContractWiring() {
     "packages/google/openiap/src/main/java/dev/hyo/openiap/utils/PurchaseVerificationValidator.kt",
     [
       'amazon.expectedProductId?.let { put("expectedProductId", it) }',
-      'it == "Sandbox" || it == "Production"',
+      'parsed["environment"] as? String',
       "environment = environment",
     ],
     "Google IAPKit Amazon verification contract",
@@ -2544,7 +2553,10 @@ function checkIapkitAmazonContractWiring() {
   for (const [file, needles, label] of [
     [
       "libraries/react-native-iap/ios/HybridRnIap.swift",
-      ['amazonDict["expectedProductId"]', "environment: RnIapHelper.wrapString"],
+      [
+        'amazonDict["expectedProductId"]',
+        "environment: RnIapHelper.wrapString",
+      ],
       "React Native iOS IAPKit bridge",
     ],
     [
@@ -2554,12 +2566,20 @@ function checkIapkitAmazonContractWiring() {
     ],
     [
       "libraries/react-native-iap/src/vega-adapter.ts",
-      ["expectedProductId: amazon.expectedProductId", "environment !== 'Production'"],
+      [
+        "expectedProductId: amazon.expectedProductId",
+        "const rawEnvironment = json.environment",
+        "...(environment == null ? {} : {environment})",
+      ],
       "React Native Vega IAPKit bridge",
     ],
     [
       "libraries/expo-iap/src/vega-adapter.ts",
-      ["expectedProductId: amazon.expectedProductId", "environment !== 'Production'"],
+      [
+        "expectedProductId: amazon.expectedProductId",
+        "const rawEnvironment = json.environment",
+        "...(environment == null ? {} : {environment})",
+      ],
       "Expo Vega IAPKit bridge",
     ],
   ]) {
@@ -2569,8 +2589,8 @@ function checkIapkitAmazonContractWiring() {
     "libraries/flutter_inapp_purchase/lib/flutter_inapp_purchase.dart",
     [
       "'expectedProductId':",
-      "environmentValue != 'Production'",
-      "environment: environmentValue as String?",
+      "final environmentValue = itemMap['environment']",
+      "environment: environment,",
     ],
     "Flutter IAPKit Amazon contract",
   );
@@ -2599,13 +2619,33 @@ function checkIapkitAmazonContractWiring() {
     "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseAndroid.kt",
     [
       "expectedProductId = amazon.expectedProductId",
-      "environment = androidResult.environment",
+      "androidResult.toKmpIapkitResult()",
     ],
     "KMP Android IAPKit Amazon contract",
   );
   expectIncludes(
+    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/AmazonInAppPurchaseAndroid.kt",
+    ["androidResult.toKmpIapkitResult()"],
+    "KMP Amazon store IAPKit response contract",
+  );
+  expectIncludes(
+    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/Helper.kt",
+    [
+      "environment = environment",
+      "IapkitClientPayloadFormat.entries",
+      "getOrDefault(IapkitPurchaseState.Unknown)",
+      "getOrDefault(IapStore.Unknown)",
+    ],
+    "KMP Android IAPKit result mapping degrades unknown values",
+  );
+  expectNotIncludes(
+    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/AmazonInAppPurchaseAndroid.kt",
+    ["RequestVerifyPurchaseWithIapkitResult.fromJson"],
+    "KMP Amazon store must not round-trip through the generated decoder",
+  );
+  expectIncludes(
     "libraries/kmp-iap/library/src/iosMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseIOS.kt",
-    ['"Sandbox", "Production"', "environment = environment"],
+    ['map["environment"] as? String', "environment = environment"],
     "KMP iOS IAPKit response contract",
   );
 }
@@ -8511,16 +8551,27 @@ function checkFrameworkDependencyHygiene() {
     ["configuredVersion('kotlinVersion', 'NitroIap_kotlinVersion')"],
     "React Native Android build.gradle must read Kotlin fallback from gradle.properties",
   );
+  // Compile-time constants, not a runtime bundle lookup: SwiftPM copies a
+  // resource symlink verbatim and it dangles inside the built bundle.
   expectIncludes(
     "packages/apple/Sources/OpenIapVersion.swift",
-    [
-      'Bundle.module.url(forResource: "openiap-versions", withExtension: "json")',
-      "cocoaPodsVersionURL()",
-      'bundle.url(forResource: "OpenIAP", withExtension: "bundle")',
-      'version(for: "apple")',
-      'version(for: "spec")',
-    ],
+    ["OpenIapGeneratedVersion.apple", "OpenIapGeneratedVersion.spec"],
     "Apple OpenIAP runtime version",
+  );
+  expectNotIncludes(
+    "packages/apple/Sources/OpenIapVersion.swift",
+    ["Bundle.module", "fatalError"],
+    "Apple OpenIAP version must not resolve at runtime",
+  );
+  expectIncludes(
+    "packages/apple/Sources/OpenIapGeneratedVersion.swift",
+    [
+      "// Generated by scripts/sync-versions.sh",
+      `static let spec = "${versions.spec}"`,
+      `static let apple = "${versions.apple}"`,
+      `static let google = "${versions.google}"`,
+    ],
+    "Apple generated version constants",
   );
   expectIncludes(
     "packages/apple/openiap.podspec",

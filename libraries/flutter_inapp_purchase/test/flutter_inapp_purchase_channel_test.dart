@@ -3100,7 +3100,8 @@ void main() {
       );
     });
 
-    test('rejects malformed IAPKit client payload', () async {
+    test('drops a malformed IAPKit client payload without failing the receipt',
+        () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall call) async {
         switch (call.method) {
@@ -3130,21 +3131,22 @@ void main() {
       );
       await iap.initConnection();
 
-      await expectLater(
-        iap.verifyPurchaseWithProvider(
-          provider: types.PurchaseVerificationProvider.Iapkit,
-          iapkit: const types.RequestVerifyPurchaseWithIapkitProps(
-            includeClientPayload: true,
-            apple: types.RequestVerifyPurchaseWithIapkitAppleProps(
-              jws: 'test-jws-token',
-            ),
+      final result = await iap.verifyPurchaseWithProvider(
+        provider: types.PurchaseVerificationProvider.Iapkit,
+        iapkit: const types.RequestVerifyPurchaseWithIapkitProps(
+          includeClientPayload: true,
+          apple: types.RequestVerifyPurchaseWithIapkitAppleProps(
+            jws: 'test-jws-token',
           ),
         ),
-        throwsA(isA<PurchaseError>()),
       );
+
+      // The payload is optional enrichment; the verified receipt survives it.
+      expect(result.iapkit!.isValid, isTrue);
+      expect(result.iapkit!.clientPayload, isNull);
     });
 
-    test('rejects malformed IAPKit environment', () async {
+    test('drops a non-string IAPKit environment', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall call) async {
         switch (call.method) {
@@ -3169,17 +3171,69 @@ void main() {
       );
       await iap.initConnection();
 
-      await expectLater(
-        iap.verifyPurchaseWithProvider(
-          provider: types.PurchaseVerificationProvider.Iapkit,
-          iapkit: const types.RequestVerifyPurchaseWithIapkitProps(
-            amazon: types.RequestVerifyPurchaseWithIapkitAmazonProps(
-              receiptId: 'amzn1.receipt.test',
-            ),
+      final result = await iap.verifyPurchaseWithProvider(
+        provider: types.PurchaseVerificationProvider.Iapkit,
+        iapkit: const types.RequestVerifyPurchaseWithIapkitProps(
+          amazon: types.RequestVerifyPurchaseWithIapkitAmazonProps(
+            receiptId: 'amzn1.receipt.test',
           ),
         ),
-        throwsA(isA<PurchaseError>()),
       );
+
+      expect(result.iapkit!.isValid, isTrue);
+      expect(result.iapkit!.environment, isNull);
+    });
+
+    // A value IAPKit adds later must degrade, not fail the purchase.
+    test('never fails a receipt over metadata this build predates', () async {
+      TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
+          .setMockMethodCallHandler(channel, (MethodCall call) async {
+        switch (call.method) {
+          case 'initConnection':
+            return true;
+          case 'verifyPurchaseWithProvider':
+            return {
+              'provider': 'iapkit',
+              'iapkit': {
+                'isValid': true,
+                'productId': 'premium.monthly',
+                'state': 'grace-period',
+                'store': 'apple',
+                'environment': 'Xcode',
+                'clientPayload': {
+                  'format': 'yaml',
+                  'body': 'tier: gold',
+                  'version': 2,
+                  'updatedAt': 1720000000000,
+                },
+              },
+            };
+        }
+        return null;
+      });
+
+      final iap = FlutterInappPurchase.private(
+        FakePlatform(operatingSystem: 'ios'),
+      );
+      await iap.initConnection();
+
+      final result = await iap.verifyPurchaseWithProvider(
+        provider: types.PurchaseVerificationProvider.Iapkit,
+        iapkit: const types.RequestVerifyPurchaseWithIapkitProps(
+          apiKey: 'test-api-key',
+          includeClientPayload: true,
+          apple: types.RequestVerifyPurchaseWithIapkitAppleProps(
+            jws: 'test-jws-token',
+          ),
+        ),
+      );
+
+      expect(result.iapkit!.isValid, isTrue);
+      expect(result.iapkit!.productId, 'premium.monthly');
+      // Unknown state degrades, unknown format drops, environment forwards.
+      expect(result.iapkit!.state, types.IapkitPurchaseState.Unknown);
+      expect(result.iapkit!.clientPayload, isNull);
+      expect(result.iapkit!.environment, 'Xcode');
     });
   });
 }

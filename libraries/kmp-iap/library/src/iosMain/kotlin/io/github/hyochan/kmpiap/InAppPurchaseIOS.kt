@@ -1071,41 +1071,29 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                         is String -> rawProductId
                         else -> throw IllegalArgumentException("IAPKit result productId must be a string")
                     }
-                    val environment = when (val rawEnvironment = map["environment"]) {
-                        null, is NSNull -> null
-                        "Sandbox", "Production" -> rawEnvironment as String
-                        else -> throw IllegalArgumentException(
-                            "IAPKit result environment must be Sandbox or Production"
-                        )
-                    }
-                    val clientPayload = when (val rawClientPayload = map["clientPayload"]) {
-                        null, is NSNull -> null
-                        is Map<*, *> -> {
-                            val payload = rawClientPayload.mapKeys { it.key.toString() }
-                            val format = payload["format"] as? String
-                                ?: throw IllegalArgumentException("IAPKit clientPayload missing format")
-                            if (format !in setOf("toml", "json", "text")) {
-                                throw IllegalArgumentException("IAPKit clientPayload contains invalid format")
-                            }
-                            val body = payload["body"] as? String
-                                ?: throw IllegalArgumentException("IAPKit clientPayload missing body")
-                            val version = (payload["version"] as? Number)?.toDouble()
-                                ?: throw IllegalArgumentException("IAPKit clientPayload missing version")
-                            val updatedAt = (payload["updatedAt"] as? Number)?.toDouble()
-                                ?: throw IllegalArgumentException("IAPKit clientPayload missing updatedAt")
-                            if (!version.isFinite() || version <= 0.0 || version % 1.0 != 0.0 ||
-                                !updatedAt.isFinite() || updatedAt < 0.0
-                            ) {
-                                throw IllegalArgumentException("IAPKit clientPayload contains invalid numeric fields")
-                            }
+                    // Forwarded opaquely: `environment` is String in the spec.
+                    val environment = (map["environment"] as? String)?.takeIf { it.isNotEmpty() }
+                    // Optional enrichment: dropped, never thrown.
+                    val clientPayload = (map["clientPayload"] as? Map<*, *>)?.let { rawClientPayload ->
+                        val payload = rawClientPayload.mapKeys { it.key.toString() }
+                        val format = (payload["format"] as? String)
+                            ?.let { raw -> IapkitClientPayloadFormat.entries.firstOrNull { it.rawValue == raw } }
+                        val body = payload["body"] as? String
+                        val version = (payload["version"] as? Number)?.toDouble()
+                        val updatedAt = (payload["updatedAt"] as? Number)?.toDouble()
+                        if (format == null || body == null || version == null || updatedAt == null ||
+                            !version.isFinite() || version <= 0.0 || version % 1.0 != 0.0 ||
+                            !updatedAt.isFinite() || updatedAt < 0.0
+                        ) {
+                            null
+                        } else {
                             IapkitProductClientPayload(
                                 body = body,
-                                format = IapkitClientPayloadFormat.fromJson(format),
+                                format = format,
                                 updatedAt = updatedAt,
                                 version = version
                             )
                         }
-                        else -> throw IllegalArgumentException("IAPKit clientPayload must be an object")
                     }
                     val iapkitResult = RequestVerifyPurchaseWithIapkitResult(
                         clientPayload = clientPayload,

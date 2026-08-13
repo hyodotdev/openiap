@@ -205,7 +205,8 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
       adminCall<{
         expectedVersion: number;
         clientPayload?: {
-          format: "toml" | "json" | "text";
+          // Opaque: IAPKit owns the format value space (IapkitClientPayloadFormat).
+          format: string;
           body: string;
           version: number;
           updatedAt: number;
@@ -216,7 +217,7 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
     setClientPayload: (params: {
       productId: string;
       platform: "IOS" | "Android";
-      format: "toml" | "json" | "text";
+      format: string;
       body: string;
       expectedVersion?: number;
     }) =>

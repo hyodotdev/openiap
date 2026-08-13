@@ -1177,17 +1177,12 @@ export function createExpoIapVegaModule(
           `IAPKit returned malformed response (HTTP ${status}).`,
         );
       }
-      const environment = json.environment;
-      if (
-        environment != null &&
-        (typeof environment !== 'string' ||
-          (environment !== 'Sandbox' && environment !== 'Production'))
-      ) {
-        throw createVegaError(
-          ErrorCode.PurchaseVerificationFailed,
-          `IAPKit returned malformed response (HTTP ${status}).`,
-        );
-      }
+      // Forwarded opaquely: `environment` is String in the spec.
+      const rawEnvironment = json.environment;
+      const environment =
+        typeof rawEnvironment === 'string' && rawEnvironment.length > 0
+          ? rawEnvironment
+          : undefined;
 
       return {
         ...(environment == null ? {} : {environment}),

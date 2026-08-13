@@ -27,6 +27,111 @@ const KIND_STYLES: Record<ReleaseEntry["items"][number]["kind"], string> = {
 
 const RELEASES: ReleaseEntry[] = [
   {
+    id: "hosted-2026-08-13",
+    date: "2026-08-13",
+    tagline:
+      "Verify responses stay decodable by app builds compiled against an older SDK.",
+    items: [
+      {
+        kind: "fix",
+        text: "Every /v1/purchase/verify response is now validated against the published schema before it is sent. A value outside that schema is degraded rather than emitted: an unpublished state becomes UNKNOWN and an unreadable productId, environment, or clientPayload is dropped. isValid is never rewritten, so a metadata change cannot revoke an entitlement, and a verdict that cannot be made contract-valid returns 500 instead of a body no SDK can trust.",
+      },
+      {
+        kind: "fix",
+        text: "SDKs no longer fail a confirmed purchase over optional metadata. environment is forwarded as the opaque String the spec declares instead of being re-checked against Sandbox/Production, and a client payload whose format this build predates is dropped rather than thrown. The store echo and isValid typing stay strict.",
+      },
+      {
+        kind: "ops",
+        text: "The purchase-state, client-payload-format, and verify-store enums are declared in kit's Convex layer, its OpenAPI response docs, and the GraphQL schema every SDK generates from. bun audit:kit-contract compares all three and gates both CI and this deploy, so a kit-only enum change can no longer reach published apps unnoticed.",
+      },
+      {
+        kind: "feature",
+        text: "Native verification requests send X-OpenIAP-Spec with the OpenIAP spec version the build was compiled against, and kit records it on the structured verify log line. The value is shape-checked and bounded, and nothing branches on it: a client cannot change how its receipt is verified by claiming a version.",
+      },
+      {
+        kind: "docs",
+        text: "Version Compatibility documents what IAPKit guarantees to an app compiled against an older SDK: responses are additive, a breaking change would ship as /v2 while /v1 keeps serving, and unrecognised optional values degrade. Gate entitlement on isValid, treat state as a label, and never reject a verification because a value is unrecognised.",
+      },
+    ],
+  },
+  {
+    id: "hosted-2026-08-13-entitlements",
+    date: "2026-08-13",
+    tagline:
+      "Entitlement defects found by the new behavioral conformance suite.",
+    items: [
+      {
+        kind: "fix",
+        text: "A versioned behavioral conformance suite now binds spec behaviors to real implementations, and the entitlement defects that binding surfaced are fixed. The type and API-surface contract was already drift-gated, but nothing verified what a declared symbol actually did.",
+      },
+    ],
+  },
+  {
+    id: "hosted-2026-08-12",
+    date: "2026-08-12",
+    tagline:
+      "Store verification integrity across Amazon, Horizon, and raw REST.",
+    items: [
+      {
+        kind: "security",
+        text: "Amazon RVS now requires an explicit project-level sandbox opt-in and carries first-class Sandbox / Production provenance, expected-product binding, and strict receipt identity and response validation. A bounded purchase-row reconciler preserves authoritative state across transient failures.",
+      },
+      {
+        kind: "fix",
+        text: "Raw REST verification persists only strict boolean verdicts and keeps the last confirmed snapshot across a transient or malformed store response. The unfinished Meta Horizon subscription reconciler is retired and its legacy synthetic metrics source quarantined.",
+      },
+      {
+        kind: "feature",
+        text: "Amazon expectedProductId and environment are wired through the GraphQL SSOT into Apple, Google, and every framework SDK, preserving published Kotlin constructor compatibility. Amazon and Horizon purchase counters were added with bounded migration support for existing self-hosted rows.",
+      },
+      {
+        kind: "ops",
+        text: "The Convex verifier tree is included in coverage behind separate server (90%) and Convex (48%) gates.",
+      },
+    ],
+  },
+  {
+    id: "hosted-2026-08-11",
+    date: "2026-08-11",
+    tagline: "Production deploys verify their Convex target first.",
+    items: [
+      {
+        kind: "ops",
+        text: "The production deploy script verifies it is pointed at the production Convex deployment before publishing, and refuses a development target.",
+      },
+    ],
+  },
+  {
+    id: "hosted-2026-08-07",
+    date: "2026-08-07",
+    tagline: "Product sync, verification, and MCP session correctness.",
+    items: [
+      {
+        kind: "fix",
+        text: "Google Play product sync converts the authored price into every Play region and writes each local currency, and reads before masked updates so existing regions, purchase options, and console-authored locales survive. App Store Connect sync, localized listings, and sales regions received the matching corrections.",
+      },
+      {
+        kind: "fix",
+        text: "MCP session routing and webhook lifecycle processing were corrected. This is phase 2 of the webhook idempotency work; later phases wait on legacy rows aging past the retention window.",
+      },
+    ],
+  },
+  {
+    id: "hosted-2026-08-05",
+    date: "2026-08-05",
+    tagline: "Read-only order lookup for customer inquiries.",
+    items: [
+      {
+        kind: "feature",
+        text: "Paste an Apple or Google order id from a customer receipt and the dashboard returns the full order, plus current subscription status for subscription orders. Lookups are proxied live to the store APIs using the credentials the project already configured for verification; nothing is persisted or logged.",
+      },
+      {
+        kind: "security",
+        text: "Order lookup is gated on a dashboard session and organization membership and never accepts an API key. It is operator tooling, not part of the public /v1 surface.",
+      },
+    ],
+  },
+  {
     id: "hosted-2026-07-28",
     date: "2026-07-28",
     tagline:
