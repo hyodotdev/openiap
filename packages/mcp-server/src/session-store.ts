@@ -30,6 +30,8 @@ export class BoundedSessionStore<T> {
   private readonly entries = new Map<string, SessionEntry<T>>();
   private readonly now: () => number;
   private pendingReservations = 0;
+  private reservationGeneration = 0;
+  private closed = false;
 
   constructor(private readonly options: BoundedSessionStoreOptions<T>) {
     if (!Number.isSafeInteger(options.maxSize) || options.maxSize < 1) {
@@ -57,6 +59,8 @@ export class BoundedSessionStore<T> {
   }
 
   reserve(): SessionReservation<T> | null {
+    if (this.closed) return null;
+
     const now = this.now();
     this.pruneExpired(now);
     if (this.entries.size + this.pendingReservations >= this.options.maxSize) {
@@ -64,16 +68,24 @@ export class BoundedSessionStore<T> {
     }
 
     this.pendingReservations += 1;
+    const generation = this.reservationGeneration;
     let pending = true;
     const release = (): void => {
       if (!pending) return;
       pending = false;
-      this.pendingReservations -= 1;
+      if (generation === this.reservationGeneration) {
+        this.pendingReservations -= 1;
+      }
     };
 
     return {
       commit: (sessionId, value) => {
-        if (!pending) {
+        if (
+          !pending ||
+          this.closed ||
+          generation !== this.reservationGeneration
+        ) {
+          pending = false;
           throw new Error("session reservation is no longer active");
         }
         release();
@@ -109,6 +121,9 @@ export class BoundedSessionStore<T> {
   }
 
   async closeAll(): Promise<void> {
+    this.closed = true;
+    this.reservationGeneration += 1;
+    this.pendingReservations = 0;
     const values = Array.from(this.entries.values(), (entry) => entry.value);
     this.entries.clear();
     await Promise.all(values.map((value) => this.dispose(value)));

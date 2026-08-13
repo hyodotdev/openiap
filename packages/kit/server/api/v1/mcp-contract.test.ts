@@ -123,12 +123,18 @@ describe("MCP Kit response contracts", () => {
     mocks.query.mockReset();
     vi.stubGlobal(
       "fetch",
-      (input: string | URL | Request, init?: RequestInit) => {
+      async (input: string | URL | Request, init?: RequestInit) => {
         const request = new Request(input, init);
         const url = new URL(request.url);
         return apiRoutes.request(
           `${url.pathname.replace(/^\/v1/, "")}${url.search}`,
-          { method: request.method, headers: request.headers },
+          {
+            method: request.method,
+            headers: request.headers,
+            ...(request.method === "GET" || request.method === "HEAD"
+              ? {}
+              : { body: await request.text() }),
+          },
         );
       },
     );

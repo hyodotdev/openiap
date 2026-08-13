@@ -92,4 +92,22 @@ describe("BoundedSessionStore", () => {
     expect(dispose).toHaveBeenCalledWith("transport-one");
     expect(dispose).toHaveBeenCalledWith("transport-two");
   });
+
+  it("invalidates pending reservations during shutdown", async () => {
+    const store = new BoundedSessionStore<string>({
+      maxSize: 1,
+      idleTtlMs: 100,
+      dispose: vi.fn(),
+    });
+    const reservation = store.reserve();
+    expect(reservation).not.toBeNull();
+
+    await store.closeAll();
+
+    expect(() => reservation?.commit("late", "late-transport")).toThrow(
+      "session reservation is no longer active",
+    );
+    expect(store.size).toBe(0);
+    expect(store.reserve()).toBeNull();
+  });
 });
