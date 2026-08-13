@@ -1645,7 +1645,10 @@ function checkConformanceSuite() {
     execFileSync(
       process.execPath,
       [
-        path.resolve(root, "packages/conformance/scripts/generate-behavior-ids.mjs"),
+        path.resolve(
+          root,
+          "packages/conformance/scripts/generate-behavior-ids.mjs",
+        ),
         "--check",
       ],
       { stdio: "pipe" },
@@ -1686,7 +1689,8 @@ function checkConformanceNotPublished() {
     );
   }
 
-  const rnFiles = readJson("libraries/react-native-iap/package.json").files ?? [];
+  const rnFiles =
+    readJson("libraries/react-native-iap/package.json").files ?? [];
   if (!rnFiles.includes("!**/__tests__")) {
     fail(
       'libraries/react-native-iap/package.json "files" must keep "!**/__tests__" so conformance fixtures are not published',
@@ -1695,8 +1699,13 @@ function checkConformanceNotPublished() {
 
   // The podspec ships Sources only; Tests holds the Apple conformance suite.
   const podspec = read("packages/apple/openiap.podspec");
-  if (!/source_files\s*=.*Sources/.test(podspec) || /source_files\s*=.*Tests/.test(podspec)) {
-    fail("packages/apple/openiap.podspec must publish Sources only, never Tests");
+  if (
+    !/source_files\s*=.*Sources/.test(podspec) ||
+    /source_files\s*=.*Tests/.test(podspec)
+  ) {
+    fail(
+      "packages/apple/openiap.podspec must publish Sources only, never Tests",
+    );
   }
 
   // conformanceTest belongs to unit-test variants; wiring it into a shipped
@@ -2544,7 +2553,10 @@ function checkIapkitAmazonContractWiring() {
   for (const [file, needles, label] of [
     [
       "libraries/react-native-iap/ios/HybridRnIap.swift",
-      ['amazonDict["expectedProductId"]', "environment: RnIapHelper.wrapString"],
+      [
+        'amazonDict["expectedProductId"]',
+        "environment: RnIapHelper.wrapString",
+      ],
       "React Native iOS IAPKit bridge",
     ],
     [
@@ -2557,6 +2569,7 @@ function checkIapkitAmazonContractWiring() {
       [
         "expectedProductId: amazon.expectedProductId",
         "const rawEnvironment = json.environment",
+        "...(environment == null ? {} : {environment})",
       ],
       "React Native Vega IAPKit bridge",
     ],
@@ -2565,6 +2578,7 @@ function checkIapkitAmazonContractWiring() {
       [
         "expectedProductId: amazon.expectedProductId",
         "const rawEnvironment = json.environment",
+        "...(environment == null ? {} : {environment})",
       ],
       "Expo Vega IAPKit bridge",
     ],

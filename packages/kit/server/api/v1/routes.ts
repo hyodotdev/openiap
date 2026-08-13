@@ -470,8 +470,14 @@ const verifyPurchaseHandler = async (
     }
     if (!contract.ok) {
       // The client is about to see a 500, so the request log must not keep
-      // reporting the verdict this handler computed.
-      setOutcome({ isValid: false, state: FALLBACK_PURCHASE_STATE });
+      // reporting the verdict this handler computed. `stableRejection` is
+      // carried over: it is the store's own provenance, and dropping it would
+      // disarm the replay guard's cooldown for a genuinely revoked receipt.
+      setOutcome({
+        ...outcome,
+        isValid: false,
+        state: FALLBACK_PURCHASE_STATE,
+      });
       const errorId = crypto.randomUUID();
       console.error(
         "Unexpected error (%s) when verifying purchase: malformed verdict",

@@ -198,7 +198,7 @@ suspend fun verifyPurchaseWithIapkit(
         // Derived from the generated enum rather than a literal set, so a
         // format added to the spec is readable as soon as Types.kt regenerates.
         val format = (payload["format"] as? String)
-            ?.let { raw -> IapkitClientPayloadFormat.entries.firstOrNull { it.rawValue == raw } }
+            ?.let { rawFormat -> IapkitClientPayloadFormat.entries.firstOrNull { it.rawValue == rawFormat } }
             ?: return unreadableIapkitClientPayload()
         val body = payload["body"] as? String
             ?: return unreadableIapkitClientPayload()
@@ -413,6 +413,9 @@ suspend fun verifyPurchaseWithIapkit(
             // re-deriving it here would only let a value IAPKit adds later
             // fail a receipt the store already confirmed.
             val environment = (parsed["environment"] as? String)?.takeIf { it.isNotEmpty() }
+            if (environment == null && parsed["environment"] != null) {
+                OpenIapLog.warn("Ignoring an IAPKit environment this build cannot read", tag)
+            }
 
             return RequestVerifyPurchaseWithIapkitResult(
                 clientPayload = clientPayload,

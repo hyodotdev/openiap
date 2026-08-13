@@ -139,8 +139,12 @@ const compare = (label, expected, actual) => {
 export const collectContractFailures = ({
   schema = read(SCHEMA_FILE),
   convexState = read(CONVEX_STATE_FILE),
-  responseSchema = read(RESPONSE_SCHEMA_FILE),
+  responseSchema: rawResponseSchema = read(RESPONSE_SCHEMA_FILE),
 } = {}) => {
+  // Anchors match raw text, so comments are removed before anchoring too:
+  // otherwise a comment added between `v.object({` and `format:` would make an
+  // anchor miss and block the deploy gate over a documentation edit.
+  const responseSchema = stripComments(rawResponseSchema);
   const specStates = parseGraphqlEnum(schema, "IapkitPurchaseState");
   // GraphQL members are PascalCase for these two; the wire values are lowercase.
   const specFormats = parseGraphqlEnum(schema, "IapkitClientPayloadFormat").map(
@@ -183,7 +187,15 @@ export const collectContractFailures = ({
 };
 
 export const runAudit = () => {
-  const failures = collectContractFailures();
+  // The hardened parsers signal drift by throwing, so those cases have to reach
+  // the guidance below rather than surfacing as a bare stack trace — in
+  // deploy-kit.yml this message is what a blocked operator reads.
+  let failures;
+  try {
+    failures = collectContractFailures();
+  } catch (error) {
+    failures = [`could not read a declaration: ${error.message}`];
+  }
   if (failures.length > 0) {
     console.error("IAPKit spec contract audit failed:\n");
     for (const failure of failures) console.error(`- ${failure}`);

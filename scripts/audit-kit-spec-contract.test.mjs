@@ -142,6 +142,22 @@ test("a commented-out literal is not counted", () => {
   assert.match(failures[0], /clientPayload format.*missing.*json/);
 });
 
+test("a comment above the anchored field does not break the audit", () => {
+  // The audit gates the kit deploy, so a documentation edit on the very
+  // declaration it reads must not block a release.
+  assert.deepEqual(
+    collectContractFailures(
+      sources({
+        responseSchema: RESPONSE_SCHEMA.replace(
+          "const clientPayloadSchema = v.object({\n  format:",
+          "const clientPayloadSchema = v.object({\n  // public app data\n  format:",
+        ),
+      }),
+    ),
+    [],
+  );
+});
+
 test("a declaration that parses to nothing is a failure, not agreement", () => {
   assert.throws(
     () =>

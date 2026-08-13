@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getFunctionName } from "convex/server";
 
 vi.mock("hono/bun", () => ({
@@ -19,10 +19,29 @@ vi.mock("../../convex", () => ({
 const { apiRoutes } = await import("./routes");
 
 describe("apiRoutes", () => {
+  // The request logger writes one JSON line per request to stdout; capturing it
+  // is the only way to assert what an operator actually sees.
+  let logLines: Array<Record<string, unknown>>;
+  let logSpy: ReturnType<typeof vi.spyOn>;
+
   beforeEach(() => {
     convexClientMock.action.mockReset();
     convexClientMock.mutation.mockReset();
     convexClientMock.query.mockReset();
+    logLines = [];
+    logSpy = vi.spyOn(console, "log").mockImplementation((...args) => {
+      const [first] = args;
+      if (typeof first !== "string") return;
+      try {
+        logLines.push(JSON.parse(first) as Record<string, unknown>);
+      } catch {
+        // Not a structured line; ignore.
+      }
+    });
+  });
+
+  afterEach(() => {
+    logSpy.mockRestore();
   });
 
   it("serves the generated OpenAPI specification", async () => {
@@ -526,6 +545,15 @@ describe("apiRoutes", () => {
     expect(response.status).toBe(500);
     expect(await response.json()).toMatchObject({
       errors: [{ code: "UNKNOWN_ERROR" }],
+    });
+    // The client saw a failure, so the structured log must not still report the
+    // verdict this handler computed — otherwise the incident is invisible in
+    // any success-rate view built on `isValid`.
+    const verifyLine = logLines.find((line) => line.kind === "verify_request");
+    expect(verifyLine).toMatchObject({
+      statusCode: 500,
+      isValid: false,
+      state: "UNKNOWN",
     });
   });
 
