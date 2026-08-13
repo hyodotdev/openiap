@@ -169,39 +169,170 @@ describe("remote MCP HTTP server", () => {
       ]),
     );
     expect(regionSchema?.description).toContain("Send [] to clear");
+
+    const listProducts = toolsByName.get("iapkit_list_products") as
+      | {
+          inputSchema?: {
+            properties?: {
+              limit?: { maximum?: number };
+              cursor?: { description?: string };
+            };
+          };
+        }
+      | undefined;
+    expect(listProducts?.inputSchema?.properties?.limit?.maximum).toBe(50);
+    expect(
+      listProducts?.inputSchema?.properties?.cursor?.description,
+    ).toContain("nextCursor");
   });
 
-  it("returns 403 before a publishable key can initialize the admin MCP surface", async () => {
-    const baseUrl = await startServer();
-    const response = await postMcp(
-      baseUrl,
-      {
-        jsonrpc: "2.0",
-        id: 1,
-        method: "initialize",
-        params: {
-          protocolVersion: "2025-06-18",
-          capabilities: {},
-          clientInfo: { name: "vitest", version: "0.0.0" },
+  it.each(["openiap-kit_pk_mobile", "openiap-kit_legacy"])(
+    "returns 403 before non-secret key %s can initialize the admin MCP surface",
+    async (apiKey) => {
+      const baseUrl = await startServer();
+      const response = await postMcp(
+        baseUrl,
+        {
+          jsonrpc: "2.0",
+          id: 1,
+          method: "initialize",
+          params: {
+            protocolVersion: "2025-06-18",
+            capabilities: {},
+            clientInfo: { name: "vitest", version: "0.0.0" },
+          },
         },
-      },
-      undefined,
-      { authorization: "Bearer openiap-kit_pk_mobile" },
-    );
+        undefined,
+        { authorization: `Bearer ${apiKey}` },
+      );
 
-    expect(response.status).toBe(403);
-    expect(response.headers.get("mcp-session-id")).toBeNull();
-    await expect(response.json()).resolves.toMatchObject({
-      error: {
-        code: -32003,
-        message:
-          "This operation requires a secret admin key. Publishable mobile keys cannot access MCP administrative operations.",
-      },
+      expect(response.status).toBe(403);
+      expect(response.headers.get("mcp-session-id")).toBeNull();
+      await expect(response.json()).resolves.toMatchObject({
+        error: {
+          code: -32003,
+          message: expect.stringContaining("openiap-kit_sk_"),
+        },
+      });
+    },
+  );
+
+  it.each(["openiap-kit_pk_mobile", "openiap-kit_legacy"])(
+    "rejects non-secret key %s supplied through tool arguments",
+    async (apiKey) => {
+      const { baseUrl, sessionId } = await initializeMcpSession();
+
+      const payload = await callTool<{
+        ok: false;
+        error: { message: string };
+      }>(baseUrl, sessionId, "iapkit_list_products", {
+        apiKey,
+      });
+
+      expect(payload.ok).toBe(false);
+      expect(payload.error.message).toContain("openiap-kit_sk_");
+    },
+  );
+
+  it("rejects a legacy key supplied through IAPKIT_API_KEY", async () => {
+    const previousApiKey = process.env.IAPKIT_API_KEY;
+    process.env.IAPKIT_API_KEY = "openiap-kit_legacy";
+    try {
+      const { baseUrl, sessionId } = await initializeMcpSession();
+      const payload = await callTool<{
+        ok: false;
+        error: { message: string };
+      }>(baseUrl, sessionId, "iapkit_list_products", {});
+
+      expect(payload.ok).toBe(false);
+      expect(payload.error.message).toContain("openiap-kit_sk_");
+    } finally {
+      if (previousApiKey === undefined) delete process.env.IAPKIT_API_KEY;
+      else process.env.IAPKIT_API_KEY = previousApiKey;
+    }
+  });
+
+  it("paginates the product catalog through MCP", async () => {
+    const apiKey = "openiap-kit_sk_catalog";
+    const previousBaseUrl = process.env.IAPKIT_BASE_URL;
+    process.env.IAPKIT_BASE_URL = await startKitApi((req, res) => {
+      expect(req.url).toBe(
+        "/v1/products?platform=IOS&limit=50&cursor=opaque%2Fstart%3D1",
+      );
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          products: [{ productId: "premium" }],
+          hasMore: true,
+          nextCursor: "opaque/next=2",
+        }),
+      );
     });
+
+    try {
+      const { baseUrl, sessionId } = await initializeMcpSession(apiKey);
+      const payload = await callTool<{
+        products: Array<{ productId: string }>;
+        hasMore: boolean;
+        nextCursor?: string;
+      }>(baseUrl, sessionId, "iapkit_list_products", {
+        platform: "IOS",
+        limit: 50,
+        cursor: "opaque/start=1",
+        apiKey,
+      });
+
+      expect(payload).toEqual({
+        products: [{ productId: "premium" }],
+        hasMore: true,
+        nextCursor: "opaque/next=2",
+      });
+    } finally {
+      if (previousBaseUrl === undefined) delete process.env.IAPKIT_BASE_URL;
+      else process.env.IAPKIT_BASE_URL = previousBaseUrl;
+    }
+  });
+
+  it("keeps public webhook URLs separate from the loopback Kit API URL", async () => {
+    const previousBaseUrl = process.env.IAPKIT_BASE_URL;
+    const previousPublicBaseUrl = process.env.IAPKIT_PUBLIC_BASE_URL;
+    process.env.IAPKIT_BASE_URL = await startKitApi((req, res) => {
+      res.writeHead(200, { "content-type": "application/json" });
+      if (req.url === "/v1/subscriptions/metrics") {
+        res.end(JSON.stringify({ activeSubs: 0 }));
+        return;
+      }
+      res.end(JSON.stringify({ products: [], hasMore: false }));
+    });
+    process.env.IAPKIT_PUBLIC_BASE_URL = "https://public.kit.example/";
+
+    try {
+      const { baseUrl, sessionId } = await initializeMcpSession(
+        "openiap-kit_sk_inspect",
+      );
+      const payload = await callTool<{
+        webhookUrls: { lifecycle: string };
+      }>(baseUrl, sessionId, "iapkit_inspect_state", {
+        apiKey: "openiap-kit_sk_inspect",
+      });
+
+      expect(payload.webhookUrls.lifecycle).toBe(
+        "https://public.kit.example/v1/webhooks/<IAPKIT_PUBLISHABLE_KEY>",
+      );
+      expect(payload.webhookUrls.lifecycle).not.toContain("127.0.0.1");
+    } finally {
+      if (previousBaseUrl === undefined) delete process.env.IAPKIT_BASE_URL;
+      else process.env.IAPKIT_BASE_URL = previousBaseUrl;
+      if (previousPublicBaseUrl === undefined) {
+        delete process.env.IAPKIT_PUBLIC_BASE_URL;
+      } else {
+        process.env.IAPKIT_PUBLIC_BASE_URL = previousPublicBaseUrl;
+      }
+    }
   });
 
   it("summarizes revenue analytics through the bearer-authenticated Kit API", async () => {
-    const apiKey = "openiap-kit_secret_revenue";
+    const apiKey = "openiap-kit_sk_revenue";
     const previousBaseUrl = process.env.IAPKIT_BASE_URL;
     process.env.IAPKIT_BASE_URL = await startKitApi((req, res) => {
       expect(req.method).toBe("GET");
@@ -270,7 +401,7 @@ describe("remote MCP HTTP server", () => {
   });
 
   it("generates Expo setup snippets compatible with current SDK types", async () => {
-    const apiKey = "openiap-kit_secret_setup";
+    const apiKey = "openiap-kit_sk_setup";
     const { baseUrl, sessionId } = await initializeMcpSession(apiKey);
 
     const expoPayload = await callTool<SetupToolPayload>(
@@ -296,7 +427,7 @@ describe("remote MCP HTTP server", () => {
   });
 
   it("generates native iOS and Android setup snippets", async () => {
-    const apiKey = "openiap-kit_secret_setup";
+    const apiKey = "openiap-kit_sk_setup";
     const { baseUrl, sessionId } = await initializeMcpSession(apiKey);
 
     const iosPayload = await callTool<SetupToolPayload>(
@@ -358,7 +489,7 @@ describe("remote MCP HTTP server", () => {
   });
 
   it("generates framework snippets without server secrets or undefined clients", async () => {
-    const apiKey = "openiap-kit_secret_setup";
+    const apiKey = "openiap-kit_sk_setup";
     const { baseUrl, sessionId } = await initializeMcpSession(apiKey);
 
     for (const framework of ["flutter", "kmp", "godot"] as const) {
@@ -414,7 +545,7 @@ describe("remote MCP HTTP server", () => {
   });
 
   it("enqueues store sync jobs through the bearer-authenticated Kit API", async () => {
-    const apiKey = "openiap-kit_secret_sync";
+    const apiKey = "openiap-kit_sk_sync";
     const previousBaseUrl = process.env.IAPKIT_BASE_URL;
     process.env.IAPKIT_BASE_URL = await startKitApi((req, res) => {
       expect(req.method).toBe("POST");
@@ -777,7 +908,7 @@ describe("remote MCP HTTP server", () => {
   });
 
   it("redacts bearer API keys from tool error responses", async () => {
-    const apiKey = "openiap-kit_secret_http";
+    const apiKey = "openiap-kit_sk_http";
     const previousBaseUrl = process.env.IAPKIT_BASE_URL;
     process.env.IAPKIT_BASE_URL = await startKitApi((req, res) => {
       res.writeHead(500, { "content-type": "application/json" });
@@ -835,8 +966,49 @@ describe("remote MCP HTTP server", () => {
     }
   });
 
+  it("keeps Bearer-authenticated route names in redacted errors", async () => {
+    const apiKey = "openiap-kit_sk_sync_redaction";
+    const previousBaseUrl = process.env.IAPKIT_BASE_URL;
+    process.env.IAPKIT_BASE_URL = await startKitApi((_req, res) => {
+      res.writeHead(403, { "content-type": "application/json" });
+      res.end(JSON.stringify({ errors: [{ code: "FORBIDDEN" }] }));
+    });
+
+    try {
+      const { baseUrl, sessionId } = await initializeMcpSession(apiKey);
+      const response = await postMcp(
+        baseUrl,
+        {
+          jsonrpc: "2.0",
+          id: 2,
+          method: "tools/call",
+          params: {
+            name: "iapkit_sync_products",
+            arguments: {
+              platform: "IOS",
+              direction: "push",
+              dryRun: true,
+            },
+          },
+        },
+        sessionId,
+        { authorization: `Bearer ${apiKey}` },
+      );
+      const callBody = await response.text();
+
+      expect(callBody).toContain(
+        "kit /v1/products/sync/ios?direction=push&dryRun=true returned 403",
+      );
+      expect(callBody).not.toContain("products/<IAPKIT_SECRET_KEY>");
+      expect(callBody).not.toContain(apiKey);
+    } finally {
+      if (previousBaseUrl === undefined) delete process.env.IAPKIT_BASE_URL;
+      else process.env.IAPKIT_BASE_URL = previousBaseUrl;
+    }
+  });
+
   it("redacts API keys from partial diagnostic errors", async () => {
-    const apiKey = "openiap-kit_secret_diagnostic";
+    const apiKey = "openiap-kit_sk_diagnostic";
     const previousBaseUrl = process.env.IAPKIT_BASE_URL;
     process.env.IAPKIT_BASE_URL = await startKitApi((req, res) => {
       if (req.url === "/health") {

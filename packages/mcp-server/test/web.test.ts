@@ -16,7 +16,10 @@ function createHandler(machineId?: string) {
   return createIapKitWebMcpHandler({ logger: silentLogger, machineId });
 }
 
-function initializeRequest(sessionId?: string): Request {
+function initializeRequest(
+  sessionId?: string,
+  headers: Record<string, string> = {},
+): Request {
   return mcpRequest(
     {
       jsonrpc: "2.0",
@@ -29,6 +32,7 @@ function initializeRequest(sessionId?: string): Request {
       },
     },
     sessionId,
+    headers,
   );
 }
 
@@ -86,6 +90,30 @@ describe("web MCP handler session routing", () => {
 
     const list = await handler(toolsListRequest(sessionId));
     expect(list.status).toBe(200);
+  });
+
+  it("rejects new sessions at capacity without evicting active sessions", async () => {
+    const handler = createHandler("self42");
+    let firstSessionId = "";
+
+    for (let index = 0; index < 256; index += 1) {
+      const response = await handler(initializeRequest());
+      expect(response.status).toBe(200);
+      firstSessionId ||= response.headers.get("mcp-session-id") ?? "";
+      await response.text();
+    }
+
+    const denied = await handler(
+      initializeRequest(undefined, { origin: "https://chatgpt.com" }),
+    );
+    expect(denied.status).toBe(503);
+    expect(denied.headers.get("retry-after")).toBe("5");
+    expect(denied.headers.get("access-control-allow-origin")).toBe(
+      "https://chatgpt.com",
+    );
+
+    const followUp = await handler(toolsListRequest(firstSessionId));
+    expect(followUp.status).toBe(200);
   });
 
   it("replays a foreign machine's session via fly-replay", async () => {

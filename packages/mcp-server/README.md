@@ -33,6 +33,9 @@ IAPKIT_API_KEY="openiap-kit_sk_<your-secret-key>" bun run start:http
 
 `PORT` / `IAPKIT_MCP_PORT` override the HTTP port and
 `IAPKIT_MCP_ALLOWED_ORIGINS` overrides the CORS allow-list.
+`IAPKIT_BASE_URL` selects the Kit API endpoint, while
+`IAPKIT_PUBLIC_BASE_URL` keeps generated webhook URLs public when API calls use
+a loopback address.
 
 ## Client configuration
 

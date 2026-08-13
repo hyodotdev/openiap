@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { kitClient, normalizeKitBaseUrl } from "../src/kit-client";
+import {
+  IAPKIT_MCP_LOOPBACK_HEADER,
+  kitClient,
+  normalizeKitBaseUrl,
+} from "../src/kit-client";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -30,6 +34,33 @@ describe("normalizeKitBaseUrl", () => {
 });
 
 describe("kitClient", () => {
+  it("marks only loopback API calls as internal MCP traffic", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ products: [], hasMore: false }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await kitClient({
+      apiKey: "openiap-kit_sk_local",
+      baseUrl: "http://127.0.0.1:3000",
+    }).listProducts();
+    await kitClient({
+      apiKey: "openiap-kit_sk_public",
+      baseUrl: "https://kit.example",
+    }).listProducts();
+
+    expect(fetchMock.mock.calls[0]?.[1]?.headers).toMatchObject({
+      [IAPKIT_MCP_LOOPBACK_HEADER]: "1",
+    });
+    expect(fetchMock.mock.calls[1]?.[1]?.headers).not.toHaveProperty(
+      IAPKIT_MCP_LOOPBACK_HEADER,
+    );
+  });
+
   it("forwards subscription metadata when creating products", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(JSON.stringify({ id: "product-id", created: true }), {
@@ -115,12 +146,19 @@ describe("kitClient", () => {
 
   it("parses JSON response content types case-insensitively", async () => {
     const fetchMock = vi.fn(async () => {
-      return new Response(JSON.stringify({ products: [] }), {
-        status: 200,
-        headers: {
-          "content-type": "Application/VND.OPENIAP+JSON ; Charset=UTF-8",
+      return new Response(
+        JSON.stringify({
+          products: [{ productId: "premium" }],
+          hasMore: true,
+          nextCursor: "opaque/next=2",
+        }),
+        {
+          status: 200,
+          headers: {
+            "content-type": "Application/VND.OPENIAP+JSON ; Charset=UTF-8",
+          },
         },
-      });
+      );
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -129,9 +167,19 @@ describe("kitClient", () => {
       baseUrl: "https://kit.example",
     });
 
-    await expect(client.listProducts()).resolves.toEqual({ products: [] });
+    await expect(
+      client.listProducts({
+        platform: "IOS",
+        limit: 50,
+        cursor: "opaque/start=1",
+      }),
+    ).resolves.toEqual({
+      products: [{ productId: "premium" }],
+      hasMore: true,
+      nextCursor: "opaque/next=2",
+    });
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://kit.example/v1/products",
+      "https://kit.example/v1/products?platform=IOS&limit=50&cursor=opaque%2Fstart%3D1",
       expect.objectContaining({
         headers: expect.objectContaining({
           authorization: "Bearer custom-secret",

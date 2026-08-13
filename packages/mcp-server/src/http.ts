@@ -12,10 +12,7 @@ import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 
-import {
-  INSUFFICIENT_API_KEY_SCOPE_MESSAGE,
-  isPublishableApiKey,
-} from "./auth.js";
+import { INSUFFICIENT_API_KEY_SCOPE_MESSAGE, isSecretApiKey } from "./auth.js";
 import {
   createIapKitMcpServer,
   IAPKIT_MCP_SERVER_NAME,
@@ -26,6 +23,12 @@ import {
   currentMachineId,
   routeUnknownSession,
 } from "./session-routing.js";
+import {
+  createMcpSessionStore,
+  MCP_SESSION_CAPACITY_MESSAGE,
+  MCP_SESSION_CAPACITY_RETRY_AFTER_SECONDS,
+  type BoundedSessionStore,
+} from "./session-store.js";
 
 const DEFAULT_MCP_PATH = "/mcp";
 const DEFAULT_PORT = 3939;
@@ -85,7 +88,8 @@ export function createRemoteMcpHttpServer(
     options.allowedOrigins ??
     parseAllowedOrigins(process.env.IAPKIT_MCP_ALLOWED_ORIGINS);
   const machineId = options.machineId ?? currentMachineId();
-  const transports = new Map<string, StreamableHTTPServerTransport>();
+  const transports =
+    createMcpSessionStore<StreamableHTTPServerTransport>(logger);
 
   const server = createServer(async (req, res) => {
     try {
@@ -134,7 +138,7 @@ export function createRemoteMcpHttpServer(
       const bearerToken = parseBearerToken(
         headerString(req.headers.authorization),
       );
-      if (isPublishableApiKey(bearerToken)) {
+      if (bearerToken && !isSecretApiKey(bearerToken)) {
         writeJsonRpcError(res, 403, -32003, INSUFFICIENT_API_KEY_SCOPE_MESSAGE);
         return;
       }
@@ -179,10 +183,7 @@ export function createRemoteMcpHttpServer(
   });
 
   async function close(): Promise<void> {
-    await Promise.all(
-      Array.from(transports.values()).map((transport) => transport.close()),
-    );
-    transports.clear();
+    await transports.closeAll();
     await new Promise<void>((resolve, reject) => {
       server.close((error) => {
         if (error) reject(error);
@@ -235,7 +236,7 @@ export async function startRemoteMcpHttpServer(
 async function handleMcpPost(
   req: AuthenticatedRequest,
   res: ServerResponse,
-  transports: Map<string, StreamableHTTPServerTransport>,
+  transports: BoundedSessionStore<StreamableHTTPServerTransport>,
   logger: Pick<Console, "error" | "info">,
   machineId: string | undefined,
 ): Promise<void> {
@@ -263,11 +264,23 @@ async function handleMcpPost(
     return;
   }
 
+  const reservation = transports.reserve();
+  if (!reservation) {
+    res.setHeader(
+      "Retry-After",
+      String(MCP_SESSION_CAPACITY_RETRY_AFTER_SECONDS),
+    );
+    writeJsonRpcError(res, 503, -32000, MCP_SESSION_CAPACITY_MESSAGE);
+    return;
+  }
+
+  let sessionStored = false;
   let transport!: StreamableHTTPServerTransport;
   transport = new StreamableHTTPServerTransport({
     sessionIdGenerator: () => buildSessionId(machineId, randomUUID()),
     onsessioninitialized: (initializedSessionId) => {
-      transports.set(initializedSessionId, transport);
+      reservation.commit(initializedSessionId, transport);
+      sessionStored = true;
       logger.info(`IAPKit MCP session initialized: ${initializedSessionId}`);
     },
   });
@@ -281,14 +294,25 @@ async function handleMcpPost(
   };
 
   const mcpServer = createIapKitMcpServer();
-  await mcpServer.connect(transport);
-  await transport.handleRequest(req, res, body);
+  try {
+    await mcpServer.connect(transport);
+    await transport.handleRequest(req, res, body);
+  } finally {
+    if (!sessionStored) {
+      reservation.release();
+      await transport
+        .close()
+        .catch((error: unknown) =>
+          logger.error("IAPKit MCP session cleanup failed:", error),
+        );
+    }
+  }
 }
 
 async function handleExistingMcpSession(
   req: IncomingMessage,
   res: ServerResponse,
-  transports: Map<string, StreamableHTTPServerTransport>,
+  transports: BoundedSessionStore<StreamableHTTPServerTransport>,
   machineId: string | undefined,
 ): Promise<void> {
   const sessionId = headerString(req.headers["mcp-session-id"]);
@@ -409,7 +433,10 @@ function setCorsHeaders(
     "authorization, content-type, last-event-id, mcp-protocol-version, mcp-session-id",
   );
   res.setHeader("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-  res.setHeader("Access-Control-Expose-Headers", "mcp-session-id");
+  res.setHeader(
+    "Access-Control-Expose-Headers",
+    "mcp-session-id, retry-after, x-ratelimit-limit, x-ratelimit-remaining, x-ratelimit-scope",
+  );
 }
 
 function parseAllowedOrigins(raw: string | undefined): string[] {

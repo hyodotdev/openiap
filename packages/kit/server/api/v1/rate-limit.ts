@@ -2,6 +2,8 @@ import { createMiddleware } from "hono/factory";
 import type { Context } from "hono";
 import * as crypto from "node:crypto";
 
+import { IAPKIT_MCP_LOOPBACK_HEADER } from "@hyodotdev/openiap-mcp-server/kit-client";
+
 import { parsePositiveNumber } from "../../utils/env";
 
 // Per-machine, in-memory token bucket protecting /api/v1/* from abuse
@@ -53,6 +55,16 @@ export interface MultiAxisRateLimitConfig {
   global?: Partial<RateLimitConfig>;
   now?: () => number;
   getIp?: (c: Context) => string | undefined;
+}
+
+type RateLimitResponder = (c: Context, result: ConsumeResult) => Response;
+
+export interface SourceRateLimitConfig {
+  ip?: Partial<RateLimitConfig>;
+  global?: Partial<RateLimitConfig>;
+  now?: () => number;
+  getIp?: (c: Context) => string | undefined;
+  respond?: RateLimitResponder;
 }
 
 export interface ConsumeResult {
@@ -202,6 +214,8 @@ const DEFAULT_STORE_TTL_MS =
 const sharedStore = new Map<string, Bucket>();
 const sharedIpStore = new Map<string, Bucket>();
 const sharedGlobalStore = new Map<string, Bucket>();
+const sharedSourceIpStore = new Map<string, Bucket>();
+const sharedSourceGlobalStore = new Map<string, Bucket>();
 
 const DEFAULT_IP_CAPACITY = parsePositiveNumber(
   process.env.RATE_LIMIT_IP_CAPACITY,
@@ -349,13 +363,7 @@ function resolveAxis(
   };
 }
 
-function rateLimitResponse(
-  c: Context,
-  scope: AxisRuntime["scope"],
-  result: ConsumeResult,
-) {
-  c.header("X-RateLimit-Scope", scope);
-  c.header("Retry-After", String(result.retryAfterSec));
+function rateLimitResponse(c: Context, result: ConsumeResult) {
   return c.json(
     {
       errors: [
@@ -367,6 +375,47 @@ function rateLimitResponse(
     },
     429,
   );
+}
+
+async function applyRateLimitAxes(
+  c: Context,
+  next: () => Promise<void>,
+  axes: AxisRuntime[],
+  nowMs: number,
+  primaryScope: AxisRuntime["scope"],
+  respond: RateLimitResponder = rateLimitResponse,
+): Promise<Response | void> {
+  if (axes.every((axis) => axis.cost <= 0)) {
+    await next();
+    return;
+  }
+
+  let primaryResult: ConsumeResult | null = null;
+  for (const axis of axes) {
+    const result = tryConsume(
+      axis.store,
+      axis.identifier,
+      axis.capacity,
+      axis.refillPerSecond,
+      nowMs,
+      axis.maxStoreSize,
+      axis.ttlMs,
+      axis.cost,
+    );
+    if (axis.scope === primaryScope) primaryResult = result;
+    if (!result.allowed) {
+      c.header("X-RateLimit-Limit", String(axis.capacity));
+      c.header("X-RateLimit-Remaining", String(result.remaining));
+      c.header("X-RateLimit-Scope", axis.scope);
+      c.header("Retry-After", String(result.retryAfterSec));
+      return respond(c, result);
+    }
+  }
+
+  const primaryAxis = axes.find((axis) => axis.scope === primaryScope);
+  c.header("X-RateLimit-Limit", String(primaryAxis?.capacity ?? 0));
+  c.header("X-RateLimit-Remaining", String(primaryResult?.remaining ?? 0));
+  await next();
 }
 
 /**
@@ -406,76 +455,129 @@ export function multiAxisRateLimitMiddleware(
     const nowMs = clock();
     c.set("apiKeyHash", apiKeyHash);
 
+    const keyAxis = resolveAxis(
+      "key",
+      apiKeyHash,
+      config.key,
+      {
+        capacity: DEFAULT_CAPACITY,
+        refillPerSecond: DEFAULT_REFILL_PER_SEC,
+        maxStoreSize: DEFAULT_MAX_STORE_SIZE,
+        store: sharedStore,
+      },
+      c,
+    );
+    const ipAxis = resolveAxis(
+      "ip",
+      hashApiKey(`ip:${ip}`),
+      config.ip,
+      {
+        capacity: DEFAULT_IP_CAPACITY,
+        refillPerSecond: DEFAULT_IP_REFILL_PER_SEC,
+        maxStoreSize: DEFAULT_IP_MAX_STORE_SIZE,
+        store: sharedIpStore,
+      },
+      c,
+    );
+    const globalAxis = resolveAxis(
+      "global",
+      "process",
+      config.global,
+      {
+        capacity: DEFAULT_GLOBAL_CAPACITY,
+        refillPerSecond: DEFAULT_GLOBAL_REFILL_PER_SEC,
+        maxStoreSize: 1,
+        store: sharedGlobalStore,
+      },
+      c,
+    );
+    const axes = isTrustedMcpLoopback(c)
+      ? [keyAxis, globalAxis]
+      : [keyAxis, ipAxis, globalAxis];
+
+    return applyRateLimitAxes(c, next, axes, nowMs, "key");
+  });
+}
+
+function isLoopbackAddress(address: string | undefined): boolean {
+  const normalized = address?.replace(/^\[(.*)\]$/, "$1");
+  return (
+    normalized === "127.0.0.1" ||
+    normalized === "::1" ||
+    normalized === "::ffff:127.0.0.1"
+  );
+}
+
+function isTrustedMcpLoopback(c: Context): boolean {
+  if (c.req.header(IAPKIT_MCP_LOOPBACK_HEADER) !== "1") return false;
+  const environment: unknown = c.env;
+  const server =
+    typeof environment === "object" &&
+    environment !== null &&
+    "server" in environment
+      ? (environment as { server?: unknown }).server
+      : environment;
+  if (
+    typeof server !== "object" ||
+    server === null ||
+    !("requestIP" in server) ||
+    typeof server.requestIP !== "function"
+  ) {
+    return false;
+  }
+  try {
+    const info = server.requestIP(c.req.raw) as { address?: string } | null;
+    return isLoopbackAddress(info?.address);
+  } catch {
+    return false;
+  }
+}
+
+/** Protects unauthenticated transport surfaces by source IP and process. */
+export function sourceRateLimitMiddleware(
+  config: SourceRateLimitConfig = {},
+): ReturnType<typeof createMiddleware> {
+  const clock = config.now ?? (() => Date.now());
+  const getIp = config.getIp ?? getRequestIp;
+
+  return createMiddleware(async (c, next) => {
+    const ip = getIp(c) ?? "unknown";
+    const nowMs = clock();
     const axes = [
       resolveAxis(
-        "key",
-        apiKeyHash,
-        config.key,
-        {
-          capacity: DEFAULT_CAPACITY,
-          refillPerSecond: DEFAULT_REFILL_PER_SEC,
-          maxStoreSize: DEFAULT_MAX_STORE_SIZE,
-          store: sharedStore,
-        },
-        c,
-      ),
-      resolveAxis(
         "ip",
-        hashApiKey(`ip:${ip}`),
+        hashApiKey(`source:${ip}`),
         config.ip,
         {
           capacity: DEFAULT_IP_CAPACITY,
           refillPerSecond: DEFAULT_IP_REFILL_PER_SEC,
           maxStoreSize: DEFAULT_IP_MAX_STORE_SIZE,
-          store: sharedIpStore,
+          store: sharedSourceIpStore,
         },
         c,
       ),
       resolveAxis(
         "global",
-        "process",
+        "source-process",
         config.global,
         {
           capacity: DEFAULT_GLOBAL_CAPACITY,
           refillPerSecond: DEFAULT_GLOBAL_REFILL_PER_SEC,
           maxStoreSize: 1,
-          store: sharedGlobalStore,
+          store: sharedSourceGlobalStore,
         },
         c,
       ),
     ] satisfies AxisRuntime[];
 
-    if (axes.every((axis) => axis.cost <= 0)) {
-      await next();
-      return;
-    }
-
-    let keyResult: ConsumeResult | null = null;
-    for (const axis of axes) {
-      const result = tryConsume(
-        axis.store,
-        axis.identifier,
-        axis.capacity,
-        axis.refillPerSecond,
-        nowMs,
-        axis.maxStoreSize,
-        axis.ttlMs,
-        axis.cost,
-      );
-      if (axis.scope === "key") keyResult = result;
-      if (!result.allowed) {
-        c.header("X-RateLimit-Limit", String(axis.capacity));
-        c.header("X-RateLimit-Remaining", String(result.remaining));
-        return rateLimitResponse(c, axis.scope, result);
-      }
-    }
-
-    c.header(
-      "X-RateLimit-Limit",
-      String(config.key?.capacity ?? DEFAULT_CAPACITY),
+    return applyRateLimitAxes(
+      c,
+      next,
+      axes,
+      nowMs,
+      "ip",
+      config.respond ?? rateLimitResponse,
     );
-    c.header("X-RateLimit-Remaining", String(keyResult?.remaining ?? 0));
-    await next();
   });
 }
 

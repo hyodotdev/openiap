@@ -538,6 +538,13 @@ function evaluateEntitlements(
   };
 }
 
+export type SubscriptionStatusResponse = ReturnType<
+  typeof evaluateSubscriptionStatus
+>;
+export type SubscriptionEntitlementsResponse = ReturnType<
+  typeof evaluateEntitlements
+>;
+
 function selectMostRecentlyUpdatedSnapshot(
   subscriptions: readonly SubscriptionSnapshotRow[],
 ): SubscriptionSnapshotRow | null {
