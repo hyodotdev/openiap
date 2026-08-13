@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   AppStoreProductType,
+  narrowAppleEnvironment,
   AppStoreTransactionReason,
   mapAppStorePurchaseState,
   mapGooglePlayPurchaseState,
@@ -290,6 +291,24 @@ describe("mapAppStorePurchaseState", () => {
         row.revocationDate,
       ),
     ).toBe(row.expected);
+  });
+});
+
+describe("narrowAppleEnvironment", () => {
+  it("keeps Production and narrows every non-production value to Sandbox", () => {
+    expect(narrowAppleEnvironment("Production")).toBe("Production");
+    // Apple's Environment enum also defines Xcode and LocalTesting; a receipt
+    // row stores the pair, so neither may be reported as a real purchase.
+    for (const value of [
+      "Sandbox",
+      "Xcode",
+      "LocalTesting",
+      "",
+      undefined,
+      null,
+    ]) {
+      expect(narrowAppleEnvironment(value)).toBe("Sandbox");
+    }
   });
 });
 

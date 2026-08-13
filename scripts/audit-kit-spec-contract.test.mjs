@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   collectContractFailures,
+  parseFormatDeclarations,
   runAudit,
   parseDocumentedStates,
   parseGraphqlEnum,
@@ -63,6 +64,7 @@ const sources = (overrides = {}) => ({
   schema: SCHEMA,
   convexState: CONVEX_STATE,
   responseSchema: RESPONSE_SCHEMA,
+  writePathFormatSources: WRITE_PATH,
   ...overrides,
 });
 
@@ -179,6 +181,43 @@ test("a declaration that parses to nothing is a failure, not agreement", () => {
     () =>
       parseTypescriptEnum("export enum Empty {\n  // nothing\n}\n", "Empty"),
     /parsed to an empty list/,
+  );
+});
+
+const WRITE_PATH = {
+  "packages/kit/convex/schema.ts":
+    'format: v.union(v.literal("toml"), v.literal("json")),\n',
+};
+
+test("write-path format declarations are read in every shape kit uses", () => {
+  assert.deepEqual(
+    parseFormatDeclarations(
+      'const a = v.union(v.literal("toml"), v.literal("json"));\n' +
+        'const b = new Set<string>(["toml", "json"]);\n' +
+        'type C = "toml" | "json";\n',
+    ),
+    [
+      ["toml", "json"],
+      ["toml", "json"],
+      ["toml", "json"],
+    ],
+  );
+});
+
+test("a format accepted on write but absent from the response schema fails", () => {
+  // enforceVerifyResponseContract would silently drop it on read.
+  const failures = collectContractFailures(
+    sources({
+      writePathFormatSources: {
+        "packages/kit/convex/schema.ts":
+          'format: v.union(v.literal("toml"), v.literal("json"), v.literal("yaml")),\n',
+      },
+    }),
+  );
+  assert.equal(failures.length, 1);
+  assert.match(
+    failures[0],
+    /schema\.ts client payload format.*unexpected.*yaml/,
   );
 });
 

@@ -2,9 +2,9 @@
 
 // Compares IAPKit's response enums against the spec every SDK generates from.
 //
-// Covers the /v1 verify RESPONSE only: kit's write path declares the same
-// format set in convex/schema.ts, convex/products/ and server/api/v1/products.ts,
-// across a tsconfig split that stops them sharing a constant.
+// Covers the /v1 verify response and kit's write path, which declares the same
+// client-payload format set in four more files across a tsconfig split that
+// stops them sharing a constant.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -17,6 +17,16 @@ export const CONVEX_STATE_FILE =
   "packages/kit/convex/purchases/purchaseState.ts";
 export const RESPONSE_SCHEMA_FILE =
   "packages/kit/server/api/v1/route-response-schemas.ts";
+
+// kit accepts a client-payload format on write and returns it on read. A format
+// added to only one side is accepted then silently dropped by
+// enforceVerifyResponseContract, so every declaration is compared to the spec.
+export const WRITE_PATH_FORMAT_FILES = [
+  "packages/kit/convex/schema.ts",
+  "packages/kit/convex/products/query.ts",
+  "packages/kit/convex/products/mutation.ts",
+  "packages/kit/server/api/v1/products.ts",
+];
 
 const read = (relativePath) =>
   fs.readFileSync(path.join(root, relativePath), "utf8");
@@ -109,6 +119,56 @@ export const parseValibotLiteralUnion = (source, anchor) => {
   );
 };
 
+const balancedGroupAt = (source, openIndex) => {
+  const open = source[openIndex];
+  const close = open === "(" ? ")" : "]";
+  let level = 0;
+  for (let i = openIndex; i < source.length; i += 1) {
+    if (source[i] === open) level += 1;
+    else if (source[i] === close) {
+      level -= 1;
+      if (level === 0) return source.slice(openIndex, i + 1);
+    }
+  }
+  return source.slice(openIndex);
+};
+
+/**
+ * Client-payload format sets declared in a file, in each of the shapes kit uses:
+ * a valibot union, a Set literal, and a TypeScript union type.
+ */
+export const parseFormatDeclarations = (source, knownFormat = "toml") => {
+  const clean = stripComments(source);
+  const groups = [];
+
+  for (const opener of ["v.union(", "new Set<string>(", "= ["]) {
+    let at = clean.indexOf(opener);
+    while (at !== -1) {
+      const openIndex = clean.indexOf(opener.endsWith("[") ? "[" : "(", at);
+      groups.push(balancedGroupAt(clean, openIndex));
+      at = clean.indexOf(opener, at + 1);
+    }
+  }
+  for (const match of clean.matchAll(
+    /"[a-z][a-z0-9_-]*"(?:\s*\|\s*"[a-z][a-z0-9_-]*")+/g,
+  )) {
+    groups.push(match[0]);
+  }
+
+  const declarations = groups
+    .map((group) => [
+      ...new Set(
+        [...group.matchAll(/"([a-z][a-z0-9_-]*)"/g)].map((match) => match[1]),
+      ),
+    ])
+    .filter((values) => values.includes(knownFormat));
+
+  if (declarations.length === 0) {
+    throw new Error("no client payload format declaration found");
+  }
+  return declarations;
+};
+
 const compare = (label, expected, actual) => {
   const failures = [];
   const missing = expected.filter((value) => !actual.includes(value));
@@ -126,6 +186,9 @@ export const collectContractFailures = ({
   schema = read(SCHEMA_FILE),
   convexState = read(CONVEX_STATE_FILE),
   responseSchema: rawResponseSchema = read(RESPONSE_SCHEMA_FILE),
+  writePathFormatSources = Object.fromEntries(
+    WRITE_PATH_FORMAT_FILES.map((file) => [file, read(file)]),
+  ),
 } = {}) => {
   // Anchors match raw text, so a comment inside a declaration would make one
   // miss and block the deploy gate.
@@ -157,6 +220,17 @@ export const collectContractFailures = ({
       parseValibotLiteralUnion(
         responseSchema,
         "clientPayloadSchema = v\\.object\\(\\{\\s*format:\\s*",
+      ),
+    ),
+    // Write path: a format kit accepts on write but the response schema omits
+    // is silently dropped on read, so every declaration must match the spec.
+    ...Object.entries(writePathFormatSources).flatMap(([file, source]) =>
+      parseFormatDeclarations(source).flatMap((values, index) =>
+        compare(
+          `${file} client payload format declaration ${index + 1} vs ${SCHEMA_FILE} IapkitClientPayloadFormat`,
+          specFormats,
+          values,
+        ),
       ),
     ),
     // Stores are one-directional: kit may verify fewer stores than the spec
