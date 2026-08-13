@@ -52,6 +52,16 @@ fi
 echo "🔎 SDK parity audit — running CI mirror…"
 node scripts/audit-non-godot-parity.mjs
 
+# IAPKit's purchase-state, client-payload-format, and verify-store enums are
+# declared once in kit's Convex layer, once in its OpenAPI response docs, and
+# once in the GraphQL schema every SDK generates from. kit deploys from main on
+# its own workflow, so drift here reaches published apps without an SDK
+# release. Unconditional for the same reason the parity audit is: either side
+# of the contract can move.
+echo "🔎 IAPKit spec contract audit — running CI mirror…"
+node --test scripts/audit-kit-spec-contract.test.mjs
+node scripts/audit-kit-spec-contract.mjs
+
 # Paths-aware kit pre-commit gate. Only runs when staged changes touch
 # packages/kit/**, so unrelated edits to apple/google/gql/docs/libraries
 # aren't blocked.
