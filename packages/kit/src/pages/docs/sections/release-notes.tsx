@@ -27,6 +27,34 @@ const KIND_STYLES: Record<ReleaseEntry["items"][number]["kind"], string> = {
 
 const RELEASES: ReleaseEntry[] = [
   {
+    id: "hosted-2026-08-13",
+    date: "2026-08-13",
+    tagline:
+      "Verify responses stay decodable by app builds compiled against an older SDK.",
+    items: [
+      {
+        kind: "fix",
+        text: "Every /v1/purchase/verify response is now validated against the published schema before it is sent. A value outside that schema is degraded rather than emitted: an unpublished state becomes UNKNOWN and an unreadable productId, environment, or clientPayload is dropped. isValid is never rewritten, so a metadata change cannot revoke an entitlement, and a verdict that cannot be made contract-valid returns 500 instead of a body no SDK can trust.",
+      },
+      {
+        kind: "fix",
+        text: "SDKs no longer fail a confirmed purchase over optional metadata. environment is forwarded as the opaque String the spec declares instead of being re-checked against Sandbox/Production, and a client payload whose format this build predates is dropped rather than thrown. The store echo and isValid typing stay strict.",
+      },
+      {
+        kind: "ops",
+        text: "The purchase-state, client-payload-format, and verify-store enums are declared in kit's Convex layer, its OpenAPI response docs, and the GraphQL schema every SDK generates from. bun audit:kit-contract compares all three and gates both CI and this deploy, so a kit-only enum change can no longer reach published apps unnoticed.",
+      },
+      {
+        kind: "feature",
+        text: "Native verification requests send X-OpenIAP-Spec with the OpenIAP spec version the build was compiled against, and kit records it on the structured verify log line. The value is shape-checked and bounded, and nothing branches on it: a client cannot change how its receipt is verified by claiming a version.",
+      },
+      {
+        kind: "docs",
+        text: "Version Compatibility documents what IAPKit guarantees to an app compiled against an older SDK: responses are additive, a breaking change would ship as /v2 while /v1 keeps serving, and unrecognised optional values degrade. Gate entitlement on isValid, treat state as a label, and never reject a verification because a value is unrecognised.",
+      },
+    ],
+  },
+  {
     id: "hosted-2026-07-28",
     date: "2026-07-28",
     tagline:
