@@ -14,7 +14,7 @@ const RELEASE_ARTIFACTS: Artifact[] = [
   {
     name: 'CycloneDX SBOM',
     answers:
-      'Exactly which third-party components this version contains, with versions, package URLs, suppliers, and licenses',
+      'Which direct third-party components this version declares, with versions or constraints, package URLs, suppliers, and licenses where available',
   },
   {
     name: 'Provenance attestation',
@@ -41,19 +41,19 @@ interface Trigger {
 const AUTOMATION: Trigger[] = [
   {
     when: 'Every pull request',
-    what: "The SBOM generator's own tests run. They read the real dependency manifests in the repository, so if a build file changes shape and the inventory would go stale, CI fails there rather than at release time",
+    what: 'The SBOM parser and workflow fault tests run alongside release-state audits, so an unsupported dependency shape or an undispatched release lane fails before merge',
   },
   {
     when: 'Merge to main',
-    what: 'Same checks, plus release-state audits that keep versions and tags consistent',
+    what: 'A change to the SBOM workflow or generator scans the newest release of every component and dispatches any missing inventory',
   },
   {
     when: 'A release is published',
-    what: 'The SBOM workflow identifies which component the tag belongs to, generates its SBOM at that exact commit, resolves licenses and suppliers, verifies the version/tag/commit all agree, signs a provenance attestation, and attaches the file to the release',
+    what: 'The release workflow dispatches SBOM generation for its tag. The SBOM job verifies the identity, signs provenance, and attaches the immutable asset',
   },
   {
-    when: 'Weekly',
-    what: "Dependabot opens update pull requests for IAPKit's dependencies, the GitHub Actions used in workflows, and the IAPKit container image. OpenSSF Scorecard re-checks the repository's own security posture",
+    when: 'Daily',
+    what: 'The missing-SBOM safety net runs. Dependabot and OpenSSF Scorecard also re-check the dependency and repository posture on their schedules',
   },
   {
     when: 'A vulnerability is reported',
@@ -74,7 +74,8 @@ const POSTURE_LAYERS: Layer[] = [
   },
   {
     name: 'SBOM',
-    question: 'what exactly did each published version contain?',
+    question:
+      'what direct dependency contract did each current published version declare?',
   },
   {
     name: 'OpenSSF Scorecard',
@@ -116,7 +117,7 @@ function SecurityOverview() {
     <div className="doc-page">
       <SEO
         title="Supply Chain Security"
-        description="How OpenIAP secures what it ships — per-release SBOMs, build provenance, release integrity, and vulnerability reporting."
+        description="How OpenIAP secures what it ships — current-release SBOMs, build provenance, release integrity, and vulnerability reporting."
         path="/docs/security/overview"
         keywords="OpenIAP security, SBOM, supply chain security, provenance, attestation, vulnerability disclosure"
       />
@@ -130,7 +131,7 @@ function SecurityOverview() {
 
       <section>
         <AnchorLink id="what-you-get" level="h2">
-          What every release publishes
+          What current release workflows publish
         </AnchorLink>
         <DataTable
           rows={RELEASE_ARTIFACTS}
@@ -163,7 +164,8 @@ function SecurityOverview() {
           on StoreKit, which ships with the OS. The native Android, Kotlin
           Multiplatform, .NET MAUI, and Flutter SDKs do depend on platform
           libraries (Play Billing, AndroidX, Kotlin coroutines, and so on);
-          those are enumerated in each release&apos;s SBOM.
+          their current release SBOMs enumerate the published direct dependency
+          contracts.
         </p>
         <Callout kind="tip" title="Why this matters for your review">
           A dependency that does not exist cannot be vulnerable. For the
@@ -187,8 +189,10 @@ function SecurityOverview() {
           If the issue is <strong>being exploited in the wild</strong>, mark it{' '}
           <code>[SECURITY][ACTIVE]</code>. That triggers an accelerated path: an
           initial assessment within 24 hours, an updated assessment within 72
-          hours, and a final assessment within 14 days — the windows the EU
-          Cyber Resilience Act sets for reporting.
+          hours, and a final assessment within 14 days after a fix or mitigation
+          is available. This is OpenIAP&apos;s internal service level; legal
+          reporting duties depend on the affected party&apos;s role and the
+          event.
         </p>
         <p>
           Receipt validation, purchase verification, and entitlement handling
@@ -224,9 +228,9 @@ function SecurityOverview() {
         <p>
           The important design choice: SBOMs are generated{' '}
           <strong>after a release is published</strong>, not on every commit. A
-          release tag is the only moment an inventory is meaningful, and it
-          means the existing release workflows did not have to change — a new
-          SDK added later is covered by the same path automatically.
+          release tag is the only moment an inventory is meaningful. Every
+          release lane must dispatch the shared SBOM workflow, and CI checks
+          that wiring.
         </p>
       </section>
 
@@ -236,24 +240,24 @@ function SecurityOverview() {
         </AnchorLink>
         <p>
           Dependabot watches IAPKit&apos;s dependency tree, the GitHub Actions
-          used in release workflows, and the IAPKit container image. The
-          published SDKs have no runtime dependency tree to watch.
+          used in release workflows, and the IAPKit container image. The three
+          published npm packages have no runtime dependency tree to watch.
         </p>
         <p>
           Native SDK platform dependencies are pinned deliberately — several
           carry inline notes explaining why a newer version is not yet
           compatible with the supported toolchain range. They are reviewed as
           part of platform upgrade work rather than bumped automatically, and
-          each release&apos;s SBOM records exactly what shipped.
+          each current release&apos;s SBOM records its published direct
+          dependency contract. A toolchain resolver export can add transitive
+          entries when needed.
         </p>
         <Callout kind="warning" title="Why the SBOM is not redundant here">
-          GitHub&apos;s dependency graph does not parse this repository&apos;s
-          lockfiles — Bun lockfiles are not a supported format, and Gradle
-          builds are not resolved from source. Its generated inventory for this
-          repository is empty. Dependabot&apos;s version updates still work,
-          because they read manifests directly, but the platform cannot derive a
-          component inventory on its own. The SBOMs published here are that
-          inventory.
+          GitHub&apos;s dependency-graph SBOM endpoint currently returns HTTP
+          404 for this repository, so it cannot serve as an independent
+          inventory. Dependabot&apos;s version updates still work because they
+          read manifests directly. The release SBOMs provide the
+          component-specific inventory here.
         </Callout>
       </section>
 

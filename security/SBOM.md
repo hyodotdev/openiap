@@ -2,14 +2,16 @@
 
 ## Purpose
 
-Every OpenIAP release ships a machine-readable inventory of the third-party
-code it contains. That inventory exists so a consumer — or a maintainer
-responding to a new advisory — can answer one question without reading our
-build scripts: _does this version of this package contain the vulnerable
-dependency?_
+Current OpenIAP release workflows attach a machine-readable inventory of direct
+third-party dependencies, and a daily repair job fills missed latest-release
+assets. That inventory lets a consumer — or a maintainer responding to a new
+advisory — identify the released dependency contract without reconstructing it
+from build scripts. Exact application exposure still comes from the consumer's
+resolved dependency graph.
 
-SBOMs are generated from the same manifests the build reads. No one edits an
-SBOM by hand, and none are committed to the repository.
+SBOMs are generated from the released manifest or the registry descriptor that
+consumers resolve. No one edits an SBOM by hand, and none are committed to the
+repository.
 
 ## Scope
 
@@ -22,7 +24,7 @@ cannot be released without also being described:
 
 | Component      | SBOM name                | Distribution                     | Release tag                     |
 | -------------- | ------------------------ | -------------------------------- | ------------------------------- |
-| `apple`        | `openiap-apple`          | CocoaPods, Swift Package Manager | `<version>`                     |
+| `apple`        | `openiap`                | CocoaPods, Swift Package Manager | `<version>`                     |
 | `google`       | `openiap-google`         | Maven Central                    | `google-<version>`              |
 | `react-native` | `react-native-iap`       | npm                              | `react-native-iap-<version>`    |
 | `expo`         | `expo-iap`               | npm                              | `expo-iap-<version>`            |
@@ -66,8 +68,8 @@ code, no external binary. It is plain ESM run by the Node version already
 pinned in CI. This is deliberate: a tool that reports what you depend on should
 not quietly add dependencies of its own.
 
-**At generation time** it reads package registries over HTTPS, and only to
-resolve declared licenses:
+**At generation time** it reads package registries over HTTPS for the published
+dependency descriptors and for declared licenses:
 
 | Registry                                          | Used for                    |
 | ------------------------------------------------- | --------------------------- |
@@ -76,8 +78,9 @@ resolve declared licenses:
 | [nuget.org](https://www.nuget.org/)               | NuGet `.nuspec`             |
 | [registry.npmjs.org](https://registry.npmjs.org/) | npm package metadata        |
 
-A registry failure degrades to a missing license field; it never blocks a
-release.
+Failure to read a published POM or nuspec blocks generation because the
+dependency inventory would be incomplete. A license lookup failure degrades to
+a missing license field and does not block the release.
 
 **In CI**, `.github/workflows/sbom.yml` uses these actions:
 
@@ -88,7 +91,8 @@ release.
 | [`actions/attest-build-provenance`](https://github.com/actions/attest-build-provenance) | Sign SLSA provenance       | MIT     |
 | [`gh` CLI](https://cli.github.com/)                                                     | Upload the release asset   | MIT     |
 
-Action versions are pinned in the workflow and kept current by Dependabot.
+Action versions use reviewed major-version tags and are kept current by
+Dependabot. Commit-SHA pinning remains a documented repository-wide gap.
 
 ## Naming convention
 
@@ -104,9 +108,8 @@ openiap-conformance-1.0.0.cdx.json
 openiap-google-3.3.0.cdx.json
 ```
 
-The name and version always equal the published package's own name and
-version, so a released artifact and its SBOM can be matched without a lookup
-table.
+The name and version equal the published package's own name and version, so a
+released artifact and its SBOM can be matched without a lookup table.
 
 ## Generation
 
@@ -120,13 +123,18 @@ bun run sbom resolve-tag <tag>            # which component does this tag belong
 
 The generator (`scripts/generate-sbom.mjs`) reads:
 
-| Ecosystem | Dependency source                                                    |
-| --------- | -------------------------------------------------------------------- |
-| npm       | `package.json` (`dependencies`)                                      |
-| Gradle    | `build.gradle.kts`, `gradle.properties`, `gradle/libs.versions.toml` |
-| NuGet     | `*.csproj`, `Directory.Build.props`                                  |
-| pub       | `pubspec.yaml`                                                       |
-| Swift     | `Package.swift`                                                      |
+| Ecosystem      | Dependency source                                           |
+| -------------- | ----------------------------------------------------------- |
+| npm            | Released `package.json` (`dependencies`)                    |
+| Maven / Gradle | Published POM for the selected consumer artifact            |
+| NuGet          | Published nuspec dependency groups                          |
+| pub            | Released `pubspec.yaml`; constraints are preserved verbatim |
+| Godot / Gradle | Released addon `build.gradle.kts`                           |
+| Swift          | Released `Package.swift`                                    |
+
+The MAUI inventory is the union of the published nuspec's target-framework
+groups. Use the consuming application's resolved graph to narrow dependencies
+to Android, iOS, or Mac Catalyst.
 
 ### What is included
 
@@ -149,12 +157,21 @@ transitive dependencies when a resolver export is supplied (see below).
   application's SBOM, not ours.
 - **Operating-system frameworks.** StoreKit is not a distributed package.
 
+### Version constraints
+
+Library manifests sometimes publish a version constraint rather than one exact
+resolved version. The SBOM preserves that constraint verbatim and marks it with
+`openiap:sbom:version-constraint`; it never rewrites the lower bound as though
+that were the version every consumer installs. An application SBOM should use
+its lockfile or ecosystem resolver when exact CVE matching is required.
+
 ### Licenses
 
 `--with-licenses` resolves each dependency's declared license from its own
 registry — Maven Central and Google's Maven repository for Maven coordinates,
 nuget.org for NuGet, registry.npmjs.org for npm. The release workflow passes
-this flag; local runs default to offline.
+this flag. Maven and NuGet component generation still reads the published
+dependency descriptor when license enrichment is disabled.
 
 Licenses are never guessed. A registry value is emitted as an SPDX identifier
 only when it is a recognised one; anything else is recorded as a free-text
@@ -177,9 +194,10 @@ number would go stale the next time a dependency changes.
 
 ### Transitive dependencies
 
-Direct dependencies are read from the manifest. A complete transitive closure
-requires the ecosystem's own resolver, which only a runner with that toolchain
-can produce. When such an export is available it is merged in:
+Direct dependencies are read from the published descriptor or released
+manifest. A complete transitive closure requires the ecosystem's own resolver,
+which only a runner with that toolchain can produce. When such an export is
+available it is merged in:
 
 ```bash
 bun run sbom google --resolved gradle-dependencies.json
@@ -187,54 +205,42 @@ bun run sbom google --resolved gradle-dependencies.json
 
 The file is a JSON array (or `{"components": [...]}`) of `{name, version, purl}`
 entries. Merged entries are marked with an `openiap:sbom:relationship`
-property of `transitive`, and the component's `dependsOn` list continues to
-name only its direct dependencies.
+property of `transitive`; all entries remain reachable from the root dependency
+graph.
 
-Where a manifest declares a coordinate this reader cannot resolve, generation
+Where an input declares a dependency this reader cannot resolve, generation
 **fails** rather than emitting a shorter list. An SBOM that silently omits a
 dependency is worse than no SBOM, because it is trusted.
 
-#### Planned: replace manifest parsing with resolver output
+#### Published dependency metadata
 
-The Gradle, NuGet, and pub readers in `scripts/sbom-dependencies.mjs` parse
-build manifests with regular expressions. That is a deliberate stopgap, and it
-is the one part of this system expected to need maintenance: `build.gradle.kts`
-is arbitrary Kotlin, so new declaration shapes will keep appearing. Two already
-did — `for (module in listOf(...))` expansion and `project.findProperty(...)`
-resolution.
+Maven and NuGet inventories are read from the POM or nuspec consumers resolve,
+not reconstructed from conditional build scripts. This makes the inventory
+flavor-aware and includes dependencies injected by the publishing toolchain,
+such as Kotlin's standard library. Pub constraints remain constraints because a
+library release does not choose the application's eventual resolved version.
 
-**Do not keep growing the parsers.** When transitive support is implemented,
-move these ecosystems onto their own resolvers instead:
+The KMP release spans platform variants. Its release SBOM uses the published
+`io.github.hyochan:kmp-iap-android-play` POM so the Android dependency on
+`openiap-google` is not omitted. An iOS-only consumer should use its resolved
+application graph for target-specific dependencies.
 
-| Ecosystem | Replace parser with                                            |
-| --------- | -------------------------------------------------------------- |
-| Gradle    | `cyclonedx-gradle-plugin`, or `gradlew :<module>:dependencies` |
-| NuGet     | `dotnet list package --include-transitive --format json`       |
-| pub       | `flutter pub deps --json`                                      |
-
-That removes roughly 350 lines of parsing and delivers the transitive closure
-in the same change — the ecosystem readers shrink rather than grow. It was not
-done in the initial implementation because no JDK, Flutter, or .NET toolchain
-was available to verify the result, and unverified code in a release path is
-worse than a verified stopgap.
-
-Until then, the parsers are safe to rely on for one reason: a coordinate they
-cannot resolve raises an error instead of being dropped, and the tests read the
-real manifests in this repository, so drift fails CI rather than silently
-shortening an inventory.
+The small Godot Gradle reader remains because its GitHub release is the artifact
+of record. It rejects unknown configurations, unresolved coordinates, catalog
+accessors, and unsupported coordinate shapes instead of silently dropping them.
 
 ## Release integration
 
-`.github/workflows/sbom.yml` runs on `release: published` and on manual
-dispatch. It does not modify the existing release workflows; it reacts to the
-releases they create, so every component — including ones added later — is
-covered by the same code path.
+Every component release workflow dispatches `.github/workflows/sbom.yml` after
+creating its GitHub Release. This explicit dispatch is required because a
+release created with `GITHUB_TOKEN` does not trigger another workflow. A scan on
+SBOM changes and a daily schedule dispatch any missing newest-component asset.
 
 ```text
 release workflow  →  GitHub Release published
-                            │
+                            │ explicit workflow_dispatch
                             ▼
-                  sbom.yml (release: published)
+                         sbom.yml
                             │
             ┌───────────────┼───────────────┐
             ▼               ▼               ▼
@@ -252,7 +258,11 @@ release commit, and recorded generator commit match its inputs, and that no
 local filesystem path leaked into the document. Any mismatch fails the run.
 
 Tags that do not belong to a component are skipped with a notice rather than
-failing.
+failing. A duplicate dispatch preserves an existing SBOM. The repair scan
+recognizes the exact digest of the inaccurate Google 3.3.0 asset produced by the
+retired source-manifest reader and replaces that asset once. It uploads and
+verifies the corrected document under a temporary name before removing the
+legacy asset; no other existing asset is overwritten.
 
 ## Storage location
 
@@ -273,7 +283,8 @@ Any consumer can independently verify a published SBOM:
 
 ```bash
 # 1. Download the SBOM from its release
-gh release download react-native-iap-16.3.0 -p '*.cdx.json'
+gh release download react-native-iap-16.3.0 \
+  --repo hyodotdev/openiap -p '*.cdx.json'
 
 # 2. Confirm this repository's CI produced it
 gh attestation verify react-native-iap-16.3.0.cdx.json \
@@ -305,9 +316,13 @@ workflow uses live registries to enrich dependencies with licenses and
 suppliers, so those fields are point-in-time metadata and are not guaranteed to
 be byte-identical later.
 
+The example below reproduces the corrected Google 3.3.0 asset from its recorded
+generator commit. The one-time repair replaces the known inaccurate legacy
+digest with the published-POM inventory before this procedure is used.
+
 ```bash
-RELEASE_TAG=react-native-iap-16.3.0
-PUBLISHED_SBOM=/absolute/path/react-native-iap-16.3.0.cdx.json
+RELEASE_TAG=google-3.3.0
+PUBLISHED_SBOM=/absolute/path/openiap-google-3.3.0.cdx.json
 GENERATOR_COMMIT=$(jq -r '
   .metadata.tools.components[]
   | select(.name == "openiap-sbom-generator")
@@ -334,7 +349,7 @@ git -C "$SBOM_REPRO_DIR" checkout "$GENERATOR_COMMIT" -- \
 jq '(.components[]? |= del(.licenses, .supplier))' \
   "$PUBLISHED_SBOM" > /tmp/published-core.json
 jq '(.components[]? |= del(.licenses, .supplier))' \
-  "$SBOM_REPRO_DIR/sbom/react-native-iap-16.3.0.cdx.json" \
+  "$SBOM_REPRO_DIR/sbom/openiap-google-3.3.0.cdx.json" \
   > /tmp/generated-core.json
 diff /tmp/published-core.json /tmp/generated-core.json
 git worktree remove --force "$SBOM_REPRO_DIR"
@@ -342,14 +357,16 @@ git worktree remove --force "$SBOM_REPRO_DIR"
 
 ## Update policy
 
-- An SBOM is produced for every published release, automatically.
-- SBOMs are **immutable once published**, exactly like the release tag they
-  belong to. A dependency change ships as a new release with a new SBOM; a
-  published SBOM is never edited in place.
+- Every current release workflow produces an SBOM automatically.
+- SBOMs are **immutable once published**. See
+  [Release integration](#release-integration) for the authoritative repair
+  exception and overwrite rule.
 - A release that predates this system and has no SBOM asset can be described
-  with `workflow_dispatch`. The workflow reads manifests from the release tag,
-  records the exact default-branch generator commit, and refuses to overwrite
-  an existing asset.
+  with `workflow_dispatch`. The workflow reads released inputs, records the
+  exact default-branch generator commit, and refuses to overwrite an existing
+  asset.
+- The newest release of each component is checked after SBOM changes and every
+  day, so a missed release-time dispatch is repaired without manual triage.
 - Changes to the generator are covered by `scripts/generate-sbom.test.mjs`,
   including a historical release-tree fixture and every accepted tag alias.
   CI also fails if a releasable component has no SBOM metadata.
@@ -359,13 +376,13 @@ git worktree remove --force "$SBOM_REPRO_DIR"
 The SBOM is an input to vulnerability response, not the goal:
 
 ```text
-SBOM (per released version)
+SBOM (per current released version)
    │
    ▼
 dependency inventory  ←──  Dependabot alerts (packages/kit, GitHub Actions, Docker)
    │
    ▼
-affected-version analysis  ──  "which shipped releases contain this CVE?"
+affected-version analysis  ──  "which releases declare the affected dependency?"
    │
    ▼
 security advisory + patch
@@ -375,9 +392,10 @@ new release  →  new SBOM
 ```
 
 Its concrete value here is answering the affected-version question. Dependabot
-tells us a dependency is vulnerable _today, on `main`_. The published SBOMs
-tell us which already-shipped versions contain it — which is what a consumer
-needs to know and what an advisory has to state.
+tells us a dependency is vulnerable _today, on `main`_. Current release SBOMs
+identify their direct dependency contracts; older releases without an asset are
+investigated from their immutable tag and published descriptors when an
+advisory needs an affected-version list.
 
 See [README.md](README.md) for the full vulnerability-management picture and
 [CRA.md](CRA.md) for how this maps onto Cyber Resilience Act expectations.

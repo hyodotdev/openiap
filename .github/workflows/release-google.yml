@@ -79,6 +79,9 @@ jobs:
 
   release:
     needs: [validate-android]
+    permissions:
+      actions: write
+      contents: write
     runs-on: ubuntu-latest
     env:
       # Central Portal can take 10-30 minutes to finish publishing.
@@ -336,11 +339,11 @@ jobs:
         ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
       run: |
         if [ -z "$ORG_GRADLE_PROJECT_mavenCentralUsername" ]; then
-          echo "⚠️ Maven Central credentials not set. Skipping publish."
-        else
-          ./gradlew :openiap:publishAndReleaseToMavenCentral --no-daemon --no-parallel --stacktrace
-          echo "✅ Published openiap-google-horizon (Horizon flavor) to Maven Central"
+          echo "::error::Maven Central credentials are required to publish the Horizon flavor."
+          exit 1
         fi
+        ./gradlew :openiap:publishAndReleaseToMavenCentral --no-daemon --no-parallel --stacktrace
+        echo "✅ Published openiap-google-horizon (Horizon flavor) to Maven Central"
 
     - name: Check if Fire OS flavor already published
       id: check_amazon
@@ -378,11 +381,11 @@ jobs:
         ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
       run: |
         if [ -z "$ORG_GRADLE_PROJECT_mavenCentralUsername" ]; then
-          echo "⚠️ Maven Central credentials not set. Skipping publish."
-        else
-          ./gradlew :openiap:publishAndReleaseToMavenCentral --no-daemon --no-parallel --stacktrace
-          echo "✅ Published openiap-google-amazon (Fire OS flavor) to Maven Central"
+          echo "::error::Maven Central credentials are required to publish the Fire OS flavor."
+          exit 1
         fi
+        ./gradlew :openiap:publishAndReleaseToMavenCentral --no-daemon --no-parallel --stacktrace
+        echo "✅ Published openiap-google-amazon (Fire OS flavor) to Maven Central"
 
     - name: Check if Play flavor already published
       id: check_play
@@ -420,11 +423,11 @@ jobs:
         ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
       run: |
         if [ -z "$ORG_GRADLE_PROJECT_mavenCentralUsername" ]; then
-          echo "⚠️ Maven Central credentials not set. Skipping publish."
-        else
-          ./gradlew :openiap:publishAndReleaseToMavenCentral --no-daemon --no-parallel --stacktrace
-          echo "✅ Published openiap-google (Play flavor) to Maven Central"
+          echo "::error::Maven Central credentials are required to publish the Play flavor."
+          exit 1
         fi
+        ./gradlew :openiap:publishAndReleaseToMavenCentral --no-daemon --no-parallel --stacktrace
+        echo "✅ Published openiap-google (Play flavor) to Maven Central"
 
     - name: Build release artifacts
       working-directory: packages/google
@@ -602,3 +605,9 @@ jobs:
             $PRERELEASE_FLAG \
             --notes-file /tmp/release-notes.md
         fi
+
+    - name: Dispatch SBOM
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        RELEASE_TAG: google-${{ steps.version.outputs.version }}
+      run: gh workflow run sbom.yml --ref main -f tag="$RELEASE_TAG"

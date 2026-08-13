@@ -82,6 +82,9 @@ jobs:
 
   release:
     needs: [validate-ios]
+    permissions:
+      actions: write
+      contents: write
     runs-on: macos-15
 
     steps:
@@ -460,3 +463,10 @@ jobs:
             $PRERELEASE_FLAG \
             --notes-file /tmp/release-notes.md
         fi
+
+    - name: Dispatch SBOM
+      if: inputs.publish_spm == true
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        RELEASE_TAG: ${{ steps.version.outputs.version }}
+      run: gh workflow run sbom.yml --ref main -f tag="$RELEASE_TAG"

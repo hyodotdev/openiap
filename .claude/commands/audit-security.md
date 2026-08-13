@@ -25,11 +25,14 @@ component that can be released but has no SBOM definition is a release that
 ships without an inventory.
 
 ```bash
-node --test scripts/generate-sbom.test.mjs
+node --test scripts/generate-sbom.test.mjs scripts/audit-security.test.mjs
 
+SECURITY_AUDIT_ROOT=$(mktemp -d)
+export SECURITY_AUDIT_ROOT
 for c in $(node -e 'import("./scripts/generate-sbom.mjs").then(m=>console.log(m.listComponentIds().join(" ")))'); do
   printf "%-14s " "$c"
-  node scripts/generate-sbom.mjs "$c" --output-dir /tmp/sbom-audit || echo "FAILED"
+  node scripts/generate-sbom.mjs "$c" \
+    --output-dir "$SECURITY_AUDIT_ROOT/core-a" || echo "FAILED"
 done
 ```
 
@@ -39,7 +42,7 @@ declaration shape the reader does not model — fix the reader, never silence it
 ## 2. Schema validity
 
 ```bash
-for f in /tmp/sbom-audit/*.cdx.json; do
+for f in "$SECURITY_AUDIT_ROOT"/core-a/*.cdx.json; do
   cyclonedx validate --input-file "$f" --input-format json \
     --input-version v1_6 --fail-on-errors
 done
@@ -54,9 +57,14 @@ are the baseline OpenSSF recommends measuring against. Check author, timestamp,
 and per-component name, version, purl, supplier, and dependency relationships:
 
 ```bash
+for c in $(node -e 'import("./scripts/generate-sbom.mjs").then(m=>console.log(m.listComponentIds().join(" ")))'); do
+  node scripts/generate-sbom.mjs "$c" --with-licenses \
+    --output-dir "$SECURITY_AUDIT_ROOT/enriched"
+done
+
 node -e '
 const fs = require("fs");
-const dir = "/tmp/sbom-audit";
+const dir = `${process.env.SECURITY_AUDIT_ROOT}/enriched`;
 let tot = 0, sup = 0, lic = 0, purl = 0, auth = 0, files = 0;
 for (const f of fs.readdirSync(dir)) {
   const j = JSON.parse(fs.readFileSync(`${dir}/${f}`, "utf8"));
@@ -77,7 +85,8 @@ console.log(`component license:  ${lic}/${tot}`);
 ```
 
 Regenerate with `--with-licenses` when auditing supplier and license coverage;
-without it those fields are intentionally absent so local runs stay offline.
+without it those fields are intentionally absent. Maven and NuGet inventories
+still read their published dependency descriptors.
 
 Known structural gaps, which are **not** findings: pub.dev exposes neither
 license nor supplier in package metadata, and some NuGet packages carry only a
@@ -85,7 +94,7 @@ non-SPDX license URL.
 
 Optionally score the result with
 [`sbomqs`](https://github.com/interlynk-io/sbomqs):
-`sbomqs score /tmp/sbom-audit/*.cdx.json`.
+`sbomqs score "$SECURITY_AUDIT_ROOT"/core-a/*.cdx.json`.
 
 ## 4. No leaked paths or secrets
 
@@ -93,7 +102,7 @@ A published SBOM is a public document about a private filesystem.
 
 ```bash
 grep -rlE '/Users/|/home/[a-z]|/tmp/|ghp_|npm_[A-Za-z0-9]|BEGIN [A-Z ]*PRIVATE KEY' \
-  /tmp/sbom-audit/ && echo "LEAK" || echo "clean"
+  "$SECURITY_AUDIT_ROOT/core-a" && echo "LEAK" || echo "clean"
 ```
 
 ## 5. Core determinism
@@ -103,8 +112,10 @@ generator commit, and resolver input. Do not pass `--with-licenses` here: live
 registry license and supplier metadata is point-in-time enrichment.
 
 ```bash
-node scripts/generate-sbom.mjs google --output-dir /tmp/sbom-audit-2
-diff /tmp/sbom-audit/openiap-google-*.cdx.json /tmp/sbom-audit-2/openiap-google-*.cdx.json
+node scripts/generate-sbom.mjs google \
+  --output-dir "$SECURITY_AUDIT_ROOT/core-b"
+diff "$SECURITY_AUDIT_ROOT"/core-a/openiap-google-*.cdx.json \
+  "$SECURITY_AUDIT_ROOT"/core-b/openiap-google-*.cdx.json
 ```
 
 ## 6. Workflow permissions and injection
@@ -112,13 +123,20 @@ diff /tmp/sbom-audit/openiap-google-*.cdx.json /tmp/sbom-audit-2/openiap-google-
 Least privilege, and no untrusted value interpolated into a shell command:
 
 ```bash
-# Any ${{ }} inside a run: block is a potential injection point
-for f in .github/workflows/*.yml; do
-  awk '/^\s+run:/{r=1} /^\s+- name:|^\s+uses:/{r=0} r && /\$\{\{/ {print FILENAME": "$0}' "$f"
-done
+# Any ${{ }} inside a run: block is a potential injection point. The parser has
+# fault tests, so an empty result cannot come from unsupported awk syntax.
+node scripts/audit-security.mjs workflows \
+  $(rg --files .github/workflows -g '*.yml')
 
 # Workflows that write must say so explicitly
 grep -L "^permissions:" .github/workflows/*.yml
+
+# Mutable action references in privileged workflow code
+rg -n 'uses:\s+[^#]+@(v[0-9]+|main|master)$' .github/workflows
+
+# The repository dependency graph endpoint is currently unavailable (HTTP 404)
+gh api repos/hyodotdev/openiap/dependency-graph/sbom || \
+  echo "Dependency graph SBOM endpoint unavailable"
 ```
 
 Pass values through `env:` instead of interpolating them. OpenSSF Scorecard's
@@ -147,13 +165,9 @@ import("./scripts/generate-sbom.mjs").then((m) => {
 '
 
 # External references must resolve
-grep -rhoE "https?://[^)\" ]+" security/*.md security/vex/*.md \
-  packages/docs/src/pages/docs/security/*.tsx |
-  sed 's/[.,)"]*$//' | sort -u |
-  while read -r u; do
-    code=$(curl -sS -o /dev/null -w "%{http_code}" -L --max-time 20 "$u")
-    [ "$code" = "200" ] || echo "$code $u"
-  done
+node scripts/audit-security.mjs urls \
+  $(rg --files security packages/docs/src/pages/docs/security \
+    -g '*.md' -g '*.tsx')
 ```
 
 Also check for **hardcoded counts** — "nine workflows", "43 of 47

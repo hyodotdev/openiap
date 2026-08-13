@@ -100,9 +100,11 @@ Where this document and the regulation disagree, the regulation governs.
 **Expectation:** maintain a machine-readable inventory of the components a
 product contains.
 
-**How OpenIAP does this:** a CycloneDX 1.6 SBOM is generated for every
-published release of every releasable component and attached to its GitHub
-Release. Generation records the release and generator commits, and the core
+**How OpenIAP does this:** each current component release workflow creates the
+GitHub Release, then dispatches `sbom.yml` because a release created with
+`GITHUB_TOKEN` does not trigger another workflow. The SBOM workflow generates
+and uploads the CycloneDX 1.6 asset; a daily scan repairs missed latest-release
+assets. Generation records the release and generator commits, and the core
 dependency inventory is reproducible from those inputs. Registry-sourced
 license and supplier metadata is point-in-time enrichment.
 
@@ -135,12 +137,14 @@ through the workflows in `.github/workflows/`, and each produces a new SBOM.
 
 **Expectation:** be able to reproduce and evidence how a release was produced.
 
-**How OpenIAP does this** — for any published release, these are recoverable:
+**How OpenIAP does this** — for each current release carrying an SBOM, these are
+recoverable. Older releases without a backfilled asset retain their immutable
+tag and published descriptors as the evidence source.
 
 | Question                                 | Where the answer is                                                                                                                      |
 | ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
 | What source produced this release?       | Immutable release tag; `scripts/assert-release-tag.mjs` enforces that the tag matches the published version and is reachable from `main` |
-| What dependencies went into it?          | The `.cdx.json` SBOM asset on that release                                                                                               |
+| What direct dependencies did it declare? | The `.cdx.json` SBOM asset on that release                                                                                               |
 | Which SBOM version corresponds to it?    | SBOM filename and `metadata.component.version`; the workflow refuses to upload on a mismatch                                             |
 | Which workflow generated it?             | The provenance attestation on the SBOM, verifiable with `gh attestation verify`                                                          |
 | Which commit was it built from?          | `openiap:release:commit` property inside the SBOM, and the attestation subject                                                           |

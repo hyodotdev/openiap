@@ -15,12 +15,12 @@ concurrency:
   group: ${{ github.workflow }}
   cancel-in-progress: false
 
-permissions:
-  contents: write
-
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: write
     steps:
       - name: Checkout repository
         uses: actions/checkout@v7
@@ -76,3 +76,9 @@ jobs:
             ### Documentation
             - [Documentation](https://openiap.dev)
             - [GitHub Repository](https://github.com/hyodotdev/openiap)
+
+      - name: Dispatch SBOM
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: docs-${{ steps.version.outputs.version }}
+        run: gh workflow run sbom.yml --ref main -f tag="$RELEASE_TAG"

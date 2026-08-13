@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import {
   mkdirSync,
   mkdtempSync,
+  readdirSync,
   readFileSync,
   rmSync,
   writeFileSync,
@@ -15,9 +16,12 @@ import {
   __testing as generatorTesting,
   buildSbom,
   componentFromTag,
+  findMissingLatestSbomTags,
   generateSbom,
+  inaccurateSbomDigestForTag,
   listComponentIds,
   normalizeLicense,
+  PUBLISHED_METADATA_UNAVAILABLE_EXIT_CODE,
   readComponentVersion,
   readVexStatements,
   releaseTagFor,
@@ -26,7 +30,9 @@ import {
 import { PACKAGE_CONFIG } from "./assert-release-tag.mjs";
 import {
   __testing as dependencyTesting,
+  extractDirectDependencies,
   mergeResolved,
+  PublishedMetadataUnavailableError,
 } from "./sbom-dependencies.mjs";
 import { versionSources } from "./release-branch-policy.mjs";
 
@@ -35,17 +41,111 @@ const historicalGoogleRoot = resolve(
   repoRoot,
   "scripts/fixtures/historical-releases/google-v1.3.0",
 );
-const { COMPONENTS } = generatorTesting;
+const { COMPONENTS, fetchPublishedText } = generatorTesting;
 const {
-  expandGradleForLoops,
   extractGradle,
-  extractNuget,
   extractPub,
   isRuntimeGradleConfiguration,
   parseMavenCoordinate,
-  parseVersionCatalog,
-  stripTestSourceSets,
+  parseMavenPom,
+  parseNugetNuspec,
 } = dependencyTesting;
+
+function mavenPom(dependencies) {
+  return `<project><dependencies>${dependencies
+    .map(
+      ([group, artifact, version, scope = "runtime"]) =>
+        `<dependency><groupId>${group}</groupId><artifactId>${artifact}</artifactId>` +
+        `<version>${version}</version><scope>${scope}</scope></dependency>`,
+    )
+    .join("")}</dependencies></project>`;
+}
+
+const googleDependencies = [
+  ["com.android.billingclient", "billing", "9.1.0", "compile"],
+  ["org.jetbrains.kotlin", "kotlin-stdlib", "2.2.0", "compile"],
+  ["androidx.core", "core", "1.18.0"],
+  ["androidx.lifecycle", "lifecycle-runtime", "2.10.0"],
+  ["org.jetbrains.kotlinx", "kotlinx-coroutines-core", "1.11.0"],
+  ["org.jetbrains.kotlinx", "kotlinx-coroutines-android", "1.11.0"],
+  ["androidx.lifecycle", "lifecycle-viewmodel", "2.10.0"],
+  ["com.google.code.gson", "gson", "2.14.0"],
+  ["androidx.compose.runtime", "runtime", "1.11.4"],
+  ["androidx.compose.ui", "ui", "1.11.4"],
+];
+
+const historicalGoogleDependencies = [
+  ["com.android.billingclient", "billing-ktx", "8.0.0", "compile"],
+  [
+    "com.meta.horizon.billingclient.api",
+    "horizon-billing-compatibility",
+    "1.1.1",
+    "compile",
+  ],
+  ["org.jetbrains.kotlin", "kotlin-stdlib", "2.0.21", "compile"],
+  ["androidx.core", "core-ktx", "1.12.0"],
+  ["androidx.lifecycle", "lifecycle-runtime-ktx", "2.7.0"],
+  ["org.jetbrains.kotlinx", "kotlinx-coroutines-core", "1.9.0"],
+  ["org.jetbrains.kotlinx", "kotlinx-coroutines-android", "1.9.0"],
+  ["androidx.lifecycle", "lifecycle-viewmodel-ktx", "2.7.0"],
+  ["com.google.code.gson", "gson", "2.10.1"],
+  ["androidx.compose.runtime", "runtime", "1.6.8"],
+  ["androidx.compose.ui", "ui", "1.6.8"],
+];
+
+const kmpDependencies = [
+  ["org.jetbrains.kotlinx", "kotlinx-coroutines-core-jvm", "1.11.0", "compile"],
+  ["org.jetbrains.kotlin", "kotlin-stdlib", "2.4.10", "compile"],
+  ["io.github.hyochan.openiap", "openiap-google", "3.3.0"],
+  ["org.jetbrains.kotlinx", "kotlinx-datetime-jvm", "0.8.0"],
+  ["org.jetbrains.kotlinx", "kotlinx-serialization-json-jvm", "1.11.0"],
+];
+
+const mauiDependencies = [
+  ["GoogleGson", "2.14.0.1"],
+  ["Xamarin.Android.Google.BillingClient", "9.1.0.1"],
+  ["Xamarin.AndroidX.Activity", "1.13.0.1"],
+  ["Xamarin.AndroidX.Activity.Ktx", "1.13.0.1"],
+  ["Xamarin.AndroidX.Collection.Ktx", "1.6.0.1"],
+  ["Xamarin.AndroidX.Fragment", "1.8.9.3"],
+  ["Xamarin.AndroidX.Fragment.Ktx", "1.8.9.4"],
+  ["Xamarin.AndroidX.Lifecycle.LiveData", "2.11.0.1"],
+  ["Xamarin.AndroidX.Lifecycle.LiveData.Core", "2.11.0.1"],
+  ["Xamarin.AndroidX.Lifecycle.LiveData.Core.Ktx", "2.11.0.1"],
+  ["Xamarin.AndroidX.Lifecycle.Process", "2.11.0.1"],
+  ["Xamarin.AndroidX.Lifecycle.Runtime", "2.11.0.1"],
+  ["Xamarin.AndroidX.Lifecycle.Runtime.Ktx", "2.11.0.1"],
+  ["Xamarin.AndroidX.Lifecycle.Runtime.Ktx.Android", "2.11.0.1"],
+  ["Xamarin.AndroidX.Lifecycle.ViewModel", "2.11.0.1"],
+  ["Xamarin.AndroidX.Lifecycle.ViewModel.Ktx", "2.11.0.1"],
+  ["Xamarin.AndroidX.SavedState", "1.5.0.1"],
+  ["Xamarin.AndroidX.SavedState.SavedState.Ktx", "1.5.0.1"],
+  ["Xamarin.Kotlin.StdLib", "2.4.0.1"],
+  ["Xamarin.KotlinX.Coroutines.Android", "1.11.0.1"],
+  ["Xamarin.KotlinX.Coroutines.Core", "1.11.0.1"],
+  ["Xamarin.KotlinX.Coroutines.Core.Jvm", "1.11.0.1"],
+];
+
+const mauiNuspec = `<package><metadata><dependencies><group targetFramework="net10.0-android36.0">${mauiDependencies
+  .map(([name, version]) => `<dependency id="${name}" version="${version}" />`)
+  .join("")}</group></dependencies></metadata></package>`;
+
+globalThis.fetch = async (input) => {
+  const url = String(input);
+  if (url.includes("openiap-google/1.3.0/")) {
+    return new Response(mavenPom(historicalGoogleDependencies));
+  }
+  if (url.includes("openiap-google/")) {
+    return new Response(mavenPom(googleDependencies));
+  }
+  if (url.includes("kmp-iap-android-play/")) {
+    return new Response(mavenPom(kmpDependencies));
+  }
+  if (url.includes("openiap.maui.nuspec")) {
+    return new Response(mauiNuspec);
+  }
+  return new Response("", { status: 404 });
+};
 
 const stubCommit = "0".repeat(40);
 const stubGit = (args) =>
@@ -74,6 +174,7 @@ test("SBOM file name matches the documented convention", () => {
     sbomFileName("conformance", "1.0.0"),
     "openiap-conformance-1.0.0.cdx.json",
   );
+  assert.equal(sbomFileName("apple", "3.2.0"), "openiap-3.2.0.cdx.json");
 });
 
 test("release tags match the release-tag SSOT", () => {
@@ -112,7 +213,156 @@ test("every release tag pattern resolves back to its own component", () => {
   assert.equal(componentFromTag("apple-v1.2.3").componentId, "apple");
   assert.equal(componentFromTag("1.2.3").componentId, "apple");
   assert.equal(componentFromTag("some-unrelated-tag"), null);
+  assert.equal(componentFromTag("google-1.2.3-not-a-version!"), null);
   assert.equal(componentFromTag(""), null);
+});
+
+test("backfill selects only the newest missing SBOM per component", () => {
+  const releases = [
+    {
+      tag_name: "google-3.3.0",
+      published_at: "2026-08-11T00:00:00Z",
+      assets: [{ name: "openiap-google-3.3.0.cdx.json" }],
+    },
+    {
+      tag_name: "kmp-iap-3.3.0",
+      published_at: "2026-08-11T00:00:00Z",
+      assets: [{ name: "release-artifacts.zip" }],
+    },
+    {
+      tag_name: "kmp-iap-3.2.2",
+      published_at: "2026-08-10T00:00:00Z",
+      assets: [],
+    },
+    {
+      tag_name: "draft-1.0.0",
+      published_at: null,
+      draft: true,
+      assets: [],
+    },
+  ];
+  assert.deepEqual(findMissingLatestSbomTags(releases), ["kmp-iap-3.3.0"]);
+});
+
+test("backfill repairs only the exact known inaccurate SBOM", () => {
+  const tag = "google-3.3.0";
+  const name = "openiap-google-3.3.0.cdx.json";
+  const published_at = "2026-08-11T00:00:00Z";
+  const inaccurate = inaccurateSbomDigestForTag(tag);
+
+  assert.match(inaccurate, /^sha256:[0-9a-f]{64}$/u);
+  assert.deepEqual(
+    findMissingLatestSbomTags([
+      { tag_name: tag, published_at, assets: [{ name, digest: inaccurate }] },
+    ]),
+    [tag],
+  );
+  assert.deepEqual(
+    findMissingLatestSbomTags([
+      {
+        tag_name: tag,
+        published_at,
+        assets: [
+          { name, digest: `sha256:${"0".repeat(64)}` },
+          { name: `${name}.replacement` },
+        ],
+      },
+    ]),
+    [tag],
+  );
+  assert.deepEqual(
+    findMissingLatestSbomTags([
+      {
+        tag_name: tag,
+        published_at,
+        assets: [{ name, digest: `sha256:${"0".repeat(64)}` }],
+      },
+    ]),
+    [],
+  );
+  assert.deepEqual(
+    findMissingLatestSbomTags([
+      {
+        tag_name: "google-3.4.0",
+        published_at: "2026-08-12T00:00:00Z",
+        assets: [{ name: "openiap-google-3.4.0.cdx.json" }],
+      },
+      { tag_name: tag, published_at, assets: [{ name, digest: inaccurate }] },
+    ]),
+    [tag],
+  );
+});
+
+test("every GitHub release workflow dispatches the SBOM workflow", () => {
+  const workflowDir = resolve(repoRoot, ".github/workflows");
+  const workflows = readdirSync(workflowDir)
+    .filter((name) => name.endsWith(".yml"))
+    .map((name) => [name, readFileSync(resolve(workflowDir, name), "utf8")])
+    .filter(([, source]) =>
+      /softprops\/action-gh-release|gh release create/u.test(source),
+    );
+
+  assert.ok(
+    workflows.length > 0,
+    "release workflow discovery must not be empty",
+  );
+  for (const [name, source] of workflows) {
+    const releaseIndex = Math.max(
+      source.lastIndexOf("softprops/action-gh-release"),
+      source.lastIndexOf("gh release create"),
+    );
+    const dispatchIndex = source.indexOf("gh workflow run sbom.yml");
+    assert.ok(dispatchIndex > releaseIndex, `${name} dispatch order`);
+    const dispatchCommand = source
+      .slice(dispatchIndex)
+      .match(/^gh workflow run sbom\.yml[^\n]*(?:\\\n\s+[^\n]*)*/u)?.[0];
+    assert.match(dispatchCommand, /-f tag="\$RELEASE_TAG"/u, `${name} tag`);
+    assert.match(source, /actions: write/u, name);
+  }
+});
+
+test("SBOM publication waits for registry propagation and repairs daily", () => {
+  const source = readFileSync(
+    resolve(repoRoot, ".github/workflows/sbom.yml"),
+    "utf8",
+  );
+  assert.match(source, /cron: "23 3 \* \* \*"/u);
+  assert.match(source, /for attempt in \{1\.\.16\}/u);
+  assert.match(source, /\[ "\$STATUS" -ne 75 \]/u);
+  assert.doesNotMatch(source, /grep.+Published/u);
+  assert.match(source, /A staged legacy repair will be reconciled/u);
+  assert.match(source, /CURRENT_DIGEST.*!=.*REPAIR_DIGEST/u);
+  const stagedUpload = source.indexOf(
+    'gh release upload "$RELEASE_TAG" "$STAGED_FILE"',
+  );
+  const legacyDelete = source.indexOf(
+    'gh api --method DELETE \\\n            "repos/$GITHUB_REPOSITORY/releases/assets/$CANONICAL_ASSET_ID"',
+  );
+  const stagedRename = source.indexOf(
+    "\n          finalize_staged_asset\n",
+    legacyDelete,
+  );
+  assert.ok(stagedUpload >= 0, "replacement must be uploaded before deletion");
+  assert.ok(legacyDelete > stagedUpload, "legacy deletion must follow staging");
+  assert.ok(stagedRename > legacyDelete, "staged asset must be finalized last");
+  assert.match(source, /STAGED_DIGEST.*!=.*LOCAL_DIGEST/u);
+  assert.match(source, /STAGED_NAME="\$SBOM_NAME\.replacement"/u);
+  assert.match(source, /if \[ -z "\$CANONICAL_ASSET_ID" \]/u);
+  assert.match(source, /STAGED_DIGEST" = "\$LOCAL_DIGEST/u);
+  assert.match(source, /persist-credentials: false/u);
+  assert.match(source, /sleep 120/u);
+});
+
+test("Google releases fail when an unpublished flavor lacks credentials", () => {
+  const source = readFileSync(
+    resolve(repoRoot, ".github/workflows/release-google.yml"),
+    "utf8",
+  );
+  assert.equal(
+    source.match(/Maven Central credentials are required to publish/gu)?.length,
+    3,
+  );
+  assert.doesNotMatch(source, /Skipping publish/u);
 });
 
 test("generated SBOMs preserve accepted release tag aliases", () => {
@@ -150,7 +400,7 @@ test("current generator supports the google-v1.3.0 release tree", async () => {
   });
 
   assert.equal(document.metadata.component.version, "1.3.0");
-  assert.equal(directCount, 10);
+  assert.equal(directCount, 11);
   assert.deepEqual(
     document.components.map((component) => component.name),
     [
@@ -162,6 +412,7 @@ test("current generator supports the google-v1.3.0 release tree", async () => {
       "com.android.billingclient:billing-ktx",
       "com.google.code.gson:gson",
       "com.meta.horizon.billingclient.api:horizon-billing-compatibility",
+      "org.jetbrains.kotlin:kotlin-stdlib",
       "org.jetbrains.kotlinx:kotlinx-coroutines-android",
       "org.jetbrains.kotlinx:kotlinx-coroutines-core",
     ],
@@ -276,12 +527,9 @@ test("generated SBOMs never embed local filesystem paths", async () => {
   }
 });
 
-test("test-only Gradle configurations stay out of the inventory", () => {
+test("Gradle declarations are classified or fail closed", () => {
   assert.equal(isRuntimeGradleConfiguration("implementation"), true);
   assert.equal(isRuntimeGradleConfiguration("api"), true);
-  assert.equal(isRuntimeGradleConfiguration("playApi"), true);
-  assert.equal(isRuntimeGradleConfiguration("horizonImplementation"), true);
-
   assert.equal(isRuntimeGradleConfiguration("testImplementation"), false);
   assert.equal(
     isRuntimeGradleConfiguration("androidTestImplementation"),
@@ -290,97 +538,255 @@ test("test-only Gradle configurations stay out of the inventory", () => {
   assert.equal(isRuntimeGradleConfiguration("compileOnly"), false);
   assert.equal(isRuntimeGradleConfiguration("playCompileOnly"), false);
   assert.equal(isRuntimeGradleConfiguration("kaptImplementation"), false);
-});
-
-test("packages/google inventory excludes its test dependencies", () => {
-  const dependencies = extractGradle(repoRoot, COMPONENTS.google.source);
-  const names = dependencies.map((entry) => entry.name);
-
-  assert.ok(names.includes("com.android.billingclient:billing"));
-  assert.ok(names.includes("com.google.code.gson:gson"));
-  // Declared with `testImplementation` / `androidTestImplementation`.
-  assert.ok(!names.includes("junit:junit"));
-  assert.ok(!names.includes("org.robolectric:robolectric"));
-  assert.ok(!names.includes("androidx.test:core"));
-  assert.ok(!names.includes("org.jetbrains.kotlinx:kotlinx-coroutines-test"));
-});
-
-test("Gradle for-loop module lists expand to real coordinates", () => {
-  const expanded = expandGradleForLoops(
-    'for (module in listOf("a-kotlin", "b-kotlin")) {\n' +
-      '  add("horizonApi", "com.example:$module:1.2.3")\n' +
-      "}",
+  assert.throws(
+    () => isRuntimeGradleConfiguration("playApi"),
+    /Unclassified Gradle dependency configuration/u,
   );
-  assert.match(expanded, /com\.example:a-kotlin:1\.2\.3/u);
-  assert.match(expanded, /com\.example:b-kotlin:1\.2\.3/u);
-
-  const names = extractGradle(repoRoot, COMPONENTS.google.source).map(
-    (entry) => entry.name,
-  );
-  for (const module of [
-    "core-kotlin",
-    "user-age-category-kotlin",
-    "iap-kotlin",
-  ]) {
-    assert.ok(
-      names.includes(`com.meta.horizon.platform.sdk:${module}`),
-      module,
-    );
-  }
 });
 
-test("an unmodelled Gradle coordinate fails instead of silently vanishing", () => {
-  // A dropped dependency is worse than a failed build: the SBOM would claim
-  // completeness it does not have.
-  assert.deepEqual(parseMavenCoordinate("com.example:lib:$unknownVersion"), {
-    unresolved: "com.example:lib:$unknownVersion",
+test("an unmodelled Gradle coordinate fails instead of silently vanishing", (t) => {
+  assert.throws(
+    () => parseMavenCoordinate("com.example:lib:$unknownVersion"),
+    /Unresolved Maven coordinate/u,
+  );
+  assert.throws(
+    () => parseMavenCoordinate("com.example:lib:1.0.0:sources"),
+    /Unsupported Maven coordinate/u,
+  );
+
+  const scratch = mkdtempSync(resolve(tmpdir(), "openiap-gradle-"));
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+  writeFileSync(
+    resolve(scratch, "build.gradle.kts"),
+    'dependencies { implementation(group = "com.example", name = "lib", version = "1.0.0") }\n',
+  );
+  assert.throws(
+    () => extractGradle(scratch, { manifest: "build.gradle.kts" }),
+    /Unsupported Gradle dependency declaration/u,
+  );
+  writeFileSync(
+    resolve(scratch, "build.gradle.kts"),
+    "dependencies { customRuntime(libs.example) }\n",
+  );
+  assert.throws(
+    () => extractGradle(scratch, { manifest: "build.gradle.kts" }),
+    /Unsupported version-catalog dependency/u,
+  );
+  writeFileSync(
+    resolve(scratch, "build.gradle.kts"),
+    'dependencies { implementation(project(":unexpected")) }\n',
+  );
+  assert.throws(
+    () => extractGradle(scratch, { manifest: "build.gradle.kts" }),
+    /Unsupported Gradle dependency declaration/u,
+  );
+  writeFileSync(
+    resolve(scratch, "build.gradle.kts"),
+    'dependencies { implementation(project(":openiap")) }\n',
+  );
+  assert.throws(
+    () => extractGradle(scratch, { manifest: "build.gradle.kts" }),
+    /lacks its published fallback/u,
+  );
+  writeFileSync(
+    resolve(scratch, "build.gradle.kts"),
+    'dependencies { customRuntime(group = "com.example", name = "lib", version = "1.0.0") }\n',
+  );
+  assert.throws(
+    () => extractGradle(scratch, { manifest: "build.gradle.kts" }),
+    /Unclassified Gradle dependency configuration/u,
+  );
+  writeFileSync(
+    resolve(scratch, "build.gradle.kts"),
+    'dependencies { if (enabled == true) customRuntime("com.example:lib:1.0.0") }\n',
+  );
+  assert.throws(
+    () => extractGradle(scratch, { manifest: "build.gradle.kts" }),
+    /Unclassified Gradle dependency configuration/u,
+  );
+  writeFileSync(
+    resolve(scratch, "build.gradle.kts"),
+    'dependencies { while (enabled) { implementation("real:dependency:2.0.0") } }\n',
+  );
+  assert.deepEqual(
+    extractGradle(scratch, { manifest: "build.gradle.kts" }).map(
+      (entry) => entry.name,
+    ),
+    ["real:dependency"],
+  );
+  writeFileSync(
+    resolve(scratch, "build.gradle.kts"),
+    "android { compileSdk(libs.versions.compileSdk.get()) }\n" +
+      'dependencies { // implementation("fake:comment:1.0.0")\n' +
+      '  implementation("real:dependency:2.0.0")\n}\n',
+  );
+  assert.deepEqual(extractGradle(scratch, { manifest: "build.gradle.kts" }), [
+    {
+      name: "real:dependency",
+      purl: "pkg:maven/real/dependency@2.0.0",
+      version: "2.0.0",
+    },
+  ]);
+  writeFileSync(
+    resolve(scratch, "build.gradle.kts"),
+    'buildscript { dependencies { classpath("build:plugin:1.0.0") } }\n' +
+      'dependencies { implementation("real:dependency:2.0.0") }\n',
+  );
+  assert.deepEqual(
+    extractGradle(scratch, { manifest: "build.gradle.kts" }).map(
+      (entry) => entry.name,
+    ),
+    ["real:dependency"],
+  );
+  writeFileSync(
+    resolve(scratch, "build.gradle.kts"),
+    'subprojects { dependencies { implementation("hidden:dependency:1.0.0") } }\n' +
+      'dependencies { implementation("real:dependency:2.0.0") }\n',
+  );
+  assert.throws(
+    () => extractGradle(scratch, { manifest: "build.gradle.kts" }),
+    /Unsupported nested dependencies block/u,
+  );
+  writeFileSync(
+    resolve(scratch, "build.gradle.kts"),
+    'dependencies { implementation("real:dependency:2.0.0") { exclude(group = "fake") } }\n',
+  );
+  assert.deepEqual(
+    extractGradle(scratch, { manifest: "build.gradle.kts" }).map(
+      (entry) => entry.name,
+    ),
+    ["real:dependency"],
+  );
+  writeFileSync(
+    resolve(scratch, "build.gradle.kts"),
+    'dependencies { customContainer("value") { implementation("hidden:dependency:1.0.0") } }\n',
+  );
+  assert.throws(
+    () => extractGradle(scratch, { manifest: "build.gradle.kts" }),
+    /Unclassified Gradle dependency configuration/u,
+  );
+  writeFileSync(
+    resolve(scratch, "build.gradle.kts"),
+    'dependencies { constraints { implementation("constraint:only:3.0.0") }\n' +
+      '  implementation("real:dependency:2.0.0")\n}\n',
+  );
+  assert.deepEqual(
+    extractGradle(scratch, { manifest: "build.gradle.kts" }).map(
+      (entry) => entry.name,
+    ),
+    ["real:dependency"],
+  );
+});
+
+test("published metadata matches the consumer-visible artifacts", async () => {
+  const google = await generateSbom("google", {
+    root: repoRoot,
+    runGit: stubGit,
   });
-});
-
-test("KMP test source sets are excluded", async () => {
-  const stripped = stripTestSourceSets(
-    "val commonMain by getting {\n dependencies { api(libs.a) }\n}\n" +
-      "val commonTest by getting {\n dependencies { implementation(libs.b) }\n}\n",
-  );
-  assert.match(stripped, /libs\.a/u);
-  assert.doesNotMatch(stripped, /libs\.b/u);
+  const googleNames = google.document.components.map((entry) => entry.name);
+  assert.equal(google.directCount, 10);
+  assert.ok(googleNames.includes("org.jetbrains.kotlin:kotlin-stdlib"));
+  assert.ok(!googleNames.some((name) => name.includes("horizon")));
+  assert.ok(!googleNames.some((name) => name.includes("amazon")));
 
   const kmp = await generateSbom("kmp", { root: repoRoot, runGit: stubGit });
-  const names = kmp.document.components.map((entry) => entry.name);
-  assert.ok(!names.includes("org.jetbrains.kotlin:kotlin-test"));
-  assert.ok(!names.includes("org.jetbrains.kotlinx:kotlinx-coroutines-test"));
-});
+  const kmpNames = kmp.document.components.map((entry) => entry.name);
+  assert.equal(kmp.directCount, 5);
+  assert.ok(kmpNames.includes("io.github.hyochan.openiap:openiap-google"));
+  assert.ok(kmpNames.includes("org.jetbrains.kotlin:kotlin-stdlib"));
 
-test("version catalog aliases resolve through version.ref", () => {
-  const { versions, libraries } = parseVersionCatalog(
-    '[versions]\nfoo = "1.2.3"\n\n[libraries]\n' +
-      'bar-baz = { module = "com.example:bar", version.ref = "foo" }\n',
+  const maui = await generateSbom("maui", { root: repoRoot, runGit: stubGit });
+  assert.equal(maui.directCount, 22);
+  assert.ok(
+    !maui.document.components.some((entry) =>
+      entry.name.includes("Serialization"),
+    ),
   );
-  assert.equal(versions.get("foo"), "1.2.3");
-  assert.deepEqual(libraries.get("bar-baz"), {
-    module: "com.example:bar",
-    versionRef: "foo",
-    literal: undefined,
-  });
 });
 
-test("NuGet references marked PrivateAssets=all are build-only", () => {
-  const dependencies = extractNuget(repoRoot, COMPONENTS.maui.source);
-  const names = dependencies.map((entry) => entry.name);
-  assert.ok(names.includes("Xamarin.Android.Google.BillingClient"));
-  // PrivateAssets="all" is not propagated to consumers of the package.
-  assert.ok(!names.includes("Microsoft.Maui.Controls"));
-  // Every MSBuild property must have been interpolated.
-  for (const entry of dependencies) {
-    assert.doesNotMatch(entry.version, /\$\(/u, entry.name);
-  }
+test("published metadata parsers reject unsupported dependencies", () => {
+  assert.throws(
+    () =>
+      parseMavenPom(
+        "<project><dependencies><dependency><groupId>g</groupId>" +
+          "<artifactId>a</artifactId></dependency></dependencies></project>",
+        { url: "fixture.pom", version: "1.0.0" },
+      ),
+    /Incomplete runtime dependency/u,
+  );
+  assert.throws(
+    () =>
+      parseNugetNuspec(
+        '<package><dependencies><dependency id="A" /></dependencies></package>',
+        { url: "fixture.nuspec" },
+      ),
+    /Incomplete published NuGet dependency/u,
+  );
+  assert.throws(
+    () =>
+      parseMavenPom(mavenPom([["g", "a", "1.0.0", "unclassified"]]), {
+        url: "fixture.pom",
+        version: "1.0.0",
+      }),
+    /Unsupported Maven scope/u,
+  );
+  assert.throws(
+    () =>
+      parseMavenPom(
+        "<project><profiles><profile><dependencies><dependency>" +
+          "<groupId>g</groupId><artifactId>a</artifactId>" +
+          "<version>1.0.0</version></dependency></dependencies>" +
+          "</profile></profiles></project>",
+        { url: "fixture.pom", version: "1.0.0" },
+      ),
+    /Unsupported profiled Maven dependency/u,
+  );
+});
+
+test("published metadata fetches retry transport failures", async () => {
+  let attempts = 0;
+  const result = await fetchPublishedText("https://example.com/package.pom", {
+    fetcher: async () => {
+      attempts += 1;
+      if (attempts === 1) throw new Error("temporary DNS failure");
+      return "<project />";
+    },
+    retryDelays: [0],
+    wait: async () => {},
+  });
+
+  assert.equal(result, "<project />");
+  assert.equal(attempts, 2);
+});
+
+test("missing published metadata has a dedicated error type", async () => {
+  assert.equal(PUBLISHED_METADATA_UNAVAILABLE_EXIT_CODE, 75);
+  await assert.rejects(
+    () =>
+      extractDirectDependencies(
+        repoRoot,
+        {
+          kind: "maven-pom",
+          coordinate: "example:package",
+          repositories: ["https://example.com/maven"],
+        },
+        { version: "1.0.0", fetchText: async () => null },
+      ),
+    (error) => error instanceof PublishedMetadataUnavailableError,
+  );
 });
 
 test("pub dependencies exclude the Flutter SDK itself", () => {
-  const names = extractPub(repoRoot, COMPONENTS.flutter.source).map(
-    (entry) => entry.name,
+  const dependencies = extractPub(repoRoot, COMPONENTS.flutter.source);
+  assert.deepEqual(
+    dependencies.map((entry) => entry.name),
+    ["http", "meta", "platform"],
   );
-  assert.deepEqual(names, ["http", "meta", "platform"]);
+  assert.deepEqual(
+    dependencies.map((entry) => entry.version),
+    ["^1.2.0", "^1.11.0", "^3.1.4"],
+  );
+  assert.ok(dependencies.every((entry) => entry.purl.includes("@%5E")));
 });
 
 test("npm components publish no third-party runtime dependencies", async () => {
@@ -405,6 +811,10 @@ test("resolver output adds transitive entries without losing direct ones", () =>
   assert.equal(merged.length, 2);
   assert.equal(merged.find((e) => e.name === "a").transitive, undefined);
   assert.equal(merged.find((e) => e.name === "b").transitive, true);
+  assert.throws(
+    () => mergeResolved(direct, [{ name: "missing-version" }]),
+    /Incomplete resolved dependency/u,
+  );
 });
 
 test("a registry license only becomes an SPDX id when it really is one", () => {

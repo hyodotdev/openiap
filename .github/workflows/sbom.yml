@@ -4,14 +4,21 @@ name: "Security: SBOM"
 # belongs to, attaches it to that release, and attests that this workflow
 # produced it.
 #
-# This runs *after* a release is published rather than inside each release
-# workflow: the existing release workflows stay untouched, and every component —
-# including any added later — is covered by the same code path. The release tag
-# is the input, so the SBOM can only ever describe the commit that shipped.
+# Release workflows dispatch this workflow explicitly because releases created
+# with GITHUB_TOKEN do not emit another workflow run. A scheduled scan repairs
+# any missed dispatch for the newest release of each component.
 
 on:
   release:
     types: [published]
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/sbom.yml"
+      - "scripts/generate-sbom.mjs"
+      - "scripts/sbom-dependencies.mjs"
+  schedule:
+    - cron: "23 3 * * *"
   workflow_dispatch:
     inputs:
       tag:
@@ -23,14 +30,44 @@ concurrency:
   group: sbom-${{ github.event.release.tag_name || inputs.tag }}
   cancel-in-progress: false
 
-# Read-only by default; the publish job widens this to exactly what the
-# attestation and upload steps require.
 permissions:
   contents: read
 
 jobs:
+  backfill:
+    name: Dispatch missing current SBOMs
+    if: github.event_name == 'push' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v7
+        with:
+          persist-credentials: false
+
+      - name: Find and dispatch missing SBOMs
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api --paginate --slurp \
+            "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            > "$RUNNER_TEMP/releases.json"
+          node scripts/generate-sbom.mjs missing-release-tags \
+            "$RUNNER_TEMP/releases.json" > "$RUNNER_TEMP/missing-tags.txt"
+
+          while IFS= read -r RELEASE_TAG; do
+            [ -n "$RELEASE_TAG" ] || continue
+            echo "Dispatching SBOM for $RELEASE_TAG"
+            gh workflow run sbom.yml --ref "$DEFAULT_BRANCH" \
+              -f tag="$RELEASE_TAG"
+          done < "$RUNNER_TEMP/missing-tags.txt"
+
   sbom:
     name: Generate and publish SBOM
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: write # upload the SBOM as a release asset
@@ -85,26 +122,78 @@ jobs:
           RELEASE_TAG: ${{ steps.tag.outputs.tag }}
         run: node scripts/generate-sbom.mjs resolve-tag "$RELEASE_TAG"
 
+      - name: Inspect the existing asset
+        id: existing
+        if: ${{ steps.component.outputs.matched == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPAIR_DIGEST: ${{ steps.component.outputs.repair-digest }}
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+          SBOM_NAME: ${{ steps.component.outputs.sbom-name }}
+        run: |
+          if ! RELEASE_JSON=$(gh api \
+            "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG"); then
+            echo "::error::Unable to inspect release assets for $RELEASE_TAG"
+            exit 1
+          fi
+          ASSET=$(jq -c --arg name "$SBOM_NAME" \
+            '[.assets[] | select(.name == $name)][0] // empty' \
+            <<< "$RELEASE_JSON")
+          STAGED_ASSET=$(jq -c --arg name "$SBOM_NAME.replacement" \
+            '[.assets[] | select(.name == $name)][0] // empty' \
+            <<< "$RELEASE_JSON")
+          if [ -n "$REPAIR_DIGEST" ] && [ -n "$STAGED_ASSET" ]; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::A staged legacy repair will be reconciled."
+          elif [ -z "$ASSET" ]; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          elif [ -n "$REPAIR_DIGEST" ] && \
+            [ "$(jq -r '.digest // ""' <<< "$ASSET")" = "$REPAIR_DIGEST" ]; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::$SBOM_NAME matches a known inaccurate legacy digest and will be replaced once."
+          else
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::$SBOM_NAME is already attached; preserving it."
+          fi
+
       # CI tests the generator and its historical fixtures in their owning tree.
 
       - name: Generate CycloneDX SBOM
         id: generate
-        if: ${{ steps.component.outputs.matched == 'true' }}
-        # `--with-licenses` resolves each dependency's declared license from its
-        # own registry. A registry outage degrades to a missing license field
-        # rather than failing the release.
+        if: ${{ steps.component.outputs.matched == 'true' && steps.existing.outputs.exists == 'false' }}
+        # License lookups degrade when unavailable; required POM/nuspec reads
+        # retry for the registry propagation window and then fail closed.
         env:
           GENERATOR_COMMIT: ${{ steps.generator.outputs.commit }}
           RELEASE_TAG: ${{ steps.tag.outputs.tag }}
         run: |
-          node scripts/generate-sbom.mjs --tag "$RELEASE_TAG" \
-            --output-dir sbom \
-            --commit "$(git rev-parse HEAD)" \
-            --generator-commit "$GENERATOR_COMMIT" \
-            --with-licenses
+          for attempt in {1..16}; do
+            if OUTPUT=$(node scripts/generate-sbom.mjs --tag "$RELEASE_TAG" \
+              --output-dir sbom \
+              --commit "$(git rev-parse HEAD)" \
+              --generator-commit "$GENERATOR_COMMIT" \
+              --with-licenses 2>&1); then
+              echo "$OUTPUT"
+              exit 0
+            else
+              STATUS=$?
+            fi
+
+            echo "$OUTPUT"
+            # generate-sbom reserves EX_TEMPFAIL (75) for registry metadata.
+            if [ "$STATUS" -ne 75 ]; then
+              exit "$STATUS"
+            fi
+            if [ "$attempt" -eq 16 ]; then
+              echo "::error::Published dependency metadata remained unavailable after the registry propagation retry window."
+              exit 1
+            fi
+            echo "::notice::Registry metadata is still indexing; retrying in 120 seconds."
+            sleep 120
+          done
 
       - name: Verify the SBOM describes this release
-        if: ${{ steps.component.outputs.matched == 'true' }}
+        if: ${{ steps.component.outputs.matched == 'true' && steps.existing.outputs.exists == 'false' }}
         env:
           SBOM_FILE: ${{ steps.generate.outputs.sbom-file }}
           EXPECTED_VERSION: ${{ steps.component.outputs.version }}
@@ -155,18 +244,109 @@ jobs:
           echo "SBOM verified for $RELEASE_TAG at $ACTUAL_COMMIT"
 
       - name: Attest SBOM provenance
-        if: ${{ steps.component.outputs.matched == 'true' }}
+        if: ${{ steps.component.outputs.matched == 'true' && steps.existing.outputs.exists == 'false' }}
         uses: actions/attest-build-provenance@v4
         with:
           subject-path: ${{ steps.generate.outputs.sbom-file }}
 
       - name: Attach SBOM to the release
-        if: ${{ steps.component.outputs.matched == 'true' }}
+        if: ${{ steps.component.outputs.matched == 'true' && steps.existing.outputs.exists == 'false' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPAIR_DIGEST: ${{ steps.component.outputs.repair-digest }}
           RELEASE_TAG: ${{ steps.tag.outputs.tag }}
           SBOM_FILE: ${{ steps.generate.outputs.sbom-file }}
-        run: gh release upload "$RELEASE_TAG" "$SBOM_FILE"
+          SBOM_NAME: ${{ steps.component.outputs.sbom-name }}
+        run: |
+          if [ -z "$REPAIR_DIGEST" ]; then
+            gh release upload "$RELEASE_TAG" "$SBOM_FILE"
+            exit 0
+          fi
+
+          STAGED_NAME="$SBOM_NAME.replacement"
+          STAGED_FILE="$RUNNER_TEMP/$STAGED_NAME"
+          cp "$SBOM_FILE" "$STAGED_FILE"
+          RELEASE_JSON=$(gh api \
+            "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG")
+          CANONICAL_ASSET=$(jq -c --arg name "$SBOM_NAME" \
+            '[.assets[] | select(.name == $name)][0] // empty' \
+            <<< "$RELEASE_JSON")
+          STAGED_ASSET=$(jq -c --arg name "$STAGED_NAME" \
+            '[.assets[] | select(.name == $name)][0] // empty' \
+            <<< "$RELEASE_JSON")
+          CANONICAL_ASSET_ID=$(jq -r '.id // ""' <<< "$CANONICAL_ASSET")
+          CANONICAL_DIGEST=$(jq -r '.digest // ""' <<< "$CANONICAL_ASSET")
+          STAGED_ASSET_ID=$(jq -r '.id' <<< "$STAGED_ASSET")
+          STAGED_DIGEST=$(jq -r '.digest // ""' <<< "$STAGED_ASSET")
+          LOCAL_DIGEST="sha256:$(sha256sum "$STAGED_FILE" | cut -d ' ' -f 1)"
+
+          finalize_staged_asset() {
+            for _ in {1..5}; do
+              if gh api --method PATCH \
+                "repos/$GITHUB_REPOSITORY/releases/assets/$STAGED_ASSET_ID" \
+                -f name="$SBOM_NAME" >/dev/null; then
+                return 0
+              fi
+              sleep 5
+            done
+            echo "::error::The verified replacement remains attached as $STAGED_NAME but could not be renamed."
+            return 1
+          }
+
+          if [ -n "$CANONICAL_ASSET_ID" ] && [ "$CANONICAL_DIGEST" != "$REPAIR_DIGEST" ]; then
+            if [ -n "$STAGED_ASSET_ID" ]; then
+              gh api --method DELETE \
+                "repos/$GITHUB_REPOSITORY/releases/assets/$STAGED_ASSET_ID"
+            fi
+            echo "::notice::$SBOM_NAME is already corrected; any staged repair was removed."
+            exit 0
+          fi
+
+          if [ -z "$CANONICAL_ASSET_ID" ]; then
+            if [ -n "$STAGED_ASSET_ID" ] && [ "$STAGED_DIGEST" = "$LOCAL_DIGEST" ]; then
+              finalize_staged_asset
+            else
+              if [ -n "$STAGED_ASSET_ID" ]; then
+                gh api --method DELETE \
+                  "repos/$GITHUB_REPOSITORY/releases/assets/$STAGED_ASSET_ID"
+              fi
+              gh release upload "$RELEASE_TAG" "$SBOM_FILE"
+            fi
+            exit 0
+          fi
+
+          if [ -n "$STAGED_ASSET_ID" ] && [ "$STAGED_DIGEST" != "$LOCAL_DIGEST" ]; then
+            gh api --method DELETE \
+              "repos/$GITHUB_REPOSITORY/releases/assets/$STAGED_ASSET_ID"
+            STAGED_ASSET_ID=""
+          fi
+          if [ -z "$STAGED_ASSET_ID" ]; then
+            gh release upload "$RELEASE_TAG" "$STAGED_FILE"
+            RELEASE_JSON=$(gh api \
+              "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG")
+            STAGED_ASSET=$(jq -c --arg name "$STAGED_NAME" \
+              '[.assets[] | select(.name == $name)][0] // empty' \
+              <<< "$RELEASE_JSON")
+            STAGED_ASSET_ID=$(jq -r '.id // ""' <<< "$STAGED_ASSET")
+            STAGED_DIGEST=$(jq -r '.digest // ""' <<< "$STAGED_ASSET")
+          fi
+          if [ -z "$STAGED_ASSET_ID" ] || [ "$STAGED_DIGEST" != "$LOCAL_DIGEST" ]; then
+            echo "::error::The staged replacement SBOM failed digest verification."
+            exit 1
+          fi
+
+          CURRENT_DIGEST=$(gh api \
+            "repos/$GITHUB_REPOSITORY/releases/assets/$CANONICAL_ASSET_ID" \
+            --jq '.digest // ""')
+          if [ "$CURRENT_DIGEST" != "$REPAIR_DIGEST" ]; then
+            gh api --method DELETE \
+              "repos/$GITHUB_REPOSITORY/releases/assets/$STAGED_ASSET_ID"
+            echo "::error::The legacy SBOM asset changed during repair; refusing to replace it."
+            exit 1
+          fi
+          gh api --method DELETE \
+            "repos/$GITHUB_REPOSITORY/releases/assets/$CANONICAL_ASSET_ID"
+          finalize_staged_asset
 
       - name: Report a skipped tag
         if: ${{ steps.component.outputs.matched != 'true' }}

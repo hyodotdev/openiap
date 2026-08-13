@@ -4,13 +4,13 @@ This directory documents how OpenIAP secures what it ships. It holds policy and
 the reasoning behind it; the automation lives in `scripts/` and
 `.github/workflows/`, and no generated artifact is stored here.
 
-| Document                           | Covers                                                                      |
-| ---------------------------------- | --------------------------------------------------------------------------- |
-| [SBOM.md](SBOM.md)                 | Per-release dependency inventories: scope, format, generation, verification |
-| [vex/](vex/README.md)              | Recorded judgements on whether a known CVE actually affects a component     |
-| [CRA.md](CRA.md)                   | How these practices map to EU Cyber Resilience Act expectations             |
-| [openchain.md](openchain.md)       | Self-assessment against ISO/IEC 18974 and 5230, with the current gap list   |
-| [`../SECURITY.md`](../SECURITY.md) | Vulnerability reporting, disclosure, supported versions                     |
+| Document                           | Covers                                                                          |
+| ---------------------------------- | ------------------------------------------------------------------------------- |
+| [SBOM.md](SBOM.md)                 | Current-release dependency inventories: scope, format, generation, verification |
+| [vex/](vex/README.md)              | Recorded judgements on whether a known CVE actually affects a component         |
+| [CRA.md](CRA.md)                   | How these practices map to EU Cyber Resilience Act expectations                 |
+| [openchain.md](openchain.md)       | Self-assessment against ISO/IEC 18974 and 5230, with the current gap list       |
+| [`../SECURITY.md`](../SECURITY.md) | Vulnerability reporting, disclosure, supported versions                         |
 
 Vulnerability reporting stays at the repository root, where GitHub and most
 contributors look for it.
@@ -21,9 +21,10 @@ contributors look for it.
                         OpenIAP source
                               │
                               ▼
-                     dependency manifests
-                    (package.json, gradle,
-                     csproj, pubspec, spm)
+                       dependency inputs
+                   (published POM/nuspec,
+                    package.json, pubspec,
+                       Gradle, SwiftPM)
                               │
                               ▼
                         CI (ci.yml)
@@ -42,7 +43,7 @@ contributors look for it.
            package        npm/registry    GitHub Release
                            provenance          │
                                                ▼
-                                    sbom.yml (release: published)
+                                    release dispatches sbom.yml
                                                │
                                      ┌─────────┴─────────┐
                                      ▼                   ▼
@@ -54,7 +55,7 @@ contributors look for it.
 
 | Capability              | Mechanism                                                                                                                                                                                                           |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Per-release SBOM        | `scripts/generate-sbom.mjs` + `.github/workflows/sbom.yml` — [CycloneDX 1.6](https://cyclonedx.org/specification/overview/)                                                                                         |
+| Current-release SBOM    | `scripts/generate-sbom.mjs` + `.github/workflows/sbom.yml` — [CycloneDX 1.6](https://cyclonedx.org/specification/overview/)                                                                                         |
 | SBOM provenance         | [`actions/attest-build-provenance`](https://github.com/actions/attest-build-provenance) — [SLSA](https://slsa.dev/provenance/v1) via [Sigstore](https://www.sigstore.dev/), verifiable with `gh attestation verify` |
 | npm artifact provenance | `npm publish --provenance`, re-verified by `scripts/verify-npm-release-provenance.mjs`                                                                                                                              |
 | Release-tag integrity   | `scripts/assert-release-tag.mjs` — immutable tags, version must match, reachable from `main`                                                                                                                        |
@@ -81,8 +82,9 @@ Dockerfile. That is a deliberate scope, not an oversight:
   dependencies deliberately, often with compatibility constraints documented
   inline in the build files. Automated bumps there tend to break consumers'
   toolchain compatibility rather than help; their versions are reviewed as part
-  of platform upgrade work, and the SBOMs record exactly what each release
-  shipped.
+  of platform upgrade work. Each current release SBOM records its published
+  direct dependency contract; a toolchain resolver export can add transitive
+  entries for a consuming application.
 
 ## What GitHub's dependency graph does and does not see
 
@@ -90,7 +92,7 @@ Worth stating plainly, because it explains why the SBOMs are not redundant with
 the platform:
 
 ```bash
-gh api repos/hyodotdev/openiap/dependency-graph/sbom   # → 0 packages
+gh api repos/hyodotdev/openiap/dependency-graph/sbom   # → HTTP 404
 ```
 
 GitHub's [dependency graph](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/dependency-graph-supported-package-ecosystems)
@@ -105,8 +107,9 @@ Consequences:
 - **Dependabot security alerts depend on the dependency graph**, so alert
   coverage is limited to what the graph can populate. Do not read an empty
   alert list as "no vulnerable dependencies".
-- **The published SBOMs are the only complete inventory** of what each release
-  contains.
+- **The published SBOMs are the release-specific inventory** of direct runtime
+  dependencies. A transitive closure is included only when a resolver export is
+  supplied.
 
 Closing this gap properly would mean submitting a snapshot through the
 [dependency submission API](https://docs.github.com/en/rest/dependency-graph/dependency-submission),
@@ -121,9 +124,10 @@ not belong to whichever change surfaced it.
 | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Actions are pinned by major tag, not commit SHA**        | A mutable tag in a privileged publish or signing path is a supply-chain risk. Fixing it means pinning every workflow at once and reconfiguring Dependabot, not two workflows in isolation |
 | **Several CI workflows declare no `permissions:` block**   | They inherit the repository default instead of least privilege. OpenSSF Scorecard's Token-Permissions check reports this                                                                  |
-| **GitHub's dependency graph is empty for this repository** | Bun lockfiles are unsupported and Gradle is not resolved from source, so Dependabot security alerts cannot cover the tree. Closing it needs the dependency submission API                 |
+| **GitHub's dependency-graph SBOM endpoint is unavailable** | The repository endpoint returns HTTP 404, so it cannot provide an independent inventory. Closing the coverage gap requires dependency submission or another supported manifest path       |
 
-`/audit-security` re-checks each of these and prints the current state.
+`/audit-security` re-checks each gap and prints its current state. Action pinning
+still requires a separate repository-wide migration.
 
 ## Scanning posture
 
@@ -132,7 +136,9 @@ OpenIAP does not run a separate vulnerability scanner
 [Grype](https://github.com/anchore/grype),
 [osv-scanner](https://github.com/google/osv-scanner)) in CI today:
 
-- The published SDKs have no runtime dependency tree for a scanner to examine.
+- The published npm SDKs have no runtime dependency tree for a scanner to
+  examine. Native and framework dependency inventories are carried in their
+  release SBOMs.
 - `packages/kit`'s dependencies are the meaningful surface, and Dependabot
   already opens update pull requests for them.
 - A second scanner would add alert triage and CI maintenance for a signal we
@@ -150,5 +156,7 @@ the point to revisit it.
 `scripts/generate-sbom.test.mjs` asserts that every component in the release
 SSOT has SBOM metadata, so CI fails if a new component is added without it.
 To satisfy it, add an entry to `COMPONENTS` in `scripts/generate-sbom.mjs`
-declaring the component's distribution and where its dependencies are declared.
-Nothing else needs to change — `sbom.yml` picks it up from the release tag.
+declaring the component's distribution and dependency source. Tag aliases are
+derived from the release configuration. The generator test also requires every
+workflow that creates a GitHub Release to dispatch `sbom.yml`, so a new release
+lane cannot silently omit the inventory.

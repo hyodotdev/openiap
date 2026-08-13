@@ -35,6 +35,7 @@ jobs:
           scripts/npm-publish-authorization.test.mjs
           scripts/verify-npm-release-provenance.test.mjs
           scripts/generate-sbom.test.mjs
+          scripts/audit-security.test.mjs
 
       - name: Test Gradle network retry helper
         run: node --test scripts/ci/retry-gradle.test.mjs
