@@ -21,8 +21,6 @@ import dev.hyo.openiap.FetchProductsResultAll
 import dev.hyo.openiap.FetchProductsResultProducts
 import dev.hyo.openiap.FetchProductsResultSubscriptions
 import dev.hyo.openiap.GetBillingChoiceInfoParamsAndroid
-import dev.hyo.openiap.InAppMessageCategoryAndroid
-import dev.hyo.openiap.InAppMessageParamsAndroid
 import dev.hyo.openiap.InitConnectionConfig
 import dev.hyo.openiap.LaunchExternalLinkParamsAndroid
 import dev.hyo.openiap.OpenIapError
@@ -863,7 +861,16 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 }
             }
             "showInAppMessagesAndroid" -> {
-                val categories = call.argument<List<String>?>("categories")
+                val params = try {
+                    validateFlutterInAppMessageParams(call.argument<Any?>("categories"))
+                } catch (e: IllegalArgumentException) {
+                    safe.error(
+                        OpenIapError.DeveloperError.CODE,
+                        OpenIapError.DeveloperError.MESSAGE,
+                        e.message,
+                    )
+                    return
+                }
                 scope.launch {
                     try {
                         val iap = openIap
@@ -876,9 +883,6 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                             safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, "Activity not available")
                             return@launch
                         }
-                        val params = InAppMessageParamsAndroid(
-                            categories = categories?.map { InAppMessageCategoryAndroid.fromJson(it) }
-                        )
                         val result = iap.showInAppMessages(act, params)
                         val response = JSONObject().apply {
                             put("responseCode", result.responseCode.toJson())

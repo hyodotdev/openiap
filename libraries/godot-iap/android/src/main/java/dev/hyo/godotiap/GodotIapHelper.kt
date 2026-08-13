@@ -2,6 +2,7 @@ package dev.hyo.godotiap
 
 import dev.hyo.openiap.AndroidSubscriptionOfferInput
 import dev.hyo.openiap.DeveloperBillingOptionParamsAndroid
+import dev.hyo.openiap.InAppMessageParamsAndroid
 import dev.hyo.openiap.ProductQueryType
 import dev.hyo.openiap.SubscriptionProductReplacementParamsAndroid
 import dev.hyo.openiap.SubscriptionReplacementModeAndroid
@@ -221,6 +222,9 @@ internal object GodotIapHelper {
             subscriptionProductReplacementParams = subscriptionProductReplacementParams
         )
     }
+
+    fun parseInAppMessageParams(paramsJson: String): InAppMessageParamsAndroid =
+        InAppMessageParamsAndroid.fromJson(jsonObjectToMap(JSONObject(paramsJson.ifBlank { "{}" })))
 
     /**
      * Parse subscription replacement mode from string.

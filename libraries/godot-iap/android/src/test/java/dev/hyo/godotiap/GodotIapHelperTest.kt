@@ -1,6 +1,7 @@
 package dev.hyo.godotiap
 
 import dev.hyo.openiap.BillingProgramAndroid
+import dev.hyo.openiap.InAppMessageCategoryAndroid
 import dev.hyo.openiap.ProductQueryType
 import dev.hyo.openiap.SubscriptionReplacementModeAndroid
 import org.junit.Assert.assertEquals
@@ -8,6 +9,24 @@ import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class GodotIapHelperTest {
+    @Test
+    fun `in-app message categories reject malformed input`() {
+        val params = GodotIapHelper.parseInAppMessageParams(
+            """{"categories":["transactional"]}""",
+        )
+        assertEquals(InAppMessageCategoryAndroid.Transactional, params.categories?.single())
+
+        listOf(
+            """{"categories":["future-category"]}""",
+            """{"categories":[999]}""",
+            """{"categories":"transactional"}""",
+        ).forEach { json ->
+            assertThrows(IllegalArgumentException::class.java) {
+                GodotIapHelper.parseInAppMessageParams(json)
+            }
+        }
+    }
+
     @Test
     fun `canonical product query types preserve their exact meaning`() {
         assertEquals(

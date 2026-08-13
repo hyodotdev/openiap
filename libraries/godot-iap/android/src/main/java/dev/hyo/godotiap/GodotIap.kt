@@ -1077,17 +1077,10 @@ class GodotIap(godot: Godot) : GodotPlugin(godot) {
 
         return runBlocking {
             try {
-                val json = JSONObject(paramsJson.ifBlank { "{}" })
-                val categoriesJson = json.optJSONArray("categories")
-                val categories = categoriesJson?.let { array ->
-                    (0 until array.length()).mapNotNull { index ->
-                        array.optString(index, "").takeIf { it.isNotBlank() }
-                            ?.let { InAppMessageCategoryAndroid.fromJson(it) }
-                    }
-                }
+                val params = GodotIapHelper.parseInAppMessageParams(paramsJson)
                 val result = store.showInAppMessages(
                     activity,
-                    InAppMessageParamsAndroid(categories = categories)
+                    params
                 )
                 JSONObject().apply {
                     put("success", true)
