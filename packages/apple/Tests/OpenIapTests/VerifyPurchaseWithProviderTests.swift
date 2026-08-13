@@ -163,23 +163,23 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
         XCTAssertEqual("POST", request.httpMethod)
         XCTAssertEqual("application/json", request.value(forHTTPHeaderField: "Content-Type"))
         XCTAssertEqual("Bearer iapkit_pk_test", request.value(forHTTPHeaderField: "Authorization"))
-        // Injected rather than read back from the accessor that produced it:
-        // under SwiftPM the bundled versions file is a dangling symlink, so
-        // comparing against the accessor would be nil == nil.
+        // Injected so the assertion has an expected value independent of the
+        // accessor the builder reads.
         XCTAssertEqual("3.2.0", request.value(forHTTPHeaderField: "X-OpenIAP-Spec"))
         XCTAssertEqual(Data("{}".utf8), request.httpBody)
     }
 
-    func testIapkitRequestOmitsTheSpecHeaderWhenTheVersionIsUnreadable() throws {
-        let url = try XCTUnwrap(URL(string: "https://kit.openiap.dev/v1/purchase/verify"))
-        let request = OpenIapModule.makeIapkitRequest(
-            url: url,
-            apiKey: "iapkit_pk_test",
-            body: Data(),
-            specVersion: nil
+    func testSpecVersionIsACompileTimeConstant() throws {
+        // Generated from openiap-versions.json, so it cannot fail to resolve in
+        // any distribution channel.
+        XCTAssertEqual(OpenIapVersion.specVersion, OpenIapGeneratedVersion.spec)
+        XCTAssertNotNil(
+            OpenIapVersion.specVersion.range(
+                of: #"^\d+\.\d+\.\d+"#,
+                options: .regularExpression
+            ),
+            "expected a semver, got \(OpenIapVersion.specVersion)"
         )
-
-        XCTAssertNil(request.value(forHTTPHeaderField: "X-OpenIAP-Spec"))
     }
 
     func testIapkitRequestOmitsAuthorizationForABlankApiKey() throws {

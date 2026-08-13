@@ -112,14 +112,12 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         url: URL,
         apiKey: String?,
         body: Data,
-        specVersion: String? = OpenIapVersion.specVersionIfAvailable
+        specVersion: String = OpenIapVersion.specVersion
     ) -> URLRequest {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let specVersion {
-            request.setValue(specVersion, forHTTPHeaderField: "X-OpenIAP-Spec")
-        }
+        request.setValue(specVersion, forHTTPHeaderField: "X-OpenIAP-Spec")
         let trimmedApiKey = apiKey?.trimmingCharacters(in: .whitespacesAndNewlines)
         if let trimmedApiKey, trimmedApiKey.isEmpty == false {
             request.setValue("Bearer \(trimmedApiKey)", forHTTPHeaderField: "Authorization")
