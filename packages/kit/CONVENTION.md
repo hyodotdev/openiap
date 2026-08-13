@@ -60,6 +60,23 @@ src/
 - Page folders with sub-components use `index.tsx` for the route
   entry point.
 
+## Responsive card containment
+
+Cards with dynamic text and trailing controls must keep every child inside the
+card at every supported width:
+
+- Let horizontal card rows wrap instead of assuming the label and actions fit
+  on one line.
+- Put `min-width: 0` on flexible flex/grid children; otherwise filenames and
+  other intrinsic-width content can push controls outside the parent.
+- Allow untrusted or user-provided strings to wrap anywhere, and keep icons and
+  action buttons non-shrinking.
+- Let the action group wrap onto its own row when necessary. Do not use clipping
+  as the primary fix because it can hide reachable controls or focus rings.
+
+Use the shared `contained-action-card` classes from `src/index.css` for this
+layout instead of recreating the flex constraints per card.
+
 ## Convex Backend (CQRS)
 
 Every domain folder under `convex/` follows the same split:
@@ -231,7 +248,7 @@ Pattern (mirrors `convex/products/jobs.ts` + `runProductSyncIOS` /
 
 1. **Schema**: a `*Jobs` table with `status`
    (`queued | running | succeeded | failed`), `progress` (`{phase,
-   current?, total?, failuresCount?}`), `result?`, `error?`,
+current?, total?, failuresCount?}`), `result?`, `error?`,
    `cancelRequested?`, `expectedDeadline?`, `createdBy?`,
    `startedAt?`, `completedAt?`, `createdAt`. Indexes:
    `(projectId, platform, status)` for active-job lookup,
@@ -239,7 +256,7 @@ Pattern (mirrors `convex/products/jobs.ts` + `runProductSyncIOS` /
    `(status, completedAt)` for the pruner.
 2. **Enqueue mutation**: validates membership, dedups against an
    existing `queued`/`running` row for the same `(projectId,
-   platform)`, inserts the row, schedules the worker via
+platform)`, inserts the row, schedules the worker via
    `ctx.scheduler.runAfter(0, internal.<module>.runX, { jobId })`.
    Returns `{ jobId, deduped }`.
 3. **Worker internalAction**: `args: { jobId }`. Reads job →
@@ -259,8 +276,8 @@ Pattern (mirrors `convex/products/jobs.ts` + `runProductSyncIOS` /
    fires once via a `useRef`-gated `useEffect` so reactive
    updates don't re-toast.
 6. **HTTP**: `POST .../sync/...` returns 202 with `{ jobId,
-   deduped }`; `GET .../sync/jobs/{jobId}` polls; `POST
-   .../sync/jobs/{jobId}/cancel` cancels. Clients backoff at ~3 s
+deduped }`; `GET .../sync/jobs/{jobId}` polls; `POST
+.../sync/jobs/{jobId}/cancel` cancels. Clients backoff at ~3 s
    intervals.
 
 Failures arrays should pass through `truncateFailures` (cap 200,

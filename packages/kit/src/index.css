@@ -585,6 +585,33 @@
     border: 1px solid var(--border);
   }
 
+  /* Keep dynamic text and trailing actions inside horizontal cards. */
+  .contained-action-card {
+    @apply flex w-full min-w-0 flex-wrap items-center gap-2;
+  }
+
+  .contained-action-card > * {
+    max-width: 100%;
+  }
+
+  .contained-action-card__content {
+    @apply flex min-w-0 flex-1 basis-64 items-center gap-2;
+  }
+
+  .contained-action-card__content > svg {
+    @apply shrink-0;
+  }
+
+  .contained-action-card__text {
+    @apply min-w-0 flex-1;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .contained-action-card__actions {
+    @apply ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end gap-1;
+  }
+
   /* Modal overlay */
   .modal-overlay {
     @apply fixed inset-0 z-50 bg-black/50 backdrop-blur-sm;
