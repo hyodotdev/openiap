@@ -138,6 +138,46 @@ function scanGradleSource(source) {
   };
 }
 
+function previousGradleCodeIndex(source, from) {
+  let cursor = from;
+  while (cursor >= 0 && /\s/u.test(source[cursor])) cursor -= 1;
+  return cursor;
+}
+
+function gradleIdentifierBefore(source, from) {
+  const end = previousGradleCodeIndex(source, from) + 1;
+  let start = end;
+  while (start > 0 && /[A-Za-z0-9_]/u.test(source[start - 1])) start -= 1;
+  return source.slice(start, end);
+}
+
+function gradleCallBefore(source, close) {
+  let depth = 1;
+  let cursor = close - 1;
+  for (; cursor >= 0 && depth > 0; cursor -= 1) {
+    if (source[cursor] === ")") depth += 1;
+    if (source[cursor] === "(") depth -= 1;
+  }
+  if (depth !== 0) throw new Error("Unbalanced Gradle call parentheses");
+  return gradleIdentifierBefore(source, cursor);
+}
+
+function gradleBlockOwner(source, open) {
+  const previous = previousGradleCodeIndex(source, open - 1);
+  return source[previous] === ")"
+    ? gradleCallBefore(source, previous)
+    : gradleIdentifierBefore(source, previous);
+}
+
+function gradleOwningBlocks(source, end) {
+  const owners = [];
+  for (let index = 0; index < end; index += 1) {
+    if (source[index] === "{") owners.push(gradleBlockOwner(source, index));
+    if (source[index] === "}") owners.pop();
+  }
+  return owners;
+}
+
 function gradleDependencySource(source, manifest) {
   const { commentFree, structural } = scanGradleSource(source);
   const braceDepths = new Uint32Array(structural.length);
@@ -160,7 +200,11 @@ function gradleDependencySource(source, manifest) {
     match = pattern.exec(structural)
   ) {
     const open = match.index + match[0].lastIndexOf("{");
-    if (braceDepths[match.index] !== 0) continue;
+    if (braceDepths[match.index] !== 0) {
+      const owners = gradleOwningBlocks(structural, match.index);
+      if (owners.includes("buildscript")) continue;
+      throw new Error(`Unsupported nested dependencies block in ${manifest}`);
+    }
     let depth = 1;
     let cursor = open + 1;
     for (; cursor < structural.length && depth > 0; cursor += 1) {
@@ -188,43 +232,27 @@ function filterGradleDependencyBlock(source, manifest) {
   const { structural } = scanGradleSource(source);
   const filtered = [...source];
   const visible = [true];
-  const previousCodeIndex = (from) => {
-    let cursor = from;
-    while (cursor >= 0 && /\s/u.test(structural[cursor])) cursor -= 1;
-    return cursor;
-  };
-  const identifierBefore = (from) => {
-    const end = previousCodeIndex(from) + 1;
-    let start = end;
-    while (start > 0 && /[A-Za-z0-9_]/u.test(structural[start - 1])) {
-      start -= 1;
-    }
-    return structural.slice(start, end);
-  };
-  const callBefore = (close) => {
-    let depth = 1;
-    let cursor = close - 1;
-    for (; cursor >= 0 && depth > 0; cursor -= 1) {
-      if (structural[cursor] === ")") depth += 1;
-      if (structural[cursor] === "(") depth -= 1;
-    }
-    if (depth !== 0) throw new Error("Unbalanced Gradle call parentheses");
-    return identifierBefore(cursor);
-  };
 
   for (let index = 0; index < structural.length; index += 1) {
     if (structural[index] === "{") {
       const parentVisible = visible.at(-1);
       let childVisible = false;
       if (parentVisible) {
-        const previous = previousCodeIndex(index - 1);
-        const owner =
-          structural[previous] === ")"
-            ? callBefore(previous)
-            : identifierBefore(previous);
+        const previous = previousGradleCodeIndex(structural, index - 1);
+        const callOwned = structural[previous] === ")";
+        const owner = callOwned
+          ? gradleCallBefore(structural, previous)
+          : gradleIdentifierBefore(structural, previous);
         if (["if", "for", "when", "while", "else"].includes(owner)) {
           childVisible = true;
-        } else if (owner !== "constraints" && structural[previous] !== ")") {
+        } else if (owner === "constraints" && !callOwned) {
+          childVisible = false;
+        } else if (callOwned && owner === "add") {
+          childVisible = false;
+        } else if (callOwned) {
+          isRuntimeGradleConfiguration(owner);
+          childVisible = false;
+        } else {
           throw new Error(`Unsupported Gradle block in ${manifest}`);
         }
       }

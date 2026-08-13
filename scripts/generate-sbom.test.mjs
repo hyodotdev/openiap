@@ -640,6 +640,15 @@ test("an unmodelled Gradle coordinate fails instead of silently vanishing", (t) 
   );
   writeFileSync(
     resolve(scratch, "build.gradle.kts"),
+    'subprojects { dependencies { implementation("hidden:dependency:1.0.0") } }\n' +
+      'dependencies { implementation("real:dependency:2.0.0") }\n',
+  );
+  assert.throws(
+    () => extractGradle(scratch, { manifest: "build.gradle.kts" }),
+    /Unsupported nested dependencies block/u,
+  );
+  writeFileSync(
+    resolve(scratch, "build.gradle.kts"),
     'dependencies { implementation("real:dependency:2.0.0") { exclude(group = "fake") } }\n',
   );
   assert.deepEqual(
@@ -647,6 +656,14 @@ test("an unmodelled Gradle coordinate fails instead of silently vanishing", (t) 
       (entry) => entry.name,
     ),
     ["real:dependency"],
+  );
+  writeFileSync(
+    resolve(scratch, "build.gradle.kts"),
+    'dependencies { customContainer("value") { implementation("hidden:dependency:1.0.0") } }\n',
+  );
+  assert.throws(
+    () => extractGradle(scratch, { manifest: "build.gradle.kts" }),
+    /Unclassified Gradle dependency configuration/u,
   );
   writeFileSync(
     resolve(scratch, "build.gradle.kts"),
