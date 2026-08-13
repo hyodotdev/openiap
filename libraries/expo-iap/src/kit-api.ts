@@ -58,7 +58,8 @@ export type StatusResponse = {
 export type KitProductPlatform = "IOS" | "Android";
 
 export type KitProductClientPayload = {
-  format: "toml" | "json" | "text";
+  /** Current values are toml, json, and text; preserve unknown values. */
+  format: string;
   body: string;
   version: number;
   updatedAt: number;

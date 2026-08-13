@@ -130,8 +130,9 @@ X-OpenIAP-Spec: 3.2.0`}</CodeBlock>
           It is reported, never negotiated. IAPKit records it so a contract
           change can be measured against the versions actually calling, and
           never branches verification on it — a client cannot change how its
-          receipt is verified by claiming a version. The header is omitted when
-          the version cannot be read, which is not an error.
+          receipt is verified by claiming a version. SDK builds that support the
+          header always send their compile-time spec version; older builds omit
+          it.
         </p>
       </section>
 

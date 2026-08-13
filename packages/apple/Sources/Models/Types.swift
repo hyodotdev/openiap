@@ -738,10 +738,10 @@ public struct DiscountDisplayInfoAndroid: Codable {
 /// Standardized one-time product discount offer.
 /// Provides a platform-neutral OpenIAP shape for Google Play one-time product
 /// purchase options and offers.
-/// 
+///
 /// Currently populated only on Android (Google Play Billing 8.0+).
 /// iOS does not populate this type.
-/// 
+///
 /// @see https://openiap.dev/docs/types/discount-offer
 public struct DiscountOffer: Codable {
     /// Currency code (ISO 4217, e.g., "USD")
@@ -1239,7 +1239,7 @@ public struct RequestVerifyPurchaseWithIapkitResult: Codable {
     /// Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0.
     /// Amazon RVS environment selected by IAPKit. Present as `Sandbox` or
     /// `Production` on handled Amazon verification results.
-    /// 
+    ///
     /// Deliberately String, not an enum: the value space belongs to IAPKit and the
     /// stores behind it, and Apple's App Store Server alone also names `Xcode` and
     /// `LocalTesting`. SDKs must forward this value opaquely. Never reject a
@@ -1267,11 +1267,11 @@ public struct SubscriptionCommitmentInfoIOS: Codable {
 
 /// Standardized subscription discount/promotional offer.
 /// Provides a unified interface for subscription offers across iOS and Android.
-/// 
+///
 /// Both platforms support subscription offers with different implementations:
 /// - iOS: Introductory offers, promotional offers with server-side signatures
 /// - Android: Offer tokens with pricing phases
-/// 
+///
 /// @see https://openiap.dev/docs/types/subscription-offer
 public struct SubscriptionOffer: Codable {
     /// [Android] Base plan identifier.
@@ -1899,7 +1899,7 @@ public struct RequestPurchaseProps: Codable {
 }
 
 /// Platform-specific purchase request parameters.
-/// 
+///
 /// Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
 /// - apple: Always targets App Store
 /// - google: Targets Play Store by default, Horizon when built with horizon flavor,
@@ -2029,7 +2029,7 @@ public struct RequestSubscriptionIosProps: Codable {
 }
 
 /// Platform-specific subscription request parameters.
-/// 
+///
 /// Note: "Platforms" refers to the SDK/OS level (apple, google), not the store.
 /// - apple: Always targets App Store
 /// - google: Targets Play Store by default, Horizon when built with horizon flavor,
@@ -2097,7 +2097,7 @@ public struct RequestVerifyPurchaseWithIapkitGoogleProps: Codable {
 }
 
 /// Platform-specific verification parameters for IAPKit.
-/// 
+///
 /// - apple: Verifies via App Store (JWS token)
 /// - google: Verifies via Play Store (purchase token)
 /// - amazon: Verifies via Amazon Appstore RVS (userId + receiptId)
@@ -2171,7 +2171,7 @@ public struct VerifyPurchaseAppleOptions: Codable {
 
 /// Google Play Store verification parameters.
 /// Used for server-side receipt validation via Google Play Developer API.
-/// 
+///
 /// ⚠️ SECURITY: Contains sensitive tokens (accessToken, purchaseToken). Do not log or persist this data.
 public struct VerifyPurchaseGoogleOptions: Codable {
     /// Google OAuth2 access token for API authentication.
@@ -2205,7 +2205,7 @@ public struct VerifyPurchaseGoogleOptions: Codable {
 /// Meta Horizon (Quest) verification parameters.
 /// Used for server-side entitlement verification via Meta's S2S API.
 /// POST https://graph.oculus.com/$APP_ID/verify_entitlement
-/// 
+///
 /// ⚠️ SECURITY: Contains sensitive token (accessToken). Do not log or persist this data.
 public struct VerifyPurchaseHorizonOptions: Codable {
     /// Access token for Meta API authentication (OC|$APP_ID|$APP_SECRET or User Access Token).
@@ -2228,7 +2228,7 @@ public struct VerifyPurchaseHorizonOptions: Codable {
 }
 
 /// Platform-specific purchase verification parameters.
-/// 
+///
 /// - apple: Verifies via App Store Server API
 /// - google: Verifies via Google Play Developer API
 /// - horizon: Verifies via Meta's S2S API (verify_entitlement endpoint)
@@ -2837,7 +2837,7 @@ public protocol SubscriptionResolver {
     func purchaseUpdated(_ options: PurchaseUpdatedListenerOptions?) async throws -> Purchase
     /// Fires when a subscription enters a billing-issue state that needs user action
     /// (payment method failed, card expired, etc.). Cross-platform unification:
-    /// 
+    ///
     /// - iOS 16.4+ / Mac Catalyst 16.4+ / visionOS 1.0+: delivered via StoreKit 2
     ///   `Message.Reason.billingIssue`.
     /// - Android (Play flavor, Billing 8.1+): emitted when `isSuspended == true` is first detected
@@ -2846,7 +2846,7 @@ public protocol SubscriptionResolver {
     ///   the Play Billing 7.0 API surface which does not expose a suspended-subscription signal.
     /// - Android (Amazon flavor): NOT emitted. Amazon Appstore IAP does not expose an
     ///   equivalent subscription billing-issue signal.
-    /// 
+    ///
     /// Listeners should not assume the event will fire on every store. Direct users to the
     /// platform subscription management UI (`deepLinkToSubscriptions`) to resolve the issue.
     func subscriptionBillingIssue() async throws -> Purchase

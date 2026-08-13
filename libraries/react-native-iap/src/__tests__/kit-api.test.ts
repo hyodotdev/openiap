@@ -1,4 +1,4 @@
-import {kitApi, KitApiError} from '../kit-api';
+import {kitApi, KitApiError, type KitProductClientPayload} from '../kit-api';
 
 const payload = {
   clientPayload: {
@@ -351,8 +351,14 @@ describe('kitApi cache resilience', () => {
   // Evicting on an unknown format would kill ETag revalidation and offline
   // reads, for a value the live path forwards unchanged.
   it('serves a cached payload whose format this build predates', async () => {
+    const clientPayload: KitProductClientPayload = {
+      format: 'yaml',
+      body: 'tier: gold',
+      version: 2,
+      updatedAt: 9,
+    };
     const stored = {
-      clientPayload: {format: 'yaml', body: 'tier: gold', version: 2, updatedAt: 9},
+      clientPayload,
       etag: 'W/"cached"',
     };
     const cache = {

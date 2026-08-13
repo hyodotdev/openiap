@@ -106,8 +106,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         )
     }
 
-    /// `X-OpenIAP-Spec` reports the response contract this build was compiled
-    /// against. Reported, never negotiated: omitted when unreadable.
+    /// Reports the compile-time response contract; never used for negotiation.
     static func makeIapkitRequest(
         url: URL,
         apiKey: String?,
