@@ -79,6 +79,8 @@ class GodotIapHelperTest {
     fun `subscription replacement modes require complete concrete params`() {
         val invalidParams = listOf(
             """{"type":"subs","skus":["new"],"subscriptionProductReplacementParams":{}}""",
+            """{"type":"subs","skus":["new"],"subscriptionProductReplacementParams":{"oldProductId":7,"replacementMode":"without-proration"}}""",
+            """{"type":"subs","skus":["new"],"subscriptionProductReplacementParams":{"oldProductId":"   ","replacementMode":"without-proration"}}""",
             """{"type":"subs","skus":["new"],"subscriptionProductReplacementParams":{"oldProductId":"old"}}""",
             """{"type":"subs","skus":["new"],"subscriptionProductReplacementParams":{"oldProductId":"old","replacementMode":"future-mode"}}""",
             """{"type":"subs","skus":["new"],"subscriptionProductReplacementParams":{"oldProductId":"old","replacementMode":"unknown-replacement-mode"}}""",

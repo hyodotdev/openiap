@@ -133,7 +133,7 @@ internal object GodotIapHelper {
         ) {
             val paramsObj = json.optJSONObject("subscriptionProductReplacementParams")
                 ?: throw IllegalArgumentException("subscriptionProductReplacementParams must be an object")
-            val oldProductId = paramsObj.optString("oldProductId").takeIf { it.isNotEmpty() }
+            val oldProductId = paramsObj.optStringOrNull("oldProductId")?.takeIf { it.isNotBlank() }
                 ?: throw IllegalArgumentException("subscriptionProductReplacementParams.oldProductId is required")
             val mode = paramsObj.optString("replacementMode").takeIf { it.isNotEmpty() }
             val parsedMode = parseSubscriptionReplacementMode(mode)
