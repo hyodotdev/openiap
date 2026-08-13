@@ -1,5 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
+  AppStoreProductType,
+  AppStoreTransactionReason,
   mapAppStorePurchaseState,
   mapGooglePlayPurchaseState,
   mapToPurchaseType,
@@ -213,6 +215,83 @@ describe("mapAppStorePurchaseState", () => {
 
     expect(state).toBe(HarmonizedPurchaseState.EXPIRED);
   });
+
+  // Golden table. Every row decides what a published app sees for a real
+  // App Store transaction, and IAPKit ships without an SDK release, so a
+  // mapping change has to show up here as an explicit diff.
+  const APP_STORE_GOLDEN: Array<{
+    label: string;
+    reason?: AppStoreTransactionReason;
+    expiresDate?: number;
+    type?: AppStoreProductType;
+    revocationDate?: number;
+    expected: HarmonizedPurchaseState;
+  }> = [
+    {
+      label: "revoked transaction outranks everything else",
+      reason: AppStoreTransactionReason.PURCHASE,
+      revocationDate: 1_700_000_000_000,
+      type: AppStoreProductType.NON_CONSUMABLE,
+      expected: HarmonizedPurchaseState.CANCELED,
+    },
+    {
+      label: "lapsed subscription",
+      reason: AppStoreTransactionReason.RENEWAL,
+      expiresDate: 1_700_000_000_000,
+      type: AppStoreProductType.AUTO_RENEWABLE_SUBSCRIPTION,
+      expected: HarmonizedPurchaseState.EXPIRED,
+    },
+    {
+      label: "first purchase of a consumable",
+      reason: AppStoreTransactionReason.PURCHASE,
+      type: AppStoreProductType.CONSUMABLE,
+      expected: HarmonizedPurchaseState.READY_TO_CONSUME,
+    },
+    {
+      label: "first purchase of a non-consumable",
+      reason: AppStoreTransactionReason.PURCHASE,
+      type: AppStoreProductType.NON_CONSUMABLE,
+      expected: HarmonizedPurchaseState.ENTITLED,
+    },
+    {
+      label: "subscription renewal",
+      reason: AppStoreTransactionReason.RENEWAL,
+      type: AppStoreProductType.AUTO_RENEWABLE_SUBSCRIPTION,
+      expected: HarmonizedPurchaseState.ENTITLED,
+    },
+    {
+      label: "renewal of a consumable is still a renewal",
+      reason: AppStoreTransactionReason.RENEWAL,
+      type: AppStoreProductType.CONSUMABLE,
+      expected: HarmonizedPurchaseState.ENTITLED,
+    },
+    {
+      label: "consumable without a transaction reason",
+      type: AppStoreProductType.CONSUMABLE,
+      expected: HarmonizedPurchaseState.READY_TO_CONSUME,
+    },
+    {
+      label: "non-renewing subscription without a transaction reason",
+      type: AppStoreProductType.NON_RENEWING_SUBSCRIPTION,
+      expected: HarmonizedPurchaseState.ENTITLED,
+    },
+    {
+      label: "unexpired transaction with nothing else known",
+      expiresDate: Date.now() + 86_400_000,
+      expected: HarmonizedPurchaseState.ENTITLED,
+    },
+  ];
+
+  it.each(APP_STORE_GOLDEN)("maps $label", (row) => {
+    expect(
+      mapAppStorePurchaseState(
+        row.reason,
+        row.expiresDate,
+        row.type,
+        row.revocationDate,
+      ),
+    ).toBe(row.expected);
+  });
 });
 
 describe("isValidState", () => {
@@ -252,5 +331,22 @@ describe("isValidState", () => {
 
   it("returns false for INAUTHENTIC state", () => {
     expect(isValidState(HarmonizedPurchaseState.INAUTHENTIC)).toBe(false);
+  });
+
+  // `isValid` is the field every SDK gates entitlement on, and IAPKit deploys
+  // from main without an SDK release — widening or narrowing this set changes
+  // what already-published apps unlock, for every user, immediately. Pinning
+  // the whole set (rather than testing states one by one) means a state added
+  // later cannot default into either answer unnoticed.
+  it("entitles exactly these states", () => {
+    const entitling = Object.values(HarmonizedPurchaseState).filter(
+      isValidState,
+    );
+
+    expect(entitling).toEqual([
+      HarmonizedPurchaseState.ENTITLED,
+      HarmonizedPurchaseState.PENDING_ACKNOWLEDGMENT,
+      HarmonizedPurchaseState.READY_TO_CONSUME,
+    ]);
   });
 });
