@@ -10,6 +10,7 @@ import UIKit
 @MainActor
 public final class ExpoIapModule: Module {
     private var isInitialized = false
+    private var listenerGeneration: UInt64?
 
     nonisolated public func definition() -> ModuleDefinition {
         Name("ExpoIap")
@@ -25,21 +26,26 @@ public final class ExpoIapModule: Module {
             IapEvent.subscriptionBillingIssue.rawValue
         )
 
-        OnCreate {
-            Task { @MainActor in
-                ExpoIapHelper.setupStore(module: self)
+        OnCreate { [weak self] in
+            Task { @MainActor [weak self] in
+                guard let self else { return }
+                self.listenerGeneration = ExpoIapHelper.setupStore(module: self)
             }
         }
 
-        OnDestroy {
-            Task { @MainActor in
-                await ExpoIapHelper.cleanupStore()
+        OnDestroy { [weak self] in
+            guard let self else { return }
+            Task { @MainActor [self] in
+                guard let listenerGeneration = self.listenerGeneration else { return }
+                self.listenerGeneration = nil
+                await ExpoIapHelper.cleanupStore(listenerGeneration: listenerGeneration)
             }
         }
 
         AsyncFunction("initConnection") { (config: [String: Any]?) async throws -> Bool in
             // Note: iOS doesn't support alternative billing config parameter
             // Config is ignored on iOS platform
+            await ExpoIapHelper.waitForStoreCleanup()
             let isConnected = try await OpenIapModule.shared.initConnection()
             await MainActor.run { self.isInitialized = isConnected }
             return isConnected

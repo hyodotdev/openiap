@@ -40,6 +40,12 @@ enum ExpoIapHelper {
     private static var purchaseUpdatedSub: OpenIAP.Subscription?
     private static var purchaseUpdatedHandler: ((Purchase) -> Void)?
     private static var purchaseUpdatedOptions = PurchaseUpdatedListenerOptions()
+    private static var listenerGeneration: UInt64 = 0
+    private static var activeListenerGeneration: UInt64?
+    private static var pendingConnectionCleanup: (
+        generation: UInt64,
+        task: Task<Void, Never>
+    )?
 
     static func sanitizeDictionary(_ dictionary: [String: Any?]) -> [String: Any] {
         var result: [String: Any] = [:]
@@ -170,17 +176,18 @@ enum ExpoIapHelper {
     }
 
     static func setupListeners(
-        module: ExpoIapModule,
         purchaseUpdated: @escaping (Purchase) -> Void,
         purchaseError: @escaping (PurchaseError) -> Void,
         promotedProduct: @escaping (String) async -> Void,
         subscriptionBillingIssue: @escaping (Purchase) -> Void
-    ) {
+    ) -> UInt64 {
         listenerLock.lock()
         defer { listenerLock.unlock() }
 
-        // Clean up any existing listeners first
         cleanupListenersLocked()
+        listenerGeneration &+= 1
+        let generation = listenerGeneration
+        activeListenerGeneration = generation
 
         purchaseUpdatedHandler = purchaseUpdated
         attachPurchaseUpdatedListenerLocked()
@@ -208,6 +215,7 @@ enum ExpoIapHelper {
             promotedProductSub,
             billingIssueSub,
         ]
+        return generation
     }
 
     static func setPurchaseUpdatedListenerOptions(_ options: PurchaseUpdatedListenerOptions?) {
@@ -233,11 +241,37 @@ enum ExpoIapHelper {
         }, options: purchaseUpdatedOptions)
     }
 
-    static func cleanupListeners() {
+    private static func beginStoreCleanup(
+        ifOwnedBy listenerGeneration: UInt64
+    ) -> Task<Void, Never>? {
         listenerLock.lock()
         defer { listenerLock.unlock() }
 
+        guard activeListenerGeneration == listenerGeneration else { return nil }
         cleanupListenersLocked()
+        activeListenerGeneration = nil
+        let previousTask = pendingConnectionCleanup?.task
+        let task = Task {
+            await previousTask?.value
+            _ = try? await OpenIapModule.shared.endConnection()
+        }
+        pendingConnectionCleanup = (listenerGeneration, task)
+        return task
+    }
+
+    private static func pendingConnectionCleanupTask() -> Task<Void, Never>? {
+        listenerLock.lock()
+        defer { listenerLock.unlock() }
+
+        return pendingConnectionCleanup?.task
+    }
+
+    private static func finishStoreCleanup(listenerGeneration: UInt64) {
+        listenerLock.lock()
+        defer { listenerLock.unlock() }
+
+        guard pendingConnectionCleanup?.generation == listenerGeneration else { return }
+        pendingConnectionCleanup = nil
     }
 
     private static func cleanupListenersLocked() {
@@ -253,9 +287,8 @@ enum ExpoIapHelper {
         purchaseUpdatedOptions = PurchaseUpdatedListenerOptions()
     }
 
-    static func setupStore(module: ExpoIapModule) {
+    static func setupStore(module: ExpoIapModule) -> UInt64 {
         setupListeners(
-            module: module,
             purchaseUpdated: { [weak module] purchase in
                 guard let module else { return }
                 let payload = sanitizeDictionary(OpenIapSerialization.purchase(purchase))
@@ -291,8 +324,13 @@ enum ExpoIapHelper {
         )
     }
 
-    static func cleanupStore() async {
-        cleanupListeners()
-        _ = try? await OpenIapModule.shared.endConnection()
+    static func cleanupStore(listenerGeneration: UInt64) async {
+        guard let task = beginStoreCleanup(ifOwnedBy: listenerGeneration) else { return }
+        await task.value
+        finishStoreCleanup(listenerGeneration: listenerGeneration)
+    }
+
+    static func waitForStoreCleanup() async {
+        await pendingConnectionCleanupTask()?.value
     }
 }
