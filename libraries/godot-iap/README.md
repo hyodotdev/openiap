@@ -35,6 +35,12 @@ Visit the [documentation site](https://openiap.dev/docs/setup/godot) for [instal
 2. Extract and copy `addons/godot-iap/` to your project's `addons/` folder
 3. Enable the plugin in **Project → Project Settings → Plugins**
 
+> [!IMPORTANT]
+> For iOS exports, set `application/min_ios_version` to `17.0` or later. The
+> bundled `GodotIap.framework` and `SwiftGodotRuntime.framework` inherit the
+> SwiftGodot iOS 17 minimum; a lower export preset does not back-deploy them and
+> can terminate the app before startup.
+
 Native Apple API availability is fixed when the pre-built
 `GodotIap.framework` is compiled. Release artifacts use the current
 App Store-accepted stable Xcode toolchain; CI rejects frameworks carrying an

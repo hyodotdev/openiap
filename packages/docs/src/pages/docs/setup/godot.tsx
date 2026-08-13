@@ -43,6 +43,14 @@ function GodotSetup() {
             Android: Android SDK with <strong>API level 24+</strong>
           </li>
         </ul>
+        <Callout kind="warning" title="iOS 17 is required">
+          The release zip includes <code>GodotIap.framework</code> and{' '}
+          <code>SwiftGodotRuntime.framework</code> built for iOS 17 because
+          SwiftGodot requires that deployment target. Set{' '}
+          <code>application/min_ios_version</code> to <code>17.0</code> or
+          later. A lower export preset does not back-deploy the frameworks and
+          can cause the app to terminate before startup.
+        </Callout>
       </section>
 
       <section>
