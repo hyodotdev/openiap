@@ -131,6 +131,15 @@ public class EnumJsonTests
             """{"categories":"transactional"}"""));
     }
 
+    [Fact]
+    public void RequestEnumInputs_RejectNonStringTokensAsJsonErrors()
+    {
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<DeveloperBillingOptionParamsAndroid>(
+            """{"billingProgram":7}"""));
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<InitConnectionConfig>(
+            """{"enableBillingProgramAndroid":true}"""));
+    }
+
     [Theory]
     [InlineData(ProductType.InApp, "in-app")]
     [InlineData(ProductType.Subs, "subs")]

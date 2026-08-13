@@ -27,6 +27,7 @@ public sealed class StrictEnumJsonConverter<TEnum, TConverter> : JsonConverter<T
 
     public override TEnum Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
+        if (reader.TokenType != JsonTokenType.String) throw new JsonException($"Expected a string {typeof(TEnum).Name} input value.");
         var raw = reader.GetString();
         if (raw is not null && Converter.TryReadRaw(raw, out var value)) return value;
         throw new JsonException($"Unknown {typeof(TEnum).Name} input value: {raw}");
@@ -44,6 +45,7 @@ public sealed class StrictNullableEnumJsonConverter<TEnum, TConverter> : JsonCon
 
     public override TEnum? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
     {
+        if (reader.TokenType != JsonTokenType.String) throw new JsonException($"Expected a string {typeof(TEnum).Name} input value.");
         var raw = reader.GetString();
         if (raw is not null && Converter.TryReadRaw(raw, out var value)) return value;
         throw new JsonException($"Unknown {typeof(TEnum).Name} input value: {raw}");

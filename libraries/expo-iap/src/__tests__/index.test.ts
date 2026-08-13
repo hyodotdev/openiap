@@ -738,7 +738,10 @@ describe('Public API (index.ts)', () => {
           request: {google: {skus: ['x']}} as any,
           type: 'all' as any,
         }),
-      ).rejects.toThrow(/only supported for product queries/);
+      ).rejects.toMatchObject({
+        code: ErrorCode.DeveloperError,
+        message: expect.stringMatching(/only supported for product queries/),
+      });
     });
 
     it('Android subscription requests require skus array', async () => {

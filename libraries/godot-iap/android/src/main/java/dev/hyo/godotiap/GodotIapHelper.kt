@@ -111,6 +111,9 @@ internal object GodotIapHelper {
             }
             skus.add(sku)
         }
+        if (skus.isEmpty()) {
+            throw IllegalArgumentException("skus must contain at least one product id")
+        }
 
         val obfuscatedAccountId = json.optStringOrNull("obfuscatedAccountId")
         val obfuscatedProfileId = json.optStringOrNull("obfuscatedProfileId")

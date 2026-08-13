@@ -118,6 +118,7 @@ class GodotIapHelperTest {
     fun `purchase lists reject malformed explicit entries`() {
         listOf(
             """{"type":"subs","skus":"monthly"}""",
+            """{"type":"subs","skus":[]}""",
             """{"type":"subs","skus":["monthly",7]}""",
             """{"type":"subs","skus":[""]}""",
             """{"type":"subs","skus":["monthly"],"obfuscatedAccountId":7}""",

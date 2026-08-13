@@ -529,6 +529,8 @@ func request_purchase(props) -> Variant:
 func _is_nonempty_string_array(value) -> bool:
 	if not value is Array:
 		return false
+	if value.is_empty():
+		return false
 	for item in value:
 		if not item is String or item.is_empty():
 			return false

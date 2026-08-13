@@ -360,6 +360,7 @@ describe('unknown enum decoder compatibility', () => {
     expect(output).not.toContain('InputPayloadNullableJsonConverter');
     expect(output).toContain('[JsonConverter(typeof(PayloadNullableJsonConverter))]');
     expect(output).toContain('public sealed class StrictEnumJsonConverter<TEnum, TConverter>');
+    expect(output.match(/reader\.TokenType != JsonTokenType\.String/g)).toHaveLength(2);
     expect(output).toContain(
       '[JsonConverter(typeof(StrictEnumJsonConverter<TolerantStatus, TolerantStatusJsonConverter>))]',
     );

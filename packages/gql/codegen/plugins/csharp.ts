@@ -261,6 +261,7 @@ export class CSharpPlugin extends CodegenPlugin {
     this.emit('');
     this.emit('    public override TEnum Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)');
     this.emit('    {');
+    this.emit('        if (reader.TokenType != JsonTokenType.String) throw new JsonException($"Expected a string {typeof(TEnum).Name} input value.");');
     this.emit('        var raw = reader.GetString();');
     this.emit('        if (raw is not null && Converter.TryReadRaw(raw, out var value)) return value;');
     this.emit('        throw new JsonException($"Unknown {typeof(TEnum).Name} input value: {raw}");');
@@ -278,6 +279,7 @@ export class CSharpPlugin extends CodegenPlugin {
     this.emit('');
     this.emit('    public override TEnum? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)');
     this.emit('    {');
+    this.emit('        if (reader.TokenType != JsonTokenType.String) throw new JsonException($"Expected a string {typeof(TEnum).Name} input value.");');
     this.emit('        var raw = reader.GetString();');
     this.emit('        if (raw is not null && Converter.TryReadRaw(raw, out var value)) return value;');
     this.emit('        throw new JsonException($"Unknown {typeof(TEnum).Name} input value: {raw}");');

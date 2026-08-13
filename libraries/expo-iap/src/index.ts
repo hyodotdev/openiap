@@ -986,7 +986,10 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
   const {request, type} = args;
   const {canonical, native} = normalizeProductType(type as ProductTypeInput);
   if (canonical === 'all') {
-    throw new Error('Product type all is only supported for product queries.');
+    throw createPurchaseError({
+      code: ErrorCode.DeveloperError,
+      message: 'Product type all is only supported for product queries.',
+    });
   }
   const isInAppPurchase = canonical === 'in-app';
 

@@ -272,6 +272,7 @@ func test_android_purchase_lists_fail_closed() -> void:
 	GodotIapPlugin._platform = "Android"
 
 	var invalid_google_payloads = [
+		{"skus": []},
 		{"skus": ["monthly", 7]},
 		{"skus": ["coins"], "offerToken": 7},
 		{"skus": ["monthly"], "offerToken": "one-time-token"},

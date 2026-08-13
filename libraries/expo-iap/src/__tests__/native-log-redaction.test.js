@@ -112,6 +112,7 @@ describe('native log redaction', () => {
       purchaseBlock.indexOf('try await ensureObserverRegistered()'),
     );
     expect(onsideModule).toContain('switch (request.type, request.request)');
+    expect(fetchBlock).toContain('decodeProductRequest(from: params)');
     expect(
       fetchBlock.indexOf('decodeProductRequest(from: params)'),
     ).toBeLessThan(fetchBlock.indexOf('try await ensureObserverRegistered()'));
