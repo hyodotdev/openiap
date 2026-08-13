@@ -65,7 +65,7 @@ const createService = (): jest.Mocked<VegaPurchasingService> =>
     notifyFulfillment: jest.fn(async () => ({
       responseCode: 1,
     })),
-  }) as unknown as jest.Mocked<VegaPurchasingService>;
+  } as unknown as jest.Mocked<VegaPurchasingService>);
 
 describe('Amazon Vega Expo adapter', () => {
   it('initializes without fetching Amazon user data', async () => {
@@ -266,6 +266,61 @@ describe('Amazon Vega Expo adapter', () => {
     expect(service.notifyFulfillment).toHaveBeenCalledWith({
       fulfillmentResult: 1,
       receiptId: 'receipt-1',
+    });
+  });
+
+  it('supports subscription checks and consumption', async () => {
+    const service = createService();
+    const module = createExpoIapVegaModule(service);
+
+    await expect(module.hasActiveSubscriptions()).resolves.toBe(true);
+    await expect(
+      module.consumePurchaseAndroid('sub-receipt'),
+    ).resolves.toBeUndefined();
+
+    expect(service.notifyFulfillment).toHaveBeenCalledWith({
+      fulfillmentResult: 1,
+      receiptId: 'sub-receipt',
+    });
+  });
+
+  it('clears cached state and removed listeners on disconnect', async () => {
+    const service = createService();
+    const module = createExpoIapVegaModule(service);
+    const subscriptionListener = jest.fn();
+    const directListener = jest.fn();
+    const subscription = module.addListener(
+      'purchase-updated',
+      subscriptionListener,
+    );
+    module.addListener('purchase-updated', directListener);
+
+    await module.getStorefront();
+    subscription.remove();
+    module.removeListener('purchase-updated', directListener);
+    await module.requestPurchase({skus: ['coins_100'], type: 'in-app'});
+    await expect(module.endConnection()).resolves.toBe(true);
+    await module.getStorefront();
+
+    expect(subscriptionListener).not.toHaveBeenCalled();
+    expect(directListener).not.toHaveBeenCalled();
+    expect(service.getUserData).toHaveBeenCalledTimes(2);
+  });
+
+  it('normalizes non-error purchase failures for listeners', async () => {
+    const service = createService();
+    service.purchase.mockRejectedValueOnce('purchase failed');
+    const module = createExpoIapVegaModule(service);
+    const listener = jest.fn();
+    module.addListener('purchase-error', listener);
+
+    await expect(
+      module.requestPurchase({skus: ['coins_100'], type: 'in-app'}),
+    ).rejects.toBe('purchase failed');
+    expect(listener).toHaveBeenCalledWith({
+      code: ErrorCode.PurchaseError,
+      message: 'Failed to complete Amazon Vega purchase',
+      productId: 'coins_100',
     });
   });
 
