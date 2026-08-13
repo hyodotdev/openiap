@@ -26,6 +26,8 @@ class IapkitBaseUrlBridgeTest {
         assertTrue(androidSource.contains("expectedProductId = amazon.expectedProductId"))
         assertTrue(androidSource.contains("environment = androidResult.environment"))
         assertTrue(iosSource.contains("environment = environment"))
-        assertTrue(iosSource.contains("\"Sandbox\", \"Production\""))
+        // Forwarded opaquely: `environment` is String in the spec, so narrowing
+        // it here would fail a receipt IAPKit already confirmed.
+        assertTrue(iosSource.contains("map[\"environment\"] as? String"))
     }
 }

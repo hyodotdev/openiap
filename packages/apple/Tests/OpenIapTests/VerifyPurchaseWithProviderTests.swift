@@ -165,10 +165,20 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
         XCTAssertEqual("POST", request.httpMethod)
         XCTAssertEqual("application/json", request.value(forHTTPHeaderField: "Content-Type"))
         XCTAssertEqual("Bearer iapkit_pk_test", request.value(forHTTPHeaderField: "Authorization"))
-        XCTAssertEqual(
-            OpenIapVersion.specVersionIfAvailable,
-            request.value(forHTTPHeaderField: "X-OpenIAP-Spec")
-        )
+        // The header is present exactly when the version resolves, and carries a
+        // semver when it does. It cannot be asserted unconditionally: SwiftPM
+        // copies `Sources/openiap-versions.json` as the symlink it is, which
+        // dangles inside the built bundle, so `Bundle.module` finds nothing
+        // under `swift test`. That is why the accessor is optional and the
+        // header is omitted rather than trapping.
+        let header = request.value(forHTTPHeaderField: "X-OpenIAP-Spec")
+        XCTAssertEqual(OpenIapVersion.specVersionIfAvailable, header)
+        if let header {
+            XCTAssertNotNil(
+                header.range(of: #"^\d+\.\d+\.\d+"#, options: .regularExpression),
+                "X-OpenIAP-Spec must carry a semver, got \(header)"
+            )
+        }
         XCTAssertEqual(Data("{}".utf8), request.httpBody)
     }
 

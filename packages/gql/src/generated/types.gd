@@ -2755,7 +2755,7 @@ class RentalDetailsAndroid:
 
 class RequestVerifyPurchaseWithIapkitResult:
 	var store: IapStore
-	## Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0. Amazon RVS environment selected by IAPKit. Present as `Sandbox` or `Production` on handled Amazon verification results.
+	## Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 / openiap-google 3.3.0. Amazon RVS environment selected by IAPKit. Present as `Sandbox` or `Production` on handled Amazon verification results.  Deliberately String, not an enum: the value space belongs to IAPKit and the stores behind it, and Apple's App Store Server alone also names `Xcode` and `LocalTesting`. SDKs must forward this value opaquely. Never reject a verification because the environment is unrecognised — that fails a purchase the store already confirmed.
 	var environment: Variant = null
 	## True when the purchase is valid and actionable. Only entitled, pending-acknowledgment, or ready-to-consume return true. Callers must still match productId and use the platform plus app-owned product type to choose the fulfillment path.
 	var is_valid: bool = false
