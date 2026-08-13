@@ -1,7 +1,13 @@
-import { describe, expect, test } from "vitest";
+import { afterEach, describe, expect, test, vi } from "vitest";
 import { Hono } from "hono";
 
+import {
+  IAPKIT_MCP_LOOPBACK_HEADER,
+  kitClient,
+} from "@hyodotdev/openiap-mcp-server/kit-client";
+
 import { apiKeyMiddleware } from "./middleware";
+import { mcpRateLimitResponse } from "../../mcp";
 import {
   getRequestIp,
   hashApiKey,
@@ -12,6 +18,10 @@ import {
   tryConsume,
   type Bucket,
 } from "./rate-limit";
+
+afterEach(() => {
+  vi.unstubAllGlobals();
+});
 
 describe("getRequestIp", () => {
   test("trusts Fly's ingress header over caller-controlled forwarding headers", async () => {
@@ -435,6 +445,98 @@ describe("multiAxisRateLimitMiddleware", () => {
     }
     expect(keyStore.size).toBe(3);
   });
+
+  test("skips only the IP axis for trusted MCP loopback calls", async () => {
+    const trusted = buildMultiAxisApp({
+      keyCapacity: 10,
+      ipCapacity: 1,
+      globalCapacity: 10,
+    });
+    const request = (app: Hono, key: string, remoteAddress: string) =>
+      app.request(
+        "/public",
+        {
+          headers: {
+            authorization: `Bearer ${key}`,
+            "x-test-ip": "shared-ip",
+            [IAPKIT_MCP_LOOPBACK_HEADER]: "1",
+          },
+        },
+        { requestIP: () => ({ address: remoteAddress }) },
+      );
+
+    expect((await request(trusted.app, "key-a", "127.0.0.1")).status).toBe(200);
+    expect((await request(trusted.app, "key-b", "127.0.0.1")).status).toBe(200);
+    expect(trusted.ipStore.size).toBe(0);
+    expect(trusted.keyStore.size).toBe(2);
+    expect(trusted.globalStore.size).toBe(1);
+
+    const spoofed = buildMultiAxisApp({
+      keyCapacity: 10,
+      ipCapacity: 1,
+      globalCapacity: 10,
+    });
+    expect((await request(spoofed.app, "key-a", "203.0.113.9")).status).toBe(
+      200,
+    );
+    const denied = await request(spoofed.app, "key-b", "203.0.113.9");
+    expect(denied.status).toBe(429);
+    expect(denied.headers.get("x-ratelimit-scope")).toBe("ip");
+  });
+
+  test("composes loopback kitClient calls without a shared inner IP bucket", async () => {
+    const keyStore = new Map<string, Bucket>();
+    const ipStore = new Map<string, Bucket>();
+    const globalStore = new Map<string, Bucket>();
+    const app = new Hono();
+    app.get(
+      "/v1/products",
+      apiKeyMiddleware,
+      multiAxisRateLimitMiddleware({
+        now: () => 1_000,
+        getIp: () => "unknown",
+        key: {
+          capacity: 10,
+          refillPerSecond: 1,
+          maxStoreSize: 10,
+          store: keyStore,
+        },
+        ip: {
+          capacity: 1,
+          refillPerSecond: 1,
+          maxStoreSize: 10,
+          store: ipStore,
+        },
+        global: {
+          capacity: 10,
+          refillPerSecond: 1,
+          maxStoreSize: 1,
+          store: globalStore,
+        },
+      }),
+      (c) => c.json({ products: [], hasMore: false }),
+    );
+    vi.stubGlobal(
+      "fetch",
+      (input: string | URL | Request, init?: RequestInit) =>
+        app.request(new Request(input, init), undefined, {
+          requestIP: () => ({ address: "127.0.0.1" }),
+        }),
+    );
+
+    await kitClient({
+      apiKey: "openiap-kit_sk_a",
+      baseUrl: "http://127.0.0.1:3000",
+    }).listProducts();
+    await kitClient({
+      apiKey: "openiap-kit_sk_b",
+      baseUrl: "http://127.0.0.1:3000",
+    }).listProducts();
+
+    expect(keyStore.size).toBe(2);
+    expect(ipStore.size).toBe(0);
+    expect(globalStore.size).toBe(1);
+  });
 });
 
 describe("sourceRateLimitMiddleware", () => {
@@ -517,5 +619,50 @@ describe("sourceRateLimitMiddleware", () => {
     expect(first.status).toBe(200);
     expect(limited.status).toBe(429);
     expect(limited.headers.get("X-RateLimit-Scope")).toBe("global");
+  });
+
+  test("adds MCP CORS headers to rate-limit responses", async () => {
+    const app = new Hono();
+    app.post(
+      "/mcp",
+      sourceRateLimitMiddleware({
+        now: () => 1_000,
+        getIp: () => "203.0.113.1",
+        ip: {
+          capacity: 1,
+          refillPerSecond: 1,
+          maxStoreSize: 10,
+          store: new Map<string, Bucket>(),
+        },
+        global: {
+          capacity: 10,
+          refillPerSecond: 1,
+          maxStoreSize: 1,
+          store: new Map<string, Bucket>(),
+        },
+        respond: mcpRateLimitResponse,
+      }),
+      (c) => c.json({ ok: true }),
+    );
+    const request = () =>
+      app.request("/mcp", {
+        method: "POST",
+        headers: { origin: "https://chatgpt.com" },
+      });
+
+    expect((await request()).status).toBe(200);
+    const limited = await request();
+    expect(limited.status).toBe(429);
+    expect(limited.headers.get("access-control-allow-origin")).toBe(
+      "https://chatgpt.com",
+    );
+    expect(limited.headers.get("retry-after")).toBe("1");
+    expect(limited.headers.get("access-control-expose-headers")).toContain(
+      "retry-after",
+    );
+    await expect(limited.json()).resolves.toMatchObject({
+      jsonrpc: "2.0",
+      error: { code: -32000 },
+    });
   });
 });

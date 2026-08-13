@@ -75,8 +75,7 @@ describe("IAPKit MCP route handler", () => {
     await expect(response.json()).resolves.toMatchObject({
       error: {
         code: -32003,
-        message:
-          "This operation requires a secret admin key. Publishable mobile keys cannot access MCP administrative operations.",
+        message: expect.stringContaining("openiap-kit_sk_"),
       },
     });
   });

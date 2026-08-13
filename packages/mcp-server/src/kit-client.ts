@@ -3,6 +3,23 @@
 // failure mode (kit unreachable, bad apiKey, validation errors) is the
 // same shape across every tool.
 
+import type {
+  EntitlementsResponse,
+  KitClientPayloadStateResponse,
+  KitMetricsResponse as SharedKitMetricsResponse,
+  KitMrrCurrencyEntry as SharedKitMrrCurrencyEntry,
+  KitProductsResponse as SharedKitProductsResponse,
+  KitProductStateResponse,
+  KitProductSyncJobResponse,
+  KitProductSyncResponse,
+  KitProductUpsertResponse,
+  KitRemoveClientPayloadResponse,
+  KitRevenueMetricsResponse,
+  KitSetClientPayloadResponse,
+  KitSubscriptionsResponse,
+  StatusResponse,
+} from "@hyodotdev/openiap-gql/kit-api";
+
 export type KitClientOptions = {
   baseUrl?: string;
   apiKey: string;
@@ -14,29 +31,9 @@ export interface KitProductListParams {
   cursor?: string;
 }
 
-export interface KitProductsResponse {
-  products: unknown[];
-  hasMore: boolean;
-  nextCursor?: string;
-}
-
-export interface KitMrrCurrencyEntry {
-  currency: string;
-  mrrMicros: number;
-}
-
-export interface KitMetricsResponse {
-  activeSubs: number;
-  inGracePeriod: number;
-  inBillingRetry: number;
-  refunded30d: number;
-  canceled30d: number;
-  mrrMicros: number;
-  currency: string;
-  reportingCurrency: string;
-  mrrByCurrency: KitMrrCurrencyEntry[];
-  excludedMrrByCurrency: KitMrrCurrencyEntry[];
-}
+export type KitProductsResponse = SharedKitProductsResponse;
+export type KitMetricsResponse = SharedKitMetricsResponse;
+export type KitMrrCurrencyEntry = SharedKitMrrCurrencyEntry;
 
 export interface KitHealthResponse {
   ok: true;
@@ -49,6 +46,7 @@ export interface KitHealthResponse {
 }
 
 const DEFAULT_BASE_URL = "https://kit.openiap.dev";
+export const IAPKIT_MCP_LOOPBACK_HEADER = "x-iapkit-mcp-loopback";
 
 export function normalizeKitBaseUrl(baseUrl?: string): string {
   let url: URL;
@@ -95,6 +93,12 @@ export class KitHttpError extends Error {
 
 export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
   const root = normalizeKitBaseUrl(baseUrl);
+  const hostname = new URL(root).hostname;
+  const loopback =
+    hostname === "localhost" ||
+    hostname === "127.0.0.1" ||
+    hostname === "[::1]" ||
+    hostname === "::1";
 
   async function call<T>(path: string, init: RequestInit = {}): Promise<T> {
     const response = await fetch(`${root}${path}`, {
@@ -102,6 +106,7 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
       headers: {
         "content-type": "application/json",
         accept: "application/json",
+        ...(loopback ? { [IAPKIT_MCP_LOOPBACK_HEADER]: "1" } : {}),
         ...(init.headers as Record<string, string> | undefined),
       },
     });
@@ -140,15 +145,13 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
     apiKey,
     baseUrl: root,
     status: (userId: string) =>
-      adminCall<{ active: boolean; subscription: unknown }>(
+      adminCall<StatusResponse>(
         `/v1/subscriptions/status?userId=${encodeURIComponent(userId)}`,
       ),
     entitlements: (userId: string) =>
-      adminCall<{
-        userId: string;
-        productIds: string[];
-        subscriptions: unknown[];
-      }>(`/v1/subscriptions/entitlements?userId=${encodeURIComponent(userId)}`),
+      adminCall<EntitlementsResponse>(
+        `/v1/subscriptions/entitlements?userId=${encodeURIComponent(userId)}`,
+      ),
     listSubscriptions: (params: {
       state?: string;
       productId?: string;
@@ -161,7 +164,7 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
       if (params.userId) usp.set("userId", params.userId);
       if (params.limit) usp.set("limit", String(params.limit));
       const qs = usp.toString();
-      return adminCall<{ items: unknown[]; total: number }>(
+      return adminCall<KitSubscriptionsResponse>(
         `/v1/subscriptions/list${qs ? `?${qs}` : ""}`,
       );
     },
@@ -171,24 +174,9 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
         fromDay: params.fromDay,
         toDay: params.toDay,
       });
-      return adminCall<{
-        days: Array<{
-          day: string;
-          currency: string;
-          productId: string;
-          platform: "IOS" | "Android";
-          activeSubs: number;
-          newSubs: number;
-          renewals: number;
-          cancellations: number;
-          refunds: number;
-          revenueMicros: number;
-        }>;
-        currencies: string[];
-        productIds: string[];
-        platforms: Array<"IOS" | "Android">;
-        truncated: boolean;
-      }>(`/v1/subscriptions/revenue?${usp.toString()}`);
+      return adminCall<KitRevenueMetricsResponse>(
+        `/v1/subscriptions/revenue?${usp.toString()}`,
+      );
     },
     listProducts: (params: KitProductListParams = {}) => {
       const usp = new URLSearchParams();
@@ -218,7 +206,7 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
       subscriptionGroupName?: string;
       reviewNote?: string;
     }) =>
-      adminCall<{ id: string; created: boolean }>("/v1/products", {
+      adminCall<KitProductUpsertResponse>("/v1/products", {
         method: "POST",
         body: JSON.stringify(product),
       }),
@@ -227,7 +215,7 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
       platform: "IOS" | "Android";
       state: "Draft" | "Ready" | "Active" | "Removed";
     }) =>
-      adminCall<{ id: string; state: string }>("/v1/products/state", {
+      adminCall<KitProductStateResponse>("/v1/products/state", {
         method: "POST",
         body: JSON.stringify(params),
       }),
@@ -235,16 +223,7 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
       productId: string;
       platform: "IOS" | "Android";
     }) =>
-      adminCall<{
-        expectedVersion: number;
-        clientPayload?: {
-          // Opaque: IAPKit owns the format value space (IapkitClientPayloadFormat).
-          format: string;
-          body: string;
-          version: number;
-          updatedAt: number;
-        };
-      }>(
+      adminCall<KitClientPayloadStateResponse>(
         `/v1/products/client-payload/${encodeURIComponent(params.productId)}?platform=${encodeURIComponent(params.platform)}`,
       ),
     setClientPayload: (params: {
@@ -254,13 +233,7 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
       body: string;
       expectedVersion?: number;
     }) =>
-      adminCall<{
-        id: string;
-        created: boolean;
-        changed: boolean;
-        version: number;
-        updatedAt: number;
-      }>(
+      adminCall<KitSetClientPayloadResponse>(
         `/v1/products/client-payload/${encodeURIComponent(params.productId)}?platform=${encodeURIComponent(params.platform)}`,
         {
           method: "PUT",
@@ -282,7 +255,7 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
       if (params.expectedVersion !== undefined) {
         query.set("expectedVersion", String(params.expectedVersion));
       }
-      return adminCall<{ ok: boolean }>(
+      return adminCall<KitRemoveClientPayloadResponse>(
         `/v1/products/client-payload/${encodeURIComponent(params.productId)}?${query.toString()}`,
         {
           method: "DELETE",
@@ -299,13 +272,15 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
         direction: params.direction,
         dryRun: String(params.dryRun),
       });
-      return adminCall<{ jobId: string; deduped: boolean }>(
+      return adminCall<KitProductSyncResponse>(
         `/v1/products/sync/${platformPath}?${usp.toString()}`,
         { method: "POST" },
       );
     },
     syncJob: (jobId: string) =>
-      adminCall<unknown>(`/v1/products/sync/jobs/${encodeURIComponent(jobId)}`),
+      adminCall<KitProductSyncJobResponse>(
+        `/v1/products/sync/jobs/${encodeURIComponent(jobId)}`,
+      ),
     health: () => call<KitHealthResponse>("/health"),
   };
 }

@@ -5,6 +5,9 @@ interface SessionEntry<T> {
 
 const MAX_MCP_SESSIONS = 256;
 const MCP_SESSION_IDLE_TTL_MS = 15 * 60 * 1000;
+export const MCP_SESSION_CAPACITY_RETRY_AFTER_SECONDS = 5;
+export const MCP_SESSION_CAPACITY_MESSAGE =
+  "MCP session capacity reached. Retry after 5s.";
 
 interface ClosableSession {
   close: () => void | Promise<void>;
@@ -18,9 +21,15 @@ export interface BoundedSessionStoreOptions<T> {
   onDisposeError?: (error: unknown) => void;
 }
 
+export interface SessionReservation<T> {
+  commit: (sessionId: string, value: T) => void;
+  release: () => void;
+}
+
 export class BoundedSessionStore<T> {
   private readonly entries = new Map<string, SessionEntry<T>>();
   private readonly now: () => number;
+  private pendingReservations = 0;
 
   constructor(private readonly options: BoundedSessionStoreOptions<T>) {
     if (!Number.isSafeInteger(options.maxSize) || options.maxSize < 1) {
@@ -47,24 +56,43 @@ export class BoundedSessionStore<T> {
     return entry.value;
   }
 
-  set(sessionId: string, value: T): void {
+  reserve(): SessionReservation<T> | null {
     const now = this.now();
     this.pruneExpired(now);
-    const previous = this.entries.get(sessionId);
-    this.entries.delete(sessionId);
-    if (previous && previous.value !== value) {
-      void this.dispose(previous.value);
+    if (this.entries.size + this.pendingReservations >= this.options.maxSize) {
+      return null;
     }
-    this.entries.set(sessionId, { value, lastAccessedAt: now });
 
-    while (this.entries.size > this.options.maxSize) {
-      const oldestSessionId = this.entries.keys().next().value;
-      if (oldestSessionId === undefined) break;
-      this.evict(oldestSessionId);
-    }
+    this.pendingReservations += 1;
+    let pending = true;
+    const release = (): void => {
+      if (!pending) return;
+      pending = false;
+      this.pendingReservations -= 1;
+    };
+
+    return {
+      commit: (sessionId, value) => {
+        if (!pending) {
+          throw new Error("session reservation is no longer active");
+        }
+        release();
+        const previous = this.entries.get(sessionId);
+        this.entries.delete(sessionId);
+        if (previous && previous.value !== value) {
+          void this.dispose(previous.value);
+        }
+        this.entries.set(sessionId, {
+          value,
+          lastAccessedAt: this.now(),
+        });
+      },
+      release,
+    };
   }
 
   delete(sessionId: string): boolean {
+    // Transport close callbacks own disposal; this only forgets the closed entry.
     return this.entries.delete(sessionId);
   }
 

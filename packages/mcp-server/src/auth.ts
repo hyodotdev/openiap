@@ -1,12 +1,7 @@
 export const INSUFFICIENT_API_KEY_SCOPE_MESSAGE =
-  "This operation requires a secret admin key. Publishable mobile keys cannot access MCP administrative operations.";
+  "This operation requires an IAPKit secret admin key (openiap-kit_sk_...). Publishable and legacy keys cannot access MCP administrative operations.";
 
-/**
- * A publishable prefix is safe to use as an early-deny signal. Successful
- * authorization still belongs to IAPKit's persisted key lookup, so an
- * arbitrary secret-looking or legacy token never gains access from its
- * prefix alone.
- */
-export function isPublishableApiKey(apiKey: string | null | undefined) {
-  return apiKey?.startsWith("openiap-kit_pk_") === true;
+/** MCP administration accepts only explicitly typed secret keys. */
+export function isSecretApiKey(apiKey: string | null | undefined): boolean {
+  return apiKey?.startsWith("openiap-kit_sk_") === true;
 }

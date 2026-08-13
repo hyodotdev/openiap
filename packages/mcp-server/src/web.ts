@@ -4,10 +4,7 @@ import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 import { WebStandardStreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/webStandardStreamableHttp.js";
 import { isInitializeRequest } from "@modelcontextprotocol/sdk/types.js";
 
-import {
-  INSUFFICIENT_API_KEY_SCOPE_MESSAGE,
-  isPublishableApiKey,
-} from "./auth.js";
+import { INSUFFICIENT_API_KEY_SCOPE_MESSAGE, isSecretApiKey } from "./auth.js";
 import { createIapKitMcpServer } from "./mcp.js";
 import {
   buildSessionId,
@@ -16,6 +13,8 @@ import {
 } from "./session-routing.js";
 import {
   createMcpSessionStore,
+  MCP_SESSION_CAPACITY_MESSAGE,
+  MCP_SESSION_CAPACITY_RETRY_AFTER_SECONDS,
   type BoundedSessionStore,
 } from "./session-store.js";
 
@@ -58,7 +57,7 @@ export function createIapKitWebMcpHandler(
   ): Promise<Response> {
     try {
       if (request.method === "OPTIONS") {
-        return withCors(
+        return withIapKitMcpCors(
           request,
           new Response(null, { status: 204 }),
           allowedOrigins,
@@ -68,8 +67,8 @@ export function createIapKitWebMcpHandler(
       const bearerToken = parseBearerToken(
         request.headers.get("authorization"),
       );
-      if (isPublishableApiKey(bearerToken)) {
-        return withCors(
+      if (bearerToken && !isSecretApiKey(bearerToken)) {
+        return withIapKitMcpCors(
           request,
           jsonRpcError(403, -32003, INSUFFICIENT_API_KEY_SCOPE_MESSAGE),
           allowedOrigins,
@@ -86,7 +85,7 @@ export function createIapKitWebMcpHandler(
           authInfo,
           machineId,
         );
-        return withCors(request, response, allowedOrigins);
+        return withIapKitMcpCors(request, response, allowedOrigins);
       }
 
       if (request.method === "GET" || request.method === "DELETE") {
@@ -96,31 +95,31 @@ export function createIapKitWebMcpHandler(
           authInfo,
           machineId,
         );
-        return withCors(request, response, allowedOrigins);
+        return withIapKitMcpCors(request, response, allowedOrigins);
       }
 
-      return withCors(
+      return withIapKitMcpCors(
         request,
         jsonRpcError(405, -32000, "Method not allowed"),
         allowedOrigins,
       );
     } catch (error) {
       if (error instanceof SyntaxError) {
-        return withCors(
+        return withIapKitMcpCors(
           request,
           jsonRpcError(400, -32700, "Parse error: Invalid JSON"),
           allowedOrigins,
         );
       }
       if (isMcpBodyTooLargeError(error)) {
-        return withCors(
+        return withIapKitMcpCors(
           request,
           jsonRpcError(413, -32000, "Payload Too Large"),
           allowedOrigins,
         );
       }
       logger.error("IAPKit MCP request failed:", error);
-      return withCors(
+      return withIapKitMcpCors(
         request,
         jsonRpcError(500, -32603, "Internal server error"),
         allowedOrigins,
@@ -159,11 +158,20 @@ async function handlePost(
     );
   }
 
+  const reservation = transports.reserve();
+  if (!reservation) {
+    return jsonRpcError(503, -32000, MCP_SESSION_CAPACITY_MESSAGE, {
+      "retry-after": String(MCP_SESSION_CAPACITY_RETRY_AFTER_SECONDS),
+    });
+  }
+
+  let sessionStored = false;
   let transport!: WebStandardStreamableHTTPServerTransport;
   transport = new WebStandardStreamableHTTPServerTransport({
     sessionIdGenerator: () => buildSessionId(machineId, randomUUID()),
     onsessioninitialized: (initializedSessionId) => {
-      transports.set(initializedSessionId, transport);
+      reservation.commit(initializedSessionId, transport);
+      sessionStored = true;
       logger.info(`IAPKit MCP session initialized: ${initializedSessionId}`);
     },
     onsessionclosed: (closedSessionId) => {
@@ -178,11 +186,22 @@ async function handlePost(
   };
 
   const server = createIapKitMcpServer();
-  await server.connect(transport);
-  return transport.handleRequest(request, {
-    parsedBody: body,
-    authInfo,
-  });
+  try {
+    await server.connect(transport);
+    return await transport.handleRequest(request, {
+      parsedBody: body,
+      authInfo,
+    });
+  } finally {
+    if (!sessionStored) {
+      reservation.release();
+      await transport
+        .close()
+        .catch((error: unknown) =>
+          logger.error("IAPKit MCP session cleanup failed:", error),
+        );
+    }
+  }
 }
 
 async function handleExistingSession(
@@ -282,10 +301,12 @@ function isMcpBodyTooLargeError(error: unknown): boolean {
   return error instanceof Error && error.message === MCP_BODY_TOO_LARGE_ERROR;
 }
 
-function withCors(
+export function withIapKitMcpCors(
   request: Request,
   response: Response,
-  allowedOrigins: string[],
+  allowedOrigins: string[] = parseAllowedOrigins(
+    process.env.IAPKIT_MCP_ALLOWED_ORIGINS,
+  ),
 ): Response {
   const headers = new Headers(response.headers);
   const origin = request.headers.get("origin");
@@ -300,7 +321,10 @@ function withCors(
     "authorization, content-type, last-event-id, mcp-protocol-version, mcp-session-id",
   );
   headers.set("Access-Control-Allow-Methods", "GET, POST, DELETE, OPTIONS");
-  headers.set("Access-Control-Expose-Headers", "mcp-session-id");
+  headers.set(
+    "Access-Control-Expose-Headers",
+    "mcp-session-id, retry-after, x-ratelimit-limit, x-ratelimit-remaining, x-ratelimit-scope",
+  );
 
   return new Response(response.body, {
     status: response.status,
@@ -322,6 +346,7 @@ function jsonRpcError(
   statusCode: number,
   code: number,
   message: string,
+  extraHeaders: Record<string, string> = {},
 ): Response {
   return new Response(
     JSON.stringify({
@@ -331,7 +356,7 @@ function jsonRpcError(
     }),
     {
       status: statusCode,
-      headers: { "content-type": "application/json" },
+      headers: { "content-type": "application/json", ...extraHeaders },
     },
   );
 }

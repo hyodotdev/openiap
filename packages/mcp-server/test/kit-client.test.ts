@@ -1,6 +1,10 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { kitClient, normalizeKitBaseUrl } from "../src/kit-client";
+import {
+  IAPKIT_MCP_LOOPBACK_HEADER,
+  kitClient,
+  normalizeKitBaseUrl,
+} from "../src/kit-client";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -30,6 +34,33 @@ describe("normalizeKitBaseUrl", () => {
 });
 
 describe("kitClient", () => {
+  it("marks only loopback API calls as internal MCP traffic", async () => {
+    const fetchMock = vi.fn(
+      async () =>
+        new Response(JSON.stringify({ products: [], hasMore: false }), {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        }),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+
+    await kitClient({
+      apiKey: "openiap-kit_sk_local",
+      baseUrl: "http://127.0.0.1:3000",
+    }).listProducts();
+    await kitClient({
+      apiKey: "openiap-kit_sk_public",
+      baseUrl: "https://kit.example",
+    }).listProducts();
+
+    expect(fetchMock.mock.calls[0]?.[1]?.headers).toMatchObject({
+      [IAPKIT_MCP_LOOPBACK_HEADER]: "1",
+    });
+    expect(fetchMock.mock.calls[1]?.[1]?.headers).not.toHaveProperty(
+      IAPKIT_MCP_LOOPBACK_HEADER,
+    );
+  });
+
   it("forwards subscription metadata when creating products", async () => {
     const fetchMock = vi.fn(async () => {
       return new Response(JSON.stringify({ id: "product-id", created: true }), {

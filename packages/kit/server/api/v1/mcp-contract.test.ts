@@ -13,6 +13,10 @@ import type { KitProductsResponse as SdkProductsResponse } from "../../../../gql
 import { kitClient } from "../../../../mcp-server/src/kit-client";
 import type { api } from "../../../convex/_generated/api";
 import type { HealthPayload } from "../../health";
+import type {
+  SubscriptionEntitlementsResponse,
+  SubscriptionStatusResponse,
+} from "./subscriptions";
 
 const mocks = vi.hoisted(() => ({
   action: vi.fn(),
@@ -33,11 +37,28 @@ const { apiRoutes } = await import("./routes");
 
 type McpClient = ReturnType<typeof kitClient>;
 type McpProductsResponse = Awaited<ReturnType<McpClient["listProducts"]>>;
+type McpStatusResponse = Awaited<ReturnType<McpClient["status"]>>;
+type McpEntitlementsResponse = Awaited<ReturnType<McpClient["entitlements"]>>;
 type McpSubscriptionsResponse = Awaited<
   ReturnType<McpClient["listSubscriptions"]>
 >;
 type McpMetricsResponse = Awaited<ReturnType<McpClient["metrics"]>>;
+type McpRevenueResponse = Awaited<ReturnType<McpClient["revenueMetrics"]>>;
+type McpUpsertProductResponse = Awaited<ReturnType<McpClient["upsertProduct"]>>;
+type McpProductStateResponse = Awaited<
+  ReturnType<McpClient["setProductState"]>
+>;
+type McpClientPayloadStateResponse = Awaited<
+  ReturnType<McpClient["getClientPayloadState"]>
+>;
+type McpSetClientPayloadResponse = Awaited<
+  ReturnType<McpClient["setClientPayload"]>
+>;
+type McpRemoveClientPayloadResponse = Awaited<
+  ReturnType<McpClient["removeClientPayload"]>
+>;
 type McpSyncResponse = Awaited<ReturnType<McpClient["syncProducts"]>>;
+type McpSyncJobResponse = Awaited<ReturnType<McpClient["syncJob"]>>;
 type McpHealthResponse = Awaited<ReturnType<McpClient["health"]>>;
 
 type ServerProductsResponse = FunctionReturnType<
@@ -49,13 +70,51 @@ type ServerSubscriptionsResponse = FunctionReturnType<
 type ServerMetricsResponse = FunctionReturnType<
   typeof api.subscriptions.query.metricsSummary
 >;
+type ServerRevenueResponse = FunctionReturnType<
+  typeof api.subscriptions.query.getRevenueMetrics
+>;
+type ServerUpsertProductResponse = FunctionReturnType<
+  typeof api.products.mutation.upsertProduct
+>;
+type ServerProductStateResponse = FunctionReturnType<
+  typeof api.products.mutation.setProductState
+>;
+type ServerClientPayloadStateResponse = NonNullable<
+  FunctionReturnType<
+    typeof api.products.query.getProductClientPayloadEditorStateWithApiKey
+  >
+>;
+type ServerSetClientPayloadResponse = FunctionReturnType<
+  typeof api.products.mutation.upsertProductClientPayloadWithApiKey
+>;
+type ServerRemoveClientPayloadResponse = FunctionReturnType<
+  typeof api.products.mutation.removeProductClientPayloadWithApiKey
+>;
 type ServerSyncResponse = FunctionReturnType<
   typeof api.products.jobs.enqueueProductSync
 >;
+type ServerSyncJobResponse = NonNullable<
+  FunctionReturnType<typeof api.products.jobs.getSyncJobById>
+>;
 
-type OptionalKeys<T extends object> = {
-  [Key in keyof T]-?: object extends Pick<T, Key> ? Key : never;
-}[keyof T];
+type NormalizeContract<T> = T extends { __tableName: string }
+  ? string
+  : T extends readonly (infer Item)[]
+    ? NormalizeContract<Item>[]
+    : T extends {
+          format: string;
+          body: string;
+          version: number;
+          updatedAt: number;
+        }
+      ? {
+          [Key in keyof T]: Key extends "format"
+            ? string
+            : NormalizeContract<T[Key]>;
+        }
+      : T extends object
+        ? { [Key in keyof T]: NormalizeContract<T[Key]> }
+        : T;
 
 describe("MCP Kit response contracts", () => {
   beforeEach(() => {
@@ -79,34 +138,46 @@ describe("MCP Kit response contracts", () => {
     vi.unstubAllGlobals();
   });
 
-  it("keeps product pagination envelopes aligned", () => {
-    expectTypeOf<keyof McpProductsResponse>().toEqualTypeOf<
-      keyof ServerProductsResponse
+  it("keeps app-readable response types aligned", () => {
+    expectTypeOf<McpStatusResponse>().toEqualTypeOf<
+      NormalizeContract<SubscriptionStatusResponse>
     >();
-    expectTypeOf<keyof McpProductsResponse>().toEqualTypeOf<
-      keyof SdkProductsResponse
+    expectTypeOf<McpEntitlementsResponse>().toEqualTypeOf<
+      NormalizeContract<SubscriptionEntitlementsResponse>
     >();
-    expectTypeOf<OptionalKeys<McpProductsResponse>>().toEqualTypeOf<
-      OptionalKeys<ServerProductsResponse>
-    >();
-    expectTypeOf<OptionalKeys<McpProductsResponse>>().toEqualTypeOf<
-      OptionalKeys<SdkProductsResponse>
+    expectTypeOf<McpProductsResponse>().toEqualTypeOf<SdkProductsResponse>();
+    expectTypeOf<McpProductsResponse>().toEqualTypeOf<
+      NormalizeContract<ServerProductsResponse>
     >();
   });
 
-  it("keeps administrative response fields and optionality aligned", () => {
+  it("keeps administrative read response types aligned", () => {
     expectTypeOf<McpMetricsResponse>().toEqualTypeOf<ServerMetricsResponse>();
-    expectTypeOf<keyof McpSubscriptionsResponse>().toEqualTypeOf<
-      keyof ServerSubscriptionsResponse
+    expectTypeOf<McpSubscriptionsResponse>().toEqualTypeOf<
+      NormalizeContract<ServerSubscriptionsResponse>
     >();
-    expectTypeOf<OptionalKeys<McpSubscriptionsResponse>>().toEqualTypeOf<
-      OptionalKeys<ServerSubscriptionsResponse>
+    expectTypeOf<McpRevenueResponse>().toEqualTypeOf<ServerRevenueResponse>();
+    expectTypeOf<McpClientPayloadStateResponse>().toEqualTypeOf<
+      NormalizeContract<ServerClientPayloadStateResponse>
     >();
-    expectTypeOf<keyof McpSyncResponse>().toEqualTypeOf<
-      keyof ServerSyncResponse
+    expectTypeOf<McpSyncJobResponse>().toEqualTypeOf<
+      NormalizeContract<ServerSyncJobResponse>
     >();
-    expectTypeOf<OptionalKeys<McpSyncResponse>>().toEqualTypeOf<
-      OptionalKeys<ServerSyncResponse>
+  });
+
+  it("keeps administrative write response types aligned", () => {
+    expectTypeOf<McpUpsertProductResponse>().toEqualTypeOf<
+      NormalizeContract<ServerUpsertProductResponse>
+    >();
+    expectTypeOf<McpProductStateResponse>().toEqualTypeOf<
+      NormalizeContract<ServerProductStateResponse>
+    >();
+    expectTypeOf<McpSetClientPayloadResponse>().toEqualTypeOf<
+      NormalizeContract<ServerSetClientPayloadResponse>
+    >();
+    expectTypeOf<McpRemoveClientPayloadResponse>().toEqualTypeOf<ServerRemoveClientPayloadResponse>();
+    expectTypeOf<McpSyncResponse>().toEqualTypeOf<
+      NormalizeContract<ServerSyncResponse>
     >();
   });
 

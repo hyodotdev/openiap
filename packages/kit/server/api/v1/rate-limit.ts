@@ -2,6 +2,8 @@ import { createMiddleware } from "hono/factory";
 import type { Context } from "hono";
 import * as crypto from "node:crypto";
 
+import { IAPKIT_MCP_LOOPBACK_HEADER } from "@hyodotdev/openiap-mcp-server/kit-client";
+
 import { parsePositiveNumber } from "../../utils/env";
 
 // Per-machine, in-memory token bucket protecting /api/v1/* from abuse
@@ -453,47 +455,82 @@ export function multiAxisRateLimitMiddleware(
     const nowMs = clock();
     c.set("apiKeyHash", apiKeyHash);
 
-    const axes = [
-      resolveAxis(
-        "key",
-        apiKeyHash,
-        config.key,
-        {
-          capacity: DEFAULT_CAPACITY,
-          refillPerSecond: DEFAULT_REFILL_PER_SEC,
-          maxStoreSize: DEFAULT_MAX_STORE_SIZE,
-          store: sharedStore,
-        },
-        c,
-      ),
-      resolveAxis(
-        "ip",
-        hashApiKey(`ip:${ip}`),
-        config.ip,
-        {
-          capacity: DEFAULT_IP_CAPACITY,
-          refillPerSecond: DEFAULT_IP_REFILL_PER_SEC,
-          maxStoreSize: DEFAULT_IP_MAX_STORE_SIZE,
-          store: sharedIpStore,
-        },
-        c,
-      ),
-      resolveAxis(
-        "global",
-        "process",
-        config.global,
-        {
-          capacity: DEFAULT_GLOBAL_CAPACITY,
-          refillPerSecond: DEFAULT_GLOBAL_REFILL_PER_SEC,
-          maxStoreSize: 1,
-          store: sharedGlobalStore,
-        },
-        c,
-      ),
-    ] satisfies AxisRuntime[];
+    const keyAxis = resolveAxis(
+      "key",
+      apiKeyHash,
+      config.key,
+      {
+        capacity: DEFAULT_CAPACITY,
+        refillPerSecond: DEFAULT_REFILL_PER_SEC,
+        maxStoreSize: DEFAULT_MAX_STORE_SIZE,
+        store: sharedStore,
+      },
+      c,
+    );
+    const ipAxis = resolveAxis(
+      "ip",
+      hashApiKey(`ip:${ip}`),
+      config.ip,
+      {
+        capacity: DEFAULT_IP_CAPACITY,
+        refillPerSecond: DEFAULT_IP_REFILL_PER_SEC,
+        maxStoreSize: DEFAULT_IP_MAX_STORE_SIZE,
+        store: sharedIpStore,
+      },
+      c,
+    );
+    const globalAxis = resolveAxis(
+      "global",
+      "process",
+      config.global,
+      {
+        capacity: DEFAULT_GLOBAL_CAPACITY,
+        refillPerSecond: DEFAULT_GLOBAL_REFILL_PER_SEC,
+        maxStoreSize: 1,
+        store: sharedGlobalStore,
+      },
+      c,
+    );
+    const axes = isTrustedMcpLoopback(c)
+      ? [keyAxis, globalAxis]
+      : [keyAxis, ipAxis, globalAxis];
 
     return applyRateLimitAxes(c, next, axes, nowMs, "key");
   });
+}
+
+function isLoopbackAddress(address: string | undefined): boolean {
+  const normalized = address?.replace(/^\[(.*)\]$/, "$1");
+  return (
+    normalized === "127.0.0.1" ||
+    normalized === "::1" ||
+    normalized === "::ffff:127.0.0.1"
+  );
+}
+
+function isTrustedMcpLoopback(c: Context): boolean {
+  if (c.req.header(IAPKIT_MCP_LOOPBACK_HEADER) !== "1") return false;
+  const environment: unknown = c.env;
+  const server =
+    typeof environment === "object" &&
+    environment !== null &&
+    "server" in environment
+      ? (environment as { server?: unknown }).server
+      : environment;
+  if (
+    typeof server !== "object" ||
+    server === null ||
+    !("requestIP" in server) ||
+    typeof server.requestIP !== "function"
+  ) {
+    return false;
+  }
+  try {
+    const info = server.requestIP(c.req.raw) as { address?: string } | null;
+    return isLoopbackAddress(info?.address);
+  } catch {
+    return false;
+  }
 }
 
 /** Protects unauthenticated transport surfaces by source IP and process. */

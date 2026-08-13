@@ -7,10 +7,7 @@ import type {
 } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
-import {
-  INSUFFICIENT_API_KEY_SCOPE_MESSAGE,
-  isPublishableApiKey,
-} from "./auth.js";
+import { INSUFFICIENT_API_KEY_SCOPE_MESSAGE, isSecretApiKey } from "./auth.js";
 import { kitClient, KitHttpError, normalizeKitBaseUrl } from "./kit-client.js";
 
 // MCP server for IAPKit. Every tool funnels through `withClient`
@@ -124,7 +121,7 @@ function withClient(
   if (validationError) {
     throw new Error(validationError);
   }
-  if (isPublishableApiKey(apiKey)) {
+  if (!isSecretApiKey(apiKey)) {
     throw new Error(INSUFFICIENT_API_KEY_SCOPE_MESSAGE);
   }
   return kitClient({
@@ -195,6 +192,7 @@ function redactSecretString(value: string, apiKey?: string): string {
   for (const secret of knownSecrets) {
     redacted = redacted.split(secret).join(API_KEY_PLACEHOLDER);
   }
+  // Admin credentials are bearer-only; known webhook path keys are replaced above.
   return redacted.replace(
     /(Authorization:\s*Bearer\s+)[^\s"]+/gi,
     `$1${API_KEY_PLACEHOLDER}`,
@@ -630,6 +628,9 @@ function registerIapKitTools(server: McpServer) {
     async (args, extra) => {
       try {
         const client = withClient(args, extra);
+        const publicBaseUrl = normalizeKitBaseUrl(
+          args.baseUrl ?? process.env.IAPKIT_PUBLIC_BASE_URL,
+        );
         const [metrics, products] = await Promise.all([
           client
             .metrics()
@@ -642,7 +643,7 @@ function registerIapKitTools(server: McpServer) {
           metrics,
           products,
           webhookUrls: {
-            lifecycle: `${client.baseUrl}/v1/webhooks/${PUBLISHABLE_KEY_PLACEHOLDER}`,
+            lifecycle: `${publicBaseUrl}/v1/webhooks/${PUBLISHABLE_KEY_PLACEHOLDER}`,
           },
           note: "Use webhookUrls.lifecycle for inbound Apple ASN v2 and Google Pub/Sub RTDN delivery. IAPKit does not expose an outbound webhook stream.",
         });

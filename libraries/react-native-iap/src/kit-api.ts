@@ -31,7 +31,15 @@ export type KitSubscription = {
   id: string;
   productId: string;
   platform: "IOS" | "Android";
-  state: string;
+  state:
+    | "Active"
+    | "InGracePeriod"
+    | "InBillingRetry"
+    | "Expired"
+    | "Revoked"
+    | "Refunded"
+    | "Paused"
+    | "Unknown";
   expiresAt?: number;
   renewsAt?: number;
   willRenew?: boolean;
@@ -41,6 +49,7 @@ export type KitSubscription = {
   startedAt: number;
   updatedAt: number;
   purchaseToken: string;
+  originalTransactionId?: string;
   userId?: string;
 };
 
@@ -85,6 +94,13 @@ export type KitProduct = {
   type: "Subscription" | "NonConsumable" | "Consumable";
   title: string;
   description?: string;
+  baseLocale?: string;
+  localizations?: Array<{
+    locale: string;
+    title: string;
+    description?: string;
+  }>;
+  regions?: "all" | string[];
   priceAmountMicros?: number;
   currency?: string;
   state: "Draft" | "Ready" | "Active" | "Removed";
@@ -114,6 +130,108 @@ export type KitProductsResponse = {
   nextCursor?: string;
 };
 
+export type KitSubscriptionsResponse = {
+  items: KitSubscription[];
+  total: number;
+};
+
+export type KitMrrCurrencyEntry = {
+  currency: string;
+  mrrMicros: number;
+};
+
+export type KitMetricsResponse = {
+  activeSubs: number;
+  inGracePeriod: number;
+  inBillingRetry: number;
+  refunded30d: number;
+  canceled30d: number;
+  mrrMicros: number;
+  currency: string;
+  reportingCurrency: string;
+  mrrByCurrency: KitMrrCurrencyEntry[];
+  excludedMrrByCurrency: KitMrrCurrencyEntry[];
+};
+
+export type KitRevenueMetricsResponse = {
+  days: Array<{
+    day: string;
+    currency: string;
+    productId: string;
+    platform: KitProductPlatform;
+    activeSubs: number;
+    newSubs: number;
+    renewals: number;
+    cancellations: number;
+    refunds: number;
+    revenueMicros: number;
+  }>;
+  currencies: string[];
+  productIds: string[];
+  platforms: KitProductPlatform[];
+  truncated: boolean;
+};
+
+export type KitProductUpsertResponse = { id: string; created: boolean };
+export type KitProductStateResponse = {
+  id: string;
+  state: KitProduct["state"];
+};
+export type KitClientPayloadStateResponse = {
+  expectedVersion: number;
+  clientPayload?: KitProductClientPayload;
+};
+export type KitSetClientPayloadResponse = {
+  id: string;
+  created: boolean;
+  changed: boolean;
+  version: number;
+  updatedAt: number;
+};
+export type KitRemoveClientPayloadResponse = { ok: boolean };
+export type KitProductSyncResponse = { jobId: string; deduped: boolean };
+export type KitProductSyncJobResponse = {
+  _id: string;
+  _creationTime: number;
+  projectId: string;
+  platform: KitProductPlatform;
+  direction: "pull" | "push" | "both" | "purge-local";
+  dryRun: boolean;
+  status: "queued" | "running" | "succeeded" | "failed";
+  progress: {
+    phase: string;
+    current?: number;
+    total?: number;
+    failuresCount?: number;
+  };
+  result?: {
+    pulled: number;
+    pushed: number;
+    deleted?: number;
+    failures: Array<{ productId: string; reason: string }>;
+    failuresTruncated?: boolean;
+    plannedWrites?: Array<{
+      productId: string;
+      step: string;
+      detail?: string;
+    }>;
+    plannedWritesTruncated?: boolean;
+    manualActions?: Array<{
+      productId: string;
+      code: string;
+      message: string;
+    }>;
+    manualActionsTruncated?: boolean;
+  };
+  error?: string;
+  cancelRequested?: boolean;
+  expectedDeadline?: number;
+  createdBy?: string;
+  startedAt?: number;
+  completedAt?: number;
+  createdAt: number;
+};
+
 export type KitClientPayloadResponse = {
   clientPayload: KitProductClientPayload;
 };
@@ -136,7 +254,7 @@ const DEFAULT_BASE_URL = "https://kit.openiap.dev";
 function mergeHeaders(
   callerHeaders: Record<string, string> | undefined,
   hasBody: boolean,
-): HeadersInit {
+): RequestInit["headers"] {
   if (typeof Headers === "function") {
     const merged = new Headers(callerHeaders);
     if (!merged.has("accept")) merged.set("accept", "application/json");

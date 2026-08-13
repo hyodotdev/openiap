@@ -6,6 +6,7 @@ primary_region = 'iad'
 
 [env]
   IAPKIT_BASE_URL = 'http://127.0.0.1:3000'
+  IAPKIT_PUBLIC_BASE_URL = 'https://kit.openiap.dev'
 
 [http_service]
   internal_port = 3000
