@@ -929,6 +929,31 @@ function normalizeRequestProps(
   return request.google;
 }
 
+function validateAndroidPurchaseBranchOptions(
+  request: unknown,
+  type: ProductQueryType,
+): void {
+  if (request == null || typeof request !== 'object') return;
+  const fields = request as Record<string, unknown>;
+  const subscriptionOnlyFields = [
+    'subscriptionOffers',
+    'subscriptionProductReplacementParams',
+    'purchaseToken',
+    'originalExternalTransactionId',
+  ];
+  if (
+    (type === 'in-app' &&
+      subscriptionOnlyFields.some((field) => fields[field] != null)) ||
+    (type === 'subs' && fields.offerToken != null)
+  ) {
+    throw createPurchaseError({
+      code: ErrorCode.DeveloperError,
+      message:
+        'Invalid request for Android. Purchase options must match the selected product type.',
+    });
+  }
+}
+
 /**
  * Initiate a purchase or subscription flow. The result is delivered through
  * `purchaseUpdatedListener` — NOT the return value.
@@ -960,6 +985,9 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
 ) => {
   const {request, type} = args;
   const {canonical, native} = normalizeProductType(type as ProductTypeInput);
+  if (canonical === 'all') {
+    throw new Error('Product type all is only supported for product queries.');
+  }
   const isInAppPurchase = canonical === 'in-app';
 
   if (Platform.OS === 'ios') {
@@ -1015,6 +1043,14 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
   }
 
   if (isAndroidStoreRuntime()) {
+    validateAndroidPurchaseBranchOptions(
+      (
+        request as
+          | RequestPurchasePropsByPlatforms
+          | RequestSubscriptionPropsByPlatforms
+      )?.google,
+      canonical,
+    );
     if (isInAppPurchase) {
       const normalizedRequest = normalizeRequestProps(
         request as RequestPurchasePropsByPlatforms,
@@ -1024,7 +1060,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
       if (!normalizedRequest?.skus?.length) {
         throw createPurchaseError({
           message:
-          'Invalid request for Google. The `skus` property is required and must be a non-empty array.\n\n' +
+            'Invalid request for Google. The `skus` property is required and must be a non-empty array.\n\n' +
             'Expected format:\n' +
             '  requestPurchase({\n' +
             '    request: {\n' +
@@ -1081,7 +1117,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
       if (!normalizedRequest?.skus?.length) {
         throw createPurchaseError({
           message:
-          'Invalid request for Google. The `skus` property is required and must be a non-empty array.\n\n' +
+            'Invalid request for Google. The `skus` property is required and must be a non-empty array.\n\n' +
             'Expected format:\n' +
             '  requestPurchase({\n' +
             '    request: {\n' +

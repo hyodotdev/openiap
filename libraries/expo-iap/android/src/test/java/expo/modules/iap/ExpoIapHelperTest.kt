@@ -1,13 +1,23 @@
 package expo.modules.iap
 
 import dev.hyo.openiap.OpenIapError
+import dev.hyo.openiap.ProductQueryType
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertThrows
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ExpoIapHelperTest {
+    @Test
+    fun `purchase parser rejects all`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ExpoIapHelper.parsePurchaseProductQueryType("all")
+        }
+        assertEquals(ProductQueryType.All, ExpoIapHelper.parseProductQueryType("all"))
+    }
+
     @Test
     fun `deep link parser uses canonical keys`() {
         val parsed =
@@ -72,8 +82,8 @@ class ExpoIapHelperTest {
     }
 
     @Test
-    fun `request parser ignores the removed android request alias`() {
-        val parsed =
+    fun `request parser rejects the removed android request alias`() {
+        assertThrows(IllegalArgumentException::class.java) {
             ExpoIapHelper.parseRequestPurchaseParams(
                 mapOf(
                     "type" to "in-app",
@@ -84,8 +94,7 @@ class ExpoIapHelperTest {
                         ),
                 ),
             )
-
-        assertTrue(parsed.skus.isEmpty())
+        }
     }
 
     @Test
@@ -115,6 +124,76 @@ class ExpoIapHelperTest {
             )
 
         assertTrue(parsed.explicitSubscriptionOffers.isEmpty())
+    }
+
+    @Test
+    fun `purchase parser rejects mixed SKU lists`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ExpoIapHelper.parseRequestPurchaseParams(
+                mapOf("type" to "in-app", "skus" to listOf("coins", 7)),
+            )
+        }
+    }
+
+    @Test
+    fun `purchase parser rejects malformed offers atomically`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ExpoIapHelper.parseRequestPurchaseParams(
+                mapOf(
+                    "type" to "subs",
+                    "skus" to listOf("premium"),
+                    "subscriptionOffers" to listOf(
+                        mapOf("sku" to "premium", "offerToken" to "known"),
+                        mapOf("sku" to "premium"),
+                    ),
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `purchase parser rejects a nested type discriminator`() {
+        assertThrows(IllegalArgumentException::class.java) {
+            ExpoIapHelper.parseRequestPurchaseParams(
+                mapOf(
+                    "type" to "in-app",
+                    "request" to mapOf(
+                        "google" to mapOf(
+                            "type" to "subs",
+                            "skus" to listOf("premium"),
+                        ),
+                    ),
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun `purchase parser rejects branch mismatched options`() {
+        listOf(
+            mapOf(
+                "type" to "in-app",
+                "skus" to listOf("coins"),
+                "subscriptionOffers" to emptyList<Any>(),
+            ),
+            mapOf(
+                "type" to "in-app",
+                "skus" to listOf("coins"),
+                "subscriptionProductReplacementParams" to mapOf(
+                    "oldProductId" to "old",
+                    "replacementMode" to "without-proration",
+                ),
+            ),
+            mapOf(
+                "type" to "subs",
+                "skus" to listOf("premium"),
+                "offerToken" to "one-time-token",
+            ),
+        ).forEach { request ->
+            assertThrows(IllegalArgumentException::class.java) {
+                ExpoIapHelper.parseRequestPurchaseParams(request)
+            }
+        }
     }
 
     @Test

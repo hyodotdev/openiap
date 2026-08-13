@@ -526,6 +526,43 @@ func request_purchase(props) -> Variant:
 	return null
 
 
+func _is_nonempty_string_array(value) -> bool:
+	if not value is Array:
+		return false
+	for item in value:
+		if not item is String or item.is_empty():
+			return false
+	return true
+
+
+func _is_valid_subscription_offer_array(value, requested_skus: Array) -> bool:
+	if not value is Array:
+		return false
+	if value.is_empty():
+		return true
+	var requested := {}
+	for sku in requested_skus:
+		requested[sku] = true
+	var offered := {}
+	for item in value:
+		if typeof(item) == TYPE_OBJECT and item.has_method("to_dict"):
+			item = item.to_dict()
+		if not item is Dictionary:
+			return false
+		if not item.get("sku") is String or item.get("sku").is_empty():
+			return false
+		if not item.get("offerToken") is String or item.get("offerToken").is_empty():
+			return false
+		var sku = item["sku"]
+		if not requested.has(sku):
+			return false
+		offered[sku] = true
+	for sku in requested:
+		if not offered.has(sku):
+			return false
+	return true
+
+
 func _purchase_failure(code: String, message: String, details: Dictionary = {}) -> Dictionary:
 	var error_payload := {
 		"code": code,
@@ -586,15 +623,45 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 				"developer-error",
 				"Invalid request: google payload must be a Dictionary"
 			)
-		var offer_token = google_props.get("offerToken", "")
-		var subscription_offers = google_props.get("subscriptionOffers", [])
-		var has_replacement_params = google_props.has("subscriptionProductReplacementParams")
-		var replacement_params = google_props.get("subscriptionProductReplacementParams", null)
-		if has_replacement_params and replacement_params == null:
+		if not google_props.has("skus") or not _is_nonempty_string_array(google_props["skus"]):
 			return _purchase_failure(
 				"developer-error",
-				"Invalid request: subscriptionProductReplacementParams must not be null"
+				"Invalid request: skus must contain only non-empty strings"
 			)
+		var offer_token = google_props.get("offerToken", "")
+		if offer_token == null:
+			offer_token = ""
+		elif not offer_token is String:
+			return _purchase_failure(
+				"developer-error",
+				"Invalid request: offerToken must be a string"
+			)
+		if google_props.has("offerToken") and google_props["offerToken"] != null and purchase_type != "in-app":
+			return _purchase_failure(
+				"developer-error",
+				"Invalid request: offerToken requires type `in-app`"
+			)
+		var has_subscription_offers = (
+			google_props.has("subscriptionOffers") and google_props["subscriptionOffers"] != null
+		)
+		var subscription_offers = google_props.get("subscriptionOffers", [])
+		if subscription_offers == null:
+			subscription_offers = []
+		if not _is_valid_subscription_offer_array(subscription_offers, google_props["skus"]):
+			return _purchase_failure(
+				"developer-error",
+				"Invalid request: subscriptionOffers must contain sku and offerToken strings"
+			)
+		if has_subscription_offers and purchase_type != "subs":
+			return _purchase_failure(
+				"developer-error",
+				"Invalid request: subscriptionOffers requires type `subs`"
+			)
+		var has_replacement_params = (
+			google_props.has("subscriptionProductReplacementParams")
+			and google_props["subscriptionProductReplacementParams"] != null
+		)
+		var replacement_params = google_props.get("subscriptionProductReplacementParams", null)
 		if has_replacement_params and purchase_type != "subs":
 			return _purchase_failure(
 				"developer-error",
@@ -602,33 +669,44 @@ func _request_purchase_raw(args: Dictionary) -> Dictionary:
 			)
 		if typeof(replacement_params) == TYPE_OBJECT and replacement_params.has_method("to_dict"):
 			replacement_params = replacement_params.to_dict()
-		var has_developer_billing_option = google_props.has("developerBillingOption")
+		var has_developer_billing_option = (
+			google_props.has("developerBillingOption") and google_props["developerBillingOption"] != null
+		)
 		var developer_billing_option = google_props.get("developerBillingOption", null)
-		if has_developer_billing_option and developer_billing_option == null:
-			return _purchase_failure(
-				"developer-error",
-				"Invalid request: developerBillingOption must not be null"
-			)
 		if typeof(developer_billing_option) == TYPE_OBJECT and developer_billing_option.has_method("to_dict"):
 			developer_billing_option = developer_billing_option.to_dict()
+		for field in ["purchaseToken", "originalExternalTransactionId"]:
+			var value = google_props.get(field, null)
+			if value != null and not value is String:
+				return _purchase_failure(
+					"developer-error",
+					"Invalid request: %s must be a string" % field
+				)
+			if google_props.has(field) and value != null and purchase_type != "subs":
+				return _purchase_failure(
+					"developer-error",
+					"Invalid request: %s requires type `subs`" % field
+				)
 		var params = {
 			"type": purchase_type,
 			"skus": google_props.get("skus", []),
 			"obfuscatedAccountId": google_props.get("obfuscatedAccountId", ""),
 			"obfuscatedProfileId": google_props.get("obfuscatedProfileId", ""),
 			"isOfferPersonalized": google_props.get("isOfferPersonalized", false),
-			"subscriptionOffers": subscription_offers,
-			"purchaseToken": google_props.get("purchaseToken", ""),
-			"originalExternalTransactionId": google_props.get("originalExternalTransactionId", ""),
 		}
+		if has_subscription_offers:
+			params["subscriptionOffers"] = subscription_offers
 		if has_replacement_params:
 			params["subscriptionProductReplacementParams"] = replacement_params
 		if has_developer_billing_option:
 			params["developerBillingOption"] = developer_billing_option
-		if purchase_type == "in-app" and not str(offer_token).is_empty():
-			params["offerToken"] = str(offer_token)
+		for field in ["purchaseToken", "originalExternalTransactionId"]:
+			if google_props.has(field) and google_props[field] != null:
+				params[field] = google_props[field]
+		if purchase_type == "in-app" and not offer_token.is_empty():
+			params["offerToken"] = offer_token
 		var params_json = JSON.stringify(params)
-		print("[GodotIap] Calling Android requestPurchase: type=", purchase_type, ", skus=", params["skus"].size(), ", subscriptionOffers=", params["subscriptionOffers"].size(), ", hasPurchaseToken=", not str(params["purchaseToken"]).is_empty())
+		print("[GodotIap] Calling Android requestPurchase: type=", purchase_type, ", skus=", params["skus"].size(), ", subscriptionOffers=", subscription_offers.size(), ", hasPurchaseToken=", params.has("purchaseToken"))
 		result_raw = _native_plugin.call("requestPurchase", params_json)
 	elif _platform == "iOS":
 		var apple_props = request.get("apple", {})
@@ -1240,7 +1318,6 @@ func verify_purchase(props) -> Variant:
 		if _platform == "Android":
 			return Types.VerifyPurchaseResultAndroid.from_dict(result)
 	return null
-
 ## Internal: Verify purchase with raw Dictionary
 func _verify_purchase_raw(props: Dictionary) -> Dictionary:
 	if _native_plugin and _platform == "Android":

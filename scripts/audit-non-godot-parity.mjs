@@ -2268,7 +2268,12 @@ function checkFlutter() {
   );
   expectIncludes(
     "libraries/expo-iap/ios/ExpoIapHelper.swift",
-    ["else {\n            return .inApp"],
+    [
+      "static func parseProductQueryType(_ rawValue: Any?)",
+      "if rawValue == nil || rawValue is NSNull {\n            return .inApp",
+      "guard let stringValue = rawValue as? String",
+      'parseProductQueryType(payload["type"])',
+    ],
     "Expo iOS ProductRequest default",
   );
   expectIncludes(

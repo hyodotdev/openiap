@@ -13,6 +13,116 @@ using System.Threading.Tasks;
 
 namespace OpenIap;
 
+public interface IOpenIapEnumJsonConverter<TEnum> where TEnum : struct, Enum
+{
+    bool TryReadRaw(string value, out TEnum result);
+    string WriteRaw(TEnum value);
+}
+
+public sealed class StrictEnumJsonConverter<TEnum, TConverter> : JsonConverter<TEnum>
+    where TEnum : struct, Enum
+    where TConverter : IOpenIapEnumJsonConverter<TEnum>, new()
+{
+    private static readonly TConverter Converter = new();
+
+    public override TEnum Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        var raw = reader.GetString();
+        if (raw is not null && Converter.TryReadRaw(raw, out var value)) return value;
+        throw new JsonException($"Unknown {typeof(TEnum).Name} input value: {raw}");
+    }
+
+    public override void Write(Utf8JsonWriter writer, TEnum value, JsonSerializerOptions options) =>
+        writer.WriteStringValue(Converter.WriteRaw(value));
+}
+
+public sealed class StrictNullableEnumJsonConverter<TEnum, TConverter> : JsonConverter<TEnum?>
+    where TEnum : struct, Enum
+    where TConverter : IOpenIapEnumJsonConverter<TEnum>, new()
+{
+    private static readonly TConverter Converter = new();
+
+    public override TEnum? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        var raw = reader.GetString();
+        if (raw is not null && Converter.TryReadRaw(raw, out var value)) return value;
+        throw new JsonException($"Unknown {typeof(TEnum).Name} input value: {raw}");
+    }
+
+    public override void Write(Utf8JsonWriter writer, TEnum? value, JsonSerializerOptions options)
+    {
+        if (value is null) writer.WriteNullValue();
+        else writer.WriteStringValue(Converter.WriteRaw(value.Value));
+    }
+}
+
+public sealed class StrictEnumListJsonConverter<TEnum, TConverter> : JsonConverter<IReadOnlyList<TEnum>>
+    where TEnum : struct, Enum
+    where TConverter : IOpenIapEnumJsonConverter<TEnum>, new()
+{
+    private static readonly TConverter Converter = new();
+
+    public override IReadOnlyList<TEnum> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        using var document = JsonDocument.ParseValue(ref reader);
+        if (document.RootElement.ValueKind != JsonValueKind.Array) throw new JsonException("Expected an enum input array.");
+        var values = new List<TEnum>();
+        foreach (var element in document.RootElement.EnumerateArray())
+        {
+            var raw = element.ValueKind == JsonValueKind.String ? element.GetString() : null;
+            if (raw is null || !Converter.TryReadRaw(raw, out var value))
+                throw new JsonException($"Unknown {typeof(TEnum).Name} input value: {raw}");
+            values.Add(value);
+        }
+        return values;
+    }
+
+    public override void Write(Utf8JsonWriter writer, IReadOnlyList<TEnum> value, JsonSerializerOptions options)
+    {
+        writer.WriteStartArray();
+        foreach (var item in value) writer.WriteStringValue(Converter.WriteRaw(item));
+        writer.WriteEndArray();
+    }
+}
+
+public sealed class StrictNullableEnumListJsonConverter<TEnum, TConverter> : JsonConverter<IReadOnlyList<TEnum?>>
+    where TEnum : struct, Enum
+    where TConverter : IOpenIapEnumJsonConverter<TEnum>, new()
+{
+    private static readonly TConverter Converter = new();
+
+    public override IReadOnlyList<TEnum?> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        using var document = JsonDocument.ParseValue(ref reader);
+        if (document.RootElement.ValueKind != JsonValueKind.Array) throw new JsonException("Expected an enum input array.");
+        var values = new List<TEnum?>();
+        foreach (var element in document.RootElement.EnumerateArray())
+        {
+            if (element.ValueKind == JsonValueKind.Null)
+            {
+                values.Add(null);
+                continue;
+            }
+            var raw = element.ValueKind == JsonValueKind.String ? element.GetString() : null;
+            if (raw is null || !Converter.TryReadRaw(raw, out var value))
+                throw new JsonException($"Unknown {typeof(TEnum).Name} input value: {raw}");
+            values.Add(value);
+        }
+        return values;
+    }
+
+    public override void Write(Utf8JsonWriter writer, IReadOnlyList<TEnum?> value, JsonSerializerOptions options)
+    {
+        writer.WriteStartArray();
+        foreach (var item in value)
+        {
+            if (item is null) writer.WriteNullValue();
+            else writer.WriteStringValue(Converter.WriteRaw(item.Value));
+        }
+        writer.WriteEndArray();
+    }
+}
+
 // ============================================================================
 // Enums
 // ============================================================================
@@ -32,7 +142,7 @@ public enum BillingChoiceImageLayoutAndroid
     RectangularTwoByTwo
 }
 
-public sealed class BillingChoiceImageLayoutAndroidJsonConverter : JsonConverter<BillingChoiceImageLayoutAndroid>
+public sealed class BillingChoiceImageLayoutAndroidJsonConverter : JsonConverter<BillingChoiceImageLayoutAndroid>, IOpenIapEnumJsonConverter<BillingChoiceImageLayoutAndroid>
 {
     private static readonly Dictionary<string, BillingChoiceImageLayoutAndroid> _fromString = new()
     {
@@ -66,6 +176,11 @@ public sealed class BillingChoiceImageLayoutAndroidJsonConverter : JsonConverter
     internal static string ToRawString(BillingChoiceImageLayoutAndroid value) => _toString[value];
     internal static BillingChoiceImageLayoutAndroid FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown BillingChoiceImageLayoutAndroid value: {value}");
+
+    public bool TryReadRaw(string value, out BillingChoiceImageLayoutAndroid result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(BillingChoiceImageLayoutAndroid value) => _toString[value];
 }
 
 public static class BillingChoiceImageLayoutAndroidExtensions
@@ -89,7 +204,7 @@ public enum BillingChoiceScreenTypeAndroid
     GoogleRendered
 }
 
-public sealed class BillingChoiceScreenTypeAndroidJsonConverter : JsonConverter<BillingChoiceScreenTypeAndroid>
+public sealed class BillingChoiceScreenTypeAndroidJsonConverter : JsonConverter<BillingChoiceScreenTypeAndroid>, IOpenIapEnumJsonConverter<BillingChoiceScreenTypeAndroid>
 {
     private static readonly Dictionary<string, BillingChoiceScreenTypeAndroid> _fromString = new()
     {
@@ -123,6 +238,11 @@ public sealed class BillingChoiceScreenTypeAndroidJsonConverter : JsonConverter<
     internal static string ToRawString(BillingChoiceScreenTypeAndroid value) => _toString[value];
     internal static BillingChoiceScreenTypeAndroid FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown BillingChoiceScreenTypeAndroid value: {value}");
+
+    public bool TryReadRaw(string value, out BillingChoiceScreenTypeAndroid result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(BillingChoiceScreenTypeAndroid value) => _toString[value];
 }
 
 public static class BillingChoiceScreenTypeAndroidExtensions
@@ -176,7 +296,7 @@ public enum BillingProgramAndroid
     BillingChoice
 }
 
-public sealed class BillingProgramAndroidJsonConverter : JsonConverter<BillingProgramAndroid>
+public sealed class BillingProgramAndroidJsonConverter : JsonConverter<BillingProgramAndroid>, IOpenIapEnumJsonConverter<BillingProgramAndroid>
 {
     private static readonly Dictionary<string, BillingProgramAndroid> _fromString = new()
     {
@@ -219,6 +339,11 @@ public sealed class BillingProgramAndroidJsonConverter : JsonConverter<BillingPr
     internal static string ToRawString(BillingProgramAndroid value) => _toString[value];
     internal static BillingProgramAndroid FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown BillingProgramAndroid value: {value}");
+
+    public bool TryReadRaw(string value, out BillingProgramAndroid result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(BillingProgramAndroid value) => _toString[value];
 }
 
 public static class BillingProgramAndroidExtensions
@@ -249,7 +374,7 @@ public enum DeveloperBillingLaunchModeAndroid
     CallerWillLaunchLink
 }
 
-public sealed class DeveloperBillingLaunchModeAndroidJsonConverter : JsonConverter<DeveloperBillingLaunchModeAndroid>
+public sealed class DeveloperBillingLaunchModeAndroidJsonConverter : JsonConverter<DeveloperBillingLaunchModeAndroid>, IOpenIapEnumJsonConverter<DeveloperBillingLaunchModeAndroid>
 {
     private static readonly Dictionary<string, DeveloperBillingLaunchModeAndroid> _fromString = new()
     {
@@ -283,6 +408,11 @@ public sealed class DeveloperBillingLaunchModeAndroidJsonConverter : JsonConvert
     internal static string ToRawString(DeveloperBillingLaunchModeAndroid value) => _toString[value];
     internal static DeveloperBillingLaunchModeAndroid FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown DeveloperBillingLaunchModeAndroid value: {value}");
+
+    public bool TryReadRaw(string value, out DeveloperBillingLaunchModeAndroid result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(DeveloperBillingLaunchModeAndroid value) => _toString[value];
 }
 
 public static class DeveloperBillingLaunchModeAndroidExtensions
@@ -306,7 +436,7 @@ public enum DeveloperBillingTypeAndroid
     ExternalLink
 }
 
-public sealed class DeveloperBillingTypeAndroidJsonConverter : JsonConverter<DeveloperBillingTypeAndroid>
+public sealed class DeveloperBillingTypeAndroidJsonConverter : JsonConverter<DeveloperBillingTypeAndroid>, IOpenIapEnumJsonConverter<DeveloperBillingTypeAndroid>
 {
     private static readonly Dictionary<string, DeveloperBillingTypeAndroid> _fromString = new()
     {
@@ -340,6 +470,11 @@ public sealed class DeveloperBillingTypeAndroidJsonConverter : JsonConverter<Dev
     internal static string ToRawString(DeveloperBillingTypeAndroid value) => _toString[value];
     internal static DeveloperBillingTypeAndroid FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown DeveloperBillingTypeAndroid value: {value}");
+
+    public bool TryReadRaw(string value, out DeveloperBillingTypeAndroid result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(DeveloperBillingTypeAndroid value) => _toString[value];
 }
 
 public static class DeveloperBillingTypeAndroidExtensions
@@ -363,7 +498,7 @@ public enum DiscountOfferType
     OneTime
 }
 
-public sealed class DiscountOfferTypeJsonConverter : JsonConverter<DiscountOfferType>
+public sealed class DiscountOfferTypeJsonConverter : JsonConverter<DiscountOfferType>, IOpenIapEnumJsonConverter<DiscountOfferType>
 {
     private static readonly Dictionary<string, DiscountOfferType> _fromString = new()
     {
@@ -400,6 +535,11 @@ public sealed class DiscountOfferTypeJsonConverter : JsonConverter<DiscountOffer
     internal static string ToRawString(DiscountOfferType value) => _toString[value];
     internal static DiscountOfferType FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown DiscountOfferType value: {value}");
+
+    public bool TryReadRaw(string value, out DiscountOfferType result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(DiscountOfferType value) => _toString[value];
 }
 
 public static class DiscountOfferTypeExtensions
@@ -449,7 +589,7 @@ public enum ErrorCode
     DuplicatePurchase
 }
 
-public sealed class ErrorCodeJsonConverter : JsonConverter<ErrorCode>
+public sealed class ErrorCodeJsonConverter : JsonConverter<ErrorCode>, IOpenIapEnumJsonConverter<ErrorCode>
 {
     private static readonly Dictionary<string, ErrorCode> _fromString = new()
     {
@@ -618,6 +758,11 @@ public sealed class ErrorCodeJsonConverter : JsonConverter<ErrorCode>
     internal static string ToRawString(ErrorCode value) => _toString[value];
     internal static ErrorCode FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : ErrorCode.Unknown;
+
+    public bool TryReadRaw(string value, out ErrorCode result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(ErrorCode value) => _toString[value];
 }
 
 public static class ErrorCodeExtensions
@@ -643,7 +788,7 @@ public enum ExternalLinkLaunchModeAndroid
     CallerWillLaunchLink
 }
 
-public sealed class ExternalLinkLaunchModeAndroidJsonConverter : JsonConverter<ExternalLinkLaunchModeAndroid>
+public sealed class ExternalLinkLaunchModeAndroidJsonConverter : JsonConverter<ExternalLinkLaunchModeAndroid>, IOpenIapEnumJsonConverter<ExternalLinkLaunchModeAndroid>
 {
     private static readonly Dictionary<string, ExternalLinkLaunchModeAndroid> _fromString = new()
     {
@@ -677,6 +822,11 @@ public sealed class ExternalLinkLaunchModeAndroidJsonConverter : JsonConverter<E
     internal static string ToRawString(ExternalLinkLaunchModeAndroid value) => _toString[value];
     internal static ExternalLinkLaunchModeAndroid FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown ExternalLinkLaunchModeAndroid value: {value}");
+
+    public bool TryReadRaw(string value, out ExternalLinkLaunchModeAndroid result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(ExternalLinkLaunchModeAndroid value) => _toString[value];
 }
 
 public static class ExternalLinkLaunchModeAndroidExtensions
@@ -701,7 +851,7 @@ public enum ExternalLinkTypeAndroid
     LinkToAppDownload
 }
 
-public sealed class ExternalLinkTypeAndroidJsonConverter : JsonConverter<ExternalLinkTypeAndroid>
+public sealed class ExternalLinkTypeAndroidJsonConverter : JsonConverter<ExternalLinkTypeAndroid>, IOpenIapEnumJsonConverter<ExternalLinkTypeAndroid>
 {
     private static readonly Dictionary<string, ExternalLinkTypeAndroid> _fromString = new()
     {
@@ -735,6 +885,11 @@ public sealed class ExternalLinkTypeAndroidJsonConverter : JsonConverter<Externa
     internal static string ToRawString(ExternalLinkTypeAndroid value) => _toString[value];
     internal static ExternalLinkTypeAndroid FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown ExternalLinkTypeAndroid value: {value}");
+
+    public bool TryReadRaw(string value, out ExternalLinkTypeAndroid result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(ExternalLinkTypeAndroid value) => _toString[value];
 }
 
 public static class ExternalLinkTypeAndroidExtensions
@@ -758,7 +913,7 @@ public enum ExternalPurchaseCustomLinkNoticeTypeIOS
     Browser
 }
 
-public sealed class ExternalPurchaseCustomLinkNoticeTypeIOSJsonConverter : JsonConverter<ExternalPurchaseCustomLinkNoticeTypeIOS>
+public sealed class ExternalPurchaseCustomLinkNoticeTypeIOSJsonConverter : JsonConverter<ExternalPurchaseCustomLinkNoticeTypeIOS>, IOpenIapEnumJsonConverter<ExternalPurchaseCustomLinkNoticeTypeIOS>
 {
     private static readonly Dictionary<string, ExternalPurchaseCustomLinkNoticeTypeIOS> _fromString = new()
     {
@@ -787,6 +942,11 @@ public sealed class ExternalPurchaseCustomLinkNoticeTypeIOSJsonConverter : JsonC
     internal static string ToRawString(ExternalPurchaseCustomLinkNoticeTypeIOS value) => _toString[value];
     internal static ExternalPurchaseCustomLinkNoticeTypeIOS FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown ExternalPurchaseCustomLinkNoticeTypeIOS value: {value}");
+
+    public bool TryReadRaw(string value, out ExternalPurchaseCustomLinkNoticeTypeIOS result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(ExternalPurchaseCustomLinkNoticeTypeIOS value) => _toString[value];
 }
 
 public static class ExternalPurchaseCustomLinkNoticeTypeIOSExtensions
@@ -815,7 +975,7 @@ public enum ExternalPurchaseCustomLinkTokenTypeIOS
     Services
 }
 
-public sealed class ExternalPurchaseCustomLinkTokenTypeIOSJsonConverter : JsonConverter<ExternalPurchaseCustomLinkTokenTypeIOS>
+public sealed class ExternalPurchaseCustomLinkTokenTypeIOSJsonConverter : JsonConverter<ExternalPurchaseCustomLinkTokenTypeIOS>, IOpenIapEnumJsonConverter<ExternalPurchaseCustomLinkTokenTypeIOS>
 {
     private static readonly Dictionary<string, ExternalPurchaseCustomLinkTokenTypeIOS> _fromString = new()
     {
@@ -848,6 +1008,11 @@ public sealed class ExternalPurchaseCustomLinkTokenTypeIOSJsonConverter : JsonCo
     internal static string ToRawString(ExternalPurchaseCustomLinkTokenTypeIOS value) => _toString[value];
     internal static ExternalPurchaseCustomLinkTokenTypeIOS FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown ExternalPurchaseCustomLinkTokenTypeIOS value: {value}");
+
+    public bool TryReadRaw(string value, out ExternalPurchaseCustomLinkTokenTypeIOS result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(ExternalPurchaseCustomLinkTokenTypeIOS value) => _toString[value];
 }
 
 public static class ExternalPurchaseCustomLinkTokenTypeIOSExtensions
@@ -866,7 +1031,7 @@ public enum ExternalPurchaseNoticeAction
     Dismissed
 }
 
-public sealed class ExternalPurchaseNoticeActionJsonConverter : JsonConverter<ExternalPurchaseNoticeAction>
+public sealed class ExternalPurchaseNoticeActionJsonConverter : JsonConverter<ExternalPurchaseNoticeAction>, IOpenIapEnumJsonConverter<ExternalPurchaseNoticeAction>
 {
     private static readonly Dictionary<string, ExternalPurchaseNoticeAction> _fromString = new()
     {
@@ -899,6 +1064,11 @@ public sealed class ExternalPurchaseNoticeActionJsonConverter : JsonConverter<Ex
     internal static string ToRawString(ExternalPurchaseNoticeAction value) => _toString[value];
     internal static ExternalPurchaseNoticeAction FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown ExternalPurchaseNoticeAction value: {value}");
+
+    public bool TryReadRaw(string value, out ExternalPurchaseNoticeAction result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(ExternalPurchaseNoticeAction value) => _toString[value];
 }
 
 public static class ExternalPurchaseNoticeActionExtensions
@@ -931,7 +1101,7 @@ public enum IapEvent
     SubscriptionBillingIssue
 }
 
-public sealed class IapEventJsonConverter : JsonConverter<IapEvent>
+public sealed class IapEventJsonConverter : JsonConverter<IapEvent>, IOpenIapEnumJsonConverter<IapEvent>
 {
     private static readonly Dictionary<string, IapEvent> _fromString = new()
     {
@@ -980,6 +1150,11 @@ public sealed class IapEventJsonConverter : JsonConverter<IapEvent>
     internal static string ToRawString(IapEvent value) => _toString[value];
     internal static IapEvent FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown IapEvent value: {value}");
+
+    public bool TryReadRaw(string value, out IapEvent result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(IapEvent value) => _toString[value];
 }
 
 public static class IapEventExtensions
@@ -997,7 +1172,7 @@ public enum IapkitClientPayloadFormat
     Text
 }
 
-public sealed class IapkitClientPayloadFormatJsonConverter : JsonConverter<IapkitClientPayloadFormat>
+public sealed class IapkitClientPayloadFormatJsonConverter : JsonConverter<IapkitClientPayloadFormat>, IOpenIapEnumJsonConverter<IapkitClientPayloadFormat>
 {
     private static readonly Dictionary<string, IapkitClientPayloadFormat> _fromString = new()
     {
@@ -1034,6 +1209,11 @@ public sealed class IapkitClientPayloadFormatJsonConverter : JsonConverter<Iapki
     internal static string ToRawString(IapkitClientPayloadFormat value) => _toString[value];
     internal static IapkitClientPayloadFormat FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown IapkitClientPayloadFormat value: {value}");
+
+    public bool TryReadRaw(string value, out IapkitClientPayloadFormat result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(IapkitClientPayloadFormat value) => _toString[value];
 }
 
 public static class IapkitClientPayloadFormatExtensions
@@ -1066,7 +1246,7 @@ public enum IapkitPurchaseState
     Inauthentic
 }
 
-public sealed class IapkitPurchaseStateJsonConverter : JsonConverter<IapkitPurchaseState>
+public sealed class IapkitPurchaseStateJsonConverter : JsonConverter<IapkitPurchaseState>, IOpenIapEnumJsonConverter<IapkitPurchaseState>
 {
     private static readonly Dictionary<string, IapkitPurchaseState> _fromString = new()
     {
@@ -1118,6 +1298,11 @@ public sealed class IapkitPurchaseStateJsonConverter : JsonConverter<IapkitPurch
     internal static string ToRawString(IapkitPurchaseState value) => _toString[value];
     internal static IapkitPurchaseState FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : IapkitPurchaseState.Unknown;
+
+    public bool TryReadRaw(string value, out IapkitPurchaseState result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(IapkitPurchaseState value) => _toString[value];
 }
 
 public static class IapkitPurchaseStateExtensions
@@ -1133,7 +1318,7 @@ public enum IapPlatform
     Android
 }
 
-public sealed class IapPlatformJsonConverter : JsonConverter<IapPlatform>
+public sealed class IapPlatformJsonConverter : JsonConverter<IapPlatform>, IOpenIapEnumJsonConverter<IapPlatform>
 {
     private static readonly Dictionary<string, IapPlatform> _fromString = new()
     {
@@ -1165,6 +1350,11 @@ public sealed class IapPlatformJsonConverter : JsonConverter<IapPlatform>
     internal static string ToRawString(IapPlatform value) => _toString[value];
     internal static IapPlatform FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown IapPlatform value: {value}");
+
+    public bool TryReadRaw(string value, out IapPlatform result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(IapPlatform value) => _toString[value];
 }
 
 public static class IapPlatformExtensions
@@ -1183,7 +1373,7 @@ public enum IapStore
     Amazon
 }
 
-public sealed class IapStoreJsonConverter : JsonConverter<IapStore>
+public sealed class IapStoreJsonConverter : JsonConverter<IapStore>, IOpenIapEnumJsonConverter<IapStore>
 {
     private static readonly Dictionary<string, IapStore> _fromString = new()
     {
@@ -1228,6 +1418,11 @@ public sealed class IapStoreJsonConverter : JsonConverter<IapStore>
     internal static string ToRawString(IapStore value) => _toString[value];
     internal static IapStore FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : IapStore.Unknown;
+
+    public bool TryReadRaw(string value, out IapStore result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(IapStore value) => _toString[value];
 }
 
 public static class IapStoreExtensions
@@ -1250,7 +1445,7 @@ public enum InAppMessageCategoryAndroid
     Transactional
 }
 
-public sealed class InAppMessageCategoryAndroidJsonConverter : JsonConverter<InAppMessageCategoryAndroid>
+public sealed class InAppMessageCategoryAndroidJsonConverter : JsonConverter<InAppMessageCategoryAndroid>, IOpenIapEnumJsonConverter<InAppMessageCategoryAndroid>
 {
     private static readonly Dictionary<string, InAppMessageCategoryAndroid> _fromString = new()
     {
@@ -1281,6 +1476,11 @@ public sealed class InAppMessageCategoryAndroidJsonConverter : JsonConverter<InA
     internal static string ToRawString(InAppMessageCategoryAndroid value) => _toString[value];
     internal static InAppMessageCategoryAndroid FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId;
+
+    public bool TryReadRaw(string value, out InAppMessageCategoryAndroid result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(InAppMessageCategoryAndroid value) => _toString[value];
 }
 
 public static class InAppMessageCategoryAndroidExtensions
@@ -1303,7 +1503,7 @@ public enum InAppMessageResponseCodeAndroid
     SubscriptionStatusUpdated
 }
 
-public sealed class InAppMessageResponseCodeAndroidJsonConverter : JsonConverter<InAppMessageResponseCodeAndroid>
+public sealed class InAppMessageResponseCodeAndroidJsonConverter : JsonConverter<InAppMessageResponseCodeAndroid>, IOpenIapEnumJsonConverter<InAppMessageResponseCodeAndroid>
 {
     private static readonly Dictionary<string, InAppMessageResponseCodeAndroid> _fromString = new()
     {
@@ -1334,6 +1534,11 @@ public sealed class InAppMessageResponseCodeAndroidJsonConverter : JsonConverter
     internal static string ToRawString(InAppMessageResponseCodeAndroid value) => _toString[value];
     internal static InAppMessageResponseCodeAndroid FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown InAppMessageResponseCodeAndroid value: {value}");
+
+    public bool TryReadRaw(string value, out InAppMessageResponseCodeAndroid result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(InAppMessageResponseCodeAndroid value) => _toString[value];
 }
 
 public static class InAppMessageResponseCodeAndroidExtensions
@@ -1359,7 +1564,7 @@ public enum PaymentMode
     Unknown
 }
 
-public sealed class PaymentModeJsonConverter : JsonConverter<PaymentMode>
+public sealed class PaymentModeJsonConverter : JsonConverter<PaymentMode>, IOpenIapEnumJsonConverter<PaymentMode>
 {
     private static readonly Dictionary<string, PaymentMode> _fromString = new()
     {
@@ -1400,6 +1605,11 @@ public sealed class PaymentModeJsonConverter : JsonConverter<PaymentMode>
     internal static string ToRawString(PaymentMode value) => _toString[value];
     internal static PaymentMode FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : PaymentMode.Unknown;
+
+    public bool TryReadRaw(string value, out PaymentMode result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(PaymentMode value) => _toString[value];
 }
 
 public static class PaymentModeExtensions
@@ -1417,7 +1627,7 @@ public enum PaymentModeIOS
     PayUpFront
 }
 
-public sealed class PaymentModeIOSJsonConverter : JsonConverter<PaymentModeIOS>
+public sealed class PaymentModeIOSJsonConverter : JsonConverter<PaymentModeIOS>, IOpenIapEnumJsonConverter<PaymentModeIOS>
 {
     private static readonly Dictionary<string, PaymentModeIOS> _fromString = new()
     {
@@ -1458,6 +1668,11 @@ public sealed class PaymentModeIOSJsonConverter : JsonConverter<PaymentModeIOS>
     internal static string ToRawString(PaymentModeIOS value) => _toString[value];
     internal static PaymentModeIOS FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown PaymentModeIOS value: {value}");
+
+    public bool TryReadRaw(string value, out PaymentModeIOS result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(PaymentModeIOS value) => _toString[value];
 }
 
 public static class PaymentModeIOSExtensions
@@ -1474,7 +1689,7 @@ public enum ProductQueryType
     All
 }
 
-public sealed class ProductQueryTypeJsonConverter : JsonConverter<ProductQueryType>
+public sealed class ProductQueryTypeJsonConverter : JsonConverter<ProductQueryType>, IOpenIapEnumJsonConverter<ProductQueryType>
 {
     private static readonly Dictionary<string, ProductQueryType> _fromString = new()
     {
@@ -1511,6 +1726,11 @@ public sealed class ProductQueryTypeJsonConverter : JsonConverter<ProductQueryTy
     internal static string ToRawString(ProductQueryType value) => _toString[value];
     internal static ProductQueryType FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown ProductQueryType value: {value}");
+
+    public bool TryReadRaw(string value, out ProductQueryType result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(ProductQueryType value) => _toString[value];
 }
 
 public static class ProductQueryTypeExtensions
@@ -1538,7 +1758,7 @@ public enum ProductStatusAndroid
     Unknown
 }
 
-public sealed class ProductStatusAndroidJsonConverter : JsonConverter<ProductStatusAndroid>
+public sealed class ProductStatusAndroidJsonConverter : JsonConverter<ProductStatusAndroid>, IOpenIapEnumJsonConverter<ProductStatusAndroid>
 {
     private static readonly Dictionary<string, ProductStatusAndroid> _fromString = new()
     {
@@ -1575,6 +1795,11 @@ public sealed class ProductStatusAndroidJsonConverter : JsonConverter<ProductSta
     internal static string ToRawString(ProductStatusAndroid value) => _toString[value];
     internal static ProductStatusAndroid FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : ProductStatusAndroid.Unknown;
+
+    public bool TryReadRaw(string value, out ProductStatusAndroid result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(ProductStatusAndroid value) => _toString[value];
 }
 
 public static class ProductStatusAndroidExtensions
@@ -1590,7 +1815,7 @@ public enum ProductType
     Subs
 }
 
-public sealed class ProductTypeJsonConverter : JsonConverter<ProductType>
+public sealed class ProductTypeJsonConverter : JsonConverter<ProductType>, IOpenIapEnumJsonConverter<ProductType>
 {
     private static readonly Dictionary<string, ProductType> _fromString = new()
     {
@@ -1623,6 +1848,11 @@ public sealed class ProductTypeJsonConverter : JsonConverter<ProductType>
     internal static string ToRawString(ProductType value) => _toString[value];
     internal static ProductType FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown ProductType value: {value}");
+
+    public bool TryReadRaw(string value, out ProductType result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(ProductType value) => _toString[value];
 }
 
 public static class ProductTypeExtensions
@@ -1644,7 +1874,7 @@ public enum ProductTypeIOS
     SubscriptionSuite
 }
 
-public sealed class ProductTypeIOSJsonConverter : JsonConverter<ProductTypeIOS>
+public sealed class ProductTypeIOSJsonConverter : JsonConverter<ProductTypeIOS>, IOpenIapEnumJsonConverter<ProductTypeIOS>
 {
     private static readonly Dictionary<string, ProductTypeIOS> _fromString = new()
     {
@@ -1693,6 +1923,11 @@ public sealed class ProductTypeIOSJsonConverter : JsonConverter<ProductTypeIOS>
     internal static string ToRawString(ProductTypeIOS value) => _toString[value];
     internal static ProductTypeIOS FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown ProductTypeIOS value: {value}");
+
+    public bool TryReadRaw(string value, out ProductTypeIOS result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(ProductTypeIOS value) => _toString[value];
 }
 
 public static class ProductTypeIOSExtensions
@@ -1709,7 +1944,7 @@ public enum PurchaseState
     Unknown
 }
 
-public sealed class PurchaseStateJsonConverter : JsonConverter<PurchaseState>
+public sealed class PurchaseStateJsonConverter : JsonConverter<PurchaseState>, IOpenIapEnumJsonConverter<PurchaseState>
 {
     private static readonly Dictionary<string, PurchaseState> _fromString = new()
     {
@@ -1746,6 +1981,11 @@ public sealed class PurchaseStateJsonConverter : JsonConverter<PurchaseState>
     internal static string ToRawString(PurchaseState value) => _toString[value];
     internal static PurchaseState FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : PurchaseState.Unknown;
+
+    public bool TryReadRaw(string value, out PurchaseState result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(PurchaseState value) => _toString[value];
 }
 
 public static class PurchaseStateExtensions
@@ -1760,7 +2000,7 @@ public enum PurchaseVerificationProvider
     Iapkit
 }
 
-public sealed class PurchaseVerificationProviderJsonConverter : JsonConverter<PurchaseVerificationProvider>
+public sealed class PurchaseVerificationProviderJsonConverter : JsonConverter<PurchaseVerificationProvider>, IOpenIapEnumJsonConverter<PurchaseVerificationProvider>
 {
     private static readonly Dictionary<string, PurchaseVerificationProvider> _fromString = new()
     {
@@ -1789,6 +2029,11 @@ public sealed class PurchaseVerificationProviderJsonConverter : JsonConverter<Pu
     internal static string ToRawString(PurchaseVerificationProvider value) => _toString[value];
     internal static PurchaseVerificationProvider FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown PurchaseVerificationProvider value: {value}");
+
+    public bool TryReadRaw(string value, out PurchaseVerificationProvider result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(PurchaseVerificationProvider value) => _toString[value];
 }
 
 public static class PurchaseVerificationProviderExtensions
@@ -1812,7 +2057,7 @@ public enum SubResponseCodeAndroid
     UserIneligible
 }
 
-public sealed class SubResponseCodeAndroidJsonConverter : JsonConverter<SubResponseCodeAndroid>
+public sealed class SubResponseCodeAndroidJsonConverter : JsonConverter<SubResponseCodeAndroid>, IOpenIapEnumJsonConverter<SubResponseCodeAndroid>
 {
     private static readonly Dictionary<string, SubResponseCodeAndroid> _fromString = new()
     {
@@ -1846,6 +2091,11 @@ public sealed class SubResponseCodeAndroidJsonConverter : JsonConverter<SubRespo
     internal static string ToRawString(SubResponseCodeAndroid value) => _toString[value];
     internal static SubResponseCodeAndroid FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown SubResponseCodeAndroid value: {value}");
+
+    public bool TryReadRaw(string value, out SubResponseCodeAndroid result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(SubResponseCodeAndroid value) => _toString[value];
 }
 
 public static class SubResponseCodeAndroidExtensions
@@ -1865,7 +2115,7 @@ public enum SubscriptionBillingPlanTypeIOS
     UpFront
 }
 
-public sealed class SubscriptionBillingPlanTypeIOSJsonConverter : JsonConverter<SubscriptionBillingPlanTypeIOS>
+public sealed class SubscriptionBillingPlanTypeIOSJsonConverter : JsonConverter<SubscriptionBillingPlanTypeIOS>, IOpenIapEnumJsonConverter<SubscriptionBillingPlanTypeIOS>
 {
     private static readonly Dictionary<string, SubscriptionBillingPlanTypeIOS> _fromString = new()
     {
@@ -1902,6 +2152,11 @@ public sealed class SubscriptionBillingPlanTypeIOSJsonConverter : JsonConverter<
     internal static string ToRawString(SubscriptionBillingPlanTypeIOS value) => _toString[value];
     internal static SubscriptionBillingPlanTypeIOS FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : SubscriptionBillingPlanTypeIOS.Unknown;
+
+    public bool TryReadRaw(string value, out SubscriptionBillingPlanTypeIOS result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(SubscriptionBillingPlanTypeIOS value) => _toString[value];
 }
 
 public static class SubscriptionBillingPlanTypeIOSExtensions
@@ -1922,7 +2177,7 @@ public enum SubscriptionOfferTypeIOS
     WinBack
 }
 
-public sealed class SubscriptionOfferTypeIOSJsonConverter : JsonConverter<SubscriptionOfferTypeIOS>
+public sealed class SubscriptionOfferTypeIOSJsonConverter : JsonConverter<SubscriptionOfferTypeIOS>, IOpenIapEnumJsonConverter<SubscriptionOfferTypeIOS>
 {
     private static readonly Dictionary<string, SubscriptionOfferTypeIOS> _fromString = new()
     {
@@ -1959,6 +2214,11 @@ public sealed class SubscriptionOfferTypeIOSJsonConverter : JsonConverter<Subscr
     internal static string ToRawString(SubscriptionOfferTypeIOS value) => _toString[value];
     internal static SubscriptionOfferTypeIOS FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown SubscriptionOfferTypeIOS value: {value}");
+
+    public bool TryReadRaw(string value, out SubscriptionOfferTypeIOS result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(SubscriptionOfferTypeIOS value) => _toString[value];
 }
 
 public static class SubscriptionOfferTypeIOSExtensions
@@ -1977,7 +2237,7 @@ public enum SubscriptionPeriodIOS
     Empty
 }
 
-public sealed class SubscriptionPeriodIOSJsonConverter : JsonConverter<SubscriptionPeriodIOS>
+public sealed class SubscriptionPeriodIOSJsonConverter : JsonConverter<SubscriptionPeriodIOS>, IOpenIapEnumJsonConverter<SubscriptionPeriodIOS>
 {
     private static readonly Dictionary<string, SubscriptionPeriodIOS> _fromString = new()
     {
@@ -2022,6 +2282,11 @@ public sealed class SubscriptionPeriodIOSJsonConverter : JsonConverter<Subscript
     internal static string ToRawString(SubscriptionPeriodIOS value) => _toString[value];
     internal static SubscriptionPeriodIOS FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown SubscriptionPeriodIOS value: {value}");
+
+    public bool TryReadRaw(string value, out SubscriptionPeriodIOS result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(SubscriptionPeriodIOS value) => _toString[value];
 }
 
 public static class SubscriptionPeriodIOSExtensions
@@ -2041,7 +2306,7 @@ public enum SubscriptionPeriodUnit
     Unknown
 }
 
-public sealed class SubscriptionPeriodUnitJsonConverter : JsonConverter<SubscriptionPeriodUnit>
+public sealed class SubscriptionPeriodUnitJsonConverter : JsonConverter<SubscriptionPeriodUnit>, IOpenIapEnumJsonConverter<SubscriptionPeriodUnit>
 {
     private static readonly Dictionary<string, SubscriptionPeriodUnit> _fromString = new()
     {
@@ -2086,6 +2351,11 @@ public sealed class SubscriptionPeriodUnitJsonConverter : JsonConverter<Subscrip
     internal static string ToRawString(SubscriptionPeriodUnit value) => _toString[value];
     internal static SubscriptionPeriodUnit FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : SubscriptionPeriodUnit.Unknown;
+
+    public bool TryReadRaw(string value, out SubscriptionPeriodUnit result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(SubscriptionPeriodUnit value) => _toString[value];
 }
 
 public static class SubscriptionPeriodUnitExtensions
@@ -2118,7 +2388,7 @@ public enum SubscriptionReplacementModeAndroid
     KeepExisting
 }
 
-public sealed class SubscriptionReplacementModeAndroidJsonConverter : JsonConverter<SubscriptionReplacementModeAndroid>
+public sealed class SubscriptionReplacementModeAndroidJsonConverter : JsonConverter<SubscriptionReplacementModeAndroid>, IOpenIapEnumJsonConverter<SubscriptionReplacementModeAndroid>
 {
     private static readonly Dictionary<string, SubscriptionReplacementModeAndroid> _fromString = new()
     {
@@ -2164,6 +2434,11 @@ public sealed class SubscriptionReplacementModeAndroidJsonConverter : JsonConver
     internal static string ToRawString(SubscriptionReplacementModeAndroid value) => _toString[value];
     internal static SubscriptionReplacementModeAndroid FromRawString(string value) =>
         _fromString.TryGetValue(value, out var v) ? v : SubscriptionReplacementModeAndroid.UnknownReplacementMode;
+
+    public bool TryReadRaw(string value, out SubscriptionReplacementModeAndroid result) =>
+        _fromString.TryGetValue(value, out result);
+
+    public string WriteRaw(SubscriptionReplacementModeAndroid value) => _toString[value];
 }
 
 public static class SubscriptionReplacementModeAndroidExtensions
@@ -3936,6 +4211,7 @@ public sealed record BillingProgramInformationDialogParamsAndroid
 {
     /// <summary>Billing program. Currently only BILLING_CHOICE is supported.</summary>
     [JsonPropertyName("billingProgram")]
+    [JsonConverter(typeof(StrictEnumJsonConverter<BillingProgramAndroid, BillingProgramAndroidJsonConverter>))]
     public BillingProgramAndroid BillingProgram { get; init; } = global::OpenIap.BillingProgramAndroid.BillingChoice;
     /// <summary>External transaction token returned by the Billing Choice reporting-details flow.</summary>
     [JsonPropertyName("externalTransactionToken")]
@@ -3963,6 +4239,7 @@ public sealed record DeveloperBillingOptionParamsAndroid
 {
     /// <summary>The billing program. Use EXTERNAL_PAYMENTS or BILLING_CHOICE.</summary>
     [JsonPropertyName("billingProgram")]
+    [JsonConverter(typeof(StrictEnumJsonConverter<BillingProgramAndroid, BillingProgramAndroidJsonConverter>))]
     public required BillingProgramAndroid BillingProgram { get; init; }
     /// <summary>
     /// The URI where the external payment will be processed.
@@ -3975,6 +4252,7 @@ public sealed record DeveloperBillingOptionParamsAndroid
     /// Required only when the selected billing program links outside the app.
     /// </summary>
     [JsonPropertyName("launchMode")]
+    [JsonConverter(typeof(StrictNullableEnumJsonConverter<DeveloperBillingLaunchModeAndroid, DeveloperBillingLaunchModeAndroidJsonConverter>))]
     public DeveloperBillingLaunchModeAndroid? LaunchMode { get; init; }
     /// <summary>
     /// A pre-generated external transaction token for a Billing Choice external-link
@@ -4011,9 +4289,11 @@ public sealed record GetBillingChoiceInfoParamsAndroid
 {
     /// <summary>Billing program. Currently only BILLING_CHOICE is supported.</summary>
     [JsonPropertyName("billingProgram")]
+    [JsonConverter(typeof(StrictEnumJsonConverter<BillingProgramAndroid, BillingProgramAndroidJsonConverter>))]
     public BillingProgramAndroid BillingProgram { get; init; } = global::OpenIap.BillingProgramAndroid.BillingChoice;
     /// <summary>Desired Play Billing choice image layout.</summary>
     [JsonPropertyName("playBillingChoiceImageLayout")]
+    [JsonConverter(typeof(StrictEnumJsonConverter<BillingChoiceImageLayoutAndroid, BillingChoiceImageLayoutAndroidJsonConverter>))]
     public BillingChoiceImageLayoutAndroid PlayBillingChoiceImageLayout { get; init; } = global::OpenIap.BillingChoiceImageLayoutAndroid.RectangularFourByOne;
     /// <summary>BCP 47 locale tag. If omitted, Play Billing uses the user&apos;s default locale.</summary>
     [JsonPropertyName("userLocale")]
@@ -4029,6 +4309,7 @@ public sealed record InAppMessageParamsAndroid
 {
     /// <summary>In-app message categories to show. Defaults to transactional messages.</summary>
     [JsonPropertyName("categories")]
+    [JsonConverter(typeof(StrictEnumListJsonConverter<InAppMessageCategoryAndroid, InAppMessageCategoryAndroidJsonConverter>))]
     public IReadOnlyList<InAppMessageCategoryAndroid>? Categories { get; init; } = new List<InAppMessageCategoryAndroid> { global::OpenIap.InAppMessageCategoryAndroid.Transactional };
 }
 
@@ -4046,6 +4327,7 @@ public sealed record InitConnectionConfig
     ///   (OpenIAP Spec 2.1.0 / openiap-google 2.3.0; requires Play Billing 9.1.0+)
     /// </summary>
     [JsonPropertyName("enableBillingProgramAndroid")]
+    [JsonConverter(typeof(StrictNullableEnumJsonConverter<BillingProgramAndroid, BillingProgramAndroidJsonConverter>))]
     public BillingProgramAndroid? EnableBillingProgramAndroid { get; init; }
     /// <summary>
     /// Billing Choice renderer configured in Play Console. Available in OpenIAP
@@ -4057,6 +4339,7 @@ public sealed record InitConnectionConfig
     /// Defaults to GOOGLE_RENDERED.
     /// </summary>
     [JsonPropertyName("billingChoiceScreenTypeAndroid")]
+    [JsonConverter(typeof(StrictNullableEnumJsonConverter<BillingChoiceScreenTypeAndroid, BillingChoiceScreenTypeAndroidJsonConverter>))]
     public BillingChoiceScreenTypeAndroid? BillingChoiceScreenTypeAndroid { get; init; } = global::OpenIap.BillingChoiceScreenTypeAndroid.GoogleRendered;
 }
 
@@ -4070,12 +4353,15 @@ public sealed record LaunchExternalLinkParamsAndroid
 {
     /// <summary>The billing program (EXTERNAL_CONTENT_LINK, EXTERNAL_OFFER, or BILLING_CHOICE)</summary>
     [JsonPropertyName("billingProgram")]
+    [JsonConverter(typeof(StrictEnumJsonConverter<BillingProgramAndroid, BillingProgramAndroidJsonConverter>))]
     public required BillingProgramAndroid BillingProgram { get; init; }
     /// <summary>The external link launch mode</summary>
     [JsonPropertyName("launchMode")]
+    [JsonConverter(typeof(StrictEnumJsonConverter<ExternalLinkLaunchModeAndroid, ExternalLinkLaunchModeAndroidJsonConverter>))]
     public required ExternalLinkLaunchModeAndroid LaunchMode { get; init; }
     /// <summary>The type of the external link</summary>
     [JsonPropertyName("linkType")]
+    [JsonConverter(typeof(StrictEnumJsonConverter<ExternalLinkTypeAndroid, ExternalLinkTypeAndroidJsonConverter>))]
     public required ExternalLinkTypeAndroid LinkType { get; init; }
     /// <summary>The URI where the content will be accessed from</summary>
     [JsonPropertyName("linkUri")]
@@ -4094,6 +4380,7 @@ public sealed record ProductRequest
     [JsonPropertyName("skus")]
     public required IReadOnlyList<string> Skus { get; init; }
     [JsonPropertyName("type")]
+    [JsonConverter(typeof(StrictNullableEnumJsonConverter<ProductQueryType, ProductQueryTypeJsonConverter>))]
     public ProductQueryType? Type { get; init; } = global::OpenIap.ProductQueryType.InApp;
 }
 
@@ -4225,6 +4512,7 @@ public sealed record RequestPurchaseProps : IJsonOnDeserialized
 
     /// <summary>Explicit purchase type hint (defaults to in-app)</summary>
     [JsonPropertyName("type")]
+    [JsonConverter(typeof(StrictEnumJsonConverter<ProductQueryType, ProductQueryTypeJsonConverter>))]
     public required ProductQueryType Type { get; init; }
 
     public void Validate()
@@ -4345,6 +4633,7 @@ public sealed record RequestSubscriptionIosProps
     /// monthly billing with a 12-month commitment (iOS 26.4+).
     /// </summary>
     [JsonPropertyName("billingPlanType")]
+    [JsonConverter(typeof(StrictNullableEnumJsonConverter<SubscriptionBillingPlanTypeIOS, SubscriptionBillingPlanTypeIOSJsonConverter>))]
     public SubscriptionBillingPlanTypeIOS? BillingPlanType { get; init; }
     /// <summary>
     /// Compact JWS string for overriding introductory offer eligibility
@@ -4467,6 +4756,7 @@ public sealed record SubscriptionProductReplacementParamsAndroid
     public required string OldProductId { get; init; }
     /// <summary>The replacement mode for this product change</summary>
     [JsonPropertyName("replacementMode")]
+    [JsonConverter(typeof(StrictEnumJsonConverter<SubscriptionReplacementModeAndroid, SubscriptionReplacementModeAndroidJsonConverter>))]
     public required SubscriptionReplacementModeAndroid ReplacementMode { get; init; }
 }
 
@@ -4558,6 +4848,7 @@ public sealed record VerifyPurchaseProps
 public sealed record VerifyPurchaseWithProviderProps
 {
     [JsonPropertyName("provider")]
+    [JsonConverter(typeof(StrictEnumJsonConverter<PurchaseVerificationProvider, PurchaseVerificationProviderJsonConverter>))]
     public required PurchaseVerificationProvider Provider { get; init; }
     [JsonPropertyName("iapkit")]
     public RequestVerifyPurchaseWithIapkitProps? Iapkit { get; init; }

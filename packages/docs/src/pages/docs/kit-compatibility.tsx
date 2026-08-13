@@ -181,8 +181,8 @@ X-OpenIAP-Spec: 3.2.0`}</CodeBlock>
             for a legitimate reason.
           </li>
           <li>
-            Never fail a verification because a value is unrecognised. Log it
-            and continue.
+            Never fail a verification because optional metadata is unrecognised.
+            Required verdict and security-boundary values still fail closed.
           </li>
           <li>
             Keep the SDK reasonably current so new fields become available, but

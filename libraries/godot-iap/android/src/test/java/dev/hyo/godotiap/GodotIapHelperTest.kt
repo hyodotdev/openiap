@@ -45,11 +45,10 @@ class GodotIapHelperTest {
     @Test
     fun `subscription replacement modes require complete concrete params`() {
         val invalidParams = listOf(
-            """{"type":"subs","subscriptionProductReplacementParams":null}""",
-            """{"type":"subs","subscriptionProductReplacementParams":{}}""",
-            """{"type":"subs","subscriptionProductReplacementParams":{"oldProductId":"old"}}""",
-            """{"type":"subs","subscriptionProductReplacementParams":{"oldProductId":"old","replacementMode":"future-mode"}}""",
-            """{"type":"subs","subscriptionProductReplacementParams":{"oldProductId":"old","replacementMode":"unknown-replacement-mode"}}""",
+            """{"type":"subs","skus":["new"],"subscriptionProductReplacementParams":{}}""",
+            """{"type":"subs","skus":["new"],"subscriptionProductReplacementParams":{"oldProductId":"old"}}""",
+            """{"type":"subs","skus":["new"],"subscriptionProductReplacementParams":{"oldProductId":"old","replacementMode":"future-mode"}}""",
+            """{"type":"subs","skus":["new"],"subscriptionProductReplacementParams":{"oldProductId":"old","replacementMode":"unknown-replacement-mode"}}""",
         )
 
         invalidParams.forEach { json ->
@@ -72,7 +71,7 @@ class GodotIapHelperTest {
 
         mappings.forEach { (rawMode, expected) ->
             val params = GodotIapHelper.parseRequestPurchaseParams(
-                """{"type":"subs","subscriptionProductReplacementParams":{"oldProductId":"old","replacementMode":"$rawMode"}}""",
+                """{"type":"subs","skus":["new"],"subscriptionProductReplacementParams":{"oldProductId":"old","replacementMode":"$rawMode"}}""",
             )
             assertEquals(expected, params.subscriptionProductReplacementParams?.replacementMode)
         }
@@ -90,23 +89,59 @@ class GodotIapHelperTest {
     @Test
     fun `developer billing option is either absent or valid`() {
         listOf(
-            """{"developerBillingOption":null}""",
-            """{"developerBillingOption":"billing-choice"}""",
-            """{"developerBillingOption":{}}""",
-            """{"developerBillingOption":{"billingProgram":"future-program"}}""",
+            """{"skus":["coins"],"developerBillingOption":"billing-choice"}""",
+            """{"skus":["coins"],"developerBillingOption":{}}""",
+            """{"skus":["coins"],"developerBillingOption":{"billingProgram":"future-program"}}""",
         ).forEach { json ->
             assertThrows(IllegalArgumentException::class.java) {
                 GodotIapHelper.parseRequestPurchaseParams(json)
             }
         }
 
-        val absent = GodotIapHelper.parseRequestPurchaseParams("{}")
+        val absent = GodotIapHelper.parseRequestPurchaseParams("""{"skus":["coins"]}""")
         assertEquals(null, absent.developerBillingOption)
 
+        val nullable = GodotIapHelper.parseRequestPurchaseParams(
+            """{"type":"subs","skus":["monthly"],"developerBillingOption":null,"subscriptionOffers":null,"subscriptionProductReplacementParams":null}""",
+        )
+        assertEquals(null, nullable.developerBillingOption)
+        assertEquals(0, nullable.subscriptionOffers.size)
+        assertEquals(null, nullable.subscriptionProductReplacementParams)
+
         val valid = GodotIapHelper.parseRequestPurchaseParams(
-            """{"developerBillingOption":{"billingProgram":"billing-choice"}}""",
+            """{"skus":["coins"],"developerBillingOption":{"billingProgram":"billing-choice"}}""",
         )
         assertEquals(BillingProgramAndroid.BillingChoice, valid.developerBillingOption?.billingProgram)
+    }
+
+    @Test
+    fun `purchase lists reject malformed explicit entries`() {
+        listOf(
+            """{"type":"subs","skus":"monthly"}""",
+            """{"type":"subs","skus":["monthly",7]}""",
+            """{"type":"subs","skus":[""]}""",
+            """{"type":"subs","skus":["monthly"],"obfuscatedAccountId":7}""",
+            """{"type":"subs","skus":["monthly"],"isOfferPersonalized":"true"}""",
+            """{"type":"subs","skus":["monthly"],"offerToken":"one-time-token"}""",
+            """{"type":"subs","skus":["monthly"],"subscriptionOffers":"offer"}""",
+            """{"type":"subs","skus":["monthly"],"subscriptionOffers":[]}""",
+            """{"type":"subs","skus":["monthly"],"subscriptionOffers":[7]}""",
+            """{"type":"subs","skus":["monthly"],"subscriptionOffers":[{"offerToken":"token"}]}""",
+            """{"type":"subs","skus":["monthly"],"subscriptionOffers":[{"sku":"monthly"}]}""",
+            """{"type":"subs","skus":["monthly"],"subscriptionOffers":[{"sku":"yearly","offerToken":"token"}]}""",
+            """{"type":"in-app","skus":["coins"],"subscriptionOffers":[]}""",
+            """{"type":"in-app","skus":["coins"],"purchaseToken":"subscription-token"}""",
+            """{"type":"in-app","skus":["coins"],"originalExternalTransactionId":"external-id"}""",
+        ).forEach { json ->
+            assertThrows(IllegalArgumentException::class.java) {
+                GodotIapHelper.parseRequestPurchaseParams(json)
+            }
+        }
+
+        val multipleOffers = GodotIapHelper.parseRequestPurchaseParams(
+            """{"type":"subs","skus":["monthly"],"subscriptionOffers":[{"sku":"monthly","offerToken":"one"},{"sku":"monthly","offerToken":"two"}]}""",
+        )
+        assertEquals(2, multipleOffers.subscriptionOffers.size)
     }
 
 }

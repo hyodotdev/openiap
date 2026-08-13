@@ -96,10 +96,18 @@ enum FlutterIapHelper {
 
     // MARK: - Parsing helpers
 
-    static func parseProductQueryType(_ rawValue: String?) throws -> ProductQueryType {
-        guard let raw = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty else {
+    static func parseProductQueryType(_ rawValue: Any?) throws -> ProductQueryType {
+        if rawValue == nil || rawValue is NSNull {
             return .all
         }
+        guard let stringValue = rawValue as? String else {
+            throw PurchaseError.make(
+                code: .developerError,
+                message: "Product type must be a string"
+            )
+        }
+        let raw = stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        if raw.isEmpty { return .all }
         switch raw.lowercased() {
         case ProductQueryType.inApp.rawValue:
             return .inApp
@@ -115,9 +123,31 @@ enum FlutterIapHelper {
         }
     }
 
+    static func parsePurchaseProductQueryType(_ rawValue: Any?) throws -> ProductQueryType {
+        if let rawValue, !(rawValue is String), !(rawValue is NSNull) {
+            throw PurchaseError.make(
+                code: .developerError,
+                message: "Purchase type must be a string"
+            )
+        }
+        guard !(rawValue is NSNull),
+              let raw = (rawValue as? String)?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !raw.isEmpty else {
+            return .inApp
+        }
+        let type = try parseProductQueryType(raw)
+        guard type != .all else {
+            throw PurchaseError.make(
+                code: .developerError,
+                message: "Product type all is only supported for product queries."
+            )
+        }
+        return type
+    }
+
     static func decodeProductRequest(from payload: [String: Any]) throws -> ProductRequest {
         if let skus = payload["skus"] as? [String], !skus.isEmpty {
-            let type = try parseProductQueryType(payload["type"] as? String)
+            let type = try parseProductQueryType(payload["type"])
             return try OpenIapSerialization.productRequest(skus: skus, type: type)
         }
 
@@ -142,8 +172,7 @@ enum FlutterIapHelper {
         }
 
         if let sku = payload["sku"] as? String, !sku.isEmpty {
-            let parsedType = try parseProductQueryType(payload["type"] as? String)
-            let purchaseType: ProductQueryType = parsedType == .subs ? .subs : .inApp
+            let purchaseType = try parsePurchaseProductQueryType(payload["type"])
             let normalized: [String: Any] = [
                 "type": purchaseType.rawValue,
                 purchaseType == .subs ? "requestSubscription" : "requestPurchase": [

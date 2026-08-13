@@ -66,6 +66,16 @@ describe('Amazon Vega public API', () => {
     });
   });
 
+  it('rejects all without dispatching a purchase', async () => {
+    await expect(
+      IAP.requestPurchase({
+        request: {google: {skus: ['coins']}},
+        type: 'all' as any,
+      }),
+    ).rejects.toThrow(/only supported for product queries/);
+    expect(requestPurchaseNative).not.toHaveBeenCalled();
+  });
+
   it('rejects a malformed purchase result instead of returning partial success', async () => {
     requestPurchaseNative.mockResolvedValueOnce([
       {

@@ -72,6 +72,16 @@ describe('Amazon Vega public API', () => {
     expect(requestPurchaseNative).not.toHaveBeenCalled();
   });
 
+  it('rejects all without dispatching a purchase', async () => {
+    await expect(
+      requestPurchase({
+        request: {google: {skus: ['coins']}},
+        type: 'all' as any,
+      }),
+    ).rejects.toThrow(/only supported for product queries/);
+    expect(requestPurchaseNative).not.toHaveBeenCalled();
+  });
+
   it('rejects an Apple purchase returned by the Vega bridge', async () => {
     getAvailablePurchasesNative.mockResolvedValueOnce([
       {

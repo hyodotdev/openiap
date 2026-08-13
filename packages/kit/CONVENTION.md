@@ -277,7 +277,7 @@ platform)`, inserts the row, schedules the worker via
    updates don't re-toast.
 6. **HTTP**: `POST .../sync/...` returns 202 with `{ jobId,
 deduped }`; `GET .../sync/jobs/{jobId}` polls; `POST
-.../sync/jobs/{jobId}/cancel` cancels. Clients backoff at ~3 s
+.../sync/jobs/{jobId}/cancel` cancels. Clients use ~3 s backoff
    intervals.
 
 Failures arrays should pass through `truncateFailures` (cap 200,

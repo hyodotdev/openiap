@@ -776,8 +776,12 @@ func test_android_purchase_rejects_invalid_optional_request_fields() -> void:
 			"subscriptionProductReplacementParams": null,
 		}},
 	})
-	_assert_equal(null_replacement.get("success"), false, "Explicit null replacement params should fail")
-	_assert_equal(fake.last_method, "", "Null replacement params must not reach the native plugin")
+	_assert_equal(null_replacement.get("success"), true, "Null replacement params should behave as absent")
+	var null_replacement_payload = JSON.parse_string(fake.last_args[0])
+	_assert_false(
+		null_replacement_payload.has("subscriptionProductReplacementParams"),
+		"Null replacement params should not reach the native plugin"
+	)
 
 	var null_billing = GodotIapPlugin._request_purchase_raw({
 		"type": "in-app",
@@ -786,9 +790,14 @@ func test_android_purchase_rejects_invalid_optional_request_fields() -> void:
 			"developerBillingOption": null,
 		}},
 	})
-	_assert_equal(null_billing.get("success"), false, "Explicit null developer billing options should fail")
-	_assert_equal(fake.last_method, "", "Null developer billing options must not reach the native plugin")
+	_assert_equal(null_billing.get("success"), true, "Null developer billing options should behave as absent")
+	var null_billing_payload = JSON.parse_string(fake.last_args[0])
+	_assert_false(
+		null_billing_payload.has("developerBillingOption"),
+		"Null developer billing options should not reach the native plugin"
+	)
 
+	fake.last_method = ""
 	var in_app_replacement = GodotIapPlugin._request_purchase_raw({
 		"type": "in-app",
 		"requestPurchase": {"google": {

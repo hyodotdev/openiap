@@ -105,6 +105,10 @@ public final class ExpoIapOnsideModule: Module {
 
         AsyncFunction("fetchProducts") { (params: [String: Any]) async throws -> [[String: Any]] in
             ExpoIapLog.payload("fetchProductsOnside", payload: params)
+            let request = try ExpoIapHelper.decodeProductRequest(from: params)
+            guard !request.skus.isEmpty else {
+                throw OnsideBridgeError.emptySkuList
+            }
             try await ensureObserverRegistered()
 
             var storefront = await Onside.defaultPaymentQueue().storefront
@@ -165,11 +169,6 @@ public final class ExpoIapOnsideModule: Module {
                 }
             }
 
-            let request = try ExpoIapHelper.decodeProductRequest(from: params)
-            guard !request.skus.isEmpty else {
-                throw OnsideBridgeError.emptySkuList
-            }
-
             let response = try await productFetcher.fetch(identifiers: Set(request.skus))
 
             if !response.invalidProductIdentifiers.isEmpty {
@@ -199,14 +198,10 @@ public final class ExpoIapOnsideModule: Module {
         AsyncFunction("requestPurchase") { (payload: [String: Any]) async throws -> Any? in
             ExpoIapLog.payload("requestPurchaseOnside", payload: payload)
 
-            try await ensureObserverRegistered()
+            let purchaseRequest = try ExpoIapHelper.decodeRequestPurchaseProps(from: payload)
+            let sku = try resolveSku(from: purchaseRequest)
 
-            let sku: String = try await MainActor.run {
-                guard let s = resolveSku(from: payload) else {
-                    throw OnsideBridgeError.emptySkuList
-                }
-                return s
-            }
+            try await ensureObserverRegistered()
 
             try await ensureProductAvailable(sku: sku)
 
@@ -656,47 +651,23 @@ public final class ExpoIapOnsideModule: Module {
         }
     }
 
-    private func resolveSku(from payload: [String: Any]) -> String? {
-        if let sku = payload["sku"] as? String, !sku.isEmpty {
-            return sku
+    private func resolveSku(from request: RequestPurchaseProps) throws -> String {
+        let sku: String?
+        switch (request.type, request.request) {
+        case (.inApp, .purchase(let platforms)):
+            sku = platforms.apple?.sku
+        case (.subs, .subscription(let platforms)):
+            sku = platforms.apple?.sku
+        default:
+            throw PurchaseError.make(
+                code: .developerError,
+                message: "Purchase type must match the request branch."
+            )
         }
-
-        if let request = payload["request"] as? [String: Any] {
-            if let apple = resolveAppleRequest(from: request) {
-                if let sku = apple["sku"] as? String, !sku.isEmpty {
-                    return sku
-                }
-                if let skus = apple["skus"] as? [String], let first = skus.first, !first.isEmpty {
-                    return first
-                }
-            }
+        guard let sku, !sku.isEmpty else {
+            throw OnsideBridgeError.emptySkuList
         }
-
-        if
-        let requestPurchase = payload["requestPurchase"] as? [String: Any],
-        let apple = resolveAppleRequest(from: requestPurchase),
-        let sku = apple["sku"] as? String, !sku.isEmpty
-            {
-            return sku
-        }
-
-        if
-        let requestSubscription = payload["requestSubscription"] as? [String: Any],
-        let apple = resolveAppleRequest(from: requestSubscription),
-        let sku = apple["sku"] as? String, !sku.isEmpty
-            {
-            return sku
-        }
-
-        if let skus = payload["skus"] as? [String], let first = skus.first, !first.isEmpty {
-            return first
-        }
-
-        return nil
-    }
-
-    private func resolveAppleRequest(from request: [String: Any]) -> [String: Any]? {
-        request["apple"] as? [String: Any]
+        return sku
     }
 }
 

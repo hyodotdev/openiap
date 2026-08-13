@@ -605,7 +605,6 @@
   .contained-action-card__text {
     @apply min-w-0 flex-1;
     overflow-wrap: anywhere;
-    word-break: break-word;
   }
 
   .contained-action-card__actions {

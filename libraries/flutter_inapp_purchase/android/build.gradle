@@ -200,6 +200,7 @@ dependencies {
 
     implementation "androidx.annotation:annotation:${readRequiredAndroidGradleProperty(projectDir, 'openIapAndroidAnnotationVersion')}"
     implementation "org.jetbrains.kotlinx:kotlinx-coroutines-android:${readRequiredAndroidGradleProperty(projectDir, 'openIapKotlinxCoroutinesVersion')}"
+    testImplementation "junit:junit:${readRequiredAndroidGradleProperty(projectDir, 'openIapJunitVersion')}"
 
     // Google Play Billing comes transitively from openiap-google so its
     // version stays centralized in packages/google.

@@ -3,6 +3,7 @@ extends SceneTree
 ## Run with: godot --headless --script tests/test_types_only.gd
 
 const Types = preload("res://addons/godot-iap/types.gd")
+const NullableEnumListTypes = preload("res://tests/generated_nullable_enum_list_types.gd")
 
 var _total_passed := 0
 var _total_failed := 0
@@ -99,14 +100,13 @@ func _test_product_request() -> void:
 	_assert_equal(dict["skus"][0], "product_1", "to_dict should preserve sku")
 	_assert_equal(dict["type"], "in-app", "to_dict should convert type to string")
 
-	# JSON.parse_string returns an untyped Array; from_dict must rebuild Array[String].
+	# Request-authored lists reject malformed entries instead of silently dropping them.
 	var from_dict_data = {
 		"skus": ["sku_from_dict", null, {"invalid": true}],
 		"type": "subs"
 	}
 	var parsed = Types.ProductRequest.from_dict(from_dict_data)
-	_assert_equal(parsed.skus[0], "sku_from_dict", "from_dict should parse skus")
-	_assert_equal(parsed.skus.size(), 1, "from_dict should skip malformed scalar list items")
+	_assert_equal(parsed, null, "ProductRequest should reject malformed SKU entries")
 
 
 func _test_product_nested_arrays() -> void:
@@ -295,6 +295,56 @@ func _test_request_purchase_props() -> void:
 	})
 	_assert_equal(parsed.type, Types.ProductQueryType.SUBS, "Subscription branch should infer SUBS type")
 
+	var invalid_billing_option = {
+		"skus": ["product"],
+		"developerBillingOption": {"billingProgram": "future-program"}
+	}
+	_assert_equal(
+		Types.RequestPurchaseProps.from_dict({
+			"requestPurchase": {"google": invalid_billing_option},
+			"type": "in-app"
+		}),
+		null,
+		"Purchase branch should propagate nested input decode failures"
+	)
+	_assert_equal(
+		Types.RequestPurchaseProps.from_dict({
+			"requestSubscription": {"google": invalid_billing_option},
+			"type": "subs"
+		}),
+		null,
+		"Subscription branch should propagate nested input decode failures"
+	)
+	_assert_equal(
+		Types.RequestSubscriptionAndroidProps.from_dict({"skus": ["monthly", 7]}),
+		null,
+		"Request SKU lists should reject malformed entries"
+	)
+	_assert_equal(
+		Types.RequestSubscriptionAndroidProps.from_dict({
+			"skus": ["monthly"],
+			"obfuscatedAccountId": 7,
+		}),
+		null,
+		"Optional request scalars should reject malformed values"
+	)
+	_assert_equal(
+		Types.RequestSubscriptionAndroidProps.from_dict({
+			"skus": ["monthly"],
+			"subscriptionOffers": [{"offerToken": "token"}],
+		}),
+		null,
+		"Subscription offers should require a SKU"
+	)
+	_assert_equal(
+		Types.RequestSubscriptionAndroidProps.from_dict({
+			"skus": ["monthly"],
+			"subscriptionOffers": [{"sku": "monthly"}],
+		}),
+		null,
+		"Subscription offers should require an offer token"
+	)
+
 
 # ============================================
 # IAPKit Product Client Payload Tests
@@ -423,19 +473,34 @@ func _test_enums() -> void:
 
 func _test_enum_list_decoding() -> void:
 	print("Testing enum list decoding...")
-	var nullable_strict_values: Array[Variant] = [null]
-	_assert_equal(nullable_strict_values[0], null, "Nullable enum lists should accept unreadable values as null")
-	var decoded_request_values: Array[Variant] = []
-	decoded_request_values.append(null)
-	nullable_strict_values = decoded_request_values
-	_assert_equal(nullable_strict_values.size(), 1, "Nullable enum request arrays should remain assignable")
-	var params = Types.InAppMessageParamsAndroid.from_dict({"categories": [999]})
-	_assert_equal(params.categories.size(), 1, "Unknown neutral enum list values should be retained")
+	var params = Types.InAppMessageParamsAndroid.from_dict(
+		{"categories": ["unknown-in-app-message-category-id"]}
+	)
+	_assert_equal(params.categories.size(), 1, "Known neutral enum input values should be retained")
 	_assert_equal(
 		params.categories[0],
 		Types.InAppMessageCategoryAndroid.UNKNOWN_IN_APP_MESSAGE_CATEGORY_ID,
-		"Unknown neutral enum list integers should use the neutral member"
+		"Known neutral enum input values should decode"
 	)
+	_assert_equal(
+		Types.InAppMessageParamsAndroid.from_dict({"categories": ["future-category"]}),
+		null,
+		"Unknown enum input strings should fail decoding"
+	)
+	_assert_equal(
+		Types.InAppMessageParamsAndroid.from_dict({"categories": [999]}),
+		null,
+		"Out-of-range enum input integers should fail decoding"
+	)
+	var nullable_response = NullableEnumListTypes.EnumListHolder.from_dict({
+		"statuses": ["active"],
+		"strictStatuses": ["active"],
+		"nullableStrictStatuses": ["active", "future-status", null],
+		"nullableLabels": [],
+	})
+	_assert_equal(nullable_response.nullable_strict_statuses[0], 0, "Known nullable response enum elements should decode")
+	_assert_equal(nullable_response.nullable_strict_statuses[1], null, "Future nullable response enum elements should become null")
+	_assert_equal(nullable_response.nullable_strict_statuses[2], null, "Explicit nullable response enum elements should stay null")
 
 
 # ============================================
@@ -994,6 +1059,22 @@ func _test_purchase_input_round_trip() -> void:
 	_assert_equal(parsed.store, Types.IapStore.GOOGLE, "store should parse back to the enum")
 	_assert_equal(parsed.purchase_state, Types.PurchaseState.PENDING, "purchaseState should parse back to the enum")
 	_assert_equal(parsed.purchase_token, "token-3", "purchaseToken should survive the wire round trip")
+
+	var future = Types.PurchaseInput.from_dict({
+		"id": "txn-future",
+		"productId": "sku.future",
+		"purchaseState": "future-purchase-state",
+		"quantity": 1,
+		"store": "future-store",
+		"transactionDate": 1720000000000.0,
+	})
+	_assert_equal(future.store, Types.IapStore.UNKNOWN, "PurchaseInput should tolerate future stores")
+	_assert_equal(
+		future.purchase_state,
+		Types.PurchaseState.UNKNOWN,
+		"PurchaseInput should tolerate future purchase states"
+	)
+	_assert_equal(future.to_dict()["store"], "unknown", "Future stores should remain serializable")
 
 
 # ============================================

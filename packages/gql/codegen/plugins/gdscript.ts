@@ -42,8 +42,9 @@ export class GDScriptPlugin extends CodegenPlugin {
   mapType(type: IRType): string {
     if (type.kind === 'list') {
       const element = type.elementType!;
-      const isNullableEnum = element.nullable && (element.kind === 'enum' || this.enumNames.has(element.name!));
-      const elementType = isNullableEnum ? 'Variant' : this.mapType(element);
+      const needsNullableVariant =
+        element.nullable && (element.kind === 'scalar' || element.kind === 'enum' || this.enumNames.has(element.name!));
+      const elementType = needsNullableVariant ? 'Variant' : this.mapType(element);
       return `Array[${elementType}]`;
     }
     if (type.kind === 'scalar') {
@@ -328,24 +329,35 @@ export class GDScriptPlugin extends CodegenPlugin {
     return empty ? `${typeName}.${this.enumValueCase(empty.name)}` : null;
   }
 
-  private emitEnumFromDictAssignment(indent: string, target: string, typeName: string, sourceExpression: string): void {
+  private emitEnumFromDictAssignment(
+    indent: string,
+    target: string,
+    typeName: string,
+    sourceExpression: string,
+    isInputContext = false,
+  ): void {
     const enumReverseLookup = toConstantCase(typeName) + '_FROM_STRING';
+    const enumValues = toConstantCase(typeName) + '_VALUES';
     const fallback = this.getEnumUnknownFallback(typeName);
 
     this.emit(`${indent}var enum_str = ${sourceExpression}`);
     if (fallback) {
-      this.emit(`${indent}if enum_str is String:`);
-      this.emit(`${indent}\t${target} = ${enumReverseLookup}.get(enum_str, ${fallback})`);
-      this.emit(`${indent}elif enum_str is int:`);
+      this.emit(`${indent}if enum_str is String and ${enumReverseLookup}.has(enum_str):`);
+      this.emit(`${indent}\t${target} = ${enumReverseLookup}[enum_str]`);
+      this.emit(`${indent}elif enum_str is int and ${enumValues}.has(enum_str):`);
       this.emit(`${indent}\t${target} = enum_str`);
       this.emit(`${indent}else:`);
-      this.emit(`${indent}\t${target} = ${fallback}`);
+      if (isInputContext) {
+        this.emit(`${indent}\tpush_error("Invalid ${typeName} input value")`);
+        this.emit(`${indent}\treturn null`);
+      } else {
+        this.emit(`${indent}\t${target} = ${fallback}`);
+      }
       return;
     }
 
     const emptyFallback = this.getEnumEmptyFallback(typeName);
     if (emptyFallback) {
-      const enumValues = toConstantCase(typeName) + '_VALUES';
       this.emit(`${indent}if enum_str is String and ${enumReverseLookup}.has(enum_str):`);
       this.emit(`${indent}\t${target} = ${enumReverseLookup}[enum_str]`);
       this.emit(`${indent}elif enum_str is int and ${enumValues}.has(enum_str):`);
@@ -359,8 +371,15 @@ export class GDScriptPlugin extends CodegenPlugin {
 
     this.emit(`${indent}if enum_str is String and ${enumReverseLookup}.has(enum_str):`);
     this.emit(`${indent}\t${target} = ${enumReverseLookup}[enum_str]`);
-    this.emit(`${indent}else:`);
+    this.emit(`${indent}elif enum_str is int and ${enumValues}.has(enum_str):`);
     this.emit(`${indent}\t${target} = enum_str`);
+    this.emit(`${indent}else:`);
+    if (isInputContext) {
+      this.emit(`${indent}\tpush_error("Invalid ${typeName} input value")`);
+      this.emit(`${indent}\treturn null`);
+    } else {
+      this.emit(`${indent}\t${target} = enum_str`);
+    }
   }
 
   private emitEnumListToDictAssignment(indent: string, graphqlName: string, fieldName: string, typeName: string): void {
@@ -532,7 +551,7 @@ export class GDScriptPlugin extends CodegenPlugin {
     const elementTypeName = elementType.name!;
     const gdElementType = this.mapType(elementType);
     const isEnumElement = elementType.kind === 'enum' || this.enumNames.has(elementTypeName);
-    const listElementType = elementType.nullable && isEnumElement ? 'Variant' : gdElementType;
+    const listElementType = elementType.nullable && (elementType.kind === 'scalar' || isEnumElement) ? 'Variant' : gdElementType;
     const listIndent = `${indent}\t`;
     const itemIndent = `${listIndent}\t`;
     this.emit(`${indent}if data["${graphqlName}"] is Array:`);
@@ -541,7 +560,13 @@ export class GDScriptPlugin extends CodegenPlugin {
     if (this.isObjectOrInput(elementType)) {
       const needsStrictValidation = this.typeHasRequiredEnumWithoutUnknown(elementTypeName, this.schema);
       this.emit(`${itemIndent}if item is Dictionary:`);
-      if (needsStrictValidation) {
+      if (isRequestContext && this.inputNames.has(elementTypeName)) {
+        const decodedName = `decoded_${this.getGdscriptFieldName(elementTypeName)}`;
+        this.emit(`${itemIndent}\tvar ${decodedName} = ${elementTypeName}.from_dict(item)`);
+        this.emit(`${itemIndent}\tif ${decodedName} == null:`);
+        this.emit(`${itemIndent}\t\treturn null`);
+        this.emit(`${itemIndent}\tarr.append(${decodedName})`);
+      } else if (needsStrictValidation) {
         const decodedName = `decoded_${this.getGdscriptFieldName(elementTypeName)}`;
         const isRequestInput = this.inputNames.has(elementTypeName);
         if (elementType.nullable && !isRequestInput) {
@@ -579,12 +604,16 @@ export class GDScriptPlugin extends CodegenPlugin {
           this.emit(`${itemIndent}if item == null:`);
           this.emit(`${itemIndent}\tarr.append(null)`);
         }
-        this.emit(`${itemIndent}${elementType.nullable ? 'elif' : 'if'} item is String:`);
-        this.emit(`${itemIndent}\tarr.append(${enumReverseLookup}.get(item, ${fallback}))`);
+        this.emit(`${itemIndent}${elementType.nullable ? 'elif' : 'if'} item is String and ${enumReverseLookup}.has(item):`);
+        this.emit(`${itemIndent}\tarr.append(${enumReverseLookup}[item])`);
         this.emit(`${itemIndent}elif item is int and ${enumValues}.has(item):`);
         this.emit(`${itemIndent}\tarr.append(item)`);
-        this.emit(`${itemIndent}elif item is int:`);
-        this.emit(`${itemIndent}\tarr.append(${fallback})`);
+        this.emit(`${itemIndent}else:`);
+        if (isRequestContext) {
+          this.emitListDecodeFailure(itemIndent, elementTypeName, graphqlName, reportErrorsExpression);
+        } else {
+          this.emit(`${itemIndent}\tarr.append(${fallback})`);
+        }
       } else {
         if (elementType.nullable) {
           this.emit(`${itemIndent}if item == null:`);
@@ -602,34 +631,52 @@ export class GDScriptPlugin extends CodegenPlugin {
         }
       }
     } else {
+      if (elementType.nullable) {
+        this.emit(`${itemIndent}if item == null:`);
+        this.emit(`${itemIndent}\tarr.append(null)`);
+      }
+      const conditionPrefix = elementType.nullable ? 'elif' : 'if';
       switch (gdElementType) {
         case 'String':
-          this.emit(`${itemIndent}if item is String:`);
+          this.emit(`${itemIndent}${conditionPrefix} item is String:`);
           this.emit(`${itemIndent}\tarr.append(str(item))`);
           break;
         case 'int':
-          this.emit(`${itemIndent}if item is int:`);
+          this.emit(`${itemIndent}${conditionPrefix} item is int:`);
           this.emit(`${itemIndent}\tarr.append(item)`);
           this.emit(`${itemIndent}elif item is float:`);
           this.emit(`${itemIndent}\tarr.append(int(item))`);
-          this.emit(`${itemIndent}elif item is String and item.is_valid_int():`);
-          this.emit(`${itemIndent}\tarr.append(int(item))`);
+          if (!isRequestContext) {
+            this.emit(`${itemIndent}elif item is String and item.is_valid_int():`);
+            this.emit(`${itemIndent}\tarr.append(int(item))`);
+          }
           break;
         case 'float':
-          this.emit(`${itemIndent}if item is int or item is float:`);
+          this.emit(`${itemIndent}${conditionPrefix} item is int or item is float:`);
           this.emit(`${itemIndent}\tarr.append(float(item))`);
-          this.emit(`${itemIndent}elif item is String and item.is_valid_float():`);
-          this.emit(`${itemIndent}\tarr.append(float(item))`);
+          if (!isRequestContext) {
+            this.emit(`${itemIndent}elif item is String and item.is_valid_float():`);
+            this.emit(`${itemIndent}\tarr.append(float(item))`);
+          }
           break;
         case 'bool':
-          this.emit(`${itemIndent}if item is bool:`);
+          this.emit(`${itemIndent}${conditionPrefix} item is bool:`);
           this.emit(`${itemIndent}\tarr.append(bool(item))`);
           break;
         default:
           this.emit(`${itemIndent}arr.append(item)`);
       }
+      if (isRequestContext && gdElementType !== 'Variant') {
+        this.emit(`${itemIndent}else:`);
+        this.emitListDecodeFailure(itemIndent, gdElementType, graphqlName, reportErrorsExpression);
+      }
     }
     this.emit(`${listIndent}obj.${fieldName} = arr`);
+    if (isRequestContext) {
+      this.emit(`${indent}else:`);
+      this.emit(`${indent}\tpush_error("Invalid input list for ${graphqlName}")`);
+      this.emit(`${indent}\treturn null`);
+    }
   }
 
   private emitListDecodeFailure(
@@ -742,6 +789,7 @@ export class GDScriptPlugin extends CodegenPlugin {
       }
     }
 
+    const responseDerivedInput = irInput.customTypeKind === 'PurchaseInput';
     this.generateDocComment(irInput.description);
     this.emit(`class ${irInput.name}:`);
 
@@ -769,16 +817,23 @@ export class GDScriptPlugin extends CodegenPlugin {
 
       // from_dict method
       this.emit('');
-      const hasStrictRequiredEnum = this.typeHasRequiredEnumWithoutUnknown(irInput.name, this.schema);
+      const hasStrictRequiredEnum = !responseDerivedInput && this.typeHasRequiredEnumWithoutUnknown(irInput.name, this.schema);
       const decoderOptions = hasStrictRequiredEnum ? ', report_errors: bool = true' : '';
       this.emit(`\tstatic func from_dict(data: Dictionary${decoderOptions}) -> ${irInput.name}:`);
+      if (!responseDerivedInput) {
+        this.emitInputFieldGuards(irInput.name, fields);
+      }
       if (hasStrictRequiredEnum) {
         this.emitRequiredEnumGuards(irInput.name, fields);
       }
       this.emit(`\t\tvar obj = ${irInput.name}.new()`);
       for (const field of fields) {
         const fieldName = this.getGdscriptFieldName(field.name, irInput.name);
-        this.generateInputFromDictField(field, fieldName);
+        if (responseDerivedInput) {
+          this.generateFromDictField(field, fieldName);
+        } else {
+          this.generateInputFromDictField(field, fieldName);
+        }
       }
       this.emit('\t\treturn obj');
 
@@ -794,6 +849,57 @@ export class GDScriptPlugin extends CodegenPlugin {
     }
 
     this.emit('');
+  }
+
+  private emitInputFieldGuards(containerName: string, fields: IRField[]): void {
+    for (const field of fields) {
+      const source = `data["${field.name}"]`;
+      if (field.type.kind === 'enum') {
+        if (field.type.nullable || field.defaultValue !== undefined || !field.type.name) continue;
+        const irEnum = this.schema.enums.find((candidate) => candidate.name === field.type.name);
+        if (!irEnum || !this.enumUnknownValue(irEnum)) continue;
+        const lookup = `${toConstantCase(field.type.name)}_FROM_STRING`;
+        const values = `${toConstantCase(field.type.name)}_VALUES`;
+        const validValue = `((${source} is String and ${lookup}.has(${source})) or (${source} is int and ${values}.has(${source})))`;
+        this.emit(`\t\tif not data.has("${field.name}") or not ${validValue}:`);
+        this.emit(`\t\t\tpush_error("Invalid required ${containerName}.${field.name} value")`);
+        this.emit('\t\t\treturn null');
+        continue;
+      }
+      let validValue: string | null = null;
+      if (field.type.kind === 'list') {
+        validValue = `${source} is Array`;
+      } else if (this.isObjectOrInput(field.type)) {
+        validValue = `${source} is Dictionary`;
+      } else if (field.type.kind === 'scalar') {
+        switch (this.mapScalar(field.type.name!)) {
+          case 'String':
+            validValue = `${source} is String`;
+            break;
+          case 'int':
+            validValue = `${source} is int`;
+            break;
+          case 'float':
+            validValue = `(${source} is int or ${source} is float)`;
+            break;
+          case 'bool':
+            validValue = `${source} is bool`;
+            break;
+        }
+      }
+      if (!validValue) continue;
+      const isRequired = !field.type.nullable && field.defaultValue === undefined;
+      if (isRequired) {
+        this.emit(`\t\tif not data.has("${field.name}") or not ${validValue}:`);
+      } else if (field.type.kind === 'scalar') {
+        this.emit(`\t\tif data.has("${field.name}") and data["${field.name}"] != null and not ${validValue}:`);
+      } else {
+        continue;
+      }
+      const qualifier = isRequired ? 'required ' : '';
+      this.emit(`\t\t\tpush_error("Invalid ${qualifier}${containerName}.${field.name} value")`);
+      this.emit('\t\t\treturn null');
+    }
   }
 
   private emitRequiredEnumGuards(containerName: string, fields: IRField[]): void {
@@ -876,14 +982,20 @@ export class GDScriptPlugin extends CodegenPlugin {
     this.emit('\t\tvar obj = RequestPurchaseProps.new()');
     this.emit('\t\tif has_purchase:');
     this.emit('\t\t\tvar purchase_value = data["requestPurchase"]');
-    this.emit(
-      '\t\t\tobj.request = RequestPurchasePropsByPlatforms.from_dict(purchase_value) if purchase_value is Dictionary else purchase_value',
-    );
+    this.emit('\t\t\tif not purchase_value is Dictionary:');
+    this.emit('\t\t\t\tpush_error("requestPurchase must be a dictionary")');
+    this.emit('\t\t\t\treturn null');
+    this.emit('\t\t\tobj.request = RequestPurchasePropsByPlatforms.from_dict(purchase_value)');
+    this.emit('\t\t\tif obj.request == null:');
+    this.emit('\t\t\t\treturn null');
     this.emit('\t\telse:');
     this.emit('\t\t\tvar subscription_value = data["requestSubscription"]');
-    this.emit(
-      '\t\t\tobj.request_subscription = RequestSubscriptionPropsByPlatforms.from_dict(subscription_value) if subscription_value is Dictionary else subscription_value',
-    );
+    this.emit('\t\t\tif not subscription_value is Dictionary:');
+    this.emit('\t\t\t\tpush_error("requestSubscription must be a dictionary")');
+    this.emit('\t\t\t\treturn null');
+    this.emit('\t\t\tobj.request_subscription = RequestSubscriptionPropsByPlatforms.from_dict(subscription_value)');
+    this.emit('\t\t\tif obj.request_subscription == null:');
+    this.emit('\t\t\t\treturn null');
     this.emit('\t\tvar expected_type = ProductQueryType.IN_APP if has_purchase else ProductQueryType.SUBS');
     this.emit('\t\tobj.type = expected_type');
     this.emit('\t\tif data.has("type") and data["type"] != null:');
@@ -923,11 +1035,11 @@ export class GDScriptPlugin extends CodegenPlugin {
     this.emit(`\t\tif data.has("${graphqlName}") and data["${graphqlName}"] != null:`);
 
     if (type.kind === 'list') {
-      this.generateListFromDictAssignment(type, graphqlName, fieldName, '\t\t\t', 'report_errors', true);
+      this.generateListFromDictAssignment(type, graphqlName, fieldName, '\t\t\t', null, true);
     } else if (this.isObjectOrInput(type)) {
       this.generateNestedFromDictAssignment(type, graphqlName, fieldName);
     } else if (type.kind === 'enum') {
-      this.emitEnumFromDictAssignment('\t\t\t', `obj.${fieldName}`, type.name!, `data["${graphqlName}"]`);
+      this.emitEnumFromDictAssignment('\t\t\t', `obj.${fieldName}`, type.name!, `data["${graphqlName}"]`, true);
     } else {
       this.emit(`\t\t\tobj.${fieldName} = data["${graphqlName}"]`);
     }
@@ -1015,7 +1127,7 @@ export class GDScriptPlugin extends CodegenPlugin {
             if (arg.type.kind === 'list') {
               this.generateListFromDictAssignment(arg.type, arg.name, argSnakeName, '\t\t\t\t\t', null, true);
             } else if (arg.type.kind === 'enum') {
-              this.emitEnumFromDictAssignment('\t\t\t\t\t', `obj.${argSnakeName}`, arg.type.name!, `data["${arg.name}"]`);
+              this.emitEnumFromDictAssignment('\t\t\t\t\t', `obj.${argSnakeName}`, arg.type.name!, `data["${arg.name}"]`, true);
             } else {
               this.emit(`\t\t\t\t\tobj.${argSnakeName} = data["${arg.name}"]`);
             }

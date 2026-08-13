@@ -14,6 +14,7 @@ import { join, resolve } from "node:path";
 import { describe, expect, it } from "vitest";
 import {
   GENERATED_DRIFT_PATHS,
+  GENERATED_TEST_FIXTURE_PATHS,
   GENERATED_SYNC_EDGES,
   GENERATED_SYNC_MANIFEST,
   GQL_GENERATED_SOURCE_DIRECTORY,
@@ -86,6 +87,7 @@ describe("generated sync manifest", () => {
         .filter((definition) => definition.generated)
         .map((definition) => definition.source),
       ...GENERATED_SYNC_EDGES.map((edge) => edge.path),
+      ...GENERATED_TEST_FIXTURE_PATHS,
     ]);
 
     expect(new Set(GENERATED_DRIFT_PATHS)).toEqual(expected);
@@ -345,7 +347,7 @@ printf '%s|%s' "$GIT_INDEX_FILE" "$GIT_DIR" > "$HOOK_AFTER_FILE"
       "cd packages/gql && bun run generate",
     );
     expect(gqlPackageJson.scripts.generate).toBe(
-      "bun run generate:ts && bun codegen/index.ts && bun run sync",
+      "bun run generate:ts && bun codegen/index.ts && bun scripts/generate-gdscript-runtime-fixture.ts && bun run sync",
     );
 
     for (const path of [

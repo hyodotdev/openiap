@@ -96,12 +96,21 @@ enum GodotIapHelper {
     /// Parse an OpenIAP product query type without silently changing an
     /// unknown value into another query class.
     static func parseProductQueryType(
-        _ rawValue: String?,
+        _ rawValue: Any?,
         defaultType: ProductQueryType = .all,
         allowAll: Bool = true
     ) throws -> ProductQueryType {
-        guard let raw = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty
-        else {
+        if rawValue == nil || rawValue is NSNull {
+            return defaultType
+        }
+        guard let stringValue = rawValue as? String else {
+            throw PurchaseError.make(
+                code: .developerError,
+                message: "Product query type must be a string."
+            )
+        }
+        let raw = stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        if raw.isEmpty {
             return defaultType
         }
 
@@ -116,7 +125,7 @@ enum GodotIapHelper {
         default:
             throw PurchaseError.make(
                 code: .developerError,
-                message: "Unknown product query type '\(rawValue ?? "")'. Expected in-app, subs, or all."
+                message: "Unknown product query type '\(stringValue)'. Expected in-app, subs, or all."
             )
         }
 
@@ -133,7 +142,7 @@ enum GodotIapHelper {
     static func decodeProductRequest(from payload: [String: Any]) throws -> ProductRequest {
         if let skus = payload["skus"] as? [String], !skus.isEmpty {
             let type = try parseProductQueryType(
-                payload["type"] as? String,
+                payload["type"],
                 defaultType: .all
             )
             return try OpenIapSerialization.productRequest(skus: skus, type: type)
@@ -143,7 +152,7 @@ enum GodotIapHelper {
         var normalized = payload
         if payload["type"] != nil {
             normalized["type"] = try parseProductQueryType(
-                payload["type"] as? String,
+                payload["type"],
                 defaultType: .all
             ).rawValue
         }
@@ -167,7 +176,7 @@ enum GodotIapHelper {
             var normalized = payload
             let hasSubscription = payload["requestSubscription"] != nil
             normalized["type"] = try parseProductQueryType(
-                payload["type"] as? String,
+                payload["type"],
                 defaultType: hasSubscription ? .subs : .inApp,
                 allowAll: false
             ).rawValue

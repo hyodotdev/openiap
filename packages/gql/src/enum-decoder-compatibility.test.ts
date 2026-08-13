@@ -191,6 +191,22 @@ function decoderSchema(): IRSchema {
       {
         name: 'InputPayload',
         fields: [
+          field('status', {
+            kind: 'enum',
+            name: 'TolerantStatus',
+            nullable: false,
+          }),
+          field('labels', {
+            kind: 'list',
+            nullable: false,
+            elementType: {
+              kind: 'scalar',
+              name: 'String',
+              nullable: false,
+            },
+          }),
+          field('note', { kind: 'scalar', name: 'String', nullable: true }),
+          field('count', { kind: 'scalar', name: 'Int', nullable: true }),
           field('format', {
             kind: 'enum',
             name: 'StrictFormat',
@@ -215,6 +231,15 @@ function decoderSchema(): IRSchema {
               kind: 'enum',
               name: 'StrictFormat',
               nullable: true,
+            },
+          }),
+          field('statuses', {
+            kind: 'list',
+            nullable: true,
+            elementType: {
+              kind: 'enum',
+              name: 'TolerantStatus',
+              nullable: false,
             },
           }),
         ],
@@ -257,9 +282,11 @@ describe('unknown enum decoder compatibility', () => {
   it('degrades neutral Kotlin enums and drops an unreadable optional payload', () => {
     const output = new KotlinPlugin({ outputPath: 'Types.kt' }).generate(decoderSchema());
 
-    expect(output).toContain('else -> TolerantStatus.Unknown');
+    expect(output).toContain('fun fromJson(value: String): TolerantStatus = fromKnownJson(value) ?: TolerantStatus.Unknown');
     expect(output).not.toContain('Unknown TolerantStatus value');
-    expect(output).toContain('else -> throw IllegalArgumentException("Unknown StrictFormat value: $value")');
+    expect(output).toContain(
+      'fun fromJson(value: String): StrictFormat = fromKnownJson(value) ?: throw IllegalArgumentException("Unknown StrictFormat value: $value")',
+    );
     expect(output).toContain(
       'format = (json["format"] as? String)?.let { StrictFormat.fromJson(it) } ?: throw IllegalArgumentException("Missing required enum value for StrictFormat")',
     );
@@ -277,6 +304,19 @@ describe('unknown enum decoder compatibility', () => {
     );
     expect(output).toContain(
       'option = json["option"]?.let { value -> (value as? Map<String, Any?>)?.let { InputPayload.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for InputPayload") }',
+    );
+    expect(output).toContain('(json["status"] as? String)?.let { TolerantStatus.fromJsonStrict(it) }');
+    expect(output).toContain(
+      'statuses = json["statuses"]?.let { raw -> (raw as? List<*>)?.map { (it as? String)?.let { TolerantStatus.fromJsonStrict(it) } ?: throw IllegalArgumentException("Missing or invalid enum input value for TolerantStatus") } ?: throw IllegalArgumentException("Invalid input list") }',
+    );
+    expect(output).toContain(
+      'labels = (json["labels"] as? List<*>)?.map { it as? String ?: throw IllegalArgumentException("Invalid String input list element") } ?: throw IllegalArgumentException("Invalid input list")',
+    );
+    expect(output).toContain(
+      'note = json["note"]?.let { raw -> (raw as? String) ?: throw IllegalArgumentException("Invalid String input value") }',
+    );
+    expect(output).toContain(
+      'number.toLong().takeIf { value -> value >= Int.MIN_VALUE.toLong() && value <= Int.MAX_VALUE.toLong() && value.toDouble() == number.toDouble() }?.toInt()',
     );
     expect(output).toContain('platform = (json["platform"] as? String)?.let { Platform.fromJson(it) } ?: Platform.Android');
   });
@@ -299,6 +339,10 @@ describe('unknown enum decoder compatibility', () => {
     expect(output).toContain(
       "payload: json['payload'] is Map<String, dynamic> ? Payload._tryFromJson(json['payload'] as Map<String, dynamic>) : null",
     );
+    expect(output).toContain("status: TolerantStatus.fromJsonStrict(json['status'] as String)");
+    expect(output).toContain(
+      "statuses: (json['statuses'] as List<dynamic>?) == null ? null : (json['statuses'] as List<dynamic>?)!.map((e) => TolerantStatus.fromJsonStrict(e as String)).toList()",
+    );
   });
 
   it('degrades neutral C# enums and drops an unreadable optional payload', () => {
@@ -315,6 +359,13 @@ describe('unknown enum decoder compatibility', () => {
     expect(output).toContain('[JsonConverter(typeof(ListOnlyPayloadNullableElementListJsonConverter))]');
     expect(output).not.toContain('InputPayloadNullableJsonConverter');
     expect(output).toContain('[JsonConverter(typeof(PayloadNullableJsonConverter))]');
+    expect(output).toContain('public sealed class StrictEnumJsonConverter<TEnum, TConverter>');
+    expect(output).toContain(
+      '[JsonConverter(typeof(StrictEnumJsonConverter<TolerantStatus, TolerantStatusJsonConverter>))]',
+    );
+    expect(output).toContain(
+      '[JsonConverter(typeof(StrictEnumListJsonConverter<TolerantStatus, TolerantStatusJsonConverter>))]',
+    );
     expect(output).toContain('return document.RootElement.Deserialize<Payload>(options);');
     expect(output).toContain('catch (JsonException)');
   });
@@ -322,7 +373,8 @@ describe('unknown enum decoder compatibility', () => {
   it('degrades neutral GDScript enums and drops an unreadable optional payload', () => {
     const output = new GDScriptPlugin({ outputPath: 'types.gd' }).generate(decoderSchema());
 
-    expect(output).toContain('obj.status = TOLERANT_STATUS_FROM_STRING.get(enum_str, TolerantStatus.UNKNOWN)');
+    expect(output).toContain('if enum_str is String and TOLERANT_STATUS_FROM_STRING.has(enum_str):');
+    expect(output).toContain('elif enum_str is int and TOLERANT_STATUS_VALUES.has(enum_str):');
     expect(output).toContain('obj.status = TolerantStatus.UNKNOWN');
     expect(output).toContain('static func from_dict(data: Dictionary, report_errors: bool = true) -> Payload:');
     expect(output).toContain('push_error("Invalid Payload.format enum value")');
@@ -349,6 +401,12 @@ describe('unknown enum decoder compatibility', () => {
     expect(output).toContain('if data["formats"] is Array:\n\t\t\t\tvar arr: Array[Variant] = []');
     expect(output).toContain('if item == null:\n\t\t\t\t\t\tarr.append(null)');
     expect(output).toContain('push_error("Invalid StrictFormat list value for formats")');
+    expect(output).toContain('push_error("Invalid TolerantStatus input value")');
+    expect(output).toContain('push_error("Invalid required InputPayload.status value")');
+    expect(output).toContain('push_error("Invalid TolerantStatus list value for statuses")');
+    expect(output).toContain('push_error("Invalid required InputPayload.labels value")');
+    expect(output).toContain('push_error("Invalid String list value for labels")');
+    expect(output).toContain('push_error("Invalid InputPayload.note value")');
     const inputPayload = output.slice(output.indexOf('class InputPayload:'), output.indexOf('class RequestInput:'));
     expect(inputPayload).not.toContain('from_dict_or_null');
     const operation = output.slice(output.indexOf('class Mutation:'));

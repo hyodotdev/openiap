@@ -129,13 +129,16 @@ export const fetchProducts = async (
   const normalizedType = normalizeProductQueryType(type);
   const nitroProducts = await getModule().fetchProducts(skus, normalizedType);
   return mapProducts(nitroProducts, normalizedType) as
-    | Product[]
-    | ProductSubscription[];
+    Product[] | ProductSubscription[];
 };
 
 export const requestPurchase: MutationField<'requestPurchase'> = async (
   request,
 ) => {
+  const type = normalizeProductQueryType(request.type);
+  if (type === 'all') {
+    throw new Error('Product type all is only supported for product queries.');
+  }
   const perPlatformRequest = request.request as
     | RequestPurchasePropsByPlatforms
     | RequestSubscriptionPropsByPlatforms

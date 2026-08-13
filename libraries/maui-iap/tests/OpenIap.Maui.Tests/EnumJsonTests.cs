@@ -116,6 +116,21 @@ public class EnumJsonTests
         Assert.Equal(ErrorCode.Unknown, JsonSerializer.Deserialize<ErrorCode>("\"no-such-code\""));
     }
 
+    [Fact]
+    public void InAppMessageInput_RejectsUnknownAndMalformedCategories()
+    {
+        var known = JsonSerializer.Deserialize<InAppMessageParamsAndroid>(
+            """{"categories":["unknown-in-app-message-category-id"]}""");
+        Assert.Equal(InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId, Assert.Single(known!.Categories!));
+
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<InAppMessageParamsAndroid>(
+            """{"categories":["future-category"]}"""));
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<InAppMessageParamsAndroid>(
+            """{"categories":[999]}"""));
+        Assert.Throws<JsonException>(() => JsonSerializer.Deserialize<InAppMessageParamsAndroid>(
+            """{"categories":"transactional"}"""));
+    }
+
     [Theory]
     [InlineData(ProductType.InApp, "in-app")]
     [InlineData(ProductType.Subs, "subs")]

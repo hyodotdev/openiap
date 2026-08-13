@@ -730,12 +730,16 @@ class BillingProgramAvailabilityResultAndroid:
 			var enum_str = data["billingProgram"]
 			if enum_str is String and BILLING_PROGRAM_ANDROID_FROM_STRING.has(enum_str):
 				obj.billing_program = BILLING_PROGRAM_ANDROID_FROM_STRING[enum_str]
+			elif enum_str is int and BILLING_PROGRAM_ANDROID_VALUES.has(enum_str):
+				obj.billing_program = enum_str
 			else:
 				obj.billing_program = enum_str
 		if data.has("choiceScreenType") and data["choiceScreenType"] != null:
 			var enum_str = data["choiceScreenType"]
 			if enum_str is String and BILLING_CHOICE_SCREEN_TYPE_ANDROID_FROM_STRING.has(enum_str):
 				obj.choice_screen_type = BILLING_CHOICE_SCREEN_TYPE_ANDROID_FROM_STRING[enum_str]
+			elif enum_str is int and BILLING_CHOICE_SCREEN_TYPE_ANDROID_VALUES.has(enum_str):
+				obj.choice_screen_type = enum_str
 			else:
 				obj.choice_screen_type = enum_str
 		if data.has("isExternalLinkAvailable") and data["isExternalLinkAvailable"] != null:
@@ -775,6 +779,8 @@ class BillingProgramReportingDetailsAndroid:
 			var enum_str = data["billingProgram"]
 			if enum_str is String and BILLING_PROGRAM_ANDROID_FROM_STRING.has(enum_str):
 				obj.billing_program = BILLING_PROGRAM_ANDROID_FROM_STRING[enum_str]
+			elif enum_str is int and BILLING_PROGRAM_ANDROID_VALUES.has(enum_str):
+				obj.billing_program = enum_str
 			else:
 				obj.billing_program = enum_str
 		if data.has("externalTransactionToken") and data["externalTransactionToken"] != null:
@@ -809,6 +815,8 @@ class BillingResultAndroid:
 			var enum_str = data["subResponseCode"]
 			if enum_str is String and SUB_RESPONSE_CODE_ANDROID_FROM_STRING.has(enum_str):
 				obj.sub_response_code = SUB_RESPONSE_CODE_ANDROID_FROM_STRING[enum_str]
+			elif enum_str is int and SUB_RESPONSE_CODE_ANDROID_VALUES.has(enum_str):
+				obj.sub_response_code = enum_str
 			else:
 				obj.sub_response_code = enum_str
 		return obj
@@ -950,6 +958,8 @@ class DeveloperProvidedBillingProductAndroid:
 			var enum_str = data["type"]
 			if enum_str is String and PRODUCT_TYPE_FROM_STRING.has(enum_str):
 				obj.type = PRODUCT_TYPE_FROM_STRING[enum_str]
+			elif enum_str is int and PRODUCT_TYPE_VALUES.has(enum_str):
+				obj.type = enum_str
 			else:
 				obj.type = enum_str
 		if data.has("offerToken") and data["offerToken"] != null:
@@ -1069,6 +1079,8 @@ class DiscountOffer:
 			var enum_str = data["type"]
 			if enum_str is String and DISCOUNT_OFFER_TYPE_FROM_STRING.has(enum_str):
 				obj.type = DISCOUNT_OFFER_TYPE_FROM_STRING[enum_str]
+			elif enum_str is int and DISCOUNT_OFFER_TYPE_VALUES.has(enum_str):
+				obj.type = enum_str
 			else:
 				obj.type = enum_str
 		if data.has("offerTokenAndroid") and data["offerTokenAndroid"] != null:
@@ -1262,6 +1274,8 @@ class ExternalPurchaseNoticeResultIOS:
 			var enum_str = data["result"]
 			if enum_str is String and EXTERNAL_PURCHASE_NOTICE_ACTION_FROM_STRING.has(enum_str):
 				obj.result = EXTERNAL_PURCHASE_NOTICE_ACTION_FROM_STRING[enum_str]
+			elif enum_str is int and EXTERNAL_PURCHASE_NOTICE_ACTION_VALUES.has(enum_str):
+				obj.result = enum_str
 			else:
 				obj.result = enum_str
 		if data.has("error") and data["error"] != null:
@@ -1299,6 +1313,8 @@ class IapkitProductClientPayload:
 			var enum_str = data["format"]
 			if enum_str is String and IAPKIT_CLIENT_PAYLOAD_FORMAT_FROM_STRING.has(enum_str):
 				obj.format = IAPKIT_CLIENT_PAYLOAD_FORMAT_FROM_STRING[enum_str]
+			elif enum_str is int and IAPKIT_CLIENT_PAYLOAD_FORMAT_VALUES.has(enum_str):
+				obj.format = enum_str
 			else:
 				obj.format = enum_str
 		if data.has("body") and data["body"] != null:
@@ -1340,6 +1356,8 @@ class InAppMessageResultAndroid:
 			var enum_str = data["responseCode"]
 			if enum_str is String and IN_APP_MESSAGE_RESPONSE_CODE_ANDROID_FROM_STRING.has(enum_str):
 				obj.response_code = IN_APP_MESSAGE_RESPONSE_CODE_ANDROID_FROM_STRING[enum_str]
+			elif enum_str is int and IN_APP_MESSAGE_RESPONSE_CODE_ANDROID_VALUES.has(enum_str):
+				obj.response_code = enum_str
 			else:
 				obj.response_code = enum_str
 		if data.has("purchaseToken") and data["purchaseToken"] != null:
@@ -1551,6 +1569,8 @@ class ProductAndroid:
 			var enum_str = data["type"]
 			if enum_str is String and PRODUCT_TYPE_FROM_STRING.has(enum_str):
 				obj.type = PRODUCT_TYPE_FROM_STRING[enum_str]
+			elif enum_str is int and PRODUCT_TYPE_VALUES.has(enum_str):
+				obj.type = enum_str
 			else:
 				obj.type = enum_str
 		if data.has("displayName") and data["displayName"] != null:
@@ -1567,15 +1587,17 @@ class ProductAndroid:
 			var enum_str = data["platform"]
 			if enum_str is String and IAP_PLATFORM_FROM_STRING.has(enum_str):
 				obj.platform = IAP_PLATFORM_FROM_STRING[enum_str]
+			elif enum_str is int and IAP_PLATFORM_VALUES.has(enum_str):
+				obj.platform = enum_str
 			else:
 				obj.platform = enum_str
 		if data.has("nameAndroid") and data["nameAndroid"] != null:
 			obj.name_android = data["nameAndroid"]
 		if data.has("productStatusAndroid") and data["productStatusAndroid"] != null:
 			var enum_str = data["productStatusAndroid"]
-			if enum_str is String:
-				obj.product_status_android = PRODUCT_STATUS_ANDROID_FROM_STRING.get(enum_str, ProductStatusAndroid.UNKNOWN)
-			elif enum_str is int:
+			if enum_str is String and PRODUCT_STATUS_ANDROID_FROM_STRING.has(enum_str):
+				obj.product_status_android = PRODUCT_STATUS_ANDROID_FROM_STRING[enum_str]
+			elif enum_str is int and PRODUCT_STATUS_ANDROID_VALUES.has(enum_str):
 				obj.product_status_android = enum_str
 			else:
 				obj.product_status_android = ProductStatusAndroid.UNKNOWN
@@ -1706,6 +1728,8 @@ class ProductIOS:
 			var enum_str = data["type"]
 			if enum_str is String and PRODUCT_TYPE_FROM_STRING.has(enum_str):
 				obj.type = PRODUCT_TYPE_FROM_STRING[enum_str]
+			elif enum_str is int and PRODUCT_TYPE_VALUES.has(enum_str):
+				obj.type = enum_str
 			else:
 				obj.type = enum_str
 		if data.has("displayName") and data["displayName"] != null:
@@ -1722,6 +1746,8 @@ class ProductIOS:
 			var enum_str = data["platform"]
 			if enum_str is String and IAP_PLATFORM_FROM_STRING.has(enum_str):
 				obj.platform = IAP_PLATFORM_FROM_STRING[enum_str]
+			elif enum_str is int and IAP_PLATFORM_VALUES.has(enum_str):
+				obj.platform = enum_str
 			else:
 				obj.platform = enum_str
 		if data.has("displayNameIOS") and data["displayNameIOS"] != null:
@@ -1734,6 +1760,8 @@ class ProductIOS:
 			var enum_str = data["typeIOS"]
 			if enum_str is String and PRODUCT_TYPE_IOS_FROM_STRING.has(enum_str):
 				obj.type_ios = PRODUCT_TYPE_IOS_FROM_STRING[enum_str]
+			elif enum_str is int and PRODUCT_TYPE_IOS_VALUES.has(enum_str):
+				obj.type_ios = enum_str
 			else:
 				obj.type_ios = enum_str
 		if data.has("subscriptionOffers") and data["subscriptionOffers"] != null:
@@ -1857,6 +1885,8 @@ class ProductSubscriptionAndroid:
 			var enum_str = data["type"]
 			if enum_str is String and PRODUCT_TYPE_FROM_STRING.has(enum_str):
 				obj.type = PRODUCT_TYPE_FROM_STRING[enum_str]
+			elif enum_str is int and PRODUCT_TYPE_VALUES.has(enum_str):
+				obj.type = enum_str
 			else:
 				obj.type = enum_str
 		if data.has("displayName") and data["displayName"] != null:
@@ -1873,15 +1903,17 @@ class ProductSubscriptionAndroid:
 			var enum_str = data["platform"]
 			if enum_str is String and IAP_PLATFORM_FROM_STRING.has(enum_str):
 				obj.platform = IAP_PLATFORM_FROM_STRING[enum_str]
+			elif enum_str is int and IAP_PLATFORM_VALUES.has(enum_str):
+				obj.platform = enum_str
 			else:
 				obj.platform = enum_str
 		if data.has("nameAndroid") and data["nameAndroid"] != null:
 			obj.name_android = data["nameAndroid"]
 		if data.has("productStatusAndroid") and data["productStatusAndroid"] != null:
 			var enum_str = data["productStatusAndroid"]
-			if enum_str is String:
-				obj.product_status_android = PRODUCT_STATUS_ANDROID_FROM_STRING.get(enum_str, ProductStatusAndroid.UNKNOWN)
-			elif enum_str is int:
+			if enum_str is String and PRODUCT_STATUS_ANDROID_FROM_STRING.has(enum_str):
+				obj.product_status_android = PRODUCT_STATUS_ANDROID_FROM_STRING[enum_str]
+			elif enum_str is int and PRODUCT_STATUS_ANDROID_VALUES.has(enum_str):
 				obj.product_status_android = enum_str
 			else:
 				obj.product_status_android = ProductStatusAndroid.UNKNOWN
@@ -2001,6 +2033,8 @@ class ProductSubscriptionIOS:
 			var enum_str = data["type"]
 			if enum_str is String and PRODUCT_TYPE_FROM_STRING.has(enum_str):
 				obj.type = PRODUCT_TYPE_FROM_STRING[enum_str]
+			elif enum_str is int and PRODUCT_TYPE_VALUES.has(enum_str):
+				obj.type = enum_str
 			else:
 				obj.type = enum_str
 		if data.has("displayName") and data["displayName"] != null:
@@ -2017,6 +2051,8 @@ class ProductSubscriptionIOS:
 			var enum_str = data["platform"]
 			if enum_str is String and IAP_PLATFORM_FROM_STRING.has(enum_str):
 				obj.platform = IAP_PLATFORM_FROM_STRING[enum_str]
+			elif enum_str is int and IAP_PLATFORM_VALUES.has(enum_str):
+				obj.platform = enum_str
 			else:
 				obj.platform = enum_str
 		if data.has("displayNameIOS") and data["displayNameIOS"] != null:
@@ -2029,6 +2065,8 @@ class ProductSubscriptionIOS:
 			var enum_str = data["typeIOS"]
 			if enum_str is String and PRODUCT_TYPE_IOS_FROM_STRING.has(enum_str):
 				obj.type_ios = PRODUCT_TYPE_IOS_FROM_STRING[enum_str]
+			elif enum_str is int and PRODUCT_TYPE_IOS_VALUES.has(enum_str):
+				obj.type_ios = enum_str
 			else:
 				obj.type_ios = enum_str
 		if data.has("subscriptionOffers") and data["subscriptionOffers"] != null:
@@ -2253,9 +2291,9 @@ class PurchaseAndroid:
 			obj.purchase_token = data["purchaseToken"]
 		if data.has("store") and data["store"] != null:
 			var enum_str = data["store"]
-			if enum_str is String:
-				obj.store = IAP_STORE_FROM_STRING.get(enum_str, IapStore.UNKNOWN)
-			elif enum_str is int:
+			if enum_str is String and IAP_STORE_FROM_STRING.has(enum_str):
+				obj.store = IAP_STORE_FROM_STRING[enum_str]
+			elif enum_str is int and IAP_STORE_VALUES.has(enum_str):
 				obj.store = enum_str
 			else:
 				obj.store = IapStore.UNKNOWN
@@ -2263,9 +2301,9 @@ class PurchaseAndroid:
 			obj.quantity = data["quantity"]
 		if data.has("purchaseState") and data["purchaseState"] != null:
 			var enum_str = data["purchaseState"]
-			if enum_str is String:
-				obj.purchase_state = PURCHASE_STATE_FROM_STRING.get(enum_str, PurchaseState.UNKNOWN)
-			elif enum_str is int:
+			if enum_str is String and PURCHASE_STATE_FROM_STRING.has(enum_str):
+				obj.purchase_state = PURCHASE_STATE_FROM_STRING[enum_str]
+			elif enum_str is int and PURCHASE_STATE_VALUES.has(enum_str):
 				obj.purchase_state = enum_str
 			else:
 				obj.purchase_state = PurchaseState.UNKNOWN
@@ -2367,9 +2405,9 @@ class PurchaseError:
 		var obj = PurchaseError.new()
 		if data.has("code") and data["code"] != null:
 			var enum_str = data["code"]
-			if enum_str is String:
-				obj.code = ERROR_CODE_FROM_STRING.get(enum_str, ErrorCode.UNKNOWN)
-			elif enum_str is int:
+			if enum_str is String and ERROR_CODE_FROM_STRING.has(enum_str):
+				obj.code = ERROR_CODE_FROM_STRING[enum_str]
+			elif enum_str is int and ERROR_CODE_VALUES.has(enum_str):
 				obj.code = enum_str
 			else:
 				obj.code = ErrorCode.UNKNOWN
@@ -2385,6 +2423,8 @@ class PurchaseError:
 			var enum_str = data["subResponseCodeAndroid"]
 			if enum_str is String and SUB_RESPONSE_CODE_ANDROID_FROM_STRING.has(enum_str):
 				obj.sub_response_code_android = SUB_RESPONSE_CODE_ANDROID_FROM_STRING[enum_str]
+			elif enum_str is int and SUB_RESPONSE_CODE_ANDROID_VALUES.has(enum_str):
+				obj.sub_response_code_android = enum_str
 			else:
 				obj.sub_response_code_android = enum_str
 		if data.has("productIds") and data["productIds"] != null:
@@ -2501,9 +2541,9 @@ class PurchaseIOS:
 			obj.purchase_token = data["purchaseToken"]
 		if data.has("store") and data["store"] != null:
 			var enum_str = data["store"]
-			if enum_str is String:
-				obj.store = IAP_STORE_FROM_STRING.get(enum_str, IapStore.UNKNOWN)
-			elif enum_str is int:
+			if enum_str is String and IAP_STORE_FROM_STRING.has(enum_str):
+				obj.store = IAP_STORE_FROM_STRING[enum_str]
+			elif enum_str is int and IAP_STORE_VALUES.has(enum_str):
 				obj.store = enum_str
 			else:
 				obj.store = IapStore.UNKNOWN
@@ -2511,9 +2551,9 @@ class PurchaseIOS:
 			obj.quantity = data["quantity"]
 		if data.has("purchaseState") and data["purchaseState"] != null:
 			var enum_str = data["purchaseState"]
-			if enum_str is String:
-				obj.purchase_state = PURCHASE_STATE_FROM_STRING.get(enum_str, PurchaseState.UNKNOWN)
-			elif enum_str is int:
+			if enum_str is String and PURCHASE_STATE_FROM_STRING.has(enum_str):
+				obj.purchase_state = PURCHASE_STATE_FROM_STRING[enum_str]
+			elif enum_str is int and PURCHASE_STATE_VALUES.has(enum_str):
 				obj.purchase_state = enum_str
 			else:
 				obj.purchase_state = PurchaseState.UNKNOWN
@@ -2577,9 +2617,9 @@ class PurchaseIOS:
 				obj.renewal_info_ios = data["renewalInfoIOS"]
 		if data.has("billingPlanTypeIOS") and data["billingPlanTypeIOS"] != null:
 			var enum_str = data["billingPlanTypeIOS"]
-			if enum_str is String:
-				obj.billing_plan_type_ios = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING.get(enum_str, SubscriptionBillingPlanTypeIOS.UNKNOWN)
-			elif enum_str is int:
+			if enum_str is String and SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING.has(enum_str):
+				obj.billing_plan_type_ios = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING[enum_str]
+			elif enum_str is int and SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_VALUES.has(enum_str):
 				obj.billing_plan_type_ios = enum_str
 			else:
 				obj.billing_plan_type_ios = SubscriptionBillingPlanTypeIOS.UNKNOWN
@@ -2757,9 +2797,9 @@ class RenewalCommitmentInfoIOS:
 			obj.commitment_auto_renew_status = data["commitmentAutoRenewStatus"]
 		if data.has("commitmentRenewalBillingPlanType") and data["commitmentRenewalBillingPlanType"] != null:
 			var enum_str = data["commitmentRenewalBillingPlanType"]
-			if enum_str is String:
-				obj.commitment_renewal_billing_plan_type = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING.get(enum_str, SubscriptionBillingPlanTypeIOS.UNKNOWN)
-			elif enum_str is int:
+			if enum_str is String and SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING.has(enum_str):
+				obj.commitment_renewal_billing_plan_type = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING[enum_str]
+			elif enum_str is int and SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_VALUES.has(enum_str):
 				obj.commitment_renewal_billing_plan_type = enum_str
 			else:
 				obj.commitment_renewal_billing_plan_type = SubscriptionBillingPlanTypeIOS.UNKNOWN
@@ -2841,9 +2881,9 @@ class RenewalInfoIOS:
 			obj.renewal_offer_type = data["renewalOfferType"]
 		if data.has("renewalBillingPlanType") and data["renewalBillingPlanType"] != null:
 			var enum_str = data["renewalBillingPlanType"]
-			if enum_str is String:
-				obj.renewal_billing_plan_type = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING.get(enum_str, SubscriptionBillingPlanTypeIOS.UNKNOWN)
-			elif enum_str is int:
+			if enum_str is String and SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING.has(enum_str):
+				obj.renewal_billing_plan_type = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING[enum_str]
+			elif enum_str is int and SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_VALUES.has(enum_str):
 				obj.renewal_billing_plan_type = enum_str
 			else:
 				obj.renewal_billing_plan_type = SubscriptionBillingPlanTypeIOS.UNKNOWN
@@ -2943,9 +2983,9 @@ class RequestVerifyPurchaseWithIapkitResult:
 		var obj = RequestVerifyPurchaseWithIapkitResult.new()
 		if data.has("store") and data["store"] != null:
 			var enum_str = data["store"]
-			if enum_str is String:
-				obj.store = IAP_STORE_FROM_STRING.get(enum_str, IapStore.UNKNOWN)
-			elif enum_str is int:
+			if enum_str is String and IAP_STORE_FROM_STRING.has(enum_str):
+				obj.store = IAP_STORE_FROM_STRING[enum_str]
+			elif enum_str is int and IAP_STORE_VALUES.has(enum_str):
 				obj.store = enum_str
 			else:
 				obj.store = IapStore.UNKNOWN
@@ -2955,9 +2995,9 @@ class RequestVerifyPurchaseWithIapkitResult:
 			obj.is_valid = data["isValid"]
 		if data.has("state") and data["state"] != null:
 			var enum_str = data["state"]
-			if enum_str is String:
-				obj.state = IAPKIT_PURCHASE_STATE_FROM_STRING.get(enum_str, IapkitPurchaseState.UNKNOWN)
-			elif enum_str is int:
+			if enum_str is String and IAPKIT_PURCHASE_STATE_FROM_STRING.has(enum_str):
+				obj.state = IAPKIT_PURCHASE_STATE_FROM_STRING[enum_str]
+			elif enum_str is int and IAPKIT_PURCHASE_STATE_VALUES.has(enum_str):
 				obj.state = enum_str
 			else:
 				obj.state = IapkitPurchaseState.UNKNOWN
@@ -3087,6 +3127,8 @@ class SubscriptionOffer:
 			var enum_str = data["type"]
 			if enum_str is String and DISCOUNT_OFFER_TYPE_FROM_STRING.has(enum_str):
 				obj.type = DISCOUNT_OFFER_TYPE_FROM_STRING[enum_str]
+			elif enum_str is int and DISCOUNT_OFFER_TYPE_VALUES.has(enum_str):
+				obj.type = enum_str
 			else:
 				obj.type = enum_str
 		if data.has("period") and data["period"] != null:
@@ -3098,9 +3140,9 @@ class SubscriptionOffer:
 			obj.period_count = data["periodCount"]
 		if data.has("paymentMode") and data["paymentMode"] != null:
 			var enum_str = data["paymentMode"]
-			if enum_str is String:
-				obj.payment_mode = PAYMENT_MODE_FROM_STRING.get(enum_str, PaymentMode.UNKNOWN)
-			elif enum_str is int:
+			if enum_str is String and PAYMENT_MODE_FROM_STRING.has(enum_str):
+				obj.payment_mode = PAYMENT_MODE_FROM_STRING[enum_str]
+			elif enum_str is int and PAYMENT_MODE_VALUES.has(enum_str):
 				obj.payment_mode = enum_str
 			else:
 				obj.payment_mode = PaymentMode.UNKNOWN
@@ -3199,9 +3241,9 @@ class SubscriptionPeriod:
 		var obj = SubscriptionPeriod.new()
 		if data.has("unit") and data["unit"] != null:
 			var enum_str = data["unit"]
-			if enum_str is String:
-				obj.unit = SUBSCRIPTION_PERIOD_UNIT_FROM_STRING.get(enum_str, SubscriptionPeriodUnit.UNKNOWN)
-			elif enum_str is int:
+			if enum_str is String and SUBSCRIPTION_PERIOD_UNIT_FROM_STRING.has(enum_str):
+				obj.unit = SUBSCRIPTION_PERIOD_UNIT_FROM_STRING[enum_str]
+			elif enum_str is int and SUBSCRIPTION_PERIOD_UNIT_VALUES.has(enum_str):
 				obj.unit = enum_str
 			else:
 				obj.unit = SubscriptionPeriodUnit.UNKNOWN
@@ -3284,9 +3326,9 @@ class SubscriptionPricingTermsIOS:
 			return null
 		if data.has("billingPlanType") and data["billingPlanType"] != null:
 			var enum_str = data["billingPlanType"]
-			if enum_str is String:
-				obj.billing_plan_type = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING.get(enum_str, SubscriptionBillingPlanTypeIOS.UNKNOWN)
-			elif enum_str is int:
+			if enum_str is String and SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING.has(enum_str):
+				obj.billing_plan_type = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING[enum_str]
+			elif enum_str is int and SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_VALUES.has(enum_str):
 				obj.billing_plan_type = enum_str
 			else:
 				obj.billing_plan_type = SubscriptionBillingPlanTypeIOS.UNKNOWN
@@ -3669,6 +3711,8 @@ class VerifyPurchaseWithProviderResult:
 			var enum_str = data["provider"]
 			if enum_str is String and PURCHASE_VERIFICATION_PROVIDER_FROM_STRING.has(enum_str):
 				obj.provider = PURCHASE_VERIFICATION_PROVIDER_FROM_STRING[enum_str]
+			elif enum_str is int and PURCHASE_VERIFICATION_PROVIDER_VALUES.has(enum_str):
+				obj.provider = enum_str
 			else:
 				obj.provider = enum_str
 		if data.has("iapkit") and data["iapkit"] != null:
@@ -3737,6 +3781,12 @@ class AndroidSubscriptionOfferInput:
 	var offer_token: String = ""
 
 	static func from_dict(data: Dictionary) -> AndroidSubscriptionOfferInput:
+		if not data.has("sku") or not data["sku"] is String:
+			push_error("Invalid required AndroidSubscriptionOfferInput.sku value")
+			return null
+		if not data.has("offerToken") or not data["offerToken"] is String:
+			push_error("Invalid required AndroidSubscriptionOfferInput.offerToken value")
+			return null
 		var obj = AndroidSubscriptionOfferInput.new()
 		if data.has("sku") and data["sku"] != null:
 			obj.sku = data["sku"]
@@ -3760,6 +3810,9 @@ class BillingProgramInformationDialogParamsAndroid:
 	var external_transaction_token: String = ""
 
 	static func from_dict(data: Dictionary, report_errors: bool = true) -> BillingProgramInformationDialogParamsAndroid:
+		if not data.has("externalTransactionToken") or not data["externalTransactionToken"] is String:
+			push_error("Invalid required BillingProgramInformationDialogParamsAndroid.externalTransactionToken value")
+			return null
 		if data.has("billingProgram") and data["billingProgram"] != null and not ((data["billingProgram"] is String and BILLING_PROGRAM_ANDROID_FROM_STRING.has(data["billingProgram"])) or (data["billingProgram"] is int and BILLING_PROGRAM_ANDROID_VALUES.has(data["billingProgram"]))):
 			if report_errors:
 				push_error("Invalid BillingProgramInformationDialogParamsAndroid.billingProgram enum value")
@@ -3769,8 +3822,11 @@ class BillingProgramInformationDialogParamsAndroid:
 			var enum_str = data["billingProgram"]
 			if enum_str is String and BILLING_PROGRAM_ANDROID_FROM_STRING.has(enum_str):
 				obj.billing_program = BILLING_PROGRAM_ANDROID_FROM_STRING[enum_str]
-			else:
+			elif enum_str is int and BILLING_PROGRAM_ANDROID_VALUES.has(enum_str):
 				obj.billing_program = enum_str
+			else:
+				push_error("Invalid BillingProgramAndroid input value")
+				return null
 		if data.has("externalTransactionToken") and data["externalTransactionToken"] != null:
 			obj.external_transaction_token = data["externalTransactionToken"]
 		return obj
@@ -3793,6 +3849,12 @@ class DeepLinkOptions:
 	var package_name_android: Variant = null
 
 	static func from_dict(data: Dictionary) -> DeepLinkOptions:
+		if data.has("skuAndroid") and data["skuAndroid"] != null and not data["skuAndroid"] is String:
+			push_error("Invalid DeepLinkOptions.skuAndroid value")
+			return null
+		if data.has("packageNameAndroid") and data["packageNameAndroid"] != null and not data["packageNameAndroid"] is String:
+			push_error("Invalid DeepLinkOptions.packageNameAndroid value")
+			return null
 		var obj = DeepLinkOptions.new()
 		if data.has("skuAndroid") and data["skuAndroid"] != null:
 			obj.sku_android = data["skuAndroid"]
@@ -3820,6 +3882,12 @@ class DeveloperBillingOptionParamsAndroid:
 	var external_transaction_token: Variant = null
 
 	static func from_dict(data: Dictionary, report_errors: bool = true) -> DeveloperBillingOptionParamsAndroid:
+		if data.has("linkUri") and data["linkUri"] != null and not data["linkUri"] is String:
+			push_error("Invalid DeveloperBillingOptionParamsAndroid.linkUri value")
+			return null
+		if data.has("externalTransactionToken") and data["externalTransactionToken"] != null and not data["externalTransactionToken"] is String:
+			push_error("Invalid DeveloperBillingOptionParamsAndroid.externalTransactionToken value")
+			return null
 		if not data.has("billingProgram") or not ((data["billingProgram"] is String and BILLING_PROGRAM_ANDROID_FROM_STRING.has(data["billingProgram"])) or (data["billingProgram"] is int and BILLING_PROGRAM_ANDROID_VALUES.has(data["billingProgram"]))):
 			if report_errors:
 				push_error("Invalid DeveloperBillingOptionParamsAndroid.billingProgram enum value")
@@ -3829,16 +3897,22 @@ class DeveloperBillingOptionParamsAndroid:
 			var enum_str = data["billingProgram"]
 			if enum_str is String and BILLING_PROGRAM_ANDROID_FROM_STRING.has(enum_str):
 				obj.billing_program = BILLING_PROGRAM_ANDROID_FROM_STRING[enum_str]
-			else:
+			elif enum_str is int and BILLING_PROGRAM_ANDROID_VALUES.has(enum_str):
 				obj.billing_program = enum_str
+			else:
+				push_error("Invalid BillingProgramAndroid input value")
+				return null
 		if data.has("linkUri") and data["linkUri"] != null:
 			obj.link_uri = data["linkUri"]
 		if data.has("launchMode") and data["launchMode"] != null:
 			var enum_str = data["launchMode"]
 			if enum_str is String and DEVELOPER_BILLING_LAUNCH_MODE_ANDROID_FROM_STRING.has(enum_str):
 				obj.launch_mode = DEVELOPER_BILLING_LAUNCH_MODE_ANDROID_FROM_STRING[enum_str]
-			else:
+			elif enum_str is int and DEVELOPER_BILLING_LAUNCH_MODE_ANDROID_VALUES.has(enum_str):
 				obj.launch_mode = enum_str
+			else:
+				push_error("Invalid DeveloperBillingLaunchModeAndroid input value")
+				return null
 		if data.has("externalTransactionToken") and data["externalTransactionToken"] != null:
 			obj.external_transaction_token = data["externalTransactionToken"]
 		return obj
@@ -3874,6 +3948,21 @@ class DiscountOfferInputIOS:
 	var timestamp: float = 0.0
 
 	static func from_dict(data: Dictionary) -> DiscountOfferInputIOS:
+		if not data.has("identifier") or not data["identifier"] is String:
+			push_error("Invalid required DiscountOfferInputIOS.identifier value")
+			return null
+		if not data.has("keyIdentifier") or not data["keyIdentifier"] is String:
+			push_error("Invalid required DiscountOfferInputIOS.keyIdentifier value")
+			return null
+		if not data.has("nonce") or not data["nonce"] is String:
+			push_error("Invalid required DiscountOfferInputIOS.nonce value")
+			return null
+		if not data.has("signature") or not data["signature"] is String:
+			push_error("Invalid required DiscountOfferInputIOS.signature value")
+			return null
+		if not data.has("timestamp") or not (data["timestamp"] is int or data["timestamp"] is float):
+			push_error("Invalid required DiscountOfferInputIOS.timestamp value")
+			return null
 		var obj = DiscountOfferInputIOS.new()
 		if data.has("identifier") and data["identifier"] != null:
 			obj.identifier = data["identifier"]
@@ -3911,6 +4000,9 @@ class GetBillingChoiceInfoParamsAndroid:
 	var user_locale: Variant = null
 
 	static func from_dict(data: Dictionary, report_errors: bool = true) -> GetBillingChoiceInfoParamsAndroid:
+		if data.has("userLocale") and data["userLocale"] != null and not data["userLocale"] is String:
+			push_error("Invalid GetBillingChoiceInfoParamsAndroid.userLocale value")
+			return null
 		if data.has("billingProgram") and data["billingProgram"] != null and not ((data["billingProgram"] is String and BILLING_PROGRAM_ANDROID_FROM_STRING.has(data["billingProgram"])) or (data["billingProgram"] is int and BILLING_PROGRAM_ANDROID_VALUES.has(data["billingProgram"]))):
 			if report_errors:
 				push_error("Invalid GetBillingChoiceInfoParamsAndroid.billingProgram enum value")
@@ -3924,14 +4016,20 @@ class GetBillingChoiceInfoParamsAndroid:
 			var enum_str = data["billingProgram"]
 			if enum_str is String and BILLING_PROGRAM_ANDROID_FROM_STRING.has(enum_str):
 				obj.billing_program = BILLING_PROGRAM_ANDROID_FROM_STRING[enum_str]
-			else:
+			elif enum_str is int and BILLING_PROGRAM_ANDROID_VALUES.has(enum_str):
 				obj.billing_program = enum_str
+			else:
+				push_error("Invalid BillingProgramAndroid input value")
+				return null
 		if data.has("playBillingChoiceImageLayout") and data["playBillingChoiceImageLayout"] != null:
 			var enum_str = data["playBillingChoiceImageLayout"]
 			if enum_str is String and BILLING_CHOICE_IMAGE_LAYOUT_ANDROID_FROM_STRING.has(enum_str):
 				obj.play_billing_choice_image_layout = BILLING_CHOICE_IMAGE_LAYOUT_ANDROID_FROM_STRING[enum_str]
-			else:
+			elif enum_str is int and BILLING_CHOICE_IMAGE_LAYOUT_ANDROID_VALUES.has(enum_str):
 				obj.play_billing_choice_image_layout = enum_str
+			else:
+				push_error("Invalid BillingChoiceImageLayoutAndroid input value")
+				return null
 		if data.has("userLocale") and data["userLocale"] != null:
 			obj.user_locale = data["userLocale"]
 		return obj
@@ -3963,13 +4061,17 @@ class InAppMessageParamsAndroid:
 			if data["categories"] is Array:
 				var arr: Array[InAppMessageCategoryAndroid] = []
 				for item in data["categories"]:
-					if item is String:
-						arr.append(IN_APP_MESSAGE_CATEGORY_ANDROID_FROM_STRING.get(item, InAppMessageCategoryAndroid.UNKNOWN_IN_APP_MESSAGE_CATEGORY_ID))
+					if item is String and IN_APP_MESSAGE_CATEGORY_ANDROID_FROM_STRING.has(item):
+						arr.append(IN_APP_MESSAGE_CATEGORY_ANDROID_FROM_STRING[item])
 					elif item is int and IN_APP_MESSAGE_CATEGORY_ANDROID_VALUES.has(item):
 						arr.append(item)
-					elif item is int:
-						arr.append(InAppMessageCategoryAndroid.UNKNOWN_IN_APP_MESSAGE_CATEGORY_ID)
+					else:
+						push_error("Invalid InAppMessageCategoryAndroid list value for categories")
+						return null
 				obj.categories = arr
+			else:
+				push_error("Invalid input list for categories")
+				return null
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -3997,14 +4099,20 @@ class InitConnectionConfig:
 			var enum_str = data["enableBillingProgramAndroid"]
 			if enum_str is String and BILLING_PROGRAM_ANDROID_FROM_STRING.has(enum_str):
 				obj.enable_billing_program_android = BILLING_PROGRAM_ANDROID_FROM_STRING[enum_str]
-			else:
+			elif enum_str is int and BILLING_PROGRAM_ANDROID_VALUES.has(enum_str):
 				obj.enable_billing_program_android = enum_str
+			else:
+				push_error("Invalid BillingProgramAndroid input value")
+				return null
 		if data.has("billingChoiceScreenTypeAndroid") and data["billingChoiceScreenTypeAndroid"] != null:
 			var enum_str = data["billingChoiceScreenTypeAndroid"]
 			if enum_str is String and BILLING_CHOICE_SCREEN_TYPE_ANDROID_FROM_STRING.has(enum_str):
 				obj.billing_choice_screen_type_android = BILLING_CHOICE_SCREEN_TYPE_ANDROID_FROM_STRING[enum_str]
-			else:
+			elif enum_str is int and BILLING_CHOICE_SCREEN_TYPE_ANDROID_VALUES.has(enum_str):
 				obj.billing_choice_screen_type_android = enum_str
+			else:
+				push_error("Invalid BillingChoiceScreenTypeAndroid input value")
+				return null
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -4035,6 +4143,12 @@ class LaunchExternalLinkParamsAndroid:
 	var external_transaction_token: Variant = null
 
 	static func from_dict(data: Dictionary, report_errors: bool = true) -> LaunchExternalLinkParamsAndroid:
+		if not data.has("linkUri") or not data["linkUri"] is String:
+			push_error("Invalid required LaunchExternalLinkParamsAndroid.linkUri value")
+			return null
+		if data.has("externalTransactionToken") and data["externalTransactionToken"] != null and not data["externalTransactionToken"] is String:
+			push_error("Invalid LaunchExternalLinkParamsAndroid.externalTransactionToken value")
+			return null
 		if not data.has("billingProgram") or not ((data["billingProgram"] is String and BILLING_PROGRAM_ANDROID_FROM_STRING.has(data["billingProgram"])) or (data["billingProgram"] is int and BILLING_PROGRAM_ANDROID_VALUES.has(data["billingProgram"]))):
 			if report_errors:
 				push_error("Invalid LaunchExternalLinkParamsAndroid.billingProgram enum value")
@@ -4052,20 +4166,29 @@ class LaunchExternalLinkParamsAndroid:
 			var enum_str = data["billingProgram"]
 			if enum_str is String and BILLING_PROGRAM_ANDROID_FROM_STRING.has(enum_str):
 				obj.billing_program = BILLING_PROGRAM_ANDROID_FROM_STRING[enum_str]
-			else:
+			elif enum_str is int and BILLING_PROGRAM_ANDROID_VALUES.has(enum_str):
 				obj.billing_program = enum_str
+			else:
+				push_error("Invalid BillingProgramAndroid input value")
+				return null
 		if data.has("launchMode") and data["launchMode"] != null:
 			var enum_str = data["launchMode"]
 			if enum_str is String and EXTERNAL_LINK_LAUNCH_MODE_ANDROID_FROM_STRING.has(enum_str):
 				obj.launch_mode = EXTERNAL_LINK_LAUNCH_MODE_ANDROID_FROM_STRING[enum_str]
-			else:
+			elif enum_str is int and EXTERNAL_LINK_LAUNCH_MODE_ANDROID_VALUES.has(enum_str):
 				obj.launch_mode = enum_str
+			else:
+				push_error("Invalid ExternalLinkLaunchModeAndroid input value")
+				return null
 		if data.has("linkType") and data["linkType"] != null:
 			var enum_str = data["linkType"]
 			if enum_str is String and EXTERNAL_LINK_TYPE_ANDROID_FROM_STRING.has(enum_str):
 				obj.link_type = EXTERNAL_LINK_TYPE_ANDROID_FROM_STRING[enum_str]
-			else:
+			elif enum_str is int and EXTERNAL_LINK_TYPE_ANDROID_VALUES.has(enum_str):
 				obj.link_type = enum_str
+			else:
+				push_error("Invalid ExternalLinkTypeAndroid input value")
+				return null
 		if data.has("linkUri") and data["linkUri"] != null:
 			obj.link_uri = data["linkUri"]
 		if data.has("externalTransactionToken") and data["externalTransactionToken"] != null:
@@ -4100,6 +4223,9 @@ class ProductRequest:
 	var type: ProductQueryType = ProductQueryType.IN_APP
 
 	static func from_dict(data: Dictionary) -> ProductRequest:
+		if not data.has("skus") or not data["skus"] is Array:
+			push_error("Invalid required ProductRequest.skus value")
+			return null
 		var obj = ProductRequest.new()
 		if data.has("skus") and data["skus"] != null:
 			if data["skus"] is Array:
@@ -4107,13 +4233,22 @@ class ProductRequest:
 				for item in data["skus"]:
 					if item is String:
 						arr.append(str(item))
+					else:
+						push_error("Invalid String list value for skus")
+						return null
 				obj.skus = arr
+			else:
+				push_error("Invalid input list for skus")
+				return null
 		if data.has("type") and data["type"] != null:
 			var enum_str = data["type"]
 			if enum_str is String and PRODUCT_QUERY_TYPE_FROM_STRING.has(enum_str):
 				obj.type = PRODUCT_QUERY_TYPE_FROM_STRING[enum_str]
-			else:
+			elif enum_str is int and PRODUCT_QUERY_TYPE_VALUES.has(enum_str):
 				obj.type = enum_str
+			else:
+				push_error("Invalid ProductQueryType input value")
+				return null
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -4135,6 +4270,12 @@ class PromotionalOfferJWSInputIOS:
 	var jws: String = ""
 
 	static func from_dict(data: Dictionary) -> PromotionalOfferJWSInputIOS:
+		if not data.has("offerId") or not data["offerId"] is String:
+			push_error("Invalid required PromotionalOfferJWSInputIOS.offerId value")
+			return null
+		if not data.has("jws") or not data["jws"] is String:
+			push_error("Invalid required PromotionalOfferJWSInputIOS.jws value")
+			return null
 		var obj = PromotionalOfferJWSInputIOS.new()
 		if data.has("offerId") and data["offerId"] != null:
 			obj.offer_id = data["offerId"]
@@ -4182,9 +4323,9 @@ class PurchaseInput:
 			obj.purchase_token = data["purchaseToken"]
 		if data.has("store") and data["store"] != null:
 			var enum_str = data["store"]
-			if enum_str is String:
-				obj.store = IAP_STORE_FROM_STRING.get(enum_str, IapStore.UNKNOWN)
-			elif enum_str is int:
+			if enum_str is String and IAP_STORE_FROM_STRING.has(enum_str):
+				obj.store = IAP_STORE_FROM_STRING[enum_str]
+			elif enum_str is int and IAP_STORE_VALUES.has(enum_str):
 				obj.store = enum_str
 			else:
 				obj.store = IapStore.UNKNOWN
@@ -4192,9 +4333,9 @@ class PurchaseInput:
 			obj.quantity = data["quantity"]
 		if data.has("purchaseState") and data["purchaseState"] != null:
 			var enum_str = data["purchaseState"]
-			if enum_str is String:
-				obj.purchase_state = PURCHASE_STATE_FROM_STRING.get(enum_str, PurchaseState.UNKNOWN)
-			elif enum_str is int:
+			if enum_str is String and PURCHASE_STATE_FROM_STRING.has(enum_str):
+				obj.purchase_state = PURCHASE_STATE_FROM_STRING[enum_str]
+			elif enum_str is int and PURCHASE_STATE_VALUES.has(enum_str):
 				obj.purchase_state = enum_str
 			else:
 				obj.purchase_state = PurchaseState.UNKNOWN
@@ -4239,6 +4380,15 @@ class PurchaseOptions:
 	var include_suspended_android: Variant = null
 
 	static func from_dict(data: Dictionary) -> PurchaseOptions:
+		if data.has("alsoPublishToEventListenerIOS") and data["alsoPublishToEventListenerIOS"] != null and not data["alsoPublishToEventListenerIOS"] is bool:
+			push_error("Invalid PurchaseOptions.alsoPublishToEventListenerIOS value")
+			return null
+		if data.has("onlyIncludeActiveItemsIOS") and data["onlyIncludeActiveItemsIOS"] != null and not data["onlyIncludeActiveItemsIOS"] is bool:
+			push_error("Invalid PurchaseOptions.onlyIncludeActiveItemsIOS value")
+			return null
+		if data.has("includeSuspendedAndroid") and data["includeSuspendedAndroid"] != null and not data["includeSuspendedAndroid"] is bool:
+			push_error("Invalid PurchaseOptions.includeSuspendedAndroid value")
+			return null
 		var obj = PurchaseOptions.new()
 		if data.has("alsoPublishToEventListenerIOS") and data["alsoPublishToEventListenerIOS"] != null:
 			obj.also_publish_to_event_listener_ios = data["alsoPublishToEventListenerIOS"]
@@ -4263,6 +4413,9 @@ class PurchaseUpdatedListenerOptions:
 	var dedupe_transaction_ios: Variant = null
 
 	static func from_dict(data: Dictionary) -> PurchaseUpdatedListenerOptions:
+		if data.has("dedupeTransactionIOS") and data["dedupeTransactionIOS"] != null and not data["dedupeTransactionIOS"] is bool:
+			push_error("Invalid PurchaseUpdatedListenerOptions.dedupeTransactionIOS value")
+			return null
 		var obj = PurchaseUpdatedListenerOptions.new()
 		if data.has("dedupeTransactionIOS") and data["dedupeTransactionIOS"] != null:
 			obj.dedupe_transaction_ios = data["dedupeTransactionIOS"]
@@ -4289,6 +4442,21 @@ class RequestPurchaseAndroidProps:
 	var developer_billing_option: DeveloperBillingOptionParamsAndroid
 
 	static func from_dict(data: Dictionary) -> RequestPurchaseAndroidProps:
+		if not data.has("skus") or not data["skus"] is Array:
+			push_error("Invalid required RequestPurchaseAndroidProps.skus value")
+			return null
+		if data.has("obfuscatedAccountId") and data["obfuscatedAccountId"] != null and not data["obfuscatedAccountId"] is String:
+			push_error("Invalid RequestPurchaseAndroidProps.obfuscatedAccountId value")
+			return null
+		if data.has("obfuscatedProfileId") and data["obfuscatedProfileId"] != null and not data["obfuscatedProfileId"] is String:
+			push_error("Invalid RequestPurchaseAndroidProps.obfuscatedProfileId value")
+			return null
+		if data.has("isOfferPersonalized") and data["isOfferPersonalized"] != null and not data["isOfferPersonalized"] is bool:
+			push_error("Invalid RequestPurchaseAndroidProps.isOfferPersonalized value")
+			return null
+		if data.has("offerToken") and data["offerToken"] != null and not data["offerToken"] is String:
+			push_error("Invalid RequestPurchaseAndroidProps.offerToken value")
+			return null
 		var obj = RequestPurchaseAndroidProps.new()
 		if data.has("skus") and data["skus"] != null:
 			if data["skus"] is Array:
@@ -4296,7 +4464,13 @@ class RequestPurchaseAndroidProps:
 				for item in data["skus"]:
 					if item is String:
 						arr.append(str(item))
+					else:
+						push_error("Invalid String list value for skus")
+						return null
 				obj.skus = arr
+			else:
+				push_error("Invalid input list for skus")
+				return null
 		if data.has("obfuscatedAccountId") and data["obfuscatedAccountId"] != null:
 			obj.obfuscated_account_id = data["obfuscatedAccountId"]
 		if data.has("obfuscatedProfileId") and data["obfuscatedProfileId"] != null:
@@ -4351,6 +4525,21 @@ class RequestPurchaseIosProps:
 	var advanced_commerce_data: Variant = null
 
 	static func from_dict(data: Dictionary) -> RequestPurchaseIosProps:
+		if not data.has("sku") or not data["sku"] is String:
+			push_error("Invalid required RequestPurchaseIosProps.sku value")
+			return null
+		if data.has("andDangerouslyFinishTransactionAutomatically") and data["andDangerouslyFinishTransactionAutomatically"] != null and not data["andDangerouslyFinishTransactionAutomatically"] is bool:
+			push_error("Invalid RequestPurchaseIosProps.andDangerouslyFinishTransactionAutomatically value")
+			return null
+		if data.has("appAccountToken") and data["appAccountToken"] != null and not data["appAccountToken"] is String:
+			push_error("Invalid RequestPurchaseIosProps.appAccountToken value")
+			return null
+		if data.has("quantity") and data["quantity"] != null and not data["quantity"] is int:
+			push_error("Invalid RequestPurchaseIosProps.quantity value")
+			return null
+		if data.has("advancedCommerceData") and data["advancedCommerceData"] != null and not data["advancedCommerceData"] is String:
+			push_error("Invalid RequestPurchaseIosProps.advancedCommerceData value")
+			return null
 		var obj = RequestPurchaseIosProps.new()
 		if data.has("sku") and data["sku"] != null:
 			obj.sku = data["sku"]
@@ -4422,10 +4611,20 @@ class RequestPurchaseProps:
 		var obj = RequestPurchaseProps.new()
 		if has_purchase:
 			var purchase_value = data["requestPurchase"]
-			obj.request = RequestPurchasePropsByPlatforms.from_dict(purchase_value) if purchase_value is Dictionary else purchase_value
+			if not purchase_value is Dictionary:
+				push_error("requestPurchase must be a dictionary")
+				return null
+			obj.request = RequestPurchasePropsByPlatforms.from_dict(purchase_value)
+			if obj.request == null:
+				return null
 		else:
 			var subscription_value = data["requestSubscription"]
-			obj.request_subscription = RequestSubscriptionPropsByPlatforms.from_dict(subscription_value) if subscription_value is Dictionary else subscription_value
+			if not subscription_value is Dictionary:
+				push_error("requestSubscription must be a dictionary")
+				return null
+			obj.request_subscription = RequestSubscriptionPropsByPlatforms.from_dict(subscription_value)
+			if obj.request_subscription == null:
+				return null
 		var expected_type = ProductQueryType.IN_APP if has_purchase else ProductQueryType.SUBS
 		obj.type = expected_type
 		if data.has("type") and data["type"] != null:
@@ -4520,6 +4719,24 @@ class RequestSubscriptionAndroidProps:
 	var developer_billing_option: DeveloperBillingOptionParamsAndroid
 
 	static func from_dict(data: Dictionary) -> RequestSubscriptionAndroidProps:
+		if not data.has("skus") or not data["skus"] is Array:
+			push_error("Invalid required RequestSubscriptionAndroidProps.skus value")
+			return null
+		if data.has("obfuscatedAccountId") and data["obfuscatedAccountId"] != null and not data["obfuscatedAccountId"] is String:
+			push_error("Invalid RequestSubscriptionAndroidProps.obfuscatedAccountId value")
+			return null
+		if data.has("obfuscatedProfileId") and data["obfuscatedProfileId"] != null and not data["obfuscatedProfileId"] is String:
+			push_error("Invalid RequestSubscriptionAndroidProps.obfuscatedProfileId value")
+			return null
+		if data.has("isOfferPersonalized") and data["isOfferPersonalized"] != null and not data["isOfferPersonalized"] is bool:
+			push_error("Invalid RequestSubscriptionAndroidProps.isOfferPersonalized value")
+			return null
+		if data.has("purchaseToken") and data["purchaseToken"] != null and not data["purchaseToken"] is String:
+			push_error("Invalid RequestSubscriptionAndroidProps.purchaseToken value")
+			return null
+		if data.has("originalExternalTransactionId") and data["originalExternalTransactionId"] != null and not data["originalExternalTransactionId"] is String:
+			push_error("Invalid RequestSubscriptionAndroidProps.originalExternalTransactionId value")
+			return null
 		var obj = RequestSubscriptionAndroidProps.new()
 		if data.has("skus") and data["skus"] != null:
 			if data["skus"] is Array:
@@ -4527,7 +4744,13 @@ class RequestSubscriptionAndroidProps:
 				for item in data["skus"]:
 					if item is String:
 						arr.append(str(item))
+					else:
+						push_error("Invalid String list value for skus")
+						return null
 				obj.skus = arr
+			else:
+				push_error("Invalid input list for skus")
+				return null
 		if data.has("obfuscatedAccountId") and data["obfuscatedAccountId"] != null:
 			obj.obfuscated_account_id = data["obfuscatedAccountId"]
 		if data.has("obfuscatedProfileId") and data["obfuscatedProfileId"] != null:
@@ -4543,13 +4766,19 @@ class RequestSubscriptionAndroidProps:
 				var arr: Array[AndroidSubscriptionOfferInput] = []
 				for item in data["subscriptionOffers"]:
 					if item is Dictionary:
-						arr.append(AndroidSubscriptionOfferInput.from_dict(item))
+						var decoded_android_subscription_offer_input = AndroidSubscriptionOfferInput.from_dict(item)
+						if decoded_android_subscription_offer_input == null:
+							return null
+						arr.append(decoded_android_subscription_offer_input)
 					elif item is AndroidSubscriptionOfferInput:
 						arr.append(item)
 					else:
 						push_error("Invalid AndroidSubscriptionOfferInput list value for subscriptionOffers")
 						return null
 				obj.subscription_offers = arr
+			else:
+				push_error("Invalid input list for subscriptionOffers")
+				return null
 		if data.has("subscriptionProductReplacementParams") and data["subscriptionProductReplacementParams"] != null:
 			if data["subscriptionProductReplacementParams"] is Dictionary:
 				var decoded_subscription_product_replacement_params = SubscriptionProductReplacementParamsAndroid.from_dict(data["subscriptionProductReplacementParams"])
@@ -4625,6 +4854,24 @@ class RequestSubscriptionIosProps:
 	var advanced_commerce_data: Variant = null
 
 	static func from_dict(data: Dictionary) -> RequestSubscriptionIosProps:
+		if not data.has("sku") or not data["sku"] is String:
+			push_error("Invalid required RequestSubscriptionIosProps.sku value")
+			return null
+		if data.has("andDangerouslyFinishTransactionAutomatically") and data["andDangerouslyFinishTransactionAutomatically"] != null and not data["andDangerouslyFinishTransactionAutomatically"] is bool:
+			push_error("Invalid RequestSubscriptionIosProps.andDangerouslyFinishTransactionAutomatically value")
+			return null
+		if data.has("appAccountToken") and data["appAccountToken"] != null and not data["appAccountToken"] is String:
+			push_error("Invalid RequestSubscriptionIosProps.appAccountToken value")
+			return null
+		if data.has("quantity") and data["quantity"] != null and not data["quantity"] is int:
+			push_error("Invalid RequestSubscriptionIosProps.quantity value")
+			return null
+		if data.has("compactJWS") and data["compactJWS"] != null and not data["compactJWS"] is String:
+			push_error("Invalid RequestSubscriptionIosProps.compactJWS value")
+			return null
+		if data.has("advancedCommerceData") and data["advancedCommerceData"] != null and not data["advancedCommerceData"] is String:
+			push_error("Invalid RequestSubscriptionIosProps.advancedCommerceData value")
+			return null
 		var obj = RequestSubscriptionIosProps.new()
 		if data.has("sku") and data["sku"] != null:
 			obj.sku = data["sku"]
@@ -4666,12 +4913,13 @@ class RequestSubscriptionIosProps:
 				return null
 		if data.has("billingPlanType") and data["billingPlanType"] != null:
 			var enum_str = data["billingPlanType"]
-			if enum_str is String:
-				obj.billing_plan_type = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING.get(enum_str, SubscriptionBillingPlanTypeIOS.UNKNOWN)
-			elif enum_str is int:
+			if enum_str is String and SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING.has(enum_str):
+				obj.billing_plan_type = SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_FROM_STRING[enum_str]
+			elif enum_str is int and SUBSCRIPTION_BILLING_PLAN_TYPE_IOS_VALUES.has(enum_str):
 				obj.billing_plan_type = enum_str
 			else:
-				obj.billing_plan_type = SubscriptionBillingPlanTypeIOS.UNKNOWN
+				push_error("Invalid SubscriptionBillingPlanTypeIOS input value")
+				return null
 		if data.has("compactJWS") and data["compactJWS"] != null:
 			obj.compact_jws = data["compactJWS"]
 		if data.has("advancedCommerceData") and data["advancedCommerceData"] != null:
@@ -4770,6 +5018,18 @@ class RequestVerifyPurchaseWithIapkitAmazonProps:
 	var sandbox: Variant = null
 
 	static func from_dict(data: Dictionary) -> RequestVerifyPurchaseWithIapkitAmazonProps:
+		if data.has("expectedProductId") and data["expectedProductId"] != null and not data["expectedProductId"] is String:
+			push_error("Invalid RequestVerifyPurchaseWithIapkitAmazonProps.expectedProductId value")
+			return null
+		if data.has("userId") and data["userId"] != null and not data["userId"] is String:
+			push_error("Invalid RequestVerifyPurchaseWithIapkitAmazonProps.userId value")
+			return null
+		if not data.has("receiptId") or not data["receiptId"] is String:
+			push_error("Invalid required RequestVerifyPurchaseWithIapkitAmazonProps.receiptId value")
+			return null
+		if data.has("sandbox") and data["sandbox"] != null and not data["sandbox"] is bool:
+			push_error("Invalid RequestVerifyPurchaseWithIapkitAmazonProps.sandbox value")
+			return null
 		var obj = RequestVerifyPurchaseWithIapkitAmazonProps.new()
 		if data.has("expectedProductId") and data["expectedProductId"] != null:
 			obj.expected_product_id = data["expectedProductId"]
@@ -4798,6 +5058,9 @@ class RequestVerifyPurchaseWithIapkitAppleProps:
 	var jws: String = ""
 
 	static func from_dict(data: Dictionary) -> RequestVerifyPurchaseWithIapkitAppleProps:
+		if not data.has("jws") or not data["jws"] is String:
+			push_error("Invalid required RequestVerifyPurchaseWithIapkitAppleProps.jws value")
+			return null
 		var obj = RequestVerifyPurchaseWithIapkitAppleProps.new()
 		if data.has("jws") and data["jws"] != null:
 			obj.jws = data["jws"]
@@ -4814,6 +5077,9 @@ class RequestVerifyPurchaseWithIapkitGoogleProps:
 	var purchase_token: String = ""
 
 	static func from_dict(data: Dictionary) -> RequestVerifyPurchaseWithIapkitGoogleProps:
+		if not data.has("purchaseToken") or not data["purchaseToken"] is String:
+			push_error("Invalid required RequestVerifyPurchaseWithIapkitGoogleProps.purchaseToken value")
+			return null
 		var obj = RequestVerifyPurchaseWithIapkitGoogleProps.new()
 		if data.has("purchaseToken") and data["purchaseToken"] != null:
 			obj.purchase_token = data["purchaseToken"]
@@ -4841,6 +5107,15 @@ class RequestVerifyPurchaseWithIapkitProps:
 	var amazon: RequestVerifyPurchaseWithIapkitAmazonProps
 
 	static func from_dict(data: Dictionary) -> RequestVerifyPurchaseWithIapkitProps:
+		if data.has("apiKey") and data["apiKey"] != null and not data["apiKey"] is String:
+			push_error("Invalid RequestVerifyPurchaseWithIapkitProps.apiKey value")
+			return null
+		if data.has("baseUrl") and data["baseUrl"] != null and not data["baseUrl"] is String:
+			push_error("Invalid RequestVerifyPurchaseWithIapkitProps.baseUrl value")
+			return null
+		if data.has("includeClientPayload") and data["includeClientPayload"] != null and not data["includeClientPayload"] is bool:
+			push_error("Invalid RequestVerifyPurchaseWithIapkitProps.includeClientPayload value")
+			return null
 		var obj = RequestVerifyPurchaseWithIapkitProps.new()
 		if data.has("apiKey") and data["apiKey"] != null:
 			obj.api_key = data["apiKey"]
@@ -4913,17 +5188,24 @@ class SubscriptionProductReplacementParamsAndroid:
 	var replacement_mode: SubscriptionReplacementModeAndroid = SubscriptionReplacementModeAndroid.UNKNOWN_REPLACEMENT_MODE
 
 	static func from_dict(data: Dictionary) -> SubscriptionProductReplacementParamsAndroid:
+		if not data.has("oldProductId") or not data["oldProductId"] is String:
+			push_error("Invalid required SubscriptionProductReplacementParamsAndroid.oldProductId value")
+			return null
+		if not data.has("replacementMode") or not ((data["replacementMode"] is String and SUBSCRIPTION_REPLACEMENT_MODE_ANDROID_FROM_STRING.has(data["replacementMode"])) or (data["replacementMode"] is int and SUBSCRIPTION_REPLACEMENT_MODE_ANDROID_VALUES.has(data["replacementMode"]))):
+			push_error("Invalid required SubscriptionProductReplacementParamsAndroid.replacementMode value")
+			return null
 		var obj = SubscriptionProductReplacementParamsAndroid.new()
 		if data.has("oldProductId") and data["oldProductId"] != null:
 			obj.old_product_id = data["oldProductId"]
 		if data.has("replacementMode") and data["replacementMode"] != null:
 			var enum_str = data["replacementMode"]
-			if enum_str is String:
-				obj.replacement_mode = SUBSCRIPTION_REPLACEMENT_MODE_ANDROID_FROM_STRING.get(enum_str, SubscriptionReplacementModeAndroid.UNKNOWN_REPLACEMENT_MODE)
-			elif enum_str is int:
+			if enum_str is String and SUBSCRIPTION_REPLACEMENT_MODE_ANDROID_FROM_STRING.has(enum_str):
+				obj.replacement_mode = SUBSCRIPTION_REPLACEMENT_MODE_ANDROID_FROM_STRING[enum_str]
+			elif enum_str is int and SUBSCRIPTION_REPLACEMENT_MODE_ANDROID_VALUES.has(enum_str):
 				obj.replacement_mode = enum_str
 			else:
-				obj.replacement_mode = SubscriptionReplacementModeAndroid.UNKNOWN_REPLACEMENT_MODE
+				push_error("Invalid SubscriptionReplacementModeAndroid input value")
+				return null
 		return obj
 
 	func to_dict() -> Dictionary:
@@ -4943,6 +5225,9 @@ class VerifyPurchaseAppleOptions:
 	var sku: String = ""
 
 	static func from_dict(data: Dictionary) -> VerifyPurchaseAppleOptions:
+		if not data.has("sku") or not data["sku"] is String:
+			push_error("Invalid required VerifyPurchaseAppleOptions.sku value")
+			return null
 		var obj = VerifyPurchaseAppleOptions.new()
 		if data.has("sku") and data["sku"] != null:
 			obj.sku = data["sku"]
@@ -4968,6 +5253,21 @@ class VerifyPurchaseGoogleOptions:
 	var is_sub: Variant = null
 
 	static func from_dict(data: Dictionary) -> VerifyPurchaseGoogleOptions:
+		if not data.has("sku") or not data["sku"] is String:
+			push_error("Invalid required VerifyPurchaseGoogleOptions.sku value")
+			return null
+		if not data.has("packageName") or not data["packageName"] is String:
+			push_error("Invalid required VerifyPurchaseGoogleOptions.packageName value")
+			return null
+		if not data.has("purchaseToken") or not data["purchaseToken"] is String:
+			push_error("Invalid required VerifyPurchaseGoogleOptions.purchaseToken value")
+			return null
+		if not data.has("accessToken") or not data["accessToken"] is String:
+			push_error("Invalid required VerifyPurchaseGoogleOptions.accessToken value")
+			return null
+		if data.has("isSub") and data["isSub"] != null and not data["isSub"] is bool:
+			push_error("Invalid VerifyPurchaseGoogleOptions.isSub value")
+			return null
 		var obj = VerifyPurchaseGoogleOptions.new()
 		if data.has("sku") and data["sku"] != null:
 			obj.sku = data["sku"]
@@ -5005,6 +5305,15 @@ class VerifyPurchaseHorizonOptions:
 	var access_token: String = ""
 
 	static func from_dict(data: Dictionary) -> VerifyPurchaseHorizonOptions:
+		if not data.has("sku") or not data["sku"] is String:
+			push_error("Invalid required VerifyPurchaseHorizonOptions.sku value")
+			return null
+		if not data.has("userId") or not data["userId"] is String:
+			push_error("Invalid required VerifyPurchaseHorizonOptions.userId value")
+			return null
+		if not data.has("accessToken") or not data["accessToken"] is String:
+			push_error("Invalid required VerifyPurchaseHorizonOptions.accessToken value")
+			return null
 		var obj = VerifyPurchaseHorizonOptions.new()
 		if data.has("sku") and data["sku"] != null:
 			obj.sku = data["sku"]
@@ -5100,8 +5409,11 @@ class VerifyPurchaseWithProviderProps:
 			var enum_str = data["provider"]
 			if enum_str is String and PURCHASE_VERIFICATION_PROVIDER_FROM_STRING.has(enum_str):
 				obj.provider = PURCHASE_VERIFICATION_PROVIDER_FROM_STRING[enum_str]
-			else:
+			elif enum_str is int and PURCHASE_VERIFICATION_PROVIDER_VALUES.has(enum_str):
 				obj.provider = enum_str
+			else:
+				push_error("Invalid PurchaseVerificationProvider input value")
+				return null
 		if data.has("iapkit") and data["iapkit"] != null:
 			if data["iapkit"] is Dictionary:
 				var decoded_iapkit = RequestVerifyPurchaseWithIapkitProps.from_dict(data["iapkit"])
@@ -5134,6 +5446,9 @@ class WinBackOfferInputIOS:
 	var offer_id: String = ""
 
 	static func from_dict(data: Dictionary) -> WinBackOfferInputIOS:
+		if not data.has("offerId") or not data["offerId"] is String:
+			push_error("Invalid required WinBackOfferInputIOS.offerId value")
+			return null
 		var obj = WinBackOfferInputIOS.new()
 		if data.has("offerId") and data["offerId"] != null:
 			obj.offer_id = data["offerId"]
@@ -5720,7 +6035,13 @@ class Query:
 						for item in data["subscriptionIds"]:
 							if item is String:
 								arr.append(str(item))
+							else:
+								push_error("Invalid String list value for subscriptionIds")
+								return null
 						obj.subscription_ids = arr
+					else:
+						push_error("Invalid input list for subscriptionIds")
+						return null
 				return obj
 
 			func to_dict() -> Dictionary:
@@ -5746,7 +6067,13 @@ class Query:
 						for item in data["subscriptionIds"]:
 							if item is String:
 								arr.append(str(item))
+							else:
+								push_error("Invalid String list value for subscriptionIds")
+								return null
 						obj.subscription_ids = arr
+					else:
+						push_error("Invalid input list for subscriptionIds")
+						return null
 				return obj
 
 			func to_dict() -> Dictionary:
@@ -5807,8 +6134,11 @@ class Query:
 					var enum_str = data["tokenType"]
 					if enum_str is String and EXTERNAL_PURCHASE_CUSTOM_LINK_TOKEN_TYPE_IOS_FROM_STRING.has(enum_str):
 						obj.token_type = EXTERNAL_PURCHASE_CUSTOM_LINK_TOKEN_TYPE_IOS_FROM_STRING[enum_str]
-					else:
+					elif enum_str is int and EXTERNAL_PURCHASE_CUSTOM_LINK_TOKEN_TYPE_IOS_VALUES.has(enum_str):
 						obj.token_type = enum_str
+					else:
+						push_error("Invalid ExternalPurchaseCustomLinkTokenTypeIOS input value")
+						return null
 				return obj
 
 			func to_dict() -> Dictionary:
@@ -6255,8 +6585,11 @@ class Mutation:
 					var enum_str = data["noticeType"]
 					if enum_str is String and EXTERNAL_PURCHASE_CUSTOM_LINK_NOTICE_TYPE_IOS_FROM_STRING.has(enum_str):
 						obj.notice_type = EXTERNAL_PURCHASE_CUSTOM_LINK_NOTICE_TYPE_IOS_FROM_STRING[enum_str]
-					else:
+					elif enum_str is int and EXTERNAL_PURCHASE_CUSTOM_LINK_NOTICE_TYPE_IOS_VALUES.has(enum_str):
 						obj.notice_type = enum_str
+					else:
+						push_error("Invalid ExternalPurchaseCustomLinkNoticeTypeIOS input value")
+						return null
 				return obj
 
 			func to_dict() -> Dictionary:
@@ -6322,8 +6655,11 @@ class Mutation:
 					var enum_str = data["program"]
 					if enum_str is String and BILLING_PROGRAM_ANDROID_FROM_STRING.has(enum_str):
 						obj.program = BILLING_PROGRAM_ANDROID_FROM_STRING[enum_str]
-					else:
+					elif enum_str is int and BILLING_PROGRAM_ANDROID_VALUES.has(enum_str):
 						obj.program = enum_str
+					else:
+						push_error("Invalid BillingProgramAndroid input value")
+						return null
 				return obj
 
 			func to_dict() -> Dictionary:
@@ -6350,14 +6686,20 @@ class Mutation:
 					var enum_str = data["program"]
 					if enum_str is String and BILLING_PROGRAM_ANDROID_FROM_STRING.has(enum_str):
 						obj.program = BILLING_PROGRAM_ANDROID_FROM_STRING[enum_str]
-					else:
+					elif enum_str is int and BILLING_PROGRAM_ANDROID_VALUES.has(enum_str):
 						obj.program = enum_str
+					else:
+						push_error("Invalid BillingProgramAndroid input value")
+						return null
 				if data.has("developerBillingType") and data["developerBillingType"] != null:
 					var enum_str = data["developerBillingType"]
 					if enum_str is String and DEVELOPER_BILLING_TYPE_ANDROID_FROM_STRING.has(enum_str):
 						obj.developer_billing_type = DEVELOPER_BILLING_TYPE_ANDROID_FROM_STRING[enum_str]
-					else:
+					elif enum_str is int and DEVELOPER_BILLING_TYPE_ANDROID_VALUES.has(enum_str):
 						obj.developer_billing_type = enum_str
+					else:
+						push_error("Invalid DeveloperBillingTypeAndroid input value")
+						return null
 				return obj
 
 			func to_dict() -> Dictionary:

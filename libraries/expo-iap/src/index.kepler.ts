@@ -148,6 +148,10 @@ export const fetchProducts = async (
 export const requestPurchase: MutationField<'requestPurchase'> = async (
   args,
 ) => {
+  const type = normalizeProductType(args.type);
+  if (type === 'all') {
+    throw new Error('Product type all is only supported for product queries.');
+  }
   const androidRequest = getAndroidRequest(args.request);
   if (!androidRequest?.skus?.length) {
     throw new Error(
@@ -158,7 +162,7 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
   return normalizePurchaseArray(
     await getModule().requestPurchase({
       skus: androidRequest.skus,
-      type: normalizeProductType(args.type),
+      type,
     }),
   );
 };

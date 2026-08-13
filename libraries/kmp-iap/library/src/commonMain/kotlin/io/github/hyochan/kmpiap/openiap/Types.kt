@@ -29,15 +29,20 @@ public enum class BillingChoiceImageLayoutAndroid(val rawValue: String) {
     RectangularTwoByTwo("rectangular-two-by-two");
 
     companion object {
-        fun fromJson(value: String): BillingChoiceImageLayoutAndroid = when (value) {
+        private fun fromKnownJson(value: String): BillingChoiceImageLayoutAndroid? = when (value) {
             "rectangular-four-by-one" -> BillingChoiceImageLayoutAndroid.RectangularFourByOne
             "RECTANGULAR_FOUR_BY_ONE" -> BillingChoiceImageLayoutAndroid.RectangularFourByOne
             "rectangular-three-by-one" -> BillingChoiceImageLayoutAndroid.RectangularThreeByOne
             "RECTANGULAR_THREE_BY_ONE" -> BillingChoiceImageLayoutAndroid.RectangularThreeByOne
             "rectangular-two-by-two" -> BillingChoiceImageLayoutAndroid.RectangularTwoByTwo
             "RECTANGULAR_TWO_BY_TWO" -> BillingChoiceImageLayoutAndroid.RectangularTwoByTwo
-            else -> throw IllegalArgumentException("Unknown BillingChoiceImageLayoutAndroid value: $value")
+            else -> null
         }
+
+        fun fromJson(value: String): BillingChoiceImageLayoutAndroid = fromKnownJson(value) ?: throw IllegalArgumentException("Unknown BillingChoiceImageLayoutAndroid value: $value")
+
+        fun fromJsonStrict(value: String): BillingChoiceImageLayoutAndroid =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown BillingChoiceImageLayoutAndroid input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -62,15 +67,20 @@ public enum class BillingChoiceScreenTypeAndroid(val rawValue: String) {
     GoogleRendered("google-rendered");
 
     companion object {
-        fun fromJson(value: String): BillingChoiceScreenTypeAndroid = when (value) {
+        private fun fromKnownJson(value: String): BillingChoiceScreenTypeAndroid? = when (value) {
             "unspecified" -> BillingChoiceScreenTypeAndroid.Unspecified
             "UNSPECIFIED" -> BillingChoiceScreenTypeAndroid.Unspecified
             "developer-rendered" -> BillingChoiceScreenTypeAndroid.DeveloperRendered
             "DEVELOPER_RENDERED" -> BillingChoiceScreenTypeAndroid.DeveloperRendered
             "google-rendered" -> BillingChoiceScreenTypeAndroid.GoogleRendered
             "GOOGLE_RENDERED" -> BillingChoiceScreenTypeAndroid.GoogleRendered
-            else -> throw IllegalArgumentException("Unknown BillingChoiceScreenTypeAndroid value: $value")
+            else -> null
         }
+
+        fun fromJson(value: String): BillingChoiceScreenTypeAndroid = fromKnownJson(value) ?: throw IllegalArgumentException("Unknown BillingChoiceScreenTypeAndroid value: $value")
+
+        fun fromJsonStrict(value: String): BillingChoiceScreenTypeAndroid =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown BillingChoiceScreenTypeAndroid input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -121,7 +131,7 @@ public enum class BillingProgramAndroid(val rawValue: String) {
     BillingChoice("billing-choice");
 
     companion object {
-        fun fromJson(value: String): BillingProgramAndroid = when (value) {
+        private fun fromKnownJson(value: String): BillingProgramAndroid? = when (value) {
             "unspecified" -> BillingProgramAndroid.Unspecified
             "UNSPECIFIED" -> BillingProgramAndroid.Unspecified
             "user-choice-billing" -> BillingProgramAndroid.UserChoiceBilling
@@ -134,8 +144,13 @@ public enum class BillingProgramAndroid(val rawValue: String) {
             "EXTERNAL_PAYMENTS" -> BillingProgramAndroid.ExternalPayments
             "billing-choice" -> BillingProgramAndroid.BillingChoice
             "BILLING_CHOICE" -> BillingProgramAndroid.BillingChoice
-            else -> throw IllegalArgumentException("Unknown BillingProgramAndroid value: $value")
+            else -> null
         }
+
+        fun fromJson(value: String): BillingProgramAndroid = fromKnownJson(value) ?: throw IllegalArgumentException("Unknown BillingProgramAndroid value: $value")
+
+        fun fromJsonStrict(value: String): BillingProgramAndroid =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown BillingProgramAndroid input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -163,15 +178,20 @@ public enum class DeveloperBillingLaunchModeAndroid(val rawValue: String) {
     CallerWillLaunchLink("caller-will-launch-link");
 
     companion object {
-        fun fromJson(value: String): DeveloperBillingLaunchModeAndroid = when (value) {
+        private fun fromKnownJson(value: String): DeveloperBillingLaunchModeAndroid? = when (value) {
             "unspecified" -> DeveloperBillingLaunchModeAndroid.Unspecified
             "UNSPECIFIED" -> DeveloperBillingLaunchModeAndroid.Unspecified
             "launch-in-external-browser-or-app" -> DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp
             "LAUNCH_IN_EXTERNAL_BROWSER_OR_APP" -> DeveloperBillingLaunchModeAndroid.LaunchInExternalBrowserOrApp
             "caller-will-launch-link" -> DeveloperBillingLaunchModeAndroid.CallerWillLaunchLink
             "CALLER_WILL_LAUNCH_LINK" -> DeveloperBillingLaunchModeAndroid.CallerWillLaunchLink
-            else -> throw IllegalArgumentException("Unknown DeveloperBillingLaunchModeAndroid value: $value")
+            else -> null
         }
+
+        fun fromJson(value: String): DeveloperBillingLaunchModeAndroid = fromKnownJson(value) ?: throw IllegalArgumentException("Unknown DeveloperBillingLaunchModeAndroid value: $value")
+
+        fun fromJsonStrict(value: String): DeveloperBillingLaunchModeAndroid =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown DeveloperBillingLaunchModeAndroid input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -196,15 +216,20 @@ public enum class DeveloperBillingTypeAndroid(val rawValue: String) {
     ExternalLink("external-link");
 
     companion object {
-        fun fromJson(value: String): DeveloperBillingTypeAndroid = when (value) {
+        private fun fromKnownJson(value: String): DeveloperBillingTypeAndroid? = when (value) {
             "developer-billing-type-unspecified" -> DeveloperBillingTypeAndroid.DeveloperBillingTypeUnspecified
             "DEVELOPER_BILLING_TYPE_UNSPECIFIED" -> DeveloperBillingTypeAndroid.DeveloperBillingTypeUnspecified
             "in-app" -> DeveloperBillingTypeAndroid.InApp
             "IN_APP" -> DeveloperBillingTypeAndroid.InApp
             "external-link" -> DeveloperBillingTypeAndroid.ExternalLink
             "EXTERNAL_LINK" -> DeveloperBillingTypeAndroid.ExternalLink
-            else -> throw IllegalArgumentException("Unknown DeveloperBillingTypeAndroid value: $value")
+            else -> null
         }
+
+        fun fromJson(value: String): DeveloperBillingTypeAndroid = fromKnownJson(value) ?: throw IllegalArgumentException("Unknown DeveloperBillingTypeAndroid value: $value")
+
+        fun fromJsonStrict(value: String): DeveloperBillingTypeAndroid =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown DeveloperBillingTypeAndroid input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -229,7 +254,7 @@ public enum class DiscountOfferType(val rawValue: String) {
     OneTime("one-time");
 
     companion object {
-        fun fromJson(value: String): DiscountOfferType = when (value) {
+        private fun fromKnownJson(value: String): DiscountOfferType? = when (value) {
             "introductory" -> DiscountOfferType.Introductory
             "INTRODUCTORY" -> DiscountOfferType.Introductory
             "Introductory" -> DiscountOfferType.Introductory
@@ -239,8 +264,13 @@ public enum class DiscountOfferType(val rawValue: String) {
             "one-time" -> DiscountOfferType.OneTime
             "ONE_TIME" -> DiscountOfferType.OneTime
             "OneTime" -> DiscountOfferType.OneTime
-            else -> throw IllegalArgumentException("Unknown DiscountOfferType value: $value")
+            else -> null
         }
+
+        fun fromJson(value: String): DiscountOfferType = fromKnownJson(value) ?: throw IllegalArgumentException("Unknown DiscountOfferType value: $value")
+
+        fun fromJsonStrict(value: String): DiscountOfferType =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown DiscountOfferType input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -285,7 +315,7 @@ public enum class ErrorCode(val rawValue: String) {
     DuplicatePurchase("duplicate-purchase");
 
     companion object {
-        fun fromJson(value: String): ErrorCode = when (value) {
+        private fun fromKnownJson(value: String): ErrorCode? = when (value) {
             "unknown" -> ErrorCode.Unknown
             "UNKNOWN" -> ErrorCode.Unknown
             "Unknown" -> ErrorCode.Unknown
@@ -394,8 +424,13 @@ public enum class ErrorCode(val rawValue: String) {
             "duplicate-purchase" -> ErrorCode.DuplicatePurchase
             "DUPLICATE_PURCHASE" -> ErrorCode.DuplicatePurchase
             "DuplicatePurchase" -> ErrorCode.DuplicatePurchase
-            else -> ErrorCode.Unknown
+            else -> null
         }
+
+        fun fromJson(value: String): ErrorCode = fromKnownJson(value) ?: ErrorCode.Unknown
+
+        fun fromJsonStrict(value: String): ErrorCode =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown ErrorCode input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -422,15 +457,20 @@ public enum class ExternalLinkLaunchModeAndroid(val rawValue: String) {
     CallerWillLaunchLink("caller-will-launch-link");
 
     companion object {
-        fun fromJson(value: String): ExternalLinkLaunchModeAndroid = when (value) {
+        private fun fromKnownJson(value: String): ExternalLinkLaunchModeAndroid? = when (value) {
             "unspecified" -> ExternalLinkLaunchModeAndroid.Unspecified
             "UNSPECIFIED" -> ExternalLinkLaunchModeAndroid.Unspecified
             "launch-in-external-browser-or-app" -> ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp
             "LAUNCH_IN_EXTERNAL_BROWSER_OR_APP" -> ExternalLinkLaunchModeAndroid.LaunchInExternalBrowserOrApp
             "caller-will-launch-link" -> ExternalLinkLaunchModeAndroid.CallerWillLaunchLink
             "CALLER_WILL_LAUNCH_LINK" -> ExternalLinkLaunchModeAndroid.CallerWillLaunchLink
-            else -> throw IllegalArgumentException("Unknown ExternalLinkLaunchModeAndroid value: $value")
+            else -> null
         }
+
+        fun fromJson(value: String): ExternalLinkLaunchModeAndroid = fromKnownJson(value) ?: throw IllegalArgumentException("Unknown ExternalLinkLaunchModeAndroid value: $value")
+
+        fun fromJsonStrict(value: String): ExternalLinkLaunchModeAndroid =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown ExternalLinkLaunchModeAndroid input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -456,15 +496,20 @@ public enum class ExternalLinkTypeAndroid(val rawValue: String) {
     LinkToAppDownload("link-to-app-download");
 
     companion object {
-        fun fromJson(value: String): ExternalLinkTypeAndroid = when (value) {
+        private fun fromKnownJson(value: String): ExternalLinkTypeAndroid? = when (value) {
             "unspecified" -> ExternalLinkTypeAndroid.Unspecified
             "UNSPECIFIED" -> ExternalLinkTypeAndroid.Unspecified
             "link-to-digital-content-offer" -> ExternalLinkTypeAndroid.LinkToDigitalContentOffer
             "LINK_TO_DIGITAL_CONTENT_OFFER" -> ExternalLinkTypeAndroid.LinkToDigitalContentOffer
             "link-to-app-download" -> ExternalLinkTypeAndroid.LinkToAppDownload
             "LINK_TO_APP_DOWNLOAD" -> ExternalLinkTypeAndroid.LinkToAppDownload
-            else -> throw IllegalArgumentException("Unknown ExternalLinkTypeAndroid value: $value")
+            else -> null
         }
+
+        fun fromJson(value: String): ExternalLinkTypeAndroid = fromKnownJson(value) ?: throw IllegalArgumentException("Unknown ExternalLinkTypeAndroid value: $value")
+
+        fun fromJsonStrict(value: String): ExternalLinkTypeAndroid =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown ExternalLinkTypeAndroid input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -483,12 +528,17 @@ public enum class ExternalPurchaseCustomLinkNoticeTypeIOS(val rawValue: String) 
     Browser("browser");
 
     companion object {
-        fun fromJson(value: String): ExternalPurchaseCustomLinkNoticeTypeIOS = when (value) {
+        private fun fromKnownJson(value: String): ExternalPurchaseCustomLinkNoticeTypeIOS? = when (value) {
             "browser" -> ExternalPurchaseCustomLinkNoticeTypeIOS.Browser
             "BROWSER" -> ExternalPurchaseCustomLinkNoticeTypeIOS.Browser
             "Browser" -> ExternalPurchaseCustomLinkNoticeTypeIOS.Browser
-            else -> throw IllegalArgumentException("Unknown ExternalPurchaseCustomLinkNoticeTypeIOS value: $value")
+            else -> null
         }
+
+        fun fromJson(value: String): ExternalPurchaseCustomLinkNoticeTypeIOS = fromKnownJson(value) ?: throw IllegalArgumentException("Unknown ExternalPurchaseCustomLinkNoticeTypeIOS value: $value")
+
+        fun fromJsonStrict(value: String): ExternalPurchaseCustomLinkNoticeTypeIOS =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown ExternalPurchaseCustomLinkNoticeTypeIOS input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -512,15 +562,20 @@ public enum class ExternalPurchaseCustomLinkTokenTypeIOS(val rawValue: String) {
     Services("services");
 
     companion object {
-        fun fromJson(value: String): ExternalPurchaseCustomLinkTokenTypeIOS = when (value) {
+        private fun fromKnownJson(value: String): ExternalPurchaseCustomLinkTokenTypeIOS? = when (value) {
             "acquisition" -> ExternalPurchaseCustomLinkTokenTypeIOS.Acquisition
             "ACQUISITION" -> ExternalPurchaseCustomLinkTokenTypeIOS.Acquisition
             "Acquisition" -> ExternalPurchaseCustomLinkTokenTypeIOS.Acquisition
             "services" -> ExternalPurchaseCustomLinkTokenTypeIOS.Services
             "SERVICES" -> ExternalPurchaseCustomLinkTokenTypeIOS.Services
             "Services" -> ExternalPurchaseCustomLinkTokenTypeIOS.Services
-            else -> throw IllegalArgumentException("Unknown ExternalPurchaseCustomLinkTokenTypeIOS value: $value")
+            else -> null
         }
+
+        fun fromJson(value: String): ExternalPurchaseCustomLinkTokenTypeIOS = fromKnownJson(value) ?: throw IllegalArgumentException("Unknown ExternalPurchaseCustomLinkTokenTypeIOS value: $value")
+
+        fun fromJsonStrict(value: String): ExternalPurchaseCustomLinkTokenTypeIOS =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown ExternalPurchaseCustomLinkTokenTypeIOS input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -540,15 +595,20 @@ public enum class ExternalPurchaseNoticeAction(val rawValue: String) {
     Dismissed("dismissed");
 
     companion object {
-        fun fromJson(value: String): ExternalPurchaseNoticeAction = when (value) {
+        private fun fromKnownJson(value: String): ExternalPurchaseNoticeAction? = when (value) {
             "continue" -> ExternalPurchaseNoticeAction.Continue
             "CONTINUE" -> ExternalPurchaseNoticeAction.Continue
             "Continue" -> ExternalPurchaseNoticeAction.Continue
             "dismissed" -> ExternalPurchaseNoticeAction.Dismissed
             "DISMISSED" -> ExternalPurchaseNoticeAction.Dismissed
             "Dismissed" -> ExternalPurchaseNoticeAction.Dismissed
-            else -> throw IllegalArgumentException("Unknown ExternalPurchaseNoticeAction value: $value")
+            else -> null
         }
+
+        fun fromJson(value: String): ExternalPurchaseNoticeAction = fromKnownJson(value) ?: throw IllegalArgumentException("Unknown ExternalPurchaseNoticeAction value: $value")
+
+        fun fromJsonStrict(value: String): ExternalPurchaseNoticeAction =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown ExternalPurchaseNoticeAction input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -576,7 +636,7 @@ public enum class IapEvent(val rawValue: String) {
     SubscriptionBillingIssue("subscription-billing-issue");
 
     companion object {
-        fun fromJson(value: String): IapEvent = when (value) {
+        private fun fromKnownJson(value: String): IapEvent? = when (value) {
             "purchase-updated" -> IapEvent.PurchaseUpdated
             "PURCHASE_UPDATED" -> IapEvent.PurchaseUpdated
             "PurchaseUpdated" -> IapEvent.PurchaseUpdated
@@ -595,8 +655,13 @@ public enum class IapEvent(val rawValue: String) {
             "subscription-billing-issue" -> IapEvent.SubscriptionBillingIssue
             "SUBSCRIPTION_BILLING_ISSUE" -> IapEvent.SubscriptionBillingIssue
             "SubscriptionBillingIssue" -> IapEvent.SubscriptionBillingIssue
-            else -> throw IllegalArgumentException("Unknown IapEvent value: $value")
+            else -> null
         }
+
+        fun fromJson(value: String): IapEvent = fromKnownJson(value) ?: throw IllegalArgumentException("Unknown IapEvent value: $value")
+
+        fun fromJsonStrict(value: String): IapEvent =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown IapEvent input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -611,7 +676,7 @@ public enum class IapkitClientPayloadFormat(val rawValue: String) {
     Text("text");
 
     companion object {
-        fun fromJson(value: String): IapkitClientPayloadFormat = when (value) {
+        private fun fromKnownJson(value: String): IapkitClientPayloadFormat? = when (value) {
             "toml" -> IapkitClientPayloadFormat.Toml
             "TOML" -> IapkitClientPayloadFormat.Toml
             "Toml" -> IapkitClientPayloadFormat.Toml
@@ -621,8 +686,13 @@ public enum class IapkitClientPayloadFormat(val rawValue: String) {
             "text" -> IapkitClientPayloadFormat.Text
             "TEXT" -> IapkitClientPayloadFormat.Text
             "Text" -> IapkitClientPayloadFormat.Text
-            else -> throw IllegalArgumentException("Unknown IapkitClientPayloadFormat value: $value")
+            else -> null
         }
+
+        fun fromJson(value: String): IapkitClientPayloadFormat = fromKnownJson(value) ?: throw IllegalArgumentException("Unknown IapkitClientPayloadFormat value: $value")
+
+        fun fromJsonStrict(value: String): IapkitClientPayloadFormat =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown IapkitClientPayloadFormat input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -670,7 +740,7 @@ public enum class IapkitPurchaseState(val rawValue: String) {
     Inauthentic("inauthentic");
 
     companion object {
-        fun fromJson(value: String): IapkitPurchaseState = when (value) {
+        private fun fromKnownJson(value: String): IapkitPurchaseState? = when (value) {
             "entitled" -> IapkitPurchaseState.Entitled
             "ENTITLED" -> IapkitPurchaseState.Entitled
             "pending-acknowledgment" -> IapkitPurchaseState.PendingAcknowledgment
@@ -689,8 +759,13 @@ public enum class IapkitPurchaseState(val rawValue: String) {
             "UNKNOWN" -> IapkitPurchaseState.Unknown
             "inauthentic" -> IapkitPurchaseState.Inauthentic
             "INAUTHENTIC" -> IapkitPurchaseState.Inauthentic
-            else -> IapkitPurchaseState.Unknown
+            else -> null
         }
+
+        fun fromJson(value: String): IapkitPurchaseState = fromKnownJson(value) ?: IapkitPurchaseState.Unknown
+
+        fun fromJsonStrict(value: String): IapkitPurchaseState =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown IapkitPurchaseState input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -701,14 +776,19 @@ public enum class IapPlatform(val rawValue: String) {
     Android("android");
 
     companion object {
-        fun fromJson(value: String): IapPlatform = when (value) {
+        private fun fromKnownJson(value: String): IapPlatform? = when (value) {
             "ios" -> IapPlatform.Ios
             "IOS" -> IapPlatform.Ios
             "android" -> IapPlatform.Android
             "ANDROID" -> IapPlatform.Android
             "Android" -> IapPlatform.Android
-            else -> throw IllegalArgumentException("Unknown IapPlatform value: $value")
+            else -> null
         }
+
+        fun fromJson(value: String): IapPlatform = fromKnownJson(value) ?: throw IllegalArgumentException("Unknown IapPlatform value: $value")
+
+        fun fromJsonStrict(value: String): IapPlatform =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown IapPlatform input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -722,7 +802,7 @@ public enum class IapStore(val rawValue: String) {
     Amazon("amazon");
 
     companion object {
-        fun fromJson(value: String): IapStore = when (value) {
+        private fun fromKnownJson(value: String): IapStore? = when (value) {
             "unknown" -> IapStore.Unknown
             "UNKNOWN" -> IapStore.Unknown
             "Unknown" -> IapStore.Unknown
@@ -738,8 +818,13 @@ public enum class IapStore(val rawValue: String) {
             "amazon" -> IapStore.Amazon
             "AMAZON" -> IapStore.Amazon
             "Amazon" -> IapStore.Amazon
-            else -> IapStore.Unknown
+            else -> null
         }
+
+        fun fromJson(value: String): IapStore = fromKnownJson(value) ?: IapStore.Unknown
+
+        fun fromJsonStrict(value: String): IapStore =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown IapStore input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -761,13 +846,18 @@ public enum class InAppMessageCategoryAndroid(val rawValue: String) {
     Transactional("transactional");
 
     companion object {
-        fun fromJson(value: String): InAppMessageCategoryAndroid = when (value) {
+        private fun fromKnownJson(value: String): InAppMessageCategoryAndroid? = when (value) {
             "unknown-in-app-message-category-id" -> InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId
             "UNKNOWN_IN_APP_MESSAGE_CATEGORY_ID" -> InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId
             "transactional" -> InAppMessageCategoryAndroid.Transactional
             "TRANSACTIONAL" -> InAppMessageCategoryAndroid.Transactional
-            else -> InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId
+            else -> null
         }
+
+        fun fromJson(value: String): InAppMessageCategoryAndroid = fromKnownJson(value) ?: InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId
+
+        fun fromJsonStrict(value: String): InAppMessageCategoryAndroid =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown InAppMessageCategoryAndroid input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -789,13 +879,18 @@ public enum class InAppMessageResponseCodeAndroid(val rawValue: String) {
     SubscriptionStatusUpdated("subscription-status-updated");
 
     companion object {
-        fun fromJson(value: String): InAppMessageResponseCodeAndroid = when (value) {
+        private fun fromKnownJson(value: String): InAppMessageResponseCodeAndroid? = when (value) {
             "no-action-needed" -> InAppMessageResponseCodeAndroid.NoActionNeeded
             "NO_ACTION_NEEDED" -> InAppMessageResponseCodeAndroid.NoActionNeeded
             "subscription-status-updated" -> InAppMessageResponseCodeAndroid.SubscriptionStatusUpdated
             "SUBSCRIPTION_STATUS_UPDATED" -> InAppMessageResponseCodeAndroid.SubscriptionStatusUpdated
-            else -> throw IllegalArgumentException("Unknown InAppMessageResponseCodeAndroid value: $value")
+            else -> null
         }
+
+        fun fromJson(value: String): InAppMessageResponseCodeAndroid = fromKnownJson(value) ?: throw IllegalArgumentException("Unknown InAppMessageResponseCodeAndroid value: $value")
+
+        fun fromJsonStrict(value: String): InAppMessageResponseCodeAndroid =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown InAppMessageResponseCodeAndroid input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -824,7 +919,7 @@ public enum class PaymentMode(val rawValue: String) {
     Unknown("unknown");
 
     companion object {
-        fun fromJson(value: String): PaymentMode = when (value) {
+        private fun fromKnownJson(value: String): PaymentMode? = when (value) {
             "free-trial" -> PaymentMode.FreeTrial
             "FREE_TRIAL" -> PaymentMode.FreeTrial
             "FreeTrial" -> PaymentMode.FreeTrial
@@ -837,8 +932,13 @@ public enum class PaymentMode(val rawValue: String) {
             "unknown" -> PaymentMode.Unknown
             "UNKNOWN" -> PaymentMode.Unknown
             "Unknown" -> PaymentMode.Unknown
-            else -> PaymentMode.Unknown
+            else -> null
         }
+
+        fun fromJson(value: String): PaymentMode = fromKnownJson(value) ?: PaymentMode.Unknown
+
+        fun fromJsonStrict(value: String): PaymentMode =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown PaymentMode input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -851,7 +951,7 @@ public enum class PaymentModeIOS(val rawValue: String) {
     PayUpFront("pay-up-front");
 
     companion object {
-        fun fromJson(value: String): PaymentModeIOS = when (value) {
+        private fun fromKnownJson(value: String): PaymentModeIOS? = when (value) {
             "empty" -> PaymentModeIOS.Empty
             "EMPTY" -> PaymentModeIOS.Empty
             "Empty" -> PaymentModeIOS.Empty
@@ -864,8 +964,13 @@ public enum class PaymentModeIOS(val rawValue: String) {
             "pay-up-front" -> PaymentModeIOS.PayUpFront
             "PAY_UP_FRONT" -> PaymentModeIOS.PayUpFront
             "PayUpFront" -> PaymentModeIOS.PayUpFront
-            else -> throw IllegalArgumentException("Unknown PaymentModeIOS value: $value")
+            else -> null
         }
+
+        fun fromJson(value: String): PaymentModeIOS = fromKnownJson(value) ?: throw IllegalArgumentException("Unknown PaymentModeIOS value: $value")
+
+        fun fromJsonStrict(value: String): PaymentModeIOS =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown PaymentModeIOS input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -877,7 +982,7 @@ public enum class ProductQueryType(val rawValue: String) {
     All("all");
 
     companion object {
-        fun fromJson(value: String): ProductQueryType = when (value) {
+        private fun fromKnownJson(value: String): ProductQueryType? = when (value) {
             "in-app" -> ProductQueryType.InApp
             "IN_APP" -> ProductQueryType.InApp
             "InApp" -> ProductQueryType.InApp
@@ -887,8 +992,13 @@ public enum class ProductQueryType(val rawValue: String) {
             "all" -> ProductQueryType.All
             "ALL" -> ProductQueryType.All
             "All" -> ProductQueryType.All
-            else -> throw IllegalArgumentException("Unknown ProductQueryType value: $value")
+            else -> null
         }
+
+        fun fromJson(value: String): ProductQueryType = fromKnownJson(value) ?: throw IllegalArgumentException("Unknown ProductQueryType value: $value")
+
+        fun fromJsonStrict(value: String): ProductQueryType =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown ProductQueryType input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -919,7 +1029,7 @@ public enum class ProductStatusAndroid(val rawValue: String) {
     Unknown("unknown");
 
     companion object {
-        fun fromJson(value: String): ProductStatusAndroid = when (value) {
+        private fun fromKnownJson(value: String): ProductStatusAndroid? = when (value) {
             "ok" -> ProductStatusAndroid.Ok
             "OK" -> ProductStatusAndroid.Ok
             "not-found" -> ProductStatusAndroid.NotFound
@@ -928,8 +1038,13 @@ public enum class ProductStatusAndroid(val rawValue: String) {
             "NO_OFFERS_AVAILABLE" -> ProductStatusAndroid.NoOffersAvailable
             "unknown" -> ProductStatusAndroid.Unknown
             "UNKNOWN" -> ProductStatusAndroid.Unknown
-            else -> ProductStatusAndroid.Unknown
+            else -> null
         }
+
+        fun fromJson(value: String): ProductStatusAndroid = fromKnownJson(value) ?: ProductStatusAndroid.Unknown
+
+        fun fromJsonStrict(value: String): ProductStatusAndroid =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown ProductStatusAndroid input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -940,15 +1055,20 @@ public enum class ProductType(val rawValue: String) {
     Subs("subs");
 
     companion object {
-        fun fromJson(value: String): ProductType = when (value) {
+        private fun fromKnownJson(value: String): ProductType? = when (value) {
             "in-app" -> ProductType.InApp
             "IN_APP" -> ProductType.InApp
             "InApp" -> ProductType.InApp
             "subs" -> ProductType.Subs
             "SUBS" -> ProductType.Subs
             "Subs" -> ProductType.Subs
-            else -> throw IllegalArgumentException("Unknown ProductType value: $value")
+            else -> null
         }
+
+        fun fromJson(value: String): ProductType = fromKnownJson(value) ?: throw IllegalArgumentException("Unknown ProductType value: $value")
+
+        fun fromJsonStrict(value: String): ProductType =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown ProductType input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -969,7 +1089,7 @@ public enum class ProductTypeIOS(val rawValue: String) {
     SubscriptionSuite("subscription-suite");
 
     companion object {
-        fun fromJson(value: String): ProductTypeIOS = when (value) {
+        private fun fromKnownJson(value: String): ProductTypeIOS? = when (value) {
             "consumable" -> ProductTypeIOS.Consumable
             "CONSUMABLE" -> ProductTypeIOS.Consumable
             "Consumable" -> ProductTypeIOS.Consumable
@@ -988,8 +1108,13 @@ public enum class ProductTypeIOS(val rawValue: String) {
             "subscription-suite" -> ProductTypeIOS.SubscriptionSuite
             "SUBSCRIPTION_SUITE" -> ProductTypeIOS.SubscriptionSuite
             "SubscriptionSuite" -> ProductTypeIOS.SubscriptionSuite
-            else -> throw IllegalArgumentException("Unknown ProductTypeIOS value: $value")
+            else -> null
         }
+
+        fun fromJson(value: String): ProductTypeIOS = fromKnownJson(value) ?: throw IllegalArgumentException("Unknown ProductTypeIOS value: $value")
+
+        fun fromJsonStrict(value: String): ProductTypeIOS =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown ProductTypeIOS input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -1001,7 +1126,7 @@ public enum class PurchaseState(val rawValue: String) {
     Unknown("unknown");
 
     companion object {
-        fun fromJson(value: String): PurchaseState = when (value) {
+        private fun fromKnownJson(value: String): PurchaseState? = when (value) {
             "pending" -> PurchaseState.Pending
             "PENDING" -> PurchaseState.Pending
             "Pending" -> PurchaseState.Pending
@@ -1011,8 +1136,13 @@ public enum class PurchaseState(val rawValue: String) {
             "unknown" -> PurchaseState.Unknown
             "UNKNOWN" -> PurchaseState.Unknown
             "Unknown" -> PurchaseState.Unknown
-            else -> PurchaseState.Unknown
+            else -> null
         }
+
+        fun fromJson(value: String): PurchaseState = fromKnownJson(value) ?: PurchaseState.Unknown
+
+        fun fromJsonStrict(value: String): PurchaseState =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown PurchaseState input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -1022,12 +1152,17 @@ public enum class PurchaseVerificationProvider(val rawValue: String) {
     Iapkit("iapkit");
 
     companion object {
-        fun fromJson(value: String): PurchaseVerificationProvider = when (value) {
+        private fun fromKnownJson(value: String): PurchaseVerificationProvider? = when (value) {
             "iapkit" -> PurchaseVerificationProvider.Iapkit
             "IAPKIT" -> PurchaseVerificationProvider.Iapkit
             "Iapkit" -> PurchaseVerificationProvider.Iapkit
-            else -> throw IllegalArgumentException("Unknown PurchaseVerificationProvider value: $value")
+            else -> null
         }
+
+        fun fromJson(value: String): PurchaseVerificationProvider = fromKnownJson(value) ?: throw IllegalArgumentException("Unknown PurchaseVerificationProvider value: $value")
+
+        fun fromJsonStrict(value: String): PurchaseVerificationProvider =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown PurchaseVerificationProvider input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -1052,15 +1187,20 @@ public enum class SubResponseCodeAndroid(val rawValue: String) {
     UserIneligible("user-ineligible");
 
     companion object {
-        fun fromJson(value: String): SubResponseCodeAndroid = when (value) {
+        private fun fromKnownJson(value: String): SubResponseCodeAndroid? = when (value) {
             "no-applicable-sub-response-code" -> SubResponseCodeAndroid.NoApplicableSubResponseCode
             "NO_APPLICABLE_SUB_RESPONSE_CODE" -> SubResponseCodeAndroid.NoApplicableSubResponseCode
             "payment-declined-due-to-insufficient-funds" -> SubResponseCodeAndroid.PaymentDeclinedDueToInsufficientFunds
             "PAYMENT_DECLINED_DUE_TO_INSUFFICIENT_FUNDS" -> SubResponseCodeAndroid.PaymentDeclinedDueToInsufficientFunds
             "user-ineligible" -> SubResponseCodeAndroid.UserIneligible
             "USER_INELIGIBLE" -> SubResponseCodeAndroid.UserIneligible
-            else -> throw IllegalArgumentException("Unknown SubResponseCodeAndroid value: $value")
+            else -> null
         }
+
+        fun fromJson(value: String): SubResponseCodeAndroid = fromKnownJson(value) ?: throw IllegalArgumentException("Unknown SubResponseCodeAndroid value: $value")
+
+        fun fromJsonStrict(value: String): SubResponseCodeAndroid =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown SubResponseCodeAndroid input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -1081,7 +1221,7 @@ public enum class SubscriptionBillingPlanTypeIOS(val rawValue: String) {
     UpFront("up-front");
 
     companion object {
-        fun fromJson(value: String): SubscriptionBillingPlanTypeIOS = when (value) {
+        private fun fromKnownJson(value: String): SubscriptionBillingPlanTypeIOS? = when (value) {
             "unknown" -> SubscriptionBillingPlanTypeIOS.Unknown
             "UNKNOWN" -> SubscriptionBillingPlanTypeIOS.Unknown
             "Unknown" -> SubscriptionBillingPlanTypeIOS.Unknown
@@ -1091,8 +1231,13 @@ public enum class SubscriptionBillingPlanTypeIOS(val rawValue: String) {
             "up-front" -> SubscriptionBillingPlanTypeIOS.UpFront
             "UP_FRONT" -> SubscriptionBillingPlanTypeIOS.UpFront
             "UpFront" -> SubscriptionBillingPlanTypeIOS.UpFront
-            else -> SubscriptionBillingPlanTypeIOS.Unknown
+            else -> null
         }
+
+        fun fromJson(value: String): SubscriptionBillingPlanTypeIOS = fromKnownJson(value) ?: SubscriptionBillingPlanTypeIOS.Unknown
+
+        fun fromJsonStrict(value: String): SubscriptionBillingPlanTypeIOS =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown SubscriptionBillingPlanTypeIOS input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -1108,7 +1253,7 @@ public enum class SubscriptionOfferTypeIOS(val rawValue: String) {
     WinBack("win-back");
 
     companion object {
-        fun fromJson(value: String): SubscriptionOfferTypeIOS = when (value) {
+        private fun fromKnownJson(value: String): SubscriptionOfferTypeIOS? = when (value) {
             "introductory" -> SubscriptionOfferTypeIOS.Introductory
             "INTRODUCTORY" -> SubscriptionOfferTypeIOS.Introductory
             "Introductory" -> SubscriptionOfferTypeIOS.Introductory
@@ -1118,8 +1263,13 @@ public enum class SubscriptionOfferTypeIOS(val rawValue: String) {
             "win-back" -> SubscriptionOfferTypeIOS.WinBack
             "WIN_BACK" -> SubscriptionOfferTypeIOS.WinBack
             "WinBack" -> SubscriptionOfferTypeIOS.WinBack
-            else -> throw IllegalArgumentException("Unknown SubscriptionOfferTypeIOS value: $value")
+            else -> null
         }
+
+        fun fromJson(value: String): SubscriptionOfferTypeIOS = fromKnownJson(value) ?: throw IllegalArgumentException("Unknown SubscriptionOfferTypeIOS value: $value")
+
+        fun fromJsonStrict(value: String): SubscriptionOfferTypeIOS =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown SubscriptionOfferTypeIOS input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -1133,7 +1283,7 @@ public enum class SubscriptionPeriodIOS(val rawValue: String) {
     Empty("empty");
 
     companion object {
-        fun fromJson(value: String): SubscriptionPeriodIOS = when (value) {
+        private fun fromKnownJson(value: String): SubscriptionPeriodIOS? = when (value) {
             "day" -> SubscriptionPeriodIOS.Day
             "DAY" -> SubscriptionPeriodIOS.Day
             "Day" -> SubscriptionPeriodIOS.Day
@@ -1149,8 +1299,13 @@ public enum class SubscriptionPeriodIOS(val rawValue: String) {
             "empty" -> SubscriptionPeriodIOS.Empty
             "EMPTY" -> SubscriptionPeriodIOS.Empty
             "Empty" -> SubscriptionPeriodIOS.Empty
-            else -> throw IllegalArgumentException("Unknown SubscriptionPeriodIOS value: $value")
+            else -> null
         }
+
+        fun fromJson(value: String): SubscriptionPeriodIOS = fromKnownJson(value) ?: throw IllegalArgumentException("Unknown SubscriptionPeriodIOS value: $value")
+
+        fun fromJsonStrict(value: String): SubscriptionPeriodIOS =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown SubscriptionPeriodIOS input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -1167,7 +1322,7 @@ public enum class SubscriptionPeriodUnit(val rawValue: String) {
     Unknown("unknown");
 
     companion object {
-        fun fromJson(value: String): SubscriptionPeriodUnit = when (value) {
+        private fun fromKnownJson(value: String): SubscriptionPeriodUnit? = when (value) {
             "day" -> SubscriptionPeriodUnit.Day
             "DAY" -> SubscriptionPeriodUnit.Day
             "Day" -> SubscriptionPeriodUnit.Day
@@ -1183,8 +1338,13 @@ public enum class SubscriptionPeriodUnit(val rawValue: String) {
             "unknown" -> SubscriptionPeriodUnit.Unknown
             "UNKNOWN" -> SubscriptionPeriodUnit.Unknown
             "Unknown" -> SubscriptionPeriodUnit.Unknown
-            else -> SubscriptionPeriodUnit.Unknown
+            else -> null
         }
+
+        fun fromJson(value: String): SubscriptionPeriodUnit = fromKnownJson(value) ?: SubscriptionPeriodUnit.Unknown
+
+        fun fromJsonStrict(value: String): SubscriptionPeriodUnit =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown SubscriptionPeriodUnit input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -1226,7 +1386,7 @@ public enum class SubscriptionReplacementModeAndroid(val rawValue: String) {
     KeepExisting("keep-existing");
 
     companion object {
-        fun fromJson(value: String): SubscriptionReplacementModeAndroid = when (value) {
+        private fun fromKnownJson(value: String): SubscriptionReplacementModeAndroid? = when (value) {
             "unknown-replacement-mode" -> SubscriptionReplacementModeAndroid.UnknownReplacementMode
             "UNKNOWN_REPLACEMENT_MODE" -> SubscriptionReplacementModeAndroid.UnknownReplacementMode
             "with-time-proration" -> SubscriptionReplacementModeAndroid.WithTimeProration
@@ -1241,8 +1401,13 @@ public enum class SubscriptionReplacementModeAndroid(val rawValue: String) {
             "DEFERRED" -> SubscriptionReplacementModeAndroid.Deferred
             "keep-existing" -> SubscriptionReplacementModeAndroid.KeepExisting
             "KEEP_EXISTING" -> SubscriptionReplacementModeAndroid.KeepExisting
-            else -> SubscriptionReplacementModeAndroid.UnknownReplacementMode
+            else -> null
         }
+
+        fun fromJson(value: String): SubscriptionReplacementModeAndroid = fromKnownJson(value) ?: SubscriptionReplacementModeAndroid.UnknownReplacementMode
+
+        fun fromJsonStrict(value: String): SubscriptionReplacementModeAndroid =
+            fromKnownJson(value) ?: throw IllegalArgumentException("Unknown SubscriptionReplacementModeAndroid input value: $value")
     }
 
     fun toJson(): String = rawValue
@@ -4170,7 +4335,7 @@ public data class BillingProgramInformationDialogParamsAndroid(
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): BillingProgramInformationDialogParamsAndroid? {
-            val billingProgram = (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJson(it) } ?: BillingProgramAndroid.BillingChoice
+            val billingProgram = if (json["billingProgram"] == null) BillingProgramAndroid.BillingChoice else (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJsonStrict(it) } ?: throw IllegalArgumentException("Missing or invalid enum input value for BillingProgramAndroid")
             val externalTransactionToken = json["externalTransactionToken"] as? String
             if (externalTransactionToken == null) return null
             return BillingProgramInformationDialogParamsAndroid(
@@ -4199,8 +4364,8 @@ public data class DeepLinkOptions(
     companion object {
         fun fromJson(json: Map<String, Any?>): DeepLinkOptions {
             return DeepLinkOptions(
-                packageNameAndroid = json["packageNameAndroid"] as? String,
-                skuAndroid = json["skuAndroid"] as? String,
+                packageNameAndroid = json["packageNameAndroid"]?.let { raw -> (raw as? String) ?: throw IllegalArgumentException("Invalid String input value") },
+                skuAndroid = json["skuAndroid"]?.let { raw -> (raw as? String) ?: throw IllegalArgumentException("Invalid String input value") },
             )
         }
     }
@@ -4241,10 +4406,10 @@ public data class DeveloperBillingOptionParamsAndroid(
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): DeveloperBillingOptionParamsAndroid? {
-            val billingProgram = (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJson(it) } ?: throw IllegalArgumentException("Missing required enum value for BillingProgramAndroid")
-            val externalTransactionToken = json["externalTransactionToken"] as? String
-            val launchMode = (json["launchMode"] as? String)?.let { DeveloperBillingLaunchModeAndroid.fromJson(it) }
-            val linkUri = json["linkUri"] as? String
+            val billingProgram = (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJsonStrict(it) } ?: throw IllegalArgumentException("Missing or invalid enum input value for BillingProgramAndroid")
+            val externalTransactionToken = json["externalTransactionToken"]?.let { raw -> (raw as? String) ?: throw IllegalArgumentException("Invalid String input value") }
+            val launchMode = json["launchMode"]?.let { raw -> (raw as? String)?.let { DeveloperBillingLaunchModeAndroid.fromJsonStrict(it) } ?: throw IllegalArgumentException("Missing or invalid enum input value for DeveloperBillingLaunchModeAndroid") }
+            val linkUri = json["linkUri"]?.let { raw -> (raw as? String) ?: throw IllegalArgumentException("Invalid String input value") }
             return DeveloperBillingOptionParamsAndroid(
                 billingProgram = billingProgram,
                 externalTransactionToken = externalTransactionToken,
@@ -4332,9 +4497,9 @@ public data class GetBillingChoiceInfoParamsAndroid(
     companion object {
         fun fromJson(json: Map<String, Any?>): GetBillingChoiceInfoParamsAndroid {
             return GetBillingChoiceInfoParamsAndroid(
-                billingProgram = (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJson(it) } ?: BillingProgramAndroid.BillingChoice,
-                playBillingChoiceImageLayout = (json["playBillingChoiceImageLayout"] as? String)?.let { BillingChoiceImageLayoutAndroid.fromJson(it) } ?: BillingChoiceImageLayoutAndroid.RectangularFourByOne,
-                userLocale = json["userLocale"] as? String,
+                billingProgram = if (json["billingProgram"] == null) BillingProgramAndroid.BillingChoice else (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJsonStrict(it) } ?: throw IllegalArgumentException("Missing or invalid enum input value for BillingProgramAndroid"),
+                playBillingChoiceImageLayout = if (json["playBillingChoiceImageLayout"] == null) BillingChoiceImageLayoutAndroid.RectangularFourByOne else (json["playBillingChoiceImageLayout"] as? String)?.let { BillingChoiceImageLayoutAndroid.fromJsonStrict(it) } ?: throw IllegalArgumentException("Missing or invalid enum input value for BillingChoiceImageLayoutAndroid"),
+                userLocale = json["userLocale"]?.let { raw -> (raw as? String) ?: throw IllegalArgumentException("Invalid String input value") },
             )
         }
     }
@@ -4360,7 +4525,7 @@ public data class InAppMessageParamsAndroid(
     companion object {
         fun fromJson(json: Map<String, Any?>): InAppMessageParamsAndroid {
             return InAppMessageParamsAndroid(
-                categories = (json["categories"] as? List<*>)?.mapNotNull { (it as? String)?.let { InAppMessageCategoryAndroid.fromJson(it) } ?: InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId } ?: listOf(InAppMessageCategoryAndroid.Transactional),
+                categories = if (json["categories"] == null) listOf(InAppMessageCategoryAndroid.Transactional) else (json["categories"] as? List<*>)?.map { (it as? String)?.let { InAppMessageCategoryAndroid.fromJsonStrict(it) } ?: throw IllegalArgumentException("Missing or invalid enum input value for InAppMessageCategoryAndroid") } ?: throw IllegalArgumentException("Invalid input list"),
             )
         }
     }
@@ -4399,8 +4564,8 @@ public data class InitConnectionConfig(
     companion object {
         fun fromJson(json: Map<String, Any?>): InitConnectionConfig {
             return InitConnectionConfig(
-                billingChoiceScreenTypeAndroid = (json["billingChoiceScreenTypeAndroid"] as? String)?.let { BillingChoiceScreenTypeAndroid.fromJson(it) } ?: BillingChoiceScreenTypeAndroid.GoogleRendered,
-                enableBillingProgramAndroid = (json["enableBillingProgramAndroid"] as? String)?.let { BillingProgramAndroid.fromJson(it) },
+                billingChoiceScreenTypeAndroid = if (json["billingChoiceScreenTypeAndroid"] == null) BillingChoiceScreenTypeAndroid.GoogleRendered else (json["billingChoiceScreenTypeAndroid"] as? String)?.let { BillingChoiceScreenTypeAndroid.fromJsonStrict(it) } ?: throw IllegalArgumentException("Missing or invalid enum input value for BillingChoiceScreenTypeAndroid"),
+                enableBillingProgramAndroid = json["enableBillingProgramAndroid"]?.let { raw -> (raw as? String)?.let { BillingProgramAndroid.fromJsonStrict(it) } ?: throw IllegalArgumentException("Missing or invalid enum input value for BillingProgramAndroid") },
             )
         }
     }
@@ -4443,10 +4608,10 @@ public data class LaunchExternalLinkParamsAndroid(
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): LaunchExternalLinkParamsAndroid? {
-            val billingProgram = (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJson(it) } ?: throw IllegalArgumentException("Missing required enum value for BillingProgramAndroid")
-            val externalTransactionToken = json["externalTransactionToken"] as? String
-            val launchMode = (json["launchMode"] as? String)?.let { ExternalLinkLaunchModeAndroid.fromJson(it) } ?: throw IllegalArgumentException("Missing required enum value for ExternalLinkLaunchModeAndroid")
-            val linkType = (json["linkType"] as? String)?.let { ExternalLinkTypeAndroid.fromJson(it) } ?: throw IllegalArgumentException("Missing required enum value for ExternalLinkTypeAndroid")
+            val billingProgram = (json["billingProgram"] as? String)?.let { BillingProgramAndroid.fromJsonStrict(it) } ?: throw IllegalArgumentException("Missing or invalid enum input value for BillingProgramAndroid")
+            val externalTransactionToken = json["externalTransactionToken"]?.let { raw -> (raw as? String) ?: throw IllegalArgumentException("Invalid String input value") }
+            val launchMode = (json["launchMode"] as? String)?.let { ExternalLinkLaunchModeAndroid.fromJsonStrict(it) } ?: throw IllegalArgumentException("Missing or invalid enum input value for ExternalLinkLaunchModeAndroid")
+            val linkType = (json["linkType"] as? String)?.let { ExternalLinkTypeAndroid.fromJsonStrict(it) } ?: throw IllegalArgumentException("Missing or invalid enum input value for ExternalLinkTypeAndroid")
             val linkUri = json["linkUri"] as? String
             if (linkUri == null) return null
             return LaunchExternalLinkParamsAndroid(
@@ -4474,9 +4639,8 @@ public data class ProductRequest(
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): ProductRequest? {
-            val skus = (json["skus"] as? List<*>)?.mapNotNull { it as? String }
-            val type = (json["type"] as? String)?.let { ProductQueryType.fromJson(it) } ?: ProductQueryType.InApp
-            if (skus == null) return null
+            val skus = (json["skus"] as? List<*>)?.map { it as? String ?: throw IllegalArgumentException("Invalid String input list element") } ?: throw IllegalArgumentException("Invalid input list")
+            val type = if (json["type"] == null) ProductQueryType.InApp else (json["type"] as? String)?.let { ProductQueryType.fromJsonStrict(it) } ?: throw IllegalArgumentException("Missing or invalid enum input value for ProductQueryType")
             return ProductRequest(
                 skus = skus,
                 type = type,
@@ -4548,9 +4712,9 @@ public data class PurchaseOptions(
     companion object {
         fun fromJson(json: Map<String, Any?>): PurchaseOptions {
             return PurchaseOptions(
-                alsoPublishToEventListenerIOS = json["alsoPublishToEventListenerIOS"] as? Boolean,
-                includeSuspendedAndroid = json["includeSuspendedAndroid"] as? Boolean,
-                onlyIncludeActiveItemsIOS = json["onlyIncludeActiveItemsIOS"] as? Boolean,
+                alsoPublishToEventListenerIOS = json["alsoPublishToEventListenerIOS"]?.let { raw -> (raw as? Boolean) ?: throw IllegalArgumentException("Invalid Boolean input value") },
+                includeSuspendedAndroid = json["includeSuspendedAndroid"]?.let { raw -> (raw as? Boolean) ?: throw IllegalArgumentException("Invalid Boolean input value") },
+                onlyIncludeActiveItemsIOS = json["onlyIncludeActiveItemsIOS"]?.let { raw -> (raw as? Boolean) ?: throw IllegalArgumentException("Invalid Boolean input value") },
             )
         }
     }
@@ -4573,7 +4737,7 @@ public data class PurchaseUpdatedListenerOptions(
     companion object {
         fun fromJson(json: Map<String, Any?>): PurchaseUpdatedListenerOptions {
             return PurchaseUpdatedListenerOptions(
-                dedupeTransactionIOS = json["dedupeTransactionIOS"] as? Boolean,
+                dedupeTransactionIOS = json["dedupeTransactionIOS"]?.let { raw -> (raw as? Boolean) ?: throw IllegalArgumentException("Invalid Boolean input value") },
             )
         }
     }
@@ -4617,12 +4781,11 @@ public data class RequestPurchaseAndroidProps(
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestPurchaseAndroidProps? {
             val developerBillingOption = json["developerBillingOption"]?.let { value -> (value as? Map<String, Any?>)?.let { DeveloperBillingOptionParamsAndroid.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for DeveloperBillingOptionParamsAndroid") }
-            val isOfferPersonalized = json["isOfferPersonalized"] as? Boolean
-            val obfuscatedAccountId = json["obfuscatedAccountId"] as? String
-            val obfuscatedProfileId = json["obfuscatedProfileId"] as? String
-            val offerToken = json["offerToken"] as? String
-            val skus = (json["skus"] as? List<*>)?.mapNotNull { it as? String }
-            if (skus == null) return null
+            val isOfferPersonalized = json["isOfferPersonalized"]?.let { raw -> (raw as? Boolean) ?: throw IllegalArgumentException("Invalid Boolean input value") }
+            val obfuscatedAccountId = json["obfuscatedAccountId"]?.let { raw -> (raw as? String) ?: throw IllegalArgumentException("Invalid String input value") }
+            val obfuscatedProfileId = json["obfuscatedProfileId"]?.let { raw -> (raw as? String) ?: throw IllegalArgumentException("Invalid String input value") }
+            val offerToken = json["offerToken"]?.let { raw -> (raw as? String) ?: throw IllegalArgumentException("Invalid String input value") }
+            val skus = (json["skus"] as? List<*>)?.map { it as? String ?: throw IllegalArgumentException("Invalid String input list element") } ?: throw IllegalArgumentException("Invalid input list")
             return RequestPurchaseAndroidProps(
                 developerBillingOption = developerBillingOption,
                 isOfferPersonalized = isOfferPersonalized,
@@ -4676,10 +4839,10 @@ public data class RequestPurchaseIosProps(
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestPurchaseIosProps? {
-            val advancedCommerceData = json["advancedCommerceData"] as? String
-            val andDangerouslyFinishTransactionAutomatically = json["andDangerouslyFinishTransactionAutomatically"] as? Boolean
-            val appAccountToken = json["appAccountToken"] as? String
-            val quantity = (json["quantity"] as? Number)?.toInt()
+            val advancedCommerceData = json["advancedCommerceData"]?.let { raw -> (raw as? String) ?: throw IllegalArgumentException("Invalid String input value") }
+            val andDangerouslyFinishTransactionAutomatically = json["andDangerouslyFinishTransactionAutomatically"]?.let { raw -> (raw as? Boolean) ?: throw IllegalArgumentException("Invalid Boolean input value") }
+            val appAccountToken = json["appAccountToken"]?.let { raw -> (raw as? String) ?: throw IllegalArgumentException("Invalid String input value") }
+            val quantity = json["quantity"]?.let { raw -> ((raw as? Number)?.let { number -> number.toLong().takeIf { value -> value >= Int.MIN_VALUE.toLong() && value <= Int.MAX_VALUE.toLong() && value.toDouble() == number.toDouble() }?.toInt() }) ?: throw IllegalArgumentException("Invalid Int input value") }
             val sku = json["sku"] as? String
             val withOffer = json["withOffer"]?.let { value -> (value as? Map<String, Any?>)?.let { DiscountOfferInputIOS.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for DiscountOfferInputIOS") }
             if (sku == null) return null
@@ -4849,15 +5012,14 @@ public data class RequestSubscriptionAndroidProps(
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestSubscriptionAndroidProps? {
             val developerBillingOption = json["developerBillingOption"]?.let { value -> (value as? Map<String, Any?>)?.let { DeveloperBillingOptionParamsAndroid.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for DeveloperBillingOptionParamsAndroid") }
-            val isOfferPersonalized = json["isOfferPersonalized"] as? Boolean
-            val obfuscatedAccountId = json["obfuscatedAccountId"] as? String
-            val obfuscatedProfileId = json["obfuscatedProfileId"] as? String
-            val originalExternalTransactionId = json["originalExternalTransactionId"] as? String
-            val purchaseToken = json["purchaseToken"] as? String
-            val skus = (json["skus"] as? List<*>)?.mapNotNull { it as? String }
-            val subscriptionOffers = (json["subscriptionOffers"] as? List<*>)?.mapNotNull { (it as? Map<String, Any?>)?.let { AndroidSubscriptionOfferInput.fromJson(it) } }
+            val isOfferPersonalized = json["isOfferPersonalized"]?.let { raw -> (raw as? Boolean) ?: throw IllegalArgumentException("Invalid Boolean input value") }
+            val obfuscatedAccountId = json["obfuscatedAccountId"]?.let { raw -> (raw as? String) ?: throw IllegalArgumentException("Invalid String input value") }
+            val obfuscatedProfileId = json["obfuscatedProfileId"]?.let { raw -> (raw as? String) ?: throw IllegalArgumentException("Invalid String input value") }
+            val originalExternalTransactionId = json["originalExternalTransactionId"]?.let { raw -> (raw as? String) ?: throw IllegalArgumentException("Invalid String input value") }
+            val purchaseToken = json["purchaseToken"]?.let { raw -> (raw as? String) ?: throw IllegalArgumentException("Invalid String input value") }
+            val skus = (json["skus"] as? List<*>)?.map { it as? String ?: throw IllegalArgumentException("Invalid String input list element") } ?: throw IllegalArgumentException("Invalid input list")
+            val subscriptionOffers = json["subscriptionOffers"]?.let { raw -> (raw as? List<*>)?.map { (it as? Map<String, Any?>)?.let { AndroidSubscriptionOfferInput.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for AndroidSubscriptionOfferInput") } ?: throw IllegalArgumentException("Invalid input list") }
             val subscriptionProductReplacementParams = json["subscriptionProductReplacementParams"]?.let { value -> (value as? Map<String, Any?>)?.let { SubscriptionProductReplacementParamsAndroid.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for SubscriptionProductReplacementParamsAndroid") }
-            if (skus == null) return null
             return RequestSubscriptionAndroidProps(
                 developerBillingOption = developerBillingOption,
                 isOfferPersonalized = isOfferPersonalized,
@@ -4930,13 +5092,13 @@ public data class RequestSubscriptionIosProps(
 ) {
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestSubscriptionIosProps? {
-            val advancedCommerceData = json["advancedCommerceData"] as? String
-            val andDangerouslyFinishTransactionAutomatically = json["andDangerouslyFinishTransactionAutomatically"] as? Boolean
-            val appAccountToken = json["appAccountToken"] as? String
-            val billingPlanType = (json["billingPlanType"] as? String)?.let { SubscriptionBillingPlanTypeIOS.fromJson(it) }
-            val compactJWS = json["compactJWS"] as? String
+            val advancedCommerceData = json["advancedCommerceData"]?.let { raw -> (raw as? String) ?: throw IllegalArgumentException("Invalid String input value") }
+            val andDangerouslyFinishTransactionAutomatically = json["andDangerouslyFinishTransactionAutomatically"]?.let { raw -> (raw as? Boolean) ?: throw IllegalArgumentException("Invalid Boolean input value") }
+            val appAccountToken = json["appAccountToken"]?.let { raw -> (raw as? String) ?: throw IllegalArgumentException("Invalid String input value") }
+            val billingPlanType = json["billingPlanType"]?.let { raw -> (raw as? String)?.let { SubscriptionBillingPlanTypeIOS.fromJsonStrict(it) } ?: throw IllegalArgumentException("Missing or invalid enum input value for SubscriptionBillingPlanTypeIOS") }
+            val compactJWS = json["compactJWS"]?.let { raw -> (raw as? String) ?: throw IllegalArgumentException("Invalid String input value") }
             val promotionalOfferJWS = json["promotionalOfferJWS"]?.let { value -> (value as? Map<String, Any?>)?.let { PromotionalOfferJWSInputIOS.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for PromotionalOfferJWSInputIOS") }
-            val quantity = (json["quantity"] as? Number)?.toInt()
+            val quantity = json["quantity"]?.let { raw -> ((raw as? Number)?.let { number -> number.toLong().takeIf { value -> value >= Int.MIN_VALUE.toLong() && value <= Int.MAX_VALUE.toLong() && value.toDouble() == number.toDouble() }?.toInt() }) ?: throw IllegalArgumentException("Invalid Int input value") }
             val sku = json["sku"] as? String
             val winBackOffer = json["winBackOffer"]?.let { value -> (value as? Map<String, Any?>)?.let { WinBackOfferInputIOS.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for WinBackOfferInputIOS") }
             val withOffer = json["withOffer"]?.let { value -> (value as? Map<String, Any?>)?.let { DiscountOfferInputIOS.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for DiscountOfferInputIOS") }
@@ -5042,9 +5204,9 @@ public data class RequestVerifyPurchaseWithIapkitAmazonProps(
     companion object {
         fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitAmazonProps? {
             val receiptId = json["receiptId"] as? String
-            val sandbox = json["sandbox"] as? Boolean
-            val userId = json["userId"] as? String
-            val expectedProductId = json["expectedProductId"] as? String
+            val sandbox = json["sandbox"]?.let { raw -> (raw as? Boolean) ?: throw IllegalArgumentException("Invalid Boolean input value") }
+            val userId = json["userId"]?.let { raw -> (raw as? String) ?: throw IllegalArgumentException("Invalid String input value") }
+            val expectedProductId = json["expectedProductId"]?.let { raw -> (raw as? String) ?: throw IllegalArgumentException("Invalid String input value") }
             if (receiptId == null) return null
             return RequestVerifyPurchaseWithIapkitAmazonProps(
                 receiptId = receiptId,
@@ -5168,11 +5330,11 @@ public data class RequestVerifyPurchaseWithIapkitProps(
         fun fromJson(json: Map<String, Any?>): RequestVerifyPurchaseWithIapkitProps {
             return RequestVerifyPurchaseWithIapkitProps(
                 amazon = json["amazon"]?.let { value -> (value as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitAmazonProps.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for RequestVerifyPurchaseWithIapkitAmazonProps") },
-                apiKey = json["apiKey"] as? String,
+                apiKey = json["apiKey"]?.let { raw -> (raw as? String) ?: throw IllegalArgumentException("Invalid String input value") },
                 apple = json["apple"]?.let { value -> (value as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitAppleProps.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for RequestVerifyPurchaseWithIapkitAppleProps") },
-                baseUrl = json["baseUrl"] as? String,
+                baseUrl = json["baseUrl"]?.let { raw -> (raw as? String) ?: throw IllegalArgumentException("Invalid String input value") },
                 google = json["google"]?.let { value -> (value as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitGoogleProps.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for RequestVerifyPurchaseWithIapkitGoogleProps") },
-                includeClientPayload = json["includeClientPayload"] as? Boolean,
+                includeClientPayload = json["includeClientPayload"]?.let { raw -> (raw as? Boolean) ?: throw IllegalArgumentException("Invalid Boolean input value") },
             )
         }
     }
@@ -5205,7 +5367,7 @@ public data class SubscriptionProductReplacementParamsAndroid(
     companion object {
         fun fromJson(json: Map<String, Any?>): SubscriptionProductReplacementParamsAndroid? {
             val oldProductId = json["oldProductId"] as? String
-            val replacementMode = (json["replacementMode"] as? String)?.let { SubscriptionReplacementModeAndroid.fromJson(it) } ?: SubscriptionReplacementModeAndroid.UnknownReplacementMode
+            val replacementMode = (json["replacementMode"] as? String)?.let { SubscriptionReplacementModeAndroid.fromJsonStrict(it) } ?: throw IllegalArgumentException("Missing or invalid enum input value for SubscriptionReplacementModeAndroid")
             if (oldProductId == null) return null
             return SubscriptionProductReplacementParamsAndroid(
                 oldProductId = oldProductId,
@@ -5278,7 +5440,7 @@ public data class VerifyPurchaseGoogleOptions(
     companion object {
         fun fromJson(json: Map<String, Any?>): VerifyPurchaseGoogleOptions? {
             val accessToken = json["accessToken"] as? String
-            val isSub = json["isSub"] as? Boolean
+            val isSub = json["isSub"]?.let { raw -> (raw as? Boolean) ?: throw IllegalArgumentException("Invalid Boolean input value") }
             val packageName = json["packageName"] as? String
             val purchaseToken = json["purchaseToken"] as? String
             val sku = json["sku"] as? String
@@ -5390,7 +5552,7 @@ public data class VerifyPurchaseWithProviderProps(
     companion object {
         fun fromJson(json: Map<String, Any?>): VerifyPurchaseWithProviderProps? {
             val iapkit = json["iapkit"]?.let { value -> (value as? Map<String, Any?>)?.let { RequestVerifyPurchaseWithIapkitProps.fromJson(it) } ?: throw IllegalArgumentException("Invalid input object for RequestVerifyPurchaseWithIapkitProps") }
-            val provider = (json["provider"] as? String)?.let { PurchaseVerificationProvider.fromJson(it) } ?: throw IllegalArgumentException("Missing required enum value for PurchaseVerificationProvider")
+            val provider = (json["provider"] as? String)?.let { PurchaseVerificationProvider.fromJsonStrict(it) } ?: throw IllegalArgumentException("Missing or invalid enum input value for PurchaseVerificationProvider")
             return VerifyPurchaseWithProviderProps(
                 iapkit = iapkit,
                 provider = provider,

@@ -97,9 +97,18 @@ enum ExpoIapHelper {
         }
     }
 
-    static func parseProductQueryType(_ rawValue: String?) throws -> ProductQueryType {
-        guard let raw = rawValue?.trimmingCharacters(in: .whitespacesAndNewlines), !raw.isEmpty
-        else {
+    static func parseProductQueryType(_ rawValue: Any?) throws -> ProductQueryType {
+        if rawValue == nil || rawValue is NSNull {
+            return .inApp
+        }
+        guard let stringValue = rawValue as? String else {
+            throw PurchaseError.make(
+                code: .developerError,
+                message: "Product type must be a string"
+            )
+        }
+        let raw = stringValue.trimmingCharacters(in: .whitespacesAndNewlines)
+        if raw.isEmpty {
             return .inApp
         }
         switch raw.lowercased() {
@@ -117,9 +126,26 @@ enum ExpoIapHelper {
         }
     }
 
+    static func parsePurchaseProductQueryType(_ rawValue: Any?) throws -> ProductQueryType {
+        if let rawValue, !(rawValue is String), !(rawValue is NSNull) {
+            throw PurchaseError.make(
+                code: .developerError,
+                message: "Purchase type must be a string"
+            )
+        }
+        let type = try parseProductQueryType(rawValue)
+        guard type != .all else {
+            throw PurchaseError.make(
+                code: .developerError,
+                message: "Product type all is only supported for product queries."
+            )
+        }
+        return type
+    }
+
     static func decodeProductRequest(from payload: [String: Any]) throws -> ProductRequest {
         if let skus = payload["skus"] as? [String], !skus.isEmpty {
-            let type = try parseProductQueryType(payload["type"] as? String)
+            let type = try parseProductQueryType(payload["type"])
             return try OpenIapSerialization.productRequest(skus: skus, type: type)
         }
 
@@ -143,6 +169,7 @@ enum ExpoIapHelper {
     static func decodeRequestPurchaseProps(from payload: [String: Any]) throws
         -> RequestPurchaseProps
     {
+        let parsedType = try parsePurchaseProductQueryType(payload["type"])
         if payload.keys.contains("requestPurchase"),
            payload["requestPurchase"] != nil
         {
@@ -157,10 +184,8 @@ enum ExpoIapHelper {
         }
 
         if payload.keys.contains("request"), let request = payload["request"] {
-            let parsedType = try parseProductQueryType(payload["type"] as? String)
-            let purchaseType: ProductQueryType = parsedType == .all ? .inApp : parsedType
-            var normalized: [String: Any] = ["type": purchaseType.rawValue]
-            switch purchaseType {
+            var normalized: [String: Any] = ["type": parsedType.rawValue]
+            switch parsedType {
             case .subs:
                 normalized["requestSubscription"] = request
             case .inApp:

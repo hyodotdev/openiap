@@ -55,6 +55,37 @@ void main() {
       expect(
           productTypeHelper, contains('case ProductQueryType.inApp.rawValue:'));
       expect(productTypeHelper, isNot(contains('case "inapp":')));
+      expect(
+        productTypeHelper,
+        contains('guard let stringValue = rawValue as? String'),
+      );
+      expect(
+        helperSource,
+        contains('parseProductQueryType(payload["type"])'),
+      );
+      expect(
+        helperSource,
+        isNot(contains('parseProductQueryType(payload["type"] as? String)')),
+      );
+
+      final purchaseTypeStart = helperSource.indexOf(
+        'static func parsePurchaseProductQueryType',
+      );
+      final purchaseTypeEnd = helperSource.indexOf(
+        'static func decodeProductRequest',
+        purchaseTypeStart,
+      );
+      final purchaseTypeHelper = helperSource.substring(
+        purchaseTypeStart,
+        purchaseTypeEnd,
+      );
+      expect(purchaseTypeHelper, contains('return .inApp'));
+      expect(purchaseTypeHelper, contains('guard type != .all'));
+      expect(purchaseTypeHelper, contains('!(rawValue is NSNull)'));
+      expect(
+        helperSource,
+        contains('parsePurchaseProductQueryType(payload["type"])'),
+      );
     }
   });
 }

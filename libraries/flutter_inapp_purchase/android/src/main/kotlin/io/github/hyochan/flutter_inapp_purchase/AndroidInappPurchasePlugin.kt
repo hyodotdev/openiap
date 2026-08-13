@@ -82,11 +82,6 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
         }
     }
 
-    private fun parsePurchaseType(raw: String?): ProductQueryType {
-        val type = parseQueryType(raw)
-        return if (type == ProductQueryType.Subs) ProductQueryType.Subs else ProductQueryType.InApp
-    }
-
     private fun serializeOpenIapError(error: OpenIapError): Map<String, Any?> =
         error.toJSON().toMutableMap().apply {
             when (error) {
@@ -513,12 +508,21 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
             }
 
             "requestPurchase" -> {
-                val params = call.arguments as? Map<*, *> ?: emptyMap<String, Any?>()
-                val typeStr = params["type"] as? String
-                val purchaseType = parsePurchaseType(typeStr)
+                val validated = try {
+                    validateFlutterPurchaseParams(call.arguments)
+                } catch (e: IllegalArgumentException) {
+                    safe.error(
+                        OpenIapError.DeveloperError.CODE,
+                        OpenIapError.DeveloperError.MESSAGE,
+                        e.message,
+                    )
+                    return
+                }
+                val params = validated.values
+                val purchaseType = validated.type
                 val skus: List<String> =
                     (params["skus"] as? List<*>)
-                        ?.filterIsInstance<String>()
+                        ?.map { it as String }
                         ?: emptyList()
                 val skusNormalized = skus.filter { it.isNotBlank() }
                 val obfuscatedAccountId = params["obfuscatedAccountId"] as? String
@@ -613,10 +617,10 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                         return@launch
                     }
                     val offers =
-                        (params["subscriptionOffers"] as? List<*>)?.mapNotNull { entry ->
-                            val map = entry as? Map<*, *> ?: return@mapNotNull null
-                            val sku = map["sku"] as? String ?: return@mapNotNull null
-                            val token = map["offerToken"] as? String ?: return@mapNotNull null
+                        (params["subscriptionOffers"] as? List<*>)?.map { entry ->
+                            val map = entry as Map<*, *>
+                            val sku = map["sku"] as String
+                            val token = map["offerToken"] as String
                             AndroidSubscriptionOfferInput(sku = sku, offerToken = token)
                         } ?: emptyList()
 

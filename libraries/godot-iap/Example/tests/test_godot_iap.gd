@@ -135,6 +135,7 @@ func _run_all_tests() -> void:
 
 	# Purchase tests
 	await test_billing_choice_android_payloads()
+	test_android_purchase_lists_fail_closed()
 	await test_ios_async_result_cache()
 	await test_get_available_purchases_mock()
 	await test_android_purchase_options_bridge()
@@ -263,6 +264,70 @@ func test_billing_choice_android_payloads() -> void:
 	GodotIapPlugin._native_plugin = null
 	GodotIapPlugin._platform = ""
 	GodotIapPlugin._is_connected = false
+
+
+func test_android_purchase_lists_fail_closed() -> void:
+	var fake = FakeAndroidPlugin.new()
+	GodotIapPlugin._native_plugin = fake
+	GodotIapPlugin._platform = "Android"
+
+	var invalid_google_payloads = [
+		{"skus": ["monthly", 7]},
+		{"skus": ["coins"], "offerToken": 7},
+		{"skus": ["monthly"], "offerToken": "one-time-token"},
+		{"skus": ["monthly"], "subscriptionOffers": [{"offerToken": "token"}]},
+		{"skus": ["monthly"], "subscriptionOffers": [{"sku": "monthly"}]},
+		{"skus": ["monthly"], "subscriptionOffers": [7]},
+		{"skus": ["monthly"], "subscriptionOffers": [{"sku": "yearly", "offerToken": "token"}]},
+	]
+	for google_payload in invalid_google_payloads:
+		fake.last_purchase = {}
+		var result = GodotIapPlugin._request_purchase_raw({
+			"type": "subs",
+			"requestSubscription": {"google": google_payload},
+		})
+		_assert_false(result.get("success", true), "Malformed purchase lists should fail")
+		_assert_true(fake.last_purchase.is_empty(), "Malformed purchase lists must not reach native billing")
+
+	var invalid_in_app_payloads = [
+		{"skus": ["coins"], "subscriptionOffers": []},
+		{"skus": ["coins"], "purchaseToken": "subscription-token"},
+		{"skus": ["coins"], "originalExternalTransactionId": "external-id"},
+	]
+	for google_payload in invalid_in_app_payloads:
+		fake.last_purchase = {}
+		var result = GodotIapPlugin._request_purchase_raw({
+			"type": "in-app",
+			"requestPurchase": {"google": google_payload},
+		})
+		_assert_false(result.get("success", true), "Subscription-only fields should fail for in-app purchases")
+		_assert_true(fake.last_purchase.is_empty(), "Branch-mismatched fields must not reach native billing")
+
+	fake.last_purchase = {}
+	var nullable_offer = GodotIapPlugin._request_purchase_raw({
+		"type": "in-app",
+		"requestPurchase": {"google": {"skus": ["coins"], "offerToken": null}},
+	})
+	_assert_true(nullable_offer.get("success", false), "Null one-time offerToken should behave as absent")
+	_assert_false(fake.last_purchase.has("offerToken"), "Null one-time offerToken should not reach billing")
+
+	fake.last_purchase = {}
+	var nullable_subscription_options = GodotIapPlugin._request_purchase_raw({
+		"type": "subs",
+		"requestSubscription": {"google": {
+			"skus": ["monthly"],
+			"developerBillingOption": null,
+			"subscriptionOffers": null,
+			"subscriptionProductReplacementParams": null,
+		}},
+	})
+	_assert_true(nullable_subscription_options.get("success", false), "Nullable options should behave as absent")
+	_assert_false(fake.last_purchase.has("subscriptionOffers"), "Null offers should be omitted")
+	_assert_false(fake.last_purchase.has("developerBillingOption"), "Null billing options should be omitted")
+	_assert_false(fake.last_purchase.has("subscriptionProductReplacementParams"), "Null replacement params should be omitted")
+
+	GodotIapPlugin._native_plugin = null
+	GodotIapPlugin._platform = ""
 
 
 func test_end_connection_mock() -> void:

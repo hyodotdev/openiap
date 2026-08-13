@@ -3,6 +3,7 @@ package io.github.hyochan.kmpiap
 import com.android.billingclient.api.BillingFlowParams.ProductDetailsParams.SubscriptionProductReplacementParams.ReplacementMode
 import io.github.hyochan.kmpiap.openiap.SubscriptionProductReplacementParamsAndroid
 import io.github.hyochan.kmpiap.openiap.SubscriptionReplacementModeAndroid
+import io.github.hyochan.kmpiap.openiap.AndroidSubscriptionOfferInput
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -57,11 +58,39 @@ class SubscriptionReplacementResolutionTest {
         )
 
         inputs.forEach { input ->
-            val params = requireNotNull(SubscriptionProductReplacementParamsAndroid.fromJson(input))
-            assertEquals(SubscriptionReplacementModeAndroid.UnknownReplacementMode, params.replacementMode)
             assertFailsWith<IllegalArgumentException> {
-                mapReplacementMode(params.replacementMode)
+                SubscriptionProductReplacementParamsAndroid.fromJson(input)
             }
         }
+    }
+
+    @Test
+    fun `explicit subscription offers cover only requested SKUs`() {
+        val monthly = AndroidSubscriptionOfferInput("monthly-token", "monthly")
+        val yearly = AndroidSubscriptionOfferInput("yearly-token", "yearly")
+
+        assertEquals(false, hasInvalidKmpSubscriptionOffers(listOf("monthly"), emptyList()))
+        assertEquals(false, hasInvalidKmpSubscriptionOffers(listOf("monthly", "yearly"), listOf(monthly, yearly)))
+        assertEquals(true, hasInvalidKmpSubscriptionOffers(listOf("monthly"), listOf(yearly)))
+        assertEquals(false, hasInvalidKmpSubscriptionOffers(listOf("monthly"), listOf(monthly, monthly)))
+        assertEquals(true, hasInvalidKmpSubscriptionOffers(listOf("monthly", "yearly"), listOf(monthly)))
+    }
+
+    @Test
+    fun `explicit subscription offer tokens must exist in store metadata`() {
+        assertEquals(false, isValidKmpSubscriptionOfferToken("token", emptyList()))
+        assertEquals(false, isValidKmpSubscriptionOfferToken("future", listOf("known")))
+        assertEquals(true, isValidKmpSubscriptionOfferToken("known", listOf("known")))
+        assertEquals(false, areValidKmpSubscriptionOfferTokens(listOf("known", "future"), listOf("known")))
+        assertEquals(false, areValidKmpSubscriptionOfferTokens(listOf("future", "known"), listOf("known")))
+        assertEquals(true, areValidKmpSubscriptionOfferTokens(listOf("known", "known"), listOf("known")))
+    }
+
+    @Test
+    fun `explicit one-time offer tokens must exist in store metadata`() {
+        assertEquals(false, isValidKmpOneTimeOfferToken("", listOf("known")))
+        assertEquals(false, isValidKmpOneTimeOfferToken("token", emptyList()))
+        assertEquals(false, isValidKmpOneTimeOfferToken("future", listOf("known")))
+        assertEquals(true, isValidKmpOneTimeOfferToken("known", listOf("known")))
     }
 }

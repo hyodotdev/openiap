@@ -36,7 +36,10 @@ internal object GodotIapHelper {
      * This avoids Kotlin type inference issues with optString(key, null).
      */
     private fun JSONObject.optStringOrNull(key: String): String? {
-        return if (has(key)) optString(key).takeIf { it.isNotEmpty() } else null
+        if (!has(key) || isNull(key)) return null
+        val value = opt(key) as? String
+            ?: throw IllegalArgumentException("$key must be a string")
+        return value.takeIf { it.isNotEmpty() }
     }
 
     /**
@@ -98,24 +101,33 @@ internal object GodotIapHelper {
         val type = json.optStringOrNull("type")
 
         // Parse canonical SKUs.
-        val skus = mutableListOf<String>()
         val skusArray = json.optJSONArray("skus")
-        if (skusArray != null) {
-            for (i in 0 until skusArray.length()) {
-                skus.add(skusArray.getString(i))
+            ?: throw IllegalArgumentException("skus must be an array")
+        val skus = mutableListOf<String>()
+        for (i in 0 until skusArray.length()) {
+            val sku = skusArray.opt(i) as? String
+            if (sku.isNullOrBlank()) {
+                throw IllegalArgumentException("skus[$i] must be a non-empty string")
             }
+            skus.add(sku)
         }
 
         val obfuscatedAccountId = json.optStringOrNull("obfuscatedAccountId")
         val obfuscatedProfileId = json.optStringOrNull("obfuscatedProfileId")
 
         // Parse other options
-        val isOfferPersonalized = json.optBoolean("isOfferPersonalized", false)
+        val isOfferPersonalized = when (val value = json.opt("isOfferPersonalized")) {
+            null, JSONObject.NULL -> false
+            is Boolean -> value
+            else -> throw IllegalArgumentException("isOfferPersonalized must be a boolean")
+        }
         val purchaseToken = json.optStringOrNull("purchaseToken")
         val originalExternalTransactionId = json.optStringOrNull("originalExternalTransactionId")
 
         // Parse subscriptionProductReplacementParams (8.1.0+)
-        val subscriptionProductReplacementParams = if (json.has("subscriptionProductReplacementParams")) {
+        val subscriptionProductReplacementParams = if (
+            json.has("subscriptionProductReplacementParams") && !json.isNull("subscriptionProductReplacementParams")
+        ) {
             val paramsObj = json.optJSONObject("subscriptionProductReplacementParams")
                 ?: throw IllegalArgumentException("subscriptionProductReplacementParams must be an object")
             val oldProductId = paramsObj.optString("oldProductId").takeIf { it.isNotEmpty() }
@@ -129,7 +141,7 @@ internal object GodotIapHelper {
             )
         } else null
 
-        val developerBillingOption = if (json.has("developerBillingOption")) {
+        val developerBillingOption = if (json.has("developerBillingOption") && !json.isNull("developerBillingOption")) {
             val option = json.optJSONObject("developerBillingOption")
                 ?: throw IllegalArgumentException("developerBillingOption must be an object")
             DeveloperBillingOptionParamsAndroid.fromJson(jsonObjectToMap(option))
@@ -138,18 +150,25 @@ internal object GodotIapHelper {
         val offerToken = json.optStringOrNull("offerToken")
 
         // Parse explicit subscription offers
+        val hasExplicitSubscriptionOffers = json.has("subscriptionOffers") && !json.isNull("subscriptionOffers")
         val explicitSubscriptionOffers = mutableListOf<AndroidSubscriptionOfferInput>()
-        val offersArray = json.optJSONArray("subscriptionOffers")
-        if (offersArray != null) {
+        if (hasExplicitSubscriptionOffers) {
+            val offersArray = json.optJSONArray("subscriptionOffers")
+                ?: throw IllegalArgumentException("subscriptionOffers must be an array")
             for (i in 0 until offersArray.length()) {
-                val offer = offersArray.getJSONObject(i)
-                val sku = offer.optString("sku", "")
-                val offerToken = offer.optString("offerToken", "")
-                if (sku.isNotEmpty() && offerToken.isNotEmpty()) {
-                    explicitSubscriptionOffers.add(
-                        AndroidSubscriptionOfferInput(offerToken = offerToken, sku = sku)
-                    )
+                val offer = offersArray.optJSONObject(i)
+                    ?: throw IllegalArgumentException("subscriptionOffers[$i] must be an object")
+                val sku = offer.opt("sku") as? String
+                if (sku.isNullOrBlank()) {
+                    throw IllegalArgumentException("subscriptionOffers[$i].sku must be a non-empty string")
                 }
+                val offerToken = offer.opt("offerToken") as? String
+                if (offerToken.isNullOrBlank()) {
+                    throw IllegalArgumentException("subscriptionOffers[$i].offerToken must be a non-empty string")
+                }
+                explicitSubscriptionOffers.add(
+                    AndroidSubscriptionOfferInput(offerToken = offerToken, sku = sku)
+                )
             }
         }
 
@@ -160,6 +179,29 @@ internal object GodotIapHelper {
         )
         if (subscriptionProductReplacementParams != null && productType != ProductQueryType.Subs) {
             throw IllegalArgumentException("subscriptionProductReplacementParams requires type `subs`")
+        }
+        if (json.has("offerToken") && !json.isNull("offerToken") && productType != ProductQueryType.InApp) {
+            throw IllegalArgumentException("offerToken requires type `in-app`")
+        }
+        if (hasExplicitSubscriptionOffers) {
+            if (productType != ProductQueryType.Subs) {
+                throw IllegalArgumentException("subscriptionOffers requires type `subs`")
+            }
+            val requested = skus.toSet()
+            val offered = explicitSubscriptionOffers.mapTo(mutableSetOf()) { it.sku }
+            if (explicitSubscriptionOffers.any { it.sku !in requested } || !offered.containsAll(requested)) {
+                throw IllegalArgumentException("subscriptionOffers must match the requested skus")
+            }
+        }
+        if (json.has("purchaseToken") && !json.isNull("purchaseToken") && productType != ProductQueryType.Subs) {
+            throw IllegalArgumentException("purchaseToken requires type `subs`")
+        }
+        if (
+            json.has("originalExternalTransactionId") &&
+            !json.isNull("originalExternalTransactionId") &&
+            productType != ProductQueryType.Subs
+        ) {
+            throw IllegalArgumentException("originalExternalTransactionId requires type `subs`")
         }
 
         return RequestPurchaseParams(

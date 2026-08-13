@@ -120,12 +120,32 @@ class SubscriptionReplacementModeTest {
         )
 
         for (input in inputs) {
-            val params = requireNotNull(SubscriptionProductReplacementParamsAndroid.fromJson(input))
-            assertEquals(SubscriptionReplacementModeAndroid.UnknownReplacementMode, params.replacementMode)
             assertThrows(IllegalArgumentException::class.java) {
-                params.toBillingSubscriptionProductReplacementParams()
+                SubscriptionProductReplacementParamsAndroid.fromJson(input)
             }
         }
+    }
+
+    @Test
+    fun `explicit subscription offers cover only requested SKUs`() {
+        val monthly = AndroidSubscriptionOfferInput("monthly-token", "monthly")
+        val yearly = AndroidSubscriptionOfferInput("yearly-token", "yearly")
+
+        assertEquals(false, hasInvalidPlaySubscriptionOffers(listOf("monthly"), emptyList()))
+        assertEquals(false, hasInvalidPlaySubscriptionOffers(listOf("monthly", "yearly"), listOf(monthly, yearly)))
+        assertEquals(true, hasInvalidPlaySubscriptionOffers(listOf("monthly"), listOf(yearly)))
+        assertEquals(false, hasInvalidPlaySubscriptionOffers(listOf("monthly"), listOf(monthly, monthly)))
+        assertEquals(true, hasInvalidPlaySubscriptionOffers(listOf("monthly", "yearly"), listOf(monthly)))
+    }
+
+    @Test
+    fun `explicit subscription offer tokens must exist in store metadata`() {
+        assertEquals(false, isValidPlaySubscriptionOfferToken("token", emptyList()))
+        assertEquals(false, isValidPlaySubscriptionOfferToken("future", listOf("known")))
+        assertEquals(true, isValidPlaySubscriptionOfferToken("known", listOf("known")))
+        assertEquals(false, areValidPlaySubscriptionOfferTokens(listOf("known", "future"), listOf("known")))
+        assertEquals(false, areValidPlaySubscriptionOfferTokens(listOf("future", "known"), listOf("known")))
+        assertEquals(true, areValidPlaySubscriptionOfferTokens(listOf("known", "known"), listOf("known")))
     }
 
     @Test

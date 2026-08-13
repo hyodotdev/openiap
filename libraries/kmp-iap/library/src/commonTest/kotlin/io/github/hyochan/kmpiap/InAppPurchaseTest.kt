@@ -7,6 +7,7 @@ import io.github.hyochan.kmpiap.openiap.*
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -18,6 +19,63 @@ class InAppPurchaseTest {
         val errorCode = ErrorCode.UserCancelled
         assertEquals(ErrorCode.UserCancelled, errorCode)
         assertEquals("user-cancelled", errorCode.toJson())
+    }
+
+    @Test
+    fun testInAppMessageInputRejectsUnknownCategories() {
+        val known = InAppMessageParamsAndroid.fromJson(
+            mapOf("categories" to listOf("unknown-in-app-message-category-id"))
+        )
+        assertEquals(InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId, known.categories?.single())
+
+        listOf(
+            mapOf("categories" to listOf("future-category")),
+            mapOf("categories" to listOf(999)),
+            mapOf("categories" to "transactional"),
+        ).forEach { input ->
+            assertFailsWith<IllegalArgumentException> {
+                InAppMessageParamsAndroid.fromJson(input)
+            }
+        }
+    }
+
+    @Test
+    fun testSubscriptionPurchaseInputRejectsMalformedExplicitLists() {
+        val invalidInputs = listOf(
+            mapOf("skus" to listOf("monthly", 7)),
+            mapOf("skus" to listOf("monthly"), "obfuscatedAccountId" to 7),
+            mapOf(
+                "skus" to listOf("monthly"),
+                "subscriptionOffers" to listOf(mapOf("offerToken" to "token")),
+            ),
+            mapOf(
+                "skus" to listOf("monthly"),
+                "subscriptionOffers" to listOf(mapOf("sku" to "monthly")),
+            ),
+            mapOf("skus" to listOf("monthly"), "subscriptionOffers" to listOf(7)),
+        )
+
+        invalidInputs.forEach { input ->
+            assertFailsWith<IllegalArgumentException> {
+                RequestSubscriptionAndroidProps.fromJson(input)
+            }
+        }
+    }
+
+    @Test
+    fun testPurchaseInputRejectsNonIntegralOrOutOfRangeQuantity() {
+        listOf(1.5, Long.MAX_VALUE, Double.POSITIVE_INFINITY).forEach { quantity ->
+            assertFailsWith<IllegalArgumentException> {
+                RequestPurchaseIosProps.fromJson(
+                    mapOf("sku" to "coins", "quantity" to quantity)
+                )
+            }
+        }
+
+        assertEquals(
+            2,
+            RequestPurchaseIosProps.fromJson(mapOf("sku" to "coins", "quantity" to 2))?.quantity,
+        )
     }
 
     @Test

@@ -13,7 +13,7 @@
     "./csharp": "./src/generated/Types.cs"
   },
   "scripts": {
-    "generate": "bun run generate:ts && bun codegen/index.ts && bun run sync",
+    "generate": "bun run generate:ts && bun codegen/index.ts && bun scripts/generate-gdscript-runtime-fixture.ts && bun run sync",
     "generate:ts": "graphql-codegen --config codegen.ts && bun scripts/fix-generated-types.mjs",
     "generate:swift": "bun codegen/index.ts swift",
     "generate:kotlin": "bun codegen/index.ts kotlin",

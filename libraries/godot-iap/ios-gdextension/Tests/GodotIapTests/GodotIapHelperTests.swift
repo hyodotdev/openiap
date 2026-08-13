@@ -47,6 +47,15 @@ final class GodotIapHelperTests: XCTestCase {
         )
     }
 
+    func testProductRequestRejectsNonStringType() {
+        XCTAssertThrowsError(
+            try GodotIapHelper.decodeProductRequest(from: [
+                "skus": ["coins.100"],
+                "type": 7,
+            ])
+        )
+    }
+
     func testCanonicalPurchaseRequestDecodes() throws {
         let request = try GodotIapHelper.decodeRequestPurchaseProps(from: [
             "requestPurchase": [
@@ -104,6 +113,15 @@ final class GodotIapHelperTests: XCTestCase {
                 "requestPurchase": ["apple": ["sku": "coins.100"]],
                 "requestSubscription": ["apple": ["sku": "premium.monthly"]],
                 "type": "in-app",
+            ])
+        )
+    }
+
+    func testPurchaseRequestRejectsNonStringType() {
+        XCTAssertThrowsError(
+            try GodotIapHelper.decodeRequestPurchaseProps(from: [
+                "requestPurchase": ["apple": ["sku": "coins.100"]],
+                "type": 7,
             ])
         )
     }

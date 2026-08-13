@@ -173,7 +173,7 @@ export class DartPlugin extends CodegenPlugin {
     this.emit(`  const ${irEnum.name}(this.value);`);
     this.emit('  final String value;');
     this.emit('');
-    this.emit(`  factory ${irEnum.name}.fromJson(String value) {`);
+    this.emit(`  static ${irEnum.name}? _fromKnownJson(String value) {`);
     this.emit("    final normalized = value.toLowerCase().replaceAll('_', '-');");
     this.emit('    switch (normalized) {');
 
@@ -184,12 +184,24 @@ export class DartPlugin extends CodegenPlugin {
     }
 
     this.emit('    }');
+    this.emit('    return null;');
+    this.emit('  }');
+    this.emit('');
+    this.emit(`  factory ${irEnum.name}.fromJson(String value) {`);
+    this.emit('    final known = _fromKnownJson(value);');
+    this.emit('    if (known != null) return known;');
     const unknownValue = this.enumUnknownValue(irEnum);
     if (unknownValue) {
       this.emit(`    return ${irEnum.name}.${this.escapeKeyword(this.enumValueCase(unknownValue.name))};`);
     } else {
       this.emit(`    throw ArgumentError('Unknown ${irEnum.name} value: \$value');`);
     }
+    this.emit('  }');
+    this.emit('');
+    this.emit(`  factory ${irEnum.name}.fromJsonStrict(String value) {`);
+    this.emit('    final known = _fromKnownJson(value);');
+    this.emit('    if (known != null) return known;');
+    this.emit(`    throw ArgumentError('Unknown ${irEnum.name} input value: \$value');`);
     this.emit('  }');
     this.emit('');
     this.emit('  String toJson() => value;');
@@ -399,7 +411,12 @@ export class DartPlugin extends CodegenPlugin {
     this.emit(`  factory ${irInput.name}.fromJson(Map<String, dynamic> json) {`);
     this.emit(`    return ${irInput.name}(`);
     for (const field of sortedFields) {
-      const jsonExpr = this.buildFromJsonExpression(field.type, `json['${field.name}']`, this.buildDefaultValueExpression(field));
+      const jsonExpr = this.buildFromJsonExpression(
+        field.type,
+        `json['${field.name}']`,
+        this.buildDefaultValueExpression(field),
+        true,
+      );
       this.emit(`      ${this.escapeKeyword(field.name)}: ${jsonExpr},`);
     }
     this.emit('    );');
@@ -779,10 +796,15 @@ export class DartPlugin extends CodegenPlugin {
     return this.getPropertyType(field.resolvedReturnType);
   }
 
-  private buildFromJsonExpression(type: IRType, sourceExpr: string, defaultExpression?: string | null): string {
+  private buildFromJsonExpression(
+    type: IRType,
+    sourceExpr: string,
+    defaultExpression?: string | null,
+    isInputContext: boolean = false,
+  ): string {
     if (type.kind === 'list') {
       const listCast = `(${sourceExpr} as List<dynamic>${type.nullable ? '?' : ''})`;
-      const elementExpr = this.buildFromJsonExpression(type.elementType!, 'e');
+      const elementExpr = this.buildFromJsonExpression(type.elementType!, 'e', undefined, isInputContext);
       const mapCall = (target: string) => `${target}.map((e) => ${elementExpr}).toList()`;
       if (defaultExpression) {
         return `${listCast} == null ? ${defaultExpression} : ${mapCall(`${listCast}${type.nullable ? '!' : ''}`)}`;
@@ -822,12 +844,13 @@ export class DartPlugin extends CodegenPlugin {
     }
 
     if (type.kind === 'enum') {
+      const enumDecoder = isInputContext ? 'fromJsonStrict' : 'fromJson';
       if (defaultExpression) {
-        return `${sourceExpr} != null ? ${type.name}.fromJson(${sourceExpr} as String) : ${defaultExpression}`;
+        return `${sourceExpr} != null ? ${type.name}.${enumDecoder}(${sourceExpr} as String) : ${defaultExpression}`;
       }
       return type.nullable
-        ? `${sourceExpr} != null ? ${type.name}.fromJson(${sourceExpr} as String) : null`
-        : `${type.name}.fromJson(${sourceExpr} as String)`;
+        ? `${sourceExpr} != null ? ${type.name}.${enumDecoder}(${sourceExpr} as String) : null`
+        : `${type.name}.${enumDecoder}(${sourceExpr} as String)`;
     }
 
     if (['object', 'input', 'interface', 'union'].includes(type.kind)) {

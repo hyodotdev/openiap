@@ -119,12 +119,17 @@ export const GENERATED_SYNC_EDGES = Object.freeze(
   ),
 );
 
+export const GENERATED_TEST_FIXTURE_PATHS = Object.freeze([
+  'libraries/godot-iap/Example/tests/generated_nullable_enum_list_types.gd',
+]);
+
 export const GENERATED_DRIFT_PATHS = Object.freeze([
   ...new Set([
     ...Object.values(GENERATED_SYNC_MANIFEST)
       .filter((definition) => definition.generated)
       .map((definition) => definition.source),
     ...GENERATED_SYNC_EDGES.map((edge) => edge.path),
+    ...GENERATED_TEST_FIXTURE_PATHS,
   ]),
 ]);
 

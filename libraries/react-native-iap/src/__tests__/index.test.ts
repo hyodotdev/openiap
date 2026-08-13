@@ -748,6 +748,17 @@ describe('Public API (src/index.ts)', () => {
   });
 
   describe('requestPurchase', () => {
+    it('rejects all without dispatching a purchase', async () => {
+      (Platform as any).OS = 'android';
+      await expect(
+        IAP.requestPurchase({
+          request: {google: {skus: ['p1']}},
+          type: 'all' as any,
+        }),
+      ).rejects.toThrow(/only supported for product queries/);
+      expect(mockIap.requestPurchase).not.toHaveBeenCalled();
+    });
+
     it('requires apple.sku on iOS', async () => {
       (Platform as any).OS = 'ios';
       await expect(
@@ -858,6 +869,54 @@ describe('Public API (src/index.ts)', () => {
         {sku: 'sub1', offerToken: 'offer-2'},
       ]);
     });
+
+    it.each([
+      [[[null]]],
+      [[{sku: 'sub1'}]],
+      [[{sku: '', offerToken: 'offer-token'}]],
+      [[{sku: 'sub1', offerToken: ''}]],
+    ])(
+      'Android subs rejects malformed explicit offers without dispatching: %j',
+      async (subscriptionOffers) => {
+        (Platform as any).OS = 'android';
+        await expect(
+          IAP.requestPurchase({
+            request: {
+              google: {
+                skus: ['sub1'],
+                subscriptionOffers,
+              } as any,
+            },
+            type: 'subs',
+          }),
+        ).rejects.toThrow(/Every subscription offer/);
+        expect(mockIap.requestPurchase).not.toHaveBeenCalled();
+      },
+    );
+
+    it.each([
+      ['in-app', {skus: ['coins'], subscriptionOffers: []}],
+      [
+        'in-app',
+        {
+          skus: ['coins'],
+          subscriptionProductReplacementParams: {
+            oldProductId: 'old',
+            replacementMode: 'without-proration',
+          },
+        },
+      ],
+      ['subs', {skus: ['premium'], offerToken: 'one-time-token'}],
+    ])(
+      'rejects branch-mismatched Android options for %s without dispatching',
+      async (type, google) => {
+        (Platform as any).OS = 'android';
+        await expect(
+          IAP.requestPurchase({request: {google} as any, type: type as any}),
+        ).rejects.toThrow(/must match the selected product type/);
+        expect(mockIap.requestPurchase).not.toHaveBeenCalled();
+      },
+    );
 
     it('Android subs forwards subscriptionProductReplacementParams when provided', async () => {
       (Platform as any).OS = 'android';
