@@ -81,10 +81,11 @@ and the file is covered by the same provenance attestation.
 
 ## Lifecycle
 
-VEX is a per-release snapshot, like the SBOM. Editing a statement changes only
-future releases; a published SBOM is never rewritten. If an assessment changes
-— for example a `not_affected` becomes `exploitable` after new information —
-that is a security advisory and a new release, not an edit to history.
+VEX is a release-specific snapshot, like the SBOM. Editing a statement changes
+only future releases; published assets follow the canonical
+[`SBOM.md` update policy](../SBOM.md#update-policy). If an assessment changes —
+for example a `not_affected` becomes `exploitable` after new information — that
+is a security advisory and a new release, not an edit to history.
 
 See [`../SBOM.md`](../SBOM.md) for the inventory these statements annotate and
 [`../../SECURITY.md`](../../SECURITY.md) for the reporting process that

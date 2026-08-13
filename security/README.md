@@ -4,13 +4,13 @@ This directory documents how OpenIAP secures what it ships. It holds policy and
 the reasoning behind it; the automation lives in `scripts/` and
 `.github/workflows/`, and no generated artifact is stored here.
 
-| Document                           | Covers                                                                      |
-| ---------------------------------- | --------------------------------------------------------------------------- |
-| [SBOM.md](SBOM.md)                 | Per-release dependency inventories: scope, format, generation, verification |
-| [vex/](vex/README.md)              | Recorded judgements on whether a known CVE actually affects a component     |
-| [CRA.md](CRA.md)                   | How these practices map to EU Cyber Resilience Act expectations             |
-| [openchain.md](openchain.md)       | Self-assessment against ISO/IEC 18974 and 5230, with the current gap list   |
-| [`../SECURITY.md`](../SECURITY.md) | Vulnerability reporting, disclosure, supported versions                     |
+| Document                           | Covers                                                                          |
+| ---------------------------------- | ------------------------------------------------------------------------------- |
+| [SBOM.md](SBOM.md)                 | Current-release dependency inventories: scope, format, generation, verification |
+| [vex/](vex/README.md)              | Recorded judgements on whether a known CVE actually affects a component         |
+| [CRA.md](CRA.md)                   | How these practices map to EU Cyber Resilience Act expectations                 |
+| [openchain.md](openchain.md)       | Self-assessment against ISO/IEC 18974 and 5230, with the current gap list       |
+| [`../SECURITY.md`](../SECURITY.md) | Vulnerability reporting, disclosure, supported versions                         |
 
 Vulnerability reporting stays at the repository root, where GitHub and most
 contributors look for it.
@@ -55,7 +55,7 @@ contributors look for it.
 
 | Capability              | Mechanism                                                                                                                                                                                                           |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Per-release SBOM        | `scripts/generate-sbom.mjs` + `.github/workflows/sbom.yml` — [CycloneDX 1.6](https://cyclonedx.org/specification/overview/)                                                                                         |
+| Current-release SBOM    | `scripts/generate-sbom.mjs` + `.github/workflows/sbom.yml` — [CycloneDX 1.6](https://cyclonedx.org/specification/overview/)                                                                                         |
 | SBOM provenance         | [`actions/attest-build-provenance`](https://github.com/actions/attest-build-provenance) — [SLSA](https://slsa.dev/provenance/v1) via [Sigstore](https://www.sigstore.dev/), verifiable with `gh attestation verify` |
 | npm artifact provenance | `npm publish --provenance`, re-verified by `scripts/verify-npm-release-provenance.mjs`                                                                                                                              |
 | Release-tag integrity   | `scripts/assert-release-tag.mjs` — immutable tags, version must match, reachable from `main`                                                                                                                        |
@@ -82,8 +82,9 @@ Dockerfile. That is a deliberate scope, not an oversight:
   dependencies deliberately, often with compatibility constraints documented
   inline in the build files. Automated bumps there tend to break consumers'
   toolchain compatibility rather than help; their versions are reviewed as part
-  of platform upgrade work, and the SBOMs record exactly what each release
-  shipped.
+  of platform upgrade work. Each current release SBOM records its published
+  direct dependency contract; a toolchain resolver export can add transitive
+  entries for a consuming application.
 
 ## What GitHub's dependency graph does and does not see
 

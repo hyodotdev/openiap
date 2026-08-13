@@ -139,12 +139,17 @@ jobs:
           ASSET=$(jq -c --arg name "$SBOM_NAME" \
             '[.assets[] | select(.name == $name)][0] // empty' \
             <<< "$RELEASE_JSON")
-          if [ -z "$ASSET" ]; then
+          STAGED_ASSET=$(jq -c --arg name "$SBOM_NAME.replacement" \
+            '[.assets[] | select(.name == $name)][0] // empty' \
+            <<< "$RELEASE_JSON")
+          if [ -n "$REPAIR_DIGEST" ] && [ -n "$STAGED_ASSET" ]; then
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::A staged legacy repair will be reconciled."
+          elif [ -z "$ASSET" ]; then
             echo "exists=false" >> "$GITHUB_OUTPUT"
           elif [ -n "$REPAIR_DIGEST" ] && \
             [ "$(jq -r '.digest // ""' <<< "$ASSET")" = "$REPAIR_DIGEST" ]; then
             echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "replace-asset-id=$(jq -r '.id' <<< "$ASSET")" >> "$GITHUB_OUTPUT"
             echo "::notice::$SBOM_NAME matches a known inaccurate legacy digest and will be replaced once."
           else
             echo "exists=true" >> "$GITHUB_OUTPUT"
@@ -249,22 +254,99 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPAIR_DIGEST: ${{ steps.component.outputs.repair-digest }}
-          REPLACE_ASSET_ID: ${{ steps.existing.outputs.replace-asset-id }}
           RELEASE_TAG: ${{ steps.tag.outputs.tag }}
           SBOM_FILE: ${{ steps.generate.outputs.sbom-file }}
+          SBOM_NAME: ${{ steps.component.outputs.sbom-name }}
         run: |
-          if [ -n "$REPLACE_ASSET_ID" ]; then
-            CURRENT_DIGEST=$(gh api \
-              "repos/$GITHUB_REPOSITORY/releases/assets/$REPLACE_ASSET_ID" \
-              --jq '.digest // ""')
-            if [ "$CURRENT_DIGEST" != "$REPAIR_DIGEST" ]; then
-              echo "::error::The legacy SBOM asset changed during repair; refusing to replace it."
-              exit 1
-            fi
-            gh api --method DELETE \
-              "repos/$GITHUB_REPOSITORY/releases/assets/$REPLACE_ASSET_ID"
+          if [ -z "$REPAIR_DIGEST" ]; then
+            gh release upload "$RELEASE_TAG" "$SBOM_FILE"
+            exit 0
           fi
-          gh release upload "$RELEASE_TAG" "$SBOM_FILE"
+
+          STAGED_NAME="$SBOM_NAME.replacement"
+          STAGED_FILE="$RUNNER_TEMP/$STAGED_NAME"
+          cp "$SBOM_FILE" "$STAGED_FILE"
+          RELEASE_JSON=$(gh api \
+            "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG")
+          CANONICAL_ASSET=$(jq -c --arg name "$SBOM_NAME" \
+            '[.assets[] | select(.name == $name)][0] // empty' \
+            <<< "$RELEASE_JSON")
+          STAGED_ASSET=$(jq -c --arg name "$STAGED_NAME" \
+            '[.assets[] | select(.name == $name)][0] // empty' \
+            <<< "$RELEASE_JSON")
+          CANONICAL_ASSET_ID=$(jq -r '.id // ""' <<< "$CANONICAL_ASSET")
+          CANONICAL_DIGEST=$(jq -r '.digest // ""' <<< "$CANONICAL_ASSET")
+          STAGED_ASSET_ID=$(jq -r '.id' <<< "$STAGED_ASSET")
+          STAGED_DIGEST=$(jq -r '.digest // ""' <<< "$STAGED_ASSET")
+          LOCAL_DIGEST="sha256:$(sha256sum "$STAGED_FILE" | cut -d ' ' -f 1)"
+
+          finalize_staged_asset() {
+            for _ in {1..5}; do
+              if gh api --method PATCH \
+                "repos/$GITHUB_REPOSITORY/releases/assets/$STAGED_ASSET_ID" \
+                -f name="$SBOM_NAME" >/dev/null; then
+                return 0
+              fi
+              sleep 5
+            done
+            echo "::error::The verified replacement remains attached as $STAGED_NAME but could not be renamed."
+            return 1
+          }
+
+          if [ -n "$CANONICAL_ASSET_ID" ] && [ "$CANONICAL_DIGEST" != "$REPAIR_DIGEST" ]; then
+            if [ -n "$STAGED_ASSET_ID" ]; then
+              gh api --method DELETE \
+                "repos/$GITHUB_REPOSITORY/releases/assets/$STAGED_ASSET_ID"
+            fi
+            echo "::notice::$SBOM_NAME is already corrected; any staged repair was removed."
+            exit 0
+          fi
+
+          if [ -z "$CANONICAL_ASSET_ID" ]; then
+            if [ -n "$STAGED_ASSET_ID" ] && [ "$STAGED_DIGEST" = "$LOCAL_DIGEST" ]; then
+              finalize_staged_asset
+            else
+              if [ -n "$STAGED_ASSET_ID" ]; then
+                gh api --method DELETE \
+                  "repos/$GITHUB_REPOSITORY/releases/assets/$STAGED_ASSET_ID"
+              fi
+              gh release upload "$RELEASE_TAG" "$SBOM_FILE"
+            fi
+            exit 0
+          fi
+
+          if [ -n "$STAGED_ASSET_ID" ] && [ "$STAGED_DIGEST" != "$LOCAL_DIGEST" ]; then
+            gh api --method DELETE \
+              "repos/$GITHUB_REPOSITORY/releases/assets/$STAGED_ASSET_ID"
+            STAGED_ASSET_ID=""
+          fi
+          if [ -z "$STAGED_ASSET_ID" ]; then
+            gh release upload "$RELEASE_TAG" "$STAGED_FILE"
+            RELEASE_JSON=$(gh api \
+              "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG")
+            STAGED_ASSET=$(jq -c --arg name "$STAGED_NAME" \
+              '[.assets[] | select(.name == $name)][0] // empty' \
+              <<< "$RELEASE_JSON")
+            STAGED_ASSET_ID=$(jq -r '.id // ""' <<< "$STAGED_ASSET")
+            STAGED_DIGEST=$(jq -r '.digest // ""' <<< "$STAGED_ASSET")
+          fi
+          if [ -z "$STAGED_ASSET_ID" ] || [ "$STAGED_DIGEST" != "$LOCAL_DIGEST" ]; then
+            echo "::error::The staged replacement SBOM failed digest verification."
+            exit 1
+          fi
+
+          CURRENT_DIGEST=$(gh api \
+            "repos/$GITHUB_REPOSITORY/releases/assets/$CANONICAL_ASSET_ID" \
+            --jq '.digest // ""')
+          if [ "$CURRENT_DIGEST" != "$REPAIR_DIGEST" ]; then
+            gh api --method DELETE \
+              "repos/$GITHUB_REPOSITORY/releases/assets/$STAGED_ASSET_ID"
+            echo "::error::The legacy SBOM asset changed during repair; refusing to replace it."
+            exit 1
+          fi
+          gh api --method DELETE \
+            "repos/$GITHUB_REPOSITORY/releases/assets/$CANONICAL_ASSET_ID"
+          finalize_staged_asset
 
       - name: Report a skipped tag
         if: ${{ steps.component.outputs.matched != 'true' }}

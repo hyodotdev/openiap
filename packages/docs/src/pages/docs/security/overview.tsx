@@ -74,7 +74,8 @@ const POSTURE_LAYERS: Layer[] = [
   },
   {
     name: 'SBOM',
-    question: 'what exactly did each published version contain?',
+    question:
+      'what direct dependency contract did each current published version declare?',
   },
   {
     name: 'OpenSSF Scorecard',
@@ -116,7 +117,7 @@ function SecurityOverview() {
     <div className="doc-page">
       <SEO
         title="Supply Chain Security"
-        description="How OpenIAP secures what it ships — per-release SBOMs, build provenance, release integrity, and vulnerability reporting."
+        description="How OpenIAP secures what it ships — current-release SBOMs, build provenance, release integrity, and vulnerability reporting."
         path="/docs/security/overview"
         keywords="OpenIAP security, SBOM, supply chain security, provenance, attestation, vulnerability disclosure"
       />
@@ -163,7 +164,8 @@ function SecurityOverview() {
           on StoreKit, which ships with the OS. The native Android, Kotlin
           Multiplatform, .NET MAUI, and Flutter SDKs do depend on platform
           libraries (Play Billing, AndroidX, Kotlin coroutines, and so on);
-          those are enumerated in each release&apos;s SBOM.
+          their current release SBOMs enumerate the published direct dependency
+          contracts.
         </p>
         <Callout kind="tip" title="Why this matters for your review">
           A dependency that does not exist cannot be vulnerable. For the
@@ -246,7 +248,9 @@ function SecurityOverview() {
           carry inline notes explaining why a newer version is not yet
           compatible with the supported toolchain range. They are reviewed as
           part of platform upgrade work rather than bumped automatically, and
-          each release&apos;s SBOM records exactly what shipped.
+          each current release&apos;s SBOM records its published direct
+          dependency contract. A toolchain resolver export can add transitive
+          entries when needed.
         </p>
         <Callout kind="warning" title="Why the SBOM is not redundant here">
           GitHub&apos;s dependency-graph SBOM endpoint currently returns HTTP

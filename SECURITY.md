@@ -77,9 +77,9 @@ deadline:
 | Within 72 hours of awareness                          | Assessment updated with severity, impact, and any mitigation available to users                                               |
 | Within 14 days of a fix or mitigation being available | Final assessment: root cause, the fix or mitigation, and the affected-version list                                            |
 
-Affected published versions are determined from the SBOM attached to each
-release, so the answer is derived from what actually shipped rather than
-reconstructed from memory. Users are informed through the GitHub Security
+Affected current versions are determined from their attached SBOMs. Older
+releases without a backfilled asset are investigated from their immutable tag
+and published descriptors. Users are informed through the GitHub Security
 Advisory, the release notes of the fixing release, and the repository README
 when the impact is broad.
 

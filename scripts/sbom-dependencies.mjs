@@ -41,6 +41,238 @@ function encodePurlVersion(version) {
   return encodeURIComponent(version).replaceAll("%3A", ":");
 }
 
+function scanGradleSource(source) {
+  const commentFree = [...source];
+  const structural = [...source];
+  let state = "code";
+  let blockDepth = 0;
+
+  const mask = (index, commentsOnly = false) => {
+    if (source[index] !== "\n" && source[index] !== "\r") {
+      structural[index] = " ";
+      if (!commentsOnly) return;
+      commentFree[index] = " ";
+    }
+  };
+
+  for (let index = 0; index < source.length; index += 1) {
+    const pair = source.slice(index, index + 2);
+    const triple = source.slice(index, index + 3);
+
+    if (state === "line-comment") {
+      mask(index, true);
+      if (source[index] === "\n" || source[index] === "\r") state = "code";
+      continue;
+    }
+    if (state === "block-comment") {
+      if (pair === "/*") blockDepth += 1;
+      mask(index, true);
+      if (pair === "*/") {
+        mask(index + 1, true);
+        blockDepth -= 1;
+        index += 1;
+        if (blockDepth === 0) state = "code";
+      }
+      continue;
+    }
+    if (state === "raw-string") {
+      if (source[index] === '"') {
+        let quoteCount = 1;
+        while (source[index + quoteCount] === '"') quoteCount += 1;
+        for (let offset = 0; offset < quoteCount; offset += 1) {
+          mask(index + offset);
+        }
+        index += quoteCount - 1;
+        if (quoteCount >= 3) state = "code";
+      } else {
+        mask(index);
+      }
+      continue;
+    }
+    if (state === "string" || state === "character") {
+      mask(index);
+      if (source[index] === "\\") {
+        mask(index + 1);
+        index += 1;
+      } else if (
+        (state === "string" && source[index] === '"') ||
+        (state === "character" && source[index] === "'")
+      ) {
+        state = "code";
+      }
+      continue;
+    }
+
+    if (pair === "//") {
+      mask(index, true);
+      mask(index + 1, true);
+      index += 1;
+      state = "line-comment";
+    } else if (pair === "/*") {
+      mask(index, true);
+      mask(index + 1, true);
+      index += 1;
+      blockDepth = 1;
+      state = "block-comment";
+    } else if (triple === '\"\"\"') {
+      mask(index);
+      mask(index + 1);
+      mask(index + 2);
+      index += 2;
+      state = "raw-string";
+    } else if (source[index] === '"') {
+      mask(index);
+      state = "string";
+    } else if (source[index] === "'") {
+      mask(index);
+      state = "character";
+    }
+  }
+
+  if (state === "block-comment" || state === "raw-string") {
+    throw new Error(`Unterminated Gradle ${state.replace("-", " ")}`);
+  }
+  return {
+    commentFree: commentFree.join(""),
+    structural: structural.join(""),
+  };
+}
+
+function gradleDependencySource(source, manifest) {
+  const { commentFree, structural } = scanGradleSource(source);
+  const braceDepths = new Uint32Array(structural.length);
+  let braceDepth = 0;
+  for (let index = 0; index < structural.length; index += 1) {
+    braceDepths[index] = braceDepth;
+    if (structural[index] === "{") braceDepth += 1;
+    if (structural[index] === "}") {
+      if (braceDepth === 0) throw new Error("Unbalanced Gradle block braces");
+      braceDepth -= 1;
+    }
+  }
+  if (braceDepth !== 0) throw new Error("Unbalanced Gradle block braces");
+
+  const blocks = [];
+  const pattern = /\bdependencies\s*\{/gu;
+  for (
+    let match = pattern.exec(structural);
+    match;
+    match = pattern.exec(structural)
+  ) {
+    const open = match.index + match[0].lastIndexOf("{");
+    if (braceDepths[match.index] !== 0) continue;
+    let depth = 1;
+    let cursor = open + 1;
+    for (; cursor < structural.length && depth > 0; cursor += 1) {
+      if (structural[cursor] === "{") depth += 1;
+      if (structural[cursor] === "}") depth -= 1;
+    }
+    if (depth !== 0) {
+      throw new Error(`Unterminated Gradle dependencies block in ${manifest}`);
+    }
+    blocks.push(
+      filterGradleDependencyBlock(
+        commentFree.slice(open + 1, cursor - 1),
+        manifest,
+      ),
+    );
+    pattern.lastIndex = cursor;
+  }
+  if (blocks.length === 0) {
+    throw new Error(`Missing Gradle dependencies block in ${manifest}`);
+  }
+  return { commentFree, dependencies: blocks.join("\n") };
+}
+
+function filterGradleDependencyBlock(source, manifest) {
+  const { structural } = scanGradleSource(source);
+  const filtered = [...source];
+  const visible = [true];
+  const previousCodeIndex = (from) => {
+    let cursor = from;
+    while (cursor >= 0 && /\s/u.test(structural[cursor])) cursor -= 1;
+    return cursor;
+  };
+  const identifierBefore = (from) => {
+    const end = previousCodeIndex(from) + 1;
+    let start = end;
+    while (start > 0 && /[A-Za-z0-9_]/u.test(structural[start - 1])) {
+      start -= 1;
+    }
+    return structural.slice(start, end);
+  };
+  const callBefore = (close) => {
+    let depth = 1;
+    let cursor = close - 1;
+    for (; cursor >= 0 && depth > 0; cursor -= 1) {
+      if (structural[cursor] === ")") depth += 1;
+      if (structural[cursor] === "(") depth -= 1;
+    }
+    if (depth !== 0) throw new Error("Unbalanced Gradle call parentheses");
+    return identifierBefore(cursor);
+  };
+
+  for (let index = 0; index < structural.length; index += 1) {
+    if (structural[index] === "{") {
+      const parentVisible = visible.at(-1);
+      let childVisible = false;
+      if (parentVisible) {
+        const previous = previousCodeIndex(index - 1);
+        const owner =
+          structural[previous] === ")"
+            ? callBefore(previous)
+            : identifierBefore(previous);
+        if (["if", "for", "when", "while", "else"].includes(owner)) {
+          childVisible = true;
+        } else if (owner !== "constraints" && structural[previous] !== ")") {
+          throw new Error(`Unsupported Gradle block in ${manifest}`);
+        }
+      }
+      visible.push(childVisible);
+      filtered[index] = " ";
+    } else if (structural[index] === "}") {
+      if (visible.length === 1)
+        throw new Error("Unbalanced Gradle block braces");
+      visible.pop();
+      filtered[index] = " ";
+    } else if (
+      !visible.at(-1) &&
+      source[index] !== "\n" &&
+      source[index] !== "\r"
+    ) {
+      filtered[index] = " ";
+    }
+  }
+  if (visible.length !== 1) throw new Error("Unbalanced Gradle block braces");
+  return filtered.join("");
+}
+
+function topLevelGradleCalls(source) {
+  const { structural } = scanGradleSource(source);
+  const depths = new Uint32Array(structural.length);
+  let depth = 0;
+  for (let index = 0; index < structural.length; index += 1) {
+    depths[index] = depth;
+    if (structural[index] === "(") depth += 1;
+    if (structural[index] === ")") {
+      if (depth === 0) throw new Error("Unbalanced Gradle call parentheses");
+      depth -= 1;
+    }
+  }
+  if (depth !== 0) throw new Error("Unbalanced Gradle call parentheses");
+
+  return [...structural.matchAll(/\b([A-Za-z][A-Za-z0-9]*)\s*\(/gu)]
+    .filter((match) => {
+      if (depths[match.index] !== 0) return false;
+      const lineStart = structural.lastIndexOf("\n", match.index - 1) + 1;
+      const prefix = structural.slice(lineStart, match.index);
+      return !/^\s*(?:(?:val|var)\s+)?[A-Za-z_][A-Za-z0-9_]*(?:\s*:[^=]+)?\s*=\s*$/u.test(
+        prefix,
+      );
+    })
+    .map((match) => ({ index: match.index, name: match[1], text: match[0] }));
+}
+
 function isVersionConstraint(version) {
   return (
     version === "any" ||
@@ -162,18 +394,29 @@ function isRuntimeGradleConfiguration(configuration) {
 
 function extractGradle(root, { manifest, externalLocals }) {
   const source = readText(root, manifest);
-  const locals = readGradleLocals(source);
+  const { commentFree, dependencies } = gradleDependencySource(
+    source,
+    manifest,
+  );
+  const locals = readGradleLocals(commentFree);
   for (const [name, value] of readExternalLocals(root, externalLocals)) {
     locals.set(name, value);
   }
 
-  if (/\b(?:api|implementation|runtimeOnly)\s*\(\s*libs\./u.test(source)) {
+  for (const match of dependencies.matchAll(
+    /\b([A-Za-z][A-Za-z0-9]*)\s*\(\s*libs\./gu,
+  )) {
+    if (match[1] === "alias") continue;
     throw new Error(
       `Unsupported version-catalog dependency in ${manifest}; use published metadata instead`,
     );
   }
 
   const found = new Map();
+  const matchedDeclarations = new Set();
+  const topLevelCalls = topLevelGradleCalls(dependencies);
+  const topLevelCallIndices = new Set(topLevelCalls.map((call) => call.index));
+  let usesLocalOpeniapProject = false;
   const record = (configuration, rawCoordinate) => {
     if (!isRuntimeGradleConfiguration(configuration)) return;
     const parsed = parseMavenCoordinate(
@@ -182,15 +425,47 @@ function extractGradle(root, { manifest, externalLocals }) {
     found.set(parsed.purl, parsed);
   };
 
-  for (const match of source.matchAll(
+  for (const match of dependencies.matchAll(
     /\b([a-zA-Z][A-Za-z0-9]*)\s*\(\s*"([^"]+:[^"]+:[^"]+)"\s*\)/gu,
   )) {
+    if (!topLevelCallIndices.has(match.index)) continue;
+    matchedDeclarations.add(match.index);
     record(match[1], match[2]);
   }
-  for (const match of source.matchAll(
+  for (const match of dependencies.matchAll(
     /\badd\s*\(\s*"([^"]+)"\s*,\s*"([^"]+:[^"]+:[^"]+)"\s*\)/gu,
   )) {
+    if (!topLevelCallIndices.has(match.index)) continue;
+    matchedDeclarations.add(match.index);
     record(match[1], match[2]);
+  }
+
+  for (const call of topLevelCalls) {
+    if (["if", "for", "when", "while"].includes(call.name)) continue;
+    if (matchedDeclarations.has(call.index)) continue;
+    if (call.name === "add") {
+      throw new Error(
+        `Unsupported Gradle dependency declaration in ${manifest}`,
+      );
+    }
+    if (!isRuntimeGradleConfiguration(call.name)) continue;
+    const argument = dependencies.slice(call.index + call.text.length);
+    if (/^\s*project\s*\(\s*":openiap"\s*\)/u.test(argument)) {
+      usesLocalOpeniapProject = true;
+      continue;
+    }
+    throw new Error(`Unsupported Gradle dependency declaration in ${manifest}`);
+  }
+
+  if (
+    usesLocalOpeniapProject &&
+    ![...found.values()].some(
+      (entry) => entry.name === "io.github.hyochan.openiap:openiap-google",
+    )
+  ) {
+    throw new Error(
+      `Local :openiap dependency in ${manifest} lacks its published fallback`,
+    );
   }
 
   return [...found.values()].sort((left, right) =>

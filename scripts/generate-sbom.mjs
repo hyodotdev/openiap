@@ -236,7 +236,7 @@ export function inaccurateSbomDigestForTag(tag) {
   return INACCURATE_SBOM_DIGESTS.get(tag) ?? "";
 }
 
-/** Return newest component releases with a missing or known-inaccurate SBOM. */
+/** Return newest missing releases plus every known-inaccurate legacy SBOM. */
 export function findMissingLatestSbomTags(releases) {
   const seen = new Set();
   const missing = [];
@@ -248,15 +248,26 @@ export function findMissingLatestSbomTags(releases) {
     );
   for (const release of newestFirst) {
     const resolvedTag = componentFromTag(release.tag_name);
-    if (!resolvedTag || seen.has(resolvedTag.componentId)) continue;
-    seen.add(resolvedTag.componentId);
+    if (!resolvedTag) continue;
     const expected = sbomFileName(resolvedTag.componentId, resolvedTag.version);
     const assets = Array.isArray(release.assets) ? release.assets : [];
     const asset = assets.find((entry) => entry?.name === expected);
+    const stagedAsset = assets.find(
+      (entry) => entry?.name === `${expected}.replacement`,
+    );
     const inaccurateDigest = inaccurateSbomDigestForTag(release.tag_name);
-    if (!asset || (inaccurateDigest && asset.digest === inaccurateDigest)) {
+
+    // Legacy repairs remain eligible even after a newer component release.
+    if (
+      inaccurateDigest &&
+      (stagedAsset || !asset || asset.digest === inaccurateDigest)
+    ) {
       missing.push(release.tag_name);
     }
+
+    if (seen.has(resolvedTag.componentId)) continue;
+    seen.add(resolvedTag.componentId);
+    if (!asset && !inaccurateDigest) missing.push(release.tag_name);
   }
   return missing;
 }

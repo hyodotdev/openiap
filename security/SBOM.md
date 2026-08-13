@@ -260,8 +260,9 @@ local filesystem path leaked into the document. Any mismatch fails the run.
 Tags that do not belong to a component are skipped with a notice rather than
 failing. A duplicate dispatch preserves an existing SBOM. The repair scan
 recognizes the exact digest of the inaccurate Google 3.3.0 asset produced by the
-retired source-manifest reader and replaces that asset once; no other existing
-asset is overwritten.
+retired source-manifest reader and replaces that asset once. It uploads and
+verifies the corrected document under a temporary name before removing the
+legacy asset; no other existing asset is overwritten.
 
 ## Storage location
 
@@ -375,13 +376,13 @@ git worktree remove --force "$SBOM_REPRO_DIR"
 The SBOM is an input to vulnerability response, not the goal:
 
 ```text
-SBOM (per released version)
+SBOM (per current released version)
    │
    ▼
 dependency inventory  ←──  Dependabot alerts (packages/kit, GitHub Actions, Docker)
    │
    ▼
-affected-version analysis  ──  "which shipped releases contain this CVE?"
+affected-version analysis  ──  "which releases declare the affected dependency?"
    │
    ▼
 security advisory + patch
@@ -391,9 +392,10 @@ new release  →  new SBOM
 ```
 
 Its concrete value here is answering the affected-version question. Dependabot
-tells us a dependency is vulnerable _today, on `main`_. The published SBOMs
-tell us which already-shipped versions contain it — which is what a consumer
-needs to know and what an advisory has to state.
+tells us a dependency is vulnerable _today, on `main`_. Current release SBOMs
+identify their direct dependency contracts; older releases without an asset are
+investigated from their immutable tag and published descriptors when an
+advisory needs an affected-version list.
 
 See [README.md](README.md) for the full vulnerability-management picture and
 [CRA.md](CRA.md) for how this maps onto Cyber Resilience Act expectations.

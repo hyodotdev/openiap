@@ -33,7 +33,8 @@ const PROVISIONS: Provision[] = [
     need: 'Component inventory for a product you ship',
     provided: (
       <>
-        The per-release <a href="/docs/security/sbom">SBOM</a>, in CycloneDX 1.6
+        The current-release <a href="/docs/security/sbom">SBOM</a>, in CycloneDX
+        1.6
       </>
     ),
   },
@@ -220,9 +221,9 @@ function SecurityCompliance() {
           The assessment is published as a gap list, not a conformance claim —
           it records what exists, what does not, and what is out of proportion
           for a project of this size. Met today: the public reporting channel
-          with a documented response path, and the automated per-release SBOM.
-          Open: a single named security-assurance policy document, competency
-          and assessment records, and a declared license policy.
+          with a documented response path, and the automated current-release
+          SBOM. Open: a single named security-assurance policy document,
+          competency and assessment records, and a declared license policy.
         </p>
         <p>
           <a

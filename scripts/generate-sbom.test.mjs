@@ -262,10 +262,34 @@ test("backfill repairs only the exact known inaccurate SBOM", () => {
       {
         tag_name: tag,
         published_at,
+        assets: [
+          { name, digest: `sha256:${"0".repeat(64)}` },
+          { name: `${name}.replacement` },
+        ],
+      },
+    ]),
+    [tag],
+  );
+  assert.deepEqual(
+    findMissingLatestSbomTags([
+      {
+        tag_name: tag,
+        published_at,
         assets: [{ name, digest: `sha256:${"0".repeat(64)}` }],
       },
     ]),
     [],
+  );
+  assert.deepEqual(
+    findMissingLatestSbomTags([
+      {
+        tag_name: "google-3.4.0",
+        published_at: "2026-08-12T00:00:00Z",
+        assets: [{ name: "openiap-google-3.4.0.cdx.json" }],
+      },
+      { tag_name: tag, published_at, assets: [{ name, digest: inaccurate }] },
+    ]),
+    [tag],
   );
 });
 
@@ -306,8 +330,25 @@ test("SBOM publication waits for registry propagation and repairs daily", () => 
   assert.match(source, /for attempt in \{1\.\.16\}/u);
   assert.match(source, /\[ "\$STATUS" -ne 75 \]/u);
   assert.doesNotMatch(source, /grep.+Published/u);
-  assert.match(source, /replace-asset-id=/u);
+  assert.match(source, /A staged legacy repair will be reconciled/u);
   assert.match(source, /CURRENT_DIGEST.*!=.*REPAIR_DIGEST/u);
+  const stagedUpload = source.indexOf(
+    'gh release upload "$RELEASE_TAG" "$STAGED_FILE"',
+  );
+  const legacyDelete = source.indexOf(
+    'gh api --method DELETE \\\n            "repos/$GITHUB_REPOSITORY/releases/assets/$CANONICAL_ASSET_ID"',
+  );
+  const stagedRename = source.indexOf(
+    "\n          finalize_staged_asset\n",
+    legacyDelete,
+  );
+  assert.ok(stagedUpload >= 0, "replacement must be uploaded before deletion");
+  assert.ok(legacyDelete > stagedUpload, "legacy deletion must follow staging");
+  assert.ok(stagedRename > legacyDelete, "staged asset must be finalized last");
+  assert.match(source, /STAGED_DIGEST.*!=.*LOCAL_DIGEST/u);
+  assert.match(source, /STAGED_NAME="\$SBOM_NAME\.replacement"/u);
+  assert.match(source, /if \[ -z "\$CANONICAL_ASSET_ID" \]/u);
+  assert.match(source, /STAGED_DIGEST" = "\$LOCAL_DIGEST/u);
   assert.match(source, /persist-credentials: false/u);
   assert.match(source, /sleep 120/u);
 });
@@ -503,7 +544,7 @@ test("Gradle declarations are classified or fail closed", () => {
   );
 });
 
-test("an unmodelled Gradle coordinate fails instead of silently vanishing", () => {
+test("an unmodelled Gradle coordinate fails instead of silently vanishing", (t) => {
   assert.throws(
     () => parseMavenCoordinate("com.example:lib:$unknownVersion"),
     /Unresolved Maven coordinate/u,
@@ -511,6 +552,112 @@ test("an unmodelled Gradle coordinate fails instead of silently vanishing", () =
   assert.throws(
     () => parseMavenCoordinate("com.example:lib:1.0.0:sources"),
     /Unsupported Maven coordinate/u,
+  );
+
+  const scratch = mkdtempSync(resolve(tmpdir(), "openiap-gradle-"));
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+  writeFileSync(
+    resolve(scratch, "build.gradle.kts"),
+    'dependencies { implementation(group = "com.example", name = "lib", version = "1.0.0") }\n',
+  );
+  assert.throws(
+    () => extractGradle(scratch, { manifest: "build.gradle.kts" }),
+    /Unsupported Gradle dependency declaration/u,
+  );
+  writeFileSync(
+    resolve(scratch, "build.gradle.kts"),
+    "dependencies { customRuntime(libs.example) }\n",
+  );
+  assert.throws(
+    () => extractGradle(scratch, { manifest: "build.gradle.kts" }),
+    /Unsupported version-catalog dependency/u,
+  );
+  writeFileSync(
+    resolve(scratch, "build.gradle.kts"),
+    'dependencies { implementation(project(":unexpected")) }\n',
+  );
+  assert.throws(
+    () => extractGradle(scratch, { manifest: "build.gradle.kts" }),
+    /Unsupported Gradle dependency declaration/u,
+  );
+  writeFileSync(
+    resolve(scratch, "build.gradle.kts"),
+    'dependencies { implementation(project(":openiap")) }\n',
+  );
+  assert.throws(
+    () => extractGradle(scratch, { manifest: "build.gradle.kts" }),
+    /lacks its published fallback/u,
+  );
+  writeFileSync(
+    resolve(scratch, "build.gradle.kts"),
+    'dependencies { customRuntime(group = "com.example", name = "lib", version = "1.0.0") }\n',
+  );
+  assert.throws(
+    () => extractGradle(scratch, { manifest: "build.gradle.kts" }),
+    /Unclassified Gradle dependency configuration/u,
+  );
+  writeFileSync(
+    resolve(scratch, "build.gradle.kts"),
+    'dependencies { if (enabled == true) customRuntime("com.example:lib:1.0.0") }\n',
+  );
+  assert.throws(
+    () => extractGradle(scratch, { manifest: "build.gradle.kts" }),
+    /Unclassified Gradle dependency configuration/u,
+  );
+  writeFileSync(
+    resolve(scratch, "build.gradle.kts"),
+    'dependencies { while (enabled) { implementation("real:dependency:2.0.0") } }\n',
+  );
+  assert.deepEqual(
+    extractGradle(scratch, { manifest: "build.gradle.kts" }).map(
+      (entry) => entry.name,
+    ),
+    ["real:dependency"],
+  );
+  writeFileSync(
+    resolve(scratch, "build.gradle.kts"),
+    "android { compileSdk(libs.versions.compileSdk.get()) }\n" +
+      'dependencies { // implementation("fake:comment:1.0.0")\n' +
+      '  implementation("real:dependency:2.0.0")\n}\n',
+  );
+  assert.deepEqual(extractGradle(scratch, { manifest: "build.gradle.kts" }), [
+    {
+      name: "real:dependency",
+      purl: "pkg:maven/real/dependency@2.0.0",
+      version: "2.0.0",
+    },
+  ]);
+  writeFileSync(
+    resolve(scratch, "build.gradle.kts"),
+    'buildscript { dependencies { classpath("build:plugin:1.0.0") } }\n' +
+      'dependencies { implementation("real:dependency:2.0.0") }\n',
+  );
+  assert.deepEqual(
+    extractGradle(scratch, { manifest: "build.gradle.kts" }).map(
+      (entry) => entry.name,
+    ),
+    ["real:dependency"],
+  );
+  writeFileSync(
+    resolve(scratch, "build.gradle.kts"),
+    'dependencies { implementation("real:dependency:2.0.0") { exclude(group = "fake") } }\n',
+  );
+  assert.deepEqual(
+    extractGradle(scratch, { manifest: "build.gradle.kts" }).map(
+      (entry) => entry.name,
+    ),
+    ["real:dependency"],
+  );
+  writeFileSync(
+    resolve(scratch, "build.gradle.kts"),
+    'dependencies { constraints { implementation("constraint:only:3.0.0") }\n' +
+      '  implementation("real:dependency:2.0.0")\n}\n',
+  );
+  assert.deepEqual(
+    extractGradle(scratch, { manifest: "build.gradle.kts" }).map(
+      (entry) => entry.name,
+    ),
+    ["real:dependency"],
   );
 });
 
