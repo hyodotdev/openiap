@@ -8,6 +8,7 @@ import {
   multiAxisRateLimitMiddleware,
   parsePositiveNumber,
   rateLimitMiddleware,
+  sourceRateLimitMiddleware,
   tryConsume,
   type Bucket,
 } from "./rate-limit";
@@ -433,5 +434,88 @@ describe("multiAxisRateLimitMiddleware", () => {
       expect(response.status).toBe(200);
     }
     expect(keyStore.size).toBe(3);
+  });
+});
+
+describe("sourceRateLimitMiddleware", () => {
+  test("limits unauthenticated requests by source IP", async () => {
+    const ipStore = new Map<string, Bucket>();
+    const globalStore = new Map<string, Bucket>();
+    const app = new Hono();
+    app.post(
+      "/mcp",
+      sourceRateLimitMiddleware({
+        now: () => 1_000,
+        getIp: (c) => c.req.header("x-test-ip"),
+        ip: {
+          capacity: 1,
+          refillPerSecond: 1,
+          maxStoreSize: 10,
+          store: ipStore,
+        },
+        global: {
+          capacity: 10,
+          refillPerSecond: 1,
+          maxStoreSize: 1,
+          store: globalStore,
+        },
+      }),
+      (c) => c.json({ ok: true }),
+    );
+
+    const first = await app.request("/mcp", {
+      method: "POST",
+      headers: { "x-test-ip": "203.0.113.1" },
+    });
+    const limited = await app.request("/mcp", {
+      method: "POST",
+      headers: { "x-test-ip": "203.0.113.1" },
+    });
+    const otherIp = await app.request("/mcp", {
+      method: "POST",
+      headers: { "x-test-ip": "203.0.113.2" },
+    });
+
+    expect(first.status).toBe(200);
+    expect(limited.status).toBe(429);
+    expect(limited.headers.get("X-RateLimit-Scope")).toBe("ip");
+    expect(otherIp.status).toBe(200);
+  });
+
+  test("shares a bounded process bucket across source IPs", async () => {
+    const app = new Hono();
+    app.post(
+      "/mcp",
+      sourceRateLimitMiddleware({
+        now: () => 1_000,
+        getIp: (c) => c.req.header("x-test-ip"),
+        ip: {
+          capacity: 10,
+          refillPerSecond: 1,
+          maxStoreSize: 10,
+          store: new Map<string, Bucket>(),
+        },
+        global: {
+          capacity: 1,
+          refillPerSecond: 1,
+          maxStoreSize: 1,
+          store: new Map<string, Bucket>(),
+        },
+      }),
+      (c) => c.json({ ok: true }),
+    );
+
+    const first = await app.request("/mcp", {
+      method: "POST",
+      headers: { "x-test-ip": "203.0.113.1" },
+    });
+    const limited = await app.request("/mcp", {
+      method: "POST",
+      headers: { "x-test-ip": "203.0.113.2" },
+    });
+
+    expect(first.status).toBe(200);
+    expect(limited.status).toBe(429);
+    expect(limited.headers.get("X-RateLimit-Scope")).toBe("global");
   });
 });

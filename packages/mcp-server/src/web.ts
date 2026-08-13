@@ -14,6 +14,10 @@ import {
   currentMachineId,
   routeUnknownSession,
 } from "./session-routing.js";
+import {
+  createMcpSessionStore,
+  type BoundedSessionStore,
+} from "./session-store.js";
 
 const MAX_MCP_BODY_BYTES = 1024 * 1024;
 const MCP_BODY_TOO_LARGE_ERROR = "MCP request body is too large";
@@ -46,10 +50,8 @@ export function createIapKitWebMcpHandler(
     options.allowedOrigins ??
     parseAllowedOrigins(process.env.IAPKIT_MCP_ALLOWED_ORIGINS);
   const machineId = options.machineId ?? currentMachineId();
-  const transports = new Map<
-    string,
-    WebStandardStreamableHTTPServerTransport
-  >();
+  const transports =
+    createMcpSessionStore<WebStandardStreamableHTTPServerTransport>(logger);
 
   return async function handleIapKitMcpRequest(
     request: Request,
@@ -129,7 +131,7 @@ export function createIapKitWebMcpHandler(
 
 async function handlePost(
   request: Request,
-  transports: Map<string, WebStandardStreamableHTTPServerTransport>,
+  transports: BoundedSessionStore<WebStandardStreamableHTTPServerTransport>,
   logger: Pick<Console, "error" | "info">,
   authInfo: AuthInfo | undefined,
   machineId: string | undefined,
@@ -185,7 +187,7 @@ async function handlePost(
 
 async function handleExistingSession(
   request: Request,
-  transports: Map<string, WebStandardStreamableHTTPServerTransport>,
+  transports: BoundedSessionStore<WebStandardStreamableHTTPServerTransport>,
   authInfo: AuthInfo | undefined,
   machineId: string | undefined,
 ): Promise<Response> {

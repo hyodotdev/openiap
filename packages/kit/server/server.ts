@@ -1,17 +1,44 @@
 import "./sentry";
 
-import { Hono } from "hono";
+import { Hono, type Context } from "hono";
 import { serveStatic } from "hono/bun";
 import { promises as fs } from "node:fs";
 import path from "node:path";
 
 import { apiRoutes } from "./api/v1/routes";
+import {
+  sourceRateLimitMiddleware,
+  type ConsumeResult,
+} from "./api/v1/rate-limit";
 import { handleHealthRequest } from "./health";
 import { handleIapKitMcpRequest } from "./mcp";
 import { shouldReturnNotFoundForMissingStaticPath } from "./staticPaths";
 import { parsePort } from "./utils/env";
 
 const app = new Hono();
+const mcpRateLimit = sourceRateLimitMiddleware({
+  ip: { cost: mcpRequestCost },
+  global: { cost: mcpRequestCost },
+  respond: mcpRateLimitResponse,
+});
+
+function mcpRequestCost(c: Context): number {
+  return c.req.method === "OPTIONS" ? 0 : 1;
+}
+
+function mcpRateLimitResponse(c: Context, result: ConsumeResult): Response {
+  return c.json(
+    {
+      jsonrpc: "2.0",
+      error: {
+        code: -32000,
+        message: `Too many requests. Retry after ${result.retryAfterSec}s.`,
+      },
+      id: null,
+    },
+    429,
+  );
+}
 
 // Liveness/readiness probe. No DB hit — Fly.io health checks fire
 // frequently and hitting Convex from here would both mask real
@@ -28,6 +55,7 @@ app.route("/v1", apiRoutes);
 
 // Codex / MCP plugin endpoint for IAPKit. This must sit before
 // static serving so `/mcp` never falls through to the React Router SPA.
+app.use("/mcp", mcpRateLimit);
 app.all("/mcp", (c) => handleIapKitMcpRequest(c.req.raw));
 
 // Never let an unknown API subroute fall through to the React Router SPA.

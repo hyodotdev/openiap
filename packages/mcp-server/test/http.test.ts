@@ -169,6 +169,21 @@ describe("remote MCP HTTP server", () => {
       ]),
     );
     expect(regionSchema?.description).toContain("Send [] to clear");
+
+    const listProducts = toolsByName.get("iapkit_list_products") as
+      | {
+          inputSchema?: {
+            properties?: {
+              limit?: { maximum?: number };
+              cursor?: { description?: string };
+            };
+          };
+        }
+      | undefined;
+    expect(listProducts?.inputSchema?.properties?.limit?.maximum).toBe(50);
+    expect(
+      listProducts?.inputSchema?.properties?.cursor?.description,
+    ).toContain("nextCursor");
   });
 
   it("returns 403 before a publishable key can initialize the admin MCP surface", async () => {
@@ -198,6 +213,63 @@ describe("remote MCP HTTP server", () => {
           "This operation requires a secret admin key. Publishable mobile keys cannot access MCP administrative operations.",
       },
     });
+  });
+
+  it("rejects publishable keys supplied through tool arguments", async () => {
+    const { baseUrl, sessionId } = await initializeMcpSession();
+
+    const payload = await callTool<{
+      ok: false;
+      error: { message: string };
+    }>(baseUrl, sessionId, "iapkit_list_products", {
+      apiKey: "openiap-kit_pk_mobile",
+    });
+
+    expect(payload.ok).toBe(false);
+    expect(payload.error.message).toBe(
+      "This operation requires a secret admin key. Publishable mobile keys cannot access MCP administrative operations.",
+    );
+  });
+
+  it("paginates the product catalog through MCP", async () => {
+    const apiKey = "openiap-kit_sk_catalog";
+    const previousBaseUrl = process.env.IAPKIT_BASE_URL;
+    process.env.IAPKIT_BASE_URL = await startKitApi((req, res) => {
+      expect(req.url).toBe(
+        "/v1/products?platform=IOS&limit=50&cursor=opaque%2Fstart%3D1",
+      );
+      res.writeHead(200, { "content-type": "application/json" });
+      res.end(
+        JSON.stringify({
+          products: [{ productId: "premium" }],
+          hasMore: true,
+          nextCursor: "opaque/next=2",
+        }),
+      );
+    });
+
+    try {
+      const { baseUrl, sessionId } = await initializeMcpSession(apiKey);
+      const payload = await callTool<{
+        products: Array<{ productId: string }>;
+        hasMore: boolean;
+        nextCursor?: string;
+      }>(baseUrl, sessionId, "iapkit_list_products", {
+        platform: "IOS",
+        limit: 50,
+        cursor: "opaque/start=1",
+        apiKey,
+      });
+
+      expect(payload).toEqual({
+        products: [{ productId: "premium" }],
+        hasMore: true,
+        nextCursor: "opaque/next=2",
+      });
+    } finally {
+      if (previousBaseUrl === undefined) delete process.env.IAPKIT_BASE_URL;
+      else process.env.IAPKIT_BASE_URL = previousBaseUrl;
+    }
   });
 
   it("summarizes revenue analytics through the bearer-authenticated Kit API", async () => {
@@ -829,6 +901,47 @@ describe("remote MCP HTTP server", () => {
 
       expect(callBody).not.toContain(apiKey);
       expect(callBody).toContain("<IAPKIT_SECRET_KEY>");
+    } finally {
+      if (previousBaseUrl === undefined) delete process.env.IAPKIT_BASE_URL;
+      else process.env.IAPKIT_BASE_URL = previousBaseUrl;
+    }
+  });
+
+  it("keeps Bearer-authenticated route names in redacted errors", async () => {
+    const apiKey = "openiap-kit_sk_sync_redaction";
+    const previousBaseUrl = process.env.IAPKIT_BASE_URL;
+    process.env.IAPKIT_BASE_URL = await startKitApi((_req, res) => {
+      res.writeHead(403, { "content-type": "application/json" });
+      res.end(JSON.stringify({ errors: [{ code: "FORBIDDEN" }] }));
+    });
+
+    try {
+      const { baseUrl, sessionId } = await initializeMcpSession(apiKey);
+      const response = await postMcp(
+        baseUrl,
+        {
+          jsonrpc: "2.0",
+          id: 2,
+          method: "tools/call",
+          params: {
+            name: "iapkit_sync_products",
+            arguments: {
+              platform: "IOS",
+              direction: "push",
+              dryRun: true,
+            },
+          },
+        },
+        sessionId,
+        { authorization: `Bearer ${apiKey}` },
+      );
+      const callBody = await response.text();
+
+      expect(callBody).toContain(
+        "kit /v1/products/sync/ios?direction=push&dryRun=true returned 403",
+      );
+      expect(callBody).not.toContain("products/<IAPKIT_SECRET_KEY>");
+      expect(callBody).not.toContain(apiKey);
     } finally {
       if (previousBaseUrl === undefined) delete process.env.IAPKIT_BASE_URL;
       else process.env.IAPKIT_BASE_URL = previousBaseUrl;

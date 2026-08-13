@@ -1,0 +1,115 @@
+interface SessionEntry<T> {
+  value: T;
+  lastAccessedAt: number;
+}
+
+const MAX_MCP_SESSIONS = 256;
+const MCP_SESSION_IDLE_TTL_MS = 15 * 60 * 1000;
+
+interface ClosableSession {
+  close: () => void | Promise<void>;
+}
+
+export interface BoundedSessionStoreOptions<T> {
+  maxSize: number;
+  idleTtlMs: number;
+  dispose: (value: T) => void | Promise<void>;
+  now?: () => number;
+  onDisposeError?: (error: unknown) => void;
+}
+
+export class BoundedSessionStore<T> {
+  private readonly entries = new Map<string, SessionEntry<T>>();
+  private readonly now: () => number;
+
+  constructor(private readonly options: BoundedSessionStoreOptions<T>) {
+    if (!Number.isSafeInteger(options.maxSize) || options.maxSize < 1) {
+      throw new Error("session maxSize must be a positive integer");
+    }
+    if (!Number.isFinite(options.idleTtlMs) || options.idleTtlMs <= 0) {
+      throw new Error("session idleTtlMs must be positive");
+    }
+    this.now = options.now ?? (() => Date.now());
+  }
+
+  get size(): number {
+    return this.entries.size;
+  }
+
+  get(sessionId: string): T | undefined {
+    const now = this.now();
+    this.pruneExpired(now);
+    const entry = this.entries.get(sessionId);
+    if (!entry) return undefined;
+
+    this.entries.delete(sessionId);
+    this.entries.set(sessionId, { value: entry.value, lastAccessedAt: now });
+    return entry.value;
+  }
+
+  set(sessionId: string, value: T): void {
+    const now = this.now();
+    this.pruneExpired(now);
+    const previous = this.entries.get(sessionId);
+    this.entries.delete(sessionId);
+    if (previous && previous.value !== value) {
+      void this.dispose(previous.value);
+    }
+    this.entries.set(sessionId, { value, lastAccessedAt: now });
+
+    while (this.entries.size > this.options.maxSize) {
+      const oldestSessionId = this.entries.keys().next().value;
+      if (oldestSessionId === undefined) break;
+      this.evict(oldestSessionId);
+    }
+  }
+
+  delete(sessionId: string): boolean {
+    return this.entries.delete(sessionId);
+  }
+
+  pruneExpired(now: number = this.now()): void {
+    while (this.entries.size > 0) {
+      const oldestSessionId = this.entries.keys().next().value;
+      if (oldestSessionId === undefined) return;
+      const oldest = this.entries.get(oldestSessionId);
+      if (oldest && now - oldest.lastAccessedAt < this.options.idleTtlMs) {
+        return;
+      }
+      this.evict(oldestSessionId);
+    }
+  }
+
+  async closeAll(): Promise<void> {
+    const values = Array.from(this.entries.values(), (entry) => entry.value);
+    this.entries.clear();
+    await Promise.all(values.map((value) => this.dispose(value)));
+  }
+
+  private evict(sessionId: string): void {
+    const entry = this.entries.get(sessionId);
+    if (!entry) return;
+    this.entries.delete(sessionId);
+    void this.dispose(entry.value);
+  }
+
+  private async dispose(value: T): Promise<void> {
+    try {
+      await this.options.dispose(value);
+    } catch (error) {
+      this.options.onDisposeError?.(error);
+    }
+  }
+}
+
+export function createMcpSessionStore<T extends ClosableSession>(
+  logger: Pick<Console, "error">,
+): BoundedSessionStore<T> {
+  return new BoundedSessionStore<T>({
+    maxSize: MAX_MCP_SESSIONS,
+    idleTtlMs: MCP_SESSION_IDLE_TTL_MS,
+    dispose: (transport) => transport.close(),
+    onDisposeError: (error) =>
+      logger.error("IAPKit MCP session cleanup failed:", error),
+  });
+}

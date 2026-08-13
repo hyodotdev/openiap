@@ -8,6 +8,46 @@ export type KitClientOptions = {
   apiKey: string;
 };
 
+export interface KitProductListParams {
+  platform?: "IOS" | "Android";
+  limit?: number;
+  cursor?: string;
+}
+
+export interface KitProductsResponse {
+  products: unknown[];
+  hasMore: boolean;
+  nextCursor?: string;
+}
+
+export interface KitMrrCurrencyEntry {
+  currency: string;
+  mrrMicros: number;
+}
+
+export interface KitMetricsResponse {
+  activeSubs: number;
+  inGracePeriod: number;
+  inBillingRetry: number;
+  refunded30d: number;
+  canceled30d: number;
+  mrrMicros: number;
+  currency: string;
+  reportingCurrency: string;
+  mrrByCurrency: KitMrrCurrencyEntry[];
+  excludedMrrByCurrency: KitMrrCurrencyEntry[];
+}
+
+export interface KitHealthResponse {
+  ok: true;
+  status: "healthy";
+  service: "iapkit";
+  apiVersion: "v1";
+  revision: string | null;
+  environment: string;
+  timestamp: string;
+}
+
 const DEFAULT_BASE_URL = "https://kit.openiap.dev";
 
 export function normalizeKitBaseUrl(baseUrl?: string): string {
@@ -121,20 +161,11 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
       if (params.userId) usp.set("userId", params.userId);
       if (params.limit) usp.set("limit", String(params.limit));
       const qs = usp.toString();
-      return adminCall<{ items: unknown[]; total?: number }>(
+      return adminCall<{ items: unknown[]; total: number }>(
         `/v1/subscriptions/list${qs ? `?${qs}` : ""}`,
       );
     },
-    metrics: () =>
-      adminCall<{
-        activeSubs: number;
-        inGracePeriod: number;
-        inBillingRetry: number;
-        refunded30d: number;
-        canceled30d: number;
-        mrrMicros: number;
-        currency?: string;
-      }>("/v1/subscriptions/metrics"),
+    metrics: () => adminCall<KitMetricsResponse>("/v1/subscriptions/metrics"),
     revenueMetrics: (params: { fromDay: string; toDay: string }) => {
       const usp = new URLSearchParams({
         fromDay: params.fromDay,
@@ -159,11 +190,13 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
         truncated: boolean;
       }>(`/v1/subscriptions/revenue?${usp.toString()}`);
     },
-    listProducts: (params: { platform?: "IOS" | "Android" } = {}) => {
+    listProducts: (params: KitProductListParams = {}) => {
       const usp = new URLSearchParams();
       if (params.platform) usp.set("platform", params.platform);
+      if (params.limit !== undefined) usp.set("limit", String(params.limit));
+      if (params.cursor !== undefined) usp.set("cursor", params.cursor);
       const qs = usp.toString();
-      return adminCall<{ products: unknown[] }>(
+      return adminCall<KitProductsResponse>(
         `/v1/products${qs ? `?${qs}` : ""}`,
       );
     },
@@ -266,13 +299,13 @@ export function kitClient({ baseUrl, apiKey }: KitClientOptions) {
         direction: params.direction,
         dryRun: String(params.dryRun),
       });
-      return adminCall<{ jobId: string; deduped?: boolean }>(
+      return adminCall<{ jobId: string; deduped: boolean }>(
         `/v1/products/sync/${platformPath}?${usp.toString()}`,
         { method: "POST" },
       );
     },
     syncJob: (jobId: string) =>
       adminCall<unknown>(`/v1/products/sync/jobs/${encodeURIComponent(jobId)}`),
-    health: () => call<{ ok: boolean }>("/health"),
+    health: () => call<KitHealthResponse>("/health"),
   };
 }

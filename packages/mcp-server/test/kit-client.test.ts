@@ -115,12 +115,19 @@ describe("kitClient", () => {
 
   it("parses JSON response content types case-insensitively", async () => {
     const fetchMock = vi.fn(async () => {
-      return new Response(JSON.stringify({ products: [] }), {
-        status: 200,
-        headers: {
-          "content-type": "Application/VND.OPENIAP+JSON ; Charset=UTF-8",
+      return new Response(
+        JSON.stringify({
+          products: [{ productId: "premium" }],
+          hasMore: true,
+          nextCursor: "opaque/next=2",
+        }),
+        {
+          status: 200,
+          headers: {
+            "content-type": "Application/VND.OPENIAP+JSON ; Charset=UTF-8",
+          },
         },
-      });
+      );
     });
     vi.stubGlobal("fetch", fetchMock);
 
@@ -129,9 +136,19 @@ describe("kitClient", () => {
       baseUrl: "https://kit.example",
     });
 
-    await expect(client.listProducts()).resolves.toEqual({ products: [] });
+    await expect(
+      client.listProducts({
+        platform: "IOS",
+        limit: 50,
+        cursor: "opaque/start=1",
+      }),
+    ).resolves.toEqual({
+      products: [{ productId: "premium" }],
+      hasMore: true,
+      nextCursor: "opaque/next=2",
+    });
     expect(fetchMock).toHaveBeenCalledWith(
-      "https://kit.example/v1/products",
+      "https://kit.example/v1/products?platform=IOS&limit=50&cursor=opaque%2Fstart%3D1",
       expect.objectContaining({
         headers: expect.objectContaining({
           authorization: "Bearer custom-secret",

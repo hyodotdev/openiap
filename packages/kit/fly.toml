@@ -4,6 +4,9 @@ primary_region = 'iad'
 [build]
   dockerfile = 'Dockerfile'
 
+[env]
+  IAPKIT_BASE_URL = 'http://127.0.0.1:3000'
+
 [http_service]
   internal_port = 3000
   force_https = true

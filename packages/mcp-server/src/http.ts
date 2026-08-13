@@ -26,6 +26,10 @@ import {
   currentMachineId,
   routeUnknownSession,
 } from "./session-routing.js";
+import {
+  createMcpSessionStore,
+  type BoundedSessionStore,
+} from "./session-store.js";
 
 const DEFAULT_MCP_PATH = "/mcp";
 const DEFAULT_PORT = 3939;
@@ -85,7 +89,8 @@ export function createRemoteMcpHttpServer(
     options.allowedOrigins ??
     parseAllowedOrigins(process.env.IAPKIT_MCP_ALLOWED_ORIGINS);
   const machineId = options.machineId ?? currentMachineId();
-  const transports = new Map<string, StreamableHTTPServerTransport>();
+  const transports =
+    createMcpSessionStore<StreamableHTTPServerTransport>(logger);
 
   const server = createServer(async (req, res) => {
     try {
@@ -179,10 +184,7 @@ export function createRemoteMcpHttpServer(
   });
 
   async function close(): Promise<void> {
-    await Promise.all(
-      Array.from(transports.values()).map((transport) => transport.close()),
-    );
-    transports.clear();
+    await transports.closeAll();
     await new Promise<void>((resolve, reject) => {
       server.close((error) => {
         if (error) reject(error);
@@ -235,7 +237,7 @@ export async function startRemoteMcpHttpServer(
 async function handleMcpPost(
   req: AuthenticatedRequest,
   res: ServerResponse,
-  transports: Map<string, StreamableHTTPServerTransport>,
+  transports: BoundedSessionStore<StreamableHTTPServerTransport>,
   logger: Pick<Console, "error" | "info">,
   machineId: string | undefined,
 ): Promise<void> {
@@ -288,7 +290,7 @@ async function handleMcpPost(
 async function handleExistingMcpSession(
   req: IncomingMessage,
   res: ServerResponse,
-  transports: Map<string, StreamableHTTPServerTransport>,
+  transports: BoundedSessionStore<StreamableHTTPServerTransport>,
   machineId: string | undefined,
 ): Promise<void> {
   const sessionId = headerString(req.headers["mcp-session-id"]);

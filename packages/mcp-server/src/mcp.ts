@@ -7,6 +7,10 @@ import type {
 } from "@modelcontextprotocol/sdk/types.js";
 import { z } from "zod";
 
+import {
+  INSUFFICIENT_API_KEY_SCOPE_MESSAGE,
+  isPublishableApiKey,
+} from "./auth.js";
 import { kitClient, KitHttpError, normalizeKitBaseUrl } from "./kit-client.js";
 
 // MCP server for IAPKit. Every tool funnels through `withClient`
@@ -42,6 +46,8 @@ const PUBLISHABLE_KEY_PLACEHOLDER = "<IAPKIT_PUBLISHABLE_KEY>";
 const MAX_API_KEY_LENGTH = 128;
 const MAX_KIT_ID_LENGTH = 256;
 const MAX_CLIENT_PAYLOAD_BYTES = 16 * 1024;
+const MAX_PRODUCT_PAGE_SIZE = 50;
+const MAX_PRODUCT_CURSOR_LENGTH = 4096;
 const MAX_PRICE_AMOUNT_MICROS = Number.MAX_SAFE_INTEGER;
 const READ_ONLY_TOOL: ToolAnnotations = {
   readOnlyHint: true,
@@ -111,12 +117,15 @@ function withClient(
   const apiKey = resolveApiKey(opts, extra);
   if (!apiKey) {
     throw new Error(
-      "No IAPKit secret admin key was provided. Set Authorization: Bearer <IAPKit secret key>, IAPKIT_API_KEY, or the tool's apiKey argument.",
+      `No IAPKit secret admin key was provided. Set Authorization: Bearer ${API_KEY_PLACEHOLDER}, IAPKIT_API_KEY, or the tool's apiKey argument.`,
     );
   }
   const validationError = validateApiKey(apiKey);
   if (validationError) {
     throw new Error(validationError);
+  }
+  if (isPublishableApiKey(apiKey)) {
+    throw new Error(INSUFFICIENT_API_KEY_SCOPE_MESSAGE);
   }
   return kitClient({
     apiKey,
@@ -186,15 +195,10 @@ function redactSecretString(value: string, apiKey?: string): string {
   for (const secret of knownSecrets) {
     redacted = redacted.split(secret).join(API_KEY_PLACEHOLDER);
   }
-  return redacted
-    .replace(
-      /(\/v1\/(?:subscriptions\/(?:status|entitlements|list|metrics|revenue)|products|webhooks\/(?:apple|google)|webhooks)\/)[^/?\s"]+/g,
-      `$1${API_KEY_PLACEHOLDER}`,
-    )
-    .replace(
-      /(Authorization:\s*Bearer\s+)[^\s"]+/gi,
-      `$1${API_KEY_PLACEHOLDER}`,
-    );
+  return redacted.replace(
+    /(Authorization:\s*Bearer\s+)[^\s"]+/gi,
+    `$1${API_KEY_PLACEHOLDER}`,
+  );
 }
 
 function registerTool(
@@ -433,9 +437,13 @@ function registerIapKitTools(server: McpServer) {
   registerTool(
     server,
     "list_products",
-    "List the project's product catalog stored in IAPKit.",
+    "List one page of the project's product catalog stored in IAPKit. Use nextCursor until hasMore is false.",
     {
       platform: z.enum(["IOS", "Android"]).optional(),
+      limit: z.number().int().min(1).max(MAX_PRODUCT_PAGE_SIZE).optional(),
+      cursor: kitTextParam("cursor", MAX_PRODUCT_CURSOR_LENGTH)
+        .optional()
+        .describe("Opaque nextCursor returned by the previous page."),
       apiKey: OPTIONAL_API_KEY,
       baseUrl: OPTIONAL_BASE_URL,
     },
@@ -445,6 +453,8 @@ function registerIapKitTools(server: McpServer) {
         return ok(
           await withClient(args, extra).listProducts({
             platform: args.platform,
+            limit: args.limit,
+            cursor: args.cursor,
           }),
         );
       } catch (error) {
