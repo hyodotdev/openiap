@@ -51,11 +51,14 @@ Requirements:
   too large.
 - Upload the compressed recording to the GitHub PR as a PR body attachment or a
   clearly labeled attached `Preview` comment.
-- Do not commit one-off PR preview recordings. Only commit preview media when
-  the media itself is a product documentation or example asset that should ship
-  with the repository. If PR attachment upload is blocked by local browser or
-  extension permissions, commit a compressed asset under `.github/pr-previews/`
-  and link the GitHub-hosted raw/blob URL from the preview comment.
+- Never commit one-off PR preview recordings, including under
+  `.github/pr-previews/`. Create them in a temporary or ignored local path,
+  upload them as GitHub attachments, verify the attachment, then delete the
+  local files. Only commit media that is itself a product documentation or
+  example asset intended to ship with the repository.
+- If browser or extension permissions block an attachment, stop and ask the
+  maintainer to enable file uploads. Do not force-add the recording as a Git
+  fallback.
 - Link or embed the uploaded preview in the PR body or a clearly labeled
   `Preview` PR comment.
 - If the change has no visual or interactive surface, include a short note in
