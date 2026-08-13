@@ -90,6 +90,7 @@ import APIsOpenRedeemOfferCodeAndroid from './apis/android/open-redeem-offer-cod
 import Events from './events';
 import Webhooks from './webhooks';
 import KitBackend from './kit-backend';
+import KitCompatibility from './kit-compatibility';
 import EventsPurchaseUpdatedListener from './events/purchase-updated-listener';
 import EventsPurchaseErrorListener from './events/purchase-error-listener';
 import EventsSubscriptionBillingIssueListener from './events/subscription-billing-issue-listener';
@@ -847,6 +848,15 @@ function Docs() {
             </li>
             <li>
               <NavLink
+                to="/docs/kit-compatibility"
+                className={({ isActive }) => (isActive ? 'active' : '')}
+                onClick={closeSidebar}
+              >
+                Version Compatibility
+              </NavLink>
+            </li>
+            <li>
+              <NavLink
                 to="/docs/errors"
                 className={({ isActive }) => (isActive ? 'active' : '')}
                 onClick={closeSidebar}
@@ -1499,6 +1509,7 @@ function Docs() {
           <Route path="events" element={<Events />} />
           <Route path="webhooks" element={<Webhooks />} />
           <Route path="kit-backend" element={<KitBackend />} />
+          <Route path="kit-compatibility" element={<KitCompatibility />} />
           <Route
             path="events/purchase-updated-listener"
             element={<EventsPurchaseUpdatedListener />}
