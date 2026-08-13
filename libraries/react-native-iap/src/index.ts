@@ -1679,9 +1679,10 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
     const {request: platformRequest, type} = request;
     const normalizedType = normalizeProductQueryType(type ?? 'in-app');
     if (normalizedType === 'all') {
-      throw new Error(
-        'Product type all is only supported for product queries.',
-      );
+      throw createPurchaseError({
+        code: ErrorCode.DeveloperError,
+        message: 'Product type all is only supported for product queries.',
+      });
     }
     const isSubs = isSubscriptionQuery(normalizedType);
     const perPlatformRequest = platformRequest as

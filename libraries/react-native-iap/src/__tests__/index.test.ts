@@ -755,7 +755,10 @@ describe('Public API (src/index.ts)', () => {
           request: {google: {skus: ['p1']}},
           type: 'all' as any,
         }),
-      ).rejects.toThrow(/only supported for product queries/);
+      ).rejects.toMatchObject({
+        code: ErrorCode.DeveloperError,
+        message: expect.stringMatching(/only supported for product queries/),
+      });
       expect(mockIap.requestPurchase).not.toHaveBeenCalled();
     });
 

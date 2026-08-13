@@ -5,6 +5,7 @@ import {
   requestPurchase,
 } from '../index.kepler';
 import * as Kepler from '../index.kepler';
+import {ErrorCode} from '../types';
 import {getVegaIapModule} from '../vega';
 
 jest.mock('../vega', () => ({
@@ -78,7 +79,10 @@ describe('Amazon Vega public API', () => {
         request: {google: {skus: ['coins']}},
         type: 'all' as any,
       }),
-    ).rejects.toThrow(/only supported for product queries/);
+    ).rejects.toMatchObject({
+      code: ErrorCode.DeveloperError,
+      message: expect.stringMatching(/only supported for product queries/),
+    });
     expect(requestPurchaseNative).not.toHaveBeenCalled();
   });
 
