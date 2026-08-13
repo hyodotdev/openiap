@@ -21,9 +21,10 @@ contributors look for it.
                         OpenIAP source
                               │
                               ▼
-                     dependency manifests
-                    (package.json, gradle,
-                     csproj, pubspec, spm)
+                       dependency inputs
+                   (published POM/nuspec,
+                    package.json, pubspec,
+                       Gradle, SwiftPM)
                               │
                               ▼
                         CI (ci.yml)
@@ -42,7 +43,7 @@ contributors look for it.
            package        npm/registry    GitHub Release
                            provenance          │
                                                ▼
-                                    sbom.yml (release: published)
+                                    release dispatches sbom.yml
                                                │
                                      ┌─────────┴─────────┐
                                      ▼                   ▼
@@ -90,7 +91,7 @@ Worth stating plainly, because it explains why the SBOMs are not redundant with
 the platform:
 
 ```bash
-gh api repos/hyodotdev/openiap/dependency-graph/sbom   # → 0 packages
+gh api repos/hyodotdev/openiap/dependency-graph/sbom   # → HTTP 404
 ```
 
 GitHub's [dependency graph](https://docs.github.com/en/code-security/supply-chain-security/understanding-your-software-supply-chain/dependency-graph-supported-package-ecosystems)
@@ -105,8 +106,9 @@ Consequences:
 - **Dependabot security alerts depend on the dependency graph**, so alert
   coverage is limited to what the graph can populate. Do not read an empty
   alert list as "no vulnerable dependencies".
-- **The published SBOMs are the only complete inventory** of what each release
-  contains.
+- **The published SBOMs are the release-specific inventory** of direct runtime
+  dependencies. A transitive closure is included only when a resolver export is
+  supplied.
 
 Closing this gap properly would mean submitting a snapshot through the
 [dependency submission API](https://docs.github.com/en/rest/dependency-graph/dependency-submission),
@@ -121,9 +123,10 @@ not belong to whichever change surfaced it.
 | ---------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Actions are pinned by major tag, not commit SHA**        | A mutable tag in a privileged publish or signing path is a supply-chain risk. Fixing it means pinning every workflow at once and reconfiguring Dependabot, not two workflows in isolation |
 | **Several CI workflows declare no `permissions:` block**   | They inherit the repository default instead of least privilege. OpenSSF Scorecard's Token-Permissions check reports this                                                                  |
-| **GitHub's dependency graph is empty for this repository** | Bun lockfiles are unsupported and Gradle is not resolved from source, so Dependabot security alerts cannot cover the tree. Closing it needs the dependency submission API                 |
+| **GitHub's dependency-graph SBOM endpoint is unavailable** | The repository endpoint returns HTTP 404, so it cannot provide an independent inventory. Closing the coverage gap requires dependency submission or another supported manifest path       |
 
-`/audit-security` re-checks each of these and prints the current state.
+`/audit-security` re-checks each gap and prints its current state. Action pinning
+still requires a separate repository-wide migration.
 
 ## Scanning posture
 
@@ -132,7 +135,9 @@ OpenIAP does not run a separate vulnerability scanner
 [Grype](https://github.com/anchore/grype),
 [osv-scanner](https://github.com/google/osv-scanner)) in CI today:
 
-- The published SDKs have no runtime dependency tree for a scanner to examine.
+- The published npm SDKs have no runtime dependency tree for a scanner to
+  examine. Native and framework dependency inventories are carried in their
+  release SBOMs.
 - `packages/kit`'s dependencies are the meaningful surface, and Dependabot
   already opens update pull requests for them.
 - A second scanner would add alert triage and CI maintenance for a signal we
@@ -150,5 +155,7 @@ the point to revisit it.
 `scripts/generate-sbom.test.mjs` asserts that every component in the release
 SSOT has SBOM metadata, so CI fails if a new component is added without it.
 To satisfy it, add an entry to `COMPONENTS` in `scripts/generate-sbom.mjs`
-declaring the component's distribution and where its dependencies are declared.
-Nothing else needs to change — `sbom.yml` picks it up from the release tag.
+declaring the component's distribution and dependency source. Tag aliases are
+derived from the release configuration. The generator test also requires every
+workflow that creates a GitHub Release to dispatch `sbom.yml`, so a new release
+lane cannot silently omit the inventory.

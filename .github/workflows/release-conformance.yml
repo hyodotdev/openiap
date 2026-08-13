@@ -97,6 +97,7 @@ jobs:
     name: Bump, tag, and release
     needs: [validate]
     permissions:
+      actions: write
       contents: write
     runs-on: ubuntu-latest
     defaults:
@@ -310,6 +311,12 @@ jobs:
           draft: false
           prerelease: ${{ steps.bump.outputs.is_prerelease }}
           body_path: /tmp/release-notes.md
+
+      - name: Dispatch SBOM
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: openiap-conformance-${{ steps.bump.outputs.version }}
+        run: gh workflow run sbom.yml --ref main -f tag="$RELEASE_TAG"
 
       # npm provenance reads the immutable workflow event GITHUB_SHA. Dispatch
       # this same trusted-publisher workflow on the tag so the event SHA, npm

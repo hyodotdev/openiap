@@ -14,7 +14,7 @@ const DEADLINES: Deadline[] = [
   {
     date: '11 September 2026',
     applies:
-      'Reporting obligations. Actively exploited vulnerabilities and severe incidents must be reported to ENISA and the relevant national CSIRT — 24-hour early warning, 72-hour notification, 14-day final report',
+      'Reporting obligations: 24-hour early warning and 72-hour notification. The final report is due 14 days after a vulnerability fix or mitigation becomes available, or one month after a severe-incident notification',
   },
   {
     date: '11 December 2027',
@@ -221,8 +221,8 @@ function SecurityCompliance() {
           it records what exists, what does not, and what is out of proportion
           for a project of this size. Met today: the public reporting channel
           with a documented response path, and the automated per-release SBOM.
-          Open: a single named security-assurance policy document, a maintainer
-          responsibility inventory, and a declared license policy.
+          Open: a single named security-assurance policy document, competency
+          and assessment records, and a declared license policy.
         </p>
         <p>
           <a

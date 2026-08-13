@@ -141,6 +141,7 @@ jobs:
   deploy:
     needs: [validate-android, validate-ios, validate-apple-swiftpm]
     permissions:
+      actions: write
       contents: write
     runs-on: ubuntu-latest
     defaults:
@@ -547,3 +548,9 @@ jobs:
           draft: false
           prerelease: ${{ steps.bump.outputs.is_prerelease }}
           body_path: /tmp/release-notes.md
+
+      - name: Dispatch SBOM
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: flutter-iap-${{ steps.bump.outputs.version }}
+        run: gh workflow run sbom.yml --ref main -f tag="$RELEASE_TAG"

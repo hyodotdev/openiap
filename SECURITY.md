@@ -109,7 +109,8 @@ Every supported component release carries a CycloneDX SBOM as a GitHub Release
 asset, so you can check whether a specific version contains a given dependency:
 
 ```bash
-gh release download react-native-iap-16.3.0 -p '*.cdx.json'
+gh release download react-native-iap-16.3.0 \
+  --repo hyodotdev/openiap -p '*.cdx.json'
 gh attestation verify react-native-iap-16.3.0.cdx.json --repo hyodotdev/openiap
 ```
 

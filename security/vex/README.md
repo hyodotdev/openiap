@@ -29,10 +29,10 @@ release SSOT.
 {
   "vulnerabilities": [
     {
-      "id": "CVE-2026-12345",
+      "id": "CVE-2021-44228",
       "source": {
         "name": "NVD",
-        "url": "https://nvd.nist.gov/vuln/detail/CVE-2026-12345"
+        "url": "https://github.com/advisories/GHSA-jfh8-c2jp-5v3q"
       },
       "affects": [{ "ref": "pkg:maven/com.example/library@1.2.3" }],
       "analysis": {

@@ -134,6 +134,11 @@ const LIMITS: Limit[] = [
     detail:
       'come from live registries. Unavailable metadata is omitted, and pub.dev and some NuGet packages do not expose a standard value.',
   },
+  {
+    title: 'Version constraints',
+    detail:
+      'remain constraints when a library manifest does not select one exact version. Use the consuming application lockfile for exact CVE matching.',
+  },
 ];
 
 function SecuritySbom() {
@@ -143,19 +148,18 @@ function SecuritySbom() {
     <div className="doc-page">
       <SEO
         title="SBOM"
-        description="Every OpenIAP release ships a CycloneDX SBOM as a GitHub Release asset — how to download, verify, and reproduce its core inventory."
+        description="Supported OpenIAP releases ship a CycloneDX SBOM as a GitHub Release asset — how to download, verify, and reproduce its core inventory."
         path="/docs/security/sbom"
         keywords="OpenIAP SBOM, CycloneDX, software bill of materials, purl, attestation, dependency inventory, NTIA minimum elements"
       />
       <h1>Software Bill of Materials</h1>
       <p>
-        Every published OpenIAP release carries a machine-readable inventory of
-        the third-party code it contains, attached to its GitHub Release as a{' '}
-        <strong>CycloneDX 1.6 JSON</strong> file. It exists to answer one
-        question without anyone reading our build scripts:{' '}
-        <em>
-          does this version of this package contain the vulnerable dependency?
-        </em>
+        Every supported OpenIAP component release carries a machine-readable
+        inventory of its direct third-party dependencies, attached to its GitHub
+        Release as a <strong>CycloneDX 1.6 JSON</strong> file. It exposes the
+        released dependency contract without reconstructing build scripts; exact
+        application exposure comes from the consumer&apos;s resolved dependency
+        graph.
       </p>
 
       <section>
@@ -249,8 +253,8 @@ flutter_inapp_purchase-10.3.0.cdx.json`}</code>
             mismatched
           </li>
           <li>
-            Every direct runtime dependency, with version, purl, supplier, and
-            license
+            Every direct runtime dependency, with version or constraint, purl,
+            and available supplier and license data
           </li>
         </ul>
         <p>
@@ -305,8 +309,8 @@ flutter_inapp_purchase-10.3.0.cdx.json`}</code>
           <code>scripts/generate-sbom.mjs</code> uses only the Node.js standard
           library — no npm package, no vendored code, no external binary. A tool
           that reports what you depend on should not quietly add dependencies of
-          its own. It reads package registries over HTTPS only to resolve
-          declared licenses and suppliers.
+          its own. It reads published POM and nuspec dependency descriptors,
+          then resolves declared licenses and suppliers from registries.
         </Callout>
       </section>
 

@@ -125,6 +125,9 @@ jobs:
 
   publish:
     needs: [validate, validate-multitarget]
+    permissions:
+      actions: write
+      contents: write
     # Rebuild the exact native sidecar packed into NuGet with an App Store
     # submission toolchain. Xcode 27 remains validation-only until Apple
     # accepts its SDK for App Store uploads.
@@ -461,3 +464,9 @@ jobs:
           prerelease: ${{ steps.version.outputs.is_prerelease }}
           body_path: /tmp/release-notes.md
           files: ./nupkgs/*.nupkg
+
+      - name: Dispatch SBOM
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: maui-iap-${{ steps.version.outputs.version }}
+        run: gh workflow run sbom.yml --ref main -f tag="$RELEASE_TAG"

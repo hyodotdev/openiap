@@ -55,11 +55,11 @@ const SPEC_VERSION = "1.6";
  *
  * `versionSources` (release SSOT) supplies the label and version; this table
  * adds only what an SBOM needs on top: how the component is distributed, and
- * where its runtime dependencies are declared.
+ * which released input describes its runtime dependencies.
  */
 const COMPONENTS = {
   apple: {
-    sbomName: "openiap-apple",
+    sbomName: "openiap",
     type: "library",
     purl: (version) => `pkg:cocoapods/openiap@${version}`,
     distribution: (version) => `https://cocoapods.org/pods/openiap`,
@@ -107,7 +107,6 @@ const COMPONENTS = {
       kind: "pub",
       manifest: "libraries/flutter_inapp_purchase/pubspec.yaml",
     },
-    resolver: "flutter pub deps --json",
   },
   godot: {
     sbomName: "godot-iap",
@@ -128,7 +127,6 @@ const COMPONENTS = {
         },
       },
     },
-    resolver: "gradlew :dependencies",
   },
   google: {
     sbomName: "openiap-google",
@@ -139,10 +137,10 @@ const COMPONENTS = {
       `https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/${version}`,
     directory: "packages/google",
     source: {
-      kind: "gradle",
-      manifest: "packages/google/openiap/build.gradle.kts",
+      kind: "maven-pom",
+      coordinate: "io.github.hyochan.openiap:openiap-google",
+      repositories: ["https://repo1.maven.org/maven2"],
     },
-    resolver: "gradlew :openiap:dependencies",
   },
   kmp: {
     sbomName: "kmp-iap",
@@ -155,11 +153,14 @@ const COMPONENTS = {
       `https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap/${version}`,
     directory: "libraries/kmp-iap",
     source: {
-      kind: "gradle-catalog",
-      manifest: "libraries/kmp-iap/library/build.gradle.kts",
-      catalog: "libraries/kmp-iap/gradle/libs.versions.toml",
+      kind: "maven-pom",
+      coordinates: [
+        "io.github.hyochan:kmp-iap-android-play",
+        "io.github.hyochan:kmp-iap-android",
+        "io.github.hyochan:kmp-iap",
+      ],
+      repositories: ["https://repo1.maven.org/maven2"],
     },
-    resolver: "gradlew :library:dependencies",
   },
   maui: {
     sbomName: "OpenIap.Maui",
@@ -169,14 +170,9 @@ const COMPONENTS = {
       `https://www.nuget.org/packages/OpenIap.Maui/${version}`,
     directory: "libraries/maui-iap",
     source: {
-      kind: "nuget",
-      manifest: "libraries/maui-iap/src/OpenIap.Maui/OpenIap.Maui.csproj",
-      propertyFiles: [
-        "libraries/maui-iap/Directory.Build.props",
-        "libraries/maui-iap/src/Directory.Build.props",
-      ],
+      kind: "nuget-nuspec",
+      packageId: "OpenIap.Maui",
     },
-    resolver: "dotnet list package --include-transitive",
   },
   "react-native": {
     sbomName: "react-native-iap",
@@ -227,23 +223,50 @@ export function sbomFileName(componentId, version) {
   return `${COMPONENTS[componentId].sbomName}-${version}.cdx.json`;
 }
 
-/**
- * Longest-prefix first, so `google-` cannot swallow a tag that a more specific
- * component owns. Apple publishes a bare semver tag and is matched last.
- */
-const TAG_PREFIXES = [
-  ["openiap-conformance-", "conformance"],
-  ["react-native-iap-", "react-native"],
-  ["flutter-iap-", "flutter"],
-  ["godot-iap-", "godot"],
-  ["expo-iap-", "expo"],
-  ["maui-iap-", "maui"],
-  ["kmp-iap-", "kmp"],
-  ["google-v", "google"],
-  ["google-", "google"],
-  ["apple-v", "apple"],
-  ["docs-", "docs"],
-].sort((left, right) => right[0].length - left[0].length);
+/** Return the newest published release per component that lacks its SBOM. */
+export function findMissingLatestSbomTags(releases) {
+  const seen = new Set();
+  const missing = [];
+  const newestFirst = [...releases].sort(
+    (left, right) =>
+      Date.parse(right?.published_at ?? 0) -
+      Date.parse(left?.published_at ?? 0),
+  );
+  for (const release of newestFirst) {
+    if (release?.draft || !release?.published_at) continue;
+    const resolvedTag = componentFromTag(release.tag_name);
+    if (!resolvedTag || seen.has(resolvedTag.componentId)) continue;
+    seen.add(resolvedTag.componentId);
+    const expected = sbomFileName(resolvedTag.componentId, resolvedTag.version);
+    const assets = Array.isArray(release.assets) ? release.assets : [];
+    if (!assets.some((asset) => asset?.name === expected)) {
+      missing.push(release.tag_name);
+    }
+  }
+  return missing;
+}
+
+const TAG_VERSION_PLACEHOLDER = "9.8.7";
+
+/** Tag aliases are derived from the same package config release validation uses. */
+const TAG_PATTERNS = [
+  ...Object.entries(PACKAGE_CONFIG).flatMap(([componentId, config]) =>
+    config.tags(TAG_VERSION_PLACEHOLDER).map((tag) => {
+      const index = tag.indexOf(TAG_VERSION_PLACEHOLDER);
+      if (index === -1) {
+        throw new Error(
+          `Release tag pattern for ${componentId} has no version`,
+        );
+      }
+      return {
+        componentId,
+        prefix: tag.slice(0, index),
+        suffix: tag.slice(index + TAG_VERSION_PLACEHOLDER.length),
+      };
+    }),
+  ),
+  { componentId: "docs", prefix: "docs-", suffix: "" },
+].sort((left, right) => right.prefix.length - left.prefix.length);
 
 /**
  * Map a published release tag back to the component that produced it.
@@ -255,16 +278,16 @@ export function componentFromTag(tag) {
   const normalized = String(tag ?? "").trim();
   if (!normalized) return null;
 
-  for (const [prefix, componentId] of TAG_PREFIXES) {
-    if (!normalized.startsWith(prefix)) continue;
-    const version = normalized.slice(prefix.length);
-    if (!/^\d+\.\d+\.\d+/u.test(version)) continue;
+  for (const { componentId, prefix, suffix } of TAG_PATTERNS) {
+    if (!normalized.startsWith(prefix) || !normalized.endsWith(suffix)) {
+      continue;
+    }
+    const version = normalized.slice(
+      prefix.length,
+      suffix ? -suffix.length : undefined,
+    );
+    if (!/^\d+\.\d+\.\d+(?:-[0-9A-Za-z.-]+)?$/u.test(version)) continue;
     return { componentId, version };
-  }
-
-  // packages/apple releases under a bare version tag.
-  if (/^\d+\.\d+\.\d+/u.test(normalized)) {
-    return { componentId: "apple", version: normalized };
   }
 
   return null;
@@ -366,10 +389,15 @@ function dependencyComponent(entry) {
   if (entry.licenses?.length) {
     component.licenses = entry.licenses;
   }
+  const properties = [...(entry.properties ?? [])];
   if (entry.transitive) {
-    component.properties = [
-      { name: "openiap:sbom:relationship", value: "transitive" },
-    ];
+    properties.push({
+      name: "openiap:sbom:relationship",
+      value: "transitive",
+    });
+  }
+  if (properties.length > 0) {
+    component.properties = properties;
   }
   return component;
 }
@@ -492,6 +520,17 @@ async function fetchText(url) {
   });
   if (!response.ok) return null;
   return response.text();
+}
+
+async function fetchPublishedText(url) {
+  for (let attempt = 0; attempt < 6; attempt += 1) {
+    const result = await fetchText(url);
+    if (result) return result;
+    if (attempt < 5) {
+      await new Promise((resolveDelay) => setTimeout(resolveDelay, 5_000));
+    }
+  }
+  return null;
 }
 
 /**
@@ -680,6 +719,7 @@ export async function generateSbom(
     resolvedFile,
     withLicenses = false,
     runGit = defaultRunGit,
+    fetchArtifactText = fetchPublishedText,
   } = {},
 ) {
   const definition = COMPONENTS[componentId];
@@ -698,7 +738,10 @@ export async function generateSbom(
     runGit(["show", "-s", "--format=%cI", resolvedCommit]),
   ).toISOString();
 
-  const direct = extractDirectDependencies(root, definition.source);
+  const direct = await extractDirectDependencies(root, definition.source, {
+    version,
+    fetchText: fetchArtifactText,
+  });
   const merged = resolvedFile
     ? mergeResolved(direct, readResolvedFile(resolvedFile))
     : direct;
@@ -784,13 +827,27 @@ function parseArguments(argv) {
 async function main() {
   const [maybeCommand] = process.argv.slice(2);
 
+  if (maybeCommand === "missing-release-tags") {
+    const path = process.argv[3];
+    if (!path)
+      throw new Error("Usage: generate-sbom.mjs missing-release-tags FILE");
+    const parsed = JSON.parse(readFileSync(path, "utf8"));
+    const releases = Array.isArray(parsed?.[0]) ? parsed.flat() : parsed;
+    if (!Array.isArray(releases)) {
+      throw new Error(`Release list must be a JSON array: ${path}`);
+    }
+    const tags = findMissingLatestSbomTags(releases);
+    process.stdout.write(tags.length > 0 ? `${tags.join("\n")}\n` : "");
+    return;
+  }
+
   // `resolve-tag` lets a workflow map a published release back to its component
   // without duplicating the tag conventions in YAML.
   if (maybeCommand === "resolve-tag") {
     const tag = process.argv[3];
     const resolved = componentFromTag(tag);
     const line = resolved
-      ? `component=${resolved.componentId}\nversion=${resolved.version}\nmatched=true\n`
+      ? `component=${resolved.componentId}\nversion=${resolved.version}\nsbom-name=${sbomFileName(resolved.componentId, resolved.version)}\nmatched=true\n`
       : "matched=false\n";
     process.stdout.write(line);
     if (process.env.GITHUB_OUTPUT) {

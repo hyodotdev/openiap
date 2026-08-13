@@ -4,14 +4,21 @@ name: "Security: SBOM"
 # belongs to, attaches it to that release, and attests that this workflow
 # produced it.
 #
-# This runs *after* a release is published rather than inside each release
-# workflow: the existing release workflows stay untouched, and every component —
-# including any added later — is covered by the same code path. The release tag
-# is the input, so the SBOM can only ever describe the commit that shipped.
+# Release workflows dispatch this workflow explicitly because releases created
+# with GITHUB_TOKEN do not emit another workflow run. A scheduled scan repairs
+# any missed dispatch for the newest release of each component.
 
 on:
   release:
     types: [published]
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/sbom.yml"
+      - "scripts/generate-sbom.mjs"
+      - "scripts/sbom-dependencies.mjs"
+  schedule:
+    - cron: "23 3 * * 0"
   workflow_dispatch:
     inputs:
       tag:
@@ -23,14 +30,42 @@ concurrency:
   group: sbom-${{ github.event.release.tag_name || inputs.tag }}
   cancel-in-progress: false
 
-# Read-only by default; the publish job widens this to exactly what the
-# attestation and upload steps require.
+# The backfill job can dispatch repair runs; the publish job replaces these
+# permissions with exactly what attestation and upload require.
 permissions:
+  actions: write
   contents: read
 
 jobs:
+  backfill:
+    name: Dispatch missing current SBOMs
+    if: github.event_name == 'push' || github.event_name == 'schedule'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout default branch
+        uses: actions/checkout@v7
+
+      - name: Find and dispatch missing SBOMs
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api --paginate --slurp \
+            "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            > "$RUNNER_TEMP/releases.json"
+          node scripts/generate-sbom.mjs missing-release-tags \
+            "$RUNNER_TEMP/releases.json" > "$RUNNER_TEMP/missing-tags.txt"
+
+          while IFS= read -r RELEASE_TAG; do
+            [ -n "$RELEASE_TAG" ] || continue
+            echo "Dispatching SBOM for $RELEASE_TAG"
+            gh workflow run sbom.yml --ref "$DEFAULT_BRANCH" \
+              -f tag="$RELEASE_TAG"
+          done < "$RUNNER_TEMP/missing-tags.txt"
+
   sbom:
     name: Generate and publish SBOM
+    if: github.event_name == 'release' || github.event_name == 'workflow_dispatch'
     runs-on: ubuntu-latest
     permissions:
       contents: write # upload the SBOM as a release asset
@@ -85,11 +120,27 @@ jobs:
           RELEASE_TAG: ${{ steps.tag.outputs.tag }}
         run: node scripts/generate-sbom.mjs resolve-tag "$RELEASE_TAG"
 
+      - name: Check for an existing immutable asset
+        id: existing
+        if: ${{ steps.component.outputs.matched == 'true' }}
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+          SBOM_NAME: ${{ steps.component.outputs.sbom-name }}
+        run: |
+          if gh release view "$RELEASE_TAG" --json assets \
+            --jq '.assets[].name' | grep -Fxq "$SBOM_NAME"; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "::notice::$SBOM_NAME is already attached; preserving it."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
+
       # CI tests the generator and its historical fixtures in their owning tree.
 
       - name: Generate CycloneDX SBOM
         id: generate
-        if: ${{ steps.component.outputs.matched == 'true' }}
+        if: ${{ steps.component.outputs.matched == 'true' && steps.existing.outputs.exists == 'false' }}
         # `--with-licenses` resolves each dependency's declared license from its
         # own registry. A registry outage degrades to a missing license field
         # rather than failing the release.
@@ -104,7 +155,7 @@ jobs:
             --with-licenses
 
       - name: Verify the SBOM describes this release
-        if: ${{ steps.component.outputs.matched == 'true' }}
+        if: ${{ steps.component.outputs.matched == 'true' && steps.existing.outputs.exists == 'false' }}
         env:
           SBOM_FILE: ${{ steps.generate.outputs.sbom-file }}
           EXPECTED_VERSION: ${{ steps.component.outputs.version }}
@@ -155,13 +206,13 @@ jobs:
           echo "SBOM verified for $RELEASE_TAG at $ACTUAL_COMMIT"
 
       - name: Attest SBOM provenance
-        if: ${{ steps.component.outputs.matched == 'true' }}
+        if: ${{ steps.component.outputs.matched == 'true' && steps.existing.outputs.exists == 'false' }}
         uses: actions/attest-build-provenance@v4
         with:
           subject-path: ${{ steps.generate.outputs.sbom-file }}
 
       - name: Attach SBOM to the release
-        if: ${{ steps.component.outputs.matched == 'true' }}
+        if: ${{ steps.component.outputs.matched == 'true' && steps.existing.outputs.exists == 'false' }}
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           RELEASE_TAG: ${{ steps.tag.outputs.tag }}

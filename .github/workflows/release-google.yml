@@ -79,6 +79,9 @@ jobs:
 
   release:
     needs: [validate-android]
+    permissions:
+      actions: write
+      contents: write
     runs-on: ubuntu-latest
     env:
       # Central Portal can take 10-30 minutes to finish publishing.
@@ -602,3 +605,9 @@ jobs:
             $PRERELEASE_FLAG \
             --notes-file /tmp/release-notes.md
         fi
+
+    - name: Dispatch SBOM
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        RELEASE_TAG: google-${{ steps.version.outputs.version }}
+      run: gh workflow run sbom.yml --ref main -f tag="$RELEASE_TAG"

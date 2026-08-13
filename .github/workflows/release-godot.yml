@@ -119,6 +119,9 @@ jobs:
 
   deploy:
     needs: [validate-android, validate-ios]
+    permissions:
+      actions: write
+      contents: write
     runs-on: macos-15
     defaults:
       run:
@@ -524,3 +527,9 @@ jobs:
           draft: false
           prerelease: ${{ steps.version.outputs.is_prerelease }}
           body_path: /tmp/release-notes.md
+
+      - name: Dispatch SBOM
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: godot-iap-${{ steps.version.outputs.VERSION }}
+        run: gh workflow run sbom.yml --ref main -f tag="$RELEASE_TAG"
