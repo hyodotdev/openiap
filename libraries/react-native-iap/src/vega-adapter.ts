@@ -1271,10 +1271,7 @@ export function createVegaIapModule(service: VegaPurchasingService): RnIap {
           `IAPKit returned malformed response (HTTP ${status}).`,
         );
       }
-      // `environment` is String in the spec, not an enum: the
-      // Sandbox/Production pair is IAPKit's constraint to enforce, and
-      // re-deriving it here would only let a value IAPKit adds later fail a
-      // receipt the store already confirmed.
+      // Forwarded opaquely: `environment` is String in the spec.
       const rawEnvironment = json.environment;
       const environment =
         typeof rawEnvironment === 'string' && rawEnvironment.length > 0

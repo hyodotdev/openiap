@@ -76,10 +76,8 @@ val openIapVersion: String =
     project.findProperty("openIapVersion")?.toString()?.takeIf { it.isNotBlank() }
         ?: versionsJson["google"]?.toString()?.takeIf { it.isNotBlank() }
         ?: throw GradleException("packages/google: 'google' version missing in openiap-versions.json")
-// The OpenIAP spec version this artifact was compiled against. Reported to
-// IAPKit on verify requests so a response contract change can be rolled out
-// against real client-version data. Never a gradle property: it describes the
-// contract, not the artifact's own version.
+// Spec version this artifact was compiled against, reported to IAPKit on
+// verify. Never a gradle property: it describes the contract, not the artifact.
 val openIapSpecVersion: String =
     versionsJson["spec"]?.toString()?.takeIf { it.isNotBlank() }
         ?: throw GradleException("packages/google: 'spec' version missing in openiap-versions.json")

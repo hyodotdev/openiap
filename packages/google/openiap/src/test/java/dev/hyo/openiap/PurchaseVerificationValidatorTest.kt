@@ -428,9 +428,7 @@ class PurchaseVerificationValidatorTest {
             ),
             includeClientPayload = true
         )
-        // `yaml` stands in for a format IAPKit adds after this build ships; the
-        // rest are structural defects. Both drop the optional payload and keep
-        // the verified receipt, because enrichment is not the security boundary.
+        // `yaml` stands in for a later format; the rest are structural defects.
         val unreadablePayloads = listOf(
             """{"format":"toml","body":"missing timestamps"}""",
             """{"format":"yaml","body":"tier: gold","version":1,"updatedAt":1}""",
@@ -583,9 +581,7 @@ class PurchaseVerificationValidatorTest {
                 receiptId = "amzn1.receipt.ABC123456789"
             )
         )
-        // The spec types `environment` as String, so a value IAPKit adds later
-        // is forwarded; only a non-string has nothing to forward. "Xcode" and
-        // "LocalTesting" are real App Store Server environments.
+        // "Xcode" and "LocalTesting" are real App Store Server environments.
         val cases = listOf(
             "\"Sandbox\"" to "Sandbox",
             "\"Xcode\"" to "Xcode",

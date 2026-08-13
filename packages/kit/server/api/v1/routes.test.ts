@@ -19,8 +19,7 @@ vi.mock("../../convex", () => ({
 const { apiRoutes } = await import("./routes");
 
 describe("apiRoutes", () => {
-  // The request logger writes one JSON line per request to stdout; capturing it
-  // is the only way to assert what an operator actually sees.
+  // The logger writes one JSON line per request to stdout.
   let logLines: Array<Record<string, unknown>>;
   let logSpy: ReturnType<typeof vi.spyOn>;
 
@@ -493,8 +492,7 @@ describe("apiRoutes", () => {
   });
 
   it("degrades an out-of-contract state instead of publishing it", async () => {
-    // Shipped SDKs decode this body with parsers they cannot update, so a
-    // state Convex knows but the published schema does not must not reach one.
+    // A state Convex knows but the published schema does not must not ship.
     convexClientMock.action.mockResolvedValueOnce({
       isValid: true,
       state: "REFUNDED",
@@ -523,8 +521,7 @@ describe("apiRoutes", () => {
   });
 
   it("refuses to publish a verdict that cannot be made contract-valid", async () => {
-    // Only a server defect produces this — Convex's own validator pins
-    // isValid to a boolean — but a body no SDK can trust must not be sent.
+    // Server-defect path: Convex's validator pins isValid to a boolean.
     convexClientMock.action.mockResolvedValueOnce({
       isValid: "true",
       state: "ENTITLED",
@@ -546,14 +543,41 @@ describe("apiRoutes", () => {
     expect(await response.json()).toMatchObject({
       errors: [{ code: "UNKNOWN_ERROR" }],
     });
-    // The client saw a failure, so the structured log must not still report the
-    // verdict this handler computed — otherwise the incident is invisible in
-    // any success-rate view built on `isValid`.
+    // The client saw a failure; the log must not report a success verdict.
     const verifyLine = logLines.find((line) => line.kind === "verify_request");
     expect(verifyLine).toMatchObject({
       statusCode: 500,
       isValid: false,
       state: "UNKNOWN",
+    });
+  });
+
+  it("keeps a stable rejection armed through a malformed verdict", async () => {
+    // The reported state is overwritten on this path, so the cooldown has to be
+    // derived before the reset — otherwise a revoked receipt becomes replayable.
+    convexClientMock.action.mockResolvedValue({
+      isValid: "false",
+      state: "INAUTHENTIC",
+    });
+    const send = () =>
+      apiRoutes.request("/purchase/verify", {
+        method: "POST",
+        headers: {
+          Authorization: "Bearer route-test-stable-rejection-500",
+          "content-type": "application/json",
+        },
+        body: JSON.stringify({
+          store: "google",
+          purchaseToken: "stablereject".repeat(4),
+        }),
+      });
+
+    expect((await send()).status).toBe(500);
+
+    const replayed = await send();
+    expect(replayed.status).toBe(429);
+    expect(await replayed.json()).toMatchObject({
+      errors: [{ code: "REPEATED_FAILURE" }],
     });
   });
 

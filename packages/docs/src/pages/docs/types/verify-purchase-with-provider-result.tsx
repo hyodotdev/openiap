@@ -167,7 +167,9 @@ function VerifyPurchaseWithProviderResult() {
                 Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 /
                 openiap-google 3.3.0. Amazon RVS environment. Handled Amazon
                 responses use exactly <code>'Sandbox'</code> or{' '}
-                <code>'Production'</code>; other stores omit it.
+                <code>'Production'</code>; other stores omit it. Treat it as an
+                opaque string and forward it — never fail a verification because
+                the value is unrecognised.
               </td>
             </tr>
             <tr>

@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   collectContractFailures,
+  runAudit,
   parseDocumentedStates,
   parseGraphqlEnum,
   parseTypescriptEnum,
@@ -88,9 +89,8 @@ test("parsers read each declaration style", () => {
   );
 });
 
-// The parsers read source text, so their dangerous failure is agreeing over a
-// drifted repo. Both cases below returned no failures before the anchors were
-// qualified and comments stripped.
+// The dangerous failure is agreeing over a drifted repo; both cases below
+// returned no failures before the anchors were qualified.
 
 test("a second format union cannot be mistaken for the contract", () => {
   const withDecoy = RESPONSE_SCHEMA.replace(
@@ -143,8 +143,7 @@ test("a commented-out literal is not counted", () => {
 });
 
 test("a comment above the anchored field does not break the audit", () => {
-  // The audit gates the kit deploy, so a documentation edit on the very
-  // declaration it reads must not block a release.
+  // The audit gates the kit deploy; a doc edit must not block a release.
   assert.deepEqual(
     collectContractFailures(
       sources({
@@ -156,6 +155,23 @@ test("a comment above the anchored field does not break the audit", () => {
     ),
     [],
   );
+});
+
+test("an unreadable declaration is reported, not thrown", () => {
+  // deploy-kit.yml gates on this, so the operator has to see the guidance.
+  const errors = [];
+  const originalError = console.error;
+  console.error = (...args) => errors.push(args.join(" "));
+  try {
+    assert.equal(
+      runAudit(sources({ responseSchema: "const nothing = 1;\n" })),
+      false,
+    );
+  } finally {
+    console.error = originalError;
+  }
+  assert.match(errors.join("\n"), /could not read a declaration/);
+  assert.match(errors.join("\n"), /type\.graphql/);
 });
 
 test("a declaration that parses to nothing is a failure, not agreement", () => {

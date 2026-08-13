@@ -17,7 +17,7 @@ import {
 import { enforceVerifyResponseContract } from "./response-contract";
 import { apiKeyMiddleware } from "./middleware";
 import { getRequestIp, multiAxisRateLimitMiddleware } from "./rate-limit";
-import { replayGuardMiddleware } from "./replay-guard";
+import { isStableRejection, replayGuardMiddleware } from "./replay-guard";
 import { inFlightLimitMiddleware } from "./in-flight-limit";
 import { requestLoggerMiddleware } from "./request-logger";
 import { validator } from "./validator";
@@ -460,8 +460,7 @@ const verifyPurchaseHandler = async (
       ...(clientPayload ? { clientPayload } : {}),
     });
     if (contract.violations.length > 0) {
-      // Field names only — never values. A drift here means the emitted body
-      // left the schema the OpenAPI document publishes and shipped SDKs decode.
+      // Field names only — never values.
       console.error(
         "[purchase/verify] RESPONSE_CONTRACT_VIOLATION: store=%s fields=%s",
         store,
@@ -469,14 +468,15 @@ const verifyPurchaseHandler = async (
       );
     }
     if (!contract.ok) {
-      // The client is about to see a 500, so the request log must not keep
-      // reporting the verdict this handler computed. `stableRejection` is
-      // carried over: it is the store's own provenance, and dropping it would
-      // disarm the replay guard's cooldown for a genuinely revoked receipt.
+      // Reset only the reported verdict. The rejection's stability is resolved
+      // first, because `state` is about to be overwritten and the replay guard
+      // derives the cooldown from it. Defect-only path: Convex pins isValid.
       setOutcome({
-        ...outcome,
         isValid: false,
         state: FALLBACK_PURCHASE_STATE,
+        ...(isStableRejection(outcome.state, outcome.stableRejection === true)
+          ? { stableRejection: true }
+          : {}),
       });
       const errorId = crypto.randomUUID();
       console.error(

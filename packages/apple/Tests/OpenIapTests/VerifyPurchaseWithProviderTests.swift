@@ -79,8 +79,7 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
         XCTAssertEqual(2, payload.version)
         XCTAssertNil(OpenIapModule.iapkitClientPayload(from: nil))
         XCTAssertNil(OpenIapModule.iapkitClientPayload(from: NSNull()))
-        // A format IAPKit adds after this build shipped, and every structural
-        // defect, drop the payload instead of failing the verified receipt.
+        // A later format, and every structural defect, drop the payload.
         XCTAssertNil(
             OpenIapModule.iapkitClientPayload(from: [
                 "format": "yaml",
@@ -141,9 +140,7 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
         XCTAssertEqual("Sandbox", OpenIapModule.iapkitEnvironment(from: "Sandbox"))
         XCTAssertEqual("Production", OpenIapModule.iapkitEnvironment(from: "Production"))
 
-        // The spec types `environment` as String, so a value IAPKit adds later
-        // is forwarded rather than dropped. "Xcode" and "LocalTesting" are real
-        // App Store Server environments.
+        // "Xcode" and "LocalTesting" are real App Store Server environments.
         for forwarded in ["sandbox", "Xcode", "LocalTesting", "Staging"] {
             XCTAssertEqual(forwarded, OpenIapModule.iapkitEnvironment(from: forwarded))
         }
@@ -159,27 +156,30 @@ final class VerifyPurchaseWithProviderTests: XCTestCase {
         let request = OpenIapModule.makeIapkitRequest(
             url: url,
             apiKey: "  iapkit_pk_test  ",
-            body: Data("{}".utf8)
+            body: Data("{}".utf8),
+            specVersion: "3.2.0"
         )
 
         XCTAssertEqual("POST", request.httpMethod)
         XCTAssertEqual("application/json", request.value(forHTTPHeaderField: "Content-Type"))
         XCTAssertEqual("Bearer iapkit_pk_test", request.value(forHTTPHeaderField: "Authorization"))
-        // The header is present exactly when the version resolves, and carries a
-        // semver when it does. It cannot be asserted unconditionally: SwiftPM
-        // copies `Sources/openiap-versions.json` as the symlink it is, which
-        // dangles inside the built bundle, so `Bundle.module` finds nothing
-        // under `swift test`. That is why the accessor is optional and the
-        // header is omitted rather than trapping.
-        let header = request.value(forHTTPHeaderField: "X-OpenIAP-Spec")
-        XCTAssertEqual(OpenIapVersion.specVersionIfAvailable, header)
-        if let header {
-            XCTAssertNotNil(
-                header.range(of: #"^\d+\.\d+\.\d+"#, options: .regularExpression),
-                "X-OpenIAP-Spec must carry a semver, got \(header)"
-            )
-        }
+        // Injected rather than read back from the accessor that produced it:
+        // under SwiftPM the bundled versions file is a dangling symlink, so
+        // comparing against the accessor would be nil == nil.
+        XCTAssertEqual("3.2.0", request.value(forHTTPHeaderField: "X-OpenIAP-Spec"))
         XCTAssertEqual(Data("{}".utf8), request.httpBody)
+    }
+
+    func testIapkitRequestOmitsTheSpecHeaderWhenTheVersionIsUnreadable() throws {
+        let url = try XCTUnwrap(URL(string: "https://kit.openiap.dev/v1/purchase/verify"))
+        let request = OpenIapModule.makeIapkitRequest(
+            url: url,
+            apiKey: "iapkit_pk_test",
+            body: Data(),
+            specVersion: nil
+        )
+
+        XCTAssertNil(request.value(forHTTPHeaderField: "X-OpenIAP-Spec"))
     }
 
     func testIapkitRequestOmitsAuthorizationForABlankApiKey() throws {

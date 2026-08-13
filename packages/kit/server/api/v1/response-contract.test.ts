@@ -62,8 +62,7 @@ describe("enforceVerifyResponseContract", () => {
   });
 
   test("drops an environment the SDK parsers reject", () => {
-    // Apple's App Store Server API also reports `Xcode` and `LocalTesting`;
-    // shipped SDKs fail the whole receipt on anything but Sandbox/Production.
+    // App Store Server also reports `Xcode` and `LocalTesting`.
     const result = enforceVerifyResponseContract({
       ...ENTITLED,
       environment: "Xcode",
@@ -120,8 +119,7 @@ describe("enforceVerifyResponseContract", () => {
   });
 
   test("refuses to publish a malformed verdict", () => {
-    // Neither field can drift from metadata changes — only a server defect
-    // produces this, and a response no SDK can trust must not reach a client.
+    // Server-defect path: neither field can drift from metadata changes.
     for (const broken of [
       { ...ENTITLED, isValid: "true" },
       { ...ENTITLED, store: "steam" },

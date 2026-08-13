@@ -1921,10 +1921,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                   );
                 }
 
-                // `environment` is String in the spec, not an enum. IAPKit
-                // owns the Sandbox/Production constraint and the native layer
-                // has already applied it; re-deriving it here would only let a
-                // value IAPKit adds later fail a confirmed purchase.
+                // Forwarded opaquely: `environment` is String in the spec.
                 final environmentValue = itemMap['environment'];
                 final environment =
                     environmentValue is String && environmentValue.isNotEmpty
@@ -1954,10 +1951,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                   final updatedAt = updatedAtValue is num
                       ? updatedAtValue.toDouble()
                       : double.nan;
-                  // Optional enrichment: a payload this build cannot read —
-                  // including one using a format added after it shipped — is
-                  // dropped, never thrown. Receipt verification is the security
-                  // boundary; losing metadata must not fail a paid purchase.
+                  // Optional enrichment: dropped, never thrown.
                   if (format is String &&
                       body is String &&
                       version.isFinite &&
@@ -1985,8 +1979,7 @@ class FlutterInappPurchase with RequestPurchaseBuilderApi {
                       state.toString(),
                     );
                   } on ArgumentError {
-                    // A state IAPKit added after this build shipped. `isValid`
-                    // stays authoritative; only the label degrades.
+                    // A state added after this build shipped; `isValid` stands.
                     return gentype.IapkitPurchaseState.Unknown;
                   }
                 }

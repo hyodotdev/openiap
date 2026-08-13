@@ -55,11 +55,6 @@ import io.github.hyochan.kmpiap.openiap.RequestPurchaseProps
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseResult
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseResultPurchase
 import io.github.hyochan.kmpiap.openiap.RequestPurchaseResultPurchases
-import io.github.hyochan.kmpiap.openiap.IapStore
-import io.github.hyochan.kmpiap.openiap.IapkitClientPayloadFormat
-import io.github.hyochan.kmpiap.openiap.IapkitProductClientPayload
-import io.github.hyochan.kmpiap.openiap.IapkitPurchaseState
-import io.github.hyochan.kmpiap.openiap.RequestVerifyPurchaseWithIapkitResult
 import io.github.hyochan.kmpiap.openiap.SubscriptionStatusIOS
 import io.github.hyochan.kmpiap.openiap.UserChoiceBillingDetails
 import io.github.hyochan.kmpiap.openiap.VerifyPurchaseProps
@@ -253,34 +248,10 @@ internal class AmazonInAppPurchaseAndroid(
                 )
             )
         }
-        val androidResult = verifyPurchaseWithIapkitAndroid(androidOptions, "kmp-iap-android-$storeName")
-        // Mapped field by field rather than round-tripped through the generated
-        // fromJson, which throws on a clientPayload format this module's
-        // Types.kt predates. openiap-google has already decoded everything
-        // safely; optional metadata must degrade, not take the receipt down.
-        val iapkitResult = RequestVerifyPurchaseWithIapkitResult(
-            clientPayload = androidResult.clientPayload?.let { payload ->
-                IapkitClientPayloadFormat.entries
-                    .firstOrNull { it.rawValue == payload.format.toJson() }
-                    ?.let { format ->
-                        IapkitProductClientPayload(
-                            body = payload.body,
-                            format = format,
-                            updatedAt = payload.updatedAt,
-                            version = payload.version
-                        )
-                    }
-            },
-            environment = androidResult.environment,
-            isValid = androidResult.isValid,
-            productId = androidResult.productId,
-            state = runCatching {
-                IapkitPurchaseState.fromJson(androidResult.state.toJson())
-            }.getOrDefault(IapkitPurchaseState.Unknown),
-            store = runCatching {
-                IapStore.fromJson(androidResult.store.toJson())
-            }.getOrDefault(IapStore.Unknown)
-        )
+        val androidResult = withMappedOpenIapError {
+            verifyPurchaseWithIapkitAndroid(androidOptions, "kmp-iap-android-$storeName")
+        }
+        val iapkitResult = androidResult.toKmpIapkitResult()
         return VerifyPurchaseWithProviderResult(
             iapkit = iapkitResult,
             provider = options.provider

@@ -57,9 +57,8 @@ export const unifiedPurchaseStateSchema = v.union(
   ),
 );
 
-// The state a response degrades to when the verified value is outside the
-// published enum. Never changes `isValid`: the verdict is authoritative and a
-// metadata drift must not revoke a real entitlement.
+// Degraded state for a value outside the published enum. `isValid` is never
+// rewritten — metadata drift must not revoke a real entitlement.
 export const FALLBACK_PURCHASE_STATE = "UNKNOWN";
 
 const verifyStoreSchema = v.union([

@@ -62,10 +62,8 @@ export const enforceVerifyResponseContract = (
 
   const reparsed = v.safeParse(verifyPurchaseSuccessResponseSchema, degraded);
   if (!reparsed.success) {
-    // `store` and `isValid` are the only fields left, and the route handler
-    // supplies both from its own switch. Reaching here means the verdict
-    // itself is malformed, which is a server defect rather than contract
-    // drift — report it instead of publishing a response no SDK can trust.
+    // Only `store` and `isValid` remain, both handler-supplied — a malformed
+    // verdict is a server defect, not contract drift.
     return {
       ok: false,
       violations: [

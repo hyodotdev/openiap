@@ -3184,9 +3184,7 @@ void main() {
       expect(result.iapkit!.environment, isNull);
     });
 
-    // IAPKit deploys from main while this build is frozen inside a published
-    // app, so a value it adds later must degrade rather than fail a purchase
-    // the store already confirmed. `isValid` stays authoritative throughout.
+    // A value IAPKit adds later must degrade, not fail the purchase.
     test('never fails a receipt over metadata this build predates', () async {
       TestDefaultBinaryMessengerBinding.instance.defaultBinaryMessenger
           .setMockMethodCallHandler(channel, (MethodCall call) async {
@@ -3232,9 +3230,7 @@ void main() {
 
       expect(result.iapkit!.isValid, isTrue);
       expect(result.iapkit!.productId, 'premium.monthly');
-      // An unknown state degrades to the neutral member, an unknown format
-      // drops only the optional payload, and an open-string environment is
-      // forwarded untouched.
+      // Unknown state degrades, unknown format drops, environment forwards.
       expect(result.iapkit!.state, types.IapkitPurchaseState.Unknown);
       expect(result.iapkit!.clientPayload, isNull);
       expect(result.iapkit!.environment, 'Xcode');

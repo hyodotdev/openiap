@@ -216,9 +216,8 @@ describe("mapAppStorePurchaseState", () => {
     expect(state).toBe(HarmonizedPurchaseState.EXPIRED);
   });
 
-  // Golden table. Every row decides what a published app sees for a real
-  // App Store transaction, and IAPKit ships without an SDK release, so a
-  // mapping change has to show up here as an explicit diff.
+  // Golden table: a mapping change ships to published apps without an SDK
+  // release, so it must show up here as an explicit diff.
   const APP_STORE_GOLDEN: Array<{
     label: string;
     reason?: AppStoreTransactionReason;
@@ -333,16 +332,9 @@ describe("isValidState", () => {
     expect(isValidState(HarmonizedPurchaseState.INAUTHENTIC)).toBe(false);
   });
 
-  // `isValid` is the field every SDK gates entitlement on, and IAPKit deploys
-  // from main without an SDK release — changing this table changes what
-  // already-published apps unlock, for every user, immediately.
-  //
-  // The table is keyed by the full enum rather than listing only the entitling
-  // states: `Record<HarmonizedPurchaseState, boolean>` makes TypeScript reject
-  // a newly added state until someone classifies it, so the far more likely
-  // drift — a new state quietly defaulting to "does not entitle" — cannot pass
-  // unnoticed either. Being a record also makes it order-independent, so
-  // reordering the enum is not a false failure.
+  // `isValid` gates entitlement in every SDK, and kit ships without an SDK
+  // release. Keyed by the full enum so TypeScript rejects a new state until
+  // someone classifies it, in either direction, and order does not matter.
   const ENTITLEMENT_GOLDEN: Record<HarmonizedPurchaseState, boolean> = {
     [HarmonizedPurchaseState.ENTITLED]: true,
     [HarmonizedPurchaseState.PENDING_ACKNOWLEDGMENT]: true,

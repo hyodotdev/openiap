@@ -72,9 +72,7 @@ jobs:
             exit 1
           fi
 
-      # This workflow is what actually ships kit to every already-published
-      # app, so the response-contract guard has to gate it here — ci.yml runs
-      # independently and can still be red when this job's deploy gate opens.
+      # ci.yml runs independently, so the guard has to gate the deploy here too.
       - name: Run IAPKit spec contract audit
         working-directory: ${{ github.workspace }}
         run: node scripts/audit-kit-spec-contract.mjs

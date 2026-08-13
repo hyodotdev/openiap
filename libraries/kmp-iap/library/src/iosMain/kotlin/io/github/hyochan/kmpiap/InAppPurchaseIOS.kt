@@ -1071,15 +1071,9 @@ internal class InAppPurchaseIOS : KmpInAppPurchase {
                         is String -> rawProductId
                         else -> throw IllegalArgumentException("IAPKit result productId must be a string")
                     }
-                    // `environment` is String in the spec, not an enum, and
-                    // packages/apple has already applied IAPKit's own
-                    // constraint. Re-deriving it here would only let a value
-                    // IAPKit adds later fail a confirmed purchase.
+                    // Forwarded opaquely: `environment` is String in the spec.
                     val environment = (map["environment"] as? String)?.takeIf { it.isNotEmpty() }
-                    // Optional enrichment: a payload this build cannot read —
-                    // including a format added after it shipped — is dropped,
-                    // never thrown. Receipt verification is the security
-                    // boundary; losing metadata must not fail a paid purchase.
+                    // Optional enrichment: dropped, never thrown.
                     val clientPayload = (map["clientPayload"] as? Map<*, *>)?.let { rawClientPayload ->
                         val payload = rawClientPayload.mapKeys { it.key.toString() }
                         val format = (payload["format"] as? String)

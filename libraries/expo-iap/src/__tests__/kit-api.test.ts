@@ -344,10 +344,8 @@ describe('kitApi cache resilience', () => {
     expect(fetchImpl).toHaveBeenCalledTimes(1);
   });
 
-  // IAPKit can add a client-payload format from a main deploy. Rejecting the
-  // cached entry would evict it, stop the ETag revalidation from ever being
-  // sent, and leave offline reads with nothing — for a value the live path
-  // hands back to the caller unchanged anyway.
+  // Evicting on an unknown format would kill ETag revalidation and offline
+  // reads, for a value the live path forwards unchanged.
   it('serves a cached payload whose format this build predates', async () => {
     const stored = {
       clientPayload: {format: 'yaml', body: 'tier: gold', version: 2, updatedAt: 9},

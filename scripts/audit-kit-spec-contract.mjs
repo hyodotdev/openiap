@@ -1,21 +1,10 @@
 #!/usr/bin/env node
 
-// IAPKit deploys from `main` on its own workflow, while the native SDKs that
-// decode its `/v1` responses are frozen inside already-published apps. The
-// enums below are declared three times — kit's persisted Convex state, kit's
-// OpenAPI response documentation, and the GraphQL schema that generates every
-// SDK type. Nothing else in the repo compares them, so a kit-only change could
-// put a value on the wire that shipped SDKs and published docs know nothing
-// about. This audit is that comparison.
+// Compares IAPKit's response enums against the spec every SDK generates from.
 //
-// Scope: the /v1 verify RESPONSE contract only. kit's write path declares the
-// client-payload format set again in convex/schema.ts (twice),
-// convex/products/{query,mutation}.ts and server/api/v1/products.ts, and the
-// environment pair again in convex/schema.ts and convex/purchases/shared.ts.
-// Those live on the other side of kit's server/convex tsconfig split, so they
-// cannot share a constant without moving a module; until they do, a format
-// accepted on write but absent from the response schema is silently dropped by
-// enforceVerifyResponseContract rather than caught here.
+// Covers the /v1 verify RESPONSE only: kit's write path declares the same
+// format set in convex/schema.ts, convex/products/ and server/api/v1/products.ts,
+// across a tsconfig split that stops them sharing a constant.
 
 import fs from "node:fs";
 import path from "node:path";
@@ -32,11 +21,8 @@ export const RESPONSE_SCHEMA_FILE =
 const read = (relativePath) =>
   fs.readFileSync(path.join(root, relativePath), "utf8");
 
-// These are source-text parsers, so the two ways they can lie are worse than
-// the ways they can fail: matching the wrong declaration, or reading a value
-// that is commented out. Both would report agreement over a drifted repo.
-// `matchExactlyOnce` closes the first, `stripComments` the second, and every
-// parser rejects an empty result rather than comparing two empty lists.
+// Source-text parsers can lie by matching the wrong declaration or reading a
+// commented-out value, either of which reports agreement over a drifted repo.
 
 const matchExactlyOnce = (source, pattern, label) => {
   const matches = [...source.matchAll(new RegExp(pattern, "g"))];
@@ -141,9 +127,8 @@ export const collectContractFailures = ({
   convexState = read(CONVEX_STATE_FILE),
   responseSchema: rawResponseSchema = read(RESPONSE_SCHEMA_FILE),
 } = {}) => {
-  // Anchors match raw text, so comments are removed before anchoring too:
-  // otherwise a comment added between `v.object({` and `format:` would make an
-  // anchor miss and block the deploy gate over a documentation edit.
+  // Anchors match raw text, so a comment inside a declaration would make one
+  // miss and block the deploy gate.
   const responseSchema = stripComments(rawResponseSchema);
   const specStates = parseGraphqlEnum(schema, "IapkitPurchaseState");
   // GraphQL members are PascalCase for these two; the wire values are lowercase.
@@ -168,8 +153,7 @@ export const collectContractFailures = ({
     ...compare(
       `${RESPONSE_SCHEMA_FILE} clientPayload format vs ${SCHEMA_FILE} IapkitClientPayloadFormat`,
       specFormats,
-      // Anchored on the owning declaration: `format:` alone would silently
-      // read a different schema's field if one were added above this one.
+      // Anchored on the owning declaration; `format:` alone is ambiguous.
       parseValibotLiteralUnion(
         responseSchema,
         "clientPayloadSchema = v\\.object\\(\\{\\s*format:\\s*",
@@ -186,13 +170,11 @@ export const collectContractFailures = ({
   ];
 };
 
-export const runAudit = () => {
-  // The hardened parsers signal drift by throwing, so those cases have to reach
-  // the guidance below rather than surfacing as a bare stack trace — in
-  // deploy-kit.yml this message is what a blocked operator reads.
+export const runAudit = (sources) => {
+  // Parsers signal drift by throwing; route that through the guidance below.
   let failures;
   try {
-    failures = collectContractFailures();
+    failures = collectContractFailures(sources);
   } catch (error) {
     failures = [`could not read a declaration: ${error.message}`];
   }

@@ -77,10 +77,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         return url
     }
 
-    /// Optional public product metadata. Returns nil for anything this build
-    /// cannot represent — including a `format` added to IAPKit after this
-    /// version shipped. Receipt verification is the security boundary; losing
-    /// enrichment must never fail a purchase the store already confirmed.
+    /// Optional enrichment: returns nil for anything this build cannot read,
+    /// including a `format` IAPKit added later. Never fails the receipt.
     static func iapkitClientPayload(from rawValue: Any?) -> IapkitProductClientPayload? {
         guard let rawValue, !(rawValue is NSNull) else { return nil }
         guard let payload = rawValue as? [String: Any],
@@ -108,16 +106,18 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         )
     }
 
-    /// Builds the IAPKit verify request. `X-OpenIAP-Spec` tells the server
-    /// which response contract this build was compiled against, so an enum it
-    /// gains later can be rolled out against real client-version data instead
-    /// of a guess. It is reported, never negotiated: the header is omitted when
-    /// the version cannot be read, and the server must not gate on it.
-    static func makeIapkitRequest(url: URL, apiKey: String?, body: Data) -> URLRequest {
+    /// `X-OpenIAP-Spec` reports the response contract this build was compiled
+    /// against. Reported, never negotiated: omitted when unreadable.
+    static func makeIapkitRequest(
+        url: URL,
+        apiKey: String?,
+        body: Data,
+        specVersion: String? = OpenIapVersion.specVersionIfAvailable
+    ) -> URLRequest {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        if let specVersion = OpenIapVersion.specVersionIfAvailable {
+        if let specVersion {
             request.setValue(specVersion, forHTTPHeaderField: "X-OpenIAP-Spec")
         }
         let trimmedApiKey = apiKey?.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -140,11 +140,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
         return value.boolValue
     }
 
-    /// Optional store environment. `environment` is String in the spec, not an
-    /// enum: the Sandbox/Production pair is IAPKit's constraint to enforce, and
-    /// re-deriving it here would only let a value IAPKit adds later — App Store
-    /// Server also names `Xcode` and `LocalTesting` — fail a receipt the store
-    /// already confirmed.
+    /// Forwarded opaquely: `environment` is String in the spec, and App Store
+    /// Server also names `Xcode` and `LocalTesting`.
     static func iapkitEnvironment(from rawValue: Any?) -> String? {
         guard let rawValue, !(rawValue is NSNull) else { return nil }
         guard let environment = rawValue as? String, environment.isEmpty == false else {

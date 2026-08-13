@@ -14,11 +14,9 @@ public struct OpenIapVersion {
         version(for: "spec")
     }
 
-    /// Current OpenIAP specification version, or nil when the bundled
-    /// `openiap-versions.json` cannot be located. Callers on the purchase path
-    /// must use this rather than `specVersion`: the resource is bundled
-    /// differently by SwiftPM, CocoaPods and the xcframework, and reporting a
-    /// version is never worth trapping in the middle of a purchase.
+    /// Spec version, or nil when the bundled `openiap-versions.json` cannot be
+    /// located. Use this on the purchase path — `specVersion` traps, and the
+    /// resource bundles differently under SwiftPM, CocoaPods and xcframework.
     public static var specVersionIfAvailable: String? {
         optionalVersion(for: "spec")
     }

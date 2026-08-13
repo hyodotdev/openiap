@@ -195,8 +195,7 @@ suspend fun verifyPurchaseWithIapkit(
     fun readIapkitClientPayload(raw: Any?): IapkitProductClientPayload? {
         if (raw == null) return null
         val payload = raw as? Map<*, *> ?: return unreadableIapkitClientPayload()
-        // Derived from the generated enum rather than a literal set, so a
-        // format added to the spec is readable as soon as Types.kt regenerates.
+        // Derived from the generated enum so a new format is readable on regen.
         val format = (payload["format"] as? String)
             ?.let { rawFormat -> IapkitClientPayloadFormat.entries.firstOrNull { it.rawValue == rawFormat } }
             ?: return unreadableIapkitClientPayload()
@@ -352,9 +351,7 @@ suspend fun verifyPurchaseWithIapkit(
         requestMethod = "POST"
         doOutput = true
         setRequestProperty("Content-Type", "application/json")
-        // Tells IAPKit which response contract this build was compiled
-        // against, so an enum it gains later can be rolled out against real
-        // client-version data. Reported, never negotiated.
+        // Reported, never negotiated.
         setRequestProperty("X-OpenIAP-Spec", BuildConfig.OPENIAP_SPEC_VERSION)
         props.apiKey?.takeIf { it.isNotBlank() }?.let { apiKey ->
             setRequestProperty("Authorization", "Bearer $apiKey")
@@ -398,20 +395,14 @@ suspend fun verifyPurchaseWithIapkit(
                 IapkitPurchaseState.fromJson(normalizedState)
             }.getOrDefault(IapkitPurchaseState.Unknown)
 
-            // Optional enrichment: anything this build cannot represent — a
-            // client payload format or environment IAPKit adds later included
-            // — is dropped, never thrown. Receipt verification is the security
-            // boundary, and losing metadata must not fail a confirmed purchase.
+            // Optional enrichment: dropped, never thrown.
             val clientPayload = readIapkitClientPayload(parsed["clientPayload"])
             val productId = when (val rawProductId = parsed["productId"]) {
                 null -> null
                 is String -> rawProductId
                 else -> throw malformedIapkitResponse()
             }
-            // `environment` is String in the spec, not an enum: the
-            // Sandbox/Production pair is IAPKit's constraint to enforce, and
-            // re-deriving it here would only let a value IAPKit adds later
-            // fail a receipt the store already confirmed.
+            // Forwarded opaquely: `environment` is String in the spec.
             val environment = (parsed["environment"] as? String)?.takeIf { it.isNotEmpty() }
             if (environment == null && parsed["environment"] != null) {
                 OpenIapLog.warn("Ignoring an IAPKit environment this build cannot read", tag)

@@ -103,8 +103,7 @@ describe("requestLoggerMiddleware", () => {
   });
 
   test("carries the client spec version from the wire onto the log line", async () => {
-    // `X-OpenIAP-Spec` has to agree across three codebases; the clients pin
-    // their side, so kit pins the exact name it reads here.
+    // The header name has to agree across kit, openiap-apple and openiap-google.
     const logs: VerifyLogLine[] = [];
     const app = buildApp({ logs });
 
@@ -130,9 +129,8 @@ describe("requestLoggerMiddleware", () => {
       headers: {
         Authorization: "Bearer spec-header-junk",
         "content-type": "application/json",
-        // The runtime rejects a header carrying a newline before kit sees it,
-        // so log-injection shapes are covered by the readSpecVersion unit test
-        // above; this pins what actually reaches the middleware.
+        // Injection shapes are covered by the readSpecVersion unit test below;
+        // the runtime rejects a newline header before kit sees it.
         "X-OpenIAP-Spec": "latest",
       },
       body: JSON.stringify({ store: "apple", jws: TEST_APPLE_JWS }),
@@ -143,9 +141,7 @@ describe("requestLoggerMiddleware", () => {
   });
 
   test("records a plausible client spec version and ignores anything else", async () => {
-    // Caller-controlled, so it is shape-checked and bounded before it reaches
-    // a log line. Nothing branches on it — an SDK must not be able to change
-    // how its receipt is verified by claiming a version.
+    // Caller-controlled; nothing branches on it.
     expect(readSpecVersion("3.2.0")).toBe("3.2.0");
     expect(readSpecVersion("3.2.0-rc.1")).toBe("3.2.0-rc.1");
     expect(readSpecVersion(undefined)).toBeUndefined();

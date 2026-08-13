@@ -1635,9 +1635,7 @@ describe('Amazon Vega Expo adapter', () => {
     }
   });
 
-  // `environment` is an open String in the spec, so a value IAPKit adds later
-  // ("Xcode" and "LocalTesting" are real App Store Server environments) is
-  // forwarded, and only a non-string is dropped. Neither fails the receipt.
+  // Forwarded opaquely; only a non-string is dropped. Neither fails.
   it.each([
     {environment: 'Xcode', expected: 'Xcode'},
     {environment: 'LocalTesting', expected: 'LocalTesting'},

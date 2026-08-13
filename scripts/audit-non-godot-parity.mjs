@@ -2619,9 +2619,29 @@ function checkIapkitAmazonContractWiring() {
     "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseAndroid.kt",
     [
       "expectedProductId = amazon.expectedProductId",
-      "environment = androidResult.environment",
+      "androidResult.toKmpIapkitResult()",
     ],
     "KMP Android IAPKit Amazon contract",
+  );
+  expectIncludes(
+    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/AmazonInAppPurchaseAndroid.kt",
+    ["androidResult.toKmpIapkitResult()"],
+    "KMP Amazon store IAPKit response contract",
+  );
+  expectIncludes(
+    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/Helper.kt",
+    [
+      "environment = environment",
+      "IapkitClientPayloadFormat.entries",
+      "getOrDefault(IapkitPurchaseState.Unknown)",
+      "getOrDefault(IapStore.Unknown)",
+    ],
+    "KMP Android IAPKit result mapping degrades unknown values",
+  );
+  expectNotIncludes(
+    "libraries/kmp-iap/library/src/androidMain/kotlin/io/github/hyochan/kmpiap/AmazonInAppPurchaseAndroid.kt",
+    ["RequestVerifyPurchaseWithIapkitResult.fromJson"],
+    "KMP Amazon store must not round-trip through the generated decoder",
   );
   expectIncludes(
     "libraries/kmp-iap/library/src/iosMain/kotlin/io/github/hyochan/kmpiap/InAppPurchaseIOS.kt",

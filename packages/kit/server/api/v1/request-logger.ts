@@ -31,11 +31,9 @@ export interface VerifyLogLine {
   specVersion?: string;
 }
 
-// Clients report the OpenIAP spec their build was compiled against so a
-// response-contract change can be rolled out against real version data. The
-// value is caller-controlled, so it is shape-checked and bounded before it
-// reaches a log line, and nothing branches on it — an SDK must never be able
-// to change how its receipt is verified by claiming a version.
+// Caller-controlled, so it is shape-checked and bounded before reaching a log
+// line. Nothing branches on it: a client must not be able to change how its
+// receipt is verified by claiming a version.
 const SPEC_VERSION_PATTERN =
   /^\d{1,4}\.\d{1,4}\.\d{1,4}(-[0-9A-Za-z.-]{1,32})?$/;
 
