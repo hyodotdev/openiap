@@ -2212,6 +2212,8 @@ internal class InAppPurchaseAndroid(
                 iapkit = iapkitResult,
                 provider = options.provider
             )
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
             failWith(
                 PurchaseError(

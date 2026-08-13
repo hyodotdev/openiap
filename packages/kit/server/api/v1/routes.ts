@@ -232,6 +232,16 @@ const verifyPurchaseRouteDescription = describeRoute({
     "data. It never changes how a receipt is verified, and an unrecognised " +
     "value is ignored rather than rejected.",
   security: [{ apiKey: [] }],
+  parameters: [
+    {
+      in: "header" as const,
+      name: "X-OpenIAP-Spec",
+      required: false,
+      description:
+        "OpenIAP spec version the calling SDK was built against, for example `3.2.0`. Recorded for rollout measurement only: it never changes how a receipt is verified, and an unrecognised value is ignored rather than rejected.",
+      schema: { type: "string" as const },
+    },
+  ],
   responses: {
     200: {
       description: "Successful verification",

@@ -258,6 +258,8 @@ internal class AmazonInAppPurchaseAndroid(
                 iapkit = androidResult.toKmpIapkitResult(),
                 provider = options.provider
             )
+        } catch (error: CancellationException) {
+            throw error
         } catch (error: Exception) {
             failWith(
                 PurchaseError(

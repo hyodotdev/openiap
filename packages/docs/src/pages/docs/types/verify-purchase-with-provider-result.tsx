@@ -165,11 +165,13 @@ function VerifyPurchaseWithProviderResult() {
               </td>
               <td>
                 Available in OpenIAP Spec 3.2.0 / openiap-apple 3.2.0 /
-                openiap-google 3.3.0. Amazon RVS environment. Handled Amazon
-                responses use exactly <code>'Sandbox'</code> or{' '}
-                <code>'Production'</code>; other stores omit it. Treat it as an
-                opaque string and forward it — never fail a verification because
-                the value is unrecognised.
+                openiap-google 3.3.0. Opaque, provider-defined store
+                environment. Handled Amazon responses currently report{' '}
+                <code>'Sandbox'</code> or <code>'Production'</code>, and other
+                stores omit it today, but the value space belongs to the
+                provider — App Store Server also names <code>'Xcode'</code> and{' '}
+                <code>'LocalTesting'</code>. Forward it and never fail a
+                verification because the value is unrecognised.
               </td>
             </tr>
             <tr>
