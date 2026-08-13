@@ -273,7 +273,7 @@ export class GDScriptPlugin extends CodegenPlugin {
 
   protected generateDocComment(description: string | undefined, indent: string = ''): void {
     if (!description) return;
-    const singleLine = description.replace(/\r?\n/g, ' ').trim();
+    const singleLine = description.replace(/\s+/g, ' ').trim();
     this.emit(`${indent}## ${singleLine}`);
   }
 
@@ -286,10 +286,7 @@ export class GDScriptPlugin extends CodegenPlugin {
     this.emit(`enum ${irEnum.name} {`);
 
     irEnum.values.forEach((value, index) => {
-      if (value.description) {
-        const singleLine = value.description.replace(/\r?\n/g, ' ').trim();
-        this.emit(`\t## ${singleLine}`);
-      }
+      this.generateDocComment(value.description, '\t');
       this.emit(`\t${this.enumValueCase(value.name)} = ${index},`);
     });
 

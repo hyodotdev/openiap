@@ -28,11 +28,9 @@ const fits = (schema: v.GenericSchema, value: unknown): boolean =>
  * so the documented shape and the emitted body could drift apart silently —
  * and shipped apps decode this body with fixed parsers they cannot update.
  *
- * Metadata that falls outside the contract is degraded, not passed through:
- * an out-of-contract `environment` or `clientPayload.format` makes several
- * SDKs reject an otherwise valid receipt. `isValid` is never rewritten — the
- * verdict is authoritative, and drifting metadata must not revoke a real
- * entitlement.
+ * Metadata that falls outside the contract is degraded, not passed through.
+ * `isValid` is never rewritten — the verdict is authoritative, and drifting
+ * metadata must not revoke a real entitlement.
  */
 export const enforceVerifyResponseContract = (
   candidate: Record<string, unknown>,

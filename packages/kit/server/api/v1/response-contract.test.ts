@@ -61,17 +61,18 @@ describe("enforceVerifyResponseContract", () => {
     assertMatchesPublishedSchema(result.ok && result.response);
   });
 
-  test("drops an environment the SDK parsers reject", () => {
-    // App Store Server also reports `Xcode` and `LocalTesting`.
-    const result = enforceVerifyResponseContract({
-      ...ENTITLED,
-      environment: "Xcode",
-    });
+  test("preserves environment strings opaquely", () => {
+    for (const environment of ["Xcode", "LocalTesting", "AppTester"]) {
+      const result = enforceVerifyResponseContract({
+        ...ENTITLED,
+        environment,
+      });
 
-    expect(result.ok).toBe(true);
-    expect(result.violations).toEqual(["environment"]);
-    expect(result.ok && result.response).not.toHaveProperty("environment");
-    assertMatchesPublishedSchema(result.ok && result.response);
+      expect(result.ok).toBe(true);
+      expect(result.violations).toEqual([]);
+      expect(result.ok && result.response.environment).toBe(environment);
+      assertMatchesPublishedSchema(result.ok && result.response);
+    }
   });
 
   test("drops a client payload format the SDKs cannot decode", () => {
@@ -106,7 +107,7 @@ describe("enforceVerifyResponseContract", () => {
     const result = enforceVerifyResponseContract({
       ...ENTITLED,
       state: "REFUNDED",
-      environment: "Xcode",
+      environment: 42,
       clientPayload: { format: "yaml", body: "", version: 1, updatedAt: 0 },
     });
 

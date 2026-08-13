@@ -83,9 +83,9 @@ export const productIdSchema = v.pipe(
 );
 
 export const environmentSchema = v.pipe(
-  v.union([v.literal("Sandbox"), v.literal("Production")]),
+  v.string(),
   v.description(
-    "Amazon RVS environment selected by IAPKit. Present on handled Amazon verification results.",
+    "Store environment selected by IAPKit. Forward this value opaquely; stores may add new values.",
   ),
 );
 

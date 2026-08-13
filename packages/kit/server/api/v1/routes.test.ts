@@ -581,7 +581,7 @@ describe("apiRoutes", () => {
     });
   });
 
-  it("drops an environment value no shipped SDK accepts", async () => {
+  it("forwards an opaque environment value", async () => {
     convexClientMock.action.mockResolvedValueOnce({
       isValid: true,
       state: "ENTITLED",
@@ -608,6 +608,7 @@ describe("apiRoutes", () => {
       isValid: true,
       state: "ENTITLED",
       productId: "amazon.premium.monthly",
+      environment: "Xcode",
     });
   });
 });

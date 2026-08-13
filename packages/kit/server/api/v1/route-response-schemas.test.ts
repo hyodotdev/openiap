@@ -37,8 +37,14 @@ describe("verifyPurchaseSuccessResponseSchema", () => {
     expect(result.success).toBe(false);
   });
 
-  test("accepts Amazon environments and rejects unknown values", () => {
-    for (const environment of ["Sandbox", "Production"]) {
+  test("accepts store environment strings opaquely", () => {
+    for (const environment of [
+      "Sandbox",
+      "Production",
+      "Xcode",
+      "LocalTesting",
+      "AppTester",
+    ]) {
       expect(
         parse({
           store: "amazon",
@@ -53,7 +59,7 @@ describe("verifyPurchaseSuccessResponseSchema", () => {
         store: "amazon",
         isValid: true,
         state: "ENTITLED",
-        environment: "AppTester",
+        environment: 42,
       }).success,
     ).toBe(false);
   });

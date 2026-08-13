@@ -121,6 +121,7 @@ including its stricter release-note limits.
 ### Auto-Generated Files (DO NOT EDIT)
 
 - `packages/gql/src/generated/*` - All generated type files (SSOT)
+- `packages/apple/Sources/OpenIapGeneratedVersion.swift` - Synced from `openiap-versions.json`
 - `packages/apple/Sources/Models/Types.swift` - Synced from GQL
 - `packages/google/openiap/src/main/java/dev/hyo/openiap/Types.kt` - Synced from GQL
 - `libraries/react-native-iap/src/types.ts` - Synced from GQL
