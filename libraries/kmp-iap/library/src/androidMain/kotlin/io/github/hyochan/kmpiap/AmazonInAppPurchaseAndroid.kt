@@ -248,14 +248,24 @@ internal class AmazonInAppPurchaseAndroid(
                 )
             )
         }
-        val androidResult = withMappedOpenIapError {
-            verifyPurchaseWithIapkitAndroid(androidOptions, "kmp-iap-android-$storeName")
+        // The validator also throws IllegalArgumentException for a malformed
+        // options shape, so catch broadly like the Play path rather than only
+        // the typed OpenIapError.
+        return try {
+            val androidResult =
+                verifyPurchaseWithIapkitAndroid(androidOptions, "kmp-iap-android-$storeName")
+            VerifyPurchaseWithProviderResult(
+                iapkit = androidResult.toKmpIapkitResult(),
+                provider = options.provider
+            )
+        } catch (error: Exception) {
+            failWith(
+                PurchaseError(
+                    code = ErrorCode.PurchaseVerificationFailed,
+                    message = error.message ?: "Purchase verification failed"
+                )
+            )
         }
-        val iapkitResult = androidResult.toKmpIapkitResult()
-        return VerifyPurchaseWithProviderResult(
-            iapkit = iapkitResult,
-            provider = options.provider
-        )
     }
 
     override suspend fun verifyPurchase(options: VerifyPurchaseProps): VerifyPurchaseResult =
