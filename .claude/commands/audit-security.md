@@ -118,7 +118,51 @@ diff "$SECURITY_AUDIT_ROOT"/core-a/openiap-google-*.cdx.json \
   "$SECURITY_AUDIT_ROOT"/core-b/openiap-google-*.cdx.json
 ```
 
-## 6. Workflow permissions and injection
+## 6. Published current-release assets
+
+Fresh local output does not prove that the public release asset is complete.
+Download every newest component SBOM, bind it to the release tag and API digest,
+validate its schema, and verify its exact signing workflow:
+
+```bash
+set -euo pipefail
+git fetch origin main --tags
+gh api --paginate --slurp \
+  "repos/hyodotdev/openiap/releases?per_page=100" \
+  > "$SECURITY_AUDIT_ROOT/releases.json"
+
+node scripts/generate-sbom.mjs missing-release-tags \
+  "$SECURITY_AUDIT_ROOT/releases.json" \
+  > "$SECURITY_AUDIT_ROOT/missing-tags.txt"
+if [ -s "$SECURITY_AUDIT_ROOT/missing-tags.txt" ]; then
+  cat "$SECURITY_AUDIT_ROOT/missing-tags.txt"
+  exit 1
+fi
+
+node scripts/generate-sbom.mjs latest-release-assets \
+  "$SECURITY_AUDIT_ROOT/releases.json" \
+  > "$SECURITY_AUDIT_ROOT/latest-assets.tsv"
+mkdir -p "$SECURITY_AUDIT_ROOT/published"
+while IFS=$'\t' read -r tag name digest; do
+  gh release download "$tag" --repo hyodotdev/openiap \
+    -p "$name" -D "$SECURITY_AUDIT_ROOT/published" || exit 1
+  file="$SECURITY_AUDIT_ROOT/published/$name"
+  node scripts/generate-sbom.mjs verify-file "$file" \
+    --tag "$tag" --digest "$digest" || exit 1
+  cyclonedx validate --input-file "$file" --input-format json \
+    --input-version v1_6 --fail-on-errors || exit 1
+  cert_identity=https://github.com/hyodotdev/openiap
+  cert_identity="$cert_identity/.github/workflows/sbom.yml@refs/heads/main"
+  gh attestation verify "$file" --repo hyodotdev/openiap \
+    --cert-identity "$cert_identity" \
+    --deny-self-hosted-runners || exit 1
+done < "$SECURITY_AUDIT_ROOT/latest-assets.tsv"
+```
+
+An existing asset without the required generator commit is a failure even when
+its dependency list, schema, and attestation are otherwise valid.
+
+## 7. Workflow permissions and injection
 
 Least privilege, and no untrusted value interpolated into a shell command:
 
@@ -142,14 +186,14 @@ gh api repos/hyodotdev/openiap/dependency-graph/sbom || \
 Pass values through `env:` instead of interpolating them. OpenSSF Scorecard's
 Dangerous-Workflow check flags the same pattern.
 
-## 7. Generated SBOMs stay out of git
+## 8. Generated SBOMs stay out of git
 
 ```bash
 git check-ignore -v sbom/ && echo "ignored" || echo "GAP: sbom/ is committable"
 git ls-files '*.cdx.json' | head   # must be empty
 ```
 
-## 8. Documentation matches the code
+## 9. Documentation matches the code
 
 Documentation drift is the most common finding, because prose has no compiler.
 
@@ -174,7 +218,7 @@ Also check for **hardcoded counts** — "nine workflows", "43 of 47
 dependencies". They are true on the day they are written and wrong later.
 Prefer a described property or a command that prints the live number.
 
-## 9. Release integrity still holds
+## 10. Release integrity still holds
 
 ```bash
 node --test scripts/release-branch-policy.test.mjs \
@@ -183,7 +227,7 @@ node --test scripts/release-branch-policy.test.mjs \
 node scripts/release-branch-policy.mjs audit
 ```
 
-## 10. Report
+## 11. Report
 
 State each check as pass, gap, or not-applicable with the command output that
 justifies it. For every gap, either fix it in the same pass or record why it is

@@ -26,7 +26,7 @@
 import { execFileSync } from "node:child_process";
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { basename, dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import { PACKAGE_CONFIG } from "./assert-release-tag.mjs";
@@ -52,10 +52,14 @@ const GENERATOR_VERSION = "1.0.0";
 const SPEC_VERSION = "1.6";
 export const PUBLISHED_METADATA_UNAVAILABLE_EXIT_CODE = 75;
 
-const INACCURATE_SBOM_DIGESTS = new Map([
+const LEGACY_SBOM_REPAIR_DIGESTS = new Map([
   [
     "google-3.3.0",
     "sha256:7256739c147689fbbb1257a738f85e7d030bb3612fd52a903c4cc9ca72b00e66",
+  ],
+  [
+    "react-native-iap-16.3.0",
+    "sha256:f93f56530a9042d8c31289bfac765d295d6549701e0fbcedce395c55c0191a1d",
   ],
 ]);
 
@@ -232,11 +236,11 @@ export function sbomFileName(componentId, version) {
   return `${COMPONENTS[componentId].sbomName}-${version}.cdx.json`;
 }
 
-export function inaccurateSbomDigestForTag(tag) {
-  return INACCURATE_SBOM_DIGESTS.get(tag) ?? "";
+export function repairSbomDigestForTag(tag) {
+  return LEGACY_SBOM_REPAIR_DIGESTS.get(tag) ?? "";
 }
 
-/** Return newest missing releases plus every known-inaccurate legacy SBOM. */
+/** Return newest missing releases plus every approved legacy repair. */
 export function findMissingLatestSbomTags(releases) {
   const seen = new Set();
   const missing = [];
@@ -255,21 +259,57 @@ export function findMissingLatestSbomTags(releases) {
     const stagedAsset = assets.find(
       (entry) => entry?.name === `${expected}.replacement`,
     );
-    const inaccurateDigest = inaccurateSbomDigestForTag(release.tag_name);
+    const repairDigest = repairSbomDigestForTag(release.tag_name);
 
     // Legacy repairs remain eligible even after a newer component release.
     if (
-      inaccurateDigest &&
-      (stagedAsset || !asset || asset.digest === inaccurateDigest)
+      repairDigest &&
+      (stagedAsset || !asset || asset.digest === repairDigest)
     ) {
       missing.push(release.tag_name);
     }
 
     if (seen.has(resolvedTag.componentId)) continue;
     seen.add(resolvedTag.componentId);
-    if (!asset && !inaccurateDigest) missing.push(release.tag_name);
+    if (!asset && !repairDigest) missing.push(release.tag_name);
   }
   return missing;
+}
+
+/** Return the expected SBOM asset for the newest release of each component. */
+export function latestSbomAssets(releases) {
+  const seen = new Set();
+  const assets = [];
+  const newestFirst = releases
+    .filter((release) => !release?.draft && release?.published_at)
+    .sort(
+      (left, right) =>
+        Date.parse(right.published_at) - Date.parse(left.published_at),
+    );
+
+  for (const release of newestFirst) {
+    const resolvedTag = componentFromTag(release.tag_name);
+    if (!resolvedTag || seen.has(resolvedTag.componentId)) continue;
+    seen.add(resolvedTag.componentId);
+    const fileName = sbomFileName(resolvedTag.componentId, resolvedTag.version);
+    const asset = (release.assets ?? []).find(
+      (entry) => entry?.name === fileName,
+    );
+    if (!asset?.digest) {
+      throw new Error(`Missing published SBOM asset for ${release.tag_name}`);
+    }
+    assets.push({
+      componentId: resolvedTag.componentId,
+      tag: release.tag_name,
+      fileName,
+      digest: asset.digest,
+    });
+  }
+
+  if (assets.length === 0) {
+    throw new Error("No published component releases found");
+  }
+  return assets;
 }
 
 const TAG_VERSION_PLACEHOLDER = "9.8.7";
@@ -536,6 +576,179 @@ export function buildSbom({
     // Omitted entirely when there is nothing analysed, rather than emitted as
     // an empty array that reads like "we checked and found none".
     ...(vulnerabilities.length > 0 ? { vulnerabilities } : {}),
+  };
+}
+
+function requiredProperty(properties, name, context) {
+  const values = (properties ?? [])
+    .filter((property) => property?.name === name)
+    .map((property) => property.value);
+  if (values.length !== 1 || !values[0]) {
+    throw new Error(`${context} must contain exactly one ${name} property`);
+  }
+  return values[0];
+}
+
+export function verifyPublishedSbom(
+  serialized,
+  { fileName, releaseTag, releaseCommit, generatorCommit, digest } = {},
+) {
+  const content = Buffer.isBuffer(serialized)
+    ? serialized
+    : Buffer.from(String(serialized), "utf8");
+  if (digest !== undefined) {
+    if (!/^sha256:[0-9a-f]{64}$/u.test(digest)) {
+      throw new Error(`Invalid published SBOM digest '${digest}'`);
+    }
+    const actual = `sha256:${createHash("sha256").update(content).digest("hex")}`;
+    if (actual !== digest) {
+      throw new Error(
+        `Published SBOM digest ${actual} does not match ${digest}`,
+      );
+    }
+  }
+
+  const document = JSON.parse(content.toString("utf8"));
+  const resolvedTag = componentFromTag(releaseTag);
+  if (!resolvedTag) {
+    throw new Error(`Unknown published SBOM release tag '${releaseTag}'`);
+  }
+  const definition = COMPONENTS[resolvedTag.componentId];
+  const expectedFileName = sbomFileName(
+    resolvedTag.componentId,
+    resolvedTag.version,
+  );
+  if (fileName && basename(fileName) !== expectedFileName) {
+    throw new Error(`Published SBOM file must be named ${expectedFileName}`);
+  }
+  if (!/^[0-9a-f]{40}$/u.test(releaseCommit ?? "")) {
+    throw new Error(`Invalid release commit '${releaseCommit ?? ""}'`);
+  }
+  if (
+    document.bomFormat !== "CycloneDX" ||
+    document.specVersion !== SPEC_VERSION
+  ) {
+    throw new Error(`Published SBOM must use CycloneDX ${SPEC_VERSION}`);
+  }
+  if (!document.metadata?.timestamp || !document.metadata?.authors?.length) {
+    throw new Error("Published SBOM must include a timestamp and author");
+  }
+
+  const root = document.metadata.component;
+  const expectedPurl = definition.purl(resolvedTag.version);
+  if (
+    root?.name !== definition.sbomName ||
+    root?.version !== resolvedTag.version ||
+    root?.purl !== expectedPurl ||
+    root?.["bom-ref"] !== expectedPurl
+  ) {
+    throw new Error(`Published SBOM identity does not match ${releaseTag}`);
+  }
+  const rootProperties = root.properties;
+  if (
+    requiredProperty(
+      rootProperties,
+      "openiap:release:tag",
+      "Published SBOM root",
+    ) !== releaseTag ||
+    requiredProperty(
+      rootProperties,
+      "openiap:release:commit",
+      "Published SBOM root",
+    ) !== releaseCommit ||
+    requiredProperty(
+      rootProperties,
+      "openiap:release:component",
+      "Published SBOM root",
+    ) !== resolvedTag.componentId
+  ) {
+    throw new Error(`Published SBOM properties do not match ${releaseTag}`);
+  }
+
+  const generators = (document.metadata.tools?.components ?? []).filter(
+    (component) => component?.name === GENERATOR_NAME,
+  );
+  if (generators.length !== 1) {
+    throw new Error(`Published SBOM must identify one ${GENERATOR_NAME}`);
+  }
+  const recordedGeneratorCommit = requiredProperty(
+    generators[0].properties,
+    "openiap:generator:commit",
+    "Published SBOM generator",
+  );
+  if (!/^[0-9a-f]{40}$/u.test(recordedGeneratorCommit)) {
+    throw new Error(
+      `Invalid SBOM generator commit '${recordedGeneratorCommit}'`,
+    );
+  }
+  if (
+    generatorCommit !== undefined &&
+    recordedGeneratorCommit !== generatorCommit
+  ) {
+    throw new Error(
+      `Published SBOM generator ${recordedGeneratorCommit} does not match ${generatorCommit}`,
+    );
+  }
+
+  if (!Array.isArray(document.components)) {
+    throw new Error("Published SBOM must contain a components array");
+  }
+  const componentRefs = new Set();
+  for (const component of document.components) {
+    if (
+      !component?.name ||
+      !component.version ||
+      !component.purl ||
+      component["bom-ref"] !== component.purl
+    ) {
+      throw new Error("Published SBOM contains an incomplete component");
+    }
+    if (componentRefs.has(component.purl)) {
+      throw new Error(`Duplicate published SBOM component ${component.purl}`);
+    }
+    componentRefs.add(component.purl);
+  }
+  const dependencyRows = document.dependencies ?? [];
+  const rootRows = dependencyRows.filter((row) => row?.ref === expectedPurl);
+  if (rootRows.length !== 1) {
+    throw new Error("Published SBOM must contain one root dependency row");
+  }
+  const rootDependencies = rootRows[0].dependsOn ?? [];
+  const rootDependencyRefs = new Set(rootDependencies);
+  if (
+    rootDependencies.length !== rootDependencyRefs.size ||
+    rootDependencyRefs.size !== componentRefs.size ||
+    [...rootDependencyRefs].some((ref) => !componentRefs.has(ref))
+  ) {
+    throw new Error("Published SBOM dependency graph is incomplete");
+  }
+  const knownRefs = new Set([expectedPurl, ...componentRefs]);
+  for (const row of dependencyRows) {
+    if (!knownRefs.has(row?.ref)) {
+      throw new Error(`Unknown published SBOM dependency row ${row?.ref}`);
+    }
+    if ((row.dependsOn ?? []).some((ref) => !knownRefs.has(ref))) {
+      throw new Error(`Unknown published SBOM dependency target in ${row.ref}`);
+    }
+  }
+  for (const ref of componentRefs) {
+    if (dependencyRows.filter((row) => row?.ref === ref).length !== 1) {
+      throw new Error(`Published SBOM dependency row is missing for ${ref}`);
+    }
+  }
+
+  if (
+    /\/Users\/|\/home\/[a-z]|\/tmp\/|ghp_|npm_[A-Za-z0-9]|BEGIN [A-Z ]*PRIVATE KEY/u.test(
+      content.toString("utf8"),
+    )
+  ) {
+    throw new Error("Published SBOM contains a local path or secret");
+  }
+
+  return {
+    componentId: resolvedTag.componentId,
+    version: resolvedTag.version,
+    generatorCommit: recordedGeneratorCommit,
   };
 }
 
@@ -865,17 +1078,71 @@ function parseArguments(argv) {
 async function main() {
   const [maybeCommand] = process.argv.slice(2);
 
-  if (maybeCommand === "missing-release-tags") {
-    const path = process.argv[3];
-    if (!path)
-      throw new Error("Usage: generate-sbom.mjs missing-release-tags FILE");
+  const readReleaseList = (path) => {
+    if (!path) throw new Error(`Usage: generate-sbom.mjs ${maybeCommand} FILE`);
     const parsed = JSON.parse(readFileSync(path, "utf8"));
     const releases = Array.isArray(parsed?.[0]) ? parsed.flat() : parsed;
     if (!Array.isArray(releases)) {
       throw new Error(`Release list must be a JSON array: ${path}`);
     }
+    return releases;
+  };
+
+  if (maybeCommand === "missing-release-tags") {
+    const path = process.argv[3];
+    const releases = readReleaseList(path);
     const tags = findMissingLatestSbomTags(releases);
     process.stdout.write(tags.length > 0 ? `${tags.join("\n")}\n` : "");
+    return;
+  }
+
+  if (maybeCommand === "latest-release-assets") {
+    const assets = latestSbomAssets(readReleaseList(process.argv[3]));
+    process.stdout.write(
+      assets
+        .map((asset) => [asset.tag, asset.fileName, asset.digest].join("\t"))
+        .join("\n") + (assets.length > 0 ? "\n" : ""),
+    );
+    return;
+  }
+
+  if (maybeCommand === "verify-file") {
+    const path = process.argv[3];
+    if (!path) {
+      throw new Error(
+        "Usage: generate-sbom.mjs verify-file FILE --tag TAG [--digest SHA256] [--generator-commit SHA]",
+      );
+    }
+    const options = {};
+    const args = process.argv.slice(4);
+    for (let index = 0; index < args.length; index += 1) {
+      const argument = args[index];
+      if (!["--tag", "--digest", "--generator-commit"].includes(argument)) {
+        throw new Error(`Unknown verify-file option '${argument}'`);
+      }
+      const value = args[++index];
+      if (!value) throw new Error(`${argument} requires a value`);
+      if (argument === "--tag") options.tag = value;
+      if (argument === "--digest") options.digest = value;
+      if (argument === "--generator-commit") options.generatorCommit = value;
+    }
+    if (!options.tag) {
+      throw new Error("verify-file requires --tag");
+    }
+    const releaseCommit = defaultRunGit([
+      "rev-parse",
+      `${options.tag}^{commit}`,
+    ]);
+    const verified = verifyPublishedSbom(readFileSync(path), {
+      fileName: path,
+      releaseTag: options.tag,
+      releaseCommit,
+      generatorCommit: options.generatorCommit,
+      digest: options.digest,
+    });
+    console.log(
+      `Verified ${basename(path)} for ${options.tag} with generator ${verified.generatorCommit}`,
+    );
     return;
   }
 
@@ -885,7 +1152,7 @@ async function main() {
     const tag = process.argv[3];
     const resolved = componentFromTag(tag);
     const line = resolved
-      ? `component=${resolved.componentId}\nversion=${resolved.version}\nsbom-name=${sbomFileName(resolved.componentId, resolved.version)}\nrepair-digest=${inaccurateSbomDigestForTag(tag)}\nmatched=true\n`
+      ? `component=${resolved.componentId}\nversion=${resolved.version}\nsbom-name=${sbomFileName(resolved.componentId, resolved.version)}\nrepair-digest=${repairSbomDigestForTag(tag)}\nmatched=true\n`
       : "matched=false\n";
     process.stdout.write(line);
     if (process.env.GITHUB_OUTPUT) {
