@@ -73,14 +73,15 @@ public final class ExpoIapOnsideModule: Module {
             OnsideEvent.subscriptionBillingIssue.rawValue
         )
 
-        OnCreate {
-            Task { @MainActor in
-                self.configureObserverCallbacks()
+        OnCreate { [weak self] in
+            Task { @MainActor [weak self] in
+                self?.configureObserverCallbacks()
             }
         }
 
-        OnDestroy {
-            Task { @MainActor in
+        OnDestroy { [weak self] in
+            guard let self else { return }
+            Task { @MainActor [self] in
                 self.cleanup()
             }
         }
