@@ -1320,6 +1320,10 @@ describe('Amazon Vega Expo adapter', () => {
     ['http://192.168.0.4:3100', 'http://192.168.0.4:3100/v1/purchase/verify'],
     ['http://[::1]:3100', 'http://[::1]:3100/v1/purchase/verify'],
     [
+      'http://[::ffff:192.168.0.1]:3100',
+      'http://[::ffff:192.168.0.1]:3100/v1/purchase/verify',
+    ],
+    [
       'https://[2001:db8::1]:65535///',
       'https://[2001:db8::1]:65535/v1/purchase/verify',
     ],
