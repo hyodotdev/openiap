@@ -487,9 +487,9 @@ jobs:
           VERSION: ${{ steps.release.outputs.version }}
         run: |
           if [[ "$VERSION" == *-* ]]; then
-            npm publish --tag next --provenance
+            npm publish --access public --tag next --provenance
           else
-            npm publish --provenance
+            npm publish --access public --provenance
           fi
 
       - name: Verify published provenance

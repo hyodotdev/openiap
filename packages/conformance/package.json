@@ -23,6 +23,10 @@
   ],
   "author": "hyodotdev",
   "license": "MIT",
+  "publishConfig": {
+    "access": "public",
+    "registry": "https://registry.npmjs.org/"
+  },
   "devDependencies": {
     "vitest": "^4.1.5"
   },
@@ -34,11 +38,11 @@
   ],
   "repository": {
     "type": "git",
-    "url": "https://github.com/hyodotdev/openiap.git",
+    "url": "git+https://github.com/hyodotdev/openiap.git",
     "directory": "packages/conformance"
   },
   "homepage": "https://openiap.dev",
   "bin": {
-    "openiap-conformance-report": "./scripts/run-reference-report.mjs"
+    "openiap-conformance-report": "scripts/run-reference-report.mjs"
   }
 }
