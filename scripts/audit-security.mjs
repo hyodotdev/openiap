@@ -157,7 +157,8 @@ export function findWorkflowDependencyFindings(
 
   for (const [jobName, job] of Object.entries(workflow?.jobs ?? {})) {
     for (const step of job?.steps ?? []) {
-      if (!String(step?.uses ?? "").startsWith("actions/checkout@")) continue;
+      const action = String(step?.uses ?? "").toLowerCase();
+      if (!action.startsWith("actions/checkout@")) continue;
       if (String(step?.with?.["persist-credentials"]) !== "false") {
         findings.push(
           `${filename}: job ${jobName} checkout must disable persisted credentials`,

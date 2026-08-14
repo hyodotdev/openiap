@@ -60,9 +60,9 @@ const ALL_OPENIAP_NATIVE_VARIANTS = {
 
 const PODSPEC_DEPENDENCY_PATTERN = /^\s*s\.dependency\s+['"]([^'"]+)['"]/gmu;
 const GRADLE_COORDINATE_PATTERN =
-  /^\s*(?:implementation|api|runtimeOnly|compile)\s+\(?\s*(?:"([^"]+)"|'([^']+)')/gmu;
+  /^\s*(?:implementation|api|runtimeOnly|compile)(?:\s+\(?\s*|\(\s*)(?:"([^"]+)"|'([^']+)')/gmu;
 const GRADLE_PROJECT_PATTERN =
-  /^\s*(?:implementation|api|runtimeOnly|compile)\s+project\(\s*['"]([^'"]+)['"]/gmu;
+  /^\s*(?:implementation|api|runtimeOnly|compile)(?:\s+\(?\s*|\(\s*)project\(\s*['"]([^'"]+)['"]/gmu;
 
 const LEGACY_SBOM_REPAIRS = new Map([
   [

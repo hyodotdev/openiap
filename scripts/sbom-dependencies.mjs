@@ -1161,20 +1161,26 @@ export async function extractDirectDependencies(root, source, context = {}) {
           ) {
             throw new Error(`Conflicting aggregate supplier for ${entry.purl}`);
           }
+          const scope =
+            existing.scope === "optional" && entry.scope === "optional"
+              ? "optional"
+              : "required";
           const properties = new Map(
-            [...(existing.properties ?? []), ...(entry.properties ?? [])].map(
-              (property) => [`${property.name}\0${property.value}`, property],
-            ),
+            [...(existing.properties ?? []), ...(entry.properties ?? [])]
+              .filter(
+                (property) =>
+                  scope === "optional" ||
+                  property.name !== "openiap:dependency:optional",
+              )
+              .map((property) => [
+                `${property.name}\0${property.value}`,
+                property,
+              ]),
           );
-          merged.set(entry.purl, {
+          const mergedEntry = {
             ...existing,
-            scope:
-              existing.scope === "optional" && entry.scope === "optional"
-                ? "optional"
-                : "required",
-            ...(properties.size
-              ? { properties: [...properties.values()] }
-              : {}),
+            scope,
+            properties: [...properties.values()],
             ...(existing.supplier || entry.supplier
               ? { supplier: existing.supplier ?? entry.supplier }
               : {}),
@@ -1186,7 +1192,9 @@ export async function extractDirectDependencies(root, source, context = {}) {
             ...(existing.hashes?.length || entry.hashes?.length
               ? { hashes: mergeObjects(existing.hashes, entry.hashes) }
               : {}),
-          });
+          };
+          if (!properties.size) delete mergedEntry.properties;
+          merged.set(entry.purl, mergedEntry);
           continue;
         }
         merged.set(entry.purl, entry);

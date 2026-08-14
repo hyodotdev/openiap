@@ -83,7 +83,7 @@ test("workflow dependency scan requires least privilege and immutable actions", 
 jobs:
   test:
     steps:
-      - uses: actions/checkout@${"e".repeat(40)} # v7
+      - uses: Actions/Checkout@${"e".repeat(40)} # v7
 `,
       "fixture.yml",
     ),

@@ -615,6 +615,12 @@ test("SBOM publication waits for registry propagation and repairs daily", () => 
   assert.match(source, /cron: "23 3 \* \* \*"/u);
   assert.match(source, /node-version: 24/u);
   assert.match(source, /name: Dispatch stable SBOM repairs/u);
+  const backfillJob = source.slice(
+    source.indexOf("  backfill:"),
+    source.indexOf("  sbom:"),
+  );
+  assert.match(backfillJob, /actions\/setup-node@[0-9a-f]{40} # v7/u);
+  assert.match(backfillJob, /node-version: 24/u);
   assert.match(source, /for attempt in \{1\.\.16\}/u);
   assert.match(source, /\[ "\$STATUS" -ne 75 \]/u);
   assert.doesNotMatch(source, /grep.+Published/u);
@@ -1153,6 +1159,19 @@ test("declared Gradle inventories cover every runtime configuration", () => {
       ":runtime",
     );
   }
+  GRADLE_COORDINATE_PATTERN.lastIndex = 0;
+  const coordinateCall = GRADLE_COORDINATE_PATTERN.exec(
+    'api("example:runtime:1.0.0")',
+  );
+  assert.equal(
+    coordinateCall?.[1] ?? coordinateCall?.[2],
+    "example:runtime:1.0.0",
+  );
+  GRADLE_PROJECT_PATTERN.lastIndex = 0;
+  assert.equal(
+    GRADLE_PROJECT_PATTERN.exec('api(project(":runtime"))')?.[1],
+    ":runtime",
+  );
   GRADLE_COORDINATE_PATTERN.lastIndex = 0;
   const singleQuoted = GRADLE_COORDINATE_PATTERN.exec(
     "api 'example:runtime:1.0.0'",
@@ -1714,6 +1733,12 @@ test("declared property versions and aggregate scopes are order independent", as
     });
     assert.equal(entry.version, "1.0.0");
     assert.equal(entry.scope, "required");
+    assert.equal(
+      (entry.properties ?? []).some(
+        (property) => property.name === "openiap:dependency:optional",
+      ),
+      false,
+    );
   }
 });
 
