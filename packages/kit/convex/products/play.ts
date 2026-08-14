@@ -1,6 +1,6 @@
 "use node";
 import { v } from "convex/values";
-import { google, type Auth } from "googleapis";
+import { google } from "googleapis";
 import type { androidpublisher_v3 } from "googleapis";
 
 import { internalAction, type ActionCtx } from "../_generated/server";
@@ -13,6 +13,8 @@ import {
 } from "./localizations";
 import type { ProductRegions } from "./regions";
 import { coerceBillingPeriod } from "./sync";
+
+type GoogleAuthClient = InstanceType<typeof google.auth.GoogleAuth>;
 
 class ProductSyncCancelledError extends Error {
   constructor() {
@@ -1207,7 +1209,7 @@ function listingsForAndroidProduct(
 
 export async function upsertAndroidOneTimeProduct(
   androidpublisher: androidpublisher_v3.Androidpublisher,
-  auth: Auth.GoogleAuth,
+  auth: GoogleAuthClient,
   args: AndroidOneTimeProductUpsertArgs,
   options: { allowCreate: boolean },
 ): Promise<AndroidManualAction[]> {
@@ -2057,7 +2059,7 @@ export function shouldFallbackToLegacyOneTimeProduct(
 }
 
 async function activateAndroidOneTimePurchaseOption(
-  auth: Auth.GoogleAuth,
+  auth: GoogleAuthClient,
   args: AndroidOneTimeProductUpsertArgs,
 ): Promise<void> {
   const client = await auth.getClient();
@@ -2085,7 +2087,7 @@ async function activateAndroidOneTimePurchaseOption(
 
 async function deleteAndroidOneTimeProduct(
   androidpublisher: androidpublisher_v3.Androidpublisher,
-  auth: Auth.GoogleAuth,
+  auth: GoogleAuthClient,
   packageName: string,
   productId: string,
 ): Promise<void> {
@@ -2130,7 +2132,7 @@ async function deleteAndroidOneTimeProduct(
 }
 
 async function deleteModernAndroidOneTimeProduct(
-  auth: Auth.GoogleAuth,
+  auth: GoogleAuthClient,
   packageName: string,
   productId: string,
 ): Promise<void> {
