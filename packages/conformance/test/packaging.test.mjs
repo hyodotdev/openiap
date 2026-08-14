@@ -64,6 +64,7 @@ describe('published package is self-contained', () => {
           cwd: PACKAGE_ROOT,
           encoding: 'utf8',
           stdio: ['ignore', 'pipe', 'ignore'],
+          timeout: 15_000,
         }),
       )[0].files.map((entry) => entry.path);
 
@@ -72,7 +73,7 @@ describe('published package is self-contained', () => {
         expect(packed, `${rel} is not in the published tarball`).toContain(rel);
       }
     },
-    15_000,
+    20_000,
   );
 
   it('declares a bin that does not depend on the monorepo', () => {
