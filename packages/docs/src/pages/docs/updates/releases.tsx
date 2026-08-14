@@ -24,6 +24,12 @@ interface Note {
   element: React.ReactNode;
 }
 
+interface ReleaseMetadata {
+  name: string;
+  version: string;
+  tag: string;
+}
+
 const storeApiModernizationReleases = [
   ['OpenIAP Spec 3.1.0', 'docs-3.1.0'],
   ['openiap-apple 3.1.0', '3.1.0'],
@@ -69,6 +75,35 @@ const storeVerificationIntegrityReleases = [
   ['kmp-iap 3.3.0', 'kmp-iap-3.3.0'],
   ['OpenIap.Maui 2.3.0', 'maui-iap-2.3.0'],
 ] as const;
+
+const compatibilityConformanceReleases = {
+  spec: { name: 'OpenIAP Spec', version: '3.2.1', tag: 'docs-3.2.1' },
+  apple: { name: 'openiap-apple', version: '3.2.1', tag: '3.2.1' },
+  google: {
+    name: 'openiap-google',
+    version: '3.3.1',
+    tag: 'google-3.3.1',
+  },
+  reactNative: {
+    name: 'react-native-iap',
+    version: '16.3.1',
+    tag: 'react-native-iap-16.3.1',
+  },
+  expo: { name: 'expo-iap', version: '5.3.1', tag: 'expo-iap-5.3.1' },
+  flutter: {
+    name: 'flutter_inapp_purchase',
+    version: '10.3.1',
+    tag: 'flutter-iap-10.3.1',
+  },
+  godot: { name: 'godot-iap', version: '3.3.1', tag: 'godot-iap-3.3.1' },
+  kmp: { name: 'kmp-iap', version: '3.3.1', tag: 'kmp-iap-3.3.1' },
+  maui: { name: 'OpenIap.Maui', version: '2.3.1', tag: 'maui-iap-2.3.1' },
+  conformance: {
+    name: 'openiap-conformance',
+    version: '1.0.1',
+    tag: 'openiap-conformance-1.0.1',
+  },
+} as const satisfies Record<string, ReleaseMetadata>;
 
 const dependencyModernizationReleases = [
   ['openiap-google 3.1.0', 'google-3.1.0'],
@@ -213,7 +248,264 @@ const iapkitSecurityTrainAliases = [
 function Releases() {
   useScrollToHash();
 
+  function getReleaseLabel(release: ReleaseMetadata): string {
+    return `${release.name} ${release.version}`;
+  }
+
   const allNotes: Note[] = [
+    // August 14, 2026 - Compatibility, conformance, and purchase safety
+    {
+      id: 'compatibility-conformance-purchase-safety-2026-08-14',
+      date: new Date('2026-08-14'),
+      element: (
+        <div
+          key="compatibility-conformance-purchase-safety-2026-08-14"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="compatibility-conformance-purchase-safety-2026-08-14"
+            level="h4"
+          >
+            August 14, 2026 - Compatibility, conformance, and purchase safety
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            SDKs now tolerate future response metadata without accepting
+            malformed purchase requests. This train also publishes the first
+            versioned OpenIAP behavior suite and fixes Expo iOS lifecycle
+            cleanup.
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Common changes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              Response enums with a schema-defined neutral value now degrade
+              safely when stores or IAPKit add a value. Unreadable optional
+              response objects and rows are isolated, while required strict
+              positions still fail (
+              <a
+                href="https://github.com/hyodotdev/openiap/issues/330"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                issue #330
+              </a>
+              ).
+            </li>
+            <li>
+              Request-authored enums, scalars, objects, and list elements fail
+              closed. <code>all</code> remains valid for product queries only;
+              purchase requests accept <code>in-app</code> or <code>subs</code>.
+            </li>
+            <li>
+              Explicit Android offer SKUs and tokens are checked against fresh
+              store metadata before billing, and branch-mismatched purchase
+              options are rejected instead of ignored.
+            </li>
+            <li>
+              IAPKit enforces its documented <code>/v1</code> response schema at
+              runtime. Its MCP server adds typed product pagination,
+              secret-key-only authentication, bounded sessions, and rate limits
+              (
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/331"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                PR #331
+              </a>
+              ).
+            </li>
+            <li>
+              Release artifacts have stronger SBOM completeness, immutable-tag
+              verification, and CRA reporting paths (
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/336"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                PR #336
+              </a>
+              ).
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Shared spec and native packages
+          </h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>
+                {getReleaseLabel(compatibilityConformanceReleases.spec)}
+              </strong>{' '}
+              gives every purchase verification result an <code>isValid</code>{' '}
+              verdict and publishes a capability-bound behavior contract.
+            </li>
+            <li>
+              <strong>
+                {getReleaseLabel(compatibilityConformanceReleases.apple)}
+              </strong>{' '}
+              normalizes StoreKit errors and validates mutable purchase
+              envelopes before store work begins.
+            </li>
+            <li>
+              <strong>
+                {getReleaseLabel(compatibilityConformanceReleases.google)}
+              </strong>{' '}
+              rejects invalid replacement modes, malformed offers, and tokens
+              that are absent from current Play metadata. Pending Horizon
+              subscriptions no longer grant an active entitlement.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>
+                {getReleaseLabel(compatibilityConformanceReleases.reactNative)}
+              </strong>
+              ,{' '}
+              <strong>
+                {getReleaseLabel(compatibilityConformanceReleases.expo)}
+              </strong>
+              ,{' '}
+              <strong>
+                {getReleaseLabel(compatibilityConformanceReleases.flutter)}
+              </strong>
+              ,{' '}
+              <strong>
+                {getReleaseLabel(compatibilityConformanceReleases.godot)}
+              </strong>
+              , and{' '}
+              <strong>
+                {getReleaseLabel(compatibilityConformanceReleases.kmp)}
+              </strong>{' '}
+              enforce the same query-only <code>all</code> contract and
+              fail-closed purchase inputs at their public and raw native
+              boundaries.
+            </li>
+            <li>
+              <strong>
+                {getReleaseLabel(compatibilityConformanceReleases.expo)}
+              </strong>{' '}
+              serializes process-wide iOS listener teardown and replacement
+              initialization to prevent a stale module from clearing a newer
+              module&apos;s state (
+              <a
+                href="https://github.com/hyodotdev/openiap/issues/334"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                issue #334
+              </a>
+              ).
+            </li>
+            <li>
+              <strong>
+                {getReleaseLabel(compatibilityConformanceReleases.godot)}
+              </strong>{' '}
+              can export a fresh Android source template without an
+              editor-generated build-version file, and{' '}
+              <strong>
+                {getReleaseLabel(compatibilityConformanceReleases.maui)}
+              </strong>{' '}
+              emits diagnostics when it drops unreadable optional IAPKit rows or
+              objects.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              Use <code>isValid</code> as the cross-store verification verdict;
+              Horizon&apos;s legacy <code>success</code> field is deprecated for
+              OpenIAP 4.0.
+            </li>
+            <li>
+              <code>
+                {`${compatibilityConformanceReleases.conformance.name}@${compatibilityConformanceReleases.conformance.version}`}
+              </code>{' '}
+              publishes behavior suite <code>1.0.0</code> for OpenIAP Spec{' '}
+              <code>{compatibilityConformanceReleases.spec.version}</code>. The
+              package patch fixes CLI and provenance publishing metadata without
+              changing verdicts.
+            </li>
+            <li>
+              IAPKit credential cards now contain long uploaded filenames and
+              actions at narrow widths. The docs showcase also welcomes{' '}
+              <a
+                href="https://recordscanner.com/"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                Record Scanner
+              </a>
+              .
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {Object.values(compatibilityConformanceReleases).map(
+                (release) => (
+                  <li key={release.tag}>
+                    <a
+                      href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {getReleaseLabel(release)}
+                    </a>
+                  </li>
+                )
+              )}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // August 12, 2026 - Store verification integrity and Amazon provenance
     {
       id: 'store-verification-integrity-amazon-provenance-2026-08-12',
