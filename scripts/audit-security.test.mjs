@@ -490,6 +490,22 @@ test("CodeQL never runs pull-request code on private Xcode runners", () => {
   );
 });
 
+test("Kit installs security tools from the workspace root", () => {
+  const workflow = readFileSync(
+    new URL("../.github/workflows/deploy-kit.yml", import.meta.url),
+    "utf8",
+  );
+  const installStep = workflow.match(
+    /- name: Install OSV-Scanner v2\.5\.0[\s\S]*?(?=\n\s+- name:)/u,
+  )?.[0];
+  assert.ok(installStep);
+  assert.match(
+    installStep,
+    /working-directory: \$\{\{ github\.workspace \}\}/u,
+  );
+  assert.match(installStep, /scripts\/install-security-tool\.sh osv-scanner/u);
+});
+
 test("Kit Docker base images are digest pinned", () => {
   const dockerfile = readFileSync(
     new URL("../packages/kit/Dockerfile", import.meta.url),

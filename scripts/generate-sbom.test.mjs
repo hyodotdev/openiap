@@ -1366,6 +1366,21 @@ test("published metadata parsers reject unsupported dependencies", () => {
     ),
     [],
   );
+  for (const malformedComment of [
+    '<package><dependencies><!-- nested <!-- -->' +
+      '<dependency id="Fake" version="1.0.0" /></dependencies></package>',
+    '<package><dependencies><!-- unterminated</dependencies></package>',
+    '<package><dependencies>--><dependency id="Fake" version="1.0.0" />' +
+      "</dependencies></package>",
+  ]) {
+    assert.throws(
+      () =>
+        parseNugetNuspec(malformedComment, {
+          url: "fixture.nuspec",
+        }),
+      /Invalid XML comment/u,
+    );
+  }
   assert.throws(
     () =>
       parseMavenPom(mavenPom([["g", "a", "1.0.0", "unclassified"]]), {

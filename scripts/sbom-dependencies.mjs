@@ -33,6 +33,30 @@ function decodeXml(value) {
     .replaceAll("&amp;", "&");
 }
 
+function maskXmlComments(source, context) {
+  const chunks = [];
+  let cursor = 0;
+  while (cursor < source.length) {
+    const start = source.indexOf("<!--", cursor);
+    const strayEnd = source.indexOf("-->", cursor);
+    if (strayEnd !== -1 && (start === -1 || strayEnd < start)) {
+      throw new Error(`Invalid XML comment in ${context.url}`);
+    }
+    if (start === -1) {
+      chunks.push(source.slice(cursor));
+      break;
+    }
+    chunks.push(source.slice(cursor, start));
+    const end = source.indexOf("-->", start + 4);
+    if (end === -1 || source.slice(start + 4, end).includes("--")) {
+      throw new Error(`Invalid XML comment in ${context.url}`);
+    }
+    chunks.push(" ".repeat(end + 3 - start));
+    cursor = end + 3;
+  }
+  return chunks.join("");
+}
+
 function xmlValue(source, tag) {
   const match = source.match(
     new RegExp(`<${tag}\\b[^>]*>([\\s\\S]*?)<\\/${tag}>`, "u"),
@@ -714,9 +738,9 @@ async function extractMavenArtifact(root, source, context) {
 }
 
 function parseNugetNuspec(source, context) {
-  const dependenciesBlock = source
-    .match(/<dependencies>([\s\S]*?)<\/dependencies>/u)?.[1]
-    ?.replace(/<!--[\s\S]*?-->/gu, "");
+  const dependenciesBlock = maskXmlComments(source, context).match(
+    /<dependencies>([\s\S]*?)<\/dependencies>/u,
+  )?.[1];
   if (!dependenciesBlock) return [];
 
   const groupPattern = /<group\b([^>]*?)(?:\/>|>([\s\S]*?)<\/group>)/giu;

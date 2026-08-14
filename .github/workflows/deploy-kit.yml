@@ -65,6 +65,7 @@ jobs:
           done
 
       - name: Install OSV-Scanner v2.5.0
+        working-directory: ${{ github.workspace }}
         run: |
           scripts/install-security-tool.sh osv-scanner "$RUNNER_TEMP/osv-scanner"
           echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
