@@ -52,6 +52,20 @@ const IAPKIT_FEATURES: IapKitFeature[] = [
   },
 ];
 
+const STORE_MATRIX = [
+  { name: 'StoreKit 2', to: '/docs/ios-setup' },
+  { name: 'Play Billing', to: '/docs/android-setup' },
+  { name: 'Amazon', to: '/docs/setup/store/amazon' },
+  { name: 'Horizon', to: '/docs/setup/store/horizon' },
+  { name: 'Vega OS', to: '/docs/setup/store/amazon#vega-os' },
+] as const;
+
+const STORE_SURFACES = [
+  { label: 'API', to: '/docs/apis' },
+  { label: 'Types', to: '/docs/types' },
+  { label: 'Events', to: '/docs/events' },
+] as const;
+
 function Home() {
   return (
     <div className="home">
@@ -142,16 +156,15 @@ function Home() {
                 <span>One open contract</span>
                 <img src={LOGO_PATH} alt="OpenIAP mascot" />
                 <div className="hero-orbit-actions">
-                  <Link to="/docs/apis/request-purchase">
-                    <code>requestPurchase()</code>
-                  </Link>
                   <a
                     href="https://github.com/hyodotdev/openiap"
                     target="_blank"
                     rel="noopener noreferrer"
+                    aria-label="Star OpenIAP on GitHub"
                   >
-                    <Star size={12} fill="currentColor" aria-hidden="true" />
+                    <Star size={13} fill="currentColor" aria-hidden="true" />
                     Star OpenIAP
+                    <ArrowUpRight size={12} aria-hidden="true" />
                   </a>
                 </div>
               </div>
@@ -242,36 +255,18 @@ function Home() {
                 <strong>Repeat the same work</strong>
               </div>
               <div className="openiap-store-matrix">
-                <div>
-                  <strong>StoreKit 2</strong>
-                  <span>API</span>
-                  <span>Types</span>
-                  <span>Events</span>
-                </div>
-                <div>
-                  <strong>Play Billing</strong>
-                  <span>API</span>
-                  <span>Types</span>
-                  <span>Events</span>
-                </div>
-                <div>
-                  <strong>Amazon</strong>
-                  <span>API</span>
-                  <span>Types</span>
-                  <span>Events</span>
-                </div>
-                <div>
-                  <strong>Horizon</strong>
-                  <span>API</span>
-                  <span>Types</span>
-                  <span>Events</span>
-                </div>
-                <div>
-                  <strong>Vega OS</strong>
-                  <span>API</span>
-                  <span>Types</span>
-                  <span>Events</span>
-                </div>
+                {STORE_MATRIX.map((store) => (
+                  <div key={store.name}>
+                    <Link className="openiap-store-link" to={store.to}>
+                      {store.name}
+                    </Link>
+                    {STORE_SURFACES.map((surface) => (
+                      <Link key={surface.label} to={surface.to}>
+                        {surface.label}
+                      </Link>
+                    ))}
+                  </div>
+                ))}
               </div>
             </div>
             <Link to="/docs/apis/request-purchase" className="openiap-unified">

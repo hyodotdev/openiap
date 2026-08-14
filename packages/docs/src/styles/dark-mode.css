@@ -12,6 +12,7 @@
   --accent-color: #ff8066;
   --logo-text-filter: invert(1);
   --apple-logo-filter: none;
+  --expo-logo-filter: invert(1);
   --meta-logo-filter: brightness(0) invert(1);
   --iapkit-text-color: #000000;
 

@@ -44,6 +44,10 @@ img[src='/frameworks/apple.svg'] {
   filter: var(--apple-logo-filter);
 }
 
+img[src='/frameworks/expo.svg'] {
+  filter: var(--expo-logo-filter);
+}
+
 h1,
 h2,
 h3,

@@ -324,33 +324,35 @@
 
 .hero-orbit-actions {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
   align-items: center;
-  margin-top: -0.3rem;
+  margin-top: -0.75rem;
 }
 
 .hero-orbit-actions > a {
   display: inline-flex;
   align-items: center;
-  gap: 0.35rem;
-  color: var(--text-secondary);
-  font-size: 0.58rem;
-  font-weight: 680;
+  gap: 0.4rem;
+  padding: 0.5rem 0.72rem;
+  border: 1px solid color-mix(in srgb, var(--accent-color) 40%, transparent);
+  border-radius: 999px;
+  color: var(--text-primary);
+  background: color-mix(in srgb, var(--bg-primary) 82%, transparent);
+  box-shadow: 0 8px 24px rgba(26, 20, 18, 0.12);
+  font-size: 0.61rem;
+  font-weight: 720;
   text-decoration: none;
+  transition:
+    color 0.15s ease,
+    border-color 0.15s ease,
+    background-color 0.15s ease,
+    transform 0.15s ease;
 }
 
 .hero-orbit-actions > a:hover {
   color: var(--accent-color);
-}
-
-.hero-orbit-actions code {
-  padding: 0.35rem 0;
-  border-bottom: 1px solid var(--accent-color);
-  color: var(--text-primary);
-  background: transparent;
-  font-size: 0.7rem;
-  font-weight: 650;
+  border-color: var(--accent-color);
+  background: var(--bg-primary);
+  transform: translateY(-1px);
 }
 
 .hero-orbit-node {
@@ -864,16 +866,25 @@
   border-top: 1px solid var(--border-color);
 }
 
-.openiap-store-matrix strong {
-  color: var(--text-primary);
-  font-size: 0.76rem;
-}
-
-.openiap-store-matrix span {
+.openiap-store-matrix a {
   color: var(--text-secondary);
   font-size: 0.6rem;
   letter-spacing: 0.05em;
+  text-decoration: none;
   text-transform: uppercase;
+  transition: color 0.15s ease;
+}
+
+.openiap-store-matrix a:hover {
+  color: var(--accent-color);
+}
+
+.openiap-store-matrix .openiap-store-link {
+  color: var(--text-primary);
+  font-size: 0.76rem;
+  font-weight: 700;
+  letter-spacing: normal;
+  text-transform: none;
 }
 
 .openiap-unified {
@@ -1176,6 +1187,7 @@
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
   margin-top: 3rem;
+  padding-inline: clamp(1rem, 2.5vw, 2rem);
   border-block: 1px solid var(--border-color);
 }
 
@@ -1189,7 +1201,6 @@
 }
 
 .spec-card:first-child {
-  padding-left: 0;
   border-left: 0;
 }
 
