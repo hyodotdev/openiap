@@ -1,5 +1,16 @@
 # Changelog
 
+## 10.3.1 (2026-08-14)
+
+- chore(google): bump version to 3.3.1
+- chore(apple): bump version to 3.2.1
+- fix: harden SDK compatibility and UI surfaces (#333)
+- fix: harden iapkit response compatibility
+- feat(conformance): add versioned conformance suite and fix entitlement defects (#316)
+- feat(docs): live ecosystem diagram, Migration page rename, collapsible sidebar (#315)
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
+
+
 ## 10.3.0 (2026-08-11)
 
 - chore(google): bump version to 3.3.0
