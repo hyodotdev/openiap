@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-08-14T02:52:18.743Z
+> Generated: 2026-08-14T03:11:15.825Z
 
 ## Table of Contents
 1. Installation
@@ -73,7 +73,7 @@ https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap
 dotnet add package OpenIap.Maui
 ```
 
-Current NuGet package version: 2.3.0
+Current NuGet package version: 2.3.1
 
 Requires .NET 9 or .NET 10, the MAUI workload, iOS 15.0+, and Android API 24+.
 
