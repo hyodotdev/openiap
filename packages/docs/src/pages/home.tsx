@@ -114,11 +114,7 @@ function Home() {
               </div>
             </div>
 
-            <div
-              className="hero-orbit"
-              role="img"
-              aria-label="OpenIAP connects one purchase API to native store platforms"
-            >
+            <div className="hero-orbit">
               <div
                 className="hero-orbit-ring hero-orbit-ring-outer"
                 aria-hidden="true"
@@ -245,11 +241,7 @@ function Home() {
                 <span>Without a shared contract</span>
                 <strong>Repeat the same work</strong>
               </div>
-              <div
-                className="openiap-store-matrix"
-                role="img"
-                aria-label="Store-specific purchase integrations"
-              >
+              <div className="openiap-store-matrix">
                 <div>
                   <strong>StoreKit 2</strong>
                   <span>API</span>
