@@ -82,7 +82,7 @@ function Home() {
               </h1>
               <p className="hero-subtitle">
                 One type-safe purchase contract across Apple, Google, Amazon,
-                Meta, and six app frameworks.
+                Meta, and {LIBRARIES.length} app frameworks.
               </p>
               <div className="hero-actions">
                 <Link
@@ -116,6 +116,7 @@ function Home() {
 
             <div
               className="hero-orbit"
+              role="img"
               aria-label="OpenIAP connects one purchase API to native store platforms"
             >
               <div
@@ -246,6 +247,7 @@ function Home() {
               </div>
               <div
                 className="openiap-store-matrix"
+                role="img"
                 aria-label="Store-specific purchase integrations"
               >
                 <div>
@@ -289,7 +291,10 @@ function Home() {
             <article>
               <span>01</span>
               <h3>One implementation</h3>
-              <p>Build purchase logic once across six framework libraries.</p>
+              <p>
+                Build purchase logic once across {LIBRARIES.length} framework
+                libraries.
+              </p>
             </article>
             <article>
               <span>02</span>
@@ -492,6 +497,7 @@ function Home() {
           <div className="iapkit-home-features">
             <div
               className="iapkit-home-route"
+              role="img"
               aria-label="Your app connects to Apple App Store, Google Play, Amazon Appstore, Meta Horizon, and Vega OS through IAPKit"
             >
               <span>Your app</span>
@@ -611,6 +617,7 @@ function Home() {
 
             <div
               className="home-sponsor-flow"
+              role="img"
               aria-label={`Meta sponsors OpenIAP, helping maintain ${LIBRARIES.length} framework SDKs`}
             >
               <span>Meta</span>

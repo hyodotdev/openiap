@@ -190,6 +190,7 @@ function Introduction() {
             </div>
             <div
               className="in-equation"
+              role="img"
               aria-label="Store APIs multiplied by frameworks creates repeated work"
             >
               <span>Store APIs</span>
@@ -455,6 +456,7 @@ function Introduction() {
             </p>
             <div
               className="in-kit-platforms"
+              role="group"
               aria-label="IAPKit purchase verification platforms"
             >
               <span>Apple</span>
@@ -463,7 +465,11 @@ function Introduction() {
               <span>Fire OS</span>
               <span>Vega OS</span>
             </div>
-            <div className="in-kit-capabilities" aria-label="IAPKit features">
+            <div
+              className="in-kit-capabilities"
+              role="group"
+              aria-label="IAPKit features"
+            >
               <span>Server validation</span>
               <span>Entitlements</span>
               <span>Store MCP</span>

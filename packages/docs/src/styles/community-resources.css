@@ -1,5 +1,6 @@
 .community-resources-page {
   --cr-accent: #b9583b;
+
   min-height: calc(100vh - 56px);
   color: var(--text-primary);
   background: var(--bg-primary);

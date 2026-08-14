@@ -52,7 +52,10 @@ const CURRENT_SPONSORS: CurrentSponsor[] = [
 const REACT_NATIVE_FAMILY = LIBRARIES.filter(
   (library) =>
     library.name === 'react-native-iap' || library.name === 'expo-iap'
-).sort((library) => (library.name === 'react-native-iap' ? -1 : 1));
+).sort((first, second) => {
+  if (first.name === second.name) return 0;
+  return first.name === 'react-native-iap' ? -1 : 1;
+});
 
 const OTHER_FRAMEWORKS = LIBRARIES.filter(
   (library) =>

@@ -44,7 +44,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
   {
     id: 'openiap-official-medium-blog',
     title: 'OpenIAP — Official Blog',
-    url: 'https://medium.com/hyodotdev/subpage/3a22b5d41a00',
+    url: 'https://medium.com/dooboolab/subpage/3a22b5d41a00',
     ecosystems: ['openiap'],
     type: 'community',
     sourceKind: 'official',

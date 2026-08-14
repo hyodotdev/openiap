@@ -1258,7 +1258,7 @@ a.spec-item:hover code {
   border: 0;
   color: var(--text-primary);
   background: transparent;
-  font-family: 'Consolas', 'Monaco', 'Courier New', monospace;
+  font-family: var(--font-mono);
   font-size: 0.68rem;
   text-overflow: ellipsis;
   white-space: nowrap;

@@ -30,6 +30,7 @@ import {
 } from '../lib/images';
 import { SHOWCASE_APPS } from '../lib/showcase';
 import { SHOWCASE_ISSUE_URL } from '../components/ShowcaseCards';
+import { useScrollToHash } from '../hooks/useScrollToHash';
 
 interface EcosystemMeta {
   id: Ecosystem;
@@ -212,7 +213,11 @@ function ResourceRow({ resource }: ResourceRowProps) {
         <p className="cr-resource-summary">{resource.summary}</p>
 
         {resource.relatedLinks && resource.relatedLinks.length > 0 && (
-          <div className="cr-related-links" aria-label="Related editions">
+          <div
+            className="cr-related-links"
+            role="group"
+            aria-label="Related editions"
+          >
             <span>Related</span>
             {resource.relatedLinks.map((link) => (
               <a
@@ -232,6 +237,8 @@ function ResourceRow({ resource }: ResourceRowProps) {
 }
 
 function CommunityResources() {
+  useScrollToHash();
+
   const [selectedEcosystem, setSelectedEcosystem] = useState<Ecosystem | 'all'>(
     'all'
   );
@@ -540,7 +547,7 @@ function CommunityResources() {
                   </div>
                   <div className="cr-app-meta">
                     <span>{app.library}</span>
-                    <div aria-label={`${app.name} links`}>
+                    <div role="group" aria-label={`${app.name} links`}>
                       {app.ios ? (
                         <a href={app.ios} target="_blank" rel="noreferrer">
                           iOS <ArrowUpRight size={11} aria-hidden="true" />

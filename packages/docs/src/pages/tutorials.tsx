@@ -68,7 +68,7 @@ const REFERENCES = [
 const SIGNALS = [
   {
     date: '2025-06-30',
-    title: 'Android Billing Library 8.0.0',
+    title: 'Billing Library 8.0.0 release notes',
     source: 'Android Developers',
     href: 'https://developer.android.com/google/play/billing/release-notes#8-0-0',
   },
