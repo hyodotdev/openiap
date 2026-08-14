@@ -52,7 +52,7 @@
     },
     {
       "name": "Record Scanner",
-      "tagline": "Scan, value, and organize vinyl, CDs, and cassettes",
+      "tagline": "AI-powered record scanner for collectors and music lovers",
       "logo": "/showcase/record-scanner.webp",
       "library": "react-native-iap",
       "ios": "https://apps.apple.com/us/app/record-scanner-vinyl-cd/id1507752204",

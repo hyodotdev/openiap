@@ -271,7 +271,7 @@ jobs:
           if git diff --staged --quiet; then
             echo "No version changes to commit"
           else
-            git commit -m "chore(release): kmp-iap ${{ env.VERSION }}"
+            git commit -m "chore(release): kmp-iap@${{ env.VERSION }}"
           fi
 
       - name: Clean build artifacts

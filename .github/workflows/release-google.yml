@@ -218,7 +218,7 @@ jobs:
         if git diff --staged --quiet; then
           echo "No version changes to commit"
         else
-          git commit -m "chore(google): bump version to $VERSION"
+          git commit -m "chore(release): openiap-google@$VERSION"
 
           # Push with retry, handling concurrent release conflicts
           for i in 1 2 3; do

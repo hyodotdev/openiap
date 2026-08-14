@@ -361,7 +361,7 @@ jobs:
           git add pubspec.yaml
           [ -f CHANGELOG.md ] && git add CHANGELOG.md
           "$GITHUB_WORKSPACE/scripts/sync-release-generated.sh"
-          git commit -m "chore(release): flutter_inapp_purchase ${NEW_VERSION}"
+          git commit -m "chore(release): flutter_inapp_purchase@${NEW_VERSION}"
 
       - name: Assert verified release head is unchanged
         if: ${{ inputs.version != 'current' || steps.check_tag.outputs.exists != 'true' }}

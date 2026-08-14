@@ -99,9 +99,13 @@ const releaseTag =
   target === 'apple'
     ? bumpedVersions.apple
     : `google-${bumpedVersions.google}`;
+const releasePackage =
+  target === 'apple' ? 'openiap-apple' : 'openiap-google';
 
 console.log('\n💡 Next steps:');
 console.log('  1. Review changes: git diff');
-console.log('  2. Commit: git add . && git commit -m "chore(version): bump <target> to X.X.X"');
+console.log(
+  `  2. Commit: git add . && git commit -m "chore(release): ${releasePackage}@${newVersion}"`,
+);
 console.log(`  3. Tag: git tag ${releaseTag}`);
 console.log('  4. Push: git push && git push --tags');

@@ -50,6 +50,31 @@ function readWorkflow(filename) {
   return readFileSync(resolve(repoRoot, ".github/workflows", filename), "utf8");
 }
 
+test("release version commits use package@version subjects", () => {
+  for (const [filename, subject] of [
+    ["release-apple.yml", "openiap-apple@$VERSION"],
+    ["release-google.yml", "openiap-google@$VERSION"],
+    ["release-react-native.yml", "react-native-iap@${NEW_VERSION}"],
+    ["release-expo.yml", "expo-iap@${NEW_VERSION}"],
+    ["release-flutter.yml", "flutter_inapp_purchase@${NEW_VERSION}"],
+    ["release-godot.yml", "godot-iap@${{ steps.version.outputs.VERSION }}"],
+    ["release-kmp.yml", "kmp-iap@${{ env.VERSION }}"],
+    ["release-maui.yml", "maui-iap@$VERSION"],
+    ["release-conformance.yml", "openiap-conformance@$VERSION"],
+  ]) {
+    const expectedCommit = `git commit -m "chore(release): ${subject}"`;
+    const versionCommits = readWorkflow(filename)
+      .split("\n")
+      .map((line) => line.trim())
+      .filter((line) => line.startsWith('git commit -m "chore(release):'));
+    assert.ok(
+      versionCommits.includes(expectedCommit),
+      `${filename} must use the canonical release commit subject`,
+    );
+    assert.equal(versionCommits.length, 1, filename);
+  }
+});
+
 function extractRunBlockContaining(workflow, marker) {
   const lines = workflow.split("\n");
   const markerIndex = lines.findIndex((line) => line.includes(marker));

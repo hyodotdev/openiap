@@ -321,7 +321,7 @@ jobs:
           NEW_VERSION="${{ steps.bump.outputs.version }}"
           git add package.json
           "$GITHUB_WORKSPACE/scripts/sync-release-generated.sh"
-          git commit -m "chore(release): react-native-iap ${NEW_VERSION}"
+          git commit -m "chore(release): react-native-iap@${NEW_VERSION}"
 
       - name: Push commit and tags
         if: ${{ inputs.version != 'current' }}

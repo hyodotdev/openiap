@@ -309,7 +309,7 @@ jobs:
           if git diff --staged --quiet; then
             echo "No version changes to commit"
           else
-            git commit -m "chore(maui): bump version to $VERSION"
+            git commit -m "chore(release): maui-iap@$VERSION"
           fi
 
       # Re-build native artifacts on the publish runner; the validate-multitarget

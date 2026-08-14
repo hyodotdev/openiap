@@ -454,7 +454,7 @@ jobs:
           git add addons/godot-iap/plugin.cfg
           "$GITHUB_WORKSPACE/scripts/sync-release-generated.sh"
           if ! git diff --cached --quiet; then
-            git commit -m "chore(release): godot-iap ${{ steps.version.outputs.VERSION }}"
+            git commit -m "chore(release): godot-iap@${{ steps.version.outputs.VERSION }}"
           fi
           node "$GITHUB_WORKSPACE/scripts/assert-release-head.mjs" "$RELEASE_BRANCH" "$GITHUB_SHA"
           git tag -a godot-iap-${{ steps.version.outputs.VERSION }} -m "Release godot-iap-${{ steps.version.outputs.VERSION }}"

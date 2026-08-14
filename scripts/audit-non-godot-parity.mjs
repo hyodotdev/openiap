@@ -4855,7 +4855,7 @@ function checkFrameworkDependencyHygiene() {
       'update-native apple "$NEW_VERSION"',
       '"$REPO_ROOT/scripts/sync-versions.sh"',
       "packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json",
-      'git commit -m "chore(apple): bump version to $NEW_VERSION"',
+      'git commit -m "chore(release): openiap-apple@$NEW_VERSION"',
       "git pull --rebase origin main",
       "git push origin HEAD:main",
       'git ls-remote --exit-code --tags origin "refs/tags/$NEW_VERSION"',
@@ -6186,7 +6186,7 @@ function checkFrameworkDependencyHygiene() {
     [
       "const currentVersion = versions[target];",
       "${currentVersion} → ${newVersion}",
-      "chore(version): bump <target> to X.X.X",
+      "chore(release): ${releasePackage}@${newVersion}",
       "target === 'apple'",
       "updateNativeVersion",
       "`google-${bumpedVersions.google}`",
