@@ -82,11 +82,16 @@ export function findUnpinnedDockerBases(source) {
   const stages = new Set();
   const findings = [];
   for (const line of source.split("\n")) {
-    const match = line.match(
-      /^FROM(?:\s+--platform=\S+)?\s+(\S+)(?:\s+AS\s+(\S+))?\s*$/iu,
-    );
+    const match = line.match(/^\s*FROM\s+(.+)$/iu);
     if (!match) continue;
-    const [, image, alias] = match;
+    const tokens = match[1].trim().split(/\s+/u);
+    while (tokens[0]?.startsWith("--")) tokens.shift();
+    const image = tokens.shift();
+    if (!image) {
+      findings.push(line.trim());
+      continue;
+    }
+    const alias = tokens[0]?.toLowerCase() === "as" ? tokens[1] : undefined;
     if (
       !stages.has(image.toLowerCase()) &&
       !/@sha256:[0-9a-f]{64}$/u.test(image)
@@ -147,6 +152,17 @@ export function findWorkflowDependencyFindings(
       )
     ) {
       findings.push(`${filename}: invalid permissions for job ${jobName}`);
+    }
+  }
+
+  for (const [jobName, job] of Object.entries(workflow?.jobs ?? {})) {
+    for (const step of job?.steps ?? []) {
+      if (!String(step?.uses ?? "").startsWith("actions/checkout@")) continue;
+      if (String(step?.with?.["persist-credentials"]) !== "false") {
+        findings.push(
+          `${filename}: job ${jobName} checkout must disable persisted credentials`,
+        );
+      }
     }
   }
 

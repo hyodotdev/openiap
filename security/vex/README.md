@@ -10,8 +10,9 @@ reachable in our product.
 
 The dependency inventory and release SBOM are produced automatically from
 released manifests and descriptors, shipped native declarations, and
-hash-pinned embedded binaries. VEX cannot be: whether a CVE is exploitable
-through OpenIAP's use of a dependency is an engineering judgement. Automation only
+hash-pinned embedded binaries. VEX cannot be generated automatically because
+whether a CVE is exploitable through OpenIAP's use of a dependency is an
+engineering judgement. Automation only
 ensures that a recorded judgement ships with the release it applies to and
 rejects a malformed one. The other files under `security/` are hand-authored
 policy and assurance records.

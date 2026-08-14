@@ -79,6 +79,18 @@ test("workflow dependency scan requires least privilege and immutable actions", 
   );
   assert.deepEqual(
     findWorkflowDependencyFindings(
+      `permissions: read-all
+jobs:
+  test:
+    steps:
+      - uses: actions/checkout@${"e".repeat(40)} # v7
+`,
+      "fixture.yml",
+    ),
+    ["fixture.yml: job test checkout must disable persisted credentials"],
+  );
+  assert.deepEqual(
+    findWorkflowDependencyFindings(
       `permissions: read-all\nsteps:\n  - uses: actions/checkout@${"b".repeat(40)}\n`,
       "fixture.yml",
     ),
@@ -185,16 +197,25 @@ test("Dependabot lock refresh isolates write credentials from installs", () => {
     ),
     "utf8",
   );
-  const refresh = source.slice(
-    source.indexOf("  refresh:"),
-    source.indexOf("  retrigger:"),
+  const refreshStart = source.indexOf("  refresh:");
+  const retriggerStart = source.indexOf("  retrigger:");
+  assert.ok(refreshStart >= 0);
+  assert.ok(retriggerStart > refreshStart);
+  const refresh = source.slice(refreshStart, retriggerStart);
+  const installStart = refresh.indexOf("      - name: Run bun install");
+  const pushStart = refresh.indexOf(
+    "      - name: Commit and push refreshed lockfile",
   );
-  const install = refresh.slice(
-    refresh.indexOf("      - name: Run bun install"),
-    refresh.indexOf("      - name: Commit and push refreshed lockfile"),
-  );
+  assert.ok(installStart >= 0);
+  assert.ok(pushStart > installStart);
+  const install = refresh.slice(installStart, pushStart);
 
   assert.match(refresh, /persist-credentials: false/u);
+  assert.match(
+    refresh,
+    /github\.event\.pull_request\.user\.login == 'dependabot\[bot\]'/u,
+  );
+  assert.doesNotMatch(refresh, /github\.actor/u);
   assert.match(install, /bun install --ignore-scripts/u);
   assert.doesNotMatch(install, /GH_TOKEN|GITHUB_TOKEN|contents: write/u);
   assert.doesNotMatch(refresh, /actions: write/u);
@@ -524,5 +545,11 @@ FROM alpine:latest AS runtime
 FROM base AS runtime
 `),
     [],
+  );
+  assert.deepEqual(
+    findUnpinnedDockerBases(
+      "FROM --platform=$BUILDPLATFORM alpine:latest AS helper # build image\n",
+    ),
+    ["alpine:latest"],
   );
 });

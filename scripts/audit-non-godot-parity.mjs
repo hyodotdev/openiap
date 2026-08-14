@@ -6458,12 +6458,18 @@ function checkFrameworkDependencyHygiene() {
       "resolveOpenIapApplePackageVersion",
       "openiap-versions.json",
       "openIapApplePackageVersion",
+      "exact: openIapApplePackageVersion",
     ],
     "KMP native bridge OpenIAP Apple dependency version",
   );
   expectNotIncludes(
     "libraries/kmp-iap/native/InAppPurchaseBridge/Package.swift",
-    ['from: "1.2.5"', 'return "2.1.9"', "Version(2, 1, 9)"],
+    [
+      'from: "1.2.5"',
+      "from: openIapApplePackageVersion",
+      'return "2.1.9"',
+      "Version(2, 1, 9)",
+    ],
     "KMP native bridge OpenIAP Apple dependency version",
   );
   expectIncludes(

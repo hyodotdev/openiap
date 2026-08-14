@@ -30,9 +30,11 @@ evidence from the reviewed source commit rather than claiming a second scan:
   permissions;
 - CodeQL analysis of the hosted/web, C#, workflow, JVM Kotlin core/wrapper, and
   Swift core/wrapper surfaces;
-- a valid, attested CycloneDX SBOM for every releasable component's supported
-  releases, with
-  weekly identity verification and exact-version vulnerability scanning; and
+- a valid, attested CycloneDX SBOM for each published stable release carrying
+  one; the newest stable release of every releasable component must have one,
+  with weekly identity verification and exact-version vulnerability scanning
+  for those assets; older releases without an SBOM use the documented fallback;
+  and
 - the acknowledgment and active-exploitation timelines in
   [`SECURITY.md`](../SECURITY.md).
 

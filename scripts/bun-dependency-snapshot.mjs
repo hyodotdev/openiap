@@ -37,11 +37,13 @@ function dependencyEntries(metadata) {
       range,
     });
   }
-  for (const [name, range] of Object.entries({
-    ...(metadata?.dependencies ?? {}),
-    ...(metadata?.optionalDependencies ?? {}),
-  })) {
+  for (const [name, range] of Object.entries(metadata?.dependencies ?? {})) {
     entries.set(name, { name, optional: false, peer: false, range });
+  }
+  for (const [name, range] of Object.entries(
+    metadata?.optionalDependencies ?? {},
+  )) {
+    entries.set(name, { name, optional: true, peer: false, range });
   }
   return [...entries.values()];
 }

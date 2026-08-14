@@ -1458,6 +1458,10 @@ test("Apple release preflights CocoaPods before repository mutation", () => {
     workflow.slice(credentials, versionUpdate),
     /if: steps\.check_cocoapods\.outputs\.exists == 'false'/u,
   );
+  assert.match(
+    workflow.slice(registry, credentials),
+    /if ! POD_INFO=\$\(pod trunk info openiap\); then/u,
+  );
 });
 
 test("Godot imports and removes signing credentials around codesigning", () => {

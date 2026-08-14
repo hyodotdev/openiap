@@ -439,10 +439,18 @@ function readExternalLocals(root, externalLocals = {}) {
       continue;
     }
     if (spec.property) {
-      const line = readText(root, spec.file)
+      const escapedProperty = spec.property.replace(
+        /[.*+?^${}()|[\]\\]/gu,
+        "\\$&",
+      );
+      const separator = new RegExp(
+        `^\\s*${escapedProperty}\\s*[=:]\\s*(.*)$`,
+        "u",
+      );
+      const value = readText(root, spec.file)
         .split("\n")
-        .find((entry) => entry.startsWith(`${spec.property}=`));
-      const value = line?.slice(spec.property.length + 1).trim();
+        .map((entry) => entry.match(separator)?.[1]?.trim())
+        .find(Boolean);
       if (!value) {
         throw new Error(`Missing property ${spec.property} in ${spec.file}`);
       }
@@ -991,7 +999,7 @@ function verifyDeclaredInventory(root, inventories = []) {
     }
     const source = readText(root, inventory.file);
     const actual = [...source.matchAll(inventory.pattern)]
-      .map((match) => match[1])
+      .map((match) => match.slice(1).find((value) => value !== undefined))
       .sort();
     const expected = [...inventory.expected].sort();
     if (JSON.stringify(actual) !== JSON.stringify(expected)) {
@@ -1160,6 +1168,10 @@ export async function extractDirectDependencies(root, source, context = {}) {
           );
           merged.set(entry.purl, {
             ...existing,
+            scope:
+              existing.scope === "optional" && entry.scope === "optional"
+                ? "optional"
+                : "required",
             ...(properties.size
               ? { properties: [...properties.values()] }
               : {}),

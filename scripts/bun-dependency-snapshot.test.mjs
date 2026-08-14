@@ -144,6 +144,18 @@ test("unsupported and unbound snapshots fail closed", () => {
       }),
     /cannot resolve missing/u,
   );
+  const optionalManifest = createBunManifest({
+    workspaces: {
+      "": {
+        dependencies: { runtime: "^1" },
+        optionalDependencies: { missing: "^1" },
+      },
+    },
+    packages: { runtime: ["runtime@1.0.0"] },
+  });
+  assert.deepEqual(Object.keys(optionalManifest.resolved), [
+    "pkg:npm/runtime@1.0.0",
+  ]);
   assert.throws(
     () =>
       createBunManifest({

@@ -42,6 +42,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Enforce stable and prerelease branches
         env:
@@ -60,6 +62,8 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Set up Xcode
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
@@ -213,7 +217,10 @@ jobs:
           VERSION: ${{ steps.version.outputs.version }}
           RELEASE_TAG_EXISTS: ${{ steps.check_tag.outputs.exists }}
         run: |
-          POD_INFO=$(pod trunk info openiap)
+          if ! POD_INFO=$(pod trunk info openiap); then
+            echo "::error::Unable to query CocoaPods Trunk for openiap publication state"
+            exit 1
+          fi
           if awk -v version="$VERSION" \
             '$1 == "-" && $2 == version { found=1 } END { exit !found }' \
             <<<"$POD_INFO"; then

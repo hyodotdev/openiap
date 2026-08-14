@@ -49,7 +49,12 @@ const historicalGoogleRoot = resolve(
   repoRoot,
   "scripts/fixtures/historical-releases/google-v1.3.0",
 );
-const { COMPONENTS, fetchPublishedText } = generatorTesting;
+const {
+  COMPONENTS,
+  fetchPublishedText,
+  GRADLE_COORDINATE_PATTERN,
+  GRADLE_PROJECT_PATTERN,
+} = generatorTesting;
 const {
   extractGradle,
   extractPub,
@@ -608,6 +613,7 @@ test("SBOM publication waits for registry propagation and repairs daily", () => 
     /github\.ref == format\('refs\/heads\/\{0\}', github\.event\.repository\.default_branch\)/u,
   );
   assert.match(source, /cron: "23 3 \* \* \*"/u);
+  assert.match(source, /node-version: 24/u);
   assert.match(source, /name: Dispatch stable SBOM repairs/u);
   assert.match(source, /for attempt in \{1\.\.16\}/u);
   assert.match(source, /\[ "\$STATUS" -ne 75 \]/u);
@@ -719,6 +725,7 @@ test("published release SBOMs and the Kit image are rescanned read-only", () => 
   );
 
   assert.match(source, /cron: "41 5 \* \* 1"/u);
+  assert.match(source, /node-version: 24/u);
   assert.match(source, /permissions:\n  contents: read/u);
   assert.doesNotMatch(source, /contents: write/u);
   assert.match(releaseJob, /fetch-depth: 0/u);
@@ -1124,6 +1131,42 @@ test("Gradle declarations are classified or fail closed", () => {
     () => isRuntimeGradleConfiguration("playApi"),
     /Unclassified Gradle dependency configuration/u,
   );
+});
+
+test("declared Gradle inventories cover every runtime configuration", () => {
+  for (const configuration of [
+    "implementation",
+    "api",
+    "runtimeOnly",
+    "compile",
+  ]) {
+    GRADLE_COORDINATE_PATTERN.lastIndex = 0;
+    assert.equal(
+      GRADLE_COORDINATE_PATTERN.exec(
+        `${configuration} "example:runtime:1.0.0"`,
+      )?.[1],
+      "example:runtime:1.0.0",
+    );
+    GRADLE_PROJECT_PATTERN.lastIndex = 0;
+    assert.equal(
+      GRADLE_PROJECT_PATTERN.exec(`${configuration} project(":runtime")`)?.[1],
+      ":runtime",
+    );
+  }
+  GRADLE_COORDINATE_PATTERN.lastIndex = 0;
+  const singleQuoted = GRADLE_COORDINATE_PATTERN.exec(
+    "api 'example:runtime:1.0.0'",
+  );
+  assert.equal(singleQuoted?.[1] ?? singleQuoted?.[2], "example:runtime:1.0.0");
+  for (const configuration of ["compileOnly", "testImplementation"]) {
+    GRADLE_COORDINATE_PATTERN.lastIndex = 0;
+    assert.equal(
+      GRADLE_COORDINATE_PATTERN.test(
+        `${configuration} "example:build-only:1.0.0"`,
+      ),
+      false,
+    );
+  }
 });
 
 test("an unmodelled Gradle coordinate fails instead of silently vanishing", (t) => {
@@ -1636,6 +1679,42 @@ test("declared native dependency inventory fails closed on manifest drift", asyn
       }),
     /example:unmodelled:2\.0\.0/u,
   );
+});
+
+test("declared property versions and aggregate scopes are order independent", async (t) => {
+  const scratch = mkdtempSync(resolve(tmpdir(), "openiap-declared-merge-"));
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+  writeFileSync(resolve(scratch, "required.txt"), "dependency required\n");
+  writeFileSync(resolve(scratch, "optional.txt"), "dependency optional\n");
+  writeFileSync(
+    resolve(scratch, "gradle.properties"),
+    "  runtimeVersion : 1.0.0\n",
+  );
+
+  const dependency = (optional) => ({
+    ecosystem: "maven",
+    group: "example",
+    artifact: "runtime",
+    version: { file: "gradle.properties", property: "runtimeVersion" },
+    marker: `dependency ${optional ? "optional" : "required"}`,
+    optional,
+  });
+  const source = (optional) => ({
+    kind: "declared",
+    manifest: optional ? "optional.txt" : "required.txt",
+    dependencies: [dependency(optional)],
+  });
+  for (const sources of [
+    [source(true), source(false)],
+    [source(false), source(true)],
+  ]) {
+    const [entry] = await extractDirectDependencies(scratch, {
+      kind: "aggregate",
+      sources,
+    });
+    assert.equal(entry.version, "1.0.0");
+    assert.equal(entry.scope, "required");
+  }
 });
 
 test("resolver output adds transitive entries without losing direct ones", () => {

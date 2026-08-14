@@ -20,7 +20,7 @@ A report states two versions, and neither is optional:
 
 | Field          | Meaning                                                           |
 | -------------- | ----------------------------------------------------------------- |
-| `suiteVersion` | Version of this behavior suite (`src/spec/version.mjs`)           |
+| `suiteVersion` | Version of this behavior suite (`src/spec/suite-version.mjs`)     |
 | `specVersion`  | OpenIAP spec version validated, read from `openiap-versions.json` |
 
 "Conformant" without both attached is exactly the unverifiable claim this suite

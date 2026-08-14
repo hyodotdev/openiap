@@ -68,7 +68,7 @@ here rather than left implicit.
 **The generator** (`scripts/generate-sbom.mjs`, `scripts/sbom-dependencies.mjs`)
 uses **only the Node.js standard library** — no npm dependency, vendored code,
 or runtime library — plus the Git executable already required by the checkout.
-It is plain ESM run with Node 20 selected in CI. This is deliberate: a tool
+It is plain ESM run with Node 24 selected in CI. This is deliberate: a tool
 that reports what you depend on should not quietly add a package dependency tree
 of its own.
 
