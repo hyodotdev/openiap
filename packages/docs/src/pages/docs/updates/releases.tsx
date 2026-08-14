@@ -24,6 +24,12 @@ interface Note {
   element: React.ReactNode;
 }
 
+interface ReleaseMetadata {
+  name: string;
+  version: string;
+  tag: string;
+}
+
 const storeApiModernizationReleases = [
   ['OpenIAP Spec 3.1.0', 'docs-3.1.0'],
   ['openiap-apple 3.1.0', '3.1.0'],
@@ -70,18 +76,34 @@ const storeVerificationIntegrityReleases = [
   ['OpenIap.Maui 2.3.0', 'maui-iap-2.3.0'],
 ] as const;
 
-const compatibilityConformanceReleases = [
-  ['OpenIAP Spec 3.2.1', 'docs-3.2.1'],
-  ['openiap-apple 3.2.1', '3.2.1'],
-  ['openiap-google 3.3.1', 'google-3.3.1'],
-  ['react-native-iap 16.3.1', 'react-native-iap-16.3.1'],
-  ['expo-iap 5.3.1', 'expo-iap-5.3.1'],
-  ['flutter_inapp_purchase 10.3.1', 'flutter-iap-10.3.1'],
-  ['godot-iap 3.3.1', 'godot-iap-3.3.1'],
-  ['kmp-iap 3.3.1', 'kmp-iap-3.3.1'],
-  ['OpenIap.Maui 2.3.1', 'maui-iap-2.3.1'],
-  ['openiap-conformance 1.0.1', 'openiap-conformance-1.0.1'],
-] as const;
+const compatibilityConformanceReleases = {
+  spec: { name: 'OpenIAP Spec', version: '3.2.1', tag: 'docs-3.2.1' },
+  apple: { name: 'openiap-apple', version: '3.2.1', tag: '3.2.1' },
+  google: {
+    name: 'openiap-google',
+    version: '3.3.1',
+    tag: 'google-3.3.1',
+  },
+  reactNative: {
+    name: 'react-native-iap',
+    version: '16.3.1',
+    tag: 'react-native-iap-16.3.1',
+  },
+  expo: { name: 'expo-iap', version: '5.3.1', tag: 'expo-iap-5.3.1' },
+  flutter: {
+    name: 'flutter_inapp_purchase',
+    version: '10.3.1',
+    tag: 'flutter-iap-10.3.1',
+  },
+  godot: { name: 'godot-iap', version: '3.3.1', tag: 'godot-iap-3.3.1' },
+  kmp: { name: 'kmp-iap', version: '3.3.1', tag: 'kmp-iap-3.3.1' },
+  maui: { name: 'OpenIap.Maui', version: '2.3.1', tag: 'maui-iap-2.3.1' },
+  conformance: {
+    name: 'openiap-conformance',
+    version: '1.0.1',
+    tag: 'openiap-conformance-1.0.1',
+  },
+} as const satisfies Record<string, ReleaseMetadata>;
 
 const dependencyModernizationReleases = [
   ['openiap-google 3.1.0', 'google-3.1.0'],
@@ -226,6 +248,10 @@ const iapkitSecurityTrainAliases = [
 function Releases() {
   useScrollToHash();
 
+  function getReleaseLabel(release: ReleaseMetadata): string {
+    return `${release.name} ${release.version}`;
+  }
+
   const allNotes: Note[] = [
     // August 14, 2026 - Compatibility, conformance, and purchase safety
     {
@@ -326,19 +352,26 @@ function Releases() {
             }}
           >
             <li>
-              <strong>OpenIAP Spec 3.2.1</strong> gives every purchase
-              verification result an <code>isValid</code> verdict and publishes
-              a capability-bound behavior contract.
+              <strong>
+                {getReleaseLabel(compatibilityConformanceReleases.spec)}
+              </strong>{' '}
+              gives every purchase verification result an <code>isValid</code>{' '}
+              verdict and publishes a capability-bound behavior contract.
             </li>
             <li>
-              <strong>openiap-apple 3.2.1</strong> normalizes StoreKit errors
-              and validates mutable purchase envelopes before store work begins.
+              <strong>
+                {getReleaseLabel(compatibilityConformanceReleases.apple)}
+              </strong>{' '}
+              normalizes StoreKit errors and validates mutable purchase
+              envelopes before store work begins.
             </li>
             <li>
-              <strong>openiap-google 3.3.1</strong> rejects invalid replacement
-              modes, malformed offers, and tokens that are absent from current
-              Play metadata. Pending Horizon subscriptions no longer grant an
-              active entitlement.
+              <strong>
+                {getReleaseLabel(compatibilityConformanceReleases.google)}
+              </strong>{' '}
+              rejects invalid replacement modes, malformed offers, and tokens
+              that are absent from current Play metadata. Pending Horizon
+              subscriptions no longer grant an active entitlement.
             </li>
           </ul>
 
@@ -351,18 +384,36 @@ function Releases() {
             }}
           >
             <li>
-              <strong>react-native-iap 16.3.1</strong>,{' '}
-              <strong>expo-iap 5.3.1</strong>,{' '}
-              <strong>flutter_inapp_purchase 10.3.1</strong>,{' '}
-              <strong>godot-iap 3.3.1</strong>, and{' '}
-              <strong>kmp-iap 3.3.1</strong> enforce the same query-only{' '}
-              <code>all</code> contract and fail-closed purchase inputs at their
-              public and raw native boundaries.
+              <strong>
+                {getReleaseLabel(compatibilityConformanceReleases.reactNative)}
+              </strong>
+              ,{' '}
+              <strong>
+                {getReleaseLabel(compatibilityConformanceReleases.expo)}
+              </strong>
+              ,{' '}
+              <strong>
+                {getReleaseLabel(compatibilityConformanceReleases.flutter)}
+              </strong>
+              ,{' '}
+              <strong>
+                {getReleaseLabel(compatibilityConformanceReleases.godot)}
+              </strong>
+              , and{' '}
+              <strong>
+                {getReleaseLabel(compatibilityConformanceReleases.kmp)}
+              </strong>{' '}
+              enforce the same query-only <code>all</code> contract and
+              fail-closed purchase inputs at their public and raw native
+              boundaries.
             </li>
             <li>
-              <strong>expo-iap 5.3.1</strong> serializes process-wide iOS
-              listener teardown and replacement initialization to prevent a
-              stale module from clearing a newer module&apos;s state (
+              <strong>
+                {getReleaseLabel(compatibilityConformanceReleases.expo)}
+              </strong>{' '}
+              serializes process-wide iOS listener teardown and replacement
+              initialization to prevent a stale module from clearing a newer
+              module&apos;s state (
               <a
                 href="https://github.com/hyodotdev/openiap/issues/334"
                 target="_blank"
@@ -373,10 +424,16 @@ function Releases() {
               ).
             </li>
             <li>
-              <strong>godot-iap 3.3.1</strong> can export a fresh Android source
-              template without an editor-generated build-version file, and{' '}
-              <strong>OpenIap.Maui 2.3.1</strong> emits diagnostics when it
-              drops unreadable optional IAPKit rows or objects.
+              <strong>
+                {getReleaseLabel(compatibilityConformanceReleases.godot)}
+              </strong>{' '}
+              can export a fresh Android source template without an
+              editor-generated build-version file, and{' '}
+              <strong>
+                {getReleaseLabel(compatibilityConformanceReleases.maui)}
+              </strong>{' '}
+              emits diagnostics when it drops unreadable optional IAPKit rows or
+              objects.
             </li>
           </ul>
 
@@ -394,8 +451,11 @@ function Releases() {
               OpenIAP 4.0.
             </li>
             <li>
-              <code>openiap-conformance@1.0.1</code> publishes behavior suite{' '}
-              <code>1.0.0</code> for OpenIAP Spec <code>3.2.1</code>. The
+              <code>
+                {`${compatibilityConformanceReleases.conformance.name}@${compatibilityConformanceReleases.conformance.version}`}
+              </code>{' '}
+              publishes behavior suite <code>1.0.0</code> for OpenIAP Spec{' '}
+              <code>{compatibilityConformanceReleases.spec.version}</code>. The
               package patch fixes CLI and provenance publishing metadata without
               changing verdicts.
             </li>
@@ -427,17 +487,19 @@ function Releases() {
                 fontSize: '0.9rem',
               }}
             >
-              {compatibilityConformanceReleases.map(([label, tag]) => (
-                <li key={tag}>
-                  <a
-                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                  >
-                    {label}
-                  </a>
-                </li>
-              ))}
+              {Object.values(compatibilityConformanceReleases).map(
+                (release) => (
+                  <li key={release.tag}>
+                    <a
+                      href={`https://github.com/hyodotdev/openiap/releases/tag/${release.tag}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {getReleaseLabel(release)}
+                    </a>
+                  </li>
+                )
+              )}
             </ul>
           </div>
         </div>
