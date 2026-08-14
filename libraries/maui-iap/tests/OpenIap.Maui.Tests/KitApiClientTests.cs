@@ -3,6 +3,8 @@
 // (same fake-HttpMessageHandler technique), plus coverage for the remaining
 // endpoints and the KitApiError paths.
 
+using System.Diagnostics;
+using System.IO;
 using System.Net;
 using System.Text.Json;
 using System.Text.Json.Nodes;
@@ -135,6 +137,61 @@ public class KitApiClientTests
     }
 
     [Fact]
+    public async Task Products_DropUnreadableProductsAndOffersIndependently()
+    {
+        using var handler = new RecordingHttpMessageHandler("""
+            {
+              "products": [
+                {
+                  "productId": "future.product",
+                  "platform": "Horizon",
+                  "type": "in-app",
+                  "title": "Future Product",
+                  "state": "active",
+                  "updatedAt": 1720000000000
+                },
+                {
+                  "productId": "premium.monthly",
+                  "platform": "IOS",
+                  "type": "subscription",
+                  "title": "Premium Monthly",
+                  "state": "active",
+                  "updatedAt": 1720000000001,
+                  "offers": [
+                    { "id": "broken-offer" },
+                    { "id": "intro", "kind": "introductory", "duration": "P1M" }
+                  ]
+                }
+              ]
+            }
+            """);
+        using var httpClient = new HttpClient(handler);
+        var client = CreateClient(httpClient);
+        using var diagnostics = new StringWriter();
+        using var listener = new TextWriterTraceListener(diagnostics);
+        Trace.Listeners.Add(listener);
+
+        KitProductsResponse response;
+        try
+        {
+            response = await client.ProductsAsync();
+            Trace.Flush();
+        }
+        finally
+        {
+            Trace.Listeners.Remove(listener);
+        }
+
+        var product = Assert.Single(response.Products);
+        Assert.Equal("premium.monthly", product.ProductId);
+        var offer = Assert.Single(Assert.IsAssignableFrom<IReadOnlyList<KitProductOffer>>(product.Offers));
+        Assert.Equal("intro", offer.Id);
+        var warnings = diagnostics.ToString();
+        Assert.Contains("Skipped unreadable KitProduct row at index 0.", warnings, StringComparison.Ordinal);
+        Assert.Contains("Skipped unreadable KitProductOffer row at index 0.", warnings, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task ClientPayload_UsesEscapedUriAndDeserializes()
     {
         using var handler = new RecordingHttpMessageHandler("""
@@ -242,6 +299,48 @@ public class KitApiClientTests
     }
 
     [Fact]
+    public async Task Status_DropsSubscriptionWithUnknownPlatform()
+    {
+        using var handler = new RecordingHttpMessageHandler("""
+            {
+              "active": true,
+              "subscription": {
+                "id": "sub-1",
+                "productId": "premium.monthly",
+                "platform": "horizon",
+                "state": "active",
+                "startedAt": 1719000000000,
+                "updatedAt": 1720000000000,
+                "purchaseToken": "token-1"
+              }
+            }
+            """);
+        using var httpClient = new HttpClient(handler);
+        var client = CreateClient(httpClient);
+        using var diagnostics = new StringWriter();
+        using var listener = new TextWriterTraceListener(diagnostics);
+        Trace.Listeners.Add(listener);
+
+        StatusResponse response;
+        try
+        {
+            response = await client.StatusAsync("user-1");
+            Trace.Flush();
+        }
+        finally
+        {
+            Trace.Listeners.Remove(listener);
+        }
+
+        Assert.True(response.Active);
+        Assert.Null(response.Subscription);
+        Assert.Contains(
+            "Skipped unreadable KitSubscription object.",
+            diagnostics.ToString(),
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public async Task Entitlements_BuildsUriAndDeserializes()
     {
         using var handler = new RecordingHttpMessageHandler("""
@@ -262,6 +361,44 @@ public class KitApiClientTests
         Assert.Equal("user-1", response.UserId);
         Assert.Equal(new[] { "premium.monthly", "coins.100" }, response.ProductIds);
         Assert.Empty(response.Subscriptions);
+    }
+
+    [Fact]
+    public async Task Entitlements_DropOnlySubscriptionsWithUnknownPlatform()
+    {
+        using var handler = new RecordingHttpMessageHandler("""
+            {
+              "userId": "user-1",
+              "productIds": ["premium.monthly"],
+              "subscriptions": [
+                {
+                  "id": "sub-future",
+                  "productId": "future.plan",
+                  "platform": "horizon",
+                  "state": "active",
+                  "startedAt": 1719000000000,
+                  "updatedAt": 1720000000000,
+                  "purchaseToken": "token-future"
+                },
+                {
+                  "id": "sub-ios",
+                  "productId": "premium.monthly",
+                  "platform": "ios",
+                  "state": "active",
+                  "startedAt": 1719000000001,
+                  "updatedAt": 1720000000001,
+                  "purchaseToken": "token-ios"
+                }
+              ]
+            }
+            """);
+        using var httpClient = new HttpClient(handler);
+        var client = CreateClient(httpClient);
+
+        var response = await client.EntitlementsAsync("user-1");
+
+        var subscription = Assert.Single(response.Subscriptions);
+        Assert.Equal("sub-ios", subscription.Id);
     }
 
     [Fact]

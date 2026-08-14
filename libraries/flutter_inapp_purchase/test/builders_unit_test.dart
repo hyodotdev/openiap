@@ -180,11 +180,19 @@ void main() {
     test('type setter accepts String', () {
       final builder = RequestPurchaseBuilder()..ios.sku = 'product';
 
-      builder.type = 'subscription';
+      builder.type = 'subs';
       expect(builder.type, ProductQueryType.Subs);
 
-      builder.type = 'inapp';
+      builder.type = 'in-app';
       expect(builder.type, ProductQueryType.InApp);
+    });
+
+    test('type setter rejects query-only and unknown strings', () {
+      final builder = RequestPurchaseBuilder();
+
+      expect(() => builder.type = 'all', throwsArgumentError);
+      expect(() => builder.type = 'subscription', throwsArgumentError);
+      expect(() => builder.type = 'inapp', throwsArgumentError);
     });
 
     test('type setter throws for ProductQueryType.All', () {

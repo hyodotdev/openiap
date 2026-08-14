@@ -438,8 +438,8 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// Performs the StoreKit request while helper-level error emissions are
     /// suppressed. `requestPurchase` emits the final canonical error exactly once.
     private func performRequestPurchase(_ params: RequestPurchaseProps) async throws -> RequestPurchaseResult? {
-        try await ensureConnection()
         let iosProps = try resolveIOSPurchaseProps(from: params)
+        try await ensureConnection()
         let sku = iosProps.sku
         let product = try await storeProduct(for: sku)
         #if os(iOS)
@@ -2022,6 +2022,7 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
     /// Resolves iOS purchase props from request params.
     /// Returns either RequestPurchaseIosProps or RequestSubscriptionIosProps based on request type.
     func resolveIOSPurchaseProps(from params: RequestPurchaseProps) throws -> any IosPropsProtocol {
+        try Self.validateIOSPurchaseProps(params)
         switch params.request {
         case let .purchase(platforms):
             if let ios = platforms.apple {
@@ -2033,6 +2034,25 @@ public final class OpenIapModule: NSObject, OpenIapModuleProtocol {
             }
         }
         throw makePurchaseError(code: .purchaseError, message: "Missing iOS purchase parameters")
+    }
+
+    static func validateIOSPurchaseProps(_ params: RequestPurchaseProps) throws {
+        switch params.request {
+        case .purchase where params.type == .inApp:
+            return
+        case .subscription where params.type == .subs:
+            return
+        case .purchase:
+            throw PurchaseError.make(
+                code: .developerError,
+                message: "type must be in-app when requestPurchase is provided"
+            )
+        case .subscription:
+            throw PurchaseError.make(
+                code: .developerError,
+                message: "type must be subs when requestSubscription is provided"
+            )
+        }
     }
 
     private func purchaseProductId(from params: RequestPurchaseProps) -> String? {

@@ -166,6 +166,32 @@ internal fun throwPurchaseRequestFailure(
     throw PurchaseException(purchaseError)
 }
 
+internal fun hasInvalidKmpSubscriptionOffers(
+    requestedSkus: Collection<String>,
+    offers: Collection<AndroidSubscriptionOfferInput>,
+): Boolean {
+    if (offers.isEmpty()) return false
+    val requested = requestedSkus.toSet()
+    val offered = offers.mapTo(mutableSetOf()) { it.sku }
+    return offers.any { it.offerToken.isBlank() || it.sku !in requested } ||
+        !offered.containsAll(requested)
+}
+
+internal fun isValidKmpSubscriptionOfferToken(
+    token: String?,
+    availableTokens: Collection<String>,
+): Boolean = !token.isNullOrEmpty() && token in availableTokens
+
+internal fun areValidKmpSubscriptionOfferTokens(
+    tokens: Collection<String>,
+    availableTokens: Collection<String>,
+): Boolean = tokens.isNotEmpty() && tokens.all { it in availableTokens }
+
+internal fun isValidKmpOneTimeOfferToken(
+    token: String,
+    availableTokens: Collection<String>,
+): Boolean = token.isNotEmpty() && token in availableTokens
+
 internal fun billingProgramConfigurationException(
     program: BillingProgramAndroid,
     error: Exception,
@@ -1002,6 +1028,18 @@ internal class InAppPurchaseAndroid(
                 )
             }
 
+            if (
+                resolvedType == ProductQueryType.Subs &&
+                hasInvalidKmpSubscriptionOffers(targetSkus, subscriptionOffers)
+            ) {
+                failWith(
+                    PurchaseError(
+                        code = ErrorCode.SkuOfferMismatch,
+                        message = "Subscription offers must match the requested SKUs",
+                    )
+                )
+            }
+
             if (!isSubscriptionReplacementTargetCountValid(
                     targetSkuCount = targetSkus.size,
                     hasProductLevelReplacementParams =
@@ -1146,10 +1184,7 @@ internal class InAppPurchaseAndroid(
                 }
 
                 val paramsList = mutableListOf<BillingFlowParams.ProductDetailsParams>()
-                val offersBySku = subscriptionOffers
-                    .groupBy(AndroidSubscriptionOfferInput::sku)
-                    .mapValues { entry -> entry.value.toMutableList() }
-                    .toMutableMap()
+                val offersBySku = subscriptionOffers.groupBy(AndroidSubscriptionOfferInput::sku)
 
                 var mismatch = false
                 for (sku in targetSkus) {
@@ -1159,10 +1194,9 @@ internal class InAppPurchaseAndroid(
 
                     if (desiredProductType == BillingClient.ProductType.SUBS) {
                         val availableTokens = detail.subscriptionOfferDetails?.map { it.offerToken }.orEmpty()
-                        val queuedToken = offersBySku[detail.productId]?.takeIf { it.isNotEmpty() }?.removeAt(0)?.offerToken
-                        val resolvedToken = queuedToken ?: detail.subscriptionOfferDetails?.firstOrNull()?.offerToken
-
-                        if (resolvedToken.isNullOrEmpty() || (availableTokens.isNotEmpty() && !availableTokens.contains(resolvedToken))) {
+                        val requestedTokens = offersBySku[detail.productId].orEmpty().map { it.offerToken }
+                        if (subscriptionOffers.isNotEmpty() &&
+                            !areValidKmpSubscriptionOfferTokens(requestedTokens, availableTokens)) {
                             failPendingPurchaseFlow(
                                 requestLifecycle,
                                 callback,
@@ -1174,6 +1208,25 @@ internal class InAppPurchaseAndroid(
                             mismatch = true
                             break
                         }
+                        val resolvedToken = if (subscriptionOffers.isEmpty()) {
+                            detail.subscriptionOfferDetails?.firstOrNull()?.offerToken
+                        } else {
+                            requestedTokens.firstOrNull()
+                        }
+
+                        if (!isValidKmpSubscriptionOfferToken(resolvedToken, availableTokens)) {
+                            failPendingPurchaseFlow(
+                                requestLifecycle,
+                                callback,
+                                PurchaseError(
+                                    code = ErrorCode.SkuOfferMismatch,
+                                    message = "Offer token mismatch for ${detail.productId}",
+                                ),
+                            )
+                            mismatch = true
+                            break
+                        }
+                        val selectedOfferToken = checkNotNull(resolvedToken)
 
                         // Apply item-level subscription replacement params (8.1.0+)
                         subscriptionProductReplacementParams?.let { params ->
@@ -1186,11 +1239,26 @@ internal class InAppPurchaseAndroid(
                         }
 
                         if (subscriptionProductReplacementParams?.replacementMode != SubscriptionReplacementModeAndroid.KeepExisting) {
-                            builder.setOfferToken(resolvedToken)
+                            builder.setOfferToken(selectedOfferToken)
                         }
                     } else {
                         // Handle offerToken for one-time purchase discounts (Android 8.0+)
                         oneTimePurchaseOfferToken?.let { token ->
+                            val availableTokens = detail.oneTimePurchaseOfferDetailsList
+                                ?.mapNotNull { it.offerToken }
+                                .orEmpty()
+                            if (!isValidKmpOneTimeOfferToken(token, availableTokens)) {
+                                failPendingPurchaseFlow(
+                                    requestLifecycle,
+                                    callback,
+                                    PurchaseError(
+                                        code = ErrorCode.SkuOfferMismatch,
+                                        message = "Offer token mismatch for ${detail.productId}",
+                                    ),
+                                )
+                                mismatch = true
+                                break
+                            }
                             builder.setOfferToken(token)
                         }
                     }

@@ -1363,10 +1363,10 @@ export default function ProjectSettings() {
 
                     {iosFileUploaded || hasIosFile ? (
                       <div className="space-y-2">
-                        <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
-                          <div className="flex items-center gap-2">
+                        <div className="contained-action-card p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
+                          <div className="contained-action-card__content">
                             <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-500" />
-                            <div>
+                            <div className="contained-action-card__text">
                               <span className="text-sm text-green-700 dark:text-green-400">
                                 {"Authentication file uploaded successfully"}
                               </span>
@@ -1378,7 +1378,7 @@ export default function ProjectSettings() {
                               )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-1">
+                          <div className="contained-action-card__actions">
                             {iosFile && (
                               <button
                                 type="button"
@@ -1613,10 +1613,10 @@ export default function ProjectSettings() {
                     <div className="mt-4">
                       {iosAscFileUploaded || hasIosAscFile ? (
                         <div className="space-y-2">
-                          <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
-                            <div className="flex items-center gap-2">
+                          <div className="contained-action-card p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
+                            <div className="contained-action-card__content">
                               <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-500" />
-                              <div>
+                              <div className="contained-action-card__text">
                                 <span className="text-sm text-green-700 dark:text-green-400">
                                   {"Connect API key uploaded successfully"}
                                 </span>
@@ -1628,7 +1628,7 @@ export default function ProjectSettings() {
                                 )}
                               </div>
                             </div>
-                            <div className="flex items-center gap-1">
+                            <div className="contained-action-card__actions">
                               {iosAscFile && (
                                 <button
                                   type="button"
@@ -1756,15 +1756,15 @@ export default function ProjectSettings() {
                     </p>
 
                     {hasIosReviewScreenshot ? (
-                      <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
-                        <div className="flex items-center gap-2 min-w-0">
-                          <CheckCircle className="w-5 h-5 flex-shrink-0 text-green-600 dark:text-green-500" />
-                          <div className="min-w-0">
+                      <div className="contained-action-card p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
+                        <div className="contained-action-card__content">
+                          <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-500" />
+                          <div className="contained-action-card__text">
                             <span className="text-sm text-green-700 dark:text-green-400">
                               {"App Review screenshot configured"}
                             </span>
                             {iosReviewScreenshot && (
-                              <p className="text-sm text-green-600 dark:text-green-500 mt-1 truncate">
+                              <p className="text-sm text-green-600 dark:text-green-500 mt-1">
                                 {iosReviewScreenshot.fileName} •{" "}
                                 {(
                                   iosReviewScreenshot.fileSize /
@@ -1775,7 +1775,7 @@ export default function ProjectSettings() {
                             )}
                           </div>
                         </div>
-                        <div className="flex items-center gap-1">
+                        <div className="contained-action-card__actions">
                           {iosReviewScreenshot && (
                             <button
                               type="button"
@@ -1912,10 +1912,10 @@ export default function ProjectSettings() {
 
                     {androidFileUploaded || hasAndroidFile ? (
                       <div className="space-y-2">
-                        <div className="flex items-center justify-between p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
-                          <div className="flex items-center gap-2">
+                        <div className="contained-action-card p-3 bg-green-50 dark:bg-green-950/20 border border-green-200 dark:border-green-800 rounded-lg">
+                          <div className="contained-action-card__content">
                             <CheckCircle className="w-5 h-5 text-green-600 dark:text-green-500" />
-                            <div>
+                            <div className="contained-action-card__text">
                               <span className="text-sm text-green-700 dark:text-green-400">
                                 {"Service account file uploaded successfully"}
                               </span>
@@ -1927,7 +1927,7 @@ export default function ProjectSettings() {
                               )}
                             </div>
                           </div>
-                          <div className="flex items-center gap-1">
+                          <div className="contained-action-card__actions">
                             {androidFile && (
                               <button
                                 type="button"

@@ -322,7 +322,7 @@ public final class OpenIapStore: ObservableObject {
                 type: .subs
             )
             return try await requestPurchase(request)
-        default:
+        case .inApp:
             let iosProps = RequestPurchaseIosProps(
                 advancedCommerceData: advancedCommerceData,
                 andDangerouslyFinishTransactionAutomatically: autoFinish,
@@ -336,10 +336,16 @@ public final class OpenIapStore: ObservableObject {
                 type: .inApp
             )
             return try await requestPurchase(request)
+        case .all:
+            throw PurchaseError.make(
+                code: .developerError,
+                message: "Product type all is only supported for product queries."
+            )
         }
     }
 
     public func requestPurchase(_ params: RequestPurchaseProps) async throws -> OpenIAP.Purchase? {
+        try OpenIapModule.validateIOSPurchaseProps(params)
         clearCurrentPurchase()
         clearCurrentPurchaseError()
 

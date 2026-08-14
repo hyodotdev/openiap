@@ -123,6 +123,27 @@ internal fun recordRecoverableProductQueryFailure(
     return firstError ?: error
 }
 
+internal fun hasInvalidPlaySubscriptionOffers(
+    requestedSkus: Collection<String>,
+    offers: Collection<AndroidSubscriptionOfferInput>,
+): Boolean {
+    if (offers.isEmpty()) return false
+    val requested = requestedSkus.toSet()
+    val offered = offers.mapTo(mutableSetOf()) { it.sku }
+    return offers.any { it.offerToken.isBlank() || it.sku !in requested } ||
+        !offered.containsAll(requested)
+}
+
+internal fun isValidPlaySubscriptionOfferToken(
+    token: String?,
+    availableTokens: Collection<String>,
+): Boolean = !token.isNullOrEmpty() && token in availableTokens
+
+internal fun areValidPlaySubscriptionOfferTokens(
+    tokens: Collection<String>,
+    availableTokens: Collection<String>,
+): Boolean = tokens.isNotEmpty() && tokens.all { it in availableTokens }
+
 internal data class AllProductQueryResults<T : Any>(
     val inApp: T?,
     val subscriptions: T?,
@@ -1595,6 +1616,18 @@ class OpenIapModule(
                 return@withContext emptyList()
             }
 
+            if (
+                androidArgs.type == ProductQueryType.Subs &&
+                hasInvalidPlaySubscriptionOffers(
+                    androidArgs.skus,
+                    androidArgs.subscriptionOffers.orEmpty(),
+                )
+            ) {
+                val err = OpenIapError.SkuOfferMismatchFailure()
+                errorEventGate.publishOnce(err)
+                return@withContext emptyList()
+            }
+
             if (!isSubscriptionReplacementTargetCountValid(
                     targetSkuCount = androidArgs.skus.size,
                     hasProductLevelReplacementParams =
@@ -1711,28 +1744,37 @@ class OpenIapModule(
                             OpenIapLog.debug("Available offer base plans for ${productDetails.productId}: $availableOffers", TAG)
 
                             val availableTokens = productDetails.subscriptionOfferDetails?.map { it.offerToken } ?: emptyList()
-                            val fromQueue = requestedOffersBySku[productDetails.productId]?.let { queue ->
-                                if (queue.isNotEmpty()) queue.removeAt(0) else null
+                            val requestedTokens = requestedOffersBySku[productDetails.productId].orEmpty()
+                            if (androidArgs.subscriptionOffers?.isNotEmpty() == true &&
+                                !areValidPlaySubscriptionOfferTokens(requestedTokens, availableTokens)) {
+                                OpenIapLog.warn("Invalid offer token for ${productDetails.productId}", TAG)
+                                val err = OpenIapError.SkuOfferMismatchFailure()
+                                finishWithError(err)
+                                return
                             }
-                            val fromIndex = androidArgs.subscriptionOffers?.getOrNull(index)?.takeIf { it.sku == productDetails.productId }?.offerToken
-                            val resolved = fromQueue ?: fromIndex ?: productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
+                            val resolved = if (androidArgs.subscriptionOffers.isNullOrEmpty()) {
+                                productDetails.subscriptionOfferDetails?.firstOrNull()?.offerToken
+                            } else {
+                                requestedTokens.firstOrNull()
+                            }
 
                             OpenIapLog.debug(
                                 "Resolved offer token for ${productDetails.productId}: present=${!resolved.isNullOrEmpty()}",
                                 TAG,
                             )
 
-                            if (resolved.isNullOrEmpty() || (availableTokens.isNotEmpty() && !availableTokens.contains(resolved))) {
+                            if (!isValidPlaySubscriptionOfferToken(resolved, availableTokens)) {
                                 OpenIapLog.warn("Invalid offer token for ${productDetails.productId}", TAG)
                                 val err = OpenIapError.SkuOfferMismatchFailure()
                                 finishWithError(err)
                                 return
                             }
+                            val selectedOfferToken = checkNotNull(resolved)
 
-                            builder.setOfferToken(resolved)
+                            builder.setOfferToken(selectedOfferToken)
                             selectedBasePlanIdsBySku[productDetails.productId] =
                                 productDetails.subscriptionOfferDetails
-                                    ?.firstOrNull { it.offerToken == resolved }
+                                    ?.firstOrNull { it.offerToken == selectedOfferToken }
                                     ?.basePlanId
 
                             // Apply per-product subscription replacement params (8.1.0+)

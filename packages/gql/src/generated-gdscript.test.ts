@@ -1,9 +1,13 @@
 import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import type { IRSchema } from '../codegen/core/types.js';
+import { nullableEnumListSchema } from '../codegen/fixtures/nullable-enum-list.js';
 import { GDScriptPlugin } from '../codegen/plugins/gdscript.js';
 
 const generated = readFileSync(new URL('./generated/types.gd', import.meta.url), 'utf8');
+const nullableEnumListFixture = readFileSync(
+  new URL('../../../libraries/godot-iap/Example/tests/generated_nullable_enum_list_types.gd', import.meta.url),
+  'utf8',
+);
 
 function classSource(className: string, nextClassName: string): string {
   const start = generated.indexOf(`class ${className}:`);
@@ -49,7 +53,10 @@ describe('generated GDScript list decoding', () => {
     const source = classSource('ProductIOS', 'ProductSubscriptionAndroid');
 
     expect(source).toContain('var arr: Array[SubscriptionOffer] = []');
-    expect(source).toContain('arr.append(SubscriptionOffer.from_dict(item))');
+    expect(source).toContain('var decoded_subscription_offer = SubscriptionOffer.from_dict(item, report_errors)');
+    expect(source).toContain('if decoded_subscription_offer == null:');
+    expect(source).toContain('return null');
+    expect(source).toContain('arr.append(decoded_subscription_offer)');
     expect(source).toContain('elif item is SubscriptionOffer:');
     expect(source).toContain('var arr: Array[SubscriptionPricingTermsIOS] = []');
   });
@@ -62,71 +69,31 @@ describe('generated GDScript list decoding', () => {
   });
 
   it('validates enum list values before appending to a typed array', () => {
-    const schema: IRSchema = {
-      enums: [
-        {
-          name: 'TestStatus',
-          values: [
-            { name: 'Unknown', rawValue: 'unknown', legacyAliases: [] },
-            { name: 'Active', rawValue: 'active', legacyAliases: [] },
-          ],
-          isErrorCode: false,
-        },
-        {
-          name: 'StrictStatus',
-          values: [{ name: 'Active', rawValue: 'active', legacyAliases: [] }],
-          isErrorCode: false,
-        },
-      ],
-      interfaces: [],
-      objects: [
-        {
-          name: 'EnumListHolder',
-          fields: [
-            {
-              name: 'statuses',
-              description: 'Status values from the schema.\n\nPreserves every documentation line.\n@see https://openiap.dev/docs/types',
-              type: {
-                kind: 'list',
-                nullable: false,
-                elementType: {
-                  kind: 'enum',
-                  name: 'TestStatus',
-                  nullable: false,
-                },
-              },
-              isOverride: false,
-            },
-            {
-              name: 'strictStatuses',
-              type: {
-                kind: 'list',
-                nullable: false,
-                elementType: {
-                  kind: 'enum',
-                  name: 'StrictStatus',
-                  nullable: false,
-                },
-              },
-              isOverride: false,
-            },
-          ],
-          interfaces: [],
-          unions: [],
-          isResultUnion: false,
-        },
-      ],
-      inputs: [],
-      unions: [],
-      operations: [],
-    };
-    const source = new GDScriptPlugin({ outputPath: 'types.gd' }).generate(schema);
+    const source = new GDScriptPlugin({ outputPath: 'generated_nullable_enum_list_types.gd' }).generate(
+      nullableEnumListSchema(),
+    );
+
+    expect(nullableEnumListFixture).toBe(source);
 
     expect(source).toContain('## Status values from the schema. Preserves every documentation line. @see https://openiap.dev/docs/types');
     expect(source).toContain('if data["statuses"] is Array:');
-    expect(source).toContain('arr.append(TEST_STATUS_FROM_STRING.get(item, TestStatus.UNKNOWN))');
+    expect(source).toContain('if item is String and TEST_STATUS_FROM_STRING.has(item):');
+    expect(source).toContain('arr.append(TEST_STATUS_FROM_STRING[item])');
+    expect(source).toContain('elif item is int and TEST_STATUS_VALUES.has(item):');
+    expect(source).toContain('arr.append(TestStatus.UNKNOWN)');
     expect(source).toContain('if item is String and STRICT_STATUS_FROM_STRING.has(item):');
     expect(source).toContain('arr.append(STRICT_STATUS_FROM_STRING[item])');
-    expect(source).toContain('elif item is int:');
+    expect(source).toContain('elif item is int and STRICT_STATUS_VALUES.has(item):');
+    expect(source).toContain('push_error("Invalid StrictStatus list value for strictStatuses")');
+    expect(source).toContain('return null');
+    expect(source).toContain('var nullable_strict_statuses: Array[Variant] = []');
+    const nullableStrictStart = source.indexOf('if data["nullableStrictStatuses"] is Array:');
+    const nullableStrictEnd = source.indexOf('obj.nullable_strict_statuses = arr', nullableStrictStart);
+    const nullableStrictDecoder = source.slice(nullableStrictStart, nullableStrictEnd);
+    expect(nullableStrictDecoder).toContain('var arr: Array[Variant] = []');
+    expect(nullableStrictDecoder).toContain('if item == null:\n\t\t\t\t\t\tarr.append(null)');
+    expect(nullableStrictDecoder).toContain('else:\n\t\t\t\t\t\tarr.append(null)');
+    expect(source).toContain('var nullable_labels: Array[Variant] = []');
+    expect(source).toContain('if data["nullableLabels"] is Array:\n\t\t\t\tvar arr: Array[Variant] = []');
   });
 });

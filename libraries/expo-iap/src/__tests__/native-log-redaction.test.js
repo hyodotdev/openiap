@@ -81,6 +81,43 @@ describe('native log redaction', () => {
     expect(onsideModule).toContain('code: .serviceError');
   });
 
+  it('rejects query-only and malformed purchase types on both iOS paths', () => {
+    const iosHelper = readRepoFile('ios/ExpoIapHelper.swift');
+    const onsideModule = readRepoFile('ios/onside/OnsideIapModule.swift');
+    const purchaseBlock = onsideModule.slice(
+      onsideModule.indexOf('AsyncFunction("requestPurchase")'),
+      onsideModule.indexOf('AsyncFunction("finishTransaction")'),
+    );
+    const fetchBlock = onsideModule.slice(
+      onsideModule.indexOf('AsyncFunction("fetchProducts")'),
+      onsideModule.indexOf('AsyncFunction("requestPurchase")'),
+    );
+
+    expect(iosHelper).toContain(
+      'static func parsePurchaseProductQueryType(_ rawValue: Any?)',
+    );
+    expect(iosHelper).toContain('!(rawValue is String)');
+    expect(iosHelper).toContain('!(rawValue is NSNull)');
+    expect(iosHelper).toContain('guard type != .all');
+    expect(iosHelper).toContain(
+      'parsePurchaseProductQueryType(payload["type"])',
+    );
+    expect(purchaseBlock).toContain(
+      'decodeRequestPurchaseProps(from: payload)',
+    );
+    expect(purchaseBlock).not.toContain('resolveSku(from: payload)');
+    expect(
+      purchaseBlock.indexOf('decodeRequestPurchaseProps(from: payload)'),
+    ).toBeLessThan(
+      purchaseBlock.indexOf('try await ensureObserverRegistered()'),
+    );
+    expect(onsideModule).toContain('switch (request.type, request.request)');
+    expect(fetchBlock).toContain('decodeProductRequest(from: params)');
+    expect(
+      fetchBlock.indexOf('decodeProductRequest(from: params)'),
+    ).toBeLessThan(fetchBlock.indexOf('try await ensureObserverRegistered()'));
+  });
+
   it('keeps Onside purchases aligned with the canonical iOS payload', () => {
     const onsideModule = readRepoFile('ios/onside/OnsideIapModule.swift');
     const iosHelper = readRepoFile('ios/ExpoIapHelper.swift');
@@ -135,9 +172,8 @@ describe('native log redaction', () => {
     expect(onsideModule).toMatch(/case \.failed:\s+return "unknown"/);
     expect(onsideModule).not.toContain('return "restored"');
     expect(onsideModule).not.toContain('return "failed"');
-    expect(iosHelper).toMatch(
-      /guard let raw = rawValue\?\.trimmingCharacters[\s\S]*?else \{\s+return \.inApp\s+\}/,
-    );
+    expect(iosHelper).toContain('guard let stringValue = rawValue as? String');
+    expect(iosHelper).toContain('if raw.isEmpty {\n            return .inApp');
   });
 
   it('does not log raw IAPKit request bodies in the Apple core package', () => {

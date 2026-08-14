@@ -94,8 +94,9 @@ function KitCompatibility() {
           </li>
           <li>
             <code>clientPayload</code> — a payload this build cannot read,
-            including one using a format added later, is dropped and the result
-            still returns.
+            including one using a format added later, never rejects the
+            verification result. Strongly typed SDKs drop the optional payload;
+            JavaScript Kit clients preserve its format and body as opaque data.
           </li>
           <li>
             <code>environment</code> — forwarded as an opaque string. It is{' '}
@@ -153,9 +154,10 @@ X-OpenIAP-Spec: 3.2.0`}</CodeBlock>
             the emitted one cannot diverge.
           </li>
           <li>
-            Each SDK has tests that feed its parser values from a hypothetical
-            future IAPKit — an unknown state, an unknown client-payload format,
-            an unrecognised environment — and assert the receipt survives.
+            SDK tests feed parsers values from a hypothetical future IAPKit — an
+            unknown state, an unknown client-payload format, an unrecognised
+            environment — and assert the receipt survives with the payload
+            either dropped or preserved opaquely according to the SDK contract.
           </li>
           <li>
             The entitlement decision is pinned by an exhaustive table, so a new
@@ -179,8 +181,8 @@ X-OpenIAP-Spec: 3.2.0`}</CodeBlock>
             for a legitimate reason.
           </li>
           <li>
-            Never fail a verification because a value is unrecognised. Log it
-            and continue.
+            Never fail a verification because optional metadata is unrecognised.
+            Required verdict and security-boundary values still fail closed.
           </li>
           <li>
             Keep the SDK reasonably current so new fields become available, but

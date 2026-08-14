@@ -239,6 +239,53 @@ export abstract class CodegenPlugin {
     return fields;
   }
 
+  protected enumUnknownValue(irEnum: IREnum): IREnum['values'][number] | null {
+    return irEnum.values.find((value) => value.name.toLowerCase().startsWith('unknown')) ?? null;
+  }
+
+  protected typeHasRequiredEnumWithoutUnknown(typeName: string, schema: IRSchema, visited = new Set<string>()): boolean {
+    if (visited.has(typeName)) return false;
+    const container = [...schema.objects, ...schema.inputs].find((candidate) => candidate.name === typeName);
+    const isInputContainer = schema.inputs.some((candidate) => candidate.name === typeName);
+    const nestedVisited = new Set(visited).add(typeName);
+    return (
+      container?.fields.some((field) => {
+        if (field.type.kind === 'list') {
+          const element = field.type.elementType;
+          if (!element || (!isInputContainer && element.nullable) || !element.name) return false;
+          if (element.kind === 'enum') {
+            const irEnum = schema.enums.find((candidate) => candidate.name === element.name);
+            return irEnum !== undefined && this.enumUnknownValue(irEnum) === null;
+          }
+          if (!['object', 'input'].includes(element.kind)) return false;
+          return this.typeHasRequiredEnumWithoutUnknown(element.name, schema, nestedVisited);
+        }
+        if (field.type.nullable || !field.type.name) return false;
+        if (field.type.kind === 'enum') {
+          const irEnum = schema.enums.find((candidate) => candidate.name === field.type.name);
+          return irEnum !== undefined && this.enumUnknownValue(irEnum) === null;
+        }
+        if (!['object', 'input'].includes(field.type.kind)) return false;
+        return this.typeHasRequiredEnumWithoutUnknown(field.type.name, schema, nestedVisited);
+      }) ?? false
+    );
+  }
+
+  protected typeNeedsTolerantNullableDecoder(typeName: string, schema: IRSchema): boolean {
+    if (!this.typeHasRequiredEnumWithoutUnknown(typeName, schema)) return false;
+    if (!schema.objects.some((container) => container.name === typeName)) return false;
+    return schema.objects.some((container) =>
+      container.fields.some(
+        (field) =>
+          (field.type.nullable && field.type.kind === 'object' && field.type.name === typeName) ||
+          (field.type.kind === 'list' &&
+            field.type.elementType?.nullable === true &&
+            field.type.elementType.kind === 'object' &&
+            field.type.elementType.name === typeName),
+      ),
+    );
+  }
+
   /**
    * Resolve a custom input in canonical contract order. Language plugins own
    * rendering only; the field set and order live in CUSTOM_INPUT_CONTRACTS.

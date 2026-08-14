@@ -374,7 +374,7 @@ class ExpoIapModule : Module() {
                 val parsedParams = ExpoIapHelper.parseRequestPurchaseParams(params)
 
                 val productType =
-                    when (ExpoIapHelper.parseProductQueryType(parsedParams.type)) {
+                    when (ExpoIapHelper.parsePurchaseProductQueryType(parsedParams.type)) {
                         ProductQueryType.Subs -> ProductQueryType.Subs
                         else -> ProductQueryType.InApp
                     }

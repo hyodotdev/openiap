@@ -24,6 +24,7 @@ describe('native canonical-key presence contract', () => {
     )?.[0];
 
     expect(parser).toBeDefined();
+    expect(parser).toContain('guard let stringValue = rawValue as? String');
     expect(parser).toContain('default:\n            throw PurchaseError.make(');
     expect(parser).toContain('code: .developerError');
   });
@@ -31,7 +32,7 @@ describe('native canonical-key presence contract', () => {
   it('uses only the canonical Apple key in Onside', () => {
     const onside = readExpoFile('ios/onside/OnsideIapModule.swift');
 
-    expect(onside).toContain('request["apple"] as? [String: Any]');
+    expect(onside).toContain('platforms.apple?.sku');
     expect(onside).not.toContain('request["ios"]');
   });
 
@@ -40,7 +41,10 @@ describe('native canonical-key presence contract', () => {
       'android/src/main/java/expo/modules/iap/ExpoIapHelper.kt',
     );
 
-    expect(helper).toContain('request["google"] as? Map<*, *>');
+    expect(helper).toContain('val nested = request["google"]');
+    expect(helper).toContain(
+      'request.google must be an object with string keys',
+    );
     expect(helper).toContain('effective["skus"] as? List<*>');
     expect(helper).toContain('effective["subscriptionOffers"] as? List<*>');
     expect(helper).not.toContain('effective["skuArr"]');

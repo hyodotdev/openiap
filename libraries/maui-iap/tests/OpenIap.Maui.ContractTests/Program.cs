@@ -16,8 +16,10 @@ internal static class Program
         (nameof(ProductsRequirePlatformForClientPayload), ProductsRequirePlatformForClientPayload),
         (nameof(ProductsUseEscapedUriAndQuery), ProductsUseEscapedUriAndQuery),
         (nameof(ProductsDeserializeNestedClientPayload), ProductsDeserializeNestedClientPayload),
+        (nameof(KitApiDropsUnreadableRows), KitApiDropsUnreadableRows),
         (nameof(ClientPayloadUsesEscapedUriAndDeserializes), ClientPayloadUsesEscapedUriAndDeserializes),
         (nameof(GeneratedVerificationResultDeserializesClientPayload), GeneratedVerificationResultDeserializesClientPayload),
+        (nameof(GeneratedVerificationResultDegradesUnknownValues), GeneratedVerificationResultDegradesUnknownValues),
         (nameof(GeneratedAmazonVerificationContractRoundTrips), GeneratedAmazonVerificationContractRoundTrips),
     ];
 
@@ -175,6 +177,57 @@ internal static class Program
         AssertEqual(1720000000456D, response.ClientPayload.UpdatedAt, "payload updatedAt");
     }
 
+    private static async Task KitApiDropsUnreadableRows()
+    {
+        using var entitlementsHandler = new FakeHttpMessageHandler("""
+            {
+              "userId": "user-1",
+              "productIds": ["premium.monthly"],
+              "subscriptions": [
+                {
+                  "id": "sub-future", "productId": "future.plan", "platform": "horizon",
+                  "state": "active", "startedAt": 1, "updatedAt": 2, "purchaseToken": "future"
+                },
+                {
+                  "id": "sub-ios", "productId": "premium.monthly", "platform": "ios",
+                  "state": "active", "startedAt": 1, "updatedAt": 2, "purchaseToken": "ios"
+                }
+              ]
+            }
+            """);
+        using var entitlementsHttpClient = new HttpClient(entitlementsHandler);
+        var entitlements = await CreateClient(entitlementsHttpClient)
+            .EntitlementsAsync("user-1")
+            .ConfigureAwait(false);
+        AssertEqual(1, entitlements.Subscriptions.Count, "readable subscription count");
+        AssertEqual("sub-ios", entitlements.Subscriptions[0].Id, "readable subscription");
+
+        using var productsHandler = new FakeHttpMessageHandler("""
+            {
+              "products": [
+                {
+                  "productId": "future.product", "platform": "Horizon", "type": "in-app",
+                  "title": "Future", "state": "active", "updatedAt": 1
+                },
+                {
+                  "productId": "premium.monthly", "platform": "IOS", "type": "subscription",
+                  "title": "Premium", "state": "active", "updatedAt": 2,
+                  "offers": [
+                    { "id": "broken" },
+                    { "id": "intro", "kind": "introductory" }
+                  ]
+                }
+              ]
+            }
+            """);
+        using var productsHttpClient = new HttpClient(productsHandler);
+        var products = await CreateClient(productsHttpClient).ProductsAsync().ConfigureAwait(false);
+        AssertEqual(1, products.Products.Count, "readable product count");
+        var offers = AssertNotNull(products.Products[0].Offers, "readable offers");
+        AssertEqual(1, offers.Count, "readable offer count");
+        AssertEqual("intro", offers[0].Id, "readable offer");
+    }
+
     private static Task GeneratedVerificationResultDeserializesClientPayload()
     {
         const string json = """
@@ -205,6 +258,31 @@ internal static class Program
         AssertEqual("tier = \"gold\"", payload.Body, "generated payload body");
         AssertEqual(5D, payload.Version, "generated payload version");
         AssertEqual(1720000000789D, payload.UpdatedAt, "generated payload updatedAt");
+        return Task.CompletedTask;
+    }
+
+    private static Task GeneratedVerificationResultDegradesUnknownValues()
+    {
+        const string json = """
+            {
+              "isValid": true,
+              "state": "future-state",
+              "store": "future-store",
+              "clientPayload": {
+                "format": "future-format",
+                "body": "opaque",
+                "version": 1,
+                "updatedAt": 2
+              }
+            }
+            """;
+
+        var result = AssertNotNull(
+            JsonSerializer.Deserialize<RequestVerifyPurchaseWithIapkitResult>(json),
+            "tolerant generated verification result");
+        AssertEqual(IapkitPurchaseState.Unknown, result.State, "unknown purchase state");
+        AssertEqual(IapStore.Unknown, result.Store, "unknown store");
+        AssertEqual<IapkitProductClientPayload?>(null, result.ClientPayload, "unknown client payload");
         return Task.CompletedTask;
     }
 

@@ -223,6 +223,58 @@ describe("ProjectSettings", () => {
     );
   });
 
+  it("keeps uploaded-file actions in wrapping cards", () => {
+    mocks.files = [
+      {
+        _id: "files_apple_server",
+        projectId: "projects_test",
+        purpose: "apple_p8_key",
+        fileName: "SubscriptionKey_WithAnIntentionallyLongName.p8",
+        fileSize: 256,
+      },
+      {
+        _id: "files_apple_connect",
+        projectId: "projects_test",
+        purpose: "apple_p8_asc_api_key",
+        fileName: "ConnectKey_WithAnIntentionallyLongName.p8",
+        fileSize: 256,
+      },
+      {
+        _id: "files_apple_review",
+        projectId: "projects_test",
+        purpose: "apple_iap_review_screenshot",
+        fileName: "ReviewScreenshot_WithAnIntentionallyLongName.png",
+        fileSize: 1024,
+      },
+      {
+        _id: "files_android",
+        projectId: "projects_test",
+        purpose: "android_service_account",
+        fileName: "ServiceAccount_WithAnIntentionallyLongName.json",
+        fileSize: 256,
+      },
+    ];
+
+    render(<ProjectSettings />);
+
+    for (const status of [
+      "Authentication file uploaded successfully",
+      "Connect API key uploaded successfully",
+      "App Review screenshot configured",
+      "Service account file uploaded successfully",
+    ]) {
+      const card = screen.getByText(status).closest(".contained-action-card");
+      expect(card).not.toBeNull();
+      expect(
+        card?.querySelector(".contained-action-card__content"),
+      ).toBeTruthy();
+      expect(card?.querySelector(".contained-action-card__text")).toBeTruthy();
+      expect(
+        card?.querySelector(".contained-action-card__actions"),
+      ).toBeTruthy();
+    }
+  });
+
   it.each([
     {
       inputId: "ios-file-upload",

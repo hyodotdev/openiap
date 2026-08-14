@@ -75,6 +75,14 @@ object ExpoIapHelper {
         }
     }
 
+    fun parsePurchaseProductQueryType(rawType: String?): ProductQueryType {
+        val type = parseProductQueryType(rawType)
+        require(type != ProductQueryType.All) {
+            "Product type all is only supported for product queries."
+        }
+        return type
+    }
+
     internal fun parseDeepLinkSubscriptionParams(params: Map<String, Any?>): DeepLinkSubscriptionParams {
         return DeepLinkSubscriptionParams(
             sku = params["skuAndroid"] as? String,
@@ -87,43 +95,93 @@ object ExpoIapHelper {
         // before parsing the native request.
         val effective: Map<String, Any?> =
             run {
-                val request = params["request"] as? Map<*, *>
-                if (request != null) {
-                    val nested = request["google"] as? Map<*, *>
-                    if (nested != null) {
-                        val flat = mutableMapOf<String, Any?>()
-                        // Carry over top-level fields such as the purchase type.
-                        for ((k, v) in params) {
-                            if (k != "request") flat[k] = v
-                        }
-                        // Overlay platform-specific fields
-                        for ((k, v) in nested) {
-                            if (k is String) flat[k] = v
-                        }
-                        flat
-                    } else {
-                        params
+                if (params.containsKey("request")) {
+                    val request = params["request"]
+                    require(request is Map<*, *>) { "request must be an object" }
+                    val nested = request["google"]
+                    require(nested is Map<*, *> && nested.keys.all { it is String }) {
+                        "request.google must be an object with string keys"
                     }
+                    require(!nested.containsKey("type")) {
+                        "type must be provided only at the purchase envelope"
+                    }
+                    val flat = mutableMapOf<String, Any?>()
+                    // Carry over top-level fields such as the purchase type.
+                    for ((k, v) in params) {
+                        if (k != "request") flat[k] = v
+                    }
+                    // Overlay platform-specific fields.
+                    for ((k, v) in nested) {
+                        flat[k as String] = v
+                    }
+                    flat
                 } else {
                     params
                 }
             }
 
+        require(effective["type"] == null || effective["type"] is String) {
+            "type must be a string"
+        }
+        effective["skus"]?.let { rawSkus ->
+            require(rawSkus is List<*> && rawSkus.all { it is String && it.isNotBlank() }) {
+                "skus must contain only non-empty strings"
+            }
+        }
+        for (key in listOf(
+            "obfuscatedAccountId",
+            "obfuscatedProfileId",
+            "purchaseToken",
+            "originalExternalTransactionId",
+            "offerToken",
+        )) {
+            require(effective[key] == null || effective[key] is String) { "$key must be a string" }
+        }
+        require(effective["isOfferPersonalized"] == null || effective["isOfferPersonalized"] is Boolean) {
+            "isOfferPersonalized must be a boolean"
+        }
+        for (key in listOf("developerBillingOption", "subscriptionProductReplacementParams")) {
+            effective[key]?.let { value ->
+                require(value is Map<*, *> && value.keys.all { it is String }) {
+                    "$key must be an object with string keys"
+                }
+            }
+        }
+        effective["subscriptionOffers"]?.let { rawOffers ->
+            require(rawOffers is List<*>) { "subscriptionOffers must be a list" }
+            require(rawOffers.all { rawOffer ->
+                val offer = rawOffer as? Map<*, *> ?: return@all false
+                val sku = offer["sku"] as? String
+                val token = offer["offerToken"] as? String
+                offer.keys.all { it is String } && !sku.isNullOrBlank() && !token.isNullOrBlank()
+            }) { "subscriptionOffers must contain valid sku and offerToken strings" }
+        }
+
         val type = effective["type"] as? String
-        val skus = (effective["skus"] as? List<*>)?.filterIsInstance<String>() ?: emptyList()
+        val purchaseType = parsePurchaseProductQueryType(type)
+        val subscriptionOnlyFields = listOf(
+            "subscriptionOffers",
+            "subscriptionProductReplacementParams",
+            "purchaseToken",
+            "originalExternalTransactionId",
+        )
+        require(
+            purchaseType != ProductQueryType.InApp ||
+                subscriptionOnlyFields.none { effective[it] != null },
+        ) { "Subscription options require product type subs" }
+        require(purchaseType != ProductQueryType.Subs || effective["offerToken"] == null) {
+            "offerToken requires product type in-app"
+        }
+        val skus = (effective["skus"] as? List<*>)?.map { it as String } ?: emptyList()
         val obfuscatedAccountId = effective["obfuscatedAccountId"] as? String
         val obfuscatedProfileId = effective["obfuscatedProfileId"] as? String
         val isOfferPersonalized = effective["isOfferPersonalized"] as? Boolean ?: false
         val explicitSubscriptionOffers =
-            (effective["subscriptionOffers"] as? List<*>)?.mapNotNull { rawOffer ->
-                val offerMap = rawOffer as? Map<*, *> ?: return@mapNotNull null
-                val sku = offerMap["sku"] as? String
-                val offerToken = offerMap["offerToken"] as? String
-                if (sku.isNullOrEmpty() || offerToken.isNullOrEmpty()) {
-                    null
-                } else {
-                    AndroidSubscriptionOfferInput(offerToken = offerToken, sku = sku)
-                }
+            (effective["subscriptionOffers"] as? List<*>)?.map { rawOffer ->
+                val offerMap = rawOffer as Map<*, *>
+                val sku = offerMap["sku"] as String
+                val offerToken = offerMap["offerToken"] as String
+                AndroidSubscriptionOfferInput(offerToken = offerToken, sku = sku)
             } ?: emptyList()
         val purchaseToken = effective["purchaseToken"] as? String
         val originalExternalTransactionId = effective["originalExternalTransactionId"] as? String
@@ -131,23 +189,13 @@ object ExpoIapHelper {
             (effective["developerBillingOption"] as? Map<*, *>)?.let { optionMap ->
                 val json =
                     optionMap.entries
-                        .mapNotNull { (key, value) ->
-                            (key as? String)?.let { it to value }
-                        }.toMap()
+                        .associate { (key, value) -> key as String to value }
                 DeveloperBillingOptionParamsAndroid.fromJson(json)
             }
         val subscriptionProductReplacementParams =
             (effective["subscriptionProductReplacementParams"] as? Map<*, *>)?.let { paramsMap ->
-                val oldProductId = paramsMap["oldProductId"] as? String
-                val replacementModeStr = paramsMap["replacementMode"] as? String
-                if (oldProductId.isNullOrEmpty() || replacementModeStr.isNullOrEmpty()) {
-                    null
-                } else {
-                    SubscriptionProductReplacementParamsAndroid(
-                        oldProductId = oldProductId,
-                        replacementMode = parseSubscriptionReplacementMode(replacementModeStr),
-                    )
-                }
+                val json = paramsMap.entries.associate { (key, value) -> key as String to value }
+                SubscriptionProductReplacementParamsAndroid.fromJson(json)
             }
         // offerToken for one-time purchase discounts (Android 8.0+)
         val offerToken = effective["offerToken"] as? String

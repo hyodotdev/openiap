@@ -271,6 +271,7 @@ prepare-android-export-template:
 	rm -rf "$(EXAMPLE_DIR)/android/build"; \
 	mkdir -p "$(EXAMPLE_DIR)/android/build"; \
 	unzip -q "$$template_zip" -d "$(EXAMPLE_DIR)/android/build"; \
+	printf '%s\n' "$(GODOT_VERSION).stable" > "$(EXAMPLE_DIR)/android/.build_version"; \
 	config="$(EXAMPLE_DIR)/android/build/config.gradle"; \
 	perl -0pi -e "s/androidGradlePlugin:\\s*'[^']+'/androidGradlePlugin: '$(ANDROID_EXPORT_AGP_VERSION)'/" "$$config"; \
 	grep -q "androidGradlePlugin: '$(ANDROID_EXPORT_AGP_VERSION)'" "$$config" || \

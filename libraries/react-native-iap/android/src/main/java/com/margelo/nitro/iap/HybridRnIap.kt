@@ -4,7 +4,7 @@ import com.facebook.react.bridge.ReactApplicationContext
 import com.margelo.nitro.NitroModules
 import com.margelo.nitro.core.NullType
 import com.margelo.nitro.core.Promise
-import dev.hyo.openiap.AndroidSubscriptionOfferInput
+import dev.hyo.openiap.AndroidSubscriptionOfferInput as OpenIapAndroidSubscriptionOfferInput
 import dev.hyo.openiap.DeepLinkOptions as OpenIapDeepLinkOptions
 import dev.hyo.openiap.FetchProductsResult
 import dev.hyo.openiap.FetchProductsResultAll
@@ -98,6 +98,44 @@ internal fun <T> removeSingletonBridgeListener(
 ) {
     synchronized(registeredListeners) {
         registeredListeners.clear()
+    }
+}
+
+internal fun requireValidSubscriptionOffers(
+    offers: Array<AndroidSubscriptionOfferInput>?,
+): List<OpenIapAndroidSubscriptionOfferInput> {
+    require(offers.orEmpty().all { it.sku.isNotBlank() && it.offerToken.isNotBlank() }) {
+        "Every subscription offer must include non-empty sku and offerToken strings"
+    }
+    return offers.orEmpty().map { offer ->
+        OpenIapAndroidSubscriptionOfferInput(
+            sku = offer.sku,
+            offerToken = offer.offerToken,
+        )
+    }
+}
+
+internal fun requireMatchingPurchaseOptions(
+    type: ProductQueryType,
+    hasSubscriptionOffers: Boolean,
+    hasSubscriptionReplacementParams: Boolean,
+    purchaseToken: String?,
+    originalExternalTransactionId: String?,
+    offerToken: String?,
+) {
+    when (type) {
+        ProductQueryType.InApp -> require(
+            !hasSubscriptionOffers &&
+                !hasSubscriptionReplacementParams &&
+                purchaseToken == null &&
+                originalExternalTransactionId == null,
+        ) { "Subscription options require product type subs" }
+        ProductQueryType.Subs -> require(offerToken == null) {
+            "offerToken requires product type in-app"
+        }
+        ProductQueryType.All -> throw IllegalArgumentException(
+            "Product type all is only supported for product queries"
+        )
     }
 }
 
@@ -557,17 +595,37 @@ class HybridRnIap : HybridRnIapSpec() {
                 val typeHint = androidRequest.skus.firstOrNull()?.let { productTypeBySku[it] } ?: "in-app"
                 val queryType = parseProductQueryType(typeHint)
 
-                val subscriptionOffers = (androidRequest.subscriptionOffers as? Variant_NullType_Array_AndroidSubscriptionOfferInput_.Second)?.value
-                    ?.mapNotNull { offer ->
-                        val sku = offer.sku
-                        val token = offer.offerToken
-                        if (sku.isBlank() || token.isBlank()) {
-                            null
-                        } else {
-                            AndroidSubscriptionOfferInput(sku = sku, offerToken = token)
-                        }
-                    }
-                    ?: emptyList()
+                try {
+                    requireMatchingPurchaseOptions(
+                        type = queryType,
+                        hasSubscriptionOffers = androidRequest.subscriptionOffers is
+                            Variant_NullType_Array_AndroidSubscriptionOfferInput_.Second,
+                        hasSubscriptionReplacementParams =
+                            androidRequest.subscriptionProductReplacementParams is
+                                Variant_NullType_SubscriptionProductReplacementParamsAndroid.Second,
+                        purchaseToken = androidRequest.purchaseToken.unwrapString(),
+                        originalExternalTransactionId =
+                            androidRequest.originalExternalTransactionId.unwrapString(),
+                        offerToken = androidRequest.offerToken.unwrapString(),
+                    )
+                } catch (error: IllegalArgumentException) {
+                    sendPurchaseError(
+                        toErrorResult(OpenIapError.DeveloperError(error.message))
+                    )
+                    return@async defaultResult
+                }
+
+                val subscriptionOffers = try {
+                    requireValidSubscriptionOffers(
+                        (androidRequest.subscriptionOffers as?
+                            Variant_NullType_Array_AndroidSubscriptionOfferInput_.Second)?.value,
+                    )
+                } catch (error: IllegalArgumentException) {
+                    sendPurchaseError(
+                        toErrorResult(OpenIapError.DeveloperError(error.message))
+                    )
+                    return@async defaultResult
+                }
                 val normalizedOffers = subscriptionOffers.takeIf { it.isNotEmpty() }
                 val developerBillingOption =
                     (androidRequest.developerBillingOption as?

@@ -1,4 +1,5 @@
 import {getVegaIapModule} from './vega';
+import {ErrorCode} from './types';
 import type {
   MutationField,
   Product,
@@ -27,6 +28,7 @@ import {
   validateNitroPurchase,
 } from './utils/type-bridge';
 import {convertAndroidPurchasesOrThrow} from './utils/available-purchases';
+import {createPurchaseError} from './utils/errorMapping';
 
 export * from './types';
 export * from './utils/error';
@@ -129,13 +131,19 @@ export const fetchProducts = async (
   const normalizedType = normalizeProductQueryType(type);
   const nitroProducts = await getModule().fetchProducts(skus, normalizedType);
   return mapProducts(nitroProducts, normalizedType) as
-    | Product[]
-    | ProductSubscription[];
+    Product[] | ProductSubscription[];
 };
 
 export const requestPurchase: MutationField<'requestPurchase'> = async (
   request,
 ) => {
+  const type = normalizeProductQueryType(request.type);
+  if (type === 'all') {
+    throw createPurchaseError({
+      code: ErrorCode.DeveloperError,
+      message: 'Product type all is only supported for product queries.',
+    });
+  }
   const perPlatformRequest = request.request as
     | RequestPurchasePropsByPlatforms
     | RequestSubscriptionPropsByPlatforms

@@ -7,7 +7,7 @@
       "library": "expo-iap",
       "ios": "https://apps.apple.com/us/app/sudoku-rabbit-daily-puzzles/id6742900571",
       "android": "https://play.google.com/store/apps/details?id=com.bustedout.sudokurabbit",
-      "ratings": 147,
+      "ratings": 148,
       "installs": 1000
     },
     {
@@ -47,7 +47,18 @@
       "ios": "https://apps.apple.com/us/app/boxa-shadow-boxing-combos/id6503469976",
       "android": "https://play.google.com/store/apps/details?id=shadowboxing.app",
       "web": "https://boxa.app",
-      "ratings": 439,
+      "ratings": 441,
+      "installs": 100000
+    },
+    {
+      "name": "Record Scanner",
+      "tagline": "Scan, value, and organize vinyl, CDs, and cassettes",
+      "logo": "/showcase/record-scanner.webp",
+      "library": "react-native-iap",
+      "ios": "https://apps.apple.com/us/app/record-scanner-vinyl-cd/id1507752204",
+      "android": "https://play.google.com/store/apps/details?id=com.digdig",
+      "web": "https://recordscanner.com/",
+      "ratings": 11501,
       "installs": 100000
     }
   ]

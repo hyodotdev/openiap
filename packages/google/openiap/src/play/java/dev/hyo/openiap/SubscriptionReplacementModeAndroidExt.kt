@@ -18,7 +18,8 @@ import com.android.billingclient.api.BillingFlowParams.ProductDetailsParams.Subs
  */
 internal fun SubscriptionReplacementModeAndroid.toReplacementModeConstant(): Int {
     return when (this) {
-        SubscriptionReplacementModeAndroid.UnknownReplacementMode -> ReplacementMode.UNKNOWN_REPLACEMENT_MODE
+        SubscriptionReplacementModeAndroid.UnknownReplacementMode ->
+            throw IllegalArgumentException("A concrete subscription replacement mode is required.")
         SubscriptionReplacementModeAndroid.WithTimeProration -> ReplacementMode.WITH_TIME_PRORATION
         SubscriptionReplacementModeAndroid.ChargeProratedPrice -> ReplacementMode.CHARGE_PRORATED_PRICE
         SubscriptionReplacementModeAndroid.WithoutProration -> ReplacementMode.WITHOUT_PRORATION

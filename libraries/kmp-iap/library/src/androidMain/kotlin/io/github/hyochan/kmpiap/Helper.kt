@@ -306,7 +306,7 @@ internal fun Int.toOpenIapSubResponseCode(): SubResponseCodeAndroid? = when (thi
  */
 internal fun mapReplacementMode(mode: SubscriptionReplacementModeAndroid): Int? = when (mode) {
     SubscriptionReplacementModeAndroid.UnknownReplacementMode ->
-        BillingFlowParams.ProductDetailsParams.SubscriptionProductReplacementParams.ReplacementMode.UNKNOWN_REPLACEMENT_MODE
+        throw IllegalArgumentException("A concrete subscription replacement mode is required.")
     SubscriptionReplacementModeAndroid.WithTimeProration ->
         BillingFlowParams.ProductDetailsParams.SubscriptionProductReplacementParams.ReplacementMode.WITH_TIME_PRORATION
     SubscriptionReplacementModeAndroid.ChargeProratedPrice ->

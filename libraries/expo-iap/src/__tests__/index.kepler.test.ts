@@ -5,6 +5,7 @@ import {
   requestPurchase,
 } from '../index.kepler';
 import * as Kepler from '../index.kepler';
+import {ErrorCode} from '../types';
 import {getVegaIapModule} from '../vega';
 
 jest.mock('../vega', () => ({
@@ -69,6 +70,19 @@ describe('Amazon Vega public API', () => {
       } as any),
     ).rejects.toThrow(/request\.google\.skus/);
 
+    expect(requestPurchaseNative).not.toHaveBeenCalled();
+  });
+
+  it('rejects all without dispatching a purchase', async () => {
+    await expect(
+      requestPurchase({
+        request: {google: {skus: ['coins']}},
+        type: 'all' as any,
+      }),
+    ).rejects.toMatchObject({
+      code: ErrorCode.DeveloperError,
+      message: expect.stringMatching(/only supported for product queries/),
+    });
     expect(requestPurchaseNative).not.toHaveBeenCalled();
   });
 

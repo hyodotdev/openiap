@@ -21,8 +21,6 @@ import dev.hyo.openiap.FetchProductsResultAll
 import dev.hyo.openiap.FetchProductsResultProducts
 import dev.hyo.openiap.FetchProductsResultSubscriptions
 import dev.hyo.openiap.GetBillingChoiceInfoParamsAndroid
-import dev.hyo.openiap.InAppMessageCategoryAndroid
-import dev.hyo.openiap.InAppMessageParamsAndroid
 import dev.hyo.openiap.InitConnectionConfig
 import dev.hyo.openiap.LaunchExternalLinkParamsAndroid
 import dev.hyo.openiap.OpenIapError
@@ -80,11 +78,6 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 "Unsupported product type: $normalized. Use in-app, subs, or all.",
             )
         }
-    }
-
-    private fun parsePurchaseType(raw: String?): ProductQueryType {
-        val type = parseQueryType(raw)
-        return if (type == ProductQueryType.Subs) ProductQueryType.Subs else ProductQueryType.InApp
     }
 
     private fun serializeOpenIapError(error: OpenIapError): Map<String, Any?> =
@@ -513,12 +506,21 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
             }
 
             "requestPurchase" -> {
-                val params = call.arguments as? Map<*, *> ?: emptyMap<String, Any?>()
-                val typeStr = params["type"] as? String
-                val purchaseType = parsePurchaseType(typeStr)
+                val validated = try {
+                    validateFlutterPurchaseParams(call.arguments)
+                } catch (e: IllegalArgumentException) {
+                    safe.error(
+                        OpenIapError.DeveloperError.CODE,
+                        OpenIapError.DeveloperError.MESSAGE,
+                        e.message,
+                    )
+                    return
+                }
+                val params = validated.values
+                val purchaseType = validated.type
                 val skus: List<String> =
                     (params["skus"] as? List<*>)
-                        ?.filterIsInstance<String>()
+                        ?.map { it as String }
                         ?: emptyList()
                 val skusNormalized = skus.filter { it.isNotBlank() }
                 val obfuscatedAccountId = params["obfuscatedAccountId"] as? String
@@ -613,10 +615,10 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                         return@launch
                     }
                     val offers =
-                        (params["subscriptionOffers"] as? List<*>)?.mapNotNull { entry ->
-                            val map = entry as? Map<*, *> ?: return@mapNotNull null
-                            val sku = map["sku"] as? String ?: return@mapNotNull null
-                            val token = map["offerToken"] as? String ?: return@mapNotNull null
+                        (params["subscriptionOffers"] as? List<*>)?.map { entry ->
+                            val map = entry as Map<*, *>
+                            val sku = map["sku"] as String
+                            val token = map["offerToken"] as String
                             AndroidSubscriptionOfferInput(sku = sku, offerToken = token)
                         } ?: emptyList()
 
@@ -859,7 +861,16 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                 }
             }
             "showInAppMessagesAndroid" -> {
-                val categories = call.argument<List<String>?>("categories")
+                val params = try {
+                    validateFlutterInAppMessageParams(call.argument<Any?>("categories"))
+                } catch (e: IllegalArgumentException) {
+                    safe.error(
+                        OpenIapError.DeveloperError.CODE,
+                        OpenIapError.DeveloperError.MESSAGE,
+                        e.message,
+                    )
+                    return
+                }
                 scope.launch {
                     try {
                         val iap = openIap
@@ -872,9 +883,6 @@ class AndroidInappPurchasePlugin internal constructor() : MethodCallHandler, Act
                             safe.error(OpenIapError.BillingError.CODE, OpenIapError.BillingError.MESSAGE, "Activity not available")
                             return@launch
                         }
-                        val params = InAppMessageParamsAndroid(
-                            categories = categories?.map { InAppMessageCategoryAndroid.fromJson(it) }
-                        )
                         val result = iap.showInAppMessages(act, params)
                         val response = JSONObject().apply {
                             put("responseCode", result.responseCode.toJson())

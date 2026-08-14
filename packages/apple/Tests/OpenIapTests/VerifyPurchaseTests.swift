@@ -155,6 +155,48 @@ final class VerifyPurchaseTests: XCTestCase {
         XCTAssertEqual(platforms.apple?.sku, "dev.hyo.premium")
     }
 
+    @MainActor
+    func testConveniencePurchaseRejectsQueryOnlyAllType() async {
+        let module = FakeOpenIapModule(
+            validateResult: .verifyPurchaseResultIos(makeVerifyPurchaseResult())
+        )
+        let store = OpenIapStore(module: module)
+
+        do {
+            _ = try await store.requestPurchase(sku: "dev.hyo.coins", type: .all)
+            XCTFail("Expected query-only type to be rejected")
+        } catch let error as PurchaseError {
+            XCTAssertEqual(error.code, .developerError)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+        XCTAssertNil(module.lastRequestPurchaseProps)
+    }
+
+    @MainActor
+    func testPurchaseRejectsMutatedQueryOnlyTypeBeforeModuleDispatch() async {
+        let module = FakeOpenIapModule(
+            validateResult: .verifyPurchaseResultIos(makeVerifyPurchaseResult())
+        )
+        let store = OpenIapStore(module: module)
+        var props = RequestPurchaseProps(
+            request: .purchase(RequestPurchasePropsByPlatforms(
+                apple: RequestPurchaseIosProps(sku: "dev.hyo.coins")
+            ))
+        )
+        props.type = .all
+
+        do {
+            _ = try await store.requestPurchase(props)
+            XCTFail("Expected mutated query-only type to be rejected")
+        } catch let error as PurchaseError {
+            XCTAssertEqual(error.code, .developerError)
+        } catch {
+            XCTFail("Unexpected error: \(error)")
+        }
+        XCTAssertNil(module.lastRequestPurchaseProps)
+    }
+
     func testStoreSkuResolverUsesCanonicalAppleAcrossUnionBranches() {
         let purchase = RequestPurchaseProps(
             request: .purchase(RequestPurchasePropsByPlatforms(

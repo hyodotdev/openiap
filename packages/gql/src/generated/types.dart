@@ -22,7 +22,7 @@ enum BillingChoiceImageLayoutAndroid {
   const BillingChoiceImageLayoutAndroid(this.value);
   final String value;
 
-  factory BillingChoiceImageLayoutAndroid.fromJson(String value) {
+  static BillingChoiceImageLayoutAndroid? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'rectangular-four-by-one':
@@ -32,7 +32,19 @@ enum BillingChoiceImageLayoutAndroid {
       case 'rectangular-two-by-two':
         return BillingChoiceImageLayoutAndroid.RectangularTwoByTwo;
     }
+    return null;
+  }
+
+  factory BillingChoiceImageLayoutAndroid.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
     throw ArgumentError('Unknown BillingChoiceImageLayoutAndroid value: $value');
+  }
+
+  factory BillingChoiceImageLayoutAndroid.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown BillingChoiceImageLayoutAndroid input value: $value');
   }
 
   String toJson() => value;
@@ -51,7 +63,7 @@ enum BillingChoiceScreenTypeAndroid {
   const BillingChoiceScreenTypeAndroid(this.value);
   final String value;
 
-  factory BillingChoiceScreenTypeAndroid.fromJson(String value) {
+  static BillingChoiceScreenTypeAndroid? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'unspecified':
@@ -61,7 +73,19 @@ enum BillingChoiceScreenTypeAndroid {
       case 'google-rendered':
         return BillingChoiceScreenTypeAndroid.GoogleRendered;
     }
+    return null;
+  }
+
+  factory BillingChoiceScreenTypeAndroid.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
     throw ArgumentError('Unknown BillingChoiceScreenTypeAndroid value: $value');
+  }
+
+  factory BillingChoiceScreenTypeAndroid.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown BillingChoiceScreenTypeAndroid input value: $value');
   }
 
   String toJson() => value;
@@ -100,7 +124,7 @@ enum BillingProgramAndroid {
   const BillingProgramAndroid(this.value);
   final String value;
 
-  factory BillingProgramAndroid.fromJson(String value) {
+  static BillingProgramAndroid? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'unspecified':
@@ -116,7 +140,19 @@ enum BillingProgramAndroid {
       case 'billing-choice':
         return BillingProgramAndroid.BillingChoice;
     }
+    return null;
+  }
+
+  factory BillingProgramAndroid.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
     throw ArgumentError('Unknown BillingProgramAndroid value: $value');
+  }
+
+  factory BillingProgramAndroid.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown BillingProgramAndroid input value: $value');
   }
 
   String toJson() => value;
@@ -138,7 +174,7 @@ enum DeveloperBillingLaunchModeAndroid {
   const DeveloperBillingLaunchModeAndroid(this.value);
   final String value;
 
-  factory DeveloperBillingLaunchModeAndroid.fromJson(String value) {
+  static DeveloperBillingLaunchModeAndroid? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'unspecified':
@@ -148,7 +184,19 @@ enum DeveloperBillingLaunchModeAndroid {
       case 'caller-will-launch-link':
         return DeveloperBillingLaunchModeAndroid.CallerWillLaunchLink;
     }
+    return null;
+  }
+
+  factory DeveloperBillingLaunchModeAndroid.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
     throw ArgumentError('Unknown DeveloperBillingLaunchModeAndroid value: $value');
+  }
+
+  factory DeveloperBillingLaunchModeAndroid.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown DeveloperBillingLaunchModeAndroid input value: $value');
   }
 
   String toJson() => value;
@@ -167,7 +215,7 @@ enum DeveloperBillingTypeAndroid {
   const DeveloperBillingTypeAndroid(this.value);
   final String value;
 
-  factory DeveloperBillingTypeAndroid.fromJson(String value) {
+  static DeveloperBillingTypeAndroid? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'developer-billing-type-unspecified':
@@ -177,7 +225,19 @@ enum DeveloperBillingTypeAndroid {
       case 'external-link':
         return DeveloperBillingTypeAndroid.ExternalLink;
     }
+    return null;
+  }
+
+  factory DeveloperBillingTypeAndroid.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
     throw ArgumentError('Unknown DeveloperBillingTypeAndroid value: $value');
+  }
+
+  factory DeveloperBillingTypeAndroid.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown DeveloperBillingTypeAndroid input value: $value');
   }
 
   String toJson() => value;
@@ -196,7 +256,7 @@ enum DiscountOfferType {
   const DiscountOfferType(this.value);
   final String value;
 
-  factory DiscountOfferType.fromJson(String value) {
+  static DiscountOfferType? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'introductory':
@@ -206,7 +266,19 @@ enum DiscountOfferType {
       case 'one-time':
         return DiscountOfferType.OneTime;
     }
+    return null;
+  }
+
+  factory DiscountOfferType.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
     throw ArgumentError('Unknown DiscountOfferType value: $value');
+  }
+
+  factory DiscountOfferType.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown DiscountOfferType input value: $value');
   }
 
   String toJson() => value;
@@ -253,7 +325,7 @@ enum ErrorCode {
   const ErrorCode(this.value);
   final String value;
 
-  factory ErrorCode.fromJson(String value) {
+  static ErrorCode? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'unknown':
@@ -329,7 +401,19 @@ enum ErrorCode {
       case 'duplicate-purchase':
         return ErrorCode.DuplicatePurchase;
     }
-    throw ArgumentError('Unknown ErrorCode value: $value');
+    return null;
+  }
+
+  factory ErrorCode.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    return ErrorCode.Unknown;
+  }
+
+  factory ErrorCode.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown ErrorCode input value: $value');
   }
 
   String toJson() => value;
@@ -350,7 +434,7 @@ enum ExternalLinkLaunchModeAndroid {
   const ExternalLinkLaunchModeAndroid(this.value);
   final String value;
 
-  factory ExternalLinkLaunchModeAndroid.fromJson(String value) {
+  static ExternalLinkLaunchModeAndroid? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'unspecified':
@@ -360,7 +444,19 @@ enum ExternalLinkLaunchModeAndroid {
       case 'caller-will-launch-link':
         return ExternalLinkLaunchModeAndroid.CallerWillLaunchLink;
     }
+    return null;
+  }
+
+  factory ExternalLinkLaunchModeAndroid.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
     throw ArgumentError('Unknown ExternalLinkLaunchModeAndroid value: $value');
+  }
+
+  factory ExternalLinkLaunchModeAndroid.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown ExternalLinkLaunchModeAndroid input value: $value');
   }
 
   String toJson() => value;
@@ -380,7 +476,7 @@ enum ExternalLinkTypeAndroid {
   const ExternalLinkTypeAndroid(this.value);
   final String value;
 
-  factory ExternalLinkTypeAndroid.fromJson(String value) {
+  static ExternalLinkTypeAndroid? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'unspecified':
@@ -390,7 +486,19 @@ enum ExternalLinkTypeAndroid {
       case 'link-to-app-download':
         return ExternalLinkTypeAndroid.LinkToAppDownload;
     }
+    return null;
+  }
+
+  factory ExternalLinkTypeAndroid.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
     throw ArgumentError('Unknown ExternalLinkTypeAndroid value: $value');
+  }
+
+  factory ExternalLinkTypeAndroid.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown ExternalLinkTypeAndroid input value: $value');
   }
 
   String toJson() => value;
@@ -407,13 +515,25 @@ enum ExternalPurchaseCustomLinkNoticeTypeIOS {
   const ExternalPurchaseCustomLinkNoticeTypeIOS(this.value);
   final String value;
 
-  factory ExternalPurchaseCustomLinkNoticeTypeIOS.fromJson(String value) {
+  static ExternalPurchaseCustomLinkNoticeTypeIOS? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'browser':
         return ExternalPurchaseCustomLinkNoticeTypeIOS.Browser;
     }
+    return null;
+  }
+
+  factory ExternalPurchaseCustomLinkNoticeTypeIOS.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
     throw ArgumentError('Unknown ExternalPurchaseCustomLinkNoticeTypeIOS value: $value');
+  }
+
+  factory ExternalPurchaseCustomLinkNoticeTypeIOS.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown ExternalPurchaseCustomLinkNoticeTypeIOS input value: $value');
   }
 
   String toJson() => value;
@@ -433,7 +553,7 @@ enum ExternalPurchaseCustomLinkTokenTypeIOS {
   const ExternalPurchaseCustomLinkTokenTypeIOS(this.value);
   final String value;
 
-  factory ExternalPurchaseCustomLinkTokenTypeIOS.fromJson(String value) {
+  static ExternalPurchaseCustomLinkTokenTypeIOS? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'acquisition':
@@ -441,7 +561,19 @@ enum ExternalPurchaseCustomLinkTokenTypeIOS {
       case 'services':
         return ExternalPurchaseCustomLinkTokenTypeIOS.Services;
     }
+    return null;
+  }
+
+  factory ExternalPurchaseCustomLinkTokenTypeIOS.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
     throw ArgumentError('Unknown ExternalPurchaseCustomLinkTokenTypeIOS value: $value');
+  }
+
+  factory ExternalPurchaseCustomLinkTokenTypeIOS.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown ExternalPurchaseCustomLinkTokenTypeIOS input value: $value');
   }
 
   String toJson() => value;
@@ -457,7 +589,7 @@ enum ExternalPurchaseNoticeAction {
   const ExternalPurchaseNoticeAction(this.value);
   final String value;
 
-  factory ExternalPurchaseNoticeAction.fromJson(String value) {
+  static ExternalPurchaseNoticeAction? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'continue':
@@ -465,7 +597,19 @@ enum ExternalPurchaseNoticeAction {
       case 'dismissed':
         return ExternalPurchaseNoticeAction.Dismissed;
     }
+    return null;
+  }
+
+  factory ExternalPurchaseNoticeAction.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
     throw ArgumentError('Unknown ExternalPurchaseNoticeAction value: $value');
+  }
+
+  factory ExternalPurchaseNoticeAction.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown ExternalPurchaseNoticeAction input value: $value');
   }
 
   String toJson() => value;
@@ -491,7 +635,7 @@ enum IapEvent {
   const IapEvent(this.value);
   final String value;
 
-  factory IapEvent.fromJson(String value) {
+  static IapEvent? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'purchase-updated':
@@ -507,7 +651,19 @@ enum IapEvent {
       case 'subscription-billing-issue':
         return IapEvent.SubscriptionBillingIssue;
     }
+    return null;
+  }
+
+  factory IapEvent.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
     throw ArgumentError('Unknown IapEvent value: $value');
+  }
+
+  factory IapEvent.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown IapEvent input value: $value');
   }
 
   String toJson() => value;
@@ -522,7 +678,7 @@ enum IapkitClientPayloadFormat {
   const IapkitClientPayloadFormat(this.value);
   final String value;
 
-  factory IapkitClientPayloadFormat.fromJson(String value) {
+  static IapkitClientPayloadFormat? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'toml':
@@ -532,7 +688,19 @@ enum IapkitClientPayloadFormat {
       case 'text':
         return IapkitClientPayloadFormat.Text;
     }
+    return null;
+  }
+
+  factory IapkitClientPayloadFormat.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
     throw ArgumentError('Unknown IapkitClientPayloadFormat value: $value');
+  }
+
+  factory IapkitClientPayloadFormat.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown IapkitClientPayloadFormat input value: $value');
   }
 
   String toJson() => value;
@@ -562,7 +730,7 @@ enum IapkitPurchaseState {
   const IapkitPurchaseState(this.value);
   final String value;
 
-  factory IapkitPurchaseState.fromJson(String value) {
+  static IapkitPurchaseState? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'entitled':
@@ -584,7 +752,19 @@ enum IapkitPurchaseState {
       case 'inauthentic':
         return IapkitPurchaseState.Inauthentic;
     }
-    throw ArgumentError('Unknown IapkitPurchaseState value: $value');
+    return null;
+  }
+
+  factory IapkitPurchaseState.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    return IapkitPurchaseState.Unknown;
+  }
+
+  factory IapkitPurchaseState.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown IapkitPurchaseState input value: $value');
   }
 
   String toJson() => value;
@@ -597,7 +777,7 @@ enum IapPlatform {
   const IapPlatform(this.value);
   final String value;
 
-  factory IapPlatform.fromJson(String value) {
+  static IapPlatform? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'ios':
@@ -605,7 +785,19 @@ enum IapPlatform {
       case 'android':
         return IapPlatform.Android;
     }
+    return null;
+  }
+
+  factory IapPlatform.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
     throw ArgumentError('Unknown IapPlatform value: $value');
+  }
+
+  factory IapPlatform.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown IapPlatform input value: $value');
   }
 
   String toJson() => value;
@@ -621,7 +813,7 @@ enum IapStore {
   const IapStore(this.value);
   final String value;
 
-  factory IapStore.fromJson(String value) {
+  static IapStore? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'unknown':
@@ -635,7 +827,19 @@ enum IapStore {
       case 'amazon':
         return IapStore.Amazon;
     }
-    throw ArgumentError('Unknown IapStore value: $value');
+    return null;
+  }
+
+  factory IapStore.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    return IapStore.Unknown;
+  }
+
+  factory IapStore.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown IapStore input value: $value');
   }
 
   String toJson() => value;
@@ -653,7 +857,7 @@ enum InAppMessageCategoryAndroid {
   const InAppMessageCategoryAndroid(this.value);
   final String value;
 
-  factory InAppMessageCategoryAndroid.fromJson(String value) {
+  static InAppMessageCategoryAndroid? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'unknown-in-app-message-category-id':
@@ -661,7 +865,19 @@ enum InAppMessageCategoryAndroid {
       case 'transactional':
         return InAppMessageCategoryAndroid.Transactional;
     }
-    throw ArgumentError('Unknown InAppMessageCategoryAndroid value: $value');
+    return null;
+  }
+
+  factory InAppMessageCategoryAndroid.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    return InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId;
+  }
+
+  factory InAppMessageCategoryAndroid.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown InAppMessageCategoryAndroid input value: $value');
   }
 
   String toJson() => value;
@@ -679,7 +895,7 @@ enum InAppMessageResponseCodeAndroid {
   const InAppMessageResponseCodeAndroid(this.value);
   final String value;
 
-  factory InAppMessageResponseCodeAndroid.fromJson(String value) {
+  static InAppMessageResponseCodeAndroid? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'no-action-needed':
@@ -687,7 +903,19 @@ enum InAppMessageResponseCodeAndroid {
       case 'subscription-status-updated':
         return InAppMessageResponseCodeAndroid.SubscriptionStatusUpdated;
     }
+    return null;
+  }
+
+  factory InAppMessageResponseCodeAndroid.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
     throw ArgumentError('Unknown InAppMessageResponseCodeAndroid value: $value');
+  }
+
+  factory InAppMessageResponseCodeAndroid.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown InAppMessageResponseCodeAndroid input value: $value');
   }
 
   String toJson() => value;
@@ -708,7 +936,7 @@ enum PaymentMode {
   const PaymentMode(this.value);
   final String value;
 
-  factory PaymentMode.fromJson(String value) {
+  static PaymentMode? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'free-trial':
@@ -720,7 +948,19 @@ enum PaymentMode {
       case 'unknown':
         return PaymentMode.Unknown;
     }
-    throw ArgumentError('Unknown PaymentMode value: $value');
+    return null;
+  }
+
+  factory PaymentMode.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    return PaymentMode.Unknown;
+  }
+
+  factory PaymentMode.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown PaymentMode input value: $value');
   }
 
   String toJson() => value;
@@ -735,7 +975,7 @@ enum PaymentModeIOS {
   const PaymentModeIOS(this.value);
   final String value;
 
-  factory PaymentModeIOS.fromJson(String value) {
+  static PaymentModeIOS? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'empty':
@@ -747,7 +987,19 @@ enum PaymentModeIOS {
       case 'pay-up-front':
         return PaymentModeIOS.PayUpFront;
     }
+    return null;
+  }
+
+  factory PaymentModeIOS.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
     throw ArgumentError('Unknown PaymentModeIOS value: $value');
+  }
+
+  factory PaymentModeIOS.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown PaymentModeIOS input value: $value');
   }
 
   String toJson() => value;
@@ -761,7 +1013,7 @@ enum ProductQueryType {
   const ProductQueryType(this.value);
   final String value;
 
-  factory ProductQueryType.fromJson(String value) {
+  static ProductQueryType? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'in-app':
@@ -771,7 +1023,19 @@ enum ProductQueryType {
       case 'all':
         return ProductQueryType.All;
     }
+    return null;
+  }
+
+  factory ProductQueryType.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
     throw ArgumentError('Unknown ProductQueryType value: $value');
+  }
+
+  factory ProductQueryType.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown ProductQueryType input value: $value');
   }
 
   String toJson() => value;
@@ -794,7 +1058,7 @@ enum ProductStatusAndroid {
   const ProductStatusAndroid(this.value);
   final String value;
 
-  factory ProductStatusAndroid.fromJson(String value) {
+  static ProductStatusAndroid? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'ok':
@@ -806,7 +1070,19 @@ enum ProductStatusAndroid {
       case 'unknown':
         return ProductStatusAndroid.Unknown;
     }
-    throw ArgumentError('Unknown ProductStatusAndroid value: $value');
+    return null;
+  }
+
+  factory ProductStatusAndroid.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    return ProductStatusAndroid.Unknown;
+  }
+
+  factory ProductStatusAndroid.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown ProductStatusAndroid input value: $value');
   }
 
   String toJson() => value;
@@ -819,7 +1095,7 @@ enum ProductType {
   const ProductType(this.value);
   final String value;
 
-  factory ProductType.fromJson(String value) {
+  static ProductType? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'in-app':
@@ -827,7 +1103,19 @@ enum ProductType {
       case 'subs':
         return ProductType.Subs;
     }
+    return null;
+  }
+
+  factory ProductType.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
     throw ArgumentError('Unknown ProductType value: $value');
+  }
+
+  factory ProductType.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown ProductType input value: $value');
   }
 
   String toJson() => value;
@@ -846,7 +1134,7 @@ enum ProductTypeIOS {
   const ProductTypeIOS(this.value);
   final String value;
 
-  factory ProductTypeIOS.fromJson(String value) {
+  static ProductTypeIOS? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'consumable':
@@ -862,7 +1150,19 @@ enum ProductTypeIOS {
       case 'subscription-suite':
         return ProductTypeIOS.SubscriptionSuite;
     }
+    return null;
+  }
+
+  factory ProductTypeIOS.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
     throw ArgumentError('Unknown ProductTypeIOS value: $value');
+  }
+
+  factory ProductTypeIOS.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown ProductTypeIOS input value: $value');
   }
 
   String toJson() => value;
@@ -876,7 +1176,7 @@ enum PurchaseState {
   const PurchaseState(this.value);
   final String value;
 
-  factory PurchaseState.fromJson(String value) {
+  static PurchaseState? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'pending':
@@ -886,7 +1186,19 @@ enum PurchaseState {
       case 'unknown':
         return PurchaseState.Unknown;
     }
-    throw ArgumentError('Unknown PurchaseState value: $value');
+    return null;
+  }
+
+  factory PurchaseState.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    return PurchaseState.Unknown;
+  }
+
+  factory PurchaseState.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown PurchaseState input value: $value');
   }
 
   String toJson() => value;
@@ -898,13 +1210,25 @@ enum PurchaseVerificationProvider {
   const PurchaseVerificationProvider(this.value);
   final String value;
 
-  factory PurchaseVerificationProvider.fromJson(String value) {
+  static PurchaseVerificationProvider? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'iapkit':
         return PurchaseVerificationProvider.Iapkit;
     }
+    return null;
+  }
+
+  factory PurchaseVerificationProvider.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
     throw ArgumentError('Unknown PurchaseVerificationProvider value: $value');
+  }
+
+  factory PurchaseVerificationProvider.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown PurchaseVerificationProvider input value: $value');
   }
 
   String toJson() => value;
@@ -923,7 +1247,7 @@ enum SubResponseCodeAndroid {
   const SubResponseCodeAndroid(this.value);
   final String value;
 
-  factory SubResponseCodeAndroid.fromJson(String value) {
+  static SubResponseCodeAndroid? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'no-applicable-sub-response-code':
@@ -933,7 +1257,19 @@ enum SubResponseCodeAndroid {
       case 'user-ineligible':
         return SubResponseCodeAndroid.UserIneligible;
     }
+    return null;
+  }
+
+  factory SubResponseCodeAndroid.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
     throw ArgumentError('Unknown SubResponseCodeAndroid value: $value');
+  }
+
+  factory SubResponseCodeAndroid.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown SubResponseCodeAndroid input value: $value');
   }
 
   String toJson() => value;
@@ -950,7 +1286,7 @@ enum SubscriptionBillingPlanTypeIOS {
   const SubscriptionBillingPlanTypeIOS(this.value);
   final String value;
 
-  factory SubscriptionBillingPlanTypeIOS.fromJson(String value) {
+  static SubscriptionBillingPlanTypeIOS? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'unknown':
@@ -960,7 +1296,19 @@ enum SubscriptionBillingPlanTypeIOS {
       case 'up-front':
         return SubscriptionBillingPlanTypeIOS.UpFront;
     }
-    throw ArgumentError('Unknown SubscriptionBillingPlanTypeIOS value: $value');
+    return null;
+  }
+
+  factory SubscriptionBillingPlanTypeIOS.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    return SubscriptionBillingPlanTypeIOS.Unknown;
+  }
+
+  factory SubscriptionBillingPlanTypeIOS.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown SubscriptionBillingPlanTypeIOS input value: $value');
   }
 
   String toJson() => value;
@@ -976,7 +1324,7 @@ enum SubscriptionOfferTypeIOS {
   const SubscriptionOfferTypeIOS(this.value);
   final String value;
 
-  factory SubscriptionOfferTypeIOS.fromJson(String value) {
+  static SubscriptionOfferTypeIOS? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'introductory':
@@ -986,7 +1334,19 @@ enum SubscriptionOfferTypeIOS {
       case 'win-back':
         return SubscriptionOfferTypeIOS.WinBack;
     }
+    return null;
+  }
+
+  factory SubscriptionOfferTypeIOS.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
     throw ArgumentError('Unknown SubscriptionOfferTypeIOS value: $value');
+  }
+
+  factory SubscriptionOfferTypeIOS.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown SubscriptionOfferTypeIOS input value: $value');
   }
 
   String toJson() => value;
@@ -1002,7 +1362,7 @@ enum SubscriptionPeriodIOS {
   const SubscriptionPeriodIOS(this.value);
   final String value;
 
-  factory SubscriptionPeriodIOS.fromJson(String value) {
+  static SubscriptionPeriodIOS? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'day':
@@ -1016,7 +1376,19 @@ enum SubscriptionPeriodIOS {
       case 'empty':
         return SubscriptionPeriodIOS.Empty;
     }
+    return null;
+  }
+
+  factory SubscriptionPeriodIOS.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
     throw ArgumentError('Unknown SubscriptionPeriodIOS value: $value');
+  }
+
+  factory SubscriptionPeriodIOS.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown SubscriptionPeriodIOS input value: $value');
   }
 
   String toJson() => value;
@@ -1033,7 +1405,7 @@ enum SubscriptionPeriodUnit {
   const SubscriptionPeriodUnit(this.value);
   final String value;
 
-  factory SubscriptionPeriodUnit.fromJson(String value) {
+  static SubscriptionPeriodUnit? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'day':
@@ -1047,7 +1419,19 @@ enum SubscriptionPeriodUnit {
       case 'unknown':
         return SubscriptionPeriodUnit.Unknown;
     }
-    throw ArgumentError('Unknown SubscriptionPeriodUnit value: $value');
+    return null;
+  }
+
+  factory SubscriptionPeriodUnit.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    return SubscriptionPeriodUnit.Unknown;
+  }
+
+  factory SubscriptionPeriodUnit.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown SubscriptionPeriodUnit input value: $value');
   }
 
   String toJson() => value;
@@ -1075,7 +1459,7 @@ enum SubscriptionReplacementModeAndroid {
   const SubscriptionReplacementModeAndroid(this.value);
   final String value;
 
-  factory SubscriptionReplacementModeAndroid.fromJson(String value) {
+  static SubscriptionReplacementModeAndroid? _fromKnownJson(String value) {
     final normalized = value.toLowerCase().replaceAll('_', '-');
     switch (normalized) {
       case 'unknown-replacement-mode':
@@ -1093,7 +1477,19 @@ enum SubscriptionReplacementModeAndroid {
       case 'keep-existing':
         return SubscriptionReplacementModeAndroid.KeepExisting;
     }
-    throw ArgumentError('Unknown SubscriptionReplacementModeAndroid value: $value');
+    return null;
+  }
+
+  factory SubscriptionReplacementModeAndroid.fromJson(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    return SubscriptionReplacementModeAndroid.UnknownReplacementMode;
+  }
+
+  factory SubscriptionReplacementModeAndroid.fromJsonStrict(String value) {
+    final known = _fromKnownJson(value);
+    if (known != null) return known;
+    throw ArgumentError('Unknown SubscriptionReplacementModeAndroid input value: $value');
   }
 
   String toJson() => value;
@@ -1264,7 +1660,7 @@ class AdvancedCommerceInfoIOS {
       displayName: json['displayName'] as String?,
       estimatedTax: json['estimatedTax'] as String?,
       items: (json['items'] as List<dynamic>).map((e) => AdvancedCommerceItemIOS.fromJson(e as Map<String, dynamic>)).toList(),
-      period: json['period'] != null ? SubscriptionPeriodValueIOS.fromJson(json['period'] as Map<String, dynamic>) : null,
+      period: json['period'] is Map<String, dynamic> ? SubscriptionPeriodValueIOS._tryFromJson(json['period'] as Map<String, dynamic>) : null,
       requestReferenceId: json['requestReferenceId'] as String?,
       taxCode: json['taxCode'] as String?,
       taxExclusivePrice: json['taxExclusivePrice'] as String?,
@@ -2090,6 +2486,16 @@ class IapkitProductClientPayload {
       updatedAt: (json['updatedAt'] as num).toDouble(),
       version: (json['version'] as num).toDouble(),
     );
+  }
+
+  static IapkitProductClientPayload? _tryFromJson(Map<String, dynamic> json) {
+    try {
+      return IapkitProductClientPayload.fromJson(json);
+    } on ArgumentError {
+      return null;
+    } on TypeError {
+      return null;
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -3374,7 +3780,7 @@ class RequestVerifyPurchaseWithIapkitResult {
 
   factory RequestVerifyPurchaseWithIapkitResult.fromJson(Map<String, dynamic> json) {
     return RequestVerifyPurchaseWithIapkitResult(
-      clientPayload: json['clientPayload'] != null ? IapkitProductClientPayload.fromJson(json['clientPayload'] as Map<String, dynamic>) : null,
+      clientPayload: json['clientPayload'] is Map<String, dynamic> ? IapkitProductClientPayload._tryFromJson(json['clientPayload'] as Map<String, dynamic>) : null,
       environment: json['environment'] as String?,
       isValid: json['isValid'] as bool,
       productId: json['productId'] as String?,
@@ -3598,6 +4004,16 @@ class SubscriptionPeriodValueIOS {
       unit: SubscriptionPeriodIOS.fromJson(json['unit'] as String),
       value: json['value'] as int,
     );
+  }
+
+  static SubscriptionPeriodValueIOS? _tryFromJson(Map<String, dynamic> json) {
+    try {
+      return SubscriptionPeriodValueIOS.fromJson(json);
+    } on ArgumentError {
+      return null;
+    } on TypeError {
+      return null;
+    }
   }
 
   Map<String, dynamic> toJson() {
@@ -4053,7 +4469,7 @@ class BillingProgramInformationDialogParamsAndroid {
 
   factory BillingProgramInformationDialogParamsAndroid.fromJson(Map<String, dynamic> json) {
     return BillingProgramInformationDialogParamsAndroid(
-      billingProgram: json['billingProgram'] != null ? BillingProgramAndroid.fromJson(json['billingProgram'] as String) : BillingProgramAndroid.BillingChoice,
+      billingProgram: json['billingProgram'] != null ? BillingProgramAndroid.fromJsonStrict(json['billingProgram'] as String) : BillingProgramAndroid.BillingChoice,
       externalTransactionToken: json['externalTransactionToken'] as String,
     );
   }
@@ -4119,9 +4535,9 @@ class DeveloperBillingOptionParamsAndroid {
 
   factory DeveloperBillingOptionParamsAndroid.fromJson(Map<String, dynamic> json) {
     return DeveloperBillingOptionParamsAndroid(
-      billingProgram: BillingProgramAndroid.fromJson(json['billingProgram'] as String),
+      billingProgram: BillingProgramAndroid.fromJsonStrict(json['billingProgram'] as String),
       externalTransactionToken: json['externalTransactionToken'] as String?,
-      launchMode: json['launchMode'] != null ? DeveloperBillingLaunchModeAndroid.fromJson(json['launchMode'] as String) : null,
+      launchMode: json['launchMode'] != null ? DeveloperBillingLaunchModeAndroid.fromJsonStrict(json['launchMode'] as String) : null,
       linkUri: json['linkUri'] as String?,
     );
   }
@@ -4195,8 +4611,8 @@ class GetBillingChoiceInfoParamsAndroid {
 
   factory GetBillingChoiceInfoParamsAndroid.fromJson(Map<String, dynamic> json) {
     return GetBillingChoiceInfoParamsAndroid(
-      billingProgram: json['billingProgram'] != null ? BillingProgramAndroid.fromJson(json['billingProgram'] as String) : BillingProgramAndroid.BillingChoice,
-      playBillingChoiceImageLayout: json['playBillingChoiceImageLayout'] != null ? BillingChoiceImageLayoutAndroid.fromJson(json['playBillingChoiceImageLayout'] as String) : BillingChoiceImageLayoutAndroid.RectangularFourByOne,
+      billingProgram: json['billingProgram'] != null ? BillingProgramAndroid.fromJsonStrict(json['billingProgram'] as String) : BillingProgramAndroid.BillingChoice,
+      playBillingChoiceImageLayout: json['playBillingChoiceImageLayout'] != null ? BillingChoiceImageLayoutAndroid.fromJsonStrict(json['playBillingChoiceImageLayout'] as String) : BillingChoiceImageLayoutAndroid.RectangularFourByOne,
       userLocale: json['userLocale'] as String?,
     );
   }
@@ -4223,7 +4639,7 @@ class InAppMessageParamsAndroid {
 
   factory InAppMessageParamsAndroid.fromJson(Map<String, dynamic> json) {
     return InAppMessageParamsAndroid(
-      categories: (json['categories'] as List<dynamic>?) == null ? const [InAppMessageCategoryAndroid.Transactional] : (json['categories'] as List<dynamic>?)!.map((e) => InAppMessageCategoryAndroid.fromJson(e as String)).toList(),
+      categories: (json['categories'] as List<dynamic>?) == null ? const [InAppMessageCategoryAndroid.Transactional] : (json['categories'] as List<dynamic>?)!.map((e) => InAppMessageCategoryAndroid.fromJsonStrict(e as String)).toList(),
     );
   }
 
@@ -4261,8 +4677,8 @@ class InitConnectionConfig {
 
   factory InitConnectionConfig.fromJson(Map<String, dynamic> json) {
     return InitConnectionConfig(
-      billingChoiceScreenTypeAndroid: json['billingChoiceScreenTypeAndroid'] != null ? BillingChoiceScreenTypeAndroid.fromJson(json['billingChoiceScreenTypeAndroid'] as String) : BillingChoiceScreenTypeAndroid.GoogleRendered,
-      enableBillingProgramAndroid: json['enableBillingProgramAndroid'] != null ? BillingProgramAndroid.fromJson(json['enableBillingProgramAndroid'] as String) : null,
+      billingChoiceScreenTypeAndroid: json['billingChoiceScreenTypeAndroid'] != null ? BillingChoiceScreenTypeAndroid.fromJsonStrict(json['billingChoiceScreenTypeAndroid'] as String) : BillingChoiceScreenTypeAndroid.GoogleRendered,
+      enableBillingProgramAndroid: json['enableBillingProgramAndroid'] != null ? BillingProgramAndroid.fromJsonStrict(json['enableBillingProgramAndroid'] as String) : null,
     );
   }
 
@@ -4302,10 +4718,10 @@ class LaunchExternalLinkParamsAndroid {
 
   factory LaunchExternalLinkParamsAndroid.fromJson(Map<String, dynamic> json) {
     return LaunchExternalLinkParamsAndroid(
-      billingProgram: BillingProgramAndroid.fromJson(json['billingProgram'] as String),
+      billingProgram: BillingProgramAndroid.fromJsonStrict(json['billingProgram'] as String),
       externalTransactionToken: json['externalTransactionToken'] as String?,
-      launchMode: ExternalLinkLaunchModeAndroid.fromJson(json['launchMode'] as String),
-      linkType: ExternalLinkTypeAndroid.fromJson(json['linkType'] as String),
+      launchMode: ExternalLinkLaunchModeAndroid.fromJsonStrict(json['launchMode'] as String),
+      linkType: ExternalLinkTypeAndroid.fromJsonStrict(json['linkType'] as String),
       linkUri: json['linkUri'] as String,
     );
   }
@@ -4333,7 +4749,7 @@ class ProductRequest {
   factory ProductRequest.fromJson(Map<String, dynamic> json) {
     return ProductRequest(
       skus: (json['skus'] as List<dynamic>).map((e) => e as String).toList(),
-      type: json['type'] != null ? ProductQueryType.fromJson(json['type'] as String) : ProductQueryType.InApp,
+      type: json['type'] != null ? ProductQueryType.fromJsonStrict(json['type'] as String) : ProductQueryType.InApp,
     );
   }
 
@@ -4745,7 +5161,7 @@ class RequestSubscriptionIosProps {
       advancedCommerceData: json['advancedCommerceData'] as String?,
       andDangerouslyFinishTransactionAutomatically: json['andDangerouslyFinishTransactionAutomatically'] as bool?,
       appAccountToken: json['appAccountToken'] as String?,
-      billingPlanType: json['billingPlanType'] != null ? SubscriptionBillingPlanTypeIOS.fromJson(json['billingPlanType'] as String) : null,
+      billingPlanType: json['billingPlanType'] != null ? SubscriptionBillingPlanTypeIOS.fromJsonStrict(json['billingPlanType'] as String) : null,
       compactJWS: json['compactJWS'] as String?,
       promotionalOfferJWS: json['promotionalOfferJWS'] != null ? PromotionalOfferJWSInputIOS.fromJson(json['promotionalOfferJWS'] as Map<String, dynamic>) : null,
       quantity: json['quantity'] as int?,
@@ -4957,7 +5373,7 @@ class SubscriptionProductReplacementParamsAndroid {
   factory SubscriptionProductReplacementParamsAndroid.fromJson(Map<String, dynamic> json) {
     return SubscriptionProductReplacementParamsAndroid(
       oldProductId: json['oldProductId'] as String,
-      replacementMode: SubscriptionReplacementModeAndroid.fromJson(json['replacementMode'] as String),
+      replacementMode: SubscriptionReplacementModeAndroid.fromJsonStrict(json['replacementMode'] as String),
     );
   }
 
@@ -5124,7 +5540,7 @@ class VerifyPurchaseWithProviderProps {
   factory VerifyPurchaseWithProviderProps.fromJson(Map<String, dynamic> json) {
     return VerifyPurchaseWithProviderProps(
       iapkit: json['iapkit'] != null ? RequestVerifyPurchaseWithIapkitProps.fromJson(json['iapkit'] as Map<String, dynamic>) : null,
-      provider: PurchaseVerificationProvider.fromJson(json['provider'] as String),
+      provider: PurchaseVerificationProvider.fromJsonStrict(json['provider'] as String),
     );
   }
 

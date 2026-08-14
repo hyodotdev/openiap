@@ -247,6 +247,118 @@ export class CSharpPlugin extends CodegenPlugin {
     this.emit('');
     this.emit(`namespace ${NAMESPACE};`);
     this.emit('');
+    this.emit('public interface IOpenIapEnumJsonConverter<TEnum> where TEnum : struct, Enum');
+    this.emit('{');
+    this.emit('    bool TryReadRaw(string value, out TEnum result);');
+    this.emit('    string WriteRaw(TEnum value);');
+    this.emit('}');
+    this.emit('');
+    this.emit('public sealed class StrictEnumJsonConverter<TEnum, TConverter> : JsonConverter<TEnum>');
+    this.emit('    where TEnum : struct, Enum');
+    this.emit('    where TConverter : IOpenIapEnumJsonConverter<TEnum>, new()');
+    this.emit('{');
+    this.emit('    private static readonly TConverter Converter = new();');
+    this.emit('');
+    this.emit('    public override TEnum Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)');
+    this.emit('    {');
+    this.emit('        if (reader.TokenType != JsonTokenType.String) throw new JsonException($"Expected a string {typeof(TEnum).Name} input value.");');
+    this.emit('        var raw = reader.GetString();');
+    this.emit('        if (raw is not null && Converter.TryReadRaw(raw, out var value)) return value;');
+    this.emit('        throw new JsonException($"Unknown {typeof(TEnum).Name} input value: {raw}");');
+    this.emit('    }');
+    this.emit('');
+    this.emit('    public override void Write(Utf8JsonWriter writer, TEnum value, JsonSerializerOptions options) =>');
+    this.emit('        writer.WriteStringValue(Converter.WriteRaw(value));');
+    this.emit('}');
+    this.emit('');
+    this.emit('public sealed class StrictNullableEnumJsonConverter<TEnum, TConverter> : JsonConverter<TEnum?>');
+    this.emit('    where TEnum : struct, Enum');
+    this.emit('    where TConverter : IOpenIapEnumJsonConverter<TEnum>, new()');
+    this.emit('{');
+    this.emit('    private static readonly TConverter Converter = new();');
+    this.emit('');
+    this.emit('    public override TEnum? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)');
+    this.emit('    {');
+    this.emit('        if (reader.TokenType != JsonTokenType.String) throw new JsonException($"Expected a string {typeof(TEnum).Name} input value.");');
+    this.emit('        var raw = reader.GetString();');
+    this.emit('        if (raw is not null && Converter.TryReadRaw(raw, out var value)) return value;');
+    this.emit('        throw new JsonException($"Unknown {typeof(TEnum).Name} input value: {raw}");');
+    this.emit('    }');
+    this.emit('');
+    this.emit('    public override void Write(Utf8JsonWriter writer, TEnum? value, JsonSerializerOptions options)');
+    this.emit('    {');
+    this.emit('        if (value is null) writer.WriteNullValue();');
+    this.emit('        else writer.WriteStringValue(Converter.WriteRaw(value.Value));');
+    this.emit('    }');
+    this.emit('}');
+    this.emit('');
+    this.emit('public sealed class StrictEnumListJsonConverter<TEnum, TConverter> : JsonConverter<IReadOnlyList<TEnum>>');
+    this.emit('    where TEnum : struct, Enum');
+    this.emit('    where TConverter : IOpenIapEnumJsonConverter<TEnum>, new()');
+    this.emit('{');
+    this.emit('    private static readonly TConverter Converter = new();');
+    this.emit('');
+    this.emit('    public override IReadOnlyList<TEnum> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)');
+    this.emit('    {');
+    this.emit('        using var document = JsonDocument.ParseValue(ref reader);');
+    this.emit('        if (document.RootElement.ValueKind != JsonValueKind.Array) throw new JsonException("Expected an enum input array.");');
+    this.emit('        var values = new List<TEnum>();');
+    this.emit('        foreach (var element in document.RootElement.EnumerateArray())');
+    this.emit('        {');
+    this.emit('            var raw = element.ValueKind == JsonValueKind.String ? element.GetString() : null;');
+    this.emit('            if (raw is null || !Converter.TryReadRaw(raw, out var value))');
+    this.emit('                throw new JsonException($"Unknown {typeof(TEnum).Name} input value: {raw}");');
+    this.emit('            values.Add(value);');
+    this.emit('        }');
+    this.emit('        return values;');
+    this.emit('    }');
+    this.emit('');
+    this.emit('    public override void Write(Utf8JsonWriter writer, IReadOnlyList<TEnum> value, JsonSerializerOptions options)');
+    this.emit('    {');
+    this.emit('        writer.WriteStartArray();');
+    this.emit('        foreach (var item in value) writer.WriteStringValue(Converter.WriteRaw(item));');
+    this.emit('        writer.WriteEndArray();');
+    this.emit('    }');
+    this.emit('}');
+    this.emit('');
+    this.emit('public sealed class StrictNullableEnumListJsonConverter<TEnum, TConverter> : JsonConverter<IReadOnlyList<TEnum?>>');
+    this.emit('    where TEnum : struct, Enum');
+    this.emit('    where TConverter : IOpenIapEnumJsonConverter<TEnum>, new()');
+    this.emit('{');
+    this.emit('    private static readonly TConverter Converter = new();');
+    this.emit('');
+    this.emit('    public override IReadOnlyList<TEnum?> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)');
+    this.emit('    {');
+    this.emit('        using var document = JsonDocument.ParseValue(ref reader);');
+    this.emit('        if (document.RootElement.ValueKind != JsonValueKind.Array) throw new JsonException("Expected an enum input array.");');
+    this.emit('        var values = new List<TEnum?>();');
+    this.emit('        foreach (var element in document.RootElement.EnumerateArray())');
+    this.emit('        {');
+    this.emit('            if (element.ValueKind == JsonValueKind.Null)');
+    this.emit('            {');
+    this.emit('                values.Add(null);');
+    this.emit('                continue;');
+    this.emit('            }');
+    this.emit('            var raw = element.ValueKind == JsonValueKind.String ? element.GetString() : null;');
+    this.emit('            if (raw is null || !Converter.TryReadRaw(raw, out var value))');
+    this.emit('                throw new JsonException($"Unknown {typeof(TEnum).Name} input value: {raw}");');
+    this.emit('            values.Add(value);');
+    this.emit('        }');
+    this.emit('        return values;');
+    this.emit('    }');
+    this.emit('');
+    this.emit('    public override void Write(Utf8JsonWriter writer, IReadOnlyList<TEnum?> value, JsonSerializerOptions options)');
+    this.emit('    {');
+    this.emit('        writer.WriteStartArray();');
+    this.emit('        foreach (var item in value)');
+    this.emit('        {');
+    this.emit('            if (item is null) writer.WriteNullValue();');
+    this.emit('            else writer.WriteStringValue(Converter.WriteRaw(item.Value));');
+    this.emit('        }');
+    this.emit('        writer.WriteEndArray();');
+    this.emit('    }');
+    this.emit('}');
+    this.emit('');
   }
 
   private addSection(title: string): void {
@@ -294,7 +406,7 @@ export class CSharpPlugin extends CodegenPlugin {
     this.emit('');
 
     // Generate the per-enum JsonConverter that maps enum <-> raw string.
-    this.emit(`public sealed class ${converterName} : JsonConverter<${irEnum.name}>`);
+    this.emit(`public sealed class ${converterName} : JsonConverter<${irEnum.name}>, IOpenIapEnumJsonConverter<${irEnum.name}>`);
     this.emit('{');
     this.emit(`    private static readonly Dictionary<string, ${irEnum.name}> _fromString = new()`);
     this.emit('    {');
@@ -319,7 +431,12 @@ export class CSharpPlugin extends CodegenPlugin {
     this.emit('    {');
     this.emit('        var raw = reader.GetString();');
     this.emit(`        if (raw is not null && _fromString.TryGetValue(raw, out var value)) return value;`);
-    this.emit(`        throw new JsonException($"Unknown ${irEnum.name} value: {raw}");`);
+    const unknownValue = this.enumUnknownValue(irEnum);
+    if (unknownValue) {
+      this.emit(`        return ${irEnum.name}.${this.enumValueCase(unknownValue.name)};`);
+    } else {
+      this.emit(`        throw new JsonException($"Unknown ${irEnum.name} value: {raw}");`);
+    }
     this.emit('    }');
     this.emit('');
     this.emit(`    public override void Write(Utf8JsonWriter writer, ${irEnum.name} value, JsonSerializerOptions options)`);
@@ -329,9 +446,15 @@ export class CSharpPlugin extends CodegenPlugin {
     this.emit('');
     this.emit(`    internal static string ToRawString(${irEnum.name} value) => _toString[value];`);
     this.emit(`    internal static ${irEnum.name} FromRawString(string value) =>`);
-    this.emit(
-      `        _fromString.TryGetValue(value, out var v) ? v : throw new ArgumentException($"Unknown ${irEnum.name} value: {value}");`,
-    );
+    const fromRawFallback = unknownValue
+      ? `${irEnum.name}.${this.enumValueCase(unknownValue.name)}`
+      : `throw new ArgumentException($"Unknown ${irEnum.name} value: {value}")`;
+    this.emit(`        _fromString.TryGetValue(value, out var v) ? v : ${fromRawFallback};`);
+    this.emit('');
+    this.emit(`    public bool TryReadRaw(string value, out ${irEnum.name} result) =>`);
+    this.emit('        _fromString.TryGetValue(value, out result);');
+    this.emit('');
+    this.emit(`    public string WriteRaw(${irEnum.name} value) => _toString[value];`);
     this.emit('}');
     this.emit('');
 
@@ -467,6 +590,7 @@ export class CSharpPlugin extends CodegenPlugin {
     this.emitProperties(sortedFields, this.inheritedUnionFieldNames(irObject));
     this.emit('}');
     this.emit('');
+    this.emitNullableJsonConverter(irObject.name);
   }
 
   private computeBaseTypes(irObject: IRObject): string[] {
@@ -502,7 +626,7 @@ export class CSharpPlugin extends CodegenPlugin {
     return names;
   }
 
-  private emitProperties(fields: IRField[], inheritedFields = new Set<string>()): void {
+  private emitProperties(fields: IRField[], inheritedFields = new Set<string>(), isInputContext = false): void {
     fields.forEach((field) => {
       this.emitDoc(field.description, '    ');
       this.emitDeprecation(field.description, '    ');
@@ -512,6 +636,31 @@ export class CSharpPlugin extends CodegenPlugin {
       const jsonName = field.name;
       const overrideModifier = inheritedFields.has(field.name) ? 'override ' : '';
       this.emit(`    [JsonPropertyName("${jsonName}")]`);
+      if (isInputContext && field.type.kind === 'enum') {
+        const converter = field.type.nullable ? 'StrictNullableEnumJsonConverter' : 'StrictEnumJsonConverter';
+        this.emit(
+          `    [JsonConverter(typeof(${converter}<${field.type.name}, ${field.type.name}JsonConverter>))]`,
+        );
+      } else if (isInputContext && field.type.kind === 'list' && field.type.elementType?.kind === 'enum') {
+        const converter = field.type.elementType.nullable
+          ? 'StrictNullableEnumListJsonConverter'
+          : 'StrictEnumListJsonConverter';
+        const enumName = field.type.elementType.name;
+        this.emit(`    [JsonConverter(typeof(${converter}<${enumName}, ${enumName}JsonConverter>))]`);
+      } else if (
+        field.type.nullable &&
+        ['object', 'input'].includes(field.type.kind) &&
+        this.typeNeedsTolerantNullableDecoder(field.type.name!, this.schema)
+      ) {
+        this.emit(`    [JsonConverter(typeof(${field.type.name}NullableJsonConverter))]`);
+      } else if (
+        field.type.kind === 'list' &&
+        field.type.elementType?.nullable === true &&
+        field.type.elementType.kind === 'object' &&
+        this.typeNeedsTolerantNullableDecoder(field.type.elementType.name!, this.schema)
+      ) {
+        this.emit(`    [JsonConverter(typeof(${field.type.elementType.name}NullableElementListJsonConverter))]`);
+      }
 
       // Required vs. nullable — non-nullable scalars/objects get the C#
       // `required` modifier so callers must initialize them; nullable
@@ -615,7 +764,86 @@ export class CSharpPlugin extends CodegenPlugin {
     this.emitDoc(irInput.description);
     this.emit(`public sealed record ${irInput.name}`);
     this.emit('{');
-    this.emitProperties(irInput.fields);
+    this.emitProperties(irInput.fields, new Set<string>(), true);
+    this.emit('}');
+    this.emit('');
+    this.emitNullableJsonConverter(irInput.name);
+  }
+
+  private emitNullableJsonConverter(typeName: string): void {
+    if (!this.typeNeedsTolerantNullableDecoder(typeName, this.schema)) return;
+    this.emit(`public sealed class ${typeName}NullableJsonConverter : JsonConverter<${typeName}?>`);
+    this.emit('{');
+    this.emit(
+      `    public override ${typeName}? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)`,
+    );
+    this.emit('    {');
+    this.emit('        using var document = JsonDocument.ParseValue(ref reader);');
+    this.emit('        try');
+    this.emit('        {');
+    this.emit(`            return document.RootElement.Deserialize<${typeName}>(options);`);
+    this.emit('        }');
+    this.emit('        catch (JsonException)');
+    this.emit('        {');
+    this.emit('            return null;');
+    this.emit('        }');
+    this.emit('        catch (InvalidOperationException)');
+    this.emit('        {');
+    this.emit('            return null;');
+    this.emit('        }');
+    this.emit('    }');
+    this.emit('');
+    this.emit(
+      `    public override void Write(Utf8JsonWriter writer, ${typeName}? value, JsonSerializerOptions options) =>`,
+    );
+    this.emit('        JsonSerializer.Serialize(writer, value, options);');
+    this.emit('}');
+    this.emit('');
+
+    const needsListConverter = this.schema.objects.some((container) =>
+      container.fields.some(
+        (field) =>
+          field.type.kind === 'list' &&
+          field.type.elementType?.nullable === true &&
+          field.type.elementType.kind === 'object' &&
+          field.type.elementType.name === typeName,
+      ),
+    );
+    if (!needsListConverter) return;
+    this.emit(`public sealed class ${typeName}NullableElementListJsonConverter : JsonConverter<IReadOnlyList<${typeName}?>>`);
+    this.emit('{');
+    this.emit(
+      `    public override IReadOnlyList<${typeName}?> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)`,
+    );
+    this.emit('    {');
+    this.emit('        using var document = JsonDocument.ParseValue(ref reader);');
+    this.emit('        if (document.RootElement.ValueKind != JsonValueKind.Array)');
+    this.emit('        {');
+    this.emit(`            throw new JsonException("Expected an array of ${typeName} values.");`);
+    this.emit('        }');
+    this.emit(`        var values = new List<${typeName}?>();`);
+    this.emit('        foreach (var element in document.RootElement.EnumerateArray())');
+    this.emit('        {');
+    this.emit('            try');
+    this.emit('            {');
+    this.emit(`                values.Add(element.Deserialize<${typeName}>(options));`);
+    this.emit('            }');
+    this.emit('            catch (JsonException)');
+    this.emit('            {');
+    this.emit('                values.Add(null);');
+    this.emit('            }');
+    this.emit('            catch (InvalidOperationException)');
+    this.emit('            {');
+    this.emit('                values.Add(null);');
+    this.emit('            }');
+    this.emit('        }');
+    this.emit('        return values;');
+    this.emit('    }');
+    this.emit('');
+    this.emit(
+      `    public override void Write(Utf8JsonWriter writer, IReadOnlyList<${typeName}?> value, JsonSerializerOptions options) =>`,
+    );
+    this.emit('        JsonSerializer.Serialize(writer, value, options);');
     this.emit('}');
     this.emit('');
   }
@@ -657,6 +885,7 @@ export class CSharpPlugin extends CodegenPlugin {
     this.emit('');
     this.emitDoc(type.description, '    ');
     this.emit('    [JsonPropertyName("type")]');
+    this.emit('    [JsonConverter(typeof(StrictEnumJsonConverter<ProductQueryType, ProductQueryTypeJsonConverter>))]');
     this.emit('    public required ProductQueryType Type { get; init; }');
     this.emit('');
     this.emit('    public void Validate()');

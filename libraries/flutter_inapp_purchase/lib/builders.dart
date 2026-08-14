@@ -160,13 +160,18 @@ class RequestPurchaseBuilder {
       return;
     }
     if (value is String) {
-      final normalized = value.toLowerCase();
-      if (normalized.contains('sub')) {
-        _type = ProductQueryType.Subs;
-      } else {
-        _type = ProductQueryType.InApp;
+      switch (value.trim().toLowerCase()) {
+        case 'in-app':
+          _type = ProductQueryType.InApp;
+          return;
+        case 'subs':
+          _type = ProductQueryType.Subs;
+          return;
+        default:
+          throw ArgumentError(
+            'Unsupported purchase type: $value. Use in-app or subs.',
+          );
       }
-      return;
     }
     throw ArgumentError('Unsupported type assignment: $value');
   }

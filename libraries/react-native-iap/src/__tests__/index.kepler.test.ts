@@ -1,4 +1,5 @@
 import * as IAP from '../index.kepler';
+import {ErrorCode} from '../types';
 import type {RequestPurchaseProps} from '../types';
 import {getVegaIapModule} from '../vega';
 
@@ -64,6 +65,19 @@ describe('Amazon Vega public API', () => {
     expect(requestPurchaseNative).toHaveBeenLastCalledWith({
       google: {skus: ['coins']},
     });
+  });
+
+  it('rejects all without dispatching a purchase', async () => {
+    await expect(
+      IAP.requestPurchase({
+        request: {google: {skus: ['coins']}},
+        type: 'all' as any,
+      }),
+    ).rejects.toMatchObject({
+      code: ErrorCode.DeveloperError,
+      message: expect.stringMatching(/only supported for product queries/),
+    });
+    expect(requestPurchaseNative).not.toHaveBeenCalled();
   });
 
   it('rejects a malformed purchase result instead of returning partial success', async () => {

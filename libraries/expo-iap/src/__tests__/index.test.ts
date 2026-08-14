@@ -569,7 +569,7 @@ describe('Public API (index.ts)', () => {
       expect(res).toEqual({id: 'x'});
     });
 
-    it('throws on unsupported iOS product type', async () => {
+    it('rejects query-only all on iOS', async () => {
       (Platform as any).OS = 'ios';
       (ExpoIapModule.requestPurchase as jest.Mock) = jest.fn();
       await expect(
@@ -577,7 +577,7 @@ describe('Public API (index.ts)', () => {
           request: {apple: {sku: 'skuX'}},
           type: 'all',
         } as any),
-      ).rejects.toThrow(/Unsupported product type/);
+      ).rejects.toThrow(/only supported for product queries/);
       expect(ExpoIapModule.requestPurchase).not.toHaveBeenCalled();
     });
 
@@ -681,6 +681,32 @@ describe('Public API (index.ts)', () => {
       );
     });
 
+    it.each([
+      ['in-app', {skus: ['coins'], subscriptionOffers: []}],
+      [
+        'in-app',
+        {
+          skus: ['coins'],
+          subscriptionProductReplacementParams: {
+            oldProductId: 'old',
+            replacementMode: 'without-proration',
+          },
+        },
+      ],
+      ['subs', {skus: ['premium'], offerToken: 'one-time-token'}],
+    ])(
+      'rejects branch-mismatched Android options for %s without native dispatch',
+      async (type, google) => {
+        (Platform as any).OS = 'android';
+        (ExpoIapModule.requestPurchase as jest.Mock) = jest.fn();
+
+        await expect(
+          requestPurchase({request: {google} as any, type: type as any}),
+        ).rejects.toThrow(/must match the selected product type/);
+        expect(ExpoIapModule.requestPurchase).not.toHaveBeenCalled();
+      },
+    );
+
     it('iOS rejects when sku missing', async () => {
       (Platform as any).OS = 'ios';
       await expect(
@@ -712,7 +738,10 @@ describe('Public API (index.ts)', () => {
           request: {google: {skus: ['x']}} as any,
           type: 'all' as any,
         }),
-      ).rejects.toThrow(/valid request object/);
+      ).rejects.toMatchObject({
+        code: ErrorCode.DeveloperError,
+        message: expect.stringMatching(/only supported for product queries/),
+      });
     });
 
     it('Android subscription requests require skus array', async () => {

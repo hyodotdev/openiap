@@ -1678,6 +1678,12 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
   try {
     const {request: platformRequest, type} = request;
     const normalizedType = normalizeProductQueryType(type ?? 'in-app');
+    if (normalizedType === 'all') {
+      throw createPurchaseError({
+        code: ErrorCode.DeveloperError,
+        message: 'Product type all is only supported for product queries.',
+      });
+    }
     const isSubs = isSubscriptionQuery(normalizedType);
     const perPlatformRequest = platformRequest as
       | RequestPurchasePropsByPlatforms
@@ -1702,10 +1708,15 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
         });
       }
     } else if (isAndroidStoreRuntime()) {
-      if (!androidRequestSource?.skus?.length) {
+      const skus = androidRequestSource?.skus as unknown;
+      if (
+        !Array.isArray(skus) ||
+        skus.length === 0 ||
+        skus.some((sku) => typeof sku !== 'string' || sku.trim() === '')
+      ) {
         throw createPurchaseError({
           message:
-            'Invalid request for Android. The `skus` property is required and must be a non-empty array.',
+            'Invalid request for Android. The `skus` property must contain only non-empty strings.',
           code: ErrorCode.EmptySkuList,
         });
       }
@@ -1764,6 +1775,29 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
     }
 
     if (isAndroidStoreRuntime() && androidRequestSource) {
+      const rawAndroidRequest = androidRequestSource as unknown as Record<
+        string,
+        unknown
+      >;
+      const subscriptionOnlyFields = [
+        'subscriptionOffers',
+        'subscriptionProductReplacementParams',
+        'purchaseToken',
+        'originalExternalTransactionId',
+      ];
+      if (
+        (!isSubs &&
+          subscriptionOnlyFields.some(
+            (field) => rawAndroidRequest[field] != null,
+          )) ||
+        (isSubs && rawAndroidRequest.offerToken != null)
+      ) {
+        throw createPurchaseError({
+          message:
+            'Invalid request for Android. Purchase options must match the selected product type.',
+          code: ErrorCode.DeveloperError,
+        });
+      }
       const androidRequest = isSubs
         ? (androidRequestSource as RequestSubscriptionAndroidProps)
         : (androidRequestSource as RequestPurchaseAndroidProps);
@@ -1796,6 +1830,29 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
 
       if (isSubs) {
         const subsRequest = androidRequest as RequestSubscriptionAndroidProps;
+        const subscriptionOffers = subsRequest.subscriptionOffers as unknown;
+        if (
+          subscriptionOffers != null &&
+          (!Array.isArray(subscriptionOffers) ||
+            subscriptionOffers.some((offer) => {
+              if (offer == null || typeof offer !== 'object') {
+                return true;
+              }
+              const candidate = offer as Record<string, unknown>;
+              return (
+                typeof candidate.sku !== 'string' ||
+                candidate.sku.trim() === '' ||
+                typeof candidate.offerToken !== 'string' ||
+                candidate.offerToken.trim() === ''
+              );
+            }))
+        ) {
+          throw createPurchaseError({
+            message:
+              'Invalid request for Android. Every subscription offer must include non-empty `sku` and `offerToken` strings.',
+            code: ErrorCode.DeveloperError,
+          });
+        }
         if (subsRequest.purchaseToken) {
           androidPayload.purchaseToken = subsRequest.purchaseToken;
         }
@@ -1808,15 +1865,11 @@ export const requestPurchase: MutationField<'requestPurchase'> = async (
             subsRequest.subscriptionProductReplacementParams;
         }
         androidPayload.subscriptionOffers = (
-          subsRequest.subscriptionOffers ?? []
-        )
-          .filter(
-            (offer): offer is AndroidSubscriptionOfferInput => offer != null,
-          )
-          .map((offer) => ({
-            sku: offer.sku,
-            offerToken: offer.offerToken,
-          }));
+          (subscriptionOffers ?? []) as AndroidSubscriptionOfferInput[]
+        ).map((offer) => ({
+          sku: offer.sku,
+          offerToken: offer.offerToken,
+        }));
       }
 
       unifiedRequest.google = androidPayload;

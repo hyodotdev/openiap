@@ -6,6 +6,7 @@ import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Assert.assertThrows
 import org.junit.Test
 
 class BillingChoiceAndroidTypesTest {
@@ -153,6 +154,24 @@ class BillingChoiceAndroidTypesTest {
     }
 
     @Test
+    fun `in-app message input rejects unknown and malformed categories`() {
+        val known = InAppMessageParamsAndroid.fromJson(
+            mapOf("categories" to listOf("unknown-in-app-message-category-id"))
+        )
+        assertEquals(InAppMessageCategoryAndroid.UnknownInAppMessageCategoryId, known.categories?.single())
+
+        listOf(
+            mapOf("categories" to listOf("future-category")),
+            mapOf("categories" to listOf(999)),
+            mapOf("categories" to "transactional"),
+        ).forEach { input ->
+            assertThrows(IllegalArgumentException::class.java) {
+                InAppMessageParamsAndroid.fromJson(input)
+            }
+        }
+    }
+
+    @Test
     fun `developer billing option supports in-app and external-link Billing Choice`() {
         val inApp = DeveloperBillingOptionParamsAndroid.fromJson(
             mapOf("billingProgram" to "billing-choice")
@@ -175,6 +194,29 @@ class BillingChoiceAndroidTypesTest {
             DeveloperBillingLaunchModeAndroid.CallerWillLaunchLink,
             externalLink.launchMode
         )
+    }
+
+    @Test
+    fun `subscription purchase input rejects malformed explicit list entries`() {
+        val invalidInputs = listOf(
+            mapOf("skus" to listOf("monthly", 7)),
+            mapOf("skus" to listOf("monthly"), "obfuscatedAccountId" to 7),
+            mapOf(
+                "skus" to listOf("monthly"),
+                "subscriptionOffers" to listOf(mapOf("offerToken" to "token")),
+            ),
+            mapOf(
+                "skus" to listOf("monthly"),
+                "subscriptionOffers" to listOf(mapOf("sku" to "monthly")),
+            ),
+            mapOf("skus" to listOf("monthly"), "subscriptionOffers" to listOf(7)),
+        )
+
+        invalidInputs.forEach { input ->
+            assertThrows(IllegalArgumentException::class.java) {
+                RequestSubscriptionAndroidProps.fromJson(input)
+            }
+        }
     }
 
     @Test

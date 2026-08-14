@@ -891,6 +891,22 @@ final class OpenIapTests: XCTestCase {
         XCTAssertEqual(resolved.sku, "dev.hyo.sub.apple")
     }
 
+    @available(iOS 15.0, macOS 14.0, tvOS 16.0, watchOS 8.0, *)
+    func testResolvePurchasePropsRejectsMutatedQueryOnlyType() throws {
+        var props = RequestPurchaseProps(
+            request: .purchase(RequestPurchasePropsByPlatforms(
+                apple: RequestPurchaseIosProps(sku: "dev.hyo.apple")
+            ))
+        )
+        props.type = .all
+
+        XCTAssertThrowsError(
+            try OpenIapModule.shared.resolveIOSPurchaseProps(from: props)
+        ) { error in
+            XCTAssertEqual((error as? PurchaseError)?.code, .developerError)
+        }
+    }
+
     func testAdvancedCommerceDataJSONSerialization() throws {
         let props = RequestPurchaseIosProps(
             advancedCommerceData: "promo_code_abc",

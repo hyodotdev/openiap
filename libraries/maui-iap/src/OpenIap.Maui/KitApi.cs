@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
@@ -22,6 +23,78 @@ public sealed record KitApiOptions
     public required string ApiKey { get; init; }
     public string? BaseUrl { get; init; }
     public HttpClient? HttpClient { get; init; }
+}
+
+internal static class TolerantJson
+{
+    public static T? Deserialize<T>(JsonElement element, JsonSerializerOptions options)
+        where T : class
+    {
+        try
+        {
+            return element.Deserialize<T>(options);
+        }
+        catch (JsonException)
+        {
+            return null;
+        }
+        catch (InvalidOperationException)
+        {
+            return null;
+        }
+        catch (NotSupportedException)
+        {
+            return null;
+        }
+    }
+}
+
+internal sealed class TolerantJsonObjectConverter<T> : JsonConverter<T?>
+    where T : class
+{
+    public override T? Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        using var document = JsonDocument.ParseValue(ref reader);
+        var value = TolerantJson.Deserialize<T>(document.RootElement, options);
+        if (value is null) Trace.TraceWarning("Skipped unreadable {0} object.", typeof(T).Name);
+        return value;
+    }
+
+    public override void Write(Utf8JsonWriter writer, T? value, JsonSerializerOptions options)
+        => JsonSerializer.Serialize(writer, value, options);
+}
+
+internal sealed class TolerantJsonListConverter<T> : JsonConverter<IReadOnlyList<T>>
+    where T : class
+{
+    public override IReadOnlyList<T> Read(ref Utf8JsonReader reader, Type typeToConvert, JsonSerializerOptions options)
+    {
+        using var document = JsonDocument.ParseValue(ref reader);
+        if (document.RootElement.ValueKind != JsonValueKind.Array)
+        {
+            throw new JsonException($"Expected an array of {typeof(T).Name} values.");
+        }
+
+        var values = new List<T>();
+        var index = 0;
+        foreach (var element in document.RootElement.EnumerateArray())
+        {
+            var value = TolerantJson.Deserialize<T>(element, options);
+            if (value is not null)
+            {
+                values.Add(value);
+            }
+            else
+            {
+                Trace.TraceWarning("Skipped unreadable {0} row at index {1}.", typeof(T).Name, index);
+            }
+            index++;
+        }
+        return values;
+    }
+
+    public override void Write(Utf8JsonWriter writer, IReadOnlyList<T> value, JsonSerializerOptions options)
+        => JsonSerializer.Serialize(writer, value, options);
 }
 
 public sealed record KitSubscription
@@ -63,6 +136,7 @@ public sealed record EntitlementsResponse
     [JsonPropertyName("productIds")]
     public required IReadOnlyList<string> ProductIds { get; init; }
     [JsonPropertyName("subscriptions")]
+    [JsonConverter(typeof(TolerantJsonListConverter<KitSubscription>))]
     public required IReadOnlyList<KitSubscription> Subscriptions { get; init; }
 }
 
@@ -71,6 +145,7 @@ public sealed record StatusResponse
     [JsonPropertyName("active")]
     public required bool Active { get; init; }
     [JsonPropertyName("subscription")]
+    [JsonConverter(typeof(TolerantJsonObjectConverter<KitSubscription>))]
     public KitSubscription? Subscription { get; init; }
 }
 
@@ -136,6 +211,7 @@ public sealed record KitProduct
     [JsonPropertyName("billingPeriod")]
     public string? BillingPeriod { get; init; }
     [JsonPropertyName("offers")]
+    [JsonConverter(typeof(TolerantJsonListConverter<KitProductOffer>))]
     public IReadOnlyList<KitProductOffer>? Offers { get; init; }
     [JsonPropertyName("updatedAt")]
     public required double UpdatedAt { get; init; }
@@ -154,6 +230,7 @@ public sealed record KitProductsOptions
 public sealed record KitProductsResponse
 {
     [JsonPropertyName("products")]
+    [JsonConverter(typeof(TolerantJsonListConverter<KitProduct>))]
     public required IReadOnlyList<KitProduct> Products { get; init; }
     [JsonPropertyName("hasMore")]
     public bool? HasMore { get; init; }
