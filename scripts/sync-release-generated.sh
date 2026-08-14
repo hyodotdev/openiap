@@ -17,9 +17,12 @@ cd "$REPO_ROOT"
 
 ./scripts/sync-versions.sh
 
+(cd packages/conformance && bun run generate:ids)
+
 (cd scripts/agent && bun install --frozen-lockfile && bun run compile:ai)
 
 git add \
+  packages/conformance/src/spec/generated-spec.mjs \
   packages/docs/src/generated/version-metadata.json \
   packages/docs/public/llms.txt \
   packages/docs/public/llms-full.txt \
