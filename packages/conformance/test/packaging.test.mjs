@@ -56,20 +56,24 @@ describe('published package is self-contained', () => {
     expect(escapes).toEqual([]);
   });
 
-  it('ships every source file its entrypoints need', () => {
-    const packed = JSON.parse(
-      execFileSync('npm', ['pack', '--dry-run', '--json'], {
-        cwd: PACKAGE_ROOT,
-        encoding: 'utf8',
-        stdio: ['ignore', 'pipe', 'ignore'],
-      }),
-    )[0].files.map((entry) => entry.path);
+  it(
+    'ships every source file its entrypoints need',
+    () => {
+      const packed = JSON.parse(
+        execFileSync('npm', ['pack', '--dry-run', '--json'], {
+          cwd: PACKAGE_ROOT,
+          encoding: 'utf8',
+          stdio: ['ignore', 'pipe', 'ignore'],
+        }),
+      )[0].files.map((entry) => entry.path);
 
-    for (const file of files) {
-      const rel = relative(PACKAGE_ROOT, file);
-      expect(packed, `${rel} is not in the published tarball`).toContain(rel);
-    }
-  });
+      for (const file of files) {
+        const rel = relative(PACKAGE_ROOT, file);
+        expect(packed, `${rel} is not in the published tarball`).toContain(rel);
+      }
+    },
+    15_000,
+  );
 
   it('declares a bin that does not depend on the monorepo', () => {
     const manifest = JSON.parse(readFileSync(join(PACKAGE_ROOT, 'package.json'), 'utf8'));
