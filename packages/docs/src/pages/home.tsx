@@ -205,7 +205,7 @@ function Home() {
                     className="hero-framework-link"
                     title={library.frameworkName}
                   >
-                    <img src={library.image} alt={library.frameworkName} />
+                    <img src={library.image} alt="" aria-hidden="true" />
                     <span>{library.homeLabel}</span>
                   </Link>
                 ))}
@@ -227,7 +227,7 @@ function Home() {
           <div className="openiap-case-header">
             <div>
               <p className="home-section-kicker">The problem</p>
-              <h2>Four stores ≠ four integrations</h2>
+              <h2>Different stores, one contract</h2>
             </div>
             <p>
               Every store ships its own API, types, and events. Your product
@@ -262,6 +262,12 @@ function Home() {
                 </div>
                 <div>
                   <strong>Horizon</strong>
+                  <span>API</span>
+                  <span>Types</span>
+                  <span>Events</span>
+                </div>
+                <div>
+                  <strong>Vega OS</strong>
                   <span>API</span>
                   <span>Types</span>
                   <span>Events</span>
