@@ -922,9 +922,9 @@ function Announcements() {
         <div key="2025-10-01" style={cardStyle}>
           <div style={headerStyle}>
             <img
-              src="/meta.svg"
+              src="/sponsors/meta.webp"
               alt="Meta Horizon"
-              style={{ width: '48px', height: '48px' }}
+              style={{ width: '92px', height: '48px', objectFit: 'contain' }}
             />
             <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
               Meta Horizon OS Support is Here!
@@ -1170,9 +1170,9 @@ function Announcements() {
         <div key="2025-08-15" style={cardStyle}>
           <div style={headerStyle}>
             <img
-              src="/meta.svg"
+              src="/sponsors/meta.webp"
               alt="Meta"
-              style={{ width: '48px', height: '48px' }}
+              style={{ width: '92px', height: '48px', objectFit: 'contain' }}
             />
             <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
               We are now backed by{' '}

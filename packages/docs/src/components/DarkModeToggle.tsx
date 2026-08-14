@@ -59,7 +59,8 @@ export function DarkModeToggle() {
       onMouseLeave={(e) => {
         e.currentTarget.style.background = 'transparent';
       }}
-      aria-label="Toggle dark mode"
+      aria-label={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
+      title={isDark ? 'Switch to light mode' : 'Switch to dark mode'}
     >
       {isDark ? <Sun size={20} /> : <Moon size={20} />}
     </button>

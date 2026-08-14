@@ -1,11 +1,154 @@
+import { ArrowRight, ArrowUpRight, Braces, Github } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import CodeBlock from '../components/CodeBlock';
 import LanguageTabs from '../components/LanguageTabs';
 import SEO from '../components/SEO';
+import { IAPKIT_LOGO_PATH, IAPKIT_URL, trackIapKitClick } from '../lib/config';
+import { LIBRARIES, LIBRARY_IMAGES } from '../lib/images';
+
+const FRICTION = [
+  {
+    title: 'APIs diverge',
+    description: 'Methods, types, and events change with every store and SDK.',
+  },
+  {
+    title: 'Fixes repeat',
+    description:
+      'Maintainers solve the same lifecycle and error cases in parallel.',
+  },
+  {
+    title: 'Platforms drift',
+    description:
+      'StoreKit and Play Billing updates reach each framework differently.',
+  },
+] as const;
+
+const PIPELINE = [
+  {
+    label: 'Source',
+    title: 'GraphQL schema',
+    detail: 'One contract',
+  },
+  {
+    label: 'Generate',
+    title: 'Native types',
+    detail: 'Swift · Kotlin · TS · Dart · C# · GDScript',
+  },
+  {
+    label: 'Implement',
+    title: 'Store modules',
+    detail: 'StoreKit 2 · Play Billing',
+  },
+  {
+    label: 'Ship',
+    title: 'Framework SDKs',
+    detail: 'One API in every runtime',
+  },
+] as const;
+
+const SURFACES = [
+  {
+    index: '01',
+    label: 'Methods',
+    detail: 'Start and complete the purchase lifecycle',
+    links: [
+      { label: 'initConnection()', to: '/docs/apis/init-connection' },
+      { label: 'fetchProducts()', to: '/docs/apis/fetch-products' },
+      { label: 'requestPurchase()', to: '/docs/apis/request-purchase' },
+      { label: 'finishTransaction()', to: '/docs/apis/finish-transaction' },
+    ],
+  },
+  {
+    index: '02',
+    label: 'Types',
+    detail: 'Share one model without hiding native fields',
+    links: [
+      { label: 'Product', to: '/docs/types/product' },
+      { label: 'Purchase', to: '/docs/types/purchase' },
+      { label: 'ProductSubscription', to: '/docs/types/subscription-product' },
+      { label: 'PurchaseError', to: '/docs/errors' },
+    ],
+  },
+  {
+    index: '03',
+    label: 'Events',
+    detail: 'React to state changes with predictable signals',
+    links: [
+      {
+        label: 'purchaseUpdatedListener',
+        to: '/docs/events/purchase-updated-listener',
+      },
+      {
+        label: 'purchaseErrorListener',
+        to: '/docs/events/purchase-error-listener',
+      },
+      {
+        label: 'subscriptionBillingIssueListener',
+        to: '/docs/events/subscription-billing-issue-listener',
+      },
+    ],
+  },
+] as const;
+
+const PURCHASE_LOOP = [
+  {
+    label: 'Connect',
+    code: 'initConnection()',
+    to: '/docs/apis/init-connection',
+  },
+  {
+    label: 'Listen',
+    code: 'purchaseUpdatedListener',
+    to: '/docs/events/purchase-updated-listener',
+  },
+  { label: 'Fetch', code: 'fetchProducts()', to: '/docs/apis/fetch-products' },
+  {
+    label: 'Purchase',
+    code: 'requestPurchase()',
+    to: '/docs/apis/request-purchase',
+  },
+  {
+    label: 'Validate',
+    code: 'verifyPurchaseWithProvider()',
+    to: '/docs/features/validation#verify-purchase-with-provider',
+  },
+  {
+    label: 'Finish',
+    code: 'finishTransaction()',
+    to: '/docs/apis/finish-transaction',
+  },
+] as const;
+
+const STORE_TARGETS = [
+  {
+    store: 'Apple',
+    api: 'StoreKit 2',
+    targets: 'iOS 15+ · macOS 12+ · visionOS 1+',
+    to: '/docs/ios-setup',
+  },
+  {
+    store: 'Google Play',
+    api: 'Billing 9.1',
+    targets: 'Android API 21+',
+    to: '/docs/android-setup',
+  },
+  {
+    store: 'Meta Horizon',
+    api: 'Horizon billing',
+    targets: 'Meta Quest 2+',
+    to: '/docs/setup/store/horizon',
+  },
+  {
+    store: 'Amazon',
+    api: 'Appstore + Vega',
+    targets: 'Fire OS · Vega OS',
+    to: '/docs/setup/store/amazon',
+  },
+] as const;
 
 function Introduction() {
   return (
-    <div className="page-container">
+    <div className="in-page">
       <SEO
         title="Why OpenIAP"
         description="OpenIAP is a unified specification for in-app purchases across iOS, Android, and XR platforms. One GraphQL schema generates type-safe code for Swift, Kotlin, TypeScript, Dart, C#, and GDScript."
@@ -13,284 +156,174 @@ function Introduction() {
         keywords="OpenIAP, in-app purchase specification, StoreKit 2, Google Play Billing, cross-platform IAP, type-safe IAP, GraphQL schema"
         includeAppSchema
       />
-      <div className="content-wrapper">
-        {/* Title */}
-        <h1>Why OpenIAP</h1>
-        <p className="intro-lead">
-          OpenIAP is a unified specification for in-app purchases across iOS,
-          Android, and XR platforms. One GraphQL schema generates type-safe
-          native code for Swift, Kotlin, TypeScript, Dart, C#, and GDScript.
-        </p>
 
-        {/* The Problem */}
-        <section className="intro-section">
-          <h2>The Problem</h2>
-          <p className="intro-text">
-            In-app purchase implementations are fragmented across platforms and
-            frameworks. Each library defines its own API surface, type
-            definitions, and event patterns. This creates several challenges:
-          </p>
-          <ul className="intro-list">
-            <li>
-              <strong>Inconsistent APIs</strong> — Method names, parameter
-              structures, and return types differ between{' '}
-              <code>react-native-iap</code>, <code>flutter_inapp_purchase</code>
-              , and other libraries
-            </li>
-            <li>
-              <strong>Duplicated effort</strong> — Library maintainers
-              independently solve the same problems (transaction handling, error
-              codes, subscription lifecycle)
-            </li>
-            <li>
-              <strong>Platform drift</strong> — When Apple adds StoreKit 2
-              features or Google updates Play Billing, each library implements
-              changes differently
-            </li>
-            <li>
-              <strong>AI limitations</strong> — AI assistants cannot generate
-              reliable IAP code because no two libraries work the same way
-            </li>
-          </ul>
-          <p className="intro-text-secondary">
-            New platforms and store runtimes like{' '}
+      <header className="in-page-header">
+        <div className="in-shell">
+          <p className="in-kicker">Introduction</p>
+          <div className="in-page-lead">
+            <h1>Why OpenIAP</h1>
+            <p>
+              <strong>Stop translating purchases</strong>
+              One generated, type-safe contract keeps every store and framework
+              SDK aligned.
+            </p>
+          </div>
+          <nav className="in-page-links" aria-label="Introduction links">
+            <Link to="/languages">
+              Choose your SDK
+              <ArrowRight size={14} aria-hidden="true" />
+            </Link>
+            <Link to="/docs/apis">
+              Explore the API
+              <ArrowRight size={14} aria-hidden="true" />
+            </Link>
+          </nav>
+        </div>
+      </header>
+
+      <main className="in-shell in-main">
+        <section className="in-section" aria-labelledby="rewrite-tax">
+          <div className="in-section-heading">
+            <div>
+              <p>01 / The problem</p>
+              <h2 id="rewrite-tax">The rewrite tax</h2>
+            </div>
+            <div
+              className="in-equation"
+              role="img"
+              aria-label="Store APIs multiplied by frameworks creates repeated work"
+            >
+              <span>Store APIs</span>
+              <strong>×</strong>
+              <span>Frameworks</span>
+              <strong>=</strong>
+              <span>Repeated work</span>
+            </div>
+          </div>
+
+          <ol className="in-friction-list">
+            {FRICTION.map((item, index) => (
+              <li key={item.title}>
+                <span>{String(index + 1).padStart(2, '0')}</span>
+                <h3>{item.title}</h3>
+                <p>{item.description}</p>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section className="in-section" aria-labelledby="schema-pipeline">
+          <div className="in-section-heading">
+            <div>
+              <p>02 / The contract</p>
+              <h2 id="schema-pipeline">One source, many targets</h2>
+            </div>
+            <p>
+              Change the contract once. Generate the same shape for every
+              language, then implement it against the native stores.
+            </p>
+          </div>
+
+          <ol className="in-pipeline">
+            {PIPELINE.map((item, index) => (
+              <li key={item.title}>
+                <span>{item.label}</span>
+                <strong>{item.title}</strong>
+                <small>{item.detail}</small>
+                {index < PIPELINE.length - 1 && (
+                  <ArrowRight size={16} aria-hidden="true" />
+                )}
+              </li>
+            ))}
+          </ol>
+
+          <div className="in-native-core">
+            <p>Native core</p>
             <a
-              href="https://developer.apple.com/visionos/"
+              href="https://github.com/hyodotdev/openiap/tree/main/packages/apple"
               target="_blank"
               rel="noopener noreferrer"
             >
-              Vision Pro
+              <img
+                src={LIBRARY_IMAGES['openiap-apple']}
+                alt=""
+                aria-hidden="true"
+              />
+              <span>
+                <strong>openiap-apple</strong>
+                <small>StoreKit 2</small>
+              </span>
             </a>
-            {', '}
-            <Link to="/docs/setup/store/horizon">Horizon OS</Link>,{' '}
-            <Link to="/docs/setup/store/amazon#fire-os">Amazon Fire OS</Link>,
-            and <Link to="/docs/setup/store/amazon#vega-os">Vega OS</Link>{' '}
-            compound this fragmentation.
-          </p>
-        </section>
-
-        {/* The Solution */}
-        <section className="intro-section">
-          <h2>The Solution</h2>
-          <p className="intro-text">
-            OpenIAP provides a single source of truth for IAP implementations.
-            The specification defines:
-          </p>
-          <ul className="intro-list">
-            <li>
-              <strong>Unified API methods</strong> —{' '}
-              <Link to="/docs/apis/init-connection">
-                <code>initConnection()</code>
-              </Link>
-              ,{' '}
-              <Link to="/docs/apis/fetch-products">
-                <code>fetchProducts()</code>
-              </Link>
-              ,{' '}
-              <Link to="/docs/apis/request-purchase">
-                <code>requestPurchase()</code>
-              </Link>
-              ,{' '}
-              <Link to="/docs/apis/finish-transaction">
-                <code>finishTransaction()</code>
-              </Link>
-            </li>
-            <li>
-              <strong>Shared type definitions</strong> —{' '}
-              <Link to="/docs/types/product">
-                <code>Product</code>
-              </Link>
-              ,{' '}
-              <Link to="/docs/types/purchase">
-                <code>Purchase</code>
-              </Link>
-              ,{' '}
-              <Link to="/docs/types/ios/subscription-period-ios">
-                <code>SubscriptionPeriod</code>
-              </Link>
-              ,{' '}
-              <Link to="/docs/errors">
-                <code>PurchaseError</code>
-              </Link>
-            </li>
-            <li>
-              <strong>Standard event patterns</strong> —{' '}
-              <Link to="/docs/events/purchase-updated-listener">
-                <code>purchaseUpdatedListener</code>
-              </Link>
-              ,{' '}
-              <Link to="/docs/events/purchase-error-listener">
-                <code>purchaseErrorListener</code>
-              </Link>
-            </li>
-            <li>
-              <strong>Platform-aware naming</strong> — Cross-platform types use
-              no suffix, platform-specific use <code>IOS</code>/
-              <code>Android</code> suffix
-            </li>
-          </ul>
-        </section>
-
-        {/* Architecture */}
-        <section className="intro-section">
-          <h2>Architecture</h2>
-          <p className="intro-text">
-            OpenIAP uses a schema-driven approach. A single GraphQL schema
-            defines all types and operations, which are then generated into
-            native code for each target platform.
-          </p>
-
-          <h3>Code Generation</h3>
-          <p className="intro-text">
-            The{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap/tree/main/packages/google"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <img
+                src={LIBRARY_IMAGES['openiap-google']}
+                alt=""
+                aria-hidden="true"
+              />
+              <span>
+                <strong>openiap-google</strong>
+                <small>Play Billing 9.1</small>
+              </span>
+            </a>
             <a
               href="https://github.com/hyodotdev/openiap/tree/main/packages/gql"
               target="_blank"
               rel="noopener noreferrer"
             >
-              <code>openiap-gql</code>
-            </a>{' '}
-            package contains the GraphQL schema and generators. Running{' '}
-            <code>bun run generate</code> keeps these generated outputs in sync:
-          </p>
-          <div className="intro-code-output">
-            <pre>
-              {`packages/gql/src/generated/types.ts    # TypeScript
-packages/gql/src/generated/Types.swift   # Swift
-packages/gql/src/generated/Types.kt      # Kotlin
-packages/gql/src/generated/types.dart    # Dart
-packages/gql/src/generated/types.gd      # GDScript
-packages/gql/src/generated/Types.cs      # C# / .NET`}
-            </pre>
-          </div>
-          <p className="intro-text">
-            The canonical sync manifest then distributes these files to Apple,
-            Google, React Native, Expo, Flutter, Godot, KMP, and MAUI.
-          </p>
-
-          <h3>Native Modules</h3>
-          <p className="intro-text">
-            Two native modules implement the specification on top of platform
-            APIs:
-          </p>
-          <div className="native-module-grid">
-            <div className="native-module-card">
-              <strong>
-                <a
-                  href="https://github.com/hyodotdev/openiap/tree/main/packages/apple"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  openiap-apple
-                </a>
-              </strong>
-              <p>
-                Swift module built on{' '}
-                <a
-                  href="https://developer.apple.com/storekit/"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  StoreKit 2
-                </a>
-                . Supports iOS 15+, macOS 12+, visionOS 1.0+.
-              </p>
-            </div>
-            <div className="native-module-card">
-              <strong>
-                <a
-                  href="https://github.com/hyodotdev/openiap/tree/main/packages/google"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  openiap-google
-                </a>
-              </strong>
-              <p>
-                Kotlin module built on{' '}
-                <a
-                  href="https://developer.android.com/google/play/billing"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  Play Billing v9.1
-                </a>
-                . Supports Android 5.0+ (API 21+).
-              </p>
-            </div>
+              View the schema
+              <ArrowUpRight size={13} aria-hidden="true" />
+            </a>
           </div>
         </section>
 
-        {/* API Design */}
-        <section className="intro-section">
-          <h2>API Design</h2>
-
-          <h3>Naming Conventions</h3>
-          <p className="intro-text">
-            OpenIAP uses consistent naming across all implementations:
-          </p>
-          <div className="intro-table-wrapper">
-            <table className="intro-table">
-              <thead>
-                <tr>
-                  <th>Scope</th>
-                  <th>Pattern</th>
-                  <th>Example</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>Cross-platform</td>
-                  <td>
-                    <code>functionName</code>
-                  </td>
-                  <td>
-                    <Link to="/docs/apis/fetch-products">
-                      <code>fetchProducts()</code>
-                    </Link>
-                    ,{' '}
-                    <Link to="/docs/apis/request-purchase">
-                      <code>requestPurchase()</code>
-                    </Link>
-                  </td>
-                </tr>
-                <tr>
-                  <td>iOS-only</td>
-                  <td>
-                    <code>functionNameIOS</code>
-                  </td>
-                  <td>
-                    <Link to="/docs/apis/ios/sync-ios">
-                      <code>syncIOS()</code>
-                    </Link>
-                    ,{' '}
-                    <Link to="/docs/apis/ios/get-receipt-data-ios">
-                      <code>getReceiptDataIOS()</code>
-                    </Link>
-                  </td>
-                </tr>
-                <tr>
-                  <td>Android-only</td>
-                  <td>
-                    <code>functionNameAndroid</code>
-                  </td>
-                  <td>
-                    <Link to="/docs/apis/android/acknowledge-purchase-android">
-                      <code>acknowledgePurchaseAndroid()</code>
-                    </Link>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+        <section className="in-section" aria-labelledby="shared-surface">
+          <div className="in-section-heading in-section-heading-centered">
+            <div>
+              <p>03 / The API</p>
+              <h2 id="shared-surface">A small surface on purpose</h2>
+            </div>
           </div>
 
-          <h3>Type Safety</h3>
-          <p className="intro-text">
-            Generated models preserve the same field model in every language.
-            Statically typed targets get compile-time checks, and
-            platform-specific fields use suffixes to prevent accidental
-            cross-platform usage:
-          </p>
+          <div className="in-surfaces">
+            {SURFACES.map((surface) => (
+              <section key={surface.label}>
+                <div>
+                  <span>{surface.index}</span>
+                  <h3>{surface.label}</h3>
+                  <p>{surface.detail}</p>
+                </div>
+                <div>
+                  {surface.links.map((link) => (
+                    <Link key={link.to} to={link.to}>
+                      <code>{link.label}</code>
+                      <ArrowRight size={12} aria-hidden="true" />
+                    </Link>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        </section>
+
+        <section
+          className="in-section in-type-section"
+          aria-labelledby="type-safety"
+        >
+          <div className="in-section-heading">
+            <div>
+              <p>04 / Generated types</p>
+              <h2 id="type-safety">Same model, native language</h2>
+            </div>
+            <p>
+              Each target gets idiomatic generated types while the field model
+              stays aligned across the ecosystem.
+            </p>
+          </div>
+
           <LanguageTabs>
             {{
               swift: (
@@ -298,7 +331,6 @@ packages/gql/src/generated/Types.cs      # C# / .NET`}
     switch product {
     case let .productIos(ios):
         return ios.title + " " + ios.displayNameIOS
-
     case let .productAndroid(android):
         return android.title + " " + android.nameAndroid
     }
@@ -315,7 +347,6 @@ packages/gql/src/generated/Types.cs      # C# / .NET`}
   if (product.platform === 'ios') {
     return product.title + ' ' + product.displayNameIOS;
   }
-
   return product.title + ' ' + product.nameAndroid;
 }`}</CodeBlock>
               ),
@@ -341,495 +372,153 @@ packages/gql/src/generated/Types.cs      # C# / .NET`}
                 <CodeBlock language="gdscript">{`func display_label(product) -> String:
     if product is ProductIOS:
         return "%s %s" % [product.title, product.display_name_ios]
-
     if product is ProductAndroid:
         return "%s %s" % [product.title, product.name_android]
-
     return product.title`}</CodeBlock>
               ),
             }}
           </LanguageTabs>
         </section>
 
-        {/* Purchase Flow */}
-        <section className="intro-section">
-          <h2>Purchase Flow</h2>
-          <p className="intro-text">
-            The standard purchase flow uses the same sequence across OpenIAP
-            implementations:
-          </p>
-          <LanguageTabs>
-            {{
-              swift: (
-                <CodeBlock language="swift">{`import OpenIap
+        <section className="in-section" aria-labelledby="purchase-loop">
+          <div className="in-section-heading">
+            <div>
+              <p>05 / Runtime</p>
+              <h2 id="purchase-loop">The purchase loop</h2>
+            </div>
+            <p>
+              The same lifecycle travels from connection through server-side
+              validation to a finished transaction.
+            </p>
+          </div>
 
-let store = OpenIapModule.shared
-
-try await store.initConnection()
-
-let updates = Task {
-    for await purchase in store.purchaseUpdates {
-        guard await verifyPurchase(purchase) else { continue }
-        await grantAccess(purchase.productId)
-        try await store.finishTransaction(purchase, isConsumable: false)
-    }
-}
-
-_ = try await store.fetchProducts(
-    ProductRequest(skus: ["com.app.premium"], type: .inApp)
-)
-
-try await store.requestPurchase(
-    RequestPurchaseProps(
-        request: RequestPurchasePropsByPlatforms(
-            apple: RequestPurchaseIosProps(sku: "com.app.premium")
-        ),
-        type: .inApp
-    )
-)
-
-updates.cancel()
-try await store.endConnection()`}</CodeBlock>
-              ),
-              kotlin: (
-                <CodeBlock language="kotlin">{`import dev.hyo.openiap.store.OpenIapStore
-import dev.hyo.openiap.*
-
-val store = OpenIapStore(context)
-
-store.initConnection(null)
-
-val updates = scope.launch {
-    store.purchaseUpdates.collect { purchase ->
-        if (verifyPurchase(purchase)) {
-            grantAccess(purchase.productId)
-            store.finishTransaction(purchase, isConsumable = false)
-        }
-    }
-}
-
-store.fetchProducts(
-    ProductRequest(
-        skus = listOf("com.app.premium"),
-        type = ProductQueryType.InApp
-    )
-)
-
-store.requestPurchase(
-    RequestPurchaseProps(
-        request = RequestPurchasePropsByPlatforms(
-            google = RequestPurchaseAndroidProps(
-                skus = listOf("com.app.premium")
-            )
-        ),
-        type = ProductQueryType.InApp
-    )
-)
-
-updates.cancel()
-store.endConnection()`}</CodeBlock>
-              ),
-              typescript: (
-                <CodeBlock language="typescript">{`import {
-  initConnection,
-  fetchProducts,
-  requestPurchase,
-  finishTransaction,
-  purchaseUpdatedListener,
-  endConnection,
-} from 'expo-iap';
-
-await initConnection();
-
-const subscription = purchaseUpdatedListener(async (purchase) => {
-  if (await verifyPurchase(purchase)) {
-    await grantAccess(purchase.productId);
-    await finishTransaction({ purchase, isConsumable: false });
-  }
-});
-
-await fetchProducts({
-  skus: ['com.app.premium'],
-  type: 'in-app',
-});
-
-await requestPurchase({
-  request: {
-    apple: { sku: 'com.app.premium' },
-    google: { skus: ['com.app.premium'] },
-  },
-  type: 'in-app',
-});
-
-subscription.remove();
-await endConnection();`}</CodeBlock>
-              ),
-              dart: (
-                <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
-
-final iap = FlutterInappPurchase.instance;
-
-await iap.initConnection();
-
-final subscription =
-    FlutterInappPurchase.purchaseUpdatedStream.listen((purchase) async {
-  if (purchase == null) return;
-
-  if (await verifyPurchase(purchase)) {
-    await grantAccess(purchase.productId);
-    await iap.finishTransaction(purchase, isConsumable: false);
-  }
-});
-
-await iap.fetchProducts(
-  skus: ['com.app.premium'],
-  type: ProductQueryType.InApp,
-);
-
-await iap.requestPurchase(
-  RequestPurchaseProps(
-    request: RequestPurchasePropsByPlatforms(
-      apple: RequestPurchaseIosProps(sku: 'com.app.premium'),
-      google: RequestPurchaseAndroidProps(skus: ['com.app.premium']),
-    ),
-    type: ProductQueryType.InApp,
-  ),
-);
-
-await subscription.cancel();
-await iap.endConnection();`}</CodeBlock>
-              ),
-              csharp: (
-                <CodeBlock language="csharp">{`using OpenIap;
-using OpenIap.Maui;
-
-var iap = OpenIapClient.Instance;
-var query = (QueryResolver)iap;
-var mutation = (MutationResolver)iap;
-
-await mutation.InitConnectionAsync();
-
-var subscription = iap.PurchaseUpdated.Subscribe(async purchase =>
-{
-    var verified = await VerifyPurchaseAsync(purchase);
-    if (!verified) return;
-
-    if (purchase is PurchaseCommon common)
-    {
-        await GrantAccessAsync(common.ProductId);
-    }
-
-    await mutation.FinishTransactionAsync(
-        new PurchaseInput(purchase),
-        isConsumable: false);
-});
-
-await query.FetchProductsAsync(new ProductRequest
-{
-    Skus = new[] { "com.app.premium" },
-    Type = ProductQueryType.InApp,
-});
-
-await mutation.RequestPurchaseAsync(new RequestPurchaseProps
-{
-    RequestPurchase = new RequestPurchasePropsByPlatforms
-    {
-        Apple = new RequestPurchaseIosProps { Sku = "com.app.premium" },
-        Google = new RequestPurchaseAndroidProps
-        {
-            Skus = new[] { "com.app.premium" },
-        },
-    },
-    Type = ProductQueryType.InApp,
-});
-
-subscription.Dispose();
-await mutation.EndConnectionAsync();`}</CodeBlock>
-              ),
-              gdscript: (
-                <CodeBlock language="gdscript">{`await iap.init_connection()
-
-iap.purchase_updated.connect(func(purchase):
-    if await verify_purchase(purchase):
-        await grant_access(purchase.product_id)
-        await iap.finish_transaction(purchase, false)
-)
-
-var request = ProductRequest.new()
-request.skus = ["com.app.premium"]
-request.type = ProductQueryType.IN_APP
-await iap.fetch_products(request)
-
-var props = RequestPurchaseProps.new()
-props.request = RequestPurchasePropsByPlatforms.new()
-props.request.apple = RequestPurchaseIosProps.new()
-props.request.apple.sku = "com.app.premium"
-props.type = ProductQueryType.IN_APP
-await iap.request_purchase(props)
-
-await iap.end_connection()`}</CodeBlock>
-              ),
-            }}
-          </LanguageTabs>
-          <p className="intro-text-note">
-            See <Link to="/docs/lifecycle">Purchase Lifecycle</Link> for
-            detailed flow documentation.
-          </p>
+          <ol className="in-purchase-loop">
+            {PURCHASE_LOOP.map((step, index) => (
+              <li key={step.label}>
+                <span>{String(index + 1).padStart(2, '0')}</span>
+                <Link to={step.to}>
+                  <strong>{step.label}</strong>
+                  <code>{step.code}</code>
+                </Link>
+              </li>
+            ))}
+          </ol>
+          <Link className="in-inline-link" to="/docs/lifecycle">
+            Explore the full purchase lifecycle
+            <ArrowRight size={14} aria-hidden="true" />
+          </Link>
         </section>
 
-        {/* Supported Platforms */}
-        <section className="intro-section">
-          <h2>Supported Platforms</h2>
-          <div className="intro-table-wrapper">
-            <table className="intro-table">
-              <thead>
-                <tr>
-                  <th>Platform</th>
-                  <th>Billing API</th>
-                  <th>Min Version</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>iOS</td>
-                  <td>
-                    <a
-                      href="https://developer.apple.com/storekit/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      StoreKit 2
-                    </a>
-                  </td>
-                  <td>iOS 15.0+</td>
-                </tr>
-                <tr>
-                  <td>macOS</td>
-                  <td>StoreKit 2</td>
-                  <td>macOS 12.0+</td>
-                </tr>
-                <tr>
-                  <td>visionOS</td>
-                  <td>StoreKit 2</td>
-                  <td>visionOS 1.0+</td>
-                </tr>
-                <tr>
-                  <td>Android</td>
-                  <td>
-                    <a
-                      href="https://developer.android.com/google/play/billing"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Play Billing v9.1
-                    </a>
-                  </td>
-                  <td>API 21+ (5.0)</td>
-                </tr>
-                <tr>
-                  <td>Meta Quest</td>
-                  <td>
-                    <Link to="/docs/setup/store/horizon">Horizon OS</Link>
-                  </td>
-                  <td>Quest 2+</td>
-                </tr>
-                <tr>
-                  <td>Amazon Fire OS</td>
-                  <td>
-                    <Link to="/docs/setup/store/amazon#fire-os">
-                      Amazon Appstore SDK
-                    </Link>
-                  </td>
-                  <td>Fire OS devices</td>
-                </tr>
-                <tr>
-                  <td>Amazon Vega OS</td>
-                  <td>
-                    <Link to="/docs/setup/store/amazon#vega-os">
-                      Vega JavaScript IAP runtime
-                    </Link>
-                  </td>
-                  <td>React Native for Vega apps</td>
-                </tr>
-              </tbody>
-            </table>
+        <section className="in-section" aria-labelledby="shipping-targets">
+          <div className="in-section-heading">
+            <div>
+              <p>06 / Reach</p>
+              <h2 id="shipping-targets">Where it ships</h2>
+            </div>
+            <p>Native store depth below, framework choice above.</p>
+          </div>
+
+          <div className="in-targets">
+            <div className="in-store-list">
+              {STORE_TARGETS.map((target) => (
+                <Link key={target.store} to={target.to}>
+                  <span>{target.store}</span>
+                  <strong>{target.api}</strong>
+                  <small>{target.targets}</small>
+                  <ArrowRight size={13} aria-hidden="true" />
+                </Link>
+              ))}
+            </div>
+            <div className="in-framework-list">
+              {LIBRARIES.map((library) => (
+                <Link key={library.name} to={library.setupPath}>
+                  <img src={library.image} alt="" aria-hidden="true" />
+                  <span>
+                    <strong>{library.homeLabel}</strong>
+                    <small>{library.language}</small>
+                  </span>
+                </Link>
+              ))}
+            </div>
           </div>
         </section>
 
-        {/* Framework Implementations */}
-        <section className="intro-section">
-          <h2>Framework Implementations</h2>
-          <p className="intro-text">
-            Production-ready libraries implementing the OpenIAP specification:
-          </p>
-          <div className="intro-table-wrapper">
-            <table className="intro-table">
-              <thead>
-                <tr>
-                  <th>Library</th>
-                  <th>Framework</th>
-                  <th>Bridge</th>
-                </tr>
-              </thead>
-              <tbody>
-                <tr>
-                  <td>
-                    <a
-                      href="https://github.com/hyodotdev/openiap/tree/main/libraries/expo-iap"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      expo-iap
-                    </a>
-                  </td>
-                  <td>Expo</td>
-                  <td>
-                    <a
-                      href="https://docs.expo.dev/modules/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Expo Modules
-                    </a>
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <a
-                      href="https://github.com/hyodotdev/openiap/tree/main/libraries/react-native-iap"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      react-native-iap
-                    </a>
-                  </td>
-                  <td>React Native</td>
-                  <td>
-                    <a
-                      href="https://github.com/margelo/nitro"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Nitro Modules
-                    </a>
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <a
-                      href="https://github.com/hyodotdev/openiap/tree/main/libraries/flutter_inapp_purchase"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      flutter_inapp_purchase
-                    </a>
-                  </td>
-                  <td>Flutter</td>
-                  <td>
-                    <a
-                      href="https://pub.dev/packages/pigeon"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      Pigeon
-                    </a>
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <a
-                      href="https://github.com/hyodotdev/openiap/tree/main/libraries/kmp-iap"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      kmp-iap
-                    </a>
-                  </td>
-                  <td>Kotlin Multiplatform</td>
-                  <td>
-                    <a
-                      href="https://kotlinlang.org/docs/native-objc-interop.html"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      K/N Interop
-                    </a>
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <a
-                      href="https://github.com/hyodotdev/openiap/tree/main/libraries/maui-iap"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      maui-iap
-                    </a>
-                  </td>
-                  <td>.NET MAUI</td>
-                  <td>
-                    <a
-                      href="https://learn.microsoft.com/dotnet/maui/"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      .NET MAUI
-                    </a>
-                  </td>
-                </tr>
-                <tr>
-                  <td>
-                    <a
-                      href="https://github.com/hyodotdev/openiap/tree/main/libraries/godot-iap"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      godot-iap
-                    </a>
-                  </td>
-                  <td>Godot 4.x</td>
-                  <td>
-                    <a
-                      href="https://docs.godotengine.org/en/stable/tutorials/plugins/editor/gdextension.html"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      GDExtension
-                    </a>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
+        <section className="in-kit-reveal" aria-labelledby="iapkit-reveal">
+          <div className="in-kit-reveal-inner">
+            <p className="in-kit-eyebrow">One more thing</p>
+            <img src={IAPKIT_LOGO_PATH} alt="" aria-hidden="true" />
+            <h2 id="iapkit-reveal">Meet IAPKit</h2>
+            <p className="in-kit-tagline">The backend for every purchase</p>
+            <p className="in-kit-description">
+              One backend validates purchases from Apple StoreKit 2, Google
+              Play, Meta Horizon, Amazon Fire OS, and Vega OS, then returns one
+              normalized result.
+            </p>
+            <div
+              className="in-kit-platforms"
+              role="group"
+              aria-label="IAPKit purchase verification platforms"
+            >
+              <span>Apple</span>
+              <span>Google Play</span>
+              <span>Meta Horizon</span>
+              <span>Fire OS</span>
+              <span>Vega OS</span>
+            </div>
+            <div
+              className="in-kit-capabilities"
+              role="group"
+              aria-label="IAPKit features"
+            >
+              <span>Server validation</span>
+              <span>Entitlements</span>
+              <span>Store MCP</span>
+              <span>Revenue</span>
+            </div>
+            <div className="in-kit-actions">
+              <a
+                href={IAPKIT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={trackIapKitClick}
+              >
+                Open IAPKit
+                <ArrowUpRight size={14} aria-hidden="true" />
+              </a>
+              <Link to="/docs/kit-backend">
+                Explore the backend
+                <ArrowRight size={14} aria-hidden="true" />
+              </Link>
+            </div>
           </div>
-          <p className="intro-text-secondary">
-            <Link to="/languages">View all implementations →</Link>
-          </p>
         </section>
 
-        {/* Getting Started */}
-        <section className="intro-section">
-          <h2>Getting Started</h2>
-          <p className="intro-text">Choose your framework to get started:</p>
-          <div className="getting-started-grid">
-            <Link to="/docs/apis" className="getting-started-card">
-              <strong>API Reference</strong>
-              <p>Core methods and patterns</p>
-            </Link>
-            <Link to="/docs/types" className="getting-started-card">
-              <strong>Type Definitions</strong>
-              <p>Generated types for all languages</p>
-            </Link>
-            <Link to="/docs/lifecycle" className="getting-started-card">
-              <strong>Purchase Lifecycle</strong>
-              <p>Transaction flow diagrams</p>
-            </Link>
-            <Link to="/tutorials" className="getting-started-card">
-              <strong>Tutorials</strong>
-              <p>Step-by-step guides</p>
-            </Link>
+        <aside className="in-start">
+          <Braces size={24} strokeWidth={1.6} aria-hidden="true" />
+          <div>
+            <p>Ready to build?</p>
+            <h2>Start with the stack you already know</h2>
           </div>
-        </section>
-      </div>
+          <div>
+            <Link to="/languages">
+              Choose an SDK
+              <ArrowRight size={14} aria-hidden="true" />
+            </Link>
+            <Link to="/tutorials">
+              Follow a guide
+              <ArrowRight size={14} aria-hidden="true" />
+            </Link>
+            <a
+              href="https://github.com/hyodotdev/openiap"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <Github size={14} aria-hidden="true" />
+              GitHub
+            </a>
+          </div>
+        </aside>
+      </main>
     </div>
   );
 }

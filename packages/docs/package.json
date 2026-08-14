@@ -25,7 +25,6 @@
     "react": "^19.0.0",
     "react-compiler-runtime": "^19.1.0-rc.2",
     "react-dom": "^19.0.0",
-    "react-helmet-async": "^2.0.5",
     "react-icons": "^5.5.0",
     "react-router-dom": "^6.26.0",
     "react-toastify": "^11.0.2"

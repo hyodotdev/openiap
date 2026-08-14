@@ -1,4 +1,4 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import 'https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Manrope:wght@500..800&display=swap';
 
 /* Global Styles */
 * {
@@ -18,16 +18,7 @@ html {
 }
 
 body {
-  font-family:
-    'Inter',
-    -apple-system,
-    BlinkMacSystemFont,
-    'Segoe UI',
-    'Roboto',
-    'Oxygen',
-    'Ubuntu',
-    'Cantarell',
-    sans-serif;
+  font-family: var(--font-family-sans);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: #fefefe;
@@ -43,6 +34,23 @@ body {
   width: 100%;
   max-width: 100vw;
   position: relative;
+}
+
+img[src='/sponsors/meta.webp'] {
+  filter: var(--meta-logo-filter);
+}
+
+img[src='/frameworks/apple.svg'] {
+  filter: var(--apple-logo-filter);
+}
+
+h1,
+h2,
+h3,
+h4 {
+  font-family: var(--font-family-display);
+  font-optical-sizing: auto;
+  text-wrap: balance;
 }
 
 #root {

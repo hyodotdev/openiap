@@ -376,11 +376,14 @@ function OnePager() {
             Billing 9.1.0, Meta Horizon Billing Compatibility 2.0.0
           </li>
           <li>
-            <strong>Sponsor</strong>: Meta (founding sponsor)
+            <strong>Sponsor</strong>: Meta (Angel tier)
           </li>
           <li>
-            <strong>Maintainer</strong>: Hyo (hyo.dev) — 500+ commits, 80+
-            merged PRs
+            <strong>Maintainer</strong>: Hyo (
+            <a href="https://hyo.dev" target="_blank" rel="noopener noreferrer">
+              hyo.dev
+            </a>
+            ) — 500+ commits, 80+ merged PRs
           </li>
         </ul>
       </section>

@@ -1,626 +1,373 @@
+import {
+  ArrowUpRight,
+  Gauge,
+  Heart,
+  ServerCog,
+  ShieldCheck,
+  Smartphone,
+} from 'lucide-react';
 import SEO from '../components/SEO';
 import { LIBRARIES, LIBRARY_IMAGES } from '../lib/images';
 
+const FUNDING_LINES = [
+  {
+    icon: Smartphone,
+    title: 'Real-device testing',
+    description:
+      'Store accounts, test hardware, refunds, renewals, and edge cases.',
+  },
+  {
+    icon: ServerCog,
+    title: 'Shared IAPKit capacity',
+    description: 'Servers, monitoring, receipt validation, and load testing.',
+  },
+  {
+    icon: ShieldCheck,
+    title: 'Store change response',
+    description:
+      'Billing upgrades, policy changes, security, and signed transactions.',
+  },
+  {
+    icon: Gauge,
+    title: 'SDK parity',
+    description:
+      'One reviewed contract across native modules and six frameworks.',
+  },
+] as const;
+
+interface CurrentSponsor {
+  name: string;
+  image: string;
+  url: string;
+}
+
+const CURRENT_SPONSORS: CurrentSponsor[] = [
+  {
+    name: 'Meta',
+    image: '/sponsors/meta.webp',
+    url: 'https://meta.com',
+  },
+];
+
+const REACT_NATIVE_FAMILY = LIBRARIES.filter(
+  (library) =>
+    library.name === 'react-native-iap' || library.name === 'expo-iap'
+).sort((first, second) => {
+  if (first.name === second.name) return 0;
+  return first.name === 'react-native-iap' ? -1 : 1;
+});
+
+const OTHER_FRAMEWORKS = LIBRARIES.filter(
+  (library) =>
+    library.name !== 'react-native-iap' && library.name !== 'expo-iap'
+);
+
 function Sponsors() {
   return (
-    <div className="page-container">
+    <div className="xp-page xp-sponsors">
       <SEO
         title="Sponsor OpenIAP"
         description="Sponsor OpenIAP — unified in-app purchase infrastructure used in production across iOS, Android, and emerging platforms. Sponsorship funds maintenance, stability, and long-term platform integration."
         path="/sponsors"
         keywords="OpenIAP sponsors, GitHub Sponsors, IAP infrastructure, in-app purchase open source, vendor sponsorship"
       />
-      <div className="content-wrapper" style={{ textAlign: 'center' }}>
-        <h1>Sponsor OpenIAP</h1>
-        <p className="page-subtitle">
-          Production-grade in-app purchase infrastructure for iOS, Android, and
-          beyond
-        </p>
 
-        <section className="resources-section">
-          <p
-            style={{
-              maxWidth: '720px',
-              margin: '0 auto 2rem',
-              lineHeight: '1.7',
-              color: 'var(--text-secondary, #666)',
-              textAlign: 'center',
-            }}
-          >
-            OpenIAP is unified in-app purchase infrastructure used in production
-            across iOS, Android, and cross-platform frameworks. Sponsorship
-            funds the native modules and the downstream libraries built on top
-            of them.
-          </p>
+      <main className="xp-shell xp-sponsors-sheet">
+        <section
+          className="xp-sponsors-opening"
+          aria-labelledby="sponsors-title"
+        >
+          <div className="xp-sponsors-intro">
+            <div>
+              <p className="xp-kicker">Sponsor OpenIAP</p>
+              <h1 id="sponsors-title">Keep the purchase layer open</h1>
+              <p className="xp-lede">
+                Fund the native modules, shared backend capacity, and framework
+                SDKs that teams ship in production.
+              </p>
+              <div className="xp-hero-actions">
+                <a
+                  href="https://opencollective.com/openiap"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Support the project
+                  <ArrowUpRight size={15} aria-hidden="true" />
+                </a>
+                <a
+                  href="https://github.com/sponsors/hyodotdev"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Heart size={15} aria-hidden="true" />
+                  Sponsor the maintainer
+                </a>
+              </div>
+            </div>
+
+            <p className="xp-sponsor-love-note">
+              <Heart size={20} strokeWidth={1.7} aria-hidden="true" />
+              <span>
+                Built in public.
+                <strong>Kept open together.</strong>
+              </span>
+            </p>
+          </div>
+
           <div
-            style={{
-              display: 'flex',
-              gap: '1.5rem',
-              justifyContent: 'center',
-              flexWrap: 'wrap',
-              alignItems: 'center',
-            }}
+            className="xp-sponsor-network"
+            aria-label="Current OpenIAP sponsors"
+          >
+            <div className="xp-sponsor-hub">
+              <Heart size={19} strokeWidth={1.6} aria-hidden="true" />
+              <strong>OpenIAP</strong>
+              <span>kept open by</span>
+            </div>
+
+            <ul className="xp-sponsor-node-list">
+              {CURRENT_SPONSORS.map((sponsor, index) => (
+                <li key={sponsor.name} className="xp-sponsor-node">
+                  <small>{String(index + 1).padStart(2, '0')} Sponsor</small>
+                  <a
+                    href={sponsor.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`Visit ${sponsor.name}`}
+                  >
+                    <img src={sponsor.image} alt={sponsor.name} />
+                  </a>
+                </li>
+              ))}
+              <li className="xp-sponsor-node xp-sponsor-open-node">
+                <small>Next</small>
+                <a
+                  href="https://github.com/sponsors/hyodotdev"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <Heart size={15} strokeWidth={1.7} aria-hidden="true" />
+                  Add your name
+                </a>
+              </li>
+            </ul>
+          </div>
+        </section>
+
+        <section className="xp-section" aria-labelledby="shared-stack">
+          <div className="xp-section-heading">
+            <div>
+              <p>One shared stack</p>
+              <h2 id="shared-stack">Support travels downstream</h2>
+            </div>
+            <p>Work funded at the native core reaches every framework SDK.</p>
+          </div>
+
+          <div
+            className="xp-stack-rail"
+            aria-label="OpenIAP supported libraries"
           >
             <a
               href="https://github.com/hyodotdev/openiap/tree/main/packages/apple"
               target="_blank"
               rel="noopener noreferrer"
-              style={{
-                color: 'var(--primary-color)',
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-              }}
             >
               <img
                 src={LIBRARY_IMAGES['openiap-apple']}
-                alt="openiap-apple"
-                style={{
-                  width: '28px',
-                  height: '28px',
-                  objectFit: 'contain',
-                  filter: 'var(--apple-logo-filter, none)',
-                }}
+                alt=""
+                aria-hidden="true"
               />
-              <span>openiap-apple</span>
+              <span>Apple</span>
             </a>
             <a
               href="https://github.com/hyodotdev/openiap/tree/main/packages/google"
               target="_blank"
               rel="noopener noreferrer"
-              style={{
-                color: 'var(--primary-color)',
-                textDecoration: 'none',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-              }}
             >
               <img
                 src={LIBRARY_IMAGES['openiap-google']}
-                alt="openiap-google"
-                style={{
-                  width: '28px',
-                  height: '28px',
-                  objectFit: 'contain',
-                }}
+                alt=""
+                aria-hidden="true"
               />
-              <span>openiap-google</span>
+              <span>Google</span>
             </a>
-            {LIBRARIES.map((lib) => (
+            <div
+              className="xp-stack-family"
+              aria-label="React Native and Expo libraries"
+            >
+              {REACT_NATIVE_FAMILY.map((library) => (
+                <a
+                  key={library.name}
+                  href={library.url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className={
+                    library.name === 'react-native-iap'
+                      ? 'xp-stack-family-primary'
+                      : 'xp-stack-family-secondary'
+                  }
+                >
+                  <img src={library.image} alt="" aria-hidden="true" />
+                  <span>
+                    <strong>{library.homeLabel}</strong>
+                    <small>
+                      {library.name === 'react-native-iap'
+                        ? 'Primary'
+                        : 'Same API'}
+                    </small>
+                  </span>
+                </a>
+              ))}
+            </div>
+            {OTHER_FRAMEWORKS.map((library) => (
               <a
-                key={lib.name}
-                href={lib.url}
+                key={library.name}
+                href={library.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{
-                  color: 'var(--primary-color)',
-                  textDecoration: 'none',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '0.5rem',
-                }}
               >
-                <img
-                  src={lib.image}
-                  alt={lib.displayName}
-                  style={{
-                    width: '28px',
-                    height: '28px',
-                    objectFit: 'contain',
-                  }}
-                />
-                <span>{lib.displayName}</span>
+                <img src={library.image} alt="" aria-hidden="true" />
+                <span>{library.homeLabel}</span>
               </a>
             ))}
           </div>
         </section>
 
-        <section className="resources-section">
-          <h2 style={{ textAlign: 'center' }}>
-            Keep Hosted IAPKit Shared and Sustainable
-          </h2>
-          <div
-            style={{
-              maxWidth: '760px',
-              margin: '0 auto',
-              textAlign: 'left',
-              lineHeight: '1.75',
-              color: 'var(--text-secondary, #666)',
-            }}
-          >
+        <section className="xp-section" aria-labelledby="funding-title">
+          <div className="xp-section-heading">
+            <div>
+              <p>Where support goes</p>
+              <h2 id="funding-title">Maintenance you can ship</h2>
+            </div>
             <p>
-              The official <code>kit.openiap.dev</code> service runs the
-              open-source IAPKit backend as shared infrastructure for the whole
-              ecosystem. It is free under fair-use safeguards, best-effort, and
-              intentionally available to developers who cannot operate a
-              receipt-validation server themselves.
+              AI accelerates this work. Funding keeps humans accountable for it.
+            </p>
+          </div>
+
+          <ol className="xp-funding-ledger">
+            {FUNDING_LINES.map((line, index) => {
+              const Icon = line.icon;
+
+              return (
+                <li key={line.title}>
+                  <span>{String(index + 1).padStart(2, '0')}</span>
+                  <Icon size={21} strokeWidth={1.55} aria-hidden="true" />
+                  <strong>{line.title}</strong>
+                  <p>{line.description}</p>
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+
+        <section className="xp-kit-note" aria-labelledby="kit-capacity">
+          <div>
+            <span>Shared infrastructure</span>
+            <a
+              href="https://kit.openiap.dev"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <code>kit.openiap.dev</code>
+              <ArrowUpRight size={14} aria-hidden="true" />
+            </a>
+          </div>
+          <div>
+            <h2 id="kit-capacity">Keep hosted IAPKit sustainable</h2>
+            <p>
+              The community instance is free, best-effort, and protected by fair
+              use. Teams expecting sustained high volume should contact us
+              before launch and help fund the capacity they need.
             </p>
             <p>
-              If your organization expects sustained high volume or would use a
-              meaningful share of that capacity, we ask you to contact us before
-              launch and help fund the servers, monitoring, security, and load
-              testing your traffic requires. You can contribute through{' '}
-              <a
-                href="https://github.com/sponsors/hyodotdev"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  color: 'var(--primary-color)',
-                  textDecoration: 'underline',
-                }}
-              >
-                GitHub Sponsors
-              </a>{' '}
-              or{' '}
-              <a
-                href="https://opencollective.com/openiap"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  color: 'var(--primary-color)',
-                  textDecoration: 'underline',
-                }}
-              >
-                OpenCollective
-              </a>
-              .
-            </p>
-            <p>
-              Sponsorship strengthens shared capacity for everyone; it does not
-              automatically buy unlimited usage, dedicated resources, or an SLA.
-              Teams that need predictable scaling or full operational control
-              can{' '}
+              Sponsorship does not include unlimited usage, dedicated resources,
+              or an SLA. You can also{' '}
               <a
                 href="https://github.com/hyodotdev/openiap/tree/main/packages/kit#deployment-convex--flyio"
                 target="_blank"
                 rel="noopener noreferrer"
-                style={{
-                  color: 'var(--primary-color)',
-                  textDecoration: 'underline',
-                }}
               >
                 self-host the MIT-licensed server
-              </a>{' '}
-              or contact{' '}
-              <a
-                href="mailto:hyo@hyo.dev"
-                style={{
-                  color: 'var(--primary-color)',
-                  textDecoration: 'underline',
-                }}
-              >
-                hyo@hyo.dev
-              </a>{' '}
-              about a separate written arrangement.
-            </p>
-          </div>
-        </section>
-
-        <section className="resources-section">
-          <h2 style={{ textAlign: 'center' }}>
-            Why AI Can't Replace This Work
-          </h2>
-          <div
-            style={{
-              maxWidth: '760px',
-              margin: '0 auto',
-              textAlign: 'left',
-              lineHeight: '1.75',
-              color: 'var(--text-secondary, #666)',
-            }}
-          >
-            <p
-              style={{
-                marginBottom: '1.25rem',
-                textAlign: 'center',
-                fontWeight: '600',
-                color: 'var(--text-primary)',
-              }}
-            >
-              In-app purchase systems cannot be reliably simulated — they
-              require real platform integration and ongoing maintenance.
-            </p>
-            <ul
-              style={{
-                listStyle: 'none',
-                padding: 0,
-                margin: 0,
-                display: 'grid',
-                gap: '1rem',
-              }}
-            >
-              <li>
-                <strong style={{ color: 'var(--text-primary)' }}>
-                  Real devices, real store servers.
-                </strong>{' '}
-                StoreKit 2 and Google Play Billing only behave correctly against
-                Apple and Google infrastructure — not in sandboxes AI can reason
-                about.
-              </li>
-              <li>
-                <strong style={{ color: 'var(--text-primary)' }}>
-                  Store policies change constantly.
-                </strong>{' '}
-                Billing Client upgrades, receipt-validation changes, and
-                subscription-state semantics ship every few months and break
-                silently.
-              </li>
-              <li>
-                <strong style={{ color: 'var(--text-primary)' }}>
-                  Edge cases surface only in production.
-                </strong>{' '}
-                Refunds, grace periods, family sharing, promotional offers, and
-                regional pricing need human debugging against live accounts.
-              </li>
-              <li>
-                <strong style={{ color: 'var(--text-primary)' }}>
-                  Cross-framework consistency is a judgment call.
-                </strong>{' '}
-                Keeping React Native, Expo, Flutter, KMP, and Godot aligned
-                requires human review of API shape, error mapping, and breaking
-                changes.
-              </li>
-              <li>
-                <strong style={{ color: 'var(--text-primary)' }}>
-                  Real money, real accountability.
-                </strong>{' '}
-                Every bug costs users money, triggers chargebacks, and damages
-                app ratings. Liability and fraud prevention can't be delegated
-                to a model.
-              </li>
-              <li>
-                <strong style={{ color: 'var(--text-primary)' }}>
-                  Security-sensitive by design.
-                </strong>{' '}
-                Receipt validation, purchase tokens, and JWS signature checks
-                protect revenue — hallucinated crypto or auth code is a
-                liability, not a feature.
-              </li>
-              <li>
-                <strong style={{ color: 'var(--text-primary)' }}>
-                  Regulatory change lands without warning.
-                </strong>{' '}
-                EU DMA alternative billing, Korea's third-party payment law, and
-                App Store Review guideline shifts require legal judgment and
-                coordinated rollouts across libraries.
-              </li>
-              <li>
-                <strong style={{ color: 'var(--text-primary)' }}>
-                  Upstream bugs need humans on the other end.
-                </strong>{' '}
-                Apple Feedback Assistant, TSI tickets, and Play Console reports
-                take weeks of back-and-forth with real engineers at Apple and
-                Google.
-              </li>
-            </ul>
-            <p
-              style={{
-                marginTop: '1.5rem',
-                textAlign: 'center',
-                fontSize: '0.95rem',
-                fontStyle: 'italic',
-              }}
-            >
-              AI accelerates the work. It does not replace the maintainers who
-              ship, debug, and stand behind it.
-            </p>
-          </div>
-        </section>
-
-        <section className="resources-section">
-          <h2 style={{ textAlign: 'center', marginBottom: '1rem' }}>
-            Sponsor on GitHub
-          </h2>
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '1.25rem',
-            }}
-          >
-            <p
-              style={{
-                textAlign: 'center',
-                color: 'var(--text-secondary, #666)',
-                maxWidth: '640px',
-                margin: '0 auto',
-                lineHeight: '1.6',
-              }}
-            >
-              OpenCollective is the project fund — corporate sponsorship tiers
-              and infrastructure costs (including the IAPKit community instance)
-              flow through its public, transparent ledger. GitHub Sponsors
-              supports the maintainer directly and is kept separate from project
-              accounting.
-            </p>
-            <div
-              style={{
-                display: 'flex',
-                gap: '1rem',
-                flexWrap: 'wrap',
-                justifyContent: 'center',
-                alignItems: 'center',
-              }}
-            >
-              <a
-                href="https://github.com/sponsors/hyodotdev"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '0.6rem',
-                  backgroundColor: '#24292f',
-                  color: '#ffffff',
-                  padding: '0.9rem 2rem',
-                  borderRadius: '0.5rem',
-                  textDecoration: 'none',
-                  fontWeight: '600',
-                  fontSize: '1.05rem',
-                  border: 'none',
-                  transition: 'transform 0.2s, box-shadow 0.2s',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.12)',
-                  minHeight: '54.72px',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow =
-                    '0 4px 12px rgba(0, 0, 0, 0.18)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow =
-                    '0 2px 8px rgba(0, 0, 0, 0.12)';
-                }}
-              >
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 16 16"
-                  fill="#db61a2"
-                  aria-hidden="true"
-                >
-                  <path d="M4.25 2.5c-1.336 0-2.75 1.164-2.75 3 0 2.15 1.58 4.144 3.365 5.682A20.565 20.565 0 008 13.393a20.561 20.561 0 003.135-2.211C12.92 9.644 14.5 7.65 14.5 5.5c0-1.836-1.414-3-2.75-3-1.373 0-2.609.986-3.029 2.456a.75.75 0 01-1.442 0C6.859 3.486 5.623 2.5 4.25 2.5zM8 14.25l-.345.666-.002-.001-.006-.003-.018-.01a7.643 7.643 0 01-.31-.17 22.075 22.075 0 01-3.434-2.414C2.045 10.731 0 8.35 0 5.5 0 2.836 2.086 1 4.25 1 5.797 1 7.153 1.802 8 3.02 8.847 1.802 10.203 1 11.75 1 13.914 1 16 2.836 16 5.5c0 2.85-2.045 5.231-3.885 6.818a22.08 22.08 0 01-3.744 2.584l-.018.01-.006.003h-.002L8 14.25z" />
-                </svg>
-                <span>Sponsor on GitHub</span>
-              </a>
-              <a
-                href="https://opencollective.com/openiap"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: '#3385ff',
-                  color: '#ffffff',
-                  padding: '0.9rem 2rem',
-                  borderRadius: '0.5rem',
-                  textDecoration: 'none',
-                  fontWeight: '600',
-                  fontSize: '1rem',
-                  border: 'none',
-                  transition: 'transform 0.2s, box-shadow 0.2s',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.12)',
-                  minHeight: '54.72px',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow =
-                    '0 4px 12px rgba(0, 0, 0, 0.18)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow =
-                    '0 2px 8px rgba(0, 0, 0, 0.12)';
-                }}
-              >
-                <span>Support on OpenCollective</span>
-              </a>
-              <a
-                href="https://paypal.me/dooboolab"
-                target="_blank"
-                rel="noopener noreferrer"
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  backgroundColor: '#0070ba',
-                  color: '#ffffff',
-                  padding: '0.9rem 2rem',
-                  borderRadius: '0.5rem',
-                  textDecoration: 'none',
-                  fontWeight: '500',
-                  fontSize: '1rem',
-                  border: 'none',
-                  transition: 'transform 0.2s, box-shadow 0.2s',
-                  boxShadow: '0 2px 8px rgba(0, 0, 0, 0.12)',
-                  minHeight: '54.72px',
-                  minWidth: '120px',
-                }}
-                onMouseEnter={(e) => {
-                  e.currentTarget.style.transform = 'translateY(-2px)';
-                  e.currentTarget.style.boxShadow =
-                    '0 4px 12px rgba(0, 0, 0, 0.18)';
-                }}
-                onMouseLeave={(e) => {
-                  e.currentTarget.style.transform = 'translateY(0)';
-                  e.currentTarget.style.boxShadow =
-                    '0 2px 8px rgba(0, 0, 0, 0.12)';
-                }}
-              >
-                <img
-                  src="/paypal.webp"
-                  alt="PayPal"
-                  style={{
-                    height: '24px',
-                    width: 'auto',
-                    filter: 'brightness(0) invert(1)',
-                  }}
-                />
-              </a>
-            </div>
-            <p
-              style={{
-                textAlign: 'center',
-                color: 'var(--text-secondary, #666)',
-                fontSize: '0.9rem',
-                maxWidth: '640px',
-              }}
-            >
-              For company logo placement, procurement, invoicing, or custom
-              integration scope, reach out at{' '}
-              <a
-                href="mailto:hyo@hyo.dev"
-                style={{ color: 'var(--primary-color)' }}
-              >
-                hyo@hyo.dev
               </a>
               .
             </p>
           </div>
         </section>
 
-        <section className="resources-section" style={{ overflow: 'hidden' }}>
-          <h2 style={{ textAlign: 'center' }}>Current Sponsors</h2>
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '2rem',
-              padding: '1.5rem 0',
-              overflow: 'hidden',
-            }}
-          >
-            <div
-              style={{
-                textAlign: 'center',
-                width: '100%',
-                overflow: 'hidden',
-                padding: '0 1rem',
-              }}
+        <section className="xp-section" aria-labelledby="support-channel">
+          <div className="xp-section-heading">
+            <div>
+              <p>Choose a channel</p>
+              <h2 id="support-channel">Fund the work</h2>
+            </div>
+            <p>
+              Project funding stays transparent and separate from maintainer
+              support.
+            </p>
+          </div>
+
+          <div className="xp-support-ledger">
+            <a
+              href="https://opencollective.com/openiap"
+              target="_blank"
+              rel="noopener noreferrer"
             >
-              <p
-                style={{
-                  color: 'var(--accent-color)',
-                  fontSize: '0.9rem',
-                  fontWeight: '600',
-                  letterSpacing: '0.5px',
-                  marginBottom: '1rem',
-                }}
-              >
-                Founding Sponsor
-              </p>
-              <div
-                style={{
-                  display: 'flex',
-                  justifyContent: 'center',
-                  alignItems: 'center',
-                  gap: '0.1rem',
-                  maxWidth: '100%',
-                }}
-              >
-                <a
-                  href="https://meta.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.1rem',
-                    textDecoration: 'none',
-                    maxHeight: '240px',
-                  }}
-                >
-                  <img
-                    src="/meta.svg"
-                    alt="Meta Logo"
-                    style={{
-                      height: '100%',
-                      maxHeight: '240px',
-                      width: 'auto',
-                      maxWidth: '40vw',
-                      objectFit: 'contain',
-                    }}
-                  />
-                  <img
-                    src="/meta-txt.svg"
-                    alt="Meta Text"
-                    style={{
-                      height: '100%',
-                      maxHeight: '240px',
-                      width: 'auto',
-                      maxWidth: '40vw',
-                      objectFit: 'contain',
-                      filter: 'var(--logo-text-filter, none)',
-                    }}
-                  />
-                </a>
-              </div>
-            </div>
-            <div style={{ textAlign: 'center', opacity: '0.5' }}>
-              <p
-                style={{
-                  color: 'var(--accent-color)',
-                  fontSize: '0.9rem',
-                  fontWeight: '600',
-                  marginBottom: '1rem',
-                  letterSpacing: '0.5px',
-                }}
-              >
-                Past Supporters
-              </p>
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: '1rem',
-                }}
-              >
-                <a
-                  href="https://namiml.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.3rem',
-                    textDecoration: 'none',
-                  }}
-                >
-                  <img
-                    src="/sponsors/nami.webp"
-                    alt="Namiml Logo"
-                    style={{ height: '35px', objectFit: 'contain' }}
-                  />
-                </a>
-                <a
-                  href="https://www.courier.com/?utm_source=react-native-iap&utm_campaign=osssponsors"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: '0.3rem',
-                    textDecoration: 'none',
-                  }}
-                >
-                  <img
-                    src="/sponsors/courier.webp"
-                    alt="Courier Logo"
-                    style={{ height: '28px', objectFit: 'contain' }}
-                  />
-                </a>
-              </div>
-            </div>
+              <span>Project fund</span>
+              <strong>OpenCollective</strong>
+              <small>Infrastructure and corporate sponsorship</small>
+              <ArrowUpRight size={16} aria-hidden="true" />
+            </a>
+            <a
+              href="https://github.com/sponsors/hyodotdev"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span>Maintainer</span>
+              <strong>GitHub Sponsors</strong>
+              <small>Direct support for ongoing maintenance</small>
+              <ArrowUpRight size={16} aria-hidden="true" />
+            </a>
+            <a
+              href="https://paypal.me/dooboolab"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <span>One-time</span>
+              <strong>PayPal</strong>
+              <small>Simple individual contribution</small>
+              <ArrowUpRight size={16} aria-hidden="true" />
+            </a>
+            <a href="mailto:hyo@hyo.dev">
+              <span>Company</span>
+              <strong>Contact us</strong>
+              <small>Procurement, invoicing, and capacity planning</small>
+              <ArrowUpRight size={16} aria-hidden="true" />
+            </a>
           </div>
         </section>
-      </div>
+
+        <section className="xp-supporters" aria-labelledby="past-supporters">
+          <div>
+            <p>With thanks to</p>
+            <h2 id="past-supporters">Past supporters</h2>
+          </div>
+          <div>
+            <a
+              href="https://namiml.com"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <img src="/sponsors/nami.webp" alt="Nami" />
+            </a>
+            <a
+              href="https://www.courier.com/?utm_source=react-native-iap&utm_campaign=osssponsors"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <img src="/sponsors/courier.webp" alt="Courier" />
+            </a>
+          </div>
+        </section>
+      </main>
     </div>
   );
 }

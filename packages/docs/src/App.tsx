@@ -11,6 +11,7 @@ import Languages from './pages/languages';
 import Tutorials from './pages/tutorials';
 import Sponsors from './pages/sponsors';
 import Showcase from './pages/showcase';
+import CommunityResources from './pages/community-resources';
 import NotFound from './pages/404';
 import { searchModalSignal, closeSearchModal } from './lib/signals';
 import { effect } from '@preact/signals-react';
@@ -39,6 +40,7 @@ function App() {
           <Route path="tutorials" element={<Tutorials />} />
           <Route path="sponsors" element={<Sponsors />} />
           <Route path="showcase" element={<Showcase />} />
+          <Route path="community-resources" element={<CommunityResources />} />
           <Route path="*" element={<NotFound />} />
         </Route>
       </Routes>

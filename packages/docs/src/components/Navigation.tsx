@@ -4,7 +4,12 @@ import { DarkModeToggle } from './DarkModeToggle';
 import { Menu, X } from 'lucide-react';
 import { FaGithub, FaSearch } from 'react-icons/fa';
 import { openSearchModal } from '../lib/signals';
-import { IAPKIT_URL, LOGO_PATH, trackIapKitClick } from '../lib/config';
+import {
+  IAPKIT_LOGO_PATH,
+  IAPKIT_URL,
+  LOGO_PATH,
+  trackIapKitClick,
+} from '../lib/config';
 
 function Navigation() {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -14,14 +19,7 @@ function Navigation() {
     setIsMobileMenuOpen(false);
   };
 
-  // Auto-close the top nav menu on route change so a stale dropdown doesn't
-  // sit open over the new page (especially relevant when crossing into /docs
-  // where the docs sidebar takes over as the primary navigation surface).
-  // The top-nav hamburger stays mounted on every route — Introduction /
-  // Languages / Tutorials / Sponsors must remain reachable on mobile from
-  // /docs too, and the closed docs sidebar already uses
-  // `pointer-events: none` + `translateX(-100%)` so the two menus don't
-  // compete for taps.
+  // Keep the global menu from covering the destination after navigation.
   useEffect(() => {
     setIsMobileMenuOpen(false);
   }, [location.pathname]);
@@ -78,10 +76,12 @@ function Navigation() {
 
           <li>
             <NavLink
-              to="/tutorials"
-              className={({ isActive }) => (isActive ? 'active' : '')}
+              to="/community-resources"
+              className={({ isActive }) =>
+                isActive || location.pathname === '/tutorials' ? 'active' : ''
+              }
             >
-              Tutorials
+              Community
             </NavLink>
           </li>
 
@@ -116,8 +116,16 @@ function Navigation() {
             rel="noopener noreferrer"
             className="iapkit-link"
             onClick={trackIapKitClick}
+            aria-label="Open IAPKit"
+            title="Open IAPKit"
           >
-            IAPKit
+            <img
+              src={IAPKIT_LOGO_PATH}
+              alt=""
+              className="iapkit-link-logo"
+              aria-hidden="true"
+            />
+            <span className="iapkit-link-label">IAPKit</span>
           </a>
 
           {/* GitHub Link */}
@@ -131,19 +139,26 @@ function Navigation() {
             <FaGithub size={20} />
           </a>
 
-          {/* Mobile Menu Button — visible on every route. Top-level pages
-              (Introduction / Languages / Tutorials / Sponsors) must remain
-              reachable on mobile, including from /docs. */}
           <button
             className="mobile-menu-button"
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
-            aria-label="Toggle mobile menu"
+            aria-label={
+              isMobileMenuOpen
+                ? 'Close navigation menu'
+                : 'Open navigation menu'
+            }
+            aria-expanded={isMobileMenuOpen}
+            aria-controls="mobile-navigation"
           >
             {isMobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
           </button>
         </div>
 
-        <div className={`mobile-menu ${isMobileMenuOpen ? 'open' : ''}`}>
+        <div
+          id="mobile-navigation"
+          className={`mobile-menu ${isMobileMenuOpen ? 'open' : ''}`}
+          aria-hidden={!isMobileMenuOpen}
+        >
           <ul className="mobile-nav-list">
             <li>
               <NavLink
@@ -177,11 +192,13 @@ function Navigation() {
 
             <li>
               <NavLink
-                to="/tutorials"
-                className={({ isActive }) => (isActive ? 'active' : '')}
+                to="/community-resources"
+                className={({ isActive }) =>
+                  isActive || location.pathname === '/tutorials' ? 'active' : ''
+                }
                 onClick={closeMobileMenu}
               >
-                Tutorials
+                Community
               </NavLink>
             </li>
 
@@ -200,12 +217,14 @@ function Navigation() {
                 href={IAPKIT_URL}
                 target="_blank"
                 rel="noopener noreferrer"
+                className="mobile-iapkit-link"
                 onClick={() => {
                   trackIapKitClick();
                   closeMobileMenu();
                 }}
               >
-                IAPKit
+                <img src={IAPKIT_LOGO_PATH} alt="" aria-hidden="true" />
+                <span>IAPKit</span>
               </a>
             </li>
           </ul>

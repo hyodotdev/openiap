@@ -282,7 +282,16 @@ function Governance() {
             </tr>
             <tr>
               <td>Documentation</td>
-              <td>openiap.dev (Vercel)</td>
+              <td>
+                <a
+                  href="https://openiap.dev"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap.dev
+                </a>{' '}
+                (Vercel)
+              </td>
             </tr>
             <tr>
               <td>Versions</td>
@@ -341,15 +350,41 @@ function Governance() {
           <tbody>
             <tr>
               <td>"OpenIAP" name and logo</td>
-              <td>hyo.dev</td>
+              <td>
+                <a
+                  href="https://hyo.dev"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  hyo.dev
+                </a>
+              </td>
               <td rowSpan={3}>
                 Upon foundation hosting, trademarks and critical assets would
                 transfer to the foundation for neutral ownership
               </td>
             </tr>
             <tr>
-              <td>Domain (openiap.dev)</td>
-              <td>hyo.dev</td>
+              <td>
+                Domain (
+                <a
+                  href="https://openiap.dev"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap.dev
+                </a>
+                )
+              </td>
+              <td>
+                <a
+                  href="https://hyo.dev"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  hyo.dev
+                </a>
+              </td>
             </tr>
             <tr>
               <td>GitHub organization</td>

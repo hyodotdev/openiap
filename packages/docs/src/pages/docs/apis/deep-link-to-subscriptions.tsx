@@ -26,8 +26,14 @@ function DeepLinkToSubscriptions() {
         <code>AppStore.showManageSubscriptions(in:)</code> with the active{' '}
         <code>UIWindowScene</code>; throws if no window scene is available. Not
         supported on tvOS or watchOS. On macOS, opens{' '}
-        <code>https://apps.apple.com/account/subscriptions</code> in the default
-        browser and returns after the browser is launched.{' '}
+        <a
+          href="https://apps.apple.com/account/subscriptions"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <code>https://apps.apple.com/account/subscriptions</code>
+        </a>{' '}
+        in the default browser and returns after the browser is launched.{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/appstore/showmanagesubscriptions(in:)"
           target="_blank"

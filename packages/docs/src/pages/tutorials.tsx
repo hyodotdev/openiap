@@ -1,201 +1,226 @@
-import AnchorLink from '../components/AnchorLink';
+import { ArrowRight, ArrowUpRight, CheckCircle2, Radio } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import SEO from '../components/SEO';
 import { useScrollToHash } from '../hooks/useScrollToHash';
+
+const JOURNEY = [
+  {
+    step: '01',
+    title: 'Configure the stores',
+    description: 'Products, testers, signing, and store credentials.',
+    links: [
+      { label: 'iOS setup', to: '/docs/ios-setup' },
+      { label: 'Android setup', to: '/docs/android-setup' },
+    ],
+  },
+  {
+    step: '02',
+    title: 'Connect your SDK',
+    description: 'Choose a framework and install its OpenIAP implementation.',
+    links: [{ label: 'Choose a framework', to: '/languages' }],
+  },
+  {
+    step: '03',
+    title: 'Ship a safe purchase',
+    description: 'Request, verify, finish, and restore the transaction.',
+    links: [
+      { label: 'Purchase flow', to: '/docs/features/purchase' },
+      { label: 'Verification', to: '/docs/features/validation' },
+    ],
+  },
+] as const;
+
+const REFERENCES = [
+  {
+    id: 'platform-guides',
+    label: 'Platform references',
+    links: [
+      {
+        title: 'StoreKit 2',
+        description: "Apple's native in-app purchase framework",
+        href: 'https://developer.apple.com/storekit/',
+      },
+      {
+        title: 'Google Play Billing',
+        description: "Google Play's billing integration guide",
+        href: 'https://developer.android.com/google/play/billing',
+      },
+    ],
+  },
+  {
+    id: 'verification-guides',
+    label: 'Server verification',
+    links: [
+      {
+        title: 'App Store Server Library',
+        description: 'Signed transactions and server-side verification',
+        href: 'https://developer.apple.com/documentation/appstoreserverapi/simplifying-your-implementation-by-using-the-app-store-server-library',
+      },
+      {
+        title: 'Verify Google Play purchases',
+        description: 'Protect entitlements before granting access',
+        href: 'https://developer.android.com/google/play/billing/integrate#verifying-purchase',
+      },
+    ],
+  },
+] as const;
+
+const SIGNALS = [
+  {
+    date: '2025-06-30',
+    title: 'Billing Library 8.0.0 release notes',
+    source: 'Android Developers',
+    href: 'https://developer.android.com/google/play/billing/release-notes#8-0-0',
+  },
+  {
+    date: '2025-06-10',
+    title: "What's new in StoreKit and In-App Purchase",
+    source: 'Apple Developer',
+    href: 'https://www.youtube.com/watch?v=LtWMxxL4nsw',
+  },
+] as const;
 
 function Tutorials() {
   useScrollToHash();
 
   return (
-    <div className="page-container">
+    <div className="xp-page xp-tutorials">
       <SEO
         title="Tutorials"
         description="Step-by-step guides for iOS StoreKit 2 and Android Play Billing setup. Learn purchase verification, receipt validation, and best practices for in-app purchases."
         path="/tutorials"
         keywords="IAP tutorial, StoreKit 2 tutorial, Google Play Billing guide, purchase verification, receipt validation, iOS IAP setup, Android IAP setup"
       />
-      <div className="content-wrapper">
-        <h1>Tutorials</h1>
-        <p
-          style={{
-            color: 'var(--text-secondary)',
-            marginBottom: '1.5rem',
-            lineHeight: '1.6',
-            fontSize: 'var(--font-size-sm)',
-          }}
+
+      <header className="xp-page-header xp-tutorials-header">
+        <div className="xp-shell xp-page-header-grid">
+          <div>
+            <p className="xp-kicker">Guides</p>
+            <h1>From store setup to shipped purchase</h1>
+            <p className="xp-lede">
+              Follow the shortest path through configuration, integration, and
+              server verification.
+            </p>
+          </div>
+          <nav className="xp-jump-list" aria-label="Tutorial sections">
+            <a href="#journey">Start the path</a>
+            <a href="#signals">Platform signals</a>
+            <a href="#references">Reference shelf</a>
+          </nav>
+        </div>
+      </header>
+
+      <main className="xp-shell xp-main">
+        <section
+          id="journey"
+          className="xp-section"
+          aria-labelledby="path-title"
         >
-          For platform-specific development documentation and APIs, please refer
-          to each library's documentation. This section covers comprehensive
-          guides that apply across all implementations.
-        </p>
+          <div className="xp-section-heading">
+            <div>
+              <p>Start here</p>
+              <h2 id="path-title">The purchase path</h2>
+            </div>
+            <p>
+              Three checkpoints from an empty project to a verified purchase.
+            </p>
+          </div>
 
-        <section className="resources-section">
-          <AnchorLink id="setups" level="h2">
-            Setups
-          </AnchorLink>
-          <div className="resource-list">
-            <a href="/docs/ios-setup" className="resource-item">
-              <h3>iOS Setup</h3>
-              <p>Configure StoreKit and App Store Connect</p>
-            </a>
-            <a href="/docs/android-setup" className="resource-item">
-              <h3>Android Setup</h3>
-              <p>Setup Google Play Console and Billing Library</p>
-            </a>
+          <ol className="xp-journey">
+            {JOURNEY.map((item) => (
+              <li key={item.step}>
+                <span>{item.step}</span>
+                <div className="xp-journey-dot" aria-hidden="true" />
+                <div>
+                  <h3>{item.title}</h3>
+                  <p>{item.description}</p>
+                  <div>
+                    {item.links.map((link) => (
+                      <Link key={link.to} to={link.to}>
+                        {link.label}
+                        <ArrowRight size={13} aria-hidden="true" />
+                      </Link>
+                    ))}
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ol>
+        </section>
+
+        <section
+          id="signals"
+          className="xp-section"
+          aria-labelledby="signals-title"
+        >
+          <div className="xp-section-heading">
+            <div>
+              <p>Stay current</p>
+              <h2 id="signals-title">Platform signals</h2>
+            </div>
+            <p>Store APIs move. These are the changes worth watching now.</p>
+          </div>
+
+          <div className="xp-signal-list">
+            {SIGNALS.map((signal) => (
+              <a
+                key={signal.href}
+                href={signal.href}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <Radio size={16} aria-hidden="true" />
+                <time dateTime={signal.date}>{signal.date}</time>
+                <strong>{signal.title}</strong>
+                <span>{signal.source}</span>
+                <ArrowUpRight size={15} aria-hidden="true" />
+              </a>
+            ))}
           </div>
         </section>
 
-        <section className="resources-section">
-          <AnchorLink id="news" level="h2">
-            News
-          </AnchorLink>
-          <div
-            style={{ display: 'flex', flexDirection: 'column', gap: '1rem' }}
-          >
-            <a
-              href="https://developer.android.com/google/play/billing/release-notes#8-0-0"
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '1rem 1.5rem',
-                background: 'var(--bg-secondary)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '0.5rem',
-                textDecoration: 'none',
-                transition: 'all 0.2s',
-              }}
-              target="_blank"
-              rel="noopener noreferrer"
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateX(4px)';
-                e.currentTarget.style.borderColor = 'var(--primary-color)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateX(0)';
-                e.currentTarget.style.borderColor = 'var(--border-color)';
-              }}
-            >
-              <span
-                style={{
-                  color: 'var(--text-primary)',
-                  fontWeight: '500',
-                  fontSize: 'var(--font-size-sm)',
-                }}
-              >
-                Android Billing Library 8.0.0 Release
-              </span>
-              <span
-                style={{
-                  color: 'var(--text-secondary)',
-                  fontSize: 'var(--font-size-xs)',
-                }}
-              >
-                2025-06-30
-              </span>
-            </a>
-            <a
-              href="https://www.youtube.com/watch?v=LtWMxxL4nsw"
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                padding: '1rem 1.5rem',
-                background: 'var(--bg-secondary)',
-                border: '1px solid var(--border-color)',
-                borderRadius: '0.5rem',
-                textDecoration: 'none',
-                transition: 'all 0.2s',
-              }}
-              target="_blank"
-              rel="noopener noreferrer"
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateX(4px)';
-                e.currentTarget.style.borderColor = 'var(--primary-color)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateX(0)';
-                e.currentTarget.style.borderColor = 'var(--border-color)';
-              }}
-            >
-              <span
-                style={{
-                  color: 'var(--text-primary)',
-                  fontWeight: '500',
-                  fontSize: 'var(--font-size-sm)',
-                }}
-              >
-                What's new in StoreKit and In-App Purchase
-              </span>
-              <span
-                style={{
-                  color: 'var(--text-secondary)',
-                  fontSize: 'var(--font-size-xs)',
-                }}
-              >
-                2025-06-10
-              </span>
-            </a>
+        <section
+          id="references"
+          className="xp-section"
+          aria-labelledby="references-title"
+        >
+          <div className="xp-section-heading">
+            <div>
+              <p>Go deeper</p>
+              <h2 id="references-title">Reference shelf</h2>
+            </div>
+            <p>Primary documentation for the pieces beneath the shared API.</p>
           </div>
-        </section>
 
-        <section className="resources-section">
-          <AnchorLink id="getting-started" level="h2">
-            Getting Started
-          </AnchorLink>
-          <div className="resource-list">
-            <a
-              href="https://developer.apple.com/kr/storekit/"
-              className="resource-item"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <h3>iOS StoreKit2</h3>
-              <p>Apple's in-app purchase framework documentation</p>
-            </a>
-            <a
-              href="https://developer.android.com/google/play/billing"
-              className="resource-item"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <h3>Android Play's Billing</h3>
-              <p>Google Play Billing Library documentation</p>
-            </a>
+          <div className="xp-reference-shelf">
+            {REFERENCES.map((group, groupIndex) => (
+              <section key={group.id} aria-labelledby={group.id}>
+                <div>
+                  <span>{String(groupIndex + 1).padStart(2, '0')}</span>
+                  <h3 id={group.id}>{group.label}</h3>
+                </div>
+                <div>
+                  {group.links.map((link) => (
+                    <a
+                      key={link.href}
+                      href={link.href}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      <CheckCircle2 size={16} aria-hidden="true" />
+                      <span>
+                        <strong>{link.title}</strong>
+                        <small>{link.description}</small>
+                      </span>
+                      <ArrowUpRight size={14} aria-hidden="true" />
+                    </a>
+                  ))}
+                </div>
+              </section>
+            ))}
           </div>
         </section>
-
-        <section className="resources-section">
-          <AnchorLink id="verify-purchase" level="h2">
-            Verify Purchase
-          </AnchorLink>
-          <div className="resource-list">
-            <a
-              href="https://developer.apple.com/documentation/appstoreserverapi/simplifying-your-implementation-by-using-the-app-store-server-library"
-              className="resource-item"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <h3>
-                Simplifying your implementation by using App Store Server
-                Library
-              </h3>
-              <p>
-                Learn how to use Apple's server library for easier
-                implementation
-              </p>
-            </a>
-            <a
-              href="https://developer.android.com/google/play/billing/integrate#verifying-purchase"
-              className="resource-item"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <h3>Verify the purchase in Android</h3>
-              <p>Secure purchase verification for Google Play Billing</p>
-            </a>
-          </div>
-        </section>
-      </div>
+      </main>
     </div>
   );
 }

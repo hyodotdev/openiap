@@ -28,8 +28,14 @@ function BeginRefundRequestIOS() {
         Wraps <code>Transaction.beginRefundRequest(in:)</code> — presents the
         refund-request sheet on iOS 15+. macOS has no equivalent window-scene
         sheet, so the implementation opens{' '}
-        <code>https://reportaproblem.apple.com</code> in the default browser and
-        returns immediately. See the{' '}
+        <a
+          href="https://reportaproblem.apple.com"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          <code>https://reportaproblem.apple.com</code>
+        </a>{' '}
+        in the default browser and returns immediately. See the{' '}
         <a
           href="https://developer.apple.com/documentation/storekit/transaction/beginrefundrequest(in:)"
           target="_blank"

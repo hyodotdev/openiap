@@ -2602,16 +2602,22 @@ function Releases() {
             </li>
             <li>
               <strong>openiap-google 2.5.0</strong> - launches{' '}
-              <code>https://play.google.com/redeem</code> for Google Play builds
-              while Amazon and Horizon return <code>false</code> instead of
-              throwing or opening an unrelated external-link flow. The Play
-              purchase callback also recovers an in-flight{' '}
-              <code>ITEM_ALREADY_OWNED</code> result by querying owned purchases
-              and completing the request with the matching entitlement. Play and
-              Horizon purchase callbacks are also bound to the originating
-              client generation, so updates from a disconnected or replaced
-              client are ignored without dropping recovery events from the
-              active connection.
+              <a
+                href="https://play.google.com/redeem"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <code>https://play.google.com/redeem</code>
+              </a>{' '}
+              for Google Play builds while Amazon and Horizon return{' '}
+              <code>false</code> instead of throwing or opening an unrelated
+              external-link flow. The Play purchase callback also recovers an
+              in-flight <code>ITEM_ALREADY_OWNED</code> result by querying owned
+              purchases and completing the request with the matching
+              entitlement. Play and Horizon purchase callbacks are also bound to
+              the originating client generation, so updates from a disconnected
+              or replaced client are ignored without dropping recovery events
+              from the active connection.
             </li>
             <li>
               <strong>openiap-apple 2.4.2</strong> - adds practical macOS
@@ -3419,8 +3425,15 @@ function Releases() {
             Publishes OpenIAP Spec 2.3.1 and coordinated native and framework
             releases that let <code>verifyPurchaseWithProvider</code> target a
             self-hosted or device-reachable local IAPKit origin. Existing
-            callers continue to use <code>https://kit.openiap.dev</code>, while
-            malformed non-origin values fail as developer errors. The
+            callers continue to use{' '}
+            <a
+              href="https://kit.openiap.dev"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <code>https://kit.openiap.dev</code>
+            </a>
+            , while malformed non-origin values fail as developer errors. The
             implementation and physical-device receipt vertical are covered by{' '}
             <a
               href="https://github.com/hyodotdev/openiap/pull/225"
@@ -6920,10 +6933,24 @@ function Releases() {
                 color: 'var(--text-secondary)',
               }}
             >
-              The legacy <code>api.iapkit.com</code> redirect still forwards to{' '}
-              <code>kit.openiap.dev</code> until{' '}
-              <strong>August 12, 2026</strong> — apps that pick up these package
-              versions move off the redirect in one upgrade.
+              The legacy{' '}
+              <a
+                href="https://api.iapkit.com"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <code>api.iapkit.com</code>
+              </a>{' '}
+              redirect still forwards to{' '}
+              <a
+                href="https://kit.openiap.dev"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <code>kit.openiap.dev</code>
+              </a>{' '}
+              until <strong>August 12, 2026</strong> — apps that pick up these
+              package versions move off the redirect in one upgrade.
             </p>
           </div>
 
@@ -7252,7 +7279,14 @@ function Releases() {
 
           <div style={{ marginTop: '0.75rem', marginBottom: '1.5rem' }}>
             <h5 style={{ margin: '0 0 0.5rem 0' }}>
-              IAPKit verification host migrated to <code>kit.openiap.dev</code>
+              IAPKit verification host migrated to{' '}
+              <a
+                href="https://kit.openiap.dev"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <code>kit.openiap.dev</code>
+              </a>
             </h5>
             <p
               style={{
@@ -7261,12 +7295,26 @@ function Releases() {
               }}
             >
               The IAPKit purchase verification service moved from{' '}
-              <code>api.iapkit.com</code> to <code>kit.openiap.dev</code>. Only
-              the host changed — the request/response shape, authentication (
-              <code>Authorization: Bearer &lt;apiKey&gt;</code>), and the{' '}
-              <code>/v1/purchase/verify</code> path are identical. No client
-              code changes are required once you pick up the latest package
-              versions.
+              <a
+                href="https://api.iapkit.com"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <code>api.iapkit.com</code>
+              </a>{' '}
+              to{' '}
+              <a
+                href="https://kit.openiap.dev"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <code>kit.openiap.dev</code>
+              </a>
+              . Only the host changed — the request/response shape,
+              authentication (<code>Authorization: Bearer &lt;apiKey&gt;</code>
+              ), and the <code>/v1/purchase/verify</code> path are identical. No
+              client code changes are required once you pick up the latest
+              package versions.
             </p>
             <ul
               style={{
@@ -7277,11 +7325,23 @@ function Releases() {
             >
               <li>
                 <strong>Old:</strong>{' '}
-                <code>https://api.iapkit.com/v1/purchase/verify</code>
+                <a
+                  href="https://api.iapkit.com/v1/purchase/verify"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <code>https://api.iapkit.com/v1/purchase/verify</code>
+                </a>
               </li>
               <li>
                 <strong>New:</strong>{' '}
-                <code>https://kit.openiap.dev/v1/purchase/verify</code>
+                <a
+                  href="https://kit.openiap.dev/v1/purchase/verify"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <code>https://kit.openiap.dev/v1/purchase/verify</code>
+                </a>
               </li>
               <li>
                 API keys are now issued from{' '}
@@ -7303,10 +7363,24 @@ function Releases() {
                 color: 'var(--text-secondary)',
               }}
             >
-              The legacy <code>api.iapkit.com</code> host redirects to{' '}
-              <code>kit.openiap.dev</code> until{' '}
-              <strong>August 12, 2026</strong>. Upgrade before that date to
-              avoid verification failures.
+              The legacy{' '}
+              <a
+                href="https://api.iapkit.com"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <code>api.iapkit.com</code>
+              </a>{' '}
+              host redirects to{' '}
+              <a
+                href="https://kit.openiap.dev"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <code>kit.openiap.dev</code>
+              </a>{' '}
+              until <strong>August 12, 2026</strong>. Upgrade before that date
+              to avoid verification failures.
             </p>
           </div>
 

@@ -1146,8 +1146,14 @@ async Task<bool> VerifyWithIapkitAsync(Purchase purchase)
 
         <Callout kind="note" title="Endpoint">
           Requests are sent to{' '}
-          <code>https://kit.openiap.dev/v1/purchase/verify</code> with{' '}
-          <code>Authorization: Bearer &lt;apiKey&gt;</code>. See the{' '}
+          <a
+            href="https://kit.openiap.dev/v1/purchase/verify"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            <code>https://kit.openiap.dev/v1/purchase/verify</code>
+          </a>{' '}
+          with <code>Authorization: Bearer &lt;apiKey&gt;</code>. See the{' '}
           <Link to="/docs/types/verify-purchase-with-provider-props">
             PurchaseVerificationProvider
           </Link>{' '}

@@ -63,7 +63,14 @@ function MCPServer() {
             </a>
           </li>
           <li>
-            Hosted endpoint: <code>https://kit.openiap.dev/mcp</code>
+            Hosted endpoint:{' '}
+            <a
+              href="https://kit.openiap.dev/mcp"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <code>https://kit.openiap.dev/mcp</code>
+            </a>
           </li>
           <li>
             Authentication:{' '}

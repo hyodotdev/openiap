@@ -46,6 +46,9 @@ function Footer() {
                 <li>
                   <a href="/sponsors">Sponsors</a>
                 </li>
+                <li>
+                  <a href="/community-resources">Community Resources</a>
+                </li>
               </ul>
             </div>
 
