@@ -210,6 +210,7 @@ jobs:
         git config user.email "github-actions[bot]@users.noreply.github.com"
 
         git add openiap-versions.json packages/*/openiap-versions.json
+        git add packages/apple/Sources/OpenIapGeneratedVersion.swift
         git add packages/docs/src/generated/version-metadata.json
         git add packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
         git add libraries/godot-iap/addons/godot-iap/android/GodotIap.gdap
@@ -251,6 +252,7 @@ jobs:
               node scripts/release-branch-policy.mjs update-native google "$VERSION"
               ./scripts/sync-release-generated.sh
               git add openiap-versions.json packages/*/openiap-versions.json
+              git add packages/apple/Sources/OpenIapGeneratedVersion.swift
               git add packages/docs/src/generated/version-metadata.json
               git add packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
               git add libraries/godot-iap/addons/godot-iap/android/GodotIap.gdap
@@ -265,6 +267,7 @@ jobs:
             node scripts/release-branch-policy.mjs update-native google "$VERSION"
             ./scripts/sync-release-generated.sh
             git add openiap-versions.json packages/*/openiap-versions.json
+            git add packages/apple/Sources/OpenIapGeneratedVersion.swift
             git add packages/docs/src/generated/version-metadata.json
             git add packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
             git add libraries/godot-iap/addons/godot-iap/android/GodotIap.gdap

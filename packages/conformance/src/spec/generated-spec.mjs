@@ -2,7 +2,7 @@
 // Do not edit. Copied from packages/gql so the published package is
 // self-contained; packages/gql remains the source of truth.
 
-export const SPEC_VERSION = "3.2.0";
+export const SPEC_VERSION = "3.2.1";
 
 export const CAPABILITY_STORES = Object.freeze(["Apple","Google","Amazon","Horizon"]);
 
