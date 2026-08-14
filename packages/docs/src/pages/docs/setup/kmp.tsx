@@ -144,7 +144,14 @@ kotlin {
             In Xcode: <strong>File &gt; Add Package Dependencies</strong>
           </li>
           <li>
-            Enter URL: <code>https://github.com/hyodotdev/openiap.git</code>
+            Enter URL:{' '}
+            <a
+              href="https://github.com/hyodotdev/openiap"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <code>https://github.com/hyodotdev/openiap.git</code>
+            </a>
           </li>
           <li>Select "Up to Next Major" version</li>
           <li>Add to your iOS app target</li>

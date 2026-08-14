@@ -1,32 +1,56 @@
-import type { CSSProperties } from 'react';
 import { Link } from 'react-router-dom';
-import { OPENIAP_VERSIONS } from '../lib/versioning';
-import { LOGO_PATH } from '../lib/config';
-import { LIBRARIES } from '../lib/images';
-import { FEATURED_SHOWCASE_APPS, SHOWCASE_APPS } from '../lib/showcase';
 import {
-  ShowcaseAppCard,
-  ShowcaseSubmitCard,
-  showcaseGridStyle,
-} from '../components/ShowcaseCards';
+  ArrowUpRight,
+  BarChart3,
+  Boxes,
+  ShieldCheck,
+  Star,
+  Webhook,
+  type LucideIcon,
+} from 'lucide-react';
+import { OPENIAP_VERSIONS } from '../lib/versioning';
+import {
+  IAPKIT_LOGO_PATH,
+  IAPKIT_URL,
+  LOGO_PATH,
+  trackIapKitClick,
+} from '../lib/config';
+import { LIBRARIES, LIBRARY_IMAGES } from '../lib/images';
+import { FEATURED_SHOWCASE_APPS } from '../lib/showcase';
 import SEO from '../components/SEO';
 
-const frameworkLinkStyle: CSSProperties = {
-  display: 'flex',
-  flexDirection: 'column',
-  alignItems: 'center',
-  gap: '0.5rem',
-  textDecoration: 'none',
-  color: 'var(--text-secondary)',
-  opacity: 0.85,
-  transition: 'opacity 0.2s',
-};
+interface IapKitFeature {
+  title: string;
+  description: string;
+  icon: LucideIcon;
+}
 
-const frameworkLogoStyle: CSSProperties = {
-  width: '48px',
-  height: '48px',
-  objectFit: 'contain',
-};
+const IAPKIT_FEATURES: IapKitFeature[] = [
+  {
+    title: 'Store operations with MCP',
+    description:
+      'Ask your coding agent to create and manage products, then sync them to App Store Connect and Google Play.',
+    icon: Boxes,
+  },
+  {
+    title: 'Purchase verification',
+    description:
+      'Validate Apple, Google Play, Amazon Appstore, Meta Horizon, and Vega OS purchases server-side.',
+    icon: ShieldCheck,
+  },
+  {
+    title: 'Subscription state',
+    description:
+      'Track subscription status and user entitlements from store lifecycle events.',
+    icon: Webhook,
+  },
+  {
+    title: 'Revenue visibility',
+    description:
+      'With store notifications connected, monitor revenue, MRR, churn, and refunds.',
+    icon: BarChart3,
+  },
+];
 
 function Home() {
   return (
@@ -40,347 +64,264 @@ function Home() {
       />
       <section className="hero">
         <div className="hero-container">
-          <img
-            src={LOGO_PATH}
-            alt="OpenIAP"
-            className="hero-logo"
-            style={{ width: '240px', height: '240px', marginBottom: '-0.5rem' }}
-          />
-          <h1 className="hero-title" style={{ letterSpacing: '-0.05em' }}>
-            Open<span className="highlight">IAP</span>
-          </h1>
-          <div style={{ marginBottom: '1.5rem' }}>
-            <Link
-              to="/docs/updates/versions"
-              style={{
-                display: 'inline-block',
-                padding: '0.25rem 0.75rem',
-                backgroundColor: 'var(--accent-color)',
-                color: 'white',
-                borderRadius: '1rem',
-                fontSize: '0.875rem',
-                fontWeight: '600',
-                letterSpacing: '0.5px',
-                textDecoration: 'none',
-              }}
-              title="View versions"
-            >
-              v{OPENIAP_VERSIONS.spec}
-            </Link>
-          </div>
-          <p className="hero-subtitle">
-            Stop rewriting IAP code for every platform. One API for iOS,
-            Android, Vision Pro, Meta Quest, Amazon Fire OS, and Vega OS.
-          </p>
-          {/* Quick Stats */}
-          <div className="quick-stats">
-            <Link to="/languages" className="quick-stats-item">
-              {/* Aggregate stars across ecosystem repos - update periodically */}
-              <div className="quick-stats-value">4K+</div>
-              <div className="quick-stats-label">Combined Stars</div>
-            </Link>
-            <div className="quick-stats-item">
-              <div className="quick-stats-value">{LIBRARIES.length}</div>
-              <div className="quick-stats-label">Framework Libraries</div>
+          <div className="hero-main">
+            <div className="hero-copy">
+              <div className="hero-kicker">
+                <span>The open IAP standard</span>
+                <Link to="/docs/updates/versions" title="View versions">
+                  Spec v{OPENIAP_VERSIONS.spec}
+                </Link>
+              </div>
+              <h1 className="hero-brand-heading">
+                <span className="hero-brand-word">
+                  Open<strong>IAP</strong>
+                </span>
+                <span className="hero-brand-promise">
+                  One API for every store
+                </span>
+              </h1>
+              <p className="hero-subtitle">
+                One type-safe purchase contract across Apple, Google, Amazon,
+                Meta, and six app frameworks.
+              </p>
+              <div className="hero-actions">
+                <Link
+                  to="/introduction"
+                  className="btn btn-primary hero-cta-primary"
+                >
+                  Start building
+                  <ArrowUpRight size={16} aria-hidden="true" />
+                </Link>
+                <Link
+                  to="/docs/apis"
+                  className="btn btn-secondary hero-cta-secondary"
+                >
+                  Explore the API
+                </Link>
+              </div>
+              <div className="hero-proof">
+                <a
+                  href="https://github.com/hyodotdev/openiap"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <strong>4K+</strong> combined GitHub stars
+                  <ArrowUpRight size={13} aria-hidden="true" />
+                </a>
+                <span>
+                  <strong>{LIBRARIES.length}</strong> framework libraries
+                </span>
+              </div>
             </div>
-          </div>
-          <div className="hero-actions">
-            <Link
-              to="/introduction"
-              className="btn btn-primary hero-cta-primary"
-            >
-              Get Started
-            </Link>
-            <a
-              href="https://github.com/hyodotdev/openiap"
-              className="btn btn-secondary hero-cta-secondary"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              View on GitHub
-            </a>
-          </div>
-          <div className="hero-divider" role="separator" aria-hidden="true" />
-          <div className="hero-caption">Our Core Libraries</div>
-          <div className="hero-modules hero-modules-grid">
-            <a
-              href="https://github.com/hyodotdev/openiap/tree/main/packages/apple"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="module-card"
-              title="OpenIAP module for Apple"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <svg
-                fill="currentColor"
-                viewBox="0 0 24 24"
-                xmlns="http://www.w3.org/2000/svg"
-                style={{
-                  width: '36px',
-                  height: '36px',
-                  marginBottom: '0.75rem',
-                }}
-              >
-                <path d="M12.152 6.896c-.948 0-2.415-1.078-3.96-1.04-2.04.027-3.91 1.183-4.961 3.014-2.117 3.675-.546 9.103 1.519 12.09 1.013 1.454 2.208 3.09 3.792 3.039 1.52-.065 2.09-.987 3.935-.987 1.831 0 2.35.987 3.96.948 1.637-.026 2.676-1.48 3.676-2.948 1.156-1.688 1.636-3.325 1.662-3.415-.039-.013-3.182-1.221-3.22-4.857-.026-3.04 2.48-4.494 2.597-4.559-1.429-2.09-3.623-2.324-4.39-2.376-2-.156-3.675 1.09-4.61 1.09zM15.53 3.83c.843-1.012 1.4-2.427 1.245-3.83-1.207.052-2.662.805-3.532 1.818-.78.896-1.454 2.338-1.273 3.714 1.338.104 2.715-.688 3.559-1.701" />
-              </svg>
-              <div className="module-text">
-                <div className="module-title">openiap-apple</div>
-                <div className="module-desc">
-                  Apple StoreKit 2 official module
-                </div>
-              </div>
-            </a>
-            <a
-              href="https://github.com/hyodotdev/openiap/tree/main/packages/google"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="module-card"
-              title="OpenIAP module for Google"
-              style={{
-                display: 'flex',
-                flexDirection: 'column',
-                alignItems: 'center',
-                justifyContent: 'center',
-              }}
-            >
-              <svg
-                viewBox="0 0 48 48"
-                xmlns="http://www.w3.org/2000/svg"
-                style={{
-                  width: '36px',
-                  height: '36px',
-                  marginBottom: '0.75rem',
-                }}
-              >
-                <path
-                  fill="#EA4335"
-                  d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"
-                />
-                <path
-                  fill="#4285F4"
-                  d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"
-                />
-                <path
-                  fill="#FBBC05"
-                  d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"
-                />
-                <path
-                  fill="#34A853"
-                  d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"
-                />
-              </svg>
-              <div className="module-text">
-                <div className="module-title">openiap-google</div>
-                <div className="module-desc">
-                  Google Play Billing official module
-                </div>
-              </div>
-            </a>
-          </div>
-          <div className="hero-divider" role="separator" aria-hidden="true" />
-          <div className="hero-caption">Supported Frameworks</div>
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '2.5rem',
-              flexWrap: 'wrap',
-              margin: '1.5rem 0',
-            }}
-          >
-            {LIBRARIES.map((library) => (
-              <Link
-                key={library.name}
-                to={library.setupPath}
-                title={library.frameworkName}
-                style={frameworkLinkStyle}
-              >
-                <img
-                  src={library.image}
-                  alt={library.frameworkName}
-                  style={frameworkLogoStyle}
-                />
-                <span style={{ fontSize: '0.8rem' }}>{library.homeLabel}</span>
-              </Link>
-            ))}
-          </div>
-          <div
-            style={{
-              marginTop: '3rem',
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '1rem',
-            }}
-          >
-            <Link
-              to="/sponsors"
-              style={{
-                fontSize: '0.9rem',
-                color: 'var(--accent-color)',
-                margin: 0,
-                textDecoration: 'none',
-                fontWeight: '500',
-                letterSpacing: '0.3px',
-              }}
-            >
-              Backed by
-            </Link>
-            <a
-              href="https://meta.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.25rem',
-                textDecoration: 'none',
-              }}
-            >
-              <img
-                src="/meta.svg"
-                alt="Meta Logo"
-                style={{ height: '40px', objectFit: 'contain' }}
-              />
-              <img
-                src="/meta-txt.svg"
-                alt="Meta Text"
-                style={{
-                  height: '40px',
-                  objectFit: 'contain',
-                  filter: 'var(--logo-text-filter, none)',
-                }}
-              />
-            </a>
-          </div>
-        </div>
-      </section>
 
-      {/* Key Benefits */}
-      <section className="home-section">
-        <div className="section-container">
-          <h2 className="section-title">Why Developers Choose OpenIAP</h2>
-          <p className="section-subtitle">
-            Build revenue-generating features faster with less code
-          </p>
-          <div className="key-benefits">
-            <div className="key-benefit-card">
-              <div className="key-benefit-value">1x</div>
-              <h3>Learn Once</h3>
-              <p>
-                Master one API instead of learning different patterns for iOS,
-                Android, and every framework
-              </p>
+            <div
+              className="hero-orbit"
+              aria-label="OpenIAP connects one purchase API to native store platforms"
+            >
+              <div
+                className="hero-orbit-ring hero-orbit-ring-outer"
+                aria-hidden="true"
+              />
+              <div
+                className="hero-orbit-ring hero-orbit-ring-inner"
+                aria-hidden="true"
+              />
+              <span className="hero-orbit-node hero-orbit-node-apple">
+                StoreKit 2
+              </span>
+              <span className="hero-orbit-node hero-orbit-node-google">
+                Play Billing
+              </span>
+              <span className="hero-orbit-node hero-orbit-node-amazon">
+                Amazon
+              </span>
+              <span className="hero-orbit-node hero-orbit-node-horizon">
+                Horizon
+              </span>
+              <span className="hero-orbit-node hero-orbit-node-vega">
+                Vega OS
+              </span>
+              <div className="hero-orbit-core">
+                <span>One open contract</span>
+                <img src={LOGO_PATH} alt="OpenIAP mascot" />
+                <div className="hero-orbit-actions">
+                  <Link to="/docs/apis/request-purchase">
+                    <code>requestPurchase()</code>
+                  </Link>
+                  <a
+                    href="https://github.com/hyodotdev/openiap"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <Star size={12} fill="currentColor" aria-hidden="true" />
+                    Star OpenIAP
+                  </a>
+                </div>
+              </div>
             </div>
-            <div className="key-benefit-card">
-              <div className="key-benefit-value">0</div>
-              <h3>Runtime Errors</h3>
-              <p>
-                Type-safe generated code catches mistakes at compile time, not
-                in production
-              </p>
+          </div>
+
+          <div className="hero-trust">
+            <div className="hero-native">
+              <span>Native core</span>
+              <div className="hero-native-links">
+                <a
+                  href="https://github.com/hyodotdev/openiap/tree/main/packages/apple"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <img
+                    src={LIBRARY_IMAGES['openiap-apple']}
+                    alt=""
+                    aria-hidden="true"
+                  />
+                  <span>
+                    <strong>Apple</strong>
+                    <small>StoreKit 2</small>
+                  </span>
+                </a>
+                <a
+                  href="https://github.com/hyodotdev/openiap/tree/main/packages/google"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <img
+                    src={LIBRARY_IMAGES['openiap-google']}
+                    alt=""
+                    aria-hidden="true"
+                  />
+                  <span>
+                    <strong>Google Play</strong>
+                    <small>Billing 9.1</small>
+                  </span>
+                </a>
+              </div>
             </div>
-            <div className="key-benefit-card">
-              <div className="key-benefit-value">100%</div>
-              <h3>Platform Features</h3>
-              <p>
-                Full access to StoreKit 2 and Play Billing v9.1 — no features
-                hidden or abstracted away
-              </p>
+
+            <div className="hero-frameworks">
+              <span>Frameworks</span>
+              <div>
+                {LIBRARIES.map((library) => (
+                  <Link
+                    key={library.name}
+                    to={library.setupPath}
+                    className="hero-framework-link"
+                    title={library.frameworkName}
+                  >
+                    <img src={library.image} alt={library.frameworkName} />
+                    <span>{library.homeLabel}</span>
+                  </Link>
+                ))}
+              </div>
             </div>
+
+            <Link to="/sponsors" className="hero-backer">
+              <span>Backed by</span>
+              <span>
+                <img src="/sponsors/meta.webp" alt="Meta" />
+              </span>
+            </Link>
           </div>
         </div>
       </section>
 
       <section className="home-section section-problem">
-        <div className="section-container">
-          <h2>The Problem We're Solving</h2>
-          <p
-            className="section-subtitle"
-            style={{
-              maxWidth: '800px',
-              margin: '0 auto 3rem',
-              lineHeight: '1.8',
-              textAlign: 'center',
-            }}
-          >
-            Every new platform and framework creates its own IAP implementation.
-            Library maintainers independently design APIs, leading to fragmented
-            specifications. Developers must learn different APIs for each
-            platform, increasing complexity and errors.
-            <br />
-            <br />
-            <strong>OpenIAP is our answer:</strong> A unified, open
-            specification that reduces fragmentation and enables consistent IAP
-            implementations across all platforms. This standardization is
-            especially critical in the AI coding era.
-          </p>
-          <div className="benefit-grid">
-            <div className="benefit">
-              <h3>End Fragmentation</h3>
-              <p>
-                Multiple IAP libraries with different APIs create complexity.
-                OpenIAP provides a unified specification that all libraries can
-                implement.
-              </p>
+        <div className="section-container openiap-case">
+          <div className="openiap-case-header">
+            <div>
+              <p className="home-section-kicker">The problem</p>
+              <h2>Four stores ≠ four integrations</h2>
             </div>
-            <div className="benefit">
-              <h3>Future-Proof</h3>
-              <p>
-                As StoreKit 2, Android Billing v9, and new platforms emerge,
-                OpenIAP abstracts these changes behind a stable API.
-              </p>
+            <p>
+              Every store ships its own API, types, and events. Your product
+              logic should not have to be rewritten for each one.
+            </p>
+          </div>
+
+          <div className="openiap-comparison">
+            <div className="openiap-fragmented">
+              <div className="openiap-comparison-label">
+                <span>Without a shared contract</span>
+                <strong>Repeat the same work</strong>
+              </div>
+              <div
+                className="openiap-store-matrix"
+                aria-label="Store-specific purchase integrations"
+              >
+                <div>
+                  <strong>StoreKit 2</strong>
+                  <span>API</span>
+                  <span>Types</span>
+                  <span>Events</span>
+                </div>
+                <div>
+                  <strong>Play Billing</strong>
+                  <span>API</span>
+                  <span>Types</span>
+                  <span>Events</span>
+                </div>
+                <div>
+                  <strong>Amazon</strong>
+                  <span>API</span>
+                  <span>Types</span>
+                  <span>Events</span>
+                </div>
+                <div>
+                  <strong>Horizon</strong>
+                  <span>API</span>
+                  <span>Types</span>
+                  <span>Events</span>
+                </div>
+              </div>
             </div>
-            <div className="benefit">
-              <h3>AI-Ready</h3>
+            <Link to="/docs/apis/request-purchase" className="openiap-unified">
+              <span>One shared contract</span>
+              <code>requestPurchase()</code>
+              <small>Same method · generated types · predictable events</small>
+              <strong>
+                See the API
+                <ArrowUpRight size={15} aria-hidden="true" />
+              </strong>
+            </Link>
+          </div>
+
+          <div className="openiap-outcomes">
+            <article>
+              <span>01</span>
+              <h3>One implementation</h3>
+              <p>Build purchase logic once across six framework libraries.</p>
+            </article>
+            <article>
+              <span>02</span>
+              <h3>Types that agree</h3>
               <p>
-                In the AI coding era, standardized APIs are crucial. OpenIAP
-                enables AI assistants to generate consistent IAP code.
+                Generated models catch mismatches before they reach production.
               </p>
-            </div>
-            <div className="benefit">
-              <h3>Cross-Platform Native</h3>
+            </article>
+            <article>
+              <span>03</span>
+              <h3>Native when needed</h3>
               <p>
-                From React Native to Flutter to KMP, every framework needs IAP.
-                One specification, multiple implementations.
+                Keep access to platform-specific capabilities without forking
+                the whole flow.
               </p>
-            </div>
-            <div className="benefit">
-              <h3>Community-Driven</h3>
-              <p>
-                Library maintainers collaborate on a shared specification
-                instead of creating isolated, incompatible solutions.
-              </p>
-            </div>
-            <div className="benefit">
-              <h3>XR-Compatible</h3>
-              <p>
-                Horizon OS, Vision Pro, Amazon Fire OS, and Vega OS supported.
-                Android XR coming soon. OpenIAP is ready for the spatial
-                computing era.
-              </p>
-            </div>
+            </article>
           </div>
         </div>
       </section>
 
       <section className="home-section section-how">
-        <div className="section-container">
-          <h2>How OpenIAP Works</h2>
-          <p className="section-subtitle">
-            Unifying diverse platform APIs into a single, consistent
-            specification
-          </p>
+        <div className="section-container openiap-specification">
+          <div className="home-section-heading home-section-heading-centered">
+            <div>
+              <p className="home-section-kicker">How OpenIAP works</p>
+              <h2>One contract, three surfaces</h2>
+            </div>
+          </div>
           <div className="specification-grid">
             <div className="spec-card">
               <div className="spec-card-header">
-                <div className="spec-icon">📋</div>
+                <div className="spec-index">01 / Methods</div>
                 <h3>Unified APIs</h3>
                 <p>Standard methods across all platforms</p>
               </div>
@@ -420,7 +361,7 @@ function Home() {
 
             <div className="spec-card">
               <div className="spec-card-header">
-                <div className="spec-icon">⚡</div>
+                <div className="spec-index">02 / Signals</div>
                 <h3>Standard Events</h3>
                 <p>Consistent event handling patterns</p>
               </div>
@@ -457,7 +398,7 @@ function Home() {
                   to="/docs/events/android/developer-provided-billing-listener-android"
                   className="spec-item"
                 >
-                  <code>developerProvidedBillingListener</code>
+                  <code>developerProvidedBillingListenerAndroid</code>
                   <span>External billing choice</span>
                 </Link>
                 <Link
@@ -472,7 +413,7 @@ function Home() {
 
             <div className="spec-card">
               <div className="spec-card-header">
-                <div className="spec-icon">🔧</div>
+                <div className="spec-index">03 / Data</div>
                 <h3>Unified Types</h3>
                 <p>Common data structures for all platforms</p>
               </div>
@@ -516,125 +457,178 @@ function Home() {
         </div>
       </section>
 
-      <section className="home-section section-who">
-        <div className="section-container" style={{ maxWidth: '960px' }}>
-          <h2>Who uses OpenIAP?</h2>
-          <p
-            className="section-subtitle"
-            style={{ maxWidth: '880px', margin: '0 auto' }}
-          >
-            Ship your app with OpenIAP or its libraries (
-            {LIBRARIES.map((library, index) => (
-              <span key={library.name}>
-                <a
-                  href={library.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  title={`${library.displayName} on GitHub`}
-                >
-                  {library.displayName}
-                </a>
-                {index < LIBRARIES.length - 1 ? ', ' : ''}
-              </span>
-            ))}
-            )?
-            <br />
-            We'd love to showcase it here.
-          </p>
-          <div style={{ ...showcaseGridStyle, marginTop: '2.5rem' }}>
-            {FEATURED_SHOWCASE_APPS.map((app) => (
-              <ShowcaseAppCard key={app.name} app={app} />
-            ))}
-            <ShowcaseSubmitCard />
-          </div>
-          {SHOWCASE_APPS.length > FEATURED_SHOWCASE_APPS.length ? (
-            <div style={{ marginTop: '1.5rem' }}>
-              <Link
-                to="/showcase"
-                style={{
-                  color: 'var(--accent-color)',
-                  fontWeight: 600,
-                  textDecoration: 'none',
-                }}
+      <section className="home-section section-iapkit">
+        <div className="section-container iapkit-home-panel">
+          <div className="iapkit-home-copy">
+            <p className="iapkit-home-eyebrow">Hosted infrastructure</p>
+            <h2>Your IAP backend</h2>
+            <p>
+              Verification, entitlements, store notifications, MCP product sync,
+              and revenue metrics—all hosted.
+            </p>
+            <div className="iapkit-home-actions">
+              <a
+                href={IAPKIT_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="btn btn-primary"
+                onClick={trackIapKitClick}
               >
-                See all {SHOWCASE_APPS.length} apps →
+                <img
+                  src={IAPKIT_LOGO_PATH}
+                  alt=""
+                  className="iapkit-home-cta-logo"
+                  aria-hidden="true"
+                />
+                <span>Open IAPKit</span>
+                <ArrowUpRight size={16} aria-hidden="true" />
+              </a>
+              <Link to="/docs/guides/mcp-server" className="btn btn-secondary">
+                MCP workflow
               </Link>
             </div>
-          ) : null}
+          </div>
+
+          <div className="iapkit-home-features">
+            <div
+              className="iapkit-home-route"
+              aria-label="Your app connects to Apple App Store, Google Play, Amazon Appstore, Meta Horizon, and Vega OS through IAPKit"
+            >
+              <span>Your app</span>
+              <span className="iapkit-home-route-line" aria-hidden="true" />
+              <span className="iapkit-home-route-brand">
+                <img src={IAPKIT_LOGO_PATH} alt="" aria-hidden="true" />
+                <strong>IAPKit</strong>
+              </span>
+              <span className="iapkit-home-route-line" aria-hidden="true" />
+              <span className="iapkit-home-route-stores">
+                <strong>Store ecosystems</strong>
+                <small>Apple · Google · Amazon · Meta · Vega</small>
+              </span>
+            </div>
+            <ol className="iapkit-home-feature-list">
+              {IAPKIT_FEATURES.map((feature, index) => {
+                const FeatureIcon = feature.icon;
+
+                return (
+                  <li key={feature.title} className="iapkit-home-feature">
+                    <span
+                      className="iapkit-home-feature-index"
+                      aria-hidden="true"
+                    >
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                    <div
+                      className="iapkit-home-feature-icon"
+                      aria-hidden="true"
+                    >
+                      <FeatureIcon size={21} strokeWidth={1.7} />
+                    </div>
+                    <div>
+                      <h3>{feature.title}</h3>
+                      <p>{feature.description}</p>
+                    </div>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
         </div>
       </section>
 
-      <section className="home-section section-why">
-        <div className="section-container">
-          <h2>Our Sponsors</h2>
-          <p className="section-subtitle">
-            Thank you for helping us build a better IAP ecosystem for everyone
-          </p>
-          <div
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              alignItems: 'center',
-              gap: '3rem',
-              marginTop: '3rem',
-            }}
-          >
-            <a
-              href="https://meta.com"
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                textDecoration: 'none',
-              }}
+      <section className="home-section section-who">
+        <div className="section-container home-community">
+          <div className="home-community-intro">
+            <p className="home-section-kicker">Community</p>
+            <h2>OpenIAP Community</h2>
+            <p>Resources, apps, and voices from across the ecosystem.</p>
+          </div>
+
+          <nav className="home-community-index" aria-label="Community sections">
+            <Link to="/community-resources#resources">
+              <span>01</span>
+              <div>
+                <strong>Resources</strong>
+                <small>Articles · tutorials · videos</small>
+              </div>
+              <ArrowUpRight size={18} aria-hidden="true" />
+            </Link>
+            <Link to="/community-resources#apps">
+              <span>02</span>
+              <div>
+                <strong>Apps built with OpenIAP</strong>
+                <small>Products shipping across app stores</small>
+                <span className="home-community-app-icons" aria-hidden="true">
+                  {FEATURED_SHOWCASE_APPS.slice(0, 4).map((app) => (
+                    <img key={app.name} src={app.logo} alt="" />
+                  ))}
+                </span>
+              </div>
+              <ArrowUpRight size={18} aria-hidden="true" />
+            </Link>
+            <Link to="/community-resources#contribute">
+              <span>03</span>
+              <div>
+                <strong>Contribute</strong>
+                <small>Share an article or app</small>
+              </div>
+              <ArrowUpRight size={18} aria-hidden="true" />
+            </Link>
+          </nav>
+        </div>
+      </section>
+
+      <section className="home-section section-sponsors">
+        <div className="section-container home-sponsors">
+          <div className="home-sponsors-copy">
+            <p className="home-section-kicker">Open-source support</p>
+            <h2>Backed to stay open</h2>
+            <p>
+              Sponsor the shared purchase layer that keeps native stores and
+              framework SDKs moving together.
+            </p>
+          </div>
+
+          <div className="home-sponsor-ledger">
+            <div className="home-sponsor-featured">
+              <span className="home-sponsor-label">
+                <span>01</span>
+                Sponsors
+              </span>
+              <div className="home-sponsor-meta">
+                <a
+                  className="home-sponsor-logo-link"
+                  href="https://meta.com"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  aria-label="Visit Meta"
+                >
+                  <img src="/sponsors/meta.webp" alt="Meta" />
+                </a>
+                <span className="home-sponsor-tier">Angel</span>
+              </div>
+            </div>
+
+            <div
+              className="home-sponsor-flow"
+              aria-label={`Meta sponsors OpenIAP, helping maintain ${LIBRARIES.length} framework SDKs`}
             >
-              <img
-                src="/meta.svg"
-                alt="Meta Logo"
-                style={{ height: '60px', objectFit: 'contain' }}
-              />
-              <img
-                src="/meta-txt.svg"
-                alt="Meta Text"
-                style={{
-                  height: '60px',
-                  objectFit: 'contain',
-                  filter: 'var(--logo-text-filter, none)',
-                }}
-              />
-            </a>
-            <Link
-              to="/sponsors"
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '0.5rem',
-                padding: '0.75rem 2rem',
-                background:
-                  'linear-gradient(135deg, var(--primary-color), var(--accent-color))',
-                color: 'white',
-                borderRadius: '2rem',
-                textDecoration: 'none',
-                fontWeight: '600',
-                fontSize: '0.95rem',
-                boxShadow: '0 4px 14px rgba(164, 116, 101, 0.3)',
-                transition: 'all 0.3s ease',
-                border: '2px solid transparent',
-              }}
-              onMouseEnter={(e) => {
-                e.currentTarget.style.transform = 'translateY(-2px)';
-                e.currentTarget.style.boxShadow =
-                  '0 6px 20px rgba(164, 116, 101, 0.4)';
-              }}
-              onMouseLeave={(e) => {
-                e.currentTarget.style.transform = 'translateY(0)';
-                e.currentTarget.style.boxShadow =
-                  '0 4px 14px rgba(164, 116, 101, 0.3)';
-              }}
-            >
-              <span>💎</span> Become a Sponsor
+              <span>Meta</span>
+              <i>sponsors</i>
+              <strong>OpenIAP</strong>
+              <i>helping maintain</i>
+              <span>{LIBRARIES.length} framework SDKs</span>
+            </div>
+
+            <Link className="home-sponsor-invite" to="/sponsors">
+              <span>Next</span>
+              <span>
+                <strong>Put your name behind the standard</strong>
+                <small>
+                  Fund maintenance, testing, and shared infrastructure
+                </small>
+              </span>
+              <ArrowUpRight size={17} aria-hidden="true" />
             </Link>
           </div>
         </div>

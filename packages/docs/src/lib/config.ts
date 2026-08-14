@@ -16,6 +16,7 @@ export const LOGO_PATH = '/logo.webp';
 // =============================================================================
 
 export const IAPKIT_URL = 'https://kit.openiap.dev';
+export const IAPKIT_LOGO_PATH = '/iapkit.webp';
 export const IAPKIT_AD_BANNER_URL =
   'https://www.hyo.dev/api/ad-banner/cmjf0l27p0004249h2blztbct';
 

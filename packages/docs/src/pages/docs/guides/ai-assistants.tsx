@@ -143,7 +143,14 @@ function AIAssistants() {
             Click <strong>Add new doc</strong>
           </li>
           <li>
-            Enter URL: <code>https://openiap.dev/llms.txt</code>
+            Enter URL:{' '}
+            <a
+              href="https://openiap.dev/llms.txt"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              <code>https://openiap.dev/llms.txt</code>
+            </a>
           </li>
           <li>
             Name it <strong>OpenIAP</strong>

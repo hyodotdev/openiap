@@ -990,4 +990,12 @@ export const apiData: ApiItem[] = [
       'Expo-only iOS Onside alternative marketplace setup and required values',
     path: '/docs/setup/store/onside',
   },
+  {
+    id: 'community-resources',
+    title: 'Community Resources',
+    category: 'Community',
+    description:
+      'Third-party articles, videos, documentation, and community coverage across the OpenIAP ecosystem',
+    path: '/community-resources',
+  },
 ];

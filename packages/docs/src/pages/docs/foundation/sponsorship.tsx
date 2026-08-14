@@ -456,23 +456,15 @@ function Sponsorship() {
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
           >
             <img
-              src="/meta.svg"
-              alt="Meta"
-              style={{ height: '48px', objectFit: 'contain' }}
-            />
-            <img
-              src="/meta-txt.svg"
+              src="/sponsors/meta.webp"
               alt="Meta"
               style={{
                 height: '48px',
                 objectFit: 'contain',
-                filter: 'var(--logo-text-filter, none)',
               }}
             />
           </a>
-          <span style={{ color: 'var(--text-secondary)' }}>
-            Founding Sponsor
-          </span>
+          <span style={{ color: 'var(--text-secondary)' }}>Angel Sponsor</span>
         </div>
       </section>
 

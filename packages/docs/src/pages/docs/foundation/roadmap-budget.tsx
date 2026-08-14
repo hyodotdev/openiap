@@ -268,20 +268,44 @@ function RoadmapBudget() {
             <tr>
               <td>Vercel hosting (docs site)</td>
               <td>$20</td>
-              <td>openiap.dev</td>
+              <td>
+                <a
+                  href="https://openiap.dev"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap.dev
+                </a>
+              </td>
             </tr>
             <tr>
               <td>IAPKit community instance (Convex)</td>
               <td>~$20</td>
               <td>
-                kit.openiap.dev receipt validation — community service funded
-                through OpenCollective
+                <a
+                  href="https://kit.openiap.dev"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  kit.openiap.dev
+                </a>{' '}
+                receipt validation — community service funded through
+                OpenCollective
               </td>
             </tr>
             <tr>
               <td>Domain registration</td>
               <td>~$3</td>
-              <td>openiap.dev annual amortized</td>
+              <td>
+                <a
+                  href="https://openiap.dev"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  openiap.dev
+                </a>{' '}
+                annual amortized
+              </td>
             </tr>
             <tr>
               <td>GitHub Actions CI/CD</td>

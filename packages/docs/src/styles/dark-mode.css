@@ -12,6 +12,7 @@
   --accent-color: #ff8066;
   --logo-text-filter: invert(1);
   --apple-logo-filter: none;
+  --meta-logo-filter: brightness(0) invert(1);
   --iapkit-text-color: #000000;
 
   /* Dark mode sidebar (slightly darker than content) */
@@ -37,32 +38,6 @@
 
 :root.dark .dropdown-menu a:hover {
   background: var(--bg-primary);
-}
-
-:root.dark .hero {
-  background: linear-gradient(
-    180deg,
-    var(--bg-primary) 0%,
-    rgba(197, 177, 159, 0.05) 50%,
-    rgba(197, 177, 159, 0.1) 100%
-  );
-  color: var(--text-primary);
-}
-
-:root.dark .hero::before {
-  background: radial-gradient(
-    circle at 30% 50%,
-    rgba(197, 177, 159, 0.08) 0%,
-    transparent 50%
-  );
-}
-
-:root.dark .hero::after {
-  background: radial-gradient(
-    circle at 70% 50%,
-    rgba(255, 128, 102, 0.06) 0%,
-    transparent 50%
-  );
 }
 
 :root.dark .btn-primary {
@@ -95,9 +70,8 @@
 }
 
 :root.dark .spec-item code {
-  background: var(--code-bg);
   color: var(--primary-light);
-  border: 1px solid rgba(197, 177, 159, 0.2);
+  background: transparent;
 }
 
 :root.dark .implementation-card:hover {
@@ -106,36 +80,6 @@
 
 :root.dark .language-card:hover {
   box-shadow: 0 8px 16px rgba(0, 0, 0, 0.3);
-}
-
-/* Dark mode for hero module cards and caption */
-:root.dark .module-card {
-  background: linear-gradient(
-    180deg,
-    rgba(24, 24, 31, 0.96) 0%,
-    rgba(24, 24, 31, 0.92) 100%
-  );
-  border-color: rgba(255, 255, 255, 0.12);
-  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.35);
-}
-
-:root.dark .module-card:hover {
-  border-color: var(--primary-light);
-  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.45);
-}
-
-:root.dark .module-card .module-desc {
-  color: var(--text-secondary);
-}
-
-:root.dark .hero-divider {
-  background: linear-gradient(
-    90deg,
-    transparent 0%,
-    rgba(255, 255, 255, 0.12) 20%,
-    rgba(255, 255, 255, 0.12) 80%,
-    transparent 100%
-  );
 }
 
 :root.dark .resource-item:hover {
