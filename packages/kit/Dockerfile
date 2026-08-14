@@ -67,7 +67,7 @@ RUN --mount=type=secret,id=VITE_KIT_MIXPANEL_TOKEN,required=false \
     bun run build:all
 
 # --- Runtime image (single binary + static assets) -----------------------
-FROM debian:bookworm-slim@sha256:abd67ffcfa541b485a3dff59865ab629aa048a6c613e639d36e7456b0b229241 AS runtime
+FROM gcr.io/distroless/base-debian12:nonroot@sha256:b12529fbbd0bb15eea8905f69d83148679e0b4d7d434c8808100792029b1caae AS runtime
 WORKDIR /srv
 
 ARG IAPKIT_REVISION=unknown
@@ -75,11 +75,8 @@ LABEL org.opencontainers.image.title="IAPKit" \
       org.opencontainers.image.source="https://github.com/hyodotdev/openiap" \
       org.opencontainers.image.revision="${IAPKIT_REVISION}"
 
-RUN addgroup --system --gid 1001 openiap && \
-    adduser --system --uid 1001 --ingroup openiap openiap
-
-COPY --from=builder --chown=openiap:openiap /app/packages/kit/openiap-kit-server ./openiap-kit-server
-COPY --from=builder --chown=openiap:openiap /app/packages/kit/dist ./public
+COPY --from=builder --chown=65532:65532 /app/packages/kit/openiap-kit-server ./openiap-kit-server
+COPY --from=builder --chown=65532:65532 /app/packages/kit/dist ./public
 
 ENV STATIC_ROOT=/srv/public
 ENV PORT=3000
@@ -88,5 +85,5 @@ ENV APP_ENV=production
 ENV IAPKIT_REVISION=${IAPKIT_REVISION}
 EXPOSE 3000/tcp
 
-USER openiap
+USER 65532:65532
 ENTRYPOINT ["./openiap-kit-server"]
