@@ -173,6 +173,7 @@
   },
   "packageManager": "yarn@3.6.1",
   "resolutions": {
-    "nitrogen@^0.36.5": "patch:nitrogen@npm%3A0.36.5#./.yarn/patches/nitrogen-npm-0.36.5-array-equatable.patch"
+    "nitrogen@^0.36.5": "patch:nitrogen@npm%3A0.36.5#./.yarn/patches/nitrogen-npm-0.36.5-array-equatable.patch",
+    "uuid@^7.0.3": "11.1.1"
   }
 }

@@ -28,6 +28,7 @@ docs/.docusaurus/
 docs/.cache-loader/
 native/InAppPurchaseBridge/.build/
 native/InAppPurchaseBridge/DerivedData/
+native/InAppPurchaseBridge/Package.resolved
 native/openiap-apple/
 
 # Environment files

@@ -77,9 +77,12 @@ deadline:
 | Within 72 hours of awareness                          | Assessment updated with severity, impact, and any mitigation available to users                                               |
 | Within 14 days of a fix or mitigation being available | Final assessment: root cause, the fix or mitigation, and the affected-version list                                            |
 
-Affected current versions are determined from their attached SBOMs. Older
-releases without a backfilled asset are investigated from their immutable tag
-and published descriptors. Users are informed through the GitHub Security
+For dependency advisories, attached SBOMs identify which releases declare the
+affected dependency. First-party source issues require release-commit
+comparison, reproduction, and regression testing. Older releases without a
+backfilled asset are investigated from the full commit SHA recorded for the
+release, its tag as verified at investigation time, and the published
+descriptors. Users are informed through the GitHub Security
 Advisory, the release notes of the fixing release, and the repository README
 when the impact is broad.
 
@@ -106,8 +109,8 @@ integrators can plan a migration rather than discover it during an incident.
 ## Supply Chain
 
 Current component release workflows attach a CycloneDX SBOM as a GitHub Release
-asset, and a daily repair job fills any missed latest-release asset. Use it to
-check whether a specific version declares a given dependency:
+asset, and a daily repair job fills any missed latest-stable-release asset. Use
+it to check whether a specific version declares a given dependency:
 
 ```bash
 gh release download react-native-iap-16.3.0 \
@@ -123,5 +126,7 @@ gh attestation verify react-native-iap-16.3.0.cdx.json \
   generated, and how to verify or reproduce one
 - [`security/README.md`](security/README.md) — dependency monitoring, artifact
   provenance, and release integrity
+- [`security/ASSURANCE.md`](security/ASSURANCE.md) — threat boundaries,
+  dependency policy, and vulnerability-response procedure
 - [`security/CRA.md`](security/CRA.md) — how these practices map to EU Cyber
   Resilience Act expectations

@@ -4,12 +4,15 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Release the native-derived current spec version'
+        description: "Release the native-derived current spec version"
         required: true
         type: choice
         options:
           - current
         default: current
+
+permissions:
+  contents: read
 
 concurrency:
   group: ${{ github.workflow }}
@@ -23,9 +26,10 @@ jobs:
       contents: write
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Enforce stable release branch
         run: |
@@ -44,27 +48,24 @@ jobs:
 
       - name: Create Git tag
         env:
+          GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.version }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           TAG_NAME="docs-$VERSION"
           if git rev-parse --verify "refs/tags/$TAG_NAME" >/dev/null 2>&1; then
-            TAG_COMMIT=$(git rev-parse "refs/tags/$TAG_NAME^{commit}")
-            HEAD_COMMIT=$(git rev-parse HEAD)
-            if [ "$TAG_COMMIT" != "$HEAD_COMMIT" ]; then
-              echo "❌ Tag $TAG_NAME points to $TAG_COMMIT, not current HEAD $HEAD_COMMIT"
-              echo "A released spec tag is immutable; advance the native-derived spec before publishing a changed contract."
-              exit 1
-            fi
-            echo "Tag $TAG_NAME already points to current HEAD; allowing an idempotent rerun"
+            node scripts/assert-release-tag.mjs docs main "$TAG_NAME" "$VERSION"
+            git checkout --detach "$TAG_NAME"
+            echo "Tag $TAG_NAME is valid; continuing the idempotent release rerun"
           else
             git tag -a "$TAG_NAME" -m "Release $TAG_NAME"
+            gh auth setup-git
             git push origin "$TAG_NAME"
           fi
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3
         with:
           tag_name: docs-${{ steps.version.outputs.version }}
           name: Docs ${{ steps.version.outputs.version }}

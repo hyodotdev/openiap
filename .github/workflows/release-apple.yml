@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version bump type'
+        description: "Version bump type"
         required: true
         type: choice
         options:
@@ -14,24 +14,14 @@ on:
           - current
         default: patch
       prerelease:
-        description: 'Publish as prerelease from next (-rc.1)'
+        description: "Publish as prerelease from next (-rc.1)"
         required: false
         default: false
         type: boolean
       target_version:
-        description: 'Manual version override (e.g., 1.3.5). Leave empty to auto-bump.'
+        description: "Manual version override (e.g., 1.3.5). Leave empty to auto-bump."
         required: false
         type: string
-      publish_cocoapods:
-        description: 'Publish to CocoaPods'
-        required: false
-        type: boolean
-        default: true
-      publish_spm:
-        description: 'Publish Swift Package (GitHub release)'
-        required: false
-        type: boolean
-        default: true
 
 concurrency:
   group: ${{ github.workflow }}
@@ -43,42 +33,46 @@ env:
   RELEASE_BRANCH: ${{ github.ref_name }}
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   release-branch:
     name: Validate release branch
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout
-      uses: actions/checkout@v7
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-    - name: Enforce stable and prerelease branches
-      run: >-
-        node scripts/release-branch-policy.mjs guard apple
-        "${{ inputs.version }}" "${{ inputs.prerelease }}"
-        "$GITHUB_REF_NAME" "${{ inputs.target_version }}"
+      - name: Enforce stable and prerelease branches
+        env:
+          VERSION_TYPE: ${{ inputs.version }}
+          IS_PRERELEASE: ${{ inputs.prerelease }}
+          TARGET_VERSION: ${{ inputs.target_version }}
+        run: >-
+          node scripts/release-branch-policy.mjs guard apple
+          "$VERSION_TYPE" "$IS_PRERELEASE"
+          "$GITHUB_REF_NAME" "$TARGET_VERSION"
 
   validate-ios:
     needs: [release-branch]
     runs-on: macos-15
     timeout-minutes: 30
     steps:
-    - name: Checkout
-      uses: actions/checkout@v7
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
-    - name: Set up Xcode
-      uses: maxim-lobanov/setup-xcode@v1
-      with:
-        xcode-version: ${{ env.XCODE_VERSION }}
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
 
-    - name: Build
-      working-directory: packages/apple
-      run: swift build
+      - name: Build
+        working-directory: packages/apple
+        run: swift build
 
-    - name: Test
-      working-directory: packages/apple
-      run: swift test
+      - name: Test
+        working-directory: packages/apple
+        run: swift test
 
   release:
     needs: [validate-ios]
@@ -88,388 +82,335 @@ jobs:
     runs-on: macos-15
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v7
-      with:
-        fetch-depth: 0
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
-    - name: Set up Xcode
-      if: inputs.publish_cocoapods == true
-      uses: maxim-lobanov/setup-xcode@v1
-      with:
-        xcode-version: ${{ env.XCODE_VERSION }}
+      - name: Set up Xcode
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
+        with:
+          xcode-version: ${{ env.XCODE_VERSION }}
 
-    - name: Calculate new version
-      id: version
-      env:
-        TARGET_VERSION: ${{ github.event.inputs.target_version }}
-        VERSION_TYPE: ${{ github.event.inputs.version }}
-        IS_PRERELEASE: ${{ github.event.inputs.prerelease }}
-      run: |
-        # Read current apple version from openiap-versions.json
-        CURRENT_VERSION=$(jq -r '.apple' openiap-versions.json)
-        echo "Current version: $CURRENT_VERSION"
-        echo "PREVIOUS_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
-        echo "previous_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
+      - name: Calculate new version
+        id: version
+        env:
+          TARGET_VERSION: ${{ github.event.inputs.target_version }}
+          VERSION_TYPE: ${{ github.event.inputs.version }}
+          IS_PRERELEASE: ${{ github.event.inputs.prerelease }}
+        run: |
+          # Read current apple version from openiap-versions.json
+          CURRENT_VERSION=$(jq -r '.apple' openiap-versions.json)
+          echo "Current version: $CURRENT_VERSION"
+          echo "PREVIOUS_VERSION=$CURRENT_VERSION" >> $GITHUB_ENV
+          echo "previous_version=$CURRENT_VERSION" >> $GITHUB_OUTPUT
 
-        BASE_VERSION="${CURRENT_VERSION%%-*}"
-        IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
+          BASE_VERSION="${CURRENT_VERSION%%-*}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
 
-        if [ -n "$TARGET_VERSION" ]; then
-          if [[ ! "$TARGET_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
-            echo "::error::Invalid target_version: $TARGET_VERSION. Must be semver (e.g., 1.3.5 or 1.3.5-rc.1)"
-            exit 1
-          fi
-          NEW_VERSION="$TARGET_VERSION"
-          echo "Using manual version: $NEW_VERSION"
-        elif [ "$VERSION_TYPE" = "current" ]; then
-          NEW_VERSION="$CURRENT_VERSION"
-          echo "Using current version (no bump): $NEW_VERSION"
-          echo "skip_version_commit=true" >> $GITHUB_OUTPUT
-        elif [ "$IS_PRERELEASE" = "true" ]; then
-          case "$VERSION_TYPE" in
-            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
-            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
-            patch) PATCH=$((PATCH + 1)) ;;
-          esac
-          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}-rc.1"
-        else
-          # Stable release — if current version is RC, strip prerelease without bumping
-          IS_RC=$(echo "$CURRENT_VERSION" | grep -c '\-rc\.' || true)
-          if [ "$IS_RC" -gt 0 ] && [ "$VERSION_TYPE" = "patch" ]; then
-            NEW_VERSION="${BASE_VERSION}"
-          else
+          if [ -n "$TARGET_VERSION" ]; then
+            if [[ ! "$TARGET_VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[a-zA-Z0-9.]+)?$ ]]; then
+              echo "::error::Invalid target_version: $TARGET_VERSION. Must be semver (e.g., 1.3.5 or 1.3.5-rc.1)"
+              exit 1
+            fi
+            NEW_VERSION="$TARGET_VERSION"
+            echo "Using manual version: $NEW_VERSION"
+          elif [ "$VERSION_TYPE" = "current" ]; then
+            NEW_VERSION="$CURRENT_VERSION"
+            echo "Using current version (no bump): $NEW_VERSION"
+            echo "skip_version_commit=true" >> $GITHUB_OUTPUT
+          elif [ "$IS_PRERELEASE" = "true" ]; then
             case "$VERSION_TYPE" in
               major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
               minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
               patch) PATCH=$((PATCH + 1)) ;;
             esac
-            NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
-          fi
-        fi
-
-        echo "VERSION=$NEW_VERSION" >> $GITHUB_ENV
-        echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-        if [[ "$NEW_VERSION" == *-* ]]; then
-          echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
-        fi
-
-    - name: Check if tag already exists
-      id: check_tag
-      env:
-        VERSION: ${{ steps.version.outputs.version }}
-        SKIP_VERSION_COMMIT: ${{ steps.version.outputs.skip_version_commit }}
-      run: |
-        if git rev-parse "$VERSION" >/dev/null 2>&1; then
-          if [ "$SKIP_VERSION_COMMIT" = "true" ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "bare_exists=true" >> $GITHUB_OUTPUT
-            echo "⚠️ Tag $VERSION already exists. Will reuse existing tag (current mode)."
+            NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}-rc.1"
           else
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "❌ Tag $VERSION already exists. Use 'current' to retry with existing version."
-            exit 1
-          fi
-        elif git rev-parse "apple-v$VERSION" >/dev/null 2>&1; then
-          if [ "$SKIP_VERSION_COMMIT" = "true" ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "bare_exists=false" >> $GITHUB_OUTPUT
-            echo "⚠️ Legacy tag apple-v$VERSION already exists. Will reuse existing tag (current mode)."
-          else
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "❌ Legacy tag apple-v$VERSION already exists. Use 'current' to retry with existing version."
-            exit 1
-          fi
-        else
-          echo "exists=false" >> $GITHUB_OUTPUT
-          echo "bare_exists=false" >> $GITHUB_OUTPUT
-          echo "✓ Tag $VERSION does not exist, proceeding with release"
-        fi
-
-    - name: Checkout release tag (current version)
-      if: steps.version.outputs.skip_version_commit == 'true' && steps.check_tag.outputs.exists == 'true'
-      env:
-        VERSION: ${{ steps.version.outputs.version }}
-      run: |
-        RELEASE_TAG="$VERSION"
-        LEGACY_TAG="apple-v$VERSION"
-        if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
-          SELECTED_TAG="$RELEASE_TAG"
-        else
-          SELECTED_TAG="$LEGACY_TAG"
-        fi
-        node scripts/assert-release-tag.mjs \
-          apple "$RELEASE_BRANCH" "$SELECTED_TAG" "$VERSION"
-        git checkout "$SELECTED_TAG"
-
-    - name: Update version in openiap-versions.json
-      if: steps.version.outputs.skip_version_commit != 'true'
-      env:
-        VERSION: ${{ steps.version.outputs.version }}
-      run: node scripts/release-branch-policy.mjs update-native apple "$VERSION"
-
-    - name: Setup Bun
-      if: steps.version.outputs.skip_version_commit != 'true'
-      uses: oven-sh/setup-bun@v2
-      with:
-        bun-version: 1.3.13
-
-    - name: Sync version files
-      if: steps.version.outputs.skip_version_commit != 'true'
-      run: ./scripts/sync-release-generated.sh
-
-    - name: Commit version update
-      if: steps.version.outputs.skip_version_commit != 'true'
-      env:
-        VERSION: ${{ steps.version.outputs.version }}
-      run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-
-        git add openiap-versions.json packages/*/openiap-versions.json
-        git add packages/apple/Sources/OpenIapGeneratedVersion.swift
-        git add packages/docs/src/generated/version-metadata.json
-        git add packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
-
-        if git diff --staged --quiet; then
-          echo "No version changes to commit"
-        else
-          git commit -m "chore(release): openiap-apple@$VERSION"
-
-          # Push with retry, handling concurrent release conflicts
-          for i in 1 2 3; do
-            # Pull latest changes before pushing
-            if ! git pull --rebase origin "$RELEASE_BRANCH"; then
-              echo "⚠️ Rebase conflict detected, auto-resolving version files..."
-
-              # Auto-resolve version metadata conflicts by applying only our
-              # key on top of upstream. Taking ours wholesale would regress
-              # other packages' versions when a concurrent release landed in
-              # between (race observed 2026-04-24: google bump regressed apple
-              # 2.1.3 → 2.1.2).
-              for conflict_file in $(git diff --name-only --diff-filter=U); do
-                case "$conflict_file" in
-                  openiap-versions.json|packages/*/openiap-versions.json|packages/gql/package.json|packages/docs/package.json|packages/google/package.json|packages/apple/package.json)
-                    ;;
-                  packages/docs/src/generated/version-metadata.json)
-                    ;;
-                  packages/docs/public/llms.txt|packages/docs/public/llms-full.txt|knowledge/_claude-context/context.md)
-                    ;;
-                  *)
-                    echo "❌ Unexpected conflict in $conflict_file"
-                    exit 1
-                    ;;
-                esac
-              done
-
-              # Re-sync package metadata and docs copy after merge
-              git show HEAD:openiap-versions.json > /tmp/upstream-openiap-versions.json
-              cp /tmp/upstream-openiap-versions.json openiap-versions.json
-              node scripts/release-branch-policy.mjs update-native apple "$VERSION"
-              ./scripts/sync-release-generated.sh
-              git add openiap-versions.json packages/*/openiap-versions.json
-              git add packages/apple/Sources/OpenIapGeneratedVersion.swift
-              git add packages/docs/src/generated/version-metadata.json
-              git add packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
-
-              GIT_EDITOR=true git rebase --continue || { echo "❌ Rebase continue failed"; exit 1; }
-            fi
-
-            # A clean rebase can combine independent Apple and Google bumps
-            # that both retained the old floor. Re-derive from the rebased
-            # native pair before every push, then amend only if convergence
-            # changed the version commit.
-            node scripts/release-branch-policy.mjs update-native apple "$VERSION"
-            ./scripts/sync-release-generated.sh
-            git add openiap-versions.json packages/*/openiap-versions.json
-            git add packages/apple/Sources/OpenIapGeneratedVersion.swift
-            git add packages/docs/src/generated/version-metadata.json
-            git add packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
-            if ! git diff --staged --quiet; then
-              git commit --amend --no-edit
-            fi
-            node scripts/release-branch-policy.mjs assert-floor
-
-            if git push origin "HEAD:$RELEASE_BRANCH"; then
-              echo "✅ Successfully pushed version update"
-              break
+            # Stable release — if current version is RC, strip prerelease without bumping
+            IS_RC=$(echo "$CURRENT_VERSION" | grep -c '\-rc\.' || true)
+            if [ "$IS_RC" -gt 0 ] && [ "$VERSION_TYPE" = "patch" ]; then
+              NEW_VERSION="${BASE_VERSION}"
             else
-              if [ $i -lt 3 ]; then
-                echo "⚠️ Push failed, retrying in $((i * 2)) seconds..."
-                sleep $((i * 2))
-              else
-                echo "❌ Failed to push after 3 attempts"
-                exit 1
-              fi
+              case "$VERSION_TYPE" in
+                major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+                minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+                patch) PATCH=$((PATCH + 1)) ;;
+              esac
+              NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
             fi
-          done
-        fi
+          fi
 
-    - name: Create and push tag
-      env:
-        VERSION: ${{ steps.version.outputs.version }}
-      run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
+          echo "VERSION=$NEW_VERSION" >> $GITHUB_ENV
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          if [[ "$NEW_VERSION" == *-* ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
 
-        # Check if tag already exists
-        if git rev-parse "$VERSION" >/dev/null 2>&1; then
-          echo "Tag $VERSION already exists"
-        else
-          git tag "$VERSION"
-          git push origin "$VERSION"
-          echo "✅ Created and pushed tag $VERSION"
-        fi
+      - name: Check if tag already exists
+        id: check_tag
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          SKIP_VERSION_COMMIT: ${{ steps.version.outputs.skip_version_commit }}
+        run: |
+          if git rev-parse "$VERSION" >/dev/null 2>&1; then
+            if [ "$SKIP_VERSION_COMMIT" = "true" ]; then
+              echo "exists=true" >> $GITHUB_OUTPUT
+              echo "bare_exists=true" >> $GITHUB_OUTPUT
+              echo "⚠️ Tag $VERSION already exists. Will reuse existing tag (current mode)."
+            else
+              echo "exists=true" >> $GITHUB_OUTPUT
+              echo "❌ Tag $VERSION already exists. Use 'current' to retry with existing version."
+              exit 1
+            fi
+          elif git rev-parse "apple-v$VERSION" >/dev/null 2>&1; then
+            if [ "$SKIP_VERSION_COMMIT" = "true" ]; then
+              echo "exists=true" >> $GITHUB_OUTPUT
+              echo "bare_exists=false" >> $GITHUB_OUTPUT
+              echo "⚠️ Legacy tag apple-v$VERSION already exists. Will reuse existing tag (current mode)."
+            else
+              echo "exists=true" >> $GITHUB_OUTPUT
+              echo "❌ Legacy tag apple-v$VERSION already exists. Use 'current' to retry with existing version."
+              exit 1
+            fi
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "bare_exists=false" >> $GITHUB_OUTPUT
+            echo "✓ Tag $VERSION does not exist, proceeding with release"
+          fi
 
-    - name: Setup Ruby
-      if: inputs.publish_cocoapods == true
-      uses: ruby/setup-ruby@v1
-      with:
-        ruby-version: '3.0'
-        bundler-cache: false
+      - name: Checkout release tag (current version)
+        if: steps.version.outputs.skip_version_commit == 'true' && steps.check_tag.outputs.exists == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          RELEASE_TAG="$VERSION"
+          LEGACY_TAG="apple-v$VERSION"
+          if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+            SELECTED_TAG="$RELEASE_TAG"
+          else
+            SELECTED_TAG="$LEGACY_TAG"
+          fi
+          node scripts/assert-release-tag.mjs \
+            apple "$RELEASE_BRANCH" "$SELECTED_TAG" "$VERSION"
+          git checkout "$SELECTED_TAG"
 
-    - name: Install CocoaPods
-      if: inputs.publish_cocoapods == true
-      run: |
-        gem install cocoapods -v "$COCOAPODS_VERSION"
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
+        with:
+          ruby-version: "3.0"
+          bundler-cache: false
 
-    - name: Validate Podspec
-      if: inputs.publish_cocoapods == true
-      id: validate_podspec
-      run: |
-        # Remove symlink if exists and copy podspec to root for validation
-        rm -f openiap.podspec
-        cp packages/apple/openiap.podspec .
-        pod lib lint openiap.podspec --allow-warnings
+      - name: Install CocoaPods
+        run: gem install cocoapods -v "$COCOAPODS_VERSION"
 
-    - name: Cleanup on validation failure
-      if: inputs.publish_cocoapods == true && failure() && steps.validate_podspec.outcome == 'failure' && steps.check_tag.outputs.bare_exists != 'true'
-      env:
-        VERSION: ${{ steps.version.outputs.version }}
-      run: |
-        echo "❌ Podspec validation failed. Cleaning up tag created by this run..."
+      - name: Check CocoaPods publication state
+        id: check_cocoapods
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          RELEASE_TAG_EXISTS: ${{ steps.check_tag.outputs.exists }}
+        run: |
+          POD_INFO=$(pod trunk info openiap)
+          if awk -v version="$VERSION" \
+            '$1 == "-" && $2 == version { found=1 } END { exit !found }' \
+            <<<"$POD_INFO"; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            if [ "$RELEASE_TAG_EXISTS" != "true" ]; then
+              echo "::error::openiap $VERSION is already published without a release tag; release a new version instead"
+              exit 1
+            fi
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+          fi
 
-        # Delete the tag locally and remotely
-        git tag -d "$VERSION" || true
-        git push origin :refs/tags/"$VERSION" || true
+      - name: Require CocoaPods credentials
+        if: steps.check_cocoapods.outputs.exists == 'false'
+        env:
+          COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
+        run: |
+          if [ -z "$COCOAPODS_TRUNK_TOKEN" ]; then
+            echo "::error::COCOAPODS_TRUNK_TOKEN is required for an unpublished version"
+            exit 1
+          fi
 
-        echo "✅ Deleted tag $VERSION"
+      - name: Update version in openiap-versions.json
+        if: steps.version.outputs.skip_version_commit != 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: node scripts/release-branch-policy.mjs update-native apple "$VERSION"
 
-    - name: Deploy to CocoaPods
-      if: inputs.publish_cocoapods == true
-      env:
-        COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
-        COCOAPODS_VALIDATOR_SKIP_XCODEBUILD: 1
-        CI: true
-      run: |
-        if [ -z "$COCOAPODS_TRUNK_TOKEN" ]; then
-          echo "⚠️ COCOAPODS_TRUNK_TOKEN is not set. Skipping CocoaPods publish."
-        else
+      - name: Setup Bun
+        if: steps.version.outputs.skip_version_commit != 'true'
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.3.13
+
+      - name: Sync version files
+        if: steps.version.outputs.skip_version_commit != 'true'
+        run: ./scripts/sync-release-generated.sh
+
+      - name: Validate Podspec
+        run: |
+          rm -f openiap.podspec
+          cp packages/apple/openiap.podspec .
+          pod lib lint openiap.podspec --allow-warnings
+
+      - name: Assert verified release head is unchanged
+        if: inputs.version != 'current' || steps.check_tag.outputs.exists != 'true'
+        run: node scripts/assert-release-head.mjs "$RELEASE_BRANCH" "$GITHUB_SHA"
+
+      - name: Commit version update
+        if: steps.version.outputs.skip_version_commit != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh auth setup-git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add openiap-versions.json packages/*/openiap-versions.json
+          git add packages/apple/Sources/OpenIapGeneratedVersion.swift
+          git add packages/docs/src/generated/version-metadata.json
+          git add packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
+
+          if git diff --staged --quiet; then
+            echo "No version changes to commit"
+          else
+            git commit -m "chore(release): openiap-apple@$VERSION"
+            node scripts/release-branch-policy.mjs assert-floor
+            if ! git push origin "HEAD:$RELEASE_BRANCH"; then
+              echo "::error::Release branch moved after verification; rerun the release workflow"
+              exit 1
+            fi
+          fi
+
+      - name: Create and push tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh auth setup-git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if git rev-parse "$VERSION" >/dev/null 2>&1; then
+            echo "Tag $VERSION already exists"
+          else
+            git tag "$VERSION"
+            git push origin "$VERSION"
+            echo "✅ Created and pushed tag $VERSION"
+          fi
+
+      - name: Deploy to CocoaPods
+        if: steps.check_cocoapods.outputs.exists == 'false'
+        env:
+          COCOAPODS_TRUNK_TOKEN: ${{ secrets.COCOAPODS_TRUNK_TOKEN }}
+          COCOAPODS_VALIDATOR_SKIP_XCODEBUILD: 1
+          CI: true
+        run: |
           pod trunk push openiap.podspec --allow-warnings --skip-tests --verbose
           echo "✅ Published to CocoaPods"
-        fi
 
-    - name: Generate release notes
-      if: inputs.publish_spm == true
-      id: release_notes
-      env:
-        VERSION: ${{ steps.version.outputs.version }}
-        PREVIOUS_VERSION: ${{ steps.version.outputs.previous_version }}
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        RELEASE_REF="HEAD"
-        if git rev-parse "$VERSION" >/dev/null 2>&1; then
-          RELEASE_REF="$VERSION"
-        fi
-
-        # Get the previous apple tag
-        PREV_TAG=""
-
-        if [ -n "$PREVIOUS_VERSION" ]; then
-          if git rev-parse "$PREVIOUS_VERSION" >/dev/null 2>&1; then
-            PREV_TAG="$PREVIOUS_VERSION"
-          elif git rev-parse "apple-v$PREVIOUS_VERSION" >/dev/null 2>&1; then
-            PREV_TAG="apple-v$PREVIOUS_VERSION"
-          fi
-        fi
-
-        if [ -z "$PREV_TAG" ]; then
-          echo "No previous apple tag found"
-          CHANGELOG="- Initial release"
-        else
-          echo "Generating changelog from $PREV_TAG to $RELEASE_REF"
-          CHANGELOG=$(git log "$PREV_TAG..$RELEASE_REF" --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- ":(top)packages/apple/")
-
-          if [ -z "$CHANGELOG" ]; then
-            CHANGELOG="- No direct code changes in packages/apple/."
-          fi
-        fi
-
-        # Save changelog to file for multiline handling
-        echo "$CHANGELOG" > /tmp/changelog.txt
-
-        # Create release notes
-        cat > /tmp/release-notes.md <<EOF
-        ## OpenIAP Apple $VERSION
-
-        Native iOS / macOS / tvOS / watchOS / visionOS library for the OpenIAP specification.
-
-        ### What's Changed
-
-        $CHANGELOG
-
-        ### Installation
-
-        **Swift Package Manager:**
-
-        \`\`\`swift
-        dependencies: [
-            .package(url: "https://github.com/hyodotdev/openiap.git", from: "$VERSION")
-        ]
-        \`\`\`
-
-        **CocoaPods:**
-
-        \`\`\`ruby
-        pod 'openiap', '~> $VERSION'
-        \`\`\`
-
-        ### Documentation
-
-        - [API reference](https://openiap.dev/docs/apis)
-        - [Release notes](https://openiap.dev/docs/updates/releases)
-        - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/$VERSION/packages/apple)
-
-        ### Links
-
-        - [CocoaPods](https://cocoapods.org/pods/openiap)
-        EOF
-
-    - name: Create GitHub Release
-      if: inputs.publish_spm == true
-      env:
-        VERSION: ${{ steps.version.outputs.version }}
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        if gh release view "$VERSION" >/dev/null 2>&1; then
-          echo "ℹ️ Release $VERSION already exists. Skipping creation."
-        else
-          PRERELEASE_FLAG=""
-          if [[ "$VERSION" == *-* ]]; then
-            PRERELEASE_FLAG="--prerelease"
+      - name: Generate release notes
+        id: release_notes
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          PREVIOUS_VERSION: ${{ steps.version.outputs.previous_version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_REF="HEAD"
+          if git rev-parse "$VERSION" >/dev/null 2>&1; then
+            RELEASE_REF="$VERSION"
           fi
 
-          gh release create "$VERSION" \
-            --title "Apple $VERSION" \
-            $PRERELEASE_FLAG \
-            --notes-file /tmp/release-notes.md
-        fi
+          # Get the previous apple tag
+          PREV_TAG=""
 
-    - name: Dispatch SBOM
-      if: inputs.publish_spm == true
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        RELEASE_TAG: ${{ steps.version.outputs.version }}
-      run: gh workflow run sbom.yml --ref main -f tag="$RELEASE_TAG"
+          if [ -n "$PREVIOUS_VERSION" ]; then
+            if git rev-parse "$PREVIOUS_VERSION" >/dev/null 2>&1; then
+              PREV_TAG="$PREVIOUS_VERSION"
+            elif git rev-parse "apple-v$PREVIOUS_VERSION" >/dev/null 2>&1; then
+              PREV_TAG="apple-v$PREVIOUS_VERSION"
+            fi
+          fi
+
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous apple tag found"
+            CHANGELOG="- Initial release"
+          else
+            echo "Generating changelog from $PREV_TAG to $RELEASE_REF"
+            CHANGELOG=$(git log "$PREV_TAG..$RELEASE_REF" --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- ":(top)packages/apple/")
+
+            if [ -z "$CHANGELOG" ]; then
+              CHANGELOG="- No direct code changes in packages/apple/."
+            fi
+          fi
+
+          # Save changelog to file for multiline handling
+          echo "$CHANGELOG" > /tmp/changelog.txt
+
+          # Create release notes
+          cat > /tmp/release-notes.md <<EOF
+          ## OpenIAP Apple $VERSION
+
+          Native iOS / macOS / tvOS / watchOS / visionOS library for the OpenIAP specification.
+
+          ### What's Changed
+
+          $CHANGELOG
+
+          ### Installation
+
+          **Swift Package Manager:**
+
+          \`\`\`swift
+          dependencies: [
+              .package(url: "https://github.com/hyodotdev/openiap.git", from: "$VERSION")
+          ]
+          \`\`\`
+
+          **CocoaPods:**
+
+          \`\`\`ruby
+          pod 'openiap', '~> $VERSION'
+          \`\`\`
+
+          ### Documentation
+
+          - [API reference](https://openiap.dev/docs/apis)
+          - [Release notes](https://openiap.dev/docs/updates/releases)
+          - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/$VERSION/packages/apple)
+
+          ### Links
+
+          - [CocoaPods](https://cocoapods.org/pods/openiap)
+          EOF
+
+      - name: Create GitHub Release
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if gh release view "$VERSION" >/dev/null 2>&1; then
+            echo "ℹ️ Release $VERSION already exists. Skipping creation."
+          else
+            PRERELEASE_FLAG=""
+            if [[ "$VERSION" == *-* ]]; then
+              PRERELEASE_FLAG="--prerelease"
+            fi
+
+            gh release create "$VERSION" \
+              --title "Apple $VERSION" \
+              $PRERELEASE_FLAG \
+              --notes-file /tmp/release-notes.md
+          fi
+
+      - name: Dispatch SBOM
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.version.outputs.version }}
+        run: gh workflow run sbom.yml --ref main -f tag="$RELEASE_TAG"

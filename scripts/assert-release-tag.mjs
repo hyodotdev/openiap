@@ -16,6 +16,11 @@ export const PACKAGE_CONFIG = {
     tags: (version) => [`openiap-conformance-${version}`],
     version: (content) => JSON.parse(content).version,
   },
+  docs: {
+    path: "openiap-versions.json",
+    tags: (version) => [`docs-${version}`],
+    version: (content) => JSON.parse(content).spec,
+  },
   expo: {
     path: "libraries/expo-iap/package.json",
     tags: (version) => [`expo-iap-${version}`],
@@ -117,7 +122,7 @@ export function assertReleaseTag(
   );
   if (!remoteTagCommit || remoteTagCommit !== localTagCommit) {
     throw new Error(
-      `${tag} does not match its immutable origin tag commit (${localTagCommit})`,
+      `${tag} does not match its origin tag commit at verification time (${localTagCommit})`,
     );
   }
 

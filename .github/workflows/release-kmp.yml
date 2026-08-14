@@ -29,7 +29,7 @@ env:
   RELEASE_BRANCH: ${{ github.ref_name }}
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   release-branch:
@@ -37,12 +37,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Enforce stable and prerelease branches
+        env:
+          VERSION_TYPE: ${{ inputs.version }}
+          IS_PRERELEASE: ${{ inputs.prerelease }}
         run: >-
           node scripts/release-branch-policy.mjs guard kmp
-          "${{ inputs.version }}" "${{ inputs.prerelease }}"
+          "$VERSION_TYPE" "$IS_PRERELEASE"
           "$GITHUB_REF_NAME"
 
   validate-android:
@@ -53,16 +56,16 @@ jobs:
       run:
         working-directory: libraries/kmp-iap
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           java-version: "17"
           distribution: "temurin"
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -84,21 +87,21 @@ jobs:
       run:
         working-directory: libraries/kmp-iap
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Set up Xcode
-        uses: maxim-lobanov/setup-xcode@v1
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
         with:
           xcode-version: ${{ env.XCODE_VERSION }}
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           java-version: "17"
           distribution: "temurin"
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
@@ -126,32 +129,34 @@ jobs:
       run:
         working-directory: libraries/kmp-iap
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Xcode
-        uses: maxim-lobanov/setup-xcode@v1
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
         with:
           xcode-version: ${{ env.XCODE_VERSION }}
 
       - name: Set up JDK 17
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           java-version: "17"
           distribution: "temurin"
 
       - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6
 
       - name: Grant execute permission for gradlew
         run: chmod +x gradlew
 
       - name: Calculate version
         id: version
+        env:
+          VERSION_TYPE: ${{ inputs.version }}
+          IS_PRERELEASE: ${{ inputs.prerelease }}
         run: |
-          VERSION_TYPE="${{ inputs.version }}"
-          IS_PRERELEASE="${{ inputs.prerelease }}"
           CURRENT_VERSION=$(grep '^libraryVersion=' gradle.properties | cut -d'=' -f2)
 
           if [ "$VERSION_TYPE" = "current" ]; then
@@ -257,7 +262,7 @@ jobs:
 
       - name: Setup Bun
         if: ${{ inputs.version != 'current' }}
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.3.13
 
@@ -271,7 +276,7 @@ jobs:
           if git diff --staged --quiet; then
             echo "No version changes to commit"
           else
-            git commit -m "chore(release): kmp-iap@${{ env.VERSION }}"
+            git commit -m "chore(release): kmp-iap@$VERSION"
           fi
 
       - name: Clean build artifacts
@@ -307,13 +312,33 @@ jobs:
               ;;
           esac
 
+      - name: Preflight Maven Central publication
+        if: steps.check_maven.outputs.exists == 'false'
+        env:
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          GPG_KEY_CONTENTS: ${{ secrets.GPG_KEY_CONTENTS }}
+          SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          for credential in \
+            "$MAVEN_CENTRAL_USERNAME" "$MAVEN_CENTRAL_PASSWORD" \
+            "$GPG_KEY_CONTENTS" "$SIGNING_KEY_ID" "$SIGNING_PASSWORD"; do
+            if [ -z "$credential" ]; then
+              echo "::error::Complete Maven Central and signing credentials are required before creating the release tag"
+              exit 1
+            fi
+          done
+
       - name: Create and push tag
         if: success()
         env:
+          GH_TOKEN: ${{ github.token }}
           VERSION: ${{ steps.version.outputs.VERSION }}
           PACKAGE_EXISTS: ${{ steps.check_maven.outputs.exists }}
           VERSION_TYPE: ${{ inputs.version }}
         run: |
+          gh auth setup-git
           RELEASE_TAG="kmp-iap-$VERSION"
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
@@ -348,7 +373,6 @@ jobs:
         if: success()
         id: release_notes
         run: |
-          VERSION="${{ env.VERSION }}"
           RELEASE_REF="HEAD"
           if git rev-parse "kmp-iap-$VERSION" >/dev/null 2>&1; then
             RELEASE_REF="kmp-iap-$VERSION"
@@ -418,7 +442,7 @@ jobs:
 
       - name: Create GitHub Release
         if: success()
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3
         with:
           tag_name: kmp-iap-${{ steps.version.outputs.VERSION }}
           name: kmp-iap ${{ steps.version.outputs.VERSION }}

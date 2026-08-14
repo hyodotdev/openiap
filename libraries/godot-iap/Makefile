@@ -9,8 +9,8 @@
 #   make run-ios      - Export iOS project and open in Xcode
 
 GODOT_VERSION ?= 4.7.1
-GODOT_LIB_URL = https://github.com/godotengine/godot/releases/download/$(GODOT_VERSION)-stable/godot-lib.$(GODOT_VERSION).stable.template_release.aar
 SWIFT_GODOT_VERSION ?= v0.79.0
+SWIFT_GODOT_COMMIT ?= 2b0e39dc1c23454408f83c0a83ddf9c2516624c0
 # AndroidX Core 1.18.0 declares AGP 8.9.1 as its minimum consumer version.
 ANDROID_EXPORT_AGP_VERSION ?= 8.9.1
 
@@ -24,6 +24,8 @@ ADDON_DIR := $(PROJECT_ROOT)/addons/godot-iap
 BIN_DIR := $(ADDON_DIR)/bin
 IOS_EXPORT_DIR := $(EXAMPLE_DIR)/ios
 APPLE_FRAMEWORK_INSTALLER := $(PROJECT_ROOT)/scripts/install_apple_framework.sh
+GODOT_LIB_FETCHER := $(abspath $(PROJECT_ROOT)/../../scripts/fetch-godot-lib.sh)
+GRADLE_WRAPPER_SHA256 := d3b261c2820e9e3d8d639ed084900f11f4a86050a8f83342ade7b6bc9b0d2bdd
 
 # Godot executable
 GODOT ?= /Applications/Godot.app/Contents/MacOS/Godot
@@ -82,18 +84,8 @@ setup: setup-swiftgodot
 	@mkdir -p $(BIN_DIR)/ios-simulator
 	@mkdir -p $(BIN_DIR)/macos
 	@mkdir -p $(ADDON_DIR)/android
-	@if [ -f "$(ANDROID_DIR)/libs/godot-lib.aar" ] && \
-		unzip -p "$(ANDROID_DIR)/libs/godot-lib.aar" AndroidManifest.xml | \
-		grep -a -q 'android:value="$(GODOT_VERSION).stable"'; then \
-		echo "$(GREEN)✓ godot-lib.aar $(GODOT_VERSION) already exists$(NC)"; \
-	else \
-		echo "$(YELLOW)Downloading godot-lib.aar ($(GODOT_VERSION))...$(NC)"; \
-		tmp_aar="$$(mktemp "$(ANDROID_DIR)/libs/godot-lib.aar.XXXXXX")"; \
-		curl -fL -o "$$tmp_aar" "$(GODOT_LIB_URL)" && \
-		mv "$$tmp_aar" "$(ANDROID_DIR)/libs/godot-lib.aar" || \
-		(echo "$(RED)Failed to download. Try manually from: $(GODOT_LIB_URL)$(NC)" && exit 1); \
-		echo "$(GREEN)✓ godot-lib.aar downloaded$(NC)"; \
-	fi
+	@bash "$(GODOT_LIB_FETCHER)" "$(GODOT_VERSION)-stable" \
+		"$(ANDROID_DIR)/libs/godot-lib.aar"
 	@echo "$(GREEN)Installing git hooks...$(NC)"
 	@$(PROJECT_ROOT)/scripts/install-hooks.sh
 	@echo "$(GREEN)Setup complete!$(NC)"
@@ -103,14 +95,20 @@ setup-swiftgodot:
 		echo "$(YELLOW)Cloning SwiftGodot ($(SWIFT_GODOT_VERSION))...$(NC)"; \
 		git clone --depth 1 --branch $(SWIFT_GODOT_VERSION) https://github.com/migueldeicaza/SwiftGodot.git "$(PROJECT_ROOT)/SwiftGodot" || \
 		(echo "$(RED)Failed to clone SwiftGodot$(NC)" && exit 1); \
-		echo "$(GREEN)✓ SwiftGodot cloned$(NC)"; \
-	else \
-		actual_tag="$$(git -C "$(PROJECT_ROOT)/SwiftGodot" describe --tags --exact-match 2>/dev/null || true)"; \
-		if [ "$$actual_tag" != "$(SWIFT_GODOT_VERSION)" ]; then \
-			echo "$(RED)SwiftGodot checkout is $$actual_tag; expected $(SWIFT_GODOT_VERSION). Move it aside and rerun setup.$(NC)"; \
+		actual_commit="$$(git -C "$(PROJECT_ROOT)/SwiftGodot" rev-parse HEAD)"; \
+		if [ "$$actual_commit" != "$(SWIFT_GODOT_COMMIT)" ]; then \
+			echo "$(RED)SwiftGodot $(SWIFT_GODOT_VERSION) resolved to $$actual_commit; expected $(SWIFT_GODOT_COMMIT).$(NC)"; \
 			exit 1; \
 		fi; \
-		echo "$(GREEN)✓ SwiftGodot $(SWIFT_GODOT_VERSION) already exists$(NC)"; \
+		echo "$(GREEN)✓ SwiftGodot $(SWIFT_GODOT_COMMIT) cloned$(NC)"; \
+	else \
+		actual_tag="$$(git -C "$(PROJECT_ROOT)/SwiftGodot" describe --tags --exact-match 2>/dev/null || true)"; \
+		actual_commit="$$(git -C "$(PROJECT_ROOT)/SwiftGodot" rev-parse HEAD 2>/dev/null || true)"; \
+		if [ "$$actual_tag" != "$(SWIFT_GODOT_VERSION)" ] || [ "$$actual_commit" != "$(SWIFT_GODOT_COMMIT)" ]; then \
+			echo "$(RED)SwiftGodot checkout is $$actual_tag at $$actual_commit; expected $(SWIFT_GODOT_VERSION) at $(SWIFT_GODOT_COMMIT). Move it aside and rerun setup.$(NC)"; \
+			exit 1; \
+		fi; \
+		echo "$(GREEN)✓ SwiftGodot $(SWIFT_GODOT_VERSION) at $(SWIFT_GODOT_COMMIT) already exists$(NC)"; \
 	fi
 
 # Build iOS plugin (automated with xcodebuild)
@@ -202,15 +200,9 @@ android: setup gradle-wrapper
 	@echo "Output: $(ADDON_DIR)/android/"
 	@ls -la $(ADDON_DIR)/android/*.aar 2>/dev/null || echo "  (AAR files will appear after successful build)"
 
-# Ensure Gradle wrapper exists
+# Verify the tracked Gradle wrapper
 gradle-wrapper:
-	@if [ ! -f "$(ANDROID_DIR)/gradle/wrapper/gradle-wrapper.jar" ]; then \
-		echo "$(YELLOW)Downloading Gradle wrapper...$(NC)"; \
-		mkdir -p $(ANDROID_DIR)/gradle/wrapper; \
-		curl -L -o $(ANDROID_DIR)/gradle/wrapper/gradle-wrapper.jar \
-			"https://raw.githubusercontent.com/gradle/gradle/v9.3.0/gradle/wrapper/gradle-wrapper.jar"; \
-		echo "$(GREEN)✓ Gradle wrapper downloaded$(NC)"; \
-	fi
+	@echo "$(GRADLE_WRAPPER_SHA256)  $(ANDROID_DIR)/gradle/wrapper/gradle-wrapper.jar" | shasum -a 256 -c -
 
 # Build everything
 all: android ios macos

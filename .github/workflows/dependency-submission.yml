@@ -1,0 +1,83 @@
+name: Dependency Submission
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "**/bun.lock"
+      - "**/yarn.lock"
+      - "**/package-lock.json"
+      - "**/pnpm-lock.yaml"
+      - "**/npm-shrinkwrap.json"
+      - "**/package.json"
+      - "scripts/bun-dependency-snapshot.mjs"
+      - "scripts/dependency-projects.mjs"
+      - ".github/workflows/dependency-submission.yml"
+  push:
+    branches: [main]
+    paths:
+      - "**/bun.lock"
+      - "**/yarn.lock"
+      - "**/package-lock.json"
+      - "**/pnpm-lock.yaml"
+      - "**/npm-shrinkwrap.json"
+      - "**/package.json"
+      - "scripts/bun-dependency-snapshot.mjs"
+      - "scripts/dependency-projects.mjs"
+      - ".github/workflows/dependency-submission.yml"
+  schedule:
+    - cron: "43 3 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  validate:
+    name: Validate Bun dependency graph
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.3.13
+
+      - name: Validate dependency snapshot
+        run: bun scripts/bun-dependency-snapshot.mjs > /dev/null
+
+  submit:
+    name: Submit Bun dependency graph
+    if: >-
+      github.event_name != 'pull_request' &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    needs: validate
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.3.13
+
+      - name: Build dependency snapshot
+        run: bun scripts/bun-dependency-snapshot.mjs > dependency-snapshot.json
+
+      - name: Submit dependency snapshot
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          gh api --method POST
+          -H "X-GitHub-Api-Version: 2026-03-10"
+          "repos/$GITHUB_REPOSITORY/dependency-graph/snapshots"
+          --input dependency-snapshot.json

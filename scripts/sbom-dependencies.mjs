@@ -8,8 +8,11 @@
  * and fail when a declaration shape cannot be classified.
  */
 
+import { createHash } from "node:crypto";
 import { readFileSync } from "node:fs";
 import { resolve } from "node:path";
+
+import { compareSemVer } from "./release-branch-policy.mjs";
 
 export class PublishedMetadataUnavailableError extends Error {}
 
@@ -89,6 +92,16 @@ function scanGradleSource(source) {
       }
       continue;
     }
+    if (state === "slashy-string") {
+      mask(index);
+      if (source[index] === "\\") {
+        mask(index + 1);
+        index += 1;
+      } else if (source[index] === "/") {
+        state = "code";
+      }
+      continue;
+    }
     if (state === "string" || state === "character") {
       mask(index);
       if (source[index] === "\\") {
@@ -126,10 +139,20 @@ function scanGradleSource(source) {
     } else if (source[index] === "'") {
       mask(index);
       state = "character";
+    } else if (
+      source[index] === "/" &&
+      /(?:=~|==~)\s*$/u.test(source.slice(Math.max(0, index - 8), index))
+    ) {
+      mask(index);
+      state = "slashy-string";
     }
   }
 
-  if (state === "block-comment" || state === "raw-string") {
+  if (
+    state === "block-comment" ||
+    state === "raw-string" ||
+    state === "slashy-string"
+  ) {
     throw new Error(`Unterminated Gradle ${state.replace("-", " ")}`);
   }
   return {
@@ -292,6 +315,8 @@ function topLevelGradleCalls(source) {
   return [...structural.matchAll(/\b([A-Za-z][A-Za-z0-9]*)\s*\(/gu)]
     .filter((match) => {
       if (depths[match.index] !== 0) return false;
+      const previous = previousGradleCodeIndex(structural, match.index - 1);
+      if (structural[previous] === ".") return false;
       const lineStart = structural.lastIndexOf("\n", match.index - 1) + 1;
       const prefix = structural.slice(lineStart, match.index);
       return !/^\s*(?:(?:val|var)\s+)?[A-Za-z_][A-Za-z0-9_]*(?:\s*:[^=]+)?\s*=\s*$/u.test(
@@ -304,16 +329,29 @@ function topLevelGradleCalls(source) {
 function isVersionConstraint(version) {
   return (
     version === "any" ||
-    /[\s*^~<>=|,[\](){}]/u.test(version) ||
+    /[\s*+^~<>=|,[\](){}]/u.test(version) ||
     /\bx\b/iu.test(version)
   );
 }
 
-function dependencyEntry({ name, version, purl, properties = [] }) {
+function dependencyEntry({
+  name,
+  version,
+  purl,
+  properties = [],
+  hashes,
+  licenseName,
+  spdxLicense,
+  supplier,
+  scope = "required",
+}) {
   if (!name || !version || !purl) {
     throw new Error(
       `Incomplete dependency entry: ${JSON.stringify({ name, version, purl })}`,
     );
+  }
+  if (licenseName && spdxLicense) {
+    throw new Error(`Dependency ${purl} declares two license forms`);
   }
   const versionProperties = isVersionConstraint(version)
     ? [{ name: "openiap:sbom:version-constraint", value: version }]
@@ -322,6 +360,11 @@ function dependencyEntry({ name, version, purl, properties = [] }) {
     name,
     version,
     purl,
+    ...(scope === "optional" ? { scope } : {}),
+    ...(hashes?.length ? { hashes } : {}),
+    ...(licenseName ? { licenses: [{ license: { name: licenseName } }] } : {}),
+    ...(spdxLicense ? { licenses: [{ license: { id: spdxLicense } }] } : {}),
+    ...(supplier ? { supplier } : {}),
     ...(versionProperties.length > 0 || properties.length > 0
       ? { properties: [...versionProperties, ...properties] }
       : {}),
@@ -342,6 +385,15 @@ function readGradleLocals(source) {
 function readExternalLocals(root, externalLocals = {}) {
   const resolved = new Map();
   for (const [name, spec] of Object.entries(externalLocals)) {
+    if (spec.jsonPath) {
+      let value = readJson(root, spec.file);
+      for (const key of spec.jsonPath) value = value?.[key];
+      if (value == null) {
+        throw new Error(`Missing ${spec.jsonPath.join(".")} in ${spec.file}`);
+      }
+      resolved.set(name, String(value));
+      continue;
+    }
     if (spec.json) {
       const value = readJson(root, spec.file)[spec.json];
       if (value == null) {
@@ -360,16 +412,32 @@ function readExternalLocals(root, externalLocals = {}) {
         );
       }
       resolved.set(name, value);
+      continue;
+    }
+    if (spec.property) {
+      const line = readText(root, spec.file)
+        .split("\n")
+        .find((entry) => entry.startsWith(`${spec.property}=`));
+      const value = line?.slice(spec.property.length + 1).trim();
+      if (!value) {
+        throw new Error(`Missing property ${spec.property} in ${spec.file}`);
+      }
+      resolved.set(name, value);
     }
   }
   return resolved;
 }
 
 function interpolateGradle(coordinate, locals) {
-  return coordinate.replace(
-    /\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?/gu,
-    (whole, name) => locals.get(name) ?? whole,
-  );
+  return coordinate
+    .replace(
+      /\$\{readRequiredAndroidGradleProperty\(projectDir,\s*'([^']+)'\)\}/gu,
+      (whole, name) => locals.get(name) ?? whole,
+    )
+    .replace(
+      /\$\{?([A-Za-z_][A-Za-z0-9_]*)\}?/gu,
+      (whole, name) => locals.get(name) ?? whole,
+    );
 }
 
 function parseMavenCoordinate(coordinate) {
@@ -470,6 +538,7 @@ function extractGradle(root, { manifest, externalLocals }) {
 
   for (const call of topLevelCalls) {
     if (["if", "for", "when", "while"].includes(call.name)) continue;
+    if (call.name === "project") continue;
     if (matchedDeclarations.has(call.index)) continue;
     if (call.name === "add") {
       throw new Error(
@@ -616,30 +685,125 @@ async function extractMavenPom(_root, source, context) {
   );
 }
 
+async function extractMavenArtifact(root, source, context) {
+  const dependencies = await extractMavenPom(root, source, context);
+  const [group, artifact] = source.coordinate.split(":");
+  const variantProperty = source.variant
+    ? [{ name: "openiap:release-variant", value: source.variant }]
+    : [];
+  return [
+    dependencyEntry({
+      name: `${group}:${artifact}`,
+      version: context.version,
+      purl: `pkg:maven/${group}/${artifact}@${encodePurlVersion(context.version)}`,
+      properties: variantProperty,
+      spdxLicense: source.spdxLicense,
+      supplier: source.supplier,
+      scope: source.optional ? "optional" : "required",
+    }),
+    ...dependencies.map((entry) => ({
+      ...entry,
+      scope: source.optional ? "optional" : entry.scope,
+      ...(variantProperty.length
+        ? {
+            properties: [...(entry.properties ?? []), ...variantProperty],
+          }
+        : {}),
+    })),
+  ];
+}
+
 function parseNugetNuspec(source, context) {
-  const dependenciesBlock = source.match(
-    /<dependencies>([\s\S]*?)<\/dependencies>/u,
-  )?.[1];
+  const dependenciesBlock = source
+    .match(/<dependencies>([\s\S]*?)<\/dependencies>/u)?.[1]
+    ?.replace(/<!--[\s\S]*?-->/gu, "");
   if (!dependenciesBlock) return [];
 
-  const found = new Map();
-  for (const match of dependenciesBlock.matchAll(
-    /<dependency\b([^>]*)\/?>(?:<\/dependency>)?/gu,
-  )) {
-    const attributes = match[1];
-    const name = attributes.match(/\bid\s*=\s*"([^"]+)"/iu)?.[1];
-    const version = attributes.match(/\bversion\s*=\s*"([^"]+)"/iu)?.[1];
-    if (!name || !version) {
+  const groupPattern = /<group\b([^>]*?)(?:\/>|>([\s\S]*?)<\/group>)/giu;
+  const groups = [...dependenciesBlock.matchAll(groupPattern)];
+  if (groups.length > 0) {
+    const outsideGroups = dependenciesBlock.replace(groupPattern, "");
+    if (/<dependency\b/iu.test(outsideGroups)) {
       throw new Error(
-        `Incomplete published NuGet dependency in ${context.url}`,
+        `Mixed grouped and ungrouped NuGet dependencies in ${context.url}`,
       );
     }
-    const entry = dependencyEntry({
-      name: decodeXml(name),
-      version: decodeXml(version),
-      purl: `pkg:nuget/${encodeURIComponent(decodeXml(name))}@${encodePurlVersion(decodeXml(version))}`,
-    });
-    found.set(entry.purl.toLowerCase(), entry);
+  }
+  const sections = groups.length
+    ? groups.map((match) => {
+        const targetFramework = match[1].match(
+          /\btargetFramework\s*=\s*["']([^"']+)["']/iu,
+        )?.[1];
+        if (
+          !targetFramework ||
+          !/^[A-Za-z0-9][A-Za-z0-9.+_-]*$/u.test(targetFramework)
+        ) {
+          throw new Error(`Invalid NuGet target framework in ${context.url}`);
+        }
+        const normalized = targetFramework.toLowerCase();
+        const platform = normalized.includes("-android")
+          ? "android"
+          : /-(?:ios|maccatalyst|macos|tvos|watchos)/u.test(normalized)
+            ? "apple"
+            : "";
+        return { body: match[2] ?? "", platform, targetFramework };
+      })
+    : [{ body: dependenciesBlock, platform: "", targetFramework: "" }];
+
+  const found = new Map();
+  for (const section of sections) {
+    for (const match of section.body.matchAll(
+      /<dependency\b([^>]*)\/?>(?:<\/dependency>)?/giu,
+    )) {
+      const attributes = match[1];
+      const name = attributes.match(/\bid\s*=\s*["']([^"']+)["']/iu)?.[1];
+      const version = attributes.match(
+        /\bversion\s*=\s*["']([^"']+)["']/iu,
+      )?.[1];
+      if (!name || !version) {
+        throw new Error(
+          `Incomplete published NuGet dependency in ${context.url}`,
+        );
+      }
+      const properties = section.targetFramework
+        ? [
+            {
+              name: "openiap:target-framework",
+              value: section.targetFramework,
+            },
+            ...(section.platform
+              ? [{ name: "openiap:platform", value: section.platform }]
+              : []),
+          ]
+        : [];
+      const entry = dependencyEntry({
+        name: decodeXml(name),
+        version: decodeXml(version),
+        purl: `pkg:nuget/${encodeURIComponent(decodeXml(name))}@${encodePurlVersion(decodeXml(version))}`,
+        properties,
+        scope: section.targetFramework ? "optional" : "required",
+      });
+      const key = entry.purl.toLowerCase();
+      const existing = found.get(key);
+      if (existing) {
+        const mergedProperties = new Map(
+          [...(existing.properties ?? []), ...(entry.properties ?? [])].map(
+            (property) => [`${property.name}\0${property.value}`, property],
+          ),
+        );
+        found.set(key, {
+          ...existing,
+          ...(mergedProperties.size
+            ? { properties: [...mergedProperties.values()] }
+            : {}),
+          ...(existing.scope === "optional" && entry.scope === "optional"
+            ? { scope: "optional" }
+            : {}),
+        });
+      } else {
+        found.set(key, entry);
+      }
+    }
   }
 
   return [...found.values()].sort((left, right) =>
@@ -700,8 +864,9 @@ function extractPub(root, { manifest }) {
 }
 
 function extractNpm(root, { manifest }) {
-  const dependencies = readJson(root, manifest).dependencies ?? {};
-  return Object.entries(dependencies)
+  const packageJson = readJson(root, manifest);
+  const dependencies = Object.entries(packageJson.dependencies ?? {});
+  return dependencies
     .map(([name, rawVersion]) => {
       const version = String(rawVersion).trim();
       if (!version || /^(?:file|git|github|https?|workspace):/u.test(version)) {
@@ -754,17 +919,247 @@ function extractNone() {
   return [];
 }
 
+function extractOpenIapNative(root, { apple = false, google = [] }) {
+  const versions = readJson(root, "openiap-versions.json");
+  const entries = [];
+  if (apple) {
+    entries.push(
+      dependencyEntry({
+        name: "openiap",
+        version: versions.apple,
+        purl: `pkg:cocoapods/openiap@${encodePurlVersion(versions.apple)}`,
+        properties: [{ name: "openiap:platform", value: "apple" }],
+        spdxLicense: "MIT",
+        supplier: "OpenIAP",
+        scope: "optional",
+      }),
+    );
+  }
+  for (const artifact of google) {
+    entries.push(
+      dependencyEntry({
+        name: `io.github.hyochan.openiap:${artifact}`,
+        version: versions.google,
+        purl: `pkg:maven/io.github.hyochan.openiap/${artifact}@${encodePurlVersion(versions.google)}`,
+        properties: [{ name: "openiap:platform", value: "android" }],
+        spdxLicense: "MIT",
+        supplier: "OpenIAP",
+        scope: "optional",
+      }),
+    );
+  }
+  return entries;
+}
+
+function resolveDeclaredVersion(root, version) {
+  if (typeof version === "string") return version;
+  const resolved = readExternalLocals(root, { dependencyVersion: version }).get(
+    "dependencyVersion",
+  );
+  if (!resolved) throw new Error("Missing declared dependency version");
+  return resolved;
+}
+
+function verifyDeclaredInventory(root, inventories = []) {
+  for (const inventory of inventories) {
+    if (!(inventory.pattern instanceof RegExp) || !inventory.pattern.global) {
+      throw new Error(`Declared inventory pattern must be a global RegExp`);
+    }
+    const source = readText(root, inventory.file);
+    const actual = [...source.matchAll(inventory.pattern)]
+      .map((match) => match[1])
+      .sort();
+    const expected = [...inventory.expected].sort();
+    if (JSON.stringify(actual) !== JSON.stringify(expected)) {
+      throw new Error(
+        `Unmodelled dependency declaration in ${inventory.file}: expected ${expected.join(", ")}; found ${actual.join(", ")}`,
+      );
+    }
+  }
+}
+
+function extractDeclared(root, { manifest, dependencies, inventories }) {
+  verifyDeclaredInventory(root, inventories);
+  return dependencies
+    .map((dependency) => {
+      const assertions = dependency.assertions ?? [
+        { file: manifest, marker: dependency.marker },
+      ];
+      for (const assertion of assertions) {
+        if (
+          !assertion.file ||
+          !assertion.marker ||
+          !readText(root, assertion.file).includes(assertion.marker)
+        ) {
+          throw new Error(
+            `Missing dependency declaration '${assertion.marker}' in ${assertion.file}`,
+          );
+        }
+      }
+      const version = resolveDeclaredVersion(root, dependency.version);
+      const properties = [
+        ...(dependency.platform
+          ? [{ name: "openiap:platform", value: dependency.platform }]
+          : []),
+        ...(dependency.optional
+          ? [{ name: "openiap:dependency:optional", value: "true" }]
+          : []),
+        ...(dependency.hostProvided
+          ? [{ name: "openiap:dependency:host-provided", value: "true" }]
+          : []),
+      ];
+      if (dependency.ecosystem === "maven") {
+        const name = `${dependency.group}:${dependency.artifact}`;
+        return dependencyEntry({
+          name,
+          version,
+          purl: `pkg:maven/${dependency.group}/${dependency.artifact}@${encodePurlVersion(version)}`,
+          properties,
+          licenseName: dependency.licenseName,
+          spdxLicense: dependency.spdxLicense,
+          supplier: dependency.supplier,
+          scope:
+            dependency.optional || dependency.platform
+              ? "optional"
+              : "required",
+        });
+      }
+      if (dependency.ecosystem === "cocoapods") {
+        return dependencyEntry({
+          name: dependency.name,
+          version,
+          purl: `pkg:cocoapods/${encodeURIComponent(dependency.name)}@${encodePurlVersion(version)}`,
+          properties,
+          spdxLicense: dependency.spdxLicense,
+          supplier: dependency.supplier,
+          scope:
+            dependency.optional || dependency.platform
+              ? "optional"
+              : "required",
+        });
+      }
+      if (dependency.ecosystem === "npm") {
+        return dependencyEntry({
+          name: dependency.name,
+          version,
+          purl: `pkg:npm/${dependency.name}@${encodePurlVersion(version)}`,
+          properties,
+          spdxLicense: dependency.spdxLicense,
+          supplier: dependency.supplier,
+          scope:
+            dependency.optional || dependency.platform
+              ? "optional"
+              : "required",
+        });
+      }
+      throw new Error(
+        `Unsupported declared dependency ecosystem: ${dependency.ecosystem}`,
+      );
+    })
+    .sort((left, right) => left.purl.localeCompare(right.purl));
+}
+
+function extractEmbeddedBinary(root, { file, name, spdxLicense, supplier }) {
+  if (!spdxLicense || !supplier) {
+    throw new Error(`Embedded binary ${name} lacks license or supplier data`);
+  }
+  const digest = createHash("sha256")
+    .update(readFileSync(resolve(root, file)))
+    .digest("hex");
+  return [
+    dependencyEntry({
+      name,
+      version: digest,
+      purl: `pkg:generic/${encodeURIComponent(name)}@${digest}`,
+      hashes: [{ alg: "SHA-256", content: digest }],
+      properties: [{ name: "openiap:embedded", value: "true" }],
+      spdxLicense,
+      supplier,
+      scope: "optional",
+    }),
+  ];
+}
+
 const EXTRACTORS = {
+  declared: extractDeclared,
   gradle: extractGradle,
+  "embedded-binary": extractEmbeddedBinary,
+  "maven-artifact": extractMavenArtifact,
   "maven-pom": extractMavenPom,
   npm: extractNpm,
   none: extractNone,
+  "openiap-native": extractOpenIapNative,
   "nuget-nuspec": extractNugetNuspec,
   pub: extractPub,
   swift: extractSwift,
 };
 
 export async function extractDirectDependencies(root, source, context = {}) {
+  if (
+    source.introducedVersion &&
+    compareSemVer(context.version, source.introducedVersion) < 0
+  ) {
+    return [];
+  }
+  if (source.kind === "aggregate") {
+    const mergeObjects = (left = [], right = []) => [
+      ...new Map(
+        [...left, ...right].map((value) => [JSON.stringify(value), value]),
+      ).values(),
+    ];
+    const merged = new Map();
+    for (const nested of source.sources) {
+      for (const entry of await extractDirectDependencies(
+        root,
+        nested,
+        context,
+      )) {
+        const existing = merged.get(entry.purl);
+        if (existing) {
+          if (
+            existing.name !== entry.name ||
+            existing.version !== entry.version
+          ) {
+            throw new Error(`Conflicting aggregate dependency ${entry.purl}`);
+          }
+          if (
+            existing.supplier &&
+            entry.supplier &&
+            existing.supplier !== entry.supplier
+          ) {
+            throw new Error(`Conflicting aggregate supplier for ${entry.purl}`);
+          }
+          const properties = new Map(
+            [...(existing.properties ?? []), ...(entry.properties ?? [])].map(
+              (property) => [`${property.name}\0${property.value}`, property],
+            ),
+          );
+          merged.set(entry.purl, {
+            ...existing,
+            ...(properties.size
+              ? { properties: [...properties.values()] }
+              : {}),
+            ...(existing.supplier || entry.supplier
+              ? { supplier: existing.supplier ?? entry.supplier }
+              : {}),
+            ...(existing.licenses?.length || entry.licenses?.length
+              ? {
+                  licenses: mergeObjects(existing.licenses, entry.licenses),
+                }
+              : {}),
+            ...(existing.hashes?.length || entry.hashes?.length
+              ? { hashes: mergeObjects(existing.hashes, entry.hashes) }
+              : {}),
+          });
+          continue;
+        }
+        merged.set(entry.purl, entry);
+      }
+    }
+    return [...merged.values()].sort((left, right) =>
+      left.purl.localeCompare(right.purl),
+    );
+  }
   const extractor = EXTRACTORS[source.kind];
   if (!extractor) {
     throw new Error(`Unsupported dependency source kind: ${source.kind}`);

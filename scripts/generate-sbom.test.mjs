@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import { createHash } from "node:crypto";
 import {
+  existsSync,
   mkdirSync,
   mkdtempSync,
   readdirSync,
@@ -23,12 +24,16 @@ import {
   listComponentIds,
   normalizeLicense,
   PUBLISHED_METADATA_UNAVAILABLE_EXIT_CODE,
+  prepareSbomForExactVulnerabilityScan,
+  publishedSbomAssets,
   readComponentVersion,
   readVexStatements,
   releaseTagFor,
   repairSbomDigestForTag,
+  sbomRevisionForTag,
   sbomFileName,
   verifyPublishedSbom,
+  verifySbomGeneratorAttestation,
 } from "./generate-sbom.mjs";
 import { PACKAGE_CONFIG } from "./assert-release-tag.mjs";
 import {
@@ -77,6 +82,30 @@ const googleDependencies = [
   ["androidx.compose.ui", "ui", "1.11.4"],
 ];
 
+const horizonDependencies = [
+  [
+    "com.meta.horizon.billingclient.api",
+    "horizon-billing-compatibility",
+    "2.0.0",
+    "compile",
+  ],
+  ["com.meta.horizon.platform.sdk", "core-kotlin", "0.2.2", "compile"],
+  [
+    "com.meta.horizon.platform.sdk",
+    "user-age-category-kotlin",
+    "0.2.2",
+    "compile",
+  ],
+  ["com.meta.horizon.platform.sdk", "iap-kotlin", "0.2.2", "compile"],
+  ["org.jetbrains.kotlinx", "kotlinx-serialization-json", "1.9.0", "compile"],
+  ...googleDependencies.slice(1),
+];
+
+const amazonDependencies = [
+  ["com.amazon.device", "amazon-appstore-sdk", "3.0.9", "compile"],
+  ...googleDependencies.slice(1),
+];
+
 const historicalGoogleDependencies = [
   ["com.android.billingclient", "billing-ktx", "8.0.0", "compile"],
   [
@@ -97,11 +126,10 @@ const historicalGoogleDependencies = [
 ];
 
 const kmpDependencies = [
-  ["org.jetbrains.kotlinx", "kotlinx-coroutines-core-jvm", "1.11.0", "compile"],
-  ["org.jetbrains.kotlin", "kotlin-stdlib", "2.4.10", "compile"],
-  ["io.github.hyochan.openiap", "openiap-google", "3.3.0"],
-  ["org.jetbrains.kotlinx", "kotlinx-datetime-jvm", "0.8.0"],
-  ["org.jetbrains.kotlinx", "kotlinx-serialization-json-jvm", "1.11.0"],
+  ["org.jetbrains.kotlinx", "kotlinx-coroutines-core", "1.11.0"],
+  ["org.jetbrains.kotlin", "kotlin-stdlib", "2.4.10"],
+  ["org.jetbrains.kotlinx", "kotlinx-datetime", "0.8.0"],
+  ["org.jetbrains.kotlinx", "kotlinx-serialization-json", "1.11.0"],
 ];
 
 const mauiDependencies = [
@@ -131,17 +159,31 @@ const mauiDependencies = [
 
 const mauiNuspec = `<package><metadata><dependencies><group targetFramework="net10.0-android36.0">${mauiDependencies
   .map(([name, version]) => `<dependency id="${name}" version="${version}" />`)
-  .join("")}</group></dependencies></metadata></package>`;
+  .join(
+    "",
+  )}</group><group targetFramework="net10.0-ios26.0" /><group targetFramework="net10.0-maccatalyst26.0" /></dependencies></metadata></package>`;
 
 globalThis.fetch = async (input) => {
   const url = String(input);
   if (url.includes("openiap-google/1.3.0/")) {
     return new Response(mavenPom(historicalGoogleDependencies));
   }
+  if (
+    url.includes("openiap-google-horizon/1.3.0/") ||
+    url.includes("openiap-google-amazon/1.3.0/")
+  ) {
+    return new Response("", { status: 404 });
+  }
+  if (url.includes("openiap-google-horizon/")) {
+    return new Response(mavenPom(horizonDependencies));
+  }
+  if (url.includes("openiap-google-amazon/")) {
+    return new Response(mavenPom(amazonDependencies));
+  }
   if (url.includes("openiap-google/")) {
     return new Response(mavenPom(googleDependencies));
   }
-  if (url.includes("kmp-iap-android-play/")) {
+  if (url.includes("/kmp-iap/")) {
     return new Response(mavenPom(kmpDependencies));
   }
   if (url.includes("openiap.maui.nuspec")) {
@@ -204,12 +246,6 @@ test("every release tag pattern resolves back to its own component", () => {
     }
   }
 
-  // `docs` releases the spec and is absent from PACKAGE_CONFIG.
-  assert.deepEqual(componentFromTag("docs-9.9.9"), {
-    componentId: "docs",
-    version: "9.9.9",
-  });
-
   // A prefix must not swallow a longer one, and a tag we do not own is skipped
   // rather than misattributed.
   assert.equal(componentFromTag("google-v1.2.3").componentId, "google");
@@ -253,12 +289,72 @@ test("backfill repairs only exact guarded legacy SBOMs", () => {
     [
       "google-3.3.0",
       "openiap-google-3.3.0.cdx.json",
-      "sha256:7256739c147689fbbb1257a738f85e7d030bb3612fd52a903c4cc9ca72b00e66",
+      "sha256:704362aa07a458ccd76b1d0e89358c8db3d4e3ad4b6d8ff0521c90634597936b",
+    ],
+    [
+      "google-3.3.1",
+      "openiap-google-3.3.1.cdx.json",
+      "sha256:f38d4c8cae6fedbbcac4790d7ee920f0880ce698aa63e27f36125297509890df",
     ],
     [
       "react-native-iap-16.3.0",
       "react-native-iap-16.3.0.cdx.json",
-      "sha256:f93f56530a9042d8c31289bfac765d295d6549701e0fbcedce395c55c0191a1d",
+      "sha256:47cc1b6a63c27918df1fe15a83d6cc8aff5320a378f6f0f0454d0f542a1aa12a",
+    ],
+    [
+      "react-native-iap-16.3.1",
+      "react-native-iap-16.3.1.cdx.json",
+      "sha256:807c9fb163aa18ed75bb471eed5c4eb62c7ef566c2686bd432e9da9ad01b2ef8",
+    ],
+    [
+      "expo-iap-5.3.0",
+      "expo-iap-5.3.0.cdx.json",
+      "sha256:a5875e9cdd861387ee0887252f9009e848d85a1e62b245ba22972e9fbe83da70",
+    ],
+    [
+      "expo-iap-5.3.1",
+      "expo-iap-5.3.1.cdx.json",
+      "sha256:ac221c082413c0a9df586028f86bed3d0d9a3915bcb1adea237064efeb5c9a6a",
+    ],
+    [
+      "flutter-iap-10.3.0",
+      "flutter_inapp_purchase-10.3.0.cdx.json",
+      "sha256:52b11ca531fa7a8e5250bd6a83d6400412ad4cbb0f527f0b134fa515b0659c8e",
+    ],
+    [
+      "flutter-iap-10.3.1",
+      "flutter_inapp_purchase-10.3.1.cdx.json",
+      "sha256:82f658347af445d497083b50c133867c87d2fd9426412aa6f7ff2ffe1b79e99e",
+    ],
+    [
+      "godot-iap-3.3.0",
+      "godot-iap-3.3.0.cdx.json",
+      "sha256:23fd3f2a48c01d5d276b43adabcec1f98630bb0615d20c4ce94b59fb26b210e5",
+    ],
+    [
+      "godot-iap-3.3.1",
+      "godot-iap-3.3.1.cdx.json",
+      "sha256:70724bcaf51c3ad79b2767f89606ab3f24f1543bfc804dcba0c8377541e0239b",
+    ],
+    [
+      "kmp-iap-3.3.0",
+      "kmp-iap-3.3.0.cdx.json",
+      "sha256:533ffbcb5670d3826a508ecc74c49eea3da46d0a8a5f0672e00bb491857236dc",
+    ],
+    [
+      "kmp-iap-3.3.1",
+      "kmp-iap-3.3.1.cdx.json",
+      "sha256:63ad3182a4a96690d385d701d77dd200676ee65d54d74ba6e960a796af6684e6",
+    ],
+    [
+      "maui-iap-2.3.0",
+      "OpenIap.Maui-2.3.0.cdx.json",
+      "sha256:b87c308bf9e5bf9480fca2764190098103611b4df60658f218a50c9f9851baef",
+    ],
+    [
+      "maui-iap-2.3.1",
+      "OpenIap.Maui-2.3.1.cdx.json",
+      "sha256:376b57fd4fa83bb0d67f6fe78b6b146b6e11c0952d3a56af19941814d8e06ed4",
     ],
   ];
 
@@ -286,6 +382,12 @@ test("backfill repairs only exact guarded legacy SBOMs", () => {
       [],
     );
   }
+
+  assert.equal(sbomRevisionForTag("google-3.3.0"), 2);
+  assert.equal(sbomRevisionForTag("react-native-iap-16.3.0"), 2);
+  assert.equal(sbomRevisionForTag("google-3.3.1"), 2);
+  assert.equal(sbomRevisionForTag("expo-iap-5.3.1"), 2);
+  assert.equal(sbomRevisionForTag("google-9.9.9"), 1);
 
   const [tag, name] = repairs[0];
   const repairDigest = repairSbomDigestForTag(tag);
@@ -338,6 +440,7 @@ test("latest release inventory fails closed when an asset is missing", () => {
     [
       {
         componentId: "google",
+        version: "3.3.0",
         tag: "google-3.3.0",
         fileName: "openiap-google-3.3.0.cdx.json",
         digest,
@@ -352,6 +455,117 @@ test("latest release inventory fails closed when an asset is missing", () => {
     /Missing published SBOM asset/u,
   );
   assert.throws(() => latestSbomAssets([]), /No published component releases/u);
+});
+
+test("scheduled release inventory ignores unsupported prereleases", () => {
+  const stableDigest = `sha256:${"1".repeat(64)}`;
+  const prereleaseDigest = `sha256:${"2".repeat(64)}`;
+  const releases = [
+    {
+      tag_name: "google-3.4.0-rc.1",
+      published_at: "2026-08-12T00:00:00Z",
+      prerelease: true,
+      assets: [
+        {
+          name: "openiap-google-3.4.0-rc.1.cdx.json",
+          digest: prereleaseDigest,
+        },
+      ],
+    },
+    {
+      tag_name: "google-3.3.0",
+      published_at: "2026-08-11T00:00:00Z",
+      prerelease: false,
+      assets: [{ name: "openiap-google-3.3.0.cdx.json", digest: stableDigest }],
+    },
+  ];
+
+  assert.deepEqual(latestSbomAssets(releases), [
+    {
+      componentId: "google",
+      version: "3.3.0",
+      tag: "google-3.3.0",
+      fileName: "openiap-google-3.3.0.cdx.json",
+      digest: stableDigest,
+    },
+  ]);
+  assert.deepEqual(
+    findMissingLatestSbomTags(
+      releases.map((release) => ({ ...release, assets: [] })),
+    ),
+    ["google-3.3.0"],
+  );
+});
+
+test("historical release inventory retains every stable SBOM", () => {
+  const digest = `sha256:${"3".repeat(64)}`;
+  const releases = ["3.3.1", "3.3.0"].map((version, index) => ({
+    tag_name: `google-${version}`,
+    published_at: `2026-08-${12 - index}T00:00:00Z`,
+    assets: [{ name: `openiap-google-${version}.cdx.json`, digest }],
+  }));
+  assert.deepEqual(
+    publishedSbomAssets(releases).map(({ tag }) => tag),
+    ["google-3.3.1", "google-3.3.0"],
+  );
+});
+
+test("exact vulnerability scan copy omits version constraints", () => {
+  const rootRef = "pkg:pub/example@1.0.0";
+  const exactRef = "pkg:pub/exact@2.0.0";
+  const constraintRef = "pkg:pub/ranged@%5E1.2.0";
+  const dynamicRef = "pkg:maven/com.facebook.react/react-native@%2B";
+  const prepared = prepareSbomForExactVulnerabilityScan({
+    bomFormat: "CycloneDX",
+    specVersion: "1.6",
+    components: [
+      { "bom-ref": exactRef, name: "exact", version: "2.0.0" },
+      {
+        "bom-ref": constraintRef,
+        name: "ranged",
+        version: "^1.2.0",
+        properties: [
+          {
+            name: "openiap:sbom:version-constraint",
+            value: "^1.2.0",
+          },
+        ],
+      },
+      {
+        "bom-ref": dynamicRef,
+        name: "react-native",
+        version: "+",
+        properties: [
+          {
+            name: "openiap:sbom:version-constraint",
+            value: "+",
+          },
+        ],
+      },
+    ],
+    dependencies: [
+      { ref: rootRef, dependsOn: [exactRef, constraintRef, dynamicRef] },
+      { ref: exactRef, dependsOn: [] },
+      { ref: constraintRef, dependsOn: [] },
+      { ref: dynamicRef, dependsOn: [] },
+    ],
+    vulnerabilities: [
+      { id: "OSV-1", affects: [{ ref: exactRef }, { ref: constraintRef }] },
+      { id: "OSV-2", affects: [{ ref: constraintRef }] },
+    ],
+  });
+  assert.equal(prepared.skippedConstraints, 2);
+  assert.deepEqual(
+    prepared.document.components.map((component) => component["bom-ref"]),
+    [exactRef],
+  );
+  assert.deepEqual(prepared.document.dependencies, [
+    { ref: rootRef, dependsOn: [exactRef] },
+    { ref: exactRef, dependsOn: [] },
+  ]);
+  assert.deepEqual(prepared.document.vulnerabilities, [
+    { id: "OSV-1", affects: [{ ref: exactRef }] },
+  ]);
 });
 
 test("every GitHub release workflow dispatches the SBOM workflow", () => {
@@ -394,6 +608,7 @@ test("SBOM publication waits for registry propagation and repairs daily", () => 
     /github\.ref == format\('refs\/heads\/\{0\}', github\.event\.repository\.default_branch\)/u,
   );
   assert.match(source, /cron: "23 3 \* \* \*"/u);
+  assert.match(source, /name: Dispatch stable SBOM repairs/u);
   assert.match(source, /for attempt in \{1\.\.16\}/u);
   assert.match(source, /\[ "\$STATUS" -ne 75 \]/u);
   assert.doesNotMatch(source, /grep.+Published/u);
@@ -419,11 +634,36 @@ test("SBOM publication waits for registry propagation and repairs daily", () => 
   assert.match(source, /verify-file "\$EXISTING_FILE"/u);
   assert.match(source, /--digest "\$ASSET_DIGEST"/u);
   assert.match(source, /verify-file "\$SBOM_FILE"/u);
+  assert.match(source, /install-security-tool\.sh cyclonedx/u);
+  assert.match(source, /cyclonedx" validate/u);
   assert.match(source, /gh attestation verify "\$EXISTING_FILE"/u);
+  assert.match(source, /gh attestation verify "\$PUBLISHED_FILE"/u);
   assert.match(source, /--cert-identity "\$CERT_IDENTITY"/u);
   assert.match(source, /refs\/heads\/\$DEFAULT_BRANCH/u);
   assert.doesNotMatch(source, /--signer-workflow/u);
   assert.match(source, /--deny-self-hosted-runners/u);
+  assert.match(source, /GENERATOR_COMMIT: \$\{\{ github\.sha \}\}/u);
+  assert.doesNotMatch(
+    source,
+    /GENERATOR_COMMIT=\$\(git rev-parse FETCH_HEAD\)/u,
+  );
+  assert.equal((source.match(/verify-attested-generator/gu) ?? []).length, 2);
+  const attachIndex = source.indexOf("- name: Attach SBOM to the release");
+  const publishedVerifyIndex = source.indexOf(
+    "- name: Verify the published SBOM",
+  );
+  assert.ok(
+    publishedVerifyIndex > attachIndex,
+    "the uploaded release asset must be verified after publication",
+  );
+  const publishedVerifyBlock = source.slice(publishedVerifyIndex);
+  assert.match(publishedVerifyBlock, /ASSET_COUNT.*-ne 1/u);
+  assert.match(publishedVerifyBlock, /--digest "\$ASSET_DIGEST"/u);
+  assert.match(
+    publishedVerifyBlock,
+    /--generator-commit "\$EXPECTED_GENERATOR_COMMIT"/u,
+  );
+  assert.match(publishedVerifyBlock, /for attempt in \{1\.\.12\}/u);
   assert.ok(
     source.indexOf('verify-file "$EXISTING_FILE"') <
       source.indexOf("A staged legacy repair will be reconciled"),
@@ -450,16 +690,98 @@ test("SBOM publication waits for registry propagation and repairs daily", () => 
   );
   assert.match(source, /persist-credentials: false/u);
   assert.match(source, /sleep 120/u);
+  const provenanceIndex = source.indexOf(
+    "- name: Verify release tag provenance",
+  );
+  const generateIndex = source.indexOf("- name: Generate CycloneDX SBOM");
+  const attestIndex = source.indexOf("- name: Attest SBOM provenance");
+  assert.match(source, /assert-release-tag\.mjs/u);
+  assert.ok(
+    provenanceIndex >= 0 &&
+      provenanceIndex < generateIndex &&
+      provenanceIndex < attestIndex,
+    "release tag provenance must be verified before generation and attestation",
+  );
 });
 
-test("Google releases fail when an unpublished flavor lacks credentials", () => {
+test("published release SBOMs and the Kit image are rescanned read-only", () => {
+  const source = readFileSync(
+    resolve(repoRoot, ".github/workflows/security-rescan.yml"),
+    "utf8",
+  );
+  const deploy = readFileSync(
+    resolve(repoRoot, ".github/workflows/deploy-kit.yml"),
+    "utf8",
+  );
+  const releaseJob = source.slice(
+    source.indexOf("  release-sboms:"),
+    source.indexOf("  kit-container:"),
+  );
+
+  assert.match(source, /cron: "41 5 \* \* 1"/u);
+  assert.match(source, /permissions:\n  contents: read/u);
+  assert.doesNotMatch(source, /contents: write/u);
+  assert.match(releaseJob, /fetch-depth: 0/u);
+  assert.match(source, /missing-release-tags/u);
+  assert.match(
+    source,
+    /Newest stable releases or approved legacy repairs are missing a verified SBOM/u,
+  );
+  assert.match(source, /published-release-assets/u);
+  assert.match(source, /assert-release-tag\.mjs/u);
+  assert.match(
+    source,
+    /"\$COMPONENT" "\$DEFAULT_BRANCH" "\$RELEASE_TAG" "\$VERSION"/u,
+  );
+  assert.match(source, /verify-file "\$SBOM_FILE"/u);
+  assert.match(source, /gh attestation verify "\$SBOM_FILE"/u);
+  assert.match(source, /verify-attested-generator/u);
+  assert.match(source, /scan-copy "\$SBOM_FILE" "\$SCAN_FILE"/u);
+  assert.match(source, /REPORT_RELEASE_DIR="\$REPORT_DIR\/\$RELEASE_TAG"/u);
+  assert.match(source, /--dir "\$RELEASE_DIR"/u);
+  assert.match(source, /-L="\$SCAN_FILE"/u);
+  assert.match(source, /\(\.components \/\/ \[\]\) \| length > 0/u);
+  assert.match(source, /SBOM declares no exact third-party components/u);
+  assert.match(source, /install-security-tool\.sh osv-scanner/u);
+  assert.match(source, /install-security-tool\.sh trivy/u);
+  assert.doesNotMatch(source, /--ignore-unfixed/u);
+  assert.match(source, /--severity HIGH,CRITICAL/u);
+  assert.match(source, /--exit-on-eol 1/u);
+  assert.match(deploy, /tags: openiap-kit:security-scan/u);
+  assert.match(deploy, /install-security-tool\.sh trivy/u);
+});
+
+test("Google releases require complete credentials before version mutation", () => {
   const source = readFileSync(
     resolve(repoRoot, ".github/workflows/release-google.yml"),
     "utf8",
   );
+  const preflightStart = source.indexOf(
+    "- name: Preflight Maven Central publication",
+  );
+  const versionMutationStart = source.indexOf(
+    "- name: Update version in openiap-versions.json",
+  );
+  const preflight = source.slice(preflightStart, versionMutationStart);
+
+  assert.ok(preflightStart >= 0 && preflightStart < versionMutationStart);
+  for (const flavor of ["HORIZON", "AMAZON", "PLAY"]) {
+    assert.match(preflight, new RegExp(`\\$${flavor}_EXISTS" = "false"`, "u"));
+  }
+  for (const credential of [
+    "MAVEN_CENTRAL_USERNAME",
+    "MAVEN_CENTRAL_PASSWORD",
+    "GPG_KEY_CONTENTS",
+    "SIGNING_KEY_ID",
+    "SIGNING_PASSWORD",
+  ]) {
+    assert.match(preflight, new RegExp(`\\$${credential}`, "u"));
+  }
   assert.equal(
-    source.match(/Maven Central credentials are required to publish/gu)?.length,
-    3,
+    source.match(
+      /Complete Maven Central and signing credentials are required before creating the release tag/gu,
+    )?.length,
+    1,
   );
   assert.doesNotMatch(source, /Skipping publish/u);
 });
@@ -663,6 +985,30 @@ test("published SBOM verification requires reproducible release evidence", () =>
     /Invalid published SBOM digest/u,
   );
 
+  const missingAuthorName = structuredClone(document);
+  missingAuthorName.metadata.authors = [{}];
+  assert.throws(
+    () =>
+      verifyPublishedSbom(JSON.stringify(missingAuthorName), {
+        fileName: "react-native-iap-16.3.0.cdx.json",
+        releaseTag: "react-native-iap-16.3.0",
+        releaseCommit: stubCommit,
+      }),
+    /author name/u,
+  );
+
+  const missingRootSupplier = structuredClone(document);
+  delete missingRootSupplier.metadata.component.supplier;
+  assert.throws(
+    () =>
+      verifyPublishedSbom(JSON.stringify(missingRootSupplier), {
+        fileName: "react-native-iap-16.3.0.cdx.json",
+        releaseTag: "react-native-iap-16.3.0",
+        releaseCommit: stubCommit,
+      }),
+    /supplier name/u,
+  );
+
   const incomplete = structuredClone(document);
   delete incomplete.components;
   assert.throws(
@@ -673,6 +1019,65 @@ test("published SBOM verification requires reproducible release evidence", () =>
         releaseCommit: stubCommit,
       }),
     /components array/u,
+  );
+});
+
+test("SBOM generator commit matches the verified workflow attestation", () => {
+  const generatorCommit = "a".repeat(40);
+  const document = buildSbom({
+    componentId: "docs",
+    version: "9.9.9",
+    commit: stubCommit,
+    generatorCommit,
+    releaseTag: "docs-9.9.9",
+    timestamp: "2026-01-01T00:00:00.000Z",
+    dependencies: [],
+  });
+  const result = (
+    commit,
+    uri = "git+https://github.com/hyodotdev/openiap@refs/heads/main",
+  ) => [
+    {
+      verificationResult: {
+        statement: {
+          predicate: {
+            buildDefinition: {
+              resolvedDependencies: [{ uri, digest: { gitCommit: commit } }],
+            },
+          },
+        },
+      },
+    },
+  ];
+  const options = { repository: "hyodotdev/openiap", branch: "main" };
+
+  assert.equal(
+    verifySbomGeneratorAttestation(
+      JSON.stringify(document),
+      JSON.stringify(result(generatorCommit)),
+      options,
+    ),
+    generatorCommit,
+  );
+  assert.throws(
+    () =>
+      verifySbomGeneratorAttestation(
+        JSON.stringify(document),
+        JSON.stringify(result("b".repeat(40))),
+        options,
+      ),
+    /does not match attested source/u,
+  );
+  assert.throws(
+    () =>
+      verifySbomGeneratorAttestation(
+        JSON.stringify(document),
+        JSON.stringify(
+          result(generatorCommit, "git+https://example.invalid/repo"),
+        ),
+        options,
+      ),
+    /found 0/u,
   );
 });
 
@@ -861,24 +1266,68 @@ test("published metadata matches the consumer-visible artifacts", async () => {
     runGit: stubGit,
   });
   const googleNames = google.document.components.map((entry) => entry.name);
-  assert.equal(google.directCount, 10);
+  assert.equal(google.directCount, 18);
   assert.ok(googleNames.includes("org.jetbrains.kotlin:kotlin-stdlib"));
-  assert.ok(!googleNames.some((name) => name.includes("horizon")));
-  assert.ok(!googleNames.some((name) => name.includes("amazon")));
+  assert.ok(
+    googleNames.includes(
+      "com.meta.horizon.billingclient.api:horizon-billing-compatibility",
+    ),
+  );
+  assert.ok(googleNames.includes("com.amazon.device:amazon-appstore-sdk"));
+  assert.ok(
+    googleNames.includes("io.github.hyochan.openiap:openiap-google-horizon"),
+  );
+  assert.ok(
+    googleNames.includes("io.github.hyochan.openiap:openiap-google-amazon"),
+  );
 
   const kmp = await generateSbom("kmp", { root: repoRoot, runGit: stubGit });
   const kmpNames = kmp.document.components.map((entry) => entry.name);
-  assert.equal(kmp.directCount, 5);
+  assert.equal(kmp.directCount, 8);
+  assert.ok(kmpNames.includes("openiap"));
   assert.ok(kmpNames.includes("io.github.hyochan.openiap:openiap-google"));
+  assert.ok(
+    kmpNames.includes("io.github.hyochan.openiap:openiap-google-horizon"),
+  );
+  assert.ok(
+    kmpNames.includes("io.github.hyochan.openiap:openiap-google-amazon"),
+  );
   assert.ok(kmpNames.includes("org.jetbrains.kotlin:kotlin-stdlib"));
+  assert.ok(kmpNames.includes("org.jetbrains.kotlinx:kotlinx-datetime"));
+  assert.ok(!kmpNames.some((name) => name.endsWith("-jvm")));
 
   const maui = await generateSbom("maui", { root: repoRoot, runGit: stubGit });
-  assert.equal(maui.directCount, 22);
+  assert.equal(maui.directCount, 24);
+  assert.ok(maui.document.components.some((entry) => entry.name === "openiap"));
+  assert.ok(
+    maui.document.components.some(
+      (entry) => entry.name === "io.github.hyochan.openiap:openiap-google",
+    ),
+  );
   assert.ok(
     !maui.document.components.some((entry) =>
       entry.name.includes("Serialization"),
     ),
   );
+  for (const [name] of mauiDependencies) {
+    const dependency = maui.document.components.find(
+      (entry) => entry.name === name,
+    );
+    assert.equal(dependency?.scope, "optional", name);
+    assert.deepEqual(
+      Object.fromEntries(
+        dependency.properties.map((property) => [
+          property.name,
+          property.value,
+        ]),
+      ),
+      {
+        "openiap:platform": "android",
+        "openiap:target-framework": "net10.0-android36.0",
+      },
+      name,
+    );
+  }
 });
 
 test("published metadata parsers reject unsupported dependencies", () => {
@@ -898,6 +1347,24 @@ test("published metadata parsers reject unsupported dependencies", () => {
         { url: "fixture.nuspec" },
       ),
     /Incomplete published NuGet dependency/u,
+  );
+  assert.throws(
+    () =>
+      parseNugetNuspec(
+        '<package><dependencies><group targetFramework="net10.0-android36.0">' +
+          '<dependency id="A" version="1.0.0" /></group>' +
+          '<dependency id="B" version="2.0.0" /></dependencies></package>',
+        { url: "fixture.nuspec" },
+      ),
+    /Mixed grouped and ungrouped NuGet dependencies/u,
+  );
+  assert.deepEqual(
+    parseNugetNuspec(
+      '<package><dependencies><!-- <dependency id="Fake" version="1.0.0" /> -->' +
+        '<group targetFramework="net10.0-ios26.0" /></dependencies></package>',
+      { url: "fixture.nuspec" },
+    ),
+    [],
   );
   assert.throws(
     () =>
@@ -954,7 +1421,10 @@ test("missing published metadata has a dedicated error type", async () => {
 });
 
 test("pub dependencies exclude the Flutter SDK itself", () => {
-  const dependencies = extractPub(repoRoot, COMPONENTS.flutter.source);
+  const pubSource = COMPONENTS.flutter.source.sources.find(
+    (source) => source.kind === "pub",
+  );
+  const dependencies = extractPub(repoRoot, pubSource);
   assert.deepEqual(
     dependencies.map((entry) => entry.name),
     ["http", "meta", "platform"],
@@ -966,16 +1436,191 @@ test("pub dependencies exclude the Flutter SDK itself", () => {
   assert.ok(dependencies.every((entry) => entry.purl.includes("@%5E")));
 });
 
-test("npm components publish no third-party runtime dependencies", async () => {
-  // These ship with an empty `dependencies` block; peer dependencies are the
-  // host app's to provide, so they are not part of this artifact's inventory.
-  for (const componentId of ["conformance", "expo", "react-native"]) {
+test("framework SBOMs include every shipped native runtime contract", async () => {
+  const conformance = await generateSbom("conformance", {
+    root: repoRoot,
+    runGit: stubGit,
+  });
+  assert.deepEqual(conformance.document.components, []);
+
+  const openIapNativeNames = [
+    "openiap",
+    "io.github.hyochan.openiap:openiap-google",
+    "io.github.hyochan.openiap:openiap-google-amazon",
+    "io.github.hyochan.openiap:openiap-google-horizon",
+  ];
+  const expectedByComponent = {
+    expo: [...openIapNativeNames, "ExpoModulesCore", "OnsideKit"],
+    flutter: [
+      ...openIapNativeNames,
+      "Flutter",
+      "androidx.annotation:annotation",
+      "org.jetbrains.kotlinx:kotlinx-coroutines-android",
+    ],
+    "react-native": [
+      ...openIapNativeNames,
+      "React-Core",
+      "React-jsi",
+      "React-callinvoker",
+      "com.facebook.react:react-native",
+      "com.google.android.gms:play-services-base",
+      "org.jetbrains.kotlinx:kotlinx-coroutines-android",
+      "react-native-nitro-modules",
+    ],
+  };
+  for (const [componentId, expectedNames] of Object.entries(
+    expectedByComponent,
+  )) {
     const { document } = await generateSbom(componentId, {
       root: repoRoot,
       runGit: stubGit,
     });
-    assert.deepEqual(document.components, [], componentId);
+    const actualNames = new Set(
+      document.components.map((component) => component.name),
+    );
+    for (const expectedName of expectedNames) {
+      assert.ok(
+        actualNames.has(expectedName),
+        `${componentId}: ${expectedName}`,
+      );
+    }
+    assert.ok(
+      document.metadata.component.properties.some(
+        (property) =>
+          property.name === "openiap:sbom:aggregation" &&
+          property.value === "release-variants",
+      ),
+      componentId,
+    );
   }
+
+  const expo = await generateSbom("expo", { root: repoRoot, runGit: stubGit });
+  const onside = expo.document.components.find(
+    (component) => component.name === "OnsideKit",
+  );
+  assert.equal(onside.scope, "optional");
+  assert.ok(
+    onside.properties.some(
+      (property) =>
+        property.name === "openiap:dependency:optional" &&
+        property.value === "true",
+    ),
+  );
+
+  const godot = await generateSbom("godot", {
+    root: repoRoot,
+    runGit: stubGit,
+  });
+  for (const name of ["SwiftGodotRuntime", "SwiftGodotRuntime-macOS"]) {
+    const binary = godot.document.components.find(
+      (component) => component.name === name,
+    );
+    assert.match(binary.version, /^[0-9a-f]{64}$/u);
+    assert.deepEqual(binary.hashes, [
+      { alg: "SHA-256", content: binary.version },
+    ]);
+    assert.equal(binary.supplier.name, "Miguel de Icaza");
+    assert.equal(binary.licenses[0].license.id, "MIT");
+  }
+
+  const kmp = await generateSbom("kmp", { root: repoRoot, runGit: stubGit });
+  for (const component of kmp.document.components.filter(
+    (entry) =>
+      entry.name === "openiap" ||
+      entry.name.startsWith("io.github.hyochan.openiap:openiap-google"),
+  )) {
+    assert.equal(component.supplier.name, "OpenIAP", component.name);
+    assert.equal(component.licenses[0].license.id, "MIT", component.name);
+  }
+
+  for (const name of ["ExpoModulesCore", "OnsideKit"]) {
+    const component = expo.document.components.find(
+      (entry) => entry.name === name,
+    );
+    assert.equal(component.licenses[0].license.id, "MIT", name);
+    assert.ok(component.supplier.name, name);
+  }
+
+  const reactNative = await generateSbom("react-native", {
+    root: repoRoot,
+    runGit: stubGit,
+  });
+  const playServicesBase = reactNative.document.components.find(
+    (component) =>
+      component.name === "com.google.android.gms:play-services-base",
+  );
+  assert.equal(playServicesBase.supplier.name, "Google LLC");
+  assert.deepEqual(playServicesBase.licenses, [
+    { license: { name: "Android Software Development Kit License" } },
+  ]);
+});
+
+test("declared native dependency inventory fails closed on manifest drift", async (t) => {
+  const scratch = mkdtempSync(resolve(tmpdir(), "openiap-declared-"));
+  t.after(() => rmSync(scratch, { recursive: true, force: true }));
+  writeFileSync(resolve(scratch, "manifest.gradle"), "dependencies {}\n");
+
+  await assert.rejects(
+    () =>
+      extractDirectDependencies(scratch, {
+        kind: "declared",
+        manifest: "manifest.gradle",
+        dependencies: [
+          {
+            ecosystem: "maven",
+            group: "example",
+            artifact: "runtime",
+            version: "1.0.0",
+            marker: "example:runtime:",
+          },
+        ],
+      }),
+    /Missing dependency declaration/u,
+  );
+
+  const pattern = /^\s*implementation\s+"([^"]+)"/gmu;
+  writeFileSync(
+    resolve(scratch, "manifest.gradle"),
+    '// implementation "example:runtime:1.0.0"\n',
+  );
+  await assert.rejects(
+    () =>
+      extractDirectDependencies(scratch, {
+        kind: "declared",
+        manifest: "manifest.gradle",
+        inventories: [
+          {
+            file: "manifest.gradle",
+            pattern,
+            expected: ["example:runtime:1.0.0"],
+          },
+        ],
+        dependencies: [],
+      }),
+    /Unmodelled dependency declaration/u,
+  );
+
+  writeFileSync(
+    resolve(scratch, "manifest.gradle"),
+    'implementation "example:runtime:1.0.0"\n' +
+      'implementation "example:unmodelled:2.0.0"\n',
+  );
+  await assert.rejects(
+    () =>
+      extractDirectDependencies(scratch, {
+        kind: "declared",
+        manifest: "manifest.gradle",
+        inventories: [
+          {
+            file: "manifest.gradle",
+            pattern,
+            expected: ["example:runtime:1.0.0"],
+          },
+        ],
+        dependencies: [],
+      }),
+    /example:unmodelled:2\.0\.0/u,
+  );
 });
 
 test("resolver output adds transitive entries without losing direct ones", () => {
@@ -1022,14 +1667,62 @@ test("a registry license only becomes an SPDX id when it really is one", () => {
   assert.equal(normalizeLicense(undefined), null);
 });
 
-test("license lookup is opt-in so generation stays offline by default", async () => {
+test("registry metadata never guesses suppliers or replaces reviewed values", async () => {
+  const lookedUp = await generatorTesting.lookupComponentMetadata(
+    {
+      name: "com.google.android.gms:play-services-base",
+      version: "18.10.0",
+      purl: "pkg:maven/com.google.android.gms/play-services-base@18.10.0",
+    },
+    {
+      fetcher: async () =>
+        "<project><licenses><license><name>Android Software Development Kit License</name></license></licenses></project>",
+    },
+  );
+  assert.deepEqual(lookedUp, {
+    license: {
+      license: { name: "Android Software Development Kit License" },
+    },
+    supplier: undefined,
+  });
+
+  const reviewed = {
+    name: "com.google.android.gms:play-services-base",
+    version: "18.10.0",
+    purl: "pkg:maven/com.google.android.gms/play-services-base@18.10.0",
+    licenses: [
+      { license: { name: "Android Software Development Kit License" } },
+    ],
+    supplier: "Google LLC",
+  };
+  const [enriched] = await generatorTesting.attachRegistryMetadata([reviewed], {
+    lookup: async () => ({
+      license: { license: { id: "MIT" } },
+      supplier: "com.google.android.gms",
+    }),
+  });
+  assert.deepEqual(enriched, reviewed);
+});
+
+test("registry license lookup is opt-in while reviewed metadata stays offline", async () => {
   const { document } = await generateSbom("google", {
     root: repoRoot,
     runGit: stubGit,
   });
   assert.ok(document.components.length > 0);
-  for (const component of document.components) {
-    assert.equal(component.licenses, undefined, component.name);
+  assert.equal(
+    document.components.find(
+      (component) => component.name === "org.jetbrains.kotlin:kotlin-stdlib",
+    ).licenses,
+    undefined,
+  );
+  for (const name of [
+    "io.github.hyochan.openiap:openiap-google-horizon",
+    "io.github.hyochan.openiap:openiap-google-amazon",
+  ]) {
+    const component = document.components.find((entry) => entry.name === name);
+    assert.equal(component.licenses[0].license.id, "MIT", name);
+    assert.equal(component.supplier.name, "OpenIAP", name);
   }
 });
 
@@ -1107,6 +1800,17 @@ test("each component's declared licence matches what it publishes", async () => 
     "utf8",
   );
   assert.match(kmpBuild, /Apache-2\.0|Apache License 2\.0/u);
+});
+
+test("each released component carries a package-local licence", () => {
+  for (const [componentId, component] of Object.entries(COMPONENTS)) {
+    const directory = resolve(repoRoot, component.directory);
+    assert.ok(
+      existsSync(resolve(directory, "LICENSE")) ||
+        existsSync(resolve(directory, "LICENSE.md")),
+      `${componentId} has no package-local licence`,
+    );
+  }
 });
 
 test("a VEX statement must point at a component this SBOM contains", () => {

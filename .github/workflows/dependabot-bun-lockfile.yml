@@ -13,30 +13,33 @@ on:
       - "libraries/**/package.json"
 
 permissions:
-  contents: write
-  actions: write
+  contents: read
 
 jobs:
   refresh:
     name: Refresh bun.lock
     if: github.actor == 'dependabot[bot]'
     runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    outputs:
+      changed: ${{ steps.install.outputs.changed }}
     steps:
       - name: Checkout PR branch
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
+          persist-credentials: false
           ref: ${{ github.event.pull_request.head.ref }}
-          token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.3.13
 
       - name: Run bun install
         id: install
         run: |
-          bun install
+          bun install --ignore-scripts
           if git diff --quiet bun.lock; then
             echo "changed=false" >> "$GITHUB_OUTPUT"
           else
@@ -45,15 +48,26 @@ jobs:
 
       - name: Commit and push refreshed lockfile
         if: steps.install.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add bun.lock
           git commit -m "chore(deps): refresh bun.lock"
-          git push
+          gh auth setup-git
+          git push origin "HEAD:$PR_HEAD_REF"
 
-      - name: Re-trigger kit verify on new commit
-        if: steps.install.outputs.changed == 'true'
+  retrigger:
+    name: Re-trigger Kit verify
+    if: needs.refresh.outputs.changed == 'true'
+    needs: refresh
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+    steps:
+      - name: Dispatch Kit verification
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           PR_HEAD_REF: ${{ github.event.pull_request.head.ref }}

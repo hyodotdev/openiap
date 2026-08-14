@@ -5,6 +5,7 @@ bun.lockb
 *.lock
 !libraries/**/yarn.lock
 !libraries/**/bun.lock
+!scripts/agent/bun.lock
 
 # Generated files
 dist/

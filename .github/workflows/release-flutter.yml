@@ -27,7 +27,7 @@ env:
   RELEASE_BRANCH: ${{ github.ref_name }}
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   release-branch:
@@ -35,12 +35,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Enforce stable and prerelease branches
+        env:
+          VERSION_TYPE: ${{ inputs.version }}
+          IS_PRERELEASE: ${{ inputs.prerelease }}
         run: >-
           node scripts/release-branch-policy.mjs guard flutter
-          "${{ inputs.version }}" "${{ inputs.prerelease }}"
+          "$VERSION_TYPE" "$IS_PRERELEASE"
           "$GITHUB_REF_NAME"
 
   validate-android:
@@ -52,10 +55,10 @@ jobs:
         working-directory: libraries/flutter_inapp_purchase
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: "stable"
           flutter-version: "3.44.9"
@@ -70,7 +73,7 @@ jobs:
         run: flutter test
 
       - name: Install JDK
-        uses: actions/setup-java@v5
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
         with:
           distribution: "temurin"
           java-version: "17"
@@ -98,16 +101,16 @@ jobs:
         working-directory: libraries/flutter_inapp_purchase
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: "stable"
           flutter-version: "3.44.9"
 
       - name: Set up Xcode
-        uses: maxim-lobanov/setup-xcode@v1
+        uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
         with:
           xcode-version: ${{ env.XCODE_VERSION }}
 
@@ -123,13 +126,13 @@ jobs:
         working-directory: libraries/flutter_inapp_purchase
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 1
           persist-credentials: false
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: "stable"
           flutter-version: "3.44.9"
@@ -149,20 +152,20 @@ jobs:
         working-directory: libraries/flutter_inapp_purchase
     steps:
       - name: Checkout
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
-          token: ${{ secrets.DEPENDENCY_UPDATE_PAT }}
+          persist-credentials: false
 
       - name: Setup Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
           channel: "stable"
           flutter-version: "3.44.9"
 
       - name: Setup Bun
         if: ${{ inputs.version != 'current' }}
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.3.13
 
@@ -198,9 +201,10 @@ jobs:
 
       - name: Calculate version
         id: bump
+        env:
+          VERSION_TYPE: ${{ inputs.version }}
+          IS_PRERELEASE: ${{ inputs.prerelease }}
         run: |
-          VERSION_TYPE="${{ inputs.version }}"
-          IS_PRERELEASE="${{ inputs.prerelease }}"
           CURRENT_VERSION=$(awk '/^version:/{print $2; exit}' pubspec.yaml)
 
           if [ "$VERSION_TYPE" = "current" ]; then
@@ -400,7 +404,7 @@ jobs:
 
       - name: Upload Flutter publish authorization
         if: ${{ steps.check_pub.outputs.exists == 'false' && steps.check_tag.outputs.exists != 'true' }}
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
           name: flutter-publish-authorization-${{ steps.flutter_auth.outputs.tag_sha }}
           path: ${{ runner.temp }}/flutter-publish-authorization.json
@@ -410,13 +414,19 @@ jobs:
 
       - name: Push commit and tag
         if: ${{ inputs.version != 'current' }}
-        run: git push --atomic origin "HEAD:$RELEASE_BRANCH" --follow-tags
+        env:
+          GH_TOKEN: ${{ secrets.DEPENDENCY_UPDATE_PAT }}
+        run: |
+          gh auth setup-git
+          git push --atomic origin "HEAD:$RELEASE_BRANCH" --follow-tags
 
       - name: Push tag (current version)
         if: ${{ inputs.version == 'current' && steps.check_tag.outputs.exists != 'true' }}
         env:
+          GH_TOKEN: ${{ secrets.DEPENDENCY_UPDATE_PAT }}
           NEW_VERSION: ${{ steps.bump.outputs.version }}
         run: |
+          gh auth setup-git
           RELEASE_TAG="flutter-iap-${NEW_VERSION}"
           git push --atomic origin \
             "HEAD:refs/heads/$RELEASE_BRANCH" \
@@ -425,9 +435,10 @@ jobs:
       - name: Wait for tag-push pub.dev publisher
         if: ${{ steps.check_pub.outputs.exists == 'false' }}
         env:
-          GH_TOKEN: ${{ secrets.DEPENDENCY_UPDATE_PAT }}
+          GH_TOKEN: ${{ github.token }}
           TAG: flutter-iap-${{ steps.bump.outputs.version }}
           TAG_ALREADY_EXISTED: ${{ steps.check_tag.outputs.exists }}
+          VERSION: ${{ steps.bump.outputs.version }}
         run: |
           TAG_COMMIT=$(git rev-parse "$TAG^{commit}")
           if ! git -C "$GITHUB_WORKSPACE" grep -q "Verify release workflow authorization" "$TAG" -- \
@@ -480,15 +491,15 @@ jobs:
 
           for attempt in $(seq 1 30); do
             HTTP_STATUS=$(curl -sS -L -o /dev/null -w "%{http_code}" \
-              "https://pub.dev/api/packages/flutter_inapp_purchase/versions/${{ steps.bump.outputs.version }}" || true)
+              "https://pub.dev/api/packages/flutter_inapp_purchase/versions/$VERSION" || true)
             if [ "$HTTP_STATUS" = "200" ]; then
-              echo "flutter_inapp_purchase ${{ steps.bump.outputs.version }} is public on pub.dev"
+              echo "flutter_inapp_purchase $VERSION is public on pub.dev"
               exit 0
             fi
             sleep 10
           done
 
-          echo "::error::Publisher completed, but flutter_inapp_purchase ${{ steps.bump.outputs.version }} is not public on pub.dev"
+          echo "::error::Publisher completed, but flutter_inapp_purchase $VERSION is not public on pub.dev"
           exit 1
 
       - name: Generate release notes
@@ -541,7 +552,7 @@ jobs:
           EOF
 
       - name: Create GitHub Release
-        uses: softprops/action-gh-release@v3
+        uses: softprops/action-gh-release@3d0d9888cb7fd7b750713d6e236d1fcb99157228 # v3
         with:
           tag_name: flutter-iap-${{ steps.bump.outputs.version }}
           name: flutter_inapp_purchase ${{ steps.bump.outputs.version }}
