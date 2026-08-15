@@ -1,6 +1,6 @@
 {
   "name": "openiap-conformance",
-  "version": "1.0.1",
+  "version": "2.0.0",
   "type": "module",
   "description": "Versioned OpenIAP conformance suite: behavioral spec, runner, and adapter contract",
   "exports": {
