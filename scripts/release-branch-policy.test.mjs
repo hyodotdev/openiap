@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, resolve } from "node:path";
@@ -46,6 +47,124 @@ const prereleaseCiWorkflows = [
   "ci-react-native-iap.yml",
 ];
 
+test("Godot dependency download changes trigger Godot CI", () => {
+  const workflow = readWorkflow("ci-godot-iap.yml");
+  const triggerSection = workflow.slice(0, workflow.indexOf("permissions:"));
+  assert.equal(
+    (triggerSection.match(/scripts\/fetch-godot-lib\.sh/gu) ?? []).length,
+    2,
+  );
+});
+
+test("Gradle wrappers pin distributions and validate tracked jars", () => {
+  const expectedDistributionDigests = new Map([
+    [
+      "gradle-9.3.0-all.zip",
+      "046f36af261f2c6ed09eef06bf25b93d1f20d5220991bb8a3f08fd5fb6f6629a",
+    ],
+    [
+      "gradle-9.3.0-bin.zip",
+      "0d585f69da091fc5b2beced877feab55a3064d43b8a1d46aeb07996b0915e0e0",
+    ],
+    [
+      "gradle-9.3.1-bin.zip",
+      "b266d5ff6b90eada6dc3b20cb090e3731302e553a27c5d3e4df1f0d76beaff06",
+    ],
+  ]);
+  const wrappers = execFileSync(
+    "git",
+    ["ls-files", "*gradle/wrapper/gradle-wrapper.properties"],
+    { cwd: repoRoot, encoding: "utf8" },
+  )
+    .trim()
+    .split("\n")
+    .filter(Boolean);
+
+  assert.equal(wrappers.length, 7);
+  for (const wrapper of wrappers) {
+    const properties = readFileSync(resolve(repoRoot, wrapper), "utf8");
+    const asset = properties.match(/gradle-[\d.]+-(?:all|bin)\.zip/u)?.[0];
+    assert.ok(asset, wrapper);
+    assert.equal(
+      properties.match(/^distributionSha256Sum=(\w+)$/mu)?.[1],
+      expectedDistributionDigests.get(asset),
+      wrapper,
+    );
+  }
+
+  const ci = readWorkflow("ci.yml");
+  assert.match(
+    ci,
+    /gradle\/actions\/wrapper-validation@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6/u,
+  );
+  assert.match(ci, /min-wrapper-count: 7/u);
+
+  const makefile = readFileSync(
+    resolve(repoRoot, "libraries/godot-iap/Makefile"),
+    "utf8",
+  );
+  assert.match(
+    makefile,
+    /GRADLE_WRAPPER_SHA256 := d3b261c2820e9e3d8d639ed084900f11f4a86050a8f83342ade7b6bc9b0d2bdd/u,
+  );
+  assert.match(makefile, /shasum -a 256 -c -/u);
+  assert.doesNotMatch(makefile, /gradle-wrapper\.jar";|gradle\/v[\d.]+\/gradle\/wrapper/u);
+});
+
+test("Godot release preserves its download helper across tag checkout", () => {
+  const workflow = readWorkflow("release-godot.yml");
+  const stageHelper = workflow.indexOf(
+    "- name: Stage Godot dependency download helper",
+  );
+  const checkoutTag = workflow.indexOf(
+    "- name: Checkout release tag (current version)",
+  );
+  const download = workflow.indexOf("- name: Download godot-lib.aar");
+
+  assert.ok(stageHelper < checkoutTag);
+  assert.ok(checkoutTag < download);
+  assert.match(
+    workflow.slice(stageHelper, checkoutTag),
+    /cp "\$GITHUB_WORKSPACE\/scripts\/fetch-godot-lib\.sh"/u,
+  );
+  assert.match(
+    workflow.slice(download),
+    /bash "\$RUNNER_TEMP\/fetch-godot-lib\.sh"/u,
+  );
+});
+
+test("Godot verifies the exact SwiftGodot commit before building it", () => {
+  const makefile = readFileSync(
+    resolve(repoRoot, "libraries/godot-iap/Makefile"),
+    "utf8",
+  );
+  assert.match(
+    makefile,
+    /^SWIFT_GODOT_COMMIT \?= 2b0e39dc1c23454408f83c0a83ddf9c2516624c0$/mu,
+  );
+  assert.ok(
+    (makefile.match(/actual_commit.*SWIFT_GODOT_COMMIT/gu) ?? []).length >= 2,
+    "new and existing SwiftGodot checkouts must verify the exact commit",
+  );
+});
+
+test("Godot local setup uses the checksum-pinned download helper", () => {
+  const makefile = readFileSync(
+    resolve(repoRoot, "libraries/godot-iap/Makefile"),
+    "utf8",
+  );
+  const helper = readFileSync(
+    resolve(repoRoot, "scripts/fetch-godot-lib.sh"),
+    "utf8",
+  );
+
+  assert.match(makefile, /scripts\/fetch-godot-lib\.sh/u);
+  assert.match(makefile, /"\$\(GODOT_VERSION\)-stable"/u);
+  assert.doesNotMatch(makefile, /GODOT_LIB_URL|curl .*godot-lib/u);
+  assert.match(helper, /shasum -a 256 -c -/u);
+  assert.match(helper, /Verified existing \$asset/u);
+});
+
 function readWorkflow(filename) {
   return readFileSync(resolve(repoRoot, ".github/workflows", filename), "utf8");
 }
@@ -57,8 +176,8 @@ test("release version commits use package@version subjects", () => {
     ["release-react-native.yml", "react-native-iap@${NEW_VERSION}"],
     ["release-expo.yml", "expo-iap@${NEW_VERSION}"],
     ["release-flutter.yml", "flutter_inapp_purchase@${NEW_VERSION}"],
-    ["release-godot.yml", "godot-iap@${{ steps.version.outputs.VERSION }}"],
-    ["release-kmp.yml", "kmp-iap@${{ env.VERSION }}"],
+    ["release-godot.yml", "godot-iap@$VERSION"],
+    ["release-kmp.yml", "kmp-iap@$VERSION"],
     ["release-maui.yml", "maui-iap@$VERSION"],
     ["release-conformance.yml", "openiap-conformance@$VERSION"],
   ]) {
@@ -487,6 +606,7 @@ test("existing release tags must match metadata, origin, and release-branch ance
     ["apple", "3.1.0", '{"apple":"3.1.0"}'],
     ["google", "google-3.1.0", '{"google":"3.1.0"}'],
     ["conformance", "openiap-conformance-3.1.0", '{"version":"3.1.0"}'],
+    ["docs", "docs-3.1.0", '{"spec":"3.1.0"}'],
     ["expo", "expo-iap-3.1.0", '{"version":"3.1.0"}'],
     ["react-native", "react-native-iap-3.1.0", '{"version":"3.1.0"}'],
     ["flutter", "flutter-iap-3.1.0", "version: 3.1.0\n"],
@@ -545,7 +665,7 @@ test("existing release tags must match metadata, origin, and release-branch ance
         { packageId, branch: "main", tag, expectedVersion: "3.1.0" },
         gitMock(tag, metadata, { remoteTagCommit: "d".repeat(40) }),
       ),
-    /does not match its immutable origin tag commit/,
+    /does not match its origin tag commit at verification time/,
   );
   assert.throws(
     () =>
@@ -858,6 +978,7 @@ test("framework release workflows refuse stale dispatch heads", () => {
       );
       assert.match(workflow, /publish_only:/);
       assert.match(workflow, /source_run_id:/);
+      assert.match(workflow, /source_run_attempt:/);
       assert.match(workflow, /if: \$\{\{ !inputs\.publish_only \}\}/);
       assert.match(
         workflow,
@@ -865,7 +986,7 @@ test("framework release workflows refuse stale dispatch heads", () => {
       );
       assert.match(
         workflow,
-        /gh workflow run release-(?:expo|react-native)\.yml --ref "\$TAG" \\\n\s+-f version=current \\\n\s+-f publish_only=true \\\n\s+-f source_run_id="\$GITHUB_RUN_ID"/,
+        /gh workflow run release-(?:expo|react-native)\.yml --ref "\$TAG" \\\n\s+-f version=current \\\n\s+-f publish_only=true \\\n\s+-f source_run_id="\$GITHUB_RUN_ID" \\\n\s+-f source_run_attempt="\$GITHUB_RUN_ATTEMPT"/,
       );
       assert.match(workflow, /if: \$\{\{ inputs\.publish_only \}\}/);
       assert.match(workflow, /actions: read/);
@@ -882,9 +1003,16 @@ test("framework release workflows refuse stale dispatch heads", () => {
         workflow,
         /git merge-base --is-ancestor "\$GITHUB_SHA" "origin\/\$SOURCE_BRANCH"/,
       );
-      assert.match(workflow, /actions\/runs\/\$SOURCE_RUN_ID/);
+      assert.match(
+        workflow,
+        /actions\/runs\/\$SOURCE_RUN_ID\/attempts\/\$SOURCE_RUN_ATTEMPT/,
+      );
+      assert.match(
+        workflow,
+        /SOURCE_RESPONSE_ATTEMPT" != "\$SOURCE_RUN_ATTEMPT"/,
+      );
       assert.match(workflow, /SOURCE_CONCLUSION" != "success"/);
-      assert.match(workflow, /actions\/upload-artifact@v4/);
+      assert.match(workflow, /actions\/upload-artifact@[0-9a-f]{40}\s+# v4/);
       assert.ok(
         workflow.includes(
           `git -C "$GITHUB_WORKSPACE" grep -q '^  publish-npm:' "$TAG" -- .github/workflows/${filename}`,
@@ -979,6 +1107,14 @@ test("framework release workflows refuse stale dispatch heads", () => {
       workflow.indexOf('git tag -a "$RELEASE_TAG" "$TAG_TARGET"') <
         workflow.indexOf('"HEAD:$RELEASE_BRANCH"'),
       filename,
+    );
+    assert.ok(
+      workflow.indexOf(
+        filename === "release-kmp.yml"
+          ? "- name: Preflight Maven Central publication"
+          : "- name: Preflight NuGet publication",
+      ) < workflow.indexOf("- name: Create and push tag"),
+      `${filename} must validate publication credentials before pushing the release tag`,
     );
     assert.ok(
       workflow.indexOf("- name: Create and push tag") <
@@ -1077,6 +1213,14 @@ test("Flutter publication is triggered by the immutable tag push", () => {
   assert.match(releaseWorkflow, /AUTHORIZATION_COUNT[\s\S]*?expired == false/);
   assert.match(releaseWorkflow, /event=push&head_sha=\$TAG_COMMIT/);
   assert.match(releaseWorkflow, /gh run rerun "\$RUN_ID"/);
+  const checkout = extractNamedStep(releaseWorkflow, "Checkout").source;
+  assert.doesNotMatch(checkout, /DEPENDENCY_UPDATE_PAT/);
+  const wait = extractNamedStep(
+    releaseWorkflow,
+    "Wait for tag-push pub.dev publisher",
+  ).source;
+  assert.match(wait, /GH_TOKEN: \$\{\{ github\.token \}\}/);
+  assert.doesNotMatch(wait, /DEPENDENCY_UPDATE_PAT/);
 });
 
 test("production docs are guarded as stable-only", () => {
@@ -1094,11 +1238,13 @@ test("production docs are guarded as stable-only", () => {
   assert.match(docsRelease, /Release the native-derived current spec version/);
   assert.match(
     docsRelease,
-    /TAG_COMMIT=\$\(git rev-parse "refs\/tags\/\$TAG_NAME\^\{commit\}"\)/,
+    /assert-release-tag\.mjs docs main "\$TAG_NAME" "\$VERSION"/,
   );
-  assert.match(docsRelease, /HEAD_COMMIT=\$\(git rev-parse HEAD\)/);
-  assert.match(docsRelease, /released spec tag is immutable/);
-  assert.match(docsRelease, /allowing an idempotent rerun/);
+  assert.match(docsRelease, /git checkout --detach "\$TAG_NAME"/);
+  assert.match(docsRelease, /continuing the idempotent release rerun/);
+  assert.match(docsRelease, /persist-credentials: false/);
+  assert.match(docsRelease, /GH_TOKEN: \$\{\{ github\.token \}\}/);
+  assert.match(docsRelease, /gh auth setup-git/);
   assert.doesNotMatch(docsRelease, /^\s+- (?:patch|minor|major)$/m);
   assert.doesNotMatch(
     docsRelease,
@@ -1146,7 +1292,7 @@ test("production docs are guarded as stable-only", () => {
   );
 });
 
-test("native release workflows converge the spec before every push", () => {
+test("native releases refuse branch drift after the verified head", () => {
   for (const [filename, packageId] of [
     ["release-apple.yml", "apple"],
     ["release-google.yml", "google"],
@@ -1154,40 +1300,190 @@ test("native release workflows converge the spec before every push", () => {
     const workflow = readWorkflow(filename);
     assert.equal(
       workflow.split(`update-native ${packageId} "$VERSION"`).length - 1,
-      3,
+      1,
       filename,
     );
-    const pullIndex = workflow.indexOf(
-      'git pull --rebase origin "$RELEASE_BRANCH"',
+    const headGuardIndex = workflow.indexOf(
+      'assert-release-head.mjs "$RELEASE_BRANCH" "$GITHUB_SHA"',
     );
-    const rebaseContinueIndex = workflow.indexOf(
-      "GIT_EDITOR=true git rebase --continue",
-    );
-    const convergenceIndex = workflow.lastIndexOf(
-      `update-native ${packageId} "$VERSION"`,
-    );
-    const amendIndex = workflow.indexOf("git commit --amend --no-edit");
+    const commitIndex = workflow.indexOf(`openiap-${packageId}@$VERSION`);
     const assertFloorIndex = workflow.lastIndexOf(
       "release-branch-policy.mjs assert-floor",
     );
     const pushIndex = workflow.indexOf(
       'git push origin "HEAD:$RELEASE_BRANCH"',
     );
-    assert.ok(pullIndex < convergenceIndex, filename);
-    assert.ok(rebaseContinueIndex < convergenceIndex, filename);
-    assert.ok(convergenceIndex < amendIndex, filename);
-    assert.ok(amendIndex < assertFloorIndex, filename);
+    assert.ok(headGuardIndex < commitIndex, filename);
+    assert.ok(commitIndex < assertFloorIndex, filename);
     assert.ok(assertFloorIndex < pushIndex, filename);
-    assert.match(
-      workflow,
-      /clean rebase can combine independent Apple and Google bumps/,
-    );
+    assert.match(workflow, /Release branch moved after verification/u);
+    assert.doesNotMatch(workflow, /git pull --rebase|git rebase --continue/u);
     assert.doesNotMatch(
       workflow,
       new RegExp(`\\.${packageId}\\s*=\\s*\\$version`),
       filename,
     );
   }
+});
+
+test("conformance npm publication binds the exact source run attempt", () => {
+  const workflow = readWorkflow("release-conformance.yml");
+  assert.match(workflow, /source_run_attempt:/u);
+  assert.match(
+    workflow,
+    /-f source_run_id="\$GITHUB_RUN_ID" \\\n\s+-f source_run_attempt="\$GITHUB_RUN_ATTEMPT"/u,
+  );
+  assert.match(
+    workflow,
+    /actions\/runs\/\$SOURCE_RUN_ID\/attempts\/\$SOURCE_RUN_ATTEMPT/u,
+  );
+  assert.match(workflow, /SOURCE_RESPONSE_ATTEMPT" != "\$SOURCE_RUN_ATTEMPT"/u);
+  assert.match(
+    workflow,
+    /name: npm-publish-authorization-\$\{\{ github\.run_attempt \}\}/u,
+  );
+  assert.match(
+    workflow,
+    /--name "npm-publish-authorization-\$SOURCE_RUN_ATTEMPT"/u,
+  );
+  const attemptGuard = workflow.indexOf(
+    "Require successful source release run",
+  );
+  const authorizationGuard = workflow.indexOf(
+    "Verify source run authorized this release tag",
+  );
+  const publish = workflow.indexOf(
+    "- name: Publish to npm",
+    authorizationGuard,
+  );
+  assert.ok(attemptGuard < authorizationGuard);
+  assert.ok(authorizationGuard < publish);
+});
+
+test("conformance releases cannot under-version breaking suite changes", () => {
+  const workflow = readWorkflow("release-conformance.yml");
+  const checkoutTag = workflow.indexOf(
+    "- name: Checkout release tag (current version)",
+  );
+  const suiteMajor = workflow.indexOf(
+    "- name: Enforce npm major covers suite major",
+  );
+  const registryCheck = workflow.indexOf(
+    "- name: Check npm for an existing version",
+  );
+
+  assert.ok(checkoutTag < suiteMajor);
+  assert.ok(suiteMajor < registryCheck);
+  assert.match(
+    workflow.slice(suiteMajor, registryCheck),
+    /PACKAGE_MAJOR.*-lt.*SUITE_MAJOR/u,
+  );
+  assert.match(
+    workflow.slice(suiteMajor, registryCheck),
+    /Release with version=major/u,
+  );
+});
+
+test("npm trusted publishers use a supported Node runtime", () => {
+  for (const filename of [
+    "release-conformance.yml",
+    "release-expo.yml",
+    "release-react-native.yml",
+  ]) {
+    const workflow = readWorkflow(filename);
+    const publishJob = workflow.slice(workflow.indexOf("\n  publish-npm:\n"));
+    assert.match(publishJob, /node-version: 24/u, filename);
+    assert.match(publishJob, /npm install -g npm@11\.19\.0/u, filename);
+    const sourceJob = workflow.slice(0, workflow.indexOf("\n  publish-npm:\n"));
+    const dispatchStep = sourceJob.slice(
+      sourceJob.indexOf("- name: Dispatch npm publish on tag ref"),
+    );
+    assert.match(
+      dispatchStep,
+      /GH_TOKEN: \$\{\{ github\.token \}\}/u,
+      filename,
+    );
+    assert.doesNotMatch(dispatchStep, /DEPENDENCY_UPDATE_PAT/u, filename);
+  }
+});
+
+test("release pushes expose credentials only in their owning step", () => {
+  for (const filename of [
+    "release.yml",
+    "release-apple.yml",
+    "release-conformance.yml",
+    "release-expo.yml",
+    "release-flutter.yml",
+    "release-godot.yml",
+    "release-google.yml",
+    "release-kmp.yml",
+    "release-maui.yml",
+    "release-react-native.yml",
+  ]) {
+    const workflow = readWorkflow(filename);
+    const lines = workflow.split("\n");
+    const pushLines = lines
+      .map((line, index) => ({ index, line: line.trim() }))
+      .filter(({ line }) => /^(?:if ! )?git push\b/u.test(line));
+    assert.ok(pushLines.length > 0, filename);
+    for (const { index } of pushLines) {
+      let start = index;
+      while (start >= 0 && !/^\s+- name:/u.test(lines[start])) start -= 1;
+      let end = index + 1;
+      while (end < lines.length && !/^\s+- name:/u.test(lines[end])) end += 1;
+      const step = lines.slice(start, end).join("\n");
+      assert.match(step, /GH_TOKEN:/u, `${filename}:${index + 1}`);
+      assert.match(step, /gh auth setup-git/u, `${filename}:${index + 1}`);
+    }
+  }
+});
+
+test("Apple release preflights CocoaPods before repository mutation", () => {
+  const workflow = readWorkflow("release-apple.yml");
+  const registry = workflow.indexOf(
+    "- name: Check CocoaPods publication state",
+  );
+  const credentials = workflow.indexOf("- name: Require CocoaPods credentials");
+  const versionUpdate = workflow.indexOf(
+    "- name: Update version in openiap-versions.json",
+  );
+  const validation = workflow.indexOf("- name: Validate Podspec");
+  const commit = workflow.indexOf("- name: Commit version update");
+  const tag = workflow.indexOf("- name: Create and push tag");
+  assert.ok(registry < credentials);
+  assert.ok(credentials < versionUpdate);
+  assert.ok(validation < commit);
+  assert.ok(commit < tag);
+  assert.match(
+    workflow.slice(credentials, versionUpdate),
+    /if: steps\.check_cocoapods\.outputs\.exists == 'false'/u,
+  );
+  assert.match(
+    workflow.slice(registry, credentials),
+    /if ! POD_INFO=\$\(pod trunk info openiap\); then/u,
+  );
+});
+
+test("Godot imports and removes signing credentials around codesigning", () => {
+  const workflow = readWorkflow("release-godot.yml");
+  const androidBuild = workflow.indexOf("- name: Build Android AAR");
+  const certificate = workflow.indexOf(
+    "- name: Import Developer ID certificate",
+  );
+  const signing = workflow.indexOf("- name: Prepare addon directory");
+  const verify = workflow.indexOf("- name: Verify release zip");
+  const cleanup = workflow.indexOf("- name: Remove Apple signing credentials");
+  const mutation = workflow.indexOf("- name: Commit version update and tag");
+  assert.ok(androidBuild < certificate);
+  assert.ok(certificate < signing);
+  assert.ok(signing < verify);
+  assert.ok(verify < cleanup);
+  assert.ok(cleanup < mutation);
+  assert.match(
+    workflow.slice(cleanup, mutation),
+    /if: \$\{\{ always\(\) && inputs\.notarize_macos \}\}/u,
+  );
+  assert.match(workflow.slice(cleanup, mutation), /security delete-keychain/u);
 });
 
 test("next receives the same core and framework CI coverage", () => {

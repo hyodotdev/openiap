@@ -41,7 +41,7 @@ const PROVISIONS: Provision[] = [
   {
     need: 'Evidence of where a release came from',
     provided:
-      'Provenance attestation on the SBOM, npm provenance on npm packages, and immutable release tags',
+      'Provenance attestation on the SBOM, npm provenance for releases published through the current npm workflows, and a release tag bound to the verified full commit at check time. Legacy openiap-conformance 1.0.0 predates npm provenance',
   },
   {
     need: 'A channel to report a vulnerability you found',
@@ -57,8 +57,13 @@ const PROVISIONS: Provision[] = [
     provided: 'VEX statements carried in the SBOM, where an analysis exists',
   },
   {
-    need: 'Evidence the SDK behaves to specification',
-    provided: 'The conformance suite, below',
+    need: 'Evidence for behaviors already bound to shipped SDKs',
+    provided: (
+      <>
+        The <a href="#conformance">conformance coverage matrix</a> and each
+        implementation&apos;s tests
+      </>
+    ),
   },
 ];
 
@@ -173,19 +178,21 @@ function SecurityCompliance() {
           passing every type check.
         </p>
         <p>
-          The <code>openiap-conformance</code> suite closes that gap with
-          versioned behavioral tests: permanent behavior ids, RFC-2119 levels,
-          and capability gates derived from a store capability matrix rather
-          than self-declared by the adapter — so an implementation cannot excuse
-          itself from its own store&apos;s requirements. A missing{' '}
-          <strong>MUST</strong> behavior is reported as a failure, not skipped.
+          The <code>openiap-conformance</code> suite provides a versioned
+          behavioral contract: permanent behavior ids, RFC-2119 levels, and
+          capability gates derived from a store capability matrix rather than
+          self-declared by the adapter. Where an SDK or native implementation is
+          bound to that contract, a missing <strong>MUST</strong> behavior is
+          reported as a failure, not skipped.
         </p>
         <p>
-          It matters for compliance because it produces reproducible evidence
-          that a released SDK behaves as the specification says — including
-          around entitlement correctness, where the suite&apos;s first run
-          surfaced real defects such as a pending subscription being treated as
-          an active entitlement.
+          This produces reproducible evidence for the behaviors currently bound
+          to a specific implementation. Coverage is partial: Expo, React Native,
+          Android, Apple, and IAPKit each cover documented subsets; Flutter,
+          KMP, MAUI, and Godot do not yet have adapters. The reference adapter
+          proves the suite runs, not that a shipped SDK conforms. Even with that
+          boundary, the first implementation runs surfaced real entitlement
+          defects, including a pending subscription treated as active.
         </p>
         <ul>
           <li>
@@ -221,9 +228,11 @@ function SecurityCompliance() {
           The assessment is published as a gap list, not a conformance claim —
           it records what exists, what does not, and what is out of proportion
           for a project of this size. Met today: the public reporting channel
-          with a documented response path, and the automated current-release
-          SBOM. Open: a single named security-assurance policy document,
-          competency and assessment records, and a declared license policy.
+          with a documented response path and the declared license policy. The
+          named security-assurance policy and release controls exist, while
+          policy-communication evidence, competency and assessment records,
+          historical SBOM and action records, attribution generation, and formal
+          self-affirmation remain incomplete.
         </p>
         <p>
           <a

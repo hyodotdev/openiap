@@ -52,14 +52,130 @@ const GENERATOR_VERSION = "1.0.0";
 const SPEC_VERSION = "1.6";
 export const PUBLISHED_METADATA_UNAVAILABLE_EXIT_CODE = 75;
 
-const LEGACY_SBOM_REPAIR_DIGESTS = new Map([
+const ALL_OPENIAP_NATIVE_VARIANTS = {
+  kind: "openiap-native",
+  apple: true,
+  google: ["openiap-google", "openiap-google-horizon", "openiap-google-amazon"],
+};
+
+const PODSPEC_DEPENDENCY_PATTERN = /^\s*s\.dependency\s+['"]([^'"]+)['"]/gmu;
+const GRADLE_COORDINATE_PATTERN =
+  /^\s*(?:implementation|api|runtimeOnly|compile)(?:\s+\(?\s*|\(\s*)(?:"([^"]+)"|'([^']+)')/gmu;
+const GRADLE_PROJECT_PATTERN =
+  /^\s*(?:implementation|api|runtimeOnly|compile)(?:\s+\(?\s*|\(\s*)project\(\s*['"]([^'"]+)['"]/gmu;
+
+const LEGACY_SBOM_REPAIRS = new Map([
   [
     "google-3.3.0",
-    "sha256:7256739c147689fbbb1257a738f85e7d030bb3612fd52a903c4cc9ca72b00e66",
+    {
+      digest:
+        "sha256:704362aa07a458ccd76b1d0e89358c8db3d4e3ad4b6d8ff0521c90634597936b",
+      bomVersion: 2,
+    },
+  ],
+  [
+    "google-3.3.1",
+    {
+      digest:
+        "sha256:f38d4c8cae6fedbbcac4790d7ee920f0880ce698aa63e27f36125297509890df",
+      bomVersion: 2,
+    },
+  ],
+  [
+    "expo-iap-5.3.0",
+    {
+      digest:
+        "sha256:a5875e9cdd861387ee0887252f9009e848d85a1e62b245ba22972e9fbe83da70",
+      bomVersion: 2,
+    },
+  ],
+  [
+    "expo-iap-5.3.1",
+    {
+      digest:
+        "sha256:ac221c082413c0a9df586028f86bed3d0d9a3915bcb1adea237064efeb5c9a6a",
+      bomVersion: 2,
+    },
+  ],
+  [
+    "flutter-iap-10.3.0",
+    {
+      digest:
+        "sha256:52b11ca531fa7a8e5250bd6a83d6400412ad4cbb0f527f0b134fa515b0659c8e",
+      bomVersion: 2,
+    },
+  ],
+  [
+    "flutter-iap-10.3.1",
+    {
+      digest:
+        "sha256:82f658347af445d497083b50c133867c87d2fd9426412aa6f7ff2ffe1b79e99e",
+      bomVersion: 2,
+    },
+  ],
+  [
+    "godot-iap-3.3.0",
+    {
+      digest:
+        "sha256:23fd3f2a48c01d5d276b43adabcec1f98630bb0615d20c4ce94b59fb26b210e5",
+      bomVersion: 2,
+    },
+  ],
+  [
+    "godot-iap-3.3.1",
+    {
+      digest:
+        "sha256:70724bcaf51c3ad79b2767f89606ab3f24f1543bfc804dcba0c8377541e0239b",
+      bomVersion: 2,
+    },
+  ],
+  [
+    "kmp-iap-3.3.0",
+    {
+      digest:
+        "sha256:533ffbcb5670d3826a508ecc74c49eea3da46d0a8a5f0672e00bb491857236dc",
+      bomVersion: 2,
+    },
+  ],
+  [
+    "kmp-iap-3.3.1",
+    {
+      digest:
+        "sha256:63ad3182a4a96690d385d701d77dd200676ee65d54d74ba6e960a796af6684e6",
+      bomVersion: 2,
+    },
+  ],
+  [
+    "maui-iap-2.3.0",
+    {
+      digest:
+        "sha256:b87c308bf9e5bf9480fca2764190098103611b4df60658f218a50c9f9851baef",
+      bomVersion: 2,
+    },
+  ],
+  [
+    "maui-iap-2.3.1",
+    {
+      digest:
+        "sha256:376b57fd4fa83bb0d67f6fe78b6b146b6e11c0952d3a56af19941814d8e06ed4",
+      bomVersion: 2,
+    },
   ],
   [
     "react-native-iap-16.3.0",
-    "sha256:f93f56530a9042d8c31289bfac765d295d6549701e0fbcedce395c55c0191a1d",
+    {
+      digest:
+        "sha256:47cc1b6a63c27918df1fe15a83d6cc8aff5320a378f6f0f0454d0f542a1aa12a",
+      bomVersion: 2,
+    },
+  ],
+  [
+    "react-native-iap-16.3.1",
+    {
+      digest:
+        "sha256:807c9fb163aa18ed75bb471eed5c4eb62c7ef566c2686bd432e9da9ad01b2ef8",
+      bomVersion: 2,
+    },
   ],
 ]);
 
@@ -107,7 +223,66 @@ const COMPONENTS = {
     distribution: (version) =>
       `https://www.npmjs.com/package/expo-iap/v/${version}`,
     directory: "libraries/expo-iap",
-    source: { kind: "npm", manifest: "libraries/expo-iap/package.json" },
+    source: {
+      kind: "aggregate",
+      sources: [
+        { kind: "npm", manifest: "libraries/expo-iap/package.json" },
+        ALL_OPENIAP_NATIVE_VARIANTS,
+        {
+          kind: "declared",
+          manifest: "libraries/expo-iap/ios/ExpoIap.podspec",
+          inventories: [
+            {
+              file: "libraries/expo-iap/ios/ExpoIap.podspec",
+              pattern: PODSPEC_DEPENDENCY_PATTERN,
+              expected: ["ExpoModulesCore", "OnsideKit", "openiap"],
+            },
+          ],
+          dependencies: [
+            {
+              ecosystem: "cocoapods",
+              name: "ExpoModulesCore",
+              version: "any",
+              marker: "s.dependency 'ExpoModulesCore'",
+              platform: "apple",
+              hostProvided: true,
+              spdxLicense: "MIT",
+              supplier: "Expo",
+            },
+            {
+              ecosystem: "cocoapods",
+              name: "OnsideKit",
+              version: "any",
+              marker: "s.dependency 'OnsideKit'",
+              platform: "apple",
+              optional: true,
+              spdxLicense: "MIT",
+              supplier: "Onside",
+            },
+          ],
+        },
+        {
+          kind: "declared",
+          dependencies: [],
+          inventories: [
+            {
+              file: "libraries/expo-iap/android/build.gradle",
+              pattern: GRADLE_COORDINATE_PATTERN,
+              expected: [
+                "io.github.hyochan.openiap:openiap-google-amazon:${googleVersionString}",
+                "io.github.hyochan.openiap:openiap-google-horizon:${googleVersionString}",
+                "io.github.hyochan.openiap:openiap-google:${googleVersionString}",
+              ],
+            },
+            {
+              file: "libraries/expo-iap/android/build.gradle",
+              pattern: GRADLE_PROJECT_PATTERN,
+              expected: [":openiap-google"],
+            },
+          ],
+        },
+      ],
+    },
   },
   flutter: {
     sbomName: "flutter_inapp_purchase",
@@ -117,8 +292,88 @@ const COMPONENTS = {
       `https://pub.dev/packages/flutter_inapp_purchase/versions/${version}`,
     directory: "libraries/flutter_inapp_purchase",
     source: {
-      kind: "pub",
-      manifest: "libraries/flutter_inapp_purchase/pubspec.yaml",
+      kind: "aggregate",
+      sources: [
+        {
+          kind: "pub",
+          manifest: "libraries/flutter_inapp_purchase/pubspec.yaml",
+        },
+        {
+          kind: "declared",
+          manifest: "libraries/flutter_inapp_purchase/android/build.gradle",
+          inventories: [
+            {
+              file: "libraries/flutter_inapp_purchase/android/build.gradle",
+              pattern: GRADLE_COORDINATE_PATTERN,
+              expected: [
+                "androidx.annotation:annotation:${readRequiredAndroidGradleProperty(projectDir, 'openIapAndroidAnnotationVersion')}",
+                "io.github.hyochan.openiap:openiap-google-amazon:${openiapGoogleVersion}",
+                "io.github.hyochan.openiap:openiap-google-horizon:${openiapGoogleVersion}",
+                "io.github.hyochan.openiap:openiap-google:${openiapGoogleVersion}",
+                "org.jetbrains.kotlinx:kotlinx-coroutines-android:${readRequiredAndroidGradleProperty(projectDir, 'openIapKotlinxCoroutinesVersion')}",
+              ],
+            },
+            {
+              file: "libraries/flutter_inapp_purchase/android/build.gradle",
+              pattern: GRADLE_PROJECT_PATTERN,
+              expected: [":openiap"],
+            },
+          ],
+          dependencies: [
+            {
+              ecosystem: "maven",
+              group: "androidx.annotation",
+              artifact: "annotation",
+              version: {
+                file: "libraries/flutter_inapp_purchase/android/gradle.properties",
+                property: "openIapAndroidAnnotationVersion",
+              },
+              marker: "androidx.annotation:annotation:",
+              platform: "android",
+              spdxLicense: "Apache-2.0",
+              supplier: "The Android Open Source Project",
+            },
+            {
+              ecosystem: "maven",
+              group: "org.jetbrains.kotlinx",
+              artifact: "kotlinx-coroutines-android",
+              version: {
+                file: "libraries/flutter_inapp_purchase/android/gradle.properties",
+                property: "openIapKotlinxCoroutinesVersion",
+              },
+              marker: "org.jetbrains.kotlinx:kotlinx-coroutines-android:",
+              platform: "android",
+              spdxLicense: "Apache-2.0",
+              supplier: "JetBrains",
+            },
+          ],
+        },
+        ALL_OPENIAP_NATIVE_VARIANTS,
+        {
+          kind: "declared",
+          manifest:
+            "libraries/flutter_inapp_purchase/ios/flutter_inapp_purchase.podspec",
+          inventories: [
+            {
+              file: "libraries/flutter_inapp_purchase/ios/flutter_inapp_purchase.podspec",
+              pattern: PODSPEC_DEPENDENCY_PATTERN,
+              expected: ["Flutter", "openiap"],
+            },
+          ],
+          dependencies: [
+            {
+              ecosystem: "cocoapods",
+              name: "Flutter",
+              version: "any",
+              marker: "s.dependency 'Flutter'",
+              platform: "apple",
+              hostProvided: true,
+              spdxLicense: "BSD-3-Clause",
+              supplier: "Flutter Authors",
+            },
+          ],
+        },
+      ],
     },
   },
   godot: {
@@ -129,16 +384,38 @@ const COMPONENTS = {
       `${REPOSITORY_URL}/releases/tag/godot-iap-${version}`,
     directory: "libraries/godot-iap",
     source: {
-      kind: "gradle",
-      manifest: "libraries/godot-iap/android/build.gradle.kts",
-      // The plugin derives these at configuration time from sibling modules.
-      externalLocals: {
-        openiapGoogleVersion: { file: "openiap-versions.json", json: "google" },
-        googleCoroutinesVersion: {
-          file: "packages/google/openiap/build.gradle.kts",
-          gradleLocal: "coroutinesVersion",
+      kind: "aggregate",
+      sources: [
+        {
+          kind: "gradle",
+          manifest: "libraries/godot-iap/android/build.gradle.kts",
+          externalLocals: {
+            openiapGoogleVersion: {
+              file: "openiap-versions.json",
+              json: "google",
+            },
+            googleCoroutinesVersion: {
+              file: "packages/google/openiap/build.gradle.kts",
+              gradleLocal: "coroutinesVersion",
+            },
+          },
         },
-      },
+        { kind: "openiap-native", apple: true, google: [] },
+        {
+          kind: "embedded-binary",
+          file: "libraries/godot-iap/addons/godot-iap/bin/ios/SwiftGodotRuntime.framework/SwiftGodotRuntime",
+          name: "SwiftGodotRuntime",
+          spdxLicense: "MIT",
+          supplier: "Miguel de Icaza",
+        },
+        {
+          kind: "embedded-binary",
+          file: "libraries/godot-iap/addons/godot-iap/bin/macos/SwiftGodotRuntime.framework/SwiftGodotRuntime",
+          name: "SwiftGodotRuntime-macOS",
+          spdxLicense: "MIT",
+          supplier: "Miguel de Icaza",
+        },
+      ],
     },
   },
   google: {
@@ -150,9 +427,34 @@ const COMPONENTS = {
       `https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/${version}`,
     directory: "packages/google",
     source: {
-      kind: "maven-pom",
-      coordinate: "io.github.hyochan.openiap:openiap-google",
-      repositories: ["https://repo1.maven.org/maven2"],
+      kind: "aggregate",
+      sources: [
+        {
+          kind: "maven-pom",
+          coordinate: "io.github.hyochan.openiap:openiap-google",
+          repositories: ["https://repo1.maven.org/maven2"],
+        },
+        {
+          kind: "maven-artifact",
+          coordinate: "io.github.hyochan.openiap:openiap-google-horizon",
+          repositories: ["https://repo1.maven.org/maven2"],
+          introducedVersion: "1.3.2",
+          variant: "horizon",
+          optional: true,
+          spdxLicense: "MIT",
+          supplier: "OpenIAP",
+        },
+        {
+          kind: "maven-artifact",
+          coordinate: "io.github.hyochan.openiap:openiap-google-amazon",
+          repositories: ["https://repo1.maven.org/maven2"],
+          introducedVersion: "2.3.0-rc.1",
+          variant: "amazon",
+          optional: true,
+          spdxLicense: "MIT",
+          supplier: "OpenIAP",
+        },
+      ],
     },
   },
   kmp: {
@@ -166,13 +468,15 @@ const COMPONENTS = {
       `https://central.sonatype.com/artifact/io.github.hyochan/kmp-iap/${version}`,
     directory: "libraries/kmp-iap",
     source: {
-      kind: "maven-pom",
-      coordinates: [
-        "io.github.hyochan:kmp-iap-android-play",
-        "io.github.hyochan:kmp-iap-android",
-        "io.github.hyochan:kmp-iap",
+      kind: "aggregate",
+      sources: [
+        {
+          kind: "maven-pom",
+          coordinate: "io.github.hyochan:kmp-iap",
+          repositories: ["https://repo1.maven.org/maven2"],
+        },
+        ALL_OPENIAP_NATIVE_VARIANTS,
       ],
-      repositories: ["https://repo1.maven.org/maven2"],
     },
   },
   maui: {
@@ -183,8 +487,15 @@ const COMPONENTS = {
       `https://www.nuget.org/packages/OpenIap.Maui/${version}`,
     directory: "libraries/maui-iap",
     source: {
-      kind: "nuget-nuspec",
-      packageId: "OpenIap.Maui",
+      kind: "aggregate",
+      sources: [
+        { kind: "nuget-nuspec", packageId: "OpenIap.Maui" },
+        {
+          kind: "openiap-native",
+          apple: true,
+          google: ["openiap-google"],
+        },
+      ],
     },
   },
   "react-native": {
@@ -195,8 +506,160 @@ const COMPONENTS = {
       `https://www.npmjs.com/package/react-native-iap/v/${version}`,
     directory: "libraries/react-native-iap",
     source: {
-      kind: "npm",
-      manifest: "libraries/react-native-iap/package.json",
+      kind: "aggregate",
+      sources: [
+        {
+          kind: "npm",
+          manifest: "libraries/react-native-iap/package.json",
+        },
+        {
+          kind: "declared",
+          dependencies: [
+            {
+              ecosystem: "npm",
+              name: "react-native-nitro-modules",
+              version: {
+                file: "libraries/react-native-iap/package.json",
+                jsonPath: ["peerDependencies", "react-native-nitro-modules"],
+              },
+              assertions: [
+                {
+                  file: "libraries/react-native-iap/package.json",
+                  marker: '"react-native-nitro-modules":',
+                },
+                {
+                  file: "libraries/react-native-iap/NitroIap.podspec",
+                  marker:
+                    "load 'nitrogen/generated/ios/NitroIap+autolinking.rb'",
+                },
+                {
+                  file: "libraries/react-native-iap/NitroIap.podspec",
+                  marker: "add_nitrogen_files(s)",
+                },
+                {
+                  file: "libraries/react-native-iap/android/build.gradle",
+                  marker:
+                    'implementation project(":react-native-nitro-modules")',
+                },
+              ],
+              hostProvided: true,
+              spdxLicense: "MIT",
+              supplier: "Margelo",
+            },
+          ],
+        },
+        {
+          kind: "declared",
+          manifest: "libraries/react-native-iap/android/build.gradle",
+          inventories: [
+            {
+              file: "libraries/react-native-iap/android/build.gradle",
+              pattern: GRADLE_COORDINATE_PATTERN,
+              expected: [
+                "com.facebook.react:react-native:+",
+                "com.google.android.gms:play-services-base:$playServicesBaseVersion",
+                "io.github.hyochan.openiap:openiap-google-amazon:${googleVersionString}",
+                "io.github.hyochan.openiap:openiap-google-horizon:${googleVersionString}",
+                "io.github.hyochan.openiap:openiap-google:${googleVersionString}",
+                "org.jetbrains.kotlinx:kotlinx-coroutines-android:$coroutinesVersion",
+              ],
+            },
+            {
+              file: "libraries/react-native-iap/android/build.gradle",
+              pattern: GRADLE_PROJECT_PATTERN,
+              expected: [":openiap", ":react-native-nitro-modules"],
+            },
+          ],
+          dependencies: [
+            {
+              ecosystem: "maven",
+              group: "com.facebook.react",
+              artifact: "react-native",
+              version: "+",
+              marker: "com.facebook.react:react-native:+",
+              platform: "android",
+              hostProvided: true,
+              spdxLicense: "MIT",
+              supplier: "Meta Platforms, Inc.",
+            },
+            {
+              ecosystem: "maven",
+              group: "com.google.android.gms",
+              artifact: "play-services-base",
+              version: {
+                file: "libraries/react-native-iap/android/gradle.properties",
+                property: "NitroIap_playServicesBaseVersion",
+              },
+              marker: "com.google.android.gms:play-services-base:",
+              platform: "android",
+              licenseName: "Android Software Development Kit License",
+              supplier: "Google LLC",
+            },
+            {
+              ecosystem: "maven",
+              group: "org.jetbrains.kotlinx",
+              artifact: "kotlinx-coroutines-android",
+              version: {
+                file: "libraries/react-native-iap/android/gradle.properties",
+                property: "NitroIap_coroutinesVersion",
+              },
+              marker: "org.jetbrains.kotlinx:kotlinx-coroutines-android:",
+              platform: "android",
+              spdxLicense: "Apache-2.0",
+              supplier: "JetBrains",
+            },
+          ],
+        },
+        ALL_OPENIAP_NATIVE_VARIANTS,
+        {
+          kind: "declared",
+          manifest: "libraries/react-native-iap/NitroIap.podspec",
+          inventories: [
+            {
+              file: "libraries/react-native-iap/NitroIap.podspec",
+              pattern: PODSPEC_DEPENDENCY_PATTERN,
+              expected: [
+                "React-Core",
+                "React-callinvoker",
+                "React-jsi",
+                "openiap",
+              ],
+            },
+          ],
+          dependencies: [
+            {
+              ecosystem: "cocoapods",
+              name: "React-Core",
+              version: "any",
+              marker: "s.dependency 'React-Core'",
+              platform: "apple",
+              hostProvided: true,
+              spdxLicense: "MIT",
+              supplier: "Meta Platforms, Inc.",
+            },
+            {
+              ecosystem: "cocoapods",
+              name: "React-jsi",
+              version: "any",
+              marker: "s.dependency 'React-jsi'",
+              platform: "apple",
+              hostProvided: true,
+              spdxLicense: "MIT",
+              supplier: "Meta Platforms, Inc.",
+            },
+            {
+              ecosystem: "cocoapods",
+              name: "React-callinvoker",
+              version: "any",
+              marker: "s.dependency 'React-callinvoker'",
+              platform: "apple",
+              hostProvided: true,
+              spdxLicense: "MIT",
+              supplier: "Meta Platforms, Inc.",
+            },
+          ],
+        },
+      ],
     },
   },
 };
@@ -222,9 +685,6 @@ export function readComponentVersion(componentId, root = repoRoot) {
 }
 
 export function releaseTagFor(componentId, version) {
-  // `docs` releases the spec and is absent from the release-tag SSOT, which
-  // only covers packages with their own version file.
-  if (componentId === "docs") return `docs-${version}`;
   const tags = PACKAGE_CONFIG[componentId]?.tags(version);
   if (!tags?.length) {
     throw new Error(`No release tag pattern for component: ${componentId}`);
@@ -237,7 +697,11 @@ export function sbomFileName(componentId, version) {
 }
 
 export function repairSbomDigestForTag(tag) {
-  return LEGACY_SBOM_REPAIR_DIGESTS.get(tag) ?? "";
+  return LEGACY_SBOM_REPAIRS.get(tag)?.digest ?? "";
+}
+
+export function sbomRevisionForTag(tag) {
+  return LEGACY_SBOM_REPAIRS.get(tag)?.bomVersion ?? 1;
 }
 
 /** Return newest missing releases plus every approved legacy repair. */
@@ -245,7 +709,10 @@ export function findMissingLatestSbomTags(releases) {
   const seen = new Set();
   const missing = [];
   const newestFirst = releases
-    .filter((release) => !release?.draft && release?.published_at)
+    .filter(
+      (release) =>
+        !release?.draft && !release?.prerelease && release?.published_at,
+    )
     .sort(
       (left, right) =>
         Date.parse(right.published_at) - Date.parse(left.published_at),
@@ -281,7 +748,10 @@ export function latestSbomAssets(releases) {
   const seen = new Set();
   const assets = [];
   const newestFirst = releases
-    .filter((release) => !release?.draft && release?.published_at)
+    .filter(
+      (release) =>
+        !release?.draft && !release?.prerelease && release?.published_at,
+    )
     .sort(
       (left, right) =>
         Date.parse(right.published_at) - Date.parse(left.published_at),
@@ -300,6 +770,7 @@ export function latestSbomAssets(releases) {
     }
     assets.push({
       componentId: resolvedTag.componentId,
+      version: resolvedTag.version,
       tag: release.tag_name,
       fileName,
       digest: asset.digest,
@@ -310,6 +781,102 @@ export function latestSbomAssets(releases) {
     throw new Error("No published component releases found");
   }
   return assets;
+}
+
+/** Return every published stable release that already carries an SBOM. */
+export function publishedSbomAssets(releases) {
+  const assets = [];
+  const newestFirst = releases
+    .filter(
+      (release) =>
+        !release?.draft && !release?.prerelease && release?.published_at,
+    )
+    .sort(
+      (left, right) =>
+        Date.parse(right.published_at) - Date.parse(left.published_at),
+    );
+
+  for (const release of newestFirst) {
+    const resolvedTag = componentFromTag(release.tag_name);
+    if (!resolvedTag) continue;
+    const fileName = sbomFileName(resolvedTag.componentId, resolvedTag.version);
+    const asset = (release.assets ?? []).find(
+      (entry) => entry?.name === fileName,
+    );
+    if (!asset) continue;
+    if (!asset.digest) {
+      throw new Error(`Missing published SBOM digest for ${release.tag_name}`);
+    }
+    assets.push({
+      componentId: resolvedTag.componentId,
+      version: resolvedTag.version,
+      tag: release.tag_name,
+      fileName,
+      digest: asset.digest,
+    });
+  }
+
+  if (assets.length === 0) {
+    throw new Error("No published release SBOMs found");
+  }
+  return assets;
+}
+
+/** Remove version ranges that exact-version vulnerability scanners misread. */
+export function prepareSbomForExactVulnerabilityScan(document) {
+  if (
+    document?.bomFormat !== "CycloneDX" ||
+    !Array.isArray(document.components)
+  ) {
+    throw new Error("Vulnerability scan input must be a CycloneDX document");
+  }
+
+  const constraintRefs = new Set();
+  for (const component of document.components) {
+    const properties = Array.isArray(component.properties)
+      ? component.properties
+      : [];
+    const constraint = properties.find(
+      (property) => property?.name === "openiap:sbom:version-constraint",
+    );
+    if (!constraint) continue;
+    if (
+      typeof component["bom-ref"] !== "string" ||
+      constraint.value !== component.version
+    ) {
+      throw new Error(
+        `Malformed version-constraint component '${component.name ?? "(unknown)"}'`,
+      );
+    }
+    constraintRefs.add(component["bom-ref"]);
+  }
+
+  const prepared = structuredClone(document);
+  prepared.components = prepared.components.filter(
+    (component) => !constraintRefs.has(component["bom-ref"]),
+  );
+  if (Array.isArray(prepared.dependencies)) {
+    prepared.dependencies = prepared.dependencies
+      .filter((dependency) => !constraintRefs.has(dependency.ref))
+      .map((dependency) => ({
+        ...dependency,
+        dependsOn: (dependency.dependsOn ?? []).filter(
+          (reference) => !constraintRefs.has(reference),
+        ),
+      }));
+  }
+  if (Array.isArray(prepared.vulnerabilities)) {
+    prepared.vulnerabilities = prepared.vulnerabilities
+      .map((vulnerability) => ({
+        ...vulnerability,
+        affects: (vulnerability.affects ?? []).filter(
+          (affected) => !constraintRefs.has(affected.ref),
+        ),
+      }))
+      .filter((vulnerability) => vulnerability.affects.length > 0);
+  }
+
+  return { document: prepared, skippedConstraints: constraintRefs.size };
 }
 
 const TAG_VERSION_PLACEHOLDER = "9.8.7";
@@ -331,7 +898,6 @@ const TAG_PATTERNS = [
       };
     }),
   ),
-  { componentId: "docs", prefix: "docs-", suffix: "" },
 ].sort((left, right) => right.prefix.length - left.prefix.length);
 
 /**
@@ -446,7 +1012,7 @@ function dependencyComponent(entry) {
     name: entry.name,
     version: entry.version,
     purl: entry.purl,
-    scope: "required",
+    scope: entry.scope ?? "required",
   };
   // NTIA minimum elements name the supplier as required data.
   if (entry.supplier) {
@@ -454,6 +1020,9 @@ function dependencyComponent(entry) {
   }
   if (entry.licenses?.length) {
     component.licenses = entry.licenses;
+  }
+  if (entry.hashes?.length) {
+    component.hashes = entry.hashes;
   }
   const properties = [...(entry.properties ?? [])];
   if (entry.transitive) {
@@ -522,7 +1091,7 @@ export function buildSbom({
     bomFormat: "CycloneDX",
     specVersion: SPEC_VERSION,
     serialNumber: deterministicSerialNumber(`${purl}@${commit}`),
-    version: 1,
+    version: sbomRevisionForTag(tag),
     metadata: {
       timestamp,
       lifecycles: [{ phase: "build" }],
@@ -556,6 +1125,14 @@ export function buildSbom({
           { name: "openiap:release:tag", value: tag },
           { name: "openiap:release:commit", value: commit },
           { name: "openiap:release:component", value: componentId },
+          ...(definition.source.kind === "aggregate"
+            ? [
+                {
+                  name: "openiap:sbom:aggregation",
+                  value: "release-variants",
+                },
+              ]
+            : []),
         ],
       },
       supplier: SUPPLIER,
@@ -587,6 +1164,70 @@ function requiredProperty(properties, name, context) {
     throw new Error(`${context} must contain exactly one ${name} property`);
   }
   return values[0];
+}
+
+export function verifySbomGeneratorAttestation(
+  serialized,
+  attestationJson,
+  { repository, branch },
+) {
+  if (!/^[A-Za-z0-9_.-]+\/[A-Za-z0-9_.-]+$/u.test(repository ?? "")) {
+    throw new Error(`Invalid attestation repository '${repository ?? ""}'`);
+  }
+  if (!branch || /[\s~^:?*\\[\]\\]/u.test(branch)) {
+    throw new Error(`Invalid attestation branch '${branch ?? ""}'`);
+  }
+
+  const document = JSON.parse(
+    Buffer.isBuffer(serialized) ? serialized.toString("utf8") : serialized,
+  );
+  const attestations = JSON.parse(
+    Buffer.isBuffer(attestationJson)
+      ? attestationJson.toString("utf8")
+      : attestationJson,
+  );
+  if (!Array.isArray(attestations) || attestations.length === 0) {
+    throw new Error(
+      "Attestation verification result must be a non-empty array",
+    );
+  }
+
+  const generators = (document.metadata?.tools?.components ?? []).filter(
+    (component) => component?.name === GENERATOR_NAME,
+  );
+  if (generators.length !== 1) {
+    throw new Error(`Published SBOM must identify one ${GENERATOR_NAME}`);
+  }
+  const recordedCommit = requiredProperty(
+    generators[0].properties,
+    "openiap:generator:commit",
+    "Published SBOM generator",
+  );
+  const expectedUri = `git+https://github.com/${repository}@refs/heads/${branch}`;
+  const attestedCommits = new Set();
+  for (const result of attestations) {
+    const dependencies =
+      result?.verificationResult?.statement?.predicate?.buildDefinition
+        ?.resolvedDependencies ?? [];
+    for (const dependency of dependencies) {
+      const commit = dependency?.digest?.gitCommit;
+      if (dependency?.uri === expectedUri && /^[0-9a-f]{40}$/u.test(commit)) {
+        attestedCommits.add(commit);
+      }
+    }
+  }
+  if (attestedCommits.size !== 1) {
+    throw new Error(
+      `Expected one attested generator commit for ${expectedUri}, found ${attestedCommits.size}`,
+    );
+  }
+  const [attestedCommit] = attestedCommits;
+  if (attestedCommit !== recordedCommit) {
+    throw new Error(
+      `SBOM generator ${recordedCommit} does not match attested source ${attestedCommit}`,
+    );
+  }
+  return attestedCommit;
 }
 
 export function verifyPublishedSbom(
@@ -630,11 +1271,27 @@ export function verifyPublishedSbom(
   ) {
     throw new Error(`Published SBOM must use CycloneDX ${SPEC_VERSION}`);
   }
-  if (!document.metadata?.timestamp || !document.metadata?.authors?.length) {
-    throw new Error("Published SBOM must include a timestamp and author");
+  const timestamp = document.metadata?.timestamp;
+  const authors = document.metadata?.authors ?? [];
+  if (
+    !Number.isFinite(Date.parse(timestamp)) ||
+    !authors.some(
+      (author) =>
+        typeof author?.name === "string" && author.name.trim().length > 0,
+    )
+  ) {
+    throw new Error(
+      "Published SBOM must include a valid timestamp and author name",
+    );
   }
 
   const root = document.metadata.component;
+  if (
+    typeof root?.supplier?.name !== "string" ||
+    root.supplier.name.trim().length === 0
+  ) {
+    throw new Error("Published SBOM root must include a supplier name");
+  }
   const expectedPurl = definition.purl(resolvedTag.version);
   if (
     root?.name !== definition.sbomName ||
@@ -787,19 +1444,18 @@ async function fetchPublishedText(
 /**
  * Look up a dependency's declared license and supplier in its own registry.
  *
- * Both are NTIA minimum elements, and both come from the same document, so
- * they are fetched together rather than in two passes.
+ * Supplier is an NTIA minimum element. License data is useful compliance
+ * metadata; both values come from the same registry document, so they are
+ * fetched together rather than in two passes.
  *
- * The registry is the only authoritative source; guessing from a name would
- * produce confident, wrong compliance data. A lookup that fails leaves the
- * field empty rather than failing the build — this is compliance metadata,
- * not part of the security inventory, and a registry outage must not block a
- * release.
+ * Registry metadata supplements reviewed local evidence. A lookup never
+ * guesses from a coordinate and never replaces a reviewed value. Failure
+ * leaves any missing field empty rather than blocking a release.
  *
  * Registry availability and metadata can change, so enriched output is not
  * byte-identical across runs.
  */
-async function lookupComponentMetadata(entry) {
+async function lookupComponentMetadata(entry, { fetcher = fetchText } = {}) {
   try {
     if (entry.purl.startsWith("pkg:maven/")) {
       const [, coordinates] = entry.purl.split("pkg:maven/");
@@ -814,16 +1470,14 @@ async function lookupComponentMetadata(entry) {
         "https://repo1.maven.org/maven2",
         "https://dl.google.com/dl/android/maven2",
       ]) {
-        const pom = await fetchText(`${base}/${path}`);
+        const pom = await fetcher(`${base}/${path}`);
         if (!pom) continue;
         const license = pom.match(
           /<licenses>[\s\S]*?<name>([^<]+)<\/name>/u,
         )?.[1];
-        // The publishing organisation, falling back to the group id, which is
-        // the coordinate's own namespace claim.
-        const supplier =
-          pom.match(/<organization>[\s\S]*?<name>([^<]+)<\/name>/u)?.[1] ??
-          group;
+        const supplier = pom
+          .match(/<organization>[\s\S]*?<name>([^<]+)<\/name>/u)?.[1]
+          ?.trim();
         if (license || supplier) {
           return { license: normalizeLicense(license), supplier };
         }
@@ -833,7 +1487,7 @@ async function lookupComponentMetadata(entry) {
 
     if (entry.purl.startsWith("pkg:nuget/")) {
       const id = entry.name.toLowerCase();
-      const nuspec = await fetchText(
+      const nuspec = await fetcher(
         `https://api.nuget.org/v3-flatcontainer/${id}/${entry.version}/${id}.nuspec`,
       );
       if (!nuspec) return null;
@@ -852,7 +1506,7 @@ async function lookupComponentMetadata(entry) {
     if (entry.purl.startsWith("pkg:npm/")) {
       // A scoped name contains a slash, which would otherwise be read as a
       // path separator and 404.
-      const raw = await fetchText(
+      const raw = await fetcher(
         `https://registry.npmjs.org/${encodeURIComponent(entry.name)}/${entry.version}`,
       );
       if (!raw) return null;
@@ -876,15 +1530,22 @@ async function lookupComponentMetadata(entry) {
   return null;
 }
 
-async function attachRegistryMetadata(dependencies) {
+async function attachRegistryMetadata(
+  dependencies,
+  { lookup = lookupComponentMetadata } = {},
+) {
   return Promise.all(
     dependencies.map(async (entry) => {
-      const found = await lookupComponentMetadata(entry);
+      const found = await lookup(entry);
       if (!found) return entry;
       return {
         ...entry,
-        ...(found.license ? { licenses: [found.license] } : {}),
-        ...(found.supplier ? { supplier: found.supplier } : {}),
+        ...(found.license && !entry.licenses?.length
+          ? { licenses: [found.license] }
+          : {}),
+        ...(found.supplier && !entry.supplier
+          ? { supplier: found.supplier }
+          : {}),
       };
     }),
   );
@@ -1096,12 +1757,51 @@ async function main() {
     return;
   }
 
-  if (maybeCommand === "latest-release-assets") {
-    const assets = latestSbomAssets(readReleaseList(process.argv[3]));
+  if (
+    maybeCommand === "latest-release-assets" ||
+    maybeCommand === "published-release-assets"
+  ) {
+    const releases = readReleaseList(process.argv[3]);
+    const assets =
+      maybeCommand === "latest-release-assets"
+        ? latestSbomAssets(releases)
+        : publishedSbomAssets(releases);
     process.stdout.write(
       assets
-        .map((asset) => [asset.tag, asset.fileName, asset.digest].join("\t"))
+        .map((asset) =>
+          [
+            asset.componentId,
+            asset.version,
+            asset.tag,
+            asset.fileName,
+            asset.digest,
+          ].join("\t"),
+        )
         .join("\n") + (assets.length > 0 ? "\n" : ""),
+    );
+    return;
+  }
+
+  if (maybeCommand === "scan-copy") {
+    const inputPath = process.argv[3];
+    const outputPath = process.argv[4];
+    if (!inputPath || !outputPath || process.argv.length !== 5) {
+      throw new Error(
+        "Usage: generate-sbom.mjs scan-copy INPUT.cdx.json OUTPUT.cdx.json",
+      );
+    }
+    if (resolve(inputPath) === resolve(outputPath)) {
+      throw new Error("scan-copy output must not overwrite the published SBOM");
+    }
+    const prepared = prepareSbomForExactVulnerabilityScan(
+      JSON.parse(readFileSync(inputPath, "utf8")),
+    );
+    writeFileSync(
+      outputPath,
+      `${JSON.stringify(prepared.document, null, 2)}\n`,
+    );
+    console.log(
+      `Prepared ${basename(outputPath)}; skipped ${prepared.skippedConstraints} version constraints`,
     );
     return;
   }
@@ -1143,6 +1843,42 @@ async function main() {
     console.log(
       `Verified ${basename(path)} for ${options.tag} with generator ${verified.generatorCommit}`,
     );
+    return;
+  }
+
+  if (maybeCommand === "verify-attested-generator") {
+    const sbomPath = process.argv[3];
+    const attestationPath = process.argv[4];
+    const args = process.argv.slice(5);
+    const options = {};
+    for (let index = 0; index < args.length; index += 1) {
+      const argument = args[index];
+      if (!["--repository", "--branch"].includes(argument)) {
+        throw new Error(
+          `Unknown verify-attested-generator option '${argument}'`,
+        );
+      }
+      const value = args[++index];
+      if (!value) throw new Error(`${argument} requires a value`);
+      if (argument === "--repository") options.repository = value;
+      if (argument === "--branch") options.branch = value;
+    }
+    if (
+      !sbomPath ||
+      !attestationPath ||
+      !options.repository ||
+      !options.branch
+    ) {
+      throw new Error(
+        "Usage: generate-sbom.mjs verify-attested-generator SBOM ATTESTATION_JSON --repository OWNER/REPO --branch BRANCH",
+      );
+    }
+    const commit = verifySbomGeneratorAttestation(
+      readFileSync(sbomPath),
+      readFileSync(attestationPath),
+      options,
+    );
+    console.log(`Verified attested SBOM generator ${commit}`);
     return;
   }
 
@@ -1213,7 +1949,11 @@ if (process.argv[1] === fileURLToPath(import.meta.url)) {
 }
 
 export const __testing = {
+  attachRegistryMetadata,
   COMPONENTS,
   deterministicSerialNumber,
   fetchPublishedText,
+  GRADLE_COORDINATE_PATTERN,
+  GRADLE_PROJECT_PATTERN,
+  lookupComponentMetadata,
 };

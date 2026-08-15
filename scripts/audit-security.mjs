@@ -1,8 +1,12 @@
 #!/usr/bin/env node
 
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
+import { existsSync, readFileSync, readdirSync } from "node:fs";
+import { dirname, resolve } from "node:path";
+import { spawnSync } from "node:child_process";
 import { fileURLToPath } from "node:url";
+import { isAlias, parse as parseYaml, parseDocument, visit } from "yaml";
+
+import { BUN_PROJECTS, OSV_LOCKFILES } from "./dependency-projects.mjs";
 
 const repoRoot = resolve(fileURLToPath(new URL("..", import.meta.url)));
 
@@ -10,30 +14,194 @@ export function findWorkflowRunInterpolations(
   source,
   filename = "workflow.yml",
 ) {
-  const lines = source.split("\n");
   const findings = [];
+  const document = parseDocument(source);
+  if (document.errors.length > 0) {
+    return [`${filename}: invalid YAML (${document.errors[0].message})`];
+  }
+  visit(document, {
+    Pair(_, pair) {
+      const key = resolveYamlScalar(pair.key, document);
+      const value = resolveYamlScalar(pair.value, document);
+      if (key.value !== "run" || typeof value.value !== "string") return;
+      const expression = value.value.indexOf("${{");
+      if (expression < 0) return;
+      const valueStart = pair.value.range?.[0] ?? 0;
+      const rawExpression = value.aliased
+        ? -1
+        : source.indexOf("${{", valueStart);
+      findings.push(
+        sourceLineFinding(
+          source,
+          rawExpression >= 0 ? rawExpression : valueStart + expression,
+          filename,
+        ),
+      );
+    },
+  });
 
-  for (let index = 0; index < lines.length; index += 1) {
-    const opener = lines[index].match(/^(\s*)(?:-\s*)?run:\s*(.*)$/u);
-    if (!opener) continue;
-    const indentation = opener[1].length;
-    if (opener[2].includes("${{")) {
-      findings.push(`${filename}:${index + 1}: ${lines[index].trim()}`);
-    }
-    if (
-      !/^[|>](?:(?:[1-9][-+]?)|(?:[-+][1-9]?))?(?:\s+#.*)?\s*$/u.test(opener[2])
-    )
+  return findings;
+}
+
+function resolveYamlScalar(node, document) {
+  let resolved = node;
+  let aliased = false;
+  const seen = new Set();
+  while (isAlias(resolved)) {
+    if (seen.has(resolved)) return { aliased: true, node: resolved };
+    seen.add(resolved);
+    aliased = true;
+    resolved = resolved.resolve(document);
+  }
+  return { aliased, node: resolved, value: resolved?.value };
+}
+
+function sourceLineFinding(source, offset, filename) {
+  const lineNumber = sourceLineNumber(source, offset);
+  const lineStart = source.lastIndexOf("\n", offset - 1) + 1;
+  const lineEnd = source.indexOf("\n", offset);
+  const line = source.slice(lineStart, lineEnd < 0 ? undefined : lineEnd);
+  return `${filename}:${lineNumber}: ${line.trim()}`;
+}
+
+function sourceLineNumber(source, offset) {
+  return source.slice(0, offset).split("\n").length;
+}
+
+export function listWorkflowFiles(
+  directory = resolve(repoRoot, ".github/workflows"),
+  prefix = ".github/workflows",
+) {
+  return readdirSync(directory, { withFileTypes: true })
+    .filter((entry) => entry.isFile() && /\.ya?ml$/iu.test(entry.name))
+    .map((entry) => `${prefix}/${entry.name}`)
+    .sort();
+}
+
+export function findUnpinnedDockerBases(source) {
+  const stages = new Set();
+  const findings = [];
+  for (const line of source.split("\n")) {
+    const match = line.match(/^\s*FROM\s+(.+)$/iu);
+    if (!match) continue;
+    const tokens = match[1].trim().split(/\s+/u);
+    while (tokens[0]?.startsWith("--")) tokens.shift();
+    const image = tokens.shift();
+    if (!image) {
+      findings.push(line.trim());
       continue;
+    }
+    const alias = tokens[0]?.toLowerCase() === "as" ? tokens[1] : undefined;
+    if (
+      !stages.has(image.toLowerCase()) &&
+      !/@sha256:[0-9a-f]{64}$/u.test(image)
+    ) {
+      findings.push(image);
+    }
+    if (alias) stages.add(alias.toLowerCase());
+  }
+  return findings;
+}
 
-    for (let runIndex = index + 1; runIndex < lines.length; runIndex += 1) {
-      const line = lines[runIndex];
-      if (line.trim() && line.match(/^\s*/u)[0].length <= indentation) break;
-      if (line.includes("${{")) {
-        findings.push(`${filename}:${runIndex + 1}: ${line.trim()}`);
+export function findWorkflowDependencyFindings(
+  source,
+  filename = "workflow.yml",
+) {
+  const findings = [];
+  let workflow;
+  let document;
+  try {
+    workflow = parseYaml(source);
+    document = parseDocument(source);
+    if (document.errors.length > 0) throw document.errors[0];
+  } catch (error) {
+    return [`${filename}: invalid YAML (${error.message})`];
+  }
+  if (!Object.hasOwn(workflow ?? {}, "permissions")) {
+    findings.push(`${filename}: missing top-level permissions`);
+  } else {
+    const permissions = workflow.permissions;
+    const values =
+      permissions && typeof permissions === "object"
+        ? Object.values(permissions)
+        : [permissions];
+    if (values.some((value) => /^(?:write|write-all)$/iu.test(String(value)))) {
+      findings.push(`${filename}: top-level permissions must be read-only`);
+    } else if (
+      permissions !== "read-all" &&
+      (permissions === null || typeof permissions !== "object")
+    ) {
+      findings.push(`${filename}: invalid top-level permissions`);
+    }
+  }
+
+  for (const [jobName, job] of Object.entries(workflow?.jobs ?? {})) {
+    if (!Object.hasOwn(job ?? {}, "permissions")) continue;
+    const permissions = job.permissions;
+    if (permissions === "write-all") {
+      findings.push(`${filename}: job ${jobName} must not use write-all`);
+      continue;
+    }
+    if (permissions === "read-all") continue;
+    if (
+      permissions === null ||
+      typeof permissions !== "object" ||
+      Array.isArray(permissions) ||
+      Object.values(permissions).some(
+        (value) => !new Set(["none", "read", "write"]).has(String(value)),
+      )
+    ) {
+      findings.push(`${filename}: invalid permissions for job ${jobName}`);
+    }
+  }
+
+  for (const [jobName, job] of Object.entries(workflow?.jobs ?? {})) {
+    for (const step of job?.steps ?? []) {
+      const action = String(step?.uses ?? "").toLowerCase();
+      if (!action.startsWith("actions/checkout@")) continue;
+      if (String(step?.with?.["persist-credentials"]) !== "false") {
+        findings.push(
+          `${filename}: job ${jobName} checkout must disable persisted credentials`,
+        );
       }
     }
   }
 
+  visit(document, {
+    Pair(_, pair) {
+      const key = resolveYamlScalar(pair.key, document);
+      const value = resolveYamlScalar(pair.value, document);
+      if (key.value !== "uses" || typeof value.value !== "string") return;
+      const action = value.value;
+      if (action.startsWith("./")) return;
+      const commentNodes = [pair.value, value.node];
+      const hasVersionComment = commentNodes.some((node) => {
+        const valueEnd = node?.range?.[1];
+        if (valueEnd === undefined) return false;
+        const lineEnd = source.indexOf("\n", valueEnd);
+        return /#\s*\S+/u.test(
+          source.slice(valueEnd, lineEnd < 0 ? undefined : lineEnd),
+        );
+      });
+      const location = `${filename}:${sourceLineNumber(
+        source,
+        pair.value.range?.[0] ?? 0,
+      )}`;
+      const separator = action.lastIndexOf("@");
+      if (separator < 0) {
+        findings.push(`${location}: unpinned action ${action}`);
+        return;
+      }
+      const ref = action.slice(separator + 1);
+      if (!/^[0-9a-f]{40}$/u.test(ref)) {
+        findings.push(`${location}: unpinned action ${action}`);
+      } else if (!hasVersionComment) {
+        findings.push(
+          `${location}: pinned action is missing a version comment`,
+        );
+      }
+    },
+  });
   return findings;
 }
 
@@ -47,19 +215,238 @@ export function extractExternalUrls(source) {
   return urls;
 }
 
+export function parseBunAuditOutput(output) {
+  const cleanOutput = output.replace(/\x1B\[[0-?]*[ -/]*[@-~]/gu, "");
+  const jsonLine = cleanOutput
+    .split("\n")
+    .map((line) => line.trim())
+    .findLast((line) => line.startsWith("{") && line.endsWith("}"));
+  if (!jsonLine) throw new Error("bun audit returned no JSON result");
+  return JSON.parse(jsonLine);
+}
+
+export function summarizeAdvisories(audit) {
+  return Object.entries(audit)
+    .flatMap(([packageName, advisories]) =>
+      advisories.map(({ severity, title, url }) => ({
+        id: url?.split("/").at(-1),
+        packageName,
+        severity,
+        title,
+      })),
+    )
+    .sort((left, right) => left.packageName.localeCompare(right.packageName));
+}
+
+export function parseOsvIgnoredVulnerabilities(source) {
+  const ignored = new Map();
+  for (const block of source.split("[[IgnoredVulns]]").slice(1)) {
+    const id = block.match(/^id\s*=\s*"([^"]+)"/mu)?.[1];
+    const ignoreUntil = block.match(
+      /^ignoreUntil\s*=\s*"?(\d{4}-\d{2}-\d{2})"?/mu,
+    )?.[1];
+    const reason = block.match(/^reason\s*=\s*"([^"]+)"/mu)?.[1];
+    if (!id || !ignoreUntil || !reason) {
+      throw new Error(
+        "every ignored vulnerability needs id, ignoreUntil, and reason",
+      );
+    }
+    const expiry = new Date(`${ignoreUntil}T00:00:00Z`);
+    if (
+      Number.isNaN(expiry.getTime()) ||
+      expiry.toISOString().slice(0, 10) !== ignoreUntil
+    ) {
+      throw new Error(`invalid ignored vulnerability expiry ${ignoreUntil}`);
+    }
+    if (ignored.has(id))
+      throw new Error(`duplicate ignored vulnerability ${id}`);
+    ignored.set(id, { ignoreUntil, reason });
+  }
+  return ignored;
+}
+
+export function auditDependencies(
+  run = spawnSync,
+  projects = BUN_PROJECTS,
+  now = new Date(),
+  osvLockfiles = projects === BUN_PROJECTS
+    ? OSV_LOCKFILES
+    : projects.map(({ lockfile }) => lockfile),
+) {
+  const findings = [];
+  let ignoredCount = 0;
+  for (const { directory, lockfile } of projects) {
+    const result = run("bun", ["audit", "--json"], {
+      cwd: resolve(repoRoot, directory),
+      encoding: "utf8",
+    });
+    if (result.error) throw result.error;
+    if (result.signal) {
+      throw new Error(`${lockfile}: bun audit terminated by ${result.signal}`);
+    }
+    if (![0, 1].includes(result.status)) {
+      throw new Error(`${lockfile}: bun audit exited ${result.status}`);
+    }
+    let advisories;
+    try {
+      advisories = summarizeAdvisories(
+        parseBunAuditOutput(`${result.stdout}\n${result.stderr}`),
+      );
+    } catch (error) {
+      throw new Error(
+        `${lockfile}: bun audit failed (${error.message}): ${(result.stderr || result.stdout).trim()}`,
+      );
+    }
+
+    const configPath = resolve(repoRoot, directory, "osv-scanner.toml");
+    const ignored = existsSync(configPath)
+      ? parseOsvIgnoredVulnerabilities(readFileSync(configPath, "utf8"))
+      : new Map();
+    const used = new Set();
+    for (const advisory of advisories) {
+      const exception = ignored.get(advisory.id);
+      if (
+        exception &&
+        exception.ignoreUntil >= now.toISOString().slice(0, 10)
+      ) {
+        used.add(advisory.id);
+        ignoredCount += 1;
+        continue;
+      }
+      findings.push({ ...advisory, lockfile });
+    }
+    for (const [id, exception] of ignored) {
+      if (used.has(id)) continue;
+      const state =
+        exception.ignoreUntil < now.toISOString().slice(0, 10)
+          ? "expired"
+          : "unused";
+      findings.push({
+        id,
+        lockfile,
+        packageName: "exception",
+        severity: state,
+        title: `${state} dependency exception`,
+      });
+    }
+    if (result.status === 1 && advisories.length === 0) {
+      throw new Error(`${lockfile}: bun audit exited ${result.status}`);
+    }
+  }
+
+  const bunLocks = new Set(projects.map(({ lockfile }) => lockfile));
+  for (const lockfile of osvLockfiles.filter((path) => !bunLocks.has(path))) {
+    const configPath = resolve(repoRoot, dirname(lockfile), "osv-scanner.toml");
+    if (!existsSync(configPath)) continue;
+    const ignored = parseOsvIgnoredVulnerabilities(
+      readFileSync(configPath, "utf8"),
+    );
+    const result = run(
+      "osv-scanner",
+      [
+        "scan",
+        "source",
+        `--lockfile=${lockfile}`,
+        "--config=/dev/null",
+        "--format=json",
+        "--verbosity=error",
+      ],
+      { cwd: repoRoot, encoding: "utf8" },
+    );
+    if (result.error) throw result.error;
+    if (result.signal) {
+      throw new Error(`${lockfile}: OSV-Scanner terminated by ${result.signal}`);
+    }
+    if (![0, 1].includes(result.status)) {
+      throw new Error(`${lockfile}: OSV-Scanner exited ${result.status}`);
+    }
+    let report;
+    try {
+      report = JSON.parse(result.stdout);
+    } catch (error) {
+      throw new Error(`${lockfile}: invalid OSV-Scanner JSON (${error.message})`);
+    }
+    const used = new Set();
+    for (const scanResult of report.results ?? []) {
+      for (const pkg of scanResult.packages ?? []) {
+        for (const vulnerability of pkg.vulnerabilities ?? []) {
+          const ids = [vulnerability.id, ...(vulnerability.aliases ?? [])].filter(
+            Boolean,
+          );
+          const acceptedId = ids.find((id) => {
+            const exception = ignored.get(id);
+            return (
+              exception &&
+              exception.ignoreUntil >= now.toISOString().slice(0, 10)
+            );
+          });
+          if (acceptedId) {
+            used.add(acceptedId);
+            ignoredCount += 1;
+            continue;
+          }
+          findings.push({
+            id: vulnerability.id ?? ids[0] ?? "unknown",
+            lockfile,
+            packageName: pkg.package?.name ?? "dependency",
+            severity: vulnerability.database_specific?.severity ?? "unknown",
+            title:
+              vulnerability.summary ??
+              vulnerability.details?.split("\n", 1)[0] ??
+              "unaccepted OSV vulnerability",
+          });
+        }
+      }
+    }
+    for (const [id, exception] of ignored) {
+      const expired = exception.ignoreUntil < now.toISOString().slice(0, 10);
+      if (!expired && used.has(id)) continue;
+      const state = expired ? "expired" : "unused";
+      findings.push({
+        id,
+        lockfile,
+        packageName: "exception",
+        severity: state,
+        title: `${state} dependency exception`,
+      });
+    }
+  }
+
+  if (findings.length > 0) {
+    const details = findings
+      .map(({ id, lockfile, packageName, severity, title }) =>
+        [severity, lockfile, packageName, id, title].join("\t"),
+      )
+      .join("\n");
+    throw new Error(
+      `${findings.length} dependency audit findings:\n${details}`,
+    );
+  }
+  process.stdout.write(
+    `No unaccepted dependency advisories found (${osvLockfiles.length} locks, ${ignoredCount} time-bounded exceptions).\n`,
+  );
+}
+
 export async function auditWorkflowFiles(paths) {
-  const findings = paths.flatMap((path) =>
+  const runExpressions = paths.flatMap((path) =>
     findWorkflowRunInterpolations(
       readFileSync(resolve(repoRoot, path), "utf8"),
       path,
     ),
   );
-  if (findings.length === 0) {
-    throw new Error(
-      "No workflow run expressions found; refusing to report a vacuous pass",
-    );
+  const dependencyFindings = paths.flatMap((path) =>
+    findWorkflowDependencyFindings(
+      readFileSync(resolve(repoRoot, path), "utf8"),
+      path,
+    ),
+  );
+  const findings = [...runExpressions, ...dependencyFindings];
+  if (findings.length > 0) {
+    throw new Error(findings.join("\n"));
   }
-  process.stdout.write(`${findings.join("\n")}\n`);
+  process.stdout.write(
+    `${paths.length} workflow files passed security policy.\n`,
+  );
 }
 
 async function auditUrls(paths) {
@@ -102,16 +489,23 @@ async function auditUrls(paths) {
 
 async function main() {
   const [command, ...paths] = process.argv.slice(2);
-  if (!command || paths.length === 0) {
+  if (command === "dependencies") {
+    auditDependencies();
+    return;
+  }
+  if (!command) {
     throw new Error(
-      "Usage: audit-security.mjs <workflows|urls> <repository-relative files...>",
+      "Usage: audit-security.mjs dependencies | workflows [files...] | urls <files...>",
     );
   }
   if (command === "workflows") {
-    await auditWorkflowFiles(paths);
+    await auditWorkflowFiles(paths.length > 0 ? paths : listWorkflowFiles());
     return;
   }
   if (command === "urls") {
+    if (paths.length === 0) {
+      throw new Error("The urls audit requires at least one file");
+    }
     await auditUrls(paths);
     return;
   }

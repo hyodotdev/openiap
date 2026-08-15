@@ -328,8 +328,8 @@ function Releases() {
               ).
             </li>
             <li>
-              Release artifacts have stronger SBOM completeness, immutable-tag
-              verification, and CRA reporting paths (
+              Release artifacts have stronger SBOM completeness, exact
+              tag-and-commit verification, and CRA reporting paths (
               <a
                 href="https://github.com/hyodotdev/openiap/pull/336"
                 target="_blank"

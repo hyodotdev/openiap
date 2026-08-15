@@ -1,0 +1,164 @@
+name: "Security: Post-release scan"
+
+on:
+  schedule:
+    - cron: "41 5 * * 1"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  release-sboms:
+    name: Rescan published release SBOMs
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      attestations: read
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
+
+      - name: Install OSV-Scanner v2.5.0
+        run: scripts/install-security-tool.sh osv-scanner "$RUNNER_TEMP/osv-scanner"
+
+      - name: Install CycloneDX CLI v0.33.1
+        run: scripts/install-security-tool.sh cyclonedx "$RUNNER_TEMP/cyclonedx"
+
+      - name: Verify and scan published release SBOMs
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh api --paginate --slurp \
+            "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            > "$RUNNER_TEMP/releases.json"
+
+          node scripts/generate-sbom.mjs missing-release-tags \
+            "$RUNNER_TEMP/releases.json" > "$RUNNER_TEMP/missing-tags.txt"
+          if [ -s "$RUNNER_TEMP/missing-tags.txt" ]; then
+            echo "::error::Newest stable releases or approved legacy repairs are missing a verified SBOM:"
+            cat "$RUNNER_TEMP/missing-tags.txt"
+            exit 1
+          fi
+
+          node scripts/generate-sbom.mjs published-release-assets \
+            "$RUNNER_TEMP/releases.json" > "$RUNNER_TEMP/published-sboms.tsv"
+          PUBLISHED_DIR="$RUNNER_TEMP/published-sboms"
+          SCAN_DIR="$RUNNER_TEMP/scan-sboms"
+          REPORT_DIR="$RUNNER_TEMP/release-sbom-reports"
+          mkdir -p "$PUBLISHED_DIR" "$SCAN_DIR" "$REPORT_DIR"
+
+          SCAN_STATUS=0
+          while IFS=$'\t' read -r COMPONENT VERSION RELEASE_TAG SBOM_NAME SBOM_DIGEST; do
+            [ -n "$RELEASE_TAG" ] || continue
+            node scripts/assert-release-tag.mjs \
+              "$COMPONENT" "$DEFAULT_BRANCH" "$RELEASE_TAG" "$VERSION"
+            RELEASE_DIR="$PUBLISHED_DIR/$RELEASE_TAG"
+            SCAN_RELEASE_DIR="$SCAN_DIR/$RELEASE_TAG"
+            REPORT_RELEASE_DIR="$REPORT_DIR/$RELEASE_TAG"
+            mkdir -p "$RELEASE_DIR" "$SCAN_RELEASE_DIR" "$REPORT_RELEASE_DIR"
+            SBOM_FILE="$RELEASE_DIR/$SBOM_NAME"
+            SCAN_FILE="$SCAN_RELEASE_DIR/$SBOM_NAME"
+            gh release download "$RELEASE_TAG" \
+              --pattern "$SBOM_NAME" --dir "$RELEASE_DIR" --clobber
+            node scripts/generate-sbom.mjs verify-file "$SBOM_FILE" \
+              --tag "$RELEASE_TAG" --digest "$SBOM_DIGEST"
+            "$RUNNER_TEMP/cyclonedx" validate \
+              --input-file "$SBOM_FILE" --input-format json \
+              --input-version v1_6 --fail-on-errors
+
+            CERT_IDENTITY="https://github.com/$GITHUB_REPOSITORY/.github/workflows/sbom.yml@refs/heads/$DEFAULT_BRANCH"
+            ATTESTATION_FILE="$REPORT_RELEASE_DIR/$SBOM_NAME.attestation.json"
+            gh attestation verify "$SBOM_FILE" \
+              --repo "$GITHUB_REPOSITORY" \
+              --cert-identity "$CERT_IDENTITY" \
+              --deny-self-hosted-runners --format json > "$ATTESTATION_FILE"
+            node scripts/generate-sbom.mjs verify-attested-generator \
+              "$SBOM_FILE" "$ATTESTATION_FILE" \
+              --repository "$GITHUB_REPOSITORY" --branch "$DEFAULT_BRANCH"
+
+            node scripts/generate-sbom.mjs scan-copy "$SBOM_FILE" "$SCAN_FILE"
+            REPORT_FILE="$REPORT_RELEASE_DIR/$SBOM_NAME.osv.json"
+            if ! jq -e '(.components // []) | length > 0' "$SCAN_FILE" >/dev/null; then
+              jq -n --arg source "$RELEASE_TAG/$SBOM_NAME" '{
+                source: $source,
+                results: [],
+                note: "SBOM declares no exact third-party components"
+              }' > "$REPORT_FILE"
+              continue
+            fi
+            if ! "$RUNNER_TEMP/osv-scanner" scan source \
+              -L="$SCAN_FILE" --format=json \
+              > "$REPORT_FILE"; then
+              SCAN_STATUS=1
+            fi
+          done < "$RUNNER_TEMP/published-sboms.tsv"
+          exit "$SCAN_STATUS"
+
+      - name: Upload release scan reports
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: published-release-sbom-reports
+          path: ${{ runner.temp }}/release-sbom-reports
+          if-no-files-found: error
+          retention-days: 30
+
+  kit-container:
+    name: Rescan current Kit source image
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
+
+      - name: Build Kit image
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
+        with:
+          context: ${{ github.workspace }}
+          file: packages/kit/Dockerfile
+          load: true
+          push: false
+          tags: openiap-kit:security-scan
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          build-args: |
+            VITE_KIT_CONVEX_URL=https://placeholder-build-1.convex.cloud
+            IAPKIT_REVISION=${{ github.sha }}
+
+      - name: Install Trivy v0.74.0
+        run: scripts/install-security-tool.sh trivy "$RUNNER_TEMP/trivy"
+
+      - name: Scan Kit image
+        run: >-
+          "$RUNNER_TEMP/trivy" image openiap-kit:security-scan
+          --scanners vuln
+          --severity HIGH,CRITICAL
+          --exit-code 1
+          --exit-on-eol 1
+          --format json
+          --output "$RUNNER_TEMP/kit-container-trivy.json"
+
+      - name: Upload container scan report
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: kit-container-trivy
+          path: ${{ runner.temp }}/kit-container-trivy.json
+          if-no-files-found: error
+          retention-days: 30

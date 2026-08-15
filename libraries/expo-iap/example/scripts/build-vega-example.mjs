@@ -12,6 +12,7 @@ import {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const exampleRoot = path.resolve(__dirname, '..');
 const packageRoot = path.resolve(exampleRoot, '..');
+const vegaDependencyRoot = path.join(exampleRoot, 'vega');
 const tempRoot = path.join(os.tmpdir(), 'openiap-expo-iap-vega-example');
 const tempPackageSourceRoot = path.join(tempRoot, 'openiap-expo-iap-src');
 const buildType = process.argv[2] === 'Release' ? 'Release' : 'Debug';
@@ -285,40 +286,8 @@ copyDirectoryWithTransform(
   rewritePackageSourceImports,
 );
 
-writeFile(
-  'package.json',
-  `${JSON.stringify(
-    {
-      name: 'expoiapvegaexample',
-      version: '0.0.1',
-      private: true,
-      scripts: {
-        'build:vega': `react-native build-vega --build-type ${buildType} --reset-cache`,
-      },
-      dependencies: {
-        '@amazon-devices/keplerscript-appstore-iap-lib': '~2.13.0',
-        '@amazon-devices/react-native-kepler': '^2.0.0',
-        react: '18.2.0',
-        'react-native': '0.72.0',
-      },
-      devDependencies: {
-        '@amazon-devices/kepler-cli-platform': '~0.22.0',
-        '@react-native-community/cli': '11.3.2',
-        '@react-native/metro-config': '^0.72.6',
-        '@react-native/babel-preset': '0.76.9',
-        typescript: '4.8.4',
-      },
-      kepler: {
-        projectType: 'application',
-        appName: vegaAppName,
-        targets: ['tv'],
-        os: ['vega'],
-      },
-    },
-    null,
-    2,
-  )}\n`,
-);
+copyFile(path.join(vegaDependencyRoot, 'package.json'), 'package.json');
+copyFile(path.join(vegaDependencyRoot, 'bun.lock'), 'bun.lock');
 
 writeFile(
   'app.json',
@@ -427,7 +396,7 @@ writeFile(
   }),
 );
 
-run('bun', ['install', '--force']);
+run('bun', ['install', '--frozen-lockfile']);
 writeLocalPackageAlias(
   'expo-iap',
   path.join(tempPackageSourceRoot, 'index.kepler.ts'),

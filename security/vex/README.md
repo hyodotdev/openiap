@@ -8,11 +8,14 @@ reachable in our product.
 
 ## Why this is not generated
 
-Everything else in `security/` is produced automatically from the manifests the
-build reads. VEX is the deliberate exception. Whether a CVE is exploitable
-through OpenIAP's use of a dependency is an engineering judgement — no tool can
-derive it. What automation does here is narrower: make sure a recorded
-judgement ships with the release it applies to, and reject a malformed one.
+The dependency inventory and release SBOM are produced automatically from
+released manifests and descriptors, shipped native declarations, and
+hash-pinned embedded binaries. VEX cannot be generated automatically because
+whether a CVE is exploitable through OpenIAP's use of a dependency is an
+engineering judgement. Automation only
+ensures that a recorded judgement ships with the release it applies to and
+rejects a malformed one. The other files under `security/` are hand-authored
+policy and assurance records.
 
 **There is normally no file in this directory.** A file appears only when a CVE
 has been analysed against a released component. An empty analysis is not

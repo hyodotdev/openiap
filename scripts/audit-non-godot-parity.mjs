@@ -952,7 +952,7 @@ function checkFrameworkCiAndCoverageBadges() {
       "fetch-depth: 0\n          persist-credentials: false",
       contract.testCommand,
       ...coverageAssertions,
-      "uses: codecov/codecov-action@v7",
+      "uses: codecov/codecov-action@",
       "use_oidc: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}",
       "fail_ci_if_error: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}",
       "disable_search: true",
@@ -968,12 +968,15 @@ function checkFrameworkCiAndCoverageBadges() {
         );
       }
     }
-    if ((testJob.match(/codecov\/codecov-action@v7/g) ?? []).length !== 1) {
+    if (
+      (testJob.match(/codecov\/codecov-action@[0-9a-f]{40}\s+# v7/g) ?? [])
+        .length !== 1
+    ) {
       fail(
         `${workflowPath} ${contract.testJob} must upload exactly one coverage report`,
       );
     }
-    const uploadIndex = testJob.indexOf("uses: codecov/codecov-action@v7");
+    const uploadIndex = testJob.indexOf("uses: codecov/codecov-action@");
     for (const coverageAssertion of coverageAssertions) {
       const coverageAssertionIndex = testJob.indexOf(coverageAssertion);
       if (coverageAssertionIndex < 0 || uploadIndex <= coverageAssertionIndex) {
@@ -1006,7 +1009,7 @@ function checkFrameworkCiAndCoverageBadges() {
       const filterIndex = testJob.indexOf(
         "run: dart run tool/filter_coverage.dart",
       );
-      const uploadIndex = testJob.indexOf("uses: codecov/codecov-action@v7");
+      const uploadIndex = testJob.indexOf("uses: codecov/codecov-action@");
       if (
         testIndex < 0 ||
         filterIndex <= testIndex ||
@@ -5083,10 +5086,10 @@ function checkFrameworkDependencyHygiene() {
       "release-branch-policy.mjs assert-floor",
       "Native-derived spec version",
       'if git rev-parse --verify "refs/tags/$TAG_NAME" >/dev/null 2>&1; then',
-      'TAG_COMMIT=$(git rev-parse "refs/tags/$TAG_NAME^{commit}")',
-      "HEAD_COMMIT=$(git rev-parse HEAD)",
-      "A released spec tag is immutable",
-      "allowing an idempotent rerun",
+      'assert-release-tag.mjs docs main "$TAG_NAME" "$VERSION"',
+      'git checkout --detach "$TAG_NAME"',
+      "continuing the idempotent release rerun",
+      "persist-credentials: false",
     ],
     "docs release workflow derived spec policy",
   );
@@ -5109,16 +5112,12 @@ function checkFrameworkDependencyHygiene() {
     expectIncludes(
       releaseWorkflow,
       [
-        "openiap-versions.json|packages/*/openiap-versions.json|packages/gql/package.json|packages/docs/package.json|packages/google/package.json|packages/apple/package.json",
-        "git show HEAD:openiap-versions.json > /tmp/upstream-openiap-versions.json",
-        "Re-sync package metadata and docs copy after merge",
         "./scripts/sync-release-generated.sh",
         "packages/docs/src/generated/version-metadata.json",
         "packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json",
         `update-native ${nativePackage} "$VERSION"`,
-        "clean rebase can combine independent Apple and Google bumps",
-        "git commit --amend --no-edit",
         "release-branch-policy.mjs assert-floor",
+        "Release branch moved after verification; rerun the release workflow",
       ],
       `${releaseWorkflow} must commit package metadata synced from openiap-versions.json`,
     );
@@ -5127,10 +5126,10 @@ function checkFrameworkDependencyHygiene() {
       releaseWorkflowSource.split(`update-native ${nativePackage} "$VERSION"`)
         .length -
         1 !==
-      3
+      1
     ) {
       fail(
-        `${releaseWorkflow} must derive the spec in its normal, rebase-conflict, and pre-push convergence paths`,
+        `${releaseWorkflow} must derive the spec exactly once from the verified release head`,
       );
     }
     expectNotIncludes(
@@ -5139,8 +5138,10 @@ function checkFrameworkDependencyHygiene() {
         "cp openiap-versions.json packages/docs/openiap-versions.json",
         'git show HEAD:"$conflict_file"',
         "/tmp/theirs.json",
+        'git pull --rebase origin "$RELEASE_BRANCH"',
+        "git commit --amend --no-edit",
       ],
-      `${releaseWorkflow} must not only sync the docs copy after conflict resolution`,
+      `${releaseWorkflow} must not incorporate unverified branch changes`,
     );
   }
   for (const releaseWorkflow of [
@@ -5168,11 +5169,20 @@ function checkFrameworkDependencyHygiene() {
       "bare_exists=false",
       "Checkout release tag (current version)",
       'LEGACY_TAG="apple-v$VERSION"',
-      "steps.check_tag.outputs.bare_exists != 'true'",
-      "Cleaning up tag created by this run",
     ],
-    "Apple release workflow must not delete pre-existing tags on validation failure",
+    "Apple release workflow must distinguish current bare and legacy tags",
   );
+  const appleWorkflow = read(".github/workflows/release-apple.yml");
+  if (
+    appleWorkflow.indexOf("- name: Validate Podspec") === -1 ||
+    appleWorkflow.indexOf("- name: Create and push tag") === -1 ||
+    appleWorkflow.indexOf("- name: Validate Podspec") >
+      appleWorkflow.indexOf("- name: Create and push tag")
+  ) {
+    fail(
+      "Apple release workflow must validate the podspec before creating a tag",
+    );
+  }
   expectNotIncludes(
     ".github/workflows/release-apple.yml",
     ["gem install cocoapods\n"],
@@ -5189,7 +5199,7 @@ function checkFrameworkDependencyHygiene() {
       'cp "${artifacts[@]}" release-artifacts/',
       "Checkout release tag (current version)",
       'LEGACY_TAG="google-v$VERSION"',
-      "ORG_GRADLE_PROJECT_SONATYPE_CLOSE_TIMEOUT_SECONDS: '3600'",
+      'ORG_GRADLE_PROJECT_SONATYPE_CLOSE_TIMEOUT_SECONDS: "3600"',
       'ARTIFACT_URL="https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google-horizon/$VERSION/openiap-google-horizon-$VERSION.pom"',
       'ARTIFACT_URL="https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google-amazon/$VERSION/openiap-google-amazon-$VERSION.pom"',
       'ARTIFACT_URL="https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google/$VERSION/openiap-google-$VERSION.pom"',
@@ -5281,7 +5291,7 @@ function checkFrameworkDependencyHygiene() {
       "`refs/tags/${tag}^{}`",
       '"merge-base", "--is-ancestor"',
       "metadata version is",
-      "does not match its immutable origin tag commit",
+      "does not match its origin tag commit at verification time",
       "is not reachable from origin/",
     ],
     "existing release tag provenance guard",
@@ -5372,11 +5382,13 @@ function checkFrameworkDependencyHygiene() {
       /^\s*git checkout\b/,
       packageIndex + 1,
     );
-    if (!(
-      guardIndex >= 0 &&
-      packageIndex === guardIndex + 1 &&
-      checkoutIndex > packageIndex
-    )) {
+    if (
+      !(
+        guardIndex >= 0 &&
+        packageIndex === guardIndex + 1 &&
+        checkoutIndex > packageIndex
+      )
+    ) {
       fail(
         `${frameworkReleaseWorkflow} must guard and check out the existing tag in one shell block`,
       );
@@ -5565,7 +5577,7 @@ function checkFrameworkDependencyHygiene() {
         `if ! git -C "$GITHUB_WORKSPACE" grep -q '^  publish-npm:' "$TAG" -- ${npmReleaseWorkflow}`,
         '! git -C "$GITHUB_WORKSPACE" cat-file -e "$TAG:scripts/npm-publish-authorization.mjs"',
         "Upload npm publish authorization",
-        "actions/upload-artifact@v4",
+        "actions/upload-artifact@",
         "npm-publish-authorization-${{ github.run_attempt }}",
         "predates the tag-ref npm publisher and cannot be retried safely",
         "gh workflow run release-",
@@ -5986,7 +5998,7 @@ function checkFrameworkDependencyHygiene() {
       [
         "runs-on: macos-15",
         "XCODE_VERSION: 16.4",
-        "maxim-lobanov/setup-xcode@v1",
+        "maxim-lobanov/setup-xcode@",
         "xcode-version: ${{ env.XCODE_VERSION }}",
       ],
       `${xcodeReleaseWorkflow} must pin the macOS/Xcode release image`,
@@ -6003,7 +6015,7 @@ function checkFrameworkDependencyHygiene() {
       "Expo SDK 57's expo-modules-jsi package declares Swift tools 6.2",
       "runs-on: macos-26",
       'XCODE_VERSION: "26.6"',
-      "maxim-lobanov/setup-xcode@v1",
+      "maxim-lobanov/setup-xcode@",
       "xcode-version: ${{ env.XCODE_VERSION }}",
     ],
     "Expo release must use an Xcode version that can parse Expo SDK 57 Swift 6.2 manifests",
@@ -6021,7 +6033,7 @@ function checkFrameworkDependencyHygiene() {
       'APP_STORE_XCODE_VERSION: "26.6"',
       'APP_STORE_SDK_VERSION: "26.5"',
       'APP_STORE_LD_VERSION: "1267.0"',
-      "maxim-lobanov/setup-xcode@v1",
+      "maxim-lobanov/setup-xcode@",
       "xcode-version: ${{ env.APP_STORE_XCODE_VERSION }}",
       "bash packages/apple/scripts/verify-app-store-xcframework.sh",
       "runs-on: xcode-27",
@@ -6035,7 +6047,7 @@ function checkFrameworkDependencyHygiene() {
       'APP_STORE_XCODE_VERSION: "26.6"',
       'APP_STORE_SDK_VERSION: "26.5"',
       'APP_STORE_LD_VERSION: "1267.0"',
-      "maxim-lobanov/setup-xcode@v1",
+      "maxim-lobanov/setup-xcode@",
       "xcode-version: ${{ env.APP_STORE_XCODE_VERSION }}",
       "bash packages/apple/scripts/verify-app-store-xcframework.sh",
       "runs-on: xcode-27",
@@ -6094,11 +6106,17 @@ function checkFrameworkDependencyHygiene() {
       "CLANG_ENABLE_CODE_COVERAGE=NO",
       "ENABLE_CODE_COVERAGE=NO",
       "SWIFT_ENABLE_CODE_COVERAGE=NO",
-      'android:value="$(GODOT_VERSION).stable"',
+      "scripts/fetch-godot-lib.sh",
+      '"$(GODOT_VERSION)-stable"',
       "describe --tags --exact-match",
       "expected $(SWIFT_GODOT_VERSION)",
     ],
-    "Godot release framework builds must disable code-coverage instrumentation",
+    "Godot local builds must use pinned dependencies and disable code coverage",
+  );
+  expectNotIncludes(
+    "libraries/godot-iap/Makefile",
+    ["GODOT_LIB_URL", "curl -fL"],
+    "Godot local builds must not bypass the checksum-pinned downloader",
   );
   for (const godotWorkflow of [
     ".github/workflows/ci-godot-iap.yml",
@@ -6109,10 +6127,11 @@ function checkFrameworkDependencyHygiene() {
       [
         "Verify tracked iOS framework toolchain",
         "bash scripts/verify-ios-toolchain.sh",
-        "godot-lib.4.3.stable.template_release.aar",
-        "godot-lib.4.7.1.stable.template_release.aar",
+        "scripts/fetch-godot-lib.sh",
+        "4.3-stable android/libs/godot-lib.aar",
+        "4.7.1-stable android/libs/godot-lib.aar",
       ],
-      `${godotWorkflow} must validate tracked iOS framework toolchain provenance`,
+      `${godotWorkflow} must validate iOS toolchain provenance and checksum-pinned Android inputs`,
     );
   }
   expectIncludes(
@@ -6439,12 +6458,18 @@ function checkFrameworkDependencyHygiene() {
       "resolveOpenIapApplePackageVersion",
       "openiap-versions.json",
       "openIapApplePackageVersion",
+      "exact: openIapApplePackageVersion",
     ],
     "KMP native bridge OpenIAP Apple dependency version",
   );
   expectNotIncludes(
     "libraries/kmp-iap/native/InAppPurchaseBridge/Package.swift",
-    ['from: "1.2.5"', 'return "2.1.9"', "Version(2, 1, 9)"],
+    [
+      'from: "1.2.5"',
+      "from: openIapApplePackageVersion",
+      'return "2.1.9"',
+      "Version(2, 1, 9)",
+    ],
     "KMP native bridge OpenIAP Apple dependency version",
   );
   expectIncludes(
@@ -7382,8 +7407,8 @@ function checkFrameworkDependencyHygiene() {
     );
     for (const vegaDependencyFile of [
       "libraries/expo-iap/plugin/src/withVega.ts",
-      "libraries/expo-iap/example/scripts/build-vega-example.mjs",
-      "libraries/react-native-iap/example/scripts/build-vega-example.mjs",
+      "libraries/expo-iap/example/vega/package.json",
+      "libraries/react-native-iap/example/vega/package.json",
     ]) {
       expectIncludes(
         vegaDependencyFile,
@@ -7758,9 +7783,9 @@ function checkFrameworkDependencyHygiene() {
       /git add libraries\/godot-iap\/addons\/godot-iap\/android\/GodotIap\.gdap/g,
     ) ?? []
   ).length;
-  if (godotGdapStageCount < 2) {
+  if (godotGdapStageCount !== 1) {
     fail(
-      "Google release workflow must stage the Godot Android dependency pin before commit and after rebase conflict recovery",
+      "Google release workflow must stage the Godot Android dependency pin exactly once on the verified head",
     );
   }
   expectIncludes(
@@ -8883,7 +8908,7 @@ function checkXcode27StoreKitCoverage() {
       "apple-cocoapods:",
       "runs-on: macos-15",
       "XCODE_VERSION: 16.4",
-      "maxim-lobanov/setup-xcode@v1",
+      "maxim-lobanov/setup-xcode@",
       "xcode-version: ${{ env.XCODE_VERSION }}",
     ],
     "Flutter Apple dependency-manager trigger and toolchain coverage",

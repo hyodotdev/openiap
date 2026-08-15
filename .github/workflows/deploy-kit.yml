@@ -14,6 +14,7 @@ on:
       # MCP-server change must redeploy kit or it never ships (issue #287).
       - "packages/mcp-server/**"
       - ".github/workflows/deploy-kit.yml"
+      - "scripts/install-security-tool.sh"
       - "bun.lock"
       - "package.json"
   pull_request:
@@ -22,9 +23,13 @@ on:
       - "packages/mcp-server/**"
       - "codecov.yml"
       - ".github/workflows/deploy-kit.yml"
+      - "scripts/install-security-tool.sh"
       - "bun.lock"
       - "package.json"
   workflow_dispatch:
+
+permissions:
+  contents: read
 
 jobs:
   verify:
@@ -37,13 +42,13 @@ jobs:
       run:
         working-directory: packages/kit
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           fetch-depth: 0
           persist-credentials: false
 
       - name: Setup Bun
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.3.13
 
@@ -58,6 +63,16 @@ jobs:
             echo "Attempt $attempt failed. Retrying..."
             sleep 5
           done
+
+      - name: Install OSV-Scanner v2.5.0
+        working-directory: ${{ github.workspace }}
+        run: |
+          scripts/install-security-tool.sh osv-scanner "$RUNNER_TEMP/osv-scanner"
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
+
+      - name: Audit dependency vulnerabilities
+        working-directory: ${{ github.workspace }}
+        run: node scripts/audit-security.mjs dependencies
 
       - name: Test production Convex target guard
         run: |
@@ -93,7 +108,7 @@ jobs:
         run: node ../../scripts/assert-lcov-coverage.mjs coverage/lcov.info 48 convex/
 
       - name: Upload Kit coverage
-        uses: codecov/codecov-action@v7
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
         with:
           use_oidc: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
           fail_ci_if_error: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
@@ -130,23 +145,38 @@ jobs:
         run: ./scripts/smoke-server.sh
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v4
+        uses: docker/setup-buildx-action@bb05f3f5519dd87d3ba754cc423b652a5edd6d2c # v4
 
       - name: Docker build (PR-level Dockerfile check)
         # The Deploy job below also builds the Docker image, but only on
         # push-to-main. Building here on PRs catches Dockerfile/Bun-image
         # incompatibilities before merge (see PR #119, where bun 1.3.13
         # changed --filter hoisting and broke the per-package COPY).
-        uses: docker/build-push-action@v7
+        uses: docker/build-push-action@53b7df96c91f9c12dcc8a07bcb9ccacbed38856a # v7
         with:
           context: ${{ github.workspace }}
           file: packages/kit/Dockerfile
+          load: true
           push: false
+          tags: openiap-kit:security-scan
           cache-from: type=gha
           cache-to: type=gha,mode=max
           build-args: |
             VITE_KIT_CONVEX_URL=https://placeholder-build-1.convex.cloud
             IAPKIT_REVISION=${{ github.sha }}
+
+      - name: Install Trivy v0.74.0
+        working-directory: ${{ github.workspace }}
+        run: scripts/install-security-tool.sh trivy "$RUNNER_TEMP/trivy"
+
+      - name: Scan Kit image
+        working-directory: ${{ github.workspace }}
+        run: >-
+          "$RUNNER_TEMP/trivy" image openiap-kit:security-scan
+          --scanners vuln
+          --severity HIGH,CRITICAL
+          --exit-code 1
+          --exit-on-eol 1
 
   deploy:
     name: Deploy Convex + openiap-kit
@@ -156,16 +186,17 @@ jobs:
     concurrency:
       group: deploy-kit-${{ github.ref }}
       cancel-in-progress: false
-    env:
-      KIT_CONVEX_DEPLOY_KEY: ${{ secrets.KIT_CONVEX_DEPLOY_KEY }}
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
       - name: Validate deployment credentials
         env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.KIT_CONVEX_DEPLOY_KEY }}
           FLY_API_TOKEN: ${{ secrets.KIT_FLY_API_TOKEN }}
         run: |
-          if [ -z "$KIT_CONVEX_DEPLOY_KEY" ]; then
+          if [ -z "$CONVEX_DEPLOY_KEY" ]; then
             echo "::error::KIT_CONVEX_DEPLOY_KEY secret not set."
             exit 1
           fi
@@ -175,23 +206,24 @@ jobs:
           fi
 
       - name: Setup Bun (for Convex deploy)
-        uses: oven-sh/setup-bun@v2
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
         with:
           bun-version: 1.3.13
 
-      - name: Deploy Convex functions
-        working-directory: packages/kit
-        env:
-          CONVEX_DEPLOY_KEY: ${{ env.KIT_CONVEX_DEPLOY_KEY }}
+      - name: Install Kit dependencies
         run: |
-          # Install only Kit's workspace dependencies. Convex goes first because
-          # its additive API remains compatible with the currently running Fly app.
           for attempt in 1 2 3; do
-            (cd "$GITHUB_WORKSPACE" && bun install --frozen-lockfile --filter @hyodotdev/openiap-kit) && break
+            bun install --frozen-lockfile --filter @hyodotdev/openiap-kit && break
             [ "$attempt" -eq 3 ] && exit 1
             echo "Attempt $attempt failed. Retrying..."
             sleep 5
           done
+
+      - name: Deploy Convex functions
+        working-directory: packages/kit
+        env:
+          CONVEX_DEPLOY_KEY: ${{ secrets.KIT_CONVEX_DEPLOY_KEY }}
+        run: |
           # Convex resolves the canonical URL for the deployment selected by
           # CONVEX_DEPLOY_KEY. Abort before pushing functions if it does not
           # match the committed production SSOT, then pass that same resolved
@@ -204,7 +236,7 @@ jobs:
         # Pinned to the `1.6` release rather than `@master` so the action
         # can't silently change under us (supply-chain risk — a future
         # compromise of `master` shouldn't wedge our deploy).
-        uses: superfly/flyctl-actions/setup-flyctl@1.6
+        uses: superfly/flyctl-actions/setup-flyctl@ed8efb33836e8b2096c7fd3ba1c8afe303ebbff1 # 1.6
 
       - name: Deploy
         # Deploy from the monorepo root so the Docker build context has

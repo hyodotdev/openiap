@@ -14,6 +14,8 @@ module.exports = {
     '^@/(.*)$': '<rootDir>/app/$1',
     '^../../src$': '<rootDir>/../src',
     '^expo-iap$': '<rootDir>/../src/index',
+    // Match the Node resolution used by Expo's Xcode config plugin.
+    '^uuid$': require.resolve('uuid'),
   },
   setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
   collectCoverageFrom: ['app/**/*.{ts,tsx}', '!app/**/*.d.ts', '!__tests__/**'],

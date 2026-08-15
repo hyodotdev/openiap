@@ -14,7 +14,7 @@ const RELEASE_ARTIFACTS: Artifact[] = [
   {
     name: 'CycloneDX SBOM',
     answers:
-      'Which direct third-party components this version declares, with versions or constraints, package URLs, suppliers, and licenses where available',
+      'Which direct runtime components and dependency contracts this version declares, including first-party OpenIAP native contracts, with versions or constraints, package URLs, suppliers, and licenses where available',
   },
   {
     name: 'Provenance attestation',
@@ -27,9 +27,9 @@ const RELEASE_ARTIFACTS: Artifact[] = [
       'For npm packages, that the published tarball was built from this repository',
   },
   {
-    name: 'Immutable release tag',
+    name: 'Release tag and commit',
     answers:
-      'Which source commit produced the release, verified at publish time',
+      'Which full source commit the release tag points to, verified at publication and again during later checks',
   },
 ];
 
@@ -45,11 +45,11 @@ const AUTOMATION: Trigger[] = [
   },
   {
     when: 'Merge to main',
-    what: 'A change to the SBOM workflow or generator scans the newest release of every component and dispatches any missing inventory',
+    what: 'A change to the SBOM workflow or generator scans the newest stable release of every component and dispatches any missing inventory',
   },
   {
     when: 'A release is published',
-    what: 'The release workflow dispatches SBOM generation for its tag. The SBOM job verifies the identity, signs provenance, and attaches the immutable asset',
+    what: 'The release workflow dispatches SBOM generation for its tag. The SBOM job verifies the identity, attests the inventory, attaches it, then downloads and verifies the published asset again',
   },
   {
     when: 'Daily',
@@ -70,12 +70,11 @@ const POSTURE_LAYERS: Layer[] = [
   {
     name: 'Dependabot',
     question:
-      'are the dependencies we use current and free of known vulnerabilities?',
+      'which dependencies does GitHub report as outdated or vulnerable in the monitored and submitted graphs?',
   },
   {
     name: 'SBOM',
-    question:
-      'what direct dependency contract did each current published version declare?',
+    question: 'what dependency contract did each published version declare?',
   },
   {
     name: 'OpenSSF Scorecard',
@@ -152,26 +151,26 @@ function SecurityOverview() {
           Dependency posture
         </AnchorLink>
         <p>
-          The published JavaScript SDKs declare{' '}
-          <strong>no runtime dependencies</strong>. Installing{' '}
-          <code>react-native-iap</code>, <code>expo-iap</code>, or{' '}
-          <code>openiap-conformance</code> adds no third-party runtime code to
-          your app. React, React Native, and Expo are peer dependencies your
-          application already owns and versions.
+          The published JavaScript package manifests declare{' '}
+          <strong>no npm runtime dependencies</strong>. React, React Native, and
+          Expo are peer dependencies your application owns and versions. The
+          Expo and React Native release SBOMs separately include the native
+          CocoaPods and Maven contracts resolved by those packages;
+          <code>openiap-conformance</code> has no such native layer.
         </p>
         <p>
           The Apple SDK has no external package dependencies either — it builds
           on StoreKit, which ships with the OS. The native Android, Kotlin
           Multiplatform, .NET MAUI, and Flutter SDKs do depend on platform
           libraries (Play Billing, AndroidX, Kotlin coroutines, and so on);
-          their current release SBOMs enumerate the published direct dependency
+          their release SBOMs enumerate the published direct dependency
           contracts.
         </p>
         <Callout kind="tip" title="Why this matters for your review">
-          A dependency that does not exist cannot be vulnerable. For the
-          JavaScript SDKs, the honest answer to &quot;what is OpenIAP&apos;s
-          transitive dependency risk?&quot; is: none at runtime — and the SBOM
-          is the evidence, not the claim.
+          The npm manifests do not add an npm runtime dependency tree, while
+          native framework contracts still need review. The aggregate release
+          SBOM makes that boundary visible instead of treating package-manager
+          metadata as the whole shipped artifact.
         </Callout>
       </section>
 
@@ -214,8 +213,9 @@ function SecurityOverview() {
           When each thing runs
         </AnchorLink>
         <p>
-          All of it is automated. Nothing in this section requires a maintainer
-          to remember a step.
+          The repeatable CI, release, inventory, and scheduled scan controls are
+          automated. Vulnerability reports still require maintainer triage,
+          remediation, and communication.
         </p>
         <DataTable
           rows={AUTOMATION}
@@ -239,25 +239,26 @@ function SecurityOverview() {
           How dependencies are monitored
         </AnchorLink>
         <p>
-          Dependabot watches IAPKit&apos;s dependency tree, the GitHub Actions
-          used in release workflows, and the IAPKit container image. The three
-          published npm packages have no runtime dependency tree to watch.
+          OpenIAP submits all six Bun lock graphs as exact dependency snapshots
+          for repository vulnerability monitoring. React Native&apos;s Yarn
+          graph remains covered by GitHub&apos;s native lockfile support and the
+          independent OSV scan. Dependabot version-update pull requests stay
+          focused on IAPKit, GitHub Actions, and the IAPKit container image.
         </p>
         <p>
           Native SDK platform dependencies are pinned deliberately — several
           carry inline notes explaining why a newer version is not yet
           compatible with the supported toolchain range. They are reviewed as
           part of platform upgrade work rather than bumped automatically, and
-          each current release&apos;s SBOM records its published direct
+          each published release&apos;s SBOM records its published direct
           dependency contract. A toolchain resolver export can add transitive
           entries when needed.
         </p>
         <Callout kind="warning" title="Why the SBOM is not redundant here">
-          GitHub&apos;s dependency-graph SBOM endpoint currently returns HTTP
-          404 for this repository, so it cannot serve as an independent
-          inventory. Dependabot&apos;s version updates still work because they
-          read manifests directly. The release SBOMs provide the
-          component-specific inventory here.
+          GitHub does not parse Bun lockfiles natively. OpenIAP submits their
+          exact resolved graphs after validation, while release SBOMs remain the
+          component-specific record of what a published version declares.
+          Neither view replaces the other.
         </Callout>
       </section>
 

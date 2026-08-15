@@ -192,15 +192,13 @@ describe("generated sync manifest", () => {
     const parityIndex = normalizedParityJob.indexOf(
       "node scripts/audit-non-godot-parity.mjs",
     );
-    const setupIndex = normalizedParityJob.indexOf(
-      "uses: oven-sh/setup-bun@v2",
-    );
+    const setupIndex = normalizedParityJob.indexOf("uses: oven-sh/setup-bun@");
     const installIndex = normalizedParityJob.indexOf(
       "bun install --frozen-lockfile --filter @hyodotdev/openiap --filter @hyodotdev/openiap-gql",
     );
 
     expect(syncIndex).toBeGreaterThanOrEqual(0);
-    expect(parityJob).toContain("uses: oven-sh/setup-bun@v2");
+    expect(parityJob).toContain("uses: oven-sh/setup-bun@");
     expect(parityJob).toContain("bun-version: 1.3.13");
     expect(setupIndex).toBeGreaterThanOrEqual(0);
     expect(installIndex).toBeGreaterThanOrEqual(0);

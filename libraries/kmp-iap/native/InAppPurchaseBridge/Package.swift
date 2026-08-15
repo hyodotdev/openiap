@@ -45,7 +45,7 @@ let package = Package(
             targets: ["InAppPurchaseBridge"]),
     ],
     dependencies: [
-        .package(url: "https://github.com/hyodotdev/openiap.git", from: openIapApplePackageVersion)
+        .package(url: "https://github.com/hyodotdev/openiap.git", exact: openIapApplePackageVersion)
     ],
     targets: [
         .target(

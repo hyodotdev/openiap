@@ -18,16 +18,17 @@ repository should be read as a claim of certified or guaranteed compliance.
 The practices below are designed to support OpenIAP's software-supply-chain
 security and its preparation for applicable CRA requirements.
 
-### Roles the CRA defines
+### Relevant classifications
 
-Three roles carry different obligations. The distinction matters because it
-decides whether the reporting duties below are mandatory or voluntary.
+The CRA defines manufacturer and open-source steward roles; other contributors
+may meet neither definition. The distinction matters because it decides whether
+the reporting duties below are mandatory or voluntary.
 
-| Role                    | Who it covers                                                                                                                                 |
-| ----------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| **Manufacturer**        | Places a product with digital elements on the EU market under its own name, commercially                                                      |
-| **Open-source steward** | A **legal person** that systematically provides sustained support for FOSS intended for commercial activities, without directly monetising it |
-| **Neither**             | Individual maintainers and unincorporated projects — they lack legal personhood and fall outside the steward definition                       |
+| Role                    | Who it covers                                                                                                                                                                                |
+| ----------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Manufacturer**        | A natural or legal person that develops or manufactures a product with digital elements and markets it under its own name or trademark, whether for payment, monetisation, or free of charge |
+| **Open-source steward** | A **legal person other than a manufacturer** that systematically provides sustained support for specific FOSS intended for commercial activities and ensures its viability                   |
+| **Other contributor**   | A person or project that does not meet either definition; an individual cannot be a steward but may still be a manufacturer depending on how a product is marketed                           |
 
 Two consequences follow for this repository as it stands today:
 
@@ -38,16 +39,17 @@ Two consequences follow for this repository as it stands today:
 - `packages/kit` is operated as a hosted service and is a separate question
   from the distributed SDKs. It is not covered by the SDK analysis here.
 
-Article 64(10) exempts open-source software stewards from the administrative
-fines set out in Article 64(3) to (9). That is a scoped exemption, not a
-blanket one — other provisions, including Article 64(2), and the obligations
-Article 24(3) applies to stewards, are outside it. Treat the precise liability
-position as a question for legal advice rather than something this repository
-settles.
+Following the 2 July 2025 corrigendum, Article 64(10) exempts open-source
+software stewards from the administrative fines set out in Article 64(2) to
+(9). This does not remove the steward obligations in Article 24 or settle other
+forms of liability. Treat the precise liability position as a question for
+legal advice rather than something this repository settles.
 
-Separately, stewards must never issue compliance attestations or warranties on
-behalf of downstream manufacturers — that would improperly move legal
-responsibility upstream. OpenIAP issues no such attestation.
+Recital 19 says stewards must not affix CE marking to products whose
+development they support. Article 25 separately empowers the Commission to
+establish voluntary FOSS security-attestation programmes through delegated
+acts. OpenIAP's technical evidence does not replace a downstream manufacturer's
+conformity assessment, CE marking, or warranties.
 
 ## Reporting timeline
 
@@ -57,10 +59,16 @@ national CSIRT and ENISA through ENISA's Single Reporting Platform (SRP).
 
 Each stage starts from a different event, which is easy to get wrong:
 
-| Trigger                                           | Early warning       | Notification        | Final report                                                  |
-| ------------------------------------------------- | ------------------- | ------------------- | ------------------------------------------------------------- |
-| Actively exploited vulnerability                  | 24 h from awareness | 72 h from awareness | 14 days after a corrective or mitigating measure is available |
-| Severe incident affecting operated infrastructure | 24 h from awareness | 72 h from awareness | 1 month after the 72-hour notification                        |
+| Trigger                                                                                   | Early warning       | Notification        | Final report                                                  |
+| ----------------------------------------------------------------------------------------- | ------------------- | ------------------- | ------------------------------------------------------------- |
+| Actively exploited vulnerability                                                          | 24 h from awareness | 72 h from awareness | 14 days after a corrective or mitigating measure is available |
+| Manufacturer: severe incident affecting the security of the product                       | 24 h from awareness | 72 h from awareness | 1 month after the 72-hour notification                        |
+| Steward: severe incident affecting systems it provides for the product's FOSS development | 24 h from awareness | 72 h from awareness | 1 month after the 72-hour notification                        |
+
+For a steward, Article 24(3) applies the vulnerability and incident reporting
+duties only to the extent that the steward is involved in developing the
+product. Its incident duty is further limited to the network and information
+systems it provides for that development.
 
 Only the first two clocks run from **becoming aware**. The final report for a
 vulnerability runs from the availability of a fix or mitigation, and the final
@@ -85,6 +93,7 @@ sources are:
 | Source                                                                                                         | What it provides                                             |
 | -------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------ |
 | [Regulation (EU) 2024/2847](https://eur-lex.europa.eu/eli/reg/2024/2847/oj)                                    | The regulation itself, including Articles 14, 15, 24, and 64 |
+| [2 July 2025 corrigendum](https://eur-lex.europa.eu/eli/reg/2024/2847/corrigendum/2025-07-02/oj)               | Corrected Article 64(10) to cover paragraphs 2 to 9          |
 | [European Commission — CRA implementation](https://digital-strategy.ec.europa.eu/en/policies/cra-summary)      | Official summary and implementation guidance                 |
 | [European Commission — CRA and open source](https://digital-strategy.ec.europa.eu/en/policies/cra-open-source) | Open-source-specific position                                |
 | [OpenSSF CRA Stewards Playbook](https://policy.openssf.org/CRA/stewards-playbook.html)                         | Practical checklist behind the obligations described here    |
@@ -103,10 +112,11 @@ product contains.
 **How OpenIAP does this:** each current component release workflow creates the
 GitHub Release, then dispatches `sbom.yml` because a release created with
 `GITHUB_TOKEN` does not trigger another workflow. The SBOM workflow generates
-and uploads the CycloneDX 1.6 asset; a daily scan repairs missed latest-release
-assets. Generation records the release and generator commits, and the core
-dependency inventory is reproducible from those inputs. Registry-sourced
-license and supplier metadata is point-in-time enrichment.
+and uploads the CycloneDX 1.6 asset; a daily scan repairs missed latest stable
+release assets. Prereleases rely on their release-time dispatch and are not
+backfilled by the daily scan. Generation records the release and generator
+commits, and the core dependency inventory is reproducible from those inputs.
+Registry-sourced license and supplier metadata is point-in-time enrichment.
 
 See [SBOM.md](SBOM.md). Practical constraint: transitive closure is complete
 only where an ecosystem resolver export is supplied; direct runtime
@@ -117,11 +127,14 @@ dependencies are always present.
 **Expectation:** have a process to receive, assess, and act on vulnerability
 reports.
 
-**How OpenIAP does this:** private reporting and coordinated disclosure are
-defined in the repository-root [`SECURITY.md`](../SECURITY.md), including the
-reporting channel, a 72-hour acknowledgment commitment, and the prioritization
-of receipt-validation and entitlement issues. Dependency vulnerabilities are
-surfaced by Dependabot alerts.
+**How OpenIAP does this:** the end-to-end procedure is defined in
+[`ASSURANCE.md`](ASSURANCE.md), while private reporting and coordinated
+disclosure are defined in the repository-root
+[`SECURITY.md`](../SECURITY.md). Every committed JavaScript lock graph is
+checked for unaccepted advisories in CI, the Bun gate is repeated before IAPKit
+deployment, the Bun graphs are submitted to GitHub for Dependabot monitoring,
+published stable release SBOMs and the Kit source image are rescanned weekly, and CodeQL
+complements the dependency checks with source analysis.
 
 ### 3. Security updates
 
@@ -137,19 +150,20 @@ through the workflows in `.github/workflows/`, and each produces a new SBOM.
 
 **Expectation:** be able to reproduce and evidence how a release was produced.
 
-**How OpenIAP does this** — for each current release carrying an SBOM, these are
-recoverable. Older releases without a backfilled asset retain their immutable
-tag and published descriptors as the evidence source.
+**How OpenIAP does this** — for each published release carrying an SBOM, the
+applicable evidence below is recoverable. Older releases without a backfilled
+asset use their recorded full commit SHA, tag as verified at investigation time,
+and published descriptors as the evidence source.
 
-| Question                                 | Where the answer is                                                                                                                      |
-| ---------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
-| What source produced this release?       | Immutable release tag; `scripts/assert-release-tag.mjs` enforces that the tag matches the published version and is reachable from `main` |
-| What direct dependencies did it declare? | The `.cdx.json` SBOM asset on that release                                                                                               |
-| Which SBOM version corresponds to it?    | SBOM filename and `metadata.component.version`; the workflow refuses to upload on a mismatch                                             |
-| Which workflow generated it?             | The provenance attestation on the SBOM, verifiable with `gh attestation verify`                                                          |
-| Which commit was it built from?          | `openiap:release:commit` property inside the SBOM, and the attestation subject                                                           |
-| Which generator revision was used?       | `openiap:generator:commit` property on the SBOM generator component                                                                      |
-| Was the npm artifact itself built by us? | npm provenance (`npm publish --provenance`), checked at release time by `scripts/verify-npm-release-provenance.mjs`                      |
+| Question                                 | Where the answer is                                                                                                                                                 |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| What source identifies this release?     | Full commit SHA plus a tag that `scripts/assert-release-tag.mjs` verifies against the published version and its release branch (`main` stable, `next` prerelease) at check time |
+| What direct dependencies did it declare? | The `.cdx.json` SBOM asset on that release                                                                                                                          |
+| Which SBOM version corresponds to it?    | SBOM filename and `metadata.component.version`; the workflow refuses to upload on a mismatch                                                                        |
+| Which workflow generated the SBOM?       | The provenance attestation whose subject is the SBOM file digest, verifiable with `gh attestation verify`                                                           |
+| Which release commit does it describe?   | The `openiap:release:commit` property inside the SBOM, checked against the release tag at publication and verification time                                         |
+| Which generator revision was used?       | The `openiap:generator:commit` property and the attestation's resolved dependency for the generator                                                                 |
+| Was the npm artifact itself built by us? | npm provenance (`npm publish --provenance`), checked by `scripts/verify-npm-release-provenance.mjs`; `openiap-conformance@1.0.0` is the documented legacy exception |
 
 ## Deliberate boundaries
 

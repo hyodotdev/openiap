@@ -651,7 +651,7 @@ public final class ExpoIapOnsideModule: Module {
         }
     }
 
-    private func resolveSku(from request: RequestPurchaseProps) throws -> String {
+    nonisolated private func resolveSku(from request: RequestPurchaseProps) throws -> String {
         let sku: String?
         switch (request.type, request.request) {
         case (.inApp, .purchase(let platforms)):

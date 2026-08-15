@@ -6,7 +6,7 @@ name: "Security: SBOM"
 #
 # Release workflows dispatch this workflow explicitly because releases created
 # with GITHUB_TOKEN do not emit another workflow run. A scheduled scan repairs
-# any missed dispatch for the newest release of each component.
+# newest-stable misses and exact legacy assets approved by the repair SSOT.
 
 on:
   push:
@@ -33,7 +33,7 @@ permissions:
 
 jobs:
   backfill:
-    name: Dispatch missing current SBOMs
+    name: Dispatch stable SBOM repairs
     if: github.event_name == 'push' || github.event_name == 'schedule'
     runs-on: ubuntu-latest
     permissions:
@@ -41,9 +41,14 @@ jobs:
       contents: read
     steps:
       - name: Checkout default branch
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           persist-credentials: false
+
+      - name: Setup Node
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
+        with:
+          node-version: 24
 
       - name: Find and dispatch missing SBOMs
         env:
@@ -86,7 +91,7 @@ jobs:
           echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
 
       - name: Checkout the released commit
-        uses: actions/checkout@v7
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:
           ref: ${{ steps.tag.outputs.tag }}
           fetch-depth: 0
@@ -94,24 +99,27 @@ jobs:
 
       - name: Take the generator from the default branch
         id: generator
-        # Keep release manifests at the tag while using the current generator.
+        # Keep release manifests at the tag while using the attested workflow revision.
         env:
-          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          GENERATOR_COMMIT: ${{ github.sha }}
         run: |
-          git fetch --no-tags --depth=1 origin "$DEFAULT_BRANCH"
-          GENERATOR_COMMIT=$(git rev-parse FETCH_HEAD)
+          git fetch --no-tags --depth=1 origin "$GENERATOR_COMMIT"
           git checkout "$GENERATOR_COMMIT" -- \
             scripts/generate-sbom.mjs \
             scripts/sbom-dependencies.mjs \
             scripts/release-branch-policy.mjs \
-            scripts/assert-release-tag.mjs
+            scripts/assert-release-tag.mjs \
+            scripts/install-security-tool.sh
           echo "commit=$GENERATOR_COMMIT" >> "$GITHUB_OUTPUT"
-          echo "Generator taken from $DEFAULT_BRANCH at $GENERATOR_COMMIT"
+          echo "Generator pinned to attested workflow commit $GENERATOR_COMMIT"
 
       - name: Setup Node
-        uses: actions/setup-node@v7
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:
-          node-version: 20
+          node-version: 24
+
+      - name: Install CycloneDX CLI v0.33.1
+        run: scripts/install-security-tool.sh cyclonedx "$RUNNER_TEMP/cyclonedx"
 
       - name: Identify the released component
         id: component
@@ -121,6 +129,20 @@ jobs:
         env:
           RELEASE_TAG: ${{ steps.tag.outputs.tag }}
         run: node scripts/generate-sbom.mjs resolve-tag "$RELEASE_TAG"
+
+      - name: Verify release tag provenance
+        if: ${{ steps.component.outputs.matched == 'true' }}
+        env:
+          COMPONENT_ID: ${{ steps.component.outputs.component }}
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+          RELEASE_VERSION: ${{ steps.component.outputs.version }}
+        run: |
+          RELEASE_BRANCH=main
+          case "$RELEASE_VERSION" in
+            *-*) RELEASE_BRANCH=next ;;
+          esac
+          node scripts/assert-release-tag.mjs \
+            "$COMPONENT_ID" "$RELEASE_BRANCH" "$RELEASE_TAG" "$RELEASE_VERSION"
 
       - name: Inspect the existing asset
         id: existing
@@ -152,11 +174,18 @@ jobs:
               -H "Accept: application/octet-stream" > "$EXISTING_FILE"
             node scripts/generate-sbom.mjs verify-file "$EXISTING_FILE" \
               --tag "$RELEASE_TAG" --digest "$ASSET_DIGEST"
+            "$RUNNER_TEMP/cyclonedx" validate \
+              --input-file "$EXISTING_FILE" --input-format json \
+              --input-version v1_6 --fail-on-errors
             CERT_IDENTITY="https://github.com/$GITHUB_REPOSITORY/.github/workflows/sbom.yml@refs/heads/$DEFAULT_BRANCH"
+            ATTESTATION_FILE="$RUNNER_TEMP/$SBOM_NAME.attestation.json"
             gh attestation verify "$EXISTING_FILE" \
               --repo "$GITHUB_REPOSITORY" \
               --cert-identity "$CERT_IDENTITY" \
-              --deny-self-hosted-runners
+              --deny-self-hosted-runners --format json > "$ATTESTATION_FILE"
+            node scripts/generate-sbom.mjs verify-attested-generator \
+              "$EXISTING_FILE" "$ATTESTATION_FILE" \
+              --repository "$GITHUB_REPOSITORY" --branch "$DEFAULT_BRANCH"
             if [ -n "$REPAIR_DIGEST" ] && [ -n "$STAGED_ASSET" ]; then
               STAGED_ASSET_ID=$(jq -r '.id' <<< "$STAGED_ASSET")
               gh api --method DELETE \
@@ -221,10 +250,13 @@ jobs:
           node scripts/generate-sbom.mjs verify-file "$SBOM_FILE" \
             --tag "$RELEASE_TAG" \
             --generator-commit "$EXPECTED_GENERATOR_COMMIT"
+          "$RUNNER_TEMP/cyclonedx" validate \
+            --input-file "$SBOM_FILE" --input-format json \
+            --input-version v1_6 --fail-on-errors
 
       - name: Attest SBOM provenance
         if: ${{ steps.component.outputs.matched == 'true' && steps.existing.outputs.exists == 'false' }}
-        uses: actions/attest-build-provenance@v4
+        uses: actions/attest-build-provenance@4d101475d8b20a2381f78447822ac1eab6504dd8 # v4
         with:
           subject-path: ${{ steps.generate.outputs.sbom-file }}
 
@@ -320,6 +352,65 @@ jobs:
           gh api --method DELETE \
             "repos/$GITHUB_REPOSITORY/releases/assets/$CANONICAL_ASSET_ID"
           finalize_staged_asset
+
+      - name: Verify the published SBOM
+        if: ${{ steps.component.outputs.matched == 'true' && steps.existing.outputs.exists == 'false' }}
+        env:
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          EXPECTED_GENERATOR_COMMIT: ${{ steps.generator.outputs.commit }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: ${{ steps.tag.outputs.tag }}
+          SBOM_NAME: ${{ steps.component.outputs.sbom-name }}
+        run: |
+          RELEASE_JSON=$(gh api \
+            "repos/$GITHUB_REPOSITORY/releases/tags/$RELEASE_TAG")
+          ASSET_COUNT=$(jq --arg name "$SBOM_NAME" \
+            '[.assets[] | select(.name == $name)] | length' \
+            <<< "$RELEASE_JSON")
+          if [ "$ASSET_COUNT" -ne 1 ]; then
+            echo "::error::Expected exactly one published $SBOM_NAME asset, found $ASSET_COUNT."
+            exit 1
+          fi
+          ASSET=$(jq -c --arg name "$SBOM_NAME" \
+            '[.assets[] | select(.name == $name)][0]' \
+            <<< "$RELEASE_JSON")
+          ASSET_ID=$(jq -r '.id' <<< "$ASSET")
+          ASSET_DIGEST=$(jq -r '.digest // ""' <<< "$ASSET")
+          if [ -z "$ASSET_DIGEST" ]; then
+            echo "::error::GitHub did not report a digest for $SBOM_NAME."
+            exit 1
+          fi
+
+          PUBLISHED_FILE="$RUNNER_TEMP/$SBOM_NAME"
+          gh api "repos/$GITHUB_REPOSITORY/releases/assets/$ASSET_ID" \
+            -H "Accept: application/octet-stream" > "$PUBLISHED_FILE"
+          node scripts/generate-sbom.mjs verify-file "$PUBLISHED_FILE" \
+            --tag "$RELEASE_TAG" \
+            --digest "$ASSET_DIGEST" \
+            --generator-commit "$EXPECTED_GENERATOR_COMMIT"
+          "$RUNNER_TEMP/cyclonedx" validate \
+            --input-file "$PUBLISHED_FILE" --input-format json \
+            --input-version v1_6 --fail-on-errors
+
+          CERT_IDENTITY="https://github.com/$GITHUB_REPOSITORY/.github/workflows/sbom.yml@refs/heads/$DEFAULT_BRANCH"
+          ATTESTATION_FILE="$RUNNER_TEMP/$SBOM_NAME.attestation.json"
+          for attempt in {1..12}; do
+            if gh attestation verify "$PUBLISHED_FILE" \
+              --repo "$GITHUB_REPOSITORY" \
+              --cert-identity "$CERT_IDENTITY" \
+              --deny-self-hosted-runners --format json > "$ATTESTATION_FILE"; then
+              node scripts/generate-sbom.mjs verify-attested-generator \
+                "$PUBLISHED_FILE" "$ATTESTATION_FILE" \
+                --repository "$GITHUB_REPOSITORY" --branch "$DEFAULT_BRANCH"
+              exit 0
+            fi
+            if [ "$attempt" -eq 12 ]; then
+              echo "::error::The published SBOM attestation was not verifiable after the propagation window."
+              exit 1
+            fi
+            echo "::notice::The SBOM attestation is still propagating; retrying in 10 seconds."
+            sleep 10
+          done
 
       - name: Report a skipped tag
         if: ${{ steps.component.outputs.matched != 'true' }}

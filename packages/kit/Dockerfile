@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1.7
 
-FROM oven/bun:1.3.14-slim AS base
+FROM oven/bun:1.3.14-slim@sha256:d56a2534ffd262e92c12fd3249d3924d296d97086da773f821d7d0477435ea04 AS base
 
 # Build context is the monorepo root (see deploy-kit.yml + scripts/deploy-prod.sh).
 # This is required because the workspace lockfile lives at the root, not under
@@ -33,7 +33,7 @@ COPY --from=deps /app/node_modules ./node_modules
 COPY package.json bun.lock ./
 COPY packages/kit ./packages/kit
 COPY packages/mcp-server ./packages/mcp-server
-# bun 1.3.13 + workspaces installs some deps under each package's
+# Bun workspaces install some deps under each package's
 # local node_modules (e.g. `vite`, `@vitejs/plugin-react`) instead of
 # fully hoisting. Pull kit's local node_modules from the deps stage
 # AFTER the source COPY so it isn't clobbered. Without this the
@@ -67,7 +67,7 @@ RUN --mount=type=secret,id=VITE_KIT_MIXPANEL_TOKEN,required=false \
     bun run build:all
 
 # --- Runtime image (single binary + static assets) -----------------------
-FROM debian:bookworm-slim AS runtime
+FROM gcr.io/distroless/base-debian12:nonroot@sha256:b12529fbbd0bb15eea8905f69d83148679e0b4d7d434c8808100792029b1caae AS runtime
 WORKDIR /srv
 
 ARG IAPKIT_REVISION=unknown
@@ -75,11 +75,8 @@ LABEL org.opencontainers.image.title="IAPKit" \
       org.opencontainers.image.source="https://github.com/hyodotdev/openiap" \
       org.opencontainers.image.revision="${IAPKIT_REVISION}"
 
-RUN addgroup --system --gid 1001 openiap && \
-    adduser --system --uid 1001 --ingroup openiap openiap
-
-COPY --from=builder --chown=openiap:openiap /app/packages/kit/openiap-kit-server ./openiap-kit-server
-COPY --from=builder --chown=openiap:openiap /app/packages/kit/dist ./public
+COPY --from=builder --chown=65532:65532 /app/packages/kit/openiap-kit-server ./openiap-kit-server
+COPY --from=builder --chown=65532:65532 /app/packages/kit/dist ./public
 
 ENV STATIC_ROOT=/srv/public
 ENV PORT=3000
@@ -88,5 +85,5 @@ ENV APP_ENV=production
 ENV IAPKIT_REVISION=${IAPKIT_REVISION}
 EXPOSE 3000/tcp
 
-USER openiap
+USER 65532:65532
 ENTRYPOINT ["./openiap-kit-server"]

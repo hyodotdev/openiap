@@ -1,0 +1,33 @@
+{
+  "name": "rniapvegaexample",
+  "version": "0.0.1",
+  "private": true,
+  "scripts": {
+    "build:vega": "react-native build-vega --build-type Debug --reset-cache"
+  },
+  "dependencies": {
+    "@amazon-devices/keplerscript-appstore-iap-lib": "~2.13.0",
+    "@amazon-devices/react-native-kepler": "^2.0.0",
+    "react": "18.2.0",
+    "react-native": "0.72.0"
+  },
+  "devDependencies": {
+    "@amazon-devices/kepler-cli-platform": "~0.22.0",
+    "@react-native-community/cli": "11.4.1",
+    "@react-native/metro-config": "^0.72.6",
+    "@react-native/babel-preset": "0.76.9",
+    "typescript": "4.8.4"
+  },
+  "overrides": {
+    "@react-native-community/cli": "11.4.1",
+    "fast-xml-parser": "5.7.0",
+    "lodash": "4.18.1",
+    "uuid": "11.1.1"
+  },
+  "kepler": {
+    "projectType": "application",
+    "appName": "RNIapVegaExample",
+    "targets": ["tv"],
+    "os": ["vega"]
+  }
+}

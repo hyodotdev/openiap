@@ -132,7 +132,7 @@ const LIMITS: Limit[] = [
   {
     title: 'Licenses and suppliers',
     detail:
-      'come from live registries. Unavailable metadata is omitted, and pub.dev and some NuGet packages do not expose a standard value.',
+      'combine reviewed local metadata with point-in-time registry enrichment. Unavailable metadata is omitted, and pub.dev and some NuGet packages do not expose a standard value.',
   },
   {
     title: 'Version constraints',
@@ -142,12 +142,12 @@ const LIMITS: Limit[] = [
   {
     title: 'KMP target scope',
     detail:
-      'uses the published Android Play POM so openiap-google is included. An iOS-only application should use its resolved target graph.',
+      'uses the published canonical/common KMP POM plus exact Apple, Play, Horizon, and Amazon contracts. A single-platform application should use its resolved target graph.',
   },
   {
     title: 'MAUI target scope',
     detail:
-      "is the union of the published nuspec's target-framework groups. Use the consuming application's resolved graph to narrow it to Android, iOS, or Mac Catalyst.",
+      "is the union of the published nuspec's target-framework groups. Grouped dependencies remain optional and platform-labelled; use the consuming application's resolved graph to narrow the aggregate.",
   },
 ];
 
@@ -165,9 +165,11 @@ function SecuritySbom() {
       <h1>Software Bill of Materials</h1>
       <p>
         Current OpenIAP release workflows attach a machine-readable inventory of
-        direct third-party dependencies to each GitHub Release as a{' '}
+        direct runtime components and dependency contracts, including
+        first-party OpenIAP native contracts, to each GitHub Release as a{' '}
         <strong>CycloneDX 1.6 JSON</strong> file. A daily repair job fills
-        missed latest-release assets. Exact application exposure comes from the
+        missed latest-stable-release assets; prereleases rely on their
+        release-time dispatch. Exact application exposure comes from the
         consumer&apos;s resolved dependency graph.
       </p>
 
@@ -241,8 +243,9 @@ gh attestation verify react-native-iap-16.3.0.cdx.json \\
         />
         <Callout kind="tip" title="Reproducible core inventory">
           The SBOM records both the release commit and the exact generator
-          commit, so you can reproduce its dependency inventory. Licenses and
-          suppliers come from live registries and may differ on a later run.
+          commit, so you can reproduce its dependency inventory. Reviewed local
+          metadata remains stable; registry-enriched licenses and suppliers may
+          differ on a later run.
         </Callout>
       </section>
 
@@ -270,16 +273,19 @@ gh attestation verify react-native-iap-16.3.0.cdx.json \\
           </li>
         </ul>
         <p>
-          Deliberately excluded: test and build-only dependencies, and peer
-          dependencies. None of them are present in the artifact you install —
-          listing them would overstate what is actually running in your app.
-          Operating-system frameworks such as StoreKit are not distributed
-          packages and are likewise absent.
+          Deliberately excluded: test and build-only dependencies. Peer
+          dependencies from JavaScript manifests are not counted as bundled npm
+          runtime code, while native CocoaPods and Maven contracts shipped
+          through framework SDKs are listed separately. Operating-system
+          frameworks such as StoreKit are not distributed packages and are
+          likewise absent.
         </p>
         <Callout kind="note" title="Empty is a real answer">
-          The JavaScript SDKs&apos; SBOMs contain no components, because those
-          packages declare no runtime dependencies. That is a property of the
-          artifact, not a gap in the tooling.
+          <code>openiap-conformance</code> has no runtime components. The React
+          Native and Expo npm manifests also have no npm runtime dependencies,
+          but their aggregate release SBOMs include the native contracts they
+          install. An empty inventory is valid only when the complete released
+          artifact has no such dependency layer.
         </Callout>
       </section>
 
@@ -317,12 +323,13 @@ gh attestation verify react-native-iap-16.3.0.cdx.json \\
             { header: 'Standard', cell: (row) => row.standard },
           ]}
         />
-        <Callout kind="note" title="The generator has no dependencies">
+        <Callout kind="note" title="The generator keeps dependencies minimal">
           <code>scripts/generate-sbom.mjs</code> uses only the Node.js standard
-          library — no npm package, no vendored code, no external binary. A tool
-          that reports what you depend on should not quietly add dependencies of
-          its own. It reads published POM and nuspec dependency descriptors,
-          then resolves declared licenses and suppliers from registries.
+          library — no npm package, vendored code, or runtime library — and the
+          Git executable already required by the checkout. It reads published
+          POM and nuspec dependency descriptors, combines reviewed local
+          metadata with registry enrichment, and does not add a package
+          dependency tree of its own.
         </Callout>
       </section>
 

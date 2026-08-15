@@ -38,5 +38,8 @@ describe('iOS module lifecycle', () => {
     expect(module).toMatch(/Task \{ @MainActor \[weak self\] in/);
     expect(module).toMatch(/OnDestroy \{ \[weak self\] in/);
     expect(module).toMatch(/Task \{ @MainActor \[self\] in/);
+    expect(module).toContain(
+      'nonisolated private func resolveSku(from request: RequestPurchaseProps)',
+    );
   });
 });

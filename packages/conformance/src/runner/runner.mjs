@@ -1,6 +1,6 @@
-import { CAPABILITY_STORES, capabilityLevel } from '../spec/generated-spec.mjs';
-import { BEHAVIORS } from '../spec/behaviors.mjs';
-import { SUITE_VERSION, specVersion } from '../spec/version.mjs';
+import { CAPABILITY_STORES, capabilityLevel } from "../spec/generated-spec.mjs";
+import { BEHAVIORS, behaviorById } from "../spec/behaviors.mjs";
+import { SUITE_VERSION, specVersion } from "../spec/version.mjs";
 
 /**
  * Drives an adapter through every behavior and returns a compatibility report.
@@ -13,10 +13,42 @@ import { SUITE_VERSION, specVersion } from '../spec/version.mjs';
 
 /** @typedef {'pass' | 'fail' | 'skip' | 'not-applicable' | 'warn'} Outcome */
 
-const NOT_IMPLEMENTED = Symbol('not-implemented');
+const NOT_IMPLEMENTED = Symbol("not-implemented");
+
+function selectBehaviors(requested) {
+  if (requested === undefined) {
+    return {
+      behaviors: BEHAVIORS,
+      scope: {
+        complete: true,
+        evaluatedBehaviorIds: BEHAVIORS.map((behavior) => behavior.id),
+        totalBehaviorCount: BEHAVIORS.length,
+      },
+    };
+  }
+  if (!Array.isArray(requested))
+    throw new Error("options.behaviors must be an array");
+
+  const ids = requested.map((behavior) => behavior?.id);
+  if (ids.some((id) => typeof id !== "string")) {
+    throw new Error("every selected behavior needs an id");
+  }
+  if (new Set(ids).size !== ids.length) {
+    throw new Error("selected behaviors must not contain duplicate ids");
+  }
+  const behaviors = ids.map(behaviorById);
+  return {
+    behaviors,
+    scope: {
+      complete: behaviors.length === BEHAVIORS.length,
+      evaluatedBehaviorIds: ids,
+      totalBehaviorCount: BEHAVIORS.length,
+    },
+  };
+}
 
 function resolveApplicability(behavior, adapter) {
-  if (!behavior.capability) return { applicable: true, level: 'required' };
+  if (!behavior.capability) return { applicable: true, level: "required" };
 
   let level;
   try {
@@ -24,13 +56,17 @@ function resolveApplicability(behavior, adapter) {
   } catch (error) {
     return {
       applicable: false,
-      level: 'unknown',
+      level: "unknown",
       reason: error instanceof Error ? error.message : String(error),
     };
   }
 
-  if (level === 'unsupported') {
-    return { applicable: false, level, reason: `${adapter.store} does not support ${behavior.capability}` };
+  if (level === "unsupported") {
+    return {
+      applicable: false,
+      level,
+      reason: `${adapter.store} does not support ${behavior.capability}`,
+    };
   }
   return { applicable: true, level };
 }
@@ -39,10 +75,10 @@ async function runOne(behavior, adapter) {
   const { applicable, level, reason } = resolveApplicability(behavior, adapter);
   const check = adapter.behaviors?.[behavior.id];
 
-  if (level === 'unknown') {
+  if (level === "unknown") {
     return {
       id: behavior.id,
-      outcome: behavior.level === 'MUST' ? 'fail' : 'warn',
+      outcome: behavior.level === "MUST" ? "fail" : "warn",
       capabilityLevel: level,
       reason,
     };
@@ -53,25 +89,35 @@ async function runOne(behavior, adapter) {
     // provides an absence check, run it; otherwise record not-applicable.
     const absence = adapter.absenceChecks?.[behavior.id];
     if (!absence) {
-      return { id: behavior.id, outcome: 'not-applicable', capabilityLevel: level, reason };
+      return {
+        id: behavior.id,
+        outcome: "not-applicable",
+        capabilityLevel: level,
+        reason,
+      };
     }
     try {
       await absence();
-      return { id: behavior.id, outcome: 'pass', capabilityLevel: level, reason: 'documented absence verified' };
+      return {
+        id: behavior.id,
+        outcome: "pass",
+        capabilityLevel: level,
+        reason: "documented absence verified",
+      };
     } catch (error) {
       return {
         id: behavior.id,
-        outcome: 'fail',
+        outcome: "fail",
         capabilityLevel: level,
         reason: error instanceof Error ? error.message : String(error),
       };
     }
   }
 
-  if (level === 'optional' && !check) {
+  if (level === "optional" && !check) {
     return {
       id: behavior.id,
-      outcome: 'not-applicable',
+      outcome: "not-applicable",
       capabilityLevel: level,
       reason: `${adapter.store} optionally supports ${behavior.capability}`,
     };
@@ -82,35 +128,35 @@ async function runOne(behavior, adapter) {
     // suite ends up reporting compliance it never checked.
     return {
       id: behavior.id,
-      outcome: behavior.level === 'MUST' ? 'fail' : 'warn',
+      outcome: behavior.level === "MUST" ? "fail" : "warn",
       capabilityLevel: level,
-      reason: 'adapter does not implement this behavior',
+      reason: "adapter does not implement this behavior",
     };
   }
 
   try {
     const result = await check();
     if (result === NOT_IMPLEMENTED) {
-      if (level === 'optional') {
+      if (level === "optional") {
         return {
           id: behavior.id,
-          outcome: 'not-applicable',
+          outcome: "not-applicable",
           capabilityLevel: level,
-          reason: 'optional capability not implemented',
+          reason: "optional capability not implemented",
         };
       }
       return {
         id: behavior.id,
-        outcome: behavior.level === 'MUST' ? 'fail' : 'warn',
+        outcome: behavior.level === "MUST" ? "fail" : "warn",
         capabilityLevel: level,
-        reason: 'adapter reported not-implemented',
+        reason: "adapter reported not-implemented",
       };
     }
-    return { id: behavior.id, outcome: 'pass', capabilityLevel: level };
+    return { id: behavior.id, outcome: "pass", capabilityLevel: level };
   } catch (error) {
     return {
       id: behavior.id,
-      outcome: behavior.level === 'MUST' ? 'fail' : 'warn',
+      outcome: behavior.level === "MUST" ? "fail" : "warn",
       capabilityLevel: level,
       reason: error instanceof Error ? error.message : String(error),
     };
@@ -122,25 +168,34 @@ async function runOne(behavior, adapter) {
  * @param {{ behaviors?: ReadonlyArray<object> }} [options]
  */
 export async function runConformance(adapter, options = {}) {
-  if (!adapter?.implementation) throw new Error('adapter.implementation is required');
-  if (!adapter?.store) throw new Error('adapter.store is required');
+  if (!adapter?.implementation)
+    throw new Error("adapter.implementation is required");
+  if (!adapter?.store) throw new Error("adapter.store is required");
   if (!CAPABILITY_STORES.includes(adapter.store)) {
     throw new Error(
-      `adapter.store must be one of: ${CAPABILITY_STORES.join(', ')}; received ${adapter.store}`,
+      `adapter.store must be one of: ${CAPABILITY_STORES.join(", ")}; received ${adapter.store}`,
     );
   }
 
-  const behaviors = options.behaviors ?? BEHAVIORS;
+  const { behaviors, scope } = selectBehaviors(options.behaviors);
   const results = [];
   for (const behavior of behaviors) {
-    results.push({ ...(await runOne(behavior, adapter)), category: behavior.category, level: behavior.level });
+    results.push({
+      ...(await runOne(behavior, adapter)),
+      category: behavior.category,
+      level: behavior.level,
+    });
   }
 
   const counts = results.reduce(
-    (acc, result) => ({ ...acc, [result.outcome]: (acc[result.outcome] ?? 0) + 1 }),
+    (acc, result) => ({
+      ...acc,
+      [result.outcome]: (acc[result.outcome] ?? 0) + 1,
+    }),
     /** @type {Record<Outcome, number>} */ ({}),
   );
 
+  const hasFailures = results.some((result) => result.outcome === "fail");
   return {
     suiteVersion: SUITE_VERSION,
     specVersion: specVersion(),
@@ -148,7 +203,8 @@ export async function runConformance(adapter, options = {}) {
     store: adapter.store,
     results,
     counts,
-    conformant: results.every((result) => result.outcome !== 'fail'),
+    scope,
+    conformant: scope.complete && !hasFailures,
   };
 }
 

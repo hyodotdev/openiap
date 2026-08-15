@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       version:
-        description: 'Version bump type'
+        description: "Version bump type"
         required: true
         type: choice
         options:
@@ -14,7 +14,7 @@ on:
           - current
         default: patch
       prerelease:
-        description: 'Publish as prerelease from next (-rc.1)'
+        description: "Publish as prerelease from next (-rc.1)"
         required: false
         default: false
         type: boolean
@@ -28,54 +28,61 @@ env:
   RELEASE_BRANCH: ${{ github.ref_name }}
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   release-branch:
     name: Validate release branch
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout
-      uses: actions/checkout@v7
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
-    - name: Enforce stable and prerelease branches
-      run: >-
-        node scripts/release-branch-policy.mjs guard google
-        "${{ inputs.version }}" "${{ inputs.prerelease }}"
-        "$GITHUB_REF_NAME"
+      - name: Enforce stable and prerelease branches
+        env:
+          VERSION_TYPE: ${{ inputs.version }}
+          IS_PRERELEASE: ${{ inputs.prerelease }}
+        run: >-
+          node scripts/release-branch-policy.mjs guard google
+          "$VERSION_TYPE" "$IS_PRERELEASE"
+          "$GITHUB_REF_NAME"
 
   validate-android:
     needs: [release-branch]
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-    - name: Checkout
-      uses: actions/checkout@v7
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v5
-      with:
-        java-version: '17'
-        distribution: 'temurin'
+      - name: Set up JDK 17
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          java-version: "17"
+          distribution: "temurin"
 
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v6
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6
 
-    - name: Grant execute permission for gradlew
-      working-directory: packages/google
-      run: chmod +x gradlew
+      - name: Grant execute permission for gradlew
+        working-directory: packages/google
+        run: chmod +x gradlew
 
-    - name: Build
-      working-directory: packages/google
-      run: ./gradlew :openiap:build --no-daemon --stacktrace
+      - name: Build
+        working-directory: packages/google
+        run: ./gradlew :openiap:build --no-daemon --stacktrace
 
-    - name: Test
-      working-directory: packages/google
-      run: ./gradlew :openiap:test --no-daemon --stacktrace
+      - name: Test
+        working-directory: packages/google
+        run: ./gradlew :openiap:test --no-daemon --stacktrace
 
-    - name: Verify Kotlin 2.1 consumer compatibility
-      working-directory: packages/google
-      run: bash scripts/verify-kotlin-2.1-consumer.sh
+      - name: Verify Kotlin 2.1 consumer compatibility
+        working-directory: packages/google
+        run: bash scripts/verify-kotlin-2.1-consumer.sh
 
   release:
     needs: [validate-android]
@@ -85,532 +92,496 @@ jobs:
     runs-on: ubuntu-latest
     env:
       # Central Portal can take 10-30 minutes to finish publishing.
-      ORG_GRADLE_PROJECT_SONATYPE_CLOSE_TIMEOUT_SECONDS: '3600'
+      ORG_GRADLE_PROJECT_SONATYPE_CLOSE_TIMEOUT_SECONDS: "3600"
 
     steps:
-    - name: Checkout
-      uses: actions/checkout@v7
-      with:
-        fetch-depth: 0
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          fetch-depth: 0
+          persist-credentials: false
 
-    - name: Calculate new version
-      id: version
-      env:
-        VERSION_TYPE: ${{ github.event.inputs.version }}
-        IS_PRERELEASE: ${{ github.event.inputs.prerelease }}
-      run: |
-        # Read current google version from openiap-versions.json
-        CURRENT_VERSION=$(jq -r '.google' openiap-versions.json)
-        echo "Current version: $CURRENT_VERSION"
+      - name: Calculate new version
+        id: version
+        env:
+          VERSION_TYPE: ${{ github.event.inputs.version }}
+          IS_PRERELEASE: ${{ github.event.inputs.prerelease }}
+        run: |
+          # Read current google version from openiap-versions.json
+          CURRENT_VERSION=$(jq -r '.google' openiap-versions.json)
+          echo "Current version: $CURRENT_VERSION"
 
-        BASE_VERSION="${CURRENT_VERSION%%-*}"
-        IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
+          BASE_VERSION="${CURRENT_VERSION%%-*}"
+          IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
 
-        if [ "$VERSION_TYPE" = "current" ]; then
-          NEW_VERSION="$CURRENT_VERSION"
-          echo "Using current version (no bump): $NEW_VERSION"
-          echo "skip_version_commit=true" >> $GITHUB_OUTPUT
-        elif [ "$IS_PRERELEASE" = "true" ]; then
-          case "$VERSION_TYPE" in
-            major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
-            minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
-            patch) PATCH=$((PATCH + 1)) ;;
-          esac
-          NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}-rc.1"
-        else
-          # Stable release — if current version is RC, strip prerelease without bumping
-          IS_RC=$(echo "$CURRENT_VERSION" | grep -c '\-rc\.' || true)
-          if [ "$IS_RC" -gt 0 ] && [ "$VERSION_TYPE" = "patch" ]; then
-            NEW_VERSION="${BASE_VERSION}"
-          else
+          if [ "$VERSION_TYPE" = "current" ]; then
+            NEW_VERSION="$CURRENT_VERSION"
+            echo "Using current version (no bump): $NEW_VERSION"
+            echo "skip_version_commit=true" >> $GITHUB_OUTPUT
+          elif [ "$IS_PRERELEASE" = "true" ]; then
             case "$VERSION_TYPE" in
               major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
               minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
               patch) PATCH=$((PATCH + 1)) ;;
             esac
-            NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
-          fi
-        fi
-
-        echo "VERSION=$NEW_VERSION" >> $GITHUB_ENV
-        echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-        if [[ "$NEW_VERSION" == *-* ]]; then
-          echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
-        fi
-
-    - name: Check if tag already exists
-      id: check_tag
-      env:
-        VERSION: ${{ steps.version.outputs.version }}
-        SKIP_VERSION_COMMIT: ${{ steps.version.outputs.skip_version_commit }}
-      run: |
-        if git rev-parse "google-$VERSION" >/dev/null 2>&1; then
-          if [ "$SKIP_VERSION_COMMIT" = "true" ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "⚠️ Tag google-$VERSION already exists. Will reuse existing tag (current mode)."
+            NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}-rc.1"
           else
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "❌ Tag google-$VERSION already exists. Use 'current' to retry with existing version."
-            exit 1
-          fi
-        elif git rev-parse "google-v$VERSION" >/dev/null 2>&1; then
-          if [ "$SKIP_VERSION_COMMIT" = "true" ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "⚠️ Legacy tag google-v$VERSION already exists. Will reuse existing tag (current mode)."
-          else
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "❌ Legacy tag google-v$VERSION already exists. Use 'current' to retry with existing version."
-            exit 1
-          fi
-        else
-          echo "exists=false" >> $GITHUB_OUTPUT
-          echo "✓ Tag google-$VERSION does not exist, proceeding with release"
-        fi
-
-    - name: Checkout release tag (current version)
-      if: steps.version.outputs.skip_version_commit == 'true' && steps.check_tag.outputs.exists == 'true'
-      env:
-        VERSION: ${{ steps.version.outputs.version }}
-      run: |
-        RELEASE_TAG="google-$VERSION"
-        LEGACY_TAG="google-v$VERSION"
-        if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
-          SELECTED_TAG="$RELEASE_TAG"
-        else
-          SELECTED_TAG="$LEGACY_TAG"
-        fi
-        node scripts/assert-release-tag.mjs \
-          google "$RELEASE_BRANCH" "$SELECTED_TAG" "$VERSION"
-        git checkout "$SELECTED_TAG"
-
-    - name: Update version in openiap-versions.json
-      if: steps.version.outputs.skip_version_commit != 'true'
-      env:
-        VERSION: ${{ steps.version.outputs.version }}
-      run: node scripts/release-branch-policy.mjs update-native google "$VERSION"
-
-    - name: Setup Bun
-      if: steps.version.outputs.skip_version_commit != 'true'
-      uses: oven-sh/setup-bun@v2
-      with:
-        bun-version: 1.3.13
-
-    - name: Sync version files
-      if: steps.version.outputs.skip_version_commit != 'true'
-      run: ./scripts/sync-release-generated.sh
-
-    - name: Commit version update
-      if: steps.version.outputs.skip_version_commit != 'true'
-      env:
-        VERSION: ${{ steps.version.outputs.version }}
-      run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-
-        git add openiap-versions.json packages/*/openiap-versions.json
-        git add packages/apple/Sources/OpenIapGeneratedVersion.swift
-        git add packages/docs/src/generated/version-metadata.json
-        git add packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
-        git add libraries/godot-iap/addons/godot-iap/android/GodotIap.gdap
-
-        if git diff --staged --quiet; then
-          echo "No version changes to commit"
-        else
-          git commit -m "chore(release): openiap-google@$VERSION"
-
-          # Push with retry, handling concurrent release conflicts
-          for i in 1 2 3; do
-            # Pull latest changes before pushing
-            if ! git pull --rebase origin "$RELEASE_BRANCH"; then
-              echo "⚠️ Rebase conflict detected, auto-resolving version files..."
-
-              # Auto-resolve version metadata conflicts by applying only our
-              # key on top of upstream. Taking ours wholesale would regress
-              # other packages' versions when a concurrent release landed in
-              # between (race observed 2026-04-24: google bump regressed apple
-              # 2.1.3 → 2.1.2).
-              for conflict_file in $(git diff --name-only --diff-filter=U); do
-                case "$conflict_file" in
-                  openiap-versions.json|packages/*/openiap-versions.json|packages/gql/package.json|packages/docs/package.json|packages/google/package.json|packages/apple/package.json|libraries/godot-iap/addons/godot-iap/android/GodotIap.gdap)
-                    ;;
-                  packages/docs/src/generated/version-metadata.json)
-                    ;;
-                  packages/docs/public/llms.txt|packages/docs/public/llms-full.txt|knowledge/_claude-context/context.md)
-                    ;;
-                  *)
-                    echo "❌ Unexpected conflict in $conflict_file"
-                    exit 1
-                    ;;
-                esac
-              done
-
-              # Re-sync package metadata and docs copy after merge
-              git show HEAD:openiap-versions.json > /tmp/upstream-openiap-versions.json
-              cp /tmp/upstream-openiap-versions.json openiap-versions.json
-              node scripts/release-branch-policy.mjs update-native google "$VERSION"
-              ./scripts/sync-release-generated.sh
-              git add openiap-versions.json packages/*/openiap-versions.json
-              git add packages/apple/Sources/OpenIapGeneratedVersion.swift
-              git add packages/docs/src/generated/version-metadata.json
-              git add packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
-              git add libraries/godot-iap/addons/godot-iap/android/GodotIap.gdap
-
-              GIT_EDITOR=true git rebase --continue || { echo "❌ Rebase continue failed"; exit 1; }
-            fi
-
-            # A clean rebase can combine independent Apple and Google bumps
-            # that both retained the old floor. Re-derive from the rebased
-            # native pair before every push, then amend only if convergence
-            # changed the version commit.
-            node scripts/release-branch-policy.mjs update-native google "$VERSION"
-            ./scripts/sync-release-generated.sh
-            git add openiap-versions.json packages/*/openiap-versions.json
-            git add packages/apple/Sources/OpenIapGeneratedVersion.swift
-            git add packages/docs/src/generated/version-metadata.json
-            git add packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
-            git add libraries/godot-iap/addons/godot-iap/android/GodotIap.gdap
-            if ! git diff --staged --quiet; then
-              git commit --amend --no-edit
-            fi
-            node scripts/release-branch-policy.mjs assert-floor
-
-            if git push origin "HEAD:$RELEASE_BRANCH"; then
-              echo "✅ Successfully pushed version update"
-              break
+            # Stable release — if current version is RC, strip prerelease without bumping
+            IS_RC=$(echo "$CURRENT_VERSION" | grep -c '\-rc\.' || true)
+            if [ "$IS_RC" -gt 0 ] && [ "$VERSION_TYPE" = "patch" ]; then
+              NEW_VERSION="${BASE_VERSION}"
             else
-              if [ $i -lt 3 ]; then
-                echo "⚠️ Push failed, retrying in $((i * 2)) seconds..."
-                sleep $((i * 2))
-              else
-                echo "❌ Failed to push after 3 attempts"
+              case "$VERSION_TYPE" in
+                major) MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0 ;;
+                minor) MINOR=$((MINOR + 1)); PATCH=0 ;;
+                patch) PATCH=$((PATCH + 1)) ;;
+              esac
+              NEW_VERSION="${MAJOR}.${MINOR}.${PATCH}"
+            fi
+          fi
+
+          echo "VERSION=$NEW_VERSION" >> $GITHUB_ENV
+          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
+          if [[ "$NEW_VERSION" == *-* ]]; then
+            echo "is_prerelease=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "is_prerelease=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check if tag already exists
+        id: check_tag
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          SKIP_VERSION_COMMIT: ${{ steps.version.outputs.skip_version_commit }}
+        run: |
+          if git rev-parse "google-$VERSION" >/dev/null 2>&1; then
+            if [ "$SKIP_VERSION_COMMIT" = "true" ]; then
+              echo "exists=true" >> $GITHUB_OUTPUT
+              echo "⚠️ Tag google-$VERSION already exists. Will reuse existing tag (current mode)."
+            else
+              echo "exists=true" >> $GITHUB_OUTPUT
+              echo "❌ Tag google-$VERSION already exists. Use 'current' to retry with existing version."
+              exit 1
+            fi
+          elif git rev-parse "google-v$VERSION" >/dev/null 2>&1; then
+            if [ "$SKIP_VERSION_COMMIT" = "true" ]; then
+              echo "exists=true" >> $GITHUB_OUTPUT
+              echo "⚠️ Legacy tag google-v$VERSION already exists. Will reuse existing tag (current mode)."
+            else
+              echo "exists=true" >> $GITHUB_OUTPUT
+              echo "❌ Legacy tag google-v$VERSION already exists. Use 'current' to retry with existing version."
+              exit 1
+            fi
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "✓ Tag google-$VERSION does not exist, proceeding with release"
+          fi
+
+      - name: Checkout release tag (current version)
+        if: steps.version.outputs.skip_version_commit == 'true' && steps.check_tag.outputs.exists == 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          RELEASE_TAG="google-$VERSION"
+          LEGACY_TAG="google-v$VERSION"
+          if git rev-parse "$RELEASE_TAG" >/dev/null 2>&1; then
+            SELECTED_TAG="$RELEASE_TAG"
+          else
+            SELECTED_TAG="$LEGACY_TAG"
+          fi
+          node scripts/assert-release-tag.mjs \
+            google "$RELEASE_BRANCH" "$SELECTED_TAG" "$VERSION"
+          git checkout "$SELECTED_TAG"
+
+      - name: Check if Horizon flavor already published
+        id: check_horizon
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          ARTIFACT_URL="https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google-horizon/$VERSION/openiap-google-horizon-$VERSION.pom"
+          HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" "$ARTIFACT_URL" || true)
+          HTTP_STATUS="${HTTP_STATUS:-000}"
+          case "$HTTP_STATUS" in
+            200)
+              echo "exists=true" >> $GITHUB_OUTPUT
+              echo "⚠️ openiap-google-horizon $VERSION already exists on Maven Central"
+              ;;
+            404)
+              echo "exists=false" >> $GITHUB_OUTPUT
+              echo "✓ openiap-google-horizon $VERSION does not exist, will publish"
+              ;;
+            *)
+              echo "❌ Unable to verify openiap-google-horizon $VERSION on Maven Central (HTTP $HTTP_STATUS)"
+              exit 1
+              ;;
+          esac
+
+      - name: Check if Fire OS flavor already published
+        id: check_amazon
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          ARTIFACT_URL="https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google-amazon/$VERSION/openiap-google-amazon-$VERSION.pom"
+          HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" "$ARTIFACT_URL" || true)
+          HTTP_STATUS="${HTTP_STATUS:-000}"
+          case "$HTTP_STATUS" in
+            200)
+              echo "exists=true" >> $GITHUB_OUTPUT
+              echo "⚠️ openiap-google-amazon $VERSION already exists on Maven Central"
+              ;;
+            404)
+              echo "exists=false" >> $GITHUB_OUTPUT
+              echo "✓ openiap-google-amazon $VERSION does not exist, will publish"
+              ;;
+            *)
+              echo "❌ Unable to verify openiap-google-amazon $VERSION on Maven Central (HTTP $HTTP_STATUS)"
+              exit 1
+              ;;
+          esac
+
+      - name: Check if Play flavor already published
+        id: check_play
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          ARTIFACT_URL="https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google/$VERSION/openiap-google-$VERSION.pom"
+          HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" "$ARTIFACT_URL" || true)
+          HTTP_STATUS="${HTTP_STATUS:-000}"
+          case "$HTTP_STATUS" in
+            200)
+              echo "exists=true" >> $GITHUB_OUTPUT
+              echo "⚠️ openiap-google $VERSION already exists on Maven Central"
+              ;;
+            404)
+              echo "exists=false" >> $GITHUB_OUTPUT
+              echo "✓ openiap-google $VERSION does not exist, will publish"
+              ;;
+            *)
+              echo "❌ Unable to verify openiap-google $VERSION on Maven Central (HTTP $HTTP_STATUS)"
+              exit 1
+              ;;
+          esac
+
+      - name: Preflight Maven Central publication
+        env:
+          HORIZON_EXISTS: ${{ steps.check_horizon.outputs.exists }}
+          AMAZON_EXISTS: ${{ steps.check_amazon.outputs.exists }}
+          PLAY_EXISTS: ${{ steps.check_play.outputs.exists }}
+          RELEASE_TAG_EXISTS: ${{ steps.check_tag.outputs.exists }}
+          MAVEN_CENTRAL_USERNAME: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          MAVEN_CENTRAL_PASSWORD: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          GPG_KEY_CONTENTS: ${{ secrets.GPG_KEY_CONTENTS }}
+          SIGNING_KEY_ID: ${{ secrets.SIGNING_KEY_ID }}
+          SIGNING_PASSWORD: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          if [ "$RELEASE_TAG_EXISTS" != "true" ] && \
+             { [ "$HORIZON_EXISTS" = "true" ] || \
+               [ "$AMAZON_EXISTS" = "true" ] || \
+               [ "$PLAY_EXISTS" = "true" ]; }; then
+            echo "::error::A Google flavor is already published without a release tag; release a new version instead"
+            exit 1
+          fi
+          if [ "$HORIZON_EXISTS" = "false" ] || \
+             [ "$AMAZON_EXISTS" = "false" ] || \
+             [ "$PLAY_EXISTS" = "false" ]; then
+            for credential in \
+              "$MAVEN_CENTRAL_USERNAME" "$MAVEN_CENTRAL_PASSWORD" \
+              "$GPG_KEY_CONTENTS" "$SIGNING_KEY_ID" "$SIGNING_PASSWORD"; do
+              if [ -z "$credential" ]; then
+                echo "::error::Complete Maven Central and signing credentials are required before creating the release tag"
                 exit 1
               fi
+            done
+          fi
+
+      - name: Update version in openiap-versions.json
+        if: steps.version.outputs.skip_version_commit != 'true'
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+        run: node scripts/release-branch-policy.mjs update-native google "$VERSION"
+
+      - name: Setup Bun
+        if: steps.version.outputs.skip_version_commit != 'true'
+        uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
+        with:
+          bun-version: 1.3.13
+
+      - name: Sync version files
+        if: steps.version.outputs.skip_version_commit != 'true'
+        run: ./scripts/sync-release-generated.sh
+
+      - name: Assert verified release head is unchanged
+        if: inputs.version != 'current' || steps.check_tag.outputs.exists != 'true'
+        run: node scripts/assert-release-head.mjs "$RELEASE_BRANCH" "$GITHUB_SHA"
+
+      - name: Commit version update
+        if: steps.version.outputs.skip_version_commit != 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh auth setup-git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git add openiap-versions.json packages/*/openiap-versions.json
+          git add packages/apple/Sources/OpenIapGeneratedVersion.swift
+          git add packages/docs/src/generated/version-metadata.json
+          git add packages/gql/package.json packages/docs/package.json packages/google/package.json packages/apple/package.json
+          git add libraries/godot-iap/addons/godot-iap/android/GodotIap.gdap
+
+          if git diff --staged --quiet; then
+            echo "No version changes to commit"
+          else
+            git commit -m "chore(release): openiap-google@$VERSION"
+            node scripts/release-branch-policy.mjs assert-floor
+            if ! git push origin "HEAD:$RELEASE_BRANCH"; then
+              echo "::error::Release branch moved after verification; rerun the release workflow"
+              exit 1
             fi
-          done
-        fi
-
-    - name: Set up JDK 17
-      uses: actions/setup-java@v5
-      with:
-        java-version: '17'
-        distribution: 'temurin'
-
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v6
-      with:
-        cache-read-only: true
-
-    - name: Grant execute permission for gradlew
-      working-directory: packages/google
-      run: chmod +x gradlew
-
-    - name: Check if Horizon flavor already published
-      id: check_horizon
-      env:
-        VERSION: ${{ steps.version.outputs.version }}
-      run: |
-        ARTIFACT_URL="https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google-horizon/$VERSION/openiap-google-horizon-$VERSION.pom"
-        HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" "$ARTIFACT_URL" || true)
-        HTTP_STATUS="${HTTP_STATUS:-000}"
-        case "$HTTP_STATUS" in
-          200)
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "⚠️ openiap-google-horizon $VERSION already exists on Maven Central"
-            ;;
-          404)
-            echo "exists=false" >> $GITHUB_OUTPUT
-            echo "✓ openiap-google-horizon $VERSION does not exist, will publish"
-            ;;
-          *)
-            echo "❌ Unable to verify openiap-google-horizon $VERSION on Maven Central (HTTP $HTTP_STATUS)"
-            exit 1
-            ;;
-        esac
-
-    - name: Publish Horizon flavor to Maven Central
-      if: steps.check_horizon.outputs.exists == 'false'
-      working-directory: packages/google
-      env:
-        ORG_GRADLE_PROJECT_openIapVersion: ${{ steps.version.outputs.version }}
-        ORG_GRADLE_PROJECT_OPENIAP_PUBLISH_VARIANT: horizon
-        ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
-        ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
-        ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_KEY_CONTENTS }}
-        ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
-        ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
-      run: |
-        if [ -z "$ORG_GRADLE_PROJECT_mavenCentralUsername" ]; then
-          echo "::error::Maven Central credentials are required to publish the Horizon flavor."
-          exit 1
-        fi
-        ./gradlew :openiap:publishAndReleaseToMavenCentral --no-daemon --no-parallel --stacktrace
-        echo "✅ Published openiap-google-horizon (Horizon flavor) to Maven Central"
-
-    - name: Check if Fire OS flavor already published
-      id: check_amazon
-      env:
-        VERSION: ${{ steps.version.outputs.version }}
-      run: |
-        ARTIFACT_URL="https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google-amazon/$VERSION/openiap-google-amazon-$VERSION.pom"
-        HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" "$ARTIFACT_URL" || true)
-        HTTP_STATUS="${HTTP_STATUS:-000}"
-        case "$HTTP_STATUS" in
-          200)
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "⚠️ openiap-google-amazon $VERSION already exists on Maven Central"
-            ;;
-          404)
-            echo "exists=false" >> $GITHUB_OUTPUT
-            echo "✓ openiap-google-amazon $VERSION does not exist, will publish"
-            ;;
-          *)
-            echo "❌ Unable to verify openiap-google-amazon $VERSION on Maven Central (HTTP $HTTP_STATUS)"
-            exit 1
-            ;;
-        esac
-
-    - name: Publish Fire OS flavor to Maven Central
-      if: steps.check_amazon.outputs.exists == 'false'
-      working-directory: packages/google
-      env:
-        ORG_GRADLE_PROJECT_openIapVersion: ${{ steps.version.outputs.version }}
-        ORG_GRADLE_PROJECT_OPENIAP_PUBLISH_VARIANT: amazon
-        ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
-        ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
-        ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_KEY_CONTENTS }}
-        ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
-        ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
-      run: |
-        if [ -z "$ORG_GRADLE_PROJECT_mavenCentralUsername" ]; then
-          echo "::error::Maven Central credentials are required to publish the Fire OS flavor."
-          exit 1
-        fi
-        ./gradlew :openiap:publishAndReleaseToMavenCentral --no-daemon --no-parallel --stacktrace
-        echo "✅ Published openiap-google-amazon (Fire OS flavor) to Maven Central"
-
-    - name: Check if Play flavor already published
-      id: check_play
-      env:
-        VERSION: ${{ steps.version.outputs.version }}
-      run: |
-        ARTIFACT_URL="https://repo1.maven.org/maven2/io/github/hyochan/openiap/openiap-google/$VERSION/openiap-google-$VERSION.pom"
-        HTTP_STATUS=$(curl -sS -o /dev/null -w "%{http_code}" "$ARTIFACT_URL" || true)
-        HTTP_STATUS="${HTTP_STATUS:-000}"
-        case "$HTTP_STATUS" in
-          200)
-            echo "exists=true" >> $GITHUB_OUTPUT
-            echo "⚠️ openiap-google $VERSION already exists on Maven Central"
-            ;;
-          404)
-            echo "exists=false" >> $GITHUB_OUTPUT
-            echo "✓ openiap-google $VERSION does not exist, will publish"
-            ;;
-          *)
-            echo "❌ Unable to verify openiap-google $VERSION on Maven Central (HTTP $HTTP_STATUS)"
-            exit 1
-            ;;
-        esac
-
-    - name: Publish Play flavor to Maven Central
-      if: steps.check_play.outputs.exists == 'false'
-      working-directory: packages/google
-      env:
-        ORG_GRADLE_PROJECT_openIapVersion: ${{ steps.version.outputs.version }}
-        ORG_GRADLE_PROJECT_OPENIAP_PUBLISH_VARIANT: play
-        ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
-        ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
-        ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_KEY_CONTENTS }}
-        ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
-        ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
-      run: |
-        if [ -z "$ORG_GRADLE_PROJECT_mavenCentralUsername" ]; then
-          echo "::error::Maven Central credentials are required to publish the Play flavor."
-          exit 1
-        fi
-        ./gradlew :openiap:publishAndReleaseToMavenCentral --no-daemon --no-parallel --stacktrace
-        echo "✅ Published openiap-google (Play flavor) to Maven Central"
-
-    - name: Build release artifacts
-      working-directory: packages/google
-      run: ./gradlew :openiap:assembleRelease --no-daemon --stacktrace
-
-    - name: Create release artifacts
-      working-directory: packages/google
-      run: |
-        mkdir -p release-artifacts
-        shopt -s nullglob
-        artifacts=(openiap/build/outputs/aar/*.aar openiap/build/libs/*.jar)
-        if [ ${#artifacts[@]} -eq 0 ]; then
-          echo "::error::No Google release artifacts found"
-          exit 1
-        fi
-        cp "${artifacts[@]}" release-artifacts/
-        (cd release-artifacts && shasum -a 256 * > ../checksums.txt)
-        zip -r release-artifacts.zip release-artifacts/
-
-    - name: Generate release notes
-      id: release_notes
-      env:
-        VERSION: ${{ steps.version.outputs.version }}
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        RELEASE_REF="HEAD"
-        if git rev-parse "google-$VERSION" >/dev/null 2>&1; then
-          RELEASE_REF="google-$VERSION"
-        fi
-
-        PREV_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' 'refs/tags/google-*' | grep -v "$VERSION" | head -n 1)
-
-        if [ -z "$PREV_TAG" ]; then
-          echo "No previous google tag found"
-          CHANGELOG="- Initial release"
-        else
-          echo "Generating changelog from $PREV_TAG to $RELEASE_REF"
-          CHANGELOG=$(git log "$PREV_TAG..$RELEASE_REF" --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- ":(top)packages/google/")
-
-          if [ -z "$CHANGELOG" ]; then
-            CHANGELOG="- No direct code changes in packages/google/."
           fi
-        fi
 
-        # Save changelog to file for multiline handling
-        echo "$CHANGELOG" > /tmp/changelog.txt
+      - name: Set up JDK 17
+        uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          java-version: "17"
+          distribution: "temurin"
 
-        # Create release notes
-        cat > /tmp/release-notes.md <<EOF
-        ## OpenIAP Google $VERSION
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6
+        with:
+          cache-read-only: true
 
-        Native Android library for the OpenIAP specification (Play + Horizon + Fire OS flavors).
+      - name: Grant execute permission for gradlew
+        working-directory: packages/google
+        run: chmod +x gradlew
 
-        ### What's Changed
+      - name: Build release artifacts
+        working-directory: packages/google
+        run: ./gradlew :openiap:assembleRelease --no-daemon --stacktrace
 
-        $CHANGELOG
-
-        ### Installation
-
-        #### Google Play Store (Play flavor)
-
-        **Gradle (Kotlin DSL):**
-
-        \`\`\`kotlin
-        dependencies {
-            implementation("io.github.hyochan.openiap:openiap-google:$VERSION")
-        }
-        \`\`\`
-
-        **Gradle (Groovy):**
-
-        \`\`\`groovy
-        dependencies {
-            implementation 'io.github.hyochan.openiap:openiap-google:$VERSION'
-        }
-        \`\`\`
-
-        #### Meta Quest / Horizon Store (Horizon flavor)
-
-        **Gradle (Kotlin DSL):**
-
-        \`\`\`kotlin
-        dependencies {
-            implementation("io.github.hyochan.openiap:openiap-google-horizon:$VERSION")
-        }
-        \`\`\`
-
-        **Gradle (Groovy):**
-
-        \`\`\`groovy
-        dependencies {
-            implementation 'io.github.hyochan.openiap:openiap-google-horizon:$VERSION'
-        }
-        \`\`\`
-
-        #### Fire OS (Amazon flavor)
-
-        **Gradle (Kotlin DSL):**
-
-        \`\`\`kotlin
-        dependencies {
-            implementation("io.github.hyochan.openiap:openiap-google-amazon:$VERSION")
-        }
-        \`\`\`
-
-        **Gradle (Groovy):**
-
-        \`\`\`groovy
-        dependencies {
-            implementation 'io.github.hyochan.openiap:openiap-google-amazon:$VERSION'
-        }
-        \`\`\`
-
-        ### Documentation
-
-        - [API reference](https://openiap.dev/docs/apis)
-        - [Release notes](https://openiap.dev/docs/updates/releases)
-        - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/google-$VERSION/packages/google)
-
-        ### Maven Central
-
-        - [openiap-google (Play)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/$VERSION)
-        - [openiap-google-horizon (Horizon)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-horizon/$VERSION)
-        - [openiap-google-amazon (Fire OS)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-amazon/$VERSION)
-        EOF
-
-    - name: Create and push tag
-      env:
-        VERSION: ${{ steps.version.outputs.version }}
-      run: |
-        git config user.name "github-actions[bot]"
-        git config user.email "github-actions[bot]@users.noreply.github.com"
-
-        if git rev-parse "google-$VERSION" >/dev/null 2>&1; then
-          echo "Tag google-$VERSION already exists"
-        else
-          git tag "google-$VERSION"
-          git push origin "google-$VERSION"
-        fi
-
-    - name: Create GitHub Release
-      working-directory: packages/google
-      env:
-        VERSION: ${{ steps.version.outputs.version }}
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      run: |
-        # Upload artifacts if they exist
-        ARTIFACTS=""
-        if [ -f release-artifacts.zip ]; then
-          ARTIFACTS="$ARTIFACTS release-artifacts.zip"
-        fi
-        if [ -f checksums.txt ]; then
-          ARTIFACTS="$ARTIFACTS checksums.txt"
-        fi
-
-        # Generate release notes with changelog
-        PRERELEASE_FLAG=""
-        if [[ "$VERSION" == *-* ]]; then
-          PRERELEASE_FLAG="--prerelease"
-        fi
-
-        if gh release view "google-$VERSION" >/dev/null 2>&1; then
-          echo "ℹ️ Release google-$VERSION already exists. Updating notes and artifacts."
-          gh release edit "google-$VERSION" \
-            --title "Google $VERSION" \
-            $PRERELEASE_FLAG \
-            --notes-file /tmp/release-notes.md
-          if [ -n "$ARTIFACTS" ]; then
-            gh release upload "google-$VERSION" $ARTIFACTS --clobber
+      - name: Create release artifacts
+        working-directory: packages/google
+        run: |
+          mkdir -p release-artifacts
+          shopt -s nullglob
+          artifacts=(openiap/build/outputs/aar/*.aar openiap/build/libs/*.jar)
+          if [ ${#artifacts[@]} -eq 0 ]; then
+            echo "::error::No Google release artifacts found"
+            exit 1
           fi
-        else
-          gh release create "google-$VERSION" \
-            $ARTIFACTS \
-            --title "Google $VERSION" \
-            $PRERELEASE_FLAG \
-            --notes-file /tmp/release-notes.md
-        fi
+          cp "${artifacts[@]}" release-artifacts/
+          (cd release-artifacts && shasum -a 256 * > ../checksums.txt)
+          zip -r release-artifacts.zip release-artifacts/
 
-    - name: Dispatch SBOM
-      env:
-        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        RELEASE_TAG: google-${{ steps.version.outputs.version }}
-      run: gh workflow run sbom.yml --ref main -f tag="$RELEASE_TAG"
+      - name: Generate release notes
+        id: release_notes
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          RELEASE_REF="HEAD"
+          if git rev-parse "google-$VERSION" >/dev/null 2>&1; then
+            RELEASE_REF="google-$VERSION"
+          fi
+
+          PREV_TAG=$(git for-each-ref --sort=-creatordate --format '%(refname:short)' 'refs/tags/google-*' | grep -v "$VERSION" | head -n 1)
+
+          if [ -z "$PREV_TAG" ]; then
+            echo "No previous google tag found"
+            CHANGELOG="- Initial release"
+          else
+            echo "Generating changelog from $PREV_TAG to $RELEASE_REF"
+            CHANGELOG=$(git log "$PREV_TAG..$RELEASE_REF" --pretty=format:"- %s ([\`%h\`](https://github.com/hyodotdev/openiap/commit/%H))" -- ":(top)packages/google/")
+
+            if [ -z "$CHANGELOG" ]; then
+              CHANGELOG="- No direct code changes in packages/google/."
+            fi
+          fi
+
+          # Save changelog to file for multiline handling
+          echo "$CHANGELOG" > /tmp/changelog.txt
+
+          # Create release notes
+          cat > /tmp/release-notes.md <<EOF
+          ## OpenIAP Google $VERSION
+
+          Native Android library for the OpenIAP specification (Play + Horizon + Fire OS flavors).
+
+          ### What's Changed
+
+          $CHANGELOG
+
+          ### Installation
+
+          #### Google Play Store (Play flavor)
+
+          **Gradle (Kotlin DSL):**
+
+          \`\`\`kotlin
+          dependencies {
+              implementation("io.github.hyochan.openiap:openiap-google:$VERSION")
+          }
+          \`\`\`
+
+          **Gradle (Groovy):**
+
+          \`\`\`groovy
+          dependencies {
+              implementation 'io.github.hyochan.openiap:openiap-google:$VERSION'
+          }
+          \`\`\`
+
+          #### Meta Quest / Horizon Store (Horizon flavor)
+
+          **Gradle (Kotlin DSL):**
+
+          \`\`\`kotlin
+          dependencies {
+              implementation("io.github.hyochan.openiap:openiap-google-horizon:$VERSION")
+          }
+          \`\`\`
+
+          **Gradle (Groovy):**
+
+          \`\`\`groovy
+          dependencies {
+              implementation 'io.github.hyochan.openiap:openiap-google-horizon:$VERSION'
+          }
+          \`\`\`
+
+          #### Fire OS (Amazon flavor)
+
+          **Gradle (Kotlin DSL):**
+
+          \`\`\`kotlin
+          dependencies {
+              implementation("io.github.hyochan.openiap:openiap-google-amazon:$VERSION")
+          }
+          \`\`\`
+
+          **Gradle (Groovy):**
+
+          \`\`\`groovy
+          dependencies {
+              implementation 'io.github.hyochan.openiap:openiap-google-amazon:$VERSION'
+          }
+          \`\`\`
+
+          ### Documentation
+
+          - [API reference](https://openiap.dev/docs/apis)
+          - [Release notes](https://openiap.dev/docs/updates/releases)
+          - [GitHub (monorepo)](https://github.com/hyodotdev/openiap/tree/google-$VERSION/packages/google)
+
+          ### Maven Central
+
+          - [openiap-google (Play)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google/$VERSION)
+          - [openiap-google-horizon (Horizon)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-horizon/$VERSION)
+          - [openiap-google-amazon (Fire OS)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-amazon/$VERSION)
+          EOF
+
+      - name: Create and push tag
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.version }}
+        run: |
+          gh auth setup-git
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          if git rev-parse "google-$VERSION" >/dev/null 2>&1; then
+            echo "Tag google-$VERSION already exists"
+          else
+            git tag "google-$VERSION"
+            git push origin "google-$VERSION"
+          fi
+
+      - name: Publish Horizon flavor to Maven Central
+        if: steps.check_horizon.outputs.exists == 'false'
+        working-directory: packages/google
+        env:
+          ORG_GRADLE_PROJECT_openIapVersion: ${{ steps.version.outputs.version }}
+          ORG_GRADLE_PROJECT_OPENIAP_PUBLISH_VARIANT: horizon
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_KEY_CONTENTS }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          ./gradlew :openiap:publishAndReleaseToMavenCentral --no-daemon --no-parallel --stacktrace
+          echo "✅ Published openiap-google-horizon (Horizon flavor) to Maven Central"
+
+      - name: Publish Fire OS flavor to Maven Central
+        if: steps.check_amazon.outputs.exists == 'false'
+        working-directory: packages/google
+        env:
+          ORG_GRADLE_PROJECT_openIapVersion: ${{ steps.version.outputs.version }}
+          ORG_GRADLE_PROJECT_OPENIAP_PUBLISH_VARIANT: amazon
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_KEY_CONTENTS }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          ./gradlew :openiap:publishAndReleaseToMavenCentral --no-daemon --no-parallel --stacktrace
+          echo "✅ Published openiap-google-amazon (Fire OS flavor) to Maven Central"
+
+      - name: Publish Play flavor to Maven Central
+        if: steps.check_play.outputs.exists == 'false'
+        working-directory: packages/google
+        env:
+          ORG_GRADLE_PROJECT_openIapVersion: ${{ steps.version.outputs.version }}
+          ORG_GRADLE_PROJECT_OPENIAP_PUBLISH_VARIANT: play
+          ORG_GRADLE_PROJECT_mavenCentralUsername: ${{ secrets.MAVEN_CENTRAL_USERNAME }}
+          ORG_GRADLE_PROJECT_mavenCentralPassword: ${{ secrets.MAVEN_CENTRAL_PASSWORD }}
+          ORG_GRADLE_PROJECT_signingInMemoryKey: ${{ secrets.GPG_KEY_CONTENTS }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyId: ${{ secrets.SIGNING_KEY_ID }}
+          ORG_GRADLE_PROJECT_signingInMemoryKeyPassword: ${{ secrets.SIGNING_PASSWORD }}
+        run: |
+          ./gradlew :openiap:publishAndReleaseToMavenCentral --no-daemon --no-parallel --stacktrace
+          echo "✅ Published openiap-google (Play flavor) to Maven Central"
+
+      - name: Create GitHub Release
+        working-directory: packages/google
+        env:
+          VERSION: ${{ steps.version.outputs.version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Upload artifacts if they exist
+          ARTIFACTS=""
+          if [ -f release-artifacts.zip ]; then
+            ARTIFACTS="$ARTIFACTS release-artifacts.zip"
+          fi
+          if [ -f checksums.txt ]; then
+            ARTIFACTS="$ARTIFACTS checksums.txt"
+          fi
+
+          # Generate release notes with changelog
+          PRERELEASE_FLAG=""
+          if [[ "$VERSION" == *-* ]]; then
+            PRERELEASE_FLAG="--prerelease"
+          fi
+
+          if gh release view "google-$VERSION" >/dev/null 2>&1; then
+            echo "ℹ️ Release google-$VERSION already exists. Updating notes and artifacts."
+            gh release edit "google-$VERSION" \
+              --title "Google $VERSION" \
+              $PRERELEASE_FLAG \
+              --notes-file /tmp/release-notes.md
+            if [ -n "$ARTIFACTS" ]; then
+              gh release upload "google-$VERSION" $ARTIFACTS --clobber
+            fi
+          else
+            gh release create "google-$VERSION" \
+              $ARTIFACTS \
+              --title "Google $VERSION" \
+              $PRERELEASE_FLAG \
+              --notes-file /tmp/release-notes.md
+          fi
+
+      - name: Dispatch SBOM
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          RELEASE_TAG: google-${{ steps.version.outputs.version }}
+        run: gh workflow run sbom.yml --ref main -f tag="$RELEASE_TAG"
