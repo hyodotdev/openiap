@@ -68,11 +68,11 @@ are skipped at render time.
 
 ## Don't want to send a PR?
 
-Comment on [issue #280](https://github.com/hyodotdev/openiap/issues/280) or
+Reply to [discussion #350](https://github.com/hyodotdev/openiap/discussions/350) or
 email **hyo@hyo.dev** with your app name, one-liner, logo, store links, and which
 library you use — we'll add it for you.
 
 ## Removal and updates
 
 Your app is listed only with your permission. To change or remove an entry, open
-a PR, comment on issue #280, or email hyo@hyo.dev anytime.
+a PR, comment on discussion #350, or email hyo@hyo.dev anytime.

@@ -17,6 +17,7 @@ import {
 } from '../lib/config';
 import { LIBRARIES, LIBRARY_IMAGES } from '../lib/images';
 import { FEATURED_SHOWCASE_APPS } from '../lib/showcase';
+import MetaWordmark from '../components/MetaWordmark';
 import SEO from '../components/SEO';
 
 interface IapKitFeature {
@@ -228,7 +229,7 @@ function Home() {
             <Link to="/sponsors" className="hero-backer">
               <span>Backed by</span>
               <span>
-                <img src="/sponsors/meta.webp" alt="Meta" />
+                <MetaWordmark />
               </span>
             </Link>
           </div>
@@ -552,7 +553,7 @@ function Home() {
               </div>
               <ArrowUpRight size={18} aria-hidden="true" />
             </Link>
-            <Link to="/community-resources#apps">
+            <Link to="/showcase">
               <span>02</span>
               <div>
                 <strong>Apps built with OpenIAP</strong>
@@ -602,7 +603,7 @@ function Home() {
                   rel="noopener noreferrer"
                   aria-label="Visit Meta"
                 >
-                  <img src="/sponsors/meta.webp" alt="Meta" />
+                  <MetaWordmark />
                 </a>
                 <span className="home-sponsor-tier">Angel</span>
               </div>

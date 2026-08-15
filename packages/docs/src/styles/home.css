@@ -548,10 +548,8 @@
   gap: 0.2rem;
 }
 
-.hero-backer img {
-  width: auto;
+.hero-backer .meta-wordmark {
   height: 1.35rem;
-  object-fit: contain;
 }
 
 @media (max-width: 1050px) {
@@ -1515,8 +1513,7 @@ a.spec-item:hover code {
   transform: scale(1.035);
 }
 
-.home-sponsor-logo-link img {
-  width: auto;
+.home-sponsor-logo-link .meta-wordmark {
   height: 4.1rem;
 }
 
@@ -1668,7 +1665,7 @@ a.spec-item:hover code {
     padding-inline: 1rem;
   }
 
-  .home-sponsor-logo-link img {
+  .home-sponsor-logo-link .meta-wordmark {
     height: 2.5rem;
   }
 

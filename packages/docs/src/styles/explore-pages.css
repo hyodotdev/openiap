@@ -771,6 +771,7 @@
 
 .xp-sponsor-node:not(.xp-sponsor-open-node) > a {
   display: inline-block;
+  filter: drop-shadow(0 0.7rem 1.2rem rgba(45, 25, 20, 0.08));
   line-height: 0;
   transition: transform 180ms ease;
 }
@@ -779,12 +780,9 @@
   transform: translateY(-3px) scale(1.025);
 }
 
-.xp-sponsor-node img {
-  width: auto;
+.xp-sponsor-node .meta-wordmark {
   max-width: 12rem;
   height: 3rem;
-  object-fit: contain;
-  filter: drop-shadow(0 0.7rem 1.2rem rgba(45, 25, 20, 0.08));
 }
 
 .xp-sponsor-open-node > a {
@@ -819,8 +817,7 @@
   border-block: 1px solid var(--border-color);
 }
 
-.xp-stack-rail > a,
-.xp-stack-family > a {
+.xp-stack-rail > a {
   display: flex;
   min-width: 0;
   flex-direction: column;
@@ -849,54 +846,6 @@
 
 .xp-stack-rail a:hover {
   color: var(--xp-accent);
-}
-
-.xp-stack-family {
-  display: grid;
-  min-width: 0;
-  grid-column: span 2;
-  grid-template-columns: minmax(0, 1.25fr) minmax(0, 0.75fr);
-  border-left: 1px solid var(--border-color);
-  background: rgba(220, 104, 67, 0.025);
-}
-
-.xp-stack-family > a {
-  flex-direction: row;
-  gap: 0.7rem;
-  align-items: center;
-  justify-content: center;
-  text-align: left;
-}
-
-.xp-stack-family > a + a {
-  border-left: 1px solid var(--border-color);
-}
-
-.xp-stack-family > a > span {
-  display: flex;
-  min-width: 0;
-  flex-direction: column;
-  gap: 0.15rem;
-}
-
-.xp-stack-family strong {
-  overflow: hidden;
-  color: var(--text-primary);
-  font-size: 0.64rem;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.xp-stack-family small {
-  color: var(--text-secondary);
-  font-size: 0.5rem;
-  letter-spacing: 0.04em;
-  text-transform: uppercase;
-}
-
-.xp-stack-family-secondary img {
-  width: 1.75rem;
-  height: 1.75rem;
 }
 
 .xp-funding-ledger {
@@ -1108,11 +1057,11 @@
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 
-  .xp-stack-rail > a:nth-child(4) {
+  .xp-stack-rail > a:nth-child(5) {
     border-left: 0;
   }
 
-  .xp-stack-rail > a:nth-child(n + 4) {
+  .xp-stack-rail > a:nth-child(n + 5) {
     border-top: 1px solid var(--border-color);
   }
 
@@ -1283,7 +1232,7 @@
     gap: 1rem;
   }
 
-  .xp-sponsor-node img {
+  .xp-sponsor-node .meta-wordmark {
     max-width: 8.75rem;
     height: 2.35rem;
   }
