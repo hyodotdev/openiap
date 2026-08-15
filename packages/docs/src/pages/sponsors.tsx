@@ -6,6 +6,7 @@ import {
   ShieldCheck,
   Smartphone,
 } from 'lucide-react';
+import MetaWordmark from '../components/MetaWordmark';
 import SEO from '../components/SEO';
 import { LIBRARIES, LIBRARY_IMAGES } from '../lib/images';
 
@@ -35,32 +36,13 @@ const FUNDING_LINES = [
   },
 ] as const;
 
-interface CurrentSponsor {
-  name: string;
-  image: string;
-  url: string;
-}
-
-const CURRENT_SPONSORS: CurrentSponsor[] = [
+const CURRENT_SPONSORS = [
   {
     name: 'Meta',
-    image: '/sponsors/meta.webp',
+    logo: <MetaWordmark />,
     url: 'https://meta.com',
   },
-];
-
-const REACT_NATIVE_FAMILY = LIBRARIES.filter(
-  (library) =>
-    library.name === 'react-native-iap' || library.name === 'expo-iap'
-).sort((first, second) => {
-  if (first.name === second.name) return 0;
-  return first.name === 'react-native-iap' ? -1 : 1;
-});
-
-const OTHER_FRAMEWORKS = LIBRARIES.filter(
-  (library) =>
-    library.name !== 'react-native-iap' && library.name !== 'expo-iap'
-);
+] as const;
 
 function Sponsors() {
   return (
@@ -134,7 +116,7 @@ function Sponsors() {
                     rel="noopener noreferrer"
                     aria-label={`Visit ${sponsor.name}`}
                   >
-                    <img src={sponsor.image} alt={sponsor.name} />
+                    {sponsor.logo}
                   </a>
                 </li>
               ))}
@@ -190,35 +172,7 @@ function Sponsors() {
               />
               <span>Google</span>
             </a>
-            <div
-              className="xp-stack-family"
-              aria-label="React Native and Expo libraries"
-            >
-              {REACT_NATIVE_FAMILY.map((library) => (
-                <a
-                  key={library.name}
-                  href={library.url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className={
-                    library.name === 'react-native-iap'
-                      ? 'xp-stack-family-primary'
-                      : 'xp-stack-family-secondary'
-                  }
-                >
-                  <img src={library.image} alt="" aria-hidden="true" />
-                  <span>
-                    <strong>{library.homeLabel}</strong>
-                    <small>
-                      {library.name === 'react-native-iap'
-                        ? 'Primary'
-                        : 'Same API'}
-                    </small>
-                  </span>
-                </a>
-              ))}
-            </div>
-            {OTHER_FRAMEWORKS.map((library) => (
+            {LIBRARIES.map((library) => (
               <a
                 key={library.name}
                 href={library.url}

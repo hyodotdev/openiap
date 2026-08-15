@@ -568,20 +568,60 @@ test("compiled CodeQL Gradle builds reuse the transient-network retry guard", ()
   assert.match(workflow, /:library:compilePlayDebugKotlinAndroid/u);
 });
 
-test("CodeQL never runs pull-request code on private Xcode runners", () => {
+test("CodeQL scopes Swift pull requests to public macOS runners", () => {
   const workflow = readFileSync(
     new URL("../.github/workflows/codeql.yml", import.meta.url),
     "utf8",
   );
+  const scope = workflow.slice(
+    workflow.indexOf("  codeql-scope:"),
+    workflow.indexOf("  analyze:"),
+  );
   const wrappers = workflow.slice(
     workflow.indexOf("  analyze-swift-wrappers:"),
   );
+  const swiftCore = workflow.slice(
+    workflow.indexOf("  analyze-swift:"),
+    workflow.indexOf("  analyze-swift-wrappers:"),
+  );
+  assert.match(
+    workflow,
+    /group: codeql-\$\{\{ github\.event\.pull_request\.number \|\| github\.run_id \}\}/u,
+  );
+  assert.match(
+    workflow,
+    /cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}/u,
+  );
+  assert.match(scope, /swift_core:/u);
+  assert.match(swiftCore, /needs: codeql-scope/u);
+  assert.match(
+    swiftCore,
+    /if: needs\.codeql-scope\.outputs\.swift_core == 'true'/u,
+  );
+  assert.match(scope, /react-native:/u);
+  assert.match(scope, /expo-onside:/u);
+  assert.match(scope, /flutter:/u);
+  assert.match(scope, /godot:/u);
+  assert.match(
+    scope,
+    /\["react-native","expo","expo-onside","flutter","godot"\]/u,
+  );
   assert.match(
     wrappers,
-    /if: github\.event_name != 'pull_request' \|\| github\.event\.pull_request\.head\.repo\.full_name == github\.repository/u,
+    /needs\.codeql-scope\.outputs\.swift_wrappers == 'true'/u,
   );
-  assert.match(wrappers, /runner: xcode-27/u);
-  assert.match(wrappers, /component: expo-onside/u);
+  assert.match(
+    wrappers,
+    /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/u,
+  );
+  assert.match(
+    wrappers,
+    /runs-on: \$\{\{ \(github\.event_name == 'pull_request' \|\| matrix\.component == 'godot'\) && 'macos-26' \|\| 'xcode-27' \}\}/u,
+  );
+  assert.match(
+    wrappers,
+    /component: \$\{\{ fromJSON\(needs\.codeql-scope\.outputs\.swift_components\) \}\}/u,
+  );
   assert.match(
     wrappers,
     /EXPO_IAP_ONSIDE: \$\{\{ matrix\.component == 'expo-onside' && '1' \|\| '0' \}\}/u,

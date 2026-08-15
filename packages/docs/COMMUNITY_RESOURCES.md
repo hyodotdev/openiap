@@ -2,7 +2,7 @@
 
 The [Community Resources page](https://openiap.dev/community-resources) is a
 curated library of third-party knowledge about OpenIAP and the implementations
-built on its specification. The official OpenIAP blog is presented separately
+built on its specification. Official OpenIAP updates are presented separately
 from this community-maintained collection.
 
 Thank you to every developer, writer, speaker, and team who shares practical
@@ -53,10 +53,13 @@ these rules:
    them.
 5. Add accurate language metadata. English is the initial default; future
    non-English additions should ship with a visible language filter.
-6. Do not add view counts or other metrics that will become stale.
+6. Add a verified `publishedAt` date in `YYYY-MM-DD` format. Use the original
+   publication date when available. For sources that only expose an update or
+   submission date, set `dateLabel` to `Updated` or `Submitted`.
+7. Do not add view counts or other metrics that will become stale.
 
 Before opening a pull request, run the docs format check, typecheck, and build
 described in [`README.md`](README.md).
 
 If you prefer to introduce your work before editing the library, share it in
-[Show and Tell](https://github.com/hyodotdev/openiap/discussions/categories/show-and-tell).
+the [community resources discussion](https://github.com/hyodotdev/openiap/discussions/349).

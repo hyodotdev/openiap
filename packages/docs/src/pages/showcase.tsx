@@ -3,7 +3,7 @@ import {
   ShowcaseAppCard,
   ShowcaseSubmitCard,
   SHOWCASE_GUIDE_URL,
-  SHOWCASE_ISSUE_URL,
+  SHOWCASE_DISCUSSION_URL,
   showcaseGridStyle,
 } from '../components/ShowcaseCards';
 import { SHOWCASE_APPS } from '../lib/showcase';
@@ -48,14 +48,14 @@ function Showcase() {
                 marginTop: '0.5rem',
               }}
             >
-              Comment on{' '}
+              Reply to{' '}
               <a
-                href={SHOWCASE_ISSUE_URL}
+                href={SHOWCASE_DISCUSSION_URL}
                 target="_blank"
                 rel="noreferrer"
                 style={{ color: 'var(--accent-color)' }}
               >
-                the showcase issue
+                the showcase discussion
               </a>{' '}
               with the details below and we'll add your app. Prefer a pull
               request? Add an entry to{' '}

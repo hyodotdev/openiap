@@ -29,8 +29,8 @@ import {
   LIBRARY_IMAGES,
   type FrameworkLibraryName,
 } from '../lib/images';
-import { SHOWCASE_APPS } from '../lib/showcase';
-import { SHOWCASE_ISSUE_URL } from '../components/ShowcaseCards';
+import { FEATURED_SHOWCASE_APPS, SHOWCASE_APPS } from '../lib/showcase';
+import { SHOWCASE_DISCUSSION_URL } from '../components/ShowcaseCards';
 import { useScrollToHash } from '../hooks/useScrollToHash';
 
 interface EcosystemMeta {
@@ -53,9 +53,13 @@ const EDIT_DATA_URL =
   'https://github.com/hyodotdev/openiap/edit/main/packages/docs/src/lib/communityResources.ts';
 const CONTRIBUTION_GUIDE_URL =
   'https://github.com/hyodotdev/openiap/blob/main/packages/docs/COMMUNITY_RESOURCES.md';
-const SHOW_AND_TELL_URL =
-  'https://github.com/hyodotdev/openiap/discussions/categories/show-and-tell';
+const COMMUNITY_RESOURCES_DISCUSSION_URL =
+  'https://github.com/hyodotdev/openiap/discussions/349';
 const RESOURCES_PER_PAGE = 20;
+const RESOURCE_DATE_FORMATTER = new Intl.DateTimeFormat('en', {
+  dateStyle: 'medium',
+  timeZone: 'UTC',
+});
 
 const ECOSYSTEM_BY_LIBRARY = {
   'expo-iap': 'expo',
@@ -167,17 +171,18 @@ function matchesQuery(resource: CommunityResource, query: string): boolean {
     resource.platform,
     resource.summary,
     resource.seriesLabel,
-    ...resource.ecosystems.map(
-      (ecosystem) => getEcosystemMeta(ecosystem).label
-    ),
+    ...resource.ecosystems.flatMap((ecosystem) => {
+      const meta = getEcosystemMeta(ecosystem);
+      return [meta.label, meta.module];
+    }),
   ]
     .filter((value): value is string => Boolean(value))
     .some((value) => value.toLowerCase().includes(normalizedQuery));
 }
 
 function ResourceRow({ resource }: ResourceRowProps) {
-  const ecosystemLabels = resource.ecosystems
-    .map((ecosystem) => getEcosystemMeta(ecosystem).label)
+  const ecosystemModules = resource.ecosystems
+    .map((ecosystem) => getEcosystemMeta(ecosystem).module)
     .join(' · ');
 
   return (
@@ -208,8 +213,16 @@ function ResourceRow({ resource }: ResourceRowProps) {
           {resource.author && resource.organization && (
             <span>{resource.organization}</span>
           )}
+          <span>
+            <time dateTime={resource.publishedAt}>
+              {resource.dateLabel ?? 'Published'}{' '}
+              {RESOURCE_DATE_FORMATTER.format(
+                new Date(`${resource.publishedAt}T00:00:00Z`)
+              )}
+            </time>
+          </span>
           <span>{resource.platform}</span>
-          <span>{ecosystemLabels}</span>
+          <span>{ecosystemModules}</span>
           {resource.seriesLabel && <span>{resource.seriesLabel}</span>}
         </p>
 
@@ -341,7 +354,7 @@ function CommunityResources() {
               </span>
               <ChevronRight size={16} aria-hidden="true" />
             </Link>
-            <a href="#apps">
+            <Link to="/showcase">
               <span className="cr-section-nav-icon" aria-hidden="true">
                 <Boxes size={17} />
               </span>
@@ -350,7 +363,7 @@ function CommunityResources() {
                 <small>Products shipping with OpenIAP</small>
               </span>
               <ChevronRight size={16} aria-hidden="true" />
-            </a>
+            </Link>
           </nav>
         </div>
       </header>
@@ -382,7 +395,7 @@ function CommunityResources() {
                         strokeWidth={1.9}
                         aria-hidden="true"
                       />
-                      Official blog
+                      Official updates
                     </span>
                     <small>{resource.platform}</small>
                   </div>
@@ -413,6 +426,19 @@ function CommunityResources() {
             <div className="cr-library-heading">
               <div>
                 <h2 id="resource-library">Community resource library</h2>
+                <a
+                  className="cr-discussion-link"
+                  href={COMMUNITY_RESOURCES_DISCUSSION_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  <MessageSquareText size={16} aria-hidden="true" />
+                  <span>
+                    <strong>Submit a community resource</strong>
+                    <small>GitHub Discussion</small>
+                  </span>
+                  <ArrowUpRight size={14} aria-hidden="true" />
+                </a>
                 <div className="cr-library-notice">
                   <p>
                     These third-party resources were written for different
@@ -453,7 +479,7 @@ function CommunityResources() {
               </label>
 
               <label>
-                <span>Ecosystem</span>
+                <span>Library</span>
                 <div className="cr-select-input">
                   <select
                     value={selectedEcosystem}
@@ -464,10 +490,10 @@ function CommunityResources() {
                       setCurrentPage(1);
                     }}
                   >
-                    <option value="all">All ecosystems</option>
+                    <option value="all">All libraries</option>
                     {AVAILABLE_ECOSYSTEMS.map((ecosystem) => (
                       <option key={ecosystem.id} value={ecosystem.id}>
-                        {ecosystem.label}
+                        {ecosystem.module}
                       </option>
                     ))}
                   </select>
@@ -581,15 +607,38 @@ function CommunityResources() {
               <div>
                 <p>Apps in the wild</p>
                 <h2 id="community-apps">Built with OpenIAP</h2>
+                <div className="cr-apps-actions">
+                  <Link className="cr-discussion-link" to="/showcase">
+                    <Boxes size={16} aria-hidden="true" />
+                    <span>
+                      <strong>View the full showcase</strong>
+                      <small>{SHOWCASE_APPS.length} community apps</small>
+                    </span>
+                    <ArrowUpRight size={14} aria-hidden="true" />
+                  </Link>
+                  <a
+                    className="cr-discussion-link"
+                    href={SHOWCASE_DISCUSSION_URL}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    <MessageSquareText size={16} aria-hidden="true" />
+                    <span>
+                      <strong>Submit your app</strong>
+                      <small>GitHub Discussion</small>
+                    </span>
+                    <ArrowUpRight size={14} aria-hidden="true" />
+                  </a>
+                </div>
               </div>
               <p>
-                Products using OpenIAP libraries across iOS, Android, and the
-                web.
+                A preview of products using OpenIAP libraries. Open the showcase
+                for the full list and store links.
               </p>
             </div>
 
             <div className="cr-app-list">
-              {SHOWCASE_APPS.map((app, index) => (
+              {FEATURED_SHOWCASE_APPS.map((app, index) => (
                 <article key={app.name} className="cr-app-row">
                   <span className="cr-app-index" aria-hidden="true">
                     {String(index + 1).padStart(2, '0')}
@@ -607,37 +656,16 @@ function CommunityResources() {
                   </div>
                   <div className="cr-app-meta">
                     <span>{app.library}</span>
-                    <div role="group" aria-label={`${app.name} links`}>
-                      {app.ios ? (
-                        <a href={app.ios} target="_blank" rel="noreferrer">
-                          iOS <ArrowUpRight size={11} aria-hidden="true" />
-                        </a>
-                      ) : null}
-                      {app.android ? (
-                        <a href={app.android} target="_blank" rel="noreferrer">
-                          Android <ArrowUpRight size={11} aria-hidden="true" />
-                        </a>
-                      ) : null}
-                      {app.web ? (
-                        <a href={app.web} target="_blank" rel="noreferrer">
-                          Web <ArrowUpRight size={11} aria-hidden="true" />
-                        </a>
-                      ) : null}
-                    </div>
+                    <Link
+                      to="/showcase"
+                      aria-label={`View ${app.name} in the showcase`}
+                    >
+                      View showcase
+                      <ArrowUpRight size={11} aria-hidden="true" />
+                    </Link>
                   </div>
                 </article>
               ))}
-            </div>
-
-            <div className="cr-app-submit">
-              <p>
-                <strong>Shipping with OpenIAP?</strong> Add your app icon and
-                store links to the community index.
-              </p>
-              <a href={SHOWCASE_ISSUE_URL} target="_blank" rel="noreferrer">
-                Add your app
-                <ArrowUpRight size={14} aria-hidden="true" />
-              </a>
             </div>
           </section>
 
@@ -655,8 +683,7 @@ function CommunityResources() {
               </p>
               <p>
                 Have you created or do you maintain a resource? Open a PR to add
-                or update its entry, or introduce your work in Show and Tell so
-                the community can discover it.
+                or update its entry so the community can discover it.
               </p>
             </div>
             <div className="cr-contribute-links">
@@ -668,15 +695,6 @@ function CommunityResources() {
               >
                 <Github size={16} aria-hidden="true" />
                 Edit and open a PR
-                <ArrowUpRight size={15} aria-hidden="true" />
-              </a>
-              <a
-                href={SHOW_AND_TELL_URL}
-                target="_blank"
-                rel="noopener noreferrer"
-              >
-                <MessageSquareText size={16} aria-hidden="true" />
-                Share in Show and Tell
                 <ArrowUpRight size={15} aria-hidden="true" />
               </a>
               <a

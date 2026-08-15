@@ -40,6 +40,20 @@ img[src='/sponsors/meta.webp'] {
   filter: var(--meta-logo-filter);
 }
 
+.meta-wordmark {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  gap: 0.08em;
+  line-height: 0;
+}
+
+.meta-wordmark > img {
+  width: auto;
+  height: 100%;
+  object-fit: contain;
+}
+
 img[src='/frameworks/apple.svg'] {
   filter: var(--apple-logo-filter);
 }

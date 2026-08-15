@@ -565,6 +565,55 @@
   line-height: var(--leading-display);
 }
 
+.cr-apps-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 0.65rem;
+}
+
+.cr-discussion-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  margin-top: 0.9rem;
+  padding: 0.52rem 0.66rem;
+  border: 1px solid var(--border-color);
+  border-radius: 0.55rem;
+  color: var(--text-primary);
+  background: var(--bg-secondary);
+  text-decoration: none;
+  transition:
+    border-color 150ms ease,
+    transform 150ms ease;
+}
+
+.cr-discussion-link > svg {
+  flex: 0 0 auto;
+  color: var(--cr-accent);
+}
+
+.cr-discussion-link > span {
+  display: flex;
+  flex-direction: column;
+  gap: 0.08rem;
+}
+
+.cr-discussion-link strong {
+  font-size: 0.72rem;
+  line-height: 1.25;
+}
+
+.cr-discussion-link small {
+  color: var(--text-secondary);
+  font-size: 0.59rem;
+  line-height: 1.25;
+}
+
+.cr-discussion-link:hover {
+  border-color: var(--cr-accent);
+  transform: translateY(-1px);
+}
+
 .cr-apps-heading > p {
   margin: 0;
   color: var(--text-secondary);
@@ -634,15 +683,7 @@
   font-weight: 680;
 }
 
-.cr-app-meta > div {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: flex-end;
-  gap: 0.55rem;
-}
-
-.cr-app-meta a,
-.cr-app-submit a {
+.cr-app-meta a {
   display: inline-flex;
   align-items: center;
   gap: 0.18rem;
@@ -652,29 +693,9 @@
   text-decoration: none;
 }
 
-.cr-app-meta a:hover,
-.cr-app-submit a:hover {
+.cr-app-meta a:hover {
   text-decoration: underline;
   text-underline-offset: 0.18em;
-}
-
-.cr-app-submit {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 2rem;
-  padding-top: 1rem;
-}
-
-.cr-app-submit p {
-  margin: 0;
-  color: var(--text-secondary);
-  font-size: 0.72rem;
-  line-height: 1.5;
-}
-
-.cr-app-submit strong {
-  color: var(--text-primary);
 }
 
 .cr-contribute {
@@ -874,12 +895,6 @@
   .cr-contribute-links {
     align-items: flex-start;
     flex-direction: column;
-  }
-
-  .cr-app-submit {
-    align-items: flex-start;
-    flex-direction: column;
-    gap: 0.6rem;
   }
 }
 

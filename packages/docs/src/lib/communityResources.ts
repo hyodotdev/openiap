@@ -33,6 +33,8 @@ export interface CommunityResource {
   author?: string;
   organization?: string;
   platform: string;
+  publishedAt: string;
+  dateLabel?: 'Published' | 'Updated' | 'Submitted';
   summary: string;
   featured?: boolean;
   language: 'en';
@@ -50,12 +52,12 @@ export interface OfficialOpenIapResource {
 
 export const OFFICIAL_OPENIAP_RESOURCES: OfficialOpenIapResource[] = [
   {
-    id: 'openiap-official-medium-blog',
-    title: 'OpenIAP — Official Blog',
-    url: 'https://medium.com/dooboolab/subpage/3a22b5d41a00',
-    platform: 'Medium',
+    id: 'openiap-official-announcements',
+    title: 'OpenIAP Announcements',
+    url: 'https://www.openiap.dev/docs/updates/announcements',
+    platform: 'OpenIAP Documentation',
     summary:
-      'The official OpenIAP publication for ecosystem updates, implementation stories, platform support, and cross-framework in-app purchase engineering.',
+      'Official maintainer updates about OpenIAP releases, platform support, and ecosystem changes.',
   },
 ];
 
@@ -70,6 +72,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     author: 'Anisha Malde',
     organization: 'Amazon Developer Relations',
     platform: 'LinkedIn',
+    publishedAt: '2026-02-23',
     summary:
       'An Amazon Developer Relations post recommends react-native-iap to Amazon React Native developers and highlights OpenIAP as infrastructure for a broader cross-platform ecosystem.',
     featured: true,
@@ -84,6 +87,8 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'official',
     organization: 'Expo',
     platform: 'Expo Documentation',
+    publishedAt: '2026-05-20',
+    dateLabel: 'Updated',
     summary:
       "Expo's official guide lists expo-iap and notes that the library conforms to the OpenIAP specification.",
     featured: true,
@@ -99,6 +104,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     author: 'Jan Jaworski',
     organization: 'Callstack',
     platform: 'Callstack Blog',
+    publishedAt: '2025-10-30',
     summary:
       'Callstack covers expo-iap as an in-app purchase option for Expo applications running on Meta Horizon OS.',
     featured: true,
@@ -113,6 +119,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'company',
     organization: 'Callstack',
     platform: 'React Native Meta Horizon OS Docs',
+    publishedAt: '2026-01-13',
     summary:
       "Callstack's compatibility documentation identifies expo-iap as the in-app purchase library for Meta Horizon OS billing.",
     language: 'en',
@@ -126,6 +133,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'independent',
     organization: 'This Week in React',
     platform: 'Newsletter',
+    publishedAt: '2025-09-10',
     summary:
       'Three newsletter editions track Expo IAP and OpenIAP, Alternative Billing support, and react-native-iap support for Horizon OS.',
     featured: true,
@@ -143,20 +151,6 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     ],
   },
   {
-    id: 'godot-official-asset-library',
-    title: 'Godot IAP — Cross-Platform In-App Purchases',
-    url: 'https://godotengine.org/asset-library/asset/4627',
-    ecosystems: ['openiap', 'godot'],
-    type: 'documentation',
-    sourceKind: 'official',
-    organization: 'Godot Engine',
-    platform: 'Godot Asset Library',
-    summary:
-      'The official Godot Asset Library lists godot-iap as a cross-platform plugin that follows the OpenIAP specification.',
-    featured: true,
-    language: 'en',
-  },
-  {
     id: 'prototyp-react-native-iap-guide',
     title: "Developer's Guide to React Native In-App Purchases",
     url: 'https://prototyp.digital/blog/react-native-in-app-purchases-guide',
@@ -165,6 +159,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'company',
     organization: 'Prototyp Digital',
     platform: 'Prototyp Blog',
+    publishedAt: '2024-12-11',
     summary:
       'A practical guide to configuring products, purchases, and subscriptions with react-native-iap.',
     language: 'en',
@@ -172,15 +167,16 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
   {
     id: 'to-the-new-storekit-guide',
     title: 'React Native IAP · StoreKit & StoreKit 2',
-    url: 'https://www.tothenew.com/blog/react-native-iap-%C2%B7-storekit-storekit-2-the-definitive-ios-guide/',
+    url: 'https://web.archive.org/web/20260421140635id_/https://www.tothenew.com/blog/react-native-iap-%C2%B7-storekit-storekit-2-the-definitive-ios-guide/',
     ecosystems: ['react-native'],
     type: 'article',
     sourceKind: 'company',
     author: 'Nikhil Singh',
     organization: 'TO THE NEW Engineering',
-    platform: 'Engineering Blog',
+    platform: 'Engineering Blog · Internet Archive',
+    publishedAt: '2026-03-13',
     summary:
-      'An iOS-focused guide to using react-native-iap with StoreKit and StoreKit 2.',
+      'An archived iOS-focused guide to using react-native-iap with StoreKit and StoreKit 2.',
     language: 'en',
   },
   {
@@ -192,6 +188,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'company',
     organization: 'Folio3',
     platform: 'Folio3 Blog',
+    publishedAt: '2024-05-13',
     summary:
       'A cross-platform walkthrough of React Native purchases with StoreKit 2 and Google Play Billing.',
     language: 'en',
@@ -205,6 +202,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'company',
     organization: 'UXCam',
     platform: 'UXCam Blog',
+    publishedAt: '2024-06-02',
     summary:
       'A guide to implementing react-native-iap and connecting purchase flows with product analytics.',
     language: 'en',
@@ -218,6 +216,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'company',
     organization: 'Simform Engineering',
     platform: 'Medium',
+    publishedAt: '2024-05-30',
     summary:
       "Part of Simform's engineering series on implementing in-app purchases in React Native.",
     language: 'en',
@@ -232,6 +231,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'independent',
     author: 'Haris Bin Ejaz',
     platform: 'DEV Community',
+    publishedAt: '2024-05-30',
     summary:
       'A focused tutorial for configuring and delivering consumable purchases on Apple devices with react-native-iap.',
     language: 'en',
@@ -245,6 +245,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'independent',
     author: 'Pelumi Ogundipe',
     platform: 'Medium',
+    publishedAt: '2026-03-02',
     summary:
       'An end-to-end community guide to integrating in-app purchases in a React Native application.',
     language: 'en',
@@ -258,6 +259,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'independent',
     author: 'Olga',
     platform: 'Medium',
+    publishedAt: '2023-07-26',
     summary:
       'A community walkthrough of React Native in-app purchase setup and implementation.',
     language: 'en',
@@ -271,6 +273,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'independent',
     author: 'Shakeb Khan',
     platform: 'Medium',
+    publishedAt: '2025-09-06',
     summary:
       'A concise implementation guide for adding in-app purchases to a React Native project.',
     language: 'en',
@@ -284,6 +287,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'independent',
     author: 'Ross Bulat',
     platform: 'Medium',
+    publishedAt: '2021-06-15',
     summary:
       'A detailed walkthrough of one-time products and subscriptions using react-native-iap.',
     language: 'en',
@@ -297,6 +301,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'independent',
     author: 'Yusra Masood',
     platform: 'Medium',
+    publishedAt: '2025-04-07',
     summary:
       'A short introduction to configuring and using react-native-iap in a mobile application.',
     language: 'en',
@@ -310,6 +315,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'independent',
     author: 'Keshav Pawar',
     platform: 'Medium',
+    publishedAt: '2023-10-04',
     summary:
       'A JavaScript-focused guide to using react-native-iap through its direct API rather than React hooks.',
     language: 'en',
@@ -323,6 +329,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'independent',
     author: 'Ali Osaid',
     platform: 'DEV Community',
+    publishedAt: '2024-12-09',
     summary:
       'A community tutorial connecting a React Native purchase flow with a Node.js backend.',
     language: 'en',
@@ -336,6 +343,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'community',
     author: 'Muhammad Saad',
     platform: 'LinkedIn',
+    publishedAt: '2025-04-05',
     summary:
       'A community post highlighting react-native-iap as a flexible option for cross-platform purchase flows.',
     language: 'en',
@@ -349,6 +357,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'community',
     author: 'Muhammad Rafeh Atique',
     platform: 'LinkedIn',
+    publishedAt: '2025-02-05',
     summary:
       'A contributor post discussing work on react-native-iap and its place in the React Native ecosystem.',
     language: 'en',
@@ -362,6 +371,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'independent',
     author: 'Euan Morgan',
     platform: 'YouTube',
+    publishedAt: '2021-03-21',
     summary:
       'A from-scratch Android walkthrough covering react-native-iap, test users, and backend receipt validation.',
     language: 'en',
@@ -375,6 +385,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'independent',
     author: 'DoableDanny',
     platform: 'YouTube',
+    publishedAt: '2021-05-24',
     summary:
       'A complete Android example app showing Play Console setup, test purchases, and react-native-iap integration.',
     language: 'en',
@@ -389,6 +400,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'independent',
     author: 'ProgrammingDecoded',
     platform: 'DEV Community',
+    publishedAt: '2025-08-09',
     summary:
       'A developer account of setting up Android purchases in an Expo application with expo-iap.',
     language: 'en',
@@ -402,6 +414,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'community',
     author: 'Eyup K.',
     platform: 'LinkedIn',
+    publishedAt: '2026-02-09',
     summary:
       'A community implementation note about combining expo-iap purchase flows with Google AdMob.',
     language: 'en',
@@ -415,6 +428,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'company',
     organization: 'Amazon Developer Community',
     platform: 'DEV Community',
+    publishedAt: '2023-06-02',
     summary:
       'An Amazon Appstore guide to adding in-app purchases to Flutter applications with flutter_inapp_purchase.',
     language: 'en',
@@ -428,6 +442,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'company',
     organization: 'LogRocket',
     platform: 'LogRocket Blog',
+    publishedAt: '2022-03-29',
     summary:
       'A comparison of common Flutter purchase approaches, including flutter_inapp_purchase for products and subscriptions.',
     language: 'en',
@@ -441,6 +456,8 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'independent',
     organization: 'Flutter Gems',
     platform: 'Package Directory',
+    publishedAt: '2026-05-18',
+    dateLabel: 'Updated',
     summary:
       'A focused ecosystem listing for flutter_inapp_purchase with package metadata and related Flutter resources.',
     language: 'en',
@@ -455,6 +472,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     author: 'Varun Kamani',
     organization: 'BOSC Tech Labs',
     platform: 'Medium',
+    publishedAt: '2020-10-05',
     summary:
       'A company engineering tutorial on implementing subscription purchases in Flutter.',
     language: 'en',
@@ -468,6 +486,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'independent',
     author: 'Nikhil',
     platform: 'Medium',
+    publishedAt: '2020-07-19',
     summary:
       'A tutorial on non-consumable Flutter purchases backed by Firebase.',
     language: 'en',
@@ -481,6 +500,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'independent',
     author: 'Samarth Agarwal',
     platform: 'Medium',
+    publishedAt: '2019-04-02',
     summary:
       'A community introduction to product configuration and purchase handling in Flutter.',
     language: 'en',
@@ -494,6 +514,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'independent',
     author: 'Vignesh Prakash',
     platform: 'Medium',
+    publishedAt: '2020-08-22',
     summary:
       'A practical Flutter in-app purchase implementation guide using flutter_inapp_purchase.',
     language: 'en',
@@ -507,6 +528,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'independent',
     author: 'Nhan Cao',
     platform: 'Medium',
+    publishedAt: '2020-12-13',
     summary:
       'A focused guide to configuring subscription products for a Flutter purchase flow.',
     language: 'en',
@@ -520,6 +542,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'independent',
     author: 'SolarMoon',
     platform: 'Medium',
+    publishedAt: '2024-11-22',
     summary:
       'A client-side Flutter purchase walkthrough for projects evaluating a flow without backend validation.',
     language: 'en',
@@ -533,6 +556,7 @@ export const COMMUNITY_RESOURCES: CommunityResource[] = [
     sourceKind: 'independent',
     author: 'Jaimil',
     platform: 'Medium',
+    publishedAt: '2023-09-29',
     summary:
       'A community tutorial for wiring a Flutter subscription purchase flow without a separate backend.',
     language: 'en',

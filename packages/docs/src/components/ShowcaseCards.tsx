@@ -3,8 +3,8 @@ import { SiApple, SiGoogleplay } from 'react-icons/si';
 import { Globe } from 'lucide-react';
 import type { ShowcaseApp } from '../lib/showcase';
 
-export const SHOWCASE_ISSUE_URL =
-  'https://github.com/hyodotdev/openiap/issues/280';
+export const SHOWCASE_DISCUSSION_URL =
+  'https://github.com/hyodotdev/openiap/discussions/350';
 
 export const SHOWCASE_GUIDE_URL =
   'https://github.com/hyodotdev/openiap/blob/main/packages/docs/SHOWCASE.md';
@@ -159,7 +159,7 @@ export function ShowcaseSubmitCard() {
         Send your app name, icon, and store links — we'll add it here.
       </div>
       <a
-        href={SHOWCASE_ISSUE_URL}
+        href={SHOWCASE_DISCUSSION_URL}
         target="_blank"
         rel="noreferrer"
         style={{

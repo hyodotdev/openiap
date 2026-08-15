@@ -12,10 +12,61 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: codeql-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   XCODE_VERSION: 16.4
 
 jobs:
+  codeql-scope:
+    name: Detect CodeQL Scope
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      swift_core: ${{ github.event_name != 'pull_request' || steps.core.outputs.swift_core == 'true' }}
+      swift_wrappers: ${{ github.event_name != 'pull_request' || steps.wrappers.outputs.changes != '[]' }}
+      swift_components: >-
+        ${{ github.event_name != 'pull_request' &&
+        '["react-native","expo","expo-onside","flutter","godot"]' ||
+        steps.wrappers.outputs.changes }}
+    steps:
+      - name: Checkout
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+        with:
+          persist-credentials: false
+
+      - name: Detect Apple core changes
+        if: github.event_name == 'pull_request'
+        id: core
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+        with:
+          filters: |
+            swift_core:
+              - 'packages/apple/**'
+              - 'libraries/kmp-iap/native/InAppPurchaseBridge/**'
+
+      - name: Detect Swift wrapper changes
+        if: github.event_name == 'pull_request'
+        id: wrappers
+        uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+        with:
+          filters: |
+            react-native:
+              - 'libraries/react-native-iap/**'
+            expo:
+              - 'libraries/expo-iap/**'
+            expo-onside:
+              - 'libraries/expo-iap/**'
+            flutter:
+              - 'libraries/flutter_inapp_purchase/**'
+            godot:
+              - 'libraries/godot-iap/**'
+
   analyze:
     name: Analyze (${{ matrix.language }})
     runs-on: ubuntu-latest
@@ -225,6 +276,8 @@ jobs:
 
   analyze-swift:
     name: Analyze (swift)
+    needs: codeql-scope
+    if: needs.codeql-scope.outputs.swift_core == 'true'
     runs-on: macos-15
     timeout-minutes: 45
     permissions:
@@ -267,8 +320,12 @@ jobs:
 
   analyze-swift-wrappers:
     name: Analyze (swift / ${{ matrix.component }})
-    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: ${{ matrix.runner }}
+    needs: codeql-scope
+    if: >-
+      needs.codeql-scope.outputs.swift_wrappers == 'true' &&
+      (github.event_name != 'pull_request' ||
+      github.event.pull_request.head.repo.full_name == github.repository)
+    runs-on: ${{ (github.event_name == 'pull_request' || matrix.component == 'godot') && 'macos-26' || 'xcode-27' }}
     timeout-minutes: 90
     permissions:
       contents: read
@@ -276,17 +333,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - component: react-native
-            runner: xcode-27
-          - component: expo
-            runner: xcode-27
-          - component: expo-onside
-            runner: xcode-27
-          - component: flutter
-            runner: xcode-27
-          - component: godot
-            runner: macos-26
+        component: ${{ fromJSON(needs.codeql-scope.outputs.swift_components) }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
