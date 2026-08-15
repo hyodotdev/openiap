@@ -337,10 +337,9 @@ export function auditDependencies(
   const bunLocks = new Set(projects.map(({ lockfile }) => lockfile));
   for (const lockfile of osvLockfiles.filter((path) => !bunLocks.has(path))) {
     const configPath = resolve(repoRoot, dirname(lockfile), "osv-scanner.toml");
-    if (!existsSync(configPath)) continue;
-    const ignored = parseOsvIgnoredVulnerabilities(
-      readFileSync(configPath, "utf8"),
-    );
+    const ignored = existsSync(configPath)
+      ? parseOsvIgnoredVulnerabilities(readFileSync(configPath, "utf8"))
+      : new Map();
     const result = run(
       "osv-scanner",
       [
@@ -355,7 +354,9 @@ export function auditDependencies(
     );
     if (result.error) throw result.error;
     if (result.signal) {
-      throw new Error(`${lockfile}: OSV-Scanner terminated by ${result.signal}`);
+      throw new Error(
+        `${lockfile}: OSV-Scanner terminated by ${result.signal}`,
+      );
     }
     if (![0, 1].includes(result.status)) {
       throw new Error(`${lockfile}: OSV-Scanner exited ${result.status}`);
@@ -364,15 +365,33 @@ export function auditDependencies(
     try {
       report = JSON.parse(result.stdout);
     } catch (error) {
-      throw new Error(`${lockfile}: invalid OSV-Scanner JSON (${error.message})`);
+      throw new Error(
+        `${lockfile}: invalid OSV-Scanner JSON (${error.message})`,
+      );
+    }
+    if (
+      !report ||
+      typeof report !== "object" ||
+      !Array.isArray(report.results)
+    ) {
+      throw new Error(`${lockfile}: invalid OSV-Scanner result structure`);
     }
     const used = new Set();
-    for (const scanResult of report.results ?? []) {
-      for (const pkg of scanResult.packages ?? []) {
-        for (const vulnerability of pkg.vulnerabilities ?? []) {
-          const ids = [vulnerability.id, ...(vulnerability.aliases ?? [])].filter(
-            Boolean,
-          );
+    let vulnerabilityCount = 0;
+    for (const scanResult of report.results) {
+      if (!scanResult || !Array.isArray(scanResult.packages)) {
+        throw new Error(`${lockfile}: invalid OSV-Scanner result structure`);
+      }
+      for (const pkg of scanResult.packages) {
+        if (!pkg || !Array.isArray(pkg.vulnerabilities)) {
+          throw new Error(`${lockfile}: invalid OSV-Scanner result structure`);
+        }
+        for (const vulnerability of pkg.vulnerabilities) {
+          vulnerabilityCount += 1;
+          const ids = [
+            vulnerability.id,
+            ...(vulnerability.aliases ?? []),
+          ].filter(Boolean);
           const acceptedId = ids.find((id) => {
             const exception = ignored.get(id);
             return (
@@ -397,6 +416,9 @@ export function auditDependencies(
           });
         }
       }
+    }
+    if (result.status === 1 && vulnerabilityCount === 0) {
+      throw new Error(`${lockfile}: OSV-Scanner exited 1 without findings`);
     }
     for (const [id, exception] of ignored) {
       const expired = exception.ignoreUntil < now.toISOString().slice(0, 10);

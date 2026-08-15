@@ -992,10 +992,10 @@ export const apiData: ApiItem[] = [
   },
   {
     id: 'community-resources',
-    title: 'Community Resources',
+    title: 'Official OpenIAP Blog and Community Resources',
     category: 'Community',
     description:
-      'Third-party articles, videos, documentation, and community coverage across the OpenIAP ecosystem',
+      'Official blog updates from OpenIAP and third-party articles, videos, documentation, and community coverage',
     path: '/community-resources',
   },
 ];

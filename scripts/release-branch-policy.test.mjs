@@ -108,7 +108,69 @@ test("Gradle wrappers pin distributions and validate tracked jars", () => {
     /GRADLE_WRAPPER_SHA256 := d3b261c2820e9e3d8d639ed084900f11f4a86050a8f83342ade7b6bc9b0d2bdd/u,
   );
   assert.match(makefile, /shasum -a 256 -c -/u);
-  assert.doesNotMatch(makefile, /gradle-wrapper\.jar";|gradle\/v[\d.]+\/gradle\/wrapper/u);
+  assert.doesNotMatch(
+    makefile,
+    /gradle-wrapper\.jar";|gradle\/v[\d.]+\/gradle\/wrapper/u,
+  );
+});
+
+test("React Native Ruby dependencies are locked and installed frozen", () => {
+  const gemfile = readFileSync(
+    resolve(repoRoot, "libraries/react-native-iap/example/Gemfile"),
+    "utf8",
+  );
+  const lockfile = readFileSync(
+    resolve(repoRoot, "libraries/react-native-iap/example/Gemfile.lock"),
+    "utf8",
+  );
+  assert.match(gemfile, /^ruby ">= 3\.3\.0"$/mu);
+  assert.match(gemfile, /^gem 'activesupport', '>= 7\.2\.3\.1', '< 8'$/mu);
+  assert.match(gemfile, /^gem 'concurrent-ruby', '>= 1\.3\.7', '< 2'$/mu);
+  const activeSupport = lockfile.match(
+    /^    activesupport \(([^)]+)\)$/mu,
+  )?.[1];
+  const concurrentRuby = lockfile.match(
+    /^    concurrent-ruby \(([^)]+)\)$/mu,
+  )?.[1];
+  assert.ok(activeSupport);
+  assert.ok(concurrentRuby);
+  assert.ok(
+    activeSupport.localeCompare("7.2.3.1", undefined, { numeric: true }) >= 0,
+  );
+  assert.ok(
+    concurrentRuby.localeCompare("1.3.7", undefined, { numeric: true }) >= 0,
+  );
+
+  for (const [filename, installStep] of [
+    ["ci.yml", "Verify Ruby lock"],
+    ["ci-react-native-iap.yml", "Install Ruby dependencies"],
+    ["release-react-native.yml", "Install Ruby dependencies"],
+    ["codeql.yml", "Build React Native Swift wrapper"],
+  ]) {
+    const workflow = readWorkflow(filename);
+    const setup = extractNamedStep(workflow, "Setup Ruby").source;
+    const install = extractNamedStep(workflow, installStep).source;
+    assert.match(
+      setup,
+      /ruby\/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1/u,
+    );
+    assert.match(setup, /ruby-version: "3\.3"/u);
+    assert.match(
+      setup,
+      /working-directory: libraries\/react-native-iap\/example/u,
+    );
+    assert.match(install, /BUNDLE_FROZEN=true bundle install/u);
+  }
+
+  const dependabot = readFileSync(
+    resolve(repoRoot, ".github/dependabot.yml"),
+    "utf8",
+  );
+  assert.match(dependabot, /package-ecosystem: "bundler"/u);
+  assert.match(
+    dependabot,
+    /directory: "\/libraries\/react-native-iap\/example"/u,
+  );
 });
 
 test("Godot release preserves its download helper across tag checkout", () => {
@@ -1356,8 +1418,29 @@ test("conformance npm publication binds the exact source run attempt", () => {
     "- name: Publish to npm",
     authorizationGuard,
   );
+  const publishedProvenanceStep = extractNamedStep(
+    workflow,
+    "Verify published provenance",
+  ).source;
   assert.ok(attemptGuard < authorizationGuard);
   assert.ok(authorizationGuard < publish);
+  assert.match(
+    publishedProvenanceStep,
+    /Allow five minutes for the immutable provenance to propagate/u,
+  );
+  assert.match(
+    publishedProvenanceStep,
+    /^\s*for _attempt in \{1\.\.30\}; do\s*$/mu,
+  );
+  assert.match(
+    publishedProvenanceStep,
+    /if node scripts\/verify-npm-release-provenance\.mjs \\\n\s+openiap-conformance "\$VERSION" "\$GITHUB_SHA"/u,
+  );
+  assert.match(publishedProvenanceStep, /^\s*sleep 10\s*$/mu);
+  assert.match(
+    publishedProvenanceStep,
+    /if \[ "\$VERIFIED" != "true" \]; then[\s\S]*?exit 1[\s\S]*?fi/u,
+  );
 });
 
 test("conformance releases cannot under-version breaking suite changes", () => {

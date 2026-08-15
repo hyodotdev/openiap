@@ -299,6 +299,13 @@ jobs:
         with:
           node-version: 20
 
+      - name: Setup Ruby
+        if: matrix.component == 'react-native'
+        uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
+        with:
+          ruby-version: "3.3"
+          working-directory: libraries/react-native-iap/example
+
       - name: Setup Bun
         if: startsWith(matrix.component, 'expo')
         uses: oven-sh/setup-bun@0c5077e51419868618aeaa5fe8019c62421857d6 # v2
@@ -335,7 +342,7 @@ jobs:
           yarn install --immutable
           yarn nitrogen
           cd example
-          bundle install
+          BUNDLE_FROZEN=true bundle install
           cd ios
           bundle exec pod install --repo-update
           xcodebuild build \

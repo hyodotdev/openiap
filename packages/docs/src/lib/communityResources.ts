@@ -40,21 +40,26 @@ export interface CommunityResource {
   relatedLinks?: readonly ResourceLink[];
 }
 
-export const COMMUNITY_RESOURCES: CommunityResource[] = [
+export interface OfficialOpenIapResource {
+  id: string;
+  title: string;
+  url: string;
+  platform: string;
+  summary: string;
+}
+
+export const OFFICIAL_OPENIAP_RESOURCES: OfficialOpenIapResource[] = [
   {
     id: 'openiap-official-medium-blog',
     title: 'OpenIAP — Official Blog',
     url: 'https://medium.com/dooboolab/subpage/3a22b5d41a00',
-    ecosystems: ['openiap'],
-    type: 'community',
-    sourceKind: 'official',
-    organization: 'OpenIAP',
     platform: 'Medium',
     summary:
       'The official OpenIAP publication for ecosystem updates, implementation stories, platform support, and cross-framework in-app purchase engineering.',
-    featured: true,
-    language: 'en',
   },
+];
+
+export const COMMUNITY_RESOURCES: CommunityResource[] = [
   {
     id: 'anisha-malde-openiap-ecosystem',
     title: 'React Native IAP and the OpenIAP ecosystem',

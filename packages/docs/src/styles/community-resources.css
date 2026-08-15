@@ -159,6 +159,46 @@
   padding: clamp(3rem, 7vw, 5rem) 0 5rem;
 }
 
+.cr-official {
+  margin-bottom: clamp(3rem, 7vw, 5rem);
+}
+
+.cr-official-heading {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0.7fr);
+  gap: 2rem;
+  align-items: end;
+  margin-bottom: 1.25rem;
+}
+
+.cr-official-heading > div > p {
+  margin: 0 0 0.4rem;
+  color: var(--cr-accent);
+  font-size: 0.66rem;
+  font-weight: 720;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.cr-official-heading h2 {
+  margin: 0;
+  color: var(--text-primary);
+  font-size: clamp(1.8rem, 4vw, 2.8rem);
+  letter-spacing: var(--tracking-display-tight);
+  line-height: var(--leading-display);
+}
+
+.cr-official-heading > p {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  line-height: 1.6;
+}
+
+.cr-resource-list.cr-official-list {
+  margin-top: 0;
+}
+
 #resources,
 #apps,
 #contribute {
@@ -199,6 +239,14 @@
 
 .cr-library-heading > p strong {
   color: var(--text-primary);
+}
+
+.cr-library-notice {
+  max-width: 44rem;
+}
+
+.cr-library-notice p + p {
+  margin-top: 0.35rem;
 }
 
 .cr-controls {
@@ -355,7 +403,7 @@
   min-width: 0;
 }
 
-.cr-resource-content h2 {
+.cr-resource-content h3 {
   margin: 0;
   font-size: 1rem;
   font-weight: 680;
@@ -363,16 +411,16 @@
   line-height: 1.35;
 }
 
-.cr-resource-content h2 a {
+.cr-resource-content h3 a {
   color: var(--text-primary);
   text-decoration: none;
 }
 
-.cr-resource-content h2 a:hover {
+.cr-resource-content h3 a:hover {
   color: var(--cr-accent);
 }
 
-.cr-resource-content h2 svg {
+.cr-resource-content h3 svg {
   display: inline;
   margin-left: 0.3rem;
   vertical-align: -0.14em;
@@ -638,6 +686,14 @@
   padding: 0.5rem 0;
 }
 
+.cr-contribute > div:first-child {
+  max-width: 39rem;
+}
+
+.cr-contribute .cr-contribute-thanks {
+  color: var(--text-primary);
+}
+
 .cr-contribute-links {
   display: flex;
   flex: 0 0 auto;
@@ -729,6 +785,7 @@
   }
 
   .cr-library-heading,
+  .cr-official-heading,
   .cr-apps-heading,
   .cr-contribute {
     align-items: flex-start;

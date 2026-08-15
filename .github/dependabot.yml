@@ -51,3 +51,14 @@ updates:
       - "openiap-kit"
       - "👷‍♀️ build"
       - "📦 update packages"
+
+  # React Native example CocoaPods toolchain
+  - package-ecosystem: "bundler"
+    directory: "/libraries/react-native-iap/example"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+    open-pull-requests-limit: 3
+    labels:
+      - "react-native-iap"
+      - "📦 update packages"

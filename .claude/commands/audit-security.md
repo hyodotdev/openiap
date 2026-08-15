@@ -32,6 +32,7 @@ for directory in \
   (cd "$directory" && bun install --frozen-lockfile --ignore-scripts)
 done
 (cd libraries/react-native-iap && corepack yarn install --immutable --mode=skip-build)
+(cd libraries/react-native-iap/example && BUNDLE_FROZEN=true bundle install)
 bun run audit:dependencies
 node --test scripts/bun-dependency-snapshot.test.mjs \
   scripts/audit-security.test.mjs
@@ -41,6 +42,7 @@ osv-scanner scan source \
   --lockfile=libraries/expo-iap/example/bun.lock \
   --lockfile=libraries/expo-iap/example/vega/bun.lock \
   --lockfile=libraries/react-native-iap/example/vega/bun.lock \
+  --lockfile=libraries/react-native-iap/example/Gemfile.lock \
   --lockfile=libraries/react-native-iap/yarn.lock \
   --lockfile=scripts/agent/bun.lock
 ```

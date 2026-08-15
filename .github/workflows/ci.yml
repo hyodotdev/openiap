@@ -67,6 +67,12 @@ jobs:
         with:
           bun-version: 1.3.13
 
+      - name: Setup Ruby
+        uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
+        with:
+          ruby-version: "3.3"
+          working-directory: libraries/react-native-iap/example
+
       - name: Verify bun.lock matches workspace manifests
         run: |
           # Retry bun install up to 3 times to handle transient registry errors
@@ -92,6 +98,10 @@ jobs:
         working-directory: libraries/react-native-iap
         run: corepack yarn install --immutable --mode=skip-build
 
+      - name: Verify Ruby lock
+        working-directory: libraries/react-native-iap/example
+        run: BUNDLE_FROZEN=true bundle install
+
       - name: Test dependency and workflow guards
         run: >-
           node --test scripts/audit-security.test.mjs
@@ -108,7 +118,7 @@ jobs:
       - name: Audit dependency vulnerabilities and exception lifecycle
         run: node scripts/audit-security.mjs dependencies
 
-      - name: Audit all tracked JavaScript locks with OSV
+      - name: Audit all tracked dependency locks with OSV
         run: |
           osv-scanner scan source \
             --lockfile=bun.lock \
@@ -116,6 +126,7 @@ jobs:
             --lockfile=libraries/expo-iap/example/bun.lock \
             --lockfile=libraries/expo-iap/example/vega/bun.lock \
             --lockfile=libraries/react-native-iap/example/vega/bun.lock \
+            --lockfile=libraries/react-native-iap/example/Gemfile.lock \
             --lockfile=libraries/react-native-iap/yarn.lock \
             --lockfile=scripts/agent/bun.lock
 

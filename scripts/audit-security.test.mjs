@@ -414,6 +414,83 @@ test("Yarn-only OSV exceptions cannot become stale or expired", () => {
   );
 });
 
+test("OSV scans non-Bun locks without exception files", () => {
+  const gemLock = "libraries/react-native-iap/example/Gemfile.lock";
+  let calls = 0;
+  const cleanScanner = (command, args) => {
+    calls += 1;
+    assert.equal(command, "osv-scanner");
+    assert.ok(args.includes(`--lockfile=${gemLock}`));
+    return {
+      status: 0,
+      stdout: JSON.stringify({ results: [] }),
+      stderr: "",
+    };
+  };
+  assert.doesNotThrow(() =>
+    auditDependencies(cleanScanner, [], new Date("2026-08-15T00:00:00Z"), [
+      gemLock,
+    ]),
+  );
+  assert.equal(calls, 1);
+
+  assert.throws(
+    () =>
+      auditDependencies(
+        () => ({
+          status: 1,
+          stdout: JSON.stringify({ results: [] }),
+          stderr: "partial scan failure",
+        }),
+        [],
+        new Date("2026-08-15T00:00:00Z"),
+        [gemLock],
+      ),
+    /exited 1 without findings/u,
+  );
+  assert.throws(
+    () =>
+      auditDependencies(
+        () => ({
+          status: 0,
+          stdout: JSON.stringify({ results: {} }),
+          stderr: "",
+        }),
+        [],
+        new Date("2026-08-15T00:00:00Z"),
+        [gemLock],
+      ),
+    /invalid OSV-Scanner result structure/u,
+  );
+
+  assert.throws(
+    () =>
+      auditDependencies(
+        () => ({
+          status: 1,
+          stdout: JSON.stringify({
+            results: [
+              {
+                packages: [
+                  {
+                    vulnerabilities: [
+                      { id: "GHSA-new-ruby-advisory", summary: "Ruby issue" },
+                    ],
+                  },
+                ],
+              },
+            ],
+          }),
+          stderr: "",
+        }),
+        [],
+        new Date("2026-08-15T00:00:00Z"),
+        [gemLock],
+      ),
+    /GHSA-new-ruby-advisory/u,
+  );
+});
+
 test("published SBOM audit fails fast and trusts only main", () => {
   const source = readFileSync(
     new URL("../.claude/commands/audit-security.md", import.meta.url),

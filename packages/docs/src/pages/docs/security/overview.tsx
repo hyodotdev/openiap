@@ -242,8 +242,10 @@ function SecurityOverview() {
           OpenIAP submits all six Bun lock graphs as exact dependency snapshots
           for repository vulnerability monitoring. React Native&apos;s Yarn
           graph remains covered by GitHub&apos;s native lockfile support and the
-          independent OSV scan. Dependabot version-update pull requests stay
-          focused on IAPKit, GitHub Actions, and the IAPKit container image.
+          independent OSV scan. Its CocoaPods toolchain has a committed Bundler
+          lock, a pinned Ruby CI runtime, OSV coverage, and Dependabot updates.
+          Other Dependabot version-update pull requests stay focused on IAPKit,
+          GitHub Actions, and the IAPKit container image.
         </p>
         <p>
           Native SDK platform dependencies are pinned deliberately — several

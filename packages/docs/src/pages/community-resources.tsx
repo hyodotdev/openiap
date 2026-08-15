@@ -18,6 +18,7 @@ import {
 import SEO from '../components/SEO';
 import {
   COMMUNITY_RESOURCES,
+  OFFICIAL_OPENIAP_RESOURCES,
   type CommunityResource,
   type Ecosystem,
   type ResourceSourceKind,
@@ -52,6 +53,8 @@ const EDIT_DATA_URL =
   'https://github.com/hyodotdev/openiap/edit/main/packages/docs/src/lib/communityResources.ts';
 const CONTRIBUTION_GUIDE_URL =
   'https://github.com/hyodotdev/openiap/blob/main/packages/docs/COMMUNITY_RESOURCES.md';
+const SHOW_AND_TELL_URL =
+  'https://github.com/hyodotdev/openiap/discussions/categories/show-and-tell';
 const RESOURCES_PER_PAGE = 20;
 
 const ECOSYSTEM_BY_LIBRARY = {
@@ -188,7 +191,7 @@ function ResourceRow({ resource }: ResourceRowProps) {
       </div>
 
       <article className="cr-resource-content">
-        <h2>
+        <h3>
           <a
             href={resource.url}
             target="_blank"
@@ -198,7 +201,7 @@ function ResourceRow({ resource }: ResourceRowProps) {
             {resource.title}
             <ArrowUpRight size={16} aria-hidden="true" />
           </a>
-        </h2>
+        </h3>
 
         <p className="cr-resource-meta">
           <span>{resource.author ?? resource.organization}</span>
@@ -298,7 +301,7 @@ function CommunityResources() {
     <div className="community-resources-page">
       <SEO
         title="Community Resources"
-        description="Explore community-created OpenIAP resources, including articles, tutorials, videos, ecosystem documentation, and implementation guides for React Native, Expo, Flutter, Godot, and more."
+        description="Find official OpenIAP updates alongside community-created articles, tutorials, videos, ecosystem documentation, and implementation guides."
         path="/community-resources"
         image="/community-resources-og.webp"
         keywords="OpenIAP community resources, react-native-iap tutorials, expo-iap guides, flutter_inapp_purchase articles, godot-iap resources"
@@ -355,17 +358,74 @@ function CommunityResources() {
       <div className="cr-main">
         <div className="cr-shell">
           <section
+            className="cr-official"
+            aria-labelledby="official-openiap-resources"
+          >
+            <div className="cr-official-heading">
+              <div>
+                <p>Official OpenIAP</p>
+                <h2 id="official-openiap-resources">From OpenIAP</h2>
+              </div>
+              <p>
+                Maintainer-written updates, engineering stories, and ecosystem
+                announcements.
+              </p>
+            </div>
+
+            <ul className="cr-resource-list cr-official-list">
+              {OFFICIAL_OPENIAP_RESOURCES.map((resource) => (
+                <li key={resource.id} className="cr-resource-row">
+                  <div className="cr-resource-kind">
+                    <span>
+                      <BookOpen
+                        size={15}
+                        strokeWidth={1.9}
+                        aria-hidden="true"
+                      />
+                      Official blog
+                    </span>
+                    <small>{resource.platform}</small>
+                  </div>
+                  <article className="cr-resource-content">
+                    <h3>
+                      <a
+                        href={resource.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        aria-label={`${resource.title} (opens in a new tab)`}
+                      >
+                        {resource.title}
+                        <ArrowUpRight size={16} aria-hidden="true" />
+                      </a>
+                    </h3>
+                    <p className="cr-resource-summary">{resource.summary}</p>
+                  </article>
+                </li>
+              ))}
+            </ul>
+          </section>
+
+          <section
             id="resources"
             className="cr-library"
             aria-labelledby="resource-library"
           >
             <div className="cr-library-heading">
               <div>
-                <h2 id="resource-library">Resource library</h2>
-                <p>
-                  Community-maintained links. Inclusion does not imply a
-                  partnership or endorsement.
-                </p>
+                <h2 id="resource-library">Community resource library</h2>
+                <div className="cr-library-notice">
+                  <p>
+                    These third-party resources were written for different
+                    audiences and may cover older releases, APIs, or store
+                    policies. They can become outdated, so verify critical
+                    implementation details against current OpenIAP and platform
+                    documentation.
+                  </p>
+                  <p>
+                    Inclusion recognizes a useful community contribution; it
+                    does not imply a partnership or endorsement.
+                  </p>
+                </div>
               </div>
               <p className="cr-page-range" aria-live="polite">
                 <strong>
@@ -587,10 +647,16 @@ function CommunityResources() {
             aria-labelledby="suggest-resource"
           >
             <div>
-              <h2 id="suggest-resource">Suggest a resource</h2>
+              <h2 id="suggest-resource">Share and keep it current</h2>
+              <p className="cr-contribute-thanks">
+                Thank you to every developer, writer, speaker, and team who has
+                shared what they learned. Your work makes OpenIAP easier to
+                discover, evaluate, and use across ecosystems.
+              </p>
               <p>
-                Add an article, tutorial, video, talk, or community discussion
-                to this list.
+                Have you created or do you maintain a resource? Open a PR to add
+                or update its entry, or introduce your work in Show and Tell so
+                the community can discover it.
               </p>
             </div>
             <div className="cr-contribute-links">
@@ -602,6 +668,15 @@ function CommunityResources() {
               >
                 <Github size={16} aria-hidden="true" />
                 Edit and open a PR
+                <ArrowUpRight size={15} aria-hidden="true" />
+              </a>
+              <a
+                href={SHOW_AND_TELL_URL}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <MessageSquareText size={16} aria-hidden="true" />
+                Share in Show and Tell
                 <ArrowUpRight size={15} aria-hidden="true" />
               </a>
               <a

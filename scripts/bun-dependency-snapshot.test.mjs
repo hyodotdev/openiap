@@ -251,8 +251,9 @@ test("CI and dependency submission cover every declared lock", () => {
   }
 });
 
-test("dependency inventory covers every repository JavaScript lock", () => {
+test("dependency inventory covers every supported repository lock", () => {
   const supportedNames = new Set([
+    "Gemfile.lock",
     "bun.lock",
     "yarn.lock",
     "package-lock.json",
@@ -286,7 +287,10 @@ test("Vega builds install only their committed lock graphs", () => {
     "../libraries/react-native-iap/example/scripts/build-vega-example.mjs",
   ]) {
     const source = readFileSync(new URL(builder, import.meta.url), "utf8");
-    assert.match(source, /copyFile\(path\.join\(vegaDependencyRoot, 'bun\.lock'\)/u);
+    assert.match(
+      source,
+      /copyFile\(path\.join\(vegaDependencyRoot, 'bun\.lock'\)/u,
+    );
     assert.match(source, /\['install', '--frozen-lockfile'\]/u);
     assert.doesNotMatch(source, /--force/u);
   }

@@ -2,7 +2,16 @@
 
 The [Community Resources page](https://openiap.dev/community-resources) is a
 curated library of third-party knowledge about OpenIAP and the implementations
-built on its specification.
+built on its specification. The official OpenIAP blog is presented separately
+from this community-maintained collection.
+
+Thank you to every developer, writer, speaker, and team who shares practical
+OpenIAP knowledge. These contributions help people discover the ecosystem and
+learn from one another.
+
+Third-party resources may target an older release, API, store policy, or a
+different audience. They can become outdated. Readers should verify critical
+implementation details against the current OpenIAP and platform documentation.
 
 ## What belongs here
 
@@ -31,8 +40,10 @@ is not a general service-comparison directory.
 ## Add a resource
 
 Open [`src/lib/communityResources.ts`](src/lib/communityResources.ts) on
-GitHub, add one entry, and submit the change as a pull request. Use an existing
-entry as the schema reference and follow these rules:
+GitHub, add one entry to `COMMUNITY_RESOURCES`, and submit the change as a pull
+request. `OFFICIAL_OPENIAP_RESOURCES` is reserved for sources maintained by
+OpenIAP. Use an existing community entry as the schema reference and follow
+these rules:
 
 1. Store each URL once and use multiple `ecosystems` tags when it spans modules.
 2. Use a neutral summary and never imply an endorsement or partnership.
@@ -46,3 +57,6 @@ entry as the schema reference and follow these rules:
 
 Before opening a pull request, run the docs format check, typecheck, and build
 described in [`README.md`](README.md).
+
+If you prefer to introduce your work before editing the library, share it in
+[Show and Tell](https://github.com/hyodotdev/openiap/discussions/categories/show-and-tell).

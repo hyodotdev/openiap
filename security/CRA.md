@@ -130,11 +130,11 @@ reports.
 **How OpenIAP does this:** the end-to-end procedure is defined in
 [`ASSURANCE.md`](ASSURANCE.md), while private reporting and coordinated
 disclosure are defined in the repository-root
-[`SECURITY.md`](../SECURITY.md). Every committed JavaScript lock graph is
+[`SECURITY.md`](../SECURITY.md). Every committed dependency lock graph is
 checked for unaccepted advisories in CI, the Bun gate is repeated before IAPKit
 deployment, the Bun graphs are submitted to GitHub for Dependabot monitoring,
-published stable release SBOMs and the Kit source image are rescanned weekly, and CodeQL
-complements the dependency checks with source analysis.
+published stable release SBOMs and the Kit source image are rescanned weekly,
+and CodeQL complements the dependency checks with source analysis.
 
 ### 3. Security updates
 
@@ -155,15 +155,15 @@ applicable evidence below is recoverable. Older releases without a backfilled
 asset use their recorded full commit SHA, tag as verified at investigation time,
 and published descriptors as the evidence source.
 
-| Question                                 | Where the answer is                                                                                                                                                 |
-| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Question                                 | Where the answer is                                                                                                                                                             |
+| ---------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | What source identifies this release?     | Full commit SHA plus a tag that `scripts/assert-release-tag.mjs` verifies against the published version and its release branch (`main` stable, `next` prerelease) at check time |
-| What direct dependencies did it declare? | The `.cdx.json` SBOM asset on that release                                                                                                                          |
-| Which SBOM version corresponds to it?    | SBOM filename and `metadata.component.version`; the workflow refuses to upload on a mismatch                                                                        |
-| Which workflow generated the SBOM?       | The provenance attestation whose subject is the SBOM file digest, verifiable with `gh attestation verify`                                                           |
-| Which release commit does it describe?   | The `openiap:release:commit` property inside the SBOM, checked against the release tag at publication and verification time                                         |
-| Which generator revision was used?       | The `openiap:generator:commit` property and the attestation's resolved dependency for the generator                                                                 |
-| Was the npm artifact itself built by us? | npm provenance (`npm publish --provenance`), checked by `scripts/verify-npm-release-provenance.mjs`; `openiap-conformance@1.0.0` is the documented legacy exception |
+| What direct dependencies did it declare? | The `.cdx.json` SBOM asset on that release                                                                                                                                      |
+| Which SBOM version corresponds to it?    | SBOM filename and `metadata.component.version`; the workflow refuses to upload on a mismatch                                                                                    |
+| Which workflow generated the SBOM?       | The provenance attestation whose subject is the SBOM file digest, verifiable with `gh attestation verify`                                                                       |
+| Which release commit does it describe?   | The `openiap:release:commit` property inside the SBOM, checked against the release tag at publication and verification time                                                     |
+| Which generator revision was used?       | The `openiap:generator:commit` property and the attestation's resolved dependency for the generator                                                                             |
+| Was the npm artifact itself built by us? | npm provenance (`npm publish --provenance`), checked by `scripts/verify-npm-release-provenance.mjs`; `openiap-conformance@1.0.0` is the documented legacy exception             |
 
 ## Deliberate boundaries
 

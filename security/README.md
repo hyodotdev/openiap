@@ -75,12 +75,12 @@ contributors look for it.
 
 ## Dependency monitoring coverage
 
-CI installs and scans every committed JavaScript lock: the root Bun workspace,
+CI installs and scans every committed dependency lock: the root Bun workspace,
 the standalone Expo package and example, the Expo and React Native Vega
-examples, the agent toolchain, and the React Native Yarn project. The six Bun
-graphs are also submitted as exact GitHub dependency snapshots. Dependabot
-version-update pull requests remain
-deliberately focused on `packages/kit`, GitHub Actions, and the kit Dockerfile:
+examples, the agent toolchain, and the React Native Yarn and Ruby projects. The
+six Bun graphs are also submitted as exact GitHub dependency snapshots.
+Dependabot version-update pull requests cover `packages/kit`, GitHub Actions,
+the kit Dockerfile, and the React Native CocoaPods toolchain:
 
 - **`packages/kit`** is a deployed service with a large runtime dependency
   tree. It is the component where a vulnerable dependency has the most
@@ -91,6 +91,9 @@ deliberately focused on `packages/kit`, GitHub Actions, and the kit Dockerfile:
   resolved and owned by the consuming application. React Native and Expo SBOMs
   separately include the native Apple and Google contracts selected at build
   time.
+- **The React Native CocoaPods toolchain** has a committed Bundler lock and a
+  pinned Ruby CI runtime, so Dependabot can propose reviewed toolchain updates
+  without changing resolution between builds.
 - **Native SDKs** (`packages/apple`, `packages/google`, `kmp-iap`,
   `OpenIap.Maui`, `flutter_inapp_purchase`, `godot-iap`) pin their platform
   dependencies deliberately, often with compatibility constraints documented
@@ -108,7 +111,8 @@ workflow converts every exact npm resolution in all six Bun locks into
 commit-bound dependency snapshots. Pull requests validate the snapshot with a
 read-only token. Submission runs only after changes reach `main`, on the weekly
 schedule, or through a manual dispatch. React Native's Yarn lock remains covered
-by OSV-Scanner and GitHub's native lockfile support.
+by OSV-Scanner and GitHub's native lockfile support. Its Bundler lock is covered
+by OSV-Scanner, Dependabot, and GitHub's native Bundler support.
 
 The submitted graph and the published SBOMs answer different questions:
 
@@ -148,9 +152,10 @@ gates remain independent of that hosted view.
 
 ## Scanning posture
 
-Every pull request installs all committed Bun locks and the React Native Yarn
-lock without mutation. It then runs Bun's advisory audit across all Bun graphs
-and OSV-Scanner across all seven locks. Unaccepted findings fail the build.
+Every pull request installs all committed Bun locks plus the React Native Yarn
+and Ruby locks without mutation. It then runs Bun's advisory audit across all
+Bun graphs and OSV-Scanner across all eight locks. Unaccepted findings fail the
+build.
 Upstream-unpatched, build-only findings may be accepted only in the owning
 project's `osv-scanner.toml` with a reason and expiry; expired or stale
 exceptions fail the dependency audit, and OSV enforces the same expiry. The IAPKit

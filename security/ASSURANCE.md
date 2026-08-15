@@ -24,7 +24,7 @@ commit, tag, package metadata, and SBOM. Version-only commits created with the
 workflow token do not recursively start CodeQL, so they inherit source-analysis
 evidence from the reviewed source commit rather than claiming a second scan:
 
-- no unaccepted advisory in any committed JavaScript lock graph; temporary
+- no unaccepted advisory in any committed dependency lock graph; temporary
   upstream-unpatched exceptions must be scoped, justified, and expiring;
 - immutable external GitHub Action references and explicit workflow token
   permissions;

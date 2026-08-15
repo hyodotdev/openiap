@@ -536,6 +536,19 @@ jobs:
         env:
           VERSION: ${{ steps.release.outputs.version }}
         run: |
-          node scripts/verify-npm-release-provenance.mjs \
-            openiap-conformance "$VERSION" "$GITHUB_SHA" \
-            "openiap-conformance-$VERSION" release-conformance.yml
+          VERIFIED=false
+          # npm can expose package metadata before its attestation endpoint is
+          # ready. Allow five minutes for the immutable provenance to propagate.
+          for _attempt in {1..30}; do
+            if node scripts/verify-npm-release-provenance.mjs \
+              openiap-conformance "$VERSION" "$GITHUB_SHA" \
+              "openiap-conformance-$VERSION" release-conformance.yml; then
+              VERIFIED=true
+              break
+            fi
+            sleep 10
+          done
+          if [ "$VERIFIED" != "true" ]; then
+            echo "::error::Published npm provenance did not become verifiable"
+            exit 1
+          fi
