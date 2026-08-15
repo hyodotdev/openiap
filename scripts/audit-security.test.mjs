@@ -580,6 +580,10 @@ test("CodeQL scopes Swift pull requests to public macOS runners", () => {
   const wrappers = workflow.slice(
     workflow.indexOf("  analyze-swift-wrappers:"),
   );
+  const swiftCore = workflow.slice(
+    workflow.indexOf("  analyze-swift:"),
+    workflow.indexOf("  analyze-swift-wrappers:"),
+  );
   assert.match(
     workflow,
     /group: codeql-\$\{\{ github\.event\.pull_request\.number \|\| github\.run_id \}\}/u,
@@ -589,6 +593,11 @@ test("CodeQL scopes Swift pull requests to public macOS runners", () => {
     /cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}/u,
   );
   assert.match(scope, /swift_core:/u);
+  assert.match(swiftCore, /needs: codeql-scope/u);
+  assert.match(
+    swiftCore,
+    /if: needs\.codeql-scope\.outputs\.swift_core == 'true'/u,
+  );
   assert.match(scope, /react-native:/u);
   assert.match(scope, /expo-onside:/u);
   assert.match(scope, /flutter:/u);
