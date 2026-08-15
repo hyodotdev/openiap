@@ -659,6 +659,24 @@ test("SBOM publication waits for registry propagation and repairs daily", () => 
     source,
     /GENERATOR_COMMIT=\$\(git rev-parse FETCH_HEAD\)/u,
   );
+  const releaseCheckout = source.slice(
+    source.indexOf("- name: Checkout the released commit"),
+    source.indexOf("- name: Take the generator from the default branch"),
+  );
+  assert.match(releaseCheckout, /^[ \t]+fetch-depth: 0$/mu);
+  const generatorCheckout = source.slice(
+    source.indexOf("- name: Take the generator from the default branch"),
+    source.indexOf("- name: Setup Node", source.indexOf("  sbom:")),
+  );
+  assert.match(
+    generatorCheckout,
+    /^[ \t]+git fetch --no-tags origin "\$GENERATOR_COMMIT"$/mu,
+  );
+  assert.doesNotMatch(
+    generatorCheckout,
+    /--(?:depth|deepen|shallow-since|shallow-exclude)(?:=|\s|$)/mu,
+    "fetching the generator must not make the release checkout shallow",
+  );
   assert.equal((source.match(/verify-attested-generator/gu) ?? []).length, 2);
   const attachIndex = source.indexOf("- name: Attach SBOM to the release");
   const publishedVerifyIndex = source.indexOf(

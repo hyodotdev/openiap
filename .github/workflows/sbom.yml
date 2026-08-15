@@ -103,7 +103,7 @@ jobs:
         env:
           GENERATOR_COMMIT: ${{ github.sha }}
         run: |
-          git fetch --no-tags --depth=1 origin "$GENERATOR_COMMIT"
+          git fetch --no-tags origin "$GENERATOR_COMMIT"
           git checkout "$GENERATOR_COMMIT" -- \
             scripts/generate-sbom.mjs \
             scripts/sbom-dependencies.mjs \
