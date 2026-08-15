@@ -333,91 +333,82 @@ function CommunityResources() {
               </p>
             </div>
           </div>
-          <nav className="cr-section-nav" aria-label="Community page sections">
-            <a href="#resources">
-              <span className="cr-section-nav-icon" aria-hidden="true">
-                <BookOpen size={17} />
-              </span>
-              <span>
-                <strong>Community resources</strong>
-                <small>Articles, guides, videos, and docs</small>
-              </span>
-              <ChevronRight size={16} aria-hidden="true" />
-            </a>
-            <Link to="/tutorials">
-              <span className="cr-section-nav-icon" aria-hidden="true">
-                <Route size={17} />
-              </span>
-              <span>
-                <strong>Tutorials</strong>
-                <small>From store setup to verified purchase</small>
-              </span>
-              <ChevronRight size={16} aria-hidden="true" />
-            </Link>
-            <Link to="/showcase">
-              <span className="cr-section-nav-icon" aria-hidden="true">
-                <Boxes size={17} />
-              </span>
-              <span>
-                <strong>Community apps</strong>
-                <small>Products shipping with OpenIAP</small>
-              </span>
-              <ChevronRight size={16} aria-hidden="true" />
-            </Link>
-          </nav>
+          <div className="cr-resource-map">
+            <div className="cr-resource-map-row">
+              <p>From OpenIAP</p>
+              <nav
+                className="cr-section-nav cr-official-nav"
+                aria-label="Official OpenIAP resources"
+              >
+                {OFFICIAL_OPENIAP_RESOURCES.map((resource) => (
+                  <a
+                    key={resource.id}
+                    href={resource.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label={`${resource.title} (opens in a new tab)`}
+                  >
+                    <span className="cr-section-nav-icon" aria-hidden="true">
+                      {resource.id === 'openiap-official-blog' ? (
+                        <BookOpen size={17} />
+                      ) : (
+                        <FileText size={17} />
+                      )}
+                    </span>
+                    <span>
+                      <strong>{resource.title}</strong>
+                      <small>{resource.summary}</small>
+                    </span>
+                    <ArrowUpRight size={16} aria-hidden="true" />
+                  </a>
+                ))}
+              </nav>
+            </div>
+
+            <div className="cr-resource-map-row">
+              <p>Explore</p>
+              <nav
+                className="cr-section-nav cr-community-nav"
+                aria-label="Community page sections"
+              >
+                <a href="#resources">
+                  <span className="cr-section-nav-icon" aria-hidden="true">
+                    <BookOpen size={17} />
+                  </span>
+                  <span>
+                    <strong>Browse resources</strong>
+                    <small>Articles, guides, videos, and docs</small>
+                  </span>
+                  <ChevronRight size={16} aria-hidden="true" />
+                </a>
+                <Link to="/tutorials">
+                  <span className="cr-section-nav-icon" aria-hidden="true">
+                    <Route size={17} />
+                  </span>
+                  <span>
+                    <strong>Follow tutorials</strong>
+                    <small>Store setup through verified purchases</small>
+                  </span>
+                  <ChevronRight size={16} aria-hidden="true" />
+                </Link>
+                <Link to="/showcase">
+                  <span className="cr-section-nav-icon" aria-hidden="true">
+                    <Boxes size={17} />
+                  </span>
+                  <span>
+                    <strong>Explore apps</strong>
+                    <small>Products shipping with OpenIAP</small>
+                  </span>
+                  <ChevronRight size={16} aria-hidden="true" />
+                </Link>
+              </nav>
+            </div>
+          </div>
         </div>
       </header>
 
       <div className="cr-main">
         <div className="cr-shell">
-          <section
-            className="cr-official"
-            aria-labelledby="official-openiap-resources"
-          >
-            <div className="cr-official-heading">
-              <div>
-                <p>Official OpenIAP</p>
-                <h2 id="official-openiap-resources">From OpenIAP</h2>
-              </div>
-              <p>
-                Maintainer-written updates, engineering stories, and ecosystem
-                announcements.
-              </p>
-            </div>
-
-            <ul className="cr-resource-list cr-official-list">
-              {OFFICIAL_OPENIAP_RESOURCES.map((resource) => (
-                <li key={resource.id} className="cr-resource-row">
-                  <div className="cr-resource-kind">
-                    <span>
-                      <BookOpen
-                        size={15}
-                        strokeWidth={1.9}
-                        aria-hidden="true"
-                      />
-                      Official updates
-                    </span>
-                    <small>{resource.platform}</small>
-                  </div>
-                  <article className="cr-resource-content">
-                    <h3>
-                      <a
-                        href={resource.url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        aria-label={`${resource.title} (opens in a new tab)`}
-                      >
-                        {resource.title}
-                        <ArrowUpRight size={16} aria-hidden="true" />
-                      </a>
-                    </h3>
-                    <p className="cr-resource-summary">{resource.summary}</p>
-                  </article>
-                </li>
-              ))}
-            </ul>
-          </section>
-
           <section
             id="resources"
             className="cr-library"
@@ -425,6 +416,7 @@ function CommunityResources() {
           >
             <div className="cr-library-heading">
               <div>
+                <p className="cr-library-kicker">From the community</p>
                 <h2 id="resource-library">Community resource library</h2>
                 <a
                   className="cr-discussion-link"

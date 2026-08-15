@@ -485,44 +485,76 @@
 }
 
 .xp-journey {
-  position: relative;
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 2rem;
-}
-
-.xp-journey::before {
-  position: absolute;
-  top: 2.1rem;
-  right: 0;
-  left: 0;
-  height: 1px;
-  background: linear-gradient(90deg, var(--xp-accent), var(--border-color));
-  content: '';
+  gap: clamp(0.8rem, 2vw, 1.35rem);
 }
 
 .xp-journey > li {
   position: relative;
   min-width: 0;
+  min-height: 15rem;
+  overflow: hidden;
+  padding: 1.3rem 1.35rem 1.45rem;
+  background: linear-gradient(
+      135deg,
+      transparent 0 0.8rem,
+      color-mix(in srgb, var(--bg-secondary) 82%, transparent) 0.8rem
+    )
+    top left / 100% 100%;
+  box-shadow: inset 0 0 0 1px var(--border-color);
+  clip-path: polygon(
+    0.8rem 0,
+    100% 0,
+    100% calc(100% - 0.8rem),
+    calc(100% - 0.8rem) 100%,
+    0 100%,
+    0 0.8rem
+  );
 }
 
-.xp-journey > li > span {
+.xp-journey > li:nth-child(2) {
+  margin-top: 1.1rem;
+}
+
+.xp-journey > li:nth-child(3) {
+  margin-top: 2.2rem;
+}
+
+.xp-journey-marker {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr) auto;
+  gap: 0.8rem;
+  align-items: center;
+}
+
+.xp-journey-number {
   color: var(--xp-accent);
-  font-size: 0.58rem;
-  font-weight: 740;
-  letter-spacing: 0.08em;
+  font-size: clamp(2.7rem, 5vw, 4rem);
+  font-variant-numeric: tabular-nums;
+  font-weight: 680;
+  letter-spacing: -0.08em;
+  line-height: 0.85;
 }
 
-.xp-journey-dot {
+.xp-journey-phase {
+  align-self: end;
+  padding-bottom: 0.15rem;
+  color: var(--text-secondary);
+  font-size: 0.6rem;
+  font-weight: 720;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.xp-journey-next {
+  color: var(--xp-accent);
+}
+
+.xp-journey-copy {
   position: relative;
   z-index: 1;
-  width: 0.72rem;
-  height: 0.72rem;
-  margin: 1.15rem 0 1.5rem;
-  border: 3px solid var(--bg-primary);
-  border-radius: 50%;
-  background: var(--xp-accent);
-  box-shadow: 0 0 0 1px var(--xp-accent);
+  margin-top: 2.8rem;
 }
 
 .xp-journey h3 {
@@ -1132,31 +1164,25 @@
   }
 
   .xp-journey {
-    gap: 0;
-  }
-
-  .xp-journey::before {
-    top: 0;
-    bottom: 0;
-    left: 0.35rem;
-    width: 1px;
-    height: auto;
+    gap: 0.75rem;
   }
 
   .xp-journey > li {
-    display: grid;
-    grid-template-columns: 1rem minmax(0, 1fr);
-    gap: 1rem;
-    padding-bottom: 2.5rem;
+    min-height: 0;
+    padding: 1.2rem 1.25rem 1.35rem;
   }
 
-  .xp-journey > li > span {
-    grid-column: 2;
+  .xp-journey > li:nth-child(2),
+  .xp-journey > li:nth-child(3) {
+    margin-top: 0;
   }
 
-  .xp-journey-dot {
-    grid-row: 1 / 3;
-    margin: 0.1rem 0 0;
+  .xp-journey-next {
+    transform: rotate(90deg);
+  }
+
+  .xp-journey-copy {
+    margin-top: 1.75rem;
   }
 
   .xp-signal-list > a {

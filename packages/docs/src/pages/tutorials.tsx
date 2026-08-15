@@ -6,6 +6,7 @@ import { useScrollToHash } from '../hooks/useScrollToHash';
 const JOURNEY = [
   {
     step: '01',
+    phase: 'Store',
     title: 'Configure the stores',
     description: 'Products, testers, signing, and store credentials.',
     links: [
@@ -15,12 +16,14 @@ const JOURNEY = [
   },
   {
     step: '02',
+    phase: 'SDK',
     title: 'Connect your SDK',
     description: 'Choose a framework and install its OpenIAP implementation.',
     links: [{ label: 'Choose a framework', to: '/languages' }],
   },
   {
     step: '03',
+    phase: 'Purchase',
     title: 'Ship a safe purchase',
     description: 'Request, verify, finish, and restore the transaction.',
     links: [
@@ -127,11 +130,20 @@ function Tutorials() {
           </div>
 
           <ol className="xp-journey">
-            {JOURNEY.map((item) => (
+            {JOURNEY.map((item, index) => (
               <li key={item.step}>
-                <span>{item.step}</span>
-                <div className="xp-journey-dot" aria-hidden="true" />
-                <div>
+                <div className="xp-journey-marker">
+                  <span className="xp-journey-number">{item.step}</span>
+                  <span className="xp-journey-phase">{item.phase}</span>
+                  {index < JOURNEY.length - 1 && (
+                    <ArrowRight
+                      className="xp-journey-next"
+                      size={22}
+                      aria-hidden="true"
+                    />
+                  )}
+                </div>
+                <div className="xp-journey-copy">
                   <h3>{item.title}</h3>
                   <p>{item.description}</p>
                   <div>

@@ -46,18 +46,21 @@ export interface OfficialOpenIapResource {
   id: string;
   title: string;
   url: string;
-  platform: string;
   summary: string;
 }
 
 export const OFFICIAL_OPENIAP_RESOURCES: OfficialOpenIapResource[] = [
   {
-    id: 'openiap-official-announcements',
-    title: 'OpenIAP Announcements',
+    id: 'openiap-official-blog',
+    title: 'Official Blog',
+    url: 'https://medium.com/hyodotdev/subpage/3a22b5d41a00',
+    summary: 'Field notes, engineering stories, and the ideas behind OpenIAP.',
+  },
+  {
+    id: 'openiap-announcements',
+    title: 'Announcements',
     url: 'https://www.openiap.dev/docs/updates/announcements',
-    platform: 'OpenIAP Documentation',
-    summary:
-      'Official maintainer updates about OpenIAP releases, platform support, and ecosystem changes.',
+    summary: 'The short version of what shipped, changed, or needs attention.',
   },
 ];
 

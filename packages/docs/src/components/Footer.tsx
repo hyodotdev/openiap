@@ -44,10 +44,10 @@ function Footer() {
                   <a href="/languages">Languages</a>
                 </li>
                 <li>
-                  <a href="/sponsors">Sponsors</a>
+                  <a href="/community-resources">Community</a>
                 </li>
                 <li>
-                  <a href="/community-resources">Community Resources</a>
+                  <a href="/sponsors">Sponsors</a>
                 </li>
               </ul>
             </div>
