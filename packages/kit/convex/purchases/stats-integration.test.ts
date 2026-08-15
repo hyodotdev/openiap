@@ -26,7 +26,7 @@ const runBaseStatsBackfill = testableFunction(
 /**
  * Minimal in-memory stand-in for the slice of `ctx.db` the stats helpers
  * touch. Intentionally narrow — just enough to exercise `withIndex(name, cb)
- * → .first() / async iterate`, plus insert/patch/get/delete.
+ * → .order() / .first() / async iterate`, plus insert/patch/get/delete.
  *
  * Not a substitute for `convex-test`; scoped to the write/read paths that
  * this refactor introduced so a regression (counter drift, missing cascade
@@ -51,6 +51,12 @@ class MemQuery {
     // Our stats helpers don't chain .filter() — noop for safety.
     void _cb;
     return this;
+  }
+
+  order(direction: "asc" | "desc"): MemQuery {
+    return new MemQuery(
+      direction === "desc" ? [...this.rows].reverse() : [...this.rows],
+    );
   }
 
   async first(): Promise<Row | null> {
@@ -84,9 +90,44 @@ class MemQuery {
 
 class IndexBuilder {
   predicates: Array<(row: Row) => boolean> = [];
+
+  private compare(
+    field: string,
+    value: unknown,
+    predicate: (comparison: number) => boolean,
+  ): IndexBuilder {
+    this.predicates.push((row) => {
+      const fieldValue = row[field];
+      if (typeof fieldValue === "number" && typeof value === "number") {
+        return predicate(fieldValue - value);
+      }
+      if (typeof fieldValue === "string" && typeof value === "string") {
+        return predicate(fieldValue.localeCompare(value));
+      }
+      throw new Error(`unsupported index comparison for ${field}`);
+    });
+    return this;
+  }
+
   eq(field: string, value: unknown): IndexBuilder {
     this.predicates.push((row) => row[field] === value);
     return this;
+  }
+
+  gt(field: string, value: unknown): IndexBuilder {
+    return this.compare(field, value, (comparison) => comparison > 0);
+  }
+
+  gte(field: string, value: unknown): IndexBuilder {
+    return this.compare(field, value, (comparison) => comparison >= 0);
+  }
+
+  lt(field: string, value: unknown): IndexBuilder {
+    return this.compare(field, value, (comparison) => comparison < 0);
+  }
+
+  lte(field: string, value: unknown): IndexBuilder {
+    return this.compare(field, value, (comparison) => comparison <= 0);
   }
 }
 
@@ -655,13 +696,13 @@ describe("stats helpers — round-trip integration", () => {
 
     // Stop after two rows to model an interrupted deployment. Each batch is
     // hard-bounded to one purchase and atomically marks the row it handled.
-    await expect(runBatch(null)).resolves.toEqual({
-      continueCursor: "1",
+    const firstBatch = await runBatch(null);
+    expect(firstBatch).toMatchObject({
       isDone: false,
       processed: 1,
     });
-    await expect(runBatch("1")).resolves.toEqual({
-      continueCursor: "2",
+    const secondBatch = await runBatch(firstBatch.continueCursor);
+    expect(secondBatch).toMatchObject({
       isDone: false,
       processed: 1,
     });
@@ -689,18 +730,22 @@ describe("stats helpers — round-trip integration", () => {
 
     // Resume at the saved cursor: legacy Horizon and Amazon each contribute
     // once, then the already-counted new Amazon row is skipped.
-    await expect(runBatch("2")).resolves.toMatchObject({
-      continueCursor: "3",
+    const thirdBatch = await runBatch(secondBatch.continueCursor);
+    expect(thirdBatch).toMatchObject({
       processed: 1,
     });
-    await expect(runBatch("3")).resolves.toMatchObject({
-      continueCursor: "4",
+    const fourthBatch = await runBatch(thirdBatch.continueCursor);
+    expect(fourthBatch).toMatchObject({
       processed: 1,
     });
-    await expect(runBatch("4")).resolves.toEqual({
-      continueCursor: "5",
+    const fifthBatch = await runBatch(fourthBatch.continueCursor);
+    expect(fifthBatch).toMatchObject({
+      isDone: false,
+      processed: 1,
+    });
+    await expect(runBatch(fifthBatch.continueCursor)).resolves.toMatchObject({
       isDone: true,
-      processed: 1,
+      processed: 0,
     });
 
     await expect(readPurchaseStats(ctx, PROJECT_ID as never)).resolves.toEqual({
