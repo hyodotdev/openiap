@@ -1074,7 +1074,10 @@ test("framework release workflows refuse stale dispatch heads", () => {
         /SOURCE_RESPONSE_ATTEMPT" != "\$SOURCE_RUN_ATTEMPT"/,
       );
       assert.match(workflow, /SOURCE_CONCLUSION" != "success"/);
-      assert.match(workflow, /actions\/upload-artifact@[0-9a-f]{40}\s+# v4/);
+      assert.match(
+        workflow,
+        /actions\/upload-artifact@[0-9a-f]{40}\s+# v\d+(?:\.\d+\.\d+)?/,
+      );
       assert.ok(
         workflow.includes(
           `git -C "$GITHUB_WORKSPACE" grep -q '^  publish-npm:' "$TAG" -- .github/workflows/${filename}`,
