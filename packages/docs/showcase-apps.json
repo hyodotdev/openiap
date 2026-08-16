@@ -7,7 +7,7 @@
       "library": "expo-iap",
       "ios": "https://apps.apple.com/us/app/sudoku-rabbit-daily-puzzles/id6742900571",
       "android": "https://play.google.com/store/apps/details?id=com.bustedout.sudokurabbit",
-      "ratings": 148,
+      "ratings": 149,
       "installs": 1000
     },
     {
@@ -60,6 +60,26 @@
       "web": "https://recordscanner.com/",
       "ratings": 11501,
       "installs": 100000
+    },
+    {
+      "name": "Shelfify",
+      "tagline": "Organize your vinyl and CD collection with visual room and shelf mapping",
+      "logo": "/showcase/shelfify.webp",
+      "library": "react-native-iap",
+      "ios": "https://apps.apple.com/us/app/shelfify-vinyl-organizer/id6759003070",
+      "android": "https://play.google.com/store/apps/details?id=com.appfium.shelfify",
+      "ratings": 0,
+      "installs": 100
+    },
+    {
+      "name": "FestMates",
+      "tagline": "Festival companion app with in-app donations to support development",
+      "logo": "/showcase/festmates.webp",
+      "library": "react-native-iap",
+      "ios": "https://apps.apple.com/us/app/festmates-festival-companion/id6762664110",
+      "android": "https://play.google.com/store/apps/details?id=com.festmates",
+      "ratings": 4,
+      "installs": 100
     }
   ]
 }
