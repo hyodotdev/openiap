@@ -411,7 +411,6 @@ jobs:
           APP_STORE_CONNECT_API_KEY_BASE64: ${{ secrets.APP_STORE_CONNECT_API_KEY_BASE64 }}
           APP_STORE_CONNECT_API_KEY_ID: ${{ secrets.APP_STORE_CONNECT_API_KEY_ID }}
           APP_STORE_CONNECT_API_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_API_ISSUER_ID }}
-          VERSION: ${{ steps.version.outputs.VERSION }}
         run: |
           if [ -z "$APP_STORE_CONNECT_API_KEY_BASE64" ] || \
              [ -z "$APP_STORE_CONNECT_API_KEY_ID" ] || \
@@ -423,6 +422,8 @@ jobs:
           API_KEY_PATH="$RUNNER_TEMP/AuthKey_${APP_STORE_CONNECT_API_KEY_ID}.p8"
           echo "$APP_STORE_CONNECT_API_KEY_BASE64" | base64 --decode > "$API_KEY_PATH"
           NOTARY_ZIP="$RUNNER_TEMP/godot-iap-macos-notary.zip"
+          NOTARY_RESULT="$RUNNER_TEMP/godot-iap-macos-notary-result.json"
+          NOTARY_LOG="$RUNNER_TEMP/godot-iap-macos-notary-log.json"
 
           cd dist/addons/godot-iap/bin
           zip -yr "$NOTARY_ZIP" macos
@@ -434,16 +435,20 @@ jobs:
             --key-id "$APP_STORE_CONNECT_API_KEY_ID" \
             --issuer "$APP_STORE_CONNECT_API_ISSUER_ID" \
             --wait \
-            --timeout 30m
+            --timeout 30m \
+            --output-format json > "$NOTARY_RESULT"
 
-          xcrun stapler staple -v dist/addons/godot-iap/bin/macos/SwiftGodotRuntime.framework
-          xcrun stapler staple -v dist/addons/godot-iap/bin/macos/GodotIap.framework
-          xcrun stapler validate -v dist/addons/godot-iap/bin/macos/SwiftGodotRuntime.framework
-          xcrun stapler validate -v dist/addons/godot-iap/bin/macos/GodotIap.framework
+          SUBMISSION_ID="$(jq -r '.id // empty' "$NOTARY_RESULT")"
+          test "$(jq -r '.status // empty' "$NOTARY_RESULT")" = "Accepted"
+          test -n "$SUBMISSION_ID"
 
-          rm "godot-iap-$VERSION.zip"
-          cd dist
-          zip -yr "../godot-iap-$VERSION.zip" addons
+          xcrun notarytool log \
+            "$SUBMISSION_ID" \
+            "$NOTARY_LOG" \
+            --key "$API_KEY_PATH" \
+            --key-id "$APP_STORE_CONNECT_API_KEY_ID" \
+            --issuer "$APP_STORE_CONNECT_API_ISSUER_ID"
+          test "$(jq '[.issues[]? | select(.severity == "error")] | length' "$NOTARY_LOG")" = "0"
 
       - name: Verify release zip
         env:
@@ -461,10 +466,6 @@ jobs:
             grep -q '^macos\.' "$VERIFY_DIR/addons/godot-iap/bin/godot_iap.gdextension"
             codesign --verify --deep --strict --verbose=2 "$VERIFY_DIR/addons/godot-iap/bin/macos/SwiftGodotRuntime.framework"
             codesign --verify --deep --strict --verbose=2 "$VERIFY_DIR/addons/godot-iap/bin/macos/GodotIap.framework"
-            xcrun stapler validate -v "$VERIFY_DIR/addons/godot-iap/bin/macos/SwiftGodotRuntime.framework"
-            xcrun stapler validate -v "$VERIFY_DIR/addons/godot-iap/bin/macos/GodotIap.framework"
-            spctl -a -vv --type execute "$VERIFY_DIR/addons/godot-iap/bin/macos/SwiftGodotRuntime.framework"
-            spctl -a -vv --type execute "$VERIFY_DIR/addons/godot-iap/bin/macos/GodotIap.framework"
           else
             grep -q '^supported_platforms = \["ios"\]' "$VERIFY_DIR/addons/godot-iap/bin/godot_iap.gdextension"
             test ! -d "$VERIFY_DIR/addons/godot-iap/bin/macos"
