@@ -80,6 +80,16 @@
       "android": "https://play.google.com/store/apps/details?id=com.festmates",
       "ratings": 4,
       "installs": 100
+    },
+    {
+      "name": "DriBu",
+      "tagline": "DriBu keeps road trips, camper convoys and family drives with several cars together.",
+      "logo": "https://dribu.de/assets/img/dribu-logo.webp",
+      "library": "ecpo-iap",
+      "ios": "https://apps.apple.com/app/id6723883241",
+      "android": "https://play.google.com/store/apps/details?id=com.dribu",
+      "ratings": 32,
+      "installs": 8000
     }
   ]
 }
