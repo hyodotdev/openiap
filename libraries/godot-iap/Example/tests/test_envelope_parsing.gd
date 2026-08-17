@@ -103,34 +103,74 @@ class FakeAndroidJsonPlugin:
 		return _respond("getStorefrontAndroid", JSON.stringify({"success": true, "countryCode": "US"}))
 
 
-class FakeImmediateIOSPlugin:
+class FakeImmediateApplePlugin:
 	extends RefCounted
 	## Canned payloads returned synchronously WITHOUT a requestId, which
 	## exercises _call_ios_async's immediate-payload and error fallbacks.
 	var responses: Dictionary = {}
 
+	func _respond(method: String, fallback: String) -> String:
+		return responses.get(method, fallback)
+
+	func initConnection() -> String:
+		return _respond("initConnection", JSON.stringify({"success": true}))
+
+	func endConnection() -> String:
+		return _respond("endConnection", JSON.stringify({"success": true}))
+
+	func setPurchaseUpdatedListenerOptions(options_json: String) -> void:
+		responses["last_listener_options"] = options_json
+
 	func getReceiptDataIOS() -> String:
-		return responses.get("getReceiptDataIOS", "0")
+		return _respond("getReceiptDataIOS", "0")
 
 	func getStorefront() -> String:
-		return responses.get("getStorefront", "0")
+		return _respond("getStorefront", "0")
 
 	func fetchProducts(request_json: String) -> String:
 		responses["last_fetch_request"] = request_json
-		return responses.get("fetchProducts", "0")
+		return _respond("fetchProducts", "0")
 
 	func requestPurchaseWithPayload(request_json: String) -> String:
 		responses["last_purchase_request"] = request_json
-		return responses.get(
+		return _respond(
 			"requestPurchaseWithPayload",
 			JSON.stringify({"success": true})
 		)
 
+	func finishTransaction(args_json: String) -> String:
+		responses["last_finish_args"] = args_json
+		return _respond("finishTransaction", JSON.stringify({"success": true}))
+
 	func restorePurchases() -> String:
-		return responses.get(
+		return _respond(
 			"restorePurchases",
 			JSON.stringify({"success": true})
 		)
+
+	func getAvailablePurchases(options_json: String) -> String:
+		responses["last_purchase_options"] = options_json
+		return _respond("getAvailablePurchases", "0")
+
+	func getActiveSubscriptions(ids_json: String) -> String:
+		responses["last_subscription_ids"] = ids_json
+		return _respond("getActiveSubscriptions", "0")
+
+	func hasActiveSubscriptions(ids_json: String) -> String:
+		responses["last_has_subscription_ids"] = ids_json
+		return _respond("hasActiveSubscriptions", "0")
+
+	func verifyPurchase(props_json: String) -> String:
+		responses["last_verify_props"] = props_json
+		return _respond("verifyPurchase", "0")
+
+	func verifyPurchaseWithProvider(props_json: String) -> String:
+		responses["last_provider_props"] = props_json
+		return _respond("verifyPurchaseWithProvider", "0")
+
+	func deepLinkToSubscriptions(options_json: String) -> String:
+		responses["last_deep_link_options"] = options_json
+		return _respond("deepLinkToSubscriptions", "0")
 
 
 func _init() -> void:
@@ -199,6 +239,7 @@ func _run_all_tests() -> void:
 	# iOS immediate payload envelopes
 	await test_ios_immediate_payload_envelope()
 	await test_ios_missing_request_id_envelope()
+	await test_macos_shared_api_routing()
 
 
 func _install_android_fake() -> FakeAndroidJsonPlugin:
@@ -208,10 +249,14 @@ func _install_android_fake() -> FakeAndroidJsonPlugin:
 	return fake
 
 
-func _install_ios_fake() -> FakeImmediateIOSPlugin:
-	var fake = FakeImmediateIOSPlugin.new()
+func _install_ios_fake() -> FakeImmediateApplePlugin:
+	return _install_apple_fake("iOS")
+
+
+func _install_apple_fake(platform: String) -> FakeImmediateApplePlugin:
+	var fake = FakeImmediateApplePlugin.new()
 	GodotIapPlugin._native_plugin = fake
-	GodotIapPlugin._platform = "iOS"
+	GodotIapPlugin._platform = platform
 	return fake
 
 
@@ -1163,6 +1208,137 @@ func test_ios_missing_request_id_envelope() -> void:
 	)
 
 	GodotIapPlugin.purchase_error.disconnect(capture_error)
+	_uninstall_fake()
+
+
+func test_macos_shared_api_routing() -> void:
+	var fake = _install_apple_fake("macOS")
+	var purchase_dict := {
+		"success": true,
+		"id": "mac-tx",
+		"productId": "mac.sku",
+		"transactionDate": 1.0,
+		"transactionId": "mac-tx",
+		"purchaseState": "purchased",
+		"quantity": 1,
+		"isAutoRenewing": false,
+		"store": "apple",
+	}
+
+	_assert_true(GodotIapPlugin._is_apple(), "macOS should use the Apple platform path")
+	GodotIapPlugin.set_purchase_updated_listener_options({"dedupeTransactionIOS": false})
+	_assert_equal(
+		JSON.parse_string(fake.responses.get("last_listener_options", "{}")),
+		{"dedupeTransactionIOS": false},
+		"macOS should configure the shared Apple purchase listener"
+	)
+	_assert_true(await GodotIapPlugin.init_connection(), "macOS should initialize through StoreKit")
+
+	fake.responses["fetchProducts"] = JSON.stringify({
+		"success": true,
+		"productsJson": JSON.stringify([{
+			"id": "mac.sku",
+			"title": "macOS Product",
+			"description": "A product",
+			"type": "in-app",
+			"typeIOS": "consumable",
+			"platform": "ios",
+			"displayPrice": "$1.99",
+			"currency": "USD",
+		}]),
+	})
+	var product_request = Types.ProductRequest.new()
+	var skus: Array[String] = ["mac.sku"]
+	product_request.skus = skus
+	var products = await GodotIapPlugin.fetch_products(product_request)
+	_assert_equal(products.size(), 1, "macOS should fetch products through StoreKit")
+	_assert_true(products[0] is Types.ProductIOS, "macOS products should use Apple product types")
+
+	fake.responses["requestPurchaseWithPayload"] = JSON.stringify(purchase_dict)
+	var purchase = GodotIapPlugin.request_purchase({
+		"requestPurchase": {"apple": {"sku": "mac.sku"}},
+		"type": "in-app",
+	})
+	_assert_true(purchase is Types.PurchaseIOS, "macOS should request purchases through StoreKit")
+	_assert_equal(purchase.product_id, "mac.sku", "macOS purchase fields should be preserved")
+
+	fake.responses["finishTransaction"] = JSON.stringify({"success": true})
+	var finished = await GodotIapPlugin.finish_transaction_dict(purchase_dict)
+	_assert_true(finished.success, "macOS should finish transactions through StoreKit")
+	_assert_true((await GodotIapPlugin.restore_purchases()).success, "macOS should restore StoreKit purchases")
+
+	fake.responses["getAvailablePurchases"] = JSON.stringify({
+		"success": true,
+		"purchasesJson": JSON.stringify([purchase_dict]),
+	})
+	var available = await GodotIapPlugin.get_available_purchases()
+	_assert_equal(available.size(), 1, "macOS should return available StoreKit purchases")
+	_assert_true(available[0] is Types.PurchaseIOS, "macOS purchases should use Apple purchase types")
+
+	fake.responses["getActiveSubscriptions"] = JSON.stringify({
+		"success": true,
+		"subscriptionsJson": JSON.stringify([{
+			"productId": "mac.sub",
+			"transactionId": "mac-sub-tx",
+			"transactionDate": 1.0,
+			"isActive": true,
+		}]),
+	})
+	fake.responses["hasActiveSubscriptions"] = JSON.stringify({
+		"success": true,
+		"hasActive": true,
+	})
+	_assert_equal(
+		(await GodotIapPlugin.get_active_subscriptions()).size(),
+		1,
+		"macOS should query active StoreKit subscriptions"
+	)
+	_assert_true(
+		await GodotIapPlugin.has_active_subscriptions(),
+		"macOS should query StoreKit subscription status"
+	)
+
+	fake.responses["getStorefront"] = JSON.stringify({
+		"success": true,
+		"countryCode": "USA",
+	})
+	_assert_equal(await GodotIapPlugin.get_storefront(), "USA", "macOS should query the App Store storefront")
+
+	fake.responses["verifyPurchase"] = JSON.stringify({
+		"success": true,
+		"resultJson": JSON.stringify({"isValid": true}),
+	})
+	var verification = await GodotIapPlugin.verify_purchase({"apple": {"sku": "mac.sku"}})
+	_assert_true(verification is Types.VerifyPurchaseResultIOS, "macOS should use Apple purchase verification")
+	_assert_true(verification.is_valid, "macOS verification results should be preserved")
+
+	fake.responses["verifyPurchaseWithProvider"] = JSON.stringify({
+		"success": true,
+		"resultJson": JSON.stringify({"provider": "iapkit", "errors": []}),
+	})
+	var provider_result = await GodotIapPlugin.verify_purchase_with_provider({"provider": "iapkit"})
+	_assert_true(
+		provider_result is Types.VerifyPurchaseWithProviderResult,
+		"macOS should use Apple provider verification"
+	)
+
+	fake.responses["deepLinkToSubscriptions"] = JSON.stringify({"success": true})
+	_assert_true(
+		(await GodotIapPlugin.deep_link_to_subscriptions()).success,
+		"macOS should open subscription management through the Apple plugin"
+	)
+	_assert_equal(GodotIapPlugin.get_store(), Types.IapStore.APPLE, "macOS should report the Apple store")
+
+	fake.responses["getReceiptDataIOS"] = JSON.stringify({
+		"success": true,
+		"receiptData": "mac-receipt",
+	})
+	_assert_equal(
+		await GodotIapPlugin.get_receipt_data_ios(),
+		"",
+		"macOS should not widen explicitly named iOS APIs"
+	)
+	_assert_true(await GodotIapPlugin.end_connection(), "macOS should end the StoreKit connection")
 	_uninstall_fake()
 
 
