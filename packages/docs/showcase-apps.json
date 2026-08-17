@@ -82,6 +82,18 @@
       "installs": 100
     },
     {
+      "name": "RescueDogs",
+      "tagline": "Coordinate search and rescue dog teams in one app",
+      "logo": "/showcase/rescuedogs.webp",
+      "library": "expo-iap",
+      "iapkit": true,
+      "ios": "https://apps.apple.com/app/id6476817168",
+      "android": "https://play.google.com/store/apps/details?id=com.rescuedogs",
+      "web": "https://rescuedogs.app/",
+      "ratings": 35,
+      "installs": 1000
+    },
+    {
       "name": "DriBu",
       "tagline": "Keep road trips and multi-car convoys together",
       "logo": "/showcase/dribu.webp",
