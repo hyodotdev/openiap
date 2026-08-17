@@ -1,7 +1,7 @@
 extends SceneTree
 ## JSON envelope parsing tests for godot_iap.gd.
 ##
-## The native Android plugin speaks JSON strings and the native iOS plugin
+## The native Android plugin speaks JSON strings and the native Apple plugin
 ## speaks {"success": true, ...} payload envelopes. These tests feed canned
 ## envelopes through fake native plugins to lock down the wrapper's
 ## parse/normalize/error paths without a real store.
@@ -106,10 +106,12 @@ class FakeAndroidJsonPlugin:
 class FakeImmediateApplePlugin:
 	extends RefCounted
 	## Canned payloads returned synchronously WITHOUT a requestId, which
-	## exercises _call_ios_async's immediate-payload and error fallbacks.
+	## exercises _call_apple_async's immediate-payload and error fallbacks.
 	var responses: Dictionary = {}
+	var last_method := ""
 
 	func _respond(method: String, fallback: String) -> String:
+		last_method = method
 		return responses.get(method, fallback)
 
 	func initConnection() -> String:
@@ -203,10 +205,10 @@ func _run_all_tests() -> void:
 	test_normalize_purchase_dict()
 	test_normalize_android_purchase_dict()
 	test_parse_request_id()
-	test_ios_async_result_key()
+	test_apple_async_result_key()
 	await test_products_fetched_cache()
-	await test_ios_async_timeout_and_late_callback()
-	await test_ios_async_disconnect_and_concurrency()
+	await test_apple_async_timeout_and_late_callback()
+	await test_apple_async_disconnect_and_concurrency()
 	await test_ios_restore_failure_emits_purchase_error()
 	test_android_signal_handlers_parse_json()
 
@@ -353,28 +355,28 @@ func test_parse_request_id() -> void:
 	_assert_equal(GodotIapPlugin._parse_request_id(42), "", "Non-string pending values should map to empty string")
 
 
-func test_ios_async_result_key() -> void:
-	_assert_equal(GodotIapPlugin._ios_async_result_key("syncIOS", "req-9"), "syncIOS:req-9", "Async cache keys should be method:requestId")
+func test_apple_async_result_key() -> void:
+	_assert_equal(GodotIapPlugin._apple_async_result_key("syncIOS", "req-9"), "syncIOS:req-9", "Async cache keys should be method:requestId")
 
 
 func test_products_fetched_cache() -> void:
-	GodotIapPlugin._ios_async_results.clear()
+	GodotIapPlugin._apple_async_results.clear()
 	GodotIapPlugin._on_products_fetched({"method": "syncIOS", "requestId": "req-1", "success": true})
-	_assert_true(GodotIapPlugin._ios_async_results.has("syncIOS:req-1"), "Tagged native completions should be cached")
+	_assert_true(GodotIapPlugin._apple_async_results.has("syncIOS:req-1"), "Tagged native completions should be cached")
 
 	GodotIapPlugin._on_products_fetched({"success": true})
-	_assert_equal(GodotIapPlugin._ios_async_results.size(), 1, "Untagged completions should not be cached")
+	_assert_equal(GodotIapPlugin._apple_async_results.size(), 1, "Untagged completions should not be cached")
 
 	var payload = await GodotIapPlugin._await_products_fetched_for("syncIOS", "req-1")
 	_assert_equal(payload.get("success"), true, "Cached completions should resolve the awaiting coroutine")
-	_assert_equal(GodotIapPlugin._ios_async_results.size(), 0, "Resolved completions should be evicted from the cache")
+	_assert_equal(GodotIapPlugin._apple_async_results.size(), 0, "Resolved completions should be evicted from the cache")
 
 
-func test_ios_async_timeout_and_late_callback() -> void:
-	GodotIapPlugin._ios_async_results.clear()
-	GodotIapPlugin._ios_async_waiters.clear()
-	GodotIapPlugin._ios_async_terminal_keys.clear()
-	GodotIapPlugin._ios_async_terminal_order.clear()
+func test_apple_async_timeout_and_late_callback() -> void:
+	GodotIapPlugin._apple_async_results.clear()
+	GodotIapPlugin._apple_async_waiters.clear()
+	GodotIapPlugin._apple_async_terminal_keys.clear()
+	GodotIapPlugin._apple_async_terminal_order.clear()
 	var published: Array[Dictionary] = []
 	var capture = func(payload: Dictionary) -> void:
 		published.append(payload)
@@ -385,7 +387,7 @@ func test_ios_async_timeout_and_late_callback() -> void:
 	)
 	_assert_equal(result.get("success"), false, "Timed-out iOS calls should fail")
 	_assert_equal(result.get("code"), "service-timeout", "Timed-out iOS calls should use service-timeout")
-	_assert_equal(GodotIapPlugin._ios_async_waiters.size(), 0, "Timed-out waiters should be removed")
+	_assert_equal(GodotIapPlugin._apple_async_waiters.size(), 0, "Timed-out waiters should be removed")
 
 	GodotIapPlugin._on_products_fetched({
 		"method": "syncIOS",
@@ -393,15 +395,15 @@ func test_ios_async_timeout_and_late_callback() -> void:
 		"success": true,
 	})
 	_assert_equal(published.size(), 0, "Late completions after timeout should be ignored")
-	_assert_equal(GodotIapPlugin._ios_async_results.size(), 0, "Late completions should not refill the cache")
+	_assert_equal(GodotIapPlugin._apple_async_results.size(), 0, "Late completions should not refill the cache")
 	GodotIapPlugin.products_fetched.disconnect(capture)
 
 
-func test_ios_async_disconnect_and_concurrency() -> void:
-	GodotIapPlugin._ios_async_results.clear()
-	GodotIapPlugin._ios_async_waiters.clear()
-	GodotIapPlugin._ios_async_terminal_keys.clear()
-	GodotIapPlugin._ios_async_terminal_order.clear()
+func test_apple_async_disconnect_and_concurrency() -> void:
+	GodotIapPlugin._apple_async_results.clear()
+	GodotIapPlugin._apple_async_waiters.clear()
+	GodotIapPlugin._apple_async_terminal_keys.clear()
+	GodotIapPlugin._apple_async_terminal_order.clear()
 
 	var first_state = GodotIapPlugin._await_products_fetched_for("syncIOS", "first", 1.0)
 	var second_state = GodotIapPlugin._await_products_fetched_for("syncIOS", "second", 1.0)
@@ -418,7 +420,7 @@ func test_ios_async_disconnect_and_concurrency() -> void:
 	var second = await second_state
 	_assert_equal(first.get("code"), "service-disconnected", "Disconnect should cancel every pending request")
 	_assert_equal(second.get("value"), 2, "Concurrent completions should resolve only their requestId")
-	_assert_equal(GodotIapPlugin._ios_async_waiters.size(), 0, "Disconnect should leave no pending waiters")
+	_assert_equal(GodotIapPlugin._apple_async_waiters.size(), 0, "Disconnect should leave no pending waiters")
 
 	var tree_exit_state = GodotIapPlugin._await_products_fetched_for(
 		"getAvailablePurchases", "tree-exit", 1.0
@@ -432,24 +434,24 @@ func test_ios_async_disconnect_and_concurrency() -> void:
 		"Leaving the scene tree should cancel pending iOS requests"
 	)
 	_assert_equal(
-		GodotIapPlugin._ios_async_waiters.size(),
+		GodotIapPlugin._apple_async_waiters.size(),
 		0,
 		"Tree-exit cancellation should leave no pending waiters"
 	)
 
-	GodotIapPlugin._ios_async_results.clear()
-	GodotIapPlugin._ios_async_result_order.clear()
-	GodotIapPlugin._ios_async_terminal_keys.clear()
-	GodotIapPlugin._ios_async_terminal_order.clear()
-	for index in range(GodotIapPlugin.IOS_ASYNC_RESULT_CACHE_LIMIT + 10):
+	GodotIapPlugin._apple_async_results.clear()
+	GodotIapPlugin._apple_async_result_order.clear()
+	GodotIapPlugin._apple_async_terminal_keys.clear()
+	GodotIapPlugin._apple_async_terminal_order.clear()
+	for index in range(GodotIapPlugin.APPLE_ASYNC_RESULT_CACHE_LIMIT + 10):
 		GodotIapPlugin._on_products_fetched({
 			"method": "syncIOS",
 			"requestId": "cached-%d" % index,
 			"success": true,
 		})
 	_assert_equal(
-		GodotIapPlugin._ios_async_results.size(),
-		GodotIapPlugin.IOS_ASYNC_RESULT_CACHE_LIMIT,
+		GodotIapPlugin._apple_async_results.size(),
+		GodotIapPlugin.APPLE_ASYNC_RESULT_CACHE_LIMIT,
 		"Unclaimed iOS completions should respect the result-cache limit"
 	)
 	var evicted = await GodotIapPlugin._await_products_fetched_for(
@@ -623,17 +625,17 @@ func test_android_request_purchase_success_envelope() -> void:
 func test_ios_restore_failure_emits_purchase_error() -> void:
 	var previous_platform = GodotIapPlugin._platform
 	var previous_plugin = GodotIapPlugin._native_plugin
-	GodotIapPlugin._ios_async_results.clear()
-	GodotIapPlugin._ios_async_result_order.clear()
-	GodotIapPlugin._ios_async_terminal_keys.clear()
-	GodotIapPlugin._ios_async_terminal_order.clear()
+	GodotIapPlugin._apple_async_results.clear()
+	GodotIapPlugin._apple_async_result_order.clear()
+	GodotIapPlugin._apple_async_terminal_keys.clear()
+	GodotIapPlugin._apple_async_terminal_order.clear()
 
 	var errors: Array[Dictionary] = []
 	var capture_error = func(error: Dictionary) -> void:
 		errors.append(error)
 	GodotIapPlugin.purchase_error.connect(capture_error)
 
-	# The fake returns its payload without a requestId, so `_call_ios_async`
+	# The fake returns its payload without a requestId, so `_call_apple_async`
 	# takes the immediate-payload path and `restore_purchases()` runs its real
 	# iOS branch rather than the test re-implementing it.
 	var fake = _install_ios_fake()
@@ -1232,7 +1234,15 @@ func test_macos_shared_api_routing() -> void:
 		{"dedupeTransactionIOS": false},
 		"macOS should configure the shared Apple purchase listener"
 	)
+	fake.responses["initConnection"] = JSON.stringify({"success": false})
+	_assert_false(
+		await GodotIapPlugin.init_connection(),
+		"macOS should preserve StoreKit initialization failures"
+	)
+	_assert_equal(fake.last_method, "initConnection", "macOS should call Apple initConnection")
+	fake.responses["initConnection"] = JSON.stringify({"success": true})
 	_assert_true(await GodotIapPlugin.init_connection(), "macOS should initialize through StoreKit")
+	_assert_equal(fake.last_method, "initConnection", "macOS should retry Apple initConnection")
 
 	fake.responses["fetchProducts"] = JSON.stringify({
 		"success": true,
@@ -1265,6 +1275,7 @@ func test_macos_shared_api_routing() -> void:
 	fake.responses["finishTransaction"] = JSON.stringify({"success": true})
 	var finished = await GodotIapPlugin.finish_transaction_dict(purchase_dict)
 	_assert_true(finished.success, "macOS should finish transactions through StoreKit")
+	_assert_equal(fake.last_method, "finishTransaction", "macOS should call Apple finishTransaction")
 	_assert_true((await GodotIapPlugin.restore_purchases()).success, "macOS should restore StoreKit purchases")
 
 	fake.responses["getAvailablePurchases"] = JSON.stringify({
@@ -1338,7 +1349,15 @@ func test_macos_shared_api_routing() -> void:
 		"",
 		"macOS should not widen explicitly named iOS APIs"
 	)
+	fake.responses["endConnection"] = JSON.stringify({"success": false})
+	_assert_false(
+		await GodotIapPlugin.end_connection(),
+		"macOS should preserve StoreKit disconnection failures"
+	)
+	_assert_equal(fake.last_method, "endConnection", "macOS should call Apple endConnection")
+	fake.responses["endConnection"] = JSON.stringify({"success": true})
 	_assert_true(await GodotIapPlugin.end_connection(), "macOS should end the StoreKit connection")
+	_assert_equal(fake.last_method, "endConnection", "macOS should retry Apple endConnection")
 	_uninstall_fake()
 
 

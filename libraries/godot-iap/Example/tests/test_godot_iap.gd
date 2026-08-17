@@ -136,7 +136,7 @@ func _run_all_tests() -> void:
 	# Purchase tests
 	await test_billing_choice_android_payloads()
 	test_android_purchase_lists_fail_closed()
-	await test_ios_async_result_cache()
+	await test_apple_async_result_cache()
 	await test_get_available_purchases_mock()
 	await test_android_purchase_options_bridge()
 	await test_restore_purchases_mock()
@@ -355,12 +355,12 @@ func test_freed_object_options_are_ignored() -> void:
 	_assert_equal(GodotIapPlugin._as_dictionary(freed), {}, "Freed objects should be ignored")
 
 
-func test_ios_async_result_cache() -> void:
+func test_apple_async_result_cache() -> void:
 	var fake = FakeIOSAsyncPlugin.new()
 	GodotIapPlugin._native_plugin = fake
 	GodotIapPlugin._platform = "iOS"
-	GodotIapPlugin._ios_async_results.clear()
-	GodotIapPlugin._connect_signals_ios()
+	GodotIapPlugin._apple_async_results.clear()
+	GodotIapPlugin._connect_signals_apple()
 
 	var pending = await GodotIapPlugin.get_pending_transactions_ios()
 	_assert_equal(pending.size(), 1, "pending transactions should await tagged native result")
@@ -381,7 +381,7 @@ func test_ios_async_result_cache() -> void:
 	var subscriptions = await GodotIapPlugin.get_active_subscriptions()
 	_assert_equal(subscriptions.size(), 1, "default active subscriptions should not filter out all results")
 	_assert_equal(fake.last_subscription_ids, "", "empty subscription filter should map to native nil")
-	_assert_equal(GodotIapPlugin._ios_async_results.size(), 0, "completed async results should be removed from cache")
+	_assert_equal(GodotIapPlugin._apple_async_results.size(), 0, "completed async results should be removed from cache")
 
 	GodotIapPlugin._native_plugin = null
 	GodotIapPlugin._platform = ""
