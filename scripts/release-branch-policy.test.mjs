@@ -1572,6 +1572,15 @@ test("Godot imports and removes signing credentials around codesigning", () => {
   assert.match(workflow.slice(cleanup, mutation), /security delete-keychain/u);
 });
 
+test("Godot verifies notarization without stapling flat frameworks", () => {
+  const workflow = readWorkflow("release-godot.yml");
+  const notarize = extractNamedStep(workflow, "Notarize macOS frameworks");
+  assert.match(notarize.source, /--output-format json/u);
+  assert.match(notarize.source, /\.status \/\/ empty/u);
+  assert.match(notarize.source, /xcrun notarytool log/u);
+  assert.doesNotMatch(workflow, /xcrun stapler/u);
+});
+
 test("next receives the same core and framework CI coverage", () => {
   const coreCi = readWorkflow("ci.yml");
   assert.equal((coreCi.match(/^\s+- next$/gm) ?? []).length, 2);
