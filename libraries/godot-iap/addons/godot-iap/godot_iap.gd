@@ -2100,22 +2100,22 @@ func deep_link_to_subscriptions(options = null) -> Variant:
 		return Types.VoidResult.from_dict(apple_payload)
 	elif _is_apple():
 		# Apple: Open App Store subscription management URL
-		OS.shell_open("https://apps.apple.com/account/subscriptions")
 		var apple_fallback_result = Types.VoidResult.new()
-		apple_fallback_result.success = true
+		apple_fallback_result.success = OS.shell_open(
+			"https://apps.apple.com/account/subscriptions"
+		) == OK
 		return apple_fallback_result
 	elif _platform == "Android":
 		# Android: Open Play Store subscription management URL
+		var subscription_url := "https://play.google.com/store/account/subscriptions"
 		var sku = opts.sku_android if opts.sku_android else ""
 		var package_name = opts.package_name_android if opts.package_name_android else get_package_name_android()
 		if not sku.is_empty() and not package_name.is_empty():
 			var encoded_sku = sku.uri_encode()
 			var encoded_package = package_name.uri_encode()
-			OS.shell_open("https://play.google.com/store/account/subscriptions?sku=%s&package=%s" % [encoded_sku, encoded_package])
-		else:
-			OS.shell_open("https://play.google.com/store/account/subscriptions")
+			subscription_url += "?sku=%s&package=%s" % [encoded_sku, encoded_package]
 		var android_fallback_result = Types.VoidResult.new()
-		android_fallback_result.success = true
+		android_fallback_result.success = OS.shell_open(subscription_url) == OK
 		return android_fallback_result
 	var unavailable_result = Types.VoidResult.new()
 	unavailable_result.success = false
