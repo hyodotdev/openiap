@@ -1339,7 +1339,9 @@ function checkStrictAppleFrameworkQuerySerialization() {
     "libraries/godot-iap/addons/godot-iap/godot_iap.gd",
     [
       'if result.get("status", "") == "pending" or result.get("pending", false):\n\t\treturn null',
-      'if _platform == "iOS" and store != "apple":',
+      'const APPLE_PLATFORMS := ["iOS", "macOS"]',
+      "func _is_apple() -> bool:\n\treturn _platform in APPLE_PLATFORMS",
+      'if _is_apple() and store != "apple":',
       'store not in ["google", "amazon", "horizon"]',
     ],
     "Godot pending dispatch and platform-scoped purchase decoding",
