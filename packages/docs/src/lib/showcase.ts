@@ -20,6 +20,8 @@ export type ShowcaseApp = {
   logo: string;
   /** Which OpenIAP library the app ships with. */
   library: FrameworkLibraryName;
+  /** Whether the app uses IAPKit for receipt validation. */
+  iapkit?: boolean;
   ios?: string;
   android?: string;
   web?: string;

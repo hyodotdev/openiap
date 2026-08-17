@@ -13,9 +13,9 @@ function Showcase() {
     <div className="home">
       <SEO
         title="Who uses OpenIAP?"
-        description="Apps shipping in-app purchases with OpenIAP libraries — expo-iap, react-native-iap, flutter_inapp_purchase, kmp-iap, maui-iap, and godot-iap."
+        description="Showcase of apps built with OpenIAP libraries, including apps that use IAPKit receipt validation."
         path="/showcase"
-        keywords="OpenIAP apps, expo-iap apps, react-native-iap apps, in-app purchase showcase"
+        keywords="OpenIAP apps, IAPKit apps, expo-iap apps, react-native-iap apps, in-app purchase showcase"
       />
       <section className="home-section">
         <div className="section-container" style={{ maxWidth: '960px' }}>
@@ -67,9 +67,10 @@ function Showcase() {
               >
                 showcase-apps.json
               </a>
-              , or email{' '}
+              . If you have multiple apps, include them in one pull request. You
+              can also email{' '}
               <a
-                href="mailto:hyo@hyo.dev?subject=OpenIAP Showcase Request&body=App Name:%0AOne-liner:%0AApp Icon (512x512 PNG, attached):%0AStore Links:%0A- iOS: %0A- Android: %0A%0AWhich OpenIAP library do you use?"
+                href="mailto:hyo@hyo.dev?subject=OpenIAP Showcase Request&body=App Name:%0AOne-liner:%0AApp Icon (512x512 PNG, attached):%0AStore Links:%0A- iOS: %0A- Android: %0AOpenIAP library:%0AUses IAPKit (yes/no):"
                 style={{ color: 'var(--accent-color)' }}
               >
                 hyo@hyo.dev
@@ -98,6 +99,10 @@ function Showcase() {
                 <strong>Library</strong> you ship with (expo-iap,
                 react-native-iap, flutter_inapp_purchase, kmp-iap, maui-iap,
                 godot-iap)
+              </li>
+              <li>
+                <strong>IAPKit</strong> — tell us whether you use it for receipt
+                validation
               </li>
             </ul>
             <p

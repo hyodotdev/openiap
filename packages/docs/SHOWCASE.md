@@ -4,7 +4,10 @@ Shipped an app with `react-native-iap`, `expo-iap`, `flutter_inapp_purchase`,
 `kmp-iap`, `maui-iap`, or `godot-iap`? Add it to the
 **[Who uses OpenIAP?](https://www.openiap.dev)** section on the home page.
 
-It's one entry in [`showcase-apps.json`](./showcase-apps.json).
+Each app is one entry in [`showcase-apps.json`](./showcase-apps.json).
+
+Submitting more than one app? Add every app and icon to the same pull request.
+Do not open one pull request per app.
 
 ## Open a pull request
 
@@ -17,6 +20,7 @@ It's one entry in [`showcase-apps.json`](./showcase-apps.json).
      "tagline": "One line about what your app does",
      "logo": "/showcase/your-app.webp",
      "library": "expo-iap",
+     "iapkit": true,
      "ios": "https://apps.apple.com/us/app/your-app/id0000000000",
      "android": "https://play.google.com/store/apps/details?id=com.example.yourapp"
    }
@@ -52,16 +56,17 @@ Leave `ratings` and `installs` out of your PR — the script fills them in.
 
 ## Fields
 
-| Field     | Required | Notes                                                                                  |
-| --------- | -------- | -------------------------------------------------------------------------------------- |
-| `name`    | ✅       | App name as it appears on the stores.                                                   |
-| `tagline` | ✅       | One short line. Keep it under ~70 characters so cards stay even.                         |
-| `logo`    | ✅       | Path under `packages/docs/public` (e.g. `/showcase/your-app.webp`) or a full https URL.  |
-| `ratings` / `installs` | — | Maintainer-managed ordering metrics. Leave these out.                       |
-| `library` | ✅       | One of `expo-iap`, `react-native-iap`, `flutter_inapp_purchase`, `kmp-iap`, `maui-iap`, `godot-iap`. |
-| `ios`     | —        | App Store URL.                                                                          |
-| `android` | —        | Google Play URL.                                                                        |
-| `web`     | —        | Website or other store, shown as "Website".                                             |
+| Field                  | Required | Notes                                                                                                |
+| ---------------------- | -------- | ---------------------------------------------------------------------------------------------------- |
+| `name`                 | ✅       | App name as it appears on the stores.                                                                |
+| `tagline`              | ✅       | One short line. Keep it under ~70 characters so cards stay even.                                     |
+| `logo`                 | ✅       | Path under `packages/docs/public` (e.g. `/showcase/your-app.webp`) or a full https URL.              |
+| `ratings` / `installs` | —        | Maintainer-managed ordering metrics. Leave these out.                                                |
+| `library`              | ✅       | One of `expo-iap`, `react-native-iap`, `flutter_inapp_purchase`, `kmp-iap`, `maui-iap`, `godot-iap`. |
+| `iapkit`               | —        | Set to `true` only when the app uses IAPKit receipt validation. Omit it otherwise.                   |
+| `ios`                  | —        | App Store URL.                                                                                       |
+| `android`              | —        | Google Play URL.                                                                                     |
+| `web`                  | —        | Website or other store, shown as "Website".                                                          |
 
 At least one of `ios`, `android`, or `web` is required — entries without a link
 are skipped at render time.
@@ -70,7 +75,7 @@ are skipped at render time.
 
 Reply to [discussion #350](https://github.com/hyodotdev/openiap/discussions/350) or
 email **hyo@hyo.dev** with your app name, one-liner, logo, store links, and which
-library you use — we'll add it for you.
+library you use. Also tell us whether you use IAPKit for receipt validation.
 
 ## Removal and updates
 
