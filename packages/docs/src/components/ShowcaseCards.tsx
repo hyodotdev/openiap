@@ -47,6 +47,14 @@ const storeLinkStyle: CSSProperties = {
   textDecoration: 'none',
 };
 
+const badgeStyle: CSSProperties = {
+  fontSize: '0.72rem',
+  color: 'var(--text-secondary)',
+  border: '1px solid var(--border-color)',
+  borderRadius: '0.75rem',
+  padding: '0.1rem 0.5rem',
+};
+
 export function ShowcaseAppCard({ app }: { app: ShowcaseApp }) {
   return (
     <div style={cardStyle}>
@@ -116,18 +124,20 @@ export function ShowcaseAppCard({ app }: { app: ShowcaseApp }) {
               <Globe size={15} strokeWidth={2} />
             </a>
           ) : null}
-          <span
-            style={{
-              fontSize: '0.72rem',
-              color: 'var(--text-secondary)',
-              border: '1px solid var(--border-color)',
-              borderRadius: '0.75rem',
-              padding: '0.1rem 0.5rem',
-              marginLeft: '0.25rem',
-            }}
-          >
+          <span style={{ ...badgeStyle, marginLeft: '0.25rem' }}>
             {app.library}
           </span>
+          {app.iapkit ? (
+            <span
+              style={{
+                ...badgeStyle,
+                color: 'var(--accent-color)',
+              }}
+              title="Uses IAPKit receipt validation"
+            >
+              IAPKit
+            </span>
+          ) : null}
         </div>
       </div>
     </div>
@@ -156,7 +166,7 @@ export function ShowcaseSubmitCard() {
           color: 'var(--text-secondary)',
         }}
       >
-        Send your app name, icon, and store links — we'll add it here.
+        Send your app details and IAPKit usage — we'll add it here.
       </div>
       <a
         href={SHOWCASE_DISCUSSION_URL}

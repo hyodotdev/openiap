@@ -1,22 +1,22 @@
 ---
 name: add-showcase-app
-description: Add an app to the OpenIAP "Who uses OpenIAP?" showcase — download and mask its icon, append the showcase-apps.json entry, refresh the review-count ordering metrics, and verify the docs build. Use when someone submits an app through issue #280, a showcase pull request, X, or email, or when the user asks to add or update an app on openiap.dev/showcase.
+description: Add one or more apps to the OpenIAP "Who uses OpenIAP?" showcase — record OpenIAP library and IAPKit usage, normalize icons, refresh ordering metrics, and verify the docs build. Use when someone submits apps through discussion #350, a showcase pull request, X, or email, or when the user asks to add or update apps on openiap.dev/showcase.
 ---
 
 # Add Showcase App
 
-Turn an app submission into a rendered card on the home page and `/showcase`.
+Turn app submissions into rendered cards on the home page and `/showcase`.
 
 Everything lives in `packages/docs`:
 
-| Path                                        | Role                                     |
-| ------------------------------------------- | ---------------------------------------- |
-| `showcase-apps.json`                        | The list (SSOT for what renders)         |
-| `public/showcase/<slug>.webp`               | Masked 256×256 app icon                  |
-| `scripts/refresh-showcase-metrics.mjs`      | Fills `ratings` / `installs` for ordering |
-| `src/lib/showcase.ts`                       | Sorting + featured slice                 |
-| `src/components/ShowcaseCards.tsx`          | Card markup                              |
-| `SHOWCASE.md`                               | Public submission guide                  |
+| Path                                   | Role                                      |
+| -------------------------------------- | ----------------------------------------- |
+| `showcase-apps.json`                   | The list (SSOT for what renders)          |
+| `public/showcase/<slug>.webp`          | Masked 256×256 app icon                   |
+| `scripts/refresh-showcase-metrics.mjs` | Fills `ratings` / `installs` for ordering |
+| `src/lib/showcase.ts`                  | Sorting + featured slice                  |
+| `src/components/ShowcaseCards.tsx`     | Card markup                               |
+| `SHOWCASE.md`                          | Public submission guide                   |
 
 ## 1. Collect the submission
 
@@ -28,11 +28,15 @@ Required from the submitter:
 - **Store links** — App Store and/or Google Play; a website link is optional
 - **Library** — one of `expo-iap`, `react-native-iap`, `flutter_inapp_purchase`,
   `kmp-iap`, `maui-iap`, `godot-iap`
+- **IAPKit usage** — whether the app uses IAPKit for receipt validation
+
+When one submitter sends multiple apps, include every app in one pull request.
+Do not split the apps into separate pull requests.
 
 Only list an app when the submitter asked for it. A comment on
-[issue #280](https://github.com/hyodotdev/openiap/issues/280), a showcase PR, an
-email, or a public reply to the announcement all count as permission; a mention
-of the library somewhere else does not.
+[discussion #350](https://github.com/hyodotdev/openiap/discussions/350), a
+showcase PR, an email, or a public reply to the announcement all count as
+permission; a mention of the library somewhere else does not.
 
 If the icon is missing, pull it from the stores rather than asking again:
 
@@ -89,13 +93,16 @@ Ordering is computed at render time, so position in the file does not matter.
   "tagline": "One line about what the app does",
   "logo": "/showcase/your-app.webp",
   "library": "expo-iap",
+  "iapkit": true,
   "ios": "https://apps.apple.com/us/app/your-app/id0000000000",
   "android": "https://play.google.com/store/apps/details?id=com.example.yourapp"
 }
 ```
 
 `ios`, `android`, and `web` are each optional, but an entry with none of them is
-dropped at render time. Leave `ratings` and `installs` out — step 4 writes them.
+dropped at render time. Set `iapkit` to `true` only when the submitter confirms
+IAPKit usage; omit it otherwise. Leave `ratings` and `installs` out — step 4
+writes them.
 
 ## 4. Refresh the ordering metrics
 
@@ -140,7 +147,7 @@ link; `/showcase` lists everything.
 
 ## 6. Close the loop
 
-- Reply to the submission thread (issue #280 comment, PR, or email) confirming
+- Reply to the submission thread (discussion #350, PR, or email) confirming
   the app is listed, and note that updates or removal are available anytime.
 - Public GitHub replies must be in English — see
   `knowledge/internal/06-git-deployment.md`.

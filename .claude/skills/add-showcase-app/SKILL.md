@@ -1,6 +1,6 @@
 ---
 name: add-showcase-app
-description: Add an app to the OpenIAP "Who uses OpenIAP?" showcase — download and mask its icon, append the showcase-apps.json entry, refresh the review-count ordering metrics, and verify the docs build. Use when someone submits an app through issue #280, a showcase pull request, X, or email, or when the user asks to add or update an app on openiap.dev/showcase.
+description: Add one or more apps to the OpenIAP "Who uses OpenIAP?" showcase — record OpenIAP library and IAPKit usage, normalize icons, refresh ordering metrics, and verify the docs build. Use when someone submits apps through discussion #350, a showcase pull request, X, or email, or when the user asks to add or update apps on openiap.dev/showcase.
 ---
 
 # Add Showcase App (Claude Code)
