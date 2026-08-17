@@ -80,6 +80,17 @@
       "android": "https://play.google.com/store/apps/details?id=com.festmates",
       "ratings": 4,
       "installs": 100
+    },
+    {
+      "name": "RescueDogs",
+      "tagline": "The all-in-one platform for search and rescue dog teams.",
+      "logo": "https://is1-ssl.mzstatic.com/image/thumb/PurpleSource211/v4/dd/11/d3/dd11d313-f83f-47ef-7b2b-8247fc5e3a58/Placeholder.mill/400x400bb-75.webp",
+      "library": "expo-iap",
+      "ios": "https://apps.apple.com/app/id6476817168",
+      "android": "https://play.google.com/store/apps/details?id=com.rescuedogs",
+      "web": "https://rescuedogs.app/",
+      "ratings": 30,
+      "installs": 1000
     }
   ]
 }
