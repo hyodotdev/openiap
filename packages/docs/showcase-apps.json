@@ -47,7 +47,7 @@
       "ios": "https://apps.apple.com/us/app/boxa-shadow-boxing-combos/id6503469976",
       "android": "https://play.google.com/store/apps/details?id=shadowboxing.app",
       "web": "https://boxa.app",
-      "ratings": 441,
+      "ratings": 443,
       "installs": 100000
     },
     {
@@ -58,7 +58,7 @@
       "ios": "https://apps.apple.com/us/app/record-scanner-vinyl-cd/id1507752204",
       "android": "https://play.google.com/store/apps/details?id=com.digdig",
       "web": "https://recordscanner.com/",
-      "ratings": 11501,
+      "ratings": 11550,
       "installs": 100000
     },
     {
@@ -80,6 +80,18 @@
       "android": "https://play.google.com/store/apps/details?id=com.festmates",
       "ratings": 4,
       "installs": 100
+    },
+    {
+      "name": "DriBu",
+      "tagline": "Keep road trips and multi-car convoys together",
+      "logo": "/showcase/dribu.webp",
+      "library": "expo-iap",
+      "iapkit": true,
+      "ios": "https://apps.apple.com/app/id6723883241",
+      "android": "https://play.google.com/store/apps/details?id=com.dribu",
+      "web": "https://dribu.de/",
+      "ratings": 9,
+      "installs": 1000
     }
   ]
 }
