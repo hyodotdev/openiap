@@ -253,6 +253,108 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    // August 17, 2026 - Godot macOS StoreKit routing
+    {
+      id: 'godot-macos-storekit-routing-2026-08-17',
+      date: new Date('2026-08-17'),
+      element: (
+        <div
+          key="godot-macos-storekit-routing-2026-08-17"
+          style={noteCardStyle}
+        >
+          <AnchorLink id="godot-macos-storekit-routing-2026-08-17" level="h4">
+            August 17, 2026 - Godot macOS StoreKit routing
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            godot-iap 3.3.2 routes shared purchase APIs through StoreKit on
+            macOS, eliminating false connections, empty catalogs, and
+            unsupported purchase failures.
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>godot-iap 3.3.2</strong> - fixes macOS connection,
+              catalog, purchase, restore, validation, subscription, storefront,
+              verification, and subscription-management routing (
+              <a
+                href="https://github.com/hyodotdev/openiap/issues/353"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                issue #353
+              </a>
+              ;{' '}
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/354"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                PR #354
+              </a>
+              ).
+            </li>
+            <li>
+              Shared Apple calls now propagate native connection and URL-launch
+              failures; explicitly iOS-named APIs stay iOS-only.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              Upgrade affected macOS projects to godot-iap 3.3.2 before relying
+              on the shared purchase API surface.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-3.3.2"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  godot-iap 3.3.2
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // August 14, 2026 - Compatibility, conformance, and purchase safety
     {
       id: 'compatibility-conformance-purchase-safety-2026-08-14',
