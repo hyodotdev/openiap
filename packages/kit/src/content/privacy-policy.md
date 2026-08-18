@@ -96,7 +96,7 @@ We use Mixpanel in the hosted web application to understand adoption and improve
 
 When you ask IAPKit to verify or reconcile a purchase, the relevant transaction identifiers and app configuration are sent only to the applicable platform: Apple, Google, Amazon, or Meta. Those platforms process the request under their own privacy policies.
 
-We disclose personal data only as needed to operate, secure, support, and validate the service, or to comply with law. We do not sell personal data or share it for third-party marketing.
+We disclose personal data only as needed to operate, analyze, improve, secure, support, and validate the service, or to comply with law. We do not sell personal data or share it for third-party marketing.
 
 ---
 
