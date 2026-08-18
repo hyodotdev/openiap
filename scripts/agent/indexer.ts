@@ -45,7 +45,7 @@ interface MarkdownChunk {
  * Custom implementation of MarkdownHeaderTextSplitter
  * Splits markdown by headers while preserving header hierarchy in metadata
  */
-function splitMarkdownByHeaders(
+export function splitMarkdownByHeaders(
   text: string,
   headersToSplitOn: [string, string][] = [
     ["#", "h1"],
@@ -63,18 +63,9 @@ function splitMarkdownByHeaders(
     let headerFound = false;
 
     for (const [headerPrefix, metadataKey] of headersToSplitOn) {
-      // Match exact header level (e.g., "## " but not "### ")
-      const regex = new RegExp(
-        `^${headerPrefix.replace(/#/g, "\\#")}\\s+(.+)$`,
-      );
-      const match = line.match(regex);
+      const isExactLevel = line.startsWith(`${headerPrefix} `);
 
-      // Make sure it's exactly this level, not a sub-level
-      const isExactLevel =
-        line.startsWith(headerPrefix + " ") &&
-        !line.startsWith(headerPrefix + "#");
-
-      if (match && isExactLevel) {
+      if (isExactLevel) {
         // Save previous chunk if exists
         if (currentChunk.length > 0) {
           chunks.push({
@@ -85,7 +76,7 @@ function splitMarkdownByHeaders(
 
         // Reset for new section
         currentChunk = [];
-        currentMetadata[metadataKey] = match[1].trim();
+        currentMetadata[metadataKey] = line.slice(headerPrefix.length).trim();
 
         // Clear lower-level headers when a higher-level header is found
         const headerIndex = headersToSplitOn.findIndex(
