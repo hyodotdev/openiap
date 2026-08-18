@@ -73,9 +73,14 @@ We do **not** store personal user payment details.
 
 We use third-party providers, including:
 
-- **Convex** (hosting and data storage)
+- **Convex** (application data hosting and processing)
+- **Fly.io** (web application and API hosting)
+- **GitHub and Resend** (authentication and email delivery)
+- **Sentry** (error and performance monitoring)
+- **Mixpanel** (product analytics and session replay)
+- **Apple, Google, Amazon, and Meta** (purchase verification and store reconciliation)
 
-Your use of the service constitutes agreement to the processing of data by these providers as needed to operate the platform.
+Your use of the service constitutes agreement to the processing of data by these providers as needed to operate the platform. See the Privacy Policy for the categories of data and purposes associated with each provider.
 
 ---
 

@@ -424,6 +424,8 @@ jobs:
       - name: Build Flutter Swift wrappers
         if: matrix.component == 'flutter'
         working-directory: libraries/flutter_inapp_purchase
+        env:
+          EXPECTED_XCODE_MAJOR: ${{ github.event_name == 'pull_request' && '26' || '27' }}
         run: bash scripts/verify-apple-swiftpm-consumer-build.sh
 
       - name: Build Godot Swift wrapper

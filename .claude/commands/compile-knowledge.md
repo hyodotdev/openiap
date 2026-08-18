@@ -1,11 +1,11 @@
 ---
 name: compile-knowledge
-description: Compile the OpenIAP knowledge base into the context files AI assistants load. Use after editing anything under knowledge/, or when the user asks to compile, recompile, or refresh the knowledge base or agent context.
+description: Compile the OpenIAP knowledge base into the shared reference and public AI files. Use after editing anything under knowledge/, or when the user asks to compile, recompile, or refresh the knowledge base or agent context.
 ---
 
 # Compile Knowledge Base
 
-Compile the OpenIAP knowledge base to generate context files for AI assistants.
+Compile the OpenIAP knowledge base into a shared reference and public AI files.
 
 > **Full documentation:** See `scripts/agent/README.md` for detailed setup and troubleshooting.
 
@@ -15,7 +15,7 @@ Compile the OpenIAP knowledge base to generate context files for AI assistants.
 
 | Output          | Location                    | Purpose                      |
 | --------------- | --------------------------- | ---------------------------- |
-| `context.md`    | `knowledge/_agent-context/` | Shared AI agent context      |
+| `context.md`    | `knowledge/_agent-context/` | Generated shared reference   |
 | `llms.txt`      | `packages/docs/public/`     | AI assistant quick reference |
 | `llms-full.txt` | `packages/docs/public/`     | AI assistant full reference  |
 
@@ -80,9 +80,9 @@ ls -la ../../packages/docs/public/llms*.txt
 ### 3. Review Generated Changes
 
 ```bash
-git add knowledge/_agent-context/context.md knowledge/_claude-context
-git add packages/docs/public/llms.txt
-git add packages/docs/public/llms-full.txt
+git -C ../.. add knowledge/_agent-context/context.md knowledge/_claude-context
+git -C ../.. add packages/docs/public/llms.txt
+git -C ../.. add packages/docs/public/llms-full.txt
 ```
 
 Commit or push generated context only when the user requested publication or it
@@ -94,7 +94,7 @@ context changes local and report them.
 ```text
 knowledge/
 ├── internal/     ─┐
-└── external/     ─┴─► compile:ai ─┬► context.md (AI assistants)
+└── external/     ─┴─► compile:ai ─┬► context.md (shared reference)
                                    ├► llms.txt (Quick Ref)
                                    └► llms-full.txt (Full Ref)
 ```

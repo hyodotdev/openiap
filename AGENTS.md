@@ -207,9 +207,6 @@ bun run compile:ai
 
 # Or compile for both AI assistants + Local RAG
 bun run compile
-
-# Use with Claude Code
-claude --context knowledge/_agent-context/context.md
 ```
 
 ## Shared Agent Configuration
@@ -222,10 +219,12 @@ file. Every framework library follows the same pattern with a local canonical
 formats genuinely differ; they must route back to the shared instructions and
 workflow sources instead of copying project policy.
 
-The canonical compiled context is
-`knowledge/_agent-context/context.md`. The legacy
-`knowledge/_claude-context` path is a compatibility symlink, so existing
-commands continue to work without creating a second generated copy.
+The canonical compiled reference is
+`knowledge/_agent-context/context.md`. It supports audits, local RAG, and
+on-demand reading; assistant project rules are discovered through the root
+instruction files above. The legacy `knowledge/_claude-context` path is a
+compatibility symlink, so existing paths continue to work without creating a
+second generated copy.
 
 ## Codex Compatibility
 

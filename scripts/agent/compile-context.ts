@@ -10,8 +10,9 @@
  * Output:
  *   knowledge/_agent-context/context.md
  *
- * Claude Code can load it explicitly with:
- *   claude --context knowledge/_agent-context/context.md
+ * Repository-aware assistants discover project rules through AGENTS.md and
+ * the CLAUDE.md / GEMINI.md compatibility symlinks. This compiled file is a
+ * shared reference for audits, local RAG, and on-demand reading.
  */
 
 import * as fs from "fs";
@@ -186,21 +187,40 @@ export function alignGeneratedOutputTimestamps(
   }));
 }
 
-function ensureSymlink(linkPath: string, targetPath: string): void {
+export function ensureSymlink(linkPath: string, targetPath: string): void {
+  let currentStats: fs.Stats | undefined;
+
   try {
+    currentStats = fs.lstatSync(linkPath);
+  } catch (error) {
+    if ((error as NodeJS.ErrnoException).code !== "ENOENT") {
+      throw error;
+    }
+  }
+
+  if (currentStats?.isSymbolicLink()) {
     const currentTarget = fs.readlinkSync(linkPath);
     if (currentTarget === targetPath) {
       return;
     }
     fs.unlinkSync(linkPath);
-  } catch (error) {
-    const code = (error as NodeJS.ErrnoException).code;
-    if (code !== "ENOENT" && code !== "EINVAL") {
-      throw error;
+  } else if (currentStats?.isDirectory()) {
+    const entries = fs.readdirSync(linkPath);
+    const legacyContextPath = path.join(linkPath, "context.md");
+    const hasOnlyGeneratedContext =
+      entries.every((entry) => entry === "context.md") &&
+      (!fs.existsSync(legacyContextPath) ||
+        fs.lstatSync(legacyContextPath).isFile());
+
+    if (!hasOnlyGeneratedContext) {
+      throw new Error(
+        `Cannot replace ${linkPath}: legacy directory contains non-generated files`,
+      );
     }
-    if (fs.existsSync(linkPath)) {
-      fs.unlinkSync(linkPath);
-    }
+
+    fs.rmSync(linkPath, { recursive: true });
+  } else if (currentStats) {
+    fs.unlinkSync(linkPath);
   }
 
   fs.symlinkSync(targetPath, linkPath);
@@ -1054,12 +1074,10 @@ openiap/
   console.log(
     chalk.gray(`  ${path.relative(CONFIG.projectRoot, outputPath)}\n`),
   );
-  console.log(chalk.white("Claude Code CLI:"));
-  console.log(
-    chalk.gray(
-      `  claude --context ${path.relative(CONFIG.projectRoot, outputPath)}\n`,
-    ),
-  );
+  console.log(chalk.white("Project instruction discovery:"));
+  console.log(chalk.gray("  AGENTS.md (Codex and Grok)"));
+  console.log(chalk.gray("  CLAUDE.md -> AGENTS.md"));
+  console.log(chalk.gray("  GEMINI.md -> AGENTS.md\n"));
 }
 
 // ============================================================================

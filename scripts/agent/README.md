@@ -26,9 +26,9 @@ discovery adapters, not copies of project policy.
 │         (The Challenger)            │    │           (Main)                    │
 ├─────────────────────────────────────┤    ├─────────────────────────────────────┤
 │                                     │    │                                     │
-│   ┌─────────────────────────────┐   │    │   claude --context                  │
-│   │          LanceDB            │   │    │   knowledge/_agent-context/         │
-│   │  ┌─────────────────────┐    │   │    │   context.md                        │
+│   ┌─────────────────────────────┐   │    │   AGENTS.md (shared SSOT)           │
+│   │          LanceDB            │   │    │   CLAUDE.md → AGENTS.md             │
+│   │  ┌─────────────────────┐    │   │    │   GEMINI.md → AGENTS.md             │
 │   │  │ internal_rule       │    │   │    │                                     │
 │   │  │ external_api        │    │   │    │                                     │
 │   │  │ code_map ◄──────────┼────┼───┼────┼── Code Graph Simulation            │
@@ -132,8 +132,9 @@ bun run benchmark --prompt "Add a function to validate iOS subscription status"
 **Step 2: Run an AI Assistant**
 
 ```bash
-# Claude Code can load the same compiled context explicitly
-claude --context knowledge/_agent-context/context.md
+# Start the assistant from the repository root. Codex and Grok discover
+# AGENTS.md; Claude Code and Gemini use the CLAUDE.md and GEMINI.md symlinks.
+cd ../..
 
 # Then give the same prompt:
 # "Add a function to validate iOS subscription status"

@@ -788,6 +788,7 @@ test("published release SBOMs and the Kit image are rescanned read-only", () => 
     assert.match(workflow, /--ignorefile packages\/kit\/\.trivyignore\.yaml/u);
   }
   assert.match(trivyExceptions, /id: CVE-2026-14456/u);
+  assert.match(trivyExceptions, /pkg:deb\/debian\/libssl3@3\.0\.20-1~deb12u2/u);
   assert.match(trivyExceptions, /expired_at: 2026-09-14/u);
   assert.match(trivyExceptions, /statement: >-/u);
 });

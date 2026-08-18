@@ -4,6 +4,7 @@ import * as os from "os";
 import * as path from "path";
 import {
   alignGeneratedOutputTimestamps,
+  ensureSymlink,
   writeGeneratedFileIfChanged,
 } from "../compile-context.js";
 import {
@@ -151,5 +152,39 @@ describe("generated context path contract", () => {
     expect(workflow).toContain("node scripts/assert-clean-worktree.mjs");
     expect(workflow).not.toContain("context-files.ts assert-outputs-clean");
     expect(workflow).not.toContain("needs.changes.outputs.agent");
+  });
+});
+
+describe("ensureSymlink", () => {
+  test("migrates the legacy generated context directory", () => {
+    const directory = fs.mkdtempSync(
+      path.join(os.tmpdir(), "openiap-context-link-"),
+    );
+    temporaryDirectories.push(directory);
+    const linkPath = path.join(directory, "_claude-context");
+    fs.mkdirSync(linkPath);
+    fs.writeFileSync(path.join(linkPath, "context.md"), "generated context");
+
+    ensureSymlink(linkPath, "_agent-context");
+
+    expect(fs.lstatSync(linkPath).isSymbolicLink()).toBe(true);
+    expect(fs.readlinkSync(linkPath)).toBe("_agent-context");
+  });
+
+  test("preserves unexpected files in a legacy directory", () => {
+    const directory = fs.mkdtempSync(
+      path.join(os.tmpdir(), "openiap-context-link-"),
+    );
+    temporaryDirectories.push(directory);
+    const linkPath = path.join(directory, "_claude-context");
+    fs.mkdirSync(linkPath);
+    fs.writeFileSync(path.join(linkPath, "notes.md"), "keep me");
+
+    expect(() => ensureSymlink(linkPath, "_agent-context")).toThrow(
+      "legacy directory contains non-generated files",
+    );
+    expect(fs.readFileSync(path.join(linkPath, "notes.md"), "utf8")).toBe(
+      "keep me",
+    );
   });
 });

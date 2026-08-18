@@ -24,8 +24,13 @@ cp "$macos_manifest" "$tmp_root/macos-Package.swift"
 
 xcode_version_output="$(xcodebuild -version)"
 xcode_version="${xcode_version_output%%$'\n'*}"
-if [[ "$xcode_version" != "Xcode 27"* ]]; then
-  echo "Expected Xcode 27, found: $xcode_version" >&2
+expected_xcode_major="${EXPECTED_XCODE_MAJOR:-27}"
+if [[ ! "$expected_xcode_major" =~ ^[0-9]+$ ]]; then
+  echo "EXPECTED_XCODE_MAJOR must be numeric, found: $expected_xcode_major" >&2
+  exit 1
+fi
+if [[ "$xcode_version" != "Xcode ${expected_xcode_major}"* ]]; then
+  echo "Expected Xcode $expected_xcode_major, found: $xcode_version" >&2
   exit 1
 fi
 

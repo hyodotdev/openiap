@@ -8995,7 +8995,8 @@ function checkXcode27StoreKitCoverage() {
     [
       'xcode_version_output="$(xcodebuild -version)"',
       "xcode_version=\"${xcode_version_output%%$'\\n'*}\"",
-      '[[ "$xcode_version" != "Xcode 27"* ]]',
+      'expected_xcode_major="${EXPECTED_XCODE_MAJOR:-27}"',
+      '[[ "$xcode_version" != "Xcode ${expected_xcode_major}"* ]]',
       "flutter build ios --config-only --simulator",
       "flutter build macos --config-only",
       "generic/platform=iOS Simulator",

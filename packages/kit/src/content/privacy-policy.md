@@ -84,6 +84,14 @@ Fly.io hosts the IAPKit web application and API. Requests may pass through its i
 
 If you choose GitHub sign-in, GitHub provides the account details needed to authenticate you. Resend delivers email one-time passwords and processes the destination email address for that purpose.
 
+### Sentry (Error and Performance Monitoring)
+
+We use Sentry in the hosted web application and API to diagnose errors, security issues, and performance problems. Reports may include stack traces, request and browser metadata, IP addresses, logs, and account context available when an error occurs. The hosted browser application enables Sentry's default personally identifiable information handling; server-side handling depends on the deployment configuration.
+
+### Mixpanel (Product Analytics and Session Replay)
+
+We use Mixpanel in the hosted web application to understand adoption and improve product flows. Mixpanel receives product events, page views, clicks, form interactions, browser identifiers stored in local storage, and session replays. The hosted application is configured to record 100% of eligible sessions while this feature is enabled. After sign-in, analytics profiles may include the user ID, email address, display name, current organization ID, sign-in method, and event-specific project or organization identifiers. Mixpanel data is sent to its EU API endpoint.
+
 ### Store Platforms (Purchase Verification)
 
 When you ask IAPKit to verify or reconcile a purchase, the relevant transaction identifiers and app configuration are sent only to the applicable platform: Apple, Google, Amazon, or Meta. Those platforms process the request under their own privacy policies.

@@ -345,11 +345,10 @@ function Announcements() {
           <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
             There are two operating systems that power the Fire TV experience
             across these millions of streaming media players: Fire OS and Vega
-            OS. With these updates, OpenIAP supports both in the current{' '}
-            <code>packages/docs</code> structure: Fire OS is documented as the
-            Android <code>amazon</code> flavor backed by the Amazon Appstore
-            SDK, while Vega OS is documented as a separate Kepler runtime path
-            for <code>react-native-iap</code> and compatible{' '}
+            OS. OpenIAP supports both through its SDK and runtime integrations:
+            Fire OS uses the Android <code>amazon</code> flavor backed by the
+            Amazon Appstore SDK, while Vega OS uses a separate Kepler runtime
+            path for <code>react-native-iap</code> and compatible{' '}
             <code>expo-iap</code> apps.
           </p>
           <h3 style={{ marginTop: '1.25rem', marginBottom: '0.5rem' }}>

@@ -354,7 +354,7 @@ function OnePager() {
                 >
                   openiap-google
                 </a>{' '}
-                (Play Billing + Meta Horizon)
+                (Play Billing + Amazon Appstore + Meta Horizon)
               </td>
             </tr>
           </tbody>
@@ -365,8 +365,8 @@ function OnePager() {
         </AnchorLink>
         <ul>
           <li>
-            <strong>Platforms</strong>: iOS, macOS, tvOS, watchOS, Android, Meta
-            Quest/Horizon
+            <strong>Platforms</strong>: iOS, macOS, tvOS, watchOS, Android,
+            Amazon Fire OS, Vega OS, Meta Quest/Horizon
           </li>
           <li>
             <strong>Languages Generated</strong>: TypeScript, Swift, Kotlin,
@@ -374,7 +374,8 @@ function OnePager() {
           </li>
           <li>
             <strong>Store APIs Supported</strong>: Apple StoreKit 2, Google Play
-            Billing 9.1.0, Meta Horizon Billing Compatibility 2.0.0
+            Billing 9.1.0, Amazon Appstore SDK, Meta Horizon Billing
+            Compatibility 2.0.0
           </li>
           <li>
             <strong>Sponsors</strong>:{' '}

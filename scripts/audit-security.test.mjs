@@ -620,6 +620,10 @@ test("CodeQL scopes Swift pull requests to public macOS runners", () => {
   );
   assert.match(
     wrappers,
+    /EXPECTED_XCODE_MAJOR: \$\{\{ github\.event_name == 'pull_request' && '26' \|\| '27' \}\}/u,
+  );
+  assert.match(
+    wrappers,
     /component: \$\{\{ fromJSON\(needs\.codeql-scope\.outputs\.swift_components\) \}\}/u,
   );
   assert.match(

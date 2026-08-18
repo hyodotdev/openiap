@@ -23,9 +23,9 @@ This is the **Single Source of Truth (SSOT)** for all AI agents working on this 
     ┌─────────────────────────────────┐    ┌─────────────────────┐
     │        LOCAL RAG AGENT          │    │   AI ASSISTANTS     │
     │  ┌─────────────────────────┐    │    │                     │
-    │  │       LanceDB           │    │    │  claude --context   │
-    │  │  • internal_rule        │    │    │  context.md         │
-    │  │  • external_api         │    │    │                     │
+    │  │       LanceDB           │    │    │  AGENTS.md (SSOT)   │
+    │  │  • internal_rule        │    │    │  CLAUDE.md symlink  │
+    │  │  • external_api         │    │    │  GEMINI.md symlink  │
     │  │  • code_map             │    │    │                     │
     │  └─────────────────────────┘    │    │                     │
     │              │                   │    │                     │
@@ -86,11 +86,9 @@ cd scripts/agent
 # Compile the shared context.md
 bun run compile:ai
 
-# Claude Code can load the canonical file explicitly
-claude --context knowledge/_agent-context/context.md
-
-# Or in an existing session
-/context add knowledge/_agent-context/context.md
+# Repository-aware assistants discover the root instruction files:
+# AGENTS.md (Codex and Grok), CLAUDE.md, and GEMINI.md.
+# CLAUDE.md and GEMINI.md are symlinks to the AGENTS.md SSOT.
 ```
 
 ### For Local RAG Agent (Challenger)
@@ -119,8 +117,9 @@ bun run benchmark --prompt "Add iOS subscription validation"
 
 1. **Define Task**: Write the feature request
 2. **Run Both**:
-   - Any repository-aware assistant through `AGENTS.md`; Claude Code may also
-     use `--context knowledge/_agent-context/context.md`
+   - Any repository-aware assistant from the repository root. Codex and Grok
+     discover `AGENTS.md`; Claude Code and Gemini follow the compatibility
+     symlinks to the same SSOT.
    - Local Agent: `bun run benchmark --prompt "..."`
 3. **Compare**: Check `_generated/` against the selected assistant's output
 4. **Evaluate**: Does local agent follow all `internal_rule`?
