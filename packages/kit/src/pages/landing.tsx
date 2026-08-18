@@ -51,7 +51,7 @@ export default function LandingPage() {
               style={{ lineHeight: "1.2" }}
             >
               <span className="block opacity-0 animate-fade-in-up animation-delay-100">
-                <span className="block">{"Receipt validation for your"}</span>
+                <span className="block">{"Open IAP foundation for your"}</span>
                 <span className="block relative overflow-hidden h-[1.3em] min-w-[200px] md:min-w-[300px] lg:min-w-[400px]">
                   <span
                     key={currentIndex}
@@ -76,8 +76,9 @@ export default function LandingPage() {
               >
                 OpenIAP
               </a>
-              , verifies your App Store and Google Play receipts so you don't
-              have to.
+              , provides open purchase validation and entitlement infrastructure
+              across the App Store, Google Play, Amazon Appstore, and Meta
+              Horizon.
             </p>
             <p className="inline-flex items-center gap-2 mb-8 px-4 py-2 rounded-full bg-amber-100 dark:bg-amber-500/15 text-amber-900 dark:text-amber-100 text-sm md:text-base font-medium opacity-0 animate-fade-in-up animation-delay-300">
               <span aria-hidden="true">✨</span>
@@ -118,7 +119,7 @@ export default function LandingPage() {
         <div className="container max-w-7xl mx-auto">
           <div className="text-center mb-16">
             <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold mb-4 text-foreground">
-              {"Purpose-built for fraud-resistant IAP validation"}
+              {"Purpose-built for reliable purchase infrastructure"}
             </h2>
             <p className="text-xl text-muted-foreground max-w-2xl mx-auto">
               {"One API to confirm every supported store purchase."}
@@ -135,7 +136,7 @@ export default function LandingPage() {
               </h3>
               <p className="text-muted-foreground break-words">
                 {
-                  "We contact Apple and Google directly, verify signatures, and flag risky receipts before you deliver the item."
+                  "We contact each supported store, verify authoritative purchase state, and flag risky transactions before you deliver the item."
                 }
               </p>
             </div>
@@ -181,7 +182,7 @@ export default function LandingPage() {
               </h2>
               <p className="text-xl text-muted-foreground mb-8">
                 {
-                  "Collect the receipt on-device, send it to IAPKit, and unlock the item once the source store confirms it."
+                  "Collect the purchase proof on-device, send it to IAPKit, and unlock the item once the source store confirms it."
                 }
               </p>
               <ul className="space-y-4">
@@ -189,7 +190,7 @@ export default function LandingPage() {
                   <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
                   <span>
                     {
-                      "Collect the App Store, Play, Horizon, or Amazon receipt with your existing billing library."
+                      "Collect the App Store, Play, Horizon, or Amazon purchase proof with your existing billing library."
                     }
                   </span>
                 </li>
@@ -197,7 +198,7 @@ export default function LandingPage() {
                   <CheckCircle2 className="w-5 h-5 text-primary mt-0.5 flex-shrink-0" />
                   <span>
                     {
-                      "Send the receipt and purchase metadata to IAPKit for managed validation."
+                      "Send the purchase proof and metadata to IAPKit for managed validation."
                     }
                   </span>
                 </li>

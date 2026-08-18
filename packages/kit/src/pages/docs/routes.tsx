@@ -4,11 +4,15 @@ import IntroductionPage from "./sections/introduction";
 import QuickstartPage from "./sections/quickstart";
 import ProjectsPage from "./sections/projects";
 import ProductsPage from "./sections/products";
+import OrdersPage from "./sections/orders";
 import VerificationApplePage from "./sections/verification-apple";
 import VerificationGooglePage from "./sections/verification-google";
 import VerificationHorizonPage from "./sections/verification-horizon";
+import VerificationAmazonPage from "./sections/verification-amazon";
 import ApiReferencePage from "./sections/api";
+import CompatibilityPage from "./sections/compatibility";
 import AnalyticsPage from "./sections/analytics";
+import WebhooksPage from "./sections/webhooks";
 import OperationsPage from "./sections/operations";
 import AiAssistantsPage from "./sections/ai-assistants";
 import CodexPluginPage from "./sections/codex-plugin";
@@ -39,14 +43,18 @@ export const docsChildRoutes = (
     <Route path="quickstart" element={<QuickstartPage />} />
     <Route path="projects" element={<ProjectsPage />} />
     <Route path="products" element={<ProductsPage />} />
+    <Route path="orders" element={<OrdersPage />} />
     <Route path="verification">
       <Route index element={<Navigate to="apple" replace />} />
       <Route path="apple" element={<VerificationApplePage />} />
       <Route path="google" element={<VerificationGooglePage />} />
       <Route path="horizon" element={<VerificationHorizonPage />} />
+      <Route path="amazon" element={<VerificationAmazonPage />} />
     </Route>
     <Route path="api" element={<ApiReferencePage />} />
+    <Route path="compatibility" element={<CompatibilityPage />} />
     <Route path="analytics" element={<AnalyticsPage />} />
+    <Route path="webhooks" element={<WebhooksPage />} />
     <Route path="operations" element={<OperationsPage />} />
     <Route path="ai-assistants" element={<AiAssistantsPage />} />
     <Route path="ai-assistants/codex-plugin" element={<CodexPluginPage />} />

@@ -54,6 +54,40 @@ img[src='/sponsors/meta.webp'] {
   object-fit: contain;
 }
 
+.amazon-wordmark {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  line-height: 0;
+}
+
+.amazon-wordmark > img {
+  width: auto;
+  max-width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
+.amazon-wordmark-dark {
+  display: none;
+}
+
+:root.dark .amazon-wordmark-light {
+  display: none;
+}
+
+:root.dark .amazon-wordmark-dark {
+  display: block;
+}
+
+.foundation-sponsor-wordmark {
+  height: 3rem;
+}
+
+.announcement-sponsor-wordmark {
+  height: 2.75rem;
+}
+
 img[src='/frameworks/apple.svg'] {
   filter: var(--apple-logo-filter);
 }

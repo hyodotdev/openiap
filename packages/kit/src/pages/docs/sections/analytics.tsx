@@ -29,10 +29,13 @@ export default function AnalyticsPage() {
           alone doesn't tell IAPKit when a renewal, cancel, or refund happens.
         </p>
         <p className="mt-2">
-          Open the project's <strong>Webhooks</strong> tab to copy your
-          IAPKit-hosted lifecycle webhook URL and register it with the App Store
-          / Play Console. Once notifications start arriving, the next cron tick
-          (within about 10 minutes) will populate this view.
+          Follow the{" "}
+          <Link to="/docs/webhooks" className="text-primary underline">
+            Store webhooks guide
+          </Link>{" "}
+          to register the project&apos;s lifecycle URL with App Store Connect
+          and Play Console. Once notifications start arriving, the next cron
+          tick (within about 10 minutes) will populate this view.
         </p>
       </Callout>
 
@@ -68,9 +71,10 @@ export default function AnalyticsPage() {
           IAPKit URL as endpoint).
         </li>
         <li>
-          Trigger a test purchase or use the App Store Connect / Play Console
-          "Send test notification" feature. Confirm an event row appears in the
-          <strong> Webhooks</strong> tab's event log.
+          Use the App Store Connect / Play Console "Send test notification"
+          feature and confirm successful delivery in the store console. Then
+          complete a sandbox purchase lifecycle with a real product to populate
+          revenue analytics.
         </li>
         <li>
           Wait up to about 10 minutes for the next analytics rollup tick — or

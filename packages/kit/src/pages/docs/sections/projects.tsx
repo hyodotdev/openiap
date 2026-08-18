@@ -30,9 +30,10 @@ export default function ProjectsPage() {
 `}</code>
       </pre>
       <p>
-        The split matters because quotas and plan limits are{" "}
-        <em>per organization</em>, not per project — so a single Pro plan covers
-        all apps you manage under the same organization.
+        Organization-level usage telemetry helps operators coordinate fair use
+        across all apps. Projects remain the security and data boundary: each
+        one has its own store credentials, keys, purchase history, and
+        entitlement state.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Creating a project</h2>
@@ -51,7 +52,7 @@ export default function ProjectsPage() {
       />
 
       <h2 className="mt-10 text-2xl font-semibold">Store credentials</h2>
-      <p>Each project's Settings tab has three configuration cards:</p>
+      <p>Each project's Settings tab has two store configuration cards:</p>
       <ul className="my-3 list-disc space-y-1 pl-6">
         <li>
           <Link
@@ -69,8 +70,21 @@ export default function ProjectsPage() {
           >
             Android Configuration
           </Link>{" "}
-          — Google Play service account JSON + optional Meta Horizon
-          credentials.
+          — Google Play service account JSON, optional{" "}
+          <Link
+            to="/docs/verification/horizon"
+            className="text-primary underline"
+          >
+            Meta Horizon
+          </Link>{" "}
+          credentials, and{" "}
+          <Link
+            to="/docs/verification/amazon"
+            className="text-primary underline"
+          >
+            Amazon RVS
+          </Link>{" "}
+          settings.
         </li>
       </ul>
       <p>

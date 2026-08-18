@@ -1,6 +1,7 @@
 # IAPKit
 
-> Receipt-validation SaaS managed by OpenIAP. Hosted at https://kit.openiap.dev.
+> Open-source purchase validation and entitlement infrastructure for the
+> OpenIAP ecosystem, managed by OpenIAP. Hosted at https://kit.openiap.dev.
 > One Bearer-authed endpoint for Apple / Google / Horizon / Amazon;
 > harmonized response shape with `{ store, isValid, state, productId?, environment? }` so your backend has a single code path for
 > entitlement + refund detection.
@@ -121,6 +122,25 @@ Harmonized `state` values (truthy `isValid`): `ENTITLED`,
 - A matching IAPKit catalog row must exist before a payload write. After creating a product directly in App Store Connect or Play Console, run a pull sync and wait for its job to succeed, or create the row with secret-authenticated `POST /v1/products`; early writes return `PRODUCT_NOT_FOUND`.
 - Secret-key `GET /v1/products/client-payload/{productId}?platform=...` returns the current payload plus durable `expectedVersion`, including the revision after deletion. MCP exposes it as `iapkit_get_client_payload`.
 
+## Dashboard order lookup
+
+The authenticated project dashboard includes a read-only Orders tab for live
+Apple and Google order lookup. It reuses the project's store credentials,
+returns the order plus best-effort subscription status, and never stores or
+logs the order ID or result. Apple lookup is production-only and needs the App
+Apple ID; Google requires the Play service account's View financial data
+permission. This operator tool does not accept API keys and is not part of
+`/v1`.
+
+## Version compatibility
+
+Hosted `/v1` responses evolve additively. Existing fields keep their meaning,
+new response data is optional or request-gated, and a breaking contract would
+use `/v2` while `/v1` keeps serving. SDKs report their compile-time spec in
+`X-OpenIAP-Spec` for rollout measurement only; the header never changes receipt
+verification. Gate on `isValid`, require the store-verified `productId`, and
+allow optional metadata to be absent or unknown.
+
 ## Status codes
 
 - `200` — verification ran; require `isValid`, an operation-appropriate `state`, and an exact store-verified `productId` match
@@ -160,10 +180,14 @@ assuming DAU implies safe request volume.
 - [/docs](https://kit.openiap.dev/docs) — full in-dashboard documentation
 - [/docs/quickstart](https://kit.openiap.dev/docs/quickstart) — signup → project → API key → first verify
 - [/docs/products](https://kit.openiap.dev/docs/products) — catalog sync, client payload editing, retrieval, caching, and limits
+- [/docs/orders](https://kit.openiap.dev/docs/orders) — read-only Apple and Google order support tooling
 - [/docs/verification/apple](https://kit.openiap.dev/docs/verification/apple) — bundle ID, Issuer ID, Key ID, .p8
 - [/docs/verification/google](https://kit.openiap.dev/docs/verification/google) — package name, service account JSON
 - [/docs/verification/horizon](https://kit.openiap.dev/docs/verification/horizon) — App ID + App Secret (write-only)
+- [/docs/verification/amazon](https://kit.openiap.dev/docs/verification/amazon) — RVS shared secret, App Tester sandbox, and background rechecks
 - [/docs/api](https://kit.openiap.dev/docs/api) — request shapes, responses, errors, headers, and Amazon RVS payloads
+- [/docs/compatibility](https://kit.openiap.dev/docs/compatibility) — additive `/v1` policy and older-SDK behavior
+- [/docs/webhooks](https://kit.openiap.dev/docs/webhooks) — inbound Apple ASN v2 and Google RTDN setup
 - [/docs/operations](https://kit.openiap.dev/docs/operations) — fair use, capacity, rate and concurrency limits, logs, `/health`, graceful shutdown
 - [openiap.dev/docs/webhooks](https://openiap.dev/docs/webhooks) — operator setup steps for inbound Apple ASN v2 and Google RTDN lifecycle delivery
 - [/docs/ai-assistants](https://kit.openiap.dev/docs/ai-assistants) — how to point Codex / Claude / Cursor / etc. at this file

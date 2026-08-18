@@ -746,8 +746,9 @@
 .xp-sponsor-node-list {
   position: relative;
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: clamp(1.5rem, 5vw, 4rem);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  column-gap: clamp(1.5rem, 5vw, 4rem);
+  row-gap: 1.75rem;
   margin: 3rem 0 0;
   padding: 2rem 0 0;
   list-style: none;
@@ -802,7 +803,10 @@
 }
 
 .xp-sponsor-node:not(.xp-sponsor-open-node) > a {
-  display: inline-block;
+  display: inline-flex;
+  min-height: 4rem;
+  align-items: center;
+  justify-content: center;
   filter: drop-shadow(0 0.7rem 1.2rem rgba(45, 25, 20, 0.08));
   line-height: 0;
   transition: transform 180ms ease;
@@ -815,6 +819,23 @@
 .xp-sponsor-node .meta-wordmark {
   max-width: 12rem;
   height: 3rem;
+}
+
+.xp-sponsor-node .amazon-wordmark {
+  max-width: 12rem;
+  height: 2.4rem;
+  transform: translateY(0.2rem);
+}
+
+.xp-sponsor-open-node {
+  grid-column: 1 / -1;
+  width: 100%;
+  min-height: 0;
+  justify-self: stretch;
+}
+
+.xp-sponsor-open-node::before {
+  display: none;
 }
 
 .xp-sponsor-open-node > a {
@@ -1255,12 +1276,18 @@
 
   .xp-sponsor-node-list {
     grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 1rem;
+    column-gap: 1rem;
+    row-gap: 1.5rem;
   }
 
   .xp-sponsor-node .meta-wordmark {
     max-width: 8.75rem;
     height: 2.35rem;
+  }
+
+  .xp-sponsor-node .amazon-wordmark {
+    max-width: 8.75rem;
+    height: 1.9rem;
   }
 }
 

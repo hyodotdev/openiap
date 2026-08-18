@@ -30,7 +30,10 @@ import {
   type FrameworkLibraryName,
 } from '../lib/images';
 import { FEATURED_SHOWCASE_APPS, SHOWCASE_APPS } from '../lib/showcase';
-import { SHOWCASE_DISCUSSION_URL } from '../components/ShowcaseCards';
+import {
+  ShowcaseAppMeta,
+  SHOWCASE_DISCUSSION_URL,
+} from '../components/ShowcaseCards';
 import { useScrollToHash } from '../hooks/useScrollToHash';
 
 interface EcosystemMeta {
@@ -647,17 +650,17 @@ function CommunityResources() {
                     <p>{app.tagline}</p>
                   </div>
                   <div className="cr-app-meta">
-                    <span>{app.library}</span>
-                    <Link
-                      to="/showcase"
-                      aria-label={`View ${app.name} in the showcase`}
-                    >
-                      View showcase
-                      <ArrowUpRight size={11} aria-hidden="true" />
-                    </Link>
+                    <ShowcaseAppMeta app={app} />
                   </div>
                 </article>
               ))}
+              <Link className="cr-app-more" to="/showcase">
+                <span className="cr-app-more-icon" aria-hidden="true">
+                  <Boxes size={14} />
+                </span>
+                <span>See more apps built with OpenIAP</span>
+                <ArrowUpRight size={13} aria-hidden="true" />
+              </Link>
             </div>
           </section>
 

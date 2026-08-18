@@ -2,6 +2,7 @@ import SEO from '../../../components/SEO';
 import AnchorLink from '../../../components/AnchorLink';
 import Callout from '../../../components/Callout';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
+import { CURRENT_SPONSORS } from '../../../lib/sponsors';
 
 function OnePager() {
   useScrollToHash();
@@ -376,7 +377,10 @@ function OnePager() {
             Billing 9.1.0, Meta Horizon Billing Compatibility 2.0.0
           </li>
           <li>
-            <strong>Sponsor</strong>: Meta (Angel tier)
+            <strong>Sponsors</strong>:{' '}
+            {CURRENT_SPONSORS.map(
+              (sponsor) => `${sponsor.name} (${sponsor.tier})`
+            ).join(', ')}
           </li>
           <li>
             <strong>Maintainer</strong>: Hyo (

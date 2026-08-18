@@ -21,11 +21,12 @@ This document provides an overview for AI agents working across the OpenIAP mono
 ```text
 openiap/
 ├── packages/
+│   ├── conformance/   # Behavioral conformance spec, runner, and reports
 │   ├── docs/          # Documentation site (React/Vite/Vercel)
 │   ├── gql/           # GraphQL schema & type generation
 │   ├── google/        # Android library
 │   ├── apple/         # iOS/macOS library
-│   ├── kit/           # Hosted receipt-validation SaaS (Fly.io app)
+│   ├── kit/           # Purchase validation + entitlement infrastructure (Fly.io app)
 │   └── mcp-server/    # IAPKit MCP server (hosted at kit.openiap.dev/mcp)
 ├── plugins/
 │   └── openiap/       # Codex + Claude Code plugin (skills + MCP config)
@@ -78,6 +79,13 @@ release notes, or GitHub Releases, follow the mandatory language guard in
 KISS and SSOT are mandatory release criteria. The canonical rules live in
 [`knowledge/internal/03-coding-style.md`](knowledge/internal/03-coding-style.md#0-kiss-and-ssot-are-release-requirements).
 Apply that section before implementation and during every review.
+
+### Repository Layout
+
+Treat the directory ownership rules in
+[`knowledge/internal/02-architecture.md`](knowledge/internal/02-architecture.md#directory-ownership-guardrail)
+as mandatory. Extend the existing owner instead of creating a parallel root
+directory, and run `bun run audit:layout` after adding or moving directories.
 
 ### Comment Style
 

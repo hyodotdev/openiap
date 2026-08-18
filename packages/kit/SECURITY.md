@@ -1,7 +1,7 @@
 # Security Policy — packages/kit
 
 This policy covers **`packages/kit`** of the OpenIAP monorepo — the
-hosted receipt-validation SaaS at `kit.openiap.dev`. For security
+hosted purchase-validation and entitlement service at `kit.openiap.dev`. For security
 issues in other packages (`apple`, `google`, `gql`, `docs`) or the
 framework libraries under `libraries/`, see the monorepo-wide policy
 or open a discussion in the relevant category.

@@ -1,5 +1,5 @@
 **Company Name:** Hyo Dev
-**Service:** Receipt Validation SaaS for iOS (App Store) & Android (Google Play)
+**Service:** Purchase validation and entitlement infrastructure for the Apple App Store, Google Play, Amazon Appstore, and Meta Horizon
 
 These Terms of Service (“Terms”) govern your access to and use of the services provided by Hyo Dev (“we”, “our”, “us”). By creating an account or using our services, you agree to be bound by these Terms.
 
@@ -9,8 +9,8 @@ If you do not agree, do not use the service.
 
 ## 1. Description of the Service
 
-We provide a backend service for validating digital receipts and subscription transactions from Apple’s App Store and Google Play.
-The service allows developers to verify the authenticity of purchases and subscriptions made through their mobile applications.
+We provide purchase validation and entitlement infrastructure for transactions from the Apple App Store, Google Play, Amazon Appstore, and Meta Horizon.
+The service allows developers to verify purchases and subscriptions, reconcile store lifecycle state, and maintain related entitlements for their applications.
 
 ---
 
@@ -63,7 +63,7 @@ By using the service, you consent to the collection, processing, and storage of 
 We process:
 
 - Account information (email, company name)
-- Non-personal transaction data necessary for receipt validation
+- Transaction and entitlement data, including store or app-scoped identifiers when supplied
 
 We do **not** store personal user payment details.
 

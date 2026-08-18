@@ -23,8 +23,10 @@ export default function QuickstartPage() {
         >
           kit.openiap.dev
         </a>
-        . Your first organization is created for you; you'll choose a plan
-        (Developer is free and gives you 250 verifications / month).
+        . The onboarding flow asks you to name your first organization before
+        opening its dashboard. The hosted service is free under fair-use
+        safeguards on shared community infrastructure; no plan or credit card is
+        required.
       </p>
       <DocsScreenshot
         src="/docs/screenshots/signup.webp"
@@ -78,7 +80,10 @@ export default function QuickstartPage() {
           — App ID + App Secret (inside the Android card).
         </li>
         <li>
-          <Link to="/docs/api" className="text-primary underline">
+          <Link
+            to="/docs/verification/amazon"
+            className="text-primary underline"
+          >
             Amazon Appstore
           </Link>{" "}
           — RVS shared secret for production, or explicit App Tester / Cloud
@@ -128,9 +133,10 @@ export default function QuickstartPage() {
         <p>
           A publishable key lets your app call IAPKit&apos;s restricted managed
           validation surface directly, but it can still be extracted and used
-          against your project quota. Avoid logging it, use separate keys for
-          independent builds or environments, and rotate an abused key. Secret
-          keys provide administrative access and must remain server-side.
+          against shared rate and capacity limits. Avoid logging it, use
+          separate keys for independent builds or environments, and rotate an
+          abused key. Secret keys provide administrative access and must remain
+          server-side.
         </p>
       </Callout>
 

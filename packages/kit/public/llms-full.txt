@@ -1,6 +1,7 @@
 # IAPKit — full reference
 
-> Receipt-validation SaaS managed by OpenIAP. https://kit.openiap.dev
+> Open-source purchase validation and entitlement infrastructure for the
+> OpenIAP ecosystem, managed by OpenIAP. https://kit.openiap.dev
 > Canonical implementation and documentation source:
 > github.com/hyodotdev/openiap/tree/main/packages/kit. This file summarizes the
 > deployed contract for assistants and must stay aligned with that source.
@@ -41,6 +42,21 @@ The MCP endpoint at `/mcp` requires a secret admin key. MCP clients send it as
 process. Never embed that secret in an app. This is not an OpenAI, ChatGPT,
 Anthropic, or Claude API key.
 
+## Version compatibility
+
+Hosted `/v1` responses are additive: fields are not removed, renamed, or given
+new meanings, and new response objects are optional or request-gated. A truly
+breaking contract would ship at `/v2` while `/v1` keeps serving. Required
+verdict fields are validated before every response leaves IAPKit; unknown
+optional metadata degrades instead of invalidating a store-confirmed purchase.
+
+SDKs that support it send their compile-time OpenIAP spec version in
+`X-OpenIAP-Spec`. IAPKit records the header for rollout measurement only and
+never changes verification behavior based on it. Apps gate on `isValid`,
+require the store-verified `productId`, and allow optional fields to be absent
+or unknown. The cross-SDK policy is canonical at
+https://openiap.dev/docs/kit-compatibility.
+
 ## Endpoints
 
 Mounted at both `/v1/*` (canonical) and `/api/v1/*` (alias).
@@ -49,7 +65,9 @@ Mounted at both `/v1/*` (canonical) and `/api/v1/*` (alias).
 
 Verify an in-app purchase. The body is a tagged union discriminated on
 `store`. Response always has shape
-`{ store: "apple" | "google" | "horizon" | "amazon", isValid: boolean, state: <enum>, productId?: string, environment?: "Sandbox" | "Production" }`.
+`{ store: "apple" | "google" | "horizon" | "amazon", isValid: boolean, state: <enum>, productId?: string, environment?: string }`.
+The optional environment is opaque metadata (commonly `Sandbox` or
+`Production`) and clients must tolerate other or absent values.
 
 Request (Apple):
 
@@ -267,6 +285,20 @@ round-trip or external store request. It is used by Fly.io liveness / readiness
 probes. Sentry is configured to drop `/health` transactions so probe traffic
 doesn't dominate trace quota.
 
+### Dashboard order lookup
+
+The authenticated project dashboard's Orders tab performs live, read-only
+Apple and Google order lookup for customer support. It returns the full order
+plus best-effort subscription status when the store supplies it. Lookups reuse
+the project's existing App Store Server API or Play service-account
+credentials, require organization membership, never accept an API key, and do
+not persist or log the searched order ID or result.
+
+Apple lookup is production-only and requires the project's bundle ID, App
+Apple ID, Issuer ID, Key ID, and `.p8` key. Google lookup requires the exact
+package name, service-account JSON, and View financial data permission. This
+operator tool is not exposed through `/v1`.
+
 ### POST /mcp
 
 MCP Streamable HTTP endpoint for Codex, Claude Code, and other MCP clients.
@@ -378,6 +410,9 @@ automatically reserve capacity; self-host for dedicated operational control.
 - `purchaseToken` ≤ 2 KB (Google)
 - `userId` ≤ 256 chars (Horizon)
 - `sku` ≤ 256 chars (Horizon)
+- `userId` ≤ 512 chars (Amazon)
+- `receiptId` ≤ 4 KiB (Amazon)
+- `expectedProductId` ≤ 256 chars (Apple, Google, or Amazon)
 - `clientPayload.body` ≤ 16 KiB measured as UTF-8 bytes
 
 Oversized fields return `400 INVALID_INPUT`; oversized request bodies return

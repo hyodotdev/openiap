@@ -2,6 +2,7 @@ import SEO from '../../../components/SEO';
 import AnchorLink from '../../../components/AnchorLink';
 import Callout from '../../../components/Callout';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
+import { CURRENT_SPONSORS } from '../../../lib/sponsors';
 import { Link } from 'react-router-dom';
 
 function Sponsorship() {
@@ -441,30 +442,41 @@ function Sponsorship() {
         <div
           style={{
             display: 'flex',
+            flexWrap: 'wrap',
             alignItems: 'center',
-            gap: '1.5rem',
+            justifyContent: 'center',
+            gap: 'clamp(2rem, 8vw, 5rem)',
             padding: '2rem',
             background: 'var(--bg-secondary)',
             borderRadius: '0.75rem',
             border: '1px solid var(--border-color)',
           }}
         >
-          <a
-            href="https://meta.com"
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-          >
-            <img
-              src="/sponsors/meta.webp"
-              alt="Meta"
-              style={{
-                height: '48px',
-                objectFit: 'contain',
-              }}
-            />
-          </a>
-          <span style={{ color: 'var(--text-secondary)' }}>Angel Sponsor</span>
+          {CURRENT_SPONSORS.map((sponsor) => {
+            const Wordmark = sponsor.Wordmark;
+
+            return (
+              <a
+                key={sponsor.id}
+                href={sponsor.url}
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label={`Visit ${sponsor.name}`}
+                style={{
+                  display: 'flex',
+                  minWidth: '180px',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '0.75rem',
+                  color: 'var(--text-secondary)',
+                  textDecoration: 'none',
+                }}
+              >
+                <Wordmark className="foundation-sponsor-wordmark" />
+                <span>{sponsor.tier}</span>
+              </a>
+            );
+          })}
         </div>
       </section>
 

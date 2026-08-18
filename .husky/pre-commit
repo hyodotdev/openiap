@@ -52,6 +52,11 @@ fi
 echo "🔎 SDK parity audit — running CI mirror…"
 node scripts/audit-non-godot-parity.mjs
 
+# Canonical project directories must not be duplicated at repository root.
+echo "🧭 repository layout audit…"
+node --test scripts/audit-repo-layout.test.mjs
+node scripts/audit-repo-layout.mjs
+
 # Unconditional: either side of the kit/spec contract can move.
 echo "🔎 IAPKit spec contract audit — running CI mirror…"
 node --test scripts/audit-kit-spec-contract.test.mjs

@@ -1,4 +1,4 @@
-import type { CSSProperties } from 'react';
+import type { CSSProperties, ReactElement } from 'react';
 import { SiApple, SiGoogleplay } from 'react-icons/si';
 import { Globe } from 'lucide-react';
 import type { ShowcaseApp } from '../lib/showcase';
@@ -55,6 +55,70 @@ const badgeStyle: CSSProperties = {
   padding: '0.1rem 0.5rem',
 };
 
+export function ShowcaseAppMeta({ app }: { app: ShowcaseApp }): ReactElement {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        alignItems: 'center',
+        gap: '0.5rem',
+      }}
+    >
+      {app.ios ? (
+        <a
+          href={app.ios}
+          target="_blank"
+          rel="noreferrer"
+          style={storeLinkStyle}
+          aria-label={`${app.name} on the App Store`}
+          title="App Store"
+        >
+          <SiApple size={15} />
+        </a>
+      ) : null}
+      {app.android ? (
+        <a
+          href={app.android}
+          target="_blank"
+          rel="noreferrer"
+          style={storeLinkStyle}
+          aria-label={`${app.name} on Google Play`}
+          title="Google Play"
+        >
+          <SiGoogleplay size={14} />
+        </a>
+      ) : null}
+      {app.web ? (
+        <a
+          href={app.web}
+          target="_blank"
+          rel="noreferrer"
+          style={storeLinkStyle}
+          aria-label={`${app.name} website`}
+          title="Website"
+        >
+          <Globe size={15} strokeWidth={2} />
+        </a>
+      ) : null}
+      <span style={{ ...badgeStyle, marginLeft: '0.25rem' }}>
+        {app.library}
+      </span>
+      {app.iapkit ? (
+        <span
+          style={{
+            ...badgeStyle,
+            color: 'var(--accent-color)',
+          }}
+          title="Uses IAPKit"
+        >
+          IAPKit
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 export function ShowcaseAppCard({ app }: { app: ShowcaseApp }) {
   return (
     <div style={cardStyle}>
@@ -80,65 +144,7 @@ export function ShowcaseAppCard({ app }: { app: ShowcaseApp }) {
         >
           {app.tagline}
         </div>
-        <div
-          style={{
-            display: 'flex',
-            flexWrap: 'wrap',
-            alignItems: 'center',
-            gap: '0.5rem',
-          }}
-        >
-          {app.ios ? (
-            <a
-              href={app.ios}
-              target="_blank"
-              rel="noreferrer"
-              style={storeLinkStyle}
-              aria-label={`${app.name} on the App Store`}
-              title="App Store"
-            >
-              <SiApple size={15} />
-            </a>
-          ) : null}
-          {app.android ? (
-            <a
-              href={app.android}
-              target="_blank"
-              rel="noreferrer"
-              style={storeLinkStyle}
-              aria-label={`${app.name} on Google Play`}
-              title="Google Play"
-            >
-              <SiGoogleplay size={14} />
-            </a>
-          ) : null}
-          {app.web ? (
-            <a
-              href={app.web}
-              target="_blank"
-              rel="noreferrer"
-              style={storeLinkStyle}
-              aria-label={`${app.name} website`}
-              title="Website"
-            >
-              <Globe size={15} strokeWidth={2} />
-            </a>
-          ) : null}
-          <span style={{ ...badgeStyle, marginLeft: '0.25rem' }}>
-            {app.library}
-          </span>
-          {app.iapkit ? (
-            <span
-              style={{
-                ...badgeStyle,
-                color: 'var(--accent-color)',
-              }}
-              title="Uses IAPKit receipt validation"
-            >
-              IAPKit
-            </span>
-          ) : null}
-        </div>
+        <ShowcaseAppMeta app={app} />
       </div>
     </div>
   );

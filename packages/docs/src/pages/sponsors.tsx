@@ -6,9 +6,9 @@ import {
   ShieldCheck,
   Smartphone,
 } from 'lucide-react';
-import MetaWordmark from '../components/MetaWordmark';
 import SEO from '../components/SEO';
 import { LIBRARIES, LIBRARY_IMAGES } from '../lib/images';
+import { CURRENT_SPONSORS } from '../lib/sponsors';
 
 const FUNDING_LINES = [
   {
@@ -33,14 +33,6 @@ const FUNDING_LINES = [
     title: 'SDK parity',
     description:
       'One reviewed contract across native modules and six frameworks.',
-  },
-] as const;
-
-const CURRENT_SPONSORS = [
-  {
-    name: 'Meta',
-    logo: <MetaWordmark />,
-    url: 'https://meta.com',
   },
 ] as const;
 
@@ -107,19 +99,23 @@ function Sponsors() {
             </div>
 
             <ul className="xp-sponsor-node-list">
-              {CURRENT_SPONSORS.map((sponsor, index) => (
-                <li key={sponsor.name} className="xp-sponsor-node">
-                  <small>{String(index + 1).padStart(2, '0')} Sponsor</small>
-                  <a
-                    href={sponsor.url}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label={`Visit ${sponsor.name}`}
-                  >
-                    {sponsor.logo}
-                  </a>
-                </li>
-              ))}
+              {CURRENT_SPONSORS.map((sponsor) => {
+                const Wordmark = sponsor.Wordmark;
+
+                return (
+                  <li key={sponsor.id} className="xp-sponsor-node">
+                    <small>{sponsor.tier}</small>
+                    <a
+                      href={sponsor.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Visit ${sponsor.name}`}
+                    >
+                      <Wordmark />
+                    </a>
+                  </li>
+                );
+              })}
               <li className="xp-sponsor-node xp-sponsor-open-node">
                 <small>Next</small>
                 <a

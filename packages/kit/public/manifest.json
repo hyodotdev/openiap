@@ -1,7 +1,7 @@
 {
   "name": "IAPKit",
   "short_name": "IAPKit",
-  "description": "In-App Purchase Receipt Validation",
+  "description": "Open Purchase Validation and Entitlement Infrastructure",
   "icons": [
     {
       "src": "/android-chrome-192x192.webp",

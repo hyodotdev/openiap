@@ -211,14 +211,15 @@ if result is VerifyPurchaseResultIOS and result.is_valid:
           >
             IAPKit
           </a>{' '}
-          is an <strong>open-source</strong> (MIT) receipt-validation service
-          for App Store, Google Play, Amazon Appstore, and Meta Horizon
-          purchases. Instead of running your own backend that talks to each
-          store's verification API, you forward the JWS, purchase token, Amazon
-          receipt id, or Horizon entitlement payload to IAPKit and get a
-          normalized verification response — so one-time in-app purchases are
-          checked against the store's authoritative state. Amazon Fire OS and
-          Vega OS both use the <code>iapkit.amazon</code> payload. Use the
+          is <strong>open-source</strong> (MIT) purchase validation and
+          entitlement infrastructure for the OpenIAP ecosystem. Its managed
+          validation endpoint supports App Store, Google Play, Amazon Appstore,
+          and Meta Horizon purchases. Instead of running your own backend that
+          talks to each store's verification API, you forward the JWS, purchase
+          token, Amazon receipt id, or Horizon entitlement payload to IAPKit and
+          get a normalized verification response — so one-time in-app purchases
+          are checked against the store's authoritative state. Amazon Fire OS
+          and Vega OS both use the <code>iapkit.amazon</code> payload. Use the
           hosted version at{' '}
           <a
             href={IAPKIT_URL}

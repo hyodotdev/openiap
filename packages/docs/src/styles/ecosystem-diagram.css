@@ -368,6 +368,13 @@
   color: var(--primary-color);
 }
 
+/* ---------- hosted infrastructure --------------------------------------- */
+
+.eco-rail--iapkit {
+  height: 42px;
+  opacity: 0.72;
+}
+
 /* ---------- artwork -------------------------------------------------------
    Most marks are transparent full-color logos and need no treatment. The two
    exceptions are declared per asset in EcosystemDiagram.tsx: artwork with its
@@ -538,7 +545,7 @@
     /* openiap sits alone on row 1; openiap-gql gets row 3 so both "generate
        types" arrows can leave from it. Row 6 soaks up whatever the taller
        Libraries column adds, keeping the connectors at their natural size. */
-    grid-template-rows: auto auto auto auto auto minmax(0, 1fr);
+    grid-template-rows: auto auto auto auto auto minmax(0, 1fr) 42px auto;
     column-gap: 0;
   }
 
@@ -585,8 +592,18 @@
      height instead of growing a block of empty space at the bottom. */
   .eco-band--libs {
     grid-column: 3;
-    grid-row: 1 / -1;
+    grid-row: 1 / 7;
     align-self: center;
+  }
+
+  .eco-rail--iapkit {
+    grid-column: 3;
+    grid-row: 7;
+  }
+
+  .eco-band--iapkit {
+    grid-column: 3;
+    grid-row: 8;
   }
 
   /* Gutter rails turn horizontal: line left-to-right, label above it. */
