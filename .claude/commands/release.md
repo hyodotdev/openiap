@@ -51,7 +51,7 @@ Every release lane's version-bump commit also runs
 `scripts/sync-release-generated.sh`, which regenerates and stages the files
 derived from version metadata (`packages/docs/src/generated/version-metadata.json`,
 `packages/docs/public/llms.txt`, `packages/docs/public/llms-full.txt`,
-`knowledge/_claude-context/context.md`). Expect these paths in bump commits;
+`knowledge/_agent-context/context.md`). Expect these paths in bump commits;
 they are not worktree drift. Skipping this regeneration leaves `main` stale and
 fails the `Audit SDK Parity` / `Test Agent Scripts` clean-worktree checks on
 every subsequent PR.
@@ -131,9 +131,9 @@ For a multi-package release train, use this order when affected:
    version, so it does not participate in the `spec = min(google, apple)`
    invariant.
 10. `npm run deploy`; run `release.yml` with `version=current` only when the
-   native-derived `spec` advanced. If a Docs GitHub Release is requested while
-   `spec` is unchanged, stop and explain that the immutable `docs-{spec}` tag
-   cannot represent a new release.
+    native-derived `spec` advanced. If a Docs GitHub Release is requested while
+    `spec` is unchanged, stop and explain that the immutable `docs-{spec}` tag
+    cannot represent a new release.
 
 Train rules (mistake guards):
 

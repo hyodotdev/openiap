@@ -2,7 +2,7 @@
 
 This is the **Single Source of Truth (SSOT)** for all AI agents working on this project.
 
-## Architecture: "Shared Brain, Dual Body"
+## Architecture: One Shared Brain
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
@@ -10,7 +10,7 @@ This is the **Single Source of Truth (SSOT)** for all AI agents working on this 
 │                           /knowledge/                                       │
 ├─────────────────────────────────────────────────────────────────────────────┤
 │                                                                             │
-│  /internal/              /external/              /_claude-context/          │
+│  /internal/              /external/              /_agent-context/           │
 │  ┌─────────────┐        ┌─────────────┐        ┌─────────────┐             │
 │  │ Project     │        │ StoreKit 2  │        │ context.md  │             │
 │  │ Philosophy  │        │ Google      │        │ (compiled)  │             │
@@ -21,7 +21,7 @@ This is the **Single Source of Truth (SSOT)** for all AI agents working on this 
           │                      │                      │
           ▼                      ▼                      ▼
     ┌─────────────────────────────────┐    ┌─────────────────────┐
-    │        LOCAL RAG AGENT          │    │    CLAUDE CODE      │
+    │        LOCAL RAG AGENT          │    │   AI ASSISTANTS     │
     │  ┌─────────────────────────┐    │    │                     │
     │  │       LanceDB           │    │    │  claude --context   │
     │  │  • internal_rule        │    │    │  context.md         │
@@ -62,8 +62,9 @@ knowledge/
 ├── archive/                         # Historical references; not indexed
 │   ├── expo-iap-api.md             # Archived legacy expo-iap API
 │   └── react-native-iap-api.md     # Archived legacy react-native-iap API
-└── _claude-context/                 # COMPILED - For Claude Code CLI
-    └── context.md                   # Auto-generated combined context
+├── _agent-context/                  # COMPILED - Shared agent context
+│   └── context.md                   # Auto-generated combined context
+└── _claude-context -> _agent-context # Backward-compatible alias
 ```
 
 ## Usage
@@ -73,23 +74,23 @@ knowledge/
 ```bash
 cd scripts/agent
 
-# Compile for both Claude Code + Local RAG
+# Compile for AI assistants + Local RAG
 bun run compile
 ```
 
-### For Claude Code Only
+### For AI Assistants
 
 ```bash
 cd scripts/agent
 
-# Compile context.md for Claude Code
+# Compile the shared context.md
 bun run compile:ai
 
-# Use with Claude Code
-claude --context knowledge/_claude-context/context.md
+# Claude Code can load the canonical file explicitly
+claude --context knowledge/_agent-context/context.md
 
 # Or in an existing session
-/context add knowledge/_claude-context/context.md
+/context add knowledge/_agent-context/context.md
 ```
 
 ### For Local RAG Agent (Challenger)
@@ -108,19 +109,20 @@ bun run benchmark --prompt "Add iOS subscription validation"
 
 ## Knowledge Priority
 
-| Priority | Type | Source | Purpose |
-|----------|------|--------|---------|
-| 1 (Highest) | `internal_rule` | `/internal/` | MUST follow exactly |
-| 2 | `code_map` | Project scan | Code structure reference |
-| 3 | `external_api` | `/external/` | API reference (adapt to internal rules) |
+| Priority    | Type            | Source       | Purpose                                 |
+| ----------- | --------------- | ------------ | --------------------------------------- |
+| 1 (Highest) | `internal_rule` | `/internal/` | MUST follow exactly                     |
+| 2           | `code_map`      | Project scan | Code structure reference                |
+| 3           | `external_api`  | `/external/` | API reference (adapt to internal rules) |
 
 ## Workflow: Hybrid Mode Testing
 
 1. **Define Task**: Write the feature request
 2. **Run Both**:
-   - Claude Code with `--context knowledge/_claude-context/context.md`
+   - Any repository-aware assistant through `AGENTS.md`; Claude Code may also
+     use `--context knowledge/_agent-context/context.md`
    - Local Agent: `bun run benchmark --prompt "..."`
-3. **Compare**: Check `_generated/` vs Claude Code's output
+3. **Compare**: Check `_generated/` against the selected assistant's output
 4. **Evaluate**: Does local agent follow all `internal_rule`?
 5. **Iterate**: Improve knowledge files if needed
 
@@ -135,6 +137,6 @@ cd scripts/agent
 bun run compile
 
 # Or individually:
-bun run compile:ai      # Claude Code context.md
+bun run compile:ai      # Shared agent context.md
 bun run compile:local   # Local RAG LanceDB index
 ```

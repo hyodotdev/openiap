@@ -85,7 +85,7 @@ satisfied.
 ## Preflight
 
 1. Read `$OPENIAP_REPO/AGENTS.md`, `packages/kit/CONVENTION.md`, the selected
-   framework's `CLAUDE.md`, and the `Local (IAPKit) Receipt Vertical` section of
+   framework's `AGENTS.md`, and the `Local (IAPKit) Receipt Vertical` section of
    `.claude/commands/e2e-tests.md`.
 2. Run `git status --short --branch` and preserve all existing changes.
 3. Confirm port `3100` is free and identify the device:

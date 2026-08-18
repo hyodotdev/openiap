@@ -15,6 +15,15 @@ export interface Sponsor {
   Wordmark: ComponentType<SponsorWordmarkProps>;
 }
 
+export const AMAZON_SPONSOR = {
+  id: 'amazon',
+  name: 'Amazon Developer',
+  shortName: 'Amazon',
+  tier: 'Angel',
+  url: 'https://developer.amazon.com/',
+  Wordmark: AmazonWordmark,
+} as const satisfies Sponsor;
+
 export const CURRENT_SPONSORS = [
   {
     id: 'meta',
@@ -24,12 +33,5 @@ export const CURRENT_SPONSORS = [
     url: 'https://meta.com',
     Wordmark: MetaWordmark,
   },
-  {
-    id: 'amazon',
-    name: 'Amazon Developer',
-    shortName: 'Amazon',
-    tier: 'Angel',
-    url: 'https://developer.amazon.com/',
-    Wordmark: AmazonWordmark,
-  },
+  AMAZON_SPONSOR,
 ] as const satisfies readonly Sponsor[];

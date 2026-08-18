@@ -3,7 +3,7 @@
 > Open-source purchase validation and entitlement infrastructure for the
 > OpenIAP ecosystem, managed by OpenIAP. Hosted at https://kit.openiap.dev.
 > One Bearer-authed endpoint for Apple / Google / Horizon / Amazon;
-> harmonized response shape with `{ store, isValid, state, productId?, environment? }` so your backend has a single code path for
+> harmonized response shape with `{ store, isValid, state, productId?, environment?, clientPayload? }` so your backend has a single code path for
 > entitlement + refund detection.
 
 IAPKit lives in the OpenIAP monorepo as a Bun + Hono server, Convex backend,

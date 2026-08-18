@@ -1,11 +1,13 @@
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import Callout from '../../../components/Callout';
-import AmazonWordmark from '../../../components/AmazonWordmark';
 import SEO from '../../../components/SEO';
 import { useScrollToHash, getHashId } from '../../../hooks/useScrollToHash';
 import Pagination from '../../../components/Pagination';
 import { IAPKIT_URL, trackIapKitClick } from '../../../lib/config';
+import { AMAZON_SPONSOR } from '../../../lib/sponsors';
+
+const { Wordmark: AmazonSponsorWordmark } = AMAZON_SPONSOR;
 
 const cardStyle = {
   background: 'var(--bg-secondary)',
@@ -269,10 +271,10 @@ function Announcements() {
           </div>
           <p style={dateStyle}>August 19, 2026</p>
           <a
-            href="https://developer.amazon.com/"
+            href={AMAZON_SPONSOR.url}
             target="_blank"
             rel="noopener noreferrer"
-            aria-label="Visit Amazon Developer"
+            aria-label={`Visit ${AMAZON_SPONSOR.name}`}
             style={{
               display: 'flex',
               width: 'fit-content',
@@ -280,7 +282,7 @@ function Announcements() {
               textDecoration: 'none',
             }}
           >
-            <AmazonWordmark className="announcement-sponsor-wordmark" />
+            <AmazonSponsorWordmark className="announcement-sponsor-wordmark" />
           </a>
           <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
             Today marks a meaningful milestone for our team: We're thrilled to

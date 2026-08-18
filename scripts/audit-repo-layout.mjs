@@ -35,7 +35,16 @@ export function findDuplicateRootPaths(root = repositoryRoot) {
           canonical: path.posix.join(container, entry.name),
         }));
     })
-    .filter(({ duplicate }) => fs.existsSync(path.join(root, duplicate)))
+    .filter(({ duplicate }) => {
+      if (canonicalContainers.includes(duplicate)) {
+        return false;
+      }
+
+      const duplicatePath = path.join(root, duplicate);
+      return (
+        fs.existsSync(duplicatePath) && fs.statSync(duplicatePath).isDirectory()
+      );
+    })
     .sort((left, right) => left.canonical.localeCompare(right.canonical));
 }
 

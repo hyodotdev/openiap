@@ -73,7 +73,7 @@ Inherits the monorepo rules in
   reverted on next sync.
 - **Don't create a NuGet package without the wiring complete.** Empty
   observables or missing native bindings are not a shippable contract — see
-  [`CLAUDE.md`](./CLAUDE.md) for the wiring plan.
+  [`AGENTS.md`](./AGENTS.md) for the wiring plan.
 - **Don't widen public types to interfaces.** All schema records are
   `sealed`. If polymorphism is needed, the union (abstract base record)
   is the extension point.

@@ -13,11 +13,11 @@ Compile the OpenIAP knowledge base to generate context files for AI assistants.
 
 ### Output Files
 
-| Output          | Location                     | Purpose                      |
-| --------------- | ---------------------------- | ---------------------------- |
-| `context.md`    | `knowledge/_claude-context/` | Claude Code context          |
-| `llms.txt`      | `packages/docs/public/`      | AI assistant quick reference |
-| `llms-full.txt` | `packages/docs/public/`      | AI assistant full reference  |
+| Output          | Location                    | Purpose                      |
+| --------------- | --------------------------- | ---------------------------- |
+| `context.md`    | `knowledge/_agent-context/` | Shared AI agent context      |
+| `llms.txt`      | `packages/docs/public/`     | AI assistant quick reference |
+| `llms-full.txt` | `packages/docs/public/`     | AI assistant full reference  |
 
 ### Commands
 
@@ -73,14 +73,14 @@ bun run compile:ai
 ### 2. Verify Output
 
 ```bash
-ls -la ../../knowledge/_claude-context/
+ls -la ../../knowledge/_agent-context/
 ls -la ../../packages/docs/public/llms*.txt
 ```
 
 ### 3. Review Generated Changes
 
 ```bash
-git add knowledge/_claude-context/context.md
+git add knowledge/_agent-context/context.md knowledge/_claude-context
 git add packages/docs/public/llms.txt
 git add packages/docs/public/llms-full.txt
 ```
@@ -94,7 +94,7 @@ context changes local and report them.
 ```text
 knowledge/
 ├── internal/     ─┐
-└── external/     ─┴─► compile:ai ─┬► context.md (Claude Code)
+└── external/     ─┴─► compile:ai ─┬► context.md (AI assistants)
                                    ├► llms.txt (Quick Ref)
                                    └► llms-full.txt (Full Ref)
 ```

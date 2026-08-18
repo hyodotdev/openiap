@@ -179,7 +179,7 @@ git push origin feature/your-feature-name
 
 ### Coding Standards
 
-Please refer to [CLAUDE.md](./CLAUDE.md) for:
+Please refer to [AGENTS.md](./AGENTS.md) for:
 
 - Naming conventions
 - Platform-specific guidelines

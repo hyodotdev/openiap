@@ -8,9 +8,11 @@ import {
 } from "../compile-context.js";
 import {
   CONTEXT_DIRECT_INPUTS,
+  CONTEXT_COMPATIBILITY_SYMLINKS,
   CONTEXT_INPUT_PATHS,
   CONTEXT_KNOWLEDGE_INPUT_ROOTS,
   CONTEXT_OUTPUT_PATHS,
+  CONTEXT_OUTPUTS,
   CONTEXT_SOURCES,
 } from "../context-files.js";
 
@@ -96,6 +98,13 @@ describe("writeGeneratedFileIfChanged", () => {
 });
 
 describe("generated context path contract", () => {
+  test("uses an agent-neutral canonical context with a Claude compatibility link", () => {
+    expect(CONTEXT_OUTPUTS.context).toBe("knowledge/_agent-context/context.md");
+    expect(CONTEXT_COMPATIBILITY_SYMLINKS).toEqual({
+      "knowledge/_claude-context": "_agent-context",
+    });
+  });
+
   test("keeps compiler inputs and generated outputs disjoint", () => {
     expect(new Set(CONTEXT_INPUT_PATHS).size).toBe(CONTEXT_INPUT_PATHS.length);
     expect(new Set(CONTEXT_OUTPUT_PATHS).size).toBe(

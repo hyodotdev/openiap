@@ -26,4 +26,5 @@ git add \
   packages/docs/src/generated/version-metadata.json \
   packages/docs/public/llms.txt \
   packages/docs/public/llms-full.txt \
-  knowledge/_claude-context/context.md
+  knowledge/_agent-context/context.md
+  knowledge/_claude-context

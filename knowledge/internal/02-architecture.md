@@ -27,7 +27,8 @@ openiap/
 ├── knowledge/         # Shared knowledge base (SSOT)
 │   ├── internal/      # Project philosophy (HIGHEST PRIORITY)
 │   ├── external/      # External API reference
-│   └── _claude-context/  # Compiled context for Claude Code
+│   ├── _agent-context/   # Compiled context shared by AI assistants
+│   └── _claude-context/  # Compatibility link to _agent-context
 ├── scripts/
 │   └── agent/         # RAG Agent scripts
 └── .github/workflows/ # CI/CD workflows

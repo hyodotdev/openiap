@@ -1,17 +1,17 @@
 /**
- * Claude Code Context Compiler (No Ollama Required)
+ * Shared Agent Context Compiler (No Ollama Required)
  *
  * This script compiles all knowledge files into a single context.md file
- * that can be used with Claude Code's --context flag.
+ * that can be loaded by any AI assistant.
  *
  * Usage:
  *   bun run compile
  *
  * Output:
- *   knowledge/_claude-context/context.md
+ *   knowledge/_agent-context/context.md
  *
- * Then use with Claude Code:
- *   claude --context knowledge/_claude-context/context.md
+ * Claude Code can load it explicitly with:
+ *   claude --context knowledge/_agent-context/context.md
  */
 
 import * as fs from "fs";
@@ -19,6 +19,7 @@ import * as path from "path";
 import { glob } from "glob";
 import chalk from "chalk";
 import {
+  CONTEXT_COMPATIBILITY_SYMLINKS,
   CONTEXT_OUTPUTS,
   CONTEXT_SOURCES,
   ROOT_LLMS_SYMLINKS,
@@ -45,6 +46,7 @@ const CONFIG = {
   llmsQuickPath: path.resolve(scriptDir, "../..", CONTEXT_OUTPUTS.llmsQuick),
   llmsFullPath: path.resolve(scriptDir, "../..", CONTEXT_OUTPUTS.llmsFull),
   rootLlmsSymlinks: ROOT_LLMS_SYMLINKS,
+  compatibilitySymlinks: CONTEXT_COMPATIBILITY_SYMLINKS,
 };
 
 type LlmsVersions = {
@@ -876,7 +878,7 @@ interface PurchaseError {
 
 export async function compileContext(): Promise<void> {
   console.log(chalk.bold.cyan("\n" + "═".repeat(60)));
-  console.log(chalk.bold.cyan("📝 Claude Code Context Compiler"));
+  console.log(chalk.bold.cyan("📝 Shared Agent Context Compiler"));
   console.log(chalk.bold.cyan("═".repeat(60)));
   console.log(chalk.gray(`\nKnowledge Root: ${CONFIG.knowledgeRoot}`));
 
@@ -884,13 +886,18 @@ export async function compileContext(): Promise<void> {
   if (!fs.existsSync(path.dirname(CONFIG.outputPath))) {
     fs.mkdirSync(path.dirname(CONFIG.outputPath), { recursive: true });
   }
+  for (const [linkPath, targetPath] of Object.entries(
+    CONFIG.compatibilitySymlinks,
+  )) {
+    ensureSymlink(path.join(CONFIG.projectRoot, linkPath), targetPath);
+  }
 
   let output = `# OpenIAP Project Context
 
-> **Auto-generated for Claude Code**
+> **Auto-generated shared context for AI assistants**
 > Last updated: ${new Date().toISOString()}
 >
-> Usage: \`claude --context knowledge/_claude-context/context.md\`
+> Canonical file: \`knowledge/_agent-context/context.md\`
 
 ---
 
@@ -1043,16 +1050,14 @@ openiap/
   }
 
   console.log(chalk.bold.green("\n✅ Context compilation complete!\n"));
-  console.log(chalk.white("Usage with Claude Code:"));
+  console.log(chalk.white("Canonical shared context:"));
+  console.log(
+    chalk.gray(`  ${path.relative(CONFIG.projectRoot, outputPath)}\n`),
+  );
+  console.log(chalk.white("Claude Code CLI:"));
   console.log(
     chalk.gray(
       `  claude --context ${path.relative(CONFIG.projectRoot, outputPath)}\n`,
-    ),
-  );
-  console.log(chalk.white("Or in an existing session:"));
-  console.log(
-    chalk.gray(
-      `  /context add ${path.relative(CONFIG.projectRoot, outputPath)}\n`,
     ),
   );
 }

@@ -37,7 +37,7 @@ When reviewing, check these project-specific rules:
 - **Android functions in packages/google**: NO `Android` suffix (it's Android-only)
 - **Generated files**: Do NOT edit `packages/apple/Sources/Models/Types.swift` or `packages/google/openiap/src/main/java/dev/hyo/openiap/Types.kt`
 
-See [CLAUDE.md](../../CLAUDE.md) and [knowledge/internal/](../../knowledge/internal/) for full conventions.
+See [AGENTS.md](../../AGENTS.md) and [knowledge/internal/](../../knowledge/internal/) for full conventions.
 
 ## Public GitHub Language Guard
 

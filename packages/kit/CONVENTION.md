@@ -308,7 +308,7 @@ per-document size budget.
 ## Commit messages
 
 Follow the monorepo-wide convention from the root
-[`CLAUDE.md`](../../CLAUDE.md): with a tag prefix everything after the
+[`AGENTS.md`](../../AGENTS.md): with a tag prefix everything after the
 colon is lowercase (`feat: add foo`); without a tag the first letter
 is uppercase (`Add foo`).
 

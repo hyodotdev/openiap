@@ -40,7 +40,8 @@ openiap/
 ├── knowledge/         # Shared knowledge base (SSOT)
 │   ├── internal/      # Project philosophy (HIGHEST PRIORITY)
 │   ├── external/      # External API reference
-│   └── _claude-context/  # Compiled context for Claude Code
+│   ├── _agent-context/   # Compiled context shared by AI assistants
+│   └── _claude-context/  # Compatibility link to _agent-context
 ├── scripts/           # Monorepo-wide automation
 └── .github/workflows/ # CI/CD workflows
 ```
@@ -57,13 +58,13 @@ openiap/
    - [`packages/apple/CONVENTION.md`](packages/apple/CONVENTION.md)
    - [`packages/docs/CONVENTION.md`](packages/docs/CONVENTION.md)
    - [`packages/kit/CONVENTION.md`](packages/kit/CONVENTION.md) — kit is a deployable SaaS (not a library); has its own Convex schema and isn't part of the GQL type-sync chain. Its `/v1` responses are still a published contract that shipped SDKs decode: read the `/v1` response contract section and run `bun audit:kit-contract` before changing a response enum, `isValidState`, or a purchase-state mapping
-3. **For framework libraries, read the library-specific CLAUDE.md**:
-   - [`libraries/react-native-iap/CLAUDE.md`](libraries/react-native-iap/CLAUDE.md) — Yarn 3, Nitro Modules, useIAP hook semantics, error handling
-   - [`libraries/expo-iap/CLAUDE.md`](libraries/expo-iap/CLAUDE.md) — Bun, Expo Modules, iOS podspec 13.4 workaround, tvOS 16.0 requirement
-   - [`libraries/flutter_inapp_purchase/CLAUDE.md`](libraries/flutter_inapp_purchase/CLAUDE.md) — Flutter/Dart, generated types.dart, fetchProducts generic API
-   - [`libraries/godot-iap/CLAUDE.md`](libraries/godot-iap/CLAUDE.md) — GDScript conventions, GDExtension (iOS), AAR plugin (Android)
-   - [`libraries/kmp-iap/CLAUDE.md`](libraries/kmp-iap/CLAUDE.md) — Kotlin Multiplatform, Flow-based API, CocoaPods iOS integration
-   - [`libraries/maui-iap/CLAUDE.md`](libraries/maui-iap/CLAUDE.md) — .NET MAUI / C# 12, generated Types.cs, Android/iOS bindings
+3. **For framework libraries, read the library-specific AGENTS.md**:
+   - [`libraries/react-native-iap/AGENTS.md`](libraries/react-native-iap/AGENTS.md) — Yarn 3, Nitro Modules, useIAP hook semantics, error handling
+   - [`libraries/expo-iap/AGENTS.md`](libraries/expo-iap/AGENTS.md) — Bun, Expo Modules, iOS podspec 13.4 workaround, tvOS 16.0 requirement
+   - [`libraries/flutter_inapp_purchase/AGENTS.md`](libraries/flutter_inapp_purchase/AGENTS.md) — Flutter/Dart, generated types.dart, fetchProducts generic API
+   - [`libraries/godot-iap/AGENTS.md`](libraries/godot-iap/AGENTS.md) — GDScript conventions, GDExtension (iOS), AAR plugin (Android)
+   - [`libraries/kmp-iap/AGENTS.md`](libraries/kmp-iap/AGENTS.md) — Kotlin Multiplatform, Flow-based API, CocoaPods iOS integration
+   - [`libraries/maui-iap/AGENTS.md`](libraries/maui-iap/AGENTS.md) — .NET MAUI / C# 12, generated Types.cs, Android/iOS bindings
 
 ## Key Rules Summary
 
@@ -196,27 +197,37 @@ GraphQL Schema ─┬─► graphql-codegen + AST guards ─► TypeScript
   `main` using the bump type relative to its stable metadata.
 - Read `.claude/commands/release.md` before any package deployment.
 
-## Using Claude Code with Context
+## Shared Agent Context
 
 ```bash
 cd scripts/agent
 
-# Compile for AI assistants (no Ollama required)
+# Compile shared context for AI assistants (no Ollama required)
 bun run compile:ai
 
-# Or compile for both Claude Code + Local RAG
+# Or compile for both AI assistants + Local RAG
 bun run compile
 
 # Use with Claude Code
-claude --context knowledge/_claude-context/context.md
+claude --context knowledge/_agent-context/context.md
 ```
 
-## Codex Compatibility
+## Shared Agent Configuration
 
-`AGENTS.md` is the root project instruction SSOT. `CLAUDE.md` and `GEMINI.md`
-are symlinks to `AGENTS.md`, so Claude Code, Gemini, and Codex read the same
-root instructions. The `.claude/commands/` files remain the workflow SSOT for
-slash-command-style tasks.
+`AGENTS.md` is the root project instruction SSOT. Codex and Grok read it
+directly; `CLAUDE.md` and `GEMINI.md` are compatibility symlinks to the same
+file. Every framework library follows the same pattern with a local canonical
+`AGENTS.md`. The `.claude/commands/`, `.claude/skills/`, `.codex/skills/`, and
+`.cursor/rules/` files remain thin tool-discovery adapters where their host
+formats genuinely differ; they must route back to the shared instructions and
+workflow sources instead of copying project policy.
+
+The canonical compiled context is
+`knowledge/_agent-context/context.md`. The legacy
+`knowledge/_claude-context` path is a compatibility symlink, so existing
+commands continue to work without creating a second generated copy.
+
+## Codex Compatibility
 
 Codex supports Skills through `SKILL.md` folders. This repo provides
 Codex-compatible local skills in `.codex/skills/`, including
@@ -238,6 +249,13 @@ After installation, ask Codex normally (for example, "review PR 65" or
 Keep `$review-self` and `$loop-review` repo-local. Their review, merge, and
 release-safety policies are project-specific; globally linking them could apply
 the wrong repository workflow elsewhere.
+
+## Grok Compatibility
+
+Grok Build reads the repository's `AGENTS.md` hierarchy directly and supports
+the Claude Code command, skill, plugin, and marketplace layout. Do not add a
+parallel `GROK.md`; keep shared rules in `AGENTS.md` and tool-specific adapters
+thin. See the [xAI skills and plugins documentation](https://docs.x.ai/build/features/skills-plugins-marketplaces).
 
 ## Claude Code Compatibility
 
@@ -286,7 +304,7 @@ Cursor-specific files.
 | `/review-pr`         | Review PR comments, fix issues, resolve threads    | `/review-pr 65` or `/review-pr <url>` |
 | `/audit-code`        | Audit code against knowledge rules and latest APIs | `/audit-code`                         |
 | `/audit-security`    | Audit SBOM, provenance, and supply-chain posture   | `/audit-security`                     |
-| `/compile-knowledge` | Compile knowledge base for Claude context          | `/compile-knowledge`                  |
+| `/compile-knowledge` | Compile the shared AI agent context                | `/compile-knowledge`                  |
 | `/resolve-issue`     | Analyze an issue, label it, and fix/comment        | `/resolve-issue 88`                   |
 | `/verify-all`        | Run the full monorepo health check                 | `/verify-all`                         |
 | `/e2e-tests`         | Run device-backed OpenIAP regression tests         | `/e2e-tests PR 162`                   |

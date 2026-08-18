@@ -2393,7 +2393,7 @@ function checkFlutter() {
     "Expo public API warnings/errors must stay current and consistently phrased",
   );
   expectNotIncludes(
-    "libraries/expo-iap/CLAUDE.md",
+    "libraries/expo-iap/AGENTS.md",
     ["v2.9.0"],
     "Expo package guidance must not reference past deprecation deadlines",
   );
@@ -3847,6 +3847,44 @@ function checkFrameworkDependencyHygiene() {
     "packages/docs/openiap-versions.json",
     "Docs package version copy",
   );
+  expectFile("AGENTS.md");
+  if (exists("AGENTS.md") && fs.lstatSync(abs("AGENTS.md")).isSymbolicLink()) {
+    fail("Root AGENTS.md must be the real instruction SSOT");
+  }
+  expectSymlinkTarget("CLAUDE.md", "AGENTS.md", "Root Claude instructions");
+  expectSymlinkTarget("GEMINI.md", "AGENTS.md", "Root Gemini instructions");
+  for (const libraryPath of [
+    "libraries/react-native-iap",
+    "libraries/expo-iap",
+    "libraries/flutter_inapp_purchase",
+    "libraries/godot-iap",
+    "libraries/kmp-iap",
+    "libraries/maui-iap",
+  ]) {
+    const canonicalPath = `${libraryPath}/AGENTS.md`;
+    expectFile(canonicalPath);
+    if (
+      exists(canonicalPath) &&
+      fs.lstatSync(abs(canonicalPath)).isSymbolicLink()
+    ) {
+      fail(`${canonicalPath} must be the real instruction SSOT`);
+    }
+    expectSymlinkTarget(
+      `${libraryPath}/CLAUDE.md`,
+      "AGENTS.md",
+      `${libraryPath} Claude instructions`,
+    );
+    expectSymlinkTarget(
+      `${libraryPath}/GEMINI.md`,
+      "AGENTS.md",
+      `${libraryPath} Gemini instructions`,
+    );
+  }
+  expectSymlinkTarget(
+    "knowledge/_claude-context",
+    "_agent-context",
+    "Claude context compatibility path",
+  );
   expectSymlinkTarget(
     "llms.txt",
     "packages/docs/public/llms.txt",
@@ -4028,10 +4066,10 @@ function checkFrameworkDependencyHygiene() {
   );
   for (const canonicalUrlFile of [
     "scripts/audit-docs.ts",
-    "libraries/expo-iap/CLAUDE.md",
-    "libraries/flutter_inapp_purchase/CLAUDE.md",
-    "libraries/kmp-iap/CLAUDE.md",
-    "libraries/react-native-iap/CLAUDE.md",
+    "libraries/expo-iap/AGENTS.md",
+    "libraries/flutter_inapp_purchase/AGENTS.md",
+    "libraries/kmp-iap/AGENTS.md",
+    "libraries/react-native-iap/AGENTS.md",
     "libraries/react-native-iap/src/index.ts",
     "libraries/react-native-iap/src/hooks/useIAP.ts",
     "libraries/flutter_inapp_purchase/lib/flutter_inapp_purchase.dart",
@@ -8187,7 +8225,7 @@ function checkFrameworkDependencyHygiene() {
     ".claude/commands/verify-all.md",
     "libraries/maui-iap/README.md",
     "libraries/maui-iap/example/README.md",
-    "libraries/maui-iap/CLAUDE.md",
+    "libraries/maui-iap/AGENTS.md",
     "libraries/maui-iap/CONVENTION.md",
     "knowledge/internal/04-platform-packages.md",
     "packages/docs/src/pages/docs/setup/store/amazon.tsx",
@@ -8487,7 +8525,7 @@ function checkFrameworkDependencyHygiene() {
     );
   }
   expectIncludes(
-    "libraries/kmp-iap/CLAUDE.md",
+    "libraries/kmp-iap/AGENTS.md",
     [
       "Kotlin `2.4.10` is the validated compiler line",
       "Keep Compose Multiplatform at `1.10.3`",

@@ -1,7 +1,7 @@
 {
   "name": "openiap-rag-agent",
   "version": "3.0.0",
-  "description": "OpenIAP Hybrid Mode - Shared Brain, Dual Body Architecture",
+  "description": "OpenIAP shared context and local RAG tooling",
   "type": "module",
   "scripts": {
     "compile": "bun run indexer.ts --compile",

@@ -24,6 +24,7 @@ make setup
 ```
 
 This will:
+
 - Download `godot-lib.aar` for Android builds
 - Clone the pinned SwiftGodot source used by the iOS GDExtension
 - Install git pre-commit hooks that auto-build iOS when `ios-gdextension/` files change
@@ -66,12 +67,12 @@ make test-ios      # Reset TestProject, copy binaries, open Xcode
 
 ### Development vs Release Testing
 
-| Command | Purpose | Source |
-|---------|---------|--------|
-| `make run-android` | Quick development testing | `Example/` directly |
-| `make run-ios` | Quick development testing | `Example/` directly |
-| `make test-android` | Verify release structure | `TestProject/` (copied from Example) |
-| `make test-ios` | Verify release structure | `TestProject/` (copied from Example) |
+| Command             | Purpose                   | Source                               |
+| ------------------- | ------------------------- | ------------------------------------ |
+| `make run-android`  | Quick development testing | `Example/` directly                  |
+| `make run-ios`      | Quick development testing | `Example/` directly                  |
+| `make test-android` | Verify release structure  | `TestProject/` (copied from Example) |
+| `make test-ios`     | Verify release structure  | `TestProject/` (copied from Example) |
 
 ### Testing Workflow
 
@@ -94,7 +95,7 @@ make test-ios      # Reset TestProject, copy binaries, open Xcode
 
 ### Code Style
 
-Follow the conventions in [CLAUDE.md](CLAUDE.md):
+Follow the conventions in [AGENTS.md](AGENTS.md):
 
 - **GDScript**: snake_case for functions/signals, PascalCase for classes
 - **Kotlin**: Standard Kotlin conventions
@@ -109,6 +110,7 @@ Follow the conventions in [CLAUDE.md](CLAUDE.md):
 ### Modifying Native Code
 
 **Android (`android/`):**
+
 ```bash
 # Edit Kotlin files in android/src/main/java/
 make android       # Rebuild AAR
@@ -116,6 +118,7 @@ make run-android   # Test
 ```
 
 **iOS (`ios-gdextension/`):**
+
 ```bash
 # Edit Swift files in ios-gdextension/Sources/
 make ios           # Rebuild frameworks
@@ -135,6 +138,7 @@ make run-ios       # Test
 ### Commit Messages
 
 Use conventional commit format:
+
 - `feat:` New features
 - `fix:` Bug fixes
 - `docs:` Documentation changes
@@ -160,6 +164,7 @@ Releases are automated via GitHub Actions:
 ### Pre-release Checklist
 
 Before triggering a release:
+
 - [ ] Test on Android device with `make test-android`
 - [ ] Test on iOS device with `make test-ios`
 - [ ] Ensure iOS frameworks are committed (`Example/addons/godot-iap/bin/ios/`)

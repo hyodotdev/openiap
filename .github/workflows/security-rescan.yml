@@ -149,6 +149,7 @@ jobs:
           "$RUNNER_TEMP/trivy" image openiap-kit:security-scan
           --scanners vuln
           --severity HIGH,CRITICAL
+          --ignorefile packages/kit/.trivyignore.yaml
           --exit-code 1
           --exit-on-eol 1
           --format json

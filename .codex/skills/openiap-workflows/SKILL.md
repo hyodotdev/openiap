@@ -1,6 +1,6 @@
 ---
 name: openiap-workflows
-description: Use for OpenIAP monorepo work that should follow the repository's Claude slash-command workflows, including review-pr, audit-code, compile-knowledge, verify-all, e2e-tests, stable or prerelease package releases, resolve-issue, commit/push/PR, generated type sync, package-specific checks, GitHub review threads, and project conventions from AGENTS.md/CLAUDE.md/GEMINI.md.
+description: Use for OpenIAP monorepo work that should follow the repository's shared agent workflows, including review-pr, audit-code, compile-knowledge, verify-all, e2e-tests, stable or prerelease package releases, resolve-issue, commit/push/PR, generated type sync, package-specific checks, GitHub review threads, and project conventions from AGENTS.md.
 ---
 
 # OpenIAP Workflows
@@ -13,11 +13,12 @@ verifying the monorepo, or committing and opening a PR.
 ## Source Of Truth
 
 Before changing code, read the root `AGENTS.md`; `CLAUDE.md` and `GEMINI.md`
-are symlinks to it in this repo. Then read the relevant detailed files:
+are symlinks to it in this repo, while Grok and Codex consume `AGENTS.md`
+directly. Then read the relevant detailed files:
 
 - Package and library rules: `knowledge/internal/*.md`
 - Package conventions: `packages/*/CONVENTION.md`
-- Library conventions: `libraries/*/CLAUDE.md`
+- Library conventions: `libraries/*/AGENTS.md`
 - Workflow details: `.claude/commands/*.md`
 
 Do not duplicate or reinterpret those rules when a file already covers the

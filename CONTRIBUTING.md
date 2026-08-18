@@ -85,14 +85,14 @@ second type-copy command or maintain another target list.
 
 ### Working on a Specific Library
 
-Each library has its own `CLAUDE.md` with detailed conventions and development instructions:
+Each library has its own canonical `AGENTS.md` with detailed conventions and development instructions. `CLAUDE.md` and `GEMINI.md` are compatibility links to it:
 
-- `libraries/react-native-iap/CLAUDE.md` -- Nitro Modules, useIAP hook, error handling
-- `libraries/expo-iap/CLAUDE.md` -- Expo Modules, iOS podspec workaround, tvOS support
-- `libraries/flutter_inapp_purchase/CLAUDE.md` -- Generated types.dart, fetchProducts generic API
-- `libraries/godot-iap/CLAUDE.md` -- GDExtension (iOS), AAR plugin (Android)
-- `libraries/kmp-iap/CLAUDE.md` -- Flow-based API, CocoaPods iOS integration
-- `libraries/maui-iap/CLAUDE.md` -- .NET MAUI / C#, generated Types.cs, native bindings
+- `libraries/react-native-iap/AGENTS.md` -- Nitro Modules, useIAP hook, error handling
+- `libraries/expo-iap/AGENTS.md` -- Expo Modules, iOS podspec workaround, tvOS support
+- `libraries/flutter_inapp_purchase/AGENTS.md` -- Generated types.dart, fetchProducts generic API
+- `libraries/godot-iap/AGENTS.md` -- GDExtension (iOS), AAR plugin (Android)
+- `libraries/kmp-iap/AGENTS.md` -- Flow-based API, CocoaPods iOS integration
+- `libraries/maui-iap/AGENTS.md` -- .NET MAUI / C#, generated Types.cs, native bindings
 
 Libraries reference local `packages/apple` and `packages/google` source during development. Published packages use CocoaPods/Maven Central for native dependencies.
 

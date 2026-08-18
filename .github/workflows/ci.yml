@@ -32,9 +32,7 @@ jobs:
           node-version: 20
 
       - name: Audit repository layout
-        run: >-
-          node --test scripts/audit-repo-layout.test.mjs &&
-          node scripts/audit-repo-layout.mjs
+        run: npm run audit:layout
 
       - name: Reject prerelease metadata on main
         run: node scripts/release-branch-policy.mjs audit

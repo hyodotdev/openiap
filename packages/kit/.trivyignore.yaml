@@ -1,0 +1,8 @@
+vulnerabilities:
+  - id: CVE-2026-14456
+    expired_at: 2026-09-14
+    statement: >-
+      OpenSSL documents this QUIC listener denial of service as present only
+      since 3.5. The Debian 12 runtime contains libssl3 3.0.x, where the QUIC
+      server implementation is not present. Recheck the vendor classification
+      or remove this exception by the expiry date.

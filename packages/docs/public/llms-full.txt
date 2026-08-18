@@ -3,7 +3,7 @@
 > OpenIAP: Unified in-app purchase specification for iOS & Android
 > Documentation: https://openiap.dev
 > Quick Reference: https://openiap.dev/llms.txt
-> Generated: 2026-08-17T23:14:29.027Z
+> Generated: 2026-08-18T17:57:34.145Z
 
 ## Table of Contents
 1. Installation
@@ -2056,7 +2056,7 @@ transient or malformed responses.
 > Open-source purchase validation and entitlement infrastructure for the
 > OpenIAP ecosystem, managed by OpenIAP. Hosted at https://kit.openiap.dev.
 > One Bearer-authed endpoint for Apple / Google / Horizon / Amazon;
-> harmonized response shape with `{ store, isValid, state, productId?, environment? }` so your backend has a single code path for
+> harmonized response shape with `{ store, isValid, state, productId?, environment?, clientPayload? }` so your backend has a single code path for
 > entitlement + refund detection.
 
 IAPKit lives in the OpenIAP monorepo as a Bun + Hono server, Convex backend,

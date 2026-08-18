@@ -1,7 +1,7 @@
 /**
  * OpenIAP Knowledge & Code Map Indexer
  *
- * This script creates a shared knowledge base for both Claude Code and the Local Agent.
+ * This script creates a shared knowledge base for AI assistants and the local agent.
  * It performs TWO types of indexing:
  *
  * 1. KNOWLEDGE INDEXING:
@@ -52,7 +52,7 @@ function splitMarkdownByHeaders(
     ["##", "h2"],
     ["###", "h3"],
     ["####", "h4"],
-  ]
+  ],
 ): MarkdownChunk[] {
   const lines = text.split("\n");
   const chunks: MarkdownChunk[] = [];
@@ -64,7 +64,9 @@ function splitMarkdownByHeaders(
 
     for (const [headerPrefix, metadataKey] of headersToSplitOn) {
       // Match exact header level (e.g., "## " but not "### ")
-      const regex = new RegExp(`^${headerPrefix.replace(/#/g, "\\#")}\\s+(.+)$`);
+      const regex = new RegExp(
+        `^${headerPrefix.replace(/#/g, "\\#")}\\s+(.+)$`,
+      );
       const match = line.match(regex);
 
       // Make sure it's exactly this level, not a sub-level
@@ -87,7 +89,7 @@ function splitMarkdownByHeaders(
 
         // Clear lower-level headers when a higher-level header is found
         const headerIndex = headersToSplitOn.findIndex(
-          ([p]) => p === headerPrefix
+          ([p]) => p === headerPrefix,
         );
         for (let i = headerIndex + 1; i < headersToSplitOn.length; i++) {
           delete currentMetadata[headersToSplitOn[i][1]];
@@ -164,7 +166,7 @@ const CONFIG = {
 type KnowledgeType = "internal_rule" | "external_api" | "code_map";
 
 interface IndexedDocument {
-  [key: string]: unknown;  // Index signature for LanceDB compatibility
+  [key: string]: unknown; // Index signature for LanceDB compatibility
   id: string;
   text: string;
   vector: number[];
@@ -178,8 +180,8 @@ interface IndexedDocument {
   // Code-specific metadata (as strings for Arrow compatibility)
   language: string;
   package_name: string;
-  functions: string;  // JSON string of array
-  exports: string;    // JSON string of array
+  functions: string; // JSON string of array
+  exports: string; // JSON string of array
 }
 
 interface CodeSymbol {
@@ -251,7 +253,8 @@ function extractSwiftSymbols(content: string): CodeSymbol[] {
   const patterns = [
     // Public/Open functions
     {
-      regex: /^\s*(public|open)\s+(static\s+)?func\s+(\w+)\s*\(([^)]*)\)\s*(async\s*)?(throws\s*)?(->.*)?/,
+      regex:
+        /^\s*(public|open)\s+(static\s+)?func\s+(\w+)\s*\(([^)]*)\)\s*(async\s*)?(throws\s*)?(->.*)?/,
       kind: "function" as const,
     },
     // Public structs/classes
@@ -314,12 +317,14 @@ function extractKotlinSymbols(content: string): CodeSymbol[] {
   const patterns = [
     // Functions (public by default, or explicit)
     {
-      regex: /^\s*(public\s+|internal\s+|private\s+)?(suspend\s+)?fun\s+(\w+)\s*[<(]/,
+      regex:
+        /^\s*(public\s+|internal\s+|private\s+)?(suspend\s+)?fun\s+(\w+)\s*[<(]/,
       kind: "function" as const,
     },
     // Classes
     {
-      regex: /^\s*(public\s+|internal\s+|private\s+)?(data\s+|sealed\s+|open\s+)?(class|object)\s+(\w+)/,
+      regex:
+        /^\s*(public\s+|internal\s+|private\s+)?(data\s+|sealed\s+|open\s+)?(class|object)\s+(\w+)/,
       kind: "class" as const,
     },
     // Enums
@@ -553,7 +558,7 @@ const MAX_CHUNK_SIZE = 1500;
  */
 async function splitLargeChunk(
   text: string,
-  maxSize: number = MAX_CHUNK_SIZE
+  maxSize: number = MAX_CHUNK_SIZE,
 ): Promise<string[]> {
   if (text.length <= maxSize) {
     return [text];
@@ -568,7 +573,7 @@ async function splitLargeChunk(
 
 async function indexKnowledge(
   db: lancedb.Connection,
-  embeddings: OllamaEmbeddings
+  embeddings: OllamaEmbeddings,
 ): Promise<IndexedDocument[]> {
   console.log(chalk.blue("\n📚 Indexing Knowledge Files...\n"));
 
@@ -576,7 +581,7 @@ async function indexKnowledge(
 
   // Internal rules - use custom markdown header splitter
   const internalFiles = await glob(
-    path.join(CONFIG.knowledgeRoot, "internal/**/*.md")
+    path.join(CONFIG.knowledgeRoot, "internal/**/*.md"),
   );
 
   for (const filePath of internalFiles) {
@@ -631,7 +636,7 @@ async function indexKnowledge(
 
   // External docs - use RecursiveCharacterTextSplitter with smaller size
   const externalFiles = await glob(
-    path.join(CONFIG.knowledgeRoot, "external/**/*.md")
+    path.join(CONFIG.knowledgeRoot, "external/**/*.md"),
   );
 
   const recursiveSplitter = new RecursiveCharacterTextSplitter({
@@ -682,7 +687,7 @@ async function indexKnowledge(
 
 async function indexCodeMap(
   db: lancedb.Connection,
-  embeddings: OllamaEmbeddings
+  embeddings: OllamaEmbeddings,
 ): Promise<IndexedDocument[]> {
   console.log(chalk.blue("\n🗺️ Building Code Map...\n"));
 
@@ -703,7 +708,11 @@ async function indexCodeMap(
     return !CONFIG.ignoreFiles.includes(filename);
   });
 
-  console.log(chalk.gray(`   Found ${filteredFiles.length} source files (${allFiles.length - filteredFiles.length} ignored)\n`));
+  console.log(
+    chalk.gray(
+      `   Found ${filteredFiles.length} source files (${allFiles.length - filteredFiles.length} ignored)\n`,
+    ),
+  );
 
   for (const filePath of filteredFiles) {
     const content = readFile(filePath);
@@ -718,12 +727,8 @@ async function indexCodeMap(
 
     if (symbols.length === 0) continue;
 
-    console.log(
-      chalk.yellow(`  📄 [${pkg.toUpperCase()}] ${relativePath}`)
-    );
-    console.log(
-      chalk.gray(`     → ${symbols.length} symbols (${language})`)
-    );
+    console.log(chalk.yellow(`  📄 [${pkg.toUpperCase()}] ${relativePath}`));
+    console.log(chalk.gray(`     → ${symbols.length} symbols (${language})`));
 
     // Generate summary for this file
     const fileInfo: CodeFileInfo = {
@@ -783,10 +788,10 @@ ${symbols.length > 50 ? `... and ${symbols.length - 50} more` : ""}
 }
 
 // ============================================================================
-// Claude Context Compilation
+// Shared Agent Context Compilation
 // ============================================================================
 
-async function compileClaudeContext(): Promise<void> {
+async function compileAgentContext(): Promise<void> {
   // Keep one canonical compiler for context.md and both llms reference files.
   await compileContext();
 }
@@ -842,23 +847,19 @@ async function main(): Promise<void> {
     const tables = await db.tableNames();
 
     // Knowledge table
-    const knowledgeDocs = allDocuments.filter(
-      (d) => d.type !== "code_map"
-    );
+    const knowledgeDocs = allDocuments.filter((d) => d.type !== "code_map");
     if (knowledgeDocs.length > 0) {
       if (tables.includes(CONFIG.knowledgeTable)) {
         await db.dropTable(CONFIG.knowledgeTable);
       }
       await db.createTable(CONFIG.knowledgeTable, knowledgeDocs);
       console.log(
-        chalk.green(`   ✓ Knowledge: ${knowledgeDocs.length} documents`)
+        chalk.green(`   ✓ Knowledge: ${knowledgeDocs.length} documents`),
       );
     }
 
     // Code map table
-    const codeDocs = allDocuments.filter(
-      (d) => d.type === "code_map"
-    );
+    const codeDocs = allDocuments.filter((d) => d.type === "code_map");
     if (codeDocs.length > 0) {
       if (tables.includes(CONFIG.codeMapTable)) {
         await db.dropTable(CONFIG.codeMapTable);
@@ -868,9 +869,9 @@ async function main(): Promise<void> {
     }
   }
 
-  // Compile Claude context
+  // Compile shared agent context
   if (compile) {
-    await compileClaudeContext();
+    await compileAgentContext();
   }
 
   // Summary
@@ -879,14 +880,12 @@ async function main(): Promise<void> {
   console.log(chalk.bold.cyan("═".repeat(60)));
 
   const internalCount = allDocuments.filter(
-    (d) => d.type === "internal_rule"
+    (d) => d.type === "internal_rule",
   ).length;
   const externalCount = allDocuments.filter(
-    (d) => d.type === "external_api"
+    (d) => d.type === "external_api",
   ).length;
-  const codeCount = allDocuments.filter(
-    (d) => d.type === "code_map"
-  ).length;
+  const codeCount = allDocuments.filter((d) => d.type === "code_map").length;
 
   console.log(chalk.magenta(`   Internal Rules:  ${internalCount} chunks`));
   console.log(chalk.cyan(`   External APIs:   ${externalCount} chunks`));
@@ -895,9 +894,11 @@ async function main(): Promise<void> {
 
   console.log(chalk.bold.green("\n✅ Indexing complete!\n"));
   console.log(chalk.gray("Next steps:"));
-  console.log(chalk.gray("  • Run benchmark: bun run benchmark --prompt \"...\""));
   console.log(
-    chalk.gray("  • Claude Code:   claude --context knowledge/_claude-context/context.md")
+    chalk.gray('  • Run benchmark: bun run benchmark --prompt "..."'),
+  );
+  console.log(
+    chalk.gray("  • Agent context: knowledge/_agent-context/context.md"),
   );
   console.log();
 }

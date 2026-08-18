@@ -1,9 +1,9 @@
 # OpenIAP Project Context
 
-> **Auto-generated for Claude Code**
-> Last updated: 2026-08-18T16:58:40.514Z
+> **Auto-generated shared context for AI assistants**
+> Last updated: 2026-08-18T17:50:47.669Z
 >
-> Usage: `claude --context knowledge/_claude-context/context.md`
+> Canonical file: `knowledge/_agent-context/context.md`
 
 ---
 
@@ -306,7 +306,8 @@ openiap/
 ├── knowledge/         # Shared knowledge base (SSOT)
 │   ├── internal/      # Project philosophy (HIGHEST PRIORITY)
 │   ├── external/      # External API reference
-│   └── _claude-context/  # Compiled context for Claude Code
+│   ├── _agent-context/   # Compiled context shared by AI assistants
+│   └── _claude-context/  # Compatibility link to _agent-context
 ├── scripts/
 │   └── agent/         # RAG Agent scripts
 └── .github/workflows/ # CI/CD workflows

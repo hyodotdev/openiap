@@ -20,10 +20,14 @@ test("accepts canonical owned directories", () => {
   withTemporaryRepository((root) => {
     fs.mkdirSync(path.join(root, "packages", "docs"), { recursive: true });
     fs.mkdirSync(path.join(root, "packages", "gql"), { recursive: true });
+    fs.mkdirSync(path.join(root, "packages", "packages"), {
+      recursive: true,
+    });
     fs.mkdirSync(path.join(root, "libraries", "react-native-iap"), {
       recursive: true,
     });
     fs.mkdirSync(path.join(root, "plugins", "openiap"), { recursive: true });
+    fs.writeFileSync(path.join(root, "docs"), "not a directory");
 
     assert.deepEqual(auditRepositoryLayout(root), []);
   });

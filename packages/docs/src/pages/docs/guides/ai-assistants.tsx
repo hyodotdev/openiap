@@ -192,13 +192,14 @@ function AIAssistants() {
         </ol>
 
         <AnchorLink id="claude-code" level="h3">
-          Claude Code (CLI)
+          Repository-aware CLI assistants
         </AnchorLink>
         <p>
-          Add OpenIAP documentation to your project's <code>CLAUDE.md</code>{' '}
-          file for automatic context:
+          Add OpenIAP documentation to your project's <code>AGENTS.md</code>{' '}
+          file so Codex, Claude Code, Grok, Gemini, and other compatible
+          assistants share the same context:
         </p>
-        <CodeBlock language="typescript">{`# In CLAUDE.md:
+        <CodeBlock language="typescript">{`# In AGENTS.md:
 
 ## IAP Reference
 For in-app purchase implementation, reference: https://openiap.dev/llms.txt`}</CodeBlock>
