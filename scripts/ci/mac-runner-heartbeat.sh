@@ -4,9 +4,11 @@
 # as "Mac is off" and fall back to GitHub-hosted runners, so nothing hangs when
 # the machine sleeps or shuts down.
 #
-# Install on the Mac Mini (once), as the user that runs the Actions runner:
-#   crontab -e   →   */5 * * * * /path/to/openiap/scripts/ci/mac-runner-heartbeat.sh
-# or a LaunchAgent with StartInterval 300. Requires `gh auth` with repo admin.
+# Install on the Mac Mini (once) as a LaunchAgent (cron edits can hang on
+# macOS TCC): ~/Library/LaunchAgents/dev.openiap.mac-ci-heartbeat.plist running
+# this script with StartInterval 300 + RunAtLoad, then
+#   launchctl bootstrap gui/$(id -u) <plist>
+# Requires `gh auth` with repo admin.
 set -eu
 
 # cron ships a minimal PATH without Homebrew.
