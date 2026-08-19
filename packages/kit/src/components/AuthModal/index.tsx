@@ -6,6 +6,7 @@ import { SiGithub } from "@icons-pack/react-simple-icons";
 import { useNavigate } from "react-router-dom";
 import { api } from "@/convex";
 import { Modal } from "@/components/Modal";
+import { EMAIL_SIGN_IN_CLOSES_ON, isEmailSignInOpen } from "@/utils/constants";
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -67,6 +68,8 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
     handleReset();
     onClose();
   }, [isAuthenticating, handleReset, onClose]);
+
+  const emailSignInOpen = isEmailSignInOpen();
 
   const getOtpProvider = () => "resend-otp-en";
 
@@ -229,31 +232,39 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
               {"You'll be redirected to GitHub to authorize IAPKit"}
             </p>
 
-            {/* Divider + email-legacy escape hatch. Kept low-key so new
-                users gravitate toward GitHub, while the ~110 existing
-                email-only accounts still have an obvious path in. */}
-            <div className="relative pt-2">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-gray-200 dark:border-gray-700" />
-              </div>
-              <div className="relative flex justify-center text-xs">
-                <span className="bg-white dark:bg-gray-900 px-3 text-gray-500 dark:text-gray-400">
-                  {"or"}
-                </span>
-              </div>
-            </div>
+            {/* Divider + email-legacy escape hatch, shown only while the
+                grace period is open. After it closes the server rejects
+                resend-otp outright, so offering the link would dead-end. */}
+            {emailSignInOpen && (
+              <>
+                <div className="relative pt-2">
+                  <div className="absolute inset-0 flex items-center">
+                    <div className="w-full border-t border-gray-200 dark:border-gray-700" />
+                  </div>
+                  <div className="relative flex justify-center text-xs">
+                    <span className="bg-white dark:bg-gray-900 px-3 text-gray-500 dark:text-gray-400">
+                      {"or"}
+                    </span>
+                  </div>
+                </div>
 
-            <button
-              type="button"
-              onClick={() => {
-                setError("");
-                setView("emailInput");
-              }}
-              className="w-full text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
-              disabled={isLoading}
-            >
-              {"Have an existing email account? Sign in with email code →"}
-            </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setError("");
+                    setView("emailInput");
+                  }}
+                  className="w-full text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-gray-200 transition-colors"
+                  disabled={isLoading}
+                >
+                  {"Have an existing email account? Sign in with email code →"}
+                </button>
+
+                <p className="text-xs text-center text-gray-500 dark:text-gray-400">
+                  {`Email sign-in ends ${EMAIL_SIGN_IN_CLOSES_ON} (UTC). After that IAPKit supports GitHub sign-in only — sign in with GitHub using the same email address and your account carries over.`}
+                </p>
+              </>
+            )}
           </div>
         )}
 

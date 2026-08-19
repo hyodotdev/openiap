@@ -6026,16 +6026,25 @@ function checkFrameworkDependencyHygiene() {
       `${releaseNotesWorkflow} release notes must use the release tag when it already exists`,
     );
   }
-  for (const xcodeReleaseWorkflow of [
+  expectIncludes(
     ".github/workflows/ci.yml",
+    [
+      "runs-on: macos-26",
+      "XCODE_VERSION: 26.6",
+      "maxim-lobanov/setup-xcode@",
+      "xcode-version: ${{ env.XCODE_VERSION }}",
+    ],
+    ".github/workflows/ci.yml must pin the macOS/Xcode release image",
+  );
+  for (const xcodeReleaseWorkflow of [
     ".github/workflows/release-apple.yml",
     ".github/workflows/release-kmp.yml",
   ]) {
     expectIncludes(
       xcodeReleaseWorkflow,
       [
-        "runs-on: macos-15",
-        "XCODE_VERSION: 16.4",
+        "runs-on: macos-26",
+        "XCODE_VERSION: 26.6",
         "maxim-lobanov/setup-xcode@",
         "xcode-version: ${{ env.XCODE_VERSION }}",
       ],
@@ -7447,6 +7456,7 @@ function checkFrameworkDependencyHygiene() {
       "libraries/expo-iap/plugin/src/withVega.ts",
       "libraries/expo-iap/example/vega/package.json",
       "libraries/react-native-iap/example/vega/package.json",
+      "packages/docs/src/pages/docs/setup/store/amazon.tsx",
     ]) {
       expectIncludes(
         vegaDependencyFile,
@@ -7464,6 +7474,36 @@ function checkFrameworkDependencyHygiene() {
       ["^0.0.7"],
       "Expo Vega plugin must install the current compatibility Metro config",
     );
+    for (const vegaManifestFile of [
+      "libraries/expo-iap/plugin/src/withVega.ts",
+      "libraries/expo-iap/example/scripts/vega-build-config.mjs",
+      "libraries/react-native-iap/example/manifest.toml",
+      "packages/docs/src/pages/docs/setup/store/amazon.tsx",
+    ]) {
+      expectIncludes(
+        vegaManifestFile,
+        ["/com.amazon.vega.os@IVega_1_2", "[os.version]"],
+        "Vega manifests must declare the OS module and version required since Vega SDK 0.24",
+      );
+    }
+    // withVega.ts interpolates the version, so pin the constant there and the
+    // literal target/min pair in the emitted manifests.
+    expectIncludes(
+      "libraries/expo-iap/plugin/src/withVega.ts",
+      ["const VEGA_OS_VERSION = '1.2'"],
+      "Expo Vega plugin must pin the Vega OS version constant",
+    );
+    for (const literalVegaManifest of [
+      "libraries/expo-iap/example/scripts/vega-build-config.mjs",
+      "libraries/react-native-iap/example/manifest.toml",
+      "packages/docs/src/pages/docs/setup/store/amazon.tsx",
+    ]) {
+      expectIncludes(
+        literalVegaManifest,
+        ['target = "1.2"', 'min = "1.2"'],
+        "Vega manifests must pin the OS target and minimum version",
+      );
+    }
     expectOptionalIncludes(
       "libraries/expo-iap/example/android/settings.gradle",
       [
@@ -8944,8 +8984,8 @@ function checkXcode27StoreKitCoverage() {
       "openiap-versions.json",
       '".github/workflows/release-flutter.yml"',
       "apple-cocoapods:",
-      "runs-on: macos-15",
-      "XCODE_VERSION: 16.4",
+      "runs-on: macos-26",
+      "XCODE_VERSION: 26.6",
       "maxim-lobanov/setup-xcode@",
       "xcode-version: ${{ env.XCODE_VERSION }}",
     ],

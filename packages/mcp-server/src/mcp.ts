@@ -659,7 +659,7 @@ function registerIapKitTools(server: McpServer) {
   registerTool(
     server,
     "revenue_analytics",
-    "Summarize IAPKit subscription purchase and revenue analytics for a date range. Defaults to the current UTC month so Codex can answer questions like 'how many purchases happened this month?'.",
+    "Summarize IAPKit subscription purchase and revenue analytics for a date range. Defaults to the current UTC month so an assistant can answer questions like 'how many purchases happened this month?'.",
     {
       period: z
         .enum(["this_month", "last_30_days", "last_90_days", "custom"])
@@ -847,7 +847,7 @@ function registerIapKitTools(server: McpServer) {
   registerTool(
     server,
     "sync_products",
-    "Enqueue an IAPKit product sync job for App Store Connect or Google Play. Use dryRun=true first to inspect what Codex would change; set dryRun=false only when the user explicitly asks to apply the store sync.",
+    "Enqueue an IAPKit product sync job for App Store Connect or Google Play. Use dryRun=true first to inspect what the sync would change; set dryRun=false only when the user explicitly asks to apply the store sync.",
     {
       platform: z.enum(["IOS", "Android"]),
       direction: z
@@ -859,7 +859,7 @@ function registerIapKitTools(server: McpServer) {
       dryRun: z
         .boolean()
         .optional()
-        .describe("Defaults to true so Codex previews store changes first."),
+        .describe("Defaults to true so store changes are previewed first."),
       apiKey: OPTIONAL_API_KEY,
       baseUrl: OPTIONAL_BASE_URL,
     },

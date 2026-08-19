@@ -359,7 +359,7 @@ dotnet build -f net10.0-android -p:OpenIapAndroidStore=amazon`}</CodeBlock>
         <p>
           Check the{' '}
           <a
-            href="https://developer.amazon.com/docs/vega/0.23/vega-release-notes.html"
+            href="https://developer.amazon.com/docs/vega/0.24/vega-release-notes.html"
             target="_blank"
             rel="noopener noreferrer"
             className="external-link"
@@ -410,7 +410,7 @@ dotnet build -f net10.0-android -p:OpenIapAndroidStore=amazon`}</CodeBlock>
         </p>
         <CodeBlock language="bash">{`# In the Vega-only React Native target
 yarn add react-native-iap
-yarn add @amazon-devices/keplerscript-appstore-iap-lib@~2.12.13 @amazon-devices/react-native-kepler@^2.0.0
+yarn add @amazon-devices/keplerscript-appstore-iap-lib@~2.13.0 @amazon-devices/react-native-kepler@^2.0.0
 yarn add -D @amazon-devices/kepler-cli-platform@~0.22.0 @react-native-community/cli@<vega-cli-compatible-version> @react-native/metro-config@<matching-react-native-version>`}</CodeBlock>
         <CodeBlock language="toml">{`schema-version = 1
 
@@ -428,7 +428,14 @@ categories = ["com.amazon.category.main"]
 
 [needs]
 [[needs.module]]
-id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreService"`}</CodeBlock>
+id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreService"
+
+[[needs.module]]
+id = "/com.amazon.vega.os@IVega_1_2"
+
+[os.version]
+target = "1.2"
+min = "1.2"`}</CodeBlock>
       </section>
 
       <section>
@@ -438,7 +445,7 @@ id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreServ
         <p>
           Fire OS and Vega OS both use the{' '}
           <Link to="/docs/kit-backend">IAPKit</Link> Amazon payload. Pass the
-          Amazon user id when available, the Amazon receipt id, and{' '}
+          Amazon user id (required), the Amazon receipt id, and{' '}
           <code>expectedProductId</code> for server-side product binding. For
           Amazon App Tester, first enable{' '}
           <strong>Allow Amazon App Tester / RVS Cloud Sandbox</strong> in the

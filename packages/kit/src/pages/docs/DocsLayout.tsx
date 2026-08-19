@@ -194,6 +194,7 @@ function DocsNavRow({
       <Link
         to={href}
         onClick={onNavigate}
+        title={entry.summary}
         aria-current={isActive ? "page" : undefined}
         className={`group relative flex items-center rounded-md py-1.5 pr-2 text-sm transition-colors ${
           depth === 0 ? "font-medium" : "font-normal"

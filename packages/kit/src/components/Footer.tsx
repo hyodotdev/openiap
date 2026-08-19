@@ -86,6 +86,14 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
+                <Link
+                  to="/faq"
+                  className="hover:text-foreground transition-colors"
+                >
+                  {"FAQ"}
+                </Link>
+              </li>
+              <li>
                 <a
                   href="https://openiap.dev/sponsors"
                   target="_blank"
@@ -142,7 +150,7 @@ export default function Footer() {
         </div>
         <div className="border-t mt-8 pt-8 flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left text-sm text-muted-foreground">
           <p>
-            © 2025{" "}
+            © {new Date().getFullYear()}{" "}
             <a
               href="https://hyo.dev"
               target="_blank"

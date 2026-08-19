@@ -256,6 +256,7 @@ function Announcements() {
             <img
               src="/announcements/amazon-fireos-vega.webp"
               alt="Amazon Fire OS and Vega OS support"
+              className="announcement-thumb"
               style={{ width: '48px', height: '48px', borderRadius: '10px' }}
             />
             <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
@@ -430,6 +431,7 @@ function Announcements() {
             <img
               src="/logo.webp"
               alt="maui-iap"
+              className="announcement-thumb"
               style={{ width: '48px', height: '48px', borderRadius: '10px' }}
             />
             <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
@@ -735,6 +737,7 @@ function Announcements() {
             <img
               src="https://github.com/user-attachments/assets/cc7f363a-43a9-470c-bde7-2f63985a9f46"
               alt="godot-iap"
+              className="announcement-thumb"
               style={{ width: '48px', height: '48px', borderRadius: '10px' }}
             />
             <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
@@ -838,6 +841,7 @@ function Announcements() {
             <img
               src="/iapkit.webp"
               alt="IAPKit"
+              className="announcement-thumb"
               style={{ width: '48px', height: '48px', borderRadius: '10px' }}
             />
             <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>

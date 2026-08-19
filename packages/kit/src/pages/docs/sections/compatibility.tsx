@@ -62,7 +62,7 @@ X-OpenIAP-Spec: 3.2.0`}
 
       <h2 className="mt-10 text-2xl font-semibold">Contract enforcement</h2>
       <p>
-        CI compares Kit&apos;s response enums with the OpenIAP schema used to
+        CI compares IAPKit&apos;s response enums with the OpenIAP schema used to
         generate every SDK. Runtime response validation and SDK parser tests
         then verify that unknown optional metadata degrades without weakening
         required fields.

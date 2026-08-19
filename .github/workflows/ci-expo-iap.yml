@@ -9,8 +9,10 @@ on:
       - "packages/apple/Sources/**"
       - "packages/apple/Package.swift"
       - "openiap-versions.json"
+      - "libraries-versions.jsonc"
       - "codecov.yml"
       - ".github/workflows/ci-expo-iap.yml"
+      - "!**/*.md"
   push:
     branches: [main, next]
     paths:
@@ -19,8 +21,10 @@ on:
       - "packages/apple/Sources/**"
       - "packages/apple/Package.swift"
       - "openiap-versions.json"
+      - "libraries-versions.jsonc"
       - "codecov.yml"
       - ".github/workflows/ci-expo-iap.yml"
+      - "!**/*.md"
 
 permissions:
   contents: read

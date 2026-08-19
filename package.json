@@ -14,6 +14,8 @@
     "e2e:web": "node scripts/e2e-web-sites.mjs",
     "audit:deprecations": "node --test scripts/audit-deprecation-schedule.test.mjs && node scripts/audit-deprecation-schedule.mjs",
     "audit:layout": "node --test scripts/audit-repo-layout.test.mjs && node scripts/audit-repo-layout.mjs",
+    "audit:ci-paths": "node --test scripts/audit-ci-path-filters.test.mjs && node scripts/audit-ci-path-filters.mjs",
+    "audit:agents": "node --test scripts/audit-agent-surfaces.test.mjs && node scripts/audit-agent-surfaces.mjs",
     "audit:parity": "node scripts/audit-non-godot-parity.mjs",
     "audit:kit-contract": "node --test scripts/audit-kit-spec-contract.test.mjs && node scripts/audit-kit-spec-contract.mjs",
     "audit:docs": "bun run scripts/audit-docs.ts",

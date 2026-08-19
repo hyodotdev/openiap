@@ -1,5 +1,7 @@
 import { query } from "../_generated/server";
 import { v } from "convex/values";
+import { isEmailSignInOpen } from "../authWindow";
+import { hasAnyResendAccount } from "./internal";
 
 /**
  * Pre-sign-in gate: returns true if a user with the given email
@@ -20,10 +22,21 @@ export const canSignInWithEmail = query({
   handler: async (ctx, args) => {
     const normalized = args.email.trim().toLowerCase();
     if (normalized.length === 0) return false;
+    if (!isEmailSignInOpen()) return false;
     const user = await ctx.db
       .query("users")
       .withIndex("email", (q) => q.eq("email", normalized))
       .first();
-    return user !== null;
+    if (!user) return false;
+    // OTP stays limited to accounts that already used it; GitHub-created
+    // accounts keep using GitHub even during the grace period.
+    return hasAnyResendAccount((provider) =>
+      ctx.db
+        .query("authAccounts")
+        .withIndex("userIdAndProvider", (q) =>
+          q.eq("userId", user._id).eq("provider", provider),
+        )
+        .first(),
+    );
   },
 });

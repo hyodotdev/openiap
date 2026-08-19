@@ -370,9 +370,13 @@
 
 /* ---------- hosted infrastructure --------------------------------------- */
 
+.eco-rail--iapkit,
+.eco-rail--iapkit-core {
+  opacity: 0.72;
+}
+
 .eco-rail--iapkit {
   height: 42px;
-  opacity: 0.72;
 }
 
 /* ---------- artwork -------------------------------------------------------
@@ -460,6 +464,12 @@
    Libraries band carries the same meaning via its .eco-band-chip. Declared
    after .eco-rail so it wins the same-specificity tie on `display`. */
 .eco-rail--bypass {
+  display: none;
+}
+
+/* Stacked, there is no second channel beside Core -> Libraries -> IAPKit to
+   draw this in, so the figcaption is what states it there. */
+.eco-rail--iapkit-core {
   display: none;
 }
 
@@ -601,8 +611,17 @@
     grid-row: 7;
   }
 
+  /* Core reaches IAPKit without a framework library. Spanning the filler row
+     keeps the line attached to the Core band however tall Libraries grows. */
+  .eco-rail--iapkit-core {
+    display: flex;
+    grid-column: 1;
+    grid-row: 6 / 8;
+    height: auto;
+  }
+
   .eco-band--iapkit {
-    grid-column: 3;
+    grid-column: 1 / -1;
     grid-row: 8;
   }
 

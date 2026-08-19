@@ -6,6 +6,11 @@ import {
 } from "./ResendOTP";
 import GitHub, { type GitHubProfile } from "@auth/core/providers/github";
 import { api, internal } from "./_generated/api";
+import {
+  assertEmailSignInWindowOpen,
+  assertLegacyEmailAccount,
+  isResendProviderId,
+} from "./authWindow";
 
 const CustomAuth = convexAuth({
   providers: [
@@ -28,6 +33,8 @@ const CustomAuth = convexAuth({
   ],
   callbacks: {
     async createOrUpdateUser(ctx, args) {
+      assertEmailSignInWindowOpen(args.provider.id);
+
       // Check if user exists with the same email
       const email = args.profile.email;
       const profileName =
@@ -56,6 +63,16 @@ const CustomAuth = convexAuth({
       );
 
       if (existingUser) {
+        // The UI gate (canSignInWithEmail) mirrors this; the boundary enforces it.
+        if (isResendProviderId(args.provider.id)) {
+          assertLegacyEmailAccount(
+            args.provider.id,
+            await ctx.runQuery(internal.users.internal.hasLegacyEmailAccount, {
+              userId: existingUser._id,
+            }),
+          );
+        }
+
         // User exists - update auth user
         const userId = existingUser._id;
 
@@ -93,7 +110,7 @@ const CustomAuth = convexAuth({
       // is created. OAuth providers (github) are exempt — that's the
       // path we want new users on.
       const providerId = args.provider.id;
-      const isResendProvider = providerId.startsWith("resend-otp");
+      const isResendProvider = isResendProviderId(providerId);
       if (isResendProvider) {
         throw new Error(
           "New email signups are disabled. Please sign in with GitHub instead.",

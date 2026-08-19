@@ -13,8 +13,13 @@ on:
 permissions:
   contents: read
 
+# Cancel the superseded run on every PR push; main pushes always run to completion.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
-  XCODE_VERSION: 16.4
+  XCODE_VERSION: 26.6
 
 jobs:
   audit-release-state:
@@ -153,6 +158,8 @@ jobs:
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         id: filter
         with:
+          # Without this, '!' patterns are OR-ed positives that match nearly everything.
+          predicate-quantifier: some-with-excludes
           filters: |
             gql:
               - 'packages/gql/**'
@@ -163,18 +170,21 @@ jobs:
               - 'openiap-versions.json'
               - '.github/workflows/ci.yml'
               - 'libraries/maui-iap/src/OpenIap.Maui/Types.cs'
+              - '!**/*.md'
             android:
               - 'packages/google/**'
               - 'packages/gql/**'
               - 'scripts/**'
               - 'openiap-versions.json'
               - '.github/workflows/ci.yml'
+              - '!**/*.md'
             ios:
               - 'packages/apple/**'
               - 'packages/gql/**'
               - 'scripts/**'
               - 'openiap-versions.json'
               - '.github/workflows/ci.yml'
+              - '!**/*.md'
             docs:
               - 'packages/docs/**'
               - 'packages/gql/src/generated/**'
@@ -291,6 +301,12 @@ jobs:
       - name: Run IAPKit spec contract audit
         run: node scripts/audit-kit-spec-contract.mjs
 
+      - name: Audit CI path filters
+        run: npm run audit:ci-paths
+
+      - name: Audit agent surfaces
+        run: npm run audit:agents
+
   test-gql:
     name: Test GQL Types
     runs-on: ubuntu-latest
@@ -388,9 +404,9 @@ jobs:
 
   test-ios:
     name: Test iOS
-    runs-on: macos-15
     needs: changes
     if: needs.changes.outputs.ios == 'true'
+    runs-on: macos-26
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

@@ -1,6 +1,6 @@
 ---
 name: openiap-workflows
-description: Use for OpenIAP monorepo work that should follow the repository's slash-command workflows when the user asks in natural language instead of typing a slash command, including review-pr, audit-code, compile-knowledge, verify-all, e2e-tests, stable or prerelease package releases, resolve-issue, commit/push/PR, generated type sync, package-specific checks, GitHub review threads, and project conventions from AGENTS.md.
+description: Use for OpenIAP monorepo work that should follow the repository's slash-command workflows when the user asks in natural language instead of typing a slash command, including review-pr, audit-code, audit-security, audit-iapkit, compile-knowledge, verify-all, e2e-tests, stable or prerelease package releases, resolve-issue, commit/push/PR, generated type sync, package-specific checks, GitHub review threads, and project conventions from AGENTS.md.
 ---
 
 # OpenIAP Workflows (Claude Code)
@@ -20,6 +20,8 @@ reading the command file (or invoke the slash command directly when available):
   bots, and remove temporary CodeRabbit trigger and terminal
   skip/unavailable top-level comments when the loop is clean
 - Audit code against knowledge rules → `.claude/commands/audit-code.md` (`/audit-code`)
+- Audit supply-chain security / SBOM → `.claude/commands/audit-security.md` (`/audit-security`)
+- Reconcile IAPKit with OpenIAP → `.claude/commands/audit-iapkit.md` (`/audit-iapkit`)
 - Compile knowledge / rebuild AI context → `.claude/commands/compile-knowledge.md` (`/compile-knowledge`)
 - Resolve a GitHub issue → `.claude/commands/resolve-issue.md` (`/resolve-issue`)
 - Verify all / monorepo health check → `.claude/commands/verify-all.md` (`/verify-all`)

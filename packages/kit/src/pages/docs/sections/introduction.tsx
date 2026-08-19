@@ -46,7 +46,7 @@ export default function IntroductionPage() {
         <p>
           IAPKit itself is the managed receipt-verification server. Your app can
           call it directly with an <code>openiap-kit_pk_</code> publishable key,
-          so you do not need to build a proxy just to verify a purchase. Secret
+          so you do not need to build a proxy just to verify a purchase. Secret{" "}
           <code>openiap-kit_sk_</code> keys are only for administrative work
           such as MCP, catalog or payload writes, analytics, and store sync. You
           still need your own authenticated backend when resources on that
@@ -77,7 +77,7 @@ export default function IntroductionPage() {
         <StoreCard
           icon={<ShoppingBag className="h-5 w-5" />}
           title="Amazon Appstore"
-          detail="Fire OS receipts verified and periodically refreshed through Amazon RVS. Cloud Sandbox is disabled by default and requires an explicit project opt-in."
+          detail="Fire OS and Vega OS receipts verified and periodically refreshed through Amazon RVS. Cloud Sandbox is disabled by default and requires an explicit project opt-in."
           slug="verification/amazon"
         />
       </div>

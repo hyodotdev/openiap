@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 env:
-  XCODE_VERSION: 16.4
+  XCODE_VERSION: 26.6
 
 jobs:
   codeql-scope:
@@ -45,27 +45,53 @@ jobs:
         id: core
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         with:
+          # Without this, '!' patterns are OR-ed positives that match nearly everything.
+          predicate-quantifier: some-with-excludes
           filters: |
             swift_core:
               - 'packages/apple/**'
               - 'libraries/kmp-iap/native/InAppPurchaseBridge/**'
+              - 'libraries/kmp-iap/openiap-versions.json'
+              - 'openiap-versions.json'
+              - '.github/workflows/codeql.yml'
+              - '!**/*.md'
 
       - name: Detect Swift wrapper changes
         if: github.event_name == 'pull_request'
         id: wrappers
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         with:
+          predicate-quantifier: some-with-excludes
           filters: |
             react-native:
               - 'libraries/react-native-iap/**'
+              - 'libraries-versions.jsonc'
+              - 'openiap-versions.json'
+              - '.github/workflows/codeql.yml'
+              - '!**/*.md'
             expo:
               - 'libraries/expo-iap/**'
+              - 'libraries-versions.jsonc'
+              - 'openiap-versions.json'
+              - '.github/workflows/codeql.yml'
+              - '!**/*.md'
             expo-onside:
               - 'libraries/expo-iap/**'
+              - 'libraries-versions.jsonc'
+              - 'openiap-versions.json'
+              - '.github/workflows/codeql.yml'
+              - '!**/*.md'
             flutter:
               - 'libraries/flutter_inapp_purchase/**'
+              - 'libraries-versions.jsonc'
+              - 'openiap-versions.json'
+              - '.github/workflows/codeql.yml'
+              - '!**/*.md'
             godot:
               - 'libraries/godot-iap/**'
+              - 'openiap-versions.json'
+              - '.github/workflows/codeql.yml'
+              - '!**/*.md'
 
   analyze:
     name: Analyze (${{ matrix.language }})
@@ -274,11 +300,38 @@ jobs:
         with:
           category: /language:java-kotlin/component:${{ matrix.component }}
 
+  pick-mac-runner:
+    # Same-repo PRs may offload the SPM-heavy Swift legs to the self-hosted
+    # Mac while its heartbeat (MAC_CI) is fresh; anything else stays hosted.
+    runs-on: ubuntu-latest
+    outputs:
+      runner: ${{ steps.pick.outputs.runner }}
+    steps:
+      - id: pick
+        working-directory: ${{ runner.temp }}
+        env:
+          HEARTBEAT: ${{ vars.MAC_CI }}
+          # Owner-only: the Mac is Hyo's machine, so only Hyo's own PRs
+          # and pushes may use it; everyone else builds on hosted runners.
+          OWNER_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login == 'hyochan' && github.actor == 'hyochan' }}
+        run: |
+          runner='macos-26'
+          case "$HEARTBEAT" in
+            ''|*[!0-9]*) ;;
+            *)
+              if [ "$OWNER_PR" = "true" ] \
+                && [ $(( $(date +%s) - HEARTBEAT )) -lt 900 ]; then
+                runner='self-mac'
+              fi
+              ;;
+          esac
+          echo "runner=$runner" >> "$GITHUB_OUTPUT"
+
   analyze-swift:
     name: Analyze (swift)
-    needs: codeql-scope
+    needs: [codeql-scope, pick-mac-runner]
     if: needs.codeql-scope.outputs.swift_core == 'true'
-    runs-on: macos-15
+    runs-on: ${{ needs.pick-mac-runner.outputs.runner }}
     timeout-minutes: 45
     permissions:
       contents: read
@@ -294,6 +347,13 @@ jobs:
         with:
           xcode-version: ${{ env.XCODE_VERSION }}
 
+      # Tests run natively, before CodeQL's tracer exists: the tracer forces
+      # the x86_64 loader path, which cannot load arm64 test bundles on
+      # self-hosted Apple Silicon. Extraction only needs a traced compile.
+      - name: Test Apple core
+        working-directory: packages/apple
+        run: swift test
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4
         with:
@@ -301,11 +361,13 @@ jobs:
           build-mode: manual
           queries: security-extended
 
-      - name: Build and test Apple core
+      # Clean so the traced build recompiles everything; a cache hit would
+      # leave the CodeQL database empty.
+      - name: Build Apple core for analysis
         working-directory: packages/apple
         run: |
           swift package clean
-          swift test
+          swift build --build-tests
 
       - name: Build KMP Swift bridge
         working-directory: libraries/kmp-iap/native/InAppPurchaseBridge
@@ -320,16 +382,21 @@ jobs:
 
   analyze-swift-wrappers:
     name: Analyze (swift / ${{ matrix.component }})
-    needs: codeql-scope
+    needs: [codeql-scope, pick-mac-runner]
     if: >-
       needs.codeql-scope.outputs.swift_wrappers == 'true' &&
       (github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository)
-    runs-on: ${{ (github.event_name == 'pull_request' || matrix.component == 'godot') && 'macos-26' || 'xcode-27' }}
+    runs-on: >-
+      ${{ github.event_name != 'pull_request'
+          && (matrix.component == 'godot' && 'macos-26' || 'xcode-27')
+          || needs.pick-mac-runner.outputs.runner }}
     timeout-minutes: 90
     permissions:
       contents: read
       security-events: write
+    env:
+      LANG: en_US.UTF-8
     strategy:
       fail-fast: false
       matrix:
@@ -347,11 +414,23 @@ jobs:
           node-version: 20
 
       - name: Setup Ruby
-        if: matrix.component == 'react-native'
+        if: >-
+          matrix.component == 'react-native' &&
+          needs.pick-mac-runner.outputs.runner != 'self-mac'
         uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
         with:
           ruby-version: "3.3"
           working-directory: libraries/react-native-iap/example
+
+      # setup-ruby hard-codes /Users/runner, which does not exist on the
+      # self-hosted Mac; its Homebrew Ruby already satisfies the Gemfile.
+      - name: Use Homebrew Ruby (self-mac)
+        if: >-
+          matrix.component == 'react-native' &&
+          needs.pick-mac-runner.outputs.runner == 'self-mac'
+        run: |
+          echo "/opt/homebrew/opt/ruby/bin" >> "$GITHUB_PATH"
+          echo "$(/opt/homebrew/opt/ruby/bin/gem environment gemdir)/bin" >> "$GITHUB_PATH"
 
       - name: Setup Bun
         if: startsWith(matrix.component, 'expo')
@@ -372,6 +451,15 @@ jobs:
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
         with:
           xcode-version: "26.6"
+
+      # Native test pass before the tracer exists; see the core job's note.
+      - name: Test Godot Swift wrapper
+        if: matrix.component == 'godot'
+        working-directory: libraries/godot-iap
+        run: |
+          make setup-swiftgodot
+          cd ios-gdextension
+          swift test
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4
@@ -434,7 +522,8 @@ jobs:
         run: |
           make setup-swiftgodot
           cd ios-gdextension
-          swift test
+          swift package clean
+          swift build --build-tests
 
       - name: Analyze
         uses: github/codeql-action/analyze@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4

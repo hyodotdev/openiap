@@ -83,15 +83,16 @@ For bug reports, please [open an issue](https://github.com/hyodotdev/openiap/iss
 
 ## Sponsors
 
+<!-- meta.svg carries built-in padding, amazon.webp is tightly cropped, so equal heights look lopsided -->
 <p align="center">
   <a href="https://meta.com">
-    <img src="packages/docs/public/meta.svg" alt="Meta" height="80">
+    <img src="packages/docs/public/meta.svg" alt="Meta" height="80" align="middle">
   </a>
   &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
   <a href="https://developer.amazon.com/">
     <picture>
       <source media="(prefers-color-scheme: dark)" srcset="packages/docs/public/sponsors/amazon-dark.webp">
-      <img src="packages/docs/public/sponsors/amazon.webp" alt="Amazon Developer" height="80">
+      <img src="packages/docs/public/sponsors/amazon.webp" alt="Amazon Developer" height="44" align="middle">
     </picture>
   </a>
 </p>

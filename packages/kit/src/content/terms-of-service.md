@@ -1,5 +1,8 @@
 **Company Name:** Hyo Dev
+
 **Service:** Purchase validation and entitlement infrastructure for the Apple App Store, Google Play, Amazon Appstore, and Meta Horizon
+
+**Last updated:** 2026-08-19
 
 These Terms of Service (“Terms”) govern your access to and use of the services provided by Hyo Dev (“we”, “our”, “us”). By creating an account or using our services, you agree to be bound by these Terms.
 

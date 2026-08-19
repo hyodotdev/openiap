@@ -9,9 +9,11 @@ on:
       - "packages/apple/Sources/**"
       - "packages/apple/Package.swift"
       - "openiap-versions.json"
+      - "libraries-versions.jsonc"
       - "codecov.yml"
       - ".github/workflows/ci-flutter-inapp-purchase.yml"
       - ".github/workflows/release-flutter.yml"
+      - "!**/*.md"
   push:
     branches: [main, next]
     paths:
@@ -20,9 +22,11 @@ on:
       - "packages/apple/Sources/**"
       - "packages/apple/Package.swift"
       - "openiap-versions.json"
+      - "libraries-versions.jsonc"
       - "codecov.yml"
       - ".github/workflows/ci-flutter-inapp-purchase.yml"
       - ".github/workflows/release-flutter.yml"
+      - "!**/*.md"
 
 permissions:
   contents: read
@@ -111,12 +115,12 @@ jobs:
         run: bash scripts/verify-apple-swiftpm-consumer-build.sh
 
   apple-cocoapods:
-    name: iOS CocoaPods consumer (Flutter 3.44 + Xcode 16.4)
+    name: iOS CocoaPods consumer (Flutter 3.44 + Xcode 26.6)
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 60
     env:
-      XCODE_VERSION: 16.4
+      XCODE_VERSION: 26.6
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:

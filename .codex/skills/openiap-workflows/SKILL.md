@@ -1,6 +1,6 @@
 ---
 name: openiap-workflows
-description: Use for OpenIAP monorepo work that should follow the repository's shared agent workflows, including review-pr, audit-code, compile-knowledge, verify-all, e2e-tests, stable or prerelease package releases, resolve-issue, commit/push/PR, generated type sync, package-specific checks, GitHub review threads, and project conventions from AGENTS.md.
+description: Use for OpenIAP monorepo work that should follow the repository's shared agent workflows, including review-pr, audit-code, audit-security, audit-iapkit, compile-knowledge, verify-all, e2e-tests, stable or prerelease package releases, resolve-issue, commit/push/PR, generated type sync, package-specific checks, GitHub review threads, and project conventions from AGENTS.md.
 ---
 
 # OpenIAP Workflows
@@ -40,6 +40,8 @@ natural-language requests, execute the matching workflow:
   `.claude/commands/audit-code.md`.
 - Audit SBOM quality, release provenance, workflow permissions, or
   supply-chain/security posture: read `.claude/commands/audit-security.md`.
+- Reconcile the IAPKit site with OpenIAP, audit kit docs, or check whether
+  IAPKit reflects a spec/store update: read `.claude/commands/audit-iapkit.md`.
 - Compile knowledge or rebuild AI context: read
   `.claude/commands/compile-knowledge.md`.
 - Resolve a GitHub issue: read `.claude/commands/resolve-issue.md`.

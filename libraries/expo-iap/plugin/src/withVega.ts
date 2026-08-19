@@ -13,6 +13,9 @@ const DEFAULT_ICON_FILE = 'icon.png';
 const DEFAULT_BUILD_TYPE = 'Release';
 const DEFAULT_RUNTIME_MODULE =
   '/com.amazon.kepler.keplerscript.runtime.loader_2@IKeplerScript_2_0';
+// Vega SDK 0.24 requires both the OS module and an [os.version] block.
+const VEGA_OS_MODULE = '/com.amazon.vega.os@IVega_1_2';
+const VEGA_OS_VERSION = '1.2';
 
 const logOnce = (() => {
   const printed = new Set<string>();
@@ -155,6 +158,13 @@ id = "/com.amazon.iap.core@IIAPCoreUI"
 [needs]
 [[needs.module]]
 id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreService"
+
+[[needs.module]]
+id = ${escapeTomlString(VEGA_OS_MODULE)}
+
+[os.version]
+target = ${escapeTomlString(VEGA_OS_VERSION)}
+min = ${escapeTomlString(VEGA_OS_VERSION)}
 `;
 
 export const createVegaEntryPoint = (): string => `${GENERATED_JS_MARKER}

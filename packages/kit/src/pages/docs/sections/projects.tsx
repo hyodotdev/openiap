@@ -39,17 +39,13 @@ export default function ProjectsPage() {
       <h2 className="mt-10 text-2xl font-semibold">Creating a project</h2>
       <p>
         From the organization dashboard, open the <strong>Projects</strong> tab
-        and click <strong>New project</strong>. You supply a display name and
-        pick the client platform (React Native, Flutter, Kotlin Multiplatform,
-        native iOS / Android, web, …). The platform tag is informational — it
-        drives which setup guides the dashboard highlights; it doesn't affect
-        the verify API itself.
+        and click <strong>Create Project</strong>. Enter a{" "}
+        <strong>Project Name</strong>, optionally edit the generated{" "}
+        <strong>Project URL</strong> slug, and optionally pick a{" "}
+        <strong>Platform or Language</strong>. The platform tag is informational
+        — it drives which setup guides the dashboard highlights; it doesn't
+        affect the verify API itself.
       </p>
-      <DocsScreenshot
-        src="/docs/screenshots/project-create.webp"
-        alt="New project dialog"
-        caption="Slugs are generated from the project name and have to be unique within the organization. They appear in dashboard URLs (/:orgSlug/project/:projectSlug) and in log lines."
-      />
 
       <h2 className="mt-10 text-2xl font-semibold">Store credentials</h2>
       <p>Each project's Settings tab has two store configuration cards:</p>
@@ -154,7 +150,7 @@ export default function ProjectsPage() {
       <DocsScreenshot
         src="/docs/screenshots/api-keys.webp"
         alt="IAPKit API Keys tab showing publishable and secret key types with masked previews"
-        caption="The dashboard shows each key's scope and a safe preview. The full value appears only at creation or regeneration."
+        caption="The dashboard shows each key's type and a safe preview. The full value appears only at creation or regeneration."
       />
 
       <Callout kind="note" title="Existing keys migrate safely">

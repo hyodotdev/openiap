@@ -9,11 +9,11 @@
 [![OpenIAP](https://img.shields.io/badge/OpenIAP-Compliant-green?style=flat-square)](https://openiap.dev)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
 
-A comprehensive in-app purchase plugin for Godot 4.x that conforms to the <a href="https://openiap.dev">Open IAP specification</a>
+A comprehensive in-app purchase plugin for Godot 4.x that conforms to the <a href="https://openiap.dev">OpenIAP specification</a>
 
 Requires Godot 4.3+, iOS 17+ for the Swift GDExtension, or Android API 24+.
 
-<a href="https://openiap.dev"><img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/logo.webp" alt="Open IAP" height="40" /></a>
+<a href="https://openiap.dev"><img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/logo.webp" alt="OpenIAP" height="40" /></a>
 
 </div>
 

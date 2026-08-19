@@ -135,7 +135,7 @@ export async function retryOnTransient<T>(
       const exponent = attempt - 1;
       const raw = baseDelayMs * Math.pow(2, exponent);
       const capped = Math.min(raw, maxDelayMs);
-      // Full jitter in [0.5, 1.0) of the capped delay — smooths retry
+      // Jitter in [0.5, 1.0) of the capped delay — smooths retry
       // bursts without extending worst-case wait beyond the cap.
       const jittered = capped * (0.5 + Math.random() * 0.5);
       await sleep(jittered);

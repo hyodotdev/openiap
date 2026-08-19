@@ -144,8 +144,8 @@ export default function ApiReferencePage() {
       </CodeBlock>
 
       <p>
-        Grant or fulfill only when <code>isValid === true</code>, the harmonized
-        <code>state</code> permits that operation, and the store-verified
+        Grant or fulfill only when <code>isValid === true</code>, the harmonized{" "}
+        <code>state</code> permits that operation, and the store-verified{" "}
         <code>productId</code> is present and matches the product your app
         expected. For Meta Horizon, <code>productId</code> is the SKU IAPKit
         checked. Amazon responses also identify the server-selected{" "}
@@ -433,10 +433,12 @@ async function refreshEntitlements(
         <code>originalTransactionId</code> explicitly.
       </p>
       <p>
-        Administrative subscription endpoints use{" "}
-        <code>Authorization: Bearer openiap-kit_sk_...</code>. Compatibility
-        routes with a key in the path remain available, but new server-side and
-        MCP integrations should keep secret keys out of URLs.
+        Administrative subscription endpoints require{" "}
+        <code>Authorization: Bearer openiap-kit_sk_...</code>. IAPKit never
+        accepts a secret key in a URL — a secret key in a path returns{" "}
+        <code>410 SECRET_API_KEY_IN_URL</code>. The compatibility routes that
+        keep a key in the path accept publishable keys only, for SDK runtimes
+        that strip request headers.
       </p>
       <CodeBlock title="iOS subscription row" language="json">
         {`{
@@ -450,8 +452,19 @@ async function refreshEntitlements(
         that explicitly ask for a JWS. Do not log or publish JWS values.
       </p>
 
-      <div className="my-4 overflow-hidden rounded-lg border border-border">
-        <table className="w-full text-sm">
+      <p>
+        <code>state</code> has two distinct vocabularies. The table below is the
+        verification vocabulary returned by <code>/v1/purchase/verify</code>.
+        The subscription snapshot endpoints use a lifecycle vocabulary instead —{" "}
+        <code>Active</code>, <code>InGracePeriod</code>,{" "}
+        <code>InBillingRetry</code>, <code>Expired</code>, <code>Revoked</code>,{" "}
+        <code>Refunded</code>, <code>Paused</code>, <code>Unknown</code> — so
+        gating a snapshot on <code>state === &quot;ENTITLED&quot;</code> never
+        matches.
+      </p>
+
+      <div className="my-4 overflow-x-auto rounded-lg border border-border">
+        <table className="min-w-[42rem] w-full text-sm">
           <thead className="bg-muted/40">
             <tr>
               <th className="px-3 py-2 text-left font-medium">State</th>
@@ -523,6 +536,67 @@ async function refreshEntitlements(
         </table>
       </div>
 
+      <h2 className="mt-10 text-2xl font-semibold">Subscription endpoints</h2>
+      <p>
+        Bind first, then read. <code>POST /v1/subscriptions/bind-user</code>{" "}
+        associates a store transaction with your own user id; until a purchase
+        is bound, the read endpoints resolve <code>userId</code> against rows
+        that were never linked and return an empty snapshot.
+      </p>
+      <div className="my-4 overflow-x-auto rounded-lg border border-border">
+        <table className="min-w-[42rem] w-full text-sm">
+          <thead className="bg-muted/40">
+            <tr>
+              <th className="px-3 py-2 text-left font-medium">Endpoint</th>
+              <th className="px-3 py-2 text-left font-medium">Key</th>
+              <th className="px-3 py-2 text-left font-medium">Notes</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            <tr>
+              <td className="px-3 py-2 font-mono text-xs">
+                POST /v1/subscriptions/bind-user
+              </td>
+              <td className="px-3 py-2">Publishable</td>
+              <td className="px-3 py-2">
+                Links a purchase to your user id. Body up to 32 KB.
+              </td>
+            </tr>
+            <tr>
+              <td className="px-3 py-2 font-mono text-xs">
+                GET /v1/subscriptions/status
+              </td>
+              <td className="px-3 py-2">Publishable</td>
+              <td className="px-3 py-2">
+                Current snapshot for one <code>userId</code> (≤256 chars).
+                Supports <code>ETag</code> / <code>If-None-Match</code>.
+              </td>
+            </tr>
+            <tr>
+              <td className="px-3 py-2 font-mono text-xs">
+                GET /v1/subscriptions/entitlements
+              </td>
+              <td className="px-3 py-2">Publishable</td>
+              <td className="px-3 py-2">
+                Entitled product ids for one <code>userId</code>. Already
+                filtered to non-expired rows, so everything returned is
+                currently entitled.
+              </td>
+            </tr>
+            <tr>
+              <td className="px-3 py-2 font-mono text-xs">
+                GET /v1/subscriptions/list
+              </td>
+              <td className="px-3 py-2">Secret</td>
+              <td className="px-3 py-2">
+                Project-wide administrative listing. <code>limit</code> capped
+                at 200.
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
       <h2 className="mt-10 text-2xl font-semibold">Response headers</h2>
       <p>
         Verification requests that pass bearer-token shape validation carry a
@@ -557,7 +631,7 @@ async function refreshEntitlements(
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Status codes</h2>
-      <div className="my-4 overflow-hidden rounded-lg border border-border">
+      <div className="my-4 overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">
           <thead className="bg-muted/40">
             <tr>
@@ -706,6 +780,13 @@ async function refreshEntitlements(
             className="text-primary underline"
           >
             Horizon
+          </Link>
+          ,{" "}
+          <Link
+            to="/docs/verification/amazon"
+            className="text-primary underline"
+          >
+            Amazon
           </Link>{" "}
           — per-store error codes and edge cases.
         </li>

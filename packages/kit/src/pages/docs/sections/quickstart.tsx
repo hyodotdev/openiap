@@ -14,7 +14,7 @@ export default function QuickstartPage() {
     >
       <h2 className="mt-8 text-2xl font-semibold">1. Create your account</h2>
       <p>
-        Sign in with GitHub or email OTP on{" "}
+        Sign in with GitHub on{" "}
         <a
           href="https://kit.openiap.dev"
           className="text-primary underline"
@@ -23,16 +23,15 @@ export default function QuickstartPage() {
         >
           kit.openiap.dev
         </a>
-        . The onboarding flow asks you to name your first organization before
-        opening its dashboard. The hosted service is free under fair-use
-        safeguards on shared community infrastructure; no plan or credit card is
-        required.
+        . New accounts are created through GitHub. Accounts created before April
+        2026 can still sign in with an email one-time code until{" "}
+        <strong>2026-09-30 (UTC)</strong>; after that IAPKit supports GitHub
+        sign-in only. Signing in with GitHub using the same email address
+        carries an existing account over. The onboarding flow asks you to name
+        your first organization before opening its dashboard. The hosted service
+        is free under fair-use safeguards on shared community infrastructure; no
+        plan or credit card is required.
       </p>
-      <DocsScreenshot
-        src="/docs/screenshots/signup.webp"
-        alt="IAPKit sign-in page"
-        caption="Sign in with GitHub or email OTP. New accounts land in the onboarding flow."
-      />
 
       <h2 className="mt-10 text-2xl font-semibold">2. Create a project</h2>
       <p>
@@ -199,6 +198,19 @@ export default function QuickstartPage() {
         Tester / RVS Cloud Sandbox in project settings. Leave{" "}
         <code>sandbox</code> unset for production, which requires the stored
         Amazon RVS shared secret.
+      </p>
+
+      <p>
+        React Native IAP and Expo IAP ship a <code>kitApi</code> helper so you
+        do not have to build these requests by hand — see the sample on{" "}
+        <Link to="/docs/products" className="text-primary underline">
+          Products
+        </Link>{" "}
+        and the SDK matrix on{" "}
+        <Link to="/docs/compatibility" className="text-primary underline">
+          Compatibility
+        </Link>
+        .
       </p>
 
       <p>Expected response:</p>
