@@ -128,9 +128,9 @@ jobs:
         working-directory: ${{ runner.temp }}
         env:
           HEARTBEAT: ${{ vars.MAC_CI }}
-          SAME_REPO: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+          SAME_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
         run: |
-          runner='macos-15'
+          runner='macos-26'
           case "$HEARTBEAT" in
             ''|*[!0-9]*) ;;
             *)
@@ -143,13 +143,13 @@ jobs:
           echo "runner=$runner" >> "$GITHUB_OUTPUT"
 
   apple-cocoapods:
-    name: iOS CocoaPods consumer (Flutter 3.44 + Xcode 16.4)
+    name: iOS CocoaPods consumer (Flutter 3.44 + Xcode 26.6)
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
     needs: pick-mac-runner
     runs-on: ${{ needs.pick-mac-runner.outputs.runner }}
     timeout-minutes: 60
     env:
-      XCODE_VERSION: 16.4
+      XCODE_VERSION: 26.6
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
         with:

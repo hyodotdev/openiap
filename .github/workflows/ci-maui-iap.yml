@@ -166,7 +166,7 @@ jobs:
         working-directory: ${{ runner.temp }}
         env:
           HEARTBEAT: ${{ vars.MAC_CI }}
-          SAME_REPO: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+          SAME_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
         run: |
           runner='macos-26'
           case "$HEARTBEAT" in

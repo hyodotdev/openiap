@@ -9,5 +9,8 @@
 # or a LaunchAgent with StartInterval 300. Requires `gh auth` with repo admin.
 set -eu
 
+# cron ships a minimal PATH without Homebrew.
+PATH="/opt/homebrew/bin:/usr/local/bin:$PATH"
+
 pgrep -q "Runner.Listener" || exit 0
 exec gh variable set MAC_CI --repo hyodotdev/openiap --body "$(date +%s)"

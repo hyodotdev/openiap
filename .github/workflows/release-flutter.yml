@@ -96,10 +96,10 @@ jobs:
 
   validate-ios:
     needs: [release-branch]
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 60
     env:
-      XCODE_VERSION: 16.4
+      XCODE_VERSION: 26.6
     defaults:
       run:
         working-directory: libraries/flutter_inapp_purchase

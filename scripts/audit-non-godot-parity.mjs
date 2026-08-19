@@ -6031,9 +6031,9 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     ".github/workflows/ci.yml",
     [
-      "runner='macos-15'",
+      "runner='macos-26'",
       "runs-on: ${{ needs.pick-mac-runner.outputs.runner }}",
-      "XCODE_VERSION: 16.4",
+      "XCODE_VERSION: 26.6",
       "maxim-lobanov/setup-xcode@",
       "xcode-version: ${{ env.XCODE_VERSION }}",
     ],
@@ -6046,8 +6046,8 @@ function checkFrameworkDependencyHygiene() {
     expectIncludes(
       xcodeReleaseWorkflow,
       [
-        "runs-on: macos-15",
-        "XCODE_VERSION: 16.4",
+        "runs-on: macos-26",
+        "XCODE_VERSION: 26.6",
         "maxim-lobanov/setup-xcode@",
         "xcode-version: ${{ env.XCODE_VERSION }}",
       ],
@@ -8988,9 +8988,9 @@ function checkXcode27StoreKitCoverage() {
       "openiap-versions.json",
       '".github/workflows/release-flutter.yml"',
       "apple-cocoapods:",
-      "runner='macos-15'",
+      "runner='macos-26'",
       "runs-on: ${{ needs.pick-mac-runner.outputs.runner }}",
-      "XCODE_VERSION: 16.4",
+      "XCODE_VERSION: 26.6",
       "maxim-lobanov/setup-xcode@",
       "xcode-version: ${{ env.XCODE_VERSION }}",
     ],

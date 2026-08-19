@@ -25,7 +25,7 @@ concurrency:
 
 env:
   GRADLE_OPTS: -Dorg.gradle.jvmargs="-Xmx4g -XX:+UseParallelGC"
-  XCODE_VERSION: 16.4
+  XCODE_VERSION: 26.6
   RELEASE_BRANCH: ${{ github.ref_name }}
 
 permissions:
@@ -85,7 +85,7 @@ jobs:
 
   validate-ios:
     needs: [release-branch]
-    runs-on: macos-15
+    runs-on: macos-26
     timeout-minutes: 60
     defaults:
       run:
@@ -130,7 +130,7 @@ jobs:
     permissions:
       actions: write
       contents: write
-    runs-on: macos-15
+    runs-on: macos-26
     defaults:
       run:
         working-directory: libraries/kmp-iap
