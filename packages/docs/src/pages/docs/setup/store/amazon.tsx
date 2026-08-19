@@ -445,7 +445,7 @@ min = "1.2"`}</CodeBlock>
         <p>
           Fire OS and Vega OS both use the{' '}
           <Link to="/docs/kit-backend">IAPKit</Link> Amazon payload. Pass the
-          Amazon user id when available, the Amazon receipt id, and{' '}
+          Amazon user id (required), the Amazon receipt id, and{' '}
           <code>expectedProductId</code> for server-side product binding. For
           Amazon App Tester, first enable{' '}
           <strong>Allow Amazon App Tester / RVS Cloud Sandbox</strong> in the

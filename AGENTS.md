@@ -303,6 +303,7 @@ Cursor-specific files.
 | `/review-pr`         | Review PR comments, fix issues, resolve threads    | `/review-pr 65` or `/review-pr <url>` |
 | `/audit-code`        | Audit code against knowledge rules and latest APIs | `/audit-code`                         |
 | `/audit-security`    | Audit SBOM, provenance, and supply-chain posture   | `/audit-security`                     |
+| `/audit-iapkit`      | Reconcile the IAPKit surface with OpenIAP updates  | `/audit-iapkit`                       |
 | `/compile-knowledge` | Compile the shared AI agent context                | `/compile-knowledge`                  |
 | `/resolve-issue`     | Analyze an issue, label it, and fix/comment        | `/resolve-issue 88`                   |
 | `/verify-all`        | Run the full monorepo health check                 | `/verify-all`                         |

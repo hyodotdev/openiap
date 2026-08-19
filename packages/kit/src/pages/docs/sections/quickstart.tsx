@@ -29,11 +29,6 @@ export default function QuickstartPage() {
         hosted service is free under fair-use safeguards on shared community
         infrastructure; no plan or credit card is required.
       </p>
-      <DocsScreenshot
-        src="/docs/screenshots/signup.webp"
-        alt="IAPKit sign-in page"
-        caption="Continue with GitHub. New accounts land in the onboarding flow."
-      />
 
       <h2 className="mt-10 text-2xl font-semibold">2. Create a project</h2>
       <p>
@@ -200,6 +195,19 @@ export default function QuickstartPage() {
         Tester / RVS Cloud Sandbox in project settings. Leave{" "}
         <code>sandbox</code> unset for production, which requires the stored
         Amazon RVS shared secret.
+      </p>
+
+      <p>
+        React Native IAP and Expo IAP ship a <code>kitApi</code> helper so you
+        do not have to build these requests by hand — see the sample on{" "}
+        <Link to="/docs/products" className="text-primary underline">
+          Products
+        </Link>{" "}
+        and the SDK matrix on{" "}
+        <Link to="/docs/compatibility" className="text-primary underline">
+          Compatibility
+        </Link>
+        .
       </p>
 
       <p>Expected response:</p>

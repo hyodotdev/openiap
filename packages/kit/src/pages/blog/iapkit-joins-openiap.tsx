@@ -32,7 +32,7 @@ const FAQ: Array<{ q: string; a: string }> = [
   },
   {
     q: "Which platforms does IAPKit support?",
-    a: "IAPKit validates receipts for Apple App Store, Google Play, Meta Horizon, and Amazon Appstore. Vega OS receipt-validation support is on the roadmap.",
+    a: "IAPKit validates receipts for Apple App Store, Google Play, Meta Horizon, and Amazon Appstore. Fire OS and Vega OS both verify through the same Amazon RVS payload.",
   },
 ];
 
@@ -250,21 +250,16 @@ export default function IapkitJoinsOpenIap() {
 
         <h2>What's next</h2>
 
-        <p>This transition frees us to invest in what actually matters:</p>
+        <p>
+          This transition frees us to invest in what actually matters. The list
+          below is the roadmap as it stood in April 2026 — the platform
+          integrations and Fire OS / Vega OS validation have since shipped, and
+          store notifications now flow into IAPKit and keep its subscription
+          snapshot current. See the <a href="/docs">documentation</a> for what
+          ships today.
+        </p>
 
         <ul>
-          <li>
-            Deeper platform integrations — App Store Server API v2, Google Play
-            Billing v7+, Meta Horizon.
-          </li>
-          <li>
-            <strong>New receipt-validation support coming</strong> — Fire OS,
-            Vega OS.
-          </li>
-          <li>
-            Server-side webhooks and real-time notifications — renewals,
-            refunds, purchase events.
-          </li>
           <li>
             Observability into purchase flows — see exactly where payments
             break.

@@ -86,6 +86,14 @@ export default function Footer() {
                 </Link>
               </li>
               <li>
+                <Link
+                  to="/faq"
+                  className="hover:text-foreground transition-colors"
+                >
+                  {"FAQ"}
+                </Link>
+              </li>
+              <li>
                 <a
                   href="https://openiap.dev/sponsors"
                   target="_blank"

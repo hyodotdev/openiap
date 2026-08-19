@@ -452,8 +452,19 @@ async function refreshEntitlements(
         that explicitly ask for a JWS. Do not log or publish JWS values.
       </p>
 
+      <p>
+        <code>state</code> has two distinct vocabularies. The table below is the
+        verification vocabulary returned by <code>/v1/purchase/verify</code>.
+        The subscription snapshot endpoints use a lifecycle vocabulary instead —{" "}
+        <code>Active</code>, <code>InGracePeriod</code>,{" "}
+        <code>InBillingRetry</code>, <code>Expired</code>, <code>Revoked</code>,{" "}
+        <code>Refunded</code>, <code>Paused</code>, <code>Unknown</code> — so
+        gating a snapshot on <code>state === &quot;ENTITLED&quot;</code> never
+        matches.
+      </p>
+
       <div className="my-4 overflow-x-auto rounded-lg border border-border">
-        <table className="w-full text-sm">
+        <table className="min-w-[42rem] w-full text-sm">
           <thead className="bg-muted/40">
             <tr>
               <th className="px-3 py-2 text-left font-medium">State</th>
@@ -520,6 +531,67 @@ async function refreshEntitlements(
               <td className="px-3 py-2 font-mono text-xs">UNKNOWN</td>
               <td className="px-3 py-2">State could not be determined.</td>
               <td className="px-3 py-2 text-center">false</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+      <h2 className="mt-10 text-2xl font-semibold">Subscription endpoints</h2>
+      <p>
+        Bind first, then read. <code>POST /v1/subscriptions/bind-user</code>{" "}
+        associates a store transaction with your own user id; until a purchase
+        is bound, the read endpoints resolve <code>userId</code> against rows
+        that were never linked and return an empty snapshot.
+      </p>
+      <div className="my-4 overflow-x-auto rounded-lg border border-border">
+        <table className="min-w-[42rem] w-full text-sm">
+          <thead className="bg-muted/40">
+            <tr>
+              <th className="px-3 py-2 text-left font-medium">Endpoint</th>
+              <th className="px-3 py-2 text-left font-medium">Key</th>
+              <th className="px-3 py-2 text-left font-medium">Notes</th>
+            </tr>
+          </thead>
+          <tbody className="divide-y divide-border">
+            <tr>
+              <td className="px-3 py-2 font-mono text-xs">
+                POST /v1/subscriptions/bind-user
+              </td>
+              <td className="px-3 py-2">Publishable</td>
+              <td className="px-3 py-2">
+                Links a purchase to your user id. Body up to 32 KB.
+              </td>
+            </tr>
+            <tr>
+              <td className="px-3 py-2 font-mono text-xs">
+                GET /v1/subscriptions/status
+              </td>
+              <td className="px-3 py-2">Publishable</td>
+              <td className="px-3 py-2">
+                Current snapshot for one <code>userId</code> (≤256 chars).
+                Supports <code>ETag</code> / <code>If-None-Match</code>.
+              </td>
+            </tr>
+            <tr>
+              <td className="px-3 py-2 font-mono text-xs">
+                GET /v1/subscriptions/entitlements
+              </td>
+              <td className="px-3 py-2">Publishable</td>
+              <td className="px-3 py-2">
+                Entitled product ids for one <code>userId</code>. Already
+                filtered to non-expired rows, so everything returned is
+                currently entitled.
+              </td>
+            </tr>
+            <tr>
+              <td className="px-3 py-2 font-mono text-xs">
+                GET /v1/subscriptions/list
+              </td>
+              <td className="px-3 py-2">Secret</td>
+              <td className="px-3 py-2">
+                Project-wide administrative listing. <code>limit</code> capped
+                at 200.
+              </td>
             </tr>
           </tbody>
         </table>

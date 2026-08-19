@@ -1,4 +1,3 @@
-- [Support](mailto:hyo@hyo.dev)
-- [Sales — join our Discord](https://discord.gg/5AQd8BbxWT)
-
-Or chat with us on our [Discord server](https://discord.gg/5AQd8BbxWT).
+- **Bugs and feature requests** — [open a GitHub issue](https://github.com/hyodotdev/openiap/issues)
+- **Questions and community** — [Discord](https://discord.gg/5AQd8BbxWT)
+- **High-volume capacity planning before launch** — [hyo@hyo.dev](mailto:hyo@hyo.dev)

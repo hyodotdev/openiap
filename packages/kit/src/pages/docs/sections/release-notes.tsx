@@ -464,7 +464,7 @@ export default function ReleaseNotesPage() {
                 className="inline-flex items-center gap-2 rounded-md border border-border bg-background px-2.5 py-1 font-mono text-xs hover:border-primary/50 hover:text-primary"
               >
                 <span className="font-semibold">
-                  {release.version ? `v${release.version}` : "Hosted update"}
+                  {release.version ? `v${release.version}` : release.tagline}
                 </span>
                 <span className="text-muted-foreground">
                   {formatDate(release.date)}

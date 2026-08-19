@@ -9,21 +9,23 @@ export default function VerificationAmazonPage() {
     <DocsPage
       slug="verification/amazon"
       title="Amazon Appstore setup"
-      description="Verify Fire OS purchases with Amazon RVS while keeping the production shared secret server-side."
+      description="Verify Fire OS and Vega OS purchases with Amazon RVS while keeping the production shared secret server-side."
     >
       <p>
         IAPKit verifies Amazon Appstore receipts through the Receipt
         Verification Service (RVS). Your app sends the Amazon{" "}
-        <code>userId</code> and <code>receiptId</code>; IAPKit selects the RVS
-        environment and supplies the project&apos;s credential without exposing
-        it to the app.
+        <code>userId</code> (required) and <code>receiptId</code>; IAPKit
+        selects the RVS environment and supplies the project&apos;s credential
+        without exposing it to the app.
       </p>
 
       <Callout kind="note" title="Inside the Android Configuration card">
         <p>
           Amazon settings live beside Google Play and Meta Horizon because Fire
           OS apps use the Android project surface. Google Play configuration is
-          not required for an Amazon-only project.
+          not required for an Amazon-only project. Vega OS apps send the same
+          userId / receiptId payload to the same endpoint and need no separate
+          configuration.
         </p>
       </Callout>
 

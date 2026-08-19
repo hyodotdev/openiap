@@ -77,7 +77,7 @@ export default function IntroductionPage() {
         <StoreCard
           icon={<ShoppingBag className="h-5 w-5" />}
           title="Amazon Appstore"
-          detail="Fire OS receipts verified and periodically refreshed through Amazon RVS. Cloud Sandbox is disabled by default and requires an explicit project opt-in."
+          detail="Fire OS and Vega OS receipts verified and periodically refreshed through Amazon RVS. Cloud Sandbox is disabled by default and requires an explicit project opt-in."
           slug="verification/amazon"
         />
       </div>

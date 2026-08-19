@@ -14,6 +14,7 @@ import Terms from "./terms-of-service";
 import Privacy from "./privacy-policy";
 import About from "./about";
 import Contact from "./contact";
+import Faq from "./faq";
 import NotFound from "./404";
 
 // Public Layout Component (for unauthenticated users)
@@ -70,6 +71,22 @@ export default function PublicPages() {
               ]}
             >
               <LandingPage />
+            </PageWithTitle>
+          }
+        />
+        <Route
+          path="faq"
+          element={
+            <PageWithTitle
+              title="Receipt validation FAQ"
+              description="How receipt validation works, why it needs a trusted server, and what IAPKit verifies for each store."
+              keywords={[
+                "receipt validation FAQ",
+                "consumable consumption state",
+                "in-app purchase fraud",
+              ]}
+            >
+              <Faq />
             </PageWithTitle>
           }
         />
