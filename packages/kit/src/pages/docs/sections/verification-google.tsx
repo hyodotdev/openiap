@@ -134,16 +134,17 @@ export default function VerificationGooglePage() {
       <h2 className="mt-10 text-2xl font-semibold">Transient retries</h2>
       <p>
         Both v2 calls are wrapped in a 3-attempt exponential-backoff retry
-        (200ms base, 2s cap, full jitter). The retry fires on HTTP 5xx and Node
-        network errors (<code>ECONNRESET</code>, <code>ETIMEDOUT</code>,{" "}
-        <code>EAI_AGAIN</code>, …). A 404 from the product lookup is not an
-        error — it just means the token is a subscription, so IAPKit falls
-        through to <code>subscriptionsv2</code>. When neither catalog knows the
-        token, IAPKit retries the whole pair up to 3 times over roughly 750 ms,
-        because a purchase verified within a second of completing can still be
-        propagating inside Play. Every other 4xx response, including 410 ("token
-        no longer valid"), is <strong>not</strong> retried because re-issuing
-        the call won't help and would only waste quota.
+        (200ms base, 2s cap, jitter to 50–100% of the capped delay). The retry
+        fires on HTTP 5xx and Node network errors (<code>ECONNRESET</code>,{" "}
+        <code>ETIMEDOUT</code>, <code>EAI_AGAIN</code>, …). A 404 from the
+        product lookup is not an error — it just means the token is a
+        subscription, so IAPKit falls through to <code>subscriptionsv2</code>.
+        When neither catalog knows the token, IAPKit retries the whole pair up
+        to 3 times over roughly 750 ms, because a purchase verified within a
+        second of completing can still be propagating inside Play. Every other
+        4xx response, including 410 ("token no longer valid"), is{" "}
+        <strong>not</strong> retried because re-issuing the call won't help and
+        would only waste quota.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">

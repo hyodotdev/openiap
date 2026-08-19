@@ -136,7 +136,7 @@ export default function LandingPage() {
               </h3>
               <p className="text-muted-foreground break-words">
                 {
-                  "We contact each supported store, verify authoritative purchase state, and return a single isValid answer before you deliver the item."
+                  "We contact each supported store, verify authoritative purchase state, and return one normalized verdict — isValid, state, and the store-verified productId — before you deliver the item."
                 }
               </p>
             </div>

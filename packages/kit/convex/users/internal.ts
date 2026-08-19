@@ -13,6 +13,30 @@ export const findByEmail = internalQuery({
   },
 });
 
+// Grace-period gate: email OTP is only for accounts that already used it.
+// A GitHub-created account must keep using GitHub even before the cutoff.
+export const RESEND_PROVIDER_IDS = [
+  "resend-otp-en",
+  "resend-otp-ko",
+  "resend-otp-ja",
+] as const;
+
+export const hasLegacyEmailAccount = internalQuery({
+  args: { userId: v.id("users") },
+  handler: async (ctx, args) => {
+    for (const provider of RESEND_PROVIDER_IDS) {
+      const account = await ctx.db
+        .query("authAccounts")
+        .withIndex("userIdAndProvider", (q) =>
+          q.eq("userId", args.userId).eq("provider", provider),
+        )
+        .first();
+      if (account) return true;
+    }
+    return false;
+  },
+});
+
 // Read budget per cron tick. We walk this many candidate users (oldest
 // first, capped at the 24h boundary) before yielding to the next tick;
 // keeps Convex's per-transaction read budget bounded.

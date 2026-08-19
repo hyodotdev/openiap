@@ -63,7 +63,7 @@ node scripts/audit-kit-spec-contract.mjs
 
 # Codex, Claude, and Grok must stay pointed at the same workflows.
 if git diff --cached --name-only --diff-filter=ACMRD \
-  | grep -qE '^(\.claude/|\.codex/|AGENTS\.md$|scripts/audit-agent-surfaces(\.test)?\.mjs$)'; then
+  | grep -qE '^(\.claude/|\.codex/|AGENTS\.md$|CLAUDE\.md$|GEMINI\.md$|scripts/audit-agent-surfaces(\.test)?\.mjs$)'; then
   echo "🤝 agent surface audit…"
   bun run audit:agents
 fi

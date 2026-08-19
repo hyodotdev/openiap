@@ -25,12 +25,12 @@ export default function QuickstartPage() {
         </a>
         . New accounts are created through GitHub. Accounts created before April
         2026 can still sign in with an email one-time code until{" "}
-        <strong>2026-09-30</strong>; after that IAPKit supports GitHub sign-in
-        only. Signing in with GitHub using the same email address carries an
-        existing account over. The onboarding flow asks you to name your first
-        organization before opening its dashboard. The hosted service is free
-        under fair-use safeguards on shared community infrastructure; no plan or
-        credit card is required.
+        <strong>2026-09-30 (UTC)</strong>; after that IAPKit supports GitHub
+        sign-in only. Signing in with GitHub using the same email address
+        carries an existing account over. The onboarding flow asks you to name
+        your first organization before opening its dashboard. The hosted service
+        is free under fair-use safeguards on shared community infrastructure; no
+        plan or credit card is required.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">2. Create a project</h2>

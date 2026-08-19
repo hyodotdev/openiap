@@ -34,7 +34,7 @@ const CustomAuth = convexAuth({
       // only to someone whose GitHub email differs from their IAPKit email.
       if (args.provider.id.startsWith("resend-otp") && !isEmailSignInOpen()) {
         throw new Error(
-          `Email sign-in closed on ${EMAIL_SIGN_IN_CLOSES_ON}. Sign in with GitHub using the same email address.`,
+          `Email sign-in closed on ${EMAIL_SIGN_IN_CLOSES_ON} (UTC). Sign in with GitHub using the same email address.`,
         );
       }
 
@@ -66,6 +66,20 @@ const CustomAuth = convexAuth({
       );
 
       if (existingUser) {
+        // Email OTP is only for accounts that already used it; the UI gate
+        // (canSignInWithEmail) mirrors this, but the boundary enforces it.
+        if (args.provider.id.startsWith("resend-otp")) {
+          const legacy = await ctx.runQuery(
+            internal.users.internal.hasLegacyEmailAccount,
+            { userId: existingUser._id },
+          );
+          if (!legacy) {
+            throw new Error(
+              "This account uses GitHub sign-in. Please continue with GitHub.",
+            );
+          }
+        }
+
         // User exists - update auth user
         const userId = existingUser._id;
 

@@ -88,6 +88,13 @@ img[src='/sponsors/meta.webp'] {
   height: 2.75rem;
 }
 
+/* Wrapped onto its own line above the title, the tiny banner reads as noise. */
+@media (max-width: 640px) {
+  .announcement-thumb {
+    display: none;
+  }
+}
+
 img[src='/frameworks/apple.svg'] {
   filter: var(--apple-logo-filter);
 }

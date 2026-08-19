@@ -261,7 +261,7 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
                 </button>
 
                 <p className="text-xs text-center text-gray-500 dark:text-gray-400">
-                  {`Email sign-in ends ${EMAIL_SIGN_IN_CLOSES_ON}. After that IAPKit supports GitHub sign-in only — sign in with GitHub using the same email address and your account carries over.`}
+                  {`Email sign-in ends ${EMAIL_SIGN_IN_CLOSES_ON} (UTC). After that IAPKit supports GitHub sign-in only — sign in with GitHub using the same email address and your account carries over.`}
                 </p>
               </>
             )}

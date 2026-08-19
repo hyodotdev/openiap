@@ -42,7 +42,7 @@ const migrationGroups = [
       ],
       [
         'showAlternativeBillingDialogAndroid',
-        'showBillingProgramInformationDialogAndroid (in-app dialog); launchExternalLinkAndroid is only for external-link programs',
+        'showBillingProgramInformationDialogAndroid (the in-app Billing Programs dialog); launchExternalLinkAndroid covers the external-link flows (External Offer, External Content Link, Billing Choice external links)',
       ],
       [
         'createAlternativeBillingTokenAndroid',

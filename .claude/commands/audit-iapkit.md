@@ -19,8 +19,9 @@ OpenIAP spec + packages/kit implementation   →   IAPKit site copy
         (authoritative)                            (must follow)
 ```
 
-When two surfaces disagree, the implementation wins over any prose, and
-`packages/docs` wins over `packages/kit` for shared product claims. Never
+Precedence when surfaces disagree: implementation > `packages/docs` >
+`packages/kit` prose. `packages/docs` outranks kit prose only where the code
+does not decide the question (product positioning, support claims). Never
 "fix" the code to match a doc without saying so explicitly.
 
 ## Workflow
