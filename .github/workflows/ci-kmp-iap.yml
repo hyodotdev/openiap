@@ -80,13 +80,15 @@ jobs:
         working-directory: ${{ runner.temp }}
         env:
           HEARTBEAT: ${{ vars.MAC_CI }}
-          SAME_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+          # Owner-only: the Mac is Hyo's machine, so only Hyo's own PRs
+          # and pushes may use it; everyone else builds on hosted runners.
+          OWNER_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login == 'hyochan' && github.actor == 'hyochan' }}
         run: |
           runner='macos-26'
           case "$HEARTBEAT" in
             ''|*[!0-9]*) ;;
             *)
-              if [ "$SAME_REPO" = "true" ] \
+              if [ "$OWNER_PR" = "true" ] \
                 && [ $(( $(date +%s) - HEARTBEAT )) -lt 900 ]; then
                 runner='self-mac'
               fi
