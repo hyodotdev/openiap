@@ -1,9 +1,9 @@
 # OpenIAP Project Context
 
-> **Auto-generated for Claude Code**
-> Last updated: 2026-08-13T01:31:14.251Z
+> **Auto-generated shared context for AI assistants**
+> Last updated: 2026-08-18T17:50:47.669Z
 >
-> Usage: `claude --context knowledge/_claude-context/context.md`
+> Canonical file: `knowledge/_agent-context/context.md`
 
 ---
 
@@ -287,11 +287,12 @@ const IsSubscription: boolean; // No PascalCase for variables
 ```
 openiap/
 ├── packages/
+│   ├── conformance/   # Behavioral conformance spec, runner, and reports
 │   ├── docs/          # Documentation (React/Vite/Vercel)
 │   ├── gql/           # GraphQL schema & type generation
 │   ├── google/        # Android library (Kotlin)
 │   ├── apple/         # iOS/macOS library (Swift)
-│   ├── kit/           # Hosted receipt-validation SaaS (Fly.io app)
+│   ├── kit/           # Purchase validation + entitlement infrastructure (Fly.io app)
 │   └── mcp-server/    # IAPKit MCP server (hosted at kit.openiap.dev/mcp)
 ├── plugins/
 │   └── openiap/       # Codex + Claude Code plugin (skills + MCP config)
@@ -305,13 +306,39 @@ openiap/
 ├── knowledge/         # Shared knowledge base (SSOT)
 │   ├── internal/      # Project philosophy (HIGHEST PRIORITY)
 │   ├── external/      # External API reference
-│   └── _claude-context/  # Compiled context for Claude Code
+│   ├── _agent-context/   # Compiled context shared by AI assistants
+│   └── _claude-context/  # Compatibility link to _agent-context
 ├── scripts/
 │   └── agent/         # RAG Agent scripts
 └── .github/workflows/ # CI/CD workflows
 ```
 
 Libraries reference local `packages/apple` and `packages/google` source directly (not published CocoaPods/Maven artifacts), enabling immediate development without waiting for native releases.
+
+## Directory Ownership Guardrail
+
+Keep each project surface under its canonical owner:
+
+| Content                                          | Canonical location      |
+| ------------------------------------------------ | ----------------------- |
+| Deployable packages and native implementations   | `packages/<name>/`      |
+| Framework SDKs                                   | `libraries/<name>/`     |
+| Agent integrations distributed to users          | `plugins/<name>/`       |
+| Behavioral conformance spec, runner, and reports | `packages/conformance/` |
+| Repository knowledge                             | `knowledge/`            |
+| Repository-wide automation                       | `scripts/`              |
+| Shared editor settings                           | `.vscode/`              |
+
+- Never create a root directory that duplicates a child of `packages/`,
+  `libraries/`, or `plugins/`. For example, use `packages/docs/` and
+  `packages/gql/`, never root `docs/` or `gql/`.
+- Before adding a top-level directory, search for an existing owner and extend
+  it. Add a new root only when no canonical owner fits, and document that owner
+  in this section in the same change.
+- Keep shared editor settings in root `.vscode/`. Package-specific settings are
+  allowed only when they apply exclusively to that package's toolchain.
+- Run `bun run audit:layout` after directory changes. Pre-commit and CI enforce
+  the same audit; do not weaken it to permit a duplicate owner.
 
 ## Package Responsibilities
 

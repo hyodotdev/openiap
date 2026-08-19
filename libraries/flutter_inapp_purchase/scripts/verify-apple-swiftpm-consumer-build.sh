@@ -24,8 +24,13 @@ cp "$macos_manifest" "$tmp_root/macos-Package.swift"
 
 xcode_version_output="$(xcodebuild -version)"
 xcode_version="${xcode_version_output%%$'\n'*}"
-if [[ "$xcode_version" != "Xcode 27"* ]]; then
-  echo "Expected Xcode 27, found: $xcode_version" >&2
+expected_xcode_major="${EXPECTED_XCODE_MAJOR:-27}"
+if [[ ! "$expected_xcode_major" =~ ^[0-9]+$ ]]; then
+  echo "EXPECTED_XCODE_MAJOR must be numeric, found: $expected_xcode_major" >&2
+  exit 1
+fi
+if [[ "$xcode_version" != "Xcode ${expected_xcode_major}"* ]]; then
+  echo "Expected Xcode $expected_xcode_major, found: $xcode_version" >&2
   exit 1
 fi
 
@@ -44,6 +49,14 @@ use_local_openiap() {
 
 use_local_openiap "$ios_manifest"
 use_local_openiap "$macos_manifest"
+
+minimum_ios_version="$(
+  sed -n 's/.*\.iOS("\([^"]*\)").*/\1/p' "$ios_manifest"
+)"
+if [[ ! "$minimum_ios_version" =~ ^[0-9]+([.][0-9]+)*$ ]]; then
+  echo "Failed to read the iOS deployment target from $ios_manifest" >&2
+  exit 1
+fi
 
 cd "$example_root"
 flutter config --enable-swift-package-manager
@@ -76,6 +89,7 @@ xcodebuild build \
   -destination "generic/platform=iOS Simulator" \
   ARCHS=arm64 \
   ONLY_ACTIVE_ARCH=YES \
+  IPHONEOS_DEPLOYMENT_TARGET="$minimum_ios_version" \
   CODE_SIGNING_ALLOWED=NO \
   COMPILER_INDEX_STORE_ENABLE=NO
 

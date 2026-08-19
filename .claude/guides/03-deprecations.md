@@ -68,4 +68,4 @@ When deprecating APIs:
    ```
 
 4. **Update documentation** - Add migration guide in `docs/updates/releases.tsx`
-5. **Update CLAUDE.md** - Add to deprecated functions list
+5. **Update AGENTS.md** - Add to deprecated functions list

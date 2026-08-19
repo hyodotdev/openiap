@@ -295,8 +295,8 @@ ruby -e 'require "yaml"; Dir[".github/workflows/*.yml"].each { |f| YAML.safe_loa
 
 ### 8. Agent instructions
 
-- Root AGENTS.md lists all framework library CLAUDE.md files
-- Root CLAUDE.md and GEMINI.md are symlinks to AGENTS.md
+- Root AGENTS.md lists all framework library AGENTS.md files
+- Root and framework-library CLAUDE.md/GEMINI.md files are symlinks to AGENTS.md
 - `knowledge/internal/02-architecture.md` includes `libraries/` in structure
 - Auto-generated files list includes library types
 

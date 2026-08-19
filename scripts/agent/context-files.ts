@@ -41,16 +41,21 @@ export const CONTEXT_INPUT_PATHS = Object.freeze([
 ]);
 
 export const CONTEXT_OUTPUTS = Object.freeze({
-  context: "knowledge/_claude-context/context.md",
+  context: "knowledge/_agent-context/context.md",
   llmsQuick: "packages/docs/public/llms.txt",
   llmsFull: "packages/docs/public/llms-full.txt",
   rootLlmsQuick: "llms.txt",
   rootLlmsFull: "llms-full.txt",
 });
 
-export const CONTEXT_OUTPUT_PATHS = Object.freeze(
-  Object.values(CONTEXT_OUTPUTS),
-);
+export const CONTEXT_COMPATIBILITY_SYMLINKS = Object.freeze({
+  "knowledge/_claude-context": "_agent-context",
+});
+
+export const CONTEXT_OUTPUT_PATHS = Object.freeze([
+  ...Object.values(CONTEXT_OUTPUTS),
+  ...Object.keys(CONTEXT_COMPATIBILITY_SYMLINKS),
+]);
 
 export const ROOT_LLMS_SYMLINKS = Object.freeze({
   [CONTEXT_OUTPUTS.rootLlmsQuick]: CONTEXT_OUTPUTS.llmsQuick,

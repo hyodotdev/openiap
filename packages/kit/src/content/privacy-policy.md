@@ -1,7 +1,7 @@
 **Company Name:** Hyo Dev
-**Service:** Receipt Validation SaaS for iOS (App Store) and Android (Google Play)
+**Service:** Purchase validation and entitlement infrastructure for the Apple App Store, Google Play, Amazon Appstore, and Meta Horizon
 
-Hyo Dev (“we”, “our”, “us”) provides a backend service for validating mobile app store receipts and processing related transaction data. We are committed to protecting your privacy and handling your information responsibly. This Privacy Policy explains what information we collect, how we use it, and your rights.
+Hyo Dev (“we”, “our”, “us”) provides purchase validation and entitlement infrastructure for app-store purchases. We are committed to protecting your privacy and handling your information responsibly. This Privacy Policy explains what information we collect, how we use it, and your rights.
 
 ---
 
@@ -16,13 +16,15 @@ When you create an account, we collect:
 
 This information is required to create and manage your account.
 
-### 1.2. Transaction Data (Non-Personal)
+### 1.2. Transaction and Entitlement Data
 
-Our receipt validation service processes **transaction information** from the App Store and Google Play.
-This data:
+Our service processes **transaction and entitlement information** from the Apple App Store, Google Play, Amazon Appstore, and Meta Horizon. Depending on the integration, this data may include:
 
-- **Does not contain personal information**
-- Includes only information necessary for validating in-app purchases and subscriptions
+- Store or app-scoped user identifiers
+- Transaction, receipt, purchase-token, product, subscription, and entitlement metadata
+- Information needed to validate purchases, reconcile store state, and maintain entitlements
+
+We do **not** receive or store payment card details.
 
 ### 1.3. Automatically Collected Information
 
@@ -64,17 +66,37 @@ For users in the European Economic Area (EEA), we process data based on:
 
 We use trusted third-party services to operate our platform.
 
-### Convex (Hosting Provider)
+### Convex (Application Data Platform)
 
 We use Convex to host and process application data. Convex may store:
 
 - Account email
 - Company name
-- Non-personal transaction data
+- Transaction and entitlement data, including store or app-scoped identifiers when supplied
 
 Data is processed only as needed to provide our service.
 
-We do not share personal data with other parties except as required by law.
+### Fly.io (Application Hosting)
+
+Fly.io hosts the IAPKit web application and API. Requests may pass through its infrastructure and produce limited operational or security logs.
+
+### GitHub and Resend (Authentication)
+
+If you choose GitHub sign-in, GitHub provides the account details needed to authenticate you. Resend delivers email one-time passwords and processes the destination email address for that purpose.
+
+### Sentry (Error and Performance Monitoring)
+
+We use Sentry in the hosted web application and API to diagnose errors, security issues, and performance problems. Reports may include stack traces, request and browser metadata, IP addresses, logs, and account context available when an error occurs. The hosted browser application enables Sentry's default personally identifiable information handling; server-side handling depends on the deployment configuration.
+
+### Mixpanel (Product Analytics and Session Replay)
+
+We use Mixpanel in the hosted web application to understand adoption and improve product flows. Mixpanel receives product events, page views, clicks, form interactions, browser identifiers stored in local storage, and session replays. The hosted application is configured to record 100% of eligible sessions while this feature is enabled. After sign-in, analytics profiles may include the user ID, email address, display name, current organization ID, sign-in method, and event-specific project or organization identifiers. Mixpanel data is sent to its EU API endpoint.
+
+### Store Platforms (Purchase Verification)
+
+When you ask IAPKit to verify or reconcile a purchase, the relevant transaction identifiers and app configuration are sent only to the applicable platform: Apple, Google, Amazon, or Meta. Those platforms process the request under their own privacy policies.
+
+We disclose personal data only as needed to operate, analyze, improve, secure, support, and validate the service, or to comply with law. We do not sell personal data or share it for third-party marketing.
 
 ---
 

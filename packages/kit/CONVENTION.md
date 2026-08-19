@@ -1,12 +1,12 @@
 # Project Conventions
 
-`packages/kit` is the receipt-validation SaaS at
-[kit.openiap.dev](https://kit.openiap.dev) — React 19 SPA + Hono on
-Bun + Convex backend, all shipped as one Fly.io binary. **Unlike other
-packages in this monorepo, this is a deployable application, not a
-publishable library.** It does not consume `@hyodotdev/openiap-gql`
-type generation; it has its own Convex schema as the source of truth
-for receipt-validation models.
+`packages/kit` contains IAPKit, the open-source purchase validation and
+entitlement infrastructure for the OpenIAP ecosystem. The hosted service at
+[kit.openiap.dev](https://kit.openiap.dev) is a React 19 SPA + Hono on Bun +
+Convex backend, all shipped as one Fly.io binary. **Unlike other packages in
+this monorepo, this is a deployable application, not a publishable library.**
+It does not consume `@hyodotdev/openiap-gql` type generation; it has its own
+Convex schema as the source of truth for purchase-validation models.
 
 For setup, operations, and deploy details, see [`README.md`](./README.md).
 
@@ -141,10 +141,11 @@ discussion — the simplification is intentional, not an oversight.
 
 ## IAPKit docs and messaging
 
-- Default positioning: IAPKit is the managed receipt-validation backend
-  that apps can call directly. Describe a customer's own backend
-  entitlement ledger as an optional advanced integration, not the
-  default path.
+- Default positioning: IAPKit is the open-source purchase validation and
+  entitlement infrastructure for the OpenIAP ecosystem, managed by OpenIAP.
+  The hosted service is a backend that apps can call directly. Describe a
+  customer's own backend entitlement ledger as an optional advanced
+  integration, not the default path.
 - Keep docs concise and contract-driven. Request/response field claims
   must follow `server/api/v1/route-input-schemas.ts`,
   `server/api/v1/route-response-schemas.ts`, and Convex validators;
@@ -152,6 +153,25 @@ discussion — the simplification is intentional, not an oversight.
 - For product verification, never imply a client-provided product id is
   trustworthy. Use the store-verified `productId` and optional
   `expectedProductId` match guard.
+
+## Product boundary
+
+IAPKit is the open foundation beneath commercial purchase experiences. Keep it
+useful and neutral without competing with paywall, experimentation, or marketing
+platforms.
+
+- **In scope:** purchase verification, subscription and entitlement state,
+  inbound store lifecycle handling, reconciliation, catalog and store sync,
+  neutral client payload transport, operational revenue/subscription analytics,
+  and administration through APIs, the dashboard, and MCP.
+- **Out of scope:** paywall builders or UI, audience targeting and segmentation,
+  A/B or multivariate experiments, lifecycle campaigns, marketing automation,
+  and conversion or paywall optimization recommendations.
+- Analytics measure the purchase infrastructure developers operate and audit.
+  Do not turn them into an experimentation or marketing-optimization product.
+- Do not position IAPKit as a free RevenueCat alternative. Describe it as open
+  purchase and entitlement infrastructure that commercial experience providers
+  can build on.
 
 ## Webhook direction
 
@@ -288,7 +308,7 @@ per-document size budget.
 ## Commit messages
 
 Follow the monorepo-wide convention from the root
-[`CLAUDE.md`](../../CLAUDE.md): with a tag prefix everything after the
+[`AGENTS.md`](../../AGENTS.md): with a tag prefix everything after the
 colon is lowercase (`feat: add foo`); without a tag the first letter
 is uppercase (`Add foo`).
 

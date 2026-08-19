@@ -20,6 +20,13 @@ Visit [openiap.dev](https://openiap.dev) for full documentation.
   <a href="https://meta.com">
     <img src="public/meta.svg" alt="Meta" height="60">
   </a>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://developer.amazon.com/">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="public/sponsors/amazon-dark.webp">
+      <img src="public/sponsors/amazon.webp" alt="Amazon Developer" height="60">
+    </picture>
+  </a>
 </p>
 
 Thank you to our sponsors for supporting the OpenIAP initiative. [Become a sponsor](https://openiap.dev/sponsors)

@@ -372,15 +372,15 @@ await mutate.RequestPurchaseAsync(new RequestPurchaseProps
           </a>
         </h3>
         <p>
-          IAPKit is OpenIAP's hosted receipt-validation backend (see{' '}
-          <a href="/docs/kit-backend">Purchase Verification with IAPKit</a>).
-          The MAUI package ships the same app-facing helper as the other OpenIAP
-          SDKs: create a kit client with your publishable key to read purchase
-          status and entitlements and to bind a purchase to a user. Store
-          lifecycle events (App Store Server Notifications, Google Play RTDN)
-          are delivered to IAPKit's backend, not to your app — the client reads
-          current state through these bounded calls rather than subscribing to a
-          webhook stream.
+          IAPKit is OpenIAP's hosted purchase-validation and entitlement backend
+          (see <a href="/docs/kit-backend">Purchase Verification with IAPKit</a>
+          ). The MAUI package ships the same app-facing helper as the other
+          OpenIAP SDKs: create a kit client with your publishable key to read
+          purchase status and entitlements and to bind a purchase to a user.
+          Store lifecycle events (App Store Server Notifications, Google Play
+          RTDN) are delivered to IAPKit's backend, not to your app — the client
+          reads current state through these bounded calls rather than
+          subscribing to a webhook stream.
         </p>
         <CodeBlock language="csharp">
           {`using OpenIap;

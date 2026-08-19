@@ -13,7 +13,7 @@ function Showcase() {
     <div className="home">
       <SEO
         title="Who uses OpenIAP?"
-        description="Showcase of apps built with OpenIAP libraries, including apps that use IAPKit receipt validation."
+        description="Showcase of apps built with OpenIAP libraries, including apps that use IAPKit."
         path="/showcase"
         keywords="OpenIAP apps, IAPKit apps, expo-iap apps, react-native-iap apps, in-app purchase showcase"
       />
@@ -101,8 +101,7 @@ function Showcase() {
                 godot-iap)
               </li>
               <li>
-                <strong>IAPKit</strong> — tell us whether you use it for receipt
-                validation
+                <strong>IAPKit</strong> — tell us whether you use it
               </li>
             </ul>
             <p

@@ -4,7 +4,7 @@
 
 import { describe, expect, test } from "bun:test";
 import * as crypto from "crypto";
-import { extractGraphQLSymbols } from "../indexer.js";
+import { extractGraphQLSymbols, splitMarkdownByHeaders } from "../indexer.js";
 
 // ============================================================================
 // Test utility functions extracted from indexer.ts
@@ -34,74 +34,6 @@ function getLanguage(filePath: string): string {
     graphql: "graphql",
   };
   return langMap[ext] || "unknown";
-}
-
-interface MarkdownChunk {
-  content: string;
-  metadata: Record<string, string>;
-}
-
-function splitMarkdownByHeaders(
-  text: string,
-  headersToSplitOn: [string, string][] = [
-    ["#", "h1"],
-    ["##", "h2"],
-    ["###", "h3"],
-    ["####", "h4"],
-  ]
-): MarkdownChunk[] {
-  const lines = text.split("\n");
-  const chunks: MarkdownChunk[] = [];
-  let currentChunk: string[] = [];
-  let currentMetadata: Record<string, string> = {};
-
-  for (const line of lines) {
-    let headerFound = false;
-
-    for (const [headerPrefix, metadataKey] of headersToSplitOn) {
-      const regex = new RegExp(`^${headerPrefix.replace(/#/g, "\\#")}\\s+(.+)$`);
-      const match = line.match(regex);
-
-      const isExactLevel =
-        line.startsWith(headerPrefix + " ") &&
-        !line.startsWith(headerPrefix + "#");
-
-      if (match && isExactLevel) {
-        if (currentChunk.length > 0) {
-          chunks.push({
-            content: currentChunk.join("\n").trim(),
-            metadata: { ...currentMetadata },
-          });
-        }
-
-        currentChunk = [];
-        currentMetadata[metadataKey] = match[1].trim();
-
-        const headerIndex = headersToSplitOn.findIndex(
-          ([p]) => p === headerPrefix
-        );
-        for (let i = headerIndex + 1; i < headersToSplitOn.length; i++) {
-          delete currentMetadata[headersToSplitOn[i][1]];
-        }
-
-        headerFound = true;
-        break;
-      }
-    }
-
-    if (!headerFound) {
-      currentChunk.push(line);
-    }
-  }
-
-  if (currentChunk.length > 0) {
-    chunks.push({
-      content: currentChunk.join("\n").trim(),
-      metadata: { ...currentMetadata },
-    });
-  }
-
-  return chunks.filter((chunk) => chunk.content.length > 0);
 }
 
 // ============================================================================
@@ -135,7 +67,9 @@ describe("getPackageName", () => {
   });
 
   test("should identify google package", () => {
-    expect(getPackageName("packages/google/openiap/src/Main.kt")).toBe("google");
+    expect(getPackageName("packages/google/openiap/src/Main.kt")).toBe(
+      "google",
+    );
   });
 
   test("should identify gql package", () => {
@@ -270,5 +204,17 @@ Content`;
     const chunks = splitMarkdownByHeaders(markdown);
     // First chunk should be the intro text, second should be after header
     expect(chunks.length).toBeGreaterThanOrEqual(1);
+  });
+
+  test("should treat custom header prefixes as literal text", () => {
+    const prefix = "[section]\\marker";
+    const chunks = splitMarkdownByHeaders(
+      `${prefix} Literal heading\nContent`,
+      [[prefix, "section"]],
+    );
+
+    expect(chunks).toHaveLength(1);
+    expect(chunks[0].metadata.section).toBe("Literal heading");
+    expect(chunks[0].content).toBe("Content");
   });
 });

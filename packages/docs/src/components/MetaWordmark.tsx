@@ -1,8 +1,14 @@
 import type { ReactElement } from 'react';
 
-function MetaWordmark(): ReactElement {
+interface MetaWordmarkProps {
+  className?: string;
+}
+
+function MetaWordmark({ className }: MetaWordmarkProps): ReactElement {
+  const classes = ['meta-wordmark', className].filter(Boolean).join(' ');
+
   return (
-    <span className="meta-wordmark" role="img" aria-label="Meta">
+    <span className={classes} role="img" aria-label="Meta">
       <img src="/meta.svg" alt="" aria-hidden="true" />
       <img src="/meta-txt.svg" alt="" aria-hidden="true" />
     </span>

@@ -1,6 +1,8 @@
-# OpenIAP Hybrid Mode: Shared Brain, Dual Body
+# OpenIAP Agent Knowledge: One Shared Brain
 
-A sophisticated architecture enabling **Claude Code** and a **Local RAG Agent** to share the same knowledge base, allowing side-by-side comparison testing.
+OpenIAP keeps one knowledge base and one compiled context for Codex, Claude
+Code, Grok, Gemini, and the local RAG agent. Tool-specific files are thin
+discovery adapters, not copies of project policy.
 
 ## Architecture Overview
 
@@ -9,7 +11,7 @@ A sophisticated architecture enabling **Claude Code** and a **Local RAG Agent** 
 │                          SHARED BRAIN: /knowledge/                              │
 ├─────────────────────────────────────────────────────────────────────────────────┤
 │                                                                                 │
-│   /internal/              /external/              /_claude-context/             │
+│   /internal/              /external/              /_agent-context/              │
 │   ┌──────────────┐       ┌──────────────┐       ┌──────────────┐               │
 │   │ 01-naming.md │       │ storekit2.md │       │ context.md   │               │
 │   │ 02-arch.md   │       │ billing.md   │       │ (compiled)   │               │
@@ -20,13 +22,13 @@ A sophisticated architecture enabling **Claude Code** and a **Local RAG Agent** 
            │                      │                      │
            ▼                      ▼                      ▼
 ┌─────────────────────────────────────┐    ┌─────────────────────────────────────┐
-│        BODY 1: LOCAL RAG AGENT      │    │       BODY 2: CLAUDE CODE           │
+│        BODY 1: LOCAL RAG AGENT      │    │       BODY 2: AI ASSISTANTS         │
 │         (The Challenger)            │    │           (Main)                    │
 ├─────────────────────────────────────┤    ├─────────────────────────────────────┤
 │                                     │    │                                     │
-│   ┌─────────────────────────────┐   │    │   claude --context                  │
-│   │          LanceDB            │   │    │   knowledge/_claude-context/        │
-│   │  ┌─────────────────────┐    │   │    │   context.md                        │
+│   ┌─────────────────────────────┐   │    │   AGENTS.md (shared SSOT)           │
+│   │          LanceDB            │   │    │   CLAUDE.md → AGENTS.md             │
+│   │  ┌─────────────────────┐    │   │    │   GEMINI.md → AGENTS.md             │
 │   │  │ internal_rule       │    │   │    │                                     │
 │   │  │ external_api        │    │   │    │                                     │
 │   │  │ code_map ◄──────────┼────┼───┼────┼── Code Graph Simulation            │
@@ -68,10 +70,10 @@ brew install ollama
 
 **Required Models:**
 
-| Model | Purpose | Size | Command |
-|-------|---------|------|---------|
-| `nomic-embed-text` | Vector embeddings | ~274MB | `ollama pull nomic-embed-text` |
-| `qwen2.5-coder:14b` | Code generation (LLM) | ~9GB | `ollama pull qwen2.5-coder:14b` |
+| Model               | Purpose               | Size   | Command                         |
+| ------------------- | --------------------- | ------ | ------------------------------- |
+| `nomic-embed-text`  | Vector embeddings     | ~274MB | `ollama pull nomic-embed-text`  |
+| `qwen2.5-coder:14b` | Code generation (LLM) | ~9GB   | `ollama pull qwen2.5-coder:14b` |
 
 ```bash
 # Download models
@@ -122,20 +124,24 @@ bun run compile
 ### 4. Run Hybrid Mode Testing
 
 **Step 1: Run Local Agent (Challenger)**
+
 ```bash
 bun run benchmark --prompt "Add a function to validate iOS subscription status"
 ```
 
-**Step 2: Run Claude Code (Main)**
+**Step 2: Run an AI Assistant**
+
 ```bash
-# Use the same prompt with compiled context
-claude --context knowledge/_claude-context/context.md
+# Start the assistant from the repository root. Codex and Grok discover
+# AGENTS.md; Claude Code and Gemini use the CLAUDE.md and GEMINI.md symlinks.
+cd ../..
 
 # Then give the same prompt:
 # "Add a function to validate iOS subscription status"
 ```
 
 **Step 3: Compare**
+
 ```bash
 # Check local agent output
 ls _generated/
@@ -160,13 +166,13 @@ bun run agent
 
 **Example Prompts:**
 
-| Purpose | Prompt |
-|---------|--------|
-| Naming conventions | `"Check if all iOS functions in packages/apple have IOS suffix"` |
-| Architecture review | `"Find any code in packages/google that violates architecture rules"` |
-| Code style | `"Review packages/gql for coding style issues"` |
-| Full audit | `"List all rule violations in the codebase based on internal knowledge"` |
-| Specific file | `"Analyze OpenIapModule.swift for compliance with internal rules"` |
+| Purpose             | Prompt                                                                   |
+| ------------------- | ------------------------------------------------------------------------ |
+| Naming conventions  | `"Check if all iOS functions in packages/apple have IOS suffix"`         |
+| Architecture review | `"Find any code in packages/google that violates architecture rules"`    |
+| Code style          | `"Review packages/gql for coding style issues"`                          |
+| Full audit          | `"List all rule violations in the codebase based on internal knowledge"` |
+| Specific file       | `"Analyze OpenIapModule.swift for compliance with internal rules"`       |
 
 **Workflow:**
 
@@ -192,8 +198,9 @@ openiap/
 │   │   └── 03-coding-style.md  # Coding style
 │   ├── external/                # 📚 API REFERENCE
 │   │   └── storekit2-api.md    # External API docs
-│   └── _claude-context/         # 🔗 COMPILED FOR CLAUDE
-│       └── context.md          # Auto-generated context
+│   ├── _agent-context/          # 🔗 COMPILED FOR AI ASSISTANTS
+│   │   └── context.md           # Auto-generated context
+│   └── _claude-context -> _agent-context # Compatibility alias
 ├── _generated/                   # 📁 BENCHMARK OUTPUT (gitignored)
 │   └── {timestamp}/
 │       ├── prompt.txt
@@ -209,23 +216,24 @@ openiap/
 
 ## Scripts
 
-| Script | Description | Ollama Required |
-|--------|-------------|-----------------|
-| `bun run compile` | Compile all (AI context + Local RAG) | Yes |
-| `bun run compile:ai` | Generate context.md and docs public llms files | No |
-| `bun run compile:local` | Index knowledge + code map (LanceDB) | Yes |
-| `bun run compile:local:knowledge` | Index only knowledge files | Yes |
-| `bun run compile:local:code` | Build only code map | Yes |
-| `bun run benchmark` | Run benchmark agent (challenger) | Yes |
-| `bun run agent` | Run original coding agent | Yes |
-| `bun run test` | Run unit tests | No |
-| `bun run typecheck` | TypeScript type check | No |
+| Script                            | Description                                    | Ollama Required |
+| --------------------------------- | ---------------------------------------------- | --------------- |
+| `bun run compile`                 | Compile all (AI context + Local RAG)           | Yes             |
+| `bun run compile:ai`              | Generate context.md and docs public llms files | No              |
+| `bun run compile:local`           | Index knowledge + code map (LanceDB)           | Yes             |
+| `bun run compile:local:knowledge` | Index only knowledge files                     | Yes             |
+| `bun run compile:local:code`      | Build only code map                            | Yes             |
+| `bun run benchmark`               | Run benchmark agent (challenger)               | Yes             |
+| `bun run agent`                   | Run original coding agent                      | Yes             |
+| `bun run test`                    | Run unit tests                                 | No              |
+| `bun run typecheck`               | TypeScript type check                          | No              |
 
 ## How It Works
 
 ### 1. Shared Knowledge Base
 
-Both Claude Code and the local agent reference the same `/knowledge` folder:
+All supported assistants and the local agent reference the same `/knowledge`
+folder:
 
 ```
 /knowledge/internal/   →  HIGHEST PRIORITY rules
@@ -235,6 +243,7 @@ Both Claude Code and the local agent reference the same `/knowledge` folder:
 ### 2. Code Map (Simulating Claude Code's Code Graph)
 
 The `indexer.ts` scans your source code and extracts:
+
 - File locations
 - Function signatures
 - Class/interface definitions
@@ -276,12 +285,12 @@ This allows the local agent to find relevant code files just like Claude Code do
 
 The local agent follows this strict priority:
 
-| Priority | Type | Source | Treatment |
-|----------|------|--------|-----------|
-| 1 | `internal_rule` | `/knowledge/internal/` | MANDATORY - Must follow |
-| 2 | `code_map` | Project source scan | Reference for locations |
-| 3 | `code_snippets` | Actual file contents | Style guide |
-| 4 | `external_api` | `/knowledge/external/` | Adapt to internal rules |
+| Priority | Type            | Source                 | Treatment               |
+| -------- | --------------- | ---------------------- | ----------------------- |
+| 1        | `internal_rule` | `/knowledge/internal/` | MANDATORY - Must follow |
+| 2        | `code_map`      | Project source scan    | Reference for locations |
+| 3        | `code_snippets` | Actual file contents   | Style guide             |
+| 4        | `external_api`  | `/knowledge/external/` | Adapt to internal rules |
 
 ## Example Benchmark Output
 
@@ -314,6 +323,7 @@ LLM_MODEL=qwen2.5-coder:14b
 ### Source Patterns (indexer.ts)
 
 The code map scans these patterns by default:
+
 ```typescript
 sourcePatterns: [
   "packages/apple/Sources/**/*.swift",
@@ -321,7 +331,7 @@ sourcePatterns: [
   "packages/gql/src/**/*.ts",
   "packages/gql/**/*.graphql",
   "packages/docs/src/**/*.{ts,tsx}",
-]
+];
 ```
 
 ## Evaluation Criteria
@@ -329,6 +339,7 @@ sourcePatterns: [
 When comparing Local Agent vs Claude Code:
 
 ### Must Pass (Internal Rules)
+
 - [ ] iOS functions end with `IOS` suffix
 - [ ] Android functions in packages/google have NO `Android` suffix
 - [ ] Cross-platform functions have NO suffix
@@ -336,6 +347,7 @@ When comparing Local Agent vs Claude Code:
 - [ ] Follows architectural patterns
 
 ### Quality Metrics
+
 - [ ] Code matches existing style
 - [ ] Correct file location
 - [ ] Proper imports
@@ -386,7 +398,7 @@ Verify `CONFIG.sourcePatterns` in `indexer.ts` matches your project structure.
 Large files exceed chunk size limit. Adjust `MAX_CHUNK_SIZE` in `indexer.ts`:
 
 ```typescript
-const MAX_CHUNK_SIZE = 1500;  // default value
+const MAX_CHUNK_SIZE = 1500; // default value
 ```
 
 ### AI context not updating

@@ -17,7 +17,7 @@ import {
 } from '../lib/config';
 import { LIBRARIES, LIBRARY_IMAGES } from '../lib/images';
 import { FEATURED_SHOWCASE_APPS } from '../lib/showcase';
-import MetaWordmark from '../components/MetaWordmark';
+import { CURRENT_SPONSORS } from '../lib/sponsors';
 import SEO from '../components/SEO';
 
 interface IapKitFeature {
@@ -228,8 +228,11 @@ function Home() {
 
             <Link to="/sponsors" className="hero-backer">
               <span>Backed by</span>
-              <span>
-                <MetaWordmark />
+              <span className="hero-backer-logos">
+                {CURRENT_SPONSORS.map((sponsor) => {
+                  const Wordmark = sponsor.Wordmark;
+                  return <Wordmark key={sponsor.id} />;
+                })}
               </span>
             </Link>
           </div>
@@ -596,26 +599,37 @@ function Home() {
                 Sponsors
               </span>
               <div className="home-sponsor-meta">
-                <a
-                  className="home-sponsor-logo-link"
-                  href="https://meta.com"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  aria-label="Visit Meta"
-                >
-                  <MetaWordmark />
-                </a>
-                <span className="home-sponsor-tier">Angel</span>
+                {CURRENT_SPONSORS.map((sponsor) => {
+                  const Wordmark = sponsor.Wordmark;
+
+                  return (
+                    <a
+                      key={sponsor.id}
+                      className="home-sponsor-logo-link"
+                      href={sponsor.url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`Visit ${sponsor.name}`}
+                    >
+                      <Wordmark />
+                      <span className="home-sponsor-tier">{sponsor.tier}</span>
+                    </a>
+                  );
+                })}
               </div>
             </div>
 
             <div
               className="home-sponsor-flow"
               role="img"
-              aria-label={`Meta sponsors OpenIAP, helping maintain ${LIBRARIES.length} framework SDKs`}
+              aria-label={`${CURRENT_SPONSORS.map((sponsor) => sponsor.name).join(' and ')} sponsor OpenIAP, helping maintain ${LIBRARIES.length} framework SDKs`}
             >
-              <span>Meta</span>
-              <i>sponsors</i>
+              <span>
+                {CURRENT_SPONSORS.map((sponsor) => sponsor.shortName).join(
+                  ' + '
+                )}
+              </span>
+              <i>sponsor</i>
               <strong>OpenIAP</strong>
               <i>helping maintain</i>
               <span>{LIBRARIES.length} framework SDKs</span>

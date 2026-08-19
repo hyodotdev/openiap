@@ -94,7 +94,7 @@ For detailed information about:
 - API design patterns
 - OpenIAP specification compliance
 
-Please refer to [CLAUDE.md](./CLAUDE.md)
+Please refer to [AGENTS.md](./AGENTS.md)
 
 ## Project Structure
 
@@ -111,7 +111,7 @@ kmp-iap/
 │   └── iosApp/       # iOS app
 ├── native/           # Native bridge packages
 │   └── InAppPurchaseBridge/ # SwiftPM bridge for OpenIAP Apple
-└── CLAUDE.md         # Coding conventions
+└── AGENTS.md         # Coding conventions
 ```
 
 ## OpenIAP Apple Module
@@ -129,6 +129,7 @@ which provides StoreKit 2 functionality.
    - Version read from the root `openiap-versions.json` `apple` field
 
 2. **Build Process**:
+
    ```bash
    # The Gradle build automatically:
    # 1. Resolves openiap via CocoaPods

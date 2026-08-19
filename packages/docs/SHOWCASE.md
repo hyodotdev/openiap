@@ -63,7 +63,7 @@ Leave `ratings` and `installs` out of your PR — the script fills them in.
 | `logo`                 | ✅       | Path under `packages/docs/public` (e.g. `/showcase/your-app.webp`) or a full https URL.              |
 | `ratings` / `installs` | —        | Maintainer-managed ordering metrics. Leave these out.                                                |
 | `library`              | ✅       | One of `expo-iap`, `react-native-iap`, `flutter_inapp_purchase`, `kmp-iap`, `maui-iap`, `godot-iap`. |
-| `iapkit`               | —        | Set to `true` only when the app uses IAPKit receipt validation. Omit it otherwise.                   |
+| `iapkit`               | —        | Set to `true` only when the app uses IAPKit. Omit it otherwise.                                      |
 | `ios`                  | —        | App Store URL.                                                                                       |
 | `android`              | —        | Google Play URL.                                                                                     |
 | `web`                  | —        | Website or other store, shown as "Website".                                                          |
@@ -75,7 +75,7 @@ are skipped at render time.
 
 Reply to [discussion #350](https://github.com/hyodotdev/openiap/discussions/350) or
 email **hyo@hyo.dev** with your app name, one-liner, logo, store links, and which
-library you use. Also tell us whether you use IAPKit for receipt validation.
+library you use. Also tell us whether you use IAPKit.
 
 ## Removal and updates
 

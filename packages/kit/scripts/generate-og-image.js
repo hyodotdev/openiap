@@ -40,8 +40,12 @@ async function generateOGImage() {
           IAPKit
         </text>
 
-        <text x="${width / 2}" y="390" font-family="system-ui, -apple-system, sans-serif" font-size="32" text-anchor="middle" fill="#666666">
-          In-App Purchase Receipt Validation for your iOS and Android apps
+        <text x="${width / 2}" y="385" font-family="system-ui, -apple-system, sans-serif" font-size="30" text-anchor="middle" fill="#666666">
+          Open-source purchase validation and entitlement infrastructure
+        </text>
+
+        <text x="${width / 2}" y="430" font-family="system-ui, -apple-system, sans-serif" font-size="28" text-anchor="middle" fill="#666666">
+          for the OpenIAP ecosystem
         </text>
 
         <!-- Website -->

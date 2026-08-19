@@ -9,10 +9,17 @@
   <a href="https://app.codecov.io/gh/hyodotdev/openiap/tree/main/packages/kit/server"><img src="https://codecov.io/gh/hyodotdev/openiap/branch/main/graph/badge.svg?component=iapkit-server" alt="IAPKit server coverage" /></a>
 </p>
 
-Hosted receipt-validation SaaS and dashboard operated as a community
-service under [OpenIAP](https://openiap.dev) project governance. Validates App
-Store and Google Play receipts on your backend so one-time in-app purchases
-cannot be faked, replayed, or tampered with.
+Open-source purchase validation and entitlement infrastructure for the OpenIAP
+ecosystem. Managed by [OpenIAP](https://openiap.dev), IAPKit verifies purchases
+from the App Store, Google Play, Amazon Appstore, and Meta Horizon; maintains
+subscription and entitlement state; and provides catalog, analytics, and store
+management workflows.
+
+IAPKit is neutral infrastructure, not a paywall or growth-optimization SaaS.
+Operational revenue and subscription analytics remain in scope; paywall
+creation, audience targeting, experimentation, lifecycle marketing, and
+conversion optimization do not. Commercial products can build those experience
+layers on top of OpenIAP and IAPKit.
 
 The community-operated instance run by the OpenIAP project lives at
 **[kit.openiap.dev](https://kit.openiap.dev)**. Other domains running
@@ -48,6 +55,8 @@ One package, one binary, one Fly.io app.
 
 - **Apple StoreKit 2 JWS verification** (`@apple/app-store-server-library`)
 - **Google Play purchase verification** (`googleapis`)
+- **Amazon Appstore RVS verification** with explicit sandbox opt-in and bounded
+  purchase reconciliation
 - **Meta Horizon entitlement verification** (Graph API)
 - **Publishable and secret API keys per project** with server-enforced scopes
   and usage telemetry

@@ -27,15 +27,15 @@ export default function CreateOrganization() {
 
     setIsCreating(true);
     try {
-      await createOrganization({
+      const { slug } = await createOrganization({
         name: formData.name.trim(),
         slug: formData.slug.trim() || undefined,
       });
       trackEvent(MixpanelEvent.OrganizationCreated);
 
       toast.success("Organization created successfully!");
-      // Navigate to plan selection onboarding step
-      void navigate("/onboarding/plan");
+      // Open the organization dashboard after onboarding.
+      void navigate(`/${slug}`, { replace: true });
     } catch (error) {
       toast.error("Failed to create organization");
       console.error(error);

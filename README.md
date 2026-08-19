@@ -24,7 +24,7 @@ This monorepo contains all OpenIAP packages:
 - **[spec](packages/gql)** - OpenIAP specification and type generation [![Spec Release](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fhyodotdev%2Fopeniap%2Fmain%2Fopeniap-versions.json&query=%24.spec&label=version&logo=graphql&color=purple&prefix=v)](https://github.com/hyodotdev/openiap/blob/main/openiap-versions.json)
 - **[google](packages/google)** - Android library [![Maven Central (Play)](https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google?label=Play%20Store)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google) [![Maven Central (Horizon)](https://img.shields.io/maven-central/v/io.github.hyochan.openiap/openiap-google-horizon?label=Meta%20Horizon)](https://central.sonatype.com/artifact/io.github.hyochan.openiap/openiap-google-horizon) [![CI](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml?query=branch%3Amain)
 - **[apple](packages/apple)** - iOS/macOS library [![Swift Package](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fraw.githubusercontent.com%2Fhyodotdev%2Fopeniap%2Fmain%2Fopeniap-versions.json&query=%24.apple&label=version&logo=swift&color=orange&prefix=v)](https://github.com/hyodotdev/openiap/releases?q=Apple&expanded=true) [![CocoaPods](https://img.shields.io/cocoapods/v/openiap?color=E35A5F&logo=cocoapods)](https://cocoapods.org/pods/openiap) [![CI](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/hyodotdev/openiap/actions/workflows/ci.yml?query=branch%3Amain)
-- **[kit](packages/kit)** - Hosted receipt-validation backend (SaaS + dashboard at [kit.openiap.dev](https://kit.openiap.dev)). Free for every developer under hosted fair-use safeguards. [![Kit CI](https://github.com/hyodotdev/openiap/actions/workflows/deploy-kit.yml/badge.svg?branch=main)](https://github.com/hyodotdev/openiap/actions/workflows/deploy-kit.yml?query=branch%3Amain)
+- **[kit](packages/kit)** - Open-source purchase validation and entitlement infrastructure for the OpenIAP ecosystem, with a hosted service and dashboard at [kit.openiap.dev](https://kit.openiap.dev). Free for every developer under hosted fair-use safeguards. [![Kit CI](https://github.com/hyodotdev/openiap/actions/workflows/deploy-kit.yml/badge.svg?branch=main)](https://github.com/hyodotdev/openiap/actions/workflows/deploy-kit.yml?query=branch%3Amain)
 - **[mcp-server](packages/mcp-server)** - IAPKit MCP server, hosted at [kit.openiap.dev/mcp](https://kit.openiap.dev/mcp) for AI coding agents
 
 ## Libraries
@@ -85,7 +85,14 @@ For bug reports, please [open an issue](https://github.com/hyodotdev/openiap/iss
 
 <p align="center">
   <a href="https://meta.com">
-    <img src="packages/docs/public/meta.svg" alt="Meta" height="140">
+    <img src="packages/docs/public/meta.svg" alt="Meta" height="80">
+  </a>
+  &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+  <a href="https://developer.amazon.com/">
+    <picture>
+      <source media="(prefers-color-scheme: dark)" srcset="packages/docs/public/sponsors/amazon-dark.webp">
+      <img src="packages/docs/public/sponsors/amazon.webp" alt="Amazon Developer" height="80">
+    </picture>
   </a>
 </p>
 

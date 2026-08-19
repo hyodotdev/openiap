@@ -59,7 +59,16 @@ export default function PublicPages() {
         <Route
           index
           element={
-            <PageWithTitle title="Launch in-app purchases faster">
+            <PageWithTitle
+              title="Open purchase & entitlement infrastructure"
+              description="Open-source purchase validation and entitlement infrastructure for the OpenIAP ecosystem, managed by OpenIAP."
+              keywords={[
+                "purchase validation",
+                "entitlements",
+                "in-app purchases",
+                "open-source IAP backend",
+              ]}
+            >
               <LandingPage />
             </PageWithTitle>
           }

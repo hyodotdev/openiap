@@ -457,8 +457,9 @@
   min-width: 0;
   flex-direction: column;
   gap: 0.3rem;
-  align-items: flex-start;
+  align-items: center;
   color: var(--text-primary);
+  text-align: center;
   text-decoration: none;
 }
 
@@ -481,6 +482,7 @@
   display: flex;
   min-width: 0;
   flex-direction: column;
+  align-items: center;
 }
 
 .hero-native strong {
@@ -545,11 +547,18 @@
 .hero-backer > span:last-child {
   display: flex;
   align-items: center;
-  gap: 0.2rem;
+  justify-content: center;
+  gap: clamp(2.5rem, 6vw, 5rem);
 }
 
-.hero-backer .meta-wordmark {
-  height: 1.35rem;
+.hero-backer .meta-wordmark,
+.hero-backer .amazon-wordmark {
+  height: 2.4rem;
+}
+
+.hero-backer .amazon-wordmark {
+  height: 2.1rem;
+  transform: translateY(0.16rem);
 }
 
 @media (max-width: 1050px) {
@@ -582,11 +591,6 @@
 
   .hero-orbit-node {
     font-size: 0.5rem;
-  }
-
-  .hero-framework-link {
-    align-items: flex-start;
-    text-align: left;
   }
 }
 
@@ -686,6 +690,15 @@
 
   .hero-backer {
     grid-template-columns: 1fr;
+    gap: 0.75rem;
+  }
+
+  .hero-backer .meta-wordmark {
+    height: 1.9rem;
+  }
+
+  .hero-backer .amazon-wordmark {
+    height: 1.65rem;
   }
 
   .hero-native-links,
@@ -1493,7 +1506,8 @@ a.spec-item:hover code {
   z-index: 1;
   display: flex;
   grid-column: 1 / -1;
-  gap: 0.55rem;
+  flex-wrap: wrap;
+  gap: clamp(1.5rem, 6vw, 5rem);
   align-items: center;
   justify-content: center;
   justify-self: center;
@@ -1503,8 +1517,11 @@ a.spec-item:hover code {
 }
 
 .home-sponsor-logo-link {
-  display: block;
-  line-height: 0;
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.7rem;
+  align-items: center;
+  line-height: 1;
   text-decoration: none;
   transition: transform 180ms ease;
 }
@@ -1513,8 +1530,14 @@ a.spec-item:hover code {
   transform: scale(1.035);
 }
 
-.home-sponsor-logo-link .meta-wordmark {
+.home-sponsor-logo-link .meta-wordmark,
+.home-sponsor-logo-link .amazon-wordmark {
   height: 4.1rem;
+}
+
+.home-sponsor-logo-link .amazon-wordmark {
+  height: 3.6rem;
+  transform: translateY(0.12rem);
 }
 
 .home-sponsor-tier {
@@ -1665,8 +1688,13 @@ a.spec-item:hover code {
     padding-inline: 1rem;
   }
 
-  .home-sponsor-logo-link .meta-wordmark {
+  .home-sponsor-logo-link .meta-wordmark,
+  .home-sponsor-logo-link .amazon-wordmark {
     height: 2.5rem;
+  }
+
+  .home-sponsor-logo-link .amazon-wordmark {
+    height: 2.2rem;
   }
 
   .home-sponsor-flow {

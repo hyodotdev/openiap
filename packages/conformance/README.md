@@ -14,6 +14,10 @@ packages/gql/src/capability-matrix.mjs   which stores must implement what
 packages/conformance/src/spec/        what each behavior must do   <- you are here
 ```
 
+See the [Conformance Testing Audit](https://github.com/hyodotdev/openiap/blob/main/packages/conformance/CONFORMANCE_AUDIT.md)
+for the repository assessment that led to this suite and the remediation
+history.
+
 ## Versioning
 
 A report states two versions, and neither is optional:

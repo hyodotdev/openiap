@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { IAPKIT_LOGO_PATH, IAPKIT_URL, trackIapKitClick } from '../lib/config';
 import { LIBRARIES, type FrameworkLibraryName } from '../lib/images';
 import { OPENIAP_VERSIONS } from '../lib/versioning';
 import '../styles/ecosystem-diagram.css';
@@ -63,6 +64,7 @@ const SQUARE_ART = new Set([
   '/logos/flutter_inapp_purchase.webp',
   '/logos/kmp-iap.webp',
   '/frameworks/maui.webp',
+  IAPKIT_LOGO_PATH,
 ]);
 
 interface DiagramMark {
@@ -77,6 +79,7 @@ interface DiagramNode {
   icon: string;
   href: string;
   marks?: DiagramMark[];
+  onClick?: () => void;
 }
 
 const SPEC_NODES: DiagramNode[] = [
@@ -118,6 +121,15 @@ const CORE_NODES: DiagramNode[] = [
   },
 ];
 
+const IAPKIT_NODE: DiagramNode = {
+  id: 'iapkit',
+  name: 'IAPKit',
+  note: 'Optional verification · entitlements · store sync · MCP',
+  icon: IAPKIT_LOGO_PATH,
+  href: IAPKIT_URL,
+  onClick: trackIapKitClick,
+};
+
 function artClass(src: string, base: string): string {
   const classes = [base];
 
@@ -153,6 +165,7 @@ function NodeCard({
       href={node.href}
       target="_blank"
       rel="noopener noreferrer"
+      onClick={node.onClick}
     >
       <img
         className={artClass(node.icon, 'eco-icon')}
@@ -186,7 +199,7 @@ function Rail({
   variant,
   label,
 }: {
-  variant: 'a' | 'b' | 'bypass';
+  variant: 'a' | 'b' | 'bypass' | 'iapkit';
   label: string;
 }) {
   return (
@@ -322,12 +335,28 @@ function EcosystemDiagram() {
             </a>
           </div>
         </section>
+
+        <Rail variant="iapkit" label="optional backend" />
+
+        <section
+          className="eco-band eco-band--iapkit"
+          aria-labelledby="eco-iapkit"
+        >
+          <h3 className="eco-band-title" id="eco-iapkit">
+            Infrastructure
+          </h3>
+          <div className="eco-iapkit-body">
+            <NodeCard node={IAPKIT_NODE} className="eco-node--iapkit" />
+          </div>
+        </section>
       </div>
 
       <figcaption className="eco-caption">
         <strong>openiap-gql</strong> generates the type system for the core
         native packages <em>and</em> for every framework library, and the core
-        packages are bundled into each library. Select any node to open its
+        packages are bundled into each library. <strong>IAPKit</strong> is the
+        optional hosted layer for purchase verification, entitlements, store
+        notifications, and product operations. Select any node to open its
         documentation or project.
       </figcaption>
     </figure>

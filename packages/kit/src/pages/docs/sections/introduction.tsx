@@ -9,15 +9,14 @@ export default function IntroductionPage() {
     <DocsPage
       slug=""
       title="Introduction"
-      description="IAPKit is a hosted receipt-validation API for Apple, Google, Meta Horizon, and Amazon Appstore purchases. Managed by OpenIAP."
+      description="IAPKit is OpenIAP's open-source purchase validation and entitlement infrastructure for Apple, Google, Meta Horizon, and Amazon Appstore."
     >
       <p>
-        <strong>IAPKit</strong>, managed by OpenIAP, is a receipt-validation
-        backend for mobile and VR apps that need server-side store verification
-        without building their own receipt server. You send a store-specific
-        receipt to <code>/v1/purchase/verify</code>, IAPKit calls the upstream
-        store with credentials it already holds for your project, and returns a
-        normalized{" "}
+        <strong>IAPKit</strong>, managed by OpenIAP, is open-source purchase
+        validation and entitlement infrastructure for mobile and VR apps. You
+        send store-specific purchase proof to <code>/v1/purchase/verify</code>,
+        IAPKit calls the upstream store with credentials it already holds for
+        your project, and returns a normalized{" "}
         <code>{`{ store, isValid, state, productId?, environment? }`}</code>{" "}
         result your app can use.
       </p>
@@ -79,7 +78,7 @@ export default function IntroductionPage() {
           icon={<ShoppingBag className="h-5 w-5" />}
           title="Amazon Appstore"
           detail="Fire OS receipts verified and periodically refreshed through Amazon RVS. Cloud Sandbox is disabled by default and requires an explicit project opt-in."
-          slug="api"
+          slug="verification/amazon"
         />
       </div>
 

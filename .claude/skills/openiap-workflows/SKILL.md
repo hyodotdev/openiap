@@ -1,6 +1,6 @@
 ---
 name: openiap-workflows
-description: Use for OpenIAP monorepo work that should follow the repository's slash-command workflows when the user asks in natural language instead of typing a slash command, including review-pr, audit-code, compile-knowledge, verify-all, e2e-tests, stable or prerelease package releases, resolve-issue, commit/push/PR, generated type sync, package-specific checks, GitHub review threads, and project conventions from AGENTS.md/CLAUDE.md/GEMINI.md.
+description: Use for OpenIAP monorepo work that should follow the repository's slash-command workflows when the user asks in natural language instead of typing a slash command, including review-pr, audit-code, compile-knowledge, verify-all, e2e-tests, stable or prerelease package releases, resolve-issue, commit/push/PR, generated type sync, package-specific checks, GitHub review threads, and project conventions from AGENTS.md.
 ---
 
 # OpenIAP Workflows (Claude Code)

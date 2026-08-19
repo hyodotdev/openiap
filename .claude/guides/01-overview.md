@@ -14,7 +14,7 @@ openiap/
 │   └── kit/           # Hosted receipt-validation SaaS (kit.openiap.dev)
 ├── scripts/           # Monorepo-wide automation
 ├── .github/workflows/ # CI/CD workflows
-├── CLAUDE.md          # Main agent guidelines
+├── AGENTS.md          # Canonical shared agent guidelines
 └── openiap-versions.json  # Version management
 ```
 

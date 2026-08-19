@@ -743,6 +743,10 @@ test("published release SBOMs and the Kit image are rescanned read-only", () => 
     resolve(repoRoot, ".github/workflows/deploy-kit.yml"),
     "utf8",
   );
+  const trivyExceptions = readFileSync(
+    resolve(repoRoot, "packages/kit/.trivyignore.yaml"),
+    "utf8",
+  );
   const releaseJob = source.slice(
     source.indexOf("  release-sboms:"),
     source.indexOf("  kit-container:"),
@@ -780,6 +784,13 @@ test("published release SBOMs and the Kit image are rescanned read-only", () => 
   assert.match(source, /--exit-on-eol 1/u);
   assert.match(deploy, /tags: openiap-kit:security-scan/u);
   assert.match(deploy, /install-security-tool\.sh trivy/u);
+  for (const workflow of [deploy, source]) {
+    assert.match(workflow, /--ignorefile packages\/kit\/\.trivyignore\.yaml/u);
+  }
+  assert.match(trivyExceptions, /id: CVE-2026-14456/u);
+  assert.match(trivyExceptions, /pkg:deb\/debian\/libssl3@3\.0\.20-1~deb12u2/u);
+  assert.match(trivyExceptions, /expired_at: 2026-09-14/u);
+  assert.match(trivyExceptions, /statement: >-/u);
 });
 
 test("Google releases require complete credentials before version mutation", () => {
@@ -1447,9 +1458,9 @@ test("published metadata parsers reject unsupported dependencies", () => {
     [],
   );
   for (const malformedComment of [
-    '<package><dependencies><!-- nested <!-- -->' +
+    "<package><dependencies><!-- nested <!-- -->" +
       '<dependency id="Fake" version="1.0.0" /></dependencies></package>',
-    '<package><dependencies><!-- unterminated</dependencies></package>',
+    "<package><dependencies><!-- unterminated</dependencies></package>",
     '<package><dependencies>--><dependency id="Fake" version="1.0.0" />' +
       "</dependencies></package>",
   ]) {

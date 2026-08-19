@@ -36,6 +36,11 @@ export const DOCS_NAV: DocsNavEntry[] = [
     summary: "Store catalog sync and public app-readable product rules.",
   },
   {
+    slug: "orders",
+    title: "Order lookup",
+    summary: "Read-only Apple and Google order support tooling.",
+  },
+  {
     slug: "verification",
     title: "Store setup",
     summary: "Per-store configuration for managed receipt validation.",
@@ -55,6 +60,11 @@ export const DOCS_NAV: DocsNavEntry[] = [
         title: "Meta Horizon",
         summary: "App ID + App Secret for Quest entitlement checks.",
       },
+      {
+        slug: "verification/amazon",
+        title: "Amazon Appstore",
+        summary: "RVS shared secret, App Tester sandbox, and reconciliation.",
+      },
     ],
   },
   {
@@ -64,9 +74,19 @@ export const DOCS_NAV: DocsNavEntry[] = [
       "Purchase verification, user-scoped subscription snapshots, responses, and errors.",
   },
   {
+    slug: "compatibility",
+    title: "Version compatibility",
+    summary: "How hosted /v1 responses remain safe for older app builds.",
+  },
+  {
     slug: "analytics",
     title: "Analytics",
     summary: "Revenue / MRR / churn dashboard — requires webhook integration.",
+  },
+  {
+    slug: "webhooks",
+    title: "Store webhooks",
+    summary: "Inbound Apple ASN v2 and Google RTDN lifecycle delivery.",
   },
   {
     slug: "operations",

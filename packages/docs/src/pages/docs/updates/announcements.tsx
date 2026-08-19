@@ -5,6 +5,9 @@ import SEO from '../../../components/SEO';
 import { useScrollToHash, getHashId } from '../../../hooks/useScrollToHash';
 import Pagination from '../../../components/Pagination';
 import { IAPKIT_URL, trackIapKitClick } from '../../../lib/config';
+import { AMAZON_SPONSOR } from '../../../lib/sponsors';
+
+const { Wordmark: AmazonSponsorWordmark } = AMAZON_SPONSOR;
 
 const cardStyle = {
   background: 'var(--bg-secondary)',
@@ -39,6 +42,7 @@ const linkIconStyle = {
 
 interface Announcement {
   id: string;
+  aliases?: readonly string[];
   date: Date;
   hidden?: boolean;
   element: React.ReactNode;
@@ -240,13 +244,14 @@ function Announcements() {
       ),
     },
 
-    // 2026-06-09: Amazon Fire OS / Vega OS
+    // 2026-08-19: Amazon Fire OS / Vega OS
     {
-      id: '2026-06-09-amazon-fireos-vega',
-      date: new Date('2026-06-09'),
-      hidden: true,
+      id: '2026-08-19-amazon-fireos-vega',
+      aliases: ['2026-06-09-amazon-fireos-vega'],
+      date: new Date('2026-08-19'),
       element: (
-        <div key="2026-06-09-amazon-fireos-vega" style={cardStyle}>
+        <div key="2026-08-19-amazon-fireos-vega" style={cardStyle}>
+          <span id="2026-06-09-amazon-fireos-vega" aria-hidden="true" />
           <div style={headerStyle}>
             <img
               src="/announcements/amazon-fireos-vega.webp"
@@ -257,14 +262,28 @@ function Announcements() {
               We are now backed by Amazon Developer!
             </h2>
             <a
-              href="#2026-06-09-amazon-fireos-vega"
+              href="#2026-08-19-amazon-fireos-vega"
               style={linkIconStyle}
               title="Link to this announcement"
             >
               🔗
             </a>
           </div>
-          <p style={dateStyle}>June 9, 2026</p>
+          <p style={dateStyle}>August 19, 2026</p>
+          <a
+            href={AMAZON_SPONSOR.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Visit ${AMAZON_SPONSOR.name}`}
+            style={{
+              display: 'flex',
+              width: 'fit-content',
+              margin: '0 auto 1.5rem',
+              textDecoration: 'none',
+            }}
+          >
+            <AmazonSponsorWordmark className="announcement-sponsor-wordmark" />
+          </a>
           <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
             Today marks a meaningful milestone for our team: We're thrilled to
             share that OpenIAP is now backed by Amazon Developer through
@@ -275,11 +294,11 @@ function Announcements() {
             for apps on Fire TVs through the OpenIAP ecosystem.
           </p>
           <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
-            For context, there&apos;s over 300 million Fire TV devices purchased
-            around the world. Last year alone these TVs have been used for more
-            than 100 billion hours for things like streaming shows, playing
-            games, and watching live events. For example, if you have ever
-            rented a streaming movie, you have gone through an IAP payment flow.
+            For context, more than 300 million Fire TV devices have been
+            purchased around the world. They are used for streaming shows,
+            playing games, and watching live events. For example, if you have
+            ever rented a streaming movie, you have gone through an IAP payment
+            flow.
           </p>
           <a
             href="/docs/setup/store/amazon#fire-os"
@@ -326,11 +345,10 @@ function Announcements() {
           <p style={{ lineHeight: '1.7', marginBottom: '1rem' }}>
             There are two operating systems that power the Fire TV experience
             across these millions of streaming media players: Fire OS and Vega
-            OS. With these updates, OpenIAP supports both in the current{' '}
-            <code>packages/docs</code> structure: Fire OS is documented as the
-            Android <code>amazon</code> flavor backed by the Amazon Appstore
-            SDK, while Vega OS is documented as a separate Kepler runtime path
-            for <code>react-native-iap</code> and compatible{' '}
+            OS. OpenIAP supports both through its SDK and runtime integrations:
+            Fire OS uses the Android <code>amazon</code> flavor backed by the
+            Amazon Appstore SDK, while Vega OS uses a separate Kepler runtime
+            path for <code>react-native-iap</code> and compatible{' '}
             <code>expo-iap</code> apps.
           </p>
           <h3 style={{ marginTop: '1.25rem', marginBottom: '0.5rem' }}>
@@ -1224,7 +1242,8 @@ function Announcements() {
     if (!hashId) return 1;
 
     const announcementIndex = sortedAnnouncements.findIndex(
-      (announcement) => announcement.id === hashId
+      (announcement) =>
+        announcement.id === hashId || announcement.aliases?.includes(hashId)
     );
     if (announcementIndex === -1) return 1;
 

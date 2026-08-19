@@ -1,11 +1,16 @@
 {
   "cSpell.words": [
+    "apollographql",
+    "codegen",
+    "gradlew",
     "hyodotdev",
     "Iapkit",
+    "JsonSlurper",
     "openiap",
+    "preorder",
+    "pubspec",
     "Skus",
-    "Slurper",
-    "JsonSlurper"
+    "Slurper"
   ],
   "files.associations": {
     "*.podspec": "ruby"

@@ -27,6 +27,58 @@ const KIND_STYLES: Record<ReleaseEntry["items"][number]["kind"], string> = {
 
 const RELEASES: ReleaseEntry[] = [
   {
+    id: "hosted-2026-08-19",
+    date: "2026-08-19",
+    tagline: "Clearer product guidance and a complete operator reference.",
+    items: [
+      {
+        kind: "docs",
+        text: "IAPKit is now positioned consistently as optional OpenIAP infrastructure, with new guides for Amazon RVS, order lookup, store webhooks, version compatibility, fair use, and hosted-service data processing.",
+      },
+      {
+        kind: "fix",
+        text: "Creating an organization now opens its real dashboard instead of navigating to a removed onboarding route.",
+      },
+    ],
+  },
+  {
+    id: "hosted-2026-08-16",
+    date: "2026-08-16",
+    tagline: "More reliable sign-in and post-deploy migrations.",
+    items: [
+      {
+        kind: "fix",
+        text: "A rejected email OTP or magic-link attempt no longer consumes the code, so users can correct the attempt without requesting another message.",
+      },
+      {
+        kind: "ops",
+        text: "Repeated migration starts now detect an already-running migration and return without competing with its active batches.",
+      },
+    ],
+  },
+  {
+    id: "hosted-2026-08-15",
+    date: "2026-08-15",
+    tagline: "A smaller, pinned production container.",
+    items: [
+      {
+        kind: "security",
+        text: "The hosted runtime now uses a digest-pinned distroless Debian 12 image as a non-root user. The Bun build image is pinned by digest as well, reducing mutable supply-chain inputs and unnecessary runtime tools.",
+      },
+    ],
+  },
+  {
+    id: "hosted-2026-08-14",
+    date: "2026-08-14",
+    tagline: "Project credential cards stay usable on narrow screens.",
+    items: [
+      {
+        kind: "fix",
+        text: "Long Apple and Google credential filenames, status text, and download or delete actions now wrap inside their Settings cards instead of overflowing on small screens.",
+      },
+    ],
+  },
+  {
     id: "hosted-2026-08-13",
     date: "2026-08-13",
     tagline:
@@ -47,6 +99,10 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "feature",
         text: "Native verification requests send X-OpenIAP-Spec with the OpenIAP spec version the build was compiled against, and kit records it on the structured verify log line. The value is shape-checked and bounded, and nothing branches on it: a client cannot change how its receipt is verified by claiming a version.",
+      },
+      {
+        kind: "security",
+        text: "The MCP endpoint now requires a secret project key, caps sessions, and applies source and process rate limits. Product tools return typed cursor pagination so assistants can traverse bounded catalog pages safely.",
       },
       {
         kind: "docs",
@@ -128,6 +184,47 @@ const RELEASES: ReleaseEntry[] = [
       {
         kind: "security",
         text: "Order lookup is gated on a dashboard session and organization membership and never accepts an API key. It is operator tooling, not part of the public /v1 surface.",
+      },
+    ],
+  },
+  {
+    id: "hosted-2026-08-02",
+    date: "2026-08-02",
+    tagline: "Hosted capacity safeguards and safer Google Play catalog sync.",
+    items: [
+      {
+        kind: "ops",
+        text: "Verification now has bounded per-key, source-IP, and process concurrency in addition to rate and replay limits. Saturated requests return SERVICE_BUSY with Retry-After instead of queueing unbounded work, and capacity rejections do not consume replay budget.",
+      },
+      {
+        kind: "fix",
+        text: "Google Play one-time product sync now uses the canonical API path and maps Active, Draft, and Removed from purchase-option state. Missing or future store states fail closed instead of becoming sellable.",
+      },
+      {
+        kind: "docs",
+        text: "Hosted validation is documented as free shared infrastructure under fair-use safeguards, with explicit capacity planning and self-hosting guidance instead of paid plan quotas.",
+      },
+    ],
+  },
+  {
+    id: "hosted-2026-07-31",
+    date: "2026-07-31",
+    tagline: "Deployments expose their public contract and revision safely.",
+    items: [
+      {
+        kind: "ops",
+        text: "GET /health now returns the v1 API contract, public Git revision, allowlisted environment, and timestamp without touching Convex or a store. Rolling shutdown drains in-flight API requests before exit.",
+      },
+    ],
+  },
+  {
+    id: "hosted-2026-07-30",
+    date: "2026-07-30",
+    tagline: "Android package names preserve store identity exactly.",
+    items: [
+      {
+        kind: "fix",
+        text: "Project settings preserve the exact case of a Google Play package name and allow capitalization-only corrections. Changing a saved project to a different package identity remains blocked.",
       },
     ],
   },

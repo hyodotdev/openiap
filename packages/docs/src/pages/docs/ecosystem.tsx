@@ -10,14 +10,16 @@ function Ecosystem() {
     <div className="doc-page">
       <SEO
         title="Ecosystem"
-        description="OpenIAP ecosystem overview. Native modules (openiap-apple, openiap-google) power framework implementations for Expo, React Native, Flutter, Kotlin Multiplatform, .NET MAUI, and Godot."
+        description="OpenIAP ecosystem overview. Native modules power six framework SDKs, while IAPKit adds optional hosted purchase verification, entitlements, store notifications, product sync, and MCP operations."
         path="/docs/ecosystem"
-        keywords="OpenIAP ecosystem, openiap-apple, openiap-google, IAP architecture, native modules, cross-platform IAP"
+        keywords="OpenIAP ecosystem, IAPKit, openiap-apple, openiap-google, IAP architecture, purchase verification, cross-platform IAP"
       />
       <h1>Ecosystem</h1>
       <p>
-        Here is the big picture of OpenIAP ecosystem. If you are interested in
-        joining the ecosystem, please contact{' '}
+        OpenIAP defines the shared purchase contract and ships native and
+        framework SDKs. IAPKit adds optional hosted purchase verification,
+        entitlements, store notifications, product sync, and MCP operations. If
+        you are interested in joining the ecosystem, please contact{' '}
         <a href="mailto:hyo@hyo.dev">hyo@hyo.dev</a>.
       </p>
 
@@ -156,6 +158,19 @@ function Ecosystem() {
             <a href="/docs/setup/godot">Setup Guide</a>
           </li>
         </ul>
+      </section>
+
+      <section>
+        <h2>Optional infrastructure</h2>
+        <p>
+          <a href="/docs/kit-backend">
+            <strong>IAPKit</strong>
+          </a>{' '}
+          is the optional hosted layer for teams that need server-side purchase
+          verification, entitlement state, App Store and Google Play lifecycle
+          notifications, product synchronization, revenue visibility, and MCP
+          operations without building a separate IAP backend.
+        </p>
       </section>
 
       <Callout kind="note">

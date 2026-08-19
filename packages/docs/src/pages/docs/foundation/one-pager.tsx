@@ -2,6 +2,7 @@ import SEO from '../../../components/SEO';
 import AnchorLink from '../../../components/AnchorLink';
 import Callout from '../../../components/Callout';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
+import { CURRENT_SPONSORS } from '../../../lib/sponsors';
 
 function OnePager() {
   useScrollToHash();
@@ -353,7 +354,7 @@ function OnePager() {
                 >
                   openiap-google
                 </a>{' '}
-                (Play Billing + Meta Horizon)
+                (Play Billing + Amazon Appstore + Meta Horizon)
               </td>
             </tr>
           </tbody>
@@ -364,8 +365,8 @@ function OnePager() {
         </AnchorLink>
         <ul>
           <li>
-            <strong>Platforms</strong>: iOS, macOS, tvOS, watchOS, Android, Meta
-            Quest/Horizon
+            <strong>Platforms</strong>: iOS, macOS, tvOS, watchOS, Android,
+            Amazon Fire OS, Vega OS, Meta Quest/Horizon
           </li>
           <li>
             <strong>Languages Generated</strong>: TypeScript, Swift, Kotlin,
@@ -373,10 +374,14 @@ function OnePager() {
           </li>
           <li>
             <strong>Store APIs Supported</strong>: Apple StoreKit 2, Google Play
-            Billing 9.1.0, Meta Horizon Billing Compatibility 2.0.0
+            Billing 9.1.0, Amazon Appstore SDK, Meta Horizon Billing
+            Compatibility 2.0.0
           </li>
           <li>
-            <strong>Sponsor</strong>: Meta (Angel tier)
+            <strong>Sponsors</strong>:{' '}
+            {CURRENT_SPONSORS.map(
+              (sponsor) => `${sponsor.name} (${sponsor.tier})`
+            ).join(', ')}
           </li>
           <li>
             <strong>Maintainer</strong>: Hyo (

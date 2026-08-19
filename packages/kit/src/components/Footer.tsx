@@ -32,9 +32,8 @@ export default function Footer() {
               <span className="font-bold text-xl">IAPKit</span>
             </Link>
             <p className="text-sm text-muted-foreground mb-4">
-              {
-                "Fraud-resistant App Store and Google Play receipt validation for IAPs."
-              }
+              Open-source purchase validation and entitlement infrastructure for
+              the OpenIAP ecosystem.
             </p>
             <p className="text-xs text-muted-foreground">
               By{" "}

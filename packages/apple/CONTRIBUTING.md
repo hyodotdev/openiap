@@ -37,7 +37,7 @@ swift test
 
 - **Acronyms**: Use Pascal case when at beginning/middle (`IapModule`, `OpenIapTests`)
 - **Acronyms as suffix**: Use all caps (`ProductIAP`, `ManagerIOS`)
-- See [CLAUDE.md](CLAUDE.md) for detailed naming rules
+- See [CONVENTION.md](CONVENTION.md) for detailed naming rules
 
 #### OpenIap Prefix (Public Models)
 
@@ -107,7 +107,6 @@ When your PR is merged, maintainers will handle the release:
    ```
 
 2. **Deployment Workflows (separated)**
-
    - Swift Package (SPM):
      - Actions → "Release Swift Package" → Run workflow → enter version (e.g., `1.2.3` or `patch`).
      - This bumps version, commits, tags, creates a GitHub Release, and runs build/tests. SPM picks up new versions from git tags automatically.

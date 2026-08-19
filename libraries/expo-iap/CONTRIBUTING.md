@@ -48,14 +48,12 @@ This project includes VSCode configurations for easier development:
 1. **Install recommended extensions**: When you open the project in VSCode, you'll be prompted to install recommended extensions. Accept to install them.
 
 1. **Use Debug Configurations**: Press `F5` or go to Run → Start Debugging and select:
-
    - `Debug iOS (Expo)` - Runs the example app on iOS simulator
    - `Debug Android (Expo)` - Runs the example app on Android emulator
    - `iOS + Metro` - Starts Metro bundler and iOS app together
    - `Android + Metro` - Starts Metro bundler and Android app together
 
 1. **Use Tasks**: Press `Cmd+Shift+P` → `Tasks: Run Task` to access:
-
    - `Start iOS Simulator` - Opens iOS Simulator
    - `Start Android Emulator` - Starts Android emulator
    - `Install Pods (iOS)` - Installs CocoaPods dependencies
@@ -207,7 +205,7 @@ bun run reset-project
 
 ### Code Conventions and Standards
 
-For detailed code conventions, naming standards, and implementation guidelines, please refer to [CLAUDE.md](./CLAUDE.md). This includes:
+For detailed code conventions, naming standards, and implementation guidelines, please refer to [AGENTS.md](./AGENTS.md). This includes:
 
 - Platform-specific naming conventions
 - API method naming patterns
@@ -245,25 +243,21 @@ If the JSON file is missing or malformed, build scripts (Gradle, Podspec, the ty
 ### Development Workflow
 
 1. **Before starting work**:
-
    - Pull latest changes from main branch
    - Create a feature branch: `git checkout -b feature/your-feature`
-   - Review [CLAUDE.md](./CLAUDE.md) for coding standards
+   - Review [AGENTS.md](./AGENTS.md) for coding standards
 
 1. **During development**:
-
    - Make changes to the library source code in `src/`
    - Test changes in the example app
    - Write/update tests as needed
    - Keep commits atomic and well-described
 
 1. **Before committing**:
-
-   - Follow the pre-commit checks outlined in [CLAUDE.md](./CLAUDE.md)
+   - Follow the pre-commit checks outlined in [AGENTS.md](./AGENTS.md)
    - Ensure all checks pass
 
 1. **Testing your changes**:
-
    - The example app automatically uses the local library code
    - Changes to `src/` will be reflected after reloading the app
    - Test on both iOS and Android platforms when possible
@@ -277,13 +271,13 @@ For all code conventions including:
 - API method naming patterns
 - OpenIAP specification compliance
 
-Please refer to [CLAUDE.md](./CLAUDE.md).
+Please refer to [AGENTS.md](./AGENTS.md).
 
 ### AI Development Tools
 
 We provide configuration files for AI-powered development tools:
 
-- `CLAUDE.md` - Comprehensive guidelines for Claude and other AI assistants
+- `AGENTS.md` - Shared guidelines for AI assistants
 - `.cursorrules` - Rules for Cursor IDE
 - `.copilot-instructions.md` - Instructions for GitHub Copilot
 
@@ -410,7 +404,6 @@ Closes #123
 1. Commit your changes with a descriptive message
 1. Push to your fork
 1. Create a Pull Request with:
-
    - Clear description of changes
    - Any breaking changes noted
    - Tests for new functionality
