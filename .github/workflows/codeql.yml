@@ -300,11 +300,38 @@ jobs:
         with:
           category: /language:java-kotlin/component:${{ matrix.component }}
 
+  pick-mac-runner:
+    # Same-repo PRs may offload the SPM-heavy Swift legs to the self-hosted
+    # Mac while its heartbeat (MAC_CI) is fresh; anything else stays hosted.
+    runs-on: ubuntu-latest
+    outputs:
+      runner: ${{ steps.pick.outputs.runner }}
+    steps:
+      - id: pick
+        working-directory: ${{ runner.temp }}
+        env:
+          HEARTBEAT: ${{ vars.MAC_CI }}
+          # Owner-only: the Mac is Hyo's machine, so only Hyo's own PRs
+          # and pushes may use it; everyone else builds on hosted runners.
+          OWNER_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login == 'hyochan' && github.actor == 'hyochan' }}
+        run: |
+          runner='macos-26'
+          case "$HEARTBEAT" in
+            ''|*[!0-9]*) ;;
+            *)
+              if [ "$OWNER_PR" = "true" ] \
+                && [ $(( $(date +%s) - HEARTBEAT )) -lt 900 ]; then
+                runner='self-mac'
+              fi
+              ;;
+          esac
+          echo "runner=$runner" >> "$GITHUB_OUTPUT"
+
   analyze-swift:
     name: Analyze (swift)
-    needs: codeql-scope
+    needs: [codeql-scope, pick-mac-runner]
     if: needs.codeql-scope.outputs.swift_core == 'true'
-    runs-on: macos-26
+    runs-on: ${{ needs.pick-mac-runner.outputs.runner }}
     timeout-minutes: 45
     permissions:
       contents: read
@@ -320,6 +347,13 @@ jobs:
         with:
           xcode-version: ${{ env.XCODE_VERSION }}
 
+      # Tests run natively, before CodeQL's tracer exists: the tracer forces
+      # the x86_64 loader path, which cannot load arm64 test bundles on
+      # self-hosted Apple Silicon. Extraction only needs a traced compile.
+      - name: Test Apple core
+        working-directory: packages/apple
+        run: swift test
+
       - name: Initialize CodeQL
         uses: github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4
         with:
@@ -327,11 +361,13 @@ jobs:
           build-mode: manual
           queries: security-extended
 
-      - name: Build and test Apple core
+      # Clean so the traced build recompiles everything; a cache hit would
+      # leave the CodeQL database empty.
+      - name: Build Apple core for analysis
         working-directory: packages/apple
         run: |
           swift package clean
-          swift test
+          swift build --build-tests
 
       - name: Build KMP Swift bridge
         working-directory: libraries/kmp-iap/native/InAppPurchaseBridge
@@ -346,12 +382,17 @@ jobs:
 
   analyze-swift-wrappers:
     name: Analyze (swift / ${{ matrix.component }})
-    needs: codeql-scope
+    needs: [codeql-scope, pick-mac-runner]
     if: >-
       needs.codeql-scope.outputs.swift_wrappers == 'true' &&
       (github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository)
-    runs-on: ${{ (github.event_name == 'pull_request' || matrix.component == 'godot') && 'macos-26' || 'xcode-27' }}
+    runs-on: >-
+      ${{ github.event_name != 'pull_request'
+          && (matrix.component == 'godot' && 'macos-26' || 'xcode-27')
+          || (matrix.component == 'godot'
+              && needs.pick-mac-runner.outputs.runner
+              || 'macos-26') }}
     timeout-minutes: 90
     permissions:
       contents: read
@@ -398,6 +439,15 @@ jobs:
         uses: maxim-lobanov/setup-xcode@ed7a3b1fda3918c0306d1b724322adc0b8cc0a90 # v1
         with:
           xcode-version: "26.6"
+
+      # Native test pass before the tracer exists; see the core job's note.
+      - name: Test Godot Swift wrapper
+        if: matrix.component == 'godot'
+        working-directory: libraries/godot-iap
+        run: |
+          make setup-swiftgodot
+          cd ios-gdextension
+          swift test
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4
@@ -460,7 +510,8 @@ jobs:
         run: |
           make setup-swiftgodot
           cd ios-gdextension
-          swift test
+          swift package clean
+          swift build --build-tests
 
       - name: Analyze
         uses: github/codeql-action/analyze@ff2f1c621b7f889edc0d3c761ac2e6a3f8cdb0dd # v4

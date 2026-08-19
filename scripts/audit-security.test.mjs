@@ -593,11 +593,28 @@ test("CodeQL scopes Swift pull requests to public macOS runners", () => {
     /cancel-in-progress: \$\{\{ github\.event_name == 'pull_request' \}\}/u,
   );
   assert.match(scope, /swift_core:/u);
-  assert.match(swiftCore, /needs: codeql-scope/u);
+  assert.match(swiftCore, /needs: \[codeql-scope, pick-mac-runner\]/u);
   assert.match(
     swiftCore,
     /if: needs\.codeql-scope\.outputs\.swift_core == 'true'/u,
   );
+  assert.match(
+    swiftCore,
+    /runs-on: \$\{\{ needs\.pick-mac-runner\.outputs\.runner \}\}/u,
+  );
+  // The gate may hand a job to the self-hosted Mac only for the owner's own
+  // pull requests, and it always falls back to the hosted image.
+  const gate = workflow.slice(
+    workflow.indexOf("  pick-mac-runner:"),
+    workflow.indexOf("  analyze-swift:"),
+  );
+  assert.match(
+    gate,
+    /github\.event\.pull_request\.user\.login == 'hyochan' && github\.actor == 'hyochan'/u,
+  );
+  assert.match(gate, /github\.event_name == 'pull_request'/u);
+  assert.match(gate, /runner='macos-26'/u);
+  assert.match(gate, /-lt 900/u);
   assert.match(scope, /react-native:/u);
   assert.match(scope, /expo-onside:/u);
   assert.match(scope, /flutter:/u);
@@ -614,9 +631,15 @@ test("CodeQL scopes Swift pull requests to public macOS runners", () => {
     wrappers,
     /github\.event\.pull_request\.head\.repo\.full_name == github\.repository/u,
   );
+  // Pushes keep the xcode-27 split; PR legs stay hosted except godot, which
+  // may ride the owner-gated Mac.
   assert.match(
     wrappers,
-    /runs-on: \$\{\{ \(github\.event_name == 'pull_request' \|\| matrix\.component == 'godot'\) && 'macos-26' \|\| 'xcode-27' \}\}/u,
+    /github\.event_name != 'pull_request'\s+&& \(matrix\.component == 'godot' && 'macos-26' \|\| 'xcode-27'\)/u,
+  );
+  assert.match(
+    wrappers,
+    /\(matrix\.component == 'godot'\s+&& needs\.pick-mac-runner\.outputs\.runner\s+\|\| 'macos-26'\)/u,
   );
   assert.match(
     wrappers,
