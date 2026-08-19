@@ -38,12 +38,15 @@ const migrationGroups = [
       ],
       [
         'checkAlternativeBillingAvailabilityAndroid',
-        "isBillingProgramAvailableAndroid with the 'external-offer' BillingProgramAndroid value",
+        'isBillingProgramAvailableAndroid with the BillingProgramAndroid value your app is enrolled in',
       ],
-      ['showAlternativeBillingDialogAndroid', 'launchExternalLinkAndroid'],
+      [
+        'showAlternativeBillingDialogAndroid',
+        'showBillingProgramInformationDialogAndroid (in-app dialog); launchExternalLinkAndroid is only for external-link programs',
+      ],
       [
         'createAlternativeBillingTokenAndroid',
-        "createBillingProgramReportingDetailsAndroid with the 'external-offer' BillingProgramAndroid value",
+        'createBillingProgramReportingDetailsAndroid with the BillingProgramAndroid value your app is enrolled in',
       ],
     ],
   },
