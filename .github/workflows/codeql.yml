@@ -300,11 +300,36 @@ jobs:
         with:
           category: /language:java-kotlin/component:${{ matrix.component }}
 
+  pick-mac-runner:
+    # Same-repo PRs may offload the SPM-heavy Swift legs to the self-hosted
+    # Mac while its heartbeat (MAC_CI) is fresh; anything else stays hosted.
+    runs-on: ubuntu-latest
+    outputs:
+      runner: ${{ steps.pick.outputs.runner }}
+    steps:
+      - id: pick
+        working-directory: ${{ runner.temp }}
+        env:
+          HEARTBEAT: ${{ vars.MAC_CI }}
+          SAME_REPO: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository }}
+        run: |
+          runner='macos-26'
+          case "$HEARTBEAT" in
+            ''|*[!0-9]*) ;;
+            *)
+              if [ "$SAME_REPO" = "true" ] \
+                && [ $(( $(date +%s) - HEARTBEAT )) -lt 900 ]; then
+                runner='self-mac'
+              fi
+              ;;
+          esac
+          echo "runner=$runner" >> "$GITHUB_OUTPUT"
+
   analyze-swift:
     name: Analyze (swift)
-    needs: codeql-scope
+    needs: [codeql-scope, pick-mac-runner]
     if: needs.codeql-scope.outputs.swift_core == 'true'
-    runs-on: macos-26
+    runs-on: ${{ needs.pick-mac-runner.outputs.runner }}
     timeout-minutes: 45
     permissions:
       contents: read
@@ -346,12 +371,17 @@ jobs:
 
   analyze-swift-wrappers:
     name: Analyze (swift / ${{ matrix.component }})
-    needs: codeql-scope
+    needs: [codeql-scope, pick-mac-runner]
     if: >-
       needs.codeql-scope.outputs.swift_wrappers == 'true' &&
       (github.event_name != 'pull_request' ||
       github.event.pull_request.head.repo.full_name == github.repository)
-    runs-on: ${{ (github.event_name == 'pull_request' || matrix.component == 'godot') && 'macos-26' || 'xcode-27' }}
+    runs-on: >-
+      ${{ github.event_name != 'pull_request'
+          && (matrix.component == 'godot' && 'macos-26' || 'xcode-27')
+          || (matrix.component == 'godot'
+              && needs.pick-mac-runner.outputs.runner
+              || 'macos-26') }}
     timeout-minutes: 90
     permissions:
       contents: read
