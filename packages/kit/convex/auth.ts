@@ -6,7 +6,11 @@ import {
 } from "./ResendOTP";
 import GitHub, { type GitHubProfile } from "@auth/core/providers/github";
 import { api, internal } from "./_generated/api";
-import { EMAIL_SIGN_IN_CLOSES_ON, isEmailSignInOpen } from "./authWindow";
+import {
+  assertEmailSignInWindowOpen,
+  assertLegacyEmailAccount,
+  isResendProviderId,
+} from "./authWindow";
 
 const CustomAuth = convexAuth({
   providers: [
@@ -29,14 +33,7 @@ const CustomAuth = convexAuth({
   ],
   callbacks: {
     async createOrUpdateUser(ctx, args) {
-      // Grace period, then GitHub-only. Existing email accounts are merged by
-      // matching email on GitHub sign-in, so closing this path costs access
-      // only to someone whose GitHub email differs from their IAPKit email.
-      if (args.provider.id.startsWith("resend-otp") && !isEmailSignInOpen()) {
-        throw new Error(
-          `Email sign-in closed on ${EMAIL_SIGN_IN_CLOSES_ON} (UTC). Sign in with GitHub using the same email address.`,
-        );
-      }
+      assertEmailSignInWindowOpen(args.provider.id);
 
       // Check if user exists with the same email
       const email = args.profile.email;
@@ -66,18 +63,14 @@ const CustomAuth = convexAuth({
       );
 
       if (existingUser) {
-        // Email OTP is only for accounts that already used it; the UI gate
-        // (canSignInWithEmail) mirrors this, but the boundary enforces it.
-        if (args.provider.id.startsWith("resend-otp")) {
-          const legacy = await ctx.runQuery(
-            internal.users.internal.hasLegacyEmailAccount,
-            { userId: existingUser._id },
+        // The UI gate (canSignInWithEmail) mirrors this; the boundary enforces it.
+        if (isResendProviderId(args.provider.id)) {
+          assertLegacyEmailAccount(
+            args.provider.id,
+            await ctx.runQuery(internal.users.internal.hasLegacyEmailAccount, {
+              userId: existingUser._id,
+            }),
           );
-          if (!legacy) {
-            throw new Error(
-              "This account uses GitHub sign-in. Please continue with GitHub.",
-            );
-          }
         }
 
         // User exists - update auth user
@@ -117,7 +110,7 @@ const CustomAuth = convexAuth({
       // is created. OAuth providers (github) are exempt — that's the
       // path we want new users on.
       const providerId = args.provider.id;
-      const isResendProvider = providerId.startsWith("resend-otp");
+      const isResendProvider = isResendProviderId(providerId);
       if (isResendProvider) {
         throw new Error(
           "New email signups are disabled. Please sign in with GitHub instead.",
