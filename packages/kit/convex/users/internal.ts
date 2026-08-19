@@ -21,20 +21,26 @@ export const RESEND_PROVIDER_IDS = [
   "resend-otp-ja",
 ] as const;
 
+export async function hasAnyResendAccount(
+  findAccount: (provider: string) => Promise<object | null>,
+): Promise<boolean> {
+  for (const provider of RESEND_PROVIDER_IDS) {
+    if ((await findAccount(provider)) !== null) return true;
+  }
+  return false;
+}
+
 export const hasLegacyEmailAccount = internalQuery({
   args: { userId: v.id("users") },
-  handler: async (ctx, args) => {
-    for (const provider of RESEND_PROVIDER_IDS) {
-      const account = await ctx.db
+  handler: async (ctx, args) =>
+    hasAnyResendAccount((provider) =>
+      ctx.db
         .query("authAccounts")
         .withIndex("userIdAndProvider", (q) =>
           q.eq("userId", args.userId).eq("provider", provider),
         )
-        .first();
-      if (account) return true;
-    }
-    return false;
-  },
+        .first(),
+    ),
 });
 
 // Read budget per cron tick. We walk this many candidate users (oldest

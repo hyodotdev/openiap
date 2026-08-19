@@ -131,6 +131,13 @@ export const verifyAppStoreReceiptInternalV1 = action({
       throw error;
     }
 
+    assertVerifiedTransactionBinding({
+      requestedTransactionId: decodedPayload.transactionId,
+      requestedEnvironment: environment,
+      expectedBundleId: project.iosBundleId,
+      verified: transactionData,
+    });
+
     const remoteId =
       transactionData.originalTransactionId ||
       transactionData.transactionId ||
@@ -343,6 +350,41 @@ export async function getAppStoreServerCredentials(
     keyId: project.iosAppStoreKeyId!,
     privateKey,
   };
+}
+
+// The device JWS is decode-only (its claims are attacker-writable); Apple's
+// response is what SignedDataVerifier proves. Reject any drift between the
+// two so a tampered payload cannot select another transaction's verdict.
+export function assertVerifiedTransactionBinding(params: {
+  requestedTransactionId: unknown;
+  requestedEnvironment: string;
+  expectedBundleId: string;
+  verified: Pick<
+    AppStoreReceiptData,
+    "transactionId" | "bundleId" | "environment"
+  >;
+}): void {
+  const { requestedTransactionId, requestedEnvironment, expectedBundleId } =
+    params;
+  const verified = params.verified;
+
+  if (verified.transactionId !== requestedTransactionId) {
+    throw new AppStoreTransactionVerificationFailedError(
+      `verified transactionId ${String(verified.transactionId)} does not match the requested ${String(requestedTransactionId)}`,
+    );
+  }
+
+  if (verified.bundleId !== expectedBundleId) {
+    throw new AppStoreTransactionVerificationFailedError(
+      `verified bundleId ${String(verified.bundleId)} does not match the project's ${expectedBundleId}`,
+    );
+  }
+
+  if (verified.environment !== requestedEnvironment) {
+    throw new AppStoreTransactionVerificationFailedError(
+      `verified environment ${String(verified.environment)} does not match the requested ${requestedEnvironment}`,
+    );
+  }
 }
 
 async function verifyTransactionWithServerApi(params: {

@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { recordAppStoreVerifiedSubscription } from "./ios";
+import {
+  assertVerifiedTransactionBinding,
+  recordAppStoreVerifiedSubscription,
+} from "./ios";
 import {
   applyExpectedProductId,
   AppStoreProductType,
@@ -250,5 +253,57 @@ describe("recordAppStoreVerifiedSubscription", () => {
     });
 
     expect(calls).toHaveLength(0);
+  });
+});
+
+describe("assertVerifiedTransactionBinding", () => {
+  const verified = {
+    transactionId: "2000001177054625",
+    bundleId: "dev.hyo.martie",
+    environment: "Production" as const,
+  };
+
+  it("accepts a response matching the request on all three fields", () => {
+    expect(() =>
+      assertVerifiedTransactionBinding({
+        requestedTransactionId: "2000001177054625",
+        requestedEnvironment: "Production",
+        expectedBundleId: "dev.hyo.martie",
+        verified,
+      }),
+    ).not.toThrow();
+  });
+
+  it("rejects a transaction id drift", () => {
+    expect(() =>
+      assertVerifiedTransactionBinding({
+        requestedTransactionId: "9999999999999999",
+        requestedEnvironment: "Production",
+        expectedBundleId: "dev.hyo.martie",
+        verified,
+      }),
+    ).toThrow(/transactionId/);
+  });
+
+  it("rejects a bundle id that is not the project's", () => {
+    expect(() =>
+      assertVerifiedTransactionBinding({
+        requestedTransactionId: "2000001177054625",
+        requestedEnvironment: "Production",
+        expectedBundleId: "dev.other.app",
+        verified,
+      }),
+    ).toThrow(/bundleId/);
+  });
+
+  it("rejects an environment drift", () => {
+    expect(() =>
+      assertVerifiedTransactionBinding({
+        requestedTransactionId: "2000001177054625",
+        requestedEnvironment: "Sandbox",
+        expectedBundleId: "dev.hyo.martie",
+        verified,
+      }),
+    ).toThrow(/environment/);
   });
 });
