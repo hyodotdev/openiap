@@ -66,40 +66,9 @@ jobs:
             :example:composeApp:assembleHorizonDebug \
             :example:composeApp:assembleAmazonDebug
 
-  pick-mac-runner:
-    # Same-repo runs go to the self-hosted Mac only while its heartbeat
-    # (MAC_CI, refreshed by scripts/ci/mac-runner-heartbeat.sh) is fresh;
-    # a stale heartbeat, a fork PR, or any parse doubt falls back to cloud.
-    runs-on: ubuntu-latest
-    outputs:
-      runner: ${{ steps.pick.outputs.runner }}
-    steps:
-      - id: pick
-        # No checkout here, so the workflow's default working-directory may
-        # not exist; runner.temp always does.
-        working-directory: ${{ runner.temp }}
-        env:
-          HEARTBEAT: ${{ vars.MAC_CI }}
-          # Owner-only: the Mac is Hyo's machine, so only Hyo's own PRs
-          # and pushes may use it; everyone else builds on hosted runners.
-          OWNER_PR: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name == github.repository && github.event.pull_request.user.login == 'hyochan' && github.actor == 'hyochan' }}
-        run: |
-          runner='macos-26'
-          case "$HEARTBEAT" in
-            ''|*[!0-9]*) ;;
-            *)
-              if [ "$OWNER_PR" = "true" ] \
-                && [ $(( $(date +%s) - HEARTBEAT )) -lt 900 ]; then
-                runner='self-mac'
-              fi
-              ;;
-          esac
-          echo "runner=$runner" >> "$GITHUB_OUTPUT"
-
   ios-compile-check:
     name: iOS Compile Check
-    needs: pick-mac-runner
-    runs-on: ${{ needs.pick-mac-runner.outputs.runner }}
+    runs-on: macos-26
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7

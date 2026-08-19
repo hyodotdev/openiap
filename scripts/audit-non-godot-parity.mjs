@@ -6026,13 +6026,10 @@ function checkFrameworkDependencyHygiene() {
       `${releaseNotesWorkflow} release notes must use the release tag when it already exists`,
     );
   }
-  // ci.yml routes test-ios through the pick-mac-runner gate, so its hosted
-  // image pin lives in the gate's fallback rather than a literal runs-on.
   expectIncludes(
     ".github/workflows/ci.yml",
     [
-      "runner='macos-26'",
-      "runs-on: ${{ needs.pick-mac-runner.outputs.runner }}",
+      "runs-on: macos-26",
       "XCODE_VERSION: 26.6",
       "maxim-lobanov/setup-xcode@",
       "xcode-version: ${{ env.XCODE_VERSION }}",
@@ -6079,8 +6076,7 @@ function checkFrameworkDependencyHygiene() {
     ".github/workflows/ci-maui-iap.yml",
     [
       "app-store-artifact:",
-      "runner='macos-26'",
-      "runs-on: ${{ needs.pick-mac-runner.outputs.runner }}",
+      "runs-on: macos-26",
       'APP_STORE_XCODE_VERSION: "26.6"',
       'APP_STORE_SDK_VERSION: "26.5"',
       'APP_STORE_LD_VERSION: "1267.0"',
@@ -8988,8 +8984,7 @@ function checkXcode27StoreKitCoverage() {
       "openiap-versions.json",
       '".github/workflows/release-flutter.yml"',
       "apple-cocoapods:",
-      "runner='macos-26'",
-      "runs-on: ${{ needs.pick-mac-runner.outputs.runner }}",
+      "runs-on: macos-26",
       "XCODE_VERSION: 26.6",
       "maxim-lobanov/setup-xcode@",
       "xcode-version: ${{ env.XCODE_VERSION }}",
