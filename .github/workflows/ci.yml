@@ -299,6 +299,9 @@ jobs:
       - name: Audit CI path filters
         run: npm run audit:ci-paths
 
+      - name: Audit agent surfaces
+        run: npm run audit:agents
+
   test-gql:
     name: Test GQL Types
     runs-on: ubuntu-latest

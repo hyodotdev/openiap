@@ -10,6 +10,20 @@ Convex schema as the source of truth for purchase-validation models.
 
 For setup, operations, and deploy details, see [`README.md`](./README.md).
 
+## Production Is Read-Only For Agents
+
+`healthy-kudu-836` is the production deployment and holds real customer data.
+Never run a mutation or action against it — not from the Convex dashboard
+function runner, not from `npx convex run --prod`, not from anywhere. The
+dashboard runner reopens with the last function selected, which has included
+`drainAccountDeletionBatch`; check what is selected before running anything.
+
+Reads are fine when asked for. Report counts and aggregates rather than copying
+customer emails or other personal data anywhere. Use the dev deployment for
+anything that needs a new function.
+
+See the root `AGENTS.md` for the full guardrail.
+
 ## Naming
 
 - **Brand name in user-facing text/titles**: `IAPKit` (no space).

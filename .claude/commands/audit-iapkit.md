@@ -96,6 +96,10 @@ pages that have published URLs.
 
 Constraints that override any finding:
 
+- **Production is read-only.** Never run a mutation or action against the
+  production Convex deployment, from the dashboard runner or anywhere else, and
+  never hand-edit production documents. Reads are fine when the user asks;
+  report aggregates, not customer emails. Full rule in the root `AGENTS.md`.
 - **Webhook direction.** The only supported direction is store → IAPKit. Never
   document an IAPKit → SDK/mobile webhook, SSE, WebSocket, push relay, or
   long-poll feed. See the root `AGENTS.md`.

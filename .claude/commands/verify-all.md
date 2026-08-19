@@ -23,6 +23,7 @@ node --test scripts/release-branch-policy.test.mjs
 
 # Native build / Swift CodeQL path filters.
 bun run audit:ci-paths
+bun run audit:agents
 ```
 
 This fails if a new non-Godot library, Expo example route/product ID, generated
@@ -322,6 +323,7 @@ set -euo pipefail
 bun run audit:parity
 bun run audit:release-state
 bun run audit:ci-paths
+bun run audit:agents
 bun test \
   --path-ignore-patterns='**/build/**' \
   --path-ignore-patterns='**/.build/**' \

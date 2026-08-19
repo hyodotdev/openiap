@@ -113,6 +113,27 @@ including its stricter release-note limits.
 - **Android functions in packages/google**: NO `Android` suffix (it's Android-only)
 - **Cross-platform functions**: NO suffix
 
+### Production Data Guardrail
+
+- **Never run a mutation, action, or any write against a production
+  deployment.** This includes the Convex dashboard function runner, the Convex
+  CLI (`npx convex run --prod`), and any HTTP call to a production endpoint that
+  is not a plain read. The dashboard's runner preselects whatever function it
+  used last — which has included destructive mutations such as
+  `drainAccountDeletionBatch` — so confirm the selected function before you
+  press Run, and prefer not opening the runner at all.
+- Reading production is allowed when the user asks for it: table views, row
+  counts, logs, and health. Report aggregates and never copy customer emails or
+  other personal data into a transcript, commit, or issue.
+- Never edit, insert, or delete a document from the production data browser.
+  Schema and data changes ship through a reviewed deploy, not by hand.
+- The **dev** deployment is the place to try things. If a check genuinely needs
+  a query that is not deployed, add it to `packages/kit/convex`, exercise it on
+  dev, and let it reach production through the normal deploy.
+- If you are unsure which deployment is selected, stop and confirm. The Convex
+  dashboard shows it next to the project name, for example
+  `Production • healthy-kudu-836`.
+
 ### Webhook Direction Guardrail
 
 - The only supported webhook direction is **store → IAPKit**: Apple App Store
@@ -300,6 +321,11 @@ Cursor-specific files.
 | `$review-self`       | Review and improve current work until stable       | `$review-self` or `$review-self <PR>` |
 | `$loop-review`       | Start from current main, review, PR, and merge     | `$loop-review`                        |
 | `$rebase-main`       | Pull main and safely rebase the current branch     | `$rebase-main`                        |
+| `$generate-doc`      | Write OpenIAP docs and pre-release release notes   | `$generate-doc`                       |
+| `$add-showcase-app`  | Add apps to the "Who uses OpenIAP?" showcase       | `$add-showcase-app`                   |
+| `$opencollective-steward` | Manage OpenCollective profile and updates     | `$opencollective-steward`             |
+| `$iapkit-e2e-petgu`  | IAPKit product-sync E2E with the Petgu app         | `$iapkit-e2e-petgu`                   |
+| `$iapkit-e2e-martie` | IAPKit local receipt-validation E2E with Martie    | `$iapkit-e2e-martie`                  |
 | `/review-pr`         | Review PR comments, fix issues, resolve threads    | `/review-pr 65` or `/review-pr <url>` |
 | `/audit-code`        | Audit code against knowledge rules and latest APIs | `/audit-code`                         |
 | `/audit-security`    | Audit SBOM, provenance, and supply-chain posture   | `/audit-security`                     |
