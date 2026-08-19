@@ -6026,8 +6026,20 @@ function checkFrameworkDependencyHygiene() {
       `${releaseNotesWorkflow} release notes must use the release tag when it already exists`,
     );
   }
-  for (const xcodeReleaseWorkflow of [
+  // ci.yml routes test-ios through the pick-mac-runner gate, so its hosted
+  // image pin lives in the gate's fallback rather than a literal runs-on.
+  expectIncludes(
     ".github/workflows/ci.yml",
+    [
+      "runner='macos-15'",
+      "runs-on: ${{ needs.pick-mac-runner.outputs.runner }}",
+      "XCODE_VERSION: 16.4",
+      "maxim-lobanov/setup-xcode@",
+      "xcode-version: ${{ env.XCODE_VERSION }}",
+    ],
+    ".github/workflows/ci.yml must pin the macOS/Xcode release image",
+  );
+  for (const xcodeReleaseWorkflow of [
     ".github/workflows/release-apple.yml",
     ".github/workflows/release-kmp.yml",
   ]) {
@@ -6067,7 +6079,8 @@ function checkFrameworkDependencyHygiene() {
     ".github/workflows/ci-maui-iap.yml",
     [
       "app-store-artifact:",
-      "runs-on: macos-26",
+      "runner='macos-26'",
+      "runs-on: ${{ needs.pick-mac-runner.outputs.runner }}",
       'APP_STORE_XCODE_VERSION: "26.6"',
       'APP_STORE_SDK_VERSION: "26.5"',
       'APP_STORE_LD_VERSION: "1267.0"',
@@ -8975,7 +8988,8 @@ function checkXcode27StoreKitCoverage() {
       "openiap-versions.json",
       '".github/workflows/release-flutter.yml"',
       "apple-cocoapods:",
-      "runs-on: macos-15",
+      "runner='macos-15'",
+      "runs-on: ${{ needs.pick-mac-runner.outputs.runner }}",
       "XCODE_VERSION: 16.4",
       "maxim-lobanov/setup-xcode@",
       "xcode-version: ${{ env.XCODE_VERSION }}",

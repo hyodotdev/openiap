@@ -114,10 +114,36 @@ jobs:
       - name: Build iOS and macOS examples with SwiftPM
         run: bash scripts/verify-apple-swiftpm-consumer-build.sh
 
+  pick-mac-runner:
+    # Same-repo runs go to the self-hosted Mac only while its heartbeat
+    # (MAC_CI, refreshed by scripts/ci/mac-runner-heartbeat.sh) is fresh;
+    # a stale heartbeat, a fork PR, or any parse doubt falls back to cloud.
+    runs-on: ubuntu-latest
+    outputs:
+      runner: ${{ steps.pick.outputs.runner }}
+    steps:
+      - id: pick
+        env:
+          HEARTBEAT: ${{ vars.MAC_CI }}
+          SAME_REPO: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+        run: |
+          runner='macos-15'
+          case "$HEARTBEAT" in
+            ''|*[!0-9]*) ;;
+            *)
+              if [ "$SAME_REPO" = "true" ] \
+                && [ $(( $(date +%s) - HEARTBEAT )) -lt 900 ]; then
+                runner='self-mac'
+              fi
+              ;;
+          esac
+          echo "runner=$runner" >> "$GITHUB_OUTPUT"
+
   apple-cocoapods:
     name: iOS CocoaPods consumer (Flutter 3.44 + Xcode 16.4)
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name == github.repository
-    runs-on: macos-15
+    needs: pick-mac-runner
+    runs-on: ${{ needs.pick-mac-runner.outputs.runner }}
     timeout-minutes: 60
     env:
       XCODE_VERSION: 16.4

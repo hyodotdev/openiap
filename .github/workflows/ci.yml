@@ -402,11 +402,36 @@ jobs:
             :openiap:lintHorizonDebug \
             :openiap:lintAmazonDebug
 
+  pick-mac-runner:
+    # Same-repo runs go to the self-hosted Mac only while its heartbeat
+    # (MAC_CI, refreshed by scripts/ci/mac-runner-heartbeat.sh) is fresh;
+    # a stale heartbeat, a fork PR, or any parse doubt falls back to cloud.
+    runs-on: ubuntu-latest
+    outputs:
+      runner: ${{ steps.pick.outputs.runner }}
+    steps:
+      - id: pick
+        env:
+          HEARTBEAT: ${{ vars.MAC_CI }}
+          SAME_REPO: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
+        run: |
+          runner='macos-15'
+          case "$HEARTBEAT" in
+            ''|*[!0-9]*) ;;
+            *)
+              if [ "$SAME_REPO" = "true" ] \
+                && [ $(( $(date +%s) - HEARTBEAT )) -lt 900 ]; then
+                runner='self-mac'
+              fi
+              ;;
+          esac
+          echo "runner=$runner" >> "$GITHUB_OUTPUT"
+
   test-ios:
     name: Test iOS
-    runs-on: macos-15
-    needs: changes
+    needs: [changes, pick-mac-runner]
     if: needs.changes.outputs.ios == 'true'
+    runs-on: ${{ needs.pick-mac-runner.outputs.runner }}
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
