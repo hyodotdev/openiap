@@ -53,8 +53,7 @@ function StoreSetup() {
             <tr>
               <td>Amazon Fire OS</td>
               <td>
-                Android <code>amazon</code> flavor for Amazon Appstore builds
-                (experimental, RC packages).
+                Android <code>amazon</code> flavor for Amazon Appstore builds.
               </td>
               <td>
                 <Link to="/docs/setup/store/amazon#fire-os">
@@ -67,8 +66,7 @@ function StoreSetup() {
               <td>
                 Vega devices run apps on Amazon's Kepler JavaScript runtime
                 instead of Android; <code>react-native-iap</code> and{' '}
-                <code>expo-iap</code> switch to their Kepler adapter at runtime
-                (experimental, RC packages).
+                <code>expo-iap</code> switch to their Kepler adapter at runtime.
               </td>
               <td>
                 <Link to="/docs/setup/store/amazon#vega-os">

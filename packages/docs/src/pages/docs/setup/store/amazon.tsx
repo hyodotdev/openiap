@@ -18,10 +18,10 @@ function AmazonStoreSetup() {
         keywords="Amazon Fire OS IAP, Vega OS IAP, openiap-google-amazon, expo-iap amazon, react-native-iap Vega, Amazon Appstore SDK"
       />
       <h1>Amazon Store Setup</h1>
-      <Callout kind="important" title="Experimental RC support">
-        Fire OS and Vega OS support is available from the current{' '}
-        <code>next</code> / <code>rc</code> package versions while the
-        integration is being finalized.
+      <Callout kind="note" title="Stable support">
+        Fire OS and Vega OS support ships in the stable releases:{' '}
+        <code>react-native-iap</code> 15.4.0+, <code>expo-iap</code> 4.4.0+, and
+        the <code>openiap-google-amazon</code> artifact on Maven Central.
       </Callout>
       <p>
         Amazon distributes apps to two different device families, and OpenIAP
