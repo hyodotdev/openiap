@@ -13,6 +13,11 @@ on:
 permissions:
   contents: read
 
+# Cancel the superseded run on every PR push; main pushes always run to completion.
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 env:
   XCODE_VERSION: 16.4
 
