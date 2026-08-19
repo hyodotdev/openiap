@@ -34,3 +34,10 @@ id = "/com.amazonappstore.iap.tester@IIAPTesterUI"
 [needs]
 [[needs.module]]
 id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreService"
+
+[[needs.module]]
+id = "/com.amazon.vega.os@IVega_1_2"
+
+[os.version]
+target = "1.2"
+min = "1.2"

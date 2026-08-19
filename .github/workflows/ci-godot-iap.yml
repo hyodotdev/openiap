@@ -10,6 +10,8 @@ on:
       - "libraries/godot-iap/**"
       - "packages/gql/codegen/plugins/gdscript.ts"
       - "packages/gql/src/generated/types.gd"
+      - "openiap-versions.json"
+      - "!**/*.md"
   push:
     branches: [main, next]
     paths:
@@ -19,6 +21,8 @@ on:
       - "libraries/godot-iap/**"
       - "packages/gql/codegen/plugins/gdscript.ts"
       - "packages/gql/src/generated/types.gd"
+      - "openiap-versions.json"
+      - "!**/*.md"
 
 permissions:
   contents: read

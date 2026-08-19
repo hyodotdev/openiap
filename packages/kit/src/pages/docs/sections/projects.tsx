@@ -39,11 +39,12 @@ export default function ProjectsPage() {
       <h2 className="mt-10 text-2xl font-semibold">Creating a project</h2>
       <p>
         From the organization dashboard, open the <strong>Projects</strong> tab
-        and click <strong>New project</strong>. You supply a display name and
-        pick the client platform (React Native, Flutter, Kotlin Multiplatform,
-        native iOS / Android, web, …). The platform tag is informational — it
-        drives which setup guides the dashboard highlights; it doesn't affect
-        the verify API itself.
+        and click <strong>Create Project</strong>. Enter a{" "}
+        <strong>Project Name</strong>, optionally edit the generated{" "}
+        <strong>Project URL</strong> slug, and optionally pick a{" "}
+        <strong>Platform or Language</strong>. The platform tag is informational
+        — it drives which setup guides the dashboard highlights; it doesn't
+        affect the verify API itself.
       </p>
       <DocsScreenshot
         src="/docs/screenshots/project-create.webp"

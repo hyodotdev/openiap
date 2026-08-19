@@ -9,6 +9,7 @@ on:
       - "openiap-versions.json"
       - "scripts/ci/retry-gradle.sh"
       - ".github/workflows/ci-kmp-iap.yml"
+      - "!**/*.md"
   push:
     branches: [main, next]
     paths:
@@ -17,6 +18,7 @@ on:
       - "openiap-versions.json"
       - "scripts/ci/retry-gradle.sh"
       - ".github/workflows/ci-kmp-iap.yml"
+      - "!**/*.md"
 
 permissions:
   contents: read

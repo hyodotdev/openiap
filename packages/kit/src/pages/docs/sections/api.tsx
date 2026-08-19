@@ -144,8 +144,8 @@ export default function ApiReferencePage() {
       </CodeBlock>
 
       <p>
-        Grant or fulfill only when <code>isValid === true</code>, the harmonized
-        <code>state</code> permits that operation, and the store-verified
+        Grant or fulfill only when <code>isValid === true</code>, the harmonized{" "}
+        <code>state</code> permits that operation, and the store-verified{" "}
         <code>productId</code> is present and matches the product your app
         expected. For Meta Horizon, <code>productId</code> is the SKU IAPKit
         checked. Amazon responses also identify the server-selected{" "}
@@ -433,10 +433,12 @@ async function refreshEntitlements(
         <code>originalTransactionId</code> explicitly.
       </p>
       <p>
-        Administrative subscription endpoints use{" "}
-        <code>Authorization: Bearer openiap-kit_sk_...</code>. Compatibility
-        routes with a key in the path remain available, but new server-side and
-        MCP integrations should keep secret keys out of URLs.
+        Administrative subscription endpoints require{" "}
+        <code>Authorization: Bearer openiap-kit_sk_...</code>. IAPKit never
+        accepts a secret key in a URL — a secret key in a path returns{" "}
+        <code>410 SECRET_API_KEY_IN_URL</code>. The compatibility routes that
+        keep a key in the path accept publishable keys only, for SDK runtimes
+        that strip request headers.
       </p>
       <CodeBlock title="iOS subscription row" language="json">
         {`{
@@ -450,7 +452,7 @@ async function refreshEntitlements(
         that explicitly ask for a JWS. Do not log or publish JWS values.
       </p>
 
-      <div className="my-4 overflow-hidden rounded-lg border border-border">
+      <div className="my-4 overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">
           <thead className="bg-muted/40">
             <tr>
@@ -557,7 +559,7 @@ async function refreshEntitlements(
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Status codes</h2>
-      <div className="my-4 overflow-hidden rounded-lg border border-border">
+      <div className="my-4 overflow-x-auto rounded-lg border border-border">
         <table className="w-full text-sm">
           <thead className="bg-muted/40">
             <tr>
@@ -706,6 +708,13 @@ async function refreshEntitlements(
             className="text-primary underline"
           >
             Horizon
+          </Link>
+          ,{" "}
+          <Link
+            to="/docs/verification/amazon"
+            className="text-primary underline"
+          >
+            Amazon
           </Link>{" "}
           — per-store error codes and edge cases.
         </li>

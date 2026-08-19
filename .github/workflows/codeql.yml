@@ -45,27 +45,53 @@ jobs:
         id: core
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         with:
+          # Without this, '!' patterns are OR-ed positives that match nearly everything.
+          predicate-quantifier: some-with-excludes
           filters: |
             swift_core:
               - 'packages/apple/**'
               - 'libraries/kmp-iap/native/InAppPurchaseBridge/**'
+              - 'libraries/kmp-iap/openiap-versions.json'
+              - 'openiap-versions.json'
+              - '.github/workflows/codeql.yml'
+              - '!**/*.md'
 
       - name: Detect Swift wrapper changes
         if: github.event_name == 'pull_request'
         id: wrappers
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         with:
+          predicate-quantifier: some-with-excludes
           filters: |
             react-native:
               - 'libraries/react-native-iap/**'
+              - 'libraries-versions.jsonc'
+              - 'openiap-versions.json'
+              - '.github/workflows/codeql.yml'
+              - '!**/*.md'
             expo:
               - 'libraries/expo-iap/**'
+              - 'libraries-versions.jsonc'
+              - 'openiap-versions.json'
+              - '.github/workflows/codeql.yml'
+              - '!**/*.md'
             expo-onside:
               - 'libraries/expo-iap/**'
+              - 'libraries-versions.jsonc'
+              - 'openiap-versions.json'
+              - '.github/workflows/codeql.yml'
+              - '!**/*.md'
             flutter:
               - 'libraries/flutter_inapp_purchase/**'
+              - 'libraries-versions.jsonc'
+              - 'openiap-versions.json'
+              - '.github/workflows/codeql.yml'
+              - '!**/*.md'
             godot:
               - 'libraries/godot-iap/**'
+              - 'openiap-versions.json'
+              - '.github/workflows/codeql.yml'
+              - '!**/*.md'
 
   analyze:
     name: Analyze (${{ matrix.language }})

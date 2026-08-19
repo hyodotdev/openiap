@@ -13,7 +13,7 @@ export default function CodexPluginPage() {
     >
       <p>
         The OpenIAP Codex plugin connects Codex to this IAPKit project through
-        the hosted <code>/mcp</code> endpoint. Use this page for the Kit-local
+        the hosted <code>/mcp</code> endpoint. Use this page for the IAPKit
         endpoint and key details; use the OpenIAP MCP Server guide for the full
         installation flow, local PR testing, tool list, safety rules, and
         Example App walkthrough.

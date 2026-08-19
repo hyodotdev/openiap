@@ -9,9 +9,11 @@ on:
       - "packages/apple/Sources/**"
       - "packages/apple/Package.swift"
       - "openiap-versions.json"
+      - "libraries-versions.jsonc"
       - "codecov.yml"
       - ".github/workflows/ci-flutter-inapp-purchase.yml"
       - ".github/workflows/release-flutter.yml"
+      - "!**/*.md"
   push:
     branches: [main, next]
     paths:
@@ -20,9 +22,11 @@ on:
       - "packages/apple/Sources/**"
       - "packages/apple/Package.swift"
       - "openiap-versions.json"
+      - "libraries-versions.jsonc"
       - "codecov.yml"
       - ".github/workflows/ci-flutter-inapp-purchase.yml"
       - ".github/workflows/release-flutter.yml"
+      - "!**/*.md"
 
 permissions:
   contents: read

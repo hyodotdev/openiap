@@ -896,6 +896,8 @@ describe('vega project generation', () => {
     expect(manifest).toContain(
       'id = "/com.amazon.kepler.appstore.iap.purchase.core@IAppstoreIAPPurchaseCoreService"',
     );
+    expect(manifest).toContain('id = "/com.amazon.vega.os@IVega_1_2"');
+    expect(manifest).toContain('[os.version]\ntarget = "1.2"\nmin = "1.2"');
     expect(createVegaEntryPoint()).toContain(
       'AppRegistry.registerComponent(appName, () => App);',
     );

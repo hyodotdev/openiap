@@ -50,7 +50,7 @@ export default function AiAssistantsPage() {
                 Scannable quick reference: auth, endpoints, request shapes,
                 response headers, status codes, docs link map.
               </td>
-              <td className="px-3 py-2 text-muted-foreground">~3 KB</td>
+              <td className="px-3 py-2 text-muted-foreground">~14 KB</td>
             </tr>
             <tr>
               <td className="px-3 py-2">
@@ -68,19 +68,19 @@ export default function AiAssistantsPage() {
                 table, error body shape, structured log line, retry policy,
                 Sentry config, Convex data model, deployment.
               </td>
-              <td className="px-3 py-2 text-muted-foreground">~9 KB</td>
+              <td className="px-3 py-2 text-muted-foreground">~25 KB</td>
             </tr>
           </tbody>
         </table>
       </div>
 
-      <Callout kind="tip" title="Why this exists">
+      <Callout kind="tip" title="Cheaper than crawling the repo">
         <p>
-          The IAPKit repository is private, which normally prevents
-          code-assistants from reasoning about it. Serving the reference as
-          plain text at a stable URL means any LLM-powered editor (Claude Code,
-          Cursor, Zed, Continue, etc.) that supports URL loaders can still pull
-          in accurate context without repo access.
+          IAPKit is open source, but pointing an assistant at the monorepo costs
+          a lot of tokens to answer a one-line API question. Serving a condensed
+          reference as plain text at a stable URL lets any LLM-powered editor
+          (Claude Code, Cursor, Zed, Continue, etc.) that supports URL loaders
+          pull accurate context in one fetch.
         </p>
       </Callout>
 
@@ -105,7 +105,7 @@ export default function AiAssistantsPage() {
         >
           Claude Code plugin guide
         </Link>{" "}
-        for the setup flow, self-hosted option, and tool list.
+        for the IAPKit endpoint and key details.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Using the files</h2>

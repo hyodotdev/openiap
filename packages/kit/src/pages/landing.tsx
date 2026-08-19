@@ -51,7 +51,7 @@ export default function LandingPage() {
               style={{ lineHeight: "1.2" }}
             >
               <span className="block opacity-0 animate-fade-in-up animation-delay-100">
-                <span className="block">{"Open IAP foundation for your"}</span>
+                <span className="block">{"OpenIAP foundation for your"}</span>
                 <span className="block relative overflow-hidden h-[1.3em] min-w-[200px] md:min-w-[300px] lg:min-w-[400px]">
                   <span
                     key={currentIndex}
@@ -136,7 +136,7 @@ export default function LandingPage() {
               </h3>
               <p className="text-muted-foreground break-words">
                 {
-                  "We contact each supported store, verify authoritative purchase state, and flag risky transactions before you deliver the item."
+                  "We contact each supported store, verify authoritative purchase state, and return a single isValid answer before you deliver the item."
                 }
               </p>
             </div>

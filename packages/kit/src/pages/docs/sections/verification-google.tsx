@@ -136,10 +136,28 @@ export default function VerificationGooglePage() {
         Both v2 calls are wrapped in a 3-attempt exponential-backoff retry
         (200ms base, 2s cap, full jitter). The retry fires on HTTP 5xx and Node
         network errors (<code>ECONNRESET</code>, <code>ETIMEDOUT</code>,{" "}
-        <code>EAI_AGAIN</code>, …). 4xx responses — including 404 ("not a
-        product") and 410 ("token no longer valid") — are <strong>not</strong>{" "}
-        retried because re-issuing the call won't help and would only waste
-        quota.
+        <code>EAI_AGAIN</code>, …). A 404 from the product lookup is not an
+        error — it just means the token is a subscription, so IAPKit falls
+        through to <code>subscriptionsv2</code>. When neither catalog knows the
+        token, IAPKit retries the whole pair up to 3 times over roughly 750 ms,
+        because a purchase verified within a second of completing can still be
+        propagating inside Play. Every other 4xx response, including 410 ("token
+        no longer valid"), is <strong>not</strong> retried because re-issuing
+        the call won't help and would only waste quota.
+      </p>
+
+      <h2 className="mt-10 text-2xl font-semibold">
+        Negative verdicts that return 200
+      </h2>
+      <p>
+        Not every rejection is an error. A revoked or purged token (Play 410)
+        returns <code>200</code> with <code>isValid: false</code> and{" "}
+        <code>state: UNKNOWN</code> — Google returns the same 410 for a token it
+        never issued and for a subscription purged 60 days after expiry, so
+        IAPKit cannot distinguish them; do not retry it. A token that belongs to
+        a different package returns <code>200</code> with{" "}
+        <code>isValid: false</code> and <code>state: INAUTHENTIC</code>. Gate
+        entitlement on <code>isValid</code>, not on the HTTP status.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Error codes</h2>
@@ -162,20 +180,12 @@ export default function VerificationGooglePage() {
             </tr>
             <tr>
               <td className="px-3 py-2 font-mono text-xs">
-                PLAY_STORE_PURCHASE_NOT_FOUND
+                PLAY_STORE_VERIFICATION_ERROR
               </td>
               <td className="px-3 py-2">
-                Token doesn't resolve to a product or subscription — usually a
-                replay or a subscription purged after 60 days of inactivity.
-              </td>
-            </tr>
-            <tr>
-              <td className="px-3 py-2 font-mono text-xs">
-                PLAY_STORE_PURCHASE_VERIFICATION_FAILED
-              </td>
-              <td className="px-3 py-2">
-                Auth failure, permission mismatch, or Google returned a shape
-                IAPKit couldn't interpret.
+                Every store-side failure after credentials load: token not
+                found, auth or permission failure, or a response IAPKit could
+                not interpret. The originating reason is in the message.
               </td>
             </tr>
             <tr>

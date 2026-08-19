@@ -14,7 +14,7 @@ export default function QuickstartPage() {
     >
       <h2 className="mt-8 text-2xl font-semibold">1. Create your account</h2>
       <p>
-        Sign in with GitHub or email OTP on{" "}
+        Sign in with GitHub on{" "}
         <a
           href="https://kit.openiap.dev"
           className="text-primary underline"
@@ -23,15 +23,16 @@ export default function QuickstartPage() {
         >
           kit.openiap.dev
         </a>
-        . The onboarding flow asks you to name your first organization before
-        opening its dashboard. The hosted service is free under fair-use
-        safeguards on shared community infrastructure; no plan or credit card is
-        required.
+        . New accounts are created through GitHub; email one-time codes work
+        only for accounts created before April 2026. The onboarding flow asks
+        you to name your first organization before opening its dashboard. The
+        hosted service is free under fair-use safeguards on shared community
+        infrastructure; no plan or credit card is required.
       </p>
       <DocsScreenshot
         src="/docs/screenshots/signup.webp"
         alt="IAPKit sign-in page"
-        caption="Sign in with GitHub or email OTP. New accounts land in the onboarding flow."
+        caption="Continue with GitHub. New accounts land in the onboarding flow."
       />
 
       <h2 className="mt-10 text-2xl font-semibold">2. Create a project</h2>

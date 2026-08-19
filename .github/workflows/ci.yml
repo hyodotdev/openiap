@@ -153,6 +153,8 @@ jobs:
         uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
         id: filter
         with:
+          # Without this, '!' patterns are OR-ed positives that match nearly everything.
+          predicate-quantifier: some-with-excludes
           filters: |
             gql:
               - 'packages/gql/**'
@@ -163,18 +165,21 @@ jobs:
               - 'openiap-versions.json'
               - '.github/workflows/ci.yml'
               - 'libraries/maui-iap/src/OpenIap.Maui/Types.cs'
+              - '!**/*.md'
             android:
               - 'packages/google/**'
               - 'packages/gql/**'
               - 'scripts/**'
               - 'openiap-versions.json'
               - '.github/workflows/ci.yml'
+              - '!**/*.md'
             ios:
               - 'packages/apple/**'
               - 'packages/gql/**'
               - 'scripts/**'
               - 'openiap-versions.json'
               - '.github/workflows/ci.yml'
+              - '!**/*.md'
             docs:
               - 'packages/docs/**'
               - 'packages/gql/src/generated/**'
@@ -290,6 +295,9 @@ jobs:
 
       - name: Run IAPKit spec contract audit
         run: node scripts/audit-kit-spec-contract.mjs
+
+      - name: Audit CI path filters
+        run: npm run audit:ci-paths
 
   test-gql:
     name: Test GQL Types

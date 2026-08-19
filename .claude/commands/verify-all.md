@@ -20,6 +20,9 @@ bun run audit:parity
 # Stable main / prerelease next branch contract.
 bun run audit:release-state
 node --test scripts/release-branch-policy.test.mjs
+
+# Native build / Swift CodeQL path filters.
+bun run audit:ci-paths
 ```
 
 This fails if a new non-Godot library, Expo example route/product ID, generated
@@ -318,6 +321,7 @@ set -euo pipefail
 (cd scripts/agent && bun run compile:ai && bun test && bun run typecheck)
 bun run audit:parity
 bun run audit:release-state
+bun run audit:ci-paths
 bun test \
   --path-ignore-patterns='**/build/**' \
   --path-ignore-patterns='**/.build/**' \

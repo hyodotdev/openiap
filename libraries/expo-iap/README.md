@@ -5,11 +5,11 @@
   
   [![Version](http://img.shields.io/npm/v/expo-iap.svg?style=flat-square)](https://npmjs.org/package/expo-iap) [![Download](http://img.shields.io/npm/dm/expo-iap.svg?style=flat-square)](https://npmjs.org/package/expo-iap) [![OpenIAP](https://img.shields.io/badge/OpenIAP-Compliant-green?style=flat-square)](https://openiap.dev) [![CI](https://github.com/hyodotdev/openiap/actions/workflows/ci-expo-iap.yml/badge.svg?branch=main)](https://github.com/hyodotdev/openiap/actions/workflows/ci-expo-iap.yml?query=branch%3Amain) [![codecov](https://codecov.io/gh/hyodotdev/openiap/branch/main/graph/badge.svg?component=expo-iap)](https://app.codecov.io/gh/hyodotdev/openiap/tree/main/libraries/expo-iap) [![FOSSA Status](https://app.fossa.com/api/projects/git%2Bgithub.com%2Fhyochan%2Fexpo-iap.svg?type=shield&issueType=license)](https://app.fossa.com/projects/git%2Bgithub.com%2Fhyochan%2Fexpo-iap?ref=badge_shield&issueType=license)
   
-Expo IAP is a powerful in-app purchase solution for Expo and React Native applications that conforms to the Open IAP specification. It provides a unified API for handling in-app purchases across iOS and Android platforms with comprehensive error handling and modern TypeScript support.
+Expo IAP is a powerful in-app purchase solution for Expo and React Native applications that conforms to the OpenIAP specification. It provides a unified API for handling in-app purchases across iOS and Android platforms with comprehensive error handling and modern TypeScript support.
 
 If you're shipping an app with expo-iap, we’d love to hear about it—please share your product and feedback in [expo-iap Q&A Discussions](https://github.com/hyodotdev/openiap/discussions/categories/expo-iap). Community stories help us keep improving the ecosystem.
 
-<a href="https://openiap.dev"><img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/logo.webp" alt="Open IAP" height="40" /></a>
+<a href="https://openiap.dev"><img src="https://raw.githubusercontent.com/hyodotdev/openiap/main/logo.webp" alt="OpenIAP" height="40" /></a>
 
 </div>
 

@@ -199,12 +199,12 @@ function Rail({
   variant,
   label,
 }: {
-  variant: 'a' | 'b' | 'bypass' | 'iapkit';
-  label: string;
+  variant: 'a' | 'b' | 'bypass' | 'iapkit' | 'iapkit-core';
+  label?: string;
 }) {
   return (
     <div className={`eco-rail eco-rail--${variant}`} aria-hidden="true">
-      <span className="eco-rail-label">{label}</span>
+      {label ? <span className="eco-rail-label">{label}</span> : null}
     </div>
   );
 }
@@ -336,6 +336,7 @@ function EcosystemDiagram() {
           </div>
         </section>
 
+        <Rail variant="iapkit-core" />
         <Rail variant="iapkit" label="optional backend" />
 
         <section
@@ -356,7 +357,8 @@ function EcosystemDiagram() {
         native packages <em>and</em> for every framework library, and the core
         packages are bundled into each library. <strong>IAPKit</strong> is the
         optional hosted layer for purchase verification, entitlements, store
-        notifications, and product operations. Select any node to open its
+        notifications, and product operations, and the core packages can use it
+        directly without a framework library. Select any node to open its
         documentation or project.
       </figcaption>
     </figure>

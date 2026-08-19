@@ -7447,6 +7447,7 @@ function checkFrameworkDependencyHygiene() {
       "libraries/expo-iap/plugin/src/withVega.ts",
       "libraries/expo-iap/example/vega/package.json",
       "libraries/react-native-iap/example/vega/package.json",
+      "packages/docs/src/pages/docs/setup/store/amazon.tsx",
     ]) {
       expectIncludes(
         vegaDependencyFile,
@@ -7464,6 +7465,18 @@ function checkFrameworkDependencyHygiene() {
       ["^0.0.7"],
       "Expo Vega plugin must install the current compatibility Metro config",
     );
+    for (const vegaManifestFile of [
+      "libraries/expo-iap/plugin/src/withVega.ts",
+      "libraries/expo-iap/example/scripts/vega-build-config.mjs",
+      "libraries/react-native-iap/example/manifest.toml",
+      "packages/docs/src/pages/docs/setup/store/amazon.tsx",
+    ]) {
+      expectIncludes(
+        vegaManifestFile,
+        ["/com.amazon.vega.os@IVega_1_2", "[os.version]"],
+        "Vega manifests must declare the OS module and version required since Vega SDK 0.24",
+      );
+    }
     expectOptionalIncludes(
       "libraries/expo-iap/example/android/settings.gradle",
       [

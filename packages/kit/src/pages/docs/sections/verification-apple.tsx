@@ -12,11 +12,13 @@ export default function VerificationApplePage() {
     >
       <p>
         Apple verification uses a signed JWS transaction produced by StoreKit 2
-        on the device. IAPKit verifies the signature against Apple's root CA,
-        then calls the App Store Server API with your project's <code>.p8</code>{" "}
-        key to pull the transaction's current state (refund, revocation, grace
-        period). Both steps are required to catch refunds issued after the
-        purchase.
+        on the device. IAPKit decodes the JWS to read its transaction id, bundle
+        id, and environment, then calls the App Store Server API with your
+        project's <code>.p8</code> key and cryptographically verifies the signed
+        transaction Apple returns against Apple's root CA. The device's copy of
+        the JWS is only a lookup key — the authoritative record is the one Apple
+        signs in its response, which is what catches refunds and revocations
+        issued after the purchase.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">What you'll need</h2>
@@ -87,9 +89,11 @@ export default function VerificationApplePage() {
         <p>
           IAPKit reads the JWS <code>environment</code> field off the decoded
           payload, so the same project can verify both sandbox and production
-          receipts without a toggle. Just make sure the App Apple ID is set
-          before you go to production — the JWS signature is bound to it for
-          production-environment receipts.
+          receipts without a toggle. Set the App Apple ID before you ship to
+          production — a production-environment JWS is rejected with{" "}
+          <code>PROJECT_APP_STORE_APPLE_ID_NOT_CONFIGURED</code> before IAPKit
+          contacts Apple, because Apple's verification library refuses to run in
+          the production environment without it. Sandbox does not need it.
         </p>
       </Callout>
 
@@ -111,11 +115,11 @@ export default function VerificationApplePage() {
 
       <h2 className="mt-10 text-2xl font-semibold">How refunds are detected</h2>
       <p>
-        After verifying the JWS signature, IAPKit calls the App Store Server
-        API's <code>getTransactionInfo</code> endpoint to fetch the current
-        state of that transaction — signature-valid means "the purchase once
-        happened"; <code>getTransactionInfo</code> tells you if it's still valid
-        right now. No extra flag on the request is required.
+        IAPKit calls the App Store Server API's <code>getTransactionInfo</code>{" "}
+        endpoint to fetch the current state of that transaction — the device's
+        JWS only proves a purchase once existed; <code>getTransactionInfo</code>{" "}
+        tells you if it's still valid right now. No extra flag on the request is
+        required.
       </p>
 
       <p>For an active transaction, the decoded JWS payload looks like:</p>

@@ -166,7 +166,7 @@ X-RateLimit-Remaining: 599`}
       <h2 className="mt-10 text-2xl font-semibold">/health endpoint</h2>
       <p>
         <code>GET /health</code> returns public service, API contract version,
-        deployment revision, environment, and response-time metadata without
+        deployment revision, environment, and a response timestamp without
         hitting Convex or any external store. Point Fly.io readiness / liveness
         probes at it; point your own uptime monitors at it too. The response
         uses <code>Cache-Control: no-store</code> and remains intentionally
@@ -204,12 +204,13 @@ X-RateLimit-Remaining: 599`}
 
       <h2 className="mt-10 text-2xl font-semibold">Outbound retries</h2>
       <p>
-        Calls to Google Play's Android Publisher API and Meta Graph API are
-        wrapped in an exponential-backoff retry (max 3 attempts, base 200 ms,
-        cap 2 s, full jitter) that fires on HTTP 5xx and Node network errors (
-        <code>ECONNRESET</code>, <code>ETIMEDOUT</code>, <code>EAI_AGAIN</code>,
-        …). 4xx responses — including 404 and 410, which are deterministic — are{" "}
-        <strong>not</strong> retried.
+        Calls to Apple's App Store Server API, Google Play's Android Publisher
+        API, Amazon RVS, and the Meta Graph API are wrapped in an
+        exponential-backoff retry (max 3 attempts, base 200 ms, cap 2 s,
+        jittered to 50–100% of the capped delay) that fires on HTTP 5xx and Node
+        network errors (<code>ECONNRESET</code>, <code>ETIMEDOUT</code>,{" "}
+        <code>EAI_AGAIN</code>, …). 4xx responses — including 404 and 410, which
+        are deterministic — are <strong>not</strong> retried.
       </p>
 
       <h2 className="mt-10 text-2xl font-semibold">Sentry</h2>

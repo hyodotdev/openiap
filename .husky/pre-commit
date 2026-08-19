@@ -61,6 +61,13 @@ echo "🔎 IAPKit spec contract audit — running CI mirror…"
 node --test scripts/audit-kit-spec-contract.test.mjs
 node scripts/audit-kit-spec-contract.mjs
 
+# Path filters gate native builds; a filter edit must not silently skip them.
+if git diff --cached --name-only --diff-filter=ACMR \
+  | grep -qE '^(\.github/workflows/|scripts/audit-ci-path-filters(\.test)?\.mjs$)'; then
+  echo "🧭 CI path filter audit…"
+  bun run audit:ci-paths
+fi
+
 # Paths-aware kit pre-commit gate. Only runs when staged changes touch
 # packages/kit/**, so unrelated edits to apple/google/gql/docs/libraries
 # aren't blocked.
