@@ -411,6 +411,9 @@ jobs:
       runner: ${{ steps.pick.outputs.runner }}
     steps:
       - id: pick
+        # No checkout here, so the workflow's default working-directory may
+        # not exist; runner.temp always does.
+        working-directory: ${{ runner.temp }}
         env:
           HEARTBEAT: ${{ vars.MAC_CI }}
           SAME_REPO: ${{ github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository }}
