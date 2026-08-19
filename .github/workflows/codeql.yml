@@ -395,6 +395,8 @@ jobs:
     permissions:
       contents: read
       security-events: write
+    env:
+      LANG: en_US.UTF-8
     strategy:
       fail-fast: false
       matrix:
@@ -412,11 +414,23 @@ jobs:
           node-version: 20
 
       - name: Setup Ruby
-        if: matrix.component == 'react-native'
+        if: >-
+          matrix.component == 'react-native' &&
+          needs.pick-mac-runner.outputs.runner != 'self-mac'
         uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
         with:
           ruby-version: "3.3"
           working-directory: libraries/react-native-iap/example
+
+      # setup-ruby hard-codes /Users/runner, which does not exist on the
+      # self-hosted Mac; its Homebrew Ruby already satisfies the Gemfile.
+      - name: Use Homebrew Ruby (self-mac)
+        if: >-
+          matrix.component == 'react-native' &&
+          needs.pick-mac-runner.outputs.runner == 'self-mac'
+        run: |
+          echo "/opt/homebrew/opt/ruby/bin" >> "$GITHUB_PATH"
+          echo "$(/opt/homebrew/opt/ruby/bin/gem environment gemdir)/bin" >> "$GITHUB_PATH"
 
       - name: Setup Bun
         if: startsWith(matrix.component, 'expo')
