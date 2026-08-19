@@ -390,9 +390,7 @@ jobs:
     runs-on: >-
       ${{ github.event_name != 'pull_request'
           && (matrix.component == 'godot' && 'macos-26' || 'xcode-27')
-          || (matrix.component == 'godot'
-              && needs.pick-mac-runner.outputs.runner
-              || 'macos-26') }}
+          || needs.pick-mac-runner.outputs.runner }}
     timeout-minutes: 90
     permissions:
       contents: read

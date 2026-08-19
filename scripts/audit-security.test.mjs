@@ -639,7 +639,7 @@ test("CodeQL scopes Swift pull requests to public macOS runners", () => {
   );
   assert.match(
     wrappers,
-    /\(matrix\.component == 'godot'\s+&& needs\.pick-mac-runner\.outputs\.runner\s+\|\| 'macos-26'\)/u,
+    /\|\| needs\.pick-mac-runner\.outputs\.runner \}\}/u,
   );
   assert.match(
     wrappers,
