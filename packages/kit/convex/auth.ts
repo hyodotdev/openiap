@@ -6,6 +6,7 @@ import {
 } from "./ResendOTP";
 import GitHub, { type GitHubProfile } from "@auth/core/providers/github";
 import { api, internal } from "./_generated/api";
+import { EMAIL_SIGN_IN_CLOSES_ON, isEmailSignInOpen } from "./authWindow";
 
 const CustomAuth = convexAuth({
   providers: [
@@ -28,6 +29,15 @@ const CustomAuth = convexAuth({
   ],
   callbacks: {
     async createOrUpdateUser(ctx, args) {
+      // Grace period, then GitHub-only. Existing email accounts are merged by
+      // matching email on GitHub sign-in, so closing this path costs access
+      // only to someone whose GitHub email differs from their IAPKit email.
+      if (args.provider.id.startsWith("resend-otp") && !isEmailSignInOpen()) {
+        throw new Error(
+          `Email sign-in closed on ${EMAIL_SIGN_IN_CLOSES_ON}. Sign in with GitHub using the same email address.`,
+        );
+      }
+
       // Check if user exists with the same email
       const email = args.profile.email;
       const profileName =
