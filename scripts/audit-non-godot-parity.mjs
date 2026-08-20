@@ -6029,6 +6029,8 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     ".github/workflows/ci.yml",
     [
+      "runs-on: macos-26",
+      "XCODE_VERSION: 26.6",
       "maxim-lobanov/setup-xcode@",
       "xcode-version: ${{ env.XCODE_VERSION }}",
     ],
@@ -6041,6 +6043,8 @@ function checkFrameworkDependencyHygiene() {
     expectIncludes(
       xcodeReleaseWorkflow,
       [
+        "runs-on: macos-26",
+        "XCODE_VERSION: 26.6",
         "maxim-lobanov/setup-xcode@",
         "xcode-version: ${{ env.XCODE_VERSION }}",
       ],
@@ -6056,6 +6060,8 @@ function checkFrameworkDependencyHygiene() {
     ".github/workflows/release-expo.yml",
     [
       "Expo SDK 57's expo-modules-jsi package declares Swift tools 6.2",
+      "runs-on: macos-26",
+      'XCODE_VERSION: "26.6"',
       "maxim-lobanov/setup-xcode@",
       "xcode-version: ${{ env.XCODE_VERSION }}",
     ],
@@ -6070,6 +6076,8 @@ function checkFrameworkDependencyHygiene() {
     ".github/workflows/ci-maui-iap.yml",
     [
       "app-store-artifact:",
+      "runs-on: macos-26",
+      'APP_STORE_XCODE_VERSION: "26.6"',
       'APP_STORE_SDK_VERSION: "26.5"',
       'APP_STORE_LD_VERSION: "1267.0"',
       "maxim-lobanov/setup-xcode@",
@@ -6082,6 +6090,8 @@ function checkFrameworkDependencyHygiene() {
   expectIncludes(
     ".github/workflows/release-maui.yml",
     [
+      "runs-on: macos-26",
+      'APP_STORE_XCODE_VERSION: "26.6"',
       'APP_STORE_SDK_VERSION: "26.5"',
       'APP_STORE_LD_VERSION: "1267.0"',
       "maxim-lobanov/setup-xcode@",
@@ -8974,6 +8984,8 @@ function checkXcode27StoreKitCoverage() {
       "openiap-versions.json",
       '".github/workflows/release-flutter.yml"',
       "apple-cocoapods:",
+      "runs-on: macos-26",
+      "XCODE_VERSION: 26.6",
       "maxim-lobanov/setup-xcode@",
       "xcode-version: ${{ env.XCODE_VERSION }}",
     ],

@@ -49,8 +49,12 @@ unless the stray file is the intended new value.
 | API surface parity across languages | `scripts/audit-non-godot-parity.mjs`          |
 | Change→job routing                  | `scripts/audit-ci-path-filters.mjs`           |
 
-The fact graph holds scalar declarations only. A fact pinned here must not
-also be pinned as a parity-audit needle — one owner per fact.
+The fact graph holds scalar declarations only, and it is deliberately
+**additive**: it changes no existing guard. Where a parity-audit needle pins
+the same scalar today, both guards run — they cannot contradict each other,
+since both compare against the same files, but a bump touches both until the
+consolidation phase below. Removing the single CI step disables the whole
+system; nothing else depends on it.
 
 ## Authoring rules
 
@@ -73,7 +77,8 @@ declaration means anything. Semantic validity stays with tests and e2e.
 
 1. **Done** — toolchain facts (Xcode, macOS image, JDK, Bun, Godot) plus the
    Example-project derivation.
-2. Absorb parity-audit needles that assert scalar pins, shrinking
-   `audit-non-godot-parity.mjs` toward behavior-only assertions.
+2. Consolidate: move parity-audit needles that assert scalar pins into the
+   registry, shrinking `audit-non-godot-parity.mjs` toward behavior-only
+   assertions. Opt-in, after the registry has caught real drift in practice.
 3. Derive CI path-filter expectations from a package→path→job edge list
    instead of asserting them post hoc.
