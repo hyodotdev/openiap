@@ -175,7 +175,7 @@ macos-build:
 		printf '%s\n' '[configuration]'; \
 		printf '%s\n' 'entry_symbol = "godot_iap_entry_point"'; \
 		printf '%s\n' 'compatibility_minimum = "4.3"'; \
-		printf '%s\n' 'supported_platforms = ["ios", "macos"]'; \
+		printf '%s\n' 'include_tags = ["ios", "macos"]'; \
 		printf '\n%s\n' '[libraries]'; \
 		printf '%s\n' 'ios.arm64 = "ios/GodotIap.framework/GodotIap"'; \
 		printf '%s\n' 'macos.arm64 = "macos/GodotIap.framework/GodotIap"'; \
