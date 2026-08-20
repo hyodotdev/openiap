@@ -75,8 +75,11 @@ jobs:
       - name: Verify GDExtension platform gating
         run: |
           EXT=addons/godot-iap/bin/godot_iap.gdextension
+          RELEASE=$GITHUB_WORKSPACE/.github/workflows/release-godot.yml
           grep -qx 'include_tags = \["ios", "macos"\]' "$EXT"
           grep -q "printf '%s\\\\n' 'include_tags = \[\"ios\", \"macos\"\]'" Makefile
+          grep -qF 'include_tags = ["ios", "macos"]' "$RELEASE"
+          grep -qF 'include_tags = ["ios"]' "$RELEASE"
           if git -C "$GITHUB_WORKSPACE" grep -nE 'supported_platforms[[:space:]]*=' \
             -- . ':!libraries/godot-iap/SwiftGodot'; then
             echo "supported_platforms is not a Godot .gdextension key; use include_tags"
