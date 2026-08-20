@@ -29,7 +29,8 @@
     "version:bump": "bun scripts/bump-version.mjs",
     "deploy": "./scripts/deploy.sh",
     "deploy:kit": "cd packages/kit && npx convex deploy",
-    "prepare": "husky"
+    "prepare": "husky",
+    "audit:release-sync": "node --test scripts/audit-release-sync-script.test.mjs && node scripts/audit-release-sync-script.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",

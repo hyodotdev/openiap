@@ -45,9 +45,13 @@ jobs:
       - name: Test release automation
         run: >-
           node --test scripts/release-branch-policy.test.mjs
+          scripts/audit-release-sync-script.test.mjs
           scripts/npm-publish-authorization.test.mjs
           scripts/verify-npm-release-provenance.test.mjs
           scripts/generate-sbom.test.mjs
+
+      - name: Audit the release sync script
+        run: node scripts/audit-release-sync-script.mjs
 
       - name: Test Gradle network retry helper
         run: node --test scripts/ci/retry-gradle.test.mjs
