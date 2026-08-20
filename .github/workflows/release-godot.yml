@@ -371,7 +371,7 @@ jobs:
           [configuration]
           entry_symbol = "godot_iap_entry_point"
           compatibility_minimum = "4.3"
-          supported_platforms = ["ios", "macos"]
+          include_tags = ["ios", "macos"]
 
           [libraries]
           ios.arm64 = "ios/GodotIap.framework/GodotIap"
@@ -388,7 +388,7 @@ jobs:
           [configuration]
           entry_symbol = "godot_iap_entry_point"
           compatibility_minimum = "4.3"
-          supported_platforms = ["ios"]
+          include_tags = ["ios"]
 
           [libraries]
           ios.arm64 = "ios/GodotIap.framework/GodotIap"
@@ -462,12 +462,12 @@ jobs:
           test -d "$VERIFY_DIR/addons/godot-iap/bin/ios/SwiftGodotRuntime.framework"
           bash scripts/verify-ios-toolchain.sh "$VERIFY_DIR/addons/godot-iap/bin/ios"
           if [ "$NOTARIZE_MACOS" = "true" ]; then
-            grep -q '^supported_platforms = \["ios", "macos"\]' "$VERIFY_DIR/addons/godot-iap/bin/godot_iap.gdextension"
+            grep -q '^include_tags = \["ios", "macos"\]' "$VERIFY_DIR/addons/godot-iap/bin/godot_iap.gdextension"
             grep -q '^macos\.' "$VERIFY_DIR/addons/godot-iap/bin/godot_iap.gdextension"
             codesign --verify --deep --strict --verbose=2 "$VERIFY_DIR/addons/godot-iap/bin/macos/SwiftGodotRuntime.framework"
             codesign --verify --deep --strict --verbose=2 "$VERIFY_DIR/addons/godot-iap/bin/macos/GodotIap.framework"
           else
-            grep -q '^supported_platforms = \["ios"\]' "$VERIFY_DIR/addons/godot-iap/bin/godot_iap.gdextension"
+            grep -q '^include_tags = \["ios"\]' "$VERIFY_DIR/addons/godot-iap/bin/godot_iap.gdextension"
             test ! -d "$VERIFY_DIR/addons/godot-iap/bin/macos"
             if grep -q '^macos\.' "$VERIFY_DIR/addons/godot-iap/bin/godot_iap.gdextension"; then
               echo "Error: default release zip must not declare macOS libraries"
