@@ -9,7 +9,8 @@
 // values here are authoritative; files follow. Multiple values in one fact
 // mean deliberately coexisting roles (current vs minimum), not drift.
 
-const WORKFLOWS = ".github/workflows/*.yml";
+// GitHub Actions loads both extensions, so the scanner must too.
+const WORKFLOWS = ".github/workflows/*.{yml,yaml}";
 
 export const FACTS = Object.freeze([
   {

@@ -12,16 +12,24 @@ import { FACTS, DERIVED } from "./facts.mjs";
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
 
-function expandFiles(specs) {
+const WORKFLOW_GLOB = "/*.{yml,yaml}";
+
+function listRepoDir(dir) {
+  return readdirSync(join(REPO_ROOT, dir));
+}
+
+export function expandFiles(specs, listDir = listRepoDir) {
   const files = [];
   for (const spec of specs) {
-    if (!spec.endsWith("/*.yml")) {
+    if (!spec.endsWith(WORKFLOW_GLOB)) {
       files.push(spec);
       continue;
     }
-    const dir = spec.slice(0, -"/*.yml".length);
-    for (const entry of readdirSync(join(REPO_ROOT, dir))) {
-      if (entry.endsWith(".yml")) files.push(`${dir}/${entry}`);
+    const dir = spec.slice(0, -WORKFLOW_GLOB.length);
+    for (const entry of listDir(dir)) {
+      if (entry.endsWith(".yml") || entry.endsWith(".yaml")) {
+        files.push(`${dir}/${entry}`);
+      }
     }
   }
   return files;

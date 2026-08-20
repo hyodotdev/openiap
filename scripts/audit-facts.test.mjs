@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 
-import { auditFacts, readRepoFile } from "./audit-facts.mjs";
+import { auditFacts, expandFiles, readRepoFile } from "./audit-facts.mjs";
 
 // Overlay one edited file on top of the real tree, so every planted violation
 // is exercised against the actual registry and scanners.
@@ -86,4 +86,16 @@ test("the minimum and current Godot versions coexist without a finding", () => {
     entry.startsWith("godot.version"),
   );
   assert.deepEqual(failures, []);
+});
+
+test("the workflow glob sees .yaml files, which Actions also loads", () => {
+  const files = expandFiles([".github/workflows/*.{yml,yaml}"], () => [
+    "ci.yml",
+    "sneaky.yaml",
+    "notes.md",
+  ]);
+  assert.deepEqual(files, [
+    ".github/workflows/ci.yml",
+    ".github/workflows/sneaky.yaml",
+  ]);
 });
