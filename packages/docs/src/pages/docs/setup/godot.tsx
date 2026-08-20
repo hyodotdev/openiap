@@ -659,6 +659,46 @@ func _on_purchase_error(error):
           <a href="#ios-xcode">iOS: Xcode Framework Embedding</a> and run{' '}
           <code>fix_ios_embed.sh</code>.
         </p>
+
+        <h3 id="gdextension-non-apple-editor" className="anchor-heading">
+          GDExtension errors in the Windows or Linux editor
+          <a href="#gdextension-non-apple-editor" className="anchor-link">
+            #
+          </a>
+        </h3>
+        <p>
+          The bundled GDExtension ships Apple libraries only, so editors on
+          Windows and Linux log{' '}
+          <code>
+            No GDExtension library found for current OS and architecture
+          </code>{' '}
+          each time the project is scanned. Android is unaffected: it loads the
+          AAR plugin from <code>addons/godot-iap/android/</code>, and Android
+          exports keep working.
+        </p>
+        <p>
+          Godot 4.8 skips the extension silently, because the addon declares{' '}
+          <code>include_tags</code>. Godot 4.3 through 4.7 have no way to
+          suppress the message (
+          <a
+            href="https://github.com/godotengine/godot/issues/105615"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            godotengine/godot#105615
+          </a>
+          ). While developing for Android on a non-Apple machine, rename the
+          file:
+        </p>
+        <CodeBlock language="bash">
+          {`mv addons/godot-iap/bin/godot_iap.gdextension \\
+   addons/godot-iap/bin/godot_iap.gdextension.disabled`}
+        </CodeBlock>
+        <p>
+          Restore the name before building for iOS or macOS. Those builds
+          require a Mac, so nothing in <code>bin/</code> is usable from a
+          Windows or Linux machine in the meantime.
+        </p>
       </section>
 
       <section>
