@@ -253,6 +253,124 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    // August 20, 2026 - Godot editor errors on Windows and Linux
+    {
+      id: 'godot-gdextension-platform-tags-2026-08-20',
+      date: new Date('2026-08-20'),
+      element: (
+        <div
+          key="godot-gdextension-platform-tags-2026-08-20"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="godot-gdextension-platform-tags-2026-08-20"
+            level="h4"
+          >
+            August 20, 2026 - Godot editor errors on Windows and Linux
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            godot-iap 3.3.3 declares the Apple-only GDExtension with the key
+            Godot actually reads, so editors on Windows and Linux stop logging a
+            missing-library error on every project scan.
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>godot-iap 3.3.3</strong> - replaces{' '}
+              <code>supported_platforms</code>, which is not part of the
+              <code>.gdextension</code> format and never gated anything, with{' '}
+              <code>include_tags</code> (
+              <a
+                href="https://github.com/hyodotdev/openiap/issues/366"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                issue #366
+              </a>
+              ;{' '}
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/367"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                PR #367
+              </a>
+              ).
+            </li>
+            <li>
+              Godot evaluates <code>include_tags</code> before searching{' '}
+              <code>[libraries]</code> and skips the extension silently on
+              platforms it does not cover.
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Integration notes</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <code>include_tags</code> exists only in Godot 4.8. On 4.3 through
+              4.7 the key is ignored, so the errors persist and the workaround
+              in{' '}
+              <Link to="/docs/setup/godot#gdextension-non-apple-editor">
+                Godot Setup
+              </Link>{' '}
+              still applies: rename <code>godot_iap.gdextension</code> while
+              developing for Android on a non-Apple machine.
+            </li>
+            <li>
+              Runtime behavior is unchanged on every released Godot version.
+              Android keeps loading the AAR plugin, and iOS and macOS keep
+              loading their frameworks.
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              <li>
+                <a
+                  href="https://github.com/hyodotdev/openiap/releases/tag/godot-iap-3.3.3"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  godot-iap 3.3.3
+                </a>
+              </li>
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // August 17, 2026 - Godot macOS StoreKit routing
     {
       id: 'godot-macos-storekit-routing-2026-08-17',
