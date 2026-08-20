@@ -276,8 +276,9 @@ function Releases() {
             }}
           >
             godot-iap 3.3.3 declares the Apple-only GDExtension with the key
-            Godot actually reads, so Godot 4.8 editors on Windows and Linux skip
-            it instead of logging a missing-library error on every project scan.
+            Godot actually reads, so Windows and Linux editors on Godot 4.8
+            builds newer than dev3 skip it instead of logging a missing-library
+            error on every project scan.
           </p>
 
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
@@ -326,9 +327,17 @@ function Releases() {
             }}
           >
             <li>
-              <code>include_tags</code> exists only in Godot 4.8. On 4.3 through
-              4.7 the key is ignored, so the errors persist and the workaround
-              in{' '}
+              Engine support for <code>include_tags</code> (
+              <a
+                href="https://github.com/godotengine/godot/pull/121575"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                godotengine/godot#121575
+              </a>
+              ) merged after 4.8-dev3. On 4.8-dev3 and older — including 4.3
+              through 4.7 — the key is ignored, so the errors persist and the
+              workaround in{' '}
               <Link to="/docs/setup/godot#gdextension-non-apple-editor">
                 Godot Setup
               </Link>{' '}

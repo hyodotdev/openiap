@@ -677,9 +677,18 @@ func _on_purchase_error(error):
           exports keep working.
         </p>
         <p>
-          Godot 4.8 skips the extension silently, because the addon declares{' '}
-          <code>include_tags</code>. Godot 4.3 through 4.7 have no way to
-          suppress the message (
+          The addon declares <code>include_tags</code> so Godot can skip the
+          extension silently, but engine support for that filter (
+          <a
+            href="https://github.com/godotengine/godot/pull/121575"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            godotengine/godot#121575
+          </a>
+          ) merged after 4.8-dev3, so only 4.8 snapshots newer than dev3 honor
+          it. On 4.8-dev3 and older — including 4.3 through 4.7 — there is no
+          way to suppress the message (
           <a
             href="https://github.com/godotengine/godot/issues/105615"
             target="_blank"
