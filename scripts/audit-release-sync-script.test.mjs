@@ -89,6 +89,11 @@ test("keeps a token split across a continuation adjacent, as bash does", () => {
   assert.deepEqual(auditGitAddBlocks(logical[0].text), []);
 });
 
+test("rejects a staged path that escapes the repository", () => {
+  const source = ["git add \\", "  ../../../etc/passwd"].join("\n");
+  assert.match(auditGitAddBlocks(source)[0], /escapes the repository/u);
+});
+
 test("the committed script passes its own audit", () => {
   const source = readFileSync(
     join(REPO_ROOT, "scripts/sync-release-generated.sh"),

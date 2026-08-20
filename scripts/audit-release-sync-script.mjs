@@ -14,7 +14,7 @@ import {
   accessSync,
   constants,
 } from "node:fs";
-import { dirname, join } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), "..");
@@ -60,6 +60,14 @@ export function toLogicalLines(source) {
   return logical;
 }
 
+// git refuses to stage outside the work tree, so a token that escapes the
+// repository fails the release rather than this audit unless caught here.
+function insideRepo(target) {
+  const rel = relative(REPO_ROOT, target);
+  // An empty relative path is REPO_ROOT itself, which `git add .` stages.
+  return !rel.startsWith("..") && !isAbsolute(rel);
+}
+
 function isRunnable(target) {
   if (statSync(target).isDirectory()) return false;
   try {
@@ -103,7 +111,14 @@ export function auditGitAddBlocks(source) {
       .filter((token) => token && !token.startsWith("-"))
       .forEach((token) => {
         if (token.includes("$") || token.includes("*")) return;
-        if (!existsSync(join(REPO_ROOT, token))) {
+        const target = resolve(REPO_ROOT, token);
+        if (!insideRepo(target)) {
+          failures.push(
+            `${SCRIPT}:${line}: staged path escapes the repository: ${token}`,
+          );
+          return;
+        }
+        if (!existsSync(target)) {
           failures.push(
             `${SCRIPT}:${line}: staged path does not exist: ${token}`,
           );
