@@ -81,6 +81,12 @@ four copies and every copy was wrong, because Godot never read the key. The
 fact graph catches drift between declarations; it cannot tell whether the
 declaration means anything. Semantic validity stays with tests and e2e.
 
+Coverage is bounded by the scanners: a declaration in a file no scanner
+reads, or in a shape no pattern captures, is invisible. "An unlisted site
+cannot drift silently" holds within scanned files only — when a fact grows a
+new home (a shell script embedding a version, a new manifest), extend the
+scanner in the same change.
+
 ## Roadmap
 
 1. **Done** — toolchain facts (Xcode, macOS image, JDK, Bun, Godot) plus the
