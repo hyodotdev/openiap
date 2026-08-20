@@ -308,6 +308,9 @@ jobs:
       - name: Audit CI path filters
         run: npm run audit:ci-paths
 
+      - name: Audit declared facts
+        run: npm run audit:facts
+
       - name: Audit agent surfaces
         run: npm run audit:agents
 
