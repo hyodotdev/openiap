@@ -1,44 +1,85 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-import { auditGitAddBlocks } from './audit-release-sync-script.mjs';
+import {
+  auditGitAddBlocks,
+  toLogicalLines,
+} from './audit-release-sync-script.mjs';
 
-test('catches the dropped line continuation that broke a release', () => {
-  const broken = [
-    'git add \\',
-    '  packages/docs/public/llms.txt \\',
+const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
+
+const HEAD = ['git add \\', '  packages/docs/public/llms.txt \\'];
+
+function orphaned(...between) {
+  return [
+    ...HEAD,
     '  knowledge/_agent-context/context.md',
+    ...between,
     '  knowledge/_claude-context',
   ].join('\n');
+}
 
-  const failures = auditGitAddBlocks(broken);
+test('catches the dropped continuation that broke a release', () => {
+  const failures = auditGitAddBlocks(orphaned());
   assert.equal(failures.length, 1);
-  assert.match(failures[0], /would run it as a command/u);
+  assert.match(failures[0], /runs as a command/u);
 });
 
-test('accepts the same list once the continuation is restored', () => {
-  const fixed = [
-    'git add \\',
-    '  packages/docs/public/llms.txt \\',
+test('catches an orphaned path separated by a blank line', () => {
+  assert.match(auditGitAddBlocks(orphaned(''))[0], /runs as a command/u);
+});
+
+test('catches an orphaned path separated by a comment', () => {
+  assert.match(
+    auditGitAddBlocks(orphaned('  # agent context symlink'))[0],
+    /runs as a command/u,
+  );
+});
+
+test('treats a backslash followed by a space as the end of the command', () => {
+  // `\ ` is an escaped space in bash, not a continuation.
+  const source = ['git add \\ ', '  knowledge/_claude-context'].join('\n');
+  assert.ok(auditGitAddBlocks(source).length > 0);
+});
+
+test('accepts the list once every continuation is intact', () => {
+  const source = [
+    ...HEAD,
     '  knowledge/_agent-context/context.md \\',
     '  knowledge/_claude-context',
   ].join('\n');
+  assert.deepEqual(auditGitAddBlocks(source), []);
+});
 
-  assert.deepEqual(auditGitAddBlocks(fixed), []);
+test('allows running an executable script by path', () => {
+  assert.deepEqual(
+    auditGitAddBlocks(['./scripts/sync-versions.sh', 'git add .'].join('\n')),
+    [],
+  );
 });
 
 test('reports a staged path that no longer exists', () => {
-  const stale = ['git add \\', '  knowledge/_removed-context/context.md'].join(
+  const source = ['git add \\', '  knowledge/_removed-context/context.md'].join(
     '\n',
   );
+  assert.match(auditGitAddBlocks(source)[0], /staged path does not exist/u);
+});
 
-  const failures = auditGitAddBlocks(stale);
-  assert.equal(failures.length, 1);
-  assert.match(failures[0], /staged path does not exist/u);
+test('joins continued lines into one logical command', () => {
+  const logical = toLogicalLines(['git add \\', '  a \\', '  b'].join('\n'));
+  assert.deepEqual(
+    logical.map((entry) => entry.text),
+    ['git add a b'],
+  );
 });
 
 test('the committed script passes its own audit', () => {
-  const source = readFileSync('scripts/sync-release-generated.sh', 'utf8');
+  const source = readFileSync(
+    join(REPO_ROOT, 'scripts/sync-release-generated.sh'),
+    'utf8',
+  );
   assert.deepEqual(auditGitAddBlocks(source), []);
 });

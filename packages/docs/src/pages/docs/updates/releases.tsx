@@ -276,8 +276,8 @@ function Releases() {
             }}
           >
             godot-iap 3.3.3 declares the Apple-only GDExtension with the key
-            Godot actually reads, so editors on Windows and Linux stop logging a
-            missing-library error on every project scan.
+            Godot actually reads, so Godot 4.8 editors on Windows and Linux skip
+            it instead of logging a missing-library error on every project scan.
           </p>
 
           <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
