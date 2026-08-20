@@ -1,7 +1,7 @@
 # OpenIAP Project Context
 
 > **Auto-generated shared context for AI assistants**
-> Last updated: 2026-08-20T14:38:26.298Z
+> Last updated: 2026-08-20T14:49:04.488Z
 >
 > Canonical file: `knowledge/_agent-context/context.md`
 
@@ -2845,6 +2845,14 @@ because the scanner sees it anyway.
 `DERIVED` relations express one declaration computed from another
 (`project.godot` features = major.minor of `godot.version.current`) instead of
 duplicating the value.
+
+## Querying impact
+
+`bun run graph:impact <fact-key>` answers "what does bumping this touch?"
+before you start: every declaring file with line numbers, declarations derived
+from the fact, and the CI jobs that run when those files change (via the same
+path-filter model `audit-ci-path-filters` proves against CI). Read-only —
+`--list` names the registered facts.
 
 ## Authority direction
 

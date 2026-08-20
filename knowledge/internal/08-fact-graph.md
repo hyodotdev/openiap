@@ -34,6 +34,14 @@ because the scanner sees it anyway.
 (`project.godot` features = major.minor of `godot.version.current`) instead of
 duplicating the value.
 
+## Querying impact
+
+`bun run graph:impact <fact-key>` answers "what does bumping this touch?"
+before you start: every declaring file with line numbers, declarations derived
+from the fact, and the CI jobs that run when those files change (via the same
+path-filter model `audit-ci-path-filters` proves against CI). Read-only —
+`--list` names the registered facts.
+
 ## Authority direction
 
 The registry is authoritative; files follow it. When the audit fails, the fix

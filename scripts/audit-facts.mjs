@@ -27,6 +27,30 @@ function expandFiles(specs) {
   return files;
 }
 
+// Every occurrence of a fact's shape, as {file, line, value} — shared by the
+// audit and the impact query so they can never disagree about what exists.
+export function scanFact(fact, readFile) {
+  const occurrences = [];
+  const missing = [];
+  for (const scanner of fact.scanners) {
+    for (const file of expandFiles(scanner.files)) {
+      const text = readFile(file);
+      if (text === null) {
+        missing.push(file);
+        continue;
+      }
+      for (const match of text.matchAll(scanner.pattern)) {
+        occurrences.push({
+          file,
+          line: text.slice(0, match.index).split("\n").length,
+          value: match[1],
+        });
+      }
+    }
+  }
+  return { occurrences, missing };
+}
+
 export function auditFacts(readFile) {
   const failures = [];
 
@@ -36,25 +60,18 @@ export function auditFacts(readFile) {
     );
     const seen = new Set();
 
-    for (const scanner of fact.scanners) {
-      for (const file of expandFiles(scanner.files)) {
-        const text = readFile(file);
-        if (text === null) {
-          failures.push(`${fact.key}: scanned file is missing: ${file}`);
-          continue;
-        }
-        for (const match of text.matchAll(scanner.pattern)) {
-          const value = match[1];
-          if (!allowed.has(value)) {
-            const line = text.slice(0, match.index).split("\n").length;
-            failures.push(
-              `${fact.key}: ${file}:${line} declares "${value}" but the ` +
-                `registry allows ${JSON.stringify(fact.values)}`,
-            );
-          }
-          seen.add(value);
-        }
+    const { occurrences, missing } = scanFact(fact, readFile);
+    for (const file of missing) {
+      failures.push(`${fact.key}: scanned file is missing: ${file}`);
+    }
+    for (const { file, line, value } of occurrences) {
+      if (!allowed.has(value)) {
+        failures.push(
+          `${fact.key}: ${file}:${line} declares "${value}" but the ` +
+            `registry allows ${JSON.stringify(fact.values)}`,
+        );
       }
+      seen.add(value);
     }
 
     for (const [value, role] of allowed) {
