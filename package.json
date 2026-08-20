@@ -30,7 +30,9 @@
     "deploy": "./scripts/deploy.sh",
     "deploy:kit": "cd packages/kit && npx convex deploy",
     "prepare": "husky",
-    "audit:release-sync": "node --test scripts/audit-release-sync-script.test.mjs && node scripts/audit-release-sync-script.mjs"
+    "audit:release-sync": "node --test scripts/audit-release-sync-script.test.mjs && node scripts/audit-release-sync-script.mjs",
+    "audit:facts": "node --test scripts/audit-facts.test.mjs scripts/graph-impact.test.mjs && node scripts/audit-facts.mjs",
+    "graph:impact": "node scripts/graph-impact.mjs"
   },
   "devDependencies": {
     "@playwright/test": "^1.59.1",

@@ -15,6 +15,7 @@ This document provides an overview for AI agents working across the OpenIAP mono
 | Docs Patterns           | [`knowledge/internal/05-docs-patterns.md`](knowledge/internal/05-docs-patterns.md)                                                                                         |
 | Git & Deployment        | [`knowledge/internal/06-git-deployment.md`](knowledge/internal/06-git-deployment.md)                                                                                       |
 | Docs Consistency / SSOT | [`knowledge/internal/07-docs-consistency.md`](knowledge/internal/07-docs-consistency.md) (run `bun audit:docs` before pushing API/Type doc edits)                          |
+| Fact Graph (Declared Facts) | [`knowledge/internal/08-fact-graph.md`](knowledge/internal/08-fact-graph.md) (run `bun audit:facts` after bumping a tool version or runner image) |
 
 ## Monorepo Structure
 
@@ -370,3 +371,4 @@ All comprehensive rules are documented in [`knowledge/internal/`](knowledge/inte
 5. **05-docs-patterns.md** - React modal patterns, component organization
 6. **06-git-deployment.md** - Commit format, deployment workflows
 7. **07-docs-consistency.md** - Docs/API/type consistency audits
+8. **08-fact-graph.md** - Declared-fact registry and drift audit
