@@ -30,6 +30,13 @@ interface ReleaseMetadata {
   tag: string;
 }
 
+const purchaseDiagnosticsReleases = [
+  ['openiap-google 3.3.2', 'google-3.3.2'],
+  ['react-native-iap 16.3.2', 'react-native-iap-16.3.2'],
+  ['expo-iap 5.3.2', 'expo-iap-5.3.2'],
+  ['godot-iap 3.3.4', 'godot-iap-3.3.4'],
+] as const;
+
 const storeApiModernizationReleases = [
   ['OpenIAP Spec 3.1.0', 'docs-3.1.0'],
   ['openiap-apple 3.1.0', '3.1.0'],
@@ -253,6 +260,123 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    // August 21, 2026 - Clearer purchase failures and safer logs
+    {
+      id: 'purchase-diagnostics-log-sanitization-2026-08-21',
+      date: new Date('2026-08-21'),
+      element: (
+        <div
+          key="purchase-diagnostics-log-sanitization-2026-08-21"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="purchase-diagnostics-log-sanitization-2026-08-21"
+            level="h4"
+          >
+            August 21, 2026 - Clearer purchase failures and safer logs
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Subscription replacement failures now explain likely invalid Google
+            Play replacement modes. Expo, React Native, and Godot logs also
+            distinguish absent sensitive fields from redacted values.
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>
+            Shared spec and native packages
+          </h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>openiap-google 3.3.2</strong> - adds caller-visible
+              replacement-mode guidance to Play Billing{' '}
+              <code>DEVELOPER_ERROR</code> responses while preserving the
+              original Play message (
+              <a
+                href="https://github.com/hyodotdev/openiap/issues/371"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                issue #371
+              </a>
+              ;{' '}
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/373"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                PR #373
+              </a>
+              ).
+            </li>
+          </ul>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>
+                react-native-iap 16.3.2, expo-iap 5.3.2, and godot-iap 3.3.4
+              </strong>{' '}
+              - keep Android null values as null and omit iOS nil fields while
+              continuing to mask present sensitive values (
+              <a
+                href="https://github.com/hyodotdev/openiap/issues/372"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                issue #372
+              </a>
+              ).
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {purchaseDiagnosticsReleases.map(([label, tag]) => (
+                <li key={tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // August 20, 2026 - Godot editor errors on Windows and Linux
     {
       id: 'godot-gdextension-platform-tags-2026-08-20',
