@@ -1,5 +1,16 @@
 # Changelog
 
+## 10.3.2 (2026-08-21)
+
+- chore(release): openiap-google@3.3.2
+- fix: improve purchase diagnostics (#373)
+- ci: skip native matrices for docs-only changes (#363)
+- docs: refresh amazon and iapkit surfaces (#361)
+- fix(security): harden release supply chain (#343)
+- chore(release): standardize version commits
+- See the consolidated OpenIAP release notes: https://openiap.dev/docs/updates/releases
+
+
 ## 10.3.1 (2026-08-14)
 
 - chore(google): bump version to 3.3.1
