@@ -10,6 +10,7 @@ internal enum class SubscriptionReplacementSwitchType {
     SameSubscriptionAutoRenewing,
     TargetPrepaid,
     CrossSubscription,
+    TargetInstallment,
     Unknown,
 }
 
@@ -24,7 +25,7 @@ internal fun classifySubscriptionReplacementSwitch(
     val targetIsPrepaid = targetRecurrenceModes.isNotEmpty() && !targetIsAutoRenewing
 
     return when {
-        targetIsInstallment -> SubscriptionReplacementSwitchType.Unknown
+        targetIsInstallment -> SubscriptionReplacementSwitchType.TargetInstallment
         targetIsPrepaid -> SubscriptionReplacementSwitchType.TargetPrepaid
         oldProductId != targetProductId -> SubscriptionReplacementSwitchType.CrossSubscription
         targetIsAutoRenewing -> SubscriptionReplacementSwitchType.SameSubscriptionAutoRenewing
@@ -62,6 +63,11 @@ internal fun subscriptionReplacementDeveloperErrorMessage(
                 "a cross-subscription switch. Valid modes for this case: " +
                     "WITH_TIME_PRORATION, CHARGE_PRORATED_PRICE (upgrades only), " +
                     "WITHOUT_PRORATION, CHARGE_FULL_PRICE, DEFERRED."
+            SubscriptionReplacementSwitchType.TargetInstallment ->
+                "a switch to an installment plan. Valid modes for installment subscriptions: " +
+                    "WITH_TIME_PRORATION, CHARGE_PRORATED_PRICE (upgrades only), " +
+                    "WITHOUT_PRORATION, CHARGE_FULL_PRICE, DEFERRED. KEEP_EXISTING also " +
+                    "requires oldProductId == target productId."
             SubscriptionReplacementSwitchType.Unknown ->
                 "this subscription switch. Verify that the mode is supported for the target plan."
         }

@@ -11,6 +11,7 @@ on:
       - "openiap-versions.json"
       - "libraries-versions.jsonc"
       - "codecov.yml"
+      - "scripts/test-ios-log-sanitizers.sh"
       - ".github/workflows/ci-react-native-iap.yml"
       - "!**/*.md"
   push:
@@ -23,6 +24,7 @@ on:
       - "openiap-versions.json"
       - "libraries-versions.jsonc"
       - "codecov.yml"
+      - "scripts/test-ios-log-sanitizers.sh"
       - ".github/workflows/ci-react-native-iap.yml"
       - "!**/*.md"
 
@@ -129,6 +131,9 @@ jobs:
         with:
           fetch-depth: 1
           persist-credentials: false
+
+      - name: Test iOS log sanitizer
+        run: bash ../../scripts/test-ios-log-sanitizers.sh react-native
 
       - uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7
         with:

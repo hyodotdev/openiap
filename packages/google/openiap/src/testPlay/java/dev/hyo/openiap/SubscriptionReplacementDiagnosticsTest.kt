@@ -76,7 +76,7 @@ class SubscriptionReplacementDiagnosticsTest {
     }
 
     @Test
-    fun `installment target avoids an unsupported plan classification`() {
+    fun `installment target lists the supported replacement modes`() {
         val switchType =
             classifySubscriptionReplacementSwitch(
                 oldProductId = "premium",
@@ -84,8 +84,20 @@ class SubscriptionReplacementDiagnosticsTest {
                 targetRecurrenceModes = listOf(ProductDetails.RecurrenceMode.INFINITE_RECURRING),
                 targetIsInstallment = true,
             )
+        val message =
+            subscriptionReplacementDeveloperErrorMessage(
+                originalDebugMessage = "Invalid arguments",
+                replacementParams = replacementParams(SubscriptionReplacementModeAndroid.Deferred),
+                targetProductId = "premium",
+                targetRecurrenceModes = listOf(ProductDetails.RecurrenceMode.INFINITE_RECURRING),
+                targetIsInstallment = true,
+            )
 
-        assertEquals(SubscriptionReplacementSwitchType.Unknown, switchType)
+        assertEquals(SubscriptionReplacementSwitchType.TargetInstallment, switchType)
+        assertTrue(message.contains("switch to an installment plan"))
+        assertTrue(message.contains("WITH_TIME_PRORATION, CHARGE_PRORATED_PRICE (upgrades only)"))
+        assertTrue(message.contains("WITHOUT_PRORATION, CHARGE_FULL_PRICE, DEFERRED"))
+        assertTrue(message.contains("KEEP_EXISTING also requires oldProductId == target productId"))
     }
 
     private fun replacementParams(
