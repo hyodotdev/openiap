@@ -67,7 +67,7 @@ internal object RnIapLog {
         }
     }
 
-    private fun sanitizeMap(source: Map<*, *>): Map<String, Any?> {
+    internal fun sanitizeMap(source: Map<*, *>): Map<String, Any?> {
         fun isSensitiveKey(key: String): Boolean {
             val normalized = key.lowercase(Locale.ROOT).filter { it.isLetterOrDigit() }
             return SENSITIVE_KEY_FRAGMENTS.any { normalized.contains(it) } ||
@@ -77,6 +77,10 @@ internal object RnIapLog {
         val sanitized = linkedMapOf<String, Any?>()
         for ((rawKey, rawValue) in source) {
             val key = rawKey as? String ?: continue
+            if (rawValue == null || rawValue === JSONObject.NULL) {
+                sanitized[key] = JSONObject.NULL
+                continue
+            }
             if (isSensitiveKey(key)) {
                 sanitized[key] = "hidden"
                 continue

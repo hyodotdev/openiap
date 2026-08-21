@@ -325,8 +325,15 @@ sealed class OpenIapError : Exception() {
     }
 
     data class DeveloperError(override val debugMessage: String? = null) : OpenIapError() {
+        private var messageOverride: String? = null
+
         override val code: String = CODE
-        override val message: String = MESSAGE
+        override val message: String
+            get() = messageOverride ?: MESSAGE
+
+        internal fun withMessage(value: String): DeveloperError = apply {
+            messageOverride = value
+        }
 
         companion object {
             val CODE = ErrorCode.DeveloperError.rawValue

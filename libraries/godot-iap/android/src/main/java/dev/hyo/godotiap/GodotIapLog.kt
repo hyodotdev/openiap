@@ -71,7 +71,7 @@ internal object GodotIapLog {
         }
     }
 
-    private fun stringify(value: Any?): String {
+    internal fun stringify(value: Any?): String {
         val sanitized = sanitize(value) ?: return "null"
         return when (sanitized) {
             is String -> sanitized
@@ -111,6 +111,10 @@ internal object GodotIapLog {
         val sanitized = linkedMapOf<String, Any?>()
         for ((rawKey, rawValue) in source) {
             val key = rawKey as? String ?: continue
+            if (rawValue == null || rawValue === JSONObject.NULL) {
+                sanitized[key] = JSONObject.NULL
+                continue
+            }
             if (isSensitiveKey(key)) {
                 sanitized[key] = "hidden"
                 continue
@@ -125,11 +129,14 @@ internal object GodotIapLog {
         val keys = source.keys()
         while (keys.hasNext()) {
             val key = keys.next()
+            val rawValue = source.opt(key)
             sanitized[key] =
-                if (isSensitiveKey(key)) {
+                if (rawValue == null || rawValue === JSONObject.NULL) {
+                    JSONObject.NULL
+                } else if (isSensitiveKey(key)) {
                     "hidden"
                 } else {
-                    sanitizeJsonValue(source.opt(key))
+                    sanitizeJsonValue(rawValue)
                 }
         }
         return sanitized

@@ -1708,6 +1708,8 @@ class OpenIapModule(
                     val paramsList = mutableListOf<BillingFlowParams.ProductDetailsParams>()
                     val requestedOffersBySku = mutableMapOf<String, MutableList<String>>()
                     val selectedBasePlanIdsBySku = mutableMapOf<String, String?>()
+                    val selectedSubscriptionOffersBySku =
+                        mutableMapOf<String, ProductDetails.SubscriptionOfferDetails>()
 
                     // Reject multi-SKU one-time purchase requests when offerToken is provided
                     // A single offerToken cannot be applied to multiple SKUs
@@ -1770,12 +1772,14 @@ class OpenIapModule(
                                 return
                             }
                             val selectedOfferToken = checkNotNull(resolved)
+                            val selectedOffer = productDetails.subscriptionOfferDetails
+                                ?.firstOrNull { it.offerToken == selectedOfferToken }
 
                             builder.setOfferToken(selectedOfferToken)
-                            selectedBasePlanIdsBySku[productDetails.productId] =
-                                productDetails.subscriptionOfferDetails
-                                    ?.firstOrNull { it.offerToken == selectedOfferToken }
-                                    ?.basePlanId
+                            selectedBasePlanIdsBySku[productDetails.productId] = selectedOffer?.basePlanId
+                            selectedOffer?.let {
+                                selectedSubscriptionOffersBySku[productDetails.productId] = it
+                            }
 
                             // Apply per-product subscription replacement params (8.1.0+)
                             androidArgs.subscriptionProductReplacementParams?.let { replacementParams ->
@@ -1953,15 +1957,42 @@ class OpenIapModule(
                                 }
                                 return@runOnUiThread
                             }
-                            if (result.responseCode == BillingClient.BillingResponseCode.DEVELOPER_ERROR) {
-                                OpenIapLog.warn("DEVELOPER_ERROR: Invalid arguments. Check if subscriptions are in the same group.", TAG)
-                            }
-                            val err = if (result.responseCode == BillingClient.BillingResponseCode.ERROR) {
-                                OpenIapError.PurchaseFailed(result.debugMessage)
-                            } else {
-                                OpenIapError.fromBillingResponseCode(
+                            val err = when (result.responseCode) {
+                                BillingClient.BillingResponseCode.DEVELOPER_ERROR -> {
+                                    val replacementParams =
+                                        androidArgs.subscriptionProductReplacementParams
+                                    if (replacementParams == null) {
+                                        OpenIapLog.warn(
+                                            "DEVELOPER_ERROR: Invalid arguments. Check subscription and offer parameters.",
+                                            TAG,
+                                        )
+                                        OpenIapError.DeveloperError(result.debugMessage)
+                                    } else {
+                                        val targetProduct = details.single()
+                                        val selectedOffer =
+                                            selectedSubscriptionOffersBySku[targetProduct.productId]
+                                        val diagnostic = subscriptionReplacementDeveloperErrorMessage(
+                                            originalDebugMessage = result.debugMessage,
+                                            replacementParams = replacementParams,
+                                            targetProductId = targetProduct.productId,
+                                            targetRecurrenceModes = selectedOffer
+                                                ?.pricingPhases
+                                                ?.pricingPhaseList
+                                                ?.map { it.recurrenceMode }
+                                                .orEmpty(),
+                                            targetIsInstallment =
+                                                selectedOffer?.installmentPlanDetails != null,
+                                        )
+                                        OpenIapLog.warn("DEVELOPER_ERROR: $diagnostic", TAG)
+                                        OpenIapError.DeveloperError(result.debugMessage)
+                                            .withMessage(diagnostic)
+                                    }
+                                }
+                                BillingClient.BillingResponseCode.ERROR ->
+                                    OpenIapError.PurchaseFailed(result.debugMessage)
+                                else -> OpenIapError.fromBillingResponseCode(
                                     result.responseCode,
-                                    result.debugMessage
+                                    result.debugMessage,
                                 )
                             }
                             finishWithError(err, requireLaunched = true)

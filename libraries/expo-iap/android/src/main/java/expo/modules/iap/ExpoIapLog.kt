@@ -110,6 +110,10 @@ internal object ExpoIapLog {
         val sanitized = linkedMapOf<String, Any?>()
         for ((rawKey, rawValue) in source) {
             val key = rawKey as? String ?: continue
+            if (rawValue == null || rawValue === JSONObject.NULL) {
+                sanitized[key] = JSONObject.NULL
+                continue
+            }
             if (isSensitiveKey(key)) {
                 sanitized[key] = "hidden"
                 continue
