@@ -109,7 +109,7 @@ enum ExpoIapLog {
     }
 
     private static func sanitize(_ value: Any?) -> Any? {
-        guard let value else { return nil }
+        guard let value, !(value is NSNull) else { return nil }
 
         if let string = value as? String {
             let trimmed = string.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -121,18 +121,18 @@ enum ExpoIapLog {
             return sanitize(json) ?? string
         }
 
-        if let dictionary = value as? [String: Any] {
-            return sanitizeDictionary(dictionary)
-        }
-
         if let optionalDictionary = value as? [String: Any?] {
             var compact: [String: Any] = [:]
             for (key, optionalValue) in optionalDictionary {
-                if let optionalValue {
+                if let optionalValue, !(optionalValue is NSNull) {
                     compact[key] = optionalValue
                 }
             }
             return sanitizeDictionary(compact)
+        }
+
+        if let dictionary = value as? [String: Any] {
+            return sanitizeDictionary(dictionary)
         }
 
         if let array = value as? [Any] {

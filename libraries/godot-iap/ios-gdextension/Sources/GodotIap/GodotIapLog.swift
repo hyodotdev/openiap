@@ -133,7 +133,7 @@ enum GodotIapLog {
         #endif
     }
 
-    private static func stringify(_ value: Any?) -> String {
+    static func stringify(_ value: Any?) -> String {
         guard let sanitized = sanitize(value) else {
             return "null"
         }
@@ -161,24 +161,24 @@ enum GodotIapLog {
             return sanitize(json) ?? value
         }
 
-        guard let value else { return nil }
+        guard let value, !(value is NSNull) else { return nil }
 
         if let string = value as? String {
             return sanitizeJSONString(string)
         }
 
-        if let dictionary = value as? [String: Any] {
-            return sanitizeDictionary(dictionary)
-        }
-
         if let optionalDictionary = value as? [String: Any?] {
             var compact: [String: Any] = [:]
             for (key, optionalValue) in optionalDictionary {
-                if let optionalValue {
+                if let optionalValue, !(optionalValue is NSNull) {
                     compact[key] = optionalValue
                 }
             }
             return sanitizeDictionary(compact)
+        }
+
+        if let dictionary = value as? [String: Any] {
+            return sanitizeDictionary(dictionary)
         }
 
         if let array = value as? [Any] {

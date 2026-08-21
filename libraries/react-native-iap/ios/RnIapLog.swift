@@ -105,20 +105,20 @@ enum RnIapLog {
     }
 
     private static func sanitize(_ value: Any?) -> Any? {
-        guard let value else { return nil }
-
-        if let dictionary = value as? [String: Any] {
-            return sanitizeDictionary(dictionary)
-        }
+        guard let value, !(value is NSNull) else { return nil }
 
         if let optionalDictionary = value as? [String: Any?] {
             var compact: [String: Any] = [:]
             for (key, optionalValue) in optionalDictionary {
-                if let optionalValue {
+                if let optionalValue, !(optionalValue is NSNull) {
                     compact[key] = optionalValue
                 }
             }
             return sanitizeDictionary(compact)
+        }
+
+        if let dictionary = value as? [String: Any] {
+            return sanitizeDictionary(dictionary)
         }
 
         if let array = value as? [Any] {
