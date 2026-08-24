@@ -314,6 +314,9 @@ jobs:
       - name: Audit agent surfaces
         run: npm run audit:agents
 
+      - name: Audit sponsor surfaces
+        run: npm run audit:sponsors
+
   test-gql:
     name: Test GQL Types
     runs-on: ubuntu-latest

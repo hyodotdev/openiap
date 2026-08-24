@@ -2,7 +2,7 @@ import SEO from '../../../components/SEO';
 import AnchorLink from '../../../components/AnchorLink';
 import Callout from '../../../components/Callout';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
-import { CURRENT_SPONSORS } from '../../../lib/sponsors';
+import { CURRENT_SPONSORS, FUNDING_LINKS } from '../../../lib/sponsors';
 
 function OnePager() {
   useScrollToHash();
@@ -458,7 +458,9 @@ function OnePager() {
         <ul>
           <li>
             <strong>Project Lead</strong>: Hyo —{' '}
-            <a href="mailto:hyo@hyo.dev">hyo@hyo.dev</a>
+            <a href={FUNDING_LINKS.companyContactUrl}>
+              contact the project lead
+            </a>
           </li>
           <li>
             <strong>GitHub</strong>:{' '}

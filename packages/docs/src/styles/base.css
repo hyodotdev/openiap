@@ -40,43 +40,33 @@ img[src='/sponsors/meta.webp'] {
   filter: var(--meta-logo-filter);
 }
 
+.sponsor-wordmark {
+  display: inline-flex;
+  max-width: 100%;
+  align-items: center;
+  line-height: 0;
+}
+
+.sponsor-wordmark > img {
+  width: auto;
+  max-width: 100%;
+  height: 100%;
+  object-fit: contain;
+}
+
 .meta-wordmark {
-  display: inline-flex;
-  max-width: 100%;
-  align-items: center;
   gap: 0.08em;
-  line-height: 0;
 }
 
-.meta-wordmark > img {
-  width: auto;
-  height: 100%;
-  object-fit: contain;
-}
-
-.amazon-wordmark {
-  display: inline-flex;
-  max-width: 100%;
-  align-items: center;
-  line-height: 0;
-}
-
-.amazon-wordmark > img {
-  width: auto;
-  max-width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-.amazon-wordmark-dark {
+.sponsor-wordmark-dark {
   display: none;
 }
 
-:root.dark .amazon-wordmark-light {
+:root.dark .sponsor-wordmark-light {
   display: none;
 }
 
-:root.dark .amazon-wordmark-dark {
+:root.dark .sponsor-wordmark-dark {
   display: block;
 }
 

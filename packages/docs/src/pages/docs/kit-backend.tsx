@@ -5,6 +5,7 @@ import CodeBlock from '../../components/CodeBlock';
 import LanguageTabs from '../../components/LanguageTabs';
 import SEO from '../../components/SEO';
 import { useScrollToHash } from '../../hooks/useScrollToHash';
+import { FUNDING_LINKS } from '../../lib/sponsors';
 
 const IAPKIT_URL = 'https://kit.openiap.dev';
 
@@ -856,7 +857,7 @@ async function refreshEntitlements(
             capacity, we ask it to help fund server expansion, monitoring,
             security, and load testing through{' '}
             <a
-              href="https://github.com/sponsors/hyodotdev"
+              href={FUNDING_LINKS.githubUrl}
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -864,7 +865,7 @@ async function refreshEntitlements(
             </a>{' '}
             or{' '}
             <a
-              href="https://opencollective.com/openiap"
+              href={FUNDING_LINKS.openCollectiveUrl}
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -883,7 +884,7 @@ async function refreshEntitlements(
               self-host the MIT-licensed server
             </a>
             . For capacity planning or a separate written arrangement, contact{' '}
-            <a href="mailto:hyo@hyo.dev">hyo@hyo.dev</a>.
+            <a href={FUNDING_LINKS.companyContactUrl}>contact us</a>.
           </p>
         </Callout>
       </section>

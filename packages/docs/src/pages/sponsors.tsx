@@ -8,7 +8,11 @@ import {
 } from 'lucide-react';
 import SEO from '../components/SEO';
 import { LIBRARIES, LIBRARY_IMAGES } from '../lib/images';
-import { CURRENT_SPONSORS } from '../lib/sponsors';
+import {
+  CURRENT_SPONSORS,
+  FUNDING_LINKS,
+  PAST_SUPPORTERS,
+} from '../lib/sponsors';
 
 const FUNDING_LINES = [
   {
@@ -61,7 +65,7 @@ function Sponsors() {
               </p>
               <div className="xp-hero-actions">
                 <a
-                  href="https://opencollective.com/openiap"
+                  href={FUNDING_LINKS.openCollectiveUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -69,7 +73,7 @@ function Sponsors() {
                   <ArrowUpRight size={15} aria-hidden="true" />
                 </a>
                 <a
-                  href="https://github.com/sponsors/hyodotdev"
+                  href={FUNDING_LINKS.githubUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -119,7 +123,7 @@ function Sponsors() {
               <li className="xp-sponsor-node xp-sponsor-open-node">
                 <small>Next</small>
                 <a
-                  href="https://github.com/sponsors/hyodotdev"
+                  href={FUNDING_LINKS.githubUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -257,7 +261,7 @@ function Sponsors() {
 
           <div className="xp-support-ledger">
             <a
-              href="https://opencollective.com/openiap"
+              href={FUNDING_LINKS.openCollectiveUrl}
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -267,7 +271,7 @@ function Sponsors() {
               <ArrowUpRight size={16} aria-hidden="true" />
             </a>
             <a
-              href="https://github.com/sponsors/hyodotdev"
+              href={FUNDING_LINKS.githubUrl}
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -277,7 +281,7 @@ function Sponsors() {
               <ArrowUpRight size={16} aria-hidden="true" />
             </a>
             <a
-              href="https://paypal.me/dooboolab"
+              href={FUNDING_LINKS.paypalUrl}
               target="_blank"
               rel="noopener noreferrer"
             >
@@ -286,7 +290,7 @@ function Sponsors() {
               <small>Simple individual contribution</small>
               <ArrowUpRight size={16} aria-hidden="true" />
             </a>
-            <a href="mailto:hyo@hyo.dev">
+            <a href={FUNDING_LINKS.companyContactUrl}>
               <span>Company</span>
               <strong>Contact us</strong>
               <small>Procurement, invoicing, and capacity planning</small>
@@ -298,23 +302,23 @@ function Sponsors() {
         <section className="xp-supporters" aria-labelledby="past-supporters">
           <div>
             <p>With thanks to</p>
-            <h2 id="past-supporters">Past supporters</h2>
+            <h2 id="past-supporters">Past react-native-iap supporters</h2>
+            <p>
+              Recognized for support before the OpenIAP-wide sponsor program;
+              not listed as current sponsors.
+            </p>
           </div>
           <div>
-            <a
-              href="https://namiml.com"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <img src="/sponsors/nami.webp" alt="Nami" />
-            </a>
-            <a
-              href="https://www.courier.com/?utm_source=react-native-iap&utm_campaign=osssponsors"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              <img src="/sponsors/courier.webp" alt="Courier" />
-            </a>
+            {PAST_SUPPORTERS.map((supporter) => (
+              <a
+                key={supporter.id}
+                href={supporter.url}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                <img src={supporter.logo.src} alt={supporter.name} />
+              </a>
+            ))}
           </div>
         </section>
       </main>

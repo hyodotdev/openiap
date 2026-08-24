@@ -551,8 +551,7 @@
   gap: clamp(2.5rem, 6vw, 5rem);
 }
 
-.hero-backer .meta-wordmark,
-.hero-backer .amazon-wordmark {
+.hero-backer .sponsor-wordmark {
   height: 2.4rem;
 }
 
@@ -693,7 +692,7 @@
     gap: 0.75rem;
   }
 
-  .hero-backer .meta-wordmark {
+  .hero-backer .sponsor-wordmark {
     height: 1.9rem;
   }
 
@@ -1530,8 +1529,7 @@ a.spec-item:hover code {
   transform: scale(1.035);
 }
 
-.home-sponsor-logo-link .meta-wordmark,
-.home-sponsor-logo-link .amazon-wordmark {
+.home-sponsor-logo-link .sponsor-wordmark {
   height: 4.1rem;
 }
 
@@ -1688,8 +1686,7 @@ a.spec-item:hover code {
     padding-inline: 1rem;
   }
 
-  .home-sponsor-logo-link .meta-wordmark,
-  .home-sponsor-logo-link .amazon-wordmark {
+  .home-sponsor-logo-link .sponsor-wordmark {
     height: 2.5rem;
   }
 

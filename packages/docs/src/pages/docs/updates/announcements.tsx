@@ -5,9 +5,10 @@ import SEO from '../../../components/SEO';
 import { useScrollToHash, getHashId } from '../../../hooks/useScrollToHash';
 import Pagination from '../../../components/Pagination';
 import { IAPKIT_URL, trackIapKitClick } from '../../../lib/config';
-import { AMAZON_SPONSOR } from '../../../lib/sponsors';
+import { AMAZON_SUPPORTER, META_SUPPORTER } from '../../../lib/sponsors';
 
-const { Wordmark: AmazonSponsorWordmark } = AMAZON_SPONSOR;
+const { Wordmark: AmazonSponsorWordmark } = AMAZON_SUPPORTER;
+const { Wordmark: MetaSponsorWordmark } = META_SUPPORTER;
 
 const cardStyle = {
   background: 'var(--bg-secondary)',
@@ -272,10 +273,10 @@ function Announcements() {
           </div>
           <p style={dateStyle}>August 19, 2026</p>
           <a
-            href={AMAZON_SPONSOR.url}
+            href={AMAZON_SUPPORTER.url}
             target="_blank"
             rel="noopener noreferrer"
-            aria-label={`Visit ${AMAZON_SPONSOR.name}`}
+            aria-label={`Visit ${AMAZON_SUPPORTER.name}`}
             style={{
               display: 'flex',
               width: 'fit-content',
@@ -1191,15 +1192,11 @@ function Announcements() {
       element: (
         <div key="2025-08-15" style={cardStyle}>
           <div style={headerStyle}>
-            <img
-              src="/sponsors/meta.webp"
-              alt="Meta"
-              style={{ width: '92px', height: '48px', objectFit: 'contain' }}
-            />
+            <MetaSponsorWordmark className="announcement-sponsor-wordmark" />
             <h2 style={{ margin: 0, color: 'var(--text-primary)' }}>
               We are now backed by{' '}
               <a
-                href="https://meta.com"
+                href={META_SUPPORTER.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 style={{
@@ -1207,7 +1204,7 @@ function Announcements() {
                   textDecoration: 'none',
                 }}
               >
-                Meta
+                {META_SUPPORTER.name}
               </a>
               !
             </h2>

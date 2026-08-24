@@ -2,7 +2,7 @@ import SEO from '../../../components/SEO';
 import AnchorLink from '../../../components/AnchorLink';
 import Callout from '../../../components/Callout';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
-import { CURRENT_SPONSORS } from '../../../lib/sponsors';
+import { CURRENT_SPONSORS, FUNDING_LINKS } from '../../../lib/sponsors';
 import { Link } from 'react-router-dom';
 
 function Sponsorship() {
@@ -294,7 +294,7 @@ function Sponsorship() {
             <tr>
               <td>
                 <a
-                  href="https://opencollective.com/openiap"
+                  href={FUNDING_LINKS.openCollectiveUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -317,7 +317,7 @@ function Sponsorship() {
             <tr>
               <td>
                 <a
-                  href="https://github.com/sponsors/hyodotdev"
+                  href={FUNDING_LINKS.githubUrl}
                   target="_blank"
                   rel="noopener noreferrer"
                 >
@@ -489,7 +489,7 @@ function Sponsorship() {
           organization can benefit.
         </p>
         <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
-          <a href="mailto:hyo@hyo.dev" className="btn btn-primary">
+          <a href={FUNDING_LINKS.companyContactUrl} className="btn btn-primary">
             Contact Us
           </a>
           <Link

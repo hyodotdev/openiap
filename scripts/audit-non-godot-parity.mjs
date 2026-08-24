@@ -4129,8 +4129,6 @@ function checkFrameworkDependencyHygiene() {
       "https://openiap.dev/llms.txt",
       "https://openiap.dev/docs/setup/store/onside",
       "https://github.com/hyodotdev/openiap/discussions/categories/expo-iap",
-      "https://openiap.dev/sponsors/nami.webp",
-      "https://openiap.dev/sponsors/courier.webp",
     ],
     "Expo README docs links",
   );
@@ -4202,8 +4200,6 @@ function checkFrameworkDependencyHygiene() {
       "https://openiap.dev/llms.txt",
       "https://openiap.dev/docs/apis",
       "https://openiap.dev/docs/errors",
-      "https://openiap.dev/sponsors/nami.webp",
-      "https://openiap.dev/sponsors/courier.webp",
     ],
     "React Native README docs links",
   );
@@ -5420,13 +5416,11 @@ function checkFrameworkDependencyHygiene() {
       /^\s*git checkout\b/,
       packageIndex + 1,
     );
-    if (
-      !(
-        guardIndex >= 0 &&
-        packageIndex === guardIndex + 1 &&
-        checkoutIndex > packageIndex
-      )
-    ) {
+    if (!(
+      guardIndex >= 0 &&
+      packageIndex === guardIndex + 1 &&
+      checkoutIndex > packageIndex
+    )) {
       fail(
         `${frameworkReleaseWorkflow} must guard and check out the existing tag in one shell block`,
       );

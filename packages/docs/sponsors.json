@@ -1,0 +1,60 @@
+{
+  "currentSponsors": [
+    {
+      "id": "meta",
+      "name": "Meta",
+      "shortName": "Meta",
+      "tier": "Angel",
+      "url": "https://meta.com",
+      "logo": {
+        "src": "/sponsors/meta.webp",
+        "darkSrc": "/sponsors/meta-dark.svg",
+        "height": 44,
+        "readme": {
+          "src": "/meta.svg",
+          "height": 80
+        }
+      }
+    },
+    {
+      "id": "amazon",
+      "name": "Amazon Developer",
+      "shortName": "Amazon",
+      "tier": "Angel",
+      "url": "https://developer.amazon.com/",
+      "logo": {
+        "src": "/sponsors/amazon.webp",
+        "darkSrc": "/sponsors/amazon-dark.webp",
+        "height": 44
+      }
+    }
+  ],
+  "pastSupporters": [
+    {
+      "id": "nami",
+      "name": "Nami",
+      "url": "https://namiml.com",
+      "logo": {
+        "src": "/sponsors/nami.webp",
+        "height": 32
+      }
+    },
+    {
+      "id": "courier",
+      "name": "Courier",
+      "url": "https://www.courier.com/?utm_source=react-native-iap&utm_campaign=osssponsors",
+      "logo": {
+        "src": "/sponsors/courier.webp",
+        "height": 32
+      }
+    }
+  ],
+  "funding": {
+    "sponsorsPage": "https://openiap.dev/sponsors",
+    "githubHandle": "hyodotdev",
+    "openCollectiveSlug": "openiap",
+    "openCollectiveImageCache": "20260706",
+    "paypalUrl": "https://www.paypal.me/dooboolab",
+    "companyContactEmail": "hyo@hyo.dev"
+  }
+}

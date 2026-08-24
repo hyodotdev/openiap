@@ -816,7 +816,7 @@
   transform: translateY(-3px) scale(1.025);
 }
 
-.xp-sponsor-node .meta-wordmark {
+.xp-sponsor-node .sponsor-wordmark {
   max-width: 12rem;
   height: 3rem;
 }
@@ -1280,7 +1280,7 @@
     row-gap: 1.5rem;
   }
 
-  .xp-sponsor-node .meta-wordmark {
+  .xp-sponsor-node .sponsor-wordmark {
     max-width: 8.75rem;
     height: 2.35rem;
   }

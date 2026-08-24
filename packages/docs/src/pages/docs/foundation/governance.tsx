@@ -2,6 +2,7 @@ import SEO from '../../../components/SEO';
 import AnchorLink from '../../../components/AnchorLink';
 import Callout from '../../../components/Callout';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
+import { FUNDING_LINKS } from '../../../lib/sponsors';
 
 function Governance() {
   useScrollToHash();
@@ -411,7 +412,7 @@ function Governance() {
           single binary), its infrastructure costs are funded through the
           project's{' '}
           <a
-            href="https://opencollective.com/openiap"
+            href={FUNDING_LINKS.openCollectiveUrl}
             target="_blank"
             rel="noopener noreferrer"
           >

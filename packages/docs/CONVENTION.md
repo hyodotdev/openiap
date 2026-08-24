@@ -34,3 +34,16 @@
   the real package metadata by `scripts/sync-versions.sh` so Vercel can build
   from the `packages/docs` root without importing files outside the docs
   package.
+
+## Sponsor Surfaces
+
+- Treat `sponsors.json` as the SSOT for supporter records and logos; funding
+  channel links on the sponsor, sponsorship, founding-supporter, governance,
+  one-pager, and IAPKit docs; generated README sponsor blocks; and
+  `.github/FUNDING.yml`.
+- Run `bun run sponsors:sync` from the repository root after changing it. The
+  command updates every root/package/library README and `.github/FUNDING.yml`.
+- Use the generated `openiap-*` reference links for sponsor or funding mentions
+  elsewhere in those READMEs; the audit rejects hardcoded funding URLs.
+- Do not edit content between `<!-- sponsors:start -->` and
+  `<!-- sponsors:end -->`; `bun run audit:sponsors` and CI reject drift.

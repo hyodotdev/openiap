@@ -2,6 +2,7 @@ import SEO from '../../../components/SEO';
 import AnchorLink from '../../../components/AnchorLink';
 import Callout from '../../../components/Callout';
 import { useScrollToHash } from '../../../hooks/useScrollToHash';
+import { FUNDING_LINKS } from '../../../lib/sponsors';
 import { Link } from 'react-router-dom';
 
 function FoundingSupporters() {
@@ -301,8 +302,11 @@ function FoundingSupporters() {
             <strong>Hyo</strong> — Project Lead
           </p>
           <div style={{ display: 'flex', gap: '1rem', flexWrap: 'wrap' }}>
-            <a href="mailto:hyo@hyo.dev" className="btn btn-primary">
-              Email hyo@hyo.dev
+            <a
+              href={FUNDING_LINKS.companyContactUrl}
+              className="btn btn-primary"
+            >
+              Email the project lead
             </a>
             <a
               href="https://github.com/hyodotdev/openiap"

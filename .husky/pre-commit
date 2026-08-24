@@ -56,6 +56,19 @@ node scripts/audit-non-godot-parity.mjs
 echo "🧭 repository layout audit…"
 bun run audit:layout
 
+# Sponsor and funding mirrors are generated from packages/docs/sponsors.json.
+echo "💛 sponsor surface audit…"
+if git diff --cached --name-only --diff-filter=ACMRD \
+  | grep -qE '^(packages/docs/sponsors\.json|scripts/sync-sponsors(\.test)?\.mjs|\.github/FUNDING\.yml|(.+/)?README\.md)$'; then
+  if ! git diff --quiet -- scripts/sync-sponsors.mjs; then
+    echo "❌ sync-sponsors.mjs has unstaged changes; stage it before committing sponsor surfaces."
+    exit 1
+  fi
+  node scripts/sync-sponsors.mjs --staged
+else
+  bun run audit:sponsors
+fi
+
 # Unconditional: either side of the kit/spec contract can move.
 echo "🔎 IAPKit spec contract audit — running CI mirror…"
 node --test scripts/audit-kit-spec-contract.test.mjs

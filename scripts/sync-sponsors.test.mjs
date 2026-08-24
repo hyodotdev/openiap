@@ -1,0 +1,382 @@
+import assert from "node:assert/strict";
+import { execFileSync } from "node:child_process";
+import fs from "node:fs";
+import os from "node:os";
+import path from "node:path";
+import test from "node:test";
+
+import {
+  discoverReadmes,
+  renderFundingConfig,
+  renderSponsorBlock,
+  resolveFundingLinks,
+  sponsorBlockEnd,
+  sponsorBlockStart,
+  synchronizeReadme,
+  synchronizeSponsorFiles,
+  validateRegistry,
+} from "./sync-sponsors.mjs";
+
+const registry = {
+  currentSponsors: [
+    {
+      id: "meta",
+      name: "Meta",
+      shortName: "Meta",
+      tier: "Angel",
+      url: "https://meta.example",
+      logo: {
+        src: "/meta.webp",
+        height: 44,
+        readme: { src: "/meta.svg", height: 80 },
+      },
+    },
+    {
+      id: "amazon",
+      name: "Amazon",
+      shortName: "Amazon",
+      tier: "Angel",
+      url: "https://amazon.example",
+      logo: {
+        src: "/amazon.webp",
+        darkSrc: "/amazon-dark.webp",
+        height: 44,
+      },
+    },
+  ],
+  pastSupporters: [
+    {
+      id: "past",
+      name: "Past",
+      url: "https://past.example",
+      logo: { src: "/past.webp", height: 32 },
+    },
+  ],
+  funding: {
+    sponsorsPage: "https://openiap.dev/sponsors",
+    githubHandle: "hyodotdev",
+    openCollectiveSlug: "openiap",
+    openCollectiveImageCache: "20260706",
+    paypalUrl: "https://paypal.example",
+    companyContactEmail: "sponsor@example.com",
+  },
+};
+
+function writeSponsorAssets(root) {
+  const publicRoot = path.join(root, "packages/docs/public");
+  fs.mkdirSync(publicRoot, { recursive: true });
+
+  for (const asset of [
+    "meta.webp",
+    "meta.svg",
+    "amazon.webp",
+    "amazon-dark.webp",
+    "past.webp",
+  ]) {
+    fs.writeFileSync(path.join(publicRoot, asset), asset);
+  }
+}
+
+test("renders current, collective, and past supporters from one registry", () => {
+  const block = renderSponsorBlock(registry);
+
+  assert.match(block, /Meta/);
+  assert.match(block, /amazon-dark\.webp/);
+  assert.match(block, /OpenCollective sponsors/);
+  assert.match(block, /Past react-native-iap supporters/);
+  assert.match(block, /does not imply current sponsorship/);
+  assert.match(block, /\[openiap-github-sponsors\]/);
+  assert.match(block, /\[openiap-paypal\]/);
+  assert.match(block, /\[openiap-company-contact\]/);
+  assert.ok(block.startsWith(sponsorBlockStart));
+  assert.ok(block.endsWith(sponsorBlockEnd));
+});
+
+test("preserves the balanced sponsor layout across READMEs", () => {
+  const packageBlock = renderSponsorBlock(registry);
+  const rootBlock = renderSponsorBlock(registry, { repositoryAssets: true });
+
+  assert.match(
+    packageBlock,
+    /src="https:\/\/openiap\.dev\/meta\.svg" alt="Meta" height="80"/u,
+  );
+  assert.match(
+    packageBlock,
+    /src="https:\/\/openiap\.dev\/amazon\.webp" alt="Amazon" height="44"/u,
+  );
+  assert.match(
+    rootBlock,
+    /src="packages\/docs\/public\/meta\.svg" alt="Meta" height="80"/u,
+  );
+  assert.match(
+    rootBlock,
+    /src="packages\/docs\/public\/amazon\.webp" alt="Amazon" height="44"/u,
+  );
+});
+
+test("derives funding URLs from the canonical account names", () => {
+  assert.deepEqual(resolveFundingLinks(registry.funding), {
+    ...registry.funding,
+    companyContactUrl: "mailto:sponsor@example.com",
+    githubUrl: "https://github.com/sponsors/hyodotdev",
+    openCollectiveUrl: "https://opencollective.com/openiap",
+    openCollectiveSponsorsUrl: "https://opencollective.com/openiap#sponsors",
+    openCollectiveBackersUrl: "https://opencollective.com/openiap#backers",
+    openCollectiveSponsorUrl: "https://opencollective.com/openiap#sponsor",
+    openCollectiveBackerUrl: "https://opencollective.com/openiap#backer",
+  });
+
+  assert.equal(
+    resolveFundingLinks({
+      ...registry.funding,
+      companyContactEmail: "next@example.com",
+    }).companyContactUrl,
+    "mailto:next@example.com",
+  );
+});
+
+test("replaces a generated block without touching surrounding README content", () => {
+  const next = synchronizeReadme(
+    `# Package\n\n${sponsorBlockStart}\nstale\n${sponsorBlockEnd}\n\n## License\nMIT\n`,
+    "GENERATED",
+  );
+
+  assert.equal(next, "# Package\n\nGENERATED\n\n## License\nMIT\n");
+});
+
+test("inserts a missing block before the license", () => {
+  assert.equal(
+    synchronizeReadme("# Package\n\n## License\nMIT\n", "GENERATED"),
+    "# Package\n\nGENERATED\n\n## License\nMIT\n",
+  );
+});
+
+test("rejects hand-maintained sponsor sections", () => {
+  assert.throws(
+    () => synchronizeReadme("# Package\n\n## Sponsors\nOld\n", "GENERATED"),
+    /unmanaged sponsor\/supporter heading/u,
+  );
+});
+
+test("rejects hand-maintained past supporter sections", () => {
+  assert.throws(
+    () =>
+      synchronizeReadme(
+        "# Package\n\n## Past Supporters\nLegacy Co\n",
+        "GENERATED",
+      ),
+    /unmanaged sponsor\/supporter heading/u,
+  );
+});
+
+test("rejects hand-maintained sponsor sections outside a generated block", () => {
+  assert.throws(
+    () =>
+      synchronizeReadme(
+        `# Package\n\n${sponsorBlockStart}\nstale\n${sponsorBlockEnd}\n\n## Our Sponsors\nOld\n`,
+        "GENERATED",
+      ),
+    /unmanaged sponsor\/supporter heading found outside generated block/u,
+  );
+});
+
+test("rejects generated block markers that are out of order", () => {
+  assert.throws(
+    () =>
+      synchronizeReadme(
+        `# Package\n\n${sponsorBlockEnd}\nstale\n${sponsorBlockStart}\n`,
+        "GENERATED",
+      ),
+    /generated sponsor block markers are out of order/u,
+  );
+});
+
+test("rejects duplicate supporter ids and missing logo assets", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "openiap-registry-"));
+
+  try {
+    writeSponsorAssets(root);
+    const duplicate = structuredClone(registry);
+    duplicate.pastSupporters[0].id = "meta";
+    assert.throws(
+      () => validateRegistry(root, duplicate),
+      /duplicate supporter id: meta/u,
+    );
+
+    const missingAsset = structuredClone(registry);
+    missingAsset.currentSponsors[0].logo.src = "/missing.webp";
+    assert.throws(
+      () => validateRegistry(root, missingAsset),
+      /logo\.src does not exist/u,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("discovers root and first-party package/library READMEs", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "openiap-sponsors-"));
+
+  try {
+    fs.mkdirSync(path.join(root, "packages/alpha"), { recursive: true });
+    fs.mkdirSync(path.join(root, "packages/no-readme"), { recursive: true });
+    fs.mkdirSync(path.join(root, "libraries/beta"), { recursive: true });
+    fs.writeFileSync(path.join(root, "README.md"), "root");
+    fs.writeFileSync(path.join(root, "packages/alpha/README.md"), "alpha");
+    fs.writeFileSync(path.join(root, "libraries/beta/README.md"), "beta");
+
+    assert.deepEqual(discoverReadmes(root), [
+      "README.md",
+      "libraries/beta/README.md",
+      "packages/alpha/README.md",
+    ]);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("writes every discovered surface and then reports a clean audit", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "openiap-sponsor-sync-"));
+
+  try {
+    for (const directory of [
+      ".github",
+      "packages/docs",
+      "packages/alpha",
+      "libraries/beta",
+    ]) {
+      fs.mkdirSync(path.join(root, directory), { recursive: true });
+    }
+    writeSponsorAssets(root);
+
+    fs.writeFileSync(
+      path.join(root, "packages/docs/sponsors.json"),
+      JSON.stringify(registry),
+    );
+    fs.writeFileSync(path.join(root, "README.md"), "# Root\n");
+    fs.writeFileSync(
+      path.join(root, "packages/alpha/README.md"),
+      "# Alpha\n\n## License\nMIT\n",
+    );
+    fs.writeFileSync(path.join(root, "libraries/beta/README.md"), "# Beta\n");
+    fs.writeFileSync(path.join(root, ".github/FUNDING.yml"), "stale\n");
+
+    assert.deepEqual(synchronizeSponsorFiles(root, { write: true }), [
+      "README.md",
+      "libraries/beta/README.md",
+      "packages/alpha/README.md",
+      ".github/FUNDING.yml",
+    ]);
+    assert.deepEqual(synchronizeSponsorFiles(root), []);
+
+    const betaReadme = path.join(root, "libraries/beta/README.md");
+    fs.writeFileSync(
+      betaReadme,
+      fs.readFileSync(betaReadme, "utf8").replace("OpenCollective", "Drift"),
+    );
+    assert.deepEqual(synchronizeSponsorFiles(root), [
+      "libraries/beta/README.md",
+    ]);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("rejects hardcoded funding URLs outside the generated block", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "openiap-funding-link-"));
+
+  try {
+    for (const directory of [".github", "packages/docs", "libraries"]) {
+      fs.mkdirSync(path.join(root, directory), { recursive: true });
+    }
+    writeSponsorAssets(root);
+    fs.writeFileSync(
+      path.join(root, "packages/docs/sponsors.json"),
+      JSON.stringify(registry),
+    );
+    fs.writeFileSync(
+      path.join(root, "README.md"),
+      "# Root\n\n[Contact](mailto:hyo@hyo.dev)\n",
+    );
+    fs.writeFileSync(path.join(root, ".github/FUNDING.yml"), "stale\n");
+
+    assert.throws(
+      () => synchronizeSponsorFiles(root, { write: true }),
+      /funding link found outside generated block/u,
+    );
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("audits sponsor surfaces from the staged snapshot", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "openiap-sponsor-index-"));
+
+  try {
+    for (const directory of [
+      ".github",
+      "packages/docs",
+      "packages/alpha",
+      "libraries/beta",
+    ]) {
+      fs.mkdirSync(path.join(root, directory), { recursive: true });
+    }
+    writeSponsorAssets(root);
+    fs.writeFileSync(
+      path.join(root, "packages/docs/sponsors.json"),
+      JSON.stringify(registry),
+    );
+    fs.writeFileSync(path.join(root, "README.md"), "# Root\n");
+    fs.writeFileSync(path.join(root, "packages/alpha/README.md"), "# Alpha\n");
+    fs.writeFileSync(path.join(root, "libraries/beta/README.md"), "# Beta\n");
+    fs.writeFileSync(path.join(root, ".github/FUNDING.yml"), "stale\n");
+    synchronizeSponsorFiles(root, { write: true });
+
+    execFileSync("git", ["init", "-q"], { cwd: root });
+    execFileSync("git", ["add", "."], { cwd: root });
+    execFileSync(
+      "git",
+      [
+        "-c",
+        "user.name=OpenIAP Test",
+        "-c",
+        "user.email=test@openiap.dev",
+        "commit",
+        "-qm",
+        "fixture",
+      ],
+      { cwd: root },
+    );
+
+    const changedRegistry = structuredClone(registry);
+    changedRegistry.currentSponsors[0].url = "https://meta.changed.example";
+    fs.writeFileSync(
+      path.join(root, "packages/docs/sponsors.json"),
+      JSON.stringify(changedRegistry),
+    );
+    synchronizeSponsorFiles(root, { write: true });
+    execFileSync("git", ["add", "packages/docs/sponsors.json"], { cwd: root });
+    fs.rmSync(path.join(root, "packages/alpha/README.md"));
+    fs.mkdirSync(path.join(root, "packages/untracked"), { recursive: true });
+    fs.writeFileSync(
+      path.join(root, "packages/untracked/README.md"),
+      "# Untracked\n\n[Support](https://opencollective.com/openiap)\n",
+    );
+
+    assert.deepEqual(synchronizeSponsorFiles(root, { staged: true }), [
+      "README.md",
+      "libraries/beta/README.md",
+      "packages/alpha/README.md",
+    ]);
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test("renders GitHub funding configuration from the registry", () => {
+  const funding = renderFundingConfig(registry);
+
+  assert.match(funding, /github: hyodotdev/);
+  assert.match(funding, /open_collective: openiap/);
+  assert.match(funding, /https:\/\/paypal\.example/);
+});
