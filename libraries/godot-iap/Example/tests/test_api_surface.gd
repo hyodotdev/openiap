@@ -188,6 +188,7 @@ func test_wrapper_signal_surface() -> void:
 
 func test_args_helper_shapes() -> void:
 	# No-argument helpers serialize to empty payloads.
+	_assert_equal(Types.open_redeem_offer_code_args(), {}, "open_redeem_offer_code_args should be empty")
 	_assert_equal(Types.open_redeem_offer_code_android_args(), {}, "open_redeem_offer_code_android_args should be empty")
 	_assert_equal(Types.end_connection_args(), {}, "end_connection_args should be empty")
 	_assert_equal(Types.restore_purchases_args(), {}, "restore_purchases_args should be empty")

@@ -604,9 +604,16 @@ func test_android_methods_mock() -> void:
 	var link_result = GodotIapPlugin.launch_external_link_android(link_params)
 	_assert_true(link_result is bool, "launch_external_link_android should return bool")
 
-	# open_redeem_offer_code_android
+	# open_redeem_offer_code_android (deprecated)
 	var redeem_result = GodotIapPlugin.open_redeem_offer_code_android()
 	_assert_true(redeem_result is bool, "open_redeem_offer_code_android should return bool")
+
+	# open_redeem_offer_code (cross-platform)
+	var unified_redeem_result = await GodotIapPlugin.open_redeem_offer_code()
+	_assert_true(
+		unified_redeem_result == null or unified_redeem_result is Types.PurchaseIOS,
+		"open_redeem_offer_code should return PurchaseIOS or null"
+	)
 
 	# get_package_name_android
 	var package_name = GodotIapPlugin.get_package_name_android()
@@ -738,6 +745,8 @@ func test_no_plugin_cross_platform_zero_values() -> void:
 	var deep_link_result = await GodotIapPlugin.deep_link_to_subscriptions()
 	_assert_true(deep_link_result is Types.VoidResult, "deep_link_to_subscriptions should return VoidResult without a native plugin")
 	_assert_equal(deep_link_result.success, false, "Deep links should not report success without a native plugin on desktop")
+
+	_assert_equal(await GodotIapPlugin.open_redeem_offer_code(), null, "open_redeem_offer_code should return null without a native plugin")
 
 
 # ============================================

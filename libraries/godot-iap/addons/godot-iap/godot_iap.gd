@@ -1452,6 +1452,7 @@ func get_all_transactions_ios() -> Array:
 ## a sheet because StoreKit 1 has no effect there.
 ##
 ## See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
+## @deprecated Use open_redeem_offer_code(). Scheduled for removal in OpenIAP 4.0.
 func present_code_redemption_sheet_ios() -> Variant:
 	if not (_native_plugin and _platform == "iOS"):
 		return null
@@ -2006,6 +2007,7 @@ func launch_external_link_android(params) -> bool:
 ## @return bool - true if launched, false if unavailable
 ##
 ## See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
+## @deprecated Use open_redeem_offer_code(). Scheduled for removal in OpenIAP 4.0.
 func open_redeem_offer_code_android() -> bool:
 	if _native_plugin and _platform == "Android":
 		var result_json = _native_plugin.call("openRedeemOfferCodeAndroid")
@@ -2120,6 +2122,29 @@ func deep_link_to_subscriptions(options = null) -> Variant:
 	var unavailable_result = Types.VoidResult.new()
 	unavailable_result.success = false
 	return unavailable_result
+
+# ==========================================
+# Offer Code Redemption (OpenIAP Mutation)
+# ==========================================
+
+## Open the platform offer/promo code redemption flow (cross-platform).
+## iOS presents the App Store offer code redemption sheet and returns the
+## redeemed Types.PurchaseIOS when StoreKit reports it synchronously
+## (Xcode 27+ building for iOS 27+); older sheets resolve null after
+## presentation. Android launches the Play Store redeem page and returns null;
+## redeemed purchases arrive through purchase listeners — reconcile with
+## get_available_purchases() on resume. Returns null when no redemption
+## surface is available (desktop/editor, or no native plugin).
+## @return Types.PurchaseIOS or null
+##
+## See: https://openiap.dev/docs/apis/open-redeem-offer-code
+func open_redeem_offer_code() -> Variant:
+	if _native_plugin and _platform == "Android":
+		# openiap-google 3.4.0 only launches the redeem page; map the launched envelope to null.
+		_native_plugin.call("openRedeemOfferCodeAndroid")
+		return null
+	# iOS reuses the released sheet dispatch and its purchase parsing; other surfaces resolve null.
+	return await present_code_redemption_sheet_ios()
 
 # ==========================================
 # Utility Functions
