@@ -3,8 +3,7 @@ import { describe, expect, it } from "vitest";
 import { APP_ERROR_SCOPE, AppError, ErrorCode, createError } from "./errors";
 
 describe("AppError", () => {
-  // Convex serializes application errors by checking for this symbol; a plain
-  // Error fails the check and is redacted to "Server Error" in production.
+  // Convex gates application errors on this symbol; a plain Error is redacted.
   it("qualifies as a Convex application error", () => {
     const error = createError(ErrorCode.USER_NOT_REGISTERED);
     expect(Symbol.for("ConvexError") in error).toBe(true);

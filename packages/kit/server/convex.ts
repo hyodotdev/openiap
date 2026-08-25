@@ -42,9 +42,8 @@ export function handleConvexError(error: unknown): ApiError | null {
     return null;
   }
 
-  // Dashboard-scoped payloads keep the generic 500 fallback: `/v1` responses
-  // are a published contract that shipped SDKs decode, so internal codes and
-  // details must not start appearing there. See packages/kit/CONVENTION.md.
+  // `/v1` is a published contract shipped SDKs decode, so dashboard-scoped
+  // payloads keep the generic fallback. See packages/kit/CONVENTION.md.
   const data: unknown = error.data;
   if (
     typeof data === "object" &&

@@ -87,9 +87,7 @@ describe("handleConvexError", () => {
     );
   });
 
-  // AppError reaches /v1 routes from every Convex function they call. Its
-  // payload is dashboard-facing, so routes must keep their generic fallback
-  // rather than start publishing internal codes and details.
+  // Every Convex function /v1 calls can throw AppError; none may reach the body.
   it("does not expose dashboard-scoped AppError payloads", () => {
     expect(handleConvexError(createError(ErrorCode.PROJECT_NOT_FOUND))).toBe(
       null,

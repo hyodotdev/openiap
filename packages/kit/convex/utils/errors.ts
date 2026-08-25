@@ -40,8 +40,7 @@ export enum ErrorCode {
   SERVER_ERROR = "SERVER_ERROR",
 }
 
-// Marks payloads meant for the dashboard. `/v1` route layers reject this
-// scope so internal codes stay out of the published response contract.
+// `/v1` route layers reject this scope, keeping internal codes unpublished.
 export const APP_ERROR_SCOPE = "dashboard";
 
 /** Payload the client receives on `ConvexError.data`. */
@@ -53,8 +52,7 @@ export interface AppErrorData {
   [key: string]: string;
 }
 
-// Convex redacts plain `Error` messages to "Server Error" on production
-// deployments; only ConvexError data crosses to the client.
+// Convex redacts plain `Error` in production; only ConvexError data reaches the client.
 export class AppError extends ConvexError<AppErrorData> {
   readonly code: ErrorCode;
 
