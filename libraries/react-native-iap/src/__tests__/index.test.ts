@@ -631,6 +631,43 @@ describe('Public API (src/index.ts)', () => {
 
       sub2.remove();
     });
+
+    it('clears pre-init listeners when ending without a native instance', async () => {
+      const createHybridObject = jest
+        .fn()
+        .mockImplementationOnce(() => {
+          throw new Error('Nitro runtime not installed');
+        })
+        .mockImplementation(() => mockIap);
+      jest.resetModules();
+      jest.doMock('react-native-nitro-modules', () => ({
+        NitroModules: {createHybridObject},
+      }));
+      const freshIAP = require('../index');
+      const staleListener = jest.fn();
+
+      freshIAP.purchaseUpdatedListener(staleListener);
+      await expect(freshIAP.endConnection()).resolves.toBe(true);
+      await freshIAP.initConnection();
+
+      const currentListener = jest.fn();
+      freshIAP.purchaseUpdatedListener(currentListener);
+      const nativeHandler =
+        mockIap.addPurchaseUpdatedListener.mock.calls.at(-1)[0];
+      nativeHandler({
+        id: 't1',
+        transactionId: 't1',
+        productId: 'p1',
+        transactionDate: Date.now(),
+        store: 'apple',
+        quantity: 1,
+        purchaseState: 'purchased',
+        isAutoRenewing: false,
+      });
+
+      expect(staleListener).not.toHaveBeenCalled();
+      expect(currentListener).toHaveBeenCalledTimes(1);
+    });
   });
 
   describe('fetchProducts', () => {
@@ -3384,6 +3421,9 @@ describe('Public API (src/index.ts)', () => {
 
       replaceNativeMethod('initConnection', jest.fn().mockResolvedValue(true));
       expect(IAP.isNitroReady()).toBe(true);
+      (Platform as any).OS = 'android';
+      const staleListener = jest.fn();
+      IAP.purchaseUpdatedListener(staleListener);
       replaceNativeMethod(
         'endConnection',
         jest.fn().mockRejectedValueOnce(new Error('end failed')),
@@ -3391,6 +3431,25 @@ describe('Public API (src/index.ts)', () => {
       await expect(IAP.endConnection()).rejects.toMatchObject({
         message: 'end failed',
       });
+
+      await IAP.initConnection();
+      const currentListener = jest.fn();
+      IAP.purchaseUpdatedListener(currentListener);
+      expect(mockIap.addPurchaseUpdatedListener).toHaveBeenCalledTimes(2);
+
+      const nativeHandler = mockIap.addPurchaseUpdatedListener.mock.calls[1][0];
+      nativeHandler({
+        id: 't1',
+        transactionId: 't1',
+        productId: 'p1',
+        transactionDate: Date.now(),
+        store: 'google',
+        quantity: 1,
+        purchaseState: 'purchased',
+        isAutoRenewing: false,
+      });
+      expect(staleListener).not.toHaveBeenCalled();
+      expect(currentListener).toHaveBeenCalledTimes(1);
     });
 
     it.each([

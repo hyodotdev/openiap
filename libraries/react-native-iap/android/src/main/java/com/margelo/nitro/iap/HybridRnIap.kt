@@ -146,11 +146,6 @@ internal fun requireMatchingPurchaseOptions(
 private const val MAX_PENDING_EVENTS = 200
 
 class HybridRnIap : HybridRnIapSpec() {
-    private data class PurchaseUpdatedListenerRegistration(
-        val token: Double,
-        val listener: (NitroPurchase) -> Unit
-    )
-    
     // Get ReactApplicationContext lazily from NitroModules
     private val context: ReactApplicationContext by lazy {
         NitroModules.applicationContext as ReactApplicationContext
@@ -161,8 +156,7 @@ class HybridRnIap : HybridRnIapSpec() {
     private val productTypeBySku = mutableMapOf<String, String>()
 
     // Event listeners
-    private val purchaseUpdatedListeners = mutableListOf<PurchaseUpdatedListenerRegistration>()
-    private var nextPurchaseUpdatedListenerToken = 1.0
+    private val purchaseUpdatedListeners = TokenizedListenerRegistry<(NitroPurchase) -> Unit>()
     private val purchaseErrorListeners = mutableListOf<(NitroPurchaseResult) -> Unit>()
 
     // Pending purchase events buffered while ZERO bridge listeners are attached
@@ -441,7 +435,6 @@ class HybridRnIap : HybridRnIapSpec() {
                     // buffered events do not survive an explicit endConnection.
                     synchronized(purchaseUpdatedListeners) {
                         purchaseUpdatedListeners.clear()
-                        nextPurchaseUpdatedListenerToken = 1.0
                         pendingPurchaseUpdates.clear()
                     }
                     synchronized(purchaseErrorListeners) {
@@ -991,9 +984,7 @@ class HybridRnIap : HybridRnIapSpec() {
         options: PurchaseUpdatedListenerOptions?
     ): Double {
         val (token, shouldFlush) = synchronized(purchaseUpdatedListeners) {
-            val token = nextPurchaseUpdatedListenerToken
-            nextPurchaseUpdatedListenerToken += 1.0
-            purchaseUpdatedListeners.add(PurchaseUpdatedListenerRegistration(token, listener))
+            val token = purchaseUpdatedListeners.add(listener)
             val shouldFlush = pendingPurchaseUpdates.beginFlushIfNeeded()
             token to shouldFlush
         }
@@ -1016,7 +1007,7 @@ class HybridRnIap : HybridRnIapSpec() {
                     pendingPurchaseUpdates.takeBatchOrFinish()?.let { backlog ->
                         PendingEventDelivery(
                             events = backlog,
-                            listeners = purchaseUpdatedListeners.map { it.listener },
+                            listeners = purchaseUpdatedListeners.snapshot(),
                         )
                     }
                 }
@@ -1047,7 +1038,7 @@ class HybridRnIap : HybridRnIapSpec() {
 
     override fun removePurchaseUpdatedListener(token: Double) {
         synchronized(purchaseUpdatedListeners) {
-            purchaseUpdatedListeners.removeAll { it.token == token }
+            purchaseUpdatedListeners.remove(token)
         }
     }
 
@@ -1090,7 +1081,7 @@ class HybridRnIap : HybridRnIapSpec() {
             if (pendingPurchaseUpdates.enqueueIfNeeded(purchaseUpdatedListeners.isNotEmpty(), purchase)) {
                 emptyList()
             } else {
-                purchaseUpdatedListeners.map { it.listener }
+                purchaseUpdatedListeners.snapshot()
             }
         }
         snapshot.forEach { it(purchase) }
