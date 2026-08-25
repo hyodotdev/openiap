@@ -30,6 +30,10 @@ interface ReleaseMetadata {
   tag: string;
 }
 
+const androidListenerIsolationReleases = [
+  ['react-native-iap 16.3.3', 'react-native-iap-16.3.3'],
+] as const;
+
 const purchaseDiagnosticsReleases = [
   ['openiap-google 3.3.2', 'google-3.3.2'],
   ['react-native-iap 16.3.2', 'react-native-iap-16.3.2'],
@@ -263,6 +267,94 @@ function Releases() {
   }
 
   const allNotes: Note[] = [
+    // August 26, 2026 - react-native-iap 16.3.3 listener cleanup
+    {
+      id: 'react-native-iap-android-listener-isolation-2026-08-26',
+      date: new Date('2026-08-26'),
+      element: (
+        <div
+          key="react-native-iap-android-listener-isolation-2026-08-26"
+          style={noteCardStyle}
+        >
+          <AnchorLink
+            id="react-native-iap-android-listener-isolation-2026-08-26"
+            level="h4"
+          >
+            August 26, 2026 - react-native-iap 16.3.3 listener cleanup
+          </AnchorLink>
+
+          <p
+            style={{
+              marginBottom: '1rem',
+              color: 'var(--text-secondary)',
+            }}
+          >
+            Android purchase-update listener removal remains scoped to the
+            registration being removed, protecting other transaction handlers.
+          </p>
+
+          <h5 style={{ margin: '0 0 0.5rem 0' }}>Framework libraries</h5>
+          <ul
+            style={{
+              marginBottom: '1rem',
+              paddingLeft: '1.25rem',
+              fontSize: '0.9rem',
+            }}
+          >
+            <li>
+              <strong>react-native-iap 16.3.3</strong> - prevents failed or
+              early shutdowns from leaving listeners unable to reattach, so
+              purchase events resume after reconnecting (
+              <a
+                href="https://github.com/hyodotdev/openiap/issues/382"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                issue #382
+              </a>
+              ;{' '}
+              <a
+                href="https://github.com/hyodotdev/openiap/pull/383"
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                PR #383
+              </a>
+              ).
+            </li>
+          </ul>
+
+          <div
+            style={{
+              paddingTop: '1rem',
+              borderTop: '1px solid var(--border-color)',
+            }}
+          >
+            <h5 style={{ margin: '0 0 0.5rem 0' }}>Package Releases</h5>
+            <ul
+              style={{
+                margin: 0,
+                paddingLeft: '1.25rem',
+                fontSize: '0.9rem',
+              }}
+            >
+              {androidListenerIsolationReleases.map(([label, tag]) => (
+                <li key={tag}>
+                  <a
+                    href={`https://github.com/hyodotdev/openiap/releases/tag/${tag}`}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                  >
+                    {label}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        </div>
+      ),
+    },
+
     // August 21, 2026 - Clearer purchase failures and safer logs
     {
       id: 'purchase-diagnostics-log-sanitization-2026-08-21',
