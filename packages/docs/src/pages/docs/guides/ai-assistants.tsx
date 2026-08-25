@@ -258,8 +258,8 @@ Include handling for both iOS and Android."`}</CodeBlock>
 I handle them with OpenIAP?"`}</CodeBlock>
 
         <h4>Platform-Specific</h4>
-        <CodeBlock language="typescript">{`"Show me how to use presentCodeRedemptionSheetIOS
-for iOS offer code redemption"`}</CodeBlock>
+        <CodeBlock language="typescript">{`"Show me how to use showManageSubscriptionsIOS
+to open subscription management on iOS"`}</CodeBlock>
 
         <h4>Purchase Restoration</h4>
         <CodeBlock language="typescript">{`"How do I restore previous purchases using

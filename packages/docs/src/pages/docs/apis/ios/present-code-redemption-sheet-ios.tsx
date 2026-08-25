@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
+import Callout from '../../../../components/Callout';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
@@ -27,6 +28,19 @@ function PresentCodeRedemptionSheetIOS() {
         </Link>
         .
       </p>
+
+      <Callout kind="warning">
+        <strong>Deprecated.</strong> Use the cross-platform{' '}
+        <Link to="/docs/apis/open-redeem-offer-code">
+          <code>openRedeemOfferCode</code>
+        </Link>{' '}
+        instead — identical sheet behavior and result semantics on Apple
+        platforms. Scheduled for removal in OpenIAP 4.0. Generated TypeScript
+        declarations carry a <code>@deprecated</code> JSDoc tag, Kotlin
+        declarations carry <code>@Deprecated</code>, and{' '}
+        <code>openiap-apple</code> marks the Swift method{' '}
+        <code>@available(*, deprecated)</code>, so builds surface the migration.
+      </Callout>
       <p>
         In Xcode 27+ builds on iOS 27, Mac Catalyst 27, and visionOS 27 or
         later, this calls{' '}

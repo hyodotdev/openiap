@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import AnchorLink from '../../../../components/AnchorLink';
+import Callout from '../../../../components/Callout';
 import CodeBlock from '../../../../components/CodeBlock';
 import LanguageTabs from '../../../../components/LanguageTabs';
 import SEO from '../../../../components/SEO';
@@ -28,6 +29,18 @@ function OpenRedeemOfferCodeAndroid() {
         </Link>
         .
       </p>
+
+      <Callout kind="warning">
+        <strong>Deprecated.</strong> Use the cross-platform{' '}
+        <Link to="/docs/apis/open-redeem-offer-code">
+          <code>openRedeemOfferCode</code>
+        </Link>{' '}
+        instead — it launches the same Play redeem page and works on both
+        platforms with one call. Scheduled for removal in OpenIAP 4.0. Generated
+        TypeScript declarations carry a <code>@deprecated</code> JSDoc tag and
+        Kotlin declarations carry <code>@Deprecated</code>, so builds surface
+        the migration.
+      </Callout>
       <p>
         Available in OpenIAP Spec 2.4.2 / <code>openiap-google</code> 2.5.0.
         Launches the Play Store redeem page (

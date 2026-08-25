@@ -55,6 +55,7 @@ import APIsGetStorefront from './apis/get-storefront';
 import APIsGetActiveSubscriptions from './apis/get-active-subscriptions';
 import APIsHasActiveSubscriptions from './apis/has-active-subscriptions';
 import APIsDeepLinkToSubscriptions from './apis/deep-link-to-subscriptions';
+import APIsOpenRedeemOfferCode from './apis/open-redeem-offer-code';
 import APIsClearTransactionIOS from './apis/ios/clear-transaction-ios';
 import APIsGetPendingTransactionsIOS from './apis/ios/get-pending-transactions-ios';
 import APIsGetAllTransactionsIOS from './apis/ios/get-all-transactions-ios';
@@ -649,6 +650,10 @@ function Docs() {
                 {
                   to: '/docs/apis/deep-link-to-subscriptions',
                   label: 'deepLinkToSubscriptions',
+                },
+                {
+                  to: '/docs/apis/open-redeem-offer-code',
+                  label: 'openRedeemOfferCode',
                 },
                 {
                   label: 'iOS Specific',
@@ -1306,6 +1311,10 @@ function Docs() {
           <Route
             path="apis/deep-link-to-subscriptions"
             element={<APIsDeepLinkToSubscriptions />}
+          />
+          <Route
+            path="apis/open-redeem-offer-code"
+            element={<APIsOpenRedeemOfferCode />}
           />
           <Route
             path="apis/validate-receipt"

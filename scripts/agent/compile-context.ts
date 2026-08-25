@@ -736,6 +736,17 @@ await restorePurchases();
 const purchases = await getAvailablePurchases();
 \`\`\`
 
+### Redeem Offer Code
+\`\`\`typescript
+// Cross-platform; replaces the deprecated presentCodeRedemptionSheetIOS
+// and openRedeemOfferCodeAndroid (removal in OpenIAP 4.0)
+const purchase = await openRedeemOfferCode();
+// Verified purchase only on Apple 27+ from Xcode 27+ builds; every other
+// flow resolves null (pre-27 iOS sheet, Play redeem page, Horizon/Amazon
+// no-op). Redeemed purchases arrive via purchaseUpdatedListener; reconcile
+// with getAvailablePurchases on resume.
+\`\`\`
+
 ## Events (React Native/Expo)
 
 \`\`\`typescript
@@ -835,14 +846,14 @@ interface PurchaseError {
 
 ### iOS
 - syncIOS() - Sync with App Store
-- presentCodeRedemptionSheetIOS() - Show offer code UI; Xcode 27+ builds return a verified PurchaseIOS on Apple 27+, while other supported system-sheet paths return null
+- presentCodeRedemptionSheetIOS() - Deprecated; use openRedeemOfferCode() (removal in OpenIAP 4.0)
 - showManageSubscriptionsIOS() - Open subscription management
 - beginRefundRequestIOS() - Start refund flow
 
 ### Android
 - acknowledgePurchaseAndroid() - Acknowledge purchase
 - consumePurchaseAndroid() - Consume for re-purchase
-- openRedeemOfferCodeAndroid() - Open Play offer-code redemption page
+- openRedeemOfferCodeAndroid() - Deprecated; use openRedeemOfferCode() (removal in OpenIAP 4.0)
 
 ## Purchase Flow Summary
 

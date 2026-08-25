@@ -23,18 +23,31 @@ function OfferCodeRedemption() {
         to redeem special offers for in-app purchases and subscriptions.
       </p>
       <p>
-        <strong>Current API boundary:</strong>{' '}
-        <code>presentCodeRedemptionSheetIOS</code> returns the verified{' '}
-        <code>PurchaseIOS</code> produced by Apple&apos;s new StoreKit API on
-        iOS 27, Mac Catalyst 27, and visionOS 27 or later. Earlier iOS and
-        visionOS runtimes present Apple&apos;s system sheet and return{' '}
-        <code>null</code>, so observe the redeemed purchase through{' '}
+        <strong>Current API boundary:</strong> Call the cross-platform{' '}
+        <Link to="/docs/apis/open-redeem-offer-code">
+          <code>openRedeemOfferCode</code>
+        </Link>{' '}
+        on both platforms. It returns the verified <code>Purchase</code>{' '}
+        produced by Apple&apos;s new StoreKit API on iOS 27, Mac Catalyst 27,
+        and visionOS 27 or later (Xcode 27+ builds). Every other flow resolves{' '}
+        <code>null</code>: earlier iOS and visionOS runtimes present
+        Apple&apos;s system sheet, Google Play opens the Play Store redeem page,
+        and Meta Horizon and Amazon Appstore launch nothing. Observe the
+        redeemed purchase through{' '}
         <Link to="/docs/events/purchase-updated-listener">
           <code>purchaseUpdatedListener</code>
         </Link>{' '}
         or an explicit available-purchases refresh. Mac Catalyst 16–26 instead
         throws <code>StoreKitError.unknown</code>, and the Catalyst 15 StoreKit
-        1 call has no effect.
+        1 call has no effect. The suffixed{' '}
+        <Link to="/docs/apis/ios/present-code-redemption-sheet-ios">
+          <code>presentCodeRedemptionSheetIOS</code>
+        </Link>{' '}
+        and{' '}
+        <Link to="/docs/apis/android/open-redeem-offer-code-android">
+          <code>openRedeemOfferCodeAndroid</code>
+        </Link>{' '}
+        are deprecated and scheduled for removal in OpenIAP 4.0.
       </p>
 
       <section>
@@ -53,14 +66,14 @@ function OfferCodeRedemption() {
             <tr>
               <td>iOS</td>
               <td>
-                <code>presentCodeRedemptionSheetIOS</code>
+                <code>openRedeemOfferCode</code>
               </td>
               <td>Present Apple&apos;s system redemption sheet in the app</td>
             </tr>
             <tr>
               <td>Android one-time-use code</td>
               <td>
-                <code>openRedeemOfferCodeAndroid</code>
+                <code>openRedeemOfferCode</code>
               </td>
               <td>Open the Google Play redemption page</td>
             </tr>
@@ -109,7 +122,7 @@ function OfferCodeRedemption() {
                       <CodeBlock language="typescript">{`import {
   endConnection,
   initConnection,
-  presentCodeRedemptionSheetIOS,
+  openRedeemOfferCode,
   purchaseUpdatedListener,
 } from 'expo-iap';
 
@@ -123,7 +136,7 @@ export async function startIap() {
 }
 
 export async function redeemCode() {
-  const purchase = await presentCodeRedemptionSheetIOS();
+  const purchase = await openRedeemOfferCode();
   if (purchase) {
     console.log('Verified redemption:', purchase.productId);
   }
@@ -150,7 +163,7 @@ final class RedemptionManager {
     }
 
     func redeemCode() async throws -> PurchaseIOS? {
-        try await iapStore.presentCodeRedemptionSheetResultIOS()
+        try await iapStore.openRedeemOfferCode()
     }
 
     func stop() async {
@@ -182,8 +195,8 @@ class RedemptionManager(private val scope: CoroutineScope) {
         }
     }
 
-    suspend fun redeemCode(): PurchaseIOS? =
-        iap.presentCodeRedemptionSheetIOS()
+    suspend fun redeemCode(): Purchase? =
+        iap.openRedeemOfferCode()
 
     suspend fun stop() {
         purchaseJob?.cancel()
@@ -206,7 +219,7 @@ class RedemptionManager {
     });
   }
 
-  Future<PurchaseIOS?> redeemCode() => iap.presentCodeRedemptionSheetIOS();
+  Future<Purchase?> redeemCode() => iap.openRedeemOfferCode();
 
   Future<void> stop() async {
     await subscription?.cancel();
@@ -230,8 +243,8 @@ public sealed class RedemptionManager : IDisposable
         await ((MutationResolver)_iap).InitConnectionAsync();
     }
 
-    public Task<PurchaseIOS?> RedeemCodeAsync() =>
-        ((MutationResolver)_iap).PresentCodeRedemptionSheetIOSAsync();
+    public Task<Purchase?> RedeemCodeAsync() =>
+        ((MutationResolver)_iap).OpenRedeemOfferCodeAsync();
 
     public async Task StopAsync()
     {
@@ -255,7 +268,7 @@ func _on_purchase_updated(purchase: Dictionary) -> void:
     print("Redeemed product: ", purchase.get("productId", ""))
 
 func redeem_code() -> Variant:
-    return await GodotIapPlugin.present_code_redemption_sheet_ios()
+    return await GodotIapPlugin.open_redeem_offer_code()
 
 func _exit_tree() -> void:
     await GodotIapPlugin.end_connection()`}</CodeBlock>
@@ -338,12 +351,13 @@ func _exit_tree() -> void:
   finishTransaction,
   getAvailablePurchases,
   initConnection,
-  openRedeemOfferCodeAndroid,
+  openRedeemOfferCode,
   type Purchase,
 } from 'expo-iap';
 
 export async function openRedeemPage() {
-  await openRedeemOfferCodeAndroid();
+  // Resolves null on Google Play — the redemption completes in the Play Store.
+  await openRedeemOfferCode();
 }
 
 // Call this from the app's foreground/resume handler after the user returns.
@@ -370,7 +384,8 @@ declare function isConsumableProduct(productId: string): boolean;
 // react-native-iap exports the same APIs.`}</CodeBlock>
                     ),
                     swift: (
-                      <CodeBlock language="swift">{`// Android-only. On iOS, call presentCodeRedemptionSheetIOS().`}</CodeBlock>
+                      <CodeBlock language="swift">{`// On iOS, the same openRedeemOfferCode() call presents the App Store
+// sheet — see the iOS tab above.`}</CodeBlock>
                     ),
                     kotlin: (
                       <CodeBlock language="kotlin">{`import android.app.Activity
@@ -398,8 +413,10 @@ suspend fun reconcileAfterResume() {
                       <CodeBlock language="kotlin">{`import io.github.hyochan.kmpiap.toPurchaseInput
 import io.github.hyochan.kmpiap.openiap.PurchaseState
 
-suspend fun openRedeemPage(): Boolean =
-    kmpIAP.openRedeemOfferCodeAndroid()
+suspend fun openRedeemPage() {
+    // Resolves null on Google Play — the redemption completes in the Play Store.
+    kmpIAP.openRedeemOfferCode()
+}
 
 suspend fun reconcileAfterResume() {
     check(kmpIAP.initConnection())
@@ -418,8 +435,9 @@ suspend fun reconcileAfterResume() {
                     dart: (
                       <CodeBlock language="dart">{`import 'package:flutter_inapp_purchase/flutter_inapp_purchase.dart';
 
-Future<bool> openRedeemPage() =>
-    FlutterInappPurchase.instance.openRedeemOfferCodeAndroid();
+// Resolves null on Google Play — the redemption completes in the Play Store.
+Future<Purchase?> openRedeemPage() =>
+    FlutterInappPurchase.instance.openRedeemOfferCode();
 
 Future<void> reconcileAfterResume() async {
   final iap = FlutterInappPurchase.instance;
@@ -443,7 +461,8 @@ Future<void> reconcileAfterResume() async {
 using OpenIap.Maui;
 
 var mutations = (MutationResolver)OpenIapClient.Instance;
-await mutations.OpenRedeemOfferCodeAndroidAsync();
+// Resolves null on Google Play — the redemption completes in the Play Store.
+await mutations.OpenRedeemOfferCodeAsync();
 
 async Task ReconcileAfterResumeAsync()
 {
@@ -465,8 +484,9 @@ async Task ReconcileAfterResumeAsync()
 }`}</CodeBlock>
                     ),
                     gdscript: (
-                      <CodeBlock language="gdscript">{`func open_redeem_page() -> bool:
-    return await GodotIapPlugin.open_redeem_offer_code_android()
+                      <CodeBlock language="gdscript">{`func open_redeem_page() -> void:
+    # Resolves null on Google Play — the redemption completes in the Play Store.
+    await GodotIapPlugin.open_redeem_offer_code()
 
 func reconcile_after_resume() -> void:
     if not await GodotIapPlugin.init_connection():
@@ -520,14 +540,21 @@ func reconcile_after_resume() -> void:
         </AnchorLink>
         <ul>
           <li>
+            <Link to="/docs/apis/open-redeem-offer-code">
+              openRedeemOfferCode API Reference
+            </Link>
+          </li>
+          <li>
             <Link to="/docs/apis/ios/present-code-redemption-sheet-ios">
               presentCodeRedemptionSheetIOS API Reference
-            </Link>
+            </Link>{' '}
+            (deprecated)
           </li>
           <li>
             <Link to="/docs/apis/android/open-redeem-offer-code-android">
               openRedeemOfferCodeAndroid API Reference
-            </Link>
+            </Link>{' '}
+            (deprecated)
           </li>
           <li>
             <Link to="/docs/events/purchase-updated-listener">
