@@ -116,6 +116,15 @@ describe('RnIap Complete Test Suite', () => {
     it('should get storefront through the unified API', async () => {
       await expect(RNIap.getStorefront()).resolves.toBe('US');
     });
+
+    it('should export openRedeemOfferCode', () => {
+      expect(RNIap.openRedeemOfferCode).toBeDefined();
+      expect(typeof RNIap.openRedeemOfferCode).toBe('function');
+    });
+
+    it('should resolve null from the unified redeem offer code API', async () => {
+      await expect(RNIap.openRedeemOfferCode()).resolves.toBeNull();
+    });
   });
 
   describe('Listener APIs', () => {

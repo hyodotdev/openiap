@@ -41,6 +41,10 @@ describe('Amazon Vega public API', () => {
     await expect(IAP.openRedeemOfferCodeAndroid()).resolves.toBe(false);
   });
 
+  it('resolves null from the unified openRedeemOfferCode API', async () => {
+    await expect(IAP.openRedeemOfferCode()).resolves.toBeNull();
+  });
+
   it("uses the canonical 'in-app' product type", async () => {
     await IAP.fetchProducts({skus: ['coins'], type: 'in-app'});
 

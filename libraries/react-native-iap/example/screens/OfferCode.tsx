@@ -9,11 +9,7 @@ import {
   ScrollView,
   ActivityIndicator,
 } from 'react-native';
-import {
-  openRedeemOfferCodeAndroid,
-  presentCodeRedemptionSheetIOS,
-  useIAP,
-} from 'react-native-iap';
+import {openRedeemOfferCode, useIAP} from 'react-native-iap';
 
 /**
  * Offer Code Redemption Example
@@ -79,34 +75,23 @@ export default function OfferCodeScreen() {
     setIsRedeeming(true);
 
     try {
-      if (isIOS) {
-        // Present native iOS redemption sheet
-        const purchase = await presentCodeRedemptionSheetIOS();
-        if (purchase) {
-          Alert.alert(
-            'Verified Redemption',
-            `Redeemed ${purchase.productId} (${purchase.id}).`,
-          );
-        } else {
-          Alert.alert(
-            'Redemption Sheet Presented',
-            'The system sheet did not return a transaction directly. Refresh available purchases after completing redemption.',
-          );
-        }
+      // Unified cross-platform redemption flow
+      const purchase = await openRedeemOfferCode();
+      if (purchase) {
+        Alert.alert(
+          'Verified Redemption',
+          `Redeemed ${purchase.productId} (${purchase.id}).`,
+        );
+      } else if (isIOS) {
+        Alert.alert(
+          'Redemption Sheet Presented',
+          'The system sheet did not return a transaction directly. Refresh available purchases after completing redemption.',
+        );
       } else {
-        // Open the Play Store redeem page for Android
-        const result = await openRedeemOfferCodeAndroid();
-        if (result) {
-          Alert.alert(
-            'Play Store Opened',
-            'Enter your code in the Play Store. After redemption, return to the app to see your purchase.',
-          );
-        } else {
-          Alert.alert(
-            'Not Supported',
-            'This Android store does not provide an offer-code redemption flow.',
-          );
-        }
+        Alert.alert(
+          'Play Store Opened',
+          'Enter your code in the Play Store. After redemption, return to the app to see your purchase.',
+        );
       }
     } catch (error) {
       console.log('Error redeeming code:', error);
@@ -189,9 +174,9 @@ export default function OfferCodeScreen() {
           <View style={styles.androidNote}>
             <Text style={styles.androidNoteTitle}>⚠️ Android Note</Text>
             <Text style={styles.androidNoteText}>
-              openRedeemOfferCodeAndroid opens the Play Store redemption page.
-              Keep the listener active and reconcile available purchases when
-              you return to the app.
+              openRedeemOfferCode opens the Play Store redemption page and
+              resolves null. Keep the listener active and reconcile available
+              purchases when you return to the app.
             </Text>
           </View>
         )}

@@ -207,6 +207,7 @@ describe('hooks/useIAP Android', () => {
     await act(async () => {});
 
     expect(api.openRedeemOfferCodeAndroid).toBe(IAP.openRedeemOfferCodeAndroid);
+    expect(api.openRedeemOfferCode).toBe(IAP.openRedeemOfferCode);
   });
 
   it('reconnect uses Android billing config', async () => {

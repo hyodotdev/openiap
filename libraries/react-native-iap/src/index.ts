@@ -2073,6 +2073,7 @@ export const consumePurchaseAndroid: MutationField<
  * ```
  *
  * @see {@link https://openiap.dev/docs/apis/android/open-redeem-offer-code-android}
+ * @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
  */
 export const openRedeemOfferCodeAndroid: MutationField<
   'openRedeemOfferCodeAndroid'
@@ -2358,6 +2359,7 @@ export const syncIOS: MutationField<'syncIOS'> = async () => {
  * @platform iOS
  *
  * @see {@link https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios}
+ * @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
  */
 export const presentCodeRedemptionSheetIOS: MutationField<
   'presentCodeRedemptionSheetIOS'
@@ -2387,6 +2389,38 @@ export const presentCodeRedemptionSheetIOS: MutationField<
       debugMessage: parsedError.debugMessage,
     });
   }
+};
+
+/**
+ * Open the store's offer/promo code redemption flow (cross-platform).
+ * iOS presents the App Store redemption sheet and resolves the verified
+ * purchase when StoreKit reports it synchronously (Xcode 27+ building for
+ * Apple 27+); older system sheets resolve null after presenting. Android
+ * launches the Play Store redeem page and resolves null. Amazon Vega has no
+ * redemption surface and resolves null without launching. Redeemed purchases
+ * arrive through the standard purchase listeners — reconcile with
+ * getAvailablePurchases when the app resumes. Throws when a redemption flow
+ * exists but cannot be presented or launched.
+ *
+ * @returns Promise<Purchase | null> - The redeemed purchase when reported synchronously, otherwise null
+ *
+ * @see {@link https://openiap.dev/docs/apis/open-redeem-offer-code}
+ */
+export const openRedeemOfferCode: MutationField<
+  'openRedeemOfferCode'
+> = async () => {
+  if (Platform.OS === 'ios') {
+    return presentCodeRedemptionSheetIOS();
+  }
+  if (isVegaOS()) {
+    return null;
+  }
+  if (Platform.OS === 'android') {
+    // false also maps to null until the SDK adopts openiap-google 3.4.0's unified handler.
+    await IAP.instance.openRedeemOfferCodeAndroid();
+    return null;
+  }
+  throw unsupportedPlatformError();
 };
 
 /**
