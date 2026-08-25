@@ -2656,7 +2656,25 @@ public protocol MutationResolver {
     /// Throws OpenIapError.NotPrepared if billing client not ready.
     /// See: https://openiap.dev/docs/apis/android/launch-external-link-android
     func launchExternalLinkAndroid(_ params: LaunchExternalLinkParamsAndroid) async throws -> Bool
-    /// Open the Google Play offer/promo code redemption flow so the user can enter a code.
+    /// Open the platform's offer/promo code redemption flow so the user can enter a code.
+    /// On Apple platforms this presents the App Store offer code redemption sheet and
+    /// resolves the verified purchase when StoreKit reports it synchronously (Xcode 27+
+    /// building for iOS 27+, Mac Catalyst 27+, or visionOS 27+); older sheet APIs
+    /// resolve null after presentation. On Google Play builds this launches the Play
+    /// Store redeem page (https://play.google.com/redeem) and resolves null; the
+    /// billing client does not need to be initialized. Meta Horizon and Amazon
+    /// Appstore have no equivalent redemption surface and resolve null without
+    /// launching anything. Apple platforms without the redemption sheet (macOS,
+    /// tvOS, watchOS) throw FeatureNotSupported. Redeemed purchases are delivered
+    /// through the standard purchase listeners; always reconcile with
+    /// getAvailablePurchases when the app resumes. Throws when a redemption flow
+    /// exists but cannot be presented or launched.
+    /// Available in OpenIAP Spec 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0.
+    /// Replaces presentCodeRedemptionSheetIOS and openRedeemOfferCodeAndroid.
+    /// See: https://openiap.dev/docs/apis/open-redeem-offer-code
+    func openRedeemOfferCode() async throws -> Purchase?
+    /// Deprecated. Open the Google Play offer/promo code redemption flow — use
+    /// openRedeemOfferCode instead.
     /// On Google Play builds, launches the Play Store redeem page
     /// (https://play.google.com/redeem). A purchase listener can receive the redeemed
     /// purchase while the app is running with an active billing connection; always
@@ -2667,8 +2685,10 @@ public protocol MutationResolver {
     /// Returns true when the redemption flow was launched, or false when the current
     /// store flavor does not provide an equivalent redemption flow.
     /// See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
+    /// @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
     func openRedeemOfferCodeAndroid() async throws -> Bool
-    /// Show the App Store offer code redemption sheet.
+    /// Deprecated. Show the App Store offer code redemption sheet — use
+    /// openRedeemOfferCode instead.
     /// When built with Xcode 27+ and running on iOS 27+, Mac Catalyst 27+, or
     /// visionOS 27+, returns the verified transaction produced by the redemption.
     /// StoreKit 2's scene-based sheet returns null after presentation on iOS 16–26,
@@ -2679,6 +2699,7 @@ public protocol MutationResolver {
     /// sheet through the normal transaction listener or an explicit
     /// available-purchases refresh.
     /// See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
+    /// @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
     func presentCodeRedemptionSheetIOS() async throws -> PurchaseIOS?
     /// Present an external purchase link, StoreKit External (iOS 16+).
     /// See: https://openiap.dev/docs/apis/ios/present-external-purchase-link-ios
@@ -2870,6 +2891,7 @@ public typealias MutationFinishTransactionHandler = (_ purchase: PurchaseInput, 
 public typealias MutationInitConnectionHandler = (_ config: InitConnectionConfig?) async throws -> Bool
 public typealias MutationIsBillingProgramAvailableAndroidHandler = (_ program: BillingProgramAndroid) async throws -> BillingProgramAvailabilityResultAndroid
 public typealias MutationLaunchExternalLinkAndroidHandler = (_ params: LaunchExternalLinkParamsAndroid) async throws -> Bool
+public typealias MutationOpenRedeemOfferCodeHandler = () async throws -> Purchase?
 public typealias MutationOpenRedeemOfferCodeAndroidHandler = () async throws -> Bool
 public typealias MutationPresentCodeRedemptionSheetIOSHandler = () async throws -> PurchaseIOS?
 public typealias MutationPresentExternalPurchaseLinkIOSHandler = (_ url: String) async throws -> ExternalPurchaseLinkResultIOS
@@ -2896,6 +2918,7 @@ public struct MutationHandlers {
     public var initConnection: MutationInitConnectionHandler?
     public var isBillingProgramAvailableAndroid: MutationIsBillingProgramAvailableAndroidHandler?
     public var launchExternalLinkAndroid: MutationLaunchExternalLinkAndroidHandler?
+    public var openRedeemOfferCode: MutationOpenRedeemOfferCodeHandler?
     public var openRedeemOfferCodeAndroid: MutationOpenRedeemOfferCodeAndroidHandler?
     public var presentCodeRedemptionSheetIOS: MutationPresentCodeRedemptionSheetIOSHandler?
     public var presentExternalPurchaseLinkIOS: MutationPresentExternalPurchaseLinkIOSHandler?
@@ -2922,6 +2945,7 @@ public struct MutationHandlers {
         initConnection: MutationInitConnectionHandler? = nil,
         isBillingProgramAvailableAndroid: MutationIsBillingProgramAvailableAndroidHandler? = nil,
         launchExternalLinkAndroid: MutationLaunchExternalLinkAndroidHandler? = nil,
+        openRedeemOfferCode: MutationOpenRedeemOfferCodeHandler? = nil,
         openRedeemOfferCodeAndroid: MutationOpenRedeemOfferCodeAndroidHandler? = nil,
         presentCodeRedemptionSheetIOS: MutationPresentCodeRedemptionSheetIOSHandler? = nil,
         presentExternalPurchaseLinkIOS: MutationPresentExternalPurchaseLinkIOSHandler? = nil,
@@ -2947,6 +2971,7 @@ public struct MutationHandlers {
         self.initConnection = initConnection
         self.isBillingProgramAvailableAndroid = isBillingProgramAvailableAndroid
         self.launchExternalLinkAndroid = launchExternalLinkAndroid
+        self.openRedeemOfferCode = openRedeemOfferCode
         self.openRedeemOfferCodeAndroid = openRedeemOfferCodeAndroid
         self.presentCodeRedemptionSheetIOS = presentCodeRedemptionSheetIOS
         self.presentExternalPurchaseLinkIOS = presentExternalPurchaseLinkIOS

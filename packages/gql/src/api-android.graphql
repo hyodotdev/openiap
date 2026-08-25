@@ -79,7 +79,8 @@ extend type Mutation {
 
   # Offer Code Redemption
   """
-  Open the Google Play offer/promo code redemption flow so the user can enter a code.
+  Deprecated. Open the Google Play offer/promo code redemption flow — use
+  openRedeemOfferCode instead.
   On Google Play builds, launches the Play Store redeem page
   (https://play.google.com/redeem). A purchase listener can receive the redeemed
   purchase while the app is running with an active billing connection; always
@@ -93,6 +94,9 @@ extend type Mutation {
   """
   # Future
   openRedeemOfferCodeAndroid: Boolean!
+    @deprecated(
+      reason: "Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0."
+    )
 
   """
   Show Google's mandatory information dialog before a developer-rendered,

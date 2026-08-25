@@ -131,7 +131,8 @@ extend type Mutation {
   # Future
   syncIOS: Boolean!
   """
-  Show the App Store offer code redemption sheet.
+  Deprecated. Show the App Store offer code redemption sheet — use
+  openRedeemOfferCode instead.
   When built with Xcode 27+ and running on iOS 27+, Mac Catalyst 27+, or
   visionOS 27+, returns the verified transaction produced by the redemption.
   StoreKit 2's scene-based sheet returns null after presentation on iOS 16–26,
@@ -145,6 +146,9 @@ extend type Mutation {
   """
   # Future
   presentCodeRedemptionSheetIOS: PurchaseIOS
+    @deprecated(
+      reason: "Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0."
+    )
   """
   Present the external purchase notice sheet (iOS 17.4+).
   Uses ExternalPurchase.presentNoticeSheet() which returns a token when the user continues.

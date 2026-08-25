@@ -921,6 +921,7 @@ export class CSharpPlugin extends CodegenPlugin {
 
     sortedFields.forEach((field, index) => {
       this.emitDoc(this.operationFieldDescription(field), '    ');
+      this.emitDeprecation(this.operationFieldDescription(field), '    ');
       const returnType = this.getOperationReturnType(field);
       const args = field.args.map((arg) => {
         const argType = this.propertyType(arg.type);

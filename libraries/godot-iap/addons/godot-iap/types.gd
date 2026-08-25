@@ -6446,6 +6446,15 @@ class Mutation:
 		const return_type = "VoidResult"
 		const is_array = false
 
+	## Open the platform's offer/promo code redemption flow so the user can enter a code. On Apple platforms this presents the App Store offer code redemption sheet and resolves the verified purchase when StoreKit reports it synchronously (Xcode 27+ building for iOS 27+, Mac Catalyst 27+, or visionOS 27+); older sheet APIs resolve null after presentation. On Google Play builds this launches the Play Store redeem page (https://play.google.com/redeem) and resolves null; the billing client does not need to be initialized. Meta Horizon and Amazon Appstore have no equivalent redemption surface and resolve null without launching anything. Apple platforms without the redemption sheet (macOS, tvOS, watchOS) throw FeatureNotSupported. Redeemed purchases are delivered through the standard purchase listeners; always reconcile with getAvailablePurchases when the app resumes. Throws when a redemption flow exists but cannot be presented or launched. Available in OpenIAP Spec 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0. Replaces presentCodeRedemptionSheetIOS and openRedeemOfferCodeAndroid. See: https://openiap.dev/docs/apis/open-redeem-offer-code
+	class openRedeemOfferCodeField:
+		const name = "openRedeemOfferCode"
+		const snake_name = "open_redeem_offer_code"
+		class Args:
+			pass
+		const return_type = "Purchase"
+		const is_array = false
+
 	## Verify a purchase against your own backend. Every VerifyPurchaseResult variant exposes isValid, so entitlement can be gated without inspecting the concrete type. Variants add their own metadata on top: IOS carries receipt/JWS fields, Android carries Play Store receipt fields, and Horizon carries grantTime. See: https://openiap.dev/docs/features/validation#verify-purchase
 	class verifyPurchaseField:
 		const name = "verifyPurchase"
@@ -6533,7 +6542,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Show the App Store offer code redemption sheet. When built with Xcode 27+ and running on iOS 27+, Mac Catalyst 27+, or visionOS 27+, returns the verified transaction produced by the redemption. StoreKit 2's scene-based sheet returns null after presentation on iOS 16–26, visionOS 1–26, and those platforms on Apple 27 when built with an older SDK. iOS 15 uses the StoreKit 1 sheet and also returns null. On Mac Catalyst, the scene-based API throws StoreKitError.unknown, while the Catalyst 15 StoreKit 1 call has no effect and returns null. Reconcile null results from a presented sheet through the normal transaction listener or an explicit available-purchases refresh. See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
+	## Deprecated. Show the App Store offer code redemption sheet — use openRedeemOfferCode instead. When built with Xcode 27+ and running on iOS 27+, Mac Catalyst 27+, or visionOS 27+, returns the verified transaction produced by the redemption. StoreKit 2's scene-based sheet returns null after presentation on iOS 16–26, visionOS 1–26, and those platforms on Apple 27 when built with an older SDK. iOS 15 uses the StoreKit 1 sheet and also returns null. On Mac Catalyst, the scene-based API throws StoreKitError.unknown, while the Catalyst 15 StoreKit 1 call has no effect and returns null. Reconcile null results from a presented sheet through the normal transaction listener or an explicit available-purchases refresh. See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
 	class presentCodeRedemptionSheetIOSField:
 		const name = "presentCodeRedemptionSheetIOS"
 		const snake_name = "present_code_redemption_sheet_ios"
@@ -6737,7 +6746,7 @@ class Mutation:
 		const return_type = "Boolean"
 		const is_array = false
 
-	## Open the Google Play offer/promo code redemption flow so the user can enter a code. On Google Play builds, launches the Play Store redeem page (https://play.google.com/redeem). A purchase listener can receive the redeemed purchase while the app is running with an active billing connection; always reconcile with getAvailablePurchases when the app resumes. Does not require the billing client to be initialized (no Play Billing version requirement). Available in OpenIAP Spec 2.4.2 / openiap-google 2.5.0. Android counterpart of presentCodeRedemptionSheetIOS. Returns true when the redemption flow was launched, or false when the current store flavor does not provide an equivalent redemption flow. See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
+	## Deprecated. Open the Google Play offer/promo code redemption flow — use openRedeemOfferCode instead. On Google Play builds, launches the Play Store redeem page (https://play.google.com/redeem). A purchase listener can receive the redeemed purchase while the app is running with an active billing connection; always reconcile with getAvailablePurchases when the app resumes. Does not require the billing client to be initialized (no Play Billing version requirement). Available in OpenIAP Spec 2.4.2 / openiap-google 2.5.0. Android counterpart of presentCodeRedemptionSheetIOS. Returns true when the redemption flow was launched, or false when the current store flavor does not provide an equivalent redemption flow. See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
 	class openRedeemOfferCodeAndroidField:
 		const name = "openRedeemOfferCodeAndroid"
 		const snake_name = "open_redeem_offer_code_android"
@@ -6968,6 +6977,10 @@ static func deep_link_to_subscriptions_args(options: Variant = null) -> Dictiona
 			args["options"] = options
 	return args
 
+## Open the platform's offer/promo code redemption flow so the user can enter a code. On Apple platforms this presents the App Store offer code redemption sheet and resolves the verified purchase when StoreKit reports it synchronously (Xcode 27+ building for iOS 27+, Mac Catalyst 27+, or visionOS 27+); older sheet APIs resolve null after presentation. On Google Play builds this launches the Play Store redeem page (https://play.google.com/redeem) and resolves null; the billing client does not need to be initialized. Meta Horizon and Amazon Appstore have no equivalent redemption surface and resolve null without launching anything. Apple platforms without the redemption sheet (macOS, tvOS, watchOS) throw FeatureNotSupported. Redeemed purchases are delivered through the standard purchase listeners; always reconcile with getAvailablePurchases when the app resumes. Throws when a redemption flow exists but cannot be presented or launched. Available in OpenIAP Spec 3.3.0 / openiap-apple 3.3.0 / openiap-google 3.4.0. Replaces presentCodeRedemptionSheetIOS and openRedeemOfferCodeAndroid. See: https://openiap.dev/docs/apis/open-redeem-offer-code
+static func open_redeem_offer_code_args() -> Dictionary:
+	return {}
+
 ## Verify a purchase against your own backend. Every VerifyPurchaseResult variant exposes isValid, so entitlement can be gated without inspecting the concrete type. Variants add their own metadata on top: IOS carries receipt/JWS fields, Android carries Play Store receipt fields, and Horizon carries grantTime. See: https://openiap.dev/docs/features/validation#verify-purchase
 static func verify_purchase_args(options: VerifyPurchaseProps) -> Dictionary:
 	var args = {}
@@ -7006,7 +7019,7 @@ static func begin_refund_request_ios_args(sku: String) -> Dictionary:
 static func sync_ios_args() -> Dictionary:
 	return {}
 
-## Show the App Store offer code redemption sheet. When built with Xcode 27+ and running on iOS 27+, Mac Catalyst 27+, or visionOS 27+, returns the verified transaction produced by the redemption. StoreKit 2's scene-based sheet returns null after presentation on iOS 16–26, visionOS 1–26, and those platforms on Apple 27 when built with an older SDK. iOS 15 uses the StoreKit 1 sheet and also returns null. On Mac Catalyst, the scene-based API throws StoreKitError.unknown, while the Catalyst 15 StoreKit 1 call has no effect and returns null. Reconcile null results from a presented sheet through the normal transaction listener or an explicit available-purchases refresh. See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios
+## Deprecated. Show the App Store offer code redemption sheet — use openRedeemOfferCode instead. When built with Xcode 27+ and running on iOS 27+, Mac Catalyst 27+, or visionOS 27+, returns the verified transaction produced by the redemption. StoreKit 2's scene-based sheet returns null after presentation on iOS 16–26, visionOS 1–26, and those platforms on Apple 27 when built with an older SDK. iOS 15 uses the StoreKit 1 sheet and also returns null. On Mac Catalyst, the scene-based API throws StoreKitError.unknown, while the Catalyst 15 StoreKit 1 call has no effect and returns null. Reconcile null results from a presented sheet through the normal transaction listener or an explicit available-purchases refresh. See: https://openiap.dev/docs/apis/ios/present-code-redemption-sheet-ios @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
 static func present_code_redemption_sheet_ios_args() -> Dictionary:
 	return {}
 
@@ -7074,7 +7087,7 @@ static func launch_external_link_android_args(params: LaunchExternalLinkParamsAn
 			args["params"] = params
 	return args
 
-## Open the Google Play offer/promo code redemption flow so the user can enter a code. On Google Play builds, launches the Play Store redeem page (https://play.google.com/redeem). A purchase listener can receive the redeemed purchase while the app is running with an active billing connection; always reconcile with getAvailablePurchases when the app resumes. Does not require the billing client to be initialized (no Play Billing version requirement). Available in OpenIAP Spec 2.4.2 / openiap-google 2.5.0. Android counterpart of presentCodeRedemptionSheetIOS. Returns true when the redemption flow was launched, or false when the current store flavor does not provide an equivalent redemption flow. See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android
+## Deprecated. Open the Google Play offer/promo code redemption flow — use openRedeemOfferCode instead. On Google Play builds, launches the Play Store redeem page (https://play.google.com/redeem). A purchase listener can receive the redeemed purchase while the app is running with an active billing connection; always reconcile with getAvailablePurchases when the app resumes. Does not require the billing client to be initialized (no Play Billing version requirement). Available in OpenIAP Spec 2.4.2 / openiap-google 2.5.0. Android counterpart of presentCodeRedemptionSheetIOS. Returns true when the redemption flow was launched, or false when the current store flavor does not provide an equivalent redemption flow. See: https://openiap.dev/docs/apis/android/open-redeem-offer-code-android @deprecated Use openRedeemOfferCode. Scheduled for removal in OpenIAP 4.0.
 static func open_redeem_offer_code_android_args() -> Dictionary:
 	return {}
 
