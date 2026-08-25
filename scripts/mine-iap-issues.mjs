@@ -80,11 +80,16 @@ export const CATEGORY_RULES = Object.freeze([
   },
 ]);
 
+/** @param {Array<{name?: string}|string>|undefined} labels */
+export function normalizeLabels(labels) {
+  return (labels ?? [])
+    .map((label) => (typeof label === "string" ? label : (label?.name ?? "")))
+    .filter(Boolean);
+}
+
 /** @param {{title?: string, body?: string, labels?: Array<{name?: string}|string>}} issue */
 export function candidateCategories(issue) {
-  const labelText = (issue.labels ?? [])
-    .map((label) => (typeof label === "string" ? label : (label?.name ?? "")))
-    .join(" ");
+  const labelText = normalizeLabels(issue.labels).join(" ");
   const haystack = `${issue.title ?? ""} ${labelText} ${issue.body ?? ""}`;
   const matched = CATEGORY_RULES.filter((rule) =>
     rule.pattern.test(haystack),
@@ -99,9 +104,7 @@ export function toRecord(library, issue) {
     number: issue.number,
     title: issue.title ?? "",
     state: issue.state,
-    labels: (issue.labels ?? [])
-      .map((label) => (typeof label === "string" ? label : (label?.name ?? "")))
-      .filter(Boolean),
+    labels: normalizeLabels(issue.labels),
     createdAt: issue.created_at,
     closedAt: issue.closed_at ?? null,
     comments: issue.comments ?? 0,
@@ -140,13 +143,21 @@ function fetchIssues(repo, limit) {
 function parseArgs(argv) {
   const args = { out: undefined, limit: undefined, repo: undefined };
   for (let i = 0; i < argv.length; i += 1) {
-    if (argv[i] === "--out") args.out = argv[++i];
+    const requireValue = (flag) => {
+      const value = argv[i + 1];
+      if (value === undefined || value.startsWith("--")) {
+        throw new Error(`${flag} requires a value`);
+      }
+      i += 1;
+      return value;
+    };
+    if (argv[i] === "--out") args.out = requireValue("--out");
     else if (argv[i] === "--limit") {
-      args.limit = Number(argv[++i]);
+      args.limit = Number(requireValue("--limit"));
       if (!Number.isInteger(args.limit) || args.limit <= 0) {
         throw new Error("--limit must be a positive integer");
       }
-    } else if (argv[i] === "--repo") args.repo = argv[++i];
+    } else if (argv[i] === "--repo") args.repo = requireValue("--repo");
     else throw new Error(`unknown argument: ${argv[i]}`);
   }
   return args;

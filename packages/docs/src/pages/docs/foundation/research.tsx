@@ -166,7 +166,7 @@ const STUDY_GROUPS: StudyGroup[] = [
         name: 'MUBench — Amann et al. MSR 2016',
         href: 'https://dl.acm.org/doi/10.1145/2901739.2903506',
         finding:
-          'API misuse causes only ~9% of real-world bugs but almost always produces crashes, data loss, or security issues.',
+          'API misuse is a rare but disproportionately severe bug class — misuses almost always cause crashes, data loss, or security issues.',
         applied: (
           <>
             The{' '}

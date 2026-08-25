@@ -140,9 +140,11 @@ Sven Amann, Sarah Nadi, Hoan A. Nguyen, Tien N. Nguyen, Mira Mezini. _MUBench:
 A Benchmark for API-Misuse Detectors._ MSR 2016.
 <https://dl.acm.org/doi/10.1145/2901739.2903506>
 
-- Finding: API misuse causes ~9.1% of real-world bugs but almost always
-  produces crashes, data loss, or security issues; misuses can be catalogued
-  as a benchmark.
+- Finding: API misuse is a rare but disproportionately severe bug class —
+  misuses almost always cause crashes, data loss, or security issues — and
+  can be catalogued as a benchmark. (Rate estimates vary by dataset; the
+  often-quoted 9.1% figure is from Amann's 2018 dissertation, not this
+  paper.)
 - OpenIAP relevance: method template for an IAP misuse catalog (unfinished
   transactions, unhandled pending purchases, missing restore) feeding lint
   rules and conformance behaviors.

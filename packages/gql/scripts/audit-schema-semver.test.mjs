@@ -100,6 +100,24 @@ test('report lists each change with its class', () => {
   assert.match(report, /dangerous VALUE_ADDED_TO_ENUM/);
 });
 
+test('swapping a root operation type is breaking even when both types remain', () => {
+  const base = `schema { query: Query }
+type Query { ping: String }
+type NewQuery { ping: String }
+`;
+  const head = `schema { query: NewQuery }
+type Query { ping: String }
+type NewQuery { ping: String }
+`;
+  const result = classifySchemaChange(base, head);
+  assert.equal(result.breaking.length, 1);
+  assert.equal(result.breaking[0].type, 'ROOT_TYPE_CHANGED');
+  assert.match(
+    result.breaking[0].description,
+    /query root changed from Query to NewQuery/,
+  );
+});
+
 test('parses the schema inventory from a schema-files.mjs source snapshot', () => {
   const source = `export const SCHEMA_FILE_NAMES = Object.freeze([
   'schema.graphql',

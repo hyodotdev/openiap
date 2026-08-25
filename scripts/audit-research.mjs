@@ -18,14 +18,8 @@ const BIBLIOGRAPHY = "knowledge/research/bibliography.md";
 const BACKLOG = "knowledge/research/backlog.md";
 const MISUSE_CATALOG = "knowledge/research/misuse-catalog.md";
 const RESEARCH_PAGE = "packages/docs/src/pages/docs/foundation/research.tsx";
-// Docs pages carrying inline study citations; their scholarly links must stay
-// registered in the bibliography.
-const CITATION_PAGES = [
-  RESEARCH_PAGE,
-  "packages/docs/src/pages/docs/features/validation.tsx",
-  "packages/docs/src/pages/docs/security/overview.tsx",
-];
 const DOCS_PAGES_ROOT = "packages/docs/src/pages/docs";
+const DOCS_SRC_ROOT = "packages/docs/src";
 
 const PATH_PREFIXES = [
   "packages/",
@@ -138,6 +132,23 @@ function isGitIgnored(relativePath) {
   }
 }
 
+/** Every docs source page — scholarly links anywhere must stay registered. */
+function docsSourceFiles() {
+  const root = path.join(repositoryRoot, DOCS_SRC_ROOT);
+  const collected = [];
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (/\.(tsx|ts)$/.test(entry.name)) {
+        collected.push(path.relative(repositoryRoot, full));
+      }
+    }
+  };
+  walk(root);
+  return collected;
+}
+
 function filesCitingBibliography() {
   const stdout = execFileSync(
     "git",
@@ -239,9 +250,11 @@ export async function auditResearchReferences() {
     }
   }
 
-  // 5. Scholarly links on citation pages must be registered, byte-exact.
+  // 5. Scholarly links anywhere in the docs source must be registered,
+  // byte-exact. Host coverage grows with the registry itself: registering a
+  // source adds its publisher's host to the net for every page.
   let scholarlyHrefCount = 0;
-  for (const file of CITATION_PAGES) {
+  for (const file of docsSourceFiles()) {
     for (const href of extractHrefs(read(file))) {
       if (!scholarlyHosts.has(hostOf(href))) continue;
       scholarlyHrefCount += 1;
@@ -252,7 +265,7 @@ export async function auditResearchReferences() {
   }
   if (scholarlyHrefCount === 0) {
     errors.push(
-      "no scholarly citations found on any citation page — the href parser is likely broken",
+      "no scholarly citations found in the docs source — the href parser is likely broken",
     );
   }
 

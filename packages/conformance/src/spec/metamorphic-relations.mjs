@@ -48,7 +48,7 @@ export const METAMORPHIC_RELATIONS = Object.freeze([
     id: 'mr.verify-agrees-with-delivery',
     statement:
       'A token delivered by the store verifies isValid true and a token the store never issued verifies isValid false; verification agrees with delivery rather than with any predicted receipt payload.',
-    executions: ['requestPurchase', 'verifyPurchase'],
+    executions: ['requestPurchase', 'verifyPurchase', 'verifyPurchase'],
     verifiedBy: [
       'verification.result-exposes-uniform-validity',
       'verification.forged-token-is-invalid',

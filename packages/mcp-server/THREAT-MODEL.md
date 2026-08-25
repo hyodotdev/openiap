@@ -18,12 +18,12 @@ Last reviewed: 2026-08-25.
 
 ## Deployment
 
-| Threat                         | Status                                                                                                                                                             |
-| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Credential theft via weak auth | **Covered.** MCP administration accepts only typed secret keys (`openiap-kit_sk_...`, `src/auth.ts`); publishable and legacy keys are rejected with a scope error. |
-| Session exhaustion / DoS       | **Covered.** `BoundedSessionStore` caps sessions at 256 with a 15-minute idle TTL and a retry-after on capacity (`src/session-store.ts`).                          |
-| SSRF via configurable upstream | **Covered.** `normalizeKitBaseUrl` restricts the kit base URL to http/https URLs (`src/kit-client.ts`).                                                            |
-| Supply-chain integrity         | **Covered elsewhere.** Release SBOM + provenance pipeline (docs `security/overview`).                                                                              |
+| Threat                                             | Status                                                                                                                                                                                                                                                                                                                                                                                                                                                                                   |
+| -------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Credential theft via weak auth                     | **Covered.** MCP administration accepts only typed secret keys (`openiap-kit_sk_...`, `src/auth.ts`); publishable and legacy keys are rejected with a scope error.                                                                                                                                                                                                                                                                                                                       |
+| Session exhaustion / DoS                           | **Covered.** `BoundedSessionStore` caps sessions at 256 with a 15-minute idle TTL and a retry-after on capacity (`src/session-store.ts`).                                                                                                                                                                                                                                                                                                                                                |
+| Upstream redirection via caller-supplied `baseUrl` | **Gap (accepted, tracked).** `baseUrl` is a per-tool argument so self-hosted kit deployments work, and `normalizeKitBaseUrl` only restricts the scheme — a prompt-injected tool call could point kit traffic, including the caller's own `Authorization` key, at an arbitrary host. The key at risk is the caller's own, so this is exfiltration of self-supplied credentials, not privilege escalation. Candidate hardening: operator-only override with the per-call argument removed. |
+| Supply-chain integrity                             | **Covered elsewhere.** Release SBOM + provenance pipeline (docs `security/overview`).                                                                                                                                                                                                                                                                                                                                                                                                    |
 
 ## Operation
 
@@ -45,4 +45,7 @@ Last reviewed: 2026-08-25.
 
 1. Untrusted-content delimiting for store-derived strings in tool results
    (Operation gap above) — design note before implementation.
-2. Periodic re-review trigger: wire a checklist line into `/audit-iapkit`.
+2. Restrict `baseUrl` to an operator-configured allowlist instead of a
+   per-call argument (Deployment gap above) — needs a product decision on
+   how self-hosted kit deployments configure the endpoint.
+3. Periodic re-review trigger: wire a checklist line into `/audit-iapkit`.

@@ -38,13 +38,35 @@ function buildSchemaOrExplain(sdl, label) {
   }
 }
 
+/** findBreakingChanges walks types, not schema root bindings — compare them. */
+function rootTypeChanges(baseSchema, headSchema) {
+  const roots = [
+    ['query', baseSchema.getQueryType(), headSchema.getQueryType()],
+    ['mutation', baseSchema.getMutationType(), headSchema.getMutationType()],
+    [
+      'subscription',
+      baseSchema.getSubscriptionType(),
+      headSchema.getSubscriptionType(),
+    ],
+  ];
+  return roots
+    .filter(([, base, head]) => (base?.name ?? null) !== (head?.name ?? null))
+    .map(([operation, base, head]) => ({
+      type: 'ROOT_TYPE_CHANGED',
+      description: `${operation} root changed from ${base?.name ?? 'none'} to ${head?.name ?? 'none'}.`,
+    }));
+}
+
 export function classifySchemaChange(baseSdl, headSdl) {
   const baseSchema = buildSchemaOrExplain(baseSdl, 'base');
   const headSchema = buildSchemaOrExplain(headSdl, 'head');
   const baseTypes = new Set(Object.keys(baseSchema.getTypeMap()));
 
   return {
-    breaking: findBreakingChanges(baseSchema, headSchema),
+    breaking: [
+      ...rootTypeChanges(baseSchema, headSchema),
+      ...findBreakingChanges(baseSchema, headSchema),
+    ],
     dangerous: findDangerousChanges(baseSchema, headSchema),
     addedTypes: Object.keys(headSchema.getTypeMap())
       .filter((name) => !name.startsWith('__') && !baseTypes.has(name))
