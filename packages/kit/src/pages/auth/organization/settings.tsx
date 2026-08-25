@@ -6,6 +6,8 @@ import type { Id } from "@/convex";
 import { toast } from "sonner";
 import { CustomDropdown } from "../../../components/CustomDropdown";
 import { ButtonPrimary } from "@/components/ButtonPrimary";
+import { ErrorCode } from "../../../../convex/utils/errors";
+import { appErrorCode } from "@/lib/appError";
 import {
   Building2,
   Users,
@@ -104,20 +106,21 @@ export default function OrganizationSettings() {
       toast.success("Member invited successfully");
       setInviteEmail("");
       setInviteRole("member");
-    } catch (error: any) {
-      // Handle specific error codes with i18n - only show one toast
-      if (error?.message) {
-        if (error.message.includes("USER_NOT_REGISTERED")) {
+    } catch (error: unknown) {
+      switch (appErrorCode(error)) {
+        case ErrorCode.USER_NOT_REGISTERED:
           toast.error(
-            "This user is not registered on IAPKit. Please ask them to sign up first.",
+            "No IAPKit account for that email. Ask them to sign up at kit.openiap.dev, then invite them again.",
           );
-        } else if (error.message.includes("USER_ALREADY_MEMBER")) {
+          break;
+        case ErrorCode.USER_ALREADY_MEMBER:
           toast.error("This user is already a member of this organization.");
-        } else if (error.message.includes("INSUFFICIENT_PERMISSIONS")) {
+          break;
+        case ErrorCode.INSUFFICIENT_PERMISSIONS:
           toast.error("You don't have permission to perform this action.");
-        } else {
+          break;
+        default:
           toast.error("Failed to invite member");
-        }
       }
     } finally {
       setIsInviting(false);
@@ -141,20 +144,16 @@ export default function OrganizationSettings() {
         userId,
       });
       toast.success("Member removed successfully");
-    } catch (error: any) {
-      // Handle specific error codes with i18n
-      if (
-        error?.message &&
-        error.message.includes("INSUFFICIENT_PERMISSIONS")
-      ) {
-        toast.error("You don't have permission to perform this action.");
-      } else if (
-        error?.message &&
-        error.message.includes("CANNOT_REMOVE_OWNER")
-      ) {
-        toast.error("Cannot remove the last owner of the organization.");
-      } else {
-        toast.error("Failed to remove member");
+    } catch (error: unknown) {
+      switch (appErrorCode(error)) {
+        case ErrorCode.INSUFFICIENT_PERMISSIONS:
+          toast.error("You don't have permission to perform this action.");
+          break;
+        case ErrorCode.CANNOT_REMOVE_OWNER:
+          toast.error("Cannot remove the last owner of the organization.");
+          break;
+        default:
+          toast.error("Failed to remove member");
       }
     }
   };
@@ -349,7 +348,12 @@ export default function OrganizationSettings() {
             }}
             className="mb-6 p-4 bg-muted rounded border border-border"
           >
-            <h3 className="font-medium mb-3">{"Invite New Member"}</h3>
+            <h3 className="font-medium mb-1">{"Invite New Member"}</h3>
+            <p className="text-sm text-muted-foreground mb-3">
+              {
+                "The person needs an IAPKit account first. Ask them to sign up at kit.openiap.dev, then invite them with that email."
+              }
+            </p>
             <div className="flex gap-3">
               <input
                 type="email"

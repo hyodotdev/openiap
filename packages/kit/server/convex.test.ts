@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { ConvexError } from "convex/values";
+import { ErrorCode, createError } from "../convex/utils/errors";
 
 process.env.VITE_KIT_CONVEX_URL ??= "https://placeholder.convex.cloud";
 
@@ -84,5 +85,17 @@ describe("handleConvexError", () => {
     expect(handleConvexError(new ConvexError("internal backend detail"))).toBe(
       null,
     );
+  });
+
+  // Every Convex function /v1 calls can throw AppError; none may reach the body.
+  it("does not expose dashboard-scoped AppError payloads", () => {
+    expect(handleConvexError(createError(ErrorCode.PROJECT_NOT_FOUND))).toBe(
+      null,
+    );
+    expect(
+      handleConvexError(
+        createError(ErrorCode.INVALID_INPUT, "Sync job not found"),
+      ),
+    ).toBe(null);
   });
 });
