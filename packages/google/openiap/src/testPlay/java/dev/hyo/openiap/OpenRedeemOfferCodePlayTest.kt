@@ -6,6 +6,7 @@ import androidx.test.core.app.ApplicationProvider
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -73,6 +74,38 @@ class OpenRedeemOfferCodePlayTest {
 
         assertTrue(
             "handler must throw MissingCurrentActivity when no activity is attached, got: $thrown",
+            thrown is OpenIapError.MissingCurrentActivity
+        )
+    }
+
+    @Test
+    fun `unified openRedeemOfferCode handler launches the redeem page and resolves null`() {
+        val activity = Robolectric.buildActivity(Activity::class.java).create().get()
+        val module = OpenIapModule(ApplicationProvider.getApplicationContext<android.content.Context>())
+        module.setActivity(activity)
+
+        val handler = module.mutationHandlers.openRedeemOfferCode
+        assertNotNull("Play flavor must wire openRedeemOfferCode for bundle parity", handler)
+
+        val purchase = runBlocking { handler!!.invoke() }
+
+        assertNull("Play redemption resolves null; purchases arrive via listeners", purchase)
+        assertNotNull(
+            "unified handler must launch the redeem intent from the current activity",
+            shadowOf(activity).nextStartedActivity
+        )
+    }
+
+    @Test
+    fun `unified openRedeemOfferCode handler requires a current activity`() {
+        val module = OpenIapModule(ApplicationProvider.getApplicationContext<android.content.Context>())
+
+        val thrown = runCatching {
+            runBlocking { module.mutationHandlers.openRedeemOfferCode!!.invoke() }
+        }.exceptionOrNull()
+
+        assertTrue(
+            "unified handler must throw MissingCurrentActivity when no activity is attached, got: $thrown",
             thrown is OpenIapError.MissingCurrentActivity
         )
     }

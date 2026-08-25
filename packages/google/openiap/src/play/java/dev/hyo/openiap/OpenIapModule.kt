@@ -2248,6 +2248,14 @@ class OpenIapModule(
                 ?: throw OpenIapError.MissingCurrentActivity
             launchExternalLink(activity, params)
         },
+        openRedeemOfferCode = {
+            val activity = currentActivityRef?.get() ?: fallbackActivity
+                ?: throw OpenIapError.MissingCurrentActivity
+            if (!openRedeemOfferCode(activity)) {
+                throw OpenIapError.UnknownError("Failed to launch the offer code redemption flow")
+            }
+            null
+        },
         openRedeemOfferCodeAndroid = {
             val activity = currentActivityRef?.get() ?: fallbackActivity
                 ?: throw OpenIapError.MissingCurrentActivity

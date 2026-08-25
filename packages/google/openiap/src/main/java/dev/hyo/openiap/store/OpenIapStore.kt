@@ -563,7 +563,7 @@ class OpenIapStore(private val module: OpenIapProtocol) {
      * app has an active billing connection; reconcile available purchases when the app
      * resumes. Does not require the billing client to be initialized.
      *
-     * @see <a href="https://openiap.dev/docs/apis/android/open-redeem-offer-code-android">https://openiap.dev/docs/apis/android/open-redeem-offer-code-android</a>
+     * @see <a href="https://openiap.dev/docs/apis/open-redeem-offer-code">https://openiap.dev/docs/apis/open-redeem-offer-code</a>
      */
     suspend fun openRedeemOfferCode(activity: Activity): Boolean =
         module.openRedeemOfferCode(activity)
