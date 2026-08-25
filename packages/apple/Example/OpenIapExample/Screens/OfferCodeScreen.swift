@@ -128,7 +128,7 @@ struct OfferCodeScreen: View {
     
     private func presentOfferCodeRedemption() async {
         do {
-            let purchase = try await iapStore.presentCodeRedemptionSheetResultIOS()
+            let purchase = try await iapStore.openRedeemOfferCode()
             if let purchase {
                 print("✅ [OfferCode] Verified redemption: \(purchase.productId) (\(purchase.id))")
             } else {

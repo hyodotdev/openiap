@@ -81,6 +81,7 @@ public protocol OpenIapModuleProtocol {
 
     // Misc
     func syncIOS() async throws -> Bool
+    func openRedeemOfferCode() async throws -> PurchaseIOS?
     func presentCodeRedemptionSheetIOS() async throws -> PurchaseIOS?
     func showManageSubscriptionsIOS() async throws -> [PurchaseIOS]
     func deepLinkToSubscriptions(_ options: DeepLinkOptions?) async throws -> Void
